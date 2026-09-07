@@ -1,15 +1,5 @@
 <div class="inline-flex items-center gap-1.5">
   <button
-    type="button"
-    data-view-reset
-    [disabled]="!viewModified()"
-    (click)="viewResetRequested.emit()"
-    class="disabled:cursor-default disabled:opacity-50 inline-flex min-h-8 cursor-pointer items-center rounded-md px-2 text-[12px] font-medium text-fb-text-secondary transition-colors hover:bg-fb-surface-hover hover:text-fb-text-primary focus-visible:outline-2 focus-visible:outline-fb-primary"
-  >
-    Ansicht zurücksetzen
-  </button>
-
-  <button
     #triggerBtn
     type="button"
     (click)="toggleOpen()"
@@ -18,10 +8,23 @@
     aria-haspopup="dialog"
     aria-label="Spalten und Sortierung anpassen"
     title="Spalten und Sortierung anpassen"
-    class="inline-flex min-h-8 min-w-8 cursor-pointer items-center justify-center rounded-md border border-fb-border bg-fb-surface px-1.5 text-fb-text-secondary shadow-xs transition-colors duration-150 hover:border-fb-border-hover hover:bg-fb-surface-hover hover:text-fb-text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
+    class="inline-flex min-h-8 min-w-8 cursor-pointer items-center justify-center rounded-md bg-transparent px-1.5 text-fb-text-secondary transition-colors duration-150 hover:bg-fb-surface-hover hover:text-fb-text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
   >
     <svg [lucideIcon]="icons.columns" class="h-4 w-4" aria-hidden="true"></svg>
   </button>
+
+  @if (viewModified()) {
+    <button
+      type="button"
+      data-view-reset
+      aria-label="Ansicht zurücksetzen"
+      title="Ansicht zurücksetzen"
+      (click)="resetView()"
+      class="inline-flex min-h-8 min-w-8 cursor-pointer items-center justify-center rounded-md bg-transparent px-1.5 text-fb-text-secondary transition-colors duration-150 hover:bg-fb-surface-hover hover:text-fb-text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
+    >
+      <svg [lucideIcon]="icons.reset" class="h-4 w-4" aria-hidden="true"></svg>
+    </button>
+  }
 </div>
 
 @if (isOpen()) {
@@ -67,15 +70,8 @@
       </button>
     </div>
 
-    <div class="flex items-center justify-between border-b border-fb-line px-3 py-2.5">
+    <div class="border-b border-fb-line px-3 py-2.5">
       <h2 [id]="headingId" class="text-[13px] font-medium text-fb-text-primary">Spalten</h2>
-      <button
-        type="button"
-        (click)="resetRequested.emit(); close()"
-        class="cursor-pointer rounded px-1.5 py-1 text-[12px] font-medium text-fb-text-secondary transition-colors hover:bg-fb-surface-hover hover:text-fb-text-primary focus-visible:outline-2 focus-visible:outline-fb-primary"
-      >
-        Standard
-      </button>
     </div>
 
     <ul class="m-0 list-none px-1.5 py-1.5" role="list" aria-label="Sichtbare Spalten">

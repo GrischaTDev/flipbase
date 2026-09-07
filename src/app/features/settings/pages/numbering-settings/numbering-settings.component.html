@@ -73,19 +73,12 @@
             class="linear-input mt-1 min-h-9 w-full rounded-lg px-3 text-sm"
           />
         </label>
-        <label class="text-sm text-fb-text-primary"
-          >Trennzeichen
-          <select
-            formControlName="separator"
-            class="linear-input mt-1 min-h-9 w-full rounded-lg px-3 text-sm"
-          >
-            <option value=" ">Leerzeichen</option>
-            <option value="-">Bindestrich</option>
-            <option value="/">Schrägstrich</option>
-            <option value=".">Punkt</option>
-            <option value="">Keines</option>
-          </select>
-        </label>
+        <span class="text-sm text-fb-text-primary">Trennzeichen</span>
+        <app-custom-select
+          formControlName="separator"
+          ariaLabel="Trennzeichen"
+          [options]="separatorOptions"
+        />
         <label class="text-sm text-fb-text-primary"
           >Mindestanzahl Ziffern
           <input

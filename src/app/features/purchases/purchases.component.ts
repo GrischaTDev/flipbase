@@ -14,8 +14,6 @@ import {
   LucideDynamicIcon,
   LucideShoppingBag as ShoppingBag,
   LucidePlus as Plus,
-  LucideArrowRight as ArrowRight,
-  LucideSearch as Search,
 } from '@lucide/angular';
 import { PurchaseService } from '../../core/services/purchase.service';
 import { LegacyPurchaseRecoveryService } from './services/legacy-purchase-recovery.service';
@@ -39,6 +37,12 @@ import { TableSortHeaderComponent } from '../../shared/components/table-sort-hea
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
+import { CustomSearchInputComponent } from '../../shared/components/custom-search-input/custom-search-input.component';
+import {
+  CustomSelectComponent,
+  SelectOption,
+} from '../../shared/components/custom-select/custom-select.component';
+import { TableToolbarComponent } from '../../shared/components/table-toolbar/table-toolbar.component';
 
 @Component({
   selector: 'app-purchases',
@@ -53,6 +57,9 @@ import { ButtonComponent } from '../../shared/components/button/button.component
     ButtonComponent,
     TableColumnMenuComponent,
     TableSortHeaderComponent,
+    TableToolbarComponent,
+    CustomSearchInputComponent,
+    CustomSelectComponent,
   ],
   templateUrl: './purchases.component.html',
   host: { class: 'block' },
@@ -71,11 +78,9 @@ export class PurchasesComponent {
 
   readonly bagIcon = ShoppingBag;
   readonly plusIcon = Plus;
-  readonly arrowRightIcon = ArrowRight;
-  readonly searchIcon = Search;
   readonly activeStatus = signal('all');
   readonly sellerId = signal('');
-  readonly statusOptions = [
+  readonly statusOptions: readonly SelectOption<string>[] = [
     { value: 'all', label: 'Alle' },
     { value: 'draft', label: 'Entwurf' },
     { value: 'ordered', label: 'Bestellt' },
@@ -94,6 +99,13 @@ export class PurchasesComponent {
       .map(([id, name]) => ({ id, name }))
       .sort((a, b) => a.name.localeCompare(b.name, 'de'));
   });
+  readonly sellerSelectOptions = computed<readonly SelectOption<string>[]>(() => [
+    { value: '', label: 'Verkäufer ist …' },
+    ...this.sellerOptions().map((seller) => ({
+      value: seller.id,
+      label: `${seller.name} · ${seller.id.slice(-6)}`,
+    })),
+  ]);
   readonly selectedSeller = computed(() =>
     this.sellerOptions().find((seller) => seller.id === this.sellerId()),
   );
@@ -117,12 +129,8 @@ export class PurchasesComponent {
   readonly orderedVisibleColumns = computed(() =>
     this.tablePrefs().columns.filter((column) => column.visible),
   );
-  readonly viewModified = computed(
-    () =>
-      this.activeStatus() !== 'all' ||
-      this.sellerId() !== '' ||
-      this.searchQuery().trim() !== '' ||
-      tableStateDiffersFromDefaults(this.tablePrefs(), this.purchasesTableConfig),
+  readonly viewModified = computed(() =>
+    tableStateDiffersFromDefaults(this.tablePrefs(), this.purchasesTableConfig),
   );
 
   ariaSort(field: string): 'ascending' | 'descending' | null {
@@ -233,10 +241,13 @@ export class PurchasesComponent {
   }
 
   resetView(): void {
+    this.resetTablePreferences();
+  }
+
+  clearFilters(): void {
     this.activeStatus.set('all');
     this.sellerId.set('');
     this.searchQuery.set('');
-    this.resetTablePreferences();
   }
 
   private costValue(state: PurchaseListRow['totalCost']): number {
@@ -292,6 +303,7 @@ export class PurchasesComponent {
 
   openPurchase(event: MouseEvent, id: string): void {
     if (event.target instanceof Element && event.target.closest('a, button, input, select')) return;
+    if (window.getSelection()?.toString()) return;
     if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey)
       return;
     void this.router.navigate(['/purchases', id]);

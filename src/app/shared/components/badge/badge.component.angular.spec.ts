@@ -31,6 +31,7 @@ describe('BadgeComponent', () => {
       tone: ['tone', 1, null],
       size: ['size', 1, null],
       dot: ['dot', 1, null],
+      marker: ['marker', 1, null],
       pulse: ['pulse', 1, null],
       icon: ['icon', 1, null],
       mono: ['mono', 1, null],
@@ -41,6 +42,7 @@ describe('BadgeComponent', () => {
       tone: 'tone',
       size: 'size',
       dot: 'dot',
+      marker: 'marker',
       pulse: 'pulse',
       icon: 'icon',
       mono: 'mono',
@@ -84,5 +86,15 @@ describe('BadgeComponent', () => {
     const dotSpan = fixture.nativeElement.querySelector('span > span');
     expect(dotSpan).toBeTruthy();
     expect(dotSpan.className).toContain('rounded-full');
+  });
+
+  it('renders the Shopify-style square marker for table statuses', () => {
+    fixture.componentRef.setInput('marker', 'square');
+    fixture.detectChanges();
+
+    const marker = fixture.nativeElement.querySelector('[data-badge-marker]') as HTMLElement;
+    expect(marker).toBeTruthy();
+    expect(marker.className).toContain('rounded-[2px]');
+    expect(marker.className).not.toContain('rounded-full');
   });
 });

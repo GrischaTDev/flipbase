@@ -17,6 +17,18 @@ Rangfolge bei Gestaltungsentscheidungen:
 
 Barrierefreiheit und korrekte Fachabläufe bleiben verbindlich. Ein Konflikt wird dokumentiert und gelöst, nicht durch unbemerkte Designänderung übergangen. Ohne gemessene Referenz darf niemand behaupten, eine Oberfläche sei pixelgenau abgeglichen.
 
+## Verbindliche Shared-Komponenten-Grenze
+
+Wiederkehrende sichtbare Grundelemente der Verwaltungsoberfläche werden zentral unter `src/app/shared/components/` umgesetzt. Feature-Templates setzen diese Bausteine zusammen und liefern Fachwerte, Labels, Form-Controls, Validierung und Ereignisse. Sie definieren keine eigenen Varianten für Geometrie, Radius, Rahmen, Schatten, Typografie, Fokus oder semantische Statusfarben, wenn dafür bereits eine Shared-Komponente existiert.
+
+Das gilt insbesondere für Buttons, Statusbadges, Text-/Such-/Zahl-/Datumsfelder, Selects, Checkboxen, Karten, Dialograhmen, Seitenköpfe, Tabellenleisten, Sortierung, Spaltenauswahl, Kostenanzeige, Chronik und Toasts. Bestehende Komponenten werden erweitert, wenn eine wiederkehrende Variante fehlt. Eine zweite parallele Komponente für dieselbe Bedienrolle ist unzulässig.
+
+Rohe native Formelemente gehören in die verantwortliche Shared-Komponente. Im Feature sind sie nur für einen konkret dokumentierten Sonderfall zulässig, etwa ein technisch notwendiges verstecktes Datei- oder Radioelement, das der Komponentenvertrag nicht sinnvoll kapseln kann. Ein Sonderfall darf nicht durch kopierte `linear-input`-, Button-, Badge- oder Fokusklassen als eigene Designvariante entstehen.
+
+Eine wiederkehrende Kombination wird als Shared-Komposition angelegt, sobald mindestens zwei Features dieselbe Bedienrolle besitzen. Einmalige fachliche Teilmasken bleiben im Feature, verwenden für ihre sichtbaren Grundelemente aber die Shared-Bausteine. Der Storefront-Bereich besitzt einen anderen Oberflächenkontext und wird nicht blind an Admin-Maße angeglichen; Wiederholungen werden auch dort innerhalb des eigenen Kontexts zentral gelöst.
+
+Neue oder geänderte Admin-Oberflächen müssen eine automatisierte Architekturprüfung bestehen, die neue native Select-Nachbauten und lokale Status-Pills erkennt. Notwendige Ausnahmen werden pfadgenau mit Begründung geführt. Ein vorhandener Altbestand ist kein Freibrief für neue Abweichungen und wird bei den betroffenen Arbeiten schrittweise abgebaut.
+
 ## Verbindliche Präzisierung: Schreibweise und Farbdisziplin
 
 Nutzerfestlegung vom 06.09.2026: Seiten-, Karten-, Abschnitts- und Tabellenüberschriften sowie Feldbeschriftungen verwenden normale deutsche Groß-/Kleinschreibung. Keine dekorative Versalschrift durch `uppercase`, keine künstlich gesperrten Überschriften durch `tracking-wider`/`tracking-widest`. Fachliche Kürzel wie SKU, EAN, EUR und DATEV bleiben korrekt geschrieben; Eingaben, Marken und Kennungen werden nicht pauschal kleingeschrieben. Auch Badges erhalten keine automatische Versalschrift.

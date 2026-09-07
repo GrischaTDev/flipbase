@@ -3,6 +3,7 @@ import { LucideDynamicIcon, LucideIconInput } from '@lucide/angular';
 
 export type BadgeTone = 'neutral' | 'info' | 'success' | 'caution' | 'critical';
 export type BadgeSize = 'sm' | 'md';
+export type BadgeMarker = 'none' | 'dot' | 'square';
 
 @Component({
   selector: 'app-badge',
@@ -18,6 +19,7 @@ export class BadgeComponent {
   readonly tone = input<BadgeTone>('neutral');
   readonly size = input<BadgeSize>('sm');
   readonly dot = input<boolean>(false);
+  readonly marker = input<BadgeMarker>('none');
   readonly pulse = input<boolean>(false);
   readonly icon = input<LucideIconInput | null>(null);
   readonly mono = input<boolean>(false);
@@ -48,7 +50,7 @@ export class BadgeComponent {
       .join(' ');
   });
 
-  protected readonly dotClasses = computed(() => {
+  protected readonly markerClasses = computed(() => {
     const toneDots: Record<BadgeTone, string> = {
       neutral: 'bg-fb-text-muted',
       info: 'bg-blue-400',
@@ -58,7 +60,8 @@ export class BadgeComponent {
     };
 
     const pulseClass = this.pulse() ? 'animate-pulse' : '';
-    return ['w-1.5 h-1.5 rounded-full shrink-0', toneDots[this.tone()], pulseClass]
+    const shapeClass = this.marker() === 'square' ? 'rounded-[2px]' : 'rounded-full';
+    return ['size-1.5 shrink-0', shapeClass, toneDots[this.tone()], pulseClass]
       .filter(Boolean)
       .join(' ');
   });
@@ -66,4 +69,8 @@ export class BadgeComponent {
   protected readonly iconClasses = computed(() => {
     return this.size() === 'md' ? 'w-3.5 h-3.5 shrink-0' : 'w-3 h-3 shrink-0';
   });
+
+  protected readonly visibleMarker = computed<BadgeMarker>(() =>
+    this.marker() !== 'none' ? this.marker() : this.dot() ? 'dot' : 'none',
+  );
 }

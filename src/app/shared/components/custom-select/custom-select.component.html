@@ -31,6 +31,26 @@
         [class.rotate-180]="isOpen()"
       ></svg>
     </button>
+  } @else if (variant() === 'toolbar') {
+    <button
+      #trigger
+      type="button"
+      role="combobox"
+      aria-haspopup="listbox"
+      (click)="toggleDropdown($event)"
+      (keydown)="onTriggerKeydown($event)"
+      (blur)="onTriggerBlur()"
+      [disabled]="effectiveDisabled()"
+      [id]="resolvedTriggerId()"
+      [attr.aria-label]="ariaLabel()"
+      [attr.aria-expanded]="isOpen()"
+      [attr.aria-controls]="isOpen() ? listboxId() : null"
+      [attr.aria-activedescendant]="activeDescendantId()"
+      class="inline-flex h-7 items-center justify-between gap-1 rounded-lg border border-transparent bg-transparent px-2 text-[13px] font-medium text-fb-text-primary transition-colors hover:bg-fb-subtle focus-visible:border-fb-primary focus-visible:bg-fb-surface focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-fb-primary"
+    >
+      <span class="truncate">{{ selectedOption()?.label || placeholder() }}</span>
+      <svg [lucideIcon]="chevronIcon" class="size-3 shrink-0 opacity-70"></svg>
+    </button>
   } @else if (variant() === 'filter') {
     <button
       #trigger

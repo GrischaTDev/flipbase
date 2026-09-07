@@ -15,6 +15,7 @@ export type PurchaseStatusLabel =
   | 'Prüfung erforderlich';
 
 export type PresentationLoadState = 'loading' | 'loaded' | 'error';
+export type PurchaseStatusTone = 'neutral' | 'info' | 'success' | 'caution' | 'critical';
 
 export interface RecordedSalePresentation {
   readonly id: string;
@@ -39,6 +40,7 @@ export interface PurchaseListRow {
   readonly purchaseDate: string;
   readonly supplierLabel: string;
   readonly purchaseStatus: PurchaseStatusLabel;
+  readonly purchaseStatusTone: PurchaseStatusTone;
   readonly allocationOpen: boolean;
   readonly totalCost: CostState;
   readonly totalUnits: number;

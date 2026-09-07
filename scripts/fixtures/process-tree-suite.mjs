@@ -6,9 +6,8 @@ const [, , heartbeatPath, lifetime] = process.argv;
 const grandchild = spawn(
   process.execPath,
   [fileURLToPath(new URL('./heartbeat-grandchild.mjs', import.meta.url)), heartbeatPath, lifetime],
-  { detached: process.platform === 'win32', stdio: 'ignore' },
+  { stdio: 'ignore' },
 );
-if (process.platform === 'win32') grandchild.unref();
 
 while (!(await readFile(heartbeatPath, 'utf8').catch(() => ''))) {
   await new Promise((resolve) => setTimeout(resolve, 20));

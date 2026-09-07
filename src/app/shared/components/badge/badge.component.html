@@ -1,8 +1,8 @@
 <span [class]="badgeClasses()">
-  @if (dot()) {
-    <span [class]="dotClasses()" aria-hidden="true"></span>
+  @if (visibleMarker() !== 'none') {
+    <span data-badge-marker [class]="markerClasses()" aria-hidden="true"></span>
   } @else if (icon()) {
-    <svg [lucideIcon]="icon()!" [class]="iconClasses()" aria-hidden="true"></svg>
+    <svg [lucideIcon]="icon()" [class]="iconClasses()" aria-hidden="true"></svg>
   }
   <span><ng-content /></span>
 </span>

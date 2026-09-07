@@ -159,27 +159,35 @@ describe('TablePreferencesService – Polaris Table Preferences & Reordering', (
     TestBed.resetTestingModule();
   });
 
-  it('entfernt alte Einkaufstyp-Spalten dauerhaft und erhält persönliche Einstellungen', () => {
+  it('entfernt nicht mehr unterstützte Einkaufsspalten dauerhaft und erhält persönliche Einstellungen', () => {
     localStorage.setItem(
       `flipbase:table_prefs:${testWorkspaceId}:purchases`,
       JSON.stringify({
         version: 1,
         columns: [
           { id: 'type', visible: true, order: 0 },
-          { id: 'title', visible: true, order: 1 },
-          { id: 'units', visible: false, order: 2 },
+          { id: 'cost_status', visible: true, order: 1 },
+          { id: 'actions', visible: true, order: 2 },
+          { id: 'title', visible: true, order: 3 },
+          { id: 'units', visible: false, order: 4 },
         ],
         sort: { field: 'title', direction: 'asc' },
       }),
     );
     const state = service.getTablePreferences('purchases', testWorkspaceId)();
-    expect(state.columns.some((column) => column.id === 'type')).toBe(false);
+    expect(
+      state.columns.some((column) => ['type', 'cost_status', 'actions'].includes(column.id)),
+    ).toBe(false);
     expect(state.columns.find((column) => column.id === 'units')?.visible).toBe(false);
     expect(state.sort).toEqual({ field: 'title', direction: 'asc' });
     const stored = JSON.parse(
       localStorage.getItem(`flipbase:table_prefs:${testWorkspaceId}:purchases`) ?? '{}',
     );
-    expect(stored.columns.some((column: { id: string }) => column.id === 'type')).toBe(false);
+    expect(
+      stored.columns.some((column: { id: string }) =>
+        ['type', 'cost_status', 'actions'].includes(column.id),
+      ),
+    ).toBe(false);
   });
 
   it('should return default preferences when nothing is stored', () => {

@@ -1,0 +1,13 @@
+<div
+  data-table-toolbar
+  class="flex min-h-11 flex-wrap items-center gap-1 border-b border-fb-line p-2"
+>
+  <ng-content select="[table-view]" />
+  <div class="min-w-44 flex-1">
+    <ng-content select="[table-search]" />
+  </div>
+  <ng-content select="[table-filters]" />
+  <div class="ml-auto flex items-center border-l border-fb-line pl-2">
+    <ng-content select="[table-settings]" />
+  </div>
+</div>

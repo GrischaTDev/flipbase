@@ -37,6 +37,10 @@ import { ModalDialogDirective } from '../../shared/directives/modal-dialog.direc
 import { parseCsv } from '../../shared/utils/csv';
 import { normalizeGtin } from '../../shared/utils/gtin';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
+import {
+  CustomSelectComponent,
+  SelectOption,
+} from '../../shared/components/custom-select/custom-select.component';
 
 interface CatalogImportRow {
   readonly title: string;
@@ -55,12 +59,17 @@ interface CatalogImportRow {
     LucideDynamicIcon,
     ModalDialogDirective,
     PageHeaderComponent,
+    CustomSelectComponent,
   ],
   templateUrl: './catalog.component.html',
   host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CatalogComponent {
+  readonly trackingModeOptions: readonly SelectOption<TrackingMode>[] = [
+    { value: 'quantity', label: 'Mengenartikel' },
+    { value: 'individual', label: 'Einzelstück' },
+  ];
   readonly tablePreferences = inject(TablePreferencesService);
   readonly catalogService = inject(CatalogService);
   readonly stockService = inject(StockService);

@@ -3,13 +3,21 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { SuppliersService } from '../../../../core/services/suppliers.service';
 import { Supplier } from '../../../../core/models/flipbase.models';
 import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
+import {
+  CustomSelectComponent,
+  SelectOption,
+} from '../../../../shared/components/custom-select/custom-select.component';
 @Component({
   selector: 'app-purchase-seller-dialog',
-  imports: [ReactiveFormsModule, ModalDialogDirective],
+  imports: [ReactiveFormsModule, ModalDialogDirective, CustomSelectComponent],
   templateUrl: './purchase-seller-dialog.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PurchaseSellerDialogComponent {
+  readonly sellerTypeOptions: readonly SelectOption<'private' | 'business'>[] = [
+    { value: 'private', label: 'Privatperson' },
+    { value: 'business', label: 'Unternehmen' },
+  ];
   private readonly suppliers = inject(SuppliersService);
   readonly closed = output<void>();
   readonly created = output<Supplier>();
