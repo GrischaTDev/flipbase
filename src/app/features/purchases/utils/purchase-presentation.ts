@@ -190,7 +190,8 @@ function totalPurchaseCost(purchase: Purchase): number | null {
   if (purchase.purchase_price === null || !Number.isFinite(purchase.purchase_price)) return null;
   return Number(
     (
-      purchase.purchase_price +
+      purchase.purchase_price -
+      (purchase.discount_amount ?? 0) +
       (purchase.shipping_cost ?? 0) +
       (purchase.other_costs ?? 0) +
       (purchase.costs ?? []).reduce((sum, cost) => sum + Number(cost.amount), 0)

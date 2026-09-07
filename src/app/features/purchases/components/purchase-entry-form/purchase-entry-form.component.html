@@ -1,160 +1,136 @@
-<form
-  [formGroup]="form"
-  (ngSubmit)="onSubmit()"
-  class="mx-auto w-full space-y-4 text-fb-text-primary"
->
+<form [formGroup]="form" (ngSubmit)="onSubmit()" class="w-full space-y-4 text-fb-text-primary">
   @if (errorMessage()) {
     <p role="alert" class="rounded-xl border border-fb-line bg-fb-surface p-4 text-sm">
       {{ errorMessage() }}
     </p>
   }
-  <div class="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
-    <div class="min-w-0 space-y-4">
-      <section
-        class="space-y-4 rounded-xl border border-fb-line bg-fb-surface p-4 shadow-sm"
-        aria-labelledby="purchase-seller-title"
-      >
-        <div class="flex items-center justify-between">
-          <h2 id="purchase-seller-title" class="text-sm font-semibold">Verkäufer</h2>
-          <button
-            type="button"
-            class="text-sm underline underline-offset-2"
-            (click)="sellerDialogOpen.set(true)"
-          >
-            Verkäufer erstellen
-          </button>
-        </div>
-        <app-custom-select
-          formControlName="supplier_id"
-          [options]="lieferantenOptionen()"
-          ariaLabel="Verkäufer auswählen"
-          placeholder="Verkäufer auswählen"
-        />
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+
+  <app-two-column-layout ratio="2-1" data-testid="purchase-entry-workspace">
+    <div main class="space-y-4" data-testid="purchase-entry-main">
+      <app-card title="Verkäufer und Einkauf" padding="md" rounded="xl">
+        <app-button
+          card-header-actions
+          variant="plain"
+          size="slim"
+          (clicked)="sellerDialogOpen.set(true)"
+        >
+          Verkäufer erstellen
+        </app-button>
+
+        <div class="space-y-4">
           <div>
-            <label for="purchase-date" class="mb-1 block text-sm">Kaufdatum</label
-            ><app-date-picker
-              id="purchase-date"
-              ariaLabel="Kaufdatum"
-              formControlName="purchase_date"
-            />
-          </div>
-          <div>
-            <label for="purchase-source" class="mb-1 block text-sm">Plattform / Bezugsquelle</label
-            ><app-custom-select
-              triggerId="purchase-source"
-              formControlName="source_id"
-              [options]="quellenOptionen()"
-              ariaLabel="Plattform oder Bezugsquelle"
-            />
-          </div>
-        </div>
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div>
-            <span class="mb-1 block text-sm">Inhalt</span>
+            <span class="mb-1.5 block text-[13px] font-semibold">Verkäufer</span>
             <app-custom-select
-              formControlName="content_status"
-              ariaLabel="Inhalt"
-              [options]="contentStatusOptions"
+              formControlName="supplier_id"
+              [options]="lieferantenOptionen()"
+              ariaLabel="Verkäufer auswählen"
+              placeholder="Verkäufer auswählen"
             />
           </div>
-          <div>
-            <span class="mb-1 block text-sm">Preise</span>
-            <app-custom-select
-              formControlName="pricing_mode"
-              ariaLabel="Preise"
-              [options]="pricingModeOptions"
-            />
+
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label for="purchase-date" class="mb-1.5 block text-[13px] font-semibold"
+                >Kaufdatum</label
+              >
+              <app-date-picker
+                id="purchase-date"
+                ariaLabel="Kaufdatum"
+                formControlName="purchase_date"
+              />
+            </div>
+            <div>
+              <span class="mb-1.5 block text-[13px] font-semibold">Plattform / Bezugsquelle</span>
+              <app-custom-select
+                triggerId="purchase-source"
+                formControlName="source_id"
+                [options]="quellenOptionen()"
+                ariaLabel="Plattform oder Bezugsquelle"
+              />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <span class="mb-1.5 block text-[13px] font-semibold">Inhalt</span>
+              <app-custom-select
+                formControlName="content_status"
+                ariaLabel="Inhalt"
+                [options]="contentStatusOptions"
+              />
+            </div>
+            <div>
+              <span class="mb-1.5 block text-[13px] font-semibold">Preise</span>
+              <app-custom-select
+                formControlName="pricing_mode"
+                ariaLabel="Preise"
+                [options]="pricingModeOptions"
+              />
+            </div>
           </div>
         </div>
-      </section>
-      <section class="rounded-xl border border-fb-line bg-fb-surface p-4 shadow-sm">
+      </app-card>
+
+      <app-card padding="md" rounded="xl">
         <app-purchase-line-editor
           [purchaseType]="form.controls.type.value"
           [pricingMode]="pricingMode()"
           [initialLines]="purchaseLines()"
           (linesChanged)="onPurchaseLinesChanged($event)"
         />
-      </section>
+      </app-card>
+
+      <div class="empty:hidden" data-testid="purchase-entry-timeline">
+        <ng-content select="[entry-timeline]" />
+      </div>
     </div>
-    <aside class="space-y-4">
-      <section
-        class="space-y-4 rounded-xl border border-fb-line bg-fb-surface p-4 shadow-sm"
-        aria-labelledby="purchase-cost-title"
+
+    <div sidebar class="space-y-4" data-testid="purchase-entry-sidebar">
+      <app-purchase-cost-summary
+        role="region"
+        aria-label="Kostenübersicht"
+        [goodsAmount]="null"
+        [discountAmount]="discountAmount()"
+        [costs]="costDrafts()"
+        [totalAmount]="totalCosts()"
+        (editRequested)="openCostEditor()"
       >
-        <div class="flex items-center justify-between">
-          <h2 id="purchase-cost-title" class="text-sm font-semibold">Kostenübersicht</h2>
-          <app-button
-            variant="ghost"
-            size="slim"
-            [icon]="editIcon"
-            [iconOnly]="true"
-            ariaLabel="Kosten bearbeiten"
-            title="Kosten bearbeiten"
-            (clicked)="initialCostDrafts.set(costDrafts()); costDialogOpen.set(true)"
-          />
-        </div>
-        <label for="purchase-base-price" class="block text-sm"
-          >Kaufbetrag ohne Nebenkosten<app-number-input
+        <div cost-summary-goods-editor>
+          <label for="purchase-base-price" class="mb-1.5 block text-[13px] font-semibold">
+            Warenbetrag
+          </label>
+          <app-number-input
             id="purchase-base-price"
             formControlName="purchase_price"
+            ariaLabel="Warenbetrag"
             [asCurrency]="true"
-            class="mt-1 block"
+            [showStepper]="false"
+            unit="€"
             [min]="0"
-        /></label>
-        <dl class="space-y-3 text-sm">
-          <div class="flex justify-between">
-            <dt>Rabatt</dt>
-            <dd>− {{ discountAmount() | currency: 'EUR' }}</dd>
-          </div>
-          <div class="flex justify-between">
-            <dt>Nebenkosten</dt>
-            <dd>{{ additionalCostsTotal() | currency: 'EUR' }}</dd>
-          </div>
-          <div class="flex justify-between border-t border-fb-line pt-3 font-semibold">
-            <dt>Gesamtkosten</dt>
-            <dd>{{ totalCosts() === null ? 'Offen' : (totalCosts() | currency: 'EUR') }}</dd>
-          </div>
-          <div class="flex justify-between">
-            <dt>Warenkosten zugeordnet</dt>
-            <dd>{{ assignedCosts() | currency: 'EUR' }}</dd>
-          </div>
-          <div class="flex justify-between">
-            <dt>Warenkosten noch offen</dt>
-            <dd>
-              {{ purchaseBasePrice() === null ? 'Offen' : (unassignedCosts() | currency: 'EUR') }}
-            </dd>
-          </div>
-        </dl>
-        <p class="text-xs text-fb-text-muted">
-          Beträge inklusive enthaltener Steuern. Der Entwurf erzeugt noch keinen Bestand.
-        </p>
-      </section>
-      <section class="space-y-4 rounded-xl border border-fb-line bg-fb-surface p-4 shadow-sm">
-        <h2 class="text-sm font-semibold">Weitere Details</h2>
-        <label class="block text-sm"
-          >Beschreibung (optional)<input
+          />
+        </div>
+      </app-purchase-cost-summary>
+
+      <app-card title="Einkaufsdetails" padding="md" rounded="xl">
+        <div class="space-y-4">
+          <app-text-field
             formControlName="title"
-            class="linear-input mt-1 w-full rounded-lg px-3 py-2" /></label
-        ><label class="block text-sm"
-          >Referenz des Verkäufers<input
-            formControlName="supplier_reference"
-            class="linear-input mt-1 w-full rounded-lg px-3 py-2" /></label
-        ><label class="block text-sm"
-          >Beleg / Angebotslink<input
-            formControlName="original_url"
-            class="linear-input mt-1 w-full rounded-lg px-3 py-2" /></label
-        ><label class="block text-sm"
-          >Interne Notiz<textarea
-            formControlName="notes"
-            rows="3"
-            class="linear-input mt-1 w-full rounded-lg px-3 py-2"
-          ></textarea>
-        </label>
-      </section>
-    </aside>
-  </div>
+            label="Beschreibung (optional)"
+            placeholder="Kurze Bezeichnung für den Einkauf"
+          />
+          <app-text-field formControlName="supplier_reference" label="Referenz des Verkäufers" />
+          <app-text-field formControlName="original_url" label="Beleg / Angebotslink" type="url" />
+          <app-text-field formControlName="notes" label="Interne Notiz" [multiline]="3" />
+        </div>
+      </app-card>
+
+      <div class="empty:hidden" data-testid="purchase-entry-sidebar-extra">
+        <ng-content select="[entry-sidebar-extra]" />
+      </div>
+    </div>
+  </app-two-column-layout>
 </form>
+
 @if (sellerDialogOpen()) {
   <app-purchase-seller-dialog
     (closed)="sellerDialogOpen.set(false)"
@@ -163,39 +139,14 @@
     "
   />
 }
+
 @if (costDialogOpen()) {
-  <div
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-    appModalDialog
-    dialogTitel="Kosten bearbeiten"
-    (dialogClose)="costDialogOpen.set(false)"
-  >
-    <section
-      class="max-h-[85dvh] w-full max-w-xl space-y-4 overflow-y-auto rounded-xl border border-fb-line bg-fb-surface p-4 shadow-xl"
-    >
-      <h2 class="text-base font-semibold">Kosten bearbeiten</h2>
-      <label for="purchase-discount" class="block text-sm"
-        >Rabatt auf den Warenbetrag<app-number-input
-          id="purchase-discount"
-          [asCurrency]="true"
-          [formControl]="form.controls.discount_amount"
-          [min]="0" /></label
-      ><app-purchase-cost-editor
-        [purchaseType]="form.controls.type.value"
-        [initialCosts]="initialCostDrafts()"
-        [purchaseLineOptions]="purchaseLineOptions()"
-        (costsChanged)="onCostsChanged($event)"
-        (validityChanged)="areAdditionalCostsValid.set($event)"
-      />
-      <div class="flex justify-end">
-        <button
-          type="button"
-          class="linear-btn-primary rounded-lg px-4 py-2 text-sm"
-          (click)="costDialogOpen.set(false)"
-        >
-          Fertig
-        </button>
-      </div>
-    </section>
-  </div>
+  <app-purchase-cost-overview-dialog
+    [purchaseType]="form.controls.type.value"
+    [initialDiscountAmount]="discountAmount()"
+    [initialCosts]="initialCostDrafts()"
+    [purchaseLineOptions]="purchaseLineOptions()"
+    (saved)="onCostOverviewSaved($event)"
+    (closed)="costDialogOpen.set(false)"
+  />
 }

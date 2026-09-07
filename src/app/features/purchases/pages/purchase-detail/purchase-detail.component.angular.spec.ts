@@ -8,6 +8,65 @@ import { ToastService } from '../../../../shared/components/toast/toast.service'
 import { PurchaseDetailComponent } from './purchase-detail.component';
 
 describe('PurchaseDetailComponent', () => {
+  describe('Gemeinsame Bearbeitungsmaske', () => {
+    function workspace(entryStatus = 'draft') {
+      const component = Object.create(PurchaseDetailComponent.prototype) as PurchaseDetailComponent;
+      Object.assign(component, {
+        purchaseService: {
+          selectedPurchase: signal({ id: 'purchase-1', entry_status: entryStatus }),
+        },
+        isEditing: signal(false),
+        editingPurchase: signal(null),
+        router: { navigate: vi.fn() },
+      });
+      return component;
+    }
+
+    it('öffnet die vorhandenen Angaben auf derselben Seite', () => {
+      const component = workspace();
+      component.editPurchase('purchase-1');
+      expect(component.isEditing()).toBe(true);
+      expect(component.editingPurchase()?.id).toBe('purchase-1');
+    });
+
+    it('öffnet keinen abgeschlossenen oder fremden Einkauf zur direkten Bearbeitung', () => {
+      const finalized = workspace('finalized');
+      finalized.editPurchase('purchase-1');
+      expect(finalized.isEditing()).toBe(false);
+      const other = workspace();
+      other.editPurchase('purchase-2');
+      expect(other.isEditing()).toBe(false);
+    });
+
+    it('behält ungespeicherte Eingaben bei abgelehntem Verwerfen und schließt erst nach Zustimmung', async () => {
+      const component = workspace();
+      let confirmed = false;
+      Object.assign(component, {
+        entryForm: () => ({ hasUnsavedChanges: () => true, isSaving: () => false }),
+        dialog: { frage: async () => confirmed },
+      });
+      component.editPurchase('purchase-1');
+      await component.discardEdits();
+      expect(component.isEditing()).toBe(true);
+      expect(component.editingPurchase()?.id).toBe('purchase-1');
+      confirmed = true;
+      await component.discardEdits();
+      expect(component.isEditing()).toBe(false);
+      expect(component.editingPurchase()).toBeNull();
+    });
+
+    it('verhindert das Verwerfen während einer laufenden Speicherung', async () => {
+      const component = workspace();
+      Object.assign(component, {
+        entryForm: () => ({ hasUnsavedChanges: () => true, isSaving: () => true }),
+        dialog: { frage: async () => true },
+      });
+      component.editPurchase('purchase-1');
+      await component.discardEdits();
+      expect(component.isEditing()).toBe(true);
+    });
+  });
+
   describe('Aktionsmeldungen', () => {
     const einkauf: Purchase = {
       id: '33333333-3333-4333-8333-333333333333',
@@ -35,6 +94,21 @@ describe('PurchaseDetailComponent', () => {
       unit_purchase_price: 4.99,
       line_total: 24.95,
     };
+
+    it('zieht den Rabatt auch ohne berechnete Serversumme vom Warenbetrag ab', () => {
+      const component = Object.create(PurchaseDetailComponent.prototype) as PurchaseDetailComponent;
+      expect(
+        component.purchaseTotalCost({
+          ...einkauf,
+          purchase_price: 100,
+          discount_amount: 10,
+          shipping_cost: 5,
+        }),
+      ).toBe(95);
+      expect(
+        component.purchaseTotalCost({ ...einkauf, purchase_price: null, discount_amount: 10 }),
+      ).toBeNull();
+    });
 
     const einzelposition: PurchaseLine = {
       id: 'line-individual-1',

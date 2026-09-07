@@ -1,51 +1,45 @@
 <section class="space-y-3" aria-labelledby="purchase-line-editor-title">
   <h3 id="purchase-line-editor-title" class="text-sm font-semibold">Artikel</h3>
   <div class="flex flex-wrap gap-2">
-    <button
-      type="button"
-      (click)="openPicker()"
-      [disabled]="catalogSelectionDisabled()"
-      class="linear-input min-w-48 flex-1 rounded-lg px-3 py-2 text-left text-sm disabled:opacity-50"
-    >
-      Artikel suchen oder hinzufügen
-    </button>
-    <label class="linear-btn-secondary cursor-pointer rounded-lg px-3 py-2 text-sm"
-      >Liste importieren<input
-        type="file"
-        accept=".csv,text/csv"
-        class="sr-only"
-        (change)="importCsv($event)"
-    /></label>
-    <button
-      type="button"
-      (click)="scannerOpen.set(!scannerOpen())"
-      class="linear-btn-secondary rounded-lg px-3 py-2 text-sm"
-    >
+    <div class="min-w-48 flex-1">
+      <app-button
+        variant="secondary"
+        [fullWidth]="true"
+        [disabled]="catalogSelectionDisabled()"
+        (clicked)="openPicker()"
+      >
+        Artikel suchen oder hinzufügen
+      </app-button>
+    </div>
+    <app-button variant="secondary" (clicked)="csvInput.click()">Liste importieren</app-button>
+    <!-- Das unsichtbare native Datei-Feld ist für den Browser-Dateidialog erforderlich. -->
+    <input
+      #csvInput
+      type="file"
+      accept=".csv,text/csv"
+      class="sr-only"
+      data-shared-ui-exception="native-file-picker"
+      tabindex="-1"
+      aria-hidden="true"
+      (change)="importCsv($event)"
+    />
+    <app-button variant="secondary" (clicked)="scannerOpen.set(!scannerOpen())">
       Barcode scannen
-    </button>
+    </app-button>
   </div>
   @if (scannerOpen()) {
     <div class="space-y-2 rounded-lg border border-fb-line p-3">
-      <label for="purchase-scan" class="block text-sm">Barcode scannen oder eingeben</label>
-      <div class="flex gap-2">
-        <input
+      <div class="flex flex-wrap items-end gap-2">
+        <app-text-field
           id="purchase-scan"
-          class="linear-input min-w-0 flex-1 rounded-lg px-3 py-2 text-sm"
+          class="min-w-48 flex-1"
+          label="Barcode scannen oder eingeben"
           [formControl]="scanControl"
           (keydown.enter)="$event.preventDefault(); scanBarcode()"
-        /><button
-          type="button"
-          class="linear-btn-secondary rounded-lg px-3 py-2 text-sm"
-          (click)="scanBarcode()"
         >
-          Hinzufügen</button
-        ><button
-          type="button"
-          class="linear-btn-secondary rounded-lg px-3 py-2 text-sm"
-          (click)="cameraOpen.set(true)"
-        >
-          Kamera
-        </button>
+        </app-text-field>
+        <app-button variant="secondary" (clicked)="scanBarcode()">Hinzufügen</app-button>
+        <app-button variant="secondary" (clicked)="cameraOpen.set(true)">Kamera</app-button>
       </div>
       <p class="text-xs text-fb-text-muted">
         Scanner mit Enter abschließen. Jeder bestätigte Scan erzeugt eine eigene Position; Mengen
@@ -56,20 +50,13 @@
       }
     </div>
   }
-  <div class="flex gap-3">
-    <button
-      type="button"
-      (click)="addIndividualLine()"
-      class="text-sm underline underline-offset-2"
-    >
-      Neues Einzelstück erfassen</button
-    ><button
-      type="button"
-      (click)="isCreatingProduct.set(!isCreatingProduct())"
-      class="text-sm underline underline-offset-2"
-    >
+  <div class="flex flex-wrap gap-3">
+    <app-button variant="plain" (clicked)="addIndividualLine()">
+      Neues Einzelstück erfassen
+    </app-button>
+    <app-button variant="plain" (clicked)="isCreatingProduct.set(!isCreatingProduct())">
       Neuen Mengenartikel erfassen
-    </button>
+    </app-button>
   </div>
   @if (importError(); as error) {
     <p class="text-xs text-rose-300" role="alert">{{ error }}</p>
@@ -83,40 +70,30 @@
       role="alert"
     >
       <p class="text-xs text-rose-300">Artikelstamm konnte nicht geladen werden: {{ error }}</p>
-      <button
-        type="button"
-        (click)="loadCatalogProducts(true)"
-        class="linear-btn-secondary rounded-lg px-2.5 py-1 text-xs font-semibold"
-      >
+      <app-button variant="secondary" size="slim" (clicked)="loadCatalogProducts(true)">
         Erneut versuchen
-      </button>
+      </app-button>
     </div>
   }
 
   @if (isCreatingProduct()) {
     <div [formGroup]="productForm" class="rounded-xl border border-fb-line bg-fb-well p-3">
-      <label
-        for="newCatalogProductTitle"
-        class="mb-1 block text-xs font-semibold text-fb-text-muted"
-      >
-        Neuer Bestandsartikel
-      </label>
-      <div class="flex gap-2">
-        <input
+      <div class="flex items-end gap-2">
+        <app-text-field
           id="newCatalogProductTitle"
-          type="text"
+          class="min-w-0 flex-1"
           formControlName="title"
-          class="linear-input min-w-0 flex-1 rounded-lg px-2.5 py-1.5 text-xs"
+          label="Neuer Bestandsartikel"
           placeholder="z. B. LED-Lampe"
-        />
-        <button
-          type="button"
-          (click)="createCatalogProduct()"
+        ></app-text-field>
+        <app-button
+          variant="primary"
+          [loading]="isSavingProduct()"
           [disabled]="productForm.invalid || isSavingProduct()"
-          class="linear-btn-primary cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+          (clicked)="createCatalogProduct()"
         >
           {{ isSavingProduct() ? 'Speichere…' : 'Anlegen' }}
-        </button>
+        </app-button>
       </div>
       @if (productError()) {
         <p class="mt-2 text-xs text-rose-400" role="alert">{{ productError() }}</p>
@@ -136,13 +113,9 @@
                   : 'Einzelstück / Mystery-Inhalt'
               }}
             </span>
-            <button
-              type="button"
-              (click)="removeLine($index)"
-              class="cursor-pointer text-xs font-semibold text-fb-text-secondary hover:text-fb-text-primary"
-            >
+            <app-button variant="plain" size="slim" (clicked)="removeLine($index)">
               Position löschen
-            </button>
+            </app-button>
           </div>
 
           <div class="grid grid-cols-1 gap-2 sm:grid-cols-6">
@@ -164,43 +137,40 @@
                 />
               </div>
             } @else {
-              <label class="sm:col-span-2 text-xs font-semibold text-fb-text-muted">
-                Bezeichnung
-                <input
-                  type="text"
-                  formControlName="titleSnapshot"
-                  (input)="updateTitleSnapshotFromEvent($index, $event)"
-                  class="linear-input mt-1 w-full rounded-lg px-2.5 py-1.5 text-xs"
-                  placeholder="z. B. Mystery-Fundstück"
-                />
-              </label>
-              <label class="text-xs font-semibold text-fb-text-muted">
-                EAN / GTIN (optional)
-                <input
-                  type="text"
-                  formControlName="ean"
-                  class="linear-input mt-1 w-full rounded-lg px-2.5 py-1.5 text-xs"
-                  placeholder="z. B. 036000291452"
-                />
-                @if (row.controls.ean.invalid && row.controls.ean.touched) {
-                  <span class="mt-1 block normal-case text-rose-300" role="alert"
-                    >Ungültige EAN/GTIN.</span
-                  >
-                }
-              </label>
+              <app-text-field
+                class="sm:col-span-2"
+                formControlName="titleSnapshot"
+                label="Bezeichnung"
+                placeholder="z. B. Mystery-Fundstück"
+              />
+              <app-text-field
+                formControlName="ean"
+                label="EAN / GTIN (optional)"
+                placeholder="z. B. 036000291452"
+                [error]="
+                  row.controls.ean.invalid && row.controls.ean.touched
+                    ? 'Ungültige EAN/GTIN.'
+                    : null
+                "
+              />
             }
 
-            <label class="text-xs font-semibold text-fb-text-muted">
-              Menge
-              <input
-                type="number"
-                min="1"
+            <div>
+              <label
+                [for]="'purchase-line-quantity-' + $index"
+                class="mb-1.5 block text-[13px] font-semibold"
+              >
+                Menge
+              </label>
+              <app-number-input
+                [id]="'purchase-line-quantity-' + $index"
                 formControlName="orderedQuantity"
-                [readonly]="row.controls.lineKind.value === 'individual'"
-                (input)="updateQuantity($index)"
-                class="linear-input mt-1 w-full rounded-lg px-2.5 py-1.5 text-xs"
+                ariaLabel="Menge"
+                [min]="1"
+                [disabled]="row.controls.lineKind.value === 'individual'"
+                (valueChange)="updateQuantity($index)"
               />
-            </label>
+            </div>
             <div class="text-xs font-semibold text-fb-text-muted">
               Zustand
               <span class="ml-1 normal-case text-fb-text-secondary">
@@ -216,40 +186,60 @@
               />
             </div>
             @if (isMysteryPurchase()) {
-              <label class="sm:col-span-2 text-xs font-semibold text-fb-text-muted">
-                Geschätzter Marktwert (optional)
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
+              <div class="sm:col-span-2">
+                <label
+                  [for]="'purchase-line-market-value-' + $index"
+                  class="mb-1.5 block text-[13px] font-semibold"
+                >
+                  Geschätzter Marktwert (optional)
+                </label>
+                <app-number-input
+                  [id]="'purchase-line-market-value-' + $index"
                   formControlName="estimatedMarketValue"
-                  (input)="updateEstimatedMarketValue($index, $event)"
-                  class="linear-input mt-1 w-full rounded-lg px-2.5 py-1.5 text-xs"
+                  ariaLabel="Geschätzter Marktwert"
+                  [min]="0"
+                  [step]="0.01"
+                  [showStepper]="false"
+                  unit="€"
                 />
-              </label>
+              </div>
             } @else {
-              <label class="text-xs font-semibold text-fb-text-muted">
-                Stückpreis
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
+              <div>
+                <label
+                  [for]="'purchase-line-unit-price-' + $index"
+                  class="mb-1.5 block text-[13px] font-semibold"
+                >
+                  Stückpreis
+                </label>
+                <app-number-input
+                  [id]="'purchase-line-unit-price-' + $index"
                   formControlName="unitPurchasePrice"
-                  (input)="recalculate($index, 'unitPurchasePrice')"
-                  class="linear-input mt-1 w-full rounded-lg px-2.5 py-1.5 text-xs"
+                  ariaLabel="Stückpreis"
+                  [min]="0"
+                  [step]="0.01"
+                  [showStepper]="false"
+                  unit="€"
+                  (valueChange)="recalculate($index, 'unitPurchasePrice')"
                 />
-              </label>
-              <label class="text-xs font-semibold text-fb-text-muted">
-                Gesamt
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
+              </div>
+              <div>
+                <label
+                  [for]="'purchase-line-total-' + $index"
+                  class="mb-1.5 block text-[13px] font-semibold"
+                >
+                  Gesamt
+                </label>
+                <app-number-input
+                  [id]="'purchase-line-total-' + $index"
                   formControlName="lineTotal"
-                  (input)="recalculate($index, 'lineTotal')"
-                  class="linear-input mt-1 w-full rounded-lg px-2.5 py-1.5 text-xs"
+                  ariaLabel="Gesamt"
+                  [min]="0"
+                  [step]="0.01"
+                  [showStepper]="false"
+                  unit="€"
+                  (valueChange)="recalculate($index, 'lineTotal')"
                 />
-              </label>
+              </div>
             }
           </div>
         </div>

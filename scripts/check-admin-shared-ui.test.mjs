@@ -5,15 +5,17 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { checkAdminSharedUi, findAdminSharedUiViolations } from './check-admin-shared-ui.mjs';
 
-test('rejects native selects and locally styled status pills in admin feature templates', () => {
+test('rejects native selects, local status pills and black primary variants in admin templates', () => {
   const source = `
     <select class="linear-input"><option>Alle</option></select>
     <span class="rounded-full bg-emerald-500/20 px-2 text-emerald-300">Aktiv</span>
+    <app-button variant="primary-dark">Speichern</app-button>
   `;
 
   assert.deepEqual(findAdminSharedUiViolations('src/app/features/example/example.html', source), [
     { rule: 'native-select', line: 2 },
     { rule: 'local-status-pill', line: 3 },
+    { rule: 'black-primary-variant', line: 4 },
   ]);
 });
 
@@ -44,4 +46,30 @@ test('requires zero findings in admin feature templates', async () => {
   } finally {
     await rm(root, { recursive: true, force: true });
   }
+});
+
+test('prevents new native controls in the unified purchase workspace but allows hidden file transport', () => {
+  const path =
+    'src/app/features/purchases/components/purchase-line-editor/purchase-line-editor.component.html';
+  assert.deepEqual(
+    findAdminSharedUiViolations(
+      path,
+      '<button>Save</button>\n<input type="text" />\n<textarea></textarea>',
+    ),
+    [
+      { rule: 'native-workspace-control', line: 1 },
+      { rule: 'native-workspace-control', line: 2 },
+      { rule: 'native-workspace-control', line: 3 },
+    ],
+  );
+  assert.deepEqual(
+    findAdminSharedUiViolations(
+      path,
+      '<app-button>Import</app-button><input type="file" class="hidden" data-shared-ui-exception="native-file-picker" />',
+    ),
+    [],
+  );
+  assert.deepEqual(findAdminSharedUiViolations(path, '<input type="file" />'), [
+    { rule: 'native-workspace-control', line: 1 },
+  ]);
 });

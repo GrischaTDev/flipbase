@@ -24,6 +24,7 @@ test('stacks entry cards without horizontal page overflow on mobile', async ({ p
 
   for (const path of ['/sales/new', '/inventory/new', '/purchases/new']) {
     await page.goto(path);
+    await expect(page.locator('main h1')).toBeVisible();
     const hasHorizontalOverflow = await page.evaluate(
       () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
     );
@@ -36,6 +37,7 @@ test('keeps the new entry pages free of automated WCAG AA violations', async ({ 
 
   for (const path of ['/sales/new', '/inventory/new', '/purchases/new']) {
     await page.goto(path);
+    await expect(page.locator('main h1')).toBeVisible();
     await page.addScriptTag({ content: axe.source });
     const accessibility = await page.evaluate(async () =>
       (window as Window & { axe: typeof axe }).axe.run(document.body, {

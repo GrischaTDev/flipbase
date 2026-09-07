@@ -1,0 +1,19 @@
+<app-modal-shell title="Kostenübersicht verwalten" size="lg" (closed)="cancel()">
+  <app-purchase-cost-editor
+    [purchaseType]="purchaseType()"
+    [initialDiscountAmount]="initialDiscountAmount()"
+    [initialCosts]="initialCosts()"
+    [purchaseLineOptions]="purchaseLineOptions()"
+    (costsChanged)="onCostsChanged($event)"
+    (discountChanged)="onDiscountChanged($event)"
+    (validityChanged)="onValidityChanged($event)"
+    (rawChanged)="onRawChanged()"
+  />
+
+  <div modal-footer class="flex items-center justify-end gap-2">
+    <app-button variant="secondary" (clicked)="cancel()">Abbrechen</app-button>
+    <app-button variant="primary" [disabled]="saveDisabled()" (clicked)="save()">
+      Speichern
+    </app-button>
+  </div>
+</app-modal-shell>

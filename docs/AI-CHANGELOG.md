@@ -1,5 +1,23 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-07 – Codex – Einkaufsumbau zur Veröffentlichung vorbereiten
+
+**Auftrag:** Den freigegebenen Einkaufsumbau committen, auf GitHub pushen und nach erfolgreichen PR-Prüfungen mit Merge-Commit nach `master` übernehmen. Vor dem Push werden betroffene Tests, Formatierung, Lint und Build erneut geprüft; die vollständige Integrationsprüfung erfolgt im PR. Die lokale `debug.log` gehört nicht zur Veröffentlichung. Keine Datenlöschung oder Schemaänderung.
+
+## 2026-09-07 – Codex – Gemeinsamen Einkaufsarbeitsbereich umsetzen
+
+**Auftrag und Abgrenzung:** Nach ausdrücklicher Freigabe beginnt der Umbau auf `codex/purchase-unified-workspace`. Drei Agents übernehmen Kostenkomposition, Erfassungsformular sowie gemeinsame Aktionen und Regressionstests; die Hauptsitzung integriert die Detailseite. Kein Datenreset, keine Schemaänderung und keine Löschung von Geschäftsdaten. Die bereits gesicherten Angaben bleiben erhalten.
+
+**Umsetzung:** Erstellen, Ansicht und Inline-Bearbeitung verwenden denselben zentrierten Seitenrahmen und dieselbe Zweispalten-Komposition. Die Chronik bleibt links unter den Positionen. Primäraktionen verwenden ausschließlich den gelben Shared-Button. Die Kostenverwaltung erhält einen gemeinsamen Dialog mit vorläufigen Anpassungszeilen und ausdrücklichem Speichern/Verwerfen; Rabatt bleibt fachlich getrennt von Zusatzkosten. Inhaltskenntnis und Preisführung bleiben unabhängig, keine sichtbare Einkaufsart. Bestehende technische Typwerte und Abschlusssperren bleiben erhalten. Die Kostenprüfung für vorhandene Altdaten bleibt bei Bedarf über einen kompakten Aufklappbereich erreichbar statt als allgemeines Banner für jeden Entwurf.
+
+**Prüfung:** 127 Angular-Tests, 40 Logik-/Service-Tests, vier Architekturtests und 25 Browserabläufe bestanden. Build, Typprüfung, ESLint, Formatierung und Diff-Prüfung erfolgreich. Browserprüfungen umfassen gemeinsame Seitengeometrie, Speichern/Verwerfen, Rabatt nach erneutem Öffnen, direkte Einkaufslinks, Chronik, feste Sidebar, mobile Erfassungsseiten und automatisierte WCAG-AA-Prüfung. Die Shared-UI-Prüfung meldet für 67 Admin-Vorlagen keine Verstöße und verhindert zusätzlich sichtbare native Standardfelder im gemeinsamen Einkaufsarbeitsbereich. Visuelle Referenzprüfung auf die tatsächlich untersuchten Zustände begrenzt, keine vollständige Pixelgleichheit behauptet. Noch keine Veröffentlichung und keine Geschäftsdaten gelöscht.
+
+## 2026-09-07 – Codex – Einkaufs-Neuaufbau geprüft und Angaben zur Neueingabe gesichert
+
+**Entscheidungen:** Gemeinsame Einkaufsseite für Erstellen, Ansicht und Bearbeiten vorbereiten; Primäraktionen gelb und wiederkehrende Elemente über Shared-Komponenten. Die bewusste Abschaffung der sichtbaren Einkaufsart anhand von Commit `120a469` und dem Workflow-Plan bestätigt: Inhaltskenntnis und Preisführung bleiben unabhängig. Die vorherige Einordnung der fehlenden Typauswahl als Defekt war falsch. Der Nutzer bewertet die sporadisch gepflegten Daten als disponiblen Testbestand und stimmt einem späteren Neustart nach Sicherung zu.
+
+**Analyse und Sicherung:** Drei Agents prüften Komponenten, Fachabläufe, Datenabhängigkeiten und Exportlücken. Der identifizierte Server-Workspace wurde lesend in einem konsistenten Datenbanksnapshot exportiert: 10 Einkäufe, 14 Bestandsartikel, 4 Verkäufe, 3 Rechnungen, zugehörige Positionen, Kosten, Stammdaten, Kommentare und Ereignisse. JSON, lesbare Vorlage zur Neueingabe und das eine zugeordnete Artikelfoto liegen außerhalb des Repositorys im Aufgaben-Artefaktordner. Diese Referenzsicherung ersetzt keinen vollständigen Betriebsrestore. Keine Daten gelöscht, keine Backend- oder Anwendungscodeänderungen. Vor einer späteren Löschung sind aktueller Datenstand, technische Sicherung und konkrete Zielmenge erneut zu prüfen; Konten, Einstellungen und fremde Daten sind nicht pauschal Teil des Neustarts.
+
 ## 2026-09-07 – Codex – Einkaufsseite, feste Sidebar und Chronik vereinheitlicht
 
 **Auftrag/Ergebnis:** Die Einkaufserfassung besitzt keine untere Aktionsleiste mehr. „Entwurf speichern“ steht als gemeinsamer Button oben rechts neben der Seitenüberschrift; der vorhandene Zurück-Pfeil übernimmt das Verlassen der Seite. Die mobile Kopfzeile verteilt Überschrift, Aktion und Untertitel ohne den zuvor abgeschnittenen Text. Die Bearbeitung eines vorhandenen Einkaufs öffnet nicht länger einen anders proportionierten Dialog, sondern dieselbe breite Arbeitsseite wie die Neuanlage. Nach dem Speichern wird der Datensatz neu geladen.

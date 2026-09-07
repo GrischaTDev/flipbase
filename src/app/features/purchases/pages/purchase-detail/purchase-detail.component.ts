@@ -9,11 +9,13 @@ import {
   inject,
   input,
   signal,
+  untracked,
   viewChild,
 } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
-import { CurrencyPipe, DatePipe } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import {
   LucideDynamicIcon,
   LucideIconInput,
@@ -80,11 +82,15 @@ import { InventoryService } from '../../../../core/services/inventory.service';
 import { SalesService } from '../../../../core/services/sales.service';
 import { RecordHistoryContainer } from '../../../audit/components/record-history/record-history.container';
 import { PurchaseCostRepairComponent } from '../../components/purchase-cost-repair/purchase-cost-repair.component';
-import { PageHeaderComponent } from '../../../../shared/components/page-header/page-header.component';
+import { EntryPageLayoutComponent } from '../../../../shared/components/entry-page-layout/entry-page-layout.component';
+import { PurchaseEntryFormComponent } from '../../components/purchase-entry-form/purchase-entry-form.component';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { TwoColumnLayoutComponent } from '../../../../shared/components/two-column-layout/two-column-layout.component';
+import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
+import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
+import { PurchaseCostSummaryComponent } from '../../components/purchase-cost-summary/purchase-cost-summary.component';
 
 @Component({
   selector: 'app-purchase-detail',
@@ -92,25 +98,27 @@ import { TwoColumnLayoutComponent } from '../../../../shared/components/two-colu
     TableColumnPickerComponent,
     RouterLink,
     ReactiveFormsModule,
-    CurrencyPipe,
     DatePipe,
     LucideDynamicIcon,
     ImageCropperModalComponent,
     CustomSelectComponent,
-    PurchaseLineEditorComponent,
     PurchaseCorrectionDialogComponent,
     PurchaseLifecycleActionsComponent,
     PurchaseDetailTableComponent,
     RecordHistoryContainer,
     PurchaseCostRepairComponent,
-    PageHeaderComponent,
+    EntryPageLayoutComponent,
+    PurchaseEntryFormComponent,
     BadgeComponent,
     ButtonComponent,
     CardComponent,
     TwoColumnLayoutComponent,
+    NumberInputComponent,
+    TextFieldComponent,
+    PurchaseCostSummaryComponent,
   ],
   templateUrl: './purchase-detail.component.html',
-  host: { class: 'block' },
+  host: { class: 'block', '(window:beforeunload)': 'onBeforeUnload($event)' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PurchaseDetailComponent {
@@ -216,6 +224,20 @@ export class PurchaseDetailComponent {
   ];
 
   readonly id = input.required<string>();
+  readonly edit = input(false);
+  readonly isEditing = signal(false);
+  readonly editingPurchase = signal<Purchase | null>(null);
+  readonly purchase = computed(() => {
+    const purchase = this.purchaseService.selectedPurchase();
+    return purchase?.id === this.id() &&
+      purchase.workspace_id === this.workspaceService.currentWorkspace()?.id
+      ? purchase
+      : null;
+  });
+  readonly entryForm = viewChild(PurchaseEntryFormComponent);
+  private readonly requestedCostEditor = signal(false);
+  readonly trackingNumberControl = new FormControl('', { nonNullable: true });
+  private openedEditId: string | null = null;
 
   private readonly dialog = inject(ConfirmDialogService);
   readonly purchaseService = inject(PurchaseService);
@@ -324,7 +346,57 @@ export class PurchaseDetailComponent {
   readonly isCorrectionDialogOpen = signal(false);
 
   editPurchase(purchaseId: string): void {
-    void this.router.navigate(['/purchases', purchaseId, 'edit']);
+    const purchase = this.purchaseService.selectedPurchase();
+    if (!purchase || purchase.id !== purchaseId || purchase.entry_status === 'finalized') return;
+    this.editingPurchase.set(purchase);
+    this.isEditing.set(true);
+  }
+
+  editCosts(purchaseId: string): void {
+    this.editPurchase(purchaseId);
+    this.requestedCostEditor.set(this.isEditing());
+  }
+
+  hasUnsavedChanges(): boolean {
+    return this.entryForm()?.hasUnsavedChanges() ?? false;
+  }
+
+  isSaving(): boolean {
+    return this.entryForm()?.isSaving() ?? false;
+  }
+
+  saveDraft(): void {
+    void this.entryForm()?.onSubmit();
+  }
+
+  async discardEdits(): Promise<void> {
+    if (this.isSaving()) return;
+    if (
+      this.hasUnsavedChanges() &&
+      !(await this.dialog.frage({
+        titel: 'Änderungen verwerfen?',
+        text: 'Die nicht gespeicherten Änderungen an diesem Einkauf gehen verloren.',
+        bestaetigenText: 'Verwerfen',
+        abbrechenText: 'Weiter bearbeiten',
+      }))
+    )
+      return;
+    this.isEditing.set(false);
+    this.editingPurchase.set(null);
+  }
+
+  async finishEditing(): Promise<void> {
+    this.isEditing.set(false);
+    this.editingPurchase.set(null);
+    await this.purchaseService.getPurchaseById(this.id());
+  }
+
+  returnToPurchases(): void {
+    void this.router.navigate(['/purchases']);
+  }
+
+  onBeforeUnload(event: BeforeUnloadEvent): void {
+    if (this.hasUnsavedChanges() || this.isSaving()) event.preventDefault();
   }
 
   readonly hasRecordedPurchaseSale = computed(
@@ -430,7 +502,8 @@ export class PurchaseDetailComponent {
     }
     return Number(
       (
-        purchase.purchase_price +
+        purchase.purchase_price -
+        (purchase.discount_amount ?? 0) +
         (purchase.shipping_cost || 0) +
         (purchase.other_costs || 0) +
         (purchase.costs ?? []).reduce((sum, cost) => sum + Number(cost.amount || 0), 0)
@@ -446,14 +519,46 @@ export class PurchaseDetailComponent {
 
   constructor() {
     effect(() => {
+      const form = this.entryForm();
+      if (!form || !this.requestedCostEditor()) return;
+      this.requestedCostEditor.set(false);
+      queueMicrotask(() => {
+        if (this.entryForm() === form && this.isEditing()) form.openCostEditor();
+      });
+    });
+    this.trackingNumberControl.valueChanges.pipe(takeUntilDestroyed()).subscribe((value) => {
+      this.trackingNumberDraft.set(value);
+      if (value.trim())
+        this.trackingCarrierDraft.set(this.trackingService.autoDetectCarrier(value));
+    });
+    effect(() => {
+      const purchase = this.purchaseService.selectedPurchase();
+      if (this.edit() && purchase?.id === this.id() && this.openedEditId !== purchase.id) {
+        this.openedEditId = purchase.id;
+        this.editPurchase(purchase.id);
+      }
+    });
+    effect(() => {
       const purchaseId = this.id();
       const workspaceId = this.workspaceService.currentWorkspace()?.id;
       this.mockStore.isDemoMode();
+      // Die Workspace-Initialisierung verwirft vorherige Detailanfragen. Erst danach
+      // laden; ein Listenfehler darf den unabhängig ladbaren Einkauf nicht blockieren.
+      if (
+        this.purchaseService.loadedWorkspaceId() !== workspaceId &&
+        !this.purchaseService.loadError()
+      )
+        return;
+      this.isEditing.set(false);
+      this.editingPurchase.set(null);
+      this.openedEditId = null;
       if (purchaseId && workspaceId) {
-        void Promise.all([
-          this.purchaseService.getPurchaseById(purchaseId),
-          this.stockService.loadPositions(workspaceId),
-        ]);
+        untracked(() => {
+          void Promise.all([
+            this.purchaseService.getPurchaseById(purchaseId),
+            this.stockService.loadPositions(workspaceId),
+          ]);
+        });
       }
     });
   }
@@ -800,6 +905,7 @@ export class PurchaseDetailComponent {
   startEditTracking(): void {
     const p = this.purchaseService.selectedPurchase();
     this.trackingNumberDraft.set(p?.tracking_number || '');
+    this.trackingNumberControl.setValue(p?.tracking_number || '', { emitEvent: false });
     this.trackingCarrierDraft.set(p?.tracking_carrier || null);
     this.isEditingTracking.set(true);
   }

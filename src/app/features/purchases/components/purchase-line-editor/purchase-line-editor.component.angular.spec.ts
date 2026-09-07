@@ -28,7 +28,7 @@ let selectMetadataSnapshot: AngularBindingMetadata | null = null;
 beforeAll(async () => {
   await ɵresolveComponentResources(async (url) => {
     const resourceUrl = String(url);
-    for (const component of ['barcode-scanner']) {
+    for (const component of ['barcode-scanner', 'button', 'number-input', 'text-field']) {
       if (resourceUrl.includes(component + '.component.'))
         return readFile(
           'src/app/shared/components/' + component + '/' + resourceUrl.split('/').at(-1),

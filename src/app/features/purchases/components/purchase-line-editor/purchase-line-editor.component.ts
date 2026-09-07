@@ -25,6 +25,9 @@ import {
 import { ItemConditionLabelPipe } from '../../../../shared/pipes/item-condition-label.pipe';
 import { PurchaseProductPickerComponent } from '../purchase-product-picker/purchase-product-picker.component';
 import { BarcodeScannerComponent } from '../../../../shared/components/barcode-scanner/barcode-scanner.component';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
+import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { parseCsv } from '../../../../shared/utils/csv';
 import { normalizeGtin } from '../../../../shared/utils/gtin';
 
@@ -79,6 +82,9 @@ type PriceField = 'unitPurchasePrice' | 'lineTotal';
     ItemConditionLabelPipe,
     PurchaseProductPickerComponent,
     BarcodeScannerComponent,
+    ButtonComponent,
+    NumberInputComponent,
+    TextFieldComponent,
   ],
   templateUrl: './purchase-line-editor.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -272,12 +278,6 @@ export class PurchaseLineEditorComponent {
     this.emitDrafts();
   }
 
-  updateTitleSnapshotFromEvent(index: number, event: Event): void {
-    const target = event.target;
-    if (!(target instanceof HTMLInputElement)) return;
-    this.updateTitleSnapshot(index, target.value);
-  }
-
   async importCsv(event: Event): Promise<void> {
     const input = event.target;
     if (!(input instanceof HTMLInputElement) || !input.files?.[0]) return;
@@ -362,16 +362,6 @@ export class PurchaseLineEditorComponent {
     } finally {
       input.value = '';
     }
-  }
-
-  updateEstimatedMarketValue(index: number, event: Event): void {
-    const target = event.target;
-    if (!(target instanceof HTMLInputElement)) return;
-    const value = target.valueAsNumber;
-    this.lineRows
-      .at(index)
-      .controls.estimatedMarketValue.setValue(Number.isFinite(value) ? value : null);
-    this.emitDrafts();
   }
 
   recalculate(index: number, changedField: PriceField): void {

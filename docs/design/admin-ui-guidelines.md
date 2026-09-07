@@ -37,6 +37,10 @@ Neutrale Hintergründe, weiße beziehungsweise themegerechte Karten, dezente Rah
 
 Einkaufserfassung und -details folgen der sichtbaren Shopify-Referenz in Anordnung und Proportionen: zentrierter Seitenbereich, breite Positionskarte links, schmalere Kosten-/Detailkarten rechts, Chronik unter dem Arbeitsbereich. Eigene Verkäufer-, Paket- und Kostenfunktionen in diese Struktur integrieren. Visuelle Abnahme bei vergleichbarer Fenstergröße gegen Referenz einschließlich Feldern, Dialogen, Tabellen, Leerzuständen, Radien, Schatten und Bewegung; gemessene Abweichungen dokumentieren.
 
+Präzisierung vom 07.09.2026: Erstellen, Ansicht und Bearbeiten verwenden denselben Seitenrahmen und dieselbe Zweispalten-Komposition. Die Chronik liegt unter den Positionen **innerhalb der linken Spalte**, nicht über die gesamte Seitenbreite. Bearbeiten öffnet die gemeinsame Erfassungsmaske im Arbeitsbereich; gespeicherte Einkäufe behalten Chronik und relevante Zusatzinformationen. Keine separate Einkaufsart-Auswahl: Inhaltskenntnis und Preisführung sind unabhängige Einstellungen. Technische Altdaten-Typen werden dadurch nicht ungeprüft entfernt.
+
+Die Kostenübersicht verwendet eine gemeinsame fachliche Komposition aus Shared-Elementen. „Kostenübersicht verwalten“ enthält flache Zeilen mit Anpassungsart, Betrag und Entfernen sowie „Anpassung hinzufügen“. Rabatt ist eine Anpassungszeile, kein zusätzliches dauerhaftes Sonderfeld und keine positive Kostenbuchung. Dialogänderungen bleiben bis „Speichern“ vorläufig; „Abbrechen“, Schließen und Escape verwerfen sie. Primäre Speichern-/Posten-Aktionen bleiben gelb; eine schwarze Primärvariante ist nicht vorgesehen und wird automatisiert beanstandet.
+
 Offene Bestandskorrekturen betreffen unter anderem Einkaufsdetails, Kosteneditor, Korrekturdialog und explizite Großschreibungsoptionen der Badges. Eine globale CSS-Übersteuerung ersetzt die gezielte Korrektur der Templates und Oberflächentexte nicht.
 
 ## Markenfarbe: nachgewiesener Stand
