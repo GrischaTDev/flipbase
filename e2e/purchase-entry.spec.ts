@@ -24,6 +24,26 @@ test('opens purchase entry as a dedicated page', async ({ page }) => {
   await expect(page.getByRole('region', { name: 'Kostenübersicht' })).toBeVisible();
 });
 
+test('aligns the purchase heading with its content and uses an edit icon action', async ({
+  page,
+}) => {
+  await startDemoMode(page);
+  await page.goto('/purchases/new');
+
+  const heading = page.getByRole('heading', { name: 'Einkauf erstellen', exact: true });
+  const content = page.locator('app-purchase-entry-form form');
+  const headingBox = await heading.boundingBox();
+  const contentBox = await content.boundingBox();
+
+  expect(headingBox).not.toBeNull();
+  expect(contentBox).not.toBeNull();
+  expect(headingBox?.x).toBe(contentBox?.x + 44);
+  await expect(page.getByRole('button', { name: 'Kosten bearbeiten', exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('region', { name: 'Kostenübersicht' }).getByText('Bearbeiten', { exact: true }),
+  ).toHaveCount(0);
+});
+
 test('leaves a pristine entry page without prompting', async ({ page }) => {
   await startDemoMode(page);
   await page.goto('/purchases/new');

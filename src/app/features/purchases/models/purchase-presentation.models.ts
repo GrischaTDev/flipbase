@@ -17,6 +17,23 @@ export type PurchaseStatusLabel =
 export type PresentationLoadState = 'loading' | 'loaded' | 'error';
 export type PurchaseStatusTone = 'neutral' | 'info' | 'success' | 'caution' | 'critical';
 
+export interface PurchaseReceiptLinePresentation {
+  readonly id: string;
+  readonly title: string;
+  readonly received: number;
+  readonly ordered: number;
+}
+
+export type PurchaseReceiptSummary =
+  | {
+      readonly kind: 'known';
+      readonly received: number;
+      readonly ordered: number;
+      readonly lines: readonly PurchaseReceiptLinePresentation[];
+    }
+  | { readonly kind: 'unknown-content' }
+  | { readonly kind: 'unavailable' };
+
 export interface RecordedSalePresentation {
   readonly id: string;
   readonly status: 'active' | 'returned' | 'voided';
@@ -43,6 +60,7 @@ export interface PurchaseListRow {
   readonly purchaseStatusTone: PurchaseStatusTone;
   readonly allocationOpen: boolean;
   readonly totalCost: CostState;
+  readonly receipt: PurchaseReceiptSummary;
   readonly totalUnits: number;
   readonly availableUnits: number | null;
   readonly soldUnits: number | null;

@@ -12,6 +12,7 @@ import { PurchaseTypeLabelPipe } from '../../../shared/pipes/purchase-type-label
 import type {
   PurchaseDetailRow,
   PurchaseListRow,
+  PurchaseReceiptSummary,
   PurchaseStatusLabel,
   PurchaseStatusTone,
   PresentationLoadState,
@@ -47,6 +48,36 @@ function money(amount: number | null | undefined): CostState {
 
 function purchaseLines(purchase: Purchase): readonly PurchaseLine[] {
   return purchase.purchase_lines ?? [];
+}
+
+function summarizeReceipt(purchase: Purchase): PurchaseReceiptSummary {
+  const lines = purchaseLines(purchase);
+  if (lines.length === 0) {
+    return purchase.content_status === 'unknown' || purchase.type === 'mystery_pack'
+      ? { kind: 'unknown-content' }
+      : { kind: 'unavailable' };
+  }
+
+  const quantitiesAreReliable = lines.every(
+    (line) =>
+      Number.isFinite(line.received_quantity) &&
+      line.received_quantity >= 0 &&
+      Number.isFinite(line.ordered_quantity) &&
+      line.ordered_quantity >= 0,
+  );
+  if (!quantitiesAreReliable) return { kind: 'unavailable' };
+
+  return {
+    kind: 'known',
+    received: lines.reduce((sum, line) => sum + line.received_quantity, 0),
+    ordered: lines.reduce((sum, line) => sum + line.ordered_quantity, 0),
+    lines: lines.map((line) => ({
+      id: line.id,
+      title: line.title_snapshot || 'Artikel',
+      received: line.received_quantity,
+      ordered: line.ordered_quantity,
+    })),
+  };
 }
 
 function purchaseItems(
@@ -243,7 +274,11 @@ export function mapPurchaseListRow(
   const totalCost = totalPurchaseCost(purchase);
   const purchaseStatus = getPurchaseStatus(purchase, items);
   return {
-    reference: purchase.record_number || purchase.title || 'Einkauf',
+    reference: purchase.record_number
+      ? purchase.record_number.startsWith('#')
+        ? purchase.record_number
+        : `#${purchase.record_number}`
+      : '—',
     supplierReference: purchase.supplier_reference ?? '',
     captureStatus:
       purchase.entry_status === 'finalized'
@@ -263,6 +298,7 @@ export function mapPurchaseListRow(
     purchaseStatusTone: getPurchaseStatusTone(purchaseStatus),
     allocationOpen: getAllocationOpen(purchase, items, totalCost),
     totalCost: money(totalCost),
+    receipt: summarizeReceipt(purchase),
     ...summarizeQuantities(purchase, items, context),
   };
 }

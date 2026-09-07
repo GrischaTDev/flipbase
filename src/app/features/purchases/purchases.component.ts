@@ -43,6 +43,7 @@ import {
   SelectOption,
 } from '../../shared/components/custom-select/custom-select.component';
 import { TableToolbarComponent } from '../../shared/components/table-toolbar/table-toolbar.component';
+import { PurchaseReceiptPreviewComponent } from './components/purchase-receipt-preview/purchase-receipt-preview.component';
 
 @Component({
   selector: 'app-purchases',
@@ -60,6 +61,7 @@ import { TableToolbarComponent } from '../../shared/components/table-toolbar/tab
     TableToolbarComponent,
     CustomSearchInputComponent,
     CustomSelectComponent,
+    PurchaseReceiptPreviewComponent,
   ],
   templateUrl: './purchases.component.html',
   host: { class: 'block' },
