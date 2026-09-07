@@ -170,22 +170,26 @@ describe('TablePreferencesService – Polaris Table Preferences & Reordering', (
           { id: 'actions', visible: true, order: 2 },
           { id: 'title', visible: true, order: 3 },
           { id: 'units', visible: false, order: 4 },
+          { id: 'capture', visible: true, order: 5 },
         ],
         sort: { field: 'title', direction: 'asc' },
       }),
     );
     const state = service.getTablePreferences('purchases', testWorkspaceId)();
     expect(
-      state.columns.some((column) => ['type', 'cost_status', 'actions'].includes(column.id)),
+      state.columns.some((column) =>
+        ['type', 'cost_status', 'actions', 'units', 'capture'].includes(column.id),
+      ),
     ).toBe(false);
-    expect(state.columns.find((column) => column.id === 'units')?.visible).toBe(false);
+    expect(state.columns.find((column) => column.id === 'description')?.visible).toBe(true);
+    expect(state.columns.find((column) => column.id === 'receipt')?.visible).toBe(true);
     expect(state.sort).toEqual({ field: 'title', direction: 'asc' });
     const stored = JSON.parse(
       localStorage.getItem(`flipbase:table_prefs:${testWorkspaceId}:purchases`) ?? '{}',
     );
     expect(
       stored.columns.some((column: { id: string }) =>
-        ['type', 'cost_status', 'actions'].includes(column.id),
+        ['type', 'cost_status', 'actions', 'units', 'capture'].includes(column.id),
       ),
     ).toBe(false);
   });

@@ -5,6 +5,9 @@
   [attr.aria-label]="ariaLabel() || null"
   [attr.title]="title() || null"
   [attr.aria-busy]="loading() ? 'true' : null"
+  [attr.aria-expanded]="ariaExpanded()"
+  [attr.aria-controls]="ariaControls() || null"
+  [attr.aria-haspopup]="ariaHaspopup()"
   (click)="handleClick($event)"
 >
   @if (loading()) {
@@ -14,15 +17,21 @@
       class="animate-spin"
       aria-hidden="true"
     ></svg>
-  } @else if (icon() && iconPosition() === 'start') {
-    <svg [lucideIcon]="icon()!" [class]="iconClasses()" aria-hidden="true"></svg>
+  } @else if (icon(); as buttonIcon) {
+    @if (iconPosition() === 'start') {
+      <svg [lucideIcon]="buttonIcon" [class]="iconClasses()" aria-hidden="true"></svg>
+    }
   }
 
-  <span class="truncate">
-    <ng-content />
-  </span>
+  @if (!iconOnly()) {
+    <span class="truncate">
+      <ng-content />
+    </span>
+  }
 
-  @if (!loading() && icon() && iconPosition() === 'end') {
-    <svg [lucideIcon]="icon()!" [class]="iconClasses()" aria-hidden="true"></svg>
+  @if (!loading() && iconPosition() === 'end') {
+    @if (icon(); as buttonIcon) {
+      <svg [lucideIcon]="buttonIcon" [class]="iconClasses()" aria-hidden="true"></svg>
+    }
   }
 </button>

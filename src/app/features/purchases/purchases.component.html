@@ -56,7 +56,7 @@
       <app-custom-select
         table-filters
         variant="toolbar"
-        widthClass="max-w-52"
+        widthClass="min-w-60 max-w-80"
         ariaLabel="Verkäufer ist"
         [options]="sellerSelectOptions()"
         [value]="sellerId()"
@@ -100,9 +100,12 @@
               @for (column of orderedVisibleColumns(); track column.id) {
                 @switch (column.id) {
                   @case ('title') {
-                    <th scope="col" class="min-w-64" [attr.aria-sort]="ariaSort('title')">
+                    <th scope="col">Einkauf</th>
+                  }
+                  @case ('description') {
+                    <th scope="col" class="min-w-56" [attr.aria-sort]="ariaSort('title')">
                       <app-table-sort-header
-                        label="Einkauf"
+                        label="Bezeichnung"
                         sortField="title"
                         [currentSort]="tablePrefs().sort"
                         (sortChanged)="onSortChanged($event)"
@@ -111,9 +114,6 @@
                   }
                   @case ('seller') {
                     <th scope="col">Verkäufer</th>
-                  }
-                  @case ('capture') {
-                    <th scope="col">Erfassung</th>
                   }
                   @case ('purchase_date') {
                     <th scope="col" [attr.aria-sort]="ariaSort('purchase_date')">
@@ -129,9 +129,13 @@
                     <th scope="col">Status</th>
                   }
                   @case ('total_cost') {
-                    <th scope="col" [attr.aria-sort]="ariaSort('total_cost')">
+                    <th
+                      scope="col"
+                      class="min-w-28 text-right"
+                      [attr.aria-sort]="ariaSort('total_cost')"
+                    >
                       <app-table-sort-header
-                        label="Gesamtkosten"
+                        label="Gesamt"
                         sortField="total_cost"
                         [currentSort]="tablePrefs().sort"
                         (sortChanged)="onSortChanged($event)"
@@ -139,8 +143,8 @@
                       />
                     </th>
                   }
-                  @case ('units') {
-                    <th scope="col" class="text-right">Stückzahl und Bestand</th>
+                  @case ('receipt') {
+                    <th scope="col">Erhalten</th>
                   }
                 }
               }
@@ -160,19 +164,19 @@
                         <a
                           [routerLink]="['/purchases', row.id]"
                           data-purchase-row
+                          data-purchase-reference
                           [attr.data-purchase-row]="row.id"
                           class="font-semibold text-fb-text-primary transition hover:text-fb-primary focus-visible:outline-2 focus-visible:outline-fb-primary"
                         >
                           {{ row.reference }}
                         </a>
-                        <p class="mt-0.5 text-xs text-fb-text-muted">{{ row.title }}</p>
                       </td>
+                    }
+                    @case ('description') {
+                      <td data-purchase-description>{{ row.title }}</td>
                     }
                     @case ('seller') {
                       <td>{{ row.supplierLabel }}</td>
-                    }
-                    @case ('capture') {
-                      <td>{{ row.captureStatus }}</td>
                     }
                     @case ('purchase_date') {
                       <td>
@@ -189,28 +193,16 @@
                       </td>
                     }
                     @case ('total_cost') {
-                      <td class="text-right font-mono font-semibold">
+                      <td class="min-w-28 text-right font-mono font-semibold tabular-nums">
                         <app-cost-state [state]="row.totalCost" />
                       </td>
                     }
-                    @case ('units') {
-                      <td class="text-right font-mono text-xs">
-                        @if (
-                          row.totalUnits === 0 && row.captureStatus !== 'Erfassung abgeschlossen'
-                        ) {
-                          Noch keine Artikel erfasst
-                        } @else {
-                          {{ row.totalUnits }} erfasst
-                        }
-                        <span class="mt-0.5 block text-fb-text-muted">
-                          @if (row.quantityState === 'error') {
-                            Nicht verfügbar
-                          } @else if (row.quantityState === 'loading') {
-                            Wird geladen …
-                          } @else {
-                            {{ row.availableUnits }} verfügbar · {{ row.soldUnits }} verkauft
-                          }
-                        </span>
+                    @case ('receipt') {
+                      <td>
+                        <app-purchase-receipt-preview
+                          [purchaseId]="row.id"
+                          [receipt]="row.receipt"
+                        />
                       </td>
                     }
                   }

@@ -23,6 +23,7 @@ import { ButtonComponent } from '../../shared/components/button/button.component
 import { CostStateComponent } from '../../shared/components/cost-state/cost-state.component';
 import { CustomSearchInputComponent } from '../../shared/components/custom-search-input/custom-search-input.component';
 import { CustomSelectComponent } from '../../shared/components/custom-select/custom-select.component';
+import { PurchaseReceiptPreviewComponent } from './components/purchase-receipt-preview/purchase-receipt-preview.component';
 
 interface AngularInputMetadata {
   inputs: Record<string, unknown>;
@@ -80,7 +81,13 @@ beforeAll(async () => {
     'description',
   ]);
   registerSignalInputs(BadgeComponent, ['tone', 'marker', 'mono']);
-  registerSignalInputs(ButtonComponent, ['icon']);
+  registerSignalInputs(ButtonComponent, [
+    'icon',
+    'iconOnly',
+    'ariaExpanded',
+    'ariaControls',
+    'ariaHaspopup',
+  ]);
   registerSignalInputs(CostStateComponent, ['state']);
   registerSignalInputs(CustomSearchInputComponent, [
     'value',
@@ -96,6 +103,7 @@ beforeAll(async () => {
     'widthClass',
     'ariaLabel',
   ]);
+  registerSignalInputs(PurchaseReceiptPreviewComponent, ['purchaseId', 'receipt']);
 });
 
 const workspaceId = 'workspace-1';
@@ -104,6 +112,7 @@ const purchases: Purchase[] = [
   {
     id: 'purchase-normal',
     workspace_id: workspaceId,
+    record_number: '#E1',
     type: 'single',
     title: 'Haushaltswaren',
     purchase_date: '2026-08-20',
@@ -210,6 +219,52 @@ beforeEach(() => {
 });
 
 describe('PurchasesComponent – responsive Einkaufsübersicht', () => {
+  it('trennt Einkaufsnummer und Bezeichnung und zeigt den Wareneingang statt Erfassungsbestand', () => {
+    const fixture = TestBed.createComponent(PurchasesComponent);
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const headers = Array.from(host.querySelectorAll('thead th')).map((header) =>
+      header.textContent?.replace(/\s+/g, ' ').trim(),
+    );
+    const normalRow = host.querySelector('[data-purchase-row="purchase-normal"]')?.closest('tr');
+
+    expect(headers).toContain('Einkauf');
+    expect(headers).toContain('Bezeichnung');
+    expect(headers).toContain('Erhalten');
+    expect(headers).toContain('Gesamt');
+    expect(headers).not.toContain('Erfassung');
+    expect(headers).not.toContain('Stückzahl und Bestand');
+    expect(headers).not.toContain('Gesamtkosten');
+    expect(normalRow?.querySelector('[data-purchase-reference]')?.textContent?.trim()).toBe('#E1');
+    expect(normalRow?.querySelector('[data-purchase-description]')?.textContent?.trim()).toBe(
+      'Haushaltswaren',
+    );
+    expect(normalRow?.querySelector('app-purchase-receipt-preview button')?.textContent).toContain(
+      '1 von 1',
+    );
+  });
+
+  it('öffnet zur erhaltenen Menge eine Positionsvorschau', () => {
+    const fixture = TestBed.createComponent(PurchasesComponent);
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const normalRow = host.querySelector('[data-purchase-row="purchase-normal"]')?.closest('tr');
+    const trigger = normalRow?.querySelector<HTMLButtonElement>(
+      'app-purchase-receipt-preview button',
+    );
+
+    expect(trigger).not.toBeNull();
+    if (!trigger) throw new Error('Erhalten-Trigger fehlt');
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    trigger.click();
+    fixture.detectChanges();
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+
+    const preview = normalRow?.querySelector('[data-purchase-receipt-preview]');
+    expect(preview?.textContent).toContain('Tasse');
+    expect(preview?.textContent).toContain('1 von 1');
+  });
+
   it('rendert eine semantische Tabelle mit einem Eintrag pro Einkauf', () => {
     const fixture = TestBed.createComponent(PurchasesComponent);
     fixture.detectChanges();
@@ -228,9 +283,8 @@ describe('PurchasesComponent – responsive Einkaufsübersicht', () => {
     ]);
     const normalRow = host.querySelector('[data-purchase-row="purchase-normal"]')?.closest('tr');
     const mysteryRow = host.querySelector('[data-purchase-row="purchase-mystery"]')?.closest('tr');
-    expect(normalRow?.textContent).toContain('Erfassung abgeschlossen');
-    expect(normalRow?.textContent).toContain('1 verfügbar');
-    expect(mysteryRow?.textContent).toContain('Inhalt erfassen');
+    expect(normalRow?.textContent).toContain('1 von 1');
+    expect(mysteryRow?.textContent).toContain('Inhalt offen');
     expect(mysteryRow?.textContent).toContain('Kosten noch offen');
   });
 
@@ -297,9 +351,9 @@ describe('PurchasesComponent – responsive Einkaufsübersicht', () => {
     component.searchQuery.set('EK-104');
     component.sellerId.set('seller-a');
     fixture.detectChanges();
-    expect(component.purchaseRows().map((row) => row.reference)).toEqual(['EK-104']);
+    expect(component.purchaseRows().map((row) => row.reference)).toEqual(['#EK-104']);
     component.searchQuery.set('Rechnung-777');
-    expect(component.purchaseRows().map((row) => row.reference)).toEqual(['EK-104']);
+    expect(component.purchaseRows().map((row) => row.reference)).toEqual(['#EK-104']);
     component.sellerId.set('seller-b');
     expect(component.purchaseRows()).toHaveLength(0);
     component.clearFilters();
