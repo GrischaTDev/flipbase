@@ -1,8 +1,10 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { DestroyRef, EnvironmentInjector, Injectable, effect, inject, signal } from '@angular/core';
 import { SupabaseService } from './supabase.service';
 import { MockDataStoreService } from './mock-data-store.service';
 import { SyncFehlerAktion, SyncStatusService } from './sync-status.service';
-import { ItemMedia } from '../models/flipbase.models';
+import { CatalogProductMedia, ItemMedia } from '../models/flipbase.models';
+import { WorkspaceService } from './workspace.service';
+import { AuthService } from './auth.service';
 
 @Injectable({
   providedIn: 'root',
@@ -11,6 +13,87 @@ export class MediaService {
   private readonly supabase = inject(SupabaseService);
   private readonly mockStore = inject(MockDataStoreService);
   private readonly syncStatus = inject(SyncStatusService, { optional: true });
+  private readonly workspace = inject(WorkspaceService, { optional: true });
+  private readonly auth = inject(AuthService, { optional: true });
+  private readonly environmentInjector = inject(EnvironmentInjector, { optional: true });
+  private readonly destroyRef = inject(DestroyRef);
+  private contextKey = '';
+  private generation = 0;
+  private readonly expirations = new Map<string, number>();
+  private readonly retryAfter = new Map<string, number>();
+  private readonly retriedPaths = new Set<string>();
+  private readonly refreshTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  private readonly queuedPaths = new Set<string>();
+  private signatureBatchQueued = false;
+
+  constructor() {
+    if (this.environmentInjector) effect(() => this.synchronizeContext());
+    this.destroyRef.onDestroy(() => this.clearCache());
+  }
+
+  private synchronizeContext(deferSignalWrite = false): number {
+    const key = `${this.workspace?.currentWorkspace()?.id ?? ''}:${this.auth?.session()?.access_token ?? ''}:${this.mockStore.isDemoMode()}`;
+    if (key !== this.contextKey) {
+      this.contextKey = key;
+      this.clearCache(deferSignalWrite);
+    }
+    return this.generation;
+  }
+
+  private clearCache(deferSignalWrite = false): void {
+    this.generation += 1;
+    if (deferSignalWrite) {
+      const generation = this.generation;
+      queueMicrotask(() => {
+        if (generation === this.generation) this.signedUrls.set({});
+      });
+    } else this.signedUrls.set({});
+    this.pendingSignatures.clear();
+    this.queuedPaths.clear();
+    this.expirations.clear();
+    this.retryAfter.clear();
+    this.retriedPaths.clear();
+    for (const timer of this.refreshTimers.values()) clearTimeout(timer);
+    this.refreshTimers.clear();
+  }
+
+  invalidateMediaUrl(storagePath: string): void {
+    this.expirations.delete(storagePath);
+    this.retryAfter.delete(storagePath);
+    this.signedUrls.update((urls) => {
+      const next = { ...urls };
+      delete next[storagePath];
+      return next;
+    });
+  }
+
+  reportMediaFailure(storagePath: string): void {
+    this.scheduleRetry(storagePath);
+    this.expirations.delete(storagePath);
+    this.signedUrls.update((urls) => {
+      const next = { ...urls };
+      delete next[storagePath];
+      return next;
+    });
+  }
+
+  private scheduleRetry(storagePath: string): void {
+    const previous = this.refreshTimers.get(storagePath);
+    if (previous) clearTimeout(previous);
+    if (this.retriedPaths.has(storagePath)) {
+      this.retryAfter.set(storagePath, Number.POSITIVE_INFINITY);
+      return;
+    }
+    this.retriedPaths.add(storagePath);
+    this.retryAfter.set(storagePath, Date.now() + 30000);
+    const generation = this.generation;
+    this.refreshTimers.set(
+      storagePath,
+      setTimeout(() => {
+        if (generation === this.synchronizeContext()) this.invalidateMediaUrl(storagePath);
+      }, 30000),
+    );
+  }
 
   private readonly localMediaMap = new Map<string, ItemMedia[]>();
 
@@ -39,7 +122,14 @@ export class MediaService {
    * durchgereicht - das betrifft alle lokal gespeicherten Bilder.
    */
   getMediaUrl(storagePath: string): string {
+    this.synchronizeContext(true);
     if (!storagePath) return '';
+    if (
+      storagePath.startsWith('catalog-products/') &&
+      this.workspace &&
+      storagePath.split('/')[1] !== this.workspace.currentWorkspace()?.id
+    )
+      return '';
     if (
       storagePath.startsWith('http://') ||
       storagePath.startsWith('https://') ||
@@ -50,7 +140,8 @@ export class MediaService {
     }
 
     const cached = this.signedUrls()[storagePath];
-    if (cached) return cached;
+    if (cached && (this.expirations.get(storagePath) ?? 0) > Date.now()) return cached;
+    if ((this.retryAfter.get(storagePath) ?? 0) > Date.now()) return '';
 
     this.requestSignedUrl(storagePath);
     return '';
@@ -60,21 +151,175 @@ export class MediaService {
   private requestSignedUrl(storagePath: string): void {
     if (this.pendingSignatures.has(storagePath)) return;
     this.pendingSignatures.add(storagePath);
+    this.queuedPaths.add(storagePath);
+    if (this.signatureBatchQueued) return;
+    this.signatureBatchQueued = true;
+    queueMicrotask(() => {
+      this.signatureBatchQueued = false;
+      void this.signQueuedPaths();
+    });
+  }
 
-    void this.supabase.client.storage
-      .from('item-media')
-      .createSignedUrl(storagePath, MediaService.SIGNED_URL_TTL)
-      .then(({ data, error }) => {
-        if (!error && data?.signedUrl) {
-          this.signedUrls.update((map) => ({ ...map, [storagePath]: data.signedUrl }));
+  private async signQueuedPaths(): Promise<void> {
+    const generation = this.synchronizeContext();
+    const paths = [...this.queuedPaths];
+    this.queuedPaths.clear();
+    if (!paths.length) return;
+    try {
+      const { data, error } = await this.supabase.client.storage
+        .from('item-media')
+        .createSignedUrls(paths, MediaService.SIGNED_URL_TTL);
+      if (generation !== this.synchronizeContext()) return;
+      if (error) throw error;
+      const urls: Record<string, string> = {};
+      for (const entry of data ?? []) {
+        if (!entry.path || !entry.signedUrl || entry.error) continue;
+        urls[entry.path] = entry.signedUrl;
+        const lifetime = (MediaService.SIGNED_URL_TTL - 120) * 1000;
+        this.expirations.set(entry.path, Date.now() + lifetime);
+        const path = entry.path;
+        const previous = this.refreshTimers.get(path);
+        if (previous) clearTimeout(previous);
+        this.refreshTimers.set(
+          path,
+          setTimeout(() => this.invalidateMediaUrl(path), lifetime),
+        );
+      }
+      for (const path of paths) if (!urls[path]) this.scheduleRetry(path);
+      this.signedUrls.update((previous) => ({ ...previous, ...urls }));
+    } catch (error: unknown) {
+      if (generation !== this.synchronizeContext()) return;
+      paths.forEach((path) => this.scheduleRetry(path));
+      this.melde('Laden der Bildvorschau', error);
+    } finally {
+      if (generation === this.synchronizeContext())
+        paths.forEach((path) => this.pendingSignatures.delete(path));
+    }
+  }
+
+  async loadProductMedia(productId: string): Promise<CatalogProductMedia[]> {
+    const generation = this.synchronizeContext();
+    try {
+      if (this.mockStore.isDemoMode()) return this.mockStore.getCatalogProductMedia(productId);
+      const { data, error } = await this.supabase.client
+        .from('catalog_product_media')
+        .select('*')
+        .eq('catalog_product_id', productId)
+        .order('is_primary', { ascending: false })
+        .order('sort_order')
+        .order('created_at')
+        .order('id');
+      if (generation !== this.synchronizeContext()) return [];
+      if (error) throw error;
+      return data ?? [];
+    } catch (error: unknown) {
+      throw this.melde('Laden der Produktbilder', error);
+    }
+  }
+
+  async uploadProductMedia(
+    productId: string,
+    file: File,
+    action?: SyncFehlerAktion,
+  ): Promise<{ data: CatalogProductMedia | null; error: Error | null }> {
+    const generation = this.synchronizeContext();
+    let uploadedPath: string | null = null;
+    try {
+      const extensions: Readonly<Record<string, readonly string[]>> = {
+        'image/jpeg': ['jpg', 'jpeg'],
+        'image/png': ['png'],
+        'image/webp': ['webp'],
+        'image/gif': ['gif'],
+        'image/avif': ['avif'],
+      };
+      const extension = file.name.split('.').at(-1)?.toLowerCase() ?? '';
+      if (!extensions[file.type]?.includes(extension) || file.size === 0)
+        throw new Error('Bitte ein JPEG-, PNG-, WebP-, GIF- oder AVIF-Bild auswählen.');
+      const product = this.mockStore.isDemoMode()
+        ? this.mockStore.getCatalogProducts().find((entry) => entry.id === productId)
+        : await this.readProductForUpload(productId);
+      if (!product) throw new Error('Das Produkt wurde nicht gefunden oder ist nicht zugänglich.');
+      if (generation !== this.synchronizeContext())
+        throw new Error('Workspace oder Sitzung wurde gewechselt. Bitte erneut versuchen.');
+      const existing = await this.loadProductMedia(productId);
+      const isPrimary = !existing.some((entry) => entry.is_primary);
+      const id = crypto.randomUUID();
+      const path = `catalog-products/${product.workspace_id}/${productId}/${id}.${extension}`;
+      const metadata = {
+        workspace_id: product.workspace_id,
+        catalog_product_id: productId,
+        is_primary: isPrimary,
+        sort_order: existing.length,
+        file_name: file.name,
+        file_size: file.size,
+        mime_type: file.type,
+      };
+      if (this.mockStore.isDemoMode()) {
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () =>
+            typeof reader.result === 'string'
+              ? resolve(reader.result)
+              : reject(new Error('Bild konnte nicht gelesen werden.'));
+          reader.onerror = () => reject(new Error('Bild konnte nicht gelesen werden.'));
+          reader.readAsDataURL(file);
+        });
+        if (generation !== this.synchronizeContext())
+          throw new Error('Workspace oder Sitzung wurde gewechselt.');
+        const media: CatalogProductMedia = {
+          ...metadata,
+          id,
+          storage_path: dataUrl,
+          created_at: new Date().toISOString(),
+        };
+        this.mockStore.saveCatalogProductMedia(media);
+        return { data: media, error: null };
+      }
+      if (generation !== this.synchronizeContext())
+        throw new Error('Workspace oder Sitzung wurde gewechselt.');
+      const { error: uploadError } = await this.supabase.client.storage
+        .from('item-media')
+        .upload(path, file, { contentType: file.type, upsert: false });
+      if (uploadError) throw uploadError;
+      uploadedPath = path;
+      const { data, error } = await this.supabase.client
+        .from('catalog_product_media')
+        .insert({ ...metadata, storage_path: path })
+        .select()
+        .single();
+      if (error || !data) throw error ?? new Error('Der Bildeintrag wurde nicht zurückgegeben.');
+      uploadedPath = null;
+      return { data, error: null };
+    } catch (error: unknown) {
+      let failure = this.melde('Speichern des Produktbilds', error, action);
+      if (uploadedPath) {
+        try {
+          const { error: rollbackError } = await this.supabase.client.storage
+            .from('item-media')
+            .remove([uploadedPath]);
+          if (rollbackError) throw rollbackError;
+        } catch (rollbackError: unknown) {
+          failure = this.melde(
+            'Aufräumen des fehlgeschlagenen Bilduploads',
+            new Error(
+              `${failure.message} Nicht entfernt: ${uploadedPath}. ${rollbackError instanceof Error ? rollbackError.message : String(rollbackError)}`,
+            ),
+            action,
+          );
         }
-      })
-      .catch(() => {
-        // Ohne erreichbares Backend bleibt das Bild leer.
-      })
-      .finally(() => {
-        this.pendingSignatures.delete(storagePath);
-      });
+      }
+      return { data: null, error: failure };
+    }
+  }
+
+  private async readProductForUpload(productId: string): Promise<{ workspace_id: string } | null> {
+    const { data, error } = await this.supabase.client
+      .from('catalog_products')
+      .select('workspace_id')
+      .eq('id', productId)
+      .maybeSingle();
+    if (error) throw error;
+    return data;
   }
 
   /**

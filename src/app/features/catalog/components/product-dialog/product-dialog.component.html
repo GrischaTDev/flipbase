@@ -1,0 +1,109 @@
+<app-modal-shell title="Produkt erstellen" size="lg" (closed)="close()">
+  <form [formGroup]="form" class="space-y-4" (ngSubmit)="$event.stopPropagation(); save()">
+    @if (error()) {
+      <p role="alert" class="text-sm text-rose-700 dark:text-rose-400">{{ error() }}</p>
+    }
+    @if (workspaceChanged()) {
+      <p role="alert" class="text-sm text-rose-700 dark:text-rose-400">
+        Der Workspace wurde gewechselt. Bitte schließe diesen Dialog.
+      </p>
+    }
+    <app-text-field
+      label="Name"
+      formControlName="title"
+      [error]="
+        form.controls.title.touched && form.controls.title.invalid
+          ? 'Bitte einen Namen eingeben.'
+          : null
+      "
+    />
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <app-text-field
+        label="EAN / GTIN (optional)"
+        formControlName="ean"
+        [error]="
+          form.controls.ean.touched && form.controls.ean.invalid ? 'Ungültige EAN/GTIN.' : null
+        "
+      />
+      <app-text-field label="Kategorie (optional)" formControlName="category" />
+      <app-text-field label="Marke (optional)" formControlName="brand" />
+      <app-text-field label="Modell (optional)" formControlName="model" />
+    </div>
+    <div>
+      <label for="product-condition" class="mb-1.5 block text-[13px] font-semibold"
+        >Zustand (optional)</label
+      ><app-custom-select
+        triggerId="product-condition"
+        ariaLabel="Zustand (optional)"
+        formControlName="condition"
+        [options]="conditionOptions"
+      />
+    </div>
+    <app-text-field
+      label="Mängelnotiz (optional)"
+      formControlName="conditionNotes"
+      [multiline]="2"
+    />
+    <div class="flex flex-wrap items-center gap-2">
+      <app-button
+        variant="secondary"
+        [disabled]="saving() || workspaceChanged()"
+        (clicked)="imageInput.click()"
+        >Bild auswählen</app-button
+      >
+      <span class="break-all text-[13px] text-fb-text-muted">{{
+        image()?.name || 'Kein Bild ausgewählt'
+      }}</span>
+      <!-- Der Browser-Dateidialog benötigt ein verborgenes natives Dateifeld. -->
+      <input
+        #imageInput
+        type="file"
+        accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
+        class="sr-only"
+        tabindex="-1"
+        aria-hidden="true"
+        data-shared-ui-exception="native-file-picker"
+        (change)="selectImage($event)"
+      />
+    </div>
+    <app-custom-checkbox label="Im öffentlichen Shop anzeigen" formControlName="isPublicStore" />
+    @if (form.controls.isPublicStore.value) {
+      <div>
+        <label for="product-listing-price" class="mb-1.5 block text-[13px] font-semibold"
+          >Shoppreis</label
+        ><app-number-input
+          id="product-listing-price"
+          ariaLabel="Shoppreis"
+          formControlName="listingPrice"
+          [min]="0.01"
+          [step]="0.01"
+          [showStepper]="false"
+          unit="€"
+        />
+        @if (form.hasError('publicListingPrice')) {
+          <p class="text-xs text-rose-700 dark:text-rose-400" role="alert">
+            Für öffentliche Produkte ist ein positiver Shoppreis erforderlich.
+          </p>
+        }
+      </div>
+    }
+    <p class="text-[13px] text-fb-text-muted">
+      Menge und Einkaufspreis werden anschließend im Einkauf erfasst.
+    </p>
+  </form>
+  <div modal-footer class="flex flex-wrap justify-end gap-2">
+    <app-button variant="secondary" [disabled]="saving()" (clicked)="close()">Abbrechen</app-button>
+    @if (savedProduct() && !workspaceChanged()) {
+      <app-button variant="secondary" [disabled]="saving()" (clicked)="continueWithoutImage()"
+        >Ohne Bild fortfahren</app-button
+      >
+    }
+    <app-button
+      variant="primary"
+      [loading]="saving()"
+      [disabled]="workspaceChanged()"
+      (clicked)="save()"
+      >{{ savedProduct() ? 'Bild erneut speichern' : 'Produkt erstellen' }}</app-button
+    >
+  </div>
+</app-modal-shell>

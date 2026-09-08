@@ -6,6 +6,29 @@ import { StockLot, StockMovement, StockPosition } from '../models/flipbase.model
 import { SyncStatusService } from './sync-status.service';
 
 describe('StockService', () => {
+  it('verwendet bei einem unklaren Netzwerkfehler denselben Request samt Empfangszeitpunkt', async () => {
+    const rpc = vi
+      .fn()
+      .mockResolvedValueOnce({ data: null, error: new Error('Verbindung unterbrochen') })
+      .mockResolvedValue({ data: { purchase_lines: [], stock_lots: [] }, error: null });
+    const service = Object.create(StockService.prototype) as StockService;
+    Object.assign(service, {
+      pendingReceipts: new Map(),
+      mockStore: { isDemoMode: () => false },
+      workspaceService: { currentWorkspace: () => ({ id: 'workspace-1' }) },
+      syncStatus: new SyncStatusService(),
+      supabase: { client: { rpc } },
+      loadPositions: vi.fn(),
+    });
+    const lines = [{ purchaseLineId: 'line-1', receivedQuantity: 2 }];
+    expect((await service.receivePurchaseLines('purchase-1', lines)).error).not.toBeNull();
+    expect((await service.receivePurchaseLines('purchase-1', lines)).error).toBeNull();
+    expect(rpc.mock.calls[0]?.[0]).toBe('receive_purchase_lines_idempotent');
+    expect(rpc.mock.calls[0]?.[1]).toEqual(rpc.mock.calls[1]?.[1]);
+    expect(rpc.mock.calls[0]?.[1].p_request_id).toMatch(/^[0-9a-f-]{36}$/);
+    await service.receivePurchaseLines('purchase-1', lines);
+    expect(rpc.mock.calls[2]?.[1].p_request_id).not.toBe(rpc.mock.calls[0]?.[1].p_request_id);
+  });
   it('disambiguiert beim Laden die Katalogbeziehung der Bestandslose', async () => {
     const selectsByTable = new Map<string, string>();
     const from = (table: string) => {
@@ -43,9 +66,10 @@ describe('StockService', () => {
     );
   });
 
-  it('übernimmt den durch den Wareneingang bestätigten Mengenbestand', async () => {
+  it('zeigt Wareneingang als vorhandenen Bestand, ohne offenen Einkauf zum Verkauf freizugeben', async () => {
     const service = Object.create(StockService.prototype) as StockService;
     Object.assign(service, {
+      pendingReceipts: new Map(),
       positions: signal<StockPosition[]>([]),
       lots: signal<StockLot[]>([]),
       movements: signal([]),
@@ -117,7 +141,9 @@ describe('StockService', () => {
     ]);
 
     expect(result.error).toBeNull();
-    expect(service.positions()[0].available_quantity).toBe(5);
+    expect(service.positions()[0].on_hand_quantity).toBe(5);
+    expect(service.positions()[0].available_quantity).toBe(0);
+    expect(service.positions()[0].oldest_available_unit_cost).toBeNull();
     expect(service.positions()[0].title).toBe('LED-Lampe');
   });
 
@@ -222,6 +248,16 @@ describe('StockService', () => {
       unit_cost: 2,
       received_at: '2026-08-29T11:00:00.000Z',
       catalog_product: { id: 'product-2', title: 'Aktuell', is_public_store: false },
+      purchase: {
+        id: 'purchase-2',
+        workspace_id: 'workspace-2',
+        title: 'Abgeschlossen',
+        type: 'lot' as const,
+        purchase_price: 6,
+        purchase_date: '2026-08-29',
+        cost_allocation_mode: 'even' as const,
+        entry_status: 'finalized' as const,
+      },
     };
 
     lotResolvers.get('workspace-2')?.({ data: [currentLot], error: null });

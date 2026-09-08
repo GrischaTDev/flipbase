@@ -1,15 +1,8 @@
-import {
-  AfterViewInit,
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  signal,
-  viewChild,
-} from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal, viewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import { AiVisualScanResult } from '../../../../core/services/ai-assistant.service';
-import { EntryPageLayoutComponent } from '../../../../shared/components/entry-page-layout/entry-page-layout.component';
-import { ItemCreateModalComponent } from '../../components/item-create-modal/item-create-modal.component';
+import { ProductDialogComponent } from '../../../catalog/components/product-dialog/product-dialog.component';
+import { CreateCatalogProductInput } from '../../../../core/services/catalog.service';
 
 interface ItemCreateRouteState {
   readonly aiResult?: AiVisualScanResult;
@@ -17,42 +10,42 @@ interface ItemCreateRouteState {
 
 @Component({
   selector: 'app-item-create',
-  imports: [EntryPageLayoutComponent, ItemCreateModalComponent],
+  imports: [ProductDialogComponent],
   templateUrl: './item-create.component.html',
-  host: {
-    class: 'block',
-    '(window:beforeunload)': 'onBeforeUnload($event)',
-  },
+  host: { class: 'block', '(window:beforeunload)': 'onBeforeUnload($event)' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ItemCreateComponent implements AfterViewInit {
+export class ItemCreateComponent {
   private readonly router = inject(Router);
-  private readonly entryForm = viewChild.required(ItemCreateModalComponent);
+  private readonly entryForm = viewChild(ProductDialogComponent);
   private readonly saved = signal(false);
-  private readonly routeState = window.history.state as ItemCreateRouteState;
-
-  ngAfterViewInit(): void {
-    if (this.routeState.aiResult) this.entryForm().prefillWithAiResult(this.routeState.aiResult);
-  }
+  private readonly routeState = (window.history.state ?? {}) as ItemCreateRouteState;
+  readonly initialProduct: Partial<Omit<CreateCatalogProductInput, 'workspaceId'>> | null = this
+    .routeState.aiResult
+    ? {
+        title: this.routeState.aiResult.title,
+        brand: this.routeState.aiResult.brand,
+        model: this.routeState.aiResult.model,
+        category: this.routeState.aiResult.category,
+        condition: this.routeState.aiResult.condition,
+        conditionNotes: this.routeState.aiResult.conditionNotes,
+        ean: this.routeState.aiResult.suggestedEan,
+      }
+    : null;
 
   hasUnsavedChanges(): boolean {
-    return !this.saved() && this.entryForm()?.hasUnsavedChanges();
+    return !this.saved() && (!!this.entryForm()?.form.dirty || !!this.entryForm()?.image());
   }
-
   isSaving(): boolean {
-    return this.entryForm()?.isSaving() ?? false;
+    return this.entryForm()?.saving() ?? false;
   }
-
   onBeforeUnload(event: BeforeUnloadEvent): void {
-    if (!this.hasUnsavedChanges()) return;
-    event.preventDefault();
+    if (this.hasUnsavedChanges()) event.preventDefault();
   }
-
   itemCreated(): void {
     this.saved.set(true);
     this.returnToInventory();
   }
-
   returnToInventory(): void {
     void this.router.navigate(['/inventory']);
   }

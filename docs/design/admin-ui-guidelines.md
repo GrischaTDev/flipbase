@@ -49,7 +49,7 @@ Gespeicherte Einkaufsentwürfe öffnen unmittelbar dieselbe editierbare Maske wi
 
 Shared-Buttons: Standard und schmal 28 px Höhe, große Variante 32 px; Schrift bewusst mindestens 13 px bei 16 px Zeilenhöhe. Die Desktophöhe folgt dem Live-Messprotokoll, die Mindestschrift bleibt eine Zugänglichkeitsentscheidung. Auf Geräten mit grobem Zeiger sind Ziele mindestens 44 × 44 px. Interne Navigationsaktionen können dieselbe Komponente als semantischen Link verwenden. Globale Adminregeln überschreiben diese Größen nicht. Die Chronik behält ihren Aufbau mit einer 32-px-Kommentarfläche und rund 102 px Composerhöhe; diese Verdichtung ist eine Nutzeranpassung, kein behauptetes Originalmaß der Shopify-Chronik.
 
-Offene Bestandskorrekturen betreffen unter anderem Einkaufsdetails, Kosteneditor, Korrekturdialog und explizite Großschreibungsoptionen der Badges. Eine globale CSS-Übersteuerung ersetzt die gezielte Korrektur der Templates und Oberflächentexte nicht.
+Nutzerpräzisierung vom 08.09.2026: Shared-Badges zeigen ausschließlich den Status als Text, ohne führenden Punkt, Quadrat, Icon oder Pulsieren. Diese Entscheidung ersetzt frühere Marker-Vorgaben aus dem Tabellenplan und weicht bewusst von der Shopify-Referenz ab. Die alten Marker-/Icon-/Versalschrift-Eingänge entfallen gemeinsam mit allen Aufrufern. Statusfarben und Größen bleiben zentral; Kennungen und Kürzel behalten ihre originale Schreibweise. Chronikpunkte und Diagrammlegenden sind keine Badges und bleiben unberührt. Eine globale CSS-Übersteuerung ersetzt diese Komponentenregel nicht.
 
 ## Markenfarbe: nachgewiesener Stand
 
@@ -140,6 +140,14 @@ Die Startseite liefert täglich relevante Kennzahlen, Status und nächste Aktion
 Einführung kurz und zielgerichtet halten; nur notwendige Angaben verlangen, Fortschritt verständlich zeigen und nicht notwendige Schritte überspringbar machen. Shopify empfiehlt höchstens fünf Schritte. [Onboarding](https://shopify.dev/docs/apps/design/user-experience/onboarding)
 
 Für Flipbase: Dashboard auf Handlungsbedarf und verlässliche Kennzahlen konzentrieren. Keine neue Onboarding-Funktion als Nebenaufgabe des Tabellenumbaus hinzufügen.
+
+### Diagramme im Dashboard
+
+Nutzerentscheidung vom 08.09.2026: ApexCharts für den eigenen Betrieb, keine Händlerplattform für Dritte. Jahresumsatz einschließlich verbundener Unternehmen unter 2 Mio. USD bestätigt. Verwendet wird ApexCharts 7.1.0 unter den geprüften [Community-Bedingungen](https://apexcharts.com/license/community/); Lizenzhinweise bleiben im generierten `3rdpartylicenses.txt`. Bei geänderter Nutzung/Umsatzgrenze Lizenz erneut prüfen, keine automatische kommerzielle Lizenz erwerben.
+
+Der Shared-RevenueChart behält seine fachlichen Zeitpunkte und alle vier Kennzahlen. Nullwerte bleiben unbekannt, negative Ergebnisse bleiben negativ. Darstellung, Legende, Tastatur-/Touchdetails und zugängliche Datentabelle bilden eine gemeinsame Komponente; das Verkaufsjournal bleibt eine semantische Berichtstabelle ohne zusätzliche Grid-Bibliothek. Abschnittsüberschriften verwenden normale Schreibweise, normale Texte mindestens 13 px und ergänzende Angaben mindestens 12 px.
+
+Technische Präzisierung gegenüber dem ursprünglichen Plan: Der geprüfte Angular-Wrapper 3.1.0 bietet keinen vollständigen Fehlervertrag für Import/Konstruktion/Rendern. Daher bindet ein kleiner typisierter Adapter die offizielle ApexCharts-API direkt ein, mit dynamisch geladenem Core-/Linienmodul, Fehleranzeige, Wiederholen und geregeltem Abbau. Keine privaten Wrapper-Hooks, globalen Scripts oder parallele Chart.js-Installation. Diese Abweichung betrifft die technische Einbindung, nicht den vereinbarten sichtbaren oder fachlichen Vertrag. [Offizielle Angular-/Moduldokumentation](https://apexcharts.com/docs/angular-charts/).
 
 ### Marketing und Spezialbereiche
 

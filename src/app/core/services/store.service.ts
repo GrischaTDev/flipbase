@@ -113,7 +113,6 @@ export class StoreService {
         .filter((position) => position.catalog_product_id === product.id)
         .reduce((total, position) => total + position.available_quantity, 0);
       if (
-        product.tracking_mode !== 'quantity' ||
         !product.is_public_store ||
         availableQuantity <= 0 ||
         !product.listing_price ||

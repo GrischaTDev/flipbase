@@ -103,6 +103,24 @@ function erstelleDemoService() {
   localStorage.clear();
   const mockStore = new MockDataStoreService();
   mockStore.isDemoMode.set(true);
+  mockStore.savePurchase({
+    id: 'purchase-1',
+    workspace_id: 'ws-1',
+    title: 'LED-Einkauf',
+    type: 'lot',
+    purchase_date: '2026-08-24',
+    purchase_price: 24.95,
+    cost_allocation_mode: 'even',
+    pricing_mode: 'individual',
+    entry_status: 'draft',
+  });
+  mockStore.saveCatalogProduct({
+    id: ledLampId,
+    workspace_id: 'ws-1',
+    title: 'LED-Lampe',
+    tracking_mode: 'quantity',
+    is_public_store: true,
+  });
   mockStore.savePurchaseLine({
     id: 'purchase-line-1',
     workspace_id: 'ws-1',
@@ -120,6 +138,8 @@ function erstelleDemoService() {
       { purchaseLineId: 'purchase-line-1', receivedQuantity: 5 },
     ]).error,
   ).toBeNull();
+
+  expect(mockStore.finalizePurchaseCosting('ws-1', 'purchase-1').error).toBeNull();
 
   const workspaceService = { currentWorkspace: signal({ id: 'ws-1' }) };
   const stockService = Object.create(StockService.prototype) as StockService;

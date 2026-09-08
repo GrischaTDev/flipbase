@@ -1,4 +1,5 @@
 import { expect, test, type Locator } from '@playwright/test';
+import { addNewPurchaseProduct } from './support/products';
 import { startDemoMode } from './support/demo';
 
 async function visibleBox(locator: Locator) {
@@ -132,8 +133,7 @@ test('keeps create, detail and inline editing in the same centered workspace', a
   const createWorkspace = page.getByTestId('purchase-entry-workspace');
   const createWorkspaceBox = await visibleBox(createWorkspace);
   await page.getByRole('textbox', { name: 'Beschreibung (optional)' }).fill('Dialog-Zentrierung');
-  await page.getByRole('button', { name: 'Neues Einzelstück erfassen', exact: true }).click();
-  await page.getByLabel('Bezeichnung').fill('Testartikel');
+  await addNewPurchaseProduct(page, 'Testartikel');
   await page.getByRole('button', { name: 'Entwurf speichern', exact: true }).click();
   await page
     .locator('[data-purchase-description]')

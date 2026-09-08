@@ -18,6 +18,24 @@ beforeAll(async () => {
 });
 
 describe('ButtonComponent', () => {
+  it('liefert den gemessenen Suchauslöser als gemeinsame 36-Pixel-Variante', () => {
+    fixture.componentRef.setInput('size', 'search');
+    fixture.detectChanges();
+    const button: HTMLButtonElement = fixture.nativeElement.querySelector('button');
+    expect(button.classList.contains('h-9')).toBe(true);
+    expect(button.classList.contains('px-2')).toBe(true);
+    expect(button.classList.contains('rounded-lg')).toBe(true);
+  });
+  it('übermittelt den umschaltbaren Zustand an den nativen Button', () => {
+    fixture.componentRef.setInput('ariaPressed', true);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('button').getAttribute('aria-pressed')).toBe('true');
+    fixture.componentRef.setInput('ariaPressed', false);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('button').getAttribute('aria-pressed')).toBe(
+      'false',
+    );
+  });
   let component: ButtonComponent;
   let fixture: ComponentFixture<ButtonComponent>;
 
@@ -39,6 +57,7 @@ describe('ButtonComponent', () => {
       fullWidth: ['fullWidth', 1, null],
       type: ['type', 1, null],
       ariaLabel: ['ariaLabel', 1, null],
+      ariaPressed: ['ariaPressed', 1, null],
       title: ['title', 1, null],
       link: ['link', 1, null],
       queryParams: ['queryParams', 1, null],
@@ -55,6 +74,7 @@ describe('ButtonComponent', () => {
       fullWidth: 'fullWidth',
       type: 'type',
       ariaLabel: 'ariaLabel',
+      ariaPressed: 'ariaPressed',
       title: 'title',
       link: 'link',
       queryParams: 'queryParams',

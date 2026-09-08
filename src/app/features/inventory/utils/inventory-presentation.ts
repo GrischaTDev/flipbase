@@ -316,10 +316,12 @@ function buildQuantityRows(input: InventoryPresentationInput, purchases: Map<str
     );
     const reserved = Math.max(positionReserved, movementReserved);
     const onHand = positions.reduce((sum, entry) => sum + entry.on_hand_quantity, 0);
-    const available =
-      movementReserved > positionReserved ? Math.max(0, onHand - reserved) : positionAvailable;
+    const available = Math.max(
+      0,
+      positionAvailable - Math.max(0, movementReserved - positionReserved),
+    );
     const sold = soldLotBalances.reduce((sum, balance) => sum + Math.max(0, balance), 0);
-    const total = available + reserved + sold;
+    const total = Math.max(onHand, available + reserved) + sold;
     const currentLots = lots.filter((lot) => lot.remaining_quantity > 0);
     const quantityState = stockQuantityState(
       input,

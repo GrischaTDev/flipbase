@@ -5,6 +5,8 @@ import { MockDataStoreService } from './mock-data-store.service';
 import { SupabaseService } from './supabase.service';
 import { SyncStatusService } from './sync-status.service';
 import { WorkspaceService } from './workspace.service';
+import { hasSellableLotCost } from '../utils/stock-availability';
+import { createLocalDemoId } from '../utils/client-identity';
 
 export interface ReceivePurchaseLineInput {
   readonly purchaseLineId: string;
@@ -35,6 +37,10 @@ export class StockService {
   readonly loadError = signal<Error | null>(null);
   readonly loadedWorkspaceId = signal<string | null>(null);
   private loadRequestId = 0;
+  private readonly pendingReceipts = new Map<
+    string,
+    { requestId: string; lines: readonly ReceivePurchaseLineInput[] }
+  >();
 
   async loadPositions(workspaceId: string): Promise<void> {
     const requestId = ++this.loadRequestId;
@@ -42,7 +48,13 @@ export class StockService {
     this.loadError.set(null);
     try {
       if (this.mockStore.isDemoMode()) {
-        const lots = this.mockStore.getStockLots(workspaceId);
+        const purchases = this.mockStore.getPurchases();
+        const lots = this.mockStore.getStockLots(workspaceId).map((lot) => ({
+          ...lot,
+          purchase: purchases.find(
+            (purchase) => purchase.id === lot.purchase_id && purchase.workspace_id === workspaceId,
+          ),
+        }));
         if (!this.isCurrentLoad(requestId, workspaceId)) return;
         this.lots.set(lots);
         this.movements.set(this.mockStore.getStockMovements(workspaceId));
@@ -90,14 +102,30 @@ export class StockService {
   async receivePurchaseLines(
     purchaseId: string,
     lines: readonly ReceivePurchaseLineInput[],
+    requestId?: string,
   ): Promise<MutationResult<ReceivePurchaseResult>> {
     const workspaceId = this.workspaceService.currentWorkspace()?.id;
     if (!workspaceId)
       return this.failure('Wareneingang buchen', new Error('Kein aktiver Workspace'));
+    const key = JSON.stringify([workspaceId, purchaseId, requestId ?? null, lines]);
+    const pending = this.pendingReceipts.get(key) ?? {
+      requestId: requestId ?? createLocalDemoId('receipt'),
+      lines: lines.map((line) => ({
+        ...line,
+        receivedAt: line.receivedAt ?? new Date().toISOString(),
+      })),
+    };
+    this.pendingReceipts.set(key, pending);
 
     if (this.mockStore.isDemoMode()) {
-      const result = this.mockStore.receivePurchaseLines(workspaceId, purchaseId, lines);
+      const result = this.mockStore.receivePurchaseLines(
+        workspaceId,
+        purchaseId,
+        pending.lines,
+        pending.requestId,
+      );
       if (result.error) return this.failure('Wareneingang buchen', result.error);
+      this.pendingReceipts.delete(key);
       await this.loadPositions(workspaceId);
       return {
         data: { purchaseLines: result.purchaseLines, stockLots: result.stockLots },
@@ -107,10 +135,11 @@ export class StockService {
     }
 
     try {
-      const { data, error } = await this.supabase.client.rpc('receive_purchase_lines', {
+      const { data, error } = await this.supabase.client.rpc('receive_purchase_lines_idempotent', {
         p_workspace_id: workspaceId,
         p_purchase_id: purchaseId,
-        p_lines: lines.map((line) => ({
+        p_request_id: pending.requestId,
+        p_lines: pending.lines.map((line) => ({
           purchase_line_id: line.purchaseLineId,
           received_quantity: line.receivedQuantity,
           received_at: line.receivedAt ?? new Date().toISOString(),
@@ -123,6 +152,7 @@ export class StockService {
         );
       }
       const result = this.mapReceiveResult(data as Record<string, unknown>);
+      this.pendingReceipts.delete(key);
       await this.loadPositions(workspaceId);
       return { data: result, error: null, reportedBySyncStatus: false };
     } catch (error: unknown) {
@@ -150,13 +180,16 @@ export class StockService {
       const product =
         lot.catalog_product ?? products.find((entry) => entry.id === lot.catalog_product_id);
       const existing = positions.get(lot.catalog_product_id);
+      const sellable = hasSellableLotCost(lot);
       positions.set(lot.catalog_product_id, {
         catalog_product_id: lot.catalog_product_id,
         title: product?.title ?? existing?.title ?? 'Unbekannter Artikel',
-        available_quantity: (existing?.available_quantity ?? 0) + lot.remaining_quantity,
+        available_quantity:
+          (existing?.available_quantity ?? 0) + (sellable ? lot.remaining_quantity : 0),
         reserved_quantity: existing?.reserved_quantity ?? 0,
         on_hand_quantity: (existing?.on_hand_quantity ?? 0) + lot.remaining_quantity,
-        oldest_available_unit_cost: existing?.oldest_available_unit_cost ?? lot.unit_cost,
+        oldest_available_unit_cost:
+          existing?.oldest_available_unit_cost ?? (sellable ? lot.unit_cost : null),
         is_public_store: product?.is_public_store ?? existing?.is_public_store ?? false,
       });
     }
