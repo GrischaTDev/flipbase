@@ -68,7 +68,6 @@ cross join lateral (
   select 'Fremdes Workspaceprodukt' as label, jsonb_build_array((lines -> 0) || '{"catalog_product_id":"b9200000-0000-4000-8000-000000000024"}') as lines from contract_input
   union all select 'Individual mit Produkt', jsonb_build_array((lines -> 0) || '{"line_kind":"individual"}') from contract_input
   union all select 'Quantity ohne Produkt', jsonb_build_array((lines -> 0) || '{"catalog_product_id":null}') from contract_input
-  union all select 'Quantity mit Individual-Produkt', jsonb_build_array((lines -> 0) || '{"catalog_product_id":"b9200000-0000-4000-8000-000000000025"}') from contract_input
 ) as invalid;
 select is((select count(*) from public.purchases where workspace_id = (select workspace_id from contract_input)), 2::bigint, 'Abgewiesene Produktzuordnungen hinterlassen keinen Einkauf');
 select is((select count(*) from public.purchase_lines where purchase_id = (select id from contract_purchases where label = 'add')), 0::bigint, 'Abgewiesene Ergänzungen und Updates hinterlassen keine Position');
@@ -137,5 +136,20 @@ select throws_ok($$insert into contract_lot_guard (workspace_id, purchase_id, pu
 select lives_ok($$insert into contract_lot_guard (workspace_id, purchase_id, purchase_line_id, catalog_product_id, received_quantity, remaining_quantity, unit_cost) select workspace_id, purchase_id, id, catalog_product_id, 1, 1, null from public.purchase_lines where purchase_id = (select id from contract_purchases where label = 'main') and ordered_quantity = 1$$, 'Guard erlaubt beim unbewerteten Insert ausschließlich NULL-Kosten');
 reset role;
 select throws_ok($$update public.stock_lots set unit_cost = -1 where purchase_id = (select id from contract_purchases where label = 'free')$$, '23514', null, 'Nichtnegativ-Check für bekannte Loskosten bleibt erhalten');
+set local role authenticated;
+select lives_ok($$do $body$
+declare v_purchase_id uuid; v_line_id uuid;
+begin
+  select (public.create_purchase(workspace_id,purchase || '{"purchase_price":120}', '[]',
+    jsonb_build_array((lines->0) || '{"catalog_product_id":"b9200000-0000-4000-8000-000000000025","ordered_quantity":12,"line_total":120}')) #>> '{purchase,id}')::uuid
+    into v_purchase_id from contract_input;
+  select id into v_line_id from public.purchase_lines where purchase_id=v_purchase_id;
+  perform public.receive_purchase_lines('b9200000-0000-4000-8000-000000000011',v_purchase_id,
+    jsonb_build_array(jsonb_build_object('purchase_line_id',v_line_id,'received_quantity',12,'received_at','2026-09-08T12:00:00Z')));
+  perform public.finalize_purchase_costing('b9200000-0000-4000-8000-000000000011',v_purchase_id);
+  perform public.record_sale('b9200000-0000-4000-8000-000000000011','{"platform":"direct","sale_date":"2026-09-08"}',
+    '[{"catalog_product_id":"b9200000-0000-4000-8000-000000000025","quantity":1,"unit_sale_price":20}]');
+end $body$;$$,'Bestehende Produkt-ID mit Legacy-Marker unterstützt Menge zwölf, Zugang, Abschluss und Verkauf ohne Artikelartwahl');
+reset role;
 select * from finish();
 rollback;

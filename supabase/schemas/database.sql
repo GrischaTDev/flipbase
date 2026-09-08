@@ -5418,7 +5418,6 @@ begin
           from public.catalog_products as product
           where product.workspace_id = p_workspace_id
             and product.id = v_catalog_product_id
-            and product.tracking_mode = 'quantity'
         )
       ) then
       raise exception using
@@ -6445,7 +6444,6 @@ begin
           from public.catalog_products as product
           where product.workspace_id = p_workspace_id
             and product.id = v_catalog_product_id
-            and product.tracking_mode = 'quantity'
         )
       ) then
       raise exception using errcode = '22023', message = 'Die Einkaufspositionen sind ungültig.';
@@ -6956,7 +6954,6 @@ begin
           from public.catalog_products as product
           where product.workspace_id = p_workspace_id
             and product.id = v_catalog_product_id
-            and product.tracking_mode = 'quantity'
         )
       ) then
       raise exception using errcode = '22023', message = 'Die Einkaufspositionen sind ungültig.';
@@ -7415,7 +7412,6 @@ begin
           from public.catalog_products as product
           where product.workspace_id = p_workspace_id
             and product.id = v_catalog_product_id
-            and product.tracking_mode = 'quantity'
         )
       ) then
       raise exception using errcode = '22023', message = 'Die Einkaufspositionen sind ungültig.';
@@ -7670,7 +7666,6 @@ begin
         from public.catalog_products as product
         where product.workspace_id = p_workspace_id
           and product.id = v_purchase_line.catalog_product_id
-          and product.tracking_mode = 'quantity'
       ) then
       raise exception using errcode = '22023', message = 'Die Einkaufsposition ist keinem gültigen Mengenprodukt zugeordnet.';
     end if;
@@ -8772,7 +8767,7 @@ begin
       where id = v_catalog_product_id
         and workspace_id = p_workspace_id;
 
-      if not found or v_catalog_product.tracking_mode <> 'quantity' then
+      if not found then
         raise exception using errcode = '22023', message = 'Der Mengenartikel ist ungültig.';
       end if;
 
