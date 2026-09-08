@@ -22,7 +22,7 @@ test('zeigt den regulären Einkaufseinstieg ohne Schnellerfassung', async ({ pag
 
 test('hält die Kopfzeile auch auf schmalen Bildschirmen im sichtbaren Bereich', async ({
   page,
-}) => {
+}, testInfo) => {
   await page.setViewportSize({ width: 320, height: 844 });
   await startDemoMode(page);
   for (const width of [320, 390, 768, 1440]) {
@@ -35,11 +35,26 @@ test('hält die Kopfzeile auch auf schmalen Bildschirmen im sichtbaren Bereich',
         () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
       ),
     ).toBe(0);
-    const controls = page.locator('app-header header button:visible');
+    const controls = page.locator(
+      'app-header header button:visible, [aria-label="Zeitraum wählen"] button, #dashboard-platform',
+    );
     for (const control of await controls.all()) {
       const bounds = await control.boundingBox();
-      expect(bounds!.x).toBeGreaterThanOrEqual(0);
-      expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width);
+      expect(bounds).not.toBeNull();
+      if (!bounds) throw new Error('Sichtbares Steuerelement ohne messbare Fläche.');
+      expect(bounds.x).toBeGreaterThanOrEqual(0);
+      expect(bounds.x + bounds.width).toBeLessThanOrEqual(width);
+    }
+    if (width === 320 || width === 768) {
+      await page.locator('app-sidebar').evaluate(async (sidebar) => {
+        await Promise.all(
+          sidebar
+            .getAnimations({ subtree: true })
+            .filter((animation) => animation.effect?.getComputedTiming().iterations !== Infinity)
+            .map((animation) => animation.finished.catch(() => undefined)),
+        );
+      });
+      await page.screenshot({ path: testInfo.outputPath(`dashboard-controls-${width}.png`) });
     }
   }
 });

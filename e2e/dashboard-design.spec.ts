@@ -187,12 +187,26 @@ test('zeigt nach einem Importfehler die Daten und ermöglicht einen erfolgreiche
   page,
 }) => {
   let blocked = true;
-  await page.route(/apexcharts_(core|line)\.js/, (route) =>
-    blocked ? route.abort() : route.continue(),
-  );
+  let blockedImports = 0;
+  // Ohne Angular-Paketcache trägt auch der Apex-Import einen generierten Chunknamen.
+  await page.route(/(?:chunk-[^/]+|apexcharts_core)\.js(?:\?|$)/, async (route) => {
+    if (!blocked) {
+      await route.continue();
+      return;
+    }
+    const response = await route.fetch();
+    const source = await response.text();
+    if (/class _ApexCharts\d*\b/.test(source)) {
+      blockedImports += 1;
+      await route.abort();
+      return;
+    }
+    await route.fulfill({ response });
+  });
   await page.clock.setFixedTime(new Date('2026-08-30T12:00:00+02:00'));
   await startDemoMode(page);
   await expect(page.getByRole('alert')).toContainText('Diagramm konnte nicht geladen');
+  expect(blockedImports).toBe(1);
   await expect(page.locator('#revenue-chart-summary')).toBeVisible();
   blocked = false;
   await page.getByRole('button', { name: 'Erneut laden' }).click();

@@ -1,5 +1,15 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-09 – Codex – CI-Browserfehler an Einstieg und Dashboardbreiten beheben
+
+**Ursache und Fix:** Fünf Fehler aus PR #47 lokal reproduziert. Drei Einstiegsprüfungen erwarteten noch den alten Inventarbutton und eine eigenständige Artikelform mit h1; sie prüfen jetzt den gemeinsamen Produktdialog einschließlich direkter Route, Escape und Fokusrückgabe. Der tatsächliche Seitenüberlauf kam von nicht umbrechenden Dashboard-Zeitraumbuttons beziehungsweise dem daneben erzwungenen Plattformfilter: rechts 349,6 px bei 320 px und 798,6 px bei 768 px. Zwei gezielte Flex-Wrap-Ergänzungen lassen die Bedienelemente bei Platzmangel umbrechen, ohne Inhalt zu verstecken. Apex-/Chartcode blieb unberührt.
+
+**Prüfung:** Vorher fünf rot/acht grün; nach Fix alle 13 betroffenen Playwright-Fälle grün, einschließlich unveränderter AXE- und Seitenoverflow-Prüfungen. Zusätzliche Controlgeometrie sichert Zeitraum-/Plattformbedienung. Zehn Dashboard-Komponententests und Produktionsbau grün (742,34 kB), Format/Lint grün. Vollständiger Browserlauf und PR-Fortsetzung folgen beim Controller; keine Commits/Pushes/SQL durch den UI-Worker.
+
+**Diagramm-Regression:** Der Importfehlertest erwartete den lokalen Prebundle-Dateinamen, während CI generierte Chunknamen lädt. Ohne Prebundle lokal rot reproduziert; die Sperre erkennt jetzt ausschließlich die Apex-Core-Klassendefinition einschließlich esbuild-Suffix und verlangt genau einen tatsächlich gesperrten Import. Fehleranzeige, zugängliche Daten und erfolgreicher Retry sind in beiden Cachemodi grün. Unabhängiges Review bestätigt anhand der SourceMap die Beschränkung auf die Apex-Core-Abhängigkeit; keine Produktionsänderung oder abgeschwächte Prüfung.
+
+**Gesamt-Browsernachweis:** Alle 78 Playwright-Fälle ohne Paket-Prebundle in zwei Minuten erfolgreich; zusätzlich der Importfehler mit aktivem Prebundle grün. Geänderte Dateien format- und lintsauber, TypeScript-Prüfung grün. Unabhängiges UI-Review bestätigt unveränderte AXE-/Overflow-Grenzen. Korrekturen gehen in den regulären PR #47; dessen neue Pflichtprüfungen bleiben vor Abschluss abzuwarten.
+
 ## 2026-09-09 – Codex – Produktbestand und sichere Migration integrieren
 
 **Buchungsvertrag:** Offene Loskosten bleiben NULL und sind nicht verkaufbar. Teilzugänge verwenden persistente Request-IDs; ein Retry bucht nicht doppelt. Demo und Server verwenden finalisierte Lose, stabile Centpools und aktive Kosten nach Retouren. Neue Regressionen prüfen Teilzugang, Speicherrollback, 35-Euro-FIFO-Beispiel, Centreste, Retoure/Neuververkauf, Kopfpreis und Empfangsstatus. Vorhandene Produkt-IDs dürfen unabhängig vom historischen Typmarker im neuen Mengenweg weiterverwendet werden; echte alte Artikel- und Verkaufsreferenzen bleiben erhalten.

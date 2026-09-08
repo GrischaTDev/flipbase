@@ -1,8 +1,22 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import axe from 'axe-core';
 import { startDemoMode } from './support/demo';
 
-test('opens sales and item creation as dedicated pages', async ({ page }) => {
+async function expectEntrySurface(page: Page, path: string): Promise<void> {
+  await expect(page).toHaveURL(new RegExp(path + '$'));
+  if (path === '/inventory/new') {
+    const dialog = page.getByRole('dialog', { name: 'Produkt erstellen', exact: true });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole('textbox', { name: 'Name', exact: true })).toBeVisible();
+    await expect(
+      dialog.getByRole('button', { name: 'Produkt erstellen', exact: true }),
+    ).toBeVisible();
+  } else {
+    await expect(page.locator('main h1')).toBeVisible();
+  }
+}
+
+test('opens sales as a page and product creation as the shared dialog', async ({ page }) => {
   await startDemoMode(page);
 
   await page.goto('/sales');
@@ -12,10 +26,20 @@ test('opens sales and item creation as dedicated pages', async ({ page }) => {
   await expect(page.getByRole('region', { name: 'Kennzahlen zum Verkauf' })).toBeVisible();
 
   await page.goto('/inventory');
-  await page.getByRole('button', { name: 'Neuer Artikel', exact: true }).click();
-  await expect(page).toHaveURL(/\/inventory\/new$/);
-  await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.locator('#itemTitle')).toBeVisible();
+  const create = page.getByRole('button', { name: 'Produkt erstellen', exact: true });
+  await create.click();
+  const dialog = page.getByRole('dialog', { name: 'Produkt erstellen', exact: true });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole('textbox', { name: 'Name', exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/inventory$/);
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expect(create).toBeFocused();
+
+  await page.goto('/inventory/new');
+  await expectEntrySurface(page, '/inventory/new');
+  await page.keyboard.press('Escape');
+  await expect(page).toHaveURL(/\/inventory$/);
 });
 
 test('stacks entry cards without horizontal page overflow on mobile', async ({ page }) => {
@@ -24,7 +48,7 @@ test('stacks entry cards without horizontal page overflow on mobile', async ({ p
 
   for (const path of ['/sales/new', '/inventory/new', '/purchases/new']) {
     await page.goto(path);
-    await expect(page.locator('main h1')).toBeVisible();
+    await expectEntrySurface(page, path);
     const hasHorizontalOverflow = await page.evaluate(
       () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
     );
@@ -37,7 +61,7 @@ test('keeps the new entry pages free of automated WCAG AA violations', async ({ 
 
   for (const path of ['/sales/new', '/inventory/new', '/purchases/new']) {
     await page.goto(path);
-    await expect(page.locator('main h1')).toBeVisible();
+    await expectEntrySurface(page, path);
     await page.addScriptTag({ content: axe.source });
     // Kontrast am fertig eingeblendeten Inhalt prüfen, nicht an einem Zwischenbild der Fade-Animation.
     await page.locator('main').evaluate(async (main) => {
