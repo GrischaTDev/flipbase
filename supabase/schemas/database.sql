@@ -2198,22 +2198,84 @@ update storage.buckets
 set public = false
 where id = 'item-media';
 
+-- Frei schreibbare item_media-Referenzen beweisen keinen Dateibesitz.
+-- Nur der kanonische Artikelordner liefert die autoritative Zuordnung.
+-- Nichtkanonische Altpfade bleiben bis zur gesonderten Manifestprüfung gesperrt;
+-- ihre Dateien und Metadaten werden nicht geändert.
 create policy "Artikelmedien lesen"
 on storage.objects for select to authenticated
-using (bucket_id = 'item-media');
+using (
+  bucket_id = 'item-media'
+  and split_part(name,'/',1) <> 'catalog-products'
+  and cardinality(storage.foldername(name)) = 1
+  and storage.filename(name) <> ''
+  and exists (
+    select 1 from public.item_media m
+    join public.inventory_items i on i.id = m.inventory_item_id
+    where m.storage_path = name
+      and i.id::text = (storage.foldername(name))[1]
+      and (select public.is_workspace_member(i.workspace_id))
+  )
+);
 
 create policy "Artikelmedien hochladen"
 on storage.objects for insert to authenticated
-with check (bucket_id = 'item-media');
+with check (
+  bucket_id = 'item-media'
+  and split_part(name,'/',1) <> 'catalog-products'
+  and cardinality(storage.foldername(name)) = 1
+  and storage.filename(name) <> ''
+  and exists (
+    select 1 from public.inventory_items i
+    where i.id::text = (storage.foldername(name))[1]
+      and (select public.is_workspace_member(i.workspace_id))
+  )
+);
 
 create policy "Artikelmedien aendern"
 on storage.objects for update to authenticated
-using (bucket_id = 'item-media')
-with check (bucket_id = 'item-media');
+using (
+  bucket_id = 'item-media'
+  and split_part(name,'/',1) <> 'catalog-products'
+  and cardinality(storage.foldername(name)) = 1
+  and storage.filename(name) <> ''
+  and exists (
+    select 1 from public.item_media m
+    join public.inventory_items i on i.id = m.inventory_item_id
+    where m.storage_path = name
+      and i.id::text = (storage.foldername(name))[1]
+      and (select public.is_workspace_member(i.workspace_id))
+  )
+)
+with check (
+  bucket_id = 'item-media'
+  and split_part(name,'/',1) <> 'catalog-products'
+  and cardinality(storage.foldername(name)) = 1
+  and storage.filename(name) <> ''
+  and exists (
+    select 1 from public.item_media m
+    join public.inventory_items i on i.id = m.inventory_item_id
+    where m.storage_path = name
+      and i.id::text = (storage.foldername(name))[1]
+      and (select public.is_workspace_member(i.workspace_id))
+  )
+);
 
 create policy "Artikelmedien loeschen"
 on storage.objects for delete to authenticated
-using (bucket_id = 'item-media');
+using (
+  bucket_id = 'item-media'
+  and split_part(name,'/',1) <> 'catalog-products'
+  and cardinality(storage.foldername(name)) = 1
+  and storage.filename(name) <> ''
+  and exists (
+    select 1 from public.item_media m
+    join public.inventory_items i on i.id = m.inventory_item_id
+    where m.storage_path = name
+      and i.id::text = (storage.foldername(name))[1]
+      and (select public.is_workspace_member(i.workspace_id))
+  )
+);
 
 -- ------------------------------------------------------------------------------
 -- COMMENTS
@@ -6349,7 +6411,7 @@ begin
   if coalesce(pg_catalog.jsonb_typeof(p_purchase -> 'supplier_id'), 'null') not in ('null', 'string')
     or (
       nullif(pg_catalog.btrim(p_purchase ->> 'supplier_id'), '') is not null
-      and (p_purchase ->> 'supplier_id') !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+      and (p_purchase ->> 'supplier_id') !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
     ) then
     raise exception using
       errcode = '22023',

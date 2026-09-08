@@ -50,7 +50,7 @@ jobs:
       # credentials, production database URL, or deployment job is used here.
       - name: Generate declarative migration preview
         run: |
-          npx supabase db diff -f product_contract_preview
+          npx supabase db diff -f product_contract_preview --schema public,storage
           find supabase/migrations -maxdepth 1 -name '*_product_contract_preview.sql' -exec cp {} product-contract-preview/ \;
 
       - name: Apply preview in isolated database
