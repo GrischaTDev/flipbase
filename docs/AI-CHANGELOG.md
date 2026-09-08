@@ -8,6 +8,8 @@
 
 **Prüfung:** Zwei lokale Workflow-Vertragsprüfungen zunächst rot (Workflow fehlt), danach grün. Die tatsächliche Schema-/Typgenerierung und pgTAP-Laufprüfung finden erst nach Push in CI statt. Erzeugte SQL-Dateien werden nicht ungeprüft als Produktionsmigration übernommen; Rechte, Datenüberführung und unbekannte Kosten benötigen weiter fachliches Review.
 
+**Erster CI-Befund:** Lauf `34279272450` erzeugte erfolgreich SQL und Typen; 1159 von 1160 Datenbanktests bestanden. Der bestehende Snapshot-ACL-Test verhinderte die Übernahme zweier ungewollter Funktionsfreigaben. Ursache: Der spätere pauschale Funktionsgrant im deklarativen Schema überschrieb den früheren Snapshot-Revoke. Die zentrale Ausnahmeliste erhält denselben Rechteentzug wie die bereits veröffentlichte Auditmigration. Keine Generatoränderung und keine Abschwächung des Sicherheitstests. Der Entwurf bleibt bis zur vollständigen erzeugten Kernmigration, Typen und grünen Pflichtprüfung unveröffentlichbar; insbesondere wird die Schema-/Migrationsprüfung nicht umgangen.
+
 ## 2026-09-08 – Codex – Entwurfsbearbeitung und Chronik veröffentlichen
 
 **Auftrag:** Den freigegebenen Stand auf `codex/purchase-draft-chronology` einschließlich SQL-Migration committen, pushen und nach erfolgreichen Pflichtprüfungen über einen PR mit Merge-Commit nach `master` übernehmen. Anwendungstests und Bau vor Veröffentlichung erneut prüfen. Datenbanktests ausschließlich in CI, kein Docker und keine lokale Datenbankeinrichtung auf dem Arbeitslaptop. Lokale Diagnoseartefakte bleiben außerhalb des Commits; keine Geschäftsdaten löschen.

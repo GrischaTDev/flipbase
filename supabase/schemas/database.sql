@@ -10766,6 +10766,8 @@ revoke execute on function public.allocate_integer_cents(bigint, numeric[])
   from public, anon, authenticated, service_role;
 revoke execute on function public.build_purchase_costing_plan(uuid, uuid)
   from public, anon, authenticated, service_role;
+revoke execute on function public.purchase_draft_audit_snapshot(uuid, uuid)
+  from public, anon, authenticated, service_role;
 revoke execute on function public.finalize_purchase_costing(uuid, uuid)
   from public, anon, service_role;
 grant execute on function public.finalize_purchase_costing(uuid, uuid)
