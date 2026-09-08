@@ -61,7 +61,7 @@ select throws_ok(format('select public.%I(%L::uuid,%s)', operation,
   (select workspace_id from contract_input),
   case when operation = 'create_purchase' then format('%L::jsonb,''[]''::jsonb,%L::jsonb', (select purchase from contract_input), invalid.lines)
     when operation = 'add_purchase_lines' then format('%L::uuid,%L::jsonb', (select id from contract_purchases where label = 'add'), invalid.lines)
-    else format('%L::uuid,%L::jsonb,''[]''::jsonb,%L::jsonb', (select id from contract_purchases where label = 'add'), (select purchase from contract_input), invalid.lines) end),
+    else format('%L::uuid,%L::jsonb,''[]''::jsonb,%L::jsonb', (select id from contract_purchases where label = 'add'), (select purchase from contract_input), jsonb_set(invalid.lines, '{0,client_ref}', '"contract-line"')) end),
   '22023', 'Die Einkaufspositionen sind ungültig.', operation || ': ' || invalid.label)
 from (values ('create_purchase'), ('add_purchase_lines'), ('update_purchase_draft')) as operations(operation)
 cross join lateral (
@@ -72,6 +72,8 @@ cross join lateral (
 ) as invalid;
 select is((select count(*) from public.purchases where workspace_id = (select workspace_id from contract_input)), 2::bigint, 'Abgewiesene Produktzuordnungen hinterlassen keinen Einkauf');
 select is((select count(*) from public.purchase_lines where purchase_id = (select id from contract_purchases where label = 'add')), 0::bigint, 'Abgewiesene Ergänzungen und Updates hinterlassen keine Position');
+select lives_ok($$select public.update_purchase_draft(workspace_id, (select id from contract_purchases where label = 'add'), purchase || '{"purchase_price":10}', '[]', jsonb_build_array((lines -> 0) || '{"client_ref":"contract-line"}')) from contract_input$$, 'Update-Kontrollfall mit gültiger Entwurfskennung und Produktpaarung wird gespeichert');
+select is((select count(*) from public.purchase_lines where purchase_id = (select id from contract_purchases where label = 'add') and catalog_product_id = 'b9200000-0000-4000-8000-000000000021' and line_kind = 'quantity' and ordered_quantity = 1), 1::bigint, 'Erfolgreiches Update behält die korrekte Produktreferenz und Mengenführung');
 select lives_ok($$select public.add_purchase_lines(workspace_id, (select id from contract_purchases where label = 'add'), jsonb_build_array((lines -> 0) || '{"catalog_product_id":null,"line_kind":"individual"}')) from contract_input$$, 'Kompatibler bekannter Legacy-Einkauf darf produktlose Individual-Zeile ergänzen');
 
 select public.receive_purchase_lines(input.workspace_id, purchase.id,

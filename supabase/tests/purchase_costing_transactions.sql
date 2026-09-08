@@ -2480,7 +2480,7 @@ select ok(
     select 1
     from public.stock_lots as lot
     where lot.purchase_id = '94000000-0000-4000-8000-000000000101'
-      and lot.unit_cost <> 0
+      and lot.unit_cost is not null
   ),
   'abgeleitete unverkaufte Bestände sind nach dem Kostenreset nicht verkaufsbereit'
 );

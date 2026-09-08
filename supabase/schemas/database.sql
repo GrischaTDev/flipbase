@@ -327,14 +327,18 @@ create table public.catalog_products (
     model text,
     ean text,
     category text,
-    tracking_mode text not null check (tracking_mode in ('quantity', 'individual')),
+    tracking_mode text not null default 'quantity' check (tracking_mode in ('quantity', 'individual')),
+    condition text check (condition in ('new', 'like_new', 'very_good', 'used', 'heavily_used', 'defective')),
+    condition_notes text,
     is_public_store boolean not null default false,
     listing_price numeric(12,2) check (listing_price is null or listing_price > 0),
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now(),
-    unique (workspace_id, ean),
     unique (workspace_id, id)
 );
+
+create index catalog_products_workspace_id_ean_idx
+    on public.catalog_products (workspace_id, ean);
 
 create table public.purchase_lines (
     id uuid primary key default gen_random_uuid(),
@@ -395,7 +399,7 @@ create table public.stock_lots (
     catalog_product_id uuid not null references public.catalog_products(id) on delete restrict,
     received_quantity integer not null check (received_quantity > 0),
     remaining_quantity integer not null check (remaining_quantity >= 0 and remaining_quantity <= received_quantity),
-    unit_cost numeric(24,12) not null check (unit_cost >= 0),
+    unit_cost numeric(24,12) check (unit_cost >= 0),
     received_at timestamptz not null default now(),
     created_at timestamptz not null default now(),
     unique (workspace_id, id)
@@ -2800,7 +2804,7 @@ begin
     return new;
   end if;
 
-  if (tg_op = 'INSERT' and new.unit_cost <> 0)
+  if (tg_op = 'INSERT' and new.unit_cost is not null)
     or (tg_op = 'UPDATE' and old.unit_cost is distinct from new.unit_cost) then
     raise exception using
       errcode = '42501',
@@ -4083,6 +4087,18 @@ begin
 
   if exists (
     select 1
+    from public.stock_lots as lot
+    where lot.workspace_id = p_workspace_id
+      and lot.purchase_id = p_purchase_id
+      and lot.unit_cost is null
+  ) then
+    raise exception using
+      errcode = 'P0001',
+      message = 'Nach der Finalisierung müssen alle Bestandslose bekannte Kosten besitzen.';
+  end if;
+
+  if exists (
+    select 1
     from public.purchase_lines as line
     where line.workspace_id = p_workspace_id
       and line.purchase_id = p_purchase_id
@@ -4669,7 +4685,7 @@ begin
     and purchase_id = p_purchase_id;
 
   update public.stock_lots
-  set unit_cost = 0
+  set unit_cost = null
   where workspace_id = p_workspace_id
     and purchase_id = p_purchase_id;
 
@@ -6216,6 +6232,7 @@ declare
   v_max_purchase_lines constant integer := 1000;
   v_max_purchase_units constant integer := 100000;
   v_audit_after jsonb;
+  v_catalog_product_id uuid;
 begin
   if (select auth.uid()) is null
     or not (select public.is_workspace_member(p_workspace_id)) then
@@ -6352,6 +6369,26 @@ begin
 
   -- Validate the purchase-type contract before the purchase header is written.
   for v_line in select value from pg_catalog.jsonb_array_elements(p_lines) loop
+    v_catalog_product_id := case
+      when coalesce(pg_catalog.jsonb_typeof(v_line -> 'catalog_product_id'), 'null') = 'null'
+        then null
+      else (v_line ->> 'catalog_product_id')::uuid
+    end;
+    if (v_line ->> 'line_kind' = 'quantity' and v_catalog_product_id is null)
+      or (v_line ->> 'line_kind' = 'individual' and v_catalog_product_id is not null)
+      or (
+        v_catalog_product_id is not null
+        and not exists (
+          select 1
+          from public.catalog_products as product
+          where product.workspace_id = p_workspace_id
+            and product.id = v_catalog_product_id
+            and product.tracking_mode = 'quantity'
+        )
+      ) then
+      raise exception using errcode = '22023', message = 'Die Einkaufspositionen sind ungültig.';
+    end if;
+
     if v_line ? 'condition_snapshot'
       and coalesce(pg_catalog.jsonb_typeof(v_line -> 'condition_snapshot'), 'null') <> 'null'
       and (
@@ -7205,6 +7242,7 @@ declare
   v_line jsonb;
   v_line_id uuid;
   v_inserted_ids uuid[] := array[]::uuid[];
+  v_catalog_product_id uuid;
   v_all_line_ids uuid[];
   v_total_expense_cents bigint;
   v_manual_cents bigint;
@@ -7301,6 +7339,26 @@ begin
   end if;
 
   for v_line in select value from jsonb_array_elements(p_lines) loop
+    v_catalog_product_id := case
+      when coalesce(pg_catalog.jsonb_typeof(v_line -> 'catalog_product_id'), 'null') = 'null'
+        then null
+      else (v_line ->> 'catalog_product_id')::uuid
+    end;
+    if (v_line ->> 'line_kind' = 'quantity' and v_catalog_product_id is null)
+      or (v_line ->> 'line_kind' = 'individual' and v_catalog_product_id is not null)
+      or (
+        v_catalog_product_id is not null
+        and not exists (
+          select 1
+          from public.catalog_products as product
+          where product.workspace_id = p_workspace_id
+            and product.id = v_catalog_product_id
+            and product.tracking_mode = 'quantity'
+        )
+      ) then
+      raise exception using errcode = '22023', message = 'Die Einkaufspositionen sind ungültig.';
+    end if;
+
     insert into public.purchase_lines (
       workspace_id, purchase_id, catalog_product_id, title_snapshot,
       ean_snapshot,
@@ -7543,6 +7601,18 @@ begin
       raise exception using errcode = '22023', message = 'Einzelartikel werden über den expliziten Einzelartikelpfad eingebucht.';
     end if;
 
+    if v_purchase_line.line_kind <> 'quantity'
+      or v_purchase_line.catalog_product_id is null
+      or not exists (
+        select 1
+        from public.catalog_products as product
+        where product.workspace_id = p_workspace_id
+          and product.id = v_purchase_line.catalog_product_id
+          and product.tracking_mode = 'quantity'
+      ) then
+      raise exception using errcode = '22023', message = 'Die Einkaufsposition ist keinem gültigen Mengenprodukt zugeordnet.';
+    end if;
+
     if v_purchase_line.received_quantity + v_received_quantity > v_purchase_line.ordered_quantity then
       raise exception using errcode = '22023', message = 'Die empfangene Menge überschreitet die bestellte Menge.';
     end if;
@@ -7570,7 +7640,7 @@ begin
       v_purchase_line.catalog_product_id,
       v_received_quantity,
       v_received_quantity,
-      0,
+      null,
       v_received_at
     )
     returning * into v_stock_lot;
@@ -8743,7 +8813,8 @@ begin
             message = 'Die aktiven Mengen eines historischen Loses müssen vor dem Verkauf geprüft werden.';
         end if;
 
-        if v_stock_lot.unit_cost::text in ('NaN', 'Infinity', '-Infinity') then
+        if v_stock_lot.unit_cost is null
+          or v_stock_lot.unit_cost::text in ('NaN', 'Infinity', '-Infinity') then
           raise exception using
             errcode = '22023',
             message = 'Die aktiven Kosten eines historischen Loses müssen vor dem Verkauf geprüft werden.';
