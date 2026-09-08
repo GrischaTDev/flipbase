@@ -548,7 +548,7 @@ select is(
     from public.stock_lots as lot
     where lot.purchase_id = '93000000-0000-4000-8000-000000000129'
   ),
-  0::numeric,
+  null::numeric,
   'ein Draft-Wareneingang erfindet vor der Finalisierung keine Loskosten'
 );
 
