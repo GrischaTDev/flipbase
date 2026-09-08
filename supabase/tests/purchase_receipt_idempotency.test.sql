@@ -4,6 +4,12 @@ set local search_path = public, extensions;
 select no_plan();
 
 select has_function('public', 'receive_purchase_lines_idempotent', array['uuid','uuid','uuid','jsonb'], 'Wareneingang besitzt einen expliziten Request-Vertrag');
+select ok(has_function_privilege('authenticated','public.receive_purchase_lines_idempotent(uuid,uuid,uuid,jsonb)','execute'),'Mitglieder dürfen den Requestvertrag aufrufen');
+select ok(not has_function_privilege('anon','public.receive_purchase_lines_idempotent(uuid,uuid,uuid,jsonb)','execute'),'Anonyme dürfen keinen Request aufrufen');
+select ok(not has_function_privilege('service_role','public.receive_purchase_lines_idempotent(uuid,uuid,uuid,jsonb)','execute'),'Requestvertrag besitzt keinen geerbten Service-Grant');
+select ok(has_table_privilege('authenticated','public.purchase_receipt_requests','select'),'Requestresultate sind für autorisierte Leser verfügbar');
+select ok(not has_table_privilege('authenticated','public.purchase_receipt_requests','insert,update,delete,truncate,references,trigger'),'Authentifizierte Rollen dürfen Requestresultate nicht direkt verändern');
+select ok(not has_table_privilege('anon','public.purchase_receipt_requests','select,insert,update,delete,truncate,references,trigger'),'Anonyme besitzen keine Requesttabellenrechte');
 
 insert into auth.users(id,aud,role,email,raw_app_meta_data,raw_user_meta_data)
 values ('ba100000-0000-4000-8000-000000000001','authenticated','authenticated','receipt-contract@example.test','{}','{}');
@@ -32,6 +38,7 @@ update receipt_contract as fixture set lines = (
 select lives_ok($$update receipt_contract set result = public.receive_purchase_lines_idempotent(workspace_id,purchase_id,'ba100000-0000-4000-8000-000000000031',lines)$$,'Teilwareneingang zwei von fünf gelingt');
 select is((select coalesce(sum(received_quantity),0)::bigint from public.purchase_lines where purchase_id=(select purchase_id from receipt_contract)),2::bigint,'Erster Request bucht genau zwei Einheiten');
 select lives_ok($$select public.receive_purchase_lines_idempotent(workspace_id,purchase_id,'ba100000-0000-4000-8000-000000000031',lines) from receipt_contract$$,'Identischer Retry gelingt');
+select is((select public.receive_purchase_lines_idempotent(workspace_id,purchase_id,'ba100000-0000-4000-8000-000000000031',lines) from receipt_contract),(select result from receipt_contract),'Retry liefert exakt das ursprüngliche Ergebnis');
 select is((select count(*) from public.stock_lots where purchase_id=(select purchase_id from receipt_contract)),1::bigint,'Retry erzeugt kein zweites Los');
 select throws_ok($$select public.receive_purchase_lines_idempotent(workspace_id,purchase_id,'ba100000-0000-4000-8000-000000000031',jsonb_set(lines,'{0,received_quantity}','3')) from receipt_contract$$,'22023','Die Request-ID wurde bereits für einen anderen Wareneingang verwendet.','Gleiche ID mit anderem Inhalt wird abgewiesen');
 select lives_ok($$select public.receive_purchase_lines_idempotent(workspace_id,purchase_id,'ba100000-0000-4000-8000-000000000032',jsonb_set(lines,'{0,received_quantity}','3')) from receipt_contract$$,'Weiterer Request bucht die übrigen drei Einheiten');

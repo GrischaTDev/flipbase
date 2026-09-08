@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/product-contract-preview.yml'
       - 'scripts/product-contract-preview.test.mjs'
+      - 'scripts/product-security-supplement*'
       - 'supabase/**'
 
 permissions:
@@ -36,7 +37,7 @@ jobs:
         run: npm ci
 
       - name: Check preview contract
-        run: node --test scripts/product-contract-preview.test.mjs
+        run: node --test scripts/product-contract-preview.test.mjs scripts/product-security-supplement.test.mjs
 
       - name: Record source revision and CLI capabilities
         run: |
@@ -51,6 +52,7 @@ jobs:
       - name: Generate declarative migration preview
         run: |
           npx supabase db diff -f product_contract_preview --schema public,storage
+          node scripts/product-security-supplement.mjs
           find supabase/migrations -maxdepth 1 -name '*_product_contract_preview.sql' -exec cp {} product-contract-preview/ \;
 
       - name: Apply preview in isolated database
