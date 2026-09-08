@@ -56,6 +56,8 @@ function render(
     shipment: 'not_shipped' | 'in_transit' | 'arrived';
     content: 'known' | 'unknown';
   } = { receiving: 'received', shipment: 'arrived', content: 'known' },
+  editing = false,
+  submitting = false,
 ) {
   TestBed.resetTestingModule();
   const fixture = TestBed.configureTestingModule({
@@ -69,12 +71,51 @@ function render(
     receivingStatus: signal(workflow.receiving),
     shipmentStatus: signal(workflow.shipment),
     contentStatus: signal(workflow.content),
+    editing: signal(editing),
+    submitting: signal(submitting),
   });
   fixture.detectChanges();
   return fixture;
 }
 
 describe('PurchaseLifecycleActionsComponent', () => {
+  it('blendet beim Bearbeiten nur die redundante Bearbeiten-Aktion aus', () => {
+    const fixture = render(
+      'draft',
+      'idle',
+      null,
+      {
+        receiving: 'draft',
+        shipment: 'not_shipped',
+        content: 'unknown',
+      },
+      true,
+    );
+
+    const buttons = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('button'));
+    expect(buttons.map((button) => button.textContent?.trim())).toEqual([
+      'Löschen',
+      'Als bestellt markieren',
+    ]);
+    const ordered = vi.fn();
+    fixture.componentInstance.orderedRequested.subscribe(ordered);
+    buttons[1].click();
+    expect(ordered).toHaveBeenCalledOnce();
+  });
+
+  it('erhält beim Bearbeiten die Abschlusssperre während der Übermittlung', () => {
+    const fixture = render('capturing', 'idle', null, undefined, true, true);
+
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.textContent).not.toContain('Bearbeiten');
+    const button = host.querySelector<HTMLButtonElement>('[data-finalize-purchase] button');
+    expect(button?.disabled).toBe(true);
+    const finalize = vi.fn();
+    fixture.componentInstance.finalizeRequested.subscribe(finalize);
+    button?.click();
+    expect(finalize).not.toHaveBeenCalled();
+  });
+
   it('ordnet sekundäre Entwurfsaktionen vor der primären Folgeaktion an', () => {
     const fixture = render('draft', 'idle', null, {
       receiving: 'draft',

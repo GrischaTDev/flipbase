@@ -7,6 +7,7 @@ import {
   input,
   output,
   signal,
+  untracked,
   viewChild,
 } from '@angular/core';
 import { PurchaseSellerDialogComponent } from '../purchase-seller-dialog/purchase-seller-dialog.component';
@@ -332,67 +333,81 @@ export class PurchaseEntryFormComponent {
     effect(() => {
       const vorhandener = this.purchase();
       if (!vorhandener || this.befuelltFuer === vorhandener.id) return;
-      this.befuelltFuer = vorhandener.id;
-
-      this.form.patchValue({
-        type: vorhandener.type,
-        content_status: vorhandener.content_status ?? 'known',
-        pricing_mode:
-          vorhandener.pricing_mode ??
-          (vorhandener.type === 'mystery_pack' ? 'total' : 'individual'),
-        supplier_reference: vorhandener.supplier_reference ?? '',
-        discount_amount: vorhandener.discount_amount ?? 0,
-        title: vorhandener.title,
-        source_id: vorhandener.source_id ?? null,
-        supplier_id: vorhandener.supplier_id ?? null,
-        purchase_date: vorhandener.purchase_date,
-        purchase_price: vorhandener.purchase_price,
-        original_url: vorhandener.original_url ?? '',
-        notes: vorhandener.notes ?? '',
-        tracking_number: vorhandener.tracking_number ?? '',
-        tracking_carrier: vorhandener.tracking_carrier ?? null,
-      });
-
-      // Ohne die vorhandenen Zeilen waere das Speichern ein Loeschen: Der
-      // Dialog schickt immer die vollstaendige Liste.
-      const existingCosts: readonly PurchaseCostDraft[] = (vorhandener.costs ?? []).map((cost) => ({
-        type: isPurchaseCostType(cost.type) ? cost.type : 'other',
-        amount: Number(cost.amount),
-        description: cost.description ?? '',
-        allocationMethod:
-          cost.allocation_method === 'direct'
-            ? 'direct'
-            : cost.allocation_method === 'quantity'
-              ? 'by_quantity'
-              : 'by_value',
-        targetPurchaseLineId: cost.target_purchase_line_id ?? null,
-      }));
-      this.initialCostDrafts.set(existingCosts);
-      this.costDrafts.set(existingCosts);
-      this.baselineCostDrafts.set(existingCosts);
-      const existingLines: readonly PurchaseLineDraft[] = (vorhandener.purchase_lines ?? []).map(
-        (line) => ({
-          draftId: line.id,
-          catalogProductId: line.catalog_product_id ?? null,
-          titleSnapshot: line.title_snapshot,
-          ean: line.ean_snapshot ?? null,
-          lineKind: line.line_kind,
-          orderedQuantity: line.ordered_quantity,
-          condition: (line.condition_snapshot ?? 'used') as ItemCondition,
-          priceMode: line.price_mode ?? 'priced',
-          unitPurchasePrice: line.unit_purchase_price,
-          lineTotal: line.line_total,
-          estimatedMarketValue: line.estimated_market_value ?? null,
-        }),
-      );
-      for (const line of existingLines) {
-        if (line.draftId) this.lineIdMap().set(line.draftId, line.draftId);
-      }
-      this.purchaseLines.set(existingLines);
-      this.baselinePurchaseLines.set(existingLines);
-      this.updateAdditionalCostsValidity();
-      this.updatePurchasePriceEditability();
+      untracked(() => this.resetToPurchase(vorhandener));
     });
+  }
+
+  resetToPurchase(vorhandener: Purchase): void {
+    this.befuelltFuer = vorhandener.id;
+    this.completed.set(false);
+    this.persistedDraft.set(null);
+    this.errorMessage.set(null);
+    this.lineIdMap().clear();
+    this.sellerDialogOpen.set(false);
+    this.costDialogOpen.set(false);
+    this.isAddingSource.set(false);
+    this.isAddingSupplier.set(false);
+    this.newSourceName.set('');
+    this.newSupplierName.set('');
+
+    this.form.reset({
+      type: vorhandener.type,
+      content_status: vorhandener.content_status ?? 'known',
+      pricing_mode:
+        vorhandener.pricing_mode ?? (vorhandener.type === 'mystery_pack' ? 'total' : 'individual'),
+      supplier_reference: vorhandener.supplier_reference ?? '',
+      discount_amount: vorhandener.discount_amount ?? 0,
+      title: vorhandener.title,
+      source_id: vorhandener.source_id ?? null,
+      supplier_id: vorhandener.supplier_id ?? null,
+      purchase_date: vorhandener.purchase_date,
+      purchase_price: vorhandener.purchase_price,
+      original_url: vorhandener.original_url ?? '',
+      notes: vorhandener.notes ?? '',
+      tracking_number: vorhandener.tracking_number ?? '',
+      tracking_carrier: vorhandener.tracking_carrier ?? null,
+    });
+
+    // Ohne die vorhandenen Zeilen waere das Speichern ein Loeschen: Der
+    // Dialog schickt immer die vollstaendige Liste.
+    const existingCosts: readonly PurchaseCostDraft[] = (vorhandener.costs ?? []).map((cost) => ({
+      type: isPurchaseCostType(cost.type) ? cost.type : 'other',
+      amount: Number(cost.amount),
+      description: cost.description ?? '',
+      allocationMethod:
+        cost.allocation_method === 'direct'
+          ? 'direct'
+          : cost.allocation_method === 'quantity'
+            ? 'by_quantity'
+            : 'by_value',
+      targetPurchaseLineId: cost.target_purchase_line_id ?? null,
+    }));
+    this.initialCostDrafts.set(existingCosts);
+    this.costDrafts.set(existingCosts);
+    this.baselineCostDrafts.set(existingCosts);
+    const existingLines: readonly PurchaseLineDraft[] = (vorhandener.purchase_lines ?? []).map(
+      (line) => ({
+        draftId: line.id,
+        catalogProductId: line.catalog_product_id ?? null,
+        titleSnapshot: line.title_snapshot,
+        ean: line.ean_snapshot ?? null,
+        lineKind: line.line_kind,
+        orderedQuantity: line.ordered_quantity,
+        condition: (line.condition_snapshot ?? 'used') as ItemCondition,
+        priceMode: line.price_mode ?? 'priced',
+        unitPurchasePrice: line.unit_purchase_price,
+        lineTotal: line.line_total,
+        estimatedMarketValue: line.estimated_market_value ?? null,
+      }),
+    );
+    for (const line of existingLines) {
+      if (line.draftId) this.lineIdMap().set(line.draftId, line.draftId);
+    }
+    this.purchaseLines.set(existingLines);
+    this.baselinePurchaseLines.set(existingLines);
+    this.lineEditor()?.resetToLines(existingLines);
+    this.updateAdditionalCostsValidity();
+    this.updatePurchasePriceEditability();
   }
 
   async onSubmit(): Promise<void> {

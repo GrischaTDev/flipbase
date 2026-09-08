@@ -7,7 +7,7 @@ import {
   signal,
 } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { FormArray } from '@angular/forms';
+import { FormArray, FormControl, FormGroup } from '@angular/forms';
 import { readFile } from 'node:fs/promises';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { CatalogProduct, PurchaseType, Workspace } from '../../../../core/models/flipbase.models';
@@ -137,6 +137,37 @@ function erstelleEditor(purchaseType: PurchaseType = 'single') {
 }
 
 describe('PurchaseLineEditorComponent', () => {
+  it('verwirft Positionsänderungen und offene Eingaben ohne erneutes Erstellen des Editors', () => {
+    const { editor } = erstelleEditor();
+    Object.assign(editor, {
+      pickerOpen: signal(true),
+      cameraOpen: signal(true),
+      scannerOpen: signal(true),
+      scannerMessage: signal('Scan'),
+      pickerSearch: signal('Suche'),
+      scanControl: new FormControl('123', { nonNullable: true }),
+      isCreatingProduct: signal(true),
+      productError: signal('Fehler'),
+      importError: signal('Fehler'),
+      productForm: new FormGroup({ title: new FormControl('Neu', { nonNullable: true }) }),
+    });
+    editor.addIndividualLine();
+    editor.lineRows.at(0).controls.titleSnapshot.setValue('Original');
+    const original = editor.getDrafts();
+    editor.lineRows.at(0).controls.titleSnapshot.setValue('Geändert');
+    editor.addIndividualLine();
+
+    editor.resetToLines(original);
+
+    expect(editor.getDrafts()).toEqual(original);
+    expect(editor.lineCount()).toBe(1);
+    expect(editor.hasUnsavedChanges()).toBe(false);
+    expect(editor.cameraOpen()).toBe(false);
+    editor.resetToLines([]);
+    expect(editor.getDrafts()).toEqual([]);
+    expect(editor.lineCount()).toBe(0);
+  });
+
   it('verarbeitet einen Scan nur einmal und erfindet keinen Nullpreis', () => {
     const { editor } = erstelleEditor();
     Object.assign(editor, {

@@ -20,6 +20,7 @@ export class PurchaseLifecycleActionsComponent {
   readonly saleHistoryState = input.required<PurchaseSaleHistoryState>();
   readonly saleReviewInventoryItemId = input<string | null>(null);
   readonly submitting = input(false);
+  readonly editing = input(false);
 
   readonly editRequested = output<void>();
   readonly deleteRequested = output<void>();

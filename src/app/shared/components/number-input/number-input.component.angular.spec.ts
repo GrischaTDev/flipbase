@@ -1,6 +1,7 @@
 import '@angular/compiler';
-import { ɵresolveComponentResources } from '@angular/core';
+import { ɵresolveComponentResources, ChangeDetectionStrategy, Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { readFile } from 'node:fs/promises';
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { NumberInputComponent } from './number-input.component';
@@ -8,7 +9,23 @@ import { NumberInputComponent } from './number-input.component';
 interface AngularInputMetadata {
   inputs: Record<string, unknown>;
   declaredInputs: Record<string, string>;
+  outputs: Record<string, string>;
 }
+
+class NumberInputFormFixture {
+  readonly price = new FormControl<number | null>(null);
+  total: number | null = null;
+
+  recalculate(): void {
+    this.total = this.price.value === null ? null : this.price.value * 3;
+  }
+}
+
+Component({
+  imports: [NumberInputComponent, ReactiveFormsModule],
+  templateUrl: './number-input-form.fixture.html',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+})(NumberInputFormFixture);
 
 let inputMetadataSnapshot: AngularInputMetadata | null = null;
 
@@ -25,6 +42,7 @@ describe('NumberInputComponent', () => {
     inputMetadataSnapshot = {
       inputs: metadata.inputs,
       declaredInputs: metadata.declaredInputs,
+      outputs: metadata.outputs,
     };
     metadata.inputs = {
       ...metadata.inputs,
@@ -70,6 +88,7 @@ describe('NumberInputComponent', () => {
       beschriftung: 'beschriftung',
       alsBetrag: 'alsBetrag',
     };
+    metadata.outputs = { ...metadata.outputs, valueChange: 'value' };
 
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
@@ -87,10 +106,29 @@ describe('NumberInputComponent', () => {
     const metadata = (NumberInputComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp;
     metadata.inputs = inputMetadataSnapshot.inputs;
     metadata.declaredInputs = inputMetadataSnapshot.declaredInputs;
+    metadata.outputs = inputMetadataSnapshot.outputs;
   });
 
   it('should create successfully', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('notifies listeners only after the reactive form contains the entered value', () => {
+    const formFixture = TestBed.createComponent(NumberInputFormFixture);
+    formFixture.detectChanges();
+    const input = (formFixture.nativeElement as HTMLElement).querySelector('input');
+    if (!input) throw new Error('Number field missing');
+
+    input.value = '12';
+    input.dispatchEvent(new Event('input'));
+
+    expect(formFixture.componentInstance.price.value).toBe(12);
+    expect(formFixture.componentInstance.total).toBe(36);
+    expect(formFixture.componentInstance.price.untouched).toBe(true);
+    input.value = '';
+    input.dispatchEvent(new Event('input'));
+    expect(formFixture.componentInstance.price.value).toBeNull();
+    expect(formFixture.componentInstance.total).toBeNull();
   });
 
   it('supports a plain amount field without increment buttons while retaining input changes', () => {

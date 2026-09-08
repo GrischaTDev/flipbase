@@ -137,7 +137,7 @@
                       [attr.aria-label]="exactTime(entry.createdAt)"
                       class="text-xs text-fb-text-secondary"
                     >
-                      {{ relativeTime(entry.createdAt) }}
+                      {{ clockTime(entry.createdAt) }}
                     </time>
                   </div>
                   @if (event.reason) {

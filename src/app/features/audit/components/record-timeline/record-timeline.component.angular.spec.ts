@@ -163,6 +163,8 @@ describe('RecordTimelineComponent', () => {
     expect(element.querySelector('article')?.textContent).toContain('<img src=x onerror=alert(1)>');
     expect(element.querySelector('article img')).toBeNull();
     expect(element.querySelector('time')?.getAttribute('title')).toContain('2026');
+    const eventTime = element.querySelector('time[datetime="2026-09-04T10:00:00Z"]');
+    expect(eventTime?.textContent?.trim()).toMatch(/^\d{2}:\d{2}$/u);
     component.toggleDetails('event');
     timeline.detectChanges();
     expect(element.querySelector('button[aria-expanded]')?.getAttribute('aria-expanded')).toBe(
@@ -170,6 +172,38 @@ describe('RecordTimelineComponent', () => {
     );
     expect(element.querySelector('dl')?.textContent).toContain('Einkaufspreis');
     expect(element.querySelector('dl')?.textContent).toContain('Nachher: 12');
+  });
+  it('lädt nach dem Speichern neu und bewahrt einen ungesendeten Kommentar', async () => {
+    const refreshed = { ...comment, id: 'saved', body: 'Neu gespeichert' };
+    const list = vi.fn().mockResolvedValue({ entries: [comment], nextCursor: null });
+    const timeline = TestBed.configureTestingModule({
+      imports: [RecordTimelineComponent],
+      providers: [
+        { provide: RecordTimelineService, useValue: { list } },
+        { provide: WorkspaceService, useValue: { currentWorkspace: signal({ id: 'w1' }) } },
+        { provide: AuthService, useValue: { currentUser: signal({ id: 'u1' }) } },
+      ],
+    }).createComponent(RecordTimelineComponent);
+    const refreshKey = signal(0);
+    Object.assign(timeline.componentInstance, {
+      entityType: signal('purchase'),
+      entityId: signal('p1'),
+      refreshKey,
+    });
+    timeline.detectChanges();
+    await timeline.whenStable();
+    timeline.componentInstance.draft.set('Noch nicht posten');
+    list.mockResolvedValue({ entries: [refreshed, comment], nextCursor: null });
+    timeline.componentInstance.posting.set(true);
+    refreshKey.set(1);
+    timeline.detectChanges();
+    await timeline.whenStable();
+    expect(timeline.componentInstance.entries()).toEqual([comment]);
+    timeline.componentInstance.posting.set(false);
+    timeline.detectChanges();
+    await timeline.whenStable();
+    expect(timeline.componentInstance.entries()).toEqual([refreshed, comment]);
+    expect(timeline.componentInstance.draft()).toBe('Noch nicht posten');
   });
   it('bewahrt den Entwurf bei Fehler und verhindert doppeltes Posten', async () => {
     const { component, addComment } = fixture();

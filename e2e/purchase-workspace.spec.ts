@@ -28,15 +28,13 @@ test('edits a saved purchase in place and retains discounted totals after reload
   await expect(page).toHaveURL(/\/purchases\/[^/]+$/);
   const detailUrl = page.url();
 
-  await page.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
   await expect(page.getByRole('textbox', { name: 'Beschreibung (optional)' })).toHaveValue(
     'Arbeitsbereich-Test',
   );
-  await page.getByRole('button', { name: 'Verwerfen', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Verwerfen', exact: true })).toHaveCount(0);
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Bearbeiten', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Bearbeiten', exact: true })).toHaveCount(0);
 
-  await page.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
   await page.getByRole('textbox', { name: 'Beschreibung (optional)' }).fill('Bearbeiteter Einkauf');
   await page.getByRole('button', { name: 'Kosten bearbeiten', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Kostenübersicht verwalten' });
@@ -46,11 +44,13 @@ test('edits a saved purchase in place and retains discounted totals after reload
   await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
   await page.getByRole('button', { name: 'Änderungen speichern', exact: true }).click();
 
-  await expect(page.getByRole('button', { name: 'Bearbeiten', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Änderungen speichern', exact: true })).toHaveCount(
+    0,
+  );
   await expect(page).toHaveURL(detailUrl);
-  await expect(
-    page.getByTestId('purchase-entry-sidebar').getByText('Bearbeiteter Einkauf', { exact: true }),
-  ).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Beschreibung (optional)' })).toHaveValue(
+    'Bearbeiteter Einkauf',
+  );
   await expect(page.getByRole('region', { name: 'Kostenübersicht', exact: true })).toContainText(
     '90,00',
   );
