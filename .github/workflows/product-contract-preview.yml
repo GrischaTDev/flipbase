@@ -7,6 +7,7 @@ on:
       - '.github/workflows/product-contract-preview.yml'
       - 'scripts/product-contract-preview.test.mjs'
       - 'scripts/product-security-supplement*'
+      - 'scripts/product-storage-runtime.mjs'
       - 'supabase/**'
 
 permissions:
@@ -65,6 +66,9 @@ jobs:
 
       - name: Test preview database
         run: npm run test:db
+
+      - name: Test actual private Storage rollback
+        run: node scripts/product-storage-runtime.mjs
 
       - name: Stop isolated database
         if: ${{ always() }}
