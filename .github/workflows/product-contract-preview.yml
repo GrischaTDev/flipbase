@@ -1,0 +1,78 @@
+name: Product contract preview
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - '.github/workflows/product-contract-preview.yml'
+      - 'scripts/product-contract-preview.test.mjs'
+      - 'supabase/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: product-contract-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    if: ${{ github.head_ref == 'codex/product-core-validation' && github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out test revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check preview contract
+        run: node --test scripts/product-contract-preview.test.mjs
+
+      - name: Record source revision and CLI capabilities
+        run: |
+          mkdir -p product-contract-preview
+          git rev-parse HEAD > product-contract-preview/source-commit.txt
+          npx supabase --version > product-contract-preview/cli-version.txt
+          npx supabase db diff --help
+          npx supabase gen types --help
+
+      # Only the disposable GitHub runner starts containers. No remote project
+      # credentials, production database URL, or deployment job is used here.
+      - name: Generate declarative migration preview
+        run: |
+          npx supabase db diff -f product_contract_preview
+          find supabase/migrations -maxdepth 1 -name '*_product_contract_preview.sql' -exec cp {} product-contract-preview/ \;
+
+      - name: Apply preview in isolated database
+        run: |
+          npx supabase start
+          npx supabase migration up --local
+
+      - name: Generate database types
+        run: npx supabase gen types typescript --local > product-contract-preview/supabase.types.ts
+
+      - name: Test preview database
+        run: npm run test:db
+
+      - name: Stop isolated database
+        if: ${{ always() }}
+        run: npx supabase stop --no-backup
+
+      - name: Upload review artifacts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: product-contract-preview-${{ github.run_id }}-${{ github.run_attempt }}
+          path: product-contract-preview/
+          if-no-files-found: warn
+          retention-days: 7

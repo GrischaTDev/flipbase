@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-08 – Codex – Isolierten Artikelkern-Test-PR vorbereiten
+
+**Freigabe:** Nutzer erlaubt ausdrücklich einen separaten GitHub-Test-PR ohne Merge/Deployment. Eigener Zweig `codex/product-core-validation`, Basis `3b545c2`; die laufenden UI-/Lieferantenänderungen bleiben getrennt. Kein Docker und keine Datenbank auf dem Arbeitslaptop.
+
+**Umsetzung:** Zusätzlicher ausschließlich für diesen gleichnamigen Same-Repository-PR aktiver CI-Workflow erzeugt aus den deklarativen Schema-Dateien eine Migrationsvorschau und in einem wegwerfbaren GitHub-Runner Datenbanktypen. SQL-Vorschau, Typen, tatsächlicher Quellcommit und CLI-Version werden sieben Tage als Review-Artefakt aufbewahrt. Kein Produktionszugang, keine Geheimnisse, kein automatischer Commit, Merge oder Deployment. Die normalen PR-Pflichtprüfungen bleiben unverändert. Dies ist zunächst die technische Prüfgrundlage, noch keine Umstellung des Artikelmodells.
+
+**Prüfung:** Zwei lokale Workflow-Vertragsprüfungen zunächst rot (Workflow fehlt), danach grün. Die tatsächliche Schema-/Typgenerierung und pgTAP-Laufprüfung finden erst nach Push in CI statt. Erzeugte SQL-Dateien werden nicht ungeprüft als Produktionsmigration übernommen; Rechte, Datenüberführung und unbekannte Kosten benötigen weiter fachliches Review.
+
 ## 2026-09-08 – Codex – Entwurfsbearbeitung und Chronik veröffentlichen
 
 **Auftrag:** Den freigegebenen Stand auf `codex/purchase-draft-chronology` einschließlich SQL-Migration committen, pushen und nach erfolgreichen Pflichtprüfungen über einen PR mit Merge-Commit nach `master` übernehmen. Anwendungstests und Bau vor Veröffentlichung erneut prüfen. Datenbanktests ausschließlich in CI, kein Docker und keine lokale Datenbankeinrichtung auf dem Arbeitslaptop. Lokale Diagnoseartefakte bleiben außerhalb des Commits; keine Geschäftsdaten löschen.
