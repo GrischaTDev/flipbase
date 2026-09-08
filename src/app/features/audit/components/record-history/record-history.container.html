@@ -1,6 +1,6 @@
 @let type = entityType();
 @if (type === 'purchase' || type === 'sale') {
-  <app-record-timeline [entityType]="type" [entityId]="entityId()" />
+  <app-record-timeline [entityType]="type" [entityId]="entityId()" [refreshKey]="refreshKey()" />
 } @else {
   <app-record-history
     [heading]="heading()"

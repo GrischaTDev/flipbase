@@ -162,7 +162,9 @@ test('keeps create, detail and inline editing in the same centered workspace', a
   const detailTitle = (await detailHeading.textContent())?.trim() ?? '';
   expect(detailTitle).toBe('Dialog-Zentrierung');
 
-  await page.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
+  await expect(page.locator('app-purchase-entry-form')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Bearbeiten', exact: true })).toHaveCount(0);
+  await page.getByRole('textbox', { name: 'Beschreibung (optional)' }).fill('Geänderter Entwurf');
 
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page).toHaveURL(detailUrl);

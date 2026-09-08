@@ -17,6 +17,7 @@ export class RecordHistoryContainer {
   readonly entityType = input.required<BusinessEntityType>();
   readonly entityId = input.required<string>();
   readonly heading = input('Änderungsverlauf');
+  readonly refreshKey = input<number | string>(0);
 
   private readonly businessEventService = inject(BusinessEventService);
   private readonly workspaceService = inject(WorkspaceService);

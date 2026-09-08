@@ -6113,6 +6113,78 @@ alter function public.correct_purchase_costing(uuid, uuid, text, numeric, jsonb,
 comment on function public.correct_purchase_costing(uuid, uuid, text, numeric, jsonb, jsonb) is
   'Korrigiert Eingaben, Bestandskosten und betroffenen Wareneinsatz atomar mit Begründung.';
 
+-- Fachliche Mengen statt technischer IDs: neu gespeicherte Kosten und ersetzte
+-- Entwurfspositionen dürfen allein durch neue UUIDs keinen Audit-Diff erzeugen.
+create or replace function public.purchase_draft_audit_snapshot(
+  p_workspace_id uuid,
+  p_purchase_id uuid
+)
+returns jsonb
+language sql
+stable
+security invoker
+set search_path = ''
+as $$
+  with line_values as (
+    select line.id, pg_catalog.jsonb_build_object(
+      'catalog_product_id', line.catalog_product_id,
+      'title_snapshot', line.title_snapshot,
+      'ean_snapshot', line.ean_snapshot,
+      'line_kind', line.line_kind,
+      'ordered_quantity', line.ordered_quantity,
+      'unit_purchase_price', line.unit_purchase_price,
+      'line_total', line.line_total,
+      'allocated_additional_cost', line.allocated_additional_cost,
+      'price_mode', line.price_mode,
+      'condition_snapshot', line.condition_snapshot,
+      'estimated_market_value', line.estimated_market_value
+    ) as value
+    from public.purchase_lines as line
+    where line.workspace_id = p_workspace_id and line.purchase_id = p_purchase_id
+  ), cost_values as (
+    select cost.target_purchase_line_id, pg_catalog.jsonb_build_object(
+      'type', cost.type,
+      'amount', cost.amount,
+      'description', cost.description,
+      'allocation_method', cost.allocation_method
+    ) as value
+    from public.purchase_costs as cost
+    where cost.workspace_id = p_workspace_id and cost.purchase_id = p_purchase_id
+  ), lines as (
+    -- Die Gruppierung bewahrt auch bei zwei fachlich gleichen Positionen die
+    -- Verteilung direkter Kosten, ohne deren zufällige IDs zu veröffentlichen.
+    select line.value || pg_catalog.jsonb_build_object('direct_costs', coalesce((
+      select pg_catalog.jsonb_agg(cost.value order by cost.value)
+      from cost_values as cost where cost.target_purchase_line_id = line.id
+    ), '[]'::jsonb)) as value
+    from line_values as line
+  ), costs as (
+    select cost.value || pg_catalog.jsonb_build_object('target_line', line.value) as value
+    from cost_values as cost
+    left join line_values as line on line.id = cost.target_purchase_line_id
+  )
+  select pg_catalog.jsonb_build_object(
+    'purchase', (
+      select pg_catalog.jsonb_object_agg(field.key, field.value)
+      from public.purchases as purchase,
+        lateral pg_catalog.jsonb_each(pg_catalog.to_jsonb(purchase)) as field
+      where purchase.workspace_id = p_workspace_id and purchase.id = p_purchase_id
+        and field.key = any(array[
+          'source_id', 'supplier_id', 'type', 'title', 'purchase_date',
+          'purchase_price', 'cost_allocation_mode', 'notes', 'tracking_number',
+          'tracking_carrier', 'tracking_status', 'original_url', 'content_status',
+          'pricing_mode', 'supplier_reference', 'discount_amount'
+        ])
+    ),
+    'lines', coalesce((select pg_catalog.jsonb_agg(value order by value) from lines), '[]'::jsonb),
+    'costs', coalesce((select pg_catalog.jsonb_agg(value order by value) from costs), '[]'::jsonb)
+  );
+$$;
+
+alter function public.purchase_draft_audit_snapshot(uuid, uuid) owner to postgres;
+revoke all on function public.purchase_draft_audit_snapshot(uuid, uuid)
+  from public, anon, authenticated, service_role;
+
 create or replace function public.create_purchase(
   p_workspace_id uuid,
   p_purchase jsonb,
@@ -6143,6 +6215,7 @@ declare
   v_requested_unit_max numeric := 0;
   v_max_purchase_lines constant integer := 1000;
   v_max_purchase_units constant integer := 100000;
+  v_audit_after jsonb;
 begin
   if (select auth.uid()) is null
     or not (select public.is_workspace_member(p_workspace_id)) then
@@ -6493,6 +6566,18 @@ begin
     where line.id = ranked.id;
   end if;
 
+  v_audit_after := public.purchase_draft_audit_snapshot(p_workspace_id, v_purchase.id);
+  insert into public.business_events (
+    workspace_id, entity_type, entity_id, event_type, actor_id, changes
+  ) values (
+    p_workspace_id, 'purchase', v_purchase.id, 'purchase_draft_created', (select auth.uid()),
+    pg_catalog.jsonb_build_object(
+      'purchase', pg_catalog.jsonb_build_object('before', null, 'after', v_audit_after -> 'purchase'),
+      'lines', pg_catalog.jsonb_build_object('before', null, 'after', v_audit_after -> 'lines'),
+      'costs', pg_catalog.jsonb_build_object('before', null, 'after', v_audit_after -> 'costs')
+    )
+  );
+
   return jsonb_build_object(
     'purchase', to_jsonb(v_purchase),
     'purchase_costs', coalesce((
@@ -6548,6 +6633,8 @@ declare
   v_requested_unit_max numeric := 0;
   v_max_purchase_lines constant integer := 1000;
   v_max_purchase_units constant integer := 100000;
+  v_audit_before jsonb;
+  v_audit_after jsonb;
 begin
   if (select auth.uid()) is null
     or not (select public.is_workspace_member(p_workspace_id)) then
@@ -6596,6 +6683,8 @@ begin
       errcode = '22023',
       message = 'Nur ein nicht finalisierter Einkaufsentwurf kann bearbeitet werden.';
   end if;
+
+  v_audit_before := public.purchase_draft_audit_snapshot(p_workspace_id, p_purchase_id);
 
   if pg_catalog.jsonb_array_length(p_lines) > v_max_purchase_lines then
     raise exception using
@@ -7061,6 +7150,20 @@ begin
   where workspace_id = p_workspace_id
     and id = p_purchase_id
   returning * into v_purchase;
+
+  v_audit_after := public.purchase_draft_audit_snapshot(p_workspace_id, p_purchase_id);
+  if v_audit_before is distinct from v_audit_after then
+    insert into public.business_events (
+      workspace_id, entity_type, entity_id, event_type, actor_id, changes
+    ) values (
+      p_workspace_id, 'purchase', p_purchase_id, 'purchase_draft_updated', (select auth.uid()),
+      pg_catalog.jsonb_build_object(
+        'purchase', pg_catalog.jsonb_build_object('before', v_audit_before -> 'purchase', 'after', v_audit_after -> 'purchase'),
+        'lines', pg_catalog.jsonb_build_object('before', v_audit_before -> 'lines', 'after', v_audit_after -> 'lines'),
+        'costs', pg_catalog.jsonb_build_object('before', v_audit_before -> 'costs', 'after', v_audit_after -> 'costs')
+      )
+    );
+  end if;
 
   return pg_catalog.jsonb_build_object(
     'purchase', pg_catalog.to_jsonb(v_purchase),

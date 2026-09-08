@@ -19,6 +19,8 @@ interface BusinessEventCursor {
 }
 
 const EVENT_LABELS: Readonly<Record<string, string>> = {
+  purchase_draft_created: 'Einkauf als Entwurf erstellt',
+  purchase_draft_updated: 'Einkaufsentwurf geändert',
   purchase_costing_finalized: 'Einkauf abgeschlossen',
   purchase_finalized: 'Einkauf abgeschlossen',
   purchase_corrected: 'Einkauf korrigiert',

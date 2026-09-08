@@ -80,6 +80,8 @@
         />
       </app-card>
 
+      <ng-content select="[entry-main-extra]" />
+
       <div class="empty:hidden" data-testid="purchase-entry-timeline">
         <ng-content select="[entry-timeline]" />
       </div>

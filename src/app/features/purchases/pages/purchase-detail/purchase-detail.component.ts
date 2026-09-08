@@ -15,7 +15,7 @@ import {
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
-import { DatePipe } from '@angular/common';
+import { DatePipe, NgTemplateOutlet } from '@angular/common';
 import {
   LucideDynamicIcon,
   LucideIconInput,
@@ -97,6 +97,7 @@ import { PurchaseCostSummaryComponent } from '../../components/purchase-cost-sum
     TableColumnPickerComponent,
     ReactiveFormsModule,
     DatePipe,
+    NgTemplateOutlet,
     LucideDynamicIcon,
     ImageCropperModalComponent,
     CustomSelectComponent,
@@ -224,8 +225,12 @@ export class PurchaseDetailComponent {
   readonly edit = input(false);
   readonly isEditing = signal(false);
   readonly editingPurchase = signal<Purchase | null>(null);
+  readonly historyRevision = signal(0);
+  readonly isReloadingAfterSave = signal(false);
+  readonly saveReloadFailed = signal(false);
   readonly purchase = computed(() => {
-    const purchase = this.purchaseService.selectedPurchase();
+    // Beim Nachladen bleibt der Arbeitsbereich samt ungesendetem Kommentar erhalten.
+    const purchase = this.purchaseService.selectedPurchase() ?? this.editingPurchase();
     return purchase?.id === this.id() &&
       purchase.workspace_id === this.workspaceService.currentWorkspace()?.id
       ? purchase
@@ -345,6 +350,7 @@ export class PurchaseDetailComponent {
   editPurchase(purchaseId: string): void {
     const purchase = this.purchaseService.selectedPurchase();
     if (!purchase || purchase.id !== purchaseId || purchase.entry_status === 'finalized') return;
+    if (this.isEditing() && this.editingPurchase()?.id === purchaseId) return;
     this.editingPurchase.set(purchase);
     this.isEditing.set(true);
   }
@@ -359,7 +365,10 @@ export class PurchaseDetailComponent {
   }
 
   isSaving(): boolean {
-    return this.entryForm()?.isSaving() ?? false;
+    return (
+      (this.isReloadingAfterSave() && !this.saveReloadFailed()) ||
+      (this.entryForm()?.isSaving() ?? false)
+    );
   }
 
   saveDraft(): void {
@@ -378,14 +387,42 @@ export class PurchaseDetailComponent {
       }))
     )
       return;
-    this.isEditing.set(false);
-    this.editingPurchase.set(null);
+    const purchase = this.purchaseService.selectedPurchase();
+    if (purchase && (purchase.entry_status ?? 'draft') === 'draft') {
+      this.editingPurchase.set(purchase);
+      this.entryForm()?.resetToPurchase(purchase);
+    } else {
+      this.isEditing.set(false);
+      this.editingPurchase.set(null);
+    }
   }
 
   async finishEditing(): Promise<void> {
-    this.isEditing.set(false);
-    this.editingPurchase.set(null);
-    await this.purchaseService.getPurchaseById(this.id());
+    const purchaseId = this.id();
+    const workspaceId = this.workspaceService.currentWorkspace()?.id;
+    this.isReloadingAfterSave.set(true);
+    this.saveReloadFailed.set(false);
+    let purchase: Purchase | null;
+    try {
+      purchase = await this.purchaseService.getPurchaseById(purchaseId);
+    } catch {
+      purchase = null;
+    }
+    if (this.id() !== purchaseId || this.workspaceService.currentWorkspace()?.id !== workspaceId)
+      return;
+    if (!purchase || purchase.id !== purchaseId || purchase.workspace_id !== workspaceId) {
+      this.saveReloadFailed.set(true);
+      return;
+    }
+    if (purchase && (purchase.entry_status ?? 'draft') === 'draft') {
+      this.editingPurchase.set(purchase);
+      this.entryForm()?.resetToPurchase(purchase);
+    } else {
+      this.isEditing.set(false);
+      this.editingPurchase.set(null);
+    }
+    this.historyRevision.update((revision) => revision + 1);
+    this.isReloadingAfterSave.set(false);
   }
 
   returnToPurchases(): void {
@@ -529,11 +566,29 @@ export class PurchaseDetailComponent {
         this.trackingCarrierDraft.set(this.trackingService.autoDetectCarrier(value));
     });
     effect(() => {
-      const purchase = this.purchaseService.selectedPurchase();
-      if (this.edit() && purchase?.id === this.id() && this.openedEditId !== purchase.id) {
-        this.openedEditId = purchase.id;
-        this.editPurchase(purchase.id);
-      }
+      const purchase = this.purchase();
+      const requestedEdit = this.edit();
+      untracked(() => {
+        if (!purchase) return;
+        if (purchase.entry_status === 'finalized') {
+          this.isEditing.set(false);
+          this.editingPurchase.set(null);
+        } else if (
+          (purchase.entry_status ?? 'draft') === 'draft' ||
+          (requestedEdit && this.openedEditId !== purchase.id)
+        ) {
+          this.openedEditId = purchase.id;
+          this.editPurchase(purchase.id);
+          if (
+            this.editingPurchase() !== purchase &&
+            !this.hasUnsavedChanges() &&
+            !this.isSaving()
+          ) {
+            this.editingPurchase.set(purchase);
+            this.entryForm()?.resetToPurchase(purchase);
+          }
+        }
+      });
     });
     effect(() => {
       const purchaseId = this.id();
@@ -549,6 +604,8 @@ export class PurchaseDetailComponent {
       this.isEditing.set(false);
       this.editingPurchase.set(null);
       this.openedEditId = null;
+      this.isReloadingAfterSave.set(false);
+      this.saveReloadFailed.set(false);
       if (purchaseId && workspaceId) {
         untracked(() => {
           void Promise.all([
@@ -643,7 +700,12 @@ export class PurchaseDetailComponent {
   }
 
   startReceivingLines(): void {
-    if (this.purchaseService.selectedPurchase()?.entry_status === 'finalized') return;
+    if (
+      this.purchaseService.selectedPurchase()?.entry_status === 'finalized' ||
+      this.hasUnsavedChanges() ||
+      this.isSaving()
+    )
+      return;
     const quantities = this.quantityPurchaseLines().reduce<Record<string, number>>(
       (result, line) => {
         result[line.id] = Math.max(0, line.ordered_quantity - line.received_quantity);
@@ -669,6 +731,8 @@ export class PurchaseDetailComponent {
     if (
       !purchase ||
       purchase.entry_status === 'finalized' ||
+      this.hasUnsavedChanges() ||
+      this.isSaving() ||
       nowReceived < 1 ||
       nowReceived > remaining
     )
@@ -697,6 +761,8 @@ export class PurchaseDetailComponent {
     if (
       !purchase ||
       purchase.entry_status === 'finalized' ||
+      this.hasUnsavedChanges() ||
+      this.isSaving() ||
       line.received_quantity >= line.ordered_quantity
     )
       return;
@@ -766,7 +832,13 @@ export class PurchaseDetailComponent {
 
   async onDeletePurchase(): Promise<void> {
     const purchase = this.purchaseService.selectedPurchase();
-    if (!purchase || purchase.entry_status !== 'draft') return;
+    if (
+      !purchase ||
+      purchase.entry_status !== 'draft' ||
+      this.hasUnsavedChanges() ||
+      this.isSaving()
+    )
+      return;
     const bestaetigt = await this.dialog.frage({
       titel: 'Einkauf löschen?',
       text: `„${purchase.title}“ wird gelöscht, zusammen mit allen zugeordneten Artikeln und Nebenkosten. Das lässt sich nicht rückgängig machen.`,
@@ -814,7 +886,13 @@ export class PurchaseDetailComponent {
 
   async finalizePurchase(): Promise<void> {
     const purchase = this.purchaseService.selectedPurchase();
-    if (!purchase || purchase.entry_status === 'finalized' || this.isLifecycleSubmitting()) {
+    if (
+      !purchase ||
+      purchase.entry_status === 'finalized' ||
+      this.isLifecycleSubmitting() ||
+      this.hasUnsavedChanges() ||
+      this.isSaving()
+    ) {
       return;
     }
 
@@ -876,7 +954,8 @@ export class PurchaseDetailComponent {
     successMessage: string,
   ): Promise<void> {
     const purchase = this.purchaseService.selectedPurchase();
-    if (!purchase || this.isLifecycleSubmitting()) return;
+    if (!purchase || this.isLifecycleSubmitting() || this.hasUnsavedChanges() || this.isSaving())
+      return;
     this.isLifecycleSubmitting.set(true);
     const { error } = await this.purchaseService.setPurchaseWorkflowStatus(purchase.id, status);
     this.isLifecycleSubmitting.set(false);
@@ -908,7 +987,7 @@ export class PurchaseDetailComponent {
 
   async saveTracking(): Promise<void> {
     const p = this.purchaseService.selectedPurchase();
-    if (!p) return;
+    if (!p || this.hasUnsavedChanges() || this.isSaving()) return;
     const num = this.trackingNumberDraft().trim();
     let ergebnis: { error: Error | null };
     try {
@@ -959,7 +1038,7 @@ export class PurchaseDetailComponent {
 
   async markDeliveredAndSync(): Promise<void> {
     const p = this.purchaseService.selectedPurchase();
-    if (!p) return;
+    if (!p || this.hasUnsavedChanges() || this.isSaving()) return;
     this.isMarkingDelivered.set(true);
     let ergebnis: { error: Error | null };
     try {

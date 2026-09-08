@@ -150,8 +150,8 @@ export class NumberInputComponent implements ControlValueAccessor {
   }
 
   private setValue(val: number | null): void {
-    this.value.set(val);
     this.onChange(val);
+    this.value.set(val);
   }
 
   protected readonly plusIcon = Plus;

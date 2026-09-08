@@ -59,7 +59,8 @@ test('opens legacy purchases without offering a cost repair flow', async ({ page
   });
   await startDemoMode(page);
   await page.goto('/purchases/pur-demo-4');
-  await expect(page.getByRole('button', { name: 'Bearbeiten', exact: true })).toBeVisible();
+  await expect(page.locator('app-purchase-entry-form')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Bearbeiten', exact: true })).toHaveCount(0);
   await expect(page.getByRole('region', { name: 'Kostenübersicht', exact: true })).toBeVisible();
   await expect(page.getByText('Kostenangaben aus Altbestand prüfen', { exact: true })).toHaveCount(
     0,

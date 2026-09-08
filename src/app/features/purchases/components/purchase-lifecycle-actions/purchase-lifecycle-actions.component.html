@@ -1,5 +1,7 @@
 @if (entryStatus() !== 'finalized') {
-  <app-button size="slim" (clicked)="editRequested.emit()">Bearbeiten</app-button>
+  @if (!editing()) {
+    <app-button size="slim" (clicked)="editRequested.emit()">Bearbeiten</app-button>
+  }
   @if (entryStatus() === 'draft') {
     <app-button
       size="slim"

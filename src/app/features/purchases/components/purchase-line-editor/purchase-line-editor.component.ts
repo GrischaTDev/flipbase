@@ -164,14 +164,7 @@ export class PurchaseLineEditorComponent {
       const key = lines.map((line) => line.draftId).join('|');
       if (!lines.length || key === this.loadedInitialIds || this.lineRows.length) return;
       this.loadedInitialIds = key;
-      untracked(() => {
-        for (const line of lines) {
-          const row = this.createLine(line.lineKind);
-          row.patchValue({ ...line, ean: line.ean ?? null }, { emitEvent: false });
-          this.lineRows.push(row);
-        }
-        this.lineCount.set(this.lineRows.length);
-      });
+      untracked(() => this.resetToLines(lines));
     });
     effect(() => {
       const workspaceId = this.activeWorkspaceId();
@@ -478,6 +471,30 @@ export class PurchaseLineEditorComponent {
       this.pickerOpen() ||
       this.scanControl.value.trim().length > 0
     );
+  }
+
+  resetToLines(lines: readonly PurchaseLineDraft[]): void {
+    this.loadedInitialIds = lines.map((line) => line.draftId).join('|');
+    this.lineRows.clear({ emitEvent: false });
+    for (const line of lines) {
+      const row = this.createLine(line.lineKind);
+      row.patchValue({ ...line, ean: line.ean ?? null }, { emitEvent: false });
+      this.lineRows.push(row, { emitEvent: false });
+    }
+    this.lineRows.markAsPristine();
+    this.lineRows.markAsUntouched();
+    this.lineCount.set(this.lineRows.length);
+    this.pickerOpen.set(false);
+    this.cameraOpen.set(false);
+    this.scannerOpen.set(false);
+    this.pickerSearch.set('');
+    this.scanControl.reset('');
+    this.scannerMessage.set(null);
+    this.lastScan = { value: '', at: 0 };
+    this.isCreatingProduct.set(false);
+    this.productForm.reset({ title: '' });
+    this.productError.set(null);
+    this.importError.set(null);
   }
 
   private createLine(lineKind: TrackingMode): FormGroup<PurchaseLineControls> {

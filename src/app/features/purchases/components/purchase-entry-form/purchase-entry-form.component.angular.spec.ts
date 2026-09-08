@@ -126,6 +126,9 @@ function erstelleKomponente(vorhandener: Purchase | null = null) {
     isSubmitting: signal(false),
     errorMessage: signal<string | null>(null),
     persistedDraft: signal<Purchase | null>(null),
+    completed: signal(false),
+    sellerDialogOpen: signal(false),
+    lineEditor: () => undefined,
     costOverviewDialog: () => undefined,
     isAddingSource: signal(true),
     isAddingSupplier: signal(true),
@@ -181,6 +184,34 @@ function erstelleKomponente(vorhandener: Purchase | null = null) {
 }
 
 describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
+  it('setzt nach dem Speichern dieselbe Maske zurück und erkennt neue Änderungen', async () => {
+    const { komponente } = erstelleKomponente(einkauf);
+    const resetToLines = vi.fn();
+    Object.assign(komponente, {
+      lineEditor: () => ({
+        resetToLines,
+        isSavingProduct: () => false,
+        hasUnsavedChanges: () => false,
+      }),
+    });
+    await komponente.onSubmit();
+    komponente.form.controls.title.setValue('Verworfene Änderung');
+    komponente.form.markAsDirty();
+    komponente.errorMessage.set('Alter Fehler');
+
+    komponente.resetToPurchase({ ...einkauf, title: 'Gespeicherter Einkauf', purchase_price: 80 });
+
+    expect(komponente.form.controls.title.value).toBe('Gespeicherter Einkauf');
+    expect(komponente.form.controls.purchase_price.value).toBe(80);
+    expect(komponente.form.pristine).toBe(true);
+    expect(komponente.errorMessage()).toBeNull();
+    expect(resetToLines).toHaveBeenCalledWith([]);
+    expect(komponente.hasUnsavedChanges()).toBe(false);
+    komponente.form.controls.title.setValue('Neue Änderung');
+    komponente.form.markAsDirty();
+    expect(komponente.hasUnsavedChanges()).toBe(true);
+  });
+
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 

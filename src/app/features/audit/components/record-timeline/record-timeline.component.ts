@@ -6,6 +6,7 @@ import {
   inject,
   input,
   signal,
+  untracked,
 } from '@angular/core';
 import { AuthService } from '../../../../core/services/auth.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
@@ -28,6 +29,7 @@ import { ButtonComponent } from '../../../../shared/components/button/button.com
 export class RecordTimelineComponent {
   readonly entityType = input.required<RecordTimelineEntityType>();
   readonly entityId = input.required<string>();
+  readonly refreshKey = input<number | string>(0);
   private readonly timeline = inject(RecordTimelineService);
   private readonly workspace = inject(WorkspaceService);
   private readonly auth = inject(AuthService);
@@ -74,6 +76,19 @@ export class RecordTimelineComponent {
       this.loadError.set(null);
       this.expandedId.set(null);
       if (scope.workspaceId && scope.entityId) void this.load(undefined);
+    });
+    let previousRefreshKey: number | string | undefined;
+    effect(() => {
+      const refreshKey = this.refreshKey();
+      const posting = this.posting();
+      if (previousRefreshKey === undefined) {
+        previousRefreshKey = refreshKey;
+        return;
+      }
+      if (refreshKey === previousRefreshKey || posting) return;
+      previousRefreshKey = refreshKey;
+      // Ein Speichervorgang erneuert nur die Historie, nicht den Kommentarentwurf.
+      untracked(() => void this.load(undefined));
     });
   }
   updateDraft(event: Event): void {
@@ -126,6 +141,11 @@ export class RecordTimelineComponent {
   }
   exactTime(value: string): string {
     return new Intl.DateTimeFormat('de-DE', { dateStyle: 'full', timeStyle: 'long' }).format(
+      new Date(value),
+    );
+  }
+  clockTime(value: string): string {
+    return new Intl.DateTimeFormat('de-DE', { hour: '2-digit', minute: '2-digit' }).format(
       new Date(value),
     );
   }
