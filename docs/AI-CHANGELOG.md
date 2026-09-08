@@ -58,6 +58,16 @@
 
 **Speicherfehler:** In `create_purchase` erwartet die Lieferanten-ID-Prüfung fälschlich das Muster 8-4-4-12 statt 8-4-4-4-12. Eine gültige UUID aus dem Testbestand wird nachweislich abgelehnt. Das unverändert übernommene Muster stammt aus Commit `e5cef4a7` und steht auch in der jüngsten veröffentlichten Funktionsmigration. `update_purchase_draft` besitzt das korrekte Muster; der neue Chroniktest legt ohne Lieferant an und setzt ihn erst beim Update, wodurch dieser Fall nicht abgedeckt war. Korrektur benötigt eine neue Migration und einen expliziten Neuanlage-Test mit gültigem Lieferanten desselben Workspaces sowie Gegenproben für fremde/ungültige IDs. Kein Produktionszugriff und keine SQL-Ausführung; kein Docker. In diesem Analyseschritt nur Dokumentation, keine Anwendungscodeänderung oder Veröffentlichung.
 
+## 2026-09-08 – Codex – Isolierten Artikelkern-Test-PR vorbereiten
+
+**Freigabe:** Nutzer erlaubt ausdrücklich einen separaten GitHub-Test-PR ohne Merge/Deployment. Eigener Zweig `codex/product-core-validation`, Basis `3b545c2`; die laufenden UI-/Lieferantenänderungen bleiben getrennt. Kein Docker und keine Datenbank auf dem Arbeitslaptop.
+
+**Umsetzung:** Zusätzlicher ausschließlich für diesen gleichnamigen Same-Repository-PR aktiver CI-Workflow erzeugt aus den deklarativen Schema-Dateien eine Migrationsvorschau und in einem wegwerfbaren GitHub-Runner Datenbanktypen. SQL-Vorschau, Typen, tatsächlicher Quellcommit und CLI-Version werden sieben Tage als Review-Artefakt aufbewahrt. Kein Produktionszugang, keine Geheimnisse, kein automatischer Commit, Merge oder Deployment. Die normalen PR-Pflichtprüfungen bleiben unverändert. Dies ist zunächst die technische Prüfgrundlage, noch keine Umstellung des Artikelmodells.
+
+**Prüfung:** Zwei lokale Workflow-Vertragsprüfungen zunächst rot (Workflow fehlt), danach grün. Die tatsächliche Schema-/Typgenerierung und pgTAP-Laufprüfung finden erst nach Push in CI statt. Erzeugte SQL-Dateien werden nicht ungeprüft als Produktionsmigration übernommen; Rechte, Datenüberführung und unbekannte Kosten benötigen weiter fachliches Review.
+
+**Erster CI-Befund:** Lauf `34279272450` erzeugte erfolgreich SQL und Typen; 1159 von 1160 Datenbanktests bestanden. Der bestehende Snapshot-ACL-Test verhinderte die Übernahme zweier ungewollter Funktionsfreigaben. Ursache: Der spätere pauschale Funktionsgrant im deklarativen Schema überschrieb den früheren Snapshot-Revoke. Die zentrale Ausnahmeliste erhält denselben Rechteentzug wie die bereits veröffentlichte Auditmigration. Keine Generatoränderung und keine Abschwächung des Sicherheitstests. Der Entwurf bleibt bis zur vollständigen erzeugten Kernmigration, Typen und grünen Pflichtprüfung unveröffentlichbar; insbesondere wird die Schema-/Migrationsprüfung nicht umgangen.
+
 ## 2026-09-08 – Codex – Entwurfsbearbeitung und Chronik veröffentlichen
 
 **Auftrag:** Den freigegebenen Stand auf `codex/purchase-draft-chronology` einschließlich SQL-Migration committen, pushen und nach erfolgreichen Pflichtprüfungen über einen PR mit Merge-Commit nach `master` übernehmen. Anwendungstests und Bau vor Veröffentlichung erneut prüfen. Datenbanktests ausschließlich in CI, kein Docker und keine lokale Datenbankeinrichtung auf dem Arbeitslaptop. Lokale Diagnoseartefakte bleiben außerhalb des Commits; keine Geschäftsdaten löschen.
