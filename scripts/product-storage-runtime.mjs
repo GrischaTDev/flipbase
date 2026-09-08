@@ -44,14 +44,12 @@ assert.equal(
 );
 const denied = await client.storage.from('item-media').createSignedUrl(path, 60);
 assert.equal(String(denied.error?.statusCode), '404', 'Unregistered object must be hidden by RLS');
-const metadata = await client
-  .from('catalog_product_media')
-  .insert({
-    workspace_id: workspaceId,
-    catalog_product_id: productId,
-    storage_path: path,
-    sort_order: -1,
-  });
+const metadata = await client.from('catalog_product_media').insert({
+  workspace_id: workspaceId,
+  catalog_product_id: productId,
+  storage_path: path,
+  sort_order: -1,
+});
 assert.equal(metadata.error?.code, '23514', 'Invalid sort order must fail its check constraint');
 const removed = await client.storage.from('item-media').remove([path]);
 assert.equal(removed.error, null);
