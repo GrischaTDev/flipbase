@@ -1,10 +1,9 @@
-import type { TooltipItem } from 'chart.js';
 import { describe, expect, it } from 'vitest';
-import { DashboardTimePoint } from '../../../core/models/flipbase.models';
+import type { DashboardTimePoint } from '../../../core/models/flipbase.models';
 import {
+  buildRevenueSeries,
   createRevenueChartConfiguration,
-  REVENUE_CHART_SERIES,
-  revenueChartPalette,
+  formatChartAmount,
 } from './revenue-chart.config';
 
 const points: readonly DashboardTimePoint[] = [
@@ -12,175 +11,85 @@ const points: readonly DashboardTimePoint[] = [
     date: '2026-08-27',
     label: '27.08.',
     revenue: 19.98,
-    costOfGoodsSold: 9.98,
+    costOfGoodsSold: 35,
     sellingCosts: 1,
-    resultAfterDirectCosts: 9,
+    resultAfterDirectCosts: -16.02,
     expenses: 24.95,
-    realizedProfit: 9,
+    realizedProfit: -16.02,
   },
   {
     date: '2026-08-28',
     label: '28.08.',
     revenue: 0,
-    costOfGoodsSold: 20,
+    costOfGoodsSold: null,
     sellingCosts: 5,
-    resultAfterDirectCosts: -25,
+    resultAfterDirectCosts: null,
     expenses: 0,
-    realizedProfit: -25,
+    realizedProfit: null,
   },
 ];
 
 describe('Revenue-Chart-Konfiguration', () => {
-  it('ordnet Beschriftungen und Werte unverändert den vier Fachreihen zu', () => {
-    const configuration = createRevenueChartConfiguration(points, 'dark', false);
-
-    expect(configuration.data.labels).toEqual(['27.08.', '28.08.']);
-    expect(configuration.data.datasets.map(({ label, data }) => ({ label, data }))).toEqual([
-      { label: 'Verkaufserlös', data: [19.98, 0] },
-      { label: 'Wareneinsatz', data: [9.98, 20] },
-      { label: 'Verkaufskosten', data: [1, 5] },
-      { label: 'Ergebnis nach direkten Kosten', data: [9, -25] },
+  it('übergibt alle vier Reihen ohne Sortieren, Verrechnen oder Ersetzen offener Werte', () => {
+    expect(buildRevenueSeries(points)).toEqual([
+      { name: 'Verkaufserlös', data: [19.98, 0] },
+      { name: 'Wareneinsatz', data: [35, null] },
+      { name: 'Verkaufskosten', data: [1, 5] },
+      { name: 'Ergebnis nach direkten Kosten', data: [-16.02, null] },
+    ]);
+    expect(createRevenueChartConfiguration(points, 'light', false).xaxis.categories).toEqual([
+      '27.08.',
+      '28.08.',
     ]);
   });
-
-  it('macht alle Reihen auch ohne Farbwahrnehmung unterscheidbar und gut treffbar', () => {
-    const configuration = createRevenueChartConfiguration(points, 'light', false);
-
-    expect(REVENUE_CHART_SERIES).toEqual([
-      { key: 'revenue', label: 'Verkaufserlös', pointStyle: 'circle', borderDash: [] },
-      {
-        key: 'costOfGoodsSold',
-        label: 'Wareneinsatz',
-        pointStyle: 'rectRot',
-        borderDash: [8, 4],
-      },
-      {
-        key: 'sellingCosts',
-        label: 'Verkaufskosten',
-        pointStyle: 'rect',
-        borderDash: [5, 3],
-      },
-      {
-        key: 'resultAfterDirectCosts',
-        label: 'Ergebnis nach direkten Kosten',
-        pointStyle: 'triangle',
-        borderDash: [2, 3],
-      },
-    ]);
-    expect(
-      configuration.data.datasets.map(({ pointStyle, borderDash }) => ({
-        pointStyle,
-        borderDash,
-      })),
-    ).toEqual([
-      { pointStyle: 'circle', borderDash: [] },
-      { pointStyle: 'rectRot', borderDash: [8, 4] },
-      { pointStyle: 'rect', borderDash: [5, 3] },
-      { pointStyle: 'triangle', borderDash: [2, 3] },
-    ]);
-    for (const { pointHitRadius } of configuration.data.datasets) {
-      expect(pointHitRadius).toBeTypeOf('number');
-      if (typeof pointHitRadius === 'number') {
-        expect(pointHitRadius).toBeGreaterThanOrEqual(12);
-      }
-    }
+  it('verändert die Eingabeliste nicht und behält ihre Reihenfolge', () => {
+    const immutable = Object.freeze(
+      [...points].reverse().map((point) => Object.freeze({ ...point })),
+    );
+    const before = structuredClone(immutable);
+    expect(buildRevenueSeries(immutable)[0].data).toEqual([0, 19.98]);
+    expect(immutable).toEqual(before);
+  });
+  it('zeigt Linien ohne Glättung, Labels oder eine falsche Null-Linie für unbekannte Werte', () => {
+    const options = createRevenueChartConfiguration(points, 'light', false);
+    expect(options.chart.type).toBe('line');
+    expect(options.stroke.curve).toBe('straight');
+    expect(options.stroke.dashArray).toEqual([0, 8, 5, 2]);
+    expect(options.dataLabels.enabled).toBe(false);
+    expect(options.series[1].data).toEqual([35, null]);
+    expect(options.tooltip.enabled).toBe(false);
+    expect(options.yaxis.labels?.formatter?.(-25)).toBe('-25,00 €');
+  });
+  it('deaktiviert Animationen bei reduzierter Bewegung und passt das Theme an', () => {
+    const options = createRevenueChartConfiguration(points, 'dark', true);
+    expect(options.chart.animations?.enabled).toBe(false);
+    expect(options.theme.mode).toBe('dark');
+    expect(createRevenueChartConfiguration(points, 'light', false).chart.animations?.enabled).toBe(
+      true,
+    );
   });
 
-  it('liefert Maus und Touch gemeinsam alle Werte am nächstgelegenen Datum', () => {
-    const configuration = createRevenueChartConfiguration(points, 'dark', false);
-
-    expect(configuration.options?.interaction).toEqual({
-      mode: 'index',
-      axis: 'x',
-      intersect: false,
-    });
-    expect(configuration.options?.events).toEqual([
-      'mousemove',
-      'mouseout',
-      'click',
-      'touchstart',
-      'touchmove',
-    ]);
+  it('begrenzt Datumsbeschriftungen auf schmalen Flächen ohne Punkte zu verwerfen', () => {
+    const many = Array.from({ length: 31 }, (_, index) => ({
+      ...points[0],
+      label: `${index + 1}.08.`,
+    }));
+    const options = createRevenueChartConfiguration(many, 'light', true);
+    expect(options.xaxis.tickAmount).toBe(6);
+    expect(options.responsive[0]?.options?.xaxis?.tickAmount).toBe(2);
+    expect(options.series[0].data).toHaveLength(31);
+    expect(options.xaxis.categories).toHaveLength(31);
   });
-
-  it('formatiert negative Tooltipwerte mit Reihenname als deutschen EUR-Betrag', () => {
-    const configuration = createRevenueChartConfiguration(points, 'dark', false);
-    const tooltipItem = {
-      chart: {} as TooltipItem<'line'>['chart'],
-      label: '28.08.',
-      parsed: { x: 1, y: -25 },
-      raw: -25,
-      formattedValue: '-25',
-      dataset: configuration.data.datasets[3],
-      datasetIndex: 3,
-      dataIndex: 1,
-      element: {} as TooltipItem<'line'>['element'],
-    } satisfies TooltipItem<'line'>;
-    const label = configuration.options?.plugins?.tooltip?.callbacks?.label;
-
-    expect(label).toBeTypeOf('function');
-    expect(label?.call({} as never, tooltipItem)).toBe('Ergebnis nach direkten Kosten: -25,00 €');
-  });
-
-  it('liefert explizite und unterschiedliche Paletten für helles und dunkles Design', () => {
-    expect(revenueChartPalette('light')).toEqual({
-      revenue: '#1d4ed8',
-      costOfGoodsSold: '#b45309',
-      sellingCosts: '#7c3aed',
-      resultAfterDirectCosts: '#047857',
-      ticks: '#596273',
-      grid: '#e2e6ec',
-      zeroLine: '#596273',
-      tooltipBackground: '#ffffff',
-      tooltipText: '#171a21',
-      tooltipBorder: '#cbd1da',
-    });
-    expect(revenueChartPalette('dark')).toEqual({
-      revenue: '#c4c4c4',
-      costOfGoodsSold: '#f89d13',
-      sellingCosts: '#a78bfa',
-      resultAfterDirectCosts: '#57c776',
-      ticks: '#a8a8a8',
-      grid: '#373737',
-      zeroLine: '#a8a8a8',
-      tooltipBackground: '#171717',
-      tooltipText: '#f5f5f5',
-      tooltipBorder: '#4a4a4a',
-    });
-  });
-
-  it('schaltet Animationen bei reduzierter Bewegung vollständig ab', () => {
-    expect(createRevenueChartConfiguration(points, 'light', true).options?.animation).toBe(false);
-    expect(createRevenueChartConfiguration(points, 'light', false).options?.animation).toEqual({
-      duration: 250,
-    });
-  });
-
-  it.each([
-    { name: 'keine', values: [] as const, labels: [], revenue: [] },
-    {
-      name: 'eine',
-      values: [points[0]] as const,
-      labels: ['27.08.'],
-      revenue: [19.98],
-    },
-  ])(
-    'erzeugt auch für $name Datenpunkte eine gültige Konfiguration',
-    ({ values, labels, revenue }) => {
-      const configuration = createRevenueChartConfiguration(values, 'light', false);
-
-      expect(configuration.type).toBe('line');
-      expect(configuration.data.labels).toEqual(labels);
-      expect(configuration.data.datasets[0].data).toEqual(revenue);
+  it.each([{ values: [] }, { values: [points[0]] }])(
+    'verarbeitet leere oder einzelne Datenpunkte',
+    ({ values }) => {
+      const options = createRevenueChartConfiguration(values, 'light', true);
+      expect(options.series[0].data).toEqual(values.length ? [19.98] : []);
+      expect(options.markers.size).toBe(values.length === 1 ? 4 : 0);
     },
   );
-
-  it('verändert die übergebenen Dashboardpunkte nicht', () => {
-    const immutablePoints = Object.freeze(points.map((point) => Object.freeze({ ...point })));
-    const snapshot = structuredClone(immutablePoints);
-
-    createRevenueChartConfiguration(immutablePoints, 'dark', false);
-
-    expect(immutablePoints).toEqual(snapshot);
+  it('formatiert unbekannte und negative Werte fachlich unverändert', () => {
+    expect(formatChartAmount(null)).toBe('unbekannt');
+    expect(formatChartAmount(-25)).toBe('-25,00 €');
   });
 });

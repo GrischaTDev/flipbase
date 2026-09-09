@@ -5,7 +5,7 @@ import { Params, RouterLink } from '@angular/router';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'destructive' | 'ghost' | 'plain';
 
-export type ButtonSize = 'slim' | 'md' | 'lg';
+export type ButtonSize = 'slim' | 'md' | 'lg' | 'search';
 
 @Component({
   selector: 'app-button',
@@ -34,6 +34,7 @@ export class ButtonComponent {
   readonly ariaLabel = input<string>('');
   readonly title = input<string>('');
   readonly ariaExpanded = input<boolean | null>(null);
+  readonly ariaPressed = input<boolean | null>(null);
   readonly ariaControls = input<string>('');
   readonly ariaHaspopup = input<'dialog' | 'menu' | 'listbox' | null>(null);
 
@@ -68,11 +69,13 @@ export class ButtonComponent {
           slim: 'h-7 w-7 px-0 text-[13px] rounded-lg gap-0',
           md: 'h-7 w-7 px-0 text-[13px] rounded-lg gap-0',
           lg: 'h-8 w-8 px-0 text-[13px] rounded-lg gap-0',
+          search: 'h-9 w-9 px-0 text-[13px] rounded-lg gap-0',
         }
       : {
           slim: 'h-7 px-2 text-[13px] rounded-lg gap-1.5',
           md: 'h-7 px-3 text-[13px] rounded-lg gap-1.5',
           lg: 'h-8 px-4 text-[13px] rounded-lg gap-2',
+          search: 'h-9 px-2 text-[13px] rounded-lg gap-1.5',
         };
 
     return [base, width, variantStyles[this.variant()], sizeStyles[this.size()]]

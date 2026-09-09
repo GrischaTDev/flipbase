@@ -14,11 +14,77 @@ const product: CatalogProduct = {
 };
 
 describe('CatalogService', () => {
+  it('fügt die verspätete Anlage aus A nicht in den geladenen Workspace B ein', async () => {
+    let complete: ((value: { data: CatalogProduct; error: null }) => void) | undefined;
+    const second = { ...product, id: 'product-2', workspace_id: 'workspace-2' };
+    const service = Object.create(CatalogService.prototype) as CatalogService;
+    Object.assign(service, {
+      products: signal<CatalogProduct[]>([product]),
+      loadedWorkspaceId: signal<string | null>('workspace-1'),
+      isLoading: signal(false),
+      loadError: signal(null),
+      loadRequestId: 0,
+      mockStore: { isDemoMode: () => false },
+      syncStatus: new SyncStatusService(),
+      supabase: {
+        client: {
+          from: () => ({
+            insert: () => ({
+              select: () => ({
+                single: () =>
+                  new Promise((resolve) => {
+                    complete = resolve;
+                  }),
+              }),
+            }),
+            select: () => ({
+              eq: () => ({ order: async () => ({ data: [second], error: null }) }),
+            }),
+          }),
+        },
+      },
+    });
+    const creation = service.createProduct({
+      workspaceId: product.workspace_id,
+      title: product.title,
+    });
+    await service.loadProducts('workspace-2');
+    complete?.({ data: product, error: null });
+    expect((await creation).data).toEqual(product);
+    expect(service.products()).toEqual([{ ...second, primary_media_path: null }]);
+  });
+  it('legt Produkte ohne Bestandsart an und speichert ihren Zustand ohne Wareneingang', async () => {
+    const saveCatalogProduct = vi.fn();
+    const service = Object.create(CatalogService.prototype) as CatalogService;
+    Object.assign(service, {
+      products: signal<CatalogProduct[]>([]),
+      mockStore: { isDemoMode: () => true, saveCatalogProduct },
+    });
+    const result = await service.createProduct({
+      workspaceId: 'workspace-1',
+      title: '  Schuh  ',
+      condition: 'defective',
+      conditionNotes: '  Naht beschädigt  ',
+    });
+    expect(result.error).toBeNull();
+    expect(saveCatalogProduct).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        title: 'Schuh',
+        tracking_mode: 'quantity',
+        condition: 'defective',
+        condition_notes: 'Naht beschädigt',
+      }),
+    );
+  });
+
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
   it('übernimmt einen bestätigten Katalogartikel in den lokalen Zustand', async () => {
+    const insert = vi.fn(() => ({
+      select: () => ({ single: async () => ({ data: product, error: null }) }),
+    }));
     const service = Object.create(CatalogService.prototype) as CatalogService;
     Object.assign(service, {
       products: signal<CatalogProduct[]>([]),
@@ -27,9 +93,7 @@ describe('CatalogService', () => {
       supabase: {
         client: {
           from: () => ({
-            insert: () => ({
-              select: () => ({ single: async () => ({ data: product, error: null }) }),
-            }),
+            insert,
           }),
         },
       },
@@ -38,11 +102,19 @@ describe('CatalogService', () => {
     const result = await service.createProduct({
       workspaceId: product.workspace_id,
       title: product.title,
-      trackingMode: 'quantity',
+      condition: 'new',
+      conditionNotes: ' originalverpackt ',
     });
 
     expect(result).toMatchObject({ data: product, error: null, reportedBySyncStatus: false });
     expect(service.products()).toEqual([product]);
+    expect(insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tracking_mode: 'quantity',
+        condition: 'new',
+        condition_notes: 'originalverpackt',
+      }),
+    );
   });
 
   it('stellt einen Ladefehler für die Artikelstammdaten bereit', async () => {
@@ -75,8 +147,8 @@ describe('CatalogService', () => {
   });
 
   it('ignoriert eine verspätete Antwort des zuvor aktiven Workspace', async () => {
-    const products = signal<CatalogProduct[]>([]);
-    const loadedWorkspaceId = signal<string | null>(null);
+    const products = signal<CatalogProduct[]>([product]);
+    const loadedWorkspaceId = signal<string | null>('workspace-1');
     const responses = new Map<
       string,
       (result: { data: CatalogProduct[]; error: Error | null }) => void
@@ -107,6 +179,8 @@ describe('CatalogService', () => {
     });
     const firstLoad = service.loadProducts('workspace-1');
     const secondLoad = service.loadProducts('workspace-2');
+    expect(products()).toEqual([]);
+    expect(loadedWorkspaceId()).toBeNull();
     const secondProduct = { ...product, id: 'product-2', workspace_id: 'workspace-2' };
 
     responses.get('workspace-2')?.({ data: [secondProduct], error: null });
@@ -114,7 +188,7 @@ describe('CatalogService', () => {
     responses.get('workspace-1')?.({ data: [product], error: null });
     await firstLoad;
 
-    expect(products()).toEqual([secondProduct]);
+    expect(products()).toEqual([{ ...secondProduct, primary_media_path: null }]);
     expect(loadedWorkspaceId()).toBe('workspace-2');
     expect(service.isLoading()).toBe(false);
     expect(service.loadError()).toBeNull();
@@ -137,7 +211,6 @@ describe('CatalogService', () => {
     const result = await service.createProduct({
       workspaceId: product.workspace_id,
       title: product.title,
-      trackingMode: 'quantity',
     });
 
     expect(result.error).toBeNull();

@@ -441,7 +441,7 @@
                                 Gebucht
                               </span>
                             } @else if (tx.status === 'matched') {
-                              <app-badge tone="info" marker="square">Bereit</app-badge>
+                              <app-badge tone="info">Bereit</app-badge>
                             } @else if (tx.status === 'ignored') {
                               <span
                                 class="rounded-full bg-fb-surface-alt px-2 py-0.5 text-[10px] font-medium text-fb-text-muted"
@@ -449,7 +449,7 @@
                                 Ignoriert
                               </span>
                             } @else {
-                              <app-badge tone="caution" marker="square">Offen</app-badge>
+                              <app-badge tone="caution">Offen</app-badge>
                             }
                           </td>
                         }

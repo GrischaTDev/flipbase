@@ -387,10 +387,66 @@ export type Database = {
           },
         ]
       }
+      catalog_product_media: {
+        Row: {
+          catalog_product_id: string
+          created_at: string
+          file_name: string | null
+          file_size: number | null
+          id: string
+          is_primary: boolean
+          mime_type: string | null
+          sort_order: number
+          storage_path: string
+          workspace_id: string
+        }
+        Insert: {
+          catalog_product_id: string
+          created_at?: string
+          file_name?: string | null
+          file_size?: number | null
+          id?: string
+          is_primary?: boolean
+          mime_type?: string | null
+          sort_order?: number
+          storage_path: string
+          workspace_id: string
+        }
+        Update: {
+          catalog_product_id?: string
+          created_at?: string
+          file_name?: string | null
+          file_size?: number | null
+          id?: string
+          is_primary?: boolean
+          mime_type?: string | null
+          sort_order?: number
+          storage_path?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_product_media_workspace_id_catalog_product_id_fkey"
+            columns: ["workspace_id", "catalog_product_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_products"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "catalog_product_media_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       catalog_products: {
         Row: {
           brand: string | null
           category: string | null
+          condition: string | null
+          condition_notes: string | null
           created_at: string
           ean: string | null
           id: string
@@ -405,6 +461,8 @@ export type Database = {
         Insert: {
           brand?: string | null
           category?: string | null
+          condition?: string | null
+          condition_notes?: string | null
           created_at?: string
           ean?: string | null
           id?: string
@@ -412,13 +470,15 @@ export type Database = {
           listing_price?: number | null
           model?: string | null
           title: string
-          tracking_mode: string
+          tracking_mode?: string
           updated_at?: string
           workspace_id: string
         }
         Update: {
           brand?: string | null
           category?: string | null
+          condition?: string | null
+          condition_notes?: string | null
           created_at?: string
           ean?: string | null
           id?: string
@@ -1516,6 +1576,51 @@ export type Database = {
           },
           {
             foreignKeyName: "purchase_lines_workspace_purchase_fkey"
+            columns: ["workspace_id", "purchase_id"]
+            isOneToOne: false
+            referencedRelation: "purchases"
+            referencedColumns: ["workspace_id", "id"]
+          },
+        ]
+      }
+      purchase_receipt_requests: {
+        Row: {
+          created_at: string
+          id: string
+          purchase_id: string
+          request_id: string
+          request_lines: Json
+          response: Json
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          purchase_id: string
+          request_id: string
+          request_lines: Json
+          response: Json
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          purchase_id?: string
+          request_id?: string
+          request_lines?: Json
+          response?: Json
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_receipt_requests_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_receipt_requests_workspace_id_purchase_id_fkey"
             columns: ["workspace_id", "purchase_id"]
             isOneToOne: false
             referencedRelation: "purchases"
@@ -2631,7 +2736,7 @@ export type Database = {
           received_at: string
           received_quantity: number
           remaining_quantity: number
-          unit_cost: number
+          unit_cost: number | null
           workspace_id: string
         }
         Insert: {
@@ -2643,7 +2748,7 @@ export type Database = {
           received_at?: string
           received_quantity: number
           remaining_quantity: number
-          unit_cost: number
+          unit_cost?: number | null
           workspace_id: string
         }
         Update: {
@@ -2655,7 +2760,7 @@ export type Database = {
           received_at?: string
           received_quantity?: number
           remaining_quantity?: number
-          unit_cost?: number
+          unit_cost?: number | null
           workspace_id?: string
         }
         Relationships: [
@@ -3497,6 +3602,10 @@ export type Database = {
         Args: { p_purchase_id: string; p_workspace_id: string }
         Returns: boolean
       }
+      is_catalog_product_media_path: {
+        Args: { p_path: string; p_product_id: string; p_workspace_id: string }
+        Returns: boolean
+      }
       is_platform_operator: { Args: never; Returns: boolean }
       is_valid_gtin: { Args: { p_value: string }; Returns: boolean }
       is_workspace_admin: { Args: { ws_id: string }; Returns: boolean }
@@ -3628,6 +3737,10 @@ export type Database = {
           reason: string
         }[]
       }
+      purchase_draft_audit_snapshot: {
+        Args: { p_purchase_id: string; p_workspace_id: string }
+        Returns: Json
+      }
       receive_individual_purchase_line: {
         Args: {
           p_item: Json
@@ -3639,6 +3752,15 @@ export type Database = {
       }
       receive_purchase_lines: {
         Args: { p_lines: Json; p_purchase_id: string; p_workspace_id: string }
+        Returns: Json
+      }
+      receive_purchase_lines_idempotent: {
+        Args: {
+          p_lines: Json
+          p_purchase_id: string
+          p_request_id: string
+          p_workspace_id: string
+        }
         Returns: Json
       }
       record_legacy_inventory_sale: {

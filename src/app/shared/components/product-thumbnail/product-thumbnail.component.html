@@ -1,0 +1,26 @@
+<span
+  class="inline-flex shrink-0 items-center justify-center overflow-hidden rounded-lg border border-fb-border bg-fb-well text-fb-text-muted"
+  [class.size-10]="size() === 'sm'"
+  [class.size-14]="size() === 'md'"
+>
+  @if (imageSource(); as source) {
+    <img
+      [src]="source"
+      [alt]="alt()"
+      class="size-full object-contain"
+      loading="lazy"
+      decoding="async"
+      (error)="failed.set(true); imageFailed.emit()"
+    />
+  } @else {
+    <span
+      data-product-placeholder
+      class="inline-flex items-center justify-center"
+      [attr.role]="alt() ? 'img' : null"
+      [attr.aria-label]="alt() || null"
+      [attr.aria-hidden]="alt() ? null : 'true'"
+    >
+      <svg lucideImage class="size-4" aria-hidden="true"></svg>
+    </span>
+  }
+</span>

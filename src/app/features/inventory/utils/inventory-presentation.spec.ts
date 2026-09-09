@@ -127,6 +127,23 @@ function build(overrides: Partial<Parameters<typeof buildInventoryPresentation>[
 }
 
 describe('buildInventoryPresentation', () => {
+  it('behält offenen Wareneingang in Gesamt, ohne ihn als verfügbar anzuzeigen', () => {
+    const result = build({
+      positions: [
+        {
+          ...position,
+          available_quantity: 0,
+          reserved_quantity: 0,
+          on_hand_quantity: 5,
+          oldest_available_unit_cost: null,
+        },
+      ],
+      lots: [{ ...lot('open', 'purchase-1', 5, 5, 0), unit_cost: null }],
+      purchases: [purchase('purchase-1', false)],
+    });
+    expect(result.rows[0]?.quantity).toMatchObject({ total: 5, available: 0 });
+    expect(result.rows[0]?.inventoryValue).toEqual({ kind: 'open' });
+  });
   it('normalisiert ein einzeln nachverfolgtes Stück ohne sichtbare Tracking-Art', () => {
     const result = build({ individualItems: [individual()], purchases: [purchase('purchase-1')] });
 

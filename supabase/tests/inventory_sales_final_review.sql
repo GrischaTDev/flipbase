@@ -140,7 +140,7 @@ begin
   from public.stock_lots
   where purchase_line_id = v_first_line_id;
 
-  if v_unit_cost <> 0 then
+  if v_unit_cost is not null then
     raise exception 'draft receipt persisted costs before finalization: %', v_unit_cost;
   end if;
 

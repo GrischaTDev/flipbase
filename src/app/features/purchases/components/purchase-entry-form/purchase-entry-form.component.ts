@@ -475,6 +475,12 @@ export class PurchaseEntryFormComponent {
       return;
     }
     if (this.form.invalid) return;
+    const editor = this.lineEditor();
+    if (editor?.lineRows.invalid) {
+      this.errorMessage.set('Bitte prüfe die markierten Artikelangaben.');
+      editor.focusFirstError();
+      return;
+    }
     if (!this.areAdditionalCostsValid()) {
       this.errorMessage.set(
         'Direkte Zusatzkosten benötigen eine gültige Zielposition, bevor du den Entwurf speichern kannst.',

@@ -11,7 +11,8 @@ insert into public.workspaces (id, name) values
 insert into public.workspace_members (workspace_id, user_id, role) values
   ('a8100000-0000-4000-8000-000000000011', 'a8100000-0000-4000-8000-000000000001', 'owner');
 insert into public.suppliers (id, workspace_id, name) values
-  ('a8100000-0000-4000-8000-000000000021', 'a8100000-0000-4000-8000-000000000011', 'Lieferant');
+  ('a8100000-0000-4000-8000-000000000021', 'a8100000-0000-4000-8000-000000000011', 'Erster Lieferant'),
+  ('a8100000-0000-4000-8000-000000000022', 'a8100000-0000-4000-8000-000000000011', 'Zweiter Lieferant');
 
 create temporary table draft_input as select
   'a8100000-0000-4000-8000-000000000011'::uuid as workspace_id,
@@ -20,6 +21,8 @@ create temporary table draft_input as select
   '[{"type":"shipping","amount":2,"allocation_method":"direct","target_purchase_line_ref":"first"}]'::jsonb as costs,
   '[{"client_ref":"first","title_snapshot":"Artikel","line_kind":"individual","ordered_quantity":2,"unit_purchase_price":10,"line_total":20}]'::jsonb as lines;
 grant select, update on draft_input to authenticated;
+update draft_input
+set purchase = purchase || '{"supplier_id":"a8100000-0000-4000-8000-000000000021"}'::jsonb;
 select set_config('request.jwt.claim.sub', 'a8100000-0000-4000-8000-000000000001', true);
 set local role authenticated;
 update draft_input set purchase_id = (public.create_purchase(workspace_id, purchase, costs, lines) #>> '{purchase,id}')::uuid;
@@ -43,13 +46,14 @@ reset role;
 select is((select count(*) from public.business_events where entity_id = (select purchase_id from draft_input)), 1::bigint, 'Identisches Speichern bleibt trotz regenerierter IDs ohne Änderungseintrag');
 
 set local role authenticated;
-update draft_input set purchase = purchase || '{"title":"Geändert","discount_amount":1,"supplier_id":"a8100000-0000-4000-8000-000000000021"}';
+update draft_input set purchase = purchase || '{"title":"Geändert","discount_amount":1,"supplier_id":"a8100000-0000-4000-8000-000000000022"}';
 select public.update_purchase_draft(workspace_id, purchase_id, purchase, costs, lines) from draft_input;
 reset role;
 select is((select count(*) from public.business_events where entity_id = (select purchase_id from draft_input) and event_type = 'purchase_draft_updated'), 1::bigint, 'Mehrere Änderungen in einem Speichern ergeben genau ein Änderungsereignis');
 select is((select changes #>> '{purchase,before,title}' from public.business_events where entity_id = (select purchase_id from draft_input) and event_type = 'purchase_draft_updated'), 'Entwurf', 'Vorherwert bleibt erhalten');
 select is((select changes #>> '{purchase,after,discount_amount}' from public.business_events where entity_id = (select purchase_id from draft_input) and event_type = 'purchase_draft_updated'), '1', 'Rabatt ist im Nachherwert enthalten');
-select is((select changes #>> '{purchase,after,supplier_id}' from public.business_events where entity_id = (select purchase_id from draft_input) and event_type = 'purchase_draft_updated'), 'a8100000-0000-4000-8000-000000000021', 'Lieferantenwechsel ist enthalten');
+select is((select changes #>> '{purchase,before,supplier_id}' from public.business_events where entity_id = (select purchase_id from draft_input) and event_type = 'purchase_draft_updated'), 'a8100000-0000-4000-8000-000000000021', 'Lieferantenwechsel enthält den tatsächlichen Vorherwert');
+select is((select changes #>> '{purchase,after,supplier_id}' from public.business_events where entity_id = (select purchase_id from draft_input) and event_type = 'purchase_draft_updated'), 'a8100000-0000-4000-8000-000000000022', 'Lieferantenwechsel enthält den tatsächlichen Nachherwert');
 
 -- Der Kostenfehler tritt nach Positionsänderungen auf: alles muss zurückrollen.
 set local role authenticated;

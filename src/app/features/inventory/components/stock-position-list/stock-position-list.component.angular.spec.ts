@@ -19,6 +19,7 @@ import {
   StockPosition,
 } from '../../../../core/models/flipbase.models';
 import { StockPositionListComponent } from './stock-position-list.component';
+import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
 import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
 import { CostStateComponent } from '../../../../shared/components/cost-state/cost-state.component';
 import { TableColumnMenuComponent } from '../../../../shared/components/table-column-menu/table-column-menu.component';
@@ -50,6 +51,8 @@ function registerSignalInputs(component: unknown, inputNames: readonly string[])
 beforeAll(async () => {
   registerLocaleData(localeDe);
   const resources: Record<string, string> = {
+    './product-thumbnail.component.html':
+      'src/app/shared/components/product-thumbnail/product-thumbnail.component.html',
     './stock-position-list.component.html':
       'src/app/features/inventory/components/stock-position-list/stock-position-list.component.html',
     './cost-state.component.html': 'src/app/shared/components/cost-state/cost-state.component.html',
@@ -69,6 +72,7 @@ beforeAll(async () => {
     if (!resource) throw new Error(`Unbekannte Test-Ressource: ${url}`);
     return readFile(resolve(resource), 'utf8');
   });
+  registerSignalInputs(ProductThumbnailComponent, ['src', 'alt', 'size']);
   registerSignalInputs(CustomSelectComponent, [
     'options',
     'value',

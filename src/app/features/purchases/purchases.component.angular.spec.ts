@@ -299,7 +299,8 @@ describe('PurchasesComponent – responsive Einkaufsübersicht', () => {
     expect(host.textContent).not.toContain('Kostenstatus');
     expect(host.textContent).not.toContain('Aktionen');
     expect(mystery?.querySelector('[data-allocation-open]')).toBeNull();
-    expect(mystery?.querySelector('app-badge [data-badge-marker]')).not.toBeNull();
+    expect(mystery?.querySelector('app-badge')).not.toBeNull();
+    expect(mystery?.querySelector('app-badge [data-badge-marker]')).toBeNull();
   });
 
   it('behält Suche und Rücksetzung bei einer Suche ohne Treffer sichtbar', () => {

@@ -189,6 +189,7 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
     const resetToLines = vi.fn();
     Object.assign(komponente, {
       lineEditor: () => ({
+        lineRows: { invalid: false },
         resetToLines,
         isSavingProduct: () => false,
         hasUnsavedChanges: () => false,
@@ -1049,6 +1050,7 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
     const { komponente, purchaseService } = erstelleKomponente();
     Object.assign(komponente, {
       lineEditor: () => ({
+        lineRows: { invalid: false },
         hasUnsavedChanges: () => true,
         isSavingProduct: () => true,
       }),

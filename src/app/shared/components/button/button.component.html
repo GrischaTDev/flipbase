@@ -22,6 +22,7 @@
     [attr.title]="title() || null"
     [attr.aria-busy]="loading() ? 'true' : null"
     [attr.aria-expanded]="ariaExpanded()"
+    [attr.aria-pressed]="ariaPressed()"
     [attr.aria-controls]="ariaControls() || null"
     [attr.aria-haspopup]="ariaHaspopup()"
     (click)="handleClick($event)"

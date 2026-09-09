@@ -448,11 +448,27 @@ export interface CatalogProduct {
   model?: string | null;
   ean?: string | null;
   category?: string | null;
+  condition?: ItemCondition | null;
+  condition_notes?: string | null;
   tracking_mode: TrackingMode;
   is_public_store: boolean;
   listing_price?: number | null;
   created_at?: string;
   updated_at?: string;
+  primary_media_path?: string | null;
+}
+
+export interface CatalogProductMedia {
+  readonly id: string;
+  readonly workspace_id: string;
+  readonly catalog_product_id: string;
+  readonly storage_path: string;
+  readonly is_primary: boolean;
+  readonly sort_order: number;
+  readonly file_name?: string | null;
+  readonly file_size?: number | null;
+  readonly mime_type?: string | null;
+  readonly created_at?: string;
 }
 
 export interface PurchaseLine {
@@ -485,7 +501,7 @@ export interface StockLot {
   catalog_product_id: string;
   received_quantity: number;
   remaining_quantity: number;
-  unit_cost: number;
+  unit_cost: number | null;
   received_at: string;
   created_at?: string;
 }

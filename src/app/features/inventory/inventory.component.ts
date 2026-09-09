@@ -62,6 +62,8 @@ import {
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
+import { ProductDialogComponent } from '../catalog/components/product-dialog/product-dialog.component';
+import { CatalogService } from '../../core/services/catalog.service';
 
 type FilterPreset = string;
 
@@ -80,12 +82,15 @@ type FilterPreset = string;
     PageHeaderComponent,
     BadgeComponent,
     ButtonComponent,
+    ProductDialogComponent,
   ],
   templateUrl: './inventory.component.html',
   host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class InventoryComponent {
+  readonly isProductDialogOpen = signal(false);
+  readonly catalogService = inject(CatalogService);
   readonly archiveService = inject(InventoryArchiveService);
   readonly archiveView = signal<'active' | 'archive' | 'all'>('active');
 
@@ -193,7 +198,10 @@ export class InventoryComponent {
   constructor() {
     effect(() => {
       const workspaceId = this.workspaceService.currentWorkspace()?.id;
-      if (workspaceId) void this.stockService.loadPositions(workspaceId);
+      if (workspaceId) {
+        void this.stockService.loadPositions(workspaceId);
+        void this.catalogService.loadProducts(workspaceId);
+      }
     });
   }
 
@@ -566,7 +574,7 @@ export class InventoryComponent {
   });
 
   openCreatePage(): void {
-    void this.router.navigate(['/inventory/new']);
+    this.isProductDialogOpen.set(true);
   }
 
   openLabelModal(): void {
