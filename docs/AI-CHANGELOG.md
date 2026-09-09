@@ -10,6 +10,8 @@
 
 **Gesamt-Browsernachweis:** Alle 78 Playwright-Fälle ohne Paket-Prebundle in zwei Minuten erfolgreich; zusätzlich der Importfehler mit aktivem Prebundle grün. Geänderte Dateien format- und lintsauber, TypeScript-Prüfung grün. Unabhängiges UI-Review bestätigt unveränderte AXE-/Overflow-Grenzen. Korrekturen gehen in den regulären PR #47; dessen neue Pflichtprüfungen bleiben vor Abschluss abzuwarten.
 
+**PR-Abnahme:** Implementierungsstand `ceca851` in regulärem PR #47 vollständig grün, GitHub-Lauf 34292837037: Quality, beide Angular-Blöcke, Node, DOM, Database, Browser smoke und Required checks erfolgreich. Der Browserjob besteht innerhalb des unveränderten Zeitlimits. Hauptplan abgenommen; kein Merge, Deployment, produktiver Reset oder Backfill. Abschließender Commit enthält nur diesen Nachweis und die Plan-Checkbox.
+
 ## 2026-09-09 – Codex – Produktbestand und sichere Migration integrieren
 
 **Buchungsvertrag:** Offene Loskosten bleiben NULL und sind nicht verkaufbar. Teilzugänge verwenden persistente Request-IDs; ein Retry bucht nicht doppelt. Demo und Server verwenden finalisierte Lose, stabile Centpools und aktive Kosten nach Retouren. Neue Regressionen prüfen Teilzugang, Speicherrollback, 35-Euro-FIFO-Beispiel, Centreste, Retoure/Neuververkauf, Kopfpreis und Empfangsstatus. Vorhandene Produkt-IDs dürfen unabhängig vom historischen Typmarker im neuen Mengenweg weiterverwendet werden; echte alte Artikel- und Verkaufsreferenzen bleiben erhalten.

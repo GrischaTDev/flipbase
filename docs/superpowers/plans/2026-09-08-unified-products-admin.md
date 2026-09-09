@@ -54,7 +54,7 @@ Abnahmestand 09.09.2026: A, B und C sind im kompatiblen neuen Produktweg impleme
 - [x] Alle Statusbadges nur Text; keine ungewollte Änderung an Chartlegenden oder Chronikmarkern durch die Badge-Umstellung.
 - [x] Dashboard-Schrift, Journal und Chart sind hell/dunkel, per Tastatur und auf schmalem Bildschirm abgenommen.
 - [x] Kompatibler Übergang bewahrt alte Referenzen ohne Schattenlose oder historische Scheinbuchungen. Produktiver Datenabgleich/Backfill ist ausdrücklich kein Bestandteil dieses PR-Auftrags und bleibt separat gesperrt.
-- [ ] Gezielte lokale Tests/Lint/Format, Angular-Build und vollständige PR-Pflichtprüfungen inklusive DB sind grün.
+- [x] Gezielte lokale Tests/Lint/Format, Angular-Build und vollständige PR-Pflichtprüfungen inklusive DB sind grün. Regulärer PR #47, Implementierungsstand `ceca851`, GitHub-Lauf [34292837037](https://github.com/GrischaTDev/flipbase/actions/runs/34292837037): Quality, alle Anwendungstestblöcke, Database, Browser smoke und Required checks erfolgreich. Alle 78 Browserfälle zusätzlich lokal ohne Paketcache bestanden. Keine Veröffentlichung oder produktive Datenänderung erfolgt.
 
 ## Veröffentlichungs- und Rückfallvertrag
 
