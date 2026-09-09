@@ -1,5 +1,26 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-10 – Codex – Einkaufs- und Verkäuferumbau vorbereitet
+
+**Auftrag/Ergebnis:** Den abgestimmten Umbau der Einkaufserfassung um die
+vollständige Entfernung des nutzerseitigen Konzepts „Quellen“ erweitert. Die
+bisherige Seite „Quellen & Lieferanten“ soll zu „Verkäufer“ werden, ausschließlich
+Unternehmen und Privatpersonen verwalten, die gemeinsame Shopify-nahe
+Tabellenansicht verwenden und nach Verkäufertyp filterbar sein. Die vorhandene
+Tabelle `suppliers` bleibt als passender interner Fachbegriff bestehen; das
+eigenständige Quellenmodell und die Verknüpfung von Einkäufen zu Quellen sollen
+entfallen.
+
+**Vorbereitung und Prüfung:** Eigenen Worktree
+`codex/purchase-entry-redesign` auf Merge-Stand von PR 39 angelegt und
+Abhängigkeiten installiert. Der unveränderte Ausgangsstand ist mit 993 Node-,
+138 DOM- und 511 Angular-Tests grün. `npm ci` meldet drei bereits vorhandene
+Abhängigkeitswarnungen (zwei moderat, eine hoch); keine automatische
+Paketaktualisierung vorgenommen. Noch keine Anwendungs-, Datenbank- oder
+Geschäftsdaten geändert.
+
+---
+
 ## 2026-09-07 – Codex – Shopify-nahen Einkaufsablauf und Nummernkreise umgesetzt
 
 **Auftrag/Ergebnis:** Den abgestimmten Umbau für Einkäufe vollständig umsetzen. Die Übersicht filtert jetzt nach Status und Verkäufer, durchsucht auch Vorgangsnummern und externe Referenzen und verwendet die gemeinsame Tabellenbedienung. Flohmarktmodus und Schnellerfassung wurden entfernt; vorhandene lokale Altdaten können unverändert als Sicherung exportiert werden.
