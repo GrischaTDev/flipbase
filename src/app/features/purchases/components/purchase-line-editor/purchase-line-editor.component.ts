@@ -28,6 +28,7 @@ import { BarcodeScannerComponent } from '../../../../shared/components/barcode-s
 import { parseCsv } from '../../../../shared/utils/csv';
 import { normalizeGtin } from '../../../../shared/utils/gtin';
 import { allocatePackagePrice } from '../../utils/package-price-allocation';
+import { CatalogProductDialogComponent } from '../../../catalog/components/catalog-product-dialog/catalog-product-dialog.component';
 
 export interface PurchaseLineDraft {
   /** Stabile UI-ID, bis die Persistenz eine echte purchase_line-ID vergibt. */
@@ -80,6 +81,7 @@ type PriceField = 'unitPurchasePrice' | 'lineTotal';
     ItemConditionLabelPipe,
     PurchaseProductPickerComponent,
     BarcodeScannerComponent,
+    CatalogProductDialogComponent,
   ],
   templateUrl: './purchase-line-editor.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -106,9 +108,7 @@ export class PurchaseLineEditorComponent {
   readonly lineCount = signal(0);
   readonly lineRows = new FormArray<FormGroup<PurchaseLineControls>>([]);
   readonly linesChanged = output<readonly PurchaseLineDraft[]>();
-  readonly isCreatingProduct = signal(false);
-  readonly isSavingProduct = signal(false);
-  readonly productError = signal<string | null>(null);
+  readonly productDialogOpen = signal(false);
   readonly catalogContextError = signal<string | null>(null);
   readonly importError = signal<string | null>(null);
   readonly catalogLoadError = computed(
@@ -121,12 +121,6 @@ export class PurchaseLineEditorComponent {
       !!this.catalogLoadError() ||
       this.catalogService.loadedWorkspaceId() !== this.activeWorkspaceId(),
   );
-  readonly productForm = new FormGroup({
-    title: new FormControl('', {
-      nonNullable: true,
-      validators: [Validators.required, Validators.minLength(2)],
-    }),
-  });
 
   readonly quantityProducts = computed(() =>
     this.catalogService
@@ -462,53 +456,24 @@ export class PurchaseLineEditorComponent {
     });
   }
 
-  async createCatalogProduct(): Promise<void> {
-    if (this.productForm.invalid || this.isSavingProduct()) return;
-    const workspaceId = this.workspaceService.currentWorkspace()?.id;
-    if (!workspaceId) {
-      this.productError.set('Kein aktiver Workspace ausgewählt.');
-      return;
-    }
-
-    this.isSavingProduct.set(true);
-    this.productError.set(null);
-    let result: Awaited<ReturnType<CatalogService['createProduct']>>;
-    try {
-      result = await this.catalogService.createProduct({
-        workspaceId,
-        title: this.productForm.controls.title.value,
-        trackingMode: 'quantity',
-      });
-    } catch (cause: unknown) {
-      result = {
-        data: null,
-        error:
-          cause instanceof Error ? cause : new Error('Der Artikel konnte nicht angelegt werden.'),
-        reportedBySyncStatus: false,
-      };
-    } finally {
-      this.isSavingProduct.set(false);
-    }
-
-    if (result.error || !result.data) {
-      this.productError.set(
-        result.error?.message ?? 'Der Artikelstamm konnte nicht angelegt werden.',
-      );
-      return;
-    }
-
-    this.addQuantityLine();
-    this.selectCatalogProduct(this.lineRows.length - 1, result.data.id);
-    this.productForm.reset({ title: '' });
-    this.isCreatingProduct.set(false);
+  onProductCreated(product: CatalogProduct): void {
+    const row = this.createLine(product.tracking_mode);
+    row.patchValue(
+      {
+        catalogProductId: product.id,
+        titleSnapshot: product.title,
+        ean: product.ean ?? null,
+      },
+      { emitEvent: false },
+    );
+    this.lineRows.push(row);
+    this.productDialogOpen.set(false);
+    this.emitDrafts();
   }
 
   hasUnsavedChanges(): boolean {
     return (
-      this.productForm.dirty ||
-      this.productForm.controls.title.value.trim().length > 0 ||
-      this.pickerOpen() ||
-      this.scanControl.value.trim().length > 0
+      this.productDialogOpen() || this.pickerOpen() || this.scanControl.value.trim().length > 0
     );
   }
 

@@ -930,16 +930,16 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
     expect(komponente.hasUnsavedChanges()).toBe(true);
   });
 
-  it('berücksichtigt unfertige Schnellanlage-Eingaben und blockiert paralleles Einkaufsspeichern', async () => {
+  it('berücksichtigt unfertige Positionen und blockiert paralleles Einkaufsspeichern', async () => {
     const { komponente, purchaseService } = erstelleKomponente();
     Object.assign(komponente, {
       lineEditor: () => ({
         hasUnsavedChanges: () => true,
-        isSavingProduct: () => true,
       }),
     });
 
     expect(komponente.hasUnsavedChanges()).toBe(true);
+    komponente.isSubmitting.set(true);
     expect(komponente.isSaving()).toBe(true);
     await komponente.onSubmit();
     expect(purchaseService.createPurchase).not.toHaveBeenCalled();

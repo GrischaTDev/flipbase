@@ -8,7 +8,8 @@ import {
 } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { FormArray } from '@angular/forms';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { CatalogProduct, PurchaseType, Workspace } from '../../../../core/models/flipbase.models';
 import { CatalogService } from '../../../../core/services/catalog.service';
@@ -28,32 +29,14 @@ let selectMetadataSnapshot: AngularBindingMetadata | null = null;
 beforeAll(async () => {
   await ɵresolveComponentResources(async (url) => {
     const resourceUrl = String(url);
-    for (const component of ['barcode-scanner']) {
-      if (resourceUrl.includes(component + '.component.'))
-        return readFile(
-          'src/app/shared/components/' + component + '/' + resourceUrl.split('/').at(-1),
-          'utf8',
-        );
-    }
-    if (resourceUrl.includes('purchase-product-picker.component.'))
-      return readFile(
-        'src/app/features/purchases/components/purchase-product-picker/' +
-          resourceUrl.split('/').at(-1),
-        'utf8',
-      );
     if (!url || resourceUrl === 'undefined' || resourceUrl.endsWith('/undefined')) return '';
-    if (resourceUrl.includes('custom-select.component.')) {
-      const fileName = resourceUrl.split('/').at(-1);
-      return readFile(`src/app/shared/components/custom-select/${fileName}`, 'utf8');
-    }
-    try {
-      return await readFile(new URL(resourceUrl, import.meta.url), 'utf8');
-    } catch {
-      return readFile(
-        new URL(`../../../../shared/components/custom-select/${resourceUrl}`, import.meta.url),
-        'utf8',
-      );
-    }
+    const fileName = resourceUrl.split('/').at(-1);
+    if (!fileName) return '';
+    const matches = (await readdir(resolve('src/app'), { recursive: true })).filter((file) =>
+      file.endsWith(fileName),
+    );
+    if (matches.length !== 1) throw new Error(`Unbekannte Test-Ressource: ${resourceUrl}`);
+    return readFile(resolve('src/app', matches[0]), 'utf8');
   });
   const metadata = (CustomSelectComponent as unknown as { ɵcmp: AngularBindingMetadata }).ɵcmp;
   selectMetadataSnapshot = {
@@ -464,6 +447,24 @@ describe('PurchaseLineEditorComponent', () => {
       lineKind: 'individual',
       orderedQuantity: 1,
     });
+  });
+
+  it('übernimmt einen neu erstellten Katalogartikel direkt als Einkaufsposition', () => {
+    const { editor, linesChanged } = erstelleEditor();
+    Object.assign(editor, { productDialogOpen: signal(true) });
+    linesChanged.emit.mockClear();
+
+    editor.onProductCreated(ledProduct);
+
+    expect(editor.productDialogOpen()).toBe(false);
+    expect(editor.getDrafts()).toEqual([
+      expect.objectContaining({
+        catalogProductId: ledProduct.id,
+        titleSnapshot: ledProduct.title,
+        lineKind: 'quantity',
+      }),
+    ]);
+    expect(linesChanged.emit).toHaveBeenCalledTimes(1);
   });
 
   it('gibt jeder neuen Position eine stabile Draft-ID für Zuordnungen im Erfassungsdialog', () => {

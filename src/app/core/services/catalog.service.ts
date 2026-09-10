@@ -18,6 +18,7 @@ export interface CreateCatalogProductInput {
   readonly category?: string | null;
   readonly isPublicStore?: boolean;
   readonly listingPrice?: number | null;
+  readonly imageFile?: File | null;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -108,7 +109,25 @@ export class CatalogService {
           error ?? new Error('Der Artikel wurde nicht zurückgegeben.'),
         );
       }
-      const product = this.mapProduct(data);
+      let product = this.mapProduct(data);
+      if (input.imageFile) {
+        const cleanFileName = input.imageFile.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const storagePath = `catalog/${input.workspaceId}/${product.id}/${Date.now()}_${cleanFileName}`;
+        const { error: uploadError } = await this.supabase.client.storage
+          .from('item-media')
+          .upload(storagePath, input.imageFile, {
+            contentType: input.imageFile.type,
+            upsert: false,
+          });
+        if (uploadError) return this.failure('Hochladen des Produktbilds', uploadError);
+
+        const { error: updateError } = await this.supabase.client
+          .from('catalog_products')
+          .update({ image_storage_path: storagePath } as never)
+          .eq('id', product.id);
+        if (updateError) return this.failure('Speichern des Produktbilds', updateError);
+        product = { ...product, image_storage_path: storagePath };
+      }
       this.products.update((products) => [
         product,
         ...products.filter((entry) => entry.id !== product.id),

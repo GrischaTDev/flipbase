@@ -388,10 +388,7 @@ export class PurchaseEntryFormComponent {
   }
 
   isSaving(): boolean {
-    return (
-      this.isSubmitting() ||
-      (typeof this.lineEditor === 'function' && (this.lineEditor()?.isSavingProduct() ?? false))
-    );
+    return this.isSubmitting();
   }
 
   selectPurchaseType(type: PurchaseType): void {

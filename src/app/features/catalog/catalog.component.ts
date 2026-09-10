@@ -15,28 +15,19 @@ import {
   signal,
 } from '@angular/core';
 import {
-  AbstractControl,
-  FormControl,
-  FormGroup,
-  ReactiveFormsModule,
-  ValidationErrors,
-  Validators,
-} from '@angular/forms';
-import {
   LucideDynamicIcon,
   LucidePlus as Plus,
   LucideSearch as Search,
-  LucideX as X,
   LucideBookOpen as BookOpen,
 } from '@lucide/angular';
 import { CatalogProduct, TrackingMode } from '../../core/models/flipbase.models';
 import { CatalogService } from '../../core/services/catalog.service';
 import { StockService } from '../../core/services/stock.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
-import { ModalDialogDirective } from '../../shared/directives/modal-dialog.directive';
 import { parseCsv } from '../../shared/utils/csv';
 import { normalizeGtin } from '../../shared/utils/gtin';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
+import { CatalogProductDialogComponent } from './components/catalog-product-dialog/catalog-product-dialog.component';
 
 interface CatalogImportRow {
   readonly title: string;
@@ -51,10 +42,9 @@ interface CatalogImportRow {
   imports: [
     TableColumnMenuComponent,
     TableSortHeaderComponent,
-    ReactiveFormsModule,
     LucideDynamicIcon,
-    ModalDialogDirective,
     PageHeaderComponent,
+    CatalogProductDialogComponent,
   ],
   templateUrl: './catalog.component.html',
   host: { class: 'block' },
@@ -87,7 +77,6 @@ export class CatalogComponent {
 
   readonly plusIcon = Plus;
   readonly searchIcon = Search;
-  readonly closeIcon = X;
   readonly bookOpenIcon = BookOpen;
   readonly searchQuery = signal('');
   readonly viewModified = computed(
@@ -96,44 +85,10 @@ export class CatalogComponent {
       tableStateDiffersFromDefaults(this.tablePrefs(), this.catalogTableConfig),
   );
   readonly isCreateOpen = signal(false);
-  readonly isSaving = signal(false);
-  readonly saveError = signal<string | null>(null);
   readonly csvRows = signal<readonly CatalogImportRow[]>([]);
   readonly csvHasErrors = computed(() => this.csvRows().some((row) => Boolean(row.error)));
   readonly csvError = signal<string | null>(null);
   readonly isImportingCsv = signal(false);
-  static publicListingPriceValidator(control: AbstractControl): ValidationErrors | null {
-    const isPublic = Boolean(control.get('isPublicStore')?.value);
-    const price = Number(control.get('listingPrice')?.value);
-    return isPublic && (!Number.isFinite(price) || price <= 0)
-      ? { publicListingPrice: true }
-      : null;
-  }
-
-  readonly productForm = new FormGroup(
-    {
-      title: new FormControl('', {
-        nonNullable: true,
-        validators: [Validators.required, Validators.minLength(2)],
-      }),
-      ean: new FormControl('', {
-        nonNullable: true,
-        validators: [
-          (control) => {
-            const value = control.value.trim();
-            return value && !normalizeGtin(value) ? { invalidGtin: true } : null;
-          },
-        ],
-      }),
-      trackingMode: new FormControl<TrackingMode>('quantity', {
-        nonNullable: true,
-        validators: [Validators.required],
-      }),
-      isPublicStore: new FormControl(false, { nonNullable: true }),
-      listingPrice: new FormControl<number | null>(null),
-    },
-    { validators: CatalogComponent.publicListingPriceValidator },
-  );
 
   readonly filteredProducts = computed(() => {
     const query = this.searchQuery().trim().toLocaleLowerCase('de');
@@ -220,52 +175,6 @@ export class CatalogComponent {
       this.catalogService.loadProducts(workspaceId),
       this.stockService.loadPositions(workspaceId),
     ]);
-  }
-
-  async createProduct(): Promise<void> {
-    if (this.productForm.invalid || this.isSaving()) return;
-    const workspaceId = this.workspaceService.currentWorkspace()?.id;
-    if (!workspaceId) {
-      this.saveError.set('Kein aktiver Workspace ausgewählt.');
-      return;
-    }
-
-    this.isSaving.set(true);
-    this.saveError.set(null);
-    try {
-      const value = this.productForm.getRawValue();
-      const result = await this.catalogService.createProduct({
-        workspaceId,
-        title: value.title,
-        ean: normalizeGtin(value.ean) ?? null,
-        trackingMode: value.trackingMode,
-        isPublicStore: value.isPublicStore,
-        listingPrice: value.isPublicStore ? value.listingPrice : null,
-      });
-
-      if (result.error) {
-        this.saveError.set(result.error.message);
-        return;
-      }
-      this.productForm.reset({
-        title: '',
-        ean: '',
-        trackingMode: 'quantity',
-        isPublicStore: false,
-        listingPrice: null,
-      });
-      this.isCreateOpen.set(false);
-    } catch (error: unknown) {
-      this.saveError.set(
-        error instanceof Error ? error.message : 'Der Artikel konnte nicht angelegt werden.',
-      );
-    } finally {
-      this.isSaving.set(false);
-    }
-  }
-
-  closeCreateDialog(): void {
-    this.isCreateOpen.set(false);
   }
 
   async previewCsv(event: Event): Promise<void> {

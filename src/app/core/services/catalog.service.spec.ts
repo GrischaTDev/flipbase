@@ -45,6 +45,46 @@ describe('CatalogService', () => {
     expect(service.products()).toEqual([product]);
   });
 
+  it('lädt ein Produktbild hoch und speichert dessen Pfad am Artikel', async () => {
+    const image = { name: 'konsole.webp', size: 5, type: 'image/webp' } as File;
+    const upload = vi.fn().mockResolvedValue({ error: null });
+    const update = vi.fn(() => ({
+      eq: () => ({ select: () => ({ single: async () => ({ data: product, error: null }) }) }),
+    }));
+    const service = Object.create(CatalogService.prototype) as CatalogService;
+    Object.assign(service, {
+      products: signal<CatalogProduct[]>([]),
+      mockStore: { isDemoMode: signal(false) },
+      syncStatus: new SyncStatusService(),
+      supabase: {
+        client: {
+          storage: { from: () => ({ upload }) },
+          from: () => ({
+            insert: () => ({
+              select: () => ({ single: async () => ({ data: product, error: null }) }),
+            }),
+            update,
+          }),
+        },
+      },
+    });
+
+    const result = await service.createProduct({
+      workspaceId: product.workspace_id,
+      title: product.title,
+      trackingMode: 'quantity',
+      imageFile: image,
+    });
+
+    expect(upload).toHaveBeenCalledWith(
+      expect.stringMatching(/^catalog\/workspace-1\/product-1\//),
+      image,
+      expect.objectContaining({ contentType: 'image/webp' }),
+    );
+    expect(update).toHaveBeenCalledWith({ image_storage_path: expect.any(String) });
+    expect(result.error).toBeNull();
+  });
+
   it('stellt einen Ladefehler für die Artikelstammdaten bereit', async () => {
     const service = Object.create(CatalogService.prototype) as CatalogService;
     Object.assign(service, {

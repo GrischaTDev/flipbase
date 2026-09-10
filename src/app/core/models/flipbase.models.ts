@@ -466,6 +466,7 @@ export interface CatalogProduct {
   tracking_mode: TrackingMode;
   is_public_store: boolean;
   listing_price?: number | null;
+  image_storage_path?: string | null;
   created_at?: string;
   updated_at?: string;
 }

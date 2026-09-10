@@ -65,10 +65,10 @@
       Neues Einzelstück erfassen</button
     ><button
       type="button"
-      (click)="isCreatingProduct.set(!isCreatingProduct())"
+      (click)="productDialogOpen.set(true)"
       class="text-sm underline underline-offset-2"
     >
-      Neuen Mengenartikel erfassen
+      Produkt erstellen
     </button>
   </div>
   @if (importError(); as error) {
@@ -90,37 +90,6 @@
       >
         Erneut versuchen
       </button>
-    </div>
-  }
-
-  @if (isCreatingProduct()) {
-    <div [formGroup]="productForm" class="rounded-xl border border-fb-line bg-fb-well p-3">
-      <label
-        for="newCatalogProductTitle"
-        class="mb-1 block text-xs font-semibold text-fb-text-muted"
-      >
-        Neuer Bestandsartikel
-      </label>
-      <div class="flex gap-2">
-        <input
-          id="newCatalogProductTitle"
-          type="text"
-          formControlName="title"
-          class="linear-input min-w-0 flex-1 rounded-lg px-2.5 py-1.5 text-xs"
-          placeholder="z. B. LED-Lampe"
-        />
-        <button
-          type="button"
-          (click)="createCatalogProduct()"
-          [disabled]="productForm.invalid || isSavingProduct()"
-          class="linear-btn-primary cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          {{ isSavingProduct() ? 'Speichere…' : 'Anlegen' }}
-        </button>
-      </div>
-      @if (productError()) {
-        <p class="mt-2 text-xs text-rose-400" role="alert">{{ productError() }}</p>
-      }
     </div>
   }
 
@@ -281,4 +250,10 @@
 }
 @if (cameraOpen()) {
   <app-barcode-scanner (closed)="cameraOpen.set(false)" (detected)="scanBarcode($event)" />
+}
+@if (productDialogOpen()) {
+  <app-catalog-product-dialog
+    (closed)="productDialogOpen.set(false)"
+    (saved)="onProductCreated($event)"
+  />
 }
