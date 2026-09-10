@@ -1,12 +1,14 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
+import { isAbsolute, join, relative } from 'node:path';
 import test from 'node:test';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 
 const rootDirectory = new URL('..', import.meta.url);
 const projectRoot = fileURLToPath(rootDirectory);
+const probeTempArea = new URL('e2e/playwright-pr-smoke-test-temp/', rootDirectory);
 const executeFile = promisify(execFile);
 const expectedSmokeTests = [
   ['purchase-workspace.spec.ts', 'opens an existing purchase directly without runtime errors'],
@@ -32,6 +34,18 @@ const expectedSmokeTests = [
 ];
 
 const readProjectFile = (filePath) => readFile(new URL(filePath, rootDirectory), 'utf8');
+const createProbeDirectory = async () => {
+  await mkdir(probeTempArea, { recursive: true });
+  const resolvedTempArea = await realpath(fileURLToPath(probeTempArea));
+  const probeDirectory = await mkdtemp(join(resolvedTempArea, 'probe-'));
+  const resolvedProbeDirectory = await realpath(probeDirectory);
+  const probeRelativePath = relative(resolvedTempArea, resolvedProbeDirectory);
+  assert.ok(
+    probeRelativePath && !probeRelativePath.startsWith('..') && !isAbsolute(probeRelativePath),
+    `Unsicherer Probe-Pfad: ${resolvedProbeDirectory}`,
+  );
+  return resolvedProbeDirectory;
+};
 const listSmokeTests = async () => {
   const { stdout } = await executeFile(
     process.execPath,
@@ -51,7 +65,7 @@ const listSmokeTests = async () => {
 const assertPrConfiguration = (config) => {
   assert.match(config, /import baseConfig from '.\/playwright\.config';/);
   assert.match(config, /grep:\s*\/@pr-smoke\//);
-  assert.match(config, /retries:\s*0/);
+  assert.match(config, /retries:\s*0\s*(?:,|\r?\n)/);
   assert.match(config, /maxFailures:\s*1\s*(?:,|\r?\n)/);
   assert.match(config, /workers:\s*1\s*(?:,|\r?\n)/);
   assert.match(config, /trace:\s*'retain-on-failure'/);
@@ -92,9 +106,8 @@ test('defines the fail-closed PR browser smoke suite', async () => {
 });
 
 test('rejects an additional nested double-quoted smoke tag inside a describe block', async () => {
-  const probeDirectory = new URL('e2e/playwright-pr-smoke-contract-probe/', rootDirectory);
-  const probeFile = new URL('nested.test.ts', probeDirectory);
-  await mkdir(probeDirectory, { recursive: true });
+  const probeDirectory = await createProbeDirectory();
+  const probeFile = join(probeDirectory, 'nested.test.ts');
   await writeFile(
     probeFile,
     `import { test } from '@playwright/test';\n\ntest.describe("probe", () => {\n  test("unexpected contract @pr-smoke", async () => {});\n});\n`,
@@ -109,11 +122,23 @@ test('rejects an additional nested double-quoted smoke tag inside a describe blo
   }
 });
 
-for (const setting of ['maxFailures', 'workers']) {
-  test(`rejects ${setting}: 10 instead of the required value 1`, async () => {
+for (const [setting, expectedValue, invalidValue] of [
+  ['retries', '0', '00'],
+  ['maxFailures', '1', '10'],
+  ['workers', '1', '10'],
+]) {
+  test(`rejects ${setting}: ${invalidValue} instead of the required value ${expectedValue}`, async () => {
     const originalConfig = await readProjectFile('playwright.pr.config.ts');
-    const changedConfig = originalConfig.replace(`${setting}: 1`, `${setting}: 10`);
+    const changedConfig = originalConfig.replace(
+      `${setting}: ${expectedValue}`,
+      `${setting}: ${invalidValue}`,
+    );
     assert.notEqual(changedConfig, originalConfig);
     assert.throws(() => assertPrConfiguration(changedConfig));
+
+    if (setting === 'retries') {
+      const retriesTenConfig = originalConfig.replace('retries: 0', 'retries: 10');
+      assert.throws(() => assertPrConfiguration(retriesTenConfig));
+    }
   });
 }
