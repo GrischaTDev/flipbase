@@ -34,6 +34,13 @@ const expectedSmokeTests = [
 ];
 
 const readProjectFile = (filePath) => readFile(new URL(filePath, rootDirectory), 'utf8');
+const getWorkflowJob = (workflow, jobId) => {
+  const matchedJob = workflow.match(
+    new RegExp(`^  ${jobId}:\\r?\\n([\\s\\S]*?)(?=^  [a-z][a-z-]*:\\r?\\n|(?![\\s\\S]))`, 'm'),
+  );
+  assert.ok(matchedJob, `Fehlender Workflow-Job: ${jobId}`);
+  return matchedJob[1];
+};
 const createProbeDirectory = async () => {
   await mkdir(probeTempArea, { recursive: true });
   const resolvedTempArea = await realpath(fileURLToPath(probeTempArea));
@@ -92,6 +99,47 @@ const assertResolvedSmokeSuite = (resolvedSuite) => {
   assertExpectedSmokeTests(selectedTests);
   return selectedTests;
 };
+const assertResolvedNightlySmokeSuite = (resolvedSuite) => {
+  assert.deepEqual(
+    resolvedSuite.config.projects.map((project) => [project.name, project.retries]),
+    [
+      ['chromium', 0],
+      ['firefox', 0],
+      ['webkit', 0],
+    ],
+  );
+
+  const selectedTests = collectSpecs(resolvedSuite.suites).map((spec) => {
+    assert.ok(spec.tags.includes('pr-smoke'), `Unerwartete Nightly-Auswahl: ${spec.title}`);
+    assert.equal(spec.tests.length, 1);
+    const [project] = spec.tests;
+    assert.ok(['chromium', 'firefox', 'webkit'].includes(project.projectName));
+    return [spec.file.split(/[\\/]/).at(-1), spec.title, project.projectName];
+  });
+
+  assert.equal(selectedTests.length, 24);
+  assert.deepEqual(
+    selectedTests.sort(
+      ([leftFile, leftTitle, leftProject], [rightFile, rightTitle, rightProject]) =>
+        `${leftFile}:${leftTitle}:${leftProject}`.localeCompare(
+          `${rightFile}:${rightTitle}:${rightProject}`,
+        ),
+    ),
+    expectedSmokeTests
+      .flatMap(([fileName, testName]) =>
+        ['chromium', 'firefox', 'webkit'].map((projectName) => [
+          fileName,
+          `${testName} @pr-smoke`,
+          projectName,
+        ]),
+      )
+      .sort(([leftFile, leftTitle, leftProject], [rightFile, rightTitle, rightProject]) =>
+        `${leftFile}:${leftTitle}:${leftProject}`.localeCompare(
+          `${rightFile}:${rightTitle}:${rightProject}`,
+        ),
+      ),
+  );
+};
 const listSmokeTests = async (configFile = join(projectRoot, 'playwright.pr.config.ts')) => {
   const { stdout } = await executeFile(
     process.execPath,
@@ -105,6 +153,20 @@ const listSmokeTests = async (configFile = join(projectRoot, 'playwright.pr.conf
     { cwd: projectRoot },
   );
   return assertResolvedSmokeSuite(JSON.parse(stdout));
+};
+const listNightlySmokeTests = async () => {
+  const { stdout } = await executeFile(
+    process.execPath,
+    [
+      'node_modules/@playwright/test/cli.js',
+      'test',
+      `--config=${join(projectRoot, 'playwright.nightly.config.ts')}`,
+      '--list',
+      '--reporter=json',
+    ],
+    { cwd: projectRoot },
+  );
+  assertResolvedNightlySmokeSuite(JSON.parse(stdout));
 };
 
 test('defines the fail-closed PR browser smoke suite', async () => {
@@ -120,6 +182,54 @@ test('defines the fail-closed PR browser smoke suite', async () => {
   assert.equal(
     packageDefinition.scripts['test:e2e:nightly'],
     'playwright test --config=playwright.nightly.config.ts',
+  );
+});
+
+test('keeps CI and nightly browser gates on the critical smoke contracts', async () => {
+  const [ciWorkflow, nightlyWorkflow, packageJson] = await Promise.all([
+    readProjectFile('.github/workflows/ci.yml'),
+    readProjectFile('.github/workflows/quality-nightly.yml'),
+    readProjectFile('package.json'),
+  ]);
+  const packageDefinition = JSON.parse(packageJson);
+  const browserSmokeJob = getWorkflowJob(ciWorkflow, 'browser-smoke');
+  const requiredChecksJob = getWorkflowJob(ciWorkflow, 'required-checks');
+  const webkitJob = getWorkflowJob(nightlyWorkflow, 'browser-webkit');
+  const firefoxJob = getWorkflowJob(nightlyWorkflow, 'browser-firefox');
+
+  await listNightlySmokeTests();
+
+  assert.match(
+    browserSmokeJob,
+    /^      - name: Install Chromium Headless Shell\r?\n        run: npx playwright install --with-deps --only-shell chromium/m,
+  );
+  assert.match(
+    browserSmokeJob,
+    /^      - name: Run browser smoke tests\r?\n        run: npm run test:e2e:pr/m,
+  );
+  assert.match(
+    requiredChecksJob,
+    /^    needs: \[changes, quality, unit, database, sniper, browser-smoke, image\]$/m,
+  );
+  assert.match(
+    requiredChecksJob,
+    /^          BROWSER_RESULT: \$\{\{ needs\.browser-smoke\.result \}\}$/m,
+  );
+  assert.equal(
+    packageDefinition.scripts['test:e2e:nightly'],
+    'playwright test --config=playwright.nightly.config.ts',
+  );
+  assert.match(
+    nightlyWorkflow,
+    /^  schedule:\r?\n    # 02:17 Berlin \(Sommerzeit\) - taeglich\r?\n    - cron: '17 0 \* \* \*'\r?\n    # 03:17 Berlin \(Sommerzeit\) - zusaetzlich sonntags\r?\n    - cron: '17 1 \* \* 0'/m,
+  );
+  assert.match(
+    webkitJob,
+    /^    if: \$\{\{ needs\.gate\.outputs\.run == 'true' && github\.event\.schedule != '17 1 \* \* 0' \}\}\r?\n[\s\S]*?^      - name: Install WebKit\r?\n        run: npx playwright install --with-deps webkit\r?\n\s+- name: Run WebKit smoke tests\r?\n        run: npm run test:e2e:nightly -- --project=webkit/m,
+  );
+  assert.match(
+    firefoxJob,
+    /^    if: \$\{\{ needs\.gate\.outputs\.run == 'true' && github\.event\.schedule != '17 0 \* \* \*' \}\}\r?\n[\s\S]*?^      - name: Install Firefox\r?\n        run: npx playwright install --with-deps firefox\r?\n\s+- name: Run Firefox smoke tests\r?\n        run: npm run test:e2e:nightly -- --project=firefox/m,
   );
 });
 
