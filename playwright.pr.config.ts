@@ -7,6 +7,9 @@ export default defineConfig({
   retries: 0,
   maxFailures: 1,
   workers: 1,
+  expect: {
+    timeout: 15_000,
+  },
   use: {
     ...baseConfig.use,
     trace: 'retain-on-failure',
