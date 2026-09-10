@@ -10,6 +10,7 @@ import { OptimizerImage } from './models/optimizer-image';
 import { Size } from './models/platform-profile';
 import { defaultAdjustments, toFilterString } from './services/adjustments';
 import { maximumCrop } from './services/crops';
+import { WriteResult } from './services/directory-export.service';
 import { reviewedCount as countReviewed } from './services/image-collection';
 import { ImageRotationService } from './services/image-rotation.service';
 import { MetadataReaderService } from './services/metadata-reader.service';
@@ -415,7 +416,9 @@ describe('ImageOptimizerComponent', () => {
         error: signal<string | null>(null),
         // Wird im `finally` von `exportImages()` unbedingt zurueckgesetzt -
         // ohne dieses Signal wuerde der Aufruf mit einer TypeError abbrechen.
-        exportProgress: signal<{ done: number; total: number } | null>(null),
+        exportProgress: signal<{ done: number; total: number; phase: 'render' | 'write' } | null>(
+          null,
+        ),
         baseName: () => '',
         // `canWriteDirectory()` liefert unter jsdom `false` (kein
         // `showDirectoryPicker`), also bleibt dieser Block beim ZIP-Weg -
@@ -461,6 +464,102 @@ describe('ImageOptimizerComponent', () => {
         expect(download).toHaveBeenCalledTimes(1);
         const [, archiveFileName] = download.mock.calls[0] as [Blob, string];
         expect(archiveFileName).toMatch(/^\d{4}-\d{2}-\d{2}-\d{4}\.zip$/);
+      });
+    });
+  });
+
+  describe('Ordnerweg', () => {
+    /**
+     * `canWriteDirectory()` fragt `globalThis.showDirectoryPicker` ab - unter
+     * jsdom gibt es das nicht, deshalb landen alle anderen Tests in dieser
+     * Datei beim ZIP-Weg. Dieser Stub taeuscht den Ordnerzugriff vor, damit
+     * sich auch der Ordner-Zweig von `exportImages()` pruefen laesst. Nach
+     * jedem Test wieder entfernt, damit die Nachbartests weiter beim ZIP
+     * landen.
+     */
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    /**
+     * Baut die Komponente wie im Block "Aktionsmeldungen", ergaenzt aber den
+     * Stub fuer `directoryExport` - dessen `write()` bestimmt hier, welcher
+     * Ausgang geprueft wird (cancelled, written oder ein echter Fehler).
+     */
+    function createComponentWithDirectoryStub(write: () => Promise<WriteResult>) {
+      const toast = new ToastService();
+      const download = vi.fn();
+      const zipPack = vi.fn(async () => new Blob());
+      const writeMock = vi.fn(write);
+      const component = Object.create(ImageOptimizerComponent.prototype) as ImageOptimizerComponent;
+      Object.assign(component, {
+        toast,
+        isBusy: signal(false),
+        rotationsPending: () => false,
+        resolutionIssue: () => false,
+        images: signal([]),
+        selectedPlatforms: signal([]),
+        error: signal<string | null>(null),
+        exportProgress: signal<{ done: number; total: number; phase: 'render' | 'write' } | null>(
+          null,
+        ),
+        baseName: () => '',
+        directoryExport: { write: writeMock },
+        zipExport: { pack: zipPack },
+        download,
+      });
+      return { component, toast, download, zipPack, writeMock };
+    }
+
+    describe('ImageOptimizerComponent – Export in einen Ordner', () => {
+      it('zeigt bei Abbruch keine Meldung und erstellt kein ZIP als Ersatz', async () => {
+        vi.stubGlobal('showDirectoryPicker', () => Promise.resolve({}));
+        const { component, toast, download, zipPack } = createComponentWithDirectoryStub(
+          async () => ({ outcome: 'cancelled' }),
+        );
+
+        await component.exportImages();
+
+        expect(toast.toasts()).toEqual([]);
+        expect(zipPack).not.toHaveBeenCalled();
+        expect(download).not.toHaveBeenCalled();
+      });
+
+      it('nennt im Erfolgstoast den tatsaechlich benutzten Ordnernamen, nicht den gewuenschten', async () => {
+        vi.stubGlobal('showDirectoryPicker', () => Promise.resolve({}));
+        const { component, toast, download, zipPack } = createComponentWithDirectoryStub(
+          async () => ({ outcome: 'written', folder: 'macbook-air (2)' }),
+        );
+
+        await component.exportImages();
+
+        expect(toast.toasts()[0]).toMatchObject({
+          type: 'success',
+          title: 'Bilder wurden gespeichert.',
+          description: 'Ordner „macbook-air (2)“.',
+        });
+        expect(zipPack).not.toHaveBeenCalled();
+        expect(download).not.toHaveBeenCalled();
+      });
+
+      it('zeigt bei einem echten Fehler die Fehlermeldung und erstellt kein ZIP', async () => {
+        vi.stubGlobal('showDirectoryPicker', () => Promise.resolve({}));
+        const { component, toast, zipPack, download } = createComponentWithDirectoryStub(
+          async () => {
+            throw new Error('Datentraeger ist voll');
+          },
+        );
+
+        await component.exportImages();
+
+        expect(toast.toasts()[0]).toMatchObject({
+          type: 'error',
+          title: 'Bilder konnten nicht exportiert werden.',
+          description: 'Datentraeger ist voll',
+          persistent: true,
+        });
+        expect(zipPack).not.toHaveBeenCalled();
+        expect(download).not.toHaveBeenCalled();
       });
     });
   });
