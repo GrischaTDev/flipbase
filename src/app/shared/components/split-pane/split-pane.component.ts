@@ -20,8 +20,13 @@ import { clampRatio, ratioFromKey, ratioFromPointer, readStoredRatio } from './s
  * (`two-column-layout`).
  *
  * Unterhalb von `lg` faellt das Gitter einspaltig und der Griff verschwindet
- * aus dem Baum - auf einem schmalen Bildschirm gibt es nichts zu verteilen,
- * und ein unbedienbarer Griff in der Tabreihenfolge waere ein Hindernis.
+ * aus dem Baum. Der Grund ist Timing: `isWide` wird erst in `afterNextRender`
+ * ueber einen `matchMedia`-Listener gesetzt, ist beim ersten Rendern also noch
+ * `false` und aktualisiert sich erst einen Moment spaeter. Eine CSS-Media-Query
+ * am Griff wuerde exakt an der Bruchstelle sofort umschalten, waehrend
+ * `isWide` hinterherhinkt - dann gaebe es ein Fenster, in dem der Griff schon
+ * sichtbar ist, das Gitter aber noch einspaltig steht, und Ziehen wuerde ins
+ * Leere laufen. Griff und Spaltenaufteilung haengen deshalb am selben Signal.
  */
 @Component({
   selector: 'app-split-pane',
@@ -46,12 +51,14 @@ export class SplitPaneComponent {
   readonly rightLabel = input.required<string>();
 
   /** Waehrend einer Ziehbewegung; schaltet die Textauswahl ab. */
-  readonly isDragging = signal(false);
+  protected readonly isDragging = signal(false);
 
   /** Ab hier lohnt sich das Verteilen; darunter wird gestapelt. */
   protected readonly isWide = signal(false);
 
-  readonly columns = computed(() => (this.isWide() ? `${this.ratio()}% 0.75rem 1fr` : '1fr'));
+  protected readonly columns = computed(() =>
+    this.isWide() ? `${this.ratio()}% 0.75rem 1fr` : '1fr',
+  );
 
   readonly handleLabel = computed(
     () => `Breite von ${this.leftLabel()} und ${this.rightLabel()} verschieben`,
