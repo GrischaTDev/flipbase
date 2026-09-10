@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises';
 import { isAbsolute, join, relative } from 'node:path';
 import test from 'node:test';
 import { promisify } from 'node:util';
@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 const rootDirectory = new URL('..', import.meta.url);
 const projectRoot = fileURLToPath(rootDirectory);
-const probeTempArea = new URL('e2e/playwright-pr-smoke-test-temp/', rootDirectory);
+const probeTempArea = new URL('tmp/playwright-pr-smoke-test-temp/', rootDirectory);
 const executeFile = promisify(execFile);
 const expectedSmokeTests = [
   ['purchase-workspace.spec.ts', 'opens an existing purchase directly without runtime errors'],
@@ -46,6 +46,22 @@ const createProbeDirectory = async () => {
   );
   return resolvedProbeDirectory;
 };
+const createSuiteProbe = async (context) => {
+  const probeDirectory = await createProbeDirectory();
+  context.after(() => rm(probeDirectory, { recursive: true, force: true }));
+  // Kopien liegen außerhalb des echten e2e-Baums, auch bei parallelen Läufen oder Abbruch.
+  for (const filePath of ['playwright.config.ts', 'playwright.pr.config.ts', 'e2e']) {
+    await cp(join(projectRoot, filePath), join(probeDirectory, filePath), {
+      recursive: true,
+      force: false,
+      errorOnExist: true,
+    });
+  }
+  return {
+    configFile: join(probeDirectory, 'playwright.pr.config.ts'),
+    testDirectory: join(probeDirectory, 'e2e'),
+  };
+};
 const assertExpectedSmokeTests = (selectedTests) => {
   assert.equal(selectedTests.length, 8);
   assert.deepEqual(
@@ -76,13 +92,13 @@ const assertResolvedSmokeSuite = (resolvedSuite) => {
   assertExpectedSmokeTests(selectedTests);
   return selectedTests;
 };
-const listSmokeTests = async () => {
+const listSmokeTests = async (configFile = join(projectRoot, 'playwright.pr.config.ts')) => {
   const { stdout } = await executeFile(
     process.execPath,
     [
       'node_modules/@playwright/test/cli.js',
       'test',
-      '--config=playwright.pr.config.ts',
+      `--config=${configFile}`,
       '--list',
       '--reporter=json',
     ],
@@ -107,19 +123,33 @@ test('defines the fail-closed PR browser smoke suite', async () => {
   );
 });
 
-test('rejects an additional nested double-quoted smoke tag inside a describe block', async () => {
-  const probeDirectory = await createProbeDirectory();
-  const probeFile = join(probeDirectory, 'nested.test.ts');
+test('checks an isolated invalid configuration while the real configuration stays valid and untouched', async (context) => {
+  const configFile = new URL('playwright.pr.config.ts', rootDirectory);
+  const originalConfig = await readFile(configFile, 'utf8');
+  const originalStat = await stat(configFile);
+  const probe = await createSuiteProbe(context);
+  await listSmokeTests(probe.configFile);
+  await writeFile(probe.configFile, originalConfig.replace('retries: 0', 'retries: 1'));
+  const results = await Promise.allSettled([listSmokeTests(), listSmokeTests(probe.configFile)]);
+  assert.equal(results[0].status, 'fulfilled');
+  assert.equal(results[1].status, 'rejected');
+  assert.equal(results[1].reason.code, 'ERR_ASSERTION');
+  assert.equal(await readFile(configFile, 'utf8'), originalConfig);
+  assert.equal((await stat(configFile)).mtimeMs, originalStat.mtimeMs);
+});
+
+test('rejects an additional nested double-quoted smoke tag inside a describe block', async (context) => {
+  const probe = await createSuiteProbe(context);
+  await listSmokeTests(probe.configFile);
+  const nestedDirectory = join(probe.testDirectory, 'nested');
+  await mkdir(nestedDirectory);
+  const probeFile = join(nestedDirectory, 'nested.test.ts');
   await writeFile(
     probeFile,
     `import { test } from '@playwright/test';\n\ntest.describe("probe", () => {\n  test("unexpected contract @pr-smoke", async () => {});\n});\n`,
   );
-
-  try {
-    await assert.rejects(listSmokeTests);
-  } finally {
-    await rm(probeDirectory, { recursive: true, force: true });
-  }
+  await assert.rejects(() => listSmokeTests(probe.configFile), { code: 'ERR_ASSERTION' });
+  await listSmokeTests();
 });
 
 for (const [setting, expectedValue, invalidValue] of [
@@ -127,8 +157,9 @@ for (const [setting, expectedValue, invalidValue] of [
   ['maxFailures', '1', '10'],
   ['workers', '1', '10'],
 ]) {
-  test(`rejects ${setting}: ${invalidValue} instead of the required value ${expectedValue}`, async () => {
-    const configFile = new URL('playwright.pr.config.ts', rootDirectory);
+  test(`rejects ${setting}: ${invalidValue} instead of the required value ${expectedValue}`, async (context) => {
+    const { configFile } = await createSuiteProbe(context);
+    await listSmokeTests(configFile);
     const originalConfig = await readFile(configFile, 'utf8');
     const changedConfig = originalConfig.replace(
       `${setting}: ${expectedValue}`,
@@ -137,24 +168,17 @@ for (const [setting, expectedValue, invalidValue] of [
     assert.notEqual(changedConfig, originalConfig);
     await writeFile(configFile, changedConfig);
 
-    try {
-      await assert.rejects(listSmokeTests);
-    } finally {
-      await writeFile(configFile, originalConfig);
-    }
+    await assert.rejects(() => listSmokeTests(configFile));
   });
 }
 
-test('rejects a semantically nonzero retries expression', async () => {
-  const configFile = new URL('playwright.pr.config.ts', rootDirectory);
+test('rejects a semantically nonzero retries expression', async (context) => {
+  const { configFile } = await createSuiteProbe(context);
+  await listSmokeTests(configFile);
   const originalConfig = await readFile(configFile, 'utf8');
   const changedConfig = originalConfig.replace('retries: 0', 'retries: 0 + 1');
   assert.notEqual(changedConfig, originalConfig);
   await writeFile(configFile, changedConfig);
 
-  try {
-    await assert.rejects(listSmokeTests);
-  } finally {
-    await writeFile(configFile, originalConfig);
-  }
+  await assert.rejects(() => listSmokeTests(configFile), { code: 'ERR_ASSERTION' });
 });

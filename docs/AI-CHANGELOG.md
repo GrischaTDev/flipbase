@@ -1,5 +1,11 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-10 – Codex – Konfigurationsproben der PR-Suite vollständig isolieren
+
+**Fix:** Die Gegenproben des Playwright-Vertragstests überschrieben bisher vorübergehend die verfolgte PR-Konfiguration. Jede Probe erhält nun per `mkdtemp` einen eigenen, aufgelösten und geprüften Ordner mit Kopien beider Konfigurationen und des Testverzeichnisses. Der Temp-Bereich liegt unter `tmp/` außerhalb der echten Testauswahl; Cleanup entfernt ausschließlich die jeweilige eigene Probe. Auch der zusätzliche verschachtelte Smoke-Test arbeitet nur in seiner Kopie.
+
+**Prüfung:** Neue Regression zuerst rot, danach sieben Vertragstests grün. Die Regression lädt gleichzeitig eine gültige Originalkonfiguration und eine ungültige Kopie und prüft unveränderten Originalinhalt und Änderungszeitpunkt. Workflowprüfung: 56 erfolgreich, vier bestehende Windows-Skips. Playwright listet unverändert exakt acht Verträge. Formatierung, ESLint und Diffprüfung erfolgreich. Keine Änderung an Anwendungscode, echten Playwright-Konfigurationen oder Smoke-Markierungen; kein Push oder PR.
+
 ## 2026-09-10 – Antigravity – CI-Workflow-Analyse und Playwright-Evaluierungsplan erstellt
 
 **Analyse:** Umfassende Evaluierung der GitHub Actions Workflows (`ci.yml`, `quality-nightly.yml`, `test-benchmark.yml`) und CI-Skripte im Repository durchgeführt. Die Pipeline weist durch deterministische Change Detection, Content-Addressable PR Check Reuse (Tree-Hash-Verifikation) und Least-Privilege-Rechte einen sehr hohen Reifegrad auf. Größter Flaschenhals im PR-Gate ist der Job `browser-smoke`: Ungecachter Chromium-Download, Start des ressourcenintensiven Angular Dev-Servers (`ng serve`) auf 2-vCPU-Runnern und Test-Bloat (22 Playwright-Dateien für CSS-, Schrift-, Farb- und Badge-Prüfungen).
