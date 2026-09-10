@@ -229,6 +229,7 @@ describe('ImageOptimizerComponent', () => {
         { key: 'Model', label: 'Kameramodell', value: 'iPhone 15' },
       ],
       ai: { contentCredential: 'absent', declaredSource: null },
+      capturedAt: null,
     };
 
     /**
@@ -247,6 +248,7 @@ describe('ImageOptimizerComponent', () => {
         gps: null,
         fields: [],
         ai: { contentCredential: 'absent', declaredSource: null },
+        capturedAt: null,
       };
     }
 
