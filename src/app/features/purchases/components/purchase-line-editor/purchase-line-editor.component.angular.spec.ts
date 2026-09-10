@@ -428,6 +428,33 @@ describe('PurchaseLineEditorComponent', () => {
     expect(row.controls.unitPurchasePrice.value).toBe(5.99);
   });
 
+  it('verteilt einen Paketpreis einmalig je Position und behält die centgenaue Positionssumme', () => {
+    const { editor, linesChanged } = erstelleEditor();
+    editor.addQuantityLine();
+    editor.addQuantityLine();
+    editor.lineRows.at(0).controls.orderedQuantity.setValue(1, { emitEvent: false });
+    editor.lineRows.at(1).controls.orderedQuantity.setValue(3, { emitEvent: false });
+    linesChanged.emit.mockClear();
+
+    editor.applyPackagePrice(10);
+
+    expect(editor.lineRows.at(0).controls.lineTotal.value).toBe(5);
+    expect(editor.lineRows.at(1).controls.lineTotal.value).toBe(5);
+    expect(editor.lineRows.at(1).controls.unitPurchasePrice.value).toBeCloseTo(5 / 3, 10);
+    expect(linesChanged.emit).toHaveBeenCalledTimes(1);
+  });
+
+  it('multipliziert den gerundeten Durchschnittspreis nicht auf die Positionssumme zurück', () => {
+    const { editor } = erstelleEditor();
+    editor.addQuantityLine();
+    editor.lineRows.at(0).controls.orderedQuantity.setValue(3, { emitEvent: false });
+
+    editor.applyPackagePrice(3.34);
+
+    expect(editor.getDrafts()[0].lineTotal).toBe(3.34);
+    expect(editor.getDrafts()[0].unitPurchasePrice).toBeCloseTo(3.34 / 3, 10);
+  });
+
   it('erzeugt für Einzelstücke eine individuelle Position mit Menge eins', () => {
     const { editor } = erstelleEditor();
 

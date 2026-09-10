@@ -2,6 +2,7 @@ import '@angular/compiler';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
+import { readFileSync } from 'node:fs';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Purchase, PurchaseType } from '../../../../core/models/flipbase.models';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
@@ -125,6 +126,9 @@ function erstelleKomponente(vorhandener: Purchase | null = null) {
     isSubmitting: signal(false),
     errorMessage: signal<string | null>(null),
     persistedDraft: signal<Purchase | null>(null),
+    packagePriceDialogOpen: signal(false),
+    confirmedPackageFingerprint: signal<string | null>(null),
+    packagePriceStale: signal(false),
     isAddingSource: signal(true),
     isAddingSupplier: signal(true),
     newSourceName: signal('Flohmarkt'),
@@ -178,6 +182,73 @@ function erstelleKomponente(vorhandener: Purchase | null = null) {
 describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
+
+  it('zeigt den vereinfachten Ablauf ohne alte Quellen- und Mystery-Felder', () => {
+    const template = readFileSync(
+      'src/app/features/purchases/components/purchase-entry-form/purchase-entry-form.component.html',
+      'utf8',
+    );
+
+    expect(template).not.toContain('Plattform / Bezugsquelle');
+    expect(template).not.toContain('Noch nicht vollständig bekannt');
+    expect(template).not.toContain('Beleg / Angebotslink');
+    expect(template).not.toContain('Interne Notiz');
+    expect(template).not.toContain('Referenz des Verkäufers');
+    expect(template).toContain('actionLabel="Verkäufer erstellen"');
+    expect(template).toContain('Paketpreis verteilen');
+    expect(template).toContain('formControlName="notes"');
+  });
+
+  it('übernimmt einen Paketpreis positionsgleich und merkt sich die bestätigte Struktur', () => {
+    const { komponente } = erstelleKomponente();
+    const lines = [
+      {
+        draftId: 'draft-a',
+        catalogProductId: 'product-a',
+        titleSnapshot: 'A',
+        lineKind: 'quantity' as const,
+        orderedQuantity: 1,
+        condition: 'used' as const,
+        priceMode: 'priced' as const,
+        unitPurchasePrice: null,
+        lineTotal: null,
+        estimatedMarketValue: null,
+      },
+      {
+        draftId: 'draft-b',
+        catalogProductId: 'product-b',
+        titleSnapshot: 'B',
+        lineKind: 'quantity' as const,
+        orderedQuantity: 5,
+        condition: 'used' as const,
+        priceMode: 'priced' as const,
+        unitPurchasePrice: null,
+        lineTotal: null,
+        estimatedMarketValue: null,
+      },
+    ];
+    komponente.purchaseLines.set(lines);
+    Object.assign(komponente, {
+      packagePriceDialogOpen: signal(true),
+      confirmedPackageFingerprint: signal<string | null>(null),
+      packagePriceStale: signal(false),
+      pricingMode: signal<'individual' | 'total'>('individual'),
+      lineEditor: () => ({
+        applyPackagePrice: () =>
+          komponente.onPurchaseLinesChanged([
+            { ...lines[0], unitPurchasePrice: 5, lineTotal: 5 },
+            { ...lines[1], unitPurchasePrice: 1, lineTotal: 5 },
+          ]),
+      }),
+    });
+
+    komponente.confirmPackagePrice(10);
+
+    expect(komponente.form.controls.purchase_price.value).toBe(10);
+    expect(komponente.purchaseLines().map((line) => line.lineTotal)).toEqual([5, 5]);
+    expect(komponente.confirmedPackageFingerprint()).not.toBeNull();
+    expect(komponente.packagePriceDialogOpen()).toBe(false);
+  });
 
   it('speichert einen leeren Einkauf ohne Titel oder Verkaeufer nur als Entwurf', async () => {
     const { komponente, purchaseService, purchaseCostingService } = erstelleKomponente();

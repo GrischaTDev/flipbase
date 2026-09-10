@@ -27,6 +27,7 @@ import { PurchaseProductPickerComponent } from '../purchase-product-picker/purch
 import { BarcodeScannerComponent } from '../../../../shared/components/barcode-scanner/barcode-scanner.component';
 import { parseCsv } from '../../../../shared/utils/csv';
 import { normalizeGtin } from '../../../../shared/utils/gtin';
+import { allocatePackagePrice } from '../../utils/package-price-allocation';
 
 export interface PurchaseLineDraft {
   /** Stabile UI-ID, bis die Persistenz eine echte purchase_line-ID vergibt. */
@@ -139,7 +140,7 @@ export class PurchaseLineEditorComponent {
     { value: '', label: 'Artikel wählen' },
     ...this.quantityProducts().map((product) => ({ value: product.id, label: product.title })),
   ]);
-  readonly isMysteryPurchase = computed(() => this.pricingMode() === 'total');
+  readonly isMysteryPurchase = computed(() => this.purchaseType() === 'mystery_pack');
   readonly conditionOptions: SelectOption<ItemCondition>[] = [
     { value: 'new', label: 'Neu' },
     { value: 'like_new', label: 'Wie neu' },
@@ -415,6 +416,27 @@ export class PurchaseLineEditorComponent {
 
   updateQuantity(index: number): void {
     this.recalculate(index, 'unitPurchasePrice');
+  }
+
+  applyPackagePrice(total: number): void {
+    const lineIds = this.lineRows.controls.map((row) => row.controls.draftId.value);
+    const allocation = allocatePackagePrice(total, lineIds);
+
+    for (const row of this.lineRows.controls) {
+      const lineTotal = allocation.get(row.controls.draftId.value);
+      if (lineTotal === undefined) continue;
+      const quantity = row.controls.orderedQuantity.value;
+      row.patchValue(
+        {
+          priceMode: 'priced',
+          lineTotal,
+          unitPurchasePrice: lineTotal / quantity,
+        },
+        { emitEvent: false },
+      );
+    }
+
+    this.emitDrafts();
   }
 
   removeLine(index: number): void {

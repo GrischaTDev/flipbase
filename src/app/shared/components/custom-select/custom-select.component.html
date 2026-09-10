@@ -101,9 +101,7 @@
   <!-- Floating Dropdown Panel -->
   @if (isOpen()) {
     <div
-      role="listbox"
-      [id]="listboxId()"
-      class="custom-select-menu fb-popover-enter absolute z-50 min-w-[160px] max-w-[320px] w-full rounded-lg bg-fb-surface border border-fb-border shadow-lg py-1.5 max-h-60 overflow-y-auto outline-none"
+      class="custom-select-menu fb-popover-enter absolute z-50 min-w-[160px] max-w-[320px] w-full rounded-lg bg-fb-surface border border-fb-border shadow-lg py-1.5 outline-none"
       [class.bottom-full]="isDropUp()"
       [class.mb-1.5]="isDropUp()"
       [class.top-full]="!isDropUp()"
@@ -111,7 +109,7 @@
       [class.right-0]="variant() === 'pill'"
       [class.left-0]="variant() !== 'pill'"
     >
-      <div class="space-y-0.5 px-1">
+      <div role="listbox" [id]="listboxId()" class="max-h-60 space-y-0.5 overflow-y-auto px-1">
         @for (option of options(); track option.value; let index = $index) {
           @let isSelected = value() === option.value;
           @let isActive = activeIndex() === index;
@@ -147,6 +145,18 @@
           </button>
         }
       </div>
+      @if (actionLabel()) {
+        <div class="mt-1 border-t border-fb-line px-1 pt-1">
+          <button
+            type="button"
+            data-custom-select-action
+            class="w-full rounded-md px-2.5 py-2 text-left text-[13px] font-semibold text-fb-primary hover:bg-fb-primary-subtle"
+            (click)="triggerAction()"
+          >
+            {{ actionLabel() }}
+          </button>
+        </div>
+      }
     </div>
   }
 </div>

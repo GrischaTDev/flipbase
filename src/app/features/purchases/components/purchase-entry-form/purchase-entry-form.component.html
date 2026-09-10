@@ -14,59 +14,22 @@
         class="space-y-4 rounded-xl border border-fb-line bg-fb-surface p-4 shadow-sm"
         aria-labelledby="purchase-seller-title"
       >
-        <div class="flex items-center justify-between">
-          <h2 id="purchase-seller-title" class="text-sm font-semibold">Verkäufer</h2>
-          <button
-            type="button"
-            class="text-sm underline underline-offset-2"
-            (click)="sellerDialogOpen.set(true)"
-          >
-            Verkäufer erstellen
-          </button>
-        </div>
+        <h2 id="purchase-seller-title" class="text-sm font-semibold">Verkäufer</h2>
         <app-custom-select
           formControlName="supplier_id"
           [options]="lieferantenOptionen()"
           ariaLabel="Verkäufer auswählen"
           placeholder="Verkäufer auswählen"
+          actionLabel="Verkäufer erstellen"
+          (action)="sellerDialogOpen.set(true)"
         />
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div>
-            <label for="purchase-date" class="mb-1 block text-sm">Kaufdatum</label
-            ><app-date-picker
-              id="purchase-date"
-              ariaLabel="Kaufdatum"
-              formControlName="purchase_date"
-            />
-          </div>
-          <div>
-            <label for="purchase-source" class="mb-1 block text-sm">Plattform / Bezugsquelle</label
-            ><app-custom-select
-              triggerId="purchase-source"
-              formControlName="source_id"
-              [options]="quellenOptionen()"
-              ariaLabel="Plattform oder Bezugsquelle"
-            />
-          </div>
-        </div>
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <label class="block text-sm"
-            >Inhalt<select
-              formControlName="content_status"
-              class="linear-input mt-1 w-full rounded-lg px-3 py-2"
-            >
-              <option value="unknown">Noch nicht vollständig bekannt</option>
-              <option value="known">Vollständig bekannt</option>
-            </select></label
-          ><label class="block text-sm"
-            >Preise<select
-              formControlName="pricing_mode"
-              class="linear-input mt-1 w-full rounded-lg px-3 py-2"
-            >
-              <option value="total">Gesamtkaufpreis / Paketpreis</option>
-              <option value="individual">Einzelpreise</option>
-            </select></label
-          >
+        <div>
+          <label for="purchase-date" class="mb-1 block text-sm">Kaufdatum</label
+          ><app-date-picker
+            id="purchase-date"
+            ariaLabel="Kaufdatum"
+            formControlName="purchase_date"
+          />
         </div>
       </section>
       <section class="rounded-xl border border-fb-line bg-fb-surface p-4 shadow-sm">
@@ -83,25 +46,33 @@
         class="space-y-4 rounded-xl border border-fb-line bg-fb-surface p-4 shadow-sm"
         aria-labelledby="purchase-cost-title"
       >
-        <div class="flex items-center justify-between">
+        <div class="flex items-center justify-between gap-3">
           <h2 id="purchase-cost-title" class="text-sm font-semibold">Kostenübersicht</h2>
-          <button
-            type="button"
-            class="text-sm underline underline-offset-2"
-            (click)="initialCostDrafts.set(costDrafts()); costDialogOpen.set(true)"
-          >
-            Bearbeiten
-          </button>
+          <div class="flex flex-wrap justify-end gap-3">
+            <button
+              type="button"
+              class="text-sm underline underline-offset-2 disabled:cursor-not-allowed disabled:opacity-40"
+              [disabled]="purchaseLines().length === 0"
+              (click)="packagePriceDialogOpen.set(true)"
+            >
+              Paketpreis verteilen
+            </button>
+            <button
+              type="button"
+              class="text-sm underline underline-offset-2"
+              (click)="initialCostDrafts.set(costDrafts()); costDialogOpen.set(true)"
+            >
+              Versand &amp; Kosten
+            </button>
+          </div>
         </div>
-        <label for="purchase-base-price" class="block text-sm"
-          >Kaufbetrag ohne Nebenkosten<app-number-input
-            id="purchase-base-price"
-            formControlName="purchase_price"
-            [asCurrency]="true"
-            class="mt-1 block"
-            [min]="0"
-        /></label>
         <dl class="space-y-3 text-sm">
+          <div class="flex justify-between font-medium">
+            <dt>Warenbetrag</dt>
+            <dd>
+              {{ purchaseBasePrice() === null ? 'Offen' : (purchaseBasePrice() | currency: 'EUR') }}
+            </dd>
+          </div>
           <div class="flex justify-between">
             <dt>Rabatt</dt>
             <dd>− {{ discountAmount() | currency: 'EUR' }}</dd>
@@ -125,6 +96,11 @@
             </dd>
           </div>
         </dl>
+        @if (packagePriceStale()) {
+          <p role="alert" class="text-xs text-fb-text-primary">
+            Positionen oder Mengen wurden geändert. Bitte den Paketpreis erneut verteilen.
+          </p>
+        }
         <p class="text-xs text-fb-text-muted">
           Beträge inklusive enthaltener Steuern. Der Entwurf erzeugt noch keinen Bestand.
         </p>
@@ -132,19 +108,11 @@
       <section class="space-y-4 rounded-xl border border-fb-line bg-fb-surface p-4 shadow-sm">
         <h2 class="text-sm font-semibold">Weitere Details</h2>
         <label class="block text-sm"
-          >Beschreibung (optional)<input
-            formControlName="title"
-            class="linear-input mt-1 w-full rounded-lg px-3 py-2" /></label
-        ><label class="block text-sm"
-          >Referenz des Verkäufers<input
+          >Referenznummer (optional)<input
             formControlName="supplier_reference"
             class="linear-input mt-1 w-full rounded-lg px-3 py-2" /></label
         ><label class="block text-sm"
-          >Beleg / Angebotslink<input
-            formControlName="original_url"
-            class="linear-input mt-1 w-full rounded-lg px-3 py-2" /></label
-        ><label class="block text-sm"
-          >Interne Notiz<textarea
+          >Beschreibung (optional)<textarea
             formControlName="notes"
             rows="3"
             class="linear-input mt-1 w-full rounded-lg px-3 py-2"
@@ -164,7 +132,7 @@
     ><button
       type="submit"
       class="linear-btn-primary rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-50"
-      [disabled]="form.invalid || !areAdditionalCostsValid() || isSaving()"
+      [disabled]="form.invalid || !areAdditionalCostsValid() || packagePriceStale() || isSaving()"
     >
       {{ isSubmitting() ? 'Speichere…' : 'Entwurf speichern' }}
     </button>
@@ -213,4 +181,12 @@
       </div>
     </section>
   </div>
+}
+@if (packagePriceDialogOpen()) {
+  <app-package-price-dialog
+    [lineCount]="purchaseLines().length"
+    [initialTotal]="purchaseBasePrice()"
+    (closed)="packagePriceDialogOpen.set(false)"
+    (confirmed)="confirmPackagePrice($event)"
+  />
 }

@@ -56,6 +56,8 @@ import {
   PurchaseCostEditorComponent,
   PurchaseCostType,
 } from '../purchase-cost-editor/purchase-cost-editor.component';
+import { PackagePriceDialogComponent } from '../package-price-dialog/package-price-dialog.component';
+import { purchaseLineStructureFingerprint } from '../../utils/purchase-line-structure';
 
 const purchaseCostTypes = new Set<PurchaseCostType>([
   'shipping',
@@ -83,6 +85,7 @@ function isPurchaseCostType(value: string): value is PurchaseCostType {
     PurchaseCostEditorComponent,
     CurrencyPipe,
     PurchaseSellerDialogComponent,
+    PackagePriceDialogComponent,
     ModalDialogDirective,
   ],
   templateUrl: './purchase-entry-form.component.html',
@@ -145,8 +148,11 @@ export class PurchaseEntryFormComponent {
 
   readonly sellerDialogOpen = signal(false);
   readonly costDialogOpen = signal(false);
+  readonly packagePriceDialogOpen = signal(false);
+  readonly confirmedPackageFingerprint = signal<string | null>(null);
+  readonly packagePriceStale = signal(false);
   readonly requestId = crypto.randomUUID();
-  readonly pricingMode = signal<'individual' | 'total'>('total');
+  readonly pricingMode = signal<'individual' | 'total'>('individual');
   readonly discountAmount = signal(0);
   readonly assignedCosts = computed(() =>
     this.purchaseLines().reduce((total, line) => total + (line.lineTotal ?? 0), 0),
@@ -200,8 +206,8 @@ export class PurchaseEntryFormComponent {
       nonNullable: true,
       validators: [],
     }),
-    content_status: new FormControl<'known' | 'unknown'>('unknown', { nonNullable: true }),
-    pricing_mode: new FormControl<'individual' | 'total'>('total', { nonNullable: true }),
+    content_status: new FormControl<'known' | 'unknown'>('known', { nonNullable: true }),
+    pricing_mode: new FormControl<'individual' | 'total'>('individual', { nonNullable: true }),
     supplier_reference: new FormControl('', { nonNullable: true }),
     discount_amount: new FormControl(0, { nonNullable: true, validators: [Validators.min(0)] }),
     source_id: new FormControl<string | null>(null),
@@ -413,6 +419,12 @@ export class PurchaseEntryFormComponent {
       );
       return;
     }
+    if (this.packagePriceStale()) {
+      this.errorMessage.set(
+        'Die Positionen oder Mengen wurden geändert. Bitte den Paketpreis erneut verteilen.',
+      );
+      return;
+    }
 
     this.isSubmitting.set(true);
     this.errorMessage.set(null);
@@ -559,6 +571,13 @@ export class PurchaseEntryFormComponent {
       return persistedId ? { ...line, draftId: persistedId } : line;
     });
     this.purchaseLines.set(persistedLines);
+    const confirmedFingerprint = this.confirmedPackageFingerprint();
+    if (
+      confirmedFingerprint &&
+      purchaseLineStructureFingerprint(persistedLines) !== confirmedFingerprint
+    ) {
+      this.packagePriceStale.set(true);
+    }
     this.updatePurchasePriceEditability();
     if (this.form.controls.pricing_mode.value === 'total' || persistedLines.length === 0) return;
 
@@ -568,6 +587,19 @@ export class PurchaseEntryFormComponent {
     }
     const lineTotal = persistedLines.reduce((total, line) => total + line.lineTotal!, 0);
     this.form.controls.purchase_price.setValue(Number(lineTotal.toFixed(2)));
+  }
+
+  confirmPackagePrice(total: number): void {
+    const editor = this.lineEditor();
+    if (!editor || this.purchaseLines().length === 0) return;
+
+    editor.applyPackagePrice(total);
+    this.form.controls.pricing_mode.setValue('total');
+    this.form.controls.purchase_price.setValue(Number(total.toFixed(2)));
+    this.confirmedPackageFingerprint.set(purchaseLineStructureFingerprint(this.purchaseLines()));
+    this.packagePriceStale.set(false);
+    this.packagePriceDialogOpen.set(false);
+    this.form.markAsDirty();
   }
 
   onCostsChanged(costs: readonly PurchaseCostDraft[]): void {
