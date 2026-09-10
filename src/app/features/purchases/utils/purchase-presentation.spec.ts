@@ -8,6 +8,7 @@ import type {
   StockMovement,
 } from '../../../core/models/flipbase.models';
 import {
+  getPurchaseDisplayTitle,
   mapPurchaseDetailRows,
   mapPurchaseListRow,
   type PurchasePresentationContext,
@@ -631,4 +632,55 @@ describe('purchase presentation mapper', () => {
       expect(rows[0]).toMatchObject({ recordedSales: null, salesState });
     },
   );
+});
+
+describe('getPurchaseDisplayTitle', () => {
+  it('gibt null zurück wenn kein Einkauf übergeben wird', () => {
+    expect(getPurchaseDisplayTitle(null)).toBeNull();
+    expect(getPurchaseDisplayTitle(undefined)).toBeNull();
+  });
+
+  it('bevorzugt die Belegnummer wenn vorhanden', () => {
+    expect(
+      getPurchaseDisplayTitle({
+        ...basePurchase,
+        record_number: 'PO-0001',
+        title: 'Haushaltswaren',
+        supplier: { id: 's1', workspace_id: workspaceId, name: 'Lieferant' },
+      }),
+    ).toBe('PO-0001');
+  });
+
+  it('fällt auf den Titel zurück wenn Belegnummer fehlt oder leer ist', () => {
+    expect(
+      getPurchaseDisplayTitle({
+        ...basePurchase,
+        record_number: '   ',
+        title: 'Flohmarktfund',
+        supplier: { id: 's1', workspace_id: workspaceId, name: 'Lieferant' },
+      }),
+    ).toBe('Flohmarktfund');
+  });
+
+  it('fällt auf den Lieferantennamen zurück wenn Belegnummer und Titel fehlen', () => {
+    expect(
+      getPurchaseDisplayTitle({
+        ...basePurchase,
+        record_number: '',
+        title: '   ',
+        supplier: { id: 's1', workspace_id: workspaceId, name: 'Großhandel Nord' },
+      }),
+    ).toBe('Großhandel Nord');
+  });
+
+  it('gibt null zurück wenn weder Belegnummer noch Titel noch Lieferant vorhanden sind', () => {
+    expect(
+      getPurchaseDisplayTitle({
+        ...basePurchase,
+        record_number: '',
+        title: '',
+        supplier: undefined,
+      }),
+    ).toBeNull();
+  });
 });
