@@ -16,8 +16,10 @@ entfallen.
 Abhängigkeiten installiert. Der unveränderte Ausgangsstand ist mit 993 Node-,
 138 DOM- und 511 Angular-Tests grün. `npm ci` meldet drei bereits vorhandene
 Abhängigkeitswarnungen (zwei moderat, eine hoch); keine automatische
-Paketaktualisierung vorgenommen. Noch keine Anwendungs-, Datenbank- oder
-Geschäftsdaten geändert.
+Paketaktualisierung vorgenommen. Fachlichen Entwurf und testgetriebenen
+Umsetzungsplan dokumentiert; das optionale Produktbild ist dabei ausdrücklich
+der gemeinsamen Produkterstellung zugeordnet. Noch keine Anwendungs-,
+Datenbank- oder Geschäftsdaten geändert.
 
 ---
 

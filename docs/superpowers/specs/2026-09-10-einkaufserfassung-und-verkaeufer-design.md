@@ -175,6 +175,11 @@ Produkterstellung enthält die bereits benötigten Stammdaten und die
 Bildauswahl. Das Einkaufsformular speichert kein separates Positionsbild,
 sondern zeigt das Bild des gewählten Produkts.
 
+Ein optionales Produktbild wird im vorhandenen privaten Medien-Speicher
+abgelegt; das Katalogprodukt speichert nur den zugehörigen Speicherpfad. Ein
+fehlgeschlagener Upload wird als Fehler behandelt und nicht als erfolgreiche
+Produkterstellung mit scheinbar gespeichertem Bild ausgegeben.
+
 ### Paketpreis verteilen
 
 In der Kostenübersicht steht die sekundäre Aktion **Paketpreis verteilen**. Sie
@@ -357,6 +362,7 @@ Vorgesehene Änderungen:
 - `suppliers.profile_url` entfernen;
 - das bisherige Verkäuferland durch `country_code` als
   ISO-3166-Ländercode ersetzen;
+- `catalog_products.image_storage_path` für das optionale Produktbild ergänzen;
 - `purchases.shipment_status` durch einen optionalen Ankunftszeitpunkt ersetzen;
   `in_transit` wird nicht übernommen;
 - die automatische Vorgabe `tracking_status = 'in_transit'` bei vorhandener
