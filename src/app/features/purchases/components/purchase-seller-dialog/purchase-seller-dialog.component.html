@@ -1,7 +1,7 @@
 <div
   class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
   appModalDialog
-  dialogTitel="Verkäufer erstellen"
+  [dialogTitel]="dialogTitle()"
   [schliesstMitEscape]="!saving()"
   (dialogClose)="closed.emit()"
 >
@@ -9,7 +9,7 @@
     class="flex max-h-[85dvh] w-full max-w-xl flex-col rounded-xl border border-fb-line bg-fb-surface shadow-xl"
   >
     <header class="flex items-center justify-between border-b border-fb-line p-4">
-      <h2 class="text-base font-semibold">Verkäufer erstellen</h2>
+      <h2 class="text-base font-semibold">{{ dialogTitle() }}</h2>
       <button
         type="button"
         class="linear-btn-secondary rounded-lg px-3 py-1.5 text-sm"
@@ -30,7 +30,7 @@
         </select></label
       >
       <label class="block text-sm"
-        >{{ form.controls.seller_type.value === 'business' ? 'Firmenname' : 'Name oder Profilname'
+        >{{ form.controls.seller_type.value === 'business' ? 'Firmenname' : 'Vor- und Nachname'
         }}<input
           formControlName="name"
           class="linear-input mt-1 w-full rounded-lg px-3 py-2"
@@ -45,15 +45,43 @@
       }
       <p class="text-xs text-fb-text-muted">Alle weiteren Angaben sind optional.</p>
       <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <label class="block text-sm"
+          >Land<select
+            data-country-select
+            formControlName="country_code"
+            class="linear-input mt-1 w-full rounded-lg px-3 py-2"
+            autocomplete="country"
+          >
+            @for (country of countries; track country.code) {
+              <option [value]="country.code">{{ country.name }}</option>
+            }
+          </select></label
+        >
         @for (field of contactFields; track field.key) {
           <label class="block text-sm"
             >{{ field.label
             }}<input
               [formControlName]="field.key"
-              [type]="field.key === 'email' ? 'email' : field.key === 'phone' ? 'tel' : 'text'"
+              [type]="field.key === 'email' ? 'email' : 'text'"
               class="linear-input mt-1 w-full rounded-lg px-3 py-2"
           /></label>
         }
+        <label class="block text-sm sm:col-span-2"
+          >Telefon
+          <intl-tel-input
+            data-phone-input
+            formControlName="phone"
+            class="mt-1 block w-full"
+            containerClass="w-full"
+            countryNameLocale="de"
+            initialCountry="de"
+            [inputAttributes]="phoneInputAttributes"
+            [separateDialCode]="true"
+            [showFlags]="true"
+            [strictMode]="true"
+            [uiTranslations]="phoneTranslations"
+          />
+        </label>
       </div>
       @if (form.controls.seller_type.value === 'business') {
         <label class="block text-sm"
@@ -76,6 +104,7 @@
     <footer class="flex justify-end gap-2 border-t border-fb-line p-4">
       <button
         type="button"
+        data-cancel-seller
         class="linear-btn-secondary rounded-lg px-3 py-2 text-sm"
         [disabled]="saving()"
         (click)="closed.emit()"
@@ -87,7 +116,7 @@
         [disabled]="saving() || form.invalid"
         (click)="save()"
       >
-        {{ saving() ? 'Speichere…' : 'Verkäufer erstellen' }}
+        {{ saving() ? 'Speichere…' : dialogTitle() }}
       </button>
     </footer>
   </section>

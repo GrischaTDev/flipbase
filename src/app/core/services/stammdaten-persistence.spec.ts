@@ -98,6 +98,63 @@ function erstelleLieferantenDienst() {
 }
 
 describe('Stammdatenservices – bestätigte lokale Zustände', () => {
+  it('speichert Verkäuferkontakte strukturiert ohne alten Profilverweis', async () => {
+    let insertPayload: Record<string, unknown> | null = null;
+    const dienst = Object.create(SuppliersService.prototype) as SuppliersService;
+    Object.assign(dienst, {
+      supabase: {
+        client: {
+          from: () => ({
+            insert: (payload: Record<string, unknown>) => {
+              insertPayload = payload;
+              return {
+                select: () => ({
+                  single: async () => ({ data: { id: 'supplier-new' }, error: null }),
+                }),
+              };
+            },
+          }),
+        },
+      },
+      syncStatus: new SyncStatusService(),
+      workspaceService: { currentWorkspace: signal({ id: 'workspace-1' }) },
+      mockStore: {
+        isDemoMode: signal(false),
+        saveSupplier: () => undefined,
+      },
+      suppliers: signal<Supplier[]>([]),
+    });
+
+    const result = await dienst.createSupplier({
+      seller_type: 'business',
+      name: ' Close Vintage ',
+      contact_person: ' Ada Beispiel ',
+      country_code: 'DE',
+      street: '',
+      address_extra: '',
+      postal_code: '10115',
+      city: 'Berlin',
+      email: 'mail@example.com',
+      phone: '+491701234567',
+      website: '',
+      notes: '',
+    });
+
+    expect(result.error).toBeNull();
+    expect(insertPayload).toEqual(
+      expect.objectContaining({
+        workspace_id: 'workspace-1',
+        seller_type: 'business',
+        name: 'Close Vintage',
+        contact_person: 'Ada Beispiel',
+        country_code: 'DE',
+        phone: '+491701234567',
+      }),
+    );
+    expect(insertPayload).not.toHaveProperty('contact_info');
+    expect(insertPayload).not.toHaveProperty('profile_url');
+  });
+
   it.each<Aktion>(['anlegen', 'ändern', 'archivieren', 'löschen'])(
     'übernimmt Quellen beim %s erst nach Datenbankerfolg',
     async (aktion) => {

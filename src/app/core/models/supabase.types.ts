@@ -2954,6 +2954,7 @@ export type Database = {
           contact_info: string | null
           contact_person: string | null
           country: string | null
+          country_code: string | null
           created_at: string
           email: string | null
           id: string
@@ -2974,6 +2975,7 @@ export type Database = {
           contact_info?: string | null
           contact_person?: string | null
           country?: string | null
+          country_code?: string | null
           created_at?: string
           email?: string | null
           id?: string
@@ -2994,6 +2996,7 @@ export type Database = {
           contact_info?: string | null
           contact_person?: string | null
           country?: string | null
+          country_code?: string | null
           created_at?: string
           email?: string | null
           id?: string
@@ -4035,4 +4038,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-
