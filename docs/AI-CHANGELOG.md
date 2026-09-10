@@ -1,5 +1,33 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-10 – Antigravity – Einkauf löschen: Fallback auf Belegnummer oder neutralen Dialogtext
+
+**Auftrag/Ergebnis:** Behebt einen Darstellungsfehler beim Löschen von Einkaufsentwürfen. Im Bestätigungsdialog erschien bisher der Text „„“ wird gelöscht...“ mit leeren Anführungszeichen, da neue Einkäufe im überarbeiteten Workflow typischerweise keinen Freitext-Titel besitzen, sondern primär über ihre Belegnummer identifiziert werden. Auf Zweig `fix/purchase-delete-dialog-title`, abgezweigt von `origin/master`.
+
+**Ursache und Lösung:**
+
+- In `purchase-detail.component.ts` interpolierte die Löschmethode `onDeletePurchase()` direkt `purchase.title` ohne Fallback auf `record_number` oder Lieferanten.
+- Neue Hilfsfunktion `getPurchaseDisplayTitle` in `purchase-presentation.ts` priorisiert `record_number`, fällt dann auf `title` bzw. `supplier.name` zurück und liefert `null`, wenn keine Kennzeichnung existiert.
+- `onDeletePurchase()` nutzt `getPurchaseDisplayTitle`: Wenn ein Bezeichner ermittelt wird, heißt es `„<Titel>“ wird gelöscht...`; fehlt er völlig, wird sauber auf die neutrale Formulierung `Dieser Einkauf wird gelöscht, zusammen mit allen zugeordneten Artikeln und Nebenkosten. Das lässt sich nicht rückgängig machen.` zurückgefallen.
+- Im Template `purchase-detail.component.html` und der Seitenüberschrift wird `purchaseDisplayTitle()` als einheitlicher Titel genutzt.
+
+**Betroffen:**
+
+- `src/app/features/purchases/utils/purchase-presentation.ts`
+- `src/app/features/purchases/utils/purchase-presentation.spec.ts`
+- `src/app/features/purchases/pages/purchase-detail/purchase-detail.component.ts`
+- `src/app/features/purchases/pages/purchase-detail/purchase-detail.component.html`
+- `src/app/features/purchases/pages/purchase-detail/purchase-detail.component.angular.spec.ts`
+
+**Geprüft:**
+
+- `npx vitest run src/app/features/purchases/utils/purchase-presentation.spec.ts` (36 Tests grün)
+- `npx vitest run src/app/features/purchases/pages/purchase-detail/purchase-detail.component.angular.spec.ts` (20 Tests grün)
+- `npm run typecheck` (tsc fehlerfrei)
+- `npx eslint` auf geänderten Dateien (fehlerfrei)
+- `npx ng build --configuration=development` (erfolgreich)
+- `npx prettier --check` auf geänderten Dateien (fehlerfrei)
+
 ## 2026-09-10 – Claude Opus 5 (Anthropic) – Bildoptimierer: Ordner-Export und erhaltenes Aufnahmedatum
 
 **Auftrag/Ergebnis:** Paket 2 der Bildoptimierer-Überarbeitung umgesetzt. Der
