@@ -6,6 +6,31 @@
 
 **Prüfung:** Neue Regression zuerst rot, danach sieben Vertragstests grün. Die Regression lädt gleichzeitig eine gültige Originalkonfiguration und eine ungültige Kopie und prüft unveränderten Originalinhalt und Änderungszeitpunkt. Workflowprüfung: 56 erfolgreich, vier bestehende Windows-Skips. Playwright listet unverändert exakt acht Verträge. Formatierung, ESLint und Diffprüfung erfolgreich. Keine Änderung an Anwendungscode, echten Playwright-Konfigurationen oder Smoke-Markierungen; kein Push oder PR.
 
+## 2026-09-10 – Codex – Playwright-PR-Gate auf kritischen Browserkern reduziert
+
+**Entscheidung:** Der nach Gemini-PR #49 geprüfte Vorschlag zur vollständigen
+Entfernung von Playwright wurde nicht übernommen. Offizielle Playwright-Hinweise
+zu Browserprüfungen, Sharding und Browserinstallation sowie die Repository-
+Messungen zeigen, dass echte Prüfungen für Fokus, Popover-Layer, Diagramm-
+Rendering, Bildpersistenz und berechnete Barrierefreiheit weiterhin einen eigenen
+Wert haben. PR #49 war zuvor in den Einkaufs-Branch integriert worden.
+
+**Umsetzung:** Der PR-Gate führt jetzt exakt acht `@pr-smoke`-Verträge in
+Chromium aus, ohne Wiederholung und mit Abbruch nach dem ersten Fehler. Die
+Chromium-Headless-Shell wird über `--with-deps --only-shell chromium`
+installiert. WebKit läuft täglich und Firefox wöchentlich mit demselben Kern;
+die vollständige Suite bleibt lokal verfügbar. Required Checks bleiben
+fail-closed. Browser-Caches und ein demo-fähiger Produktionsbau wurden bewusst
+nicht eingeführt.
+
+**Prüfung:** Der Kern lief lokal 8/8 in 58 Sekunden. Der Workflow-
+Vertrag lief mit normaler und CI-Umgebung grün (57 grüne Tests, vier erwartete
+Windows-Skips); Actionlint, Prettier, ESLint und `git diff --check` waren grün.
+Die Messung bezieht sich auf den Browserkern, nicht auf die gesamte CI, deren
+Angular- und Datenbankprüfungen weiterhin mehrere Minuten benötigen. Der
+Umsetzungsnachweis steht unter
+`docs/superpowers/plans/2026-09-10-playwright-hybrid-umsetzung.md`.
+
 ## 2026-09-10 – Antigravity – CI-Workflow-Analyse und Playwright-Evaluierungsplan erstellt
 
 **Analyse:** Umfassende Evaluierung der GitHub Actions Workflows (`ci.yml`, `quality-nightly.yml`, `test-benchmark.yml`) und CI-Skripte im Repository durchgeführt. Die Pipeline weist durch deterministische Change Detection, Content-Addressable PR Check Reuse (Tree-Hash-Verifikation) und Least-Privilege-Rechte einen sehr hohen Reifegrad auf. Größter Flaschenhals im PR-Gate ist der Job `browser-smoke`: Ungecachter Chromium-Download, Start des ressourcenintensiven Angular Dev-Servers (`ng serve`) auf 2-vCPU-Runnern und Test-Bloat (22 Playwright-Dateien für CSS-, Schrift-, Farb- und Badge-Prüfungen).
