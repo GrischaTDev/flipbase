@@ -1,5 +1,11 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-10 – Antigravity – CI-Workflow-Analyse und Playwright-Evaluierungsplan erstellt
+
+**Analyse:** Umfassende Evaluierung der GitHub Actions Workflows (`ci.yml`, `quality-nightly.yml`, `test-benchmark.yml`) und CI-Skripte im Repository durchgeführt. Die Pipeline weist durch deterministische Change Detection, Content-Addressable PR Check Reuse (Tree-Hash-Verifikation) und Least-Privilege-Rechte einen sehr hohen Reifegrad auf. Größter Flaschenhals im PR-Gate ist der Job `browser-smoke`: Ungecachter Chromium-Download, Start des ressourcenintensiven Angular Dev-Servers (`ng serve`) auf 2-vCPU-Runnern und Test-Bloat (22 Playwright-Dateien für CSS-, Schrift-, Farb- und Badge-Prüfungen).
+
+**Plan & Formular:** Detaillierten Evaluierungs- und Umsetzungsplan unter `docs/superpowers/plans/2026-09-10-playwright-evaluation-und-ci-optimierung.md` erstellt. Er stellt drei Optionen gegenüber (Option 1: Vollständiger Ausstieg aus Playwright mit Verlagerung relevanter Interaktionen in Vitest-jsdom-Tests; Option 2: Minimaler 1-Pfad-Smoke-Test auf Static Preview; Option 3: Technische Sanierung des Status Quo) und enthält ein Entscheidungsformular mit Aufgabenpaketen für die beauftragte Folge-KI.
+
 ## 2026-09-09 – Codex – CI-Browserfehler an Einstieg und Dashboardbreiten beheben
 
 **Ursache und Fix:** Fünf Fehler aus PR #47 lokal reproduziert. Drei Einstiegsprüfungen erwarteten noch den alten Inventarbutton und eine eigenständige Artikelform mit h1; sie prüfen jetzt den gemeinsamen Produktdialog einschließlich direkter Route, Escape und Fokusrückgabe. Der tatsächliche Seitenüberlauf kam von nicht umbrechenden Dashboard-Zeitraumbuttons beziehungsweise dem daneben erzwungenen Plattformfilter: rechts 349,6 px bei 320 px und 798,6 px bei 768 px. Zwei gezielte Flex-Wrap-Ergänzungen lassen die Bedienelemente bei Platzmangel umbrechen, ohne Inhalt zu verstecken. Apex-/Chartcode blieb unberührt.
