@@ -69,6 +69,7 @@ import { findResolutionIssue, checkOutput } from './services/platform-validation
 import { togglePlatformIn } from './services/platform-selection';
 import { ToastService } from '../../shared/components/toast/toast.service';
 import { ConfirmDialogService } from '../../shared/components/confirm-dialog/confirm-dialog.service';
+import { SplitPaneComponent } from '../../shared/components/split-pane/split-pane.component';
 import { createLocalDemoId } from '../../core/utils/client-identity';
 
 /**
@@ -122,6 +123,7 @@ export function isHeic(file: File): boolean {
     FileDropDirective,
     AdjustmentControlsComponent,
     MetadataPanelComponent,
+    SplitPaneComponent,
   ],
   templateUrl: './image-optimizer.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
