@@ -103,9 +103,9 @@ const assertResolvedNightlySmokeSuite = (resolvedSuite) => {
   assert.deepEqual(
     resolvedSuite.config.projects.map((project) => [project.name, project.retries]),
     [
-      ['chromium', 0],
-      ['firefox', 0],
-      ['webkit', 0],
+      ['chromium', 1],
+      ['firefox', 1],
+      ['webkit', 1],
     ],
   );
 
@@ -140,7 +140,10 @@ const assertResolvedNightlySmokeSuite = (resolvedSuite) => {
       ),
   );
 };
-const listSmokeTests = async (configFile = join(projectRoot, 'playwright.pr.config.ts')) => {
+const listSmokeTests = async (
+  configFile = join(projectRoot, 'playwright.pr.config.ts'),
+  environment = process.env,
+) => {
   const { stdout } = await executeFile(
     process.execPath,
     [
@@ -150,11 +153,11 @@ const listSmokeTests = async (configFile = join(projectRoot, 'playwright.pr.conf
       '--list',
       '--reporter=json',
     ],
-    { cwd: projectRoot },
+    { cwd: projectRoot, env: environment },
   );
   return assertResolvedSmokeSuite(JSON.parse(stdout));
 };
-const listNightlySmokeTests = async () => {
+const listNightlySmokeTests = async (environment = process.env) => {
   const { stdout } = await executeFile(
     process.execPath,
     [
@@ -164,7 +167,7 @@ const listNightlySmokeTests = async () => {
       '--list',
       '--reporter=json',
     ],
-    { cwd: projectRoot },
+    { cwd: projectRoot, env: environment },
   );
   assertResolvedNightlySmokeSuite(JSON.parse(stdout));
 };
@@ -197,15 +200,23 @@ test('keeps CI and nightly browser gates on the critical smoke contracts', async
   const webkitJob = getWorkflowJob(nightlyWorkflow, 'browser-webkit');
   const firefoxJob = getWorkflowJob(nightlyWorkflow, 'browser-firefox');
 
-  await listNightlySmokeTests();
+  const localEnvironment = { ...process.env };
+  delete localEnvironment.CI;
+  const ciEnvironment = { ...localEnvironment, CI: 'true' };
+  await Promise.all([
+    listSmokeTests(undefined, localEnvironment),
+    listSmokeTests(undefined, ciEnvironment),
+    listNightlySmokeTests(localEnvironment),
+    listNightlySmokeTests(ciEnvironment),
+  ]);
 
   assert.match(
     browserSmokeJob,
-    /^      - name: Install Chromium Headless Shell\r?\n        run: npx playwright install --with-deps --only-shell chromium/m,
+    /^      - name: Install Chromium Headless Shell\r?\n        run: npx playwright install --with-deps --only-shell chromium\r?$/m,
   );
   assert.match(
     browserSmokeJob,
-    /^      - name: Run browser smoke tests\r?\n        run: npm run test:e2e:pr/m,
+    /^      - name: Run browser smoke tests\r?\n        run: npm run test:e2e:pr\r?$/m,
   );
   assert.match(
     requiredChecksJob,
@@ -225,11 +236,11 @@ test('keeps CI and nightly browser gates on the critical smoke contracts', async
   );
   assert.match(
     webkitJob,
-    /^    if: \$\{\{ needs\.gate\.outputs\.run == 'true' && github\.event\.schedule != '17 1 \* \* 0' \}\}\r?\n[\s\S]*?^      - name: Install WebKit\r?\n        run: npx playwright install --with-deps webkit\r?\n\s+- name: Run WebKit smoke tests\r?\n        run: npm run test:e2e:nightly -- --project=webkit/m,
+    /^    if: \$\{\{ needs\.gate\.outputs\.run == 'true' && github\.event\.schedule != '17 1 \* \* 0' \}\}\r?\n[\s\S]*?^      - name: Install WebKit\r?\n        run: npx playwright install --with-deps webkit\r?$\r?\n\s+- name: Run WebKit smoke tests\r?\n        run: npm run test:e2e:nightly -- --project=webkit\r?$/m,
   );
   assert.match(
     firefoxJob,
-    /^    if: \$\{\{ needs\.gate\.outputs\.run == 'true' && github\.event\.schedule != '17 0 \* \* \*' \}\}\r?\n[\s\S]*?^      - name: Install Firefox\r?\n        run: npx playwright install --with-deps firefox\r?\n\s+- name: Run Firefox smoke tests\r?\n        run: npm run test:e2e:nightly -- --project=firefox/m,
+    /^    if: \$\{\{ needs\.gate\.outputs\.run == 'true' && github\.event\.schedule != '17 0 \* \* \*' \}\}\r?\n[\s\S]*?^      - name: Install Firefox\r?\n        run: npx playwright install --with-deps firefox\r?$\r?\n\s+- name: Run Firefox smoke tests\r?\n        run: npm run test:e2e:nightly -- --project=firefox\r?$/m,
   );
 });
 

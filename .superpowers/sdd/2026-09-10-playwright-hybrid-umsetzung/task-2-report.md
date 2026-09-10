@@ -70,3 +70,52 @@ wählt denselben Kern für Chromium, Firefox und WebKit.
 Keine. Die lokale Actionlint-Prüfung verwendet wegen Windows das offizielle
 Windows-Archiv derselben in CI gepinnten Version; dessen veröffentlichte
 Prüfsumme wurde vor der Ausführung geprüft.
+
+## Fixrunde 1 – stabile Nightly-Retries und vollständige CI-Befehle
+
+### RED-Nachweis
+
+- Der Nightly-Vertrag erwartete zuerst bewusst einen Retry je Browser. Vor der
+  Konfigurationsänderung war `node --test scripts/playwright-pr-smoke.test.mjs`
+  rot: Alle drei Nightly-Projekte lösten lokal `retries: 0` statt `1` auf.
+- Der Vertrag startet die PR- und Nightly-Konfiguration jetzt jeweils einmal
+  ohne `CI` und einmal mit `CI=true`. Damit wird die bisher verdeckte
+  Abweichung zur GitHub-Umgebung vor dem Workflow-Lauf erkannt.
+
+### Änderungen
+
+- `playwright.nightly.config.ts` setzt `retries: 1` explizit. Das ist der
+  Nightly-Vertrag für die Flake-Diagnose und gilt lokal wie in GitHub CI;
+  die PR-Konfiguration bleibt mit `retries: 0` unverändert fail-closed.
+- Die Workflow-Regeln für die PR-Schritte verlangen nun den Zeilenabschluss
+  der vollständigen `run:`-Befehle. Zusätze wie ein weiterer Browser oder
+  `|| true` führen damit zum Vertragsfehler.
+- Alle getesteten Unterprozesse erhalten explizite, kopierte
+  Umgebungsvariablen. Weder echte Konfigurationen noch die Prozessumgebung
+  werden für Manipulationsproben überschrieben.
+
+### Verifikation
+
+- `node --test scripts/playwright-pr-smoke.test.mjs` – 8/8 grün.
+- `CI=true node --test scripts/playwright-pr-smoke.test.mjs` – 8/8 grün.
+- `npm run test:workflow` – 57 grün, 4 bestehende Windows-Skips, keine Fehler.
+- `CI=true npm run test:workflow` – 57 grün, 4 bestehende Windows-Skips,
+  keine Fehler.
+- Actionlint, Prettier, ESLint und `git diff --check` – grün.
+
+### Selbstreview
+
+- Die Retry-Erwartung kommt aus der aufgelösten Playwright-Konfiguration,
+  nicht aus einer Textsuche. Damit scheitert eine CI-/Lokal-Abweichung auch
+  dann, wenn der Quelltext indirekt einen anderen Wert ergibt.
+- Die vollständigen Workflow-Zeilen sind an das Zeilenende gebunden; ein
+  nachgestellter Browser, Shell-Fallback oder andere Zusätze erfüllen den
+  Vertrag nicht.
+
+### Commit
+
+`fix(ci): stabilize nightly smoke retries`
+
+### Bedenken
+
+Keine.
