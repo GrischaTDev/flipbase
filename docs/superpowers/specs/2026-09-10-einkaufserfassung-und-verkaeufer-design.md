@@ -1,7 +1,9 @@
 # Einkaufserfassung und Verkäuferverwaltung
 
-**Datum:** 2026-09-10  
-**Status:** fachlich im Dialog freigegeben; schriftliche Abnahme und Umsetzungsplan ausstehend  
+**Datum:** 2026-09-10
+
+**Status:** umgesetzt und geprüft
+
 **Ersetzt beziehungsweise präzisiert:** den Einkaufsablauf aus dem Design vom
 31.08.2026 und die Umsetzung aus PR 39
 
