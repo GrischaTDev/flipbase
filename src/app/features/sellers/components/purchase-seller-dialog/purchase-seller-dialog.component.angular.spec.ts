@@ -282,4 +282,31 @@ describe('PurchaseSellerDialogComponent', () => {
     const result = await axe.run(fixture.nativeElement as HTMLElement);
     expect(result.violations).toEqual([]);
   }, 10_000);
+
+  it('benennt den Aktionsbutton einheitlich mit "Speichern"', () => {
+    const { fixture } = render(createdSeller);
+    const host = fixture.nativeElement as HTMLElement;
+    const submitBtn = host.querySelector<HTMLButtonElement>('button[type="submit"]');
+
+    expect(submitBtn?.textContent?.trim()).toBe('Speichern');
+
+    fixture.componentInstance.saving.set(true);
+    fixture.detectChanges();
+    expect(submitBtn?.textContent?.trim()).toBe('Speichere…');
+  });
+
+  it('ordnet Postleitzahl und Ort nebeneinander im Adressraster an', () => {
+    const { fixture } = render();
+    const host = fixture.nativeElement as HTMLElement;
+    const grid = host.querySelector<HTMLElement>('.grid');
+    const labels = Array.from(grid?.children ?? []).map((el) => el.textContent?.trim());
+
+    // In sm:grid-cols-2:
+    // Row 1: Straße und Hausnummer (Index 0) | Adresszusatz (Index 1)
+    // Row 2: Postleitzahl (Index 2) | Ort (Index 3)
+    expect(labels[0]).toContain('Straße und Hausnummer');
+    expect(labels[1]).toContain('Adresszusatz');
+    expect(labels[2]).toContain('Postleitzahl');
+    expect(labels[3]).toContain('Ort');
+  });
 });
