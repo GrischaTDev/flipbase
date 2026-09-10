@@ -1,0 +1,37 @@
+<div
+  class="grid items-start gap-4 lg:gap-0"
+  [style.grid-template-columns]="columns()"
+  [class.select-none]="isDragging()"
+  (pointermove)="onPointerMove($event)"
+  (pointerup)="onPointerUp($event)"
+  (pointercancel)="onPointerUp($event)"
+>
+  <div class="min-w-0">
+    <ng-content select="[left]" />
+  </div>
+
+  @if (isWide()) {
+    <div
+      role="separator"
+      tabindex="0"
+      aria-orientation="vertical"
+      [attr.aria-label]="handleLabel()"
+      [attr.aria-valuenow]="ratio()"
+      [attr.aria-valuemin]="minRatio()"
+      [attr.aria-valuemax]="maxRatio()"
+      (keydown)="onKeydown($event)"
+      (pointerdown)="onPointerDown($event)"
+      (dblclick)="onDoubleClick()"
+      class="group grid h-full cursor-col-resize touch-none place-items-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+    >
+      <span
+        class="h-16 w-1 rounded-full bg-fb-border transition group-hover:bg-indigo-400 group-focus-visible:bg-indigo-400"
+        aria-hidden="true"
+      ></span>
+    </div>
+  }
+
+  <div class="min-w-0">
+    <ng-content select="[right]" />
+  </div>
+</div>
