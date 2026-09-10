@@ -508,19 +508,13 @@ Drei Stellen brauchen die Vorbelegung:
 
 - [ ] **Step 1: Write the failing test**
 
-An `src/app/features/image-optimizer/image-optimizer.component.angular.spec.ts` ein eigenes `describe` anhängen. Es benutzt die vorhandenen Hilfsfunktionen `createComponent` und `jpegFile` aus der Datei — liegen sie in einem inneren `describe`, werden sie im neuen Block wortgleich wiederholt:
+In `src/app/features/image-optimizer/image-optimizer.component.angular.spec.ts` liegen `createComponent` und `jpegFile` heute in einem inneren `describe`. **Beide werden auf Modulebene hochgezogen**, damit der neue Block sie mitbenutzt — wortgleich zu kopieren wäre doppelte Logik, und beim nächsten Konstruktorwechsel würde eine der beiden Fassungen vergessen.
+
+Danach ein eigenes `describe` anhängen:
 
 ```ts
 describe('ImageOptimizerComponent – Zuschnitt vorbelegen', () => {
   beforeAll(() => TestBed.resetTestingModule());
-
-  function createComponent(): ImageOptimizerComponent {
-    return TestBed.runInInjectionContext(() => new ImageOptimizerComponent());
-  }
-
-  function jpegFile(name: string): File {
-    return new File([''], name, { type: 'image/jpeg' });
-  }
 
   /**
    * Die echte Messung laeuft ueber ein `Image`-Element, das in jsdom nie
@@ -616,9 +610,10 @@ Neue Methode, direkt über `measureNaturalSize` eingefügt:
 /**
  * Traegt eine ermittelte Bildgroesse ein und belegt die Zuschnitte damit vor.
  *
- * Eigene Methode statt Inline-Code in `measureNaturalSize`: Die Vorbelegung
- * wird von zwei Wegen gebraucht - nach dem Laden und nach dem Drehen - und
- * sie ist ohne ein `Image`-Element pruefbar, das in Tests nie laedt.
+ * Oeffentlich, damit sich die Vorbelegung ohne ein `Image`-Element pruefen
+ * laesst: `measureNaturalSize` wartet auf dessen `load`, und das kommt unter
+ * jsdom nie. Ohne diesen Einstieg waere die Regel, die den zu kleinen
+ * Vinted-Rahmen behebt, nur von Hand im Browser nachweisbar.
  *
  * Der Abgleich `image.dataUrl === dataUrl` schuetzt vor einer veralteten
  * Antwort; wird keine URL uebergeben, ist der Aufrufer selbst dafuer
