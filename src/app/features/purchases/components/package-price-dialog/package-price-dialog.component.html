@@ -1,0 +1,52 @@
+<app-modal-shell
+  title="Paketpreis verteilen"
+  subtitle="Gesamtpreis auf Produktpositionen aufteilen"
+  size="sm"
+  (closed)="closed.emit()"
+  (keydown.enter)="confirm(); $event.preventDefault()"
+>
+  <div class="space-y-4">
+    <p class="text-sm text-fb-text-secondary">
+      Der Paketpreis wird gleichmäßig auf {{ lineCount() }}
+      {{ lineCount() === 1 ? 'Produktposition' : 'Produktpositionen' }} verteilt – unabhängig von
+      der Stückzahl innerhalb einer Position.
+    </p>
+
+    <label for="package-total" class="block text-sm font-medium text-fb-text-primary">
+      Gesamtpreis des Pakets
+    </label>
+    <app-number-input
+      id="package-total"
+      [formControl]="total"
+      [min]="0.01"
+      [step]="0.01"
+      unit="€"
+      [asCurrency]="true"
+      ariaLabel="Gesamtpreis des Pakets"
+    />
+
+    @if (total.touched && total.invalid) {
+      <p role="alert" class="text-xs text-rose-300">Bitte gib einen Paketpreis größer als 0 ein.</p>
+    }
+  </div>
+
+  <button
+    modal-footer
+    type="button"
+    data-cancel-package-price
+    class="linear-btn-secondary rounded-lg px-3 py-2 text-sm"
+    (click)="closed.emit()"
+  >
+    Abbrechen
+  </button>
+  <button
+    modal-footer
+    type="button"
+    data-confirm-package-price
+    class="linear-btn-primary rounded-lg px-3 py-2 text-sm disabled:opacity-40"
+    [disabled]="total.invalid"
+    (click)="confirm()"
+  >
+    Verteilen
+  </button>
+</app-modal-shell>
