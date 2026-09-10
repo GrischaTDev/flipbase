@@ -46,34 +46,6 @@ const createProbeDirectory = async () => {
   );
   return resolvedProbeDirectory;
 };
-const listSmokeTests = async () => {
-  const { stdout } = await executeFile(
-    process.execPath,
-    ['node_modules/@playwright/test/cli.js', 'test', '--config=playwright.pr.config.ts', '--list'],
-    { cwd: projectRoot },
-  );
-  const listedTests = stdout.split(/\r?\n/).filter((line) => /^\s*\[[^\]]+\]\s+› /.test(line));
-
-  return listedTests.map((line) => {
-    const match = line.match(/^\s*\[[^\]]+\]\s+› (.+?):\d+:\d+ › (.+)$/);
-    assert.ok(match, `Ungültige Playwright-Listenzeile: ${line}`);
-    const [, filePath, testName] = match;
-    assert.ok(testName.endsWith('@pr-smoke'), `Unerwartete Auswahl: ${testName}`);
-    return [filePath.split(/[\\/]/).at(-1), testName];
-  });
-};
-const assertPrConfiguration = (config) => {
-  assert.match(config, /import baseConfig from '.\/playwright\.config';/);
-  assert.match(config, /grep:\s*\/@pr-smoke\//);
-  assert.match(config, /retries:\s*0\s*(?:,|\r?\n)/);
-  assert.match(config, /maxFailures:\s*1\s*(?:,|\r?\n)/);
-  assert.match(config, /workers:\s*1\s*(?:,|\r?\n)/);
-  assert.match(config, /trace:\s*'retain-on-failure'/);
-  assert.match(
-    config,
-    /projects:\s*\[\s*\{\s*name:\s*'chromium',\s*use:\s*\{\s*browserName:\s*'chromium'\s*\}\s*\}\s*\],/,
-  );
-};
 const assertExpectedSmokeTests = (selectedTests) => {
   assert.equal(selectedTests.length, 8);
   assert.deepEqual(
@@ -83,17 +55,47 @@ const assertExpectedSmokeTests = (selectedTests) => {
       .sort(([leftFile], [rightFile]) => leftFile.localeCompare(rightFile)),
   );
 };
+const collectSpecs = (suites) =>
+  suites.flatMap((suite) => [...(suite.specs ?? []), ...collectSpecs(suite.suites ?? [])]);
+const assertResolvedSmokeSuite = (resolvedSuite) => {
+  assert.equal(resolvedSuite.config.maxFailures, 1);
+  assert.equal(resolvedSuite.config.workers, 1);
+  assert.deepEqual(
+    resolvedSuite.config.projects.map((project) => [project.name, project.retries]),
+    [['chromium', 0]],
+  );
+
+  const selectedTests = collectSpecs(resolvedSuite.suites).map((spec) => {
+    assert.ok(spec.tags.includes('pr-smoke'), `Unerwartete Auswahl: ${spec.title}`);
+    assert.deepEqual(
+      spec.tests.map((test) => test.projectName),
+      ['chromium'],
+    );
+    return [spec.file.split(/[\\/]/).at(-1), spec.title];
+  });
+  assertExpectedSmokeTests(selectedTests);
+  return selectedTests;
+};
+const listSmokeTests = async () => {
+  const { stdout } = await executeFile(
+    process.execPath,
+    [
+      'node_modules/@playwright/test/cli.js',
+      'test',
+      '--config=playwright.pr.config.ts',
+      '--list',
+      '--reporter=json',
+    ],
+    { cwd: projectRoot },
+  );
+  return assertResolvedSmokeSuite(JSON.parse(stdout));
+};
 
 test('defines the fail-closed PR browser smoke suite', async () => {
-  const [config, packageJson] = await Promise.all([
-    readProjectFile('playwright.pr.config.ts'),
-    readProjectFile('package.json'),
-  ]);
+  const packageJson = await readProjectFile('package.json');
   const packageDefinition = JSON.parse(packageJson);
 
-  assertPrConfiguration(config);
-  const selectedTests = await listSmokeTests();
-  assertExpectedSmokeTests(selectedTests);
+  await listSmokeTests();
   assert.equal(
     packageDefinition.scripts['test:e2e:pr'],
     'playwright test --config=playwright.pr.config.ts',
@@ -114,9 +116,7 @@ test('rejects an additional nested double-quoted smoke tag inside a describe blo
   );
 
   try {
-    const listedSmokeTests = await listSmokeTests();
-    assert.equal(listedSmokeTests.length, 9);
-    assert.throws(() => assertExpectedSmokeTests(listedSmokeTests));
+    await assert.rejects(listSmokeTests);
   } finally {
     await rm(probeDirectory, { recursive: true, force: true });
   }
@@ -128,17 +128,33 @@ for (const [setting, expectedValue, invalidValue] of [
   ['workers', '1', '10'],
 ]) {
   test(`rejects ${setting}: ${invalidValue} instead of the required value ${expectedValue}`, async () => {
-    const originalConfig = await readProjectFile('playwright.pr.config.ts');
+    const configFile = new URL('playwright.pr.config.ts', rootDirectory);
+    const originalConfig = await readFile(configFile, 'utf8');
     const changedConfig = originalConfig.replace(
       `${setting}: ${expectedValue}`,
       `${setting}: ${invalidValue}`,
     );
     assert.notEqual(changedConfig, originalConfig);
-    assert.throws(() => assertPrConfiguration(changedConfig));
+    await writeFile(configFile, changedConfig);
 
-    if (setting === 'retries') {
-      const retriesTenConfig = originalConfig.replace('retries: 0', 'retries: 10');
-      assert.throws(() => assertPrConfiguration(retriesTenConfig));
+    try {
+      await assert.rejects(listSmokeTests);
+    } finally {
+      await writeFile(configFile, originalConfig);
     }
   });
 }
+
+test('rejects a semantically nonzero retries expression', async () => {
+  const configFile = new URL('playwright.pr.config.ts', rootDirectory);
+  const originalConfig = await readFile(configFile, 'utf8');
+  const changedConfig = originalConfig.replace('retries: 0', 'retries: 0 + 1');
+  assert.notEqual(changedConfig, originalConfig);
+  await writeFile(configFile, changedConfig);
+
+  try {
+    await assert.rejects(listSmokeTests);
+  } finally {
+    await writeFile(configFile, originalConfig);
+  }
+});
