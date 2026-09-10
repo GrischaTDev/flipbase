@@ -25,7 +25,6 @@ import { defaultAdjustments, looksEqual, toLook } from './services/adjustments';
 import { MetadataReaderService } from './services/metadata-reader.service';
 import { CropEditorComponent } from './components/crop-editor/crop-editor.component';
 import { PreviewGridComponent } from './components/preview-grid/preview-grid.component';
-import { AdjustmentControlsComponent } from './components/adjustment-controls/adjustment-controls.component';
 import { MetadataPanelComponent } from './components/metadata-panel/metadata-panel.component';
 import { ImageListComponent } from './components/image-list/image-list.component';
 import { PhotoGuideComponent } from './components/photo-guide/photo-guide.component';
@@ -121,7 +120,6 @@ export function isHeic(file: File): boolean {
     OptimizerHeaderComponent,
     ExportBarComponent,
     FileDropDirective,
-    AdjustmentControlsComponent,
     MetadataPanelComponent,
     SplitPaneComponent,
   ],

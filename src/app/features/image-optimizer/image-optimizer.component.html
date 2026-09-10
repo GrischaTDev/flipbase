@@ -95,10 +95,15 @@
             [ratio]="platform.exportRatio"
             [storedCrop]="activeCrop()"
             [disabled]="isBusy()"
+            [adjustments]="image.adjustments"
+            [hasLocation]="image.metadata.gps !== null"
             (cropChanged)="saveCrop(image.id, $event)"
             (rotateRequested)="rotate(image.id)"
             (loadFailed)="onLoadFailed(image.id)"
             (imageLoadedEvent)="onImageLoaded(image.id)"
+            (adjustmentsChanged)="setAdjustments($event)"
+            (adjustmentsResetRequested)="resetAdjustments()"
+            (adjustmentsApplyToAllRequested)="applyAdjustmentsToAllImages()"
           ></app-crop-editor>
         } @else {
           <div class="grid min-h-64 place-items-center px-6 py-12 text-center">
@@ -137,15 +142,6 @@
     </app-split-pane>
 
     <section class="space-y-4">
-      <app-adjustment-controls
-        [adjustments]="image.adjustments"
-        [disabled]="isBusy()"
-        [canApplyToAll]="images().length > 1"
-        (changed)="setAdjustments($event)"
-        (resetRequested)="resetAdjustments()"
-        (applyToAllRequested)="applyAdjustmentsToAllImages()"
-      ></app-adjustment-controls>
-
       <app-preview-grid
         [platforms]="selectedPlatforms()"
         [dataUrl]="image.dataUrl"

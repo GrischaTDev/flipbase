@@ -1,87 +1,147 @@
-<div class="space-y-3">
-  <div
-    class="relative flex h-[480px] max-h-[62vh] items-center justify-center overflow-hidden rounded-2xl bg-[#090b12] p-3 shadow-inner"
-  >
-    <image-cropper
-      [imageURL]="dataUrl()"
-      [maintainAspectRatio]="true"
-      [aspectRatio]="ratio()"
-      [format]="'jpeg'"
-      [output]="'blob'"
-      [cropper]="cropperInput()"
-      [resizeToWidth]="32"
-      [onlyScaleDown]="true"
-      [allowMoveImage]="true"
-      [transform]="transform()"
-      [disabled]="disabled()"
-      style="
-        --cropper-outline-color: rgba(9, 11, 18, 0.72);
-        --cropper-overlay-color: #090b12;
-        --cropper-color: rgba(255, 255, 255, 0.78);
-        --cropper-border: 2px solid rgb(129 140 248);
-        --cropper-hover-border: 2px solid rgb(165 180 252);
-        --cropper-focus-border: 3px solid rgb(199 210 254);
-        --cropper-resize-square-bg: rgb(238 242 255);
-        --cropper-resize-square-border: 2px solid rgb(79 70 229);
-      "
-      (imageCropped)="onCropped($event)"
-      (transformChange)="onTransform($event)"
-      (imageLoaded)="onImageLoaded($event)"
-      (cropperReady)="onCropperReady($event)"
-      (loadImageFailed)="loadFailed.emit()"
-    ></image-cropper>
-  </div>
+<div
+  class="relative flex h-[62vh] min-h-96 items-center justify-center overflow-hidden rounded-2xl bg-[#090b12] p-3 shadow-inner"
+>
+  <image-cropper
+    [imageURL]="dataUrl()"
+    [maintainAspectRatio]="true"
+    [aspectRatio]="ratio()"
+    [format]="'jpeg'"
+    [output]="'blob'"
+    [cropper]="cropperInput()"
+    [resizeToWidth]="32"
+    [onlyScaleDown]="true"
+    [allowMoveImage]="true"
+    [transform]="transform()"
+    [disabled]="disabled()"
+    style="
+      --cropper-outline-color: rgba(9, 11, 18, 0.72);
+      --cropper-overlay-color: #090b12;
+      --cropper-color: rgba(255, 255, 255, 0.78);
+      --cropper-border: 2px solid rgb(129 140 248);
+      --cropper-hover-border: 2px solid rgb(165 180 252);
+      --cropper-focus-border: 3px solid rgb(199 210 254);
+      --cropper-resize-square-bg: rgb(238 242 255);
+      --cropper-resize-square-border: 2px solid rgb(79 70 229);
+    "
+    (imageCropped)="onCropped($event)"
+    (transformChange)="onTransform($event)"
+    (imageLoaded)="onImageLoaded($event)"
+    (cropperReady)="onCropperReady($event)"
+    (loadImageFailed)="loadFailed.emit()"
+  ></image-cropper>
 
+  @if (isPanelOpen()) {
+    <div
+      #colorPanel
+      class="absolute inset-x-3 bottom-16 z-10 rounded-xl border border-fb-border bg-fb-surface/95 p-3 shadow-2xl backdrop-blur"
+      role="group"
+      aria-label="Farbe und Belichtung"
+    >
+      <app-adjustment-controls
+        [adjustments]="adjustments()"
+        [disabled]="disabled()"
+        [canApplyToAll]="true"
+        (changed)="adjustmentsChanged.emit($event)"
+        (resetRequested)="adjustmentsResetRequested.emit()"
+        (applyToAllRequested)="adjustmentsApplyToAllRequested.emit()"
+      ></app-adjustment-controls>
+    </div>
+  }
+
+  <!--
+    Deckender Grund, kein durchsichtiges Overlay: Produktfotos sind hier
+    meist hell, und bei Transparenz waere kein Kontrastverhaeltnis
+    zusicherbar. WCAG AA verlangt 4,5:1 fuer Text und 3:1 fuer Bedienelemente.
+  -->
   <div
-    class="flex flex-wrap items-center gap-2 rounded-xl border border-fb-border bg-fb-surface px-2.5 py-2"
+    class="absolute inset-x-3 bottom-3 z-20 flex flex-wrap items-center gap-1.5 rounded-xl bg-[#12141c] px-2 py-1.5 shadow-lg"
   >
     <button
       type="button"
       (click)="rotateRequested.emit()"
       [disabled]="disabled()"
-      class="grid h-8 w-8 cursor-pointer place-items-center rounded-lg text-fb-text-secondary hover:bg-fb-surface-hover hover:text-fb-text-primary disabled:cursor-not-allowed disabled:opacity-40"
+      class="grid h-8 w-8 cursor-pointer place-items-center rounded-lg text-white/75 hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
       aria-label="Bild drehen"
+      title="Drehen"
     >
-      <svg [lucideIcon]="rotateIcon" class="w-3.5 h-3.5"></svg>
+      <svg [lucideIcon]="rotateIcon" class="h-3.5 w-3.5" aria-hidden="true"></svg>
     </button>
 
-    <div class="mx-1 h-5 w-px bg-fb-border" aria-hidden="true"></div>
-    <label for="image-zoom" class="text-[11px] font-semibold text-fb-text-secondary">Zoom</label>
-    <input
-      id="image-zoom"
-      type="range"
-      min="1"
-      max="3"
-      step="0.05"
-      [value]="transform().scale ?? 1"
+    <div class="mx-0.5 h-5 w-px bg-white/15" aria-hidden="true"></div>
+
+    <button
+      type="button"
+      (click)="zoomOut()"
       [disabled]="disabled()"
-      (input)="setZoom($any($event.target).value)"
-      class="h-1.5 min-w-28 flex-1 cursor-pointer accent-indigo-500 disabled:cursor-not-allowed disabled:opacity-40"
-    />
-    <span class="w-10 text-right text-[10px] tabular-nums text-fb-text-muted">
+      class="grid h-8 w-8 cursor-pointer place-items-center rounded-lg text-white/75 hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+      aria-label="Verkleinern"
+      title="Verkleinern"
+    >
+      <svg [lucideIcon]="minusIcon" class="h-3.5 w-3.5" aria-hidden="true"></svg>
+    </button>
+    <span class="w-12 text-center text-[10px] tabular-nums text-white/70" aria-live="polite">
       {{ ((transform().scale ?? 1) * 100).toFixed(0) }} %
     </span>
+    <button
+      type="button"
+      (click)="zoomIn()"
+      [disabled]="disabled()"
+      class="grid h-8 w-8 cursor-pointer place-items-center rounded-lg text-white/75 hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+      aria-label="Vergrößern"
+      title="Vergrößern"
+    >
+      <svg [lucideIcon]="plusIcon" class="h-3.5 w-3.5" aria-hidden="true"></svg>
+    </button>
 
-    <div class="mx-1 hidden h-5 w-px bg-fb-border sm:block" aria-hidden="true"></div>
+    <div class="mx-0.5 h-5 w-px bg-white/15" aria-hidden="true"></div>
+
     <button
       type="button"
       (click)="center()"
       [disabled]="disabled()"
-      class="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-lg px-2.5 text-[11px] font-semibold text-fb-text-secondary hover:bg-fb-surface-hover hover:text-fb-text-primary disabled:cursor-not-allowed disabled:opacity-40"
+      class="grid h-8 w-8 cursor-pointer place-items-center rounded-lg text-white/75 hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
       aria-label="Bild im Ausschnitt zentrieren"
+      title="Zentrieren"
     >
       <svg [lucideIcon]="centerIcon" class="h-3.5 w-3.5" aria-hidden="true"></svg>
-      Zentrieren
     </button>
     <button
       type="button"
       (click)="reset()"
       [disabled]="disabled()"
-      class="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-lg px-2.5 text-[11px] font-semibold text-fb-text-secondary hover:bg-fb-surface-hover hover:text-fb-text-primary disabled:cursor-not-allowed disabled:opacity-40"
+      class="grid h-8 w-8 cursor-pointer place-items-center rounded-lg text-white/75 hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
       aria-label="Bildbearbeitung zurücksetzen"
+      title="Zurücksetzen"
     >
       <svg [lucideIcon]="resetIcon" class="h-3.5 w-3.5" aria-hidden="true"></svg>
-      Zurücksetzen
+    </button>
+
+    <button
+      #colorToggleButton
+      type="button"
+      (click)="togglePanel()"
+      [disabled]="disabled()"
+      [attr.aria-expanded]="isPanelOpen()"
+      class="ml-auto inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-lg px-2.5 text-[11px] font-semibold text-white/75 hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+      [class.bg-white/15]="isPanelOpen()"
+    >
+      <svg [lucideIcon]="panelIcon" class="h-3.5 w-3.5" aria-hidden="true"></svg>
+      Farbe
+    </button>
+    <button
+      type="button"
+      (click)="metadataRequested.emit()"
+      class="relative inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-lg px-2.5 text-[11px] font-semibold text-white/75 hover:bg-white/10 hover:text-white"
+    >
+      <svg [lucideIcon]="infoIcon" class="h-3.5 w-3.5" aria-hidden="true"></svg>
+      Metadaten
+      @if (hasLocation()) {
+        <span
+          class="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-amber-400"
+          aria-hidden="true"
+        ></span>
+        <span class="sr-only">Dieses Foto enthält den Aufnahmeort.</span>
+      }
     </button>
   </div>
 </div>
