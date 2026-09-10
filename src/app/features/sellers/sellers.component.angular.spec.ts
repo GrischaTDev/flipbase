@@ -1,6 +1,7 @@
 import '@angular/compiler';
-import { signal, ɵresolveComponentResources } from '@angular/core';
+import { EventEmitter, signal, ɵresolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { glob, readFile } from 'node:fs/promises';
 import axe from 'axe-core';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -8,6 +9,7 @@ import type { Supplier } from '../../core/models/flipbase.models';
 import { SuppliersService } from '../../core/services/suppliers.service';
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
+import { CustomSelectComponent } from '../../shared/components/custom-select/custom-select.component';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { ToastService } from '../../shared/components/toast/toast.service';
 import { PurchaseSellerDialogComponent } from './components/purchase-seller-dialog/purchase-seller-dialog.component';
@@ -16,9 +18,12 @@ import { SellersComponent } from './sellers.component';
 interface AngularInputMetadata {
   inputs: Record<string, unknown>;
   declaredInputs: Record<string, string>;
+  outputs?: Record<string, string>;
 }
 
 const inputMetadataSnapshots = new Map<unknown, AngularInputMetadata>();
+let customSelectOutputsSnapshot: Record<string, string> | undefined;
+let customSelectValueChangeDescriptor: PropertyDescriptor | undefined;
 
 function registerSignalInputs(component: unknown, inputNames: readonly string[]): void {
   const metadata = (component as { ɵcmp: AngularInputMetadata }).ɵcmp;
@@ -48,7 +53,31 @@ beforeAll(async () => {
   });
   registerSignalInputs(PageHeaderComponent, ['title', 'subtitle', 'icon']);
   registerSignalInputs(ButtonComponent, ['variant', 'size', 'icon']);
-  registerSignalInputs(BadgeComponent, ['tone', 'mono', 'dot']);
+  registerSignalInputs(BadgeComponent, ['tone', 'mono']);
+  registerSignalInputs(CustomSelectComponent, [
+    'options',
+    'value',
+    'variant',
+    'size',
+    'widthClass',
+    'ariaLabel',
+    'triggerId',
+  ]);
+  const customSelectMetadata = (CustomSelectComponent as unknown as { ɵcmp: AngularInputMetadata })
+    .ɵcmp;
+  customSelectOutputsSnapshot = customSelectMetadata.outputs;
+  customSelectMetadata.outputs = {
+    ...customSelectMetadata.outputs,
+    valueChange: 'valueChange',
+  };
+  customSelectValueChangeDescriptor = Object.getOwnPropertyDescriptor(
+    CustomSelectComponent.prototype,
+    'valueChange',
+  );
+  Object.defineProperty(CustomSelectComponent.prototype, 'valueChange', {
+    configurable: true,
+    value: new EventEmitter<string | null>(),
+  });
   registerSignalInputs(PurchaseSellerDialogComponent, ['seller']);
 });
 
@@ -59,6 +88,18 @@ afterAll(() => {
     const metadata = (component as { ɵcmp: AngularInputMetadata }).ɵcmp;
     metadata.inputs = snapshot.inputs;
     metadata.declaredInputs = snapshot.declaredInputs;
+  }
+  const customSelectMetadata = (CustomSelectComponent as unknown as { ɵcmp: AngularInputMetadata })
+    .ɵcmp;
+  customSelectMetadata.outputs = customSelectOutputsSnapshot;
+  if (customSelectValueChangeDescriptor) {
+    Object.defineProperty(
+      CustomSelectComponent.prototype,
+      'valueChange',
+      customSelectValueChangeDescriptor,
+    );
+  } else {
+    delete (CustomSelectComponent.prototype as { valueChange?: unknown }).valueChange;
   }
 });
 
@@ -110,11 +151,15 @@ describe('SellersComponent', () => {
     const { fixture } = render();
     const host = fixture.nativeElement as HTMLElement;
     const headings = [...host.querySelectorAll('th')].map((heading) => heading.textContent?.trim());
-    const filter = host.querySelector<HTMLSelectElement>('[data-seller-type-filter]');
+    const filters = fixture.debugElement
+      .queryAll(By.directive(CustomSelectComponent))
+      .map((debugElement) => debugElement.componentInstance as CustomSelectComponent<string>);
+    const filter = filters[0];
 
     expect(host.querySelector('h1')?.textContent).toContain('Verkäufer');
     expect(host.textContent).toContain('Verkäufer erstellen');
-    expect(filter && [...filter.options].map((option) => option.textContent?.trim())).toEqual([
+    expect(filters).toHaveLength(1);
+    expect(filter?.options().map((option) => option.label)).toEqual([
       'Alle',
       'Unternehmen',
       'Privatpersonen',
@@ -133,8 +178,9 @@ describe('SellersComponent', () => {
 
   it('filtert Tabellenzeilen nach Unternehmen und Privatpersonen', () => {
     const { fixture } = render();
-
-    fixture.componentInstance.typeFilter.set('company');
+    const filter = fixture.debugElement.query(By.directive(CustomSelectComponent))
+      .componentInstance as CustomSelectComponent<string>;
+    (filter as unknown as { valueChange: EventEmitter<string | null> }).valueChange.emit('company');
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelectorAll('[data-seller-row]')).toHaveLength(1);
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('Close Vintage');

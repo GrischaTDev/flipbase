@@ -120,7 +120,6 @@ const ARCHIVE_HEADERS = {
     'tracking_mode',
     'is_public_store',
     'listing_price',
-    'image_storage_path',
     'created_at',
     'updated_at',
   ],

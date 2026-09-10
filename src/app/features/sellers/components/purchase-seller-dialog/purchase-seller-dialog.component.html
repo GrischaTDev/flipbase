@@ -27,15 +27,13 @@
       [formGroup]="form"
       (ngSubmit)="save()"
     >
-      <label class="block text-sm"
-        >Art<select
-          formControlName="seller_type"
-          class="linear-input mt-1 w-full rounded-lg px-3 py-2"
-        >
-          <option value="private">Privatperson</option>
-          <option value="business">Unternehmen</option>
-        </select></label
-      >
+      <label for="seller-type" class="block text-sm">Art</label>
+      <app-custom-select
+        triggerId="seller-type"
+        ariaLabel="Verkäuferart"
+        formControlName="seller_type"
+        [options]="sellerTypeOptions"
+      />
       <label class="block text-sm"
         >{{ form.controls.seller_type.value === 'business' ? 'Firmenname' : 'Vor- und Nachname'
         }}<input
@@ -62,18 +60,17 @@
       }
       <p class="text-xs text-fb-text-muted">Alle weiteren Angaben sind optional.</p>
       <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <label class="block text-sm"
-          >Land<select
+        <div>
+          <label for="seller-country" class="block text-sm">Land</label>
+          <app-custom-select
             data-country-select
+            class="mt-1"
+            triggerId="seller-country"
+            ariaLabel="Land"
             formControlName="country_code"
-            class="linear-input mt-1 w-full rounded-lg px-3 py-2"
-            autocomplete="country"
-          >
-            @for (country of countries; track country.code) {
-              <option [value]="country.code">{{ country.name }}</option>
-            }
-          </select></label
-        >
+            [options]="countryOptions"
+          />
+        </div>
         @for (field of contactFields; track field.key) {
           <label class="block text-sm"
             >{{ field.label

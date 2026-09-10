@@ -261,7 +261,6 @@
                 (columnVisibilityToggled)="toggleColumnVisibility($event)"
                 (columnsReordered)="onColumnsReordered($event)"
                 (sortChanged)="onSortChanged($event)"
-                (resetRequested)="resetTablePreferences()"
                 (viewResetRequested)="resetView()"
               />
             </div>
@@ -442,11 +441,7 @@
                                 Gebucht
                               </span>
                             } @else if (tx.status === 'matched') {
-                              <span
-                                class="rounded-full border border-blue-500/30 bg-blue-500/15 px-2 py-0.5 text-[10px] font-bold text-blue-400"
-                              >
-                                Bereit
-                              </span>
+                              <app-badge tone="info">Bereit</app-badge>
                             } @else if (tx.status === 'ignored') {
                               <span
                                 class="rounded-full bg-fb-surface-alt px-2 py-0.5 text-[10px] font-medium text-fb-text-muted"
@@ -454,11 +449,7 @@
                                 Ignoriert
                               </span>
                             } @else {
-                              <span
-                                class="rounded-full border border-amber-500/30 bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-400"
-                              >
-                                Offen
-                              </span>
+                              <app-badge tone="caution">Offen</app-badge>
                             }
                           </td>
                         }

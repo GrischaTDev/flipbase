@@ -155,6 +155,81 @@ describe('Stammdatenservices – bestätigte lokale Zustände', () => {
     expect(insertPayload).not.toHaveProperty('profile_url');
   });
 
+  it('löscht explizit geleerte strukturierte Kontakt- und Adressfelder', async () => {
+    let updatePayload: Record<string, unknown> | null = null;
+    const strukturierterLieferant: Supplier = {
+      ...lieferant,
+      seller_type: 'business',
+      contact_person: 'Ada Beispiel',
+      country_code: 'DE',
+      street: 'Musterstraße 1',
+      address_extra: 'Hinterhaus',
+      postal_code: '10115',
+      city: 'Berlin',
+      email: 'ada@example.com',
+      phone: '+491701234567',
+      website: 'https://example.com',
+      notes: 'Rückruf vormittags',
+    };
+    const dienst = Object.create(SuppliersService.prototype) as SuppliersService;
+    Object.assign(dienst, {
+      supabase: {
+        client: {
+          from: () => ({
+            update: (payload: Record<string, unknown>) => {
+              updatePayload = payload;
+              return { eq: async () => ({ error: null }) };
+            },
+          }),
+        },
+      },
+      syncStatus: new SyncStatusService(),
+      mockStore: {
+        isDemoMode: signal(false),
+        saveSupplier: () => undefined,
+      },
+      suppliers: signal<Supplier[]>([strukturierterLieferant]),
+    });
+
+    const result = await dienst.updateSupplier(strukturierterLieferant.id, {
+      seller_type: 'business',
+      contact_person: null,
+      street: null,
+      address_extra: null,
+      postal_code: null,
+      city: null,
+      email: null,
+      phone: null,
+    });
+
+    expect(result.error).toBeNull();
+    expect(updatePayload).toEqual(
+      expect.objectContaining({
+        contact_person: null,
+        street: null,
+        address_extra: null,
+        postal_code: null,
+        city: null,
+        email: null,
+        phone: null,
+        country_code: 'DE',
+        website: 'https://example.com',
+        notes: 'Rückruf vormittags',
+      }),
+    );
+    expect(dienst.suppliers()[0]).toEqual(
+      expect.objectContaining({
+        contact_person: null,
+        street: null,
+        address_extra: null,
+        postal_code: null,
+        city: null,
+        email: null,
+        phone: null,
+      }),
+    );
+  });
+
   it.each<Aktion>(['anlegen', 'ändern', 'archivieren', 'löschen'])(
     'übernimmt Quellen beim %s erst nach Datenbankerfolg',
     async (aktion) => {

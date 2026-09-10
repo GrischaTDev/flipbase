@@ -5,15 +5,9 @@ select no_plan();
 
 select has_column('public', 'suppliers', 'country_code', 'Verkäufer speichern ISO-Ländercodes');
 select has_column('public', 'purchases', 'arrived_at', 'Einkäufe speichern den Ankunftszeitpunkt');
-select has_column(
-  'public',
-  'catalog_products',
-  'image_storage_path',
-  'Katalogartikel speichern den optionalen Bildpfad'
-);
 select has_function(
   'public',
-  'create_purchase_with_position_prices',
+  'create_purchase',
   array['uuid', 'jsonb', 'jsonb', 'jsonb'],
   'Paketpreise werden mit präzisem Stückdurchschnitt angelegt'
 );
@@ -31,7 +25,7 @@ select has_function(
 );
 select has_function(
   'public',
-  'update_purchase_draft_with_event',
+  'update_purchase_draft',
   array['uuid', 'uuid', 'jsonb', 'jsonb', 'jsonb'],
   'Entwurfsänderungen und Chronik werden atomar gespeichert'
 );
@@ -155,7 +149,7 @@ select is(
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '12000000-0000-4000-8000-000000000001', true);
 select lives_ok(
-  $$select public.create_purchase_with_position_prices(
+  $$select public.create_purchase(
     '12000000-0000-4000-8000-000000000010',
     jsonb_build_object(
       'request_id', '12000000-0000-4000-8000-000000000040',
@@ -203,7 +197,7 @@ select lives_ok(
   'Ein neuer Paketpreis mit präzisem Stückdurchschnitt wird gespeichert'
 );
 select lives_ok(
-  $$select public.update_purchase_draft_with_event(
+  $$select public.update_purchase_draft(
     '12000000-0000-4000-8000-000000000010',
     '12000000-0000-4000-8000-000000000030',
     jsonb_build_object(
@@ -281,6 +275,34 @@ select lives_ok(
   $$select public.update_purchase_tracking('12000000-0000-4000-8000-000000000030', '+123456789', 'dhl', 'pending')$$,
   'Tracking lässt sich freiwillig ergänzen'
 );
+update public.purchases
+set receiving_status = 'partially_received',
+    shipment_status = 'in_transit',
+    arrived_at = null
+where id = '12000000-0000-4000-8000-000000000030';
+select lives_ok(
+  $$select public.update_purchase_workflow('12000000-0000-4000-8000-000000000030', 'arrived')$$,
+  'Eine Teillieferung kann unabhängig vom Versand als angekommen bestätigt werden'
+);
+select is(
+  (select shipment_status::text from public.purchases where id = '12000000-0000-4000-8000-000000000030'),
+  'arrived',
+  'Die bestätigte Teillieferung erhält den Ankunftsstatus'
+);
+update public.purchases
+set receiving_status = 'received',
+    shipment_status = 'in_transit',
+    arrived_at = null
+where id = '12000000-0000-4000-8000-000000000030';
+select lives_ok(
+  $$select public.update_purchase_workflow('12000000-0000-4000-8000-000000000030', 'arrived')$$,
+  'Ein vollständiger Wareneingang kann den fehlenden Ankunftsstatus nachziehen'
+);
+select is(
+  (select shipment_status::text from public.purchases where id = '12000000-0000-4000-8000-000000000030'),
+  'arrived',
+  'Der vollständige Wareneingang erhält den nachgezogenen Ankunftsstatus'
+);
 reset role;
 
 select is(
@@ -303,7 +325,7 @@ select is(
   'Der gewählte Verkäufer wird beim Anlegen gespeichert'
 );
 select is(
-  (select count(*)::integer from public.business_events where entity_id = '12000000-0000-4000-8000-000000000030' and event_type = 'purchase_updated'),
+  (select count(*)::integer from public.business_events where entity_id = '12000000-0000-4000-8000-000000000030' and event_type = 'purchase_draft_updated'),
   1,
   'Bearbeiten erzeugt genau ein Ereignis'
 );
@@ -314,8 +336,8 @@ select is(
 );
 select is(
   (select count(*)::integer from public.business_events where entity_id = '12000000-0000-4000-8000-000000000030' and event_type = 'purchase_arrived'),
-  1,
-  'Angekommen erzeugt genau ein Ereignis'
+  3,
+  'Jede nachgezogene Ankunft erzeugt genau ein Ereignis'
 );
 select is(
   (select count(*)::integer from public.business_events where entity_id = '12000000-0000-4000-8000-000000000030' and event_type = 'purchase_tracking_added'),

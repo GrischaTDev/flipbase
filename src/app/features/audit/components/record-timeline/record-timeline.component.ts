@@ -6,6 +6,7 @@ import {
   inject,
   input,
   signal,
+  untracked,
 } from '@angular/core';
 import { AuthService } from '../../../../core/services/auth.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
@@ -17,16 +18,18 @@ import {
   RecordTimelineEntry,
 } from '../../models/record-timeline.models';
 import { RecordTimelineService } from '../../services/record-timeline.service';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
 
 @Component({
   selector: 'app-record-timeline',
+  imports: [ButtonComponent],
   templateUrl: './record-timeline.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class RecordTimelineComponent {
   readonly entityType = input.required<RecordTimelineEntityType>();
   readonly entityId = input.required<string>();
-  readonly refreshKey = input(0);
+  readonly refreshKey = input<number | string>(0);
   private readonly timeline = inject(RecordTimelineService);
   private readonly workspace = inject(WorkspaceService);
   private readonly auth = inject(AuthService);
@@ -46,12 +49,11 @@ export class RecordTimelineComponent {
     () => canSubmitComment(this.draft()) && !this.posting() && !this.loading() && !this.archived(),
   );
   readonly characterCount = computed(() => Array.from(this.draft().trim()).length);
+  readonly currentUserInitial = computed(() => this.actorInitial(this.auth.userName?.() ?? 'Du'));
   readonly groups = computed(() => {
     const groups: { day: string; entries: RecordTimelineEntry[] }[] = [];
     for (const entry of this.entries()) {
-      const day = new Intl.DateTimeFormat('de-DE', { dateStyle: 'full' }).format(
-        new Date(entry.createdAt),
-      );
+      const day = this.dayLabel(entry.createdAt);
       let group = groups.at(-1);
       if (group?.day !== day) {
         group = { day, entries: [] };
@@ -82,6 +84,19 @@ export class RecordTimelineComponent {
       this.loadError.set(null);
       this.expandedId.set(null);
       if (scope.workspaceId && scope.entityId) void this.load(undefined);
+    });
+    let previousRefreshKey: number | string | undefined;
+    effect(() => {
+      const refreshKey = this.refreshKey();
+      const posting = this.posting();
+      if (previousRefreshKey === undefined) {
+        previousRefreshKey = refreshKey;
+        return;
+      }
+      if (refreshKey === previousRefreshKey || posting) return;
+      previousRefreshKey = refreshKey;
+      // Ein Speichervorgang erneuert nur die Historie, nicht den Kommentarentwurf.
+      untracked(() => void this.load(undefined));
     });
   }
   updateDraft(event: Event): void {
@@ -137,6 +152,11 @@ export class RecordTimelineComponent {
       new Date(value),
     );
   }
+  clockTime(value: string): string {
+    return new Intl.DateTimeFormat('de-DE', { hour: '2-digit', minute: '2-digit' }).format(
+      new Date(value),
+    );
+  }
   relativeTime(value: string): string {
     const seconds = Math.round((Date.parse(value) - Date.now()) / 1000);
     const relative = new Intl.RelativeTimeFormat('de-DE', { numeric: 'auto' });
@@ -144,6 +164,19 @@ export class RecordTimelineComponent {
     if (Math.abs(seconds) < 3600) return relative.format(Math.round(seconds / 60), 'minute');
     if (Math.abs(seconds) < 86400) return relative.format(Math.round(seconds / 3600), 'hour');
     return relative.format(Math.round(seconds / 86400), 'day');
+  }
+  actorInitial(name: string): string {
+    return Array.from(name.trim())[0]?.toLocaleUpperCase('de-DE') ?? '?';
+  }
+  private dayLabel(value: string): string {
+    const day = new Date(value);
+    const today = new Date();
+    const dayKey = new Date(day.getFullYear(), day.getMonth(), day.getDate()).getTime();
+    const todayKey = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+    const differenceInDays = Math.round((todayKey - dayKey) / 86_400_000);
+    if (differenceInDays === 0) return 'Heute';
+    if (differenceInDays === 1) return 'Gestern';
+    return new Intl.DateTimeFormat('de-DE', { dateStyle: 'full' }).format(day);
   }
   private async load(cursor: string | undefined): Promise<void> {
     const scope = this.scope();
@@ -176,7 +209,6 @@ export class RecordTimelineComponent {
       entityType: this.entityType(),
       entityId: this.entityId(),
       userId: this.auth.currentUser()?.id ?? null,
-      refreshKey: this.refreshKey(),
     };
   }
   private isCurrent(scope: ReturnType<RecordTimelineComponent['scope']>, version: number): boolean {
@@ -186,8 +218,7 @@ export class RecordTimelineComponent {
       scope.workspaceId === current.workspaceId &&
       scope.entityType === current.entityType &&
       scope.entityId === current.entityId &&
-      scope.userId === current.userId &&
-      scope.refreshKey === current.refreshKey
+      scope.userId === current.userId
     );
   }
 }

@@ -1,259 +1,344 @@
+@let productImages = catalogService.imageUrls();
 <section class="space-y-3" aria-labelledby="purchase-line-editor-title">
   <h3 id="purchase-line-editor-title" class="text-sm font-semibold">Artikel</h3>
-  <div class="flex flex-wrap gap-2">
-    <button
-      type="button"
-      (click)="openPicker()"
-      [disabled]="catalogSelectionDisabled()"
-      class="linear-input min-w-48 flex-1 rounded-lg px-3 py-2 text-left text-sm disabled:opacity-50"
-    >
-      Artikel suchen oder hinzufügen
-    </button>
-    <label class="linear-btn-secondary cursor-pointer rounded-lg px-3 py-2 text-sm"
-      >Liste importieren<input
-        type="file"
-        accept=".csv,text/csv"
-        class="sr-only"
-        (change)="importCsv($event)"
-    /></label>
-    <button
-      type="button"
-      (click)="scannerOpen.set(!scannerOpen())"
-      class="linear-btn-secondary rounded-lg px-3 py-2 text-sm"
-    >
-      Barcode scannen
-    </button>
-  </div>
-  @if (scannerOpen()) {
-    <div class="space-y-2 rounded-lg border border-fb-line p-3">
-      <label for="purchase-scan" class="block text-sm">Barcode scannen oder eingeben</label>
-      <div class="flex gap-2">
-        <input
-          id="purchase-scan"
-          class="linear-input min-w-0 flex-1 rounded-lg px-3 py-2 text-sm"
-          [formControl]="scanControl"
-          (keydown.enter)="$event.preventDefault(); scanBarcode()"
-        /><button
-          type="button"
-          class="linear-btn-secondary rounded-lg px-3 py-2 text-sm"
-          (click)="scanBarcode()"
-        >
-          Hinzufügen</button
-        ><button
-          type="button"
-          class="linear-btn-secondary rounded-lg px-3 py-2 text-sm"
-          (click)="cameraOpen.set(true)"
-        >
-          Kamera
-        </button>
-      </div>
-      <p class="text-xs text-fb-text-muted">
-        Scanner mit Enter abschließen. Jeder bestätigte Scan erzeugt eine eigene Position; Mengen
-        werden nicht automatisch zusammengefasst.
-      </p>
-      @if (scannerMessage()) {
-        <p class="text-sm" role="status">{{ scannerMessage() }}</p>
-      }
-    </div>
-  }
-  <div class="flex gap-3">
-    <button
-      type="button"
-      (click)="addIndividualLine()"
-      class="text-sm underline underline-offset-2"
-    >
-      Neues Einzelstück erfassen</button
-    ><button
-      type="button"
-      (click)="productDialogOpen.set(true)"
-      class="text-sm underline underline-offset-2"
-    >
-      Produkt erstellen
-    </button>
-  </div>
-  @if (importError(); as error) {
-    <p class="text-xs text-rose-300" role="alert">{{ error }}</p>
-  }
-
   @if (catalogService.isLoading()) {
-    <p class="text-xs text-fb-text-muted" role="status">Artikelstamm wird geladen…</p>
-  } @else if (catalogLoadError(); as error) {
-    <div
-      class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-rose-500/30 bg-rose-500/5 px-3 py-2"
-      role="alert"
-    >
-      <p class="text-xs text-rose-300">Artikelstamm konnte nicht geladen werden: {{ error }}</p>
-      <button
-        type="button"
-        (click)="loadCatalogProducts(true)"
-        class="linear-btn-secondary rounded-lg px-2.5 py-1 text-xs font-semibold"
-      >
-        Erneut versuchen
-      </button>
+    <p class="text-[13px] text-fb-text-muted" role="status">Artikelstamm wird geladen…</p>
+  }
+  @if (catalogLoadError(); as error) {
+    <div role="alert" class="space-y-2 text-[13px]">
+      <p>Artikelstamm konnte nicht geladen werden: {{ error }}</p>
+      <app-button (clicked)="loadCatalogProducts(true)">Erneut versuchen</app-button>
     </div>
   }
-
+  @if (importError()) {
+    <p class="text-[13px] text-rose-700 dark:text-rose-400" role="alert">{{ importError() }}</p>
+  }
   @if (lineCount() > 0) {
-    <div class="space-y-2">
-      @for (row of lineRows.controls; track $index) {
-        <div class="rounded-xl border border-fb-line bg-fb-well p-3" [formGroup]="row">
-          <div class="mb-2 flex items-center justify-between gap-2">
-            <span class="text-xs font-semibold text-fb-text-primary">
-              {{
-                row.controls.lineKind.value === 'quantity'
-                  ? 'Mengenartikel'
-                  : 'Einzelstück / Mystery-Inhalt'
-              }}
-            </span>
-            <button
-              type="button"
-              (click)="removeLine($index)"
-              class="cursor-pointer text-xs font-semibold text-fb-text-secondary hover:text-fb-text-primary"
-            >
-              Position löschen
-            </button>
-          </div>
-
-          <div class="grid grid-cols-1 gap-2 sm:grid-cols-6">
-            @if (row.controls.lineKind.value === 'quantity') {
-              <div class="sm:col-span-2 text-xs font-semibold text-fb-text-muted">
-                <label [for]="'purchase-line-catalog-' + $index">Artikelstamm</label>
-                <app-custom-select
-                  class="mt-1 w-full normal-case"
-                  [triggerId]="'purchase-line-catalog-' + $index"
-                  [ariaLabel]="'Artikelstamm für Position ' + ($index + 1)"
-                  [options]="quantityProductOptions()"
-                  [disabled]="catalogSelectionDisabled()"
-                  [value]="row.controls.catalogProductId.value"
-                  [placeholder]="
-                    catalogService.isLoading() ? 'Artikel werden geladen…' : 'Artikel wählen'
+    <table class="block w-full table-fixed text-[13px] md:table">
+      <caption class="sr-only">
+        Einkaufspositionen
+      </caption>
+      <thead class="sr-only md:not-sr-only md:table-header-group">
+        <tr class="text-fb-text-secondary">
+          <th scope="col" class="border-b border-fb-line py-2 text-left">Artikel</th>
+          <th scope="col" class="w-28 border-b border-fb-line px-2 py-2 text-left">Menge</th>
+          <th scope="col" class="w-32 border-b border-fb-line px-2 py-2 text-left">Stückpreis</th>
+          <th scope="col" class="w-24 border-b border-fb-line px-2 py-2 text-right">Gesamt</th>
+          <th scope="col" class="w-16 border-b border-fb-line py-2">
+            <span class="sr-only">Entfernen</span>
+          </th>
+        </tr>
+      </thead>
+      <tbody class="block divide-y divide-fb-line md:table-row-group">
+        @for (row of lineRows.controls; track row.controls.draftId.value) {
+          @let id = row.controls.draftId.value;
+          <tr
+            [formGroup]="row"
+            class="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-x-3 gap-y-2 py-3 md:table-row md:py-0"
+          >
+            <td class="col-span-2 min-w-0 md:py-3 md:pr-3">
+              <div class="flex min-w-0 items-center gap-2">
+                <app-product-thumbnail
+                  (imageFailed)="
+                    catalogService.invalidateProductImage(row.controls.catalogProductId.value || '')
                   "
-                  (valueChange)="selectCatalogProduct($index, $event ?? '')"
-                  size="sm"
+                  [src]="productImages[row.controls.catalogProductId.value || ''] || null"
                 />
-              </div>
-            } @else {
-              <label class="sm:col-span-2 text-xs font-semibold text-fb-text-muted">
-                Bezeichnung
-                <input
-                  type="text"
-                  formControlName="titleSnapshot"
-                  (input)="updateTitleSnapshotFromEvent($index, $event)"
-                  class="linear-input mt-1 w-full rounded-lg px-2.5 py-1.5 text-xs"
-                  placeholder="z. B. Mystery-Fundstück"
-                />
-              </label>
-              <label class="text-xs font-semibold text-fb-text-muted">
-                EAN / GTIN (optional)
-                <input
-                  type="text"
-                  formControlName="ean"
-                  class="linear-input mt-1 w-full rounded-lg px-2.5 py-1.5 text-xs"
-                  placeholder="z. B. 036000291452"
-                />
-                @if (row.controls.ean.invalid && row.controls.ean.touched) {
-                  <span class="mt-1 block normal-case text-rose-300" role="alert"
-                    >Ungültige EAN/GTIN.</span
+                <div class="min-w-0 flex-1">
+                  <app-button
+                    variant="plain"
+                    [fullWidth]="true"
+                    [title]="row.controls.titleSnapshot.value"
+                    [ariaLabel]="row.controls.titleSnapshot.value + ' – Details'"
+                    (clicked)="openDetails(id)"
+                    ><span class="break-words text-left">{{
+                      row.controls.titleSnapshot.value || 'Produkt zuordnen'
+                    }}</span></app-button
                   >
-                }
-              </label>
-            }
-
-            <label class="text-xs font-semibold text-fb-text-muted">
-              Menge
-              <input
-                type="number"
-                min="1"
+                  @if (row.invalid) {
+                    <p class="mt-1 text-xs text-rose-700 dark:text-rose-400">Angaben prüfen</p>
+                  }
+                </div>
+              </div>
+            </td>
+            <td class="min-w-0 md:px-2 md:py-3">
+              <label [for]="'purchase-line-quantity-' + id" class="mb-1 block text-xs md:sr-only"
+                >Menge</label
+              >
+              <app-number-input
+                [id]="'purchase-line-quantity-' + id"
                 formControlName="orderedQuantity"
-                [readonly]="row.controls.lineKind.value === 'individual'"
-                (input)="updateQuantity($index)"
-                class="linear-input mt-1 w-full rounded-lg px-2.5 py-1.5 text-xs"
+                [ariaLabel]="'Menge für ' + row.controls.titleSnapshot.value"
+                [min]="1"
+                [max]="100000"
+                [showStepper]="false"
+                (valueChange)="updateQuantity($index)"
               />
-            </label>
-            <div class="text-xs font-semibold text-fb-text-muted">
-              Zustand
-              <span class="ml-1 normal-case text-fb-text-secondary">
-                ({{ row.controls.condition.value | itemConditionLabel }})
-              </span>
-              <app-custom-select
-                formControlName="condition"
-                [options]="conditionOptions"
-                [ariaLabel]="'Zustand: ' + (row.controls.condition.value | itemConditionLabel)"
-                placeholder="Zustand wählen"
-                size="sm"
-                class="mt-1 w-full"
-              />
-            </div>
-            @if (isMysteryPurchase()) {
-              <label class="sm:col-span-2 text-xs font-semibold text-fb-text-muted">
-                Geschätzter Marktwert (optional)
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  formControlName="estimatedMarketValue"
-                  (input)="updateEstimatedMarketValue($index, $event)"
-                  class="linear-input mt-1 w-full rounded-lg px-2.5 py-1.5 text-xs"
-                />
-              </label>
-            } @else {
-              <label class="text-xs font-semibold text-fb-text-muted">
-                {{ pricingMode() === 'total' ? 'Ø Stückpreis' : 'Stückpreis' }}
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
+              @if (row.controls.orderedQuantity.invalid) {
+                <p role="alert" class="mt-1 text-xs text-rose-700 dark:text-rose-400">
+                  Ganze Zahl von 1 bis 100.000.
+                </p>
+              }
+            </td>
+            <td class="min-w-0 md:px-2 md:py-3">
+              <label [for]="'purchase-line-unit-price-' + id" class="mb-1 block text-xs md:sr-only"
+                >Stückpreis</label
+              >
+              @if (isMysteryPurchase()) {
+                <span class="text-fb-text-muted">Offen</span>
+              } @else {
+                <app-number-input
+                  [id]="'purchase-line-unit-price-' + id"
                   formControlName="unitPurchasePrice"
-                  [readonly]="pricingMode() === 'total'"
-                  (input)="recalculate($index, 'unitPurchasePrice')"
-                  class="linear-input mt-1 w-full rounded-lg px-2.5 py-1.5 text-xs"
+                  [ariaLabel]="'Stückpreis für ' + row.controls.titleSnapshot.value"
+                  placeholder="Offen"
+                  [min]="0"
+                  [step]="0.01"
+                  [showStepper]="false"
+                  unit="€"
+                  (valueChange)="recalculate($index, 'unitPurchasePrice')"
                 />
-              </label>
-              <label class="text-xs font-semibold text-fb-text-muted">
-                Gesamt
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  formControlName="lineTotal"
-                  [readonly]="pricingMode() === 'total'"
-                  (input)="recalculate($index, 'lineTotal')"
-                  class="linear-input mt-1 w-full rounded-lg px-2.5 py-1.5 text-xs"
-                />
-              </label>
-            }
-          </div>
-        </div>
-      }
-    </div>
+                @if (row.controls.unitPurchasePrice.invalid) {
+                  <p role="alert" class="mt-1 text-xs text-rose-700 dark:text-rose-400">
+                    Gültigen Centbetrag eingeben.
+                  </p>
+                }
+              }
+            </td>
+            <td class="col-span-2 text-right tabular-nums md:px-2 md:py-3">
+              @if (row.hasError('totalTooLarge')) {
+                <p role="alert" class="text-xs text-rose-700 dark:text-rose-400">
+                  Gesamtbetrag ist zu groß.
+                </p>
+              }
+              <span class="mr-2 text-xs text-fb-text-muted md:hidden">Gesamt</span>
+              {{
+                row.controls.lineTotal.value === null
+                  ? 'Offen'
+                  : (row.controls.lineTotal.value | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
+              }}
+            </td>
+            <td class="col-start-3 row-start-1 self-start text-right md:py-3">
+              <app-button
+                variant="ghost"
+                [iconOnly]="true"
+                [icon]="removeIcon"
+                [ariaLabel]="
+                  'Artikel ' + (row.controls.titleSnapshot.value || 'ohne Namen') + ' entfernen'
+                "
+                title="Artikel entfernen"
+                (clicked)="removeLine($index)"
+              />
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
     @if (isMysteryPurchase()) {
       <p class="text-xs text-fb-text-muted">
-        Die Gesamtkosten werden beim Abschließen gleichmäßig auf alle erfassten Stücke verteilt.
+        Die Gesamtkosten werden beim Abschließen auf die erfassten Stücke verteilt.
       </p>
     }
   } @else {
-    <p
-      class="rounded-xl border border-dashed border-fb-line px-3 py-4 text-center text-xs text-fb-text-muted"
-    >
+    <p class="py-4 text-center text-[13px] text-fb-text-muted">
       Noch keine Einkaufspositionen hinzugefügt.
     </p>
+  }
+  <div class="flex items-center gap-2 border-t border-fb-line pt-3">
+    <app-button
+      data-add-products
+      class="min-w-0 flex-1"
+      variant="ghost"
+      size="search"
+      [icon]="searchIcon"
+      [disabled]="catalogSelectionDisabled()"
+      (clicked)="openPicker()"
+      >Artikel suchen oder hinzufügen</app-button
+    >
+    <app-button
+      variant="ghost"
+      [iconOnly]="true"
+      [icon]="importIcon"
+      ariaLabel="Liste importieren"
+      title="Liste importieren"
+      (clicked)="csvInput.click()"
+    />
+    <app-button
+      variant="ghost"
+      [iconOnly]="true"
+      [icon]="scannerIcon"
+      ariaLabel="Barcode scannen"
+      title="Barcode scannen"
+      [ariaExpanded]="scannerOpen()"
+      (clicked)="scannerOpen.set(!scannerOpen())"
+    />
+    <!-- Der Browser-Dateidialog benötigt ein verborgenes natives Dateifeld. -->
+    <input
+      #csvInput
+      type="file"
+      accept=".csv,text/csv"
+      class="sr-only"
+      data-shared-ui-exception="native-file-picker"
+      tabindex="-1"
+      aria-hidden="true"
+      (change)="importCsv($event)"
+    />
+  </div>
+  @if (scannerOpen()) {
+    <div class="space-y-2">
+      <div class="flex flex-wrap items-end gap-2">
+        <app-text-field
+          [id]="'purchase-scan'"
+          class="min-w-0 flex-1"
+          label="Barcode scannen oder eingeben"
+          [formControl]="scanControl"
+          (keydown.enter)="$event.preventDefault(); scanBarcode()"
+        />
+        <app-button (clicked)="scanBarcode()">Hinzufügen</app-button>
+        <app-button (clicked)="cameraOpen.set(true)">Kamera</app-button>
+      </div>
+      @if (scannerMessage()) {
+        <p class="text-[13px]" role="status">{{ scannerMessage() }}</p>
+      }
+    </div>
   }
 </section>
 
 @if (pickerOpen()) {
   <app-purchase-product-picker
     [products]="availableProducts()"
+    [imageUrls]="productImages"
     [initialSearch]="pickerSearch()"
     (closed)="pickerOpen.set(false)"
     (selected)="addProducts($event)"
+    (createRequested)="isCreatingProduct.set(true)"
+    (imageFailed)="catalogService.invalidateProductImage($event)"
   />
+}
+@if (isCreatingProduct()) {
+  <app-product-dialog (closed)="isCreatingProduct.set(false)" (created)="productCreated($event)" />
 }
 @if (cameraOpen()) {
   <app-barcode-scanner (closed)="cameraOpen.set(false)" (detected)="scanBarcode($event)" />
 }
-@if (productDialogOpen()) {
-  <app-catalog-product-dialog
-    (closed)="productDialogOpen.set(false)"
-    (saved)="onProductCreated($event)"
-  />
+@if (detailRow(); as row) {
+  <app-modal-shell
+    [title]="row.controls.titleSnapshot.value || 'Artikeldetails'"
+    size="md"
+    (closed)="detailId.set(null)"
+  >
+    <div [formGroup]="row" class="space-y-4">
+      @if (!row.controls.catalogProductId.value) {
+        @if (row.controls.lineKind.value === 'quantity') {
+          <div>
+            <label class="mb-1.5 block text-[13px] font-semibold" for="line-product"
+              >Produkt zuordnen</label
+            ><app-custom-select
+              triggerId="line-product"
+              ariaLabel="Produkt zuordnen"
+              [options]="productOptions()"
+              [value]="row.controls.catalogProductId.value"
+              (valueChange)="selectCatalogProduct(lineRows.controls.indexOf(row), $event ?? '')"
+            />
+          </div>
+        }
+        <app-text-field label="Bezeichnung" formControlName="titleSnapshot" />
+      }
+      @if (detailProduct(); as product) {
+        <dl class="grid grid-cols-2 gap-2 text-[13px]">
+          <dt class="text-fb-text-muted">Marke</dt>
+          <dd class="break-words">{{ product.brand || 'Nicht angegeben' }}</dd>
+          <dt class="text-fb-text-muted">Modell</dt>
+          <dd class="break-words">{{ product.model || 'Nicht angegeben' }}</dd>
+          <dt class="text-fb-text-muted">Kategorie</dt>
+          <dd class="break-words">{{ product.category || 'Nicht angegeben' }}</dd>
+          <dt class="text-fb-text-muted">Mängelnotiz</dt>
+          <dd class="break-words">{{ product.condition_notes || 'Nicht angegeben' }}</dd>
+        </dl>
+      }
+      <app-text-field
+        label="EAN / GTIN (optional)"
+        formControlName="ean"
+        [error]="row.controls.ean.invalid ? 'Ungültige EAN/GTIN.' : null"
+      />
+      <div>
+        <label for="line-condition" class="mb-1.5 block text-[13px] font-semibold">Zustand</label
+        ><app-custom-select
+          triggerId="line-condition"
+          ariaLabel="Zustand"
+          formControlName="condition"
+          [options]="conditionOptions"
+        />
+      </div>
+      @if (isMysteryPurchase()) {
+        <div>
+          <label for="line-market-value" class="mb-1.5 block text-[13px] font-semibold"
+            >Geschätzter Marktwert (optional)</label
+          ><app-number-input
+            id="line-market-value"
+            ariaLabel="Geschätzter Marktwert"
+            formControlName="estimatedMarketValue"
+            [min]="0"
+            [step]="0.01"
+            [showStepper]="false"
+            unit="€"
+          />
+        </div>
+      }
+    </div>
+    <app-button modal-footer variant="primary" (clicked)="detailId.set(null)">Fertig</app-button>
+  </app-modal-shell>
+}
+@if (importPreview().length) {
+  <app-modal-shell title="CSV-Vorschau" size="xl" (closed)="importPreview.set([])">
+    <p class="text-[13px] text-fb-text-muted">
+      Jede CSV-Zeile bleibt eine eigene Position. Prüfe Menge, Preis und Produktzuordnung vor der
+      Übernahme.
+    </p>
+    @if (importError()) {
+      <p role="alert" class="text-sm text-rose-700 dark:text-rose-400">{{ importError() }}</p>
+    }
+    <div class="space-y-4">
+      @for (row of importPreview(); track row.rowNumber) {
+        <div class="space-y-2 border-b border-fb-line pb-3">
+          <p class="text-[13px] font-semibold">
+            Zeile {{ row.rowNumber }}: {{ row.title || 'Ohne Namen' }}
+          </p>
+          <p class="text-[13px]">
+            Menge: {{ row.quantity ?? 'Ungültig' }} · Stückpreis:
+            {{
+              row.unitPrice === null
+                ? 'Offen'
+                : (row.unitPrice | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
+            }}
+            · Gesamt:
+            {{
+              row.total === null
+                ? 'Offen'
+                : (row.total | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
+            }}
+            @if (row.condition) {
+              · {{ row.condition | itemConditionLabel }}
+            }
+          </p>
+          <app-custom-select
+            [ariaLabel]="'Produkt für CSV-Zeile ' + row.rowNumber"
+            [options]="productOptions()"
+            [value]="row.productId"
+            placeholder="Produkt bewusst zuordnen"
+            (valueChange)="assignImportProduct(row.rowNumber, $event)"
+          />
+          @for (error of row.errors; track error) {
+            <p role="alert" class="text-xs text-rose-700 dark:text-rose-400">{{ error }}</p>
+          }
+        </div>
+      }
+    </div>
+    <div modal-footer class="flex gap-2">
+      <app-button (clicked)="importPreview.set([])">Abbrechen</app-button
+      ><app-button variant="primary" [disabled]="importBlocked()" (clicked)="confirmImport()"
+        >Import übernehmen</app-button
+      >
+    </div>
+  </app-modal-shell>
 }

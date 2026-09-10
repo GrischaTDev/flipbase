@@ -43,6 +43,7 @@ import {
 } from '../../../../core/models/table-preferences.models';
 import type { InventoryPresentationRow } from '../../models/inventory-presentation.models';
 import { editableItemStatusOptions } from '../../models/item-status-options';
+import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
 import {
   buildInventoryPresentation,
   InventorySourceState,
@@ -52,6 +53,7 @@ import {
   selector: 'app-stock-position-list',
   imports: [
     RouterLink,
+    ProductThumbnailComponent,
     CurrencyPipe,
     DatePipe,
     LucideDynamicIcon,
@@ -66,6 +68,8 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class StockPositionListComponent {
+  readonly imageUrls = input<Readonly<Record<string, string>>>({});
+  readonly imageFailed = output<string>();
   readonly tableColumns = input<readonly ColumnDefinition<InventoryColumnId>[]>([]);
   readonly sortOptions = input<readonly SortFieldOption<InventorySortField>[]>([]);
   readonly currentSort = input<TableSortState<InventorySortField>>({
@@ -75,7 +79,6 @@ export class StockPositionListComponent {
   readonly columnVisibilityToggled = output<InventoryColumnId>();
   readonly columnsReordered = output<{ previousIndex: number; currentIndex: number }>();
   readonly sortChanged = output<TableSortState<InventorySortField>>();
-  readonly resetRequested = output<void>();
   readonly viewModified = input(false);
   readonly viewResetRequested = output<void>();
   readonly archivePendingIds = input<ReadonlySet<string>>(new Set());

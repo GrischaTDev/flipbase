@@ -3,12 +3,47 @@ import { ɵresolveComponentResources, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { readFile } from 'node:fs/promises';
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { PurchaseLifecycleActionsComponent } from './purchase-lifecycle-actions.component';
 
+interface ComponentMetadata {
+  inputs: Record<string, unknown>;
+  declaredInputs: Record<string, string>;
+  outputs: Record<string, string>;
+}
+let originalMetadata: ComponentMetadata;
+
 beforeAll(async () => {
-  await ɵresolveComponentResources((url) => readFile(new URL(url, import.meta.url), 'utf8'));
+  await ɵresolveComponentResources((url) =>
+    readFile(
+      new URL(
+        url.includes('button.component')
+          ? '../../../../shared/components/button/' + url.replace(/^\.\//, '')
+          : url,
+        import.meta.url,
+      ),
+      'utf8',
+    ),
+  );
+  const metadata = (ButtonComponent as unknown as { ɵcmp: ComponentMetadata }).ɵcmp;
+  originalMetadata = {
+    inputs: metadata.inputs,
+    declaredInputs: metadata.declaredInputs,
+    outputs: metadata.outputs,
+  };
+  metadata.inputs = { ...metadata.inputs };
+  metadata.declaredInputs = { ...metadata.declaredInputs };
+  for (const name of ['variant', 'size', 'disabled', 'link', 'queryParams']) {
+    metadata.inputs[name] = [name, 1, null];
+    metadata.declaredInputs[name] = name;
+  }
+  metadata.outputs = { ...metadata.outputs, clicked: 'clicked' };
 });
+
+afterAll(() =>
+  Object.assign((ButtonComponent as unknown as { ɵcmp: ComponentMetadata }).ɵcmp, originalMetadata),
+);
 
 afterEach(() => TestBed.resetTestingModule());
 
@@ -21,6 +56,8 @@ function render(
     shipment: 'not_shipped' | 'in_transit' | 'arrived';
     content: 'known' | 'unknown';
   } = { receiving: 'received', shipment: 'arrived', content: 'known' },
+  editing = false,
+  submitting = false,
 ) {
   TestBed.resetTestingModule();
   const fixture = TestBed.configureTestingModule({
@@ -34,12 +71,68 @@ function render(
     receivingStatus: signal(workflow.receiving),
     shipmentStatus: signal(workflow.shipment),
     contentStatus: signal(workflow.content),
+    editing: signal(editing),
+    submitting: signal(submitting),
   });
   fixture.detectChanges();
   return fixture;
 }
 
 describe('PurchaseLifecycleActionsComponent', () => {
+  it('blendet beim Bearbeiten nur die redundante Bearbeiten-Aktion aus', () => {
+    const fixture = render(
+      'draft',
+      'idle',
+      null,
+      {
+        receiving: 'draft',
+        shipment: 'not_shipped',
+        content: 'unknown',
+      },
+      true,
+    );
+
+    const buttons = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('button'));
+    expect(buttons.map((button) => button.textContent?.trim())).toEqual([
+      'Löschen',
+      'Als bestellt markieren',
+    ]);
+    const ordered = vi.fn();
+    fixture.componentInstance.orderedRequested.subscribe(ordered);
+    buttons[1].click();
+    expect(ordered).toHaveBeenCalledOnce();
+  });
+
+  it('erhält beim Bearbeiten die Abschlusssperre während der Übermittlung', () => {
+    const fixture = render('capturing', 'idle', null, undefined, true, true);
+
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.textContent).not.toContain('Bearbeiten');
+    const button = host.querySelector<HTMLButtonElement>('[data-finalize-purchase] button');
+    expect(button?.disabled).toBe(true);
+    const finalize = vi.fn();
+    fixture.componentInstance.finalizeRequested.subscribe(finalize);
+    button?.click();
+    expect(finalize).not.toHaveBeenCalled();
+  });
+
+  it('ordnet sekundäre Entwurfsaktionen vor der primären Folgeaktion an', () => {
+    const fixture = render('draft', 'idle', null, {
+      receiving: 'draft',
+      shipment: 'not_shipped',
+      content: 'unknown',
+    });
+    const buttons = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('button'));
+    expect(buttons.map((button) => button.textContent?.trim())).toEqual([
+      'Bearbeiten',
+      'Löschen',
+      'Als bestellt markieren',
+    ]);
+    const emitted = vi.fn();
+    fixture.componentInstance.deleteRequested.subscribe(emitted);
+    buttons[1].click();
+    expect(emitted).toHaveBeenCalledOnce();
+  });
   it.each(['draft', 'capturing'] as const)(
     'bietet für einen gespeicherten %s-Entwurf das Abschließen an',
     (entryStatus) => {
@@ -86,7 +179,7 @@ describe('PurchaseLifecycleActionsComponent', () => {
   it('zeigt für unvollständige Legacy-Verkaufsdaten nur den klaren Prüfpfad', () => {
     const fixture = render('finalized', 'review_required', 'item-review');
     const host = fixture.nativeElement as HTMLElement;
-    const link = host.querySelector<HTMLAnchorElement>('[data-review-purchase-item]');
+    const link = host.querySelector<HTMLAnchorElement>('[data-review-purchase-item] a');
 
     expect(host.querySelector('[data-reopen-purchase]')).toBeNull();
     expect(host.querySelector('[data-correct-purchase]')).toBeNull();
@@ -108,7 +201,7 @@ describe('PurchaseLifecycleActionsComponent', () => {
     const finalize = vi.fn();
     draft.componentInstance.finalizeRequested.subscribe(finalize);
     (draft.nativeElement as HTMLElement)
-      .querySelector<HTMLButtonElement>('[data-finalize-purchase]')
+      .querySelector<HTMLButtonElement>('[data-finalize-purchase] button')
       ?.click();
     expect(finalize).toHaveBeenCalledOnce();
 
@@ -116,7 +209,7 @@ describe('PurchaseLifecycleActionsComponent', () => {
     const retry = vi.fn();
     error.componentInstance.saleHistoryReloadRequested.subscribe(retry);
     (error.nativeElement as HTMLElement)
-      .querySelector<HTMLButtonElement>('[data-retry-sale-history]')
+      .querySelector<HTMLButtonElement>('[data-retry-sale-history] button')
       ?.click();
     expect(retry).toHaveBeenCalledOnce();
   });

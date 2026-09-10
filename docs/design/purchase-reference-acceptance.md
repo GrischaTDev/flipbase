@@ -2,6 +2,10 @@
 
 ## Verbindlicher Auftrag
 
+**Präzisierung vom 08.09.2026:** Statusbadges sind auf ausdrücklichen Nutzerwunsch reine Textbadges. Frühere Punkt-/Quadratmarker aus der Tabellenreferenz sind damit aufgehoben; keine führenden Icons oder dekorative Versalschrift. Gemeinsame Badge-Komponente in Übersicht, Details und Belegvorschau verwenden. Chronikmarkierungen bleiben erhalten.
+
+**Präzisierung vom 07.09.2026:** Der neue [Tabellen-Konsistenzplan](../superpowers/plans/2026-09-07-admin-table-consistency.md) ersetzt für die Übersicht die frühere Forderung nach einer sichtbaren Textaktion „Ansicht zurücksetzen“. Verbindlich ist ein nur bei geänderter Tabellenkonfiguration sichtbares Icon mit zwei gegenläufigen Pfeilen; der Text bleibt Tooltip und zugänglicher Name. Statusauswahl/Suche erscheinen rahmenlos im Ruhezustand. Kostenstatus und Aktionsspalte entfallen in der Einkaufsliste; Statusbadges werden gemeinsam vereinheitlicht. Die heutigen Messwerte und noch offenen Produktentscheidungen stehen im neuen Plan.
+
 Der Nutzer verlangt die sichtbare Gestaltung des Shopify-Admins als direkte Vorlage: Layout, Abstände, Texte, Titel, Schaltflächen, Dropdowns, Dialoge, Karten, Farben und Bewegung. Fachliche Anpassungen sind Verkäuferarten, Paketinhalte, eigene Statusführung und konfigurierbare Nummernkreise. Bestehendes Logo-Gelb bleibt die ausdrücklich vereinbarte Markenabweichung. Keine eigenständige gestalterische Neuinterpretation je Funktion.
 
 ## Erneute Live-Prüfung

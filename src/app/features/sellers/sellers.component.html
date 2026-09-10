@@ -24,18 +24,19 @@
   <section class="linear-surface overflow-hidden rounded-xl" aria-labelledby="seller-table-title">
     <h2 id="seller-table-title" class="sr-only">Verkäuferliste</h2>
     <div class="flex flex-wrap items-center gap-2 border-b border-fb-line p-2">
-      <label>
+      <label for="seller-type-filter">
         <span class="sr-only">Verkäufertyp</span>
-        <select
+        <app-custom-select
           data-seller-type-filter
-          class="linear-input h-8 rounded-lg px-2 text-[13px]"
+          triggerId="seller-type-filter"
+          ariaLabel="Verkäufertyp"
+          variant="filter"
+          size="sm"
+          widthClass="w-auto"
+          [options]="typeFilterOptions"
           [value]="typeFilter()"
-          (change)="typeFilter.set($any($event.target).value)"
-        >
-          <option value="all">Alle</option>
-          <option value="company">Unternehmen</option>
-          <option value="private">Privatpersonen</option>
-        </select>
+          (valueChange)="typeFilter.set($event ?? 'all')"
+        />
       </label>
 
       <button
@@ -94,10 +95,7 @@
                 </td>
                 <td>{{ formatLocation(seller) }}</td>
                 <td>
-                  <app-badge
-                    [tone]="seller.is_active === false ? 'neutral' : 'success'"
-                    [dot]="true"
-                  >
+                  <app-badge [tone]="seller.is_active === false ? 'neutral' : 'success'">
                     {{ seller.is_active === false ? 'Archiviert' : 'Aktiv' }}
                   </app-badge>
                 </td>

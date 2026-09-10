@@ -1,43 +1,40 @@
+@let productImages = catalogService.imageUrls();
 <div class="space-y-4 animate-fade-in">
   <app-page-header
     title="Artikelstamm"
     [icon]="bookOpenIcon"
-    subtitle="Zentrale Artikeldefinitionen für Mengenartikel und Einzelstücke."
+    subtitle="Produkte und verfügbare Bestände."
   >
     <div header-actions class="flex flex-wrap gap-2">
-      <label
-        class="linear-btn-secondary inline-flex cursor-pointer items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-semibold"
+      <app-button (clicked)="csvInput.click()">CSV importieren</app-button>
+      <!-- Der Browser-Dateidialog benötigt ein verborgenes natives Dateifeld. -->
+      <input
+        #csvInput
+        type="file"
+        accept=".csv,text/csv"
+        class="sr-only"
+        tabindex="-1"
+        aria-hidden="true"
+        data-shared-ui-exception="native-file-picker"
+        (change)="previewCsv($event)"
+      />
+      <app-button variant="primary" [icon]="plusIcon" (clicked)="isCreateOpen.set(true)"
+        >Produkt erstellen</app-button
       >
-        CSV importieren
-        <input type="file" accept=".csv,text/csv" class="sr-only" (change)="previewCsv($event)" />
-      </label>
-      <button
-        type="button"
-        (click)="isCreateOpen.set(true)"
-        class="linear-btn-primary inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-semibold"
-      >
-        <svg [lucideIcon]="plusIcon" class="h-3.5 w-3.5"></svg>
-        Artikel anlegen
-      </button>
     </div>
   </app-page-header>
 
   <div class="linear-surface relative overflow-visible rounded-xl">
     <div class="flex flex-wrap items-center gap-2 p-2">
-      <label class="relative min-w-56 flex-1">
-        <span class="sr-only">Artikelstamm durchsuchen</span>
-        <svg
-          [lucideIcon]="searchIcon"
-          class="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-fb-text-muted"
-        ></svg>
-        <input
-          [value]="searchQuery()"
-          (input)="searchQuery.set($any($event.target).value)"
-          type="search"
-          placeholder="Titel, EAN, Marke oder Modell suchen …"
-          class="linear-input w-full rounded-md py-2 pl-9 pr-3 text-[13px]"
-        />
-      </label>
+      <app-text-field
+        class="min-w-0 flex-1"
+        label="Artikelstamm durchsuchen"
+        [labelHidden]="true"
+        type="search"
+        placeholder="Titel, EAN, Marke oder Modell suchen …"
+        [prefixIcon]="searchIcon"
+        [formControl]="searchControl"
+      />
       <div class="ml-auto border-l border-fb-line pl-2">
         <app-table-column-menu
           [columns]="tablePrefs().columns"
@@ -47,7 +44,6 @@
           (columnVisibilityToggled)="toggleColumnVisibility($event)"
           (columnsReordered)="onColumnsReordered($event)"
           (sortChanged)="onSortChanged($event)"
-          (resetRequested)="resetTablePreferences()"
           (viewResetRequested)="resetView()"
         />
       </div>
@@ -93,7 +89,6 @@
             <tr>
               <th scope="col" class="px-3 py-2 text-left">Titel</th>
               <th scope="col" class="px-3 py-2 text-left">EAN</th>
-              <th scope="col" class="px-3 py-2 text-left">Nachverfolgung</th>
               <th scope="col" class="px-3 py-2 text-left">Prüfung</th>
             </tr>
           </thead>
@@ -102,9 +97,6 @@
               <tr>
                 <td class="px-3 py-2">{{ row.title || '—' }}</td>
                 <td class="px-3 py-2 font-mono">{{ row.ean || '—' }}</td>
-                <td class="px-3 py-2">
-                  {{ row.trackingMode === 'individual' ? 'Einzelstück' : 'Mengenartikel' }}
-                </td>
                 <td class="px-3 py-2" [class.text-rose-300]="row.error">
                   {{ row.error || 'Bereit' }}
                 </td>
@@ -202,7 +194,15 @@
                   @switch (column.id) {
                     @case ('title') {
                       <td class="px-4 py-3">
-                        <p class="font-semibold text-fb-text-primary">{{ product.title }}</p>
+                        <div class="flex items-center gap-2">
+                          <app-product-thumbnail
+                            (imageFailed)="catalogService.invalidateProductImage(product.id)"
+                            [src]="productImages[product.id] || null"
+                          />
+                          <p class="min-w-0 break-words font-semibold text-fb-text-primary">
+                            {{ product.title }}
+                          </p>
+                        </div>
                         @if (product.brand || product.model) {
                           <p class="mt-0.5 text-[10px] text-fb-text-muted">
                             {{ product.brand }} {{ product.model }}
@@ -252,7 +252,15 @@
           <article class="rounded-lg border border-fb-line bg-fb-well p-3">
             <div class="flex items-start justify-between gap-3">
               <div>
-                <h2 class="text-sm font-semibold text-fb-text-primary">{{ product.title }}</h2>
+                <div class="flex items-center gap-2">
+                  <app-product-thumbnail
+                    (imageFailed)="catalogService.invalidateProductImage(product.id)"
+                    [src]="productImages[product.id] || null"
+                  />
+                  <h2 class="min-w-0 break-words text-sm font-semibold text-fb-text-primary">
+                    {{ product.title }}
+                  </h2>
+                </div>
                 @if (visibleColumns().includes('ean')) {
                   <p class="mt-0.5 font-mono text-[10px] text-fb-text-muted">
                     EAN {{ product.ean || '—' }}
@@ -292,9 +300,6 @@
   }
 
   @if (isCreateOpen()) {
-    <app-catalog-product-dialog
-      (closed)="isCreateOpen.set(false)"
-      (saved)="isCreateOpen.set(false)"
-    />
+    <app-product-dialog (closed)="isCreateOpen.set(false)" (created)="isCreateOpen.set(false)" />
   }
 </div>

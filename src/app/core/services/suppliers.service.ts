@@ -12,6 +12,10 @@ function trimmedOrNull(value: string | null | undefined): string | null {
   return value?.trim() || null;
 }
 
+function valueOrCurrent<T>(value: T | undefined, currentValue: T): T {
+  return value === undefined ? currentValue : value;
+}
+
 function normalizeSeller(value: SellerFormValue): SellerFormValue {
   const sellerType = value.seller_type;
 
@@ -221,18 +225,21 @@ export class SuppliersService {
     const isStructured = aenderungen.seller_type !== undefined;
     const bereinigt: SupplierUpdate = isStructured
       ? normalizeSeller({
-          seller_type: aenderungen.seller_type ?? current?.seller_type ?? 'private',
-          name: aenderungen.name ?? current?.name ?? '',
-          contact_person: aenderungen.contact_person ?? current?.contact_person ?? null,
-          country_code: aenderungen.country_code ?? current?.country_code ?? null,
-          street: aenderungen.street ?? current?.street ?? null,
-          address_extra: aenderungen.address_extra ?? current?.address_extra ?? null,
-          postal_code: aenderungen.postal_code ?? current?.postal_code ?? null,
-          city: aenderungen.city ?? current?.city ?? null,
-          email: aenderungen.email ?? current?.email ?? null,
-          phone: aenderungen.phone ?? current?.phone ?? null,
-          website: aenderungen.website ?? current?.website ?? null,
-          notes: aenderungen.notes ?? current?.notes ?? null,
+          seller_type: valueOrCurrent(aenderungen.seller_type, current?.seller_type ?? 'private'),
+          name: valueOrCurrent(aenderungen.name, current?.name ?? ''),
+          contact_person: valueOrCurrent(
+            aenderungen.contact_person,
+            current?.contact_person ?? null,
+          ),
+          country_code: valueOrCurrent(aenderungen.country_code, current?.country_code ?? null),
+          street: valueOrCurrent(aenderungen.street, current?.street ?? null),
+          address_extra: valueOrCurrent(aenderungen.address_extra, current?.address_extra ?? null),
+          postal_code: valueOrCurrent(aenderungen.postal_code, current?.postal_code ?? null),
+          city: valueOrCurrent(aenderungen.city, current?.city ?? null),
+          email: valueOrCurrent(aenderungen.email, current?.email ?? null),
+          phone: valueOrCurrent(aenderungen.phone, current?.phone ?? null),
+          website: valueOrCurrent(aenderungen.website, current?.website ?? null),
+          notes: valueOrCurrent(aenderungen.notes, current?.notes ?? null),
         })
       : {
           ...aenderungen,

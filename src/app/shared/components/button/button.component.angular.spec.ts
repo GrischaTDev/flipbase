@@ -1,6 +1,7 @@
 import '@angular/compiler';
 import { ɵresolveComponentResources } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { readFile } from 'node:fs/promises';
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { ButtonComponent } from './button.component';
@@ -17,6 +18,24 @@ beforeAll(async () => {
 });
 
 describe('ButtonComponent', () => {
+  it('liefert den gemessenen Suchauslöser als gemeinsame 36-Pixel-Variante', () => {
+    fixture.componentRef.setInput('size', 'search');
+    fixture.detectChanges();
+    const button: HTMLButtonElement = fixture.nativeElement.querySelector('button');
+    expect(button.classList.contains('h-9')).toBe(true);
+    expect(button.classList.contains('px-2')).toBe(true);
+    expect(button.classList.contains('rounded-lg')).toBe(true);
+  });
+  it('übermittelt den umschaltbaren Zustand an den nativen Button', () => {
+    fixture.componentRef.setInput('ariaPressed', true);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('button').getAttribute('aria-pressed')).toBe('true');
+    fixture.componentRef.setInput('ariaPressed', false);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('button').getAttribute('aria-pressed')).toBe(
+      'false',
+    );
+  });
   let component: ButtonComponent;
   let fixture: ComponentFixture<ButtonComponent>;
 
@@ -34,10 +53,14 @@ describe('ButtonComponent', () => {
       disabled: ['disabled', 1, null],
       icon: ['icon', 1, null],
       iconPosition: ['iconPosition', 1, null],
+      iconOnly: ['iconOnly', 1, null],
       fullWidth: ['fullWidth', 1, null],
       type: ['type', 1, null],
       ariaLabel: ['ariaLabel', 1, null],
+      ariaPressed: ['ariaPressed', 1, null],
       title: ['title', 1, null],
+      link: ['link', 1, null],
+      queryParams: ['queryParams', 1, null],
     };
     metadata.declaredInputs = {
       ...metadata.declaredInputs,
@@ -47,15 +70,20 @@ describe('ButtonComponent', () => {
       disabled: 'disabled',
       icon: 'icon',
       iconPosition: 'iconPosition',
+      iconOnly: 'iconOnly',
       fullWidth: 'fullWidth',
       type: 'type',
       ariaLabel: 'ariaLabel',
+      ariaPressed: 'ariaPressed',
       title: 'title',
+      link: 'link',
+      queryParams: 'queryParams',
     };
 
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
       imports: [ButtonComponent],
+      providers: [provideRouter([])],
     });
 
     fixture = TestBed.createComponent(ButtonComponent);
@@ -103,5 +131,43 @@ describe('ButtonComponent', () => {
     const btn: HTMLButtonElement = fixture.nativeElement.querySelector('button');
     btn.click();
     expect(emitted).toBe(true);
+  });
+
+  it('renders a slim icon-only action as a square button', () => {
+    fixture.componentRef.setInput('size', 'slim');
+    fixture.componentRef.setInput('iconOnly', true);
+    fixture.componentRef.setInput('ariaLabel', 'Kosten bearbeiten');
+    fixture.detectChanges();
+
+    const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
+    expect(button.classList).toContain('h-7');
+    expect(button.classList).toContain('w-7');
+    expect(button.classList).toContain('px-0');
+    expect(button.getAttribute('aria-label')).toBe('Kosten bearbeiten');
+  });
+
+  it('renders navigation as a native link with query parameters', () => {
+    fixture.componentRef.setInput('link', '/audit');
+    fixture.componentRef.setInput('queryParams', { purchaseId: 'purchase-1' });
+    fixture.detectChanges();
+
+    const link = fixture.nativeElement.querySelector('a') as HTMLAnchorElement;
+    expect(link.getAttribute('href')).toBe('/audit?purchaseId=purchase-1');
+    expect(fixture.nativeElement.querySelector('button')).toBeNull();
+  });
+
+  it('prevents navigation and click output while a linked action is loading', () => {
+    fixture.componentRef.setInput('link', '/audit');
+    fixture.componentRef.setInput('loading', true);
+    fixture.detectChanges();
+    let emitted = false;
+    component.clicked.subscribe(() => (emitted = true));
+
+    const link = fixture.nativeElement.querySelector('a') as HTMLAnchorElement;
+    expect(link.getAttribute('href')).toBeNull();
+    expect(link.getAttribute('aria-disabled')).toBe('true');
+    expect(link.getAttribute('tabindex')).toBe('-1');
+    link.click();
+    expect(emitted).toBe(false);
   });
 });

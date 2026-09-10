@@ -14,26 +14,29 @@ import {
   inject,
   signal,
 } from '@angular/core';
+import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { toSignal } from '@angular/core/rxjs-interop';
 import {
-  LucideDynamicIcon,
   LucidePlus as Plus,
   LucideSearch as Search,
   LucideBookOpen as BookOpen,
 } from '@lucide/angular';
-import { CatalogProduct, TrackingMode } from '../../core/models/flipbase.models';
+import { CatalogProduct } from '../../core/models/flipbase.models';
 import { CatalogService } from '../../core/services/catalog.service';
 import { StockService } from '../../core/services/stock.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
+import { ProductDialogComponent } from './components/product-dialog/product-dialog.component';
+import { ProductThumbnailComponent } from '../../shared/components/product-thumbnail/product-thumbnail.component';
+import { TextFieldComponent } from '../../shared/components/text-field/text-field.component';
+import { ButtonComponent } from '../../shared/components/button/button.component';
 import { parseCsv } from '../../shared/utils/csv';
 import { normalizeGtin } from '../../shared/utils/gtin';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
-import { CatalogProductDialogComponent } from './components/catalog-product-dialog/catalog-product-dialog.component';
 
 interface CatalogImportRow {
   readonly title: string;
   readonly ean: string | null;
   readonly brand: string | null;
-  readonly trackingMode: TrackingMode;
   readonly error: string | null;
 }
 
@@ -42,9 +45,12 @@ interface CatalogImportRow {
   imports: [
     TableColumnMenuComponent,
     TableSortHeaderComponent,
-    LucideDynamicIcon,
+    ReactiveFormsModule,
+    ProductDialogComponent,
+    ProductThumbnailComponent,
+    TextFieldComponent,
+    ButtonComponent,
     PageHeaderComponent,
-    CatalogProductDialogComponent,
   ],
   templateUrl: './catalog.component.html',
   host: { class: 'block' },
@@ -78,7 +84,8 @@ export class CatalogComponent {
   readonly plusIcon = Plus;
   readonly searchIcon = Search;
   readonly bookOpenIcon = BookOpen;
-  readonly searchQuery = signal('');
+  readonly searchControl = new FormControl('', { nonNullable: true });
+  readonly searchQuery = toSignal(this.searchControl.valueChanges, { initialValue: '' });
   readonly viewModified = computed(
     () =>
       this.searchQuery().trim() !== '' ||
@@ -89,7 +96,6 @@ export class CatalogComponent {
   readonly csvHasErrors = computed(() => this.csvRows().some((row) => Boolean(row.error)));
   readonly csvError = signal<string | null>(null);
   readonly isImportingCsv = signal(false);
-
   readonly filteredProducts = computed(() => {
     const query = this.searchQuery().trim().toLocaleLowerCase('de');
     const products = !query
@@ -133,7 +139,7 @@ export class CatalogComponent {
   }
 
   resetView(): void {
-    this.searchQuery.set('');
+    this.searchControl.setValue('');
     this.resetTablePreferences();
   }
 
@@ -202,7 +208,6 @@ export class CatalogComponent {
             title,
             ean,
             brand: row['brand']?.trim() || null,
-            trackingMode: row['tracking_mode'] === 'individual' ? 'individual' : 'quantity',
             error: !title
               ? 'Titel fehlt.'
               : eanValue && !ean
@@ -237,7 +242,6 @@ export class CatalogComponent {
           title: row.title,
           brand: row.brand,
           ean: row.ean,
-          trackingMode: row.trackingMode,
           isPublicStore: false,
         });
         if (result.error) throw result.error;

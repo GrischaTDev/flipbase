@@ -1,47 +1,73 @@
 <section class="space-y-3" aria-labelledby="revenue-chart-heading">
   <div class="flex flex-wrap items-center justify-between gap-3">
     <div>
-      <h2
-        id="revenue-chart-heading"
-        class="text-xs font-bold uppercase tracking-[0.16em] text-fb-text-secondary"
-      >
+      <h2 id="revenue-chart-heading" class="text-sm font-semibold text-fb-text-primary">
         Verkaufsergebnis im Zeitraum
       </h2>
-      <p class="mt-1 text-[11px] text-fb-text-muted">
+      <p class="mt-1 text-xs text-fb-text-muted">
         Verkaufserlös, Wareneinsatz und direkte Verkaufskosten folgen bestätigten Verkäufen.
       </p>
     </div>
     <ul
-      class="flex flex-wrap gap-x-3 gap-y-1 text-[10px] font-semibold text-fb-text-secondary"
+      class="flex flex-wrap gap-1 text-[13px] text-fb-text-secondary"
       aria-label="Diagrammlegende"
     >
       @for (series of legendSeries(); track series.key) {
-        <li class="inline-flex items-center gap-1.5">
-          <span
-            class="h-2 w-2 rounded-full"
-            data-chart-legend-indicator
-            [style.background-color]="series.color"
-          ></span>
-          {{ series.label }}
+        <li>
+          <app-button
+            variant="ghost"
+            size="slim"
+            [ariaPressed]="series.visible"
+            (clicked)="toggleSeries(series.label)"
+          >
+            <span class="inline-flex items-center gap-1.5" [class.line-through]="!series.visible">
+              <span
+                class="h-0.5 w-4"
+                data-chart-legend-indicator
+                [style.background-color]="series.color"
+              ></span>
+              {{ series.label }}
+            </span>
+          </app-button>
         </li>
       }
     </ul>
   </div>
 
-  <div class="relative h-[260px] w-full rounded-lg border border-fb-line bg-fb-well/40 p-2">
-    <canvas
-      #canvas
+  <div class="relative min-h-[260px] w-full">
+    <div
+      #chart
+      class="h-[260px] w-full"
       role="img"
       aria-label="Verkaufserlös, Wareneinsatz, Verkaufskosten und Ergebnis im gewählten Zeitraum"
       aria-describedby="revenue-chart-summary"
-    ></canvas>
+      [attr.aria-busy]="chartStatus() === 'loading'"
+      (pointermove)="handlePointer($event)"
+      (pointerdown)="handlePointer($event)"
+      (pointerleave)="handlePointerLeave($event)"
+    ></div>
+    @if (chartStatus() === 'error') {
+      <div
+        class="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-fb-surface px-4 text-center"
+      >
+        <p role="alert" class="text-[13px] text-fb-text-secondary">
+          Das Diagramm konnte nicht geladen werden. Die Daten stehen weiterhin in der Tabelle zur
+          Verfügung.
+        </p>
+        <app-button (clicked)="retryChart()">Erneut laden</app-button>
+      </div>
+    } @else if (points().length === 0) {
+      <p class="absolute inset-0 flex items-center justify-center text-[13px] text-fb-text-muted">
+        Keine Datenpunkte im gewählten Zeitraum
+      </p>
+    }
     <div
       role="slider"
       aria-label="Datenpunkt im Zahlungsstrom-Diagramm auswählen"
       aria-orientation="horizontal"
       aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Home End Escape"
       aria-describedby="revenue-chart-keyboard-help revenue-chart-summary"
-      class="pointer-events-none absolute inset-2 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
+      class="pointer-events-none absolute inset-2 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
       [attr.tabindex]="points().length > 0 ? 0 : -1"
       [attr.aria-disabled]="points().length === 0"
       [attr.aria-valuemin]="1"
@@ -57,9 +83,10 @@
         role="status"
         aria-live="polite"
         aria-atomic="true"
-        class="pointer-events-none absolute z-10 min-w-48 -translate-x-1/2 -translate-y-full rounded-md border border-fb-line bg-fb-surface px-3 py-2 text-xs text-fb-text-primary shadow-lg"
+        class="pointer-events-none fixed z-50 max-h-[calc(100vh-16px)] overflow-y-auto rounded-lg border border-fb-line bg-fb-surface px-3 py-2 text-[13px] leading-5 text-fb-text-primary shadow-lg"
         [style.left.px]="tooltip.left"
         [style.top.px]="tooltip.top"
+        [style.width.px]="tooltip.width"
       >
         <p class="font-semibold">{{ tooltip.title }}</p>
         <ul class="mt-1 space-y-0.5">
@@ -76,7 +103,13 @@
     letzten Datenpunkt. Escape schließt die Detailanzeige.
   </p>
 
-  <div id="revenue-chart-summary" class="sr-only">
+  <div
+    id="revenue-chart-summary"
+    [class.sr-only]="chartStatus() !== 'error'"
+    [class.overflow-x-auto]="chartStatus() === 'error'"
+    [attr.tabindex]="chartStatus() === 'error' ? 0 : null"
+    class="text-[13px] tabular-nums"
+  >
     <table>
       <caption>
         Tabellarische Zusammenfassung des Diagramms

@@ -1,0 +1,37 @@
+<app-card title="Kostenübersicht" padding="none" rounded="xl">
+  @if (editable()) {
+    <app-button
+      card-header-actions
+      variant="ghost"
+      size="slim"
+      [icon]="editIcon"
+      [iconOnly]="true"
+      ariaLabel="Kosten bearbeiten"
+      (clicked)="editRequested.emit()"
+    />
+  }
+
+  <div class="empty:hidden border-b border-fb-line px-4 py-3">
+    <ng-content select="[cost-summary-goods-editor]" />
+  </div>
+
+  <dl class="divide-y divide-fb-line px-4 text-[13px]">
+    @for (row of rows(); track $index) {
+      <div class="flex items-center justify-between gap-4 py-2.5">
+        <dt class="text-fb-text-secondary">{{ row.label }}</dt>
+        <dd class="font-medium tabular-nums text-fb-text-primary">
+          @if (row.subtract) {
+            <span aria-hidden="true">−</span>
+          }
+          {{ formatCurrency(row.amount) }}
+        </dd>
+      </div>
+    }
+    <div class="flex items-center justify-between gap-4 py-3">
+      <dt class="font-semibold text-fb-text-primary">Gesamt</dt>
+      <dd class="font-semibold tabular-nums text-fb-text-primary">
+        {{ formatCurrency(displayedTotal()) }}
+      </dd>
+    </div>
+  </dl>
+</app-card>

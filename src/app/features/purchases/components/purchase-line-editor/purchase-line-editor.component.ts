@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  ElementRef,
   computed,
   effect,
   inject,
@@ -8,6 +9,7 @@ import {
   output,
   signal,
   untracked,
+  viewChild,
 } from '@angular/core';
 import { FormArray, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { CatalogService } from '../../../../core/services/catalog.service';
@@ -25,10 +27,17 @@ import {
 import { ItemConditionLabelPipe } from '../../../../shared/pipes/item-condition-label.pipe';
 import { PurchaseProductPickerComponent } from '../purchase-product-picker/purchase-product-picker.component';
 import { BarcodeScannerComponent } from '../../../../shared/components/barcode-scanner/barcode-scanner.component';
-import { parseCsv } from '../../../../shared/utils/csv';
-import { normalizeGtin } from '../../../../shared/utils/gtin';
 import { allocatePackagePrice } from '../../utils/package-price-allocation';
-import { CatalogProductDialogComponent } from '../../../catalog/components/catalog-product-dialog/catalog-product-dialog.component';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
+import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
+import { CurrencyPipe } from '@angular/common';
+import { LucideSearch, LucideUpload, LucideScanBarcode, LucideTrash2 } from '@lucide/angular';
+import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
+import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
+import { ProductDialogComponent } from '../../../catalog/components/product-dialog/product-dialog.component';
+import { previewPurchaseImport, PurchaseImportPreviewRow } from './purchase-import-preview';
+import { canonicalGtin, normalizeGtin } from '../../../../shared/utils/gtin';
 
 export interface PurchaseLineDraft {
   /** Stabile UI-ID, bis die Persistenz eine echte purchase_line-ID vergibt. */
@@ -76,18 +85,42 @@ type PriceField = 'unitPurchasePrice' | 'lineTotal';
 @Component({
   selector: 'app-purchase-line-editor',
   imports: [
+    CurrencyPipe,
+    ModalShellComponent,
+    ProductThumbnailComponent,
+    ProductDialogComponent,
     ReactiveFormsModule,
     CustomSelectComponent,
     ItemConditionLabelPipe,
     PurchaseProductPickerComponent,
     BarcodeScannerComponent,
-    CatalogProductDialogComponent,
+    ButtonComponent,
+    NumberInputComponent,
+    TextFieldComponent,
   ],
   templateUrl: './purchase-line-editor.component.html',
+  host: { class: 'block min-w-0' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PurchaseLineEditorComponent {
   readonly catalogService = inject(CatalogService);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  readonly searchIcon = LucideSearch;
+  readonly importIcon = LucideUpload;
+  readonly scannerIcon = LucideScanBarcode;
+  readonly removeIcon = LucideTrash2;
+  readonly detailId = signal<string | null>(null);
+  readonly importPreview = signal<readonly PurchaseImportPreviewRow[]>([]);
+  private importWorkspaceId: string | null = null;
+  readonly importBlocked = computed(() =>
+    this.importPreview().some((row) => row.errors.length > 0 || !row.productId),
+  );
+  readonly productOptions = computed<SelectOption<string>[]>(() =>
+    this.availableProducts().map((product) => ({
+      value: product.id,
+      label: product.title + (product.condition ? ' · ' + product.condition : ''),
+    })),
+  );
   private readonly workspaceService = inject(WorkspaceService);
 
   readonly purchaseType = input.required<PurchaseType>();
@@ -108,7 +141,9 @@ export class PurchaseLineEditorComponent {
   readonly lineCount = signal(0);
   readonly lineRows = new FormArray<FormGroup<PurchaseLineControls>>([]);
   readonly linesChanged = output<readonly PurchaseLineDraft[]>();
-  readonly productDialogOpen = signal(false);
+  readonly isCreatingProduct = signal(false);
+  private readonly productDialog = viewChild(ProductDialogComponent);
+  readonly isSavingProduct = computed(() => this.productDialog()?.saving() ?? false);
   readonly catalogContextError = signal<string | null>(null);
   readonly importError = signal<string | null>(null);
   readonly catalogLoadError = computed(
@@ -121,20 +156,7 @@ export class PurchaseLineEditorComponent {
       !!this.catalogLoadError() ||
       this.catalogService.loadedWorkspaceId() !== this.activeWorkspaceId(),
   );
-
-  readonly quantityProducts = computed(() =>
-    this.catalogService
-      .products()
-      .filter(
-        (product) =>
-          product.tracking_mode === 'quantity' && product.workspace_id === this.activeWorkspaceId(),
-      ),
-  );
-  readonly quantityProductOptions = computed<SelectOption<string>[]>(() => [
-    { value: '', label: 'Artikel wählen' },
-    ...this.quantityProducts().map((product) => ({ value: product.id, label: product.title })),
-  ]);
-  readonly isMysteryPurchase = computed(() => this.purchaseType() === 'mystery_pack');
+  readonly isMysteryPurchase = computed(() => this.pricingMode() === 'total');
   readonly conditionOptions: SelectOption<ItemCondition>[] = [
     { value: 'new', label: 'Neu' },
     { value: 'like_new', label: 'Wie neu' },
@@ -153,14 +175,7 @@ export class PurchaseLineEditorComponent {
       const key = lines.map((line) => line.draftId).join('|');
       if (!lines.length || key === this.loadedInitialIds || this.lineRows.length) return;
       this.loadedInitialIds = key;
-      untracked(() => {
-        for (const line of lines) {
-          const row = this.createLine(line.lineKind);
-          row.patchValue({ ...line, ean: line.ean ?? null }, { emitEvent: false });
-          this.lineRows.push(row);
-        }
-        this.lineCount.set(this.lineRows.length);
-      });
+      untracked(() => this.resetToLines(lines));
     });
     effect(() => {
       const workspaceId = this.activeWorkspaceId();
@@ -185,9 +200,19 @@ export class PurchaseLineEditorComponent {
 
   addProducts(products: readonly CatalogProduct[]): void {
     for (const product of products) {
-      const row = this.createLine(product.tracking_mode);
+      if (product.workspace_id !== this.activeWorkspaceId()) continue;
+      if (this.lineRows.length >= 1000) {
+        this.importError.set('Höchstens 1.000 Einkaufspositionen sind erlaubt.');
+        break;
+      }
+      const row = this.createLine('quantity');
       row.patchValue(
-        { catalogProductId: product.id, titleSnapshot: product.title, ean: product.ean ?? null },
+        {
+          catalogProductId: product.id,
+          titleSnapshot: product.title,
+          ean: product.ean ?? null,
+          condition: product.condition ?? 'used',
+        },
         { emitEvent: false },
       );
       this.lineRows.push(row);
@@ -207,9 +232,9 @@ export class PurchaseLineEditorComponent {
     const now = Date.now();
     if (barcode === this.lastScan.value && now - this.lastScan.at < 1000) return;
     this.lastScan = { value: barcode, at: now };
-    const normalized = normalizeGtin(barcode) ?? barcode;
+    const normalized = canonicalGtin(barcode) ?? barcode;
     const matches = this.availableProducts().filter(
-      (product) => (normalizeGtin(product.ean ?? '') ?? product.ean) === normalized,
+      (product) => (canonicalGtin(product.ean) ?? product.ean) === normalized,
     );
     if (matches.length === 1) {
       this.addProducts(matches);
@@ -218,10 +243,10 @@ export class PurchaseLineEditorComponent {
       this.scannerMessage.set(
         matches.length
           ? 'Mehrere Treffer: Bitte wähle den passenden Artikel.'
-          : 'Kein Treffer. Bitte wähle einen Artikel oder erfasse ein neues Einzelstück.',
+          : 'Kein Treffer. Bitte wähle ein Produkt oder erstelle ein neues.',
       );
       this.pickerSearch.set(barcode);
-      if (matches.length) this.pickerOpen.set(true);
+      this.pickerOpen.set(true);
     }
     this.scanControl.setValue('');
   }
@@ -244,19 +269,10 @@ export class PurchaseLineEditorComponent {
     await this.catalogService.loadProducts(workspaceId);
   }
 
-  addQuantityLine(): void {
-    this.lineRows.push(this.createLine('quantity'));
-    this.emitDrafts();
-  }
-
-  addIndividualLine(): void {
-    this.lineRows.push(this.createLine('individual'));
-    this.emitDrafts();
-  }
-
   selectCatalogProduct(index: number, catalogProductId: string): void {
     const row = this.lineRows.at(index);
-    const product = this.quantityProducts().find((entry) => entry.id === catalogProductId);
+    if (row.controls.lineKind.value === 'individual') return;
+    const product = this.availableProducts().find((entry) => entry.id === catalogProductId);
     row.controls.catalogProductId.setValue(product?.id ?? null);
     if (product) row.controls.titleSnapshot.setValue(product.title);
     this.emitDrafts();
@@ -267,106 +283,121 @@ export class PurchaseLineEditorComponent {
     this.emitDrafts();
   }
 
-  updateTitleSnapshotFromEvent(index: number, event: Event): void {
-    const target = event.target;
-    if (!(target instanceof HTMLInputElement)) return;
-    this.updateTitleSnapshot(index, target.value);
-  }
-
   async importCsv(event: Event): Promise<void> {
-    const input = event.target;
-    if (!(input instanceof HTMLInputElement) || !input.files?.[0]) return;
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement) || !target.files?.[0]) return;
     this.importError.set(null);
+    this.importPreview.set([]);
+    const workspaceId = this.activeWorkspaceId();
     try {
-      const parsed = parseCsv(await input.files[0].text());
-      if (!parsed.headers.includes('title')) throw new Error('CSV benötigt die Spalte „title“.');
-      const pendingLines: FormGroup<PurchaseLineControls>[] = [];
-      for (const row of parsed.rows) {
-        const title = row['title']?.trim() ?? '';
-        const rawEan = row['ean']?.trim() ?? '';
-        const ean = rawEan ? normalizeGtin(rawEan) : null;
-        if (!title) throw new Error('Jede Einkaufsposition benötigt einen Titel.');
-        if (rawEan && !ean) throw new Error(`Ungültige EAN/GTIN für „${title}“.`);
-        const quantity = Number((row['quantity'] ?? '1').replace(',', '.'));
-        if (!Number.isInteger(quantity) || quantity < 1) {
-          throw new Error(`Menge für „${title}“ fehlt oder ist ungültig.`);
-        }
-        const condition = row['condition']?.trim() || 'used';
-        if (
-          !['new', 'like_new', 'very_good', 'used', 'heavily_used', 'defective'].includes(condition)
-        ) {
-          throw new Error(`Zustand für „${title}“ ist ungültig.`);
-        }
-        const rawAmount = row['unit_purchase_price']?.trim() ?? '';
-        const amount = rawAmount === '' ? null : Number(rawAmount.replace(',', '.'));
-        if (amount !== null && (!Number.isFinite(amount) || amount < 0)) {
-          throw new Error(`Stückpreis für „${title}“ fehlt oder ist ungültig.`);
-        }
-        const matchingProducts = this.quantityProducts().filter(
-          (product) =>
-            (ean && product.ean === ean) ||
-            (!ean &&
-              product.title.trim().toLocaleLowerCase('de') === title.toLocaleLowerCase('de')),
-        );
-        if (matchingProducts.length > 1)
-          throw new Error(
-            `Mehrere Artikel passen zu „${title}“. Bitte die Zuordnung vor dem Import klären.`,
-          );
-        const matchingProduct = matchingProducts[0];
-        if (matchingProduct) {
-          const line = this.createLine('quantity');
-          line.controls.catalogProductId.setValue(matchingProduct.id, { emitEvent: false });
-          line.controls.titleSnapshot.setValue(matchingProduct.title, { emitEvent: false });
-          line.controls.ean.setValue(ean ?? matchingProduct.ean ?? null, { emitEvent: false });
-          line.controls.orderedQuantity.setValue(quantity, { emitEvent: false });
-          line.controls.condition.setValue(condition as ItemCondition, { emitEvent: false });
-          line.controls.unitPurchasePrice.setValue(amount, { emitEvent: false });
-          line.controls.lineTotal.setValue(
-            amount === null ? null : this.toMoney(quantity * amount),
-            {
-              emitEvent: false,
-            },
-          );
-          pendingLines.push(line);
-        } else {
-          for (let copy = 0; copy < quantity; copy += 1) {
-            const line = this.createLine('individual');
-            line.controls.titleSnapshot.setValue(title, { emitEvent: false });
-            line.controls.ean.setValue(ean, { emitEvent: false });
-            line.controls.condition.setValue(condition as ItemCondition, { emitEvent: false });
-            if (amount !== null) {
-              line.controls.unitPurchasePrice.setValue(amount, { emitEvent: false });
-              line.controls.lineTotal.setValue(amount, { emitEvent: false });
-            }
-            pendingLines.push(line);
-          }
-        }
-      }
-      pendingLines.forEach((line) =>
-        line.controls.priceMode.setValue(
-          line.controls.unitPurchasePrice.value === null ? 'unpriced_mystery' : 'priced',
-          { emitEvent: false },
-        ),
-      );
-      pendingLines.forEach((line) => this.lineRows.push(line));
-      this.emitDrafts();
+      if (!workspaceId || this.catalogSelectionDisabled())
+        throw new Error('Bitte zuerst den Artikelstamm laden.');
+      if (target.files[0].size > 2 * 1024 * 1024)
+        throw new Error('CSV darf höchstens 2 MB groß sein.');
+      const text = await target.files[0].text();
+      if (workspaceId !== this.activeWorkspaceId())
+        throw new Error('Workspace wurde gewechselt. Bitte die Datei erneut auswählen.');
+      this.importWorkspaceId = workspaceId;
+      this.importPreview.set(previewPurchaseImport(text, this.availableProducts(), workspaceId));
     } catch (error: unknown) {
       this.importError.set(
-        error instanceof Error ? error.message : 'CSV konnte nicht importiert werden.',
+        error instanceof Error ? error.message : 'CSV konnte nicht gelesen werden.',
       );
     } finally {
-      input.value = '';
+      target.value = '';
     }
   }
 
-  updateEstimatedMarketValue(index: number, event: Event): void {
-    const target = event.target;
-    if (!(target instanceof HTMLInputElement)) return;
-    const value = target.valueAsNumber;
-    this.lineRows
-      .at(index)
-      .controls.estimatedMarketValue.setValue(Number.isFinite(value) ? value : null);
+  assignImportProduct(rowNumber: number, productId: string | null): void {
+    const product = this.availableProducts().find((product) => product.id === productId);
+    this.importPreview.update((rows) =>
+      rows.map((row) =>
+        row.rowNumber !== rowNumber
+          ? row
+          : {
+              ...row,
+              productId: product?.id ?? null,
+              errors: row.errors.filter((error) => error !== row.assignmentError),
+              assignmentError: null,
+            },
+      ),
+    );
+  }
+
+  confirmImport(): void {
+    const preview = this.importPreview();
+    if (this.importWorkspaceId !== this.activeWorkspaceId() || this.catalogSelectionDisabled()) {
+      this.importError.set('Workspace wurde gewechselt. Bitte die Datei erneut auswählen.');
+      return;
+    }
+    if (!preview.length || this.importBlocked()) return;
+    if (preview.length + this.lineRows.length > 1000) {
+      this.importError.set('Höchstens 1.000 Einkaufspositionen sind erlaubt.');
+      return;
+    }
+    for (const entry of preview) {
+      const product = this.availableProducts().find((product) => product.id === entry.productId);
+      if (!product || entry.quantity === null) return;
+    }
+    for (const entry of preview) {
+      const product = this.availableProducts().find((product) => product.id === entry.productId);
+      if (!product || entry.quantity === null) continue;
+      const row = this.createLine('quantity');
+      row.patchValue(
+        {
+          catalogProductId: product.id,
+          titleSnapshot: product.title,
+          ean: product.ean ?? null,
+          orderedQuantity: entry.quantity,
+          condition: entry.condition ?? product.condition ?? 'used',
+          unitPurchasePrice: entry.unitPrice,
+          lineTotal: entry.total,
+          priceMode: entry.unitPrice === null ? 'unpriced_mystery' : 'priced',
+        },
+        { emitEvent: false },
+      );
+      this.lineRows.push(row, { emitEvent: false });
+    }
+    this.importPreview.set([]);
     this.emitDrafts();
+  }
+
+  productCreated(product: CatalogProduct): void {
+    if (product.workspace_id !== this.activeWorkspaceId()) return;
+    this.isCreatingProduct.set(false);
+    this.addProducts([product]);
+  }
+
+  openDetails(draftId: string): void {
+    this.detailId.set(draftId);
+  }
+
+  detailRow(): FormGroup<PurchaseLineControls> | undefined {
+    return this.lineRows.controls.find((row) => row.controls.draftId.value === this.detailId());
+  }
+
+  detailProduct(): CatalogProduct | undefined {
+    return this.availableProducts().find(
+      (product) => product.id === this.detailRow()?.controls.catalogProductId.value,
+    );
+  }
+
+  focusFirstError(): void {
+    const row = this.lineRows.controls.find((row) => row.invalid);
+    if (!row) return;
+    row.markAllAsTouched();
+    const field = row.controls.orderedQuantity.invalid
+      ? 'quantity'
+      : row.controls.unitPurchasePrice.invalid || row.hasError('totalTooLarge')
+        ? 'unit-price'
+        : null;
+    if (field) {
+      this.host.nativeElement
+        .querySelector<HTMLElement>('#purchase-line-' + field + '-' + row.controls.draftId.value)
+        ?.focus();
+      return;
+    }
+    this.openDetails(row.controls.draftId.value);
   }
 
   recalculate(index: number, changedField: PriceField): void {
@@ -379,7 +410,11 @@ export class PurchaseLineEditorComponent {
     }
     row.controls.priceMode.setValue('priced', { emitEvent: false });
     const quantity = row.controls.orderedQuantity.value;
-    if (!Number.isFinite(quantity) || quantity <= 0) return;
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > 100000) {
+      row.controls.lineTotal.setValue(null, { emitEvent: false });
+      this.emitDrafts();
+      return;
+    }
 
     if (changedField === 'unitPurchasePrice') {
       const unitPrice = row.controls.unitPurchasePrice.value;
@@ -389,8 +424,18 @@ export class PurchaseLineEditorComponent {
         this.emitDrafts();
         return;
       }
-      if (!Number.isFinite(unitPrice) || unitPrice < 0) return;
-      row.controls.lineTotal.setValue(this.toMoney(quantity * unitPrice), { emitEvent: false });
+      if (
+        !this.validUnitPrice(unitPrice) ||
+        Math.round(unitPrice * quantity * 100) > 999999999999
+      ) {
+        row.controls.lineTotal.setValue(null, { emitEvent: false });
+        row.controls.lineTotal.setErrors({ totalTooLarge: true }, { emitEvent: false });
+        this.emitDrafts();
+        return;
+      }
+      row.controls.lineTotal.setValue(Math.round(unitPrice * quantity * 100) / 100, {
+        emitEvent: false,
+      });
       this.emitDrafts();
       return;
     }
@@ -401,8 +446,11 @@ export class PurchaseLineEditorComponent {
       this.emitDrafts();
       return;
     }
-    if (!Number.isFinite(lineTotal) || lineTotal < 0) return;
-    row.controls.unitPurchasePrice.setValue(this.toMoney(lineTotal / quantity), {
+    if (!this.validMoney(lineTotal)) {
+      this.emitDrafts();
+      return;
+    }
+    row.controls.unitPurchasePrice.setValue(this.normalizeUnitPrice(lineTotal / quantity), {
       emitEvent: false,
     });
     this.emitDrafts();
@@ -424,7 +472,7 @@ export class PurchaseLineEditorComponent {
         {
           priceMode: 'priced',
           lineTotal,
-          unitPurchasePrice: lineTotal / quantity,
+          unitPurchasePrice: this.normalizeUnitPrice(lineTotal / quantity),
         },
         { emitEvent: false },
       );
@@ -436,6 +484,14 @@ export class PurchaseLineEditorComponent {
   removeLine(index: number): void {
     this.lineRows.removeAt(index);
     this.emitDrafts();
+    const neighbor = this.lineRows.at(Math.min(index, this.lineRows.length - 1));
+    const id = neighbor ? 'purchase-line-quantity-' + neighbor.controls.draftId.value : null;
+    requestAnimationFrame(() => {
+      (id
+        ? this.host.nativeElement.querySelector<HTMLElement>('#' + id)
+        : this.host.nativeElement.querySelector<HTMLElement>('[data-add-products] button')
+      )?.focus();
+    });
   }
 
   clear(): void {
@@ -448,6 +504,10 @@ export class PurchaseLineEditorComponent {
       const draft = row.getRawValue();
       return {
         ...draft,
+        unitPurchasePrice:
+          draft.unitPurchasePrice === null
+            ? null
+            : this.normalizeUnitPrice(draft.unitPurchasePrice),
         priceMode:
           draft.unitPurchasePrice === null || draft.lineTotal === null
             ? 'unpriced_mystery'
@@ -456,25 +516,37 @@ export class PurchaseLineEditorComponent {
     });
   }
 
-  onProductCreated(product: CatalogProduct): void {
-    const row = this.createLine(product.tracking_mode);
-    row.patchValue(
-      {
-        catalogProductId: product.id,
-        titleSnapshot: product.title,
-        ean: product.ean ?? null,
-      },
-      { emitEvent: false },
-    );
-    this.lineRows.push(row);
-    this.productDialogOpen.set(false);
-    this.emitDrafts();
-  }
-
   hasUnsavedChanges(): boolean {
     return (
-      this.productDialogOpen() || this.pickerOpen() || this.scanControl.value.trim().length > 0
+      this.isCreatingProduct() ||
+      this.pickerOpen() ||
+      this.scanControl.value.trim().length > 0 ||
+      this.importPreview().length > 0
     );
+  }
+
+  resetToLines(lines: readonly PurchaseLineDraft[]): void {
+    this.loadedInitialIds = lines.map((line) => line.draftId).join('|');
+    this.lineRows.clear({ emitEvent: false });
+    for (const line of lines) {
+      const row = this.createLine(line.lineKind);
+      row.patchValue({ ...line, ean: line.ean ?? null }, { emitEvent: false });
+      this.lineRows.push(row, { emitEvent: false });
+    }
+    this.lineRows.markAsPristine();
+    this.lineRows.markAsUntouched();
+    this.lineCount.set(this.lineRows.length);
+    this.pickerOpen.set(false);
+    this.cameraOpen.set(false);
+    this.scannerOpen.set(false);
+    this.pickerSearch.set('');
+    this.scanControl.reset('');
+    this.scannerMessage.set(null);
+    this.lastScan = { value: '', at: 0 };
+    this.isCreatingProduct.set(false);
+    this.detailId.set(null);
+    this.importPreview.set([]);
+    this.importError.set(null);
   }
 
   private createLine(lineKind: TrackingMode): FormGroup<PurchaseLineControls> {
@@ -486,7 +558,10 @@ export class PurchaseLineEditorComponent {
       }),
       titleSnapshot: new FormControl('', {
         nonNullable: true,
-        validators: [Validators.required, Validators.minLength(2)],
+        validators: [
+          Validators.required,
+          (control) => (control.value.trim() ? null : { required: true }),
+        ],
       }),
       ean: new FormControl<string | null>(null, {
         validators: [
@@ -497,23 +572,37 @@ export class PurchaseLineEditorComponent {
         ],
       }),
       lineKind: new FormControl<TrackingMode>(lineKind, { nonNullable: true }),
-      orderedQuantity: new FormControl(lineKind === 'individual' ? 1 : 1, {
+      orderedQuantity: new FormControl(1, {
         nonNullable: true,
-        validators: [Validators.required, Validators.min(1)],
+        validators: [
+          Validators.required,
+          Validators.min(1),
+          Validators.max(100000),
+          (control) => (Number.isInteger(control.value) ? null : { integer: true }),
+        ],
       }),
       condition: new FormControl<ItemCondition>('used', { nonNullable: true }),
       priceMode: new FormControl(isMysteryPurchase ? 'unpriced_mystery' : 'priced', {
         nonNullable: true,
       }),
       unitPurchasePrice: new FormControl<number | null>(null, {
-        validators: [Validators.min(0)],
+        validators: [(control) => (this.validUnitPrice(control.value) ? null : { money: true })],
       }),
       lineTotal: new FormControl<number | null>(null, {
-        validators: [Validators.min(0)],
+        validators: [(control) => (this.validMoney(control.value) ? null : { money: true })],
       }),
       estimatedMarketValue: new FormControl<number | null>(null, {
         validators: isMysteryPurchase ? [Validators.min(0)] : [],
       }),
+    });
+    row.addValidators((control) => {
+      const price: unknown = control.get('unitPurchasePrice')?.value;
+      const quantity: unknown = control.get('orderedQuantity')?.value;
+      return typeof price === 'number' &&
+        typeof quantity === 'number' &&
+        Math.round(price * quantity * 100) > 999999999999
+        ? { totalTooLarge: true }
+        : null;
     });
     row.valueChanges.subscribe(() => this.emitDrafts());
     return row;
@@ -528,8 +617,12 @@ export class PurchaseLineEditorComponent {
           emitEvent: false,
         },
       );
-      row.controls.unitPurchasePrice.setValidators([Validators.min(0)]);
-      row.controls.lineTotal.setValidators([Validators.min(0)]);
+      row.controls.unitPurchasePrice.setValidators([
+        (control) => (this.validUnitPrice(control.value) ? null : { money: true }),
+      ]);
+      row.controls.lineTotal.setValidators([
+        (control) => (this.validMoney(control.value) ? null : { money: true }),
+      ]);
       row.controls.estimatedMarketValue.setValidators(isMysteryPurchase ? [Validators.min(0)] : []);
       if (!isMysteryPurchase) {
         row.controls.estimatedMarketValue.setValue(null, { emitEvent: false });
@@ -541,8 +634,28 @@ export class PurchaseLineEditorComponent {
     if (this.lineRows.length > 0) this.emitDrafts();
   }
 
-  private toMoney(value: number): number {
-    return Number(value.toFixed(2));
+  private validMoney(value: number | null): boolean {
+    return (
+      value === null ||
+      (Number.isFinite(value) &&
+        value >= 0 &&
+        value <= 9999999999.99 &&
+        Math.abs(value * 100 - Math.round(value * 100)) < 0.0001)
+    );
+  }
+
+  private validUnitPrice(value: number | null): boolean {
+    return (
+      value === null ||
+      (Number.isFinite(value) &&
+        value >= 0 &&
+        value <= 9999999999.99 &&
+        this.normalizeUnitPrice(value) === value)
+    );
+  }
+
+  private normalizeUnitPrice(value: number): number {
+    return Number(value.toFixed(16));
   }
 
   private emitDrafts(): void {

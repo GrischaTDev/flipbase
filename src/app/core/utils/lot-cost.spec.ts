@@ -25,6 +25,15 @@ const lot: StockLot = {
 };
 
 describe('Gemeinsamer exakter Loswert', () => {
+  it('stellt fehlende Loskosten auch bei inkonsistent finalisiertem Einkauf nicht als kostenlos dar', () => {
+    expect(
+      lotCostResult({ ...lot, remaining_quantity: 6, unit_cost: null }, purchase, [], 'known'),
+    ).toMatchObject({
+      remainingValueCents: null,
+      historicalPoolCents: null,
+      costPerUnit: { kind: 'open' },
+    });
+  });
   it.each([-1, 7])('lehnt widersprüchliche Restmengen %s ab', (remaining_quantity) => {
     expect(
       lotCostResult({ ...lot, remaining_quantity }, purchase, [], 'known').remainingValueCents,

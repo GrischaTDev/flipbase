@@ -1,6 +1,5 @@
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
-import { RouterLink } from '@angular/router';
 import {
   LucideArrowUpRight as ArrowUpRight,
   LucideBoxes as Boxes,
@@ -20,6 +19,8 @@ import {
   SelectOption,
 } from '../../shared/components/custom-select/custom-select.component';
 import { RevenueChartComponent } from '../../shared/components/revenue-chart/revenue-chart.component';
+import { ButtonComponent } from '../../shared/components/button/button.component';
+import { CardComponent } from '../../shared/components/card/card.component';
 import { DashboardPreferencesService } from './services/dashboard-preferences.service';
 
 interface RangeOption {
@@ -32,7 +33,8 @@ interface RangeOption {
   imports: [
     CurrencyPipe,
     DatePipe,
-    RouterLink,
+    ButtonComponent,
+    CardComponent,
     LucideDynamicIcon,
     CustomSelectComponent,
     RevenueChartComponent,

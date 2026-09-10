@@ -1,5 +1,5 @@
 import '@angular/compiler';
-import { ɵresolveComponentResources } from '@angular/core';
+import { createComponent, EnvironmentInjector, ɵresolveComponentResources } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { readFile } from 'node:fs/promises';
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -30,21 +30,13 @@ describe('BadgeComponent', () => {
       ...metadata.inputs,
       tone: ['tone', 1, null],
       size: ['size', 1, null],
-      dot: ['dot', 1, null],
-      pulse: ['pulse', 1, null],
-      icon: ['icon', 1, null],
       mono: ['mono', 1, null],
-      uppercase: ['uppercase', 1, null],
     };
     metadata.declaredInputs = {
       ...metadata.declaredInputs,
       tone: 'tone',
       size: 'size',
-      dot: 'dot',
-      pulse: 'pulse',
-      icon: 'icon',
       mono: 'mono',
-      uppercase: 'uppercase',
     };
 
     TestBed.resetTestingModule();
@@ -77,12 +69,31 @@ describe('BadgeComponent', () => {
     expect(span.className).toContain('text-emerald-300');
   });
 
-  it('should render dot when dot input is true', () => {
-    fixture.componentRef.setInput('dot', true);
-    fixture.detectChanges();
-
-    const dotSpan = fixture.nativeElement.querySelector('span > span');
-    expect(dotSpan).toBeTruthy();
-    expect(dotSpan.className).toContain('rounded-full');
+  it('does not expose decorative marker, icon or uppercase variants', () => {
+    for (const removedInput of ['dot', 'marker', 'pulse', 'icon', 'uppercase']) {
+      expect(removedInput in component, removedInput).toBe(false);
+    }
   });
+
+  it.each(['neutral', 'info', 'success', 'caution', 'critical'])(
+    'renders %s status as unchanged text without a marker',
+    (tone) => {
+      const host = document.createElement('div');
+      const projected = createComponent(BadgeComponent, {
+        hostElement: host,
+        environmentInjector: TestBed.inject(EnvironmentInjector),
+        projectableNodes: [[document.createTextNode('Bestellt · SKU ABC')]],
+      });
+      try {
+        projected.setInput('tone', tone);
+        projected.changeDetectorRef.detectChanges();
+        const badge = host.querySelector('span');
+        expect(badge?.textContent).toBe('Bestellt · SKU ABC');
+        expect(badge?.querySelector('[data-badge-marker], svg, [aria-hidden="true"]')).toBeNull();
+        expect(badge?.className).not.toMatch(/uppercase|tracking-wider/);
+      } finally {
+        projected.destroy();
+      }
+    },
+  );
 });

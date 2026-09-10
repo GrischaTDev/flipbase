@@ -63,13 +63,9 @@
         <div class="flex min-w-0 items-center gap-1.5">
           <span class="text-[11px] font-semibold text-fb-text-secondary">Bild {{ i + 1 }}</span>
           @if (image.metadata.gps) {
-            <span
-              class="rounded-full bg-amber-400/15 px-2 py-0.5 text-[9px] font-bold text-amber-200"
-              title="Dieses Foto enthält den Aufnahmeort"
-            >
-              <span aria-hidden="true">◉</span>
+            <app-badge tone="caution" title="Dieses Foto enthält den Aufnahmeort">
               <span class="sr-only">Enthält Standortdaten. </span>GPS
-            </span>
+            </app-badge>
           }
           <button
             type="button"

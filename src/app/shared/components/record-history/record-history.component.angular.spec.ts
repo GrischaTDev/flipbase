@@ -4,7 +4,7 @@ import { TestBed } from '@angular/core/testing';
 import { readFile } from 'node:fs/promises';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { BusinessEvent } from '../../../core/models/business-event.models';
-import { RecordHistoryComponent } from './record-history.component';
+import { mapRecordHistoryDetails, RecordHistoryComponent } from './record-history.component';
 
 const event: BusinessEvent = {
   id: '11111111-1111-4111-8111-111111111111',
@@ -41,6 +41,90 @@ function createHistory(inputs: Readonly<Record<string, unknown>> = {}) {
 }
 
 describe('RecordHistoryComponent', () => {
+  it('zeigt geänderte Positionswerte und neue Kosten aus vollständigen Snapshots', () => {
+    expect(
+      mapRecordHistoryDetails({
+        purchase: { before: { title: 'Einkauf' }, after: { title: 'Einkauf' } },
+        lines: {
+          before: [{ title_snapshot: 'Tasse', ordered_quantity: 2, unit_purchase_price: 10 }],
+          after: [{ title_snapshot: 'Tasse', ordered_quantity: 3, unit_purchase_price: 12 }],
+        },
+        costs: { before: [], after: [{ amount: 5, description: 'Versand' }] },
+      }),
+    ).toEqual([
+      { label: 'Positionen · Vorher · 1 · Bezeichnung', before: 'Tasse', after: '—' },
+      { label: 'Positionen · Vorher · 1 · Menge', before: '2', after: '—' },
+      { label: 'Positionen · Vorher · 1 · Stückpreis', before: '10', after: '—' },
+      { label: 'Positionen · Nachher · 1 · Bezeichnung', before: '—', after: 'Tasse' },
+      { label: 'Positionen · Nachher · 1 · Menge', before: '—', after: '3' },
+      { label: 'Positionen · Nachher · 1 · Stückpreis', before: '—', after: '12' },
+      { label: 'Kosten · Nachher · 1 · Betrag', before: '—', after: '5' },
+      { label: 'Kosten · Nachher · 1 · Beschreibung', before: '—', after: 'Versand' },
+    ]);
+  });
+
+  it('zeigt erstellte und entfernte Snapshot-Felder und schützt auch verschachtelte Geheimnisse', () => {
+    expect(
+      mapRecordHistoryDetails({
+        purchase: { before: null, after: { title: 'Neuer Einkauf', notes: null } },
+        lines: { before: [{ title_snapshot: 'Entfernte Position' }], after: [] },
+        authorization: { before: { value: 'secret-old' }, after: { value: 'secret-new' } },
+      }),
+    ).toEqual([
+      { label: 'Einkauf · Bezeichnung', before: '—', after: 'Neuer Einkauf' },
+      { label: 'Positionen · Vorher · 1 · Bezeichnung', before: 'Entfernte Position', after: '—' },
+      { label: 'Authorization', before: '[geschützt]', after: '[geschützt]' },
+    ]);
+  });
+
+  it('verknüpft umsortierte Kosten nicht fälschlich mit einem anderen Kosteneintrag', () => {
+    expect(
+      mapRecordHistoryDetails({
+        costs: {
+          before: [
+            { description: 'A', amount: 1 },
+            { description: 'B', amount: 2 },
+          ],
+          after: [
+            { amount: 2, description: 'B' },
+            { description: 'A', amount: 3 },
+          ],
+        },
+      }),
+    ).toEqual([
+      { label: 'Kosten · Vorher · 1 · Beschreibung', before: 'A', after: '—' },
+      { label: 'Kosten · Vorher · 1 · Betrag', before: '1', after: '—' },
+      { label: 'Kosten · Nachher · 2 · Beschreibung', before: '—', after: 'A' },
+      { label: 'Kosten · Nachher · 2 · Betrag', before: '—', after: '3' },
+    ]);
+  });
+
+  it('zeigt bei eingefügten Positionen keine Änderung der nachfolgenden Positionen', () => {
+    expect(
+      mapRecordHistoryDetails({
+        lines: {
+          before: [{ title_snapshot: 'B' }],
+          after: [{ title_snapshot: 'A' }, { title_snapshot: 'B' }],
+        },
+      }),
+    ).toEqual([{ label: 'Positionen · Nachher · 1 · Bezeichnung', before: '—', after: 'A' }]);
+  });
+
+  it('gleicht gleiche Einträge einzeln ab und erhält zusätzliche Duplikate', () => {
+    expect(
+      mapRecordHistoryDetails({
+        costs: {
+          before: [{ amount: 1 }, { amount: 1 }, { amount: 1 }, { amount: 2 }],
+          after: [{ amount: 1 }, { amount: 2 }, { amount: 2 }],
+        },
+      }),
+    ).toEqual([
+      { label: 'Kosten · Vorher · 2 · Betrag', before: '1', after: '—' },
+      { label: 'Kosten · Vorher · 3 · Betrag', before: '1', after: '—' },
+      { label: 'Kosten · Nachher · 3 · Betrag', before: '—', after: '2' },
+    ]);
+  });
+
   it('zeigt während des Ladens einen verständlichen Status', () => {
     const fixture = createHistory({ loading: true });
 

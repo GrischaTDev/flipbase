@@ -1,14 +1,15 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { LucideDynamicIcon, LucideIconInput, LucideLoader2 } from '@lucide/angular';
+import { NgTemplateOutlet } from '@angular/common';
+import { Params, RouterLink } from '@angular/router';
 
-export type ButtonVariant =
-  'primary' | 'primary-dark' | 'secondary' | 'destructive' | 'ghost' | 'plain';
+export type ButtonVariant = 'primary' | 'secondary' | 'destructive' | 'ghost' | 'plain';
 
-export type ButtonSize = 'slim' | 'md' | 'lg';
+export type ButtonSize = 'slim' | 'md' | 'lg' | 'search';
 
 @Component({
   selector: 'app-button',
-  imports: [LucideDynamicIcon],
+  imports: [LucideDynamicIcon, NgTemplateOutlet, RouterLink],
   templateUrl: './button.component.html',
   styleUrl: './button.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -25,10 +26,17 @@ export class ButtonComponent {
   readonly disabled = input<boolean>(false);
   readonly icon = input<LucideIconInput | null>(null);
   readonly iconPosition = input<'start' | 'end'>('start');
+  readonly iconOnly = input<boolean>(false);
   readonly fullWidth = input<boolean>(false);
   readonly type = input<'button' | 'submit' | 'reset'>('button');
+  readonly link = input<string | null>(null);
+  readonly queryParams = input<Params | null>(null);
   readonly ariaLabel = input<string>('');
   readonly title = input<string>('');
+  readonly ariaExpanded = input<boolean | null>(null);
+  readonly ariaPressed = input<boolean | null>(null);
+  readonly ariaControls = input<string>('');
+  readonly ariaHaspopup = input<'dialog' | 'menu' | 'listbox' | null>(null);
 
   readonly clicked = output<MouseEvent>();
 
@@ -38,7 +46,7 @@ export class ButtonComponent {
 
   protected readonly buttonClasses = computed(() => {
     const base =
-      'inline-flex items-center justify-center font-medium transition select-none cursor-pointer ' +
+      'fb-button inline-flex items-center justify-center font-[550] leading-4 select-none cursor-pointer pointer-coarse:min-h-11 pointer-coarse:min-w-11 ' +
       'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary ' +
       'disabled:cursor-not-allowed disabled:opacity-40';
 
@@ -46,8 +54,6 @@ export class ButtonComponent {
 
     const variantStyles: Record<ButtonVariant, string> = {
       primary: 'linear-btn-primary font-semibold text-fb-on-accent shadow-sm',
-      'primary-dark':
-        'bg-[#202223] hover:bg-[#1a1a1a] text-white border border-black/20 shadow-sm font-semibold',
       secondary:
         'linear-btn-secondary text-fb-text-secondary border border-fb-border hover:text-fb-text-primary hover:bg-fb-surface-hover shadow-sm',
       destructive:
@@ -58,11 +64,19 @@ export class ButtonComponent {
         'bg-transparent text-fb-text-secondary hover:text-fb-text-primary p-0 border-0 underline-offset-4 hover:underline',
     };
 
-    const sizeStyles: Record<ButtonSize, string> = {
-      slim: 'h-7 px-2 text-xs rounded-lg gap-1.5',
-      md: 'h-8 px-3 text-[13px] rounded-lg gap-2',
-      lg: 'h-9 px-4 text-[13px] rounded-lg gap-2',
-    };
+    const sizeStyles: Record<ButtonSize, string> = this.iconOnly()
+      ? {
+          slim: 'h-7 w-7 px-0 text-[13px] rounded-lg gap-0',
+          md: 'h-7 w-7 px-0 text-[13px] rounded-lg gap-0',
+          lg: 'h-8 w-8 px-0 text-[13px] rounded-lg gap-0',
+          search: 'h-9 w-9 px-0 text-[13px] rounded-lg gap-0',
+        }
+      : {
+          slim: 'h-7 px-2 text-[13px] rounded-lg gap-1.5',
+          md: 'h-7 px-3 text-[13px] rounded-lg gap-1.5',
+          lg: 'h-8 px-4 text-[13px] rounded-lg gap-2',
+          search: 'h-9 px-2 text-[13px] rounded-lg gap-1.5',
+        };
 
     return [base, width, variantStyles[this.variant()], sizeStyles[this.size()]]
       .filter(Boolean)

@@ -1,49 +1,28 @@
-import type { ChartConfiguration, TooltipModel } from 'chart.js';
+import type {
+  ApexAxisChartSeries,
+  ApexChart,
+  ApexDataLabels,
+  ApexGrid,
+  ApexLegend,
+  ApexMarkers,
+  ApexResponsive,
+  ApexStroke,
+  ApexTheme,
+  ApexTooltip,
+  ApexXAxis,
+  ApexYAxis,
+} from 'apexcharts';
 import type { DashboardTimePoint } from '../../../core/models/flipbase.models';
 import type { AppTheme } from '../../../core/services/theme.service';
 
-export interface RevenueChartPalette {
-  readonly revenue: string;
-  readonly costOfGoodsSold: string;
-  readonly sellingCosts: string;
-  readonly resultAfterDirectCosts: string;
-  readonly ticks: string;
-  readonly grid: string;
-  readonly zeroLine: string;
-  readonly tooltipBackground: string;
-  readonly tooltipText: string;
-  readonly tooltipBorder: string;
-}
+export const REVENUE_CHART_SERIES = [
+  { key: 'revenue', label: 'Verkaufserlös', dash: 0 },
+  { key: 'costOfGoodsSold', label: 'Wareneinsatz', dash: 8 },
+  { key: 'sellingCosts', label: 'Verkaufskosten', dash: 5 },
+  { key: 'resultAfterDirectCosts', label: 'Ergebnis nach direkten Kosten', dash: 2 },
+] as const;
 
-export const REVENUE_CHART_SERIES: readonly {
-  readonly key: 'revenue' | 'costOfGoodsSold' | 'sellingCosts' | 'resultAfterDirectCosts';
-  readonly label:
-    'Verkaufserlös' | 'Wareneinsatz' | 'Verkaufskosten' | 'Ergebnis nach direkten Kosten';
-  readonly pointStyle: 'circle' | 'rectRot' | 'rect' | 'triangle';
-  readonly borderDash: readonly number[];
-}[] = [
-  { key: 'revenue', label: 'Verkaufserlös', pointStyle: 'circle', borderDash: [] },
-  {
-    key: 'costOfGoodsSold',
-    label: 'Wareneinsatz',
-    pointStyle: 'rectRot',
-    borderDash: [8, 4],
-  },
-  {
-    key: 'sellingCosts',
-    label: 'Verkaufskosten',
-    pointStyle: 'rect',
-    borderDash: [5, 3],
-  },
-  {
-    key: 'resultAfterDirectCosts',
-    label: 'Ergebnis nach direkten Kosten',
-    pointStyle: 'triangle',
-    borderDash: [2, 3],
-  },
-];
-
-const palettes: Record<AppTheme, RevenueChartPalette> = {
+const palettes = {
   light: {
     revenue: '#1d4ed8',
     costOfGoodsSold: '#b45309',
@@ -51,10 +30,6 @@ const palettes: Record<AppTheme, RevenueChartPalette> = {
     resultAfterDirectCosts: '#047857',
     ticks: '#596273',
     grid: '#e2e6ec',
-    zeroLine: '#596273',
-    tooltipBackground: '#ffffff',
-    tooltipText: '#171a21',
-    tooltipBorder: '#cbd1da',
   },
   dark: {
     revenue: '#c4c4c4',
@@ -63,102 +38,110 @@ const palettes: Record<AppTheme, RevenueChartPalette> = {
     resultAfterDirectCosts: '#57c776',
     ticks: '#a8a8a8',
     grid: '#373737',
-    zeroLine: '#a8a8a8',
-    tooltipBackground: '#171717',
-    tooltipText: '#f5f5f5',
-    tooltipBorder: '#4a4a4a',
   },
 };
 
-const euroFormatter = new Intl.NumberFormat('de-DE', {
-  style: 'currency',
-  currency: 'EUR',
-});
+const euroFormatter = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' });
 
 export function formatChartAmount(value: number | null): string {
   return value === null ? 'unbekannt' : euroFormatter.format(value);
 }
 
-export function revenueChartPalette(theme: AppTheme): RevenueChartPalette {
+export function revenueChartPalette(theme: AppTheme) {
   return palettes[theme];
+}
+
+export function buildRevenueSeries(points: readonly DashboardTimePoint[]): ApexAxisChartSeries {
+  return REVENUE_CHART_SERIES.map((series) => ({
+    name: series.label,
+    data: points.map((point) => point[series.key]),
+  }));
+}
+
+export interface RevenueChartConfiguration {
+  chart: ApexChart;
+  series: ApexAxisChartSeries;
+  colors: string[];
+  dataLabels: ApexDataLabels;
+  stroke: ApexStroke;
+  markers: ApexMarkers;
+  legend: ApexLegend;
+  tooltip: ApexTooltip;
+  xaxis: ApexXAxis;
+  yaxis: ApexYAxis;
+  grid: ApexGrid;
+  theme: ApexTheme;
+  responsive: ApexResponsive[];
 }
 
 export function createRevenueChartConfiguration(
   points: readonly DashboardTimePoint[],
   theme: AppTheme,
   reducedMotion: boolean,
-  showExternalTooltip?: (tooltip: TooltipModel<'line'>) => void,
-): ChartConfiguration<'line', (number | null)[], string> {
+): RevenueChartConfiguration {
   const palette = revenueChartPalette(theme);
-
   return {
-    type: 'line',
-    data: {
-      labels: points.map(({ label }) => label),
-      datasets: REVENUE_CHART_SERIES.map((series) => ({
-        label: series.label,
-        data: points.map((point) => point[series.key]),
-        borderColor: palette[series.key],
-        backgroundColor: palette[series.key],
-        borderDash: [...series.borderDash],
-        pointStyle: series.pointStyle,
-        pointHitRadius: 12,
-      })),
+    chart: {
+      type: 'line',
+      height: 260,
+      width: '100%',
+      fontFamily: 'Inter, system-ui, sans-serif',
+      foreColor: palette.ticks,
+      background: 'transparent',
+      parentHeightOffset: 0,
+      animations: {
+        enabled: !reducedMotion,
+        speed: 250,
+        animateGradually: { enabled: false },
+        dynamicAnimation: { enabled: !reducedMotion, speed: 250 },
+      },
+      toolbar: { show: false },
+      zoom: { enabled: false },
     },
-    options: {
-      font: { family: 'Inter, system-ui, sans-serif' },
-      responsive: true,
-      maintainAspectRatio: false,
-      animation: reducedMotion ? false : { duration: 250 },
-      interaction: {
-        mode: 'index',
-        axis: 'x',
-        intersect: false,
+    series: buildRevenueSeries(points),
+    colors: REVENUE_CHART_SERIES.map((series) => palette[series.key]),
+    stroke: {
+      width: 2,
+      curve: 'straight',
+      dashArray: REVENUE_CHART_SERIES.map((series) => series.dash),
+    },
+    markers: { size: points.length === 1 ? 4 : 0, hover: { size: 5 } },
+    dataLabels: { enabled: false },
+    legend: { show: false },
+    tooltip: { enabled: false },
+    xaxis: {
+      type: 'category',
+      categories: points.map((point) => point.label),
+      tickPlacement: 'on',
+      tickAmount: points.length > 1 ? Math.min(points.length - 1, 6) : undefined,
+      labels: {
+        rotate: 0,
+        hideOverlappingLabels: true,
+        style: { fontSize: '12px', colors: palette.ticks },
       },
-      events: ['mousemove', 'mouseout', 'click', 'touchstart', 'touchmove'],
-      plugins: {
-        legend: {
-          display: false,
-        },
-        tooltip: {
-          enabled: !showExternalTooltip,
-          external: showExternalTooltip ? ({ tooltip }) => showExternalTooltip(tooltip) : undefined,
-          backgroundColor: palette.tooltipBackground,
-          bodyColor: palette.tooltipText,
-          borderColor: palette.tooltipBorder,
-          borderWidth: 1,
-          titleColor: palette.tooltipText,
-          callbacks: {
-            label: (tooltipItem) =>
-              `${tooltipItem.dataset.label}: ${formatChartAmount(tooltipItem.parsed.y ?? null)}`,
-          },
-        },
-      },
-      scales: {
-        x: {
-          border: {
-            color: palette.zeroLine,
-          },
-          grid: {
-            color: palette.grid,
-          },
-          ticks: {
-            color: palette.ticks,
-          },
-        },
-        y: {
-          beginAtZero: true,
-          border: {
-            color: palette.zeroLine,
-          },
-          grid: {
-            color: (context) => (context.tick.value === 0 ? palette.zeroLine : palette.grid),
-          },
-          ticks: {
-            color: palette.ticks,
-          },
-        },
+      axisBorder: { color: palette.grid },
+      axisTicks: { show: false },
+      tooltip: { enabled: false },
+    },
+    yaxis: {
+      labels: {
+        formatter: (value) => formatChartAmount(value),
+        style: { fontSize: '12px', colors: [palette.ticks] },
       },
     },
+    grid: {
+      borderColor: palette.grid,
+      strokeDashArray: 3,
+      padding: { left: 8, right: 12, top: 8, bottom: 0 },
+    },
+    theme: { mode: theme },
+    responsive: [
+      {
+        breakpoint: 640,
+        options: {
+          xaxis: { tickAmount: points.length > 1 ? Math.min(points.length - 1, 2) : undefined },
+        },
+      },
+    ],
   };
 }

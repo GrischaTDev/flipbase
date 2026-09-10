@@ -1,0 +1,58 @@
+@if (knownReceipt(); as summary) {
+  <span #trigger>
+    <app-button
+      variant="ghost"
+      size="slim"
+      [icon]="chevronIcon"
+      iconPosition="end"
+      [ariaExpanded]="isOpen()"
+      [ariaControls]="panelId"
+      ariaHaspopup="dialog"
+      ariaLabel="Erhaltene Artikel anzeigen"
+      (click)="toggle($event)"
+    >
+      {{ summary.received }} von {{ summary.ordered }}
+    </app-button>
+  </span>
+} @else if (receipt().kind === 'unknown-content') {
+  <span class="text-[13px] text-fb-text-muted">Inhalt offen</span>
+} @else {
+  <span class="text-[13px] text-fb-text-muted">Nicht verfügbar</span>
+}
+
+@if (isOpen() && knownReceipt(); as summary) {
+  <div
+    data-purchase-receipt-preview
+    [id]="panelId"
+    role="dialog"
+    aria-label="Erhaltene Artikel"
+    [style.top.px]="panelPosition().top"
+    [style.left.px]="panelPosition().left"
+    class="fb-popover-enter fixed z-[80] w-72 max-w-[calc(100vw-1rem)] rounded-xl border border-fb-border bg-fb-surface p-3 text-left text-fb-text-primary shadow-xl"
+  >
+    <div class="mb-2 flex items-center justify-between gap-2">
+      <app-badge tone="info">Erhalten</app-badge>
+      <span class="text-[13px] text-fb-text-muted">
+        {{ summary.received }} von {{ summary.ordered }}
+      </span>
+    </div>
+    <ul class="m-0 max-h-52 list-none space-y-1 overflow-y-auto p-0">
+      @for (line of summary.lines; track line.id) {
+        <li
+          class="flex min-h-10 items-center justify-between gap-3 rounded-lg border border-fb-line px-2.5 py-2"
+        >
+          <span class="min-w-0 truncate text-[13px] font-medium">{{ line.title }}</span>
+          <span class="shrink-0 text-[13px] text-fb-text-muted">
+            {{ line.received }} von {{ line.ordered }}
+          </span>
+        </li>
+      }
+    </ul>
+    <a
+      [routerLink]="['/purchases', purchaseId()]"
+      class="mt-2 inline-flex text-[13px] font-medium text-fb-text-primary underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-fb-primary"
+    >
+      Einkauf öffnen
+    </a>
+  </div>
+}

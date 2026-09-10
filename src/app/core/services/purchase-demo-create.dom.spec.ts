@@ -67,6 +67,13 @@ function erstelleStore(): MockDataStoreService {
     () => new MockDataStoreService(),
   );
   store.isDemoMode.set(true);
+  store.saveCatalogProduct({
+    id: 'catalog-led',
+    workspace_id: workspace.id,
+    title: 'LED-Lampe',
+    tracking_mode: 'quantity',
+    is_public_store: false,
+  });
   return store;
 }
 

@@ -1,5 +1,72 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-10 – Codex – Einkaufserfassungs-E2E an Artikelpreise angepasst
+
+**Korrektur:** Zwei E2E-Abläufe der Einkaufserfassung erzeugen ihren Warenbetrag
+nun über einen hinzugefügten Artikel mit Stückpreis. Damit prüfen Kostenverwaltung,
+Speichern, Zentrierung und Inline-Bearbeitung wieder den aktuellen artikelbasierten
+Vertrag, ohne das Anwendungsverhalten zu verändern.
+
+**Prüfung:** Die beiden betroffenen Playwright-Tests sowie anschließend die
+vollständige `purchase-entry.spec.ts` mit neun erfolgreichen Abläufen wurden
+ausgeführt. Prettier und ESLint wurden gezielt für die geänderte Testdatei und
+diesen Eintrag geprüft. Kein Commit.
+
+---
+
+## 2026-09-10 – Codex – Verkäuferauswahlen vereinheitlicht
+
+**Korrektur:** Die sichtbaren Auswahlen für Verkäuferart und Land im
+Verkäuferdialog sowie der Typfilter der Verkäuferliste verwenden nun den
+gemeinsamen Auswahlbaustein. Die Dialogfelder bleiben an ihre reaktiven
+Formularfelder gebunden, die deutschen Ländernamen bleiben alphabetisch und der
+Listenfilter nutzt die kompakte Filterdarstellung. Das Fachverhalten wurde nicht
+geändert.
+
+**Prüfung:** Die zwei fokussierten Angular-Testdateien prüfen mit insgesamt
+zwölf Tests die Auswahlwerte, Formularübernahme, alphabetische Länderfolge,
+genau einen Typfilter und Barrierefreiheit. Die gemeinsame Admin-UI-Prüfung
+meldet für 68 Vorlagen keine Verstöße. Prettier und ESLint wurden gezielt für
+die betroffenen Sellers-Dateien und diesen Eintrag ausgeführt. Kein Commit.
+
+---
+
+## 2026-09-10 – Codex – Integrationsregressionen im Einkauf behoben
+
+**Ursache und Fix:** Die atomaren Status- und Tracking-RPCs liefern absichtlich
+nur die Datenbankzeile zurück. Der lokale Einkaufsservice ersetzte damit zuvor
+vollständig geladene Beziehungen und berechnete Angaben. Die lokale Übernahme
+führt nun einen flachen Merge aus: Felder der bestätigten Tabellenzeile
+überschreiben den alten Stand, fehlende beziehungsweise `undefined` Felder wie
+Verkäufer, Zusatzkosten und Einkaufspositionen bleiben erhalten. Der Status-RPC
+akzeptiert außerdem nach einem Wareneingang die Zustände `partially_received`
+und `received`, wenn der unabhängige Ankunftsstatus noch fehlt; der direkte Weg
+von Bestellt zu Angekommen bleibt unverändert.
+
+**Prüfung:** Zwei neue Service-Regressionen prüfen die Teilantworten für
+Workflow und Tracking. Der zugehörige pgTAP-Test prüft Teillieferung und
+vollständigen Wareneingang ohne vorheriges `shipment_status = arrived`.
+`purchase.service.spec.ts` besteht mit 39 Tests, der fokussierte pgTAP-Lauf mit
+23 Prüfungen. ESLint und Prettier für die geänderten TypeScript-Dateien sind
+grün. Die Migration wurde anschließend aus dem finalen deklarativen Schema neu
+erzeugt und über einen vollständigen lokalen Datenbank-Reset geprüft.
+
+---
+
+## 2026-09-10 – Codex – Paketpreis-Präzision in Einkaufszeilen korrigiert
+
+**Korrektur:** Stückpreise aus der stückzahlunabhängigen Paketpreisverteilung
+akzeptieren nun bis zu 16 Nachkommastellen, während Positionssummen weiterhin
+centgenau geprüft werden. Divisionsergebnisse wie 1 € / 7 Stück werden vor dem
+Entwurf stabil auf 16 Stellen begrenzt; die centgenaue Positionssumme bleibt
+dabei erhalten.
+
+**Prüfung:** Regressionstest für die speicherbare 1-€-Verteilung auf sieben
+Stück ergänzt und gezielt ausgeführt. ESLint und TypeScript-Typprüfung sind
+ebenfalls erfolgreich; keine SQL-Dateien geändert.
+
+---
+
 ## 2026-09-10 – Codex – Einkaufs- und Verkäuferumbau umgesetzt
 
 **Verkäufer:** Die frühere Quellen-/Lieferantenverwaltung ist nutzerseitig eine
@@ -26,20 +93,29 @@ geladen. Einkaufsdetails sprechen ebenfalls nur noch von Verkäufern und zeigen
 keine alte Quelle oder Angebots-URL.
 
 **Datenbank und Übergang:** Das deklarative Schema und die daraus erzeugte
-Migration ergänzen Ländercode, Produktbildpfad und Ankunftszeitpunkt sowie die
-neuen atomaren RPCs. Das Prüfarchiv enthält keine Quellen mehr. Technische
-Altspalten und die alte Quellentabelle bleiben vorerst ausschließlich als
+Migration ergänzen Ländercode und Ankunftszeitpunkt sowie die neuen atomaren
+Status- und Tracking-RPCs. Produktbilder verwenden das inzwischen auf `master`
+vorhandene relationale Medienmodell. Das Prüfarchiv enthält keine Quellen mehr.
+Technische Altspalten und die alte Quellentabelle bleiben vorerst ausschließlich als
 interne Kompatibilität für die umfangreichen vorhandenen Kostenfunktionen; ihre
 vollständige Entfernung benötigt eine getrennte Ablösung dieser Funktionen und
 ist nicht mehr Teil der Oberfläche.
 
+**Verbindlicher PR-Abschluss:** Nach einer fertigen, lokal geprüften Änderung
+fragt der Assistent genau einmal, ob der PR jetzt erstellt und nach erfolgreichen
+Pflichtprüfungen gemergt werden soll. Ein „Ja“ umfasst Push, PR, grünen
+Merge-Commit und anschließendes Löschen von Feature-Zweig und Worktree. Für die
+Integration gilt ausschließlich `origin/master`; alte bereits integrierte
+Zweige sind nur noch kontrolliert aufzuräumen.
+
 **Prüfung:** Lokalen Supabase-Stack vollständig zurückgesetzt und die erzeugte
-Migration angewendet. Alle 34 SQL-Testdateien mit 1.152 Prüfungen sind grün.
-`npm run verify` ist vollständig erfolgreich: Format, ESLint, Typen, 43
-Workflow-Tests, Suite-Audit, 999 Node-, 138 DOM-, 538 erfolgreiche Angular- und
-13 Landing-Prüfungen sowie Produktionsbau. Zusätzlich bestehen sieben gezielte
-Chromium-Abläufe der Einkaufserfassung einschließlich Verkäuferanlage und
-Paketpreisverteilung.
+Migration angewendet. Alle 39 SQL-Testdateien mit 1.417 Prüfungen sind grün.
+`npm run verify` ist vollständig erfolgreich: Format, ESLint, Typen, 49
+erfolgreiche Workflow-Tests bei vier plattformbedingt übersprungenen Fällen,
+Suite-Audit, 1.041 Node-, 167 DOM-, 590 Angular- und 13 Landing-Prüfungen sowie
+Produktionsbau. Zusätzlich bestehen neun Chromium-Abläufe der
+Einkaufserfassung einschließlich Verkäuferanlage, Paketpreisverteilung,
+Kostenverwaltung und Inline-Bearbeitung.
 
 ---
 
@@ -63,6 +139,182 @@ Paketaktualisierung vorgenommen. Fachlichen Entwurf und testgetriebenen
 Umsetzungsplan dokumentiert; das optionale Produktbild ist dabei ausdrücklich
 der gemeinsamen Produkterstellung zugeordnet. Noch keine Anwendungs-,
 Datenbank- oder Geschäftsdaten geändert.
+
+---
+
+## 2026-09-09 – Codex – CI-Browserfehler an Einstieg und Dashboardbreiten beheben
+
+**Ursache und Fix:** Fünf Fehler aus PR #47 lokal reproduziert. Drei Einstiegsprüfungen erwarteten noch den alten Inventarbutton und eine eigenständige Artikelform mit h1; sie prüfen jetzt den gemeinsamen Produktdialog einschließlich direkter Route, Escape und Fokusrückgabe. Der tatsächliche Seitenüberlauf kam von nicht umbrechenden Dashboard-Zeitraumbuttons beziehungsweise dem daneben erzwungenen Plattformfilter: rechts 349,6 px bei 320 px und 798,6 px bei 768 px. Zwei gezielte Flex-Wrap-Ergänzungen lassen die Bedienelemente bei Platzmangel umbrechen, ohne Inhalt zu verstecken. Apex-/Chartcode blieb unberührt.
+
+**Prüfung:** Vorher fünf rot/acht grün; nach Fix alle 13 betroffenen Playwright-Fälle grün, einschließlich unveränderter AXE- und Seitenoverflow-Prüfungen. Zusätzliche Controlgeometrie sichert Zeitraum-/Plattformbedienung. Zehn Dashboard-Komponententests und Produktionsbau grün (742,34 kB), Format/Lint grün. Vollständiger Browserlauf und PR-Fortsetzung folgen beim Controller; keine Commits/Pushes/SQL durch den UI-Worker.
+
+**Diagramm-Regression:** Der Importfehlertest erwartete den lokalen Prebundle-Dateinamen, während CI generierte Chunknamen lädt. Ohne Prebundle lokal rot reproduziert; die Sperre erkennt jetzt ausschließlich die Apex-Core-Klassendefinition einschließlich esbuild-Suffix und verlangt genau einen tatsächlich gesperrten Import. Fehleranzeige, zugängliche Daten und erfolgreicher Retry sind in beiden Cachemodi grün. Unabhängiges Review bestätigt anhand der SourceMap die Beschränkung auf die Apex-Core-Abhängigkeit; keine Produktionsänderung oder abgeschwächte Prüfung.
+
+**Gesamt-Browsernachweis:** Alle 78 Playwright-Fälle ohne Paket-Prebundle in zwei Minuten erfolgreich; zusätzlich der Importfehler mit aktivem Prebundle grün. Geänderte Dateien format- und lintsauber, TypeScript-Prüfung grün. Unabhängiges UI-Review bestätigt unveränderte AXE-/Overflow-Grenzen. Korrekturen gehen in den regulären PR #47; dessen neue Pflichtprüfungen bleiben vor Abschluss abzuwarten.
+
+**PR-Abnahme:** Implementierungsstand `ceca851` in regulärem PR #47 vollständig grün, GitHub-Lauf 34292837037: Quality, beide Angular-Blöcke, Node, DOM, Database, Browser smoke und Required checks erfolgreich. Der Browserjob besteht innerhalb des unveränderten Zeitlimits. Hauptplan abgenommen; kein Merge, Deployment, produktiver Reset oder Backfill. Abschließender Commit enthält nur diesen Nachweis und die Plan-Checkbox.
+
+## 2026-09-09 – Codex – Produktbestand und sichere Migration integrieren
+
+**Buchungsvertrag:** Offene Loskosten bleiben NULL und sind nicht verkaufbar. Teilzugänge verwenden persistente Request-IDs; ein Retry bucht nicht doppelt. Demo und Server verwenden finalisierte Lose, stabile Centpools und aktive Kosten nach Retouren. Neue Regressionen prüfen Teilzugang, Speicherrollback, 35-Euro-FIFO-Beispiel, Centreste, Retoure/Neuververkauf, Kopfpreis und Empfangsstatus. Vorhandene Produkt-IDs dürfen unabhängig vom historischen Typmarker im neuen Mengenweg weiterverwendet werden; echte alte Artikel- und Verkaufsreferenzen bleiben erhalten.
+
+**Isolierte Prüfung:** GitHub-Lauf 34288392439: 38 Dateien, 1395 Datenbanktests grün. Der Generator ließ Storage-Policies und explizite Rollen-Revoke-Anweisungen aus; eine eng begrenzte, getestete Source-Generierung ergänzt diese vor Anwendung derselben Migration. Unabhängige Reviews korrigierten Policy-Namensbegrenzung und SQL-Statementgrenzen. Keine Testgates abgeschwächt, keine veröffentlichten Migrationen verändert. Kompatibilitäts- und echter Storage-API-Lauf folgen; keine produktiven Daten oder lokales Docker verwendet.
+
+**Finale lokale Integration:** 197 Testdateien mit 1763 Anwendungstests grün; Produktionsbau 742,31 kB ohne Budgetänderung, ESLint und Suiteaudit grün. Workflowprüfungen 49 erfolgreich, vier bestehende POSIX-Fälle unter Windows ausgelassen. Finale DB-Migration aus Lauf 34289489760 unverändert übernommen: 1393 DB-Tests sowie tatsächlicher Storage-Upload/Verweigerung/Metadatenfehler/Einzelpfad-Rollback grün. Unabhängiger SQL-Abgleich bestätigt 14 Funktionsbodies und unveränderte Sicherheitsdefinitionen. UI-Re-Review schließt alle fünf Befunde; 17 Browserfälle plus visuelle Nachprüfung der vier echten Hell-/Dunkelansichten. Alte Testfixtures wurden um tatsächlich existierende Produkte/Einkäufe und Kostenabschluss ergänzt, statt die strengere Produktprüfung abzuschwächen.
+
+**Entscheidungen:** Keine künstlichen Schattenlose für Altartikel. Nichtkanonische Altbildpfade ohne belegbare Artikelzuordnung bleiben bis zur Manifestprüfung gesperrt; Dateien und Metadaten bleiben erhalten. Produktive Überführung/Reset bleiben gesondert freizugeben. Regulärer Gesamt-PR folgt ohne Merge oder Deployment.
+
+## 2026-09-09 – Codex – Produktdialog, Medien und kompakte Einkaufszeilen integrieren
+
+**Umsetzung:** Gemeinsame Produktanlage für Katalog, Einkaufspicker, Inventarbutton und direkte Inventarroute; Produktstamm bleibt bei Bildfehlern erhalten und erzeugt keinen Bestand. Sichere Produktmedienpfade, enges Upload-Rollback, getrennter Demo-Medienspeicher, relationale Bildprojektion und zeitlich begrenzte Batch-Signaturen ergänzt. Kompakte Einkaufstabelle mit stabilen Zeilen-IDs, Details über Produktnamen, Iconaktionen und bestätigter CSV-Zuordnung; historische Produkt-IDs und kanonische GTINs werden akzeptiert, abweichende Zustände verlangen Zuordnung. Historische Artikelbearbeitung bleibt erhalten.
+
+**Prüfung und Reviewfixes:** 263 betroffene Anwendungstests und 17 Browserfälle grün; App-/Spec-Typprüfung, ESLint, Prettier, Suiteaudit, Shared-Architekturprüfung und Produktionsbau grün (742,11 kB, keine Budgetänderung). AXE ohne deaktivierte Regeln, 1440×1000 und 390×844 jeweils hell/dunkel, Dialog/Select/Escape/Fokus, Bildpersistenz, CSV-Abbruch, Inventarroute ohne Bestand und Kamera-Verweigerung geprüft. Vier finale Zeilenscreens selbst angesehen. Rote Regressionen sichern Workspacewechsel, einstellige Namen, historische Zuordnung, Betragsüberlauf, render-sicheren Mediencache und begrenzten automatischen Bildretry ab. Erste Screens zeigten abgeschnittene Spalten und falsche Dunkelmodus-Vorbereitung; Layout und Testvorbereitung korrigiert, neue Geometrie-/Farbprüfungen grün. Unabhängiges finales Review und Gesamt-PR-Prüfung folgen unter Controllerverantwortung. Keine SQL-Ausführung, keine Commits/Pushes durch den UI-Worker.
+
+## 2026-09-08 – Codex – Restlichen Produktumbau vollständig umsetzen
+
+**Auftrag:** Nutzer verlangt ausdrücklich alle noch offenen Planpunkte und anschließend einen regulären PR. Bestehende eigene Änderungen fortführen; keine erneute bloße Zwischenstand-Übergabe. Die Testgrundlage in PR #46 dient weiter zur isolierten SQL-/Typprüfung. Veröffentlichung im Sinne von Commit/Push/PR ist jetzt beauftragt, Merge, Deployment und produktive Datenüberführung nicht. Kein Docker auf dem Arbeitslaptop. Fremde Diagnoseartefakte bleiben unverändert.
+
+**Fortsetzung:** Zuerst verbleibende DOM-Testklassifikation des Apex-Renderers korrigieren, dann Produkt-/Kostenvertrag, Produktmedien, gemeinsame Erfassung und Buchungswege einschließlich Demo integrieren. Umsetzung mit abgegrenzten Agents und unabhängigen Reviews; Daten-/Referenzerhalt und volle Pflichtprüfungen vor PR-Abschluss.
+
+## 2026-09-08 – Codex – Produkt- und UI-Plan umsetzen
+
+**Auftrag:** Den freigegebenen Plan auf `codex/purchase-entry-design-review` beginnen: Lieferanten-Speicherfehler, einheitlicher Produktweg, kompakte Erfassung, Textbadges und Dashboard/ApexCharts. Getrennte Verantwortlichkeiten für SQL-Korrektur und lesende Verbraucheranalyse; Implementierungsaufgaben nacheinander mit unabhängigen Reviews. Keine Geschäftsdaten löschen, kein Docker auf dem Arbeitslaptop, keine Veröffentlichung ohne Auftrag.
+
+**Ausgangsprüfung:** 1.693 Anwendungstests erfolgreich (1.002 Node, 136 DOM, 555 Angular). Bestehende Node-Warnung zur experimentellen Glob-API und drei Windows-bedingt übersprungene Orchestrator-Signaltests. Nutzer bestätigt interne Betriebsnutzung und Jahresumsatz einschließlich verbundener Unternehmen unter 2 Mio. USD; ApexCharts-Community-Voraussetzung damit geklärt. Umsetzung und Abschlussprüfungen laufen.
+
+**Lieferantenfix und Badges:** `create_purchase` prüfte UUIDs versehentlich mit einer fehlenden Vierergruppe. Formatvalidierung gezielt korrigiert und neue Migration mechanisch aus der Funktion abgeleitet; veröffentlichte Migrationen unverändert. Positive/negative UUID-Regressionsprüfung und unabhängiges SQL-Review erfolgreich, neue Workspace-/Idempotenz-pgTAP-Prüfungen vorbereitet. Shared-Badge auf Text reduziert, dekorative Marker-/Uppercase-Eingänge samt Aufrufern entfernt; auch der projizierte GPS-Marker wurde nach Review entfernt, sein zugänglicher Standorttext bleibt erhalten. Chronik- und Diagrammlegendenpunkte unverändert.
+
+**Dashboard:** ApexCharts 7.1.0 ersetzt Chart.js im bestehenden Shared-Diagramm; Kennzahlen, vier Reihen, Null-/Negativwerte und Zeitbereiche unverändert. Der zunächst geprüfte Angular-Wrapper wurde wegen unvollständiger Import-/Renderfehlerbehandlung durch einen kleinen typisierten Adapter ersetzt und entfernt. Shared-Legendenbuttons mit `aria-pressed`, Tastatur-/Touchdetails, sichtbare Datentabelle bei Diagrammfehlern und Wiederholen-Aktion. Normale Überschriften und kompakte Journalansicht, mobil einschließlich Wareneinsatz/Marge. Keine Budgeterhöhung und keine weiteren Paket-Upgrades. Apex-Lizenzvolltext ist im Produktionsartefakt enthalten. Gezielte 15 Node-, 34 Angular- und sieben Browserprüfungen grün; AXE hell/dunkel Desktop/Mobil ohne abgeschaltete Regeln. Integrierte Anwendungssuite mit 1.697 Tests grün; abschließendes Gesamt-ESLint und Produktionsbau erfolgreich. Visuelle Stichproben 1440 × 1100 und 390 × 844 geprüft, kein unbelegter Pixelgleichheitsanspruch.
+
+**Artikelkern und Test-PR:** Verbraucherkarte und Datenübergangscheckliste erstellt. Noch keine Umschaltung auf den neuen Produktvertrag, kein Backfill und kein Datenreset. Der ausdrücklich genehmigte Draft-PR #46 arbeitet auf dem getrennten Zweig `codex/product-core-validation` ausschließlich mit wegwerfbarer GitHub-Datenbank, ohne Produktionszugang, Merge oder Deployment. Der erste Abgleich erzeugte Typen und deckte über den vorhandenen Sicherheitstest eine fehlende Ausnahme vom pauschalen Funktionsgrant im deklarativen Schema auf (1159/1160 DB-Tests erfolgreich). Die Korrektur wird dort erneut geprüft; fehlgeschlagene Artefakte sind keine Freigabe. Lieferantenfix und UI bleiben vom Test-PR getrennt und unveröffentlicht.
+
+## 2026-09-08 – Codex – Verbindlichen Produkt- und UI-Umsetzungsplan vorbereiten
+
+**Auftrag:** Aus den bestätigten Anforderungen einen ausführbaren Gesamtplan erstellen, bevor der Umbau beginnt. Interne Betriebsnutzung von Flipbase/ApexCharts ausdrücklich bestätigt. Hauptplan `docs/superpowers/plans/2026-09-08-unified-products-admin.md` mit drei Teilplänen für Lieferantenfix, Produktmodell/Erfassung und Dashboard/ApexCharts; gemeinsame Designspezifikation unter `docs/superpowers/specs/2026-09-08-unified-products-admin-design.md`.
+
+**Referenz und Entscheidungen:** Shopify-Entwurf erneut bei 1440 × 1000 geprüft. Desktop zeigt Produkt/Bild, Lieferanten-SKU, Anzahl, Kosten mit Steuer und Gesamt; für Flipbase bewusst reduzierte Grundzeile mit Bild/Name, Menge, Stückpreis, Gesamt, Entfernen. Zusätzliche Produktdaten in Details, Suche und reine Import-/Scanner-Icons darunter. Suchauslöser gemessen (36 px Höhe, 13 px Schrift, 20 px Zeilenhöhe, 8 px Padding/Radius, ohne Rahmen). Native innere Mengenfeldhöhe nicht mit äußerer Feldgeometrie verwechseln. Keine Shopify-Daten geändert.
+
+**Architektur und Grenzen:** Einheitlicher neuer Produkt-/Losbestand statt nur versteckter Altbuttons; getrennte Kostenherkunft und historische Referenzen erhalten. Aktuelle Sicherung, Zuordnungsbericht, Upgrade-/Frischschema-Tests und explizite Freigabe vor produktiver Datenüberführung. Kein Docker auf dem Laptop. ApexCharts 7.1.0/ng-apexcharts 3.1.0 lesend in npm verifiziert, Installation erst nach Klärung der zusätzlichen Community-Umsatzvoraussetzung. Keine Installation, Anwendungscodeänderung, Datenbankausführung oder Veröffentlichung in diesem Planungsschritt.
+
+## 2026-09-08 – Codex – Einheitliches Produktmodell und ApexCharts recherchieren
+
+**Analyse:** Offizielle Shopify-Dokumentation bestätigt Produkt/Variante → Inventarinformation → Bestandsmengen je Standort; Menge eins ist kein eigener Produkttyp. WooCommerce führt ebenfalls Mengen an Produkten beziehungsweise Varianten. Empfehlung für Flipbase: ein gemeinsames Produktmodell und ein Erfassungsweg mit beliebiger positiver Menge, nicht lediglich zwei umbenannte Altwege. Einkauf, Wareneingang, Kostenherkunft und Verkauf bleiben verknüpft; unterschiedliche Einkaufspreise desselben Produkts gehören in getrennte Zugänge, nicht in neue Produktarten. Individuelle Mängel/Zustände dürfen nicht versehentlich zusammengefasst werden. Bestehende `tracking_mode`-/`line_kind`-Verzweigungen sowie alternative Verkaufsreferenzen machen dies zu einem fachlichen Umbau, nicht nur zu einer Templateänderung. Unbekannter Mystery-Inhalt bleibt bis zur Identifikation ein eigener Erfassungszustand, keine erfundene Produktidentität.
+
+**ApexCharts:** Chart.js ist derzeit installiert. ApexCharts bietet offizielle Angular-Integration und Zeitreihen-/Flächendiagramme; ein Wechsel ist eine mögliche Zielentscheidung, nicht automatisch eine Verbesserung ohne Designabgleich. Community-Lizenz laut Hersteller für Organisationen inklusive verbundener Unternehmen unter 2 Mio. USD Jahresumsatz; OEM-/Redistributionsbedingungen bei Drittanbieterplattformen separat prüfen. Gratisnutzung für Flipbase ohne Kenntnis von Nutzungsmodell und Organisation nicht bestätigt. Keine Abhängigkeiten installiert, keine Datenbank-/Anwendungscodeänderungen oder Veröffentlichung.
+
+**Quellen:** [Shopify-Inventarmodell](https://shopify.dev/docs/apps/build/orders-fulfillment/inventory-management-apps/manage-quantities-states), [Shopify-Varianten](https://help.shopify.com/en/manual/products/variants), [WooCommerce-Varianten](https://woocommerce.com/document/variable-product/), [ApexCharts Angular](https://apexcharts.com/docs/angular-charts/), [Community-Lizenz](https://apexcharts.com/license/community/), [Lizenzübersicht](https://apexcharts.com/license/).
+
+## 2026-09-08 – Codex – Artikelmaske, Lieferantenfehler und Dashboard analysieren
+
+**Auftrag und Referenz:** Aktuellen Shopify-Admin angemeldet lesend geprüft: leeren und befüllten Einkaufsentwurf, Produktsuche, CSV-Importdialog und Scanner-Dialog. Keine Shopify-Daten verändert. Befüllte mobile Referenz zeigt Bild/Platzhalter, Bezeichnung, editierbare Kosten und Menge, Gesamt sowie die Suchzeile darunter mit reinen Import-/Scanner-Icons. Desktop-Abnahme und vollständige Zustandsmessung für den nächsten Umbau bleiben offen. Gewünschte Statusbadges künftig nur mit Text, ohne vorangestellte Marker; Markengelb und Shared-Komponenten bleiben verbindlich.
+
+**Befunde:** `purchase-line-editor` enthält weiterhin separate Einzelstück-/Mengenartikel-Aktionen, Formular-Karten und eine obere Textbutton-Leiste. Die technische Bestandsführung unterscheidet weiterhin Einzelverfolgung und Mengenlose; eine gemeinsame Erfassung darf diese Fachentscheidung nicht stillschweigend aus der eingegebenen Menge ableiten. Dashboard und gemeinsamer Umsatzchart enthalten dekorative Versalschrift/gesperrte Überschriften und eine eigene Journal-Tabellenkomposition. Installiert und verwendet wird Chart.js 4.5.1, nicht ApexCharts. Kein Bibliothekswechsel vorgenommen.
+
+**Speicherfehler:** In `create_purchase` erwartet die Lieferanten-ID-Prüfung fälschlich das Muster 8-4-4-12 statt 8-4-4-4-12. Eine gültige UUID aus dem Testbestand wird nachweislich abgelehnt. Das unverändert übernommene Muster stammt aus Commit `e5cef4a7` und steht auch in der jüngsten veröffentlichten Funktionsmigration. `update_purchase_draft` besitzt das korrekte Muster; der neue Chroniktest legt ohne Lieferant an und setzt ihn erst beim Update, wodurch dieser Fall nicht abgedeckt war. Korrektur benötigt eine neue Migration und einen expliziten Neuanlage-Test mit gültigem Lieferanten desselben Workspaces sowie Gegenproben für fremde/ungültige IDs. Kein Produktionszugriff und keine SQL-Ausführung; kein Docker. In diesem Analyseschritt nur Dokumentation, keine Anwendungscodeänderung oder Veröffentlichung.
+
+## 2026-09-08 – Codex – Isolierten Artikelkern-Test-PR vorbereiten
+
+**Freigabe:** Nutzer erlaubt ausdrücklich einen separaten GitHub-Test-PR ohne Merge/Deployment. Eigener Zweig `codex/product-core-validation`, Basis `3b545c2`; die laufenden UI-/Lieferantenänderungen bleiben getrennt. Kein Docker und keine Datenbank auf dem Arbeitslaptop.
+
+**Umsetzung:** Zusätzlicher ausschließlich für diesen gleichnamigen Same-Repository-PR aktiver CI-Workflow erzeugt aus den deklarativen Schema-Dateien eine Migrationsvorschau und in einem wegwerfbaren GitHub-Runner Datenbanktypen. SQL-Vorschau, Typen, tatsächlicher Quellcommit und CLI-Version werden sieben Tage als Review-Artefakt aufbewahrt. Kein Produktionszugang, keine Geheimnisse, kein automatischer Commit, Merge oder Deployment. Die normalen PR-Pflichtprüfungen bleiben unverändert. Dies ist zunächst die technische Prüfgrundlage, noch keine Umstellung des Artikelmodells.
+
+**Prüfung:** Zwei lokale Workflow-Vertragsprüfungen zunächst rot (Workflow fehlt), danach grün. Die tatsächliche Schema-/Typgenerierung und pgTAP-Laufprüfung finden erst nach Push in CI statt. Erzeugte SQL-Dateien werden nicht ungeprüft als Produktionsmigration übernommen; Rechte, Datenüberführung und unbekannte Kosten benötigen weiter fachliches Review.
+
+**Erster CI-Befund:** Lauf `34279272450` erzeugte erfolgreich SQL und Typen; 1159 von 1160 Datenbanktests bestanden. Der bestehende Snapshot-ACL-Test verhinderte die Übernahme zweier ungewollter Funktionsfreigaben. Ursache: Der spätere pauschale Funktionsgrant im deklarativen Schema überschrieb den früheren Snapshot-Revoke. Die zentrale Ausnahmeliste erhält denselben Rechteentzug wie die bereits veröffentlichte Auditmigration. Keine Generatoränderung und keine Abschwächung des Sicherheitstests. Der Entwurf bleibt bis zur vollständigen erzeugten Kernmigration, Typen und grünen Pflichtprüfung unveröffentlichbar; insbesondere wird die Schema-/Migrationsprüfung nicht umgangen.
+
+## 2026-09-08 – Codex – Entwurfsbearbeitung und Chronik veröffentlichen
+
+**Auftrag:** Den freigegebenen Stand auf `codex/purchase-draft-chronology` einschließlich SQL-Migration committen, pushen und nach erfolgreichen Pflichtprüfungen über einen PR mit Merge-Commit nach `master` übernehmen. Anwendungstests und Bau vor Veröffentlichung erneut prüfen. Datenbanktests ausschließlich in CI, kein Docker und keine lokale Datenbankeinrichtung auf dem Arbeitslaptop. Lokale Diagnoseartefakte bleiben außerhalb des Commits; keine Geschäftsdaten löschen.
+
+## 2026-09-08 – Codex – Serverseitige Entwurfschronik freigegeben
+
+**Freigabe:** Der Nutzer erlaubt für diese Aufgabe ausdrücklich Supabase-Funktionen und Migrationen als Ausnahme von der Frontend-Grenze. Erstellung und fachliche Änderungen sollen transaktional protokolliert werden; keine rückwirkend erfundenen Ereignisse und kein Datenreset.
+
+**Arbeitslaptop:** Nach ausdrücklicher Korrektur des Nutzers keine weitere Docker-Nutzung, keine lokale Datenbankeinrichtung. Docker Desktop war zuvor gestartet worden; keine Flipbase-Testdatenbank angelegt und keine Arbeitscontainer absichtlich verändert oder gestoppt. Die installierte Supabase-CLI 2.114.0 stürzt bereits beim Versionsaufruf unter Windows ab. Migration daher nach Nutzerfreigabe ohne lokalen Datenbankabgleich aus den betroffenen deklarativen SQL-Definitionen ableiten; statische Prüfung und ausführbare Anwendungstests durchführen. pgTAP-/Transaktions-/Berechtigungstests bleiben vorbereitet, aber hier nicht ausgeführt. Keine Produktionsänderung und keine Veröffentlichung in diesem Schritt.
+
+**Umsetzung:** `create_purchase` schreibt nach erfolgreicher Anlage `purchase_draft_created`; idempotente Wiederholungen bleiben ohne zweiten Eintrag. `update_purchase_draft` vergleicht fachliche Vorher-/Nachher-Snapshots und schreibt nur bei Abweichung `purchase_draft_updated`. Interner Invoker-Helfer ohne Clientrechte normalisiert Positionen, Kosten und Direktzuordnungen ohne zufällige Zeilen-IDs/Zeitstempel. Bestehende RPC-Signaturen, Autorisierung, Locks und Journalrechte bleiben unverändert. Migration `20260908192408_purchase_draft_audit.sql` enthält die drei vollständigen Definitionen und deren explizite Rechte, mechanisch aus dem deklarativen Schema übernommen und gegen dieses geprüft. Keine Tabellen-/Datenlöschung, kein Backfill. Generierte Clienttypen bleiben unverändert; keine manuelle Typ-Erweiterung und keine DB-basierte Neugenerierung auf diesem Rechner.
+
+**Anzeige und Prüfung:** Deutsche Ereignislabels und gemeinsame Detaildarstellung für tatsächliche Fachwerte ergänzt. Das Review erkannte falsche Identitätszuordnung bei umsortierten Snapshot-Arrays; unveränderte Einträge werden nun mengengetreu abgeglichen, übrige Vorher-/Nachherwerte getrennt dargestellt. Korrektur mit Regressionstests und erneutem Read-only-Review bestätigt. 155 Angular-Tests, Build, Typprüfung, ESLint und Formatierung erfolgreich. Sieben Migrations-/Paketierungsprüfungen bestanden, zwei plattformspezifische Deploymentprüfungen übersprungen. SQL statisch geprüft, neue pgTAP-Datei vorbereitet, aber kein SQL gegen eine Datenbank ausgeführt. Kein Commit/Push/Merge/Deployment.
+
+## 2026-09-08 – Codex – Entwürfe unmittelbar bearbeiten
+
+**Auftrag:** Auf `codex/purchase-draft-chronology` gespeicherte Entwürfe direkt in der gemeinsamen Erfassungsmaske öffnen; explizites Speichern/Verwerfen, Shared-Komponenten und Abschlusssperren erhalten. Zwei Agents bearbeiten Detailablauf und Formular-/Positionsreset, ein weiterer prüft unabhängig. Keine Geschäftsdaten löschen und keine Veröffentlichung ohne Folgeauftrag.
+
+**Chronik und Grenze:** `create_purchase` und `update_purchase_draft` im deklarativen Schema schreiben keine Erstellung-/Entwurfsänderungsereignisse; `list_record_timeline` liest nur vorhandene Ereignisse und Kommentare. Das konkrete Produktionsschema wurde nicht abgefragt. Gemäß verbindlicher Frontend-Grenze keine Backend-Änderung und kein künstlicher Frontend-Ersatz. Detailliertes Issue und Ticket liegen unter `C:\Users\gt\Desktop\Backend Issues\purchase-draft-chronology\01-einkaufsentwurf-chronik*.md`. Echte Ereignisse erhalten eine sichtbare Uhrzeit; Speichern erneuert die Chronik ohne Verlust eines ungesendeten Kommentars. Der vollständige Erstellung-/Änderungsnachweis bleibt bis zur Backend-Erweiterung offen.
+
+**Zusätzlicher Preisfehler:** Die visuelle Positionsprüfung deckte auf, dass `NumberInput` sein Änderungsereignis vor der Aktualisierung des Reactive-Forms-Werts auslöste. Die Positionsberechnung las dadurch den alten Preis. Minimal im Shared-Baustein korrigiert (Formularwert vor Ereignis), ohne den Komponentenvertrag zu ersetzen. Regression zunächst rot und anschließend grün: Menge 3 × Stückpreis 12 ergibt sofort 36, auch ohne Blur; Neuanlage und gespeicherter Entwurf behalten diese Werte nach Speichern und erneutem Öffnen. Abschließend 137 Angular-Tests, Typprüfung, Formatierung, ESLint, Produktionsbau und die betroffenen Browserabläufe erneut erfolgreich. Desktop 1440 × 900 und Mobil 390 × 844 mit befüllten Positionen geprüft, keine Laufzeitfehler oder horizontalen Überläufe.
+
+**Prüfung:** Gezielte Regressionstests zunächst rot für fehlende direkte Bearbeitung, Reset, Uhrzeit und Chronikaktualisierung. 130 Angular-Tests im Integrationslauf erfolgreich, anschließend die um den Nachladefehler ergänzte Detail-Suite mit 14 Tests erneut erfolgreich. Außerdem 38 Logik-/DOM-Tests, vier Architekturtests, 24 unterschiedliche Browserabläufe (zuletzt 15 betroffene Abläufe wiederholt), Typprüfung, ESLint, Formatierung und erneuter Produktionsbau erfolgreich. Das unabhängige Review fand zwei Nachladefehler: Eingaben während des Nachladens und Rücksetzen auf alte Werte bei Ladefehler. Beide korrigiert und nachgeprüft; bei fehlgeschlagenem Nachladen bleibt die Form gesperrt mit Wiederholen-Aktion, aber Navigation wird nach bereits erfolgreichem Speichern nicht blockiert. Browser-Plugin mit eigenem Browser-Skill nicht verfügbar; vorhandenen Playwright-Ablauf verwendet. Desktop/Mobil in lokaler Demo geprüft, keine Laufzeitfehler; Screenshots außerhalb des Repositorys. Keine Aussage über rechtliche Konformität der Chronik. Kein Commit, Push, Merge oder Datenreset.
+
+## 2026-09-08 – Codex – Direkt bearbeitbare Entwürfe und Chronik klären
+
+**Analyse:** Nutzer möchte gespeicherte Einkaufsentwürfe unmittelbar in derselben editierbaren Positionsmaske wie die Neuanlage öffnen, ohne separate Detailtabelle, Spaltenanpassung oder „Artikel bearbeiten“. Code bestätigt die bisherige Trennung über `isEditing()`. Die Chronik liest im Echtbetrieb persistierte Ereignisse über `list_record_timeline`; im Demo-Modus derzeit ausschließlich Kommentare. Warum beim konkreten echten Einkauf der Erstellungseintrag fehlt, ist ohne Prüfung des betroffenen Datensatzes noch nicht belegt. Vorschlag: Entwürfe direkt editierbar, Abschlusssperren erhalten, explizites Speichern/Verwerfen; Erstellung und gespeicherte Änderungen zuverlässig serverseitig protokollieren. Keine erfundenen rückwirkenden Auditereignisse. Eine sichtbare Chronik allein belegt keine GoBD-Konformität. Nur Analyse, keine Anwendungscode- oder Datenänderung.
+
+## 2026-09-08 – Codex – UI-Korrekturen zur Veröffentlichung vorbereiten
+
+**Auftrag:** Die freigegebenen Dialog-, Button-, Chronik- und Kopfzeilenkorrekturen auf `codex/purchase-ui-polish` committen, pushen und über einen grünen PR mit Merge-Commit nach `master` übernehmen. Betroffene Prüfungen vor dem Push erneut ausführen. `debug.log` und lokale Diagnose-Testartefakte bleiben außerhalb des Commits. Keine Daten- oder Schemaänderung.
+
+## 2026-09-08 – Codex – Einkaufsdialog und Aktionsdichte korrigieren
+
+**Auftrag:** Abgeschnittenes Kosten-Dropdown, uneinheitliche Kopfaktionen, nicht zentrierte Nummer/Status/Zurück-Zeile und zu große Chronik korrigieren. Den ausdrücklich nicht mehr gewünschten Altbestands-Reparaturablauf aus der Einkaufsoberfläche entfernen, ohne Geschäftsdaten oder Schema zu löschen. Arbeit auf `codex/purchase-ui-polish`; lokale `debug.log` bleibt unangetastet.
+
+**Ursache und Umsetzung:** Das absolut positionierte Select-Menü wurde vom scrollenden Modal-Inhalt abgeschnitten; `z-index` konnte diese Grenze nicht überwinden. Die Shared-Auswahl verwendet auf unterstützten Browsern die native Popover-Ebene, bleibt dabei im Dialog-DOM und behält Fokus- und Tastaturverhalten. Neue Browserprüfungen kontrollieren echte Treffbarkeit über dem Footer, Auswahl, Escape, erneutes Öffnen und kleine Fenster statt nur DOM-Sichtbarkeit. Zwei Agents korrigierten gemeinsame Button-/Chronikdichte und Kopfaktionen/Altbestandsbereinigung. Desktop-Standardbuttons messen 28 px, Touchziele mindestens 44 px, der Chronik-Composer 102 statt 138 px. Prüfbeleg verwendet die Shared-Komponente als semantischen Link. Titel, Badge und Zurück-Aktion sind innerhalb eines Pixels zentriert; die Primäraktion steht rechts. Der Badge nutzt bei fehlendem technischem Status denselben Entwurfsstandard wie die Lifecycle-Aktionen. Vier verwaiste Reparatur-UI-/Testdateien entfernt (über Git wiederherstellbar), Datenbankfunktionen und Geschäftsdaten bleiben unverändert.
+
+**Prüfung:** 156 Angular-Tests, 29 Browserabläufe und vier Architekturtests erfolgreich. Formatierung, ESLint und Typprüfung erfolgreich; abschließender Build geprüft. Visuelle Stichproben auf localhost:4200 in Chromium bei 1440 × 900 und 390 × 844, zusätzliche Geometrieprüfung bei 390 × 600 und Touchprüfung. Keine Konsolen-/Laufzeitfehler in der visuellen Abnahme. Browser-Plugin mit eigenem Browser-Skill nicht verfügbar; vorhandener Playwright-Ablauf verwendet. Screenshots liegen außerhalb des Repositorys im Aufgaben-Artefaktordner. AXE wartet auf abgeschlossene endliche Einblendanimationen; der Modal-Abbruchtest wartet auf Dialogentfernung und Fokus-Rückgabe, bevor er in den zuvor gesperrten Hintergrund schreibt. Keine künstlichen Wartezeiten und keine unterdrückten AXE-Regeln. Safari/Firefox und alte Browser ohne Popover-Unterstützung nicht visuell geprüft. Noch nicht veröffentlicht.
+
+## 2026-09-07 – Codex – Einkaufsumbau zur Veröffentlichung vorbereiten
+
+**Auftrag:** Den freigegebenen Einkaufsumbau committen, auf GitHub pushen und nach erfolgreichen PR-Prüfungen mit Merge-Commit nach `master` übernehmen. Vor dem Push werden betroffene Tests, Formatierung, Lint und Build erneut geprüft; die vollständige Integrationsprüfung erfolgt im PR. Die lokale `debug.log` gehört nicht zur Veröffentlichung. Keine Datenlöschung oder Schemaänderung.
+
+## 2026-09-07 – Codex – Gemeinsamen Einkaufsarbeitsbereich umsetzen
+
+**Auftrag und Abgrenzung:** Nach ausdrücklicher Freigabe beginnt der Umbau auf `codex/purchase-unified-workspace`. Drei Agents übernehmen Kostenkomposition, Erfassungsformular sowie gemeinsame Aktionen und Regressionstests; die Hauptsitzung integriert die Detailseite. Kein Datenreset, keine Schemaänderung und keine Löschung von Geschäftsdaten. Die bereits gesicherten Angaben bleiben erhalten.
+
+**Umsetzung:** Erstellen, Ansicht und Inline-Bearbeitung verwenden denselben zentrierten Seitenrahmen und dieselbe Zweispalten-Komposition. Die Chronik bleibt links unter den Positionen. Primäraktionen verwenden ausschließlich den gelben Shared-Button. Die Kostenverwaltung erhält einen gemeinsamen Dialog mit vorläufigen Anpassungszeilen und ausdrücklichem Speichern/Verwerfen; Rabatt bleibt fachlich getrennt von Zusatzkosten. Inhaltskenntnis und Preisführung bleiben unabhängig, keine sichtbare Einkaufsart. Bestehende technische Typwerte und Abschlusssperren bleiben erhalten. Die Kostenprüfung für vorhandene Altdaten bleibt bei Bedarf über einen kompakten Aufklappbereich erreichbar statt als allgemeines Banner für jeden Entwurf.
+
+**Prüfung:** 127 Angular-Tests, 40 Logik-/Service-Tests, vier Architekturtests und 25 Browserabläufe bestanden. Build, Typprüfung, ESLint, Formatierung und Diff-Prüfung erfolgreich. Browserprüfungen umfassen gemeinsame Seitengeometrie, Speichern/Verwerfen, Rabatt nach erneutem Öffnen, direkte Einkaufslinks, Chronik, feste Sidebar, mobile Erfassungsseiten und automatisierte WCAG-AA-Prüfung. Die Shared-UI-Prüfung meldet für 67 Admin-Vorlagen keine Verstöße und verhindert zusätzlich sichtbare native Standardfelder im gemeinsamen Einkaufsarbeitsbereich. Visuelle Referenzprüfung auf die tatsächlich untersuchten Zustände begrenzt, keine vollständige Pixelgleichheit behauptet. Noch keine Veröffentlichung und keine Geschäftsdaten gelöscht.
+
+## 2026-09-07 – Codex – Einkaufs-Neuaufbau geprüft und Angaben zur Neueingabe gesichert
+
+**Entscheidungen:** Gemeinsame Einkaufsseite für Erstellen, Ansicht und Bearbeiten vorbereiten; Primäraktionen gelb und wiederkehrende Elemente über Shared-Komponenten. Die bewusste Abschaffung der sichtbaren Einkaufsart anhand von Commit `120a469` und dem Workflow-Plan bestätigt: Inhaltskenntnis und Preisführung bleiben unabhängig. Die vorherige Einordnung der fehlenden Typauswahl als Defekt war falsch. Der Nutzer bewertet die sporadisch gepflegten Daten als disponiblen Testbestand und stimmt einem späteren Neustart nach Sicherung zu.
+
+**Analyse und Sicherung:** Drei Agents prüften Komponenten, Fachabläufe, Datenabhängigkeiten und Exportlücken. Der identifizierte Server-Workspace wurde lesend in einem konsistenten Datenbanksnapshot exportiert: 10 Einkäufe, 14 Bestandsartikel, 4 Verkäufe, 3 Rechnungen, zugehörige Positionen, Kosten, Stammdaten, Kommentare und Ereignisse. JSON, lesbare Vorlage zur Neueingabe und das eine zugeordnete Artikelfoto liegen außerhalb des Repositorys im Aufgaben-Artefaktordner. Diese Referenzsicherung ersetzt keinen vollständigen Betriebsrestore. Keine Daten gelöscht, keine Backend- oder Anwendungscodeänderungen. Vor einer späteren Löschung sind aktueller Datenstand, technische Sicherung und konkrete Zielmenge erneut zu prüfen; Konten, Einstellungen und fremde Daten sind nicht pauschal Teil des Neustarts.
+
+## 2026-09-07 – Codex – Einkaufsseite, feste Sidebar und Chronik vereinheitlicht
+
+**Auftrag/Ergebnis:** Die Einkaufserfassung besitzt keine untere Aktionsleiste mehr. „Entwurf speichern“ steht als gemeinsamer Button oben rechts neben der Seitenüberschrift; der vorhandene Zurück-Pfeil übernimmt das Verlassen der Seite. Die mobile Kopfzeile verteilt Überschrift, Aktion und Untertitel ohne den zuvor abgeschnittenen Text. Die Bearbeitung eines vorhandenen Einkaufs öffnet nicht länger einen anders proportionierten Dialog, sondern dieselbe breite Arbeitsseite wie die Neuanlage. Nach dem Speichern wird der Datensatz neu geladen.
+
+**Layout und gemeinsame Bausteine:** Die Desktop-Sidebar ist fest an den Viewport gebunden; nur ihre Navigation scrollt intern, während der Seiteninhalt unabhängig läuft. Die gemeinsame Chronik für Einkäufe und Verkäufe liegt nun unterhalb des vollständigen zweispaltigen Arbeitsbereichs. Ihr Shopify-naher Aufbau trennt Überschrift, Kommentar-Composer, Sichtbarkeitshinweis, Kommentar-Karten und Systemereignisse. Aktionen verwenden den vorhandenen Shared-Button; nicht unterstützte Anhangs- oder Erwähnungsfunktionen wurden nicht vorgetäuscht.
+
+**Prüfung:** Die neuen Browser-Verträge wurden zunächst gegen den alten Stand rot ausgeführt: untere Speicheraktion, mitscrollende Sidebar, Chronik innerhalb der linken Spalte und Bearbeitungsdialog. Nach der Umsetzung bestanden 52 gezielte Angular-Tests und alle 11 betroffenen Einkaufs-/Sidebar-Browserabläufe. TypeScript-Prüfung, gezieltes ESLint, gemeinsame UI-Architekturprüfung und Produktionsbau waren erfolgreich. Die mobile Neu- und Bearbeitungserfassung sowie die Chronik wurden in der lokalen Demo visuell geprüft. Keine Backend- oder Datenbankänderung.
+
+**Abschlussprüfung:** Die parallele Gesamtsuite deckte eine verbleibende Zeitabhängigkeit im Windows-Prozessbaumtest auf: Nach dem erfolgreichen Beenden konnte ein bereits gestarteter asynchroner Heartbeat-Schreibvorgang noch abschließen. Der Test wartet nun zunächst auf eine kurze stabile Dateiphase und prüft erst danach erneut auf weitere Änderungen; ein tatsächlich weiterlaufender 25-ms-Heartbeat besteht diese Prüfung weiterhin nicht. Die produktive Runner-Logik blieb unverändert. Danach bestand die parallele Gesamtsuite mit 995 Node-, 138 DOM- und 516 Angular-Tests.
+
+## 2026-09-07 – Codex – Einkaufsübersicht und Erfassung nachgeschärft
+
+**Auftrag/Ergebnis:** Die Bezeichnung steht in einer eigenen Tabellenspalte und wird nicht mehr unter der Einkaufsnummer wiederholt. Einkaufsnummern erhalten in der Darstellung ein führendes `#`; fehlt eine Nummer, erscheint ein neutraler Strich statt eines Titel-Duplikats. Die Spalten „Erfassung“ sowie die alte Bestandsdarstellung wurden entfernt und durch „Erhalten“ mit Mengenstand und aufklappbarer Positionsvorschau ersetzt. „Gesamtkosten“ heißt in der Tabelle jetzt „Gesamt“ und ist einschließlich Beträgen rechtsbündig. Der Verkäuferfilter ist breiter.
+
+**Gemeinsame Bausteine:** Der vorhandene Shared-Button unterstützt jetzt zugängliche reine Icon-Buttons sowie die ARIA-Zustände für aufklappbare Inhalte. Die Kostenkarte verwendet diesen Baustein für das Stift-Icon. Die Positionsvorschau kombiniert ausschließlich gemeinsame Button- und Badge-Bausteine; der gemeinsame Toolbar-Select respektiert nun die vom Aufrufer vorgegebene Breite.
+
+**Erfassungsseite und Prüfung:** Kopfzeile, Zurück-Pfeil und zweispaltiger Inhalt verwenden dieselbe Inhaltsbreite. Gezielte Angular-, Darstellungs- und Node-Tests sowie Produktionsbau erfolgreich; die lokale Demo bei Desktopbreite visuell gegen die geöffnete Shopify-Referenz kontrolliert. Keine Backend- oder Datenbankänderung.
+
+**PR-Nachprüfung:** Der Browser-Smoke von PR #41 fand zwei veraltete Selektoren, die noch den entfernten Text „Bearbeiten“ beziehungsweise die früher unter der Einkaufsnummer stehende Bezeichnung erwarteten. Die Tests verwenden jetzt den zugänglichen Namen des Icon-Buttons und die eigene Bezeichnungszelle. Dabei wurde außerdem die Dialogbreite separat auf den vorhandenen 5xl-Container begrenzt, ohne die breite Erfassungsseite erneut einzuengen. Alle sieben Einkaufs-E2E-Abläufe und der Produktionsbau waren anschließend lokal erfolgreich.
+
+## 2026-09-07 – Codex – Gemeinsame Shopify-nahe Tabellenbausteine umgesetzt
+
+**Auftrag/Ergebnis:** Neun Nutzer-Screenshots und konkrete Nacharbeiten gegen Einkaufstabelle, Spaltenpräferenzen, Badge-Baustein und Nummernvorschau geprüft. Neuer Plan `docs/superpowers/plans/2026-09-07-admin-table-consistency.md`: rahmenlose Ansichts-/Suchbedienung, bedingtes Rücksetzicon, Entfernung von Kostenstatus/Aktionen, gemeinsame Badges und anschließende Übertragung auf weitere Tabellen. Fachbezeichnung „Einkauf“ anschließend bestätigt. Wiederkehrende sichtbare Grundelemente müssen verbindlich über bestehende oder erweiterte Shared-Komponenten laufen; ein neues Paket 0 inventarisiert Abweichungen, legt den Komponenten-Katalog fest und plant eine automatische Prüfung gegen neue lokale Select-/Statusnachbauten. Empfehlungen für Erhalten-Vorschau und konfigurierbares `#` ausdrücklich von festen Vorgaben getrennt. Ältere Textlink-Vorgabe in der Einkaufsabnahme als überholt markiert.
+
+**Referenz:** Nach Nutzeranmeldung aktuelle Shopify-Einkaufsliste einschließlich Ansichtsmenü, Anzeigeoptionen, Suchmodus und Lieferungsvorschau geöffnet. DOM und offene Badge-Shadow-Root gemessen: Toolbar 44 px, Ansichtsbutton 24 px, aktive Suchfläche 28 px mit 2-px-Fokusrahmen, Statusbadge 20 px/8 px Radius. Grenzen für Hover, weitere Töne und vollständige Interaktionsabnahme dokumentiert. Keine gespeicherten Shopify-Daten oder Ansichten verändert.
+
+**Einordnung der vorigen Recherche:** Git-Stand und zugängliche Aufgabenliste wurden geprüft; der gesuchte Gesprächsverlauf um 01:00 war nicht auffindbar. Daraus lässt sich weder das Ende der Diskussion noch das Fehlen weiterer Nacharbeiten ableiten. Die vorherige definitive Behauptung war nicht belegt. Die drei per Commit-Abstammung ungemergten Fix-Branches wurden nicht auf inhaltsgleiche Übernahme geprüft und sind damit kein verlässlicher offener Arbeitsbestand.
+
+**Umsetzung:** Gemeinsame `table-toolbar`-Komposition ergänzt und die bestehenden Such- und Select-Komponenten um eine rahmenlose Toolbar-Variante erweitert. Die Einkaufsübersicht verwendet diese Bausteine jetzt für Ansicht, Suche und Verkäuferfilter. Kostenstatus und Aktionsspalte wurden aus Konfiguration und Template entfernt; alte gespeicherte Spalten werden automatisch bereinigt. Der Tabellenklick öffnet weiterhin den Einkauf. Die gemeinsame Badge-Komponente unterstützt nun den quadratischen Shopify-Statusmarker; die zentrale Einkaufsdarstellung liefert dazu den semantischen Farbton. Das Rücksetzicon im gemeinsamen Spaltenmenü erscheint nur bei geänderter Sortierung, Reihenfolge oder Sichtbarkeit und setzt keine Suchfilter mehr zurück. Alle zuvor erfassten nativen Admin-Selects in Katalog, Einkaufserfassung, Verkäuferdialog und Nummernkreisen verwenden jetzt `app-custom-select`. Verbliebene kompakte Statuskennzeichnungen in Buchhaltung, Einkaufsdetails und Bildoptimierung verwenden `app-badge`. Warnflächen, Symbolkacheln und Storefront-Elemente bleiben gemäß Komponentenvertrag eigenständig. Die Workflow-Prüfung verlangt für die erfassten Admin-Abweichungen jetzt einen Altbestand von null.
+
+**Prüfung:** Typprüfung und Produktionsbau erfolgreich. 86 gezielte Angular-Tests, 20 Katalog-/Buchhaltungs-Tests und 3 Architekturtests erfolgreich; Architekturprüfung über 64 Admin-Templates mit null Treffern erfolgreich; gezieltes ESLint und `git diff --check` erfolgreich. Die bereits festgeschriebenen Pakete wurden lokal installiert, damit auch der Barcode-Scanner kompiliert; Lockfile-Inhalt blieb unverändert. Die lokale Node-Version 22.16 liegt unter Angular 22s gefordertem 22.22.3 und erzeugt Engine-Warnungen. Keine Datenbankänderung.
+
+**Abschlussprüfung:** Ein bestehender Windows-Prozessbaumtest scheiterte reproduzierbar, weil sein Fixture den angeblichen Kindprozess mit `detached: true` ausdrücklich aus dem zu prüfenden Prozessbaum löste. Das Fixture bildet jetzt einen echten Kindprozess ab; die produktive Runner-Logik blieb unverändert. Der betroffene Testlauf bestand anschließend dreimal hintereinander. Danach wurde die vollständige Projektprüfung erneut ausgeführt.
+
+**PR-Nachprüfung:** Der erste GitHub-Browser-Smoke-Lauf deckte zwei überholte E2E-Verträge auf: Das neue gemeinsame Suchfeld war noch als normales Textfeld statt als semantisches Suchfeld ausgezeichnet, und der Reset-Test erwartete weiterhin einen deaktivierten statt des vereinbarten ausgeblendeten Buttons. Der gemeinsame Suchbaustein verwendet jetzt `type="search"`; der Reset-Test prüft das bedingte Ausblenden. Die neun betroffenen Chromium-Abläufe wurden lokal verifiziert.
 
 ---
 

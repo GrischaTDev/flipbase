@@ -1,11 +1,11 @@
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { PurchaseEntryStatus } from '../../../../core/models/purchase-costing.models';
 import { PurchaseSaleHistoryState } from '../../../../core/services/purchase.service';
 
 @Component({
   selector: 'app-purchase-lifecycle-actions',
-  imports: [RouterLink],
+  imports: [ButtonComponent],
   templateUrl: './purchase-lifecycle-actions.component.html',
   host: { class: 'contents' },
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -20,6 +20,7 @@ export class PurchaseLifecycleActionsComponent {
   readonly saleHistoryState = input.required<PurchaseSaleHistoryState>();
   readonly saleReviewInventoryItemId = input<string | null>(null);
   readonly submitting = input(false);
+  readonly editing = input(false);
 
   readonly editRequested = output<void>();
   readonly deleteRequested = output<void>();

@@ -22,7 +22,7 @@ export function lotCostResult(
   sales: readonly Sale[],
   salesState: InventorySourceState,
 ): LotCostResult {
-  if (!purchaseIsFinalized(purchase) || lot.received_quantity <= 0) {
+  if (!purchaseIsFinalized(purchase) || lot.received_quantity <= 0 || lot.unit_cost === null) {
     return {
       remainingValueCents: null,
       historicalPoolCents: null,

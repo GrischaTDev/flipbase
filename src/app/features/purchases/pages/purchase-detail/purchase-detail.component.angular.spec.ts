@@ -22,6 +22,124 @@ describe('PurchaseDetailComponent', () => {
     expect(template).not.toContain('>Lieferant<');
   });
 
+  describe('Gemeinsame Bearbeitungsmaske', () => {
+    function workspace(entryStatus = 'draft') {
+      const component = Object.create(PurchaseDetailComponent.prototype) as PurchaseDetailComponent;
+      Object.assign(component, {
+        purchaseService: {
+          selectedPurchase: signal({ id: 'purchase-1', entry_status: entryStatus }),
+        },
+        isEditing: signal(false),
+        editingPurchase: signal(null),
+        entryForm: () => undefined,
+        isReloadingAfterSave: signal(false),
+        saveReloadFailed: signal(false),
+        router: { navigate: vi.fn() },
+      });
+      return component;
+    }
+
+    it('öffnet die vorhandenen Angaben auf derselben Seite', () => {
+      const component = workspace();
+      component.editPurchase('purchase-1');
+      expect(component.isEditing()).toBe(true);
+      expect(component.editingPurchase()?.id).toBe('purchase-1');
+    });
+
+    it('öffnet keinen abgeschlossenen oder fremden Einkauf zur direkten Bearbeitung', () => {
+      const finalized = workspace('finalized');
+      finalized.editPurchase('purchase-1');
+      expect(finalized.isEditing()).toBe(false);
+      const other = workspace();
+      other.editPurchase('purchase-2');
+      expect(other.isEditing()).toBe(false);
+    });
+
+    it('behält Eingaben bei abgelehntem Verwerfen und setzt den Entwurf nach Zustimmung zurück', async () => {
+      const component = workspace();
+      let confirmed = false;
+      const resetToPurchase = vi.fn();
+      Object.assign(component, {
+        entryForm: () => ({
+          hasUnsavedChanges: () => true,
+          isSaving: () => false,
+          resetToPurchase,
+        }),
+        dialog: { frage: async () => confirmed },
+      });
+      component.editPurchase('purchase-1');
+      await component.discardEdits();
+      expect(component.isEditing()).toBe(true);
+      expect(component.editingPurchase()?.id).toBe('purchase-1');
+      confirmed = true;
+      await component.discardEdits();
+      expect(component.isEditing()).toBe(true);
+      expect(resetToPurchase).toHaveBeenCalledWith(component.purchaseService.selectedPurchase());
+    });
+
+    it('behält den Bearbeitungssnapshot bei erneutem Öffnen derselben Erfassung', () => {
+      const component = workspace();
+      component.editPurchase('purchase-1');
+      const snapshot = component.editingPurchase();
+      Object.assign(component.purchaseService, {
+        selectedPurchase: signal({
+          id: 'purchase-1',
+          entry_status: 'draft',
+          title: 'Aktualisiert',
+        } as Purchase),
+      });
+      component.editPurchase('purchase-1');
+      expect(component.editingPurchase()).toBe(snapshot);
+    });
+
+    it('verhindert das Verwerfen während einer laufenden Speicherung', async () => {
+      const component = workspace();
+      Object.assign(component, {
+        entryForm: () => ({ hasUnsavedChanges: () => true, isSaving: () => true }),
+        dialog: { frage: async () => true },
+      });
+      component.editPurchase('purchase-1');
+      await component.discardEdits();
+      expect(component.isEditing()).toBe(true);
+    });
+
+    it('sperrt Eingaben bis der gespeicherte Stand geladen ist und behält bei Ladefehler den Entwurf', async () => {
+      const component = workspace();
+      let resolveLoad: (purchase: Purchase | null) => void = () => undefined;
+      const load = new Promise<Purchase | null>((resolve) => {
+        resolveLoad = resolve;
+      });
+      const resetToPurchase = vi.fn();
+      Object.assign(component, {
+        id: () => 'purchase-1',
+        workspaceService: { currentWorkspace: () => ({ id: 'workspace-1' }) },
+        saveReloadFailed: signal(false),
+        historyRevision: signal(0),
+        entryForm: () => ({ isSaving: () => false, resetToPurchase }),
+      });
+      Object.assign(component.purchaseService, { getPurchaseById: vi.fn(() => load) });
+      component.editPurchase('purchase-1');
+      const finish = component.finishEditing();
+      expect(component.isSaving()).toBe(true);
+      resolveLoad(null);
+      await finish;
+      expect(component.isSaving()).toBe(false);
+      expect(component.isReloadingAfterSave()).toBe(true);
+      expect(component.saveReloadFailed()).toBe(true);
+      expect(resetToPurchase).not.toHaveBeenCalled();
+      const saved = {
+        id: 'purchase-1',
+        workspace_id: 'workspace-1',
+        entry_status: 'draft',
+      } as Purchase;
+      Object.assign(component.purchaseService, { getPurchaseById: vi.fn(async () => saved) });
+      await component.finishEditing();
+      expect(component.isSaving()).toBe(false);
+      expect(resetToPurchase).toHaveBeenCalledWith(saved);
+      expect(component.historyRevision()).toBe(1);
+    });
+  });
+
   describe('Aktionsmeldungen', () => {
     const einkauf: Purchase = {
       id: '33333333-3333-4333-8333-333333333333',
@@ -49,6 +167,21 @@ describe('PurchaseDetailComponent', () => {
       unit_purchase_price: 4.99,
       line_total: 24.95,
     };
+
+    it('zieht den Rabatt auch ohne berechnete Serversumme vom Warenbetrag ab', () => {
+      const component = Object.create(PurchaseDetailComponent.prototype) as PurchaseDetailComponent;
+      expect(
+        component.purchaseTotalCost({
+          ...einkauf,
+          purchase_price: 100,
+          discount_amount: 10,
+          shipping_cost: 5,
+        }),
+      ).toBe(95);
+      expect(
+        component.purchaseTotalCost({ ...einkauf, purchase_price: null, discount_amount: 10 }),
+      ).toBeNull();
+    });
 
     const einzelposition: PurchaseLine = {
       id: 'line-individual-1',
@@ -112,6 +245,9 @@ describe('PurchaseDetailComponent', () => {
 
       Object.assign(komponente, {
         purchaseService,
+        entryForm: () => undefined,
+        isReloadingAfterSave: signal(false),
+        saveReloadFailed: signal(false),
         itemForm: new FormGroup({
           title: new FormControl('Neuer Artikel', {
             nonNullable: true,
@@ -134,7 +270,7 @@ describe('PurchaseDetailComponent', () => {
         isEditingTracking: signal(true),
         trackingNumberDraft: signal('00340434161094000001'),
         trackingCarrierDraft: signal<'dhl' | null>('dhl'),
-        historyRefreshKey: signal(0),
+        historyRevision: signal(0),
         isMarkingDelivered: signal(false),
         mediaService: { uploadItemMedia: vi.fn() },
         logger: { warn: vi.fn() },
@@ -192,7 +328,7 @@ describe('PurchaseDetailComponent', () => {
         const erfolg = erstelleKomponente();
         await erfolg.komponente.saveTracking();
         expect(erfolg.komponente.isEditingTracking()).toBe(false);
-        expect(erfolg.komponente.historyRefreshKey()).toBe(1);
+        expect(erfolg.komponente.historyRevision()).toBe(1);
         expect(erfolg.toast.toasts()[0].title).toBe('Sendungsverfolgung wurde gespeichert.');
 
         const fehler = erstelleKomponente();
@@ -202,7 +338,7 @@ describe('PurchaseDetailComponent', () => {
         });
         await fehler.komponente.saveTracking();
         expect(fehler.komponente.isEditingTracking()).toBe(true);
-        expect(fehler.komponente.historyRefreshKey()).toBe(0);
+        expect(fehler.komponente.historyRevision()).toBe(0);
         expect(fehler.toast.toasts()[0]).toMatchObject({
           type: 'error',
           title: 'Sendungsverfolgung konnte nicht gespeichert werden.',

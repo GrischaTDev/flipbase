@@ -1,67 +1,43 @@
-<div
-  class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-  appModalDialog
-  dialogTitel="Artikel auswählen"
-  (dialogClose)="closed.emit()"
->
-  <section
-    class="flex max-h-[85dvh] w-full max-w-2xl flex-col rounded-xl border border-fb-line bg-fb-surface shadow-xl"
-  >
-    <header class="flex items-center justify-between border-b border-fb-line p-4">
-      <h2 class="text-base font-semibold">Artikel auswählen</h2>
-      <button
-        type="button"
-        class="linear-btn-secondary rounded-lg px-3 py-1.5"
-        (click)="closed.emit()"
-      >
-        Schließen
-      </button>
-    </header>
-    <div class="p-4">
-      <label for="product-picker-search" class="sr-only">Artikel suchen</label
-      ><input
-        id="product-picker-search"
-        class="linear-input w-full rounded-lg px-3 py-2 text-sm"
-        placeholder="Nach Bezeichnung oder Barcode suchen"
-        [value]="query() ?? initialSearch()"
-        (input)="search($event)"
-      />
-    </div>
-    <div class="min-h-32 overflow-y-auto border-y border-fb-line">
-      @for (product of filtered(); track product.id) {
-        <label
-          class="flex cursor-pointer items-center gap-3 border-b border-fb-line p-4 last:border-b-0"
-          ><input
-            type="checkbox"
-            [checked]="selection().has(product.id)"
-            (change)="toggle(product.id)"
-          /><span class="flex-1 text-sm"
-            ><span class="block font-medium">{{ product.title }}</span
-            ><span class="text-xs text-fb-text-muted"
-              >{{ product.ean || 'Kein Barcode' }} ·
-              {{ product.tracking_mode === 'quantity' ? 'Mengenführung' : 'Einzelführung' }}</span
-            ></span
-          ></label
-        >
-      } @empty {
-        <p class="p-8 text-center text-sm text-fb-text-muted">Keine passenden Artikel gefunden.</p>
-      }
-    </div>
-    <footer class="flex justify-end gap-2 p-4">
-      <button
-        type="button"
-        class="linear-btn-secondary rounded-lg px-3 py-2 text-sm"
-        (click)="closed.emit()"
-      >
-        Abbrechen</button
-      ><button
-        type="button"
-        class="linear-btn-primary rounded-lg px-3 py-2 text-sm disabled:opacity-50"
-        [disabled]="selection().size === 0"
-        (click)="confirm()"
-      >
-        Hinzufügen ({{ selection().size }})
-      </button>
-    </footer>
-  </section>
-</div>
+<app-modal-shell title="Artikel auswählen" size="lg" (closed)="closed.emit()">
+  <app-text-field
+    label="Artikel suchen"
+    placeholder="Nach Bezeichnung oder Barcode suchen"
+    [formControl]="searchControl"
+  />
+  @if (initialSearch() && query() === undefined) {
+    <p class="text-[13px] text-fb-text-muted">Suche: {{ initialSearch() }}</p>
+  }
+  <div class="divide-y divide-fb-line">
+    @for (product of filtered(); track product.id) {
+      <div class="flex items-center gap-3 py-3">
+        <app-custom-checkbox
+          [checked]="selection().has(product.id)"
+          [ariaLabel]="product.title + ' auswählen'"
+          (checkedChange)="toggle(product.id)"
+        />
+        <app-product-thumbnail
+          [src]="imageUrls()[product.id] || null"
+          (imageFailed)="imageFailed.emit(product.id)"
+        />
+        <div class="min-w-0 flex-1 text-[13px]">
+          <p class="break-words font-medium">{{ product.title }}</p>
+          <p class="text-fb-text-muted">
+            {{ product.ean || 'Kein Barcode' }}
+            @if (product.condition) {
+              · {{ product.condition | itemConditionLabel }}
+            }
+          </p>
+        </div>
+      </div>
+    } @empty {
+      <p class="py-6 text-center text-sm text-fb-text-muted">Keine passenden Artikel gefunden.</p>
+    }
+  </div>
+  <app-button variant="plain" (clicked)="createRequested.emit()">Produkt erstellen</app-button>
+  <div modal-footer class="flex gap-2">
+    <app-button variant="secondary" (clicked)="closed.emit()">Abbrechen</app-button>
+    <app-button variant="primary" [disabled]="selection().size === 0" (clicked)="confirm()"
+      >Hinzufügen ({{ selection().size }})</app-button
+    >
+  </div>
+</app-modal-shell>

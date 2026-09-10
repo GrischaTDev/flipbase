@@ -327,14 +327,18 @@ create table public.catalog_products (
     model text,
     ean text,
     category text,
-    tracking_mode text not null check (tracking_mode in ('quantity', 'individual')),
+    tracking_mode text not null default 'quantity' check (tracking_mode in ('quantity', 'individual')),
+    condition text check (condition in ('new', 'like_new', 'very_good', 'used', 'heavily_used', 'defective')),
+    condition_notes text,
     is_public_store boolean not null default false,
     listing_price numeric(12,2) check (listing_price is null or listing_price > 0),
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now(),
-    unique (workspace_id, ean),
     unique (workspace_id, id)
 );
+
+create index catalog_products_workspace_id_ean_idx
+    on public.catalog_products (workspace_id, ean);
 
 create table public.purchase_lines (
     id uuid primary key default gen_random_uuid(),
@@ -345,7 +349,7 @@ create table public.purchase_lines (
     line_kind text not null check (line_kind in ('quantity', 'individual')),
     ordered_quantity integer not null,
     received_quantity integer not null default 0 check (received_quantity >= 0 and received_quantity <= ordered_quantity and received_quantity::numeric <> 'NaN'::numeric),
-    unit_purchase_price numeric check (unit_purchase_price is null or (unit_purchase_price <> 'NaN'::numeric and unit_purchase_price >= 0 and scale(unit_purchase_price) <= 2)),
+    unit_purchase_price numeric check (unit_purchase_price is null or (unit_purchase_price <> 'NaN'::numeric and unit_purchase_price >= 0 and scale(unit_purchase_price) <= 16)),
     line_total numeric check (line_total is null or (line_total <> 'NaN'::numeric and line_total >= 0 and scale(line_total) <= 2)),
     allocated_additional_cost numeric(12,2) not null default 0 check (allocated_additional_cost >= 0),
     created_at timestamptz not null default now(),
@@ -395,7 +399,7 @@ create table public.stock_lots (
     catalog_product_id uuid not null references public.catalog_products(id) on delete restrict,
     received_quantity integer not null check (received_quantity > 0),
     remaining_quantity integer not null check (remaining_quantity >= 0 and remaining_quantity <= received_quantity),
-    unit_cost numeric(24,12) not null check (unit_cost >= 0),
+    unit_cost numeric(24,12) check (unit_cost >= 0),
     received_at timestamptz not null default now(),
     created_at timestamptz not null default now(),
     unique (workspace_id, id)
@@ -2194,22 +2198,84 @@ update storage.buckets
 set public = false
 where id = 'item-media';
 
+-- Frei schreibbare item_media-Referenzen beweisen keinen Dateibesitz.
+-- Nur der kanonische Artikelordner liefert die autoritative Zuordnung.
+-- Nichtkanonische Altpfade bleiben bis zur gesonderten Manifestprüfung gesperrt;
+-- ihre Dateien und Metadaten werden nicht geändert.
 create policy "Artikelmedien lesen"
 on storage.objects for select to authenticated
-using (bucket_id = 'item-media');
+using (
+  bucket_id = 'item-media'
+  and split_part(name,'/',1) <> 'catalog-products'
+  and cardinality(storage.foldername(name)) = 1
+  and storage.filename(name) <> ''
+  and exists (
+    select 1 from public.item_media m
+    join public.inventory_items i on i.id = m.inventory_item_id
+    where m.storage_path = name
+      and i.id::text = (storage.foldername(name))[1]
+      and (select public.is_workspace_member(i.workspace_id))
+  )
+);
 
 create policy "Artikelmedien hochladen"
 on storage.objects for insert to authenticated
-with check (bucket_id = 'item-media');
+with check (
+  bucket_id = 'item-media'
+  and split_part(name,'/',1) <> 'catalog-products'
+  and cardinality(storage.foldername(name)) = 1
+  and storage.filename(name) <> ''
+  and exists (
+    select 1 from public.inventory_items i
+    where i.id::text = (storage.foldername(name))[1]
+      and (select public.is_workspace_member(i.workspace_id))
+  )
+);
 
 create policy "Artikelmedien aendern"
 on storage.objects for update to authenticated
-using (bucket_id = 'item-media')
-with check (bucket_id = 'item-media');
+using (
+  bucket_id = 'item-media'
+  and split_part(name,'/',1) <> 'catalog-products'
+  and cardinality(storage.foldername(name)) = 1
+  and storage.filename(name) <> ''
+  and exists (
+    select 1 from public.item_media m
+    join public.inventory_items i on i.id = m.inventory_item_id
+    where m.storage_path = name
+      and i.id::text = (storage.foldername(name))[1]
+      and (select public.is_workspace_member(i.workspace_id))
+  )
+)
+with check (
+  bucket_id = 'item-media'
+  and split_part(name,'/',1) <> 'catalog-products'
+  and cardinality(storage.foldername(name)) = 1
+  and storage.filename(name) <> ''
+  and exists (
+    select 1 from public.item_media m
+    join public.inventory_items i on i.id = m.inventory_item_id
+    where m.storage_path = name
+      and i.id::text = (storage.foldername(name))[1]
+      and (select public.is_workspace_member(i.workspace_id))
+  )
+);
 
 create policy "Artikelmedien loeschen"
 on storage.objects for delete to authenticated
-using (bucket_id = 'item-media');
+using (
+  bucket_id = 'item-media'
+  and split_part(name,'/',1) <> 'catalog-products'
+  and cardinality(storage.foldername(name)) = 1
+  and storage.filename(name) <> ''
+  and exists (
+    select 1 from public.item_media m
+    join public.inventory_items i on i.id = m.inventory_item_id
+    where m.storage_path = name
+      and i.id::text = (storage.foldername(name))[1]
+      and (select public.is_workspace_member(i.workspace_id))
+  )
+);
 
 -- ------------------------------------------------------------------------------
 -- COMMENTS
@@ -2800,7 +2866,7 @@ begin
     return new;
   end if;
 
-  if (tg_op = 'INSERT' and new.unit_cost <> 0)
+  if (tg_op = 'INSERT' and new.unit_cost is not null)
     or (tg_op = 'UPDATE' and old.unit_cost is distinct from new.unit_cost) then
     raise exception using
       errcode = '42501',
@@ -4083,6 +4149,18 @@ begin
 
   if exists (
     select 1
+    from public.stock_lots as lot
+    where lot.workspace_id = p_workspace_id
+      and lot.purchase_id = p_purchase_id
+      and lot.unit_cost is null
+  ) then
+    raise exception using
+      errcode = 'P0001',
+      message = 'Nach der Finalisierung müssen alle Bestandslose bekannte Kosten besitzen.';
+  end if;
+
+  if exists (
+    select 1
     from public.purchase_lines as line
     where line.workspace_id = p_workspace_id
       and line.purchase_id = p_purchase_id
@@ -4669,7 +4747,7 @@ begin
     and purchase_id = p_purchase_id;
 
   update public.stock_lots
-  set unit_cost = 0
+  set unit_cost = null
   where workspace_id = p_workspace_id
     and purchase_id = p_purchase_id;
 
@@ -5340,7 +5418,6 @@ begin
           from public.catalog_products as product
           where product.workspace_id = p_workspace_id
             and product.id = v_catalog_product_id
-            and product.tracking_mode = 'quantity'
         )
       ) then
       raise exception using
@@ -5361,7 +5438,7 @@ begin
       or pg_catalog.jsonb_typeof(v_input_line -> 'line_total') <> 'number'
       or (v_input_line ->> 'unit_purchase_price')::numeric < 0
       or (v_input_line ->> 'line_total')::numeric < 0
-      or pg_catalog.scale((v_input_line ->> 'unit_purchase_price')::numeric) > 2
+      or pg_catalog.scale((v_input_line ->> 'unit_purchase_price')::numeric) > 16
       or pg_catalog.scale((v_input_line ->> 'line_total')::numeric) > 2
       or (v_input_line ->> 'line_total')::numeric <>
         pg_catalog.round(
@@ -6113,6 +6190,78 @@ alter function public.correct_purchase_costing(uuid, uuid, text, numeric, jsonb,
 comment on function public.correct_purchase_costing(uuid, uuid, text, numeric, jsonb, jsonb) is
   'Korrigiert Eingaben, Bestandskosten und betroffenen Wareneinsatz atomar mit Begründung.';
 
+-- Fachliche Mengen statt technischer IDs: neu gespeicherte Kosten und ersetzte
+-- Entwurfspositionen dürfen allein durch neue UUIDs keinen Audit-Diff erzeugen.
+create or replace function public.purchase_draft_audit_snapshot(
+  p_workspace_id uuid,
+  p_purchase_id uuid
+)
+returns jsonb
+language sql
+stable
+security invoker
+set search_path = ''
+as $$
+  with line_values as (
+    select line.id, pg_catalog.jsonb_build_object(
+      'catalog_product_id', line.catalog_product_id,
+      'title_snapshot', line.title_snapshot,
+      'ean_snapshot', line.ean_snapshot,
+      'line_kind', line.line_kind,
+      'ordered_quantity', line.ordered_quantity,
+      'unit_purchase_price', line.unit_purchase_price,
+      'line_total', line.line_total,
+      'allocated_additional_cost', line.allocated_additional_cost,
+      'price_mode', line.price_mode,
+      'condition_snapshot', line.condition_snapshot,
+      'estimated_market_value', line.estimated_market_value
+    ) as value
+    from public.purchase_lines as line
+    where line.workspace_id = p_workspace_id and line.purchase_id = p_purchase_id
+  ), cost_values as (
+    select cost.target_purchase_line_id, pg_catalog.jsonb_build_object(
+      'type', cost.type,
+      'amount', cost.amount,
+      'description', cost.description,
+      'allocation_method', cost.allocation_method
+    ) as value
+    from public.purchase_costs as cost
+    where cost.workspace_id = p_workspace_id and cost.purchase_id = p_purchase_id
+  ), lines as (
+    -- Die Gruppierung bewahrt auch bei zwei fachlich gleichen Positionen die
+    -- Verteilung direkter Kosten, ohne deren zufällige IDs zu veröffentlichen.
+    select line.value || pg_catalog.jsonb_build_object('direct_costs', coalesce((
+      select pg_catalog.jsonb_agg(cost.value order by cost.value)
+      from cost_values as cost where cost.target_purchase_line_id = line.id
+    ), '[]'::jsonb)) as value
+    from line_values as line
+  ), costs as (
+    select cost.value || pg_catalog.jsonb_build_object('target_line', line.value) as value
+    from cost_values as cost
+    left join line_values as line on line.id = cost.target_purchase_line_id
+  )
+  select pg_catalog.jsonb_build_object(
+    'purchase', (
+      select pg_catalog.jsonb_object_agg(field.key, field.value)
+      from public.purchases as purchase,
+        lateral pg_catalog.jsonb_each(pg_catalog.to_jsonb(purchase)) as field
+      where purchase.workspace_id = p_workspace_id and purchase.id = p_purchase_id
+        and field.key = any(array[
+          'source_id', 'supplier_id', 'type', 'title', 'purchase_date',
+          'purchase_price', 'cost_allocation_mode', 'notes', 'tracking_number',
+          'tracking_carrier', 'tracking_status', 'original_url', 'content_status',
+          'pricing_mode', 'supplier_reference', 'discount_amount'
+        ])
+    ),
+    'lines', coalesce((select pg_catalog.jsonb_agg(value order by value) from lines), '[]'::jsonb),
+    'costs', coalesce((select pg_catalog.jsonb_agg(value order by value) from costs), '[]'::jsonb)
+  );
+$$;
+
+alter function public.purchase_draft_audit_snapshot(uuid, uuid) owner to postgres;
+revoke all on function public.purchase_draft_audit_snapshot(uuid, uuid)
+  from public, anon, authenticated, service_role;
+
 create or replace function public.create_purchase(
   p_workspace_id uuid,
   p_purchase jsonb,
@@ -6143,6 +6292,8 @@ declare
   v_requested_unit_max numeric := 0;
   v_max_purchase_lines constant integer := 1000;
   v_max_purchase_units constant integer := 100000;
+  v_audit_after jsonb;
+  v_catalog_product_id uuid;
 begin
   if (select auth.uid()) is null
     or not (select public.is_workspace_member(p_workspace_id)) then
@@ -6259,7 +6410,7 @@ begin
   if coalesce(pg_catalog.jsonb_typeof(p_purchase -> 'supplier_id'), 'null') not in ('null', 'string')
     or (
       nullif(pg_catalog.btrim(p_purchase ->> 'supplier_id'), '') is not null
-      and (p_purchase ->> 'supplier_id') !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+      and (p_purchase ->> 'supplier_id') !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
     ) then
     raise exception using
       errcode = '22023',
@@ -6279,6 +6430,25 @@ begin
 
   -- Validate the purchase-type contract before the purchase header is written.
   for v_line in select value from pg_catalog.jsonb_array_elements(p_lines) loop
+    v_catalog_product_id := case
+      when coalesce(pg_catalog.jsonb_typeof(v_line -> 'catalog_product_id'), 'null') = 'null'
+        then null
+      else (v_line ->> 'catalog_product_id')::uuid
+    end;
+    if (v_line ->> 'line_kind' = 'quantity' and v_catalog_product_id is null)
+      or (v_line ->> 'line_kind' = 'individual' and v_catalog_product_id is not null)
+      or (
+        v_catalog_product_id is not null
+        and not exists (
+          select 1
+          from public.catalog_products as product
+          where product.workspace_id = p_workspace_id
+            and product.id = v_catalog_product_id
+        )
+      ) then
+      raise exception using errcode = '22023', message = 'Die Einkaufspositionen sind ungültig.';
+    end if;
+
     if v_line ? 'condition_snapshot'
       and coalesce(pg_catalog.jsonb_typeof(v_line -> 'condition_snapshot'), 'null') <> 'null'
       and (
@@ -6333,7 +6503,7 @@ begin
       or pg_catalog.jsonb_typeof(v_line -> 'line_total') is distinct from 'number'
       or (v_line ->> 'unit_purchase_price')::numeric < 0
       or (v_line ->> 'line_total')::numeric < 0
-      or pg_catalog.scale((v_line ->> 'unit_purchase_price')::numeric) > 2
+      or pg_catalog.scale((v_line ->> 'unit_purchase_price')::numeric) > 16
       or pg_catalog.scale((v_line ->> 'line_total')::numeric) > 2
       or (v_line ->> 'line_total')::numeric <>
         pg_catalog.round(
@@ -6493,6 +6663,18 @@ begin
     where line.id = ranked.id;
   end if;
 
+  v_audit_after := public.purchase_draft_audit_snapshot(p_workspace_id, v_purchase.id);
+  insert into public.business_events (
+    workspace_id, entity_type, entity_id, event_type, actor_id, changes
+  ) values (
+    p_workspace_id, 'purchase', v_purchase.id, 'purchase_draft_created', (select auth.uid()),
+    pg_catalog.jsonb_build_object(
+      'purchase', pg_catalog.jsonb_build_object('before', null, 'after', v_audit_after -> 'purchase'),
+      'lines', pg_catalog.jsonb_build_object('before', null, 'after', v_audit_after -> 'lines'),
+      'costs', pg_catalog.jsonb_build_object('before', null, 'after', v_audit_after -> 'costs')
+    )
+  );
+
   return jsonb_build_object(
     'purchase', to_jsonb(v_purchase),
     'purchase_costs', coalesce((
@@ -6548,6 +6730,8 @@ declare
   v_requested_unit_max numeric := 0;
   v_max_purchase_lines constant integer := 1000;
   v_max_purchase_units constant integer := 100000;
+  v_audit_before jsonb;
+  v_audit_after jsonb;
 begin
   if (select auth.uid()) is null
     or not (select public.is_workspace_member(p_workspace_id)) then
@@ -6596,6 +6780,8 @@ begin
       errcode = '22023',
       message = 'Nur ein nicht finalisierter Einkaufsentwurf kann bearbeitet werden.';
   end if;
+
+  v_audit_before := public.purchase_draft_audit_snapshot(p_workspace_id, p_purchase_id);
 
   if pg_catalog.jsonb_array_length(p_lines) > v_max_purchase_lines then
     raise exception using
@@ -6741,7 +6927,7 @@ begin
       or pg_catalog.jsonb_typeof(v_line -> 'line_total') is distinct from 'number'
       or (v_line ->> 'unit_purchase_price')::numeric < 0
       or (v_line ->> 'line_total')::numeric < 0
-      or pg_catalog.scale((v_line ->> 'unit_purchase_price')::numeric) > 2
+      or pg_catalog.scale((v_line ->> 'unit_purchase_price')::numeric) > 16
       or pg_catalog.scale((v_line ->> 'line_total')::numeric) > 2
       or (v_line ->> 'line_total')::numeric <>
         pg_catalog.round(
@@ -6768,7 +6954,6 @@ begin
           from public.catalog_products as product
           where product.workspace_id = p_workspace_id
             and product.id = v_catalog_product_id
-            and product.tracking_mode = 'quantity'
         )
       ) then
       raise exception using errcode = '22023', message = 'Die Einkaufspositionen sind ungültig.';
@@ -7062,6 +7247,20 @@ begin
     and id = p_purchase_id
   returning * into v_purchase;
 
+  v_audit_after := public.purchase_draft_audit_snapshot(p_workspace_id, p_purchase_id);
+  if v_audit_before is distinct from v_audit_after then
+    insert into public.business_events (
+      workspace_id, entity_type, entity_id, event_type, actor_id, changes
+    ) values (
+      p_workspace_id, 'purchase', p_purchase_id, 'purchase_draft_updated', (select auth.uid()),
+      pg_catalog.jsonb_build_object(
+        'purchase', pg_catalog.jsonb_build_object('before', v_audit_before -> 'purchase', 'after', v_audit_after -> 'purchase'),
+        'lines', pg_catalog.jsonb_build_object('before', v_audit_before -> 'lines', 'after', v_audit_after -> 'lines'),
+        'costs', pg_catalog.jsonb_build_object('before', v_audit_before -> 'costs', 'after', v_audit_after -> 'costs')
+      )
+    );
+  end if;
+
   return pg_catalog.jsonb_build_object(
     'purchase', pg_catalog.to_jsonb(v_purchase),
     'purchase_costs', coalesce((
@@ -7102,6 +7301,7 @@ declare
   v_line jsonb;
   v_line_id uuid;
   v_inserted_ids uuid[] := array[]::uuid[];
+  v_catalog_product_id uuid;
   v_all_line_ids uuid[];
   v_total_expense_cents bigint;
   v_manual_cents bigint;
@@ -7198,6 +7398,25 @@ begin
   end if;
 
   for v_line in select value from jsonb_array_elements(p_lines) loop
+    v_catalog_product_id := case
+      when coalesce(pg_catalog.jsonb_typeof(v_line -> 'catalog_product_id'), 'null') = 'null'
+        then null
+      else (v_line ->> 'catalog_product_id')::uuid
+    end;
+    if (v_line ->> 'line_kind' = 'quantity' and v_catalog_product_id is null)
+      or (v_line ->> 'line_kind' = 'individual' and v_catalog_product_id is not null)
+      or (
+        v_catalog_product_id is not null
+        and not exists (
+          select 1
+          from public.catalog_products as product
+          where product.workspace_id = p_workspace_id
+            and product.id = v_catalog_product_id
+        )
+      ) then
+      raise exception using errcode = '22023', message = 'Die Einkaufspositionen sind ungültig.';
+    end if;
+
     insert into public.purchase_lines (
       workspace_id, purchase_id, catalog_product_id, title_snapshot,
       ean_snapshot,
@@ -7440,6 +7659,17 @@ begin
       raise exception using errcode = '22023', message = 'Einzelartikel werden über den expliziten Einzelartikelpfad eingebucht.';
     end if;
 
+    if v_purchase_line.line_kind <> 'quantity'
+      or v_purchase_line.catalog_product_id is null
+      or not exists (
+        select 1
+        from public.catalog_products as product
+        where product.workspace_id = p_workspace_id
+          and product.id = v_purchase_line.catalog_product_id
+      ) then
+      raise exception using errcode = '22023', message = 'Die Einkaufsposition ist keinem gültigen Mengenprodukt zugeordnet.';
+    end if;
+
     if v_purchase_line.received_quantity + v_received_quantity > v_purchase_line.ordered_quantity then
       raise exception using errcode = '22023', message = 'Die empfangene Menge überschreitet die bestellte Menge.';
     end if;
@@ -7467,7 +7697,7 @@ begin
       v_purchase_line.catalog_product_id,
       v_received_quantity,
       v_received_quantity,
-      0,
+      null,
       v_received_at
     )
     returning * into v_stock_lot;
@@ -8537,7 +8767,7 @@ begin
       where id = v_catalog_product_id
         and workspace_id = p_workspace_id;
 
-      if not found or v_catalog_product.tracking_mode <> 'quantity' then
+      if not found then
         raise exception using errcode = '22023', message = 'Der Mengenartikel ist ungültig.';
       end if;
 
@@ -8640,7 +8870,8 @@ begin
             message = 'Die aktiven Mengen eines historischen Loses müssen vor dem Verkauf geprüft werden.';
         end if;
 
-        if v_stock_lot.unit_cost::text in ('NaN', 'Infinity', '-Infinity') then
+        if v_stock_lot.unit_cost is null
+          or v_stock_lot.unit_cost::text in ('NaN', 'Infinity', '-Infinity') then
           raise exception using
             errcode = '22023',
             message = 'Die aktiven Kosten eines historischen Loses müssen vor dem Verkauf geprüft werden.';
@@ -10662,6 +10893,8 @@ grant execute
 revoke execute on function public.allocate_integer_cents(bigint, numeric[])
   from public, anon, authenticated, service_role;
 revoke execute on function public.build_purchase_costing_plan(uuid, uuid)
+  from public, anon, authenticated, service_role;
+revoke execute on function public.purchase_draft_audit_snapshot(uuid, uuid)
   from public, anon, authenticated, service_role;
 revoke execute on function public.finalize_purchase_costing(uuid, uuid)
   from public, anon, service_role;

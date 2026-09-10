@@ -38,13 +38,22 @@ const line: PurchaseLine = {
   line_total: 24.95,
 };
 
-function erstelleDienst() {
+function erstelleDienst(purchaseOverrides: Partial<Purchase> = {}) {
   const purchasesRaw = signal<Purchase[]>([]);
   const selectedPurchaseRaw = signal<Purchase | null>(null);
   const purchaseLinesRaw = signal<PurchaseLine[]>([]);
-  const listResult = { data: [{ ...purchase, items: [], purchase_lines: [line] }], error: null };
+  const loadedPurchase = { ...purchase, ...purchaseOverrides };
+  const listResult = {
+    data: [{ ...loadedPurchase, items: [], purchase_lines: [line] }],
+    error: null,
+  };
   const detailResult = {
-    data: { ...purchase, items: [], costs: [], purchase_lines: [line] },
+    data: {
+      ...loadedPurchase,
+      items: [],
+      costs: loadedPurchase.costs ?? [],
+      purchase_lines: [line],
+    },
     error: null,
   };
   const purchaseLinesResult = { data: [line], error: null };
@@ -137,4 +146,36 @@ describe('PurchaseService – fachliche Positionsanzahl', () => {
       ),
     ).toBe(true);
   });
+
+  it.each(['list', 'detail'] as const)(
+    'zieht beim Laden der %s den Rabatt von den Gesamtkosten ab',
+    async (view) => {
+      const { service, purchasesRaw } = erstelleDienst({
+        purchase_price: 123.45,
+        discount_amount: 23.46,
+        costs: [
+          {
+            id: '66666666-6666-4666-8666-666666666666',
+            purchase_id: purchase.id,
+            type: 'shipping',
+            amount: 5.55,
+          },
+          {
+            id: '77777777-7777-4777-8777-777777777777',
+            purchase_id: purchase.id,
+            type: 'customs',
+            amount: 1.11,
+          },
+        ],
+      });
+
+      const loaded =
+        view === 'list'
+          ? (await service.loadPurchases(workspace.id), purchasesRaw()[0])
+          : await service.getPurchaseById(purchase.id);
+
+      // 123.45 - 23.46 + 5.55 + 1.11 = 106.65
+      expect(loaded?.total_purchase_cost).toBe(106.65);
+    },
+  );
 });

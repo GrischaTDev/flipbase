@@ -11,38 +11,46 @@
     [disabled]="effectiveDisabled()"
     (input)="handleInput($event)"
     (blur)="handleBlur()"
-    class="linear-input min-h-9 w-full rounded-md px-2.5 py-1.5 pr-20 text-[13px] transition-colors"
+    class="linear-input min-h-9 w-full rounded-md px-2.5 py-1.5 text-[13px] transition-colors"
+    [class.pr-20]="showStepper()"
+    [class.pr-8]="!showStepper() && !!effectiveUnit()"
     [class.font-mono]="effectiveAsCurrency()"
     [class.font-bold]="effectiveAsCurrency()"
   />
 
   @if (effectiveUnit()) {
-    <span class="pointer-events-none absolute right-20 text-[13px] text-fb-text-dimmed">
+    <span
+      class="pointer-events-none absolute text-[13px] text-fb-text-dimmed"
+      [class.right-20]="showStepper()"
+      [class.right-3]="!showStepper()"
+    >
       {{ effectiveUnit() }}
     </span>
   }
 
-  <div class="absolute right-1 flex items-center gap-0.5">
-    <button
-      type="button"
-      tabindex="-1"
-      [disabled]="effectiveDisabled() || isAtMin()"
-      (click)="decrement()"
-      class="flex size-7 items-center justify-center rounded-md border border-fb-line bg-fb-well text-fb-text-muted transition-colors hover:border-fb-primary/50 hover:bg-fb-primary/10 hover:text-fb-primary disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:border-fb-line disabled:hover:bg-fb-well disabled:hover:text-fb-text-muted cursor-pointer"
-      aria-label="Wert verringern"
-    >
-      <svg [lucideIcon]="minusIcon" class="size-3" aria-hidden="true"></svg>
-    </button>
+  @if (showStepper()) {
+    <div class="absolute right-1 flex items-center gap-0.5">
+      <button
+        type="button"
+        tabindex="-1"
+        [disabled]="effectiveDisabled() || isAtMin()"
+        (click)="decrement()"
+        class="flex size-7 items-center justify-center rounded-md border border-fb-line bg-fb-well text-fb-text-muted transition-colors hover:border-fb-primary/50 hover:bg-fb-primary/10 hover:text-fb-primary disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:border-fb-line disabled:hover:bg-fb-well disabled:hover:text-fb-text-muted cursor-pointer"
+        aria-label="Wert verringern"
+      >
+        <svg [lucideIcon]="minusIcon" class="size-3" aria-hidden="true"></svg>
+      </button>
 
-    <button
-      type="button"
-      tabindex="-1"
-      [disabled]="effectiveDisabled() || isAtMax()"
-      (click)="increment()"
-      class="flex size-7 items-center justify-center rounded-md border border-fb-line bg-fb-well text-fb-text-muted transition-colors hover:border-fb-primary/50 hover:bg-fb-primary/10 hover:text-fb-primary disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:border-fb-line disabled:hover:bg-fb-well disabled:hover:text-fb-text-muted cursor-pointer"
-      aria-label="Wert erhöhen"
-    >
-      <svg [lucideIcon]="plusIcon" class="size-3" aria-hidden="true"></svg>
-    </button>
-  </div>
+      <button
+        type="button"
+        tabindex="-1"
+        [disabled]="effectiveDisabled() || isAtMax()"
+        (click)="increment()"
+        class="flex size-7 items-center justify-center rounded-md border border-fb-line bg-fb-well text-fb-text-muted transition-colors hover:border-fb-primary/50 hover:bg-fb-primary/10 hover:text-fb-primary disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:border-fb-line disabled:hover:bg-fb-well disabled:hover:text-fb-text-muted cursor-pointer"
+        aria-label="Wert erhöhen"
+      >
+        <svg [lucideIcon]="plusIcon" class="size-3" aria-hidden="true"></svg>
+      </button>
+    </div>
+  }
 </div>

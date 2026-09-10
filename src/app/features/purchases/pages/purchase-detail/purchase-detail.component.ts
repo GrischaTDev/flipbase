@@ -9,11 +9,13 @@ import {
   inject,
   input,
   signal,
+  untracked,
   viewChild,
 } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
-import { CurrencyPipe, DatePipe } from '@angular/common';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Router } from '@angular/router';
+import { DatePipe, NgTemplateOutlet } from '@angular/common';
 import {
   LucideDynamicIcon,
   LucideIconInput,
@@ -56,7 +58,6 @@ import {
   TrackingCarrier,
 } from '../../../../core/models/flipbase.models';
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
-import { PurchaseCreateModalComponent } from '../../components/purchase-create-modal/purchase-create-modal.component';
 import {
   CustomSelectComponent,
   SelectOption,
@@ -80,40 +81,43 @@ import { mapPurchaseDetailRows } from '../../utils/purchase-presentation';
 import { InventoryService } from '../../../../core/services/inventory.service';
 import { SalesService } from '../../../../core/services/sales.service';
 import { RecordHistoryContainer } from '../../../audit/components/record-history/record-history.container';
-import { PurchaseCostRepairComponent } from '../../components/purchase-cost-repair/purchase-cost-repair.component';
-import { PageHeaderComponent } from '../../../../shared/components/page-header/page-header.component';
+import { EntryPageLayoutComponent } from '../../../../shared/components/entry-page-layout/entry-page-layout.component';
+import { PurchaseEntryFormComponent } from '../../components/purchase-entry-form/purchase-entry-form.component';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { TwoColumnLayoutComponent } from '../../../../shared/components/two-column-layout/two-column-layout.component';
 import { getPurchaseStatusPresentation } from '../../utils/purchase-status-presentation';
+import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
+import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
+import { PurchaseCostSummaryComponent } from '../../components/purchase-cost-summary/purchase-cost-summary.component';
 
 @Component({
   selector: 'app-purchase-detail',
   imports: [
     TableColumnPickerComponent,
-    PurchaseCreateModalComponent,
-    RouterLink,
     ReactiveFormsModule,
-    CurrencyPipe,
     DatePipe,
+    NgTemplateOutlet,
     LucideDynamicIcon,
     ImageCropperModalComponent,
     CustomSelectComponent,
-    PurchaseLineEditorComponent,
     PurchaseCorrectionDialogComponent,
     PurchaseLifecycleActionsComponent,
     PurchaseDetailTableComponent,
     RecordHistoryContainer,
-    PurchaseCostRepairComponent,
-    PageHeaderComponent,
+    EntryPageLayoutComponent,
+    PurchaseEntryFormComponent,
     BadgeComponent,
     ButtonComponent,
     CardComponent,
     TwoColumnLayoutComponent,
+    NumberInputComponent,
+    TextFieldComponent,
+    PurchaseCostSummaryComponent,
   ],
   templateUrl: './purchase-detail.component.html',
-  host: { class: 'block' },
+  host: { class: 'block', '(window:beforeunload)': 'onBeforeUnload($event)' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PurchaseDetailComponent {
@@ -188,6 +192,24 @@ export class PurchaseDetailComponent {
   ];
 
   readonly id = input.required<string>();
+  readonly edit = input(false);
+  readonly isEditing = signal(false);
+  readonly editingPurchase = signal<Purchase | null>(null);
+  readonly historyRevision = signal(0);
+  readonly isReloadingAfterSave = signal(false);
+  readonly saveReloadFailed = signal(false);
+  readonly purchase = computed(() => {
+    // Beim Nachladen bleibt der Arbeitsbereich samt ungesendetem Kommentar erhalten.
+    const purchase = this.purchaseService.selectedPurchase() ?? this.editingPurchase();
+    return purchase?.id === this.id() &&
+      purchase.workspace_id === this.workspaceService.currentWorkspace()?.id
+      ? purchase
+      : null;
+  });
+  readonly entryForm = viewChild(PurchaseEntryFormComponent);
+  private readonly requestedCostEditor = signal(false);
+  readonly trackingNumberControl = new FormControl('', { nonNullable: true });
+  private openedEditId: string | null = null;
 
   private readonly dialog = inject(ConfirmDialogService);
   readonly purchaseService = inject(PurchaseService);
@@ -283,7 +305,6 @@ export class PurchaseDetailComponent {
   readonly chevronUpIcon = ChevronUp;
 
   readonly isAddingCost = signal<boolean>(false);
-  readonly isEditModalOpen = signal<boolean>(false);
   readonly isAddingItem = signal<boolean>(false);
   readonly isSavingPurchaseLines = signal<boolean>(false);
   readonly isReceivingLines = signal<boolean>(false);
@@ -295,7 +316,92 @@ export class PurchaseDetailComponent {
   readonly selectedImageDataUrl = signal<string | null>(null);
   readonly isLifecycleSubmitting = signal(false);
   readonly isCorrectionDialogOpen = signal(false);
-  readonly historyRefreshKey = signal(0);
+
+  editPurchase(purchaseId: string): void {
+    const purchase = this.purchaseService.selectedPurchase();
+    if (!purchase || purchase.id !== purchaseId || purchase.entry_status === 'finalized') return;
+    if (this.isEditing() && this.editingPurchase()?.id === purchaseId) return;
+    this.editingPurchase.set(purchase);
+    this.isEditing.set(true);
+  }
+
+  editCosts(purchaseId: string): void {
+    this.editPurchase(purchaseId);
+    this.requestedCostEditor.set(this.isEditing());
+  }
+
+  hasUnsavedChanges(): boolean {
+    return this.entryForm()?.hasUnsavedChanges() ?? false;
+  }
+
+  isSaving(): boolean {
+    return (
+      (this.isReloadingAfterSave() && !this.saveReloadFailed()) ||
+      (this.entryForm()?.isSaving() ?? false)
+    );
+  }
+
+  saveDraft(): void {
+    void this.entryForm()?.onSubmit();
+  }
+
+  async discardEdits(): Promise<void> {
+    if (this.isSaving()) return;
+    if (
+      this.hasUnsavedChanges() &&
+      !(await this.dialog.frage({
+        titel: 'Änderungen verwerfen?',
+        text: 'Die nicht gespeicherten Änderungen an diesem Einkauf gehen verloren.',
+        bestaetigenText: 'Verwerfen',
+        abbrechenText: 'Weiter bearbeiten',
+      }))
+    )
+      return;
+    const purchase = this.purchaseService.selectedPurchase();
+    if (purchase && (purchase.entry_status ?? 'draft') === 'draft') {
+      this.editingPurchase.set(purchase);
+      this.entryForm()?.resetToPurchase(purchase);
+    } else {
+      this.isEditing.set(false);
+      this.editingPurchase.set(null);
+    }
+  }
+
+  async finishEditing(): Promise<void> {
+    const purchaseId = this.id();
+    const workspaceId = this.workspaceService.currentWorkspace()?.id;
+    this.isReloadingAfterSave.set(true);
+    this.saveReloadFailed.set(false);
+    let purchase: Purchase | null;
+    try {
+      purchase = await this.purchaseService.getPurchaseById(purchaseId);
+    } catch {
+      purchase = null;
+    }
+    if (this.id() !== purchaseId || this.workspaceService.currentWorkspace()?.id !== workspaceId)
+      return;
+    if (!purchase || purchase.id !== purchaseId || purchase.workspace_id !== workspaceId) {
+      this.saveReloadFailed.set(true);
+      return;
+    }
+    if (purchase && (purchase.entry_status ?? 'draft') === 'draft') {
+      this.editingPurchase.set(purchase);
+      this.entryForm()?.resetToPurchase(purchase);
+    } else {
+      this.isEditing.set(false);
+      this.editingPurchase.set(null);
+    }
+    this.historyRevision.update((revision) => revision + 1);
+    this.isReloadingAfterSave.set(false);
+  }
+
+  returnToPurchases(): void {
+    void this.router.navigate(['/purchases']);
+  }
+
+  onBeforeUnload(event: BeforeUnloadEvent): void {
+    if (this.hasUnsavedChanges() || this.isSaving()) event.preventDefault();
+  }
 
   readonly hasRecordedPurchaseSale = computed(
     () => this.purchaseService.purchaseSaleHistoryState() === 'recorded',
@@ -400,7 +506,8 @@ export class PurchaseDetailComponent {
     }
     return Number(
       (
-        purchase.purchase_price +
+        purchase.purchase_price -
+        (purchase.discount_amount ?? 0) +
         (purchase.shipping_cost || 0) +
         (purchase.other_costs || 0) +
         (purchase.costs ?? []).reduce((sum, cost) => sum + Number(cost.amount || 0), 0)
@@ -416,14 +523,66 @@ export class PurchaseDetailComponent {
 
   constructor() {
     effect(() => {
+      const form = this.entryForm();
+      if (!form || !this.requestedCostEditor()) return;
+      this.requestedCostEditor.set(false);
+      queueMicrotask(() => {
+        if (this.entryForm() === form && this.isEditing()) form.openCostEditor();
+      });
+    });
+    this.trackingNumberControl.valueChanges.pipe(takeUntilDestroyed()).subscribe((value) => {
+      this.trackingNumberDraft.set(value);
+      if (value.trim())
+        this.trackingCarrierDraft.set(this.trackingService.autoDetectCarrier(value));
+    });
+    effect(() => {
+      const purchase = this.purchase();
+      const requestedEdit = this.edit();
+      untracked(() => {
+        if (!purchase) return;
+        if (purchase.entry_status === 'finalized') {
+          this.isEditing.set(false);
+          this.editingPurchase.set(null);
+        } else if (
+          (purchase.entry_status ?? 'draft') === 'draft' ||
+          (requestedEdit && this.openedEditId !== purchase.id)
+        ) {
+          this.openedEditId = purchase.id;
+          this.editPurchase(purchase.id);
+          if (
+            this.editingPurchase() !== purchase &&
+            !this.hasUnsavedChanges() &&
+            !this.isSaving()
+          ) {
+            this.editingPurchase.set(purchase);
+            this.entryForm()?.resetToPurchase(purchase);
+          }
+        }
+      });
+    });
+    effect(() => {
       const purchaseId = this.id();
       const workspaceId = this.workspaceService.currentWorkspace()?.id;
       this.mockStore.isDemoMode();
+      // Die Workspace-Initialisierung verwirft vorherige Detailanfragen. Erst danach
+      // laden; ein Listenfehler darf den unabhängig ladbaren Einkauf nicht blockieren.
+      if (
+        this.purchaseService.loadedWorkspaceId() !== workspaceId &&
+        !this.purchaseService.loadError()
+      )
+        return;
+      this.isEditing.set(false);
+      this.editingPurchase.set(null);
+      this.openedEditId = null;
+      this.isReloadingAfterSave.set(false);
+      this.saveReloadFailed.set(false);
       if (purchaseId && workspaceId) {
-        void Promise.all([
-          this.purchaseService.getPurchaseById(purchaseId),
-          this.stockService.loadPositions(workspaceId),
-        ]);
+        untracked(() => {
+          void Promise.all([
+            this.purchaseService.getPurchaseById(purchaseId),
+            this.stockService.loadPositions(workspaceId),
+          ]);
+        });
       }
     });
   }
@@ -511,7 +670,12 @@ export class PurchaseDetailComponent {
   }
 
   startReceivingLines(): void {
-    if (this.purchaseService.selectedPurchase()?.entry_status === 'finalized') return;
+    if (
+      this.purchaseService.selectedPurchase()?.entry_status === 'finalized' ||
+      this.hasUnsavedChanges() ||
+      this.isSaving()
+    )
+      return;
     const quantities = this.quantityPurchaseLines().reduce<Record<string, number>>(
       (result, line) => {
         result[line.id] = Math.max(0, line.ordered_quantity - line.received_quantity);
@@ -537,6 +701,8 @@ export class PurchaseDetailComponent {
     if (
       !purchase ||
       purchase.entry_status === 'finalized' ||
+      this.hasUnsavedChanges() ||
+      this.isSaving() ||
       nowReceived < 1 ||
       nowReceived > remaining
     )
@@ -565,6 +731,8 @@ export class PurchaseDetailComponent {
     if (
       !purchase ||
       purchase.entry_status === 'finalized' ||
+      this.hasUnsavedChanges() ||
+      this.isSaving() ||
       line.received_quantity >= line.ordered_quantity
     )
       return;
@@ -634,7 +802,13 @@ export class PurchaseDetailComponent {
 
   async onDeletePurchase(): Promise<void> {
     const purchase = this.purchaseService.selectedPurchase();
-    if (!purchase || purchase.entry_status !== 'draft') return;
+    if (
+      !purchase ||
+      purchase.entry_status !== 'draft' ||
+      this.hasUnsavedChanges() ||
+      this.isSaving()
+    )
+      return;
     const bestaetigt = await this.dialog.frage({
       titel: 'Einkauf löschen?',
       text: `„${purchase.title}“ wird gelöscht, zusammen mit allen zugeordneten Artikeln und Nebenkosten. Das lässt sich nicht rückgängig machen.`,
@@ -677,13 +851,19 @@ export class PurchaseDetailComponent {
     }
 
     await this.purchaseService.getPurchaseById(purchase.id);
-    this.historyRefreshKey.update((key) => key + 1);
+    this.historyRevision.update((revision) => revision + 1);
     this.toast.success('Einkauf wurde wieder geöffnet.');
   }
 
   async finalizePurchase(): Promise<void> {
     const purchase = this.purchaseService.selectedPurchase();
-    if (!purchase || purchase.entry_status === 'finalized' || this.isLifecycleSubmitting()) {
+    if (
+      !purchase ||
+      purchase.entry_status === 'finalized' ||
+      this.isLifecycleSubmitting() ||
+      this.hasUnsavedChanges() ||
+      this.isSaving()
+    ) {
       return;
     }
 
@@ -711,17 +891,8 @@ export class PurchaseDetailComponent {
     }
 
     await this.purchaseService.refreshAfterFinalization(purchase.workspace_id, purchase.id);
-    this.historyRefreshKey.update((key) => key + 1);
+    this.historyRevision.update((revision) => revision + 1);
     this.toast.success('Erfassung wurde abgeschlossen.');
-  }
-
-  async refreshCostRepair(): Promise<void> {
-    const purchase = this.purchaseService.selectedPurchase();
-    if (!purchase || this.workspaceService.currentWorkspace()?.id !== purchase.workspace_id) return;
-    await Promise.all([
-      this.purchaseService.refreshAfterFinalization(purchase.workspace_id, purchase.id),
-      this.salesService.loadSales(purchase.workspace_id),
-    ]);
   }
 
   async reloadPurchaseSaleHistory(): Promise<void> {
@@ -738,16 +909,8 @@ export class PurchaseDetailComponent {
     if (!purchase) return;
     this.isCorrectionDialogOpen.set(false);
     await this.purchaseService.getPurchaseById(purchase.id);
-    this.historyRefreshKey.update((key) => key + 1);
+    this.historyRevision.update((revision) => revision + 1);
     this.toast.success('Einkauf wurde korrigiert.');
-  }
-
-  async onPurchaseDraftSaved(): Promise<void> {
-    const purchase = this.purchaseService.selectedPurchase();
-    this.isEditModalOpen.set(false);
-    if (!purchase) return;
-    await this.purchaseService.getPurchaseById(purchase.id);
-    this.historyRefreshKey.update((key) => key + 1);
   }
 
   // -- Tracking Methods --
@@ -764,7 +927,8 @@ export class PurchaseDetailComponent {
     successMessage: string,
   ): Promise<void> {
     const purchase = this.purchaseService.selectedPurchase();
-    if (!purchase || this.isLifecycleSubmitting()) return;
+    if (!purchase || this.isLifecycleSubmitting() || this.hasUnsavedChanges() || this.isSaving())
+      return;
     this.isLifecycleSubmitting.set(true);
     const { error } = await this.purchaseService.setPurchaseWorkflowStatus(purchase.id, status);
     this.isLifecycleSubmitting.set(false);
@@ -775,13 +939,14 @@ export class PurchaseDetailComponent {
       );
       return;
     }
-    this.historyRefreshKey.update((key) => key + 1);
+    this.historyRevision.update((revision) => revision + 1);
     this.toast.success(successMessage);
   }
 
   startEditTracking(): void {
     const p = this.purchaseService.selectedPurchase();
     this.trackingNumberDraft.set(p?.tracking_number || '');
+    this.trackingNumberControl.setValue(p?.tracking_number || '', { emitEvent: false });
     this.trackingCarrierDraft.set(p?.tracking_carrier || null);
     this.isEditingTracking.set(true);
   }
@@ -796,7 +961,7 @@ export class PurchaseDetailComponent {
 
   async saveTracking(): Promise<void> {
     const p = this.purchaseService.selectedPurchase();
-    if (!p) return;
+    if (!p || this.hasUnsavedChanges() || this.isSaving()) return;
     const num = this.trackingNumberDraft().trim();
     let ergebnis: { error: Error | null };
     try {
@@ -822,7 +987,7 @@ export class PurchaseDetailComponent {
       return;
     }
     this.isEditingTracking.set(false);
-    this.historyRefreshKey.update((key) => key + 1);
+    this.historyRevision.update((revision) => revision + 1);
     this.toast.success(
       num ? 'Sendungsverfolgung wurde gespeichert.' : 'Sendungsverfolgung wurde entfernt.',
     );
@@ -852,7 +1017,7 @@ export class PurchaseDetailComponent {
 
   async markDeliveredAndSync(): Promise<void> {
     const p = this.purchaseService.selectedPurchase();
-    if (!p) return;
+    if (!p || this.hasUnsavedChanges() || this.isSaving()) return;
     this.isMarkingDelivered.set(true);
     let ergebnis: { error: Error | null };
     try {
@@ -869,7 +1034,7 @@ export class PurchaseDetailComponent {
       );
       return;
     }
-    this.historyRefreshKey.update((key) => key + 1);
+    this.historyRevision.update((revision) => revision + 1);
     this.toast.success('Einkauf wurde als zugestellt markiert.');
   }
 

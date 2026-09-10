@@ -35,6 +35,7 @@ export class CustomSearchInputComponent implements ControlValueAccessor {
   readonly disabled = input<boolean>(false);
   readonly clearable = input<boolean>(true);
   readonly size = input<'sm' | 'md' | 'lg'>('md');
+  readonly variant = input<'default' | 'toolbar'>('default');
   readonly id = input<string>('');
   readonly ariaLabel = input<string>('Suche');
 
@@ -50,10 +51,16 @@ export class CustomSearchInputComponent implements ControlValueAccessor {
       lg: 'h-11 text-sm',
     } as const;
 
+    const variantClass =
+      this.variant() === 'toolbar'
+        ? 'w-full rounded-lg border border-transparent bg-transparent hover:bg-fb-subtle focus:bg-fb-surface focus:border-fb-primary focus:ring-1 focus:ring-fb-primary'
+        : 'linear-input w-full rounded-md border-fb-border bg-fb-subtle focus:border-fb-primary focus:ring-2 focus:ring-fb-primary/20';
+
     return [
-      'linear-input w-full rounded-md border-fb-border bg-fb-subtle font-medium',
+      variantClass,
+      'font-medium',
       'placeholder-fb-text-dimmed text-fb-text-primary transition-colors',
-      'focus:border-fb-primary focus:outline-none focus:ring-2 focus:ring-fb-primary/20',
+      'focus:outline-none',
       sizeClasses[this.size()],
       'pl-9',
     ].join(' ');

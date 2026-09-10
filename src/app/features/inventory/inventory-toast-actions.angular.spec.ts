@@ -128,14 +128,16 @@ function erstelleInventarAnsicht(input: {
 }
 
 describe('InventoryComponent – Aktionsmeldungen', () => {
-  it('öffnet die Artikelanlage als eigene Seite', () => {
+  it('öffnet den gemeinsamen Produktdialog', () => {
     const navigate = vi.fn();
     const komponente = Object.create(InventoryComponent.prototype) as InventoryComponent;
     Object.assign(komponente, { router: { navigate } });
 
+    Object.assign(komponente, { isProductDialogOpen: signal(false) });
     komponente.openCreatePage();
 
-    expect(navigate).toHaveBeenCalledWith(['/inventory/new']);
+    expect(komponente.isProductDialogOpen()).toBe(true);
+    expect(navigate).not.toHaveBeenCalled();
   });
 
   it('verwendet eine gemeinsame Ansicht ohne Bestand- und Einzelstück-Tabs', () => {

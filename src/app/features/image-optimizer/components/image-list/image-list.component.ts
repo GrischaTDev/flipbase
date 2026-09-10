@@ -6,6 +6,7 @@ import {
   LucideArrowDown as ArrowDown,
 } from '@lucide/angular';
 import { OptimizerImage } from '../../models/optimizer-image';
+import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 
 /**
  * Die Filmleiste. Das erste Bild ist das Hauptbild - bei eBay das Bild im
@@ -13,7 +14,7 @@ import { OptimizerImage } from '../../models/optimizer-image';
  */
 @Component({
   selector: 'app-image-list',
-  imports: [LucideDynamicIcon],
+  imports: [LucideDynamicIcon, BadgeComponent],
   templateUrl: './image-list.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

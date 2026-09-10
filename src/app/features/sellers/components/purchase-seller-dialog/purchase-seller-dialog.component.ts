@@ -15,12 +15,16 @@ import IntlTelInput from '@intl-tel-input/angular/with-utils';
 import { de as germanPhoneTranslations } from 'intl-tel-input/locale';
 import { SuppliersService } from '../../../../core/services/suppliers.service';
 import { SellerFormValue, Supplier } from '../../../../core/models/flipbase.models';
+import {
+  CustomSelectComponent,
+  SelectOption,
+} from '../../../../shared/components/custom-select/custom-select.component';
 import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
 import { buildGermanCountryOptions } from '../../../purchases/utils/country-options';
 
 @Component({
   selector: 'app-purchase-seller-dialog',
-  imports: [ReactiveFormsModule, ModalDialogDirective, IntlTelInput],
+  imports: [ReactiveFormsModule, CustomSelectComponent, ModalDialogDirective, IntlTelInput],
   templateUrl: './purchase-seller-dialog.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -39,6 +43,14 @@ export class PurchaseSellerDialogComponent {
     this.isEditing() ? 'Verkäufer bearbeiten' : 'Verkäufer erstellen',
   );
   readonly countries = buildGermanCountryOptions();
+  readonly sellerTypeOptions: readonly SelectOption<'private' | 'business'>[] = [
+    { value: 'private', label: 'Privatperson' },
+    { value: 'business', label: 'Unternehmen' },
+  ];
+  readonly countryOptions: readonly SelectOption<string>[] = this.countries.map((country) => ({
+    value: country.code,
+    label: country.name,
+  }));
   readonly phoneTranslations = germanPhoneTranslations;
   readonly phoneDropdownParent = this.host.nativeElement;
   readonly phoneInputAttributes = computed(() => ({

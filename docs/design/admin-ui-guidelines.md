@@ -17,6 +17,18 @@ Rangfolge bei Gestaltungsentscheidungen:
 
 Barrierefreiheit und korrekte Fachabläufe bleiben verbindlich. Ein Konflikt wird dokumentiert und gelöst, nicht durch unbemerkte Designänderung übergangen. Ohne gemessene Referenz darf niemand behaupten, eine Oberfläche sei pixelgenau abgeglichen.
 
+## Verbindliche Shared-Komponenten-Grenze
+
+Wiederkehrende sichtbare Grundelemente der Verwaltungsoberfläche werden zentral unter `src/app/shared/components/` umgesetzt. Feature-Templates setzen diese Bausteine zusammen und liefern Fachwerte, Labels, Form-Controls, Validierung und Ereignisse. Sie definieren keine eigenen Varianten für Geometrie, Radius, Rahmen, Schatten, Typografie, Fokus oder semantische Statusfarben, wenn dafür bereits eine Shared-Komponente existiert.
+
+Das gilt insbesondere für Buttons, Statusbadges, Text-/Such-/Zahl-/Datumsfelder, Selects, Checkboxen, Karten, Dialograhmen, Seitenköpfe, Tabellenleisten, Sortierung, Spaltenauswahl, Kostenanzeige, Chronik und Toasts. Bestehende Komponenten werden erweitert, wenn eine wiederkehrende Variante fehlt. Eine zweite parallele Komponente für dieselbe Bedienrolle ist unzulässig.
+
+Rohe native Formelemente gehören in die verantwortliche Shared-Komponente. Im Feature sind sie nur für einen konkret dokumentierten Sonderfall zulässig, etwa ein technisch notwendiges verstecktes Datei- oder Radioelement, das der Komponentenvertrag nicht sinnvoll kapseln kann. Ein Sonderfall darf nicht durch kopierte `linear-input`-, Button-, Badge- oder Fokusklassen als eigene Designvariante entstehen.
+
+Eine wiederkehrende Kombination wird als Shared-Komposition angelegt, sobald mindestens zwei Features dieselbe Bedienrolle besitzen. Einmalige fachliche Teilmasken bleiben im Feature, verwenden für ihre sichtbaren Grundelemente aber die Shared-Bausteine. Der Storefront-Bereich besitzt einen anderen Oberflächenkontext und wird nicht blind an Admin-Maße angeglichen; Wiederholungen werden auch dort innerhalb des eigenen Kontexts zentral gelöst.
+
+Neue oder geänderte Admin-Oberflächen müssen eine automatisierte Architekturprüfung bestehen, die neue native Select-Nachbauten und lokale Status-Pills erkennt. Notwendige Ausnahmen werden pfadgenau mit Begründung geführt. Ein vorhandener Altbestand ist kein Freibrief für neue Abweichungen und wird bei den betroffenen Arbeiten schrittweise abgebaut.
+
 ## Verbindliche Präzisierung: Schreibweise und Farbdisziplin
 
 Nutzerfestlegung vom 06.09.2026: Seiten-, Karten-, Abschnitts- und Tabellenüberschriften sowie Feldbeschriftungen verwenden normale deutsche Groß-/Kleinschreibung. Keine dekorative Versalschrift durch `uppercase`, keine künstlich gesperrten Überschriften durch `tracking-wider`/`tracking-widest`. Fachliche Kürzel wie SKU, EAN, EUR und DATEV bleiben korrekt geschrieben; Eingaben, Marken und Kennungen werden nicht pauschal kleingeschrieben. Auch Badges erhalten keine automatische Versalschrift.
@@ -25,7 +37,19 @@ Neutrale Hintergründe, weiße beziehungsweise themegerechte Karten, dezente Rah
 
 Einkaufserfassung und -details folgen der sichtbaren Shopify-Referenz in Anordnung und Proportionen: zentrierter Seitenbereich, breite Positionskarte links, schmalere Kosten-/Detailkarten rechts, Chronik unter dem Arbeitsbereich. Eigene Verkäufer-, Paket- und Kostenfunktionen in diese Struktur integrieren. Visuelle Abnahme bei vergleichbarer Fenstergröße gegen Referenz einschließlich Feldern, Dialogen, Tabellen, Leerzuständen, Radien, Schatten und Bewegung; gemessene Abweichungen dokumentieren.
 
-Offene Bestandskorrekturen betreffen unter anderem Einkaufsdetails, Kosteneditor, Korrekturdialog und explizite Großschreibungsoptionen der Badges. Eine globale CSS-Übersteuerung ersetzt die gezielte Korrektur der Templates und Oberflächentexte nicht.
+Präzisierung vom 07.09.2026: Erstellen, Ansicht und Bearbeiten verwenden denselben Seitenrahmen und dieselbe Zweispalten-Komposition. Die Chronik liegt unter den Positionen **innerhalb der linken Spalte**, nicht über die gesamte Seitenbreite. Bearbeiten öffnet die gemeinsame Erfassungsmaske im Arbeitsbereich; gespeicherte Einkäufe behalten Chronik und relevante Zusatzinformationen. Keine separate Einkaufsart-Auswahl: Inhaltskenntnis und Preisführung sind unabhängige Einstellungen. Technische Altdaten-Typen werden dadurch nicht ungeprüft entfernt.
+
+Die Kostenübersicht verwendet eine gemeinsame fachliche Komposition aus Shared-Elementen. „Kostenübersicht verwalten“ enthält flache Zeilen mit Anpassungsart, Betrag und Entfernen sowie „Anpassung hinzufügen“. Rabatt ist eine Anpassungszeile, kein zusätzliches dauerhaftes Sonderfeld und keine positive Kostenbuchung. Dialogänderungen bleiben bis „Speichern“ vorläufig; „Abbrechen“, Schließen und Escape verwerfen sie. Primäre Speichern-/Posten-Aktionen bleiben gelb; eine schwarze Primärvariante ist nicht vorgesehen und wird automatisiert beanstandet.
+
+Präzisierung vom 08.09.2026: Auswahlmenüs müssen über dem Modal-Inhalt und dessen Footer sichtbar und anklickbar bleiben. Die Shared-Auswahl nutzt dafür die native oberste Popover-Ebene ([Browservertrag](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Global_attributes/popover)); ein höherer `z-index` innerhalb eines abschneidenden Containers genügt nicht. Escape schließt zuerst die Auswahl, nicht den Dialog; der Fokus bleibt am Auslöser. Bei Scrollen des Ankers oder Fenstergrößenänderung schließt die Auswahl. Tests prüfen die tatsächliche Treffbarkeit per Hit-Test und nicht allein DOM-Sichtbarkeit.
+
+Kopfaktionen verwenden gemeinsame Größen und erkennbare sekundäre Flächen; die Hauptaktion steht ganz rechts. Zurück-Pfeil, Nummer und Status sind vertikal zentriert. Der Altbestands-Kostenreparaturablauf entfällt auf ausdrücklichen Nutzerwunsch; dies ist keine Freigabe zum Löschen von Geschäftsdaten.
+
+Gespeicherte Einkaufsentwürfe öffnen unmittelbar dieselbe editierbare Maske wie die Neuanlage. Keine zusätzliche Nur-Ansicht-Tabelle, Spaltenanpassung oder „Artikel bearbeiten“-Zwischenaktion für Entwürfe. Speichern/Verwerfen erscheinen bei Änderungen; statusverändernde Aktionen arbeiten ausschließlich mit gespeicherten Angaben. Wareneingang und Tracking bleiben als fachliche Zusatzbereiche erhalten, abgeschlossene Einkäufe behalten ihre Sperren. Die Chronik liegt weiterhin links, zeigt bei Systemereignissen Uhrzeit und Akteur und behält ungesendete Kommentare beim Speichern des Einkaufs. Fehlende Ereignisse dürfen nicht aus aktuellen Daten als vermeintliche historische Vorgänge konstruiert werden.
+
+Shared-Buttons: Standard und schmal 28 px Höhe, große Variante 32 px; Schrift bewusst mindestens 13 px bei 16 px Zeilenhöhe. Die Desktophöhe folgt dem Live-Messprotokoll, die Mindestschrift bleibt eine Zugänglichkeitsentscheidung. Auf Geräten mit grobem Zeiger sind Ziele mindestens 44 × 44 px. Interne Navigationsaktionen können dieselbe Komponente als semantischen Link verwenden. Globale Adminregeln überschreiben diese Größen nicht. Die Chronik behält ihren Aufbau mit einer 32-px-Kommentarfläche und rund 102 px Composerhöhe; diese Verdichtung ist eine Nutzeranpassung, kein behauptetes Originalmaß der Shopify-Chronik.
+
+Nutzerpräzisierung vom 08.09.2026: Shared-Badges zeigen ausschließlich den Status als Text, ohne führenden Punkt, Quadrat, Icon oder Pulsieren. Diese Entscheidung ersetzt frühere Marker-Vorgaben aus dem Tabellenplan und weicht bewusst von der Shopify-Referenz ab. Die alten Marker-/Icon-/Versalschrift-Eingänge entfallen gemeinsam mit allen Aufrufern. Statusfarben und Größen bleiben zentral; Kennungen und Kürzel behalten ihre originale Schreibweise. Chronikpunkte und Diagrammlegenden sind keine Badges und bleiben unberührt. Eine globale CSS-Übersteuerung ersetzt diese Komponentenregel nicht.
 
 ## Markenfarbe: nachgewiesener Stand
 
@@ -116,6 +140,14 @@ Die Startseite liefert täglich relevante Kennzahlen, Status und nächste Aktion
 Einführung kurz und zielgerichtet halten; nur notwendige Angaben verlangen, Fortschritt verständlich zeigen und nicht notwendige Schritte überspringbar machen. Shopify empfiehlt höchstens fünf Schritte. [Onboarding](https://shopify.dev/docs/apps/design/user-experience/onboarding)
 
 Für Flipbase: Dashboard auf Handlungsbedarf und verlässliche Kennzahlen konzentrieren. Keine neue Onboarding-Funktion als Nebenaufgabe des Tabellenumbaus hinzufügen.
+
+### Diagramme im Dashboard
+
+Nutzerentscheidung vom 08.09.2026: ApexCharts für den eigenen Betrieb, keine Händlerplattform für Dritte. Jahresumsatz einschließlich verbundener Unternehmen unter 2 Mio. USD bestätigt. Verwendet wird ApexCharts 7.1.0 unter den geprüften [Community-Bedingungen](https://apexcharts.com/license/community/); Lizenzhinweise bleiben im generierten `3rdpartylicenses.txt`. Bei geänderter Nutzung/Umsatzgrenze Lizenz erneut prüfen, keine automatische kommerzielle Lizenz erwerben.
+
+Der Shared-RevenueChart behält seine fachlichen Zeitpunkte und alle vier Kennzahlen. Nullwerte bleiben unbekannt, negative Ergebnisse bleiben negativ. Darstellung, Legende, Tastatur-/Touchdetails und zugängliche Datentabelle bilden eine gemeinsame Komponente; das Verkaufsjournal bleibt eine semantische Berichtstabelle ohne zusätzliche Grid-Bibliothek. Abschnittsüberschriften verwenden normale Schreibweise, normale Texte mindestens 13 px und ergänzende Angaben mindestens 12 px.
+
+Technische Präzisierung gegenüber dem ursprünglichen Plan: Der geprüfte Angular-Wrapper 3.1.0 bietet keinen vollständigen Fehlervertrag für Import/Konstruktion/Rendern. Daher bindet ein kleiner typisierter Adapter die offizielle ApexCharts-API direkt ein, mit dynamisch geladenem Core-/Linienmodul, Fehleranzeige, Wiederholen und geregeltem Abbau. Keine privaten Wrapper-Hooks, globalen Scripts oder parallele Chart.js-Installation. Diese Abweichung betrifft die technische Einbindung, nicht den vereinbarten sichtbaren oder fachlichen Vertrag. [Offizielle Angular-/Moduldokumentation](https://apexcharts.com/docs/angular-charts/).
 
 ### Marketing und Spezialbereiche
 

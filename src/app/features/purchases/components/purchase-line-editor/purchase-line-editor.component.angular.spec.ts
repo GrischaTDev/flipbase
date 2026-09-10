@@ -1,4 +1,6 @@
 import '@angular/compiler';
+import { registerLocaleData } from '@angular/common';
+import localeDe from '@angular/common/locales/de';
 import {
   ɵresolveComponentResources,
   ɵɵqueryAdvance,
@@ -7,7 +9,7 @@ import {
   signal,
 } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { FormArray } from '@angular/forms';
+import { FormArray, FormControl, FormGroup } from '@angular/forms';
 import { readFile, readdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -16,6 +18,9 @@ import { CatalogService } from '../../../../core/services/catalog.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
 import { PurchaseLineEditorComponent } from './purchase-line-editor.component';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
+import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
 
 interface AngularBindingMetadata {
   inputs: Record<string, unknown>;
@@ -25,10 +30,41 @@ interface AngularBindingMetadata {
 }
 
 let selectMetadataSnapshot: AngularBindingMetadata | null = null;
+const sharedMetadataSnapshots: {
+  metadata: AngularBindingMetadata;
+  snapshot: AngularBindingMetadata;
+}[] = [];
 
 beforeAll(async () => {
+  registerLocaleData(localeDe);
   await ɵresolveComponentResources(async (url) => {
     const resourceUrl = String(url);
+    for (const component of [
+      'barcode-scanner',
+      'button',
+      'number-input',
+      'text-field',
+      'modal-shell',
+      'product-thumbnail',
+      'custom-checkbox',
+    ]) {
+      if (resourceUrl.includes(component + '.component.'))
+        return readFile(
+          'src/app/shared/components/' + component + '/' + resourceUrl.split('/').at(-1),
+          'utf8',
+        );
+    }
+    if (resourceUrl.includes('product-dialog.component.'))
+      return readFile(
+        'src/app/features/catalog/components/product-dialog/' + resourceUrl.split('/').at(-1),
+        'utf8',
+      );
+    if (resourceUrl.includes('purchase-product-picker.component.'))
+      return readFile(
+        'src/app/features/purchases/components/purchase-product-picker/' +
+          resourceUrl.split('/').at(-1),
+        'utf8',
+      );
     if (!url || resourceUrl === 'undefined' || resourceUrl.endsWith('/undefined')) return '';
     const fileName = resourceUrl.split('/').at(-1);
     if (!fileName) return '';
@@ -38,6 +74,61 @@ beforeAll(async () => {
     if (matches.length !== 1) throw new Error(`Unbekannte Test-Ressource: ${resourceUrl}`);
     return readFile(resolve('src/app', matches[0]), 'utf8');
   });
+  for (const [component, inputs, outputs] of [
+    [
+      ButtonComponent,
+      [
+        'variant',
+        'size',
+        'loading',
+        'disabled',
+        'icon',
+        'iconPosition',
+        'iconOnly',
+        'fullWidth',
+        'type',
+        'link',
+        'queryParams',
+        'ariaLabel',
+        'title',
+        'ariaExpanded',
+        'ariaPressed',
+        'ariaControls',
+        'ariaHaspopup',
+      ],
+      { clicked: 'clicked' },
+    ],
+    [
+      NumberInputComponent,
+      [
+        'value',
+        'placeholder',
+        'step',
+        'min',
+        'max',
+        'unit',
+        'id',
+        'ariaLabel',
+        'asCurrency',
+        'disabled',
+        'showStepper',
+      ],
+      { valueChange: 'value' },
+    ],
+    [ProductThumbnailComponent, ['src', 'alt', 'size'], {}],
+  ] as const) {
+    const metadata = (component as unknown as { ɵcmp: AngularBindingMetadata }).ɵcmp;
+    sharedMetadataSnapshots.push({ metadata, snapshot: { ...metadata } });
+    metadata.inputs = {
+      ...metadata.inputs,
+      ...Object.fromEntries(inputs.map((name) => [name, [name, 1, null]])),
+    };
+    metadata.declaredInputs = {
+      ...metadata.declaredInputs,
+      ...Object.fromEntries(inputs.map((name) => [name, name])),
+    };
+    metadata.outputs = { ...metadata.outputs, ...outputs };
+  }
   const metadata = (CustomSelectComponent as unknown as { ɵcmp: AngularBindingMetadata }).ɵcmp;
   selectMetadataSnapshot = {
     inputs: metadata.inputs,
@@ -80,6 +171,11 @@ beforeAll(async () => {
 });
 
 afterAll(() => {
+  for (const { metadata, snapshot } of sharedMetadataSnapshots) {
+    metadata.inputs = snapshot.inputs;
+    metadata.declaredInputs = snapshot.declaredInputs;
+    metadata.outputs = snapshot.outputs;
+  }
   if (!selectMetadataSnapshot) return;
   const metadata = (CustomSelectComponent as unknown as { ɵcmp: AngularBindingMetadata }).ɵcmp;
   metadata.inputs = selectMetadataSnapshot.inputs;
@@ -112,6 +208,17 @@ function erstelleEditor(purchaseType: PurchaseType = 'single') {
   Object.assign(editor, {
     lineRows: new FormArray([]),
     lineCount: signal(0),
+    activeWorkspaceId: signal(workspaceOne.id),
+    pickerOpen: signal(false),
+    cameraOpen: signal(false),
+    scannerOpen: signal(false),
+    pickerSearch: signal(''),
+    scanControl: new FormControl('', { nonNullable: true }),
+    scannerMessage: signal(null),
+    isCreatingProduct: signal(false),
+    importError: signal(null),
+    detailId: signal(null),
+    importPreview: signal([]),
     linesChanged,
     purchaseType: signal(purchaseType),
     isMysteryPurchase: computed(() => purchaseType === 'mystery_pack'),
@@ -119,7 +226,88 @@ function erstelleEditor(purchaseType: PurchaseType = 'single') {
   return { editor, linesChanged };
 }
 
+function addLegacyLine(editor: PurchaseLineEditorComponent): void {
+  editor.resetToLines([
+    ...editor.getDrafts(),
+    {
+      catalogProductId: null,
+      titleSnapshot: 'Legacy-Artikel',
+      lineKind: 'individual',
+      orderedQuantity: 1,
+      condition: 'used',
+      priceMode: 'unpriced_mystery',
+      unitPurchasePrice: null,
+      lineTotal: null,
+      estimatedMarketValue: null,
+    },
+  ]);
+}
+
 describe('PurchaseLineEditorComponent', () => {
+  it('übernimmt weder Auswahl noch verspätete Anlage aus einem fremden Workspace', () => {
+    const { editor } = erstelleEditor();
+    const foreign = { ...ledProduct, workspace_id: workspaceTwo.id };
+    editor.addProducts([foreign]);
+    editor.productCreated(foreign);
+    expect(editor.getDrafts()).toEqual([]);
+  });
+  it('akzeptiert einen einstelligen Produktnamen', () => {
+    const { editor } = erstelleEditor();
+    editor.addProducts([{ ...ledProduct, title: 'X' }]);
+    expect(editor.lineRows.valid).toBe(true);
+  });
+  it('ordnet historische Einzelstückzeilen nicht unbemerkt einem Mengenprodukt zu', () => {
+    const { editor } = erstelleEditor();
+    Object.assign(editor, { availableProducts: () => [ledProduct] });
+    addLegacyLine(editor);
+    const original = editor.getDrafts();
+    editor.selectCatalogProduct(0, ledProduct.id);
+    expect(editor.getDrafts()).toEqual(original);
+  });
+  it('blockiert einen übergroßen Positionsbetrag statt ihn als offenen Preis speicherbar zu machen', () => {
+    const { editor } = erstelleEditor();
+    editor.addProducts([ledProduct]);
+    const row = editor.lineRows.at(0);
+    row.patchValue({
+      catalogProductId: ledProduct.id,
+      titleSnapshot: ledProduct.title,
+      orderedQuantity: 100000,
+      unitPurchasePrice: 9999999999.99,
+    });
+    editor.recalculate(0, 'unitPurchasePrice');
+    expect(row.controls.lineTotal.invalid).toBe(true);
+  });
+  it('verwirft Positionsänderungen und offene Eingaben ohne erneutes Erstellen des Editors', () => {
+    const { editor } = erstelleEditor();
+    Object.assign(editor, {
+      pickerOpen: signal(true),
+      cameraOpen: signal(true),
+      scannerOpen: signal(true),
+      scannerMessage: signal('Scan'),
+      pickerSearch: signal('Suche'),
+      scanControl: new FormControl('123', { nonNullable: true }),
+      isCreatingProduct: signal(true),
+      productError: signal('Fehler'),
+      importError: signal('Fehler'),
+      productForm: new FormGroup({ title: new FormControl('Neu', { nonNullable: true }) }),
+    });
+    addLegacyLine(editor);
+    editor.lineRows.at(0).controls.titleSnapshot.setValue('Original');
+    const original = editor.getDrafts();
+    editor.lineRows.at(0).controls.titleSnapshot.setValue('Geändert');
+    addLegacyLine(editor);
+
+    editor.resetToLines(original);
+
+    expect(editor.getDrafts()).toEqual(original);
+    expect(editor.lineCount()).toBe(1);
+    expect(editor.hasUnsavedChanges()).toBe(false);
+    expect(editor.cameraOpen()).toBe(false);
+    editor.resetToLines([]);
+    expect(editor.getDrafts()).toEqual([]);
+    expect(editor.lineCount()).toBe(0);
+  });
+
   it('verarbeitet einen Scan nur einmal und erfindet keinen Nullpreis', () => {
     const { editor } = erstelleEditor();
     Object.assign(editor, {
@@ -142,66 +330,51 @@ describe('PurchaseLineEditorComponent', () => {
     });
   });
 
-  it('rendert den Artikelstamm als barrierefreien CustomSelect und übernimmt die Auswahl', async () => {
+  it('rendert eine kompakte Tabelle und berechnet Eingaben unmittelbar vor Blur', async () => {
     TestBed.resetTestingModule();
     const fixture = TestBed.configureTestingModule({
-      imports: [PurchaseLineEditorComponent, CustomSelectComponent],
+      imports: [PurchaseLineEditorComponent],
       providers: [
         {
           provide: CatalogService,
           useValue: {
-            products: signal<CatalogProduct[]>([ledProduct]),
+            imageUrls: () => ({}),
+            products: signal([ledProduct]),
             isLoading: signal(false),
-            loadError: signal<Error | null>(null),
-            loadedWorkspaceId: signal<string | null>(workspaceOne.id),
-            loadProducts: vi.fn(async () => undefined),
-            createProduct: vi.fn(),
+            loadError: signal(null),
+            loadedWorkspaceId: signal(workspaceOne.id),
+            loadProducts: vi.fn(),
           },
         },
-        {
-          provide: WorkspaceService,
-          useValue: { currentWorkspace: signal<Workspace | null>(workspaceOne) },
-        },
+        { provide: WorkspaceService, useValue: { currentWorkspace: signal(workspaceOne) } },
       ],
     }).createComponent(PurchaseLineEditorComponent);
     Object.assign(fixture.componentInstance, { purchaseType: signal<PurchaseType>('single') });
     fixture.detectChanges();
+    fixture.componentInstance.addProducts([ledProduct]);
+    fixture.detectChanges();
     const host = fixture.nativeElement as HTMLElement;
-    fixture.componentInstance.addQuantityLine();
-    fixture.changeDetectorRef.markForCheck();
-    fixture.detectChanges();
-    expect(host.querySelector('select')).toBeNull();
-    const trigger = host.querySelector<HTMLButtonElement>(
-      'app-custom-select button[aria-label="Artikelstamm für Position 1"]',
+    expect(host.querySelector('table caption')?.textContent).toContain('Einkaufspositionen');
+    expect(host.textContent).not.toMatch(/Mengenartikel|Einzelstück|Position löschen/);
+    const quantity = host.querySelector<HTMLInputElement>(
+      'input[aria-label="Menge für LED-Lampe"]',
     );
-    expect(trigger).not.toBeNull();
-
-    trigger?.click();
-    fixture.detectChanges();
-    const option = Array.from(host.querySelectorAll<HTMLButtonElement>('[role="option"]')).find(
-      (candidate) => candidate.textContent?.includes('LED-Lampe'),
+    const price = host.querySelector<HTMLInputElement>(
+      'input[aria-label="Stückpreis für LED-Lampe"]',
     );
-    option?.click();
+    expect(quantity).not.toBeNull();
+    expect(price).not.toBeNull();
+    if (!quantity || !price) throw new Error('Zahlenfelder fehlen');
+    quantity.value = '3';
+    quantity.dispatchEvent(new Event('input', { bubbles: true }));
+    price.value = '12';
+    price.dispatchEvent(new Event('input', { bubbles: true }));
     fixture.detectChanges();
-
-    expect(fixture.componentInstance.lineRows.at(0).getRawValue()).toMatchObject({
-      catalogProductId: ledProduct.id,
-      titleSnapshot: ledProduct.title,
-    });
-
-    trigger?.click();
+    expect(fixture.componentInstance.getDrafts()[0].lineTotal).toBe(36);
+    price.value = '0.12';
+    price.dispatchEvent(new Event('input', { bubbles: true }));
     fixture.detectChanges();
-    const clearOption = Array.from(
-      host.querySelectorAll<HTMLButtonElement>('[role="option"]'),
-    ).find((candidate) => candidate.textContent?.includes('Artikel wählen'));
-    expect(clearOption).toBeDefined();
-    clearOption?.click();
-    fixture.detectChanges();
-
-    expect(fixture.componentInstance.lineRows.at(0).getRawValue()).toMatchObject({
-      catalogProductId: null,
-      titleSnapshot: ledProduct.title,
-    });
+    expect(fixture.componentInstance.getDrafts()[0].lineTotal).toBe(0.36);
   });
 
   it('lädt nach verspätetem Workspace und bei Wechsel jeden aktuellen Artikelstamm genau einmal', async () => {
@@ -227,6 +400,7 @@ describe('PurchaseLineEditorComponent', () => {
         {
           provide: CatalogService,
           useValue: {
+            imageUrls: () => ({}),
             products,
             isLoading,
             loadError,
@@ -245,7 +419,7 @@ describe('PurchaseLineEditorComponent', () => {
     currentWorkspace.set(workspaceOne);
     fixture.detectChanges();
     await vi.waitFor(() => expect(loadProducts).toHaveBeenCalledWith(workspaceOne.id));
-    expect(fixture.componentInstance.quantityProducts()).toEqual([ledProduct]);
+    expect(fixture.componentInstance.availableProducts()).toEqual([ledProduct]);
 
     currentWorkspace.set(workspaceTwo);
     fixture.detectChanges();
@@ -254,7 +428,7 @@ describe('PurchaseLineEditorComponent', () => {
       workspaceOne.id,
       workspaceTwo.id,
     ]);
-    expect(fixture.componentInstance.quantityProducts().map((product) => product.title)).toEqual([
+    expect(fixture.componentInstance.availableProducts().map((product) => product.title)).toEqual([
       'Stuhl',
     ]);
   });
@@ -271,6 +445,7 @@ describe('PurchaseLineEditorComponent', () => {
         {
           provide: CatalogService,
           useValue: {
+            imageUrls: () => ({}),
             products,
             isLoading: signal(false),
             loadError,
@@ -289,7 +464,7 @@ describe('PurchaseLineEditorComponent', () => {
     fixture.detectChanges();
     await vi.waitFor(() => expect(loadError()).not.toBeNull());
     expect(fixture.componentInstance.catalogSelectionDisabled()).toBe(true);
-    expect(fixture.componentInstance.quantityProducts()).toEqual([]);
+    expect(fixture.componentInstance.availableProducts()).toEqual([]);
     expect(fixture.componentInstance.catalogLoadError()).toContain('Katalog nicht erreichbar');
   });
 
@@ -313,6 +488,7 @@ describe('PurchaseLineEditorComponent', () => {
         {
           provide: CatalogService,
           useValue: {
+            imageUrls: () => ({}),
             products: signal<CatalogProduct[]>([]),
             isLoading,
             loadError,
@@ -341,7 +517,7 @@ describe('PurchaseLineEditorComponent', () => {
 
   it('berechnet die Positionssumme einer Mengenposition aus Menge und EK je Stück', () => {
     const { editor } = erstelleEditor();
-    editor.addQuantityLine();
+    editor.addProducts([ledProduct]);
 
     const row = editor.lineRows.at(0);
     expect(row.controls.orderedQuantity.value).toBe(1);
@@ -353,7 +529,7 @@ describe('PurchaseLineEditorComponent', () => {
 
   it('unterscheidet einen neuen unbekannten Positionspreis von einer ausdrücklich kostenlosen Position', () => {
     const { editor } = erstelleEditor();
-    editor.addQuantityLine();
+    editor.addProducts([ledProduct]);
 
     const row = editor.lineRows.at(0);
     expect(row.controls.unitPurchasePrice.value).toBeNull();
@@ -368,7 +544,7 @@ describe('PurchaseLineEditorComponent', () => {
 
   it('meldet nach dem Leeren des Stückpreises beide Preisfelder als unbekannt an den Parent', () => {
     const { editor, linesChanged } = erstelleEditor();
-    editor.addQuantityLine();
+    editor.addProducts([ledProduct]);
     const row = editor.lineRows.at(0);
     row.patchValue({ orderedQuantity: 2, unitPurchasePrice: 4.99 });
     editor.recalculate(0, 'unitPurchasePrice');
@@ -385,7 +561,7 @@ describe('PurchaseLineEditorComponent', () => {
 
   it('meldet nach dem Leeren der Positionssumme beide Preisfelder als unbekannt an den Parent', () => {
     const { editor, linesChanged } = erstelleEditor();
-    editor.addQuantityLine();
+    editor.addProducts([ledProduct]);
     const row = editor.lineRows.at(0);
     row.patchValue({ orderedQuantity: 2, lineTotal: 9.98 });
     editor.recalculate(0, 'lineTotal');
@@ -402,7 +578,7 @@ describe('PurchaseLineEditorComponent', () => {
 
   it('berechnet EK je Stück aus der Positionssumme ohne mehr als zwei Nachkommastellen', () => {
     const { editor } = erstelleEditor();
-    editor.addQuantityLine();
+    editor.addProducts([ledProduct]);
 
     const row = editor.lineRows.at(0);
     row.patchValue({ orderedQuantity: 5, lineTotal: 29.95 });
@@ -413,8 +589,7 @@ describe('PurchaseLineEditorComponent', () => {
 
   it('verteilt einen Paketpreis einmalig je Position und behält die centgenaue Positionssumme', () => {
     const { editor, linesChanged } = erstelleEditor();
-    editor.addQuantityLine();
-    editor.addQuantityLine();
+    editor.addProducts([ledProduct, ledProduct]);
     editor.lineRows.at(0).controls.orderedQuantity.setValue(1, { emitEvent: false });
     editor.lineRows.at(1).controls.orderedQuantity.setValue(3, { emitEvent: false });
     linesChanged.emit.mockClear();
@@ -429,7 +604,7 @@ describe('PurchaseLineEditorComponent', () => {
 
   it('multipliziert den gerundeten Durchschnittspreis nicht auf die Positionssumme zurück', () => {
     const { editor } = erstelleEditor();
-    editor.addQuantityLine();
+    editor.addProducts([ledProduct]);
     editor.lineRows.at(0).controls.orderedQuantity.setValue(3, { emitEvent: false });
 
     editor.applyPackagePrice(3.34);
@@ -438,10 +613,25 @@ describe('PurchaseLineEditorComponent', () => {
     expect(editor.getDrafts()[0].unitPurchasePrice).toBeCloseTo(3.34 / 3, 10);
   });
 
-  it('erzeugt für Einzelstücke eine individuelle Position mit Menge eins', () => {
+  it('macht einen auf sieben Stück verteilten Euro mit höchstens 16 Nachkommastellen speicherbar', () => {
+    const { editor } = erstelleEditor();
+    editor.addProducts([ledProduct]);
+    const row = editor.lineRows.at(0);
+    row.controls.orderedQuantity.setValue(7, { emitEvent: false });
+
+    editor.applyPackagePrice(1);
+
+    const draft = editor.getDrafts()[0];
+    expect(row.valid).toBe(true);
+    expect(draft).toMatchObject({ lineTotal: 1, unitPurchasePrice: 0.1428571428571428 });
+    expect(String(draft.unitPurchasePrice).split('.')[1]?.length).toBeLessThanOrEqual(16);
+    expect(Math.round((draft.unitPurchasePrice ?? 0) * 7 * 100) / 100).toBe(1);
+  });
+
+  it('erhält historische Einzelstückzeilen mit Menge eins', () => {
     const { editor } = erstelleEditor();
 
-    editor.addIndividualLine();
+    addLegacyLine(editor);
 
     expect(editor.lineRows.at(0).getRawValue()).toMatchObject({
       lineKind: 'individual',
@@ -449,27 +639,9 @@ describe('PurchaseLineEditorComponent', () => {
     });
   });
 
-  it('übernimmt einen neu erstellten Katalogartikel direkt als Einkaufsposition', () => {
-    const { editor, linesChanged } = erstelleEditor();
-    Object.assign(editor, { productDialogOpen: signal(true) });
-    linesChanged.emit.mockClear();
-
-    editor.onProductCreated(ledProduct);
-
-    expect(editor.productDialogOpen()).toBe(false);
-    expect(editor.getDrafts()).toEqual([
-      expect.objectContaining({
-        catalogProductId: ledProduct.id,
-        titleSnapshot: ledProduct.title,
-        lineKind: 'quantity',
-      }),
-    ]);
-    expect(linesChanged.emit).toHaveBeenCalledTimes(1);
-  });
-
   it('gibt jeder neuen Position eine stabile Draft-ID für Zuordnungen im Erfassungsdialog', () => {
     const { editor } = erstelleEditor();
-    editor.addIndividualLine();
+    addLegacyLine(editor);
 
     expect(editor.getDrafts()).toEqual([
       expect.objectContaining({ draftId: expect.stringMatching(/^draft-/) }),
@@ -478,7 +650,7 @@ describe('PurchaseLineEditorComponent', () => {
 
   it('meldet eine geänderte Einzelpositionsbezeichnung an das Elternformular', () => {
     const { editor, linesChanged } = erstelleEditor();
-    editor.addIndividualLine();
+    addLegacyLine(editor);
     linesChanged.emit.mockClear();
 
     editor.updateTitleSnapshot(0, 'Mystery-Fundstück');
@@ -490,7 +662,7 @@ describe('PurchaseLineEditorComponent', () => {
 
   it('erfasst normale Positionen mit Zustand und einem preisgebundenen Gesamtbetrag', () => {
     const { editor } = erstelleEditor('single');
-    editor.addIndividualLine();
+    addLegacyLine(editor);
 
     const row = editor.lineRows.at(0);
     row.patchValue({
@@ -519,7 +691,7 @@ describe('PurchaseLineEditorComponent', () => {
 
   it('erfasst Mystery-Inhalte ohne künstlichen Einkaufspreis und mit optionalem Marktwert', () => {
     const { editor, linesChanged } = erstelleEditor('mystery_pack');
-    editor.addIndividualLine();
+    addLegacyLine(editor);
 
     const row = editor.lineRows.at(0);
     row.patchValue({ titleSnapshot: 'Überraschungsfigur', estimatedMarketValue: 18.5 });
@@ -541,7 +713,7 @@ describe('PurchaseLineEditorComponent', () => {
 
   it('verwirft beim Wechsel von Mystery zu normal den geschätzten Marktwert', () => {
     const { editor } = erstelleEditor('mystery_pack');
-    editor.addIndividualLine();
+    addLegacyLine(editor);
     editor.lineRows.at(0).controls.estimatedMarketValue.setValue(35);
 
     (

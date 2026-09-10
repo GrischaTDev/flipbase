@@ -14,6 +14,8 @@ import { DashboardReportService } from '../../core/services/dashboard-report.ser
 import { SalesService } from '../../core/services/sales.service';
 import { CustomSelectComponent } from '../../shared/components/custom-select/custom-select.component';
 import { RevenueChartComponent } from '../../shared/components/revenue-chart/revenue-chart.component';
+import { ButtonComponent } from '../../shared/components/button/button.component';
+import { CardComponent } from '../../shared/components/card/card.component';
 import { DashboardComponent } from './dashboard.component';
 import { DashboardPreferences } from './models/dashboard-preferences';
 import { DashboardPreferencesService } from './services/dashboard-preferences.service';
@@ -25,6 +27,10 @@ interface AngularInputMetadata {
 }
 
 const componentResources: Readonly<Record<string, string>> = {
+  './button.component.html': 'src/app/shared/components/button/button.component.html',
+  './button.component.scss': 'src/app/shared/components/button/button.component.scss',
+  './card.component.html': 'src/app/shared/components/card/card.component.html',
+  './card.component.scss': 'src/app/shared/components/card/card.component.scss',
   './custom-select.component.html':
     'src/app/shared/components/custom-select/custom-select.component.html',
   './custom-select.component.scss':
@@ -64,6 +70,16 @@ beforeAll(async () => {
     if (!resource) throw new Error(`Unbekannte Test-Ressource: ${url}`);
     return readFile(resolve(resource), 'utf8');
   });
+  for (const [component, names] of [
+    [ButtonComponent, ['variant', 'size', 'link', 'icon', 'iconPosition', 'ariaPressed']],
+    [CardComponent, ['padding', 'rounded']],
+  ] as const) {
+    const metadata = (component as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp;
+    metadata.inputs = { ...metadata.inputs };
+    metadata.outputs = { ...metadata.outputs };
+    for (const name of names) metadata.inputs[name] = [name, 1, null];
+    if (component === ButtonComponent) metadata.outputs['clicked'] = 'clicked';
+  }
 });
 
 beforeEach(() => {
@@ -154,7 +170,10 @@ beforeEach(() => {
     imports: [DashboardComponent],
     providers: [
       provideRouter([]),
-      { provide: SalesService, useValue: { sales } },
+      {
+        provide: SalesService,
+        useValue: { sales, isLoading: signal(false), loadError: signal(null) },
+      },
       { provide: DashboardReportService, useValue: { createReport } },
       {
         provide: DashboardPreferencesService,
@@ -225,6 +244,14 @@ function createDashboard() {
 }
 
 describe('DashboardComponent', () => {
+  it('zeigt Abschnittsüberschriften und Tabellenköpfe ohne dekorative Versalschrift', () => {
+    const fixture = createDashboard();
+    const headings = [...(fixture.nativeElement as HTMLElement).querySelectorAll('h2, thead')];
+    expect(headings.length).toBeGreaterThanOrEqual(2);
+    for (const heading of headings) {
+      expect(heading.className).not.toMatch(/uppercase|tracking-/);
+    }
+  });
   it('macht Augustverkäufe mit offenen Kosten aus der leeren Septemberansicht erreichbar', () => {
     preferences.set({ range: 'month', platform: 'all' });
     const historicalSale: Sale = {
@@ -254,7 +281,7 @@ describe('DashboardComponent', () => {
       const fixture = createDashboard();
       const host = fixture.nativeElement as HTMLElement;
       expect(fixture.componentInstance.report().rows).toHaveLength(0);
-      const button = host.querySelector<HTMLButtonElement>('[data-expand-sales-period]');
+      const button = host.querySelector<HTMLButtonElement>('[data-expand-sales-period] button');
       expect(button).not.toBeNull();
       button!.click();
       fixture.detectChanges();

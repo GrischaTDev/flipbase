@@ -173,6 +173,119 @@ describe('PurchaseService', () => {
         expect(savePurchase).toHaveBeenCalledWith(updated);
       });
 
+      it('behält angereicherte Einkaufsdaten bei einer teilweisen Workflow-Antwort', async () => {
+        const enrichedPurchase: Purchase = {
+          ...einkauf,
+          supplier: {
+            id: 'supplier-1',
+            workspace_id: einkauf.workspace_id,
+            name: 'Verkäufer GmbH',
+          },
+          costs: [{ id: 'cost-1', purchase_id: einkauf.id, type: 'shipping', amount: 4.5 }],
+          purchase_lines: [
+            {
+              id: 'line-1',
+              workspace_id: einkauf.workspace_id,
+              purchase_id: einkauf.id,
+              title_snapshot: 'Controller',
+              line_kind: 'quantity',
+              ordered_quantity: 1,
+              received_quantity: 0,
+              unit_purchase_price: 31.98,
+              line_total: 31.98,
+            },
+          ],
+          items_count: 1,
+          total_purchase_cost: 36.48,
+        };
+        const purchasesRaw = signal<Purchase[]>([enrichedPurchase]);
+        const selectedPurchaseRaw = signal<Purchase | null>(enrichedPurchase);
+        const partialPurchase = {
+          id: einkauf.id,
+          receiving_status: 'ordered' as const,
+          shipment_status: 'not_shipped' as const,
+          updated_at: '2026-09-10T10:00:00.000Z',
+        };
+        const rpc = vi.fn(async () => ({
+          data: { purchase: partialPurchase, eventId: 'event-1' },
+          error: null,
+        }));
+        const savePurchase = vi.fn();
+        const service = Object.create(PurchaseService.prototype) as PurchaseService;
+        Object.assign(service, {
+          purchasesRaw,
+          purchases: () => purchasesRaw(),
+          selectedPurchaseRaw,
+          selectedPurchase: () => selectedPurchaseRaw(),
+          mockStore: { isDemoMode: signal(false), savePurchase },
+          syncStatus: new SyncStatusService(),
+          supabase: { client: { rpc } },
+        });
+
+        await service.setPurchaseWorkflowStatus(einkauf.id, 'ordered');
+
+        expect(purchasesRaw()[0]).toMatchObject({ ...enrichedPurchase, ...partialPurchase });
+        expect(selectedPurchaseRaw()).toMatchObject({ ...enrichedPurchase, ...partialPurchase });
+        expect(savePurchase).toHaveBeenCalledWith({ ...enrichedPurchase, ...partialPurchase });
+      });
+
+      it('behält angereicherte Einkaufsdaten bei einer teilweisen Tracking-Antwort', async () => {
+        const enrichedPurchase: Purchase = {
+          ...einkauf,
+          supplier: {
+            id: 'supplier-1',
+            workspace_id: einkauf.workspace_id,
+            name: 'Verkäufer GmbH',
+          },
+          costs: [{ id: 'cost-1', purchase_id: einkauf.id, type: 'shipping', amount: 4.5 }],
+          purchase_lines: [
+            {
+              id: 'line-1',
+              workspace_id: einkauf.workspace_id,
+              purchase_id: einkauf.id,
+              title_snapshot: 'Controller',
+              line_kind: 'quantity',
+              ordered_quantity: 1,
+              received_quantity: 0,
+              unit_purchase_price: 31.98,
+              line_total: 31.98,
+            },
+          ],
+          items_count: 1,
+          total_purchase_cost: 36.48,
+        };
+        const purchasesRaw = signal<Purchase[]>([enrichedPurchase]);
+        const selectedPurchaseRaw = signal<Purchase | null>(enrichedPurchase);
+        const partialPurchase = {
+          id: einkauf.id,
+          tracking_number: 'TRACK-NEU',
+          tracking_carrier: 'dhl' as const,
+          tracking_status: 'in_transit' as const,
+          updated_at: '2026-09-10T10:00:00.000Z',
+        };
+        const rpc = vi.fn(async () => ({
+          data: { purchase: partialPurchase, eventId: 'event-1' },
+          error: null,
+        }));
+        const savePurchase = vi.fn();
+        const service = Object.create(PurchaseService.prototype) as PurchaseService;
+        Object.assign(service, {
+          purchasesRaw,
+          purchases: () => purchasesRaw(),
+          selectedPurchaseRaw,
+          selectedPurchase: () => selectedPurchaseRaw(),
+          mockStore: { isDemoMode: signal(false), savePurchase },
+          syncStatus: new SyncStatusService(),
+          supabase: { client: { rpc } },
+        });
+
+        await service.updatePurchaseTracking(einkauf.id, 'TRACK-NEU', 'dhl', 'in_transit');
+
+        expect(purchasesRaw()[0]).toMatchObject({ ...enrichedPurchase, ...partialPurchase });
+        expect(selectedPurchaseRaw()).toMatchObject({ ...enrichedPurchase, ...partialPurchase });
+        expect(savePurchase).toHaveBeenCalledWith({ ...enrichedPurchase, ...partialPurchase });
+      });
+
       it('bricht das Zustellen nach einem Workflow-Fehler vor den Artikeln ab', async () => {
         const workflowError = new Error('Status fehlgeschlagen');
         const artikel: InventoryItem = {
@@ -438,7 +551,7 @@ describe('PurchaseService', () => {
           data: { id: gespeicherterEinkauf.id },
         });
         expect(rpc).toHaveBeenCalledOnce();
-        expect(rpc).toHaveBeenCalledWith('create_purchase_with_position_prices', {
+        expect(rpc).toHaveBeenCalledWith('create_purchase', {
           p_workspace_id: workspace.id,
           p_purchase: expect.objectContaining({
             title: 'LED-Lampen',
@@ -466,7 +579,7 @@ describe('PurchaseService', () => {
         };
         const client = {
           rpc: async (_name: string, payload: unknown) => {
-            aufrufe.push({ tabelle: 'create_purchase_with_position_prices', payload });
+            aufrufe.push({ tabelle: 'create_purchase', payload });
             return {
               data: {
                 purchase: finalerEinkauf,
@@ -511,9 +624,7 @@ describe('PurchaseService', () => {
         });
 
         expect(ergebnis).toMatchObject({ status: 'success', data: { id: finalerEinkauf.id } });
-        expect(aufrufe.map(({ tabelle }) => tabelle)).toEqual([
-          'create_purchase_with_position_prices',
-        ]);
+        expect(aufrufe.map(({ tabelle }) => tabelle)).toEqual(['create_purchase']);
         expect(aufrufe[0].payload).toEqual(
           expect.objectContaining({
             p_workspace_id: workspace.id,
@@ -717,6 +828,13 @@ describe('PurchaseService', () => {
     function erstelleStore(): MockDataStoreService {
       const store = new MockDataStoreService();
       store.isDemoMode.set(true);
+      store.saveCatalogProduct({
+        id: 'catalog-led',
+        workspace_id: workspace.id,
+        title: 'LED-Lampe',
+        tracking_mode: 'quantity',
+        is_public_store: false,
+      });
       return store;
     }
 
@@ -1569,7 +1687,7 @@ describe('PurchaseService', () => {
             ],
           });
 
-          const aufruf = zeilen(protokoll, 'create_purchase_with_position_prices', 'rpc');
+          const aufruf = zeilen(protokoll, 'create_purchase', 'rpc');
           expect(aufruf).toHaveLength(1);
           expect((aufruf[0].werte as { p_expenses: unknown[] }).p_expenses).toEqual([
             expect.objectContaining({ type: 'shipping', amount: 12.9, description: 'DHL' }),
@@ -1605,7 +1723,7 @@ describe('PurchaseService', () => {
             initial_costs: [{ type: 'shipping', amount: 0 }],
           });
 
-          const aufruf = zeilen(protokoll, 'create_purchase_with_position_prices', 'rpc');
+          const aufruf = zeilen(protokoll, 'create_purchase', 'rpc');
           expect((aufruf[0].werte as { p_expenses: unknown[] }).p_expenses).toEqual([]);
         });
       });

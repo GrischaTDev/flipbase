@@ -377,7 +377,10 @@ export class PurchaseService {
       } else if (data) {
         const enriched = (data as unknown as Purchase[]).map((p) => {
           const costsSum = (p.costs || []).reduce((acc, cost) => acc + Number(cost.amount || 0), 0);
-          const totalCost = p.purchase_price === null ? null : Number(p.purchase_price) + costsSum;
+          const totalCost =
+            p.purchase_price === null
+              ? null
+              : Number(p.purchase_price) - Number(p.discount_amount ?? 0) + costsSum;
           return {
             ...p,
             items_count: this.zaehleArtikel(
@@ -520,7 +523,9 @@ export class PurchaseService {
         0,
       );
       const totalCost =
-        purchase.purchase_price === null ? null : Number(purchase.purchase_price) + costsSum;
+        purchase.purchase_price === null
+          ? null
+          : Number(purchase.purchase_price) - Number(purchase.discount_amount ?? 0) + costsSum;
 
       const enriched: Purchase = {
         ...purchase,
@@ -886,56 +891,53 @@ export class PurchaseService {
     }
 
     try {
-      const { data, error } = await this.supabase.client.rpc(
-        'create_purchase_with_position_prices',
-        {
-          p_workspace_id: ws.id,
-          p_purchase: {
-            request_id: payload.request_id ?? null,
-            source_id: payload.source_id || null,
-            supplier_id: payload.supplier_id || null,
-            type: payload.type,
-            title: payload.title.trim(),
-            purchase_date: payload.purchase_date,
-            purchase_price: payload.purchase_price,
-            discount_amount: payload.discount_amount ?? 0,
-            content_status: payload.content_status ?? 'known',
-            pricing_mode:
-              payload.pricing_mode ?? (payload.type === 'mystery_pack' ? 'total' : 'individual'),
-            shipment_status: payload.shipment_status ?? 'not_shipped',
-            supplier_reference: payload.supplier_reference?.trim() || null,
-            cost_allocation_mode: mode,
-            notes: payload.notes?.trim() || null,
-            tracking_number: payload.tracking_number?.trim() || null,
-            tracking_carrier: payload.tracking_carrier || (payload.tracking_number ? 'dhl' : null),
-            tracking_status:
-              payload.tracking_status || (payload.tracking_number ? 'in_transit' : 'pending'),
-            original_url: payload.original_url || null,
-          },
-          p_expenses: kostenZeilen.map((cost) => ({
-            type: cost.type,
-            amount: cost.amount,
-            description: cost.description,
-            allocation_method: cost.allocation_method,
-            target_purchase_line_ref:
-              cost.allocation_method === 'direct' ? cost.target_purchase_line_id : null,
-          })),
-          p_lines: normalizedLines.data.map((line) => ({
-            client_ref: line.draftId ?? null,
-            catalog_product_id: line.catalogProductId,
-            title_snapshot: line.titleSnapshot,
-            ean_snapshot: line.ean ?? null,
-            line_kind: line.lineKind,
-            ordered_quantity: line.orderedQuantity,
-            price_mode: line.priceMode ?? 'priced',
-            unit_purchase_price: line.unitPurchasePrice,
-            line_total: line.lineTotal,
-            condition_snapshot: line.condition ?? null,
-            estimated_market_value: line.estimatedMarketValue ?? null,
-            allocated_additional_cost: line.allocatedAdditionalCost ?? 0,
-          })),
+      const { data, error } = await this.supabase.client.rpc('create_purchase', {
+        p_workspace_id: ws.id,
+        p_purchase: {
+          request_id: payload.request_id ?? null,
+          source_id: payload.source_id || null,
+          supplier_id: payload.supplier_id || null,
+          type: payload.type,
+          title: payload.title.trim(),
+          purchase_date: payload.purchase_date,
+          purchase_price: payload.purchase_price,
+          discount_amount: payload.discount_amount ?? 0,
+          content_status: payload.content_status ?? 'known',
+          pricing_mode:
+            payload.pricing_mode ?? (payload.type === 'mystery_pack' ? 'total' : 'individual'),
+          shipment_status: payload.shipment_status ?? 'not_shipped',
+          supplier_reference: payload.supplier_reference?.trim() || null,
+          cost_allocation_mode: mode,
+          notes: payload.notes?.trim() || null,
+          tracking_number: payload.tracking_number?.trim() || null,
+          tracking_carrier: payload.tracking_carrier || (payload.tracking_number ? 'dhl' : null),
+          tracking_status:
+            payload.tracking_status || (payload.tracking_number ? 'in_transit' : 'pending'),
+          original_url: payload.original_url || null,
         },
-      );
+        p_expenses: kostenZeilen.map((cost) => ({
+          type: cost.type,
+          amount: cost.amount,
+          description: cost.description,
+          allocation_method: cost.allocation_method,
+          target_purchase_line_ref:
+            cost.allocation_method === 'direct' ? cost.target_purchase_line_id : null,
+        })),
+        p_lines: normalizedLines.data.map((line) => ({
+          client_ref: line.draftId ?? null,
+          catalog_product_id: line.catalogProductId,
+          title_snapshot: line.titleSnapshot,
+          ean_snapshot: line.ean ?? null,
+          line_kind: line.lineKind,
+          ordered_quantity: line.orderedQuantity,
+          price_mode: line.priceMode ?? 'priced',
+          unit_purchase_price: line.unitPurchasePrice,
+          line_total: line.lineTotal,
+          condition_snapshot: line.condition ?? null,
+          estimated_market_value: line.estimatedMarketValue ?? null,
+          allocated_additional_cost: line.allocatedAdditionalCost ?? 0,
+        })),
+      });
       if (error || !data || typeof data !== 'object') {
         const reported = this.syncStatus.melde(
           'Speichern des Einkaufs',
@@ -1087,7 +1089,7 @@ export class PurchaseService {
     }
 
     try {
-      const { data, error } = await this.supabase.client.rpc('update_purchase_draft_with_event', {
+      const { data, error } = await this.supabase.client.rpc('update_purchase_draft', {
         p_workspace_id: workspace.id,
         p_purchase_id: purchaseId,
         p_purchase: {
@@ -2507,11 +2509,30 @@ export class PurchaseService {
   }
 
   private uebernehmeEinkaufLokal(purchase: Purchase): void {
-    this.mockStore.savePurchase(purchase);
+    const savedPurchase = this.purchasesRaw().find((entry) => entry.id === purchase.id);
+    const selectedPurchase = this.selectedPurchaseRaw();
+    const purchaseForStore = savedPurchase
+      ? this.mergePurchaseMutation(savedPurchase, purchase)
+      : selectedPurchase?.id === purchase.id
+        ? this.mergePurchaseMutation(selectedPurchase, purchase)
+        : purchase;
+
+    this.mockStore.savePurchase(purchaseForStore);
     this.purchasesRaw.update((list) =>
-      list.map((entry) => (entry.id === purchase.id ? purchase : entry)),
+      list.map((entry) =>
+        entry.id === purchase.id ? this.mergePurchaseMutation(entry, purchase) : entry,
+      ),
     );
-    if (this.selectedPurchase()?.id === purchase.id) this.selectedPurchaseRaw.set(purchase);
+    if (selectedPurchase?.id === purchase.id) {
+      this.selectedPurchaseRaw.set(this.mergePurchaseMutation(selectedPurchase, purchase));
+    }
+  }
+
+  private mergePurchaseMutation(existing: Purchase, mutation: Purchase): Purchase {
+    const definedMutation = Object.fromEntries(
+      Object.entries(mutation).filter(([, value]) => value !== undefined),
+    );
+    return { ...existing, ...definedMutation };
   }
 
   private purchaseFromMutationResult(data: unknown): Purchase | null {

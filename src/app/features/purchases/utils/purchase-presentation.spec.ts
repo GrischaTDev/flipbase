@@ -113,8 +113,15 @@ describe('purchase presentation mapper', () => {
       { ...basePurchase, record_number: '2026-123', supplier_reference: 'Verkäufer-456' },
       context(),
     );
-    expect(row.reference).toBe('2026-123');
+    expect(row.reference).toBe('#2026-123');
     expect(row.supplierReference).toBe('Verkäufer-456');
+    expect(row.title).toBe(basePurchase.title);
+  });
+
+  it('verwendet ohne Einkaufsnummer nicht ersatzweise die Bezeichnung', () => {
+    const row = mapPurchaseListRow({ ...basePurchase, record_number: null }, context());
+
+    expect(row.reference).toBe('—');
     expect(row.title).toBe(basePurchase.title);
   });
 
@@ -190,6 +197,26 @@ describe('purchase presentation mapper', () => {
     expect(row.allocationOpen).toBe(false);
   });
 
+  it('zieht im Listen-Fallback einen Rabatt vom Warenbetrag ab', () => {
+    const row = mapPurchaseListRow(
+      {
+        ...basePurchase,
+        total_purchase_cost: undefined,
+        purchase_price: 123.45,
+        discount_amount: 23.46,
+        costs: [
+          { type: 'shipping', amount: 5.55 },
+          { type: 'customs', amount: 1.11 },
+        ],
+        purchase_lines: [{ ...normalLine, allocated_total_cost: 106.65 }],
+      },
+      context(),
+    );
+
+    expect(row.totalCost).toEqual({ kind: 'known', amount: 106.65 });
+    expect(row.allocationOpen).toBe(false);
+  });
+
   it('verwendet für Mengenartikel bestellte Einheiten, Bestandslose und Verkaufsbewegungen', () => {
     const quantityLine: PurchaseLine = {
       ...normalLine,
@@ -231,6 +258,28 @@ describe('purchase presentation mapper', () => {
     expect(row.totalUnits).toBe(5);
     expect(row.availableUnits).toBe(2);
     expect(row.soldUnits).toBe(2);
+  });
+
+  it('leitet Erhalten ausschließlich aus bestätigter und bestellter Positionsmenge ab', () => {
+    const line: PurchaseLine = {
+      ...normalLine,
+      id: 'line-receipt',
+      title_snapshot: 'Schuhe',
+      ordered_quantity: 2,
+      received_quantity: 0,
+    };
+
+    const row = mapPurchaseListRow(
+      { ...basePurchase, purchase_lines: [line] },
+      context({ inventoryItems: [item('sold', 'sold', 'sold')] }),
+    );
+
+    expect(row.receipt).toEqual({
+      kind: 'known',
+      received: 0,
+      ordered: 2,
+      lines: [{ id: 'line-receipt', title: 'Schuhe', received: 0, ordered: 2 }],
+    });
   });
 
   it('zieht eine Retoure beziehungsweise Aufhebungs-Rückbuchung vom verkauften Mengenbestand ab', () => {

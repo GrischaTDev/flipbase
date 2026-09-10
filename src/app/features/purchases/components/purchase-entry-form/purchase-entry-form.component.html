@@ -1,143 +1,93 @@
-<form
-  [formGroup]="form"
-  (ngSubmit)="onSubmit()"
-  class="mx-auto w-full max-w-[1100px] space-y-4 text-fb-text-primary"
->
+<form [formGroup]="form" (ngSubmit)="onSubmit()" class="w-full space-y-4 text-fb-text-primary">
   @if (errorMessage()) {
     <p role="alert" class="rounded-xl border border-fb-line bg-fb-surface p-4 text-sm">
       {{ errorMessage() }}
     </p>
   }
-  <div class="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
-    <div class="min-w-0 space-y-4">
-      <section
-        class="space-y-4 rounded-xl border border-fb-line bg-fb-surface p-4 shadow-sm"
-        aria-labelledby="purchase-seller-title"
-      >
-        <h2 id="purchase-seller-title" class="text-sm font-semibold">Verkäufer</h2>
-        <app-custom-select
-          formControlName="supplier_id"
-          [options]="lieferantenOptionen()"
-          ariaLabel="Verkäufer auswählen"
-          placeholder="Verkäufer auswählen"
-          actionLabel="Verkäufer erstellen"
-          (action)="sellerDialogOpen.set(true)"
-        />
-        <div>
-          <label for="purchase-date" class="mb-1 block text-sm">Kaufdatum</label
-          ><app-date-picker
-            id="purchase-date"
-            ariaLabel="Kaufdatum"
-            formControlName="purchase_date"
-          />
+  <app-two-column-layout ratio="2-1" data-testid="purchase-entry-workspace">
+    <div main class="space-y-4" data-testid="purchase-entry-main">
+      <app-card title="Verkäufer und Einkauf" padding="md" rounded="xl">
+        <div class="space-y-4">
+          <div>
+            <span class="mb-1.5 block text-[13px] font-semibold">Verkäufer</span>
+            <app-custom-select
+              formControlName="supplier_id"
+              [options]="lieferantenOptionen()"
+              ariaLabel="Verkäufer auswählen"
+              placeholder="Verkäufer auswählen"
+              actionLabel="Verkäufer erstellen"
+              (action)="sellerDialogOpen.set(true)"
+            />
+          </div>
+          <div>
+            <label for="purchase-date" class="mb-1.5 block text-[13px] font-semibold"
+              >Kaufdatum</label
+            >
+            <app-date-picker
+              id="purchase-date"
+              ariaLabel="Kaufdatum"
+              formControlName="purchase_date"
+            />
+          </div>
         </div>
-      </section>
-      <section class="rounded-xl border border-fb-line bg-fb-surface p-4 shadow-sm">
+      </app-card>
+
+      <app-card padding="md" rounded="xl">
         <app-purchase-line-editor
           [purchaseType]="form.controls.type.value"
           [pricingMode]="pricingMode()"
           [initialLines]="purchaseLines()"
           (linesChanged)="onPurchaseLinesChanged($event)"
         />
-      </section>
+      </app-card>
+
+      <ng-content select="[entry-main-extra]" />
+
+      <div class="empty:hidden" data-testid="purchase-entry-timeline">
+        <ng-content select="[entry-timeline]" />
+      </div>
     </div>
-    <aside class="space-y-4">
-      <section
-        class="space-y-4 rounded-xl border border-fb-line bg-fb-surface p-4 shadow-sm"
-        aria-labelledby="purchase-cost-title"
+
+    <div sidebar class="space-y-4" data-testid="purchase-entry-sidebar">
+      <app-purchase-cost-summary
+        role="region"
+        aria-label="Kostenübersicht"
+        [goodsAmount]="purchaseBasePrice()"
+        [discountAmount]="discountAmount()"
+        [costs]="costDrafts()"
+        [totalAmount]="totalCosts()"
+        (editRequested)="openCostEditor()"
       >
-        <div class="flex items-center justify-between gap-3">
-          <h2 id="purchase-cost-title" class="text-sm font-semibold">Kostenübersicht</h2>
-          <div class="flex flex-wrap justify-end gap-3">
-            <button
-              type="button"
-              class="text-sm underline underline-offset-2 disabled:cursor-not-allowed disabled:opacity-40"
-              [disabled]="purchaseLines().length === 0"
-              (click)="packagePriceDialogOpen.set(true)"
-            >
-              Paketpreis verteilen
-            </button>
-            <button
-              type="button"
-              class="text-sm underline underline-offset-2"
-              (click)="initialCostDrafts.set(costDrafts()); costDialogOpen.set(true)"
-            >
-              Versand &amp; Kosten
-            </button>
-          </div>
+        <div cost-summary-goods-editor>
+          <app-button
+            variant="plain"
+            size="slim"
+            [disabled]="purchaseLines().length === 0"
+            (clicked)="packagePriceDialogOpen.set(true)"
+            >Paketpreis verteilen</app-button
+          >
+          @if (packagePriceStale()) {
+            <p role="alert" class="mt-2 text-xs text-fb-text-primary">
+              Positionen oder Mengen wurden geändert. Bitte den Paketpreis erneut verteilen.
+            </p>
+          }
         </div>
-        <dl class="space-y-3 text-sm">
-          <div class="flex justify-between font-medium">
-            <dt>Warenbetrag</dt>
-            <dd>
-              {{ purchaseBasePrice() === null ? 'Offen' : (purchaseBasePrice() | currency: 'EUR') }}
-            </dd>
-          </div>
-          <div class="flex justify-between">
-            <dt>Rabatt</dt>
-            <dd>− {{ discountAmount() | currency: 'EUR' }}</dd>
-          </div>
-          <div class="flex justify-between">
-            <dt>Nebenkosten</dt>
-            <dd>{{ additionalCostsTotal() | currency: 'EUR' }}</dd>
-          </div>
-          <div class="flex justify-between border-t border-fb-line pt-3 font-semibold">
-            <dt>Gesamtkosten</dt>
-            <dd>{{ totalCosts() === null ? 'Offen' : (totalCosts() | currency: 'EUR') }}</dd>
-          </div>
-          <div class="flex justify-between">
-            <dt>Warenkosten zugeordnet</dt>
-            <dd>{{ assignedCosts() | currency: 'EUR' }}</dd>
-          </div>
-          <div class="flex justify-between">
-            <dt>Warenkosten noch offen</dt>
-            <dd>
-              {{ purchaseBasePrice() === null ? 'Offen' : (unassignedCosts() | currency: 'EUR') }}
-            </dd>
-          </div>
-        </dl>
-        @if (packagePriceStale()) {
-          <p role="alert" class="text-xs text-fb-text-primary">
-            Positionen oder Mengen wurden geändert. Bitte den Paketpreis erneut verteilen.
-          </p>
-        }
-        <p class="text-xs text-fb-text-muted">
-          Beträge inklusive enthaltener Steuern. Der Entwurf erzeugt noch keinen Bestand.
-        </p>
-      </section>
-      <section class="space-y-4 rounded-xl border border-fb-line bg-fb-surface p-4 shadow-sm">
-        <h2 class="text-sm font-semibold">Weitere Details</h2>
-        <label class="block text-sm"
-          >Referenznummer (optional)<input
-            formControlName="supplier_reference"
-            class="linear-input mt-1 w-full rounded-lg px-3 py-2" /></label
-        ><label class="block text-sm"
-          >Beschreibung (optional)<textarea
-            formControlName="notes"
-            rows="3"
-            class="linear-input mt-1 w-full rounded-lg px-3 py-2"
-          ></textarea>
-        </label>
-      </section>
-    </aside>
-  </div>
-  <footer class="flex justify-end gap-2 border-t border-fb-line pt-4">
-    <button
-      type="button"
-      class="linear-btn-secondary rounded-lg px-4 py-2 text-sm"
-      [disabled]="isSaving()"
-      (click)="closed.emit()"
-    >
-      Abbrechen</button
-    ><button
-      type="submit"
-      class="linear-btn-primary rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-50"
-      [disabled]="form.invalid || !areAdditionalCostsValid() || packagePriceStale() || isSaving()"
-    >
-      {{ isSubmitting() ? 'Speichere…' : 'Entwurf speichern' }}
-    </button>
-  </footer>
+      </app-purchase-cost-summary>
+
+      <app-card title="Einkaufsdetails" padding="md" rounded="xl">
+        <div class="space-y-4">
+          <app-text-field formControlName="supplier_reference" label="Referenznummer (optional)" />
+          <app-text-field formControlName="notes" label="Beschreibung (optional)" [multiline]="3" />
+        </div>
+      </app-card>
+
+      <div class="empty:hidden" data-testid="purchase-entry-sidebar-extra">
+        <ng-content select="[entry-sidebar-extra]" />
+      </div>
+    </div>
+  </app-two-column-layout>
 </form>
+
 @if (sellerDialogOpen()) {
   <app-purchase-seller-dialog
     (closed)="sellerDialogOpen.set(false)"
@@ -146,41 +96,16 @@
     "
   />
 }
+
 @if (costDialogOpen()) {
-  <div
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-    appModalDialog
-    dialogTitel="Kosten bearbeiten"
-    (dialogClose)="costDialogOpen.set(false)"
-  >
-    <section
-      class="max-h-[85dvh] w-full max-w-xl space-y-4 overflow-y-auto rounded-xl border border-fb-line bg-fb-surface p-4 shadow-xl"
-    >
-      <h2 class="text-base font-semibold">Kosten bearbeiten</h2>
-      <label for="purchase-discount" class="block text-sm"
-        >Rabatt auf den Warenbetrag<app-number-input
-          id="purchase-discount"
-          [asCurrency]="true"
-          [formControl]="form.controls.discount_amount"
-          [min]="0" /></label
-      ><app-purchase-cost-editor
-        [purchaseType]="form.controls.type.value"
-        [initialCosts]="initialCostDrafts()"
-        [purchaseLineOptions]="purchaseLineOptions()"
-        (costsChanged)="onCostsChanged($event)"
-        (validityChanged)="areAdditionalCostsValid.set($event)"
-      />
-      <div class="flex justify-end">
-        <button
-          type="button"
-          class="linear-btn-primary rounded-lg px-4 py-2 text-sm"
-          (click)="costDialogOpen.set(false)"
-        >
-          Fertig
-        </button>
-      </div>
-    </section>
-  </div>
+  <app-purchase-cost-overview-dialog
+    [purchaseType]="form.controls.type.value"
+    [initialDiscountAmount]="discountAmount()"
+    [initialCosts]="initialCostDrafts()"
+    [purchaseLineOptions]="purchaseLineOptions()"
+    (saved)="onCostOverviewSaved($event)"
+    (closed)="costDialogOpen.set(false)"
+  />
 }
 @if (packagePriceDialogOpen()) {
   <app-package-price-dialog

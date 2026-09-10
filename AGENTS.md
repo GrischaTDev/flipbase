@@ -59,6 +59,14 @@ An diesem Projekt arbeiten mehrere KI-Assistenten, teils gleichzeitig.
 
 ## Vor dem Pushen
 
+- **Jeden abgeschlossenen Feature- oder Umbau-Zweig über einen PR abschließen.**
+  Sobald Umsetzung und lokale Prüfungen fertig sind, im Chat genau fragen:
+  „Soll ich jetzt den PR erstellen und nach erfolgreichen Tests mergen?“ Ein
+  „Ja“ autorisiert Branch-Push, PR-Erstellung, das Abwarten aller erfolgreichen
+  Pflichtprüfungen, den Merge-Commit sowie anschließend das Löschen des Remote-
+  und lokalen Feature-Zweigs und des zugehörigen Worktrees. Bei „Nein“ bleibt
+  der geprüfte Zweig unverändert bestehen. Keine zusätzliche Auswahl mit
+  mehreren Abschlussvarianten anbieten.
 - **Vor einem Branch-Push gezielt prüfen:** betroffene Tests ausführen und
   geänderte Dateien formatieren/linten. Bei Angular-/Template-Änderungen auch
   den Bau prüfen, bei Datenbankänderungen die passenden Datenbanktests.
@@ -77,6 +85,10 @@ An diesem Projekt arbeiten mehrere KI-Assistenten, teils gleichzeitig.
   verwendet CI erfolgreiche PR-Prüfungen nur bei identischem Git-Dateistand
   und ausreichendem Prüfumfang erneut. Fehlt dieser Nachweis, laufen die
   Prüfungen automatisch. Direkte Pushes auf `master` nicht als Abkürzung nutzen.
+- Für die Integration ist ausschließlich der aktuelle Stand von
+  `origin/master` maßgeblich. Bereits abgeschlossene Zweige nicht als
+  zusätzliche Grundlage zusammenführen; sie nach bestätigtem Merge nur noch
+  anhand ihres nachweislich enthaltenen Stands aufräumen.
 - Der Produktionsbau, Image-Smoke, sichere Migrationen und die Prüfung der
   öffentlich ausgelieferten Version bleiben vor beziehungsweise nach Deployment aktiv.
 - **Migrationen gehören zum selben PR wie die Schemaänderung.** Die frühe

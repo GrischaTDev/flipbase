@@ -48,6 +48,7 @@ export class NumberInputComponent implements ControlValueAccessor {
   readonly ariaLabel = input<string>('');
   readonly asCurrency = input<boolean>(false);
   readonly disabled = input<boolean>(false);
+  readonly showStepper = input(true);
 
   // Backward-compatible German Inputs (legacy aliases)
   readonly platzhalter = input<string>('');
@@ -149,8 +150,8 @@ export class NumberInputComponent implements ControlValueAccessor {
   }
 
   private setValue(val: number | null): void {
-    this.value.set(val);
     this.onChange(val);
+    this.value.set(val);
   }
 
   protected readonly plusIcon = Plus;

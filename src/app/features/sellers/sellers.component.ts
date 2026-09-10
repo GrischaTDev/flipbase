@@ -11,6 +11,10 @@ import type { Supplier } from '../../core/models/flipbase.models';
 import { SuppliersService } from '../../core/services/suppliers.service';
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
+import {
+  CustomSelectComponent,
+  SelectOption,
+} from '../../shared/components/custom-select/custom-select.component';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { ToastService } from '../../shared/components/toast/toast.service';
 import { PurchaseSellerDialogComponent } from './components/purchase-seller-dialog/purchase-seller-dialog.component';
@@ -26,6 +30,7 @@ import {
   imports: [
     BadgeComponent,
     ButtonComponent,
+    CustomSelectComponent,
     LucideDynamicIcon,
     PageHeaderComponent,
     PurchaseSellerDialogComponent,
@@ -39,6 +44,11 @@ export class SellersComponent {
 
   readonly suppliersService = inject(SuppliersService);
   readonly typeFilter = signal<SellerTypeFilter>('all');
+  readonly typeFilterOptions: readonly SelectOption<SellerTypeFilter>[] = [
+    { value: 'all', label: 'Alle' },
+    { value: 'company', label: 'Unternehmen' },
+    { value: 'private', label: 'Privatpersonen' },
+  ];
   readonly dialogOpen = signal(false);
   readonly selectedSeller = signal<Supplier | null>(null);
   readonly actionError = signal<string | null>(null);

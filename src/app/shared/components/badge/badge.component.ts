@@ -1,12 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import { LucideDynamicIcon, LucideIconInput } from '@lucide/angular';
 
 export type BadgeTone = 'neutral' | 'info' | 'success' | 'caution' | 'critical';
 export type BadgeSize = 'sm' | 'md';
 
 @Component({
   selector: 'app-badge',
-  imports: [LucideDynamicIcon],
   templateUrl: './badge.component.html',
   styleUrl: './badge.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -17,11 +15,7 @@ export type BadgeSize = 'sm' | 'md';
 export class BadgeComponent {
   readonly tone = input<BadgeTone>('neutral');
   readonly size = input<BadgeSize>('sm');
-  readonly dot = input<boolean>(false);
-  readonly pulse = input<boolean>(false);
-  readonly icon = input<LucideIconInput | null>(null);
   readonly mono = input<boolean>(false);
-  readonly uppercase = input<boolean>(false);
 
   protected readonly badgeClasses = computed(() => {
     const base =
@@ -41,29 +35,6 @@ export class BadgeComponent {
     };
 
     const monoClass = this.mono() ? 'font-mono' : '';
-    const uppercaseClass = this.uppercase() ? 'uppercase tracking-wider' : '';
-
-    return [base, sizeClass, toneClasses[this.tone()], monoClass, uppercaseClass]
-      .filter(Boolean)
-      .join(' ');
-  });
-
-  protected readonly dotClasses = computed(() => {
-    const toneDots: Record<BadgeTone, string> = {
-      neutral: 'bg-fb-text-muted',
-      info: 'bg-blue-400',
-      success: 'bg-emerald-400',
-      caution: 'bg-amber-400',
-      critical: 'bg-rose-400',
-    };
-
-    const pulseClass = this.pulse() ? 'animate-pulse' : '';
-    return ['w-1.5 h-1.5 rounded-full shrink-0', toneDots[this.tone()], pulseClass]
-      .filter(Boolean)
-      .join(' ');
-  });
-
-  protected readonly iconClasses = computed(() => {
-    return this.size() === 'md' ? 'w-3.5 h-3.5 shrink-0' : 'w-3 h-3 shrink-0';
+    return [base, sizeClass, toneClasses[this.tone()], monoClass].filter(Boolean).join(' ');
   });
 }

@@ -111,4 +111,12 @@ test('bindet die Desktop-Sidebar an den Viewport und lässt die Navigation inter
 
   expect(metrics.height).toBe(480);
   expect(metrics.navigationScrollHeight).toBeGreaterThan(metrics.navigationClientHeight);
+
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  const scrolledMetrics = await sidebar.evaluate((element) => {
+    const bounds = element.getBoundingClientRect();
+    return { top: bounds.top, bottom: bounds.bottom };
+  });
+  expect(scrolledMetrics.top).toBe(0);
+  expect(scrolledMetrics.bottom).toBe(480);
 });

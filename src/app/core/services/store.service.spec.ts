@@ -4,8 +4,40 @@ import { Injector, runInInjectionContext, signal } from '@angular/core';
 import { StoreService } from './store.service';
 import { InventoryItem, InventoryItemSaleState, ItemStatus } from '../models/flipbase.models';
 import { InventoryService } from './inventory.service';
+import { CatalogService } from './catalog.service';
+import { StockService } from './stock.service';
 
 describe('Store & Live Checkout Service', () => {
+  it('verwendet verfügbaren Produktbestand unabhängig vom historischen Typmarker', () => {
+    const injector = Injector.create({
+      providers: [
+        {
+          provide: CatalogService,
+          useValue: {
+            products: signal([
+              {
+                id: 'product',
+                title: 'Schuh',
+                tracking_mode: 'individual',
+                is_public_store: true,
+                listing_price: 20,
+              },
+            ]),
+          },
+        },
+        {
+          provide: StockService,
+          useValue: {
+            positions: signal([{ catalog_product_id: 'product', available_quantity: 3 }]),
+          },
+        },
+      ],
+    });
+    const service = runInInjectionContext(injector, () => new StoreService());
+    expect(service.publicProducts()).toEqual([
+      expect.objectContaining({ id: 'product', availableQuantity: 3 }),
+    ]);
+  });
   let storeService: StoreService;
 
   beforeEach(() => {

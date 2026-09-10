@@ -1,121 +1,102 @@
 @if (entryStatus() !== 'finalized') {
-  @if (receivingStatus() === 'draft') {
-    <button
-      type="button"
-      data-mark-ordered
-      (click)="orderedRequested.emit()"
-      [disabled]="submitting()"
-      class="linear-btn-primary inline-flex cursor-pointer items-center rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-40"
-    >
-      Als bestellt markieren
-    </button>
-  } @else if (shipmentStatus() !== 'arrived') {
-    <button
-      type="button"
-      data-mark-arrived
-      (click)="arrivedRequested.emit()"
-      [disabled]="submitting()"
-      class="linear-btn-primary inline-flex cursor-pointer items-center rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-40"
-    >
-      Angekommen
-    </button>
-  }
-  @if (shipmentStatus() === 'arrived' && contentStatus() === 'unknown') {
-    <button
-      type="button"
-      data-capture-content
-      (click)="captureContentRequested.emit()"
-      [disabled]="submitting()"
-      class="linear-btn-primary inline-flex cursor-pointer items-center rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-40"
-    >
-      Inhalt erfassen
-    </button>
-  }
-  <button
-    type="button"
-    (click)="editRequested.emit()"
-    class="linear-btn-secondary inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
-  >
-    Bearbeiten
-  </button>
-  @if (contentStatus() === 'known' && shipmentStatus() === 'arrived') {
-    <button
-      type="button"
-      data-finalize-purchase
-      (click)="finalizeRequested.emit()"
-      [disabled]="submitting()"
-      class="linear-btn-primary inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40"
-    >
-      {{ submitting() ? 'Schließe ab...' : 'Erfassung abschließen' }}
-    </button>
+  @if (!editing()) {
+    <app-button size="slim" (clicked)="editRequested.emit()">Bearbeiten</app-button>
   }
   @if (entryStatus() === 'draft') {
-    <button
-      type="button"
+    <app-button
+      size="slim"
       data-delete-purchase
-      (click)="deleteRequested.emit()"
       [disabled]="submitting()"
-      class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg p-1.5 text-xs font-semibold text-fb-text-muted transition hover:bg-rose-500/10 hover:text-rose-400 disabled:cursor-not-allowed disabled:opacity-40"
+      (clicked)="deleteRequested.emit()"
+      >Löschen</app-button
     >
-      Einkauf löschen
-    </button>
+  }
+  @if (receivingStatus() === 'draft') {
+    <app-button
+      size="slim"
+      variant="primary"
+      data-mark-ordered
+      [disabled]="submitting()"
+      (clicked)="orderedRequested.emit()"
+      >Als bestellt markieren</app-button
+    >
+  } @else if (shipmentStatus() !== 'arrived') {
+    <app-button
+      size="slim"
+      variant="primary"
+      data-mark-arrived
+      [disabled]="submitting()"
+      (clicked)="arrivedRequested.emit()"
+      >Angekommen</app-button
+    >
+  }
+  @if (shipmentStatus() === 'arrived' && contentStatus() === 'unknown') {
+    <app-button
+      size="slim"
+      variant="primary"
+      data-capture-content
+      [disabled]="submitting()"
+      (clicked)="captureContentRequested.emit()"
+      >Inhalt erfassen</app-button
+    >
+  }
+  @if (contentStatus() === 'known' && shipmentStatus() === 'arrived') {
+    <app-button
+      size="slim"
+      variant="primary"
+      data-finalize-purchase
+      [disabled]="submitting()"
+      (clicked)="finalizeRequested.emit()"
+      >{{ submitting() ? 'Schließe ab...' : 'Erfassung abschließen' }}</app-button
+    >
   }
 } @else {
   @switch (saleHistoryState()) {
     @case ('none') {
-      <button
-        type="button"
+      <app-button
+        size="slim"
         data-reopen-purchase
-        (click)="reopenRequested.emit()"
         [disabled]="submitting()"
-        class="linear-btn-secondary inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+        (clicked)="reopenRequested.emit()"
+        >Erfassung wieder öffnen</app-button
       >
-        Erfassung wieder öffnen
-      </button>
     }
     @case ('recorded') {
-      <button
-        type="button"
+      <app-button
+        size="slim"
+        variant="primary"
         data-correct-purchase
-        (click)="correctionRequested.emit()"
         [disabled]="submitting()"
-        class="linear-btn-primary inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+        (clicked)="correctionRequested.emit()"
+        >Einkauf korrigieren</app-button
       >
-        Einkauf korrigieren
-      </button>
     }
     @case ('review_required') {
       <div role="alert" class="flex flex-wrap items-center gap-2 text-xs text-amber-300">
         <span>Verkaufsdaten prüfen und nachpflegen, bevor du den Einkauf bearbeitest.</span>
         @if (saleReviewInventoryItemId(); as inventoryItemId) {
-          <a
-            [routerLink]="['/inventory', inventoryItemId]"
-            data-review-purchase-item
-            class="linear-btn-secondary inline-flex cursor-pointer items-center rounded-lg px-3 py-1.5 font-semibold"
+          <app-button size="slim" [link]="'/inventory/' + inventoryItemId" data-review-purchase-item
+            >Artikel prüfen</app-button
           >
-            Artikel prüfen
-          </a>
         }
       </div>
     }
     @case ('error') {
-      <span role="alert" class="text-xs text-amber-300">
-        Verkaufsverlauf konnte nicht geprüft werden.
-      </span>
-      <button
-        type="button"
-        data-retry-sale-history
-        (click)="saleHistoryReloadRequested.emit()"
-        [disabled]="submitting()"
-        class="linear-btn-secondary inline-flex cursor-pointer items-center rounded-lg px-3 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+      <span role="alert" class="text-xs text-amber-300"
+        >Verkaufsverlauf konnte nicht geprüft werden.</span
       >
-        Erneut prüfen
-      </button>
+      <app-button
+        size="slim"
+        data-retry-sale-history
+        [disabled]="submitting()"
+        (clicked)="saleHistoryReloadRequested.emit()"
+        >Erneut prüfen</app-button
+      >
     }
     @default {
-      <span role="status" aria-live="polite" class="text-xs text-fb-text-muted">
-        Verkaufsverlauf wird geprüft...
-      </span>
+      <span role="status" aria-live="polite" class="text-xs text-fb-text-muted"
+        >Verkaufsverlauf wird geprüft...</span
+      >
     }
   }
 }

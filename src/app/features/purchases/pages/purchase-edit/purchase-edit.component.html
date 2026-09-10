@@ -1,0 +1,21 @@
+@if (purchase(); as purchaseToEdit) {
+  <app-entry-page-layout
+    title="Einkauf bearbeiten"
+    subtitle="Verkäufer, Artikel und Kosten in derselben Arbeitsansicht bearbeiten."
+    backLabel="Zurück zum Einkauf"
+    (cancelled)="returnToPurchase()"
+  >
+    <app-button
+      entry-header-actions
+      variant="primary"
+      [loading]="isSaving()"
+      [disabled]="!canSaveDraft()"
+      (clicked)="saveDraft()"
+    >
+      Änderungen speichern
+    </app-button>
+    <app-purchase-entry-form [purchase]="purchaseToEdit" (closed)="returnToPurchase()" />
+  </app-entry-page-layout>
+} @else {
+  <p class="py-8 text-center text-sm text-fb-text-muted" role="status">Einkauf wird geladen…</p>
+}

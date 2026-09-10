@@ -15,7 +15,27 @@ function isSensitiveKey(key: string): boolean {
   return /token|secret|password|api[_-]?key|authorization|webhook[_-]?url/iu.test(key);
 }
 
+function equalSnapshotValue(left: unknown, right: unknown): boolean {
+  if (left === right) return true;
+  if (Array.isArray(left) && Array.isArray(right)) {
+    return (
+      left.length === right.length &&
+      left.every((value, index) => equalSnapshotValue(value, right[index]))
+    );
+  }
+  if (isRecord(left) && isRecord(right)) {
+    const keys = Object.keys(left);
+    return (
+      keys.length === Object.keys(right).length &&
+      keys.every((key) => Object.hasOwn(right, key) && equalSnapshotValue(left[key], right[key]))
+    );
+  }
+  return false;
+}
+
 const FIELD_LABELS: Readonly<Record<string, string>> = {
+  before: 'Vorher',
+  after: 'Nachher',
   purchase_price: 'Einkaufspreis',
   total_purchase_cost: 'Gesamte Einkaufskosten',
   allocated_total_cost: 'Zugeordnete Gesamtkosten',
@@ -31,6 +51,38 @@ const FIELD_LABELS: Readonly<Record<string, string>> = {
   purchase: 'Einkauf',
   costs: 'Kosten',
   inventory_items: 'Bestandsartikel',
+  lines: 'Positionen',
+  title: 'Bezeichnung',
+  title_snapshot: 'Bezeichnung',
+  ordered_quantity: 'Menge',
+  unit_purchase_price: 'Stückpreis',
+  line_total: 'Positionssumme',
+  amount: 'Betrag',
+  description: 'Beschreibung',
+  type: 'Art',
+  allocation_method: 'Kostenverteilung',
+  target_line: 'Zielposition',
+  source_id: 'Bezugsquelle',
+  supplier_id: 'Verkäufer',
+  purchase_date: 'Einkaufsdatum',
+  cost_allocation_mode: 'Kostenverteilung',
+  notes: 'Notizen',
+  tracking_number: 'Sendungsnummer',
+  tracking_carrier: 'Versanddienstleister',
+  tracking_status: 'Sendungsstatus',
+  original_url: 'Angebotslink',
+  content_status: 'Inhaltskenntnis',
+  pricing_mode: 'Preisführung',
+  supplier_reference: 'Verkäuferreferenz',
+  discount_amount: 'Rabatt',
+  catalog_product_id: 'Katalogartikel',
+  ean_snapshot: 'EAN',
+  line_kind: 'Positionsart',
+  allocated_additional_cost: 'Zugeordnete Zusatzkosten',
+  price_mode: 'Preisführung',
+  condition_snapshot: 'Zustand',
+  estimated_market_value: 'Geschätzter Marktwert',
+  direct_costs: 'Direkte Kosten',
 };
 
 function humanizeKey(key: string): string {
@@ -53,15 +105,46 @@ function formatValue(value: unknown, key: string): string {
 export function mapRecordHistoryDetails(changes: unknown): readonly RecordHistoryDetail[] {
   const result: RecordHistoryDetail[] = [];
 
+  const compare = (before: unknown, after: unknown, path: readonly string[]): void => {
+    if (before === after || (before == null && after == null)) return;
+    const key = path.at(-1) ?? '';
+    const sensitive = path.some(isSensitiveKey);
+    if (!sensitive && (isRecord(before) || isRecord(after))) {
+      const previous = isRecord(before) ? before : {};
+      const current = isRecord(after) ? after : {};
+      for (const field of new Set([...Object.keys(previous), ...Object.keys(current)])) {
+        compare(previous[field], current[field], [...path, field]);
+      }
+      return;
+    }
+    if (!sensitive && (Array.isArray(before) || Array.isArray(after))) {
+      const previous: readonly unknown[] = Array.isArray(before) ? before : [];
+      const current: readonly unknown[] = Array.isArray(after) ? after : [];
+      const matched = new Set<number>();
+      previous.forEach((value, index) => {
+        const match = current.findIndex(
+          (candidate, candidateIndex) =>
+            !matched.has(candidateIndex) && equalSnapshotValue(value, candidate),
+        );
+        if (match >= 0) matched.add(match);
+        else compare(value, undefined, [...path, 'before', String(index + 1)]);
+      });
+      current.forEach((value, index) => {
+        if (!matched.has(index)) compare(undefined, value, [...path, 'after', String(index + 1)]);
+      });
+      return;
+    }
+    result.push({
+      label: path.map(humanizeKey).join(' · ') || 'Wert',
+      before: sensitive ? '[geschützt]' : formatValue(before, key),
+      after: sensitive ? '[geschützt]' : formatValue(after, key),
+    });
+  };
+
   const visit = (value: unknown, path: readonly string[]): void => {
     if (!isRecord(value)) return;
     if ('before' in value || 'after' in value) {
-      const key = path.at(-1) ?? '';
-      result.push({
-        label: path.map(humanizeKey).join(' · ') || 'Wert',
-        before: formatValue(value['before'], key),
-        after: formatValue(value['after'], key),
-      });
+      compare(value['before'], value['after'], path);
       return;
     }
     for (const [key, nestedValue] of Object.entries(value)) {

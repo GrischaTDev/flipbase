@@ -165,6 +165,10 @@ create trigger "00_protect_archived_workspace" before insert or update or delete
 for each row execute function public.protect_archived_workspace_data();
 create trigger "00_protect_archived_workspace" before insert or update or delete on public.catalog_products
 for each row execute function public.protect_archived_workspace_data();
+create trigger "00_protect_archived_workspace" before insert or update or delete on public.catalog_product_media
+for each row execute function public.protect_archived_workspace_data();
+create trigger "00_protect_archived_workspace" before insert or update or delete on public.purchase_receipt_requests
+for each row execute function public.protect_archived_workspace_data();
 create trigger "00_protect_archived_workspace" before insert or update or delete on public.email_confirmations
 for each row execute function public.protect_archived_workspace_data();
 create trigger "00_protect_archived_workspace" before insert or update or delete on public.market_research
@@ -185,3 +189,96 @@ create trigger "00_protect_archived_workspace" before insert or update or delete
 for each row execute function public.protect_archived_workspace_data('store_orders','store_order_id');
 create trigger "00_protect_archived_workspace" before insert or update or delete on public.research_comparables
 for each row execute function public.protect_archived_workspace_data('market_research','research_id');
+
+-- Storage-Dateien müssen dieselbe Archivierungssperre wie ihre Metadaten halten.
+-- SECURITY DEFINER ist nur für die vollständige Elternauflösung und Zeilensperren
+-- nötig; die eigentliche Zugriffsberechtigung bleibt bei den Storage-RLS-Policies.
+create function public.protect_workspace_media_object()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_row jsonb;
+  v_rows jsonb[];
+  v_path text;
+  v_workspace record;
+begin
+  if tg_op = 'UPDATE' and (
+    (old.bucket_id = 'item-media' and split_part(old.name,'/',1) = 'catalog-products')
+    or (new.bucket_id = 'item-media' and split_part(new.name,'/',1) = 'catalog-products')
+  ) and (old.bucket_id,old.name) is distinct from (new.bucket_id,new.name) then
+    raise exception using errcode = '42501',
+      message = 'Der Speicherpfad eines Produktmediums darf nicht geändert werden.';
+  end if;
+
+  v_rows := case tg_op when 'INSERT' then array[to_jsonb(new)]
+    when 'DELETE' then array[to_jsonb(old)] else array[to_jsonb(old),to_jsonb(new)] end;
+  foreach v_row in array v_rows loop
+    if v_row ->> 'bucket_id' <> 'item-media' then continue; end if;
+    v_path := v_row ->> 'name';
+    -- UUIDs werden als Text verglichen: ungültige Fremdpfade lösen keinen Castfehler aus.
+    for v_workspace in
+      select w.id,w.archived_at from public.workspaces w
+      where w.id in (
+        select p.workspace_id from public.catalog_products p
+        where p.workspace_id::text = split_part(v_path,'/',2)
+          and p.id::text = split_part(v_path,'/',3)
+          and public.is_catalog_product_media_path(v_path,p.workspace_id,p.id)
+        union
+        select i.workspace_id from public.inventory_items i
+        where split_part(v_path,'/',1) <> 'catalog-products'
+          and cardinality(storage.foldername(v_path)) = 1
+          and i.id::text = (storage.foldername(v_path))[1]
+      )
+      order by w.id for share of w
+    loop
+      if v_workspace.archived_at is not null then
+        raise exception using errcode = '55000',
+          message = 'Dieser Workspace ist archiviert. Vor Änderungen bitte wiederherstellen.';
+      end if;
+    end loop;
+  end loop;
+  if tg_op = 'DELETE' then return old; end if;
+  return new;
+end;
+$$;
+
+revoke all on function public.protect_workspace_media_object() from public,anon,authenticated,service_role;
+create trigger "00_protect_workspace_media_object"
+  before insert or update or delete on storage.objects
+  for each row execute function public.protect_workspace_media_object();
+
+-- Ergänzung des festen Retention-Inventars nach Anlage der Produktmedientabelle.
+create or replace function public.prevent_workspace_with_business_data_deletion()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if exists (select 1 from public.purchases where workspace_id = old.id)
+    or exists (select 1 from public.inventory_items where workspace_id = old.id)
+    or exists (select 1 from public.stock_lots where workspace_id = old.id)
+    or exists (select 1 from public.stock_movements where workspace_id = old.id)
+    or exists (select 1 from public.sales where workspace_id = old.id)
+    or exists (select 1 from public.inventory_reconciliation_events where workspace_id = old.id)
+    or exists (select 1 from public.business_events where workspace_id = old.id)
+    or exists (select 1 from public.activity_logs where workspace_id = old.id)
+    or exists (select 1 from public.returns where workspace_id = old.id)
+    or exists (select 1 from public.invoices where workspace_id = old.id)
+    or exists (select 1 from public.email_confirmations where workspace_id = old.id)
+    or exists (select 1 from public.shipping_orders where workspace_id = old.id)
+    or exists (select 1 from public.store_orders where workspace_id = old.id)
+    or exists (select 1 from public.bank_transactions where workspace_id = old.id)
+    or exists (select 1 from public.offline_purchase_entries where workspace_id = old.id)
+    or exists (select 1 from public.cash_wallet_sessions where workspace_id = old.id)
+    or exists (select 1 from public.catalog_product_media where workspace_id = old.id)
+    or exists (select 1 from public.purchase_receipt_requests where workspace_id = old.id) then
+    raise exception using errcode = 'P0001',
+      message = 'Workspace enthält Geschäftsdaten und kann nicht gelöscht werden. Erfasste Belege und Buchungen müssen erhalten bleiben.';
+  end if;
+  return old;
+end;
+$$;

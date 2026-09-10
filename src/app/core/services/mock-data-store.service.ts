@@ -10,6 +10,7 @@ import {
   ActivityLog,
   ItemCost,
   ItemMedia,
+  CatalogProductMedia,
   CatalogProduct,
   PurchaseLine,
   StockLot,
@@ -22,6 +23,7 @@ import { createLocalDemoId } from '../utils/client-identity';
 import { isSellableInventoryItem } from '../models/inventory-sellability';
 import type { PurchaseCostingResult } from '../models/purchase-costing.models';
 import type { DemoRecordComment } from '../models/record-comment.models';
+import { buildProductCostPlan } from '../utils/product-cost-plan';
 
 const DEMO_WS_ID = 'ws-1';
 
@@ -33,10 +35,12 @@ const STORAGE_KEY_SUPPLIERS = 'flipbase_local_suppliers';
 const STORAGE_KEY_ITEM_COSTS = 'flipbase_local_item_costs';
 const STORAGE_KEY_ACTIVITY_LOGS = 'flipbase_local_activity_logs';
 const STORAGE_KEY_MEDIA = 'flipbase_local_media';
+const STORAGE_KEY_PRODUCT_MEDIA = 'flipbase_local_catalog_product_media';
 const STORAGE_KEY_CATALOG_PRODUCTS = 'flipbase_local_catalog_products';
 const STORAGE_KEY_PURCHASE_LINES = 'flipbase_local_purchase_lines';
 const STORAGE_KEY_STOCK_LOTS = 'flipbase_local_stock_lots';
 const STORAGE_KEY_STOCK_MOVEMENTS = 'flipbase_local_stock_movements';
+const STORAGE_KEY_PRODUCT_RECEIPTS = 'flipbase_local_product_receipts';
 const STORAGE_KEY_RECEIPT_JOURNAL = 'flipbase_local_individual_receipt_journal';
 const STORAGE_KEY_RECORD_COMMENTS = 'flipbase_local_record_comments';
 
@@ -44,6 +48,15 @@ interface AtomicStorageChange {
   readonly key: string;
   readonly previous: string | null;
   readonly value: string;
+}
+
+interface ProductReceiptRequest {
+  readonly id: string;
+  readonly workspace_id: string;
+  readonly purchase_id: string;
+  readonly input: string;
+  readonly purchaseLines: PurchaseLine[];
+  readonly stockLots: StockLot[];
 }
 
 interface ReceiptJournal {
@@ -659,7 +672,34 @@ export class MockDataStoreService {
     workspaceId: string,
     purchaseId: string,
     inputs: readonly ReceivePurchaseLineInput[],
+    requestId = createLocalDemoId('receipt'),
   ): { purchaseLines: PurchaseLine[]; stockLots: StockLot[]; error: Error | null } {
+    const failure = (message: string) => ({
+      purchaseLines: [],
+      stockLots: [],
+      error: new Error(message),
+    });
+    if (!this.isDemoMode()) return failure('Der Demo-Modus ist nicht aktiv.');
+    const requests = this.getWorkspaceRecords<ProductReceiptRequest>(STORAGE_KEY_PRODUCT_RECEIPTS);
+    const inputJson = JSON.stringify(inputs);
+    const previous = requests.find(
+      (request) => request.workspace_id === workspaceId && request.id === requestId,
+    );
+    if (previous) {
+      return previous.purchase_id === purchaseId && previous.input === inputJson
+        ? { purchaseLines: previous.purchaseLines, stockLots: previous.stockLots, error: null }
+        : failure('Die Request-ID wurde bereits für einen anderen Wareneingang verwendet.');
+    }
+    const purchase = this.getPurchases(workspaceId).find((entry) => entry.id === purchaseId);
+    if (!purchase || purchase.entry_status === 'finalized')
+      return failure('Der Einkauf kann keinen weiteren Wareneingang erhalten.');
+    if (
+      inputs.length === 0 ||
+      inputs.length > 1000 ||
+      inputs.reduce((sum, input) => sum + input.receivedQuantity, 0) > 100000
+    ) {
+      return failure('Die Wareneingangsdaten sind ungültig.');
+    }
     const allLines = this.getPurchaseLines();
     const updatedLines: PurchaseLine[] = [];
     const newLots: StockLot[] = [];
@@ -678,12 +718,13 @@ export class MockDataStoreService {
           error: new Error('Die Einkaufsposition wurde nicht gefunden.'),
         };
       }
-      if (line.line_total === null) {
-        return {
-          purchaseLines: [],
-          stockLots: [],
-          error: new Error('Unbepreiste Einkaufspositionen können nicht eingebucht werden.'),
-        };
+      if (
+        !this.getCatalogProducts(workspaceId).some(
+          (product) => product.id === line.catalog_product_id,
+        ) ||
+        (input.receivedAt !== undefined && !Number.isFinite(Date.parse(input.receivedAt)))
+      ) {
+        return failure('Produktreferenz oder Empfangszeitpunkt ist ungültig.');
       }
       if (
         !Number.isInteger(input.receivedQuantity) ||
@@ -708,7 +749,7 @@ export class MockDataStoreService {
         catalog_product_id: line.catalog_product_id,
         received_quantity: input.receivedQuantity,
         remaining_quantity: input.receivedQuantity,
-        unit_cost: 0,
+        unit_cost: null,
         received_at: input.receivedAt ?? new Date().toISOString(),
       };
       const index = allLines.findIndex((entry) => entry.id === line.id);
@@ -717,9 +758,7 @@ export class MockDataStoreService {
       newLots.push(lot);
     }
 
-    this.saveWorkspaceRecords(STORAGE_KEY_PURCHASE_LINES, allLines);
-    this.saveWorkspaceRecords(STORAGE_KEY_STOCK_LOTS, [...this.getStockLots(), ...newLots]);
-    this.saveWorkspaceRecords(STORAGE_KEY_STOCK_MOVEMENTS, [
+    const movements = [
       ...this.getStockMovements(),
       ...newLots.map((lot): StockMovement => ({
         id: this.newId('movement'),
@@ -730,7 +769,42 @@ export class MockDataStoreService {
         reason: 'receipt',
         created_at: lot.received_at,
       })),
+    ];
+    const purchaseLines = allLines.filter(
+      (line) => line.workspace_id === workspaceId && line.purchase_id === purchaseId,
+    );
+    const updatedPurchase: Purchase = {
+      ...purchase,
+      receiving_status: purchaseLines.every(
+        (line) => line.received_quantity === line.ordered_quantity,
+      )
+        ? 'received'
+        : 'partially_received',
+    };
+    const persistenceError = this.saveRecordsAtomically([
+      {
+        key: STORAGE_KEY_PURCHASES,
+        records: this.upsertRecord(this.getPurchases(), updatedPurchase),
+      },
+      { key: STORAGE_KEY_PURCHASE_LINES, records: allLines },
+      { key: STORAGE_KEY_STOCK_LOTS, records: [...this.getStockLots(), ...newLots] },
+      { key: STORAGE_KEY_STOCK_MOVEMENTS, records: movements },
+      {
+        key: STORAGE_KEY_PRODUCT_RECEIPTS,
+        records: [
+          ...requests,
+          {
+            id: requestId,
+            workspace_id: workspaceId,
+            purchase_id: purchaseId,
+            input: inputJson,
+            purchaseLines: updatedLines,
+            stockLots: newLots,
+          },
+        ],
+      },
     ]);
+    if (persistenceError) return { purchaseLines: [], stockLots: [], error: persistenceError };
     return { purchaseLines: updatedLines, stockLots: newLots, error: null };
   }
 
@@ -848,7 +922,11 @@ export class MockDataStoreService {
         error: new Error('Der Inhalt muss vor dem Abschluss vollständig erfasst werden.'),
       };
     }
-    if (!purchase.content_status && purchase.type !== 'mystery_pack') {
+    if (
+      !purchase.content_status &&
+      purchase.type !== 'mystery_pack' &&
+      lines.every((line) => line.line_kind === 'individual')
+    ) {
       return {
         data: null,
         error: new Error('In der Demo können aktuell nur Mystery Boxen abgeschlossen werden.'),
@@ -861,10 +939,7 @@ export class MockDataStoreService {
       };
     }
     if (lines.some((line) => line.line_kind !== 'individual')) {
-      return {
-        data: null,
-        error: new Error('Mengenpositionen können im Demo-Modus noch nicht finalisiert werden.'),
-      };
+      return this.finalizeProductPurchase(purchase, lines);
     }
     if (purchase.purchase_price === null || !Number.isFinite(purchase.purchase_price)) {
       return { data: null, error: new Error('Die Gesamtkosten des Einkaufs sind noch offen.') };
@@ -999,6 +1074,140 @@ export class MockDataStoreService {
     };
   }
 
+  private finalizeProductPurchase(
+    purchase: Purchase,
+    lines: readonly PurchaseLine[],
+  ): { data: PurchaseCostingResult | null; error: Error | null } {
+    try {
+      if (lines.some((line) => line.received_quantity !== line.ordered_quantity))
+        throw new Error('Alle Produkte müssen vor dem Kostenabschluss vollständig erhalten sein.');
+      const plan = buildProductCostPlan(purchase, lines);
+      const allLots = this.getStockLots();
+      const allItems = this.getItems();
+      const updatedLots = new Map<string, StockLot>();
+      const updatedItems = new Map<string, InventoryItem>();
+      for (const entry of plan) {
+        if (entry.line.line_kind === 'quantity') {
+          const lots = allLots
+            .filter(
+              (lot) =>
+                lot.workspace_id === purchase.workspace_id &&
+                lot.purchase_id === purchase.id &&
+                lot.purchase_line_id === entry.line.id,
+            )
+            .sort(
+              (left, right) =>
+                left.received_at.localeCompare(right.received_at) ||
+                left.id.localeCompare(right.id),
+            );
+          if (
+            lots.reduce((sum, lot) => sum + lot.received_quantity, 0) !==
+              entry.line.ordered_quantity ||
+            lots.some((lot) => lot.remaining_quantity !== lot.received_quantity)
+          )
+            throw new Error('Die Losmengen stimmen nicht mit dem Wareneingang überein.');
+          let offset = 0;
+          for (const lot of lots) {
+            const pool = entry.unitCents
+              .slice(offset, offset + lot.received_quantity)
+              .reduce((sum, value) => sum + value, 0);
+            updatedLots.set(lot.id, { ...lot, unit_cost: pool / 100 / lot.received_quantity });
+            offset += lot.received_quantity;
+          }
+        } else {
+          const items = allItems
+            .filter(
+              (item) =>
+                item.workspace_id === purchase.workspace_id &&
+                item.purchase_id === purchase.id &&
+                item.purchase_line_id === entry.line.id,
+            )
+            .sort(
+              (left, right) =>
+                (left.created_at ?? '').localeCompare(right.created_at ?? '') ||
+                left.id.localeCompare(right.id),
+            );
+          if (
+            items.length !== entry.line.ordered_quantity ||
+            items.some((item) => item.status === 'sold')
+          )
+            throw new Error('Die vorhandenen Artikel stimmen nicht mit dem Wareneingang überein.');
+          items.forEach((item, index) =>
+            updatedItems.set(item.id, {
+              ...item,
+              status: 'ready',
+              allocated_purchase_cost: entry.unitCents[index] / 100,
+            }),
+          );
+        }
+      }
+      const linePlans = new Map(plan.map((entry) => [entry.line.id, entry]));
+      const total = plan.reduce((sum, entry) => sum + entry.totalCents, 0) / 100;
+      const goodsAmount =
+        purchase.purchase_price ??
+        lines.reduce((sum, line) => sum + Math.round((line.line_total ?? 0) * 100), 0) / 100;
+      const updatedPurchase: Purchase = {
+        ...purchase,
+        purchase_price: goodsAmount,
+        entry_status: 'finalized',
+        receiving_status: 'received',
+        total_purchase_cost: total,
+        finalized_at: new Date().toISOString(),
+      };
+      const error = this.saveRecordsAtomically([
+        {
+          key: STORAGE_KEY_STOCK_LOTS,
+          records: allLots.map((lot) => updatedLots.get(lot.id) ?? lot),
+        },
+        {
+          key: STORAGE_KEY_ITEMS,
+          records: allItems.map((item) => updatedItems.get(item.id) ?? item),
+        },
+        {
+          key: STORAGE_KEY_PURCHASES,
+          records: this.getPurchases().map((entry) =>
+            entry.id === purchase.id && entry.workspace_id === purchase.workspace_id
+              ? updatedPurchase
+              : entry,
+          ),
+        },
+        {
+          key: STORAGE_KEY_PURCHASE_LINES,
+          records: this.getPurchaseLines().map((line) => {
+            const cost =
+              line.workspace_id === purchase.workspace_id && line.purchase_id === purchase.id
+                ? linePlans.get(line.id)
+                : null;
+            return cost
+              ? {
+                  ...line,
+                  allocated_total_cost: cost.totalCents / 100,
+                  allocated_additional_cost: cost.additionalCents / 100,
+                }
+              : line;
+          }),
+        },
+      ]);
+      return error
+        ? { data: null, error }
+        : {
+            data: {
+              purchaseId: purchase.id,
+              totalPurchaseCost: total,
+              allocatedTotalCost: total,
+              entryStatus: 'finalized',
+              eventId: createLocalDemoId('event'),
+            },
+            error: null,
+          };
+    } catch (cause: unknown) {
+      return {
+        data: null,
+        error: cause instanceof Error ? cause : new Error('Kostenabschluss fehlgeschlagen.'),
+      };
+    }
+  }
+
   bookSaleAtomically(
     workspaceId: string,
     sale: Sale,
@@ -1063,7 +1272,11 @@ export class MockDataStoreService {
           (lot) =>
             lot.workspace_id === workspaceId &&
             lot.catalog_product_id === line.catalog_product_id &&
-            lot.remaining_quantity > 0,
+            lot.remaining_quantity > 0 &&
+            this.getPurchases(workspaceId).some(
+              (purchase) =>
+                purchase.id === lot.purchase_id && purchase.entry_status === 'finalized',
+            ),
         )
         .sort(
           (left, right) =>
@@ -1072,6 +1285,15 @@ export class MockDataStoreService {
 
       for (const lot of lotsForProduct) {
         if (remaining === 0) break;
+        if (lot.unit_cost === null) {
+          return {
+            sale: null,
+            saleLines: [],
+            allocations: [],
+            movements: [],
+            error: new Error('Die Kosten des Bestands sind noch offen.'),
+          };
+        }
         const quantity = Math.min(remaining, lot.remaining_quantity);
         const previousAllocatedCost = [
           ...this.getSales(workspaceId).flatMap((sale) => sale.lot_allocations ?? []),
@@ -1080,15 +1302,28 @@ export class MockDataStoreService {
           .filter((allocation) => allocation.stock_lot_id === lot.id)
           .reduce(
             (sum, allocation) =>
-              sum + (allocation.allocated_cost ?? allocation.quantity * allocation.unit_cost),
+              sum +
+              (allocation.active_allocated_cost ??
+                allocation.allocated_cost ??
+                allocation.quantity * allocation.unit_cost),
             0,
           );
-        const allocatedCost = Number(
-          (quantity === lot.remaining_quantity
-            ? Number((lot.unit_cost * lot.received_quantity).toFixed(2)) - previousAllocatedCost
-            : quantity * lot.unit_cost
-          ).toFixed(2),
-        );
+        const remainingCents =
+          Math.round(lot.unit_cost * lot.received_quantity * 100) -
+          Math.round(previousAllocatedCost * 100);
+        if (remainingCents < 0 || !Number.isSafeInteger(remainingCents)) {
+          return {
+            sale: null,
+            saleLines: [],
+            allocations: [],
+            movements: [],
+            error: new Error('Die aktiven Kosten des Bestands sind ungültig.'),
+          };
+        }
+        const allocatedCost =
+          (quantity * Math.floor(remainingCents / lot.remaining_quantity) +
+            Math.min(quantity, remainingCents % lot.remaining_quantity)) /
+          100;
         lot.remaining_quantity -= quantity;
         remaining -= quantity;
         costOfGoodsSold += allocatedCost;
@@ -1100,6 +1335,7 @@ export class MockDataStoreService {
           quantity,
           unit_cost: lot.unit_cost,
           allocated_cost: allocatedCost,
+          active_allocated_cost: allocatedCost,
         });
         movements.push({
           id: this.newId('movement'),
@@ -1234,7 +1470,18 @@ export class MockDataStoreService {
       }
     }
 
-    const persistedSale: Sale = { ...sale, stock_movements: movements };
+    const persistedSale: Sale = {
+      ...sale,
+      stock_movements: movements,
+      lot_allocations: allocations.map((allocation) => ({
+        ...allocation,
+        active_allocated_cost: restock
+          ? 0
+          : (allocation.active_allocated_cost ??
+            allocation.allocated_cost ??
+            allocation.quantity * allocation.unit_cost),
+      })),
+    };
     const persistenceError = this.saveRecordsAtomically([
       { key: STORAGE_KEY_ITEMS, records: updatedItems },
       { key: STORAGE_KEY_STOCK_LOTS, records: updatedLots },
@@ -1783,6 +2030,34 @@ export class MockDataStoreService {
   }
 
   // --- Media Persistent API ---
+  getCatalogProductMedia(productId?: string): CatalogProductMedia[] {
+    if (!this.isDemoMode()) return [];
+    const value = getStorage()?.getItem(STORAGE_KEY_PRODUCT_MEDIA);
+    const media: CatalogProductMedia[] = value ? JSON.parse(value) : [];
+    return media
+      .filter((entry) => !productId || entry.catalog_product_id === productId)
+      .sort(
+        (left, right) =>
+          Number(right.is_primary) - Number(left.is_primary) ||
+          left.sort_order - right.sort_order ||
+          (left.created_at ?? '').localeCompare(right.created_at ?? '') ||
+          left.id.localeCompare(right.id),
+      );
+  }
+
+  saveCatalogProductMedia(media: CatalogProductMedia): void {
+    if (!this.isDemoMode()) return;
+    const storage = getStorage();
+    if (!storage) throw new Error('Lokaler Bildspeicher ist nicht verfügbar.');
+    const existing = this.getCatalogProductMedia().filter((entry) => entry.id !== media.id);
+    const updated = existing.map((entry) =>
+      media.is_primary && entry.catalog_product_id === media.catalog_product_id
+        ? { ...entry, is_primary: false }
+        : entry,
+    );
+    storage.setItem(STORAGE_KEY_PRODUCT_MEDIA, JSON.stringify([...updated, media]));
+  }
+
   getItemMedia(itemId?: string): ItemMedia[] {
     if (!this.isDemoMode()) return [];
     try {

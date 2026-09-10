@@ -28,7 +28,7 @@
         }
       </app-button>
       <app-button variant="primary" size="md" [icon]="plusIcon" (clicked)="openCreatePage()">
-        {{ 'INVENTORY.NEW_ITEM' | translate }}
+        Produkt erstellen
       </app-button>
     </div>
   </app-page-header>
@@ -185,13 +185,14 @@
   }
 
   <app-stock-position-list
+    [imageUrls]="catalogService.imageUrls()"
+    (imageFailed)="catalogService.invalidateProductImage($event)"
     [tableColumns]="tablePrefs().columns"
     [sortOptions]="inventoryTableConfig.sortOptions"
     [currentSort]="tablePrefs().sort"
     (columnVisibilityToggled)="toggleColumnVisibility($event)"
     (columnsReordered)="onColumnsReordered($event)"
     (sortChanged)="onSortChanged($event)"
-    (resetRequested)="resetTablePreferences()"
     [viewModified]="viewModified()"
     (viewResetRequested)="resetView()"
     [archivePendingIds]="archiveService.pendingIds()"
@@ -279,4 +280,10 @@
     (detected)="onEtikettGescannt($event)"
     (closed)="isScanningLabel.set(false)"
   ></app-barcode-scanner>
+}
+@if (isProductDialogOpen()) {
+  <app-product-dialog
+    (closed)="isProductDialogOpen.set(false)"
+    (created)="isProductDialogOpen.set(false)"
+  />
 }

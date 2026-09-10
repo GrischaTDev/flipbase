@@ -160,7 +160,7 @@ describe('PurchaseService – abhängige Schreibvorgänge beim Anlegen', () => {
     });
 
     expect(rpc).toHaveBeenCalledWith(
-      'create_purchase_with_position_prices',
+      'create_purchase',
       expect.objectContaining({
         p_expenses: [
           expect.objectContaining({
@@ -288,7 +288,7 @@ describe('PurchaseService – abhängige Schreibvorgänge beim Anlegen', () => {
 
     expect(result.status).toBe('success');
     expect(rpc).toHaveBeenCalledWith(
-      'create_purchase_with_position_prices',
+      'create_purchase',
       expect.objectContaining({
         p_lines: [
           expect.objectContaining({
@@ -388,7 +388,7 @@ describe('PurchaseService – abhängige Schreibvorgänge beim Anlegen', () => {
       data: { id: gespeicherterEinkauf.id, total_purchase_cost: 15.02 },
     });
     expect(rpc).toHaveBeenCalledOnce();
-    expect(rpc).toHaveBeenCalledWith('create_purchase_with_position_prices', {
+    expect(rpc).toHaveBeenCalledWith('create_purchase', {
       p_workspace_id: workspace.id,
       p_purchase: expect.objectContaining({
         title: 'LED-Lampen',
@@ -472,7 +472,7 @@ describe('PurchaseService – abhängige Schreibvorgänge beim Anlegen', () => {
     const finalerEinkauf = { ...gespeicherterEinkauf, id: '44444444-4444-4444-8444-444444444444' };
     const client = {
       rpc: async (_name: string, payload: unknown) => {
-        aufrufe.push({ tabelle: 'create_purchase_with_position_prices', payload });
+        aufrufe.push({ tabelle: 'create_purchase', payload });
         return {
           data: {
             purchase: finalerEinkauf,
@@ -517,7 +517,7 @@ describe('PurchaseService – abhängige Schreibvorgänge beim Anlegen', () => {
     });
 
     expect(ergebnis).toMatchObject({ status: 'success', data: { id: finalerEinkauf.id } });
-    expect(aufrufe.map(({ tabelle }) => tabelle)).toEqual(['create_purchase_with_position_prices']);
+    expect(aufrufe.map(({ tabelle }) => tabelle)).toEqual(['create_purchase']);
     expect(aufrufe[0].payload).toEqual(
       expect.objectContaining({
         p_workspace_id: workspace.id,
@@ -719,7 +719,7 @@ describe('PurchaseService – abhängige Schreibvorgänge beim Anlegen', () => {
       reportedBySyncStatus: false,
     });
     expect(rpc).toHaveBeenCalledOnce();
-    expect(rpc).toHaveBeenCalledWith('update_purchase_draft_with_event', {
+    expect(rpc).toHaveBeenCalledWith('update_purchase_draft', {
       p_workspace_id: workspace.id,
       p_purchase_id: gespeicherterEinkauf.id,
       p_purchase: expect.objectContaining({

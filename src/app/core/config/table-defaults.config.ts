@@ -111,35 +111,25 @@ export const CATALOG_TABLE_CONFIG: TableConfig<CatalogColumnId, CatalogSortField
 // 4. Einkäufe (Purchases)
 // ==========================================
 export type PurchasesColumnId =
-  | 'title'
-  | 'seller'
-  | 'purchase_date'
-  | 'status'
-  | 'capture'
-  | 'cost_status'
-  | 'total_cost'
-  | 'units'
-  | 'actions';
+  'title' | 'description' | 'seller' | 'purchase_date' | 'status' | 'receipt' | 'total_cost';
 
 export type PurchasesSortField = 'purchase_date' | 'total_cost' | 'title';
 
 export const PURCHASES_TABLE_CONFIG: TableConfig<PurchasesColumnId, PurchasesSortField> = {
   defaultColumns: [
-    { id: 'title', label: 'Einkauf / Referenz', visible: true, order: 0, locked: true },
-    { id: 'seller', label: 'Verkäufer', visible: true, order: 1 },
-    { id: 'purchase_date', label: 'Kaufdatum', visible: true, order: 2 },
-    { id: 'status', label: 'Status', visible: true, order: 3 },
-    { id: 'total_cost', label: 'Gesamtkosten', visible: true, order: 4 },
-    { id: 'units', label: 'Stückzahl & Bestand', visible: true, order: 5 },
-    { id: 'capture', label: 'Erfassung', visible: true, order: 6 },
-    { id: 'cost_status', label: 'Kostenstatus', visible: true, order: 7 },
-    { id: 'actions', label: 'Aktionen', visible: true, order: 8, locked: true },
+    { id: 'title', label: 'Einkauf', visible: true, order: 0, locked: true },
+    { id: 'description', label: 'Bezeichnung', visible: true, order: 1 },
+    { id: 'seller', label: 'Verkäufer', visible: true, order: 2 },
+    { id: 'purchase_date', label: 'Kaufdatum', visible: true, order: 3 },
+    { id: 'status', label: 'Status', visible: true, order: 4 },
+    { id: 'receipt', label: 'Erhalten', visible: true, order: 5 },
+    { id: 'total_cost', label: 'Gesamt', visible: true, order: 6 },
   ],
   defaultSort: { field: 'purchase_date', direction: 'desc' },
   sortOptions: [
     { value: 'purchase_date', label: 'Kaufdatum', kind: 'date' },
-    { value: 'total_cost', label: 'Gesamtkosten', kind: 'number' },
-    { value: 'title', label: 'Titel', kind: 'text' },
+    { value: 'total_cost', label: 'Gesamt', kind: 'number' },
+    { value: 'title', label: 'Bezeichnung', kind: 'text' },
   ],
 };
 

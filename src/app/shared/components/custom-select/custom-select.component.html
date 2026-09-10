@@ -31,6 +31,26 @@
         [class.rotate-180]="isOpen()"
       ></svg>
     </button>
+  } @else if (variant() === 'toolbar') {
+    <button
+      #trigger
+      type="button"
+      role="combobox"
+      aria-haspopup="listbox"
+      (click)="toggleDropdown($event)"
+      (keydown)="onTriggerKeydown($event)"
+      (blur)="onTriggerBlur()"
+      [disabled]="effectiveDisabled()"
+      [id]="resolvedTriggerId()"
+      [attr.aria-label]="ariaLabel()"
+      [attr.aria-expanded]="isOpen()"
+      [attr.aria-controls]="isOpen() ? listboxId() : null"
+      [attr.aria-activedescendant]="activeDescendantId()"
+      class="inline-flex h-7 w-full max-w-full items-center justify-between gap-1 rounded-lg border border-transparent bg-transparent px-2 text-[13px] font-medium text-fb-text-primary transition-colors hover:bg-fb-subtle focus-visible:border-fb-primary focus-visible:bg-fb-surface focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-fb-primary"
+    >
+      <span class="truncate">{{ selectedOption()?.label || placeholder() }}</span>
+      <svg [lucideIcon]="chevronIcon" class="size-3 shrink-0 opacity-70"></svg>
+    </button>
   } @else if (variant() === 'filter') {
     <button
       #trigger
@@ -101,15 +121,26 @@
   <!-- Floating Dropdown Panel -->
   @if (isOpen()) {
     <div
-      class="custom-select-menu fb-popover-enter absolute z-50 min-w-[160px] max-w-[320px] w-full rounded-lg bg-fb-surface border border-fb-border shadow-lg py-1.5 outline-none"
-      [class.bottom-full]="isDropUp()"
-      [class.mb-1.5]="isDropUp()"
-      [class.top-full]="!isDropUp()"
-      [class.mt-1.5]="!isDropUp()"
-      [class.right-0]="variant() === 'pill'"
-      [class.left-0]="variant() !== 'pill'"
+      #panel
+      role="listbox"
+      tabindex="-1"
+      [attr.popover]="supportsPopover ? 'manual' : null"
+      [attr.aria-label]="ariaLabel()"
+      (keydown)="onTriggerKeydown($event)"
+      [id]="listboxId()"
+      class="custom-select-menu fb-popover-enter absolute z-50 min-w-[160px] max-w-[320px] w-full rounded-lg bg-fb-surface border border-fb-border shadow-lg py-1.5 max-h-60 overflow-y-auto outline-none"
+      [class.bottom-full]="!supportsPopover && isDropUp()"
+      [class.mb-1.5]="!supportsPopover && isDropUp()"
+      [class.top-full]="!supportsPopover && !isDropUp()"
+      [class.mt-1.5]="!supportsPopover && !isDropUp()"
+      [class.right-0]="!supportsPopover && variant() === 'pill'"
+      [class.left-0]="!supportsPopover && variant() !== 'pill'"
+      [style.left.px]="supportsPopover ? panelPosition().left : null"
+      [style.top.px]="supportsPopover ? panelPosition().top : null"
+      [style.width.px]="supportsPopover ? panelPosition().width : null"
+      [style.max-height.px]="supportsPopover ? panelPosition().maxHeight : null"
     >
-      <div role="listbox" [id]="listboxId()" class="max-h-60 space-y-0.5 overflow-y-auto px-1">
+      <div class="space-y-0.5 px-1">
         @for (option of options(); track option.value; let index = $index) {
           @let isSelected = value() === option.value;
           @let isActive = activeIndex() === index;

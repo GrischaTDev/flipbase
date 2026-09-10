@@ -12,6 +12,7 @@ import { PurchaseService } from '../../../../core/services/purchase.service';
 import { SourcesService } from '../../../../core/services/sources.service';
 import { SuppliersService } from '../../../../core/services/suppliers.service';
 import { PurchaseCostDraft } from '../purchase-cost-editor/purchase-cost-editor.component';
+import { PurchaseCostOverviewValue } from '../purchase-cost-editor/purchase-cost-adjustments';
 import { PurchaseEntryFormComponent } from './purchase-entry-form.component';
 
 beforeAll(() => TestBed.resetTestingModule());
@@ -129,15 +130,22 @@ function erstelleKomponente(vorhandener: Purchase | null = null) {
     packagePriceDialogOpen: signal(false),
     confirmedPackageFingerprint: signal<string | null>(null),
     packagePriceStale: signal(false),
+    completed: signal(false),
+    sellerDialogOpen: signal(false),
+    lineEditor: () => undefined,
+    costOverviewDialog: () => undefined,
     isAddingSource: signal(true),
     isAddingSupplier: signal(true),
     newSourceName: signal('Flohmarkt'),
     newSupplierName: signal('Lieferant GmbH'),
+    costDialogOpen: signal(false),
     costDrafts: signal<readonly PurchaseCostDraft[]>([]),
     initialCostDrafts: signal<readonly PurchaseCostDraft[]>([]),
     areAdditionalCostsValid: signal(true),
     purchaseBasePrice: signal<number | null>(50),
     purchaseLines: signal([]),
+    baselinePurchaseLines: signal([]),
+    baselineCostDrafts: signal([]),
     form: new FormGroup({
       type: new FormControl<PurchaseType>('single', { nonNullable: true }),
       content_status: new FormControl('known', { nonNullable: true }),
@@ -180,6 +188,35 @@ function erstelleKomponente(vorhandener: Purchase | null = null) {
 }
 
 describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
+  it('setzt nach dem Speichern dieselbe Maske zurück und erkennt neue Änderungen', async () => {
+    const { komponente } = erstelleKomponente(einkauf);
+    const resetToLines = vi.fn();
+    Object.assign(komponente, {
+      lineEditor: () => ({
+        lineRows: { invalid: false },
+        resetToLines,
+        isSavingProduct: () => false,
+        hasUnsavedChanges: () => false,
+      }),
+    });
+    await komponente.onSubmit();
+    komponente.form.controls.title.setValue('Verworfene Änderung');
+    komponente.form.markAsDirty();
+    komponente.errorMessage.set('Alter Fehler');
+
+    komponente.resetToPurchase({ ...einkauf, title: 'Gespeicherter Einkauf', purchase_price: 80 });
+
+    expect(komponente.form.controls.title.value).toBe('Gespeicherter Einkauf');
+    expect(komponente.form.controls.purchase_price.value).toBe(80);
+    expect(komponente.form.pristine).toBe(true);
+    expect(komponente.errorMessage()).toBeNull();
+    expect(resetToLines).toHaveBeenCalledWith([]);
+    expect(komponente.hasUnsavedChanges()).toBe(false);
+    komponente.form.controls.title.setValue('Neue Änderung');
+    komponente.form.markAsDirty();
+    expect(komponente.hasUnsavedChanges()).toBe(true);
+  });
+
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
@@ -250,6 +287,99 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
     expect(komponente.packagePriceDialogOpen()).toBe(false);
   });
 
+  it('oeffnet den gemeinsamen Kosteneditor mit dem aktuellen Entwurf', () => {
+    const { komponente } = erstelleKomponente();
+    const kosten: readonly PurchaseCostDraft[] = [
+      {
+        type: 'shipping',
+        amount: 7.5,
+        description: '',
+        allocationMethod: 'by_value',
+        targetPurchaseLineId: null,
+      },
+    ];
+    komponente.costDrafts.set(kosten);
+
+    komponente.openCostEditor();
+
+    expect(komponente.initialCostDrafts()).toEqual(kosten);
+    expect(komponente.costDialogOpen()).toBe(true);
+    expect(komponente.form.dirty).toBe(false);
+  });
+
+  it('uebernimmt Kosten erst aus dem gespeicherten Dialogentwurf', () => {
+    const { komponente } = erstelleKomponente();
+    komponente.openCostEditor();
+    const wert: PurchaseCostOverviewValue = {
+      discountAmount: 12,
+      costs: [
+        {
+          type: 'customs',
+          amount: 4,
+          description: 'Zollgebühren',
+          allocationMethod: 'by_value',
+          targetPurchaseLineId: null,
+        },
+      ],
+    };
+
+    komponente.onCostOverviewSaved(wert);
+
+    expect(komponente.form.controls.discount_amount.value).toBe(12);
+    expect(komponente.costDrafts()).toEqual(wert.costs);
+    expect(komponente.costDialogOpen()).toBe(false);
+    expect(komponente.form.dirty).toBe(true);
+  });
+
+  it('behandelt geladene Positionen und Kosten erst nach einer echten Aenderung als dirty', () => {
+    const { komponente } = erstelleKomponente(einkauf);
+    const linien = [
+      {
+        draftId: 'line-1',
+        catalogProductId: null,
+        titleSnapshot: 'Konsole',
+        lineKind: 'individual' as const,
+        orderedQuantity: 1,
+        condition: 'used' as const,
+        priceMode: 'priced' as const,
+        unitPurchasePrice: 50,
+        lineTotal: 50,
+        estimatedMarketValue: null,
+      },
+    ];
+    const kosten: readonly PurchaseCostDraft[] = [
+      {
+        type: 'shipping',
+        amount: 5,
+        description: 'Versandkosten',
+        allocationMethod: 'by_value',
+        targetPurchaseLineId: null,
+      },
+    ];
+    Object.assign(komponente, {
+      baselinePurchaseLines: signal(linien),
+      baselineCostDrafts: signal(kosten),
+    });
+    komponente.purchaseLines.set(linien);
+    komponente.costDrafts.set(kosten);
+    komponente.newSourceName.set('');
+    komponente.newSupplierName.set('');
+    komponente.form.markAsPristine();
+
+    expect(komponente.hasUnsavedChanges()).toBe(false);
+
+    komponente.openCostEditor();
+    komponente.costDialogOpen.set(false);
+    expect(komponente.hasUnsavedChanges()).toBe(false);
+
+    komponente.onCostsChanged([{ ...kosten[0], amount: 6 }]);
+    expect(komponente.hasUnsavedChanges()).toBe(true);
+
+    komponente.onCostsChanged(kosten);
+    komponente.onPurchaseLinesChanged([{ ...linien[0], orderedQuantity: 2 }]);
+    expect(komponente.hasUnsavedChanges()).toBe(true);
+  });
+
   it('speichert einen leeren Einkauf ohne Titel oder Verkaeufer nur als Entwurf', async () => {
     const { komponente, purchaseService, purchaseCostingService } = erstelleKomponente();
     komponente.form.controls.title.clearValidators();
@@ -273,6 +403,30 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
       }),
     );
     expect(purchaseCostingService.finalizePurchase).not.toHaveBeenCalled();
+  });
+
+  it('bewahrt technische Bestands- und Versandwerte beim Bearbeiten', async () => {
+    const vorhandener: Purchase = {
+      ...einkauf,
+      type: 'pallet',
+      shipment_status: 'arrived',
+      tracking_status: 'delivered',
+      cost_allocation_mode: 'value_weighted',
+    };
+    const { komponente, purchaseService } = erstelleKomponente(vorhandener);
+    komponente.form.controls.type.setValue('pallet');
+
+    await komponente.onSubmit();
+
+    expect(purchaseService.updatePurchaseDraft).toHaveBeenCalledWith(
+      vorhandener.id,
+      expect.objectContaining({
+        type: 'pallet',
+        shipment_status: 'arrived',
+        tracking_status: 'delivered',
+        cost_allocation_mode: 'value_weighted',
+      }),
+    );
   });
 
   it('schließt die Erfassung erst über die atomare Finalisierung ab', async () => {
@@ -653,6 +807,27 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
       ],
     });
     const komponente = TestBed.runInInjectionContext(() => new PurchaseEntryFormComponent());
+    Object.assign(komponente, {
+      purchase: () => ({
+        ...einkauf,
+        purchase_lines: [
+          {
+            id: 'line-old',
+            workspace_id: 'workspace-1',
+            purchase_id: einkauf.id,
+            catalog_product_id: null,
+            line_kind: 'individual',
+            ordered_quantity: 1,
+            title_snapshot: 'Alte Position',
+            condition_snapshot: 'used',
+            price_mode: 'priced',
+            unit_purchase_price: 10,
+            line_total: 10,
+            created_at: '2026-08-24T10:00:00.000Z',
+          },
+        ],
+      }),
+    });
 
     komponente.onPurchaseLinesChanged([
       {
@@ -671,9 +846,21 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
 
     expect(komponente.purchaseLineOptions()).toEqual([{ value: 'draft-camera', label: 'Kamera' }]);
 
+    komponente.onCostsChanged([
+      {
+        type: 'shipping',
+        amount: 5,
+        description: '',
+        allocationMethod: 'direct',
+        targetPurchaseLineId: 'draft-camera',
+      },
+    ]);
+
     komponente.onPurchaseLinesChanged([]);
 
     expect(komponente.purchaseLineOptions()).toEqual([]);
+    expect(komponente.areAdditionalCostsValid()).toBe(false);
+    expect(komponente.canSaveDraft()).toBe(false);
   });
 
   it('beendet den Ladezustand und hält den Einkaufsdialog bei einer Ausnahme geöffnet', async () => {
@@ -934,6 +1121,7 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
     const { komponente, purchaseService } = erstelleKomponente();
     Object.assign(komponente, {
       lineEditor: () => ({
+        lineRows: { invalid: false },
         hasUnsavedChanges: () => true,
       }),
     });
@@ -943,6 +1131,17 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
     expect(komponente.isSaving()).toBe(true);
     await komponente.onSubmit();
     expect(purchaseService.createPurchase).not.toHaveBeenCalled();
+  });
+
+  it('beruecksichtigt einen unfertigen Kostenentwurf beim Verlassen', () => {
+    const { komponente } = erstelleKomponente();
+    komponente.newSourceName.set('');
+    komponente.newSupplierName.set('');
+    Object.assign(komponente, {
+      costOverviewDialog: () => ({ hasUnsavedChanges: () => true }),
+    });
+
+    expect(komponente.hasUnsavedChanges()).toBe(true);
   });
 
   it('berücksichtigt ungespeicherte Quellen- und Lieferantennamen', () => {
