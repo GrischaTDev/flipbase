@@ -51,7 +51,12 @@ export function saveCropIn(
   selected: readonly PlatformProfile[],
 ): readonly OptimizerImage[] {
   return list.map((image) =>
-    image.id === id ? { ...image, crops: setCrop(image.crops, platformId, rect, selected) } : image,
+    image.id === id
+      ? {
+          ...image,
+          crops: setCrop(image.crops, platformId, rect, selected, image.naturalSize),
+        }
+      : image,
   );
 }
 

@@ -272,7 +272,13 @@ export class ImageOptimizerComponent {
         image.crops[inheritFrom]
           ? {
               ...image,
-              crops: setCrop(image.crops, inheritFrom, image.crops[inheritFrom]!, selected),
+              crops: setCrop(
+                image.crops,
+                inheritFrom,
+                image.crops[inheritFrom]!,
+                selected,
+                image.naturalSize,
+              ),
             }
           : image,
       ),

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { setCrop, applyCropToAll, Crops, maximumCrop, isMaximum } from './crops';
+import { setCrop, applyCropToAll, Crops, maximumCrop, isMaximum, seedCrops } from './crops';
 import { Rect, Size, platformById } from '../models/platform-profile';
 import { deriveRect } from './crop';
 
@@ -8,14 +8,14 @@ const wide: Rect = { x: 0, y: 0, width: 1500, height: 1000 };
 
 describe('Zuschnitt einer Plattform setzen', () => {
   it('legt den Zuschnitt genau dieser Plattform ab', () => {
-    const after = setCrop({}, 'ebay', wide, all);
+    const after = setCrop({}, 'ebay', wide, all, null);
     expect(after.ebay).toEqual(wide);
   });
 
   it('fuellt leere Plattformen aus dem neuen Zuschnitt ab', () => {
     // Ein Bild soll nach einer einzigen Geste fuer alle Plattformen fertig
     // sein - sonst muss man dreimal dasselbe tun.
-    const after = setCrop({}, 'ebay', wide, all);
+    const after = setCrop({}, 'ebay', wide, all, null);
 
     expect(after.vinted).toBeDefined();
     expect(after.vinted!.width / after.vinted!.height).toBeCloseTo(2 / 3, 5);
@@ -26,13 +26,13 @@ describe('Zuschnitt einer Plattform setzen', () => {
     const own: Rect = { x: 10, y: 20, width: 300, height: 450 };
     const before: Crops = { vinted: own };
 
-    const after = setCrop(before, 'ebay', wide, all);
+    const after = setCrop(before, 'ebay', wide, all, null);
 
     expect(after.vinted).toEqual(own);
   });
 
   it('fuellt nur gewaehlte Plattformen ab', () => {
-    const after = setCrop({}, 'ebay', wide, [platformById('ebay'), platformById('vinted')]);
+    const after = setCrop({}, 'ebay', wide, [platformById('ebay'), platformById('vinted')], null);
 
     expect(after.kleinanzeigen).toBeUndefined();
     expect(after.vinted).toBeDefined();
@@ -138,5 +138,69 @@ describe('Erkennen, ob ein Ausschnitt noch das Maximum ist', () => {
     const moved: Rect = { ...max, x: max.x + 100 };
 
     expect(isMaximum(moved, phone, 2 / 3)).toBe(false);
+  });
+});
+
+describe('Alle gewaehlten Plattformen vorbelegen', () => {
+  it('gibt jeder gewaehlten Plattform ihr eigenes Maximum', () => {
+    const crops = seedCrops(phone, all);
+
+    expect(crops.ebay).toEqual(maximumCrop(phone, 1));
+    expect(crops.vinted).toEqual(maximumCrop(phone, 2 / 3));
+    expect(crops.kleinanzeigen).toEqual(maximumCrop(phone, 4 / 3));
+  });
+
+  it('belegt nur gewaehlte Plattformen', () => {
+    const crops = seedCrops(phone, [platformById('vinted')]);
+
+    expect(crops.vinted).toBeDefined();
+    expect(crops.ebay).toBeUndefined();
+    expect(crops.kleinanzeigen).toBeUndefined();
+  });
+
+  it('liefert bei leerer Auswahl nichts', () => {
+    expect(seedCrops(phone, [])).toEqual({});
+  });
+});
+
+describe('Zuschnitt setzen, wenn die Bildgroesse bekannt ist', () => {
+  it('belegt leere Plattformen aus dem Vollbild, solange der Rahmen unberuehrt ist', () => {
+    // Der Kern der Regel: Wer nichts eingeschraenkt hat, soll fuer die neue
+    // Plattform auch nicht eingeschraenkt werden.
+    const untouched = maximumCrop(phone, 1);
+
+    const after = setCrop({ ebay: untouched }, 'ebay', untouched, all, phone);
+
+    expect(after.vinted!.width).toBeCloseTo(maximumCrop(phone, 2 / 3).width, 3);
+  });
+
+  it('leitet aus dem aktiven Rahmen ab, sobald der Nutzer gezogen hat', () => {
+    // Der Grundsatz des Werkzeugs: In keinem Export darf Inhalt landen, den
+    // der Nutzer nicht gesehen hat.
+    const dragged: Rect = { x: 400, y: 600, width: 1500, height: 1500 };
+
+    const after = setCrop({ ebay: dragged }, 'ebay', dragged, all, phone);
+
+    expect(after.vinted!.width).toBeCloseTo(1000, 3);
+    expect(after.vinted!.x).toBeGreaterThanOrEqual(dragged.x);
+    expect(after.vinted!.y).toBeGreaterThanOrEqual(dragged.y);
+  });
+
+  it('leitet ohne bekannte Bildgroesse wie bisher aus dem Rahmen ab', () => {
+    const rect: Rect = { x: 0, y: 0, width: 1500, height: 1000 };
+
+    const after = setCrop({}, 'ebay', rect, all, null);
+
+    expect(after.vinted!.width / after.vinted!.height).toBeCloseTo(2 / 3, 5);
+    expect(after.vinted!.width).toBeLessThanOrEqual(rect.width);
+  });
+
+  it('laesst bereits angepasste Plattformen auch beim Vorbelegen unangetastet', () => {
+    const own: Rect = { x: 10, y: 20, width: 300, height: 450 };
+    const untouched = maximumCrop(phone, 1);
+
+    const after = setCrop({ vinted: own }, 'ebay', untouched, all, phone);
+
+    expect(after.vinted).toEqual(own);
   });
 });
