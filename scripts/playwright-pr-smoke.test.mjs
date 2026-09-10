@@ -1,8 +1,13 @@
 import assert from 'node:assert/strict';
-import { readFile, readdir } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import test from 'node:test';
+import { promisify } from 'node:util';
+import { fileURLToPath } from 'node:url';
 
 const rootDirectory = new URL('..', import.meta.url);
+const projectRoot = fileURLToPath(rootDirectory);
+const executeFile = promisify(execFile);
 const expectedSmokeTests = [
   ['purchase-workspace.spec.ts', 'opens an existing purchase directly without runtime errors'],
   [
@@ -27,39 +32,54 @@ const expectedSmokeTests = [
 ];
 
 const readProjectFile = (filePath) => readFile(new URL(filePath, rootDirectory), 'utf8');
-
-test('defines the fail-closed PR browser smoke suite', async () => {
-  const [config, packageJson, e2eFiles] = await Promise.all([
-    readProjectFile('playwright.pr.config.ts'),
-    readProjectFile('package.json'),
-    readdir(new URL('e2e/', rootDirectory)),
-  ]);
-  const packageDefinition = JSON.parse(packageJson);
-  const specFiles = e2eFiles.filter((fileName) => fileName.endsWith('.spec.ts'));
-  const specContents = await Promise.all(
-    specFiles.map(async (fileName) => [fileName, await readProjectFile(`e2e/${fileName}`)]),
+const listSmokeTests = async () => {
+  const { stdout } = await executeFile(
+    process.execPath,
+    ['node_modules/@playwright/test/cli.js', 'test', '--config=playwright.pr.config.ts', '--list'],
+    { cwd: projectRoot },
   );
-  const taggedTests = specContents.flatMap(([fileName, content]) =>
-    [...content.matchAll(/test\(\s*'([^']* @pr-smoke)'/g)].map((match) => [fileName, match[1]]),
-  );
+  const listedTests = stdout.split(/\r?\n/).filter((line) => /^\s*\[[^\]]+\]\s+› /.test(line));
 
+  return listedTests.map((line) => {
+    const match = line.match(/^\s*\[[^\]]+\]\s+› (.+?):\d+:\d+ › (.+)$/);
+    assert.ok(match, `Ungültige Playwright-Listenzeile: ${line}`);
+    const [, filePath, testName] = match;
+    assert.ok(testName.endsWith('@pr-smoke'), `Unerwartete Auswahl: ${testName}`);
+    return [filePath.split(/[\\/]/).at(-1), testName];
+  });
+};
+const assertPrConfiguration = (config) => {
   assert.match(config, /import baseConfig from '.\/playwright\.config';/);
   assert.match(config, /grep:\s*\/@pr-smoke\//);
   assert.match(config, /retries:\s*0/);
-  assert.match(config, /maxFailures:\s*1/);
-  assert.match(config, /workers:\s*1/);
+  assert.match(config, /maxFailures:\s*1\s*(?:,|\r?\n)/);
+  assert.match(config, /workers:\s*1\s*(?:,|\r?\n)/);
   assert.match(config, /trace:\s*'retain-on-failure'/);
   assert.match(
     config,
     /projects:\s*\[\s*\{\s*name:\s*'chromium',\s*use:\s*\{\s*browserName:\s*'chromium'\s*\}\s*\}\s*\],/,
   );
-  assert.equal(taggedTests.length, 8);
+};
+const assertExpectedSmokeTests = (selectedTests) => {
+  assert.equal(selectedTests.length, 8);
   assert.deepEqual(
-    taggedTests.sort(([leftFile], [rightFile]) => leftFile.localeCompare(rightFile)),
+    selectedTests.sort(([leftFile], [rightFile]) => leftFile.localeCompare(rightFile)),
     expectedSmokeTests
       .map(([fileName, testName]) => [fileName, `${testName} @pr-smoke`])
       .sort(([leftFile], [rightFile]) => leftFile.localeCompare(rightFile)),
   );
+};
+
+test('defines the fail-closed PR browser smoke suite', async () => {
+  const [config, packageJson] = await Promise.all([
+    readProjectFile('playwright.pr.config.ts'),
+    readProjectFile('package.json'),
+  ]);
+  const packageDefinition = JSON.parse(packageJson);
+
+  assertPrConfiguration(config);
+  const selectedTests = await listSmokeTests();
+  assertExpectedSmokeTests(selectedTests);
   assert.equal(
     packageDefinition.scripts['test:e2e:pr'],
     'playwright test --config=playwright.pr.config.ts',
@@ -70,3 +90,30 @@ test('defines the fail-closed PR browser smoke suite', async () => {
     'playwright test --config=playwright.nightly.config.ts',
   );
 });
+
+test('rejects an additional nested double-quoted smoke tag inside a describe block', async () => {
+  const probeDirectory = new URL('e2e/playwright-pr-smoke-contract-probe/', rootDirectory);
+  const probeFile = new URL('nested.test.ts', probeDirectory);
+  await mkdir(probeDirectory, { recursive: true });
+  await writeFile(
+    probeFile,
+    `import { test } from '@playwright/test';\n\ntest.describe("probe", () => {\n  test("unexpected contract @pr-smoke", async () => {});\n});\n`,
+  );
+
+  try {
+    const listedSmokeTests = await listSmokeTests();
+    assert.equal(listedSmokeTests.length, 9);
+    assert.throws(() => assertExpectedSmokeTests(listedSmokeTests));
+  } finally {
+    await rm(probeDirectory, { recursive: true, force: true });
+  }
+});
+
+for (const setting of ['maxFailures', 'workers']) {
+  test(`rejects ${setting}: 10 instead of the required value 1`, async () => {
+    const originalConfig = await readProjectFile('playwright.pr.config.ts');
+    const changedConfig = originalConfig.replace(`${setting}: 1`, `${setting}: 10`);
+    assert.notEqual(changedConfig, originalConfig);
+    assert.throws(() => assertPrConfiguration(changedConfig));
+  });
+}
