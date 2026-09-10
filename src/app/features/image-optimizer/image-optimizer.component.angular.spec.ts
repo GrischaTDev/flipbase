@@ -7,29 +7,34 @@ import { ImageOptimizerComponent } from './image-optimizer.component';
 import { Adjustments } from './models/image-adjustments';
 import { ImageMetadata, pendingMetadata } from './models/image-metadata';
 import { OptimizerImage } from './models/optimizer-image';
+import { Size } from './models/platform-profile';
 import { defaultAdjustments, toFilterString } from './services/adjustments';
 import { reviewedCount as countReviewed } from './services/image-collection';
 import { MetadataReaderService } from './services/metadata-reader.service';
+
+/**
+ * Erzeugt die echte Komponente ueber den echten Konstruktor, statt einzelne
+ * Signale per `Object.assign` unterzuschieben. Nur so bleibt `activeLook`
+ * das tatsaechliche `computed()` aus der Komponente - genau das soll ein
+ * Test pruefen, nicht eine im Test nachgebaute Kopie davon.
+ *
+ * Auf Modulebene, damit mehrere Testbloecke sie mitbenutzen, statt sie
+ * wortgleich zu kopieren - doppelte Logik wuerde beim naechsten
+ * Konstruktorwechsel in einer der Fassungen vergessen.
+ */
+function createComponent(): ImageOptimizerComponent {
+  return TestBed.runInInjectionContext(() => new ImageOptimizerComponent());
+}
+
+function jpegFile(name: string): File {
+  return new File([''], name, { type: 'image/jpeg' });
+}
 
 describe('ImageOptimizerComponent', () => {
   describe('Anpassungen', () => {
     beforeAll(() => TestBed.resetTestingModule());
 
     const brightened: Adjustments = { ...defaultAdjustments(), brightness: 1.3 };
-
-    /**
-     * Erzeugt die echte Komponente ueber den echten Konstruktor, statt einzelne
-     * Signale per `Object.assign` unterzuschieben. Nur so bleibt `activeLook`
-     * das tatsaechliche `computed()` aus der Komponente - genau das soll dieser
-     * Test pruefen, nicht eine im Test nachgebaute Kopie davon.
-     */
-    function createComponent(): ImageOptimizerComponent {
-      return TestBed.runInInjectionContext(() => new ImageOptimizerComponent());
-    }
-
-    function jpegFile(name: string): File {
-      return new File([''], name, { type: 'image/jpeg' });
-    }
 
     /** Fuegt zwei Bilder hinzu; das erste wird dabei automatisch aktiv. */
     function addTwoImages(component: ImageOptimizerComponent): {
@@ -213,10 +218,6 @@ describe('ImageOptimizerComponent', () => {
 
   describe('Metadaten', () => {
     beforeAll(() => TestBed.resetTestingModule());
-
-    function jpegFile(name: string): File {
-      return new File([''], name, { type: 'image/jpeg' });
-    }
 
     const withGps: ImageMetadata = {
       status: 'read',
@@ -433,6 +434,60 @@ describe('ImageOptimizerComponent', () => {
           persistent: true,
         });
       });
+    });
+  });
+
+  describe('ImageOptimizerComponent – Zuschnitt vorbelegen', () => {
+    beforeAll(() => TestBed.resetTestingModule());
+
+    /**
+     * Die echte Messung laeuft ueber ein `Image`-Element, das in jsdom nie
+     * laedt. Der Test setzt die Groesse deshalb so, wie `measureNaturalSize`
+     * es tut, und prueft die daran haengende Vorbelegung.
+     */
+    function withSize(component: ImageOptimizerComponent, id: string, size: Size): void {
+      component.applyNaturalSize(id, size);
+    }
+
+    it('gibt jeder gewaehlten Plattform ihr Maximum, sobald die Groesse bekannt ist', () => {
+      const component = createComponent();
+      component.togglePlatform('ebay');
+      component.togglePlatform('vinted');
+      component.addFiles([jpegFile('a.jpg')]);
+      const id = component.images()[0].id;
+
+      withSize(component, id, { width: 3000, height: 4000 });
+
+      const crops = component.images()[0].crops;
+      expect(crops.vinted!.width).toBeCloseTo(2666.6667, 3);
+      expect(crops.ebay!.width).toBeCloseTo(3000, 3);
+    });
+
+    it('gibt einer spaeter zugewaehlten Plattform ebenfalls ihr Maximum', () => {
+      // Der gemeldete Fall: eBay steht, Vinted kommt dazu. Ohne die Regel
+      // erbte Vinted vom eBay-Quadrat und waere um ein Drittel zu schmal.
+      const component = createComponent();
+      component.togglePlatform('ebay');
+      component.addFiles([jpegFile('a.jpg')]);
+      const id = component.images()[0].id;
+      withSize(component, id, { width: 3000, height: 4000 });
+
+      component.togglePlatform('vinted');
+
+      expect(component.images()[0].crops.vinted!.width).toBeCloseTo(2666.6667, 3);
+    });
+
+    it('erbt vom aktiven Rahmen, sobald der Nutzer gezogen hat', () => {
+      const component = createComponent();
+      component.togglePlatform('ebay');
+      component.addFiles([jpegFile('a.jpg')]);
+      const id = component.images()[0].id;
+      withSize(component, id, { width: 3000, height: 4000 });
+
+      component.saveCrop(id, { x: 400, y: 600, width: 1500, height: 1500 });
+      component.togglePlatform('vinted');
+
+      expect(component.images()[0].crops.vinted!.width).toBeCloseTo(1000, 3);
     });
   });
 });

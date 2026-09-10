@@ -11,7 +11,13 @@ import {
   LucideCircleHelp as CircleHelp,
   LucideDynamicIcon,
 } from '@lucide/angular';
-import { PLATFORM_PROFILES, PlatformProfile, PlatformId, Rect } from './models/platform-profile';
+import {
+  PLATFORM_PROFILES,
+  PlatformProfile,
+  PlatformId,
+  Rect,
+  Size,
+} from './models/platform-profile';
 import { OptimizerImage, fullImageRect } from './models/optimizer-image';
 import { Adjustments } from './models/image-adjustments';
 import { pendingMetadata } from './models/image-metadata';
@@ -32,7 +38,7 @@ import { FileDropDirective, splitImageFiles } from './directives/file-drop.direc
 import { ImageExportService } from './services/image-export.service';
 import { ZipExportService, folderName } from './services/zip-export.service';
 import { archiveName, exportFileName, sanitizeBaseName } from './services/file-name';
-import { setCrop } from './services/crops';
+import { setCrop, seedCrops } from './services/crops';
 import { KeyedQueue } from './services/async-queue';
 import { createExportSnapshot, replaceIfCurrent } from './services/async-state';
 import {
@@ -347,34 +353,54 @@ export class ImageOptimizerComponent {
   }
 
   /**
-   * Liest Breite und Hoehe von `dataUrl` und traegt sie in `naturalSize`
-   * ein - fuer Bilder, die der Nutzer (noch) nicht im Editor geoeffnet hat,
-   * ist das die einzige Quelle fuer eine Aufloesungswarnung oder einen
-   * sinnvollen Export-Ausschnitt.
+   * Traegt eine ermittelte Bildgroesse ein und belegt die Zuschnitte damit vor.
+   *
+   * Oeffentlich, damit sich die Vorbelegung ohne ein `Image`-Element pruefen
+   * laesst: `measureNaturalSize` wartet auf dessen `load`, und das kommt unter
+   * jsdom nie. Ohne diesen Einstieg waere die Regel, die den zu kleinen
+   * Vinted-Rahmen behebt, nur von Hand im Browser nachweisbar.
+   *
+   * Der Abgleich `image.dataUrl === dataUrl` schuetzt vor einer veralteten
+   * Antwort; wird keine URL uebergeben, ist der Aufrufer selbst dafuer
+   * zustaendig (siehe `rotate`).
+   */
+  applyNaturalSize(id: string, size: Size, dataUrl?: string): void {
+    const selected = this.selectedPlatforms();
+    this.images.update((list) =>
+      list.map((image) =>
+        image.id === id && (dataUrl === undefined || image.dataUrl === dataUrl)
+          ? { ...image, naturalSize: size, crops: seedCrops(size, selected) }
+          : image,
+      ),
+    );
+  }
+
+  /**
+   * Liest Breite und Hoehe von `dataUrl` und traegt sie ueber
+   * {@link applyNaturalSize} ein - fuer Bilder, die der Nutzer (noch) nicht
+   * im Editor geoeffnet hat, ist das die einzige Quelle fuer eine
+   * Aufloesungswarnung oder einen sinnvollen Export-Ausschnitt.
    *
    * Schlaegt das Lesen fehl (z.B. HEIC), bleibt `naturalSize` einfach null -
    * der Hinweis dazu erscheint bereits, sobald der Nutzer das Bild oeffnet
    * (siehe `onLoadFailed`), hier muss nichts zusaetzlich gemeldet
    * werden.
    *
-   * Der Abgleich `b.dataUrl === dataUrl` schuetzt vor einer veralteten
-   * Antwort: Wurde das Bild zwischenzeitlich gedreht, hat `dataUrl` sich
-   * schon geaendert und `rotate()` bereits eine frische `naturalSize`
-   * gesetzt - die hier noch laufende Messung des alten Standes darf die
-   * neue nicht ueberschreiben. Die immutable Aktualisierung darf auch waehrend
-   * eines Exports fertig werden: Dessen zuvor kopierter Snapshot bleibt davon
-   * unberuehrt, waehrend die ermittelte Groesse fuer spaetere Exporte erhalten
-   * bleibt.
+   * Die uebergebene `dataUrl` schuetzt vor einer veralteten Antwort: Wurde
+   * das Bild zwischenzeitlich gedreht, hat `dataUrl` sich schon geaendert und
+   * `rotate()` bereits eine frische `naturalSize` gesetzt - die hier noch
+   * laufende Messung des alten Standes darf die neue nicht ueberschreiben.
+   * Die immutable Aktualisierung darf auch waehrend eines Exports fertig
+   * werden: Dessen zuvor kopierter Snapshot bleibt davon unberuehrt, waehrend
+   * die ermittelte Groesse fuer spaetere Exporte erhalten bleibt.
    */
   private async measureNaturalSize(id: string, dataUrl: string): Promise<void> {
     try {
       const element = await this.loadImage(dataUrl);
-      this.images.update((list) =>
-        list.map((b) =>
-          b.id === id && b.dataUrl === dataUrl
-            ? { ...b, naturalSize: { width: element.naturalWidth, height: element.naturalHeight } }
-            : b,
-        ),
+      this.applyNaturalSize(
+        id,
+        { width: element.naturalWidth, height: element.naturalHeight },
+        dataUrl,
       );
     } catch {
       // Siehe Kommentar oben - bewusst kein Fehlerpfad hier.
@@ -517,6 +543,7 @@ export class ImageOptimizerComponent {
           return;
         }
 
+        const selected = this.selectedPlatforms();
         let replacedUrl: string | null = null;
         let applied = false;
         this.images.update((list) => {
@@ -525,8 +552,10 @@ export class ImageOptimizerComponent {
             dataUrl: dataUrl,
             rotation: newRotation,
             // Ein vor der Drehung gezogener Ausschnitt bezieht sich auf
-            // die ungedrehte Geometrie und wird deshalb verworfen.
-            crops: {},
+            // die ungedrehte Geometrie. Statt leer zu bleiben, wird mit dem
+            // Maximum der gedrehten Groesse neu vorbelegt - sonst muesste
+            // der Nutzer nach jeder Drehung von Hand aufziehen.
+            crops: seedCrops(size, selected),
             naturalSize: size,
           }));
           replacedUrl = result.replacedUrl;
