@@ -1,5 +1,28 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-11 – Antigravity – Verkäufer-Dialog: Button-Beschriftung "Speichern" und PLZ/Ort nebeneinander
+
+**Auftrag/Ergebnis:** Der Aktionsbutton im Verkäufer-Dialog (`PurchaseSellerDialogComponent`) hieß bisher dynamisch wie der Dialogtitel ("Verkäufer bearbeiten" bzw. "Verkäufer erstellen") statt schlicht "Speichern". Zudem standen Postleitzahl und Ort getrennt über zwei Zeilen verteilt, weil das Land-Auswahlfeld vor dem Adressblock stand und die zweispaltige Anordnung verschob. Auf Zweig `fix/seller-dialog-button-and-zip-city-layout`.
+
+**Ursache und Lösung:**
+
+- Im Dialogfooter stand `{{ saving() ? 'Speichere…' : dialogTitle() }}`. Dies wurde auf `{{ saving() ? 'Speichere…' : 'Speichern' }}` geändert, sodass der Button einheitlich und klar als "Speichern" beschriftet ist.
+- Im Adressraster (`sm:grid-cols-2`) wurde das Land-Auswahlfeld hinter `contactFields` verschoben. Dadurch belegen Straße & Adresszusatz Zeile 1, Postleitzahl & Ort Zeile 2 (nebeneinander in Spalte 1 und Spalte 2), sowie Land & E-Mail Zeile 3.
+
+**Betroffen:**
+
+- `src/app/features/sellers/components/purchase-seller-dialog/purchase-seller-dialog.component.html`
+- `src/app/features/sellers/components/purchase-seller-dialog/purchase-seller-dialog.component.angular.spec.ts`
+
+**Geprüft:**
+
+- `npx vitest run src/app/features/sellers/components/purchase-seller-dialog/purchase-seller-dialog.component.angular.spec.ts` (10 Tests grün, inkl. Axe-A11y)
+- `npx vitest run src/app/features/sellers/` (16 Tests grün)
+- `npm run typecheck` (tsc fehlerfrei)
+- `npx eslint src/app/features/sellers/components/purchase-seller-dialog/` (fehlerfrei)
+- `npx ng build --configuration=development` (erfolgreich)
+- `npx prettier --check` (fehlerfrei)
+
 ## 2026-09-10 – Antigravity – Einkauf löschen: Fallback auf Belegnummer oder neutralen Dialogtext
 
 **Auftrag/Ergebnis:** Behebt einen Darstellungsfehler beim Löschen von Einkaufsentwürfen. Im Bestätigungsdialog erschien bisher der Text „„“ wird gelöscht...“ mit leeren Anführungszeichen, da neue Einkäufe im überarbeiteten Workflow typischerweise keinen Freitext-Titel besitzen, sondern primär über ihre Belegnummer identifiziert werden. Auf Zweig `fix/purchase-delete-dialog-title`, abgezweigt von `origin/master`.
