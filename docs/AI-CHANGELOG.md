@@ -1,5 +1,47 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-10 – Claude Opus 5 (Anthropic) – Bildoptimierer: Arbeitsfläche, Zuschnitt, Metadaten, Export geplant
+
+**Auftrag/Ergebnis:** Sieben Änderungswünsche von Grischa am Bildoptimierer
+aufgenommen und als Spezifikation abgelegt unter
+`docs/superpowers/specs/2026-09-10-bildoptimierer-arbeitsflaeche-design.md`:
+verschiebbarer Trenner mit Bildraster rechts, Bildsteuerelemente als Leiste auf
+der Vorschau, maximaler Erstzuschnitt je Plattform, Metadaten im Modal mit
+Erhalt der Datumsangaben, Export als echte Ordner statt ZIP, durchgehende
+Nummerierung ohne `-main`, Exportvorschau und Plattformreiter zusammengelegt.
+Kein Quelltext geändert.
+
+**Technische Vorprüfung:** `ngx-image-cropper` bringt außer den Ziehgriffen
+keine eigene Bedienoberfläche mit – eine Leiste auf dem Bild ist ohne Eingriff
+in die Bibliothek baubar. Für verschiebbare Trenner existiert im Projekt noch
+nichts; `two-column-layout` kennt nur drei feste Verhältnisse.
+
+**Fehleranalyse (zu kleiner Vinted-Zuschnitt):** `setCrop()` in
+`services/crops.ts` leitet jede noch leere Plattform per `deriveRect()` aus dem
+Zuschnitt der _aktiven_ Plattform ab. Bei einem 3:4-Handyfoto ist eBay (1:1)
+zuerst dran und belegt das volle Quadrat; Vinted (2:3) daraus abgeleitet
+bekommt nur 66,7 % der Fotobreite, während direkt aus dem Vollbild 88,9 %
+möglich wären. Die fehlenden gut 22 Prozentpunkte verteilen sich gleichmäßig
+auf beide Ränder – daher das beidseitige Nachziehen von Hand.
+
+**Entscheidung mit Tragweite:** Paket 2 (`2026-08-28`) hatte festgehalten,
+Metadaten nur zu lesen und **nie** zu schreiben. Das wird eingeschränkt
+aufgehoben: Aufnahme- und Erstelldatum werden nach dem Rendern wieder als
+minimales EXIF-Segment in die Exportdatei geschrieben, damit das eigene Archiv
+nach Datum sortierbar bleibt. Urheber, Gerät, Ort, Software und
+Herkunftsnachweis bleiben ausgeschlossen. Der Block muss nach der
+Größenkomprimierung gesetzt werden, sonst verwirft `browser-image-compression`
+ihn wieder.
+
+**Zweig:** Dieses Paket beginnt auf `feat/image-optimizer-workspace`, abgezweigt
+von `origin/master` (b202795), in einem eigenen Arbeitsbaum unter
+`.worktrees/image-optimizer-workspace`. Der Hauptarbeitsbaum stand auf dem
+bereits vollständig gemergten `feat/deal-monitor-collection-and-ui` und trug
+einen noch nicht eingecheckten Changelog-Eintrag einer parallel laufenden
+Codex-Sitzung; beides blieb unberührt.
+
+---
+
 ## 2026-09-09 – Codex – CI-Browserfehler an Einstieg und Dashboardbreiten beheben
 
 **Ursache und Fix:** Fünf Fehler aus PR #47 lokal reproduziert. Drei Einstiegsprüfungen erwarteten noch den alten Inventarbutton und eine eigenständige Artikelform mit h1; sie prüfen jetzt den gemeinsamen Produktdialog einschließlich direkter Route, Escape und Fokusrückgabe. Der tatsächliche Seitenüberlauf kam von nicht umbrechenden Dashboard-Zeitraumbuttons beziehungsweise dem daneben erzwungenen Plattformfilter: rechts 349,6 px bei 320 px und 798,6 px bei 768 px. Zwei gezielte Flex-Wrap-Ergänzungen lassen die Bedienelemente bei Platzmangel umbrechen, ohne Inhalt zu verstecken. Apex-/Chartcode blieb unberührt.
