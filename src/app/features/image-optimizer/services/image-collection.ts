@@ -68,7 +68,10 @@ export function applyCropToAllIn(
 ): readonly OptimizerImage[] {
   return list.map((image) =>
     image.id === id
-      ? { ...image, crops: applyCropToAll(image.crops, platformId, selected) }
+      ? {
+          ...image,
+          crops: applyCropToAll(image.crops, platformId, selected, image.naturalSize),
+        }
       : image,
   );
 }

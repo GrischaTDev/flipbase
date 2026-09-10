@@ -67,20 +67,33 @@ export function setCrop(
 
 /**
  * Uebertraegt den Zuschnitt einer Plattform auf alle anderen gewaehlten -
- * auch auf solche, die schon einen eigenen hatten.
+ * auch auf solche, die schon einen eigenen hatten. Genau das unterscheidet
+ * diese Funktion von `setCrop`: hier wird ueberschrieben, dort nur Leeres
+ * gefuellt.
+ *
+ * Woraus uebertragen wird, folgt derselben Regel wie in `setCrop`: Ist der
+ * Quell-Rahmen noch unberuehrt (das eigene Maximum), bekommen die anderen
+ * Plattformen ebenfalls ihr Maximum aus dem Vollbild statt eines aus dem
+ * Quell-Rahmen abgeleiteten, oft kleineren Ausschnitts. Sonst - oder ohne
+ * bekannte Bildgroesse - wird wie bisher aus dem Quell-Rahmen abgeleitet.
  */
 export function applyCropToAll(
   before: Crops,
   sourceId: PlatformId,
   selected: readonly PlatformProfile[],
+  size: Size | null,
 ): Crops {
   const rect = before[sourceId];
   if (!rect) return before;
 
+  const source = selected.find((p) => p.id === sourceId);
+  const seedFromFull =
+    size !== null && source !== undefined && isMaximum(rect, size, source.exportRatio);
+
   const after: Crops = { ...before };
   for (const p of selected) {
     if (p.id === sourceId) continue;
-    after[p.id] = deriveRect(rect, p.exportRatio);
+    after[p.id] = seedFromFull ? maximumCrop(size, p.exportRatio) : deriveRect(rect, p.exportRatio);
   }
 
   return after;

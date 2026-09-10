@@ -46,20 +46,20 @@ describe('Auf die anderen Plattformen uebernehmen', () => {
     const own: Rect = { x: 10, y: 20, width: 300, height: 450 };
     const before: Crops = { ebay: wide, vinted: own };
 
-    const after = applyCropToAll(before, 'ebay', all);
+    const after = applyCropToAll(before, 'ebay', all, null);
 
     expect(after.vinted).not.toEqual(own);
     expect(after.vinted!.width / after.vinted!.height).toBeCloseTo(2 / 3, 5);
   });
 
   it('laesst die Quelle selbst unveraendert', () => {
-    const after = applyCropToAll({ ebay: wide }, 'ebay', all);
+    const after = applyCropToAll({ ebay: wide }, 'ebay', all, null);
     expect(after.ebay).toEqual(wide);
   });
 
   it('tut nichts, wenn die Quelle keinen Zuschnitt hat', () => {
     const before: Crops = { vinted: wide };
-    expect(applyCropToAll(before, 'ebay', all)).toEqual(before);
+    expect(applyCropToAll(before, 'ebay', all, null)).toEqual(before);
   });
 });
 
@@ -202,5 +202,50 @@ describe('Zuschnitt setzen, wenn die Bildgroesse bekannt ist', () => {
     const after = setCrop({ vinted: own }, 'ebay', untouched, all, phone);
 
     expect(after.vinted).toEqual(own);
+  });
+});
+
+describe('Auf alle uebernehmen, wenn die Bildgroesse bekannt ist', () => {
+  it('gibt den anderen Plattformen ihr eigenes Maximum, solange die Quelle unberuehrt ist', () => {
+    // Derselbe Fehler wie bei setCrop, nur ueber den Knopf ausgeloest: Ohne
+    // die Regel bekaeme Vinted die 2000 px aus dem eBay-Quadrat statt der
+    // 2666,67 px, die aus dem Vollbild moeglich sind.
+    const untouched = maximumCrop(phone, 1);
+
+    const after = applyCropToAll({ ebay: untouched }, 'ebay', all, phone);
+
+    expect(after.vinted!.width).toBeCloseTo(maximumCrop(phone, 2 / 3).width, 3);
+    expect(after.vinted!.width).not.toBeCloseTo(2000, 0);
+  });
+
+  it('leitet aus dem Quell-Rahmen ab, sobald der Nutzer gezogen hat', () => {
+    const dragged: Rect = { x: 400, y: 600, width: 1500, height: 1500 };
+
+    const after = applyCropToAll({ ebay: dragged }, 'ebay', all, phone);
+
+    expect(after.vinted!.width).toBeCloseTo(1000, 3);
+    expect(after.vinted!.x).toBeGreaterThanOrEqual(dragged.x);
+    expect(after.vinted!.y).toBeGreaterThanOrEqual(dragged.y);
+  });
+
+  it('verhaelt sich ohne bekannte Bildgroesse wie zuvor', () => {
+    const untouched = maximumCrop(phone, 1);
+
+    const after = applyCropToAll({ ebay: untouched }, 'ebay', all, null);
+
+    expect(after.vinted).toEqual(deriveRect(untouched, 2 / 3));
+  });
+
+  it('ueberschreibt eine bereits angepasste Plattform auch bei unberuehrter Quelle', () => {
+    // Der Zweck des Knopfs bleibt bestehen: "auf alle uebernehmen" heisst
+    // auch fuer bereits angepasste Plattformen ueberschreiben, nicht nur
+    // leere fuellen.
+    const own: Rect = { x: 10, y: 20, width: 300, height: 450 };
+    const untouched = maximumCrop(phone, 1);
+
+    const after = applyCropToAll({ ebay: untouched, vinted: own }, 'ebay', all, phone);
+
+    expect(after.vinted).not.toEqual(own);
+    expect(after.vinted!.width).toBeCloseTo(maximumCrop(phone, 2 / 3).width, 3);
   });
 });
