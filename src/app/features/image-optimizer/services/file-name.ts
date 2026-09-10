@@ -41,17 +41,58 @@ export function sanitizeBaseName(input: string): string {
     .replace(/-+$/g, '');
 }
 
-/**
- * Name einer Exportdatei. Index 0 ist das Hauptbild - bei eBay das Bild im
- * Suchergebnis, bei Vinted das im Raster.
- */
-export function exportFileName(index: number, baseName: string): string {
-  const number = String(index + 1).padStart(2, '0');
-  const suffix = index === 0 ? `${number}-main` : number;
-  return baseName ? `${baseName}-${suffix}.jpg` : `${suffix}.jpg`;
+/** Zweistellig, mit fuehrender Null. */
+function pad(value: number): string {
+  return String(value).padStart(2, '0');
 }
 
-/** Name des Archivs. Ohne Grundnamen bleibt es beim bisherigen Namen. */
+/**
+ * Der Grundname, oder Datum und Uhrzeit, wenn keiner eingetippt wurde.
+ *
+ * Ein namenloser Export hiess frueher `flipbase-bilder` mit Dateien `01.jpg`,
+ * `02.jpg`. Sobald eine solche Datei aus ihrem Ordner gezogen wurde, war
+ * nicht mehr erkennbar, wozu sie gehoert - und ein zweiter Export ueberschrieb
+ * den ersten. Der Zeitstempel loest beides.
+ *
+ * Jahr zuerst, damit der Explorer chronologisch sortiert. Kein Doppelpunkt
+ * zwischen Stunde und Minute: In Windows-Dateinamen ist er verboten.
+ *
+ * `now` ist ein Parameter und kein `new Date()` in der Funktion. Der Aufrufer
+ * nimmt die Zeit **einmal** je Export; zoege jede Datei ihre eigene, koennte
+ * ein Export ueber einen Minutenwechsel hinweg in zwei Namen zerfallen.
+ */
+export function effectiveBaseName(baseName: string, now: Date): string {
+  if (baseName) return baseName;
+
+  return [
+    now.getFullYear(),
+    '-',
+    pad(now.getMonth() + 1),
+    '-',
+    pad(now.getDate()),
+    '-',
+    pad(now.getHours()),
+    pad(now.getMinutes()),
+  ].join('');
+}
+
+/**
+ * Name einer Exportdatei. Durchgehend nummeriert, ohne Sonderfall fuer das
+ * erste Bild.
+ *
+ * Frueher trug Bild 1 ein angehaengtes `-main`. Das unterbrach die Zahlenkette
+ * am Ende des Namens; beim Durchblaettern eines geoeffneten Ordners fiel die
+ * Datei aus der Reihe. Dass Bild 1 das Hauptbild ist, sagt das Abzeichen in
+ * der Oberflaeche.
+ *
+ * `baseName` ist hier nie leer - der Aufrufer schickt `effectiveBaseName()`
+ * hindurch.
+ */
+export function exportFileName(index: number, baseName: string): string {
+  return `${baseName}-${pad(index + 1)}.jpg`;
+}
+
+/** Name des Archivs fuer den ZIP-Rueckfall. Erwartet den wirksamen Namen. */
 export function archiveName(baseName: string): string {
-  return baseName ? `${baseName}.zip` : 'flipbase-bilder.zip';
+  return `${baseName}.zip`;
 }

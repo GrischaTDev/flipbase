@@ -37,7 +37,12 @@ import { ExportBarComponent, ExportStatus } from './components/export-bar/export
 import { FileDropDirective, splitImageFiles } from './directives/file-drop.directive';
 import { ImageExportService } from './services/image-export.service';
 import { ZipExportService, folderName } from './services/zip-export.service';
-import { archiveName, exportFileName, sanitizeBaseName } from './services/file-name';
+import {
+  archiveName,
+  effectiveBaseName,
+  exportFileName,
+  sanitizeBaseName,
+} from './services/file-name';
 import { setCrop, seedCrops } from './services/crops';
 import { KeyedQueue } from './services/async-queue';
 import { createExportSnapshot, replaceIfCurrent } from './services/async-state';
@@ -612,6 +617,9 @@ export class ImageOptimizerComponent {
     this.isBusy.set(true);
     this.error.set(null);
     const snapshot = createExportSnapshot(this.images(), this.selectedPlatforms());
+    // Einmal je Export, nicht je Datei: Sonst koennte ein Lauf ueber einen
+    // Minutenwechsel hinweg zwei verschiedene Namen erzeugen.
+    const name = effectiveBaseName(this.baseName(), new Date());
 
     try {
       const entries = [];
@@ -637,14 +645,14 @@ export class ImageOptimizerComponent {
           }
           entries.push({
             folder: folderName(p),
-            file: exportFileName(index, this.baseName()),
+            file: exportFileName(index, name),
             data: await this.imageExport.create(element, crop, p, toLook(image.adjustments)),
           });
         }
       }
 
       const archive = await this.zipExport.pack(entries);
-      this.download(archive, archiveName(this.baseName()));
+      this.download(archive, archiveName(name));
       this.toast.success('Bilder wurden exportiert.');
     } catch (e: unknown) {
       const description = e instanceof Error ? e.message : 'Der Export ist fehlgeschlagen.';
