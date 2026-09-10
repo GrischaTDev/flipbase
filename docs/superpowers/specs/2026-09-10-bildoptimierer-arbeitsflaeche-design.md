@@ -54,6 +54,11 @@ genau das beschriebene „auf beiden Seiten größer ziehen".
 - **Nur Datumsangaben** bleiben in der Exportdatei erhalten, sonst nichts.
 - **Erster Zuschnitt immer maximal aus dem Vollbild.**
 - **Grundname vorne, Nummer hinten** (`macbook-01.jpg`), führende Null bleibt.
+- **Ohne eingetippten Namen tritt Datum und Uhrzeit an seine Stelle**, damit ein
+  Export nie namenlos und nie doppelt ist.
+- **Nichts wird überschrieben.** Ist der Zielordner belegt, wird gezählt
+  (`macbook-air (2)`) statt gefragt – so wie der Browser es beim Herunterladen
+  auch macht.
 
 ### Aufgehobene Entscheidung aus Paket 2
 
@@ -307,15 +312,10 @@ Herkunftsnachweis.
 Der Knopf heißt weiter „Exportieren". Nach dem Klick:
 
 1. `showDirectoryPicker({ mode: 'readwrite' })` – der Nutzer wählt ein Ziel.
-2. Darin wird `<grundname>` angelegt, ohne Grundnamen `flipbase-bilder`.
+2. Darin wird `<grundname>` angelegt – falls belegt, mit Zählsuffix, siehe unten.
 3. Darin je Plattform ein Ordner mit `folderName(platform)`.
 4. Darin die Bilder, benannt nach Teil 6.
-5. Existiert `<grundname>` im gewählten Ziel bereits **und enthält er Dateien**,
-   fragt `ConfirmDialogService` einmal nach („Der Ordner _macbook-air_ enthält
-   schon Dateien. Gleichnamige werden überschrieben."). Bei Abbruch wird nichts
-   geschrieben. Ohne Rückfrage überschreiben wäre der Fall, in dem der
-   Bildoptimierer fremde Dateien zerstören könnte – der einzige im ganzen
-   Werkzeug.
+5. Die Erfolgsmeldung nennt den tatsächlich benutzten Ordnernamen.
 
 ```
 <gewählter Ordner>/macbook-air/eBay/macbook-air-01.jpg
@@ -323,6 +323,39 @@ Der Knopf heißt weiter „Exportieren". Nach dem Klick:
                               /Kleinanzeigen/macbook-air-01.jpg
                               /Vinted/macbook-air-01.jpg
 ```
+
+### Nichts wird je überschrieben
+
+**Der Ordner-Zugriff hat kein eigenes Netz.** Das automatische `(1)` beim
+Herunterladen macht der Browser, nicht Windows – und der Browser ist hier nicht
+beteiligt. `getFileHandle(name, { create: true })` öffnet stillschweigend die
+vorhandene Datei, und `createWritable()` kürzt sie beim Öffnen auf null Byte.
+Ohne eigenes Zutun wäre das der einzige Weg, auf dem der Bildoptimierer fremde
+Dateien zerstören könnte.
+
+Deshalb wird der Zählsuffix selbst gebaut, nach demselben Muster, das der
+Browser beim Herunterladen anwendet:
+
+```ts
+/**
+ * Der erste freie Ordnername: `macbook-air`, sonst `macbook-air (2)`,
+ * `macbook-air (3)` und so fort. Bricht nach 999 Versuchen ab.
+ */
+export async function freeFolderName(
+  parent: FileSystemDirectoryHandle,
+  wanted: string,
+): Promise<string>;
+```
+
+Geprüft wird mit `getDirectoryHandle(name)` **ohne** `create` – wirft es
+`NotFoundError`, ist der Name frei. Danach ist der obere Ordner garantiert neu,
+und damit sind auch alle Plattform-Unterordner und alle Dateien darin neu. Die
+Kollisionsbehandlung braucht es also **nur an dieser einen Stelle**.
+
+Eine Rückfrage entfällt damit ersatzlos: Es wird nichts überschrieben, also gibt
+es nichts zu bestätigen. Ein zweiter Export desselben Artikels landet neben dem
+ersten statt darin – dasselbe Verhalten wie beim heutigen ZIP, wo der Browser
+`macbook-air (1).zip` daneben legt.
 
 ### Rückfall
 
@@ -382,11 +415,41 @@ Plattformen sind das 36 Renderdurchgänge.
 ```ts
 export function exportFileName(index: number, baseName: string): string {
   const number = String(index + 1).padStart(2, '0');
-  return baseName ? `${baseName}-${number}.jpg` : `${number}.jpg`;
+  return `${baseName}-${number}.jpg`;
 }
 ```
 
 Das `-main` beim ersten Bild entfällt ersatzlos.
+
+### Ohne eingetippten Namen: Datum und Uhrzeit
+
+`baseName` ist ab hier **nie leer**. Tippt der Nutzer nichts ein, tritt an die
+Stelle ein Zeitstempel:
+
+```ts
+/** Der Grundname, oder Datum und Uhrzeit, wenn keiner eingetippt wurde. */
+export function effectiveBaseName(baseName: string, now: Date): string;
+// ''            -> '2026-09-10-1432'
+// 'macbook-air' -> 'macbook-air'
+```
+
+Format `YYYY-MM-TT-hhmm` in Ortszeit. Ein Doppelpunkt wäre in Windows-Dateinamen
+verboten, deshalb Stunde und Minute ohne Trenner. Die Reihenfolge Jahr-Monat-Tag
+sortiert im Explorer von allein chronologisch.
+
+Der Zeitstempel gilt für Ordner **und** Dateien, ohne Sonderfall im Code:
+`2026-09-10-1432/eBay/2026-09-10-1432-01.jpg`. Damit bleibt jede Datei auch dann
+zuordenbar, wenn sie später aus ihrem Ordner herausgezogen wird – bei den
+bisherigen `01.jpg`, `02.jpg` ohne Namen ging das verloren.
+
+Die Zeit wird **einmal** beim Klick auf „Exportieren" genommen und an alle
+Dateien durchgereicht. Würde jede Datei ihre eigene Uhrzeit ziehen, könnte ein
+Export über einen Minutenwechsel hinweg auseinanderfallen. `now` ist deshalb ein
+Parameter und kein `new Date()` in der Funktion – so ist sie auch prüfbar.
+
+Der Zeitstempel macht Namenskollisionen zum Ausnahmefall, ersetzt den Zählsuffix
+aus Teil 5 aber nicht: Zwei Exporte in derselben Minute sind möglich, und mit
+eingetipptem Namen ist die Kollision sogar der Regelfall.
 
 **Warum Grundname vorne und Nummer hinten.** Der Windows-Explorer vergleicht
 Namen von links nach rechts, wobei Ziffernfolgen als Zahl verglichen werden
@@ -398,8 +461,9 @@ selben Ordner ineinander mischen – erst alle Einsen, dann alle Zweien.
 manche anderen Programme sortieren rein alphabetisch. Dort rettet `01` vor `10`
 die Reihenfolge. Zwei Stellen genügen; eBay lässt höchstens 24 Bilder zu.
 
-`archiveName()` bleibt für den ZIP-Rückfall. Neu dazu kommt
-`exportFolderName(baseName)` für den oberen Ordner.
+`archiveName()` bleibt für den ZIP-Rückfall, arbeitet aber ebenfalls auf
+`effectiveBaseName()` – der Rückfall darf nicht anders benennen als der
+Hauptweg. Der bisherige Ersatzname `flipbase-bilder` entfällt damit.
 
 Dass Bild 1 das Hauptbild ist, sagt weiterhin das Abzeichen in der Oberfläche.
 
@@ -444,7 +508,7 @@ features/image-optimizer/
     exif-writer.ts                     neu
     directory-export.service.ts        neu
     zip-export.service.ts              bleibt als Rückfall
-    file-name.ts                       ohne -main, plus exportFolderName
+    file-name.ts                       ohne -main, plus effectiveBaseName
 ```
 
 ## Prüfung
@@ -457,8 +521,10 @@ features/image-optimizer/
 | `setCrop`                                 | Node-Tests: unberührt → aus Vollbild; gezogen → aus aktivem Rahmen                                                     |
 | `exif-writer`                             | Node-Tests: Segment liegt hinter `FFD8`, Tags an der richtigen Stelle, Bilddaten unverändert, vorhandenes APP1 ersetzt |
 | Reihenfolge beim Export                   | Test, dass EXIF nach der Komprimierung gesetzt wird                                                                    |
-| `exportFileName`                          | Node-Tests: `01`, `02`, kein `-main`, ohne Grundnamen                                                                  |
+| `exportFileName` / `effectiveBaseName`    | Node-Tests: `01`, `02`, kein `-main`; ohne Eingabe der Zeitstempel, feste `now` hineingereicht                         |
 | `directory-export`                        | DOM-Test mit nachgebautem `showDirectoryPicker`; Abbruch, fehlende Funktion, Fortschrittsmeldungen                     |
+| `freeFolderName`                          | Node-Tests mit nachgebautem Verzeichnis: frei, einmal belegt, mehrfach belegt, Abbruch nach 999                        |
+| Nichts überschreiben                      | Test, dass bei belegtem Ordner ein neuer Name entsteht und keine vorhandene Datei angefasst wird                       |
 | Raster                                    | Angular-Test: Werkzeuge sind bei `:focus-within` erreichbar                                                            |
 | Barrierefreiheit                          | AXE über die Seite, mit offenem Panel und offenem Modal                                                                |
 | Bündelgröße                               | `npm run build`, Chunk des Bildoptimierers vor/nach vergleichen                                                        |
