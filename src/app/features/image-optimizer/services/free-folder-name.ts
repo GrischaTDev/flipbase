@@ -34,12 +34,23 @@ export async function freeFolderName(parent: DirectoryLookup, wanted: string): P
 /**
  * Bewusst **ohne** `create`: Mit `create: true` waere die Pruefung selbst der
  * Vorgang, der den Ordner anlegt, und jeder Name gaelte sofort als belegt.
+ *
+ * Nur `NotFoundError` heisst "frei" - das ist die einzige Antwort, die
+ * tatsaechlich sagt, dass es den Eintrag nicht gibt. `TypeMismatchError`
+ * heisst "belegt": Es gibt dort schon eine *Datei* mit diesem Namen, und ein
+ * Ordner liesse sich darueber nicht anlegen. Jeder andere Fehler - etwa eine
+ * fehlende Berechtigung - beantwortet die Frage gar nicht; ihn als "frei" zu
+ * lesen waere geraten, und genau dieses Raten sollte diese Funktion
+ * verhindern. Darum wird er weitergereicht, statt ihn stillschweigend als
+ * "frei" zu werten.
  */
 async function exists(parent: DirectoryLookup, name: string): Promise<boolean> {
   try {
     await parent.getDirectoryHandle(name);
     return true;
-  } catch {
-    return false;
+  } catch (error) {
+    if (error instanceof Error && error.name === 'NotFoundError') return false;
+    if (error instanceof Error && error.name === 'TypeMismatchError') return true;
+    throw error;
   }
 }
