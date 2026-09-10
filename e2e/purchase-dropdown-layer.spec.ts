@@ -24,9 +24,10 @@ test('can save a draft after dismissing an open cost selector and cancelling the
   ).toBeVisible();
 });
 
-test('keeps cost options above the modal footer and preserves keyboard dismissal', async ({
+test('keeps cost options above the modal footer and preserves keyboard dismissal @pr-smoke', async ({
   page,
 }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
   await startDemoMode(page);
   await page.goto('/purchases/new');
   await page.getByRole('button', { name: 'Kosten bearbeiten', exact: true }).click();

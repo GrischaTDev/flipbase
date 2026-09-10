@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { startDemoMode } from './support/demo';
 
-test('speichert Demo-Kommentare am richtigen Einkauf und zeigt Klartext nach Neuladen', async ({
+test('speichert Demo-Kommentare am richtigen Einkauf und zeigt Klartext nach Neuladen @pr-smoke', async ({
   page,
 }) => {
   await startDemoMode(page);

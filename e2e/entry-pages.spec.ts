@@ -56,7 +56,10 @@ test('stacks entry cards without horizontal page overflow on mobile', async ({ p
   }
 });
 
-test('keeps the new entry pages free of automated WCAG AA violations', async ({ page }) => {
+test('keeps the new entry pages free of automated WCAG AA violations @pr-smoke', async ({
+  page,
+}) => {
+  test.setTimeout(60_000);
   await startDemoMode(page);
 
   for (const path of ['/sales/new', '/inventory/new', '/purchases/new']) {

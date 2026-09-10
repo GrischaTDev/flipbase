@@ -123,7 +123,7 @@ for (const theme of ['light', 'dark'])
     });
   }
 
-test('Produktbild bleibt nach erneutem Laden sichtbar und unbekannter Scan öffnet den Picker', async ({
+test('Produktbild bleibt nach erneutem Laden sichtbar und unbekannter Scan öffnet den Picker @pr-smoke', async ({
   page,
 }) => {
   const errors: string[] = [];
@@ -142,9 +142,16 @@ test('Produktbild bleibt nach erneutem Laden sichtbar und unbekannter Scan öffn
       throw new Error(String(error) + '\nLaufzeitfehler: ' + errors.join('\n'));
     });
   expect(errors).toEqual([]);
-  await expect(
-    page.locator('tr').filter({ hasText: 'Produkt mit Bild' }).locator('app-product-thumbnail img'),
-  ).toBeVisible();
+  const productImage = page
+    .locator('tr')
+    .filter({ hasText: 'Produkt mit Bild' })
+    .locator('app-product-thumbnail img');
+  await expect(productImage).toBeVisible();
+  await page.reload();
+  await expect(productImage).toBeVisible();
+  expect(await productImage.evaluate((image) => image.complete && image.naturalWidth > 0)).toBe(
+    true,
+  );
   await page.goto('/purchases/new');
   await page.getByRole('button', { name: 'Barcode scannen', exact: true }).click();
   await page.getByRole('textbox', { name: 'Barcode scannen oder eingeben' }).fill('unbekannt');
