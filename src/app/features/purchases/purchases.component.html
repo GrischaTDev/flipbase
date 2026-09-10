@@ -212,9 +212,9 @@
                     }
                     @case ('status') {
                       <td>
-                        <span class="font-semibold text-fb-text-primary">{{
-                          row.purchaseStatus
-                        }}</span>
+                        <app-badge [tone]="row.purchaseStatusTone" [dot]="true">
+                          {{ row.purchaseStatus }}
+                        </app-badge>
                       </td>
                     }
                     @case ('total_cost') {

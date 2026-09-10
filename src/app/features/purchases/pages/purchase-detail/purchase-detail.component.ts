@@ -86,6 +86,7 @@ import { BadgeComponent } from '../../../../shared/components/badge/badge.compon
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { TwoColumnLayoutComponent } from '../../../../shared/components/two-column-layout/two-column-layout.component';
+import { getPurchaseStatusPresentation } from '../../utils/purchase-status-presentation';
 
 @Component({
   selector: 'app-purchase-detail',
@@ -116,38 +117,7 @@ import { TwoColumnLayoutComponent } from '../../../../shared/components/two-colu
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PurchaseDetailComponent {
-  getEntryStatusTone(
-    status?: string | null,
-  ): 'neutral' | 'info' | 'success' | 'caution' | 'critical' {
-    switch (status) {
-      case 'draft':
-        return 'caution';
-      case 'finalized':
-        return 'success';
-      case 'reopened':
-        return 'info';
-      case 'cancelled':
-        return 'critical';
-      default:
-        return 'neutral';
-    }
-  }
-
-  getEntryStatusLabel(status?: string | null): string {
-    switch (status) {
-      case 'draft':
-        return 'Entwurf';
-      case 'finalized':
-        return 'Abgeschlossen';
-      case 'reopened':
-        return 'Wiedereröffnet';
-      case 'cancelled':
-        return 'Storniert';
-      default:
-        return status ?? 'Unbekannt';
-    }
-  }
-
+  readonly getPurchaseStatusPresentation = getPurchaseStatusPresentation;
   readonly tablePreferences = inject(TablePreferencesService);
   private readonly allTableColumns: readonly TableColumnOption[] = [
     { id: 'title', label: 'Artikel und Aktionen', required: true },

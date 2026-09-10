@@ -16,6 +16,7 @@ import type {
   PresentationLoadState,
   RecordedSalePresentation,
 } from '../models/purchase-presentation.models';
+import { getPurchaseStatusPresentation } from './purchase-status-presentation';
 
 export interface PurchasePresentationContext {
   readonly inventoryItems: readonly InventoryItem[];
@@ -128,22 +129,6 @@ function getLotSoldUnits(lots: readonly StockLot[], movements: readonly StockMov
   return Math.max(0, sold);
 }
 
-function getPurchaseStatus(
-  purchase: Purchase,
-  items: readonly InventoryItem[],
-): PurchaseStatusLabel {
-  const receivingStatus = purchase.receiving_status as string | undefined;
-  if (receivingStatus === 'archived') return 'Archiviert';
-  if (receivingStatus === 'cancelled' || receivingStatus === 'canceled') return 'Storniert';
-
-  if (receivingStatus === 'partially_received') return 'Teillieferung';
-  if (receivingStatus === 'received' || purchase.shipment_status === 'arrived') return 'Angekommen';
-  if (purchase.shipment_status === 'in_transit') return 'Unterwegs';
-  if (receivingStatus === 'ordered') return 'Bestellt';
-  if (purchase.entry_status === 'capturing' || items.length > 0) return 'Prüfung erforderlich';
-  return 'Entwurf';
-}
-
 function totalPurchaseCost(purchase: Purchase): number | null {
   if (purchase.total_purchase_cost !== undefined) return purchase.total_purchase_cost;
   if (purchase.purchase_price === null || !Number.isFinite(purchase.purchase_price)) return null;
@@ -231,6 +216,7 @@ export function mapPurchaseListRow(
 ): PurchaseListRow {
   const items = purchaseItems(purchase, context);
   const totalCost = totalPurchaseCost(purchase);
+  const purchaseStatus = getPurchaseStatusPresentation(purchase);
   return {
     reference: purchase.record_number || purchase.title || 'Einkauf',
     supplierReference: purchase.supplier_reference ?? '',
@@ -248,7 +234,8 @@ export function mapPurchaseListRow(
     typeLabel: purchaseTypeLabels.transform(purchase.type),
     purchaseDate: purchase.purchase_date,
     supplierLabel: purchase.supplier?.name || 'Kein Verkäufer',
-    purchaseStatus: getPurchaseStatus(purchase, items),
+    purchaseStatus: purchaseStatus.label,
+    purchaseStatusTone: purchaseStatus.tone,
     allocationOpen: getAllocationOpen(purchase, items, totalCost),
     totalCost: money(totalCost),
     ...summarizeQuantities(purchase, items, context),

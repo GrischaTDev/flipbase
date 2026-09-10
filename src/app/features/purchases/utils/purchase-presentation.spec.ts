@@ -84,7 +84,7 @@ describe('purchase presentation mapper', () => {
   it.each([
     ['Entwurf', { entry_status: 'draft', receiving_status: 'draft', purchase_lines: [] }],
     ['Bestellt', { entry_status: 'capturing', receiving_status: 'ordered' }],
-    ['Unterwegs', { receiving_status: 'ordered', shipment_status: 'in_transit' }],
+    ['Bestellt', { receiving_status: 'ordered', shipment_status: 'in_transit' }],
     ['Teillieferung', { receiving_status: 'partially_received', shipment_status: 'arrived' }],
     [
       'Angekommen',

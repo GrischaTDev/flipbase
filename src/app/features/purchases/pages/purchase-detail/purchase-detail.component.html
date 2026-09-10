@@ -7,8 +7,8 @@
       backLabel="Zurück zur Einkaufsübersicht"
     >
       <div header-badge class="flex items-center gap-1.5">
-        <app-badge [tone]="getEntryStatusTone(p.entry_status)">
-          {{ getEntryStatusLabel(p.entry_status) }}
+        <app-badge [tone]="getPurchaseStatusPresentation(p).tone" [dot]="true">
+          {{ getPurchaseStatusPresentation(p).label }}
         </app-badge>
       </div>
 

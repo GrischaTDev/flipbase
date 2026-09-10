@@ -1,5 +1,6 @@
 import type { CostState } from '../../../shared/components/cost-state/cost-state.component';
 import type { ItemCondition, PurchaseType } from '../../../core/models/flipbase.models';
+import type { BadgeTone } from '../../../shared/components/badge/badge.component';
 
 export type PurchaseStatusLabel =
   | 'Entwurf'
@@ -10,6 +11,7 @@ export type PurchaseStatusLabel =
   | 'Eingetroffen'
   | 'Inhalt erfassen'
   | 'Erfassung abgeschlossen'
+  | 'Abgeschlossen'
   | 'Storniert'
   | 'Archiviert'
   | 'Prüfung erforderlich';
@@ -39,6 +41,7 @@ export interface PurchaseListRow {
   readonly purchaseDate: string;
   readonly supplierLabel: string;
   readonly purchaseStatus: PurchaseStatusLabel;
+  readonly purchaseStatusTone: BadgeTone;
   readonly allocationOpen: boolean;
   readonly totalCost: CostState;
   readonly totalUnits: number;

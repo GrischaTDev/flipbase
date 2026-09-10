@@ -9,26 +9,7 @@
     >
       Als bestellt markieren
     </button>
-  } @else if (shipmentStatus() === 'not_shipped') {
-    <button
-      type="button"
-      data-mark-transit
-      (click)="transitRequested.emit()"
-      [disabled]="submitting()"
-      class="linear-btn-primary inline-flex cursor-pointer items-center rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-40"
-    >
-      Als unterwegs markieren
-    </button>
-    <button
-      type="button"
-      data-mark-arrived
-      (click)="arrivedRequested.emit()"
-      [disabled]="submitting()"
-      class="linear-btn-secondary inline-flex cursor-pointer items-center rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-40"
-    >
-      Angekommen
-    </button>
-  } @else if (shipmentStatus() === 'in_transit') {
+  } @else if (shipmentStatus() !== 'arrived') {
     <button
       type="button"
       data-mark-arrived
