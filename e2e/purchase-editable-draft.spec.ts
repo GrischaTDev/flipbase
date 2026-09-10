@@ -7,12 +7,12 @@ test('keeps a saved draft editable through discard, save and reopening', async (
   await page.goto('/purchases/new');
   const description = page.getByRole('textbox', { name: 'Beschreibung (optional)' });
   await description.fill('Direkt bearbeitbarer Entwurf');
-  await page.locator('input#purchase-base-price').fill('100');
-  await page.getByRole('button', { name: 'Entwurf speichern', exact: true }).click();
+  await addNewPurchaseProduct(page, 'Entwurfsartikel');
   await page
-    .locator('[data-purchase-description]')
-    .filter({ hasText: 'Direkt bearbeitbarer Entwurf' })
-    .click();
+    .getByRole('spinbutton', { name: 'Stückpreis für Entwurfsartikel', exact: true })
+    .fill('100');
+  await page.getByRole('button', { name: 'Entwurf speichern', exact: true }).click();
+  await page.locator('[data-purchase-row]').first().click();
   await expect(page).toHaveURL(/\/purchases\/[^/]+$/);
   const detailUrl = page.url();
   await expect(description).toHaveValue('Direkt bearbeitbarer Entwurf');
@@ -41,10 +41,7 @@ test('keeps a saved draft editable through discard, save and reopening', async (
     0,
   );
   await page.getByRole('button', { name: 'Zurück zur Einkaufsübersicht', exact: true }).click();
-  await page
-    .locator('[data-purchase-description]')
-    .filter({ hasText: 'Gespeicherte Änderung' })
-    .click();
+  await page.locator('[data-purchase-row]').first().click();
   await expect(description).toHaveValue('Gespeicherte Änderung');
 });
 
@@ -59,12 +56,12 @@ test('keeps receiving accessible for saved quantity drafts and blocks it while d
   await page
     .getByRole('spinbutton', { name: 'Menge für Test-Mengenartikel', exact: true })
     .fill('3');
-  await page.locator('input#purchase-base-price').fill('30');
+  await page
+    .getByRole('spinbutton', { name: 'Stückpreis für Test-Mengenartikel', exact: true })
+    .fill('10');
   await page.getByRole('button', { name: 'Entwurf speichern', exact: true }).click();
-  await page.locator('[data-purchase-description]').filter({ hasText: 'Mengenentwurf' }).click();
+  await page.locator('[data-purchase-row]').first().click();
   await expect(description).toHaveValue('Mengenentwurf');
-  await page.getByRole('combobox', { name: 'Preise', exact: true }).click();
-  await page.getByRole('option', { name: 'Einzelpreise', exact: true }).click();
   await page
     .getByRole('spinbutton', { name: 'Stückpreis für Test-Mengenartikel', exact: true })
     .fill('12');
@@ -74,7 +71,7 @@ test('keeps receiving accessible for saved quantity drafts and blocks it while d
     0,
   );
   await page.getByRole('button', { name: 'Zurück zur Einkaufsübersicht', exact: true }).click();
-  await page.locator('[data-purchase-description]').filter({ hasText: 'Mengenentwurf' }).click();
+  await page.locator('[data-purchase-row]').first().click();
   await expect(
     page.getByRole('spinbutton', { name: 'Menge für Test-Mengenartikel', exact: true }),
   ).toHaveValue('3');

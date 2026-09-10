@@ -1,5 +1,24 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-10 – Codex – Produkt-E2E an neuen Einkaufsvertrag angepasst
+
+**Korrektur:** Der integrierte Produkt-Browsertest erwartete noch die entfernte
+Auswahl zwischen Gesamt- und Einzelpreisen. Er prüft die Artikelpreise nun direkt
+im aktuellen Standardablauf. Zwei Entwurfsabläufe erzeugen ihren Warenbetrag
+ebenfalls über gespeicherte Artikelpreise statt über das entfernte
+Warenbetragsfeld. Die Theme-Vorgabe wird vor dem ersten Anwendungsstart gesetzt,
+damit Hell- und Dunkelvarianten unabhängig vom bereits initialisierten
+Theme-Service bleiben.
+
+**Prüfung:** Der Fehler wurde aus dem Browser-Smoke-Lauf von PR 48 reproduziert.
+Die zehn betroffenen Produkt- und Entwurfsabläufe bestehen mit den
+CI-Einstellungen und einem Worker. Formatierung und Lint sind grün. Der danach
+gestartete vollständige Browserlauf wurde für die angeforderte Bewertung von PR
+49 gestoppt und hatte zuvor weitere veraltete Selektoren in älteren
+Playwright-Dateien sichtbar gemacht.
+
+---
+
 ## 2026-09-10 – Codex – Einkaufserfassungs-E2E an Artikelpreise angepasst
 
 **Korrektur:** Zwei E2E-Abläufe der Einkaufserfassung erzeugen ihren Warenbetrag
