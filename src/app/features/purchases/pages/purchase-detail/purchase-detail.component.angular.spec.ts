@@ -1,6 +1,7 @@
 import '@angular/compiler';
 import { signal } from '@angular/core';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
+import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Purchase, PurchaseLine } from '../../../../core/models/flipbase.models';
 import { SyncStatusService } from '../../../../core/services/sync-status.service';
@@ -8,6 +9,19 @@ import { ToastService } from '../../../../shared/components/toast/toast.service'
 import { PurchaseDetailComponent } from './purchase-detail.component';
 
 describe('PurchaseDetailComponent', () => {
+  it('zeigt Verkäufer und Beschreibung ohne alte Quellen- oder Angebotsfelder', () => {
+    const template = readFileSync(
+      'src/app/features/purchases/pages/purchase-detail/purchase-detail.component.html',
+      'utf8',
+    );
+
+    expect(template).toContain('>Verkäufer<');
+    expect(template).toContain('Beschreibung');
+    expect(template).not.toContain('>Quelle<');
+    expect(template).not.toContain('Original-Angebot');
+    expect(template).not.toContain('>Lieferant<');
+  });
+
   describe('Gemeinsame Bearbeitungsmaske', () => {
     function workspace(entryStatus = 'draft') {
       const component = Object.create(PurchaseDetailComponent.prototype) as PurchaseDetailComponent;
@@ -256,6 +270,7 @@ describe('PurchaseDetailComponent', () => {
         isEditingTracking: signal(true),
         trackingNumberDraft: signal('00340434161094000001'),
         trackingCarrierDraft: signal<'dhl' | null>('dhl'),
+        historyRevision: signal(0),
         isMarkingDelivered: signal(false),
         mediaService: { uploadItemMedia: vi.fn() },
         logger: { warn: vi.fn() },
@@ -313,14 +328,17 @@ describe('PurchaseDetailComponent', () => {
         const erfolg = erstelleKomponente();
         await erfolg.komponente.saveTracking();
         expect(erfolg.komponente.isEditingTracking()).toBe(false);
+        expect(erfolg.komponente.historyRevision()).toBe(1);
         expect(erfolg.toast.toasts()[0].title).toBe('Sendungsverfolgung wurde gespeichert.');
 
         const fehler = erstelleKomponente();
-        fehler.purchaseService.setPurchaseWorkflowStatus.mockResolvedValue({
+        fehler.purchaseService.updatePurchaseTracking.mockResolvedValue({
+          data: null,
           error: new Error('Einkauf nicht gefunden'),
         });
         await fehler.komponente.saveTracking();
         expect(fehler.komponente.isEditingTracking()).toBe(true);
+        expect(fehler.komponente.historyRevision()).toBe(0);
         expect(fehler.toast.toasts()[0]).toMatchObject({
           type: 'error',
           title: 'Sendungsverfolgung konnte nicht gespeichert werden.',
@@ -330,7 +348,7 @@ describe('PurchaseDetailComponent', () => {
 
       it('behält die Tracking-Bearbeitung bei einer geworfenen Ausnahme geöffnet', async () => {
         const { komponente, toast, purchaseService } = erstelleKomponente();
-        purchaseService.setPurchaseWorkflowStatus.mockRejectedValue(
+        purchaseService.updatePurchaseTracking.mockRejectedValue(
           new Error('Dienst nicht erreichbar'),
         );
 
@@ -343,6 +361,23 @@ describe('PurchaseDetailComponent', () => {
           description: 'Dienst nicht erreichbar',
           persistent: true,
         });
+      });
+
+      it('entfernt eine freiwillige Sendungsverfolgung bei leerer Nummer', async () => {
+        const { komponente, toast, purchaseService } = erstelleKomponente();
+        komponente.trackingNumberDraft.set('');
+        komponente.trackingCarrierDraft.set(null);
+
+        await komponente.saveTracking();
+
+        expect(purchaseService.updatePurchaseTracking).toHaveBeenCalledWith(
+          einkauf.id,
+          null,
+          null,
+          'pending',
+        );
+        expect(komponente.isEditingTracking()).toBe(false);
+        expect(toast.toasts()[0].title).toBe('Sendungsverfolgung wurde entfernt.');
       });
 
       it('bestätigt das Zustellen nur nach vollständig erfolgreichem Service-Aufruf', async () => {

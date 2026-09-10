@@ -178,9 +178,9 @@ export const routes: Routes = [
           import('./features/sales/sales.component').then((m) => m.SalesComponent),
       },
       {
-        path: 'sources',
+        path: 'sellers',
         loadComponent: () =>
-          import('./features/sources/sources.component').then((m) => m.SourcesComponent),
+          import('./features/sellers/sellers.component').then((m) => m.SellersComponent),
       },
       {
         path: 'analytics',

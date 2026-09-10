@@ -231,4 +231,17 @@ describe('PurchaseLifecycleActionsComponent', () => {
     expect(arrived.nativeElement.querySelector('[data-capture-content]')).not.toBeNull();
     expect(arrived.nativeElement.querySelector('[data-finalize-purchase]')).toBeNull();
   });
+
+  it('führt nach Bestellt direkt zu Angekommen und verlangt keine Sendungsverfolgung', () => {
+    const fixture = render('draft', 'idle', null, {
+      receiving: 'ordered',
+      shipment: 'not_shipped',
+      content: 'known',
+    });
+    const host = fixture.nativeElement as HTMLElement;
+
+    expect(host.querySelector('[data-mark-transit]')).toBeNull();
+    expect(host.querySelector('[data-mark-arrived]')).not.toBeNull();
+    expect(host.textContent).not.toContain('Unterwegs');
+  });
 });

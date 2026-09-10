@@ -55,10 +55,14 @@ select throws_ok($$select public.export_audit_snapshot('84000000-0000-4000-8000-
 select throws_ok($$select public.export_audit_snapshot('84000000-0000-4000-8000-000000000002', '[]')$$, '22023', 'Der Archivfilter muss ein JSON-Objekt sein.', 'Ungültiger Filter wird abgelehnt');
 select is(jsonb_array_length(public.export_audit_snapshot('84000000-0000-4000-8000-000000000002', '{}')->'item_costs'), 1, 'Artikelkosten werden über den Workspace des Artikels eingeschlossen');
 select is((public.export_audit_snapshot('84000000-0000-4000-8000-000000000002', '{}')->'item_costs'->0->>'amount')::numeric, 12::numeric, 'Kostenbetrag bleibt unverändert');
-select ok(public.export_audit_snapshot('84000000-0000-4000-8000-000000000002', '{}') ?& array['business_events', 'sources', 'suppliers', 'catalog_products', 'purchases', 'purchase_lines', 'purchase_costs', 'inventory_items', 'item_costs', 'stock_lots', 'stock_movements', 'sales', 'sale_lines', 'sale_cost_entries', 'sale_line_lot_allocations', 'returns', 'inventory_reconciliation_events', 'invoices', 'invoice_items'], 'Alle für die Rekonstruktion erforderlichen Datenmengen sind vorhanden');
+select ok(
+  public.export_audit_snapshot('84000000-0000-4000-8000-000000000002', '{}')
+    ?& array['business_events', 'suppliers', 'catalog_products', 'purchases', 'purchase_lines', 'purchase_costs', 'inventory_items', 'item_costs', 'stock_lots', 'stock_movements', 'sales', 'sale_lines', 'sale_cost_entries', 'sale_line_lot_allocations', 'returns', 'inventory_reconciliation_events', 'invoices', 'invoice_items']
+  and not public.export_audit_snapshot('84000000-0000-4000-8000-000000000002', '{}') ? 'sources',
+  'Alle erforderlichen Datenmengen ohne die abgelösten Quellen sind vorhanden'
+);
 select is(
   jsonb_build_array(
-    jsonb_array_length(public.export_audit_snapshot('84000000-0000-4000-8000-000000000002', '{}')->'sources'),
     jsonb_array_length(public.export_audit_snapshot('84000000-0000-4000-8000-000000000002', '{}')->'suppliers'),
     jsonb_array_length(public.export_audit_snapshot('84000000-0000-4000-8000-000000000002', '{}')->'catalog_products'),
     jsonb_array_length(public.export_audit_snapshot('84000000-0000-4000-8000-000000000002', '{}')->'returns'),
@@ -66,12 +70,11 @@ select is(
     jsonb_array_length(public.export_audit_snapshot('84000000-0000-4000-8000-000000000002', '{}')->'invoices'),
     jsonb_array_length(public.export_audit_snapshot('84000000-0000-4000-8000-000000000002', '{}')->'invoice_items')
   )::text,
-  '[1, 1, 1, 1, 1, 1, 1]',
+  '[1, 1, 1, 1, 1, 1]',
   'jede ergänzte Datenmenge bleibt auf den angeforderten Workspace begrenzt'
 );
 select is(
   jsonb_build_array(
-    public.export_audit_snapshot('84000000-0000-4000-8000-000000000002', '{}')->'sources'->0->>'id',
     public.export_audit_snapshot('84000000-0000-4000-8000-000000000002', '{}')->'suppliers'->0->>'id',
     public.export_audit_snapshot('84000000-0000-4000-8000-000000000002', '{}')->'catalog_products'->0->>'id',
     public.export_audit_snapshot('84000000-0000-4000-8000-000000000002', '{}')->'returns'->0->>'sale_id',
@@ -79,7 +82,7 @@ select is(
     public.export_audit_snapshot('84000000-0000-4000-8000-000000000002', '{}')->'invoices'->0->>'sale_id',
     public.export_audit_snapshot('84000000-0000-4000-8000-000000000002', '{}')->'invoice_items'->0->>'invoice_id'
   )::text,
-  '["84000000-0000-4000-8000-000000000008", "84000000-0000-4000-8000-000000000010", "84000000-0000-4000-8000-000000000012", "84000000-0000-4000-8000-000000000014", "84000000-0000-4000-8000-000000000004", "84000000-0000-4000-8000-000000000014", "84000000-0000-4000-8000-000000000020"]',
+  '["84000000-0000-4000-8000-000000000010", "84000000-0000-4000-8000-000000000012", "84000000-0000-4000-8000-000000000014", "84000000-0000-4000-8000-000000000004", "84000000-0000-4000-8000-000000000014", "84000000-0000-4000-8000-000000000020"]',
   'stabile IDs und Fremdschlüssel bleiben für die Rekonstruktion erhalten'
 );
 select is(public.export_audit_snapshot('84000000-0000-4000-8000-000000000002', '{}')->>'snapshot', pg_current_snapshot()::text, 'Archiv nennt den tatsächlich gemeinsamen Snapshot');

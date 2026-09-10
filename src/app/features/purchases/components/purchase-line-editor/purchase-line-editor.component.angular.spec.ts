@@ -10,7 +10,8 @@ import {
 } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { FormArray, FormControl, FormGroup } from '@angular/forms';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { CatalogProduct, PurchaseType, Workspace } from '../../../../core/models/flipbase.models';
 import { CatalogService } from '../../../../core/services/catalog.service';
@@ -65,18 +66,13 @@ beforeAll(async () => {
         'utf8',
       );
     if (!url || resourceUrl === 'undefined' || resourceUrl.endsWith('/undefined')) return '';
-    if (resourceUrl.includes('custom-select.component.')) {
-      const fileName = resourceUrl.split('/').at(-1);
-      return readFile(`src/app/shared/components/custom-select/${fileName}`, 'utf8');
-    }
-    try {
-      return await readFile(new URL(resourceUrl, import.meta.url), 'utf8');
-    } catch {
-      return readFile(
-        new URL(`../../../../shared/components/custom-select/${resourceUrl}`, import.meta.url),
-        'utf8',
-      );
-    }
+    const fileName = resourceUrl.split('/').at(-1);
+    if (!fileName) return '';
+    const matches = (await readdir(resolve('src/app'), { recursive: true })).filter((file) =>
+      file.endsWith(fileName),
+    );
+    if (matches.length !== 1) throw new Error(`Unbekannte Test-Ressource: ${resourceUrl}`);
+    return readFile(resolve('src/app', matches[0]), 'utf8');
   });
   for (const [component, inputs, outputs] of [
     [
@@ -589,6 +585,47 @@ describe('PurchaseLineEditorComponent', () => {
     editor.recalculate(0, 'lineTotal');
 
     expect(row.controls.unitPurchasePrice.value).toBe(5.99);
+  });
+
+  it('verteilt einen Paketpreis einmalig je Position und behält die centgenaue Positionssumme', () => {
+    const { editor, linesChanged } = erstelleEditor();
+    editor.addProducts([ledProduct, ledProduct]);
+    editor.lineRows.at(0).controls.orderedQuantity.setValue(1, { emitEvent: false });
+    editor.lineRows.at(1).controls.orderedQuantity.setValue(3, { emitEvent: false });
+    linesChanged.emit.mockClear();
+
+    editor.applyPackagePrice(10);
+
+    expect(editor.lineRows.at(0).controls.lineTotal.value).toBe(5);
+    expect(editor.lineRows.at(1).controls.lineTotal.value).toBe(5);
+    expect(editor.lineRows.at(1).controls.unitPurchasePrice.value).toBeCloseTo(5 / 3, 10);
+    expect(linesChanged.emit).toHaveBeenCalledTimes(1);
+  });
+
+  it('multipliziert den gerundeten Durchschnittspreis nicht auf die Positionssumme zurück', () => {
+    const { editor } = erstelleEditor();
+    editor.addProducts([ledProduct]);
+    editor.lineRows.at(0).controls.orderedQuantity.setValue(3, { emitEvent: false });
+
+    editor.applyPackagePrice(3.34);
+
+    expect(editor.getDrafts()[0].lineTotal).toBe(3.34);
+    expect(editor.getDrafts()[0].unitPurchasePrice).toBeCloseTo(3.34 / 3, 10);
+  });
+
+  it('macht einen auf sieben Stück verteilten Euro mit höchstens 16 Nachkommastellen speicherbar', () => {
+    const { editor } = erstelleEditor();
+    editor.addProducts([ledProduct]);
+    const row = editor.lineRows.at(0);
+    row.controls.orderedQuantity.setValue(7, { emitEvent: false });
+
+    editor.applyPackagePrice(1);
+
+    const draft = editor.getDrafts()[0];
+    expect(row.valid).toBe(true);
+    expect(draft).toMatchObject({ lineTotal: 1, unitPurchasePrice: 0.1428571428571428 });
+    expect(String(draft.unitPurchasePrice).split('.')[1]?.length).toBeLessThanOrEqual(16);
+    expect(Math.round((draft.unitPurchasePrice ?? 0) * 7 * 100) / 100).toBe(1);
   });
 
   it('erhält historische Einzelstückzeilen mit Menge eins', () => {

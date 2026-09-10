@@ -19,7 +19,6 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import {
   LucidePlus as Plus,
   LucideSearch as Search,
-  LucideX as X,
   LucideBookOpen as BookOpen,
 } from '@lucide/angular';
 import { CatalogProduct } from '../../core/models/flipbase.models';
@@ -84,7 +83,6 @@ export class CatalogComponent {
 
   readonly plusIcon = Plus;
   readonly searchIcon = Search;
-  readonly closeIcon = X;
   readonly bookOpenIcon = BookOpen;
   readonly searchControl = new FormControl('', { nonNullable: true });
   readonly searchQuery = toSignal(this.searchControl.valueChanges, { initialValue: '' });

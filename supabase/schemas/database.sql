@@ -349,7 +349,7 @@ create table public.purchase_lines (
     line_kind text not null check (line_kind in ('quantity', 'individual')),
     ordered_quantity integer not null,
     received_quantity integer not null default 0 check (received_quantity >= 0 and received_quantity <= ordered_quantity and received_quantity::numeric <> 'NaN'::numeric),
-    unit_purchase_price numeric check (unit_purchase_price is null or (unit_purchase_price <> 'NaN'::numeric and unit_purchase_price >= 0 and scale(unit_purchase_price) <= 2)),
+    unit_purchase_price numeric check (unit_purchase_price is null or (unit_purchase_price <> 'NaN'::numeric and unit_purchase_price >= 0 and scale(unit_purchase_price) <= 16)),
     line_total numeric check (line_total is null or (line_total <> 'NaN'::numeric and line_total >= 0 and scale(line_total) <= 2)),
     allocated_additional_cost numeric(12,2) not null default 0 check (allocated_additional_cost >= 0),
     created_at timestamptz not null default now(),
@@ -5438,7 +5438,7 @@ begin
       or pg_catalog.jsonb_typeof(v_input_line -> 'line_total') <> 'number'
       or (v_input_line ->> 'unit_purchase_price')::numeric < 0
       or (v_input_line ->> 'line_total')::numeric < 0
-      or pg_catalog.scale((v_input_line ->> 'unit_purchase_price')::numeric) > 2
+      or pg_catalog.scale((v_input_line ->> 'unit_purchase_price')::numeric) > 16
       or pg_catalog.scale((v_input_line ->> 'line_total')::numeric) > 2
       or (v_input_line ->> 'line_total')::numeric <>
         pg_catalog.round(
@@ -6503,7 +6503,7 @@ begin
       or pg_catalog.jsonb_typeof(v_line -> 'line_total') is distinct from 'number'
       or (v_line ->> 'unit_purchase_price')::numeric < 0
       or (v_line ->> 'line_total')::numeric < 0
-      or pg_catalog.scale((v_line ->> 'unit_purchase_price')::numeric) > 2
+      or pg_catalog.scale((v_line ->> 'unit_purchase_price')::numeric) > 16
       or pg_catalog.scale((v_line ->> 'line_total')::numeric) > 2
       or (v_line ->> 'line_total')::numeric <>
         pg_catalog.round(
@@ -6927,7 +6927,7 @@ begin
       or pg_catalog.jsonb_typeof(v_line -> 'line_total') is distinct from 'number'
       or (v_line ->> 'unit_purchase_price')::numeric < 0
       or (v_line ->> 'line_total')::numeric < 0
-      or pg_catalog.scale((v_line ->> 'unit_purchase_price')::numeric) > 2
+      or pg_catalog.scale((v_line ->> 'unit_purchase_price')::numeric) > 16
       or pg_catalog.scale((v_line ->> 'line_total')::numeric) > 2
       or (v_line ->> 'line_total')::numeric <>
         pg_catalog.round(

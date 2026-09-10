@@ -7,8 +7,8 @@
       (cancelled)="returnToPurchases()"
     >
       <div entry-header-badge class="flex items-center gap-1.5">
-        <app-badge [tone]="getEntryStatusTone(p.entry_status ?? 'draft')">
-          {{ getEntryStatusLabel(p.entry_status ?? 'draft') }}
+        <app-badge [tone]="getPurchaseStatusPresentation(p).tone">
+          {{ getPurchaseStatusPresentation(p).label }}
         </app-badge>
       </div>
 
@@ -61,7 +61,6 @@
             (correctionRequested)="isCorrectionDialogOpen.set(true)"
             (saleHistoryReloadRequested)="reloadPurchaseSaleHistory()"
             (orderedRequested)="markAsOrdered()"
-            (transitRequested)="startEditTracking()"
             (arrivedRequested)="markAsArrived()"
             (captureContentRequested)="editPurchase(p.id)"
           />
@@ -135,27 +134,6 @@
                   <dt class="text-fb-text-muted">Einkaufsdatum</dt>
                   <dd class="mt-1">{{ p.purchase_date | date: 'dd.MM.yyyy' }}</dd>
                 </div>
-                <div>
-                  <dt class="text-fb-text-muted">Quelle</dt>
-                  <dd class="mt-1">{{ p.source?.name || 'Nicht angegeben' }}</dd>
-                </div>
-                <div>
-                  <dt class="text-fb-text-muted">Inhalt</dt>
-                  <dd class="mt-1">
-                    {{
-                      (p.content_status ?? (p.type === 'mystery_pack' ? 'unknown' : 'known')) ===
-                      'known'
-                        ? 'Bekannt'
-                        : 'Noch unbekannt'
-                    }}
-                  </dd>
-                </div>
-                <div>
-                  <dt class="text-fb-text-muted">Preisführung</dt>
-                  <dd class="mt-1">
-                    {{ p.pricing_mode === 'individual' ? 'Einzelpreise' : 'Gesamtpreis' }}
-                  </dd>
-                </div>
               </dl>
             </app-card>
             <!-- Einkaufspositionen und zugehöriger Bestand -->
@@ -219,6 +197,7 @@
               data-testid="purchase-entry-timeline"
               entityType="purchase"
               [entityId]="p.id"
+              [refreshKey]="historyRevision()"
             />
           </div>
 
@@ -254,22 +233,9 @@
                     <dd class="mt-1">{{ p.title || 'Nicht angegeben' }}</dd>
                   </div>
                   <div>
-                    <dt class="text-fb-text-muted">Referenz des Verkäufers</dt>
+                    <dt class="text-fb-text-muted">Referenznummer</dt>
                     <dd class="mt-1">{{ p.supplier_reference || 'Nicht angegeben' }}</dd>
                   </div>
-                  @if (p.original_url) {
-                    <div class="pt-1">
-                      <a
-                        [href]="p.original_url"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="linear-btn-secondary inline-flex items-center justify-center gap-1.5 w-full py-1.5 rounded-lg text-xs font-semibold"
-                      >
-                        <span>Original-Angebot</span>
-                        <svg [lucideIcon]="linkIcon" class="w-3.5 h-3.5"></svg>
-                      </a>
-                    </div>
-                  }
                 </dl>
 
                 @if (p.notes) {

@@ -1630,6 +1630,7 @@ export type Database = {
       }
       purchases: {
         Row: {
+          arrived_at: string | null
           content_status: string
           cost_allocation_mode: string
           created_at: string
@@ -1664,6 +1665,7 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          arrived_at?: string | null
           content_status?: string
           cost_allocation_mode?: string
           created_at?: string
@@ -1698,6 +1700,7 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          arrived_at?: string | null
           content_status?: string
           cost_allocation_mode?: string
           created_at?: string
@@ -3059,6 +3062,7 @@ export type Database = {
           contact_info: string | null
           contact_person: string | null
           country: string | null
+          country_code: string | null
           created_at: string
           email: string | null
           id: string
@@ -3079,6 +3083,7 @@ export type Database = {
           contact_info?: string | null
           contact_person?: string | null
           country?: string | null
+          country_code?: string | null
           created_at?: string
           email?: string | null
           id?: string
@@ -3099,6 +3104,7 @@ export type Database = {
           contact_info?: string | null
           contact_person?: string | null
           country?: string | null
+          country_code?: string | null
           created_at?: string
           email?: string | null
           id?: string
@@ -3792,6 +3798,7 @@ export type Database = {
       refresh_purchase_receiving_status: {
         Args: { p_purchase_id: string; p_workspace_id: string }
         Returns: {
+          arrived_at: string | null
           content_status: string
           cost_allocation_mode: string
           created_at: string
@@ -4018,6 +4025,19 @@ export type Database = {
         }
         Returns: Json
       }
+      update_purchase_tracking: {
+        Args: {
+          p_purchase_id: string
+          p_tracking_carrier: string
+          p_tracking_number: string
+          p_tracking_status: string
+        }
+        Returns: Json
+      }
+      update_purchase_workflow: {
+        Args: { p_purchase_id: string; p_status: string }
+        Returns: Json
+      }
       validate_inventory_item_sale_integrity: {
         Args: { p_inventory_item_id: string }
         Returns: undefined
@@ -4157,4 +4177,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-

@@ -108,6 +108,10 @@ describe('PurchaseService', () => {
         const lokalSpeichern = vi.fn();
         const service = Object.create(PurchaseService.prototype) as PurchaseService;
 
+        const rpc = vi.fn(async () => ({
+          data: null,
+          error: { code: '42501', message: 'denied' },
+        }));
         Object.assign(service, {
           purchasesRaw,
           purchases: () => purchasesRaw(),
@@ -119,13 +123,7 @@ describe('PurchaseService', () => {
           },
           syncStatus: new SyncStatusService(),
           supabase: {
-            client: {
-              from: () => ({
-                update: () => ({
-                  eq: async () => ({ error: { code: '42501', message: 'denied' } }),
-                }),
-              }),
-            },
+            client: { rpc },
           },
         });
 
@@ -135,10 +133,161 @@ describe('PurchaseService', () => {
         expect(purchasesRaw()).toEqual([einkauf]);
         expect(selectedPurchaseRaw()).toEqual(einkauf);
         expect(lokalSpeichern).not.toHaveBeenCalled();
+        expect(rpc).toHaveBeenCalledWith('update_purchase_tracking', {
+          p_purchase_id: einkauf.id,
+          p_tracking_number: 'TRACK-NEU',
+          p_tracking_carrier: 'dhl',
+          p_tracking_status: 'pending',
+        });
       });
 
-      it('bricht das Zustellen nach einem Tracking-Fehler vor den Artikeln ab', async () => {
-        const trackingError = new Error('Tracking fehlgeschlagen');
+      it('übernimmt einen Workflowstatus ausschließlich aus der bestätigten RPC-Antwort', async () => {
+        const purchasesRaw = signal<Purchase[]>([einkauf]);
+        const selectedPurchaseRaw = signal<Purchase | null>(einkauf);
+        const updated = { ...einkauf, receiving_status: 'ordered' as const };
+        const rpc = vi.fn(async () => ({
+          data: { purchase: updated, eventId: 'event-1' },
+          error: null,
+        }));
+        const savePurchase = vi.fn();
+        const service = Object.create(PurchaseService.prototype) as PurchaseService;
+        Object.assign(service, {
+          purchasesRaw,
+          purchases: () => purchasesRaw(),
+          selectedPurchaseRaw,
+          selectedPurchase: () => selectedPurchaseRaw(),
+          mockStore: { isDemoMode: signal(false), savePurchase },
+          syncStatus: new SyncStatusService(),
+          supabase: { client: { rpc } },
+        });
+
+        const result = await service.setPurchaseWorkflowStatus(einkauf.id, 'ordered');
+
+        expect(result.error).toBeNull();
+        expect(rpc).toHaveBeenCalledWith('update_purchase_workflow', {
+          p_purchase_id: einkauf.id,
+          p_status: 'ordered',
+        });
+        expect(purchasesRaw()).toEqual([updated]);
+        expect(selectedPurchaseRaw()).toEqual(updated);
+        expect(savePurchase).toHaveBeenCalledWith(updated);
+      });
+
+      it('behält angereicherte Einkaufsdaten bei einer teilweisen Workflow-Antwort', async () => {
+        const enrichedPurchase: Purchase = {
+          ...einkauf,
+          supplier: {
+            id: 'supplier-1',
+            workspace_id: einkauf.workspace_id,
+            name: 'Verkäufer GmbH',
+          },
+          costs: [{ id: 'cost-1', purchase_id: einkauf.id, type: 'shipping', amount: 4.5 }],
+          purchase_lines: [
+            {
+              id: 'line-1',
+              workspace_id: einkauf.workspace_id,
+              purchase_id: einkauf.id,
+              title_snapshot: 'Controller',
+              line_kind: 'quantity',
+              ordered_quantity: 1,
+              received_quantity: 0,
+              unit_purchase_price: 31.98,
+              line_total: 31.98,
+            },
+          ],
+          items_count: 1,
+          total_purchase_cost: 36.48,
+        };
+        const purchasesRaw = signal<Purchase[]>([enrichedPurchase]);
+        const selectedPurchaseRaw = signal<Purchase | null>(enrichedPurchase);
+        const partialPurchase = {
+          id: einkauf.id,
+          receiving_status: 'ordered' as const,
+          shipment_status: 'not_shipped' as const,
+          updated_at: '2026-09-10T10:00:00.000Z',
+        };
+        const rpc = vi.fn(async () => ({
+          data: { purchase: partialPurchase, eventId: 'event-1' },
+          error: null,
+        }));
+        const savePurchase = vi.fn();
+        const service = Object.create(PurchaseService.prototype) as PurchaseService;
+        Object.assign(service, {
+          purchasesRaw,
+          purchases: () => purchasesRaw(),
+          selectedPurchaseRaw,
+          selectedPurchase: () => selectedPurchaseRaw(),
+          mockStore: { isDemoMode: signal(false), savePurchase },
+          syncStatus: new SyncStatusService(),
+          supabase: { client: { rpc } },
+        });
+
+        await service.setPurchaseWorkflowStatus(einkauf.id, 'ordered');
+
+        expect(purchasesRaw()[0]).toMatchObject({ ...enrichedPurchase, ...partialPurchase });
+        expect(selectedPurchaseRaw()).toMatchObject({ ...enrichedPurchase, ...partialPurchase });
+        expect(savePurchase).toHaveBeenCalledWith({ ...enrichedPurchase, ...partialPurchase });
+      });
+
+      it('behält angereicherte Einkaufsdaten bei einer teilweisen Tracking-Antwort', async () => {
+        const enrichedPurchase: Purchase = {
+          ...einkauf,
+          supplier: {
+            id: 'supplier-1',
+            workspace_id: einkauf.workspace_id,
+            name: 'Verkäufer GmbH',
+          },
+          costs: [{ id: 'cost-1', purchase_id: einkauf.id, type: 'shipping', amount: 4.5 }],
+          purchase_lines: [
+            {
+              id: 'line-1',
+              workspace_id: einkauf.workspace_id,
+              purchase_id: einkauf.id,
+              title_snapshot: 'Controller',
+              line_kind: 'quantity',
+              ordered_quantity: 1,
+              received_quantity: 0,
+              unit_purchase_price: 31.98,
+              line_total: 31.98,
+            },
+          ],
+          items_count: 1,
+          total_purchase_cost: 36.48,
+        };
+        const purchasesRaw = signal<Purchase[]>([enrichedPurchase]);
+        const selectedPurchaseRaw = signal<Purchase | null>(enrichedPurchase);
+        const partialPurchase = {
+          id: einkauf.id,
+          tracking_number: 'TRACK-NEU',
+          tracking_carrier: 'dhl' as const,
+          tracking_status: 'in_transit' as const,
+          updated_at: '2026-09-10T10:00:00.000Z',
+        };
+        const rpc = vi.fn(async () => ({
+          data: { purchase: partialPurchase, eventId: 'event-1' },
+          error: null,
+        }));
+        const savePurchase = vi.fn();
+        const service = Object.create(PurchaseService.prototype) as PurchaseService;
+        Object.assign(service, {
+          purchasesRaw,
+          purchases: () => purchasesRaw(),
+          selectedPurchaseRaw,
+          selectedPurchase: () => selectedPurchaseRaw(),
+          mockStore: { isDemoMode: signal(false), savePurchase },
+          syncStatus: new SyncStatusService(),
+          supabase: { client: { rpc } },
+        });
+
+        await service.updatePurchaseTracking(einkauf.id, 'TRACK-NEU', 'dhl', 'in_transit');
+
+        expect(purchasesRaw()[0]).toMatchObject({ ...enrichedPurchase, ...partialPurchase });
+        expect(selectedPurchaseRaw()).toMatchObject({ ...enrichedPurchase, ...partialPurchase });
+        expect(savePurchase).toHaveBeenCalledWith({ ...enrichedPurchase, ...partialPurchase });
+      });
+
+      it('bricht das Zustellen nach einem Workflow-Fehler vor den Artikeln ab', async () => {
+        const workflowError = new Error('Status fehlgeschlagen');
         const artikel: InventoryItem = {
           id: 'item-1',
           workspace_id: einkauf.workspace_id,
@@ -155,7 +304,7 @@ describe('PurchaseService', () => {
 
         Object.assign(service, {
           purchases: signal<Purchase[]>([einkauf]),
-          updatePurchase: vi.fn(async () => ({ error: trackingError })),
+          setPurchaseWorkflowStatus: vi.fn(async () => ({ error: workflowError })),
           inventory: {
             items: signal<InventoryItem[]>([artikel]),
             updateItemStatus,
@@ -164,7 +313,7 @@ describe('PurchaseService', () => {
 
         const ergebnis = await service.markPurchaseDeliveredAndSyncItems(einkauf.id);
 
-        expect(ergebnis).toEqual({ updatedCount: 0, error: trackingError });
+        expect(ergebnis).toEqual({ updatedCount: 0, error: workflowError });
         expect(updateItemStatus).not.toHaveBeenCalled();
       });
 

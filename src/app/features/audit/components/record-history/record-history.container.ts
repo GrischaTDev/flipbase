@@ -33,6 +33,7 @@ export class RecordHistoryContainer {
       const workspaceId = this.workspaceService.currentWorkspace()?.id ?? null;
       const entityType = this.entityType();
       const entityId = this.entityId();
+      this.refreshKey();
       if (entityType === 'purchase' || entityType === 'sale') return;
       this.startOver(workspaceId, entityType, entityId);
     });

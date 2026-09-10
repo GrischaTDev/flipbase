@@ -27,6 +27,7 @@ import {
 import { ItemConditionLabelPipe } from '../../../../shared/pipes/item-condition-label.pipe';
 import { PurchaseProductPickerComponent } from '../purchase-product-picker/purchase-product-picker.component';
 import { BarcodeScannerComponent } from '../../../../shared/components/barcode-scanner/barcode-scanner.component';
+import { allocatePackagePrice } from '../../utils/package-price-allocation';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
@@ -423,13 +424,16 @@ export class PurchaseLineEditorComponent {
         this.emitDrafts();
         return;
       }
-      if (!this.validMoney(unitPrice) || Math.round(unitPrice * 100) * quantity > 999999999999) {
+      if (
+        !this.validUnitPrice(unitPrice) ||
+        Math.round(unitPrice * quantity * 100) > 999999999999
+      ) {
         row.controls.lineTotal.setValue(null, { emitEvent: false });
         row.controls.lineTotal.setErrors({ totalTooLarge: true }, { emitEvent: false });
         this.emitDrafts();
         return;
       }
-      row.controls.lineTotal.setValue((Math.round(unitPrice * 100) * quantity) / 100, {
+      row.controls.lineTotal.setValue(Math.round(unitPrice * quantity * 100) / 100, {
         emitEvent: false,
       });
       this.emitDrafts();
@@ -446,7 +450,7 @@ export class PurchaseLineEditorComponent {
       this.emitDrafts();
       return;
     }
-    row.controls.unitPurchasePrice.setValue(this.toMoney(lineTotal / quantity), {
+    row.controls.unitPurchasePrice.setValue(this.normalizeUnitPrice(lineTotal / quantity), {
       emitEvent: false,
     });
     this.emitDrafts();
@@ -454,6 +458,27 @@ export class PurchaseLineEditorComponent {
 
   updateQuantity(index: number): void {
     this.recalculate(index, 'unitPurchasePrice');
+  }
+
+  applyPackagePrice(total: number): void {
+    const lineIds = this.lineRows.controls.map((row) => row.controls.draftId.value);
+    const allocation = allocatePackagePrice(total, lineIds);
+
+    for (const row of this.lineRows.controls) {
+      const lineTotal = allocation.get(row.controls.draftId.value);
+      if (lineTotal === undefined) continue;
+      const quantity = row.controls.orderedQuantity.value;
+      row.patchValue(
+        {
+          priceMode: 'priced',
+          lineTotal,
+          unitPurchasePrice: this.normalizeUnitPrice(lineTotal / quantity),
+        },
+        { emitEvent: false },
+      );
+    }
+
+    this.emitDrafts();
   }
 
   removeLine(index: number): void {
@@ -479,6 +504,10 @@ export class PurchaseLineEditorComponent {
       const draft = row.getRawValue();
       return {
         ...draft,
+        unitPurchasePrice:
+          draft.unitPurchasePrice === null
+            ? null
+            : this.normalizeUnitPrice(draft.unitPurchasePrice),
         priceMode:
           draft.unitPurchasePrice === null || draft.lineTotal === null
             ? 'unpriced_mystery'
@@ -557,7 +586,7 @@ export class PurchaseLineEditorComponent {
         nonNullable: true,
       }),
       unitPurchasePrice: new FormControl<number | null>(null, {
-        validators: [(control) => (this.validMoney(control.value) ? null : { money: true })],
+        validators: [(control) => (this.validUnitPrice(control.value) ? null : { money: true })],
       }),
       lineTotal: new FormControl<number | null>(null, {
         validators: [(control) => (this.validMoney(control.value) ? null : { money: true })],
@@ -571,7 +600,7 @@ export class PurchaseLineEditorComponent {
       const quantity: unknown = control.get('orderedQuantity')?.value;
       return typeof price === 'number' &&
         typeof quantity === 'number' &&
-        Math.round(price * 100) * quantity > 999999999999
+        Math.round(price * quantity * 100) > 999999999999
         ? { totalTooLarge: true }
         : null;
     });
@@ -589,7 +618,7 @@ export class PurchaseLineEditorComponent {
         },
       );
       row.controls.unitPurchasePrice.setValidators([
-        (control) => (this.validMoney(control.value) ? null : { money: true }),
+        (control) => (this.validUnitPrice(control.value) ? null : { money: true }),
       ]);
       row.controls.lineTotal.setValidators([
         (control) => (this.validMoney(control.value) ? null : { money: true }),
@@ -615,8 +644,18 @@ export class PurchaseLineEditorComponent {
     );
   }
 
-  private toMoney(value: number): number {
-    return Number(value.toFixed(2));
+  private validUnitPrice(value: number | null): boolean {
+    return (
+      value === null ||
+      (Number.isFinite(value) &&
+        value >= 0 &&
+        value <= 9999999999.99 &&
+        this.normalizeUnitPrice(value) === value)
+    );
+  }
+
+  private normalizeUnitPrice(value: number): number {
+    return Number(value.toFixed(16));
   }
 
   private emitDrafts(): void {

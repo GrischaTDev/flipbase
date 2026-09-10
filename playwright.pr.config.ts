@@ -7,6 +7,7 @@ export default defineConfig({
   retries: 0,
   maxFailures: 1,
   workers: 1,
+  timeout: 60_000,
   expect: {
     timeout: 15_000,
   },

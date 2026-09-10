@@ -86,7 +86,6 @@ export class PurchasesComponent {
     { value: 'all', label: 'Alle' },
     { value: 'draft', label: 'Entwurf' },
     { value: 'ordered', label: 'Bestellt' },
-    { value: 'in_transit', label: 'Unterwegs' },
     { value: 'partially_received', label: 'Teillieferung' },
     { value: 'received', label: 'Angekommen' },
     { value: 'archived', label: 'Archiv' },
@@ -148,24 +147,13 @@ export class PurchasesComponent {
       if (status === 'archived') return archived && this.matchesSeller(purchase);
       if (archived || !this.matchesSeller(purchase)) return false;
       if (status === 'all') return true;
-      if (status === 'in_transit')
-        return (
-          purchase.shipment_status === 'in_transit' &&
-          purchase.receiving_status !== 'received' &&
-          purchase.receiving_status !== 'partially_received'
-        );
       if (status === 'received')
         return (
           purchase.receiving_status === 'received' ||
           (purchase.shipment_status === 'arrived' &&
             purchase.receiving_status !== 'partially_received')
         );
-      if (status === 'ordered')
-        return (
-          purchase.receiving_status === 'ordered' &&
-          purchase.shipment_status !== 'in_transit' &&
-          purchase.shipment_status !== 'arrived'
-        );
+      if (status === 'ordered') return purchase.receiving_status === 'ordered';
       return (purchase.receiving_status ?? 'draft') === status;
     });
   });

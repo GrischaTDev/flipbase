@@ -3,8 +3,37 @@ import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
 import { MockDataStoreService } from './mock-data-store.service';
 import { SyncStatusService } from './sync-status.service';
-import { Supplier } from '../models/flipbase.models';
+import { SellerFormValue, Supplier } from '../models/flipbase.models';
 import { nurAktive } from './stammdaten-filter';
+
+type SupplierUpdate = Partial<SellerFormValue> & Pick<Partial<Supplier>, 'contact_info'>;
+
+function trimmedOrNull(value: string | null | undefined): string | null {
+  return value?.trim() || null;
+}
+
+function valueOrCurrent<T>(value: T | undefined, currentValue: T): T {
+  return value === undefined ? currentValue : value;
+}
+
+function normalizeSeller(value: SellerFormValue): SellerFormValue {
+  const sellerType = value.seller_type;
+
+  return {
+    seller_type: sellerType,
+    name: value.name.trim(),
+    contact_person: sellerType === 'business' ? trimmedOrNull(value.contact_person) : null,
+    country_code: value.country_code?.toUpperCase() || null,
+    street: trimmedOrNull(value.street),
+    address_extra: trimmedOrNull(value.address_extra),
+    postal_code: trimmedOrNull(value.postal_code),
+    city: trimmedOrNull(value.city),
+    email: trimmedOrNull(value.email),
+    phone: trimmedOrNull(value.phone),
+    website: sellerType === 'business' ? trimmedOrNull(value.website) : null,
+    notes: trimmedOrNull(value.notes),
+  };
+}
 
 @Injectable({
   providedIn: 'root',
@@ -85,10 +114,14 @@ export class SuppliersService {
   }
 
   async createSupplier(
+    value: SellerFormValue,
+  ): Promise<{ data: Supplier | null; error: Error | null }>;
+  /** @deprecated Übergang für die bisherige Quellenverwaltung. */
+  async createSupplier(
     name: string,
     contactInfo?: string,
     notes?: string,
-    details: Partial<
+    details?: Partial<
       Pick<
         Supplier,
         | 'seller_type'
@@ -100,7 +133,26 @@ export class SuppliersService {
         | 'city'
         | 'email'
         | 'phone'
-        | 'profile_url'
+        | 'website'
+      >
+    >,
+  ): Promise<{ data: Supplier | null; error: Error | null }>;
+  async createSupplier(
+    valueOrName: SellerFormValue | string,
+    contactInfo?: string,
+    notes?: string,
+    legacyDetails: Partial<
+      Pick<
+        Supplier,
+        | 'seller_type'
+        | 'contact_person'
+        | 'country'
+        | 'street'
+        | 'address_extra'
+        | 'postal_code'
+        | 'city'
+        | 'email'
+        | 'phone'
         | 'website'
       >
     > = {},
@@ -108,13 +160,22 @@ export class SuppliersService {
     const ws = this.workspaceService.currentWorkspace();
     if (!ws) return { data: null, error: new Error('Kein aktiver Workspace ausgewählt') };
 
+    const isStructured = typeof valueOrName !== 'string';
+    const details = isStructured
+      ? normalizeSeller(valueOrName)
+      : {
+          ...legacyDetails,
+          name: valueOrName.trim(),
+          contact_info: trimmedOrNull(contactInfo),
+          notes: trimmedOrNull(notes),
+        };
+
+    if (!details.name) return { data: null, error: new Error('Der Name darf nicht leer sein') };
+
     const newSup: Supplier = {
       ...details,
       id: crypto.randomUUID(),
       workspace_id: ws.id,
-      name: name.trim(),
-      contact_info: contactInfo?.trim() || null,
-      notes: notes?.trim() || null,
       is_active: true,
     };
 
@@ -130,9 +191,6 @@ export class SuppliersService {
         .insert({
           ...details,
           workspace_id: ws.id,
-          name: name.trim(),
-          contact_info: contactInfo?.trim() || null,
-          notes: notes?.trim() || null,
           is_active: true,
         })
         .select()
@@ -161,23 +219,48 @@ export class SuppliersService {
    */
   async updateSupplier(
     supplierId: string,
-    aenderungen: Partial<Pick<Supplier, 'name' | 'contact_info' | 'notes'>>,
-  ): Promise<{ error: Error | null }> {
-    const bereinigt = {
-      ...aenderungen,
-      ...(aenderungen.name !== undefined ? { name: aenderungen.name.trim() } : {}),
-    };
+    aenderungen: SupplierUpdate,
+  ): Promise<{ data: Supplier | null; error: Error | null }> {
+    const current = this.suppliers().find((supplier) => supplier.id === supplierId);
+    const isStructured = aenderungen.seller_type !== undefined;
+    const bereinigt: SupplierUpdate = isStructured
+      ? normalizeSeller({
+          seller_type: valueOrCurrent(aenderungen.seller_type, current?.seller_type ?? 'private'),
+          name: valueOrCurrent(aenderungen.name, current?.name ?? ''),
+          contact_person: valueOrCurrent(
+            aenderungen.contact_person,
+            current?.contact_person ?? null,
+          ),
+          country_code: valueOrCurrent(aenderungen.country_code, current?.country_code ?? null),
+          street: valueOrCurrent(aenderungen.street, current?.street ?? null),
+          address_extra: valueOrCurrent(aenderungen.address_extra, current?.address_extra ?? null),
+          postal_code: valueOrCurrent(aenderungen.postal_code, current?.postal_code ?? null),
+          city: valueOrCurrent(aenderungen.city, current?.city ?? null),
+          email: valueOrCurrent(aenderungen.email, current?.email ?? null),
+          phone: valueOrCurrent(aenderungen.phone, current?.phone ?? null),
+          website: valueOrCurrent(aenderungen.website, current?.website ?? null),
+          notes: valueOrCurrent(aenderungen.notes, current?.notes ?? null),
+        })
+      : {
+          ...aenderungen,
+          ...(aenderungen.name !== undefined ? { name: aenderungen.name.trim() } : {}),
+          ...(aenderungen.contact_info !== undefined
+            ? { contact_info: trimmedOrNull(aenderungen.contact_info) }
+            : {}),
+          ...(aenderungen.notes !== undefined ? { notes: trimmedOrNull(aenderungen.notes) } : {}),
+        };
 
     if (bereinigt.name !== undefined && bereinigt.name.length === 0) {
-      return { error: new Error('Der Name darf nicht leer sein') };
+      return { data: null, error: new Error('Der Name darf nicht leer sein') };
     }
 
-    const lokalAnwenden = () => {
+    const lokalAnwenden = (): Supplier | null => {
       this.suppliers.update((list) =>
         list.map((s) => (s.id === supplierId ? { ...s, ...bereinigt } : s)),
       );
       const vorhanden = this.suppliers().find((s) => s.id === supplierId);
       if (vorhanden) this.mockStore.saveSupplier(vorhanden);
+      return vorhanden ?? null;
     };
 
     if (!this.mockStore.isDemoMode()) {
@@ -187,14 +270,13 @@ export class SuppliersService {
           .update(bereinigt)
           .eq('id', supplierId);
         if (error) {
-          return { error: this.syncStatus.melde('Ändern des Lieferanten', error) };
+          return { data: null, error: this.syncStatus.melde('Ändern des Lieferanten', error) };
         }
       } catch (e: unknown) {
-        return { error: this.syncStatus.melde('Ändern des Lieferanten', e) };
+        return { data: null, error: this.syncStatus.melde('Ändern des Lieferanten', e) };
       }
     }
-    lokalAnwenden();
-    return { error: null };
+    return { data: lokalAnwenden(), error: null };
   }
 
   /**

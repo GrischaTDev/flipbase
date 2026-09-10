@@ -4,19 +4,9 @@
       {{ errorMessage() }}
     </p>
   }
-
   <app-two-column-layout ratio="2-1" data-testid="purchase-entry-workspace">
     <div main class="space-y-4" data-testid="purchase-entry-main">
       <app-card title="Verkäufer und Einkauf" padding="md" rounded="xl">
-        <app-button
-          card-header-actions
-          variant="plain"
-          size="slim"
-          (clicked)="sellerDialogOpen.set(true)"
-        >
-          Verkäufer erstellen
-        </app-button>
-
         <div class="space-y-4">
           <div>
             <span class="mb-1.5 block text-[13px] font-semibold">Verkäufer</span>
@@ -25,48 +15,19 @@
               [options]="lieferantenOptionen()"
               ariaLabel="Verkäufer auswählen"
               placeholder="Verkäufer auswählen"
+              actionLabel="Verkäufer erstellen"
+              (action)="sellerDialogOpen.set(true)"
             />
           </div>
-
-          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label for="purchase-date" class="mb-1.5 block text-[13px] font-semibold"
-                >Kaufdatum</label
-              >
-              <app-date-picker
-                id="purchase-date"
-                ariaLabel="Kaufdatum"
-                formControlName="purchase_date"
-              />
-            </div>
-            <div>
-              <span class="mb-1.5 block text-[13px] font-semibold">Plattform / Bezugsquelle</span>
-              <app-custom-select
-                triggerId="purchase-source"
-                formControlName="source_id"
-                [options]="quellenOptionen()"
-                ariaLabel="Plattform oder Bezugsquelle"
-              />
-            </div>
-          </div>
-
-          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <span class="mb-1.5 block text-[13px] font-semibold">Inhalt</span>
-              <app-custom-select
-                formControlName="content_status"
-                ariaLabel="Inhalt"
-                [options]="contentStatusOptions"
-              />
-            </div>
-            <div>
-              <span class="mb-1.5 block text-[13px] font-semibold">Preise</span>
-              <app-custom-select
-                formControlName="pricing_mode"
-                ariaLabel="Preise"
-                [options]="pricingModeOptions"
-              />
-            </div>
+          <div>
+            <label for="purchase-date" class="mb-1.5 block text-[13px] font-semibold"
+              >Kaufdatum</label
+            >
+            <app-date-picker
+              id="purchase-date"
+              ariaLabel="Kaufdatum"
+              formControlName="purchase_date"
+            />
           </div>
         </div>
       </app-card>
@@ -91,38 +52,32 @@
       <app-purchase-cost-summary
         role="region"
         aria-label="Kostenübersicht"
-        [goodsAmount]="null"
+        [goodsAmount]="purchaseBasePrice()"
         [discountAmount]="discountAmount()"
         [costs]="costDrafts()"
         [totalAmount]="totalCosts()"
         (editRequested)="openCostEditor()"
       >
         <div cost-summary-goods-editor>
-          <label for="purchase-base-price" class="mb-1.5 block text-[13px] font-semibold">
-            Warenbetrag
-          </label>
-          <app-number-input
-            id="purchase-base-price"
-            formControlName="purchase_price"
-            ariaLabel="Warenbetrag"
-            [asCurrency]="true"
-            [showStepper]="false"
-            unit="€"
-            [min]="0"
-          />
+          <app-button
+            variant="plain"
+            size="slim"
+            [disabled]="purchaseLines().length === 0"
+            (clicked)="packagePriceDialogOpen.set(true)"
+            >Paketpreis verteilen</app-button
+          >
+          @if (packagePriceStale()) {
+            <p role="alert" class="mt-2 text-xs text-fb-text-primary">
+              Positionen oder Mengen wurden geändert. Bitte den Paketpreis erneut verteilen.
+            </p>
+          }
         </div>
       </app-purchase-cost-summary>
 
       <app-card title="Einkaufsdetails" padding="md" rounded="xl">
         <div class="space-y-4">
-          <app-text-field
-            formControlName="title"
-            label="Beschreibung (optional)"
-            placeholder="Kurze Bezeichnung für den Einkauf"
-          />
-          <app-text-field formControlName="supplier_reference" label="Referenz des Verkäufers" />
-          <app-text-field formControlName="original_url" label="Beleg / Angebotslink" type="url" />
-          <app-text-field formControlName="notes" label="Interne Notiz" [multiline]="3" />
+          <app-text-field formControlName="supplier_reference" label="Referenznummer (optional)" />
+          <app-text-field formControlName="notes" label="Beschreibung (optional)" [multiline]="3" />
         </div>
       </app-card>
 
@@ -150,5 +105,13 @@
     [purchaseLineOptions]="purchaseLineOptions()"
     (saved)="onCostOverviewSaved($event)"
     (closed)="costDialogOpen.set(false)"
+  />
+}
+@if (packagePriceDialogOpen()) {
+  <app-package-price-dialog
+    [lineCount]="purchaseLines().length"
+    [initialTotal]="purchaseBasePrice()"
+    (closed)="packagePriceDialogOpen.set(false)"
+    (confirmed)="confirmPackagePrice($event)"
   />
 }

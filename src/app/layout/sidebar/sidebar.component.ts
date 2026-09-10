@@ -22,6 +22,7 @@ import {
   LucideSmartphone as Smartphone,
   LucideImage as ImageIcon,
   LucideShieldCheck as ShieldCheck,
+  LucideUsers as Users,
 } from '@lucide/angular';
 import { PlatformOperatorService } from '../../core/services/platform-operator.service';
 import { PwaService } from '../../core/services/pwa.service';
@@ -131,10 +132,10 @@ export class SidebarComponent {
     },
     { path: '/accounting', labelKey: 'NAV.ACCOUNTING', label: 'Steuern & DATEV', icon: Receipt },
     {
-      path: '/sources',
-      labelKey: 'NAV.SOURCES_SUPPLIERS',
-      label: 'Quellen & Lieferanten',
-      icon: Store,
+      path: '/sellers',
+      labelKey: 'NAV.SELLERS',
+      label: 'Verkäufer',
+      icon: Users,
     },
     { path: '/analytics', labelKey: 'NAV.ANALYTICS', label: 'Analytics', icon: BarChart3 },
     { path: '/settings', labelKey: 'NAV.SETTINGS', label: 'Einstellungen', icon: Settings },

@@ -87,6 +87,7 @@ import { BadgeComponent } from '../../../../shared/components/badge/badge.compon
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { TwoColumnLayoutComponent } from '../../../../shared/components/two-column-layout/two-column-layout.component';
+import { getPurchaseStatusPresentation } from '../../utils/purchase-status-presentation';
 import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { PurchaseCostSummaryComponent } from '../../components/purchase-cost-summary/purchase-cost-summary.component';
@@ -120,38 +121,7 @@ import { PurchaseCostSummaryComponent } from '../../components/purchase-cost-sum
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PurchaseDetailComponent {
-  getEntryStatusTone(
-    status?: string | null,
-  ): 'neutral' | 'info' | 'success' | 'caution' | 'critical' {
-    switch (status) {
-      case 'draft':
-        return 'caution';
-      case 'finalized':
-        return 'success';
-      case 'reopened':
-        return 'info';
-      case 'cancelled':
-        return 'critical';
-      default:
-        return 'neutral';
-    }
-  }
-
-  getEntryStatusLabel(status?: string | null): string {
-    switch (status) {
-      case 'draft':
-        return 'Entwurf';
-      case 'finalized':
-        return 'Abgeschlossen';
-      case 'reopened':
-        return 'Wiedereröffnet';
-      case 'cancelled':
-        return 'Storniert';
-      default:
-        return status ?? 'Unbekannt';
-    }
-  }
-
+  readonly getPurchaseStatusPresentation = getPurchaseStatusPresentation;
   readonly tablePreferences = inject(TablePreferencesService);
   private readonly allTableColumns: readonly TableColumnOption[] = [
     { id: 'title', label: 'Artikel und Aktionen', required: true },
@@ -881,6 +851,7 @@ export class PurchaseDetailComponent {
     }
 
     await this.purchaseService.getPurchaseById(purchase.id);
+    this.historyRevision.update((revision) => revision + 1);
     this.toast.success('Einkauf wurde wieder geöffnet.');
   }
 
@@ -920,6 +891,7 @@ export class PurchaseDetailComponent {
     }
 
     await this.purchaseService.refreshAfterFinalization(purchase.workspace_id, purchase.id);
+    this.historyRevision.update((revision) => revision + 1);
     this.toast.success('Erfassung wurde abgeschlossen.');
   }
 
@@ -937,6 +909,7 @@ export class PurchaseDetailComponent {
     if (!purchase) return;
     this.isCorrectionDialogOpen.set(false);
     await this.purchaseService.getPurchaseById(purchase.id);
+    this.historyRevision.update((revision) => revision + 1);
     this.toast.success('Einkauf wurde korrigiert.');
   }
 
@@ -966,6 +939,7 @@ export class PurchaseDetailComponent {
       );
       return;
     }
+    this.historyRevision.update((revision) => revision + 1);
     this.toast.success(successMessage);
   }
 
@@ -993,12 +967,14 @@ export class PurchaseDetailComponent {
     try {
       const carrier = this.trackingCarrierDraft();
       ergebnis =
-        num && carrier
-          ? await this.purchaseService.setPurchaseWorkflowStatus(p.id, 'in_transit', {
-              number: num,
-              carrier,
-            })
-          : { error: new Error('Sendungsnummer und Dienstleister werden benötigt.') };
+        num && !carrier
+          ? { error: new Error('Zur Sendungsnummer wird ein Dienstleister benötigt.') }
+          : await this.purchaseService.updatePurchaseTracking(
+              p.id,
+              num || null,
+              num ? carrier : null,
+              'pending',
+            );
     } catch (ursache: unknown) {
       ergebnis = { error: this.alsError(ursache) };
     }
@@ -1011,7 +987,10 @@ export class PurchaseDetailComponent {
       return;
     }
     this.isEditingTracking.set(false);
-    this.toast.success('Sendungsverfolgung wurde gespeichert.');
+    this.historyRevision.update((revision) => revision + 1);
+    this.toast.success(
+      num ? 'Sendungsverfolgung wurde gespeichert.' : 'Sendungsverfolgung wurde entfernt.',
+    );
   }
 
   toggleTrackingDetails(): void {
@@ -1055,6 +1034,7 @@ export class PurchaseDetailComponent {
       );
       return;
     }
+    this.historyRevision.update((revision) => revision + 1);
     this.toast.success('Einkauf wurde als zugestellt markiert.');
   }
 

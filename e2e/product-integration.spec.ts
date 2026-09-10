@@ -2,6 +2,10 @@ import { expect, test, type Page } from '@playwright/test';
 import axe from 'axe-core';
 import { startDemoMode } from './support/demo';
 
+test.beforeEach(async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+});
+
 async function createProduct(page: Page, title: string, image = false) {
   await page.getByRole('button', { name: 'Artikel suchen oder hinzufügen', exact: true }).click();
   const picker = page.getByRole('dialog', { name: 'Artikel auswählen' });
@@ -40,13 +44,15 @@ async function checkAxe(page: Page, selector: string) {
   expect(violations).toEqual([]);
 }
 
-for (const theme of ['light', 'dark'])
+for (const theme of ['light', 'dark'] as const)
   for (const width of [1440, 390]) {
     test(`Produktanlage und kompakte Positionen ${theme} ${width}`, async ({ page }, testInfo) => {
       await page.setViewportSize({ width, height: width === 390 ? 844 : 1000 });
-      await page.emulateMedia({ reducedMotion: 'reduce' });
+      await page.emulateMedia({ reducedMotion: 'reduce', colorScheme: theme });
+      await page.addInitScript((themePreference) => {
+        localStorage.setItem('flipbase_theme', themePreference);
+      }, theme);
       await startDemoMode(page);
-      await page.evaluate((theme) => localStorage.setItem('flipbase_theme', theme), theme);
       await page.goto('/purchases/new');
       await expect
         .poll(() => page.locator('html').evaluate((element) => element.classList.contains('dark')))
@@ -55,8 +61,6 @@ for (const theme of ['light', 'dark'])
         .locator('.fb-admin')
         .evaluate((element) => getComputedStyle(element).getPropertyValue('--fb-bg-app').trim());
       expect(background).toBe(theme === 'dark' ? '#1f1f1f' : '#f1f1f1');
-      await page.getByRole('combobox', { name: 'Preise', exact: true }).click();
-      await page.getByRole('option', { name: 'Einzelpreise', exact: true }).click();
       const errors: string[] = [];
       page.on('pageerror', (error) => errors.push(error.message));
       const title = 'SehrLangerProduktnameOhneTrennzeichenFürDieMobileEinkaufserfassung';
@@ -68,11 +72,14 @@ for (const theme of ['light', 'dark'])
         name: 'Stückpreis für ' + title,
         exact: true,
       });
+      await expect(price).toBeVisible();
       await price.fill('12');
       await expect(editor.locator('tbody tr')).toContainText('36,00');
       await price.fill('0.12');
       await expect(editor.locator('tbody tr')).toContainText('0,36');
       await price.fill('0.123');
+      await expect(editor.locator('tbody tr')).toContainText('0,37');
+      await price.fill('-1');
       await expect(editor.getByRole('alert')).toContainText('Gültigen Centbetrag');
       await price.fill('0');
       await expect(editor.locator('tbody tr')).toContainText('0,00');

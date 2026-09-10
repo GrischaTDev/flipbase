@@ -11,6 +11,7 @@ import {
   inject,
   input,
   model,
+  output,
   signal,
   viewChild,
 } from '@angular/core';
@@ -79,6 +80,8 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
   readonly openDirection = input<'auto' | 'down' | 'up'>('auto');
   readonly ariaLabel = input.required<string>();
   readonly triggerId = input<string>('');
+  readonly actionLabel = input<string | null>(null);
+  readonly action = output<void>();
 
   /**
    * Innenabstand je Groesse.
@@ -265,6 +268,12 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
     this.value.set(option.value);
     this.onChange(option.value);
     this.closeDropdown();
+  }
+
+  triggerAction(): void {
+    if (this.effectiveDisabled()) return;
+    this.closeDropdown(false);
+    this.action.emit();
   }
 
   setActiveIndex(index: number): void {
