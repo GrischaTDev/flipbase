@@ -647,7 +647,13 @@ export class ImageOptimizerComponent {
           entries.push({
             folder: folderName(p),
             file: exportFileName(index, name),
-            data: await this.imageExport.create(element, crop, p, toLook(image.adjustments)),
+            data: await this.imageExport.create(
+              element,
+              crop,
+              p,
+              toLook(image.adjustments),
+              image.metadata.capturedAt,
+            ),
           });
         }
       }
