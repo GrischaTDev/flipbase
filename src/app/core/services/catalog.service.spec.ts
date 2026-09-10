@@ -46,7 +46,11 @@ describe('CatalogService', () => {
   });
 
   it('lädt ein Produktbild hoch und speichert dessen Pfad am Artikel', async () => {
-    const image = { name: 'konsole.webp', size: 5, type: 'image/webp' } as File;
+    const image = {
+      name: 'konsole.webp',
+      size: 5,
+      type: 'image/webp',
+    } as NonNullable<Parameters<CatalogService['createProduct']>[0]['imageFile']>;
     const upload = vi.fn().mockResolvedValue({ error: null });
     const update = vi.fn(() => ({
       eq: () => ({ select: () => ({ single: async () => ({ data: product, error: null }) }) }),

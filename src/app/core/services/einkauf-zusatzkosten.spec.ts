@@ -374,7 +374,7 @@ describe('Zusatzkosten und Sendungsangaben', () => {
         ],
       });
 
-      const aufruf = zeilen(protokoll, 'create_purchase', 'rpc');
+      const aufruf = zeilen(protokoll, 'create_purchase_with_position_prices', 'rpc');
       expect(aufruf).toHaveLength(1);
       expect((aufruf[0].werte as { p_expenses: unknown[] }).p_expenses).toEqual([
         {
@@ -422,7 +422,7 @@ describe('Zusatzkosten und Sendungsangaben', () => {
         initial_costs: [{ type: 'shipping', amount: 0 }],
       });
 
-      const aufruf = zeilen(protokoll, 'create_purchase', 'rpc');
+      const aufruf = zeilen(protokoll, 'create_purchase_with_position_prices', 'rpc');
       expect((aufruf[0].werte as { p_expenses: unknown[] }).p_expenses).toEqual([]);
     });
   });

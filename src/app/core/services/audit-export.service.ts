@@ -13,7 +13,6 @@ import { WorkspaceService } from './workspace.service';
 
 type ArchiveRow = Readonly<Record<string, unknown>>;
 type ArchiveTableName =
-  | 'sources'
   | 'suppliers'
   | 'catalog_products'
   | 'purchases'
@@ -34,7 +33,6 @@ type ArchiveTableName =
 
 export interface AuditArchiveData {
   readonly businessEvents: readonly BusinessEvent[];
-  readonly sources: readonly ArchiveRow[];
   readonly suppliers: readonly ArchiveRow[];
   readonly catalogProducts: readonly ArchiveRow[];
   readonly purchases: readonly ArchiveRow[];
@@ -72,7 +70,6 @@ export interface AuditArchiveRequest extends Omit<BusinessEventFilter, 'cursor'>
 }
 
 const ARCHIVE_TABLES = {
-  sources: 'sources',
   suppliers: 'suppliers',
   catalogProducts: 'catalog_products',
   purchases: 'purchases',
@@ -93,8 +90,25 @@ const ARCHIVE_TABLES = {
 } as const;
 
 const ARCHIVE_HEADERS = {
-  sources: ['id', 'workspace_id', 'name', 'type', 'is_default', 'is_active', 'created_at'],
-  suppliers: ['id', 'workspace_id', 'name', 'contact_info', 'notes', 'is_active', 'created_at'],
+  suppliers: [
+    'id',
+    'workspace_id',
+    'seller_type',
+    'name',
+    'contact_person',
+    'country_code',
+    'country',
+    'street',
+    'address_extra',
+    'postal_code',
+    'city',
+    'email',
+    'phone',
+    'website',
+    'notes',
+    'is_active',
+    'created_at',
+  ],
   catalogProducts: [
     'id',
     'workspace_id',
@@ -106,6 +120,7 @@ const ARCHIVE_HEADERS = {
     'tracking_mode',
     'is_public_store',
     'listing_price',
+    'image_storage_path',
     'created_at',
     'updated_at',
   ],
@@ -118,18 +133,17 @@ const ARCHIVE_HEADERS = {
     'finalized_at',
     'finalized_by',
     'notes',
-    'original_url',
     'purchase_date',
     'purchase_price',
     'receiving_status',
-    'source_id',
+    'arrived_at',
     'supplier_id',
+    'supplier_reference',
     'title',
     'total_purchase_cost',
     'tracking_carrier',
     'tracking_number',
     'tracking_status',
-    'type',
     'updated_at',
     'workspace_id',
   ],
@@ -406,10 +420,6 @@ export async function buildAuditArchive(
     ],
     ['business-events.json', { content: eventJson, rows: eventRows.length }],
     [
-      'sources.csv',
-      { content: rowsToCsv(data.sources, ARCHIVE_HEADERS.sources), rows: data.sources.length },
-    ],
-    [
       'suppliers.csv',
       {
         content: rowsToCsv(data.suppliers, ARCHIVE_HEADERS.suppliers),
@@ -601,7 +611,6 @@ export class AuditExportService {
     const archive = await buildAuditArchive(
       {
         businessEvents: events,
-        sources: collected.get('sources') ?? [],
         suppliers: collected.get('suppliers') ?? [],
         catalogProducts: collected.get('catalog_products') ?? [],
         purchases: collected.get('purchases') ?? [],

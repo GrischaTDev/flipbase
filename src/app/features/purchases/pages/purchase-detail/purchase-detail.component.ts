@@ -295,6 +295,7 @@ export class PurchaseDetailComponent {
   readonly selectedImageDataUrl = signal<string | null>(null);
   readonly isLifecycleSubmitting = signal(false);
   readonly isCorrectionDialogOpen = signal(false);
+  readonly historyRefreshKey = signal(0);
 
   readonly hasRecordedPurchaseSale = computed(
     () => this.purchaseService.purchaseSaleHistoryState() === 'recorded',
@@ -676,6 +677,7 @@ export class PurchaseDetailComponent {
     }
 
     await this.purchaseService.getPurchaseById(purchase.id);
+    this.historyRefreshKey.update((key) => key + 1);
     this.toast.success('Einkauf wurde wieder geöffnet.');
   }
 
@@ -709,6 +711,7 @@ export class PurchaseDetailComponent {
     }
 
     await this.purchaseService.refreshAfterFinalization(purchase.workspace_id, purchase.id);
+    this.historyRefreshKey.update((key) => key + 1);
     this.toast.success('Erfassung wurde abgeschlossen.');
   }
 
@@ -735,7 +738,16 @@ export class PurchaseDetailComponent {
     if (!purchase) return;
     this.isCorrectionDialogOpen.set(false);
     await this.purchaseService.getPurchaseById(purchase.id);
+    this.historyRefreshKey.update((key) => key + 1);
     this.toast.success('Einkauf wurde korrigiert.');
+  }
+
+  async onPurchaseDraftSaved(): Promise<void> {
+    const purchase = this.purchaseService.selectedPurchase();
+    this.isEditModalOpen.set(false);
+    if (!purchase) return;
+    await this.purchaseService.getPurchaseById(purchase.id);
+    this.historyRefreshKey.update((key) => key + 1);
   }
 
   // -- Tracking Methods --
@@ -763,6 +775,7 @@ export class PurchaseDetailComponent {
       );
       return;
     }
+    this.historyRefreshKey.update((key) => key + 1);
     this.toast.success(successMessage);
   }
 
@@ -789,12 +802,14 @@ export class PurchaseDetailComponent {
     try {
       const carrier = this.trackingCarrierDraft();
       ergebnis =
-        num && carrier
-          ? await this.purchaseService.setPurchaseWorkflowStatus(p.id, 'in_transit', {
-              number: num,
-              carrier,
-            })
-          : { error: new Error('Sendungsnummer und Dienstleister werden benötigt.') };
+        num && !carrier
+          ? { error: new Error('Zur Sendungsnummer wird ein Dienstleister benötigt.') }
+          : await this.purchaseService.updatePurchaseTracking(
+              p.id,
+              num || null,
+              num ? carrier : null,
+              'pending',
+            );
     } catch (ursache: unknown) {
       ergebnis = { error: this.alsError(ursache) };
     }
@@ -807,7 +822,10 @@ export class PurchaseDetailComponent {
       return;
     }
     this.isEditingTracking.set(false);
-    this.toast.success('Sendungsverfolgung wurde gespeichert.');
+    this.historyRefreshKey.update((key) => key + 1);
+    this.toast.success(
+      num ? 'Sendungsverfolgung wurde gespeichert.' : 'Sendungsverfolgung wurde entfernt.',
+    );
   }
 
   toggleTrackingDetails(): void {
@@ -851,6 +869,7 @@ export class PurchaseDetailComponent {
       );
       return;
     }
+    this.historyRefreshKey.update((key) => key + 1);
     this.toast.success('Einkauf wurde als zugestellt markiert.');
   }
 

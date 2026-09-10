@@ -12,7 +12,6 @@ import { PurchaseTypeLabelPipe } from '../../../shared/pipes/purchase-type-label
 import type {
   PurchaseDetailRow,
   PurchaseListRow,
-  PurchaseStatusLabel,
   PresentationLoadState,
   RecordedSalePresentation,
 } from '../models/purchase-presentation.models';

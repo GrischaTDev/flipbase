@@ -123,6 +123,11 @@ describe('BusinessEventService', () => {
     });
     expect(mapBusinessEventLabel('purchase_costing_finalized')).toBe('Einkauf abgeschlossen');
     expect(mapBusinessEventLabel('purchase_reopened')).toBe('Einkauf wieder geöffnet');
+    expect(mapBusinessEventLabel('purchase_updated')).toBe('Einkauf bearbeitet');
+    expect(mapBusinessEventLabel('purchase_ordered')).toBe('Einkauf als bestellt markiert');
+    expect(mapBusinessEventLabel('purchase_arrived')).toBe('Einkauf als angekommen markiert');
+    expect(mapBusinessEventLabel('purchase_tracking_added')).toBe('Sendungsverfolgung hinzugefügt');
+    expect(mapBusinessEventLabel('purchase_tracking_removed')).toBe('Sendungsverfolgung entfernt');
     expect(mapBusinessEventLabel('purchase_costing_legacy_migrated')).toBe(
       'Altdaten des Einkaufs übernommen',
     );

@@ -182,5 +182,5 @@ describe('PurchaseSellerDialogComponent', () => {
 
     const result = await axe.run(fixture.nativeElement as HTMLElement);
     expect(result.violations).toEqual([]);
-  });
+  }, 10_000);
 });

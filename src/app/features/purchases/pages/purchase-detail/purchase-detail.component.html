@@ -42,7 +42,6 @@
           (correctionRequested)="isCorrectionDialogOpen.set(true)"
           (saleHistoryReloadRequested)="reloadPurchaseSaleHistory()"
           (orderedRequested)="markAsOrdered()"
-          (transitRequested)="startEditTracking()"
           (arrivedRequested)="markAsArrived()"
           (captureContentRequested)="isEditModalOpen.set(true)"
         />
@@ -415,13 +414,17 @@
         </app-card>
 
         <div class="space-y-2">
-          <app-record-history-container [entityType]="'purchase'" [entityId]="p.id" />
+          <app-record-history-container
+            [entityType]="'purchase'"
+            [entityId]="p.id"
+            [refreshKey]="historyRefreshKey()"
+          />
         </div>
       </div>
 
       <!-- Sidebar Column (1/3) -->
       <div sidebar class="space-y-5">
-        <!-- Einkaufsdetails & Herkunft -->
+        <!-- Einkaufsdetails -->
         <app-card>
           <div card-header class="flex items-center justify-between w-full">
             <h2 class="text-sm font-semibold text-fb-text-primary">Einkaufsdetails</h2>
@@ -432,42 +435,21 @@
 
           <div class="space-y-3">
             <dl class="space-y-2.5">
-              @if (p.source) {
-                <div
-                  class="flex items-center justify-between text-xs py-1 border-b border-fb-border"
-                >
-                  <dt class="text-fb-text-muted">Quelle</dt>
-                  <dd class="font-semibold text-fb-text-primary">{{ p.source.name }}</dd>
-                </div>
-              }
-
               @if (p.supplier) {
                 <div
                   class="flex items-center justify-between text-xs py-1 border-b border-fb-border"
                 >
-                  <dt class="text-fb-text-muted">Lieferant</dt>
+                  <dt class="text-fb-text-muted">Verkäufer</dt>
                   <dd class="font-semibold text-fb-text-primary">{{ p.supplier.name }}</dd>
-                </div>
-              }
-
-              @if (p.original_url) {
-                <div class="pt-1">
-                  <a
-                    [href]="p.original_url"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="linear-btn-secondary inline-flex items-center justify-center gap-1.5 w-full py-1.5 rounded-lg text-xs font-semibold"
-                  >
-                    <span>Original-Angebot</span>
-                    <svg [lucideIcon]="linkIcon" class="w-3.5 h-3.5"></svg>
-                  </a>
                 </div>
               }
             </dl>
 
             @if (p.notes) {
               <div class="pt-2 border-t border-fb-border">
-                <span class="mb-1 block text-xs font-medium text-fb-text-muted"> Notizen </span>
+                <span class="mb-1 block text-xs font-medium text-fb-text-muted">
+                  Beschreibung
+                </span>
                 <p
                   class="text-xs text-fb-text-secondary leading-relaxed bg-fb-subtle p-2.5 rounded-lg border border-fb-border"
                 >
@@ -695,7 +677,7 @@
     <app-purchase-create-modal
       [purchase]="einkauf"
       (closed)="isEditModalOpen.set(false)"
-      (created)="isEditModalOpen.set(false)"
+      (created)="onPurchaseDraftSaved()"
     ></app-purchase-create-modal>
   }
 </div>

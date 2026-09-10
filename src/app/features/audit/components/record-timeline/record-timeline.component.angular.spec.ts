@@ -9,6 +9,11 @@ import { RecordTimelineService } from '../../services/record-timeline.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { AuthService } from '../../../../core/services/auth.service';
 
+interface AngularBindingMetadata {
+  inputs: Record<string, unknown>;
+  declaredInputs: Record<string, string>;
+}
+
 beforeAll(async () => {
   await ɵresolveComponentResources((url) =>
     readFile(
@@ -21,6 +26,19 @@ beforeAll(async () => {
       'utf8',
     ),
   );
+  const metadata = (RecordTimelineComponent as unknown as { ɵcmp: AngularBindingMetadata }).ɵcmp;
+  metadata.inputs = {
+    ...metadata.inputs,
+    entityType: ['entityType', 1, null],
+    entityId: ['entityId', 1, null],
+    refreshKey: ['refreshKey', 1, null],
+  };
+  metadata.declaredInputs = {
+    ...metadata.declaredInputs,
+    entityType: 'entityType',
+    entityId: 'entityId',
+    refreshKey: 'refreshKey',
+  };
 });
 afterEach(() => TestBed.resetTestingModule());
 
@@ -45,11 +63,13 @@ function fixture() {
   const component = Object.create(RecordTimelineComponent.prototype) as RecordTimelineComponent;
   const workspace = signal<{ id: string }>({ id: 'w1' });
   const entityId = signal('p1');
+  const refreshKey = signal(0);
   const list = vi.fn();
   const addComment = vi.fn();
   Object.assign(component, {
     entityType: signal('purchase'),
     entityId,
+    refreshKey,
     workspace: { currentWorkspace: workspace },
     auth: { currentUser: signal({ id: 'u1' }) },
     timeline: { list, addComment },
@@ -63,8 +83,9 @@ function fixture() {
     expandedId: signal<string | null>(null),
     contextVersion: 0,
     loadVersion: 0,
+    contextIdentity: null,
   });
-  return { component, workspace, entityId, list, addComment };
+  return { component, workspace, entityId, refreshKey, list, addComment };
 }
 describe('RecordTimelineComponent', () => {
   it('gruppiert Tage, maskiert Klartext und öffnet fachliche Details zugänglich', async () => {
@@ -82,6 +103,7 @@ describe('RecordTimelineComponent', () => {
     Object.assign(timeline.componentInstance, {
       entityType: signal('purchase'),
       entityId: signal('p1'),
+      refreshKey: signal(0),
     });
     timeline.detectChanges();
     await timeline.whenStable();
@@ -120,6 +142,30 @@ describe('RecordTimelineComponent', () => {
     expect(button.getAttribute('aria-expanded')).toBe('true');
     expect(element.querySelector('dl')?.textContent).toContain('Einkaufspreis');
     expect(element.querySelector('dl')?.textContent).toContain('Nachher: 12');
+  });
+
+  it('lädt die Chronik nach einem externen Fachereignis neu', async () => {
+    const list = vi.fn(async () => ({ entries: [], nextCursor: null }));
+    const timeline = TestBed.configureTestingModule({
+      imports: [RecordTimelineComponent],
+      providers: [
+        { provide: RecordTimelineService, useValue: { list } },
+        { provide: WorkspaceService, useValue: { currentWorkspace: signal({ id: 'w1' }) } },
+        { provide: AuthService, useValue: { currentUser: signal({ id: 'u1' }) } },
+      ],
+    }).createComponent(RecordTimelineComponent);
+    timeline.componentRef.setInput('entityType', 'purchase');
+    timeline.componentRef.setInput('entityId', 'p1');
+    timeline.componentRef.setInput('refreshKey', 0);
+    timeline.detectChanges();
+    await timeline.whenStable();
+
+    timeline.componentRef.setInput('refreshKey', 1);
+    timeline.detectChanges();
+    await timeline.whenStable();
+
+    expect(list).toHaveBeenCalledTimes(2);
+    expect(list).toHaveBeenLastCalledWith('w1', 'purchase', 'p1', undefined);
   });
   it('bewahrt den Entwurf bei Fehler und verhindert doppeltes Posten', async () => {
     const { component, addComment } = fixture();

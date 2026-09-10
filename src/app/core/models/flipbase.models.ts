@@ -221,6 +221,7 @@ export interface Purchase {
   tracking_carrier?: TrackingCarrier | null;
   tracking_status?: InboundTrackingStatus | null;
   receiving_status?: PurchaseReceivingStatus;
+  arrived_at?: string | null;
   entry_status?: PurchaseEntryStatus;
   finalized_at?: string | null;
   finalized_by?: string | null;

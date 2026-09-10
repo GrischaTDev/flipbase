@@ -591,7 +591,7 @@ export class PurchaseEntryFormComponent {
     if (!editor || this.purchaseLines().length === 0) return;
 
     editor.applyPackagePrice(total);
-    this.form.controls.pricing_mode.setValue('total');
+    this.form.controls.pricing_mode.setValue('individual');
     this.form.controls.purchase_price.setValue(Number(total.toFixed(2)));
     this.confirmedPackageFingerprint.set(purchaseLineStructureFingerprint(this.purchaseLines()));
     this.packagePriceStale.set(false);

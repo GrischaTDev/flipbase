@@ -42,6 +42,7 @@ export class PurchaseSellerDialogComponent {
   readonly phoneTranslations = germanPhoneTranslations;
   readonly phoneDropdownParent = this.host.nativeElement;
   readonly phoneInputAttributes = computed(() => ({
+    id: 'seller-phone',
     class: 'linear-input w-full rounded-lg px-3 py-2',
     'aria-label': 'Telefonnummer',
     'aria-invalid': String(this.form.controls.phone.invalid && this.form.controls.phone.touched),

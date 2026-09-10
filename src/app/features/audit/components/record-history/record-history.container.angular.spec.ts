@@ -61,8 +61,8 @@ beforeAll(async () => {
 });
 
 beforeEach(() => {
-  registerBindings(RecordHistoryContainer, ['entityType', 'entityId', 'heading']);
-  registerBindings(RecordTimelineComponent, ['entityType', 'entityId']);
+  registerBindings(RecordHistoryContainer, ['entityType', 'entityId', 'heading', 'refreshKey']);
+  registerBindings(RecordTimelineComponent, ['entityType', 'entityId', 'refreshKey']);
   registerBindings(
     RecordHistoryComponent,
     ['heading', 'events', 'loading', 'error', 'hasMore'],
@@ -108,6 +108,7 @@ function createContainer(listEntityEvents: (filter: unknown) => Promise<Business
   Object.assign(component, {
     entityType: signal<BusinessEntityType>('purchase'),
     entityId,
+    refreshKey: signal(0),
     workspaceService: { currentWorkspace: signal({ id: 'workspace-1' }) },
     businessEventService: { listEntityEvents },
     requestVersion: 0,

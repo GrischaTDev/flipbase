@@ -886,53 +886,56 @@ export class PurchaseService {
     }
 
     try {
-      const { data, error } = await this.supabase.client.rpc('create_purchase', {
-        p_workspace_id: ws.id,
-        p_purchase: {
-          request_id: payload.request_id ?? null,
-          source_id: payload.source_id || null,
-          supplier_id: payload.supplier_id || null,
-          type: payload.type,
-          title: payload.title.trim(),
-          purchase_date: payload.purchase_date,
-          purchase_price: payload.purchase_price,
-          discount_amount: payload.discount_amount ?? 0,
-          content_status: payload.content_status ?? 'known',
-          pricing_mode:
-            payload.pricing_mode ?? (payload.type === 'mystery_pack' ? 'total' : 'individual'),
-          shipment_status: payload.shipment_status ?? 'not_shipped',
-          supplier_reference: payload.supplier_reference?.trim() || null,
-          cost_allocation_mode: mode,
-          notes: payload.notes?.trim() || null,
-          tracking_number: payload.tracking_number?.trim() || null,
-          tracking_carrier: payload.tracking_carrier || (payload.tracking_number ? 'dhl' : null),
-          tracking_status:
-            payload.tracking_status || (payload.tracking_number ? 'in_transit' : 'pending'),
-          original_url: payload.original_url || null,
+      const { data, error } = await this.supabase.client.rpc(
+        'create_purchase_with_position_prices',
+        {
+          p_workspace_id: ws.id,
+          p_purchase: {
+            request_id: payload.request_id ?? null,
+            source_id: payload.source_id || null,
+            supplier_id: payload.supplier_id || null,
+            type: payload.type,
+            title: payload.title.trim(),
+            purchase_date: payload.purchase_date,
+            purchase_price: payload.purchase_price,
+            discount_amount: payload.discount_amount ?? 0,
+            content_status: payload.content_status ?? 'known',
+            pricing_mode:
+              payload.pricing_mode ?? (payload.type === 'mystery_pack' ? 'total' : 'individual'),
+            shipment_status: payload.shipment_status ?? 'not_shipped',
+            supplier_reference: payload.supplier_reference?.trim() || null,
+            cost_allocation_mode: mode,
+            notes: payload.notes?.trim() || null,
+            tracking_number: payload.tracking_number?.trim() || null,
+            tracking_carrier: payload.tracking_carrier || (payload.tracking_number ? 'dhl' : null),
+            tracking_status:
+              payload.tracking_status || (payload.tracking_number ? 'in_transit' : 'pending'),
+            original_url: payload.original_url || null,
+          },
+          p_expenses: kostenZeilen.map((cost) => ({
+            type: cost.type,
+            amount: cost.amount,
+            description: cost.description,
+            allocation_method: cost.allocation_method,
+            target_purchase_line_ref:
+              cost.allocation_method === 'direct' ? cost.target_purchase_line_id : null,
+          })),
+          p_lines: normalizedLines.data.map((line) => ({
+            client_ref: line.draftId ?? null,
+            catalog_product_id: line.catalogProductId,
+            title_snapshot: line.titleSnapshot,
+            ean_snapshot: line.ean ?? null,
+            line_kind: line.lineKind,
+            ordered_quantity: line.orderedQuantity,
+            price_mode: line.priceMode ?? 'priced',
+            unit_purchase_price: line.unitPurchasePrice,
+            line_total: line.lineTotal,
+            condition_snapshot: line.condition ?? null,
+            estimated_market_value: line.estimatedMarketValue ?? null,
+            allocated_additional_cost: line.allocatedAdditionalCost ?? 0,
+          })),
         },
-        p_expenses: kostenZeilen.map((cost) => ({
-          type: cost.type,
-          amount: cost.amount,
-          description: cost.description,
-          allocation_method: cost.allocation_method,
-          target_purchase_line_ref:
-            cost.allocation_method === 'direct' ? cost.target_purchase_line_id : null,
-        })),
-        p_lines: normalizedLines.data.map((line) => ({
-          client_ref: line.draftId ?? null,
-          catalog_product_id: line.catalogProductId,
-          title_snapshot: line.titleSnapshot,
-          ean_snapshot: line.ean ?? null,
-          line_kind: line.lineKind,
-          ordered_quantity: line.orderedQuantity,
-          price_mode: line.priceMode ?? 'priced',
-          unit_purchase_price: line.unitPurchasePrice,
-          line_total: line.lineTotal,
-          condition_snapshot: line.condition ?? null,
-          estimated_market_value: line.estimatedMarketValue ?? null,
-          allocated_additional_cost: line.allocatedAdditionalCost ?? 0,
-        })),
-      });
+      );
       if (error || !data || typeof data !== 'object') {
         const reported = this.syncStatus.melde(
           'Speichern des Einkaufs',
@@ -1084,7 +1087,7 @@ export class PurchaseService {
     }
 
     try {
-      const { data, error } = await this.supabase.client.rpc('update_purchase_draft', {
+      const { data, error } = await this.supabase.client.rpc('update_purchase_draft_with_event', {
         p_workspace_id: workspace.id,
         p_purchase_id: purchaseId,
         p_purchase: {
@@ -1632,19 +1635,11 @@ export class PurchaseService {
         return { data: [], error: new Error('Die manuelle Kostenzuordnung ist ungültig.') };
       }
       if (pricingMode === 'total') {
-        if (
-          line.priceMode !== 'unpriced_mystery' ||
-          line.unitPurchasePrice !== null ||
-          line.lineTotal !== null
-        ) {
-          return {
-            data: [],
-            error: new Error(
-              'Positionen eines Gesamtkaufs dürfen keinen erfundenen Einzelpreis haben.',
-            ),
-          };
-        }
-        continue;
+        const isLegacyUnpricedLine =
+          line.priceMode === 'unpriced_mystery' &&
+          line.unitPurchasePrice === null &&
+          line.lineTotal === null;
+        if (isLegacyUnpricedLine) continue;
       }
       if (
         line.priceMode !== 'priced' ||
@@ -1657,16 +1652,16 @@ export class PurchaseService {
       ) {
         return { data: [], error: new Error('Die Einkaufskosten müssen gültige Beträge sein.') };
       }
-      const unitPurchasePriceCents = toExactCents(line.unitPurchasePrice);
       const lineTotalCents = toExactCents(line.lineTotal);
       if (
-        unitPurchasePriceCents === null ||
         lineTotalCents === null ||
-        lineTotalCents !== line.orderedQuantity * unitPurchasePriceCents
+        Math.abs(line.unitPurchasePrice * line.orderedQuantity - line.lineTotal) > 0.00000001
       ) {
         return {
           data: [],
-          error: new Error('Positionssumme und EK je Stück müssen centgenau zusammenpassen.'),
+          error: new Error(
+            'Positionssumme und durchschnittlicher EK je Stück müssen zusammenpassen.',
+          ),
         };
       }
     }
@@ -1949,25 +1944,43 @@ export class PurchaseService {
 
   async setPurchaseWorkflowStatus(
     purchaseId: string,
-    status: 'ordered' | 'in_transit' | 'arrived',
-    tracking?: { number: string; carrier: TrackingCarrier },
+    status: 'ordered' | 'arrived',
   ): Promise<{ error: Error | null }> {
     const purchase = this.purchases().find((entry) => entry.id === purchaseId);
     if (!purchase) return { error: new Error('Der Einkauf wurde nicht gefunden.') };
 
-    if (status === 'in_transit' && (!tracking?.number.trim() || !tracking.carrier)) {
-      return {
-        error: new Error('Für „Unterwegs“ werden Sendungsnummer und Dienstleister benötigt.'),
+    if (this.mockStore.isDemoMode()) {
+      const updated: Purchase = {
+        ...purchase,
+        receiving_status: status === 'ordered' ? 'ordered' : 'received',
+        shipment_status: status === 'ordered' ? 'not_shipped' : 'arrived',
+        arrived_at: status === 'arrived' ? new Date().toISOString() : null,
+        updated_at: new Date().toISOString(),
       };
+      this.uebernehmeEinkaufLokal(updated);
+      return { error: null };
     }
 
-    return this.updatePurchase(purchaseId, {
-      receiving_status: status === 'ordered' || status === 'in_transit' ? 'ordered' : undefined,
-      shipment_status:
-        status === 'ordered' ? 'not_shipped' : status === 'in_transit' ? 'in_transit' : 'arrived',
-      tracking_number: status === 'in_transit' ? tracking?.number.trim() : purchase.tracking_number,
-      tracking_carrier: status === 'in_transit' ? tracking?.carrier : purchase.tracking_carrier,
-    });
+    try {
+      const { data, error } = await this.supabase.client.rpc('update_purchase_workflow', {
+        p_purchase_id: purchaseId,
+        p_status: status,
+      });
+      if (error) return { error: this.syncStatus.melde('Ändern des Einkaufsstatus', error) };
+      const updated = this.purchaseFromMutationResult(data);
+      if (!updated) {
+        return {
+          error: this.syncStatus.melde(
+            'Ändern des Einkaufsstatus',
+            new Error('Die bestätigte Einkaufsänderung fehlt.'),
+          ),
+        };
+      }
+      this.uebernehmeEinkaufLokal(updated);
+      return { error: null };
+    } catch (error: unknown) {
+      return { error: this.syncStatus.melde('Ändern des Einkaufsstatus', error) };
+    }
   }
 
   /**
@@ -2082,47 +2095,50 @@ export class PurchaseService {
     const existing = this.purchases().find((p) => p.id === purchaseId);
     if (!existing) return { data: null, error: new Error('Einkauf nicht gefunden') };
 
-    const updated: Purchase = {
+    const pendingUpdate: Purchase = {
       ...existing,
       tracking_number: trackingNumber ? trackingNumber.trim() : null,
-      tracking_carrier: carrier || existing.tracking_carrier || (trackingNumber ? 'dhl' : null),
-      tracking_status: status || existing.tracking_status || (trackingNumber ? 'in_transit' : null),
+      tracking_carrier: trackingNumber ? carrier || existing.tracking_carrier || 'dhl' : null,
+      tracking_status: status ?? 'pending',
       updated_at: new Date().toISOString(),
     };
 
-    if (!this.mockStore.isDemoMode()) {
-      try {
-        const { error } = await this.supabase.client
-          .from('purchases')
-          .update({
-            tracking_number: updated.tracking_number,
-            tracking_carrier: updated.tracking_carrier,
-            tracking_status: updated.tracking_status || 'pending',
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', purchaseId);
+    if (this.mockStore.isDemoMode()) {
+      this.uebernehmeEinkaufLokal(pendingUpdate);
+      return { data: pendingUpdate, error: null };
+    }
 
-        if (error) {
-          return {
-            data: null,
-            error: this.syncStatus.melde('Aktualisieren des Tracking-Status', error),
-          };
-        }
-      } catch (err) {
+    try {
+      const { data, error } = await this.supabase.client.rpc('update_purchase_tracking', {
+        p_purchase_id: purchaseId,
+        p_tracking_number: pendingUpdate.tracking_number ?? '',
+        p_tracking_carrier: pendingUpdate.tracking_carrier ?? '',
+        p_tracking_status: pendingUpdate.tracking_status ?? 'pending',
+      });
+      if (error) {
         return {
           data: null,
-          error: this.syncStatus.melde('Aktualisieren des Tracking-Status', err),
+          error: this.syncStatus.melde('Aktualisieren des Tracking-Status', error),
         };
       }
+      const updated = this.purchaseFromMutationResult(data);
+      if (!updated) {
+        return {
+          data: null,
+          error: this.syncStatus.melde(
+            'Aktualisieren des Tracking-Status',
+            new Error('Die bestätigte Trackingänderung fehlt.'),
+          ),
+        };
+      }
+      this.uebernehmeEinkaufLokal(updated);
+      return { data: updated, error: null };
+    } catch (error: unknown) {
+      return {
+        data: null,
+        error: this.syncStatus.melde('Aktualisieren des Tracking-Status', error),
+      };
     }
-
-    this.mockStore.savePurchase(updated);
-    this.purchasesRaw.update((list) => list.map((p) => (p.id === purchaseId ? updated : p)));
-    if (this.selectedPurchase()?.id === purchaseId) {
-      this.selectedPurchaseRaw.set(updated);
-    }
-
-    return { data: updated, error: null };
   }
 
   async markPurchaseDeliveredAndSyncItems(
@@ -2131,11 +2147,7 @@ export class PurchaseService {
     const existing = this.purchases().find((p) => p.id === purchaseId);
     if (!existing) return { updatedCount: 0, error: new Error('Einkauf nicht gefunden') };
 
-    const { error } = await this.updatePurchase(purchaseId, {
-      shipment_status: 'arrived',
-      tracking_number: existing.tracking_number,
-      tracking_carrier: existing.tracking_carrier,
-    });
+    const { error } = await this.setPurchaseWorkflowStatus(purchaseId, 'arrived');
     if (error) return { updatedCount: 0, error };
 
     // Eine Zustellung bestätigt nur die Paketankunft. Bestand entsteht weiterhin
@@ -2500,5 +2512,12 @@ export class PurchaseService {
       list.map((entry) => (entry.id === purchase.id ? purchase : entry)),
     );
     if (this.selectedPurchase()?.id === purchase.id) this.selectedPurchaseRaw.set(purchase);
+  }
+
+  private purchaseFromMutationResult(data: unknown): Purchase | null {
+    if (!data || typeof data !== 'object' || !('purchase' in data)) return null;
+    const purchase = data.purchase;
+    if (!purchase || typeof purchase !== 'object' || !('id' in purchase)) return null;
+    return purchase as Purchase;
   }
 }

@@ -394,6 +394,7 @@ export type Database = {
           created_at: string
           ean: string | null
           id: string
+          image_storage_path: string | null
           is_public_store: boolean
           listing_price: number | null
           model: string | null
@@ -408,6 +409,7 @@ export type Database = {
           created_at?: string
           ean?: string | null
           id?: string
+          image_storage_path?: string | null
           is_public_store?: boolean
           listing_price?: number | null
           model?: string | null
@@ -422,6 +424,7 @@ export type Database = {
           created_at?: string
           ean?: string | null
           id?: string
+          image_storage_path?: string | null
           is_public_store?: boolean
           listing_price?: number | null
           model?: string | null
@@ -1525,6 +1528,7 @@ export type Database = {
       }
       purchases: {
         Row: {
+          arrived_at: string | null
           content_status: string
           cost_allocation_mode: string
           created_at: string
@@ -1559,6 +1563,7 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          arrived_at?: string | null
           content_status?: string
           cost_allocation_mode?: string
           created_at?: string
@@ -1593,6 +1598,7 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          arrived_at?: string | null
           content_status?: string
           cost_allocation_mode?: string
           created_at?: string
@@ -3457,6 +3463,15 @@ export type Database = {
         }
         Returns: Json
       }
+      create_purchase_with_position_prices: {
+        Args: {
+          p_expenses?: Json
+          p_lines?: Json
+          p_purchase: Json
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       create_sniper_subscription: {
         Args: {
           p_brand_id: number
@@ -3673,6 +3688,7 @@ export type Database = {
       refresh_purchase_receiving_status: {
         Args: { p_purchase_id: string; p_workspace_id: string }
         Returns: {
+          arrived_at: string | null
           content_status: string
           cost_allocation_mode: string
           created_at: string
@@ -3726,6 +3742,15 @@ export type Database = {
           p_action: string
           p_inventory_item_id: string
           p_reason: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      restore_purchase_position_prices: {
+        Args: {
+          p_original_lines: Json
+          p_persisted_lines: Json
+          p_purchase_id: string
           p_workspace_id: string
         }
         Returns: Json
@@ -3897,6 +3922,29 @@ export type Database = {
           p_purchase_id: string
           p_workspace_id: string
         }
+        Returns: Json
+      }
+      update_purchase_draft_with_event: {
+        Args: {
+          p_expenses?: Json
+          p_lines?: Json
+          p_purchase: Json
+          p_purchase_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      update_purchase_tracking: {
+        Args: {
+          p_purchase_id: string
+          p_tracking_carrier: string
+          p_tracking_number: string
+          p_tracking_status: string
+        }
+        Returns: Json
+      }
+      update_purchase_workflow: {
+        Args: { p_purchase_id: string; p_status: string }
         Returns: Json
       }
       validate_inventory_item_sale_integrity: {

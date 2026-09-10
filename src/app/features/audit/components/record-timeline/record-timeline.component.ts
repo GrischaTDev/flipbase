@@ -26,11 +26,13 @@ import { RecordTimelineService } from '../../services/record-timeline.service';
 export class RecordTimelineComponent {
   readonly entityType = input.required<RecordTimelineEntityType>();
   readonly entityId = input.required<string>();
+  readonly refreshKey = input(0);
   private readonly timeline = inject(RecordTimelineService);
   private readonly workspace = inject(WorkspaceService);
   private readonly auth = inject(AuthService);
   private contextVersion = 0;
   private loadVersion = 0;
+  private contextIdentity: string | null = null;
   readonly entries = signal<readonly RecordTimelineEntry[]>([]);
   readonly nextCursor = signal<string | null>(null);
   readonly loading = signal(false);
@@ -62,12 +64,19 @@ export class RecordTimelineComponent {
   constructor() {
     effect(() => {
       const scope = this.scope();
+      const identity = [scope.workspaceId, scope.entityType, scope.entityId, scope.userId].join(
+        ':',
+      );
+      const contextChanged = identity !== this.contextIdentity;
+      this.contextIdentity = identity;
       this.contextVersion++;
       this.loadVersion++;
       this.entries.set([]);
       this.nextCursor.set(null);
-      this.draft.set('');
-      this.posting.set(false);
+      if (contextChanged) {
+        this.draft.set('');
+        this.posting.set(false);
+      }
       this.loading.set(false);
       this.postError.set(null);
       this.loadError.set(null);
@@ -167,6 +176,7 @@ export class RecordTimelineComponent {
       entityType: this.entityType(),
       entityId: this.entityId(),
       userId: this.auth.currentUser()?.id ?? null,
+      refreshKey: this.refreshKey(),
     };
   }
   private isCurrent(scope: ReturnType<RecordTimelineComponent['scope']>, version: number): boolean {
@@ -176,7 +186,8 @@ export class RecordTimelineComponent {
       scope.workspaceId === current.workspaceId &&
       scope.entityType === current.entityType &&
       scope.entityId === current.entityId &&
-      scope.userId === current.userId
+      scope.userId === current.userId &&
+      scope.refreshKey === current.refreshKey
     );
   }
 }

@@ -108,6 +108,10 @@ describe('PurchaseService', () => {
         const lokalSpeichern = vi.fn();
         const service = Object.create(PurchaseService.prototype) as PurchaseService;
 
+        const rpc = vi.fn(async () => ({
+          data: null,
+          error: { code: '42501', message: 'denied' },
+        }));
         Object.assign(service, {
           purchasesRaw,
           purchases: () => purchasesRaw(),
@@ -119,13 +123,7 @@ describe('PurchaseService', () => {
           },
           syncStatus: new SyncStatusService(),
           supabase: {
-            client: {
-              from: () => ({
-                update: () => ({
-                  eq: async () => ({ error: { code: '42501', message: 'denied' } }),
-                }),
-              }),
-            },
+            client: { rpc },
           },
         });
 
@@ -135,10 +133,48 @@ describe('PurchaseService', () => {
         expect(purchasesRaw()).toEqual([einkauf]);
         expect(selectedPurchaseRaw()).toEqual(einkauf);
         expect(lokalSpeichern).not.toHaveBeenCalled();
+        expect(rpc).toHaveBeenCalledWith('update_purchase_tracking', {
+          p_purchase_id: einkauf.id,
+          p_tracking_number: 'TRACK-NEU',
+          p_tracking_carrier: 'dhl',
+          p_tracking_status: 'pending',
+        });
       });
 
-      it('bricht das Zustellen nach einem Tracking-Fehler vor den Artikeln ab', async () => {
-        const trackingError = new Error('Tracking fehlgeschlagen');
+      it('übernimmt einen Workflowstatus ausschließlich aus der bestätigten RPC-Antwort', async () => {
+        const purchasesRaw = signal<Purchase[]>([einkauf]);
+        const selectedPurchaseRaw = signal<Purchase | null>(einkauf);
+        const updated = { ...einkauf, receiving_status: 'ordered' as const };
+        const rpc = vi.fn(async () => ({
+          data: { purchase: updated, eventId: 'event-1' },
+          error: null,
+        }));
+        const savePurchase = vi.fn();
+        const service = Object.create(PurchaseService.prototype) as PurchaseService;
+        Object.assign(service, {
+          purchasesRaw,
+          purchases: () => purchasesRaw(),
+          selectedPurchaseRaw,
+          selectedPurchase: () => selectedPurchaseRaw(),
+          mockStore: { isDemoMode: signal(false), savePurchase },
+          syncStatus: new SyncStatusService(),
+          supabase: { client: { rpc } },
+        });
+
+        const result = await service.setPurchaseWorkflowStatus(einkauf.id, 'ordered');
+
+        expect(result.error).toBeNull();
+        expect(rpc).toHaveBeenCalledWith('update_purchase_workflow', {
+          p_purchase_id: einkauf.id,
+          p_status: 'ordered',
+        });
+        expect(purchasesRaw()).toEqual([updated]);
+        expect(selectedPurchaseRaw()).toEqual(updated);
+        expect(savePurchase).toHaveBeenCalledWith(updated);
+      });
+
+      it('bricht das Zustellen nach einem Workflow-Fehler vor den Artikeln ab', async () => {
+        const workflowError = new Error('Status fehlgeschlagen');
         const artikel: InventoryItem = {
           id: 'item-1',
           workspace_id: einkauf.workspace_id,
@@ -155,7 +191,7 @@ describe('PurchaseService', () => {
 
         Object.assign(service, {
           purchases: signal<Purchase[]>([einkauf]),
-          updatePurchase: vi.fn(async () => ({ error: trackingError })),
+          setPurchaseWorkflowStatus: vi.fn(async () => ({ error: workflowError })),
           inventory: {
             items: signal<InventoryItem[]>([artikel]),
             updateItemStatus,
@@ -164,7 +200,7 @@ describe('PurchaseService', () => {
 
         const ergebnis = await service.markPurchaseDeliveredAndSyncItems(einkauf.id);
 
-        expect(ergebnis).toEqual({ updatedCount: 0, error: trackingError });
+        expect(ergebnis).toEqual({ updatedCount: 0, error: workflowError });
         expect(updateItemStatus).not.toHaveBeenCalled();
       });
 
@@ -402,7 +438,7 @@ describe('PurchaseService', () => {
           data: { id: gespeicherterEinkauf.id },
         });
         expect(rpc).toHaveBeenCalledOnce();
-        expect(rpc).toHaveBeenCalledWith('create_purchase', {
+        expect(rpc).toHaveBeenCalledWith('create_purchase_with_position_prices', {
           p_workspace_id: workspace.id,
           p_purchase: expect.objectContaining({
             title: 'LED-Lampen',
@@ -430,7 +466,7 @@ describe('PurchaseService', () => {
         };
         const client = {
           rpc: async (_name: string, payload: unknown) => {
-            aufrufe.push({ tabelle: 'create_purchase', payload });
+            aufrufe.push({ tabelle: 'create_purchase_with_position_prices', payload });
             return {
               data: {
                 purchase: finalerEinkauf,
@@ -475,7 +511,9 @@ describe('PurchaseService', () => {
         });
 
         expect(ergebnis).toMatchObject({ status: 'success', data: { id: finalerEinkauf.id } });
-        expect(aufrufe.map(({ tabelle }) => tabelle)).toEqual(['create_purchase']);
+        expect(aufrufe.map(({ tabelle }) => tabelle)).toEqual([
+          'create_purchase_with_position_prices',
+        ]);
         expect(aufrufe[0].payload).toEqual(
           expect.objectContaining({
             p_workspace_id: workspace.id,
@@ -1531,7 +1569,7 @@ describe('PurchaseService', () => {
             ],
           });
 
-          const aufruf = zeilen(protokoll, 'create_purchase', 'rpc');
+          const aufruf = zeilen(protokoll, 'create_purchase_with_position_prices', 'rpc');
           expect(aufruf).toHaveLength(1);
           expect((aufruf[0].werte as { p_expenses: unknown[] }).p_expenses).toEqual([
             expect.objectContaining({ type: 'shipping', amount: 12.9, description: 'DHL' }),
@@ -1567,7 +1605,7 @@ describe('PurchaseService', () => {
             initial_costs: [{ type: 'shipping', amount: 0 }],
           });
 
-          const aufruf = zeilen(protokoll, 'create_purchase', 'rpc');
+          const aufruf = zeilen(protokoll, 'create_purchase_with_position_prices', 'rpc');
           expect((aufruf[0].werte as { p_expenses: unknown[] }).p_expenses).toEqual([]);
         });
       });

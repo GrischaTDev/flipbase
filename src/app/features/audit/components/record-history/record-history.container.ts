@@ -17,6 +17,7 @@ export class RecordHistoryContainer {
   readonly entityType = input.required<BusinessEntityType>();
   readonly entityId = input.required<string>();
   readonly heading = input('Änderungsverlauf');
+  readonly refreshKey = input(0);
 
   private readonly businessEventService = inject(BusinessEventService);
   private readonly workspaceService = inject(WorkspaceService);
@@ -32,6 +33,7 @@ export class RecordHistoryContainer {
       const workspaceId = this.workspaceService.currentWorkspace()?.id ?? null;
       const entityType = this.entityType();
       const entityId = this.entityId();
+      this.refreshKey();
       if (entityType === 'purchase' || entityType === 'sale') return;
       this.startOver(workspaceId, entityType, entityId);
     });

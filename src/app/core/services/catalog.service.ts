@@ -123,7 +123,7 @@ export class CatalogService {
 
         const { error: updateError } = await this.supabase.client
           .from('catalog_products')
-          .update({ image_storage_path: storagePath } as never)
+          .update({ image_storage_path: storagePath })
           .eq('id', product.id);
         if (updateError) return this.failure('Speichern des Produktbilds', updateError);
         product = { ...product, image_storage_path: storagePath };

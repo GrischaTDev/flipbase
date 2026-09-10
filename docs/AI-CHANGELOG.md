@@ -1,5 +1,48 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-10 – Codex – Einkaufs- und Verkäuferumbau umgesetzt
+
+**Verkäufer:** Die frühere Quellen-/Lieferantenverwaltung ist nutzerseitig eine
+einheitliche Verkäuferverwaltung mit gemeinsamer Tabellenansicht und Filter für
+Unternehmen beziehungsweise Privatpersonen. Verkäufer lassen sich direkt im
+Auswahlfeld der Einkaufserfassung anlegen. Das Formular verwendet klare Namen,
+eine alphabetische Länderauswahl sowie eine Telefonnummerneingabe mit Flagge,
+Ländervorwahl und E.164-Speicherung. Profilverweise werden nicht mehr erfasst.
+
+**Einkaufserfassung:** Plattform, Bezugsquelle, Inhaltsstatus, Angebotslink und
+doppelte Notizfelder sind aus dem sichtbaren Ablauf entfernt. Artikel kommen aus
+dem Artikelstamm oder werden über den wiederverwendbaren Produktdialog inklusive
+optionalem Bild angelegt. Der Warenbetrag wird aus den Positionen berechnet. Ein
+Paketpreis kann in einem Dialog gleichmäßig je Position und unabhängig von deren
+Stückzahl verteilt werden; centgenaue Positionssummen bleiben auch dann erhalten,
+wenn der rechnerische Stückdurchschnitt mehr Nachkommastellen benötigt.
+
+**Status, Tracking und Chronik:** Der fachliche Status führt direkt von Entwurf
+über Bestellt zu Angekommen. Tracking bleibt davon unabhängig und freiwillig.
+Die Status-Badges unterscheiden sich farblich. Entwurfsänderungen, Bestellt,
+Angekommen sowie hinzugefügtes, geändertes oder entferntes Tracking werden
+atomar als Chronikereignisse gespeichert und nach einer Aktion sofort neu
+geladen. Einkaufsdetails sprechen ebenfalls nur noch von Verkäufern und zeigen
+keine alte Quelle oder Angebots-URL.
+
+**Datenbank und Übergang:** Das deklarative Schema und die daraus erzeugte
+Migration ergänzen Ländercode, Produktbildpfad und Ankunftszeitpunkt sowie die
+neuen atomaren RPCs. Das Prüfarchiv enthält keine Quellen mehr. Technische
+Altspalten und die alte Quellentabelle bleiben vorerst ausschließlich als
+interne Kompatibilität für die umfangreichen vorhandenen Kostenfunktionen; ihre
+vollständige Entfernung benötigt eine getrennte Ablösung dieser Funktionen und
+ist nicht mehr Teil der Oberfläche.
+
+**Prüfung:** Lokalen Supabase-Stack vollständig zurückgesetzt und die erzeugte
+Migration angewendet. Alle 34 SQL-Testdateien mit 1.152 Prüfungen sind grün.
+`npm run verify` ist vollständig erfolgreich: Format, ESLint, Typen, 43
+Workflow-Tests, Suite-Audit, 999 Node-, 138 DOM-, 538 erfolgreiche Angular- und
+13 Landing-Prüfungen sowie Produktionsbau. Zusätzlich bestehen sieben gezielte
+Chromium-Abläufe der Einkaufserfassung einschließlich Verkäuferanlage und
+Paketpreisverteilung.
+
+---
+
 ## 2026-09-10 – Codex – Einkaufs- und Verkäuferumbau vorbereitet
 
 **Auftrag/Ergebnis:** Den abgestimmten Umbau der Einkaufserfassung um die
