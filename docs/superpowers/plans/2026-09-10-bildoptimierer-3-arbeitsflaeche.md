@@ -684,7 +684,7 @@ window, and a splitter must not take the page down with it."
 **Files:**
 
 - Modify: `src/app/features/image-optimizer/components/image-list/image-list.component.html`
-- Create: `src/app/features/image-optimizer/components/image-list/image-list.component.angular.spec.ts`
+- Modify: `src/app/features/image-optimizer/components/image-list/image-list.component.angular.spec.ts` (**existiert bereits** – erweitern, nicht ersetzen)
 
 **Interfaces:**
 
@@ -693,7 +693,11 @@ window, and a splitter must not take the page down with it."
 
 - [ ] **Step 1: Write the failing test**
 
-Neue Datei `src/app/features/image-optimizer/components/image-list/image-list.component.angular.spec.ts`:
+Die Datei `image-list.component.angular.spec.ts` **gibt es schon**. Darin steht
+ein Test, der das GPS-Abzeichen als `app-badge` ohne dekorativen Marker
+festhält – der bleibt unangetastet stehen. Die folgenden Fälle kommen dazu;
+überschneidet sich eine Hilfsfunktion mit einer vorhandenen, wird die
+vorhandene benutzt statt einer zweiten Fassung:
 
 ```ts
 import '@angular/compiler';
@@ -875,14 +879,15 @@ Der verbleibende Fuß trägt nur noch Nummer, GPS und die Marke:
 ```html
 <footer class="flex items-center gap-1.5 border-t border-fb-border px-2 py-1.5">
   <span class="text-[11px] font-semibold text-fb-text-secondary">{{ i + 1 }}</span>
+  <!--
+    Unveraendert aus dem heutigen Stand uebernommen: `app-badge`, kein
+    dekorativer Marker. Beides ist durch einen bestehenden Test in
+    image-list.component.angular.spec.ts festgehalten - hier nichts umbauen.
+  -->
   @if (image.metadata.gps) {
-  <span
-    class="rounded-full bg-amber-400/15 px-1.5 py-0.5 text-[9px] font-bold text-amber-200"
-    title="Dieses Foto enthält den Aufnahmeort"
-  >
-    <span aria-hidden="true">◉</span>
+  <app-badge tone="caution" title="Dieses Foto enthält den Aufnahmeort">
     <span class="sr-only">Enthält Standortdaten. </span>GPS
-  </span>
+  </app-badge>
   }
   <button
     type="button"
