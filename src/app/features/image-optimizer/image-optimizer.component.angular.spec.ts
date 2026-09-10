@@ -413,7 +413,13 @@ describe('ImageOptimizerComponent', () => {
         images: signal([]),
         selectedPlatforms: signal([]),
         error: signal<string | null>(null),
+        // Wird im `finally` von `exportImages()` unbedingt zurueckgesetzt -
+        // ohne dieses Signal wuerde der Aufruf mit einer TypeError abbrechen.
+        exportProgress: signal<{ done: number; total: number } | null>(null),
         baseName: () => '',
+        // `canWriteDirectory()` liefert unter jsdom `false` (kein
+        // `showDirectoryPicker`), also bleibt dieser Block beim ZIP-Weg -
+        // `directoryExport` wird dabei nie angefasst.
         zipExport: { pack: vi.fn(pack) },
         download,
       });
@@ -558,5 +564,36 @@ describe('ImageOptimizerComponent', () => {
       expect(rotated).toEqual(expected);
       expect(rotated).not.toEqual(beforeRect);
     });
+  });
+});
+
+describe('ImageOptimizerComponent – Exportfortschritt', () => {
+  beforeAll(() => TestBed.resetTestingModule());
+
+  function createComponent(): ImageOptimizerComponent {
+    return TestBed.runInInjectionContext(() => new ImageOptimizerComponent());
+  }
+
+  it('zeigt waehrend des Exports, wie weit er ist', () => {
+    const component = createComponent();
+
+    component.reportExportProgress(3, 12);
+
+    const status = component.exportStatus();
+    expect(status.kind).toBe('progress');
+    expect(status.title).toContain('3');
+    expect(status.title).toContain('12');
+  });
+
+  it('zeigt nach dem Ende wieder den Bereitschaftstext', () => {
+    // Bliebe der Fortschritt stehen, saehe ein fertiger Export wie ein
+    // haengengebliebener aus.
+    const component = createComponent();
+    component.togglePlatform('ebay');
+    component.reportExportProgress(12, 12);
+
+    component.reportExportProgress(null, null);
+
+    expect(component.exportStatus().kind).not.toBe('progress');
   });
 });

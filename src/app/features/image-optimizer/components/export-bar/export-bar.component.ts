@@ -1,10 +1,8 @@
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 
-export interface ExportStatus {
-  readonly kind: 'ready' | 'error';
-  readonly title: string;
-  readonly detail: string | null;
-}
+export type ExportStatus =
+  | { readonly kind: 'ready' | 'error'; readonly title: string; readonly detail: string | null }
+  | { readonly kind: 'progress'; readonly title: string; readonly detail: string | null };
 
 /** Statuszeile und Export-Knopf. */
 @Component({

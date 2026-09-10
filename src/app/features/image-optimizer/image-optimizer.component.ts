@@ -38,6 +38,11 @@ import { FileDropDirective, splitImageFiles } from './directives/file-drop.direc
 import { ImageExportService } from './services/image-export.service';
 import { ZipExportService, folderName } from './services/zip-export.service';
 import {
+  canWriteDirectory,
+  DirectoryExportService,
+  ExportEntry,
+} from './services/directory-export.service';
+import {
   archiveName,
   effectiveBaseName,
   exportFileName,
@@ -126,6 +131,7 @@ export class ImageOptimizerComponent {
   private readonly confirm = inject(ConfirmDialogService);
   private readonly imageExport = inject(ImageExportService);
   private readonly zipExport = inject(ZipExportService);
+  private readonly directoryExport = inject(DirectoryExportService);
   private readonly rotation = inject(ImageRotationService);
   private readonly metadataReader = inject(MetadataReaderService);
   private readonly rotationQueue = new KeyedQueue<string>();
@@ -152,6 +158,9 @@ export class ImageOptimizerComponent {
   readonly rotationsPending = computed(() => this.rotationQueue.pendingCount() > 0);
   readonly error = signal<string | null>(null);
   readonly isDragActive = signal(false);
+
+  /** Wie viele Dateien geschrieben sind, waehrend ein Export laeuft. */
+  readonly exportProgress = signal<{ done: number; total: number } | null>(null);
 
   readonly selectedPlatforms = computed<PlatformProfile[]>(() =>
     this.profiles.filter((p) => this.selectedPlatformIds().includes(p.id)),
@@ -215,6 +224,15 @@ export class ImageOptimizerComponent {
    * Fallunterscheidungen bleibt.
    */
   readonly exportStatus = computed<ExportStatus>(() => {
+    const progress = this.exportProgress();
+    if (progress) {
+      return {
+        kind: 'progress',
+        title: `Bild ${progress.done} von ${progress.total}`,
+        detail: null,
+      };
+    }
+
     const image = this.activeImage();
     if (image?.loadError) return { kind: 'error', title: image.loadError, detail: null };
 
@@ -612,6 +630,11 @@ export class ImageOptimizerComponent {
     this.toast.success('Farbe und Belichtung wurden auf alle Bilder übernommen.');
   }
 
+  /** Meldet den Fortschritt; `null` beendet die Anzeige wieder. */
+  reportExportProgress(done: number | null, total: number | null): void {
+    this.exportProgress.set(done === null || total === null ? null : { done, total });
+  }
+
   async exportImages(): Promise<void> {
     if (this.isBusy() || this.rotationsPending() || this.resolutionIssue()) return;
 
@@ -623,7 +646,7 @@ export class ImageOptimizerComponent {
     const name = effectiveBaseName(this.baseName(), new Date());
 
     try {
-      const entries = [];
+      const entries: ExportEntry[] = [];
 
       for (const [index, image] of snapshot.images.entries()) {
         const element = await this.loadImage(image.dataUrl, image.file);
@@ -658,14 +681,25 @@ export class ImageOptimizerComponent {
         }
       }
 
-      const archive = await this.zipExport.pack(entries);
-      this.download(archive, archiveName(name));
-      this.toast.success('Bilder wurden exportiert.');
+      if (canWriteDirectory()) {
+        this.reportExportProgress(0, entries.length);
+        const result = await this.directoryExport.write(entries, name, (done, total) =>
+          this.reportExportProgress(done, total),
+        );
+        // Abbruch ist kein Fehler: keine Meldung, kein ZIP als Ersatz.
+        if (result.outcome === 'cancelled') return;
+        this.toast.success('Bilder wurden gespeichert.', `Ordner „${result.folder}“.`);
+      } else {
+        const archive = await this.zipExport.pack(entries);
+        this.download(archive, archiveName(name));
+        this.toast.success('Bilder wurden exportiert.');
+      }
     } catch (e: unknown) {
       const description = e instanceof Error ? e.message : 'Der Export ist fehlgeschlagen.';
       this.error.set(description);
       this.toast.error('Bilder konnten nicht exportiert werden.', description);
     } finally {
+      this.reportExportProgress(null, null);
       this.isBusy.set(false);
     }
   }

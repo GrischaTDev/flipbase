@@ -7,6 +7,8 @@
       @if (status().detail; as detail) {
         <p class="text-[10px] text-rose-400/80">{{ detail }}</p>
       }
+    } @else if (status().kind === 'progress') {
+      <p class="text-xs font-semibold text-sky-300" aria-live="polite">{{ status().title }}</p>
     } @else {
       <p class="text-xs font-semibold text-fb-text-primary">{{ status().title }}</p>
       @if (status().detail; as detail) {
