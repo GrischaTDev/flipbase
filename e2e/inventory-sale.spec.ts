@@ -4,7 +4,9 @@ import { startDemoMode } from './support/demo';
 
 const saleItem = 'Super Nintendo SNES Original Controller';
 
-test('verkauft ein Einzelstück genau einmal aus dem gemeinsamen Inventar', async ({ page }) => {
+test('verkauft ein Einzelstück genau einmal aus dem gemeinsamen Inventar @pr-smoke', async ({
+  page,
+}) => {
   await startDemoMode(page);
   await page.goto('/inventory');
 
