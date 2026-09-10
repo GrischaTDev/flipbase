@@ -105,6 +105,204 @@ bereits vollständig gemergten `feat/deal-monitor-collection-and-ui` und trug
 einen noch nicht eingecheckten Changelog-Eintrag einer parallel laufenden
 Codex-Sitzung; beides blieb unberührt.
 
+## 2026-09-10 – Codex – Konfigurationsproben der PR-Suite vollständig isolieren
+
+**Fix:** Die Gegenproben des Playwright-Vertragstests überschrieben bisher vorübergehend die verfolgte PR-Konfiguration. Jede Probe erhält nun per `mkdtemp` einen eigenen, aufgelösten und geprüften Ordner mit Kopien beider Konfigurationen und des Testverzeichnisses. Der Temp-Bereich liegt unter `tmp/` außerhalb der echten Testauswahl; Cleanup entfernt ausschließlich die jeweilige eigene Probe. Auch der zusätzliche verschachtelte Smoke-Test arbeitet nur in seiner Kopie.
+
+**Prüfung:** Neue Regression zuerst rot, danach sieben Vertragstests grün. Die Regression lädt gleichzeitig eine gültige Originalkonfiguration und eine ungültige Kopie und prüft unveränderten Originalinhalt und Änderungszeitpunkt. Workflowprüfung: 56 erfolgreich, vier bestehende Windows-Skips. Playwright listet unverändert exakt acht Verträge. Formatierung, ESLint und Diffprüfung erfolgreich. Keine Änderung an Anwendungscode, echten Playwright-Konfigurationen oder Smoke-Markierungen; kein Push oder PR.
+
+## 2026-09-10 – Codex – Playwright-PR-Gate auf kritischen Browserkern reduziert
+
+**Entscheidung:** Der nach Gemini-PR #49 geprüfte Vorschlag zur vollständigen
+Entfernung von Playwright wurde nicht übernommen. Offizielle Playwright-Hinweise
+zu Browserprüfungen, Sharding und Browserinstallation sowie die Repository-
+Messungen zeigen, dass echte Prüfungen für Fokus, Popover-Layer, Diagramm-
+Rendering, Bildpersistenz und berechnete Barrierefreiheit weiterhin einen eigenen
+Wert haben. PR #49 war zuvor in den Einkaufs-Branch integriert worden.
+
+**Umsetzung:** Der PR-Gate führt jetzt exakt acht `@pr-smoke`-Verträge in
+Chromium aus, ohne Wiederholung und mit Abbruch nach dem ersten Fehler. Die
+Chromium-Headless-Shell wird über `--with-deps --only-shell chromium`
+installiert. WebKit läuft täglich und Firefox wöchentlich mit demselben Kern;
+die vollständige Suite bleibt lokal verfügbar. Required Checks bleiben
+fail-closed. Browser-Caches und ein demo-fähiger Produktionsbau wurden bewusst
+nicht eingeführt.
+
+**Prüfung:** Der Kern lief lokal 8/8 in 58 Sekunden. Der Workflow-
+Vertrag lief mit normaler und CI-Umgebung grün (57 grüne Tests, vier erwartete
+Windows-Skips); Actionlint, Prettier, ESLint und `git diff --check` waren grün.
+Die Messung bezieht sich auf den Browserkern, nicht auf die gesamte CI, deren
+Angular- und Datenbankprüfungen weiterhin mehrere Minuten benötigen. Der
+Umsetzungsnachweis steht unter
+`docs/superpowers/plans/2026-09-10-playwright-hybrid-umsetzung.md`.
+
+## 2026-09-10 – Antigravity – CI-Workflow-Analyse und Playwright-Evaluierungsplan erstellt
+
+**Analyse:** Umfassende Evaluierung der GitHub Actions Workflows (`ci.yml`, `quality-nightly.yml`, `test-benchmark.yml`) und CI-Skripte im Repository durchgeführt. Die Pipeline weist durch deterministische Change Detection, Content-Addressable PR Check Reuse (Tree-Hash-Verifikation) und Least-Privilege-Rechte einen sehr hohen Reifegrad auf. Größter Flaschenhals im PR-Gate ist der Job `browser-smoke`: Ungecachter Chromium-Download, Start des ressourcenintensiven Angular Dev-Servers (`ng serve`) auf 2-vCPU-Runnern und Test-Bloat (22 Playwright-Dateien für CSS-, Schrift-, Farb- und Badge-Prüfungen).
+
+**Plan & Formular:** Detaillierten Evaluierungs- und Umsetzungsplan unter `docs/superpowers/plans/2026-09-10-playwright-evaluation-und-ci-optimierung.md` erstellt. Er stellt drei Optionen gegenüber (Option 1: Vollständiger Ausstieg aus Playwright mit Verlagerung relevanter Interaktionen in Vitest-jsdom-Tests; Option 2: Minimaler 1-Pfad-Smoke-Test auf Static Preview; Option 3: Technische Sanierung des Status Quo) und enthält ein Entscheidungsformular mit Aufgabenpaketen für die beauftragte Folge-KI.
+
+---
+
+## 2026-09-10 – Codex – Produkt-E2E an neuen Einkaufsvertrag angepasst
+
+**Korrektur:** Der integrierte Produkt-Browsertest erwartete noch die entfernte
+Auswahl zwischen Gesamt- und Einzelpreisen. Er prüft die Artikelpreise nun direkt
+im aktuellen Standardablauf. Zwei Entwurfsabläufe erzeugen ihren Warenbetrag
+ebenfalls über gespeicherte Artikelpreise statt über das entfernte
+Warenbetragsfeld. Die Theme-Vorgabe wird vor dem ersten Anwendungsstart gesetzt,
+damit Hell- und Dunkelvarianten unabhängig vom bereits initialisierten
+Theme-Service bleiben.
+
+**Prüfung:** Der Fehler wurde aus dem Browser-Smoke-Lauf von PR 48 reproduziert.
+Die zehn betroffenen Produkt- und Entwurfsabläufe bestehen mit den
+CI-Einstellungen und einem Worker. Formatierung und Lint sind grün. Der danach
+gestartete vollständige Browserlauf wurde für die angeforderte Bewertung von PR
+49 gestoppt und hatte zuvor weitere veraltete Selektoren in älteren
+Playwright-Dateien sichtbar gemacht.
+
+---
+
+## 2026-09-10 – Codex – Einkaufserfassungs-E2E an Artikelpreise angepasst
+
+**Korrektur:** Zwei E2E-Abläufe der Einkaufserfassung erzeugen ihren Warenbetrag
+nun über einen hinzugefügten Artikel mit Stückpreis. Damit prüfen Kostenverwaltung,
+Speichern, Zentrierung und Inline-Bearbeitung wieder den aktuellen artikelbasierten
+Vertrag, ohne das Anwendungsverhalten zu verändern.
+
+**Prüfung:** Die beiden betroffenen Playwright-Tests sowie anschließend die
+vollständige `purchase-entry.spec.ts` mit neun erfolgreichen Abläufen wurden
+ausgeführt. Prettier und ESLint wurden gezielt für die geänderte Testdatei und
+diesen Eintrag geprüft. Kein Commit.
+
+---
+
+## 2026-09-10 – Codex – Verkäuferauswahlen vereinheitlicht
+
+**Korrektur:** Die sichtbaren Auswahlen für Verkäuferart und Land im
+Verkäuferdialog sowie der Typfilter der Verkäuferliste verwenden nun den
+gemeinsamen Auswahlbaustein. Die Dialogfelder bleiben an ihre reaktiven
+Formularfelder gebunden, die deutschen Ländernamen bleiben alphabetisch und der
+Listenfilter nutzt die kompakte Filterdarstellung. Das Fachverhalten wurde nicht
+geändert.
+
+**Prüfung:** Die zwei fokussierten Angular-Testdateien prüfen mit insgesamt
+zwölf Tests die Auswahlwerte, Formularübernahme, alphabetische Länderfolge,
+genau einen Typfilter und Barrierefreiheit. Die gemeinsame Admin-UI-Prüfung
+meldet für 68 Vorlagen keine Verstöße. Prettier und ESLint wurden gezielt für
+die betroffenen Sellers-Dateien und diesen Eintrag ausgeführt. Kein Commit.
+
+---
+
+## 2026-09-10 – Codex – Integrationsregressionen im Einkauf behoben
+
+**Ursache und Fix:** Die atomaren Status- und Tracking-RPCs liefern absichtlich
+nur die Datenbankzeile zurück. Der lokale Einkaufsservice ersetzte damit zuvor
+vollständig geladene Beziehungen und berechnete Angaben. Die lokale Übernahme
+führt nun einen flachen Merge aus: Felder der bestätigten Tabellenzeile
+überschreiben den alten Stand, fehlende beziehungsweise `undefined` Felder wie
+Verkäufer, Zusatzkosten und Einkaufspositionen bleiben erhalten. Der Status-RPC
+akzeptiert außerdem nach einem Wareneingang die Zustände `partially_received`
+und `received`, wenn der unabhängige Ankunftsstatus noch fehlt; der direkte Weg
+von Bestellt zu Angekommen bleibt unverändert.
+
+**Prüfung:** Zwei neue Service-Regressionen prüfen die Teilantworten für
+Workflow und Tracking. Der zugehörige pgTAP-Test prüft Teillieferung und
+vollständigen Wareneingang ohne vorheriges `shipment_status = arrived`.
+`purchase.service.spec.ts` besteht mit 39 Tests, der fokussierte pgTAP-Lauf mit
+23 Prüfungen. ESLint und Prettier für die geänderten TypeScript-Dateien sind
+grün. Die Migration wurde anschließend aus dem finalen deklarativen Schema neu
+erzeugt und über einen vollständigen lokalen Datenbank-Reset geprüft.
+
+---
+
+## 2026-09-10 – Codex – Paketpreis-Präzision in Einkaufszeilen korrigiert
+
+**Korrektur:** Stückpreise aus der stückzahlunabhängigen Paketpreisverteilung
+akzeptieren nun bis zu 16 Nachkommastellen, während Positionssummen weiterhin
+centgenau geprüft werden. Divisionsergebnisse wie 1 € / 7 Stück werden vor dem
+Entwurf stabil auf 16 Stellen begrenzt; die centgenaue Positionssumme bleibt
+dabei erhalten.
+
+**Prüfung:** Regressionstest für die speicherbare 1-€-Verteilung auf sieben
+Stück ergänzt und gezielt ausgeführt. ESLint und TypeScript-Typprüfung sind
+ebenfalls erfolgreich; keine SQL-Dateien geändert.
+
+---
+
+## 2026-09-10 – Codex – Einkaufs- und Verkäuferumbau umgesetzt
+
+**Verkäufer:** Die frühere Quellen-/Lieferantenverwaltung ist nutzerseitig eine
+einheitliche Verkäuferverwaltung mit gemeinsamer Tabellenansicht und Filter für
+Unternehmen beziehungsweise Privatpersonen. Verkäufer lassen sich direkt im
+Auswahlfeld der Einkaufserfassung anlegen. Das Formular verwendet klare Namen,
+eine alphabetische Länderauswahl sowie eine Telefonnummerneingabe mit Flagge,
+Ländervorwahl und E.164-Speicherung. Profilverweise werden nicht mehr erfasst.
+
+**Einkaufserfassung:** Plattform, Bezugsquelle, Inhaltsstatus, Angebotslink und
+doppelte Notizfelder sind aus dem sichtbaren Ablauf entfernt. Artikel kommen aus
+dem Artikelstamm oder werden über den wiederverwendbaren Produktdialog inklusive
+optionalem Bild angelegt. Der Warenbetrag wird aus den Positionen berechnet. Ein
+Paketpreis kann in einem Dialog gleichmäßig je Position und unabhängig von deren
+Stückzahl verteilt werden; centgenaue Positionssummen bleiben auch dann erhalten,
+wenn der rechnerische Stückdurchschnitt mehr Nachkommastellen benötigt.
+
+**Status, Tracking und Chronik:** Der fachliche Status führt direkt von Entwurf
+über Bestellt zu Angekommen. Tracking bleibt davon unabhängig und freiwillig.
+Die Status-Badges unterscheiden sich farblich. Entwurfsänderungen, Bestellt,
+Angekommen sowie hinzugefügtes, geändertes oder entferntes Tracking werden
+atomar als Chronikereignisse gespeichert und nach einer Aktion sofort neu
+geladen. Einkaufsdetails sprechen ebenfalls nur noch von Verkäufern und zeigen
+keine alte Quelle oder Angebots-URL.
+
+**Datenbank und Übergang:** Das deklarative Schema und die daraus erzeugte
+Migration ergänzen Ländercode und Ankunftszeitpunkt sowie die neuen atomaren
+Status- und Tracking-RPCs. Produktbilder verwenden das inzwischen auf `master`
+vorhandene relationale Medienmodell. Das Prüfarchiv enthält keine Quellen mehr.
+Technische Altspalten und die alte Quellentabelle bleiben vorerst ausschließlich als
+interne Kompatibilität für die umfangreichen vorhandenen Kostenfunktionen; ihre
+vollständige Entfernung benötigt eine getrennte Ablösung dieser Funktionen und
+ist nicht mehr Teil der Oberfläche.
+
+**Verbindlicher PR-Abschluss:** Nach einer fertigen, lokal geprüften Änderung
+fragt der Assistent genau einmal, ob der PR jetzt erstellt und nach erfolgreichen
+Pflichtprüfungen gemergt werden soll. Ein „Ja“ umfasst Push, PR, grünen
+Merge-Commit und anschließendes Löschen von Feature-Zweig und Worktree. Für die
+Integration gilt ausschließlich `origin/master`; alte bereits integrierte
+Zweige sind nur noch kontrolliert aufzuräumen.
+
+**Prüfung:** Lokalen Supabase-Stack vollständig zurückgesetzt und die erzeugte
+Migration angewendet. Alle 39 SQL-Testdateien mit 1.417 Prüfungen sind grün.
+`npm run verify` ist vollständig erfolgreich: Format, ESLint, Typen, 49
+erfolgreiche Workflow-Tests bei vier plattformbedingt übersprungenen Fällen,
+Suite-Audit, 1.041 Node-, 167 DOM-, 590 Angular- und 13 Landing-Prüfungen sowie
+Produktionsbau. Zusätzlich bestehen neun Chromium-Abläufe der
+Einkaufserfassung einschließlich Verkäuferanlage, Paketpreisverteilung,
+Kostenverwaltung und Inline-Bearbeitung.
+
+---
+
+## 2026-09-10 – Codex – Einkaufs- und Verkäuferumbau vorbereitet
+
+**Auftrag/Ergebnis:** Den abgestimmten Umbau der Einkaufserfassung um die
+vollständige Entfernung des nutzerseitigen Konzepts „Quellen“ erweitert. Die
+bisherige Seite „Quellen & Lieferanten“ soll zu „Verkäufer“ werden, ausschließlich
+Unternehmen und Privatpersonen verwalten, die gemeinsame Shopify-nahe
+Tabellenansicht verwenden und nach Verkäufertyp filterbar sein. Die vorhandene
+Tabelle `suppliers` bleibt als passender interner Fachbegriff bestehen; das
+eigenständige Quellenmodell und die Verknüpfung von Einkäufen zu Quellen sollen
+entfallen.
+
+**Vorbereitung und Prüfung:** Eigenen Worktree
+`codex/purchase-entry-redesign` auf Merge-Stand von PR 39 angelegt und
+Abhängigkeiten installiert. Der unveränderte Ausgangsstand ist mit 993 Node-,
+138 DOM- und 511 Angular-Tests grün. `npm ci` meldet drei bereits vorhandene
+Abhängigkeitswarnungen (zwei moderat, eine hoch); keine automatische
+Paketaktualisierung vorgenommen. Fachlichen Entwurf und testgetriebenen
+Umsetzungsplan dokumentiert; das optionale Produktbild ist dabei ausdrücklich
+der gemeinsamen Produkterstellung zugeordnet. Noch keine Anwendungs-,
+Datenbank- oder Geschäftsdaten geändert.
+
 ---
 
 ## 2026-09-09 – Codex – CI-Browserfehler an Einstieg und Dashboardbreiten beheben

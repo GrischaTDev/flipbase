@@ -20,23 +20,7 @@
       (clicked)="orderedRequested.emit()"
       >Als bestellt markieren</app-button
     >
-  } @else if (shipmentStatus() === 'not_shipped') {
-    <app-button
-      size="slim"
-      data-mark-arrived
-      [disabled]="submitting()"
-      (clicked)="arrivedRequested.emit()"
-      >Angekommen</app-button
-    >
-    <app-button
-      size="slim"
-      variant="primary"
-      data-mark-transit
-      [disabled]="submitting()"
-      (clicked)="transitRequested.emit()"
-      >Als unterwegs markieren</app-button
-    >
-  } @else if (shipmentStatus() === 'in_transit') {
+  } @else if (shipmentStatus() !== 'arrived') {
     <app-button
       size="slim"
       variant="primary"

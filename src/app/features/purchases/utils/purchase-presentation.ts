@@ -13,11 +13,10 @@ import type {
   PurchaseDetailRow,
   PurchaseListRow,
   PurchaseReceiptSummary,
-  PurchaseStatusLabel,
-  PurchaseStatusTone,
   PresentationLoadState,
   RecordedSalePresentation,
 } from '../models/purchase-presentation.models';
+import { getPurchaseStatusPresentation } from './purchase-status-presentation';
 
 export interface PurchasePresentationContext {
   readonly inventoryItems: readonly InventoryItem[];
@@ -160,31 +159,6 @@ function getLotSoldUnits(lots: readonly StockLot[], movements: readonly StockMov
   return Math.max(0, sold);
 }
 
-function getPurchaseStatus(
-  purchase: Purchase,
-  items: readonly InventoryItem[],
-): PurchaseStatusLabel {
-  const receivingStatus = purchase.receiving_status as string | undefined;
-  if (receivingStatus === 'archived') return 'Archiviert';
-  if (receivingStatus === 'cancelled' || receivingStatus === 'canceled') return 'Storniert';
-
-  if (receivingStatus === 'partially_received') return 'Teillieferung';
-  if (receivingStatus === 'received' || purchase.shipment_status === 'arrived') return 'Angekommen';
-  if (purchase.shipment_status === 'in_transit') return 'Unterwegs';
-  if (receivingStatus === 'ordered') return 'Bestellt';
-  if (purchase.entry_status === 'capturing' || items.length > 0) return 'Prüfung erforderlich';
-  return 'Entwurf';
-}
-
-function getPurchaseStatusTone(status: PurchaseStatusLabel): PurchaseStatusTone {
-  if (status === 'Storniert') return 'critical';
-  if (status === 'Angekommen' || status === 'Eingetroffen' || status === 'Erfassung abgeschlossen')
-    return 'success';
-  if (status === 'Unterwegs') return 'info';
-  if (status === 'Teillieferung' || status === 'Prüfung erforderlich') return 'caution';
-  return 'neutral';
-}
-
 function totalPurchaseCost(purchase: Purchase): number | null {
   if (purchase.total_purchase_cost !== undefined) return purchase.total_purchase_cost;
   if (purchase.purchase_price === null || !Number.isFinite(purchase.purchase_price)) return null;
@@ -273,7 +247,7 @@ export function mapPurchaseListRow(
 ): PurchaseListRow {
   const items = purchaseItems(purchase, context);
   const totalCost = totalPurchaseCost(purchase);
-  const purchaseStatus = getPurchaseStatus(purchase, items);
+  const purchaseStatus = getPurchaseStatusPresentation(purchase);
   return {
     reference: purchase.record_number
       ? purchase.record_number.startsWith('#')
@@ -290,13 +264,13 @@ export function mapPurchaseListRow(
             ? 'Inhalt erfassen'
             : 'Erfassung offen',
     id: purchase.id,
-    title: purchase.title || purchase.supplier?.name || purchase.source?.name || 'Einkauf',
+    title: purchase.title || purchase.supplier?.name || 'Einkauf',
     type: purchase.type,
     typeLabel: purchaseTypeLabels.transform(purchase.type),
     purchaseDate: purchase.purchase_date,
     supplierLabel: purchase.supplier?.name || 'Kein Verkäufer',
-    purchaseStatus,
-    purchaseStatusTone: getPurchaseStatusTone(purchaseStatus),
+    purchaseStatus: purchaseStatus.label,
+    purchaseStatusTone: purchaseStatus.tone,
     allocationOpen: getAllocationOpen(purchase, items, totalCost),
     totalCost: money(totalCost),
     receipt: summarizeReceipt(purchase),

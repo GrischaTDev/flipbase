@@ -41,6 +41,7 @@ beforeEach(() => {
     openDirection: ['openDirection', 1, null],
     ariaLabel: ['ariaLabel', 1, null],
     triggerId: ['triggerId', 1, null],
+    actionLabel: ['actionLabel', 1, null],
   };
   metadata.declaredInputs = {
     ...metadata.declaredInputs,
@@ -54,6 +55,7 @@ beforeEach(() => {
     openDirection: 'openDirection',
     ariaLabel: 'ariaLabel',
     triggerId: 'triggerId',
+    actionLabel: 'actionLabel',
   };
   TestBed.resetTestingModule();
   TestBed.configureTestingModule({ imports: [CustomSelectComponent] });
@@ -79,6 +81,7 @@ function createSelect(
     disabled?: boolean;
     triggerId?: string;
     options?: readonly SelectOption<string>[];
+    actionLabel?: string;
   } = {},
 ) {
   const fixture = TestBed.createComponent(CustomSelectComponent<string>);
@@ -87,6 +90,7 @@ function createSelect(
   if (config.variant) fixture.componentRef.setInput('variant', config.variant);
   if (config.disabled !== undefined) fixture.componentRef.setInput('disabled', config.disabled);
   if (config.triggerId) fixture.componentRef.setInput('triggerId', config.triggerId);
+  if (config.actionLabel) fixture.componentRef.setInput('actionLabel', config.actionLabel);
   fixture.componentInstance.writeValue(config.value ?? null);
   fixture.detectChanges();
 
@@ -135,6 +139,23 @@ async function flushQueuedFocus(fixture: ReturnType<typeof createSelect>): Promi
 }
 
 describe('CustomSelectComponent', () => {
+  it('zeigt eine getrennte Aktion am Ende des geöffneten Menüs', () => {
+    const fixture = createSelect({ actionLabel: 'Verkäufer erstellen' });
+    const action = vi.fn();
+    fixture.componentInstance.action.subscribe(action);
+
+    triggerOf(fixture).click();
+    fixture.detectChanges();
+    const actionButton = fixture.nativeElement.querySelector(
+      '[data-custom-select-action]',
+    ) as HTMLButtonElement | null;
+    actionButton?.click();
+
+    expect(actionButton?.textContent).toContain('Verkäufer erstellen');
+    expect(action).toHaveBeenCalledOnce();
+    expect(fixture.componentInstance.isOpen()).toBe(false);
+  });
+
   it.each(['default', 'pill', 'filter'] as const)(
     'rendert die %s-Variante als benannte geschlossene Combobox',
     (variant) => {

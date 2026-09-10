@@ -81,11 +81,13 @@ function fixture() {
   const component = Object.create(RecordTimelineComponent.prototype) as RecordTimelineComponent;
   const workspace = signal<{ id: string }>({ id: 'w1' });
   const entityId = signal('p1');
+  const refreshKey = signal(0);
   const list = vi.fn();
   const addComment = vi.fn();
   Object.assign(component, {
     entityType: signal('purchase'),
     entityId,
+    refreshKey,
     workspace: { currentWorkspace: workspace },
     auth: { currentUser: signal({ id: 'u1' }) },
     timeline: { list, addComment },
@@ -99,8 +101,9 @@ function fixture() {
     expandedId: signal<string | null>(null),
     contextVersion: 0,
     loadVersion: 0,
+    contextIdentity: null,
   });
-  return { component, workspace, entityId, list, addComment };
+  return { component, workspace, entityId, refreshKey, list, addComment };
 }
 describe('RecordTimelineComponent', () => {
   it('gruppiert Tage, maskiert Klartext und öffnet fachliche Details zugänglich', async () => {
@@ -118,6 +121,7 @@ describe('RecordTimelineComponent', () => {
     Object.assign(timeline.componentInstance, {
       entityType: signal('purchase'),
       entityId: signal('p1'),
+      refreshKey: signal(0),
     });
     timeline.detectChanges();
     await timeline.whenStable();
@@ -173,6 +177,33 @@ describe('RecordTimelineComponent', () => {
     expect(element.querySelector('dl')?.textContent).toContain('Einkaufspreis');
     expect(element.querySelector('dl')?.textContent).toContain('Nachher: 12');
   });
+  it('lädt die Chronik nach einem externen Fachereignis neu', async () => {
+    const list = vi.fn(async () => ({ entries: [], nextCursor: null }));
+    const timeline = TestBed.configureTestingModule({
+      imports: [RecordTimelineComponent],
+      providers: [
+        { provide: RecordTimelineService, useValue: { list } },
+        { provide: WorkspaceService, useValue: { currentWorkspace: signal({ id: 'w1' }) } },
+        { provide: AuthService, useValue: { currentUser: signal({ id: 'u1' }) } },
+      ],
+    }).createComponent(RecordTimelineComponent);
+    const refreshKey = signal(0);
+    Object.assign(timeline.componentInstance, {
+      entityType: signal('purchase'),
+      entityId: signal('p1'),
+      refreshKey,
+    });
+    timeline.detectChanges();
+    await timeline.whenStable();
+
+    refreshKey.set(1);
+    timeline.detectChanges();
+    await timeline.whenStable();
+
+    expect(list).toHaveBeenCalledTimes(2);
+    expect(list).toHaveBeenLastCalledWith('w1', 'purchase', 'p1', undefined);
+  });
+
   it('lädt nach dem Speichern neu und bewahrt einen ungesendeten Kommentar', async () => {
     const refreshed = { ...comment, id: 'saved', body: 'Neu gespeichert' };
     const list = vi.fn().mockResolvedValue({ entries: [comment], nextCursor: null });

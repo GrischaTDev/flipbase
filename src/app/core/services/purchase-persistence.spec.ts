@@ -103,6 +103,7 @@ describe('PurchaseService – bestätigte Tracking- und Verteiländerungen', () 
     const purchasesRaw = signal<Purchase[]>([einkauf]);
     const selectedPurchaseRaw = signal<Purchase | null>(einkauf);
     const lokalSpeichern = vi.fn();
+    const rpc = vi.fn(async () => ({ data: null, error: { code: '42501', message: 'denied' } }));
     const service = Object.create(PurchaseService.prototype) as PurchaseService;
 
     Object.assign(service, {
@@ -115,15 +116,7 @@ describe('PurchaseService – bestätigte Tracking- und Verteiländerungen', () 
         savePurchase: lokalSpeichern,
       },
       syncStatus: new SyncStatusService(),
-      supabase: {
-        client: {
-          from: () => ({
-            update: () => ({
-              eq: async () => ({ error: { code: '42501', message: 'denied' } }),
-            }),
-          }),
-        },
-      },
+      supabase: { client: { rpc } },
     });
 
     const ergebnis = await service.updatePurchaseTracking(einkauf.id, 'TRACK-NEU', 'dhl');
@@ -132,10 +125,16 @@ describe('PurchaseService – bestätigte Tracking- und Verteiländerungen', () 
     expect(purchasesRaw()).toEqual([einkauf]);
     expect(selectedPurchaseRaw()).toEqual(einkauf);
     expect(lokalSpeichern).not.toHaveBeenCalled();
+    expect(rpc).toHaveBeenCalledWith('update_purchase_tracking', {
+      p_purchase_id: einkauf.id,
+      p_tracking_number: 'TRACK-NEU',
+      p_tracking_carrier: 'dhl',
+      p_tracking_status: 'pending',
+    });
   });
 
-  it('bricht das Zustellen nach einem Tracking-Fehler vor den Artikeln ab', async () => {
-    const trackingError = new Error('Tracking fehlgeschlagen');
+  it('bricht das Zustellen nach einem Workflow-Fehler vor den Artikeln ab', async () => {
+    const workflowError = new Error('Status fehlgeschlagen');
     const artikel: InventoryItem = {
       id: 'item-1',
       workspace_id: einkauf.workspace_id,
@@ -152,7 +151,7 @@ describe('PurchaseService – bestätigte Tracking- und Verteiländerungen', () 
 
     Object.assign(service, {
       purchases: signal<Purchase[]>([einkauf]),
-      updatePurchase: vi.fn(async () => ({ error: trackingError })),
+      setPurchaseWorkflowStatus: vi.fn(async () => ({ error: workflowError })),
       inventory: {
         items: signal<InventoryItem[]>([artikel]),
         updateItemStatus,
@@ -161,7 +160,7 @@ describe('PurchaseService – bestätigte Tracking- und Verteiländerungen', () 
 
     const ergebnis = await service.markPurchaseDeliveredAndSyncItems(einkauf.id);
 
-    expect(ergebnis).toEqual({ updatedCount: 0, error: trackingError });
+    expect(ergebnis).toEqual({ updatedCount: 0, error: workflowError });
     expect(updateItemStatus).not.toHaveBeenCalled();
   });
 

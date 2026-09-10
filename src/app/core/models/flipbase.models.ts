@@ -82,6 +82,7 @@ export interface Source {
 export interface Supplier {
   seller_type?: 'private' | 'business' | null;
   contact_person?: string | null;
+  country_code?: string | null;
   country?: string | null;
   street?: string | null;
   address_extra?: string | null;
@@ -89,7 +90,6 @@ export interface Supplier {
   city?: string | null;
   email?: string | null;
   phone?: string | null;
-  profile_url?: string | null;
   website?: string | null;
   id: string;
   workspace_id: string;
@@ -103,6 +103,21 @@ export interface Supplier {
    * und diese Verweise müssen nachvollziehbar bleiben.
    */
   is_active?: boolean;
+}
+
+export interface SellerFormValue {
+  seller_type: 'private' | 'business';
+  name: string;
+  contact_person: string | null;
+  country_code: string | null;
+  street: string | null;
+  address_extra: string | null;
+  postal_code: string | null;
+  city: string | null;
+  email: string | null;
+  phone: string | null;
+  website: string | null;
+  notes: string | null;
 }
 
 export type PurchaseType = 'single' | 'mystery_pack' | 'lot' | 'pallet';
@@ -206,6 +221,7 @@ export interface Purchase {
   tracking_carrier?: TrackingCarrier | null;
   tracking_status?: InboundTrackingStatus | null;
   receiving_status?: PurchaseReceivingStatus;
+  arrived_at?: string | null;
   entry_status?: PurchaseEntryStatus;
   finalized_at?: string | null;
   finalized_by?: string | null;

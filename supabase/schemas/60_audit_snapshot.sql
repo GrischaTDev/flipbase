@@ -37,7 +37,7 @@ begin
   -- STABLE hält auch diese einzelnen SELECTs im Snapshot des RPC-Aufrufs.
   -- Die Tabellenliste ist geschlossen; keine Bezeichner aus Client-Eingaben.
   foreach v_table in array array[
-    'sources', 'suppliers', 'catalog_products',
+    'suppliers', 'catalog_products',
     'purchases', 'purchase_lines', 'purchase_costs', 'inventory_items',
     'stock_lots', 'stock_movements', 'sales', 'sale_lines',
     'sale_cost_entries', 'sale_line_lot_allocations', 'returns',

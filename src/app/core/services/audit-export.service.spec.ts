@@ -14,7 +14,6 @@ function snapshotFixture() {
     captured_at: '2026-09-04T16:00:00Z',
     snapshot: '1:3:',
     business_events: [],
-    sources: [],
     suppliers: [],
     catalog_products: [],
     purchases: [],
@@ -75,7 +74,7 @@ describe('Audit-Snapshot-Vertrag', () => {
     });
     expect(result.manifest.createdAt).toBe('2026-09-04T16:00:00Z');
     expect(result.manifest.filters['snapshot']).toBe('1:3:');
-    expect(result.manifest.files).toHaveLength(20);
+    expect(result.manifest.files).toHaveLength(19);
     expect(result.manifest.files.map((file) => file.name).sort()).toEqual(
       [
         'business-events.csv',
@@ -94,7 +93,6 @@ describe('Audit-Snapshot-Vertrag', () => {
         'sale-line-lot-allocations.csv',
         'sale-lines.csv',
         'sales.csv',
-        'sources.csv',
         'stock-lots.csv',
         'stock-movements.csv',
         'suppliers.csv',
@@ -156,7 +154,6 @@ describe('AuditExportService archive builder', () => {
     };
     const data: AuditArchiveData = {
       businessEvents: [event],
-      sources: [{ id: 'source-1', workspace_id: 'workspace-1', name: 'Flohmarkt' }],
       suppliers: [{ id: 'supplier-1', workspace_id: 'workspace-1', name: 'Händler GmbH' }],
       catalogProducts: [
         {
@@ -250,7 +247,6 @@ describe('AuditExportService archive builder', () => {
         'sale-costs.csv',
         'sale-lines.csv',
         'sales.csv',
-        'sources.csv',
         'stock-lots.csv',
         'stock-movements.csv',
         'suppliers.csv',

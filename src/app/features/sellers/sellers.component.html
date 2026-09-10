@@ -1,0 +1,161 @@
+<div class="space-y-5 animate-fade-in">
+  <app-page-header
+    title="Verkäufer"
+    subtitle="Unternehmen und Privatpersonen für deine Einkäufe verwalten."
+    [icon]="usersIcon"
+  >
+    <app-badge header-badge tone="neutral" [mono]="true">
+      {{ filteredSellers().length }} Verkäufer
+    </app-badge>
+
+    <div header-actions>
+      <app-button variant="primary" size="md" [icon]="plusIcon" (clicked)="openCreateDialog()">
+        Verkäufer erstellen
+      </app-button>
+    </div>
+  </app-page-header>
+
+  @if (actionError(); as error) {
+    <p role="alert" class="rounded-lg bg-rose-500/10 px-3 py-2 text-sm text-rose-300">
+      {{ error }}
+    </p>
+  }
+
+  <section class="linear-surface overflow-hidden rounded-xl" aria-labelledby="seller-table-title">
+    <h2 id="seller-table-title" class="sr-only">Verkäuferliste</h2>
+    <div class="flex flex-wrap items-center gap-2 border-b border-fb-line p-2">
+      <label for="seller-type-filter">
+        <span class="sr-only">Verkäufertyp</span>
+        <app-custom-select
+          data-seller-type-filter
+          triggerId="seller-type-filter"
+          ariaLabel="Verkäufertyp"
+          variant="filter"
+          size="sm"
+          widthClass="w-auto"
+          [options]="typeFilterOptions"
+          [value]="typeFilter()"
+          (valueChange)="typeFilter.set($event ?? 'all')"
+        />
+      </label>
+
+      <button
+        type="button"
+        class="ml-auto rounded-lg px-2.5 py-1 text-xs font-medium text-fb-text-muted transition hover:bg-fb-surface-hover hover:text-fb-text-primary"
+        [class.text-amber-400]="suppliersService.zeigeArchivierte()"
+        [attr.aria-pressed]="suppliersService.zeigeArchivierte()"
+        (click)="toggleArchivedVisibility()"
+      >
+        {{
+          suppliersService.zeigeArchivierte() ? 'Archivierte ausblenden' : 'Archivierte anzeigen'
+        }}
+      </button>
+    </div>
+
+    @if (suppliersService.isLoading()) {
+      <p role="status" class="p-8 text-center text-sm text-fb-text-muted">
+        Verkäufer werden geladen …
+      </p>
+    } @else if (filteredSellers().length > 0) {
+      <div class="overflow-x-auto">
+        <table class="linear-table min-w-[900px]">
+          <caption class="sr-only">
+            Gespeicherte Verkäufer
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">Name / Firma</th>
+              <th scope="col">Typ</th>
+              <th scope="col">Kontaktperson</th>
+              <th scope="col">E-Mail / Telefon</th>
+              <th scope="col">Ort / Land</th>
+              <th scope="col">Status</th>
+              <th scope="col" class="text-right">Aktionen</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (seller of filteredSellers(); track seller.id) {
+              <tr data-seller-row [class.opacity-60]="seller.is_active === false">
+                <td>
+                  <button
+                    type="button"
+                    class="font-semibold text-fb-text-primary transition hover:text-fb-primary"
+                    (click)="openEditDialog(seller)"
+                  >
+                    {{ seller.name }}
+                  </button>
+                </td>
+                <td>{{ typeLabel(seller) }}</td>
+                <td>{{ seller.contact_person || '—' }}</td>
+                <td>
+                  <span class="block">{{ seller.email || '—' }}</span>
+                  @if (seller.phone) {
+                    <span class="mt-0.5 block text-xs text-fb-text-muted">{{ seller.phone }}</span>
+                  }
+                </td>
+                <td>{{ formatLocation(seller) }}</td>
+                <td>
+                  <app-badge [tone]="seller.is_active === false ? 'neutral' : 'success'">
+                    {{ seller.is_active === false ? 'Archiviert' : 'Aktiv' }}
+                  </app-badge>
+                </td>
+                <td class="text-right">
+                  <div class="inline-flex items-center gap-1">
+                    <button
+                      type="button"
+                      class="rounded-md p-2 text-fb-text-muted transition hover:bg-fb-surface-hover hover:text-fb-text-primary"
+                      [attr.aria-label]="seller.name + ' bearbeiten'"
+                      (click)="openEditDialog(seller)"
+                    >
+                      <svg [lucideIcon]="pencilIcon" class="size-4" aria-hidden="true"></svg>
+                    </button>
+                    <button
+                      type="button"
+                      class="rounded-md p-2 text-fb-text-muted transition hover:bg-fb-surface-hover hover:text-fb-text-primary"
+                      [attr.aria-label]="
+                        seller.name +
+                        (seller.is_active === false ? ' wiederherstellen' : ' archivieren')
+                      "
+                      (click)="setArchived(seller, seller.is_active !== false)"
+                    >
+                      <svg
+                        [lucideIcon]="seller.is_active === false ? restoreIcon : archiveIcon"
+                        class="size-4"
+                        aria-hidden="true"
+                      ></svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else {
+      <div class="p-10 text-center">
+        <svg
+          [lucideIcon]="usersIcon"
+          class="mx-auto mb-3 size-6 text-fb-text-muted"
+          aria-hidden="true"
+        ></svg>
+        @if (suppliersService.suppliers().length === 0) {
+          <h3 class="text-sm font-semibold text-fb-text-primary">Noch keine Verkäufer</h3>
+          <p class="mt-1 text-xs text-fb-text-muted">
+            Erstelle den ersten Verkäufer, um ihn bei Einkäufen auszuwählen.
+          </p>
+        } @else {
+          <h3 class="text-sm font-semibold text-fb-text-primary">Keine passenden Verkäufer</h3>
+          <p class="mt-1 text-xs text-fb-text-muted">Wähle einen anderen Verkäufertyp.</p>
+        }
+      </div>
+    }
+  </section>
+</div>
+
+@if (dialogOpen()) {
+  <app-purchase-seller-dialog
+    [seller]="selectedSeller()"
+    (closed)="closeDialog()"
+    (saved)="handleSaved()"
+  />
+}

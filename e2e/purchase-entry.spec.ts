@@ -86,11 +86,32 @@ test('keeps edits after cancelling navigation and leaves after confirmation', as
   await expect(page).toHaveURL(/\/purchases$/);
 });
 
+test('distributes a package price per position', async ({ page }) => {
+  await startDemoMode(page);
+  await page.goto('/purchases/new');
+  await page.getByRole('textbox', { name: 'Beschreibung (optional)' }).fill('Paket-Entwurf');
+  await addNewPurchaseProduct(page, 'Paketposition A');
+  await addNewPurchaseProduct(page, 'Paketposition B');
+
+  await page.getByRole('button', { name: 'Paketpreis verteilen', exact: true }).click();
+  await page.getByRole('spinbutton', { name: 'Gesamtpreis des Pakets' }).fill('100');
+  await page.getByRole('button', { name: 'Verteilen', exact: true }).click();
+
+  await expect(page.getByRole('textbox', { name: 'Beschreibung (optional)' })).toHaveValue(
+    'Paket-Entwurf',
+  );
+  await expect(page.getByRole('button', { name: 'Entwurf speichern' })).toBeEnabled();
+  await expect(page.getByRole('region', { name: 'Kostenübersicht' })).toContainText('100,00');
+});
+
 test('applies cost adjustments only when the management dialog is saved', async ({ page }) => {
   await startDemoMode(page);
   await page.goto('/purchases/new');
   await page.getByRole('textbox', { name: 'Beschreibung (optional)' }).fill('Paket-Entwurf');
-  await page.locator('input#purchase-base-price').fill('100');
+  await addNewPurchaseProduct(page, 'Kostenartikel');
+  await page
+    .getByRole('spinbutton', { name: 'Stückpreis für Kostenartikel', exact: true })
+    .fill('100');
   const costSummary = page.getByRole('region', { name: 'Kostenübersicht' });
 
   await page.getByRole('button', { name: 'Kosten bearbeiten', exact: true }).click();
@@ -134,11 +155,11 @@ test('keeps create, detail and inline editing in the same centered workspace', a
   const createWorkspaceBox = await visibleBox(createWorkspace);
   await page.getByRole('textbox', { name: 'Beschreibung (optional)' }).fill('Dialog-Zentrierung');
   await addNewPurchaseProduct(page, 'Testartikel');
-  await page.getByRole('button', { name: 'Entwurf speichern', exact: true }).click();
   await page
-    .locator('[data-purchase-description]')
-    .filter({ hasText: 'Dialog-Zentrierung' })
-    .click();
+    .getByRole('spinbutton', { name: 'Stückpreis für Testartikel', exact: true })
+    .fill('100');
+  await page.getByRole('button', { name: 'Entwurf speichern', exact: true }).click();
+  await page.locator('[data-purchase-row]').first().click();
 
   await expect(page).toHaveURL(/\/purchases\/[^/]+$/);
   const detailUrl = page.url();
@@ -160,7 +181,7 @@ test('keeps create, detail and inline editing in the same centered workspace', a
 
   const detailHeading = page.getByRole('heading', { level: 1 });
   const detailTitle = (await detailHeading.textContent())?.trim() ?? '';
-  expect(detailTitle).toBe('Dialog-Zentrierung');
+  expect(detailTitle).toBe('Einkauf');
 
   await expect(page.locator('app-purchase-entry-form')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Bearbeiten', exact: true })).toHaveCount(0);
@@ -179,4 +200,19 @@ test('keeps create, detail and inline editing in the same centered workspace', a
   const editWorkspaceBox = await visibleBox(page.getByTestId('purchase-entry-workspace'));
   expect(editWorkspaceBox.x).toBeCloseTo(detailWorkspaceBox.x, 0);
   expect(editWorkspaceBox.width).toBeCloseTo(detailWorkspaceBox.width, 0);
+});
+
+test('creates a private seller from the purchase selector and selects it', async ({ page }) => {
+  await startDemoMode(page);
+  await page.goto('/purchases/new');
+
+  await page.getByRole('combobox', { name: 'Verkäufer auswählen' }).click();
+  await page.getByRole('button', { name: 'Verkäufer erstellen', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Verkäufer erstellen' });
+  await dialog.getByRole('textbox', { name: 'Vor- und Nachname' }).fill('Alex Beispiel');
+  await dialog.getByRole('button', { name: 'Verkäufer erstellen', exact: true }).click();
+
+  await expect(page.getByRole('combobox', { name: 'Verkäufer auswählen' })).toContainText(
+    'Alex Beispiel',
+  );
 });

@@ -176,6 +176,18 @@
           </button>
         }
       </div>
+      @if (actionLabel()) {
+        <div class="mt-1 border-t border-fb-line px-1 pt-1">
+          <button
+            type="button"
+            data-custom-select-action
+            class="w-full rounded-md px-2.5 py-2 text-left text-[13px] font-semibold text-fb-primary hover:bg-fb-primary-subtle"
+            (click)="triggerAction()"
+          >
+            {{ actionLabel() }}
+          </button>
+        </div>
+      }
     </div>
   }
 </div>

@@ -57,11 +57,12 @@ test('filtert das Dashboard über den Shared Select und zeigt den Chart-Tooltip'
   await expect(tooltip).toContainText(/Ergebnis nach direkten Kosten: 95,62\s€/);
 });
 
-test('erkundet die Diagrammdaten vollstaendig mit der Tastatur', async ({ page }) => {
+test('erkundet die Diagrammdaten vollstaendig mit der Tastatur @pr-smoke', async ({ page }) => {
   await page.clock.setFixedTime(new Date('2026-08-30T12:00:00+02:00'));
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await startDemoMode(page);
   await page.getByRole('button', { name: 'Dieser Monat' }).click();
+  await expect(page.locator('app-revenue-chart .apexcharts-svg')).toBeVisible();
 
   const navigator = page.getByRole('slider', {
     name: 'Datenpunkt im Zahlungsstrom-Diagramm auswählen',

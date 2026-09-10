@@ -4,7 +4,9 @@ import { startDemoMode } from './support/demo';
 
 const saleItem = 'Super Nintendo SNES Original Controller';
 
-test('verkauft ein Einzelstück genau einmal aus dem gemeinsamen Inventar', async ({ page }) => {
+test('verkauft ein Einzelstück genau einmal aus dem gemeinsamen Inventar @pr-smoke', async ({
+  page,
+}) => {
   await startDemoMode(page);
   await page.goto('/inventory');
 
@@ -27,7 +29,8 @@ test('verkauft ein Einzelstück genau einmal aus dem gemeinsamen Inventar', asyn
   await expect(page.getByRole('heading', { name: 'Verkauf erfassen' })).toBeHidden();
   await expect(page).toHaveURL(/\/inventory$/);
   await page.goto('/sales');
-  await expect(page.getByRole('heading', { name: 'Verkäufe' })).toBeVisible();
+  await expect(page).toHaveURL(/\/sales$/);
+  await expect(page.getByRole('heading', { name: 'Verkäufe' })).toBeVisible({ timeout: 15_000 });
   const recordedSales = page.getByRole('row').filter({ hasText: saleItem });
   await expect(recordedSales).toHaveCount(1);
   await expect(recordedSales).toContainText('35,00 €');

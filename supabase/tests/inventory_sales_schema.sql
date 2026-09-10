@@ -237,12 +237,16 @@ begin
   exception when check_violation then null;
   end;
 
-  begin
-    insert into public.purchase_lines (workspace_id, purchase_id, catalog_product_id, title_snapshot, line_kind, ordered_quantity, unit_purchase_price, line_total)
-      values (workspace_one, purchase_one, product_one, 'fractional cent', 'quantity', 1, 1.001, 1);
-    raise exception 'fractional-cent purchase line was accepted';
-  exception when check_violation then null;
-  end;
+  -- Paketpreise können bei einer stückzahlunabhängigen Aufteilung einen
+  -- präzisen rechnerischen Stückdurchschnitt benötigen. Die Positionssumme
+  -- selbst bleibt weiterhin centgenau.
+  insert into public.purchase_lines (
+    workspace_id, purchase_id, catalog_product_id, title_snapshot, line_kind,
+    ordered_quantity, unit_purchase_price, line_total
+  ) values (
+    workspace_one, purchase_one, product_one, 'precise unit average', 'quantity',
+    3, 1.1133333333333333, 3.34
+  );
 
   begin
     insert into public.purchase_lines (workspace_id, purchase_id, catalog_product_id, title_snapshot, line_kind, ordered_quantity, unit_purchase_price, line_total)

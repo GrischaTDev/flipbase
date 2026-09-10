@@ -137,7 +137,7 @@ jobs:
     name: Browser smoke (webkit)
     # Taeglich, weil WebKit die einzige Engine ist, die in keinem anderen
     # Lauf vorkommt. Chromium hat frueher hier ein zweites Mal dieselben
-    # sechs Tests gefahren, die ci.yml schon bei jedem Push durchlaeuft -
+    # acht Tests gefahren, die ci.yml schon bei jedem Push durchlaeuft -
     # das war reine Dublette und ist ersatzlos gestrichen.
     needs: gate
     if: ${{ needs.gate.outputs.run == 'true' && github.event.schedule != '17 1 * * 0' }}

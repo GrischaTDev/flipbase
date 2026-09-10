@@ -1637,19 +1637,11 @@ export class PurchaseService {
         return { data: [], error: new Error('Die manuelle Kostenzuordnung ist ungültig.') };
       }
       if (pricingMode === 'total') {
-        if (
-          line.priceMode !== 'unpriced_mystery' ||
-          line.unitPurchasePrice !== null ||
-          line.lineTotal !== null
-        ) {
-          return {
-            data: [],
-            error: new Error(
-              'Positionen eines Gesamtkaufs dürfen keinen erfundenen Einzelpreis haben.',
-            ),
-          };
-        }
-        continue;
+        const isLegacyUnpricedLine =
+          line.priceMode === 'unpriced_mystery' &&
+          line.unitPurchasePrice === null &&
+          line.lineTotal === null;
+        if (isLegacyUnpricedLine) continue;
       }
       if (
         line.priceMode !== 'priced' ||
@@ -1662,16 +1654,16 @@ export class PurchaseService {
       ) {
         return { data: [], error: new Error('Die Einkaufskosten müssen gültige Beträge sein.') };
       }
-      const unitPurchasePriceCents = toExactCents(line.unitPurchasePrice);
       const lineTotalCents = toExactCents(line.lineTotal);
       if (
-        unitPurchasePriceCents === null ||
         lineTotalCents === null ||
-        lineTotalCents !== line.orderedQuantity * unitPurchasePriceCents
+        Math.abs(line.unitPurchasePrice * line.orderedQuantity - line.lineTotal) > 0.00000001
       ) {
         return {
           data: [],
-          error: new Error('Positionssumme und EK je Stück müssen centgenau zusammenpassen.'),
+          error: new Error(
+            'Positionssumme und durchschnittlicher EK je Stück müssen zusammenpassen.',
+          ),
         };
       }
     }
@@ -1954,25 +1946,43 @@ export class PurchaseService {
 
   async setPurchaseWorkflowStatus(
     purchaseId: string,
-    status: 'ordered' | 'in_transit' | 'arrived',
-    tracking?: { number: string; carrier: TrackingCarrier },
+    status: 'ordered' | 'arrived',
   ): Promise<{ error: Error | null }> {
     const purchase = this.purchases().find((entry) => entry.id === purchaseId);
     if (!purchase) return { error: new Error('Der Einkauf wurde nicht gefunden.') };
 
-    if (status === 'in_transit' && (!tracking?.number.trim() || !tracking.carrier)) {
-      return {
-        error: new Error('Für „Unterwegs“ werden Sendungsnummer und Dienstleister benötigt.'),
+    if (this.mockStore.isDemoMode()) {
+      const updated: Purchase = {
+        ...purchase,
+        receiving_status: status === 'ordered' ? 'ordered' : 'received',
+        shipment_status: status === 'ordered' ? 'not_shipped' : 'arrived',
+        arrived_at: status === 'arrived' ? new Date().toISOString() : null,
+        updated_at: new Date().toISOString(),
       };
+      this.uebernehmeEinkaufLokal(updated);
+      return { error: null };
     }
 
-    return this.updatePurchase(purchaseId, {
-      receiving_status: status === 'ordered' || status === 'in_transit' ? 'ordered' : undefined,
-      shipment_status:
-        status === 'ordered' ? 'not_shipped' : status === 'in_transit' ? 'in_transit' : 'arrived',
-      tracking_number: status === 'in_transit' ? tracking?.number.trim() : purchase.tracking_number,
-      tracking_carrier: status === 'in_transit' ? tracking?.carrier : purchase.tracking_carrier,
-    });
+    try {
+      const { data, error } = await this.supabase.client.rpc('update_purchase_workflow', {
+        p_purchase_id: purchaseId,
+        p_status: status,
+      });
+      if (error) return { error: this.syncStatus.melde('Ändern des Einkaufsstatus', error) };
+      const updated = this.purchaseFromMutationResult(data);
+      if (!updated) {
+        return {
+          error: this.syncStatus.melde(
+            'Ändern des Einkaufsstatus',
+            new Error('Die bestätigte Einkaufsänderung fehlt.'),
+          ),
+        };
+      }
+      this.uebernehmeEinkaufLokal(updated);
+      return { error: null };
+    } catch (error: unknown) {
+      return { error: this.syncStatus.melde('Ändern des Einkaufsstatus', error) };
+    }
   }
 
   /**
@@ -2087,47 +2097,50 @@ export class PurchaseService {
     const existing = this.purchases().find((p) => p.id === purchaseId);
     if (!existing) return { data: null, error: new Error('Einkauf nicht gefunden') };
 
-    const updated: Purchase = {
+    const pendingUpdate: Purchase = {
       ...existing,
       tracking_number: trackingNumber ? trackingNumber.trim() : null,
-      tracking_carrier: carrier || existing.tracking_carrier || (trackingNumber ? 'dhl' : null),
-      tracking_status: status || existing.tracking_status || (trackingNumber ? 'in_transit' : null),
+      tracking_carrier: trackingNumber ? carrier || existing.tracking_carrier || 'dhl' : null,
+      tracking_status: status ?? 'pending',
       updated_at: new Date().toISOString(),
     };
 
-    if (!this.mockStore.isDemoMode()) {
-      try {
-        const { error } = await this.supabase.client
-          .from('purchases')
-          .update({
-            tracking_number: updated.tracking_number,
-            tracking_carrier: updated.tracking_carrier,
-            tracking_status: updated.tracking_status || 'pending',
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', purchaseId);
+    if (this.mockStore.isDemoMode()) {
+      this.uebernehmeEinkaufLokal(pendingUpdate);
+      return { data: pendingUpdate, error: null };
+    }
 
-        if (error) {
-          return {
-            data: null,
-            error: this.syncStatus.melde('Aktualisieren des Tracking-Status', error),
-          };
-        }
-      } catch (err) {
+    try {
+      const { data, error } = await this.supabase.client.rpc('update_purchase_tracking', {
+        p_purchase_id: purchaseId,
+        p_tracking_number: pendingUpdate.tracking_number ?? '',
+        p_tracking_carrier: pendingUpdate.tracking_carrier ?? '',
+        p_tracking_status: pendingUpdate.tracking_status ?? 'pending',
+      });
+      if (error) {
         return {
           data: null,
-          error: this.syncStatus.melde('Aktualisieren des Tracking-Status', err),
+          error: this.syncStatus.melde('Aktualisieren des Tracking-Status', error),
         };
       }
+      const updated = this.purchaseFromMutationResult(data);
+      if (!updated) {
+        return {
+          data: null,
+          error: this.syncStatus.melde(
+            'Aktualisieren des Tracking-Status',
+            new Error('Die bestätigte Trackingänderung fehlt.'),
+          ),
+        };
+      }
+      this.uebernehmeEinkaufLokal(updated);
+      return { data: updated, error: null };
+    } catch (error: unknown) {
+      return {
+        data: null,
+        error: this.syncStatus.melde('Aktualisieren des Tracking-Status', error),
+      };
     }
-
-    this.mockStore.savePurchase(updated);
-    this.purchasesRaw.update((list) => list.map((p) => (p.id === purchaseId ? updated : p)));
-    if (this.selectedPurchase()?.id === purchaseId) {
-      this.selectedPurchaseRaw.set(updated);
-    }
-
-    return { data: updated, error: null };
   }
 
   async markPurchaseDeliveredAndSyncItems(
@@ -2136,11 +2149,7 @@ export class PurchaseService {
     const existing = this.purchases().find((p) => p.id === purchaseId);
     if (!existing) return { updatedCount: 0, error: new Error('Einkauf nicht gefunden') };
 
-    const { error } = await this.updatePurchase(purchaseId, {
-      shipment_status: 'arrived',
-      tracking_number: existing.tracking_number,
-      tracking_carrier: existing.tracking_carrier,
-    });
+    const { error } = await this.setPurchaseWorkflowStatus(purchaseId, 'arrived');
     if (error) return { updatedCount: 0, error };
 
     // Eine Zustellung bestätigt nur die Paketankunft. Bestand entsteht weiterhin
@@ -2500,10 +2509,36 @@ export class PurchaseService {
   }
 
   private uebernehmeEinkaufLokal(purchase: Purchase): void {
-    this.mockStore.savePurchase(purchase);
+    const savedPurchase = this.purchasesRaw().find((entry) => entry.id === purchase.id);
+    const selectedPurchase = this.selectedPurchaseRaw();
+    const purchaseForStore = savedPurchase
+      ? this.mergePurchaseMutation(savedPurchase, purchase)
+      : selectedPurchase?.id === purchase.id
+        ? this.mergePurchaseMutation(selectedPurchase, purchase)
+        : purchase;
+
+    this.mockStore.savePurchase(purchaseForStore);
     this.purchasesRaw.update((list) =>
-      list.map((entry) => (entry.id === purchase.id ? purchase : entry)),
+      list.map((entry) =>
+        entry.id === purchase.id ? this.mergePurchaseMutation(entry, purchase) : entry,
+      ),
     );
-    if (this.selectedPurchase()?.id === purchase.id) this.selectedPurchaseRaw.set(purchase);
+    if (selectedPurchase?.id === purchase.id) {
+      this.selectedPurchaseRaw.set(this.mergePurchaseMutation(selectedPurchase, purchase));
+    }
+  }
+
+  private mergePurchaseMutation(existing: Purchase, mutation: Purchase): Purchase {
+    const definedMutation = Object.fromEntries(
+      Object.entries(mutation).filter(([, value]) => value !== undefined),
+    );
+    return { ...existing, ...definedMutation };
+  }
+
+  private purchaseFromMutationResult(data: unknown): Purchase | null {
+    if (!data || typeof data !== 'object' || !('purchase' in data)) return null;
+    const purchase = data.purchase;
+    if (!purchase || typeof purchase !== 'object' || !('id' in purchase)) return null;
+    return purchase as Purchase;
   }
 }

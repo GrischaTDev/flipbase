@@ -312,11 +312,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+      - name: Install Chromium Headless Shell
+        run: npx playwright install --with-deps --only-shell chromium
 
       - name: Run browser smoke tests
-        run: npm run test:e2e
+        run: npm run test:e2e:pr
 
       - name: Upload browser failure artifacts
         if: ${{ failure() || cancelled() }}
