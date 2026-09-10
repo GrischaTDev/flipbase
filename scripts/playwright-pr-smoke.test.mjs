@@ -94,6 +94,10 @@ const assertResolvedSmokeSuite = (resolvedSuite) => {
       spec.tests.map((test) => test.projectName),
       ['chromium'],
     );
+    assert.deepEqual(
+      spec.tests.map((test) => test.timeout),
+      [60_000],
+    );
     return [spec.file.split(/[\\/]/).at(-1), spec.title];
   });
   assertExpectedSmokeTests(selectedTests);
