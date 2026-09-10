@@ -34,7 +34,12 @@ const ORIGINAL_AT = 88;
 const DIGITIZED_AT = 108;
 const TIFF_BYTES = 128;
 
-class Writer {
+/**
+ * Exportiert nur fuer den Test der Feldbreiten-Absicherung (siehe
+ * `exif-writer.spec.ts`) - im eigentlichen Aufbau bleibt sie ein internes
+ * Hilfsmittel von `buildDateExif`.
+ */
+export class Writer {
   readonly bytes: Uint8Array;
   private readonly view: DataView;
 
@@ -51,7 +56,22 @@ class Writer {
     this.view.setUint32(offset, value, false);
   }
 
-  ascii(offset: number, value: string): void {
+  /**
+   * Schreibt `value` als ASCII in ein Feld von genau `width` Byte.
+   *
+   * `width` ist Pflicht, nicht optional: Ohne eine vom Aufrufer genannte
+   * Feldgroesse haette dieser Baustein keine Moeglichkeit, einen zu langen
+   * Wert zu erkennen, und wuerde stillschweigend in das naechste Feld
+   * hineinschreiben. Heute liefert `readCapturedAt`/`toExifDateTime` immer
+   * genau 19 Zeichen, aber ein von Hand gebauter Binaerschreiber soll sich
+   * nicht auf die Disziplin eines Aufrufers verlassen.
+   */
+  ascii(offset: number, value: string, width: number): void {
+    if (value.length > width) {
+      throw new Error(
+        `ASCII-Wert "${value}" (${value.length} Zeichen) passt nicht in das ${width} Byte grosse Feld an Offset ${offset}.`,
+      );
+    }
     for (let i = 0; i < value.length; i++) {
       this.bytes[offset + i] = value.charCodeAt(i) & 0x7f;
     }
@@ -72,7 +92,7 @@ export function buildDateExif(captured: Date): Uint8Array {
   const stamp = toExifDateTime(captured);
   const tiff = new Writer(TIFF_BYTES);
 
-  tiff.ascii(0, 'MM');
+  tiff.ascii(0, 'MM', 2);
   tiff.u16(2, 0x002a);
   tiff.u32(4, IFD0_AT);
 
@@ -80,21 +100,21 @@ export function buildDateExif(captured: Date): Uint8Array {
   tiff.entry(IFD0_AT + 2, TAG_DATE_TIME, ASCII, DATE_BYTES, DATE_TIME_AT);
   tiff.entry(IFD0_AT + 14, TAG_EXIF_POINTER, LONG, 1, EXIF_IFD_AT);
   tiff.u32(IFD0_AT + 26, 0);
-  tiff.ascii(DATE_TIME_AT, stamp);
+  tiff.ascii(DATE_TIME_AT, stamp, DATE_BYTES);
 
   tiff.u16(EXIF_IFD_AT, 2);
   tiff.entry(EXIF_IFD_AT + 2, TAG_DATE_TIME_ORIGINAL, ASCII, DATE_BYTES, ORIGINAL_AT);
   tiff.entry(EXIF_IFD_AT + 14, TAG_DATE_TIME_DIGITIZED, ASCII, DATE_BYTES, DIGITIZED_AT);
   tiff.u32(EXIF_IFD_AT + 26, 0);
-  tiff.ascii(ORIGINAL_AT, stamp);
-  tiff.ascii(DIGITIZED_AT, stamp);
+  tiff.ascii(ORIGINAL_AT, stamp, DATE_BYTES);
+  tiff.ascii(DIGITIZED_AT, stamp, DATE_BYTES);
 
   // FFE1 + Laengenfeld + "Exif\0\0" + TIFF-Block.
   const segment = new Writer(2 + 2 + 6 + TIFF_BYTES);
   segment.u16(0, 0xffe1);
   // Das Laengenfeld zaehlt sich selbst mit, das Kennzeichen davor nicht.
   segment.u16(2, 2 + 6 + TIFF_BYTES);
-  segment.ascii(4, 'Exif');
+  segment.ascii(4, 'Exif', 4);
   segment.bytes.set(tiff.bytes, 10);
 
   return segment.bytes;

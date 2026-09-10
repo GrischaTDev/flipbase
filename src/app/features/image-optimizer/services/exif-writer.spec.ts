@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildDateExif, withExif } from './exif-writer';
+import { buildDateExif, withExif, Writer } from './exif-writer';
 
 const taken = new Date(2026, 4, 17, 9, 5, 3);
 
@@ -13,6 +13,36 @@ function minimalJpeg(): Uint8Array {
   return new Uint8Array([
     0xff, 0xd8, 0xff, 0xe0, 0x00, 0x04, 0x00, 0x00, 0xff, 0xda, 0x00, 0x02, 0x11, 0x22, 0xff, 0xd9,
   ]);
+}
+
+/**
+ * Zaehlt APP1-Segmente mit Exif-Kennung im JPEG - die unabhaengige Gegenprobe
+ * dafuer, dass nach dem Ersetzen wirklich nur eines uebrig bleibt, statt sich
+ * auf einen blossen Laengenvergleich zu verlassen (siehe Test unten).
+ */
+function countExifSegments(jpeg: Uint8Array): number {
+  let count = 0;
+  let offset = 2;
+  while (offset + 4 <= jpeg.length && jpeg[offset] === 0xff) {
+    const marker = jpeg[offset + 1];
+    if (marker === 0xda || marker === 0xd9) break;
+    const length = (jpeg[offset + 2] << 8) | jpeg[offset + 3];
+    if (length < 2) break;
+    const end = offset + 2 + length;
+    if (end > jpeg.length) break;
+    if (
+      marker === 0xe1 &&
+      jpeg[offset + 4] === 0x45 && // E
+      jpeg[offset + 5] === 0x78 && // x
+      jpeg[offset + 6] === 0x69 && // i
+      jpeg[offset + 7] === 0x66 && // f
+      jpeg[offset + 8] === 0x00
+    ) {
+      count++;
+    }
+    offset = end;
+  }
+  return count;
 }
 
 describe('EXIF-Segment bauen', () => {
@@ -124,11 +154,13 @@ describe('Segment in ein JPEG einsetzen', () => {
 
   it('ersetzt ein bereits vorhandenes EXIF-Segment, statt zwei zu erzeugen', () => {
     // Zwei EXIF-Segmente in einer Datei sind laut Spezifikation unzulaessig;
-    // Leseprogramme nehmen dann willkuerlich eines davon.
+    // Leseprogramme nehmen dann willkuerlich eines davon. Ein blosser
+    // Laengenvergleich wuerde einen Fehler gleicher Laenge nicht bemerken -
+    // deshalb zaehlt dieser Test die tatsaechlichen APP1-Exif-Segmente.
     const once = withExif(minimalJpeg(), buildDateExif(taken));
     const twice = withExif(once, buildDateExif(taken));
 
-    expect(twice).toHaveLength(once.length);
+    expect(countExifSegments(twice)).toBe(1);
   });
 
   it('laesst etwas, das kein JPEG ist, unangetastet', () => {
@@ -149,5 +181,29 @@ describe('Segment in ein JPEG einsetzen', () => {
     expect(parsed.DateTimeOriginal.getFullYear()).toBe(2026);
     expect(parsed.DateTimeOriginal.getMonth()).toBe(4);
     expect(parsed.DateTimeOriginal.getDate()).toBe(17);
+    // `DateTime` (IFD0, Tag 0x0132) und `DateTimeDigitized` (Exif-IFD, Tag
+    // 0x9004) sind nur ueber die eigenen Offset-Konstanten abgesichert - ohne
+    // diese beiden Zeilen wuerde ein Byte-Fehler in einem der beiden Felder
+    // von keinem unabhaengigen Leser bemerkt. `exifr` benennt sie in seiner
+    // Ausgabe `ModifyDate` beziehungsweise `CreateDate` um - dieselben Namen,
+    // unter denen `readCapturedAt` sie beim Einlesen wiedererkennt.
+    expect(parsed.ModifyDate.getTime()).toBe(parsed.DateTimeOriginal.getTime());
+    expect(parsed.CreateDate.getTime()).toBe(parsed.DateTimeOriginal.getTime());
+  });
+});
+
+describe('ASCII-Feld schuetzt seine Breite', () => {
+  it('verweigert einen Wert, der laenger ist als das Feld', () => {
+    const writer = new Writer(4);
+
+    expect(() => writer.ascii(0, '12345', 4)).toThrow();
+  });
+
+  it('schreibt einen Wert, der genau in die Feldbreite passt', () => {
+    const writer = new Writer(4);
+
+    writer.ascii(0, '1234', 4);
+
+    expect(Array.from(writer.bytes)).toEqual([0x31, 0x32, 0x33, 0x34]);
   });
 });
