@@ -740,15 +740,24 @@ function render(images: readonly OptimizerImage[]): HTMLElement {
   return fixture.nativeElement as HTMLElement;
 }
 
+/**
+ * Zwei dieser Tests pruefen Klassennamen. Das ist bewusst so und muss ehrlich
+ * benannt werden: jsdom rechnet kein Layout, es gibt also nichts zu messen.
+ * Sie sind **Rueckfallsicherungen**, keine Verhaltenspruefungen - sie fangen
+ * ein versehentliches Zurueckdrehen auf die alte Spalte und ein Entfernen der
+ * Tastaturerreichbarkeit. Ob das Raster gut aussieht, entscheidet die Probe im
+ * Browser, nicht dieser Test.
+ */
 describe('Bilderraster', () => {
-  it('legt die Kacheln in ein Raster, nicht in eine Spalte', () => {
-    // Eine Spalte verschenkt die Breite, sobald der Trenner nach links
-    // gezogen wird - genau das war der Anlass.
+  it('legt die Kacheln in ein Raster, nicht in eine waagerechte Liste', () => {
+    // Rueckfallsicherung: Die alte Fassung war ein `flex` mit
+    // `overflow-x-auto`. Beides darf nicht zurueckkommen - eine Spalte
+    // verschenkt die Breite, sobald der Trenner nach links gezogen wird.
     const element = render([image('a'), image('b'), image('c')]);
     const grid = element.querySelector('[data-testid="image-grid"]');
 
-    expect(grid?.className).toContain('grid');
-    expect(grid?.className).toContain('auto-fill');
+    expect(grid?.className).toContain('grid-cols-[repeat(auto-fill');
+    expect(grid?.className).not.toContain('overflow-x-auto');
   });
 
   it('zeigt zu jedem Bild eine Kachel', () => {
@@ -758,7 +767,10 @@ describe('Bilderraster', () => {
   });
 
   it('haelt die Werkzeuge bei Tastaturfokus erreichbar', () => {
-    // Nur bei :hover eingeblendet waeren sie mit der Tastatur unerreichbar.
+    // Rueckfallsicherung fuer eine Barrierefreiheits-Eigenschaft, die beim
+    // Aufraeumen leicht verloren geht: Nur bei :hover eingeblendet waeren die
+    // Werkzeuge mit der Tastatur unerreichbar, und AXE meldet das nicht,
+    // weil die Knoepfe im Baum stehen.
     const element = render([image('a'), image('b')]);
     const tools = element.querySelector('[data-testid="image-tools"]');
 
@@ -1677,12 +1689,60 @@ Die große Ansicht nutzt wieder `app-modal-shell` und dieselbe
 } }
 ```
 
-`PreviewModalComponent` wird als kleine Hülle in
-`components/preview-modal/` angelegt: `app-modal-shell` mit `size="full"`,
-darin ein `<img>` auf derselben `previewUrl()`-Rechnung wie die Kachel, ohne
-`max-h`. `platformById` wird aus `models/platform-profile` importiert und als
-Methode der Komponente durchgereicht — in Vorlagen sind freie Funktionen nicht
-aufrufbar.
+**Kein eigenes Bauteil für die große Ansicht.** `PlatformPreviewComponent`
+trägt bereits die gesamte Render-Maschinerie: Entprellen der Reglerbewegungen,
+Lebensdauer der Object-URLs, verzögertes Overlay, Fehlerzustand. Ein zweites
+Bauteil daneben würde das alles doppeln, und die beiden Fassungen liefen
+auseinander, sobald jemand nur eine anfasst.
+
+Stattdessen bekommt die Kachel eine Darstellungsart:
+
+```ts
+  /** `tile` in der Reihe unter dem Bild, `full` im Fenster. */
+  readonly variant = input<'tile' | 'full'>('tile');
+```
+
+Die Vorlage verzweigt darauf, und **nur** darauf:
+
+- `tile` — wie oben beschrieben: klickbar, Fußzeile mit Name und Maß, Knopf „Groß ansehen", Bildhöhe `h-32`
+- `full` — nur das Bild, ohne Höhenbegrenzung (`max-h-[80vh]`), ohne Auswahlknopf, ohne Fußzeile, ohne Lupe
+
+Die Ausgänge `selected` und `enlargeRequested` bleiben in der `full`-Fassung
+einfach unverbunden. Kein zusätzlicher Zustand, keine zweite Renderstrecke.
+
+Das Fenster selbst steht in der Vorlage des Bildoptimierers, nicht in einem
+eigenen Bauteil:
+
+```html
+@if (enlargedPlatform(); as platform) { @if (activeImage(); as image) {
+<app-modal-shell
+  [title]="'Exportvorschau für ' + platform.name"
+  size="full"
+  [hasFooter]="false"
+  (closed)="enlargedPlatformId.set(null)"
+>
+  <app-platform-preview
+    variant="full"
+    [platform]="platform"
+    [dataUrl]="image.dataUrl"
+    [crop]="image.crops[platform.id] ?? null"
+    [look]="activeLook()"
+  ></app-platform-preview>
+</app-modal-shell>
+} }
+```
+
+`enlargedPlatform` ist ein `computed`, das aus der gemerkten Kennung das Profil
+sucht — in Vorlagen sind freie Funktionen wie `platformById` nicht aufrufbar:
+
+```ts
+  readonly enlargedPlatform = computed<PlatformProfile | null>(
+    () => this.selectedPlatforms().find((p) => p.id === this.enlargedPlatformId()) ?? null,
+  );
+```
+
+Über `selectedPlatforms()` statt `platformById()`, damit eine inzwischen
+abgewählte Plattform das Fenster nicht offen hält.
 
 - [ ] **Step 3: Prüfen**
 
