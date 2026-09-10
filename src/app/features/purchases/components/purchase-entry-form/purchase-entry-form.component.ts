@@ -9,7 +9,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { PurchaseSellerDialogComponent } from '../purchase-seller-dialog/purchase-seller-dialog.component';
+import { PurchaseSellerDialogComponent } from '../../../sellers/components/purchase-seller-dialog/purchase-seller-dialog.component';
 import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
 import { CurrencyPipe } from '@angular/common';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';

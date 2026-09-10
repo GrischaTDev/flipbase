@@ -3,6 +3,7 @@
   appModalDialog
   [dialogTitel]="dialogTitle()"
   [schliesstMitEscape]="!saving()"
+  [attr.aria-label]="dialogTitle()"
   (dialogClose)="closed.emit()"
 >
   <section
@@ -19,7 +20,13 @@
         Schließen
       </button>
     </header>
-    <div class="space-y-4 overflow-y-auto p-4" [formGroup]="form">
+    <form
+      id="seller-form"
+      data-seller-form
+      class="space-y-4 overflow-y-auto p-4"
+      [formGroup]="form"
+      (ngSubmit)="save()"
+    >
       <label class="block text-sm"
         >Art<select
           formControlName="seller_type"
@@ -32,10 +39,20 @@
       <label class="block text-sm"
         >{{ form.controls.seller_type.value === 'business' ? 'Firmenname' : 'Vor- und Nachname'
         }}<input
+          id="seller-name"
           formControlName="name"
           class="linear-input mt-1 w-full rounded-lg px-3 py-2"
           required
+          [attr.aria-invalid]="form.controls.name.invalid && form.controls.name.touched"
+          [attr.aria-describedby]="
+            form.controls.name.invalid && form.controls.name.touched ? 'seller-name-error' : null
+          "
       /></label>
+      @if (form.controls.name.invalid && form.controls.name.touched) {
+        <p id="seller-name-error" class="mt-1 text-sm text-fb-text-primary">
+          Bitte einen Namen angeben.
+        </p>
+      }
       @if (form.controls.seller_type.value === 'business') {
         <label class="block text-sm"
           >Kontaktperson (optional)<input
@@ -62,9 +79,27 @@
             >{{ field.label
             }}<input
               [formControlName]="field.key"
-              [type]="field.key === 'email' ? 'email' : 'text'"
+              type="text"
               class="linear-input mt-1 w-full rounded-lg px-3 py-2"
           /></label>
+        }
+        <label class="block text-sm"
+          >E-Mail<input
+            id="seller-email"
+            formControlName="email"
+            type="email"
+            class="linear-input mt-1 w-full rounded-lg px-3 py-2"
+            [attr.aria-invalid]="form.controls.email.invalid && form.controls.email.touched"
+            [attr.aria-describedby]="
+              form.controls.email.invalid && form.controls.email.touched
+                ? 'seller-email-error'
+                : null
+            "
+        /></label>
+        @if (form.controls.email.invalid && form.controls.email.touched) {
+          <p id="seller-email-error" class="mt-1 text-sm text-fb-text-primary sm:col-span-2">
+            Bitte eine gültige E-Mail-Adresse angeben.
+          </p>
         }
         <label class="block text-sm sm:col-span-2"
           >Telefon
@@ -75,13 +110,19 @@
             containerClass="w-full"
             countryNameLocale="de"
             initialCountry="de"
-            [inputAttributes]="phoneInputAttributes"
+            [dropdownParent]="phoneDropdownParent"
+            [inputAttributes]="phoneInputAttributes()"
             [separateDialCode]="true"
             [showFlags]="true"
             [strictMode]="true"
             [uiTranslations]="phoneTranslations"
           />
         </label>
+        @if (form.controls.phone.invalid && form.controls.phone.touched) {
+          <p id="seller-phone-error" class="mt-1 text-sm text-fb-text-primary sm:col-span-2">
+            Bitte eine gültige Telefonnummer angeben.
+          </p>
+        }
       </div>
       @if (form.controls.seller_type.value === 'business') {
         <label class="block text-sm"
@@ -100,7 +141,7 @@
       @if (error()) {
         <p role="alert" class="text-sm text-fb-text-primary">{{ error() }}</p>
       }
-    </div>
+    </form>
     <footer class="flex justify-end gap-2 border-t border-fb-line p-4">
       <button
         type="button"
@@ -111,10 +152,10 @@
       >
         Abbrechen</button
       ><button
-        type="button"
+        type="submit"
+        form="seller-form"
         class="linear-btn-primary rounded-lg px-3 py-2 text-sm disabled:opacity-50"
-        [disabled]="saving() || form.invalid"
-        (click)="save()"
+        [disabled]="saving()"
       >
         {{ saving() ? 'Speichere…' : dialogTitle() }}
       </button>

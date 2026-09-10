@@ -21,11 +21,14 @@
 - Kein externer Paketdienst wird in diesem Paket angebunden.
 - Jede fachliche Änderung erhält einen atomaren Chronikeintrag.
 - Paketpreise werden gleichmäßig je Produktposition, nicht je Stück, verteilt.
+- Im Paketmodus ist `line_total` der centgenaue verbindliche Wert. Ein daraus
+  angezeigter Stückpreis ist nur ein Durchschnitt und wird nicht gerundet
+  zurückmultipliziert.
 
 ## File Map
 
 - `src/app/features/sellers/`: neue Verkäuferseite und ihre Präsentationslogik.
-- `src/app/features/purchases/components/purchase-seller-dialog/`: gemeinsamer Verkäuferdialog für Erstellung und Bearbeitung.
+- `src/app/features/sellers/components/purchase-seller-dialog/`: gemeinsamer Verkäuferdialog für Erstellung und Bearbeitung.
 - `src/app/features/purchases/components/package-price-dialog/`: Eingabe und Bestätigung eines Paketpreises.
 - `src/app/features/purchases/utils/package-price-allocation.ts`: reine centgenaue Verteilung.
 - `src/app/features/purchases/utils/purchase-status-presentation.ts`: gemeinsame Statusbezeichnungen und Badge-Farben.
@@ -108,9 +111,9 @@ git commit -m "feat(purchases): add country and phone metadata"
 
 **Files:**
 
-- Modify: `src/app/features/purchases/components/purchase-seller-dialog/purchase-seller-dialog.component.ts`
-- Modify: `src/app/features/purchases/components/purchase-seller-dialog/purchase-seller-dialog.component.html`
-- Test: `src/app/features/purchases/components/purchase-seller-dialog/purchase-seller-dialog.component.angular.spec.ts`
+- Modify: `src/app/features/sellers/components/purchase-seller-dialog/purchase-seller-dialog.component.ts`
+- Modify: `src/app/features/sellers/components/purchase-seller-dialog/purchase-seller-dialog.component.html`
+- Test: `src/app/features/sellers/components/purchase-seller-dialog/purchase-seller-dialog.component.angular.spec.ts`
 - Modify: `src/app/core/models/flipbase.models.ts`
 - Modify: `src/app/core/services/suppliers.service.ts`
 - Test: `src/app/core/services/stammdaten-persistence.spec.ts`
@@ -127,7 +130,7 @@ Die Tests prüfen die Texte „Firmenname“ und „Vor- und Nachname“, das Fe
 
 - [ ] **Step 2: Angular-Test gezielt ausführen**
 
-Run: `npx vitest run --project=angular src/app/features/purchases/components/purchase-seller-dialog/purchase-seller-dialog.component.angular.spec.ts`
+Run: `npx vitest run --project=angular src/app/features/sellers/components/purchase-seller-dialog/purchase-seller-dialog.component.angular.spec.ts`
 
 Expected: FAIL an den neuen Feld- und Textanforderungen.
 
@@ -141,7 +144,7 @@ Expected: FAIL an den neuen Feld- und Textanforderungen.
 
 - [ ] **Step 5: Tests ausführen**
 
-Run: `npx vitest run --project=angular src/app/features/purchases/components/purchase-seller-dialog/purchase-seller-dialog.component.angular.spec.ts`
+Run: `npx vitest run --project=angular src/app/features/sellers/components/purchase-seller-dialog/purchase-seller-dialog.component.angular.spec.ts`
 
 Run: `npx vitest run --project=node src/app/core/services/stammdaten-persistence.spec.ts`
 
@@ -150,7 +153,7 @@ Expected: beide PASS.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/app/features/purchases/components/purchase-seller-dialog src/app/core/models/flipbase.models.ts src/app/core/services/suppliers.service.ts src/app/core/services/stammdaten-persistence.spec.ts
+git add src/app/features/sellers/components/purchase-seller-dialog src/app/core/models/flipbase.models.ts src/app/core/services/suppliers.service.ts src/app/core/services/stammdaten-persistence.spec.ts
 git commit -m "feat(purchases): structure seller contact details"
 ```
 
@@ -301,7 +304,9 @@ git commit -m "feat(purchases): add per-position package pricing"
 - Consumes: Verkäuferdialog aus Task 2 und Paketpreisdialog aus Task 4.
 - Produces: wiederverwendbaren `CatalogProductDialogComponent` mit `saved = output<CatalogProduct>()`, einschließlich optionaler Bilddatei.
 - Produces: `pricing_mode` nur als interne Berechnungsgrundlage `individual | package`.
-- Produces: Positionen mit `line_total`; im Paketmodus stammt dieser Wert aus der bestätigten Verteilung.
+- Produces: Positionen mit `line_total`; im Paketmodus ist dieser centgenaue Wert
+  die verbindliche bestätigte Verteilung. Ein Stückpreis ist nur ein daraus
+  abgeleiteter Durchschnitt.
 
 - [ ] **Step 1: Failing Produktdialog- und Formulartests ergänzen**
 
@@ -321,7 +326,7 @@ Die bisherige Katalog-Erstellung wird aus `CatalogComponent` in den fokussierten
 
 - [ ] **Step 4: Formular und Zeileneditor minimal umbauen**
 
-Der Warenbetrag ist ein `computed()` aus Zeilen beziehungsweise bestätigtem Paketpreis. Mengen- oder Positionsänderungen setzen eine bestehende Paketverteilung auf „erneut verteilen“. Einzelpreise erzeugen automatisch Zeilensummen. Produktbilder stammen ausschließlich aus dem Katalogprodukt.
+Der Warenbetrag ist ein `computed()` aus Zeilen beziehungsweise bestätigtem Paketpreis. Mengen- oder Positionsänderungen setzen eine bestehende Paketverteilung auf „erneut verteilen“. Dazu wird beim Bestätigen ein stabiler Fingerabdruck aus Position, Produkt und Menge gespeichert; reine Metadatenänderungen machen die Verteilung nicht ungültig. Einzelpreise erzeugen automatisch Zeilensummen. Produktbilder stammen ausschließlich aus dem Katalogprodukt.
 
 - [ ] **Step 5: Persistenz-Payload bereinigen**
 

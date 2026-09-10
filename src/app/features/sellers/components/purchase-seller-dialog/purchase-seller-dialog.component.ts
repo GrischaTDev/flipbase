@@ -1,7 +1,9 @@
 import {
+  afterNextRender,
   ChangeDetectionStrategy,
   Component,
   computed,
+  ElementRef,
   effect,
   inject,
   input,
@@ -14,7 +16,7 @@ import { de as germanPhoneTranslations } from 'intl-tel-input/locale';
 import { SuppliersService } from '../../../../core/services/suppliers.service';
 import { SellerFormValue, Supplier } from '../../../../core/models/flipbase.models';
 import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
-import { buildGermanCountryOptions } from '../../utils/country-options';
+import { buildGermanCountryOptions } from '../../../purchases/utils/country-options';
 
 @Component({
   selector: 'app-purchase-seller-dialog',
@@ -24,6 +26,7 @@ import { buildGermanCountryOptions } from '../../utils/country-options';
 })
 export class PurchaseSellerDialogComponent {
   private readonly suppliers = inject(SuppliersService);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 
   readonly seller = input<Supplier | null>(null);
   readonly closed = output<void>();
@@ -37,11 +40,14 @@ export class PurchaseSellerDialogComponent {
   );
   readonly countries = buildGermanCountryOptions();
   readonly phoneTranslations = germanPhoneTranslations;
-  readonly phoneInputAttributes = {
+  readonly phoneDropdownParent = this.host.nativeElement;
+  readonly phoneInputAttributes = computed(() => ({
     class: 'linear-input w-full rounded-lg px-3 py-2',
     'aria-label': 'Telefonnummer',
+    'aria-invalid': String(this.form.controls.phone.invalid && this.form.controls.phone.touched),
+    'aria-describedby': 'seller-phone-error',
     autocomplete: 'tel',
-  };
+  }));
 
   readonly form = new FormGroup({
     seller_type: new FormControl<'private' | 'business'>('private', { nonNullable: true }),
@@ -63,10 +69,16 @@ export class PurchaseSellerDialogComponent {
     { key: 'address_extra', label: 'Adresszusatz' },
     { key: 'postal_code', label: 'Postleitzahl' },
     { key: 'city', label: 'Ort' },
-    { key: 'email', label: 'E-Mail' },
   ] as const;
 
   constructor() {
+    afterNextRender(() => {
+      const countrySelector = this.host.nativeElement.querySelector<HTMLElement>(
+        '.iti__country-selector[role="dialog"]',
+      );
+      countrySelector?.setAttribute('aria-label', 'Landesvorwahl auswählen');
+    });
+
     effect(() => {
       const seller = this.seller();
       if (!seller) return;
@@ -89,7 +101,11 @@ export class PurchaseSellerDialogComponent {
   }
 
   async save(): Promise<void> {
-    if (this.form.invalid || this.saving()) return;
+    if (this.saving()) return;
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      return;
+    }
     const rawValue = this.form.getRawValue();
     const name = rawValue.name.trim();
     if (!name.trim()) {

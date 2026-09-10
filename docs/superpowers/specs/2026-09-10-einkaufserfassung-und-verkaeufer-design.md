@@ -214,6 +214,12 @@ danach ändern, wird die Verteilung als veraltet markiert und muss erneut
 bestätigt werden; Flipbase verändert den bestätigten Paketpreis nicht
 unbemerkt.
 
+Im Paketmodus ist deshalb die centgenaue Positionssumme (`line_total`) der
+verbindliche Wert. Ein angezeigter Stückpreis ist nur der daraus abgeleitete
+Durchschnitt und darf mehr als zwei Nachkommastellen haben. Er wird niemals
+gerundet zurückmultipliziert. Auch die später erzeugten Stückkosten müssen in
+Summe wieder exakt der Positionssumme entsprechen.
+
 Die technische Berechnungsgrundlage bleibt gespeichert, damit Flipbase
 unterscheiden kann, ob der Warenbetrag aus eingegebenen Einzelpreisen oder aus
 einem verteilten Paketpreis stammt. Sie beschreibt eine aktuelle Berechnung und

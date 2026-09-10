@@ -720,6 +720,24 @@ html:not(.dark) .fb-admin .bg-indigo-600.text-white {
   line-height: 1.25rem;
 }
 
+/* intl-tel-input übernimmt die Farben der Verwaltungsoberfläche. */
+.fb-admin {
+  --iti-country-selector-bg: var(--fb-bg-surface);
+  --iti-border-color: var(--fb-border);
+  --iti-hover-color: var(--fb-bg-surface-hover);
+  --iti-icon-color: var(--fb-text-muted);
+}
+
+.fb-admin .iti {
+  width: 100%;
+  color: var(--fb-text-primary);
+}
+
+.fb-admin :is(.iti__country-list, .iti__search-input) {
+  background-color: var(--fb-bg-surface);
+  color: var(--fb-text-primary);
+}
+
 .fb-admin .kpi-label {
   font-size: 0.8125rem;
   letter-spacing: normal;

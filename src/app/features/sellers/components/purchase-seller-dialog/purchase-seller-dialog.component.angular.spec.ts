@@ -2,9 +2,11 @@ import '@angular/compiler';
 import { ɵresolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { readFile } from 'node:fs/promises';
+import axe from 'axe-core';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Supplier } from '../../../../core/models/flipbase.models';
 import { SuppliersService } from '../../../../core/services/suppliers.service';
+import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
 import { PurchaseSellerDialogComponent } from './purchase-seller-dialog.component';
 
 interface AngularInputMetadata {
@@ -13,6 +15,7 @@ interface AngularInputMetadata {
 }
 
 let inputMetadataSnapshot: AngularInputMetadata;
+let modalInputMetadataSnapshot: AngularInputMetadata;
 
 beforeAll(async () => {
   await ɵresolveComponentResources((url) => readFile(new URL(url, import.meta.url), 'utf8'));
@@ -24,6 +27,22 @@ beforeAll(async () => {
   };
   metadata.inputs = { ...metadata.inputs, seller: ['seller', 1, null] };
   metadata.declaredInputs = { ...metadata.declaredInputs, seller: 'seller' };
+
+  const modalMetadata = (ModalDialogDirective as unknown as { ɵdir: AngularInputMetadata }).ɵdir;
+  modalInputMetadataSnapshot = {
+    inputs: modalMetadata.inputs,
+    declaredInputs: modalMetadata.declaredInputs,
+  };
+  modalMetadata.inputs = {
+    ...modalMetadata.inputs,
+    dialogTitel: ['dialogTitel', 1, null],
+    schliesstMitEscape: ['schliesstMitEscape', 1, null],
+  };
+  modalMetadata.declaredInputs = {
+    ...modalMetadata.declaredInputs,
+    dialogTitel: 'dialogTitel',
+    schliesstMitEscape: 'schliesstMitEscape',
+  };
 });
 
 afterEach(() => TestBed.resetTestingModule());
@@ -33,6 +52,9 @@ afterAll(() => {
     .ɵcmp;
   metadata.inputs = inputMetadataSnapshot.inputs;
   metadata.declaredInputs = inputMetadataSnapshot.declaredInputs;
+  const modalMetadata = (ModalDialogDirective as unknown as { ɵdir: AngularInputMetadata }).ɵdir;
+  modalMetadata.inputs = modalInputMetadataSnapshot.inputs;
+  modalMetadata.declaredInputs = modalInputMetadataSnapshot.declaredInputs;
 });
 
 const createdSeller: Supplier = {
@@ -123,5 +145,42 @@ describe('PurchaseSellerDialogComponent', () => {
     expect(closed).toHaveBeenCalledOnce();
     expect(fixture.componentInstance.form.controls.name.value).toBe('Close Vintage GmbH');
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('Verkäufer bearbeiten');
+  });
+
+  it('zeigt verständliche und verknüpfte Feldfehler', () => {
+    const { fixture } = render();
+    fixture.componentInstance.form.controls.name.markAsTouched();
+    fixture.componentInstance.form.controls.email.setValue('keine-mail');
+    fixture.componentInstance.form.controls.email.markAsTouched();
+    fixture.componentInstance.form.controls.phone.setErrors({ invalidPhone: true });
+    fixture.componentInstance.form.controls.phone.markAsTouched();
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+
+    expect(host.querySelector('#seller-name')?.getAttribute('aria-invalid')).toBe('true');
+    expect(host.querySelector('#seller-name-error')?.textContent).toContain('Namen');
+    expect(host.querySelector('#seller-email-error')?.textContent).toContain('E-Mail-Adresse');
+    expect(host.querySelector('#seller-phone-error')?.textContent).toContain('Telefonnummer');
+  });
+
+  it('speichert über ein echtes Formular', async () => {
+    const { fixture, suppliersService } = render();
+    fixture.componentInstance.form.controls.name.setValue('Ada Beispiel');
+    const form = (fixture.nativeElement as HTMLElement).querySelector<HTMLFormElement>(
+      '[data-seller-form]',
+    );
+
+    form?.dispatchEvent(new SubmitEvent('submit'));
+    await fixture.whenStable();
+
+    expect(form).not.toBeNull();
+    expect(suppliersService.createSupplier).toHaveBeenCalledOnce();
+  });
+
+  it('erfüllt die automatischen Barrierefreiheitsprüfungen', async () => {
+    const { fixture } = render();
+
+    const result = await axe.run(fixture.nativeElement as HTMLElement);
+    expect(result.violations).toEqual([]);
   });
 });

@@ -10,7 +10,7 @@ import { BadgeComponent } from '../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { ToastService } from '../../shared/components/toast/toast.service';
-import { PurchaseSellerDialogComponent } from '../purchases/components/purchase-seller-dialog/purchase-seller-dialog.component';
+import { PurchaseSellerDialogComponent } from './components/purchase-seller-dialog/purchase-seller-dialog.component';
 import { SellersComponent } from './sellers.component';
 
 interface AngularInputMetadata {
