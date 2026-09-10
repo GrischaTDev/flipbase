@@ -1,5 +1,110 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-10 – Claude Opus 5 (Anthropic) – Bildoptimierer: Zuschnitt und Benennung umgesetzt
+
+**Auftrag/Ergebnis:** Paket 1 der Bildoptimierer-Überarbeitung umgesetzt. Jede
+Plattform startet jetzt mit dem größtmöglichen Ausschnitt ihres Formats aus dem
+Vollbild, und die Exportdateien tragen eine durchgehende Nummer hinter einem
+Namen, der nie leer ist. Fünf Commits auf `feat/image-optimizer-workspace`,
+abgezweigt von `origin/master` (b202795).
+
+**Ursache des zu kleinen Vinted-Rahmens:** `setCrop` in `services/crops.ts`
+füllte jede noch leere Plattform per `deriveRect` aus dem Zuschnitt der
+_aktiven_ Plattform. Bei einem 3:4-Handyfoto (3000 × 4000) ist eBay (1:1)
+zuerst dran und belegt das volle Quadrat; Vinted (2:3) daraus abgeleitet bekam
+2000 px Breite – 66,7 % – während direkt aus dem Vollbild 2666,67 px möglich
+sind, also 88,9 %. Die fehlenden gut 22 Prozentpunkte verteilten sich
+gleichmäßig auf beide Ränder, daher das beidseitige Nachziehen von Hand bei
+jedem Foto.
+
+**Lösung ohne neues Datenfeld:** Ob der Nutzer den Rahmen selbst gezogen hat,
+wird aus den vorhandenen Daten abgelesen – ein Rahmen, der noch seinem eigenen
+Maximum entspricht, wurde nicht angefasst (`isMaximum`, mit einem Pixel
+Toleranz, weil der Cropper über die Anzeigegröße rechnet und rundet). Solange
+das gilt, bekommen leere Plattformen ihr eigenes Maximum aus dem Vollbild;
+sobald gezogen wurde, erben sie wie bisher aus dem aktiven Rahmen. Damit bleibt
+der tragende Grundsatz erhalten: In keinem Export landet Bildinhalt, den der
+Nutzer nicht gesehen hat. `OptimizerImage` ändert sich nicht.
+
+**Benennung:** Das `-main` beim ersten Bild entfällt. Es unterbrach die
+Zahlenkette am Ende des Namens, sodass das Durchblättern eines geöffneten
+Ordners mit den Pfeiltasten ausgerechnet beim ersten Bild aus der Reihe fiel;
+dass es das Hauptbild ist, sagt weiterhin das Abzeichen in der Oberfläche. Ohne
+eingetippten Namen tritt ein Zeitstempel `JJJJ-MM-TT-hhmm` an dessen Stelle,
+für Archiv und Dateien gleichermaßen – vorher hießen namenlose Exporte
+`flipbase-bilder.zip` mit `01.jpg`, und eine aus dem Ordner gezogene Datei war
+nicht mehr zuordenbar. Kein Doppelpunkt, den verbietet Windows in Dateinamen.
+Die Zeit wird einmal je Export genommen und durchgereicht, damit ein Lauf über
+einen Minutenwechsel hinweg nicht in zwei Namen zerfällt.
+
+**Gelöschte Tests:** `describe('Dateinamen bilden')` in `file-name.spec.ts`
+(drei Tests auf `01-main.jpg` und `flipbase-bilder.zip`) – sie hielten genau
+das abgeschaffte Verhalten fest.
+
+**Betroffen:** `src/app/features/image-optimizer/services/crops.ts`,
+`file-name.ts`, `image-collection.ts`, `image-optimizer.component.ts` sowie die
+zugehörigen Testdateien. Keine Datenbank-, Abhängigkeits- oder
+Oberflächenänderung.
+
+**Geprüft:** `npm run verify` erfolgreich (Exitcode 0, ohne Pipe gemessen):
+1054 Node-, 167 DOM- und 570 Angular-Tests, Format, Lint, Typen,
+Workflow-Tests, Suite-Audit und Bau. Chunk `image-optimizer-component`
+unverändert bei 85,3 kB roh / 21,6 kB übertragen. Für den neuen Drehungstest
+wurde eigens nachgewiesen, dass er greift: Setzt man `rotate()` auf das alte
+`crops: {}` zurück, schlägt er fehl. Jeder der vier Tasks lief durch eine
+eigene Prüfung, danach eine Abschlussprüfung über den ganzen Zweig; deren sechs
+Funde – allesamt Kommentare, Testlücken und ein überflüssiger Null-Check – sind
+in `b41ea33` behoben.
+
+**Noch offen:** Die Probe im Browser mit einem echten Handyfoto steht aus und
+sollte vor dem Merge von Hand erfolgen. Außerdem zur Entscheidung: Der Knopf
+„Auf andere Plattformen übernehmen" (`applyCropToAll`) setzt einen unberührten
+Vinted-Rahmen wieder auf die 2000 px zurück – die einzige Stelle, an der die
+neue Regel nicht greift. Verhalten unverändert gegenüber vorher, aber
+inzwischen inkonsequent.
+
+---
+
+## 2026-09-10 – Claude Opus 5 (Anthropic) – Bildoptimierer: Arbeitsfläche, Zuschnitt, Metadaten, Export geplant
+
+**Auftrag/Ergebnis:** Sieben Änderungswünsche von Grischa am Bildoptimierer
+aufgenommen und als Spezifikation abgelegt unter
+`docs/superpowers/specs/2026-09-10-bildoptimierer-arbeitsflaeche-design.md`:
+verschiebbarer Trenner mit Bildraster rechts, Bildsteuerelemente als Leiste auf
+der Vorschau, maximaler Erstzuschnitt je Plattform, Metadaten im Modal mit
+Erhalt der Datumsangaben, Export als echte Ordner statt ZIP, durchgehende
+Nummerierung ohne `-main`, Exportvorschau und Plattformreiter zusammengelegt.
+Kein Quelltext geändert.
+
+**Technische Vorprüfung:** `ngx-image-cropper` bringt außer den Ziehgriffen
+keine eigene Bedienoberfläche mit – eine Leiste auf dem Bild ist ohne Eingriff
+in die Bibliothek baubar. Für verschiebbare Trenner existiert im Projekt noch
+nichts; `two-column-layout` kennt nur drei feste Verhältnisse.
+
+**Fehleranalyse (zu kleiner Vinted-Zuschnitt):** `setCrop()` in
+`services/crops.ts` leitet jede noch leere Plattform per `deriveRect()` aus dem
+Zuschnitt der _aktiven_ Plattform ab. Bei einem 3:4-Handyfoto ist eBay (1:1)
+zuerst dran und belegt das volle Quadrat; Vinted (2:3) daraus abgeleitet
+bekommt nur 66,7 % der Fotobreite, während direkt aus dem Vollbild 88,9 %
+möglich wären. Die fehlenden gut 22 Prozentpunkte verteilen sich gleichmäßig
+auf beide Ränder – daher das beidseitige Nachziehen von Hand.
+
+**Entscheidung mit Tragweite:** Paket 2 (`2026-08-28`) hatte festgehalten,
+Metadaten nur zu lesen und **nie** zu schreiben. Das wird eingeschränkt
+aufgehoben: Aufnahme- und Erstelldatum werden nach dem Rendern wieder als
+minimales EXIF-Segment in die Exportdatei geschrieben, damit das eigene Archiv
+nach Datum sortierbar bleibt. Urheber, Gerät, Ort, Software und
+Herkunftsnachweis bleiben ausgeschlossen. Der Block muss nach der
+Größenkomprimierung gesetzt werden, sonst verwirft `browser-image-compression`
+ihn wieder.
+
+**Zweig:** Dieses Paket beginnt auf `feat/image-optimizer-workspace`, abgezweigt
+von `origin/master` (b202795), in einem eigenen Arbeitsbaum unter
+`.worktrees/image-optimizer-workspace`. Der Hauptarbeitsbaum stand auf dem
+bereits vollständig gemergten `feat/deal-monitor-collection-and-ui` und trug
+einen noch nicht eingecheckten Changelog-Eintrag einer parallel laufenden
+Codex-Sitzung; beides blieb unberührt.
+
 ## 2026-09-10 – Codex – Konfigurationsproben der PR-Suite vollständig isolieren
 
 **Fix:** Die Gegenproben des Playwright-Vertragstests überschrieben bisher vorübergehend die verfolgte PR-Konfiguration. Jede Probe erhält nun per `mkdtemp` einen eigenen, aufgelösten und geprüften Ordner mit Kopien beider Konfigurationen und des Testverzeichnisses. Der Temp-Bereich liegt unter `tmp/` außerhalb der echten Testauswahl; Cleanup entfernt ausschließlich die jeweilige eigene Probe. Auch der zusätzliche verschachtelte Smoke-Test arbeitet nur in seiner Kopie.

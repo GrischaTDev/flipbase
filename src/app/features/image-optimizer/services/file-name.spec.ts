@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { archiveName, exportFileName, sanitizeBaseName } from './file-name';
+import { archiveName, effectiveBaseName, exportFileName, sanitizeBaseName } from './file-name';
 
 describe('Namen entschaerfen', () => {
   it('schreibt Umlaute und Eszett aus', () => {
@@ -36,20 +36,65 @@ describe('Namen entschaerfen', () => {
   });
 });
 
-describe('Dateinamen bilden', () => {
-  it('nummeriert ohne Grundnamen wie bisher', () => {
-    expect(exportFileName(0, '')).toBe('01-main.jpg');
-    expect(exportFileName(1, '')).toBe('02.jpg');
-    expect(exportFileName(11, '')).toBe('12.jpg');
+describe('Wirksamer Grundname', () => {
+  const noon = new Date(2026, 8, 10, 14, 32, 5);
+
+  it('nimmt den eingetippten Namen, wenn einer da ist', () => {
+    expect(effectiveBaseName('macbook-air', noon)).toBe('macbook-air');
   });
 
-  it('stellt den Grundnamen voran', () => {
-    expect(exportFileName(0, 'nike-air-max-42')).toBe('nike-air-max-42-01-main.jpg');
-    expect(exportFileName(2, 'nike-air-max-42')).toBe('nike-air-max-42-03.jpg');
+  it('setzt ohne Eingabe Datum und Uhrzeit ein', () => {
+    // Jahr zuerst, damit der Explorer von allein chronologisch sortiert.
+    expect(effectiveBaseName('', noon)).toBe('2026-09-10-1432');
   });
 
-  it('benennt das Archiv nach dem Grundnamen', () => {
-    expect(archiveName('')).toBe('flipbase-bilder.zip');
-    expect(archiveName('nike-air-max-42')).toBe('nike-air-max-42.zip');
+  it('fuellt Monat, Tag, Stunde und Minute auf zwei Stellen', () => {
+    expect(effectiveBaseName('', new Date(2026, 0, 3, 7, 4, 0))).toBe('2026-01-03-0704');
+  });
+
+  it('benutzt keinen Doppelpunkt', () => {
+    // In Windows-Dateinamen verboten - eine Datei mit Doppelpunkt liesse
+    // sich gar nicht erst schreiben.
+    expect(effectiveBaseName('', noon)).not.toContain(':');
+  });
+});
+
+describe('Name einer Exportdatei', () => {
+  it('nummeriert durchgehend, auch das erste Bild', () => {
+    // Das frueher angehaengte "-main" unterbrach die Zahlenkette am Ende des
+    // Namens und brachte die Sortierung in Windows durcheinander.
+    expect(exportFileName(0, 'macbook-air')).toBe('macbook-air-01.jpg');
+    expect(exportFileName(1, 'macbook-air')).toBe('macbook-air-02.jpg');
+  });
+
+  it('haengt kein main mehr an', () => {
+    expect(exportFileName(0, 'macbook-air')).not.toContain('main');
+  });
+
+  it('behaelt die fuehrende Null bis zur neunten Datei', () => {
+    // Die Upload-Dialoge der Plattformen sortieren rein alphabetisch; ohne
+    // Null stuende dort 10 vor 2.
+    expect(exportFileName(8, 'x')).toBe('x-09.jpg');
+    expect(exportFileName(9, 'x')).toBe('x-10.jpg');
+  });
+
+  it('setzt den Namen vor die Nummer', () => {
+    // Andersherum mischten sich mehrere Artikel im selben Ordner
+    // ineinander: erst alle Einsen, dann alle Zweien.
+    expect(exportFileName(0, 'macbook-air').startsWith('macbook-air')).toBe(true);
+  });
+});
+
+describe('Name des Archivs', () => {
+  it('haengt nur die Endung an den wirksamen Namen', () => {
+    expect(archiveName('macbook-air')).toBe('macbook-air.zip');
+  });
+
+  it('benennt den Zeitstempel genauso wie die Dateien darin', () => {
+    // Der ZIP-Rueckfall darf nicht anders benennen als der Hauptweg.
+    const stamp = effectiveBaseName('', new Date(2026, 8, 10, 14, 32, 5));
+
+    expect(archiveName(stamp)).toBe('2026-09-10-1432.zip');
+    expect(exportFileName(0, stamp)).toBe('2026-09-10-1432-01.jpg');
   });
 });
