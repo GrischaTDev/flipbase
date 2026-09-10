@@ -59,10 +59,7 @@ export function setCrop(
   for (const p of selected) {
     if (p.id === platform) continue;
     if (after[p.id]) continue;
-    after[p.id] =
-      seedFromFull && size !== null
-        ? maximumCrop(size, p.exportRatio)
-        : deriveRect(rect, p.exportRatio);
+    after[p.id] = seedFromFull ? maximumCrop(size, p.exportRatio) : deriveRect(rect, p.exportRatio);
   }
 
   return after;

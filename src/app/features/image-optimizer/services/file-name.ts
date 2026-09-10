@@ -92,7 +92,7 @@ export function exportFileName(index: number, baseName: string): string {
   return `${baseName}-${pad(index + 1)}.jpg`;
 }
 
-/** Name des Archivs fuer den ZIP-Rueckfall. Erwartet den wirksamen Namen. */
+/** Name des ZIP-Archivs, in dem der Export ausgeliefert wird. Erwartet den wirksamen Namen. */
 export function archiveName(baseName: string): string {
   return `${baseName}.zip`;
 }

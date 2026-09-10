@@ -366,8 +366,9 @@ export class ImageOptimizerComponent {
    * Vinted-Rahmen behebt, nur von Hand im Browser nachweisbar.
    *
    * Der Abgleich `image.dataUrl === dataUrl` schuetzt vor einer veralteten
-   * Antwort; wird keine URL uebergeben, ist der Aufrufer selbst dafuer
-   * zustaendig (siehe `rotate`).
+   * Antwort. Der einzige produktive Aufrufer, `measureNaturalSize`, uebergibt
+   * `dataUrl` deshalb immer; das Argument ist nur optional, damit ein Test
+   * die Vorbelegung auch ohne `dataUrl` ansteuern kann.
    */
   applyNaturalSize(id: string, size: Size, dataUrl?: string): void {
     const selected = this.selectedPlatforms();

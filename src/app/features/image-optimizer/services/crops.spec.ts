@@ -125,9 +125,9 @@ describe('Erkennen, ob ein Ausschnitt noch das Maximum ist', () => {
     const max = maximumCrop(phone, 2 / 3);
     const rounded: Rect = {
       x: Math.round(max.x),
-      y: max.y,
+      y: Math.round(max.y),
       width: Math.round(max.width),
-      height: max.height,
+      height: Math.round(max.height),
     };
 
     expect(isMaximum(rounded, phone, 2 / 3)).toBe(true);

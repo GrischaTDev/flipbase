@@ -9,7 +9,9 @@ import { ImageMetadata, pendingMetadata } from './models/image-metadata';
 import { OptimizerImage } from './models/optimizer-image';
 import { Size } from './models/platform-profile';
 import { defaultAdjustments, toFilterString } from './services/adjustments';
+import { maximumCrop } from './services/crops';
 import { reviewedCount as countReviewed } from './services/image-collection';
+import { ImageRotationService } from './services/image-rotation.service';
 import { MetadataReaderService } from './services/metadata-reader.service';
 
 /**
@@ -390,8 +392,16 @@ describe('ImageOptimizerComponent', () => {
   });
 
   describe('Aktionsmeldungen', () => {
-    function createComponent(pack: () => Promise<Blob>) {
+    /**
+     * Baut die Komponente per `Object.create`/`Object.assign` statt ueber den
+     * echten Konstruktor - dieser Block braucht keine echten Signale, nur
+     * gezielte Stubs fuer Export und Toast. Eigener Name statt des
+     * modulweiten `createComponent()`, damit ein Aufraeumen der vermeintlichen
+     * Doppelung diese Fassung nicht versehentlich verdraengt.
+     */
+    function createComponentWithStubs(pack: () => Promise<Blob>) {
       const toast = new ToastService();
+      const download = vi.fn();
       const component = Object.create(ImageOptimizerComponent.prototype) as ImageOptimizerComponent;
       Object.assign(component, {
         toast,
@@ -403,14 +413,14 @@ describe('ImageOptimizerComponent', () => {
         error: signal<string | null>(null),
         baseName: () => '',
         zipExport: { pack: vi.fn(pack) },
-        download: vi.fn(),
+        download,
       });
-      return { component, toast };
+      return { component, toast, download };
     }
 
     describe('ImageOptimizerComponent – Aktionsmeldungen', () => {
       it('bestätigt einen abgeschlossenen Export', async () => {
-        const { component, toast } = createComponent(async () => new Blob());
+        const { component, toast } = createComponentWithStubs(async () => new Blob());
 
         await component.exportImages();
 
@@ -421,7 +431,7 @@ describe('ImageOptimizerComponent', () => {
       });
 
       it('meldet einen Exportfehler persistent mit der Ausnahmebeschreibung', async () => {
-        const { component, toast } = createComponent(async () => {
+        const { component, toast } = createComponentWithStubs(async () => {
           throw new Error('ZIP konnte nicht erstellt werden');
         });
 
@@ -433,6 +443,16 @@ describe('ImageOptimizerComponent', () => {
           description: 'ZIP konnte nicht erstellt werden',
           persistent: true,
         });
+      });
+
+      it('liest die Exportzeit nur einmal und benennt das Archiv danach', async () => {
+        const { component, download } = createComponentWithStubs(async () => new Blob());
+
+        await component.exportImages();
+
+        expect(download).toHaveBeenCalledTimes(1);
+        const [, archiveFileName] = download.mock.calls[0] as [Blob, string];
+        expect(archiveFileName).toMatch(/^\d{4}-\d{2}-\d{2}-\d{4}\.zip$/);
       });
     });
   });
@@ -488,6 +508,53 @@ describe('ImageOptimizerComponent', () => {
       component.togglePlatform('vinted');
 
       expect(component.images()[0].crops.vinted!.width).toBeCloseTo(1000, 3);
+    });
+  });
+
+  describe('ImageOptimizerComponent – Drehung belegt Zuschnitt neu vor', () => {
+    beforeAll(() => TestBed.resetTestingModule());
+
+    /**
+     * Die echte Drehung rendert auf eine `<canvas>` und dekodiert die Datei
+     * ueber `createImageBitmap`/`Image` - beides liefert unter jsdom kein
+     * brauchbares Ergebnis. Der Stub liefert stattdessen direkt die gedrehte
+     * Groesse, damit sich pruefen laesst, womit `rotate()` die Zuschnitte
+     * danach vorbelegt.
+     */
+    class StubRotationService {
+      rotate(_file: File, _quarters: 0 | 1 | 2 | 3): Promise<{ dataUrl: string; size: Size }> {
+        return Promise.resolve({ dataUrl: 'blob:rotated', size: { width: 4000, height: 3000 } });
+      }
+    }
+
+    function createComponent(): ImageOptimizerComponent {
+      TestBed.configureTestingModule({
+        providers: [{ provide: ImageRotationService, useValue: new StubRotationService() }],
+      });
+      return TestBed.runInInjectionContext(() => new ImageOptimizerComponent());
+    }
+
+    it('belegt nach einer Drehung die Zuschnitte mit dem Maximum der gedrehten Groesse neu vor', async () => {
+      const component = createComponent();
+      component.togglePlatform('ebay');
+      component.addFiles([jpegFile('a.jpg')]);
+      const id = component.images()[0].id;
+      component.applyNaturalSize(id, { width: 3000, height: 4000 });
+
+      // Ein vom Nutzer gezogener Rahmen bezieht sich auf die ungedrehte
+      // Geometrie - er darf nach der Drehung nicht einfach uebernommen werden.
+      const beforeRect = { x: 400, y: 600, width: 1500, height: 1500 };
+      component.saveCrop(id, beforeRect);
+      expect(component.images()[0].crops.ebay).toEqual(beforeRect);
+
+      await component.rotate(id);
+
+      const ebayRatio = component.selectedPlatforms().find((p) => p.id === 'ebay')!.exportRatio;
+      const expected = maximumCrop({ width: 4000, height: 3000 }, ebayRatio);
+      const rotated = component.images()[0].crops.ebay;
+
+      expect(rotated).toEqual(expected);
+      expect(rotated).not.toEqual(beforeRect);
     });
   });
 });
