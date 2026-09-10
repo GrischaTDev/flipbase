@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { startDemoMode } from './support/demo';
 
-test('opens an existing purchase directly without runtime errors', async ({ page }) => {
+test('opens an existing purchase directly without runtime errors @pr-smoke', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await startDemoMode(page);

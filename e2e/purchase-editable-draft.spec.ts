@@ -2,7 +2,9 @@ import { expect, test } from '@playwright/test';
 import { addNewPurchaseProduct } from './support/products';
 import { startDemoMode } from './support/demo';
 
-test('keeps a saved draft editable through discard, save and reopening', async ({ page }) => {
+test('keeps a saved draft editable through discard, save and reopening @pr-smoke', async ({
+  page,
+}) => {
   await startDemoMode(page);
   await page.goto('/purchases/new');
   const description = page.getByRole('textbox', { name: 'Beschreibung (optional)' });

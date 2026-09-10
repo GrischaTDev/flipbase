@@ -8,6 +8,32 @@
 
 **Tech Stack:** Angular 22, Vitest 4.1.x (Node & jsdom), Supabase pgTAP, GitHub Actions, Docker Buildx.
 
+## Getroffene Entscheidung (2026-09-10)
+
+Die vollständige Entfernung von Playwright aus Option 1 wurde nach Prüfung der
+offiziellen Playwright-Dokumentation und der gemessenen Repository-Laufzeiten
+nicht gewählt. Echte Browserprüfungen bleiben für Fokusführung, Popover-Layer,
+Diagramm-Rendering, Bildpersistenz und berechnete Barrierefreiheit wertvoll.
+
+Umgesetzt wird deshalb die Hybridvariante im separaten
+`docs/superpowers/plans/2026-09-10-playwright-hybrid-umsetzung.md`:
+
+- Im PR laufen exakt acht mit `@pr-smoke` markierte Chromium-Verträge.
+- Der PR nutzt `retries: 0`, `maxFailures: 1`, `workers: 1` und behält Traces
+  bei Fehlern.
+- CI installiert Chromium nur als Headless-Shell über
+  `--with-deps --only-shell chromium`.
+- WebKit läuft täglich und Firefox wöchentlich mit demselben Acht-Test-Kern.
+- Die übrige Browser-Suite bleibt lokal ausführbar, blockiert aber keine PRs.
+- Es werden weder Browser-Binaries gecacht noch demo-fähige Produktionsbauten
+  erzeugt.
+
+Der markierte PR-Kern lief lokal 8/8 in 58 Sekunden. Die gesamte PR-
+Prüfung bleibt wegen Angular- und Datenbankprüfungen deutlich länger; eine
+Gesamtdauer von 60–90 Sekunden ist daher kein zugesagtes Ziel. Die historischen
+Optionen und ihre Begründungen bleiben zur Nachvollziehbarkeit erhalten; Option
+1 ist nicht gewählt.
+
 ---
 
 ## 1. Ausgangslage & Problemstellung
