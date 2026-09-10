@@ -754,78 +754,134 @@ neu und wirft jedes Segment weg. Das EXIF muss danach kommen.
 
 - [ ] **Step 1: Write the failing test**
 
+**Wichtig zur Umgebung:** jsdom hat **keine Zeichenfläche**. `getContext('2d')`
+liefert dort `null`, und `toBlob` gibt es gar nicht — `renderImage()` würde also
+mit „Der Browser stellt keine Zeichenfläche bereit." abbrechen. Ein Test, der
+ein echtes Bild rendert, ist hier nicht möglich (siehe `image-renderer.dom.spec.ts`,
+das aus demselben Grund mit einem Attrappen-Kontext arbeitet).
+
+Das trifft sich gut, denn worum es hier geht, ist gar nicht das Rendern,
+sondern die **Reihenfolge**: Wird das EXIF-Segment nach dem Verkleinern
+gesetzt? Rendern und Verkleinern werden deshalb durch Attrappen ersetzt, die je
+eine unterscheidbare Bytefolge liefern. Am Ergebnis lässt sich dann ablesen,
+worauf das Segment gesetzt wurde.
+
 Neue Datei `src/app/features/image-optimizer/services/image-export.service.dom.spec.ts`:
 
 ```ts
-import { describe, it, expect } from 'vitest';
-import { ImageExportService } from './image-export.service';
-import { platformById } from '../models/platform-profile';
-import { NEUTRAL_LOOK } from './image-renderer';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { platformById, PlatformProfile } from '../models/platform-profile';
 
-/** Eine Zeichenflaeche als Bildquelle - in jsdom laedt kein echtes Bild. */
-function source(width: number, height: number): HTMLCanvasElement {
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  return canvas;
-}
+/**
+ * Zwei unterscheidbare JPEG-Geruesten. Am letzten Byte vor `FFD9` laesst sich
+ * ablesen, welches der beiden am Ende in der Datei steht - und damit, ob das
+ * EXIF-Segment vor oder nach dem Verkleinern gesetzt wurde.
+ */
+const RENDERED = new Uint8Array([0xff, 0xd8, 0xff, 0xda, 0x00, 0x02, 0x11, 0xaa, 0xff, 0xd9]);
+const COMPRESSED = new Uint8Array([0xff, 0xd8, 0xff, 0xda, 0x00, 0x02, 0x11, 0xbb, 0xff, 0xd9]);
+
+// `planOutput` bleibt echt - es ist eine reine Rechnung und wird gebraucht.
+// Nur `renderImage` wird ersetzt, weil es eine Zeichenflaeche braucht.
+vi.mock('./image-renderer', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./image-renderer')>();
+  return {
+    ...actual,
+    renderImage: vi.fn(async () => new Blob([RENDERED], { type: 'image/jpeg' })),
+  };
+});
+
+vi.mock('browser-image-compression', () => ({
+  default: vi.fn(async () => new Blob([COMPRESSED], { type: 'image/jpeg' })),
+}));
+
+const { ImageExportService } = await import('./image-export.service');
+const { NEUTRAL_LOOK } = await import('./image-renderer');
+
+/** Die Bildquelle wird nie benutzt, weil `renderImage` ersetzt ist. */
+const source = {} as HTMLImageElement;
+const crop = { x: 0, y: 0, width: 800, height: 800 };
+const taken = new Date(2026, 4, 17, 9, 5, 3);
 
 async function bytes(blob: Blob): Promise<Uint8Array> {
   return new Uint8Array(await blob.arrayBuffer());
 }
 
+/** Ob unmittelbar hinter dem Dateianfang ein APP1-Segment steht. */
+function hasExif(data: Uint8Array): boolean {
+  return data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff && data[3] === 0xe1;
+}
+
+/** Das Kennbyte aus dem Bilddatenstrom: 0xaa = gerendert, 0xbb = verkleinert. */
+function marker(data: Uint8Array): number {
+  return data[data.length - 3];
+}
+
 describe('Plattformfassung erzeugen', () => {
-  const crop = { x: 0, y: 0, width: 800, height: 800 };
-  const taken = new Date(2026, 4, 17, 9, 5, 3);
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   it('setzt das Aufnahmedatum in die fertige Datei', async () => {
-    const service = new ImageExportService();
-
-    const blob = await service.create(
-      source(800, 800),
+    const result = await new ImageExportService().create(
+      source,
       crop,
-      platformById('ebay'),
+      platformById('vinted'),
       NEUTRAL_LOOK,
       taken,
     );
-    const data = await bytes(blob);
 
-    // FFD8 FFE1: das Segment steht unmittelbar hinter dem Dateianfang.
-    expect(data[2]).toBe(0xff);
-    expect(data[3]).toBe(0xe1);
+    expect(hasExif(await bytes(result))).toBe(true);
   });
 
   it('laesst die Datei ohne Datum unveraendert', async () => {
     // Es wird nie ein Datum erfunden.
-    const service = new ImageExportService();
-
-    const blob = await service.create(
-      source(800, 800),
+    const result = await new ImageExportService().create(
+      source,
       crop,
-      platformById('ebay'),
+      platformById('vinted'),
       NEUTRAL_LOOK,
       null,
     );
-    const data = await bytes(blob);
 
-    expect(data[3]).not.toBe(0xe1);
+    expect(await bytes(result)).toEqual(RENDERED);
   });
 
-  it('setzt das Segment nach dem Verkleinern, nicht davor', async () => {
-    // Der entscheidende Punkt: browser-image-compression kodiert neu und
-    // wuerde ein vorher gesetztes Segment wegwerfen. Ein Profil mit einer
-    // absurd kleinen Grenze erzwingt den Weg durch die Komprimierung.
-    const service = new ImageExportService();
-    const tiny = { ...platformById('ebay'), maxFileSizeMB: 0.000001 };
+  it('verkleinert gar nicht erst, wenn die Plattform keine Grenze nennt', async () => {
+    // Vinted nennt keine Grenze - dann darf die Komprimierung nicht laufen.
+    const compression = (await import('browser-image-compression')).default;
 
-    const blob = await service.create(source(800, 800), crop, tiny, NEUTRAL_LOOK, taken);
-    const data = await bytes(blob);
+    const result = await new ImageExportService().create(
+      source,
+      crop,
+      platformById('vinted'),
+      NEUTRAL_LOOK,
+      taken,
+    );
 
-    expect(data[2]).toBe(0xff);
-    expect(data[3]).toBe(0xe1);
+    expect(compression).not.toHaveBeenCalled();
+    expect(marker(await bytes(result))).toBe(0xaa);
+  });
+
+  it('setzt das Segment NACH dem Verkleinern, nicht davor', async () => {
+    // Der entscheidende Punkt dieser Aufgabe: browser-image-compression
+    // kodiert neu und wuerde ein vorher gesetztes Segment wegwerfen. Das
+    // Kennbyte 0xbb beweist, dass die verkleinerte Fassung ausgeliefert wird,
+    // und das APP1 davor, dass sie das Datum trotzdem traegt.
+    const tiny: PlatformProfile = { ...platformById('ebay'), maxFileSizeMB: 0.000001 };
+
+    const result = await new ImageExportService().create(source, crop, tiny, NEUTRAL_LOOK, taken);
+    const data = await bytes(result);
+
+    expect(marker(data)).toBe(0xbb);
+    expect(hasExif(data)).toBe(true);
   });
 });
 ```
+
+Die Attrappen stehen vor dem Import des Dienstes und der Dienst wird deshalb
+per `await import(...)` geholt: `vi.mock` wird zwar nach oben gezogen, aber ein
+gewöhnlicher `import` des Dienstes würde `image-renderer` vor der Attrappe
+laden.
 
 - [ ] **Step 2: Run test to verify it fails**
 
@@ -862,7 +918,7 @@ export class ImageExportService {
    * null, bleibt die Datei ohne EXIF - es wird nie ein Datum erfunden.
    */
   async create(
-    image: HTMLImageElement | HTMLCanvasElement,
+    image: HTMLImageElement,
     crop: Rect,
     platform: PlatformProfile,
     look: Look = NEUTRAL_LOOK,
@@ -906,10 +962,6 @@ export class ImageExportService {
   }
 }
 ```
-
-Der Eingangstyp wurde um `HTMLCanvasElement` erweitert — `renderImage` nimmt
-ohnehin `CanvasImageSource`, und die Prüfung braucht eine Quelle, die in jsdom
-lädt.
 
 In `src/app/features/image-optimizer/image-optimizer.component.ts` reicht
 `exportImages()` das Datum durch:
