@@ -5,6 +5,7 @@ vi.mock('exifr', () => ({ default: { parse: (...args: unknown[]) => parseMock(..
 
 import { MetadataReaderService } from './metadata-reader.service';
 import { ImageMetadata } from '../models/image-metadata';
+import { buildDateExif, withExif } from './exif-writer';
 
 /** Wert eines Eintrags aus der vollstaendigen Liste. */
 const feld = (result: ImageMetadata, key: string) =>
@@ -14,6 +15,13 @@ const ascii = (text: string) => [...text].map((c) => c.charCodeAt(0));
 
 function fileOf(bytes: number[], name: string, type = ''): File {
   return new File([new Uint8Array(bytes)], name, { type });
+}
+
+/** Ein winziges, aber gueltiges JPEG-Geruest: SOI, ein APP0, SOS, EOI. */
+function minimalJpeg(): Uint8Array {
+  return new Uint8Array([
+    0xff, 0xd8, 0xff, 0xe0, 0x00, 0x04, 0x00, 0x00, 0xff, 0xda, 0x00, 0x02, 0x11, 0x22, 0xff, 0xd9,
+  ]);
 }
 
 const JPEG = [
@@ -374,5 +382,40 @@ describe('Herkunftsnachweis: gefunden, nicht gefunden, nicht nachgesehen', () =>
     expect(result.status).toBe('read');
     expect(result.fields).toEqual([]);
     expect(result.ai.contentCredential).toBe('unchecked');
+  });
+});
+
+describe('Aufnahmedatum lesen', () => {
+  // Hier soll echt geparst werden, nicht das leere Attrappen-Ergebnis von
+  // parseMock - sonst wuerde nur die eigene Verdrahtung getestet, nicht ob
+  // ein echtes EXIF-Segment ankommt. Der Mock leitet deshalb an das
+  // tatsaechliche exifr weiter, statt es zu ersetzen.
+  beforeEach(async () => {
+    const actual = await vi.importActual<{ default: { parse: (...args: unknown[]) => unknown } }>(
+      'exifr',
+    );
+    parseMock.mockReset();
+    parseMock.mockImplementation((...args: unknown[]) => actual.default.parse(...args));
+  });
+
+  it('liest das Aufnahmedatum als rohen Wert mit', async () => {
+    // Roh, nicht als formatierter Text: Der Exportweg braucht ein echtes
+    // Date, und aus "17.05.2026, 09:05:03" liesse es sich nur raten.
+    const jpeg = withExif(minimalJpeg(), buildDateExif(new Date(2026, 4, 17, 9, 5, 3)));
+    // Kopie ueber `new Uint8Array(...)`: `withExif` liefert `Uint8Array<ArrayBufferLike>`,
+    // `File` verlangt einen an `ArrayBuffer` gebundenen Puffer.
+    const file = new File([new Uint8Array(jpeg)], 'foto.jpg', { type: 'image/jpeg' });
+
+    const metadata = await new MetadataReaderService().read(file);
+
+    expect(metadata.capturedAt?.getFullYear()).toBe(2026);
+  });
+
+  it('liefert ohne Datum in der Datei null', async () => {
+    const file = new File([new Uint8Array(minimalJpeg())], 'foto.jpg', { type: 'image/jpeg' });
+
+    const metadata = await new MetadataReaderService().read(file);
+
+    expect(metadata.capturedAt).toBeNull();
   });
 });

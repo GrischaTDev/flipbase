@@ -1,5 +1,82 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-10 – Claude Opus 5 (Anthropic) – Bildoptimierer: Ordner-Export und erhaltenes Aufnahmedatum
+
+**Auftrag/Ergebnis:** Paket 2 der Bildoptimierer-Überarbeitung umgesetzt. Der
+Export schreibt die Bilder jetzt direkt in einen gewählten Ordner statt in ein
+ZIP, überschreibt dabei nie etwas, und die fertigen JPEG-Dateien tragen wieder
+das Aufnahmedatum. Elf Commits auf `feat/image-optimizer-export`, abgezweigt
+von `origin/master` (5ebd9bb).
+
+**Warum kein ZIP mehr:** Der Nutzer musste nach jedem Export erst entpacken.
+Ein Browser kann keinen Ordner herunterladen – genau deshalb gab es das Archiv.
+`showDirectoryPicker` kann es, in Chrome und Edge; in Firefox, Safari und auf
+Android entsteht weiterhin still das ZIP, der Unterschied fällt nur am Ergebnis
+auf.
+
+**Die Gefahr dabei, und wie sie geschlossen ist:** Die Verzeichnis-Schnittstelle
+hat kein eigenes Netz. `getFileHandle(name, { create: true })` öffnet
+stillschweigend eine vorhandene Datei, und `createWritable()` kürzt sie beim
+Öffnen auf null Byte. Das automatische „(1)" beim Herunterladen kommt vom
+Browser, der hier gar nicht beteiligt ist. Der Zählsuffix wird deshalb selbst
+gebaut: `name`, `name (2)`, `name (3)`. Geprüft wird nur der obere Ordner – ist
+dessen Name neu, sind alle Unterordner und Dateien darin zwangsläufig auch neu.
+Ein Fehlschlag, der **nicht** eindeutig „nicht gefunden" heißt, wird
+weitergereicht statt als „frei" geraten; sonst hätte eine verweigerte
+Berechtigung den Export in einen vorhandenen Ordner schreiben lassen.
+
+**Aufnahmedatum:** Der Export rendert über eine Zeichenfläche und verliert
+dabei zwangsläufig jedes Metadatum. Aufnahme- und Erstelldatum werden hinterher
+als minimales EXIF-Segment wieder hineingeschrieben – eigener Schreiber ohne
+neue Abhängigkeit, wie schon bei `webp-metadata.ts` und `c2pa-detection.ts`.
+Geschrieben werden genau drei Tags (`DateTime`, `DateTimeOriginal`,
+`DateTimeDigitized`), nie Hersteller, Modell, Software, Urheber, Ort oder XMP.
+Das Segment wird als **letzter** Schritt gesetzt, nach der
+Größenkomprimierung – davor gesetzt würde `browser-image-compression` es
+wegwerfen, und zwar ausgerechnet bei den großen Dateien, die niemand
+nachkontrolliert.
+
+**Eingeschränkte Aufhebung einer früheren Entscheidung:** Paket 2 vom
+28.08.2026 hielt fest, Metadaten nur zu lesen und nie zu schreiben. Die
+Begründung – Plattformen rechnen hochgeladene Bilder ohnehin neu durch – gilt
+weiter für die hochgeladene Fassung, nicht für die Datei auf der eigenen
+Festplatte. Genau darum geht es hier: das eigene Archiv nach Aufnahmezeit
+sortierbar halten.
+
+**Text im Metadatenfenster berichtigt:** Der bisherige Satz behauptete, die
+Exportdateien enthielten weder EXIF noch XMP. Das stimmt nicht mehr. Der neue
+Text nennt, dass das Datum bleibt, was entfernt wird – und weiterhin, dass ein
+Farbprofil und ein technischer Dateikopf des Browsers erhalten bleiben. Ein
+Datenschutzversprechen, das still zu viel verspricht, ist schlechter als keines.
+
+**Betroffen:** `src/app/features/image-optimizer/services/` (neu:
+`capture-date.ts`, `exif-writer.ts`, `free-folder-name.ts`,
+`directory-export.service.ts`), dazu `image-export.service.ts`,
+`metadata-reader.service.ts`, `models/image-metadata.ts`,
+`image-optimizer.component.ts`, `export-bar` und `metadata-panel`.
+`zip-export.service.ts` bleibt unverändert als Rückfall. Keine Datenbank-,
+Abhängigkeits- oder Schemaänderung.
+
+**Geprüft:** `npm run verify` erfolgreich (Exitcode 0, ohne Pipe gemessen):
+1107 Node-, 180 DOM- und 601 Angular-Tests, dazu Format, Lint, Typen,
+Workflow-Tests, Suite-Audit und Bau. Chunk `image-optimizer-component` von
+85,45 kB auf 90,11 kB roh gewachsen (23,18 kB übertragen) – eigener Quelltext,
+keine neue Abhängigkeit. Für die drei verhaltensbestimmenden Zusicherungen
+wurde eigens nachgewiesen, dass die Tests greifen: Ohne den Fehlergrund-Filter
+fallen drei Tests der Ordnersuche um, ohne den weitergereichten `capturedAt`
+fällt der Exporttest um, und mit einem Abbruch, der in den ZIP-Zweig
+durchfällt, fällt der Abbruchtest um. Jeder der sieben Tasks lief durch eine
+eigene Prüfung, danach eine Abschlussprüfung über den ganzen Zweig; deren Funde
+sind in `050ba28` behoben.
+
+**Noch offen:** Die Probe im Browser mit echten Fotos steht aus und sollte vor
+dem Merge von Hand erfolgen – insbesondere ein zweiter Export desselben
+Artikels, bei dem der Zählsuffix greifen muss, und ein Blick in die
+Windows-Eigenschaften einer Exportdatei: Aufnahmedatum vorhanden, Kameramodell
+und Ort nicht.
+
+---
+
 ## 2026-09-10 – Claude Opus 5 (Anthropic) – Bildoptimierer: Zuschnitt und Benennung umgesetzt
 
 **Auftrag/Ergebnis:** Paket 1 der Bildoptimierer-Überarbeitung umgesetzt. Jede

@@ -7,9 +7,10 @@ import { ImageOptimizerComponent } from './image-optimizer.component';
 import { Adjustments } from './models/image-adjustments';
 import { ImageMetadata, pendingMetadata } from './models/image-metadata';
 import { OptimizerImage } from './models/optimizer-image';
-import { Size } from './models/platform-profile';
+import { PLATFORM_PROFILES, Size } from './models/platform-profile';
 import { defaultAdjustments, toFilterString } from './services/adjustments';
 import { maximumCrop } from './services/crops';
+import { WriteResult } from './services/directory-export.service';
 import { reviewedCount as countReviewed } from './services/image-collection';
 import { ImageRotationService } from './services/image-rotation.service';
 import { MetadataReaderService } from './services/metadata-reader.service';
@@ -229,6 +230,7 @@ describe('ImageOptimizerComponent', () => {
         { key: 'Model', label: 'Kameramodell', value: 'iPhone 15' },
       ],
       ai: { contentCredential: 'absent', declaredSource: null },
+      capturedAt: null,
     };
 
     /**
@@ -247,6 +249,7 @@ describe('ImageOptimizerComponent', () => {
         gps: null,
         fields: [],
         ai: { contentCredential: 'absent', declaredSource: null },
+        capturedAt: null,
       };
     }
 
@@ -411,7 +414,15 @@ describe('ImageOptimizerComponent', () => {
         images: signal([]),
         selectedPlatforms: signal([]),
         error: signal<string | null>(null),
+        // Wird im `finally` von `exportImages()` unbedingt zurueckgesetzt -
+        // ohne dieses Signal wuerde der Aufruf mit einer TypeError abbrechen.
+        exportProgress: signal<{ done: number; total: number; phase: 'render' | 'write' } | null>(
+          null,
+        ),
         baseName: () => '',
+        // `canWriteDirectory()` liefert unter jsdom `false` (kein
+        // `showDirectoryPicker`), also bleibt dieser Block beim ZIP-Weg -
+        // `directoryExport` wird dabei nie angefasst.
         zipExport: { pack: vi.fn(pack) },
         download,
       });
@@ -453,6 +464,185 @@ describe('ImageOptimizerComponent', () => {
         expect(download).toHaveBeenCalledTimes(1);
         const [, archiveFileName] = download.mock.calls[0] as [Blob, string];
         expect(archiveFileName).toMatch(/^\d{4}-\d{2}-\d{2}-\d{4}\.zip$/);
+      });
+    });
+
+    /**
+     * Steht fuer die Dauer eines Tests anstelle des globalen `Image` bereit
+     * und laedt sofort. Ein echtes `<img>` dekodiert unter jsdom keine
+     * Datenurl - ohne diese Attrappe kaeme `loadImage()` in `exportImages()`
+     * nie ueber sein `onload` hinaus.
+     */
+    class StubImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      readonly naturalWidth = 800;
+      readonly naturalHeight = 600;
+      set src(_value: string) {
+        queueMicrotask(() => this.onload?.());
+      }
+    }
+
+    describe('ImageOptimizerComponent – Aufnahmedatum im Export', () => {
+      afterEach(() => {
+        vi.unstubAllGlobals();
+      });
+
+      /**
+       * Baut die Komponente mit genau einem Bild, dessen Metadaten ein
+       * bekanntes Aufnahmedatum tragen, und stubbt `imageExport.create` -
+       * damit sich pruefen laesst, was `exportImages()` als fuenftes
+       * Argument tatsaechlich uebergibt. Ohne diesen Test liesse sich das
+       * Argument streichen, ohne dass irgendein Test es bemerkt.
+       */
+      function createComponentWithImage(capturedAt: Date | null) {
+        vi.stubGlobal('Image', StubImage);
+
+        const toast = new ToastService();
+        const download = vi.fn();
+        const create = vi.fn().mockResolvedValue(new Blob());
+        const image: OptimizerImage = {
+          id: 'a',
+          file: jpegFile('a.jpg'),
+          dataUrl: 'blob:a',
+          crops: {},
+          rotation: 0,
+          loadError: null,
+          naturalSize: null,
+          reviewed: false,
+          adjustments: defaultAdjustments(),
+          metadata: { ...pendingMetadata(), status: 'read', capturedAt },
+        };
+        // "Kleinanzeigen" nennt keine Mindestmasse - so haengt der Test nicht
+        // davon ab, ob die Attrappen-Groesse eine andere Plattform erfuellt.
+        const platform = PLATFORM_PROFILES.find((p) => p.id === 'kleinanzeigen')!;
+        const component = Object.create(
+          ImageOptimizerComponent.prototype,
+        ) as ImageOptimizerComponent;
+        Object.assign(component, {
+          toast,
+          isBusy: signal(false),
+          rotationsPending: () => false,
+          resolutionIssue: () => false,
+          images: signal([image]),
+          selectedPlatforms: () => [platform],
+          error: signal<string | null>(null),
+          exportProgress: signal<{ done: number; total: number; phase: 'render' | 'write' } | null>(
+            null,
+          ),
+          baseName: () => '',
+          imageExport: { create },
+          zipExport: { pack: vi.fn(async () => new Blob()) },
+          download,
+        });
+        return { component, create };
+      }
+
+      it('reicht das gelesene Aufnahmedatum bis zum Aufruf von imageExport.create durch', async () => {
+        const capturedAt = new Date(2026, 4, 17, 9, 5, 3);
+        const { component, create } = createComponentWithImage(capturedAt);
+
+        await component.exportImages();
+
+        expect(create).toHaveBeenCalledTimes(1);
+        const args = create.mock.calls[0] as unknown[];
+        expect(args[4]).toBe(capturedAt);
+      });
+    });
+  });
+
+  describe('Ordnerweg', () => {
+    /**
+     * `canWriteDirectory()` fragt `globalThis.showDirectoryPicker` ab - unter
+     * jsdom gibt es das nicht, deshalb landen alle anderen Tests in dieser
+     * Datei beim ZIP-Weg. Dieser Stub taeuscht den Ordnerzugriff vor, damit
+     * sich auch der Ordner-Zweig von `exportImages()` pruefen laesst. Nach
+     * jedem Test wieder entfernt, damit die Nachbartests weiter beim ZIP
+     * landen.
+     */
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    /**
+     * Baut die Komponente wie im Block "Aktionsmeldungen", ergaenzt aber den
+     * Stub fuer `directoryExport` - dessen `write()` bestimmt hier, welcher
+     * Ausgang geprueft wird (cancelled, written oder ein echter Fehler).
+     */
+    function createComponentWithDirectoryStub(write: () => Promise<WriteResult>) {
+      const toast = new ToastService();
+      const download = vi.fn();
+      const zipPack = vi.fn(async () => new Blob());
+      const writeMock = vi.fn(write);
+      const component = Object.create(ImageOptimizerComponent.prototype) as ImageOptimizerComponent;
+      Object.assign(component, {
+        toast,
+        isBusy: signal(false),
+        rotationsPending: () => false,
+        resolutionIssue: () => false,
+        images: signal([]),
+        selectedPlatforms: signal([]),
+        error: signal<string | null>(null),
+        exportProgress: signal<{ done: number; total: number; phase: 'render' | 'write' } | null>(
+          null,
+        ),
+        baseName: () => '',
+        directoryExport: { write: writeMock },
+        zipExport: { pack: zipPack },
+        download,
+      });
+      return { component, toast, download, zipPack, writeMock };
+    }
+
+    describe('ImageOptimizerComponent – Export in einen Ordner', () => {
+      it('zeigt bei Abbruch keine Meldung und erstellt kein ZIP als Ersatz', async () => {
+        vi.stubGlobal('showDirectoryPicker', () => Promise.resolve({}));
+        const { component, toast, download, zipPack } = createComponentWithDirectoryStub(
+          async () => ({ outcome: 'cancelled' }),
+        );
+
+        await component.exportImages();
+
+        expect(toast.toasts()).toEqual([]);
+        expect(zipPack).not.toHaveBeenCalled();
+        expect(download).not.toHaveBeenCalled();
+      });
+
+      it('nennt im Erfolgstoast den tatsaechlich benutzten Ordnernamen, nicht den gewuenschten', async () => {
+        vi.stubGlobal('showDirectoryPicker', () => Promise.resolve({}));
+        const { component, toast, download, zipPack } = createComponentWithDirectoryStub(
+          async () => ({ outcome: 'written', folder: 'macbook-air (2)' }),
+        );
+
+        await component.exportImages();
+
+        expect(toast.toasts()[0]).toMatchObject({
+          type: 'success',
+          title: 'Bilder wurden gespeichert.',
+          description: 'Ordner „macbook-air (2)“.',
+        });
+        expect(zipPack).not.toHaveBeenCalled();
+        expect(download).not.toHaveBeenCalled();
+      });
+
+      it('zeigt bei einem echten Fehler die Fehlermeldung und erstellt kein ZIP', async () => {
+        vi.stubGlobal('showDirectoryPicker', () => Promise.resolve({}));
+        const { component, toast, zipPack, download } = createComponentWithDirectoryStub(
+          async () => {
+            throw new Error('Datentraeger ist voll');
+          },
+        );
+
+        await component.exportImages();
+
+        expect(toast.toasts()[0]).toMatchObject({
+          type: 'error',
+          title: 'Bilder konnten nicht exportiert werden.',
+          description: 'Datentraeger ist voll',
+          persistent: true,
+        });
+        expect(zipPack).not.toHaveBeenCalled();
+        expect(download).not.toHaveBeenCalled();
       });
     });
   });
@@ -556,5 +746,36 @@ describe('ImageOptimizerComponent', () => {
       expect(rotated).toEqual(expected);
       expect(rotated).not.toEqual(beforeRect);
     });
+  });
+});
+
+describe('ImageOptimizerComponent – Exportfortschritt', () => {
+  beforeAll(() => TestBed.resetTestingModule());
+
+  function createComponent(): ImageOptimizerComponent {
+    return TestBed.runInInjectionContext(() => new ImageOptimizerComponent());
+  }
+
+  it('zeigt waehrend des Exports, wie weit er ist', () => {
+    const component = createComponent();
+
+    component.reportExportProgress(3, 12);
+
+    const status = component.exportStatus();
+    expect(status.kind).toBe('progress');
+    expect(status.title).toContain('3');
+    expect(status.title).toContain('12');
+  });
+
+  it('zeigt nach dem Ende wieder den Bereitschaftstext', () => {
+    // Bliebe der Fortschritt stehen, saehe ein fertiger Export wie ein
+    // haengengebliebener aus.
+    const component = createComponent();
+    component.togglePlatform('ebay');
+    component.reportExportProgress(12, 12);
+
+    component.reportExportProgress(null, null);
+
+    expect(component.exportStatus().kind).not.toBe('progress');
   });
 });

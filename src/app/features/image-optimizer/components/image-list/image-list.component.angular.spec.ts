@@ -35,6 +35,7 @@ it('shows the GPS warning as text without a projected decorative marker', () => 
       gps: { latitude: 52.5, longitude: 13.4 },
       fields: [],
       ai: { contentCredential: 'absent', declaredSource: null },
+      capturedAt: null,
     },
   };
   // Der Fallback-Compiler benötigt die Signal-Metadaten explizit.

@@ -43,6 +43,17 @@ export interface ImageMetadata {
    */
   readonly fields: readonly MetadataField[];
   readonly ai: AiProvenance;
+  /**
+   * Aufnahmedatum aus der Datei, **roh**. Null, wenn keines darin steht.
+   *
+   * Bewusst neben `fields`: Dort stehen fertig formatierte Texte fuer die
+   * Anzeige. Der Export braucht ein echtes `Date`, und aus
+   * "17.05.2026, 09:05:03" liesse es sich nur zurueckraten.
+   *
+   * Das einzige Metadatum, das die Exportdatei erreicht - siehe
+   * `capture-date.ts`.
+   */
+  readonly capturedAt: Date | null;
 }
 
 export function pendingMetadata(): ImageMetadata {
@@ -51,6 +62,7 @@ export function pendingMetadata(): ImageMetadata {
     gps: null,
     fields: [],
     ai: { contentCredential: 'unchecked', declaredSource: null },
+    capturedAt: null,
   };
 }
 

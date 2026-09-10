@@ -1,12 +1,14 @@
 <section
   class="linear-surface flex flex-col gap-3 rounded-2xl border border-fb-border p-4 shadow-xl sm:flex-row sm:items-center sm:justify-between"
 >
-  <div>
+  <div aria-live="polite">
     @if (status().kind === 'error') {
       <p class="text-[11px] text-rose-300" role="alert">{{ status().title }}</p>
       @if (status().detail; as detail) {
         <p class="text-[10px] text-rose-400/80">{{ detail }}</p>
       }
+    } @else if (status().kind === 'progress') {
+      <p class="text-xs font-semibold text-sky-300">{{ status().title }}</p>
     } @else {
       <p class="text-xs font-semibold text-fb-text-primary">{{ status().title }}</p>
       @if (status().detail; as detail) {

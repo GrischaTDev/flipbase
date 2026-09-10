@@ -6,6 +6,7 @@ import {
   pendingMetadata,
 } from '../models/image-metadata';
 import { hasJpegContentCredential, hasPngContentCredential } from './c2pa-detection';
+import { readCapturedAt } from './capture-date';
 import { detectFormat, ImageFormat } from './image-format';
 import { toFields } from './metadata-fields';
 import { readDigitalSourceType, readWebpChunks } from './webp-metadata';
@@ -102,6 +103,7 @@ export class MetadataReaderService {
             contentCredential: chunks.hasContentCredential ? 'present' : 'absent',
             declaredSource,
           },
+          capturedAt: readCapturedAt(raw),
         };
       }
 
@@ -120,6 +122,7 @@ export class MetadataReaderService {
           contentCredential: credentialState(format, header),
           declaredSource: declaredSourceFrom(raw),
         },
+        capturedAt: readCapturedAt(raw),
       };
     } catch {
       // Bewusst kein Fehlerpfad nach aussen - siehe Kommentar oben.
