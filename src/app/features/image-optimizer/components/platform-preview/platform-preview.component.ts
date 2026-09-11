@@ -5,9 +5,10 @@ import {
   effect,
   inject,
   input,
+  output,
   signal,
 } from '@angular/core';
-import { Size, PlatformProfile, Rect, ratioLabel } from '../../models/platform-profile';
+import { Size, PlatformProfile, PlatformId, Rect } from '../../models/platform-profile';
 import { NEUTRAL_LOOK, planOutput, RenderPlan, renderImage } from '../../services/image-renderer';
 import { Look } from '../../services/adjustments';
 import { deriveRect } from '../../services/crop';
@@ -47,6 +48,15 @@ export class PlatformPreviewComponent {
    * Als ein Wert, damit Vorschau und Export nicht auseinanderlaufen koennen.
    */
   readonly look = input<Look>(NEUTRAL_LOOK);
+  /** `tile` in der Reihe unter dem Bild, `full` im Fenster fuer die Grossansicht. */
+  readonly variant = input<'tile' | 'full'>('tile');
+  /** Ob dies die Plattform ist, die der Cropper gerade bearbeitet - nur fuer `tile`. */
+  readonly isActive = input(false);
+  /** Aufloesung, die die Mindestmasse der Plattform unterschreitet - oder null. */
+  readonly issue = input<{ width: number; height: number } | null>(null);
+
+  readonly selected = output<PlatformId>();
+  readonly enlargeRequested = output<PlatformId>();
 
   readonly previewUrl = signal<string | null>(null);
   readonly outputSize = signal<Size | null>(null);
@@ -145,11 +155,6 @@ export class PlatformPreviewComponent {
       }
       if (!this.destroyed && version === this.renderVersion) this.isRendering.set(false);
     }
-  }
-
-  /** Templates koennen keine freien Funktionen aufrufen, deshalb die Weiterleitung. */
-  ratioLabel(platform: PlatformProfile): string {
-    return ratioLabel(platform);
   }
 
   private loadImage(url: string): Promise<HTMLImageElement> {

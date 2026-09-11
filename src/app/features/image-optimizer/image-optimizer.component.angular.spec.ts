@@ -813,3 +813,80 @@ describe('ImageOptimizerComponent – Exportfortschritt', () => {
     expect(component.exportStatus().kind).not.toBe('progress');
   });
 });
+
+describe('ImageOptimizerComponent – Exportvorschau je Kachel', () => {
+  beforeAll(() => TestBed.resetTestingModule());
+
+  function createComponent(): ImageOptimizerComponent {
+    return TestBed.runInInjectionContext(() => new ImageOptimizerComponent());
+  }
+
+  describe('issuesByPlatform', () => {
+    it('bleibt leer, solange kein Bild aktiv ist', () => {
+      const component = createComponent();
+      component.togglePlatform('ebay');
+
+      expect(component.issuesByPlatform().size).toBe(0);
+    });
+
+    it('nennt nur Plattformen, deren Ausgabe die Mindestmasse unterschreitet', () => {
+      const component = createComponent();
+      component.togglePlatform('ebay');
+      component.togglePlatform('kleinanzeigen');
+      component.addFiles([jpegFile('a.jpg')]);
+      const id = component.images()[0].id;
+
+      // Kleinanzeigen nennt keine Mindestmasse, eBay verlangt 500 px.
+      component.applyNaturalSize(id, { width: 300, height: 300 });
+
+      const issues = component.issuesByPlatform();
+      expect(issues.has('ebay')).toBe(true);
+      expect(issues.get('ebay')).toEqual({ width: 300, height: 300 });
+      expect(issues.has('kleinanzeigen')).toBe(false);
+    });
+
+    it('ist wieder leer, sobald ein groesserer Ausschnitt gewaehlt wird', () => {
+      const component = createComponent();
+      component.togglePlatform('ebay');
+      component.addFiles([jpegFile('a.jpg')]);
+      const id = component.images()[0].id;
+      component.applyNaturalSize(id, { width: 300, height: 300 });
+
+      expect(component.issuesByPlatform().has('ebay')).toBe(true);
+
+      component.applyNaturalSize(id, { width: 3000, height: 3000 });
+
+      expect(component.issuesByPlatform().has('ebay')).toBe(false);
+    });
+  });
+
+  describe('enlargedPlatform', () => {
+    it('bleibt geschlossen, solange keine Kennung gemerkt ist', () => {
+      const component = createComponent();
+
+      expect(component.enlargedPlatform()).toBeNull();
+    });
+
+    it('loest die gemerkte Kennung auf ein ausgewaehltes Profil auf', () => {
+      const component = createComponent();
+      component.togglePlatform('vinted');
+
+      component.enlargedPlatformId.set('vinted');
+
+      expect(component.enlargedPlatform()?.id).toBe('vinted');
+    });
+
+    it('haelt das Fenster nicht offen, sobald die Plattform abgewaehlt wird', () => {
+      // Ueber `selectedPlatforms()` statt `platformById()` aufgeloest -
+      // sonst zeigte das Fenster nach dem Abwaehlen weiter ein Profil, fuer
+      // das es gar keinen Ausschnitt mehr gibt.
+      const component = createComponent();
+      component.togglePlatform('vinted');
+      component.enlargedPlatformId.set('vinted');
+
+      component.togglePlatform('vinted');
+
+      expect(component.enlargedPlatform()).toBeNull();
+    });
+  });
+});
