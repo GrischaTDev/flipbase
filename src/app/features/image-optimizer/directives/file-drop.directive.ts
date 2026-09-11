@@ -42,7 +42,10 @@ export function splitImageFiles(files: readonly File[]): FileSplit {
  * Datei stattdessen selbst und die gesamte Seite mit allen geladenen
  * Bildern, Zuschnitten und der Plattformauswahl waere weg. Die Direktive
  * existiert ohnehin nur, waehrend die Route des Bildoptimierers gemountet
- * ist, `carriesFiles()` filtert weiterhin auf echte Datei-Drags.
+ * ist. `carriesFiles()` allein unterscheidet dabei nicht zwischen einem
+ * echten Datei-Drag vom Schreibtisch und einem in der Seite gezogenen Bild -
+ * beide melden `Files` in `dataTransfer.types` -; die Unterscheidung
+ * uebernimmt `isInternal()`.
  */
 @Directive({
   selector: '[appFileDrop]',
@@ -154,7 +157,7 @@ export class FileDropDirective {
     return Array.from(event.dataTransfer?.types ?? []).includes('Files');
   }
 
-  /** Ignoriert Vorschaubilder, die in der Seite selbst gezogen werden. */
+  /** Ignoriert jeden Ziehvorgang, der in der Seite selbst begonnen hat. */
   private isInternal(event: DragEvent): boolean {
     return Array.from(event.dataTransfer?.types ?? []).includes(INTERNAL_DRAG_TYPE);
   }

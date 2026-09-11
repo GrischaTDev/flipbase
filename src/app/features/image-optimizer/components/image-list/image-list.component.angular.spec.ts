@@ -106,6 +106,24 @@ describe('Bilderraster', () => {
 
     expect(element.textContent).toContain('HAUPTBILD');
   });
+
+  it('macht die Werkzeuge einer nicht aktiven Kachel unklickbar, solange sie unsichtbar sind', () => {
+    // Klassenpruefung, keine Verhaltenspruefung: jsdom rechnet kein Layout und
+    // kennt keinen Touch-Zustand, kann also nicht zeigen, dass ein unsicht-
+    // barer Knopf auf dem Handy nicht getroffen werden kann. Diese Probe
+    // sichert nur ab, dass die dafuer noetigen Klassen (`pointer-events-none`
+    // ohne Hover/Fokus, `pointer-events-auto` erst darueber) am Element
+    // stehen; ob ein Tippen daneben tatsaechlich wirkungslos bleibt, zeigt
+    // erst das echte Geraet.
+    const element = render([image('a'), image('b')]);
+    const [activeTools, inactiveTools] = Array.from(
+      element.querySelectorAll('[data-testid="image-tools"]'),
+    );
+
+    expect(inactiveTools.className).toContain('pointer-events-none');
+    expect(inactiveTools.classList.contains('pointer-events-auto')).toBe(false);
+    expect(activeTools.classList.contains('pointer-events-auto')).toBe(true);
+  });
 });
 
 describe('Umsortieren per Ziehen', () => {

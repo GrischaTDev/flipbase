@@ -24,10 +24,14 @@ import { OptimizerImage } from '../../models/optimizer-image';
  * ohne Griff wuerde jede Beruehrung der Kachel - auch auf den Werkzeug-
  * Knoepfen oder dem "durchgesehen"-Schalter - nach 5px Bewegung einen Zug
  * auf dem ganzen `<article>` starten und den folgenden Klick verschlucken.
- * Auf Touch kommt eine Verzoegerung dazu: Ohne sie wuerde ein Wischen zum
- * Scrollen im Raster (`overflow-y-auto`) sofort als Zug gewertet; mit
- * Verzoegerung scrollt ein kurzes Wischen normal und erst ein laengeres
- * Halten startet das Ziehen.
+ * Auf Touch kommt eine Verzoegerung dazu: Ohne sie wuerde ein kurzes Wischen
+ * zum Scrollen im Raster (`overflow-y-auto`) sofort als Zug gewertet; mit
+ * Verzoegerung startet erst ein laengeres Halten das Ziehen. Die Verzoegerung
+ * allein reicht aber nicht zum Scrollen: Das CDK setzt am Griff zusaetzlich
+ * inline `touch-action: none`, das senkrechte Wischen ueber der gesamten
+ * Kachel unterbindet, solange der Zug nicht gestartet ist. `touch-action:
+ * pan-y` in der Stildatei gibt das Scrollen zurueck (siehe dortiger
+ * Kommentar).
  */
 @Component({
   selector: 'app-image-list',
