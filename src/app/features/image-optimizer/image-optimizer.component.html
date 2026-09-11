@@ -133,6 +133,7 @@
             [look]="activeLook()"
             [isActive]="p.id === workingPlatformId()"
             [issue]="issuesByPlatform().get(p.id) ?? null"
+            [disabled]="isBusy()"
             (selected)="setWorkingPlatform($event)"
             (enlargeRequested)="enlargedPlatformId.set($event)"
           ></app-platform-preview>

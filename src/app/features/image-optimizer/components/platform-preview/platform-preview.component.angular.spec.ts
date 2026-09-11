@@ -17,11 +17,12 @@ interface RenderOptions {
   isActive?: boolean;
   issue?: { width: number; height: number } | null;
   variant?: 'tile' | 'full';
+  disabled?: boolean;
 }
 
 function render(
   platform: PlatformProfile,
-  { isActive = false, issue = null, variant = 'tile' }: RenderOptions = {},
+  { isActive = false, issue = null, variant = 'tile', disabled = false }: RenderOptions = {},
 ): { host: HTMLElement; component: PlatformPreviewComponent } {
   TestBed.resetTestingModule();
   const fixture = TestBed.configureTestingModule({
@@ -35,6 +36,7 @@ function render(
     isActive: signal(isActive),
     issue: signal(issue),
     variant: signal(variant),
+    disabled: signal(disabled),
   });
   fixture.detectChanges();
   return { host: fixture.nativeElement as HTMLElement, component: fixture.componentInstance };
@@ -88,17 +90,52 @@ describe('Kachel als Plattformauswahl', () => {
     expect(emitted).toBe('kleinanzeigen');
   });
 
+  it('gibt dem Vergroessern-Knopf einen plattformspezifischen Namen', () => {
+    const { host } = render(platformById('kleinanzeigen'));
+
+    const buttons = Array.from(host.querySelectorAll('button'));
+    const enlargeButton = buttons.find((b) => b.textContent?.includes('Groß ansehen'));
+
+    expect(enlargeButton?.getAttribute('aria-label')).toBe('Kleinanzeigen groß ansehen');
+  });
+
   it('zeigt die Warnung nur, wenn ein Aufloesungsproblem gemeldet wird', () => {
+    // `role="status"`, nicht `role="alert"`: Waehrend des Ziehens am
+    // Zuschnitt aendern sich die Zahlen staendig - eine hoefliche statt
+    // einer unterbrechenden Ansage.
     const platform = platformById('ebay');
 
     const withoutIssue = render(platform, { issue: null });
-    expect(withoutIssue.host.querySelector('[role="alert"]')).toBeNull();
+    expect(withoutIssue.host.querySelector('[role="status"]')).toBeNull();
 
     const withIssue = render(platform, { issue: { width: 300, height: 300 } });
-    const alert = withIssue.host.querySelector('[role="alert"]');
-    expect(alert).not.toBeNull();
-    expect(alert?.textContent).toContain('300');
-    expect(alert?.textContent).toContain('eBay');
+    const status = withIssue.host.querySelector('[role="status"]');
+    expect(status).not.toBeNull();
+    expect(status?.textContent).toContain('300');
+    expect(status?.textContent).toContain('eBay');
+  });
+
+  it('sperrt Auswahl- und Vergroessern-Knopf, waehrend ein Export laeuft', () => {
+    const { host } = render(platformById('ebay'), { disabled: true });
+
+    const selectButton = host.querySelector('button[aria-label*="eBay"]') as HTMLButtonElement;
+    const enlargeButton = Array.from(host.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('Groß ansehen'),
+    ) as HTMLButtonElement;
+
+    expect(selectButton.disabled).toBe(true);
+    expect(enlargeButton.disabled).toBe(true);
+  });
+
+  it('meldet keine Auswahl, waehrend die Kachel gesperrt ist', () => {
+    const { host, component } = render(platformById('ebay'), { disabled: true });
+    let emitted: string | null = null;
+    component.selected.subscribe((id) => (emitted = id));
+
+    const selectButton = host.querySelector('button[aria-label*="eBay"]') as HTMLButtonElement;
+    selectButton.click();
+
+    expect(emitted).toBeNull();
   });
 
   it('rendert in der Grossansicht weder Auswahl- noch Vergroessern-Knopf', () => {

@@ -54,6 +54,8 @@ export class PlatformPreviewComponent {
   readonly isActive = input(false);
   /** Aufloesung, die die Mindestmasse der Plattform unterschreitet - oder null. */
   readonly issue = input<{ width: number; height: number } | null>(null);
+  /** Waehrend eines Exports gesperrt - Klicks liefen sonst ins Leere. */
+  readonly disabled = input(false);
 
   readonly selected = output<PlatformId>();
   readonly enlargeRequested = output<PlatformId>();

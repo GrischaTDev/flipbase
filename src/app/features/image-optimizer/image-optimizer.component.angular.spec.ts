@@ -762,7 +762,7 @@ describe('ImageOptimizerComponent – Metadaten-Fenster', () => {
     expect(component.isMetadataOpen()).toBe(false);
   });
 
-  it('oeffnet sich fuer das aktive Bild, sobald die Anfrage vom Editor kommt', () => {
+  it('bleibt fuer das aktive Bild offen, wenn isMetadataOpen gesetzt wird', () => {
     const component = createComponent();
     component.addFiles([jpegFile('a.jpg')]);
 

@@ -34,9 +34,10 @@
       <button
         type="button"
         (click)="selected.emit(platform().id)"
+        [disabled]="disabled()"
         [attr.aria-current]="isActive() ? 'true' : null"
         [attr.aria-label]="platform().name + ' als Bearbeitungsziel auswählen'"
-        class="flex flex-1 cursor-pointer flex-col bg-fb-surface text-left"
+        class="flex flex-1 cursor-pointer flex-col bg-fb-surface text-left focus-visible:outline-offset-[-2px] disabled:cursor-not-allowed disabled:opacity-60"
       >
         <div class="flex flex-1 items-center justify-center bg-black/30 p-2">
           <div class="relative flex h-32 w-full items-center justify-center">
@@ -81,11 +82,20 @@
           betroffenen Plattformen zeigte sie nur die erste.
 
           Die Textfarbe ist bewusst themenabhaengiges rose-400 statt des
-          statischen rose-200 aus dem Overlay oben: Diese Flaeche liegt auf der
-          Kachel selbst, die im hellen Design weiss ist, waehrend das Overlay
-          immer auf einem schwarzen Schleier ueber dem Foto liegt.
+          statischen rose-200 aus dem Overlay oben: Diese Flaeche liegt auf dem
+          Seitenhintergrund (--fb-bg-app), nicht auf der Kachel selbst - die
+          umschliessende Kachel setzt keinen eigenen Hintergrund. Gemessen:
+          rund 4,76:1 im hellen und 5,43:1 im dunklen Design.
+
+          `role="status"` statt `role="alert"`: Waehrend der Nutzer am
+          Zuschnitt zieht, aktualisieren sich die Zahlen bei jedem
+          Zeigerschritt, und mehrere Kacheln koennen gleichzeitig warnen - eine
+          hoefliche statt eine unterbrechende Ansage.
         -->
-        <p class="bg-rose-500/15 px-2.5 py-1.5 text-[10px] leading-snug text-rose-400" role="alert">
+        <p
+          class="bg-rose-500/15 px-2.5 py-1.5 text-[10px] leading-snug text-rose-400"
+          role="status"
+        >
           Nur {{ tooSmall.width }} × {{ tooSmall.height }} px – {{ platform().name }} verlangt mehr.
           Wähle einen größeren Ausschnitt.
         </p>
@@ -94,7 +104,9 @@
       <button
         type="button"
         (click)="enlargeRequested.emit(platform().id)"
-        class="border-t border-fb-border px-2.5 py-1 text-[10px] font-semibold text-fb-text-muted hover:text-fb-text-primary"
+        [disabled]="disabled()"
+        [attr.aria-label]="platform().name + ' groß ansehen'"
+        class="border-t border-fb-border px-2.5 py-1 text-[10px] font-semibold text-fb-text-muted hover:text-fb-text-primary focus-visible:outline-offset-[-2px] disabled:cursor-not-allowed disabled:opacity-60"
       >
         Groß ansehen
       </button>
