@@ -1030,10 +1030,10 @@ Hinweis: Angular führt ein statisches `class="…"` und eine `[class]`-Bindung 
 cd K:/GitHub/Repos/flipbase/.worktrees/image-optimizer-polish && npx vitest run --project=angular src/app/features/image-optimizer/components/drop-zone/ && npx vitest run src/app/features/image-optimizer/ && npm run build
 ```
 
-Erwartet: PASS, Bau erfolgreich. In der gebauten CSS nachsehen, dass `bg-indigo-500\/15` und `scale-\[1\.01\]` erzeugt wurden:
+Erwartet: PASS, Bau erfolgreich. In der gebauten CSS nachsehen, dass `bg-fb-primary-subtle` und `scale-\[1\.01\]` erzeugt wurden:
 
 ```bash
-grep -l "bg-indigo-500\\\\/15" dist/*/browser/*.css dist/**/*.css 2>/dev/null | head -1
+grep -l "bg-fb-primary-subtle" dist/*/browser/*.css 2>/dev/null | head -1
 ```
 
 - [ ] **Step 4: Commit**
@@ -1041,7 +1041,7 @@ grep -l "bg-indigo-500\\\\/15" dist/*/browser/*.css dist/**/*.css 2>/dev/null | 
 ```bash
 git add -A src/ && git commit -m "fix(image-opt): make the drop zone unmistakable while dragging" -m "Dragging files onto the empty optimizer only changed a line of text. The tint meant to show the drop state never rendered: .linear-surface sets its background in plain CSS, which beats the Tailwind background utility.
 
-The drop zone no longer carries linear-surface. It sets its own surface, and while dragging it switches to a strong dashed indigo border, a clear tint, a ring and a slight scale that is dropped under reduced motion. An upload icon shows the purpose even before anything is dragged. The full-page overlay used once images are loaded gets the same look.
+The drop zone no longer carries linear-surface. It sets its own surface, and while dragging it switches to a strong dashed border in the text colour, a light logo-yellow tint, a shadow and a slight scale that is dropped under reduced motion. No indigo: the design guideline rules out decorative indigo, and yellow as a border would only reach about 1.6:1. An upload icon shows the purpose even before anything is dragged. The full-page overlay used once images are loaded gets the same look.
 
 Verified: new drop-zone spec, feature suite, npm run build, generated CSS contains the state classes."
 ```
