@@ -34,12 +34,7 @@ import { OptimizerHeaderComponent } from './components/optimizer-header/optimize
 import { ExportBarComponent, ExportStatus } from './components/export-bar/export-bar.component';
 import { FileDropDirective, splitImageFiles } from './directives/file-drop.directive';
 import { ImageExportService } from './services/image-export.service';
-import { ZipExportService, folderName } from './services/zip-export.service';
-import {
-  canWriteDirectory,
-  DirectoryExportService,
-  ExportEntry,
-} from './services/directory-export.service';
+import { ZipExportService, ZipEntry, folderName } from './services/zip-export.service';
 import {
   archiveName,
   effectiveBaseName,
@@ -132,7 +127,6 @@ export class ImageOptimizerComponent {
   private readonly confirm = inject(ConfirmDialogService);
   private readonly imageExport = inject(ImageExportService);
   private readonly zipExport = inject(ZipExportService);
-  private readonly directoryExport = inject(DirectoryExportService);
   private readonly rotation = inject(ImageRotationService);
   private readonly metadataReader = inject(MetadataReaderService);
   private readonly rotationQueue = new KeyedQueue<string>();
@@ -163,17 +157,8 @@ export class ImageOptimizerComponent {
   readonly error = signal<string | null>(null);
   readonly isDragActive = signal(false);
 
-  /**
-   * Wie viele Dateien fertig sind, waehrend ein Export laeuft, und in welcher
-   * Phase: `render` erzeugt die Dateien (dauert bei vielen Bildern und
-   * Plattformen am laengsten), `write` speichert sie danach in den Ordner.
-   * Beim ZIP-Pfad gibt es nur die Render-Phase - dort wird nichts geschrieben.
-   */
-  readonly exportProgress = signal<{
-    done: number;
-    total: number;
-    phase: 'render' | 'write';
-  } | null>(null);
+  /** Wie viele Dateien erstellt sind, waehrend ein Export laeuft. */
+  readonly exportProgress = signal<{ done: number; total: number } | null>(null);
 
   readonly selectedPlatforms = computed<PlatformProfile[]>(() =>
     this.profiles.filter((p) => this.selectedPlatformIds().includes(p.id)),
@@ -270,13 +255,11 @@ export class ImageOptimizerComponent {
   readonly exportStatus = computed<ExportStatus>(() => {
     const progress = this.exportProgress();
     if (progress) {
-      // Beide Phasen zaehlen Dateien, nicht Bilder: Ein Bild fuer drei
-      // Plattformen sind drei Dateien. Der Wortlaut unterscheidet die Phasen,
-      // damit der Verkaeufer erkennt, ob gerade erzeugt oder gespeichert wird.
-      const verb = progress.phase === 'render' ? 'wird erstellt' : 'wird gespeichert';
+      // Gezaehlt werden Dateien, nicht Bilder: Ein Bild fuer drei Plattformen
+      // sind drei Dateien.
       return {
         kind: 'progress',
-        title: `Datei ${progress.done} von ${progress.total} ${verb}`,
+        title: `Datei ${progress.done} von ${progress.total} wird erstellt`,
         detail: null,
       };
     }
@@ -684,13 +667,9 @@ export class ImageOptimizerComponent {
     this.toast.success('Farbe und Belichtung wurden auf alle Bilder übernommen.');
   }
 
-  /** Meldet den Fortschritt einer Phase; `null` beendet die Anzeige wieder. */
-  reportExportProgress(
-    done: number | null,
-    total: number | null,
-    phase: 'render' | 'write' = 'render',
-  ): void {
-    this.exportProgress.set(done === null || total === null ? null : { done, total, phase });
+  /** Meldet den Fortschritt; `null` beendet die Anzeige wieder. */
+  reportExportProgress(done: number | null, total: number | null): void {
+    this.exportProgress.set(done === null || total === null ? null : { done, total });
   }
 
   async exportImages(): Promise<void> {
@@ -704,11 +683,11 @@ export class ImageOptimizerComponent {
     const name = effectiveBaseName(this.baseName(), new Date());
 
     try {
-      const entries: ExportEntry[] = [];
+      const entries: ZipEntry[] = [];
       // Jedes Bild wird fuer jede gewaehlte Plattform einmal gerendert - das
-      // ist die Gesamtzahl der Dateien, die diese Phase erzeugt.
+      // ist die Gesamtzahl der Dateien, die dieser Export erzeugt.
       const renderTotal = snapshot.images.length * snapshot.profile.length;
-      this.reportExportProgress(0, renderTotal, 'render');
+      this.reportExportProgress(0, renderTotal);
 
       for (const [index, image] of snapshot.images.entries()) {
         const element = await this.loadImage(image.dataUrl, image.file);
@@ -742,18 +721,15 @@ export class ImageOptimizerComponent {
           });
           // Das Rendern ist der eigentlich langsame Teil - genau hier fehlte
           // bisher jedes Lebenszeichen, gerade beim ZIP-Pfad ganz ohne Anzeige.
-          this.reportExportProgress(entries.length, renderTotal, 'render');
+          this.reportExportProgress(entries.length, renderTotal);
         }
       }
 
-      if (canWriteDirectory()) {
-        this.reportExportProgress(0, entries.length, 'write');
-        const result = await this.directoryExport.write(entries, name, (done, total) =>
-          this.reportExportProgress(done, total, 'write'),
-        );
-        // Abbruch ist kein Fehler: keine Meldung, kein ZIP als Ersatz.
-        if (result.outcome === 'cancelled') return;
-        this.toast.success('Bilder wurden gespeichert.', `Ordner „${result.folder}“.`);
+      if (entries.length === 1) {
+        // Eine einzige Datei braucht keine Huelle: Sie landet als JPEG direkt
+        // im Download-Ordner.
+        this.download(entries[0].data, entries[0].file);
+        this.toast.success('Bild wurde heruntergeladen.');
       } else {
         const archive = await this.zipExport.pack(entries);
         this.download(archive, archiveName(name));
