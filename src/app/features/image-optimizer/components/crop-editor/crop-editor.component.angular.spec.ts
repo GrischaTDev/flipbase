@@ -4,6 +4,7 @@ import { WritableSignal, ɵresolveComponentResources, signal } from '@angular/co
 import { TestBed } from '@angular/core/testing';
 import { readFile } from 'node:fs/promises';
 import { CropEditorComponent } from './crop-editor.component';
+import { AdjustmentControlsComponent } from '../adjustment-controls/adjustment-controls.component';
 import { defaultAdjustments } from '../../services/adjustments';
 
 beforeAll(async () => {
@@ -77,5 +78,79 @@ describe('Steuerelemente auf der Vorschau', () => {
     component.zoomOut();
 
     expect(component.transform().scale).toBe(1);
+  });
+});
+
+describe('Auf alle Bilder uebernehmen', () => {
+  // Der Editor kennt die Bildanzahl nicht selbst - die Elternseite reicht sie
+  // ueber `canApplyAdjustmentsToAll` durch. Geprueft wird ueber den Knopf in
+  // `app-adjustment-controls`, weil das der einzige beobachtbare Effekt des
+  // durchgereichten Wertes ist.
+  //
+  // Der Fallback-Compiler benoetigt die Signal-Eingaenge von
+  // `AdjustmentControlsComponent` explizit (genau wie in
+  // `image-list.component.angular.spec.ts` bei `BadgeComponent`) - sonst
+  // erkennt er `[adjustments]`/`[disabled]`/`[canApplyToAll]` nicht als echte
+  // Eingaenge und das Panel kann gar nicht erst rendern.
+  interface Metadata {
+    inputs: Record<string, unknown>;
+    declaredInputs: Record<string, string>;
+  }
+
+  function withPatchedAdjustmentControlsInputs<T>(run: () => T): T {
+    const metadata = (AdjustmentControlsComponent as unknown as { ɵcmp: Metadata }).ɵcmp;
+    const original = { inputs: metadata.inputs, declaredInputs: metadata.declaredInputs };
+    metadata.inputs = { ...metadata.inputs };
+    metadata.declaredInputs = { ...metadata.declaredInputs };
+    for (const name of ['adjustments', 'disabled', 'canApplyToAll']) {
+      metadata.inputs[name] = [name, 1, null];
+      metadata.declaredInputs[name] = name;
+    }
+    try {
+      return run();
+    } finally {
+      Object.assign(metadata, original);
+    }
+  }
+
+  function createOpenPanel(canApplyAdjustmentsToAll: boolean) {
+    TestBed.resetTestingModule();
+    const fixture = TestBed.configureTestingModule({
+      imports: [CropEditorComponent],
+    }).createComponent(CropEditorComponent);
+    Object.assign(fixture.componentInstance, {
+      dataUrl: signal('blob:a'),
+      ratio: signal(1),
+      adjustments: signal(defaultAdjustments()),
+      canApplyAdjustmentsToAll: signal(canApplyAdjustmentsToAll),
+    });
+    fixture.detectChanges();
+    fixture.componentInstance.togglePanel();
+    fixture.detectChanges();
+    return fixture;
+  }
+
+  function applyButton(host: HTMLElement): HTMLButtonElement | null {
+    return (
+      Array.from(host.querySelectorAll('button')).find((button) =>
+        button.textContent?.includes('Auf alle Bilder übernehmen'),
+      ) ?? null
+    );
+  }
+
+  it('sperrt den Knopf ohne canApplyAdjustmentsToAll', () => {
+    withPatchedAdjustmentControlsInputs(() => {
+      const fixture = createOpenPanel(false);
+
+      expect(applyButton(fixture.nativeElement)?.disabled).toBe(true);
+    });
+  });
+
+  it('gibt den Knopf frei, wenn canApplyAdjustmentsToAll gesetzt ist', () => {
+    withPatchedAdjustmentControlsInputs(() => {
+      const fixture = createOpenPanel(true);
+
+      expect(applyButton(fixture.nativeElement)?.disabled).toBe(false);
+    });
   });
 });

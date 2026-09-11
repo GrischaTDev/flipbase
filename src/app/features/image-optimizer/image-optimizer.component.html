@@ -97,6 +97,7 @@
             [disabled]="isBusy()"
             [adjustments]="image.adjustments"
             [hasLocation]="image.metadata.gps !== null"
+            [canApplyAdjustmentsToAll]="images().length > 1"
             (cropChanged)="saveCrop(image.id, $event)"
             (rotateRequested)="rotate(image.id)"
             (loadFailed)="onLoadFailed(image.id)"

@@ -56,6 +56,12 @@ export class CropEditorComponent {
   readonly adjustments = input.required<Adjustments>();
   /** Ob dieses Foto den Aufnahmeort enthaelt - der Knopf traegt dann einen Punkt. */
   readonly hasLocation = input(false);
+  /**
+   * Ob "Auf alle Bilder uebernehmen" ueberhaupt sinnvoll ist - die Elternseite
+   * kennt die Bildanzahl, dieser Editor nicht. Standardmaessig aus: bei genau
+   * einem Bild gibt es kein "alle" zum Uebernehmen.
+   */
+  readonly canApplyAdjustmentsToAll = input(false);
 
   readonly cropChanged = output<Rect>();
   readonly rotateRequested = output<void>();
