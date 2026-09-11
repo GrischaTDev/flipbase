@@ -1,45 +1,76 @@
 # 🤖 KI-Änderungsprotokoll
 
-## 2026-09-11 – Claude Sonnet 5 (Anthropic) – Bildoptimierer-Layout: abschliessende Review-Punkte
+## 2026-09-11 – Claude Opus 5 (Anthropic) – Bildoptimierer: Arbeitsfläche mit Trenner, Raster und Vorschaukacheln
 
-**Auftrag/Ergebnis:** Alle elf Punkte aus dem abschliessenden Review des
-Zweigs `feat/image-optimizer-layout` umgesetzt: der verschiebbare Trenner
-(`shared/components/split-pane`), die Steuerleiste und das Farb-Panel im
-Zuschnitt-Editor sowie die Plattform-Kacheln.
+**Auftrag/Ergebnis:** Paket 3 der Bildoptimierer-Überarbeitung umgesetzt, die
+sichtbare Arbeitsfläche. Vorschau und Bilder stehen nebeneinander, getrennt
+durch einen verschiebbaren Trenner; die Bilder rechts bilden ein Raster; die
+Bildsteuerung liegt als Leiste auf dem Bild, die Farbregler in einem
+aufklappbaren Panel; die Metadaten stecken in einem Fenster; Plattformreiter
+und Exportvorschau sind zu einer Reihe von Kacheln unter dem Bild verschmolzen.
+Zweig `feat/image-optimizer-layout`, abgezweigt von `origin/master` (a9566d8).
 
-**Trenner stellte den gemerkten Anteil nie wieder her:** Der Lesezugriff auf
-den Browserspeicher stand im Konstruktor von `SplitPaneComponent`, bevor
-Angular den Input `storageKey` gebunden hatte - er war dort immer noch leer.
-Verschoben in den bestehenden `afterNextRender`-Callback. Mit einem Test
-belegt, der vor dem Fix nachweislich rot war (`expected 50 to be 65`).
+**Warum:** Die Bilderliste klebte als feste 16-rem-Spalte am rechten Rand, egal
+wie breit das Fenster war. Die Farbregler standen unter dem Editor und machten
+die Seite so lang, dass man zum Beurteilen einer Farbänderung das Bild aus dem
+Blick scrollen musste. Die Metadaten schoben bei jedem Handyfoto die
+Exportleiste aus dem Bild. Und Plattformauswahl und Exportvorschau zeigten
+dasselbe an zwei Enden der Seite.
 
-**Farb-Panel konnte unter die Leiste rutschen:** Beide lagen als unabhaengig
-positionierte Ebenen uebereinander, mit einer festen Annahme zur Leistenhoehe.
-Jetzt eine gemeinsame Huelle mit `flex-col-reverse`: Das Panel steht dadurch
-immer oberhalb der Leiste, unabhaengig davon, ob diese ein- oder zweizeilig
-ist. Dafuer musste "Metadaten" im Markup vor "Farbe" wandern, sonst waere Tab
-ab "Farbe" weiterhin zu "Metadaten" statt ins Panel gesprungen.
+**Neuer geteilter Baustein:** `shared/components/split-pane/` – die Rechnung
+(Grenzen, Zeiger, Tasten, gemerkter Wert) liegt ohne DOM in
+`split-pane-ratio.ts` und ist rein getestet. Der Griff ist ein
+`role="separator"`, per Pfeiltasten, Umschalt, Pos1/Ende und Doppelklick
+bedienbar; unterhalb von 1024 px verschwindet er aus dem Baum. Die Breite wird
+im Browser gemerkt.
 
-**Kontrast und Restliches:** Trenner-Griff auf `bg-fb-text-muted` angehoben
-(vorher unter 3:1). Kachel-Warnung von `role="alert"` auf `role="status"`
-(sie aenderte sich waehrend des Ziehens staendig). Kacheln bekommen einen
-`disabled`-Input, gebunden an `isBusy()` - vorher liessen sie sich waehrend
-eines Exports anklicken, ohne etwas zu bewirken. Je Kachel ein eigener
-aria-label fuer "Groß ansehen". Ein falscher Kommentar zu einem Kontrastwert
-und ein Kommentar, der die Aufgabe statt den Code beschrieb, korrigiert.
+**Funde, die erst die Prüfungen aufgedeckt haben:**
 
-**Betroffen:** `shared/components/split-pane/`,
-`features/image-optimizer/components/crop-editor/`,
-`features/image-optimizer/components/platform-preview/`,
-`features/image-optimizer/components/image-list/` (nur Kommentar),
-`image-optimizer.component.html`. Keine Datenbank-, Abhaengigkeits- oder
-Schemaaenderung.
+- Der Trenner merkte sich seine Breite nie: Der Speicher wurde im Konstruktor
+  gelesen, bevor Angular den Schlüssel gesetzt hatte. Kein Test prüfte das
+  Zurücklesen; jetzt schon, mit nachgewiesenem Rot vor dem Fix.
+- Das Farb-Panel rutschte bei schmaler Spalte unter die umbrechende Leiste, und
+  der Tastaturfokus landete auf verdeckten Knöpfen (WCAG 2.4.11). Leiste und
+  Panel stehen jetzt in einer gemeinsamen Hülle, das Panel immer darüber.
+- Der Griff des Trenners hatte nur etwa 1,1:1 Kontrast; jetzt über 5:1.
+- Der Planentwurf hätte das GPS-Abzeichen von `app-badge` auf einen rohen
+  `span` mit dekorativem Marker zurückgedreht und den schützenden Test gelöscht.
+  Der Implementierer hat sich geweigert und eskaliert; der Plan wurde berichtigt.
+- Ein Test „Panel schließt beim Bildwechsel" ersetzte das beobachtete Signal,
+  statt es zu setzen, und prüfte so nichts. Berichtigt.
+- „Auf alle Bilder übernehmen" war nach dem Umzug auch bei nur einem Bild
+  klickbar. Wieder an „mehr als ein Bild" gebunden.
+- Der Kontrast des Warntexts auf den Kacheln wurde nachgerechnet: 4,76:1 hell,
+  5,43:1 dunkel.
 
-**Geprüft:** Angular- und Node-Tests der betroffenen Ordner, die gesamte
-`image-optimizer`- und `shared`-Testsuite (568 Tests), `npm run typecheck`,
-`npm run build`, sowie `prettier --check` und `eslint` auf allen geaenderten
-Dateien - alles gruen. Details und Befehle in
-`.superpowers/sdd/final-fix-report.md`.
+**Vorab am Plan berichtigt:** Für die große Vorschau entsteht kein zweites
+Bauteil; die Kachel bekommt eine Darstellungsart `full`, weil sie die ganze
+Render-Mechanik (Entprellen, Object-URLs, Fehlerzustand) schon trägt. Zwei
+Tests, die Klassennamen prüfen, sind als Rückfallsicherungen benannt – jsdom
+rechnet kein Layout.
+
+**Betroffen:** `shared/components/split-pane/` (neu),
+`features/image-optimizer/` – `image-list`, `crop-editor`,
+`adjustment-controls`, `metadata-modal` (ehemals `metadata-panel`),
+`platform-preview`, `image-optimizer.component.*`. Entfernt: `platform-tabs`,
+`preview-grid`. Keine Datenbank-, Abhängigkeits- oder Schemaänderung.
+
+**Geprüft:** `npm run verify` vor dem Zusammenführen mit `master` erfolgreich
+(Exitcode 0, ohne Pipe gemessen): 1126 Node-, 180 DOM- und 639 Angular-Tests,
+dazu Format, Lint, Typen, Workflow-Tests, Suite-Audit und Bau. Chunk
+`image-optimizer-component` 98,17 kB roh / 25,13 kB übertragen (vorher
+90,11 kB). Jede der sieben Aufgaben lief durch eine eigene Prüfung, danach eine
+Abschlussprüfung über den ganzen Zweig; deren Funde sind behoben.
+
+**Noch offen:** Die Probe im Browser. Der Bildoptimierer liegt hinter der
+Anmeldung, deshalb konnte sie nicht automatisch erfolgen. Zu prüfen: Trenner
+ziehen und neu laden, Position bleibt; Farb-Panel bei 1280 px und Trenner auf
+25 % – untere Knöpfe sichtbar und per Tab erreichbar; Hochkantfoto mit Vinted –
+untere Rahmenkante greifbar; über 1024 px hin und her; Fokusrahmen an den
+Kacheln in beiden Designs; „Metadaten" öffnet das Fenster, Fokus kehrt zurück;
+AXE mit offenem Panel, offenem Fenster und einer Kachel mit Warnung.
+
+---
 
 ## 2026-09-11 – Antigravity – Verkäufer-Dialog: Button-Beschriftung "Speichern" und PLZ/Ort nebeneinander
 
