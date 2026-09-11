@@ -555,7 +555,7 @@ Jede `<article>` bekommt `cdkDrag cdkDragPreviewContainer="parent"` (die übrige
   <ng-template cdkDragPlaceholder>
     <!-- Zeigt waehrend des Ziehens, wo das Bild landen wird. -->
     <div
-      class="aspect-[4/3] rounded-xl border-2 border-dashed border-indigo-400 bg-indigo-500/10"
+      class="aspect-[4/3] rounded-xl border-2 border-dashed border-fb-text-muted bg-fb-primary-subtle"
     ></div>
   </ng-template>
 </article>
@@ -864,6 +864,8 @@ Verified: optimizer spec including single-file and multi-file cases, feature sui
 
 - Produces: `DropZoneComponent.zoneClasses: Signal<string>`, `DropZoneComponent.iconClasses: Signal<string>`, `DropZoneComponent.uploadIcon`
 
+**Farbe (Nutzerentscheidung):** Laut `docs/design/admin-ui-guidelines.md` keine dekorativen Indigo-Flächen; Akzent ist das Logo-Gelb. Gelb als Rand erreicht auf Weiß aber nur etwa 1,6:1 (WCAG 1.4.11 verlangt 3:1). Deshalb: kräftiger gestrichelter Rand in der Textfarbe (`border-fb-text-primary`) und ein leichter Gelb-Ton (`bg-fb-primary-subtle`).
+
 **Ursache:** `.linear-surface` setzt seinen Hintergrund in normalem CSS (`src/styles.css`) und schlägt damit die Tailwind-Klasse `bg-indigo-500/10` – der Farbton beim Hineinziehen erschien nie.
 
 Die Zustandsklassen stehen als ganze Ketten in einem `computed`: Ketten wie `motion-safe:scale-[1.01]` lassen sich nicht als `[class.…]`-Bindung schreiben, und Tailwind findet sie so im Quelltext – derselbe Weg wie in `two-column-layout` und `modal-shell`.
@@ -908,7 +910,7 @@ describe('Ablageflaeche', () => {
   it('faerbt die Flaeche beim Hineinziehen deutlich ein', () => {
     const label = render(true).querySelector('label');
 
-    expect(label?.className).toContain('bg-indigo-500/15');
+    expect(label?.className).toContain('bg-fb-primary-subtle');
     expect(label?.textContent).toContain('Jetzt loslassen');
   });
 
@@ -958,12 +960,12 @@ export class DropZoneComponent {
    */
   readonly zoneClasses = computed(() =>
     this.isDragActive()
-      ? 'border-indigo-500 bg-indigo-500/15 ring-4 ring-indigo-400/30 motion-safe:scale-[1.01]'
-      : 'border-fb-border bg-fb-surface hover:border-indigo-500/40',
+      ? 'border-fb-text-primary bg-fb-primary-subtle shadow-2xl motion-safe:scale-[1.01]'
+      : 'border-fb-border bg-fb-surface hover:border-fb-text-muted',
   );
 
   readonly iconClasses = computed(() =>
-    this.isDragActive() ? 'text-indigo-500' : 'text-fb-text-muted',
+    this.isDragActive() ? 'text-fb-text-primary' : 'text-fb-text-muted',
   );
 
   onFileInput(target: EventTarget | null): void {
@@ -1010,9 +1012,9 @@ export class DropZoneComponent {
   aria-hidden="true"
 >
   <div
-    class="rounded-2xl border-2 border-dashed border-indigo-500 bg-fb-surface px-12 py-10 text-center shadow-2xl ring-4 ring-indigo-400/30"
+    class="rounded-2xl border-2 border-dashed border-fb-text-primary bg-fb-primary-subtle px-12 py-10 text-center shadow-2xl"
   >
-    <svg [lucideIcon]="uploadIcon" class="mx-auto mb-3 h-10 w-10 text-indigo-500"></svg>
+    <svg [lucideIcon]="uploadIcon" class="mx-auto mb-3 h-10 w-10 text-fb-text-primary"></svg>
     <span class="block text-base font-bold text-fb-text-primary">Bilder hier ablegen</span>
     <span class="mt-1 block text-xs text-fb-text-muted">Sie werden der Liste hinzugefügt</span>
   </div>

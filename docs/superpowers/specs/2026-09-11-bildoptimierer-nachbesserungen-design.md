@@ -83,7 +83,7 @@ readonly reordered = output<{ readonly fromIndex: number; readonly toIndex: numb
 
 - Rasterbehälter: `cdkDropList`, `cdkDropListOrientation="mixed"` (Raster), `[cdkDropListDisabled]="disabled()"`, `(cdkDropListDropped)` → `reordered`.
 - Jede Kachel (`<article>`): `cdkDrag`, `cdkDragPreviewContainer="parent"` – die Vorschau bleibt im Bauteil, damit dessen Stile greifen.
-- Platzhalter per `<ng-template cdkDragPlaceholder>`: gestrichelte Kachel in Indigo, damit sichtbar ist, wo das Bild landet.
+- Platzhalter per `<ng-template cdkDragPlaceholder>`: gestrichelte Kachel (Rand `border-fb-text-muted`, Ton `bg-fb-primary-subtle`), damit sichtbar ist, wo das Bild landet.
 - Ein Klick auf die Kachel wählt weiterhin das Bild aus; das CDK beginnt ein Ziehen erst nach einer kleinen Bewegungsschwelle.
 - Die Pfeil- und Entfernen-Knöpfe bleiben im Werkzeug-Menü der Kachel.
 
@@ -96,7 +96,7 @@ Die Übergänge für Platzhalter und Nachrücken hängen an den Klassen des CDK 
 Zwei unabhängige Sicherungen:
 
 1. **Keine nativen Bild-Drags aus der Seite:** `draggable="false"` an den Vorschaubildern in `image-list.component.html` und `platform-preview.component.html`.
-2. **Die Ablage-Erkennung ignoriert Ziehen, das in der Seite beginnt:** `FileDropDirective` hört zusätzlich auf `document:dragstart` (setzt `internalDrag = true`) und `document:dragend` (setzt es zurück; ebenso nach `drop`). Solange `internalDrag` gesetzt ist, gilt `carriesFiles()` als falsch – keine Überlagerung, keine Weitergabe.
+2. **Die Ablage-Erkennung erkennt Ziehen, das in der Seite beginnt, an einer Kennung am Ziehvorgang selbst:** `FileDropDirective` hängt bei `document:dragstart` per `dataTransfer.setData` einen eigenen Typ an (`application/x-flipbase-internal`). Solche Ziehvorgänge lösen keine Überlagerung und keine Weitergabe aus, bekommen aber weiterhin `preventDefault()`, damit der Browser nicht zum Bild navigiert. Eine Marke an der Direktive (ein Zustand, der erst bei `dragend` zurückgesetzt wird) wurde verworfen: Wird das Quellelement während des Ziehens entfernt, erreicht `dragend` das Dokument nie, die Marke bliebe stehen, und jede spätere echte Datei würde vom Browser selbst geöffnet.
 
 Die bestehende Abwehr gegen das Verlassen der Seite bei echten Datei-Drops bleibt unverändert.
 
@@ -137,7 +137,7 @@ Ein Bild für zwei Plattformen sind zwei Dateien und damit ein ZIP.
 
 - `linear-surface` entfällt an der Ablagefläche; Hintergrund, Rand und Schatten werden direkt gesetzt, damit der Ablagezustand nicht mehr überschrieben wird.
 - **Ruhe:** `bg-fb-surface`, gestrichelter Rand `border-fb-border`, Upload-Symbol (Lucide `ImagePlus`) in gedämpfter Farbe über dem Text.
-- **Beim Hineinziehen:** Rand `border-indigo-500`, deutlicher Farbton `bg-indigo-500/15`, Ring `ring-4 ring-indigo-400/30`, Symbol in Indigo, größerer Text „Jetzt loslassen“, leichte Vergrößerung `scale-[1.01]` mit Übergang; unter `motion-reduce` ohne Vergrößerung.
+- **Beim Hineinziehen:** kräftiger gestrichelter Rand in der Textfarbe `border-fb-text-primary`, leichter Logo-Gelb-Ton `bg-fb-primary-subtle`, Schatten, Symbol in der Textfarbe, größerer Text „Jetzt loslassen“, leichte Vergrößerung `scale-[1.01]` mit Übergang; unter `motion-reduce` ohne Vergrößerung. Kein Indigo: Die Design-Richtlinie verbietet dekorative Indigo-Flächen, und Gelb als Rand wäre mit etwa 1,6:1 zu kontrastschwach (WCAG 1.4.11).
 - Text bleibt `text-fb-text-primary` bzw. `text-fb-text-muted` – Kontrast gegen den getönten Grund in beiden Designs mindestens 4,5:1, im Browser nachzumessen.
 
 Die Ganzseiten-Überlagerung, die erscheint, wenn schon Bilder geladen sind, bekommt dasselbe Symbol und denselben Stil.
