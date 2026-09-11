@@ -1,9 +1,7 @@
 @if (!hasImages()) {
   <label
-    class="linear-surface block cursor-pointer rounded-2xl border-2 border-dashed p-12 text-center shadow-xl hover:border-indigo-500/40 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-400/50"
-    [class.border-indigo-500]="isDragActive()"
-    [class.bg-indigo-500/10]="isDragActive()"
-    [class.border-fb-border]="!isDragActive()"
+    class="block cursor-pointer rounded-2xl border-2 border-dashed p-12 text-center shadow-xl transition focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-400/50 motion-reduce:transition-none"
+    [class]="zoneClasses()"
   >
     <input
       type="file"
@@ -13,7 +11,13 @@
       class="sr-only"
       (change)="onFileInput($event.target)"
     />
-    <span class="block text-sm font-bold text-fb-text-primary">
+    <svg
+      [lucideIcon]="uploadIcon"
+      class="mx-auto mb-3 h-10 w-10 transition-colors"
+      [class]="iconClasses()"
+      aria-hidden="true"
+    ></svg>
+    <span class="block text-base font-bold text-fb-text-primary">
       {{ isDragActive() ? 'Jetzt loslassen' : 'Produktbilder hier ablegen' }}
     </span>
     <span class="mt-1 block text-xs text-fb-text-muted">
@@ -26,8 +30,9 @@
     aria-hidden="true"
   >
     <div
-      class="rounded-2xl border-2 border-dashed border-indigo-400 bg-fb-surface px-12 py-10 text-center shadow-2xl"
+      class="rounded-2xl border-2 border-dashed border-fb-text-primary bg-fb-primary-subtle px-12 py-10 text-center shadow-2xl"
     >
+      <svg [lucideIcon]="uploadIcon" class="mx-auto mb-3 h-10 w-10 text-fb-text-primary"></svg>
       <span class="block text-base font-bold text-fb-text-primary">Bilder hier ablegen</span>
       <span class="mt-1 block text-xs text-fb-text-muted">Sie werden der Liste hinzugefügt</span>
     </div>
