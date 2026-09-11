@@ -1,15 +1,18 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { hasAnyMetadata, ImageMetadata } from '../../models/image-metadata';
+import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 
 /** Zeigt, was in der Originaldatei steckt - und dass es beim Export verschwindet. */
 @Component({
-  selector: 'app-metadata-panel',
-  imports: [],
-  templateUrl: './metadata-panel.component.html',
+  selector: 'app-metadata-modal',
+  imports: [ModalShellComponent],
+  templateUrl: './metadata-modal.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class MetadataPanelComponent {
+export class MetadataModalComponent {
   readonly metadata = input.required<ImageMetadata>();
+
+  readonly closed = output<void>();
 
   readonly isEmpty = computed(() => !hasAnyMetadata(this.metadata()));
 

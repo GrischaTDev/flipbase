@@ -1,12 +1,17 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  ElementRef,
+  Injector,
+  afterNextRender,
   computed,
   effect,
+  inject,
   input,
   output,
   signal,
   untracked,
+  viewChild,
 } from '@angular/core';
 import {
   CropperPosition,
@@ -18,20 +23,29 @@ import {
 } from 'ngx-image-cropper';
 import {
   LucideDynamicIcon,
+  LucideInfo as Info,
   LucideLocateFixed as LocateFixed,
+  LucideMinus as Minus,
+  LucidePlus as Plus,
   LucideRotateCw as RotateCw,
+  LucideSlidersHorizontal as Sliders,
   LucideUndo2 as Undo2,
 } from '@lucide/angular';
 import { Rect } from '../../models/platform-profile';
 import { clampZoom, scaleCropToDisplay } from './editor-transform';
 import { deriveRect } from '../../services/crop';
+import { AdjustmentControlsComponent } from '../adjustment-controls/adjustment-controls.component';
+import { Adjustments } from '../../models/image-adjustments';
 
 /** Legt den Ausschnitt im festen Format der aktiven Plattform fest. */
 @Component({
   selector: 'app-crop-editor',
-  imports: [ImageCropperComponent, LucideDynamicIcon],
+  imports: [ImageCropperComponent, LucideDynamicIcon, AdjustmentControlsComponent],
   templateUrl: './crop-editor.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: {
+    '(keydown.escape)': 'closePanel()',
+  },
 })
 export class CropEditorComponent {
   readonly dataUrl = input.required<string>();
@@ -39,11 +53,24 @@ export class CropEditorComponent {
   readonly disabled = input(false);
   /** Der fuer dieses Bild bereits gespeicherte Ausschnitt, in Originalpixeln. */
   readonly storedCrop = input<Rect | null>(null);
+  readonly adjustments = input.required<Adjustments>();
+  /** Ob dieses Foto den Aufnahmeort enthaelt - der Knopf traegt dann einen Punkt. */
+  readonly hasLocation = input(false);
+  /**
+   * Ob "Auf alle Bilder uebernehmen" ueberhaupt sinnvoll ist - die Elternseite
+   * kennt die Bildanzahl, dieser Editor nicht. Standardmaessig aus: bei genau
+   * einem Bild gibt es kein "alle" zum Uebernehmen.
+   */
+  readonly canApplyAdjustmentsToAll = input(false);
 
   readonly cropChanged = output<Rect>();
   readonly rotateRequested = output<void>();
   /** `loadImageFailed` der Bibliothek, durchgereicht - z.B. bei HEIC-Fotos. */
   readonly loadFailed = output<void>();
+  readonly adjustmentsChanged = output<Adjustments>();
+  readonly adjustmentsResetRequested = output<void>();
+  readonly adjustmentsApplyToAllRequested = output<void>();
+  readonly metadataRequested = output<void>();
 
   /**
    * `imageLoaded` der Bibliothek, durchgereicht. Die Seite loescht damit einen
@@ -72,7 +99,70 @@ export class CropEditorComponent {
   readonly rotateIcon = RotateCw;
   readonly centerIcon = LocateFixed;
   readonly resetIcon = Undo2;
+  readonly panelIcon = Sliders;
+  readonly infoIcon = Info;
+  readonly plusIcon = Plus;
+  readonly minusIcon = Minus;
   readonly transform = signal<ImageTransform>({ scale: 1, translateH: 0, translateV: 0 });
+
+  /**
+   * Das Farb-Panel liegt ueber dem Bild und ist standardmaessig zu.
+   *
+   * Vorher standen die Regler als eigene Karte unter dem Editor und machten
+   * die Seite so lang, dass man zum Vergleichen scrollen musste - also genau
+   * beim Beurteilen einer Farbaenderung das Bild nicht mehr sah.
+   */
+  readonly isPanelOpen = signal(false);
+
+  private readonly injector = inject(Injector);
+  private readonly colorPanel = viewChild<ElementRef<HTMLElement>>('colorPanel');
+  private readonly colorToggleButton =
+    viewChild<ElementRef<HTMLButtonElement>>('colorToggleButton');
+
+  togglePanel(): void {
+    const willOpen = !this.isPanelOpen();
+    this.isPanelOpen.set(willOpen);
+    this.moveFocusAfterToggle(willOpen);
+  }
+
+  closePanel(): void {
+    if (!this.isPanelOpen()) return;
+    this.isPanelOpen.set(false);
+    this.moveFocusAfterToggle(false);
+  }
+
+  /**
+   * Beim Oeffnen wandert der Fokus auf den ersten Regler, beim Schliessen
+   * zurueck auf den Knopf, der das Panel geoeffnet hat - sonst waere das
+   * Panel zwar mit der Tastatur zu oeffnen, aber nicht wieder zu verlassen.
+   *
+   * `afterNextRender` statt eines direkten Zugriffs, weil das Panel erst nach
+   * der naechsten Aenderungserkennung im DOM steht (`@if`).
+   */
+  private moveFocusAfterToggle(isOpen: boolean): void {
+    afterNextRender(
+      () => {
+        if (isOpen) {
+          this.colorPanel()
+            ?.nativeElement.querySelector<HTMLElement>('input[type="range"]')
+            ?.focus();
+        } else {
+          this.colorToggleButton()?.nativeElement.focus();
+        }
+      },
+      { injector: this.injector },
+    );
+  }
+
+  private readonly ZOOM_STEP = 0.05;
+
+  zoomIn(): void {
+    this.setZoom(String((this.transform().scale ?? 1) + this.ZOOM_STEP));
+  }
+
+  zoomOut(): void {
+    this.setZoom(String((this.transform().scale ?? 1) - this.ZOOM_STEP));
+  }
 
   constructor() {
     // Bei einem Bild- oder Plattformwechsel wird der dafuer gespeicherte
@@ -90,6 +180,7 @@ export class CropEditorComponent {
         this.originalSize.set(null);
         this.displayedSize.set(null);
         this.transform.set({ scale: 1, translateH: 0, translateV: 0 });
+        this.isPanelOpen.set(false);
       }
 
       this.restoreTarget.set(untracked(this.storedCrop));

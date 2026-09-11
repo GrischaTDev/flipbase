@@ -1,5 +1,77 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-11 – Claude Opus 5 (Anthropic) – Bildoptimierer: Arbeitsfläche mit Trenner, Raster und Vorschaukacheln
+
+**Auftrag/Ergebnis:** Paket 3 der Bildoptimierer-Überarbeitung umgesetzt, die
+sichtbare Arbeitsfläche. Vorschau und Bilder stehen nebeneinander, getrennt
+durch einen verschiebbaren Trenner; die Bilder rechts bilden ein Raster; die
+Bildsteuerung liegt als Leiste auf dem Bild, die Farbregler in einem
+aufklappbaren Panel; die Metadaten stecken in einem Fenster; Plattformreiter
+und Exportvorschau sind zu einer Reihe von Kacheln unter dem Bild verschmolzen.
+Zweig `feat/image-optimizer-layout`, abgezweigt von `origin/master` (a9566d8).
+
+**Warum:** Die Bilderliste klebte als feste 16-rem-Spalte am rechten Rand, egal
+wie breit das Fenster war. Die Farbregler standen unter dem Editor und machten
+die Seite so lang, dass man zum Beurteilen einer Farbänderung das Bild aus dem
+Blick scrollen musste. Die Metadaten schoben bei jedem Handyfoto die
+Exportleiste aus dem Bild. Und Plattformauswahl und Exportvorschau zeigten
+dasselbe an zwei Enden der Seite.
+
+**Neuer geteilter Baustein:** `shared/components/split-pane/` – die Rechnung
+(Grenzen, Zeiger, Tasten, gemerkter Wert) liegt ohne DOM in
+`split-pane-ratio.ts` und ist rein getestet. Der Griff ist ein
+`role="separator"`, per Pfeiltasten, Umschalt, Pos1/Ende und Doppelklick
+bedienbar; unterhalb von 1024 px verschwindet er aus dem Baum. Die Breite wird
+im Browser gemerkt.
+
+**Funde, die erst die Prüfungen aufgedeckt haben:**
+
+- Der Trenner merkte sich seine Breite nie: Der Speicher wurde im Konstruktor
+  gelesen, bevor Angular den Schlüssel gesetzt hatte. Kein Test prüfte das
+  Zurücklesen; jetzt schon, mit nachgewiesenem Rot vor dem Fix.
+- Das Farb-Panel rutschte bei schmaler Spalte unter die umbrechende Leiste, und
+  der Tastaturfokus landete auf verdeckten Knöpfen (WCAG 2.4.11). Leiste und
+  Panel stehen jetzt in einer gemeinsamen Hülle, das Panel immer darüber.
+- Der Griff des Trenners hatte nur etwa 1,1:1 Kontrast; jetzt über 5:1.
+- Der Planentwurf hätte das GPS-Abzeichen von `app-badge` auf einen rohen
+  `span` mit dekorativem Marker zurückgedreht und den schützenden Test gelöscht.
+  Der Implementierer hat sich geweigert und eskaliert; der Plan wurde berichtigt.
+- Ein Test „Panel schließt beim Bildwechsel" ersetzte das beobachtete Signal,
+  statt es zu setzen, und prüfte so nichts. Berichtigt.
+- „Auf alle Bilder übernehmen" war nach dem Umzug auch bei nur einem Bild
+  klickbar. Wieder an „mehr als ein Bild" gebunden.
+- Der Kontrast des Warntexts auf den Kacheln wurde nachgerechnet: 4,76:1 hell,
+  5,43:1 dunkel.
+
+**Vorab am Plan berichtigt:** Für die große Vorschau entsteht kein zweites
+Bauteil; die Kachel bekommt eine Darstellungsart `full`, weil sie die ganze
+Render-Mechanik (Entprellen, Object-URLs, Fehlerzustand) schon trägt. Zwei
+Tests, die Klassennamen prüfen, sind als Rückfallsicherungen benannt – jsdom
+rechnet kein Layout.
+
+**Betroffen:** `shared/components/split-pane/` (neu),
+`features/image-optimizer/` – `image-list`, `crop-editor`,
+`adjustment-controls`, `metadata-modal` (ehemals `metadata-panel`),
+`platform-preview`, `image-optimizer.component.*`. Entfernt: `platform-tabs`,
+`preview-grid`. Keine Datenbank-, Abhängigkeits- oder Schemaänderung.
+
+**Geprüft:** `npm run verify` vor dem Zusammenführen mit `master` erfolgreich
+(Exitcode 0, ohne Pipe gemessen): 1126 Node-, 180 DOM- und 639 Angular-Tests,
+dazu Format, Lint, Typen, Workflow-Tests, Suite-Audit und Bau. Chunk
+`image-optimizer-component` 98,17 kB roh / 25,13 kB übertragen (vorher
+90,11 kB). Jede der sieben Aufgaben lief durch eine eigene Prüfung, danach eine
+Abschlussprüfung über den ganzen Zweig; deren Funde sind behoben.
+
+**Noch offen:** Die Probe im Browser. Der Bildoptimierer liegt hinter der
+Anmeldung, deshalb konnte sie nicht automatisch erfolgen. Zu prüfen: Trenner
+ziehen und neu laden, Position bleibt; Farb-Panel bei 1280 px und Trenner auf
+25 % – untere Knöpfe sichtbar und per Tab erreichbar; Hochkantfoto mit Vinted –
+untere Rahmenkante greifbar; über 1024 px hin und her; Fokusrahmen an den
+Kacheln in beiden Designs; „Metadaten" öffnet das Fenster, Fokus kehrt zurück;
+AXE mit offenem Panel, offenem Fenster und einer Kachel mit Warnung.
+
+---
+
 ## 2026-09-11 – Antigravity – Verkäufer-Dialog: Button-Beschriftung "Speichern" und PLZ/Ort nebeneinander
 
 **Auftrag/Ergebnis:** Der Aktionsbutton im Verkäufer-Dialog (`PurchaseSellerDialogComponent`) hieß bisher dynamisch wie der Dialogtitel ("Verkäufer bearbeiten" bzw. "Verkäufer erstellen") statt schlicht "Speichern". Zudem standen Postleitzahl und Ort getrennt über zwei Zeilen verteilt, weil das Land-Auswahlfeld vor dem Adressblock stand und die zweispaltige Anordnung verschob. Auf Zweig `fix/seller-dialog-button-and-zip-city-layout`.

@@ -13,12 +13,18 @@
     </button>
   </div>
 }
+<!--
+  auto-fill mit minmax richtet sich nach der tatsaechlichen Breite dieser
+  Spalte, nicht nach der Fensterbreite. Das ist der Punkt: Eine Medienabfrage
+  kennt die Trennerposition nicht und laege beim Ziehen falsch.
+-->
 <div
-  class="flex gap-3 overflow-x-auto pb-2 lg:max-h-[560px] lg:flex-col lg:overflow-x-visible lg:overflow-y-auto lg:pr-1"
+  data-testid="image-grid"
+  class="grid max-h-[calc(100vh-18rem)] grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] gap-3 overflow-y-auto pb-2 pr-1"
 >
   @for (image of images(); track image.id; let i = $index) {
     <article
-      class="w-56 shrink-0 overflow-hidden rounded-xl border bg-fb-surface transition lg:w-full"
+      class="group relative overflow-hidden rounded-xl border bg-fb-surface transition"
       [class.border-indigo-400]="image.id === activeId()"
       [class.ring-2]="image.id === activeId()"
       [class.ring-indigo-400/30]="image.id === activeId()"
@@ -59,65 +65,73 @@
         }
       </button>
 
-      <footer class="flex items-center justify-between gap-2 border-t border-fb-border px-2 py-2">
-        <div class="flex min-w-0 items-center gap-1.5">
-          <span class="text-[11px] font-semibold text-fb-text-secondary">Bild {{ i + 1 }}</span>
-          @if (image.metadata.gps) {
-            <app-badge tone="caution" title="Dieses Foto enthält den Aufnahmeort">
-              <span class="sr-only">Enthält Standortdaten. </span>GPS
-            </app-badge>
-          }
-          <button
-            type="button"
-            (click)="reviewToggled.emit(image.id)"
-            [disabled]="disabled()"
-            [attr.aria-pressed]="image.reviewed"
-            [attr.aria-label]="
-              image.reviewed
-                ? 'Bild ' + (i + 1) + ' als nicht durchgesehen markieren'
-                : 'Bild ' + (i + 1) + ' als durchgesehen markieren'
-            "
-            class="inline-flex cursor-pointer items-center gap-1 rounded-full px-2 py-1 text-[9px] font-bold disabled:cursor-not-allowed disabled:opacity-40"
-            [class.bg-emerald-500/20]="image.reviewed"
-            [class.text-emerald-300]="image.reviewed"
-            [class.bg-fb-surface-hover]="!image.reviewed"
-            [class.text-fb-text-muted]="!image.reviewed"
-          >
-            {{ image.reviewed ? '✓ Gesehen' : 'Offen' }}
-          </button>
-        </div>
-        <div class="flex items-center gap-1">
-          <button
-            type="button"
-            (click)="moved.emit({ id: image.id, direction: -1 })"
-            [disabled]="disabled() || i === 0"
-            class="grid h-7 w-7 cursor-pointer place-items-center rounded-md text-fb-text-muted hover:bg-fb-surface-hover hover:text-fb-text-primary disabled:cursor-not-allowed disabled:opacity-25"
-            aria-label="Bild in der Reihenfolge nach vorne schieben"
-            title="Nach vorne"
-          >
-            <svg [lucideIcon]="moveUpIcon" class="h-3.5 w-3.5" aria-hidden="true"></svg>
-          </button>
-          <button
-            type="button"
-            (click)="moved.emit({ id: image.id, direction: 1 })"
-            [disabled]="disabled() || i === images().length - 1"
-            class="grid h-7 w-7 cursor-pointer place-items-center rounded-md text-fb-text-muted hover:bg-fb-surface-hover hover:text-fb-text-primary disabled:cursor-not-allowed disabled:opacity-25"
-            aria-label="Bild in der Reihenfolge nach hinten schieben"
-            title="Nach hinten"
-          >
-            <svg [lucideIcon]="moveDownIcon" class="h-3.5 w-3.5" aria-hidden="true"></svg>
-          </button>
-          <button
-            type="button"
-            (click)="removed.emit(image.id)"
-            [disabled]="disabled()"
-            class="grid h-7 w-7 cursor-pointer place-items-center rounded-md text-fb-text-muted hover:bg-rose-500/15 hover:text-rose-300 disabled:cursor-not-allowed disabled:opacity-40"
-            aria-label="Bild entfernen"
-            title="Entfernen"
-          >
-            <svg [lucideIcon]="closeIcon" class="h-3.5 w-3.5" aria-hidden="true"></svg>
-          </button>
-        </div>
+      <div
+        data-testid="image-tools"
+        class="absolute right-1.5 top-1.5 flex items-center gap-1 rounded-lg bg-black/75 p-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+        [class.opacity-100]="image.id === activeId()"
+      >
+        <button
+          type="button"
+          (click)="moved.emit({ id: image.id, direction: -1 })"
+          [disabled]="disabled() || i === 0"
+          class="grid h-7 w-7 cursor-pointer place-items-center rounded-md text-white/80 hover:bg-white/15 hover:text-white disabled:cursor-not-allowed disabled:opacity-25"
+          aria-label="Bild in der Reihenfolge nach vorne schieben"
+          title="Nach vorne"
+        >
+          <svg [lucideIcon]="moveUpIcon" class="h-3.5 w-3.5" aria-hidden="true"></svg>
+        </button>
+        <button
+          type="button"
+          (click)="moved.emit({ id: image.id, direction: 1 })"
+          [disabled]="disabled() || i === images().length - 1"
+          class="grid h-7 w-7 cursor-pointer place-items-center rounded-md text-white/80 hover:bg-white/15 hover:text-white disabled:cursor-not-allowed disabled:opacity-25"
+          aria-label="Bild in der Reihenfolge nach hinten schieben"
+          title="Nach hinten"
+        >
+          <svg [lucideIcon]="moveDownIcon" class="h-3.5 w-3.5" aria-hidden="true"></svg>
+        </button>
+        <button
+          type="button"
+          (click)="removed.emit(image.id)"
+          [disabled]="disabled()"
+          class="grid h-7 w-7 cursor-pointer place-items-center rounded-md text-white/80 hover:bg-rose-500/40 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+          aria-label="Bild entfernen"
+          title="Entfernen"
+        >
+          <svg [lucideIcon]="closeIcon" class="h-3.5 w-3.5" aria-hidden="true"></svg>
+        </button>
+      </div>
+
+      <footer class="flex items-center gap-1.5 border-t border-fb-border px-2 py-1.5">
+        <span class="text-[11px] font-semibold text-fb-text-secondary">{{ i + 1 }}</span>
+        <!--
+          Das GPS-Abzeichen bleibt ein semantisches `app-badge` ohne
+          dekorativen Marker - festgehalten durch den Test in
+          image-list.component.angular.spec.ts.
+        -->
+        @if (image.metadata.gps) {
+          <app-badge tone="caution" title="Dieses Foto enthält den Aufnahmeort">
+            <span class="sr-only">Enthält Standortdaten. </span>GPS
+          </app-badge>
+        }
+        <button
+          type="button"
+          (click)="reviewToggled.emit(image.id)"
+          [disabled]="disabled()"
+          [attr.aria-pressed]="image.reviewed"
+          [attr.aria-label]="
+            image.reviewed
+              ? 'Bild ' + (i + 1) + ' als nicht durchgesehen markieren'
+              : 'Bild ' + (i + 1) + ' als durchgesehen markieren'
+          "
+          class="ml-auto inline-flex cursor-pointer items-center rounded-full px-1.5 py-0.5 text-[9px] font-bold disabled:cursor-not-allowed disabled:opacity-40"
+          [class.bg-emerald-500/20]="image.reviewed"
+          [class.text-emerald-300]="image.reviewed"
+          [class.bg-fb-surface-hover]="!image.reviewed"
+          [class.text-fb-text-muted]="!image.reviewed"
+        >
+          {{ image.reviewed ? '✓' : 'Offen' }}
+        </button>
       </footer>
     </article>
   }

@@ -36,8 +36,15 @@
   </section>
 
   @if (activeImage(); as image) {
-    <div class="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_16rem]">
-      <section class="linear-surface min-w-0 rounded-2xl border border-fb-border p-4 shadow-xl">
+    <app-split-pane
+      storageKey="flipbase.image-optimizer.split"
+      leftLabel="Vorschau"
+      rightLabel="Deine Bilder"
+    >
+      <section
+        left
+        class="linear-surface min-w-0 rounded-2xl border border-fb-border p-4 shadow-xl"
+      >
         @if (workingPlatform(); as platform) {
           <header class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -59,39 +66,22 @@
             </button>
           </header>
 
-          @if (activeOutputCheck(); as check) {
-            @if (!check.isValid) {
-              <div
-                class="mb-4 flex gap-2 rounded-xl border border-rose-400/30 bg-rose-500/10 px-3 py-2.5 text-[11px] leading-relaxed text-rose-200"
-                role="alert"
-              >
-                <span aria-hidden="true">!</span>
-                <span>
-                  Dieser Ausschnitt ergibt nur {{ check.width }} × {{ check.height }} px. eBay
-                  verlangt mindestens 500 px an der längsten Seite. Bitte wähle einen größeren
-                  Ausschnitt oder ein höher aufgelöstes Original. Flipbase skaliert nicht künstlich
-                  hoch.
-                </span>
-              </div>
-            }
-          }
-
-          <app-platform-tabs
-            [platforms]="selectedPlatforms()"
-            [activeId]="workingPlatformId()"
-            [disabled]="isBusy()"
-            (selected)="setWorkingPlatform($event)"
-          ></app-platform-tabs>
-
           <app-crop-editor
             [dataUrl]="image.dataUrl"
             [ratio]="platform.exportRatio"
             [storedCrop]="activeCrop()"
             [disabled]="isBusy()"
+            [adjustments]="image.adjustments"
+            [hasLocation]="image.metadata.gps !== null"
+            [canApplyAdjustmentsToAll]="images().length > 1"
             (cropChanged)="saveCrop(image.id, $event)"
             (rotateRequested)="rotate(image.id)"
             (loadFailed)="onLoadFailed(image.id)"
             (imageLoadedEvent)="onImageLoaded(image.id)"
+            (adjustmentsChanged)="setAdjustments($event)"
+            (adjustmentsResetRequested)="resetAdjustments()"
+            (adjustmentsApplyToAllRequested)="applyAdjustmentsToAllImages()"
+            (metadataRequested)="isMetadataOpen.set(true)"
           ></app-crop-editor>
         } @else {
           <div class="grid min-h-64 place-items-center px-6 py-12 text-center">
@@ -105,7 +95,10 @@
         }
       </section>
 
-      <aside class="linear-surface min-w-0 rounded-2xl border border-fb-border p-3 shadow-xl">
+      <aside
+        right
+        class="linear-surface min-w-0 rounded-2xl border border-fb-border p-3 shadow-xl lg:ml-4"
+      >
         <div class="mb-3 flex items-center justify-between px-1">
           <div>
             <h2 class="text-xs font-bold text-fb-text-primary">Deine Bilder</h2>
@@ -124,27 +117,29 @@
           (reviewToggled)="toggleReviewed($event)"
         ></app-image-list>
       </aside>
-    </div>
+    </app-split-pane>
 
-    <section class="space-y-4">
-      <app-adjustment-controls
-        [adjustments]="image.adjustments"
-        [disabled]="isBusy()"
-        [canApplyToAll]="images().length > 1"
-        (changed)="setAdjustments($event)"
-        (resetRequested)="resetAdjustments()"
-        (applyToAllRequested)="applyAdjustmentsToAllImages()"
-      ></app-adjustment-controls>
-
-      <app-preview-grid
-        [platforms]="selectedPlatforms()"
-        [dataUrl]="image.dataUrl"
-        [crops]="image.crops"
-        [look]="activeLook()"
-      ></app-preview-grid>
-
-      <app-metadata-panel [metadata]="image.metadata"></app-metadata-panel>
-    </section>
+    @if (selectedPlatforms().length > 0) {
+      <div
+        class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3"
+        role="group"
+        aria-label="Bearbeitungsziel wählen"
+      >
+        @for (p of selectedPlatforms(); track p.id) {
+          <app-platform-preview
+            [platform]="p"
+            [dataUrl]="image.dataUrl"
+            [crop]="image.crops[p.id] ?? null"
+            [look]="activeLook()"
+            [isActive]="p.id === workingPlatformId()"
+            [issue]="issuesByPlatform().get(p.id) ?? null"
+            [disabled]="isBusy()"
+            (selected)="setWorkingPlatform($event)"
+            (enlargeRequested)="enlargedPlatformId.set($event)"
+          ></app-platform-preview>
+        }
+      </div>
+    }
   }
 
   @if (images().length > 0) {
@@ -166,4 +161,30 @@
 
 @if (photoGuide.isOpen()) {
   <app-photo-guide [state]="photoGuide" (closed)="photoGuide.close()"></app-photo-guide>
+}
+
+@if (isMetadataOpen() && activeImage(); as image) {
+  <app-metadata-modal
+    [metadata]="image.metadata"
+    (closed)="isMetadataOpen.set(false)"
+  ></app-metadata-modal>
+}
+
+@if (enlargedPlatform(); as platform) {
+  @if (activeImage(); as image) {
+    <app-modal-shell
+      [title]="'Exportvorschau für ' + platform.name"
+      size="full"
+      [hasFooter]="false"
+      (closed)="enlargedPlatformId.set(null)"
+    >
+      <app-platform-preview
+        variant="full"
+        [platform]="platform"
+        [dataUrl]="image.dataUrl"
+        [crop]="image.crops[platform.id] ?? null"
+        [look]="activeLook()"
+      ></app-platform-preview>
+    </app-modal-shell>
+  }
 }

@@ -24,13 +24,11 @@ import { pendingMetadata } from './models/image-metadata';
 import { defaultAdjustments, looksEqual, toLook } from './services/adjustments';
 import { MetadataReaderService } from './services/metadata-reader.service';
 import { CropEditorComponent } from './components/crop-editor/crop-editor.component';
-import { PreviewGridComponent } from './components/preview-grid/preview-grid.component';
-import { AdjustmentControlsComponent } from './components/adjustment-controls/adjustment-controls.component';
-import { MetadataPanelComponent } from './components/metadata-panel/metadata-panel.component';
+import { PlatformPreviewComponent } from './components/platform-preview/platform-preview.component';
+import { MetadataModalComponent } from './components/metadata-modal/metadata-modal.component';
 import { ImageListComponent } from './components/image-list/image-list.component';
 import { PhotoGuideComponent } from './components/photo-guide/photo-guide.component';
 import { PlatformSelectorComponent } from './components/platform-selector/platform-selector.component';
-import { PlatformTabsComponent } from './components/platform-tabs/platform-tabs.component';
 import { DropZoneComponent } from './components/drop-zone/drop-zone.component';
 import { OptimizerHeaderComponent } from './components/optimizer-header/optimizer-header.component';
 import { ExportBarComponent, ExportStatus } from './components/export-bar/export-bar.component';
@@ -69,6 +67,8 @@ import { findResolutionIssue, checkOutput } from './services/platform-validation
 import { togglePlatformIn } from './services/platform-selection';
 import { ToastService } from '../../shared/components/toast/toast.service';
 import { ConfirmDialogService } from '../../shared/components/confirm-dialog/confirm-dialog.service';
+import { SplitPaneComponent } from '../../shared/components/split-pane/split-pane.component';
+import { ModalShellComponent } from '../../shared/components/modal-shell/modal-shell.component';
 import { createLocalDemoId } from '../../core/utils/client-identity';
 
 /**
@@ -111,17 +111,17 @@ export function isHeic(file: File): boolean {
   imports: [
     LucideDynamicIcon,
     CropEditorComponent,
-    PreviewGridComponent,
+    PlatformPreviewComponent,
     ImageListComponent,
     PhotoGuideComponent,
     PlatformSelectorComponent,
-    PlatformTabsComponent,
     DropZoneComponent,
     OptimizerHeaderComponent,
     ExportBarComponent,
     FileDropDirective,
-    AdjustmentControlsComponent,
-    MetadataPanelComponent,
+    MetadataModalComponent,
+    SplitPaneComponent,
+    ModalShellComponent,
   ],
   templateUrl: './image-optimizer.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -153,6 +153,9 @@ export class ImageOptimizerComponent {
 
   /** Die Plattform, fuer die der Editor gerade einen Zuschnitt bearbeitet. */
   readonly workingPlatformId = signal<PlatformId | null>(null);
+
+  /** Ob das Metadaten-Fenster offen ist. */
+  readonly isMetadataOpen = signal(false);
 
   readonly isBusy = signal(false);
   readonly rotationsPending = computed(() => this.rotationQueue.pendingCount() > 0);
@@ -207,12 +210,43 @@ export class ImageOptimizerComponent {
     return image.crops[platform.id] ?? null;
   });
 
-  readonly activeOutputCheck = computed(() => {
-    const image = this.activeImage();
-    const platform = this.workingPlatform();
-    if (!image || !platform) return null;
-    return checkOutput(image.crops[platform.id] ?? null, image.naturalSize, platform);
-  });
+  /**
+   * Die Aufloesungswarnung je Plattform, fuer das aktive Bild - leer, wenn
+   * alles passt. Eine Map statt einer Methode im Template: Eine Methode liefe
+   * bei jeder Aenderungserkennung neu fuer jede Kachel an, auch wenn sich
+   * nichts geaendert hat. `computed` cacht das Ergebnis und aktualisiert es
+   * nur, wenn Bild oder Zuschnitte sich tatsaechlich aendern.
+   *
+   * Frueher stand eine einzige Leiste ueber dem Bild und nannte nur die erste
+   * betroffene Plattform. Jetzt traegt jede Kachel ihre eigene.
+   */
+  readonly issuesByPlatform = computed<ReadonlyMap<PlatformId, { width: number; height: number }>>(
+    () => {
+      const image = this.activeImage();
+      const map = new Map<PlatformId, { width: number; height: number }>();
+      if (!image) return map;
+
+      for (const platform of this.selectedPlatforms()) {
+        const check = checkOutput(image.crops[platform.id] ?? null, image.naturalSize, platform);
+        if (check && !check.isValid) {
+          map.set(platform.id, { width: check.width, height: check.height });
+        }
+      }
+      return map;
+    },
+  );
+
+  /** Welche Plattform gerade in Originalgroesse gezeigt wird. */
+  readonly enlargedPlatformId = signal<PlatformId | null>(null);
+
+  /**
+   * Das Profil zur gemerkten Kennung. Ueber `selectedPlatforms()` statt
+   * `platformById()` aufgeloest, damit eine inzwischen abgewaehlte Plattform
+   * das Fenster nicht offen haelt.
+   */
+  readonly enlargedPlatform = computed<PlatformProfile | null>(
+    () => this.selectedPlatforms().find((p) => p.id === this.enlargedPlatformId()) ?? null,
+  );
 
   readonly resolutionIssue = computed(() =>
     findResolutionIssue(
