@@ -749,6 +749,40 @@ describe('ImageOptimizerComponent', () => {
   });
 });
 
+describe('ImageOptimizerComponent – Metadaten-Fenster', () => {
+  beforeAll(() => TestBed.resetTestingModule());
+
+  function createComponent(): ImageOptimizerComponent {
+    return TestBed.runInInjectionContext(() => new ImageOptimizerComponent());
+  }
+
+  it('startet geschlossen', () => {
+    const component = createComponent();
+
+    expect(component.isMetadataOpen()).toBe(false);
+  });
+
+  it('oeffnet sich fuer das aktive Bild, sobald die Anfrage vom Editor kommt', () => {
+    const component = createComponent();
+    component.addFiles([jpegFile('a.jpg')]);
+
+    component.isMetadataOpen.set(true);
+
+    expect(component.isMetadataOpen()).toBe(true);
+    expect(component.activeImage()).not.toBeNull();
+  });
+
+  it('schliesst sich wieder, wenn das Fenster das Schliessen meldet', () => {
+    const component = createComponent();
+    component.addFiles([jpegFile('a.jpg')]);
+    component.isMetadataOpen.set(true);
+
+    component.isMetadataOpen.set(false);
+
+    expect(component.isMetadataOpen()).toBe(false);
+  });
+});
+
 describe('ImageOptimizerComponent – Exportfortschritt', () => {
   beforeAll(() => TestBed.resetTestingModule());
 

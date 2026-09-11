@@ -25,7 +25,7 @@ import { defaultAdjustments, looksEqual, toLook } from './services/adjustments';
 import { MetadataReaderService } from './services/metadata-reader.service';
 import { CropEditorComponent } from './components/crop-editor/crop-editor.component';
 import { PreviewGridComponent } from './components/preview-grid/preview-grid.component';
-import { MetadataPanelComponent } from './components/metadata-panel/metadata-panel.component';
+import { MetadataModalComponent } from './components/metadata-modal/metadata-modal.component';
 import { ImageListComponent } from './components/image-list/image-list.component';
 import { PhotoGuideComponent } from './components/photo-guide/photo-guide.component';
 import { PlatformSelectorComponent } from './components/platform-selector/platform-selector.component';
@@ -120,7 +120,7 @@ export function isHeic(file: File): boolean {
     OptimizerHeaderComponent,
     ExportBarComponent,
     FileDropDirective,
-    MetadataPanelComponent,
+    MetadataModalComponent,
     SplitPaneComponent,
   ],
   templateUrl: './image-optimizer.component.html',
@@ -153,6 +153,9 @@ export class ImageOptimizerComponent {
 
   /** Die Plattform, fuer die der Editor gerade einen Zuschnitt bearbeitet. */
   readonly workingPlatformId = signal<PlatformId | null>(null);
+
+  /** Ob das Metadaten-Fenster offen ist. */
+  readonly isMetadataOpen = signal(false);
 
   readonly isBusy = signal(false);
   readonly rotationsPending = computed(() => this.rotationQueue.pendingCount() > 0);

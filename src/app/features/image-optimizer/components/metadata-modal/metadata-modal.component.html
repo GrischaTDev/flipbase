@@ -1,13 +1,15 @@
-<section class="linear-surface rounded-2xl border border-fb-border p-4 shadow-xl">
-  <div class="mb-3 flex items-end justify-between gap-3">
-    <div>
-      <p class="text-[10px] font-bold uppercase tracking-wider text-fb-text-muted">Herkunft</p>
-      <h2 class="text-sm font-bold text-fb-text-primary">Metadaten der Datei</h2>
-    </div>
-    @if (metadata().status === 'read' && fields().length > 0) {
-      <p class="text-[10px] tabular-nums text-fb-text-muted">{{ fieldCountLabel() }}</p>
-    }
-  </div>
+<app-modal-shell
+  title="Metadaten der Datei"
+  subtitle="Was in dieser Datei steckt – und was davon beim Export verschwindet"
+  size="lg"
+  [hasFooter]="false"
+  (closed)="closed.emit()"
+>
+  @if (metadata().status === 'read' && fields().length > 0) {
+    <p header-actions class="text-[10px] tabular-nums text-fb-text-muted">
+      {{ fieldCountLabel() }}
+    </p>
+  }
 
   @switch (metadata().status) {
     @case ('pending') {
@@ -91,4 +93,4 @@
       }
     }
   }
-</section>
+</app-modal-shell>
