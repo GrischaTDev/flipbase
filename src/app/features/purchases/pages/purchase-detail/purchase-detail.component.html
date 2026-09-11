@@ -2,7 +2,7 @@
   @if (purchase(); as p) {
     <!-- Shopify Polaris Page Header -->
     <app-entry-page-layout
-      [title]="p.record_number || p.title || 'Einkauf'"
+      [title]="purchaseDisplayTitle()"
       backLabel="Zurück zur Einkaufsübersicht"
       (cancelled)="returnToPurchases()"
     >
@@ -38,9 +38,7 @@
             [icon]="receiptIcon"
             [queryParams]="{ entityType: 'purchase', entityId: p.id }"
             [ariaLabel]="
-              'Prüfbeleg für ' +
-              (p.record_number || p.title || 'Einkauf') +
-              ' drucken oder als PDF speichern'
+              'Prüfbeleg für ' + purchaseDisplayTitle() + ' drucken oder als PDF speichern'
             "
           >
             Prüfbeleg

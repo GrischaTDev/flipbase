@@ -60,6 +60,15 @@
       }
       <p class="text-xs text-fb-text-muted">Alle weiteren Angaben sind optional.</p>
       <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        @for (field of contactFields; track field.key) {
+          <label class="block text-sm"
+            >{{ field.label
+            }}<input
+              [formControlName]="field.key"
+              type="text"
+              class="linear-input mt-1 w-full rounded-lg px-3 py-2"
+          /></label>
+        }
         <div>
           <label for="seller-country" class="block text-sm">Land</label>
           <app-custom-select
@@ -71,15 +80,6 @@
             [options]="countryOptions"
           />
         </div>
-        @for (field of contactFields; track field.key) {
-          <label class="block text-sm"
-            >{{ field.label
-            }}<input
-              [formControlName]="field.key"
-              type="text"
-              class="linear-input mt-1 w-full rounded-lg px-3 py-2"
-          /></label>
-        }
         <label class="block text-sm"
           >E-Mail<input
             id="seller-email"
@@ -154,7 +154,7 @@
         class="linear-btn-primary rounded-lg px-3 py-2 text-sm disabled:opacity-50"
         [disabled]="saving()"
       >
-        {{ saving() ? 'Speichere…' : dialogTitle() }}
+        {{ saving() ? 'Speichere…' : 'Speichern' }}
       </button>
     </footer>
   </section>

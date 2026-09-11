@@ -77,7 +77,7 @@ import { PurchaseCostingService } from '../../../../core/services/purchase-costi
 import { PurchaseCorrectionDialogComponent } from '../../components/purchase-correction-dialog/purchase-correction-dialog.component';
 import { PurchaseLifecycleActionsComponent } from '../../components/purchase-lifecycle-actions/purchase-lifecycle-actions.component';
 import { PurchaseDetailTableComponent } from '../../components/purchase-detail-table/purchase-detail-table.component';
-import { mapPurchaseDetailRows } from '../../utils/purchase-presentation';
+import { getPurchaseDisplayTitle, mapPurchaseDetailRows } from '../../utils/purchase-presentation';
 import { InventoryService } from '../../../../core/services/inventory.service';
 import { SalesService } from '../../../../core/services/sales.service';
 import { RecordHistoryContainer } from '../../../audit/components/record-history/record-history.container';
@@ -206,6 +206,9 @@ export class PurchaseDetailComponent {
       ? purchase
       : null;
   });
+  readonly purchaseDisplayTitle = computed(
+    () => getPurchaseDisplayTitle(this.purchase()) ?? 'Einkauf',
+  );
   readonly entryForm = viewChild(PurchaseEntryFormComponent);
   private readonly requestedCostEditor = signal(false);
   readonly trackingNumberControl = new FormControl('', { nonNullable: true });
@@ -809,9 +812,13 @@ export class PurchaseDetailComponent {
       this.isSaving()
     )
       return;
+    const title = getPurchaseDisplayTitle(purchase);
+    const text = title
+      ? `„${title}“ wird gelöscht, zusammen mit allen zugeordneten Artikeln und Nebenkosten. Das lässt sich nicht rückgängig machen.`
+      : 'Dieser Einkauf wird gelöscht, zusammen mit allen zugeordneten Artikeln und Nebenkosten. Das lässt sich nicht rückgängig machen.';
     const bestaetigt = await this.dialog.frage({
       titel: 'Einkauf löschen?',
-      text: `„${purchase.title}“ wird gelöscht, zusammen mit allen zugeordneten Artikeln und Nebenkosten. Das lässt sich nicht rückgängig machen.`,
+      text,
       bestaetigenText: 'Löschen',
       gefahr: true,
     });

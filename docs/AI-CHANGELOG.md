@@ -41,6 +41,57 @@ Schemaaenderung.
 Dateien - alles gruen. Details und Befehle in
 `.superpowers/sdd/final-fix-report.md`.
 
+## 2026-09-11 – Antigravity – Verkäufer-Dialog: Button-Beschriftung "Speichern" und PLZ/Ort nebeneinander
+
+**Auftrag/Ergebnis:** Der Aktionsbutton im Verkäufer-Dialog (`PurchaseSellerDialogComponent`) hieß bisher dynamisch wie der Dialogtitel ("Verkäufer bearbeiten" bzw. "Verkäufer erstellen") statt schlicht "Speichern". Zudem standen Postleitzahl und Ort getrennt über zwei Zeilen verteilt, weil das Land-Auswahlfeld vor dem Adressblock stand und die zweispaltige Anordnung verschob. Auf Zweig `fix/seller-dialog-button-and-zip-city-layout`.
+
+**Ursache und Lösung:**
+
+- Im Dialogfooter stand `{{ saving() ? 'Speichere…' : dialogTitle() }}`. Dies wurde auf `{{ saving() ? 'Speichere…' : 'Speichern' }}` geändert, sodass der Button einheitlich und klar als "Speichern" beschriftet ist.
+- Im Adressraster (`sm:grid-cols-2`) wurde das Land-Auswahlfeld hinter `contactFields` verschoben. Dadurch belegen Straße & Adresszusatz Zeile 1, Postleitzahl & Ort Zeile 2 (nebeneinander in Spalte 1 und Spalte 2), sowie Land & E-Mail Zeile 3.
+
+**Betroffen:**
+
+- `src/app/features/sellers/components/purchase-seller-dialog/purchase-seller-dialog.component.html`
+- `src/app/features/sellers/components/purchase-seller-dialog/purchase-seller-dialog.component.angular.spec.ts`
+
+**Geprüft:**
+
+- `npx vitest run src/app/features/sellers/components/purchase-seller-dialog/purchase-seller-dialog.component.angular.spec.ts` (10 Tests grün, inkl. Axe-A11y)
+- `npx vitest run src/app/features/sellers/` (16 Tests grün)
+- `npm run typecheck` (tsc fehlerfrei)
+- `npx eslint src/app/features/sellers/components/purchase-seller-dialog/` (fehlerfrei)
+- `npx ng build --configuration=development` (erfolgreich)
+- `npx prettier --check` (fehlerfrei)
+
+## 2026-09-10 – Antigravity – Einkauf löschen: Fallback auf Belegnummer oder neutralen Dialogtext
+
+**Auftrag/Ergebnis:** Behebt einen Darstellungsfehler beim Löschen von Einkaufsentwürfen. Im Bestätigungsdialog erschien bisher der Text „„“ wird gelöscht...“ mit leeren Anführungszeichen, da neue Einkäufe im überarbeiteten Workflow typischerweise keinen Freitext-Titel besitzen, sondern primär über ihre Belegnummer identifiziert werden. Auf Zweig `fix/purchase-delete-dialog-title`, abgezweigt von `origin/master`.
+
+**Ursache und Lösung:**
+
+- In `purchase-detail.component.ts` interpolierte die Löschmethode `onDeletePurchase()` direkt `purchase.title` ohne Fallback auf `record_number` oder Lieferanten.
+- Neue Hilfsfunktion `getPurchaseDisplayTitle` in `purchase-presentation.ts` priorisiert `record_number`, fällt dann auf `title` bzw. `supplier.name` zurück und liefert `null`, wenn keine Kennzeichnung existiert.
+- `onDeletePurchase()` nutzt `getPurchaseDisplayTitle`: Wenn ein Bezeichner ermittelt wird, heißt es `„<Titel>“ wird gelöscht...`; fehlt er völlig, wird sauber auf die neutrale Formulierung `Dieser Einkauf wird gelöscht, zusammen mit allen zugeordneten Artikeln und Nebenkosten. Das lässt sich nicht rückgängig machen.` zurückgefallen.
+- Im Template `purchase-detail.component.html` und der Seitenüberschrift wird `purchaseDisplayTitle()` als einheitlicher Titel genutzt.
+
+**Betroffen:**
+
+- `src/app/features/purchases/utils/purchase-presentation.ts`
+- `src/app/features/purchases/utils/purchase-presentation.spec.ts`
+- `src/app/features/purchases/pages/purchase-detail/purchase-detail.component.ts`
+- `src/app/features/purchases/pages/purchase-detail/purchase-detail.component.html`
+- `src/app/features/purchases/pages/purchase-detail/purchase-detail.component.angular.spec.ts`
+
+**Geprüft:**
+
+- `npx vitest run src/app/features/purchases/utils/purchase-presentation.spec.ts` (36 Tests grün)
+- `npx vitest run src/app/features/purchases/pages/purchase-detail/purchase-detail.component.angular.spec.ts` (20 Tests grün)
+- `npm run typecheck` (tsc fehlerfrei)
+- `npx eslint` auf geänderten Dateien (fehlerfrei)
+- `npx ng build --configuration=development` (erfolgreich)
+- `npx prettier --check` auf geänderten Dateien (fehlerfrei)
+
 ## 2026-09-10 – Claude Opus 5 (Anthropic) – Bildoptimierer: Ordner-Export und erhaltenes Aufnahmedatum
 
 **Auftrag/Ergebnis:** Paket 2 der Bildoptimierer-Überarbeitung umgesetzt. Der

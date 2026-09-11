@@ -214,6 +214,9 @@ describe('PurchaseDetailComponent', () => {
         error: null as Error | null,
         reportedBySyncStatus: false,
       }));
+      const deletePurchase = vi.fn(async () => ({ error: null as Error | null }));
+      const dialog = { frage: vi.fn(async () => true) };
+      const router = { navigate: vi.fn(async () => true) };
       const purchaseService = {
         selectedPurchase: signal<Purchase | null>(einkauf),
         purchaseLines: signal<PurchaseLine[]>([mengenposition]),
@@ -221,6 +224,7 @@ describe('PurchaseDetailComponent', () => {
         addItemToPurchase,
         receivePurchaseLines,
         receiveIndividualPurchaseLine,
+        deletePurchase,
         markIndividualPurchaseLineReceived: vi.fn(async () => ({
           data: einzelposition,
           error: null as Error | null,
@@ -245,6 +249,8 @@ describe('PurchaseDetailComponent', () => {
 
       Object.assign(komponente, {
         purchaseService,
+        dialog,
+        router,
         entryForm: () => undefined,
         isReloadingAfterSave: signal(false),
         saveReloadFailed: signal(false),
@@ -286,6 +292,9 @@ describe('PurchaseDetailComponent', () => {
         receivePurchaseLines,
         receiveIndividualPurchaseLine,
         purchaseService,
+        dialog,
+        router,
+        deletePurchase,
       };
     }
 
@@ -425,6 +434,76 @@ describe('PurchaseDetailComponent', () => {
         });
         expect(addItemToPurchase).not.toHaveBeenCalled();
         expect(purchaseService.markIndividualPurchaseLineReceived).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('Einkauf löschen', () => {
+      it('verwendet die Belegnummer im Löschdialog, wenn kein Titel gepflegt ist', async () => {
+        const { komponente, dialog, purchaseService } = erstelleKomponente();
+        purchaseService.selectedPurchase.set({
+          ...einkauf,
+          entry_status: 'draft',
+          record_number: 'PO-0042',
+          title: '',
+        });
+
+        await komponente.onDeletePurchase();
+
+        expect(dialog.frage).toHaveBeenCalledWith(
+          expect.objectContaining({
+            titel: 'Einkauf löschen?',
+            text: '„PO-0042“ wird gelöscht, zusammen mit allen zugeordneten Artikeln und Nebenkosten. Das lässt sich nicht rückgängig machen.',
+          }),
+        );
+      });
+
+      it('verwendet neutralen Text im Löschdialog, wenn weder Belegnummer noch Titel vorhanden sind', async () => {
+        const { komponente, dialog, purchaseService } = erstelleKomponente();
+        purchaseService.selectedPurchase.set({
+          ...einkauf,
+          entry_status: 'draft',
+          record_number: '',
+          title: '',
+          supplier: undefined,
+        });
+
+        await komponente.onDeletePurchase();
+
+        expect(dialog.frage).toHaveBeenCalledWith(
+          expect.objectContaining({
+            titel: 'Einkauf löschen?',
+            text: 'Dieser Einkauf wird gelöscht, zusammen mit allen zugeordneten Artikeln und Nebenkosten. Das lässt sich nicht rückgängig machen.',
+          }),
+        );
+      });
+
+      it('löscht den Entwurf nach Bestätigung und navigiert zurück', async () => {
+        const { komponente, deletePurchase, toast, router, purchaseService } = erstelleKomponente();
+        purchaseService.selectedPurchase.set({
+          ...einkauf,
+          entry_status: 'draft',
+          record_number: 'PO-0042',
+        });
+
+        await komponente.onDeletePurchase();
+
+        expect(deletePurchase).toHaveBeenCalledWith(einkauf.id);
+        expect(toast.toasts()[0].title).toBe('Einkauf wurde gelöscht.');
+        expect(router.navigate).toHaveBeenCalledWith(['/purchases']);
+      });
+
+      it('bricht den Löschvorgang ab, wenn im Dialog abgebrochen wird', async () => {
+        const { komponente, dialog, deletePurchase, purchaseService } = erstelleKomponente();
+        dialog.frage.mockResolvedValue(false);
+        purchaseService.selectedPurchase.set({
+          ...einkauf,
+          entry_status: 'draft',
+          record_number: 'PO-0042',
+        });
+
+        await komponente.onDeletePurchase();
+
+        expect(deletePurchase).not.toHaveBeenCalled();
       });
     });
   });

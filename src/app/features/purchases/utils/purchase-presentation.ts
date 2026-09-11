@@ -241,6 +241,13 @@ function summarizeQuantities(
   };
 }
 
+export function getPurchaseDisplayTitle(purchase?: Purchase | null): string | null {
+  if (!purchase) return null;
+  const candidate =
+    purchase.record_number?.trim() || purchase.title?.trim() || purchase.supplier?.name?.trim();
+  return candidate || null;
+}
+
 export function mapPurchaseListRow(
   purchase: Purchase,
   context: PurchasePresentationContext,
