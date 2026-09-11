@@ -104,16 +104,6 @@
 
       <footer class="flex items-center gap-1.5 border-t border-fb-border px-2 py-1.5">
         <span class="text-[11px] font-semibold text-fb-text-secondary">{{ i + 1 }}</span>
-        <!--
-          Das GPS-Abzeichen bleibt ein semantisches `app-badge` ohne
-          dekorativen Marker - festgehalten durch den Test in
-          image-list.component.angular.spec.ts.
-        -->
-        @if (image.metadata.gps) {
-          <app-badge tone="caution" title="Dieses Foto enthält den Aufnahmeort">
-            <span class="sr-only">Enthält Standortdaten. </span>GPS
-          </app-badge>
-        }
         <button
           type="button"
           (click)="reviewToggled.emit(image.id)"
