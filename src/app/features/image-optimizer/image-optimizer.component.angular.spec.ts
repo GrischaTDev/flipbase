@@ -7,10 +7,9 @@ import { ImageOptimizerComponent } from './image-optimizer.component';
 import { Adjustments } from './models/image-adjustments';
 import { ImageMetadata, pendingMetadata } from './models/image-metadata';
 import { OptimizerImage } from './models/optimizer-image';
-import { PLATFORM_PROFILES, Size } from './models/platform-profile';
+import { PLATFORM_PROFILES, PlatformProfile, Size } from './models/platform-profile';
 import { defaultAdjustments, toFilterString } from './services/adjustments';
 import { maximumCrop } from './services/crops';
-import { WriteResult } from './services/directory-export.service';
 import { reviewedCount as countReviewed } from './services/image-collection';
 import { ImageRotationService } from './services/image-rotation.service';
 import { MetadataReaderService } from './services/metadata-reader.service';
@@ -401,71 +400,58 @@ describe('ImageOptimizerComponent', () => {
      * gezielte Stubs fuer Export und Toast. Eigener Name statt des
      * modulweiten `createComponent()`, damit ein Aufraeumen der vermeintlichen
      * Doppelung diese Fassung nicht versehentlich verdraengt.
+     *
+     * Ohne `images`/`platforms` bleiben es null Dateien - die Renderschleife
+     * laeuft dann gar nicht erst an, und `exportImages()` nimmt den ZIP-Pfad
+     * mit einem leeren Archiv. Mit Bildern durchlaeuft sie die Schleife
+     * wirklich; `imageExport.create` ist dafuer immer gestubbt.
      */
-    function createComponentWithStubs(pack: () => Promise<Blob>) {
+    function createComponentWithStubs(
+      options: {
+        readonly pack?: () => Promise<Blob>;
+        readonly images?: readonly OptimizerImage[];
+        readonly platforms?: readonly PlatformProfile[];
+      } = {},
+    ) {
+      const { pack = async () => new Blob(), images = [], platforms = [] } = options;
       const toast = new ToastService();
       const download = vi.fn();
+      const zipPack = vi.fn(pack);
       const component = Object.create(ImageOptimizerComponent.prototype) as ImageOptimizerComponent;
       Object.assign(component, {
         toast,
         isBusy: signal(false),
         rotationsPending: () => false,
         resolutionIssue: () => false,
-        images: signal([]),
-        selectedPlatforms: signal([]),
+        images: signal(images),
+        selectedPlatforms: () => platforms,
         error: signal<string | null>(null),
         // Wird im `finally` von `exportImages()` unbedingt zurueckgesetzt -
         // ohne dieses Signal wuerde der Aufruf mit einer TypeError abbrechen.
-        exportProgress: signal<{ done: number; total: number; phase: 'render' | 'write' } | null>(
-          null,
-        ),
+        exportProgress: signal<{ done: number; total: number } | null>(null),
         baseName: () => '',
-        // `canWriteDirectory()` liefert unter jsdom `false` (kein
-        // `showDirectoryPicker`), also bleibt dieser Block beim ZIP-Weg -
-        // `directoryExport` wird dabei nie angefasst.
-        zipExport: { pack: vi.fn(pack) },
+        imageExport: { create: vi.fn().mockResolvedValue(new Blob()) },
+        zipExport: { pack: zipPack },
         download,
       });
-      return { component, toast, download };
+      return { component, toast, download, zipPack };
     }
 
-    describe('ImageOptimizerComponent – Aktionsmeldungen', () => {
-      it('bestätigt einen abgeschlossenen Export', async () => {
-        const { component, toast } = createComponentWithStubs(async () => new Blob());
-
-        await component.exportImages();
-
-        expect(toast.toasts()[0]).toMatchObject({
-          type: 'success',
-          title: 'Bilder wurden exportiert.',
-        });
-      });
-
-      it('meldet einen Exportfehler persistent mit der Ausnahmebeschreibung', async () => {
-        const { component, toast } = createComponentWithStubs(async () => {
-          throw new Error('ZIP konnte nicht erstellt werden');
-        });
-
-        await component.exportImages();
-
-        expect(toast.toasts()[0]).toMatchObject({
-          type: 'error',
-          title: 'Bilder konnten nicht exportiert werden.',
-          description: 'ZIP konnte nicht erstellt werden',
-          persistent: true,
-        });
-      });
-
-      it('liest die Exportzeit nur einmal und benennt das Archiv danach', async () => {
-        const { component, download } = createComponentWithStubs(async () => new Blob());
-
-        await component.exportImages();
-
-        expect(download).toHaveBeenCalledTimes(1);
-        const [, archiveFileName] = download.mock.calls[0] as [Blob, string];
-        expect(archiveFileName).toMatch(/^\d{4}-\d{2}-\d{2}-\d{4}\.zip$/);
-      });
-    });
+    /** Ein Bild ohne besondere Merkmale, fuer Tests, die nur seine Anzahl brauchen. */
+    function stubImage(id: string): OptimizerImage {
+      return {
+        id,
+        file: jpegFile(`${id}.jpg`),
+        dataUrl: `blob:${id}`,
+        crops: {},
+        rotation: 0,
+        loadError: null,
+        naturalSize: null,
+        reviewed: false,
+        adjustments: defaultAdjustments(),
+        metadata: pendingMetadata(),
+      };
+    }
 
     /**
      * Steht fuer die Dauer eines Tests anstelle des globalen `Image` bereit
@@ -482,6 +468,83 @@ describe('ImageOptimizerComponent', () => {
         queueMicrotask(() => this.onload?.());
       }
     }
+
+    describe('ImageOptimizerComponent – Aktionsmeldungen', () => {
+      afterEach(() => {
+        vi.unstubAllGlobals();
+      });
+
+      it('bestätigt einen abgeschlossenen Export', async () => {
+        const { component, toast } = createComponentWithStubs({ pack: async () => new Blob() });
+
+        await component.exportImages();
+
+        expect(toast.toasts()[0]).toMatchObject({
+          type: 'success',
+          title: 'Bilder wurden exportiert.',
+        });
+      });
+
+      it('meldet einen Exportfehler persistent mit der Ausnahmebeschreibung', async () => {
+        const { component, toast } = createComponentWithStubs({
+          pack: async () => {
+            throw new Error('ZIP konnte nicht erstellt werden');
+          },
+        });
+
+        await component.exportImages();
+
+        expect(toast.toasts()[0]).toMatchObject({
+          type: 'error',
+          title: 'Bilder konnten nicht exportiert werden.',
+          description: 'ZIP konnte nicht erstellt werden',
+          persistent: true,
+        });
+      });
+
+      it('liest die Exportzeit nur einmal und benennt das Archiv danach', async () => {
+        const { component, download } = createComponentWithStubs({ pack: async () => new Blob() });
+
+        await component.exportImages();
+
+        expect(download).toHaveBeenCalledTimes(1);
+        const [, archiveFileName] = download.mock.calls[0] as [Blob, string];
+        expect(archiveFileName).toMatch(/^\d{4}-\d{2}-\d{2}-\d{4}\.zip$/);
+      });
+
+      it('laedt eine einzelne Datei direkt herunter, ohne ZIP', async () => {
+        vi.stubGlobal('Image', StubImage);
+        // Ein Bild fuer eine Plattform ist genau eine Datei - dafuer braucht es
+        // keine Huelle, sie landet als JPEG direkt im Download-Ordner.
+        const platform = PLATFORM_PROFILES.find((p) => p.id === 'kleinanzeigen')!;
+        const { component, download, zipPack } = createComponentWithStubs({
+          images: [stubImage('a')],
+          platforms: [platform],
+        });
+
+        await component.exportImages();
+
+        expect(zipPack).not.toHaveBeenCalled();
+        expect(download).toHaveBeenCalledTimes(1);
+        const [, fileName] = download.mock.calls[0] as [Blob, string];
+        expect(fileName).toMatch(/-01\.jpg$/);
+      });
+
+      it('packt mehrere Dateien in ein ZIP', async () => {
+        vi.stubGlobal('Image', StubImage);
+        const platform = PLATFORM_PROFILES.find((p) => p.id === 'kleinanzeigen')!;
+        const { component, download, zipPack } = createComponentWithStubs({
+          images: [stubImage('a'), stubImage('b')],
+          platforms: [platform],
+        });
+
+        await component.exportImages();
+
+        expect(zipPack).toHaveBeenCalledTimes(1);
+        const [, archiveFileName] = download.mock.calls[0] as [Blob, string];
+        expect(archiveFileName).toMatch(/\.zip$/);
+      });
+    });
 
     describe('ImageOptimizerComponent – Aufnahmedatum im Export', () => {
       afterEach(() => {
@@ -527,9 +590,7 @@ describe('ImageOptimizerComponent', () => {
           images: signal([image]),
           selectedPlatforms: () => [platform],
           error: signal<string | null>(null),
-          exportProgress: signal<{ done: number; total: number; phase: 'render' | 'write' } | null>(
-            null,
-          ),
+          exportProgress: signal<{ done: number; total: number } | null>(null),
           baseName: () => '',
           imageExport: { create },
           zipExport: { pack: vi.fn(async () => new Blob()) },
@@ -547,102 +608,6 @@ describe('ImageOptimizerComponent', () => {
         expect(create).toHaveBeenCalledTimes(1);
         const args = create.mock.calls[0] as unknown[];
         expect(args[4]).toBe(capturedAt);
-      });
-    });
-  });
-
-  describe('Ordnerweg', () => {
-    /**
-     * `canWriteDirectory()` fragt `globalThis.showDirectoryPicker` ab - unter
-     * jsdom gibt es das nicht, deshalb landen alle anderen Tests in dieser
-     * Datei beim ZIP-Weg. Dieser Stub taeuscht den Ordnerzugriff vor, damit
-     * sich auch der Ordner-Zweig von `exportImages()` pruefen laesst. Nach
-     * jedem Test wieder entfernt, damit die Nachbartests weiter beim ZIP
-     * landen.
-     */
-    afterEach(() => {
-      vi.unstubAllGlobals();
-    });
-
-    /**
-     * Baut die Komponente wie im Block "Aktionsmeldungen", ergaenzt aber den
-     * Stub fuer `directoryExport` - dessen `write()` bestimmt hier, welcher
-     * Ausgang geprueft wird (cancelled, written oder ein echter Fehler).
-     */
-    function createComponentWithDirectoryStub(write: () => Promise<WriteResult>) {
-      const toast = new ToastService();
-      const download = vi.fn();
-      const zipPack = vi.fn(async () => new Blob());
-      const writeMock = vi.fn(write);
-      const component = Object.create(ImageOptimizerComponent.prototype) as ImageOptimizerComponent;
-      Object.assign(component, {
-        toast,
-        isBusy: signal(false),
-        rotationsPending: () => false,
-        resolutionIssue: () => false,
-        images: signal([]),
-        selectedPlatforms: signal([]),
-        error: signal<string | null>(null),
-        exportProgress: signal<{ done: number; total: number; phase: 'render' | 'write' } | null>(
-          null,
-        ),
-        baseName: () => '',
-        directoryExport: { write: writeMock },
-        zipExport: { pack: zipPack },
-        download,
-      });
-      return { component, toast, download, zipPack, writeMock };
-    }
-
-    describe('ImageOptimizerComponent – Export in einen Ordner', () => {
-      it('zeigt bei Abbruch keine Meldung und erstellt kein ZIP als Ersatz', async () => {
-        vi.stubGlobal('showDirectoryPicker', () => Promise.resolve({}));
-        const { component, toast, download, zipPack } = createComponentWithDirectoryStub(
-          async () => ({ outcome: 'cancelled' }),
-        );
-
-        await component.exportImages();
-
-        expect(toast.toasts()).toEqual([]);
-        expect(zipPack).not.toHaveBeenCalled();
-        expect(download).not.toHaveBeenCalled();
-      });
-
-      it('nennt im Erfolgstoast den tatsaechlich benutzten Ordnernamen, nicht den gewuenschten', async () => {
-        vi.stubGlobal('showDirectoryPicker', () => Promise.resolve({}));
-        const { component, toast, download, zipPack } = createComponentWithDirectoryStub(
-          async () => ({ outcome: 'written', folder: 'macbook-air (2)' }),
-        );
-
-        await component.exportImages();
-
-        expect(toast.toasts()[0]).toMatchObject({
-          type: 'success',
-          title: 'Bilder wurden gespeichert.',
-          description: 'Ordner „macbook-air (2)“.',
-        });
-        expect(zipPack).not.toHaveBeenCalled();
-        expect(download).not.toHaveBeenCalled();
-      });
-
-      it('zeigt bei einem echten Fehler die Fehlermeldung und erstellt kein ZIP', async () => {
-        vi.stubGlobal('showDirectoryPicker', () => Promise.resolve({}));
-        const { component, toast, zipPack, download } = createComponentWithDirectoryStub(
-          async () => {
-            throw new Error('Datentraeger ist voll');
-          },
-        );
-
-        await component.exportImages();
-
-        expect(toast.toasts()[0]).toMatchObject({
-          type: 'error',
-          title: 'Bilder konnten nicht exportiert werden.',
-          description: 'Datentraeger ist voll',
-          persistent: true,
-        });
-        expect(zipPack).not.toHaveBeenCalled();
-        expect(download).not.toHaveBeenCalled();
       });
     });
   });
@@ -888,5 +853,30 @@ describe('ImageOptimizerComponent – Exportvorschau je Kachel', () => {
 
       expect(component.enlargedPlatform()).toBeNull();
     });
+  });
+});
+
+describe('ImageOptimizerComponent – Umsortieren per Ziehen', () => {
+  beforeAll(() => TestBed.resetTestingModule());
+
+  it('verschiebt ein Bild an die abgelegte Position', () => {
+    const component = createComponent();
+    component.addFiles([jpegFile('a.jpg'), jpegFile('b.jpg'), jpegFile('c.jpg')]);
+    const [a, b, c] = component.images().map((image) => image.id);
+
+    component.reorderImage(2, 0);
+
+    expect(component.images().map((image) => image.id)).toEqual([c, a, b]);
+  });
+
+  it('laesst die Reihenfolge waehrend eines Exports in Ruhe', () => {
+    const component = createComponent();
+    component.addFiles([jpegFile('a.jpg'), jpegFile('b.jpg')]);
+    const before = component.images().map((image) => image.id);
+    component.isBusy.set(true);
+
+    component.reorderImage(1, 0);
+
+    expect(component.images().map((image) => image.id)).toEqual(before);
   });
 });

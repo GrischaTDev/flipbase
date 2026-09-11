@@ -57,7 +57,7 @@ export class SplitPaneComponent {
   protected readonly isWide = signal(false);
 
   protected readonly columns = computed(() =>
-    this.isWide() ? `${this.ratio()}% 0.75rem 1fr` : '1fr',
+    this.isWide() ? `${this.ratio()}% 1.5rem 1fr` : '1fr',
   );
 
   readonly handleLabel = computed(

@@ -1,45 +1,43 @@
-<div
-  class="relative flex h-[62vh] min-h-96 items-center justify-center overflow-hidden rounded-2xl bg-[#090b12] p-3 shadow-inner"
->
-  <image-cropper
-    [imageURL]="dataUrl()"
-    [maintainAspectRatio]="true"
-    [aspectRatio]="ratio()"
-    [format]="'jpeg'"
-    [output]="'blob'"
-    [cropper]="cropperInput()"
-    [resizeToWidth]="32"
-    [onlyScaleDown]="true"
-    [allowMoveImage]="true"
-    [transform]="transform()"
-    [disabled]="disabled()"
-    style="
-      --cropper-outline-color: rgba(9, 11, 18, 0.72);
-      --cropper-overlay-color: #090b12;
-      --cropper-color: rgba(255, 255, 255, 0.78);
-      --cropper-border: 2px solid rgb(129 140 248);
-      --cropper-hover-border: 2px solid rgb(165 180 252);
-      --cropper-focus-border: 3px solid rgb(199 210 254);
-      --cropper-resize-square-bg: rgb(238 242 255);
-      --cropper-resize-square-border: 2px solid rgb(79 70 229);
-    "
-    (imageCropped)="onCropped($event)"
-    (transformChange)="onTransform($event)"
-    (imageLoaded)="onImageLoaded($event)"
-    (cropperReady)="onCropperReady($event)"
-    (loadImageFailed)="loadFailed.emit()"
-  ></image-cropper>
+<div class="flex h-[62vh] min-h-96 flex-col overflow-hidden rounded-2xl bg-[#090b12] shadow-inner">
+  <div class="relative flex min-h-0 flex-1 items-center justify-center p-3">
+    <image-cropper
+      [imageURL]="dataUrl()"
+      [maintainAspectRatio]="true"
+      [aspectRatio]="ratio()"
+      [format]="'jpeg'"
+      [output]="'blob'"
+      [cropper]="cropperInput()"
+      [resizeToWidth]="32"
+      [onlyScaleDown]="true"
+      [allowMoveImage]="true"
+      [transform]="transform()"
+      [disabled]="disabled()"
+      style="
+        --cropper-outline-color: rgba(9, 11, 18, 0.72);
+        --cropper-overlay-color: #090b12;
+        --cropper-color: rgba(255, 255, 255, 0.78);
+        --cropper-border: 2px solid rgb(129 140 248);
+        --cropper-hover-border: 2px solid rgb(165 180 252);
+        --cropper-focus-border: 3px solid rgb(199 210 254);
+        --cropper-resize-square-bg: rgb(238 242 255);
+        --cropper-resize-square-border: 2px solid rgb(79 70 229);
+      "
+      (imageCropped)="onCropped($event)"
+      (transformChange)="onTransform($event)"
+      (imageLoaded)="onImageLoaded($event)"
+      (cropperReady)="onCropperReady($event)"
+      (loadImageFailed)="loadFailed.emit()"
+    ></image-cropper>
+  </div>
 
   <!--
-    Ein gemeinsamer Block fuer Leiste und Panel statt zweier unabhaengig
-    positionierter Ebenen: Bei einem schmalen Trenner wraps die Leiste auf
-    zwei Zeilen, und ein Panel mit fest angenommener Leistenhoehe rutschte
-    dann darunter. `flex-col-reverse` stapelt das Panel immer oberhalb der
-    Leiste, unabhaengig davon, wie hoch diese gerade ausfaellt - das DOM
-    bleibt dabei in der Reihenfolge Leiste-vor-Panel, sodass Tab von "Farbe"
-    direkt ins Panel fuehrt.
+    Die Leiste steht im normalen Fluss unter der Bildflaeche, damit der
+    Ausschnitt nie dahinter liegt. Das Panel haengt mit `bottom-full` direkt
+    ueber der Leiste und reicht in die Bildflaeche hinein - egal, ob die
+    Leiste gerade ein- oder zweizeilig ist. DOM-Reihenfolge Leiste vor Panel,
+    damit Tab von "Farbe" direkt ins Panel fuehrt.
   -->
-  <div class="absolute inset-x-3 bottom-3 z-20 flex flex-col-reverse gap-2">
+  <div class="relative z-20 px-3 pb-3">
     <!--
       Deckender Grund, kein durchsichtiges Overlay: Produktfotos sind hier
       meist hell, und bei Transparenz waere kein Kontrastverhaeltnis
@@ -142,15 +140,12 @@
 
     @if (isPanelOpen()) {
       <!--
-        `max-h` in vh statt in Prozent der Ebene darueber: Die Ebene selbst
-        waechst mit ihrem Inhalt (kein `top`, nur `bottom`), ein Prozentwert
-        haette also keine feste Bezugsgroesse. Der Bildbereich ist auf 62vh
-        begrenzt; 46vh laesst durchgehend Platz fuer die Leiste darunter,
-        auch wenn sie auf zwei Zeilen umbricht.
+        `max-h` in vh: Die Karte ist auf 62vh begrenzt, 45vh lassen oberhalb
+        des Panels immer einen Streifen der Bildflaeche frei.
       -->
       <div
         #colorPanel
-        class="max-h-[46vh] overflow-y-auto rounded-xl border border-fb-border bg-fb-surface/95 p-3 shadow-2xl backdrop-blur"
+        class="absolute inset-x-3 bottom-full mb-2 max-h-[45vh] overflow-y-auto rounded-xl border border-fb-border bg-fb-surface/95 p-3 shadow-2xl backdrop-blur"
         role="group"
         aria-label="Farbe und Belichtung"
       >

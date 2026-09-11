@@ -1,9 +1,9 @@
 import '@angular/compiler';
 import { signal, ɵresolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { CdkDragDrop } from '@angular/cdk/drag-drop';
 import { readFile } from 'node:fs/promises';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { defaultAdjustments } from '../../services/adjustments';
 import { pendingMetadata } from '../../models/image-metadata';
 import type { OptimizerImage } from '../../models/optimizer-image';
@@ -19,61 +19,6 @@ beforeAll(async () => {
 });
 
 afterEach(() => TestBed.resetTestingModule());
-
-it('shows the GPS warning as text without a projected decorative marker', () => {
-  const image: OptimizerImage = {
-    id: 'gps-image',
-    file: new File([''], 'gps.jpg', { type: 'image/jpeg' }),
-    dataUrl: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
-    crops: {},
-    rotation: 0,
-    loadError: null,
-    naturalSize: { width: 1, height: 1 },
-    reviewed: false,
-    adjustments: defaultAdjustments(),
-    metadata: {
-      status: 'read',
-      gps: { latitude: 52.5, longitude: 13.4 },
-      fields: [],
-      ai: { contentCredential: 'absent', declaredSource: null },
-      capturedAt: null,
-    },
-  };
-  // Der Fallback-Compiler benötigt die Signal-Metadaten explizit.
-  interface Metadata {
-    inputs: Record<string, unknown>;
-    declaredInputs: Record<string, string>;
-  }
-  const patches = [
-    { type: ImageListComponent, names: ['images', 'activeId', 'disabled', 'reviewedCount'] },
-    { type: BadgeComponent, names: ['tone', 'size', 'mono'] },
-  ].map(({ type, names }) => {
-    const metadata = (type as unknown as { ɵcmp: Metadata }).ɵcmp;
-    const original = { inputs: metadata.inputs, declaredInputs: metadata.declaredInputs };
-    metadata.inputs = { ...metadata.inputs };
-    metadata.declaredInputs = { ...metadata.declaredInputs };
-    for (const name of names) {
-      metadata.inputs[name] = [name, 1, null];
-      metadata.declaredInputs[name] = name;
-    }
-    return { metadata, original };
-  });
-  try {
-    TestBed.configureTestingModule({ imports: [ImageListComponent] });
-    const fixture = TestBed.createComponent(ImageListComponent);
-    fixture.componentRef.setInput('images', [image]);
-    fixture.detectChanges();
-    const host: HTMLElement = fixture.nativeElement;
-    const badge = host.querySelector('app-badge');
-    expect(badge).not.toBeNull();
-    expect(badge?.textContent).toContain('GPS');
-    expect(badge?.textContent).toContain('Enthält Standortdaten.');
-    expect(badge?.querySelector('[aria-hidden="true"], svg, [data-badge-marker]')).toBeNull();
-    fixture.destroy();
-  } finally {
-    for (const { metadata, original } of patches) Object.assign(metadata, original);
-  }
-});
 
 function image(id: string): OptimizerImage {
   return {
@@ -104,6 +49,20 @@ function render(images: readonly OptimizerImage[]): HTMLElement {
   fixture.detectChanges();
   return fixture.nativeElement as HTMLElement;
 }
+
+it('zeigt an den Kacheln kein GPS-Abzeichen', () => {
+  // Der Aufnahmeort wird beim Export ohnehin entfernt; die Warnung am Knopf
+  // "Metadaten" im Editor bleibt, an jeder Kachel war sie nur Laerm.
+  const withGps: OptimizerImage = {
+    ...image('a'),
+    metadata: { ...pendingMetadata(), status: 'read', gps: { latitude: 52.1, longitude: 8.6 } },
+  };
+
+  const element = render([withGps]);
+
+  expect(element.querySelector('app-badge')).toBeNull();
+  expect(element.textContent).not.toContain('GPS');
+});
 
 /**
  * Zwei dieser Tests pruefen Klassennamen. Das ist bewusst so und muss ehrlich
@@ -146,5 +105,78 @@ describe('Bilderraster', () => {
     const element = render([image('a'), image('b')]);
 
     expect(element.textContent).toContain('HAUPTBILD');
+  });
+
+  it('macht die Werkzeuge einer nicht aktiven Kachel unklickbar, solange sie unsichtbar sind', () => {
+    // Klassenpruefung, keine Verhaltenspruefung: jsdom rechnet kein Layout und
+    // kennt keinen Touch-Zustand, kann also nicht zeigen, dass ein unsicht-
+    // barer Knopf auf dem Handy nicht getroffen werden kann. Diese Probe
+    // sichert nur ab, dass die dafuer noetigen Klassen (`pointer-events-none`
+    // ohne Hover/Fokus, `pointer-events-auto` erst darueber) am Element
+    // stehen; ob ein Tippen daneben tatsaechlich wirkungslos bleibt, zeigt
+    // erst das echte Geraet.
+    const element = render([image('a'), image('b')]);
+    const [activeTools, inactiveTools] = Array.from(
+      element.querySelectorAll('[data-testid="image-tools"]'),
+    );
+
+    expect(inactiveTools.className).toContain('pointer-events-none');
+    expect(inactiveTools.classList.contains('pointer-events-auto')).toBe(false);
+    expect(activeTools.classList.contains('pointer-events-auto')).toBe(true);
+  });
+});
+
+describe('Umsortieren per Ziehen', () => {
+  it('meldet die neue Position, wenn ein Bild abgelegt wird', () => {
+    TestBed.resetTestingModule();
+    const fixture = TestBed.configureTestingModule({
+      imports: [ImageListComponent],
+    }).createComponent(ImageListComponent);
+    const emitted: { fromIndex: number; toIndex: number }[] = [];
+    fixture.componentInstance.reordered.subscribe((value) => emitted.push(value));
+
+    fixture.componentInstance.onDropped({
+      previousIndex: 2,
+      currentIndex: 0,
+    } as CdkDragDrop<unknown>);
+
+    expect(emitted).toEqual([{ fromIndex: 2, toIndex: 0 }]);
+  });
+
+  it('meldet nichts, wenn das Bild an seinem Platz landet', () => {
+    TestBed.resetTestingModule();
+    const fixture = TestBed.configureTestingModule({
+      imports: [ImageListComponent],
+    }).createComponent(ImageListComponent);
+    const emitted: unknown[] = [];
+    fixture.componentInstance.reordered.subscribe((value) => emitted.push(value));
+
+    fixture.componentInstance.onDropped({
+      previousIndex: 1,
+      currentIndex: 1,
+    } as CdkDragDrop<unknown>);
+
+    expect(emitted).toEqual([]);
+  });
+
+  it('setzt den Ziehgriff nur auf den Auswahl-Knopf, nicht auf Werkzeuge oder den Schalter', () => {
+    // Regressionswaechter fuer den Fund aus der Aufgabenpruefung: Ohne
+    // `cdkDragHandle` startet die CDK einen Zug aus jedem Punkt der Kachel,
+    // was Werkzeug-Knoepfe und den "durchgesehen"-Schalter verschluckt. Die
+    // CDK haengt an ihren Griff-Elementen die Klasse `cdk-drag-handle` an;
+    // das ist das einzige Merkmal, das von aussen pruefbar ist.
+    const element = render([image('a'), image('b')]);
+    const firstTile = element.querySelectorAll('article')[0];
+    const selectButton = firstTile.querySelector('button');
+    const toolButtons = Array.from(
+      firstTile.querySelectorAll('[data-testid="image-tools"] button'),
+    );
+    const reviewToggle = firstTile.querySelector('footer button');
+
+    expect(selectButton?.classList.contains('cdk-drag-handle')).toBe(true);
+    for (const button of toolButtons) {
+      expect(button.classList.contains('cdk-drag-handle')).toBe(false);
+    }
+    expect(reviewToggle?.classList.contains('cdk-drag-handle')).toBe(false);
   });
 });

@@ -416,6 +416,7 @@ html.dark {
 
   --color-fb-primary: var(--fb-primary);
   --color-fb-primary-hover: var(--fb-primary-hover);
+  --color-fb-primary-subtle: var(--fb-primary-subtle);
   --color-fb-profit: var(--fb-profit);
   --color-fb-nav-accent: var(--fb-nav-accent);
   --color-fb-nav-subtle: var(--fb-nav-accent-subtle);

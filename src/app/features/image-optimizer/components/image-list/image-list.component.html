@@ -20,19 +20,40 @@
 -->
 <div
   data-testid="image-grid"
+  cdkDropList
+  cdkDropListOrientation="mixed"
+  [cdkDropListDisabled]="disabled()"
+  (cdkDropListDropped)="onDropped($event)"
   class="grid max-h-[calc(100vh-18rem)] grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] gap-3 overflow-y-auto pb-2 pr-1"
 >
   @for (image of images(); track image.id; let i = $index) {
     <article
-      class="group relative overflow-hidden rounded-xl border bg-fb-surface transition"
+      cdkDrag
+      cdkDragPreviewContainer="parent"
+      [cdkDragStartDelay]="dragStartDelay"
+      class="group relative overflow-hidden rounded-xl border bg-fb-surface transition-[border-color,box-shadow,opacity]"
       [class.border-indigo-400]="image.id === activeId()"
       [class.ring-2]="image.id === activeId()"
       [class.ring-indigo-400/30]="image.id === activeId()"
       [class.border-fb-border]="image.id !== activeId()"
       [class.opacity-60]="!image.reviewed && image.id !== activeId()"
     >
+      <ng-template cdkDragPlaceholder>
+        <!--
+          Zeigt waehrend des Ziehens, wo das Bild landen wird. Eine Kachel ist
+          Bild plus Fusszeile - waere der Platzhalter nur so hoch wie das Bild,
+          spraenge die Reihe waehrend des Ziehens um die Fusszeilenhoehe.
+        -->
+        <div
+          class="flex flex-col rounded-xl border-2 border-dashed border-fb-text-muted bg-fb-primary-subtle"
+        >
+          <div class="aspect-[4/3] w-full"></div>
+          <div class="h-8 w-full"></div>
+        </div>
+      </ng-template>
       <button
         type="button"
+        cdkDragHandle
         (click)="selected.emit(image.id)"
         [disabled]="disabled()"
         [attr.aria-label]="
@@ -43,7 +64,12 @@
         [attr.aria-current]="image.id === activeId() ? 'true' : null"
         class="relative block aspect-[4/3] w-full cursor-pointer overflow-hidden bg-black/25 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        <img [src]="image.dataUrl" alt="" class="h-full w-full object-contain" />
+        <img
+          [src]="image.dataUrl"
+          alt=""
+          draggable="false"
+          class="h-full w-full object-contain [-webkit-touch-callout:none]"
+        />
         @if (image.id === activeId()) {
           <!--
             Dunkle Schrift auf dem hellen Abzeichen: Weiss darauf kommt nur auf
@@ -67,8 +93,9 @@
 
       <div
         data-testid="image-tools"
-        class="absolute right-1.5 top-1.5 flex items-center gap-1 rounded-lg bg-black/75 p-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+        class="pointer-events-none absolute right-1.5 top-1.5 flex items-center gap-1 rounded-lg bg-black/75 p-1 opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100"
         [class.opacity-100]="image.id === activeId()"
+        [class.pointer-events-auto]="image.id === activeId()"
       >
         <button
           type="button"
@@ -104,16 +131,6 @@
 
       <footer class="flex items-center gap-1.5 border-t border-fb-border px-2 py-1.5">
         <span class="text-[11px] font-semibold text-fb-text-secondary">{{ i + 1 }}</span>
-        <!--
-          Das GPS-Abzeichen bleibt ein semantisches `app-badge` ohne
-          dekorativen Marker - festgehalten durch den Test in
-          image-list.component.angular.spec.ts.
-        -->
-        @if (image.metadata.gps) {
-          <app-badge tone="caution" title="Dieses Foto enthält den Aufnahmeort">
-            <span class="sr-only">Enthält Standortdaten. </span>GPS
-          </app-badge>
-        }
         <button
           type="button"
           (click)="reviewToggled.emit(image.id)"

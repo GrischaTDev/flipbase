@@ -6,6 +6,14 @@ export interface FileSplit {
 }
 
 /**
+ * Eigener MIME-Typ, der einem Ziehvorgang beim Start mitgegeben wird, um ihn
+ * als "in der Seite entstanden" zu kennzeichnen. Siehe `onDragStart` fuer die
+ * Begruendung, warum das die Marke am Vorgang selbst ist statt an der
+ * Direktive.
+ */
+const INTERNAL_DRAG_TYPE = 'application/x-flipbase-internal';
+
+/**
  * Trennt Bilder von allem anderen.
  *
  * HEIC-Dateien meldet der Browser haeufig ohne `type`. Sie werden trotzdem
@@ -34,11 +42,15 @@ export function splitImageFiles(files: readonly File[]): FileSplit {
  * Datei stattdessen selbst und die gesamte Seite mit allen geladenen
  * Bildern, Zuschnitten und der Plattformauswahl waere weg. Die Direktive
  * existiert ohnehin nur, waehrend die Route des Bildoptimierers gemountet
- * ist, `carriesFiles()` filtert weiterhin auf echte Datei-Drags.
+ * ist. `carriesFiles()` allein unterscheidet dabei nicht zwischen einem
+ * echten Datei-Drag vom Schreibtisch und einem in der Seite gezogenen Bild -
+ * beide melden `Files` in `dataTransfer.types` -; die Unterscheidung
+ * uebernimmt `isInternal()`.
  */
 @Directive({
   selector: '[appFileDrop]',
   host: {
+    '(document:dragstart)': 'onDragStart($event)',
     '(document:dragenter)': 'onDragEnter($event)',
     '(document:dragover)': 'onDragOver($event)',
     '(document:dragleave)': 'onDragLeave($event)',
@@ -58,11 +70,33 @@ export class FileDropDirective {
    */
   private depth = 0;
 
+  /**
+   * Markiert einen Ziehvorgang, der in der Seite selbst begonnen hat - etwa
+   * ein Vorschaubild. Chrome bietet ein gezogenes `<img>` als Datei an,
+   * `dataTransfer.types` enthaelt dann `Files` wie bei einem echten Datei-Drag.
+   *
+   * Die Marke haengt bewusst am `dataTransfer` des Vorgangs selbst, nicht an
+   * einem Feld dieser Direktive: Ein Feld muesste durch ein Gegenereignis
+   * (`dragend`) wieder zurueckgesetzt werden, und genau dieses Gegenereignis
+   * kann ausbleiben - etwa wenn Angular den gezogenen Knoten waehrend des
+   * Ziehens aus dem DOM entfernt (`dragend` feuert am Quellknoten, nicht an
+   * `document`, und bleibt dann aus) oder das Ziehen ausserhalb des Dokuments
+   * endet. Ein haengengebliebenes `true` wuerde jeden folgenden echten
+   * Datei-Drop als intern behandeln, `preventDefault()` bliebe aus, und der
+   * Browser wuerde die naechste vom Schreibtisch gezogene Datei selbst
+   * oeffnen - die gesamte Sitzung waere weg. Am `dataTransfer` gibt es dagegen
+   * nichts zurueckzusetzen: Jeder Ziehvorgang bekommt seinen eigenen, frischen
+   * `dataTransfer`, die Marke existiert nur so lange wie der Vorgang selbst.
+   */
+  onDragStart(event: DragEvent): void {
+    event.dataTransfer?.setData(INTERNAL_DRAG_TYPE, '1');
+  }
+
   /** Siehe `onDragOver`: Die Abwehr steht auch hier vor jeder Bedingung. */
   onDragEnter(event: DragEvent): void {
     if (!this.carriesFiles(event)) return;
     event.preventDefault();
-    if (this.disabled()) return;
+    if (this.disabled() || this.isInternal(event)) return;
     this.depth++;
     if (this.depth === 1) this.dragActiveChanged.emit(true);
   }
@@ -72,8 +106,11 @@ export class FileDropDirective {
    * oeffnet die abgelegte Datei stattdessen selbst - die Seite wird verlassen
    * und die Arbeit ist weg.
    *
-   * Deshalb geschieht die Abwehr **immer**, sobald Dateien im Spiel sind, und
-   * ausdruecklich auch waehrend eines laufenden Exports. `disabled()`
+   * Deshalb geschieht die Abwehr **immer**, sobald Dateien im Spiel sind - bei
+   * einem echten Datei-Drag genauso wie bei einem in der Seite gezogenen
+   * Vorschaubild, denn auch das meldet `Files` in `dataTransfer.types` und
+   * wuerde ohne `preventDefault` in Firefox eine Navigation zum Bild ausloesen.
+   * Ausdruecklich auch waehrend eines laufenden Exports: `disabled()`
    * unterdrueckt nur die *Wirkung* - Ueberlagerung und Weitergabe der Dateien -,
    * niemals die Abwehr selbst. Stuende `disabled()` davor, wuerde genau der
    * Fall eintreten, den dieser Kommentar beschreibt: Wer waehrend des Exports
@@ -82,7 +119,7 @@ export class FileDropDirective {
   onDragOver(event: DragEvent): void {
     if (!this.carriesFiles(event)) return;
     event.preventDefault();
-    if (this.disabled()) return;
+    if (this.disabled() || this.isInternal(event)) return;
     if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
   }
 
@@ -99,7 +136,7 @@ export class FileDropDirective {
     event.preventDefault();
     this.depth = 0;
     this.dragActiveChanged.emit(false);
-    if (this.disabled()) return;
+    if (this.disabled() || this.isInternal(event)) return;
 
     const files = Array.from(event.dataTransfer?.files ?? []);
     if (files.length > 0) this.filesDropped.emit(files);
@@ -112,8 +149,16 @@ export class FileDropDirective {
     if (files.length > 0) this.filesDropped.emit(files);
   }
 
-  /** Ignoriert das Ziehen von Text oder Verweisen innerhalb der Seite. */
+  /**
+   * Entscheidet allein darueber, ob die Browser-Standardaktion abgewehrt
+   * wird - unabhaengig davon, ob der Ziehvorgang in der Seite entstanden ist.
+   */
   private carriesFiles(event: DragEvent): boolean {
     return Array.from(event.dataTransfer?.types ?? []).includes('Files');
+  }
+
+  /** Ignoriert jeden Ziehvorgang, der in der Seite selbst begonnen hat. */
+  private isInternal(event: DragEvent): boolean {
+    return Array.from(event.dataTransfer?.types ?? []).includes(INTERNAL_DRAG_TYPE);
   }
 }

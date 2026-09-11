@@ -1,21 +1,43 @@
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 import {
+  CdkDrag,
+  CdkDragDrop,
+  CdkDragHandle,
+  CdkDragPlaceholder,
+  CdkDropList,
+} from '@angular/cdk/drag-drop';
+import {
   LucideDynamicIcon,
   LucideX as X,
   LucideArrowUp as ArrowUp,
   LucideArrowDown as ArrowDown,
 } from '@lucide/angular';
 import { OptimizerImage } from '../../models/optimizer-image';
-import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 
 /**
- * Die Filmleiste. Das erste Bild ist das Hauptbild - bei eBay das Bild im
- * Suchergebnis, bei Vinted das im Raster. Deshalb wird es markiert.
+ * Die Bilderliste als Raster. Das erste Bild ist das Hauptbild - bei eBay das
+ * Bild im Suchergebnis, bei Vinted das im Raster. Umsortiert wird per Ziehen;
+ * die Pfeile in der Werkzeugleiste der Kachel bleiben als Weg ohne Ziehen fuer
+ * Tastatur und Screenreader (WCAG 2.2, 2.5.7).
+ *
+ * Gezogen wird nur am Bild selbst (`cdkDragHandle` auf dem Auswahl-Knopf):
+ * ohne Griff wuerde jede Beruehrung der Kachel - auch auf den Werkzeug-
+ * Knoepfen oder dem "durchgesehen"-Schalter - nach 5px Bewegung einen Zug
+ * auf dem ganzen `<article>` starten und den folgenden Klick verschlucken.
+ * Auf Touch kommt eine Verzoegerung dazu: Ohne sie wuerde ein kurzes Wischen
+ * zum Scrollen im Raster (`overflow-y-auto`) sofort als Zug gewertet; mit
+ * Verzoegerung startet erst ein laengeres Halten das Ziehen. Die Verzoegerung
+ * allein reicht aber nicht zum Scrollen: Das CDK setzt am Griff zusaetzlich
+ * inline `touch-action: none`, das senkrechte Wischen ueber der gesamten
+ * Kachel unterbindet, solange der Zug nicht gestartet ist. `touch-action:
+ * pan-y` in der Stildatei gibt das Scrollen zurueck (siehe dortiger
+ * Kommentar).
  */
 @Component({
   selector: 'app-image-list',
-  imports: [LucideDynamicIcon, BadgeComponent],
+  imports: [LucideDynamicIcon, CdkDropList, CdkDrag, CdkDragHandle, CdkDragPlaceholder],
   templateUrl: './image-list.component.html',
+  styleUrl: './image-list.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ImageListComponent {
@@ -27,10 +49,20 @@ export class ImageListComponent {
   readonly selected = output<string>();
   readonly removed = output<string>();
   readonly moved = output<{ id: string; direction: -1 | 1 }>();
+  readonly reordered = output<{ readonly fromIndex: number; readonly toIndex: number }>();
   readonly clearAllRequested = output<void>();
   readonly reviewToggled = output<string>();
 
   readonly closeIcon = X;
   readonly moveUpIcon = ArrowUp;
   readonly moveDownIcon = ArrowDown;
+
+  /** Auf der Maus sofort ziehbar, auf Touch erst nach kurzem Halten (siehe Klassenkommentar). */
+  readonly dragStartDelay = { touch: 250, mouse: 0 } as const;
+
+  /** Ein Loslassen am Ausgangsort ist keine Umsortierung. */
+  onDropped(event: CdkDragDrop<unknown>): void {
+    if (event.previousIndex === event.currentIndex) return;
+    this.reordered.emit({ fromIndex: event.previousIndex, toIndex: event.currentIndex });
+  }
 }
