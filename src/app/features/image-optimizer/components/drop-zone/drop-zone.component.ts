@@ -28,7 +28,7 @@ export class DropZoneComponent {
   readonly zoneClasses = computed(() =>
     this.isDragActive()
       ? 'border-fb-text-primary bg-fb-primary-subtle shadow-2xl motion-safe:scale-[1.01]'
-      : 'border-fb-border bg-fb-surface hover:border-fb-text-muted',
+      : 'border-fb-border bg-fb-surface shadow-xl hover:border-fb-text-muted',
   );
 
   readonly iconClasses = computed(() =>

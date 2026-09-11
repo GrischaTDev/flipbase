@@ -40,4 +40,18 @@ describe('Ablageflaeche', () => {
   it('zeigt schon im Ruhezustand ein Symbol', () => {
     expect(render(false).querySelector('label svg')).not.toBeNull();
   });
+
+  it('traegt in jedem Zustand genau einen Schatten', () => {
+    // Rueckfallsicherung fuer den Fund aus der Aufgabenpruefung: `shadow-xl`
+    // stand fest in der Klassenliste, waehrend der Ablagezustand zusaetzlich
+    // `shadow-2xl` anhaengte - welcher gewinnt, haengt von der CSS-Reihenfolge
+    // ab. Jetzt traegt jeder Zustand genau eine der beiden Klassen.
+    for (const isDragActive of [false, true]) {
+      const label = render(isDragActive).querySelector('label');
+      const hasShadowXl = label?.classList.contains('shadow-xl') ?? false;
+      const hasShadow2xl = label?.classList.contains('shadow-2xl') ?? false;
+
+      expect(hasShadowXl !== hasShadow2xl).toBe(true);
+    }
+  });
 });
