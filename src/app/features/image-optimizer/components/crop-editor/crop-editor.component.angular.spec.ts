@@ -81,6 +81,31 @@ describe('Steuerelemente auf der Vorschau', () => {
   });
 });
 
+describe('Metadaten-Knopf', () => {
+  it('meldet beim Klick auf "Metadaten" den Wunsch nach dem Metadaten-Fenster', () => {
+    TestBed.resetTestingModule();
+    const fixture = TestBed.configureTestingModule({
+      imports: [CropEditorComponent],
+    }).createComponent(CropEditorComponent);
+    Object.assign(fixture.componentInstance, {
+      dataUrl: signal('blob:a'),
+      ratio: signal(1),
+      adjustments: signal(defaultAdjustments()),
+    });
+    fixture.detectChanges();
+
+    let emitted = false;
+    fixture.componentInstance.metadataRequested.subscribe(() => (emitted = true));
+
+    const buttons = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('button'));
+    const metadataButton = buttons.find((button) => button.textContent?.includes('Metadaten'));
+    expect(metadataButton).toBeDefined();
+    metadataButton!.click();
+
+    expect(emitted).toBe(true);
+  });
+});
+
 describe('Auf alle Bilder uebernehmen', () => {
   // Der Editor kennt die Bildanzahl nicht selbst - die Elternseite reicht sie
   // ueber `canApplyAdjustmentsToAll` durch. Geprueft wird ueber den Knopf in
