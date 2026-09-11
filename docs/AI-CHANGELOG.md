@@ -1,5 +1,84 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-11 – Claude Opus 5 (Anthropic) – Bildoptimierer: Nachbesserungen nach der ersten Nutzung
+
+**Auftrag/Ergebnis:** Sieben Rückmeldungen aus der ersten echten Arbeit mit der
+neuen Arbeitsfläche umgesetzt: Trenner mittig, kein GPS-Abzeichen an den
+Kacheln, Umsortieren per Ziehen, kein doppeltes Hinzufügen beim Ziehen in der
+Seite, Steuerleiste unter dem Bild, Export ohne Ordner-Dialog, deutliche
+Ablagefläche. Zweig `feat/image-optimizer-polish`, abgezweigt von
+`origin/master` (5a11621).
+
+**Ursachen:**
+
+- Trenner: Griff-Spalte nur 0,75 rem, die rechte Box zusätzlich mit
+  `lg:ml-4` – der Strich lag etwa 6 px von links, 22 px von rechts.
+- Doppeltes Bild: Chrome bietet ein gezogenes `<img>` aus der Seite als Datei
+  an; die seitenweite Ablage-Erkennung hielt das für einen Upload.
+- Ablagefläche: `.linear-surface` setzt seinen Hintergrund in normalem CSS
+  und schlug damit jede Tailwind-Hintergrundklasse; der Farbton erschien nie.
+- Export-Dialog: Ein Browser kann keinen Ordner herunterladen. Ohne
+  `showDirectoryPicker` bleiben nur Einzeldatei oder ZIP.
+
+**Entscheidungen des Nutzers:** Eine einzelne Datei landet direkt als JPEG
+im Download-Ordner, mehrere als ZIP mit Plattform-Ordnern; der Ordner-Export
+aus Paket 2 ist vollständig zurückgebaut. Umsortieren per Ziehen über das
+Angular CDK (neue Abhängigkeit), die Pfeile bleiben im Werkzeug-Menü als Weg
+ohne Ziehen (WCAG 2.2 AA, 2.5.7). Farben nach
+`docs/design/admin-ui-guidelines.md`: kräftiger gestrichelter Rand in der
+Textfarbe mit leichtem Logo-Gelb-Ton – Indigo verbietet die Richtlinie, Gelb
+als Rand hätte nur etwa 1,6:1.
+
+**Funde, die erst die Prüfungen aufgedeckt haben:**
+
+- Die erste Sperre gegen das doppelte Bild war ein Merker an der Direktive.
+  Er konnte hängenbleiben, wenn das gezogene Element während des Ziehens aus
+  der Seite verschwindet – danach hätte der Browser jede echte Datei selbst
+  geöffnet und die Sitzung verloren. Ersetzt durch eine Kennung am
+  Ziehvorgang selbst (`dataTransfer.setData`); ein Test deckt genau den
+  Hänge-Fall ab.
+- Die ganze Kachel war Ziehquelle: Knöpfe konnten versehentlich ziehen, auf
+  dem Handy löste Wischen ein Ziehen aus. Jetzt nur am Bild, auf Touch nach
+  250 ms Halten.
+- Das CDK sperrt am Ziehgriff das Scrollen (`touch-action: none`); über
+  einem Bild ließ sich auf dem Handy nicht wischen. Mit `pan-y`
+  zurückgegeben.
+- Die Zieh-Vorschau zog dem Zeiger nach, weil die Kachel `transform`
+  animierte.
+- Die unsichtbaren Werkzeugknöpfe nicht aktiver Kacheln ließen sich auf
+  Touch antippen – ein Tipp konnte ein Bild entfernen. Jetzt nur klickbar,
+  wenn sichtbar.
+- `--color-fb-primary-subtle` fehlte im Tailwind-Theme; `bg-fb-primary-subtle`
+  wurde nirgends erzeugt. Eine Zeile in `src/styles.css` ergänzt. Das lässt
+  auch im Kopfbereich-Menü und in der gemeinsamen Auswahlliste erstmals den
+  vorgesehenen Hover-/Auswahlton erscheinen.
+
+**Betroffen:** `features/image-optimizer/` – `image-list` (neu mit
+`.scss` nur für CDK-Klassen), `crop-editor`, `drop-zone`, `platform-preview`,
+`directives/file-drop`, `services/image-collection`,
+`image-optimizer.component.*`; entfernt: `directory-export.service`,
+`free-folder-name`. Dazu `shared/components/split-pane`, `src/styles.css`
+(eine Zeile), `package.json` (`@angular/cdk`). Keine Datenbankänderung.
+
+**Geprüft:** `npm run verify` erfolgreich (Exitcode 0, ohne Pipe gemessen):
+1123 Node-, 178 DOM- und 657 Angular-Tests, Format, Lint, Typen,
+Workflow-Tests, Suite-Audit und Bau. Chunk `image-optimizer-component` von
+98,17 kB auf 162,39 kB roh (25,14 → 40,22 kB übertragen) – der Einstiegspunkt
+von `@angular/cdk/drag-drop` bringt Scrollen, Bidi und Plattformhilfen fest
+mit; importiert werden nur drei Direktiven. Jede Aufgabe mit eigener Prüfung,
+danach eine Abschlussprüfung über den ganzen Zweig; deren Funde sind behoben.
+
+**Noch offen:** Probe im Browser und auf dem Handy (hinter der Anmeldung):
+Trenner mittig; Leiste unter dem Bild, untere Rahmenkante greifbar; Ziehen
+mit Maus ohne Nachziehen; auf dem Handy Wischen scrollt, Tippen wählt aus,
+langes Drücken zieht, kein „Bild sichern“-Menü; Bild in der Seite ziehen
+fügt nichts hinzu, danach eine echte Datei schon; Einzeldatei als JPEG, zwei
+Plattformen als ZIP; Ablagefläche deutlich. Außerdem als eigene Aufgabe
+vorgeschlagen: gelbe Schrift auf hellem Grund im Kopfbereich-Menü und in der
+Auswahlliste (etwa 1,5:1).
+
+---
+
 ## 2026-09-11 – Claude Opus 5 (Anthropic) – Bildoptimierer: Arbeitsfläche mit Trenner, Raster und Vorschaukacheln
 
 **Auftrag/Ergebnis:** Paket 3 der Bildoptimierer-Überarbeitung umgesetzt, die
