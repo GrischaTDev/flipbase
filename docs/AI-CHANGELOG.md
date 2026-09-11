@@ -1,5 +1,46 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-11 – Claude Sonnet 5 (Anthropic) – Bildoptimierer-Layout: abschliessende Review-Punkte
+
+**Auftrag/Ergebnis:** Alle elf Punkte aus dem abschliessenden Review des
+Zweigs `feat/image-optimizer-layout` umgesetzt: der verschiebbare Trenner
+(`shared/components/split-pane`), die Steuerleiste und das Farb-Panel im
+Zuschnitt-Editor sowie die Plattform-Kacheln.
+
+**Trenner stellte den gemerkten Anteil nie wieder her:** Der Lesezugriff auf
+den Browserspeicher stand im Konstruktor von `SplitPaneComponent`, bevor
+Angular den Input `storageKey` gebunden hatte - er war dort immer noch leer.
+Verschoben in den bestehenden `afterNextRender`-Callback. Mit einem Test
+belegt, der vor dem Fix nachweislich rot war (`expected 50 to be 65`).
+
+**Farb-Panel konnte unter die Leiste rutschen:** Beide lagen als unabhaengig
+positionierte Ebenen uebereinander, mit einer festen Annahme zur Leistenhoehe.
+Jetzt eine gemeinsame Huelle mit `flex-col-reverse`: Das Panel steht dadurch
+immer oberhalb der Leiste, unabhaengig davon, ob diese ein- oder zweizeilig
+ist. Dafuer musste "Metadaten" im Markup vor "Farbe" wandern, sonst waere Tab
+ab "Farbe" weiterhin zu "Metadaten" statt ins Panel gesprungen.
+
+**Kontrast und Restliches:** Trenner-Griff auf `bg-fb-text-muted` angehoben
+(vorher unter 3:1). Kachel-Warnung von `role="alert"` auf `role="status"`
+(sie aenderte sich waehrend des Ziehens staendig). Kacheln bekommen einen
+`disabled`-Input, gebunden an `isBusy()` - vorher liessen sie sich waehrend
+eines Exports anklicken, ohne etwas zu bewirken. Je Kachel ein eigener
+aria-label fuer "Groß ansehen". Ein falscher Kommentar zu einem Kontrastwert
+und ein Kommentar, der die Aufgabe statt den Code beschrieb, korrigiert.
+
+**Betroffen:** `shared/components/split-pane/`,
+`features/image-optimizer/components/crop-editor/`,
+`features/image-optimizer/components/platform-preview/`,
+`features/image-optimizer/components/image-list/` (nur Kommentar),
+`image-optimizer.component.html`. Keine Datenbank-, Abhaengigkeits- oder
+Schemaaenderung.
+
+**Geprüft:** Angular- und Node-Tests der betroffenen Ordner, die gesamte
+`image-optimizer`- und `shared`-Testsuite (568 Tests), `npm run typecheck`,
+`npm run build`, sowie `prettier --check` und `eslint` auf allen geaenderten
+Dateien - alles gruen. Details und Befehle in
+`.superpowers/sdd/final-fix-report.md`.
+
 ## 2026-09-10 – Claude Opus 5 (Anthropic) – Bildoptimierer: Ordner-Export und erhaltenes Aufnahmedatum
 
 **Auftrag/Ergebnis:** Paket 2 der Bildoptimierer-Überarbeitung umgesetzt. Der
