@@ -65,10 +65,14 @@ export class SplitPaneComponent {
   );
 
   constructor() {
-    const stored = readStoredRatio(this.read(), this.minRatio(), this.maxRatio());
-    if (stored !== null) this.ratio.set(stored);
-
     afterNextRender(() => {
+      // Erst hier ist `storageKey()` verlaesslich gesetzt: Im Konstruktor hat
+      // Angular die Eingaben noch nicht gebunden, das Lesen liefe also immer
+      // gegen den leeren Vorgabewert und der gemerkte Anteil ginge bei jedem
+      // Neuladen verloren.
+      const stored = readStoredRatio(this.read(), this.minRatio(), this.maxRatio());
+      if (stored !== null) this.ratio.set(stored);
+
       const query = window.matchMedia('(min-width: 1024px)');
       const update = (matches: boolean): void => this.isWide.set(matches);
       update(query.matches);

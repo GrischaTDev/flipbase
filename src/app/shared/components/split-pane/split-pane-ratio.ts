@@ -3,7 +3,7 @@
  *
  * Alles, was der Griff tut, laesst sich als Zahl ausdruecken - Grenzen,
  * Zeigerposition, Tastendruck, gemerkter Wert. Getrennt gehalten, damit es
- * ohne Browser prueffbar bleibt und die Komponente nur noch Ereignisse
+ * ohne Browser pruefbar bleibt und die Komponente nur noch Ereignisse
  * entgegennimmt.
  */
 
