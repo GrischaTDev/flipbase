@@ -189,4 +189,51 @@ describe('FileDropDirective', () => {
 
     expect(dragActiveChanged).toHaveBeenCalledWith(true);
   });
+
+  describe('Ziehen, das in der Seite beginnt', () => {
+    it('haelt es nicht fuer einen Datei-Drop', () => {
+      // Chrome bietet ein gezogenes Vorschaubild als Datei an. Ohne diese
+      // Sperre erschien "Bilder hier ablegen" und das Bild kam doppelt hinzu.
+      const directive = createDirective();
+      const active: boolean[] = [];
+      const dropped: (readonly File[])[] = [];
+      directive.dragActiveChanged.subscribe((value) => active.push(value));
+      directive.filesDropped.subscribe((files) => dropped.push(files));
+
+      directive.onDragStart();
+      directive.onDragEnter(createFileEvent('dragenter') as DragEvent);
+      directive.onDrop(createFileEvent('drop', [file('a.jpg', 'image/jpeg')]) as DragEvent);
+
+      expect(active).not.toContain(true);
+      expect(dropped).toEqual([]);
+    });
+
+    it('nimmt nach dem Ende des Ziehens wieder echte Dateien an', () => {
+      const directive = createDirective();
+      const dropped: (readonly File[])[] = [];
+      directive.filesDropped.subscribe((files) => dropped.push(files));
+      const photo = file('a.jpg', 'image/jpeg');
+
+      directive.onDragStart();
+      directive.onDragEnd();
+      directive.onDrop(createFileEvent('drop', [photo]) as DragEvent);
+
+      expect(dropped).toEqual([[photo]]);
+    });
+
+    it('hebt die Sperre auch nach einem Ablegen wieder auf', () => {
+      // Endet das Ziehen mit einem Ablegen, feuert dragend nicht in jedem
+      // Browser zuverlaessig. Der naechste echte Datei-Drop darf nicht haengen.
+      const directive = createDirective();
+      const dropped: (readonly File[])[] = [];
+      directive.filesDropped.subscribe((files) => dropped.push(files));
+      const photo = file('a.jpg', 'image/jpeg');
+
+      directive.onDragStart();
+      directive.onDrop(createFileEvent('drop', [photo]) as DragEvent);
+      directive.onDrop(createFileEvent('drop', [photo]) as DragEvent);
+
+      expect(dropped).toEqual([[photo]]);
+    });
+  });
 });

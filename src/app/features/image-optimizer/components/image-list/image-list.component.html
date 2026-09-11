@@ -43,7 +43,7 @@
         [attr.aria-current]="image.id === activeId() ? 'true' : null"
         class="relative block aspect-[4/3] w-full cursor-pointer overflow-hidden bg-black/25 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        <img [src]="image.dataUrl" alt="" class="h-full w-full object-contain" />
+        <img [src]="image.dataUrl" alt="" draggable="false" class="h-full w-full object-contain" />
         @if (image.id === activeId()) {
           <!--
             Dunkle Schrift auf dem hellen Abzeichen: Weiss darauf kommt nur auf

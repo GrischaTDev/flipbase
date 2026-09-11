@@ -39,6 +39,8 @@ export function splitImageFiles(files: readonly File[]): FileSplit {
 @Directive({
   selector: '[appFileDrop]',
   host: {
+    '(document:dragstart)': 'onDragStart()',
+    '(document:dragend)': 'onDragEnd()',
     '(document:dragenter)': 'onDragEnter($event)',
     '(document:dragover)': 'onDragOver($event)',
     '(document:dragleave)': 'onDragLeave($event)',
@@ -57,6 +59,22 @@ export class FileDropDirective {
    * ohne Zaehler flackert die Ablageflaeche beim Ueberfahren der Oberflaeche.
    */
   private depth = 0;
+
+  /**
+   * Ein Ziehen, das in der Seite selbst begonnen hat - etwa ein Vorschaubild.
+   * Chrome bietet ein gezogenes `<img>` als Datei an, `dataTransfer.types`
+   * enthaelt dann `Files`. Ohne diese Marke hielte `carriesFiles()` es fuer
+   * einen echten Datei-Drop und das Bild kaeme ein zweites Mal hinzu.
+   */
+  private internalDrag = false;
+
+  onDragStart(): void {
+    this.internalDrag = true;
+  }
+
+  onDragEnd(): void {
+    this.internalDrag = false;
+  }
 
   /** Siehe `onDragOver`: Die Abwehr steht auch hier vor jeder Bedingung. */
   onDragEnter(event: DragEvent): void {
@@ -99,7 +117,11 @@ export class FileDropDirective {
     event.preventDefault();
     this.depth = 0;
     this.dragActiveChanged.emit(false);
-    if (this.disabled()) return;
+    // `dragend` feuert nach einem Ablegen nicht in jedem Browser verlaesslich;
+    // die Marke wird deshalb auch hier zurueckgesetzt.
+    const internal = this.internalDrag;
+    this.internalDrag = false;
+    if (this.disabled() || internal) return;
 
     const files = Array.from(event.dataTransfer?.files ?? []);
     if (files.length > 0) this.filesDropped.emit(files);
@@ -112,8 +134,9 @@ export class FileDropDirective {
     if (files.length > 0) this.filesDropped.emit(files);
   }
 
-  /** Ignoriert das Ziehen von Text oder Verweisen innerhalb der Seite. */
+  /** Ignoriert Text, Verweise und alles, was in der Seite selbst gezogen wird. */
   private carriesFiles(event: DragEvent): boolean {
+    if (this.internalDrag) return false;
     return Array.from(event.dataTransfer?.types ?? []).includes('Files');
   }
 }
