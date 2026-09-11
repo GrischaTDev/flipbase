@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   moveImage,
+  moveImageTo,
   removeImage,
   removeAll,
   markReviewed,
@@ -112,5 +113,34 @@ describe('Anpassungen in der Liste', () => {
     const list = [image('a')];
 
     expect(setAdjustmentsIn(list, 'gibtesnicht', bright)[0].adjustments.brightness).toBe(1);
+  });
+});
+
+function ids(list: readonly OptimizerImage[]): string[] {
+  return list.map((entry) => entry.id);
+}
+
+describe('Bild an eine neue Position ziehen', () => {
+  const list = [image('a'), image('b'), image('c'), image('d')];
+
+  it('zieht ein Bild nach vorn', () => {
+    expect(ids(moveImageTo(list, 3, 1))).toEqual(['a', 'd', 'b', 'c']);
+  });
+
+  it('zieht ein Bild nach hinten', () => {
+    expect(ids(moveImageTo(list, 0, 2))).toEqual(['b', 'c', 'a', 'd']);
+  });
+
+  it('macht ein Bild auf Position 0 zum Hauptbild', () => {
+    expect(ids(moveImageTo(list, 2, 0))).toEqual(['c', 'a', 'b', 'd']);
+  });
+
+  it('laesst die Liste bei gleicher Position unveraendert', () => {
+    expect(moveImageTo(list, 1, 1)).toBe(list);
+  });
+
+  it('laesst die Liste bei ungueltigen Positionen unveraendert', () => {
+    expect(moveImageTo(list, -1, 2)).toBe(list);
+    expect(moveImageTo(list, 1, 4)).toBe(list);
   });
 });

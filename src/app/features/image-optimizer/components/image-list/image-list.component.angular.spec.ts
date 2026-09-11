@@ -1,6 +1,7 @@
 import '@angular/compiler';
 import { signal, ɵresolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { CdkDragDrop } from '@angular/cdk/drag-drop';
 import { readFile } from 'node:fs/promises';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { defaultAdjustments } from '../../services/adjustments';
@@ -104,5 +105,39 @@ describe('Bilderraster', () => {
     const element = render([image('a'), image('b')]);
 
     expect(element.textContent).toContain('HAUPTBILD');
+  });
+});
+
+describe('Umsortieren per Ziehen', () => {
+  it('meldet die neue Position, wenn ein Bild abgelegt wird', () => {
+    TestBed.resetTestingModule();
+    const fixture = TestBed.configureTestingModule({
+      imports: [ImageListComponent],
+    }).createComponent(ImageListComponent);
+    const emitted: { fromIndex: number; toIndex: number }[] = [];
+    fixture.componentInstance.reordered.subscribe((value) => emitted.push(value));
+
+    fixture.componentInstance.onDropped({
+      previousIndex: 2,
+      currentIndex: 0,
+    } as CdkDragDrop<unknown>);
+
+    expect(emitted).toEqual([{ fromIndex: 2, toIndex: 0 }]);
+  });
+
+  it('meldet nichts, wenn das Bild an seinem Platz landet', () => {
+    TestBed.resetTestingModule();
+    const fixture = TestBed.configureTestingModule({
+      imports: [ImageListComponent],
+    }).createComponent(ImageListComponent);
+    const emitted: unknown[] = [];
+    fixture.componentInstance.reordered.subscribe((value) => emitted.push(value));
+
+    fixture.componentInstance.onDropped({
+      previousIndex: 1,
+      currentIndex: 1,
+    } as CdkDragDrop<unknown>);
+
+    expect(emitted).toEqual([]);
   });
 });

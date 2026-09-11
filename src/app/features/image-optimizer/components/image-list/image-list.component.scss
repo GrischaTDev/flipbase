@@ -1,0 +1,19 @@
+// Diese Klassen setzt das Angular CDK waehrend eines Ziehvorgangs. Sie
+// lassen sich nicht als Tailwind-Klassen ins Template schreiben - deshalb
+// diese eine Stildatei.
+.cdk-drag-preview {
+  border-radius: 0.75rem;
+  box-shadow: 0 12px 32px rgb(0 0 0 / 35%);
+}
+
+.cdk-drag-animating,
+.cdk-drop-list-dragging .cdk-drag:not(.cdk-drag-placeholder) {
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cdk-drag-animating,
+  .cdk-drop-list-dragging .cdk-drag:not(.cdk-drag-placeholder) {
+    transition: none;
+  }
+}

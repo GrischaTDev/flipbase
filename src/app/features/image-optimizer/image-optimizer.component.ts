@@ -53,6 +53,7 @@ import {
   removeImage as removeImageFrom,
   removeAll,
   moveImage as moveImageIn,
+  moveImageTo,
   saveCropIn,
   applyCropToAllIn,
   markReviewed,
@@ -654,6 +655,12 @@ export class ImageOptimizerComponent {
     if (this.isBusy()) return;
 
     this.images.set([...moveImageIn(this.images(), id, direction)]);
+  }
+
+  /** Verschiebt ein Bild per Ziehen an eine neue Position. Position 0 ist das Hauptbild. */
+  reorderImage(fromIndex: number, toIndex: number): void {
+    if (this.isBusy()) return;
+    this.images.set([...moveImageTo(this.images(), fromIndex, toIndex)]);
   }
 
   setAdjustments(values: Adjustments): void {

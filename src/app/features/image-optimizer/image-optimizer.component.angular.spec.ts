@@ -890,3 +890,28 @@ describe('ImageOptimizerComponent – Exportvorschau je Kachel', () => {
     });
   });
 });
+
+describe('ImageOptimizerComponent – Umsortieren per Ziehen', () => {
+  beforeAll(() => TestBed.resetTestingModule());
+
+  it('verschiebt ein Bild an die abgelegte Position', () => {
+    const component = createComponent();
+    component.addFiles([jpegFile('a.jpg'), jpegFile('b.jpg'), jpegFile('c.jpg')]);
+    const [a, b, c] = component.images().map((image) => image.id);
+
+    component.reorderImage(2, 0);
+
+    expect(component.images().map((image) => image.id)).toEqual([c, a, b]);
+  });
+
+  it('laesst die Reihenfolge waehrend eines Exports in Ruhe', () => {
+    const component = createComponent();
+    component.addFiles([jpegFile('a.jpg'), jpegFile('b.jpg')]);
+    const before = component.images().map((image) => image.id);
+    component.isBusy.set(true);
+
+    component.reorderImage(1, 0);
+
+    expect(component.images().map((image) => image.id)).toEqual(before);
+  });
+});

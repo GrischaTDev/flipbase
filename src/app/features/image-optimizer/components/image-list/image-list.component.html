@@ -20,10 +20,16 @@
 -->
 <div
   data-testid="image-grid"
+  cdkDropList
+  cdkDropListOrientation="mixed"
+  [cdkDropListDisabled]="disabled()"
+  (cdkDropListDropped)="onDropped($event)"
   class="grid max-h-[calc(100vh-18rem)] grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] gap-3 overflow-y-auto pb-2 pr-1"
 >
   @for (image of images(); track image.id; let i = $index) {
     <article
+      cdkDrag
+      cdkDragPreviewContainer="parent"
       class="group relative overflow-hidden rounded-xl border bg-fb-surface transition"
       [class.border-indigo-400]="image.id === activeId()"
       [class.ring-2]="image.id === activeId()"
@@ -31,6 +37,12 @@
       [class.border-fb-border]="image.id !== activeId()"
       [class.opacity-60]="!image.reviewed && image.id !== activeId()"
     >
+      <ng-template cdkDragPlaceholder>
+        <!-- Zeigt waehrend des Ziehens, wo das Bild landen wird. -->
+        <div
+          class="aspect-[4/3] rounded-xl border-2 border-dashed border-fb-text-muted bg-fb-primary-subtle"
+        ></div>
+      </ng-template>
       <button
         type="button"
         (click)="selected.emit(image.id)"

@@ -43,6 +43,27 @@ export function moveImage(
   return next;
 }
 
+/**
+ * Verschiebt ein Bild an eine beliebige Position - fuer das Umsortieren per
+ * Ziehen. Position 0 ist das Hauptbild. Ungueltige oder gleiche Positionen
+ * lassen die Liste unveraendert, damit ein Loslassen am Ausgangsort keine
+ * neue Liste und damit keine unnoetige Neuberechnung ausloest.
+ */
+export function moveImageTo(
+  list: readonly OptimizerImage[],
+  fromIndex: number,
+  toIndex: number,
+): readonly OptimizerImage[] {
+  if (fromIndex === toIndex) return list;
+  if (fromIndex < 0 || fromIndex >= list.length) return list;
+  if (toIndex < 0 || toIndex >= list.length) return list;
+
+  const next = [...list];
+  const [moved] = next.splice(fromIndex, 1);
+  next.splice(toIndex, 0, moved);
+  return next;
+}
+
 export function saveCropIn(
   list: readonly OptimizerImage[],
   id: string,
