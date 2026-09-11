@@ -140,4 +140,25 @@ describe('Umsortieren per Ziehen', () => {
 
     expect(emitted).toEqual([]);
   });
+
+  it('setzt den Ziehgriff nur auf den Auswahl-Knopf, nicht auf Werkzeuge oder den Schalter', () => {
+    // Regressionswaechter fuer den Fund aus der Aufgabenpruefung: Ohne
+    // `cdkDragHandle` startet die CDK einen Zug aus jedem Punkt der Kachel,
+    // was Werkzeug-Knoepfe und den "durchgesehen"-Schalter verschluckt. Die
+    // CDK haengt an ihren Griff-Elementen die Klasse `cdk-drag-handle` an;
+    // das ist das einzige Merkmal, das von aussen pruefbar ist.
+    const element = render([image('a'), image('b')]);
+    const firstTile = element.querySelectorAll('article')[0];
+    const selectButton = firstTile.querySelector('button');
+    const toolButtons = Array.from(
+      firstTile.querySelectorAll('[data-testid="image-tools"] button'),
+    );
+    const reviewToggle = firstTile.querySelector('footer button');
+
+    expect(selectButton?.classList.contains('cdk-drag-handle')).toBe(true);
+    for (const button of toolButtons) {
+      expect(button.classList.contains('cdk-drag-handle')).toBe(false);
+    }
+    expect(reviewToggle?.classList.contains('cdk-drag-handle')).toBe(false);
+  });
 });

@@ -30,6 +30,7 @@
     <article
       cdkDrag
       cdkDragPreviewContainer="parent"
+      [cdkDragStartDelay]="dragStartDelay"
       class="group relative overflow-hidden rounded-xl border bg-fb-surface transition"
       [class.border-indigo-400]="image.id === activeId()"
       [class.ring-2]="image.id === activeId()"
@@ -45,6 +46,7 @@
       </ng-template>
       <button
         type="button"
+        cdkDragHandle
         (click)="selected.emit(image.id)"
         [disabled]="disabled()"
         [attr.aria-label]="
