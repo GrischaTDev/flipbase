@@ -11,15 +11,23 @@ function file(name: string, type: string): File {
  *
  * jsdom kennt `DataTransfer` nicht, deshalb wird hier ein einfaches Objekt
  * mit `types: ['Files']` angehaengt - genau das, worauf `carriesFiles` prueft.
+ * Ueber `types` laesst sich zusaetzlich die interne Marke einschmuggeln, wie
+ * sie ein in der Seite begonnener Ziehvorgang tragen wuerde.
  */
-function createFileEvent(type: string, files: readonly File[] = []): Event {
+function createFileEvent(
+  type: string,
+  files: readonly File[] = [],
+  types: readonly string[] = ['Files'],
+): Event {
   const event = new Event(type, { cancelable: true, bubbles: true });
   Object.defineProperty(event, 'dataTransfer', {
     configurable: true,
-    value: { types: ['Files'], files },
+    value: { types, files },
   });
   return event;
 }
+
+const INTERNAL_TYPES = ['Files', 'application/x-flipbase-internal'];
 
 /**
  * Erstellt die Direktive ohne Umweg ueber Host-Komponente und Template.
@@ -191,48 +199,67 @@ describe('FileDropDirective', () => {
   });
 
   describe('Ziehen, das in der Seite beginnt', () => {
-    it('haelt es nicht fuer einen Datei-Drop', () => {
+    it('schreibt die interne Marke in den Ziehvorgang', () => {
+      // Die Marke haengt am Ziehvorgang selbst (siehe Kommentar an
+      // `onDragStart`), nicht an einem Feld der Direktive - deshalb wird hier
+      // direkt geprueft, dass `setData` mit dem richtigen Typ aufgerufen wird.
+      const directive = createDirective();
+      const setData = vi.fn();
+      const event = { dataTransfer: { setData } } as unknown as DragEvent;
+
+      directive.onDragStart(event);
+
+      expect(setData).toHaveBeenCalledWith('application/x-flipbase-internal', '1');
+    });
+
+    it('haelt ein internes Ziehen nicht fuer einen Datei-Drop, wehrt aber die Browser-Standardaktion ab', () => {
       // Chrome bietet ein gezogenes Vorschaubild als Datei an. Ohne diese
       // Sperre erschien "Bilder hier ablegen" und das Bild kam doppelt hinzu.
+      // `preventDefault` muss trotzdem greifen, sonst navigiert Firefox zum
+      // gezogenen Bild.
       const directive = createDirective();
       const active: boolean[] = [];
       const dropped: (readonly File[])[] = [];
       directive.dragActiveChanged.subscribe((value) => active.push(value));
       directive.filesDropped.subscribe((files) => dropped.push(files));
 
-      directive.onDragStart();
-      directive.onDragEnter(createFileEvent('dragenter') as DragEvent);
-      directive.onDrop(createFileEvent('drop', [file('a.jpg', 'image/jpeg')]) as DragEvent);
+      const overEvent = createFileEvent('dragover', [], INTERNAL_TYPES);
+      directive.onDragOver(overEvent as DragEvent);
+      const dropEvent = createFileEvent('drop', [file('a.jpg', 'image/jpeg')], INTERNAL_TYPES);
+      directive.onDrop(dropEvent as DragEvent);
 
       expect(active).not.toContain(true);
       expect(dropped).toEqual([]);
+      expect((overEvent as DragEvent).defaultPrevented).toBe(true);
+      expect((dropEvent as DragEvent).defaultPrevented).toBe(true);
     });
 
-    it('nimmt nach dem Ende des Ziehens wieder echte Dateien an', () => {
+    it('haengt nicht fest, wenn dragend und drop nach einem internen Ziehen ausbleiben', () => {
+      // Das ist genau das Szenario, das den Fehler ausgemacht hat: Entfernt
+      // Angular den gezogenen Knoten waehrend des Ziehens aus dem DOM, feuert
+      // `dragend` nie auf `document`; endet das Ziehen ausserhalb des
+      // Fensters, bleibt auch `drop` aus. Eine Marke an der Direktive bliebe
+      // in diesem Fall auf `true` haengen und der naechste echte Datei-Drop
+      // vom Schreibtisch wuerde faelschlich als intern behandelt - der
+      // Browser wuerde die Datei selbst oeffnen und die Sitzung waere weg.
       const directive = createDirective();
+      const active: boolean[] = [];
       const dropped: (readonly File[])[] = [];
+      directive.dragActiveChanged.subscribe((value) => active.push(value));
       directive.filesDropped.subscribe((files) => dropped.push(files));
+
+      directive.onDragStart({ dataTransfer: { setData: vi.fn() } } as unknown as DragEvent);
+      // Weder dragend noch drop folgen - der Knoten ist bereits aus dem DOM.
+
       const photo = file('a.jpg', 'image/jpeg');
+      const enterEvent = createFileEvent('dragenter');
+      directive.onDragEnter(enterEvent as DragEvent);
+      const dropEvent = createFileEvent('drop', [photo]);
+      directive.onDrop(dropEvent as DragEvent);
 
-      directive.onDragStart();
-      directive.onDragEnd();
-      directive.onDrop(createFileEvent('drop', [photo]) as DragEvent);
-
-      expect(dropped).toEqual([[photo]]);
-    });
-
-    it('hebt die Sperre auch nach einem Ablegen wieder auf', () => {
-      // Endet das Ziehen mit einem Ablegen, feuert dragend nicht in jedem
-      // Browser zuverlaessig. Der naechste echte Datei-Drop darf nicht haengen.
-      const directive = createDirective();
-      const dropped: (readonly File[])[] = [];
-      directive.filesDropped.subscribe((files) => dropped.push(files));
-      const photo = file('a.jpg', 'image/jpeg');
-
-      directive.onDragStart();
-      directive.onDrop(createFileEvent('drop', [photo]) as DragEvent);
-      directive.onDrop(createFileEvent('drop', [photo]) as DragEvent);
-
+      expect(active).toContain(true);
+      expect((enterEvent as DragEvent).defaultPrevented).toBe(true);
+      expect((dropEvent as DragEvent).defaultPrevented).toBe(true);
       expect(dropped).toEqual([[photo]]);
     });
   });
