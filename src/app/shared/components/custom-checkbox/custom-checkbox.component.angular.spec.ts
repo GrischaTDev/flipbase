@@ -139,6 +139,24 @@ describe('CustomCheckboxComponent', () => {
     }
   });
 
+  it('hakt in der Markenfarbe an, nicht mehr in Gruen oder Indigo', () => {
+    const fixture = createCheckbox();
+
+    fixture.componentRef.setInput('checked', true);
+    fixture.detectChanges();
+    const box = buttonOf(fixture).querySelector('div') as HTMLElement;
+
+    expect(box.classList.contains('bg-fb-primary')).toBe(true);
+    expect(box.classList.contains('border-fb-primary')).toBe(true);
+    expect(box.className).not.toMatch(/emerald|indigo/u);
+  });
+
+  it('zeigt bei Tastaturfokus einen sichtbaren Ring', () => {
+    const fixture = createCheckbox();
+
+    expect(buttonOf(fixture).className).toContain('focus-visible:outline-2');
+  });
+
   it.each([
     ['aktiviert', false, false],
     ['deaktiviert', false, true],

@@ -1,9 +1,19 @@
-<span
-  class="inline-flex shrink-0 items-center justify-center overflow-hidden rounded-lg border border-fb-border bg-fb-well text-fb-text-muted"
-  [class.size-10]="size() === 'sm'"
-  [class.size-14]="size() === 'md'"
->
-  @if (imageSource(); as source) {
+@if (imageSource(); as source) {
+  <button
+    #trigger
+    type="button"
+    [attr.aria-label]="previewLabel()"
+    [attr.aria-expanded]="previewOpen()"
+    [attr.aria-controls]="previewId"
+    class="inline-flex shrink-0 items-center justify-center overflow-hidden rounded-lg border border-fb-border bg-fb-well text-fb-text-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
+    [class.size-10]="size() === 'sm'"
+    [class.size-14]="size() === 'md'"
+    (pointerenter)="onPointerEnter($event, trigger, popover)"
+    (pointerleave)="onPointerLeave($event)"
+    (click)="onClick(trigger, popover); $event.stopPropagation()"
+    (focus)="onFocus(trigger, popover)"
+    (blur)="onBlur()"
+  >
     <img
       [src]="source"
       [alt]="alt()"
@@ -12,7 +22,31 @@
       decoding="async"
       (error)="failed.set(true); imageFailed.emit()"
     />
-  } @else {
+  </button>
+  <div
+    #popover
+    popover="auto"
+    [id]="previewId"
+    role="presentation"
+    class="m-0 overflow-hidden rounded-xl border border-fb-border bg-fb-surface p-2 shadow-lg"
+    [class.hidden]="!previewOpen()"
+    [style.position]="'fixed'"
+    [style.left.px]="previewLeft()"
+    [style.top.px]="previewTop()"
+    [style.width.px]="previewSize()"
+    [style.height.px]="previewSize()"
+    (pointerenter)="onPreviewEnter()"
+    (pointerleave)="onPreviewLeave()"
+    (toggle)="onPreviewToggle($event)"
+  >
+    <img [src]="source" alt="" aria-hidden="true" class="size-full object-contain" />
+  </div>
+} @else {
+  <span
+    class="inline-flex shrink-0 items-center justify-center overflow-hidden rounded-lg border border-fb-border bg-fb-well text-fb-text-muted"
+    [class.size-10]="size() === 'sm'"
+    [class.size-14]="size() === 'md'"
+  >
     <span
       data-product-placeholder
       class="inline-flex items-center justify-center"
@@ -22,5 +56,5 @@
     >
       <svg lucideImage class="size-4" aria-hidden="true"></svg>
     </span>
-  }
-</span>
+  </span>
+}

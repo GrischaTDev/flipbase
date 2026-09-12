@@ -1,5 +1,65 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-12 – Claude Opus 5 (Anthropic) – Artikelauswahl und Bildvorschau
+
+**Auftrag/Ergebnis:** Die Checkboxen stehen jetzt im Logo-Gelb, eine Zeile in
+der Artikelauswahl lässt sich überall anklicken, und jedes Artikelbild zeigt
+beim Überfahren eine vergrößerte Vorschau. Zweig
+`feat/item-picker-and-image-preview`, abgezweigt von `master` (b413c44).
+Entwurf unter
+`docs/superpowers/specs/2026-09-12-item-picker-and-image-preview-design.md`.
+
+**Ursachen:**
+
+- Die gemeinsame Checkbox kannte nur `emerald` und `indigo`. Beide verbietet
+  `docs/design/admin-ui-guidelines.md`, und keine einzige Stelle im Projekt
+  setzte den Eingang — eine reine Altlast. Der Eingang ist ersatzlos entfallen;
+  angehakt wird über `bg-fb-primary`, also dasselbe Farbpaar wie beim gelben
+  Primärknopf. Gemessen im Browser: `rgb(252, 198, 1)`.
+- Beim Lesen fiel auf, dass die Checkbox keinen sichtbaren Fokusring hatte
+  (`outline-none` auf der Box, nichts auf dem Knopf). Das verstieß gegen
+  WCAG 2.4.7 und ist mitbehoben.
+
+**Entscheidungen:** Die Zeile in der Artikelauswahl wird ausdrücklich **kein**
+Bedienelement. Ein Bedienelement im Bedienelement wäre ungültiges HTML, und die
+Bildvorschau braucht innerhalb der Zeile ein eigenes. Die Checkbox bleibt
+deshalb das Bedienelement für Tastatur und Screenreader; der Zeilenklick ist
+eine reine Maus-Abkürzung darüber. Dafür sind zwei Template-Lint-Regeln an
+genau dieser Stelle begründet abgeschaltet; ein AXE-Test über die Liste belegt,
+dass nichts verloren geht.
+
+Die Vorschau sitzt in `app-product-thumbnail` und wirkt damit an allen vier
+Stellen mit Artikelbildern. Sie liegt in der nativen Popover-Ebene, sonst
+schnitten Tabellen und der Auswahldialog sie ab. Escape schließt sie über einen
+eigenen Zuhörer: die eingebaute Abweisung des Browsers greift nicht, solange
+der Fokus woanders steht — im Browser nachgemessen.
+
+**Funde, die erst die Prüfung aufgedeckt haben:**
+
+- Signalbasierte `viewChild`-Abfragen greifen in der Laufzeitübersetzung der
+  Tests nicht; die Vorschau blieb dadurch leer. Die Vorlage reicht die Elemente
+  jetzt direkt an die Methoden durch, was in beiden Übersetzungswegen trägt.
+- Aus demselben Grund verdrahtet die Testumgebung signalbasierte Ausgänge nicht.
+  Dass ein Klick auf die Checkbox genau einmal umschaltet, ist deshalb im
+  Browser geprüft (true → false → true), nicht im Test behauptet.
+- `e2e/purchase-entry.spec.ts:205` ("creates a private seller") schlägt fehl —
+  **auch auf `master`**, also unabhängig von dieser Arbeit. Nicht hier
+  mitrepariert, sondern als eigene Aufgabe festgehalten.
+
+**Nicht angefasst:** Artikelstamm gegen Inventar. Der Knopf „Produkt erstellen"
+im Inventar öffnet denselben Dialog wie der Artikelstamm und legt einen
+`catalog_products`-Eintrag ohne Bestand an; Stammartikel lassen sich nirgends
+bearbeiten. Beides sind echte Fehler, hängen aber an der offenen Frage nach dem
+Bestandsmodell (`stock_lots` mengenbasiert gegen `inventory_items` stückbasiert)
+und bekommen eine eigene Runde.
+
+**Prüfung:** `npm run verify` grün (2006 Tests, Typprüfung, ESLint,
+Formatierung, Produktionsbau). Playwright `compact-controls` und `admin-accent`
+bestanden, `purchase-entry` bis auf den oben genannten Altfehler. Sichtprüfung
+in der lokalen Demo: Zeilenklick und Farbe in der Artikelauswahl, Vorschau im
+Artikelstamm und über dem Auswahldialog, hell und dunkel. Keine Backend- oder
+Schemaänderung.
+
 ## 2026-09-12 – Claude Opus 5 (Anthropic) – Chronik im Shopify-Stil
 
 **Auftrag/Ergebnis:** Die gemeinsame Chronik von Einkäufen und Verkäufen liest
