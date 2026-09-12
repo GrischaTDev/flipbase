@@ -10,7 +10,8 @@ import {
 } from '@angular/core';
 import { AuthService } from '../../../../core/services/auth.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
-import { mapRecordHistoryDetails } from '../../../../shared/components/record-history/record-history.component';
+import { RecordChange } from '../../../../shared/utils/record-changes';
+import { timelineChanges, timelineSentence } from '../../models/timeline-sentence';
 import {
   canSubmitComment,
   mergeTimelineEntries,
@@ -19,6 +20,9 @@ import {
 } from '../../models/record-timeline.models';
 import { RecordTimelineService } from '../../services/record-timeline.service';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
+
+/** Ab dieser Anzahl wird die Änderungsliste gekürzt angezeigt. */
+const CHANGE_PREVIEW_LIMIT = 12;
 
 @Component({
   selector: 'app-record-timeline',
@@ -44,6 +48,7 @@ export class RecordTimelineComponent {
   readonly loadError = signal<string | null>(null);
   readonly postError = signal<string | null>(null);
   readonly expandedId = signal<string | null>(null);
+  readonly fullyExpandedId = signal<string | null>(null);
   readonly archived = computed(() => Boolean(this.workspace.currentWorkspace()?.archived_at));
   readonly canSubmit = computed(
     () => canSubmitComment(this.draft()) && !this.posting() && !this.loading() && !this.archived(),
@@ -83,6 +88,7 @@ export class RecordTimelineComponent {
       this.postError.set(null);
       this.loadError.set(null);
       this.expandedId.set(null);
+      this.fullyExpandedId.set(null);
       if (scope.workspaceId && scope.entityId) void this.load(undefined);
     });
     let previousRefreshKey: number | string | undefined;
@@ -141,11 +147,39 @@ export class RecordTimelineComponent {
       if (this.isCurrent(scope, version)) this.posting.set(false);
     }
   }
-  details(entry: RecordTimelineEntry) {
-    return mapRecordHistoryDetails(entry.event?.changes);
+  sentence(entry: RecordTimelineEntry): string {
+    const event = entry.event;
+    if (!event) return entry.actorName;
+    return timelineSentence(event, entry.actorName, this.auth.currentUser()?.id ?? null);
+  }
+  changes(entry: RecordTimelineEntry): readonly RecordChange[] {
+    return entry.event ? timelineChanges(entry.event) : [];
+  }
+  /** Gekürzt gezeigte Änderungen; die vollständige Liste bleibt einen Klick entfernt. */
+  visibleChanges(entry: RecordTimelineEntry): readonly RecordChange[] {
+    const changes = this.changes(entry);
+    if (this.fullyExpandedId() === entry.id || changes.length <= CHANGE_PREVIEW_LIMIT)
+      return changes;
+    return changes.slice(0, CHANGE_PREVIEW_LIMIT);
+  }
+  hiddenChangeCount(entry: RecordTimelineEntry): number {
+    if (this.fullyExpandedId() === entry.id) return 0;
+    return Math.max(0, this.changes(entry).length - CHANGE_PREVIEW_LIMIT);
+  }
+  isLastEntry(entry: RecordTimelineEntry): boolean {
+    const entries = this.entries();
+    const last = entries.at(-1);
+    return Boolean(last) && last?.kind === entry.kind && last?.id === entry.id;
+  }
+  isExpandable(entry: RecordTimelineEntry): boolean {
+    return this.changes(entry).length > 0;
   }
   toggleDetails(id: string): void {
     this.expandedId.update((current) => (current === id ? null : id));
+    this.fullyExpandedId.set(null);
+  }
+  showAllChanges(id: string): void {
+    this.fullyExpandedId.set(id);
   }
   exactTime(value: string): string {
     return new Intl.DateTimeFormat('de-DE', { dateStyle: 'full', timeStyle: 'long' }).format(
@@ -176,7 +210,13 @@ export class RecordTimelineComponent {
     const differenceInDays = Math.round((todayKey - dayKey) / 86_400_000);
     if (differenceInDays === 0) return 'Heute';
     if (differenceInDays === 1) return 'Gestern';
-    return new Intl.DateTimeFormat('de-DE', { dateStyle: 'full' }).format(day);
+    // Tag und Monat genügen; das Jahr kommt nur dazu, wenn es ein anderes ist.
+    // Der genaue Zeitpunkt steht ohnehin an jeder Uhrzeit im Titel.
+    return new Intl.DateTimeFormat('de-DE', {
+      day: 'numeric',
+      month: 'long',
+      ...(day.getFullYear() === today.getFullYear() ? {} : { year: 'numeric' }),
+    }).format(day);
   }
   private async load(cursor: string | undefined): Promise<void> {
     const scope = this.scope();

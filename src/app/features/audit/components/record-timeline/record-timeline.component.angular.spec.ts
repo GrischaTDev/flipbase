@@ -99,6 +99,7 @@ function fixture() {
     draft: signal('Mein Text'),
     posting: signal(false),
     expandedId: signal<string | null>(null),
+    fullyExpandedId: signal<string | null>(null),
     contextVersion: 0,
     loadVersion: 0,
     contextIdentity: null,
@@ -169,13 +170,102 @@ describe('RecordTimelineComponent', () => {
     expect(element.querySelector('time')?.getAttribute('title')).toContain('2026');
     const eventTime = element.querySelector('time[datetime="2026-09-04T10:00:00Z"]');
     expect(eventTime?.textContent?.trim()).toMatch(/^\d{2}:\d{2}$/u);
-    component.toggleDetails('event');
+    const eventRow = element.querySelector('[data-timeline-id="event"]') as HTMLElement;
+    expect(eventRow.textContent).toContain('Du hast diesen abgeschlossenen Einkauf korrigiert.');
+    expect(eventRow.textContent).not.toContain('Details ansehen');
+    const toggle = eventRow.querySelector('button[aria-expanded]') as HTMLButtonElement;
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    toggle.click();
     timeline.detectChanges();
-    expect(element.querySelector('button[aria-expanded]')?.getAttribute('aria-expanded')).toBe(
-      'true',
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    const details = element.querySelector('dl');
+    expect(details?.id).toBe('timeline-details-event');
+    expect(details?.textContent).toContain('Einkaufspreis');
+    expect(details?.textContent?.replace(/\s+/gu, ' ')).toContain('10 → wird zu 12');
+  });
+
+  it('kürzt Tagesüberschriften auf Tag und Monat und nennt das Jahr nur bei Bedarf', () => {
+    const timeline = TestBed.configureTestingModule({
+      imports: [RecordTimelineComponent],
+      providers: [
+        {
+          provide: RecordTimelineService,
+          useValue: { list: vi.fn(async () => ({ entries: [], nextCursor: null })) },
+        },
+        { provide: WorkspaceService, useValue: { currentWorkspace: signal({ id: 'w1' }) } },
+        { provide: AuthService, useValue: { currentUser: signal({ id: 'u1' }) } },
+      ],
+    }).createComponent(RecordTimelineComponent);
+    Object.assign(timeline.componentInstance, {
+      entityType: signal('purchase'),
+      entityId: signal('p1'),
+      refreshKey: signal(0),
+    });
+    timeline.detectChanges();
+    const thisYear = new Date().getFullYear();
+    timeline.componentInstance.entries.set([
+      { ...comment, id: 'heuer', createdAt: `${thisYear}-03-06T10:00:00Z` },
+      { ...comment, id: 'frueher', createdAt: `${thisYear - 2}-03-06T10:00:00Z` },
+    ]);
+    timeline.detectChanges();
+    const days = [...(timeline.nativeElement as HTMLElement).querySelectorAll('h3')].map((day) =>
+      day.textContent?.trim(),
     );
-    expect(element.querySelector('dl')?.textContent).toContain('Einkaufspreis');
-    expect(element.querySelector('dl')?.textContent).toContain('Nachher: 12');
+
+    expect(days).toEqual(['6. März', `6. März ${thisYear - 2}`]);
+  });
+
+  it('nennt fremde Verursacher beim Namen und lässt reine Aussagen zu', () => {
+    const timeline = TestBed.configureTestingModule({
+      imports: [RecordTimelineComponent],
+      providers: [
+        {
+          provide: RecordTimelineService,
+          useValue: { list: vi.fn(async () => ({ entries: [], nextCursor: null })) },
+        },
+        { provide: WorkspaceService, useValue: { currentWorkspace: signal({ id: 'w1' }) } },
+        { provide: AuthService, useValue: { currentUser: signal({ id: 'u1' }) } },
+      ],
+    }).createComponent(RecordTimelineComponent);
+    Object.assign(timeline.componentInstance, {
+      entityType: signal('purchase'),
+      entityId: signal('p1'),
+      refreshKey: signal(0),
+    });
+    timeline.detectChanges();
+    timeline.componentInstance.entries.set([
+      {
+        ...comment,
+        id: 'ordered',
+        kind: 'event',
+        actorName: 'Lena Meyer',
+        event: {
+          id: 'ordered',
+          workspaceId: 'w1',
+          entityId: 'p1',
+          entityType: 'purchase',
+          eventType: 'purchase_ordered',
+          eventLabel: 'Einkauf als bestellt markiert',
+          actorId: 'u2',
+          reason: null,
+          changes: {
+            receiving_status: { before: 'draft', after: 'ordered' },
+            arrived_at: { before: null, after: null },
+          },
+          correlationId: 'correlation',
+          createdAt: '2026-09-05T10:00:00Z',
+        },
+      },
+    ]);
+    timeline.detectChanges();
+    const row = (timeline.nativeElement as HTMLElement).querySelector(
+      '[data-timeline-id="ordered"]',
+    ) as HTMLElement;
+
+    expect(row.textContent).toContain('Lena Meyer hat diesen Einkauf als bestellt markiert.');
+    // Der Satz sagt bereits alles, was das Ereignis enthält: nichts zum Aufklappen.
+    expect(row.querySelector('button')).toBeNull();
+    expect(row.querySelector('dl')).toBeNull();
   });
   it('lädt die Chronik nach einem externen Fachereignis neu', async () => {
     const list = vi.fn(async () => ({ entries: [], nextCursor: null }));
