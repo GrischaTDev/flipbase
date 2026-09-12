@@ -32,6 +32,10 @@ schlichter Text ohne Fokus. Der Vergleich liegt jetzt einmal in
 übersetzt. Eine durchgehende Leiste entsteht aus Segmenten je Eintrag; der letzte
 endet an seinem Punkt.
 
+**Nachtrag auf Wunsch:** Tagesüberschriften heißen jetzt `6. September` statt
+`Sonntag, 6. September 2026`. Das Jahr kommt nur dazu, wenn es ein anderes als
+das laufende ist; der genaue Zeitpunkt steht ohnehin im Titel jeder Uhrzeit.
+
 **Entscheidungen:** Listeneinträge werden nur mit Beleg verknüpft — gleiche
 Kennung oder gleiche Bezeichnung. Ohne Beleg bleiben Abgang und Zugang getrennt,
 weil ein Prüfprotokoll keine Verbindung behaupten darf. Damit bleibt die frühere

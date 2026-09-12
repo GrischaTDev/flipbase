@@ -210,7 +210,13 @@ export class RecordTimelineComponent {
     const differenceInDays = Math.round((todayKey - dayKey) / 86_400_000);
     if (differenceInDays === 0) return 'Heute';
     if (differenceInDays === 1) return 'Gestern';
-    return new Intl.DateTimeFormat('de-DE', { dateStyle: 'full' }).format(day);
+    // Tag und Monat genügen; das Jahr kommt nur dazu, wenn es ein anderes ist.
+    // Der genaue Zeitpunkt steht ohnehin an jeder Uhrzeit im Titel.
+    return new Intl.DateTimeFormat('de-DE', {
+      day: 'numeric',
+      month: 'long',
+      ...(day.getFullYear() === today.getFullYear() ? {} : { year: 'numeric' }),
+    }).format(day);
   }
   private async load(cursor: string | undefined): Promise<void> {
     const scope = this.scope();

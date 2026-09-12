@@ -184,6 +184,37 @@ describe('RecordTimelineComponent', () => {
     expect(details?.textContent?.replace(/\s+/gu, ' ')).toContain('10 → wird zu 12');
   });
 
+  it('kürzt Tagesüberschriften auf Tag und Monat und nennt das Jahr nur bei Bedarf', () => {
+    const timeline = TestBed.configureTestingModule({
+      imports: [RecordTimelineComponent],
+      providers: [
+        {
+          provide: RecordTimelineService,
+          useValue: { list: vi.fn(async () => ({ entries: [], nextCursor: null })) },
+        },
+        { provide: WorkspaceService, useValue: { currentWorkspace: signal({ id: 'w1' }) } },
+        { provide: AuthService, useValue: { currentUser: signal({ id: 'u1' }) } },
+      ],
+    }).createComponent(RecordTimelineComponent);
+    Object.assign(timeline.componentInstance, {
+      entityType: signal('purchase'),
+      entityId: signal('p1'),
+      refreshKey: signal(0),
+    });
+    timeline.detectChanges();
+    const thisYear = new Date().getFullYear();
+    timeline.componentInstance.entries.set([
+      { ...comment, id: 'heuer', createdAt: `${thisYear}-03-06T10:00:00Z` },
+      { ...comment, id: 'frueher', createdAt: `${thisYear - 2}-03-06T10:00:00Z` },
+    ]);
+    timeline.detectChanges();
+    const days = [...(timeline.nativeElement as HTMLElement).querySelectorAll('h3')].map((day) =>
+      day.textContent?.trim(),
+    );
+
+    expect(days).toEqual(['6. März', `6. März ${thisYear - 2}`]);
+  });
+
   it('nennt fremde Verursacher beim Namen und lässt reine Aussagen zu', () => {
     const timeline = TestBed.configureTestingModule({
       imports: [RecordTimelineComponent],
