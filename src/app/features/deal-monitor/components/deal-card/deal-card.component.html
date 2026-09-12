@@ -1,19 +1,24 @@
 <app-card padding="none" class="h-full">
   <article class="relative flex h-full flex-col" [attr.aria-label]="item().title">
     <div class="relative aspect-[4/3] overflow-hidden bg-fb-surface-hover">
-      @if (image(); as src) {
-        @if (!imageFailed()) {
-          <img
-            [src]="src"
-            alt=""
-            loading="lazy"
-            decoding="async"
-            class="h-full w-full object-cover"
-            (error)="imageFailed.set(true)"
-          />
-        }
-      }
-      @if (!image() || imageFailed()) {
+      @if (images().length) {
+        <div class="grid h-full grid-cols-2 grid-rows-2 gap-1">
+          @for (src of images(); track src; let index = $index) {
+            <img
+              [src]="src"
+              [alt]="
+                (index === 0 ? 'Hauptbild: ' : 'Artikelbild ' + (index + 1) + ': ') + item().title
+              "
+              loading="lazy"
+              decoding="async"
+              class="h-full min-h-0 w-full min-w-0 object-cover"
+              [class.row-span-2]="index === 0 || images().length < 3"
+              [class.col-span-2]="images().length === 1"
+              (error)="imageFailed(src)"
+            />
+          }
+        </div>
+      } @else {
         <div class="flex h-full items-center justify-center text-sm text-fb-text-muted">
           Kein Artikelbild
         </div>
@@ -41,12 +46,35 @@
           {{ item().title }}
         }
       </h3>
-      <p class="text-xs text-fb-text-secondary">
-        {{ item().brand || 'Ohne Markenangabe' }} · {{ item().condition || 'Zustand unbekannt' }}
+      <dl class="flex flex-wrap gap-x-3 gap-y-1.5 text-xs text-fb-text-secondary">
+        <div class="flex min-w-0 items-center gap-1.5">
+          <dt>
+            <span class="sr-only">Marke</span
+            ><svg [lucideIcon]="icons.brand" class="h-3.5 w-3.5 shrink-0" aria-hidden="true"></svg>
+          </dt>
+          <dd class="break-words">{{ item().brand || 'Ohne Markenangabe' }}</dd>
+        </div>
+        <div class="flex min-w-0 items-center gap-1.5">
+          <dt>
+            <span class="sr-only">Zustand</span
+            ><svg
+              [lucideIcon]="icons.condition"
+              class="h-3.5 w-3.5 shrink-0"
+              aria-hidden="true"
+            ></svg>
+          </dt>
+          <dd>{{ item().condition || 'Zustand unbekannt' }}</dd>
+        </div>
         @if (item().size) {
-          · {{ item().size }}
+          <div class="flex min-w-0 items-center gap-1.5">
+            <dt>
+              <span class="sr-only">Größe</span
+              ><svg [lucideIcon]="icons.size" class="h-3.5 w-3.5 shrink-0" aria-hidden="true"></svg>
+            </dt>
+            <dd>{{ item().size }}</dd>
+          </div>
         }
-      </p>
+      </dl>
       <div class="mt-auto flex flex-wrap items-center justify-between gap-2">
         <p class="text-lg font-semibold text-fb-text-primary">
           {{ item().item_price | currency: item().currency }}
@@ -57,8 +85,16 @@
           >
         }
       </div>
-      <p class="text-xs text-fb-text-secondary">
-        {{ item().total_price | currency: item().currency }} inkl. Käuferschutz · Versand extra
+      <p class="flex items-start gap-1.5 text-xs text-fb-text-secondary">
+        <svg
+          [lucideIcon]="icons.protection"
+          class="mt-0.5 h-3.5 w-3.5 shrink-0"
+          aria-hidden="true"
+        ></svg>
+        <span
+          >{{ item().total_price | currency: item().currency }} inkl. Käuferschutz · Versand
+          extra</span
+        >
       </p>
       @if (item().reference_price !== null) {
         <p class="text-xs text-fb-text-secondary">
@@ -69,9 +105,26 @@
       @if (item().is_hidden) {
         <app-badge tone="caution">Noch nicht kaufbar</app-badge>
       }
-      <p class="text-xs text-fb-text-muted">
-        Entdeckt {{ item().first_seen_at | date: 'dd.MM. · HH:mm:ss' }}
+      <p class="flex items-start gap-1.5 text-xs text-fb-text-muted">
+        <svg
+          [lucideIcon]="icons.discovered"
+          class="mt-0.5 h-3.5 w-3.5 shrink-0"
+          aria-hidden="true"
+        ></svg>
+        <span>Entdeckt {{ item().first_seen_at | date: 'dd.MM. · HH:mm:ss' }}</span>
       </p>
+      @if (link(); as href) {
+        <app-button
+          class="mt-1"
+          [href]="href"
+          target="_blank"
+          [fullWidth]="true"
+          [icon]="icons.external"
+          iconPosition="end"
+          [ariaLabel]="item().title + ' – auf Vinted ansehen (neuer Tab)'"
+          >Auf Vinted ansehen</app-button
+        >
+      }
     </div>
   </article>
 </app-card>

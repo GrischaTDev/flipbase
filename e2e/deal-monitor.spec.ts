@@ -7,7 +7,17 @@ const makeItem = (i: number) => ({
   id: `92000000-0000-4000-8000-${String(i).padStart(12, '0')}`,
   title: `Nike Sneaker ${i}`,
   url: `https://www.vinted.de/items/${i}`,
-  image_urls: [],
+  image_urls:
+    i === 4
+      ? []
+      : i === 5
+        ? ['https://images1.vinted.net/feed-fixture/broken.svg']
+        : i === 6
+          ? ['https://example.test/unsafe.svg']
+          : Array.from(
+              { length: i === 2 ? 1 : i === 3 ? 2 : 4 },
+              (_, index) => `https://images1.vinted.net/feed-fixture/${i}-${index + 1}.svg`,
+            ),
   item_price: 18 + i,
   total_price: 20 + i,
   currency: 'EUR',
@@ -25,6 +35,18 @@ const makeItem = (i: number) => ({
 });
 
 async function fixture(page: Page) {
+  // Lokale Bildantworten statt fremder Produktfotos: prüft Raster und Fehlerzustände.
+  await page.route('https://images1.vinted.net/feed-fixture/**', async (route) => {
+    if (route.request().url().endsWith('/broken.svg')) {
+      await route.fulfill({ status: 404, body: '' });
+      return;
+    }
+    const index = Number(/-(\d+)\.svg$/.exec(route.request().url())?.[1] ?? 1);
+    await route.fulfill({
+      contentType: 'image/svg+xml',
+      body: `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="500" viewBox="0 0 400 500"><rect width="400" height="500" fill="#e8e5df"/><g transform="translate(${index === 2 ? -40 : 0},${index === 3 ? -160 : 0}) scale(${index === 1 ? 1 : 1.4})"><path d="M100 230 165 210 210 255 300 290 330 335 315 370 85 370 65 345Z" fill="#444b50"/><path d="M70 340H326L315 370H85Z" fill="#fafafa"/><path d="m165 244 48 20m-34-6 48 20m-34-6 48 20" stroke="#ddd" stroke-width="6"/></g><text x="20" y="40" fill="#444" font-family="sans-serif" font-size="22">Testbild ${index}</text></svg>`,
+    });
+  });
   const user = {
     id: '92000000-0000-4000-8000-000000000001',
     email: 'feed@example.test',
@@ -147,8 +169,8 @@ async function fixture(page: Page) {
   });
   return {
     calls,
-    add: () => {
-      items = [makeItem(99), ...items];
+    add: (...ids: number[]) => {
+      items = [...(ids.length ? ids : [99]).map(makeItem), ...items];
     },
     failSave: (value: boolean) => {
       failSave = value;
@@ -196,15 +218,78 @@ for (const theme of ['light', 'dark'] as const) {
     await expect(page.getByRole('heading', { name: 'Deal-Monitor', exact: true })).toBeVisible();
     await expect(page.getByRole('article')).toHaveCount(8);
     await expect(page.getByLabel('Die neuesten Funde').getByRole('article')).toHaveCount(3);
+    const firstCard = page.getByRole('article', { name: 'Nike Sneaker 1', exact: true });
+    await expect(firstCard.getByRole('img')).toHaveCount(3);
+    await expect(
+      page.getByRole('article', { name: 'Nike Sneaker 2', exact: true }).getByRole('img'),
+    ).toHaveCount(1);
+    await expect(
+      page.getByRole('article', { name: 'Nike Sneaker 3', exact: true }).getByRole('img'),
+    ).toHaveCount(2);
+    for (const id of [4, 5, 6]) {
+      const card = page.getByRole('article', { name: `Nike Sneaker ${id}`, exact: true });
+      await card.scrollIntoViewIfNeeded();
+      await expect(card.getByText('Kein Artikelbild', { exact: true })).toBeVisible();
+      await expect(card.getByRole('img')).toHaveCount(0);
+    }
+    await firstCard.scrollIntoViewIfNeeded();
+    const photos = firstCard.getByRole('img');
+    await expect
+      .poll(() =>
+        photos.evaluateAll((images) =>
+          images.every((image) => (image as HTMLImageElement).naturalWidth > 0),
+        ),
+      )
+      .toBe(true);
+    const boxes = await photos.evaluateAll((images) =>
+      images.map((image) => {
+        const { x, y, width, height } = image.getBoundingClientRect();
+        return { x, y, width, height };
+      }),
+    );
+    expect(boxes[0].x + boxes[0].width).toBeLessThan(boxes[1].x);
+    expect(boxes[1].x).toBeCloseTo(boxes[2].x, 0);
+    expect(boxes[1].y + boxes[1].height).toBeLessThan(boxes[2].y);
+    expect(boxes[0].height).toBeCloseTo(boxes[1].height + boxes[2].height + 4, 0);
+    const viewItem = firstCard.getByRole('link', {
+      name: 'Nike Sneaker 1 – auf Vinted ansehen (neuer Tab)',
+      exact: true,
+    });
+    await expect(viewItem).toHaveAttribute('href', 'https://www.vinted.de/items/1');
+    await expect(viewItem).toHaveAttribute('target', '_blank');
+    await expect(viewItem).toHaveAttribute('rel', 'noopener noreferrer');
+    await expect(firstCard.getByText('Marke', { exact: true })).toHaveCount(1);
+    await page.context().route('https://www.vinted.de/items/1', (route) =>
+      route.fulfill({
+        contentType: 'text/html',
+        body: '<title>Vinted Testziel</title><p>Artikel 1</p>',
+      }),
+    );
+    const opened = page.waitForEvent('popup');
+    await viewItem.click();
+    const itemTab = await opened;
+    await expect(itemTab).toHaveURL('https://www.vinted.de/items/1');
+    await itemTab.close();
+    await page.bringToFront();
+    await expect(page).toHaveURL(/\/deal-monitor$/);
+    await page.getByRole('button', { name: 'Zulauf fortsetzen', exact: true }).click();
+    await expect(firstCard).toBeVisible();
     await checkAxe(page);
+    await firstCard.evaluate((card) => card.scrollIntoView({ block: 'center' }));
+    await firstCard.screenshot({ path: `test-results/deal-card-${theme}.png` });
+    await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({ path: `test-results/deal-monitor-${theme}.png`, fullPage: true });
 
+    // Bereits bekannte Funde nicht durch eine künstliche Ausgabewarteschlange verzögern.
+    mock.add(101, 102, 103);
+    await expect(page.getByRole('article')).toHaveCount(11, { timeout: 5_000 });
+    await expect(page.getByLabel('Die neuesten Funde').getByRole('article')).toHaveCount(3);
     await page.getByRole('button', { name: 'Zulauf pausieren', exact: true }).click();
     mock.add();
-    await expect(page.getByText('1 neue Artikel warten.')).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByRole('article')).toHaveCount(8);
+    await expect(page.getByText('1 neue Artikel warten.')).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByRole('article')).toHaveCount(11);
     await page.getByRole('button', { name: 'Neueste Artikel anzeigen' }).click();
-    await expect(page.getByRole('article')).toHaveCount(9);
+    await expect(page.getByRole('article')).toHaveCount(12);
 
     await page.getByRole('button', { name: 'Neuer Merkzettel', exact: true }).click();
     await expect(page.getByLabel('Name des Merkzettels')).toBeFocused();

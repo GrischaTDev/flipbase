@@ -160,8 +160,8 @@
       }
       <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-fb-text-secondary">
         <p>
-          {{ state.paused() ? 'Ansicht pausiert' : 'Aktualisiert sich alle 10 Sekunden' }} · Neueste
-          zuerst · Aufbewahrung 30 Tage
+          {{ state.paused() ? 'Ansicht pausiert' : 'Prüft alle 2 Sekunden auf neue Funde' }} ·
+          Neueste zuerst · Aufbewahrung 30 Tage
         </p>
         @if (state.reportedAt()) {
           <p>Botmeldung {{ state.reportedAt() | date: 'HH:mm:ss' }}</p>
