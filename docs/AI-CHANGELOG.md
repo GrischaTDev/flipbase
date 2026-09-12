@@ -1,5 +1,53 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-12 – Claude Opus 5 (Anthropic) – Chronik im Shopify-Stil
+
+**Auftrag/Ergebnis:** Die gemeinsame Chronik von Einkäufen und Verkäufen liest
+sich jetzt als Satz je Vorgang, die ganze Zeile klappt sich auf, und aufgeklappt
+stehen nur echte Änderungen. Zweig `feat/timeline-shopify-style`, abgezweigt von
+`master` (ab3f8d1). Entwurf unter
+`docs/superpowers/specs/2026-09-12-timeline-shopify-style-design.md`.
+
+**Ursachen:**
+
+- Die Zeile zeigte das nüchterne Etikett (`Grischa Tänzer · Einkaufsentwurf
+geändert`) und daneben einen eigenen Knopf `Details ansehen`.
+- `create_purchase` schreibt `purchase_draft_created` mit `before: null` und dem
+  vollständigen Schnappschuss aus Einkauf, Positionen und Kosten. Der Vergleich
+  hielt deshalb jedes einzelne Feld für eine Änderung.
+- Der Listenvergleich ordnete geänderte Positionen nicht zu, sondern meldete sie
+  als Abgang plus Zugang: eine geänderte Menge erzeugte sechs Zeilen mit
+  Beschriftungen wie `Positionen · Vorher · 1 · Menge`.
+- Die Zeitleisten-Linie lag je Tagesabschnitt in einer eigenen Liste und brach
+  zwischen den Abschnitten ab.
+
+**Umsetzung:** Der Ereignistext entsteht aus einem Prädikat
+(`diesen Einkauf erstellt`); das Subjekt kommt erst beim Anzeigen dazu — `Du
+hast …` beim eigenen Verursacher, sonst der Name, ohne Verursacher `Das System`.
+Für unbekannte Ereignistypen bleibt bewusst das alte `Name · Etikett` stehen,
+damit kein Satz erfunden wird. Aufklappbar ist eine Zeile nur, wenn nach dem
+Filtern etwas übrig bleibt; reine Aussagen (erstellt, bestellt, angekommen) sind
+schlichter Text ohne Fokus. Der Vergleich liegt jetzt einmal in
+`src/app/shared/utils/record-changes.ts` und wird vom Artikelverlauf nur noch
+übersetzt. Eine durchgehende Leiste entsteht aus Segmenten je Eintrag; der letzte
+endet an seinem Punkt.
+
+**Entscheidungen:** Listeneinträge werden nur mit Beleg verknüpft — gleiche
+Kennung oder gleiche Bezeichnung. Ohne Beleg bleiben Abgang und Zugang getrennt,
+weil ein Prüfprotokoll keine Verbindung behaupten darf. Damit bleibt die frühere
+Absicht erhalten, dass ein Einschub die folgenden Positionen nicht als geändert
+erscheinen lässt. Ab 13 Änderungen wird gekürzt mit `Alle N Änderungen zeigen`;
+dauerhaft verborgen wird nichts, und Prüfdruck und Datenarchiv enthalten
+ohnehin weiterhin die vollständige Nutzlast.
+
+**Prüfung:** `npm run verify` grün (1981 Tests, Typprüfung, ESLint, Formatierung,
+Shared-UI-Prüfung 66 Vorlagen ohne Befund, Produktionsbau). Playwright-Abläufe
+`record-timeline`, `compact-controls` und `admin-accent` bestanden (12 Tests).
+Sichtprüfung in der lokalen Demo auf Einkaufsdetail in dunklem und hellem Design
+sowie mobil; Leiste und Punktmitte liegen gemessen bei x=264, Tagesüberschrift
+und Inhaltstext bündig bei x=296. Keine Backend- oder Schemaänderung, keine
+erfundenen Ereignisse.
+
 ## 2026-09-11 – Claude Opus 5 (Anthropic) – Bildoptimierer: Nachbesserungen nach der ersten Nutzung
 
 **Auftrag/Ergebnis:** Sieben Rückmeldungen aus der ersten echten Arbeit mit der

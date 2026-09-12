@@ -52,14 +52,9 @@ describe('RecordHistoryComponent', () => {
         costs: { before: [], after: [{ amount: 5, description: 'Versand' }] },
       }),
     ).toEqual([
-      { label: 'Positionen · Vorher · 1 · Bezeichnung', before: 'Tasse', after: '—' },
-      { label: 'Positionen · Vorher · 1 · Menge', before: '2', after: '—' },
-      { label: 'Positionen · Vorher · 1 · Stückpreis', before: '10', after: '—' },
-      { label: 'Positionen · Nachher · 1 · Bezeichnung', before: '—', after: 'Tasse' },
-      { label: 'Positionen · Nachher · 1 · Menge', before: '—', after: '3' },
-      { label: 'Positionen · Nachher · 1 · Stückpreis', before: '—', after: '12' },
-      { label: 'Kosten · Nachher · 1 · Betrag', before: '—', after: '5' },
-      { label: 'Kosten · Nachher · 1 · Beschreibung', before: '—', after: 'Versand' },
+      { label: 'Position 1 · Menge', before: '2', after: '3' },
+      { label: 'Position 1 · Stückpreis', before: '10', after: '12' },
+      { label: 'Kostenposition 1 hinzugefügt', before: '—', after: 'Versand' },
     ]);
   });
 
@@ -71,8 +66,8 @@ describe('RecordHistoryComponent', () => {
         authorization: { before: { value: 'secret-old' }, after: { value: 'secret-new' } },
       }),
     ).toEqual([
-      { label: 'Einkauf · Bezeichnung', before: '—', after: 'Neuer Einkauf' },
-      { label: 'Positionen · Vorher · 1 · Bezeichnung', before: 'Entfernte Position', after: '—' },
+      { label: 'Bezeichnung', before: '—', after: 'Neuer Einkauf' },
+      { label: 'Position 1 entfernt', before: 'Entfernte Position', after: '—' },
       { label: 'Authorization', before: '[geschützt]', after: '[geschützt]' },
     ]);
   });
@@ -91,12 +86,10 @@ describe('RecordHistoryComponent', () => {
           ],
         },
       }),
-    ).toEqual([
-      { label: 'Kosten · Vorher · 1 · Beschreibung', before: 'A', after: '—' },
-      { label: 'Kosten · Vorher · 1 · Betrag', before: '1', after: '—' },
-      { label: 'Kosten · Nachher · 2 · Beschreibung', before: '—', after: 'A' },
-      { label: 'Kosten · Nachher · 2 · Betrag', before: '—', after: '3' },
-    ]);
+      // B bleibt unverändert und fällt heraus. A wird an seiner Beschreibung
+      // wiedererkannt, deshalb steht dort eine Betragsänderung statt einer
+      // erfundenen Löschung samt Neuanlage.
+    ).toEqual([{ label: 'Kostenposition 2 · Betrag', before: '1', after: '3' }]);
   });
 
   it('zeigt bei eingefügten Positionen keine Änderung der nachfolgenden Positionen', () => {
@@ -107,7 +100,7 @@ describe('RecordHistoryComponent', () => {
           after: [{ title_snapshot: 'A' }, { title_snapshot: 'B' }],
         },
       }),
-    ).toEqual([{ label: 'Positionen · Nachher · 1 · Bezeichnung', before: '—', after: 'A' }]);
+    ).toEqual([{ label: 'Position 1 hinzugefügt', before: '—', after: 'A' }]);
   });
 
   it('gleicht gleiche Einträge einzeln ab und erhält zusätzliche Duplikate', () => {
@@ -118,10 +111,12 @@ describe('RecordHistoryComponent', () => {
           after: [{ amount: 1 }, { amount: 2 }, { amount: 2 }],
         },
       }),
+      // Ohne Kennung und ohne Bezeichnung gibt es keinen Beleg für eine
+      // Verknüpfung; die überzähligen Einträge bleiben Abgang und Zugang.
     ).toEqual([
-      { label: 'Kosten · Vorher · 2 · Betrag', before: '1', after: '—' },
-      { label: 'Kosten · Vorher · 3 · Betrag', before: '1', after: '—' },
-      { label: 'Kosten · Nachher · 3 · Betrag', before: '—', after: '2' },
+      { label: 'Kostenposition 2 entfernt', before: '—', after: '—' },
+      { label: 'Kostenposition 3 entfernt', before: '—', after: '—' },
+      { label: 'Kostenposition 3 hinzugefügt', before: '—', after: '—' },
     ]);
   });
 

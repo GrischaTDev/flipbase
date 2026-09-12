@@ -79,20 +79,41 @@
     </p>
   }
 
-  <div class="space-y-5" aria-live="polite" aria-relevant="additions">
+  <div aria-live="polite" aria-relevant="additions">
     @for (group of groups(); track group.day) {
       <div>
-        <h3 class="mb-3 ml-14 text-sm font-medium text-fb-text-secondary">{{ group.day }}</h3>
-        <ol
-          class="relative space-y-3 before:absolute before:bottom-0 before:left-5 before:top-0 before:w-px before:bg-fb-line"
-          [attr.aria-label]="'Chronik am ' + group.day"
+        <h3
+          class="relative mb-3 pl-13 text-sm font-medium text-fb-text-secondary"
+          [class.mt-3]="!$first"
         >
+          @if (!$first) {
+            <span
+              class="absolute -bottom-3 left-5 -top-3 w-px bg-fb-line"
+              aria-hidden="true"
+            ></span>
+          }
+          {{ group.day }}
+        </h3>
+        <ol class="space-y-3" [attr.aria-label]="'Chronik am ' + group.day">
           @for (entry of group.entries; track entry.kind + ':' + entry.id) {
             <li
               [attr.data-timeline-kind]="entry.kind"
               [attr.data-timeline-id]="entry.id"
               class="relative grid min-w-0 grid-cols-[2.5rem_minmax(0,1fr)] gap-3"
             >
+              <!-- Die Leiste gehört zum Eintrag selbst und reicht bis in den
+                   Abstand darunter; nur der letzte Eintrag endet an seinem Punkt. -->
+              @if (isLastEntry(entry)) {
+                <span
+                  class="absolute left-5 top-0 h-[1.125rem] w-px bg-fb-line"
+                  aria-hidden="true"
+                ></span>
+              } @else {
+                <span
+                  class="absolute -bottom-3 left-5 top-0 w-px bg-fb-line"
+                  aria-hidden="true"
+                ></span>
+              }
               @if (entry.kind === 'comment') {
                 <span
                   class="relative z-10 flex h-10 w-10 items-center justify-center rounded-lg border border-fb-line bg-fb-surface text-sm font-semibold text-fb-text-secondary"
@@ -120,54 +141,97 @@
                 </article>
               } @else if (entry.event; as event) {
                 <span
-                  class="relative z-10 mt-2 flex h-10 w-10 items-start justify-center bg-fb-bg pt-1.5"
+                  class="relative z-10 flex h-10 w-10 items-start justify-center pt-3"
                   aria-hidden="true"
                 >
-                  <span class="h-3 w-3 rounded bg-fb-text-muted ring-4 ring-fb-bg"></span>
+                  <span class="h-3 w-3 rounded-full bg-fb-text-muted ring-4 ring-fb-bg"></span>
                 </span>
-                <div class="min-w-0 py-2 text-sm">
-                  <div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-                    <p class="text-fb-text-primary">
-                      <span class="font-semibold">{{ entry.actorName }}</span>
-                      · {{ event.eventLabel }}
-                    </p>
-                    <time
-                      [attr.datetime]="entry.createdAt"
-                      [title]="exactTime(entry.createdAt)"
-                      [attr.aria-label]="exactTime(entry.createdAt)"
-                      class="text-xs text-fb-text-secondary"
+                <div class="min-w-0">
+                  @if (isExpandable(entry)) {
+                    <button
+                      type="button"
+                      (click)="toggleDetails(entry.id)"
+                      [attr.aria-expanded]="expandedId() === entry.id"
+                      [attr.aria-controls]="'timeline-details-' + entry.id"
+                      class="-mx-2 flex w-full items-baseline gap-2 rounded-md px-2 py-2 text-left hover:bg-fb-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-accent"
                     >
-                      {{ clockTime(entry.createdAt) }}
-                    </time>
-                  </div>
-                  @if (event.reason) {
-                    <p class="mt-1 break-words text-fb-text-secondary">{{ event.reason }}</p>
-                  }
-                  @if (details(entry).length) {
-                    <app-button
-                      variant="secondary"
-                      size="slim"
-                      class="mt-2 inline-block"
-                      (clicked)="toggleDetails(entry.id)"
-                      [ariaExpanded]="expandedId() === entry.id"
-                      [ariaControls]="'timeline-details-' + entry.id"
-                    >
-                      {{ expandedId() === entry.id ? 'Details ausblenden' : 'Details ansehen' }}
-                    </app-button>
-                    @if (expandedId() === entry.id) {
-                      <dl
-                        [id]="'timeline-details-' + entry.id"
-                        class="mt-2 space-y-2 rounded-lg bg-fb-well p-3 text-xs [overflow-wrap:anywhere]"
+                      <span class="min-w-0 text-sm text-fb-text-primary">
+                        {{ sentence(entry) }}
+                      </span>
+                      <svg
+                        viewBox="0 0 12 12"
+                        class="mt-1 h-3 w-3 shrink-0 text-fb-text-muted transition-transform"
+                        [class.rotate-180]="expandedId() === entry.id"
+                        aria-hidden="true"
                       >
-                        @for (detail of details(entry); track $index) {
-                          <div class="grid gap-1 sm:grid-cols-3">
-                            <dt class="font-semibold text-fb-text-secondary">{{ detail.label }}</dt>
-                            <dd class="text-fb-text-secondary">Vorher: {{ detail.before }}</dd>
-                            <dd class="text-fb-text-primary">Nachher: {{ detail.after }}</dd>
-                          </div>
-                        }
-                      </dl>
-                    }
+                        <path
+                          d="M2.5 4.5 6 8l3.5-3.5"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.5"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        />
+                      </svg>
+                      <time
+                        [attr.datetime]="entry.createdAt"
+                        [title]="exactTime(entry.createdAt)"
+                        [attr.aria-label]="exactTime(entry.createdAt)"
+                        class="ml-auto shrink-0 pl-3 text-xs text-fb-text-secondary"
+                      >
+                        {{ clockTime(entry.createdAt) }}
+                      </time>
+                    </button>
+                  } @else {
+                    <div class="flex items-baseline gap-2 py-2">
+                      <p class="min-w-0 text-sm text-fb-text-primary">
+                        {{ sentence(entry) }}
+                      </p>
+                      <time
+                        [attr.datetime]="entry.createdAt"
+                        [title]="exactTime(entry.createdAt)"
+                        [attr.aria-label]="exactTime(entry.createdAt)"
+                        class="ml-auto shrink-0 pl-3 text-xs text-fb-text-secondary"
+                      >
+                        {{ clockTime(entry.createdAt) }}
+                      </time>
+                    </div>
+                  }
+                  @if (event.reason) {
+                    <p class="break-words text-xs text-fb-text-secondary">{{ event.reason }}</p>
+                  }
+                  @if (expandedId() === entry.id) {
+                    <dl
+                      [id]="'timeline-details-' + entry.id"
+                      class="mb-1 mt-1 space-y-1.5 rounded-lg bg-fb-well px-3 py-2.5 text-xs [overflow-wrap:anywhere]"
+                    >
+                      @for (change of visibleChanges(entry); track $index) {
+                        <div
+                          class="gap-x-3 sm:grid sm:grid-cols-[minmax(7rem,13rem)_minmax(0,1fr)]"
+                        >
+                          <dt class="text-fb-text-secondary">{{ change.label }}</dt>
+                          <dd class="text-fb-text-primary">
+                            @if (change.from !== null && change.to !== null) {
+                              <span class="text-fb-text-secondary">{{ change.from }}</span>
+                              <span aria-hidden="true"> → </span>
+                              <span class="sr-only"> wird zu </span>
+                              <span>{{ change.to }}</span>
+                            } @else {
+                              {{ change.to ?? change.from }}
+                            }
+                          </dd>
+                        </div>
+                      }
+                      @if (hiddenChangeCount(entry)) {
+                        <button
+                          type="button"
+                          (click)="showAllChanges(entry.id)"
+                          class="rounded-md font-medium text-fb-text-primary underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-accent"
+                        >
+                          Alle {{ changes(entry).length }} Änderungen zeigen
+                        </button>
+                      }
+                    </dl>
                   }
                 </div>
               }
