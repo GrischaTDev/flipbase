@@ -73,6 +73,124 @@ describe('ProductThumbnailComponent', () => {
     expect(host().querySelector('img')?.getAttribute('src')).toBe('/replacement.webp');
   });
 
+  function pointer(type: 'pointerenter' | 'pointerleave', pointerType: string): Event {
+    const event = new Event(type);
+    Object.defineProperty(event, 'pointerType', { value: pointerType });
+    return event;
+  }
+
+  function withImage(): HTMLButtonElement {
+    fixture.componentRef.setInput('src', '/images/product.webp');
+    fixture.componentRef.setInput('alt', 'Schuh links');
+    fixture.detectChanges();
+    return host().querySelector('button') as HTMLButtonElement;
+  }
+
+  function preview(): HTMLElement | null {
+    return host().querySelector('[popover]');
+  }
+
+  it('bietet ohne Bild keinen Ausloeser und keinen Fokusstopp', () => {
+    expect(host().querySelector('button')).toBeNull();
+    expect(preview()).toBeNull();
+  });
+
+  it('beschriftet den Ausloeser mit dem Bildtext', () => {
+    expect(withImage().getAttribute('aria-label')).toBe('Schuh links vergrößert ansehen');
+  });
+
+  it('haelt genau ein Bild im Baum, solange die Vorschau zu ist', () => {
+    withImage();
+
+    expect(host().querySelectorAll('img')).toHaveLength(1);
+  });
+
+  it('oeffnet und schliesst die Vorschau per Klick', () => {
+    const trigger = withImage();
+
+    trigger.click();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.previewOpen()).toBe(true);
+    expect(preview()?.classList.contains('hidden')).toBe(false);
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+    expect(host().querySelectorAll('img')).toHaveLength(2);
+
+    trigger.click();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.previewOpen()).toBe(false);
+    expect(preview()?.classList.contains('hidden')).toBe(true);
+  });
+
+  it('oeffnet beim Ueberfahren mit der Maus erst nach einer kurzen Pause', () => {
+    vi.useFakeTimers();
+    try {
+      const trigger = withImage();
+
+      trigger.dispatchEvent(pointer('pointerenter', 'mouse'));
+      expect(fixture.componentInstance.previewOpen()).toBe(false);
+
+      vi.advanceTimersByTime(250);
+      expect(fixture.componentInstance.previewOpen()).toBe(true);
+
+      trigger.dispatchEvent(pointer('pointerleave', 'mouse'));
+      vi.advanceTimersByTime(250);
+      expect(fixture.componentInstance.previewOpen()).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('oeffnet auf Touchgeraeten nicht schon beim Ueberfahren', () => {
+    vi.useFakeTimers();
+    try {
+      const trigger = withImage();
+
+      trigger.dispatchEvent(pointer('pointerenter', 'touch'));
+      vi.advanceTimersByTime(500);
+
+      expect(fixture.componentInstance.previewOpen()).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('laesst den Zeiger auf der Vorschau ruhen, ohne sie zu schliessen', () => {
+    vi.useFakeTimers();
+    try {
+      const trigger = withImage();
+      trigger.click();
+      expect(fixture.componentInstance.previewOpen()).toBe(true);
+
+      trigger.dispatchEvent(pointer('pointerleave', 'mouse'));
+      preview()?.dispatchEvent(new Event('pointerenter'));
+      vi.advanceTimersByTime(500);
+
+      expect(fixture.componentInstance.previewOpen()).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('schliesst die Vorschau mit Escape, egal wo der Fokus steht', () => {
+    const trigger = withImage();
+    trigger.click();
+    expect(fixture.componentInstance.previewOpen()).toBe(true);
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+
+    expect(fixture.componentInstance.previewOpen()).toBe(false);
+  });
+
+  it('schliesst die Vorschau beim Scrollen', () => {
+    const trigger = withImage();
+    trigger.click();
+    expect(fixture.componentInstance.previewOpen()).toBe(true);
+
+    window.dispatchEvent(new Event('scroll'));
+
+    expect(fixture.componentInstance.previewOpen()).toBe(false);
+  });
+
   it('entfernt beim Leeren der Quelle sofort das bisherige Workspace-Bild', () => {
     fixture.componentRef.setInput('src', '/previous-workspace.webp');
     fixture.detectChanges();

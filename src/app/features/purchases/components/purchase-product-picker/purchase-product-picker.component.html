@@ -9,7 +9,16 @@
   }
   <div class="divide-y divide-fb-line">
     @for (product of filtered(); track product.id) {
-      <div class="flex items-center gap-3 py-3">
+      <!-- Der Klick auf die Zeile ist nur eine Maus-Abkuerzung. Bedient wird
+           weiter ueber die Checkbox darin: sie traegt Rolle, Zustand und
+           Tastaturbedienung. Die Zeile selbst darf deshalb kein Bedienelement
+           sein, sonst steckte das Bild-Bedienelement in einem zweiten. -->
+      <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -->
+      <div
+        class="-mx-2 flex cursor-pointer items-center gap-3 rounded-lg px-2 py-3 transition-colors hover:bg-fb-surface-hover"
+        [class.bg-fb-primary-subtle]="selection().has(product.id)"
+        (click)="toggle(product.id)"
+      >
         <app-custom-checkbox
           [checked]="selection().has(product.id)"
           [ariaLabel]="product.title + ' auswählen'"
@@ -17,6 +26,7 @@
         />
         <app-product-thumbnail
           [src]="imageUrls()[product.id] || null"
+          [alt]="product.title"
           (imageFailed)="imageFailed.emit(product.id)"
         />
         <div class="min-w-0 flex-1 text-[13px]">

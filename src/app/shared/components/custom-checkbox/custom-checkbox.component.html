@@ -6,7 +6,7 @@
   [attr.aria-disabled]="effectiveDisabled()"
   [attr.aria-label]="ariaLabel() || label() || 'Checkbox'"
   [id]="id() || null"
-  class="relative inline-flex items-center gap-2 select-none group"
+  class="group relative inline-flex select-none items-center gap-2 rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
   (click)="toggle($event)"
   (blur)="onBlur()"
 >
@@ -20,23 +20,12 @@
     [class.h-4]="size() === 'md'"
     [class.w-5]="size() === 'lg'"
     [class.h-5]="size() === 'lg'"
-    [class.bg-emerald-700]="(checked() || indeterminate()) && color() === 'emerald'"
-    [class.dark:bg-emerald-600]="(checked() || indeterminate()) && color() === 'emerald'"
-    [class.border-emerald-700]="(checked() || indeterminate()) && color() === 'emerald'"
-    [class.dark:border-emerald-600]="(checked() || indeterminate()) && color() === 'emerald'"
-    [class.shadow-emerald-500/25]="(checked() || indeterminate()) && color() === 'emerald'"
-    [class.bg-indigo-600]="(checked() || indeterminate()) && color() === 'indigo'"
-    [class.border-indigo-500]="(checked() || indeterminate()) && color() === 'indigo'"
-    [class.shadow-indigo-500/30]="(checked() || indeterminate()) && color() === 'indigo'"
+    [class.bg-fb-primary]="checked() || indeterminate()"
+    [class.border-fb-primary]="checked() || indeterminate()"
     [class.shadow-sm]="checked() || indeterminate()"
     [class.bg-fb-well]="!checked() && !indeterminate()"
     [class.border-fb-border-hover]="!checked() && !indeterminate()"
-    [class.group-hover:border-emerald-500]="
-      !checked() && !indeterminate() && !effectiveDisabled() && color() === 'emerald'
-    "
-    [class.group-hover:border-indigo-400]="
-      !checked() && !indeterminate() && !effectiveDisabled() && color() === 'indigo'
-    "
+    [class.group-hover:border-fb-primary]="!checked() && !indeterminate() && !effectiveDisabled()"
     [class.group-hover:bg-fb-subtle]="!checked() && !indeterminate() && !effectiveDisabled()"
   >
     @if (checked() && !indeterminate()) {
