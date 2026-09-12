@@ -290,6 +290,11 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Build and smoke test bot image
+        run: |
+          docker build --tag flipbase-sniper:ci .
+          node scripts/smoke-image.mjs flipbase-sniper:ci
+
   browser-smoke:
     name: Browser smoke
     if: ${{ needs.changes.outputs.application == 'true' && needs.changes.outputs.tests_reused != 'true' }}

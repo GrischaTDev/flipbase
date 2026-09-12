@@ -11,6 +11,28 @@ const report = {
 };
 
 describe('createHealthState', () => {
+  it('reports a running process separately from search readiness before any queries exist', async () => {
+    const state = createHealthState(() => 0);
+    const server = startHealthServer(state, 0, (error) => {
+      throw error;
+    });
+    const port = await new Promise<number>((resolve) => {
+      server.on('listening', () => resolve((server.address() as { port: number }).port));
+    });
+    try {
+      const live = await fetch(`http://127.0.0.1:${port}/live`);
+      expect(live.status).toBe(200);
+      expect(await live.json()).toEqual({ live: true });
+      const health = await fetch(`http://127.0.0.1:${port}/health`);
+      expect(health.status).toBe(503);
+      expect((await health.json()).ready).toBe(false);
+      expect((await fetch(`http://127.0.0.1:${port}/unknown`)).status).toBe(404);
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
   it('starts as not ready before the first cycle', () => {
     const state = createHealthState(() => 0.25);
 

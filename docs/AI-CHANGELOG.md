@@ -1,5 +1,64 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-12 – Codex – Fehlenden Vinted-Dienstbetrieb nachgewiesen und vorbereitet
+
+**Auftrag:** Nach der Bestandsaufnahme mit dem Botbetrieb beginnen; auf
+ausdrücklichen Nutzerwunsch eigener Branch `codex/vinted-bot-operation`, eigener
+Worktree von `origin/master` (`b413c44`). Fremde Zweige unverändert.
+
+**Ursache auf dem Server bestätigt:** Kein Sniper-/Vinted-Container, kein
+passender Systemdienst und kein Bot unter `/opt`. Der vorhandene Node-Prozess
+gehört zu einem anderen Container. Die produktive Datenbank enthält null
+Kategorien, Suchaufträge, Artikel und Treffer. `requested_at` ist gesetzt,
+`last_attempt_at`, `refreshed_at` und `last_error` sind leer. Die Anforderung
+kam somit an, wurde aber nie abgearbeitet. Ein einzelner Homepageabruf vom
+Server liefert HTTP 200; der unveränderte Parser liest daraus 2.920 Kategorien
+mit neun Wurzeln und 2.500 Blättern. Kein Parserfix erforderlich.
+
+**Umsetzung:** Eigenes minimales Betriebsabbild unter `services/sniper`,
+Positivliste für den Build-Kontext ohne Schlüssel/Testdaten und separate
+Compose-Konfiguration mit einem Dienst, Neustartregel, unprivilegiertem Benutzer,
+schreibgeschütztem Dateisystem, begrenzten Logs und ohne veröffentlichten Port.
+Die vorhandene Node-Hauptversion 22 bleibt, stabiler Patch 22.23.2 aus dem
+offiziellen Image-Katalog geprüft. Keine npm-Abhängigkeiten aktualisiert.
+Der Sniper-CI-Job baut das Abbild und startet einen Smoke-Test ohne Netzwerk,
+gültige Zugangsdaten oder Schreibrechte. Keine automatische Produktionsinstallation
+durch diese neue CI-Prüfung; Ablauf und Abnahme stehen in `services/sniper/README.md`.
+
+**Statusendpunkte:** `/live` belegt ausschließlich einen antwortenden Prozess.
+Das bestehende `/health` bleibt bis zur ersten erfolgreichen Suchrunde auf 503.
+Damit funktioniert die Docker-Prozessprüfung bereits für das Einlesen der
+Kategorien bei null Suchaufträgen, ohne eine erfolgreiche Suche zu behaupten.
+Auch danach belegt der vorhandene Health-Zeitstempel keine aktuelle Verbindung;
+diese Grenze ist in der Anleitung ausdrücklich festgehalten.
+
+**Administrationsseite:** Status wird alle fünf Sekunden nach der vorherigen
+Antwort neu gelesen, ohne überlappende Abfragen. Cleanup über `DestroyRef`,
+vorübergehende Lesefehler erholen sich automatisch. Ab einer Minute weist die
+Seite auf eine unbeantwortete Einleseanforderung hin. Der Live-Bereich meldet
+den Abschluss oder Fehlschlag; der vorher dauerhaft stehenbleibende lokale
+„angefordert“-Merker entfällt. Die Statusabfrage selbst löst keine Vinted-Anfrage aus.
+
+**Prüfung:** Ausgangsstand des Dienstes 104 Tests, Typprüfung und Bau grün.
+Neue Fehlerfälle für automatische Anzeige, Erholung, Wartehinweis und den
+Prozessendpunkt zuerst rot, anschließend grün. Zusätzliche Kontrolle langsamer
+Antworten, Aufräumen beim Verlassen und AXE-Prüfung in jsdom; Farbkontrast dort
+wie im bestehenden Testaufbau mangels Layout ausgenommen. Angular-Produktionsbau
+grün. Workflowprüfungen: 57 bestanden, vier bestehende Windows-Skips; Shared-UI-
+Prüfung 66 Vorlagen ohne Befund. Das neue Linux-Abbild auf dem Server in einem
+eigenen temporären Verzeichnis gebaut und den echten Prozesseinstieg über den
+isolierten Smoke-Test geprüft. Ein erstes Versionsprobe-Kommando scheiterte an
+einem durch PowerShell übertragenen CR-Zeichen, nicht am Abbild; der anschließende
+Docker-Starttest über den SSH-Docker-Host bestand. Formatierung/Lint und
+Diffprüfung gezielt auf die Änderungen angewendet.
+
+**Produktionsgrenze:** Kein laufender Produktions-Bot gestartet, keine Schlüssel
+ausgegeben, keine Geschäftsdaten geändert und keine Suchaufträge angelegt.
+Nur lesende Datenbankdiagnose, ein öffentlicher Vinted-Abruf und isolierte
+Build-/Testartefakte auf dem Server. Die tatsächliche Installation und der
+Nachweis des gespeicherten Kategoriebaums folgen nach dem grünen PR.
+Sammelauftragsverwaltung und Nutzeroberfläche bleiben nachfolgende Pakete.
+
 ## 2026-09-12 – Claude Opus 5 (Anthropic) – Chronik im Shopify-Stil
 
 **Auftrag/Ergebnis:** Die gemeinsame Chronik von Einkäufen und Verkäufen liest
