@@ -1,0 +1,278 @@
+<section class="mx-auto flex w-full max-w-screen-2xl flex-col gap-5 p-4 sm:p-6">
+  <app-page-header
+    title="Deal-Monitor"
+    subtitle="Neue Vinted-Funde aus deinen Bereichen. Entdecken, vergleichen und passende Deals merken."
+  >
+    <app-button
+      header-actions
+      data-new-watchlist
+      variant="primary"
+      [disabled]="demo() || !workspace() || editorOpen() || saving()"
+      (clicked)="openEditor()"
+      >Neuer Merkzettel</app-button
+    >
+  </app-page-header>
+  @if (!workspace()) {
+    <p role="status">Bitte einen Arbeitsbereich auswählen.</p>
+  }
+  @if (demo()) {
+    <p role="status">
+      Der Deal-Monitor benötigt einen angemeldeten Arbeitsbereich. Im Demo-Modus werden keine
+      Serverdaten geladen.
+    </p>
+  }
+  @if (error(); as text) {
+    <p role="alert">
+      {{ text }} <app-button (clicked)="loadWatchlists()">Merkzettel erneut laden</app-button>
+    </p>
+  }
+  @if (message()) {
+    <p role="status" class="text-sm text-fb-text-secondary">{{ message() }}</p>
+  }
+  @if (editorOpen()) {
+    @if (categoryError(); as text) {
+      <p role="alert">
+        {{ text }} <app-button (clicked)="loadCategories()">Kategorien erneut laden</app-button>
+      </p>
+    }
+    <app-watchlist-editor
+      [watchlist]="editing()"
+      [categories]="categories()"
+      [saving]="saving()"
+      (saved)="save($event)"
+      (cancelled)="cancelEditor()"
+    />
+  }
+  <div class="flex flex-wrap items-end justify-between gap-4">
+    <div class="flex flex-wrap gap-2" role="group" aria-label="Ansicht wählen">
+      <app-button
+        [ariaPressed]="view() === 'articles'"
+        [disabled]="editorOpen()"
+        (clicked)="view.set('articles')"
+        >Artikel</app-button
+      >
+      <app-button
+        [ariaPressed]="view() === 'deals'"
+        [disabled]="editorOpen()"
+        (clicked)="view.set('deals')"
+        >Deals</app-button
+      >
+      <app-button
+        [ariaPressed]="view() === 'watchlists'"
+        [disabled]="editorOpen()"
+        (clicked)="view.set('watchlists')"
+        >Merkzettel · {{ watchlists().length }}</app-button
+      >
+    </div>
+    @if (view() !== 'watchlists') {
+      <div class="flex flex-wrap items-end gap-3">
+        <div class="w-full min-w-0 sm:w-64">
+          <label for="feed-watchlist" class="mb-1 block text-sm">Merkzettel filtern</label
+          ><app-custom-select
+            triggerId="feed-watchlist"
+            placeholder="Alle Artikel"
+            ariaLabel="Merkzettel filtern"
+            [options]="options()"
+            [(value)]="selected"
+          />
+        </div>
+        <app-button
+          [ariaPressed]="state.paused()"
+          (clicked)="state.paused() ? state.resume() : state.pause()"
+          >{{ state.paused() ? 'Zulauf fortsetzen' : 'Zulauf pausieren' }}</app-button
+        >
+      </div>
+    }
+  </div>
+
+  @if (view() === 'watchlists') {
+    @if (watchlists().length === 0) {
+      <app-card
+        ><h2 class="text-base font-semibold">Dein erster Merkzettel</h2>
+        <p class="mt-2 text-sm text-fb-text-secondary">
+          Lege fest, welche Kategorien, Marken und Preise dich interessieren. Der Monitor durchsucht
+          dafür seinen gesammelten Bestand.
+        </p></app-card
+      >
+    }
+    <div class="grid gap-4 lg:grid-cols-2">
+      @for (row of watchlists(); track row.id) {
+        <app-card
+          ><div class="flex flex-col gap-3">
+            <div class="flex items-start justify-between gap-3">
+              <h2 class="text-base font-semibold">{{ row.title }}</h2>
+              <app-badge [tone]="row.is_active ? 'success' : 'neutral'">{{
+                row.is_active ? 'Aktiv' : 'Pausiert'
+              }}</app-badge>
+            </div>
+            <p class="text-sm text-fb-text-secondary">
+              {{ row.brand || 'Alle Marken' }} · {{ row.condition || 'Alle Zustände' }} ·
+              {{ row.discount_threshold_percent }} % unter Vergleich
+            </p>
+            @if (row.search_text) {
+              <p class="text-sm">Suchbegriff: {{ row.search_text }}</p>
+            }
+            <div class="flex flex-wrap gap-2">
+              <app-button
+                [disabled]="saving() || editorOpen()"
+                (clicked)="selected.set(row.id); view.set('articles')"
+                >Artikel ansehen</app-button
+              ><app-button [disabled]="saving() || editorOpen()" (clicked)="openEditor(row)"
+                >Bearbeiten</app-button
+              ><app-button [disabled]="saving() || editorOpen()" (clicked)="toggle(row)">{{
+                row.is_active ? 'Pausieren' : 'Aktivieren'
+              }}</app-button
+              ><app-button [disabled]="saving() || editorOpen()" (clicked)="deleting.set(row)"
+                >Löschen</app-button
+              >
+            </div>
+          </div></app-card
+        >
+      }
+    </div>
+  } @else {
+    @if (state.error(); as text) {
+      <p role="alert">
+        {{ text }} <app-button (clicked)="state.refresh()">Erneut laden</app-button>
+      </p>
+    }
+    @if (state.loaded()) {
+      @if (!state.covered()) {
+        <app-card variant="subtle"
+          ><p class="text-sm">
+            Für diesen Bereich sammelt der Monitor noch nicht. Die Administration muss einen
+            passenden Sammelauftrag aktivieren.
+          </p></app-card
+        >
+      } @else if (stale()) {
+        <app-card variant="subtle"
+          ><p class="text-sm">
+            Der Bot meldet sich zurzeit nicht aktuell. Gespeicherte Artikel bleiben sichtbar; neue
+            Funde können fehlen.
+          </p></app-card
+        >
+      }
+      @if (selectedWatchlist()?.is_active === false) {
+        <p class="text-sm">
+          Dieser Merkzettel ist pausiert. Er erzeugt keine neuen Deals; der Artikelbestand bleibt
+          sichtbar.
+        </p>
+      }
+      <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-fb-text-secondary">
+        <p>
+          {{ state.paused() ? 'Ansicht pausiert' : 'Aktualisiert sich alle 10 Sekunden' }} · Neueste
+          zuerst · Aufbewahrung 30 Tage
+        </p>
+        @if (state.reportedAt()) {
+          <p>Botmeldung {{ state.reportedAt() | date: 'HH:mm:ss' }}</p>
+        }
+      </div>
+      @if (state.newCount() > 0) {
+        <app-card variant="subtle"
+          ><div class="flex flex-wrap items-center justify-between gap-3">
+            <p role="status">
+              {{ state.newCount() }}{{ state.newCount() === 60 ? '+' : '' }} neue Artikel warten.
+            </p>
+            <app-button (clicked)="state.resume()">Neueste Artikel anzeigen</app-button>
+          </div></app-card
+        >
+      }
+      @if (state.items().length === 0) {
+        <app-card
+          ><h2 class="text-base font-semibold">
+            {{ view() === 'deals' ? 'Noch keine passenden Deals' : 'Noch keine passenden Artikel' }}
+          </h2>
+          <p class="mt-2 text-sm text-fb-text-secondary">
+            {{
+              view() === 'deals'
+                ? 'Deals brauchen einen aktiven Merkzettel und mindestens acht geeignete Vergleichsangebote. Der erste Einlesebestand wird nicht als Deal gemeldet.'
+                : 'Hier erscheinen passende Funde, sobald der Bot Artikel gesammelt hat. Dein Merkzettel startet keine eigene Vinted-Suche.'
+            }}
+          </p></app-card
+        >
+      } @else {
+        <section aria-labelledby="feed-latest-title" (focusin)="state.pause()">
+          <div class="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+            <h2 id="feed-latest-title" class="text-base font-semibold">Die neuesten Funde</h2>
+            <p class="text-xs text-fb-text-muted">
+              {{
+                view() === 'deals'
+                  ? 'Bewertet nach deinen Merkzetteln'
+                  : 'Aus dem gemeinsamen Artikelbestand'
+              }}
+            </p>
+          </div>
+          <div
+            class="grid grid-flow-col auto-cols-[85%] gap-4 overflow-x-auto pb-2 snap-x snap-mandatory sm:grid-flow-row sm:auto-cols-auto sm:grid-cols-2 xl:grid-cols-3"
+            tabindex="0"
+            role="region"
+            aria-label="Neueste Funde durchblättern"
+          >
+            @for (item of state.highlights(); track item.id) {
+              <app-deal-card
+                class="snap-start motion-safe:transition motion-safe:duration-200 motion-safe:starting:opacity-0 motion-safe:starting:-translate-x-3"
+                [item]="item"
+                [featured]="true"
+              />
+            }
+          </div>
+        </section>
+        @if (state.grid().length > 0) {
+          <section aria-labelledby="feed-grid-title" (focusin)="state.pause()">
+            <h2 id="feed-grid-title" class="mb-3 text-base font-semibold">Weitere Funde</h2>
+            <div class="grid grid-cols-2 gap-3 xl:grid-cols-4">
+              @for (item of state.grid(); track item.id) {
+                <app-deal-card
+                  class="snap-start motion-safe:transition motion-safe:duration-200 motion-safe:starting:opacity-0 motion-safe:starting:-translate-x-3"
+                  [item]="item"
+                />
+              }
+            </div>
+          </section>
+        }
+        @if (state.hasMore()) {
+          <div class="flex justify-center">
+            <app-button [loading]="state.loading()" (clicked)="state.refresh(true)"
+              >Ältere Artikel laden</app-button
+            >
+          </div>
+        }
+        @if (state.items().length >= 300) {
+          <p class="text-sm">
+            300 Artikel geladen. Grenze deinen Merkzettel ein oder setze den Zulauf fort, um wieder
+            die neuesten zu sehen.
+          </p>
+        }
+      }
+    } @else if (state.loading()) {
+      <p role="status">Artikel werden geladen …</p>
+    }
+    <p class="text-xs text-fb-text-muted">
+      Gesammelt wird nur innerhalb der aktiven Kategorien, Marken und Preisgrenzen der
+      Administration. Verfügbarkeit und endgültigen Preis bitte auf Vinted prüfen.
+    </p>
+  }
+</section>
+@if (deleting(); as row) {
+  <app-modal-shell title="Merkzettel löschen?" size="sm" (closed)="!saving() && deleting.set(null)"
+    ><p>
+      „{{ row.title }}“ und die zugehörigen Treffer werden gelöscht. Gesammelte Artikel bleiben
+      erhalten.
+    </p>
+    <div modal-footer class="flex gap-2">
+      <app-button [disabled]="saving()" (clicked)="deleting.set(null)">Abbrechen</app-button
+      ><app-button variant="destructive" [loading]="saving()" (clicked)="confirmDelete()"
+        >Merkzettel löschen</app-button
+      >
+    </div></app-modal-shell
+  >
+}
+@if (discarding()) {
+  <app-modal-shell title="Änderungen verwerfen?" size="sm" (closed)="discarding.set(false)"
+    ><p>Deine ungespeicherten Änderungen gehen verloren.</p>
+    <div modal-footer class="flex gap-2">
+      <app-button (clicked)="discarding.set(false)">Weiter bearbeiten</app-button
+      ><app-button variant="destructive" (clicked)="closeEditor()">Verwerfen</app-button>
+    </div></app-modal-shell
+  >
+}

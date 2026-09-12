@@ -146,6 +146,14 @@ export const routes: Routes = [
           import('./features/research/research.component').then((m) => m.ResearchComponent),
       },
       {
+        path: 'deal-monitor',
+        canDeactivate: [unsavedEntryGuard],
+        loadComponent: () =>
+          import('./features/deal-monitor/deal-monitor.component').then(
+            (m) => m.DealMonitorComponent,
+          ),
+      },
+      {
         path: 'deal-calculator',
         loadComponent: () =>
           import('./features/deal-calculator/deal-calculator.component').then(

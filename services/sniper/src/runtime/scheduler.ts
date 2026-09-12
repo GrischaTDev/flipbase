@@ -157,6 +157,7 @@ export class QueryScheduler {
       report.newHits += await this.deps.listings.evaluateHits(query.id, query.isSeeded);
       evaluated = true;
     } catch (error) {
+      report.failed += 1;
       this.deps.log.error('evaluate_hits_failed', {
         queryId: query.id,
         reason: error instanceof Error ? error.message : String(error),

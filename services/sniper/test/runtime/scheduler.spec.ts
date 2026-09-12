@@ -368,6 +368,7 @@ describe('QueryScheduler', () => {
       queryId: 'q1',
       reason: 'evaluation failed',
     });
+    expect(report.failed).toBe(1);
   });
 
   it('gilt nicht als eingelesen, wenn die Bewertung scheitert', async () => {

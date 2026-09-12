@@ -61,6 +61,13 @@ export class ListingStore {
       throw new Error(`saving listings failed: ${error.message}`);
     }
 
+    const { error: categoryError } = await this.client.rpc('record_sniper_listing_category', {
+      p_query_id: discoveredByQueryId,
+      p_external_ids: listings.map((listing) => listing.externalId),
+    });
+    if (categoryError)
+      throw new Error(`recording listing category failed: ${categoryError.message}`);
+
     const createdIds = new Set((data ?? []).map((row) => row.external_id as string));
     return listings.filter((listing) => createdIds.has(listing.externalId));
   }
@@ -78,16 +85,18 @@ export class ListingStore {
    * Fund mehr werden.
    */
   async evaluateHits(queryId: string, reportHits = true): Promise<number> {
-    const { data, error } = await this.client.rpc('sniper_evaluate_hits', {
+    const { data, error } = await this.client.rpc('sniper_evaluate_watchlist_hits', {
       p_query_id: queryId,
       p_report_hits: reportHits,
     });
 
     if (error) {
-      throw new Error(`evaluating hits failed: ${error.message}`);
+      throw new Error(`evaluating watchlists failed: ${error.message}`);
     }
 
-    return typeof data === 'number' ? data : 0;
+    if (typeof data !== 'number' || !Number.isInteger(data) || data < 0)
+      throw new Error('evaluating watchlists returned an invalid count');
+    return data;
   }
 
   async purgeExpired(): Promise<number> {

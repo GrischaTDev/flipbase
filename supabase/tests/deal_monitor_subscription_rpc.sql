@@ -47,8 +47,8 @@ insert into public.sniper_query_subscriptions (id, workspace_id, query_id, disco
   30
 );
 
--- Ab hier als angemeldeter Nutzer. Vorher nicht, sonst scheitern die Inserts.
-set local role authenticated;
+-- Legacy-Funktion bleibt fuer Dienstmigrationen erhalten, nicht fuer Browser.
+set local role service_role;
 set local request.jwt.claim.sub = :'user_id';
 
 -- Zwei Arbeitsbereiche mit demselben Filter teilen sich eine Abfrage.
@@ -192,6 +192,8 @@ $$;
 select pass('50.00 und 50 ergeben denselben Abfrageschluessel');
 
 -- Sichtbarkeit ist keine Metadatenpruefung: eine unkorrelierte Leserichtlinie
+set local role authenticated;
+-- Sichtbarkeit unter der echten Nutzerrolle, ohne Service-RLS-Umgehung.
 -- (z. B. "using (true)") wuerde einen reinen Vorhanden-Abgleich der Policy
 -- ebenfalls bestehen. Hier wird das tatsaechliche Verhalten geprueft: der
 -- Nutzer ist in workspace_c kein Mitglied und darf dessen Abfrage nicht sehen
@@ -224,6 +226,7 @@ $$;
 select pass('Sichtbarkeit von sniper_queries folgt der Mitgliedschaft, nicht nur dem Vorhandensein');
 
 -- Unsinnige Preisspannen werden abgelehnt.
+set local role service_role;
 --
 -- Ohne diese Pruefung liesse sich ein Filter "von 50 bis 10" anlegen, der bei
 -- Vinted nie etwas finden kann - und ein negativer Preis ebenso. Beides fiel
@@ -273,13 +276,13 @@ begin
     raise exception 'anon darf create_sniper_subscription nicht ausfuehren';
   end if;
 
-  if not has_function_privilege('authenticated', 'public.create_sniper_subscription(uuid, text, integer, numeric, numeric, numeric)', 'execute') then
-    raise exception 'authenticated muss create_sniper_subscription ausfuehren duerfen';
+  if has_function_privilege('authenticated', 'public.create_sniper_subscription(uuid, text, integer, numeric, numeric, numeric)', 'execute') then
+    raise exception 'authenticated darf keine zentralen Auftraege ueber die Legacy-Funktion erzeugen';
   end if;
 end;
 $$;
 
-select pass('Nur Angemeldete duerfen ein Abonnement anlegen');
+select pass('Legacy-Schreibweg ist fuer Browser gesperrt');
 
 select * from finish();
 
