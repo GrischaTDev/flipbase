@@ -31,6 +31,14 @@ const expectedSmokeTests = [
     'speichert Demo-Kommentare am richtigen Einkauf und zeigt Klartext nach Neuladen',
   ],
   ['entry-pages.spec.ts', 'keeps the new entry pages free of automated WCAG AA violations'],
+  [
+    'sniper-administration.spec.ts',
+    'Sammelaufträge anlegen, Fehler beheben, aktivieren und pausieren light',
+  ],
+  [
+    'sniper-administration.spec.ts',
+    'Sammelaufträge anlegen, Fehler beheben, aktivieren und pausieren dark',
+  ],
 ];
 
 const readProjectFile = (filePath) => readFile(new URL(filePath, rootDirectory), 'utf8');
@@ -70,7 +78,7 @@ const createSuiteProbe = async (context) => {
   };
 };
 const assertExpectedSmokeTests = (selectedTests) => {
-  assert.equal(selectedTests.length, 8);
+  assert.equal(selectedTests.length, 10);
   assert.deepEqual(
     selectedTests.sort(([leftFile], [rightFile]) => leftFile.localeCompare(rightFile)),
     expectedSmokeTests
@@ -121,7 +129,7 @@ const assertResolvedNightlySmokeSuite = (resolvedSuite) => {
     return [spec.file.split(/[\\/]/).at(-1), spec.title, project.projectName];
   });
 
-  assert.equal(selectedTests.length, 24);
+  assert.equal(selectedTests.length, 30);
   assert.deepEqual(
     selectedTests.sort(
       ([leftFile, leftTitle, leftProject], [rightFile, rightTitle, rightProject]) =>

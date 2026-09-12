@@ -170,8 +170,8 @@ begin
     and cmd = 'SELECT'
     and 'authenticated' = any(roles);
 
-  if read_policies <> 2 then
-    raise exception 'expected exactly 2 select policies for authenticated, found %', read_policies;
+  if read_policies <> 3 then
+    raise exception 'expected exactly 3 select policies for authenticated including administration, found %', read_policies;
   end if;
 end;
 $$;

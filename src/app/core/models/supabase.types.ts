@@ -2602,11 +2602,12 @@ export type Database = {
           last_polled_at: string | null
           last_status: string
           marketplace: string
+          notes: string | null
           poll_interval_ms: number
           price_from: number | null
           price_to: number | null
           query_key: string
-          search_text: string
+          search_text: string | null
           updated_at: string
         }
         Insert: {
@@ -2621,11 +2622,12 @@ export type Database = {
           last_polled_at?: string | null
           last_status?: string
           marketplace?: string
+          notes?: string | null
           poll_interval_ms?: number
           price_from?: number | null
           price_to?: number | null
           query_key: string
-          search_text: string
+          search_text?: string | null
           updated_at?: string
         }
         Update: {
@@ -2640,11 +2642,12 @@ export type Database = {
           last_polled_at?: string | null
           last_status?: string
           marketplace?: string
+          notes?: string | null
           poll_interval_ms?: number
           price_from?: number | null
           price_to?: number | null
           query_key?: string
-          search_text?: string
+          search_text?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -2690,6 +2693,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      sniper_runtime_status: {
+        Row: {
+          id: number
+          last_cycle_error: string | null
+          rejected_last_minute: number
+          reported_at: string
+          request_budget: number
+          requests_last_minute: number
+        }
+        Insert: {
+          id: number
+          last_cycle_error?: string | null
+          rejected_last_minute: number
+          reported_at: string
+          request_budget: number
+          requests_last_minute: number
+        }
+        Update: {
+          id?: number
+          last_cycle_error?: string | null
+          rejected_last_minute?: number
+          reported_at?: string
+          request_budget?: number
+          requests_last_minute?: number
+        }
+        Relationships: []
       }
       sources: {
         Row: {
@@ -3946,6 +3976,10 @@ export type Database = {
         Args: { p_lines: Json; p_workspace_id: string }
         Returns: undefined
       }
+      set_sniper_query_active: {
+        Args: { p_active: boolean; p_id: string }
+        Returns: undefined
+      }
       set_workspace_archive_state: {
         Args: { p_archived: boolean; p_workspace_id: string }
         Returns: {
@@ -3970,6 +4004,13 @@ export type Database = {
       sniper_evaluate_hits: {
         Args: { p_query_id: string; p_report_hits?: boolean }
         Returns: number
+      }
+      sniper_query_listing_counts: {
+        Args: never
+        Returns: {
+          listing_count: number
+          query_id: string
+        }[]
       }
       sniper_reference_price: {
         Args: { p_condition: string; p_query_id: string }
@@ -4037,6 +4078,19 @@ export type Database = {
       update_purchase_workflow: {
         Args: { p_purchase_id: string; p_status: string }
         Returns: Json
+      }
+      upsert_sniper_query: {
+        Args: {
+          p_brand_id: number
+          p_catalog_id: number
+          p_id: string
+          p_notes: string
+          p_poll_interval_ms: number
+          p_price_from: number
+          p_price_to: number
+          p_search_text: string
+        }
+        Returns: string
       }
       validate_inventory_item_sale_integrity: {
         Args: { p_inventory_item_id: string }

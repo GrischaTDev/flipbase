@@ -39,7 +39,7 @@ export class VintedCollector {
 
   private async collectOnce(query: SniperQuery): Promise<MarketplaceListing[]> {
     const url = new URL(CATALOG_PATH, this.options.baseUrl);
-    url.searchParams.set('search_text', query.searchText);
+    if (query.searchText) url.searchParams.set('search_text', query.searchText);
     url.searchParams.set('order', 'newest_first');
     url.searchParams.set('page', '1');
     url.searchParams.set('per_page', PER_PAGE);

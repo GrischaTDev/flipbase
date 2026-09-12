@@ -68,6 +68,7 @@ export class QueryScheduler {
     try {
       dueQueries = await this.deps.queries.dueQueries(now);
     } catch (error) {
+      report.failed += 1;
       this.deps.log.error('due_queries_failed', {
         reason: error instanceof Error ? error.message : String(error),
       });

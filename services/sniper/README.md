@@ -144,9 +144,39 @@ und `up -d` ausführen. Kategorien und Geschäftsdaten dabei nicht löschen.
 
 ## Nachfolgende Pakete
 
-Sammelaufträge mit Kategorie, optionaler Marke und Preisgrenzen, eine
-Betriebssicht, getrennte Nutzerfilter und die Artikelansicht unter Werkzeuge
-folgen auf diesen Betriebsnachweis. Die Nutzeridee bleibt: drei neueste Angebote
+Die Administration enthält jetzt **Sammelaufträge** (`/admin/queries`) und
+**Botbetrieb** (`/admin/operation`). Ein Auftrag braucht eine gespeicherte
+Blattkategorie oder einen Suchbegriff. Ein deutscher Vinted-Suchlink kann eine
+Kategorie, eine Markenkennung und Preisgrenzen übernehmen; nicht unterstützte
+Filter werden abgelehnt. Eine Live-Markensuche nach Namen ist noch nicht enthalten.
+Neue Aufträge werden pausiert gespeichert. Aktivieren setzt eine höchstens zwei
+Minuten alte Betriebsmeldung voraus. Der Suchzuschnitt bleibt nach dem Anlegen
+unveränderlich, damit bisherige Funde und Preisvergleiche ihre Bedeutung behalten;
+Takt und Notiz bleiben bearbeitbar. Für andere Filter einen neuen Auftrag anlegen.
+
+Die Migration `20260912165527_sniper_administration.sql` muss **vor** dem neuen
+Botabbild angewendet werden. Danach genau den bisherigen Container aktualisieren.
+Die alte Botversion sendet keine Betriebsmeldung; die neue Aktivierung bleibt
+deshalb bis zum Botupdate gesperrt. Nach dem Wechsel lesend prüfen:
+
+```sql
+select reported_at, requests_last_minute, rejected_last_minute,
+       request_budget, last_cycle_error
+from public.sniper_runtime_status where id = 1;
+```
+
+Der Bot meldet nach jedem Takt den Stand seines echten 60-Sekunden-Fensters.
+403 und 429 zählen als abgewiesene Antworten, Netzwerkfehler als versuchte
+Anfragen. Die Oberfläche unterscheidet die letzte Betriebsmeldung von einem
+erfolgreichen Vinted-Abruf und kennzeichnet alte Werte. Fundzahlen über 24 Stunden
+zählen beim ersten entdeckenden Auftrag, nicht mehrfach bei Überlappung.
+
+Die ältere Abonnementfunktion und `is_standard` bleiben für die bestehenden
+Verträge bis zur Merkzettel-Migration erhalten. Das ist noch keine vollständige
+Trennung von Nutzerfiltern und zentraler Sammlung.
+
+Getrennte Nutzerfilter und die Artikelansicht unter Werkzeuge folgen als weitere
+Pakete. Die Nutzeridee bleibt: drei neueste Angebote
 oben, darunter ein Artikelraster, getrennte Sicht auf neue Angebote und bewertete
 Deals sowie pausierbarer Zulauf. Vor einem dauerhaften Artikelsammeln sind die
 bekannte Verzerrung bei überlappenden Suchabfragen und die Aufbewahrungsfrist

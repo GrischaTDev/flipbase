@@ -7,6 +7,7 @@ import { RequestBudget } from './runtime/budget.js';
 import { countingFetch } from './runtime/counting-fetch.js';
 import { refreshCategoriesIfDue } from './runtime/refresh-categories.js';
 import { QueryScheduler } from './runtime/scheduler.js';
+import { RequestMetrics } from './runtime/request-metrics.js';
 import { CategoryStore } from './store/category.store.js';
 import { ListingStore } from './store/listing.store.js';
 import { QueryStore } from './store/query.store.js';
@@ -24,7 +25,8 @@ const budget = new RequestBudget(config.requestsPerMinute);
 // Katalogabfrage, Wiederholung nach 5xx und Neuaufwaermen nach 401
 // gleichermassen. Deshalb bekommen Sitzung UND Sammler dieselbe umschlossene
 // fetch-Funktion; wer sie umgeht, zaehlt nicht mit.
-const counted = countingFetch(fetch, () => budget.record());
+const metrics = new RequestMetrics();
+const counted = countingFetch(metrics.wrap(fetch), () => budget.record());
 const session = new VintedSession(sessionOptions, counted);
 
 const health = createHealthState(() => budget.usageRatio());
@@ -73,6 +75,7 @@ log.info('started', {
 });
 
 while (!controller.signal.aborted) {
+  let cycleError: string | null = null;
   try {
     const now = new Date();
 
@@ -102,11 +105,32 @@ while (!controller.signal.aborted) {
 
     const report = await scheduler.runOnce(now);
     health.recordCycle(report, now);
+    if (report.failed > 0)
+      cycleError = 'Der Sammeldurchlauf enthält Fehler. Bitte Aufträge und Dienstprotokoll prüfen.';
   } catch (error) {
     // Eine gescheiterte Runde beendet den Dienst nicht. Der naechste Takt
     // versucht es erneut; was dauerhaft kaputt ist, faellt am Health-Endpunkt
     // auf, weil dort die letzte erfolgreiche Runde stehen bleibt.
-    log.error('tick_failed', { reason: error instanceof Error ? error.message : String(error) });
+    cycleError = error instanceof Error ? error.message : String(error);
+    log.error('tick_failed', { reason: cycleError });
+  }
+
+  // Eigene Fehlergrenze: Eine fehlende Statusmeldung darf das Sammeln nicht stoppen.
+  try {
+    const snapshot = metrics.snapshot();
+    const { error } = await client.from('sniper_runtime_status').upsert({
+      id: 1,
+      reported_at: new Date().toISOString(),
+      requests_last_minute: snapshot.requests,
+      rejected_last_minute: snapshot.rejected,
+      request_budget: config.requestsPerMinute,
+      last_cycle_error: cycleError,
+    });
+    if (error) throw error;
+  } catch {
+    log.error('runtime_status_failed', {
+      reason: 'Betriebsmeldung konnte nicht gespeichert werden',
+    });
   }
 
   await sleep(config.tickIntervalMs);
