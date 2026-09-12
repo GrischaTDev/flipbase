@@ -15,6 +15,8 @@ export interface PlatformAdminNavigationItem {
  */
 export const PLATFORM_ADMIN_NAVIGATION: readonly PlatformAdminNavigationItem[] = [
   { path: 'applications', label: 'Bewerbungen' },
+  { path: 'queries', label: 'Sammelaufträge' },
+  { path: 'operation', label: 'Botbetrieb' },
   { path: 'categories', label: 'Kategorieliste' },
 ] as const;
 

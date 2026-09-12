@@ -6,7 +6,7 @@ interface QueryRow {
   id: string;
   query_key: string;
   marketplace: string;
-  search_text: string;
+  search_text: string | null;
   catalog_id: number | null;
   brand_id: number | null;
   price_to: string | number | null;

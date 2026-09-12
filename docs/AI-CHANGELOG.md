@@ -1,5 +1,61 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-12 – Codex – Sammelaufträge und Botbetrieb in der Administration
+
+**Auftrag:** Nach PR #60 mit der Suchverwaltung fortfahren. Eigener Zweig
+`codex/vinted-search-management`, eigener Worktree von `origin/master`
+(`3815e5a`). Fremde Zweige unverändert.
+
+**Umsetzung:** Neue Seiten `/admin/queries` und `/admin/operation` mit den
+bestehenden Shared-Komponenten. Kategoriesuche über vollständige Pfade,
+Übernahme einer Kategorie, Markenkennung und Preise aus einem Vinted-Suchlink,
+Suchtext, Preisgrenzen, Takt und Notiz. Neue Aufträge starten pausiert.
+Aktivieren/Pausieren über RPC mit Betreiberprüfung, nur aktuelle Botversion mit
+frischer Betriebsmeldung darf aktiviert werden. Bestehende Filter bleiben
+unveränderlich, Takt/Notiz sind bearbeitbar: Nachträgliches Ändern der Filter
+würde vorhandene Funde und Medianvergleiche umdeuten. Fundzahlen zählen nur
+Erstentdeckungen pro Auftrag. Keine Löschfunktion oder produktiven Suchaufträge.
+
+**Betrieb:** Der Dienst sammelt jetzt auch mit Kategorie ohne Suchtext. Neue
+Betriebstabelle mit RLS und ausschließlich administrativem Lesen; geschrieben
+wird vom Dienst. Er meldet echte HTTP-Versuche und 403/429 der letzten Minute,
+Budget, Zeitstempel und Zyklusfehler. Fehler beim Laden fälliger Aufträge zählen
+jetzt als Fehler im Zyklusbericht statt als erfolgreicher leerer Durchlauf.
+Seitenaktualisierung ohne überlappende Abrufe, mit Fehlererholung und Abbau.
+
+**Datenbank:** Deklarative Schemata gepflegt, Migration mit Supabase 2.114.0
+generiert, geprüft und SQL-Schreibweise vereinheitlicht. Typen aus der
+migrierten Testdatenbank neu erzeugt. Lokales Docker war nicht einsatzbereit;
+Abgleich und Tests liefen im getrennten CLI-Projekt
+`flipbase-sniper-admin-test` mit ausschließlich Testdaten auf dem Server.
+Kein Zugriff auf produktive Tabellen für diesen Umbau. Die erste Variante mit
+Windows-Pfaden am entfernten Docker-Daemon scheiterte; der Linux-CLI-Abgleich
+im eigenen temporären Verzeichnis war erfolgreich.
+
+**Prüfung:** Datenbanksuite 1.437 Tests grün, nach Aktivierungsschutz zusätzlich
+25 gezielte SQL-Tests grün. Bot 107 Tests, acht Modelltests und acht Angular-
+Service-/Navigationstests grün. Browserablauf mit lokalen HTTP-Fixtures prüft
+Anlegen, Fehler beim Speichern, Wiederholen, unveränderliche Filter, Bearbeiten,
+Aktivieren/Pausieren und Betriebssicht. AXE ohne Ausnahmen über Formular, Liste
+und Betriebssicht grün: Desktop hell (1440 px), Mobil dunkel (390 px), reduzierte
+Bewegung. Screenshots geprüft; keine behauptete Shopify-Pixelabnahme.
+Auch Kategoriesuche, Auswahl per Tastatur, Schutz ungespeicherter Änderungen,
+Fokus beim Öffnen/Speichern und veraltete Betriebsmeldung sind im Browser
+geprüft. Typprüfung, Angular-Produktionsbau, gezieltes ESLint und Shared-UI-
+Prüfung (69 Vorlagen, keine Funde) grün. Die Workflowtests bestehen mit 57
+erfolgreichen Prüfungen und vier bestehenden Windows-Ausnahmen. Die feste
+Erwartung der Browser-Suite wurde von acht auf zehn Fälle erweitert (Nightly:
+30 statt 24 Browserfälle). Der Mobiltest wartet vor dem Öffnen der Auswahl auf
+das abgeschlossene Scrollen, da Scrollen den Shared-Popover absichtlich schließt.
+Das Botabbild besteht den isolierten Starttest ohne Netz und Schreibrechte.
+Die separate Testdatenbank wurde nach den Prüfungen wieder gestoppt.
+
+**Grenzen/Nächste Schritte:** Markenkennung wird aus dem Suchlink übernommen;
+eine Live-Markensuche nach Namen folgt separat. Die ältere Abonnementfunktion
+und `is_standard` bleiben bis zur Merkzettel-Migration kompatibel. Neue
+Trefferregel, Aufbewahrungsfrist und Nutzer-Artikelraster sind weiter offen.
+Das neue Botabbild muss nach der Schema-Migration gesondert aktualisiert werden.
+
 ## 2026-09-12 – Codex – Fehlenden Vinted-Dienstbetrieb nachgewiesen und vorbereitet
 
 **Auftrag:** Nach der Bestandsaufnahme mit dem Botbetrieb beginnen; auf

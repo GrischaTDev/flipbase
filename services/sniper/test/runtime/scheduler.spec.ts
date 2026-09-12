@@ -279,10 +279,10 @@ describe('QueryScheduler', () => {
       expect(report.failed).toBe(2);
     });
 
-    it('resolves with a zeroed report when dueQueries itself rejects', async () => {
+    it('reports a failure when dueQueries itself rejects', async () => {
       // dueQueries() sitzt vor der Schleife, also ausserhalb jedes try/catch
       // dort drinnen - ein Fehlschlag hier darf trotzdem nicht aus runOnce()
-      // herausschlagen, sondern muss geloggt und als leerer Zyklus gemeldet
+      // herausschlagen, sondern muss geloggt und als fehlgeschlagener Zyklus gemeldet
       // werden.
       const queryStore = {
         dueQueries: vi.fn().mockRejectedValue(new Error('store unreachable')),
@@ -309,7 +309,7 @@ describe('QueryScheduler', () => {
         skippedForBudget: 0,
         newListings: 0,
         seeded: 0,
-        failed: 0,
+        failed: 1,
         newHits: 0,
       });
       expect(collector.collect).not.toHaveBeenCalled();

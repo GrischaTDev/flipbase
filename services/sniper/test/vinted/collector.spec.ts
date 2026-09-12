@@ -41,6 +41,13 @@ function build(fetchFn: ReturnType<typeof vi.fn>) {
 }
 
 describe('VintedCollector', () => {
+  it('collects a category without sending a null search term', async () => {
+    const fetchFn = vi.fn().mockResolvedValueOnce(homepage()).mockResolvedValueOnce(catalog());
+    await build(fetchFn).collect({ ...query, searchText: null, catalogId: 1049 });
+    const url = new URL(String(fetchFn.mock.calls[1]?.[0]));
+    expect(url.searchParams.has('search_text')).toBe(false);
+    expect(url.searchParams.get('catalog_ids')).toBe('1049');
+  });
   it('requests page one with 96 items and the price ceiling', async () => {
     const fetchFn = vi.fn().mockResolvedValueOnce(homepage()).mockResolvedValueOnce(catalog());
 

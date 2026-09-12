@@ -1,0 +1,112 @@
+<section class="mx-auto flex w-full max-w-7xl flex-col gap-4 p-6">
+  <app-page-header
+    title="Botbetrieb"
+    subtitle="Anfragen, Rückmeldungen und Sammelaufträge im Blick. Der Stand wird alle zehn Sekunden neu geladen."
+  />
+  @if (state.error(); as message) {
+    <p role="alert">
+      {{ message }} <app-button (clicked)="state.refresh()">Erneut laden</app-button>
+    </p>
+  }
+  @if (!state.loaded() && !state.error()) {
+    <p role="status">Betriebsstand wird geladen …</p>
+  }
+  @if (state.loaded()) {
+    <app-card padding="md">
+      <div class="flex flex-col gap-2">
+        <h2 class="text-base font-semibold">Verbindung zum Bot</h2>
+        <div>
+          <app-badge [tone]="state.stale() || state.error() ? 'caution' : 'success'">{{
+            state.stale() || state.error()
+              ? 'Betriebsstand unbestätigt'
+              : 'Aktuelle Betriebsmeldung'
+          }}</app-badge>
+        </div>
+        @if (state.runtime(); as runtime) {
+          <p class="text-sm">
+            Letzte Meldung: {{ runtime.reported_at | date: 'dd.MM.yyyy, HH:mm:ss' }}
+          </p>
+          @if (state.stale()) {
+            <p role="status" class="text-sm">
+              Seit mehr als zwei Minuten keine neue Meldung. Der Bot kann gestoppt sein, keine
+              Verbindung haben oder noch in einer langen Abfrage stecken.
+            </p>
+          }
+          @if (runtime.last_cycle_error) {
+            <p role="status" class="text-sm">Letzter Durchlauf: {{ runtime.last_cycle_error }}</p>
+          }
+        } @else {
+          <p class="text-sm">
+            Noch keine Betriebsmeldung. Prüfe, ob der Bot mit der aktuellen Version gestartet wurde.
+          </p>
+        }
+        <p class="text-xs text-fb-text-muted">
+          Eine Betriebsmeldung bestätigt den Kontakt zur Datenbank. Erfolgreiche Vinted-Abfragen
+          stehen separat an den Aufträgen.
+        </p>
+      </div>
+    </app-card>
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <app-card padding="md"
+        ><h2 class="text-sm">Anfragen · letzte Minute</h2>
+        <p class="mt-2 text-2xl font-semibold">
+          {{ state.runtime()?.requests_last_minute ?? '–' }} /
+          {{ state.runtime()?.request_budget ?? '–' }}
+        </p>
+        <p class="text-xs text-fb-text-muted">Zum Zeitpunkt der letzten Meldung</p></app-card
+      >
+      <app-card padding="md"
+        ><h2 class="text-sm">Abgewiesen · letzte Minute</h2>
+        <p class="mt-2 text-2xl font-semibold">
+          {{ state.runtime()?.rejected_last_minute ?? '–' }}
+        </p>
+        @if (state.runtime(); as runtime) {
+          <p class="text-xs text-fb-text-muted">
+            {{
+              (runtime.requests_last_minute
+                ? runtime.rejected_last_minute / runtime.requests_last_minute
+                : 0
+              ) | percent: '1.0-1'
+            }}
+            der Anfragen · HTTP 403 oder 429
+          </p>
+        }
+      </app-card>
+      <app-card padding="md"
+        ><h2 class="text-sm">Aufträge mit letzter Fehlermeldung</h2>
+        <p class="mt-2 text-2xl font-semibold">{{ problemQueries().length }}</p></app-card
+      >
+      <app-card padding="md"
+        ><h2 class="text-sm">Pausiert mit Fehlermeldung</h2>
+        <p class="mt-2 text-2xl font-semibold">{{ stoppedQueries().length }}</p></app-card
+      >
+    </div>
+    <app-card padding="md">
+      <div class="flex flex-col gap-3">
+        <h2 class="text-base font-semibold">Geplante Last und letzte Fehler</h2>
+        <p class="text-sm">
+          Aktive Aufträge benötigen rechnerisch {{ state.plannedRate() | number: '1.0-2' }} Abfragen
+          pro Minute. Aufwärmung und Wiederholungen zählen zusätzlich gegen das Budget.
+        </p>
+        <p class="text-sm">
+          Bei HTTP 403 pausiert der Bot den Auftrag sofort, bei sonstigen Fehlern nach drei
+          Fehlschlägen. HTTP 429 wird im nächsten verfügbaren Takt erneut versucht.
+        </p>
+        @for (query of problemQueries(); track query.id) {
+          <div class="border-t border-fb-border pt-3 text-sm">
+            <p class="font-semibold">
+              {{ query.search_text || 'Kategorie ' + query.catalog_id }} · {{ statusLabel(query) }}
+            </p>
+            <p>
+              {{ query.consecutive_failures }} Fehlschläge in Folge ·
+              {{ query.is_active ? 'Aktiv' : 'Pausiert' }}
+            </p>
+          </div>
+        } @empty {
+          <p class="text-sm">Aktuell ist an keinem Auftrag eine Fehlermeldung gespeichert.</p>
+        }
+        <div><app-button link="/admin/queries">Sammelaufträge verwalten</app-button></div>
+      </div>
+    </app-card>
+  }
+</section>

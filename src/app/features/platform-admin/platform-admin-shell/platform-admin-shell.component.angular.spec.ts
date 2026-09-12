@@ -20,6 +20,8 @@ const routes: Routes = [
     children: [
       { path: '', redirectTo: 'applications', pathMatch: 'full' },
       { path: 'applications', component: TestPageComponent },
+      { path: 'queries', component: TestPageComponent },
+      { path: 'operation', component: TestPageComponent },
       { path: 'categories', component: TestPageComponent },
     ],
   },
@@ -59,15 +61,19 @@ describe('PlatformAdminShellComponent', () => {
 
   // Der eigentliche Befund: Ohne Unternavigation kam man auf die
   // Kategorieliste nur ueber eine von Hand eingetippte Adresse.
-  it('verlinkt beide Bereiche der Administration', async () => {
+  it('verlinkt alle Bereiche der Administration', async () => {
     const { links } = await navigateTo('/admin/applications');
 
     expect(links.map((link) => link.textContent?.trim())).toEqual([
       'Bewerbungen',
+      'Sammelaufträge',
+      'Botbetrieb',
       'Kategorieliste',
     ]);
     expect(links.map((link) => link.getAttribute('href'))).toEqual([
       '/admin/applications',
+      '/admin/queries',
+      '/admin/operation',
       '/admin/categories',
     ]);
   });
@@ -82,7 +88,7 @@ describe('PlatformAdminShellComponent', () => {
 
     const categories = await navigateTo('/admin/categories');
 
-    expect(categories.links[1].getAttribute('aria-current')).toBe('page');
+    expect(categories.links[3].getAttribute('aria-current')).toBe('page');
     expect(categories.links[0].getAttribute('aria-current')).toBeNull();
   });
 

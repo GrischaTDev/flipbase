@@ -1,0 +1,139 @@
+<section class="mx-auto flex w-full max-w-7xl flex-col gap-4 p-6">
+  <app-page-header
+    title="Sammelaufträge"
+    subtitle="Hier legst du fest, welche Bereiche der Vinted-Bot regelmäßig durchsucht."
+  >
+    <app-button
+      header-actions
+      data-new-query
+      variant="primary"
+      [disabled]="editorOpen() || !state.loaded()"
+      (clicked)="openEditor()"
+      >Neuer Auftrag</app-button
+    >
+  </app-page-header>
+  @if (state.error(); as message) {
+    <p role="alert">
+      {{ message }} <app-button (clicked)="state.refresh()">Erneut laden</app-button>
+    </p>
+  }
+  @if (categoryError(); as message) {
+    <p role="alert">
+      {{ message }} <app-button (clicked)="loadCategories()">Kategorien erneut laden</app-button>
+    </p>
+  }
+  @if (error(); as message) {
+    <p role="alert">{{ message }}</p>
+  }
+  <p role="status" class="text-sm text-fb-text-secondary">{{ message() }}</p>
+  @if (editorOpen()) {
+    <app-sniper-query-editor
+      [query]="editing()"
+      [categories]="categories()"
+      [saving]="saving()"
+      [plannedRate]="state.plannedRate()"
+      [budget]="state.stale() ? null : (state.runtime()?.request_budget ?? null)"
+      (saved)="save($event)"
+      (cancelled)="closeEditor()"
+    />
+  }
+  <app-card padding="md">
+    <div class="flex flex-col gap-3">
+      <app-text-field
+        label="Aufträge durchsuchen"
+        type="search"
+        [formControl]="search"
+        placeholder="Kategorie, Suchbegriff, Markenkennung oder Notiz"
+      />
+      <p class="text-sm text-fb-text-secondary">
+        {{ state.queries().length }} Aufträge · Geplant:
+        {{ state.plannedRate() | number: '1.0-2' }} Abfragen pro Minute, zusätzlich Aufwärmung und
+        Wiederholungen.
+      </p>
+      @if (!state.loaded() && !state.error()) {
+        <p role="status">Aufträge werden geladen …</p>
+      } @else if (state.loaded() && state.queries().length === 0) {
+        <p>
+          Noch keine Sammelaufträge. Lege zunächst eine konkrete Kategorie oder einen Suchbegriff
+          fest.
+        </p>
+      } @else if (state.loaded() && filtered().length === 0) {
+        <p>Keine Aufträge für diese Suche gefunden.</p>
+      } @else if (state.loaded()) {
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm">
+            <caption class="sr-only">
+              Zentrale Vinted-Sammelaufträge
+            </caption>
+            <thead>
+              <tr class="border-b border-fb-border">
+                <th scope="col" class="p-3">Suchbereich</th>
+                <th scope="col" class="p-3">Preis und Takt</th>
+                <th scope="col" class="p-3">Betrieb</th>
+                <th scope="col" class="p-3">Neue Funde · 24 h</th>
+                <th scope="col" class="p-3">Aktionen</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (query of filtered(); track query.id) {
+                <tr class="border-b border-fb-border align-top">
+                  <th scope="row" class="max-w-sm p-3 font-normal">
+                    <p class="font-semibold">{{ categoryPath(query) }}</p>
+                    <p>{{ query.search_text || 'Ohne Suchbegriff' }}</p>
+                    @if (query.brand_id) {
+                      <p>Markenkennung {{ query.brand_id }}</p>
+                    }
+                    @if (query.notes) {
+                      <p class="mt-1 text-fb-text-muted">{{ query.notes }}</p>
+                    }
+                  </th>
+                  <td class="whitespace-nowrap p-3">
+                    {{ query.price_from === null ? 'Offen' : (query.price_from | currency: 'EUR') }}
+                    – {{ query.price_to === null ? 'offen' : (query.price_to | currency: 'EUR') }}
+                    <p class="text-fb-text-muted">
+                      Alle {{ query.poll_interval_ms / 1000 }} Sekunden
+                    </p>
+                  </td>
+                  <td class="p-3">
+                    <app-badge [tone]="query.is_active ? 'success' : 'neutral'">{{
+                      query.is_active ? 'Aktiv' : 'Pausiert'
+                    }}</app-badge>
+                    <p class="mt-1">{{ statusLabel(query) }}</p>
+                    @if (query.last_polled_at) {
+                      <p class="whitespace-nowrap text-xs text-fb-text-muted">
+                        {{ query.last_polled_at | date: 'dd.MM.yyyy, HH:mm:ss' }}
+                      </p>
+                    }
+                  </td>
+                  <td class="p-3 tabular-nums">{{ state.counts()[query.id] ?? 0 }}</td>
+                  <td class="p-3">
+                    <div class="flex flex-wrap gap-2">
+                      <app-button
+                        [disabled]="editorOpen()"
+                        [ariaLabel]="'Takt und Notiz bearbeiten: ' + categoryPath(query)"
+                        (clicked)="openEditor(query)"
+                        >Bearbeiten</app-button
+                      ><app-button
+                        [disabled]="busyId() !== null || editorOpen()"
+                        [loading]="busyId() === query.id"
+                        [ariaLabel]="
+                          (query.is_active ? 'Pausieren: ' : 'Aktivieren: ') + categoryPath(query)
+                        "
+                        (clicked)="toggle(query)"
+                        >{{ query.is_active ? 'Pausieren' : 'Aktivieren' }}</app-button
+                      >
+                    </div>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+      <p class="text-xs text-fb-text-muted">
+        Neue Funde zählen beim Auftrag, der sie zuerst entdeckt hat. Bei überlappenden Aufträgen
+        wird derselbe Artikel nur einmal gezählt.
+      </p>
+    </div>
+  </app-card>
+</section>

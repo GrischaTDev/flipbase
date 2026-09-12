@@ -1,7 +1,7 @@
 export type QueryStatus = 'never_polled' | 'ok' | 'rate_limited' | 'forbidden' | 'failed';
 
 export interface QueryKeyInput {
-  searchText: string;
+  searchText: string | null;
   catalogId?: number | null;
   brandId?: number | null;
   priceTo?: number | null;
@@ -12,7 +12,7 @@ export interface SniperQuery {
   id: string;
   queryKey: string;
   marketplace: 'vinted';
-  searchText: string;
+  searchText: string | null;
   catalogId: number | null;
   brandId: number | null;
   priceTo: number | null;
@@ -38,7 +38,7 @@ function part(value: number | null | undefined): string {
  * bekaeme ein Filter Ergebnisse einer fremden Abfrage.
  */
 export function buildQueryKey(input: QueryKeyInput): string {
-  const searchText = input.searchText.trim().toLowerCase().replace(/\s+/g, ' ');
+  const searchText = (input.searchText ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
 
   return [
     'vinted',
