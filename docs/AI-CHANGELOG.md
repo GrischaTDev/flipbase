@@ -1,5 +1,55 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-12 – Codex – Reine Markenaufträge für den gewünschten Botstart
+
+**Auftrag:** Nutzer wählt Nike, adidas und Ralph Lauren, alle Preise. Zentrale
+Sammlung und persönliche Merkzettel bleiben getrennte Filterebenen. Eigener
+Branch/Worktree `codex/vinted-brand-only-searches` von `origin/master` (`1c2e452`).
+Fremde Zweige unverändert.
+
+**Ursache und Änderung:** Der Sammler unterstützt Markenabfragen bereits, aber
+Tabellenbedingung, Verwaltungsfunktion und Formular verlangten zusätzlich
+Kategorie oder Suchtext. Reine Markenkennungen werden nun als ausreichender
+Zuschnitt akzeptiert. Komplett leere Aufträge und ungültige Marken bleiben
+gesperrt. Suchtext und Preisgrenzen werden nicht stillschweigend ergänzt.
+Rechte, pausiertes Anlegen und unveränderliche Filter bestehender Aufträge
+bleiben erhalten. Formular erklärt fehlende Preisbewertung bei unbekannter
+Kategorie; Suchlinkimport und Leermeldungen entsprechend angepasst.
+
+**Live-Prüfung:** Auf dem bestehenden Server nur lesende Vinted-Abfragen mit
+dem vorhandenen Sitzungsweg, ohne Speicherung der Artikel. Nike (53), adidas
+(14), Ralph Lauren (88): jeweils HTTP 200, 95/96 Artikel und ausschließlich
+die gesuchte Marke. Zweite Stichprobe nach rund zwölf Sekunden: 13/5/2 neue
+Artikel. Geplanter Starttakt: 20 Sekunden je Auftrag, etwa neun Anfragen pro
+Minute von 30. Stichprobe ist kein Vollständigkeitsnachweis. Antworten enthalten
+keine Kategoriekennung; daher keine erfundene Zuordnung oder Preisbewertung.
+„Polo Ralph Lauren“ (4273) ist eine separate Marke und nicht zusätzlich gewählt.
+
+**Datenbank:** Migration `20260912205352_sniper_brand_only_queries.sql` aus den
+deklarativen Schemadateien mit Supabase 2.114.0 generiert, vollständig geprüft
+und Schreibweise normalisiert. Ersetzt nur Tabellenbedingung und bestehende
+Verwaltungsfunktion; keine produktiven Daten, Aufträge oder Rechteänderungen.
+Typen aus migrierter isolierter Testdatenbank neu erzeugt, ohne Typendifferenz.
+Abschließender Schemaabgleich ohne Differenz; Testdatenbank samt temporären
+Volumes anschließend über deren CLI gestoppt. Projekt
+`flipbase-sniper-brand-only-test` getrennt auf dem Server, da lokales Docker
+nicht verfügbar ist. Kein Eingriff in die Produktionsdatenbank.
+
+**Prüfung:** 90 SQL-Tests für Administration, Merkzettelfeed und Bot-Schema
+grün. 118 Bot-Tests und elf Tests für Verwaltungsfilter/Linkimport grün.
+Browserabläufe für Desktop/hell und Handy/dunkel mit AXE und zusätzlichem
+Markenauftrag ohne Suchtext/Preise. Dabei fehlte der scrollbaren Auftragstabelle
+bei geöffnetem Formular der Tastaturzugang, weil ihre Knöpfe dann deaktiviert
+sind; Tabelle erhält einen fokussierbaren, benannten Scrollbereich.
+Beide Browserabläufe anschließend grün und Screenshots visuell geprüft.
+Anwendungs-/Bot-Typprüfung, Angular-Produktionsbau, gezieltes ESLint und
+Formatierung sowie Shared-UI-Prüfung grün.
+
+**Noch offen:** PR-Freigabe und Veröffentlichung.
+Danach die drei vorbereiteten Aufträge in der Administration anlegen und
+aktivieren und tatsächlichen Einlauf im Deal-Monitor prüfen. Aktuell weiterhin
+keine produktiven Sammelaufträge oder Merkzettel angelegt.
+
 ## 2026-09-12 – Codex – Nutzerfilter und Artikelansicht für den Deal-Monitor
 
 **Auftrag:** Freigegebene Fortsetzung nach PR #62, eigener Zweig

@@ -54,13 +54,18 @@
         <p role="status">Aufträge werden geladen …</p>
       } @else if (state.loaded() && state.queries().length === 0) {
         <p>
-          Noch keine Sammelaufträge. Lege zunächst eine konkrete Kategorie oder einen Suchbegriff
+          Noch keine Sammelaufträge. Lege zunächst eine Kategorie, Marke oder einen Suchbegriff
           fest.
         </p>
       } @else if (state.loaded() && filtered().length === 0) {
         <p>Keine Aufträge für diese Suche gefunden.</p>
       } @else if (state.loaded()) {
-        <div class="overflow-x-auto">
+        <div
+          class="overflow-x-auto focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
+          tabindex="0"
+          role="region"
+          aria-label="Sammelaufträge durchblättern"
+        >
           <table class="w-full text-left text-sm">
             <caption class="sr-only">
               Zentrale Vinted-Sammelaufträge

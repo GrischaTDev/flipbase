@@ -71,13 +71,16 @@ async function mockAdministration(page: Page) {
       }
       if (name === 'upsert_sniper_query') {
         if (body['p_id'])
-          Object.assign(rows[0], {
-            notes: body['p_notes'],
-            poll_interval_ms: body['p_poll_interval_ms'],
-          });
+          Object.assign(
+            rows.find((row) => row['id'] === body['p_id'])!,
+            {
+              notes: body['p_notes'],
+              poll_interval_ms: body['p_poll_interval_ms'],
+            },
+          );
         else
           rows.push({
-            id: 'query-1',
+            id: `query-${rows.length + 1}`,
             query_key: 'test',
             marketplace: 'vinted',
             search_text: body['p_search_text'],
@@ -98,7 +101,7 @@ async function mockAdministration(page: Page) {
           });
         json = 'query-1';
       } else {
-        rows[0]['is_active'] = body['p_active'];
+        rows.find((row) => row['id'] === body['p_id'])!['is_active'] = body['p_active'];
         json = null;
       }
     }
@@ -146,7 +149,7 @@ for (const theme of ['light', 'dark']) {
       page.getByRole('textbox', { name: 'Vinted-Suchlink übernehmen (optional)', exact: true }),
     ).toBeFocused();
     await page.getByRole('button', { name: 'Pausiert anlegen' }).click();
-    await expect(page.getByRole('alert')).toContainText('Kategorie oder einen Suchbegriff');
+    await expect(page.getByRole('alert')).toContainText('Kategorie, Marke oder einen Suchbegriff');
     await page
       .getByRole('searchbox', { name: 'Kategorie suchen', exact: true })
       .fill('Damen Stiefel');
@@ -227,6 +230,41 @@ for (const theme of ['light', 'dark']) {
           call.body['p_brand_id'] === 53,
       ),
     ).toBe(true);
+    await page.goto('/admin/queries');
+    await page.getByRole('button', { name: 'Neuer Auftrag', exact: true }).click();
+    await page
+      .getByRole('textbox', { name: 'Vinted-Suchlink übernehmen (optional)', exact: true })
+      .fill('https://www.vinted.de/catalog?brand_ids[]=53');
+    await page.getByRole('button', { name: 'Filter übernehmen' }).click();
+    await expect(
+      page.getByRole('textbox', {
+        name: 'Suchbegriff (optional bei Kategorie oder Marke)',
+        exact: true,
+      }),
+    ).toHaveValue('');
+    await expect(
+      page.getByRole('spinbutton', { name: 'Höchstpreis in EUR', exact: true }),
+    ).toHaveValue('');
+    await expect(
+      page.getByText('Ohne Kategorie werden Artikel gesammelt.', { exact: false }),
+    ).toBeVisible();
+    await checkAxe(page);
+    await page.screenshot({ path: testInfo.outputPath('brand-only-editor.png'), fullPage: true });
+    await page.getByRole('button', { name: 'Pausiert anlegen' }).click();
+    const brandRow = page.getByRole('row').filter({ hasText: 'Alle Kategorien' });
+    await expect(brandRow).toContainText('Markenkennung 53');
+    await expect(brandRow).toContainText('Pausiert');
+    backend.staleRuntime();
+    const savedBrand = backend.calls
+      .filter((call) => call.name === 'upsert_sniper_query')
+      .at(-1)?.body;
+    expect(savedBrand).toMatchObject({
+      p_catalog_id: null,
+      p_brand_id: 53,
+      p_search_text: '',
+      p_price_from: null,
+      p_price_to: null,
+    });
     expect(errors).toEqual([]);
   });
 }

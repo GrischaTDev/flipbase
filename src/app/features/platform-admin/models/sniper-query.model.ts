@@ -48,7 +48,7 @@ export function parseVintedSearchUrl(value: string): Partial<QueryDraft> {
     const values = [...params.getAll(key), ...params.getAll(`${key}[]`)];
     if (!values.length) return null;
     if (values.length !== 1 || !/^[1-9]\d*$/.test(values[0]))
-      throw new Error('Pro Auftrag bitte genau eine Kategorie und höchstens eine Marke wählen.');
+      throw new Error('Pro Auftrag bitte höchstens eine Kategorie und eine Marke wählen.');
     const result = Number(values[0]);
     if (result > 2147483647) throw new Error('Die Kennung ist zu groß.');
     return result;
@@ -72,8 +72,8 @@ export function parseVintedSearchUrl(value: string): Partial<QueryDraft> {
 }
 
 export function queryDraftError(draft: QueryDraft): string | null {
-  if (!draft.catalogId && !draft.searchText.trim())
-    return 'Bitte eine Kategorie oder einen Suchbegriff angeben.';
+  if (!draft.catalogId && draft.brandId === null && !draft.searchText.trim())
+    return 'Bitte eine Kategorie, Marke oder einen Suchbegriff angeben.';
   if (draft.searchText.length > 200 || draft.notes.length > 2000)
     return 'Suchbegriff (200 Zeichen) oder Notiz (2.000 Zeichen) ist zu lang.';
   if (

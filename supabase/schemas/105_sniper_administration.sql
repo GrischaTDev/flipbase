@@ -36,8 +36,8 @@ begin
     p_notes := nullif(btrim(p_notes), '');
     p_price_from := round(p_price_from, 2);
     p_price_to := round(p_price_to, 2);
-    if p_search_text is null and p_catalog_id is null then
-        raise exception 'Bitte Kategorie oder Suchbegriff angeben';
+    if p_search_text is null and p_catalog_id is null and p_brand_id is null then
+        raise exception 'Bitte Kategorie, Marke oder Suchbegriff angeben';
     end if;
     if p_catalog_id is not null and not exists (
         select 1 from public.vinted_categories where id = p_catalog_id and is_leaf

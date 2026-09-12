@@ -85,7 +85,10 @@ export class SniperQueryEditorComponent {
     const selected = this.selectedCategory();
     if (selected && !rows.some((c) => c.id === selected.id)) rows.unshift(selected);
     return [
-      { value: null as number | null, label: 'Ohne Kategorie (Suchbegriff erforderlich)' },
+      {
+        value: null as number | null,
+        label: 'Alle Kategorien (Marke oder Suchbegriff erforderlich)',
+      },
       ...rows.map((c) => ({ value: c.id, label: c.path })),
     ];
   });

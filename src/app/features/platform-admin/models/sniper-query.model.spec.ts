@@ -12,6 +12,19 @@ const draft: QueryDraft = {
   notes: '',
 };
 describe('Vinted search management', () => {
+  it.each([53, 14, 88])('accepts a brand-only search without price limits: %s', (brandId) => {
+    const imported = parseVintedSearchUrl(`https://www.vinted.de/catalog?brand_ids[]=${brandId}`);
+    expect(imported).toEqual({
+      catalogId: null,
+      brandId,
+      searchText: '',
+      priceFrom: null,
+      priceTo: null,
+    });
+    expect(queryDraftError({ ...draft, ...imported })).toBeNull();
+    expect(queryDraftError({ ...draft, ...imported, brandId: 0 })).toContain('Markenkennung');
+    expect(queryDraftError({ ...draft, ...imported, brandId: null })).toContain('Kategorie');
+  });
   it('imports category, brand and prices without a network request', () => {
     expect(
       parseVintedSearchUrl(

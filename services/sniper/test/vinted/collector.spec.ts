@@ -41,6 +41,25 @@ function build(fetchFn: ReturnType<typeof vi.fn>) {
 }
 
 describe('VintedCollector', () => {
+  it.each([53, 14, 88])(
+    'collects only brand %s without hidden text, category or price filters',
+    async (brandId) => {
+      const fetchFn = vi.fn().mockResolvedValueOnce(homepage()).mockResolvedValueOnce(catalog());
+      await build(fetchFn).collect({
+        ...query,
+        brandId,
+        searchText: null,
+        catalogId: null,
+        priceFrom: null,
+        priceTo: null,
+      });
+      const url = new URL(String(fetchFn.mock.calls[1]?.[0]));
+      expect(url.searchParams.get('brand_ids')).toBe(String(brandId));
+      for (const key of ['search_text', 'catalog_ids', 'price_from', 'price_to'])
+        expect(url.searchParams.has(key)).toBe(false);
+      expect(url.searchParams.get('order')).toBe('newest_first');
+    },
+  );
   it('collects a category without sending a null search term', async () => {
     const fetchFn = vi.fn().mockResolvedValueOnce(homepage()).mockResolvedValueOnce(catalog());
     await build(fetchFn).collect({ ...query, searchText: null, catalogId: 1049 });
