@@ -1,6 +1,6 @@
 \set ON_ERROR_STOP on
 begin;
-select plan(25);
+select plan(39);
 
 insert into auth.users (id, email) values
  ('a0000000-0000-4000-8000-000000000001', 'sniper-admin@example.test'),
@@ -50,5 +50,22 @@ update public.sniper_runtime_status set reported_at = now();
 set local role authenticated;
 select lives_ok($$select public.set_sniper_query_active((select id from public.sniper_queries where catalog_id = 2000000001), true)$$, 'Neustart nach Fehlern ist moeglich');
 select is((select consecutive_failures from public.sniper_queries where catalog_id = 2000000001), 0, 'Neustart setzt Fehlerzaehler zurueck');
+select lives_ok($$select public.upsert_sniper_query(null, null, null, brand_id, null, null, 10000, 'Markenstart') from (values (53), (14), (88)) as brands(brand_id)$$, 'Drei reine Markenauftraege ohne Preisgrenzen sind moeglich');
+select is((select count(*) from public.sniper_queries where catalog_id is null), 3::bigint, 'Je Marke genau ein Auftrag');
+select ok((select bool_and(search_text is null and price_from is null and price_to is null and not is_active) from public.sniper_queries where catalog_id is null), 'Keine versteckten Suchtexte, Preisgrenzen oder sofortige Aktivierung');
+select is((select query_key from public.sniper_queries where catalog_id is null and brand_id = 53), 'vinted|search=|catalog=-|brand=53|price_from=-|price_to=-', 'Reiner Markenschluessel passt zum Sammler');
+select throws_ok($$select public.upsert_sniper_query(null, '  ', null, 53, null, null, 60000, null)$$, 'P0001', 'Ein Auftrag mit diesen Filtern besteht bereits', 'Leerer Text legt keine zweite Markensuche an');
+select throws_ok($$select public.upsert_sniper_query(null, null, null, 0, null, null, 10000, null)$$, 'P0001', 'Ungueltige Markenkennung', 'Marke null ist ungueltig');
+select throws_ok($$select public.upsert_sniper_query(null, null, null, -1, null, null, 10000, null)$$, 'P0001', 'Ungueltige Markenkennung', 'Negative Marke wird abgelehnt');
+select lives_ok($$select public.upsert_sniper_query((select id from public.sniper_queries where catalog_id is null and brand_id = 53), null, null, 53, null, null, 20000, 'Nike')$$, 'Takt reiner Markensuche bleibt bearbeitbar');
+select throws_ok($$select public.upsert_sniper_query((select id from public.sniper_queries where catalog_id is null and brand_id = 53), null, null, 14, null, null, 20000, 'andere Marke')$$, 'P0001', 'Fuer andere Filter bitte einen neuen Auftrag anlegen', 'Marke eines vorhandenen Auftrags bleibt fest');
+select lives_ok($$select public.set_sniper_query_active((select id from public.sniper_queries where catalog_id is null and brand_id = 53), true)$$, 'Markenauftrag wird ueber die Administration aktiviert');
+select is((select is_active from public.sniper_queries where catalog_id is null and brand_id = 53), true, 'Reiner Markenauftrag ist aktiv');
+reset role;
+select throws_ok($$insert into public.sniper_queries(query_key) values ('empty-direct-test')$$, '23514', null, 'Tabellenregel verbietet vollstaendig ungefilterte Auftraege');
+select throws_ok($$insert into public.sniper_queries(query_key, brand_id) values ('invalid-brand-direct-test', 0)$$, '23514', null, 'Tabellenregel akzeptiert keine ungueltige Marke als einzigen Filter');
+select set_config('request.jwt.claim.sub', 'a0000000-0000-4000-8000-000000000002', true);
+set local role authenticated;
+select throws_ok($$select public.upsert_sniper_query(null, null, null, 88, null, null, 10000, null)$$, '42501', null, 'Reine Markenauftraege bleiben auf die Administration beschraenkt');
 select * from finish();
 rollback;

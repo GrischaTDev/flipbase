@@ -35,7 +35,10 @@ create table if not exists public.sniper_queries (
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now(),
     notes text,
-    constraint sniper_queries_filter_required check (nullif(btrim(search_text), '') is not null or catalog_id is not null),
+    constraint sniper_queries_filter_required check (
+        nullif(btrim(search_text), '') is not null or catalog_id is not null
+        or (brand_id is not null and brand_id > 0)
+    ),
     constraint sniper_queries_interval_valid check (poll_interval_ms between 10000 and 86400000),
     constraint sniper_queries_price_range_valid check (price_from is null or price_to is null or price_from <= price_to)
 );

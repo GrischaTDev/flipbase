@@ -146,13 +146,47 @@ und `up -d` ausführen. Kategorien und Geschäftsdaten dabei nicht löschen.
 
 Die Administration enthält jetzt **Sammelaufträge** (`/admin/queries`) und
 **Botbetrieb** (`/admin/operation`). Ein Auftrag braucht eine gespeicherte
-Blattkategorie oder einen Suchbegriff. Ein deutscher Vinted-Suchlink kann eine
+Blattkategorie, eine Marke oder einen Suchbegriff. Ein deutscher Vinted-Suchlink kann eine
 Kategorie, eine Markenkennung und Preisgrenzen übernehmen; nicht unterstützte
 Filter werden abgelehnt. Eine Live-Markensuche nach Namen ist noch nicht enthalten.
 Neue Aufträge werden pausiert gespeichert. Aktivieren setzt eine höchstens zwei
 Minuten alte Betriebsmeldung voraus. Der Suchzuschnitt bleibt nach dem Anlegen
 unveränderlich, damit bisherige Funde und Preisvergleiche ihre Bedeutung behalten;
 Takt und Notiz bleiben bearbeitbar. Für andere Filter einen neuen Auftrag anlegen.
+
+Reine Markenaufträge brauchen weder Suchtext noch Preisgrenzen. Leere
+Preisfelder bedeuten unbegrenzt, ein leerer Suchtext setzt keinen zusätzlichen
+Titelfilter. Im Formular genügt beispielsweise
+`https://www.vinted.de/catalog?brand_ids[]=53` für Nike. Vollständig ungefilterte
+Aufträge bleiben gesperrt. Ohne bekannte Artikelkategorie gibt es weiterhin
+keinen Referenzpreis oder bewerteten Deal; die Artikelansicht funktioniert.
+
+### Gewünschter Markenstart vom 12.09.2026
+
+Der Nutzer wählt Nike, adidas und Ralph Lauren ohne Preisgrenzen. Geplant ist
+je ein eigener Auftrag mit leeren Kategorie-/Suchtext-/Preisfeldern und zunächst
+20 Sekunden Takt, zusammen etwa neun Katalogabrufe pro Minute. Diese Tabelle ist
+die Vorbereitung, kein Nachweis bereits angelegter oder aktivierter Aufträge.
+
+| Marke        | Vinted-Suchlink                                                  | Preisgrenzen |
+| ------------ | ---------------------------------------------------------------- | ------------ |
+| Nike         | [Nike](https://www.vinted.de/catalog?brand_ids%5B%5D=53)         | keine        |
+| adidas       | [adidas](https://www.vinted.de/catalog?brand_ids%5B%5D=14)       | keine        |
+| Ralph Lauren | [Ralph Lauren](https://www.vinted.de/catalog?brand_ids%5B%5D=88) | keine        |
+
+Alle drei Markenfilter lieferten vom Server HTTP 200 und ausschließlich die
+jeweilige Marke. Zwei Abrufe im Abstand von rund zwölf Sekunden ergaben
+13/5/2 neue Artikel für Nike/adidas/Ralph Lauren. Das ist eine kurze Stichprobe,
+keine Garantie lückenloser Erfassung. Antworten enthalten keine Kategoriekennung;
+die Kategorie wird nicht aus Titel oder Marke geraten. Separate Marken wie
+„Polo Ralph Lauren“ sind nicht automatisch Bestandteil der Kennung 88.
+
+Nach Veröffentlichung der Markenauftrag-Migration die drei Aufträge über die
+Administration pausiert anlegen, Kriterien kontrollieren und aktivieren.
+Anschließend Erstbestand, mindestens einen weiteren Sammellauf und Botfehler
+prüfen. Persönliche Merkzettel bleiben die zweite Filterebene auf dem Bestand.
+Diese Änderung benötigt keinen neuen Sammlercode; der veröffentlichte Bot
+unterstützt die Kombination bereits.
 
 Die Migration `20260912165527_sniper_administration.sql` muss **vor** dem neuen
 Botabbild angewendet werden. Danach genau den bisherigen Container aktualisieren.
