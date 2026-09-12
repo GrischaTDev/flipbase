@@ -7,7 +7,8 @@ test('aligns purchase navigation and keeps compact actions with the primary acti
   await page.setViewportSize({ width: 1440, height: 1000 });
   await startDemoMode(page);
   await page.goto('/purchases/new');
-  await page.getByRole('textbox', { name: 'Beschreibung (optional)' }).fill('Kopfzeilen-Test');
+  // Die Liste zeigt die Bezeichnung des Einkaufs, nicht seine Notiz.
+  await page.getByRole('textbox', { name: 'Bezeichnung (optional)' }).fill('Kopfzeilen-Test');
   await page.getByRole('button', { name: 'Entwurf speichern', exact: true }).click();
   await page.locator('[data-purchase-description]').filter({ hasText: 'Kopfzeilen-Test' }).click();
   const header = page.locator('app-entry-page-layout header');

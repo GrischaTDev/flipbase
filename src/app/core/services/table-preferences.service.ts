@@ -189,6 +189,25 @@ export class TablePreferencesService {
     return `${workspaceId}:${tableId}`;
   }
 
+  /** Die Reihenfolge, die vor dem Vorziehen des Verkäufers als Vorgabe galt. */
+  private static readonly LEGACY_PURCHASE_ORDER = [
+    'title',
+    'description',
+    'seller',
+    'purchase_date',
+    'status',
+    'receipt',
+    'total_cost',
+  ];
+
+  private hasLegacyPurchaseOrder(columns: readonly { id: string; order?: number }[]): boolean {
+    const order = [...columns]
+      .sort((left, right) => (left.order ?? 0) - (right.order ?? 0))
+      .map((column) => column.id);
+    const legacy = TablePreferencesService.LEGACY_PURCHASE_ORDER;
+    return order.length === legacy.length && order.every((id, index) => id === legacy[index]);
+  }
+
   private getStorageKey(tableId: TableId, workspaceId: string): string {
     return `flipbase:table_prefs:${workspaceId}:${tableId}`;
   }
@@ -230,6 +249,7 @@ export class TablePreferencesService {
 
       // Schema-drift merge: reconcile stored columns with defaults
       const storedMap = new Map(parsed.columns.map((c) => [c.id, c]));
+      const storedOrder = new Map(parsed.columns.map((c) => [c.id as string, c]));
       const mergedColumns: ColumnDefinition<TColumnId>[] = [];
 
       for (const defCol of config.defaultColumns) {
@@ -252,6 +272,20 @@ export class TablePreferencesService {
       const validSort: TableSortState<TSortField> = isValidSortField
         ? parsed.sort
         : { ...config.defaultSort };
+
+      // Der Verkäufer ist in der Vorgabe vor die Bezeichnung gerückt. Eine
+      // gespeicherte Reihenfolge würde das sonst nie erfahren. Die Übernahme
+      // greift nur bei exakt der alten Vorgabe: wer selbst sortiert hat,
+      // behält seine Sortierung.
+      if (tableId === 'purchases' && this.hasLegacyPurchaseOrder(parsed.columns)) {
+        const reordered = [...config.defaultColumns].map((column, order) => ({
+          ...column,
+          visible: column.locked ? true : (storedOrder.get(column.id)?.visible ?? column.visible),
+          order,
+        })) as ColumnDefinition<TColumnId>[];
+        this.savePreferences(tableId, workspaceId, reordered, validSort);
+        return { columns: reordered, sort: validSort };
+      }
 
       // Entfernte Einkaufsspalten dauerhaft aus Altpräferenzen entfernen;
       // übrige Sichtbarkeit und Reihenfolge bleiben bestehen.

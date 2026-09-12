@@ -1,5 +1,63 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-12 – Claude Opus 5 (Anthropic) – Bezeichnung im Einkauf und Spaltenreihenfolge
+
+**Auftrag/Ergebnis:** Ein fehlschlagender Browsertest war der sichtbare Zipfel
+einer längeren Kette. Das Einkaufsformular hat jetzt ein sichtbares Feld
+„Bezeichnung (optional)", der Verkäufer steht in der Liste an zweiter Stelle,
+und alle vier roten Browsertests sind repariert. Zweig
+`feat/purchase-name-and-column-order`, abgezweigt von `master` (b413c44).
+Entwurf unter
+`docs/superpowers/specs/2026-09-12-purchase-name-and-column-order-design.md`.
+
+**Ursachen:**
+
+- Das Formular legt ein Steuerfeld `title` ohne Pflichtprüfung an, hat dazu
+  aber **kein Eingabefeld**. Es blieb deshalb immer leer. Die Datenbank
+  verlangt eine Bezeichnung ausdrücklich (`purchases.title TEXT NOT NULL`);
+  ein leerer Text erfüllt das formal. Die Liste liest `purchase.title` und
+  fiel über `supplier?.name` auf das nichtssagende `'Einkauf'` zurück.
+- Drei Browsertests erwarteten an dieser Stelle den Text aus „Beschreibung
+  (optional)". Der schreibt nach `notes` und taucht dort nie auf. Die Tests
+  stammen aus einer Zeit, als es das Eingabefeld noch gab.
+- Der vierte Test ist unabhängig veraltet: Commit `ba9dae1` vom 11.09.2026
+  hat den Knopf im Verkäuferdialog bewusst von `dialogTitle()` („Verkäufer
+  erstellen") auf „Speichern" umgestellt, ohne den Test nachzuziehen.
+
+**Entscheidungen des Nutzers:** Die Bezeichnung bleibt **optional** — ein
+Entwurf lässt sich weiter ohne sie speichern. Dafür rückt der Verkäufer in der
+Liste vor die Bezeichnung: ohne Bezeichnung ist er das Einzige, woran sich ein
+Einkauf erkennen lässt. Das vorhandene Beschreibungsfeld wurde bewusst **nicht**
+zur Bezeichnung umgewidmet; es schreibt nach `notes` und erschiene in der Liste
+trotzdem nicht. Zwei Felder mit je einer klaren Aufgabe.
+
+**Funde, die erst die Prüfung aufgedeckt haben:**
+
+- Gespeicherte Spalteneinstellungen behalten ihre eigene Reihenfolge; eine
+  geänderte Vorgabe hätte vorhandene Nutzer nie erreicht. Deshalb eine eng
+  gefasste einmalige Übernahme im `TablePreferencesService`, nach dem Vorbild
+  der dort bereits vorhandenen Bereinigung. Sie greift nur bei **exakt** der
+  alten Vorgabe; wer selbst sortiert hat, behält seine Sortierung. Zwei Tests
+  decken beide Fälle ab.
+- `input#purchase-base-price` existiert im gesamten Quelltext nicht mehr; der
+  Warenbetrag entsteht heute aus den Positionen. Der betroffene Test geht jetzt
+  denselben Weg wie der bereits grüne Test `distributes a package price per
+position`.
+- **Von 63 Browsertests laufen nur 8 in der CI.** `playwright.pr.config.ts`
+  und `playwright.nightly.config.ts` filtern beide auf `@pr-smoke`. In zwei der
+  betroffenen Dateien trägt jeweils ein Test die Markierung, und ausgerechnet
+  die unmarkierten Geschwister daneben waren rot — die Dateien sehen abgedeckt
+  aus, sind es aber nicht. Auf ausdrücklichen Wunsch des Nutzers hier **nicht**
+  geändert, nur festgehalten.
+
+**Prüfung:** `npm run verify` grün (1984 Tests, Typprüfung, ESLint,
+Formatierung, Produktionsbau). Der **vollständige** lokale Browserlauf ist
+erstmals wieder grün: 80 von 80 statt zuvor 76 von 80. Sichtprüfung in der
+Demo: neues Feld über Verkäufer und Kaufdatum, Spalten in der Reihenfolge
+Einkauf, Verkäufer, Bezeichnung, Kaufdatum, und ein benannter Entwurf erscheint
+mit seiner Bezeichnung statt mit „Einkauf". Keine Backend- oder Schemaänderung;
+`purchases.title` war bereits vorhanden.
+
 ## 2026-09-12 – Claude Opus 5 (Anthropic) – Chronik im Shopify-Stil
 
 **Auftrag/Ergebnis:** Die gemeinsame Chronik von Einkäufen und Verkäufen liest

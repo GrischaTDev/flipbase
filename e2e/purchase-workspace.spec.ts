@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { startDemoMode } from './support/demo';
+import { addNewPurchaseProduct } from './support/products';
 
 test('opens an existing purchase directly without runtime errors @pr-smoke', async ({ page }) => {
   const errors: string[] = [];
@@ -18,8 +19,17 @@ test('edits a saved purchase in place and retains discounted totals after reload
 }) => {
   await startDemoMode(page);
   await page.goto('/purchases/new');
-  await page.getByRole('textbox', { name: 'Beschreibung (optional)' }).fill('Arbeitsbereich-Test');
-  await page.locator('input#purchase-base-price').fill('100');
+  // Die Liste zeigt die Bezeichnung; die Beschreibung bleibt die Notiz und
+  // wird weiter unten auf ihren Rundlauf geprueft.
+  await page.getByRole('textbox', { name: 'Bezeichnung (optional)' }).fill('Arbeitsbereich-Test');
+  await page.getByRole('textbox', { name: 'Beschreibung (optional)' }).fill('Arbeitsbereich-Notiz');
+  // Ein eigenes Feld fuer den Warenbetrag gibt es nicht mehr; er entsteht aus
+  // den Positionen. Denselben Weg geht der gruene Test "distributes a package
+  // price per position".
+  await addNewPurchaseProduct(page, 'Arbeitsbereich-Position');
+  await page.getByRole('button', { name: 'Paketpreis verteilen', exact: true }).click();
+  await page.getByRole('spinbutton', { name: 'Gesamtpreis des Pakets' }).fill('100');
+  await page.getByRole('button', { name: 'Verteilen', exact: true }).click();
   await page.getByRole('button', { name: 'Entwurf speichern', exact: true }).click();
   await page
     .locator('[data-purchase-description]')
@@ -29,13 +39,13 @@ test('edits a saved purchase in place and retains discounted totals after reload
   const detailUrl = page.url();
 
   await expect(page.getByRole('textbox', { name: 'Beschreibung (optional)' })).toHaveValue(
-    'Arbeitsbereich-Test',
+    'Arbeitsbereich-Notiz',
   );
   await expect(page.getByRole('button', { name: 'Verwerfen', exact: true })).toHaveCount(0);
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Bearbeiten', exact: true })).toHaveCount(0);
 
-  await page.getByRole('textbox', { name: 'Beschreibung (optional)' }).fill('Bearbeiteter Einkauf');
+  await page.getByRole('textbox', { name: 'Bezeichnung (optional)' }).fill('Bearbeiteter Einkauf');
   await page.getByRole('button', { name: 'Kosten bearbeiten', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Kostenübersicht verwalten' });
   await dialog.getByRole('combobox', { name: 'Anpassung 1', exact: true }).click();
@@ -48,8 +58,12 @@ test('edits a saved purchase in place and retains discounted totals after reload
     0,
   );
   await expect(page).toHaveURL(detailUrl);
-  await expect(page.getByRole('textbox', { name: 'Beschreibung (optional)' })).toHaveValue(
+  await expect(page.getByRole('textbox', { name: 'Bezeichnung (optional)' })).toHaveValue(
     'Bearbeiteter Einkauf',
+  );
+  // Die Notiz bleibt beim Bearbeiten unangetastet erhalten.
+  await expect(page.getByRole('textbox', { name: 'Beschreibung (optional)' })).toHaveValue(
+    'Arbeitsbereich-Notiz',
   );
   await expect(page.getByRole('region', { name: 'Kostenübersicht', exact: true })).toContainText(
     '90,00',

@@ -194,6 +194,81 @@ describe('TablePreferencesService – Polaris Table Preferences & Reordering', (
     ).toBe(false);
   });
 
+  it('zieht die alte Standardreihenfolge einmalig auf den Verkäufer vorn nach', () => {
+    localStorage.setItem(
+      `flipbase:table_prefs:${testWorkspaceId}:purchases`,
+      JSON.stringify({
+        version: 1,
+        columns: [
+          { id: 'title', visible: true, order: 0 },
+          { id: 'description', visible: true, order: 1 },
+          { id: 'seller', visible: true, order: 2 },
+          { id: 'purchase_date', visible: true, order: 3 },
+          { id: 'status', visible: true, order: 4 },
+          { id: 'receipt', visible: true, order: 5 },
+          { id: 'total_cost', visible: true, order: 6 },
+        ],
+        sort: { field: 'purchase_date', direction: 'desc' },
+      }),
+    );
+
+    const state = service.getTablePreferences('purchases', testWorkspaceId)();
+
+    expect(state.columns.map((column) => column.id)).toEqual([
+      'title',
+      'seller',
+      'description',
+      'purchase_date',
+      'status',
+      'receipt',
+      'total_cost',
+    ]);
+    const stored = JSON.parse(
+      localStorage.getItem(`flipbase:table_prefs:${testWorkspaceId}:purchases`) ?? '{}',
+    );
+    expect(stored.columns.map((column: { id: string }) => column.id)).toEqual([
+      'title',
+      'seller',
+      'description',
+      'purchase_date',
+      'status',
+      'receipt',
+      'total_cost',
+    ]);
+  });
+
+  it('lässt eine selbst gewählte Spaltenreihenfolge unangetastet', () => {
+    localStorage.setItem(
+      `flipbase:table_prefs:${testWorkspaceId}:purchases`,
+      JSON.stringify({
+        version: 1,
+        columns: [
+          { id: 'title', visible: true, order: 0 },
+          { id: 'description', visible: true, order: 1 },
+          { id: 'seller', visible: true, order: 2 },
+          { id: 'status', visible: true, order: 3 },
+          { id: 'purchase_date', visible: false, order: 4 },
+          { id: 'receipt', visible: true, order: 5 },
+          { id: 'total_cost', visible: true, order: 6 },
+        ],
+        sort: { field: 'purchase_date', direction: 'desc' },
+      }),
+    );
+
+    const state = service.getTablePreferences('purchases', testWorkspaceId)();
+
+    expect(state.columns.map((column) => column.id)).toEqual([
+      'title',
+      'description',
+      'seller',
+      'status',
+      'purchase_date',
+      'receipt',
+      'total_cost',
+    ]);
+    expect(state.columns.find((column) => column.id === 'purchase_date')?.visible).toBe(false);
+  });
+
   it('should return default preferences when nothing is stored', () => {
     const prefs = service.getTablePreferences('sales', testWorkspaceId)();
     expect(prefs.columns.length).toBe(SALES_TABLE_CONFIG.defaultColumns.length);

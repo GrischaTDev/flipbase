@@ -118,8 +118,10 @@ export type PurchasesSortField = 'purchase_date' | 'total_cost' | 'title';
 export const PURCHASES_TABLE_CONFIG: TableConfig<PurchasesColumnId, PurchasesSortField> = {
   defaultColumns: [
     { id: 'title', label: 'Einkauf', visible: true, order: 0, locked: true },
-    { id: 'description', label: 'Bezeichnung', visible: true, order: 1 },
-    { id: 'seller', label: 'Verkäufer', visible: true, order: 2 },
+    // Der Verkäufer steht vor der Bezeichnung: ohne Bezeichnung ist er das
+    // Einzige, woran sich ein Einkauf in der Liste erkennen lässt.
+    { id: 'seller', label: 'Verkäufer', visible: true, order: 1 },
+    { id: 'description', label: 'Bezeichnung', visible: true, order: 2 },
     { id: 'purchase_date', label: 'Kaufdatum', visible: true, order: 3 },
     { id: 'status', label: 'Status', visible: true, order: 4 },
     { id: 'receipt', label: 'Erhalten', visible: true, order: 5 },

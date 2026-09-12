@@ -14,9 +14,8 @@ test('can save a draft after dismissing an open cost selector and cancelling the
   await page.getByRole('button', { name: 'Abbrechen', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'Kostenübersicht verwalten' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Kosten bearbeiten', exact: true })).toBeFocused();
-  await page
-    .getByRole('textbox', { name: 'Beschreibung (optional)' })
-    .fill('Dropdown-Abbruch-Test');
+  // Die Liste zeigt die Bezeichnung des Einkaufs, nicht seine Notiz.
+  await page.getByRole('textbox', { name: 'Bezeichnung (optional)' }).fill('Dropdown-Abbruch-Test');
   await page.getByRole('button', { name: 'Entwurf speichern', exact: true }).click();
   await expect(page).toHaveURL(/\/purchases$/);
   await expect(
