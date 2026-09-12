@@ -142,7 +142,7 @@ Bei Problemen den Bot mit `docker compose -f docker-compose.sniper.yml stop`
 anhalten oder `FLIPBASE_SNIPER_IMAGE` auf das vorherige geprüfte Abbild setzen
 und `up -d` ausführen. Kategorien und Geschäftsdaten dabei nicht löschen.
 
-## Nachfolgende Pakete
+## Sammelaufträge und Betrieb
 
 Die Administration enthält jetzt **Sammelaufträge** (`/admin/queries`) und
 **Botbetrieb** (`/admin/operation`). Ein Auftrag braucht eine gespeicherte
@@ -171,14 +171,36 @@ Anfragen. Die Oberfläche unterscheidet die letzte Betriebsmeldung von einem
 erfolgreichen Vinted-Abruf und kennzeichnet alte Werte. Fundzahlen über 24 Stunden
 zählen beim ersten entdeckenden Auftrag, nicht mehrfach bei Überlappung.
 
-Die ältere Abonnementfunktion und `is_standard` bleiben für die bestehenden
-Verträge bis zur Merkzettel-Migration erhalten. Das ist noch keine vollständige
-Trennung von Nutzerfiltern und zentraler Sammlung.
+## Nutzerfilter und Artikelansicht
 
-Getrennte Nutzerfilter und die Artikelansicht unter Werkzeuge folgen als weitere
-Pakete. Die Nutzeridee bleibt: drei neueste Angebote
-oben, darunter ein Artikelraster, getrennte Sicht auf neue Angebote und bewertete
-Deals sowie pausierbarer Zulauf. Dieser Schritt legt keine Suchaufträge an.
+Unter **Werkzeuge → Deal-Monitor** (`/deal-monitor`) stehen drei neueste Funde
+und ein chronologisches Artikelraster bereit. Auf dem Handy sind die drei
+Highlights seitlich durchblätterbar. Die Ansicht fragt alle zehn Sekunden nach;
+der sichtbare Zulauf lässt sich pausieren. Ältere Seiten laden pausiert nach,
+höchstens 300 Artikel gleichzeitig. Fortsetzen beginnt wieder bei den neuesten.
+
+Merkzettel gehören zum Arbeitsbereich. Sie filtern Kategorie, Markenname,
+Suchtext, Zustand und Preis und legen den gewünschten Preisabstand für Deals fest.
+Sie lösen keine Vinted-Anfragen aus und verändern keine zentralen Sammelaufträge.
+Eine neue oder geänderte Suche meldet nur künftig entdeckte Deals; die
+Artikelansicht zeigt auch passenden Bestand. Pausierte Merkzettel behalten ihre
+historischen Treffer. Löschen entfernt den Merkzettel samt Treffern, keine Artikel.
+
+Die beiden Migrationen `20260912190016_sniper_watchlists_feed.sql` und
+`20260912191519_sniper_watchlist_legacy_permissions.sql` übernehmen bestehende
+Abonnements und Treffer in getrennte Merkzetteltabellen. Die alten Tabellen
+bleiben erhalten; der alte Browser-Schreibweg für Sammelaufträge wird gesperrt.
+Der aktualisierte Bot bewertet ausschließlich die neuen Merkzettel. Jeder Fund
+kann zu mehreren passenden Merkzetteln gehören, unabhängig vom ersten Auftrag.
+Übernommene Markenkennungen bleiben kompatibel, bis ein Markenname gesetzt wird;
+für einen Filter ohne diese alte Markenbindung einen neuen Merkzettel anlegen.
+
+**Release-Reihenfolge:** Den bisherigen Bot vor der Datenübernahme anhalten,
+dann Migrationen und Anwendung veröffentlichen, anschließend den Bot mit dem
+geprüften Abbild desselben Releases starten. So entstehen während der Übernahme
+keine ausschließlich alten Treffer. Keine zweite Instanz parallel starten.
+Nach einem Rückwechsel auf die alte Botversion würden neue Merkzettel nicht mehr
+bewertet; das ist kein vollständiger fachlicher Rollback.
 
 ## Referenzpreise und Aufbewahrung
 
@@ -191,9 +213,11 @@ endliche EUR-Artikelpreise fließen ein. Klebt mehr als ein Drittel der Gruppe
 am jeweiligen Preislimit des entdeckenden Auftrags, bleibt die Bewertung aus;
 eine solche Markengruppe wird nicht durch einen allgemeineren Vergleich ersetzt.
 
-Die Kategorie stammt aus dem unveränderlichen Entdeckungsauftrag. Reine
-Textsuchen ohne Kategorie sammeln weiterhin, bekommen aber keinen geschätzten
-Referenzpreis. Mehrere Aufträge derselben Kategorie tragen gemeinsam zum
+Die erste bekannte Kategorie wird am Artikel festgehalten. Ein späterer Fund
+durch einen Kategorieauftrag kann sie ergänzen, ohne Erstfund und ursprünglichen
+Entdeckungsauftrag zu ändern. Dessen Kategoriequelle liefert dann auch das
+Preislimit für den Vergleich. Reine Textfunde ohne bekannte Kategorie bekommen
+keinen geschätzten Referenzpreis. Mehrere Aufträge derselben Kategorie tragen gemeinsam zum
 Vergleich bei. Jeder Treffer speichert `reference_scope` und den damaligen
 Preis; historische Treffer bleiben als `legacy_query_condition` erkennbar.
 Die bisherige RPC-Signatur für Abfrage/Zustand bleibt kompatibel erhalten.
@@ -211,8 +235,7 @@ beginnt beim Start des aktualisierten Dienstes. Ein Rückwechsel auf das alte
 Abbild stoppt die neue Bereinigung, stellt bereits gelöschte Artikel aber nicht
 wieder her. Dafür ist das Datenbankbackup nötig.
 
-Noch offen für das Nutzerfilter-Paket: Ein mehrfach gefundener Artikel gehört
-weiterhin zum ersten Entdeckungsauftrag. Die Trefferzuordnung ist damit noch
-nicht unabhängig von überlappenden Aufträgen. Gelöschte Artikel können bei
+Die Statistik zählt mehrfach gefundene Artikel weiterhin beim ersten Auftrag;
+die unabhängige Merkzettelbewertung ist davon getrennt. Gelöschte Artikel können bei
 einem erneuten Fund wieder aufgenommen werden; eine dauerhafte Liste gelöschter
 Marktplatzkennungen wird nicht geführt.

@@ -68,6 +68,9 @@ create table if not exists public.sniper_listings (
     discovered_by_query_id uuid references public.sniper_queries (id) on delete set null,
     first_seen_at timestamptz not null default now(),
     evaluated_at timestamptz,
+    catalog_id integer,
+    catalog_source_query_id uuid references public.sniper_queries (id) on delete set null,
+    watchlist_evaluated_at timestamptz,
     unique (marketplace, external_id)
 );
 
@@ -408,7 +411,7 @@ as $$
         select listing.item_price, query.price_to,
                nullif(lower(btrim(listing.brand)), '') as brand
         from public.sniper_listings as listing
-        join public.sniper_queries as query on query.id = listing.discovered_by_query_id
+        join public.sniper_queries as query on query.id = coalesce(listing.catalog_source_query_id, listing.discovered_by_query_id)
         where query.catalog_id = p_catalog_id
           and query.marketplace = 'vinted'
           and listing.marketplace = 'vinted'

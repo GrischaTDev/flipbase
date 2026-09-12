@@ -1,0 +1,117 @@
+<app-card padding="md">
+  <form
+    [formGroup]="form"
+    (ngSubmit)="submit()"
+    aria-label="Merkzettel bearbeiten"
+    class="flex flex-col gap-4"
+  >
+    <fieldset [disabled]="saving()" class="flex min-w-0 flex-col gap-4">
+      <h2 class="text-base font-semibold">
+        {{ watchlist() ? 'Merkzettel bearbeiten' : 'Neuer Merkzettel' }}
+      </h2>
+      <p class="text-sm text-fb-text-secondary">
+        Artikel zeigt auch passenden Bestand. Neue Deals werden ab dem Speichern deiner
+        Suchkriterien gemeldet.
+      </p>
+      <app-text-field
+        label="Name des Merkzettels"
+        formControlName="title"
+        placeholder="Zum Beispiel Nike-Sneaker"
+        [error]="
+          form.controls.title.touched && form.controls.title.invalid
+            ? 'Bitte einen Namen mit höchstens 100 Zeichen eingeben.'
+            : null
+        "
+      />
+      <app-text-field
+        label="Kategorie suchen"
+        type="search"
+        [formControl]="categorySearch"
+        placeholder="Zum Beispiel Herren Schuhe"
+      />
+      <div>
+        <label for="watchlist-category" class="mb-1 block text-sm">Kategorie</label>
+        <app-custom-select
+          triggerId="watchlist-category"
+          placeholder="Alle gesammelten Kategorien"
+          ariaLabel="Kategorie"
+          [options]="categoryOptions()"
+          formControlName="catalog_id"
+        />
+      </div>
+      <div class="grid gap-4 sm:grid-cols-2">
+        <app-text-field
+          label="Marke (optional)"
+          formControlName="brand"
+          placeholder="Zum Beispiel Nike"
+          helpText="Vollständiger Markenname wie im Artikel. Großschreibung spielt keine Rolle."
+        />
+        <app-text-field
+          label="Suchbegriff (optional)"
+          formControlName="search_text"
+          placeholder="Wort oder Wortfolge im Titel oder Text"
+        />
+        <div>
+          <label for="watchlist-min" class="mb-1 block text-sm">Mindestpreis in EUR</label
+          ><app-number-input
+            id="watchlist-min"
+            ariaLabel="Mindestpreis in EUR"
+            formControlName="price_from"
+            [min]="0"
+            [step]="0.01"
+            [asCurrency]="true"
+          />
+        </div>
+        <div>
+          <label for="watchlist-max" class="mb-1 block text-sm">Höchstpreis in EUR</label
+          ><app-number-input
+            id="watchlist-max"
+            ariaLabel="Höchstpreis in EUR"
+            formControlName="price_to"
+            [min]="0"
+            [step]="0.01"
+            [asCurrency]="true"
+          />
+        </div>
+        <div>
+          <label for="watchlist-condition" class="mb-1 block text-sm">Zustand</label
+          ><app-custom-select
+            triggerId="watchlist-condition"
+            ariaLabel="Zustand"
+            formControlName="condition"
+            [options]="conditionOptions"
+          />
+        </div>
+        <div>
+          <label for="watchlist-discount" class="mb-1 block text-sm"
+            >Mindestens unter Vergleichspreis (%)</label
+          ><app-number-input
+            id="watchlist-discount"
+            ariaLabel="Mindestens unter Vergleichspreis in Prozent"
+            formControlName="discount_threshold_percent"
+            [min]="0.01"
+            [max]="99.99"
+          />
+        </div>
+      </div>
+      @if (watchlist()?.legacy_brand_id) {
+        <p class="text-sm">
+          Übernommene Markenkennung: {{ watchlist()?.legacy_brand_id }}. Ein eingegebener Markenname
+          ersetzt diese Kennung.
+        </p>
+      }
+      @if (form.invalid && form.touched) {
+        <p role="alert" class="text-sm">
+          Bitte alle Angaben prüfen. Der Höchstpreis darf nicht unter dem Mindestpreis liegen; die
+          Rabattschwelle muss zwischen 0 und 100 liegen.
+        </p>
+      }
+      <div class="flex justify-end gap-2">
+        <app-button (clicked)="cancelled.emit()" [disabled]="saving()">Abbrechen</app-button
+        ><app-button type="submit" variant="primary" [loading]="saving()"
+          >Merkzettel speichern</app-button
+        >
+      </div>
+    </fieldset>
+  </form>
+</app-card>

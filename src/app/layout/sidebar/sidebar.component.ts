@@ -111,6 +111,7 @@ export class SidebarComponent {
       baustelle: true,
     },
     { path: '/research', labelKey: 'NAV.RESEARCH', label: 'Research', icon: Search },
+    { path: '/deal-monitor', labelKey: 'NAV.DEAL_MONITOR', label: 'Deal-Monitor', icon: Search },
     {
       path: '/deal-calculator',
       labelKey: 'NAV.DEAL_CALCULATOR',

@@ -1,5 +1,68 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-12 – Codex – Nutzerfilter und Artikelansicht für den Deal-Monitor
+
+**Auftrag:** Freigegebene Fortsetzung nach PR #62, eigener Zweig
+`codex/vinted-user-feed` und Worktree von `origin/master` (`853ecc2`). Fremder
+Hauptcheckout und andere Zweige unverändert. Keine produktiven Suchaufträge angelegt.
+
+**Umsetzung:** `/deal-monitor` unter Werkzeuge mit drei neuesten Funden,
+chronologischem Raster, Artikel-/Dealansicht und Merkzetteln pro Arbeitsbereich.
+Auf dem Handy seitlich durchblätterbare Highlights und zweispaltiges Raster.
+Zulauf alle zehn Sekunden, Pause mit Zähler, stabile Seitennavigation bis
+300 Artikel; Fortsetzen lädt die neueste Seite. Merkzettel filtern Kategorie,
+Markenname, Suchtext, Zustand und Preise; sie verändern keine Sammelaufträge.
+Neue/geänderte Kriterien gelten für künftig entdeckte Deals. Historische
+Treffer behalten ihren damaligen Vergleich. Löschen entfernt nur Merkzettel
+und zugehörige Treffer. Fehlende Sammlung, alte Betriebsmeldung, Fehler und
+leere Ansichten werden erklärt. Shared-Komponenten und bestehende UI-Richtlinie
+verwendet; nur Tailwind, keine neue Abhängigkeit.
+
+**Backend:** Getrennte Merkzettel-/Treffertabellen, arbeitsbereichsbezogene
+Leserechte und geprüfte Schreib-/Feedfunktionen. Alte Abonnements und Treffer
+werden mit Kennungen und Zeitstempeln übernommen; der alte Browser-Schreibweg
+für zentrale Aufträge ist gesperrt. Der Bot bewertet ausschließlich neue
+Merkzetteltabellen und ordnet Funde allen passenden Filtern zu. Eine später
+bekannte Kategorie kann bei Duplikaten ergänzt werden, ohne den Erstfund zu
+verändern. Einlesebestand bleibt stumm; fehlende Vergleichspreise bleiben zur
+erneuten Prüfung offen. 14-Tage-Vergleich und 30-Tage-Aufbewahrung bleiben erhalten;
+die Bereinigung löscht auch neue Treffer über deren Fremdschlüssel mit.
+
+**Datenbank:** Zwei Migrationen mit Supabase 2.114.0 aus dem deklarativen Schema
+generiert und vollständig geprüft. Fehlende geerbte Rechteentzüge sowie die
+explizite Bestandsübernahme im generierten SQL ergänzt; SQL-Schreibweise
+normalisiert. Typen aus der migrierten Datenbank erzeugt. Abschließender
+Schemaabgleich ohne Differenz. Isoliertes Projekt `flipbase-sniper-feed-test`
+auf dem Server genutzt, weil lokales Docker nicht verfügbar ist; anschließend
+Testdatenbank und temporäre Volumes über dessen CLI gestoppt/entfernt.
+Keine produktive Migration, Löschung oder Botaktualisierung durchgeführt.
+
+**Prüfung:** Gesamte Datenbanksuite mit 1.511 Tests in 43 Dateien grün; nach
+zusätzlichen Filter-/Aufbewahrungsgrenzfällen nochmals alle 42 betroffenen
+SQL-Tests grün. Tatsächliche Datenübernahme aus dem Migrations-SQL separat mit
+alten Abonnements, Markenkennung, Treffern und Zeitstempeln im zurückgerollten
+Testlauf geprüft. Bot: 115 Tests in 16 Dateien und Typprüfung grün.
+Frontendzustand/URL-Prüfung: neun Tests grün. Zwei Browserabläufe mit lokalen
+Fixtures für Desktop/hell und Handy/dunkel einschließlich AXE, Speichern mit
+Fehler/Wiederholung, Bearbeiten/Verwerfen, Pause, Löschen und verzögertem
+Nachladen beim Arbeitsbereichswechsel. Screenshots visuell geprüft; Bildflächen
+zeigen bewusst Platzhalter der Testdaten. Produktionszugang nicht simuliert.
+Typprüfung, Angular-Produktionsbau, gezieltes ESLint/Formatierung, Shared-UI-Prüfung
+und acht Browser-Suite-Vertragstests grün. Bot-Abbild gebaut und ohne Netz,
+echte Zugangsdaten oder Schreibrechte erfolgreich im Starttest geprüft.
+Vorhandenes Playwright verwendet, da die im Frontend-Testskill vorausgesetzte
+Browser-Laufzeit in dieser Sitzung nicht verfügbar ist.
+
+**Grenzen und Release:** Noch keine produktiven Artikel zur Sichtprüfung.
+Keine Live-Markensuche; neue Filter vergleichen normalisierte Artikelnamen.
+Übernommene Markenkennungen bleiben bis zum Setzen eines Markennamens bestehen;
+ein neuer Merkzettel kann die alte Einschränkung ersetzen. Preis-/Verfügbarkeits-
+änderungen bekannter Artikel werden weiterhin nicht nachgeführt. Beim Release
+alten Bot vor der Bestandsübernahme anhalten, Migrationen/Anwendung veröffentlichen
+und danach den Bot mit dem geprüften Release-Abbild starten. Der normale
+Webrelease aktualisiert den separaten Bot nicht. PR und Veröffentlichung
+benötigen die abschließende Freigabe gemäß AGENTS.md.
+
 ## 2026-09-12 – Codex – Gruppenpreise und 30 Tage Artikelaufbewahrung
 
 **Auftrag:** Nach der veröffentlichten Suchverwaltung weiterarbeiten. Eigener

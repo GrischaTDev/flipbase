@@ -136,14 +136,14 @@ describe('ListingStore', () => {
 
     const { data } = await client
       .from('sniper_listings')
-      .select('evaluated_at')
+      .select('watchlist_evaluated_at')
       .eq('external_id', externalId)
       .single();
 
     // Ohne Massstab wurde nicht geurteilt - also darf auch nichts abgehakt
     // sein. Sonst verfiele ein Fund allein deshalb, weil er kam, bevor genug
     // Vergleichswerte da waren.
-    expect(data!.evaluated_at).toBeNull();
+    expect(data!.watchlist_evaluated_at).toBeNull();
   });
 
   it('hakt den Bestand im Einlese-Lauf ab, ohne zu melden', async () => {
@@ -154,13 +154,13 @@ describe('ListingStore', () => {
 
     const { data } = await client
       .from('sniper_listings')
-      .select('evaluated_at')
+      .select('watchlist_evaluated_at')
       .eq('external_id', externalId)
       .single();
 
     // Der Einlese-Lauf vermerkt ausdruecklich auch das, was er nicht beurteilen
     // konnte: Der vorgefundene Bestand soll dauerhaft stumm bleiben und nicht
     // in einer spaeteren Runde nachtraeglich zum Fund werden.
-    expect(data!.evaluated_at).not.toBeNull();
+    expect(data!.watchlist_evaluated_at).not.toBeNull();
   });
 });

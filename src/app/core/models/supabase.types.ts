@@ -2506,6 +2506,8 @@ export type Database = {
       sniper_listings: {
         Row: {
           brand: string | null
+          catalog_id: number | null
+          catalog_source_query_id: string | null
           condition: string | null
           country_code: string | null
           currency: string
@@ -2529,9 +2531,12 @@ export type Database = {
           title: string
           total_price: number
           url: string
+          watchlist_evaluated_at: string | null
         }
         Insert: {
           brand?: string | null
+          catalog_id?: number | null
+          catalog_source_query_id?: string | null
           condition?: string | null
           country_code?: string | null
           currency?: string
@@ -2555,9 +2560,12 @@ export type Database = {
           title: string
           total_price: number
           url: string
+          watchlist_evaluated_at?: string | null
         }
         Update: {
           brand?: string | null
+          catalog_id?: number | null
+          catalog_source_query_id?: string | null
           condition?: string | null
           country_code?: string | null
           currency?: string
@@ -2581,8 +2589,16 @@ export type Database = {
           title?: string
           total_price?: number
           url?: string
+          watchlist_evaluated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "sniper_listings_catalog_source_query_id_fkey"
+            columns: ["catalog_source_query_id"]
+            isOneToOne: false
+            referencedRelation: "sniper_queries"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "sniper_listings_discovered_by_query_id_fkey"
             columns: ["discovered_by_query_id"]
@@ -2723,6 +2739,110 @@ export type Database = {
           requests_last_minute?: number
         }
         Relationships: []
+      }
+      sniper_watchlist_hits: {
+        Row: {
+          created_at: string
+          discount_percent: number
+          id: string
+          listing_id: string
+          reference_price: number
+          reference_scope: string
+          watchlist_id: string
+        }
+        Insert: {
+          created_at?: string
+          discount_percent: number
+          id?: string
+          listing_id: string
+          reference_price: number
+          reference_scope: string
+          watchlist_id: string
+        }
+        Update: {
+          created_at?: string
+          discount_percent?: number
+          id?: string
+          listing_id?: string
+          reference_price?: number
+          reference_scope?: string
+          watchlist_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sniper_watchlist_hits_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "sniper_listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sniper_watchlist_hits_watchlist_id_fkey"
+            columns: ["watchlist_id"]
+            isOneToOne: false
+            referencedRelation: "sniper_watchlists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sniper_watchlists: {
+        Row: {
+          brand: string | null
+          catalog_id: number | null
+          condition: string | null
+          created_at: string
+          discount_threshold_percent: number
+          id: string
+          is_active: boolean
+          legacy_brand_id: number | null
+          price_from: number | null
+          price_to: number | null
+          search_text: string | null
+          starts_at: string
+          title: string
+          workspace_id: string
+        }
+        Insert: {
+          brand?: string | null
+          catalog_id?: number | null
+          condition?: string | null
+          created_at?: string
+          discount_threshold_percent?: number
+          id?: string
+          is_active?: boolean
+          legacy_brand_id?: number | null
+          price_from?: number | null
+          price_to?: number | null
+          search_text?: string | null
+          starts_at?: string
+          title: string
+          workspace_id: string
+        }
+        Update: {
+          brand?: string | null
+          catalog_id?: number | null
+          condition?: string | null
+          created_at?: string
+          discount_threshold_percent?: number
+          id?: string
+          is_active?: boolean
+          legacy_brand_id?: number | null
+          price_from?: number | null
+          price_to?: number | null
+          search_text?: string | null
+          starts_at?: string
+          title?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sniper_watchlists_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sources: {
         Row: {
@@ -3610,6 +3730,10 @@ export type Database = {
         Returns: string
       }
       create_workspace: { Args: { p_name: string }; Returns: string }
+      delete_sniper_watchlist: {
+        Args: { p_id: string; p_workspace_id: string }
+        Returns: undefined
+      }
       export_audit_snapshot: {
         Args: { p_filter?: Json; p_workspace_id: string }
         Returns: Json
@@ -3828,6 +3952,10 @@ export type Database = {
         }
         Returns: Json
       }
+      record_sniper_listing_category: {
+        Args: { p_external_ids: string[]; p_query_id: string }
+        Returns: undefined
+      }
       refresh_purchase_receiving_status: {
         Args: { p_purchase_id: string; p_workspace_id: string }
         Returns: {
@@ -3939,6 +4067,22 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      save_sniper_watchlist: {
+        Args: {
+          p_brand: string
+          p_catalog_id: number
+          p_condition: string
+          p_discount_threshold_percent: number
+          p_id: string
+          p_is_active: boolean
+          p_price_from: number
+          p_price_to: number
+          p_search_text: string
+          p_title: string
+          p_workspace_id: string
+        }
+        Returns: string
+      }
       set_inventory_item_archived: {
         Args: { p_archived: boolean; p_item_id: string; p_workspace_id: string }
         Returns: {
@@ -4008,6 +4152,21 @@ export type Database = {
         Args: { p_query_id: string; p_report_hits?: boolean }
         Returns: number
       }
+      sniper_evaluate_watchlist_hits: {
+        Args: { p_query_id: string; p_report_hits?: boolean }
+        Returns: number
+      }
+      sniper_feed: {
+        Args: {
+          p_before_id?: string
+          p_before_time?: string
+          p_deals_only?: boolean
+          p_limit?: number
+          p_watchlist_id?: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       sniper_purge_expired_listings: {
         Args: { p_batch_size?: number }
         Returns: number
@@ -4037,6 +4196,13 @@ export type Database = {
               unusable_reason: string
             }[]
           }
+      sniper_watchlist_matches: {
+        Args: {
+          p_listing: Database["public"]["Tables"]["sniper_listings"]["Row"]
+          p_watchlist: Database["public"]["Tables"]["sniper_watchlists"]["Row"]
+        }
+        Returns: boolean
+      }
       unbundle_shipping_order: {
         Args: { p_bundled_order_id: string; p_workspace_id: string }
         Returns: {
