@@ -53,8 +53,19 @@ bearbeiten. Beides sind echte Fehler, hängen aber an der offenen Frage nach dem
 Bestandsmodell (`stock_lots` mengenbasiert gegen `inventory_items` stückbasiert)
 und bekommen eine eigene Runde.
 
-**Prüfung:** `npm run verify` grün (2006 Tests, Typprüfung, ESLint,
-Formatierung, Produktionsbau). Playwright `compact-controls` und `admin-accent`
+**Nachtrag nach der CI:** Der Browser-Smoke-Lauf im PR fiel rot aus. Die
+Vorschau rendert ein zweites `<img>`, und `product-integration.spec.ts:144`
+erwartet an der Stelle genau eines. Mein lokaler Lauf hatte nur die drei
+Dateien geprüft, die ich für betroffen hielt — die Markierung `@pr-smoke` der
+vierten war mir entgangen. Das große Bild entsteht jetzt erst beim Öffnen der
+Vorschau. Nebeneffekt: eine Liste lädt nicht mehr für jede Zeile ein Vollbild
+im Hintergrund mit. Ein Test hält fest, dass bei geschlossener Vorschau genau
+ein Bild im Baum steht.
+
+**Prüfung:** `npm run verify` grün (2007 Tests, Typprüfung, ESLint,
+Formatierung, Produktionsbau). Der vollständige Browserlauf zeigt nur noch die
+vier Altfehler, die in einem eigenen Zweig repariert werden. Playwright
+`compact-controls` und `admin-accent`
 bestanden, `purchase-entry` bis auf den oben genannten Altfehler. Sichtprüfung
 in der lokalen Demo: Zeilenklick und Farbe in der Artikelauswahl, Vorschau im
 Artikelstamm und über dem Auswahldialog, hell und dunkel. Keine Backend- oder

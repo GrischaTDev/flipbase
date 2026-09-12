@@ -99,6 +99,12 @@ describe('ProductThumbnailComponent', () => {
     expect(withImage().getAttribute('aria-label')).toBe('Schuh links vergrößert ansehen');
   });
 
+  it('haelt genau ein Bild im Baum, solange die Vorschau zu ist', () => {
+    withImage();
+
+    expect(host().querySelectorAll('img')).toHaveLength(1);
+  });
+
   it('oeffnet und schliesst die Vorschau per Klick', () => {
     const trigger = withImage();
 
@@ -107,6 +113,7 @@ describe('ProductThumbnailComponent', () => {
     expect(fixture.componentInstance.previewOpen()).toBe(true);
     expect(preview()?.classList.contains('hidden')).toBe(false);
     expect(trigger.getAttribute('aria-expanded')).toBe('true');
+    expect(host().querySelectorAll('img')).toHaveLength(2);
 
     trigger.click();
     fixture.detectChanges();

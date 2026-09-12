@@ -39,7 +39,11 @@
     (pointerleave)="onPreviewLeave()"
     (toggle)="onPreviewToggle($event)"
   >
-    <img [src]="source" alt="" aria-hidden="true" class="size-full object-contain" />
+    <!-- Das grosse Bild entsteht erst beim Oeffnen: sonst laedt jede Zeile
+         einer Liste ihr Vollbild im Hintergrund mit. -->
+    @if (previewOpen()) {
+      <img [src]="source" alt="" aria-hidden="true" class="size-full object-contain" />
+    }
   </div>
 } @else {
   <span
