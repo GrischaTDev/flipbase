@@ -178,6 +178,41 @@ Trennung von Nutzerfiltern und zentraler Sammlung.
 Getrennte Nutzerfilter und die Artikelansicht unter Werkzeuge folgen als weitere
 Pakete. Die Nutzeridee bleibt: drei neueste Angebote
 oben, darunter ein Artikelraster, getrennte Sicht auf neue Angebote und bewertete
-Deals sowie pausierbarer Zulauf. Vor einem dauerhaften Artikelsammeln sind die
-bekannte Verzerrung bei überlappenden Suchabfragen und die Aufbewahrungsfrist
-gesondert zu lösen. Dieser Schritt legt keine Suchaufträge an.
+Deals sowie pausierbarer Zulauf. Dieser Schritt legt keine Suchaufträge an.
+
+## Referenzpreise und Aufbewahrung
+
+Neue Treffer nutzen den Median der letzten 14 Tage aus derselben Kategorie,
+Marke und demselben Zustand. Die Marke wird ohne äußere Leerzeichen und ohne
+Unterscheidung der Großschreibung verglichen. Unter acht passenden Angeboten
+fällt der Vergleich auf Kategorie und Zustand zurück. Fehlt auch dort eine
+ausreichende Grundlage, entsteht kein bewerteter Treffer. Nur positive,
+endliche EUR-Artikelpreise fließen ein. Klebt mehr als ein Drittel der Gruppe
+am jeweiligen Preislimit des entdeckenden Auftrags, bleibt die Bewertung aus;
+eine solche Markengruppe wird nicht durch einen allgemeineren Vergleich ersetzt.
+
+Die Kategorie stammt aus dem unveränderlichen Entdeckungsauftrag. Reine
+Textsuchen ohne Kategorie sammeln weiterhin, bekommen aber keinen geschätzten
+Referenzpreis. Mehrere Aufträge derselben Kategorie tragen gemeinsam zum
+Vergleich bei. Jeder Treffer speichert `reference_scope` und den damaligen
+Preis; historische Treffer bleiben als `legacy_query_condition` erkennbar.
+Die bisherige RPC-Signatur für Abfrage/Zustand bleibt kompatibel erhalten.
+
+Die vom Nutzer gewählte Aufbewahrung beträgt **30 Tage seit Erstfund**.
+Der Bot bereinigt beim Start und danach einmal pro Minute bis zu 1.000
+abgelaufene Artikel. War das Paket voll, setzt er die Bereinigung bereits im
+nächsten Sammeltakt fort, damit ein Rückstand abgebaut wird. Ihre Treffer werden
+mitgelöscht; Aufträge und Abonnements bleiben erhalten. Fehler stehen bis zum erfolgreichen Wiederholen
+im Botbetrieb. Steht der Bot still, pausiert auch die Bereinigung.
+
+Die Migration für Gruppenvergleich und Aufbewahrung muss vor dem neuen
+Botabbild angewendet werden. Sie löscht selbst keine Artikel; die Bereinigung
+beginnt beim Start des aktualisierten Dienstes. Ein Rückwechsel auf das alte
+Abbild stoppt die neue Bereinigung, stellt bereits gelöschte Artikel aber nicht
+wieder her. Dafür ist das Datenbankbackup nötig.
+
+Noch offen für das Nutzerfilter-Paket: Ein mehrfach gefundener Artikel gehört
+weiterhin zum ersten Entdeckungsauftrag. Die Trefferzuordnung ist damit noch
+nicht unabhängig von überlappenden Aufträgen. Gelöschte Artikel können bei
+einem erneuten Fund wieder aufgenommen werden; eine dauerhafte Liste gelöschter
+Marktplatzkennungen wird nicht geführt.

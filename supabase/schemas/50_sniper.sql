@@ -130,6 +130,8 @@ create table if not exists public.sniper_hits (
     discount_percent numeric(5, 2) not null,
     created_at timestamptz not null default now(),
     notified_at timestamptz,
+    reference_scope text not null default 'legacy_query_condition'
+        check (reference_scope in ('legacy_query_condition', 'category_brand_condition', 'category_condition')),
     unique (subscription_id, listing_id)
 );
 
@@ -161,6 +163,12 @@ create index if not exists idx_sniper_hits_subscription
 create index if not exists idx_sniper_hits_pending_notification
     on public.sniper_hits (created_at)
     where notified_at is null;
+
+create index if not exists idx_sniper_hits_listing
+    on public.sniper_hits (listing_id);
+
+comment on column public.sniper_hits.reference_scope is
+    'Gespeicherte Vergleichsgruppe: Kategorie/Marke/Zustand, Rueckfall Kategorie/Zustand oder unveraenderte historische Abfragebewertung.';
 
 -- Beide Tabellen sind arbeitsbereichsuebergreifend: Angemeldete Nutzer duerfen
 -- ausschliesslich lesen. Geschrieben wird nur vom Dienst ueber den
@@ -382,6 +390,107 @@ comment on function public.sniper_reference_price(uuid, text) is
 revoke all on function public.sniper_reference_price(uuid, text) from public, anon;
 grant execute on function public.sniper_reference_price(uuid, text) to authenticated;
 
+-- Die bisherige Signatur bleibt fuer bestehende Aufrufer erhalten. Der Dienst
+-- vergleicht jetzt ueber Auftraege hinweg. Die Kategorie stammt aus dem
+-- unveraenderlichen Entdeckungsauftrag; reine Textsuchen liefern keine Kategorie.
+create or replace function public.sniper_reference_price(
+    p_catalog_id integer,
+    p_brand text,
+    p_condition text
+)
+returns table (reference_price numeric, sample_size integer, unusable_reason text, reference_scope text)
+language sql
+stable
+security invoker
+set search_path = ''
+as $$
+    with samples as materialized (
+        select listing.item_price, query.price_to,
+               nullif(lower(btrim(listing.brand)), '') as brand
+        from public.sniper_listings as listing
+        join public.sniper_queries as query on query.id = listing.discovered_by_query_id
+        where query.catalog_id = p_catalog_id
+          and query.marketplace = 'vinted'
+          and listing.marketplace = 'vinted'
+          and listing.condition is not distinct from p_condition
+          and listing.first_seen_at >= now() - interval '14 days'
+          and listing.currency = 'EUR'
+          and listing.item_price > 0
+          and listing.item_price < 'Infinity'::numeric
+    ),
+    selection as (
+        select nullif(lower(btrim(p_brand)), '') is not null
+           and count(*) filter (where brand = nullif(lower(btrim(p_brand)), '')) >= 8
+           as use_brand
+        from samples
+    ),
+    statistics as (
+        select count(*)::integer as n,
+               percentile_cont(0.5) within group (order by item_price)::numeric(12, 2) as median,
+               count(*) filter (where price_to is not null and item_price >= price_to) as at_limit
+        from samples
+        where not (select use_brand from selection)
+           or brand = nullif(lower(btrim(p_brand)), '')
+    ),
+    result as (
+        select *, case
+            when p_catalog_id is null then 'unknown_category'
+            when n < 8 then 'too_few'
+            when at_limit::numeric / greatest(n, 1) > 1.0 / 3.0 then 'at_price_ceiling'
+            else null
+        end as reason
+        from statistics
+    )
+    select case when reason is null then median else null end, n, reason,
+           case when (select use_brand from selection)
+                then 'category_brand_condition' else 'category_condition' end
+    from result;
+$$;
+
+comment on function public.sniper_reference_price(integer, text, text) is
+    '14-Tage-Median aus mindestens acht EUR-Angeboten derselben Kategorie, Marke und desselben Zustands. Bei zu kleiner Markengruppe Rueckfall auf Kategorie/Zustand. Preislimit jedes Entdeckungsauftrags beachten.';
+
+revoke all on function public.sniper_reference_price(integer, text, text) from public, anon, authenticated;
+grant execute on function public.sniper_reference_price(integer, text, text) to service_role;
+
+-- Die Aufbewahrung beginnt beim ersten Fund. Treffer werden ueber den
+-- Fremdschluessel mitgeloescht; Auftraege und Abonnements bleiben bestehen.
+-- Kleine Pakete begrenzen Sperren und erlauben unterbrechbares Nachholen.
+create or replace function public.sniper_purge_expired_listings(p_batch_size integer default 1000)
+returns integer
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+    v_deleted integer;
+begin
+    if p_batch_size is null or p_batch_size not between 1 and 5000 then
+        raise exception 'Die Paketgroesse muss zwischen 1 und 5000 liegen.' using errcode = '22023';
+    end if;
+
+    with expired as (
+        select id from public.sniper_listings
+        where first_seen_at < now() - interval '30 days'
+        order by first_seen_at, id
+        limit p_batch_size
+        for update skip locked
+    ), deleted as (
+        delete from public.sniper_listings as listing
+        using expired
+        where listing.id = expired.id
+        returning listing.id
+    )
+    select count(*)::integer into v_deleted from deleted;
+    return v_deleted;
+end;
+$$;
+
+comment on function public.sniper_purge_expired_listings(integer) is
+    'Loescht paketweise Angebote nach 30 Tagen seit Erstfund samt zugehoerigen Treffern. Nur der Dienst darf die Bereinigung ausloesen.';
+revoke all on function public.sniper_purge_expired_listings(integer) from public, anon, authenticated;
+grant execute on function public.sniper_purge_expired_listings(integer) to service_role;
+
 -- Legt fuer eine Abfrage die fehlenden Treffer an und liefert ihre Zahl.
 --
 -- Bewertet wird je Abonnement, weil die Schwelle dort haengt: derselbe Fund
@@ -424,37 +533,42 @@ declare
   v_created integer;
 begin
   with offen as (
-      select listing.id, listing.condition, listing.item_price
+      select listing.id, listing.condition, listing.item_price, listing.currency,
+             nullif(lower(btrim(listing.brand)), '') as brand
       from public.sniper_listings as listing
       where listing.discovered_by_query_id = p_query_id
         and listing.evaluated_at is null
   ),
-  -- Der Massstab haengt am Zustand, nicht am einzelnen Angebot. Erst die
-  -- Zustaende sammeln, dann je Zustand einmal rechnen: Bei fuenfzig neuen
-  -- Angeboten sind das fuenf Fensterabfragen statt fuenfzig.
+  -- Je Marke/Zustand einmal rechnen statt fuer jedes Angebot erneut.
   zustaende as (
-      select distinct offen.condition from offen
+      select distinct offen.brand, offen.condition from offen
   ),
   massstaebe as (
-      select zustaende.condition, massstab.reference_price
+      select zustaende.brand, zustaende.condition, massstab.reference_price, massstab.reference_scope
       from zustaende
       cross join lateral public.sniper_reference_price(
-          p_query_id, zustaende.condition
+          (select catalog_id from public.sniper_queries where id = p_query_id),
+          zustaende.brand, zustaende.condition
       ) as massstab
       where massstab.reference_price is not null
         and massstab.reference_price > 0
   ),
   bewertbar as (
-      select offen.id, offen.item_price, massstaebe.reference_price
+      select offen.id, offen.item_price, massstaebe.reference_price, massstaebe.reference_scope
       from offen
       join massstaebe
         on massstaebe.condition is not distinct from offen.condition
+       and massstaebe.brand is not distinct from offen.brand
+      where offen.currency = 'EUR'
+        and offen.item_price > 0
+        and offen.item_price < 'Infinity'::numeric
   ),
   kandidaten as (
       select
           subscription.id as subscription_id,
           bewertbar.id as listing_id,
           bewertbar.reference_price,
+          bewertbar.reference_scope,
           round(
               (bewertbar.reference_price - bewertbar.item_price)
               / bewertbar.reference_price * 100,
@@ -471,8 +585,8 @@ begin
   ),
   eingefuegt as (
       insert into public.sniper_hits
-          (subscription_id, listing_id, reference_price, discount_percent)
-      select subscription_id, listing_id, reference_price, discount_percent
+          (subscription_id, listing_id, reference_price, discount_percent, reference_scope)
+      select subscription_id, listing_id, reference_price, discount_percent, reference_scope
       from kandidaten
       on conflict (subscription_id, listing_id) do nothing
       returning 1

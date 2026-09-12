@@ -337,15 +337,10 @@ sichtbarste.
 
 ## Offene Punkte
 
-1. **Aufbewahrungsfrist auf `sniper_listings`.** Steht seit Etappe 1 offen und
-   wird mit diesem Umbau dringend. Obergrenze bei fünf Sammelaufträgen im
-   Minutentakt: 5 × 96 × 60 × 24 ≈ 690.000 Funde je Tag. So hoch wird es nur,
-   wenn jede Abfrage 96 neue Funde bringt — bei eng geschnittenen Aufträgen
-   liegt der Wert deutlich darunter, wie hoch genau, zeigt erst der Betrieb.
-   Die Größenordnung reicht aber: Ohne Frist wächst die Tabelle unbegrenzt, und
-   in ihr stehen Verkäufernamen. Das ist kein Nebenpunkt, sondern eine
-   Voraussetzung für den Dauerbetrieb — vermutlich ein eigener, fünfter Plan
-   vor der Inbetriebnahme.
+1. **Aufbewahrungsfrist entschieden am 12.09.2026:** Der Nutzer wählt 30 Tage
+   seit Erstfund für Artikel samt zugehörigen Treffern. Umsetzung in Paket 3:
+   Bereinigung in Paketen durch den Bot, Aufträge und Abonnements bleiben
+   erhalten. Der Referenzpreis nutzt weiterhin nur die letzten 14 Tage.
 2. **Welche Sammelaufträge zum Start?** Eine fachliche Entscheidung, keine
    technische. Der Zuschnitt bestimmt, was der Monitor überhaupt finden kann.
 3. **Zulauf je Auftrag messen statt schätzen.** Der nötige Takt lässt sich aus

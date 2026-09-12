@@ -89,4 +89,12 @@ export class ListingStore {
 
     return typeof data === 'number' ? data : 0;
   }
+
+  async purgeExpired(): Promise<number> {
+    const { data, error } = await this.client.rpc('sniper_purge_expired_listings');
+    if (error) throw new Error(`purging listings failed: ${error.message}`);
+    if (typeof data !== 'number' || !Number.isInteger(data) || data < 0)
+      throw new Error('purging listings returned an invalid count');
+    return data;
+  }
 }
