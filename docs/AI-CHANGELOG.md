@@ -1,5 +1,56 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-12 – Codex – Gruppenpreise und 30 Tage Artikelaufbewahrung
+
+**Auftrag:** Nach der veröffentlichten Suchverwaltung weiterarbeiten. Eigener
+Zweig `codex/vinted-reference-prices`, eigener Worktree von `origin/master`
+(`900de77`). Der Nutzer hat 30 Tage Aufbewahrung für Artikel samt Treffern
+ausdrücklich gewählt. Fremde Zweige unverändert.
+
+**Umsetzung:** Neue Referenzgruppe Kategorie/Marke/Zustand über mehrere
+Sammelaufträge hinweg, 14-Tage-Fenster und mindestens acht Vergleichsangebote.
+Markennamen werden normalisiert; bei zu kleiner Markengruppe Rückfall auf
+Kategorie/Zustand. Ein übermäßig am Preislimit abgeschnittener Markenvergleich
+wird nicht durch den Rückfall kaschiert. Maßgeblich ist jeweils das Limit des
+Entdeckungsauftrags. Nur endliche, positive EUR-Preise; Textsuche ohne bekannte
+Kategorie bleibt ohne Schätzung. Jeder neue Treffer speichert seine tatsächliche
+Vergleichsgruppe; historische Treffer und bisherige RPC-Signatur bleiben erhalten.
+
+**Aufbewahrung:** Dienst bereinigt beim Start und einmal pro Minute maximal
+1.000 Artikel älter als 30 Tage seit Erstfund. Volle Pakete werden im nächsten
+Sammeltakt fortgesetzt, damit Rückstände abgebaut werden. Treffer werden per
+Fremdschlüssel mitgelöscht, Aufträge/Abonnements bleiben bestehen. Index auf
+Treffer-Artikelbeziehung ergänzt. Fehler bleiben bis zum erfolgreichen Versuch
+in der Betriebsmeldung sichtbar, ohne das Sammeln durch eine Ausnahme abzubrechen.
+
+**Datenbank:** Migration `20260912181233_sniper_group_reference_retention.sql`
+aus dem deklarativen Schema mit Supabase 2.114.0 generiert und geprüft.
+Der Generator erfasst geerbte Funktionsrechte von `authenticated` nicht
+vollständig; explizite Entzüge ergänzt. Außerdem gleicht der erzeugte Entzug
+auf `sniper_runtime_status` dessen bereits deklarierte Leserechte ab (auch
+`truncate` entzogen). Beides mit Rechteprüfungen abgesichert. Typen aus der
+migrierten Testdatenbank neu erzeugt, abschließender Schemaabgleich ohne Differenz.
+Isoliertes CLI-Projekt `flipbase-sniper-reference-test` auf dem Server genutzt,
+weil lokales Docker nicht verfügbar ist; ausschließlich Testdaten. Testdatenbank
+anschließend gestoppt und ihre temporären Volumes entfernt.
+
+**Prüfung:** Gesamte Datenbanksuite: 1.475 Tests in 42 Dateien grün. Nach
+zusätzlichen Rechte-/Null-Grenzfällen und genauer getrennten Testkategorien
+nochmals 23 betroffene SQL-Tests grün. Bot: 111 Tests in 15 Dateien grün,
+einschließlich Rückstand, Wiederholung, ausbleibender Parallelität und Fehlerstatus.
+Bot- und Anwendungstypprüfung, Angular-Produktionsbau, gezieltes ESLint und
+Formatierung grün. Bot-Abbild gebaut und ohne Netz, produktive Zugangsdaten
+oder Schreibrechte gestartet; Prozessgesundheit und fehlende Sammelbereitschaft
+im isolierten Starttest geprüft.
+
+**Grenzen:** Noch keine unabhängigen Nutzerfilter oder Artikelansicht. Die
+Trefferzuordnung hängt weiter am ersten Entdeckungsauftrag; diese Überlappung
+wird im Nutzerfilter-Paket aufgelöst. Eine Wiederaufnahme zuvor gelöschter
+Marktplatzartikel ist möglich. Bereinigung benötigt einen laufenden Bot.
+Kein Produktionsupdate, keine produktive Löschung und keine Aufträge angelegt.
+Migration und Botabbild müssen gemeinsam über den nächsten freigegebenen PR
+veröffentlicht werden; nach einer Löschung erfordert Wiederherstellung ein Backup.
+
 ## 2026-09-12 – Codex – Sammelaufträge und Botbetrieb in der Administration
 
 **Auftrag:** Nach PR #60 mit der Suchverwaltung fortfahren. Eigener Zweig

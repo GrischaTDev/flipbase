@@ -8,8 +8,8 @@ select plan(8);
 \set workspace_a '87000000-0000-4000-8000-000000000002'
 \set workspace_b '87000000-0000-4000-8000-000000000003'
 
-insert into public.sniper_queries (id, query_key, search_text, price_to)
-values (:'query_id'::uuid, 'vinted|test|hits', 'testabfrage', 500);
+insert into public.sniper_queries (id, query_key, search_text, price_to, catalog_id)
+values (:'query_id'::uuid, 'vinted|test|hits', 'testabfrage', 500, 87001);
 
 insert into public.workspaces (id, name) values
   (:'workspace_a'::uuid, 'Treffer Testbereich A'),
@@ -163,8 +163,8 @@ select pass('Ein deaktiviertes Abonnement bekommt keine Treffer');
 -- nichts melden"). Sie muss in der Zeile stehen, nicht im Ablauf: Sonst holte
 -- die zweite Runde denselben Bestand nach und der Melder bekaeme beim Anlegen
 -- eines Filters sofort einen Schwall wochenalter Angebote.
-insert into public.sniper_queries (id, query_key, search_text, price_to)
-values ('87000000-0000-4000-8000-000000000004'::uuid, 'vinted|test|einlese', 'einlesetest', 500);
+insert into public.sniper_queries (id, query_key, search_text, price_to, catalog_id)
+values ('87000000-0000-4000-8000-000000000004'::uuid, 'vinted|test|einlese', 'einlesetest', 500, 87004);
 
 insert into public.workspaces (id, name)
 values ('87000000-0000-4000-8000-000000000005'::uuid, 'Einlese Testbereich');
@@ -233,8 +233,8 @@ select pass('Der Einlese-Lauf hakt den Bestand stumm ab und holt nichts nach');
 --
 -- Sonst verfiele ein Fund allein deshalb, weil er kam, bevor genug
 -- Vergleichswerte da waren.
-insert into public.sniper_queries (id, query_key, search_text, price_to)
-values ('87000000-0000-4000-8000-000000000006'::uuid, 'vinted|test|duenn', 'duennetest', 500);
+insert into public.sniper_queries (id, query_key, search_text, price_to, catalog_id)
+values ('87000000-0000-4000-8000-000000000006'::uuid, 'vinted|test|duenn', 'duennetest', 500, 87006);
 
 insert into public.sniper_listings (
   marketplace, external_id, title, url, item_price, total_price,

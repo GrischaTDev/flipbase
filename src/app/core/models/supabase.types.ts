@@ -2463,6 +2463,7 @@ export type Database = {
           listing_id: string
           notified_at: string | null
           reference_price: number
+          reference_scope: string
           subscription_id: string
         }
         Insert: {
@@ -2472,6 +2473,7 @@ export type Database = {
           listing_id: string
           notified_at?: string | null
           reference_price: number
+          reference_scope?: string
           subscription_id: string
         }
         Update: {
@@ -2481,6 +2483,7 @@ export type Database = {
           listing_id?: string
           notified_at?: string | null
           reference_price?: number
+          reference_scope?: string
           subscription_id?: string
         }
         Relationships: [
@@ -4005,6 +4008,10 @@ export type Database = {
         Args: { p_query_id: string; p_report_hits?: boolean }
         Returns: number
       }
+      sniper_purge_expired_listings: {
+        Args: { p_batch_size?: number }
+        Returns: number
+      }
       sniper_query_listing_counts: {
         Args: never
         Returns: {
@@ -4012,14 +4019,24 @@ export type Database = {
           query_id: string
         }[]
       }
-      sniper_reference_price: {
-        Args: { p_condition: string; p_query_id: string }
-        Returns: {
-          reference_price: number
-          sample_size: number
-          unusable_reason: string
-        }[]
-      }
+      sniper_reference_price:
+        | {
+            Args: { p_brand: string; p_catalog_id: number; p_condition: string }
+            Returns: {
+              reference_price: number
+              reference_scope: string
+              sample_size: number
+              unusable_reason: string
+            }[]
+          }
+        | {
+            Args: { p_condition: string; p_query_id: string }
+            Returns: {
+              reference_price: number
+              sample_size: number
+              unusable_reason: string
+            }[]
+          }
       unbundle_shipping_order: {
         Args: { p_bundled_order_id: string; p_workspace_id: string }
         Returns: {

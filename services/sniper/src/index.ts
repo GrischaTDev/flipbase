@@ -5,6 +5,7 @@ import { createHealthState, startHealthServer } from './health.js';
 import { createLogger } from './log.js';
 import { RequestBudget } from './runtime/budget.js';
 import { countingFetch } from './runtime/counting-fetch.js';
+import { ListingRetention } from './runtime/listing-retention.js';
 import { refreshCategoriesIfDue } from './runtime/refresh-categories.js';
 import { QueryScheduler } from './runtime/scheduler.js';
 import { RequestMetrics } from './runtime/request-metrics.js';
@@ -32,6 +33,8 @@ const session = new VintedSession(sessionOptions, counted);
 const health = createHealthState(() => budget.usageRatio());
 const queries = new QueryStore(client);
 const categories = new CategoryStore(client);
+const listings = new ListingStore(client);
+const retention = new ListingRetention(() => listings.purgeExpired(), log);
 
 const scheduler = new QueryScheduler({
   queries: {
@@ -47,7 +50,7 @@ const scheduler = new QueryScheduler({
     },
   },
   collector: new VintedCollector(sessionOptions, session, counted),
-  listings: new ListingStore(client),
+  listings,
   budget,
   log,
 });
@@ -116,6 +119,7 @@ while (!controller.signal.aborted) {
   }
 
   // Eigene Fehlergrenze: Eine fehlende Statusmeldung darf das Sammeln nicht stoppen.
+  await retention.runIfDue();
   try {
     const snapshot = metrics.snapshot();
     const { error } = await client.from('sniper_runtime_status').upsert({
@@ -124,7 +128,7 @@ while (!controller.signal.aborted) {
       requests_last_minute: snapshot.requests,
       rejected_last_minute: snapshot.rejected,
       request_budget: config.requestsPerMinute,
-      last_cycle_error: cycleError,
+      last_cycle_error: cycleError ?? retention.error,
     });
     if (error) throw error;
   } catch {
