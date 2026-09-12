@@ -30,6 +30,8 @@ export class ButtonComponent {
   readonly fullWidth = input<boolean>(false);
   readonly type = input<'button' | 'submit' | 'reset'>('button');
   readonly link = input<string | null>(null);
+  readonly href = input<string | null>(null);
+  readonly target = input<'_self' | '_blank'>('_self');
   readonly queryParams = input<Params | null>(null);
   readonly ariaLabel = input<string>('');
   readonly title = input<string>('');

@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  DOCUMENT,
   ElementRef,
   Injector,
   afterNextRender,
@@ -48,6 +49,7 @@ export class DealMonitorComponent {
   readonly workspace = inject(WorkspaceService).currentWorkspace;
   readonly demo = inject(AuthService).isDemoMode;
   private readonly destroyRef = inject(DestroyRef);
+  private readonly document = inject(DOCUMENT);
   private readonly element = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly injector = inject(Injector);
   private readonly editor = viewChild(WatchlistEditorComponent);
@@ -103,10 +105,11 @@ export class DealMonitorComponent {
     if (!this.demo()) void this.loadCategories();
     const tick = async () => {
       this.now.set(Date.now());
-      await this.state.refresh();
-      if (!this.destroyRef.destroyed) this.timer = setTimeout(() => void tick(), 10_000);
+      if (!this.document.hidden && this.view() !== 'watchlists') await this.state.refresh();
+      if (!this.destroyRef.destroyed)
+        this.timer = setTimeout(() => void tick(), this.state.error() ? 10_000 : 2_000);
     };
-    this.timer = setTimeout(() => void tick(), 10_000);
+    this.timer = setTimeout(() => void tick(), 2_000);
     this.destroyRef.onDestroy(() => {
       clearTimeout(this.timer);
       this.listGeneration++;

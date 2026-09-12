@@ -1,5 +1,81 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-13 – Codex – Artikelkarten mit drei Fotos und Vinted-Link
+
+**Auftrag:** Nutzer zeigt Discord-Beispiel: Hauptfoto links, zwei Fotos rechts;
+Metadaten mit echten Icons hervorheben, Beschreibung und Artikellink prüfen.
+Fortsetzung im eigenen `codex/vinted-individual-arrivals`-Worktree. Vor Änderungen
+an der gemeinsamen Button-Komponente Protokoll und Verwaltungs-UI-Regeln gelesen.
+
+**Umsetzung:** Bis zu drei unterschiedliche, erlaubte Vinted-Bilder, Hauptbild
+links über beide Zeilen. Ein/zwei Bilder nutzen die verfügbare Fläche; fehlende,
+unerlaubte und defekte Bilder werden ausgefiltert, bei null Bildern verständliche
+Ersatzanzeige. Lucide-Icons für Marke, Zustand, Größe, Käuferschutz und Fundzeit;
+semantische Beschriftungen für Screenreader bleiben vorhanden. Unter jeder Karte
+mit gültiger Artikeladresse steht „Auf Vinted ansehen“ als nativer Link in einem
+neuen Tab. Gemeinsamer Button um `href` und `target` ergänzt; bestehende interne
+Navigation unverändert. Deaktivierte Links verlieren die Zieladresse und blockieren
+Klicks. Die Prüfung fand zunächst eine leere statt entfernter Zieladresse beim
+deaktivierten Link; über Attributbindung behoben und erneut geprüft.
+
+**Datenlage:** Nur lesende Produktionsprüfung: 5.186 Artikel, davon 4.400 mit
+mindestens drei Fotos, aber kein gespeicherter Beschreibungstext. Eine normale
+Katalog-Stichprobe mit dem vorhandenen Sitzungsweg lieferte HTTP 200, neun Artikel
+mit zwei bis sechs Fotos, ohne Beschreibungsfeld. Der Normalisierer setzt die
+Beschreibung bislang ausdrücklich auf null. Ein zusätzlicher Detailabruf ist
+nicht Teil dieses Kartenumbaus; kein erfundener Text, kein zusätzlicher dauerhafter
+Abruf pro Fund. Discord-Nachrichtenadressen sind nicht vorhanden, daher führt
+der Button zur tatsächlichen Vinted-Anzeige. Keine Änderung an Bot, Datenbank,
+produktiven Suchaufträgen oder Abhängigkeiten.
+
+**Prüfung:** Elf Shared-Button-Tests, neun Feed-Tests, Typprüfung, Angular-Bau,
+gezieltes ESLint/Prettier und Shared-UI-Architekturprüfung grün. Zwei vorhandene
+Playwright-Abläufe erweitert: drei Fotos mit gemessener Links-/Rechtsgeometrie,
+ein/zwei/keine/defekte/unerlaubte Bilder, echter Tabwechsel zum abgefangenen
+Vinted-Testziel und anschließendes Fortsetzen, Pause, Merkzettel und Workspacewechsel.
+Desktop/hell und Handy/dunkel mit AXE grün, keine JavaScript-Laufzeitfehler.
+Browser plugin not available; bestehender Playwright-Ablauf verwendet. Screenshots
+mit ausdrücklich synthetischen Testbildern visuell geprüft. Keine angemeldete
+Produktions-UI-Abnahme. Der vorherige Zwei-Sekunden-Feedabruf bleibt im selben Zweig.
+
+**Offen:** PR-Freigabe und Veröffentlichung. Einzelzulauf im Sekundentakt sowie
+Beschreibungstexte innerhalb der Karten sind nicht umgesetzt.
+
+## 2026-09-13 – Codex – Gebündelten Artikelzulauf untersuchen
+
+**Auftrag:** Nutzer bemängelt schubweise neue Artikel und vergleicht mit einzeln
+erscheinenden Discord-Funden. Eigener Zweig/Worktree
+`codex/vinted-individual-arrivals` von `origin/master` (`e05b79c`). Fremde Zweige
+unverändert. Die vorherigen Bot-Erweiterungen sind inzwischen über PR #63/#64
+veröffentlicht; Nike, adidas und Ralph Lauren sammeln produktiv ohne Preisgrenzen.
+
+**Nachweis:** Drei aktive Markenaufträge mit jeweils 20 Sekunden Abrufintervall,
+nahezu gleichzeitig fällig. Stichprobe: neun Anfragen in der letzten Minute bei
+Budget 30, keine Ablehnungen oder Laufzeitfehler. Zwischen 22:34 und 22:38 UTC
+am 12.09. wurden 26/48/54/40/29 Artikel gespeichert (Randminuten unvollständig).
+Die Oberfläche fragt zusätzlich nur alle zehn Sekunden nach und ersetzt die
+aktuelle Seite insgesamt. Eine gleichmäßige Discord-Ausgabe belegt deshalb
+noch keine schnellere Entdeckung auf dem Marktplatz.
+
+**Vorbereitet:** Sichtbare Artikel-/Dealansicht lädt alle zwei Sekunden nach.
+Ausgeblendete Tabs und die Merkzettelverwaltung überspringen den periodischen
+Feedabruf; Fehler setzen die Wiederholung auf zehn Sekunden zurück. Bestehende
+Sperre gegen überlappende Abrufe und Cleanup bleiben erhalten. Mehrere bereits
+bekannte Funde werden weiterhin sofort zusammen angezeigt. Keine künstliche
+Ausgabewarteschlange, keine produktive Konfigurations- oder Datenbankänderung.
+
+**Prüfung:** Neun Feed-Tests, Angular-Produktionsbau, gezieltes ESLint und
+Formatierung sowie zwei Playwright-Abläufe grün (Desktop/hell 1440 × 1000,
+Handy/dunkel 390 × 844, AXE, keine Laufzeitfehler). Browser plugin not available;
+vorhandener Playwright-Ablauf verwendet. Ergänzt: drei neue Artikel innerhalb
+von fünf Sekunden sichtbar, anschließend Pause und Fortsetzen ohne Verlust.
+Screenshots und mobile Darstellung geprüft; externe Produktbilder sind in den
+Testdaten nicht enthalten. Produktionsoberfläche nicht angemeldet geprüft.
+
+**Offen:** Nutzerpräferenz zwischen sofortiger Anzeige und bewusst verzögertem
+Einzelzulauf ist angefragt. Letzterer ist noch nicht umgesetzt. Änderungen nur
+lokal vorbereitet, kein Push, PR oder Deployment dieses Zweigs.
+
 ## 2026-09-12 – Codex – Reine Markenaufträge für den gewünschten Botstart
 
 **Auftrag:** Nutzer wählt Nike, adidas und Ralph Lauren, alle Preise. Zentrale

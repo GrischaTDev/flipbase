@@ -60,6 +60,8 @@ describe('ButtonComponent', () => {
       ariaPressed: ['ariaPressed', 1, null],
       title: ['title', 1, null],
       link: ['link', 1, null],
+      href: ['href', 1, null],
+      target: ['target', 1, null],
       queryParams: ['queryParams', 1, null],
     };
     metadata.declaredInputs = {
@@ -77,6 +79,8 @@ describe('ButtonComponent', () => {
       ariaPressed: 'ariaPressed',
       title: 'title',
       link: 'link',
+      href: 'href',
+      target: 'target',
       queryParams: 'queryParams',
     };
 
@@ -169,5 +173,41 @@ describe('ButtonComponent', () => {
     expect(link.getAttribute('tabindex')).toBe('-1');
     link.click();
     expect(emitted).toBe(false);
+  });
+
+  it('opens an external action as a native link in a protected new tab', () => {
+    fixture.componentRef.setInput('href', 'https://www.vinted.de/items/123');
+    fixture.componentRef.setInput('target', '_blank');
+    fixture.detectChanges();
+
+    const link = fixture.nativeElement.querySelector('a') as HTMLAnchorElement;
+    expect(link.getAttribute('href')).toBe('https://www.vinted.de/items/123');
+    expect(link.target).toBe('_blank');
+    expect(link.relList.contains('noopener')).toBe(true);
+    expect(link.relList.contains('noreferrer')).toBe(true);
+    expect(fixture.nativeElement.querySelector('button')).toBeNull();
+  });
+
+  it('blocks a disabled external link and restores it when enabled', () => {
+    fixture.componentRef.setInput('href', 'https://www.vinted.de/items/123');
+    fixture.componentRef.setInput('disabled', true);
+    fixture.detectChanges();
+    let emitted = false;
+    component.clicked.subscribe(() => (emitted = true));
+
+    const link = fixture.nativeElement.querySelector('a') as HTMLAnchorElement;
+    const click = new MouseEvent('click', { cancelable: true, bubbles: true });
+    link.dispatchEvent(click);
+    expect(click.defaultPrevented).toBe(true);
+    expect(emitted).toBe(false);
+    expect(link.getAttribute('href')).toBeNull();
+    expect(link.getAttribute('aria-disabled')).toBe('true');
+    expect(link.tabIndex).toBe(-1);
+
+    fixture.componentRef.setInput('disabled', false);
+    fixture.detectChanges();
+    expect(link.href).toBe('https://www.vinted.de/items/123');
+    expect(link.getAttribute('tabindex')).toBeNull();
+    expect(link.target).toBe('_self');
   });
 });
