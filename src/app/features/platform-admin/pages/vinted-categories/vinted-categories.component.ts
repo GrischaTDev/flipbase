@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  DestroyRef,
+  inject,
+  signal,
+} from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { CategorySyncStatus } from '../../models/vinted-category.model';
 import { VintedCategoryService } from '../../services/vinted-category.service';
@@ -21,11 +28,14 @@ import { VintedCategoryService } from '../../services/vinted-category.service';
 })
 export class VintedCategoriesComponent {
   private readonly categories = inject(VintedCategoryService);
+  private readonly destroyRef = inject(DestroyRef);
+  private timer: ReturnType<typeof setTimeout> | undefined;
+  private statusRequest: Promise<void> | null = null;
+  private readonly now = signal(Date.now());
 
   protected readonly status = signal<CategorySyncStatus | null>(null);
   protected readonly loadError = signal<string | null>(null);
   protected readonly requesting = signal(false);
-  protected readonly requested = signal(false);
 
   /**
    * Zeitpunkt einer noch nicht abgearbeiteten Anforderung, sonst null.
@@ -54,15 +64,42 @@ export class VintedCategoriesComponent {
     return requested > handled ? requestedAt : null;
   });
 
+  protected readonly requestDelayed = computed(() => {
+    const pending = this.pendingRequest();
+    return pending !== null && this.now() - Date.parse(pending) >= 60_000;
+  });
+
   constructor() {
-    void this.load();
+    this.destroyRef.onDestroy(() => clearTimeout(this.timer));
+    void this.poll();
   }
 
-  protected async load(): Promise<void> {
+  private async poll(): Promise<void> {
+    await this.load();
+    if (!this.destroyRef.destroyed) {
+      this.timer = setTimeout(() => void this.poll(), 5000);
+    }
+  }
+
+  protected load(): Promise<void> {
+    // Langsame Antworten duerfen nicht durch weitere Statusabfragen ueberholt werden.
+    if (this.statusRequest) return this.statusRequest;
+    if (this.destroyRef.destroyed) return Promise.resolve();
+    this.now.set(Date.now());
+    this.statusRequest = this.readStatus().finally(() => {
+      this.statusRequest = null;
+    });
+    return this.statusRequest;
+  }
+
+  private async readStatus(): Promise<void> {
     try {
-      this.status.set(await this.categories.readStatus());
+      const status = await this.categories.readStatus();
+      if (this.destroyRef.destroyed) return;
+      this.status.set(status);
       this.loadError.set(null);
     } catch (error) {
+      if (this.destroyRef.destroyed) return;
       this.loadError.set(error instanceof Error ? error.message : String(error));
     }
   }
@@ -72,7 +109,6 @@ export class VintedCategoriesComponent {
 
     try {
       await this.categories.requestRefresh();
-      this.requested.set(true);
       await this.load();
     } catch (error) {
       this.loadError.set(error instanceof Error ? error.message : String(error));

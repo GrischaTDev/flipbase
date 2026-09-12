@@ -54,9 +54,9 @@ export function createHealthState(budgetUsageRatio: () => number): HealthState {
 }
 
 /**
- * Ein bewusst winziger Server: Er beantwortet ausschliesslich `/health` und
- * gibt auf alles andere 404. Der Dienst hat keine Oberflaeche und soll keine
- * Angriffsflaeche bekommen.
+ * `/live` prueft den laufenden Prozess, `/health` die erste erfolgreiche Suche.
+ * Ohne Suchauftraege kann der Dienst bereits Kategorien einlesen, obwohl
+ * `/health` noch 503 meldet. Docker prueft deshalb ausschliesslich `/live`.
  *
  * Vor der ersten erfolgreichen Runde antwortet er mit 503 - eine
  * Startueberwachung soll den Dienst erst dann als bereit ansehen, wenn er
@@ -68,6 +68,11 @@ export function startHealthServer(
   onError: (error: Error) => void,
 ): Server {
   const server = createServer((request, response) => {
+    if (request.url === '/live') {
+      response.writeHead(200, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ live: true }));
+      return;
+    }
     if (request.url !== '/health') {
       response.writeHead(404).end();
       return;

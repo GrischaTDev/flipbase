@@ -3,7 +3,8 @@ import { formatDate } from '@angular/common';
 import { ɵresolveComponentResources } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { readFile } from 'node:fs/promises';
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import axe from 'axe-core';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { VintedCategoriesComponent } from './vinted-categories.component';
 import { VintedCategoryService } from '../../services/vinted-category.service';
 import { CategorySyncStatus } from '../../models/vinted-category.model';
@@ -61,6 +62,95 @@ describe('VintedCategoriesComponent', () => {
 
   beforeEach(() => {
     TestBed.resetTestingModule();
+  });
+
+  afterEach(() => {
+    fixture?.destroy();
+    vi.useRealTimers();
+  });
+
+  it('shows completed category refreshes automatically and stops polling after leaving', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    await build({
+      ...status,
+      categoryCount: 0,
+      refreshedAt: null,
+      lastAttemptAt: null,
+      requestedAt: '2026-09-06T11:00:00+00:00',
+    });
+    serviceStub.readStatus.mockResolvedValue(status);
+    await vi.advanceTimersByTimeAsync(5000);
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('2920');
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('[role="status"]')?.textContent,
+    ).not.toContain('Auffrischung angefordert');
+    fixture.destroy();
+    const calls = serviceStub.readStatus.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(15000);
+    expect(serviceStub.readStatus).toHaveBeenCalledTimes(calls);
+  });
+
+  it('recovers from a temporary status error without requesting another Vinted refresh', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    await build(status);
+    serviceStub.readStatus.mockRejectedValueOnce(new Error('Verbindung unterbrochen'));
+    await vi.advanceTimersByTimeAsync(5000);
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Verbindung unterbrochen');
+    serviceStub.readStatus.mockResolvedValue({ ...status, categoryCount: 2921 });
+    await vi.advanceTimersByTimeAsync(5000);
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('2921');
+    expect((fixture.nativeElement as HTMLElement).querySelector('[role="alert"]')).toBeNull();
+    expect(serviceStub.requestRefresh).not.toHaveBeenCalled();
+  });
+
+  it('warns when a refresh request has remained unanswered', async () => {
+    await build({
+      ...status,
+      categoryCount: 0,
+      refreshedAt: null,
+      lastAttemptAt: null,
+      requestedAt: new Date(Date.now() - 120_000).toISOString(),
+    });
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain(
+      'Bisher keine Antwort vom Bot',
+    );
+  });
+
+  it('does not pile up status requests while a response is slow', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    await build(status);
+    let complete: ((value: CategorySyncStatus) => void) | undefined;
+    serviceStub.readStatus.mockImplementationOnce(
+      () =>
+        new Promise<CategorySyncStatus>((resolve) => {
+          complete = resolve;
+        }),
+    );
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(serviceStub.readStatus).toHaveBeenCalledTimes(2);
+    complete?.({ ...status, categoryCount: 2922 });
+    await vi.advanceTimersByTimeAsync(0);
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('2922');
+  });
+
+  it('keeps waiting and error messages accessible', async () => {
+    await build({
+      ...status,
+      categoryCount: 0,
+      refreshedAt: null,
+      lastAttemptAt: null,
+      requestedAt: new Date(Date.now() - 120_000).toISOString(),
+      lastError: 'HTTP 503',
+    });
+    const result = await axe.run(fixture.nativeElement as HTMLElement, {
+      // jsdom berechnet kein Layout; Farbkontrast braucht einen echten Browser.
+      rules: { 'color-contrast': { enabled: false } },
+    });
+    expect(result.violations).toEqual([]);
   });
 
   it('zeigt die Zahl der Kategorien und den Zeitpunkt des letzten Einlesens', async () => {

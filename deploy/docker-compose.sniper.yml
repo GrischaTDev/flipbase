@@ -1,0 +1,24 @@
+name: flipbase-sniper
+
+services:
+  sniper:
+    image: ${FLIPBASE_SNIPER_IMAGE:?Ein geprueftes Bot-Abbild angeben}
+    container_name: flipbase-sniper
+    restart: unless-stopped
+    init: true
+    env_file:
+      - ${SNIPER_ENV_FILE:-/opt/flipbase-sniper/sniper.env}
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 256m
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
+    # Kein Hostport: Der Healthcheck laeuft im Container. Der Dienst greift
+    # ausgehend auf die vorhandene HTTPS-API und Vinted zu.
