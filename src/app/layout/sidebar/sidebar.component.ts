@@ -29,6 +29,7 @@ import {
   LucideImage as ImageIcon,
   LucideShieldCheck as ShieldCheck,
   LucideUsers as Users,
+  LucideBot as Bot,
 } from '@lucide/angular';
 import { PlatformOperatorService } from '../../core/services/platform-operator.service';
 import { PwaService } from '../../core/services/pwa.service';
@@ -144,7 +145,7 @@ export class SidebarComponent {
       baustelle: true,
     },
     { path: '/research', labelKey: 'NAV.RESEARCH', label: 'Research', icon: Search },
-    { path: '/deal-monitor', labelKey: 'NAV.DEAL_MONITOR', label: 'Deal-Monitor', icon: Search },
+    { path: '/vinted-bot', labelKey: 'NAV.DEAL_MONITOR', label: 'Vinted Bot', icon: Bot },
     {
       path: '/deal-calculator',
       labelKey: 'NAV.DEAL_CALCULATOR',

@@ -132,13 +132,34 @@ async function checkAxe(page: Page) {
   ).toEqual([]);
 }
 
-// Die Unterseiten der Administration stehen nur noch in der Seitenleiste. Auf
-// schmalen Bildschirmen liegt die hinter "Menü" - ein Klick auf den
-// unsichtbaren Link wartete sonst bis zum Testabbruch.
-async function openAdminPage(page: Page, name: string) {
-  const menu = page.locator('app-bottom-nav').getByRole('button', { name: 'Menü', exact: true });
-  if (await menu.isVisible()) await menu.click();
-  await page.locator('app-sidebar').getByRole('link', { name, exact: true }).click();
+// Die Bot-Seiten wechselt man im Seitenmenue des Vinted Bots. Auf schmalen
+// Bildschirmen ist es ein Auswahlfeld - ein Klick auf den dann unsichtbaren
+// Link wartete sonst bis zum Testabbruch.
+async function openVintedBotSection(page: Page, name: string) {
+  // Link und Option lesen sich mit ihrer Beschreibung ("Botbetrieb Anfragen
+  // und Fehler"); gesucht wird deshalb am Namensanfang.
+  const label = new RegExp(`^${name}`);
+  const navigation = page.getByRole('navigation', { name: 'Bereiche des Vinted Bots' });
+  if (await navigation.isVisible()) {
+    await navigation.getByRole('link', { name: label }).click();
+    return;
+  }
+  const select = page.getByRole('combobox', {
+    name: 'Bereich des Vinted Bots auswählen',
+    exact: true,
+  });
+  await select.scrollIntoViewIfNeeded();
+  // Das Scrollen des Ankers schliesst die Shared-Auswahl absichtlich. Erst
+  // nach dem Layout-Takt oeffnen - ein direkter Klick scrollte und schloss sie.
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      ),
+  );
+  await select.focus();
+  await select.press('Enter');
+  await page.getByRole('option', { name: label }).click();
 }
 
 for (const theme of ['light', 'dark']) {
@@ -213,14 +234,14 @@ for (const theme of ['light', 'dark']) {
     );
     await page.getByRole('textbox', { name: 'Notiz (optional)' }).fill('Gezielter Testbereich');
     page.once('dialog', (dialog) => dialog.dismiss());
-    await openAdminPage(page, 'Botbetrieb');
-    await expect(page).toHaveURL(/\/admin\/queries$/);
+    await openVintedBotSection(page, 'Botbetrieb');
+    await expect(page).toHaveURL(/\/admin\/vinted-bot\/queries$/);
     await page.getByRole('button', { name: 'Änderungen speichern' }).click();
     await expect(page.getByRole('table')).toContainText('Gezielter Testbereich');
     await expect(page.getByRole('button', { name: 'Neuer Auftrag', exact: true })).toBeFocused();
     await checkAxe(page);
     await page.screenshot({ path: testInfo.outputPath('query-list.png'), fullPage: true });
-    await openAdminPage(page, 'Botbetrieb');
+    await openVintedBotSection(page, 'Botbetrieb');
     await expect(page.getByRole('heading', { name: 'Botbetrieb', exact: true })).toBeVisible();
     await expect(page.getByText('Aktuelle Betriebsmeldung', { exact: true })).toBeVisible();
     await checkAxe(page);
@@ -239,7 +260,7 @@ for (const theme of ['light', 'dark']) {
           call.body['p_brand_id'] === 53,
       ),
     ).toBe(true);
-    await page.goto('/admin/queries');
+    await page.goto('/admin/vinted-bot/queries');
     await page.getByRole('button', { name: 'Neuer Auftrag', exact: true }).click();
     await page
       .getByRole('textbox', { name: 'Vinted-Suchlink übernehmen (optional)', exact: true })

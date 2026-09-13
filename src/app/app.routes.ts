@@ -168,8 +168,10 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/research/research.component').then((m) => m.ResearchComponent),
       },
+      // Frueher "Deal-Monitor"; die alte Adresse leitet fuer Lesezeichen weiter.
+      { path: 'deal-monitor', redirectTo: 'vinted-bot', pathMatch: 'full' },
       {
-        path: 'deal-monitor',
+        path: 'vinted-bot',
         canDeactivate: [unsavedEntryGuard],
         loadComponent: () =>
           import('./features/deal-monitor/deal-monitor.component').then(

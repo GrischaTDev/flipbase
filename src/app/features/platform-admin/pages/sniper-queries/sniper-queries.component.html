@@ -1,17 +1,20 @@
 <section class="flex flex-col gap-4">
-  <app-page-header
-    title="Sammelaufträge"
-    subtitle="Hier legst du fest, welche Bereiche der Vinted-Bot regelmäßig durchsucht."
-  >
+  <!-- Zwischenueberschrift: Den Seitentitel "Vinted Bot" traegt die Huelle. -->
+  <header class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <div class="min-w-0 space-y-1">
+      <h2 class="text-base font-semibold text-fb-text-primary">Sammelaufträge</h2>
+      <p class="text-[13px] text-fb-text-muted">
+        Hier legst du fest, welche Bereiche der Vinted-Bot regelmäßig durchsucht.
+      </p>
+    </div>
     <app-button
-      header-actions
       data-new-query
       variant="primary"
       [disabled]="editorOpen() || !state.loaded()"
       (clicked)="openEditor()"
       >Neuer Auftrag</app-button
     >
-  </app-page-header>
+  </header>
   @if (state.error(); as message) {
     <p role="alert">
       {{ message }} <app-button (clicked)="state.refresh()">Erneut laden</app-button>

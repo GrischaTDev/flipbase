@@ -1,5 +1,63 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-13 – Claude Opus 5 (Anthropic) – Vinted Bot
+
+**Auftrag:** „Deal-Monitor“ heißt künftig „Vinted Bot“. Die Bot-Seiten der
+Administration (Sammelaufträge, Botbetrieb, Kategorieliste) liegen gebündelt
+unter einem Punkt „Vinted Bot“ mit Seitenmenü wie in den Einstellungen und
+begrenzter Breite. Zweig `feat/vinted-bot-section`, abgezweigt von `master`
+(6f40612). Entwurf unter
+`docs/superpowers/specs/2026-09-13-vinted-bot-section-design.md`, Plan unter
+`docs/superpowers/plans/2026-09-13-vinted-bot-section.md`.
+
+**Entscheidungen:** Eigene Hülle in `platform-admin` statt einer gemeinsamen
+Komponente mit den Einstellungen, die dafür mit umgebaut werden müssten. Alte
+Adressen leiten weiter. Ordner-, Klassen- und RPC-Namen bleiben.
+
+**Ergebnis:**
+
+- Hauptmenü „Vinted Bot“ mit Roboter-Symbol unter `/vinted-bot`;
+  `/deal-monitor` leitet weiter. Übersetzung de/en, Seitenkopf und Demo-Hinweis
+  angepasst.
+- Administration: Unterpunkte „Bewerbungen“ und „Vinted Bot“.
+- `VintedBotShellComponent`: Linkliste ab `lg`, Auswahlfeld darunter,
+  `max-w-6xl`, aktiver Punkt im Markengelb. Die drei Seiten hängen unter
+  `/admin/vinted-bot/…`; die alten Adressen leiten weiter.
+- Die drei Seiten haben statt `app-page-header` eine `h2`-Zwischenüberschrift;
+  die Karten im Botbetrieb sind `h3`, damit die Gliederung stimmt.
+
+**Funde:**
+
+- Das gemeinsame Auswahlfeld setzt seinen Wert selbst, bevor die Navigation
+  feststeht. Lehnt der Wächter für ungespeicherte Änderungen den Wechsel ab,
+  zeigte es den neuen Bereich, und ein zweites Auswählen löste nichts aus. Der
+  erste Ansatz (eigenes Signal in der Hülle, per Bindung zurückgesetzt) griff
+  im Browser nicht: Hin- und Rücksetzen fielen in denselben Abgleich, für die
+  Bindung änderte sich nichts. Der Unit-Test prüfte nur das Signal der Hülle
+  und blieb deshalb grün – der Browsertest auf 390 px hat es aufgedeckt
+  (Bildschirmfoto: Feld „Botbetrieb“, Seite „Sammelaufträge“). Jetzt setzt die
+  Hülle den Wert direkt im Auswahlfeld zurück, das ihr über eine
+  Vorlagen-Referenz übergeben wird; der Unit-Test prüft diesen Wert.
+- Erster Bau rot: `PageHeaderComponent` stand nach dem Entfernen des Imports
+  noch in zwei `imports`-Listen. Behoben.
+- Browsertest Sammelaufträge zuerst rot, beide Male an der neuen
+  Test-Hilfsfunktion: Der Link heißt samt Beschreibung „Botbetrieb Anfragen und
+  Fehler“ (genaue Namenssuche fand ihn nicht), und auf 390 px schloss das
+  Scrollen vor dem Klick das Auswahlfeld wieder. Belegt über Fehlerbericht und
+  Bildschirmfoto. Die Hilfe sucht jetzt am Namensanfang und öffnet das Feld wie
+  der Test beim Feld „Kategorie“ nach dem Layout-Takt per Tastatur.
+
+**Geprüft:** Angular-Tests `layout/sidebar` und `platform-admin` 42/42 (davon
+6 für die Hülle; `page-header` zuvor mitgelaufen), `tsc -p tsconfig.spec.json`,
+ESLint, Prettier, `npm run build` ohne Warnungen, Liste der PR-Browsertests
+8/8. Mit `playwright.pr.config.ts`: Vinted Bot hell und dunkel grün
+(einschließlich Weiterleitung von `/deal-monitor`), Sammelaufträge hell und
+dunkel grün (einschließlich Weiterleitung von `/admin/queries` und abgelehntem
+Wechsel auf 390 px). Nicht geprüft: Sichtprüfung mit echter Betreiber-Sitzung.
+
+**Freigabe:** Der Nutzer hat Push, PR, Merge nach erfolgreichen Prüfungen und
+anschließendes Aufräumen von Zweig und Arbeitsordner bestätigt.
+
 ## 2026-09-13 – Claude Opus 5 (Anthropic) – Administration in der Seitenleiste
 
 **Auftrag:** Die Reiterleiste oben in der Administration entfällt. Die vier

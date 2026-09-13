@@ -22,8 +22,8 @@ const expectedSmokeTests = [
     'product-editor-storefront.spec.ts',
     'Shop zeigt den freigegebenen Katalogartikel mit Galerie und echten Metadaten',
   ],
-  ['deal-monitor.spec.ts', 'Deal-Monitor pausieren und Merkzettel verwalten light'],
-  ['deal-monitor.spec.ts', 'Deal-Monitor pausieren und Merkzettel verwalten dark'],
+  ['deal-monitor.spec.ts', 'Vinted Bot pausieren und Merkzettel verwalten light'],
+  ['deal-monitor.spec.ts', 'Vinted Bot pausieren und Merkzettel verwalten dark'],
   ['purchase-workspace.spec.ts', 'opens an existing purchase directly without runtime errors'],
   [
     'purchase-editable-draft.spec.ts',

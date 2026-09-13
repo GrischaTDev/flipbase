@@ -205,7 +205,7 @@ async function checkAxe(page: Page) {
 }
 
 for (const theme of ['light', 'dark'] as const) {
-  test(`Deal-Monitor pausieren und Merkzettel verwalten ${theme} @pr-smoke`, async ({ page }) => {
+  test(`Vinted Bot pausieren und Merkzettel verwalten ${theme} @pr-smoke`, async ({ page }) => {
     await page.setViewportSize(
       theme === 'light' ? { width: 1440, height: 1000 } : { width: 390, height: 844 },
     );
@@ -214,8 +214,10 @@ for (const theme of ['light', 'dark'] as const) {
     const runtimeErrors: string[] = [];
     page.on('pageerror', (error) => runtimeErrors.push(error.message));
     const mock = await fixture(page);
+    // Ueber die fruehere Adresse, damit auch die Weiterleitung abgedeckt ist.
     await page.goto('/deal-monitor');
-    await expect(page.getByRole('heading', { name: 'Deal-Monitor', exact: true })).toBeVisible();
+    await expect(page).toHaveURL(/\/vinted-bot$/);
+    await expect(page.getByRole('heading', { name: 'Vinted Bot', exact: true })).toBeVisible();
     await expect(page.getByRole('article')).toHaveCount(8);
     await expect(page.getByLabel('Die neuesten Funde').getByRole('article')).toHaveCount(3);
     const firstCard = page.getByRole('article', { name: 'Nike Sneaker 1', exact: true });
@@ -271,7 +273,7 @@ for (const theme of ['light', 'dark'] as const) {
     await expect(itemTab).toHaveURL('https://www.vinted.de/items/1');
     await itemTab.close();
     await page.bringToFront();
-    await expect(page).toHaveURL(/\/deal-monitor$/);
+    await expect(page).toHaveURL(/\/vinted-bot$/);
     await page.getByRole('button', { name: 'Zulauf fortsetzen', exact: true }).click();
     await expect(firstCard).toBeVisible();
     await checkAxe(page);

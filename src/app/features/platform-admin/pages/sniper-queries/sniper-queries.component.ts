@@ -13,7 +13,6 @@ import {
 import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { PageHeaderComponent } from '../../../../shared/components/page-header/page-header.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
@@ -32,7 +31,6 @@ import { QueryDraft, SniperQuery, queryStatusLabel } from '../../models/sniper-q
     DatePipe,
     DecimalPipe,
     ReactiveFormsModule,
-    PageHeaderComponent,
     ButtonComponent,
     CardComponent,
     BadgeComponent,
