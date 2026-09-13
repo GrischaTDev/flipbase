@@ -1,5 +1,47 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-13 – Codex – Kalender über Einkaufskarten anzeigen
+
+**Auftrag/Ergebnis:** Der Kaufdatum-Kalender öffnet sich über der Einkaufskarte.
+Die Korrektur liegt im gemeinsamen `DatePickerComponent` und gilt damit auch
+für das Verkaufsformular. Fortsetzung auf `codex/purchase-layout-dashboard-review`;
+die zuvor geprüfte Anordnung von Verkäufer und Kaufdatum bleibt erhalten.
+
+**Nachgewiesene Ursache:** Die Karte hat `overflow-hidden`, der Kalender war
+ein absolut positioniertes Kind. Beim Fokussieren eines Tages scrollte der
+Browser sogar den versteckten Karteninhalt; im gemessenen Beispiel stand
+`scrollTop` auf 209 px. Dadurch verschwanden auch Verkäufer und Kaufdatum.
+Ein Test auf bloße Sichtbarkeit oder einen einzelnen Tag übersah das; der
+Browsertest prüft deshalb die tatsächliche Treffbarkeit aller Kalenderknöpfe.
+Dieser Test schlug mit dem ursprünglichen Kalender fehl und besteht mit der
+Korrektur.
+
+**Umsetzung:** Native Popover-Ebene analog zur bestehenden Auswahlkomponente,
+Position am Datumsfeld, bei Platzmangel nach oben, innerhalb der Fensterränder.
+Bei Scrollen außerhalb des Kalenders oder Fenstergrößenänderung schließt er.
+Fokus kehrt bei Auswahl/Escape zum Knopf zurück, ohne Vorfahren zu scrollen;
+ein Außenklick behält seinen neuen Fokus. Escape wird vor übergeordneten
+Dialogen abgefangen. Nach erneutem Öffnen ist der ausgewählte Tag wieder im
+angezeigten Monat. Event-Listener werden über `DestroyRef` entfernt.
+
+Die AXE-Prüfung des geöffneten Kalenders deckte zusätzlich fehlende ARIA-Zeilen
+auf. Wochentage und Datumszellen liegen jetzt in korrekt zugeordneten Zeilen
+innerhalb des Kalenderrasters. Keine neue CSS-Datei oder Abhängigkeit.
+
+**Prüfung:** Produktionsbau, gezieltes ESLint und Formatierung erfolgreich;
+45 bestehende Komponenten-/Formulartests bestanden. Sieben neue Browsertests
+bestanden: anklickbarer Kalender außerhalb der Karte, gespeicherte Entwürfe bei
+390/768/1440 px, Tastatur/Fokus, Monatswechsel, Außenklick, Größenänderung,
+Scrollen, Verkaufsformular und AXE in beiden Themes. Zwei vorhandene Tests
+zur obersten Ebene der Kostenauswahl ebenfalls bestanden.
+
+**Unabhängiger Altfehler:** Der zusätzlich ausgeführte erste Test in
+`e2e/purchase-dropdown-layer.spec.ts` findet nach dem Speichern das Element
+`[data-purchase-description]` nicht. Derselbe Fehler wurde mit den unveränderten
+Kalenderdateien aus `db11f06` reproduziert; die Korrekturdateien wurden danach
+bytegleich wiederhergestellt. Kein vollständiger grüner Browserlauf behauptet,
+keine Änderung dieses fachfremden Tests.
+
 ## 2026-09-13 – Codex – Einkaufsfelder nebeneinander und Dashboard-Einordnung
 
 **Auftrag/Ergebnis:** Verkäufer und Kaufdatum stehen in der gemeinsamen
