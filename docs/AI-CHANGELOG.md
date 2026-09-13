@@ -1,5 +1,120 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-13 – Codex – PR abschließen und Produkterstellung abgrenzen
+
+**Auftrag:** Bestehenden Artikel-/Bestandsumbau zuerst per PR abschließen;
+anschließend eigene Erstellungsseite, mehrere Bilder, einfacher Zuschnitt und
+Suchmaschinenvorschau vorsehen. Shopify-Vorgehen und aktuelle Shopanbindung prüfen.
+
+**Ergebnis:** Herstellerdokumentation bestätigt Produktdetailseite mit Medien,
+Veröffentlichung und Suchmaschineneintrag. Shopfreigabe existiert bereits,
+Katalogartikel benötigen Preis und Bestand. Öffentliche Katalogdetailseite,
+Beschreibung und Medien sind noch unvollständig angebunden. Zuschneide-Modal und
+`ngx-image-cropper` sind bereits vorhanden. Folgeumfang mit Quellen in
+`docs/audit/2026-09-13-product-editor-follow-up.md` festgehalten; kein neuer
+Produkteditor in den abgeschlossenen Bedienumbau aufgenommen.
+
+**Veröffentlichung:** Nutzerentscheidung zum vorher angebotenen PR-Abschluss
+übernommen. Aktuelles `origin/master` unverändert bei `5383e71`; dokumentierte
+lokale Prüfungen gelten weiterhin für den unveränderten Anwendungscode.
+Dokumentation zusätzlich formatiert und Diff geprüft. PR-/CI-Ergebnis folgt
+im Chat; Merge nur nach erfolgreichen Pflichtprüfungen.
+
+## 2026-09-13 – Codex – Artikelbearbeitung und kompakte Bestandsansicht
+
+**Auftrag:** Den freigegebenen Bedienumbau umsetzen: ein Hauptbereich „Artikel“
+mit „Alle Artikel“ und „Bestand“, bearbeitbare Artikeldaten und eine reduzierte
+Bestandstabelle. Eigener Worktree `codex/inventory-model-review`, Basis
+`origin/master` (`5383e71`). Die steuerlichen Modellkorrekturen aus dem Audit
+bleiben ein gesonderter Arbeitsschritt.
+
+**Umsetzung:** Neue Katalogdetailseite mit direktem Artikelabruf, Beschreibung,
+Stammdaten, Shopdaten, Bildupload und echten Bestands-/Einkaufsverweisen.
+Ungespeicherte Eingaben, fehlende Artikel, Lade- und Speicherfehler sowie
+Workspacewechsel werden behandelt. Die Beschreibung erhält eine nullable
+Textspalte; Migration per CLI erzeugt und Typen neu generiert. Bearbeiten
+aktualisiert den bestehenden Artikel und verändert keine historischen Belege.
+
+Gemeinsame Navigation in Sidebar und Mobilmenü, echte Artikellinks aus beiden
+Ansichten und Rückwege mit erhaltener Suche. Eigenständige Stücke bleiben in
+„Alle Artikel“ erreichbar; Zuordnungen beruhen ausschließlich auf gespeicherten
+Beziehungen. Standardbestand: Artikel/Bild, Auf Lager, Verfügbar, Reserviert.
+Weitere Angaben und Filter sind optional. Verkaufte Ware bleibt in einer eigenen
+Ansicht; unklare Mengen werden nicht als Null dargestellt. Unveränderte alte
+Spaltenvorgaben werden migriert, persönliche Anpassungen erhalten. Primäraktion
+im Bestand ist „Einkauf erfassen“.
+
+**Review:** Unabhängiger Review der Navigation ohne wesentliche Befunde. Der
+Gesamtreview fand drei konkrete Fehler: Verlust eines verborgenen Shoppreises,
+unberücksichtigte Reservierungsbewegungen in zwei Ansichten sowie doppelte
+Bilduploads nach einem Workspacewechsel. Alle drei Fehler behoben und mit
+Regressionstests abgesichert. Reservierungen verwenden jetzt einen gemeinsamen
+Helper unter `core/utils/`; der Browsertest schlug vor dem Fix mit 5/5/0 statt
+5/4/1 fehl und besteht danach. Unabhängige Nachprüfung ohne verbleibende P1/P2.
+
+**Abschlussprüfung:** Produktionsbau, Anwendungs-/Test-Typprüfung, gezieltes
+ESLint/Prettier, Shared-UI-Prüfung, Suite-Zuordnung und Diff-Prüfung erfolgreich.
+132 Node- und 119 Angular-Tests sowie alle 34 betroffenen Browserfälle grün.
+Browserprüfung über vorhandenes Playwright, weil
+„Browser plugin not available“; keine zusätzlichen Abhängigkeiten. Desktop und
+Mobil, hell/dunkel, Tastatur, AXE, Bearbeiten, Bilder, Verkauf, Archiv,
+Spaltenpräferenzen und Einkaufsrückwege geprüft. Screenshots und Fehlertraces
+liegen außerhalb des Repositories im temporären QA-Verzeichnis. Lokale,
+isolierte Datenbank mit allen Migrationen aufgebaut: 159 Prüfungen zu
+Beschreibung, Medien, Workspacegrenzen und historischen Einkaufsdaten erfolgreich.
+Kein Zugriff auf Produktionsdaten, kein Push oder PR.
+
+## 2026-09-13 – Codex – Artikelstamm und Bestandsübersicht konkret einordnen
+
+**Auftrag:** Nachfrage zu professionellen Vorbildern, fehlender Artikelbearbeitung
+und überladener Inventartabelle. Fortsetzung der Analyse im eigenen Worktree
+`codex/inventory-model-review`.
+
+**Ergebnis:** Aktuelle Templates und Datenflüsse bestätigen fehlenden Detail-/
+Bearbeitungsweg im Katalog, denselben Erstellungsdialog auf beiden Seiten sowie
+acht standardmäßig sichtbare Fachspalten in der Bestandsliste. Stück- und
+Mengenzeilen besitzen zudem unterschiedliche Wege zu Details. Shopify-Hilfe zur
+Produktbearbeitung und Inventarverwaltung erneut geprüft. Empfehlung im Bericht
+ergänzt: Hauptbereich „Artikel“ mit „Alle Artikel“ und „Bestand“, einheitliche
+Artikeldetails und kompakte Bestandsliste mit auf Lager/verfügbar/reserviert.
+Herkunft, Kosten und Verkäufe bleiben in Details beziehungsweise optionalen
+Ansichten erreichbar. Echte Bestandskonflikte bleiben sichtbar.
+
+**Prüfung:** Code- und Quellenprüfung, keine Browserabnahme. Dokumentation
+formatiert und Diff geprüft; Anwendung, Datenbank und fremde Zweige unverändert.
+
+## 2026-09-13 – Codex – Artikelmodell und Steuerrecherche unabhängig gegenprüfen
+
+**Auftrag:** Importierten Claude-Code-Verlauf bewerten; ein fachlich tragfähiges,
+einfach bedienbares Modell für Artikel, Bestand und Einkäufe empfehlen. Nur
+Analyse und Dokumentation im eigenen Zweig `codex/inventory-model-review`,
+Worktree `.worktrees/inventory-model-review`, Basis `origin/master` (`5383e71`).
+Fremde Zweige bleiben unverändert.
+
+**Ergebnis:** Entscheidungsgrundlage unter
+`docs/audit/2026-09-13-inventory-model-review.md`. Empfehlung: Artikel und Mengen
+in der Oberfläche, tatsächliche Stücke und Herkunft im Hintergrund. Steuerart
+nicht aus Bestandsverfahren oder Zustand ableiten. Herstellerdokumentation,
+§ 25a UStG, EU-Richtlinie Artikel 312, amtlicher UStAE, BFH V R 37/15 und
+BMF-Schreiben vom 8. Juli 2025 geprüft. Versand des Warenverkäufers von weiteren
+Kosten unterscheiden; Konvolutverteilung braucht eine sachgerechte Grundlage.
+Die Anpassung auf 750 Euro ist auch für den UStAE direkt amtlich bestätigt.
+
+**Codeprüfung:** Konkrete Gegenprobe mit den tatsächlichen Steuer-Service-Methoden:
+Zwei Verkaufspositionen mit +20/−20 Euro Marge ergeben nach dem nachgelagerten
+Summenabgleich 3,19/−3,19 Euro Steuer statt 3,19/0 Euro. Außerdem wird eine
+Bruttomarge von 119 Euro als `tax_base` bezeichnet, obwohl die Nettobasis 100 Euro
+beträgt. Die frühere pauschale Aussage zur freien Löschbarkeit finalisierten
+Bestands wird durch den vorhandenen DELETE-Trigger widerlegt. Nummernvergabe ist
+zwischen lokaler Vorschau, echtem Insert und Einkaufsabschluss uneinheitlich.
+
+**Prüfumfang:** Quellen und Code, isolierte Ausführung der vorhandenen
+Berechnungsmethoden nach Transpilation; kein Produktionszugriff und kein
+vollständiger Steuer-, Berechtigungs- oder GoBD-Audit. Bericht und Protokoll
+formatiert sowie Diff geprüft. Keine Änderung an Anwendung, Tests oder Schema;
+keine Migration, kein Commit, Push oder PR. Die fachlichen Änderungen sind noch
+umzusetzen und nicht durch diese Analyse freigegeben.
+
 ## 2026-09-13 – Codex – Artikelkarten mit drei Fotos und Vinted-Link
 
 **Auftrag:** Nutzer zeigt Discord-Beispiel: Hauptfoto links, zwei Fotos rechts;

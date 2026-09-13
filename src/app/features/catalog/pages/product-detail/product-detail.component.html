@@ -1,0 +1,290 @@
+<div class="mx-auto max-w-6xl space-y-4">
+  <app-section-navigation [links]="articleViews" label="Artikelansichten" />
+  <app-page-header
+    [title]="product()?.title || 'Artikel'"
+    [backLink]="stockView() ? '/inventory' : '/catalog'"
+    backLabel="Zur Artikelliste"
+  >
+    @if (product()) {
+      <div header-actions class="flex flex-wrap items-center gap-2">
+        @if (hasUnsavedChanges()) {
+          <span class="text-[13px] text-fb-text-muted">Nicht gespeicherte Änderungen</span>
+          <app-button [disabled]="isSaving()" (clicked)="discard()">Verwerfen</app-button>
+        }
+        <app-button
+          variant="primary"
+          [loading]="isSaving()"
+          [disabled]="workspaceChanged() || loading() || !hasUnsavedChanges()"
+          (clicked)="save()"
+          >Speichern</app-button
+        >
+      </div>
+    }
+  </app-page-header>
+  @if (workspaceChanged()) {
+    <app-card rounded="xl"
+      ><p role="alert" class="text-sm text-fb-text-primary">
+        Der Workspace wurde gewechselt. Deine Eingaben bleiben erhalten. Wechsle zum ursprünglichen
+        Workspace zurück oder verwirf die Änderungen.
+      </p></app-card
+    >
+  } @else if (loadError(); as error) {
+    <app-card rounded="xl"
+      ><p role="alert" class="mb-3 text-sm text-rose-700 dark:text-rose-400">{{ error }}</p>
+      <app-button (clicked)="reload()">Erneut laden</app-button></app-card
+    >
+  } @else if (loading() && !product()) {
+    <p role="status" class="text-sm text-fb-text-muted">Artikel wird geladen …</p>
+  } @else if (!product()) {
+    <app-card title="Artikel nicht gefunden" rounded="xl"
+      ><p class="text-sm text-fb-text-muted">
+        Dieser Artikel ist im aktuellen Workspace nicht vorhanden oder nicht zugänglich.
+      </p></app-card
+    >
+  }
+  @if (product() && !workspaceChanged()) {
+    @if (saveError(); as error) {
+      <p role="alert" class="text-sm text-rose-700 dark:text-rose-400">{{ error }}</p>
+    }
+    @if (savedMessage(); as message) {
+      <p role="status" class="text-sm text-fb-text-secondary">{{ message }}</p>
+    }
+    <div class="flex gap-2" role="group" aria-label="Artikelbereich">
+      <app-button
+        [ariaPressed]="!stockView()"
+        ariaControls="product-details"
+        (clicked)="setView(false)"
+        >Details</app-button
+      >
+      <app-button [ariaPressed]="stockView()" ariaControls="product-stock" (clicked)="setView(true)"
+        >Bestand</app-button
+      >
+    </div>
+    <form
+      id="product-details"
+      [hidden]="stockView()"
+      [formGroup]="form"
+      (ngSubmit)="save()"
+      class="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(260px,1fr)]"
+    >
+      <div class="min-w-0 space-y-4">
+        <app-card title="Artikeldaten" rounded="xl">
+          <div class="space-y-4">
+            <app-text-field
+              label="Name"
+              formControlName="title"
+              [error]="
+                form.controls.title.touched && form.controls.title.invalid
+                  ? 'Bitte einen Namen eingeben.'
+                  : null
+              "
+            />
+            <app-text-field
+              label="Beschreibung"
+              [multiline]="5"
+              formControlName="description"
+              helpText="Allgemeine Beschreibung dieses Artikels."
+            />
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <app-text-field label="Marke" formControlName="brand" />
+              <app-text-field label="Modell" formControlName="model" />
+              <app-text-field
+                label="EAN / GTIN"
+                formControlName="ean"
+                [error]="
+                  form.controls.ean.touched && form.controls.ean.invalid
+                    ? 'Bitte eine gültige EAN / GTIN eingeben.'
+                    : null
+                "
+              />
+              <app-text-field label="Kategorie" formControlName="category" />
+            </div>
+          </div>
+        </app-card>
+        <app-card title="Bilder" subtitle="Allgemeine Bilder des Artikels" rounded="xl">
+          <div class="space-y-3">
+            @if (mediaError(); as error) {
+              <p role="alert" class="text-sm text-rose-700 dark:text-rose-400">{{ error }}</p>
+              <app-button (clicked)="loadImages()">Bilder erneut laden</app-button>
+            }
+            <ul class="space-y-2">
+              @for (image of images(); track image.id) {
+                <li class="flex items-center gap-3 text-[13px] text-fb-text-secondary">
+                  <app-product-thumbnail
+                    size="md"
+                    [src]="media.getMediaUrl(image.storage_path)"
+                    [alt]="product()?.title || 'Artikelbild'"
+                    (imageFailed)="media.reportMediaFailure(image.storage_path)"
+                  />
+                  <span class="break-all"
+                    >{{ image.file_name || 'Artikelbild'
+                    }}{{ image.is_primary ? ' · Hauptbild' : '' }}</span
+                  >
+                </li>
+              }
+              @for (file of pendingImages(); track $index) {
+                <li
+                  class="flex items-center justify-between gap-3 text-[13px] text-fb-text-secondary"
+                >
+                  <span class="break-all">{{ file.name }} · Noch nicht gespeichert</span
+                  ><app-button
+                    [disabled]="isSaving()"
+                    [ariaLabel]="file.name + ' aus Auswahl entfernen'"
+                    (clicked)="removePendingImage($index)"
+                    >Entfernen</app-button
+                  >
+                </li>
+              }
+            </ul>
+            @if (!images().length && !pendingImages().length && !mediaError()) {
+              <p class="text-sm text-fb-text-muted">Noch keine Bilder vorhanden.</p>
+            }
+            <app-button [disabled]="isSaving()" (clicked)="imageInput.click()"
+              >Bilder hinzufügen</app-button
+            >
+            <!-- Der Browser-Dateidialog benötigt ein verborgenes natives Dateifeld. -->
+            <input
+              #imageInput
+              type="file"
+              multiple
+              accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
+              class="sr-only"
+              tabindex="-1"
+              aria-hidden="true"
+              data-shared-ui-exception="native-file-picker"
+              (change)="selectImages($event)"
+            />
+          </div>
+        </app-card>
+      </div>
+      <div class="min-w-0 space-y-4">
+        <app-card title="Shop" rounded="xl">
+          <div class="space-y-4">
+            <app-custom-checkbox
+              label="Im öffentlichen Shop anzeigen"
+              formControlName="isPublicStore"
+            />
+            @if (form.controls.isPublicStore.value) {
+              <div>
+                <label for="product-price" class="mb-1.5 block text-[13px] font-semibold"
+                  >Shoppreis</label
+                ><app-number-input
+                  id="product-price"
+                  ariaLabel="Shoppreis"
+                  formControlName="listingPrice"
+                  [min]="0.01"
+                  [step]="0.01"
+                  [showStepper]="false"
+                  unit="€"
+                />
+              </div>
+              @if (form.hasError('publicListingPrice')) {
+                <p role="alert" class="text-sm text-rose-700 dark:text-rose-400">
+                  Bitte einen positiven Shoppreis eingeben.
+                </p>
+              }
+            }
+          </div>
+        </app-card>
+        <app-card title="Einkauf und Bestand" rounded="xl"
+          ><p class="text-sm text-fb-text-muted">
+            Mengen, Zustand und Einkaufskosten findest du bei den zugehörigen Bestandspositionen.
+            Gespeicherte Belegangaben bleiben erhalten.
+          </p></app-card
+        >
+      </div>
+    </form>
+    <section
+      id="product-stock"
+      [hidden]="!stockView()"
+      aria-label="Bestand des Artikels"
+      class="space-y-4"
+    >
+      @if (loading()) {
+        <p role="status" class="text-sm text-fb-text-muted">Bestand wird geladen …</p>
+      } @else if (stockError(); as error) {
+        <app-card rounded="xl"
+          ><p role="alert" class="mb-3 text-sm text-rose-700 dark:text-rose-400">{{ error }}</p>
+          <app-button (clicked)="reload()">Bestand erneut laden</app-button></app-card
+        >
+      } @else {
+        @if (stockSummary(); as summary) {
+          <app-card title="Bestand" rounded="xl"
+            ><dl class="grid grid-cols-3 gap-3 text-sm">
+              <div>
+                <dt class="text-fb-text-muted">Auf Lager</dt>
+                <dd class="font-semibold">{{ summary.onHand ?? 'Unbekannt' }}</dd>
+              </div>
+              <div>
+                <dt class="text-fb-text-muted">Verfügbar</dt>
+                <dd class="font-semibold">{{ summary.available ?? 'Unbekannt' }}</dd>
+              </div>
+              <div>
+                <dt class="text-fb-text-muted">Reserviert</dt>
+                <dd class="font-semibold">{{ summary.reserved ?? 'Unbekannt' }}</dd>
+              </div>
+            </dl></app-card
+          >
+        }
+        @if (lots().length) {
+          <app-card title="Wareneingänge" rounded="xl"
+            ><ul class="divide-y divide-fb-line">
+              @for (lot of lots(); track lot.id) {
+                <li class="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
+                  <div>
+                    <p>
+                      {{ lot.remaining_quantity }} von {{ lot.received_quantity }} Stück vorhanden
+                    </p>
+                    <p class="text-fb-text-muted">
+                      {{ lot.received_at | date: 'dd.MM.yyyy'
+                      }}{{ lot.unit_cost === null ? ' · Einkaufskosten noch unbekannt' : '' }}
+                    </p>
+                  </div>
+                  <app-button [link]="'/purchases/' + lot.purchase_id">{{
+                    lot.purchase?.title || 'Einkauf öffnen'
+                  }}</app-button>
+                </li>
+              }
+            </ul></app-card
+          >
+        }
+        <app-card title="Positionen und Einkaufsherkunft" rounded="xl">
+          @if (!entries().length) {
+            <p class="text-sm text-fb-text-muted">
+              Noch keine zugeordneten Einkaufspositionen vorhanden.
+            </p>
+          }
+          <ul class="divide-y divide-fb-line">
+            @for (entry of entries(); track entry.id) {
+              <li class="space-y-2 py-3 text-sm">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p class="font-semibold">{{ entry.title_snapshot }}</p>
+                    <p class="text-fb-text-muted">
+                      {{ entry.received_quantity }} von {{ entry.ordered_quantity }} Stück
+                      eingegangen
+                    </p>
+                  </div>
+                  <app-button [link]="'/purchases/' + entry.purchase_id">{{
+                    entry.purchase?.title || 'Einkauf öffnen'
+                  }}</app-button>
+                </div>
+                @if (entry.inventory_items.length) {
+                  <ul class="space-y-2 pl-3" aria-label="Zugeordnete Einzelstücke">
+                    @for (item of entry.inventory_items; track item.id) {
+                      <li>
+                        <app-button variant="plain" [link]="'/inventory/' + item.id"
+                          >{{ item.title }}{{ item.sku ? ' · ' + item.sku : '' }}</app-button
+                        >
+                      </li>
+                    }
+                  </ul>
+                }
+              </li>
+            }
+          </ul>
+        </app-card>
+      }
+    </section>
+  }
+</div>

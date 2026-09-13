@@ -22,6 +22,8 @@ import { WorkspaceService } from '../../core/services/workspace.service';
 import { ConfirmDialogService } from '../../shared/components/confirm-dialog/confirm-dialog.service';
 import { ToastService } from '../../shared/components/toast/toast.service';
 import { InventoryComponent } from './inventory.component';
+import { CatalogService } from '../../core/services/catalog.service';
+import { MediaService } from '../../core/services/media.service';
 
 const artikel: InventoryItem = {
   id: '22222222-2222-4222-8222-222222222222',
@@ -72,6 +74,21 @@ function erstelleInventarAnsicht(input: {
   TestBed.configureTestingModule({
     providers: [
       provideZonelessChangeDetection(),
+      {
+        provide: CatalogService,
+        useValue: {
+          imageUrls: signal({ 'catalog-one': 'catalog-image.webp' }),
+          loadProducts: vi.fn(),
+          invalidateProductImage: vi.fn(),
+        },
+      },
+      {
+        provide: MediaService,
+        useValue: {
+          getMediaUrl: vi.fn((path: string) => `media:${path}`),
+          reportMediaFailure: vi.fn(),
+        },
+      },
       {
         provide: InventoryService,
         useValue: {
@@ -128,16 +145,120 @@ function erstelleInventarAnsicht(input: {
 }
 
 describe('InventoryComponent – Aktionsmeldungen', () => {
-  it('öffnet den gemeinsamen Produktdialog', () => {
+  it('zeigt echte Stückbilder neben Katalogbildern und behandelt Fehler am passenden Bild', () => {
+    const component = erstelleInventarAnsicht({
+      items: [
+        {
+          ...artikel,
+          media: [
+            {
+              id: 'secondary',
+              inventory_item_id: artikel.id,
+              is_primary: false,
+              storage_path: 'secondary.webp',
+            },
+            {
+              id: 'primary',
+              inventory_item_id: artikel.id,
+              is_primary: true,
+              storage_path: 'primary.webp',
+            },
+          ],
+        },
+      ],
+    });
+    expect(component.imageUrls()).toEqual({
+      'catalog-one': 'catalog-image.webp',
+      [artikel.id]: 'media:primary.webp',
+    });
+    component.onImageFailed(artikel.id);
+    expect(TestBed.inject(MediaService).reportMediaFailure).toHaveBeenCalledWith('primary.webp');
+    component.onImageFailed('catalog-one');
+    expect(TestBed.inject(CatalogService).invalidateProductImage).toHaveBeenCalledWith(
+      'catalog-one',
+    );
+  });
+  it('stellt Suche und Filter beim erneuten Öffnen der Liste wieder her', () => {
+    const component = erstelleInventarAnsicht({
+      items: [{ ...artikel, title: 'Tasse', status: 'ready' }],
+    });
+    component.searchQuery.set('Tasse');
+    component.filtersExpanded.set(true);
+    component.selectedStatus.set('available');
+    component.selectedCondition.set('used');
+    const reopened = TestBed.runInInjectionContext(() => new InventoryComponent());
+    expect(reopened.searchQuery()).toBe('Tasse');
+    expect(reopened.filtersExpanded()).toBe(true);
+    expect(reopened.selectedStatus()).toBe('available');
+    expect(reopened.selectedCondition()).toBe('used');
+    expect(reopened.activeFilterCount()).toBe(2);
+    expect(reopened.filteredItems().map((item) => item.title)).toEqual(['Tasse']);
+  });
+
+  it('zeigt zuerst anwesende Ware und Konflikte und macht Verkäufe gesondert zugänglich', () => {
+    const component = erstelleInventarAnsicht({
+      items: [
+        { ...artikel, id: 'ready', status: 'ready' },
+        { ...artikel, id: 'reserved', status: 'reserved' },
+        { ...artikel, id: 'sold', status: 'sold', sale_state: 'sold' },
+        { ...artikel, id: 'conflict', status: 'ready', sale_state: 'sale_status_conflict' },
+        { ...artikel, id: 'retired', status: 'archived' },
+      ],
+    });
+    const ids = () =>
+      component
+        .filteredPresentationRows()
+        .map((row) => row.actionId)
+        .sort();
+    expect(ids()).toEqual(['conflict', 'ready', 'reserved']);
+    expect(component.filteredUnitCount()).toBeNull();
+    component.setStockView('sold');
+    expect(ids()).toEqual(['conflict', 'sold']);
+    component.setStockView('all');
+    expect(ids()).toEqual(['conflict', 'ready', 'reserved', 'retired', 'sold']);
+    component.resetView();
+    expect(component.stockView()).toBe('stock');
+    expect(ids()).toEqual(['conflict', 'ready', 'reserved']);
+  });
+
+  it('erhält Archiv und Etikettenauswahl und summiert nur physisch anwesende Ware', () => {
+    const component = erstelleInventarAnsicht({
+      items: [
+        { ...artikel, id: 'ready', status: 'ready' },
+        { ...artikel, id: 'received' },
+        { ...artikel, id: 'sold', status: 'sold', sale_state: 'sold' },
+        {
+          ...artikel,
+          id: 'archived',
+          status: 'sold',
+          sale_state: 'sold',
+          archived_at: '2026-09-01',
+        },
+      ],
+    });
+    expect(component.filteredUnitCount()).toBe(2);
+    component.toggleSelectAll();
+    expect(
+      component
+        .itemsToPrint()
+        .map((item) => item.id)
+        .sort(),
+    ).toEqual(['ready', 'received']);
+    component.setStockView('sold');
+    expect(component.selectedItemIds().size).toBe(0);
+    expect(component.filteredUnitCount()).toBe(0);
+    component.archiveView.set('archive');
+    expect(component.filteredItems().map((item) => item.id)).toEqual(['archived']);
+  });
+
+  it('öffnet die Einkaufserfassung', () => {
     const navigate = vi.fn();
     const komponente = Object.create(InventoryComponent.prototype) as InventoryComponent;
     Object.assign(komponente, { router: { navigate } });
 
-    Object.assign(komponente, { isProductDialogOpen: signal(false) });
     komponente.openCreatePage();
 
-    expect(komponente.isProductDialogOpen()).toBe(true);
-    expect(navigate).not.toHaveBeenCalled();
+    expect(navigate).toHaveBeenCalledWith(['/purchases/new']);
   });
 
   it('verwendet eine gemeinsame Ansicht ohne Bestand- und Einzelstück-Tabs', () => {
@@ -146,10 +267,12 @@ describe('InventoryComponent – Aktionsmeldungen', () => {
     expect(template).not.toContain('role="tablist"');
     expect(template).not.toContain('activeTab');
     expect(template).toContain('[presentationRows]="filteredPresentationRows()"');
-    expect(template).toContain('Verkaufsstatus klären');
+    expect(template).toContain('Weitere Filter');
     expect(template).not.toContain('Altdaten prüfen');
     expect(template).toContain('inventoryPresentation().sourceState');
-    expect(template).toContain('[state]="filteredInventoryValue()"');
+    expect(template).toContain('link="/purchases/new"');
+    expect(template).toContain('title="Artikel"');
+    expect(template).toContain('subtitle="Bestand"');
   });
 
   it('lädt bei Wiederholung alle Inventarquellen neu', async () => {
@@ -303,7 +426,7 @@ describe('InventoryComponent – Aktionsmeldungen', () => {
 
     const komponente = TestBed.runInInjectionContext(() => new InventoryComponent());
 
-    expect(komponente.filteredUnitCount()).toBe(14);
+    expect(komponente.filteredUnitCount()).toBeNull();
     komponente.selectedStatus.set('sold');
     expect(komponente.filteredPresentationRows()).toEqual(
       expect.arrayContaining([

@@ -448,6 +448,7 @@ export type Database = {
           condition: string | null
           condition_notes: string | null
           created_at: string
+          description: string | null
           ean: string | null
           id: string
           is_public_store: boolean
@@ -464,6 +465,7 @@ export type Database = {
           condition?: string | null
           condition_notes?: string | null
           created_at?: string
+          description?: string | null
           ean?: string | null
           id?: string
           is_public_store?: boolean
@@ -480,6 +482,7 @@ export type Database = {
           condition?: string | null
           condition_notes?: string | null
           created_at?: string
+          description?: string | null
           ean?: string | null
           id?: string
           is_public_store?: boolean

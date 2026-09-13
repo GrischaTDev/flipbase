@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthService } from './auth.service';
 import { SupabaseService } from './supabase.service';
 import { TablePreferencesService } from './table-preferences.service';
-import { SALES_TABLE_CONFIG } from '../config/table-defaults.config';
+import { INVENTORY_TABLE_CONFIG, SALES_TABLE_CONFIG } from '../config/table-defaults.config';
 import { StoredTablePreferences } from '../models/table-preferences.models';
 
 const definitions = [
@@ -204,6 +204,59 @@ describe('TablePreferencesService – Polaris Table Preferences & Reordering', (
 
     const qtyCol = prefs.columns.find((c) => c.id === 'quantity');
     expect(qtyCol?.visible).toBe(true);
+  });
+
+  it('stellt eine unveränderte alte Inventaransicht auf die kompakte Übersicht um', () => {
+    const oldIds = [
+      'selection',
+      'title',
+      'condition',
+      'quantity',
+      'status',
+      'origin',
+      'unit_cost',
+      'inventory_value',
+      'sale',
+      'actions',
+    ];
+    localStorage.setItem(
+      `flipbase:table_prefs:${testWorkspaceId}:inventory`,
+      JSON.stringify({
+        version: 1,
+        columns: oldIds.map((id, order) => ({ id, order, visible: true })),
+        sort: { field: 'title', direction: 'asc' },
+      }),
+    );
+    const state = service.getTablePreferences('inventory', testWorkspaceId)();
+    expect(state.columns).toEqual(INVENTORY_TABLE_CONFIG.defaultColumns);
+    expect(state.sort).toEqual({ field: 'title', direction: 'asc' });
+  });
+
+  it('behält bewusst angepasste Inventarspalten bei', () => {
+    const oldIds = [
+      'selection',
+      'title',
+      'condition',
+      'quantity',
+      'status',
+      'origin',
+      'unit_cost',
+      'inventory_value',
+      'sale',
+      'actions',
+    ];
+    localStorage.setItem(
+      `flipbase:table_prefs:${testWorkspaceId}:inventory`,
+      JSON.stringify({
+        version: 1,
+        columns: oldIds.map((id, order) => ({ id, order, visible: id !== 'condition' })),
+        sort: { field: 'title', direction: 'asc' },
+      }),
+    );
+    const state = service.getTablePreferences('inventory', testWorkspaceId)();
+    expect(state.columns.find((column) => column.id === 'condition')?.visible).toBe(false);
+    expect(state.columns.find((column) => column.id === 'origin')?.visible).toBe(true);
+    expect(state.columns.find((column) => column.id === 'available')?.visible).toBe(true);
   });
 
   it('should toggle column visibility and persist to localStorage', () => {

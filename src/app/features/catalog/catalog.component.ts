@@ -13,9 +13,18 @@ import {
   effect,
   inject,
   signal,
+  untracked,
 } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { Router, RouterLink } from '@angular/router';
+import { InventoryService } from '../../core/services/inventory.service';
+import { PurchaseService } from '../../core/services/purchase.service';
+import { MediaService } from '../../core/services/media.service';
+import { ARTICLE_VIEWS } from '../../core/config/article-navigation';
+import { SectionNavigationComponent } from '../../shared/components/section-navigation/section-navigation.component';
+import { buildCatalogOverview, CatalogOverviewRow } from './utils/catalog-overview';
+import { CatalogViewStateService } from './services/catalog-view-state.service';
 import {
   LucidePlus as Plus,
   LucideSearch as Search,
@@ -43,6 +52,8 @@ interface CatalogImportRow {
 @Component({
   selector: 'app-catalog',
   imports: [
+    RouterLink,
+    SectionNavigationComponent,
     TableColumnMenuComponent,
     TableSortHeaderComponent,
     ReactiveFormsModule,
@@ -60,6 +71,12 @@ export class CatalogComponent {
   readonly tablePreferences = inject(TablePreferencesService);
   readonly catalogService = inject(CatalogService);
   readonly stockService = inject(StockService);
+  readonly inventoryService = inject(InventoryService);
+  private readonly purchaseService = inject(PurchaseService);
+  private readonly mediaService = inject(MediaService);
+  private readonly router = inject(Router);
+  private readonly viewState = inject(CatalogViewStateService);
+  readonly articleViews = ARTICLE_VIEWS;
   private readonly workspaceService = inject(WorkspaceService);
   readonly workspaceId = computed(() => this.workspaceService.currentWorkspace()?.id ?? 'default');
   readonly catalogTableConfig = this.tablePreferences.getTableConfig<
@@ -84,8 +101,12 @@ export class CatalogComponent {
   readonly plusIcon = Plus;
   readonly searchIcon = Search;
   readonly bookOpenIcon = BookOpen;
-  readonly searchControl = new FormControl('', { nonNullable: true });
-  readonly searchQuery = toSignal(this.searchControl.valueChanges, { initialValue: '' });
+  readonly searchControl = new FormControl(this.viewState.searchFor(this.workspaceId()), {
+    nonNullable: true,
+  });
+  readonly searchQuery = toSignal(this.searchControl.valueChanges, {
+    initialValue: this.searchControl.value,
+  });
   readonly viewModified = computed(
     () =>
       this.searchQuery().trim() !== '' ||
@@ -96,22 +117,35 @@ export class CatalogComponent {
   readonly csvHasErrors = computed(() => this.csvRows().some((row) => Boolean(row.error)));
   readonly csvError = signal<string | null>(null);
   readonly isImportingCsv = signal(false);
+  readonly overview = computed(() =>
+    buildCatalogOverview(
+      this.workspaceId(),
+      this.catalogService.products(),
+      this.inventoryService.items(),
+      this.purchaseService.purchases().flatMap((purchase) => purchase.purchase_lines ?? []),
+      this.stockService.loadedWorkspaceId() === this.workspaceId()
+        ? this.stockService.positions()
+        : [],
+      this.stockService.loadedWorkspaceId() === this.workspaceId() ? this.stockService.lots() : [],
+      this.stockService.loadedWorkspaceId() === this.workspaceId()
+        ? this.stockService.movements()
+        : [],
+    ),
+  );
   readonly filteredProducts = computed(() => {
     const query = this.searchQuery().trim().toLocaleLowerCase('de');
     const products = !query
-      ? [...this.catalogService.products()]
-      : this.catalogService
-          .products()
-          .filter((product) =>
-            [product.title, product.ean, product.brand, product.model]
-              .filter((value): value is string => Boolean(value))
-              .some((value) => value.toLocaleLowerCase('de').includes(query)),
-          );
+      ? [...this.overview()]
+      : this.overview().filter((product) =>
+          [product.title, product.ean, product.brand, product.model]
+            .filter((value): value is string => Boolean(value))
+            .some((value) => value.toLocaleLowerCase('de').includes(query)),
+        );
     const sort = this.tablePrefs().sort;
     return products.sort((left, right) => {
       const comparison =
         sort.field === 'available'
-          ? this.availableStock(left) - this.availableStock(right)
+          ? (this.availableStock(left) ?? -1) - (this.availableStock(right) ?? -1)
           : left.title.localeCompare(right.title, 'de', { sensitivity: 'base' });
       return sort.direction === 'asc' ? comparison : -comparison;
     });
@@ -149,29 +183,53 @@ export class CatalogComponent {
     return sort.direction === 'asc' ? 'ascending' : 'descending';
   }
 
-  readonly stockByProduct = computed(
-    () =>
-      new Map(
-        this.stockService.positions().map((position) => [position.catalog_product_id, position]),
-      ),
-  );
   readonly isLoading = computed(
-    () => this.catalogService.isLoading() || this.stockService.isLoading(),
+    () =>
+      this.catalogService.isLoading() ||
+      this.stockService.isLoading() ||
+      this.inventoryService.isLoading() ||
+      this.purchaseService.isLoading(),
   );
   readonly loadError = computed(
-    () => this.catalogService.loadError() ?? this.stockService.loadError(),
+    () =>
+      this.catalogService.loadError() ??
+      this.stockService.loadError() ??
+      this.inventoryService.loadError() ??
+      this.purchaseService.loadError(),
   );
 
   constructor() {
+    this.searchControl.valueChanges.pipe(takeUntilDestroyed()).subscribe((query) => {
+      this.viewState.rememberSearch(this.workspaceId(), query);
+    });
     effect(() => {
       const workspaceId = this.workspaceService.currentWorkspace()?.id;
       if (!workspaceId) return;
-      void this.reload();
+      untracked(() => {
+        this.searchControl.setValue(this.viewState.searchFor(workspaceId));
+        void this.reload();
+      });
     });
   }
 
-  availableStock(product: CatalogProduct): number {
-    return this.stockByProduct().get(product.id)?.available_quantity ?? 0;
+  availableStock(product: CatalogOverviewRow): number | null {
+    return product.available;
+  }
+
+  imageUrl(product: CatalogOverviewRow): string | null {
+    return product.primary_media_path
+      ? this.mediaService.getMediaUrl(product.primary_media_path)
+      : null;
+  }
+
+  imageFailed(product: CatalogOverviewRow): void {
+    if (product.primary_media_path)
+      this.mediaService.reportMediaFailure(product.primary_media_path);
+  }
+
+  productCreated(product: CatalogProduct): void {
+    this.isCreateOpen.set(false);
+    void this.router.navigate(['/catalog', product.id]);
   }
 
   async reload(): Promise<void> {
@@ -180,6 +238,8 @@ export class CatalogComponent {
     await Promise.all([
       this.catalogService.loadProducts(workspaceId),
       this.stockService.loadPositions(workspaceId),
+      this.inventoryService.loadInventory(workspaceId),
+      this.purchaseService.loadPurchases(workspaceId),
     ]);
   }
 

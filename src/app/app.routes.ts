@@ -141,6 +141,14 @@ export const routes: Routes = [
           import('./features/catalog/catalog.component').then((m) => m.CatalogComponent),
       },
       {
+        path: 'catalog/:id',
+        canDeactivate: [unsavedEntryGuard],
+        loadComponent: () =>
+          import('./features/catalog/pages/product-detail/product-detail.component').then(
+            (m) => m.ProductDetailComponent,
+          ),
+      },
+      {
         path: 'research',
         loadComponent: () =>
           import('./features/research/research.component').then((m) => m.ResearchComponent),

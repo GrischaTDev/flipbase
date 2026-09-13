@@ -334,6 +334,7 @@ create table public.catalog_products (
     listing_price numeric(12,2) check (listing_price is null or listing_price > 0),
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now(),
+    description text,
     unique (workspace_id, id)
 );
 

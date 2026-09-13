@@ -1,12 +1,14 @@
 import { ChangeDetectionStrategy, Component, inject, input, output } from '@angular/core';
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive } from '@angular/router';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { filter, map } from 'rxjs';
+import { isArticleRoute } from '../../core/config/article-navigation';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
   LucideDynamicIcon,
   LucideIconInput,
   LucideLayoutDashboard as LayoutDashboard,
   LucideShoppingBag as ShoppingBag,
-  LucideBoxes as Boxes,
   LucideBookOpen as BookOpen,
   LucideSearch as Search,
   LucideCalculator as Calculator,
@@ -52,6 +54,20 @@ interface NavItem {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SidebarComponent {
+  private readonly router = inject(Router);
+  private readonly currentUrl = toSignal(
+    this.router.events.pipe(
+      filter((event): event is NavigationEnd => event instanceof NavigationEnd),
+      map((event) => event.urlAfterRedirects),
+    ),
+    { initialValue: this.router.url },
+  );
+
+  isItemActive(item: NavItem): boolean {
+    if (item.path === '/catalog') return isArticleRoute(this.currentUrl());
+    const path = this.currentUrl().split(/[?#]/, 1)[0];
+    return path === item.path || path.startsWith(item.path + '/');
+  }
   readonly isOpen = input<boolean>(false);
   readonly closed = output<void>();
 
@@ -99,8 +115,7 @@ export class SidebarComponent {
     { path: '/dashboard', labelKey: 'NAV.DASHBOARD', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/sales', labelKey: 'NAV.SALES', label: 'Verkäufe', icon: TrendingUp },
     { path: '/purchases', labelKey: 'NAV.PURCHASES', label: 'Einkäufe', icon: ShoppingBag },
-    { path: '/inventory', labelKey: 'NAV.INVENTORY', label: 'Inventar', icon: Boxes },
-    { path: '/catalog', labelKey: 'NAV.CATALOG', label: 'Artikelstamm', icon: BookOpen },
+    { path: '/catalog', labelKey: 'NAV.CATALOG', label: 'Artikel', icon: BookOpen },
     {
       path: '/shop',
       labelKey: 'NAV.STORE',

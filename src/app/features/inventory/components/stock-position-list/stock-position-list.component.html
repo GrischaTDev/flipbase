@@ -21,12 +21,12 @@
   @if (rows().length > 0) {
     <div class="overflow-x-auto">
       <table
-        [style.min-width.px]="440 + (visibleColumns().length - 3) * 105"
+        [style.min-width.px]="440 + (orderedVisibleColumns().length - 3) * 80"
         data-unified-inventory-table
         class="linear-table w-full"
       >
         <caption class="sr-only">
-          Inventartabelle mit Herkunft, Bestand, Kosten, Status und Verkaufsbezug
+          Bestand mit Artikel, auf Lager, verfügbar und reserviert
         </caption>
         <thead class="bg-fb-surface text-[13px] font-semibold text-fb-text-secondary">
           <tr>
@@ -61,11 +61,21 @@
                     class="border-b border-fb-line px-3 py-2.5 text-left"
                   >
                     <app-table-sort-header
-                      label="Bestand"
+                      label="Auf Lager"
                       sortField="quantity"
                       [currentSort]="currentSort()"
                       (sortChanged)="sortChanged.emit($event)"
                     />
+                  </th>
+                }
+                @case ('available') {
+                  <th scope="col" class="border-b border-fb-line px-3 py-2.5 text-right">
+                    Verfügbar
+                  </th>
+                }
+                @case ('reserved') {
+                  <th scope="col" class="border-b border-fb-line px-3 py-2.5 text-right">
+                    Reserviert
                   </th>
                 }
                 @case ('status') {
@@ -124,7 +134,7 @@
               [attr.data-stock-row]="row.trackingMode === 'quantity' ? '' : null"
               [attr.data-individual-row]="row.trackingMode === 'individual' ? '' : null"
               class="align-top transition hover:bg-fb-surface-alt"
-              [class.bg-indigo-500/5]="row.inventoryItem && isItemSelected(row.inventoryItem.id)"
+              [class.bg-fb-surface-alt]="row.inventoryItem && isItemSelected(row.inventoryItem.id)"
             >
               @for (column of orderedVisibleColumns(); track column) {
                 @switch (column) {
@@ -147,43 +157,70 @@
                   }
                   @case ('title') {
                     <td class="px-3 py-3">
-                      <app-product-thumbnail
-                        (imageFailed)="imageFailed.emit(row.actionId)"
-                        [src]="imageUrls()[row.actionId] || null"
-                        class="mr-2"
-                      />
-                      @if (row.inventoryItem; as item) {
-                        <a
-                          data-item-details
-                          [routerLink]="['/inventory', item.id]"
-                          class="font-semibold text-fb-text-primary transition hover:text-emerald-400"
-                          >{{ row.title }}</a
-                        >
-                        <p class="mt-0.5 text-xs text-fb-text-muted">
-                          {{ item.brand || item.category || 'Keine Kategorie' }}
-                        </p>
-                      } @else {
-                        <p class="font-semibold text-fb-text-primary">{{ row.title }}</p>
-                        @if (row.lots.length > 0) {
-                          <button
-                            type="button"
-                            (click)="toggleLots(row.actionId)"
-                            [attr.data-stock-origin-toggle]="row.actionId"
-                            [attr.aria-expanded]="areLotsOpen(row.actionId)"
-                            [attr.aria-controls]="'stock-origins-' + row.actionId"
-                            class="mt-1 inline-flex cursor-pointer items-center gap-1 text-xs font-semibold text-indigo-300 transition hover:text-indigo-200"
+                      <div class="flex items-start gap-3">
+                        <app-product-thumbnail
+                          (imageFailed)="imageFailed.emit(row.actionId)"
+                          [src]="imageUrls()[row.actionId] || null"
+                        />
+                        <div class="min-w-0 space-y-1">
+                          <a
+                            [attr.data-item-details]="row.inventoryItem ? '' : null"
+                            [attr.data-catalog-stock-link]="row.inventoryItem ? null : ''"
+                            [routerLink]="
+                              row.inventoryItem
+                                ? ['/inventory', row.actionId]
+                                : ['/catalog', row.actionId]
+                            "
+                            [queryParams]="row.inventoryItem ? null : { view: 'stock' }"
+                            class="font-semibold text-fb-text-primary hover:underline focus-visible:outline-2 focus-visible:outline-fb-primary"
+                            >{{ row.title }}</a
                           >
-                            <svg
-                              [lucideIcon]="
-                                areLotsOpen(row.actionId) ? chevronUpIcon : chevronDownIcon
+                          @if (
+                            row.quantityState === 'review_required' ||
+                            row.status.kind === 'conflict'
+                          ) {
+                            <div>
+                              <app-badge
+                                [tone]="row.status.kind === 'conflict' ? 'critical' : 'caution'"
+                              >
+                                {{
+                                  row.status.kind === 'conflict' || row.status.kind === 'review'
+                                    ? row.status.label
+                                    : 'Bestand klären'
+                                }}
+                              </app-badge>
+                            </div>
+                          } @else if (row.quantityState === 'error') {
+                            <div>
+                              <app-badge tone="critical">Bestand nicht verfügbar</app-badge>
+                            </div>
+                          }
+                          @if (row.originState === 'error' || row.salesState === 'error') {
+                            <div>
+                              <app-badge tone="caution"
+                                >Belege nicht vollständig verfügbar</app-badge
+                              >
+                            </div>
+                          }
+                          <div>
+                            <app-button
+                              variant="plain"
+                              size="slim"
+                              [icon]="areLotsOpen(row.actionId) ? chevronUpIcon : chevronDownIcon"
+                              (clicked)="toggleLots(row.actionId)"
+                              [attr.data-stock-origin-toggle]="row.actionId"
+                              [ariaLabel]="
+                                'Details für ' +
+                                row.title +
+                                (areLotsOpen(row.actionId) ? ' zuklappen' : ' aufklappen')
                               "
-                              class="h-3.5 w-3.5"
-                              aria-hidden="true"
-                            ></svg>
-                            Herkunft und Kosten aufschlüsseln
-                          </button>
-                        }
-                      }
+                              [ariaExpanded]="areLotsOpen(row.actionId)"
+                              [ariaControls]="'stock-origins-' + row.actionId"
+                              >Details</app-button
+                            >
+                          </div>
+                        </div>
+                      </div>
                     </td>
                   }
                   @case ('condition') {
@@ -196,168 +233,85 @@
                     </td>
                   }
                   @case ('quantity') {
-                    <td class="px-3 py-3">
-                      @switch (row.quantityState) {
-                        @case ('known') {
-                          <p class="font-mono text-xs font-semibold text-fb-text-primary">
-                            {{ row.quantity.total }} Stück insgesamt
-                          </p>
-                          <p class="mt-0.5 text-xs text-fb-text-muted">
-                            {{ row.quantity.available }} verfügbar ·
-                            {{ row.quantity.reserved }} reserviert ·
-                            {{ row.quantity.sold }} verkauft
-                          </p>
-                        }
-                        @case ('loading') {
-                          <span class="text-xs text-fb-text-muted" role="status"
-                            >Bestand wird geladen…</span
-                          >
-                        }
-                        @case ('error') {
-                          <span class="text-xs font-semibold text-rose-300"
-                            >Bestand nicht verfügbar</span
-                          >
-                        }
-                        @case ('review_required') {
-                          <span class="text-xs font-semibold text-amber-200"
-                            >Prüfung erforderlich</span
-                          >
-                        }
+                    <td
+                      data-stock-quantity="quantity"
+                      class="px-3 py-3 text-right text-[13px] tabular-nums text-fb-text-primary"
+                    >
+                      @if (row.quantityState === 'known') {
+                        {{ row.onHandQuantity }}
+                      } @else {
+                        <span class="text-fb-text-muted" [attr.aria-label]="quantityStateLabel(row)"
+                          >—</span
+                        >
+                      }
+                    </td>
+                  }
+                  @case ('available') {
+                    <td
+                      data-stock-quantity="available"
+                      class="px-3 py-3 text-right text-[13px] tabular-nums text-fb-text-primary"
+                    >
+                      @if (row.quantityState === 'known') {
+                        {{ row.quantity.available }}
+                      } @else {
+                        <span class="text-fb-text-muted" [attr.aria-label]="quantityStateLabel(row)"
+                          >—</span
+                        >
+                      }
+                    </td>
+                  }
+                  @case ('reserved') {
+                    <td
+                      data-stock-quantity="reserved"
+                      class="px-3 py-3 text-right text-[13px] tabular-nums text-fb-text-primary"
+                    >
+                      @if (row.quantityState === 'known') {
+                        {{ row.quantity.reserved }}
+                      } @else {
+                        <span class="text-fb-text-muted" [attr.aria-label]="quantityStateLabel(row)"
+                          >—</span
+                        >
                       }
                     </td>
                   }
                   @case ('status') {
                     <td class="px-3 py-3">
-                      @if (row.status.kind === 'editable' && row.inventoryItem; as item) {
-                        <div data-item-status>
-                          <app-custom-select
-                            [ariaLabel]="'Status für ' + row.title"
-                            size="sm"
-                            variant="pill"
-                            [options]="statusOptions"
-                            [value]="item.status"
-                            (valueChange)="emitStatusChange(item, $event)"
-                          />
-                        </div>
-                      } @else {
-                        <span
-                          data-item-status-badge
-                          [attr.data-sold-badge]="row.status.kind === 'sold' ? '' : null"
-                          [attr.data-integrity-conflict]="
-                            row.status.kind === 'conflict' ? '' : null
-                          "
-                          class="inline-flex min-h-7 items-center rounded-full border px-2.5 py-1 text-xs font-semibold text-fb-text-primary"
-                          [class.border-purple-500/40]="row.status.kind === 'sold'"
-                          [class.bg-purple-500/15]="row.status.kind === 'sold'"
-                          [class.border-amber-500/40]="row.status.kind === 'review'"
-                          [class.bg-amber-500/15]="row.status.kind === 'review'"
-                          [class.border-rose-500/40]="row.status.kind === 'conflict'"
-                          [class.bg-rose-500/15]="row.status.kind === 'conflict'"
-                          [class.border-emerald-500/30]="row.status.kind === 'available'"
-                          [class.bg-emerald-500/15]="row.status.kind === 'available'"
-                          >{{ row.status.label }}</span
-                        >
-                      }
-                      @if (row.inventoryItem?.sale_state === 'legacy_sold_unverified') {
-                        <div class="mt-2 w-64 space-y-2">
-                          <div class="flex flex-wrap gap-1.5">
-                            <button
-                              data-restore-stock
-                              type="button"
-                              (click)="emitRestoreLegacy(row.inventoryItem!)"
-                              class="linear-btn-secondary cursor-pointer rounded-lg px-2 py-1 text-xs font-semibold"
-                            >
-                              Artikel ist noch vorhanden
-                            </button>
-                            <button
-                              data-reconcile-sale
-                              type="button"
-                              (click)="reconcileSale.emit(row.inventoryItem!)"
-                              class="linear-btn-secondary cursor-pointer rounded-lg px-2 py-1 text-xs font-semibold"
-                            >
-                              Verkauf nachtragen
-                            </button>
-                          </div>
-                        </div>
-                      }
+                      <ng-container
+                        [ngTemplateOutlet]="statusDetails"
+                        [ngTemplateOutletContext]="{ $implicit: row }"
+                      />
                     </td>
                   }
                   @case ('origin') {
                     <td class="px-3 py-3 text-xs text-fb-text-secondary">
-                      @switch (row.originState) {
-                        @case ('known') {
-                          @for (origin of row.origins; track origin.purchaseId) {
-                            <a
-                              data-inventory-origin-link
-                              [routerLink]="origin.link"
-                              class="block font-semibold text-emerald-400 hover:underline"
-                              >{{ origin.label }}</a
-                            >
-                          }
-                        }
-                        @case ('loading') {
-                          <span class="text-fb-text-muted" role="status"
-                            >Herkunft wird geladen…</span
-                          >
-                        }
-                        @case ('error') {
-                          <span class="font-semibold text-rose-300">Herkunft nicht verfügbar</span>
-                        }
-                        @case ('not_linked') {
-                          <span class="text-fb-text-muted">Nicht verknüpft</span>
-                        }
-                      }
+                      <ng-container
+                        [ngTemplateOutlet]="originDetails"
+                        [ngTemplateOutletContext]="{ $implicit: row }"
+                      />
                     </td>
                   }
                   @case ('unit_cost') {
                     <td class="px-3 py-3 text-right font-mono text-xs">
-                      <app-cost-state [state]="row.costPerUnit" />
+                      <ng-container
+                        [ngTemplateOutlet]="unit_costDetails"
+                        [ngTemplateOutletContext]="{ $implicit: row }"
+                      />
                     </td>
                   }
                   @case ('inventory_value') {
                     <td class="px-3 py-3 text-right font-mono text-xs">
-                      <app-cost-state [state]="row.inventoryValue" />
+                      <ng-container
+                        [ngTemplateOutlet]="inventory_valueDetails"
+                        [ngTemplateOutletContext]="{ $implicit: row }"
+                      />
                     </td>
                   }
                   @case ('sale') {
                     <td class="px-3 py-3 text-xs">
-                      @switch (row.salesState) {
-                        @case ('loading') {
-                          <span class="text-fb-text-muted" role="status"
-                            >Verkäufe werden geladen…</span
-                          >
-                        }
-                        @case ('error') {
-                          <span class="text-rose-300">Verkäufe nicht verfügbar</span>
-                        }
-                        @case ('known') {
-                          @for (sale of row.sales; track sale.id) {
-                            <div data-inventory-sale class="mb-2 last:mb-0">
-                              <a
-                                data-inventory-sale-link
-                                [routerLink]="['/sales']"
-                                [queryParams]="{ saleId: sale.id }"
-                                class="font-semibold text-indigo-300 hover:underline"
-                                >{{ sale.saleDate | date: 'dd.MM.yyyy' }} · {{ sale.revenueLabel }}
-                                {{ sale.revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}</a
-                              >
-                              <p class="text-xs text-fb-text-muted">
-                                {{ sale.stateLabel }}
-                                @if (sale.directResult !== null) {
-                                  · Ergebnis
-                                  {{
-                                    sale.directResult | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
-                                  }}
-                                } @else if (sale.showResultInSale) {
-                                  · Ergebnis im Verkauf ansehen
-                                }
-                              </p>
-                            </div>
-                          } @empty {
-                            <span class="text-fb-text-muted">—</span>
-                          }
-                        }
-                      }
+                      <ng-container
+                        [ngTemplateOutlet]="saleDetails"
+                        [ngTemplateOutletContext]="{ $implicit: row }"
+                      />
                     </td>
                   }
                   @case ('actions') {
@@ -382,7 +336,7 @@
                             data-item-label
                             type="button"
                             (click)="labelIndividual.emit(item)"
-                            class="cursor-pointer rounded-lg p-1.5 text-fb-text-muted transition hover:bg-fb-line hover:text-indigo-300"
+                            class="cursor-pointer rounded-lg p-1.5 text-fb-text-muted transition hover:bg-fb-line hover:text-fb-text-primary"
                             [attr.aria-label]="'Etikett für ' + row.title + ' drucken'"
                           >
                             <svg
@@ -422,7 +376,7 @@
                               data-item-sell
                               type="button"
                               (click)="emitIndividualSale(item)"
-                              class="linear-btn-primary inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold"
+                              class="linear-btn-secondary inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold"
                               [attr.aria-label]="row.title + ' verkaufen'"
                             >
                               <svg
@@ -437,7 +391,7 @@
                           <button
                             type="button"
                             (click)="sell.emit(stockPosition(row))"
-                            class="linear-btn-primary inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
+                            class="linear-btn-secondary inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
                             [attr.aria-label]="row.title + ' verkaufen'"
                           >
                             <svg
@@ -454,35 +408,59 @@
                 }
               }
             </tr>
-            @if (row.trackingMode === 'quantity' && areLotsOpen(row.actionId)) {
+            @if (areLotsOpen(row.actionId)) {
               <tr>
-                <td [attr.colspan]="visibleColumns().length" class="bg-fb-well px-5 py-3">
+                <td [attr.colspan]="orderedVisibleColumns().length" class="bg-fb-well px-5 py-3">
                   <div
                     [id]="'stock-origins-' + row.actionId"
                     class="space-y-2"
-                    aria-label="Herkunft und Kosten"
+                    aria-label="Artikeldetails"
                   >
-                    <div class="grid grid-cols-4 gap-3 text-xs font-semibold text-fb-text-muted">
-                      <span>Herkunft</span><span>Wareneingang</span
-                      ><span class="text-right">Restmenge</span
-                      ><span class="text-right">Kosten pro Stück</span>
+                    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                      @for (
+                        detail of [
+                          { label: 'Status', template: statusDetails },
+                          { label: 'Herkunft', template: originDetails },
+                          { label: 'Kosten pro Stück', template: unit_costDetails },
+                          { label: 'Bestandswert', template: inventory_valueDetails },
+                          { label: 'Verkäufe', template: saleDetails },
+                        ];
+                        track detail.label
+                      ) {
+                        <div>
+                          <h3 class="mb-1 text-[13px] font-semibold text-fb-text-secondary">
+                            {{ detail.label }}
+                          </h3>
+                          <ng-container
+                            [ngTemplateOutlet]="detail.template"
+                            [ngTemplateOutletContext]="{ $implicit: row }"
+                          />
+                        </div>
+                      }
                     </div>
-                    @for (lot of row.lots; track lot.id) {
-                      <div
-                        [attr.data-stock-origin]="lot.id"
-                        class="grid grid-cols-4 gap-3 border-t border-fb-line/70 pt-2 font-mono text-xs text-fb-text-secondary"
-                      >
-                        <a
-                          [routerLink]="['/purchases', lot.purchaseId]"
-                          class="font-sans text-emerald-400 hover:underline"
-                          >Einkauf öffnen</a
-                        >
-                        <span class="font-sans">{{ lot.receivedAt | date: 'dd.MM.yyyy' }}</span
-                        ><span class="text-right">{{ lot.remainingQuantity }} Stück</span
-                        ><span class="text-right"
-                          ><app-cost-state [state]="lot.costPerUnit"
-                        /></span>
+                    @if (row.lots.length > 0) {
+                      <div class="grid grid-cols-4 gap-3 text-xs font-semibold text-fb-text-muted">
+                        <span>Herkunft</span><span>Wareneingang</span
+                        ><span class="text-right">Restmenge</span
+                        ><span class="text-right">Kosten pro Stück</span>
                       </div>
+                      @for (lot of row.lots; track lot.id) {
+                        <div
+                          [attr.data-stock-origin]="lot.id"
+                          class="grid grid-cols-4 gap-3 border-t border-fb-line/70 pt-2 font-mono text-xs text-fb-text-secondary"
+                        >
+                          <a
+                            [routerLink]="['/purchases', lot.purchaseId]"
+                            class="font-sans text-fb-text-primary hover:underline"
+                            >Einkauf öffnen</a
+                          >
+                          <span class="font-sans">{{ lot.receivedAt | date: 'dd.MM.yyyy' }}</span
+                          ><span class="text-right">{{ lot.remainingQuantity }} Stück</span
+                          ><span class="text-right"
+                            ><app-cost-state [state]="lot.costPerUnit"
+                          /></span>
+                        </div>
+                      }
                     }
                   </div>
                 </td>
@@ -508,48 +486,179 @@
 </section>
 
 @if (movementRows().length > 0) {
-  <section
-    data-stock-movement-history
-    aria-labelledby="stock-movement-history-title"
-    class="linear-surface mt-4 overflow-hidden rounded-xl"
-  >
-    <div class="border-b border-fb-line px-4 py-3">
-      <h2 id="stock-movement-history-title" class="text-sm font-semibold text-fb-text-primary">
-        Bestandsbewegungen
-      </h2>
-    </div>
-    <div class="overflow-x-auto">
-      <table class="linear-table w-full">
-        <caption class="sr-only">
-          vollständige Bewegungshistorie aller Wareneingänge
-        </caption>
-        <thead class="bg-fb-surface text-[13px] text-fb-text-secondary">
-          <tr>
-            <th scope="col" class="px-3 py-2 text-left">Datum</th>
-            <th scope="col" class="px-3 py-2 text-left">Artikel</th>
-            <th scope="col" class="px-3 py-2 text-left">Vorgang</th>
-            <th scope="col" class="px-3 py-2 text-right">Menge</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-fb-line">
-          @for (movement of movementRows(); track movement.id) {
+  <div class="mt-4">
+    <app-button
+      variant="plain"
+      [ariaExpanded]="showMovements()"
+      ariaControls="inventory-movements"
+      (clicked)="showMovements.set(!showMovements())"
+      >Bestandsbewegungen</app-button
+    >
+  </div>
+  @if (showMovements()) {
+    <section
+      id="inventory-movements"
+      data-stock-movement-history
+      aria-labelledby="stock-movement-history-title"
+      class="linear-surface mt-4 overflow-hidden rounded-xl"
+    >
+      <div class="border-b border-fb-line px-4 py-3">
+        <h2 id="stock-movement-history-title" class="text-sm font-semibold text-fb-text-primary">
+          Bestandsbewegungen
+        </h2>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="linear-table w-full">
+          <caption class="sr-only">
+            vollständige Bewegungshistorie aller Wareneingänge
+          </caption>
+          <thead class="bg-fb-surface text-[13px] text-fb-text-secondary">
             <tr>
-              <td class="px-3 py-2 text-xs text-fb-text-muted">
-                {{ movement.created_at | date: 'dd.MM.yyyy HH:mm' }}
-              </td>
-              <td class="px-3 py-2 text-xs font-semibold text-fb-text-primary">
-                {{ movement.title }}
-              </td>
-              <td class="px-3 py-2 text-xs text-fb-text-secondary">
-                {{ movementReason(movement.reason) }}
-              </td>
-              <td class="px-3 py-2 text-right font-mono text-xs">
-                {{ movement.direction === 'in' ? '+' : '−' }}{{ movement.quantity }}
-              </td>
+              <th scope="col" class="px-3 py-2 text-left">Datum</th>
+              <th scope="col" class="px-3 py-2 text-left">Artikel</th>
+              <th scope="col" class="px-3 py-2 text-left">Vorgang</th>
+              <th scope="col" class="px-3 py-2 text-right">Menge</th>
             </tr>
-          }
-        </tbody>
-      </table>
-    </div>
-  </section>
+          </thead>
+          <tbody class="divide-y divide-fb-line">
+            @for (movement of movementRows(); track movement.id) {
+              <tr>
+                <td class="px-3 py-2 text-xs text-fb-text-muted">
+                  {{ movement.created_at | date: 'dd.MM.yyyy HH:mm' }}
+                </td>
+                <td class="px-3 py-2 text-xs font-semibold text-fb-text-primary">
+                  {{ movement.title }}
+                </td>
+                <td class="px-3 py-2 text-xs text-fb-text-secondary">
+                  {{ movementReason(movement.reason) }}
+                </td>
+                <td class="px-3 py-2 text-right font-mono text-xs">
+                  {{ movement.direction === 'in' ? '+' : '−' }}{{ movement.quantity }}
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+  }
 }
+
+<ng-template #statusDetails let-row>
+  @if (row.status.kind === 'editable' && row.inventoryItem; as item) {
+    <div data-item-status>
+      <app-custom-select
+        [ariaLabel]="'Status für ' + row.title"
+        size="sm"
+        variant="pill"
+        [options]="statusOptions"
+        [value]="item.status"
+        (valueChange)="emitStatusChange(item, $event)"
+      />
+    </div>
+  } @else {
+    <app-badge
+      data-item-status-badge
+      [attr.data-sold-badge]="row.status.kind === 'sold' ? '' : null"
+      [attr.data-integrity-conflict]="row.status.kind === 'conflict' ? '' : null"
+      [tone]="
+        row.status.kind === 'conflict'
+          ? 'critical'
+          : row.status.kind === 'review'
+            ? 'caution'
+            : 'neutral'
+      "
+      >{{ row.status.label }}</app-badge
+    >
+  }
+  @if (row.inventoryItem?.sale_state === 'legacy_sold_unverified') {
+    <div class="mt-2 w-64 space-y-2">
+      <div class="flex flex-wrap gap-1.5">
+        <button
+          data-restore-stock
+          type="button"
+          (click)="emitRestoreLegacy(row.inventoryItem!)"
+          class="linear-btn-secondary cursor-pointer rounded-lg px-2 py-1 text-xs font-semibold"
+        >
+          Artikel ist noch vorhanden
+        </button>
+        <button
+          data-reconcile-sale
+          type="button"
+          (click)="reconcileSale.emit(row.inventoryItem!)"
+          class="linear-btn-secondary cursor-pointer rounded-lg px-2 py-1 text-xs font-semibold"
+        >
+          Verkauf nachtragen
+        </button>
+      </div>
+    </div>
+  }
+</ng-template>
+
+<ng-template #originDetails let-row>
+  @switch (row.originState) {
+    @case ('known') {
+      @for (origin of row.origins; track origin.purchaseId) {
+        <a
+          data-inventory-origin-link
+          [routerLink]="origin.link"
+          class="block font-semibold text-fb-text-primary hover:underline"
+          >{{ origin.label }}</a
+        >
+      }
+    }
+    @case ('loading') {
+      <span class="text-fb-text-muted" role="status">Herkunft wird geladen…</span>
+    }
+    @case ('error') {
+      <span class="font-semibold text-rose-300">Herkunft nicht verfügbar</span>
+    }
+    @case ('not_linked') {
+      <span class="text-fb-text-muted">Nicht verknüpft</span>
+    }
+  }
+</ng-template>
+
+<ng-template #unit_costDetails let-row>
+  <app-cost-state [state]="row.costPerUnit" />
+</ng-template>
+
+<ng-template #inventory_valueDetails let-row>
+  <app-cost-state [state]="row.inventoryValue" />
+</ng-template>
+
+<ng-template #saleDetails let-row>
+  @switch (row.salesState) {
+    @case ('loading') {
+      <span class="text-fb-text-muted" role="status">Verkäufe werden geladen…</span>
+    }
+    @case ('error') {
+      <span class="text-rose-300">Verkäufe nicht verfügbar</span>
+    }
+    @case ('known') {
+      @for (sale of row.sales; track sale.id) {
+        <div data-inventory-sale class="mb-2 last:mb-0">
+          <a
+            data-inventory-sale-link
+            [routerLink]="['/sales']"
+            [queryParams]="{ saleId: sale.id }"
+            class="font-semibold text-fb-text-primary hover:underline"
+            >{{ sale.saleDate | date: 'dd.MM.yyyy' }} · {{ sale.revenueLabel }}
+            {{ sale.revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}</a
+          >
+          <p class="text-xs text-fb-text-muted">
+            {{ sale.stateLabel }}
+            @if (sale.directResult !== null) {
+              · Ergebnis
+              {{ sale.directResult | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+            } @else if (sale.showResultInSale) {
+              · Ergebnis im Verkauf ansehen
+            }
+          </p>
+        </div>
+      } @empty {
+        <span class="text-fb-text-muted">—</span>
+      }
+    }
+  }
+</ng-template>

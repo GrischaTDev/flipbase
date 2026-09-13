@@ -52,6 +52,8 @@ export type InventoryColumnId =
   | 'title'
   | 'condition'
   | 'quantity'
+  | 'available'
+  | 'reserved'
   | 'status'
   | 'origin'
   | 'unit_cost'
@@ -66,20 +68,22 @@ export const INVENTORY_TABLE_CONFIG: TableConfig<InventoryColumnId, InventorySor
   defaultColumns: [
     { id: 'selection', label: 'Auswahl', visible: true, order: 0, locked: true },
     { id: 'title', label: 'Artikel', visible: true, order: 1, locked: true },
-    { id: 'condition', label: 'Zustand', visible: true, order: 2 },
-    { id: 'quantity', label: 'Bestand', visible: true, order: 3 },
-    { id: 'status', label: 'Status', visible: true, order: 4 },
-    { id: 'origin', label: 'Herkunft', visible: true, order: 5 },
-    { id: 'unit_cost', label: 'Kosten pro Stück', visible: true, order: 6 },
-    { id: 'inventory_value', label: 'Bestandswert', visible: true, order: 7 },
-    { id: 'sale', label: 'Verkauf', visible: true, order: 8 },
-    { id: 'actions', label: 'Aktionen', visible: true, order: 9, locked: true },
+    { id: 'quantity', label: 'Auf Lager', visible: true, order: 2 },
+    { id: 'available', label: 'Verfügbar', visible: true, order: 3 },
+    { id: 'reserved', label: 'Reserviert', visible: true, order: 4 },
+    { id: 'condition', label: 'Zustand', visible: false, order: 5 },
+    { id: 'status', label: 'Status', visible: false, order: 6 },
+    { id: 'origin', label: 'Herkunft', visible: false, order: 7 },
+    { id: 'unit_cost', label: 'Kosten pro Stück', visible: false, order: 8 },
+    { id: 'inventory_value', label: 'Bestandswert', visible: false, order: 9 },
+    { id: 'sale', label: 'Verkauf', visible: false, order: 10 },
+    { id: 'actions', label: 'Aktionen', visible: true, order: 11, locked: true },
   ],
   defaultSort: { field: 'updated_at', direction: 'desc' },
   sortOptions: [
     { value: 'updated_at', label: 'Zuletzt aktualisiert', kind: 'date' },
     { value: 'title', label: 'Titel', kind: 'text' },
-    { value: 'quantity', label: 'Bestandsmenge', kind: 'number' },
+    { value: 'quantity', label: 'Auf Lager', kind: 'number' },
     { value: 'unit_cost', label: 'Kosten pro Stück', kind: 'number' },
     { value: 'inventory_value', label: 'Bestandswert', kind: 'number' },
   ],
@@ -88,7 +92,7 @@ export const INVENTORY_TABLE_CONFIG: TableConfig<InventoryColumnId, InventorySor
 // ==========================================
 // 3. Artikelstamm (Catalog)
 // ==========================================
-export type CatalogColumnId = 'title' | 'ean' | 'tracking' | 'available' | 'store';
+export type CatalogColumnId = 'title' | 'ean' | 'available' | 'store';
 
 export type CatalogSortField = 'title' | 'available';
 
@@ -96,7 +100,6 @@ export const CATALOG_TABLE_CONFIG: TableConfig<CatalogColumnId, CatalogSortField
   defaultColumns: [
     { id: 'title', label: 'Artikel', visible: true, order: 0, locked: true },
     { id: 'ean', label: 'EAN', visible: true, order: 1 },
-    { id: 'tracking', label: 'Nachverfolgung', visible: true, order: 2 },
     { id: 'available', label: 'Verfügbar', visible: true, order: 3 },
     { id: 'store', label: 'Webshop', visible: true, order: 4 },
   ],

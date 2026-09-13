@@ -26,12 +26,14 @@ test('opens sales as a page and product creation as the shared dialog', async ({
   await expect(page.getByRole('region', { name: 'Kennzahlen zum Verkauf' })).toBeVisible();
 
   await page.goto('/inventory');
-  const create = page.getByRole('button', { name: 'Produkt erstellen', exact: true });
+  await expect(page.getByRole('link', { name: 'Einkauf erfassen', exact: true })).toBeVisible();
+  await page.goto('/catalog');
+  const create = page.getByRole('button', { name: 'Artikel erstellen', exact: true });
   await create.click();
   const dialog = page.getByRole('dialog', { name: 'Produkt erstellen', exact: true });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole('textbox', { name: 'Name', exact: true })).toBeVisible();
-  await expect(page).toHaveURL(/\/inventory$/);
+  await expect(page).toHaveURL(/\/catalog$/);
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
   await expect(create).toBeFocused();
