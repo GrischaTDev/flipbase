@@ -143,7 +143,7 @@ test('Produktbild bleibt nach erneutem Laden sichtbar und unbekannter Scan öffn
   await createProduct(page, 'Produkt mit Bild', true);
   await expect(page.locator('app-purchase-line-editor app-product-thumbnail img')).toBeVisible();
   await page.goto('/catalog');
-  await expect(page.getByRole('heading', { name: 'Artikelstamm', exact: true }))
+  await expect(page.getByRole('heading', { name: 'Artikel', exact: true }))
     .toBeVisible()
     .catch((error) => {
       throw new Error(String(error) + '\nLaufzeitfehler: ' + errors.join('\n'));

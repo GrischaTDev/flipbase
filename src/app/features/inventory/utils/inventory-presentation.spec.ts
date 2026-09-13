@@ -127,6 +127,103 @@ function build(overrides: Partial<Parameters<typeof buildInventoryPresentation>[
 }
 
 describe('buildInventoryPresentation', () => {
+  it('zeigt physisch anwesende Ware ohne bereits verkaufte oder ausgeschiedene Mengen', () => {
+    const result = build({
+      positions: [
+        { ...position, on_hand_quantity: 4, available_quantity: 3, reserved_quantity: 1 },
+      ],
+      lots: [lot('stock', 'purchase-1', 10, 4, 10)],
+      movements: [
+        movement('sale', 'stock', 'out', 5, 'sale'),
+        movement('loss', 'stock', 'out', 1, 'loss'),
+      ],
+      purchases: [purchase('purchase-1')],
+    });
+    expect(result.rows[0]).toMatchObject({
+      quantityState: 'known',
+      onHandQuantity: 4,
+      quantity: { total: 9, available: 3, reserved: 1, sold: 5 },
+    });
+  });
+
+  it.each(['received', 'needs_review', 'researched', 'defective', 'returned'] as const)(
+    'zählt %s als anwesend, aber noch nicht verkaufbar',
+    (status) => {
+      const row = build({ individualItems: [individual({ status })] }).rows[0];
+      expect(row).toMatchObject({ onHandQuantity: 1, quantityState: 'known', canSell: false });
+      expect(row.quantity.available).toBe(0);
+    },
+  );
+
+  it.each([
+    { status: 'sold', sale_state: 'sold' },
+    { status: 'archived', sale_state: 'no_active_sale' },
+  ] as const)('schließt ausgeschiedene Einzelstücke aus dem Lager aus: $status', (state) => {
+    const row = build({ individualItems: [individual(state)] }).rows[0];
+    expect(row.onHandQuantity).toBe(0);
+    expect(row.inventoryValue).toEqual({ kind: 'known', amount: 0 });
+  });
+
+  it.each([
+    { status: 'sold', sale_state: 'legacy_sold_unverified' },
+    { status: 'ready', sale_state: 'sale_status_conflict' },
+    { status: 'sold', sale_state: 'multiple_active_sales' },
+    { status: 'sold', sale_state: 'no_active_sale' },
+    { status: 'ready', sale_state: 'sold' },
+  ] as const)('behauptet bei $status/$sale_state keinen Nullbestand', (state) => {
+    expect(build({ individualItems: [individual(state)] }).rows[0]).toMatchObject({
+      onHandQuantity: null,
+      quantityState: 'review_required',
+    });
+  });
+
+  it.each(['loading', 'error'] as const)('hält physische Mengen bei %s offen', (state) => {
+    const result = build({
+      inventoryState: state,
+      stockState: state,
+      individualItems: [individual()],
+      positions: [position],
+    });
+    expect(result.rows.every((row) => row.onHandQuantity === null)).toBe(true);
+  });
+
+  it('akzeptiert anwesende noch nicht freigegebene Mengenware', () => {
+    const row = build({
+      positions: [
+        { ...position, available_quantity: 0, reserved_quantity: 0, on_hand_quantity: 5 },
+      ],
+      lots: [lot('open', 'purchase-1', 5, 5, 10)],
+      purchases: [purchase('purchase-1', false)],
+    }).rows[0];
+    expect(row).toMatchObject({ onHandQuantity: 5, quantityState: 'known', canSell: false });
+  });
+
+  it('markiert Reservierungen über dem physischen Bestand als ungeklärt', () => {
+    const row = build({
+      positions: [
+        { ...position, available_quantity: 1, reserved_quantity: 0, on_hand_quantity: 1 },
+      ],
+      lots: [lot('over', 'purchase-1', 1, 1, 10)],
+      movements: [movement('over-reserved', 'over', 'out', 2, 'reservation')],
+    }).rows[0];
+    expect(row).toMatchObject({ onHandQuantity: null, quantityState: 'review_required' });
+  });
+
+  it('führt Stücke mit gleichem Titel und gleicher EAN nicht ohne Zuordnung zusammen', () => {
+    const result = build({
+      individualItems: [
+        individual({ id: 'one', title: position.title, ean: '123' }),
+        individual({ id: 'two', title: position.title, ean: '123' }),
+      ],
+      positions: [position],
+    });
+    expect(result.rows.map((row) => row.id).sort()).toEqual([
+      'individual:one',
+      'individual:two',
+      'quantity:product-1',
+    ]);
+  });
+
   it('behält offenen Wareneingang in Gesamt, ohne ihn als verfügbar anzuzeigen', () => {
     const result = build({
       positions: [

@@ -11,7 +11,7 @@ test('verkauft ein Einzelstück genau einmal aus dem gemeinsamen Inventar @pr-sm
   await page.goto('/inventory');
 
   const inventory = page.getByRole('table', {
-    name: 'Inventartabelle mit Herkunft, Bestand, Kosten, Status und Verkaufsbezug',
+    name: 'Bestand mit Artikel, auf Lager, verfügbar und reserviert',
   });
   const sellButton = page.getByRole('button', { name: `${saleItem} verkaufen` });
   await expect(sellButton).toBeVisible({ timeout: 10_000 });
@@ -19,7 +19,8 @@ test('verkauft ein Einzelstück genau einmal aus dem gemeinsamen Inventar @pr-sm
   await expect(
     inventoryRow.getByRole('checkbox', { name: `Artikel ${saleItem} auswählen` }),
   ).toBeVisible();
-  await expect(inventoryRow).toContainText('1 Stück insgesamt');
+  await expect(inventoryRow.getByRole('cell').nth(2)).toHaveText('1');
+  await expect(inventoryRow.getByRole('cell').nth(3)).toHaveText('1');
 
   await sellButton.click();
   await expect(page.getByRole('heading', { name: 'Verkauf erfassen' })).toBeVisible();
@@ -37,6 +38,12 @@ test('verkauft ein Einzelstück genau einmal aus dem gemeinsamen Inventar @pr-sm
 
   await page.goto('/inventory');
   const soldRow = page.getByRole('row').filter({ hasText: saleItem });
-  await expect(soldRow.getByText('Verkauft', { exact: true })).toBeVisible();
+  await expect(soldRow).toHaveCount(0);
+  await page
+    .getByRole('group', { name: 'Bestandsansicht', exact: true })
+    .getByRole('button', { name: 'Verkauft', exact: true })
+    .click();
+  await expect(soldRow).toBeVisible();
+  await expect(soldRow.getByRole('cell').nth(2)).toHaveText('0');
   await expect(page.getByRole('button', { name: `${saleItem} verkaufen` })).toHaveCount(0);
 });

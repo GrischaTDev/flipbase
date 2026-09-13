@@ -1,0 +1,13 @@
+<nav [attr.aria-label]="label()" class="flex gap-1 border-b border-fb-line">
+  @for (link of links(); track link.path) {
+    <a
+      [routerLink]="link.path"
+      routerLinkActive="border-fb-primary font-semibold text-fb-text-primary"
+      #active="routerLinkActive"
+      ariaCurrentWhenActive="page"
+      [class.border-transparent]="!active.isActive"
+      class="inline-flex min-h-11 items-center border-b-2 px-3 py-2 text-[13px] text-fb-text-secondary transition hover:bg-fb-surface-hover hover:text-fb-text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
+      >{{ link.label }}</a
+    >
+  }
+</nav>

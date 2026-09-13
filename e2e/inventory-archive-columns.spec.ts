@@ -101,6 +101,13 @@ test('archiviert einen Verkauf ohne Buchungsänderung und zeigt zurückgekehrten
   });
   const originalSales = await page.evaluate(() => localStorage.getItem('flipbase_local_sales'));
   await page.goto('/inventory');
+  await page
+    .getByRole('group', { name: 'Bestandsansicht', exact: true })
+    .getByRole('button', { name: 'Verkauft', exact: true })
+    .click();
+  const saleColumns = await openColumnControl(page);
+  await setColumnVisibility(saleColumns, 'Verkauf', true);
+  await page.keyboard.press('Escape');
   const row = page.locator('[data-individual-row]').filter({ hasText: 'Archiv-Testartikel' });
   await row.getByRole('button', { name: 'Archivieren', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Archivieren', exact: true }).click();
@@ -149,12 +156,16 @@ test('archiviert einen Verkauf ohne Buchungsänderung und zeigt zurückgekehrten
     localStorage.setItem('flipbase_local_sales', JSON.stringify(sales));
   });
   await page.reload();
+  await page
+    .getByRole('group', { name: 'Bestandsansicht', exact: true })
+    .getByRole('button', { name: 'Auf Lager', exact: true })
+    .click();
   await expect(row).toBeVisible();
   await expect(row.getByRole('button', { name: 'Archiv-Testartikel verkaufen' })).toBeVisible();
 });
 
 for (const [url, column] of [
-  ['/inventory', 'Zustand'],
+  ['/inventory', 'Verfügbar'],
   ['/sales', 'Menge'],
   ['/catalog', 'EAN'],
   ['/purchases/pur-demo-2', 'Menge'],

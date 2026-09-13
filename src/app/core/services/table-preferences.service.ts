@@ -253,6 +253,35 @@ export class TablePreferencesService {
         ? parsed.sort
         : { ...config.defaultSort };
 
+      // Nur unveränderte alte Standardansichten umstellen. Bewusste
+      // Spaltenwahl und Reihenfolge des Nutzers bleiben erhalten.
+      const legacyInventoryColumns = [
+        'selection',
+        'title',
+        'condition',
+        'quantity',
+        'status',
+        'origin',
+        'unit_cost',
+        'inventory_value',
+        'sale',
+        'actions',
+      ];
+      if (
+        tableId === 'inventory' &&
+        parsed.columns.length === legacyInventoryColumns.length &&
+        parsed.columns.every(
+          (column, index) =>
+            column.id === legacyInventoryColumns[index] &&
+            column.visible === true &&
+            column.order === index,
+        )
+      ) {
+        const columns = [...config.defaultColumns];
+        this.savePreferences(tableId, workspaceId, columns, validSort);
+        return { columns, sort: validSort };
+      }
+
       // Entfernte Einkaufsspalten dauerhaft aus Altpräferenzen entfernen;
       // übrige Sichtbarkeit und Reihenfolge bleiben bestehen.
       const removedPurchaseColumns = new Set(['type', 'cost_status', 'actions']);

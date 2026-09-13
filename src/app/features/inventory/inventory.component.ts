@@ -17,9 +17,7 @@ import {
   signal,
 } from '@angular/core';
 import { Router } from '@angular/router';
-import { TranslatePipe } from '@ngx-translate/core';
 import {
-  LucideDynamicIcon,
   LucideBoxes as Boxes,
   LucideBarcode as Barcode,
   LucidePlus as Plus,
@@ -54,45 +52,52 @@ import { ConfirmDialogService } from '../../shared/components/confirm-dialog/con
 import { PurchaseService } from '../../core/services/purchase.service';
 import { SalesService } from '../../core/services/sales.service';
 import { buildInventoryPresentation, InventorySourceState } from './utils/inventory-presentation';
-import {
-  CostState,
-  CostStateComponent,
-} from '../../shared/components/cost-state/cost-state.component';
+import { CostState } from '../../shared/components/cost-state/cost-state.component';
 
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
-import { ProductDialogComponent } from '../catalog/components/product-dialog/product-dialog.component';
 import { CatalogService } from '../../core/services/catalog.service';
-
-type FilterPreset = string;
+import { ARTICLE_VIEWS } from '../../core/config/article-navigation';
+import { SectionNavigationComponent } from '../../shared/components/section-navigation/section-navigation.component';
+import { InventoryViewStateService } from './services/inventory-view-state.service';
+import { MediaService } from '../../core/services/media.service';
 
 @Component({
   selector: 'app-inventory',
   imports: [
     BarcodeScannerComponent,
-    TranslatePipe,
-    LucideDynamicIcon,
+    SectionNavigationComponent,
     AiPhotoScannerModalComponent,
     InventoryLabelModalComponent,
     CustomSelectComponent,
     CustomSearchInputComponent,
-    CostStateComponent,
     StockPositionListComponent,
     PageHeaderComponent,
     BadgeComponent,
     ButtonComponent,
-    ProductDialogComponent,
   ],
   templateUrl: './inventory.component.html',
   host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class InventoryComponent {
-  readonly isProductDialogOpen = signal(false);
+  readonly articleViews = ARTICLE_VIEWS;
+  private readonly viewState = inject(InventoryViewStateService);
   readonly catalogService = inject(CatalogService);
+  private readonly mediaService = inject(MediaService);
   readonly archiveService = inject(InventoryArchiveService);
-  readonly archiveView = signal<'active' | 'archive' | 'all'>('active');
+  get archiveView() {
+    return this.viewState.current().archiveView;
+  }
+  readonly stockViews = [
+    { value: 'stock', label: 'Auf Lager' },
+    { value: 'sold', label: 'Verkauft' },
+    { value: 'all', label: 'Alle Bestandspositionen' },
+  ] as const;
+  get stockView() {
+    return this.viewState.current().stockView;
+  }
 
   async onArchiveItem(item: InventoryItem): Promise<void> {
     if (this.archiveService.pendingIds().has(item.id)) return;
@@ -133,6 +138,15 @@ export class InventoryComponent {
       .map((column) => column.id),
   );
   readonly inventoryService = inject(InventoryService);
+  readonly imageUrls = computed(() => {
+    const urls = { ...this.catalogService.imageUrls() };
+    for (const item of this.inventoryService.items()) {
+      if (item.workspace_id !== this.workspaceService.currentWorkspace()?.id) continue;
+      const path = this.primaryItemImagePath(item);
+      if (path) urls[item.id] = this.mediaService.getMediaUrl(path);
+    }
+    return urls;
+  });
   readonly stockService = inject(StockService);
   readonly purchaseService = inject(PurchaseService);
   readonly salesService = inject(SalesService);
@@ -150,6 +164,23 @@ export class InventoryComponent {
   readonly barcodeIcon = Barcode;
   readonly printerIcon = Printer;
   readonly storeIcon = Store;
+
+  onImageFailed(id: string): void {
+    const item = this.inventoryService
+      .items()
+      .find((entry) => entry.id === id && entry.workspace_id === this.workspaceId());
+    const path = item ? this.primaryItemImagePath(item) : null;
+    if (path) this.mediaService.reportMediaFailure(path);
+    else this.catalogService.invalidateProductImage(id);
+  }
+
+  private primaryItemImagePath(item: InventoryItem): string | null {
+    return (
+      item.media?.find((media) => media.is_primary)?.storage_path ??
+      item.media?.[0]?.storage_path ??
+      null
+    );
+  }
 
   /** Scanner zum Auffinden eines Artikels ueber sein gedrucktes Etikett. */
   readonly isScanningLabel = signal<boolean>(false);
@@ -179,14 +210,41 @@ export class InventoryComponent {
   readonly scanMeldung = signal<string | null>(null);
   readonly isAiScannerOpen = signal<boolean>(false);
   readonly isLabelModalOpen = signal<boolean>(false);
-  readonly searchQuery = signal<string>('');
-  readonly selectedCondition = signal<string>('all');
-  readonly selectedStatus = signal<string>('all');
-  readonly activePreset = signal<FilterPreset>('all');
+  get filtersExpanded() {
+    return this.viewState.current().filtersExpanded;
+  }
+  get searchQuery() {
+    return this.viewState.current().searchQuery;
+  }
+  get selectedCondition() {
+    return this.viewState.current().selectedCondition;
+  }
+  get selectedStatus() {
+    return this.viewState.current().selectedStatus;
+  }
+  get activePreset() {
+    return this.viewState.current().activePreset;
+  }
+  readonly activeFilterCount = computed(
+    () =>
+      [this.activePreset(), this.selectedCondition(), this.selectedStatus()].filter(
+        (value) => value !== 'all',
+      ).length,
+  );
+  readonly filterPresetOptions: SelectOption<string>[] = [
+    { value: 'all', label: 'Alle Artikel' },
+    { value: 'needs_research', label: 'Recherche nötig' },
+    { value: 'unlisted', label: 'Nicht gelistet' },
+    { value: 'high_margin', label: 'Hohe Marge' },
+    { value: 'defective', label: 'Defekt / Bastler' },
+    { value: 'store_public', label: 'Im Webshop' },
+    { value: 'legacy_review', label: 'Verkaufsstatus klären' },
+  ];
   readonly selectedItemIds = signal<Set<string>>(new Set());
   readonly viewModified = computed(
     () =>
       this.archiveView() !== 'active' ||
+      this.stockView() !== 'stock' ||
       this.activePreset() !== 'all' ||
       this.selectedCondition() !== 'all' ||
       this.selectedStatus() !== 'all' ||
@@ -328,8 +386,13 @@ export class InventoryComponent {
     const filtered = this.inventoryPresentation().rows.filter((row) => {
       const item = row.inventoryItem;
       const archived = !!item && isArchivedInventoryItem(item);
-      if (this.archiveView() === 'active' && archived) return false;
+      const unresolved = row.quantityState !== 'known';
+      if (this.archiveView() === 'active' && archived && !unresolved) return false;
       if (this.archiveView() === 'archive' && !archived) return false;
+      if (this.archiveView() === 'active' && status !== 'sold' && preset !== 'legacy_review') {
+        if (this.stockView() === 'stock' && row.onHandQuantity === 0 && !unresolved) return false;
+        if (this.stockView() === 'sold' && row.quantity.sold === 0 && !unresolved) return false;
+      }
       if (
         query &&
         ![row.title, item?.sku, item?.ean, item?.brand, item?.model]
@@ -339,7 +402,7 @@ export class InventoryComponent {
         return false;
       }
       if (condition !== 'all' && row.condition !== condition) return false;
-      if (status === 'available' && row.quantity.available <= 0) return false;
+      if (status === 'available' && (unresolved || row.quantity.available <= 0)) return false;
       if (status === 'sold' && row.quantity.sold <= 0) return false;
       if (status === 'reserved' && row.quantity.reserved <= 0 && item?.status !== 'reserved') {
         return false;
@@ -377,7 +440,8 @@ export class InventoryComponent {
         sort.field === 'title'
           ? left.title.localeCompare(right.title, 'de', { sensitivity: 'base' })
           : sort.field === 'quantity'
-            ? left.quantity.total - right.quantity.total
+            ? (left.onHandQuantity ?? Number.NEGATIVE_INFINITY) -
+              (right.onHandQuantity ?? Number.NEGATIVE_INFINITY)
             : sort.field === 'unit_cost'
               ? this.costValue(left.costPerUnit) - this.costValue(right.costPerUnit)
               : sort.field === 'inventory_value'
@@ -409,7 +473,9 @@ export class InventoryComponent {
   }
 
   resetView(): void {
+    this.filtersExpanded.set(false);
     this.archiveView.set('active');
+    this.stockView.set('stock');
     this.activePreset.set('all');
     this.selectedCondition.set('all');
     this.selectedStatus.set('all');
@@ -428,9 +494,15 @@ export class InventoryComponent {
     ),
   );
 
-  readonly filteredUnitCount = computed(() =>
-    this.filteredPresentationRows().reduce((sum, row) => sum + row.quantity.total, 0),
-  );
+  readonly filteredUnitCount = computed(() => {
+    const rows = this.filteredPresentationRows();
+    if (
+      this.inventoryPresentation().sourceState !== 'known' ||
+      rows.some((row) => row.onHandQuantity === null)
+    )
+      return null;
+    return rows.reduce((sum, row) => sum + (row.onHandQuantity ?? 0), 0);
+  });
 
   readonly filteredInventoryValue = computed<CostState>(() => {
     const rows = this.filteredPresentationRows();
@@ -574,7 +646,15 @@ export class InventoryComponent {
   });
 
   openCreatePage(): void {
-    this.isProductDialogOpen.set(true);
+    void this.router.navigate(['/purchases/new']);
+  }
+
+  setStockView(view: 'stock' | 'sold' | 'all'): void {
+    this.stockView.set(view);
+    this.archiveView.set(view === 'all' ? 'all' : 'active');
+    this.selectedStatus.set('all');
+    this.activePreset.set('all');
+    this.selectedItemIds.set(new Set());
   }
 
   openLabelModal(): void {

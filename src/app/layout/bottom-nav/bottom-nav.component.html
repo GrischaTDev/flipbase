@@ -22,13 +22,13 @@
   </a>
 
   <a
-    routerLink="/inventory"
-    routerLinkActive="font-semibold"
-    ariaCurrentWhenActive="page"
+    routerLink="/catalog"
+    [class.font-semibold]="isArticlesActive()"
+    [attr.aria-current]="isArticlesActive() ? 'page' : null"
     class="flex flex-col items-center justify-center gap-1 text-fb-text-muted text-xs w-14 py-1 hover:text-fb-text-primary transition"
   >
     <svg [lucideIcon]="InventoryIcon" class="w-4 h-4"></svg>
-    <span>Inventar</span>
+    <span>Artikel</span>
   </a>
 
   <a

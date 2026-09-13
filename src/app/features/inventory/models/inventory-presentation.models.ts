@@ -7,6 +7,7 @@ import type {
 import type { CostState } from '../../../shared/components/cost-state/cost-state.component';
 
 export interface InventoryQuantitySummary {
+  /** Historische Vergleichsmenge einschließlich Verkäufen; kein aktueller Lagerbestand. */
   readonly total: number;
   readonly available: number;
   readonly reserved: number;
@@ -56,6 +57,8 @@ export interface InventoryPresentationRow {
   readonly title: string;
   readonly condition: ItemCondition | null;
   readonly quantity: InventoryQuantitySummary;
+  /** Physisch anwesend; historische Verkäufe sind ausgeschlossen. Null bedeutet ungeklärt. */
+  readonly onHandQuantity: number | null;
   readonly quantityState: InventoryQuantityState;
   readonly costPerUnit: CostState;
   readonly inventoryValue: CostState;

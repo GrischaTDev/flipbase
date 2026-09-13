@@ -1,14 +1,10 @@
 <div class="space-y-5 animate-fade-in">
-  <app-page-header
-    [title]="'INVENTORY.TITLE' | translate"
-    [icon]="boxesIcon"
-    subtitle="Alle Artikel, Bestände, Kosten und Verkäufe in einer gemeinsamen Ansicht."
-  >
+  <app-page-header title="Artikel" [icon]="boxesIcon" subtitle="Bestand">
     <app-badge header-badge tone="neutral" [mono]="true">
-      @if (inventoryPresentation().sourceState === 'known') {
-        {{ filteredUnitCount() }} Stück
+      @if (filteredUnitCount() !== null) {
+        {{ filteredUnitCount() }} auf Lager
       } @else {
-        Wird geladen
+        Bestand offen
       }
     </app-badge>
 
@@ -27,11 +23,13 @@
           ({{ selectedItemIds().size }})
         }
       </app-button>
-      <app-button variant="primary" size="md" [icon]="plusIcon" (clicked)="openCreatePage()">
-        Produkt erstellen
+      <app-button variant="primary" size="md" [icon]="plusIcon" link="/purchases/new">
+        Einkauf erfassen
       </app-button>
     </div>
   </app-page-header>
+
+  <app-section-navigation [links]="articleViews" label="Artikelansichten" />
 
   @if (scanMeldung(); as message) {
     <p
@@ -42,107 +40,61 @@
     </p>
   }
 
-  <section class="grid grid-cols-2 gap-2.5 lg:grid-cols-4" aria-label="Inventarkennzahlen">
-    <article class="linear-surface rounded-xl p-3">
-      <div class="flex items-center gap-2 text-xs text-fb-text-muted">
-        <svg [lucideIcon]="boxesIcon" class="h-4 w-4" aria-hidden="true"></svg>
-        <span>Gefilterter Bestand</span>
-      </div>
-      <strong class="mt-1 block font-mono text-lg text-fb-text-primary">
-        @if (inventoryPresentation().sourceState === 'known') {
-          {{ filteredUnitCount() }} Stück
-        } @else {
-          Noch offen
-        }
-      </strong>
-    </article>
-    <article class="linear-surface rounded-xl p-3">
-      <div class="flex items-center gap-2 text-xs text-fb-text-muted">
-        <svg [lucideIcon]="coinsIcon" class="h-4 w-4" aria-hidden="true"></svg>
-        <span>Bestandswert</span>
-      </div>
-      <strong class="mt-1 block font-mono text-lg text-fb-text-primary">
-        <app-cost-state [state]="filteredInventoryValue()" />
-      </strong>
-    </article>
-    <article class="linear-surface rounded-xl p-3">
-      <div class="flex items-center gap-2 text-xs text-fb-text-muted">
-        <svg [lucideIcon]="tagIcon" class="h-4 w-4" aria-hidden="true"></svg>
-        <span>Geschätzter Marktwert</span>
-      </div>
-      <strong class="mt-1 block font-mono text-lg text-fb-text-primary">
-        <app-cost-state [state]="totalExpectedValue()" />
-      </strong>
-    </article>
-    <article class="linear-surface rounded-xl p-3">
-      <div class="flex items-center gap-2 text-xs text-fb-text-muted">
-        <svg [lucideIcon]="trendingIcon" class="h-4 w-4" aria-hidden="true"></svg>
-        <span>Verkauft</span>
-      </div>
-      <strong class="mt-1 block font-mono text-lg text-fb-text-primary">
-        @if (inventoryPresentation().sourceState === 'known') {
-          {{ soldUnitCount() }} Stück
-        } @else {
-          Noch offen
-        }
-      </strong>
-    </article>
-  </section>
-
-  <section class="linear-surface space-y-3 rounded-xl p-3" aria-label="Inventar filtern">
-    <div class="flex flex-wrap gap-1.5" aria-label="Schnellfilter">
-      @for (
-        preset of [
-          { value: 'all', label: 'Alle' },
-          { value: 'needs_research', label: 'Recherche nötig' },
-          { value: 'unlisted', label: 'Nicht gelistet' },
-          { value: 'high_margin', label: 'Hohe Marge' },
-          { value: 'defective', label: 'Defekt / Bastler' },
-          { value: 'store_public', label: 'Im Webshop (' + storePublishedCount() + ')' },
-          { value: 'legacy_review', label: 'Verkaufsstatus klären' },
-        ];
-        track preset.value
-      ) {
-        <button
-          type="button"
-          (click)="activePreset.set(preset.value)"
-          class="cursor-pointer rounded-lg border px-3 py-1.5 text-xs font-semibold transition"
-          [class.border-fb-line-strong]="activePreset() === preset.value"
-          [class.bg-fb-line]="activePreset() === preset.value"
-          [class.text-fb-text-primary]="activePreset() === preset.value"
-          [class.border-transparent]="activePreset() !== preset.value"
-          [class.text-fb-text-secondary]="activePreset() !== preset.value"
-          [attr.aria-pressed]="activePreset() === preset.value"
+  <section class="linear-surface space-y-3 rounded-xl p-3" aria-label="Bestand filtern">
+    <div class="flex flex-wrap gap-2" role="group" aria-label="Bestandsansicht">
+      @for (view of stockViews; track view.value) {
+        <app-button
+          size="slim"
+          [variant]="stockView() === view.value ? 'secondary' : 'ghost'"
+          [ariaPressed]="stockView() === view.value"
+          (clicked)="setStockView(view.value)"
         >
-          {{ preset.label }}
-        </button>
+          {{ view.label }}
+        </app-button>
       }
     </div>
-
-    <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-12">
-      <div class="sm:col-span-6">
+    <div class="flex flex-wrap items-center gap-2.5">
+      <div class="min-w-48 flex-1">
         <app-custom-search-input
           placeholder="Artikel, Marke, Modell oder SKU suchen…"
           [(value)]="searchQuery"
-        ></app-custom-search-input>
+        />
       </div>
-      <div class="sm:col-span-3">
+      <app-button
+        variant="secondary"
+        size="slim"
+        [ariaExpanded]="filtersExpanded()"
+        ariaControls="inventory-additional-filters"
+        (clicked)="filtersExpanded.set(!filtersExpanded())"
+      >
+        Weitere Filter
+        @if (activeFilterCount() > 0) {
+          ({{ activeFilterCount() }} aktiv)
+        }
+      </app-button>
+    </div>
+    @if (filtersExpanded()) {
+      <div id="inventory-additional-filters" class="grid gap-2.5 sm:grid-cols-3">
+        <app-custom-select
+          ariaLabel="Weitere Filter"
+          variant="filter"
+          [options]="filterPresetOptions"
+          [(value)]="activePreset"
+        />
         <app-custom-select
           ariaLabel="Zustand filtern"
           variant="filter"
           [options]="filterConditionOptions"
           [(value)]="selectedCondition"
-        ></app-custom-select>
-      </div>
-      <div class="sm:col-span-3">
+        />
         <app-custom-select
           ariaLabel="Status filtern"
           variant="filter"
           [options]="filterStatusOptions"
           [(value)]="selectedStatus"
-        ></app-custom-select>
+        />
       </div>
-    </div>
+    }
 
     <div class="flex flex-wrap items-center justify-between gap-2">
       <p class="text-xs text-fb-text-muted">
@@ -185,8 +137,8 @@
   }
 
   <app-stock-position-list
-    [imageUrls]="catalogService.imageUrls()"
-    (imageFailed)="catalogService.invalidateProductImage($event)"
+    [imageUrls]="imageUrls()"
+    (imageFailed)="onImageFailed($event)"
     [tableColumns]="tablePrefs().columns"
     [sortOptions]="inventoryTableConfig.sortOptions"
     [currentSort]="tablePrefs().sort"
@@ -280,10 +232,4 @@
     (detected)="onEtikettGescannt($event)"
     (closed)="isScanningLabel.set(false)"
   ></app-barcode-scanner>
-}
-@if (isProductDialogOpen()) {
-  <app-product-dialog
-    (closed)="isProductDialogOpen.set(false)"
-    (created)="isProductDialogOpen.set(false)"
-  />
 }

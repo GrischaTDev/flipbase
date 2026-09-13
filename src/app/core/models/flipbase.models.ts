@@ -472,6 +472,7 @@ export interface CatalogProduct {
   created_at?: string;
   updated_at?: string;
   primary_media_path?: string | null;
+  description?: string | null;
 }
 
 export interface CatalogProductMedia {

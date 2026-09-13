@@ -175,6 +175,7 @@ export class ItemDetailComponent {
     initialValue: this.route.snapshot.queryParamMap,
   });
   readonly backTarget = computed(() => {
+    if (this.queryParams().get('returnTo') === '/catalog') return '/catalog';
     const returnTo = validatePurchaseReturnTo(this.queryParams().get('returnTo'));
     const item = this.currentItem();
     return returnTo && item?.purchase_id && returnTo === `/purchases/${item.purchase_id}`
@@ -182,7 +183,11 @@ export class ItemDetailComponent {
       : '/inventory';
   });
   readonly backLabel = computed(() =>
-    this.backTarget() === '/inventory' ? 'Zurück zum Inventar' : 'Zurück zum Einkauf',
+    this.backTarget() === '/catalog'
+      ? 'Zurück zu allen Artikeln'
+      : this.backTarget() === '/inventory'
+        ? 'Zurück zum Bestand'
+        : 'Zurück zum Einkauf',
   );
 
   readonly detailPresentation = computed(() => {

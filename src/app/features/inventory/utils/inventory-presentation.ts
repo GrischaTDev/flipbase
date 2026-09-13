@@ -24,6 +24,7 @@ import type {
   InventoryStatusView,
 } from '../models/inventory-presentation.models';
 import { editableItemStatusLabels } from '../models/item-status-options';
+import { summarizeStockQuantities } from '../../../core/utils/stock-quantity';
 import { lotCostResult } from '../../../core/utils/lot-cost';
 
 export type InventorySourceState = 'known' | 'loading' | 'error';
@@ -180,7 +181,8 @@ function individualQuantityState(
     item.sale_state === 'legacy_sold_unverified' ||
     item.sale_state === 'legacy_sale_header_without_line' ||
     item.sale_state === 'sale_status_conflict' ||
-    item.sale_state === 'multiple_active_sales'
+    item.sale_state === 'multiple_active_sales' ||
+    (item.sale_state === 'sold') !== (item.status === 'sold')
   ) {
     return 'review_required';
   }
@@ -199,13 +201,15 @@ function buildIndividualRows(input: InventoryPresentationInput, purchases: Map<s
             : undefined;
       const sold = item.sale_state === 'sold' ? 1 : 0;
       const reserved = sold === 0 && item.status === 'reserved' ? 1 : 0;
-      const available = sold === 0 && reserved === 0 ? 1 : 0;
+      const available = isSellableInventoryItem(item) ? 1 : 0;
       const quantityState = individualQuantityState(item, input.inventoryState);
+      const onHandQuantity =
+        quantityState !== 'known' ? null : sold === 1 || item.status === 'archived' ? 0 : 1;
       const costPerUnit = individualCost(item, linkedPurchase, !!item.purchase_id);
       const currentValue =
         quantityState !== 'known'
           ? { kind: 'open' as const }
-          : sold === 0
+          : onHandQuantity === 1
             ? costPerUnit
             : knownCost(0);
       return {
@@ -216,6 +220,7 @@ function buildIndividualRows(input: InventoryPresentationInput, purchases: Map<s
         title: item.title,
         condition: item.condition,
         quantity: { total: 1, available, reserved, sold },
+        onHandQuantity,
         quantityState,
         costPerUnit,
         inventoryValue: currentValue,
@@ -223,7 +228,10 @@ function buildIndividualRows(input: InventoryPresentationInput, purchases: Map<s
         originState: individualOriginState(item, linkedPurchase, input.purchaseState),
         sales: salesForIndividual(item.id, input.sales),
         salesState: input.salesState,
-        status: individualStatus(item),
+        status:
+          quantityState === 'review_required' && individualStatus(item).kind === 'sold'
+            ? { kind: 'conflict', label: 'Verkaufsstatus klären' }
+            : individualStatus(item),
         canMutate: !isInventoryItemMutationLocked(item),
         canSell: isSellableInventoryItem(item),
         isPublicStore: item.is_public_store !== false,
@@ -231,31 +239,6 @@ function buildIndividualRows(input: InventoryPresentationInput, purchases: Map<s
         lots: [],
       };
     });
-}
-
-function stockQuantityState(
-  input: InventoryPresentationInput,
-  positions: readonly StockPosition[],
-  lots: readonly StockLot[],
-  hasNegativeMovementBalance: boolean,
-): InventoryQuantityState {
-  if (input.stockState !== 'known') return input.stockState;
-  const remainingFromLots = lots.reduce((sum, lot) => sum + lot.remaining_quantity, 0);
-  const onHandFromPositions = positions.reduce(
-    (sum, position) => sum + position.on_hand_quantity,
-    0,
-  );
-  return hasNegativeMovementBalance ||
-    (remainingFromLots > 0 && positions.length === 0) ||
-    (lots.length > 0 && positions.length > 0 && remainingFromLots !== onHandFromPositions) ||
-    positions.some(
-      (position) =>
-        position.available_quantity < 0 ||
-        position.reserved_quantity < 0 ||
-        position.on_hand_quantity !== position.available_quantity + position.reserved_quantity,
-    )
-    ? 'review_required'
-    : 'known';
 }
 
 function buildQuantityRows(input: InventoryPresentationInput, purchases: Map<string, Purchase>) {
@@ -275,61 +258,17 @@ function buildQuantityRows(input: InventoryPresentationInput, purchases: Map<str
     lotsByProduct.set(lot.catalog_product_id, current);
   }
 
-  const lotById = new Map(input.lots.map((lot) => [lot.id, lot]));
-  const soldByLot = new Map<string, number>();
-  const reservedByLot = new Map<string, number>();
-  for (const movement of input.movements) {
-    if (movement.workspace_id !== input.workspaceId) continue;
-    if (!lotById.has(movement.stock_lot_id)) continue;
-    const delta =
-      movement.reason === 'sale' && movement.direction === 'out'
-        ? movement.quantity
-        : movement.reason === 'return' && movement.direction === 'in'
-          ? -movement.quantity
-          : 0;
-    soldByLot.set(movement.stock_lot_id, (soldByLot.get(movement.stock_lot_id) ?? 0) + delta);
-    const reservationDelta =
-      movement.reason === 'reservation' && movement.direction === 'out'
-        ? movement.quantity
-        : movement.reason === 'reservation_release' && movement.direction === 'in'
-          ? -movement.quantity
-          : 0;
-    reservedByLot.set(
-      movement.stock_lot_id,
-      (reservedByLot.get(movement.stock_lot_id) ?? 0) + reservationDelta,
-    );
-  }
-
   const productIds = new Set([...positionsByProduct.keys(), ...lotsByProduct.keys()]);
   return [...productIds].map<InventoryPresentationRow>((productId) => {
     const positions = positionsByProduct.get(productId) ?? [];
     const lots = (lotsByProduct.get(productId) ?? []).sort((left, right) =>
       left.received_at.localeCompare(right.received_at),
     );
-    const positionAvailable = positions.reduce((sum, entry) => sum + entry.available_quantity, 0);
-    const positionReserved = positions.reduce((sum, entry) => sum + entry.reserved_quantity, 0);
-    const soldLotBalances = lots.map((lot) => soldByLot.get(lot.id) ?? 0);
-    const reservedLotBalances = lots.map((lot) => reservedByLot.get(lot.id) ?? 0);
-    const movementReserved = reservedLotBalances.reduce(
-      (sum, balance) => sum + Math.max(0, balance),
-      0,
-    );
-    const reserved = Math.max(positionReserved, movementReserved);
-    const onHand = positions.reduce((sum, entry) => sum + entry.on_hand_quantity, 0);
-    const available = Math.max(
-      0,
-      positionAvailable - Math.max(0, movementReserved - positionReserved),
-    );
-    const sold = soldLotBalances.reduce((sum, balance) => sum + Math.max(0, balance), 0);
+    const summary = summarizeStockQuantities(positions, lots, input.movements);
+    const { available, reserved, onHand, sold } = summary;
     const total = Math.max(onHand, available + reserved) + sold;
     const currentLots = lots.filter((lot) => lot.remaining_quantity > 0);
-    const quantityState = stockQuantityState(
-      input,
-      positions,
-      lots,
-      soldLotBalances.some((balance) => balance < 0) ||
-        reservedLotBalances.some((balance) => balance < 0),
-    );
+    const quantityState = input.stockState === 'known' ? summary.state : input.stockState;
     const linkedPurchases = [...new Set(lots.map((lot) => lot.purchase_id))]
       .map((id) => purchases.get(id))
       .filter((purchase): purchase is Purchase => !!purchase);
@@ -380,6 +319,7 @@ function buildQuantityRows(input: InventoryPresentationInput, purchases: Map<str
       title,
       condition: null,
       quantity: { total, available, reserved, sold },
+      onHandQuantity: quantityState === 'known' ? onHand : null,
       quantityState,
       costPerUnit:
         currentQuantity > 0 && currentValueCents !== null

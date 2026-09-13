@@ -1,5 +1,12 @@
 import { Injectable, inject, signal } from '@angular/core';
-import { CatalogProduct, ItemCondition } from '../models/flipbase.models';
+import {
+  CatalogProduct,
+  InventoryItem,
+  ItemCondition,
+  Purchase,
+  PurchaseLine,
+} from '../models/flipbase.models';
+import { WorkspaceService } from './workspace.service';
 import { MockDataStoreService } from './mock-data-store.service';
 import { SupabaseService } from './supabase.service';
 import { SyncStatusService } from './sync-status.service';
@@ -20,6 +27,15 @@ export interface CreateCatalogProductInput {
   readonly category?: string | null;
   readonly isPublicStore?: boolean;
   readonly listingPrice?: number | null;
+  readonly description?: string | null;
+}
+
+export type UpdateCatalogProductInput = Pick<CreateCatalogProductInput, 'workspaceId'> &
+  Partial<Omit<CreateCatalogProductInput, 'workspaceId'>>;
+
+export interface CatalogProductEntry extends PurchaseLine {
+  readonly inventory_items: InventoryItem[];
+  readonly purchase: Pick<Purchase, 'id' | 'title'> | null;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -28,6 +44,7 @@ export class CatalogService {
   private readonly syncStatus = inject(SyncStatusService);
   private readonly mockStore = inject(MockDataStoreService);
   private readonly media = inject(MediaService);
+  private readonly workspace = inject(WorkspaceService);
 
   imageUrls(): Readonly<Record<string, string>> {
     return Object.fromEntries(
@@ -109,6 +126,36 @@ export class CatalogService {
     }
   }
 
+  async loadProduct(
+    productId: string,
+    workspaceId: string,
+  ): Promise<MutationResult<CatalogProduct>> {
+    try {
+      if (this.workspace.currentWorkspace()?.id !== workspaceId)
+        throw new Error('Der Workspace wurde gewechselt.');
+      if (this.mockStore.isDemoMode()) {
+        const product = this.mockStore
+          .getCatalogProducts(workspaceId)
+          .find((entry) => entry.id === productId && entry.workspace_id === workspaceId);
+        return { data: product ?? null, error: null, reportedBySyncStatus: false };
+      }
+      const { data, error } = await this.supabase.client
+        .from('catalog_products')
+        .select('*')
+        .eq('workspace_id', workspaceId)
+        .eq('id', productId)
+        .maybeSingle();
+      if (error) throw error;
+      return {
+        data: data ? this.mapProduct(data) : null,
+        error: null,
+        reportedBySyncStatus: false,
+      };
+    } catch (error: unknown) {
+      return this.failure('Laden des Artikels', error);
+    }
+  }
+
   async createProduct(input: CreateCatalogProductInput): Promise<MutationResult<CatalogProduct>> {
     if (this.mockStore.isDemoMode()) {
       const product: CatalogProduct = {
@@ -122,6 +169,7 @@ export class CatalogService {
         model: input.model?.trim() || null,
         ean: input.ean?.trim() || null,
         category: input.category?.trim() || null,
+        description: input.description?.trim() || null,
         is_public_store: input.isPublicStore ?? false,
         listing_price: input.listingPrice ?? null,
       };
@@ -143,6 +191,7 @@ export class CatalogService {
           model: input.model?.trim() || null,
           ean: input.ean?.trim() || null,
           category: input.category?.trim() || null,
+          description: input.description?.trim() || null,
           is_public_store: input.isPublicStore ?? false,
           listing_price: input.listingPrice ?? null,
         })
@@ -159,6 +208,159 @@ export class CatalogService {
       return { data: product, error: null, reportedBySyncStatus: false };
     } catch (error: unknown) {
       return this.failure('Anlegen des Artikelstamms', error);
+    }
+  }
+
+  async updateProduct(
+    productId: string,
+    input: UpdateCatalogProductInput,
+  ): Promise<MutationResult<CatalogProduct>> {
+    try {
+      if (this.workspace.currentWorkspace()?.id !== input.workspaceId)
+        throw new Error('Der Workspace wurde gewechselt. Bitte den Artikel erneut öffnen.');
+      const patch: Partial<Omit<CatalogProduct, 'primary_media_path'>> = {};
+      if (input.title !== undefined) {
+        if (!input.title.trim()) throw new Error('Bitte einen Namen eingeben.');
+        patch.title = input.title.trim();
+      }
+      if (input.brand !== undefined) patch.brand = input.brand?.trim() || null;
+      if (input.model !== undefined) patch.model = input.model?.trim() || null;
+      if (input.ean !== undefined) patch.ean = input.ean?.trim() || null;
+      if (input.category !== undefined) patch.category = input.category?.trim() || null;
+      if (input.description !== undefined) patch.description = input.description?.trim() || null;
+      if (input.condition !== undefined) patch.condition = input.condition;
+      if (input.conditionNotes !== undefined)
+        patch.condition_notes = input.conditionNotes?.trim() || null;
+      if (input.isPublicStore !== undefined) patch.is_public_store = input.isPublicStore;
+      if (input.listingPrice !== undefined) {
+        if (
+          input.listingPrice !== null &&
+          (!Number.isFinite(input.listingPrice) || input.listingPrice <= 0)
+        )
+          throw new Error('Bitte einen positiven Shoppreis eingeben.');
+        patch.listing_price = input.listingPrice;
+      }
+      let product: CatalogProduct;
+      if (this.mockStore.isDemoMode()) {
+        const existing = this.mockStore
+          .getCatalogProducts(input.workspaceId)
+          .find((entry) => entry.id === productId && entry.workspace_id === input.workspaceId);
+        if (!existing) throw new Error('Artikel wurde nicht gefunden oder ist nicht zugänglich.');
+        product = { ...existing, ...patch };
+        this.mockStore.saveCatalogProduct(product);
+      } else {
+        const { data, error } = await this.supabase.client
+          .from('catalog_products')
+          .update(patch)
+          .eq('id', productId)
+          .eq('workspace_id', input.workspaceId)
+          .select()
+          .single();
+        if (error || !data)
+          throw error ?? new Error('Artikel wurde nicht gefunden oder ist nicht zugänglich.');
+        product = this.mapProduct(data);
+      }
+      if (
+        this.workspace.currentWorkspace()?.id === input.workspaceId &&
+        (!this.requestedWorkspaceId || this.requestedWorkspaceId === input.workspaceId)
+      ) {
+        this.products.update((products) =>
+          products.map((entry) =>
+            entry.id === productId && entry.workspace_id === input.workspaceId
+              ? { ...entry, ...product }
+              : entry,
+          ),
+        );
+      }
+      return { data: product, error: null, reportedBySyncStatus: false };
+    } catch (error: unknown) {
+      return this.failure('Speichern des Artikels', error);
+    }
+  }
+
+  async loadProductEntries(
+    productId: string,
+    workspaceId: string,
+  ): Promise<MutationResult<CatalogProductEntry[]>> {
+    try {
+      if (this.workspace.currentWorkspace()?.id !== workspaceId)
+        throw new Error('Der Workspace wurde gewechselt.');
+      if (this.mockStore.isDemoMode()) {
+        const items = this.mockStore.getItems();
+        const purchases = this.mockStore.getPurchases();
+        return {
+          data: this.mockStore
+            .getPurchaseLines(workspaceId)
+            .filter(
+              (line) => line.catalog_product_id === productId && line.workspace_id === workspaceId,
+            )
+            .map((line) => ({
+              ...line,
+              inventory_items: items.filter(
+                (item) => item.purchase_line_id === line.id && item.workspace_id === workspaceId,
+              ),
+              purchase:
+                purchases.find(
+                  (purchase) =>
+                    purchase.id === line.purchase_id && purchase.workspace_id === workspaceId,
+                ) ?? null,
+            })),
+          error: null,
+          reportedBySyncStatus: false,
+        };
+      }
+      const { data, error } = await this.supabase.client
+        .from('purchase_lines')
+        .select(
+          '*, inventory_items!inventory_items_purchase_line_id_fkey(*), purchase:purchases!purchase_lines_purchase_id_fkey(id, title)',
+        )
+        .eq('workspace_id', workspaceId)
+        .eq('catalog_product_id', productId)
+        .order('created_at');
+      if (error) throw error;
+      const entries = (data ?? []) as CatalogProductEntry[];
+      const itemIds = entries.flatMap((line) =>
+        line.inventory_items
+          .filter((item) => item.workspace_id === workspaceId && item.purchase_line_id === line.id)
+          .map((item) => item.id),
+      );
+      if (!itemIds.length)
+        return {
+          data: entries.map((line) => ({ ...line, inventory_items: [] })),
+          error: null,
+          reportedBySyncStatus: false,
+        };
+      const states = await this.supabase.client
+        .from('inventory_item_sale_states')
+        .select('inventory_item_id, workspace_id, sale_state, active_sale_count, active_sale_id')
+        .eq('workspace_id', workspaceId)
+        .in('inventory_item_id', itemIds);
+      if (states.error) throw states.error;
+      const stateByItem = new Map(
+        (states.data ?? []).map((state) => [state.inventory_item_id, state]),
+      );
+      return {
+        data: entries.map((line) => ({
+          ...line,
+          inventory_items: line.inventory_items
+            .filter(
+              (item) => item.workspace_id === workspaceId && item.purchase_line_id === line.id,
+            )
+            .map((item) => {
+              const state = stateByItem.get(item.id);
+              return {
+                ...item,
+                sale_state: state?.sale_state as InventoryItem['sale_state'],
+                active_sale_count: state?.active_sale_count ?? undefined,
+                active_sale_id: state?.active_sale_id ?? null,
+              };
+            }),
+        })),
+        error: null,
+        reportedBySyncStatus: false,
+      };
+    } catch (error: unknown) {
+      return this.failure('Laden der Einkaufsherkunft', error);
     }
   }
 

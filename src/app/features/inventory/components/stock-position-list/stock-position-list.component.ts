@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
-import { CurrencyPipe, DatePipe } from '@angular/common';
+import { CurrencyPipe, DatePipe, NgTemplateOutlet } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import {
   LucideChevronDown as ChevronDown,
@@ -44,6 +44,8 @@ import {
 import type { InventoryPresentationRow } from '../../models/inventory-presentation.models';
 import { editableItemStatusOptions } from '../../models/item-status-options';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
+import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import {
   buildInventoryPresentation,
   InventorySourceState,
@@ -53,6 +55,9 @@ import {
   selector: 'app-stock-position-list',
   imports: [
     RouterLink,
+    NgTemplateOutlet,
+    BadgeComponent,
+    ButtonComponent,
     ProductThumbnailComponent,
     CurrencyPipe,
     DatePipe,
@@ -86,13 +91,9 @@ export class StockPositionListComponent {
   readonly visibleColumns = input<readonly string[]>([
     'selection',
     'title',
-    'condition',
     'quantity',
-    'status',
-    'origin',
-    'unit_cost',
-    'inventory_value',
-    'sale',
+    'available',
+    'reserved',
     'actions',
   ]);
   readonly presentationRows = input<readonly InventoryPresentationRow[] | null>(null);
@@ -126,6 +127,7 @@ export class StockPositionListComponent {
   readonly printerIcon = Printer;
   readonly storeIcon = Store;
   readonly openPositionIds = signal<ReadonlySet<string>>(new Set());
+  readonly showMovements = signal(false);
 
   readonly statusOptions: SelectOption<ItemStatus>[] = [...editableItemStatusOptions];
 
@@ -160,6 +162,14 @@ export class StockPositionListComponent {
     const sort = this.currentSort();
     if (!sort || sort.field !== field) return null;
     return sort.direction === 'asc' ? 'ascending' : 'descending';
+  }
+
+  quantityStateLabel(row: InventoryPresentationRow): string {
+    return row.quantityState === 'loading'
+      ? 'Bestand wird geladen'
+      : row.quantityState === 'error'
+        ? 'Bestand nicht verfügbar'
+        : 'Bestand muss geklärt werden';
   }
 
   readonly movementRows = computed(() => {
@@ -248,7 +258,7 @@ export class StockPositionListComponent {
       title: row.title,
       available_quantity: row.quantity.available,
       reserved_quantity: row.quantity.reserved,
-      on_hand_quantity: row.quantity.available + row.quantity.reserved,
+      on_hand_quantity: row.onHandQuantity ?? 0,
       oldest_available_unit_cost: row.costPerUnit.kind === 'known' ? row.costPerUnit.amount : null,
       is_public_store: row.isPublicStore,
     };

@@ -18,6 +18,9 @@ import {
   StockMovement,
   StockPosition,
 } from '../../../../core/models/flipbase.models';
+import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { INVENTORY_TABLE_CONFIG } from '../../../../core/config/table-defaults.config';
 import { StockPositionListComponent } from './stock-position-list.component';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
 import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
@@ -28,6 +31,7 @@ import { TableSortHeaderComponent } from '../../../../shared/components/table-so
 interface AngularInputMetadata {
   inputs: Record<string, unknown>;
   declaredInputs: Record<string, string>;
+  outputs: Record<string, string>;
 }
 
 const inputMetadataSnapshots = new Map<unknown, AngularInputMetadata>();
@@ -37,6 +41,7 @@ function registerSignalInputs(component: unknown, inputNames: readonly string[])
   inputMetadataSnapshots.set(component, {
     inputs: metadata.inputs,
     declaredInputs: metadata.declaredInputs,
+    outputs: metadata.outputs,
   });
   metadata.inputs = {
     ...metadata.inputs,
@@ -51,6 +56,10 @@ function registerSignalInputs(component: unknown, inputNames: readonly string[])
 beforeAll(async () => {
   registerLocaleData(localeDe);
   const resources: Record<string, string> = {
+    './badge.component.html': 'src/app/shared/components/badge/badge.component.html',
+    './badge.component.scss': 'src/app/shared/components/badge/badge.component.scss',
+    './button.component.html': 'src/app/shared/components/button/button.component.html',
+    './button.component.scss': 'src/app/shared/components/button/button.component.scss',
     './product-thumbnail.component.html':
       'src/app/shared/components/product-thumbnail/product-thumbnail.component.html',
     './stock-position-list.component.html':
@@ -72,6 +81,28 @@ beforeAll(async () => {
     if (!resource) throw new Error(`Unbekannte Test-Ressource: ${url}`);
     return readFile(resolve(resource), 'utf8');
   });
+  registerSignalInputs(BadgeComponent, ['tone', 'size', 'mono']);
+  registerSignalInputs(ButtonComponent, [
+    'variant',
+    'size',
+    'icon',
+    'iconPosition',
+    'iconOnly',
+    'fullWidth',
+    'type',
+    'link',
+    'href',
+    'target',
+    'queryParams',
+    'ariaLabel',
+    'title',
+    'ariaExpanded',
+    'ariaPressed',
+    'ariaControls',
+    'ariaHaspopup',
+    'loading',
+    'disabled',
+  ]);
   registerSignalInputs(ProductThumbnailComponent, ['src', 'alt', 'size']);
   registerSignalInputs(CustomSelectComponent, [
     'options',
@@ -98,12 +129,15 @@ beforeAll(async () => {
     'currentSort',
     'description',
   ]);
+  const buttonMetadata = (ButtonComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp;
+  buttonMetadata.outputs = { ...buttonMetadata.outputs, clicked: 'clicked' };
 });
 afterAll(() => {
   for (const [component, snapshot] of inputMetadataSnapshots) {
     const metadata = (component as { ɵcmp: AngularInputMetadata }).ɵcmp;
     metadata.inputs = snapshot.inputs;
     metadata.declaredInputs = snapshot.declaredInputs;
+    metadata.outputs = snapshot.outputs;
   }
 });
 beforeEach(async () => {
@@ -128,11 +162,16 @@ function createList(
   movements: readonly StockMovement[] = [],
   purchases: readonly Purchase[] = [],
   sales: readonly Sale[] = [],
-  sourceOverrides: { readonly purchaseState?: 'known' | 'loading' | 'error' } = {},
+  sourceOverrides: {
+    readonly purchaseState?: 'known' | 'loading' | 'error';
+    readonly compact?: boolean;
+  } = {},
 ) {
   const fixture = TestBed.createComponent(StockPositionListComponent);
 
   Object.assign(fixture.componentInstance, {
+    visibleColumns: signal(INVENTORY_TABLE_CONFIG.defaultColumns.map((column) => column.id)),
+    tableColumns: signal(sourceOverrides.compact ? INVENTORY_TABLE_CONFIG.defaultColumns : []),
     positions: signal(positions),
     individualItems: signal(individualItems),
     lots: signal(lots),
@@ -194,6 +233,87 @@ const finalizedPurchase = (id: string): Purchase => ({
 });
 
 describe('StockPositionListComponent', () => {
+  it('zeigt kompakte Standardspalten mit echten Detail-Links und aufklappbaren Fachangaben', () => {
+    const fixture = createList([ledLampe], [einzelstueck], [], [], [], [], { compact: true });
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    expect(Array.from(host.querySelectorAll('th')).map((cell) => cell.textContent?.trim())).toEqual(
+      ['Auswahl', 'Artikel', 'Auf Lager', 'Verfügbar', 'Reserviert', 'Aktionen'],
+    );
+    expect(host.querySelector('[data-catalog-stock-link]')?.getAttribute('href')).toBe(
+      '/catalog/catalog-led-lamp?view=stock',
+    );
+    expect(host.querySelector('[data-item-details]')?.getAttribute('href')).toBe(
+      '/inventory/inventory-mystery-1',
+    );
+    expect(host.textContent).not.toContain('Kosten pro Stück');
+    const toggle = host.querySelector<HTMLButtonElement>(
+      '[data-stock-origin-toggle="inventory-mystery-1"] button',
+    )!;
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    toggle.click();
+    fixture.detectChanges();
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(host.querySelector('#stock-origins-inventory-mystery-1')?.textContent).toContain(
+      'Kosten pro Stück',
+    );
+    expect(
+      host.querySelector('#stock-origins-inventory-mystery-1 [data-item-status]'),
+    ).not.toBeNull();
+    toggle.click();
+    fixture.detectChanges();
+    expect(host.querySelector('#stock-origins-inventory-mystery-1')).toBeNull();
+  });
+
+  it('hält einen Konflikt auch ohne Statusspalte sichtbar und zeigt keine Nullmengen', () => {
+    const fixture = createList(
+      [],
+      [{ ...einzelstueck, sale_state: 'sale_status_conflict' }],
+      [],
+      [],
+      [],
+      [],
+      { compact: true },
+    );
+    fixture.detectChanges();
+    const row = fixture.nativeElement.querySelector('[data-individual-row]') as HTMLElement;
+    expect(row.textContent).toContain('Prüfung erforderlich');
+    const quantities = [...row.querySelectorAll('[data-stock-quantity]')];
+    expect(quantities.map((cell) => cell.textContent?.trim())).toEqual(['—', '—', '—']);
+    expect(
+      quantities.every((cell) => cell.querySelector('[aria-label="Bestand muss geklärt werden"]')),
+    ).toBe(true);
+    expect(row.querySelector('[data-item-sell]')).toBeNull();
+  });
+
+  it('beschriftet verkaufte Stücke mit null auf Lager statt historisch einem Stück', () => {
+    const fixture = createList([], [{ ...einzelstueck, status: 'sold', sale_state: 'sold' }]);
+    expect(
+      fixture.nativeElement.querySelector('[data-stock-quantity="quantity"]')?.textContent.trim(),
+    ).toBe('0');
+    expect(fixture.componentInstance.rows()[0].quantity.total).toBe(1);
+  });
+
+  it('besteht AXE mit kompakter Konfliktansicht und geöffneten Details', async () => {
+    const fixture = createList(
+      [],
+      [{ ...einzelstueck, sale_state: 'legacy_sold_unverified', status: 'sold' }],
+      [],
+      [],
+      [],
+      [],
+      { compact: true },
+    );
+    (fixture.nativeElement as HTMLElement)
+      .querySelector<HTMLButtonElement>('[data-stock-origin-toggle] button')
+      ?.click();
+    fixture.detectChanges();
+    const result = await axe.run(fixture.nativeElement as HTMLElement, {
+      rules: { 'color-contrast': { enabled: false } },
+    });
+    expect(result.violations).toEqual([]);
+  });
+
   it('zeigt Mengenposition fünf und Einzelstück eins in derselben Inventartabelle', () => {
     const fixture = createList(
       [{ ...ledLampe, available_quantity: 5, on_hand_quantity: 5 }],
@@ -202,8 +322,14 @@ describe('StockPositionListComponent', () => {
     const table = fixture.nativeElement.querySelector('[data-unified-inventory-table]');
 
     expect(table).not.toBeNull();
-    expect(table.querySelector('[data-stock-row]')?.textContent).toContain('5 Stück');
-    expect(table.querySelector('[data-individual-row]')?.textContent).toContain('1 Stück');
+    expect(
+      table.querySelector('[data-stock-row] [data-stock-quantity="quantity"]')?.textContent.trim(),
+    ).toBe('5');
+    expect(
+      table
+        .querySelector('[data-individual-row] [data-stock-quantity="quantity"]')
+        ?.textContent.trim(),
+    ).toBe('1');
     expect(table.textContent).not.toContain('Einzelstück');
     expect(table.textContent).not.toContain('Mengenposition');
     expect(
@@ -234,8 +360,12 @@ describe('StockPositionListComponent', () => {
 
     expect(rows).toHaveLength(1);
     expect(rows[0].textContent).toContain('LED Schreibtischlampe');
-    expect(rows[0].textContent).toContain('8 Stück insgesamt');
-    expect(rows[0].textContent).toContain('8 verfügbar · 0 reserviert · 0 verkauft');
+    expect(rows[0].querySelector('[data-stock-quantity="quantity"]')?.textContent?.trim()).toBe(
+      '8',
+    );
+    expect(rows[0].querySelector('[data-stock-quantity="available"]')?.textContent?.trim()).toBe(
+      '8',
+    );
   });
 
   it('erhält Details, Verkauf, Auswahl, Etiketten, Store und Status für Einzelstücke', () => {
@@ -248,8 +378,12 @@ describe('StockPositionListComponent', () => {
 
     expect(rows).toHaveLength(1);
     expect(rows[0].textContent).toContain('Mystery-Fundstück');
-    expect(rows[0].textContent).toContain('1 Stück insgesamt');
-    expect(rows[0].textContent).toContain('1 verfügbar · 0 reserviert · 0 verkauft');
+    expect(rows[0].querySelector('[data-stock-quantity="quantity"]')?.textContent?.trim()).toBe(
+      '1',
+    );
+    expect(rows[0].querySelector('[data-stock-quantity="available"]')?.textContent?.trim()).toBe(
+      '1',
+    );
     expect(rows[0].querySelector('[data-item-details]')).not.toBeNull();
     expect(rows[0].querySelector('[data-item-select]')).not.toBeNull();
     expect(rows[0].querySelector('[data-item-label]')).not.toBeNull();
@@ -291,11 +425,11 @@ describe('StockPositionListComponent', () => {
     );
 
     const toggle = fixture.nativeElement.querySelector(
-      '[data-stock-origin-toggle="catalog-led-lamp"]',
+      '[data-stock-origin-toggle="catalog-led-lamp"] button',
     );
 
     expect(toggle).not.toBeNull();
-    expect(toggle.textContent).toContain('Herkunft und Kosten aufschlüsseln');
+    expect(toggle.textContent).toContain('Details');
     expect((fixture.nativeElement as HTMLElement).innerHTML).not.toMatch(/\bLose\b/);
     toggle.click();
     fixture.detectChanges();
@@ -331,7 +465,7 @@ describe('StockPositionListComponent', () => {
     );
 
     const toggle = fixture.nativeElement.querySelector(
-      '[data-stock-origin-toggle="catalog-led-lamp"]',
+      '[data-stock-origin-toggle="catalog-led-lamp"] button',
     ) as HTMLButtonElement;
     toggle.click();
     fixture.detectChanges();
@@ -360,7 +494,7 @@ describe('StockPositionListComponent', () => {
     expect(row.querySelector('[data-item-status]')).toBeNull();
     expect(row.textContent).not.toContain('Status bitte wählen');
     expect(row.querySelector('[data-item-sell]')).toBeNull();
-    expect(badge?.classList.contains('min-h-7')).toBe(true);
+    expect(badge?.tagName).toBe('APP-BADGE');
   });
 
   it('zeigt Zustände deutsch und verwendet für veränderbare Status ausschließlich die gemeinsame Auswahl', () => {
@@ -615,6 +749,8 @@ describe('StockPositionListComponent', () => {
       },
     ];
     const fixture = createList([], [], [soldLot], movements);
+    fixture.componentInstance.showMovements.set(true);
+    fixture.detectChanges();
     const history = fixture.nativeElement.querySelector('[data-stock-movement-history]');
 
     expect(history).not.toBeNull();
