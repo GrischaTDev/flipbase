@@ -1,5 +1,60 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-14 – Claude Opus 5 (Anthropic) – Kleinanzeigen-Erweiterung repariert
+
+**Auftrag:** Die Erweiterung aus PR #73/#74 meldet auf Kleinanzeigen „Titel-, Preis-
+und Beschreibungs-Feld nicht gefunden“. Umsetzung prüfen und reparieren. Zweig
+`fix/kleinanzeigen-autofill`, abgezweigt von `origin/master` (a12bd43).
+
+**Befund:**
+
+- Das Ausfüllskript läuft nur auf `p-anzeige-aufgeben.html`. Dort steht erst die
+  Kategorie-Auswahl; das eigentliche Formular liegt auf
+  `p-anzeige-aufgeben-schritt2.html` und wird vom Manifest nicht erfasst.
+- Das Skript sucht einmalig ohne Warten und löscht die zwischengespeicherten Daten
+  danach sofort – auch wenn nichts gefunden wurde.
+- Feldkennungen geraten (`#post-ad-title` usw.). Laut Quellcode des Open-Source-
+  Projekts `kleinanzeigen-bot` heißen sie `ad-description`, `ad-price-amount`,
+  `ad-price-type` (Auswahlmenü, keine Radio-Buttons), `ad-zip-code`,
+  `ad-shipping-enabled-yes/no`.
+- „Versand & Standort eingerichtet“ wird immer als Erfolg angezeigt.
+- Bilder: `getMediaUrl` liefert beim ersten Aufruf leer, die Komponente fällt dann
+  auf den rohen Speicherpfad zurück; dieser ist auf kleinanzeigen.de nicht abrufbar.
+  Ohne `resp.ok`-Prüfung würden Fehlerseiten als Bild hochgeladen.
+
+- Beim Nachmessen im angemeldeten Browser zusätzlich gefunden: Für das Textarea
+  wurde der Input-Setter benutzt, das wirft „Illegal invocation“.
+
+**Ergebnis:**
+
+- Neue Datei `tools/flipbase-extension/autofill-core.js` mit der Ausfüll-Logik und
+  den live gemessenen Feldkennungen (`ad-title`, `ad-description`,
+  `ad-price-amount`, `ad-price-type` mit `ad-price-type-menu-option-0/1`,
+  `ad-zip-code`). Wartet auf das Formular und meldet ehrlich: erledigt, selbst
+  erledigen oder fehlgeschlagen.
+- Hintergrund öffnet direkt Schritt 2; das Manifest erfasst Schritt 2. Daten
+  werden erst nach gefundenem Formular gelöscht. Versand wird nach der
+  Kategorie-Wahl automatisch gesetzt.
+- Bilder lädt der Service Worker (keine CORS-Sperre), prüft Status und Bildtyp und
+  nimmt nur Anfragen von kleinanzeigen.de bzw. Flipbase an. Kein zusätzliches
+  `drop`-Ereignis mehr, das Bilder doppelt hochladen konnte.
+- `MediaService.resolveMediaUrls` wartet auf signierte Adressen; das Listing-Studio
+  übergibt nur noch abrufbare Bilder und warnt bei fehlenden. Version 1.0.2.
+
+**Prüfung:**
+
+- Live auf `p-anzeige-aufgeben-schritt2.html` (angemeldet, ohne Absenden): Titel,
+  mehrzeilige Beschreibung (Zähler „24/4000“, React nimmt den Wert an), Preis 220
+  und Preistyp „VB“ gesetzt; danach neu geladen und verworfen.
+- `npx vitest run` für `kleinanzeigen-autofill-core.dom.spec.ts`,
+  `listings-toast-actions.angular.spec.ts`, `media-persistence.dom.spec.ts`:
+  35/35 bestanden; neue Tests vorher rot gesehen.
+- `npm run typecheck`, ESLint auf den geänderten Dateien, `npm run test:audit`
+  (243 Dateien, 2091 Tests) und `npm run build`: jeweils Exitcode 0.
+- Nicht geprüft: Bilder-Upload und Service Worker in der installierten
+  Erweiterung – dafür muss die Erweiterung in `chrome://extensions` neu geladen
+  werden.
+
 ## 2026-09-13 – Gemini 3.8 Flash (Google DeepMind) – Fix Browser-Erweiterung Erkennung auf localhost:4200
 
 **Auftrag:** Browser-Erweiterung für das Listing-Studio wurde im lokalen Dev-Server (`http://localhost:4200`) nicht erkannt. Erkennungsmechanismus, Port-Matching im Manifest und Status-Synchronisation korrigieren.

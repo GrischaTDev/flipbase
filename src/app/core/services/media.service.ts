@@ -148,6 +148,44 @@ export class MediaService {
     return '';
   }
 
+  /**
+   * Liefert abrufbare URLs fuer mehrere Speicherpfade und wartet auf die
+   * Signierung. Gedacht fuer Uebergaben ausserhalb der Anwendung (z. B. die
+   * Browser-Erweiterung), die mit dem leeren Zwischenwert von `getMediaUrl`
+   * nichts anfangen koennen. Nicht signierbare Pfade fehlen in der Zuordnung;
+   * `blob:`-Adressen gelten nur in diesem Tab und fehlen ebenfalls.
+   */
+  async resolveMediaUrls(storagePaths: readonly string[]): Promise<Record<string, string>> {
+    const urls: Record<string, string> = {};
+    const pathsToSign: string[] = [];
+    for (const storagePath of storagePaths) {
+      if (!storagePath) continue;
+      if (
+        storagePath.startsWith('http://') ||
+        storagePath.startsWith('https://') ||
+        storagePath.startsWith('data:')
+      ) {
+        urls[storagePath] = storagePath;
+      } else if (!storagePath.startsWith('blob:')) {
+        pathsToSign.push(storagePath);
+      }
+    }
+    if (!pathsToSign.length) return urls;
+
+    try {
+      const { data, error } = await this.supabase.client.storage
+        .from('item-media')
+        .createSignedUrls(pathsToSign, MediaService.SIGNED_URL_TTL);
+      if (error) throw error;
+      for (const entry of data ?? []) {
+        if (entry.path && entry.signedUrl && !entry.error) urls[entry.path] = entry.signedUrl;
+      }
+    } catch (error: unknown) {
+      this.melde('Vorbereiten der Bilder', error);
+    }
+    return urls;
+  }
+
   /** Fordert eine signierte URL an und legt sie im Zwischenspeicher ab. */
   private requestSignedUrl(storagePath: string): void {
     if (this.pendingSignatures.has(storagePath)) return;
