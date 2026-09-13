@@ -22,13 +22,13 @@
       {
         type: 'FLIPBASE_EXTENSION_STATUS',
         installed: true,
-        version: '1.0.1',
+        version: '1.0.2',
       },
       '*',
     );
     window.dispatchEvent(
       new CustomEvent('flipbase:extension-ready', {
-        detail: { version: '1.0.1', ready: true },
+        detail: { version: '1.0.2', ready: true },
       }),
     );
   }

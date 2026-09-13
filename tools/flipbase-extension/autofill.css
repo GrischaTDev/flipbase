@@ -104,6 +104,11 @@
   color: #f87171;
 }
 
+/* Muss der Nutzer selbst erledigen, z. B. Versand vor der Kategorie-Wahl */
+.flipbase-hud-step.manual {
+  color: #fdba74;
+}
+
 .flipbase-hud-icon {
   width: 14px;
   text-align: center;

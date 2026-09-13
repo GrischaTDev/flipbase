@@ -26,11 +26,20 @@ Fertig! Die Erweiterung ist sofort aktiv.
 1. Öffne Flipbase und gehe ins **Listing Studio** (`/listings`).
 2. Wähle einen Artikel aus und passe ggf. Titel, Preis (Festpreis oder VB) und Optionen an.
 3. Klicke auf den gelben Button **„⚡ 1-Klick auf Kleinanzeigen inserieren“**.
-4. Ein neuer Tab mit Kleinanzeigen öffnet sich:
-   - Titel, Preis, Beschreibung und Standort werden automatisch eingetragen.
-   - Die Produktbilder aus Flipbase werden automatisch heruntergeladen und hochgeladen.
-   - Du siehst oben rechts den **Flipbase Assistenten**, der dir die erfolgreiche Übertragung anzeigt.
-5. Du prüfst die Angaben kurz und klickst auf **„Anzeige aufgeben“**.
+4. Ein neuer Tab öffnet direkt das Kleinanzeigen-Formular (`p-anzeige-aufgeben-schritt2.html`):
+   - Titel, Beschreibung, Preis mit Preistyp und die PLZ werden automatisch eingetragen.
+   - Die Produktbilder aus Flipbase werden geladen und hochgeladen.
+   - Oben rechts zeigt der **Flipbase Assistent** jeden Schritt ehrlich an: grün = erledigt,
+     orange = bitte selbst erledigen, rot = fehlgeschlagen.
+5. Du wählst die **Kategorie**. Danach blendet Kleinanzeigen die Versandauswahl ein; der
+   Assistent setzt sie dann automatisch.
+6. Du prüfst die Angaben und klickst auf **„Anzeige aufgeben“**.
+
+> Wird das Formular nicht gefunden (z. B. weil du nicht angemeldet bist), bleiben die Daten
+> 15 Minuten gespeichert. Nach dem Anmelden die Formularseite einfach neu laden.
+
+Die Feldkennungen des Formulars stehen in `autofill-core.js` und wurden am 14.09.2026 live
+geprüft. Ändert Kleinanzeigen das Formular, zeigt der Assistent rote Schritte – dann dort anpassen.
 
 ---
 

@@ -254,3 +254,48 @@ describe('MediaService – bestätigte lokale Zustandsänderungen', () => {
     expect(syncStatus.fehler()).toHaveLength(1);
   });
 });
+
+describe('MediaService – abrufbare Bildadressen für die Browser-Erweiterung', () => {
+  it('signiert Speicherpfade und reicht vollständige Adressen unverändert durch', async () => {
+    const createSignedUrls = vi.fn(async (paths: string[]) => ({
+      data: paths.map((path) => ({ path, signedUrl: `https://signed.test/${path}`, error: null })),
+      error: null,
+    }));
+    const { dienst } = injiziereDienst({ storage: { from: () => ({ createSignedUrls }) } });
+
+    const urls = await dienst.resolveMediaUrls([
+      'artikel-1/a.jpg',
+      'https://cdn.test/b.jpg',
+      'data:image/png;base64,AA==',
+    ]);
+
+    expect(urls).toEqual({
+      'artikel-1/a.jpg': 'https://signed.test/artikel-1/a.jpg',
+      'https://cdn.test/b.jpg': 'https://cdn.test/b.jpg',
+      'data:image/png;base64,AA==': 'data:image/png;base64,AA==',
+    });
+    expect(createSignedUrls).toHaveBeenCalledWith(['artikel-1/a.jpg'], expect.any(Number));
+  });
+
+  it('lässt nicht signierbare Pfade weg, statt den rohen Speicherpfad zu liefern', async () => {
+    const createSignedUrls = vi.fn(async () => ({
+      data: [{ path: 'artikel-1/fehlt.jpg', signedUrl: '', error: 'Object not found' }],
+      error: null,
+    }));
+    const { dienst } = injiziereDienst({ storage: { from: () => ({ createSignedUrls }) } });
+
+    const urls = await dienst.resolveMediaUrls(['artikel-1/fehlt.jpg']);
+
+    expect(urls).toEqual({});
+  });
+
+  it('liefert bei einem Speicherfehler eine leere Zuordnung', async () => {
+    const createSignedUrls = vi.fn(async () => ({
+      data: null,
+      error: new Error('offline'),
+    }));
+    const { dienst } = injiziereDienst({ storage: { from: () => ({ createSignedUrls }) } });
+
+    await expect(dienst.resolveMediaUrls(['artikel-1/a.jpg'])).resolves.toEqual({});
+  });
+});

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Flipbase Listing-Assistent",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Überträgt Inserate aus Flipbase per 1-Klick automatisiert und sicher auf Kleinanzeigen.",
   "permissions": ["storage", "activeTab"],
   "host_permissions": ["<all_urls>"],
@@ -16,10 +16,10 @@
     },
     {
       "matches": [
-        "https://www.kleinanzeigen.de/p-anzeige-aufgeben.html*",
-        "https://kleinanzeigen.de/p-anzeige-aufgeben.html*"
+        "https://www.kleinanzeigen.de/p-anzeige-aufgeben-schritt2.html*",
+        "https://kleinanzeigen.de/p-anzeige-aufgeben-schritt2.html*"
       ],
-      "js": ["kleinanzeigen-autofill.js"],
+      "js": ["autofill-core.js", "kleinanzeigen-autofill.js"],
       "css": ["autofill.css"],
       "run_at": "document_idle"
     }

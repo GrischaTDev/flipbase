@@ -484,10 +484,22 @@ export class ListingsComponent {
 
     this.isPublishingViaExtension.set(true);
 
-    const images = (item.media ?? []).map((m, idx) => ({
-      url: this.getMediaUrl(m.storage_path),
-      name: m.file_name || `artikel-bild-${idx + 1}.jpg`,
-    }));
+    // Die Erweiterung lädt die Bilder von kleinanzeigen.de aus. Sie braucht
+    // deshalb fertig signierte Adressen - ein Speicherpfad ist dort nicht abrufbar.
+    const media = item.media ?? [];
+    const urls =
+      (await this.mediaService?.resolveMediaUrls(media.map((m) => m.storage_path))) ?? {};
+    const images = media.flatMap((m, idx) => {
+      const url = urls[m.storage_path];
+      return url ? [{ url, name: m.file_name || `artikel-bild-${idx + 1}.jpg` }] : [];
+    });
+    const missingImages = media.length - images.length;
+    if (missingImages > 0) {
+      this.toast.warning(
+        `${missingImages} von ${media.length} Bildern ${missingImages === 1 ? 'konnte' : 'konnten'} nicht vorbereitet werden.`,
+        'Bitte die fehlenden Bilder auf Kleinanzeigen selbst hochladen.',
+      );
+    }
 
     const payload: KleinanzeigenListingPayload = {
       itemId: item.id,

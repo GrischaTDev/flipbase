@@ -173,6 +173,84 @@ describe('Paketinhalt ohne Preisvorgabe', () => {
   });
 });
 
+describe('ListingsComponent – Übergabe an die Browser-Erweiterung', () => {
+  const medium = (storagePath: string, fileName: string) => ({
+    id: `medium-${fileName}`,
+    inventory_item_id: artikel.id,
+    storage_path: storagePath,
+    is_primary: false,
+    file_name: fileName,
+    file_size: 4,
+    mime_type: 'image/jpeg',
+    created_at: '2026-08-24T10:01:00.000Z',
+  });
+
+  function erstelleUebergabe(signierteAdressen: Record<string, string>) {
+    const { komponente, toast } = erstelleKomponente({ error: null });
+    const publishViaExtension = vi.fn();
+    const resolveMediaUrls = vi.fn(async () => signierteAdressen);
+    Object.assign(komponente, {
+      listingStudio: { publishViaExtension },
+      mediaService: { resolveMediaUrls },
+      selectedItem: signal({
+        ...artikel,
+        media: [medium('item-1/a.jpg', 'a.jpg'), medium('item-1/b.jpg', 'b.jpg')],
+      }),
+      currentTitle: signal('Testartikel'),
+      currentDesc: signal('Beschreibung'),
+      priceType: signal('FIXED'),
+      postalCode: signal(''),
+      optShipping: signal(true),
+      optPickup: signal(false),
+      shippingPrice: signal(5.49),
+      isPublishingViaExtension: signal(false),
+    });
+    return { komponente, toast, publishViaExtension, resolveMediaUrls };
+  }
+
+  it('übergibt nur abrufbare Bildadressen, nie rohe Speicherpfade', async () => {
+    vi.useFakeTimers();
+    try {
+      const { komponente, publishViaExtension, resolveMediaUrls } = erstelleUebergabe({
+        'item-1/a.jpg': 'https://signed.test/a.jpg',
+        'item-1/b.jpg': 'https://signed.test/b.jpg',
+      });
+
+      await komponente.publishViaExtension();
+
+      expect(resolveMediaUrls).toHaveBeenCalledWith(['item-1/a.jpg', 'item-1/b.jpg']);
+      expect(publishViaExtension).toHaveBeenCalledTimes(1);
+      expect(publishViaExtension.mock.calls[0][0].images).toEqual([
+        { url: 'https://signed.test/a.jpg', name: 'a.jpg' },
+        { url: 'https://signed.test/b.jpg', name: 'b.jpg' },
+      ]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('lässt nicht vorbereitete Bilder weg und sagt das dem Nutzer', async () => {
+    vi.useFakeTimers();
+    try {
+      const { komponente, toast, publishViaExtension } = erstelleUebergabe({
+        'item-1/a.jpg': 'https://signed.test/a.jpg',
+      });
+
+      await komponente.publishViaExtension();
+
+      expect(publishViaExtension.mock.calls[0][0].images).toEqual([
+        { url: 'https://signed.test/a.jpg', name: 'a.jpg' },
+      ]);
+      expect(toast.toasts()[0]).toMatchObject({
+        type: 'warning',
+        title: '1 von 2 Bildern konnte nicht vorbereitet werden.',
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
 describe('ListingsComponent – Erweiterungsstatus', () => {
   it('erkennt die installierte Erweiterung über das document-Dataset sofort', () => {
     const { komponente, toast } = erstelleKomponente({ error: null });
