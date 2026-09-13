@@ -43,8 +43,12 @@ Nicht-Betreiber, AXE). Angular-Tests `platform-admin`, `layout/sidebar`,
 `npm run build` Exitcode 0 ohne Warnungen, Prettier und ESLint auf allen
 geänderten Dateien.
 
-**Offen:** Sichtprüfung im Browser. Sie braucht eine angemeldete
-Betreiber-Sitzung; die Anmeldung übernimmt der Nutzer selbst.
+**Nicht geprüft:** Sichtprüfung im Browser. Sie braucht eine angemeldete
+Betreiber-Sitzung; der Nutzer hat den PR ohne sie freigegeben.
+
+**Freigabe:** PR #70. Der Nutzer hat Push, PR, Merge nach erfolgreichen
+Pflichtprüfungen und anschließendes Aufräumen von Zweig und Arbeitsordner
+bestätigt.
 
 **Nebenbei:** Ein `npm ci` lief versehentlich im Haupt-Repo statt im
 Arbeitsordner, weil der Befehl kein Arbeitsverzeichnis hatte. Es hat dort nur
