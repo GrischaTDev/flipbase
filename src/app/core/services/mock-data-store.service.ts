@@ -17,6 +17,7 @@ import {
   StockMovement,
   SaleLine,
   SaleLineLotAllocation,
+  TaxCostAllocation,
 } from '../models/flipbase.models';
 import type { ReceivePurchaseLineInput } from './stock.service';
 import { createLocalDemoId } from '../utils/client-identity';
@@ -43,6 +44,31 @@ const STORAGE_KEY_STOCK_MOVEMENTS = 'flipbase_local_stock_movements';
 const STORAGE_KEY_PRODUCT_RECEIPTS = 'flipbase_local_product_receipts';
 const STORAGE_KEY_RECEIPT_JOURNAL = 'flipbase_local_individual_receipt_journal';
 const STORAGE_KEY_RECORD_COMMENTS = 'flipbase_local_record_comments';
+
+interface DemoSaleLineLotAllocation extends SaleLineLotAllocation {
+  tax_purchase_cost?: number | null;
+  tax_cost_allocations?: TaxCostAllocation[] | null;
+  active_tax_unit_costs?: number[] | null;
+  active_unit_costs?: number[] | null;
+}
+
+/** Gleiche Stückpreise werden in der Reihenfolge ihres ersten Auftretens zusammengefasst. */
+function groupTaxUnitCosts(costs: readonly number[] | null): TaxCostAllocation[] | null {
+  if (costs === null) return null;
+  const groups = new Map<number, number>();
+  for (const cost of costs) {
+    const unitCents = Math.round(cost * 100);
+    groups.set(unitCents, (groups.get(unitCents) ?? 0) + 1);
+  }
+  return [...groups].map(([unitCents, quantity]) => ({
+    quantity,
+    tax_purchase_cost: (unitCents * quantity) / 100,
+  }));
+}
+
+function totalTaxUnitCosts(costs: readonly number[] | null): number | null {
+  return costs === null ? null : costs.reduce((sum, cost) => sum + Math.round(cost * 100), 0) / 100;
+}
 
 interface AtomicStorageChange {
   readonly key: string;
@@ -945,31 +971,25 @@ export class MockDataStoreService {
       return { data: null, error: new Error('Die Gesamtkosten des Einkaufs sind noch offen.') };
     }
 
-    const totalCents = Math.round(
-      (purchase.purchase_price -
-        Number(purchase.discount_amount ?? 0) +
-        (purchase.costs ?? []).reduce((sum, cost) => sum + Number(cost.amount || 0), 0)) *
-        100,
-    );
-    const additionalTotalCents = Math.round(
-      (purchase.costs ?? []).reduce((sum, cost) => sum + Number(cost.amount || 0), 0) * 100,
-    );
-    const totalUnits = lines.reduce((sum, line) => sum + line.ordered_quantity, 0);
-    if (totalUnits <= 0) {
-      return { data: null, error: new Error('Der Einkauf enthält noch keine Stücke.') };
+    let plan: ReturnType<typeof buildProductCostPlan>;
+    try {
+      plan = buildProductCostPlan(purchase, lines);
+    } catch (cause: unknown) {
+      return {
+        data: null,
+        error: cause instanceof Error ? cause : new Error('Kostenabschluss fehlgeschlagen.'),
+      };
     }
-    const baseUnitCents = Math.floor(totalCents / totalUnits);
-    let remainingCents = totalCents - baseUnitCents * totalUnits;
-    const additionalBaseUnitCents = Math.floor(additionalTotalCents / totalUnits);
-    let remainingAdditionalCents = additionalTotalCents - additionalBaseUnitCents * totalUnits;
+    const totalCents = plan.reduce((sum, entry) => sum + entry.totalCents, 0);
     const allocatedTotalCentsByLine = new Map<string, number>();
     const allocatedAdditionalCentsByLine = new Map<string, number>();
     const allItems = this.getItems();
     const updatedPurchaseItems: InventoryItem[] = [];
 
-    for (const line of lines) {
+    for (const entry of plan) {
+      const line = entry.line;
       let lineAllocatedCents = 0;
-      let lineAdditionalCents = 0;
+      const lineAdditionalCents = entry.additionalCents;
       const existingItems = allItems
         .filter(
           (item) =>
@@ -999,13 +1019,8 @@ export class MockDataStoreService {
           : 'used';
       for (let position = 0; position < line.ordered_quantity; position += 1) {
         const existing = existingItems[position];
-        const allocatedCents = baseUnitCents + (remainingCents > 0 ? 1 : 0);
-        if (remainingCents > 0) remainingCents -= 1;
-        const allocatedAdditionalCents =
-          additionalBaseUnitCents + (remainingAdditionalCents > 0 ? 1 : 0);
-        if (remainingAdditionalCents > 0) remainingAdditionalCents -= 1;
+        const allocatedCents = entry.unitCents[position];
         lineAllocatedCents += allocatedCents;
-        lineAdditionalCents += allocatedAdditionalCents;
         updatedPurchaseItems.push({
           ...(existing ?? {
             id: this.newId('item'),
@@ -1020,6 +1035,8 @@ export class MockDataStoreService {
           active_sale_count: 0,
           active_sale_id: null,
           allocated_purchase_cost: allocatedCents / 100,
+          tax_purchase_cost:
+            entry.unitTaxPurchaseCents === null ? null : entry.unitTaxPurchaseCents[position] / 100,
           expected_value: existing?.expected_value ?? line.estimated_market_value ?? null,
           updated_at: new Date().toISOString(),
         });
@@ -1111,7 +1128,23 @@ export class MockDataStoreService {
             const pool = entry.unitCents
               .slice(offset, offset + lot.received_quantity)
               .reduce((sum, value) => sum + value, 0);
-            updatedLots.set(lot.id, { ...lot, unit_cost: pool / 100 / lot.received_quantity });
+            const taxPool =
+              entry.unitTaxPurchaseCents
+                ?.slice(offset, offset + lot.received_quantity)
+                .reduce((sum, value) => sum + value, 0) ?? null;
+            updatedLots.set(lot.id, {
+              ...lot,
+              unit_cost: pool / 100 / lot.received_quantity,
+              remaining_unit_costs: entry.unitCents
+                .slice(offset, offset + lot.received_quantity)
+                .map((cost) => cost / 100),
+              unit_tax_purchase_cost:
+                taxPool === null ? null : taxPool / 100 / lot.received_quantity,
+              remaining_tax_unit_costs:
+                entry.unitTaxPurchaseCents
+                  ?.slice(offset, offset + lot.received_quantity)
+                  .map((cost) => cost / 100) ?? null,
+            });
             offset += lot.received_quantity;
           }
         } else {
@@ -1137,6 +1170,10 @@ export class MockDataStoreService {
               ...item,
               status: 'ready',
               allocated_purchase_cost: entry.unitCents[index] / 100,
+              tax_purchase_cost:
+                entry.unitTaxPurchaseCents === null
+                  ? null
+                  : entry.unitTaxPurchaseCents[index] / 100,
             }),
           );
         }
@@ -1226,7 +1263,7 @@ export class MockDataStoreService {
     const activeSales = this.getSales(workspaceId).filter(
       (sale) => !sale.returned_at && !sale.voided_at,
     );
-    const allocations: SaleLineLotAllocation[] = [];
+    const allocations: DemoSaleLineLotAllocation[] = [];
     const movements: StockMovement[] = [];
     const updatedLines: SaleLine[] = [];
 
@@ -1262,11 +1299,25 @@ export class MockDataStoreService {
         item.sale_state = 'sold';
         item.active_sale_count = 1;
         item.active_sale_id = line.sale_id;
-        updatedLines.push({ ...line, cost_of_goods_sold: item.allocated_purchase_cost });
+        const itemCosts = this.getItemCosts(item.id);
+        const additionalItemCosts = (itemCosts.length ? itemCosts : (item.costs ?? [])).reduce(
+          (sum, cost) => sum + Math.round(cost.amount * 100),
+          0,
+        );
+        updatedLines.push({
+          ...line,
+          cost_of_goods_sold:
+            (Math.round(item.allocated_purchase_cost * 100) + additionalItemCosts) / 100,
+          tax_purchase_cost: item.tax_purchase_cost ?? null,
+          tax_cost_allocations: groupTaxUnitCosts(
+            item.tax_purchase_cost == null ? null : [item.tax_purchase_cost],
+          ),
+        });
         continue;
       }
       let remaining = line.quantity;
       let costOfGoodsSold = 0;
+      let lineTaxCosts: number[] | null = [];
       const lotsForProduct = updatedLots
         .filter(
           (lot) =>
@@ -1320,10 +1371,37 @@ export class MockDataStoreService {
             error: new Error('Die aktiven Kosten des Bestands sind ungültig.'),
           };
         }
-        const allocatedCost =
+        let allocatedCost =
           (quantity * Math.floor(remainingCents / lot.remaining_quantity) +
             Math.min(quantity, remainingCents % lot.remaining_quantity)) /
           100;
+        const availableUnitCosts = lot.remaining_unit_costs;
+        if (availableUnitCosts != null && availableUnitCosts.length !== lot.remaining_quantity) {
+          return {
+            sale: null,
+            saleLines: [],
+            allocations: [],
+            movements: [],
+            error: new Error('Die Stückkostenfolge des Loses ist unvollständig.'),
+          };
+        }
+        const allocatedUnitCosts = availableUnitCosts?.slice(0, quantity) ?? null;
+        if (allocatedUnitCosts !== null) {
+          allocatedCost =
+            allocatedUnitCosts.reduce((sum, cost) => sum + Math.round(cost * 100), 0) / 100;
+        }
+        lot.remaining_unit_costs = availableUnitCosts?.slice(quantity) ?? null;
+        const availableTaxCosts = lot.remaining_tax_unit_costs;
+        const allocatedTaxCosts =
+          availableTaxCosts?.length === lot.remaining_quantity
+            ? availableTaxCosts.slice(0, quantity)
+            : null;
+        lot.remaining_tax_unit_costs =
+          allocatedTaxCosts === null ? null : availableTaxCosts!.slice(quantity);
+        lineTaxCosts =
+          lineTaxCosts === null || allocatedTaxCosts === null
+            ? null
+            : [...lineTaxCosts, ...allocatedTaxCosts];
         lot.remaining_quantity -= quantity;
         remaining -= quantity;
         costOfGoodsSold += allocatedCost;
@@ -1336,6 +1414,10 @@ export class MockDataStoreService {
           unit_cost: lot.unit_cost,
           allocated_cost: allocatedCost,
           active_allocated_cost: allocatedCost,
+          tax_purchase_cost: totalTaxUnitCosts(allocatedTaxCosts),
+          tax_cost_allocations: groupTaxUnitCosts(allocatedTaxCosts),
+          active_tax_unit_costs: allocatedTaxCosts,
+          active_unit_costs: allocatedUnitCosts,
         });
         movements.push({
           id: this.newId('movement'),
@@ -1357,7 +1439,12 @@ export class MockDataStoreService {
           error: new Error('Nicht genügend verfügbarer Bestand'),
         };
       }
-      updatedLines.push({ ...line, cost_of_goods_sold: Number(costOfGoodsSold.toFixed(2)) });
+      updatedLines.push({
+        ...line,
+        cost_of_goods_sold: Number(costOfGoodsSold.toFixed(2)),
+        tax_purchase_cost: totalTaxUnitCosts(lineTaxCosts),
+        tax_cost_allocations: groupTaxUnitCosts(lineTaxCosts),
+      });
     }
 
     const lineRevenue = updatedLines.reduce((sum, line) => sum + line.line_total, 0);
@@ -1402,7 +1489,7 @@ export class MockDataStoreService {
     restockedQuantity: number;
     error: Error | null;
   } {
-    const allocations = sale.lot_allocations ?? [];
+    const allocations: DemoSaleLineLotAllocation[] = sale.lot_allocations ?? [];
     const lots = this.getStockLots();
     const updatedLots = lots.map((lot) => ({ ...lot }));
     const items = this.getItems();
@@ -1443,6 +1530,18 @@ export class MockDataStoreService {
         };
       }
       if (restock) {
+        const returnedUnitCosts = allocation.active_unit_costs;
+        lot.remaining_unit_costs =
+          returnedUnitCosts?.length !== allocation.quantity ||
+          (lot.remaining_quantity > 0 && lot.remaining_unit_costs == null)
+            ? null
+            : [...(lot.remaining_unit_costs ?? []), ...returnedUnitCosts];
+        const returnedTaxCosts = allocation.active_tax_unit_costs;
+        lot.remaining_tax_unit_costs =
+          returnedTaxCosts?.length !== allocation.quantity ||
+          (lot.remaining_quantity > 0 && lot.remaining_tax_unit_costs == null)
+            ? null
+            : [...(lot.remaining_tax_unit_costs ?? []), ...returnedTaxCosts];
         lot.remaining_quantity += allocation.quantity;
         restockedQuantity += allocation.quantity;
       }
@@ -1475,6 +1574,8 @@ export class MockDataStoreService {
       stock_movements: movements,
       lot_allocations: allocations.map((allocation) => ({
         ...allocation,
+        active_tax_unit_costs: restock ? [] : allocation.active_tax_unit_costs,
+        active_unit_costs: restock ? [] : allocation.active_unit_costs,
         active_allocated_cost: restock
           ? 0
           : (allocation.active_allocated_cost ??

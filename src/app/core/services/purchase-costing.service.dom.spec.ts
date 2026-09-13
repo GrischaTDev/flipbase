@@ -144,6 +144,36 @@ describe('PurchaseCostingService', () => {
     expect(result.data).toEqual(finalizedResult);
   });
 
+  it.each(['purchase_price', 'expense', null] as const)(
+    'sendet eine korrigierte Kostenherkunft %s unverändert',
+    async (taxTreatment) => {
+      const { service, rpc } = createService();
+      const costs = [
+        {
+          id: 'cost-1',
+          type: 'shipping',
+          amount: 5,
+          description: null,
+          allocation_method: 'value_weighted' as const,
+          target_purchase_line_id: null,
+          tax_treatment: taxTreatment,
+        },
+      ];
+      await service.correctPurchase({
+        workspaceId: 'workspace-1',
+        purchaseId: 'purchase-1',
+        reason: 'Beleg geprüft',
+        purchasePrice: null,
+        lines: [],
+        costs,
+      });
+      expect(rpc).toHaveBeenCalledWith(
+        'correct_purchase_costing',
+        expect.objectContaining({ p_costs: costs }),
+      );
+    },
+  );
+
   it('weist eine formal erfolgreiche, aber unvollständige RPC-Antwort zurück', async () => {
     const { service, syncStatus } = createService({
       rpc: async () => ({ data: { purchaseId: 'purchase-1' }, error: null }),

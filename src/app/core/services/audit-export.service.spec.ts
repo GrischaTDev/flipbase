@@ -165,13 +165,27 @@ describe('AuditExportService archive builder', () => {
       ],
       purchases: [{ id: 'purchase-1', workspace_id: 'workspace-1', title: '=IMPORTXML()' }],
       purchaseLines: [],
-      purchaseCosts: [],
-      inventoryItems: [],
+      purchaseCosts: [{ id: 'pc1', tax_treatment: 'purchase_price' }],
+      inventoryItems: [
+        { id: 'i1', tax_purchase_cost: 0 },
+        { id: 'i2', tax_purchase_cost: null },
+      ],
       itemCosts: [{ id: 'item-cost-1', inventory_item_id: 'item-1', type: 'repair', amount: 12 }],
-      stockLots: [],
+      stockLots: [
+        { id: 'lot1', unit_tax_purchase_cost: 6.25, remaining_tax_unit_costs: [6.25, 6.25, 0] },
+        { id: 'lot2', unit_tax_purchase_cost: null, remaining_tax_unit_costs: null },
+        { id: 'lot3', unit_tax_purchase_cost: 0, remaining_tax_unit_costs: [] },
+      ],
       stockMovements: [],
       sales: [],
-      saleLines: [],
+      saleLines: [
+        {
+          id: 'sl1',
+          tax_purchase_cost: 12.5,
+          tax_cost_allocations: [{ quantity: 2, tax_purchase_cost: 6.25 }],
+        },
+        { id: 'sl2', tax_purchase_cost: null, tax_cost_allocations: null },
+      ],
       saleCosts: [],
       saleLineLotAllocations: [
         {
@@ -182,6 +196,21 @@ describe('AuditExportService archive builder', () => {
           allocated_cost: 33.34,
           active_allocated_cost: 33.34,
           consumption_sequence: 7,
+          tax_purchase_cost: 12.5,
+          tax_cost_allocations: [{ quantity: 2, tax_purchase_cost: 6.25 }],
+          active_tax_unit_costs: [6.25],
+        },
+        {
+          id: 'allocation-2',
+          tax_purchase_cost: null,
+          tax_cost_allocations: null,
+          active_tax_unit_costs: null,
+        },
+        {
+          id: 'allocation-3',
+          tax_purchase_cost: 0,
+          tax_cost_allocations: [{ quantity: 1, tax_purchase_cost: 0 }],
+          active_tax_unit_costs: [],
         },
       ],
       returns: [
@@ -273,6 +302,36 @@ describe('AuditExportService archive builder', () => {
     expect(await zip.file('item-costs.csv')!.async('string')).toContain(
       'item-cost-1;item-1;repair;12',
     );
+    for (const [file, column, expectedValues] of [
+      ['purchase-costs.csv', 'tax_treatment', ['purchase_price']],
+      ['inventory-items.csv', 'tax_purchase_cost', ['0', '']],
+      ['sale-lines.csv', 'tax_purchase_cost', ['12.5', '']],
+      ['stock-lots.csv', 'unit_tax_purchase_cost', ['6.25', '', '0']],
+      ['stock-lots.csv', 'remaining_tax_unit_costs', ['[6.25,6.25,0]', '', '[]']],
+      ['sale-line-lot-allocations.csv', 'tax_purchase_cost', ['12.5', '', '0']],
+      ['sale-line-lot-allocations.csv', 'active_tax_unit_costs', ['[6.25]', '', '[]']],
+      [
+        'sale-line-lot-allocations.csv',
+        'tax_cost_allocations',
+        [
+          '"[{""quantity"":2,""tax_purchase_cost"":6.25}]"',
+          '',
+          '"[{""quantity"":1,""tax_purchase_cost"":0}]"',
+        ],
+      ],
+      [
+        'sale-lines.csv',
+        'tax_cost_allocations',
+        ['"[{""quantity"":2,""tax_purchase_cost"":6.25}]"', ''],
+      ],
+    ] as const) {
+      const csv = (await zip.file(file)!.async('string')).replace(/^\uFEFF/, '').split('\r\n');
+      const columnIndex = csv[0].split(';').indexOf(column);
+      expect(columnIndex).toBeGreaterThanOrEqual(0);
+      expect(
+        csv.slice(1, 1 + expectedValues.length).map((row) => row.split(';')[columnIndex]),
+      ).toEqual(expectedValues);
+    }
     const allocationsCsv = await zip.file('sale-line-lot-allocations.csv')!.async('string');
     expect(allocationsCsv.split('\r\n')[0]).toContain('consumption_sequence');
     expect(allocationsCsv).toContain('33.34;33.34;7');

@@ -15,6 +15,11 @@ import {
   PurchaseCostingService,
 } from '../../../../core/services/purchase-costing.service';
 import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
+import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
+import {
+  PURCHASE_COST_TAX_TREATMENT_OPTIONS,
+  PurchaseCostTaxTreatment,
+} from '../purchase-cost-editor/purchase-cost-adjustments';
 import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
 
 type LineForm = FormGroup<{
@@ -35,13 +40,14 @@ type CostForm = FormGroup<{
   type: FormControl<string>;
   amount: FormControl<number>;
   description: FormControl<string>;
+  taxTreatment: FormControl<PurchaseCostTaxTreatment | null>;
   allocationMethod: FormControl<CorrectPurchaseCostInput['allocation_method']>;
   targetLineId: FormControl<string | null>;
 }>;
 
 @Component({
   selector: 'app-purchase-correction-dialog',
-  imports: [ReactiveFormsModule, NumberInputComponent, ModalDialogDirective],
+  imports: [ReactiveFormsModule, NumberInputComponent, CustomSelectComponent, ModalDialogDirective],
   templateUrl: './purchase-correction-dialog.component.html',
   host: { class: 'contents' },
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -57,6 +63,7 @@ export class PurchaseCorrectionDialogComponent {
 
   readonly lineRows = new FormArray<LineForm>([]);
   readonly costRows = new FormArray<CostForm>([]);
+  readonly taxTreatmentOptions = PURCHASE_COST_TAX_TREATMENT_OPTIONS;
   readonly form = new FormGroup({
     reason: new FormControl('', {
       nonNullable: true,
@@ -119,6 +126,7 @@ export class PurchaseCorrectionDialogComponent {
           type: cost.type.trim(),
           amount: cost.amount,
           description: cost.description.trim() || null,
+          tax_treatment: cost.taxTreatment,
           allocation_method: cost.allocationMethod,
           target_purchase_line_id: cost.targetLineId,
         })),
@@ -188,6 +196,9 @@ export class PurchaseCorrectionDialogComponent {
             validators: [Validators.min(0)],
           }),
           description: new FormControl(cost.description ?? '', { nonNullable: true }),
+          taxTreatment: new FormControl<PurchaseCostTaxTreatment | null>(
+            cost.tax_treatment ?? null,
+          ),
           allocationMethod: new FormControl(cost.allocation_method ?? 'value_weighted', {
             nonNullable: true,
           }),

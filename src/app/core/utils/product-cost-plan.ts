@@ -5,6 +5,7 @@ export interface ProductLineCostPlan {
   readonly totalCents: number;
   readonly additionalCents: number;
   readonly unitCents: readonly number[];
+  readonly unitTaxPurchaseCents: readonly number[] | null;
 }
 
 function cents(value: number | null): number {
@@ -74,6 +75,11 @@ export function buildProductCostPlan(
       (left.id ?? '').localeCompare(right.id ?? ''),
   );
   const additional = costs.reduce((sum, cost) => sum + cents(cost.amount), 0);
+  const taxUnknown = costs.some((cost) => cost.tax_treatment == null);
+  const taxAdditional = costs.reduce(
+    (sum, cost) => sum + (cost.tax_treatment === 'purchase_price' ? cents(cost.amount) : 0),
+    0,
+  );
   if (
     (purchase.pricing_mode ?? (purchase.type === 'mystery_pack' ? 'total' : 'individual')) ===
     'total'
@@ -83,15 +89,25 @@ export function buildProductCostPlan(
     const goods = cents(purchase.purchase_price) - discount;
     const goodsUnits = allocate(goods, Array<number>(units).fill(1));
     const totalUnits = allocate(goods + additional, Array<number>(units).fill(1));
+    const taxUnits = taxUnknown
+      ? null
+      : allocate(goods + taxAdditional, Array<number>(units).fill(1));
     let offset = 0;
     return lines.map((line) => {
       const unitCents = totalUnits.slice(offset, offset + line.ordered_quantity);
+      const unitTaxPurchaseCents = taxUnits?.slice(offset, offset + line.ordered_quantity) ?? null;
       const goodsCents = goodsUnits
         .slice(offset, offset + line.ordered_quantity)
         .reduce((sum, value) => sum + value, 0);
       offset += line.ordered_quantity;
       const totalCents = unitCents.reduce((sum, value) => sum + value, 0);
-      return { line, totalCents, additionalCents: totalCents - goodsCents, unitCents };
+      return {
+        line,
+        totalCents,
+        additionalCents: totalCents - goodsCents,
+        unitCents,
+        unitTaxPurchaseCents,
+      };
     });
   }
   const goods = lines.map((line) => {
@@ -107,6 +123,7 @@ export function buildProductCostPlan(
   if (discount > goodsTotal) throw new Error('Der Rabatt überschreitet den Warenbetrag.');
   const discounts = allocate(discount, goods);
   const extras = lines.map(() => 0);
+  const taxExtras = lines.map(() => 0);
   for (const cost of costs) {
     const amount = cents(cost.amount);
     let shares: number[];
@@ -123,6 +140,7 @@ export function buildProductCostPlan(
     }
     shares.forEach((share, index) => {
       extras[index] += share;
+      if (cost.tax_treatment === 'purchase_price') taxExtras[index] += share;
     });
   }
   return lines.map((line, index) => {
@@ -130,11 +148,17 @@ export function buildProductCostPlan(
     const weights = Array<number>(line.ordered_quantity).fill(1);
     const goodsUnits = allocate(goods[index] - discounts[index], weights);
     const extraUnits = allocate(extras[index], weights);
+    // Derselbe Warenanteil bleibt am Stück; Verkäuferkosten belegen nur
+    // Zusatzkosten-Cents derselben stabilen Reihenfolge.
+    const taxExtraUnits = allocate(taxExtras[index], weights);
     return {
       line,
       totalCents,
       additionalCents: extras[index],
       unitCents: goodsUnits.map((value, position) => value + extraUnits[position]),
+      unitTaxPurchaseCents: taxUnknown
+        ? null
+        : goodsUnits.map((value, position) => value + taxExtraUnits[position]),
     };
   });
 }

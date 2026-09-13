@@ -210,7 +210,7 @@ test('creates a private seller from the purchase selector and selects it', async
   await page.getByRole('button', { name: 'Verkäufer erstellen', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Verkäufer erstellen' });
   await dialog.getByRole('textbox', { name: 'Vor- und Nachname' }).fill('Alex Beispiel');
-  await dialog.getByRole('button', { name: 'Verkäufer erstellen', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
 
   await expect(page.getByRole('combobox', { name: 'Verkäufer auswählen' })).toContainText(
     'Alex Beispiel',

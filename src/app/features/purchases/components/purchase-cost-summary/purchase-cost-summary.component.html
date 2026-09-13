@@ -18,7 +18,12 @@
   <dl class="divide-y divide-fb-line px-4 text-[13px]">
     @for (row of rows(); track $index) {
       <div class="flex items-center justify-between gap-4 py-2.5">
-        <dt class="text-fb-text-secondary">{{ row.label }}</dt>
+        <dt class="text-fb-text-secondary">
+          {{ row.label }}
+          @if (row.detail) {
+            <span class="mt-0.5 block text-[12px] text-fb-text-muted">{{ row.detail }}</span>
+          }
+        </dt>
         <dd class="font-medium tabular-nums text-fb-text-primary">
           @if (row.subtract) {
             <span aria-hidden="true">−</span>

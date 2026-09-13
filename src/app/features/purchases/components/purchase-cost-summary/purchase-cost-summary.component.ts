@@ -3,16 +3,24 @@ import { LucidePencil as Pencil } from '@lucide/angular';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 
+import {
+  PurchaseCostTaxTreatment,
+  purchaseCostTaxTreatmentLabel,
+} from '../purchase-cost-editor/purchase-cost-adjustments';
+
 export interface PurchaseCostSummaryCost {
   readonly type: string;
   readonly amount: number;
   readonly description?: string | null;
+  readonly taxTreatment?: PurchaseCostTaxTreatment | null;
+  readonly tax_treatment?: PurchaseCostTaxTreatment | null;
 }
 
 interface CostSummaryRow {
   readonly label: string;
   readonly amount: number;
   readonly subtract: boolean;
+  readonly detail?: string;
 }
 
 @Component({
@@ -47,11 +55,17 @@ export class PurchaseCostSummaryComponent {
       rows.push({ label: 'Rabatt', amount: this.discountAmount(), subtract: true });
     }
     if (this.legacyShippingAmount() > 0) {
-      rows.push({ label: 'Versandkosten', amount: this.legacyShippingAmount(), subtract: false });
+      rows.push({
+        label: 'Versandkosten',
+        amount: this.legacyShippingAmount(),
+        subtract: false,
+        detail: 'Noch prüfen',
+      });
     }
     if (this.legacyOtherCostsAmount() > 0) {
       rows.push({
         label: 'Weitere Kosten',
+        detail: 'Noch prüfen',
         amount: this.legacyOtherCostsAmount(),
         subtract: false,
       });
@@ -59,6 +73,9 @@ export class PurchaseCostSummaryComponent {
     for (const cost of this.costs()) {
       rows.push({
         label: cost.description || costTypeLabel(cost.type),
+        detail: purchaseCostTaxTreatmentLabel(
+          cost.tax_treatment !== undefined ? cost.tax_treatment : cost.taxTreatment,
+        ),
         amount: cost.amount,
         subtract: false,
       });

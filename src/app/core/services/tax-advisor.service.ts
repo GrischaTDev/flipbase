@@ -159,6 +159,19 @@ export class TaxAdvisorService {
     const cfg = this.advisorConfig();
     const periodLabel = period === 'all' ? `Gesamtjahr ${year}` : `${period} ${year}`;
     const periodKey = `${year}-${period}`;
+    const reviewCount = taxResults.filter(
+      (result) => result.calculation_status !== 'complete',
+    ).length;
+    const saleIds = new Set(taxResults.map((result) => result.sale_id));
+    const periodSales = sales.filter((sale) => saleIds.has(sale.id));
+    const periodPurchases = purchases.filter((purchase) => {
+      const date = new Date(purchase.purchase_date);
+      if (date.getFullYear() !== year) return false;
+      const month = date.getMonth() + 1;
+      if (period === 'all') return true;
+      if (/^Q[1-4]$/.test(period)) return Math.ceil(month / 3) === Number(period.slice(1));
+      return month === Number(period);
+    });
 
     const grossRevenue = taxResults.reduce((sum, r) => sum + r.gross_revenue, 0);
     const diff25aResults = taxResults.filter((r) => r.tax_mode === 'diff_25a');
@@ -168,7 +181,7 @@ export class TaxAdvisorService {
     const regular19Revenue = regular19Results.reduce((sum, r) => sum + r.gross_revenue, 0);
 
     const totalCostOfGoodsSold = taxResults.reduce((sum, r) => sum + r.total_purchase_cost, 0);
-    const operatingExpenses = sales.reduce(
+    const operatingExpenses = periodSales.reduce(
       (sum, s) =>
         sum +
         (s.platform_fee || 0) +
@@ -179,11 +192,14 @@ export class TaxAdvisorService {
     );
 
     const grossProfitMargin = grossRevenue - totalCostOfGoodsSold;
-    const diffTaxBase = diff25aResults.reduce((sum, r) => sum + r.gross_margin, 0);
+    const diffTaxBase = diff25aResults.reduce((sum, r) => sum + r.tax_base, 0);
     const vatPayable = taxResults.reduce((sum, r) => sum + r.vat_amount, 0);
     const inputTaxDeductible = taxResults.reduce((sum, r) => sum + r.input_tax_deductible, 0);
     const estimatedTaxDue = vatPayable - inputTaxDeductible;
-    const netIncomeAfterTax = grossProfitMargin - operatingExpenses - Math.max(0, estimatedTaxDue);
+    const netIncomeAfterTax = taxResults.reduce(
+      (sum, result) => sum + result.net_profit_after_tax,
+      0,
+    );
 
     // Compute SKR03 or SKR04 Account Balances
     const isSkr04 = cfg.skrStandard === 'SKR04';
@@ -228,9 +244,12 @@ export class TaxAdvisorService {
       {
         accountNumber: accPorto,
         accountName: 'Ausgehende Frachten & Porto',
-        debit: sales.reduce((sum, s) => sum + (s.shipping_cost || 0) + (s.packaging_cost || 0), 0),
+        debit: periodSales.reduce(
+          (sum, s) => sum + (s.shipping_cost || 0) + (s.packaging_cost || 0),
+          0,
+        ),
         credit: 0,
-        balance: sales.reduce(
+        balance: periodSales.reduce(
           (sum, s) => sum + (s.shipping_cost || 0) + (s.packaging_cost || 0),
           0,
         ),
@@ -238,9 +257,9 @@ export class TaxAdvisorService {
       {
         accountNumber: accGebuehren,
         accountName: 'Verkaufsgebühren Marktplätze (eBay/Vinted)',
-        debit: sales.reduce((sum, s) => sum + (s.platform_fee || 0), 0),
+        debit: periodSales.reduce((sum, s) => sum + (s.platform_fee || 0), 0),
         credit: 0,
-        balance: sales.reduce((sum, s) => sum + (s.platform_fee || 0), 0),
+        balance: periodSales.reduce((sum, s) => sum + (s.platform_fee || 0), 0),
       },
       {
         accountNumber: accUstDiff,
@@ -264,21 +283,46 @@ export class TaxAdvisorService {
       generatedAt: new Date().toISOString(),
       workspaceName,
       taxAdvisor: cfg,
-      salesCount: sales.length,
-      purchasesCount: purchases.length,
+      calculationStatus: reviewCount > 0 ? 'needs_review' : 'complete',
+      reviewCount,
+      salesCount: saleIds.size,
+      purchasesCount: periodPurchases.length,
       grossRevenue: Number(grossRevenue.toFixed(2)),
       diff25aRevenue: Number(diff25aRevenue.toFixed(2)),
       regular19Revenue: Number(regular19Revenue.toFixed(2)),
-      totalCostOfGoodsSold: Number(totalCostOfGoodsSold.toFixed(2)),
+      totalCostOfGoodsSold: reviewCount > 0 ? null : Number(totalCostOfGoodsSold.toFixed(2)),
       operatingExpenses: Number(operatingExpenses.toFixed(2)),
-      grossProfitMargin: Number(grossProfitMargin.toFixed(2)),
-      diffTaxBase: Number(diffTaxBase.toFixed(2)),
-      vatPayable: Number(vatPayable.toFixed(2)),
+      grossProfitMargin: reviewCount > 0 ? null : Number(grossProfitMargin.toFixed(2)),
+      diffTaxBase: reviewCount > 0 ? null : Number(diffTaxBase.toFixed(2)),
+      vatPayable: reviewCount > 0 ? null : Number(vatPayable.toFixed(2)),
       inputTaxDeductible: Number(inputTaxDeductible.toFixed(2)),
-      estimatedTaxDue: Number(estimatedTaxDue.toFixed(2)),
-      netIncomeAfterTax: Number(netIncomeAfterTax.toFixed(2)),
-      accountBalances,
+      estimatedTaxDue: reviewCount > 0 ? null : Number(estimatedTaxDue.toFixed(2)),
+      netIncomeAfterTax: reviewCount > 0 ? null : Number(netIncomeAfterTax.toFixed(2)),
+      accountBalances: reviewCount > 0 ? [] : accountBalances,
     };
+  }
+
+  private assertResultsComplete(results: TaxCalculationResult[]): void {
+    if (
+      results.some(
+        (result) =>
+          result.calculation_status !== 'complete' ||
+          (result.tax_mode === 'diff_25a' &&
+            (result.tax_purchase_cost == null || result.tax_margin == null)),
+      )
+    ) {
+      throw new Error(
+        'Bitte zuerst die markierten Einkaufspreise und Kosten prüfen. Der Steuerexport ist noch unvollständig.',
+      );
+    }
+  }
+
+  private assertReportComplete(report: MonthlyTaxReport): void {
+    if (report.calculationStatus !== 'complete' || report.reviewCount > 0) {
+      throw new Error(
+        'Bitte zuerst die markierten Einkaufspreise und Kosten prüfen. Das Berichtspaket ist noch unvollständig.',
+      );
+    }
   }
 
   /** Entschärft Werte, die ein Tabellenprogramm sonst als Formel ausführen würde. */
@@ -298,6 +342,8 @@ export class TaxAdvisorService {
    * mit LF statt CRLF getrennt.
    */
   generateDatevExtfCsv(report: MonthlyTaxReport, results: TaxCalculationResult[]): string {
+    this.assertReportComplete(report);
+    this.assertResultsComplete(results);
     const cfg = this.advisorConfig();
 
     return this.taxEngine.generateDatevCsv(results, {
@@ -312,17 +358,18 @@ export class TaxAdvisorService {
    * Generates a detailed Differential Taxation Journal (§ 25a UStG).
    */
   generateDiffTaxJournalCsv(results: TaxCalculationResult[]): string {
+    this.assertResultsComplete(results);
     const headers = [
       'Verkauf-ID',
       'Artikelbezeichnung',
-      'Einkaufspreis (EUR)',
+      'Einkaufspreis gemäß § 25a (EUR)',
       'Verkaufsdatum',
       'Verkaufspreis (EUR)',
-      'Handelsspanne / Rohgewinn',
+      'Differenz gemäß § 25a (brutto)',
       'Bemessungsgrundlage USt (EUR)',
       'Umsatzsteuersatz',
       'Enthaltene USt (EUR)',
-      'Nettomarge nach Steuer (EUR)',
+      'Ergebnis nach Kosten und Steuer (EUR)',
       'Steuerregelung',
     ];
 
@@ -331,10 +378,10 @@ export class TaxAdvisorService {
       return [
         `"${r.sale_id}"`,
         `"${this.schuetzeVorFormel(r.item_title).replace(/"/g, '""')}"`,
-        r.total_purchase_cost.toFixed(2).replace('.', ','),
+        (r.tax_purchase_cost ?? 0).toFixed(2).replace('.', ','),
         `"${r.sale_date}"`,
         r.gross_revenue.toFixed(2).replace('.', ','),
-        r.gross_margin.toFixed(2).replace('.', ','),
+        (r.tax_margin ?? 0).toFixed(2).replace('.', ','),
         r.tax_base.toFixed(2).replace('.', ','),
         '"19% (§ 25a)"',
         r.vat_amount.toFixed(2).replace('.', ','),
@@ -355,6 +402,8 @@ export class TaxAdvisorService {
     report: MonthlyTaxReport,
     email?: string,
   ): Promise<{ status: 'prepared'; message: string; timestamp: string }> {
+    this.lastPreparationResult.set(null);
+    this.assertReportComplete(report);
     this.isPreparingReport.set(true);
     try {
       const cfg = this.advisorConfig();
@@ -377,7 +426,7 @@ export class TaxAdvisorService {
       if (this.webhookService) {
         this.webhookService.addNotification({
           title: 'Kanzlei-Monatspaket vorbereitet',
-          message: `${report.periodLabel} (${report.salesCount} Buchungssätze) für ${targetEmail} vorbereitet.`,
+          message: `${report.periodLabel} (${report.salesCount} Verkäufe) für ${targetEmail} vorbereitet.`,
           type: 'system',
         });
       }

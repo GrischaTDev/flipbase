@@ -224,6 +224,14 @@ export class AccountingComponent {
     });
   });
 
+  readonly reviewCount = computed(
+    () =>
+      this.filteredTaxResults().filter((result) => result.calculation_status !== 'complete').length,
+  );
+  readonly salesCount = computed(
+    () => new Set(this.filteredTaxResults().map((result) => result.sale_id)).size,
+  );
+
   readonly periodSummary = computed(() => {
     const results = this.filteredTaxResults();
     let label = `${this.selectedYear()}`;
@@ -565,6 +573,13 @@ export class AccountingComponent {
   }
 
   printInvoice(): void {
+    if (this.reviewCount() > 0) {
+      this.toast.error(
+        'Bericht kann noch nicht gedruckt werden.',
+        'Bitte zuerst die markierten Einkaufspreise und Kosten prüfen.',
+      );
+      return;
+    }
     window.print();
   }
 }

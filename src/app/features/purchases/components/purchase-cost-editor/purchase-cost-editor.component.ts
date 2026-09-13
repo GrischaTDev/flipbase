@@ -22,6 +22,8 @@ import {
 import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
 import {
   PURCHASE_COST_ADJUSTMENT_OPTIONS,
+  PURCHASE_COST_TAX_TREATMENT_OPTIONS,
+  PurchaseCostTaxTreatment,
   PurchaseCostAdjustment,
   PurchaseCostAdjustmentRow,
   PurchaseCostDraft,
@@ -37,6 +39,7 @@ type CostForm = FormGroup<{
   allocationMethod: FormControl<PurchaseCostDraft['allocationMethod']>;
   targetPurchaseLineId: FormControl<string | null>;
   sourceCost: FormControl<PurchaseCostDraft | null>;
+  taxTreatment: FormControl<PurchaseCostTaxTreatment | null>;
 }>;
 
 @Component({
@@ -65,6 +68,7 @@ export class PurchaseCostEditorComponent {
   readonly expandedAllocations = signal<ReadonlySet<number>>(new Set());
 
   readonly adjustmentOptions = PURCHASE_COST_ADJUSTMENT_OPTIONS;
+  readonly taxTreatmentOptions = PURCHASE_COST_TAX_TREATMENT_OPTIONS;
   readonly allocationOptions: readonly SelectOption<PurchaseCostDraft['allocationMethod']>[] = [
     { value: 'by_value', label: 'Nach Warenwert' },
     { value: 'by_quantity', label: 'Nach Menge' },
@@ -164,6 +168,7 @@ export class PurchaseCostEditorComponent {
       allocationMethod: this.isMysteryPurchase() ? 'by_quantity' : 'by_value',
       targetPurchaseLineId: null,
       sourceCost: null,
+      taxTreatment: null,
     };
   }
 
@@ -176,6 +181,7 @@ export class PurchaseCostEditorComponent {
       allocationMethod: new FormControl(cost.allocationMethod, { nonNullable: true }),
       targetPurchaseLineId: new FormControl(cost.targetPurchaseLineId),
       sourceCost: new FormControl(cost.sourceCost),
+      taxTreatment: new FormControl<PurchaseCostTaxTreatment | null>(cost.taxTreatment ?? null),
     });
     row.controls.adjustment.valueChanges
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -246,6 +252,7 @@ export class PurchaseCostEditorComponent {
           ? null
           : row.targetPurchaseLineId,
       sourceCost: row.sourceCost,
+      taxTreatment: row.taxTreatment,
     }));
   }
 }

@@ -13,6 +13,7 @@ import { MutationResult } from '../models/mutation-result.model';
 import {
   Purchase,
   PurchaseCost,
+  PurchaseCostTaxTreatment,
   PurchaseLine,
   PurchaseType,
   CostAllocationMode,
@@ -47,7 +48,16 @@ export interface CreatePurchaseCostInput {
   readonly amount: number;
   readonly description?: string;
   readonly allocationMethod?: 'by_value' | 'by_quantity' | 'direct';
+  readonly taxTreatment?: PurchaseCostTaxTreatment | null;
   readonly targetPurchaseLineId?: string | null;
+}
+
+function parsePurchaseCostTaxTreatment(value: unknown): PurchaseCostTaxTreatment | null {
+  if (value === null || value === undefined) return null;
+  if (value === 'purchase_price' || value === 'expense') return value;
+  throw new Error(
+    'Die zurückgegebene Kostenherkunft ist ungültig. Bitte den Einkauf erneut laden.',
+  );
 }
 
 /**
@@ -764,6 +774,7 @@ export class PurchaseService {
         type: c.type,
         amount: Number(c.amount),
         description: c.description?.trim() || null,
+        tax_treatment: c.taxTreatment ?? null,
         allocation_method: this.toPersistedAllocationMethod(
           payload.pricing_mode === 'total' ? 'by_quantity' : (c.allocationMethod ?? 'by_value'),
         ),
@@ -919,6 +930,7 @@ export class PurchaseService {
           type: cost.type,
           amount: cost.amount,
           description: cost.description,
+          tax_treatment: cost.tax_treatment,
           allocation_method: cost.allocation_method,
           target_purchase_line_ref:
             cost.allocation_method === 'direct' ? cost.target_purchase_line_id : null,
@@ -1063,6 +1075,7 @@ export class PurchaseService {
         type: cost.type,
         amount: Number(cost.amount),
         description: cost.description?.trim() || null,
+        tax_treatment: cost.taxTreatment ?? null,
         allocation_method: this.toPersistedAllocationMethod(
           payload.pricing_mode === 'total' ? 'by_quantity' : (cost.allocationMethod ?? 'by_value'),
         ),
@@ -1326,6 +1339,7 @@ export class PurchaseService {
       type: string;
       amount: number;
       description: string | null;
+      tax_treatment: PurchaseCostTaxTreatment | null;
       allocation_method: PurchaseCostAllocationMethod;
       target_purchase_line_ref: string | null;
     }[],
@@ -1434,6 +1448,7 @@ export class PurchaseService {
       type: cost.type,
       amount: cost.amount,
       description: cost.description,
+      tax_treatment: cost.tax_treatment,
       allocation_method: cost.allocation_method,
       target_purchase_line_id:
         cost.allocation_method === 'direct' && cost.target_purchase_line_ref
@@ -2000,7 +2015,12 @@ export class PurchaseService {
    */
   async ersetzeZusatzkosten(
     purchaseId: string,
-    kosten: { type: string; amount: number; description?: string | null }[],
+    kosten: {
+      type: string;
+      amount: number;
+      description?: string | null;
+      taxTreatment?: PurchaseCostTaxTreatment | null;
+    }[],
   ): Promise<{ error: Error | null }> {
     const purchase = this.purchasesRaw().find((entry) => entry.id === purchaseId);
     if (!purchase) return { error: new Error('Der Einkauf wurde nicht gefunden.') };
@@ -2016,6 +2036,7 @@ export class PurchaseService {
         type: k.type,
         amount: Number(k.amount),
         description: k.description?.trim() || null,
+        tax_treatment: k.taxTreatment ?? null,
       }));
 
     const summe = zeilen.reduce((acc, z) => acc + z.amount, 0);
@@ -2067,9 +2088,10 @@ export class PurchaseService {
               type: z.type,
               amount: z.amount,
               description: z.description ?? null,
+              tax_treatment: z.tax_treatment ?? null,
             })),
           )
-          .select('id, purchase_id, type, amount, description, created_at');
+          .select('id, purchase_id, type, amount, description, tax_treatment, created_at');
 
         if (schreibFehler) {
           return { error: this.syncStatus.melde('Aendern der Zusatzkosten', schreibFehler) };
@@ -2078,6 +2100,7 @@ export class PurchaseService {
         gespeicherteZeilen = (data ?? []).map((zeile) => ({
           ...zeile,
           amount: Number(zeile.amount),
+          tax_treatment: parsePurchaseCostTaxTreatment(zeile.tax_treatment),
         }));
       }
     } catch (e: unknown) {
@@ -2337,6 +2360,7 @@ export class PurchaseService {
     type: string,
     amount: number,
     description?: string,
+    taxTreatment: PurchaseCostTaxTreatment | null = null,
   ): Promise<{ error: Error | null }> {
     const purchase = this.purchasesRaw().find((entry) => entry.id === purchaseId);
     if (!purchase) return { error: new Error('Der Einkauf wurde nicht gefunden.') };
@@ -2353,6 +2377,7 @@ export class PurchaseService {
             type,
             amount,
             description: description?.trim() || null,
+            tax_treatment: taxTreatment,
           })
           .select('id')
           .single();
@@ -2373,6 +2398,7 @@ export class PurchaseService {
       type,
       amount,
       description: description?.trim() || null,
+      tax_treatment: taxTreatment,
     };
     const anwenden = (purchase: Purchase): Purchase => ({
       ...purchase,

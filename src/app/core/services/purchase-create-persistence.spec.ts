@@ -400,6 +400,7 @@ describe('PurchaseService – abhängige Schreibvorgänge beim Anlegen', () => {
           type: 'shipping',
           amount: 0.05,
           description: 'Versand',
+          tax_treatment: null,
           allocation_method: 'value_weighted',
           target_purchase_line_ref: null,
         },
@@ -689,6 +690,7 @@ describe('PurchaseService – abhängige Schreibvorgänge beim Anlegen', () => {
           type: 'shipping',
           amount: 5,
           description: 'Direktversand',
+          taxTreatment: 'purchase_price',
           allocationMethod: 'direct',
           targetPurchaseLineId: 'line-1',
         },
@@ -731,6 +733,7 @@ describe('PurchaseService – abhängige Schreibvorgänge beim Anlegen', () => {
         expect.objectContaining({
           allocation_method: 'direct',
           target_purchase_line_ref: 'line-1',
+          tax_treatment: 'purchase_price',
         }),
       ],
       p_lines: [

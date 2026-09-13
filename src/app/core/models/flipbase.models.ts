@@ -157,6 +157,8 @@ import type {
   PurchaseLinePriceMode,
 } from './purchase-costing.models';
 
+export type PurchaseCostTaxTreatment = 'purchase_price' | 'expense';
+
 export interface PurchaseCost {
   id?: string;
   workspace_id?: string;
@@ -164,6 +166,8 @@ export interface PurchaseCost {
   type: string;
   amount: number;
   description?: string | null;
+  /** Unbekannte Altzuordnungen bleiben leer. */
+  tax_treatment?: PurchaseCostTaxTreatment | null;
   allocation_method?: PurchaseCostAllocationMethod;
   target_purchase_line_id?: string | null;
   created_at?: string;
@@ -297,6 +301,8 @@ export interface InventoryItem {
   ean?: string | null;
   description?: string | null;
   allocated_purchase_cost: number;
+  /** Einkaufspreis für § 25a; null bedeutet ungeklärt. */
+  tax_purchase_cost?: number | null;
   expected_value?: number | null;
   tax_mode_override?: TaxMode | null;
   is_public_store?: boolean;
@@ -522,6 +528,9 @@ export interface StockLot {
   received_quantity: number;
   remaining_quantity: number;
   unit_cost: number | null;
+  unit_tax_purchase_cost?: number | null;
+  remaining_tax_unit_costs?: number[] | null;
+  remaining_unit_costs?: number[] | null;
   received_at: string;
   created_at?: string;
 }
@@ -537,6 +546,12 @@ export interface StockMovement {
   created_at?: string;
 }
 
+export interface TaxCostAllocation {
+  quantity: number;
+  /** Summe für Einheiten mit demselben steuerlichen Stückpreis. */
+  tax_purchase_cost: number;
+}
+
 export interface SaleLine {
   inventory_item?: InventoryItem;
   lot_allocations?: SaleLineLotAllocation[];
@@ -549,6 +564,9 @@ export interface SaleLine {
   unit_sale_price: number;
   line_total: number;
   cost_of_goods_sold: number;
+  /** Bei Verkauf festgehaltener Einkaufspreis für § 25a. */
+  tax_purchase_cost?: number | null;
+  tax_cost_allocations?: TaxCostAllocation[] | null;
   tax_mode: TaxMode;
 }
 
@@ -562,6 +580,10 @@ export interface SaleLineLotAllocation {
   unit_cost: number;
   allocated_cost?: number;
   active_allocated_cost?: number | null;
+  tax_purchase_cost?: number | null;
+  tax_cost_allocations?: TaxCostAllocation[] | null;
+  active_tax_unit_costs?: number[] | null;
+  active_unit_costs?: number[] | null;
   created_at?: string;
 }
 
@@ -643,6 +665,9 @@ export interface DashboardReport {
 }
 
 export interface TaxCalculationResult {
+  calculation_status: 'complete' | 'needs_review';
+  tax_purchase_cost?: number | null;
+  tax_margin?: number | null;
   sale_id: string;
   item_title: string;
   sale_date: string;
@@ -654,13 +679,14 @@ export interface TaxCalculationResult {
   gross_margin: number;
   tax_base: number;
   vat_amount: number;
-  input_tax_deductible: number; // Vorsteuer aus Gebühren/Versand
+  input_tax_deductible: number; // Nur belegte Vorsteuer; ohne Erfassung kein automatischer Abzug
   net_tax_liability: number; // USt-Zahllast = USt - Vorsteuer
   net_profit_after_tax: number;
   invoice_clause: string;
 }
 
 export interface TaxPeriodSummary {
+  review_count?: number;
   period_label: string; // e.g. "Q1 2026", "Februar 2026", "Gesamtjahr 2026"
   total_sales_count: number;
   gross_revenue: number;

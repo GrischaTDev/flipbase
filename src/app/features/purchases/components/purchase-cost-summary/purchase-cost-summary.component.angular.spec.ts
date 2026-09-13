@@ -113,9 +113,25 @@ describe('PurchaseCostSummaryComponent', () => {
     const text = (fixture.nativeElement as HTMLElement).textContent?.replace(/\s+/g, ' ');
 
     expect(text).toContain('Warenbetrag 100,00 €');
-    expect(text).toContain('Rabatt− 10,00 €');
-    expect(text).toContain('Versandkosten 15,00 €');
+    expect(text).toContain('Rabatt − 10,00 €');
+    expect(text).toContain('Versandkosten Noch prüfen 15,00 €');
     expect(text).toContain('Gesamt 92,00 €');
+  });
+
+  it('zeigt gespeicherte und vorläufige Zuordnungen sowie unbekannte Altkosten', async () => {
+    const fixture = await createSummary();
+    fixture.componentRef.setInput('costs', [
+      { type: 'shipping', amount: 5, tax_treatment: 'purchase_price' },
+      { type: 'transport', amount: 7, taxTreatment: 'expense' },
+      { type: 'fee', amount: 2, tax_treatment: null },
+    ]);
+    fixture.detectChanges();
+    expect(
+      fixture.componentInstance
+        .rows()
+        .filter((row) => row.detail)
+        .map((row) => row.detail),
+    ).toEqual(['Vom Verkäufer berechnet', 'Separat bezahlt', 'Noch prüfen']);
   });
 
   it('meldet die Bearbeitungsaktion an den Einkaufsfluss', async () => {

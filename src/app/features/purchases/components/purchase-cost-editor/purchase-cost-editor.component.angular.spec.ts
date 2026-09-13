@@ -153,6 +153,31 @@ describe('PurchaseCostEditorComponent', () => {
     );
   });
 
+  it('zeigt unbekannte Kostenherkunft und überträgt eine Auswahl ohne Kostenart-Automatik', async () => {
+    const fixture = await createEditor();
+    const changed = vi.fn();
+    fixture.componentInstance.costsChanged.subscribe(changed);
+    const row = fixture.componentInstance.costRows.at(0);
+    row.patchValue({ adjustment: 'shipping', amount: 8 });
+    fixture.detectChanges();
+    expect(row.controls.taxTreatment.value).toBeNull();
+    const trigger = (fixture.nativeElement as HTMLElement).querySelector(
+      '[aria-label="Kostenherkunft 1"]',
+    );
+    expect(trigger?.textContent?.trim()).toBe('Noch prüfen');
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('[aria-label="Kostenherkunft 1"]'),
+    ).not.toBeNull();
+    row.controls.taxTreatment.setValue('purchase_price');
+    expect(changed).toHaveBeenLastCalledWith([
+      expect.objectContaining({ taxTreatment: 'purchase_price' }),
+    ]);
+    row.controls.adjustment.setValue('freight');
+    expect(row.controls.taxTreatment.value).toBe('purchase_price');
+    row.controls.taxTreatment.setValue(null);
+    expect(changed).toHaveBeenLastCalledWith([expect.objectContaining({ taxTreatment: null })]);
+  });
+
   it('bewahrt die direkte Verteilung auf eine Einkaufsposition', async () => {
     const fixture = await createEditor('lot', [{ value: 'draft-camera', label: 'Kamera' }]);
     const row = fixture.componentInstance.costRows.at(0);

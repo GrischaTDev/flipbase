@@ -1449,12 +1449,13 @@ describe('PurchaseService', () => {
                 type: 'shipping',
                 amount: 12.9,
                 description: 'DHL Paket',
+                tax_treatment: null,
               },
             ],
           };
           const { dienst, selectedPurchaseRaw } = dienstMit([mitVersand]);
 
-          await dienst.addPurchaseCost('p-1', 'travel', 7.1, 'Abholung');
+          await dienst.addPurchaseCost('p-1', 'travel', 7.1, 'Abholung', 'expense');
 
           expect(selectedPurchaseRaw()?.costs).toEqual([
             mitVersand.costs?.[0],
@@ -1465,6 +1466,7 @@ describe('PurchaseService', () => {
               type: 'travel',
               amount: 7.1,
               description: 'Abholung',
+              tax_treatment: 'expense',
             },
           ]);
           expect(selectedPurchaseRaw()?.total_purchase_cost).toBe(250);
@@ -1488,6 +1490,7 @@ describe('PurchaseService', () => {
               type: 'shipping',
               amount: 12.9,
               description: 'DHL Paket',
+              tax_treatment: null,
             },
           ]);
         });
@@ -1694,6 +1697,26 @@ describe('PurchaseService', () => {
             expect.objectContaining({ type: 'travel', amount: 7.1, description: null }),
           ]);
         });
+
+        it.each(['purchase_price', 'expense', null] as const)(
+          'überträgt die bewusste Zusatzkostenherkunft %s ohne Ableitung aus Versand',
+          async (taxTreatment) => {
+            const { dienst, protokoll } = anlegeDienst();
+            await dienst.createPurchase({
+              type: 'lot',
+              title: 'Werkzeug',
+              purchase_date: '2026-09-13',
+              purchase_price: 100,
+              initial_costs: [{ type: 'shipping', amount: 5, taxTreatment }],
+            });
+            const call = zeilen(protokoll, 'create_purchase', 'rpc')[0].werte as {
+              p_expenses: unknown[];
+            };
+            expect(call.p_expenses).toEqual([
+              expect.objectContaining({ tax_treatment: taxTreatment }),
+            ]);
+          },
+        );
 
         it('übernimmt die Kostenzeilen mit der endgültigen Einkaufskennung', async () => {
           // Der Einkauf laeuft bis zur Antwort der Datenbank unter einer

@@ -539,6 +539,7 @@
             <button
               type="button"
               (click)="onDownloadDatev()"
+              [disabled]="reviewCount() > 0"
               class="linear-btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5 cursor-pointer shadow-2xs rounded-lg"
             >
               <svg [lucideIcon]="downloadIcon" class="w-3.5 h-3.5 text-fb-profit"></svg>
@@ -548,6 +549,7 @@
             <button
               type="button"
               (click)="onDownloadDiffTaxJournal()"
+              [disabled]="reviewCount() > 0"
               class="linear-btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5 cursor-pointer shadow-2xs rounded-lg"
             >
               <svg [lucideIcon]="spreadsheetIcon" class="w-3.5 h-3.5"></svg>
@@ -557,6 +559,7 @@
             <button
               type="button"
               (click)="openTaxAdvisorModal()"
+              [disabled]="reviewCount() > 0"
               class="linear-btn-primary text-xs py-1.5 px-3.5 flex items-center gap-1.5 cursor-pointer shadow-xs rounded-lg"
             >
               <svg [lucideIcon]="mailIcon" class="w-3.5 h-3.5"></svg>
@@ -564,6 +567,23 @@
             </button>
           </div>
         </div>
+      </div>
+
+      <div class="card p-4 space-y-2 text-[13px]" role="status">
+        @if (reviewCount() > 0) {
+          <p>
+            <strong
+              >{{ reviewCount() }}
+              {{ reviewCount() === 1 ? 'Position' : 'Positionen' }} prüfen:</strong
+            >
+            Für diese Positionen sind Einkaufspreise oder Kosten noch nicht eindeutig zugeordnet.
+            Bitte die zugehörigen Einkäufe prüfen. Steuerbeträge und Exporte bleiben bis dahin
+            offen.
+          </p>
+        }
+        <p class="text-fb-text-secondary">
+          Vorläufige Steuerübersicht. Vorsteuer wird noch nicht automatisch berücksichtigt.
+        </p>
       </div>
 
       <!-- Financial Metrics Summary Cards -->
@@ -574,33 +594,45 @@
           <div class="kpi-value font-mono">
             {{ sum.gross_revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
           </div>
-          <span class="text-[10px] text-fb-text-muted"
-            >{{ filteredTaxResults().length }} Verkäufe</span
-          >
+          <span class="text-[10px] text-fb-text-muted">{{ salesCount() }} Verkäufe</span>
         </div>
 
         <div class="kpi-card space-y-1">
           <span class="kpi-label">Wareneinsatz (Ankauf)</span>
           <div class="kpi-value font-mono text-fb-text-muted">
-            {{ sum.total_cost_of_goods_sold | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+            @if (reviewCount() > 0) {
+              Prüfen
+            } @else {
+              {{ sum.total_cost_of_goods_sold | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+            }
           </div>
-          <span class="text-[10px] text-fb-text-muted">Einkaufspreise gem. § 25a</span>
+          <span class="text-[10px] text-fb-text-muted"
+            >Einkauf einschließlich zugeordneter Kosten</span
+          >
         </div>
 
         <div class="kpi-card space-y-1">
           <span class="kpi-label">Rohertrag (Marge)</span>
           <div class="kpi-value font-mono text-fb-profit">
-            {{ sum.total_gross_margin | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+            @if (reviewCount() > 0) {
+              Prüfen
+            } @else {
+              {{ sum.total_gross_margin | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+            }
           </div>
-          <span class="text-[10px] text-fb-text-muted">Bemessungsgrundlage</span>
+          <span class="text-[10px] text-fb-text-muted">Erlös abzüglich Wareneinsatz</span>
         </div>
 
         <div class="kpi-card space-y-1">
-          <span class="kpi-label">Umsatzsteuerzahllast (19%)</span>
-          <div class="kpi-value font-mono text-amber-400">
-            {{ sum.total_vat_due | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+          <span class="kpi-label">Berechnete Umsatzsteuer</span>
+          <div class="kpi-value font-mono text-fb-text-primary">
+            @if (reviewCount() > 0) {
+              Prüfen
+            } @else {
+              {{ sum.total_vat_due | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+            }
           </div>
-          <span class="text-[10px] text-fb-text-muted">UStVA Kennzahl 81 / 66</span>
+          <span class="text-[10px] text-fb-text-muted">Vorsteuer noch nicht berücksichtigt</span>
         </div>
       </div>
 
@@ -608,12 +640,8 @@
       <div class="card overflow-hidden">
         <div class="p-4 border-b border-fb-border/40 flex items-center justify-between">
           <div>
-            <h2 class="text-sm font-bold text-fb-text-primary">
-              Differenzbesteuerungs-Journal (§ 25a UStG)
-            </h2>
-            <span class="text-xs text-fb-text-muted"
-              >Detaillierte Einzelaufzeichnung nach den Vorgaben der Finanzverwaltung</span
-            >
+            <h2 class="text-sm font-bold text-fb-text-primary">Steuerjournal</h2>
+            <span class="text-xs text-fb-text-muted">Berechnung je Verkaufsposition</span>
           </div>
           <span
             class="px-2 py-0.5 rounded text-[10px] font-mono bg-fb-surface-alt text-fb-text-muted"
@@ -635,14 +663,15 @@
                 <th scope="col" class="py-2.5 px-4">Artikel / SKU</th>
                 <th scope="col" class="py-2.5 px-4">Besteuerungsart</th>
                 <th scope="col" class="py-2.5 px-4 text-right">Verkaufspreis</th>
-                <th scope="col" class="py-2.5 px-4 text-right">Einkaufspreis</th>
-                <th scope="col" class="py-2.5 px-4 text-right">Marge (Brutto)</th>
+                <th scope="col" class="py-2.5 px-4 text-right">Einkaufspreis (§ 25a)</th>
+                <th scope="col" class="py-2.5 px-4 text-right">Differenz (§ 25a, brutto)</th>
+                <th scope="col" class="py-2.5 px-4 text-right">Bemessungsgrundlage (netto)</th>
                 <th scope="col" class="py-2.5 px-4 text-right">USt (19%)</th>
                 <th scope="col" class="py-2.5 px-4 text-center">Rechnung</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-border/30">
-              @for (row of filteredTaxResults(); track row.sale_id) {
+              @for (row of filteredTaxResults(); track row) {
                 <tr class="hover:bg-fb-subtle/40 transition">
                   <td class="py-3 px-4 font-mono text-fb-text-muted text-[11px] whitespace-nowrap">
                     {{ row.sale_date | date: 'dd.MM.yyyy' }}
@@ -670,18 +699,61 @@
                     {{ row.gross_revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                   </td>
                   <td class="py-3 px-4 text-right font-mono text-fb-text-muted">
-                    {{ row.total_purchase_cost | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                    @if (row.tax_mode !== 'diff_25a') {
+                      —
+                    } @else if (
+                      row.tax_purchase_cost === null || row.tax_purchase_cost === undefined
+                    ) {
+                      Prüfen
+                    } @else {
+                      {{ row.tax_purchase_cost | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                    }
                   </td>
-                  <td class="py-3 px-4 text-right font-mono font-bold text-fb-profit">
-                    {{ row.gross_margin | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                  <td
+                    class="py-3 px-4 text-right font-mono font-bold"
+                    [class.text-fb-text-secondary]="
+                      row.calculation_status !== 'complete' ||
+                      row.tax_mode !== 'diff_25a' ||
+                      !row.tax_margin
+                    "
+                    [class.text-fb-profit]="
+                      row.calculation_status === 'complete' &&
+                      row.tax_mode === 'diff_25a' &&
+                      (row.tax_margin ?? 0) > 0
+                    "
+                    [class.text-fb-loss]="
+                      row.calculation_status === 'complete' &&
+                      row.tax_mode === 'diff_25a' &&
+                      (row.tax_margin ?? 0) < 0
+                    "
+                  >
+                    @if (row.tax_mode !== 'diff_25a') {
+                      —
+                    } @else if (row.tax_margin === null || row.tax_margin === undefined) {
+                      Prüfen
+                    } @else {
+                      {{ row.tax_margin | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                    }
                   </td>
-                  <td class="py-3 px-4 text-right font-mono text-amber-400">
-                    {{ row.vat_amount | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                  <td class="py-3 px-4 text-right font-mono">
+                    @if (row.calculation_status !== 'complete') {
+                      Prüfen
+                    } @else {
+                      {{ row.tax_base | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                    }
+                  </td>
+                  <td class="py-3 px-4 text-right font-mono text-fb-text-primary">
+                    @if (row.calculation_status !== 'complete') {
+                      Prüfen
+                    } @else {
+                      {{ row.vat_amount | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                    }
                   </td>
                   <td class="py-3 px-4 text-center">
                     <button
                       type="button"
                       (click)="openInvoiceModal(row)"
+                      [disabled]="row.calculation_status !== 'complete'"
                       class="text-fb-text-muted hover:text-fb-text-primary p-1 transition cursor-pointer"
                       title="Rechnung anzeigen"
                       aria-label="Rechnung anzeigen"
@@ -821,7 +893,7 @@
                   selectedYear()
                 }})
               </li>
-              <li>EÜR Monatsübersicht & Vorsteuer-Zahllastberechnung</li>
+              <li>Vorläufige EÜR-Monatsübersicht (Vorsteuer noch nicht berücksichtigt)</li>
             </ul>
           </div>
 
@@ -835,7 +907,9 @@
             </button>
             <button
               type="submit"
-              [disabled]="advisorForm.invalid"
+              [disabled]="
+                advisorForm.invalid || reviewCount() > 0 || taxAdvisorService.isPreparingReport()
+              "
               class="linear-btn-primary text-xs py-2 px-4 flex items-center gap-1.5 cursor-pointer rounded-lg"
             >
               <svg [lucideIcon]="sendIcon" class="w-3.5 h-3.5"></svg>

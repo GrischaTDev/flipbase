@@ -134,12 +134,13 @@ describe('Zusatzkosten und Sendungsangaben', () => {
             type: 'shipping',
             amount: 12.9,
             description: 'DHL Paket',
+            tax_treatment: null,
           },
         ],
       };
       const { dienst, protokoll, selectedPurchaseRaw } = dienstMit([mitVersand]);
 
-      await dienst.addPurchaseCost('p-1', 'travel', 7.1, 'Abholung');
+      await dienst.addPurchaseCost('p-1', 'travel', 7.1, 'Abholung', 'expense');
 
       expect(selectedPurchaseRaw()?.costs).toEqual([
         mitVersand.costs?.[0],
@@ -150,6 +151,7 @@ describe('Zusatzkosten und Sendungsangaben', () => {
           type: 'travel',
           amount: 7.1,
           description: 'Abholung',
+          tax_treatment: 'expense',
         },
       ]);
       expect(selectedPurchaseRaw()?.total_purchase_cost).toBe(250);
@@ -159,7 +161,51 @@ describe('Zusatzkosten und Sendungsangaben', () => {
         type: 'travel',
         amount: 7.1,
         description: 'Abholung',
+        tax_treatment: 'expense',
       });
+    });
+
+    it.each(['purchase_price', 'expense', null] as const)(
+      'übernimmt die bestätigte Kostenherkunft %s in den lokalen Einkauf',
+      async (taxTreatment) => {
+        const { dienst, selectedPurchaseRaw } = dienstMit([einkauf]);
+        const result = await dienst.ersetzeZusatzkosten('p-1', [
+          { type: 'shipping', amount: 8, taxTreatment },
+        ]);
+        expect(result.error).toBeNull();
+        expect(selectedPurchaseRaw()?.costs?.[0].tax_treatment).toBe(taxTreatment);
+      },
+    );
+
+    it('übernimmt eine ungültige Kostenherkunft aus der Datenbank nicht in die Anzeige', async () => {
+      const { dienst, selectedPurchaseRaw } = dienstMit([einkauf]);
+      Object.assign(dienst, {
+        supabase: {
+          client: {
+            from: () => ({
+              delete: () => ({ eq: async () => ({ error: null }) }),
+              insert: () => ({
+                select: async () => ({
+                  data: [
+                    {
+                      id: 'cost-invalid',
+                      purchase_id: 'p-1',
+                      type: 'shipping',
+                      amount: 8,
+                      description: null,
+                      tax_treatment: 'unsupported',
+                    },
+                  ],
+                  error: null,
+                }),
+              }),
+            }),
+          },
+        },
+      });
+      const result = await dienst.ersetzeZusatzkosten('p-1', [{ type: 'shipping', amount: 8 }]);
+      expect(result.error?.message).toContain('Kostenherkunft ist ungültig');
+      expect(selectedPurchaseRaw()).toEqual(einkauf);
     });
 
     it('schreibt eine nachgetragene Kostenzeile in die Datenbank', async () => {
@@ -180,6 +226,7 @@ describe('Zusatzkosten und Sendungsangaben', () => {
           type: 'shipping',
           amount: 12.9,
           description: 'DHL Paket',
+          tax_treatment: null,
         },
       ]);
       expect(zeilen(protokoll, 'purchases', 'update')).toHaveLength(0);
@@ -383,6 +430,7 @@ describe('Zusatzkosten und Sendungsangaben', () => {
           description: 'DHL',
           allocation_method: 'value_weighted',
           target_purchase_line_ref: null,
+          tax_treatment: null,
         },
         {
           type: 'travel',
@@ -390,6 +438,7 @@ describe('Zusatzkosten und Sendungsangaben', () => {
           description: null,
           allocation_method: 'value_weighted',
           target_purchase_line_ref: null,
+          tax_treatment: null,
         },
       ]);
     });

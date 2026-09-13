@@ -30,9 +30,13 @@
     </div>
     <div>
       <span class="block text-[10px] font-semibold uppercase text-fb-text-muted">Wareneinsatz</span
-      ><strong class="text-sm text-fb-text-primary">{{
-        liveMetrics().costOfGoods | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
-      }}</strong>
+      ><strong class="text-sm text-fb-text-primary">
+        @if (liveMetrics().costOfGoods === null) {
+          Kosten prüfen
+        } @else {
+          {{ liveMetrics().costOfGoods | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+        }
+      </strong>
     </div>
     <div>
       <span class="block text-[10px] font-semibold uppercase text-fb-text-muted"
@@ -44,9 +48,17 @@
     <div>
       <span class="block text-[10px] font-semibold uppercase text-fb-text-muted"
         >Ergebnis nach direkten Kosten</span
-      ><strong class="text-sm text-emerald-400">{{
-        liveMetrics().profit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
-      }}</strong>
+      ><strong
+        class="text-sm"
+        [class.text-fb-text-primary]="liveMetrics().profit === null"
+        [class.text-emerald-400]="liveMetrics().profit !== null"
+      >
+        @if (liveMetrics().profit === null) {
+          Kosten prüfen
+        } @else {
+          {{ liveMetrics().profit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+        }
+      </strong>
     </div>
     <div>
       <span class="block text-[10px] font-semibold uppercase text-fb-text-muted">Marge</span

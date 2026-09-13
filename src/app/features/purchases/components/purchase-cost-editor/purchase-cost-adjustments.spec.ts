@@ -46,6 +46,7 @@ describe('purchase cost adjustments', () => {
           type: 'shipping',
           amount: 8,
           description: 'Versandkosten',
+          taxTreatment: null,
           allocationMethod: 'by_quantity',
           targetPurchaseLineId: null,
         },
@@ -65,7 +66,43 @@ describe('purchase cost adjustments', () => {
     const [row] = createPurchaseCostAdjustmentRows([existingCost], 0);
     const result = serializePurchaseCostAdjustmentRows([{ ...row, amount: 30 }]);
 
-    expect(result.costs).toEqual([{ ...existingCost, amount: 30 }]);
+    expect(result.costs).toEqual([{ ...existingCost, amount: 30, taxTreatment: null }]);
+  });
+
+  it.each(['purchase_price', 'expense', null] as const)(
+    'bewahrt die ausdrückliche Kostenzuordnung %s beim Bearbeiten',
+    (taxTreatment) => {
+      const cost = {
+        type: 'shipping' as const,
+        amount: 12,
+        description: 'Versand',
+        allocationMethod: 'by_value' as const,
+        targetPurchaseLineId: null,
+        taxTreatment,
+      };
+      const rows = createPurchaseCostAdjustmentRows([cost], 0);
+      expect(serializePurchaseCostAdjustmentRows(rows).costs).toEqual([cost]);
+    },
+  );
+
+  it('leitet beim Wechsel der Kostenart keine neue Zuordnung ab', () => {
+    const [row] = createPurchaseCostAdjustmentRows(
+      [
+        {
+          type: 'shipping',
+          amount: 12,
+          description: 'Versand',
+          allocationMethod: 'by_value',
+          targetPurchaseLineId: null,
+          taxTreatment: null,
+        },
+      ],
+      0,
+    );
+    expect(
+      serializePurchaseCostAdjustmentRows([{ ...row, adjustment: 'freight' }]).costs[0]
+        .taxTreatment,
+    ).toBeNull();
   });
 
   it('führt einen vorhandenen Rabatt als bearbeitbare Anpassungszeile', () => {
@@ -73,6 +110,7 @@ describe('purchase cost adjustments', () => {
       {
         adjustment: 'discount',
         amount: 19,
+        taxTreatment: null,
         allocationMethod: 'by_value',
         targetPurchaseLineId: null,
         sourceCost: null,

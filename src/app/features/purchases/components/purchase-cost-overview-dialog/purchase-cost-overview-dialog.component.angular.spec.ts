@@ -182,6 +182,33 @@ describe('PurchaseCostOverviewDialogComponent', () => {
     });
   });
 
+  it('aktiviert Speichern bei einer alleinigen Änderung der Kostenherkunft', async () => {
+    const fixture = await createDialog();
+    const cost = {
+      type: 'shipping' as const,
+      amount: 8,
+      description: 'Versand',
+      allocationMethod: 'by_value' as const,
+      targetPurchaseLineId: null,
+      taxTreatment: null,
+    };
+    fixture.componentRef.setInput('initialCosts', [cost]);
+    fixture.detectChanges();
+    const editor = fixture.debugElement.query(By.directive(PurchaseCostEditorComponent))
+      .componentInstance as PurchaseCostEditorComponent;
+    const saved = vi.fn();
+    fixture.componentInstance.saved.subscribe(saved);
+    expect(fixture.componentInstance.isDirty()).toBe(false);
+    editor.costRows.at(0).controls.taxTreatment.setValue('expense');
+    fixture.detectChanges();
+    expect(fixture.componentInstance.saveDisabled()).toBe(false);
+    findButton(fixture.nativeElement as HTMLElement, 'Speichern').click();
+    expect(saved).toHaveBeenCalledWith({
+      discountAmount: 0,
+      costs: [{ ...cost, taxTreatment: 'expense' }],
+    });
+  });
+
   it('erkennt auch eine unvollständige rohe Eingabe als ungespeichert', async () => {
     const fixture = await createDialog();
     const editor = fixture.debugElement.query(By.directive(PurchaseCostEditorComponent))

@@ -27,6 +27,155 @@ const line = (id: string, quantity: number, price: number): PurchaseLine => ({
 });
 
 describe('buildProductCostPlan', () => {
+  it('trennt Verkäuferkosten von externen Kosten im steuerlichen Einkaufspreis', () => {
+    const result = buildProductCostPlan(
+      {
+        ...purchase,
+        purchase_price: 100,
+        costs: [
+          {
+            type: 'shipping',
+            amount: 10,
+            allocation_method: 'quantity',
+            tax_treatment: 'purchase_price',
+          },
+          { type: 'shipping', amount: 20, allocation_method: 'quantity', tax_treatment: 'expense' },
+        ],
+      },
+      [line('a', 1, 100)],
+    );
+    expect(result[0].unitCents).toEqual([13000]);
+    expect(result[0].unitTaxPurchaseCents).toEqual([11000]);
+  });
+  it.each([0, 0.01, 0.02, 0.03])(
+    'ordnet Verkäufer-Restcent denselben Einheiten zu bei %s Euro externen Kosten',
+    (expense) => {
+      const [result] = buildProductCostPlan(
+        {
+          ...purchase,
+          purchase_price: 0.03,
+          discount_amount: 0.02,
+          costs: [
+            {
+              type: 'shipping',
+              amount: 0.02,
+              allocation_method: 'quantity',
+              tax_treatment: 'purchase_price',
+            },
+            {
+              type: 'shipping',
+              amount: expense,
+              allocation_method: 'quantity',
+              tax_treatment: 'expense',
+            },
+          ],
+        },
+        [line('a', 3, 0.01)],
+      );
+      expect(result.unitTaxPurchaseCents).toEqual([2, 1, 0]);
+      expect(result.unitTaxPurchaseCents?.reduce((sum, value) => sum + value, 0)).toBe(3);
+      expect(result.unitCents.reduce((sum, value) => sum + value, 0)).toBe(
+        3 + Math.round(expense * 100),
+      );
+      result.unitTaxPurchaseCents?.forEach((value, index) => {
+        expect(value).toBeLessThanOrEqual(result.unitCents[index]);
+      });
+    },
+  );
+  it('bewahrt beim 10-Euro-Restcentfall identische Stückwerte, wenn alle Zusatzkosten steuerlich dazugehören', () => {
+    const [result] = buildProductCostPlan(
+      {
+        ...purchase,
+        purchase_price: 10.02,
+        discount_amount: 0.02,
+        costs: [
+          {
+            type: 'shipping',
+            amount: 0.01,
+            allocation_method: 'quantity',
+            tax_treatment: 'purchase_price',
+          },
+        ],
+      },
+      [line('a', 3, 3.34)],
+    );
+    expect(result.unitCents).toEqual([335, 333, 333]);
+    expect(result.unitTaxPurchaseCents).toEqual(result.unitCents);
+    expect(result.unitTaxPurchaseCents?.reduce((sum, value) => sum + value, 0)).toBe(1001);
+  });
+  it('entnimmt einen steuerlichen Teilbetrag ausschließlich aus den am Stück vorhandenen Zusatzkosten', () => {
+    const base = { ...purchase, purchase_price: 10.02, discount_amount: 0.02 };
+    const goodsOnly = buildProductCostPlan(base, [line('a', 3, 3.34)])[0];
+    const [result] = buildProductCostPlan(
+      {
+        ...base,
+        costs: [
+          {
+            type: 'shipping',
+            amount: 0.02,
+            allocation_method: 'quantity',
+            tax_treatment: 'purchase_price',
+          },
+          {
+            type: 'shipping',
+            amount: 0.02,
+            allocation_method: 'quantity',
+            tax_treatment: 'expense',
+          },
+        ],
+      },
+      [line('a', 3, 3.34)],
+    );
+    expect(result.unitCents).toEqual([336, 334, 334]);
+    expect(result.unitTaxPurchaseCents).toEqual([335, 334, 333]);
+    expect(result.unitTaxPurchaseCents?.reduce((sum, value) => sum + value, 0)).toBe(1002);
+    result.unitTaxPurchaseCents?.forEach((cost, index) => {
+      const taxExtra = cost - goodsOnly.unitCents[index];
+      const availableExtra = result.unitCents[index] - goodsOnly.unitCents[index];
+      expect(taxExtra).toBeGreaterThanOrEqual(0);
+      expect(taxExtra).toBeLessThanOrEqual(availableExtra);
+    });
+  });
+  it('erfindet bei ungeklärter Belegzuordnung keinen steuerlichen Einkaufspreis', () => {
+    const result = buildProductCostPlan(
+      {
+        ...purchase,
+        purchase_price: 100,
+        costs: [
+          { type: 'shipping', amount: 20, allocation_method: 'quantity', tax_treatment: null },
+        ],
+      },
+      [line('a', 1, 100)],
+    );
+    expect(result[0].unitCents).toEqual([12000]);
+    expect(result[0].unitTaxPurchaseCents).toBeNull();
+  });
+  it('verteilt den steuerlichen Centpool bei Gesamtpreisen unabhängig von externen Kosten', () => {
+    const result = buildProductCostPlan(
+      {
+        ...purchase,
+        pricing_mode: 'total',
+        purchase_price: 0.04,
+        costs: [
+          {
+            type: 'shipping',
+            amount: 0.01,
+            allocation_method: 'quantity',
+            tax_treatment: 'purchase_price',
+          },
+          {
+            type: 'shipping',
+            amount: 0.02,
+            allocation_method: 'quantity',
+            tax_treatment: 'expense',
+          },
+        ],
+      },
+      [{ ...line('a', 3, 0), unit_purchase_price: null, line_total: null }],
+    );
+    expect(result[0].unitCents).toEqual([3, 2, 2]);
+    expect(result[0].unitTaxPurchaseCents).toEqual([2, 2, 1]);
+  });
   it('verteilt Waren- und Zusatzcentpools separat wie der Datenbankvertrag', () => {
     const result = buildProductCostPlan(
       {

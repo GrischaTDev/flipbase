@@ -538,6 +538,37 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
     expect(closed.emit).not.toHaveBeenCalled();
   });
 
+  it('lädt die Kostenherkunft und speichert auch eine alleinige Änderung der Zuordnung', async () => {
+    const existing: Purchase = {
+      ...einkauf,
+      entry_status: 'draft',
+      costs: [
+        { id: 'cost-unknown', type: 'shipping', amount: 5, tax_treatment: null },
+        { id: 'cost-expense', type: 'transport', amount: 7, tax_treatment: 'expense' },
+      ],
+    };
+    const { komponente, purchaseService } = erstelleKomponente(existing);
+    komponente.resetToPurchase(existing);
+    expect(komponente.costDrafts().map((cost) => cost.taxTreatment)).toEqual([null, 'expense']);
+    expect(komponente.hasUnsavedChanges()).toBe(false);
+    komponente.onCostsChanged(
+      komponente
+        .costDrafts()
+        .map((cost, index) => (index === 0 ? { ...cost, taxTreatment: 'purchase_price' } : cost)),
+    );
+    expect(komponente.hasUnsavedChanges()).toBe(true);
+    await komponente.onSubmit();
+    expect(purchaseService.updatePurchaseDraft).toHaveBeenCalledWith(
+      einkauf.id,
+      expect.objectContaining({
+        initial_costs: [
+          expect.objectContaining({ taxTreatment: 'purchase_price' }),
+          expect.objectContaining({ taxTreatment: 'expense' }),
+        ],
+      }),
+    );
+  });
+
   it('überschreibt vor dem Finalisierungs-Retry denselben Draft atomar mit allen Änderungen', async () => {
     const { komponente, purchaseService, purchaseCostingService, created, closed } =
       erstelleKomponente();

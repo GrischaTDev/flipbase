@@ -67,6 +67,128 @@ describe('Demo-Produktbestand', () => {
     });
   });
 
+  it('speichert beim Kostenabschluss Gesamtkosten und steuerlichen Einkaufspreis getrennt', () => {
+    const purchase = store.getPurchases('workspace')[0];
+    const line = store.getPurchaseLines('workspace')[0];
+    store.savePurchase({
+      ...purchase,
+      purchase_price: 100,
+      costs: [
+        {
+          type: 'shipping',
+          amount: 10,
+          allocation_method: 'quantity',
+          tax_treatment: 'purchase_price',
+        },
+        { type: 'shipping', amount: 20, allocation_method: 'quantity', tax_treatment: 'expense' },
+      ],
+    });
+    store.savePurchaseLine({
+      ...line,
+      ordered_quantity: 1,
+      unit_purchase_price: 100,
+      line_total: 100,
+    });
+    store.receivePurchaseLines(
+      'workspace',
+      'purchase',
+      [{ purchaseLineId: 'line', receivedQuantity: 1 }],
+      'receipt',
+    );
+    expect(store.finalizePurchaseCosting('workspace', 'purchase').error).toBeNull();
+    expect(store.getStockLots('workspace')[0]).toMatchObject({
+      unit_cost: 130,
+      unit_tax_purchase_cost: 110,
+    });
+  });
+  it('führt den Einzelstück-Abschluss durch denselben steuerlichen Kostenplan', () => {
+    const purchase = store.getPurchases('workspace')[0];
+    const line = store.getPurchaseLines('workspace')[0];
+    store.savePurchase({
+      ...purchase,
+      purchase_price: 100,
+      costs: [
+        {
+          type: 'shipping',
+          amount: 10,
+          allocation_method: 'quantity',
+          tax_treatment: 'purchase_price',
+        },
+        { type: 'shipping', amount: 20, allocation_method: 'quantity', tax_treatment: 'expense' },
+      ],
+    });
+    store.savePurchaseLine({
+      ...line,
+      line_kind: 'individual',
+      catalog_product_id: null,
+      ordered_quantity: 1,
+      unit_purchase_price: 100,
+      line_total: 100,
+    });
+    expect(store.finalizePurchaseCosting('workspace', 'purchase').error).toBeNull();
+    expect(store.getItems('workspace')[0]).toMatchObject({
+      allocated_purchase_cost: 130,
+      tax_purchase_cost: 110,
+    });
+  });
+  it('belässt den steuerlichen Einkaufspreis bei ungeklärten Zusatzkosten offen', () => {
+    const purchase = store.getPurchases('workspace')[0];
+    store.savePurchase({
+      ...purchase,
+      costs: [{ type: 'shipping', amount: 10, allocation_method: 'quantity' }],
+    });
+    store.receivePurchaseLines(
+      'workspace',
+      'purchase',
+      [{ purchaseLineId: 'line', receivedQuantity: 5 }],
+      'receipt',
+    );
+    expect(store.finalizePurchaseCosting('workspace', 'purchase').error).toBeNull();
+    expect(store.getStockLots('workspace')[0]).toMatchObject({
+      unit_cost: 12,
+      unit_tax_purchase_cost: null,
+    });
+  });
+  it('friert Reparaturkosten nur im betrieblichen Wareneinsatz des Einzelstückverkaufs ein', () => {
+    store.saveItem({
+      id: 'item',
+      workspace_id: 'workspace',
+      title: 'Kamera',
+      condition: 'used',
+      status: 'ready',
+      sale_state: 'no_active_sale',
+      allocated_purchase_cost: 130,
+      tax_purchase_cost: 110,
+    });
+    store.saveItemCost({ id: 'repair', inventory_item_id: 'item', type: 'repair', amount: 25 });
+    const booked = store.bookSaleAtomically('workspace', sale, [
+      { ...saleLine, catalog_product_id: null, inventory_item_id: 'item', quantity: 1 },
+    ]);
+    expect(booked.error).toBeNull();
+    expect(booked.saleLines[0]).toMatchObject({ cost_of_goods_sold: 155, tax_purchase_cost: 110 });
+    store.saveItemCost({ id: 'repair', inventory_item_id: 'item', type: 'repair', amount: 99 });
+    expect(store.getSales('workspace')[0].lines?.[0]).toMatchObject({
+      cost_of_goods_sold: 155,
+      tax_purchase_cost: 110,
+    });
+  });
+  it('füllt historische Artikelwerte beim Lesen und Verkauf nicht automatisch steuerlich nach', () => {
+    store.saveItem({
+      id: 'item',
+      workspace_id: 'workspace',
+      title: 'Altbestand',
+      condition: 'used',
+      status: 'ready',
+      sale_state: 'no_active_sale',
+      allocated_purchase_cost: 130,
+    });
+    expect(store.getItems('workspace')[0].tax_purchase_cost).toBeUndefined();
+    const booked = store.bookSaleAtomically('workspace', sale, [
+      { ...saleLine, catalog_product_id: null, inventory_item_id: 'item', quantity: 1 },
+    ]);
+    expect(booked.error).toBeNull();
+    expect(booked.saleLines[0].tax_purchase_cost).toBeNull();
+  });
   it('sperrt offene Kosten und erhält FIFO-Kosten und Menge bei Verkauf und Retoure', () => {
     store.receivePurchaseLines(
       'workspace',
@@ -122,9 +244,191 @@ describe('Demo-Produktbestand', () => {
     const booked = store.bookSaleAtomically('workspace', sale, [saleLine]);
     expect(booked.error).toBeNull();
     expect(booked.saleLines[0]?.cost_of_goods_sold).toBe(35);
+    expect(booked.saleLines[0]?.tax_cost_allocations).toEqual([
+      { quantity: 2, tax_purchase_cost: 20 },
+      { quantity: 1, tax_purchase_cost: 15 },
+    ]);
     expect(
       store.getStockLots('workspace').reduce((sum, lot) => sum + lot.remaining_quantity, 0),
     ).toBe(2);
+  });
+  it('behält gewinnbringende und verlustbringende Stücke derselben Verkaufsposition getrennt', () => {
+    const purchase = store.getPurchases('workspace')[0];
+    const line = store.getPurchaseLines('workspace')[0];
+    store.savePurchase({ ...purchase, purchase_price: 200 });
+    store.savePurchaseLine({
+      ...line,
+      ordered_quantity: 1,
+      unit_purchase_price: 80,
+      line_total: 80,
+    });
+    store.savePurchaseLine({
+      ...line,
+      id: 'line-2',
+      ordered_quantity: 1,
+      unit_purchase_price: 120,
+      line_total: 120,
+    });
+    store.receivePurchaseLines(
+      'workspace',
+      'purchase',
+      [
+        { purchaseLineId: 'line', receivedQuantity: 1, receivedAt: '2026-09-08T10:00:00Z' },
+        { purchaseLineId: 'line-2', receivedQuantity: 1, receivedAt: '2026-09-08T11:00:00Z' },
+      ],
+      'both',
+    );
+    expect(store.finalizePurchaseCosting('workspace', 'purchase').error).toBeNull();
+    const booked = store.bookSaleAtomically('workspace', { ...sale, sale_price: 200 }, [
+      {
+        ...saleLine,
+        quantity: 2,
+        unit_sale_price: 100,
+        line_total: 200,
+      },
+    ]);
+    expect(booked.error).toBeNull();
+    expect(booked.saleLines[0]).toMatchObject({
+      tax_purchase_cost: 200,
+      tax_cost_allocations: [
+        { quantity: 1, tax_purchase_cost: 80 },
+        { quantity: 1, tax_purchase_cost: 120 },
+      ],
+    });
+    expect(store.getStockLots('workspace').map((lot) => lot.remaining_tax_unit_costs)).toEqual([
+      [],
+      [],
+    ]);
+    if (!booked.sale) throw new Error('Verkauf fehlt');
+    expect(store.returnSaleAtomically('workspace', booked.sale, true).error).toBeNull();
+    expect(store.getStockLots('workspace').map((lot) => lot.remaining_tax_unit_costs)).toEqual([
+      [80],
+      [120],
+    ]);
+  });
+  it('hängt retournierte Restcentstücke mit ihrem Originalpreis an die Kostenfolge an', () => {
+    const purchase = store.getPurchases('workspace')[0];
+    const line = store.getPurchaseLines('workspace')[0];
+    store.savePurchase({ ...purchase, pricing_mode: 'total', purchase_price: 0.04 });
+    store.savePurchaseLine({
+      ...line,
+      ordered_quantity: 3,
+      unit_purchase_price: null,
+      line_total: null,
+    });
+    store.receivePurchaseLines(
+      'workspace',
+      'purchase',
+      [{ purchaseLineId: 'line', receivedQuantity: 3 }],
+      'all',
+    );
+    expect(store.finalizePurchaseCosting('workspace', 'purchase').error).toBeNull();
+    const booked = store.bookSaleAtomically('workspace', sale, [
+      { ...saleLine, quantity: 1, line_total: 20 },
+    ]);
+    expect(booked.saleLines[0].tax_purchase_cost).toBe(0.02);
+    if (!booked.sale) throw new Error('Verkauf fehlt');
+    expect(store.returnSaleAtomically('workspace', booked.sale, true).error).toBeNull();
+    expect(store.getStockLots('workspace')[0].remaining_tax_unit_costs).toEqual([0.01, 0.01, 0.02]);
+    const resale = store.bookSaleAtomically('workspace', { ...sale, id: 'resale' }, [
+      {
+        ...saleLine,
+        id: 'resale-line',
+        sale_id: 'resale',
+        quantity: 3,
+      },
+    ]);
+    expect(resale.saleLines[0]).toMatchObject({
+      tax_purchase_cost: 0.04,
+      tax_cost_allocations: [
+        { quantity: 2, tax_purchase_cost: 0.02 },
+        { quantity: 1, tax_purchase_cost: 0.02 },
+      ],
+    });
+  });
+  it('bewahrt betriebliche Restcents nach Rücklagerung auch beim nächsten Teilverkauf', () => {
+    const purchase = store.getPurchases('workspace')[0];
+    const line = store.getPurchaseLines('workspace')[0];
+    store.savePurchase({ ...purchase, pricing_mode: 'total', purchase_price: 0.04 });
+    store.savePurchaseLine({
+      ...line,
+      ordered_quantity: 3,
+      unit_purchase_price: null,
+      line_total: null,
+    });
+    store.receivePurchaseLines(
+      'workspace',
+      'purchase',
+      [{ purchaseLineId: 'line', receivedQuantity: 3 }],
+      'all',
+    );
+    expect(store.finalizePurchaseCosting('workspace', 'purchase').error).toBeNull();
+    const booked = store.bookSaleAtomically('workspace', sale, [
+      { ...saleLine, quantity: 1, line_total: 20 },
+    ]);
+    expect(booked.saleLines[0].cost_of_goods_sold).toBe(0.02);
+    if (!booked.sale) throw new Error('Verkauf fehlt');
+    expect(store.returnSaleAtomically('workspace', booked.sale, true).error).toBeNull();
+    const costs = [1, 2, 3].map((index) => {
+      const resale = store.bookSaleAtomically('workspace', { ...sale, id: `resale-${index}` }, [
+        {
+          ...saleLine,
+          id: `resale-line-${index}`,
+          sale_id: `resale-${index}`,
+          quantity: 1,
+          line_total: 20,
+        },
+      ]);
+      expect(resale.error).toBeNull();
+      return resale.saleLines[0].cost_of_goods_sold;
+    });
+    expect(costs).toEqual([0.01, 0.01, 0.02]);
+    expect(costs.reduce((sum, cost) => sum + Math.round(cost * 100), 0)).toBe(4);
+  });
+  it('legt bei einer Retoure ohne Rücklagerung keine steuerlichen Stückkosten zurück', () => {
+    store.receivePurchaseLines(
+      'workspace',
+      'purchase',
+      [{ purchaseLineId: 'line', receivedQuantity: 5 }],
+      'all',
+    );
+    expect(store.finalizePurchaseCosting('workspace', 'purchase').error).toBeNull();
+    const booked = store.bookSaleAtomically('workspace', sale, [saleLine]);
+    if (!booked.sale) throw new Error('Verkauf fehlt');
+    expect(store.returnSaleAtomically('workspace', booked.sale, false).error).toBeNull();
+    expect(store.getStockLots('workspace')[0]).toMatchObject({
+      remaining_quantity: 2,
+      remaining_tax_unit_costs: [10, 10],
+      remaining_unit_costs: [10, 10],
+    });
+    expect(store.getSales('workspace')[0].lines?.[0]).toMatchObject({
+      tax_purchase_cost: 30,
+      tax_cost_allocations: [{ quantity: 3, tax_purchase_cost: 30 }],
+    });
+  });
+  it('rekonstruiert fehlende historische Stückkosten weder aus Losdurchschnitt noch aus Retoure', () => {
+    store.receivePurchaseLines(
+      'workspace',
+      'purchase',
+      [{ purchaseLineId: 'line', receivedQuantity: 5 }],
+      'all',
+    );
+    expect(store.finalizePurchaseCosting('workspace', 'purchase').error).toBeNull();
+    const lots = store
+      .getStockLots('workspace')
+      .map((lot) => ({ ...lot, remaining_tax_unit_costs: null, remaining_unit_costs: null }));
+    localStorage.setItem('flipbase_local_stock_lots', JSON.stringify(lots));
+    const booked = store.bookSaleAtomically('workspace', sale, [saleLine]);
+    expect(booked.error).toBeNull();
+    expect(booked.saleLines[0]).toMatchObject({
+      tax_purchase_cost: null,
+      tax_cost_allocations: null,
+    });
+    if (!booked.sale) throw new Error('Verkauf fehlt');
+    expect(store.returnSaleAtomically('workspace', booked.sale, true).error).toBeNull();
+    expect(store.getStockLots('workspace')[0].remaining_tax_unit_costs).toBeNull();
+    expect(store.getStockLots('workspace')[0].remaining_unit_costs).toBeNull();
+    expect(booked.saleLines[0].cost_of_goods_sold).toBe(30);
   });
   it('verbraucht Restcentbeträge deterministisch bei mehreren Teilverkäufen', () => {
     const purchase = store.getPurchases('workspace')[0];
