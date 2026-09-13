@@ -28,10 +28,10 @@ for (const theme of ['light', 'dark'] as const) {
       await expect(
         navigation.getByRole('link', { name: 'Alle Artikel', exact: true }),
       ).toHaveAttribute('aria-current', 'page');
-      await page.getByRole('button', { name: 'Artikel erstellen', exact: true }).click();
-      const dialog = page.getByRole('dialog', { name: 'Produkt erstellen', exact: true });
+      await page.getByRole('link', { name: 'Artikel erstellen', exact: true }).click();
+      const dialog = page.locator('app-product-detail');
       await dialog.getByRole('textbox', { name: 'Name', exact: true }).fill('Prüfkonsole');
-      await dialog.getByRole('button', { name: 'Produkt erstellen', exact: true }).click();
+      await dialog.getByRole('button', { name: 'Artikel erstellen', exact: true }).click();
       await expect(page).toHaveURL(/\/catalog\/[^/?]+$/);
       const detail = page.locator('app-product-detail');
       await expect(detail.getByRole('heading', { name: 'Prüfkonsole', exact: true })).toBeVisible();
@@ -125,10 +125,10 @@ for (const theme of ['light', 'dark'] as const) {
 test('ungespeicherte Artikeländerung lässt sich beim Weggehen behalten', async ({ page }) => {
   await startDemoMode(page);
   await page.goto('/catalog');
-  await page.getByRole('button', { name: 'Artikel erstellen', exact: true }).click();
-  const dialog = page.getByRole('dialog', { name: 'Produkt erstellen', exact: true });
+  await page.getByRole('link', { name: 'Artikel erstellen', exact: true }).click();
+  const dialog = page.locator('app-product-detail');
   await dialog.getByRole('textbox', { name: 'Name', exact: true }).fill('Unveränderte Konsole');
-  await dialog.getByRole('button', { name: 'Produkt erstellen', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Artikel erstellen', exact: true }).click();
   const field = page
     .locator('app-product-detail')
     .getByRole('textbox', { name: 'Name', exact: true });

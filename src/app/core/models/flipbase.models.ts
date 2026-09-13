@@ -472,6 +472,9 @@ export interface CatalogProduct {
   created_at?: string;
   updated_at?: string;
   primary_media_path?: string | null;
+  seo_title?: string | null;
+  seo_description?: string | null;
+  url_handle?: string | null;
   description?: string | null;
 }
 

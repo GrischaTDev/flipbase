@@ -44,6 +44,7 @@ describe('ProductDetailComponent', () => {
   let query: BehaviorSubject<ReturnType<typeof convertToParamMap>>;
   const catalog = {
     products: signal<CatalogProduct[]>([]),
+    updateProductPrimaryMedia: vi.fn(),
     loadError: signal<Error | null>(null),
     loadProduct: vi.fn(
       async (
@@ -63,6 +64,16 @@ describe('ProductDetailComponent', () => {
       }),
     ),
     loadProductEntries: vi.fn(async () => ({ data: [], error: null, reportedBySyncStatus: false })),
+    createProduct: vi.fn(async (input: { title: string; workspaceId: string }) => ({
+      data: {
+        ...original,
+        id: 'created-product',
+        title: input.title,
+        workspace_id: input.workspaceId,
+      },
+      error: null as Error | null,
+      reportedBySyncStatus: false,
+    })),
     updateProduct: vi.fn(
       async (_id: string, input: { title?: string; description?: string | null }) => ({
         data: {
@@ -76,13 +87,31 @@ describe('ProductDetailComponent', () => {
     ),
   };
   const media = {
+    getMediaUrl: vi.fn((path: string) => path),
+    updateProductMediaLayout: vi.fn(
+      async (
+        _id: string,
+        ids: readonly string[],
+        _expected: readonly string[],
+        _workspace: string,
+      ) => ({
+        data: ids.map((id, index) => ({
+          ...image,
+          id,
+          sort_order: index,
+          is_primary: index === 0,
+        })),
+        error: null as Error | null,
+        reportedBySyncStatus: false,
+      }),
+    ),
     loadProductMedia: vi.fn(async (): Promise<CatalogProductMedia[]> => []),
     uploadProductMedia: vi.fn(
       async (
         _id: string,
-        _file: File,
+        file: File,
       ): Promise<{ data: CatalogProductMedia | null; error: Error | null }> => ({
-        data: image,
+        data: { ...image, id: file.name === 'two.webp' ? 'image-2' : image.id },
         error: null,
       }),
     ),
@@ -94,6 +123,12 @@ describe('ProductDetailComponent', () => {
     loadError: signal<Error | null>(null),
     loadPositions: vi.fn(async () => undefined),
   };
+
+  function queueFiles(files: File[]): void {
+    component.imageDrafts.set(
+      files.map((file, index) => ({ key: `file-${index}`, file, media: null, previewUrl: '' })),
+    );
+  }
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -199,7 +234,7 @@ describe('ProductDetailComponent', () => {
     const pending = deferred<Awaited<ReturnType<typeof catalog.updateProduct>>>();
     catalog.updateProduct.mockReturnValueOnce(pending.promise);
     component.form.controls.title.setValue('Neu');
-    component.pendingImages.set([new File(['a'], 'one.webp', { type: 'image/webp' })]);
+    queueFiles([new File(['a'], 'one.webp', { type: 'image/webp' })]);
     const save = component.save();
     expect(component.isSaving()).toBe(true);
     expect(canLeaveUnsavedEntry(component, () => true)).toBe(false);
@@ -234,7 +269,7 @@ describe('ProductDetailComponent', () => {
     const second = new File(['b'], 'two.webp', { type: 'image/webp' });
     const pending = deferred<Awaited<ReturnType<typeof media.uploadProductMedia>>>();
     media.uploadProductMedia.mockReturnValueOnce(pending.promise);
-    component.pendingImages.set([first, second]);
+    queueFiles([first, second]);
     const save = component.save();
 
     activeWorkspace.set({ id: 'workspace-2' });
@@ -243,7 +278,7 @@ describe('ProductDetailComponent', () => {
     await save;
 
     expect(component.pendingImages()).toEqual([second]);
-    expect(component.images()).toEqual([]);
+    expect(component.images()).toEqual([image]);
     expect(component.savedMessage()).toBeNull();
     activeWorkspace.set({ id: original.workspace_id });
     await component.reload();
@@ -256,7 +291,7 @@ describe('ProductDetailComponent', () => {
     const file = new File(['a'], 'one.webp', { type: 'image/webp' });
     const pending = deferred<Awaited<ReturnType<typeof media.uploadProductMedia>>>();
     media.uploadProductMedia.mockReturnValueOnce(pending.promise);
-    component.pendingImages.set([file]);
+    queueFiles([file]);
     const save = component.save();
     const otherProduct = { ...original, id: 'other-product', workspace_id: 'workspace-2' };
     const otherImage = {
@@ -268,7 +303,7 @@ describe('ProductDetailComponent', () => {
     activeWorkspace.set({ id: otherProduct.workspace_id });
     params.next(convertToParamMap({ id: otherProduct.id }));
     component.product.set(otherProduct);
-    component.pendingImages.set([file]);
+    queueFiles([file]);
     component.images.set([otherImage]);
     component.savedMessage.set('Meldung des anderen Artikels');
 
@@ -285,7 +320,7 @@ describe('ProductDetailComponent', () => {
     const first = new File(['a'], 'one.webp', { type: 'image/webp' });
     const second = new File(['b'], 'two.webp', { type: 'image/webp' });
     component.form.controls.title.setValue('Neu');
-    component.pendingImages.set([first, second]);
+    queueFiles([first, second]);
     media.uploadProductMedia
       .mockResolvedValueOnce({ data: image, error: null })
       .mockResolvedValueOnce({ data: null, error: new Error('Speicher voll') });
@@ -334,5 +369,178 @@ describe('ProductDetailComponent', () => {
     await load;
     expect(component.product()?.id).toBe('different-product');
     expect(component.form.controls.title.value).toBe('Zweiter Artikel');
+  });
+  async function openNew(): Promise<void> {
+    params.next(convertToParamMap({}));
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            paramMap: params,
+            queryParamMap: query,
+            snapshot: { paramMap: params.value, queryParamMap: query.value },
+          },
+        },
+        { provide: Router, useValue: { navigate: vi.fn(async () => true) } },
+        { provide: WorkspaceService, useValue: { currentWorkspace: activeWorkspace } },
+        { provide: CatalogService, useValue: catalog },
+        { provide: StockService, useValue: stock },
+        { provide: MediaService, useValue: media },
+      ],
+    });
+    component = TestBed.runInInjectionContext(() => new ProductDetailComponent());
+    TestBed.tick();
+  }
+
+  it('erstellt einen internen Artikel und verhindert eine leere Anlage', async () => {
+    await openNew();
+    expect(component.creating()).toBe(true);
+    expect(component.hasUnsavedChanges()).toBe(false);
+    await component.save();
+    expect(catalog.createProduct).not.toHaveBeenCalled();
+    component.form.controls.title.setValue('Neue Kamera');
+    expect(component.hasUnsavedChanges()).toBe(true);
+    await component.save();
+    expect(catalog.createProduct).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        title: 'Neue Kamera',
+        workspaceId: original.workspace_id,
+        isPublicStore: false,
+      }),
+    );
+    expect(component.product()?.id).toBe('created-product');
+    expect(component.hasUnsavedChanges()).toBe(false);
+    expect(TestBed.inject(Router).navigate).toHaveBeenCalledWith(['/catalog', 'created-product'], {
+      replaceUrl: true,
+    });
+  });
+
+  it('legt bei einem Bildfehler und erneutem Speichern keinen zweiten Artikel an', async () => {
+    await openNew();
+    component.form.controls.title.setValue('Neue Kamera');
+    queueFiles([new File(['a'], 'one.webp', { type: 'image/webp' })]);
+    media.uploadProductMedia.mockResolvedValueOnce({ data: null, error: new Error('Offline') });
+    await component.save();
+    expect(component.product()?.id).toBe('created-product');
+    expect(component.saveError()).toContain('Offline');
+    media.uploadProductMedia.mockResolvedValueOnce({
+      data: { ...image, catalog_product_id: 'created-product' },
+      error: null,
+    });
+    media.updateProductMediaLayout.mockResolvedValueOnce({
+      data: [{ ...image, catalog_product_id: 'created-product' }],
+      error: null,
+      reportedBySyncStatus: false,
+    });
+    await component.save();
+    expect(catalog.createProduct).toHaveBeenCalledTimes(1);
+    expect(component.hasUnsavedChanges()).toBe(false);
+  });
+
+  it('quittiert eine Neuanlage nach Workspacewechsel und verwendet sie beim Wiederholen', async () => {
+    await openNew();
+    component.form.controls.title.setValue('Neue Kamera');
+    const pending = deferred<Awaited<ReturnType<typeof catalog.createProduct>>>();
+    catalog.createProduct.mockReturnValueOnce(pending.promise);
+    const saving = component.save();
+    activeWorkspace.set({ id: 'workspace-2' });
+    TestBed.tick();
+    pending.resolve({
+      data: { ...original, id: 'created-product', title: 'Neue Kamera' },
+      error: null,
+      reportedBySyncStatus: false,
+    });
+    await saving;
+    expect(component.product()?.id).toBe('created-product');
+    expect(component.workspaceChanged()).toBe(true);
+    activeWorkspace.set({ id: original.workspace_id });
+    await component.save();
+    expect(catalog.createProduct).toHaveBeenCalledTimes(1);
+  });
+
+  it('erhält Reihenfolge und entfernte Bilder bis zur atomaren Galerie-Bestätigung', async () => {
+    const second = { ...image, id: 'image-2', is_primary: false, sort_order: 1 };
+    media.loadProductMedia.mockResolvedValueOnce([image, second]);
+    await component.loadImages();
+    component.changeImages([component.imageDrafts()[1]]);
+    media.updateProductMediaLayout.mockResolvedValueOnce({
+      data: [],
+      error: new Error('Zwischenzeitlich geändert'),
+      reportedBySyncStatus: false,
+    });
+    await component.save();
+    expect(component.imageDrafts().map((draft) => draft.media?.id)).toEqual(['image-2']);
+    expect(component.hasUnsavedChanges()).toBe(true);
+    expect(media.updateProductMediaLayout).toHaveBeenCalledWith(
+      original.id,
+      ['image-2'],
+      ['image-1', 'image-2'],
+      original.workspace_id,
+    );
+    await component.save();
+    expect(component.hasUnsavedChanges()).toBe(false);
+  });
+
+  it('verwirft einen neuen Entwurf vollständig und schützt ihn bei Workspacewechsel', async () => {
+    await openNew();
+    component.form.controls.title.setValue('Unfertig');
+    activeWorkspace.set({ id: 'workspace-2' });
+    TestBed.tick();
+    await component.save();
+    expect(catalog.createProduct).not.toHaveBeenCalled();
+    component.discard();
+    expect(component.form.controls.title.value).toBe('');
+    expect(component.hasUnsavedChanges()).toBe(false);
+    expect(component.workspaceChanged()).toBe(false);
+  });
+  it('hält Eingaben bis zum abgeschlossenen Wechsel auf die gespeicherte Artikelseite gesperrt', async () => {
+    await openNew();
+    component.form.controls.title.setValue('Neue Kamera');
+    const navigation = deferred<boolean>();
+    vi.mocked(TestBed.inject(Router).navigate).mockReturnValueOnce(navigation.promise);
+    const saving = component.save();
+    await Promise.resolve();
+    expect(component.form.disabled).toBe(true);
+    expect(component.saving()).toBe(true);
+    expect(canLeaveUnsavedEntry(component, () => false)).toBe(true);
+    navigation.resolve(true);
+    await saving;
+    expect(component.form.enabled).toBe(true);
+    expect(component.saving()).toBe(false);
+  });
+
+  it('zeigt später signierte Bildadressen reaktiv, ohne neue Dateien zu verlieren', async () => {
+    const url = signal('');
+    media.getMediaUrl.mockImplementation(() => url());
+    media.loadProductMedia.mockResolvedValueOnce([image]);
+    await component.loadImages();
+    const file = new File(['a'], 'pending.png', { type: 'image/png' });
+    component.changeImages([
+      ...component.imageDrafts(),
+      { key: 'new-image', file, media: null, previewUrl: 'data:image/png;base64,test' },
+    ]);
+    expect(component.visibleImageDrafts()[0].previewUrl).toBe('');
+    url.set('https://example.invalid/signed-image');
+    expect(component.visibleImageDrafts()[0].previewUrl).toBe(
+      'https://example.invalid/signed-image',
+    );
+    expect(component.visibleImageDrafts()[1].file).toBe(file);
+    expect(component.hasUnsavedChanges()).toBe(true);
+    media.getMediaUrl.mockImplementation((path: string) => path);
+  });
+
+  it('aktualisiert nach Galerie-Bestätigung das Hauptbild der Katalogprojektion', async () => {
+    media.loadProductMedia.mockResolvedValueOnce([image]);
+    await component.loadImages();
+    component.changeImages([]);
+    await component.save();
+    expect(catalog.updateProductPrimaryMedia).toHaveBeenCalledWith(
+      original.id,
+      original.workspace_id,
+      null,
+    );
+    expect(component.product()?.primary_media_path).toBeNull();
   });
 });

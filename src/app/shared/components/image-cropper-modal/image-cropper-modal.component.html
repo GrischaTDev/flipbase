@@ -1,238 +1,68 @@
-<div
-  class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-5 animate-fade-in"
-  appModalDialog
-  dialogTitel="Bild zuschneiden"
-  (dialogClose)="closed.emit()"
->
-  <div
-    class="linear-surface rounded-2xl w-full max-w-2xl max-h-[92vh] flex flex-col shadow-2xl border border-fb-border overflow-hidden my-auto animate-modal-card"
-  >
-    <!-- Header -->
+<app-modal-shell [title]="title()" size="lg" (closed)="close()">
+  @if (errorMessage(); as error) {
+    <p role="alert" class="text-[13px] text-rose-400">{{ error }}</p>
+  }
+  <!-- Versteckter Dateieingang: sichtbare Bedienung über den Shared-Button. -->
+  <input
+    #fileInput
+    type="file"
+    [accept]="accept"
+    class="hidden"
+    [disabled]="isProcessing()"
+    (change)="onFileSelected($event)"
+  />
+  @if (imageFile() || imageBase64() || imageUrl()) {
+    @for (version of [sourceVersion()]; track version) {
+      <image-cropper
+        appCropperFrameAccessibility
+        #cropperAccess="appCropperFrameAccessibility"
+        [imageFile]="imageFile() ?? undefined"
+        [imageBase64]="imageBase64() ?? undefined"
+        [imageURL]="imageUrl() ?? undefined"
+        [maintainAspectRatio]="maintainAspectRatio()"
+        [aspectRatio]="1"
+        format="jpeg"
+        output="blob"
+        [transform]="{ rotate: rotation() }"
+        [disabled]="isProcessing()"
+        imageAltText="Produktbild zum Zuschneiden"
+        cropperFrameAriaLabel="Bildausschnitt. Pfeiltasten verschieben, Umschalt und Pfeiltasten ändern die Größe."
+        (imageCropped)="imageCropped($event)"
+        (imageLoaded)="imageLoaded($event)"
+        (cropperReady)="cropperAccess.updateFrame()"
+        (loadImageFailed)="loadImageFailed()"
+        class="block max-h-[45vh] w-full [--cropper-outline-color:rgba(0,0,0,0.55)] [--cropper-overlay-color:var(--fb-bg-surface)] [--cropper-color:#fcc601] [--cropper-border:2px_solid_#fcc601] [--cropper-focus-border:3px_solid_#fcc601]"
+      />
+    }
+    <p class="text-[13px] text-fb-text-secondary">
+      Ziehe die Ecken für den gewünschten Ausschnitt. Mit den Pfeiltasten kannst du ihn verschieben.
+      Umschalt und Pfeiltasten ändern die Größe.
+    </p>
+    <div class="flex flex-wrap gap-2">
+      <app-button [disabled]="isProcessing()" (clicked)="rotateClockwise()">90° drehen</app-button>
+      <app-button [disabled]="isProcessing()" (clicked)="fileInput.click()"
+        >Anderes Bild wählen</app-button
+      >
+    </div>
+  } @else {
     <div
-      class="p-4 sm:p-5 border-b border-fb-border flex items-center justify-between bg-fb-subtle shrink-0"
+      (drop)="onDrop($event)"
+      (dragover)="onDragOver($event)"
+      class="flex flex-col items-center gap-3 rounded-xl border border-dashed border-fb-border bg-fb-subtle p-8 text-center"
     >
-      <div class="flex items-center gap-2.5">
-        <div
-          class="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center"
-        >
-          <svg [lucideIcon]="cropIcon" class="w-5 h-5"></svg>
-        </div>
-        <div>
-          <div class="flex items-center gap-2">
-            <h2 class="text-sm font-bold text-fb-text-primary">{{ title() }}</h2>
-            <span
-              class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-            >
-              Fix 1:1 Quadrat
-            </span>
-          </div>
-          <p class="text-[11px] text-fb-text-muted">
-            Optimiert für professionelle Marktplatz-Listings & Inventar
-          </p>
-        </div>
-      </div>
-
-      <button
-        type="button"
-        (click)="closed.emit()"
-        class="p-1.5 rounded-lg text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-surface-hover transition cursor-pointer"
-      >
-        <svg [lucideIcon]="closeIcon" class="w-5 h-5"></svg>
-      </button>
+      <p class="text-[13px] text-fb-text-secondary">Bild hier ablegen</p>
+      <app-button (clicked)="fileInput.click()">Bild auswählen</app-button>
+      <p class="text-xs text-fb-text-muted">JPG, PNG, WebP, GIF oder AVIF · höchstens 50 MB</p>
     </div>
-
-    <!-- Body -->
-    <div class="p-4 sm:p-5 overflow-y-auto space-y-4 grow">
-      @if (errorMessage()) {
-        <div
-          class="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs animate-shake"
-        >
-          {{ errorMessage() }}
-        </div>
-      }
-
-      <!-- Dropzone if no image is loaded yet -->
-      @if (!imageFile() && !imageBase64()) {
-        <div
-          (drop)="onDrop($event)"
-          (dragover)="onDragOver($event)"
-          class="border-2 border-dashed border-fb-border hover:border-emerald-500/50 rounded-2xl p-8 sm:p-12 text-center bg-fb-subtle/50 hover:bg-emerald-500/5 transition cursor-pointer flex flex-col items-center justify-center gap-3 relative"
-        >
-          <input
-            type="file"
-            accept="image/png, image/jpeg, image/webp, image/heic"
-            (change)="onFileSelected($event)"
-            class="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-          />
-
-          <div
-            class="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center"
-          >
-            <svg [lucideIcon]="uploadIcon" class="w-7 h-7"></svg>
-          </div>
-
-          <div>
-            <h3 class="text-sm font-bold text-fb-text-primary">Foto hier ablegen oder klicken</h3>
-            <p class="text-xs text-fb-text-muted mt-1">
-              Unterstützt JPG, PNG, WebP oder Kamera-Upload
-            </p>
-          </div>
-
-          <div
-            class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-fb-surface border border-fb-border text-[11px] text-fb-text-secondary mt-2"
-          >
-            <svg [lucideIcon]="sparklesIcon" class="w-3.5 h-3.5 text-emerald-400"></svg>
-            <span>Wird automatisch auf 1:1 zugeschnitten & komprimiert</span>
-          </div>
-        </div>
-      } @else {
-        <!-- Interactive Cropper -->
-        <div
-          class="relative bg-black/60 rounded-2xl overflow-hidden border border-fb-border flex items-center justify-center min-h-[300px] max-h-[420px]"
-        >
-          <image-cropper
-            [imageChangedEvent]="imageChangedEvent()!"
-            [imageBase64]="imageBase64()!"
-            [maintainAspectRatio]="true"
-            [aspectRatio]="1 / 1"
-            [format]="'jpeg'"
-            [transform]="{ scale: scale(), rotate: rotation() }"
-            (imageCropped)="imageCropped($event)"
-            (imageLoaded)="imageLoaded($event)"
-            (cropperReady)="cropperReady()"
-            (loadImageFailed)="loadImageFailed()"
-            class="w-full max-h-[400px]"
-          ></image-cropper>
-
-          @if (isProcessing()) {
-            <div
-              class="absolute inset-0 bg-black/70 backdrop-blur-xs flex flex-col items-center justify-center gap-2 z-10"
-            >
-              <div
-                class="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"
-              ></div>
-              <span class="text-xs font-semibold text-emerald-300"
-                >Wird komprimiert & optimiert...</span
-              >
-            </div>
-          }
-        </div>
-
-        <!-- Controls Toolbar -->
-        <div class="p-3.5 rounded-xl bg-fb-subtle border border-fb-border space-y-3">
-          <div class="flex flex-wrap items-center justify-between gap-3 text-xs">
-            <!-- Zoom Controls -->
-            <div class="flex items-center gap-2">
-              <span class="text-fb-text-muted text-[11px] font-semibold">Zoom:</span>
-              <button
-                type="button"
-                (click)="zoomOut()"
-                class="p-1.5 rounded-lg bg-fb-surface border border-fb-border hover:bg-fb-surface-hover text-fb-text-primary transition cursor-pointer"
-                title="Verkleinern"
-              >
-                <svg [lucideIcon]="zoomOutIcon" class="w-3.5 h-3.5"></svg>
-              </button>
-
-              <input
-                type="range"
-                min="0.5"
-                max="3.0"
-                step="0.1"
-                [value]="scale()"
-                (input)="onScaleChange($event)"
-                class="w-24 accent-emerald-500 cursor-pointer"
-              />
-
-              <button
-                type="button"
-                (click)="zoomIn()"
-                class="p-1.5 rounded-lg bg-fb-surface border border-fb-border hover:bg-fb-surface-hover text-fb-text-primary transition cursor-pointer"
-                title="Vergrößern"
-              >
-                <svg [lucideIcon]="zoomInIcon" class="w-3.5 h-3.5"></svg>
-              </button>
-              <span class="font-mono text-[11px] text-fb-text-secondary w-9 text-right"
-                >{{ scale().toFixed(1) }}x</span
-              >
-            </div>
-
-            <!-- Rotate & Reset -->
-            <div class="flex items-center gap-2">
-              <button
-                type="button"
-                (click)="rotateClockwise()"
-                class="px-2.5 py-1.5 rounded-lg bg-fb-surface border border-fb-border hover:bg-fb-surface-hover text-fb-text-primary transition cursor-pointer inline-flex items-center gap-1.5 text-xs font-semibold"
-                title="Um 90° drehen"
-              >
-                <svg [lucideIcon]="rotateIcon" class="w-3.5 h-3.5 text-indigo-400"></svg>
-                <span>90° Drehen</span>
-              </button>
-
-              <button
-                type="button"
-                (click)="resetTransform()"
-                class="px-2.5 py-1.5 rounded-lg bg-fb-surface border border-fb-border hover:bg-fb-surface-hover text-fb-text-muted hover:text-fb-text-primary transition cursor-pointer inline-flex items-center gap-1.5 text-xs"
-                title="Zurücksetzen"
-              >
-                <svg [lucideIcon]="refreshIcon" class="w-3.5 h-3.5"></svg>
-                <span>Reset</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Optimization Info Banner -->
-          <div class="flex items-center justify-between pt-2 border-t border-fb-border text-[11px]">
-            <div class="flex items-center gap-2 text-fb-text-muted">
-              <span
-                >Original:
-                <strong class="font-mono text-fb-text-secondary">{{
-                  formatBytes(originalSizeBytes())
-                }}</strong></span
-              >
-              <svg [lucideIcon]="arrowRightIcon" class="w-3 h-3 text-fb-text-muted"></svg>
-              <span
-                >Zielgröße:
-                <strong class="font-mono text-emerald-400">~150–250 KB (1200×1200 px)</strong></span
-              >
-            </div>
-
-            <label
-              class="text-xs text-indigo-400 hover:text-indigo-300 font-semibold cursor-pointer underline"
-            >
-              Anderes Foto wählen
-              <input
-                type="file"
-                accept="image/png, image/jpeg, image/webp, image/heic"
-                (change)="onFileSelected($event)"
-                class="hidden"
-              />
-            </label>
-          </div>
-        </div>
-      }
-    </div>
-
-    <!-- Footer Actions -->
-    <div
-      class="p-4 sm:p-5 border-t border-fb-border bg-fb-subtle flex items-center justify-between shrink-0"
+  }
+  <ng-container modal-footer>
+    <app-button (clicked)="close()">Abbrechen</app-button>
+    <app-button
+      variant="primary"
+      [disabled]="!croppedBlob()"
+      [loading]="isProcessing()"
+      (clicked)="applyCropAndCompress()"
+      >Bild übernehmen</app-button
     >
-      <button
-        type="button"
-        (click)="closed.emit()"
-        class="linear-btn-secondary px-4 py-2.5 rounded-xl text-xs font-semibold cursor-pointer"
-      >
-        Abbrechen
-      </button>
-
-      <button
-        type="button"
-        (click)="applyCropAndCompress()"
-        [disabled]="(!imageFile() && !imageBase64()) || isProcessing()"
-        class="linear-btn-primary px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer shadow-lg shadow-emerald-500/20 disabled:opacity-40"
-      >
-        <svg [lucideIcon]="checkIcon" class="w-4 h-4"></svg>
-        <span>{{ isProcessing() ? 'Wird optimiert...' : 'Zuschneiden & Bild übernehmen' }}</span>
-      </button>
-    </div>
-  </div>
-</div>
+  </ng-container>
+</app-modal-shell>

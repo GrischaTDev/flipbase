@@ -108,9 +108,9 @@
               <div
                 class="w-16 h-16 rounded-xl bg-white border border-slate-200 overflow-hidden shrink-0 flex items-center justify-center p-1"
               >
-                @if (cartItem.item.media && cartItem.item.media.length > 0) {
+                @if (thumbnailUrl(cartItem); as thumbnail) {
                   <img
-                    [src]="cartItem.item.media[0].storage_path"
+                    [src]="thumbnail"
                     [alt]="cartItem.item.title"
                     class="w-full h-full object-contain"
                   />

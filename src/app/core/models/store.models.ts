@@ -37,6 +37,14 @@ export interface SellableItemRef {
   readonly kind: 'catalog_product' | 'inventory_item';
   readonly id: string;
   readonly title: string;
+  readonly workspaceId?: string;
+  readonly description?: string | null;
+  readonly seoTitle?: string | null;
+  readonly seoDescription?: string | null;
+  readonly urlHandle?: string | null;
+  readonly thumbnailPath?: string | null;
+  readonly ean?: string | null;
+  readonly conditionNotes?: string | null;
   readonly availableQuantity: number;
   readonly unitPrice?: number;
   readonly brand?: string | null;

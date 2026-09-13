@@ -17,7 +17,7 @@
         data-shared-ui-exception="native-file-picker"
         (change)="previewCsv($event)"
       />
-      <app-button variant="primary" [icon]="plusIcon" (clicked)="isCreateOpen.set(true)"
+      <app-button variant="primary" [icon]="plusIcon" link="/catalog/new"
         >Artikel erstellen</app-button
       >
     </div>
@@ -286,9 +286,5 @@
       <h2 class="text-sm font-semibold text-fb-text-secondary">Keine Artikel gefunden</h2>
       <p class="mt-1 text-xs text-fb-text-muted">Lege einen Artikel an oder passe die Suche an.</p>
     </div>
-  }
-
-  @if (isCreateOpen()) {
-    <app-product-dialog (closed)="isCreateOpen.set(false)" (created)="productCreated($event)" />
   }
 </div>

@@ -2,12 +2,145 @@ import '@angular/compiler';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Injector, runInInjectionContext, signal } from '@angular/core';
 import { StoreService } from './store.service';
-import { InventoryItem, InventoryItemSaleState, ItemStatus } from '../models/flipbase.models';
+import {
+  CatalogProduct,
+  InventoryItem,
+  InventoryItemSaleState,
+  ItemStatus,
+  StockLot,
+  StockMovement,
+} from '../models/flipbase.models';
 import { InventoryService } from './inventory.service';
 import { CatalogService } from './catalog.service';
 import { StockService } from './stock.service';
+import { WorkspaceService } from './workspace.service';
 
 describe('Store & Live Checkout Service', () => {
+  it('projiziert Shopdaten, zieht Reservierungen ab und verwirft fremde oder ungültige Bestände', () => {
+    const workspace = signal<{ id: string } | null>({ id: 'ws-1' });
+    const product: CatalogProduct = {
+      id: 'product',
+      workspace_id: 'ws-1',
+      title: 'Kamera',
+      description: 'Mit Objektiv',
+      tracking_mode: 'quantity',
+      is_public_store: true,
+      listing_price: 95,
+      seo_title: 'Kamera kaufen',
+      seo_description: 'Beschreibung für Suche',
+      url_handle: 'kamera',
+      primary_media_path: 'catalog-products/ws-1/product/main.webp',
+    };
+    const products = signal([product]);
+    const positions = signal([
+      {
+        catalog_product_id: product.id,
+        available_quantity: 4,
+        reserved_quantity: 0,
+        on_hand_quantity: 4,
+      },
+    ]);
+    const lots = signal<StockLot[]>([
+      {
+        id: 'lot',
+        workspace_id: 'ws-1',
+        catalog_product_id: product.id,
+        purchase_id: 'purchase',
+        purchase_line_id: 'line',
+        received_quantity: 4,
+        remaining_quantity: 4,
+        unit_cost: 10,
+        received_at: '2026-09-13',
+      },
+    ]);
+    const movements = signal<StockMovement[]>([
+      {
+        id: 'reserve',
+        workspace_id: 'ws-1',
+        stock_lot_id: 'lot',
+        direction: 'out',
+        reason: 'reservation',
+        quantity: 1,
+      },
+    ]);
+    const injector = Injector.create({
+      providers: [
+        {
+          provide: CatalogService,
+          useValue: { products, loadedWorkspaceId: signal('ws-1'), loadError: signal(null) },
+        },
+        {
+          provide: StockService,
+          useValue: {
+            positions,
+            lots,
+            movements,
+            loadedWorkspaceId: signal('ws-1'),
+            loadError: signal(null),
+          },
+        },
+        { provide: WorkspaceService, useValue: { currentWorkspace: workspace } },
+      ],
+    });
+    const service = runInInjectionContext(injector, () => new StoreService());
+    expect(service.publicProducts()).toEqual([
+      expect.objectContaining({
+        id: 'product',
+        availableQuantity: 3,
+        unitPrice: 95,
+        description: 'Mit Objektiv',
+        seoTitle: 'Kamera kaufen',
+        seoDescription: 'Beschreibung für Suche',
+        urlHandle: 'kamera',
+        thumbnailPath: product.primary_media_path,
+      }),
+    ]);
+    expect(service.publicProducts()[0]).not.toHaveProperty('unit_cost');
+    workspace.set({ id: 'ws-2' });
+    expect(service.publicProducts()).toEqual([]);
+    workspace.set({ id: 'ws-1' });
+    for (const listing_price of [0, -1, Number.NaN, Number.POSITIVE_INFINITY, null]) {
+      products.set([{ ...product, listing_price }]);
+      expect(service.publicProducts()).toEqual([]);
+    }
+    products.set([{ ...product, is_public_store: false }]);
+    expect(service.publicProducts()).toEqual([]);
+    products.set([product]);
+    movements.set([{ ...movements()[0], quantity: 5 }]);
+    expect(service.publicProducts()).toEqual([]);
+    workspace.set(null);
+    expect(service.publicProducts()).toEqual([]);
+  });
+
+  it('erfindet für Einzelstücke ohne Verkaufspreis keinen Preis aus den Einkaufskosten', () => {
+    const items = signal<InventoryItem[]>([
+      {
+        id: 'piece',
+        workspace_id: 'ws-1',
+        title: 'Einzelstück',
+        condition: 'used',
+        status: 'ready',
+        sale_state: 'no_active_sale',
+        is_public_store: true,
+        allocated_purchase_cost: 100,
+        expected_value: null,
+      },
+    ]);
+    const injector = Injector.create({
+      providers: [{ provide: InventoryService, useValue: { items } }],
+    });
+    const service = runInInjectionContext(injector, () => new StoreService());
+    expect(service.publicProducts()).toEqual([]);
+    items.update((entries) =>
+      entries.map((item) => ({ ...item, expected_value: 150, description: 'Echte Beschreibung' })),
+    );
+    expect(service.publicProducts()[0]).toMatchObject({
+      unitPrice: 150,
+      description: 'Echte Beschreibung',
+      kind: 'inventory_item',
+    });
+    expect(service.publicProducts()[0]).not.toHaveProperty('allocated_purchase_cost');
+  });
   it('verwendet verfügbaren Produktbestand unabhängig vom historischen Typmarker', () => {
     const injector = Injector.create({
       providers: [
@@ -28,7 +161,16 @@ describe('Store & Live Checkout Service', () => {
         {
           provide: StockService,
           useValue: {
-            positions: signal([{ catalog_product_id: 'product', available_quantity: 3 }]),
+            positions: signal([
+              {
+                catalog_product_id: 'product',
+                available_quantity: 3,
+                on_hand_quantity: 3,
+                reserved_quantity: 0,
+              },
+            ]),
+            lots: signal([]),
+            movements: signal([]),
           },
         },
       ],

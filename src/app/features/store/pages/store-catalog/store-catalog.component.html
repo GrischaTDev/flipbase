@@ -249,7 +249,7 @@
 
               <!-- Product Link overlay -->
               <a
-                [routerLink]="['/shop/item', item.id]"
+                [routerLink]="productStorePath(item.id, item.urlHandle)"
                 class="absolute inset-0 z-10"
                 [title]="item.title"
               ></a>
@@ -262,7 +262,7 @@
                   {{ item.brand || item.category || 'Kategorie' }}
                 </span>
                 <a
-                  [routerLink]="['/shop/item', item.id]"
+                  [routerLink]="productStorePath(item.id, item.urlHandle)"
                   class="font-bold text-xs text-slate-900 hover:text-slate-600 transition line-clamp-2 mt-0.5"
                 >
                   {{ item.title }}
@@ -477,7 +477,7 @@
 
               <!-- View Link overlay -->
               <a
-                [routerLink]="['/shop/item', item.id]"
+                [routerLink]="productStorePath(item.id, item.urlHandle)"
                 class="absolute inset-0 z-10"
                 [title]="item.title"
               ></a>
@@ -494,7 +494,7 @@
                 </div>
 
                 <a
-                  [routerLink]="['/shop/item', item.id]"
+                  [routerLink]="productStorePath(item.id, item.urlHandle)"
                   class="font-bold text-xs text-slate-900 hover:text-slate-600 transition line-clamp-2 mt-1"
                 >
                   {{ item.title }}

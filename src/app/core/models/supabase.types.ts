@@ -454,9 +454,12 @@ export type Database = {
           is_public_store: boolean
           listing_price: number | null
           model: string | null
+          seo_description: string | null
+          seo_title: string | null
           title: string
           tracking_mode: string
           updated_at: string
+          url_handle: string | null
           workspace_id: string
         }
         Insert: {
@@ -471,9 +474,12 @@ export type Database = {
           is_public_store?: boolean
           listing_price?: number | null
           model?: string | null
+          seo_description?: string | null
+          seo_title?: string | null
           title: string
           tracking_mode?: string
           updated_at?: string
+          url_handle?: string | null
           workspace_id: string
         }
         Update: {
@@ -488,9 +494,12 @@ export type Database = {
           is_public_store?: boolean
           listing_price?: number | null
           model?: string | null
+          seo_description?: string | null
+          seo_title?: string | null
           title?: string
           tracking_mode?: string
           updated_at?: string
+          url_handle?: string | null
           workspace_id?: string
         }
         Relationships: [
@@ -4238,6 +4247,32 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "shipping_orders"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      update_product_media_layout: {
+        Args: {
+          p_expected_media_ids: string[]
+          p_ordered_media_ids: string[]
+          p_product_id: string
+          p_workspace_id: string
+        }
+        Returns: {
+          catalog_product_id: string
+          created_at: string
+          file_name: string | null
+          file_size: number | null
+          id: string
+          is_primary: boolean
+          mime_type: string | null
+          sort_order: number
+          storage_path: string
+          workspace_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "catalog_product_media"
           isOneToOne: false
           isSetofReturn: true
         }

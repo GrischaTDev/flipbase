@@ -1,0 +1,116 @@
+<div class="space-y-4">
+  @if (errors().length) {
+    <ul role="alert" class="space-y-1 text-[13px] text-rose-400">
+      @for (error of errors(); track $index) {
+        <li>{{ error }}</li>
+      }
+    </ul>
+  }
+  <div
+    (drop)="onDrop($event)"
+    (dragover)="onDragOver($event)"
+    (dragleave)="onDragLeave($event)"
+    class="flex flex-col items-center gap-2 rounded-xl border border-dashed border-fb-border bg-fb-subtle p-5 text-center"
+    [class.border-fb-primary]="dragActive() && !disabled()"
+  >
+    <!-- Technischer Dateieingang; Shared-Button übernimmt die sichtbare Bedienung. -->
+    <input
+      #fileInput
+      type="file"
+      multiple
+      [accept]="accept"
+      [disabled]="disabled()"
+      class="hidden"
+      (change)="onFileSelected($event)"
+    />
+    <app-button data-add-media [disabled]="disabled()" (clicked)="fileInput.click()"
+      >Bilder hinzufügen</app-button
+    >
+    <p class="text-[13px] text-fb-text-secondary">oder mehrere Bilder hier ablegen</p>
+    <p class="text-xs text-fb-text-muted">
+      JPG, PNG, WebP, GIF oder AVIF · höchstens 50 MB pro Bild
+    </p>
+  </div>
+  @if (drafts().length) {
+    <p class="text-[13px] text-fb-text-secondary">
+      Das erste Bild ist das Hauptbild. Die Reihenfolge gilt auch im Shop.
+    </p>
+    <ol class="space-y-3" aria-label="Produktbilder">
+      @for (image of drafts(); track image.key; let index = $index) {
+        <li
+          class="flex min-w-0 flex-col gap-3 border-b border-fb-border pb-3 last:border-b-0 last:pb-0 sm:flex-row"
+        >
+          <div
+            class="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-fb-border bg-fb-subtle"
+          >
+            @if (image.previewUrl) {
+              <img
+                [src]="image.previewUrl"
+                [alt]="imageName(image, index)"
+                class="h-full w-full object-contain"
+                (error)="previewFailed(image.key)"
+              />
+            } @else {
+              <span class="px-2 text-center text-xs text-fb-text-muted">Vorschau wird geladen</span>
+            }
+          </div>
+          <div class="min-w-0 flex-1 space-y-2">
+            <p class="break-words text-[13px] font-medium text-fb-text-primary">
+              {{ imageName(image, index) }}
+            </p>
+            <p class="text-xs text-fb-text-muted">
+              {{ index === 0 ? 'Hauptbild' : 'Bild ' + (index + 1) }}
+            </p>
+            <div class="flex flex-wrap gap-2">
+              <app-button
+                [disabled]="disabled()"
+                [ariaLabel]="'Bild ' + (index + 1) + ' zuschneiden'"
+                (clicked)="startCrop(image.key)"
+                >Zuschneiden</app-button
+              >
+              <app-button
+                [disabled]="disabled() || index === 0"
+                [ariaLabel]="'Bild ' + (index + 1) + ' nach vorne verschieben'"
+                (clicked)="move(image.key, -1)"
+                >Nach vorne</app-button
+              >
+              <app-button
+                [disabled]="disabled() || index === drafts().length - 1"
+                [ariaLabel]="'Bild ' + (index + 1) + ' nach hinten verschieben'"
+                (clicked)="move(image.key, 1)"
+                >Nach hinten</app-button
+              >
+              @if (index !== 0) {
+                <app-button
+                  [disabled]="disabled()"
+                  [ariaLabel]="'Bild ' + (index + 1) + ' als Hauptbild'"
+                  (clicked)="setPrimary(image.key)"
+                  >Als Hauptbild</app-button
+                >
+              }
+              <app-button
+                variant="plain"
+                [disabled]="disabled()"
+                [ariaLabel]="'Bild ' + (index + 1) + ' entfernen'"
+                (clicked)="remove(image.key, $event)"
+                >Entfernen</app-button
+              >
+            </div>
+          </div>
+        </li>
+      }
+    </ol>
+  }
+  <p aria-live="polite" aria-atomic="true" class="sr-only">{{ announcement() }}</p>
+</div>
+@if (!disabled()) {
+  @if (cropImage(); as image) {
+    <app-image-cropper-modal
+      [initialImageFile]="image.file"
+      [initialImageUrl]="image.file ? null : image.previewUrl"
+      [maintainAspectRatio]="false"
+      (imageReady)="applyCrop($event)"
+      (closed)="cropKey.set(null)"
+    />
+  }
+}

@@ -335,6 +335,9 @@ create table public.catalog_products (
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now(),
     description text,
+    seo_title text,
+    seo_description text,
+    url_handle text check (url_handle is null or (length(url_handle) <= 120 and url_handle ~ '^[a-z0-9]+(-[a-z0-9]+)*$')),
     unique (workspace_id, id)
 );
 

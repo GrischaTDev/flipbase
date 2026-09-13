@@ -12,6 +12,7 @@ import { SupabaseService } from './supabase.service';
 import { SyncStatusService } from './sync-status.service';
 import { createLocalDemoId } from '../utils/client-identity';
 import { MutationResult } from '../models/mutation-result.model';
+import { normalizeProductHandle } from '../utils/product-seo';
 import { MediaService } from './media.service';
 
 export type { MutationResult } from '../models/mutation-result.model';
@@ -28,6 +29,9 @@ export interface CreateCatalogProductInput {
   readonly isPublicStore?: boolean;
   readonly listingPrice?: number | null;
   readonly description?: string | null;
+  readonly seoTitle?: string | null;
+  readonly seoDescription?: string | null;
+  readonly urlHandle?: string | null;
 }
 
 export type UpdateCatalogProductInput = Pick<CreateCatalogProductInput, 'workspaceId'> &
@@ -52,6 +56,21 @@ export class CatalogService {
         product.primary_media_path
           ? [[product.id, this.media.getMediaUrl(product.primary_media_path)]]
           : [],
+      ),
+    );
+  }
+
+  updateProductPrimaryMedia(
+    productId: string,
+    workspaceId: string,
+    primaryMediaPath: string | null,
+  ): void {
+    if (this.workspace.currentWorkspace()?.id !== workspaceId) return;
+    this.products.update((products) =>
+      products.map((product) =>
+        product.id === productId && product.workspace_id === workspaceId
+          ? { ...product, primary_media_path: primaryMediaPath }
+          : product,
       ),
     );
   }
@@ -157,6 +176,8 @@ export class CatalogService {
   }
 
   async createProduct(input: CreateCatalogProductInput): Promise<MutationResult<CatalogProduct>> {
+    if (this.workspace && this.workspace.currentWorkspace()?.id !== input.workspaceId)
+      return this.failure('Anlegen des Artikels', new Error('Der Workspace wurde gewechselt.'));
     if (this.mockStore.isDemoMode()) {
       const product: CatalogProduct = {
         id: createLocalDemoId('catalog'),
@@ -170,6 +191,9 @@ export class CatalogService {
         ean: input.ean?.trim() || null,
         category: input.category?.trim() || null,
         description: input.description?.trim() || null,
+        seo_title: input.seoTitle?.trim() || null,
+        seo_description: input.seoDescription?.trim() || null,
+        url_handle: normalizeProductHandle(input.urlHandle?.trim() || input.title) || null,
         is_public_store: input.isPublicStore ?? false,
         listing_price: input.listingPrice ?? null,
       };
@@ -192,6 +216,9 @@ export class CatalogService {
           ean: input.ean?.trim() || null,
           category: input.category?.trim() || null,
           description: input.description?.trim() || null,
+          seo_title: input.seoTitle?.trim() || null,
+          seo_description: input.seoDescription?.trim() || null,
+          url_handle: normalizeProductHandle(input.urlHandle?.trim() || input.title) || null,
           is_public_store: input.isPublicStore ?? false,
           listing_price: input.listingPrice ?? null,
         })
@@ -228,6 +255,11 @@ export class CatalogService {
       if (input.ean !== undefined) patch.ean = input.ean?.trim() || null;
       if (input.category !== undefined) patch.category = input.category?.trim() || null;
       if (input.description !== undefined) patch.description = input.description?.trim() || null;
+      if (input.seoTitle !== undefined) patch.seo_title = input.seoTitle?.trim() || null;
+      if (input.seoDescription !== undefined)
+        patch.seo_description = input.seoDescription?.trim() || null;
+      if (input.urlHandle !== undefined)
+        patch.url_handle = normalizeProductHandle(input.urlHandle ?? '') || null;
       if (input.condition !== undefined) patch.condition = input.condition;
       if (input.conditionNotes !== undefined)
         patch.condition_notes = input.conditionNotes?.trim() || null;
@@ -365,6 +397,7 @@ export class CatalogService {
   }
 
   private includeCreatedProduct(product: CatalogProduct): void {
+    if (this.workspace && this.workspace.currentWorkspace()?.id !== product.workspace_id) return;
     if (this.requestedWorkspaceId && this.requestedWorkspaceId !== product.workspace_id) return;
     this.products.update((products) => [
       product,

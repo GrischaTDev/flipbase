@@ -28,6 +28,13 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'item/:id/:handle',
+        loadComponent: () =>
+          import('./features/store/pages/store-item-detail/store-item-detail.component').then(
+            (m) => m.StoreItemDetailComponent,
+          ),
+      },
+      {
         path: 'item/:id',
         loadComponent: () =>
           import('./features/store/pages/store-item-detail/store-item-detail.component').then(
@@ -139,6 +146,14 @@ export const routes: Routes = [
         path: 'catalog',
         loadComponent: () =>
           import('./features/catalog/catalog.component').then((m) => m.CatalogComponent),
+      },
+      {
+        path: 'catalog/new',
+        canDeactivate: [unsavedEntryGuard],
+        loadComponent: () =>
+          import('./features/catalog/pages/product-detail/product-detail.component').then(
+            (m) => m.ProductDetailComponent,
+          ),
       },
       {
         path: 'catalog/:id',

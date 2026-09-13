@@ -16,7 +16,9 @@ async function expectEntrySurface(page: Page, path: string): Promise<void> {
   }
 }
 
-test('opens sales as a page and product creation as the shared dialog', async ({ page }) => {
+test('opens sales and catalog creation as pages while preserving the inventory shortcut', async ({
+  page,
+}) => {
   await startDemoMode(page);
 
   await page.goto('/sales');
@@ -28,15 +30,12 @@ test('opens sales as a page and product creation as the shared dialog', async ({
   await page.goto('/inventory');
   await expect(page.getByRole('link', { name: 'Einkauf erfassen', exact: true })).toBeVisible();
   await page.goto('/catalog');
-  const create = page.getByRole('button', { name: 'Artikel erstellen', exact: true });
-  await create.click();
-  const dialog = page.getByRole('dialog', { name: 'Produkt erstellen', exact: true });
-  await expect(dialog).toBeVisible();
-  await expect(dialog.getByRole('textbox', { name: 'Name', exact: true })).toBeVisible();
+  await page.getByRole('link', { name: 'Artikel erstellen', exact: true }).click();
+  await expect(page).toHaveURL(/\/catalog\/new$/);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByRole('textbox', { name: 'Name', exact: true })).toBeVisible();
+  await page.getByRole('link', { name: 'Zur Artikelliste', exact: true }).click();
   await expect(page).toHaveURL(/\/catalog$/);
-  await page.keyboard.press('Escape');
-  await expect(dialog).toHaveCount(0);
-  await expect(create).toBeFocused();
 
   await page.goto('/inventory/new');
   await expectEntrySurface(page, '/inventory/new');
@@ -48,7 +47,7 @@ test('stacks entry cards without horizontal page overflow on mobile', async ({ p
   await page.setViewportSize({ width: 390, height: 844 });
   await startDemoMode(page);
 
-  for (const path of ['/sales/new', '/inventory/new', '/purchases/new']) {
+  for (const path of ['/sales/new', '/inventory/new', '/purchases/new', '/catalog/new']) {
     await page.goto(path);
     await expectEntrySurface(page, path);
     const hasHorizontalOverflow = await page.evaluate(
@@ -64,7 +63,7 @@ test('keeps the new entry pages free of automated WCAG AA violations @pr-smoke',
   test.setTimeout(60_000);
   await startDemoMode(page);
 
-  for (const path of ['/sales/new', '/inventory/new', '/purchases/new']) {
+  for (const path of ['/sales/new', '/inventory/new', '/purchases/new', '/catalog/new']) {
     await page.goto(path);
     await expectEntrySurface(page, path);
     await page.addScriptTag({ content: axe.source });

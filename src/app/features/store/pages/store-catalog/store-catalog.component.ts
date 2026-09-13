@@ -31,6 +31,9 @@ import {
 } from '@lucide/angular';
 import { StoreService } from '../../../../core/services/store.service';
 import { SellableItemRef } from '../../../../core/models/store.models';
+import { MediaService } from '../../../../core/services/media.service';
+import { productStorePath } from '../../../../core/utils/product-seo';
+import { toSignal } from '@angular/core/rxjs-interop';
 
 interface FaqItem {
   question: string;
@@ -54,6 +57,8 @@ interface Testimonial {
 })
 export class StoreCatalogComponent {
   readonly storeService = inject(StoreService);
+  private readonly mediaService = inject(MediaService);
+  readonly productStorePath = productStorePath;
 
   // Lucide Icons
   readonly searchIcon = Search;
@@ -83,6 +88,7 @@ export class StoreCatalogComponent {
 
   // Filter & Search Controls
   readonly searchControl = new FormControl('');
+  private readonly searchQuery = toSignal(this.searchControl.valueChanges, { initialValue: '' });
   readonly selectedCategory = signal<string>('all');
   readonly selectedCondition = signal<string>('all');
   readonly sortBy = signal<'newest' | 'price_asc' | 'price_desc' | 'savings'>('newest');
@@ -112,7 +118,7 @@ export class StoreCatalogComponent {
   // Filtered & Sorted Products
   readonly filteredProducts = computed(() => {
     let items = [...this.storeService.publicProducts()];
-    const query = this.searchControl.value?.toLowerCase().trim() || '';
+    const query = this.searchQuery()?.toLowerCase().trim() || '';
     const cat = this.selectedCategory();
     const cond = this.selectedCondition();
     const sort = this.sortBy();
@@ -255,9 +261,10 @@ export class StoreCatalogComponent {
   }
 
   getItemThumbnail(item: SellableItemRef): string | null {
+    if (item.thumbnailPath) return this.mediaService.getMediaUrl(item.thumbnailPath) || null;
     if (item.media && item.media.length > 0) {
       const primary = item.media.find((m) => m.is_primary) || item.media[0];
-      return primary.storage_path;
+      return this.mediaService.getMediaUrl(primary.storage_path) || null;
     }
     return null;
   }

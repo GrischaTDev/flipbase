@@ -2045,6 +2045,26 @@ export class MockDataStoreService {
       );
   }
 
+  replaceCatalogProductMedia(
+    productId: string,
+    workspaceId: string,
+    media: readonly CatalogProductMedia[],
+  ): void {
+    if (!this.isDemoMode()) throw new Error('Lokaler Bildspeicher ist nur im Demomodus verfügbar.');
+    if (
+      media.some(
+        (entry) => entry.catalog_product_id !== productId || entry.workspace_id !== workspaceId,
+      )
+    )
+      throw new Error('Die Bilder gehören nicht zu diesem Produkt.');
+    const storage = getStorage();
+    if (!storage) throw new Error('Lokaler Bildspeicher ist nicht verfügbar.');
+    const other = this.getCatalogProductMedia().filter(
+      (entry) => entry.catalog_product_id !== productId || entry.workspace_id !== workspaceId,
+    );
+    storage.setItem(STORAGE_KEY_PRODUCT_MEDIA, JSON.stringify([...other, ...media]));
+  }
+
   saveCatalogProductMedia(media: CatalogProductMedia): void {
     if (!this.isDemoMode()) return;
     const storage = getStorage();

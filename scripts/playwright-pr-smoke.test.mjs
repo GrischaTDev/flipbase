@@ -11,6 +11,14 @@ const projectRoot = fileURLToPath(rootDirectory);
 const probeTempArea = new URL('tmp/playwright-pr-smoke-test-temp/', rootDirectory);
 const executeFile = promisify(execFile);
 const expectedSmokeTests = [
+  [
+    'product-editor-storefront.spec.ts',
+    'Artikel mit Galerie, Zuschnitt und Suchvorschau erstellen 1440',
+  ],
+  [
+    'product-editor-storefront.spec.ts',
+    'Shop zeigt den freigegebenen Katalogartikel mit Galerie und echten Metadaten',
+  ],
   ['deal-monitor.spec.ts', 'Deal-Monitor pausieren und Merkzettel verwalten light'],
   ['deal-monitor.spec.ts', 'Deal-Monitor pausieren und Merkzettel verwalten dark'],
   ['purchase-workspace.spec.ts', 'opens an existing purchase directly without runtime errors'],
@@ -80,7 +88,7 @@ const createSuiteProbe = async (context) => {
   };
 };
 const assertExpectedSmokeTests = (selectedTests) => {
-  assert.equal(selectedTests.length, 12);
+  assert.equal(selectedTests.length, 14);
   assert.deepEqual(
     selectedTests.sort(([leftFile], [rightFile]) => leftFile.localeCompare(rightFile)),
     expectedSmokeTests
@@ -131,7 +139,7 @@ const assertResolvedNightlySmokeSuite = (resolvedSuite) => {
     return [spec.file.split(/[\\/]/).at(-1), spec.title, project.projectName];
   });
 
-  assert.equal(selectedTests.length, 36);
+  assert.equal(selectedTests.length, 42);
   assert.deepEqual(
     selectedTests.sort(
       ([leftFile, leftTitle, leftProject], [rightFile, rightTitle, rightProject]) =>
