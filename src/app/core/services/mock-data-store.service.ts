@@ -22,7 +22,11 @@ import {
 import type { ReceivePurchaseLineInput } from './stock.service';
 import { createLocalDemoId } from '../utils/client-identity';
 import { isSellableInventoryItem } from '../models/inventory-sellability';
-import type { PurchaseCostingResult } from '../models/purchase-costing.models';
+import type { BusinessEvent, PurchaseCostingResult } from '../models/purchase-costing.models';
+import type {
+  PackageContentInput,
+  PackageCaptureResult,
+} from '../../features/purchases/services/purchase-package.service';
 import type { DemoRecordComment } from '../models/record-comment.models';
 import { buildProductCostPlan } from '../utils/product-cost-plan';
 
@@ -44,6 +48,16 @@ const STORAGE_KEY_STOCK_MOVEMENTS = 'flipbase_local_stock_movements';
 const STORAGE_KEY_PRODUCT_RECEIPTS = 'flipbase_local_product_receipts';
 const STORAGE_KEY_RECEIPT_JOURNAL = 'flipbase_local_individual_receipt_journal';
 const STORAGE_KEY_RECORD_COMMENTS = 'flipbase_local_record_comments';
+const STORAGE_KEY_PACKAGE_CAPTURES = 'flipbase_local_package_captures';
+
+interface PackageCaptureRequest {
+  readonly id: string;
+  readonly workspace_id: string;
+  readonly line_id: string;
+  readonly input: string;
+  readonly result: PackageCaptureResult;
+  readonly event: BusinessEvent;
+}
 
 interface DemoSaleLineLotAllocation extends SaleLineLotAllocation {
   tax_purchase_cost?: number | null;
@@ -68,6 +82,22 @@ function groupTaxUnitCosts(costs: readonly number[] | null): TaxCostAllocation[]
 
 function totalTaxUnitCosts(costs: readonly number[] | null): number | null {
   return costs === null ? null : costs.reduce((sum, cost) => sum + Math.round(cost * 100), 0) / 100;
+}
+
+function invalidPackageLine(line: PurchaseLine): boolean {
+  return (
+    Boolean(line.is_package) &&
+    (line.is_package !== true ||
+      line.line_kind !== 'individual' ||
+      line.catalog_product_id !== null ||
+      line.ordered_quantity !== 1 ||
+      (line.price_mode ?? 'priced') !== 'priced' ||
+      line.unit_purchase_price === null ||
+      !Number.isFinite(line.unit_purchase_price) ||
+      line.unit_purchase_price < 0 ||
+      line.line_total !== line.unit_purchase_price ||
+      line.unit_purchase_price !== Number(line.unit_purchase_price.toFixed(2)))
+  );
 }
 
 interface AtomicStorageChange {
@@ -626,6 +656,7 @@ export class MockDataStoreService {
     storage.setItem(STORAGE_KEY_PURCHASE_LINES, JSON.stringify(demoPurchaseLines));
     storage.setItem(STORAGE_KEY_STOCK_LOTS, JSON.stringify(demoStockLots));
     storage.setItem(STORAGE_KEY_STOCK_MOVEMENTS, JSON.stringify(demoStockMovements));
+    storage.setItem(STORAGE_KEY_PACKAGE_CAPTURES, '[]');
   }
 
   // In-memory accessor for backwards compatibility with tests
@@ -663,6 +694,10 @@ export class MockDataStoreService {
   }
 
   savePurchaseLine(line: PurchaseLine): void {
+    if (invalidPackageLine(line))
+      throw new Error(
+        'Ein Paket benötigt Menge eins und einen bekannten, übereinstimmenden Paketpreis.',
+      );
     this.saveWorkspaceRecord(STORAGE_KEY_PURCHASE_LINES, line);
   }
 
@@ -673,6 +708,10 @@ export class MockDataStoreService {
    */
   savePurchaseWithLines(purchase: Purchase, lines: readonly PurchaseLine[]): Error | null {
     if (!this.isDemoMode()) return new Error('Der Demo-Modus ist nicht aktiv.');
+    if (lines.some(invalidPackageLine))
+      return new Error(
+        'Ein Paket benötigt Menge eins und einen bekannten, übereinstimmenden Paketpreis.',
+      );
 
     const purchases = this.upsertRecord(this.getPurchases(), purchase);
     let purchaseLines = this.getPurchaseLines().filter(
@@ -737,7 +776,7 @@ export class MockDataStoreService {
           entry.workspace_id === workspaceId &&
           entry.purchase_id === purchaseId,
       );
-      if (!line || line.line_kind !== 'quantity' || !line.catalog_product_id) {
+      if (!line || line.is_package || line.line_kind !== 'quantity' || !line.catalog_product_id) {
         return {
           purchaseLines: [],
           stockLots: [],
@@ -834,6 +873,172 @@ export class MockDataStoreService {
     return { purchaseLines: updatedLines, stockLots: newLots, error: null };
   }
 
+  getPackageCaptureEvents(workspaceId: string, purchaseId: string): BusinessEvent[] {
+    return this.getWorkspaceRecords<PackageCaptureRequest>(
+      STORAGE_KEY_PACKAGE_CAPTURES,
+      workspaceId,
+    )
+      .filter((request) => request.event.entityId === purchaseId)
+      .map((request) => request.event);
+  }
+
+  capturePurchasePackageContents(
+    workspaceId: string,
+    lineId: string,
+    inputs: readonly PackageContentInput[],
+    requestId: string,
+  ): { data: PackageCaptureResult | null; error: Error | null } {
+    const fail = (message: string) => ({ data: null, error: new Error(message) });
+    if (!this.isDemoMode() || !workspaceId || !lineId || !requestId)
+      return fail('Die Paketerfassung ist nicht verfügbar.');
+    const conditions: readonly ItemCondition[] = [
+      'new',
+      'like_new',
+      'very_good',
+      'used',
+      'heavily_used',
+      'defective',
+    ];
+    if (
+      !Array.isArray(inputs) ||
+      inputs.length === 0 ||
+      inputs.length > 100 ||
+      inputs.some(
+        (input) =>
+          !input ||
+          typeof input.title !== 'string' ||
+          !input.title.trim() ||
+          input.title.length > 300 ||
+          !conditions.includes(input.condition) ||
+          [input.brand, input.model, input.description].some(
+            (value) => value != null && typeof value !== 'string',
+          ) ||
+          (input.description?.length ?? 0) > 5000 ||
+          (input.expected_value != null &&
+            (typeof input.expected_value !== 'number' ||
+              !Number.isFinite(input.expected_value) ||
+              input.expected_value < 0 ||
+              input.expected_value !== Number(input.expected_value.toFixed(2)))),
+      )
+    )
+      return fail(
+        'Jeder Paketinhalt benötigt einen Titel, einen gültigen Zustand und einen gültigen optionalen Wert.',
+      );
+    const normalized = inputs.map((input) => ({
+      title: input.title.trim(),
+      condition: input.condition,
+      brand: input.brand?.trim() || null,
+      model: input.model?.trim() || null,
+      description: input.description?.trim() || null,
+      expected_value: input.expected_value ?? null,
+    }));
+    const input = JSON.stringify(normalized);
+    const requests = this.getWorkspaceRecords<PackageCaptureRequest>(STORAGE_KEY_PACKAGE_CAPTURES);
+    const previous = requests.find(
+      (request) => request.id === requestId && request.workspace_id === workspaceId,
+    );
+    if (previous)
+      return previous.line_id === lineId && previous.input === input
+        ? { data: previous.result, error: null }
+        : fail('Diese Anfrage wurde bereits mit anderem Inhalt verwendet.');
+    const lines = this.getPurchaseLines();
+    const line = lines.find((entry) => entry.id === lineId && entry.workspace_id === workspaceId);
+    const purchase = this.getPurchases(workspaceId).find((entry) => entry.id === line?.purchase_id);
+    if (!line?.is_package || invalidPackageLine(line) || !purchase)
+      return fail('Die Paketposition wurde nicht gefunden oder ist ungültig.');
+    if (purchase.shipment_status !== 'arrived')
+      return fail('Der Einkauf muss vor der Paketerfassung angekommen sein.');
+    const createdAt = new Date().toISOString();
+    const inventoryItems: InventoryItem[] = normalized.map((entry) => ({
+      ...entry,
+      id: this.newId('item'),
+      workspace_id: workspaceId,
+      purchase_id: purchase.id,
+      purchase_line_id: null,
+      source_package_line_id: lineId,
+      is_public_store: false,
+      status: purchase.entry_status === 'finalized' ? 'ready' : 'received',
+      allocated_purchase_cost: null,
+      tax_purchase_cost: null,
+      sale_state: 'no_active_sale',
+      active_sale_count: 0,
+      active_sale_id: null,
+      created_at: createdAt,
+    }));
+    const updatedLine = { ...line, received_quantity: 1 };
+    const updatedLines = lines.map((entry) =>
+      entry.id === lineId && entry.workspace_id === workspaceId ? updatedLine : entry,
+    );
+    const purchaseLines = updatedLines.filter(
+      (entry) => entry.purchase_id === purchase.id && entry.workspace_id === workspaceId,
+    );
+    const updatedItems = [...this.getItems(), ...inventoryItems];
+    const updatedPurchase: Purchase = {
+      ...purchase,
+      purchase_lines: purchaseLines,
+      receiving_status: purchaseLines.every(
+        (entry) => entry.received_quantity >= entry.ordered_quantity,
+      )
+        ? 'received'
+        : 'partially_received',
+      items_count:
+        purchaseLines.reduce(
+          (sum, entry) => sum + (entry.is_package ? 0 : entry.ordered_quantity),
+          0,
+        ) +
+        updatedItems.filter(
+          (entry) =>
+            entry.workspace_id === workspaceId &&
+            entry.purchase_id === purchase.id &&
+            (entry.source_package_line_id ||
+              !purchaseLines.some((position) => position.id === entry.purchase_line_id)),
+        ).length,
+    };
+    const result: PackageCaptureResult = {
+      inventory_items: inventoryItems,
+      purchase_line: updatedLine,
+    };
+    const event: BusinessEvent = {
+      id: this.newId('event'),
+      workspaceId,
+      entityType: 'purchase',
+      entityId: purchase.id,
+      eventType: 'purchase_package_contents_captured',
+      actorId: null,
+      reason: null,
+      changes: {
+        source_package_line_id: lineId,
+        request_id: requestId,
+        inventory_items: inventoryItems,
+      },
+      correlationId: requestId,
+      createdAt,
+    };
+    const error = this.saveRecordsAtomically([
+      { key: STORAGE_KEY_ITEMS, records: updatedItems },
+      { key: STORAGE_KEY_PURCHASE_LINES, records: updatedLines },
+      {
+        key: STORAGE_KEY_PURCHASES,
+        records: this.upsertRecord(this.getPurchases(), updatedPurchase),
+      },
+      {
+        key: STORAGE_KEY_PACKAGE_CAPTURES,
+        records: [
+          ...requests,
+          {
+            id: requestId,
+            workspace_id: workspaceId,
+            line_id: lineId,
+            input,
+            result,
+            event,
+          } satisfies PackageCaptureRequest,
+        ],
+      },
+    ]);
+    return error ? { data: null, error } : { data: result, error: null };
+  }
+
   receiveIndividualPurchaseLine(
     workspaceId: string,
     purchaseId: string,
@@ -852,6 +1057,7 @@ export class MockDataStoreService {
         line.workspace_id === workspaceId &&
         line.purchase_id === purchaseId &&
         line.line_kind === 'individual' &&
+        !line.is_package &&
         line.received_quantity < line.ordered_quantity,
     );
     const purchase = this.getPurchases(workspaceId).find((entry) => entry.id === purchaseId);
@@ -942,7 +1148,12 @@ export class MockDataStoreService {
     if (!purchase || lines.length === 0 || purchase.entry_status === 'finalized') {
       return { data: null, error: new Error('Der Demo-Einkauf kann nicht finalisiert werden.') };
     }
-    if (purchase.content_status === 'unknown') {
+    if (lines.some(invalidPackageLine))
+      return {
+        data: null,
+        error: new Error('Die Paketposition benötigt einen gültigen bekannten Preis.'),
+      };
+    if (purchase.content_status === 'unknown' && lines.some((line) => !line.is_package)) {
       return {
         data: null,
         error: new Error('Der Inhalt muss vor dem Abschluss vollständig erfasst werden.'),
@@ -950,6 +1161,7 @@ export class MockDataStoreService {
     }
     if (
       !purchase.content_status &&
+      !lines.some((line) => line.is_package) &&
       purchase.type !== 'mystery_pack' &&
       lines.every((line) => line.line_kind === 'individual')
     ) {
@@ -958,7 +1170,10 @@ export class MockDataStoreService {
         error: new Error('In der Demo können aktuell nur Mystery Boxen abgeschlossen werden.'),
       };
     }
-    if (purchase.request_id && purchase.shipment_status !== 'arrived') {
+    if (
+      (purchase.request_id || lines.some((line) => line.is_package)) &&
+      purchase.shipment_status !== 'arrived'
+    ) {
       return {
         data: null,
         error: new Error('Der Einkauf muss vor dem Abschluss als angekommen markiert sein.'),
@@ -988,6 +1203,11 @@ export class MockDataStoreService {
 
     for (const entry of plan) {
       const line = entry.line;
+      if (line.is_package) {
+        allocatedTotalCentsByLine.set(line.id, entry.totalCents);
+        allocatedAdditionalCentsByLine.set(line.id, entry.additionalCents);
+        continue;
+      }
       let lineAllocatedCents = 0;
       const lineAdditionalCents = entry.additionalCents;
       const existingItems = allItems
@@ -1048,7 +1268,16 @@ export class MockDataStoreService {
     const purchaseItemIds = new Set(updatedPurchaseItems.map((item) => item.id));
     const updatedItems = [
       ...updatedPurchaseItems,
-      ...allItems.filter((item) => !purchaseItemIds.has(item.id)),
+      ...allItems
+        .filter((item) => !purchaseItemIds.has(item.id))
+        .map((item) =>
+          item.workspace_id === workspaceId &&
+          item.purchase_id === purchaseId &&
+          item.source_package_line_id &&
+          item.status === 'received'
+            ? { ...item, status: 'ready' as const }
+            : item,
+        ),
     ];
     const updatedLines = this.getPurchaseLines().map((line) =>
       line.workspace_id === workspaceId && line.purchase_id === purchaseId
@@ -1096,14 +1325,26 @@ export class MockDataStoreService {
     lines: readonly PurchaseLine[],
   ): { data: PurchaseCostingResult | null; error: Error | null } {
     try {
-      if (lines.some((line) => line.received_quantity !== line.ordered_quantity))
+      if (
+        lines.some((line) => !line.is_package && line.received_quantity !== line.ordered_quantity)
+      )
         throw new Error('Alle Produkte müssen vor dem Kostenabschluss vollständig erhalten sein.');
       const plan = buildProductCostPlan(purchase, lines);
       const allLots = this.getStockLots();
       const allItems = this.getItems();
       const updatedLots = new Map<string, StockLot>();
       const updatedItems = new Map<string, InventoryItem>();
+      for (const item of allItems) {
+        if (
+          item.workspace_id === purchase.workspace_id &&
+          item.purchase_id === purchase.id &&
+          item.source_package_line_id &&
+          item.status === 'received'
+        )
+          updatedItems.set(item.id, { ...item, status: 'ready' });
+      }
       for (const entry of plan) {
+        if (entry.line.is_package) continue;
         if (entry.line.line_kind === 'quantity') {
           const lots = allLots
             .filter(
@@ -1218,6 +1459,7 @@ export class MockDataStoreService {
             return cost
               ? {
                   ...line,
+                  received_quantity: line.is_package ? 1 : line.received_quantity,
                   allocated_total_cost: cost.totalCents / 100,
                   allocated_additional_cost: cost.additionalCents / 100,
                 }
@@ -1307,7 +1549,9 @@ export class MockDataStoreService {
         updatedLines.push({
           ...line,
           cost_of_goods_sold:
-            (Math.round(item.allocated_purchase_cost * 100) + additionalItemCosts) / 100,
+            item.allocated_purchase_cost === null
+              ? null
+              : (Math.round(item.allocated_purchase_cost * 100) + additionalItemCosts) / 100,
           tax_purchase_cost: item.tax_purchase_cost ?? null,
           tax_cost_allocations: groupTaxUnitCosts(
             item.tax_purchase_cost == null ? null : [item.tax_purchase_cost],

@@ -180,8 +180,7 @@ export class ItemCreateModalComponent {
     }),
     description: new FormControl(''),
     condition_notes: new FormControl(''),
-    allocated_purchase_cost: new FormControl<number>(0, {
-      nonNullable: true,
+    allocated_purchase_cost: new FormControl<number | null>(0, {
       validators: [Validators.min(0)],
     }),
     expected_value: new FormControl<number | null>(null, { validators: [Validators.min(0)] }),
@@ -318,9 +317,11 @@ export class ItemCreateModalComponent {
         ean: vorhandener.ean ?? '',
         description: vorhandener.description ?? '',
         condition_notes: vorhandener.condition_notes ?? '',
-        allocated_purchase_cost: vorhandener.allocated_purchase_cost ?? 0,
+        allocated_purchase_cost: vorhandener.allocated_purchase_cost,
         expected_value: vorhandener.expected_value ?? null,
       });
+      if (vorhandener.source_package_line_id) this.form.controls.purchase_id.disable();
+      else this.form.controls.purchase_id.enable();
     });
   }
 
@@ -332,7 +333,9 @@ export class ItemCreateModalComponent {
 
     const val = this.form.getRawValue();
     const payload: CreateItemPayload = {
-      purchase_id: val.purchase_id || undefined,
+      purchase_id: this.item()?.source_package_line_id
+        ? this.item()!.purchase_id
+        : val.purchase_id || undefined,
       title: val.title.trim(),
       category: val.category?.trim() || undefined,
       brand: val.brand?.trim() || undefined,
@@ -343,7 +346,7 @@ export class ItemCreateModalComponent {
       ean: normalizeGtin(val.ean) ?? undefined,
       description: val.description?.trim() || undefined,
       allocated_purchase_cost: val.allocated_purchase_cost,
-      expected_value: val.expected_value || undefined,
+      expected_value: val.expected_value ?? undefined,
     };
 
     const vorhandener = this.item();

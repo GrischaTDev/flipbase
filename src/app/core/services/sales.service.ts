@@ -271,7 +271,7 @@ export class SalesService {
                 quantity: 1,
                 unit_sale_price: sale.sale_price,
                 line_total: sale.sale_price,
-                cost_of_goods_sold: sale.inventory_item?.allocated_purchase_cost ?? 0,
+                cost_of_goods_sold: sale.inventory_item?.allocated_purchase_cost ?? null,
                 tax_mode: 'diff_25a' as const,
               },
             ]
@@ -568,7 +568,7 @@ export class SalesService {
       quantity: line.quantity,
       unit_sale_price: line.unitSalePrice,
       line_total: line.quantity * line.unitSalePrice,
-      cost_of_goods_sold: 0,
+      cost_of_goods_sold: null,
       tax_mode: 'diff_25a',
     }));
     const lineTotal = lines.reduce((sum, line) => sum + line.line_total, 0);

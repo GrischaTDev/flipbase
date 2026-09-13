@@ -58,6 +58,9 @@
                   @if (row.invalid) {
                     <p class="mt-1 text-xs text-rose-700 dark:text-rose-400">Angaben prüfen</p>
                   }
+                  @if (row.controls.isPackage.value) {
+                    <p class="mt-1 text-xs text-fb-text-muted">Paket · Inhalt später erfassen</p>
+                  }
                 </div>
               </div>
             </td>
@@ -65,15 +68,19 @@
               <label [for]="'purchase-line-quantity-' + id" class="mb-1 block text-xs md:sr-only"
                 >Menge</label
               >
-              <app-number-input
-                [id]="'purchase-line-quantity-' + id"
-                formControlName="orderedQuantity"
-                [ariaLabel]="'Menge für ' + row.controls.titleSnapshot.value"
-                [min]="1"
-                [max]="100000"
-                [showStepper]="false"
-                (valueChange)="updateQuantity($index)"
-              />
+              @if (row.controls.isPackage.value) {
+                <span>1 Paket</span>
+              } @else {
+                <app-number-input
+                  [id]="'purchase-line-quantity-' + id"
+                  formControlName="orderedQuantity"
+                  [ariaLabel]="'Menge für ' + row.controls.titleSnapshot.value"
+                  [min]="1"
+                  [max]="100000"
+                  [showStepper]="false"
+                  (valueChange)="updateQuantity($index)"
+                />
+              }
               @if (row.controls.orderedQuantity.invalid) {
                 <p role="alert" class="mt-1 text-xs text-rose-700 dark:text-rose-400">
                   Ganze Zahl von 1 bis 100.000.
@@ -184,6 +191,9 @@
       (change)="importCsv($event)"
     />
   </div>
+  @if (!isMysteryPurchase()) {
+    <app-button variant="plain" (clicked)="addPackage()">Paket hinzufügen</app-button>
+  }
   @if (scannerOpen()) {
     <div class="space-y-2">
       <div class="flex flex-wrap items-end gap-2">
@@ -256,20 +266,27 @@
           <dd class="break-words">{{ product.condition_notes || 'Nicht angegeben' }}</dd>
         </dl>
       }
-      <app-text-field
-        label="EAN / GTIN (optional)"
-        formControlName="ean"
-        [error]="row.controls.ean.invalid ? 'Ungültige EAN/GTIN.' : null"
-      />
-      <div>
-        <label for="line-condition" class="mb-1.5 block text-[13px] font-semibold">Zustand</label
-        ><app-custom-select
-          triggerId="line-condition"
-          ariaLabel="Zustand"
-          formControlName="condition"
-          [options]="conditionOptions"
+      @if (row.controls.isPackage.value) {
+        <p class="text-[13px] text-fb-text-muted">
+          Ein Paket mit einem Gesamtpreis. Den Inhalt erfasst du nach der Ankunft direkt im Einkauf.
+          Hinweise zum erwarteten Inhalt kannst du in den Einkaufsnotizen festhalten.
+        </p>
+      } @else {
+        <app-text-field
+          label="EAN / GTIN (optional)"
+          formControlName="ean"
+          [error]="row.controls.ean.invalid ? 'Ungültige EAN/GTIN.' : null"
         />
-      </div>
+        <div>
+          <label for="line-condition" class="mb-1.5 block text-[13px] font-semibold">Zustand</label
+          ><app-custom-select
+            triggerId="line-condition"
+            ariaLabel="Zustand"
+            formControlName="condition"
+            [options]="conditionOptions"
+          />
+        </div>
+      }
       @if (isMysteryPurchase()) {
         <div>
           <label for="line-market-value" class="mb-1.5 block text-[13px] font-semibold"

@@ -821,6 +821,34 @@ describe('SaleCreateModalComponent', () => {
         expect(summary.textContent).toContain('45,00');
       });
 
+      it('ignoriert veraltete Gesamtwerte bei ausdrücklich offenen Paketkosten', async () => {
+        const { fixture, items } = await erstelleGerendertenDialog();
+        items.set([
+          {
+            id: 'package-content',
+            workspace_id: 'workspace-1',
+            title: 'Schuh',
+            condition: 'used',
+            status: 'ready',
+            allocated_purchase_cost: null,
+            total_item_cost: 0,
+            source_package_line_id: 'package',
+          },
+        ]);
+        fixture.componentInstance.lines
+          .at(0)
+          .setValue({ target: 'inventory:package-content', quantity: 1, unitSalePrice: 50 });
+        fixture.detectChanges();
+        expect(fixture.componentInstance.liveMetrics()).toMatchObject({
+          costOfGoods: null,
+          profit: null,
+          margin: null,
+        });
+        expect(fixture.nativeElement.querySelector('[data-sale-summary]').textContent).toContain(
+          'Kosten prüfen',
+        );
+      });
+
       it('lässt bei einer fehlenden Lagerkostenbasis auch gemischte Positionssummen offen', async () => {
         const { fixture, items, positions } = await erstelleGerendertenDialog();
         items.set([

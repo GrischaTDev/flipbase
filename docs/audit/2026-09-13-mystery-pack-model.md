@@ -1,7 +1,9 @@
+> **Präzisierung nach Nutzerfreigabe:** Das Paket ist ausschließlich eine bezahlte Einkaufsposition. Es entsteht kein verkäuflicher Paketartikel. Der bestätigte Umsetzungsvertrag steht in [Paketinhalt erfassen](../superpowers/plans/2026-09-13-purchase-package-contents.md). Frühere Vorschläge zur Bestandsumwandlung unten sind Recherchekontext und insoweit überholt.
+
 # Paket einkaufen und Inhalt später erfassen
 
-Status: Vorschlag nach Recherche, keine Implementierungsfreigabe behauptet.
-Stand: 13. September 2026; geprüfter Code `origin/master` bei `0dad469`.
+Status: Umsetzung auf `codex/mystery-pack-model` lokal abgeschlossen und geprüft.
+Stand: 13. September 2026; Ausgangsbefund war `origin/master` bei `0dad469`.
 
 ## Ausgangspunkt
 
@@ -102,7 +104,7 @@ und verbleibende Stücke zeigen. „Einnahmen minus Paketpreis“ ist dabei als 
 Übersicht zu bezeichnen, nicht als abschließender Gewinn bei noch vorhandenem
 Restbestand und nicht als steuerliche Bemessungsgrundlage.
 
-## Befund im heutigen Code
+## Ausgangsbefund vor der Umsetzung
 
 - `PurchaseType` kennt `single`, `mystery_pack`, `lot`, `pallet`. Das beschreibt
   bisher den Einkauf, nicht die nachvollziehbare Umwandlung einer Paketposition.

@@ -89,7 +89,9 @@ function individualCost(
   purchase: Purchase | undefined,
   hasPurchaseLink: boolean,
 ): CostState {
+  if (item.allocated_purchase_cost == null) return { kind: 'open' };
   const amount = Number(item.total_item_cost ?? item.allocated_purchase_cost);
+  if (!Number.isFinite(amount)) return { kind: 'open' };
   if (hasPurchaseLink && !purchaseIsFinalized(purchase)) return { kind: 'open' };
   if (amount !== 0 || purchaseIsFinalized(purchase)) return knownCost(amount);
   return { kind: 'open' };
@@ -109,6 +111,8 @@ function saleView(sale: Sale, lines: readonly SaleLine[]): InventorySaleView {
   const directResult =
     state !== 'active' ||
     !hasSingleSaleLine ||
+    sale.cost_basis_status === 'unknown' ||
+    lines.some((line) => line.cost_of_goods_sold === null) ||
     sale.net_profit === undefined ||
     sale.net_profit === null
       ? null

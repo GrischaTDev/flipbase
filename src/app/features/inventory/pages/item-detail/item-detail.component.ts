@@ -219,20 +219,20 @@ export class ItemDetailComponent {
   readonly additionalCostState = computed<CostState>(() => {
     const item = this.inventoryService.selectedItem();
     const row = this.detailPresentation();
-    if (!item || !row || row.costPerUnit.kind === 'open') return { kind: 'open' };
+    if (!item || item.allocated_purchase_cost == null || !row || row.costPerUnit.kind === 'open')
+      return { kind: 'open' };
     return {
       kind: 'known',
-      amount: Number(
-        Math.max(0, row.costPerUnit.amount - Number(item.allocated_purchase_cost || 0)).toFixed(2),
-      ),
+      amount: Number(Math.max(0, row.costPerUnit.amount - item.allocated_purchase_cost).toFixed(2)),
     };
   });
 
   readonly purchaseCostShareState = computed<CostState>(() => {
     const item = this.inventoryService.selectedItem();
     const row = this.detailPresentation();
-    if (!item || !row || row.costPerUnit.kind === 'open') return { kind: 'open' };
-    return { kind: 'known', amount: Number(item.allocated_purchase_cost || 0) };
+    if (!item || item.allocated_purchase_cost == null || !row || row.costPerUnit.kind === 'open')
+      return { kind: 'open' };
+    return { kind: 'known', amount: item.allocated_purchase_cost };
   });
 
   readonly costForm = new FormGroup({

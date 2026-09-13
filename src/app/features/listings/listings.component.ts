@@ -118,7 +118,7 @@ export class ListingsComponent {
   readonly selectedItemId = signal<string>('');
   readonly selectedPlatform = signal<ListingPlatform>('kleinanzeigen');
   readonly selectedTone = signal<ListingStyleTone>('dealer');
-  readonly customPrice = signal<number>(0);
+  readonly customPrice = signal<number | null>(null);
   readonly showHtmlMode = signal<boolean>(false);
 
   // User edited text overrides
@@ -155,11 +155,9 @@ export class ListingsComponent {
     if (!item) return null;
 
     const platform = this.selectedPlatform();
-    const price =
-      this.customPrice() > 0
-        ? this.customPrice()
-        : (item.expected_value ?? item.allocated_purchase_cost * 1.5);
+    const price = this.listingPrice(item);
 
+    if (price === null) return null;
     return this.listingStudio.generateListing(item, platform, price, {
       includeDisclaimer: this.optDisclaimer(),
       isCommercialSeller: this.optCommercial(),
@@ -199,10 +197,8 @@ export class ListingsComponent {
   constructor() {
     effect(() => {
       const item = this.selectedItem();
-      if (item && this.customPrice() === 0) {
-        this.customPrice.set(
-          item.expected_value ?? Number((item.allocated_purchase_cost * 1.5).toFixed(2)),
-        );
+      if (item && this.customPrice() === null) {
+        this.customPrice.set(this.suggestedPrice(item));
       }
     });
   }
@@ -213,9 +209,7 @@ export class ListingsComponent {
     this.customDescOverride.set(null);
     const item = this.availableItems().find((i) => i.id === id);
     if (item) {
-      this.customPrice.set(
-        item.expected_value ?? Number((item.allocated_purchase_cost * 1.5).toFixed(2)),
-      );
+      this.customPrice.set(this.suggestedPrice(item));
     }
   }
 
@@ -279,10 +273,11 @@ export class ListingsComponent {
     const item = this.selectedItem();
     if (!item) return;
 
-    const price =
-      this.customPrice() > 0
-        ? this.customPrice()
-        : (item.expected_value ?? item.allocated_purchase_cost * 1.5);
+    const price = this.listingPrice(item);
+    if (price === null) {
+      this.meldeFehler('Verkaufspreis fehlt.', new Error('Bitte einen Verkaufspreis eingeben.'));
+      return;
+    }
     this.isMarkingListed.set(true);
     try {
       const { error } = await this.listingStudio.markItemAsListed(
@@ -306,10 +301,11 @@ export class ListingsComponent {
     const item = this.selectedItem();
     if (!item) return;
 
-    const price =
-      this.customPrice() > 0
-        ? this.customPrice()
-        : (item.expected_value ?? item.allocated_purchase_cost * 1.5);
+    const price = this.listingPrice(item);
+    if (price === null) {
+      this.meldeFehler('Verkaufspreis fehlt.', new Error('Bitte einen Verkaufspreis eingeben.'));
+      return;
+    }
     this.isMarkingListed.set(true);
     try {
       const { error } = await this.listingStudio.publishToCustomStore(item.id, price);
@@ -330,6 +326,25 @@ export class ListingsComponent {
     if (gen?.platformUrl) {
       window.open(gen.platformUrl, '_blank');
     }
+  }
+
+  private suggestedPrice(item: InventoryItem): number | null {
+    return (
+      item.expected_value ??
+      (item.allocated_purchase_cost === null
+        ? null
+        : Number((item.allocated_purchase_cost * 1.5).toFixed(2)))
+    );
+  }
+
+  private listingPrice(item: InventoryItem): number | null {
+    const price = this.customPrice() ?? this.suggestedPrice(item);
+    return price !== null && Number.isFinite(price) && price >= 0 ? price : null;
+  }
+
+  onPriceInput(event: Event): void {
+    const price = (event.target as HTMLInputElement).valueAsNumber;
+    this.customPrice.set(Number.isFinite(price) ? price : null);
   }
 
   private meldeFehler(titel: string, error: unknown): void {

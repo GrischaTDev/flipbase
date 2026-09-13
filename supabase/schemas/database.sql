@@ -181,7 +181,7 @@ CREATE TABLE IF NOT EXISTS public.inventory_items (
     sku TEXT,
     ean TEXT,
     description TEXT,
-    allocated_purchase_cost NUMERIC NOT NULL DEFAULT 0.00,
+    allocated_purchase_cost NUMERIC DEFAULT 0.00,
     expected_value NUMERIC,
     tax_mode_override TEXT,
     is_public_store BOOLEAN NOT NULL DEFAULT FALSE,
@@ -368,6 +368,7 @@ create table public.purchase_lines (
     allocated_total_cost numeric(12,2) not null default 0
         check (allocated_total_cost >= 0),
     ean_snapshot text,
+    is_package boolean not null default false,
     check ((line_kind = 'quantity' and catalog_product_id is not null) or line_kind = 'individual'),
     check (
       (
@@ -396,6 +397,9 @@ alter table public.purchase_lines
 
 alter table public.inventory_items
     add column if not exists purchase_line_id uuid references public.purchase_lines(id) on delete restrict;
+
+alter table public.inventory_items
+    add column source_package_line_id uuid;
 
 create table public.stock_lots (
     id uuid primary key default gen_random_uuid(),
@@ -428,7 +432,7 @@ create table public.sale_lines (
     quantity integer not null check (quantity > 0),
     unit_sale_price numeric(12,2) not null check (unit_sale_price >= 0),
     line_total numeric(12,2) not null check (line_total >= 0),
-    cost_of_goods_sold numeric(12,2) not null check (cost_of_goods_sold >= 0),
+    cost_of_goods_sold numeric(12,2) check (cost_of_goods_sold >= 0),
     tax_mode text not null check (tax_mode in ('diff_25a', 'kleinunternehmer_19', 'regular_19')),
     created_at timestamptz not null default now(),
     check (num_nonnulls(catalog_product_id, inventory_item_id) = 1),
@@ -2727,6 +2731,11 @@ declare
   v_old_purchase_capturing boolean := false;
   v_new_purchase_capturing boolean := false;
 begin
+  if tg_op = 'UPDATE' and old.source_package_line_id is not null then
+    -- Herkunft und Kosten schützt zusätzlich guard_purchase_package_inventory.
+    return new;
+  end if;
+
   if current_user = 'postgres' then
     return coalesce(new, old);
   end if;
@@ -3683,7 +3692,7 @@ begin
   perform item.id
   from public.inventory_items as item
   left join public.purchase_lines as linked_line
-    on linked_line.id = item.purchase_line_id
+    on linked_line.id = coalesce(item.purchase_line_id, item.source_package_line_id)
   where item.purchase_id = p_purchase_id
     or linked_line.purchase_id = p_purchase_id
   order by item.created_at, item.id
@@ -3729,7 +3738,7 @@ begin
     select 1
     from public.inventory_items as item
     left join public.purchase_lines as linked_line
-      on linked_line.id = item.purchase_line_id
+      on linked_line.id = coalesce(item.purchase_line_id, item.source_package_line_id)
     where (
         item.purchase_id = p_purchase_id
         or linked_line.purchase_id = p_purchase_id
@@ -3737,7 +3746,7 @@ begin
       and (
         item.workspace_id <> p_workspace_id
         or item.purchase_id is distinct from p_purchase_id
-        or item.purchase_line_id is null
+        or (item.purchase_line_id is null and item.source_package_line_id is null)
         or linked_line.id is null
         or linked_line.workspace_id <> p_workspace_id
         or linked_line.purchase_id <> p_purchase_id
@@ -3799,7 +3808,7 @@ begin
       and line.purchase_id = p_purchase_id
       and (
         (
-          line.line_kind = 'individual'
+          line.line_kind = 'individual' and not line.is_package
           and line.received_quantity <> (
             select pg_catalog.count(*)::integer
             from public.inventory_items as item
@@ -3890,7 +3899,10 @@ begin
     from pg_catalog.jsonb_array_elements_text(nullif(v_line_plan -> 'unitTaxPurchaseCents', 'null'::jsonb))
       with ordinality as unit_share(value, ordinality);
 
-    if v_line.line_kind = 'individual' then
+    if v_line.is_package then
+      -- Der bezahlte Paketpreis bleibt an der Position, ohne verkäuflichen Platzhalter.
+      null;
+    elsif v_line.line_kind = 'individual' then
       perform item.id
       from public.inventory_items as item
       where item.workspace_id = p_workspace_id
@@ -4198,7 +4210,7 @@ begin
     select 1
     from public.inventory_items as item
     left join public.purchase_lines as linked_line
-      on linked_line.id = item.purchase_line_id
+      on linked_line.id = coalesce(item.purchase_line_id, item.source_package_line_id)
     where (
         item.purchase_id = p_purchase_id
         or linked_line.purchase_id = p_purchase_id
@@ -4206,7 +4218,7 @@ begin
       and (
         item.workspace_id <> p_workspace_id
         or item.purchase_id is distinct from p_purchase_id
-        or item.purchase_line_id is null
+        or (item.purchase_line_id is null and item.source_package_line_id is null)
         or linked_line.id is null
         or linked_line.workspace_id <> p_workspace_id
         or linked_line.purchase_id <> p_purchase_id
@@ -4257,7 +4269,7 @@ begin
         line.received_quantity <> line.ordered_quantity
         or line.allocated_additional_cost > line.allocated_total_cost
         or (
-          line.line_kind = 'individual'
+          line.line_kind = 'individual' and not line.is_package
           and (
             line.ordered_quantity <> (
               select pg_catalog.count(*)::integer
@@ -4351,6 +4363,11 @@ begin
       where lot.workspace_id = p_workspace_id
         and lot.purchase_id = p_purchase_id
     ), 0)
+    + coalesce((
+      select pg_catalog.sum(line.allocated_total_cost * 100)
+      from public.purchase_lines as line
+      where line.workspace_id = p_workspace_id and line.purchase_id = p_purchase_id and line.is_package
+    ), 0)
   )::bigint
   into v_inventory_cents;
 
@@ -4359,6 +4376,11 @@ begin
       errcode = 'P0001',
       message = 'Der gesamte Einkaufsbestand reconciliiert nicht mit den Einkaufsgesamtkosten.';
   end if;
+
+  update public.inventory_items
+  set status = 'ready', updated_at = v_finalized_at
+  where workspace_id = p_workspace_id and purchase_id = p_purchase_id
+    and source_package_line_id is not null and status in ('received', 'needs_review', 'researched');
 
   update public.purchases
   set purchase_price = pg_catalog.round(v_goods_cents::numeric / 100, 2),
@@ -4830,7 +4852,7 @@ begin
     and purchase_id = p_purchase_id;
 
   update public.inventory_items
-  set tax_purchase_cost = null, allocated_purchase_cost = 0,
+  set tax_purchase_cost = null, allocated_purchase_cost = case when source_package_line_id is null then 0 else null end,
       status = case
         when status in ('ready', 'listed') then 'received'
         else status
@@ -5192,7 +5214,7 @@ begin
   perform item.id
   from public.inventory_items as item
   left join public.purchase_lines as linked_line
-    on linked_line.id = item.purchase_line_id
+    on linked_line.id = coalesce(item.purchase_line_id, item.source_package_line_id)
   where item.workspace_id = p_workspace_id
     and (
       item.purchase_id = p_purchase_id
@@ -5237,7 +5259,7 @@ begin
       on item.workspace_id = sale_line.workspace_id
       and item.id = sale_line.inventory_item_id
     left join public.purchase_lines as linked_line
-      on linked_line.id = item.purchase_line_id
+      on linked_line.id = coalesce(item.purchase_line_id, item.source_package_line_id)
     where sale_line.workspace_id = p_workspace_id
       and (
         item.purchase_id = p_purchase_id
@@ -5308,7 +5330,7 @@ begin
     select 1
     from public.inventory_items as item
     left join public.purchase_lines as linked_line
-      on linked_line.id = item.purchase_line_id
+      on linked_line.id = coalesce(item.purchase_line_id, item.source_package_line_id)
     where (
         item.purchase_id = p_purchase_id
         or linked_line.purchase_id = p_purchase_id
@@ -5316,7 +5338,7 @@ begin
       and (
         item.workspace_id <> p_workspace_id
         or item.purchase_id is distinct from p_purchase_id
-        or item.purchase_line_id is null
+        or (item.purchase_line_id is null and item.source_package_line_id is null)
         or linked_line.id is null
         or linked_line.workspace_id <> p_workspace_id
         or linked_line.purchase_id <> p_purchase_id
@@ -5424,7 +5446,7 @@ begin
     'sale_id', sale_line.sale_id,
     'cost_of_goods_sold', sale_line.cost_of_goods_sold
   ) order by sale_line.created_at, sale_line.id), '[]'::jsonb),
-    coalesce(pg_catalog.sum(sale_line.cost_of_goods_sold), 0)
+    case when pg_catalog.count(*) filter (where sale_line.cost_of_goods_sold is null) > 0 then null else coalesce(pg_catalog.sum(sale_line.cost_of_goods_sold), 0) end
   into v_before_sale_lines, v_before_cogs
   from public.sale_lines as sale_line
   where sale_line.workspace_id = p_workspace_id
@@ -5456,13 +5478,16 @@ begin
     select element.value
     from pg_catalog.jsonb_array_elements(p_lines) as element(value)
   loop
+    if v_input_line ? 'is_package' and pg_catalog.jsonb_typeof(v_input_line -> 'is_package') is distinct from 'boolean' then
+      raise exception using errcode = '22023', message = 'Das Paketkennzeichen muss ein Wahrheitswert sein.';
+    end if;
     if pg_catalog.jsonb_typeof(v_input_line) <> 'object'
       or not (v_input_line ?& array[
         'id', 'catalog_product_id', 'title_snapshot', 'line_kind',
         'ordered_quantity', 'price_mode', 'unit_purchase_price', 'line_total',
         'condition_snapshot', 'estimated_market_value'
       ])
-      or v_input_line - array[
+      or v_input_line - 'is_package' - array[
         'id', 'catalog_product_id', 'title_snapshot', 'line_kind',
         'ordered_quantity', 'price_mode', 'unit_purchase_price', 'line_total',
         'condition_snapshot', 'estimated_market_value'
@@ -5576,7 +5601,8 @@ begin
       end if;
 
       update public.purchase_lines
-      set title_snapshot = pg_catalog.btrim(v_input_line ->> 'title_snapshot'),
+      set is_package = coalesce((v_input_line ->> 'is_package')::boolean, is_package),
+          title_snapshot = pg_catalog.btrim(v_input_line ->> 'title_snapshot'),
           ean_snapshot = case
             when v_input_line ? 'ean_snapshot'
               then nullif(pg_catalog.btrim(v_input_line ->> 'ean_snapshot'), '')
@@ -5608,6 +5634,7 @@ begin
         and id = v_line_id;
     else
       insert into public.purchase_lines (
+        is_package,
         id,
         workspace_id,
         purchase_id,
@@ -5627,6 +5654,7 @@ begin
         created_at,
         updated_at
       ) values (
+        coalesce((v_input_line ->> 'is_package')::boolean, false),
         v_line_id,
         p_workspace_id,
         p_purchase_id,
@@ -5835,7 +5863,10 @@ begin
     from pg_catalog.jsonb_array_elements_text(nullif(v_line_plan -> 'unitTaxPurchaseCents', 'null'::jsonb))
       with ordinality as unit_share(value, ordinality);
 
-    if v_line.line_kind = 'individual' then
+    if v_line.is_package then
+      -- Der bezahlte Paketpreis bleibt an der Position, ohne verkäuflichen Platzhalter.
+      null;
+    elsif v_line.line_kind = 'individual' then
       select pg_catalog.array_agg(item.id order by item.created_at, item.id)
       into v_item_ids
       from public.inventory_items as item
@@ -6240,7 +6271,7 @@ begin
     'sale_id', sale_line.sale_id,
     'cost_of_goods_sold', sale_line.cost_of_goods_sold
   ) order by sale_line.created_at, sale_line.id), '[]'::jsonb),
-    coalesce(pg_catalog.sum(sale_line.cost_of_goods_sold), 0)
+    case when pg_catalog.count(*) filter (where sale_line.cost_of_goods_sold is null) > 0 then null else coalesce(pg_catalog.sum(sale_line.cost_of_goods_sold), 0) end
   into v_after_sale_lines, v_after_cogs
   from public.sale_lines as sale_line
   where sale_line.workspace_id = p_workspace_id
@@ -6353,6 +6384,7 @@ as $$
       'title_snapshot', line.title_snapshot,
       'ean_snapshot', line.ean_snapshot,
       'line_kind', line.line_kind,
+      'is_package', line.is_package,
       'ordered_quantity', line.ordered_quantity,
       'unit_purchase_price', line.unit_purchase_price,
       'line_total', line.line_total,
@@ -6576,6 +6608,9 @@ begin
 
   -- Validate the purchase-type contract before the purchase header is written.
   for v_line in select value from pg_catalog.jsonb_array_elements(p_lines) loop
+    if v_line ? 'is_package' and pg_catalog.jsonb_typeof(v_line -> 'is_package') is distinct from 'boolean' then
+      raise exception using errcode = '22023', message = 'Das Paketkennzeichen muss ein Wahrheitswert sein.';
+    end if;
     v_catalog_product_id := case
       when coalesce(pg_catalog.jsonb_typeof(v_line -> 'catalog_product_id'), 'null') = 'null'
         then null
@@ -6697,12 +6732,14 @@ begin
     end if;
 
     insert into public.purchase_lines (
+      is_package,
       workspace_id, purchase_id, catalog_product_id, title_snapshot,
       ean_snapshot,
       line_kind, ordered_quantity, received_quantity, unit_purchase_price,
       line_total, allocated_additional_cost, price_mode, condition_snapshot,
       estimated_market_value
     ) values (
+      coalesce((v_line ->> 'is_package')::boolean, false),
       p_workspace_id,
       v_purchase.id,
       nullif(v_line ->> 'catalog_product_id', '')::uuid,
@@ -7011,6 +7048,9 @@ begin
     select element.value
     from pg_catalog.jsonb_array_elements(p_lines) as element(value)
   loop
+    if v_line ? 'is_package' and pg_catalog.jsonb_typeof(v_line -> 'is_package') is distinct from 'boolean' then
+      raise exception using errcode = '22023', message = 'Das Paketkennzeichen muss ein Wahrheitswert sein.';
+    end if;
     v_line_ref := nullif(pg_catalog.btrim(v_line ->> 'client_ref'), '');
     if pg_catalog.jsonb_typeof(v_line) <> 'object'
       or v_line_ref is null
@@ -7148,7 +7188,8 @@ begin
       end if;
 
       update public.purchase_lines
-      set catalog_product_id = v_catalog_product_id,
+      set is_package = coalesce((v_line ->> 'is_package')::boolean, is_package),
+          catalog_product_id = v_catalog_product_id,
           title_snapshot = pg_catalog.btrim(v_line ->> 'title_snapshot'),
           ean_snapshot = case
             when v_line ? 'ean_snapshot'
@@ -7188,12 +7229,14 @@ begin
       returning id into v_line_id;
     else
       insert into public.purchase_lines (
+        is_package,
         workspace_id, purchase_id, catalog_product_id, title_snapshot,
         ean_snapshot,
         line_kind, ordered_quantity, received_quantity, unit_purchase_price,
         line_total, allocated_additional_cost, price_mode, condition_snapshot,
         estimated_market_value
       ) values (
+        coalesce((v_line ->> 'is_package')::boolean, false),
         p_workspace_id,
         p_purchase_id,
         v_catalog_product_id,
@@ -7546,6 +7589,9 @@ begin
   end if;
 
   for v_line in select value from jsonb_array_elements(p_lines) loop
+    if v_line ? 'is_package' and pg_catalog.jsonb_typeof(v_line -> 'is_package') is distinct from 'boolean' then
+      raise exception using errcode = '22023', message = 'Das Paketkennzeichen muss ein Wahrheitswert sein.';
+    end if;
     v_catalog_product_id := case
       when coalesce(pg_catalog.jsonb_typeof(v_line -> 'catalog_product_id'), 'null') = 'null'
         then null
@@ -7566,11 +7612,13 @@ begin
     end if;
 
     insert into public.purchase_lines (
+      is_package,
       workspace_id, purchase_id, catalog_product_id, title_snapshot,
       ean_snapshot,
       line_kind, ordered_quantity, received_quantity, unit_purchase_price,
       line_total, allocated_additional_cost
     ) values (
+      coalesce((v_line ->> 'is_package')::boolean, false),
       p_workspace_id,
       p_purchase_id,
       nullif(v_line ->> 'catalog_product_id', '')::uuid,
@@ -7977,6 +8025,7 @@ begin
     and purchase_id = p_purchase_id
   for update;
   if not found
+    or v_purchase_line.is_package
     or v_purchase_line.line_kind <> 'individual'
     or v_purchase_line.received_quantity >= v_purchase_line.ordered_quantity then
     raise exception using errcode = '22023', message = 'Die Einzelartikelposition ist nicht offen.';
@@ -9254,7 +9303,7 @@ begin
           'buyer_shipping_revenue', v_shipping_revenue,
           'total_revenue', v_sale.sale_price_total,
           'cost_of_goods_sold', (
-            select coalesce(pg_catalog.sum(sale_line.cost_of_goods_sold), 0)
+            select case when pg_catalog.count(*) filter (where sale_line.cost_of_goods_sold is null) > 0 then null else coalesce(pg_catalog.sum(sale_line.cost_of_goods_sold), 0) end
             from public.sale_lines as sale_line
             where sale_line.workspace_id = p_workspace_id
               and sale_line.sale_id = v_sale.id

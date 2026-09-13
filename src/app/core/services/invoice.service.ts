@@ -400,21 +400,28 @@ export class InvoiceService {
       'RE-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000);
     const taxMode: TaxMode = 'diff_25a';
 
-    const invoiceItems: InvoiceItem[] = order.items.map((cartItem) => {
+    const invoiceItems: InvoiceItem[] = [];
+    for (const cartItem of order.items) {
       const price =
         cartItem.unitPrice ??
         ('kind' in cartItem.item
-          ? (cartItem.item.unitPrice ?? 0)
-          : (cartItem.item.expected_value ?? cartItem.item.allocated_purchase_cost * 1.5));
-      return {
+          ? (cartItem.item.unitPrice ?? null)
+          : (cartItem.item.expected_value ??
+            (cartItem.item.allocated_purchase_cost === null
+              ? null
+              : cartItem.item.allocated_purchase_cost * 1.5)));
+      if (price === null || !Number.isFinite(price) || price < 0) {
+        return this.rechnungsfehler(new Error(`Verkaufspreis für „${cartItem.item.title}“ fehlt.`));
+      }
+      invoiceItems.push({
         sku: cartItem.item.sku || undefined,
         title: cartItem.item.title,
         condition: cartItem.item.condition,
         quantity: cartItem.quantity,
         unitPrice: price,
         totalPrice: price * cartItem.quantity,
-      };
-    });
+      });
+    }
 
     const invoice: Invoice = {
       id: 'inv-' + Math.random().toString(36).substring(2, 9),

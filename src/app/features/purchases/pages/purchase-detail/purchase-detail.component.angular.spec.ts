@@ -32,6 +32,7 @@ describe('PurchaseDetailComponent', () => {
         isEditing: signal(false),
         editingPurchase: signal(null),
         entryForm: () => undefined,
+        packageContentDialog: () => undefined,
         isReloadingAfterSave: signal(false),
         saveReloadFailed: signal(false),
         router: { navigate: vi.fn() },
@@ -252,6 +253,7 @@ describe('PurchaseDetailComponent', () => {
         dialog,
         router,
         entryForm: () => undefined,
+        packageContentDialog: () => undefined,
         isReloadingAfterSave: signal(false),
         saveReloadFailed: signal(false),
         itemForm: new FormGroup({

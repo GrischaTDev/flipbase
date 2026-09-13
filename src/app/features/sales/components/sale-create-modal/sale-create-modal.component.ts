@@ -553,7 +553,9 @@ export class SaleCreateModalComponent {
             .positions()
             .find((position) => position.catalog_product_id === target.catalogProductId)
             ?.oldest_available_unit_cost
-        : (item?.total_item_cost ?? item?.allocated_purchase_cost);
+        : item?.allocated_purchase_cost == null
+          ? null
+          : (item.total_item_cost ?? item.allocated_purchase_cost);
     return typeof unitCost === 'number' && Number.isFinite(unitCost) && unitCost >= 0
       ? unitCost * quantity
       : null;

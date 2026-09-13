@@ -82,6 +82,7 @@ function purchaseLinesEqual(
       line.titleSnapshot === other.titleSnapshot &&
       line.ean === other.ean &&
       line.lineKind === other.lineKind &&
+      !!line.isPackage === !!other.isPackage &&
       line.orderedQuantity === other.orderedQuantity &&
       line.condition === other.condition &&
       line.priceMode === other.priceMode &&
@@ -210,6 +211,7 @@ export class PurchaseEntryFormComponent {
   readonly initialCostDrafts = signal<readonly PurchaseCostDraft[]>([]);
   readonly areAdditionalCostsValid = signal<boolean>(true);
   readonly purchaseLines = signal<readonly PurchaseLineDraft[]>([]);
+  readonly hasPackages = computed(() => this.purchaseLines().some((line) => line.isPackage));
   private readonly baselinePurchaseLines = signal<readonly PurchaseLineDraft[]>([]);
   private readonly baselineCostDrafts = signal<readonly PurchaseCostDraft[]>([]);
   readonly purchaseBasePrice = signal<number | null>(null);
@@ -398,6 +400,7 @@ export class PurchaseEntryFormComponent {
         titleSnapshot: line.title_snapshot,
         ean: line.ean_snapshot ?? null,
         lineKind: line.line_kind,
+        isPackage: line.is_package ?? false,
         orderedQuantity: line.ordered_quantity,
         condition: (line.condition_snapshot ?? 'used') as ItemCondition,
         priceMode: line.price_mode ?? 'priced',
@@ -667,7 +670,7 @@ export class PurchaseEntryFormComponent {
 
   confirmPackagePrice(total: number): void {
     const editor = this.lineEditor();
-    if (!editor || this.purchaseLines().length === 0) return;
+    if (!editor || this.purchaseLines().length === 0 || this.hasPackages()) return;
 
     editor.applyPackagePrice(total);
     this.form.controls.pricing_mode.setValue('individual');

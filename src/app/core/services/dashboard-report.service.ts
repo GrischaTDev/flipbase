@@ -130,7 +130,7 @@ export class DashboardReportService {
       resultAfterDirectCosts: roundedResult,
       soldItems,
       averageMarginPercent:
-        margins.length === 0
+        hasUnknownResult || margins.length === 0
           ? null
           : this.money(margins.reduce((sum, margin) => sum + margin, 0) / margins.length),
       inventoryCostValue: this.inventoryCostValue(records),
@@ -177,15 +177,6 @@ export class DashboardReportService {
       return persistedRevenue + this.number(sale.shipping_revenue);
     }
     return this.number(sale.sale_price_total ?? sale.sale_price);
-  }
-
-  private costOfGoodsSold(sale: Sale, lines: readonly SaleLine[]): number {
-    if (lines.length > 0) {
-      return lines.reduce((sum, line) => sum + this.number(line.cost_of_goods_sold), 0);
-    }
-    return this.number(
-      sale.inventory_item?.total_item_cost ?? sale.inventory_item?.allocated_purchase_cost,
-    );
   }
 
   private purchaseAmount(purchase: Purchase): number | null {

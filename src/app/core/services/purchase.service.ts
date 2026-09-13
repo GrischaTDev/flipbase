@@ -29,6 +29,7 @@ import {
 } from '../models/purchase-costing.models';
 
 export interface CreatePurchaseLineInput {
+  readonly isPackage?: boolean;
   readonly draftId?: string;
   readonly catalogProductId: string | null;
   readonly titleSnapshot: string;
@@ -292,9 +293,15 @@ export class PurchaseService {
     }
 
     const representedLineIds = new Set(purchaseLines.map((line) => line.id));
-    const positionCount = purchaseLines.reduce((count, line) => count + line.ordered_quantity, 0);
+    const positionCount = purchaseLines.reduce(
+      (count, line) => count + (line.is_package ? 0 : line.ordered_quantity),
+      0,
+    );
     const legacyItemCount = purchaseItems.filter(
-      (item) => !item.purchase_line_id || !representedLineIds.has(item.purchase_line_id),
+      (item) =>
+        item.source_package_line_id ||
+        !item.purchase_line_id ||
+        !representedLineIds.has(item.purchase_line_id),
     ).length;
     return positionCount + legacyItemCount;
   }
@@ -372,7 +379,7 @@ export class PurchaseService {
           source:sources(*),
           supplier:suppliers(*),
           costs:purchase_costs!purchase_costs_workspace_purchase_fkey(*),
-          items:inventory_items(id, purchase_id, purchase_line_id, title, status, allocated_purchase_cost, expected_value),
+          items:inventory_items(id, purchase_id, purchase_line_id, source_package_line_id, title, status, allocated_purchase_cost, expected_value),
           purchase_lines!purchase_lines_purchase_id_fkey(*)
         `,
         )
@@ -825,9 +832,12 @@ export class PurchaseService {
       original_url: payload.original_url || null,
       receiving_status: 'draft',
       items_count:
-        normalizedLines.data.reduce((count, line) => count + line.orderedQuantity, 0) ||
-        payload.items_count ||
-        0,
+        normalizedLines.data.length > 0
+          ? normalizedLines.data.reduce(
+              (count, line) => count + (line.isPackage ? 0 : line.orderedQuantity),
+              0,
+            )
+          : payload.items_count || 0,
       costs: kostenZeilen,
       created_at: new Date().toISOString(),
     };
@@ -941,6 +951,7 @@ export class PurchaseService {
           title_snapshot: line.titleSnapshot,
           ean_snapshot: line.ean ?? null,
           line_kind: line.lineKind,
+          is_package: line.isPackage ?? false,
           ordered_quantity: line.orderedQuantity,
           price_mode: line.priceMode ?? 'priced',
           unit_purchase_price: line.unitPurchasePrice,
@@ -1133,6 +1144,7 @@ export class PurchaseService {
           title_snapshot: line.titleSnapshot,
           ean_snapshot: line.ean ?? null,
           line_kind: line.lineKind,
+          is_package: line.isPackage ?? false,
           ordered_quantity: line.orderedQuantity,
           price_mode: line.priceMode ?? 'priced',
           unit_purchase_price: line.unitPurchasePrice,
@@ -1231,6 +1243,7 @@ export class PurchaseService {
       title_snapshot: line.titleSnapshot,
       ean_snapshot: line.ean ?? null,
       line_kind: line.lineKind,
+      is_package: line.isPackage ?? false,
       ordered_quantity: line.orderedQuantity,
       received_quantity: 0,
       unit_purchase_price: line.unitPurchasePrice,
@@ -1376,11 +1389,16 @@ export class PurchaseService {
       if (!existingLine) return false;
       const hasReceivedInventory =
         existingLine.received_quantity > 0 ||
-        inventoryItems.some((item) => item.purchase_line_id === existingLine.id) ||
+        inventoryItems.some(
+          (item) =>
+            item.purchase_line_id === existingLine.id ||
+            item.source_package_line_id === existingLine.id,
+        ) ||
         stockLots.some((lot) => lot.purchase_line_id === existingLine.id);
       return (
         hasReceivedInventory &&
-        (existingLine.line_kind !== input.lineKind ||
+        (Boolean(existingLine.is_package) !== Boolean(input.isPackage) ||
+          existingLine.line_kind !== input.lineKind ||
           existingLine.ordered_quantity !== input.orderedQuantity ||
           existingLine.catalog_product_id !== input.catalogProductId)
       );
@@ -1402,6 +1420,7 @@ export class PurchaseService {
         title_snapshot: input.titleSnapshot,
         ean_snapshot: input.ean ?? null,
         line_kind: input.lineKind,
+        is_package: input.isPackage ?? false,
         ordered_quantity: input.orderedQuantity,
         unit_purchase_price: input.unitPurchasePrice,
         line_total: input.lineTotal,
@@ -1420,7 +1439,9 @@ export class PurchaseService {
       (line) =>
         !retainedLineIds.has(line.id) &&
         (line.received_quantity > 0 ||
-          inventoryItems.some((item) => item.purchase_line_id === line.id) ||
+          inventoryItems.some(
+            (item) => item.purchase_line_id === line.id || item.source_package_line_id === line.id,
+          ) ||
           stockLots.some((lot) => lot.purchase_line_id === line.id)),
     );
     if (removedReceivedLine) {
@@ -1492,7 +1513,7 @@ export class PurchaseService {
       tracking_status:
         payload.tracking_status || (payload.tracking_number?.trim() ? 'in_transit' : 'pending'),
       original_url: payload.original_url || null,
-      items_count: updatedLines.reduce((sum, line) => sum + line.ordered_quantity, 0),
+      items_count: this.zaehleArtikel(existingPurchase, inventoryItems, updatedLines),
       costs: persistedCosts,
       updated_at: new Date().toISOString(),
     };
@@ -1529,6 +1550,7 @@ export class PurchaseService {
       title_snapshot: line.titleSnapshot,
       ean_snapshot: line.ean ?? null,
       line_kind: line.lineKind,
+      is_package: line.isPackage ?? false,
       ordered_quantity: line.orderedQuantity,
       received_quantity: 0,
       unit_purchase_price: line.unitPurchasePrice,
@@ -1622,6 +1644,24 @@ export class PurchaseService {
           : Number(line.allocatedAdditionalCost),
     }));
     for (const line of lines) {
+      if (line.isPackage !== undefined && typeof line.isPackage !== 'boolean')
+        return { data: [], error: new Error('Die Paketkennzeichnung ist ungültig.') };
+      if (
+        line.isPackage &&
+        (line.lineKind !== 'individual' ||
+          line.catalogProductId !== null ||
+          line.orderedQuantity !== 1 ||
+          line.priceMode !== 'priced' ||
+          line.unitPurchasePrice === null ||
+          line.lineTotal === null)
+      ) {
+        return {
+          data: [],
+          error: new Error(
+            'Ein Paket benötigt Menge eins, einen bekannten Preis und darf keinen Artikelstamm verwenden.',
+          ),
+        };
+      }
       if (
         !line.titleSnapshot ||
         !Number.isInteger(line.orderedQuantity) ||
@@ -2329,6 +2369,16 @@ export class PurchaseService {
   }
 
   async deletePurchase(purchaseId: string): Promise<{ error: Error | null }> {
+    if (
+      this.mockStore.isDemoMode() &&
+      this.mockStore
+        .getItems(this.workspaceService.currentWorkspace()?.id)
+        .some((item) => item.purchase_id === purchaseId && item.source_package_line_id)
+    ) {
+      return {
+        error: new Error('Ein Einkauf mit erfasstem Paketinhalt darf nicht gelöscht werden.'),
+      };
+    }
     if (!this.mockStore.isDemoMode()) {
       try {
         const { error } = await this.supabase.client

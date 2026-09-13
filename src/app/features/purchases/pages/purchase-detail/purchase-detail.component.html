@@ -60,7 +60,7 @@
             (saleHistoryReloadRequested)="reloadPurchaseSaleHistory()"
             (orderedRequested)="markAsOrdered()"
             (arrivedRequested)="markAsArrived()"
-            (captureContentRequested)="editPurchase(p.id)"
+            (captureContentRequested)="captureContent()"
           />
         }
       </div>
@@ -76,6 +76,13 @@
             [entityId]="p.id"
             [refreshKey]="historyRevision()"
           />
+          <div
+            entry-main-extra
+            class="space-y-4"
+            [attr.inert]="hasUnsavedChanges() || isSaving() ? '' : null"
+          >
+            <ng-container [ngTemplateOutlet]="packageContents" />
+          </div>
           @if (quantityPurchaseLines().length > 0 || individualPurchaseLines().length > 0) {
             <app-card
               entry-main-extra
@@ -135,6 +142,7 @@
               </dl>
             </app-card>
             <!-- Einkaufspositionen und zugehöriger Bestand -->
+            <ng-container [ngTemplateOutlet]="packageContents" />
             <app-card title="Artikel" rounded="xl">
               <div card-header-actions>
                 @if (p.entry_status !== 'finalized' && quantityPurchaseLines().length > 0) {
@@ -178,7 +186,7 @@
                     [rows]="purchaseDetailRows()"
                     (captureIndividual)="captureIndividualItemById($event)"
                   />
-                } @else {
+                } @else if (packageLines().length === 0) {
                   <div class="p-8 text-center text-xs text-fb-text-muted space-y-2">
                     <svg [lucideIcon]="boxesIcon" class="w-8 h-8 mx-auto text-fb-text-dimmed"></svg>
                     <p class="font-semibold text-fb-text-primary">Noch keine Artikel erfasst</p>
@@ -492,6 +500,13 @@
     ></app-image-cropper-modal>
   }
 </div>
+@if (capturingPackage(); as line) {
+  <app-package-content-dialog
+    [line]="line"
+    (closed)="capturingPackage.set(null)"
+    (saved)="packageContentSaved()"
+  />
+}
 
 @if (isCorrectionDialogOpen() && purchaseService.selectedPurchase(); as purchaseToCorrect) {
   <app-purchase-correction-dialog
@@ -500,3 +515,83 @@
     (corrected)="onCorrectionSaved()"
   />
 }
+
+<ng-template #packageContents>
+  @for (summary of packageSummaries(); track summary.line.id) {
+    <app-card [title]="summary.line.title_snapshot">
+      <app-button
+        card-header-actions
+        size="slim"
+        [disabled]="!canCapturePackage()"
+        (clicked)="capturingPackage.set(summary.line)"
+        >Inhalt erfassen</app-button
+      >
+      <div class="space-y-4 text-[13px]">
+        <dl class="grid grid-cols-2 gap-4">
+          <div>
+            <dt class="text-fb-text-muted">Eingekauftes Paket</dt>
+            <dd class="mt-1">
+              1 ×
+              {{ summary.line.line_total | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+            </dd>
+          </div>
+          <div>
+            <dt class="text-fb-text-muted">Bisherige Artikelerlöse</dt>
+            <dd class="mt-1">
+              {{
+                summary.proceeds === null
+                  ? 'Noch prüfen'
+                  : (summary.proceeds | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
+              }}
+            </dd>
+          </div>
+        </dl>
+        @if (!canCapturePackage()) {
+          <p class="text-fb-text-muted">
+            Markiere den Einkauf als angekommen, um den Inhalt zu erfassen.
+          </p>
+        }
+        @if (summary.rows.length === 0) {
+          <p class="text-fb-text-muted">
+            Noch kein Inhalt erfasst. Der Paketpreis bleibt am Einkauf.
+          </p>
+        } @else {
+          <p>{{ summary.rows.length }} Artikel erfasst · {{ summary.soldCount }} verkauft</p>
+          <ul class="divide-y divide-fb-line">
+            @for (row of summary.rows; track row.item.id) {
+              <li class="flex flex-wrap items-center justify-between gap-2 py-3">
+                <div class="min-w-0">
+                  <app-button variant="plain" [link]="'/inventory/' + row.item.id">{{
+                    row.item.title
+                  }}</app-button>
+                  <p class="mt-1 text-xs text-fb-text-muted">{{ row.statusLabel }}</p>
+                </div>
+                <div class="text-right text-xs text-fb-text-muted">
+                  @if (row.sold) {
+                    <p>
+                      Verkauf:
+                      {{ row.proceeds | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                    </p>
+                  }
+                  <p>
+                    Kostenanteil:
+                    {{
+                      row.item.allocated_purchase_cost === null
+                        ? 'Offen'
+                        : (row.item.allocated_purchase_cost
+                          | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
+                    }}
+                  </p>
+                </div>
+              </li>
+            }
+          </ul>
+          <p class="text-xs text-fb-text-muted">
+            Die Erlöse zeigen die bisherigen Verkäufe. Einzelkosten und ein abschließendes Ergebnis
+            sind damit noch nicht ermittelt.
+          </p>
+        }
+      </div>
+    </app-card>
+  }
+</ng-template>

@@ -30,7 +30,7 @@ export interface CreateItemPayload {
   sku?: string | null;
   ean?: string | null;
   description?: string | null;
-  allocated_purchase_cost: number;
+  allocated_purchase_cost: number | null;
   expected_value?: number | null;
 }
 
@@ -486,11 +486,16 @@ export class InventoryService {
       (sum, cost) => sum + Number(cost.amount || 0),
       0,
     );
-    const purchaseCost = Number(raw.allocated_purchase_cost || 0);
-    const totalCost = Number((purchaseCost + additionalCostsSum).toFixed(2));
-    const expectedVal = raw.expected_value ? Number(raw.expected_value) : null;
+    const purchaseCost = raw.allocated_purchase_cost;
+    const totalCost =
+      purchaseCost == null || !Number.isFinite(purchaseCost)
+        ? undefined
+        : Number((purchaseCost + additionalCostsSum).toFixed(2));
+    const expectedVal = raw.expected_value == null ? null : Number(raw.expected_value);
     const profitPotential =
-      expectedVal !== null ? Number((expectedVal - totalCost).toFixed(2)) : undefined;
+      expectedVal !== null && totalCost !== undefined
+        ? Number((expectedVal - totalCost).toFixed(2))
+        : undefined;
 
     return {
       ...raw,
@@ -629,7 +634,7 @@ export class InventoryService {
       sku: payload.sku?.trim() || this.naechsteArtikelnummer(),
       ean: payload.ean?.trim() || null,
       description: payload.description?.trim() || null,
-      allocated_purchase_cost: payload.allocated_purchase_cost || 0,
+      allocated_purchase_cost: payload.allocated_purchase_cost,
       expected_value: payload.expected_value || null,
       created_at: new Date().toISOString(),
     };
@@ -677,7 +682,7 @@ export class InventoryService {
           sku: payload.sku?.trim() || null,
           ean: payload.ean?.trim() || null,
           description: payload.description?.trim() || null,
-          allocated_purchase_cost: payload.allocated_purchase_cost || 0,
+          allocated_purchase_cost: payload.allocated_purchase_cost,
           expected_value: payload.expected_value || null,
         })
         .select()
@@ -737,6 +742,19 @@ export class InventoryService {
     updates: Partial<InventoryItem>,
   ): Promise<{ error: Error | null }> {
     if (this.isMutationLocked(itemId)) return this.lockedMutationResult();
+    const existing =
+      this.items().find((item) => item.id === itemId) ??
+      (this.selectedItem()?.id === itemId ? this.selectedItem() : undefined) ??
+      this.mockStore.getItems().find((item) => item.id === itemId);
+    if (
+      (updates.source_package_line_id !== undefined &&
+        updates.source_package_line_id !== existing?.source_package_line_id) ||
+      (existing?.source_package_line_id &&
+        ((updates.purchase_id !== undefined && updates.purchase_id !== existing.purchase_id) ||
+          (updates.purchase_line_id !== undefined &&
+            updates.purchase_line_id !== existing.purchase_line_id)))
+    )
+      return { error: new Error('Die Herkunft eines Paketinhalts kann nicht geändert werden.') };
     const aenderungenLokalUebernehmen = (): void => {
       const stored = this.mockStore.getItems().find((i) => i.id === itemId);
       const base = stored || this.items().find((i) => i.id === itemId) || this.selectedItem();

@@ -144,6 +144,7 @@ function erstelleKomponente(vorhandener: Purchase | null = null) {
     areAdditionalCostsValid: signal(true),
     purchaseBasePrice: signal<number | null>(50),
     purchaseLines: signal([]),
+    hasPackages: () => komponente.purchaseLines().some((line) => line.isPackage),
     baselinePurchaseLines: signal([]),
     baselineCostDrafts: signal([]),
     form: new FormGroup({

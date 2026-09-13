@@ -51,6 +51,21 @@ describe('timelineSentence', () => {
 });
 
 describe('timelineChanges', () => {
+  it('nennt beim Erfassen von Paketinhalt nur die neuen Artikel', () => {
+    const event = createEvent('purchase_package_contents_captured', {
+      source_package_line_id: 'pack',
+      request_id: 'request',
+      inventory_items: [
+        { id: 'a', title: 'Adidas Samba', status: 'received', allocated_purchase_cost: null },
+        { id: 'b', title: 'Adidas Gazelle', status: 'received' },
+      ],
+    });
+    expect(timelineSentence(event, 'Grischa', 'actor-1')).toBe('Du hast Paketinhalt erfasst.');
+    expect(timelineChanges(event)).toEqual([
+      { label: 'Artikel erfasst', from: null, to: 'Adidas Samba' },
+      { label: 'Artikel erfasst', from: null, to: 'Adidas Gazelle' },
+    ]);
+  });
   it('zeigt beim Anlegen eines Entwurfs keine Details', () => {
     const event = createEvent('purchase_draft_created', {
       purchase: { before: null, after: { purchase_date: '2026-09-01', notes: 'Testeinkauf' } },

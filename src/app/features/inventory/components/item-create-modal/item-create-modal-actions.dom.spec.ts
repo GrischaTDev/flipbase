@@ -318,3 +318,36 @@ describe('ItemCreateModalComponent – Toast-Rückmeldung', () => {
     expect(syncStatus.fehler()).toHaveLength(1);
   });
 });
+
+describe('Paketinhalt bearbeiten', () => {
+  it.each([null, 0])(
+    'speichert Kosten %s unverändert und behält die Herkunft bei',
+    async (cost) => {
+      const content = {
+        ...artikel,
+        allocated_purchase_cost: cost,
+        purchase_id: 'purchase',
+        source_package_line_id: 'package',
+      };
+      const { komponente, inventoryService } = erstelleKomponente(
+        { data: content, error: null },
+        content,
+      );
+      komponente.form.patchValue({
+        allocated_purchase_cost: cost,
+        purchase_id: 'other',
+        title: 'Bearbeiteter Schuh',
+      });
+      await komponente.onSubmit();
+      expect(inventoryService.updateItem).toHaveBeenCalledWith(
+        content.id,
+        expect.objectContaining({
+          title: 'Bearbeiteter Schuh',
+          allocated_purchase_cost: cost,
+          purchase_id: 'purchase',
+        }),
+      );
+      expect(inventoryService.createItem).not.toHaveBeenCalled();
+    },
+  );
+});

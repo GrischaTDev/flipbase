@@ -1165,3 +1165,59 @@ describe('InventoryService – abhängige Schreibvorgänge', () => {
     expect(syncStatus.fehler()).toHaveLength(2);
   });
 });
+
+describe('Paketinhalt im Inventar', () => {
+  it.each([null, 0, 10])('behält Einzelkosten %s beim Laden samt Zusatzkosten', (cost) => {
+    const { dienst } = injiziereDienst({});
+    const enriched = dienst.enrichItemTotals({
+      ...gespeicherterArtikel,
+      source_package_line_id: 'package',
+      allocated_purchase_cost: cost,
+      total_item_cost: 999,
+      profit_potential: 999,
+      costs: [{ type: 'repair', amount: 2 }],
+    });
+    expect(enriched.allocated_purchase_cost).toBe(cost);
+    expect(enriched.total_item_cost).toBe(cost === null ? undefined : cost + 2);
+    expect(enriched.profit_potential).toBe(cost === null ? undefined : 18 - cost);
+    expect(enriched.purchase_id).toBe(gespeicherterArtikel.purchase_id);
+    expect(enriched.source_package_line_id).toBe('package');
+  });
+  it('speichert eine Artikeländerung mit NULL und blockiert das Ablösen der Herkunft', async () => {
+    const update = vi.fn(() => ({ eq: vi.fn(async () => ({ error: null, count: 1 })) }));
+    const { dienst } = injiziereDienst({ from: () => ({ update }) });
+    const content = {
+      ...gespeicherterArtikel,
+      allocated_purchase_cost: null,
+      source_package_line_id: 'package',
+    };
+    dienst.items.set([content]);
+    dienst.selectedItem.set(content);
+    expect(
+      (
+        await dienst.updateItem(content.id, {
+          title: 'Neue Beschreibung',
+          allocated_purchase_cost: null,
+        })
+      ).error,
+    ).toBeNull();
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({ allocated_purchase_cost: null }),
+      { count: 'exact' },
+    );
+    expect(dienst.selectedItem()).toMatchObject({
+      title: 'Neue Beschreibung',
+      allocated_purchase_cost: null,
+      source_package_line_id: 'package',
+      purchase_id: content.purchase_id,
+    });
+    for (const updates of [
+      { purchase_id: null },
+      { source_package_line_id: null },
+      { purchase_line_id: 'other' },
+    ]) {
+      expect((await dienst.updateItem(content.id, updates)).error?.message).toContain('Herkunft');
+    }
+    expect(update).toHaveBeenCalledTimes(1);
+  });
+});

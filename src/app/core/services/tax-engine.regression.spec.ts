@@ -211,3 +211,27 @@ describe('Steuerregression: Kostenherkunft und Einzeldifferenz', () => {
     expect(engine.summarizePeriod([result], 'September', 'diff_25a').review_count).toBe(1);
   });
 });
+
+describe('Steuerexport mit Paketinhalt', () => {
+  it.each(['diff_25a', 'regular_19', 'kleinunternehmer_19'] as const)(
+    'sperrt offene Kosten auch bei %s und gemischten Verkäufen',
+    (mode) => {
+      const result = engine.calculateSaleTax(
+        sale([
+          {
+            ...line('Paketinhalt', 80, 0),
+            cost_of_goods_sold: null,
+            tax_purchase_cost: null,
+            tax_mode: mode,
+          },
+        ]),
+        { ...item, allocated_purchase_cost: null },
+      );
+      expect(result.calculation_status).toBe('needs_review');
+      const known = engine.calculateSaleTax(sale([line('Bekannt', 80, 10)]), item);
+      expect(engine.summarizePeriod([known, result], 'September', mode).review_count).toBe(1);
+      expect(() => engine.generateDatevCsv([known, result])).toThrow(/prüfen/i);
+      expect(() => engine.generateEurCsv([known, result])).toThrow(/prüfen/i);
+    },
+  );
+});

@@ -38,6 +38,41 @@ function createService(options?: {
 }
 
 describe('PurchaseCostingService', () => {
+  it('erhält die Paketkennzeichnung bei Korrekturen und verwirft ungültige Paketmengen', async () => {
+    const { service, rpc } = createService();
+    const line = {
+      id: 'line-1',
+      catalog_product_id: null,
+      title_snapshot: 'Paket',
+      is_package: true,
+      line_kind: 'individual' as const,
+      ordered_quantity: 1,
+      price_mode: 'priced' as const,
+      unit_purchase_price: 100,
+      line_total: 100,
+      condition_snapshot: null,
+      estimated_market_value: null,
+    };
+    const input = {
+      workspaceId: 'workspace-1',
+      purchaseId: 'purchase-1',
+      reason: 'Paketbezeichnung berichtigen',
+      purchasePrice: 100,
+      lines: [line],
+      costs: [],
+    };
+    expect((await service.correctPurchase(input)).error).toBeNull();
+    expect(rpc).toHaveBeenCalledWith(
+      'correct_purchase_costing',
+      expect.objectContaining({ p_lines: [line] }),
+    );
+    expect(
+      (await service.correctPurchase({ ...input, lines: [{ ...line, ordered_quantity: 2 }] }))
+        .error,
+    ).toBeInstanceOf(Error);
+    expect(rpc).toHaveBeenCalledTimes(1);
+  });
+
   it('weist eine Vorschau für einen anderen Einkauf zurück', async () => {
     const { service } = createService({
       rpc: async () => ({

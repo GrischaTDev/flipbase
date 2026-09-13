@@ -64,6 +64,15 @@ Varianten grün; andere Browsertests sprachen die Reiterleiste nicht an.
 Arbeitsordner, weil der Befehl kein Arbeitsverzeichnis hatte. Es hat dort nur
 `node_modules` neu aufgebaut (Exitcode 0), am Code und am Zweig
 `feat/item-picker-and-image-preview` nichts geändert.
+
+## 2026-09-13 – Codex – Paketinhalt aus dem Einkauf erfassen
+
+**Auftrag:** Bestätigten Ablauf umsetzen: bezahlte Paketposition bleibt bestehen,
+Inhalt wird später als einzeln verkäufliche Artikel mit Herkunft erfasst.
+Unbekannte Einzelkosten bleiben offen. Eigener Zweig `codex/mystery-pack-model`.
+**Arbeitsplan:** `docs/superpowers/plans/2026-09-13-purchase-package-contents.md`.
+Implementierung und lokale Prüfungen laufen; noch keine Veröffentlichung.
+
 ## 2026-09-13 – Codex – Mystery-Pack-Modell erneut abgleichen
 
 **Auftrag:** Bekannte Einzelpreise bei Kleidung als Normalfall berücksichtigen;

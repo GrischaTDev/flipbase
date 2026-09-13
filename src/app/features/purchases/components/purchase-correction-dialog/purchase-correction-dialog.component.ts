@@ -114,6 +114,9 @@ export class PurchaseCorrectionDialogComponent {
           catalog_product_id: line.catalogProductId,
           title_snapshot: line.title.trim(),
           line_kind: line.lineKind,
+          is_package:
+            purchase.purchase_lines?.find((original) => original.id === line.id)?.is_package ??
+            false,
           ordered_quantity: line.quantity,
           price_mode: line.priceMode,
           unit_purchase_price: line.unitPrice,

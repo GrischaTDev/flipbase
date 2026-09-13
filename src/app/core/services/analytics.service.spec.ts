@@ -254,3 +254,53 @@ describe('Analytics & Break-Even Engine (Phase 5)', () => {
     expect(statsAfter[0].daysToBreakEven).toBe(14);
   });
 });
+
+describe('Auswertungen mit offenen Einzelkosten', () => {
+  it('erhält Umsatz, aber keine erfundenen Gewinne in gemischten Gruppen', () => {
+    const analytics = new AnalyticsService();
+    const base: Sale = {
+      id: 'known',
+      workspace_id: 'ws',
+      platform: 'direct',
+      sale_date: '2026-09-13',
+      sale_price: 80,
+      platform_fee: 0,
+      shipping_cost: 0,
+      packaging_cost: 0,
+      other_costs: 0,
+      net_profit: 30,
+      roi: 60,
+      holding_duration_days: 4,
+    };
+    const sales = [base, { ...base, id: 'unknown', net_profit: null, roi: null }];
+    expect(analytics.computePlatformPerformance(sales)[0]).toMatchObject({
+      grossRevenue: 160,
+      netProfit: null,
+      profitMargin: null,
+    });
+    expect(analytics.computeSourcePerformance([], sales)[0]).toMatchObject({
+      revenue: 160,
+      profit: null,
+      roi: null,
+    });
+    expect(analytics.computeCategoryRankings([], sales)[0]).toMatchObject({
+      revenue: 160,
+      profit: null,
+      avgRoi: null,
+    });
+    expect(analytics.computeMonthlyCohorts([], sales)[0]).toMatchObject({
+      realizedRevenue: 160,
+      realizedProfit: null,
+      isProfitable: null,
+    });
+    expect(
+      analytics.computePlatformPerformance([{ ...base, sale_price: 0, net_profit: null }])[0]
+        .profitMargin,
+    ).toBeNull();
+    expect(analytics.computeHoldingDurationAnalysis(sales).buckets[0]).toMatchObject({
+      count: 2,
+      totalProfit: null,
+      avgRoi: null,
+    });
+  });
+});

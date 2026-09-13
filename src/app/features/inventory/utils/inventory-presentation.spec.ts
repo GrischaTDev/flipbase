@@ -997,3 +997,20 @@ describe('buildInventoryPresentation', () => {
     expect(result.rows[0].title).toBe('Demo-Titel aus Einkauf');
   });
 });
+
+describe('Paketinhalt in der Inventarliste', () => {
+  it('zeigt NULL-Kosten trotz abgeschlossenem Paket als offen und behält den Einkaufslink', () => {
+    const result = build({
+      individualItems: [
+        individual({
+          source_package_line_id: 'package',
+          allocated_purchase_cost: null,
+          total_item_cost: 0,
+        }),
+      ],
+      purchases: [purchase('purchase-1')],
+    });
+    expect(result.rows[0].costPerUnit).toEqual({ kind: 'open' });
+    expect(JSON.stringify(result.rows[0])).toContain('/purchases/purchase-1');
+  });
+});

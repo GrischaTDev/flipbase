@@ -37,7 +37,7 @@ export class RecordTimelineService {
     const identity = this.auth.currentUser()?.id;
     const position = cursor ? decodeTimelineCursor(cursor) : null;
     if (this.mockStore.isDemoMode()) {
-      const entries = this.mockStore
+      const comments: RecordTimelineEntry[] = this.mockStore
         .getRecordComments(workspaceId, entityType, entityId)
         .map((comment) => ({
           id: comment.id,
@@ -46,7 +46,27 @@ export class RecordTimelineService {
           actorName: comment.actorName,
           body: comment.body,
           event: null,
-        }))
+        }));
+      const captured =
+        entityType === 'purchase'
+          ? this.mockStore.getPackageCaptureEvents(workspaceId, entityId)
+          : [];
+      const events: RecordTimelineEntry[] = captured.map((event) => ({
+        id: event.id,
+        kind: 'event',
+        createdAt: event.createdAt,
+        actorName: 'Demo',
+        body: null,
+        event: {
+          ...event,
+          entityType,
+          actorId: event.actorId ?? null,
+          reason: event.reason ?? null,
+          eventLabel: mapBusinessEventLabel(event.eventType),
+          changes: event.changes as Json,
+        },
+      }));
+      const entries = [...comments, ...events]
         .sort(compareTimelineEntries)
         .filter((entry) => !position || compareTimelineEntries(entry, position) > 0)
         .slice(0, PAGE_SIZE);

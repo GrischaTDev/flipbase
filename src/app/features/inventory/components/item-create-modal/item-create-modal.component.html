@@ -298,7 +298,7 @@
               id="itemCost"
               type="number"
               formControlName="allocated_purchase_cost"
-              placeholder="0.00"
+              [placeholder]="istBearbeitung() ? 'Offen' : '0.00'"
               class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold"
             />
           </div>
@@ -360,6 +360,12 @@
             formControlName="purchase_id"
             size="sm"
           />
+          @if (item()?.source_package_line_id) {
+            <p class="mt-1 text-xs text-fb-text-muted">
+              Paketinhalt: Die Herkunft bleibt unverändert. Einzelkosten sind eine interne
+              Bewertung, kein Rechnungspreis.
+            </p>
+          }
         </div>
 
         <div class="flex items-center justify-end gap-2 pt-4 border-t border-fb-border">
