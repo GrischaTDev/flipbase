@@ -1,101 +1,105 @@
-<section class="mx-auto flex w-full max-w-3xl flex-col gap-6 p-6">
-  <header class="flex flex-col gap-1">
-    <h1 class="text-xl font-semibold text-fb-text-primary">Kategorieliste</h1>
-    <p class="text-sm text-fb-text-muted">
-      Das gespeicherte Kategorienverzeichnis von Vinted. Der Status wird automatisch aktualisiert.
-    </p>
-  </header>
+<section class="flex flex-col gap-4">
+  <app-page-header
+    title="Kategorieliste"
+    subtitle="Das gespeicherte Kategorienverzeichnis von Vinted. Der Status wird automatisch aktualisiert."
+  />
 
-  @if (loadError(); as message) {
-    <p class="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-800" role="alert">
-      {{ message }}
-    </p>
-  }
-
-  @if (status(); as state) {
-    <dl class="grid grid-cols-1 gap-4 sm:grid-cols-3">
-      <div class="rounded-md border border-fb-line p-4">
-        <dt class="text-sm text-fb-text-muted">Kategorien</dt>
-        <dd class="mt-1 text-2xl font-semibold text-fb-text-primary">{{ state.categoryCount }}</dd>
-      </div>
-
-      <div class="rounded-md border border-fb-line p-4">
-        <dt class="text-sm text-fb-text-muted">Zuletzt eingelesen</dt>
-        <dd class="mt-1 text-sm text-fb-text-primary">
-          @if (state.refreshedAt) {
-            {{ state.refreshedAt | date: 'dd.MM.yyyy, HH:mm' }} Uhr
-          } @else {
-            Noch nie eingelesen
-          }
-        </dd>
-      </div>
-
-      <!-- Der letzte Versuch steht bewusst neben dem letzten Erfolg. Nur so
-           ist "der Dienst hat es versucht und ist gescheitert" von "der Dienst
-           laeuft gar nicht mehr" zu unterscheiden - im zweiten Fall bleibt
-           auch dieser Zeitpunkt stehen und altert sichtbar mit. -->
-      <div class="rounded-md border border-fb-line p-4">
-        <dt class="text-sm text-fb-text-muted">Letzter Versuch</dt>
-        <dd class="mt-1 text-sm text-fb-text-primary">
-          @if (state.lastAttemptAt) {
-            {{ state.lastAttemptAt | date: 'dd.MM.yyyy, HH:mm' }} Uhr
-          } @else {
-            Noch kein Versuch
-          }
-        </dd>
-      </div>
-    </dl>
-
-    @if (requestDelayed()) {
-      <p class="rounded-md border border-fb-line p-4 text-sm text-fb-text-primary">
-        Bisher keine Antwort vom Bot. Die Anforderung ist gespeichert, wurde aber noch nicht
-        bearbeitet. Bitte den Dienstbetrieb prüfen. Ein weiterer Klick ist nicht nötig.
+  <!-- Wenig Inhalt: bleibt schmal, der Seitenkopf fluchtet mit den anderen Seiten. -->
+  <div class="flex max-w-3xl flex-col gap-6">
+    @if (loadError(); as message) {
+      <p class="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-800" role="alert">
+        {{ message }}
       </p>
     }
 
-    @if (state.lastError; as failure) {
-      <div class="rounded-md border border-amber-300 bg-amber-50 p-4">
-        <p class="text-sm font-medium text-amber-900">
-          @if (state.lastAttemptAt) {
-            Der Versuch am {{ state.lastAttemptAt | date: 'dd.MM.yyyy, HH:mm' }} Uhr ist gescheitert
-          } @else {
-            Der letzte Versuch ist gescheitert
-          }
+    @if (status(); as state) {
+      <dl class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div class="rounded-md border border-fb-line p-4">
+          <dt class="text-sm text-fb-text-muted">Kategorien</dt>
+          <dd class="mt-1 text-2xl font-semibold text-fb-text-primary">
+            {{ state.categoryCount }}
+          </dd>
+        </div>
+
+        <div class="rounded-md border border-fb-line p-4">
+          <dt class="text-sm text-fb-text-muted">Zuletzt eingelesen</dt>
+          <dd class="mt-1 text-sm text-fb-text-primary">
+            @if (state.refreshedAt) {
+              {{ state.refreshedAt | date: 'dd.MM.yyyy, HH:mm' }} Uhr
+            } @else {
+              Noch nie eingelesen
+            }
+          </dd>
+        </div>
+
+        <!-- Der letzte Versuch steht bewusst neben dem letzten Erfolg. Nur so
+             ist "der Dienst hat es versucht und ist gescheitert" von "der Dienst
+             laeuft gar nicht mehr" zu unterscheiden - im zweiten Fall bleibt
+             auch dieser Zeitpunkt stehen und altert sichtbar mit. -->
+        <div class="rounded-md border border-fb-line p-4">
+          <dt class="text-sm text-fb-text-muted">Letzter Versuch</dt>
+          <dd class="mt-1 text-sm text-fb-text-primary">
+            @if (state.lastAttemptAt) {
+              {{ state.lastAttemptAt | date: 'dd.MM.yyyy, HH:mm' }} Uhr
+            } @else {
+              Noch kein Versuch
+            }
+          </dd>
+        </div>
+      </dl>
+
+      @if (requestDelayed()) {
+        <p class="rounded-md border border-fb-line p-4 text-sm text-fb-text-primary">
+          Bisher keine Antwort vom Bot. Die Anforderung ist gespeichert, wurde aber noch nicht
+          bearbeitet. Bitte den Dienstbetrieb prüfen. Ein weiterer Klick ist nicht nötig.
         </p>
-        <p class="mt-1 text-sm text-amber-800">{{ failure }}</p>
-        <p class="mt-2 text-sm text-amber-800">
-          Die gespeicherte Liste bleibt gültig und benutzbar. Scheitert es wiederholt, hat Vinted
-          vermutlich das Seitenformat geändert.
+      }
+
+      @if (state.lastError; as failure) {
+        <div class="rounded-md border border-amber-300 bg-amber-50 p-4">
+          <p class="text-sm font-medium text-amber-900">
+            @if (state.lastAttemptAt) {
+              Der Versuch am {{ state.lastAttemptAt | date: 'dd.MM.yyyy, HH:mm' }} Uhr ist
+              gescheitert
+            } @else {
+              Der letzte Versuch ist gescheitert
+            }
+          </p>
+          <p class="mt-1 text-sm text-amber-800">{{ failure }}</p>
+          <p class="mt-2 text-sm text-amber-800">
+            Die gespeicherte Liste bleibt gültig und benutzbar. Scheitert es wiederholt, hat Vinted
+            vermutlich das Seitenformat geändert.
+          </p>
+        </div>
+      }
+
+      <div class="flex items-center gap-3">
+        <button
+          type="button"
+          data-testid="request-refresh"
+          class="rounded-md bg-fb-primary px-4 py-2 text-sm font-medium text-fb-on-accent hover:bg-fb-primary-hover disabled:opacity-60"
+          [disabled]="requesting()"
+          (click)="requestRefresh()"
+        >
+          @if (requesting()) {
+            Wird angefordert …
+          } @else {
+            Neu einlesen
+          }
+        </button>
+
+        <!-- Der dauerhafte Live-Bereich meldet auch den spaeteren Abschluss. -->
+        <p class="text-sm text-fb-text-muted" role="status" aria-live="polite">
+          @if (pendingRequest(); as requestedAt) {
+            Auffrischung angefordert am {{ requestedAt | date: 'dd.MM.yyyy, HH:mm' }} Uhr. Der
+            Dienst liest sie beim nächsten Takt ein.
+          } @else if (state.lastError) {
+            Das Einlesen ist fehlgeschlagen.
+          } @else if (state.refreshedAt) {
+            Der Kategoriebaum ist verfügbar.
+          }
         </p>
       </div>
     }
-
-    <div class="flex items-center gap-3">
-      <button
-        type="button"
-        data-testid="request-refresh"
-        class="rounded-md bg-fb-primary px-4 py-2 text-sm font-medium text-fb-on-accent hover:bg-fb-primary-hover disabled:opacity-60"
-        [disabled]="requesting()"
-        (click)="requestRefresh()"
-      >
-        @if (requesting()) {
-          Wird angefordert …
-        } @else {
-          Neu einlesen
-        }
-      </button>
-
-      <!-- Der dauerhafte Live-Bereich meldet auch den spaeteren Abschluss. -->
-      <p class="text-sm text-fb-text-muted" role="status" aria-live="polite">
-        @if (pendingRequest(); as requestedAt) {
-          Auffrischung angefordert am {{ requestedAt | date: 'dd.MM.yyyy, HH:mm' }} Uhr. Der Dienst
-          liest sie beim nächsten Takt ein.
-        } @else if (state.lastError) {
-          Das Einlesen ist fehlgeschlagen.
-        } @else if (state.refreshedAt) {
-          Der Kategoriebaum ist verfügbar.
-        }
-      </p>
-    </div>
-  }
+  </div>
 </section>
