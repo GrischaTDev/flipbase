@@ -55,6 +55,9 @@ ESLint, Prettier, `npm run build` ohne Warnungen, Liste der PR-Browsertests
 dunkel grün (einschließlich Weiterleitung von `/admin/queries` und abgelehntem
 Wechsel auf 390 px). Nicht geprüft: Sichtprüfung mit echter Betreiber-Sitzung.
 
+**Freigabe:** Der Nutzer hat Push, PR, Merge nach erfolgreichen Prüfungen und
+anschließendes Aufräumen von Zweig und Arbeitsordner bestätigt.
+
 ## 2026-09-13 – Claude Opus 5 (Anthropic) – Administration in der Seitenleiste
 
 **Auftrag:** Die Reiterleiste oben in der Administration entfällt. Die vier
