@@ -9,12 +9,12 @@ Botbetrieb, Kategorieliste). Sie sind heute über eine Reiterleiste oben im
 Inhalt erreichbar (`platform-admin-shell`). Das wirkt unruhig, und die vier
 Seiten sind unterschiedlich gebaut:
 
-| Seite           | Außenrahmen                          | Überschrift             |
-| --------------- | ------------------------------------ | ----------------------- |
-| Bewerbungen     | `space-y-4`, kein eigener Rand       | `app-page-header`       |
-| Sammelaufträge  | `max-w-7xl p-6`                      | `app-page-header`       |
-| Botbetrieb      | `max-w-7xl p-6`                      | `app-page-header`       |
-| Kategorieliste  | `max-w-3xl p-6`                      | eigenes `h1` + `p`      |
+| Seite          | Außenrahmen                    | Überschrift        |
+| -------------- | ------------------------------ | ------------------ |
+| Bewerbungen    | `space-y-4`, kein eigener Rand | `app-page-header`  |
+| Sammelaufträge | `max-w-7xl p-6`                | `app-page-header`  |
+| Botbetrieb     | `max-w-7xl p-6`                | `app-page-header`  |
+| Kategorieliste | `max-w-3xl p-6`                | eigenes `h1` + `p` |
 
 Das Grundgerüst (`shell.component.html`) setzt bereits `p-4 md:p-5` um jede
 Seite. Das zusätzliche `p-6` ergibt doppelten Rand.
@@ -82,8 +82,9 @@ Die eigentliche Umstellung dieser Bereiche gehört **nicht** zu diesem Zweig.
   `canDeactivate` an `queries` und der Wächter auf `/admin` in `app.routes.ts`
   bleiben unverändert.
 - Alle vier Seiten bekommen denselben Außenrahmen wie Einkäufe und Verkäufe:
-  `<section class="space-y-4">` ohne eigenen Rand und ohne `max-w-*` am
-  Außenrahmen.
+  16 px Abstand zwischen den Blöcken (`flex flex-col gap-4`, wie bei den
+  Bot-Seiten schon heute), ohne eigenen Rand und ohne `max-w-*` am Außenrahmen.
+  Bewerbungen behält ihr gleichwertiges `space-y-4`.
 - Alle vier Seiten nutzen `app-page-header` mit Titel und Untertitel. Die
   Kategorieliste ersetzt ihr eigenes `header`/`h1` dadurch. Titel und
   Untertitel bleiben inhaltlich wie heute.

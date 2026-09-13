@@ -8,13 +8,48 @@ Seitenleiste auf. Gleichzeitig bekommen die vier Seiten einen einheitlichen
 Rahmen. Zweig `feat/admin-sidebar-navigation`, abgezweigt von `master`
 (0dad469).
 
-**Stand:** Entwurf abgestimmt und unter
-`docs/superpowers/specs/2026-09-13-admin-sidebar-navigation-design.md`
-abgelegt. Noch keine Codeänderung.
+Entwurf unter
+`docs/superpowers/specs/2026-09-13-admin-sidebar-navigation-design.md`, Plan
+unter `docs/superpowers/plans/2026-09-13-admin-sidebar-navigation.md`.
 
-**Befund:** Die vier Seiten sind unterschiedlich gerahmt. Drei setzen eigenes
-`p-6` zusätzlich zum Rand des Grundgerüsts, die Kategorieliste hat eine eigene
-Überschrift statt `app-page-header`.
+**Ergebnis:**
+
+- `NavItem` in der Seitenleiste hat optionale `children`. Die Liste der
+  Admin-Unterseiten liegt in `core/config/platform-admin-navigation.ts`. Die
+  Unterpunkte stehen nur im DOM, solange die Adresse in `/admin` liegt. Der
+  Bereichslink bleibt fett, trägt aber kein `aria-current`; das trägt allein
+  der aktive Unterpunkt.
+- `platform-admin-shell` mit Reiterleiste und Test ist entfernt. Die Seiten
+  hängen direkt an den Routen; Pfade, Weiterleitung und `unsavedEntryGuard`
+  sind unverändert.
+- Alle vier Seiten ohne eigenen Rand und ohne äußere Maximalbreite, jeweils mit
+  `app-page-header`. Die Kategorieliste behält darunter `max-w-3xl` für ihren
+  kleinen Inhalt.
+
+**Befund:** Die vier Seiten waren unterschiedlich gerahmt. Die Bot-Seiten
+setzten `p-6` zusätzlich zum Rand des Grundgerüsts, die Kategorieliste baute
+ihre Überschrift selbst.
+
+**Fund in der Prüfung:** Nach dem Umstieg auf `app-page-header` meldete AXE in
+der Kategorieliste `empty-heading`. Ursache ist die Laufzeitübersetzung der
+Tests, die Signal-Eingänge nicht kennt, nicht die Seite selbst. Der Test meldet
+`title` und `subtitle` jetzt an und setzt sie danach zurück, wie es der Test des
+Seitenkopfs schon tut.
+
+**Geprüft:** Neuer Seitenleisten-Test (5 Fälle: Reihenfolge und Ziele, genau
+ein `aria-current` auf zwei Unterseiten, zugeklappt außerhalb, unsichtbar für
+Nicht-Betreiber, AXE). Angular-Tests `platform-admin`, `layout/sidebar`,
+`page-header`: 37 von 37 grün. `tsc -p tsconfig.spec.json` ohne Befund,
+`npm run build` Exitcode 0 ohne Warnungen, Prettier und ESLint auf allen
+geänderten Dateien.
+
+**Offen:** Sichtprüfung im Browser. Sie braucht eine angemeldete
+Betreiber-Sitzung; die Anmeldung übernimmt der Nutzer selbst.
+
+**Nebenbei:** Ein `npm ci` lief versehentlich im Haupt-Repo statt im
+Arbeitsordner, weil der Befehl kein Arbeitsverzeichnis hatte. Es hat dort nur
+`node_modules` neu aufgebaut (Exitcode 0), am Code und am Zweig
+`feat/item-picker-and-image-preview` nichts geändert.
 
 ## 2026-09-13 – Codex – PR-Abschluss für Einkaufsfelder und Kalender
 
