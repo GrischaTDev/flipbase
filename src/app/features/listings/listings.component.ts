@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   computed,
   effect,
   inject,
@@ -35,15 +36,23 @@ import {
   LucideGamepad2 as Gamepad2,
   LucideShirt as Shirt,
   LucideLightbulb as Lightbulb,
+  LucideTruck as Truck,
+  LucideMapPin as MapPin,
+  LucideDownload as Download,
+  LucideHelpCircle as HelpCircle,
+  LucideRocket as Rocket,
 } from '@lucide/angular';
 import {
   ListingStudioService,
   GeneratedListing,
   ListingPlatform,
   ListingStyleTone,
+  ListingPriceType,
+  KleinanzeigenListingPayload,
   SeoOptimizationResult,
 } from '../../core/services/listing-studio.service';
 import { InventoryService } from '../../core/services/inventory.service';
+import { MediaService } from '../../core/services/media.service';
 import { InventoryItem } from '../../core/models/flipbase.models';
 import { isSellableInventoryItem } from '../../core/models/inventory-sellability';
 
@@ -87,8 +96,10 @@ export class ListingsComponent {
 
   readonly listingStudio = inject(ListingStudioService);
   readonly inventoryService = inject(InventoryService);
+  readonly mediaService = inject(MediaService, { optional: true });
   private readonly syncStatus = inject(SyncStatusService);
   private readonly toast = inject(ToastService);
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly fileIcon = FileText;
   readonly copyIcon = Copy;
@@ -114,6 +125,11 @@ export class ListingsComponent {
   readonly gamepadIcon = Gamepad2;
   readonly shirtIcon = Shirt;
   readonly lightbulbIcon = Lightbulb;
+  readonly rocketIcon = Rocket;
+  readonly downloadIcon = Download;
+  readonly mapPinIcon = MapPin;
+  readonly truckIcon = Truck;
+  readonly helpCircleIcon = HelpCircle;
 
   readonly selectedItemId = signal<string>('');
   readonly selectedPlatform = signal<ListingPlatform>('kleinanzeigen');
@@ -139,6 +155,14 @@ export class ListingsComponent {
   readonly copiedDesc = signal<boolean>(false);
   readonly copiedAll = signal<boolean>(false);
   readonly isMarkingListed = signal<boolean>(false);
+
+  // Extension Integration
+  readonly isExtensionInstalled = signal<boolean>(false);
+  readonly priceType = signal<ListingPriceType>('FIXED');
+  readonly postalCode = signal<string>('');
+  readonly shippingPrice = signal<number>(5.49);
+  readonly isPublishingViaExtension = signal<boolean>(false);
+  readonly showExtensionHelpModal = signal<boolean>(false);
 
   readonly availableItems = computed<InventoryItem[]>(() => {
     return this.inventoryService.items().filter(isSellableInventoryItem);
@@ -201,6 +225,49 @@ export class ListingsComponent {
         this.customPrice.set(this.suggestedPrice(item));
       }
     });
+
+    if (typeof window !== 'undefined') {
+      const messageHandler = (event: MessageEvent) => {
+        if (event.source !== window || !event.data || typeof event.data !== 'object') return;
+        if (event.data.type === 'FLIPBASE_EXTENSION_STATUS') {
+          this.isExtensionInstalled.set(Boolean(event.data.installed));
+        }
+        if (event.data.type === 'FLIPBASE_PUBLISH_KLEINANZEIGEN_RESULT') {
+          this.isPublishingViaExtension.set(false);
+          if (event.data.success) {
+            this.toast.success(
+              'Übertragung an Kleinanzeigen gestartet!',
+              'Der Tab wurde geöffnet und die Daten werden ausgefüllt.',
+            );
+          } else {
+            this.toast.error(
+              'Fehler bei der Übertragung',
+              event.data.error || 'Unbekannter Fehler',
+            );
+          }
+        }
+      };
+
+      const customEventHandler = () => {
+        this.isExtensionInstalled.set(true);
+      };
+
+      window.addEventListener('message', messageHandler);
+      window.addEventListener('flipbase:extension-ready', customEventHandler);
+
+      if (
+        typeof document !== 'undefined' &&
+        document.documentElement.dataset['flipbaseExtensionInstalled'] === 'true'
+      ) {
+        this.isExtensionInstalled.set(true);
+      }
+      window.postMessage({ type: 'FLIPBASE_CHECK_EXTENSION' }, '*');
+
+      this.destroyRef?.onDestroy?.(() => {
+        window.removeEventListener('message', messageHandler);
+        window.removeEventListener('flipbase:extension-ready', customEventHandler);
+      });
+    }
   }
 
   onSelectItem(id: string): void {
@@ -340,6 +407,72 @@ export class ListingsComponent {
   private listingPrice(item: InventoryItem): number | null {
     const price = this.customPrice() ?? this.suggestedPrice(item);
     return price !== null && Number.isFinite(price) && price >= 0 ? price : null;
+  }
+
+  getMediaUrl(storagePath?: string | null): string {
+    if (!storagePath) return '';
+    return this.mediaService?.getMediaUrl(storagePath) || storagePath;
+  }
+
+  setPriceType(type: ListingPriceType): void {
+    this.priceType.set(type);
+  }
+
+  onPostalCodeInput(event: Event): void {
+    const val = (event.target as HTMLInputElement).value;
+    this.postalCode.set(val);
+  }
+
+  onShippingPriceInput(event: Event): void {
+    const price = (event.target as HTMLInputElement).valueAsNumber;
+    this.shippingPrice.set(Number.isFinite(price) ? price : 5.49);
+  }
+
+  async publishViaExtension(): Promise<void> {
+    const item = this.selectedItem();
+    if (!item) return;
+
+    const price = this.listingPrice(item);
+    if (price === null) {
+      this.toast.error('Verkaufspreis fehlt.', 'Bitte gib einen gültigen Verkaufspreis an.');
+      return;
+    }
+
+    this.isPublishingViaExtension.set(true);
+
+    const images = (item.media ?? []).map((m, idx) => ({
+      url: this.getMediaUrl(m.storage_path),
+      name: m.file_name || `artikel-bild-${idx + 1}.jpg`,
+    }));
+
+    const payload: KleinanzeigenListingPayload = {
+      itemId: item.id,
+      title: this.currentTitle(),
+      description: this.currentDesc(),
+      price,
+      priceType: this.priceType(),
+      postalCode: this.postalCode().trim() || undefined,
+      shippingType:
+        this.optShipping() && this.optPickup()
+          ? 'both'
+          : this.optShipping()
+            ? 'shipping'
+            : 'pickup',
+      shippingPrice: this.optShipping() ? this.shippingPrice() : undefined,
+      images,
+    };
+
+    this.listingStudio.publishViaExtension(payload);
+
+    setTimeout(() => {
+      if (this.isPublishingViaExtension()) {
+        this.isPublishingViaExtension.set(false);
+        this.toast.info(
+          'Inserat an Erweiterung übergeben',
+          'Kleinanzeigen wird im neuen Tab vorbereitet.',
+        );
+      }
+    }, 1200);
   }
 
   onPriceInput(event: Event): void {
