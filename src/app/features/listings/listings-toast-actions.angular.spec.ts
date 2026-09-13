@@ -41,6 +41,8 @@ function erstelleKomponente(ergebnis: { readonly error: Error | null }) {
     selectedPlatform: signal('kleinanzeigen'),
     customPrice: signal(25),
     isMarkingListed: signal(false),
+    isExtensionInstalled: signal(false),
+    showExtensionHelpModal: signal(true),
   });
 
   return { komponente, listingStudio, syncStatus, toast };
@@ -168,5 +170,39 @@ describe('Paketinhalt ohne Preisvorgabe', () => {
     });
     await komponente.markAsListed();
     expect(listingStudio.markItemAsListed).toHaveBeenCalledWith(artikel.id, 'kleinanzeigen', 0);
+  });
+});
+
+describe('ListingsComponent – Erweiterungsstatus', () => {
+  it('erkennt die installierte Erweiterung über das document-Dataset sofort', () => {
+    const { komponente, toast } = erstelleKomponente({ error: null });
+    document.documentElement.dataset['flipbaseExtensionInstalled'] = 'true';
+    try {
+      komponente.checkExtensionNow();
+      expect(komponente.isExtensionInstalled()).toBe(true);
+      expect(komponente.showExtensionHelpModal()).toBe(false);
+      expect(toast.toasts()[0]).toMatchObject({
+        type: 'success',
+        title: 'Erweiterung erkannt!',
+      });
+    } finally {
+      delete document.documentElement.dataset['flipbaseExtensionInstalled'];
+    }
+  });
+
+  it('informiert den Nutzer, wenn die Erweiterung bei der manuellen Prüfung noch nicht aktiv ist', () => {
+    vi.useFakeTimers();
+    try {
+      const { komponente, toast } = erstelleKomponente({ error: null });
+      komponente.checkExtensionNow();
+      vi.advanceTimersByTime(300);
+      expect(komponente.isExtensionInstalled()).toBe(false);
+      expect(toast.toasts()[0]).toMatchObject({
+        type: 'info',
+        title: 'Erweiterung noch nicht aktiv',
+      });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

@@ -822,6 +822,16 @@
                 </code>
               </div>
             </div>
+            <div class="flex items-start gap-2">
+              <span
+                class="w-5 h-5 rounded-full bg-fb-surface border border-fb-border flex items-center justify-center text-fb-primary font-bold shrink-0"
+                >4</span
+              >
+              <div>
+                Schon geladen? Klicke auf das <strong>Aktualisieren-Symbol (⟳)</strong> der
+                Erweiterung in <code>chrome://extensions</code> und lade diese Seite neu.
+              </div>
+            </div>
           </div>
 
           <p class="text-[11px] text-fb-text-muted">
@@ -830,13 +840,22 @@
           </p>
         </div>
 
-        <div class="flex justify-end gap-2 pt-2 border-t border-fb-border">
+        <div class="flex items-center justify-between gap-2 pt-3 border-t border-fb-border">
+          <button
+            type="button"
+            (click)="checkExtensionNow()"
+            class="linear-btn-secondary px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 text-fb-text-primary hover:bg-fb-subtle cursor-pointer"
+          >
+            <svg [lucideIcon]="refreshIcon" class="w-3.5 h-3.5"></svg>
+            <span>Verbindung prüfen</span>
+          </button>
+
           <button
             type="button"
             (click)="showExtensionHelpModal.set(false)"
             class="linear-btn-primary px-4 py-2 rounded-xl text-xs font-bold cursor-pointer"
           >
-            Verstanden
+            Schließen
           </button>
         </div>
       </div>
