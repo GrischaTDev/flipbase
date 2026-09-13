@@ -41,6 +41,7 @@ import {
   LucideDownload as Download,
   LucideHelpCircle as HelpCircle,
   LucideRocket as Rocket,
+  LucideRefreshCw as RefreshCw,
 } from '@lucide/angular';
 import {
   ListingStudioService,
@@ -130,6 +131,7 @@ export class ListingsComponent {
   readonly mapPinIcon = MapPin;
   readonly truckIcon = Truck;
   readonly helpCircleIcon = HelpCircle;
+  readonly refreshIcon = RefreshCw;
 
   readonly selectedItemId = signal<string>('');
   readonly selectedPlatform = signal<ListingPlatform>('kleinanzeigen');
@@ -255,6 +257,16 @@ export class ListingsComponent {
       window.addEventListener('message', messageHandler);
       window.addEventListener('flipbase:extension-ready', customEventHandler);
 
+      const checkInterval = setInterval(() => {
+        if (
+          typeof document !== 'undefined' &&
+          document.documentElement.dataset['flipbaseExtensionInstalled'] === 'true'
+        ) {
+          this.isExtensionInstalled.set(true);
+        }
+        window.postMessage({ type: 'FLIPBASE_CHECK_EXTENSION' }, '*');
+      }, 1000);
+
       if (
         typeof document !== 'undefined' &&
         document.documentElement.dataset['flipbaseExtensionInstalled'] === 'true'
@@ -264,9 +276,41 @@ export class ListingsComponent {
       window.postMessage({ type: 'FLIPBASE_CHECK_EXTENSION' }, '*');
 
       this.destroyRef?.onDestroy?.(() => {
+        clearInterval(checkInterval);
         window.removeEventListener('message', messageHandler);
         window.removeEventListener('flipbase:extension-ready', customEventHandler);
       });
+    }
+  }
+
+  checkExtensionNow(): void {
+    if (
+      typeof document !== 'undefined' &&
+      document.documentElement.dataset['flipbaseExtensionInstalled'] === 'true'
+    ) {
+      this.isExtensionInstalled.set(true);
+      this.showExtensionHelpModal.set(false);
+      this.toast.success('Erweiterung erkannt!', 'Der 1-Klick-Assistent ist einsatzbereit.');
+      return;
+    }
+
+    if (typeof window !== 'undefined') {
+      window.postMessage({ type: 'FLIPBASE_CHECK_EXTENSION' }, '*');
+      setTimeout(() => {
+        if (
+          typeof document !== 'undefined' &&
+          document.documentElement.dataset['flipbaseExtensionInstalled'] === 'true'
+        ) {
+          this.isExtensionInstalled.set(true);
+          this.showExtensionHelpModal.set(false);
+          this.toast.success('Erweiterung erkannt!', 'Der 1-Klick-Assistent ist einsatzbereit.');
+        } else {
+          this.toast.info(
+            'Erweiterung noch nicht aktiv',
+            'Klicke in chrome://extensions auf das Aktualisieren-Symbol (⟳) bei der Erweiterung und lade diese Seite neu.',
+          );
+        }
+      }, 250);
     }
   }
 

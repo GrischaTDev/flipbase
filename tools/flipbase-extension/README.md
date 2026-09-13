@@ -17,6 +17,8 @@ Diese Erweiterung verbindet **Flipbase OS** mit Verkaufsportalen wie **Kleinanze
 
 Fertig! Die Erweiterung ist sofort aktiv.
 
+> **Hinweis bei Updates:** Wenn Dateien der Erweiterung geändert werden, klicke in `chrome://extensions` einfach auf das kreisförmige **Aktualisieren-Symbol (⟳)** bei der Kachel des Flipbase Listing-Assistenten.
+
 ---
 
 ## ⚡ So funktioniert es

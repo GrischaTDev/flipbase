@@ -1,5 +1,30 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-13 – Gemini 3.8 Flash (Google DeepMind) – Fix Browser-Erweiterung Erkennung auf localhost:4200
+
+**Auftrag:** Browser-Erweiterung für das Listing-Studio wurde im lokalen Dev-Server (`http://localhost:4200`) nicht erkannt. Erkennungsmechanismus, Port-Matching im Manifest und Status-Synchronisation korrigieren.
+
+**Ursache:**
+
+- Chrome Extension Manifest V3 unterstützt in Match-Patterns (z. B. `http://localhost/*`) keine Ports; Zugriffe auf `localhost:4200` werden dadurch nicht gematcht.
+- Content-Script Timing: Bei `document_idle` startete das Bridge-Skript teilweise nach der SPA-Initialisierung, wodurch die initiale Nachricht verloren ging.
+
+**Ergebnis:**
+
+- `tools/flipbase-extension/manifest.json`: Matches auf `<all_urls>` aktualisiert und `run_at` auf `document_start` gesetzt.
+- `tools/flipbase-extension/flipbase-bridge.js`: Host-Filterung auf localhost, 127.0.0.1 und flipbase-Domains beschränkt. Dataset-Attribut `dataset.flipbaseExtensionInstalled = 'true'` wird sofort gesetzt, Events (`flipbase:extension-ready` und postMessage) werden sofort und periodisch gesendet.
+- `ListingsComponent`: Polling-Intervall ergänzt, manuelle Schaltfläche „Verbindung prüfen“ (`checkExtensionNow()`) im Hilfemodal eingefügt.
+- `listings-toast-actions.angular.spec.ts`: Testfälle für manuelle Erkennung und Fallback hinzugefügt.
+- README und Hilfemodal um Update-Schritt (Reload-Symbol in `chrome://extensions`) ergänzt.
+
+**Prüfung:**
+
+- Angular Tests: `npm run test:angular -- src/app/features/listings/listings-toast-actions.angular.spec.ts` (9/9 Tests bestanden).
+- Suite Audit: `npm run test:audit` (242 Dateien, 2073 Tests, 5402 Assertions).
+- Typprüfung: `npm run typecheck` (0 Fehler).
+- ESLint: fehlerfrei.
+- Produktionsbau: `npm run build` fehlerfrei generiert.
+
 ## 2026-09-13 – Gemini 3.8 Flash (Google DeepMind) – Listing-Studio & Kleinanzeigen 1-Klick Browser-Erweiterung
 
 **Auftrag:** Neuen Branch `feat/listing-studio` anlegen, Kleinanzeigen-Automatisierung recherchieren und das Listing-Studio um eine ban-sichere 1-Klick-Übertragung mittels Browser-Erweiterung erweitern.

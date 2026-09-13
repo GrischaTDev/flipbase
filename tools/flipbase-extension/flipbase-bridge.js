@@ -1,13 +1,46 @@
 // Flipbase Extension - Content Script für die Flipbase Webanwendung
 
 (function initFlipbaseBridge() {
-  // Markiere die Seite sofort als mit Erweiterung ausgestattet
-  document.documentElement.dataset.flipbaseExtensionInstalled = 'true';
-  window.dispatchEvent(
-    new CustomEvent('flipbase:extension-ready', {
-      detail: { version: '1.0.0', ready: true },
-    }),
-  );
+  const host = window.location.hostname;
+  // Nur auf localhost, 127.0.0.1 oder Flipbase-Domains ausführen
+  const isAllowedHost =
+    host === 'localhost' ||
+    host === '127.0.0.1' ||
+    host.endsWith('.localhost') ||
+    host.endsWith('.flipbase.de') ||
+    host === 'flipbase.de';
+
+  if (!isAllowedHost) {
+    return;
+  }
+
+  function announceExtension() {
+    if (document.documentElement) {
+      document.documentElement.dataset.flipbaseExtensionInstalled = 'true';
+    }
+    window.postMessage(
+      {
+        type: 'FLIPBASE_EXTENSION_STATUS',
+        installed: true,
+        version: '1.0.1',
+      },
+      '*',
+    );
+    window.dispatchEvent(
+      new CustomEvent('flipbase:extension-ready', {
+        detail: { version: '1.0.1', ready: true },
+      }),
+    );
+  }
+
+  // Sofort und bei DOM-Events ankündigen
+  announceExtension();
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', announceExtension);
+  }
+
+  // Regelmäßig senden, damit neu gemountete SPAs es immer sofort mitbekommen
+  setInterval(announceExtension, 1000);
 
   // Reagiere auf Anfragen der Web-App
   window.addEventListener('message', (event) => {
@@ -19,14 +52,7 @@
 
     // Ping / Statusprüfung
     if (data.type === 'FLIPBASE_CHECK_EXTENSION') {
-      window.postMessage(
-        {
-          type: 'FLIPBASE_EXTENSION_STATUS',
-          installed: true,
-          version: '1.0.0',
-        },
-        '*',
-      );
+      announceExtension();
       return;
     }
 
@@ -52,9 +78,4 @@
       );
     }
   });
-
-  // Wiederhole die Ankündigung, falls die SPA später initialisiert
-  setInterval(() => {
-    document.documentElement.dataset.flipbaseExtensionInstalled = 'true';
-  }, 2000);
 })();
