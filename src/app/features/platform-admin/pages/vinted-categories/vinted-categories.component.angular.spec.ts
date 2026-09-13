@@ -4,53 +4,16 @@ import { ɵresolveComponentResources } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { readFile } from 'node:fs/promises';
 import axe from 'axe-core';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { VintedCategoriesComponent } from './vinted-categories.component';
 import { VintedCategoryService } from '../../services/vinted-category.service';
 import { CategorySyncStatus } from '../../models/vinted-category.model';
-import { PageHeaderComponent } from '../../../../shared/components/page-header/page-header.component';
-
-interface AngularInputMetadata {
-  inputs: Record<string, unknown>;
-  declaredInputs: Record<string, string>;
-}
-
-let pageHeaderInputs: AngularInputMetadata | null = null;
 
 // Ohne JIT-Vorlagenaufloesung meldet TestBed "Component is not resolved" fuer
 // jede Komponente mit externem templateUrl - so laeuft auch jeder andere
 // Komponententest in diesem Projekt (siehe beta-applications.component.angular.spec.ts).
-// Der gemeinsame Seitenkopf liegt nicht neben dieser Testdatei; seine
-// Vorlagen werden deshalb ausdruecklich auf ihren Ort umgelenkt.
 beforeAll(async () => {
-  const resources: Record<string, string> = {
-    './page-header.component.html':
-      '../../../../shared/components/page-header/page-header.component.html',
-    './page-header.component.scss':
-      '../../../../shared/components/page-header/page-header.component.scss',
-  };
-  await ɵresolveComponentResources((url) =>
-    readFile(new URL(resources[url] ?? url, import.meta.url), 'utf8'),
-  );
-
-  // Signal-Eingaenge kennt die Laufzeitübersetzung der Tests nicht. Ohne
-  // diese Anmeldung bliebe die Ueberschrift leer, und AXE meldete zu Recht
-  // "empty-heading" - im echten Bau tritt das nicht auf.
-  const metadata = (PageHeaderComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp;
-  pageHeaderInputs = { inputs: metadata.inputs, declaredInputs: metadata.declaredInputs };
-  metadata.inputs = {
-    ...metadata.inputs,
-    title: ['title', 1, null],
-    subtitle: ['subtitle', 1, null],
-  };
-  metadata.declaredInputs = { ...metadata.declaredInputs, title: 'title', subtitle: 'subtitle' };
-});
-
-afterAll(() => {
-  if (!pageHeaderInputs) return;
-  const metadata = (PageHeaderComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp;
-  metadata.inputs = pageHeaderInputs.inputs;
-  metadata.declaredInputs = pageHeaderInputs.declaredInputs;
+  await ɵresolveComponentResources((url) => readFile(new URL(url, import.meta.url), 'utf8'));
 });
 
 /**

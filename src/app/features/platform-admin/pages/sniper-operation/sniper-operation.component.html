@@ -1,8 +1,12 @@
 <section class="flex flex-col gap-4">
-  <app-page-header
-    title="Botbetrieb"
-    subtitle="Anfragen, Rückmeldungen und Sammelaufträge im Blick. Der Stand wird alle zehn Sekunden neu geladen."
-  />
+  <!-- Zwischenueberschrift: Den Seitentitel "Vinted Bot" traegt die Huelle. -->
+  <header class="min-w-0 space-y-1">
+    <h2 class="text-base font-semibold text-fb-text-primary">Botbetrieb</h2>
+    <p class="text-[13px] text-fb-text-muted">
+      Anfragen, Rückmeldungen und Sammelaufträge im Blick. Der Stand wird alle zehn Sekunden neu
+      geladen.
+    </p>
+  </header>
   @if (state.error(); as message) {
     <p role="alert">
       {{ message }} <app-button (clicked)="state.refresh()">Erneut laden</app-button>
@@ -14,7 +18,7 @@
   @if (state.loaded()) {
     <app-card padding="md">
       <div class="flex flex-col gap-2">
-        <h2 class="text-base font-semibold">Verbindung zum Bot</h2>
+        <h3 class="text-base font-semibold">Verbindung zum Bot</h3>
         <div>
           <app-badge [tone]="state.stale() || state.error() ? 'caution' : 'success'">{{
             state.stale() || state.error()
@@ -48,7 +52,7 @@
     </app-card>
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <app-card padding="md"
-        ><h2 class="text-sm">Anfragen · letzte Minute</h2>
+        ><h3 class="text-sm">Anfragen · letzte Minute</h3>
         <p class="mt-2 text-2xl font-semibold">
           {{ state.runtime()?.requests_last_minute ?? '–' }} /
           {{ state.runtime()?.request_budget ?? '–' }}
@@ -56,7 +60,7 @@
         <p class="text-xs text-fb-text-muted">Zum Zeitpunkt der letzten Meldung</p></app-card
       >
       <app-card padding="md"
-        ><h2 class="text-sm">Abgewiesen · letzte Minute</h2>
+        ><h3 class="text-sm">Abgewiesen · letzte Minute</h3>
         <p class="mt-2 text-2xl font-semibold">
           {{ state.runtime()?.rejected_last_minute ?? '–' }}
         </p>
@@ -73,17 +77,17 @@
         }
       </app-card>
       <app-card padding="md"
-        ><h2 class="text-sm">Aufträge mit letzter Fehlermeldung</h2>
+        ><h3 class="text-sm">Aufträge mit letzter Fehlermeldung</h3>
         <p class="mt-2 text-2xl font-semibold">{{ problemQueries().length }}</p></app-card
       >
       <app-card padding="md"
-        ><h2 class="text-sm">Pausiert mit Fehlermeldung</h2>
+        ><h3 class="text-sm">Pausiert mit Fehlermeldung</h3>
         <p class="mt-2 text-2xl font-semibold">{{ stoppedQueries().length }}</p></app-card
       >
     </div>
     <app-card padding="md">
       <div class="flex flex-col gap-3">
-        <h2 class="text-base font-semibold">Geplante Last und letzte Fehler</h2>
+        <h3 class="text-base font-semibold">Geplante Last und letzte Fehler</h3>
         <p class="text-sm">
           Aktive Aufträge benötigen rechnerisch {{ state.plannedRate() | number: '1.0-2' }} Abfragen
           pro Minute. Aufwärmung und Wiederholungen zählen zusätzlich gegen das Budget.
@@ -105,7 +109,9 @@
         } @empty {
           <p class="text-sm">Aktuell ist an keinem Auftrag eine Fehlermeldung gespeichert.</p>
         }
-        <div><app-button link="/admin/queries">Sammelaufträge verwalten</app-button></div>
+        <div>
+          <app-button link="/admin/vinted-bot/queries">Sammelaufträge verwalten</app-button>
+        </div>
       </div>
     </app-card>
   }

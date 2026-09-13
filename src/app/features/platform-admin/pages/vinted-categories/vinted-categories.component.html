@@ -1,11 +1,14 @@
 <section class="flex flex-col gap-4">
-  <app-page-header
-    title="Kategorieliste"
-    subtitle="Das gespeicherte Kategorienverzeichnis von Vinted. Der Status wird automatisch aktualisiert."
-  />
+  <!-- Zwischenueberschrift: Den Seitentitel "Vinted Bot" traegt die Huelle,
+       die auch die Breite begrenzt. -->
+  <header class="min-w-0 space-y-1">
+    <h2 class="text-base font-semibold text-fb-text-primary">Kategorieliste</h2>
+    <p class="text-[13px] text-fb-text-muted">
+      Das gespeicherte Kategorienverzeichnis von Vinted. Der Status wird automatisch aktualisiert.
+    </p>
+  </header>
 
-  <!-- Wenig Inhalt: bleibt schmal, der Seitenkopf fluchtet mit den anderen Seiten. -->
-  <div class="flex max-w-3xl flex-col gap-6">
+  <div class="flex flex-col gap-6">
     @if (loadError(); as message) {
       <p class="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-800" role="alert">
         {{ message }}

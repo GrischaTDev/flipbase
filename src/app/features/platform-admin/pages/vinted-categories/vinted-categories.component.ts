@@ -7,7 +7,6 @@ import {
   signal,
 } from '@angular/core';
 import { DatePipe } from '@angular/common';
-import { PageHeaderComponent } from '../../../../shared/components/page-header/page-header.component';
 import { CategorySyncStatus } from '../../models/vinted-category.model';
 import { VintedCategoryService } from '../../services/vinted-category.service';
 
@@ -23,7 +22,7 @@ import { VintedCategoryService } from '../../services/vinted-category.service';
  */
 @Component({
   selector: 'app-vinted-categories',
-  imports: [DatePipe, PageHeaderComponent],
+  imports: [DatePipe],
   templateUrl: './vinted-categories.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

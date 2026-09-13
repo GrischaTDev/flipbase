@@ -22,9 +22,14 @@ const routes: Routes = [
     children: [
       { path: '', redirectTo: 'applications', pathMatch: 'full' },
       { path: 'applications', component: TestPageComponent },
-      { path: 'queries', component: TestPageComponent },
-      { path: 'operation', component: TestPageComponent },
-      { path: 'categories', component: TestPageComponent },
+      {
+        path: 'vinted-bot',
+        children: [
+          { path: 'queries', component: TestPageComponent },
+          { path: 'operation', component: TestPageComponent },
+          { path: 'categories', component: TestPageComponent },
+        ],
+      },
     ],
   },
 ];
@@ -67,17 +72,10 @@ describe('SidebarComponent', () => {
   it('zeigt die Unterpunkte der Administration in fester Reihenfolge', async () => {
     const { subLinks } = await renderAt('/admin/applications');
 
-    expect(subLinks.map((link) => link.textContent?.trim())).toEqual([
-      'Bewerbungen',
-      'Sammelaufträge',
-      'Botbetrieb',
-      'Kategorieliste',
-    ]);
+    expect(subLinks.map((link) => link.textContent?.trim())).toEqual(['Bewerbungen', 'Vinted Bot']);
     expect(subLinks.map((link) => link.getAttribute('href'))).toEqual([
       '/admin/applications',
-      '/admin/queries',
-      '/admin/operation',
-      '/admin/categories',
+      '/admin/vinted-bot',
     ]);
   });
 
@@ -88,21 +86,28 @@ describe('SidebarComponent', () => {
     expect(applications.subLinks.map((link) => link.getAttribute('aria-current'))).toEqual([
       'page',
       null,
-      null,
-      null,
     ]);
     expect(applications.adminLink?.getAttribute('aria-current')).toBeNull();
     expect(applications.adminLink?.classList.contains('font-semibold')).toBe(true);
     expect(applications.element.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
 
     TestBed.resetTestingModule();
-    const categories = await renderAt('/admin/categories');
-    expect(categories.subLinks.map((link) => link.getAttribute('aria-current'))).toEqual([
-      null,
-      null,
+    // Tiefer liegende Bot-Seiten gehoeren zum Punkt "Vinted Bot".
+    const operation = await renderAt('/admin/vinted-bot/operation');
+    expect(operation.subLinks.map((link) => link.getAttribute('aria-current'))).toEqual([
       null,
       'page',
     ]);
+    expect(operation.element.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
+  });
+
+  // Den sichtbaren Namen liefert die Uebersetzung NAV.DEAL_MONITOR; hier ist
+  // keine geladen, deshalb wird nur das Ziel geprueft.
+  it('fuehrt den frueheren Deal-Monitor unter der neuen Adresse', async () => {
+    const { element } = await renderAt('/dashboard');
+
+    expect(element.querySelector('a[href="/vinted-bot"]')).not.toBeNull();
+    expect(element.querySelector('a[href="/deal-monitor"]')).toBeNull();
   });
 
   it('klappt die Unterpunkte ausserhalb der Administration zu', async () => {
@@ -121,7 +126,7 @@ describe('SidebarComponent', () => {
   });
 
   it('hat keine automatisch erkennbaren schwerwiegenden Barrieren', async () => {
-    const { element } = await renderAt('/admin/queries');
+    const { element } = await renderAt('/admin/vinted-bot/queries');
     const result = await axe.run(element, { rules: { 'color-contrast': { enabled: false } } });
 
     expect(
