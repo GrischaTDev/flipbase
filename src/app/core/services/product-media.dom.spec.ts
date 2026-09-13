@@ -253,3 +253,139 @@ describe('Produktmedien', () => {
     expect(createSignedUrls).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('Galeriespeicherung', () => {
+  it('sortiert und entfernt Demo-Bilder dauerhaft, erkennt aber konkurrierende Änderungen', async () => {
+    const { service, store } = setup({}, true);
+    store.saveCatalogProduct(product);
+    const first = await service.uploadProductMedia(
+      product.id,
+      new File(['a'], 'a.png', { type: 'image/png' }),
+    );
+    const second = await service.uploadProductMedia(
+      product.id,
+      new File(['b'], 'b.png', { type: 'image/png' }),
+    );
+    const ids = [first.data!.id, second.data!.id];
+    const conflict = await service.updateProductMediaLayout(
+      product.id,
+      [ids[0]!],
+      [ids[0]!],
+      product.workspace_id,
+    );
+    expect(conflict.error?.message).toContain('zwischenzeitlich');
+    expect(store.getCatalogProductMedia(product.id)).toHaveLength(2);
+    const result = await service.updateProductMediaLayout(
+      product.id,
+      [...ids].reverse(),
+      ids,
+      product.workspace_id,
+    );
+    expect(result.data?.map((entry) => [entry.id, entry.sort_order, entry.is_primary])).toEqual([
+      [ids[1], 0, true],
+      [ids[0], 1, false],
+    ]);
+    expect(
+      (await service.updateProductMediaLayout(product.id, [ids[0]!], ids, product.workspace_id))
+        .data,
+    ).toHaveLength(1);
+    const reloaded = new MockDataStoreService();
+    reloaded.isDemoMode.set(true);
+    expect(reloaded.getCatalogProductMedia(product.id)).toHaveLength(1);
+  });
+  it('verhindert doppelte IDs und fremde Workspaces ohne RPC', async () => {
+    const rpc = vi.fn();
+    const { service } = setup({ rpc });
+    expect(
+      (await service.updateProductMediaLayout(product.id, ['a', 'a'], ['a'], product.workspace_id))
+        .error,
+    ).not.toBeNull();
+    expect(
+      (await service.updateProductMediaLayout(product.id, [], [], 'foreign')).error,
+    ).not.toBeNull();
+    expect(rpc).not.toHaveBeenCalled();
+  });
+  it('räumt Dateien erst nach erfolgreichem RPC auf und bestätigt trotz Bereinigungsfehler', async () => {
+    const remove = vi.fn(async () => ({ error: new Error('Storage offline') }));
+    const rpc = vi.fn(async () => ({ data: [], error: null }));
+    const { service } = setup({ rpc, storage: { from: () => ({ remove }) } });
+    vi.spyOn(service, 'loadProductMedia').mockResolvedValue([
+      {
+        id: 'a',
+        workspace_id: product.workspace_id,
+        catalog_product_id: product.id,
+        storage_path: 'catalog-products/workspace-1/product-1/a.png',
+        is_primary: true,
+        sort_order: 0,
+      },
+    ]);
+    const result = await service.updateProductMediaLayout(
+      product.id,
+      [],
+      ['a'],
+      product.workspace_id,
+    );
+    expect(result).toMatchObject({ data: [], error: null });
+    expect(remove).toHaveBeenCalledOnce();
+    expect(rpc.mock.invocationCallOrder[0]).toBeLessThan(remove.mock.invocationCallOrder[0]!);
+    remove.mockClear();
+    rpc.mockResolvedValueOnce({ data: [], error: new Error('Konflikt') } as never);
+    expect(
+      (await service.updateProductMediaLayout(product.id, [], ['a'], product.workspace_id)).error,
+    ).not.toBeNull();
+    expect(remove).not.toHaveBeenCalled();
+  });
+  it('beginnt nach Workspacewechsel während des Ladens keine Speicherung', async () => {
+    const rpc = vi.fn();
+    const { service, workspace } = setup({ rpc });
+    vi.spyOn(service, 'loadProductMedia').mockImplementation(async () => {
+      workspace.set({ id: 'foreign' });
+      return [];
+    });
+    expect(
+      (await service.updateProductMediaLayout(product.id, [], [], product.workspace_id)).error,
+    ).not.toBeNull();
+    expect(rpc).not.toHaveBeenCalled();
+  });
+});
+
+it('bestätigt RPC-Erfolg nach Kontextwechsel, startet aber keine Dateibereinigung', async () => {
+  const remove = vi.fn();
+  const { service, workspace } = setup({
+    storage: { from: () => ({ remove }) },
+    rpc: async () => {
+      workspace.set({ id: 'foreign' });
+      return { data: [], error: null };
+    },
+  });
+  vi.spyOn(service, 'loadProductMedia').mockResolvedValue([
+    {
+      id: 'a',
+      workspace_id: product.workspace_id,
+      catalog_product_id: product.id,
+      storage_path: 'catalog-products/workspace-1/product-1/a.png',
+      is_primary: true,
+      sort_order: 0,
+    },
+  ]);
+  expect(
+    await service.updateProductMediaLayout(product.id, [], ['a'], product.workspace_id),
+  ).toMatchObject({ data: [], error: null });
+  expect(remove).not.toHaveBeenCalled();
+});
+
+it('schreibt nach Kontextwechsel während des Uploads keine Metadaten mit neuer Sitzung', async () => {
+  const backend = clientForUpload();
+  const { service, workspace } = setup(backend.client);
+  backend.upload.mockImplementation(async () => {
+    workspace.set({ id: 'foreign' });
+    return { error: null };
+  });
+  const result = await service.uploadProductMedia(
+    product.id,
+    new File(['a'], 'a.png', { type: 'image/png' }),
+  );
+  expect(result.error?.message).toContain('gewechselt');
+  expect(backend.insert).not.toHaveBeenCalled();
+  expect(backend.remove).not.toHaveBeenCalled();
+});

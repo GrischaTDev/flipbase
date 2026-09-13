@@ -1,5 +1,33 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-13 – Codex – Produkterstellung, Bildergalerie und Shop
+
+**Auftrag:** Freigegebenen Folgeumfang auf `codex/product-editor-storefront`
+(Basis `origin/master`, `5291bff`) umsetzen. Eigene Erstellungsseite, einfacher
+Zuschnitt, mehrere Bilder und Suchmaschineneintrag. Fremde Zweige bleiben unberührt.
+
+**Abgrenzung:** Der integrierte Shop ist absichtlich durch Anmeldung geschützt
+und nutzt eine Zahlungsdemo. Artikelansicht und Metadaten werden vervollständigt;
+öffentliche Freigabe und Zahlungsintegration sind ein gesonderter Schritt.
+Umsetzungsplan: `docs/superpowers/plans/2026-09-13-product-editor-storefront.md`.
+
+**Umsetzung:** Gemeinsame Erstellungs-/Bearbeitungsseite, mehrere Bilder mit
+Zuschnitt/Sortierung/Hauptbild, atomare Galerie-RPC samt erzeugter Migration und
+Typen, vollständige Katalog-Shopdetailseite und gespeicherte SEO-Angaben.
+Teiluploads, Workspacewechsel und schnelle Eingaben beim Seitenwechsel abgesichert.
+Private Bildadressen und Hauptbildprojektion nach unabhängigem Review korrigiert.
+
+**Prüfung:** 152 gezielte Anwendungstests, 173 SQL-Prüfungen plus echter
+Paralleltest sowie 24 betroffene Browserfälle erfolgreich. App-/Testtypen,
+Produktionsbau, gezieltes Format/Lint, AXE und Shared-UI-Prüfung grün. Zwei neue
+PR-Pflichtfälle, acht Prüfungen der PR-/Nightly-Auswahl erfolgreich. Nachreview ohne
+verbleibende P1/P2. Isolierte Datenbank danach gestoppt, keine Produktionsänderung.
+Abschlussbericht: `docs/audit/2026-09-13-product-editor-validation.md`.
+
+**Abschluss:** Der Nutzer hat PR-Push, Merge nach erfolgreichen Pflichtprüfungen
+und anschließendes Aufräumen ausdrücklich freigegeben. Lokale Prüfungen gelten
+für den unveränderten Anwendungscode; Abschluss erfolgt über den PR gegen `master`.
+
 ## 2026-09-13 – Codex – PR abschließen und Produkterstellung abgrenzen
 
 **Auftrag:** Bestehenden Artikel-/Bestandsumbau zuerst per PR abschließen;

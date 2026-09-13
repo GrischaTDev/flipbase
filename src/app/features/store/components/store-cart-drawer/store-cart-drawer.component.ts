@@ -14,6 +14,8 @@ import {
   LucideCheckCircle2 as CheckCircle2,
 } from '@lucide/angular';
 import { StoreService } from '../../../../core/services/store.service';
+import { MediaService } from '../../../../core/services/media.service';
+import { CartItem } from '../../../../core/models/store.models';
 import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
 
 @Component({
@@ -28,6 +30,16 @@ import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog
 })
 export class StoreCartDrawerComponent {
   readonly storeService = inject(StoreService);
+  private readonly mediaService = inject(MediaService);
+
+  thumbnailUrl(entry: CartItem): string {
+    const item = entry.item;
+    const path =
+      ('kind' in item ? item.thumbnailPath : null) ||
+      item.media?.find((photo) => photo.is_primary)?.storage_path ||
+      item.media?.[0]?.storage_path;
+    return path ? this.mediaService.getMediaUrl(path) : '';
+  }
 
   readonly bagIcon = ShoppingBag;
   readonly closeIcon = X;

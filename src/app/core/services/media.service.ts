@@ -4,6 +4,7 @@ import { MockDataStoreService } from './mock-data-store.service';
 import { SyncFehlerAktion, SyncStatusService } from './sync-status.service';
 import { CatalogProductMedia, ItemMedia } from '../models/flipbase.models';
 import { WorkspaceService } from './workspace.service';
+import { MutationResult } from '../models/mutation-result.model';
 import { AuthService } from './auth.service';
 
 @Injectable({
@@ -200,7 +201,13 @@ export class MediaService {
   async loadProductMedia(productId: string): Promise<CatalogProductMedia[]> {
     const generation = this.synchronizeContext();
     try {
-      if (this.mockStore.isDemoMode()) return this.mockStore.getCatalogProductMedia(productId);
+      if (this.mockStore.isDemoMode())
+        return this.mockStore
+          .getCatalogProductMedia(productId)
+          .filter(
+            (entry) =>
+              !this.workspace || entry.workspace_id === this.workspace.currentWorkspace()?.id,
+          );
       const { data, error } = await this.supabase.client
         .from('catalog_product_media')
         .select('*')
@@ -211,7 +218,9 @@ export class MediaService {
         .order('id');
       if (generation !== this.synchronizeContext()) return [];
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []).filter(
+        (entry) => !this.workspace || entry.workspace_id === this.workspace.currentWorkspace()?.id,
+      );
     } catch (error: unknown) {
       throw this.melde('Laden der Produktbilder', error);
     }
@@ -282,6 +291,8 @@ export class MediaService {
         .upload(path, file, { contentType: file.type, upsert: false });
       if (uploadError) throw uploadError;
       uploadedPath = path;
+      if (generation !== this.synchronizeContext())
+        throw new Error('Workspace oder Sitzung wurde gewechselt.');
       const { data, error } = await this.supabase.client
         .from('catalog_product_media')
         .insert({ ...metadata, storage_path: path })
@@ -292,7 +303,7 @@ export class MediaService {
       return { data, error: null };
     } catch (error: unknown) {
       let failure = this.melde('Speichern des Produktbilds', error, action);
-      if (uploadedPath) {
+      if (uploadedPath && generation === this.synchronizeContext()) {
         try {
           const { error: rollbackError } = await this.supabase.client.storage
             .from('item-media')
@@ -309,6 +320,83 @@ export class MediaService {
         }
       }
       return { data: null, error: failure };
+    }
+  }
+
+  async updateProductMediaLayout(
+    productId: string,
+    orderedMediaIds: readonly string[],
+    expectedMediaIds: readonly string[],
+    workspaceId: string,
+  ): Promise<MutationResult<CatalogProductMedia[]>> {
+    const generation = this.synchronizeContext();
+    try {
+      if (this.workspace?.currentWorkspace()?.id !== workspaceId)
+        throw new Error('Der Workspace wurde gewechselt.');
+      if (
+        new Set(orderedMediaIds).size !== orderedMediaIds.length ||
+        new Set(expectedMediaIds).size !== expectedMediaIds.length ||
+        orderedMediaIds.some((id) => !expectedMediaIds.includes(id))
+      )
+        throw new Error('Die Bilderliste ist ungültig.');
+      const existing = await this.loadProductMedia(productId);
+      if (generation !== this.synchronizeContext())
+        throw new Error('Workspace oder Sitzung wurde gewechselt.');
+      let result: CatalogProductMedia[];
+      if (this.mockStore.isDemoMode()) {
+        const product = this.mockStore
+          .getCatalogProducts(workspaceId)
+          .find((entry) => entry.id === productId && entry.workspace_id === workspaceId);
+        if (!product) throw new Error('Produkt ist nicht zugänglich.');
+        if (
+          existing.length !== expectedMediaIds.length ||
+          existing.some((entry) => !expectedMediaIds.includes(entry.id))
+        )
+          throw new Error('Die Bilder wurden zwischenzeitlich geändert. Bitte erneut laden.');
+        result = orderedMediaIds.map((id, index) => ({
+          ...existing.find((entry) => entry.id === id)!,
+          sort_order: index,
+          is_primary: index === 0,
+        }));
+        this.mockStore.replaceCatalogProductMedia(productId, workspaceId, result);
+      } else {
+        const { data, error } = await this.supabase.client.rpc('update_product_media_layout', {
+          p_product_id: productId,
+          p_ordered_media_ids: [...orderedMediaIds],
+          p_expected_media_ids: [...expectedMediaIds],
+          p_workspace_id: workspaceId,
+        });
+        if (error) throw error;
+        if (!data) throw new Error('Die gespeicherte Bilderliste wurde nicht zurückgegeben.');
+        result = data;
+        // Eine bestätigte Änderung bleibt erfolgreich, auch wenn die Dateibereinigung scheitert.
+        // Nach Kontextwechsel keine weiteren Schreibzugriffe mit einer anderen Sitzung ausführen.
+        if (generation === this.synchronizeContext()) {
+          const removed = existing.filter(
+            (entry) => !orderedMediaIds.includes(entry.id) && entry.workspace_id === workspaceId,
+          );
+          if (removed.length) {
+            try {
+              const cleanup = await this.supabase.client.storage
+                .from('item-media')
+                .remove(removed.map((entry) => entry.storage_path));
+              if (cleanup.error) throw cleanup.error;
+              if (generation === this.synchronizeContext())
+                removed.forEach((entry) => this.invalidateMediaUrl(entry.storage_path));
+            } catch (error: unknown) {
+              this.melde('Aufräumen entfernter Produktbilder', error);
+            }
+          }
+        }
+      }
+      return { data: result, error: null, reportedBySyncStatus: false };
+    } catch (cause: unknown) {
+      const error = this.melde('Speichern der Bilderliste', cause);
+      return {
+        data: null,
+        error,
+        reportedBySyncStatus: this.syncStatus?.istZentralGemeldet(error) ?? false,
+      };
     }
   }
 

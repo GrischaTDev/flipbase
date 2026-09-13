@@ -17,7 +17,7 @@ import {
 } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
-import { Router, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { InventoryService } from '../../core/services/inventory.service';
 import { PurchaseService } from '../../core/services/purchase.service';
 import { MediaService } from '../../core/services/media.service';
@@ -30,11 +30,9 @@ import {
   LucideSearch as Search,
   LucideBookOpen as BookOpen,
 } from '@lucide/angular';
-import { CatalogProduct } from '../../core/models/flipbase.models';
 import { CatalogService } from '../../core/services/catalog.service';
 import { StockService } from '../../core/services/stock.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
-import { ProductDialogComponent } from './components/product-dialog/product-dialog.component';
 import { ProductThumbnailComponent } from '../../shared/components/product-thumbnail/product-thumbnail.component';
 import { TextFieldComponent } from '../../shared/components/text-field/text-field.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
@@ -57,7 +55,6 @@ interface CatalogImportRow {
     TableColumnMenuComponent,
     TableSortHeaderComponent,
     ReactiveFormsModule,
-    ProductDialogComponent,
     ProductThumbnailComponent,
     TextFieldComponent,
     ButtonComponent,
@@ -74,7 +71,6 @@ export class CatalogComponent {
   readonly inventoryService = inject(InventoryService);
   private readonly purchaseService = inject(PurchaseService);
   private readonly mediaService = inject(MediaService);
-  private readonly router = inject(Router);
   private readonly viewState = inject(CatalogViewStateService);
   readonly articleViews = ARTICLE_VIEWS;
   private readonly workspaceService = inject(WorkspaceService);
@@ -112,7 +108,6 @@ export class CatalogComponent {
       this.searchQuery().trim() !== '' ||
       tableStateDiffersFromDefaults(this.tablePrefs(), this.catalogTableConfig),
   );
-  readonly isCreateOpen = signal(false);
   readonly csvRows = signal<readonly CatalogImportRow[]>([]);
   readonly csvHasErrors = computed(() => this.csvRows().some((row) => Boolean(row.error)));
   readonly csvError = signal<string | null>(null);
@@ -225,11 +220,6 @@ export class CatalogComponent {
   imageFailed(product: CatalogOverviewRow): void {
     if (product.primary_media_path)
       this.mediaService.reportMediaFailure(product.primary_media_path);
-  }
-
-  productCreated(product: CatalogProduct): void {
-    this.isCreateOpen.set(false);
-    void this.router.navigate(['/catalog', product.id]);
   }
 
   async reload(): Promise<void> {

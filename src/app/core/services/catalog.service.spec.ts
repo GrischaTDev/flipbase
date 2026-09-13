@@ -484,3 +484,70 @@ describe('CatalogService.loadProduct', () => {
     expect(service.products()).toEqual([]);
   });
 });
+
+describe('Suchmaschineneintrag', () => {
+  it('legt einen normalisierten Handle an und hält ihn bei Titeländerung stabil', async () => {
+    let saved: CatalogProduct | undefined;
+    const service = Object.create(CatalogService.prototype) as CatalogService;
+    Object.assign(service, {
+      products: signal<CatalogProduct[]>([]),
+      workspace: { currentWorkspace: () => ({ id: 'workspace-1' }) },
+      syncStatus: new SyncStatusService(),
+      mockStore: {
+        isDemoMode: () => true,
+        saveCatalogProduct: (value: CatalogProduct) => {
+          saved = value;
+        },
+        getCatalogProducts: () => (saved ? [saved] : []),
+      },
+    });
+    const result = await service.createProduct({
+      workspaceId: 'workspace-1',
+      title: 'Grüner Schuh',
+      urlHandle: ' ',
+      seoTitle: '  Wunschname  ',
+      seoDescription: ' Beschreibung ',
+    });
+    expect(result.data).toMatchObject({
+      url_handle: 'gruener-schuh',
+      seo_title: 'Wunschname',
+      seo_description: 'Beschreibung',
+    });
+    const update = await service.updateProduct(result.data!.id, {
+      workspaceId: 'workspace-1',
+      title: 'Anderer Name',
+    });
+    expect(update.data?.url_handle).toBe('gruener-schuh');
+    const clear = await service.updateProduct(result.data!.id, {
+      workspaceId: 'workspace-1',
+      seoTitle: '',
+      seoDescription: null,
+      urlHandle: 'Neuer Pfad!',
+    });
+    expect(clear.data).toMatchObject({
+      seo_title: null,
+      seo_description: null,
+      url_handle: 'neuer-pfad',
+    });
+  });
+});
+
+it('aktualisiert das Hauptbild nur im passenden Workspace und kann es leeren', () => {
+  const service = Object.create(CatalogService.prototype) as CatalogService;
+  const workspace = signal({ id: product.workspace_id });
+  const original = { ...product, primary_media_path: 'old.png' };
+  const other = { ...product, workspace_id: 'foreign', primary_media_path: 'other.png' };
+  Object.assign(service, {
+    products: signal([original, other]),
+    workspace: { currentWorkspace: workspace },
+  });
+  service.updateProductPrimaryMedia(product.id, product.workspace_id, 'new.png');
+  expect(service.products()[0]?.primary_media_path).toBe('new.png');
+  expect(original.primary_media_path).toBe('old.png');
+  expect(service.products()[1]).toBe(other);
+  service.updateProductPrimaryMedia(product.id, product.workspace_id, null);
+  expect(service.products()[0]?.primary_media_path).toBeNull();
+  workspace.set({ id: 'foreign' });
+  service.updateProductPrimaryMedia(product.id, product.workspace_id, 'stale.png');
+  expect(service.products()[0]?.primary_media_path).toBeNull();
+});

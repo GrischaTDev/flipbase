@@ -1,7 +1,12 @@
 # Nächster Schritt: Produkterstellung, Medien und Shop
 
 Stand: 13. September 2026. Nutzerwunsch nach dem Abschluss des Artikel-/Bestands-PRs.
-Dieser Bericht hält den Folgeumfang fest; er ist keine Umsetzung dieses Umbaus.
+Dieser Bericht hält den ursprünglichen Folgeumfang fest.
+Umsetzung und Abschlussprüfung stehen inzwischen in
+[Produkterstellung – Abschlussprüfung](2026-09-13-product-editor-validation.md).
+Die spätere Prüfung des Routings hat klargestellt: Der integrierte Shop ist
+bewusst nur mit Anmeldung erreichbar. „Öffentlich“ im folgenden ursprünglichen
+Vorschlag beschreibt die spätere Zielrichtung; dieser Umbau öffnet den Shop nicht.
 
 ## Festgestellter Stand
 

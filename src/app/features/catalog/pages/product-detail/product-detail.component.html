@@ -1,11 +1,11 @@
 <div class="mx-auto max-w-6xl space-y-4">
   <app-section-navigation [links]="articleViews" label="Artikelansichten" />
   <app-page-header
-    [title]="product()?.title || 'Artikel'"
+    [title]="creating() ? 'Artikel erstellen' : product()?.title || 'Artikel'"
     [backLink]="stockView() ? '/inventory' : '/catalog'"
     backLabel="Zur Artikelliste"
   >
-    @if (product()) {
+    @if (product() || creating()) {
       <div header-actions class="flex flex-wrap items-center gap-2">
         @if (hasUnsavedChanges()) {
           <span class="text-[13px] text-fb-text-muted">Nicht gespeicherte Änderungen</span>
@@ -14,9 +14,9 @@
         <app-button
           variant="primary"
           [loading]="isSaving()"
-          [disabled]="workspaceChanged() || loading() || !hasUnsavedChanges()"
+          [disabled]="workspaceChanged() || loading() || (!creating() && !hasUnsavedChanges())"
           (clicked)="save()"
-          >Speichern</app-button
+          >{{ creating() ? 'Artikel erstellen' : 'Speichern' }}</app-button
         >
       </div>
     }
@@ -35,31 +35,36 @@
     >
   } @else if (loading() && !product()) {
     <p role="status" class="text-sm text-fb-text-muted">Artikel wird geladen …</p>
-  } @else if (!product()) {
+  } @else if (!product() && !creating()) {
     <app-card title="Artikel nicht gefunden" rounded="xl"
       ><p class="text-sm text-fb-text-muted">
         Dieser Artikel ist im aktuellen Workspace nicht vorhanden oder nicht zugänglich.
       </p></app-card
     >
   }
-  @if (product() && !workspaceChanged()) {
+  @if ((product() || creating()) && !workspaceChanged()) {
     @if (saveError(); as error) {
       <p role="alert" class="text-sm text-rose-700 dark:text-rose-400">{{ error }}</p>
     }
     @if (savedMessage(); as message) {
       <p role="status" class="text-sm text-fb-text-secondary">{{ message }}</p>
     }
-    <div class="flex gap-2" role="group" aria-label="Artikelbereich">
-      <app-button
-        [ariaPressed]="!stockView()"
-        ariaControls="product-details"
-        (clicked)="setView(false)"
-        >Details</app-button
-      >
-      <app-button [ariaPressed]="stockView()" ariaControls="product-stock" (clicked)="setView(true)"
-        >Bestand</app-button
-      >
-    </div>
+    @if (!creating()) {
+      <div class="flex gap-2" role="group" aria-label="Artikelbereich">
+        <app-button
+          [ariaPressed]="!stockView()"
+          ariaControls="product-details"
+          (clicked)="setView(false)"
+          >Details</app-button
+        >
+        <app-button
+          [ariaPressed]="stockView()"
+          ariaControls="product-stock"
+          (clicked)="setView(true)"
+          >Bestand</app-button
+        >
+      </div>
+    }
     <form
       id="product-details"
       [hidden]="stockView()"
@@ -107,63 +112,78 @@
               <p role="alert" class="text-sm text-rose-700 dark:text-rose-400">{{ error }}</p>
               <app-button (clicked)="loadImages()">Bilder erneut laden</app-button>
             }
-            <ul class="space-y-2">
-              @for (image of images(); track image.id) {
-                <li class="flex items-center gap-3 text-[13px] text-fb-text-secondary">
-                  <app-product-thumbnail
-                    size="md"
-                    [src]="media.getMediaUrl(image.storage_path)"
-                    [alt]="product()?.title || 'Artikelbild'"
-                    (imageFailed)="media.reportMediaFailure(image.storage_path)"
-                  />
-                  <span class="break-all"
-                    >{{ image.file_name || 'Artikelbild'
-                    }}{{ image.is_primary ? ' · Hauptbild' : '' }}</span
-                  >
-                </li>
-              }
-              @for (file of pendingImages(); track $index) {
-                <li
-                  class="flex items-center justify-between gap-3 text-[13px] text-fb-text-secondary"
-                >
-                  <span class="break-all">{{ file.name }} · Noch nicht gespeichert</span
-                  ><app-button
-                    [disabled]="isSaving()"
-                    [ariaLabel]="file.name + ' aus Auswahl entfernen'"
-                    (clicked)="removePendingImage($index)"
-                    >Entfernen</app-button
-                  >
-                </li>
-              }
-            </ul>
-            @if (!images().length && !pendingImages().length && !mediaError()) {
-              <p class="text-sm text-fb-text-muted">Noch keine Bilder vorhanden.</p>
-            }
-            <app-button [disabled]="isSaving()" (clicked)="imageInput.click()"
-              >Bilder hinzufügen</app-button
-            >
-            <!-- Der Browser-Dateidialog benötigt ein verborgenes natives Dateifeld. -->
-            <input
-              #imageInput
-              type="file"
-              multiple
-              accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
-              class="sr-only"
-              tabindex="-1"
-              aria-hidden="true"
-              data-shared-ui-exception="native-file-picker"
-              (change)="selectImages($event)"
+            <app-product-media-editor
+              [images]="visibleImageDrafts()"
+              [disabled]="saving() || loading() || !!mediaError()"
+              (imagesChange)="changeImages($event)"
+              (imageFailed)="imageFailed($event)"
             />
+          </div>
+        </app-card>
+        <app-card title="Suchmaschineneintrag" rounded="xl">
+          <div class="space-y-4">
+            <p class="text-[13px] text-fb-text-muted">
+              Vorschau für die spätere öffentliche Shopseite. Die derzeitige Shopvorschau wird nicht
+              von Google indexiert.
+            </p>
+            <div class="min-w-0 space-y-1" aria-label="Suchmaschinenvorschau">
+              <p class="break-all text-xs text-fb-text-muted">{{ seoPreviewUrl() }}</p>
+              <p class="break-words text-lg font-medium text-blue-700 dark:text-blue-400">
+                {{ seoPreviewTitle() }}
+              </p>
+              <p class="whitespace-pre-line break-words text-[13px] text-fb-text-secondary">
+                {{
+                  seoPreviewDescription() ||
+                    'Ergänze eine Beschreibung, damit Besucher mehr über den Artikel erfahren.'
+                }}
+              </p>
+            </div>
+            <app-button
+              [ariaExpanded]="seoExpanded()"
+              ariaControls="product-seo-fields"
+              (clicked)="seoExpanded.set(!seoExpanded())"
+              >{{ seoExpanded() ? 'Eintrag zuklappen' : 'Eintrag bearbeiten' }}</app-button
+            >
+            <div id="product-seo-fields" [hidden]="!seoExpanded()" class="space-y-4">
+              <app-text-field
+                label="Seitentitel"
+                formControlName="seoTitle"
+                [placeholder]="form.controls.title.value"
+                helpText="Optional. Ohne eigenen Eintrag verwenden wir den Artikelnamen."
+                [error]="
+                  form.controls.seoTitle.invalid ? 'Bitte höchstens 200 Zeichen verwenden.' : null
+                "
+              />
+              <app-text-field
+                label="Meta-Beschreibung"
+                formControlName="seoDescription"
+                [multiline]="3"
+                helpText="Optional. Ohne eigenen Eintrag verwenden wir die Artikelbeschreibung. Google kann einen anderen Ausschnitt anzeigen."
+                [error]="
+                  form.controls.seoDescription.invalid
+                    ? 'Bitte höchstens 320 Zeichen verwenden.'
+                    : null
+                "
+              />
+              <app-text-field
+                label="URL-Bezeichnung"
+                formControlName="urlHandle"
+                placeholder="zum-beispiel-kamera"
+                helpText="Kleinbuchstaben, Zahlen und Bindestriche. Leer lassen, um die Bezeichnung bei der Anlage aus dem Namen zu bilden."
+                [error]="
+                  form.controls.urlHandle.invalid
+                    ? 'Bitte Kleinbuchstaben, Zahlen und einzelne Bindestriche verwenden (höchstens 120 Zeichen).'
+                    : null
+                "
+              />
+            </div>
           </div>
         </app-card>
       </div>
       <div class="min-w-0 space-y-4">
         <app-card title="Shop" rounded="xl">
           <div class="space-y-4">
-            <app-custom-checkbox
-              label="Im öffentlichen Shop anzeigen"
-              formControlName="isPublicStore"
-            />
+            <app-custom-checkbox label="Im Shop anzeigen" formControlName="isPublicStore" />
             @if (form.controls.isPublicStore.value) {
               <div>
                 <label for="product-price" class="mb-1.5 block text-[13px] font-semibold"
@@ -184,12 +204,19 @@
                 </p>
               }
             }
+            <p class="text-[13px] text-fb-text-muted">
+              Im Shop sichtbar, sobald ein Shoppreis und verfügbarer Bestand vorhanden sind. Der
+              Shop ist derzeit nur mit Anmeldung erreichbar.
+            </p>
+            @if (product()?.is_public_store && (stockSummary().available ?? 0) > 0) {
+              <app-button [link]="storeLink()">Im Shop ansehen</app-button>
+            }
           </div>
         </app-card>
         <app-card title="Einkauf und Bestand" rounded="xl"
           ><p class="text-sm text-fb-text-muted">
-            Mengen, Zustand und Einkaufskosten findest du bei den zugehörigen Bestandspositionen.
-            Gespeicherte Belegangaben bleiben erhalten.
+            Einen Bestand erhält dieser Artikel über einen Einkauf. Dort erfasst du Menge, Zustand
+            und Einkaufskosten.
           </p></app-card
         >
       </div>

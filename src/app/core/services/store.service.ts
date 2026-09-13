@@ -21,6 +21,7 @@ import {
 } from '../models/store.models';
 import { CatalogService } from './catalog.service';
 import { StockService } from './stock.service';
+import { summarizeStockQuantities } from '../utils/stock-quantity';
 import { RecordSaleInput, RecordSaleLineInput, SalesService } from './sales.service';
 
 const STORAGE_KEY_SETTINGS = 'flipbase_store_settings';
@@ -108,15 +109,35 @@ export class StoreService {
 
   // Computed public store inventory: active non-sold items
   readonly publicProducts = computed<SellableItemRef[]>(() => {
+    const workspaceId = this.workspaceService?.currentWorkspace()?.id;
+    if (this.workspaceService && !workspaceId) return [];
+    const catalogReady =
+      !workspaceId ||
+      (this.catalogService?.loadedWorkspaceId() === workspaceId &&
+        this.stockService?.loadedWorkspaceId() === workspaceId &&
+        !this.stockService?.loadError() &&
+        !this.catalogService?.loadError());
     const quantityProducts = (this.catalogService?.products() ?? []).flatMap((product) => {
-      const availableQuantity = (this.stockService?.positions() ?? [])
-        .filter((position) => position.catalog_product_id === product.id)
-        .reduce((total, position) => total + position.available_quantity, 0);
+      if (!catalogReady || (workspaceId && product.workspace_id !== workspaceId)) return [];
+      const positions = (this.stockService?.positions() ?? []).filter(
+        (position) => position.catalog_product_id === product.id,
+      );
+      const lots = (this.stockService?.lots() ?? []).filter(
+        (lot) => lot.catalog_product_id === product.id && lot.workspace_id === product.workspace_id,
+      );
+      const quantities = summarizeStockQuantities(
+        positions,
+        lots,
+        this.stockService?.movements() ?? [],
+      );
+      const availableQuantity = quantities.available;
       if (
+        quantities.state !== 'known' ||
         !product.is_public_store ||
         availableQuantity <= 0 ||
         !product.listing_price ||
-        product.listing_price <= 0
+        product.listing_price <= 0 ||
+        !Number.isFinite(product.listing_price)
       ) {
         return [];
       }
@@ -125,6 +146,16 @@ export class StoreService {
           kind: 'catalog_product' as const,
           id: product.id,
           title: product.title,
+          workspaceId: product.workspace_id,
+          description: product.description,
+          seoTitle: product.seo_title,
+          seoDescription: product.seo_description,
+          urlHandle: product.url_handle,
+          thumbnailPath: product.primary_media_path,
+          condition: product.condition ?? undefined,
+          conditionNotes: product.condition_notes,
+          ean: product.ean,
+          created_at: product.created_at,
           availableQuantity,
           unitPrice: product.listing_price,
           brand: product.brand,
@@ -135,7 +166,17 @@ export class StoreService {
       ];
     });
     const individualItems = (this.inventoryService?.items() ?? [])
-      .filter((item) => item.is_public_store && isSellableInventoryItem(item))
+      .filter(
+        (item) =>
+          (!workspaceId ||
+            (this.inventoryService?.loadedWorkspaceId() === workspaceId &&
+              item.workspace_id === workspaceId &&
+              !this.inventoryService?.loadError())) &&
+          item.is_public_store &&
+          isSellableInventoryItem(item) &&
+          Number.isFinite(item.expected_value) &&
+          (item.expected_value ?? 0) > 0,
+      )
       .map((item) => this.toSellableItem(item));
     return [...quantityProducts, ...individualItems];
   });
@@ -741,8 +782,12 @@ export class StoreService {
       kind: 'inventory_item',
       id: item.id,
       title: item.title,
+      workspaceId: item.workspace_id,
+      description: item.description,
+      conditionNotes: item.condition_notes,
+      ean: item.ean,
       availableQuantity: 1,
-      unitPrice: item.expected_value ?? item.allocated_purchase_cost * 1.5,
+      unitPrice: item.expected_value ?? 0,
       brand: item.brand,
       model: item.model,
       category: item.category,
@@ -762,7 +807,7 @@ export class StoreService {
       );
     }
     if ('kind' in source) return 0;
-    return source.expected_value ?? source.allocated_purchase_cost * 1.5;
+    return source.expected_value ?? 0;
   }
 
   cartItemUnitPrice(cartItem: CartItem): number {
