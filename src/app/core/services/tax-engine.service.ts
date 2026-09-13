@@ -70,6 +70,14 @@ export class TaxEngineService {
     defaultTaxMode: TaxMode = 'diff_25a',
   ): TaxCalculationResult {
     const persistedLines = this.persistedLinesForSale(sale);
+    if (persistedLines.length > 1) {
+      if (new Set(persistedLines.map((line) => line.tax_mode)).size > 1) {
+        throw new Error(
+          'Gemischte Steuerarten müssen als getrennte Verkaufspositionen berechnet werden.',
+        );
+      }
+      return this.aggregateLineResults(this.calculateSaleLineTaxes(sale, item, defaultTaxMode));
+    }
     const taxMode = persistedLines[0]?.tax_mode || item.tax_mode_override || defaultTaxMode;
     const grossRevenue = sale.sale_price_total ?? sale.sale_price;
     const shippingRevenue = sale.shipping_revenue ?? 0;
@@ -78,16 +86,34 @@ export class TaxEngineService {
     const directItemCosts = item.costs?.reduce((sum, c) => sum + (c.amount || 0), 0) || 0;
     const totalPurchaseCost =
       persistedLines.length > 0
-        ? persistedLines.reduce((sum, line) => sum + Number(line.cost_of_goods_sold || 0), 0)
+        ? persistedLines.reduce((sum, line) => sum + Number(line.cost_of_goods_sold ?? 0), 0)
         : (item.allocated_purchase_cost || 0) + directItemCosts;
-    const grossMargin = grossRevenue - totalPurchaseCost;
+    const grossMargin = this.roundMoney(grossRevenue - totalPurchaseCost);
+    const rawTaxCost =
+      persistedLines.length > 0 ? persistedLines[0].tax_purchase_cost : item.tax_purchase_cost;
+    const taxPurchaseCost = this.validCost(rawTaxCost) ? rawTaxCost : null;
+    const taxMargin =
+      taxPurchaseCost === null ? null : this.roundMoney(grossRevenue - taxPurchaseCost);
+    const differenceTax =
+      taxMode === 'diff_25a'
+        ? this.calculateDifferenceTax(grossRevenue, taxPurchaseCost, persistedLines[0])
+        : null;
+    const needsReview =
+      (taxMode === 'diff_25a' && differenceTax === null) ||
+      sale.cost_basis_status === 'unknown' ||
+      !this.validCost(grossRevenue) ||
+      !this.validCost(totalPurchaseCost) ||
+      persistedLines.some((line) => !this.validCost(line.cost_of_goods_sold)) ||
+      (persistedLines.length === 0 && !this.validCost(item.allocated_purchase_cost));
 
     let taxBase = 0;
     let vatAmount = 0;
-    let inputTaxDeductible = 0;
+    // Ohne belegbezogene Erfassung darf aus einem Bruttobetrag keine Vorsteuer
+    // geraten werden. Das gilt auch für Gebühren und Versand.
+    const inputTaxDeductible = 0;
     let invoiceClause = '';
 
-    // Operating expenses Vorsteuer (e.g. fees, shipping paid with 19% VAT)
+    // Tatsächliche Kosten mindern den Gewinn unabhängig vom steuerlichen Einkaufspreis.
     const operatingCosts =
       (sale.platform_fee || 0) +
       shippingCost +
@@ -96,11 +122,8 @@ export class TaxEngineService {
 
     switch (taxMode) {
       case 'diff_25a': {
-        // § 25a UStG: Tax is strictly due on the positive gross margin (VK - EK)
-        taxBase = Math.max(0, grossMargin);
-        vatAmount = Number(((taxBase / 1.19) * 0.19).toFixed(2));
-        // Input tax from business expenses (e.g. shipping labels, packaging, software)
-        inputTaxDeductible = Number(((operatingCosts / 1.19) * 0.19).toFixed(2));
+        vatAmount = differenceTax?.vat ?? 0;
+        taxBase = differenceTax?.base ?? 0;
         invoiceClause =
           'Gebrauchtgegenstände / Sonderregelung gem. § 25a UStG (Differenzbesteuerung). Kein gesonderter Ausweis der Umsatzsteuer.';
         break;
@@ -110,7 +133,6 @@ export class TaxEngineService {
         // § 19 UStG: No VAT charged, no input tax deductible
         taxBase = 0;
         vatAmount = 0;
-        inputTaxDeductible = 0;
         invoiceClause =
           'Gemäß § 19 UStG wird keine Umsatzsteuer berechnet (Kleinunternehmerstatus).';
         break;
@@ -120,20 +142,19 @@ export class TaxEngineService {
         // Standard 19% VAT on total gross price
         taxBase = Number((grossRevenue / 1.19).toFixed(2));
         vatAmount = Number((grossRevenue - taxBase).toFixed(2));
-        inputTaxDeductible = Number(((operatingCosts / 1.19) * 0.19).toFixed(2));
         invoiceClause = 'Enthält 19% gesetzliche Umsatzsteuer.';
         break;
       }
     }
 
     const netTaxLiability = Number((vatAmount - inputTaxDeductible).toFixed(2));
-    // Reingewinn = Marge abzüglich Betriebskosten abzüglich der tatsächlichen
-    // Zahllast. Zuvor wurde die volle Umsatzsteuer abgezogen und die eine Zeile
-    // darüber berechnete abziehbare Vorsteuer ignoriert – der ausgewiesene
-    // Gewinn war dadurch systematisch zu niedrig.
+    // Ergebnis nach direkten Kosten und berechneter Umsatzsteuer, ohne geschätzte Vorsteuer.
     const netProfitAfterTax = Number((grossMargin - operatingCosts - netTaxLiability).toFixed(2));
 
     return {
+      calculation_status: needsReview ? 'needs_review' : 'complete',
+      tax_purchase_cost: taxPurchaseCost,
+      tax_margin: taxMargin,
       sale_id: sale.id,
       item_title:
         persistedLines
@@ -160,8 +181,8 @@ export class TaxEngineService {
 
   /**
    * Teilt gemeinsame Verkaufskosten centgenau auf echte Verkaufspositionen auf.
-   * Die letzte Position erhält jeweils den Rundungsrest, damit die Summe wieder
-   * exakt dem ursprünglichen Verkauf entspricht.
+   * Rundungsreste gehen an die größten Restanteile. Auch bei vielen kleinen
+   * Beträgen entstehen keine negativen Kosten einer letzten Position.
    */
   calculateSaleLineTaxes(
     sale: Sale,
@@ -173,8 +194,7 @@ export class TaxEngineService {
     const lineResults = lines.map((line, index) =>
       this.calculateSaleTax(this.saleForLine(sale, line, lines, index), item, defaultTaxMode),
     );
-    if (new Set(lines.map((line) => line.tax_mode)).size !== 1) return lineResults;
-    return this.reconcileLineTotals(lineResults, this.calculateSaleTax(sale, item, defaultTaxMode));
+    return lineResults;
   }
 
   /** Bildet eine persistierte Verkaufsposition als eigenständigen Steuerfall ab. */
@@ -205,35 +225,87 @@ export class TaxEngineService {
   }
 
   private allocatedSaleAmount(total: number, lines: readonly SaleLine[], index: number): number {
-    const revenue = lines.reduce((sum, line) => sum + line.line_total, 0);
-    if (revenue <= 0) return index === lines.length - 1 ? total : 0;
-    if (index === lines.length - 1) {
-      const allocatedEarlier = lines
-        .slice(0, index)
-        .reduce((sum, line) => sum + Number((total * (line.line_total / revenue)).toFixed(2)), 0);
-      return Number((total - allocatedEarlier).toFixed(2));
-    }
-    return Number((total * (lines[index].line_total / revenue)).toFixed(2));
+    const cents = Math.round(total * 100);
+    if (cents === 0) return 0;
+    const weights = lines.map((line) => Math.max(0, line.line_total));
+    const weightTotal = weights.reduce((sum, value) => sum + value, 0);
+    if (weightTotal === 0) return index === lines.length - 1 ? total : 0;
+    const exact = weights.map((value) => (Math.abs(cents) * value) / weightTotal);
+    const shares = exact.map(Math.floor);
+    const order = exact
+      .map((value, position) => ({ position, remainder: value - shares[position] }))
+      .sort((a, b) => b.remainder - a.remainder || b.position - a.position);
+    const remainder = Math.abs(cents) - shares.reduce((sum, value) => sum + value, 0);
+    for (let position = 0; position < remainder; position++) shares[order[position].position]++;
+    return (Math.sign(cents) * shares[index]) / 100;
   }
 
-  private reconcileLineTotals(
-    lineResults: readonly TaxCalculationResult[],
-    saleTotal: TaxCalculationResult,
-  ): TaxCalculationResult[] {
-    if (lineResults.length < 2) return [...lineResults];
-    const fields: (keyof Pick<
-      TaxCalculationResult,
-      | 'gross_revenue'
-      | 'shipping_revenue'
-      | 'shipping_cost'
-      | 'total_purchase_cost'
-      | 'gross_margin'
-      | 'tax_base'
-      | 'vat_amount'
-      | 'input_tax_deductible'
-      | 'net_tax_liability'
-      | 'net_profit_after_tax'
-    >)[] = [
+  /** Prüft den Buchungssnapshot und berechnet jede physische Einheit getrennt. */
+  private calculateDifferenceTax(
+    revenue: number,
+    purchaseCost: number | null,
+    line: SaleLine | undefined,
+  ): { base: number; vat: number } | null {
+    if (purchaseCost === null || !this.validCost(revenue)) return null;
+    const quantity = line?.quantity ?? 1;
+    if (!Number.isSafeInteger(quantity) || quantity < 1) return null;
+    const allocations =
+      line?.tax_cost_allocations ??
+      (quantity === 1 ? [{ quantity: 1, tax_purchase_cost: purchaseCost }] : null);
+    if (
+      !allocations?.length ||
+      allocations.some(
+        (allocation) =>
+          !Number.isSafeInteger(allocation.quantity) ||
+          allocation.quantity < 1 ||
+          !this.validCost(allocation.tax_purchase_cost) ||
+          Math.abs(
+            allocation.tax_purchase_cost * 100 - Math.round(allocation.tax_purchase_cost * 100),
+          ) > 0.000001 ||
+          Math.round(allocation.tax_purchase_cost * 100) % allocation.quantity !== 0,
+      )
+    )
+      return null;
+    if (
+      allocations.reduce((sum, allocation) => sum + allocation.quantity, 0) !== quantity ||
+      allocations.reduce(
+        (sum, allocation) => sum + Math.round(allocation.tax_purchase_cost * 100),
+        0,
+      ) !== Math.round(purchaseCost * 100)
+    )
+      return null;
+
+    const revenueCents = Math.round(revenue * 100);
+    const unitRevenue = Math.floor(revenueCents / quantity);
+    let extraRevenueUnits = revenueCents % quantity;
+    let positiveMarginCents = 0;
+    let vatCents = 0;
+    for (const allocation of allocations) {
+      const cost = Math.round(allocation.tax_purchase_cost * 100) / allocation.quantity;
+      const extraUnits = Math.min(extraRevenueUnits, allocation.quantity);
+      const margin = Math.max(0, unitRevenue - cost);
+      const extraMargin = Math.max(0, unitRevenue + 1 - cost);
+      positiveMarginCents += margin * (allocation.quantity - extraUnits) + extraMargin * extraUnits;
+      vatCents +=
+        Math.round((margin * 19) / 119) * (allocation.quantity - extraUnits) +
+        Math.round((extraMargin * 19) / 119) * extraUnits;
+      extraRevenueUnits -= extraUnits;
+    }
+    return { base: (positiveMarginCents - vatCents) / 100, vat: vatCents / 100 };
+  }
+
+  private validCost(value: number | null | undefined): value is number {
+    return typeof value === 'number' && Number.isFinite(value) && value >= 0;
+  }
+
+  private roundMoney(value: number): number {
+    return Number(value.toFixed(2));
+  }
+
+  /** Aggregiert ausschließlich bereits einzeln berechnete Steuerfälle. */
+  private aggregateLineResults(results: readonly TaxCalculationResult[]): TaxCalculationResult {
+    const aggregate = { ...results[0] };
+    const fields = [
       'gross_revenue',
       'shipping_revenue',
       'shipping_cost',
@@ -244,16 +316,26 @@ export class TaxEngineService {
       'input_tax_deductible',
       'net_tax_liability',
       'net_profit_after_tax',
-    ];
-    const lastIndex = lineResults.length - 1;
-    const last = { ...lineResults[lastIndex] };
-    for (const field of fields) {
-      const earlier = lineResults
-        .slice(0, lastIndex)
-        .reduce((sum, result) => sum + result[field], 0);
-      last[field] = Number((saleTotal[field] - earlier).toFixed(2));
+    ] as const;
+    for (const field of fields)
+      aggregate[field] = this.roundMoney(results.reduce((sum, r) => sum + r[field], 0));
+    aggregate.item_title = results.map((r) => r.item_title).join(', ');
+    aggregate.calculation_status = results.some((r) => r.calculation_status !== 'complete')
+      ? 'needs_review'
+      : 'complete';
+    aggregate.tax_purchase_cost = results.some((r) => r.tax_purchase_cost == null)
+      ? null
+      : this.roundMoney(results.reduce((sum, r) => sum + (r.tax_purchase_cost ?? 0), 0));
+    aggregate.tax_margin = results.some((r) => r.tax_margin == null)
+      ? null
+      : this.roundMoney(results.reduce((sum, r) => sum + (r.tax_margin ?? 0), 0));
+    return aggregate;
+  }
+
+  private requireReviewedTaxCosts(results: readonly TaxCalculationResult[]): void {
+    if (results.some((result) => result.calculation_status !== 'complete')) {
+      throw new Error('Bitte zuerst die Einkaufspreise der gekennzeichneten Verkäufe prüfen.');
     }
-    return [...lineResults.slice(0, lastIndex), last];
   }
 
   /**
@@ -274,7 +356,8 @@ export class TaxEngineService {
 
     return {
       period_label: periodLabel,
-      total_sales_count: taxResults.length,
+      review_count: taxResults.filter((r) => r.calculation_status !== 'complete').length,
+      total_sales_count: new Set(taxResults.map((r) => r.sale_id)).size,
       gross_revenue: Number(grossRevenue.toFixed(2)),
       total_cost_of_goods_sold: Number(totalCostOfGoodsSold.toFixed(2)),
       total_gross_margin: Number(totalGrossMargin.toFixed(2)),
@@ -393,6 +476,7 @@ export class TaxEngineService {
    * gegengelesen werden. Die DATEV-Formatvorgaben sind versionsabhängig.
    */
   generateDatevCsv(taxResults: TaxCalculationResult[], optionen: DatevOptionen = {}): string {
+    this.requireReviewedTaxCosts(taxResults);
     const skr04 = optionen.skrStandard === 'SKR04';
     const bankkonto = skr04 ? '1800' : '1200';
 
@@ -470,17 +554,18 @@ export class TaxEngineService {
    * Generates an EÜR (Einnahmen-Überschuss-Rechnung) CSV summary.
    */
   generateEurCsv(taxResults: TaxCalculationResult[]): string {
+    this.requireReviewedTaxCosts(taxResults);
     const headers = [
       'Datum',
       'Vorgang / Artikel',
       'Steuer-Modus',
       'Einnahmen Brutto (€)',
-      'Wareneinsatz EK (€)',
+      'Wareneinsatz einschließlich Zusatzkosten (€)',
       'Marge Brutto (€)',
-      'USt auf Marge (€)',
-      'Abziehbare Vorsteuer (€)',
-      'USt-Zahllast (€)',
-      'Reingewinn nach USt (€)',
+      'Berechnete Umsatzsteuer (€)',
+      'Berücksichtigte Vorsteuer (€)',
+      'Umsatzsteuer vor weiterer Vorsteuerprüfung (€)',
+      'Ergebnis nach USt, vor weiterer Vorsteuerprüfung (€)',
     ];
 
     const rows = taxResults.map((r) => {

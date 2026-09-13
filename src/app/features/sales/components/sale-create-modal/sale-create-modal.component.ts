@@ -215,7 +215,10 @@ export class SaleCreateModalComponent {
   readonly liveMetrics = computed(() => {
     this.formValue();
     const raw = this.form.getRawValue();
-    const costOfGoods = this.lines.controls.reduce((sum, line) => sum + this.lineCost(line), 0);
+    const lineCosts = this.lines.controls.map((line) => this.lineCost(line));
+    const costOfGoods = lineCosts.some((cost) => cost === null)
+      ? null
+      : lineCosts.reduce<number>((sum, cost) => sum + (cost ?? 0), 0);
     const additionalCosts = this.additionalCostTotal();
     const metrics = calculateSaleMetrics({
       itemRevenue: this.totalPrice(),
@@ -225,12 +228,13 @@ export class SaleCreateModalComponent {
       sellerShippingCost: raw.shippingCost,
       extraCosts: [{ amount: additionalCosts }],
     });
-    const totalCosts = Number((costOfGoods + metrics.sellingCosts).toFixed(2));
+    const totalCosts =
+      costOfGoods === null ? null : Number((costOfGoods + metrics.sellingCosts).toFixed(2));
     return {
       costOfGoods,
       sellingCosts: metrics.sellingCosts,
       totalCosts,
-      profit: metrics.resultAfterDirectCosts ?? 0,
+      profit: metrics.resultAfterDirectCosts,
       margin: metrics.marginPercent,
     };
   });
@@ -535,19 +539,24 @@ export class SaleCreateModalComponent {
     ]);
     line.controls.quantity.updateValueAndValidity();
   }
-  private lineCost(line: SaleLineForm): number {
+  private lineCost(line: SaleLineForm): number | null {
     const target = this.targetForLine(line);
     const quantity = line.controls.quantity.value;
-    if (!target) return 0;
-    if (target.kind === 'catalog_product')
-      return (
-        (this.stockService
-          .positions()
-          .find((position) => position.catalog_product_id === target.catalogProductId)
-          ?.oldest_available_unit_cost ?? 0) * quantity
-      );
-    const item = this.inventoryService.items().find((entry) => entry.id === target.inventoryItemId);
-    return (item?.total_item_cost ?? item?.allocated_purchase_cost ?? 0) * quantity;
+    if (!target) return null;
+    const item =
+      target.kind === 'inventory_item'
+        ? this.inventoryService.items().find((entry) => entry.id === target.inventoryItemId)
+        : undefined;
+    const unitCost =
+      target.kind === 'catalog_product'
+        ? this.stockService
+            .positions()
+            .find((position) => position.catalog_product_id === target.catalogProductId)
+            ?.oldest_available_unit_cost
+        : (item?.total_item_cost ?? item?.allocated_purchase_cost);
+    return typeof unitCost === 'number' && Number.isFinite(unitCost) && unitCost >= 0
+      ? unitCost * quantity
+      : null;
   }
   private additionalCostTotal(): number {
     return Number(

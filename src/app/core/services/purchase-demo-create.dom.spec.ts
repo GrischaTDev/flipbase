@@ -205,6 +205,7 @@ describe('PurchaseService – Demo-Einkauf mit Startpositionen', () => {
           type: 'shipping',
           amount: 5,
           description: 'Direktversand',
+          taxTreatment: 'expense',
           allocationMethod: 'direct',
           targetPurchaseLineId: lineId,
         },
@@ -237,7 +238,7 @@ describe('PurchaseService – Demo-Einkauf mit Startpositionen', () => {
       }),
     ]);
     expect(result.data?.costs).toEqual([
-      expect.objectContaining({ target_purchase_line_id: lineId }),
+      expect.objectContaining({ target_purchase_line_id: lineId, tax_treatment: 'expense' }),
     ]);
   });
 

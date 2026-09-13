@@ -39,6 +39,9 @@ describe('DATEV-Buchungsstapel & Steuerberechnung', () => {
   const ergebnis = (
     ueberschreibungen: Partial<TaxCalculationResult & DatevShippingBasis> = {},
   ): TaxCalculationResult & DatevShippingBasis => ({
+    calculation_status: 'complete',
+    tax_purchase_cost: 230,
+    tax_margin: 120,
     sale_id: 'a1b2c3d4-e5f6-0000-0000-000000000001',
     item_title: 'Sony PlayStation 5',
     sale_date: '2026-08-17',
@@ -46,10 +49,10 @@ describe('DATEV-Buchungsstapel & Steuerberechnung', () => {
     gross_revenue: 350,
     total_purchase_cost: 230,
     gross_margin: 120,
-    tax_base: 120,
+    tax_base: 100.84,
     vat_amount: 19.16,
-    input_tax_deductible: 1.6,
-    net_tax_liability: 17.56,
+    input_tax_deductible: 0,
+    net_tax_liability: 19.16,
     net_profit_after_tax: 90.84,
     invoice_clause: '',
     shipping_revenue: 0,
@@ -232,10 +235,8 @@ describe('DATEV-Buchungsstapel & Steuerberechnung', () => {
   });
 
   describe('Reingewinn nach Steuern (Audit 4.6)', () => {
-    it('rechnet die abziehbare Vorsteuer gegen', () => {
-      // Marge 120 €, Betriebskosten 10 €, USt 19,16 €, Vorsteuer 1,60 €
-      // richtig: 120 - 10 - (19,16 - 1,60) = 92,44 €
-      // zuvor:   120 - 10 - 19,16          = 90,84 €  (Vorsteuer ignoriert)
+    it('zieht ohne Steuerbeleg keine geschätzte Vorsteuer ab', () => {
+      // Marge 120 €, Betriebskosten 10 €, USt 19,16 €; ohne belegte Vorsteuer bleibt 90,84 €.
       const res = engine.calculateSaleTax(
         {
           id: 's-1',
@@ -256,10 +257,13 @@ describe('DATEV-Buchungsstapel & Steuerberechnung', () => {
           condition: 'used',
           status: 'sold',
           allocated_purchase_cost: 230,
+          tax_purchase_cost: 230,
         },
         'diff_25a',
       );
 
+      expect(res.input_tax_deductible).toBe(0);
+      expect(res.net_profit_after_tax).toBe(90.84);
       expect(res.net_profit_after_tax).toBeCloseTo(
         res.gross_margin - 10 - res.net_tax_liability,
         2,

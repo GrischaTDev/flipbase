@@ -579,6 +579,7 @@ export type Database = {
           sku: string | null
           status: string
           tax_mode_override: string | null
+          tax_purchase_cost: number | null
           title: string
           updated_at: string
           weight_g: number | null
@@ -606,6 +607,7 @@ export type Database = {
           sku?: string | null
           status?: string
           tax_mode_override?: string | null
+          tax_purchase_cost?: number | null
           title: string
           updated_at?: string
           weight_g?: number | null
@@ -633,6 +635,7 @@ export type Database = {
           sku?: string | null
           status?: string
           tax_mode_override?: string | null
+          tax_purchase_cost?: number | null
           title?: string
           updated_at?: string
           weight_g?: number | null
@@ -1440,6 +1443,7 @@ export type Database = {
           id: string
           purchase_id: string
           target_purchase_line_id: string | null
+          tax_treatment: string | null
           type: string
           workspace_id: string
         }
@@ -1451,6 +1455,7 @@ export type Database = {
           id?: string
           purchase_id: string
           target_purchase_line_id?: string | null
+          tax_treatment?: string | null
           type: string
           workspace_id: string
         }
@@ -1462,6 +1467,7 @@ export type Database = {
           id?: string
           purchase_id?: string
           target_purchase_line_id?: string | null
+          tax_treatment?: string | null
           type?: string
           workspace_id?: string
         }
@@ -2071,6 +2077,8 @@ export type Database = {
       sale_line_lot_allocations: {
         Row: {
           active_allocated_cost: number | null
+          active_tax_unit_costs: number[] | null
+          active_unit_costs: number[] | null
           allocated_cost: number
           consumption_sequence: number | null
           created_at: string
@@ -2078,11 +2086,15 @@ export type Database = {
           quantity: number
           sale_line_id: string
           stock_lot_id: string
+          tax_cost_allocations: Json | null
+          tax_purchase_cost: number | null
           unit_cost: number
           workspace_id: string
         }
         Insert: {
           active_allocated_cost?: number | null
+          active_tax_unit_costs?: number[] | null
+          active_unit_costs?: number[] | null
           allocated_cost?: number
           consumption_sequence?: number | null
           created_at?: string
@@ -2090,11 +2102,15 @@ export type Database = {
           quantity: number
           sale_line_id: string
           stock_lot_id: string
+          tax_cost_allocations?: Json | null
+          tax_purchase_cost?: number | null
           unit_cost: number
           workspace_id: string
         }
         Update: {
           active_allocated_cost?: number | null
+          active_tax_unit_costs?: number[] | null
+          active_unit_costs?: number[] | null
           allocated_cost?: number
           consumption_sequence?: number | null
           created_at?: string
@@ -2102,6 +2118,8 @@ export type Database = {
           quantity?: number
           sale_line_id?: string
           stock_lot_id?: string
+          tax_cost_allocations?: Json | null
+          tax_purchase_cost?: number | null
           unit_cost?: number
           workspace_id?: string
         }
@@ -2153,7 +2171,9 @@ export type Database = {
           line_total: number
           quantity: number
           sale_id: string
+          tax_cost_allocations: Json | null
           tax_mode: string
+          tax_purchase_cost: number | null
           title_snapshot: string
           unit_sale_price: number
           workspace_id: string
@@ -2167,7 +2187,9 @@ export type Database = {
           line_total: number
           quantity: number
           sale_id: string
+          tax_cost_allocations?: Json | null
           tax_mode: string
+          tax_purchase_cost?: number | null
           title_snapshot: string
           unit_sale_price: number
           workspace_id: string
@@ -2181,7 +2203,9 @@ export type Database = {
           line_total?: number
           quantity?: number
           sale_id?: string
+          tax_cost_allocations?: Json | null
           tax_mode?: string
+          tax_purchase_cost?: number | null
           title_snapshot?: string
           unit_sale_price?: number
           workspace_id?: string
@@ -2904,7 +2928,10 @@ export type Database = {
           received_at: string
           received_quantity: number
           remaining_quantity: number
+          remaining_tax_unit_costs: number[] | null
+          remaining_unit_costs: number[] | null
           unit_cost: number | null
+          unit_tax_purchase_cost: number | null
           workspace_id: string
         }
         Insert: {
@@ -2916,7 +2943,10 @@ export type Database = {
           received_at?: string
           received_quantity: number
           remaining_quantity: number
+          remaining_tax_unit_costs?: number[] | null
+          remaining_unit_costs?: number[] | null
           unit_cost?: number | null
+          unit_tax_purchase_cost?: number | null
           workspace_id: string
         }
         Update: {
@@ -2928,7 +2958,10 @@ export type Database = {
           received_at?: string
           received_quantity?: number
           remaining_quantity?: number
+          remaining_tax_unit_costs?: number[] | null
+          remaining_unit_costs?: number[] | null
           unit_cost?: number | null
+          unit_tax_purchase_cost?: number | null
           workspace_id?: string
         }
         Relationships: [
@@ -4119,6 +4152,7 @@ export type Database = {
           sku: string | null
           status: string
           tax_mode_override: string | null
+          tax_purchase_cost: number | null
           title: string
           updated_at: string
           weight_g: number | null
@@ -4215,6 +4249,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      tax_cost_allocations: { Args: { p_unit_costs: number[] }; Returns: Json }
       unbundle_shipping_order: {
         Args: { p_bundled_order_id: string; p_workspace_id: string }
         Returns: {

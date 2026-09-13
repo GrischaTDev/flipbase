@@ -24,18 +24,20 @@ export interface MonthlyTaxReport {
   generatedAt: string;
   workspaceName: string;
   taxAdvisor: TaxAdvisorConfig;
+  calculationStatus: 'complete' | 'needs_review';
+  reviewCount: number;
   salesCount: number;
   purchasesCount: number;
   grossRevenue: number;
   diff25aRevenue: number;
   regular19Revenue: number;
-  totalCostOfGoodsSold: number;
+  totalCostOfGoodsSold: number | null;
   operatingExpenses: number;
-  grossProfitMargin: number;
-  diffTaxBase: number;
-  vatPayable: number;
+  grossProfitMargin: number | null;
+  diffTaxBase: number | null;
+  vatPayable: number | null;
   inputTaxDeductible: number;
-  estimatedTaxDue: number;
-  netIncomeAfterTax: number;
+  estimatedTaxDue: number | null;
+  netIncomeAfterTax: number | null;
   accountBalances: DatevAccountBalance[];
 }

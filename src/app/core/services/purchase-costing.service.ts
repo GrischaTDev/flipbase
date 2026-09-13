@@ -49,6 +49,7 @@ export interface CorrectPurchaseCostInput {
   readonly amount: number;
   readonly description: string | null;
   readonly allocation_method: PurchaseCostAllocationMethod;
+  readonly tax_treatment?: 'purchase_price' | 'expense' | null;
   readonly target_purchase_line_id: string | null;
 }
 

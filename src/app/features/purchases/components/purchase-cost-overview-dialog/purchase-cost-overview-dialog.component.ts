@@ -99,6 +99,7 @@ function costsEqual(
       cost.type === other.type &&
       cost.amount === other.amount &&
       cost.description === other.description &&
+      (cost.taxTreatment ?? null) === (other.taxTreatment ?? null) &&
       cost.allocationMethod === other.allocationMethod &&
       cost.targetPurchaseLineId === other.targetPurchaseLineId
     );

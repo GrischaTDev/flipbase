@@ -1,12 +1,32 @@
+import { PurchaseCostTaxTreatment } from '../../../../core/models/flipbase.models';
 import { SelectOption } from '../../../../shared/components/custom-select/custom-select.component';
 
 export type PurchaseCostType =
   'shipping' | 'travel' | 'packaging' | 'transport' | 'customs' | 'import' | 'fee' | 'other';
 
+export type { PurchaseCostTaxTreatment } from '../../../../core/models/flipbase.models';
+
+export const PURCHASE_COST_TAX_TREATMENT_OPTIONS: readonly SelectOption<PurchaseCostTaxTreatment | null>[] =
+  [
+    { value: null, label: 'Noch prüfen' },
+    { value: 'purchase_price', label: 'Vom Verkäufer berechnet' },
+    { value: 'expense', label: 'Separat bezahlt' },
+  ];
+
+export function purchaseCostTaxTreatmentLabel(
+  value: PurchaseCostTaxTreatment | null | undefined,
+): string {
+  return (
+    PURCHASE_COST_TAX_TREATMENT_OPTIONS.find((option) => option.value === (value ?? null))?.label ??
+    'Noch prüfen'
+  );
+}
+
 export interface PurchaseCostDraft {
   readonly type: PurchaseCostType;
   readonly amount: number;
   readonly description: string;
+  readonly taxTreatment?: PurchaseCostTaxTreatment | null;
   readonly allocationMethod: 'by_value' | 'by_quantity' | 'direct';
   readonly targetPurchaseLineId: string | null;
 }
@@ -29,6 +49,7 @@ export interface PurchaseCostAdjustmentRow {
   readonly allocationMethod: PurchaseCostDraft['allocationMethod'];
   readonly targetPurchaseLineId: string | null;
   readonly sourceCost: PurchaseCostDraft | null;
+  readonly taxTreatment?: PurchaseCostTaxTreatment | null;
 }
 
 export interface PurchaseCostOverviewValue {
@@ -76,6 +97,7 @@ export function createPurchaseCostAdjustmentRows(
     allocationMethod: cost.allocationMethod,
     targetPurchaseLineId: cost.targetPurchaseLineId,
     sourceCost: cost,
+    taxTreatment: cost.taxTreatment ?? null,
   }));
   if (discountAmount > 0) {
     rows.push({
@@ -84,6 +106,7 @@ export function createPurchaseCostAdjustmentRows(
       allocationMethod: 'by_value',
       targetPurchaseLineId: null,
       sourceCost: null,
+      taxTreatment: null,
     });
   }
   return rows;
@@ -111,6 +134,7 @@ export function serializePurchaseCostAdjustmentRows(
       type: defaults.type,
       amount: row.amount,
       description: defaults.description,
+      taxTreatment: row.taxTreatment ?? null,
       allocationMethod: row.allocationMethod,
       targetPurchaseLineId: row.allocationMethod === 'direct' ? row.targetPurchaseLineId : null,
     });

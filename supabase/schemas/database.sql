@@ -157,7 +157,8 @@ CREATE TABLE IF NOT EXISTS public.purchase_costs (
       (allocation_method = 'direct' and target_purchase_line_id is not null)
       or
       (allocation_method <> 'direct' and target_purchase_line_id is null)
-    )
+    ),
+    tax_treatment text check (tax_treatment in ('purchase_price', 'expense'))
 );
 
 alter table public.purchase_costs add constraint purchase_costs_workspace_purchase_fkey
@@ -192,7 +193,8 @@ CREATE TABLE IF NOT EXISTS public.inventory_items (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     archived_at timestamptz,
     archived_by uuid references auth.users(id) on delete restrict,
-    unique (workspace_id, id)
+    unique (workspace_id, id),
+    tax_purchase_cost numeric(12,2) check (tax_purchase_cost >= 0 and tax_purchase_cost < 'Infinity'::numeric)
 );
 
 CREATE TABLE IF NOT EXISTS public.item_costs (
@@ -406,7 +408,10 @@ create table public.stock_lots (
     unit_cost numeric(24,12) check (unit_cost >= 0),
     received_at timestamptz not null default now(),
     created_at timestamptz not null default now(),
-    unique (workspace_id, id)
+    unique (workspace_id, id),
+    unit_tax_purchase_cost numeric(24,12) check (unit_tax_purchase_cost >= 0 and unit_tax_purchase_cost < 'Infinity'::numeric),
+    remaining_tax_unit_costs numeric[],
+    remaining_unit_costs numeric[]
 );
 
 alter table public.stock_lots
@@ -427,7 +432,9 @@ create table public.sale_lines (
     tax_mode text not null check (tax_mode in ('diff_25a', 'kleinunternehmer_19', 'regular_19')),
     created_at timestamptz not null default now(),
     check (num_nonnulls(catalog_product_id, inventory_item_id) = 1),
-    unique (workspace_id, id)
+    unique (workspace_id, id),
+    tax_purchase_cost numeric(12,2) check (tax_purchase_cost >= 0 and tax_purchase_cost < 'Infinity'::numeric),
+    tax_cost_allocations jsonb
 );
 
 create table public.stock_movements (
@@ -464,7 +471,11 @@ create table public.sale_line_lot_allocations (
       ),
     unique (sale_line_id, stock_lot_id),
     constraint sale_line_lot_allocations_lot_consumption_sequence_key
-      unique (stock_lot_id, consumption_sequence)
+      unique (stock_lot_id, consumption_sequence),
+    tax_purchase_cost numeric(12,2) check (tax_purchase_cost >= 0 and tax_purchase_cost < 'Infinity'::numeric),
+    tax_cost_allocations jsonb,
+    active_tax_unit_costs numeric[],
+    active_unit_costs numeric[]
 );
 
 alter table public.inventory_items add constraint inventory_items_workspace_purchase_line_fkey
@@ -3104,6 +3115,11 @@ set search_path = ''
 as $$
 declare
   v_purchase public.purchases;
+  v_line_tax_shares bigint[];
+  v_unit_tax_shares bigint[];
+  v_global_tax_shares bigint[];
+  v_tax_additional_cents bigint := 0;
+  v_tax_unknown boolean := false;
   v_line public.purchase_lines;
   v_cost record;
   v_line_ids uuid[];
@@ -3408,6 +3424,40 @@ begin
       message = 'Die Kostenverteilung stimmt nicht mit den Einkaufsgesamtkosten überein.';
   end if;
 
+  -- Unbekannte Belegzuordnung bleibt unbekannt; keine automatische Altklassifizierung.
+  select coalesce(pg_catalog.bool_or(cost.tax_treatment is null), false),
+    coalesce(pg_catalog.sum(case when cost.tax_treatment = 'purchase_price'
+      then (cost.amount * 100)::bigint else 0 end), 0)
+  into v_tax_unknown, v_tax_additional_cents
+  from public.purchase_costs as cost
+  where cost.workspace_id = p_workspace_id and cost.purchase_id = p_purchase_id;
+  v_line_tax_shares := v_line_goods_shares;
+  if coalesce(v_purchase.pricing_mode, case when v_purchase.type = 'mystery_pack' then 'total' else 'individual' end) = 'total' then
+    v_global_tax_shares := public.allocate_integer_cents(v_goods_cents + v_tax_additional_cents,
+      pg_catalog.array_fill(1::numeric, array[v_total_units::integer]));
+  else
+    for v_cost in select cost.* from public.purchase_costs as cost
+      where cost.workspace_id = p_workspace_id and cost.purchase_id = p_purchase_id
+        and cost.tax_treatment = 'purchase_price'
+      order by cost.created_at, cost.id
+    loop
+      if v_cost.allocation_method = 'direct' then
+        v_cost_shares := pg_catalog.array_fill(0::bigint, array[v_line_count]);
+        v_cost_shares[pg_catalog.array_position(v_line_ids, v_cost.target_purchase_line_id)] := (v_cost.amount * 100)::bigint;
+      elsif v_cost.allocation_method = 'quantity' then
+        v_cost_shares := public.allocate_integer_cents((v_cost.amount * 100)::bigint, v_line_weights);
+      else
+        select pg_catalog.array_agg(line.line_total order by line.created_at, line.id)
+        into v_cost_weights from public.purchase_lines as line
+        where line.workspace_id = p_workspace_id and line.purchase_id = p_purchase_id;
+        v_cost_shares := public.allocate_integer_cents((v_cost.amount * 100)::bigint, v_cost_weights);
+      end if;
+      for v_line_position in 1..v_line_count loop
+        v_line_tax_shares[v_line_position] := v_line_tax_shares[v_line_position] + v_cost_shares[v_line_position];
+      end loop;
+    end loop;
+  end if;
+
   v_global_unit_position := 0;
   for v_line_position in 1..v_line_count loop
     select line.*
@@ -3446,13 +3496,29 @@ begin
       end loop;
     end if;
 
+    if v_tax_unknown then
+      v_unit_tax_shares := null;
+    elsif v_global_tax_shares is not null then
+      v_unit_tax_shares := v_global_tax_shares[(v_global_unit_position - v_line.ordered_quantity + 1):v_global_unit_position];
+    else
+      -- Dieselben Waren-/Zusatzkostenanteile wie beim betrieblichen Wareneinsatz:
+      -- Zusammenrunden würde einzelne steuerliche Stückkosten verschieben.
+      v_unit_tax_shares := public.allocate_integer_cents(
+        v_line_tax_shares[v_line_position] - v_line_goods_shares[v_line_position],
+        pg_catalog.array_fill(1::numeric, array[v_line.ordered_quantity]));
+      for v_item_position in 1..v_line.ordered_quantity loop
+        v_unit_tax_shares[v_item_position] := v_unit_goods_shares[v_item_position] + v_unit_tax_shares[v_item_position];
+      end loop;
+    end if;
+
     v_lines := v_lines || pg_catalog.jsonb_build_array(
       pg_catalog.jsonb_build_object(
         'lineId', v_line.id,
         'goodsCents', v_line_goods_shares[v_line_position],
         'additionalCents', v_line_additional_shares[v_line_position],
         'totalCents', v_line_total_shares[v_line_position],
-        'unitTotalCents', pg_catalog.to_jsonb(v_unit_total_shares)
+        'unitTotalCents', pg_catalog.to_jsonb(v_unit_total_shares),
+        'unitTaxPurchaseCents', pg_catalog.to_jsonb(v_unit_tax_shares)
       )
     );
   end loop;
@@ -3494,6 +3560,7 @@ declare
   v_line_total_shares bigint[];
   v_line_additional_shares bigint[];
   v_unit_shares bigint[];
+  v_tax_unit_costs numeric[];
   v_existing_item_ids uuid[];
   v_goods_cents bigint := 0;
   v_total_cents bigint := 0;
@@ -3818,6 +3885,10 @@ begin
     into v_unit_shares
     from pg_catalog.jsonb_array_elements_text(v_line_plan -> 'unitTotalCents')
       with ordinality as unit_share(value, ordinality);
+    select pg_catalog.array_agg(pg_catalog.round(unit_share.value::numeric / 100, 2) order by unit_share.ordinality)
+    into v_tax_unit_costs
+    from pg_catalog.jsonb_array_elements_text(nullif(v_line_plan -> 'unitTaxPurchaseCents', 'null'::jsonb))
+      with ordinality as unit_share(value, ordinality);
 
     if v_line.line_kind = 'individual' then
       perform item.id
@@ -3859,6 +3930,7 @@ begin
         if v_item_position <= v_existing_count then
           update public.inventory_items
           set allocated_purchase_cost = v_unit_shares[v_item_position]::numeric / 100,
+              tax_purchase_cost = v_tax_unit_costs[v_item_position],
               ean = coalesce(v_line.ean_snapshot, ean),
               expected_value = coalesce(expected_value, v_line.estimated_market_value),
               status = 'ready',
@@ -3875,6 +3947,7 @@ begin
             condition,
             status,
             allocated_purchase_cost,
+            tax_purchase_cost,
             expected_value
           ) values (
             p_workspace_id,
@@ -3890,6 +3963,7 @@ begin
             end,
             'ready',
             v_unit_shares[v_item_position]::numeric / 100,
+            v_tax_unit_costs[v_item_position],
             v_line.estimated_market_value
           );
         end if;
@@ -3972,6 +4046,10 @@ begin
           / v_existing_lot.received_quantity
           / 100
         )
+        , unit_tax_purchase_cost = (select pg_catalog.avg(value) from pg_catalog.unnest(v_tax_unit_costs[(v_unit_offset - v_existing_lot.received_quantity + 1):v_unit_offset]) as value),
+          remaining_tax_unit_costs = v_tax_unit_costs[(v_unit_offset - v_existing_lot.received_quantity + 1):v_unit_offset],
+          remaining_unit_costs = (select pg_catalog.array_agg(pg_catalog.round(value::numeric / 100, 2) order by ordinality)
+            from pg_catalog.unnest(v_unit_shares[(v_unit_offset - v_existing_lot.received_quantity + 1):v_unit_offset]) with ordinality as unit(value, ordinality))
         where id = v_existing_lot.id
           and workspace_id = p_workspace_id;
 
@@ -4042,12 +4120,13 @@ begin
       for v_cohort in
         select
           share.value as unit_cost_cents,
+          v_tax_unit_costs[share.ordinality] as tax_unit_cost,
           pg_catalog.count(*)::integer as quantity,
           pg_catalog.min(share.ordinality) as first_position
         from pg_catalog.unnest(v_unit_shares)
           with ordinality as share(value, ordinality)
         where share.ordinality > v_unit_offset
-        group by share.value
+        group by share.value, v_tax_unit_costs[share.ordinality]
         order by pg_catalog.min(share.ordinality)
       loop
         if v_suffix_position > 0 then
@@ -4071,6 +4150,9 @@ begin
           received_quantity,
           remaining_quantity,
           unit_cost,
+          unit_tax_purchase_cost,
+          remaining_tax_unit_costs,
+          remaining_unit_costs,
           received_at
         ) values (
           p_workspace_id,
@@ -4080,6 +4162,9 @@ begin
           v_cohort.quantity,
           v_cohort.quantity,
           v_cohort.unit_cost_cents::numeric / 100,
+          v_cohort.tax_unit_cost,
+          case when v_cohort.tax_unit_cost is null then null else pg_catalog.array_fill(v_cohort.tax_unit_cost, array[v_cohort.quantity]) end,
+          pg_catalog.array_fill(pg_catalog.round(v_cohort.unit_cost_cents::numeric / 100, 2), array[v_cohort.quantity]),
           v_next_received_at
         ) returning id into v_stock_lot_id;
 
@@ -4715,6 +4800,7 @@ begin
   select coalesce(pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
     'id', item.id,
     'status', item.status,
+    'tax_purchase_cost', item.tax_purchase_cost,
     'allocated_purchase_cost', item.allocated_purchase_cost
   ) order by item.created_at, item.id), '[]'::jsonb)
   into v_before_items
@@ -4724,6 +4810,9 @@ begin
 
   select coalesce(pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
     'id', lot.id,
+    'unit_tax_purchase_cost', lot.unit_tax_purchase_cost,
+    'remaining_tax_unit_costs', lot.remaining_tax_unit_costs,
+    'remaining_unit_costs', lot.remaining_unit_costs,
     'unit_cost', lot.unit_cost,
     'received_quantity', lot.received_quantity,
     'remaining_quantity', lot.remaining_quantity
@@ -4741,7 +4830,7 @@ begin
     and purchase_id = p_purchase_id;
 
   update public.inventory_items
-  set allocated_purchase_cost = 0,
+  set tax_purchase_cost = null, allocated_purchase_cost = 0,
       status = case
         when status in ('ready', 'listed') then 'received'
         else status
@@ -4751,7 +4840,7 @@ begin
     and purchase_id = p_purchase_id;
 
   update public.stock_lots
-  set unit_cost = null
+  set unit_tax_purchase_cost = null, remaining_tax_unit_costs = null, remaining_unit_costs = null, unit_cost = null
   where workspace_id = p_workspace_id
     and purchase_id = p_purchase_id;
 
@@ -4790,6 +4879,7 @@ begin
   select coalesce(pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
     'id', item.id,
     'status', item.status,
+    'tax_purchase_cost', item.tax_purchase_cost,
     'allocated_purchase_cost', item.allocated_purchase_cost
   ) order by item.created_at, item.id), '[]'::jsonb)
   into v_after_items
@@ -4799,6 +4889,9 @@ begin
 
   select coalesce(pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
     'id', lot.id,
+    'unit_tax_purchase_cost', lot.unit_tax_purchase_cost,
+    'remaining_tax_unit_costs', lot.remaining_tax_unit_costs,
+    'remaining_unit_costs', lot.remaining_unit_costs,
     'unit_cost', lot.unit_cost,
     'received_quantity', lot.received_quantity,
     'remaining_quantity', lot.remaining_quantity
@@ -4890,6 +4983,7 @@ declare
   v_lot_ids uuid[];
   v_sale_line_ids uuid[];
   v_unit_shares bigint[];
+  v_tax_unit_costs numeric[];
   v_lot_unit_shares bigint[];
   v_line_id uuid;
   v_cost_id uuid;
@@ -5288,6 +5382,7 @@ begin
     'id', cost.id,
     'type', cost.type,
     'amount', cost.amount,
+    'tax_treatment', cost.tax_treatment,
     'description', cost.description,
     'allocation_method', cost.allocation_method,
     'target_purchase_line_id', cost.target_purchase_line_id
@@ -5301,6 +5396,7 @@ begin
     'id', item.id,
     'purchase_line_id', item.purchase_line_id,
     'status', item.status,
+    'tax_purchase_cost', item.tax_purchase_cost,
     'allocated_purchase_cost', item.allocated_purchase_cost
   ) order by item.created_at, item.id), '[]'::jsonb)
   into v_before_items
@@ -5313,6 +5409,9 @@ begin
     'purchase_line_id', lot.purchase_line_id,
     'received_quantity', lot.received_quantity,
     'remaining_quantity', lot.remaining_quantity,
+    'unit_tax_purchase_cost', lot.unit_tax_purchase_cost,
+    'remaining_tax_unit_costs', lot.remaining_tax_unit_costs,
+    'remaining_unit_costs', lot.remaining_unit_costs,
     'unit_cost', lot.unit_cost
   ) order by lot.received_at, lot.id), '[]'::jsonb)
   into v_before_lots
@@ -5338,6 +5437,10 @@ begin
     'quantity', allocation.quantity,
     'unit_cost', allocation.unit_cost,
     'allocated_cost', allocation.allocated_cost,
+    'tax_purchase_cost', allocation.tax_purchase_cost,
+    'tax_cost_allocations', allocation.tax_cost_allocations,
+    'active_tax_unit_costs', allocation.active_tax_unit_costs,
+    'active_unit_costs', allocation.active_unit_costs,
     'active_allocated_cost', allocation.active_allocated_cost,
     'consumption_sequence', allocation.consumption_sequence
   ) order by allocation.created_at, allocation.id), '[]'::jsonb)
@@ -5581,7 +5684,7 @@ begin
         'id', 'type', 'amount', 'description', 'allocation_method',
         'target_purchase_line_id'
       ])
-      or v_input_cost - array[
+      or v_input_cost - 'tax_treatment' - array[
         'id', 'type', 'amount', 'description', 'allocation_method',
         'target_purchase_line_id'
       ]::text[] <> '{}'::jsonb
@@ -5657,7 +5760,8 @@ begin
             else nullif(pg_catalog.btrim(v_input_cost ->> 'description'), '')
           end,
           allocation_method = v_input_cost ->> 'allocation_method',
-          target_purchase_line_id = v_target_line_id
+          target_purchase_line_id = v_target_line_id,
+          tax_treatment = v_input_cost ->> 'tax_treatment'
       where workspace_id = p_workspace_id
         and id = v_cost_id;
     else
@@ -5670,6 +5774,7 @@ begin
         description,
         allocation_method,
         target_purchase_line_id,
+        tax_treatment,
         created_at
       ) values (
         v_cost_id,
@@ -5684,6 +5789,7 @@ begin
         end,
         v_input_cost ->> 'allocation_method',
         v_target_line_id,
+        v_input_cost ->> 'tax_treatment',
         v_changed_at
       );
     end if;
@@ -5724,6 +5830,10 @@ begin
     into v_unit_shares
     from pg_catalog.jsonb_array_elements_text(v_line_plan -> 'unitTotalCents')
       with ordinality as unit_share(value, ordinality);
+    select pg_catalog.array_agg(pg_catalog.round(unit_share.value::numeric / 100, 2) order by unit_share.ordinality)
+    into v_tax_unit_costs
+    from pg_catalog.jsonb_array_elements_text(nullif(v_line_plan -> 'unitTaxPurchaseCents', 'null'::jsonb))
+      with ordinality as unit_share(value, ordinality);
 
     if v_line.line_kind = 'individual' then
       select pg_catalog.array_agg(item.id order by item.created_at, item.id)
@@ -5751,6 +5861,7 @@ begin
         if v_item_position <= v_existing_count then
           update public.inventory_items
           set allocated_purchase_cost = v_unit_shares[v_item_position]::numeric / 100,
+              tax_purchase_cost = v_tax_unit_costs[v_item_position],
               ean = coalesce(v_line.ean_snapshot, ean),
               updated_at = v_changed_at
           where workspace_id = p_workspace_id
@@ -5765,6 +5876,7 @@ begin
             condition,
             status,
             allocated_purchase_cost,
+            tax_purchase_cost,
             expected_value,
             created_at,
             updated_at
@@ -5782,6 +5894,7 @@ begin
             end,
             'ready',
             v_unit_shares[v_item_position]::numeric / 100,
+            v_tax_unit_costs[v_item_position],
             v_line.estimated_market_value,
             v_changed_at,
             v_changed_at
@@ -5934,12 +6047,22 @@ begin
                   / 100
                 ),
                 allocated_cost = v_allocation_cost_cents::numeric / 100,
-                active_allocated_cost = v_active_allocation_cost_cents::numeric / 100
+                active_allocated_cost = v_active_allocation_cost_cents::numeric / 100,
+                active_tax_unit_costs = v_tax_unit_costs[(v_unit_offset - v_lot.received_quantity + v_active_unit_offset + 1):(v_unit_offset - v_lot.received_quantity + v_active_unit_offset + v_active_quantity)],
+                active_unit_costs = (select coalesce(pg_catalog.array_agg(pg_catalog.round(value::numeric / 100, 2) order by ordinality), array[]::numeric[])
+                  from pg_catalog.unnest(v_lot_unit_shares[(v_active_unit_offset + 1):(v_active_unit_offset + v_active_quantity)]) with ordinality as unit(value, ordinality))
             where workspace_id = p_workspace_id
               and id = v_allocation.id;
 
             v_active_unit_offset := v_active_unit_offset + v_active_quantity;
           end loop;
+
+          update public.stock_lots
+          set unit_tax_purchase_cost = (select pg_catalog.avg(value) from pg_catalog.unnest(v_tax_unit_costs[(v_unit_offset - v_lot.received_quantity + 1):v_unit_offset]) as value),
+              remaining_tax_unit_costs = v_tax_unit_costs[(v_unit_offset - v_lot.remaining_quantity + 1):v_unit_offset],
+              remaining_unit_costs = (select coalesce(pg_catalog.array_agg(pg_catalog.round(value::numeric / 100, 2) order by ordinality), array[]::numeric[])
+                from pg_catalog.unnest(v_unit_shares[(v_unit_offset - v_lot.remaining_quantity + 1):v_unit_offset]) with ordinality as unit(value, ordinality))
+          where workspace_id = p_workspace_id and id = v_lot.id;
 
           if v_active_unit_offset + v_lot.remaining_quantity <> v_lot.received_quantity then
             raise exception using
@@ -5955,9 +6078,9 @@ begin
         end if;
 
         for v_cohort in
-          select share.value as unit_cost_cents, pg_catalog.count(*)::integer as quantity
-          from pg_catalog.unnest(v_unit_shares) as share(value)
-          group by share.value
+          select share.value as unit_cost_cents, v_tax_unit_costs[share.ordinality] as tax_unit_cost, pg_catalog.count(*)::integer as quantity
+          from pg_catalog.unnest(v_unit_shares) with ordinality as share(value, ordinality)
+          group by share.value, v_tax_unit_costs[share.ordinality]
           order by share.value desc
         loop
           insert into public.stock_lots (
@@ -5968,6 +6091,9 @@ begin
             received_quantity,
             remaining_quantity,
             unit_cost,
+            unit_tax_purchase_cost,
+            remaining_tax_unit_costs,
+            remaining_unit_costs,
             received_at,
             created_at
           ) values (
@@ -5978,6 +6104,9 @@ begin
             v_cohort.quantity,
             v_cohort.quantity,
             v_cohort.unit_cost_cents::numeric / 100,
+            v_cohort.tax_unit_cost,
+            case when v_cohort.tax_unit_cost is null then null else pg_catalog.array_fill(v_cohort.tax_unit_cost, array[v_cohort.quantity]) end,
+            pg_catalog.array_fill(pg_catalog.round(v_cohort.unit_cost_cents::numeric / 100, 2), array[v_cohort.quantity]),
             v_changed_at,
             v_changed_at
           ) returning id into v_stock_lot_id;
@@ -6013,7 +6142,10 @@ begin
   update public.sale_lines as sale_line
   set cost_of_goods_sold = case
         when sale_line.inventory_item_id is not null then (
-          select item.allocated_purchase_cost
+          select item.allocated_purchase_cost + coalesce((
+            select pg_catalog.sum(cost.amount) from public.item_costs as cost
+            where cost.inventory_item_id = item.id
+          ), 0)
           from public.inventory_items as item
           where item.workspace_id = sale_line.workspace_id
             and item.id = sale_line.inventory_item_id
@@ -6066,6 +6198,7 @@ begin
     'id', cost.id,
     'type', cost.type,
     'amount', cost.amount,
+    'tax_treatment', cost.tax_treatment,
     'description', cost.description,
     'allocation_method', cost.allocation_method,
     'target_purchase_line_id', cost.target_purchase_line_id
@@ -6079,6 +6212,7 @@ begin
     'id', item.id,
     'purchase_line_id', item.purchase_line_id,
     'status', item.status,
+    'tax_purchase_cost', item.tax_purchase_cost,
     'allocated_purchase_cost', item.allocated_purchase_cost
   ) order by item.created_at, item.id), '[]'::jsonb)
   into v_after_items
@@ -6091,6 +6225,9 @@ begin
     'purchase_line_id', lot.purchase_line_id,
     'received_quantity', lot.received_quantity,
     'remaining_quantity', lot.remaining_quantity,
+    'unit_tax_purchase_cost', lot.unit_tax_purchase_cost,
+    'remaining_tax_unit_costs', lot.remaining_tax_unit_costs,
+    'remaining_unit_costs', lot.remaining_unit_costs,
     'unit_cost', lot.unit_cost
   ) order by lot.received_at, lot.id), '[]'::jsonb)
   into v_after_lots
@@ -6116,6 +6253,10 @@ begin
     'quantity', allocation.quantity,
     'unit_cost', allocation.unit_cost,
     'allocated_cost', allocation.allocated_cost,
+    'tax_purchase_cost', allocation.tax_purchase_cost,
+    'tax_cost_allocations', allocation.tax_cost_allocations,
+    'active_tax_unit_costs', allocation.active_tax_unit_costs,
+    'active_unit_costs', allocation.active_unit_costs,
     'active_allocated_cost', allocation.active_allocated_cost,
     'consumption_sequence', allocation.consumption_sequence
   ) order by allocation.created_at, allocation.id), '[]'::jsonb)
@@ -6226,6 +6367,7 @@ as $$
     select cost.target_purchase_line_id, pg_catalog.jsonb_build_object(
       'type', cost.type,
       'amount', cost.amount,
+      'tax_treatment', cost.tax_treatment,
       'description', cost.description,
       'allocation_method', cost.allocation_method
     ) as value
@@ -6603,7 +6745,7 @@ begin
 
     insert into public.purchase_costs (
       workspace_id, purchase_id, type, amount, description,
-      allocation_method, target_purchase_line_id
+      allocation_method, target_purchase_line_id, tax_treatment
     ) values (
       p_workspace_id,
       v_purchase.id,
@@ -6611,7 +6753,8 @@ begin
       (v_expense ->> 'amount')::numeric,
       nullif(btrim(v_expense ->> 'description'), ''),
       coalesce(nullif(v_expense ->> 'allocation_method', ''), 'value_weighted'),
-      v_target_line_id
+      v_target_line_id,
+      v_expense ->> 'tax_treatment'
     );
   end loop;
 
@@ -7157,7 +7300,7 @@ begin
 
     insert into public.purchase_costs (
       workspace_id, purchase_id, type, amount, description,
-      allocation_method, target_purchase_line_id
+      allocation_method, target_purchase_line_id, tax_treatment
     ) values (
       p_workspace_id,
       p_purchase_id,
@@ -7165,7 +7308,8 @@ begin
       (v_expense ->> 'amount')::numeric,
       nullif(pg_catalog.btrim(v_expense ->> 'description'), ''),
       coalesce(nullif(v_expense ->> 'allocation_method', ''), 'value_weighted'),
-      v_target_line_id
+      v_target_line_id,
+      v_expense ->> 'tax_treatment'
     );
   end loop;
 
@@ -8344,7 +8488,10 @@ begin
     p_workspace_id, v_sale.id, p_inventory_item_id,
     coalesce(nullif(trim(p_sale ->> 'title_snapshot'), ''), v_inventory_item.title),
     1, v_unit_sale_price, v_unit_sale_price,
-    v_inventory_item.allocated_purchase_cost, v_workspace_tax_mode
+    v_inventory_item.allocated_purchase_cost + coalesce((
+      select pg_catalog.sum(cost.amount) from public.item_costs as cost
+      where cost.inventory_item_id = v_inventory_item.id
+    ), 0), v_workspace_tax_mode
   ) returning * into v_sale_line;
 
   update public.sales
@@ -8408,6 +8555,10 @@ declare
   v_quantity integer;
   v_unit_sale_price numeric(12, 2);
   v_line_total numeric(12, 2);
+  v_tax_costs numeric[];
+  v_business_unit_costs numeric[];
+  v_line_tax_costs numeric[];
+  v_tax_unknown boolean;
   v_line_cogs numeric(12, 2);
   v_remaining_quantity integer;
   v_allocated_quantity integer;
@@ -8764,6 +8915,8 @@ begin
     v_unit_sale_price := (v_input_line ->> 'unit_sale_price')::numeric(12, 2);
     v_line_total := v_quantity * v_unit_sale_price;
     v_line_cogs := 0;
+    v_line_tax_costs := array[]::numeric[];
+    v_tax_unknown := false;
 
     if v_catalog_product_id is not null then
       select * into v_catalog_product
@@ -8910,8 +9063,23 @@ begin
             )
         )::numeric / 100;
 
+        v_business_unit_costs := v_stock_lot.remaining_unit_costs[1:v_allocated_quantity];
+        if v_stock_lot.remaining_unit_costs is not null then
+          if pg_catalog.cardinality(v_business_unit_costs) <> v_allocated_quantity then
+            raise exception using errcode = '22023', message = 'Die Stückkostenfolge des Loses ist unvollständig.';
+          end if;
+          select pg_catalog.sum(value) into v_allocation_cost from pg_catalog.unnest(v_business_unit_costs) as value;
+        end if;
+        v_tax_costs := v_stock_lot.remaining_tax_unit_costs[1:v_allocated_quantity];
+        if v_tax_costs is null or pg_catalog.cardinality(v_tax_costs) <> v_allocated_quantity then
+          v_tax_unknown := true;
+        else
+          v_line_tax_costs := v_line_tax_costs || v_tax_costs;
+        end if;
         update public.stock_lots
-        set remaining_quantity = remaining_quantity - v_allocated_quantity
+        set remaining_tax_unit_costs = v_stock_lot.remaining_tax_unit_costs[(v_allocated_quantity + 1):v_stock_lot.remaining_quantity],
+            remaining_unit_costs = v_stock_lot.remaining_unit_costs[(v_allocated_quantity + 1):v_stock_lot.remaining_quantity],
+            remaining_quantity = remaining_quantity - v_allocated_quantity
         where id = v_stock_lot.id
           and workspace_id = p_workspace_id;
 
@@ -8932,7 +9100,7 @@ begin
           unit_cost,
           allocated_cost,
           consumption_sequence,
-          active_allocated_cost
+          active_allocated_cost, tax_purchase_cost, tax_cost_allocations, active_tax_unit_costs, active_unit_costs
         ) values (
           p_workspace_id,
           v_sale_line.id,
@@ -8941,7 +9109,11 @@ begin
           v_stock_lot.unit_cost,
           v_allocation_cost,
           v_consumption_sequence,
-          v_allocation_cost
+          v_allocation_cost,
+          (select pg_catalog.sum(value) from pg_catalog.unnest(v_tax_costs) as value),
+          public.tax_cost_allocations(v_tax_costs),
+          v_tax_costs,
+          v_business_unit_costs
         );
 
         insert into public.stock_movements (
@@ -8970,7 +9142,9 @@ begin
       end if;
 
       update public.sale_lines
-      set cost_of_goods_sold = v_line_cogs
+      set tax_purchase_cost = case when v_tax_unknown then null else (select pg_catalog.sum(value) from pg_catalog.unnest(v_line_tax_costs) as value) end,
+          tax_cost_allocations = case when v_tax_unknown then null else public.tax_cost_allocations(v_line_tax_costs) end,
+          cost_of_goods_sold = v_line_cogs
       where id = v_sale_line.id
         and workspace_id = p_workspace_id
       returning * into v_sale_line;
@@ -9016,7 +9190,10 @@ begin
       where id = v_inventory_item.id
         and workspace_id = p_workspace_id;
 
-      v_line_cogs := v_inventory_item.allocated_purchase_cost;
+      v_line_cogs := v_inventory_item.allocated_purchase_cost + coalesce((
+        select pg_catalog.sum(cost.amount) from public.item_costs as cost
+        where cost.inventory_item_id = v_inventory_item.id
+      ), 0);
 
       insert into public.sale_lines (
         workspace_id,
@@ -9027,6 +9204,7 @@ begin
         unit_sale_price,
         line_total,
         cost_of_goods_sold,
+        tax_purchase_cost, tax_cost_allocations,
         tax_mode
       ) values (
         p_workspace_id,
@@ -9037,6 +9215,8 @@ begin
         v_unit_sale_price,
         v_line_total,
         v_line_cogs,
+        v_inventory_item.tax_purchase_cost,
+        public.tax_cost_allocations(case when v_inventory_item.tax_purchase_cost is null then null else array[v_inventory_item.tax_purchase_cost] end),
         v_workspace.tax_mode
       )
       returning * into v_sale_line;
@@ -9385,14 +9565,24 @@ begin
 
         if p_restock then
           update public.stock_lots
-          set remaining_quantity = remaining_quantity + v_allocation.quantity
+          set remaining_unit_costs = case
+                when v_allocation.active_unit_costs is null
+                  or (remaining_quantity > 0 and remaining_unit_costs is null) then null
+                else coalesce(remaining_unit_costs, array[]::numeric[]) || v_allocation.active_unit_costs end,
+              remaining_tax_unit_costs = case
+                when v_allocation.active_tax_unit_costs is null
+                  or (remaining_quantity > 0 and remaining_tax_unit_costs is null) then null
+                else coalesce(remaining_tax_unit_costs, array[]::numeric[]) || v_allocation.active_tax_unit_costs end,
+              remaining_quantity = remaining_quantity + v_allocation.quantity
           where id = v_stock_lot.id
             and workspace_id = p_workspace_id;
           v_restocked_quantity := v_restocked_quantity + v_allocation.quantity;
         end if;
 
         update public.sale_line_lot_allocations
-        set active_allocated_cost = case
+        set active_tax_unit_costs = case when p_restock then array[]::numeric[] else active_tax_unit_costs end,
+            active_unit_costs = case when p_restock then array[]::numeric[] else active_unit_costs end,
+            active_allocated_cost = case
           when p_restock then 0
           else allocated_cost
         end

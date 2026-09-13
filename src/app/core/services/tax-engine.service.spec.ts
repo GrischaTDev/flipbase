@@ -24,6 +24,7 @@ describe('TaxEngineService (§ 25a Differenzbesteuerung & DATEV)', () => {
     title: 'Gameboy Color Lila',
     condition: 'used',
     allocated_purchase_cost: 30.0,
+    tax_purchase_cost: 30.0,
     status: 'sold',
     created_at: '2026-02-01T10:00:00Z',
     updated_at: '2026-02-01T10:00:00Z',
@@ -47,8 +48,8 @@ describe('TaxEngineService (§ 25a Differenzbesteuerung & DATEV)', () => {
     const result = service.calculateSaleTax(dummySale, dummyItem, 'diff_25a');
 
     expect(result.gross_margin).toBe(45);
-    expect(result.tax_base).toBe(45);
-    expect(result.vat_amount).toBeCloseTo(7.18, 2);
+    expect(result.tax_base).toBe(42.02);
+    expect(result.vat_amount).toBeCloseTo(7.98, 2);
     expect(result.tax_mode).toBe('diff_25a');
   });
 
@@ -104,6 +105,8 @@ describe('TaxEngineService (§ 25a Differenzbesteuerung & DATEV)', () => {
           unit_sale_price: 19.98,
           line_total: 39.96,
           cost_of_goods_sold: 12.5,
+          tax_purchase_cost: 12.5,
+          tax_cost_allocations: [{ quantity: 2, tax_purchase_cost: 12.5 }],
           tax_mode: 'diff_25a',
         },
         {
@@ -115,7 +118,8 @@ describe('TaxEngineService (§ 25a Differenzbesteuerung & DATEV)', () => {
           unit_sale_price: 0,
           line_total: 0,
           cost_of_goods_sold: 3.5,
-          tax_mode: 'regular_19',
+          tax_purchase_cost: 3.5,
+          tax_mode: 'diff_25a',
         },
       ],
     };
@@ -146,6 +150,7 @@ describe('TaxEngineService (§ 25a Differenzbesteuerung & DATEV)', () => {
           unit_sale_price: 10,
           line_total: 10,
           cost_of_goods_sold: 4,
+          tax_purchase_cost: 4,
           tax_mode: 'diff_25a',
         },
         {
@@ -156,6 +161,7 @@ describe('TaxEngineService (§ 25a Differenzbesteuerung & DATEV)', () => {
           unit_sale_price: 20,
           line_total: 20,
           cost_of_goods_sold: 8,
+          tax_purchase_cost: 8,
           tax_mode: 'diff_25a',
         },
       ],
@@ -188,6 +194,7 @@ describe('TaxEngineService (§ 25a Differenzbesteuerung & DATEV)', () => {
           unit_sale_price: 10,
           line_total: 10,
           cost_of_goods_sold: 4,
+          tax_purchase_cost: 4,
           tax_mode: 'diff_25a',
         },
         {
@@ -198,6 +205,7 @@ describe('TaxEngineService (§ 25a Differenzbesteuerung & DATEV)', () => {
           unit_sale_price: 29.99,
           line_total: 29.99,
           cost_of_goods_sold: 8,
+          tax_purchase_cost: 8,
           tax_mode: 'diff_25a',
         },
       ],
@@ -235,6 +243,7 @@ describe('TaxEngineService (§ 25a Differenzbesteuerung & DATEV)', () => {
           unit_sale_price: 80,
           line_total: 80,
           cost_of_goods_sold: 0,
+          tax_purchase_cost: 0,
           tax_mode: 'diff_25a',
         },
       ],
@@ -247,7 +256,7 @@ describe('TaxEngineService (§ 25a Differenzbesteuerung & DATEV)', () => {
     ).toBe('regular_19');
   });
 
-  it('berechnet Regelbesteuerung samt Vorsteuer und Zahllast aus echten Verkaufswerten', () => {
+  it('berechnet Regelbesteuerung ohne unbelegte Vorsteuer aus echten Verkaufswerten', () => {
     const result = service.calculateSaleTax(dummySale, dummyItem, 'regular_19');
 
     expect(result).toMatchObject({
@@ -257,9 +266,9 @@ describe('TaxEngineService (§ 25a Differenzbesteuerung & DATEV)', () => {
       gross_margin: 45,
       tax_base: 67.23,
       vat_amount: 12.77,
-      input_tax_deductible: 2.28,
-      net_tax_liability: 10.49,
-      net_profit_after_tax: 20.21,
+      input_tax_deductible: 0,
+      net_tax_liability: 12.77,
+      net_profit_after_tax: 17.93,
       invoice_clause: 'Enthält 19% gesetzliche Umsatzsteuer.',
     });
   });
@@ -273,6 +282,7 @@ describe('TaxEngineService (§ 25a Differenzbesteuerung & DATEV)', () => {
       unit_sale_price: 10,
       line_total: 10,
       cost_of_goods_sold: 0,
+      tax_purchase_cost: 0,
       tax_mode: index === 0 ? ('diff_25a' as const) : ('kleinunternehmer_19' as const),
     }));
     const sale: Sale = {
@@ -308,6 +318,7 @@ describe('TaxEngineService (§ 25a Differenzbesteuerung & DATEV)', () => {
           unit_sale_price: 0,
           line_total: 0,
           cost_of_goods_sold: 4,
+          tax_purchase_cost: 4,
           tax_mode: 'diff_25a',
         },
         {
@@ -318,6 +329,7 @@ describe('TaxEngineService (§ 25a Differenzbesteuerung & DATEV)', () => {
           unit_sale_price: 0,
           line_total: 0,
           cost_of_goods_sold: 8,
+          tax_purchase_cost: 8,
           tax_mode: 'regular_19',
         },
       ],
@@ -329,7 +341,7 @@ describe('TaxEngineService (§ 25a Differenzbesteuerung & DATEV)', () => {
     expect(results[0].tax_mode).toBe('diff_25a');
     expect(results[1].tax_mode).toBe('regular_19');
     expect(results[0].net_profit_after_tax).toBe(-4);
-    expect(results[1].net_profit_after_tax).toBe(-15.14);
+    expect(results[1].net_profit_after_tax).toBe(-16.5);
   });
 
   it('fasst einen Steuerzeitraum centgenau zusammen', () => {
@@ -342,14 +354,15 @@ describe('TaxEngineService (§ 25a Differenzbesteuerung & DATEV)', () => {
 
     expect(service.summarizePeriod([diff, regular], 'Februar 2026', 'regular_19')).toEqual({
       period_label: 'Februar 2026',
+      review_count: 0,
       total_sales_count: 2,
       gross_revenue: 105,
       total_cost_of_goods_sold: 70,
       total_gross_margin: 35,
-      total_vat_due: 11.17,
-      total_input_tax: 4.56,
-      total_vat_liability: 6.61,
-      net_profit_after_tax: -0.21,
+      total_vat_due: 11.97,
+      total_input_tax: 0,
+      total_vat_liability: 11.97,
+      net_profit_after_tax: -5.57,
       tax_mode: 'regular_19',
     });
   });

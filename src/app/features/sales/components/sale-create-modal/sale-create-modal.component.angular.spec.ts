@@ -694,6 +694,8 @@ describe('SaleCreateModalComponent', () => {
     });
 
     async function erstelleGerendertenDialog() {
+      const items = signal<InventoryItem[]>([]);
+      const positions = signal<StockPosition[]>([]);
       const salesService = {
         recordSale: vi.fn(async () => ({ data: null, error: null })),
         recordLegacySale: vi.fn(async () => ({ data: null, error: null })),
@@ -703,8 +705,8 @@ describe('SaleCreateModalComponent', () => {
         imports: [SaleCreateModalComponent],
         providers: [
           { provide: SalesService, useValue: salesService },
-          { provide: InventoryService, useValue: { items: signal([]) } },
-          { provide: StockService, useValue: { positions: signal([]) } },
+          { provide: InventoryService, useValue: { items } },
+          { provide: StockService, useValue: { positions } },
           {
             provide: ProfitEngineService,
             useValue: {
@@ -721,7 +723,7 @@ describe('SaleCreateModalComponent', () => {
       const fixture = TestBed.createComponent(SaleCreateModalComponent);
       fixture.componentInstance.form.controls.shippingMode.setValue('seller_arranged');
       fixture.detectChanges();
-      return { fixture, salesService };
+      return { fixture, salesService, items, positions };
     }
 
     describe('SaleCreateModalComponent – historische Verkaufskorrektur', () => {
@@ -776,6 +778,95 @@ describe('SaleCreateModalComponent', () => {
         expect(host.textContent).not.toContain('Dokumentierter Grund');
         expect(host.textContent).not.toContain('Legacy');
         expect(host.querySelector('#reconciliation-reason')).toBeNull();
+      });
+
+      it('zeigt fehlende Artikelkosten offen und berechnet echte Nullkosten nach dem Laden', async () => {
+        const { fixture, items } = await erstelleGerendertenDialog();
+        const component = fixture.componentInstance;
+        const line = component.lines.at(0);
+        line.controls.target.setValue('inventory:missing');
+        line.controls.unitSalePrice.setValue(50);
+        component.form.controls.platformFee.setValue(5);
+        fixture.detectChanges();
+
+        const summary = fixture.nativeElement.querySelector('[data-sale-summary]') as HTMLElement;
+        expect(component.liveMetrics()).toMatchObject({
+          costOfGoods: null,
+          totalCosts: null,
+          profit: null,
+          margin: null,
+          sellingCosts: 5,
+        });
+        expect(summary.textContent?.match(/Kosten prüfen/g)).toHaveLength(2);
+        expect(summary.textContent).not.toContain('45,00');
+
+        items.set([
+          {
+            id: 'missing',
+            workspace_id: 'workspace-1',
+            title: 'Geschenk',
+            condition: 'used',
+            status: 'ready',
+            allocated_purchase_cost: 0,
+          },
+        ]);
+        fixture.detectChanges();
+        expect(component.liveMetrics()).toMatchObject({
+          costOfGoods: 0,
+          totalCosts: 5,
+          profit: 45,
+          margin: 90,
+        });
+        expect(summary.textContent).not.toContain('Kosten prüfen');
+        expect(summary.textContent).toContain('45,00');
+      });
+
+      it('lässt bei einer fehlenden Lagerkostenbasis auch gemischte Positionssummen offen', async () => {
+        const { fixture, items, positions } = await erstelleGerendertenDialog();
+        items.set([
+          {
+            id: 'known',
+            workspace_id: 'workspace-1',
+            title: 'Bekannt',
+            condition: 'used',
+            status: 'ready',
+            allocated_purchase_cost: 20,
+          },
+        ]);
+        positions.set([
+          {
+            catalog_product_id: 'product',
+            title: 'Produkt',
+            available_quantity: 3,
+            reserved_quantity: 0,
+            on_hand_quantity: 3,
+            oldest_available_unit_cost: null,
+            is_public_store: false,
+          },
+        ]);
+        const component = fixture.componentInstance;
+        component.lines
+          .at(0)
+          .setValue({ target: 'inventory:known', quantity: 1, unitSalePrice: 50 });
+        component.addLine();
+        component.lines
+          .at(1)
+          .setValue({ target: 'catalog:product', quantity: 2, unitSalePrice: 10 });
+        fixture.detectChanges();
+        expect(component.liveMetrics()).toMatchObject({
+          costOfGoods: null,
+          profit: null,
+          margin: null,
+        });
+        expect(fixture.nativeElement.querySelector('[data-sale-summary]').textContent).toContain(
+          'Kosten prüfen',
+        );
+
+        positions.update((entries) =>
+          entries.map((entry) => ({ ...entry, oldest_available_unit_cost: 4 })),
+        );
+        fixture.detectChanges();
+        expect(component.liveMetrics()).toMatchObject({ costOfGoods: 28, profit: 42, margin: 60 });
       });
 
       it('zeigt dauerhaft beschriftete Einnahmen, Kosten, Notiz und verständliche Kennzahlen', async () => {

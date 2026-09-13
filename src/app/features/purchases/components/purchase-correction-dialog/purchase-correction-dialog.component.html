@@ -157,6 +157,23 @@
                 [alsBetrag]="true"
               />
             </div>
+            <div class="sm:col-span-2">
+              <span class="mb-1 block text-[12px] font-semibold text-fb-text-secondary">
+                Wer hat diese Kosten berechnet?
+              </span>
+              <app-custom-select
+                [ariaLabel]="'Kostenherkunft ' + (index + 1)"
+                [options]="taxTreatmentOptions"
+                formControlName="taxTreatment"
+                placeholder="Noch prüfen"
+                size="sm"
+              />
+              <p class="mt-1 text-[12px] text-fb-text-muted">
+                Nebenkosten auf dem Kaufbeleg des Verkäufers gehören zum Einkaufspreis. Separater
+                Transport und spätere Reparaturen zählen als weitere Ausgaben. Bei Unklarheit „Noch
+                prüfen“ wählen.
+              </p>
+            </div>
           </div>
         }
       </section>

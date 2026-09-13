@@ -1,5 +1,46 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-13 – Codex – Kosten und Steuerberechnung
+
+**Auftrag:** Freigegebenen nächsten Schritt auf `codex/purchase-tax-costs`
+(Basis `origin/master`, `15b07ca`) umsetzen. Positionsbezogene Differenzsteuer,
+getrennter steuerlicher Einkaufspreis und Gesamtkosten, keine erfundene Vorsteuer.
+Wareneingang und Konvolut-Verteilung folgen getrennt.
+
+**Umsetzung:** Umsatzsteuer je Stück ohne Verrechnung mit Verlusten anderer
+Stücke; Nettobemessungsgrundlage, getrennte Steuer- und Betriebskosten sowie
+unveränderliche steuerliche Verkaufssnapshots. Zusatzkosten erhalten eine kleine
+Herkunftsauswahl. Ungeklärte historische Werte bleiben offen und sperren betroffene
+Steuerexporte. Vorsteuer wird nicht mehr pauschal aus Kosten erfunden.
+Teilverkäufe, Korrekturen und Retouren behalten centgenaue Stückkostenfolgen.
+
+**Prüfung:** 318 gezielte Anwendungstests, 988 SQL-Assertions in 24 Dateien und
+13 betroffene Browserfälle erfolgreich. Zwei neue PR-Pflichtfälle, AXE,
+App-/Testtypen, Produktionsbau, gezieltes Format/Lint und neun Workflowprüfungen
+grün. Beide erzeugten Migrationen isoliert angewandt; zwölf Funktionsdefinitionen
+gegen das Schema geprüft. Unabhängige Reviews ohne verbleibende P1/P2.
+Details und fachliche Grenzen:
+`docs/audit/2026-09-13-purchase-tax-costs-validation.md`.
+
+**Abschluss:** Nutzer hat PR-Push, Merge nach erfolgreichen Pflichtprüfungen und
+anschließendes Aufräumen freigegeben. Aktuelles `origin/master` unverändert bei
+`15b07ca`; die lokalen Prüfungen gelten weiterhin für den unveränderten Code.
+Veröffentlichung erfolgt über den PR. Belegbezogene Vorsteuer, historische
+Steuerfreigaben und vollständige periodengerechte Berichtigungen bleiben
+ausdrücklich Folgearbeiten. Anschließend folgt eine verständliche Erklärung
+der Änderungen im Chat.
+
+**PR-Nachprüfung:** Der erste vollständige CI-Lauf von PR #68 fand eine veraltete
+Testannahme in `product_core_contract.test.sql`: Der Empfangshistorievergleich
+klammerte nur das bisherige Kostenfeld aus. Beim Wiederöffnen werden auch die
+neuen Kostenfelder korrekt zurückgesetzt. Der Test prüft dieses Zurücksetzen
+nun ausdrücklich und vergleicht die übrige Empfangshistorie unverändert.
+Die vollständige SQL-Suite besteht danach mit 1.618 Prüfungen in 46 Dateien.
+Der neue Browserfall wartet jetzt auf das geschlossene Kostenmodal, verwendet
+den tatsächlichen Hauptbutton „Änderungen speichern“ und prüft die zweite
+Kostenherkunft nach erneutem Laden. Alle drei betroffenen Browserfälle grün.
+Keine Änderung am Anwendungscode für diese beiden CI-Befunde.
+
 ## 2026-09-13 – Codex – Produkterstellung, Bildergalerie und Shop
 
 **Auftrag:** Freigegebenen Folgeumfang auf `codex/product-editor-storefront`

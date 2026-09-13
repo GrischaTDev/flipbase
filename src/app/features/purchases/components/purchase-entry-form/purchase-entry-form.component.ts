@@ -104,6 +104,7 @@ function purchaseCostsEqual(
       cost.type === other.type &&
       cost.amount === other.amount &&
       cost.description === other.description &&
+      (cost.taxTreatment ?? null) === (other.taxTreatment ?? null) &&
       cost.allocationMethod === other.allocationMethod &&
       cost.targetPurchaseLineId === other.targetPurchaseLineId
     );
@@ -378,6 +379,7 @@ export class PurchaseEntryFormComponent {
       type: isPurchaseCostType(cost.type) ? cost.type : 'other',
       amount: Number(cost.amount),
       description: cost.description ?? '',
+      taxTreatment: cost.tax_treatment ?? null,
       allocationMethod:
         cost.allocation_method === 'direct'
           ? 'direct'
