@@ -12,6 +12,24 @@ import { LoggerService } from './logger.service';
 
 export type ListingPlatform = 'kleinanzeigen' | 'ebay' | 'vinted' | 'custom_store' | 'social';
 export type ListingStyleTone = 'dealer' | 'bargain' | 'collector' | 'casual';
+export type ListingPriceType = 'FIXED' | 'NEGOTIABLE';
+
+export interface ListingImageItem {
+  url: string;
+  name: string;
+}
+
+export interface KleinanzeigenListingPayload {
+  itemId: string;
+  title: string;
+  description: string;
+  price: number;
+  priceType: ListingPriceType;
+  postalCode?: string;
+  shippingType: 'pickup' | 'shipping' | 'both';
+  shippingPrice?: number;
+  images: ListingImageItem[];
+}
 
 export interface ListingTemplateOptions {
   includeDisclaimer: boolean;
@@ -664,5 +682,20 @@ ${this.buildHashtags(item).join(' ')}`.trim();
       status: 'listed',
       expected_value: listingPrice,
     });
+  }
+
+  /**
+   * Sendet das Inserat per window.postMessage an die Flipbase Browser-Erweiterung.
+   */
+  publishViaExtension(payload: KleinanzeigenListingPayload): void {
+    if (typeof window !== 'undefined') {
+      window.postMessage(
+        {
+          type: 'FLIPBASE_PUBLISH_KLEINANZEIGEN',
+          payload,
+        },
+        '*',
+      );
+    }
   }
 }

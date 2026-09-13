@@ -1,5 +1,26 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-13 – Gemini 3.8 Flash (Google DeepMind) – Listing-Studio & Kleinanzeigen 1-Klick Browser-Erweiterung
+
+**Auftrag:** Neuen Branch `feat/listing-studio` anlegen, Kleinanzeigen-Automatisierung recherchieren und das Listing-Studio um eine ban-sichere 1-Klick-Übertragung mittels Browser-Erweiterung erweitern.
+
+**Ergebnis:**
+
+- Neuer Zweig `feat/listing-studio` sauber von `origin/master` (6f40612) abgezweigt und ausgecheckt.
+- Browser-Erweiterung `tools/flipbase-extension` implementiert (Manifest V3, Background Service Worker, Bridge Content-Script für Flipbase, Autofill Content-Script für `kleinanzeigen.de`, HUD Status-Overlay und README-Dokumentation).
+- `ListingStudioService`: Typen `ListingPriceType`, `ListingImageItem`, `KleinanzeigenListingPayload` und Methode `publishViaExtension` hinzugefügt.
+- `ListingsComponent`: Erweiterungs-Erkennung per Signal und Message-Passing, Formularfelder für Preistyp (Festpreis vs. VB), PLZ und Versandkosten ergänzt.
+- Primärer Aktionsbutton „⚡ 1-Klick auf Kleinanzeigen inserieren“ sowie Installations-Hilfemodal in `listings.component.html` integriert. Bildvorschau auf `getMediaUrl` umgestellt.
+
+**Prüfung:**
+
+- Node Tests: `npm run test:node -- src/app/core/services/listing-studio.spec.ts` bestanden (9/9 Tests).
+- Angular Tests: `npm run test:angular -- src/app/features/listings/listings-toast-actions.angular.spec.ts` bestanden (7/7 Tests).
+- Typprüfung: `npm run typecheck` fehlerfrei (Exitcode 0).
+- ESLint: fehlerfrei (Exitcode 0).
+- Produktionsbau: `npm run build` erfolgreich in 13.0s ohne Warnungen.
+- Code-Formatierung: Prettier auf allen betroffenen Dateien ausgeführt.
+
 ## 2026-09-13 – Claude Opus 5 (Anthropic) – Vinted Bot
 
 **Auftrag:** „Deal-Monitor“ heißt künftig „Vinted Bot“. Die Bot-Seiten der

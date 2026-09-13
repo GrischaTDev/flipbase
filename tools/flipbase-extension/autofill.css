@@ -1,0 +1,119 @@
+/* Flipbase Listing Assistent - HUD Overlay */
+#flipbase-hud {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999999;
+  width: 320px;
+  background: #18181b;
+  color: #f4f4f5;
+  border: 1px solid #3f3f46;
+  border-top: 3px solid #fcc601;
+  border-radius: 12px;
+  box-shadow:
+    0 20px 25px -5px rgba(0, 0, 0, 0.5),
+    0 8px 10px -6px rgba(0, 0, 0, 0.5);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-size: 13px;
+  padding: 16px;
+  box-sizing: border-box;
+  animation: flipbase-slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes flipbase-slide-in {
+  from {
+    transform: translateY(-20px) scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+  }
+}
+
+#flipbase-hud * {
+  box-sizing: border-box;
+}
+
+.flipbase-hud-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.flipbase-hud-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 14px;
+  color: #ffffff;
+}
+
+.flipbase-hud-badge {
+  background: #fcc601;
+  color: #000000;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.flipbase-hud-close {
+  background: transparent;
+  border: none;
+  color: #a1a1aa;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.flipbase-hud-close:hover {
+  color: #ffffff;
+  background: #27272a;
+}
+
+.flipbase-hud-steps {
+  list-style: none;
+  margin: 0 0 14px 0;
+  padding: 0;
+}
+
+.flipbase-hud-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: #a1a1aa;
+}
+
+.flipbase-hud-step.success {
+  color: #4ade80;
+}
+
+.flipbase-hud-step.pending {
+  color: #facc15;
+}
+
+.flipbase-hud-step.error {
+  color: #f87171;
+}
+
+.flipbase-hud-icon {
+  width: 14px;
+  text-align: center;
+  font-weight: bold;
+}
+
+.flipbase-hud-footer {
+  font-size: 11px;
+  color: #71717a;
+  border-top: 1px solid #27272a;
+  padding-top: 10px;
+  line-height: 1.4;
+}
