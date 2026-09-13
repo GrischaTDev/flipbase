@@ -1,5 +1,46 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-13 – Codex – Einkaufsfelder nebeneinander und Dashboard-Einordnung
+
+**Auftrag/Ergebnis:** Verkäufer und Kaufdatum stehen in der gemeinsamen
+Einkaufsmaske ab 768 px nebeneinander, darunter weiterhin untereinander. Das
+gilt für neue Einkäufe, offene Entwürfe und die Bearbeitungsseite. Bestehende
+Shared-Felder, Abstände und Formularlogik bleiben erhalten. Eigener Zweig
+`codex/purchase-layout-dashboard-review` auf Basis von `origin/master` (27b976c).
+
+**Dashboard-Analyse:** Die gemeldete dauerhafte Anzeige „Unbekannt“ ließ sich
+in der lokalen Demo nicht reproduzieren: Verkaufserlöse, Ergebnis und
+Bestandswert enthielten konkrete Beträge. Der Bericht setzt den gesamten
+Bestandswert auf unbekannt, sobald einem enthaltenen Artikel/Los eine belastbare
+Kostenbasis fehlt. Voraussetzung sind unter anderem bestätigte Einkaufskosten;
+bei angebrochenen Losen müssen auch die Kosten der Entnahmen nachweisbar sein.
+Ein Verkauf mit unbekanntem Wareneinsatz macht entsprechend das Gesamtergebnis
+unbekannt. Der konkrete Auslöser in den Nutzerdaten ist nicht nachgewiesen.
+Keine Produktivdaten oder Berechnungsregeln geändert.
+
+Die bisherige Kennzahl `expenses` summiert Einkaufsbeträge, nicht sämtliche
+Betriebsausgaben; direkte Verkaufskosten werden separat berechnet. Sie darf
+daher nicht einfach als „Gesamtausgaben“ beschriftet werden. Ebenso bezeichnet
+das bisherige Ergebnis nur Erlöse abzüglich Wareneinsatz und direkter
+Verkaufskosten, keinen vollständigen Unternehmensgewinn.
+
+**Empfehlung, noch nicht umgesetzt:** Gewinn, erfasste Gesamtausgaben und Umsatz
+oben; Bestandswert, verkaufte Stückzahl und Marge ergänzend. Einheitlicher
+Zeitraum und Vorperiodenvergleich. Offene Kosten mit Ursache und Weg zum
+betroffenen Einkauf erklären. Grundlage sind die offiziellen Übersichten von
+[Shopify](https://help.shopify.com/en/manual/reports-and-analytics/shopify-reports/overview-dashboard),
+[eBay](https://www.ebay.com/help/selling/selling-tools/seller-hub?id=4095) und
+[Lexware Office](https://www.lexware.de/funktionen/dashboard/), geprüft am
+13.09.2026. Die Priorisierung ist eine Empfehlung für Flipbase.
+
+**Prüfung:** Produktionsbau erfolgreich. Bestehende 40 Formular- und 12
+Dashboard-Berichtstests bestanden. Browsermessungen der Erfassungsmaske bei
+390/768/1024/1440 px ohne horizontalen Überlauf. Einen neuen Entwurf in der
+isolierten Browser-Demo gespeichert und erneut geöffnet: korrekte Feldanordnung
+bei 390/768/1440 px, hell und dunkel, mit reduzierter Bewegung; AXE meldet in
+der Einkaufsmaske in diesen sechs Zuständen keine WCAG-A/AA-Verstöße.
+Keine neuen Abhängigkeiten, Backend- oder Schemaänderungen.
+
 ## 2026-09-13 – Codex – Kosten und Steuerberechnung
 
 **Auftrag:** Freigegebenen nächsten Schritt auf `codex/purchase-tax-costs`
