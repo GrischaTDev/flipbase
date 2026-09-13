@@ -1,5 +1,21 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-13 – Claude Opus 5 (Anthropic) – Administration in der Seitenleiste
+
+**Auftrag:** Die Reiterleiste oben in der Administration entfällt. Die vier
+Unterseiten klappen wie im Shopify-Admin unter „Administration“ in der
+Seitenleiste auf. Gleichzeitig bekommen die vier Seiten einen einheitlichen
+Rahmen. Zweig `feat/admin-sidebar-navigation`, abgezweigt von `master`
+(0dad469).
+
+**Stand:** Entwurf abgestimmt und unter
+`docs/superpowers/specs/2026-09-13-admin-sidebar-navigation-design.md`
+abgelegt. Noch keine Codeänderung.
+
+**Befund:** Die vier Seiten sind unterschiedlich gerahmt. Drei setzen eigenes
+`p-6` zusätzlich zum Rand des Grundgerüsts, die Kategorieliste hat eine eigene
+Überschrift statt `app-page-header`.
+
 ## 2026-09-13 – Codex – PR-Abschluss für Einkaufsfelder und Kalender
 
 **Freigabe:** Der Nutzer hat Push, PR, Merge nach erfolgreichen Pflichtprüfungen
