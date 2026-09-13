@@ -1,8 +1,12 @@
 import { ChangeDetectionStrategy, Component, inject, input, output } from '@angular/core';
-import { NavigationEnd, Router, RouterLink, RouterLinkActive } from '@angular/router';
+import { NavigationEnd, Router, RouterLink } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { filter, map } from 'rxjs';
 import { isArticleRoute } from '../../core/config/article-navigation';
+import {
+  PLATFORM_ADMIN_NAVIGATION,
+  SubNavigationItem,
+} from '../../core/config/platform-admin-navigation';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
   LucideDynamicIcon,
@@ -44,11 +48,16 @@ interface NavItem {
    * Livebetrieb die unangenehmste Sorte Baustelle.
    */
   baustelle?: boolean;
+  /**
+   * Unterseiten, die wie im Shopify-Admin eingerueckt unter dem Punkt
+   * aufklappen - aber nur, solange man sich in diesem Bereich befindet.
+   */
+  children?: readonly SubNavigationItem[];
 }
 
 @Component({
   selector: 'app-sidebar',
-  imports: [RouterLink, RouterLinkActive, TranslatePipe, LucideDynamicIcon, NgOptimizedImage],
+  imports: [RouterLink, TranslatePipe, LucideDynamicIcon, NgOptimizedImage],
   templateUrl: './sidebar.component.html',
   host: { class: 'contents' },
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -65,8 +74,16 @@ export class SidebarComponent {
 
   isItemActive(item: NavItem): boolean {
     if (item.path === '/catalog') return isArticleRoute(this.currentUrl());
-    const path = this.currentUrl().split(/[?#]/, 1)[0];
-    return path === item.path || path.startsWith(item.path + '/');
+    return this.isWithin(item.path);
+  }
+
+  isChildActive(child: SubNavigationItem): boolean {
+    return this.isWithin(child.path);
+  }
+
+  private isWithin(path: string): boolean {
+    const current = this.currentUrl().split(/[?#]/, 1)[0];
+    return current === path || current.startsWith(path + '/');
   }
   readonly isOpen = input<boolean>(false);
   readonly closed = output<void>();
@@ -99,6 +116,7 @@ export class SidebarComponent {
     labelKey: 'NAV.PLATFORM_ADMIN',
     label: 'Administration',
     icon: ShieldCheck,
+    children: PLATFORM_ADMIN_NAVIGATION,
   };
 
   constructor() {
