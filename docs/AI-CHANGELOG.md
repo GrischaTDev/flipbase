@@ -24,8 +24,9 @@ PR-Pflichtfälle, acht Prüfungen der PR-/Nightly-Auswahl erfolgreich. Nachrevie
 verbleibende P1/P2. Isolierte Datenbank danach gestoppt, keine Produktionsänderung.
 Abschlussbericht: `docs/audit/2026-09-13-product-editor-validation.md`.
 
-**Abschluss:** Lokaler geprüfter Zweig; PR-Push und Merge warten auf die dafür
-vorgesehene Nutzerfreigabe.
+**Abschluss:** Der Nutzer hat PR-Push, Merge nach erfolgreichen Pflichtprüfungen
+und anschließendes Aufräumen ausdrücklich freigegeben. Lokale Prüfungen gelten
+für den unveränderten Anwendungscode; Abschluss erfolgt über den PR gegen `master`.
 
 ## 2026-09-13 – Codex – PR abschließen und Produkterstellung abgrenzen
 

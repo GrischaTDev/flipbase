@@ -73,5 +73,5 @@ und erfolgreich nachgeprüft.
 Nur eine isolierte lokale Supabase-Instanz wurde verwendet und danach gestoppt.
 Produktionsdaten und der absichtlich geschützte Shopzugang wurden nicht verändert.
 Firefox/WebKit sind für die vorhandene Nightly-Prüfung vorgesehen und wurden hier
-nicht lokal ausgeführt. PR-Push und Veröffentlichung folgen erst auf die dafür
-vorgesehene Nutzerfreigabe.
+nicht lokal ausgeführt. PR-Push und Veröffentlichung wurden anschließend vom Nutzer freigegeben;
+der Merge erfolgt erst nach erfolgreichen Pflichtprüfungen.
