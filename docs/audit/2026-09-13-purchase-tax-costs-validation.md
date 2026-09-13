@@ -77,6 +77,11 @@ Konvolutverteilung gehören ebenfalls nicht zu diesem Schritt.
 - 24 SQL-Dateien mit 988 erfolgreichen Assertions, darunter 47 neue Regressionen.
   Beide erzeugten Migrationen wurden auf einer leeren isolierten Datenbank
   angewandt; alle zwölf geänderten Funktionen entsprechen dem deklarativen Schema.
+- Nach der vollständigen CI-Prüfung wurde eine alte Testannahme beim Wiederöffnen
+  um die neuen Kostenfelder ergänzt. Die komplette SQL-Suite besteht mit
+  1.618 Prüfungen in 46 Dateien. Der Browserfall wartet ausdrücklich auf das
+  geschlossene Modal und prüft das erneute Speichern samt Neuladen; alle drei
+  betroffenen Browserfälle erneut erfolgreich. Anwendungscode unverändert.
 - Unabhängige Gegenprüfungen von Steuerberechnung, Oberfläche und Backend ohne
   verbleibende P1/P2 im vereinbarten Umfang. Der Mengenrechenweg wurde zusätzlich
   mit 7.728 Referenzberechnungen je Einheit verglichen.

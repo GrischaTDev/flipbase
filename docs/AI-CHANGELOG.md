@@ -30,6 +30,17 @@ Steuerfreigaben und vollständige periodengerechte Berichtigungen bleiben
 ausdrücklich Folgearbeiten. Anschließend folgt eine verständliche Erklärung
 der Änderungen im Chat.
 
+**PR-Nachprüfung:** Der erste vollständige CI-Lauf von PR #68 fand eine veraltete
+Testannahme in `product_core_contract.test.sql`: Der Empfangshistorievergleich
+klammerte nur das bisherige Kostenfeld aus. Beim Wiederöffnen werden auch die
+neuen Kostenfelder korrekt zurückgesetzt. Der Test prüft dieses Zurücksetzen
+nun ausdrücklich und vergleicht die übrige Empfangshistorie unverändert.
+Die vollständige SQL-Suite besteht danach mit 1.618 Prüfungen in 46 Dateien.
+Der neue Browserfall wartet jetzt auf das geschlossene Kostenmodal, verwendet
+den tatsächlichen Hauptbutton „Änderungen speichern“ und prüft die zweite
+Kostenherkunft nach erneutem Laden. Alle drei betroffenen Browserfälle grün.
+Keine Änderung am Anwendungscode für diese beiden CI-Befunde.
+
 ## 2026-09-13 – Codex – Produkterstellung, Bildergalerie und Shop
 
 **Auftrag:** Freigegebenen Folgeumfang auf `codex/product-editor-storefront`

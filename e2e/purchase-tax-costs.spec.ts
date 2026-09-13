@@ -52,7 +52,17 @@ for (const width of [1440, 390]) {
         path: `${process.env['TAX_QA_SCREENSHOTS']}/cost-origin-${width}.png`,
       });
     await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
-    await expect(page.getByRole('button', { name: 'Speichern', exact: true })).toBeEnabled();
+    await expect(dialog).toBeHidden();
+    const saveChanges = page.getByRole('button', { name: 'Änderungen speichern', exact: true });
+    await expect(saveChanges).toBeEnabled();
+    await saveChanges.click();
+    await expect(saveChanges).toBeHidden();
+    await page.reload();
+    await expect(page.getByRole('region', { name: 'Kostenübersicht' })).toContainText(
+      'Separat bezahlt',
+    );
+    await page.getByRole('button', { name: 'Kosten bearbeiten', exact: true }).click();
+    await expect(origin).toContainText('Separat bezahlt');
     expect(errors).toEqual([]);
   });
 }
