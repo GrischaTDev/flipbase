@@ -58,7 +58,7 @@ Ohne Rückfrage festgelegt und im Chat nicht beanstandet:
 | `id`               | `text` primary key  | Shopify-Kennung, z. B. `el-2-4`         |
 | `parent_id`        | `text` → `id`, null | Oberkategorie; null bei Hauptbereichen  |
 | `name`             | `text` not null     | Letzter Pfadteil, z. B. „Konsolen“      |
-| `full_name`        | `text` not null     | Voller Pfad mit `>`                     |
+| `full_name`        | `text` not null     | Voller Pfad, Teile getrennt durch „ > “ |
 | `level`            | `smallint` not null | 1 für Hauptbereiche                     |
 | `taxonomy_version` | `text` not null     | z. B. `2026-08`                         |
 | `is_deprecated`    | `boolean` not null  | Von Shopify entfernt, aber noch benutzt |
@@ -107,8 +107,8 @@ Prüfexport, Etiketten, Auswertungen, Listing Studio und Preisbeobachtung lesen 
 weiter unverändert.
 
 - Trigger-Funktion `public.sync_category_brand_text()`, `security invoker`,
-  `set search_path = ''`. Vor `insert` und vor `update of category_id, brand_id,
-category, brand`:
+  `set search_path = ''`. Läuft vor `insert` und vor einem Update der Spalten
+  `category_id`, `brand_id`, `category` oder `brand`:
   - `new.category := full_name` der gewählten Kategorie, sonst `null`.
   - `new.brand := name` der gewählten Marke im selben Workspace, sonst `null`.
 - Dadurch ist freier Text nicht mehr speicherbar.
@@ -120,7 +120,7 @@ category, brand`:
   und vor fachlichen Schutz-Triggern laufen. Die genaue Reihenfolge prüft der Plan
   gegen die vorhandenen Trigger an beiden Tabellen.
 
-### Übernahme vorhandener Daten (in derselben Migration)
+### Übernahme vorhandener Daten (eigene Migration, siehe Abschnitt 2)
 
 1. **Marken:** Aus allen nicht leeren `brand`-Texten von Artikeln und
    Katalogprodukten entsteht je Workspace eine Marke je `lower(btrim(brand))`. Als
