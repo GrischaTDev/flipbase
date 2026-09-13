@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   ElementRef,
   Injector,
   afterNextRender,
@@ -45,7 +46,7 @@ export interface DayItem {
   host: {
     class: 'block relative',
     '(document:click)': 'onClickOutside($event)',
-    '(document:keydown.escape)': 'close()',
+    '(keydown.escape)': 'onEscape($event)',
   },
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [
@@ -57,12 +58,17 @@ export interface DayItem {
   ],
 })
 export class DatePickerComponent implements ControlValueAccessor {
-  private readonly elementRef = inject(ElementRef);
+  private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly injector = inject(Injector);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly trigger = viewChild<ElementRef<HTMLButtonElement>>('calendarTrigger');
+  private readonly calendar = viewChild<ElementRef<HTMLElement>>('calendar');
   private readonly calendarGrid = viewChild<ElementRef<HTMLElement>>('calendarGrid');
   private static nextInstanceId = 0;
   private readonly instanceId = ++DatePickerComponent.nextInstanceId;
+  protected readonly supportsPopover =
+    typeof HTMLElement !== 'undefined' && typeof HTMLElement.prototype.showPopover === 'function';
+  protected readonly calendarPosition = signal({ left: 0, top: 0, maxHeight: 400 });
 
   /** Date as ISO string (YYYY-MM-DD) */
   readonly value = model<string | null>(null);
@@ -148,9 +154,28 @@ export class DatePickerComponent implements ControlValueAccessor {
     return list;
   });
   readonly tage = this.days;
+  readonly weeks = computed(() => {
+    const days = this.days();
+    return Array.from({ length: 6 }, (_, index) => days.slice(index * 7, index * 7 + 7));
+  });
 
   private onChange: (value: string | null) => void = () => undefined;
   private onTouched: () => void = () => undefined;
+
+  constructor() {
+    // Scrollen im Kalender bleibt möglich; bei bewegtem Anker wird er geschlossen.
+    const onScroll = (event: Event) => {
+      if (this.calendar()?.nativeElement.contains(event.target as Node)) return;
+      this.close(false);
+    };
+    const onResize = () => this.close(false);
+    document.addEventListener('scroll', onScroll, true);
+    window.addEventListener('resize', onResize);
+    this.destroyRef.onDestroy(() => {
+      document.removeEventListener('scroll', onScroll, true);
+      window.removeEventListener('resize', onResize);
+    });
+  }
 
   writeValue(val: string | null): void {
     this.value.set(val);
@@ -175,14 +200,8 @@ export class DatePickerComponent implements ControlValueAccessor {
   toggle(event: MouseEvent): void {
     event.stopPropagation();
     if (this.effectiveDisabled()) return;
-    const nextOpen = !this.isOpen();
-    this.isOpen.set(nextOpen);
-    if (nextOpen) {
-      this.focusedDate.set(this.value() || this.toIso(new Date()));
-      this.focusFocusedDateAfterRender();
-    } else {
-      this.onTouched();
-    }
+    if (this.isOpen()) this.close();
+    else this.openCalendar();
   }
   schalteUm(event: MouseEvent): void {
     this.toggle(event);
@@ -193,11 +212,56 @@ export class DatePickerComponent implements ControlValueAccessor {
     this.isOpen.set(false);
     this.onTouched();
     if (restoreFocus) {
-      queueMicrotask(() => this.trigger()?.nativeElement.focus());
+      queueMicrotask(() => this.trigger()?.nativeElement.focus({ preventScroll: true }));
     }
   }
   schliesse(): void {
     this.close();
+  }
+
+  onEscape(event: Event): void {
+    if (!this.isOpen()) return;
+    event.preventDefault();
+    event.stopPropagation();
+    this.close();
+  }
+
+  private openCalendar(): void {
+    const date = this.value() || this.toIso(new Date());
+    const parsed = this.fromIso(date);
+    if (parsed) this.displayedMonth.set(parsed);
+    this.focusedDate.set(date);
+    this.calendarPosition.set({ left: 0, top: 0, maxHeight: window.innerHeight - 16 });
+    this.isOpen.set(true);
+    afterNextRender(
+      () => {
+        const panel = this.calendar()?.nativeElement;
+        if (!this.isOpen() || !panel) return;
+        if (this.supportsPopover) {
+          // Die oberste Browserebene entkommt Overflow und Transform der Karten/Dialoge.
+          panel.showPopover();
+          const anchor = this.elementRef.nativeElement.getBoundingClientRect();
+          const margin = 8;
+          const gap = 8;
+          const below = Math.max(0, window.innerHeight - anchor.bottom - gap - margin);
+          const above = Math.max(0, anchor.top - gap - margin);
+          const openAbove = panel.offsetHeight > below && above > below;
+          const maxHeight = openAbove ? above : below;
+          this.calendarPosition.set({
+            left: Math.max(
+              margin,
+              Math.min(anchor.left, window.innerWidth - panel.offsetWidth - margin),
+            ),
+            top: openAbove
+              ? Math.max(margin, anchor.top - gap - Math.min(panel.offsetHeight, maxHeight))
+              : anchor.bottom + gap,
+            maxHeight,
+          });
+        }
+        this.focusFocusedDateAfterRender();
+      },
+      { injector: this.injector },
+    );
   }
 
   navigateMonth(step: number): void {
@@ -237,7 +301,7 @@ export class DatePickerComponent implements ControlValueAccessor {
     if (!this.isOpen()) return;
     const target = event.target as Node | null;
     if (target && !this.elementRef.nativeElement.contains(target)) {
-      this.close();
+      this.close(false);
     }
   }
   beiKlickAusserhalb(event: MouseEvent): void {
@@ -249,17 +313,14 @@ export class DatePickerComponent implements ControlValueAccessor {
     if (event.key === 'Enter' || event.key === ' ' || event.key === 'ArrowDown') {
       event.preventDefault();
       if (!this.isOpen()) {
-        this.isOpen.set(true);
-        this.focusedDate.set(this.value() || this.toIso(new Date()));
-        this.focusFocusedDateAfterRender();
+        this.openCalendar();
       }
     }
   }
 
   onCalendarKeydown(event: KeyboardEvent, date: string): void {
     if (event.key === 'Escape') {
-      event.preventDefault();
-      this.close();
+      this.onEscape(event);
       return;
     }
     if (event.key === 'Enter' || event.key === ' ') {
@@ -407,7 +468,7 @@ export class DatePickerComponent implements ControlValueAccessor {
           const button = targetDate
             ? grid?.querySelector<HTMLButtonElement>(`[data-date="${targetDate}"]`)
             : null;
-          button?.focus();
+          button?.focus({ preventScroll: true });
         },
       },
       { injector: this.injector },

@@ -11,6 +11,7 @@ const projectRoot = fileURLToPath(rootDirectory);
 const probeTempArea = new URL('tmp/playwright-pr-smoke-test-temp/', rootDirectory);
 const executeFile = promisify(execFile);
 const expectedSmokeTests = [
+  ['date-picker-layer.spec.ts', 'can select a purchase date outside its card'],
   ['purchase-tax-costs.spec.ts', 'preserves purchase cost origin after reopening at 1440px'],
   ['purchase-tax-costs.spec.ts', 'keeps per-item tax visible and blocks unreviewed cost exports'],
   [

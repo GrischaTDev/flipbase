@@ -1,5 +1,102 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-13 – Codex – PR-Abschluss für Einkaufsfelder und Kalender
+
+**Freigabe:** Der Nutzer hat Push, PR, Merge nach erfolgreichen Pflichtprüfungen
+und anschließendes Aufräumen bestätigt. PR #69 bündelt Feldanordnung und
+Kalenderkorrektur.
+
+**CI-Nacharbeit:** Die erste Qualitätsprüfung erkannte 17 statt der erwarteten
+16 PR-Browsertests. Der neue Kalender-Regressionstest war korrekt mit
+`@pr-smoke` markiert, fehlte aber in der festen Liste in
+`scripts/playwright-pr-smoke.test.mjs`. Den konkreten Test dort ergänzt, damit
+die bestehende Prüfung weiterhin sowohl fehlende als auch unerwartete Tests
+erkennt. Keine Prüfung entfernt oder abgeschwächt. Die acht gezielten Tests
+dieses Prüfvertrags bestehen lokal.
+
+## 2026-09-13 – Codex – Kalender über Einkaufskarten anzeigen
+
+**Auftrag/Ergebnis:** Der Kaufdatum-Kalender öffnet sich über der Einkaufskarte.
+Die Korrektur liegt im gemeinsamen `DatePickerComponent` und gilt damit auch
+für das Verkaufsformular. Fortsetzung auf `codex/purchase-layout-dashboard-review`;
+die zuvor geprüfte Anordnung von Verkäufer und Kaufdatum bleibt erhalten.
+
+**Nachgewiesene Ursache:** Die Karte hat `overflow-hidden`, der Kalender war
+ein absolut positioniertes Kind. Beim Fokussieren eines Tages scrollte der
+Browser sogar den versteckten Karteninhalt; im gemessenen Beispiel stand
+`scrollTop` auf 209 px. Dadurch verschwanden auch Verkäufer und Kaufdatum.
+Ein Test auf bloße Sichtbarkeit oder einen einzelnen Tag übersah das; der
+Browsertest prüft deshalb die tatsächliche Treffbarkeit aller Kalenderknöpfe.
+Dieser Test schlug mit dem ursprünglichen Kalender fehl und besteht mit der
+Korrektur.
+
+**Umsetzung:** Native Popover-Ebene analog zur bestehenden Auswahlkomponente,
+Position am Datumsfeld, bei Platzmangel nach oben, innerhalb der Fensterränder.
+Bei Scrollen außerhalb des Kalenders oder Fenstergrößenänderung schließt er.
+Fokus kehrt bei Auswahl/Escape zum Knopf zurück, ohne Vorfahren zu scrollen;
+ein Außenklick behält seinen neuen Fokus. Escape wird vor übergeordneten
+Dialogen abgefangen. Nach erneutem Öffnen ist der ausgewählte Tag wieder im
+angezeigten Monat. Event-Listener werden über `DestroyRef` entfernt.
+
+Die AXE-Prüfung des geöffneten Kalenders deckte zusätzlich fehlende ARIA-Zeilen
+auf. Wochentage und Datumszellen liegen jetzt in korrekt zugeordneten Zeilen
+innerhalb des Kalenderrasters. Keine neue CSS-Datei oder Abhängigkeit.
+
+**Prüfung:** Produktionsbau, gezieltes ESLint und Formatierung erfolgreich;
+45 bestehende Komponenten-/Formulartests bestanden. Sieben neue Browsertests
+bestanden: anklickbarer Kalender außerhalb der Karte, gespeicherte Entwürfe bei
+390/768/1440 px, Tastatur/Fokus, Monatswechsel, Außenklick, Größenänderung,
+Scrollen, Verkaufsformular und AXE in beiden Themes. Zwei vorhandene Tests
+zur obersten Ebene der Kostenauswahl ebenfalls bestanden.
+
+**Unabhängiger Altfehler:** Der zusätzlich ausgeführte erste Test in
+`e2e/purchase-dropdown-layer.spec.ts` findet nach dem Speichern das Element
+`[data-purchase-description]` nicht. Derselbe Fehler wurde mit den unveränderten
+Kalenderdateien aus `db11f06` reproduziert; die Korrekturdateien wurden danach
+bytegleich wiederhergestellt. Kein vollständiger grüner Browserlauf behauptet,
+keine Änderung dieses fachfremden Tests.
+
+## 2026-09-13 – Codex – Einkaufsfelder nebeneinander und Dashboard-Einordnung
+
+**Auftrag/Ergebnis:** Verkäufer und Kaufdatum stehen in der gemeinsamen
+Einkaufsmaske ab 768 px nebeneinander, darunter weiterhin untereinander. Das
+gilt für neue Einkäufe, offene Entwürfe und die Bearbeitungsseite. Bestehende
+Shared-Felder, Abstände und Formularlogik bleiben erhalten. Eigener Zweig
+`codex/purchase-layout-dashboard-review` auf Basis von `origin/master` (27b976c).
+
+**Dashboard-Analyse:** Die gemeldete dauerhafte Anzeige „Unbekannt“ ließ sich
+in der lokalen Demo nicht reproduzieren: Verkaufserlöse, Ergebnis und
+Bestandswert enthielten konkrete Beträge. Der Bericht setzt den gesamten
+Bestandswert auf unbekannt, sobald einem enthaltenen Artikel/Los eine belastbare
+Kostenbasis fehlt. Voraussetzung sind unter anderem bestätigte Einkaufskosten;
+bei angebrochenen Losen müssen auch die Kosten der Entnahmen nachweisbar sein.
+Ein Verkauf mit unbekanntem Wareneinsatz macht entsprechend das Gesamtergebnis
+unbekannt. Der konkrete Auslöser in den Nutzerdaten ist nicht nachgewiesen.
+Keine Produktivdaten oder Berechnungsregeln geändert.
+
+Die bisherige Kennzahl `expenses` summiert Einkaufsbeträge, nicht sämtliche
+Betriebsausgaben; direkte Verkaufskosten werden separat berechnet. Sie darf
+daher nicht einfach als „Gesamtausgaben“ beschriftet werden. Ebenso bezeichnet
+das bisherige Ergebnis nur Erlöse abzüglich Wareneinsatz und direkter
+Verkaufskosten, keinen vollständigen Unternehmensgewinn.
+
+**Empfehlung, noch nicht umgesetzt:** Gewinn, erfasste Gesamtausgaben und Umsatz
+oben; Bestandswert, verkaufte Stückzahl und Marge ergänzend. Einheitlicher
+Zeitraum und Vorperiodenvergleich. Offene Kosten mit Ursache und Weg zum
+betroffenen Einkauf erklären. Grundlage sind die offiziellen Übersichten von
+[Shopify](https://help.shopify.com/en/manual/reports-and-analytics/shopify-reports/overview-dashboard),
+[eBay](https://www.ebay.com/help/selling/selling-tools/seller-hub?id=4095) und
+[Lexware Office](https://www.lexware.de/funktionen/dashboard/), geprüft am
+13.09.2026. Die Priorisierung ist eine Empfehlung für Flipbase.
+
+**Prüfung:** Produktionsbau erfolgreich. Bestehende 40 Formular- und 12
+Dashboard-Berichtstests bestanden. Browsermessungen der Erfassungsmaske bei
+390/768/1024/1440 px ohne horizontalen Überlauf. Einen neuen Entwurf in der
+isolierten Browser-Demo gespeichert und erneut geöffnet: korrekte Feldanordnung
+bei 390/768/1440 px, hell und dunkel, mit reduzierter Bewegung; AXE meldet in
+der Einkaufsmaske in diesen sechs Zuständen keine WCAG-A/AA-Verstöße.
+Keine neuen Abhängigkeiten, Backend- oder Schemaänderungen.
+
 ## 2026-09-13 – Codex – Kosten und Steuerberechnung
 
 **Auftrag:** Freigegebenen nächsten Schritt auf `codex/purchase-tax-costs`
