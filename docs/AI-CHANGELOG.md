@@ -50,6 +50,16 @@ Betreiber-Sitzung; der Nutzer hat den PR ohne sie freigegeben.
 Pflichtprüfungen und anschließendes Aufräumen von Zweig und Arbeitsordner
 bestätigt.
 
+**CI-Nacharbeit:** Browser-Smoke schlug fehl in
+`e2e/sniper-administration.spec.ts`, nur in der dunklen Variante. Sie läuft mit
+390 px Breite. Der Test klickte den Link „Botbetrieb“, der früher als Reiter
+im Inhalt stand und jetzt nur in der Seitenleiste liegt. Auf Handybreite ist
+die eingeklappt, der Klick wartete bis zum Abbruch. Die helle Variante mit
+1440 px blieb grün. Kein Fehler der App: Auf dem Handy führt der Weg wie
+entworfen über „Menü“. Der Test öffnet jetzt über eine Hilfsfunktion zuerst
+das Menü, wenn es sichtbar ist. Lokal mit `playwright.pr.config.ts` beide
+Varianten grün; andere Browsertests sprachen die Reiterleiste nicht an.
+
 **Nebenbei:** Ein `npm ci` lief versehentlich im Haupt-Repo statt im
 Arbeitsordner, weil der Befehl kein Arbeitsverzeichnis hatte. Es hat dort nur
 `node_modules` neu aufgebaut (Exitcode 0), am Code und am Zweig
