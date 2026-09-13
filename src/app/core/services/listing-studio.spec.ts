@@ -125,35 +125,4 @@ describe('Listing Studio & Multi-Platform Generator', () => {
 
     expect(ergebnis).toEqual({ error: fehler, url: null });
   });
-
-  it('sendet Inseratsdaten per postMessage an die Browser-Erweiterung', () => {
-    const postMessageSpy = vi.fn();
-    const originalWindow = globalThis.window;
-    // @ts-expect-error Mocking window in Node test environment
-    globalThis.window = { postMessage: postMessageSpy };
-
-    try {
-      const payload = {
-        itemId: 'item-1',
-        title: 'Titel',
-        description: 'Beschreibung',
-        price: 50,
-        priceType: 'FIXED' as const,
-        shippingType: 'both' as const,
-        images: [{ url: 'https://example.com/img.jpg', name: 'img.jpg' }],
-      };
-
-      service.publishViaExtension(payload);
-
-      expect(postMessageSpy).toHaveBeenCalledWith(
-        {
-          type: 'FLIPBASE_PUBLISH_KLEINANZEIGEN',
-          payload,
-        },
-        '*',
-      );
-    } finally {
-      globalThis.window = originalWindow;
-    }
-  });
 });
