@@ -1,5 +1,70 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-13 – Claude Opus 5 (Anthropic) – Administration in der Seitenleiste
+
+**Auftrag:** Die Reiterleiste oben in der Administration entfällt. Die vier
+Unterseiten klappen wie im Shopify-Admin unter „Administration“ in der
+Seitenleiste auf. Gleichzeitig bekommen die vier Seiten einen einheitlichen
+Rahmen. Zweig `feat/admin-sidebar-navigation`, abgezweigt von `master`
+(0dad469).
+
+Entwurf unter
+`docs/superpowers/specs/2026-09-13-admin-sidebar-navigation-design.md`, Plan
+unter `docs/superpowers/plans/2026-09-13-admin-sidebar-navigation.md`.
+
+**Ergebnis:**
+
+- `NavItem` in der Seitenleiste hat optionale `children`. Die Liste der
+  Admin-Unterseiten liegt in `core/config/platform-admin-navigation.ts`. Die
+  Unterpunkte stehen nur im DOM, solange die Adresse in `/admin` liegt. Der
+  Bereichslink bleibt fett, trägt aber kein `aria-current`; das trägt allein
+  der aktive Unterpunkt.
+- `platform-admin-shell` mit Reiterleiste und Test ist entfernt. Die Seiten
+  hängen direkt an den Routen; Pfade, Weiterleitung und `unsavedEntryGuard`
+  sind unverändert.
+- Alle vier Seiten ohne eigenen Rand und ohne äußere Maximalbreite, jeweils mit
+  `app-page-header`. Die Kategorieliste behält darunter `max-w-3xl` für ihren
+  kleinen Inhalt.
+
+**Befund:** Die vier Seiten waren unterschiedlich gerahmt. Die Bot-Seiten
+setzten `p-6` zusätzlich zum Rand des Grundgerüsts, die Kategorieliste baute
+ihre Überschrift selbst.
+
+**Fund in der Prüfung:** Nach dem Umstieg auf `app-page-header` meldete AXE in
+der Kategorieliste `empty-heading`. Ursache ist die Laufzeitübersetzung der
+Tests, die Signal-Eingänge nicht kennt, nicht die Seite selbst. Der Test meldet
+`title` und `subtitle` jetzt an und setzt sie danach zurück, wie es der Test des
+Seitenkopfs schon tut.
+
+**Geprüft:** Neuer Seitenleisten-Test (5 Fälle: Reihenfolge und Ziele, genau
+ein `aria-current` auf zwei Unterseiten, zugeklappt außerhalb, unsichtbar für
+Nicht-Betreiber, AXE). Angular-Tests `platform-admin`, `layout/sidebar`,
+`page-header`: 37 von 37 grün. `tsc -p tsconfig.spec.json` ohne Befund,
+`npm run build` Exitcode 0 ohne Warnungen, Prettier und ESLint auf allen
+geänderten Dateien.
+
+**Nicht geprüft:** Sichtprüfung im Browser. Sie braucht eine angemeldete
+Betreiber-Sitzung; der Nutzer hat den PR ohne sie freigegeben.
+
+**Freigabe:** PR #70. Der Nutzer hat Push, PR, Merge nach erfolgreichen
+Pflichtprüfungen und anschließendes Aufräumen von Zweig und Arbeitsordner
+bestätigt.
+
+**CI-Nacharbeit:** Browser-Smoke schlug fehl in
+`e2e/sniper-administration.spec.ts`, nur in der dunklen Variante. Sie läuft mit
+390 px Breite. Der Test klickte den Link „Botbetrieb“, der früher als Reiter
+im Inhalt stand und jetzt nur in der Seitenleiste liegt. Auf Handybreite ist
+die eingeklappt, der Klick wartete bis zum Abbruch. Die helle Variante mit
+1440 px blieb grün. Kein Fehler der App: Auf dem Handy führt der Weg wie
+entworfen über „Menü“. Der Test öffnet jetzt über eine Hilfsfunktion zuerst
+das Menü, wenn es sichtbar ist. Lokal mit `playwright.pr.config.ts` beide
+Varianten grün; andere Browsertests sprachen die Reiterleiste nicht an.
+
+**Nebenbei:** Ein `npm ci` lief versehentlich im Haupt-Repo statt im
+Arbeitsordner, weil der Befehl kein Arbeitsverzeichnis hatte. Es hat dort nur
+`node_modules` neu aufgebaut (Exitcode 0), am Code und am Zweig
+`feat/item-picker-and-image-preview` nichts geändert.
+
 ## 2026-09-13 – Codex – PR-Abschluss für Einkaufsfelder und Kalender
 
 **Freigabe:** Der Nutzer hat Push, PR, Merge nach erfolgreichen Pflichtprüfungen

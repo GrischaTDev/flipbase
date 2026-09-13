@@ -132,6 +132,15 @@ async function checkAxe(page: Page) {
   ).toEqual([]);
 }
 
+// Die Unterseiten der Administration stehen nur noch in der Seitenleiste. Auf
+// schmalen Bildschirmen liegt die hinter "Menü" - ein Klick auf den
+// unsichtbaren Link wartete sonst bis zum Testabbruch.
+async function openAdminPage(page: Page, name: string) {
+  const menu = page.locator('app-bottom-nav').getByRole('button', { name: 'Menü', exact: true });
+  if (await menu.isVisible()) await menu.click();
+  await page.locator('app-sidebar').getByRole('link', { name, exact: true }).click();
+}
+
 for (const theme of ['light', 'dark']) {
   test(`Sammelaufträge anlegen, Fehler beheben, aktivieren und pausieren ${theme} @pr-smoke`, async ({
     page,
@@ -204,14 +213,14 @@ for (const theme of ['light', 'dark']) {
     );
     await page.getByRole('textbox', { name: 'Notiz (optional)' }).fill('Gezielter Testbereich');
     page.once('dialog', (dialog) => dialog.dismiss());
-    await page.getByRole('link', { name: 'Botbetrieb', exact: true }).click();
+    await openAdminPage(page, 'Botbetrieb');
     await expect(page).toHaveURL(/\/admin\/queries$/);
     await page.getByRole('button', { name: 'Änderungen speichern' }).click();
     await expect(page.getByRole('table')).toContainText('Gezielter Testbereich');
     await expect(page.getByRole('button', { name: 'Neuer Auftrag', exact: true })).toBeFocused();
     await checkAxe(page);
     await page.screenshot({ path: testInfo.outputPath('query-list.png'), fullPage: true });
-    await page.getByRole('link', { name: 'Botbetrieb', exact: true }).click();
+    await openAdminPage(page, 'Botbetrieb');
     await expect(page.getByRole('heading', { name: 'Botbetrieb', exact: true })).toBeVisible();
     await expect(page.getByText('Aktuelle Betriebsmeldung', { exact: true })).toBeVisible();
     await checkAxe(page);

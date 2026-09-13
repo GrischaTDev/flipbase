@@ -160,8 +160,7 @@
 
       <a
         [routerLink]="operatorItem.path"
-        ariaCurrentWhenActive="page"
-        routerLinkActive="font-semibold"
+        [class.font-semibold]="isItemActive(operatorItem)"
         (click)="closed.emit()"
         class="flex items-center gap-2 px-2 py-1 leading-5 rounded-md text-[13px] text-fb-text-secondary hover:text-fb-text-primary hover:bg-fb-surface-hover transition group border border-transparent"
       >
@@ -173,6 +172,33 @@
           (operatorItem.labelKey | translate) || operatorItem.label
         }}</span>
       </a>
+
+      <!--
+        Wie im Shopify-Admin: Die Unterpunkte stehen nur im DOM, solange man im
+        Bereich ist. Der Bereichslink traegt dann kein aria-current, damit es
+        genau eine aktuelle Seite gibt - die des Unterpunkts.
+      -->
+      @if (operatorItem.children && isItemActive(operatorItem)) {
+        <ul data-sub-navigation class="space-y-0.5">
+          @for (child of operatorItem.children; track child.path) {
+            @let active = isChildActive(child);
+            <li>
+              <a
+                [routerLink]="child.path"
+                [attr.aria-current]="active ? 'page' : null"
+                [class.font-semibold]="active"
+                [class.font-medium]="!active"
+                [class.text-fb-text-primary]="active"
+                [class.text-fb-text-secondary]="!active"
+                (click)="closed.emit()"
+                class="flex items-center py-1 pl-8 pr-2 leading-5 rounded-md text-[13px] hover:text-fb-text-primary hover:bg-fb-surface-hover transition border border-transparent"
+              >
+                <span class="min-w-0 break-words">{{ child.label }}</span>
+              </a>
+            </li>
+          }
+        </ul>
+      }
     }
   </nav>
 
