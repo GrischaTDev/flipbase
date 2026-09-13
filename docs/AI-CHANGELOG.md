@@ -1,5 +1,29 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-14 – Claude Opus 5 (Anthropic) – Entwurf Kategorie- und Markenauswahl
+
+**Auftrag:** Nutzer meldet Mängel im Listing Studio (falsche „KI“-Versprechen,
+veraltetes Design, nur ein Artikel in der Auswahl, Kategorie auf Kleinanzeigen nicht
+gewählt) und wünscht Kategorien und Marken aus festen Listen statt Freitext. Zweig
+`feat/product-categories-brands`, abgezweigt von `origin/master` (4d0b8c3).
+
+**Befund:**
+
+- Artikelauswahl im Listing Studio zeigt nur Status `ready`/`listed` ohne aktiven
+  Verkauf (`isSellableInventoryItem`); das wird nirgends erklärt.
+- „KI-SEO optimieren“ und die Artikel-„Erkennung“ sind feste Textregeln, keine KI.
+- Kategorie und Marke sind an `inventory_items` und `catalog_products` freier Text.
+
+**Ergebnis:** Aufteilung in drei Projekte (Listing Studio, Kategorien/Marken,
+Kleinanzeigen-Kategorie). Entwurf für Projekt 2 abgestimmt und unter
+`docs/superpowers/specs/2026-09-14-product-categories-brands-design.md` abgelegt:
+Shopify-Taxonomie v2026-08 (deutsch, MIT) als Tabelle, Markenliste je Workspace,
+Textspalten bleiben und werden per Trigger gefüllt, alte Kategorietexte werden
+verworfen.
+
+**Prüfung:** Shopify-Release und deutsche Datei geladen und ausgezählt (14.606
+Kategorien, 26 Hauptbereiche, 8 Ebenen). Kein Code geändert.
+
 ## 2026-09-14 – Claude Opus 5 (Anthropic) – Kleinanzeigen-Erweiterung repariert
 
 **Auftrag:** Die Erweiterung aus PR #73/#74 meldet auf Kleinanzeigen „Titel-, Preis-
