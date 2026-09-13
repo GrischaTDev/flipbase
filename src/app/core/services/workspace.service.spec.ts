@@ -284,6 +284,147 @@ describe('Multi-Workspace & Holding Consolidation Service', () => {
     expect(holding.workspaceSummaries.length).toBe(holding.workspacesCount);
   });
 
+  it('hält offene Holdingwerte getrennt je Workspace und zählt fremde Daten nicht doppelt', () => {
+    const first = { ...service.workspaces()[0]!, id: 'ws-1' };
+    const second = { ...first, id: 'ws-2' };
+    service.workspaces.set([first, second]);
+    const known: Sale = {
+      id: 'known',
+      workspace_id: first.id,
+      platform: 'direct',
+      sale_date: '2026-09-13',
+      sale_price: 80,
+      platform_fee: 0,
+      shipping_cost: 0,
+      packaging_cost: 0,
+      other_costs: 0,
+      net_profit: 30,
+      roi: 60,
+    };
+    const open = {
+      ...known,
+      id: 'open',
+      workspace_id: second.id,
+      sale_price: 50,
+      net_profit: null,
+      roi: null,
+    };
+    const item: InventoryItem = {
+      id: 'known-item',
+      workspace_id: first.id,
+      title: 'Bekannt',
+      condition: 'used',
+      status: 'ready',
+      allocated_purchase_cost: 10,
+    };
+    const holding = service.getConsolidatedHoldingSummary(
+      [known, open, { ...known, id: 'foreign', workspace_id: 'other' }],
+      [],
+      [item, { ...item, id: 'open-item', workspace_id: second.id, allocated_purchase_cost: null }],
+    );
+    expect(holding.workspaceSummaries[0]).toMatchObject({
+      inventoryValue: 10,
+      totalProfit: 30,
+      roi: 60,
+      totalRevenue: 80,
+    });
+    expect(holding.workspaceSummaries[1]).toMatchObject({
+      inventoryValue: null,
+      totalProfit: null,
+      roi: null,
+      totalRevenue: 50,
+    });
+    expect(holding).toMatchObject({
+      totalRevenue: 130,
+      totalInventoryValue: null,
+      totalNetProfit: null,
+      averageRoi: null,
+      totalInventoryCount: 2,
+    });
+  });
+
+  it.each([null, 0])(
+    'unterscheidet offene Werte %s von echten Nullwerten auch innerhalb eines Workspace',
+    (cost) => {
+      const workspace = service.workspaces()[0]!;
+      service.workspaces.set([workspace]);
+      const item: InventoryItem = {
+        id: 'content',
+        workspace_id: workspace.id,
+        title: 'Paketinhalt',
+        condition: 'used',
+        status: 'ready',
+        allocated_purchase_cost: cost,
+      };
+      const sale: Sale = {
+        id: 'sale',
+        workspace_id: workspace.id,
+        inventory_item: item,
+        platform: 'direct',
+        sale_date: '2026-09-13',
+        sale_price: 0,
+        platform_fee: 0,
+        shipping_cost: 0,
+        packaging_cost: 0,
+        other_costs: 0,
+        net_profit: 0,
+        roi: 0,
+      };
+      const holding = service.getConsolidatedHoldingSummary([sale], [], [item]);
+      expect(holding).toMatchObject({
+        totalRevenue: 0,
+        totalInventoryValue: cost,
+        totalNetProfit: cost,
+        averageRoi: cost,
+      });
+    },
+  );
+
+  it('ignoriert veraltete Gewinne bei offenem Snapshot sowie retournierte und stornierte Verkäufe', () => {
+    const workspace = service.workspaces()[0]!;
+    service.workspaces.set([workspace]);
+    const sale: Sale = {
+      id: 'sale',
+      workspace_id: workspace.id,
+      platform: 'direct',
+      sale_date: '2026-09-13',
+      sale_price: 80,
+      platform_fee: 0,
+      shipping_cost: 0,
+      packaging_cost: 0,
+      other_costs: 0,
+      net_profit: 80,
+      roi: 100,
+      lines: [
+        {
+          id: 'line',
+          sale_id: 'sale',
+          title_snapshot: 'Paketinhalt',
+          quantity: 1,
+          unit_sale_price: 80,
+          line_total: 80,
+          cost_of_goods_sold: null,
+          tax_mode: 'diff_25a',
+        },
+      ],
+    };
+    expect(service.getConsolidatedHoldingSummary([sale], [], [])).toMatchObject({
+      totalNetProfit: null,
+      averageRoi: null,
+      totalRevenue: 80,
+    });
+    expect(
+      service.getConsolidatedHoldingSummary(
+        [
+          { ...sale, returned_at: '2026-09-14' },
+          { ...sale, id: 'void', voided_at: '2026-09-14' },
+        ],
+        [],
+        [],
+      ),
+    ).toMatchObject({ totalNetProfit: 0, averageRoi: 0, totalRevenue: 0 });
+  });
+
   it('zählt unbekannte Draftkosten nicht als bestätigtes investiertes Kapital', () => {
     const workspace = service.workspaces()[0]!;
     service.workspaces.set([workspace]);

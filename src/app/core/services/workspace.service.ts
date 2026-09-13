@@ -13,6 +13,14 @@ import {
   WorkspaceSummary,
 } from '../models/flipbase.models';
 
+import {
+  averageKnownAmounts,
+  reportedSaleProfit,
+  reportedSaleRoi,
+  roundKnownAmount,
+  sumKnownAmounts,
+} from '../utils/financial-summary';
+
 const ACTIVE_WORKSPACE_KEY = 'flipbase_active_workspace_id';
 
 @Injectable({
@@ -340,59 +348,57 @@ export class WorkspaceService {
     const wsList = this.workspaces();
 
     const summaries: WorkspaceSummary[] = wsList.map((ws) => {
-      const wsItems = items.filter(
-        (i) => !i.workspace_id || i.workspace_id === ws.id || ws.id === 'ws-1',
-      );
-      const wsPurchases = purchases.filter(
-        (p) => !p.workspace_id || p.workspace_id === ws.id || ws.id === 'ws-1',
-      );
+      const wsItems = items.filter((item) => item.workspace_id === ws.id);
+      const wsPurchases = purchases.filter((purchase) => purchase.workspace_id === ws.id);
       const wsSales = sales.filter(
-        (s) => !s.workspace_id || s.workspace_id === ws.id || ws.id === 'ws-1',
+        (sale) => sale.workspace_id === ws.id && !sale.returned_at && !sale.voided_at,
       );
-
-      const invVal = wsItems
-        .filter((i) => i.status !== 'sold' && i.status !== 'returned' && i.status !== 'archived')
-        .reduce((sum, i) => sum + (i.allocated_purchase_cost || 0), 0);
+      const activeItems = wsItems.filter(
+        (item) =>
+          item.status !== 'sold' &&
+          item.status !== 'returned' &&
+          item.status !== 'archived' &&
+          !item.archived_at,
+      );
+      const invVal = sumKnownAmounts(activeItems.map((item) => item.allocated_purchase_cost));
 
       const invested = wsPurchases.reduce(
         (sum, purchase) => sum + (this.purchaseCostPreview(purchase) ?? 0),
         0,
       );
       const revenue = wsSales.reduce((sum, s) => sum + (s.sale_price || 0), 0);
-      const profit = wsSales.reduce((sum, s) => sum + (s.net_profit || 0), 0);
-      const avgRoi =
-        wsSales.length > 0 ? wsSales.reduce((sum, s) => sum + (s.roi || 0), 0) / wsSales.length : 0;
+      const profit = sumKnownAmounts(wsSales.map(reportedSaleProfit));
+      const avgRoi = averageKnownAmounts(wsSales.map(reportedSaleRoi));
 
       return {
         workspace: ws,
-        inventoryCount: wsItems.length,
-        inventoryValue: Number(invVal.toFixed(2)),
+        inventoryCount: activeItems.length,
+        inventoryValue: roundKnownAmount(invVal),
         purchasesCount: wsPurchases.length,
         totalInvested: Number(invested.toFixed(2)),
         salesCount: wsSales.length,
         totalRevenue: Number(revenue.toFixed(2)),
-        totalProfit: Number(profit.toFixed(2)),
-        roi: Number(avgRoi.toFixed(1)),
+        totalProfit: roundKnownAmount(profit),
+        roi: avgRoi,
         role: 'owner',
       };
     });
 
     const totalInventoryCount = summaries.reduce((sum, s) => sum + s.inventoryCount, 0);
-    const totalInventoryValue = summaries.reduce((sum, s) => sum + s.inventoryValue, 0);
+    const totalInventoryValue = sumKnownAmounts(summaries.map((summary) => summary.inventoryValue));
     const totalCapitalInvested = summaries.reduce((sum, s) => sum + s.totalInvested, 0);
     const totalRevenue = summaries.reduce((sum, s) => sum + s.totalRevenue, 0);
-    const totalNetProfit = summaries.reduce((sum, s) => sum + s.totalProfit, 0);
-    const averageRoi =
-      summaries.length > 0 ? summaries.reduce((sum, s) => sum + s.roi, 0) / summaries.length : 0;
+    const totalNetProfit = sumKnownAmounts(summaries.map((summary) => summary.totalProfit));
+    const averageRoi = averageKnownAmounts(summaries.map((summary) => summary.roi));
 
     return {
       workspacesCount: wsList.length,
       totalInventoryCount,
-      totalInventoryValue: Number(totalInventoryValue.toFixed(2)),
+      totalInventoryValue: roundKnownAmount(totalInventoryValue),
       totalCapitalInvested: Number(totalCapitalInvested.toFixed(2)),
       totalRevenue: Number(totalRevenue.toFixed(2)),
-      totalNetProfit: Number(totalNetProfit.toFixed(2)),
-      averageRoi: Number(averageRoi.toFixed(1)),
+      totalNetProfit: roundKnownAmount(totalNetProfit),
+      averageRoi,
       workspaceSummaries: summaries,
     };
   }

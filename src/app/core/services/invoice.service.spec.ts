@@ -63,6 +63,59 @@ describe('Invoice & Email Confirmation Service (§ 25a UStG Engine)', () => {
     expect(invoice.buyer.name).toBe('Max Mustermann');
   });
 
+  it.each([undefined, 0, 40])(
+    'erfindet bei Paketinhalt keinen Rechnungspreis; expliziter Preis %s bleibt gültig',
+    async (unitPrice) => {
+      const order: StoreOrder = {
+        id: 'package-order',
+        orderNumber: 'ORDER',
+        createdAt: '2026-09-13T12:00:00Z',
+        customer: {
+          firstName: 'Anna',
+          lastName: 'Test',
+          email: 'anna@example.com',
+          street: 'Testweg',
+          houseNumber: '1',
+          zip: '10115',
+          city: 'Berlin',
+          country: 'Deutschland',
+          shippingMethod: 'dhl_standard',
+          paymentMethod: 'stripe_card',
+        },
+        items: [
+          {
+            item: {
+              id: 'content',
+              workspace_id: 'ws',
+              title: 'Schuhe',
+              condition: 'used',
+              status: 'sold',
+              allocated_purchase_cost: null,
+              expected_value: null,
+            },
+            quantity: 1,
+            unitPrice,
+          },
+        ],
+        subtotal: unitPrice ?? 40,
+        shippingCost: 0,
+        total: unitPrice ?? 40,
+        paymentMethod: 'stripe_card',
+        paymentStatus: 'paid',
+        status: 'confirmed',
+      };
+      const result = await service.generateInvoiceForOrder(order);
+      if (unitPrice === undefined) {
+        expect(result.data).toBeNull();
+        expect(result.error?.message).toContain('Verkaufspreis');
+        expect(service.invoices()).toHaveLength(0);
+      } else {
+        expect(result.error).toBeNull();
+        expect(result.data?.items[0].unitPrice).toBe(unitPrice);
+      }
+    },
+  );
+
   it('should generate a compliant invoice for a Webshop StoreOrder', async () => {
     const order: StoreOrder = {
       id: 'order-1',

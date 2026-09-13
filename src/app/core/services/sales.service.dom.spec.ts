@@ -716,3 +716,64 @@ describe('SalesService', () => {
     expect(enriched.roi).toBe(185.9);
   });
 });
+
+describe('Paketkosten im Verkaufssnapshot', () => {
+  it('übernimmt einen NULL-Snapshot aus dem RPC ohne Gewinn zu erfinden', async () => {
+    const line = {
+      id: 'line',
+      sale_id: sale.id,
+      inventory_item_id: 'content',
+      title_snapshot: 'Schuh',
+      quantity: 1,
+      unit_sale_price: 19.98,
+      line_total: 19.98,
+      cost_of_goods_sold: null,
+      tax_mode: 'diff_25a',
+    };
+    const { service } = createService({
+      data: { sale, sale_lines: [line], lot_allocations: [], stock_movements: [] },
+      error: null,
+    });
+    const result = await service.recordSale({
+      platform: 'direct',
+      saleDate: sale.sale_date,
+      lines: [{ inventoryItemId: 'content', quantity: 1, unitSalePrice: 19.98 }],
+    });
+    expect(result.error).toBeNull();
+    expect(result.data?.saleLines[0].cost_of_goods_sold).toBeNull();
+    expect(result.data?.sale).toMatchObject({
+      net_profit: null,
+      roi: null,
+      margin_percent: null,
+      cost_basis_status: 'unknown',
+    });
+  });
+});
+
+describe('Demo-Verkauf eines Paketinhalts', () => {
+  it('speichert offene Kosten und unveränderte Herkunft, auch nach späterer Bewertung', async () => {
+    const { mockStore, service } = createDemoService();
+    const content = {
+      ...mockStore.getItems('workspace-1')[0],
+      purchase_id: 'package-purchase',
+      source_package_line_id: 'package-line',
+      allocated_purchase_cost: null,
+      tax_purchase_cost: null,
+    };
+    mockStore.saveItem(content);
+    const result = await service.recordSale(demoSaleInput);
+    expect(result.error).toBeNull();
+    expect(result.data?.saleLines[0].cost_of_goods_sold).toBeNull();
+    expect(result.data?.sale).toMatchObject({ net_profit: null, cost_basis_status: 'unknown' });
+    expect(mockStore.getItems('workspace-1')[0]).toMatchObject({
+      purchase_id: 'package-purchase',
+      source_package_line_id: 'package-line',
+      allocated_purchase_cost: null,
+      status: 'sold',
+    });
+    mockStore.saveItem({ ...mockStore.getItems('workspace-1')[0], allocated_purchase_cost: 12 });
+    const reloaded = service.enrichSaleMetrics(mockStore.getSales('workspace-1')[0]);
+    expect(reloaded.lines?.[0].cost_of_goods_sold).toBeNull();
+    expect(reloaded.net_profit).toBeNull();
+  });
+});

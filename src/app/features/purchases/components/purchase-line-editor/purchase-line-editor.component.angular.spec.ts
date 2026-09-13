@@ -244,6 +244,26 @@ function addLegacyLine(editor: PurchaseLineEditorComponent): void {
 }
 
 describe('PurchaseLineEditorComponent', () => {
+  it('erfasst ein Paket als eine bezahlte Position ohne Katalogprodukt und erhält es beim Neuladen', () => {
+    const { editor } = erstelleEditor();
+    editor.addPackage();
+    editor.lineRows.at(0).controls.unitPurchasePrice.setValue(100);
+    editor.recalculate(0, 'unitPurchasePrice');
+    expect(editor.getDrafts()).toEqual([
+      expect.objectContaining({
+        isPackage: true,
+        lineKind: 'individual',
+        catalogProductId: null,
+        orderedQuantity: 1,
+        unitPurchasePrice: 100,
+        lineTotal: 100,
+      }),
+    ]);
+    const draft = editor.getDrafts();
+    editor.resetToLines(draft);
+    expect(editor.getDrafts()).toEqual(draft);
+    expect(editor.lineRows.valid).toBe(true);
+  });
   it('übernimmt weder Auswahl noch verspätete Anlage aus einem fremden Workspace', () => {
     const { editor } = erstelleEditor();
     const foreign = { ...ledProduct, workspace_id: workspaceTwo.id };

@@ -95,6 +95,98 @@ const payload = {
 };
 
 describe('PurchaseService – Demo-Einkauf mit Startpositionen', () => {
+  it('erhält Paketkennzeichnung und Preis bei Erstellung und Bearbeitung ohne Dummy-Artikel', async () => {
+    const store = erstelleStore();
+    const { service, inventoryCreateItem } = erstelleDienst(store);
+    const packagePayload = {
+      ...payload,
+      title: 'Schuhpaket',
+      purchase_price: 100,
+      pricing_mode: 'individual' as const,
+      shipment_status: 'arrived' as const,
+      purchase_lines: [
+        {
+          catalogProductId: null,
+          titleSnapshot: 'Paket',
+          lineKind: 'individual' as const,
+          orderedQuantity: 1,
+          unitPurchasePrice: 100,
+          lineTotal: 100,
+          isPackage: true,
+        },
+      ],
+    };
+    const created = await service.createPurchase(packagePayload);
+    expect(created.error).toBeNull();
+    const line = store.getPurchaseLines(workspace.id)[0];
+    expect(line).toMatchObject({ is_package: true, line_total: 100, ordered_quantity: 1 });
+    expect(store.getItems()).toHaveLength(0);
+    expect(created.data?.items_count).toBe(0);
+    const updated = await service.updatePurchaseDraft(created.data!.id, {
+      ...packagePayload,
+      purchase_lines: [
+        {
+          ...packagePayload.purchase_lines[0],
+          draftId: line.id,
+          titleSnapshot: 'Zwei Paar Schuhe',
+        },
+      ],
+    });
+    expect(updated.error).toBeNull();
+    expect(store.getPurchaseLines()[0]).toMatchObject({
+      id: line.id,
+      is_package: true,
+      line_total: 100,
+      title_snapshot: 'Zwei Paar Schuhe',
+    });
+    expect(inventoryCreateItem).not.toHaveBeenCalled();
+    store.capturePurchasePackageContents(
+      workspace.id,
+      line.id,
+      [
+        { title: 'Schuhpaar A', condition: 'used' },
+        { title: 'Schuhpaar B', condition: 'used' },
+      ],
+      'capture-1',
+    );
+    const forbidden = await service.updatePurchaseDraft(created.data!.id, {
+      ...packagePayload,
+      purchase_lines: [{ ...packagePayload.purchase_lines[0], draftId: line.id, isPackage: false }],
+    });
+    expect(forbidden.error).toBeInstanceOf(Error);
+    await service.loadPurchases(workspace.id);
+    expect(service.purchases()[0].items_count).toBe(2);
+  });
+
+  it.each([
+    { orderedQuantity: 2 },
+    { unitPurchasePrice: null, lineTotal: null },
+    { lineTotal: 99 },
+    { catalogProductId: 'catalog-led' },
+  ])('weist ungültige Paketentwürfe vor jeder Speicherung zurück: %j', async (invalid) => {
+    const store = erstelleStore();
+    const { service } = erstelleDienst(store);
+    const result = await service.createPurchase({
+      ...payload,
+      purchase_price: 100,
+      purchase_lines: [
+        {
+          catalogProductId: null,
+          titleSnapshot: 'Paket',
+          lineKind: 'individual',
+          orderedQuantity: 1,
+          unitPurchasePrice: 100,
+          lineTotal: 100,
+          isPackage: true,
+          ...invalid,
+        },
+      ],
+    });
+    expect(result.error).toBeInstanceOf(Error);
+    expect(store.getPurchases()).toEqual([]);
+    expect(store.getPurchaseLines()).toEqual([]);
+  });
+
   beforeEach(() => {
     globalThis.localStorage.clear();
   });

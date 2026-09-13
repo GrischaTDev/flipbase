@@ -11,6 +11,7 @@ const PREDICATES: Readonly<Record<string, string>> = {
   purchase_draft_updated: 'diesen Einkaufsentwurf geändert',
   purchase_ordered: 'diesen Einkauf als bestellt markiert',
   purchase_arrived: 'diesen Einkauf als angekommen markiert',
+  purchase_package_contents_captured: 'Paketinhalt erfasst',
   purchase_finalized: 'diesen Einkauf abgeschlossen',
   purchase_costing_finalized: 'diesen Einkauf abgeschlossen',
   purchase_corrected: 'diesen abgeschlossenen Einkauf korrigiert',
@@ -57,6 +58,23 @@ export function timelineSentence(
 }
 
 export function timelineChanges(event: BusinessEvent): readonly RecordChange[] {
+  if (event.eventType === 'purchase_package_contents_captured') {
+    const changes = event.changes;
+    const items =
+      changes && typeof changes === 'object' && !Array.isArray(changes)
+        ? changes['inventory_items']
+        : null;
+    return Array.isArray(items)
+      ? items.flatMap((item) =>
+          item &&
+          typeof item === 'object' &&
+          !Array.isArray(item) &&
+          typeof item['title'] === 'string'
+            ? [{ label: 'Artikel erfasst', from: null, to: item['title'] }]
+            : [],
+        )
+      : [];
+  }
   if (SNAPSHOT_ONLY_EVENTS.has(event.eventType)) return [];
   return mapRecordChanges(event.changes, {
     hiddenKeys: new Set(REDUNDANT_FIELDS[event.eventType] ?? []),

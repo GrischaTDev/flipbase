@@ -40,6 +40,7 @@ import { previewPurchaseImport, PurchaseImportPreviewRow } from './purchase-impo
 import { canonicalGtin, normalizeGtin } from '../../../../shared/utils/gtin';
 
 export interface PurchaseLineDraft {
+  readonly isPackage?: boolean;
   /** Stabile UI-ID, bis die Persistenz eine echte purchase_line-ID vergibt. */
   readonly draftId?: string;
   readonly catalogProductId: string | null;
@@ -67,6 +68,7 @@ export function isPricedPurchaseLineDraft(
 }
 
 interface PurchaseLineControls {
+  isPackage: FormControl<boolean>;
   draftId: FormControl<string>;
   catalogProductId: FormControl<string | null>;
   titleSnapshot: FormControl<string>;
@@ -196,6 +198,15 @@ export class PurchaseLineEditorComponent {
   openPicker(): void {
     this.pickerSearch.set('');
     this.pickerOpen.set(true);
+  }
+
+  addPackage(): void {
+    if (this.lineRows.length >= 1000 || this.isMysteryPurchase()) return;
+    const row = this.createLine('individual');
+    row.patchValue({ isPackage: true, titleSnapshot: 'Mystery Pack' }, { emitEvent: false });
+    this.lineRows.push(row);
+    this.emitDrafts();
+    this.detailId.set(row.controls.draftId.value);
   }
 
   addProducts(products: readonly CatalogProduct[]): void {
@@ -461,6 +472,7 @@ export class PurchaseLineEditorComponent {
   }
 
   applyPackagePrice(total: number): void {
+    if (this.lineRows.controls.some((row) => row.controls.isPackage.value)) return;
     const lineIds = this.lineRows.controls.map((row) => row.controls.draftId.value);
     const allocation = allocatePackagePrice(total, lineIds);
 
@@ -552,6 +564,7 @@ export class PurchaseLineEditorComponent {
   private createLine(lineKind: TrackingMode): FormGroup<PurchaseLineControls> {
     const isMysteryPurchase = this.isMysteryPurchase();
     const row = new FormGroup<PurchaseLineControls>({
+      isPackage: new FormControl(false, { nonNullable: true }),
       draftId: new FormControl(`draft-${crypto.randomUUID()}`, { nonNullable: true }),
       catalogProductId: new FormControl<string | null>(null, {
         validators: lineKind === 'quantity' ? [Validators.required] : [],

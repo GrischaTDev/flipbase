@@ -383,7 +383,12 @@ describe('Demo-Produktbestand', () => {
       return resale.saleLines[0].cost_of_goods_sold;
     });
     expect(costs).toEqual([0.01, 0.01, 0.02]);
-    expect(costs.reduce((sum, cost) => sum + Math.round(cost * 100), 0)).toBe(4);
+    expect(
+      costs.reduce<number>((sum, cost) => {
+        if (cost === null) throw new Error('Bekannte Verkaufskosten fehlen.');
+        return sum + Math.round(cost * 100);
+      }, 0),
+    ).toBe(4);
   });
   it('legt bei einer Retoure ohne Rücklagerung keine steuerlichen Stückkosten zurück', () => {
     store.receivePurchaseLines(

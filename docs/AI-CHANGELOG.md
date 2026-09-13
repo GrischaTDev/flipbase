@@ -65,6 +65,37 @@ Arbeitsordner, weil der Befehl kein Arbeitsverzeichnis hatte. Es hat dort nur
 `node_modules` neu aufgebaut (Exitcode 0), am Code und am Zweig
 `feat/item-picker-and-image-preview` nichts geändert.
 
+## 2026-09-13 – Codex – Paketinhalt aus dem Einkauf erfassen
+
+**Auftrag:** Bestätigten Ablauf umsetzen: bezahlte Paketposition bleibt bestehen,
+Inhalt wird später als einzeln verkäufliche Artikel mit Herkunft erfasst.
+Unbekannte Einzelkosten bleiben offen. Eigener Zweig `codex/mystery-pack-model`.
+**Arbeitsplan:** `docs/superpowers/plans/2026-09-13-purchase-package-contents.md`.
+Implementierung und lokale Prüfungen laufen; noch keine Veröffentlichung.
+
+## 2026-09-13 – Codex – Mystery-Pack-Modell erneut abgleichen
+
+**Auftrag:** Bekannte Einzelpreise bei Kleidung als Normalfall berücksichtigen;
+gelegentliche Pakete als eine Einkaufsposition mit eigenem Preis und optionaler
+Inhaltsbeschreibung verstehen. Spätere Verarbeitung des Inhalts anhand realer
+Herstellerdokumentation erneut prüfen.
+
+**Ergebnis:** ERPNext Repack erlaubt Bestandsumwandlung ohne feste Stückliste;
+Odoo und inFlow nutzen Stücklisten, Shopify-Bundles bekannte Komponenten.
+Vorschlag: Paket einkaufen, bei Einzelverkauf später Inhalt erfassen und Bestand
+nachvollziehbar umwandeln. Rechnungspreis bleibt am Paket; notwendige interne
+Kostenbewertung wird nicht als tatsächlich vereinbarter Einzelpreis ausgegeben.
+BFH-Originalentscheidung und aktueller § 25a UStG direkt geprüft.
+Der Nutzer bestätigte anschließend, dass er Pakete öffnet und die enthaltenen
+Artikel einzeln verkauft. Darauf ist der Vorschlag ausgerichtet; der Gesamtverkauf
+eines Pakets ist keine zusätzliche Anforderung für die nächste Umsetzung.
+
+**Codebefund:** Sichtbarer Paketpreisdialog verteilt nach Positionen und setzt
+Einzelpreise; der bestehende Gesamtpreismodus verteilt intern nach Einheiten.
+Diese Wege bilden noch keine eigene Paketauflösung ab. Dokumentation auf
+`codex/mystery-pack-model` ab `origin/master` (`0dad469`), keine Funktionsänderung.
+Bericht: `docs/audit/2026-09-13-mystery-pack-model.md`.
+
 ## 2026-09-13 – Codex – PR-Abschluss für Einkaufsfelder und Kalender
 
 **Freigabe:** Der Nutzer hat Push, PR, Merge nach erfolgreichen Pflichtprüfungen

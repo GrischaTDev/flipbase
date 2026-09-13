@@ -184,7 +184,7 @@ function getAllocationOpen(
   const allocated =
     lines.length > 0
       ? lines.reduce((sum, line) => sum + (line.allocated_total_cost ?? Number.NaN), 0)
-      : items.reduce((sum, item) => sum + item.allocated_purchase_cost, 0);
+      : items.reduce((sum, item) => sum + (item.allocated_purchase_cost ?? Number.NaN), 0);
   if (!Number.isFinite(allocated)) return true;
   return Math.abs(allocated - total) >= 0.005;
 }
@@ -200,7 +200,8 @@ function summarizeQuantities(
     (item) => !item.purchase_line_id || !representedLineIds.has(item.purchase_line_id),
   );
   const totalUnits =
-    lines.reduce((sum, line) => sum + line.ordered_quantity, 0) + legacyItems.length;
+    lines.filter((line) => !line.is_package).reduce((sum, line) => sum + line.ordered_quantity, 0) +
+    legacyItems.length;
 
   const needsInventory =
     legacyItems.length > 0 || lines.some((line) => line.line_kind === 'individual');
@@ -379,7 +380,8 @@ export function mapPurchaseDetailRows(
       };
       const sales = recordedSales(purchase, [item], [], context);
       const allocatedCost =
-        item.allocated_purchase_cost > 0 || purchase.total_purchase_cost === 0
+        (item.allocated_purchase_cost !== null && item.allocated_purchase_cost > 0) ||
+        purchase.total_purchase_cost === 0
           ? money(item.allocated_purchase_cost)
           : ({ kind: 'open' } as const);
       if (purchase.type === 'mystery_pack') {

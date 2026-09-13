@@ -558,7 +558,7 @@ export type Database = {
       }
       inventory_items: {
         Row: {
-          allocated_purchase_cost: number
+          allocated_purchase_cost: number | null
           archived_at: string | null
           archived_by: string | null
           brand: string | null
@@ -577,6 +577,7 @@ export type Database = {
           purchase_id: string | null
           purchase_line_id: string | null
           sku: string | null
+          source_package_line_id: string | null
           status: string
           tax_mode_override: string | null
           tax_purchase_cost: number | null
@@ -586,7 +587,7 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
-          allocated_purchase_cost?: number
+          allocated_purchase_cost?: number | null
           archived_at?: string | null
           archived_by?: string | null
           brand?: string | null
@@ -605,6 +606,7 @@ export type Database = {
           purchase_id?: string | null
           purchase_line_id?: string | null
           sku?: string | null
+          source_package_line_id?: string | null
           status?: string
           tax_mode_override?: string | null
           tax_purchase_cost?: number | null
@@ -614,7 +616,7 @@ export type Database = {
           workspace_id: string
         }
         Update: {
-          allocated_purchase_cost?: number
+          allocated_purchase_cost?: number | null
           archived_at?: string | null
           archived_by?: string | null
           brand?: string | null
@@ -633,6 +635,7 @@ export type Database = {
           purchase_id?: string | null
           purchase_line_id?: string | null
           sku?: string | null
+          source_package_line_id?: string | null
           status?: string
           tax_mode_override?: string | null
           tax_purchase_cost?: number | null
@@ -642,6 +645,13 @@ export type Database = {
           workspace_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "inventory_items_package_origin_fkey"
+            columns: ["workspace_id", "source_package_line_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_lines"
+            referencedColumns: ["workspace_id", "id"]
+          },
           {
             foreignKeyName: "inventory_items_purchase_id_fkey"
             columns: ["purchase_id"]
@@ -1512,6 +1522,7 @@ export type Database = {
           ean_snapshot: string | null
           estimated_market_value: number | null
           id: string
+          is_package: boolean
           line_kind: string
           line_total: number | null
           ordered_quantity: number
@@ -1532,6 +1543,7 @@ export type Database = {
           ean_snapshot?: string | null
           estimated_market_value?: number | null
           id?: string
+          is_package?: boolean
           line_kind: string
           line_total?: number | null
           ordered_quantity: number
@@ -1552,6 +1564,7 @@ export type Database = {
           ean_snapshot?: string | null
           estimated_market_value?: number | null
           id?: string
+          is_package?: boolean
           line_kind?: string
           line_total?: number | null
           ordered_quantity?: number
@@ -1598,6 +1611,51 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "purchases"
             referencedColumns: ["workspace_id", "id"]
+          },
+        ]
+      }
+      purchase_package_capture_requests: {
+        Row: {
+          created_at: string
+          id: number
+          purchase_line_id: string
+          request_id: string
+          request_items: Json
+          response: Json
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: never
+          purchase_line_id: string
+          request_id: string
+          request_items: Json
+          response: Json
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: never
+          purchase_line_id?: string
+          request_id?: string
+          request_items?: Json
+          response?: Json
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_package_capture_requ_workspace_id_purchase_line_i_fkey"
+            columns: ["workspace_id", "purchase_line_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_lines"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "purchase_package_capture_requests_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -2164,7 +2222,7 @@ export type Database = {
       sale_lines: {
         Row: {
           catalog_product_id: string | null
-          cost_of_goods_sold: number
+          cost_of_goods_sold: number | null
           created_at: string
           id: string
           inventory_item_id: string | null
@@ -2180,7 +2238,7 @@ export type Database = {
         }
         Insert: {
           catalog_product_id?: string | null
-          cost_of_goods_sold: number
+          cost_of_goods_sold?: number | null
           created_at?: string
           id?: string
           inventory_item_id?: string | null
@@ -2196,7 +2254,7 @@ export type Database = {
         }
         Update: {
           catalog_product_id?: string | null
-          cost_of_goods_sold?: number
+          cost_of_goods_sold?: number | null
           created_at?: string
           id?: string
           inventory_item_id?: string | null
@@ -3733,6 +3791,15 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      capture_purchase_package_contents: {
+        Args: {
+          p_items: Json
+          p_purchase_line_id: string
+          p_request_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       correct_purchase_costing: {
         Args: {
           p_costs: Json
@@ -4131,7 +4198,7 @@ export type Database = {
       set_inventory_item_archived: {
         Args: { p_archived: boolean; p_item_id: string; p_workspace_id: string }
         Returns: {
-          allocated_purchase_cost: number
+          allocated_purchase_cost: number | null
           archived_at: string | null
           archived_by: string | null
           brand: string | null
@@ -4150,6 +4217,7 @@ export type Database = {
           purchase_id: string | null
           purchase_line_id: string | null
           sku: string | null
+          source_package_line_id: string | null
           status: string
           tax_mode_override: string | null
           tax_purchase_cost: number | null

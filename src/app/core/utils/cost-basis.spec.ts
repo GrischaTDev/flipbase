@@ -163,3 +163,27 @@ describe('Kostenbasis', () => {
     ).toBe('known');
   });
 });
+
+describe('Unbekannte Paketkosten', () => {
+  it('erhält NULL trotz abgeschlossenem 100-Euro-Paket und veraltetem Gesamtwert', () => {
+    const content = {
+      ...item,
+      purchase: { ...purchase, purchase_price: 100 },
+      source_package_line_id: 'package',
+      allocated_purchase_cost: null,
+      total_item_cost: 5,
+      costs: [{ type: 'repair', amount: 5 }],
+    };
+    expect(inventoryItemCost(content)).toBeNull();
+    expect(saleCostBasisStatus({ ...sale, inventory_item: content })).toBe('unknown');
+  });
+  it('ersetzt einen offenen Verkaufssnapshot nicht durch später bekannte Einzelkosten', () => {
+    expect(
+      saleCostBasisStatus({
+        ...sale,
+        inventory_item: { ...item, purchase, allocated_purchase_cost: 20 },
+        lines: [{ ...line, inventory_item_id: item.id, cost_of_goods_sold: null }],
+      }),
+    ).toBe('unknown');
+  });
+});

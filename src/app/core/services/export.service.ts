@@ -36,8 +36,8 @@ export class ExportService {
       s.shipping_cost.toFixed(2),
       s.packaging_cost.toFixed(2),
       s.other_costs.toFixed(2),
-      (s.net_profit || 0).toFixed(2),
-      s.roi === null || s.roi === undefined ? '' : s.roi.toFixed(2),
+      this.hasUnknownCosts(s) ? '' : (s.net_profit?.toFixed(2) ?? ''),
+      this.hasUnknownCosts(s) ? '' : (s.roi?.toFixed(2) ?? ''),
       s.holding_duration_days || 0,
       this.escapeCsv(s.external_order_id || ''),
       this.escapeCsv(s.buyer_notes || ''),
@@ -105,10 +105,12 @@ export class ExportService {
       this.escapeCsv(i.category || ''),
       i.condition,
       i.status,
-      i.allocated_purchase_cost.toFixed(2),
-      (i.total_item_cost ?? i.allocated_purchase_cost).toFixed(2),
+      i.allocated_purchase_cost?.toFixed(2) ?? '',
+      i.allocated_purchase_cost == null
+        ? ''
+        : (i.total_item_cost ?? i.allocated_purchase_cost).toFixed(2),
       (Number(i.expected_value) || 0).toFixed(2),
-      (i.profit_potential ?? 0).toFixed(2),
+      i.allocated_purchase_cost == null ? '' : (i.profit_potential?.toFixed(2) ?? ''),
       this.escapeCsv(i.sku || ''),
       this.escapeCsv(i.ean || ''),
     ]);
@@ -132,6 +134,14 @@ export class ExportService {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+  }
+
+  private hasUnknownCosts(sale: Sale): boolean {
+    return (
+      sale.cost_basis_status === 'unknown' ||
+      !!sale.lines?.some((line) => line.cost_of_goods_sold == null) ||
+      sale.inventory_item?.allocated_purchase_cost === null
+    );
   }
 
   private escapeCsv(value: string): string {

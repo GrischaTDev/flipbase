@@ -15,7 +15,9 @@ import {
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
-import { DatePipe, NgTemplateOutlet } from '@angular/common';
+import { CurrencyPipe, DatePipe, NgTemplateOutlet } from '@angular/common';
+import { PackageContentDialogComponent } from '../../components/package-content-dialog/package-content-dialog.component';
+import { summarizePackageContents } from '../../utils/package-content-summary';
 import {
   LucideDynamicIcon,
   LucideIconInput,
@@ -95,6 +97,8 @@ import { PurchaseCostSummaryComponent } from '../../components/purchase-cost-sum
 @Component({
   selector: 'app-purchase-detail',
   imports: [
+    CurrencyPipe,
+    PackageContentDialogComponent,
     TableColumnPickerComponent,
     ReactiveFormsModule,
     DatePipe,
@@ -334,7 +338,10 @@ export class PurchaseDetailComponent {
   }
 
   hasUnsavedChanges(): boolean {
-    return this.entryForm()?.hasUnsavedChanges() ?? false;
+    return (
+      (this.entryForm()?.hasUnsavedChanges() ?? false) ||
+      (this.packageContentDialog()?.hasUnsavedChanges() ?? false)
+    );
   }
 
   isSaving(): boolean {
@@ -443,8 +450,51 @@ export class PurchaseDetailComponent {
     this.purchaseService.purchaseLines().filter((line) => line.line_kind === 'quantity'),
   );
   readonly individualPurchaseLines = computed(() =>
-    this.purchaseService.purchaseLines().filter((line) => line.line_kind === 'individual'),
+    this.purchaseService
+      .purchaseLines()
+      .filter((line) => line.line_kind === 'individual' && !line.is_package),
   );
+  readonly packageContentDialog = viewChild(PackageContentDialogComponent);
+  readonly capturingPackage = signal<PurchaseLine | null>(null);
+  readonly packageLines = computed(() =>
+    this.purchaseService.purchaseLines().filter((line) => line.is_package),
+  );
+  readonly packageSummaries = computed(() => {
+    const purchase = this.purchase();
+    const salesLoaded =
+      !!purchase &&
+      !this.salesService.loadError() &&
+      this.salesService.loadedWorkspaceId() === purchase.workspace_id;
+    return this.packageLines().map((line) =>
+      summarizePackageContents(
+        line,
+        this.purchaseService.purchaseItems(),
+        this.salesService.sales(),
+        salesLoaded,
+      ),
+    );
+  });
+  readonly canCapturePackage = computed(() => {
+    const purchase = this.purchase();
+    return (
+      !!purchase &&
+      purchase.receiving_status !== 'archived' &&
+      (purchase.shipment_status === 'arrived' ||
+        !!purchase.arrived_at ||
+        purchase.receiving_status === 'received')
+    );
+  });
+
+  captureContent(): void {
+    const line = this.packageLines()[0];
+    if (line && this.canCapturePackage()) this.capturingPackage.set(line);
+    else if (this.purchase()) this.editPurchase(this.purchase()!.id);
+  }
+
+  async packageContentSaved(): Promise<void> {
+    this.capturingPackage.set(null);
+    await this.finishEditing();
+  }
   readonly visibleItemCount = computed(() => {
     const quantityCount = this.quantityPurchaseLines().reduce(
       (sum, line) => sum + line.ordered_quantity,
@@ -473,15 +523,24 @@ export class PurchaseDetailComponent {
       : this.salesService.loadedWorkspaceId() === purchase.workspace_id
         ? ('loaded' as const)
         : ('loading' as const);
-    return mapPurchaseDetailRows(purchase, {
-      inventoryItems: this.purchaseService.purchaseItems(),
-      stockLots: this.stockService.lots(),
-      stockMovements: this.stockService.movements(),
-      sales: this.salesService.sales(),
-      inventoryState,
-      stockState,
-      salesState,
-    });
+    return mapPurchaseDetailRows(
+      {
+        ...purchase,
+        purchase_lines: (purchase.purchase_lines ?? []).filter((line) => !line.is_package),
+        items: (purchase.items ?? []).filter((item) => !item.source_package_line_id),
+      },
+      {
+        inventoryItems: this.purchaseService
+          .purchaseItems()
+          .filter((item) => !item.source_package_line_id),
+        stockLots: this.stockService.lots(),
+        stockMovements: this.stockService.movements(),
+        sales: this.salesService.sales(),
+        inventoryState,
+        stockState,
+        salesState,
+      },
+    );
   });
 
   readonly costForm = new FormGroup({
@@ -567,6 +626,7 @@ export class PurchaseDetailComponent {
       const purchaseId = this.id();
       const workspaceId = this.workspaceService.currentWorkspace()?.id;
       this.mockStore.isDemoMode();
+      this.capturingPackage.set(null);
       // Die Workspace-Initialisierung verwirft vorherige Detailanfragen. Erst danach
       // laden; ein Listenfehler darf den unabhängig ladbaren Einkauf nicht blockieren.
       if (

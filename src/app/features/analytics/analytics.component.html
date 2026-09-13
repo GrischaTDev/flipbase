@@ -88,7 +88,11 @@
         <svg [lucideIcon]="coinsIcon" class="w-4 h-4 text-emerald-400"></svg>
       </div>
       <div class="text-2xl font-black text-emerald-400">
-        +{{ totalNetProfit() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+        {{
+          totalNetProfit() === null
+            ? 'Offen'
+            : (totalNetProfit() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
+        }}
       </div>
       <span class="text-[10px] text-fb-text-muted block font-sans">
         Nach Abzug aller Gebühren & EK
@@ -100,7 +104,9 @@
         <span class="font-bold uppercase tracking-wider text-[10px]">Durchschnittl. ROI</span>
         <svg [lucideIcon]="percentIcon" class="w-4 h-4 text-indigo-400"></svg>
       </div>
-      <div class="text-2xl font-black text-indigo-400">{{ avgRoi() }}%</div>
+      <div class="text-2xl font-black text-indigo-400">
+        {{ avgRoi() === null ? 'Offen' : avgRoi() + '%' }}
+      </div>
       <span class="text-[10px] text-fb-text-muted block font-sans">
         Kapitalrendite pro verkaufter Artikel
       </span>
@@ -261,9 +267,15 @@
 
               <div class="text-right font-mono">
                 <span class="font-bold text-emerald-400 text-sm block">
-                  +{{ sale.net_profit || 0 | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                  {{
+                    saleProfit(sale) === null
+                      ? 'Offen'
+                      : (saleProfit(sale) | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
+                  }}
                 </span>
-                <span class="text-[10px] text-fb-text-muted">ROI: {{ sale.roi || 0 }}%</span>
+                <span class="text-[10px] text-fb-text-muted"
+                  >ROI: {{ saleRoi(sale) === null ? 'Offen' : saleRoi(sale) + '%' }}</span
+                >
               </div>
             </div>
           } @empty {
@@ -288,9 +300,11 @@
             <div class="space-y-1">
               <div class="flex justify-between text-xs">
                 <strong class="text-fb-text-primary">{{ p.platformLabel }}</strong>
-                <span class="font-mono font-bold text-emerald-400"
-                  >+{{ p.netProfit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}</span
-                >
+                <span class="font-mono font-bold text-emerald-400">{{
+                  p.netProfit === null
+                    ? 'Offen'
+                    : (p.netProfit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
+                }}</span>
               </div>
               <div
                 class="w-full h-2 rounded-full bg-fb-subtle overflow-hidden flex border border-fb-border"
@@ -366,9 +380,15 @@
                   {{ p.effectiveFeePercent }}%
                 </td>
                 <td class="p-3 text-right font-bold text-emerald-400">
-                  +{{ p.netProfit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                  {{
+                    p.netProfit === null
+                      ? 'Offen'
+                      : (p.netProfit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
+                  }}
                 </td>
-                <td class="p-3 text-right text-indigo-300 font-bold">{{ p.profitMargin }}%</td>
+                <td class="p-3 text-right text-indigo-300 font-bold">
+                  {{ p.profitMargin === null ? 'Offen' : p.profitMargin + '%' }}
+                </td>
                 <td class="p-3 text-right text-fb-text-muted">{{ p.avgHoldingDays }} Tage</td>
               </tr>
             }
@@ -445,12 +465,14 @@
             >
               <span
                 >Gewinn:
-                <strong class="text-emerald-400"
-                  >+{{ b.totalProfit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}</strong
-                ></span
+                <strong class="text-emerald-400">{{
+                  b.totalProfit === null
+                    ? 'Offen'
+                    : (b.totalProfit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
+                }}</strong></span
               >
               <span
-                >ROI: <strong>{{ b.avgRoi }}%</strong></span
+                >ROI: <strong>{{ b.avgRoi === null ? 'Offen' : b.avgRoi + '%' }}</strong></span
               >
             </div>
           </div>
@@ -487,7 +509,13 @@
                   [class.bg-amber-500/15]="!c.isProfitable"
                   [class.text-amber-400]="!c.isProfitable"
                 >
-                  {{ c.isProfitable ? 'Im Gewinn (Break-Even erreicht)' : 'In Refinanzierung' }}
+                  {{
+                    c.isProfitable === null
+                      ? 'Ergebnis offen'
+                      : c.isProfitable
+                        ? 'Break-Even erreicht'
+                        : 'In Refinanzierung'
+                  }}
                 </span>
               </div>
 
@@ -602,9 +630,15 @@
                   {{ cat.revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                 </td>
                 <td class="p-3 text-right font-bold text-emerald-400">
-                  +{{ cat.profit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                  {{
+                    cat.profit === null
+                      ? 'Offen'
+                      : (cat.profit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
+                  }}
                 </td>
-                <td class="p-3 text-right font-bold text-indigo-300">{{ cat.avgRoi }}%</td>
+                <td class="p-3 text-right font-bold text-indigo-300">
+                  {{ cat.avgRoi === null ? 'Offen' : cat.avgRoi + '%' }}
+                </td>
               </tr>
             }
           </tbody>
@@ -646,7 +680,11 @@
             <svg [lucideIcon]="coinsIcon" class="w-4 h-4 text-emerald-400"></svg>
           </div>
           <div class="text-2xl font-black text-emerald-400">
-            +{{ holding.totalNetProfit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+            {{
+              holding.totalNetProfit === null
+                ? 'Offen'
+                : (holding.totalNetProfit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
+            }}
           </div>
           <span class="text-[10px] text-fb-text-muted block font-sans">
             Gesamter Nettogewinn nach Abzug aller Kosten
@@ -663,7 +701,11 @@
             <svg [lucideIcon]="boxesIcon" class="w-4 h-4 text-indigo-400"></svg>
           </div>
           <div class="text-2xl font-black text-indigo-300">
-            {{ holding.totalInventoryValue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+            {{
+              holding.totalInventoryValue === null
+                ? 'Offen'
+                : (holding.totalInventoryValue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
+            }}
           </div>
           <span class="text-[10px] text-fb-text-muted block font-sans">
             {{ holding.totalInventoryCount }} aktive Artikel gebunden
@@ -679,9 +721,11 @@
             >
             <svg [lucideIcon]="percentIcon" class="w-4 h-4 text-amber-400"></svg>
           </div>
-          <div class="text-2xl font-black text-amber-400">{{ holding.averageRoi }}%</div>
+          <div class="text-2xl font-black text-amber-400">
+            {{ holding.averageRoi === null ? 'Offen' : holding.averageRoi + '%' }}
+          </div>
           <span class="text-[10px] text-fb-text-muted block font-sans">
-            Gewichtete Gesamtkapitalrendite
+            Durchschnitt der Workspace-Renditen
           </span>
         </div>
       </div>
@@ -757,7 +801,11 @@
                   </td>
 
                   <td class="p-3 text-right text-indigo-300 font-bold">
-                    {{ wsSummary.inventoryValue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                    {{
+                      wsSummary.inventoryValue === null
+                        ? 'Offen'
+                        : (wsSummary.inventoryValue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
+                    }}
                     <span class="text-[10px] text-fb-text-muted block font-normal"
                       >({{ wsSummary.inventoryCount }} Stk.)</span
                     >
@@ -775,10 +823,16 @@
                   </td>
 
                   <td class="p-3 text-right font-bold text-emerald-400">
-                    +{{ wsSummary.totalProfit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                    {{
+                      wsSummary.totalProfit === null
+                        ? 'Offen'
+                        : (wsSummary.totalProfit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
+                    }}
                   </td>
 
-                  <td class="p-3 text-right font-bold text-indigo-300">{{ wsSummary.roi }}%</td>
+                  <td class="p-3 text-right font-bold text-indigo-300">
+                    {{ wsSummary.roi === null ? 'Offen' : wsSummary.roi + '%' }}
+                  </td>
 
                   <td class="p-3 text-center font-sans">
                     @if (workspaceService.currentWorkspace()?.id !== wsSummary.workspace.id) {

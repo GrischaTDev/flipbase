@@ -146,3 +146,27 @@ describe('ListingsComponent – Aktionsmeldungen', () => {
     expect(toast.toasts()).toEqual([]);
   });
 });
+
+describe('Paketinhalt ohne Preisvorgabe', () => {
+  it('verlangt einen Verkaufspreis vor dem Listen oder Veröffentlichen', async () => {
+    const { komponente, listingStudio, toast } = erstelleKomponente({ error: null });
+    Object.assign(komponente, {
+      selectedItem: signal({ ...artikel, allocated_purchase_cost: null, expected_value: null }),
+      customPrice: signal<number | null>(null),
+    });
+    await komponente.markAsListed();
+    await komponente.publishToStore();
+    expect(listingStudio.markItemAsListed).not.toHaveBeenCalled();
+    expect(listingStudio.publishToCustomStore).not.toHaveBeenCalled();
+    expect(toast.toasts()[0].title).toBe('Verkaufspreis fehlt.');
+  });
+  it('erlaubt einen ausdrücklich gewählten Verkaufspreis von null Euro', async () => {
+    const { komponente, listingStudio } = erstelleKomponente({ error: null });
+    Object.assign(komponente, {
+      selectedItem: signal({ ...artikel, allocated_purchase_cost: null }),
+      customPrice: signal(0),
+    });
+    await komponente.markAsListed();
+    expect(listingStudio.markItemAsListed).toHaveBeenCalledWith(artikel.id, 'kleinanzeigen', 0);
+  });
+});

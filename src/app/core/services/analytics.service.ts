@@ -2,6 +2,8 @@ import { Injectable } from '@angular/core';
 import { ProfitEngineService } from './profit-engine.service';
 import { Sale, Purchase, InventoryItem } from '../models/flipbase.models';
 
+import { reportedSaleProfit, reportedSaleRoi } from '../utils/financial-summary';
+
 export type AnalyticsTimeRange = '7d' | '30d' | '1y' | 'all';
 
 export interface SourcePerformance {
@@ -10,8 +12,8 @@ export interface SourcePerformance {
   purchasesCount: number;
   invested: number;
   revenue: number;
-  profit: number;
-  roi: number;
+  profit: number | null;
+  roi: number | null;
   avgHoldingDays: number;
 }
 
@@ -19,7 +21,7 @@ export interface SupplierPerformance {
   supplierId?: string;
   supplierName: string;
   purchasesCount: number;
-  avgRoi: number;
+  avgRoi: number | null;
   defectRate: number;
 }
 
@@ -31,7 +33,7 @@ export interface MysteryPackStats {
   soldCount: number;
   openCount: number;
   revenue: number;
-  realizedProfit: number;
+  realizedProfit: number | null;
   remainingStockValue: number;
 }
 
@@ -45,7 +47,7 @@ export interface PalletStats {
   defectCount: number;
   defectRate: number;
   revenue: number;
-  realizedProfit: number;
+  realizedProfit: number | null;
   remainingStockValue: number;
   isBreakEven: boolean;
   daysToBreakEven?: number;
@@ -56,8 +58,8 @@ export interface CategoryRank {
   itemsCount: number;
   soldCount: number;
   revenue: number;
-  profit: number;
-  avgRoi: number;
+  profit: number | null;
+  avgRoi: number | null;
 }
 
 export interface PlatformPerformance {
@@ -67,8 +69,8 @@ export interface PlatformPerformance {
   grossRevenue: number;
   platformFees: number;
   effectiveFeePercent: number;
-  netProfit: number;
-  profitMargin: number;
+  netProfit: number | null;
+  profitMargin: number | null;
   avgHoldingDays: number;
 }
 
@@ -76,8 +78,8 @@ export interface HoldingDurationBucket {
   label: string;
   count: number;
   percent: number;
-  totalProfit: number;
-  avgRoi: number;
+  totalProfit: number | null;
+  avgRoi: number | null;
   color: string;
 }
 
@@ -94,9 +96,9 @@ export interface MonthlyCohortStats {
   monthLabel: string;
   invested: number;
   realizedRevenue: number;
-  realizedProfit: number;
+  realizedProfit: number | null;
   recoveryPercent: number;
-  isProfitable: boolean;
+  isProfitable: boolean | null;
   itemsCount: number;
   soldCount: number;
 }
@@ -117,6 +119,17 @@ export interface DayHeatmap {
 })
 export class AnalyticsService {
   private readonly profitEngine = new ProfitEngineService();
+
+  private addKnown(total: number | null, value: number | null | undefined): number | null {
+    return total == null || value == null ? null : total + value;
+  }
+
+  private rounded(value: number | null, digits = 2): number | null {
+    return value === null ? null : Number(value.toFixed(digits));
+  }
+
+  private readonly saleProfit = reportedSaleProfit;
+  private readonly saleRoi = reportedSaleRoi;
 
   private purchaseTotalCost(purchase: Purchase): number | undefined {
     if (purchase.purchase_price === null) return undefined;
@@ -154,7 +167,7 @@ export class AnalyticsService {
         purchasesCount: number;
         invested: number;
         revenue: number;
-        profit: number;
+        profit: number | null;
         totalHoldingDays: number;
         salesCount: number;
       }
@@ -194,7 +207,7 @@ export class AnalyticsService {
       };
 
       entry.revenue += s.sale_price;
-      entry.profit += s.net_profit || 0;
+      entry.profit = this.addKnown(entry.profit, this.saleProfit(s));
       entry.totalHoldingDays += s.holding_duration_days || 0;
       entry.salesCount += 1;
       sourceMap.set(sourceName, entry);
@@ -203,7 +216,11 @@ export class AnalyticsService {
     const results: SourcePerformance[] = [];
     for (const [name, val] of sourceMap.entries()) {
       const roi =
-        val.invested > 0 ? (this.profitEngine.calculateRoi(val.profit, val.invested) ?? 0) : 0;
+        val.profit === null
+          ? null
+          : val.invested > 0
+            ? this.profitEngine.calculateRoi(val.profit, val.invested)
+            : null;
       const avgHolding = val.salesCount > 0 ? Math.round(val.totalHoldingDays / val.salesCount) : 0;
 
       results.push({
@@ -211,13 +228,13 @@ export class AnalyticsService {
         purchasesCount: val.purchasesCount,
         invested: Number(val.invested.toFixed(2)),
         revenue: Number(val.revenue.toFixed(2)),
-        profit: Number(val.profit.toFixed(2)),
+        profit: this.rounded(val.profit),
         roi,
         avgHoldingDays: avgHolding,
       });
     }
 
-    return results.sort((a, b) => b.profit - a.profit);
+    return results.sort((a, b) => (b.profit ?? -Infinity) - (a.profit ?? -Infinity));
   }
 
   /**
@@ -235,7 +252,7 @@ export class AnalyticsService {
         purchasesCount: number;
         itemsCount: number;
         defectiveCount: number;
-        totalRoi: number;
+        totalRoi: number | null;
         salesCount: number;
       }
     >();
@@ -275,7 +292,7 @@ export class AnalyticsService {
       const entry = supplierMap.get(supName);
       if (entry) {
         entry.salesCount += 1;
-        entry.totalRoi += s.roi || 0;
+        entry.totalRoi = this.addKnown(entry.totalRoi, this.saleRoi(s));
       }
     }
 
@@ -283,7 +300,10 @@ export class AnalyticsService {
     for (const [name, val] of supplierMap.entries()) {
       const defectRate =
         val.itemsCount > 0 ? Number(((val.defectiveCount / val.itemsCount) * 100).toFixed(1)) : 0;
-      const avgRoi = val.salesCount > 0 ? Number((val.totalRoi / val.salesCount).toFixed(1)) : 0;
+      const avgRoi =
+        val.salesCount > 0
+          ? this.rounded(val.totalRoi === null ? null : val.totalRoi / val.salesCount, 1)
+          : 0;
 
       results.push({
         supplierName: name,
@@ -293,7 +313,7 @@ export class AnalyticsService {
       });
     }
 
-    return results.sort((a, b) => b.avgRoi - a.avgRoi);
+    return results.sort((a, b) => (b.avgRoi ?? -Infinity) - (a.avgRoi ?? -Infinity));
   }
 
   /**
@@ -317,7 +337,10 @@ export class AnalyticsService {
       // Calculate realized sales from this pack
       const packSales = sales.filter((s) => s.inventory_item?.purchase_id === p.id);
       const revenue = packSales.reduce((sum, s) => sum + s.sale_price, 0);
-      const realizedProfit = packSales.reduce((sum, s) => sum + (s.net_profit || 0), 0);
+      const realizedProfit = packSales.reduce<number | null>(
+        (sum, sale) => this.addKnown(sum, this.saleProfit(sale)),
+        0,
+      );
 
       const remainingStockValue = openItems.reduce(
         (sum, i) => sum + (Number(i.expected_value) || 0),
@@ -333,7 +356,7 @@ export class AnalyticsService {
           soldCount: soldItems.length,
           openCount: openItems.length,
           revenue: Number(revenue.toFixed(2)),
-          realizedProfit: Number(realizedProfit.toFixed(2)),
+          realizedProfit: this.rounded(realizedProfit),
           remainingStockValue: Number(remainingStockValue.toFixed(2)),
         },
       ];
@@ -364,7 +387,10 @@ export class AnalyticsService {
 
       const palletSales = sales.filter((s) => s.inventory_item?.purchase_id === p.id);
       const revenue = palletSales.reduce((sum, s) => sum + s.sale_price, 0);
-      const realizedProfit = palletSales.reduce((sum, s) => sum + (s.net_profit || 0), 0);
+      const realizedProfit = palletSales.reduce<number | null>(
+        (sum, sale) => this.addKnown(sum, this.saleProfit(sale)),
+        0,
+      );
       const remainingStockValue = openItems.reduce(
         (sum, i) => sum + (Number(i.expected_value) || 0),
         0,
@@ -403,7 +429,7 @@ export class AnalyticsService {
           defectCount: defectiveItems.length,
           defectRate,
           revenue: Number(revenue.toFixed(2)),
-          realizedProfit: Number(realizedProfit.toFixed(2)),
+          realizedProfit: this.rounded(realizedProfit),
           remainingStockValue: Number(remainingStockValue.toFixed(2)),
           isBreakEven,
           daysToBreakEven,
@@ -423,8 +449,8 @@ export class AnalyticsService {
         itemsCount: number;
         soldCount: number;
         revenue: number;
-        profit: number;
-        totalRoi: number;
+        profit: number | null;
+        totalRoi: number | null;
       }
     >();
 
@@ -454,25 +480,28 @@ export class AnalyticsService {
       };
       entry.soldCount += 1;
       entry.revenue += s.sale_price;
-      entry.profit += s.net_profit || 0;
-      entry.totalRoi += s.roi || 0;
+      entry.profit = this.addKnown(entry.profit, this.saleProfit(s));
+      entry.totalRoi = this.addKnown(entry.totalRoi, this.saleRoi(s));
       catMap.set(cat, entry);
     }
 
     const results: CategoryRank[] = [];
     for (const [_, val] of catMap.entries()) {
-      const avgRoi = val.soldCount > 0 ? Number((val.totalRoi / val.soldCount).toFixed(1)) : 0;
+      const avgRoi =
+        val.soldCount > 0
+          ? this.rounded(val.totalRoi === null ? null : val.totalRoi / val.soldCount, 1)
+          : 0;
       results.push({
         category: val.category,
         itemsCount: val.itemsCount,
         soldCount: val.soldCount,
         revenue: Number(val.revenue.toFixed(2)),
-        profit: Number(val.profit.toFixed(2)),
+        profit: this.rounded(val.profit),
         avgRoi,
       });
     }
 
-    return results.sort((a, b) => b.profit - a.profit);
+    return results.sort((a, b) => (b.profit ?? -Infinity) - (a.profit ?? -Infinity));
   }
 
   /**
@@ -493,7 +522,7 @@ export class AnalyticsService {
         salesCount: number;
         grossRevenue: number;
         platformFees: number;
-        netProfit: number;
+        netProfit: number | null;
         totalHoldingDays: number;
       }
     >();
@@ -511,7 +540,7 @@ export class AnalyticsService {
       entry.salesCount += 1;
       entry.grossRevenue += s.sale_price;
       entry.platformFees += s.platform_fee || 0;
-      entry.netProfit += s.net_profit || 0;
+      entry.netProfit = this.addKnown(entry.netProfit, this.saleProfit(s));
       entry.totalHoldingDays += s.holding_duration_days || 0;
 
       map.set(p, entry);
@@ -530,7 +559,11 @@ export class AnalyticsService {
       const effectiveFeePercent =
         val.grossRevenue > 0 ? Number(((val.platformFees / val.grossRevenue) * 100).toFixed(1)) : 0;
       const profitMargin =
-        val.grossRevenue > 0 ? Number(((val.netProfit / val.grossRevenue) * 100).toFixed(1)) : 0;
+        val.netProfit === null
+          ? null
+          : val.grossRevenue > 0
+            ? this.rounded((val.netProfit / val.grossRevenue) * 100, 1)
+            : 0;
       const avgHoldingDays =
         val.salesCount > 0 ? Number((val.totalHoldingDays / val.salesCount).toFixed(1)) : 0;
 
@@ -541,13 +574,13 @@ export class AnalyticsService {
         grossRevenue: Number(val.grossRevenue.toFixed(2)),
         platformFees: Number(val.platformFees.toFixed(2)),
         effectiveFeePercent,
-        netProfit: Number(val.netProfit.toFixed(2)),
+        netProfit: this.rounded(val.netProfit),
         profitMargin,
         avgHoldingDays,
       });
     }
 
-    return results.sort((a, b) => b.netProfit - a.netProfit);
+    return results.sort((a, b) => (b.netProfit ?? -Infinity) - (a.netProfit ?? -Infinity));
   }
 
   /**
@@ -568,10 +601,26 @@ export class AnalyticsService {
     let fastest = Infinity;
     let slowest = -Infinity;
 
-    const bFast = { count: 0, profit: 0, totalRoi: 0 }; // < 7 days
-    const bNormal = { count: 0, profit: 0, totalRoi: 0 }; // 7 - 30 days
-    const bMedium = { count: 0, profit: 0, totalRoi: 0 }; // 31 - 60 days
-    const bSlow = { count: 0, profit: 0, totalRoi: 0 }; // > 60 days
+    const bFast: { count: number; profit: number | null; totalRoi: number | null } = {
+      count: 0,
+      profit: 0,
+      totalRoi: 0,
+    }; // < 7 days
+    const bNormal: { count: number; profit: number | null; totalRoi: number | null } = {
+      count: 0,
+      profit: 0,
+      totalRoi: 0,
+    }; // 7 - 30 days
+    const bMedium: { count: number; profit: number | null; totalRoi: number | null } = {
+      count: 0,
+      profit: 0,
+      totalRoi: 0,
+    }; // 31 - 60 days
+    const bSlow: { count: number; profit: number | null; totalRoi: number | null } = {
+      count: 0,
+      profit: 0,
+      totalRoi: 0,
+    }; // > 60 days
 
     for (const s of sales) {
       const days = s.holding_duration_days || 1;
@@ -579,25 +628,25 @@ export class AnalyticsService {
       if (days < fastest) fastest = days;
       if (days > slowest) slowest = days;
 
-      const p = s.net_profit || 0;
-      const roi = s.roi || 0;
+      const p = this.saleProfit(s);
+      const roi = this.saleRoi(s);
 
       if (days < 7) {
         bFast.count++;
-        bFast.profit += p;
-        bFast.totalRoi += roi;
+        bFast.profit = this.addKnown(bFast.profit, p);
+        bFast.totalRoi = this.addKnown(bFast.totalRoi, roi);
       } else if (days <= 30) {
         bNormal.count++;
-        bNormal.profit += p;
-        bNormal.totalRoi += roi;
+        bNormal.profit = this.addKnown(bNormal.profit, p);
+        bNormal.totalRoi = this.addKnown(bNormal.totalRoi, roi);
       } else if (days <= 60) {
         bMedium.count++;
-        bMedium.profit += p;
-        bMedium.totalRoi += roi;
+        bMedium.profit = this.addKnown(bMedium.profit, p);
+        bMedium.totalRoi = this.addKnown(bMedium.totalRoi, roi);
       } else {
         bSlow.count++;
-        bSlow.profit += p;
-        bSlow.totalRoi += roi;
+        bSlow.profit = this.addKnown(bSlow.profit, p);
+        bSlow.totalRoi = this.addKnown(bSlow.totalRoi, roi);
       }
     }
 
@@ -610,32 +659,44 @@ export class AnalyticsService {
         label: 'Schnelldreher (< 7 Tage)',
         count: bFast.count,
         percent: Number(((bFast.count / n) * 100).toFixed(1)),
-        totalProfit: Number(bFast.profit.toFixed(2)),
-        avgRoi: bFast.count > 0 ? Number((bFast.totalRoi / bFast.count).toFixed(1)) : 0,
+        totalProfit: this.rounded(bFast.profit),
+        avgRoi:
+          bFast.count > 0
+            ? this.rounded(bFast.totalRoi === null ? null : bFast.totalRoi / bFast.count, 1)
+            : 0,
         color: 'var(--fb-chart-1)',
       },
       {
         label: 'Optimal (7 – 30 Tage)',
         count: bNormal.count,
         percent: Number(((bNormal.count / n) * 100).toFixed(1)),
-        totalProfit: Number(bNormal.profit.toFixed(2)),
-        avgRoi: bNormal.count > 0 ? Number((bNormal.totalRoi / bNormal.count).toFixed(1)) : 0,
+        totalProfit: this.rounded(bNormal.profit),
+        avgRoi:
+          bNormal.count > 0
+            ? this.rounded(bNormal.totalRoi === null ? null : bNormal.totalRoi / bNormal.count, 1)
+            : 0,
         color: 'var(--fb-chart-2)',
       },
       {
         label: 'Mittel (31 – 60 Tage)',
         count: bMedium.count,
         percent: Number(((bMedium.count / n) * 100).toFixed(1)),
-        totalProfit: Number(bMedium.profit.toFixed(2)),
-        avgRoi: bMedium.count > 0 ? Number((bMedium.totalRoi / bMedium.count).toFixed(1)) : 0,
+        totalProfit: this.rounded(bMedium.profit),
+        avgRoi:
+          bMedium.count > 0
+            ? this.rounded(bMedium.totalRoi === null ? null : bMedium.totalRoi / bMedium.count, 1)
+            : 0,
         color: 'var(--fb-chart-3)',
       },
       {
         label: 'Langläufer (> 60 Tage)',
         count: bSlow.count,
         percent: Number(((bSlow.count / n) * 100).toFixed(1)),
-        totalProfit: Number(bSlow.profit.toFixed(2)),
-        avgRoi: bSlow.count > 0 ? Number((bSlow.totalRoi / bSlow.count).toFixed(1)) : 0,
+        totalProfit: this.rounded(bSlow.profit),
+        avgRoi:
+          bSlow.count > 0
+            ? this.rounded(bSlow.totalRoi === null ? null : bSlow.totalRoi / bSlow.count, 1)
+            : 0,
         color: 'var(--fb-chart-4)',
       },
     ];
@@ -659,7 +720,7 @@ export class AnalyticsService {
         invested: number;
         itemsCount: number;
         revenue: number;
-        profit: number;
+        profit: number | null;
         soldCount: number;
       }
     >();
@@ -692,7 +753,7 @@ export class AnalyticsService {
       };
 
       entry.revenue += s.sale_price;
-      entry.profit += s.net_profit || 0;
+      entry.profit = this.addKnown(entry.profit, this.saleProfit(s));
       entry.soldCount += 1;
       monthMap.set(monthKey, entry);
     }
@@ -724,9 +785,9 @@ export class AnalyticsService {
         monthLabel: label,
         invested: Number(val.invested.toFixed(2)),
         realizedRevenue: Number(val.revenue.toFixed(2)),
-        realizedProfit: Number(val.profit.toFixed(2)),
+        realizedProfit: this.rounded(val.profit),
         recoveryPercent,
-        isProfitable: recoveryPercent >= 100,
+        isProfitable: val.profit === null ? null : recoveryPercent >= 100,
         itemsCount: val.itemsCount,
         soldCount: val.soldCount,
       });

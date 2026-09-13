@@ -27,6 +27,7 @@ const EVENT_LABELS: Readonly<Record<string, string>> = {
   purchase_reopened: 'Einkauf wieder geöffnet',
   purchase_ordered: 'Einkauf als bestellt markiert',
   purchase_arrived: 'Einkauf als angekommen markiert',
+  purchase_package_contents_captured: 'Paketinhalt erfasst',
   purchase_tracking_added: 'Sendungsverfolgung hinzugefügt',
   purchase_tracking_updated: 'Sendungsverfolgung aktualisiert',
   purchase_tracking_removed: 'Sendungsverfolgung entfernt',
@@ -126,7 +127,23 @@ export class BusinessEventService {
   async listEntityEvents(filter: EntityBusinessEventFilter): Promise<BusinessEventPage> {
     this.assertCurrentWorkspace(filter.workspaceId);
     if (!filter.entityId) throw new Error('Eine Datensatz-ID ist erforderlich.');
-    if (this.mockStore.isDemoMode()) return { events: [], nextCursor: null };
+    if (this.mockStore.isDemoMode()) {
+      const events =
+        filter.entityType === 'purchase'
+          ? this.mockStore.getPackageCaptureEvents(filter.workspaceId, filter.entityId)
+          : [];
+      return {
+        events: events.map((event) => ({
+          ...event,
+          entityType: filter.entityType,
+          eventLabel: mapBusinessEventLabel(event.eventType),
+          actorId: event.actorId ?? null,
+          reason: event.reason ?? null,
+          changes: event.changes as Json,
+        })),
+        nextCursor: null,
+      };
+    }
     const pageSize = this.boundPageSize(filter.pageSize);
     const cursor = filter.cursor ? decodeBusinessEventCursor(filter.cursor) : null;
     const { data, error } = await this.supabase.client.rpc('list_entity_business_events', {

@@ -31,6 +31,7 @@ type PurchaseItemCondition =
   'new' | 'like_new' | 'very_good' | 'used' | 'heavily_used' | 'defective';
 
 export interface CorrectPurchaseLineInput {
+  readonly is_package?: boolean;
   readonly id: string;
   readonly catalog_product_id: string | null;
   readonly title_snapshot: string;
@@ -212,6 +213,28 @@ export class PurchaseCostingService {
   async correctPurchase(
     input: CorrectPurchaseCostingInput,
   ): Promise<MutationResult<PurchaseCostingResult>> {
+    if (
+      input.lines.some(
+        (line) =>
+          line.is_package &&
+          (line.line_kind !== 'individual' ||
+            line.catalog_product_id !== null ||
+            line.ordered_quantity !== 1 ||
+            line.price_mode !== 'priced' ||
+            line.unit_purchase_price === null ||
+            !Number.isFinite(line.unit_purchase_price) ||
+            line.unit_purchase_price < 0 ||
+            line.line_total !== line.unit_purchase_price ||
+            line.unit_purchase_price !== Number(line.unit_purchase_price.toFixed(2))),
+      )
+    ) {
+      return this.failure(
+        'Korrigieren des Einkaufs',
+        new Error(
+          'Ein Paket benötigt Menge eins und einen bekannten, übereinstimmenden Paketpreis.',
+        ),
+      );
+    }
     return this.runCostingMutation(
       'Korrigieren des Einkaufs',
       'correct_purchase_costing',
@@ -237,7 +260,16 @@ export class PurchaseCostingService {
     if (!this.isBusinessEntityType(entityType)) {
       return this.failure(operation, new Error('Der Datensatztyp ist ungültig.'));
     }
-    if (this.mockStore.isDemoMode()) return this.demoFailure(operation);
+    if (this.mockStore.isDemoMode()) {
+      return {
+        data:
+          entityType === 'purchase'
+            ? this.mockStore.getPackageCaptureEvents(workspaceId, entityId)
+            : [],
+        error: null,
+        reportedBySyncStatus: false,
+      };
+    }
 
     try {
       const { data, error } = await this.rpcClient().rpc('list_entity_business_events', {

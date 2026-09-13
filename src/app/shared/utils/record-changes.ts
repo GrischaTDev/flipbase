@@ -27,6 +27,7 @@ const FIELD_LABELS: Readonly<Record<string, string>> = {
   restocked_quantity: 'Wiedereingelagerte Menge',
   migration: 'Übernahme',
   item_count: 'Artikelanzahl',
+  is_package: 'Paketposition',
   purchase: 'Einkauf',
   costs: 'Kosten',
   inventory_items: 'Bestandsartikel',

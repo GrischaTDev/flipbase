@@ -59,17 +59,19 @@
         (editRequested)="openCostEditor()"
       >
         <div cost-summary-goods-editor>
-          <app-button
-            variant="plain"
-            size="slim"
-            [disabled]="purchaseLines().length === 0"
-            (clicked)="packagePriceDialogOpen.set(true)"
-            >Paketpreis verteilen</app-button
-          >
-          @if (packagePriceStale()) {
-            <p role="alert" class="mt-2 text-xs text-fb-text-primary">
-              Positionen oder Mengen wurden geändert. Bitte den Paketpreis erneut verteilen.
-            </p>
+          @if (!hasPackages()) {
+            <app-button
+              variant="plain"
+              size="slim"
+              [disabled]="purchaseLines().length === 0"
+              (clicked)="packagePriceDialogOpen.set(true)"
+              >Paketpreis verteilen</app-button
+            >
+            @if (packagePriceStale()) {
+              <p role="alert" class="mt-2 text-xs text-fb-text-primary">
+                Positionen oder Mengen wurden geändert. Bitte den Paketpreis erneut verteilen.
+              </p>
+            }
           }
         </div>
       </app-purchase-cost-summary>

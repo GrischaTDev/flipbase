@@ -397,8 +397,11 @@
         <div>
           <span class="font-sans block text-[10px]">Shop-Verkaufspreis:</span>
           <strong class="text-fb-text-primary text-sm">{{
-            item.expected_value || item.allocated_purchase_cost * 1.5
-              | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+            (item.expected_value === null || item.expected_value === undefined) &&
+            item.allocated_purchase_cost === null
+              ? 'Offen'
+              : (item.expected_value ?? item.allocated_purchase_cost! * 1.5
+                | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
           }}</strong>
         </div>
         <div>

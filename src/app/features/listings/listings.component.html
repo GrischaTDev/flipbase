@@ -181,7 +181,9 @@
                 <span
                   >EK:
                   <strong class="text-fb-text-secondary">{{
-                    item.allocated_purchase_cost | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+                    item.allocated_purchase_cost === null
+                      ? 'Offen'
+                      : (item.allocated_purchase_cost | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
                   }}</strong></span
                 >
               </div>
@@ -208,7 +210,8 @@
               type="number"
               step="0.5"
               [value]="customPrice()"
-              (input)="customPrice.set($any($event.target).valueAsNumber || 0)"
+              (input)="onPriceInput($event)"
+              placeholder="Verkaufspreis eingeben"
               class="linear-input w-full px-3 py-2 rounded-xl text-xs font-mono font-bold"
             />
             <span class="absolute right-3 top-2 text-xs text-fb-text-muted">EUR</span>

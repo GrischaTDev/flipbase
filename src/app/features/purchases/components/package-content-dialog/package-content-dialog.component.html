@@ -1,0 +1,71 @@
+<app-modal-shell
+  title="Inhalt erfassen"
+  [subtitle]="line().title_snapshot"
+  size="lg"
+  (closed)="close()"
+>
+  <div class="space-y-4">
+    <p class="text-[13px] text-fb-text-secondary">
+      Erfasse jedes enthaltene Stück als eigenen Artikel – ein Paar Schuhe zählt als ein Artikel.
+      Der Einkaufspreis bleibt beim Paket. Fotos und weitere Angaben kannst du anschließend im
+      Artikel ergänzen.
+    </p>
+    @if (error(); as message) {
+      <p role="alert" class="text-[13px] text-rose-700 dark:text-rose-400">{{ message }}</p>
+    }
+    <div [attr.inert]="saving() ? '' : null" class="space-y-4">
+      @for (row of rows.controls; track row; let index = $index) {
+        <fieldset [formGroup]="row" class="space-y-3 border-b border-fb-line pb-4">
+          <legend class="mb-2 text-[13px] font-semibold">Artikel {{ index + 1 }}</legend>
+          <app-text-field
+            [id]="'package-content-title-' + index"
+            label="Bezeichnung"
+            placeholder="Zum Beispiel Adidas Samba, Größe 42"
+            formControlName="title"
+            [error]="
+              submitted() && row.controls.title.invalid
+                ? 'Bitte eine Bezeichnung mit höchstens 300 Zeichen eingeben.'
+                : null
+            "
+          />
+          <div>
+            <label
+              [for]="'package-content-condition-' + index"
+              class="mb-1.5 block text-[13px] font-semibold"
+              >Zustand</label
+            >
+            <app-custom-select
+              [triggerId]="'package-content-condition-' + index"
+              [ariaLabel]="'Zustand für Artikel ' + (index + 1)"
+              [options]="conditionOptions"
+              formControlName="condition"
+            />
+          </div>
+          <app-text-field
+            label="Beschreibung (optional)"
+            formControlName="description"
+            [multiline]="2"
+            [error]="row.controls.description.invalid ? 'Höchstens 5.000 Zeichen.' : null"
+          />
+          @if (rows.length > 1) {
+            <app-button
+              variant="plain"
+              [ariaLabel]="'Artikel ' + (index + 1) + ' entfernen'"
+              (clicked)="removeRow(index)"
+              >Entfernen</app-button
+            >
+          }
+        </fieldset>
+      }
+      <app-button [disabled]="rows.length >= 100" (clicked)="addRow()"
+        >Weiteren Artikel hinzufügen</app-button
+      >
+    </div>
+  </div>
+  <div modal-footer class="flex flex-wrap justify-end gap-2">
+    <app-button [disabled]="saving()" (clicked)="close()">Abbrechen</app-button>
+    <app-button variant="primary" [loading]="saving()" (clicked)="save()"
+      >Inhalt speichern</app-button
+    >
+  </div>
+</app-modal-shell>

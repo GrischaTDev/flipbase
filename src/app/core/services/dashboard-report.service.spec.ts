@@ -340,3 +340,43 @@ describe('DashboardReportService', () => {
     expect(report.realizedProfit).toBe(14);
   });
 });
+
+describe('Dashboard mit Paketinhalt', () => {
+  it('hält gemischte Ergebnisse, Marge, Tageswert und Bestand offen, erhält aber Umsatz und Paketpreis', () => {
+    const content = {
+      ...sale.lines![0].inventory_item!,
+      id: 'content',
+      purchase_id: receipt.id,
+      source_package_line_id: 'package',
+      allocated_purchase_cost: null,
+      status: 'ready' as const,
+    };
+    const unknownSale = {
+      ...sale,
+      id: 'unknown',
+      lines: [{ ...sale.lines![0], inventory_item: content, cost_of_goods_sold: null }],
+    };
+    const report = createService().createReportForRecords(
+      'last_7_days',
+      'all',
+      {
+        purchases: [
+          { ...receipt, entry_status: 'finalized', purchase_price: 100, total_purchase_cost: 100 },
+        ],
+        sales: [sale, unknownSale],
+        inventoryItems: [content],
+        stockLots: [],
+      },
+      now,
+    );
+    expect(report.expenses).toBe(100);
+    expect(report.revenue).toBe(39.96);
+    expect(report.realizedProfit).toBeNull();
+    expect(report.averageMarginPercent).toBeNull();
+    expect(report.inventoryCostValue).toBeNull();
+    expect(report.points.find((point) => point.date === '2026-08-27')).toMatchObject({
+      costOfGoodsSold: null,
+      resultAfterDirectCosts: null,
+    });
+  });
+});

@@ -403,7 +403,11 @@ describe('MockDataStoreService – Einzelartikel-Wareneingang', () => {
     expect(
       store
         .getItems(workspaceId)
-        .map((item) => item.allocated_purchase_cost)
+        .map((item) => {
+          if (item.allocated_purchase_cost === null)
+            throw new Error('Bekannte Einzelkosten fehlen.');
+          return item.allocated_purchase_cost;
+        })
         .sort((left, right) => left - right),
     ).toEqual([16.66, 16.66, 16.67, 16.67, 16.67, 16.67]);
     const finalizedLines = store.getPurchaseLines(workspaceId);

@@ -28,7 +28,7 @@ export function purchaseIsFinalized(purchase: Purchase | undefined): boolean {
 }
 
 export function inventoryItemCost(item: InventoryItem, purchase = item.purchase): number | null {
-  if (!purchaseIsFinalized(purchase)) return null;
+  if (!purchaseIsFinalized(purchase) || item.allocated_purchase_cost == null) return null;
   const amount =
     item.total_item_cost ??
     item.allocated_purchase_cost + (item.costs ?? []).reduce((sum, cost) => sum + cost.amount, 0);

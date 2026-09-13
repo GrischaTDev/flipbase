@@ -42,6 +42,14 @@ import { InventoryService } from '../../core/services/inventory.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { ConsolidatedHoldingSummary } from '../../core/models/flipbase.models';
 
+import {
+  averageKnownAmounts,
+  reportedSaleProfit,
+  reportedSaleRoi,
+  roundKnownAmount,
+  sumKnownAmounts,
+} from '../../core/utils/financial-summary';
+
 type AnalyticsSection =
   | 'overview'
   | 'cohorts'
@@ -99,7 +107,7 @@ export class AnalyticsComponent {
   readonly currentSales = computed(() => {
     // Zurueckgegebene Verkaeufe fliessen in keine Auswertung ein - der Artikel
     // ist wieder im Lager, der Gewinn also nicht realisiert.
-    const list = this.salesService.sales().filter((s) => !s.returned_at);
+    const list = this.salesService.sales().filter((s) => !s.returned_at && !s.voided_at);
     const range = this.timeRange();
     if (range === 'all') return list;
 
@@ -119,18 +127,16 @@ export class AnalyticsComponent {
     return this.totalSalesVolume();
   });
 
-  readonly totalNetProfit = computed<number>(() => {
-    return this.currentSales().reduce((acc, s) => acc + (s.net_profit || 0), 0);
-  });
+  readonly saleProfit = reportedSaleProfit;
+  readonly saleRoi = reportedSaleRoi;
 
-  readonly averageRoi = computed<number>(() => {
-    const list = this.currentSales();
-    if (list.length === 0) return 0;
-    const sum = list.reduce((acc, s) => acc + (s.roi || 0), 0);
-    return Number((sum / list.length).toFixed(1));
-  });
-
-  readonly avgRoi = computed<number>(() => this.averageRoi());
+  readonly totalNetProfit = computed(() =>
+    roundKnownAmount(sumKnownAmounts(this.currentSales().map(reportedSaleProfit))),
+  );
+  readonly averageRoi = computed(() =>
+    averageKnownAmounts(this.currentSales().map(reportedSaleRoi)),
+  );
+  readonly avgRoi = computed(() => this.averageRoi());
 
   readonly averageHoldingDays = computed<number>(() => {
     const list = this.currentSales();

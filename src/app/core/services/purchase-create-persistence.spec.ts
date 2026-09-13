@@ -118,6 +118,50 @@ function erstelleDienste(client: unknown) {
 }
 
 describe('PurchaseService – abhängige Schreibvorgänge beim Anlegen', () => {
+  it('sendet die Paketkennzeichnung und den bekannten Paketpreis beim Erstellen und Bearbeiten', async () => {
+    const rpc = vi.fn(async () => ({
+      data: { purchase: gespeicherterEinkauf, purchase_lines: [], purchase_costs: [] },
+      error: null,
+    }));
+    const { purchase } = erstelleDienste({ rpc });
+    const payload = erstelleGeldPayload({
+      purchase_lines: [
+        { ...centgenauePosition, isPackage: true, unitPurchasePrice: 100, lineTotal: 100 },
+      ],
+    });
+    expect((await purchase.createPurchase(payload)).error).toBeNull();
+    expect((await purchase.updatePurchaseDraft(gespeicherterEinkauf.id, payload)).error).toBeNull();
+    expect(rpc).toHaveBeenCalledTimes(2);
+    expect(rpc).toHaveBeenNthCalledWith(
+      1,
+      'create_purchase',
+      expect.objectContaining({
+        p_lines: [
+          expect.objectContaining({
+            is_package: true,
+            ordered_quantity: 1,
+            unit_purchase_price: 100,
+            line_total: 100,
+          }),
+        ],
+      }),
+    );
+    expect(rpc).toHaveBeenNthCalledWith(
+      2,
+      'update_purchase_draft',
+      expect.objectContaining({
+        p_lines: [
+          expect.objectContaining({
+            is_package: true,
+            ordered_quantity: 1,
+            unit_purchase_price: 100,
+            line_total: 100,
+          }),
+        ],
+      }),
+    );
+  });
+
   it('ordnet direkte Zusatzkosten atomar über die Draft-ID der erzeugten Position zu', async () => {
     const rpc = vi.fn(async () => ({
       data: {

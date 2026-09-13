@@ -92,3 +92,69 @@ describe('ExportService (Phase 10: CSV & JSON Backup)', () => {
     expect(row).toBe('2026-08-31;Kostenlos;single;Direktkauf;;0.00;0.00;even;1');
   });
 });
+
+describe('CSV mit offenen Paketkosten', () => {
+  it.each([null, 0])('unterscheidet Einzelkosten %s von einem echten Nullpreis', (cost) => {
+    const item = {
+      id: 'item',
+      workspace_id: 'ws',
+      title: 'Paketinhalt',
+      condition: 'used' as const,
+      status: 'ready' as const,
+      allocated_purchase_cost: cost,
+      total_item_cost: 0,
+      profit_potential: 40,
+      expected_value: 40,
+    };
+    const exporter = new ExportService();
+    const row = exporter.generateInventoryCsv([item]).split('\r\n')[1].split(';');
+    expect(row.slice(7, 9)).toEqual(cost === null ? ['', ''] : ['0.00', '0.00']);
+    expect(row[10]).toBe(cost === null ? '' : '40.00');
+    const sale: Sale = {
+      id: 'sale',
+      workspace_id: 'ws',
+      inventory_item: item,
+      platform: 'direct',
+      sale_date: '2026-09-13',
+      sale_price: 40,
+      platform_fee: 0,
+      shipping_cost: 0,
+      packaging_cost: 0,
+      other_costs: 0,
+      net_profit: 40,
+      roi: 100,
+    };
+    const saleRow = exporter.generateSalesCsv([sale]).split('\r\n')[1].split(';');
+    expect(saleRow.slice(9, 11)).toEqual(cost === null ? ['', ''] : ['40.00', '100.00']);
+  });
+  it('lässt Gewinne bei offenem Snapshot trotz späterer Bewertung leer', () => {
+    const sale: Sale = {
+      id: 's',
+      workspace_id: 'ws',
+      platform: 'direct',
+      sale_date: '2026-09-13',
+      sale_price: 40,
+      platform_fee: 0,
+      shipping_cost: 0,
+      packaging_cost: 0,
+      other_costs: 0,
+      net_profit: 30,
+      roi: 300,
+      lines: [
+        {
+          id: 'line',
+          sale_id: 's',
+          title_snapshot: 'Paketinhalt',
+          quantity: 1,
+          unit_sale_price: 40,
+          line_total: 40,
+          cost_of_goods_sold: null,
+          tax_mode: 'regular_19',
+        },
+      ],
+    };
+    expect(
+      new ExportService().generateSalesCsv([sale]).split('\r\n')[1].split(';').slice(9, 11),
+    ).toEqual(['', '']);
+  });
+});

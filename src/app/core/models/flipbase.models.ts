@@ -24,24 +24,24 @@ export interface Workspace {
 export interface WorkspaceSummary {
   workspace: Workspace;
   inventoryCount: number;
-  inventoryValue: number;
+  inventoryValue: number | null;
   purchasesCount: number;
   totalInvested: number;
   salesCount: number;
   totalRevenue: number;
-  totalProfit: number;
-  roi: number;
+  totalProfit: number | null;
+  roi: number | null;
   role: WorkspaceRole;
 }
 
 export interface ConsolidatedHoldingSummary {
   workspacesCount: number;
   totalInventoryCount: number;
-  totalInventoryValue: number;
+  totalInventoryValue: number | null;
   totalCapitalInvested: number;
   totalRevenue: number;
-  totalNetProfit: number;
-  averageRoi: number;
+  totalNetProfit: number | null;
+  averageRoi: number | null;
   workspaceSummaries: WorkspaceSummary[];
 }
 
@@ -286,6 +286,7 @@ export interface ItemMedia {
 }
 
 export interface InventoryItem {
+  source_package_line_id?: string | null;
   id: string;
   workspace_id: string;
   purchase_id?: string | null;
@@ -300,7 +301,7 @@ export interface InventoryItem {
   sku?: string | null;
   ean?: string | null;
   description?: string | null;
-  allocated_purchase_cost: number;
+  allocated_purchase_cost: number | null;
   /** Einkaufspreis für § 25a; null bedeutet ungeklärt. */
   tax_purchase_cost?: number | null;
   expected_value?: number | null;
@@ -498,6 +499,7 @@ export interface CatalogProductMedia {
 }
 
 export interface PurchaseLine {
+  is_package?: boolean;
   id: string;
   workspace_id: string;
   purchase_id: string;
@@ -563,7 +565,7 @@ export interface SaleLine {
   quantity: number;
   unit_sale_price: number;
   line_total: number;
-  cost_of_goods_sold: number;
+  cost_of_goods_sold: number | null;
   /** Bei Verkauf festgehaltener Einkaufspreis für § 25a. */
   tax_purchase_cost?: number | null;
   tax_cost_allocations?: TaxCostAllocation[] | null;
