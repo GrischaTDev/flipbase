@@ -1,5 +1,19 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-13 – Codex – PR-Abschluss für Einkaufsfelder und Kalender
+
+**Freigabe:** Der Nutzer hat Push, PR, Merge nach erfolgreichen Pflichtprüfungen
+und anschließendes Aufräumen bestätigt. PR #69 bündelt Feldanordnung und
+Kalenderkorrektur.
+
+**CI-Nacharbeit:** Die erste Qualitätsprüfung erkannte 17 statt der erwarteten
+16 PR-Browsertests. Der neue Kalender-Regressionstest war korrekt mit
+`@pr-smoke` markiert, fehlte aber in der festen Liste in
+`scripts/playwright-pr-smoke.test.mjs`. Den konkreten Test dort ergänzt, damit
+die bestehende Prüfung weiterhin sowohl fehlende als auch unerwartete Tests
+erkennt. Keine Prüfung entfernt oder abgeschwächt. Die acht gezielten Tests
+dieses Prüfvertrags bestehen lokal.
+
 ## 2026-09-13 – Codex – Kalender über Einkaufskarten anzeigen
 
 **Auftrag/Ergebnis:** Der Kaufdatum-Kalender öffnet sich über der Einkaufskarte.
