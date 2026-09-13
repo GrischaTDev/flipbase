@@ -22,10 +22,13 @@ gegen das Schema geprüft. Unabhängige Reviews ohne verbleibende P1/P2.
 Details und fachliche Grenzen:
 `docs/audit/2026-09-13-purchase-tax-costs-validation.md`.
 
-**Abschluss:** Lokal geprüft; Veröffentlichung über PR benötigt noch die
-abschließende Nutzerfreigabe. Keine Produktionsänderung. Belegbezogene Vorsteuer,
-historische Steuerfreigaben und vollständige periodengerechte Berichtigungen
-bleiben ausdrücklich Folgearbeiten.
+**Abschluss:** Nutzer hat PR-Push, Merge nach erfolgreichen Pflichtprüfungen und
+anschließendes Aufräumen freigegeben. Aktuelles `origin/master` unverändert bei
+`15b07ca`; die lokalen Prüfungen gelten weiterhin für den unveränderten Code.
+Veröffentlichung erfolgt über den PR. Belegbezogene Vorsteuer, historische
+Steuerfreigaben und vollständige periodengerechte Berichtigungen bleiben
+ausdrücklich Folgearbeiten. Anschließend folgt eine verständliche Erklärung
+der Änderungen im Chat.
 
 ## 2026-09-13 – Codex – Produkterstellung, Bildergalerie und Shop
 
