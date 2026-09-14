@@ -14,7 +14,10 @@ import { ListingStore } from './store/listing.store.js';
 import { QueryStore } from './store/query.store.js';
 import { createSupabaseClient } from './store/supabase.js';
 import { VintedCollector } from './vinted/collector.js';
+import { preferIpv6 } from './vinted/network.js';
 import { sleep } from './vinted/session.js';
+
+preferIpv6();
 
 const config = loadConfig(process.env);
 const log = createLogger();

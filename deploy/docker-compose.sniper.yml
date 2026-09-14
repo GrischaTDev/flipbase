@@ -6,6 +6,10 @@ services:
     container_name: flipbase-sniper
     restart: unless-stopped
     init: true
+    # Vinted stellt die IPv4-Adresse des Produktionsservers unter eine
+    # Cloudflare-Pruefung. Das Host-Netzwerk stellt dem Dienst die vorhandene
+    # IPv6-Route bereit; der Node-Prozess bevorzugt IPv6 beim DNS-Aufloesen.
+    network_mode: host
     env_file:
       - ${SNIPER_ENV_FILE:-/opt/flipbase-sniper/sniper.env}
     read_only: true
@@ -20,5 +24,5 @@ services:
       options:
         max-size: '10m'
         max-file: '3'
-    # Kein Hostport: Der Healthcheck laeuft im Container. Der Dienst greift
-    # ausgehend auf die vorhandene HTTPS-API und Vinted zu.
+    # Der Healthcheck bindet nur an localhost. Der Dienst greift ausgehend
+    # auf die vorhandene HTTPS-API und Vinted zu.
