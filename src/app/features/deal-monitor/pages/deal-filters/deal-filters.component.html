@@ -1,0 +1,197 @@
+<div class="mx-auto flex max-w-7xl flex-col gap-6 p-4 sm:p-6">
+  <app-page-header
+    title="Suchfilter"
+    subtitle="Suchkriterien und automatische Deal-Erkennung für den Vinted-Bot verwalten"
+  >
+    <div header-actions data-new-filter>
+      <app-button [icon]="icons.plus" (clicked)="openEditor()">Neuer Suchfilter</app-button>
+    </div>
+  </app-page-header>
+
+  @if (message()) {
+    <div
+      role="status"
+      class="flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-600 dark:text-emerald-400"
+    >
+      <div class="flex items-center gap-2">
+        <svg [lucideIcon]="icons.check" class="h-5 w-5 shrink-0" aria-hidden="true"></svg>
+        <span>{{ message() }}</span>
+      </div>
+      <button
+        type="button"
+        (click)="message.set('')"
+        class="cursor-pointer text-xs font-semibold uppercase hover:underline"
+      >
+        Schließen
+      </button>
+    </div>
+  }
+
+  @if (error()) {
+    <div
+      role="alert"
+      class="flex items-center justify-between rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-600 dark:text-rose-400"
+    >
+      <div class="flex items-center gap-2">
+        <svg [lucideIcon]="icons.alert" class="h-5 w-5 shrink-0" aria-hidden="true"></svg>
+        <span>{{ error() }}</span>
+      </div>
+      <button
+        type="button"
+        (click)="error.set(null)"
+        class="cursor-pointer text-xs font-semibold uppercase hover:underline"
+      >
+        Schließen
+      </button>
+    </div>
+  }
+
+  @if (categoryError()) {
+    <div
+      role="alert"
+      class="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-600 dark:text-amber-400"
+    >
+      {{ categoryError() }}
+    </div>
+  }
+
+  @if (watchlists().length > 0) {
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+      @for (row of watchlists(); track row.id) {
+        <app-card padding="md" class="flex flex-col justify-between">
+          <div class="space-y-3">
+            <div class="flex items-start justify-between gap-2">
+              <h3 class="text-base font-semibold text-fb-text-primary">{{ row.title }}</h3>
+              <app-badge [tone]="row.is_active ? 'success' : 'neutral'">
+                {{ row.is_active ? 'Aktiv' : 'Pausiert' }}
+              </app-badge>
+            </div>
+
+            <dl class="space-y-1.5 text-xs text-fb-text-secondary">
+              <div class="flex justify-between">
+                <dt class="text-fb-text-muted">Marke:</dt>
+                <dd class="font-medium text-fb-text-primary">{{ row.brand || 'Alle Marken' }}</dd>
+              </div>
+              <div class="flex justify-between">
+                <dt class="text-fb-text-muted">Suchbegriff:</dt>
+                <dd class="font-medium text-fb-text-primary">{{ row.search_text || '–' }}</dd>
+              </div>
+              <div class="flex justify-between">
+                <dt class="text-fb-text-muted">Max. Preis:</dt>
+                <dd class="font-medium text-fb-text-primary">
+                  {{ row.price_to ? (row.price_to | currency: 'EUR') : 'Keine Grenze' }}
+                </dd>
+              </div>
+              <div class="flex justify-between">
+                <dt class="text-fb-text-muted">Deal-Schwelle:</dt>
+                <dd class="font-medium text-fb-text-primary">
+                  {{ row.discount_threshold_percent | number: '1.0-0' }} % unter Referenzpreis
+                </dd>
+              </div>
+            </dl>
+          </div>
+
+          <div class="mt-4 flex items-center justify-between border-t border-fb-line pt-3">
+            <app-button
+              variant="secondary"
+              size="slim"
+              [disabled]="saving()"
+              (clicked)="toggle(row)"
+            >
+              {{ row.is_active ? 'Pausieren' : 'Aktivieren' }}
+            </app-button>
+
+            <div class="flex items-center gap-1">
+              <app-button
+                variant="secondary"
+                size="slim"
+                [icon]="icons.edit"
+                [disabled]="saving()"
+                (clicked)="openEditor(row)"
+                ariaLabel="Suchfilter bearbeiten"
+              />
+              <app-button
+                variant="destructive"
+                size="slim"
+                [icon]="icons.trash"
+                [disabled]="saving()"
+                (clicked)="deleting.set(row)"
+                ariaLabel="Suchfilter löschen"
+              />
+            </div>
+          </div>
+        </app-card>
+      }
+    </div>
+  } @else {
+    <div
+      class="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-fb-border bg-fb-surface p-16 text-center"
+    >
+      <div
+        class="flex h-16 w-16 items-center justify-center rounded-full bg-fb-primary/10 text-fb-primary"
+      >
+        <svg [lucideIcon]="icons.filter" class="h-8 w-8" aria-hidden="true"></svg>
+      </div>
+      <div class="space-y-1">
+        <h3 class="text-lg font-semibold text-fb-text-primary">Noch keine Suchfilter angelegt</h3>
+        <p class="max-w-md text-sm text-fb-text-secondary">
+          Lege Suchfilter an, um gezielt nach Marken, Kategorien oder Suchbegriffen zu suchen. Der
+          Vinted-Bot überwacht Angebote automatisch und erkennt Deals.
+        </p>
+      </div>
+      <app-button (clicked)="openEditor()">Ersten Suchfilter anlegen</app-button>
+    </div>
+  }
+</div>
+
+@if (editorOpen()) {
+  <app-modal-shell
+    [title]="editing() ? 'Suchfilter bearbeiten' : 'Neuer Suchfilter'"
+    size="lg"
+    [hasFooter]="false"
+    (closed)="cancelEditor()"
+  >
+    <app-watchlist-editor
+      [watchlist]="editing()"
+      [categories]="categories()"
+      [saving]="saving()"
+      (saved)="save($event)"
+      (cancelled)="cancelEditor()"
+    />
+  </app-modal-shell>
+}
+
+@if (deleting(); as row) {
+  <app-modal-shell
+    title="Suchfilter löschen?"
+    size="sm"
+    [hasFooter]="false"
+    (closed)="deleting.set(null)"
+  >
+    <p class="text-sm text-fb-text-secondary">
+      „{{ row.title }}“ und die zugehörigen Treffer werden gelöscht. Gesammelte Artikel bleiben
+      erhalten.
+    </p>
+    <div modal-footer class="mt-4 flex justify-end gap-2">
+      <app-button [disabled]="saving()" (clicked)="deleting.set(null)">Abbrechen</app-button>
+      <app-button variant="destructive" [loading]="saving()" (clicked)="confirmDelete()"
+        >Suchfilter löschen</app-button
+      >
+    </div>
+  </app-modal-shell>
+}
+
+@if (discarding()) {
+  <app-modal-shell
+    title="Änderungen verwerfen?"
+    size="sm"
+    [hasFooter]="false"
+    (closed)="discarding.set(false)"
+  >
+    <p class="text-sm text-fb-text-secondary">Deine ungespeicherten Änderungen gehen verloren.</p>
+    <div modal-footer class="mt-4 flex justify-end gap-2">
+      <app-button (clicked)="discarding.set(false)">Weiter bearbeiten</app-button>
+      <app-button variant="destructive" (clicked)="closeEditor()">Verwerfen</app-button>
+    </div>
+  </app-modal-shell>
+}

@@ -1,0 +1,110 @@
+<div class="mx-auto flex max-w-7xl flex-col gap-6 p-4 sm:p-6">
+  <app-page-header title="Favoriten" subtitle="Deine gemerkten Artikel aus dem Vinted-Bot">
+    @if (count() > 0) {
+      <app-badge header-badge tone="neutral">{{ countBadge() }}</app-badge>
+    }
+    @if (count() > 0) {
+      <div header-actions class="flex items-center gap-2">
+        <app-button
+          variant="secondary"
+          size="slim"
+          [icon]="icons.trash"
+          (clicked)="confirmClear.set(true)"
+          >Alle leeren</app-button
+        >
+      </div>
+    }
+  </app-page-header>
+
+  @if (count() > 0) {
+    <!-- Filter bar -->
+    <div
+      class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-fb-border bg-fb-surface p-3"
+    >
+      <div class="flex items-center gap-2">
+        <svg
+          [lucideIcon]="icons.sliders"
+          class="h-4 w-4 text-fb-text-muted"
+          aria-hidden="true"
+        ></svg>
+        <span class="text-xs font-semibold uppercase tracking-wider text-fb-text-muted"
+          >Größe:</span
+        >
+        <app-custom-select
+          [options]="sizeOptions"
+          [value]="selectedSize()"
+          (valueChange)="selectedSize.set($event)"
+          triggerId="favorites-size-select"
+          ariaLabel="Favoriten nach Größe filtern"
+        />
+      </div>
+
+      <p class="text-xs text-fb-text-muted">
+        {{ filteredFavorites().length }} von {{ count() }} Artikeln angezeigt
+      </p>
+    </div>
+
+    @if (filteredFavorites().length > 0) {
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        @for (item of filteredFavorites(); track item.id) {
+          <app-deal-card [item]="item" (inspect)="selectedDeal.set($event)" />
+        }
+      </div>
+    } @else {
+      <div
+        class="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-fb-border bg-fb-surface p-12 text-center"
+      >
+        <svg
+          [lucideIcon]="icons.sliders"
+          class="h-10 w-10 text-fb-text-muted"
+          aria-hidden="true"
+        ></svg>
+        <h3 class="text-base font-semibold text-fb-text-primary">
+          Keine Favoriten in Größe „{{ selectedSize() | uppercase }}“
+        </h3>
+        <p class="max-w-md text-sm text-fb-text-secondary">
+          In dieser Größe hast du aktuell keine gemerkten Artikel.
+        </p>
+        <app-button variant="secondary" size="slim" (clicked)="selectedSize.set(null)"
+          >Filter zurücksetzen</app-button
+        >
+      </div>
+    }
+  } @else {
+    <!-- Empty state -->
+    <div
+      class="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-fb-border bg-fb-surface p-16 text-center"
+    >
+      <div
+        class="flex h-16 w-16 items-center justify-center rounded-full bg-rose-50 text-rose-500 dark:bg-rose-950/40 dark:text-rose-400"
+      >
+        <svg [lucideIcon]="icons.heart" class="h-8 w-8" aria-hidden="true"></svg>
+      </div>
+      <div class="space-y-1">
+        <h3 class="text-lg font-semibold text-fb-text-primary">Noch keine Favoriten gemerkt</h3>
+        <p class="max-w-md text-sm text-fb-text-secondary">
+          Klicke bei Artikeln im Vinted-Bot auf das Herz-Symbol, um sie hier für einen späteren
+          schnellen Zugriff zu speichern.
+        </p>
+      </div>
+      <app-button routerLink="/vinted-bot">Zum Vinted-Bot Feed</app-button>
+    </div>
+  }
+</div>
+
+@if (selectedDeal(); as deal) {
+  <app-deal-detail-modal [item]="deal" (closed)="selectedDeal.set(null)" />
+}
+
+@if (confirmClear()) {
+  <app-modal-shell title="Alle Favoriten entfernen?" size="sm" (closed)="confirmClear.set(false)">
+    <p class="text-sm text-fb-text-secondary">
+      Möchtest du wirklich alle gemerkten Artikel aus deinen Favoriten entfernen? Diese Aktion kann
+      nicht rückgängig gemacht werden.
+    </p>
+    <div modal-footer class="flex gap-2">
+      <app-button (clicked)="confirmClear.set(false)">Abbrechen</app-button>
+      <app-button variant="destructive" (clicked)="clearAll()">Alle entfernen</app-button>
+    </div>
+  </app-modal-shell>
+}

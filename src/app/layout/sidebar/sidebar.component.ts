@@ -7,6 +7,7 @@ import {
   PLATFORM_ADMIN_NAVIGATION,
   SubNavigationItem,
 } from '../../core/config/platform-admin-navigation';
+import { VINTED_BOT_NAVIGATION } from '../../core/config/vinted-bot-navigation';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
   LucideDynamicIcon,
@@ -79,7 +80,10 @@ export class SidebarComponent {
   }
 
   isChildActive(child: SubNavigationItem): boolean {
-    return this.isWithin(child.path);
+    const current = this.currentUrl().split(/[?#]/, 1)[0];
+    if (current === child.path) return true;
+    if (child.path === '/vinted-bot') return false;
+    return current.startsWith(child.path + '/');
   }
 
   private isWithin(path: string): boolean {
@@ -145,7 +149,13 @@ export class SidebarComponent {
       baustelle: true,
     },
     { path: '/research', labelKey: 'NAV.RESEARCH', label: 'Research', icon: Search },
-    { path: '/vinted-bot', labelKey: 'NAV.DEAL_MONITOR', label: 'Vinted Bot', icon: Bot },
+    {
+      path: '/vinted-bot',
+      labelKey: 'NAV.DEAL_MONITOR',
+      label: 'Vinted Bot',
+      icon: Bot,
+      children: VINTED_BOT_NAVIGATION,
+    },
     {
       path: '/deal-calculator',
       labelKey: 'NAV.DEAL_CALCULATOR',

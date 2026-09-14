@@ -179,6 +179,21 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'vinted-bot/filters',
+        canDeactivate: [unsavedEntryGuard],
+        loadComponent: () =>
+          import('./features/deal-monitor/pages/deal-filters/deal-filters.component').then(
+            (m) => m.DealFiltersComponent,
+          ),
+      },
+      {
+        path: 'vinted-bot/favorites',
+        loadComponent: () =>
+          import('./features/deal-monitor/pages/deal-favorites/deal-favorites.component').then(
+            (m) => m.DealFavoritesComponent,
+          ),
+      },
+      {
         path: 'deal-calculator',
         loadComponent: () =>
           import('./features/deal-calculator/deal-calculator.component').then(

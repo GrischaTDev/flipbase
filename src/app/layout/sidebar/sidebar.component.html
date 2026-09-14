@@ -114,7 +114,7 @@
     @for (item of navItems.slice(5, 11); track item.path) {
       <a
         [routerLink]="item.path"
-        [attr.aria-current]="isItemActive(item) ? 'page' : null"
+        [attr.aria-current]="!item.children && isItemActive(item) ? 'page' : null"
         [class.font-semibold]="isItemActive(item)"
         (click)="closed.emit()"
         class="flex items-center gap-2 px-2 py-1 leading-5 rounded-md text-[13px] font-medium text-fb-text-secondary hover:text-fb-text-primary hover:bg-fb-surface-hover transition group border border-transparent"
@@ -133,6 +133,28 @@
           </span>
         }
       </a>
+
+      @if (item.children && isItemActive(item)) {
+        <ul data-sub-navigation class="space-y-0.5">
+          @for (child of item.children; track child.path) {
+            @let active = isChildActive(child);
+            <li>
+              <a
+                [routerLink]="child.path"
+                [attr.aria-current]="active ? 'page' : null"
+                [class.font-semibold]="active"
+                [class.font-medium]="!active"
+                [class.text-fb-text-primary]="active"
+                [class.text-fb-text-secondary]="!active"
+                (click)="closed.emit()"
+                class="flex items-center py-1 pl-8 pr-2 leading-5 rounded-md text-[13px] hover:text-fb-text-primary hover:bg-fb-surface-hover transition border border-transparent"
+              >
+                <span class="min-w-0 break-words">{{ child.label }}</span>
+              </a>
+            </li>
+          }
+        </ul>
+      }
     }
 
     <div class="px-2 pb-1 pt-3 text-xs font-semibold text-fb-text-muted">System & Daten</div>

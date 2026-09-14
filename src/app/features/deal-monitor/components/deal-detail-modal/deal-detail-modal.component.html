@@ -1,0 +1,230 @@
+<app-modal-shell
+  [title]="item().title"
+  [subtitle]="item().category_path || 'Kategorie noch unbekannt'"
+  [icon]="icons.eye"
+  size="xl"
+  [closeOnBackdrop]="true"
+  (closed)="closed.emit()"
+>
+  <div class="grid grid-cols-1 items-start gap-6 md:grid-cols-12">
+    <!-- Image Gallery -->
+    <div class="flex flex-col gap-3 md:col-span-7">
+      <div
+        class="relative flex aspect-[4/3] w-full items-center justify-center overflow-hidden rounded-xl border border-fb-border bg-fb-surface-hover"
+      >
+        @if (activeImage(); as currentSrc) {
+          <img
+            [src]="currentSrc"
+            [alt]="'Großansicht: ' + item().title"
+            class="h-full w-full object-contain"
+            (error)="imageFailed(currentSrc)"
+          />
+          @if (validImages().length > 1) {
+            <button
+              type="button"
+              (click)="prevImage()"
+              class="absolute left-2.5 top-1/2 flex h-9 w-9 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-black/60 text-white shadow-md backdrop-blur-xs transition hover:bg-black/80 focus-visible:outline-2 focus-visible:outline-white"
+              aria-label="Vorheriges Bild"
+            >
+              <svg [lucideIcon]="icons.prev" class="h-5 w-5" aria-hidden="true"></svg>
+            </button>
+            <button
+              type="button"
+              (click)="nextImage()"
+              class="absolute right-2.5 top-1/2 flex h-9 w-9 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-black/60 text-white shadow-md backdrop-blur-xs transition hover:bg-black/80 focus-visible:outline-2 focus-visible:outline-white"
+              aria-label="Nächstes Bild"
+            >
+              <svg [lucideIcon]="icons.next" class="h-5 w-5" aria-hidden="true"></svg>
+            </button>
+            <div
+              class="absolute bottom-2.5 left-1/2 -translate-x-1/2 rounded-full bg-black/65 px-2.5 py-0.5 text-xs text-white backdrop-blur-xs"
+            >
+              {{ activeImageIndex() + 1 }} / {{ validImages().length }}
+            </div>
+          }
+        } @else {
+          <div class="flex h-48 items-center justify-center text-sm text-fb-text-muted">
+            Kein Artikelbild verfügbar
+          </div>
+        }
+      </div>
+
+      <!-- Thumbnails -->
+      @if (validImages().length > 1) {
+        <div class="flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Bilderübersicht">
+          @for (img of validImages(); track img; let i = $index) {
+            <button
+              type="button"
+              (click)="selectImage(i)"
+              [class]="
+                activeImageIndex() === i
+                  ? 'border-fb-primary ring-2 ring-fb-primary'
+                  : 'border-fb-border opacity-70 hover:opacity-100'
+              "
+              class="relative h-16 w-16 shrink-0 cursor-pointer overflow-hidden rounded-lg border bg-fb-surface-hover transition-all"
+              [attr.aria-label]="'Bild ' + (i + 1) + ' anzeigen'"
+            >
+              <img
+                [src]="img"
+                [alt]="'Vorschau ' + (i + 1)"
+                class="h-full w-full object-cover"
+                loading="lazy"
+                (error)="imageFailed(img)"
+              />
+            </button>
+          }
+        </div>
+      }
+    </div>
+
+    <!-- Details Column -->
+    <div class="flex flex-col gap-4 md:col-span-5">
+      <!-- Price Box -->
+      <div class="rounded-xl border border-fb-border bg-fb-subtle/50 p-4 space-y-2.5">
+        <div class="flex items-baseline justify-between gap-2">
+          <div>
+            <span class="text-xs font-medium uppercase tracking-wider text-fb-text-muted"
+              >Preis</span
+            >
+            <p class="text-2xl font-bold text-fb-text-primary">
+              {{ item().item_price | currency: item().currency }}
+            </p>
+          </div>
+          @if (item().discount_percent !== null) {
+            <app-badge tone="success">
+              {{ item().discount_percent | number: '1.0-1' }} % günstiger
+            </app-badge>
+          }
+        </div>
+
+        <p class="flex items-center gap-1.5 text-xs text-fb-text-secondary">
+          <svg
+            [lucideIcon]="icons.protection"
+            class="h-4 w-4 shrink-0 text-indigo-500 dark:text-indigo-400"
+            aria-hidden="true"
+          ></svg>
+          <span
+            >{{ item().total_price | currency: item().currency }} inkl. Käuferschutz (zzgl.
+            Versand)</span
+          >
+        </p>
+
+        @if (item().reference_price !== null) {
+          <div class="border-t border-fb-line pt-2 text-xs text-fb-text-secondary">
+            <p class="font-medium text-fb-text-primary">
+              Vergleichswert: {{ item().reference_price | currency: 'EUR' }}
+            </p>
+            <p class="mt-0.5 text-fb-text-muted">Basis: {{ referenceLabel() }}</p>
+          </div>
+        }
+      </div>
+
+      <!-- Attributes list -->
+      <dl class="divide-y divide-fb-line rounded-xl border border-fb-border bg-fb-surface text-sm">
+        <div class="flex items-center justify-between px-3.5 py-2.5">
+          <dt class="flex items-center gap-1.5 text-fb-text-secondary">
+            <svg
+              [lucideIcon]="icons.brand"
+              class="h-4 w-4 text-sky-500 dark:text-sky-400"
+              aria-hidden="true"
+            ></svg>
+            <span>Marke</span>
+          </dt>
+          <dd class="font-medium text-fb-text-primary">{{ item().brand || 'Ohne Angabe' }}</dd>
+        </div>
+
+        <div class="flex items-center justify-between px-3.5 py-2.5">
+          <dt class="flex items-center gap-1.5 text-fb-text-secondary">
+            <svg
+              [lucideIcon]="icons.condition"
+              class="h-4 w-4 text-emerald-600 dark:text-emerald-400"
+              aria-hidden="true"
+            ></svg>
+            <span>Zustand</span>
+          </dt>
+          <dd class="font-medium text-fb-text-primary">{{ item().condition || 'Unbekannt' }}</dd>
+        </div>
+
+        @if (item().size) {
+          <div class="flex items-center justify-between px-3.5 py-2.5">
+            <dt class="flex items-center gap-1.5 text-fb-text-secondary">
+              <svg
+                [lucideIcon]="icons.size"
+                class="h-4 w-4 text-amber-500 dark:text-amber-400"
+                aria-hidden="true"
+              ></svg>
+              <span>Größe</span>
+            </dt>
+            <dd class="font-medium text-fb-text-primary">{{ item().size }}</dd>
+          </div>
+        }
+
+        @if (item().watchlist_title) {
+          <div class="flex items-center justify-between px-3.5 py-2.5">
+            <dt class="text-fb-text-secondary">Suchfilter</dt>
+            <dd
+              class="truncate text-right font-medium text-fb-text-primary"
+              [title]="item().watchlist_title"
+            >
+              {{ item().watchlist_title }}
+            </dd>
+          </div>
+        }
+
+        <div class="flex items-center justify-between px-3.5 py-2.5">
+          <dt class="flex items-center gap-1.5 text-fb-text-secondary">
+            <svg
+              [lucideIcon]="icons.discovered"
+              class="h-4 w-4 text-fb-text-muted"
+              aria-hidden="true"
+            ></svg>
+            <span>Entdeckt</span>
+          </dt>
+          <dd class="text-xs text-fb-text-muted">
+            {{ item().first_seen_at | date: 'dd.MM.yyyy · HH:mm:ss' }}
+          </dd>
+        </div>
+      </dl>
+
+      @if (item().is_hidden) {
+        <app-badge tone="caution">Hinweis: Angebot aktuell noch nicht direkt kaufbar</app-badge>
+      }
+    </div>
+  </div>
+
+  <div modal-footer class="flex w-full items-center justify-between gap-3">
+    <button
+      type="button"
+      (click)="toggleFavorite()"
+      [class]="
+        isFavorite()
+          ? 'border-rose-300 bg-rose-50 text-rose-600 hover:bg-rose-100 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-400 dark:hover:bg-rose-900/50'
+          : 'border-fb-border bg-fb-surface text-fb-text-secondary hover:bg-fb-surface-hover hover:text-fb-text-primary'
+      "
+      class="inline-flex h-9 items-center gap-2 rounded-lg border px-3 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-fb-primary"
+    >
+      <svg
+        [lucideIcon]="icons.heart"
+        class="h-4 w-4 transition-transform active:scale-125"
+        [class.fill-rose-500]="isFavorite()"
+        [class.text-rose-500]="isFavorite()"
+        aria-hidden="true"
+      ></svg>
+      <span>{{ isFavorite() ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen' }}</span>
+    </button>
+
+    <div class="flex items-center gap-2">
+      <app-button variant="secondary" (click)="closed.emit()">Schließen</app-button>
+      @if (link(); as href) {
+        <app-button
+          [href]="href"
+          target="_blank"
+          [icon]="icons.external"
+          iconPosition="end"
+          [ariaLabel]="item().title + ' – auf Vinted ansehen (neuer Tab)'"
+          >Auf Vinted ansehen</app-button
+        >
+      }
+    </div>
+  </div>
+</app-modal-shell>

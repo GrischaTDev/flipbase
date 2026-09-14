@@ -9,7 +9,7 @@
       variant="primary"
       [disabled]="demo() || !workspace() || editorOpen() || saving()"
       (clicked)="openEditor()"
-      >Neuer Merkzettel</app-button
+      >Neuer Suchfilter</app-button
     >
   </app-page-header>
   @if (!workspace()) {
@@ -23,7 +23,7 @@
   }
   @if (error(); as text) {
     <p role="alert">
-      {{ text }} <app-button (clicked)="loadWatchlists()">Merkzettel erneut laden</app-button>
+      {{ text }} <app-button (clicked)="loadWatchlists()">Suchfilter erneut laden</app-button>
     </p>
   }
   @if (message()) {
@@ -61,19 +61,29 @@
         [ariaPressed]="view() === 'watchlists'"
         [disabled]="editorOpen()"
         (clicked)="view.set('watchlists')"
-        >Merkzettel · {{ watchlists().length }}</app-button
+        >Suchfilter · {{ watchlists().length }}</app-button
       >
     </div>
     @if (view() !== 'watchlists') {
       <div class="flex flex-wrap items-end gap-3">
-        <div class="w-full min-w-0 sm:w-64">
-          <label for="feed-watchlist" class="mb-1 block text-sm">Merkzettel filtern</label
+        <div class="w-full min-w-0 sm:w-56">
+          <label for="feed-watchlist" class="mb-1 block text-sm">Suchfilter</label
           ><app-custom-select
             triggerId="feed-watchlist"
             placeholder="Alle Artikel"
-            ariaLabel="Merkzettel filtern"
+            ariaLabel="Suchfilter"
             [options]="options()"
             [(value)]="selected"
+          />
+        </div>
+        <div class="w-full min-w-0 sm:w-44">
+          <label for="feed-size" class="mb-1 block text-sm">Größe</label
+          ><app-custom-select
+            triggerId="feed-size"
+            placeholder="Alle Größen"
+            ariaLabel="Größe filtern"
+            [options]="sizeOptions"
+            [(value)]="selectedSize"
           />
         </div>
         <app-button
@@ -88,7 +98,7 @@
   @if (view() === 'watchlists') {
     @if (watchlists().length === 0) {
       <app-card
-        ><h2 class="text-base font-semibold">Dein erster Merkzettel</h2>
+        ><h2 class="text-base font-semibold">Dein erster Suchfilter</h2>
         <p class="mt-2 text-sm text-fb-text-secondary">
           Lege fest, welche Kategorien, Marken und Preise dich interessieren. Der Monitor durchsucht
           dafür seinen gesammelten Bestand.
@@ -154,7 +164,7 @@
       }
       @if (selectedWatchlist()?.is_active === false) {
         <p class="text-sm">
-          Dieser Merkzettel ist pausiert. Er erzeugt keine neuen Deals; der Artikelbestand bleibt
+          Dieser Suchfilter ist pausiert. Er erzeugt keine neuen Deals; der Artikelbestand bleibt
           sichtbar.
         </p>
       }
@@ -177,17 +187,28 @@
           </div></app-card
         >
       }
-      @if (state.items().length === 0) {
+      @if (filteredItems().length === 0) {
         <app-card
           ><h2 class="text-base font-semibold">
-            {{ view() === 'deals' ? 'Noch keine passenden Deals' : 'Noch keine passenden Artikel' }}
+            @if (selectedSize()) {
+              Keine Artikel in Größe {{ selectedSize() | uppercase }} gefunden
+            } @else {
+              {{
+                view() === 'deals' ? 'Noch keine passenden Deals' : 'Noch keine passenden Artikel'
+              }}
+            }
           </h2>
           <p class="mt-2 text-sm text-fb-text-secondary">
-            {{
-              view() === 'deals'
-                ? 'Deals brauchen einen aktiven Merkzettel und mindestens acht geeignete Vergleichsangebote. Der erste Einlesebestand wird nicht als Deal gemeldet.'
-                : 'Hier erscheinen passende Funde, sobald der Bot Artikel gesammelt hat. Dein Merkzettel startet keine eigene Vinted-Suche.'
-            }}
+            @if (selectedSize()) {
+              In der aktuellen Ansicht gibt es keine Angebote mit der ausgewählten Größe. Wähle eine
+              andere Größe oder setze den Filter auf „Alle Größen“ zurück.
+            } @else if (view() === 'deals') {
+              Deals brauchen einen aktiven Suchfilter und mindestens acht geeignete
+              Vergleichsangebote. Der erste Einlesebestand wird nicht als Deal gemeldet.
+            } @else {
+              Hier erscheinen passende Funde, sobald der Bot Artikel gesammelt hat. Dein Suchfilter
+              startet keine eigene Vinted-Suche.
+            }
           </p></app-card
         >
       } @else {
@@ -197,7 +218,7 @@
             <p class="text-xs text-fb-text-muted">
               {{
                 view() === 'deals'
-                  ? 'Bewertet nach deinen Merkzetteln'
+                  ? 'Bewertet nach deinen Suchfiltern'
                   : 'Aus dem gemeinsamen Artikelbestand'
               }}
             </p>
@@ -208,23 +229,25 @@
             role="region"
             aria-label="Neueste Funde durchblättern"
           >
-            @for (item of state.highlights(); track item.id) {
+            @for (item of highlights(); track item.id) {
               <app-deal-card
                 class="snap-start motion-safe:transition motion-safe:duration-200 motion-safe:starting:opacity-0 motion-safe:starting:-translate-x-3"
                 [item]="item"
                 [featured]="true"
+                (inspect)="selectedDeal.set($event)"
               />
             }
           </div>
         </section>
-        @if (state.grid().length > 0) {
+        @if (grid().length > 0) {
           <section aria-labelledby="feed-grid-title" (focusin)="state.pause()">
             <h2 id="feed-grid-title" class="mb-3 text-base font-semibold">Weitere Funde</h2>
             <div class="grid grid-cols-2 gap-3 xl:grid-cols-4">
-              @for (item of state.grid(); track item.id) {
+              @for (item of grid(); track item.id) {
                 <app-deal-card
                   class="snap-start motion-safe:transition motion-safe:duration-200 motion-safe:starting:opacity-0 motion-safe:starting:-translate-x-3"
                   [item]="item"
+                  (inspect)="selectedDeal.set($event)"
                 />
               }
             </div>
@@ -239,7 +262,7 @@
         }
         @if (state.items().length >= 300) {
           <p class="text-sm">
-            300 Artikel geladen. Grenze deinen Merkzettel ein oder setze den Zulauf fort, um wieder
+            300 Artikel geladen. Grenze deinen Suchfilter ein oder setze den Zulauf fort, um wieder
             die neuesten zu sehen.
           </p>
         }
@@ -254,7 +277,7 @@
   }
 </section>
 @if (deleting(); as row) {
-  <app-modal-shell title="Merkzettel löschen?" size="sm" (closed)="!saving() && deleting.set(null)"
+  <app-modal-shell title="Suchfilter löschen?" size="sm" (closed)="!saving() && deleting.set(null)"
     ><p>
       „{{ row.title }}“ und die zugehörigen Treffer werden gelöscht. Gesammelte Artikel bleiben
       erhalten.
@@ -262,7 +285,7 @@
     <div modal-footer class="flex gap-2">
       <app-button [disabled]="saving()" (clicked)="deleting.set(null)">Abbrechen</app-button
       ><app-button variant="destructive" [loading]="saving()" (clicked)="confirmDelete()"
-        >Merkzettel löschen</app-button
+        >Suchfilter löschen</app-button
       >
     </div></app-modal-shell
   >
@@ -275,4 +298,7 @@
       ><app-button variant="destructive" (clicked)="closeEditor()">Verwerfen</app-button>
     </div></app-modal-shell
   >
+}
+@if (selectedDeal(); as deal) {
+  <app-deal-detail-modal [item]="deal" (closed)="selectedDeal.set(null)" />
 }

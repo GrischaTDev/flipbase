@@ -13,7 +13,7 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
-import { DatePipe } from '@angular/common';
+import { DatePipe, UpperCasePipe } from '@angular/common';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { AuthService } from '../../core/services/auth.service';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
@@ -23,15 +23,18 @@ import { BadgeComponent } from '../../shared/components/badge/badge.component';
 import { CustomSelectComponent } from '../../shared/components/custom-select/custom-select.component';
 import { ModalShellComponent } from '../../shared/components/modal-shell/modal-shell.component';
 import { DealCardComponent } from './components/deal-card/deal-card.component';
+import { DealDetailModalComponent } from './components/deal-detail-modal/deal-detail-modal.component';
 import { WatchlistEditorComponent } from './components/watchlist-editor/watchlist-editor.component';
 import { DealMonitorService } from './services/deal-monitor.service';
 import { DealFeedState } from './services/deal-feed-state';
-import { FeedCategory, Watchlist, WatchlistDraft } from './models/deal-monitor.model';
+import { FeedCategory, FeedItem, Watchlist, WatchlistDraft } from './models/deal-monitor.model';
+import { matchesSize } from './utils/size-matcher';
 
 @Component({
   selector: 'app-deal-monitor',
   imports: [
     DatePipe,
+    UpperCasePipe,
     PageHeaderComponent,
     ButtonComponent,
     CardComponent,
@@ -39,6 +42,7 @@ import { FeedCategory, Watchlist, WatchlistDraft } from './models/deal-monitor.m
     CustomSelectComponent,
     ModalShellComponent,
     DealCardComponent,
+    DealDetailModalComponent,
     WatchlistEditorComponent,
   ],
   templateUrl: './deal-monitor.component.html',
@@ -57,6 +61,18 @@ export class DealMonitorComponent {
   readonly watchlists = signal<Watchlist[]>([]);
   readonly categories = signal<FeedCategory[]>([]);
   readonly selected = signal<string | null>(null);
+  readonly selectedSize = signal<string | null>(null);
+  readonly selectedDeal = signal<FeedItem | null>(null);
+  readonly sizeOptions = [
+    { value: null as string | null, label: 'Alle Größen' },
+    { value: 'xs', label: 'XS' },
+    { value: 's', label: 'S' },
+    { value: 'm', label: 'M' },
+    { value: 'l', label: 'L' },
+    { value: 'xl', label: 'XL' },
+    { value: 'xxl', label: 'XXL (2XL)' },
+    { value: '3xl', label: '3XL+' },
+  ];
   readonly view = signal<'articles' | 'deals' | 'watchlists'>('articles');
   readonly editing = signal<Watchlist | null>(null);
   readonly editorOpen = signal(false);
@@ -74,6 +90,14 @@ export class DealMonitorComponent {
   readonly selectedWatchlist = computed(() =>
     this.watchlists().find((row) => row.id === this.selected()),
   );
+  readonly filteredItems = computed(() => {
+    const size = this.selectedSize();
+    const items = this.state.items();
+    if (!size) return items;
+    return items.filter((item) => matchesSize(item.size, size));
+  });
+  readonly highlights = computed(() => this.filteredItems().slice(0, 3));
+  readonly grid = computed(() => this.filteredItems().slice(3));
   readonly stale = computed(
     () => !this.state.reportedAt() || this.now() - Date.parse(this.state.reportedAt()!) > 120_000,
   );
@@ -85,6 +109,7 @@ export class DealMonitorComponent {
       const workspace = this.demo() ? null : (this.workspace()?.id ?? null);
       untracked(() => {
         this.selected.set(null);
+        this.selectedSize.set(null);
         this.watchlists.set([]);
         this.editorOpen.set(false);
         this.deleting.set(null);
@@ -180,7 +205,7 @@ export class DealMonitorComponent {
       if (workspace !== this.workspace()?.id || this.destroyRef.destroyed) return;
       if (this.editorOpen()) this.closeEditor();
       this.message.set(
-        'Merkzettel gespeichert. Neue Suchkriterien gelten für künftig entdeckte Deals.',
+        'Suchfilter gespeichert. Neue Suchkriterien gelten für künftig entdeckte Deals.',
       );
       await this.loadWatchlists(workspace);
       if (workspace !== this.workspace()?.id || this.destroyRef.destroyed) return;
@@ -212,7 +237,7 @@ export class DealMonitorComponent {
       if (this.selected() === row.id) this.selected.set(null);
       await this.loadWatchlists(workspace);
       if (workspace !== this.workspace()?.id || this.destroyRef.destroyed) return;
-      this.message.set('Merkzettel und seine Treffer gelöscht.');
+      this.message.set('Suchfilter und seine Treffer gelöscht.');
     } catch (error) {
       if (workspace === this.workspace()?.id)
         this.error.set(error instanceof Error ? error.message : 'Löschen fehlgeschlagen.');
