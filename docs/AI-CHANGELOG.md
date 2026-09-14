@@ -1,5 +1,25 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-14 – Codex – Vinted-Zugriff aus dem Sniper repariert
+
+**Auftrag:** Aktive Vinted-Filter wurden kurz nach dem Start mit „Zugriff
+abgewiesen“ deaktiviert und sammelten keine neuen Artikel.
+
+**Befund:** Der Sniper-Container lief gesund, erreichte Vinted aber aus dem
+Docker-Bridge-Netzwerk über die IPv4-Adresse. Vinted antwortete dort schon auf
+die Startseite mit HTTP 403 und `cf-mitigated: challenge`. Der Produktions-
+server besitzt eine funktionierende IPv6-Route; ein Test mit demselben Abbild
+im Host-Netzwerk lieferte HTTP 200.
+
+**Änderung:** Der Sniper läuft im geprüften Produktions-Compose über das
+Host-Netzwerk und Node bevorzugt IPv6 bei Vinted-Anfragen. Der interne
+Healthcheck bindet nur noch an localhost und bleibt damit nicht öffentlich
+erreichbar.
+
+**Prüfung:** IPv4- und IPv6-Abrufe vom Produktionsserver verglichen, der
+Vinted-Abruf im Host-Netzwerk mit dem Sniper-Abbild erfolgreich geprüft und
+einen Regressionstest für die Node-DNS-Reihenfolge ergänzt.
+
 ## 2026-09-14 – Codex – Vinted-Bot-Feed vereinfacht
 
 **Auftrag:** Die noch sichtbaren internen Bot-Hinweise und die doppelte

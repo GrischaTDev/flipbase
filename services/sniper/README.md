@@ -112,9 +112,10 @@ docker compose -f docker-compose.sniper.yml logs --tail 30 sniper
 
 Der feste Containername verhindert einen zweiten Start über diese Konfiguration.
 Keine weiteren Kopien starten: Der bisherige Kategorie-Schreibweg setzt einen
-einzigen Dienst voraus. Es wird kein Port des Hosts geöffnet. Der Container
-verbindet sich ausgehend mit der bestehenden HTTPS-API und Vinted; er benötigt
-keinen Zugriff auf den Docker-Socket oder andere Containerdateien.
+einzigen Dienst voraus. Der Healthcheck bindet nur an localhost, deshalb wird
+kein öffentlich erreichbarer Port des Hosts benötigt. Der Container verbindet
+sich ausgehend mit der bestehenden HTTPS-API und Vinted; er benötigt keinen
+Zugriff auf den Docker-Socket oder andere Containerdateien.
 
 `restart: unless-stopped` startet den Dienst nach einem Prozessabbruch oder
 Serverneustart wieder. Ein Docker-Status `unhealthy` allein löst keinen Neustart

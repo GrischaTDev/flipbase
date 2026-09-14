@@ -90,9 +90,10 @@ export function startHealthServer(
   // ein fremder Prozess bereits auf 8080 lauschte.
   server.on('error', onError);
 
-  // Ausdruecklich auf allen Adressen: Im Container kommt die Abfrage von
-  // aussen, ein Bindung nur an localhost waere dort unerreichbar.
-  server.listen(port, '0.0.0.0');
+  // Der Dienst laeuft im Host-Netzwerk, damit er Vinted ueber die vorhandene
+  // IPv6-Route erreicht. Der Healthcheck laeuft trotzdem im Container und
+  // braucht keine oeffentliche Bindung auf dem Host.
+  server.listen(port, '127.0.0.1');
 
   // Ein offener Server darf den Prozess nicht am Beenden hindern; das
   // Herunterfahren steuert der Taktgeber.
