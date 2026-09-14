@@ -1,9 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import fixture from '../fixtures/vinted-catalog.json' with { type: 'json' };
 import { VintedCollector } from '../../src/vinted/collector.js';
-import { VintedSession } from '../../src/vinted/session.js';
-import { ForbiddenError, RateLimitedError, UnauthorizedError } from '../../src/vinted/errors.js';
+import { ForbiddenError, RateLimitedError } from '../../src/vinted/errors.js';
 import type { SniperQuery } from '../../src/domain/query.js';
+import { catalogPage } from './support/catalog-page.js';
 
 const query: SniperQuery = {
   id: 'q1',
@@ -22,29 +21,24 @@ const query: SniperQuery = {
   consecutiveFailures: 0,
 };
 
-function homepage(): Response {
-  return new Response('<html></html>', {
-    status: 200,
-    headers: { 'set-cookie': 'access_token_web=token; Path=/' },
-  });
-}
-
 function catalog(): Response {
-  return Response.json(fixture);
+  return new Response(catalogPage(), {
+    status: 200,
+    headers: { 'content-type': 'text/html; charset=utf-8' },
+  });
 }
 
 function build(fetchFn: ReturnType<typeof vi.fn>) {
   const options = { baseUrl: 'https://www.vinted.de', userAgent: 'test-agent' };
-  const session = new VintedSession(options, fetchFn as unknown as typeof fetch);
   // eslint-disable-next-line @typescript-eslint/no-empty-function
-  return new VintedCollector(options, session, fetchFn as unknown as typeof fetch, async () => {});
+  return new VintedCollector(options, fetchFn as unknown as typeof fetch, async () => {});
 }
 
 describe('VintedCollector', () => {
   it.each([53, 14, 88])(
     'collects only brand %s without hidden text, category or price filters',
     async (brandId) => {
-      const fetchFn = vi.fn().mockResolvedValueOnce(homepage()).mockResolvedValueOnce(catalog());
+      const fetchFn = vi.fn().mockResolvedValueOnce(catalog());
       await build(fetchFn).collect({
         ...query,
         brandId,
@@ -53,7 +47,7 @@ describe('VintedCollector', () => {
         priceFrom: null,
         priceTo: null,
       });
-      const url = new URL(String(fetchFn.mock.calls[1]?.[0]));
+      const url = new URL(String(fetchFn.mock.calls[0]?.[0]));
       expect(url.searchParams.get('brand_ids')).toBe(String(brandId));
       for (const key of ['search_text', 'catalog_ids', 'price_from', 'price_to'])
         expect(url.searchParams.has(key)).toBe(false);
@@ -61,98 +55,67 @@ describe('VintedCollector', () => {
     },
   );
   it('collects a category without sending a null search term', async () => {
-    const fetchFn = vi.fn().mockResolvedValueOnce(homepage()).mockResolvedValueOnce(catalog());
+    const fetchFn = vi.fn().mockResolvedValueOnce(catalog());
     await build(fetchFn).collect({ ...query, searchText: null, catalogId: 1049 });
-    const url = new URL(String(fetchFn.mock.calls[1]?.[0]));
+    const url = new URL(String(fetchFn.mock.calls[0]?.[0]));
     expect(url.searchParams.has('search_text')).toBe(false);
     expect(url.searchParams.get('catalog_ids')).toBe('1049');
   });
   it('requests page one with 96 items and the price ceiling', async () => {
-    const fetchFn = vi.fn().mockResolvedValueOnce(homepage()).mockResolvedValueOnce(catalog());
+    const fetchFn = vi.fn().mockResolvedValueOnce(catalog());
 
     await build(fetchFn).collect(query);
 
-    const url = new URL(String(fetchFn.mock.calls[1]?.[0]));
-    expect(url.pathname).toBe('/api/v2/catalog/items');
+    const url = new URL(String(fetchFn.mock.calls[0]?.[0]));
+    expect(url.pathname).toBe('/catalog');
     expect(url.searchParams.get('search_text')).toBe('nike air max');
     expect(url.searchParams.get('order')).toBe('newest_first');
     expect(url.searchParams.get('page')).toBe('1');
     expect(url.searchParams.get('per_page')).toBe('96');
     expect(url.searchParams.get('price_to')).toBe('50');
+    const requestInit = fetchFn.mock.calls[0]?.[1] as RequestInit;
+    expect(new Headers(requestInit.headers).get('cookie')).toBeNull();
+    expect(new Headers(requestInit.headers).get('accept')).toContain('text/html');
   });
 
   it('returns normalized listings', async () => {
-    const fetchFn = vi.fn().mockResolvedValueOnce(homepage()).mockResolvedValueOnce(catalog());
+    const fetchFn = vi.fn().mockResolvedValueOnce(catalog());
 
     const listings = await build(fetchFn).collect(query);
 
-    expect(listings).toHaveLength(fixture.items.length);
+    expect(listings).toHaveLength(1);
     expect(listings[0]?.marketplace).toBe('vinted');
-    expect(listings[0]?.seller.name).toBe('seller_0');
+    expect(listings[0]?.seller.name).toBeNull();
     // Der Riegel gilt weiter fuer alles, was darueber hinausgeht: Die
     // Profiladresse steht in der Antwort, darf den Sammler aber nicht verlassen.
     expect(JSON.stringify(listings)).not.toContain('profile_url');
     expect(JSON.stringify(listings)).not.toContain('/member/');
   });
 
-  it('re-warms the session once on 401 and then succeeds', async () => {
-    const fetchFn = vi
-      .fn()
-      .mockResolvedValueOnce(homepage())
-      .mockResolvedValueOnce(new Response('', { status: 401 }))
-      .mockResolvedValueOnce(homepage())
-      .mockResolvedValueOnce(catalog());
-
-    const listings = await build(fetchFn).collect(query);
-
-    expect(listings).toHaveLength(fixture.items.length);
-    expect(fetchFn).toHaveBeenCalledTimes(4);
-  });
-
-  it('gives up with UnauthorizedError after a second 401', async () => {
-    const fetchFn = vi
-      .fn()
-      .mockResolvedValueOnce(homepage())
-      .mockResolvedValueOnce(new Response('', { status: 401 }))
-      .mockResolvedValueOnce(homepage())
-      .mockResolvedValueOnce(new Response('', { status: 401 }));
-
-    await expect(build(fetchFn).collect(query)).rejects.toBeInstanceOf(UnauthorizedError);
-  });
-
   it('maps 429 to RateLimitedError without retrying', async () => {
-    const fetchFn = vi
-      .fn()
-      .mockResolvedValueOnce(homepage())
-      .mockResolvedValueOnce(new Response('', { status: 429 }));
+    const fetchFn = vi.fn().mockResolvedValueOnce(new Response('', { status: 429 }));
 
     await expect(build(fetchFn).collect(query)).rejects.toBeInstanceOf(RateLimitedError);
-    expect(fetchFn).toHaveBeenCalledTimes(2);
+    expect(fetchFn).toHaveBeenCalledTimes(1);
   });
 
   it('maps 403 to ForbiddenError without retrying', async () => {
-    const fetchFn = vi
-      .fn()
-      .mockResolvedValueOnce(homepage())
-      .mockResolvedValueOnce(new Response('', { status: 403 }));
+    const fetchFn = vi.fn().mockResolvedValueOnce(new Response('', { status: 403 }));
 
     await expect(build(fetchFn).collect(query)).rejects.toBeInstanceOf(ForbiddenError);
-    expect(fetchFn).toHaveBeenCalledTimes(2);
+    expect(fetchFn).toHaveBeenCalledTimes(1);
   });
 
   it('retries a 503 at most twice', async () => {
     const delays: number[] = [];
     const fetchFn = vi
       .fn()
-      .mockResolvedValueOnce(homepage())
       .mockResolvedValueOnce(new Response('', { status: 503 }))
       .mockResolvedValueOnce(new Response('', { status: 503 }))
       .mockResolvedValueOnce(catalog());
     const options = { baseUrl: 'https://www.vinted.de', userAgent: 'test-agent' };
-    const session = new VintedSession(options, fetchFn as unknown as typeof fetch);
     const collector = new VintedCollector(
       options,
-      session,
       fetchFn as unknown as typeof fetch,
       async (ms) => {
         delays.push(ms);
@@ -165,20 +128,17 @@ describe('VintedCollector', () => {
   });
 
   it('rejects a response that violates the schema', async () => {
-    const fetchFn = vi
-      .fn()
-      .mockResolvedValueOnce(homepage())
-      .mockResolvedValueOnce(Response.json({ items: [{ nope: true }] }));
+    const fetchFn = vi.fn().mockResolvedValueOnce(Response.json({ items: [{ nope: true }] }));
 
     await expect(build(fetchFn).collect(query)).rejects.toThrow();
   });
 
   it('reicht die Preisuntergrenze an Vinted weiter', async () => {
-    const fetchFn = vi.fn().mockResolvedValueOnce(homepage()).mockResolvedValueOnce(catalog());
+    const fetchFn = vi.fn().mockResolvedValueOnce(catalog());
 
     await build(fetchFn).collect({ ...query, priceFrom: 10 });
 
-    const url = new URL(fetchFn.mock.calls[1]![0] as string);
+    const url = new URL(fetchFn.mock.calls[0]![0] as string);
     expect(url.searchParams.get('price_from')).toBe('10');
   });
 });

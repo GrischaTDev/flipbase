@@ -59,6 +59,7 @@ export class DealMonitorComponent {
   private readonly editor = viewChild(WatchlistEditorComponent);
   readonly state = new DealFeedState((request) => this.api.feed(request));
   readonly watchlists = signal<Watchlist[]>([]);
+  readonly watchlistsLoading = signal(false);
   readonly categories = signal<FeedCategory[]>([]);
   readonly selected = signal<string | null>(null);
   readonly selectedSize = signal<string | null>(null);
@@ -116,6 +117,7 @@ export class DealMonitorComponent {
         this.error.set(null);
         this.message.set('');
         this.listGeneration++;
+        this.watchlistsLoading.set(Boolean(workspace));
         if (workspace) void this.loadWatchlists(workspace);
       });
     });
@@ -150,8 +152,12 @@ export class DealMonitorComponent {
   }
 
   async loadWatchlists(workspace = this.workspace()?.id): Promise<void> {
-    if (!workspace) return;
+    if (!workspace) {
+      this.watchlistsLoading.set(false);
+      return;
+    }
     const generation = ++this.listGeneration;
+    this.watchlistsLoading.set(true);
     try {
       const rows = await this.api.watchlists(workspace);
       if (generation !== this.listGeneration || this.destroyRef.destroyed) return;
@@ -159,6 +165,10 @@ export class DealMonitorComponent {
     } catch (error) {
       if (generation === this.listGeneration)
         this.error.set(error instanceof Error ? error.message : 'Laden fehlgeschlagen.');
+    } finally {
+      if (generation === this.listGeneration && !this.destroyRef.destroyed) {
+        this.watchlistsLoading.set(false);
+      }
     }
   }
   async loadCategories(): Promise<void> {

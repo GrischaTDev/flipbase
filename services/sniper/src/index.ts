@@ -14,7 +14,7 @@ import { ListingStore } from './store/listing.store.js';
 import { QueryStore } from './store/query.store.js';
 import { createSupabaseClient } from './store/supabase.js';
 import { VintedCollector } from './vinted/collector.js';
-import { sleep, VintedSession } from './vinted/session.js';
+import { sleep } from './vinted/session.js';
 
 const config = loadConfig(process.env);
 const log = createLogger();
@@ -22,13 +22,10 @@ const client = createSupabaseClient(config);
 const sessionOptions = { baseUrl: config.vintedBaseUrl, userAgent: config.userAgent };
 const budget = new RequestBudget(config.requestsPerMinute);
 
-// Jede ausgehende Anfrage meldet sich selbst beim Budget - Aufwaermung,
-// Katalogabfrage, Wiederholung nach 5xx und Neuaufwaermen nach 401
-// gleichermassen. Deshalb bekommen Sitzung UND Sammler dieselbe umschlossene
-// fetch-Funktion; wer sie umgeht, zaehlt nicht mit.
+// Jede ausgehende Anfrage meldet sich selbst beim Budget - Katalogabfrage,
+// Wiederholungen nach 5xx und der getrennte Kategorieabruf gleichermassen.
 const metrics = new RequestMetrics();
 const counted = countingFetch(metrics.wrap(fetch), () => budget.record());
-const session = new VintedSession(sessionOptions, counted);
 
 const health = createHealthState(() => budget.usageRatio());
 const queries = new QueryStore(client);
@@ -49,7 +46,7 @@ const scheduler = new QueryScheduler({
       health.recordDeactivation();
     },
   },
-  collector: new VintedCollector(sessionOptions, session, counted),
+  collector: new VintedCollector(sessionOptions, counted),
   listings,
   budget,
   log,

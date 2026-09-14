@@ -1,5 +1,31 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-14 – Codex – Vinted-Bot-Sammler und Suchfilter-Ladezustand repariert
+
+**Auftrag:** Den Vinted-Bot untersuchen, weil aktivierte Aufträge kurz danach
+wieder pausiert wurden und die Suchfilterseite vor dem Laden fälschlich einen
+leeren Zustand zeigte.
+
+**Befund:** Der Sammler rief `/api/v2/catalog/items` auf. Vinted liefert dort
+inzwischen keinen Katalog mehr; der Dienst bekam deshalb Fehler, und der
+Scheduler deaktivierte den Auftrag nach drei aufeinanderfolgenden Fehlern. Die
+aktuelle Katalogseite liefert die Daten als serverseitig eingebettete Next.js-
+Flight-Daten. Die Suchfilterkomponente setzte ihre Liste außerdem sofort auf
+leer, ohne den laufenden Abruf als Ladezustand zu kennzeichnen.
+
+**Änderung:** Der Sammler ruft jetzt die aktuelle öffentliche `/catalog`-Seite
+mit den bestehenden Such-, Kategorie-, Marken- und Preisparametern auf, liest
+die Next.js-Daten sicher ohne fremden JavaScript-Code aus und übergibt die
+Artikel weiter an die vorhandene Normalisierung. Der veraltete Sitzungs-Cookie
+wird bei dieser öffentlichen Seite nicht mehr mitgesendet, weil Vinted damit
+eine leere Weiterleitungsseite liefert. Die Suchfilterseite und die
+Suchfilteransicht im Vinted Bot zeigen während des Abrufs einen Ladehinweis und
+keinen falschen Leerzustand.
+
+**Prüfung:** Live-Test gegen Vinted mit 95 eingelesenen Artikeln; Sniper 118
+Tests; vollständige Anwendungstests mit 250 DOM-, 1.351 Node- und 832
+Angular-Tests; Lint, Typprüfung, Formatprüfung und Produktionsbau erfolgreich.
+
 ## 2026-09-14 – Codex – Vinted-Bot-Tabelle verbreitert und Icons beruhigt
 
 **Auftrag:** Die Administration des Vinted-Bots nach der visuellen Prüfung der
