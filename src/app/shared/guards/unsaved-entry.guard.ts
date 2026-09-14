@@ -9,9 +9,11 @@ export function canLeaveUnsavedEntry(
   component: UnsavedEntryPage,
   confirmLeave: (message: string) => boolean = (message) => globalThis.confirm(message),
 ): boolean {
-  if (component.isSaving()) return false;
+  if (typeof component?.isSaving === 'function' && component.isSaving()) return false;
+  const hasChanges =
+    typeof component?.hasUnsavedChanges === 'function' ? component.hasUnsavedChanges() : false;
   return (
-    !component.hasUnsavedChanges() ||
+    !hasChanges ||
     confirmLeave('Möchtest du die Seite verlassen? Nicht gespeicherte Eingaben gehen verloren.')
   );
 }

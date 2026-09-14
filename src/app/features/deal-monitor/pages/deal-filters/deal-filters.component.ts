@@ -29,6 +29,8 @@ import { ModalShellComponent } from '../../../../shared/components/modal-shell/m
 import { WatchlistEditorComponent } from '../../components/watchlist-editor/watchlist-editor.component';
 import { DealMonitorService } from '../../services/deal-monitor.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
+import { AuthService } from '../../../../core/services/auth.service';
+import { UnsavedEntryPage } from '../../../../shared/guards/unsaved-entry.guard';
 import { FeedCategory, Watchlist, WatchlistDraft } from '../../models/deal-monitor.model';
 
 @Component({
@@ -48,9 +50,10 @@ import { FeedCategory, Watchlist, WatchlistDraft } from '../../models/deal-monit
   styleUrl: './deal-filters.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class DealFiltersComponent {
+export class DealFiltersComponent implements UnsavedEntryPage {
   private readonly api = inject(DealMonitorService);
   readonly workspace = inject(WorkspaceService).currentWorkspace;
+  readonly demo = inject(AuthService).isDemoMode;
   private readonly destroyRef = inject(DestroyRef);
   private readonly element = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly injector = inject(Injector);
@@ -80,16 +83,19 @@ export class DealFiltersComponent {
 
   constructor() {
     effect(() => {
-      const current = this.workspace();
+      const workspace = this.demo() ? null : (this.workspace()?.id ?? null);
       untracked(() => {
-        if (!current) {
-          this.watchlists.set([]);
-          return;
-        }
-        void this.loadWatchlists(current.id);
-        void this.loadCategories();
+        this.watchlists.set([]);
+        this.editorOpen.set(false);
+        this.deleting.set(null);
+        this.error.set(null);
+        this.message.set('');
+        this.listGeneration++;
+        if (workspace) void this.loadWatchlists(workspace);
       });
     });
+
+    if (!this.demo()) void this.loadCategories();
 
     this.destroyRef.onDestroy(() => {
       this.listGeneration++;
@@ -100,13 +106,18 @@ export class DealFiltersComponent {
     return this.editor()?.form.dirty ?? false;
   }
 
-  async loadWatchlists(workspace = this.workspace()?.id): Promise<void> {
-    if (!workspace) return;
+  isSaving(): boolean {
+    return this.saving();
+  }
+
+  async loadWatchlists(workspace = this.demo() ? undefined : this.workspace()?.id): Promise<void> {
+    if (this.demo() || !workspace) return;
     const generation = ++this.listGeneration;
     try {
       const rows = await this.api.watchlists(workspace);
       if (generation !== this.listGeneration || this.destroyRef.destroyed) return;
       this.watchlists.set(rows);
+      this.error.set(null);
     } catch (error) {
       if (generation === this.listGeneration) {
         this.error.set(error instanceof Error ? error.message : 'Laden fehlgeschlagen.');
@@ -115,6 +126,7 @@ export class DealFiltersComponent {
   }
 
   async loadCategories(): Promise<void> {
+    if (this.demo()) return;
     try {
       const rows = await this.api.categories();
       if (!this.destroyRef.destroyed) {
@@ -156,6 +168,7 @@ export class DealFiltersComponent {
   }
 
   async save(draft: WatchlistDraft): Promise<void> {
+    if (this.demo()) return;
     const workspace = this.workspace()?.id;
     if (!workspace || this.saving()) return;
     this.saving.set(true);
@@ -178,10 +191,12 @@ export class DealFiltersComponent {
   }
 
   toggle(row: Watchlist): void {
+    if (this.demo()) return;
     void this.save({ ...row, is_active: !row.is_active });
   }
 
   async confirmDelete(): Promise<void> {
+    if (this.demo()) return;
     const row = this.deleting();
     const workspace = this.workspace()?.id;
     if (!row || !workspace || this.saving()) return;

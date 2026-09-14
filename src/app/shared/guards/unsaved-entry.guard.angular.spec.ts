@@ -28,4 +28,11 @@ describe('unsavedEntryGuard', () => {
     expect(invokeGuard({ hasUnsavedChanges: () => true, isSaving: () => true })).toBe(false);
     expect(confirm).not.toHaveBeenCalled();
   });
+
+  it('wirft keinen Fehler und lässt deaktiveren, wenn isSaving oder hasUnsavedChanges fehlen', () => {
+    const confirm = vi.spyOn(globalThis, 'confirm');
+
+    expect(invokeGuard({} as unknown as UnsavedEntryPage)).toBe(true);
+    expect(confirm).not.toHaveBeenCalled();
+  });
 });
