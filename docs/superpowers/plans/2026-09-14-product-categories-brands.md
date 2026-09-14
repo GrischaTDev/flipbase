@@ -1221,7 +1221,7 @@ Expected: beide Exitcodes `0`.
 **Files:**
 
 - Create: `src/app/core/services/brand.service.ts`
-- Create: `src/app/core/services/brand.service.spec.ts`
+- Create: `src/app/core/services/brand.service.dom.spec.ts`
 - Modify: `src/app/core/services/mock-data-store.service.ts`
 
 **Interfaces:**
@@ -1234,7 +1234,7 @@ Expected: beide Exitcodes `0`.
 
 - [ ] **Step 1: Failing Tests schreiben**
 
-`src/app/core/services/brand.service.spec.ts`:
+`src/app/core/services/brand.service.dom.spec.ts`:
 
 ```ts
 import '@angular/compiler';
@@ -1466,11 +1466,11 @@ describe('MockDataStoreService.applyCategoryBrandText', () => {
 });
 ```
 
-Die Datei läuft im Node-Projekt; `localStorage` stellt `src/test-setup.ts` bereit. Fehlt es dort (`ReferenceError: localStorage is not defined`), die Datei in `brand.service.dom.spec.ts` umbenennen und mit `--project=dom` ausführen.
+Die Datei läuft wegen der verwendeten `localStorage`-API im DOM-Projekt.
 
 - [ ] **Step 2: Tests laufen lassen, sie müssen fehlschlagen**
 
-Run: `npx vitest run --project=node src/app/core/services/brand.service.spec.ts`
+Run: `npx vitest run --project=dom src/app/core/services/brand.service.dom.spec.ts`
 Expected: FAIL mit `Failed to resolve import "./brand.service"`
 
 - [ ] **Step 3: Demo-Marken im MockDataStoreService ergänzen**
@@ -1772,7 +1772,7 @@ export class BrandService {
 
 - [ ] **Step 5: Tests laufen lassen, sie müssen bestehen**
 
-Run: `npx vitest run --project=node src/app/core/services/brand.service.spec.ts`
+Run: `npx vitest run --project=dom src/app/core/services/brand.service.dom.spec.ts`
 Expected: PASS, 11 Tests.
 
 - [ ] **Step 6: Bestehende Demo-Tests prüfen**
@@ -1783,10 +1783,10 @@ Expected: `0`.
 - [ ] **Step 7: Typen, Lint, Format, Commit**
 
 ```bash
-npx prettier --write src/app/core/services/brand.service.ts src/app/core/services/brand.service.spec.ts src/app/core/services/mock-data-store.service.ts
+npx prettier --write src/app/core/services/brand.service.ts src/app/core/services/brand.service.dom.spec.ts src/app/core/services/mock-data-store.service.ts
 npm run typecheck > /tmp/tc.log 2>&1; echo $?
 npx eslint src/app/core/services/brand.service.ts src/app/core/services/mock-data-store.service.ts > /tmp/lint.log 2>&1; echo $?
-git add src/app/core/services/brand.service.ts src/app/core/services/brand.service.spec.ts src/app/core/services/mock-data-store.service.ts
+git add src/app/core/services/brand.service.ts src/app/core/services/brand.service.dom.spec.ts src/app/core/services/mock-data-store.service.ts
 git commit -m "feat(inventory): add brand service and demo brand handling" -m "Brands are loaded per workspace and never shown for a different workspace or mode. Creating a brand returns an existing one with the same comparison key, and a concurrent unique violation reloads and returns the winner instead of failing. Demo mode mirrors the database trigger so demo items get the same brand and category text."
 ```
 

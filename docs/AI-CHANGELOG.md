@@ -1,5 +1,19 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-14 – Codex – Browser-Test korrekt klassifiziert
+
+**Auftrag:** Die PR-Reife des Zweigs `feat/product-categories-brands` nach der
+letzten Marken-Wähler-Korrektur prüfen.
+
+**Befund:** Der Suite-Audit hat den Marken-Service-Test abgelehnt, weil er
+`localStorage` nutzt, aber durch den Dateinamen als Node-Test ausgeführt wurde.
+
+**Änderung:** Den Test in `brand.service.dom.spec.ts` umbenannt und die
+zugehörigen Plan-Verweise auf die DOM-Testgruppe angepasst.
+
+**Prüfung:** DOM-Test, Suite-Audit, Typprüfung, Lint und die vollständige
+Verifikation sind erfolgreich durchgelaufen.
+
 ## 2026-09-14 – Codex – Review-Fixes am Marken-Wähler
 
 **Auftrag:** Nach dem Token-Limit des vorherigen Assistenten zwei Review-Befunde
