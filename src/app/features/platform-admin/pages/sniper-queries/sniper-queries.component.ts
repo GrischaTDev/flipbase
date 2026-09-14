@@ -85,7 +85,20 @@ export class SniperQueriesComponent {
     return query.title || (query.brand_id ? `Marke ${query.brand_id}` : 'Unbenannter Markenfilter');
   }
 
+  isBrandOnly(query: SniperQuery): boolean {
+    return (
+      query.marketplace === 'vinted' &&
+      query.brand_id !== null &&
+      query.search_text === null &&
+      query.catalog_id === null &&
+      query.price_from === null &&
+      query.price_to === null &&
+      query.query_key === `vinted|search=|catalog=-|brand=${query.brand_id}|price_from=-|price_to=-`
+    );
+  }
+
   openEditor(query: SniperQuery | null = null): void {
+    if (query && !this.isBrandOnly(query)) return;
     this.editing.set(query);
     this.error.set(null);
     this.message.set(null);
@@ -104,7 +117,10 @@ export class SniperQueriesComponent {
   }
 
   modalClosed(): void {
-    if (!this.isSaving()) this.closeEditor();
+    if (this.isSaving()) return;
+    if (this.hasUnsavedChanges() && !globalThis.confirm('Ungespeicherte Änderungen verwerfen?'))
+      return;
+    this.closeEditor();
   }
 
   async save(draft: QueryDraft): Promise<void> {

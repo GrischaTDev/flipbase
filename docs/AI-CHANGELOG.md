@@ -13,9 +13,11 @@ Vinted-Abfrage; die übrigen Kriterien werden im gemeinsamen Nutzerbestand
 geprüft.
 
 **Änderung:** Sammelaufträge werden als benannte Markenfilter mit Vinted-
-Markenkennung, Abfragetakt und Notiz gespeichert. Die alte RPC-Signatur wurde
-entfernt, die Datenbank migriert bestehende Zeilen mit sicheren Rückfallnamen
-und bewahrt ihre Funde. Die Admin-Tabelle nutzt die gemeinsame breite
+Markenkennung, Abfragetakt und Notiz gespeichert. Die neue RPC akzeptiert nur
+diesen Vertrag; die alte Signatur bleibt während des Rollouts als gesperrter
+Kompatibilitätsweg erhalten und lehnt Kategorien, Suchtexte und Preise ab. Die
+Datenbank migriert bestehende Zeilen mit sicheren Rückfallnamen und bewahrt
+ihre Funde. Die Admin-Tabelle nutzt die gemeinsame breite
 Tabellenoberfläche; Anlegen und Bearbeiten öffnen ein einfaches Modal mit
 Icon-Aktionen. Die bestehende Tabelle und RPC bleiben für persönliche Filter
 kompatibel. Die bekannte Einschränkung bleibt dokumentiert: Reine

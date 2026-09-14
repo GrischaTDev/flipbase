@@ -41,7 +41,8 @@ create table if not exists public.sniper_queries (
         or (brand_id is not null and brand_id > 0)
     ),
     constraint sniper_queries_interval_valid check (poll_interval_ms between 10000 and 86400000),
-    constraint sniper_queries_price_range_valid check (price_from is null or price_to is null or price_from <= price_to)
+    constraint sniper_queries_price_range_valid check (price_from is null or price_to is null or price_from <= price_to),
+    constraint sniper_queries_title_valid check (length(btrim(title)) between 1 and 100)
 );
 
 comment on table public.sniper_queries is

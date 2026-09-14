@@ -26,7 +26,8 @@ select lives_ok($$select public.upsert_sniper_query(null, 'Nike', 53, 60000, 'Sp
 select is((select title from public.sniper_queries where brand_id = 53), 'Nike', 'Der Filtername wird gespeichert');
 select is((select is_active from public.sniper_queries where brand_id = 53), false, 'Neuer Markenfilter bleibt pausiert');
 select is((select query_key from public.sniper_queries where brand_id = 53), 'vinted|search=|catalog=-|brand=53|price_from=-|price_to=-', 'Marken-Schluessel passt zum Sammler');
-select is((select count(*) from pg_proc where oid = to_regprocedure('public.upsert_sniper_query(uuid,text,integer,integer,numeric,numeric,integer,text)')), 0::bigint, 'Die alte Schreibsignatur ist entfernt');
+select is((select count(*) from pg_proc where oid = to_regprocedure('public.upsert_sniper_query(uuid,text,integer,integer,numeric,numeric,integer,text)')), 1::bigint, 'Die alte Schreibsignatur bleibt als gesperrter Rolloutweg erhalten');
+select throws_ok($$select public.upsert_sniper_query(null, null, 1049, 53, null, null, 60000, null)$$, 'P0001', 'Die Administration verwaltet nur Markenfilter', 'Die alte Signatur akzeptiert keine Kategorie');
 select throws_ok($$select public.upsert_sniper_query(null, 'Nike erneut', 53, 60000, null)$$, 'P0001', 'Ein Markenfilter fuer diese Marke besteht bereits', 'Gleiche Marke wird nicht doppelt angelegt');
 select throws_ok($$select public.upsert_sniper_query(null, '  ', 14, 60000, null)$$, 'P0001', 'Bitte einen Filtername angeben', 'Leerer Filtername wird abgelehnt');
 select throws_ok($$select public.upsert_sniper_query(null, 'Adidas', 0, 60000, null)$$, 'P0001', 'Ungueltige Markenkennung', 'Ungueltige Markenkennung wird abgelehnt');
@@ -45,6 +46,13 @@ select is((select count(*) from public.sniper_runtime_status), 1::bigint, 'Admin
 select lives_ok($$select public.set_sniper_query_active((select id from public.sniper_queries where brand_id = 53), false)$$, 'Administration kann pausieren');
 select is((select is_active from public.sniper_queries where brand_id = 53), false, 'Markenfilter ist wieder pausiert');
 reset role;
+insert into public.sniper_queries (query_key, title, catalog_id, is_active)
+values ('legacy-category-test', 'Alte Kategorie', 1049, true);
+select set_config('request.jwt.claim.sub', 'a0000000-0000-4000-8000-000000000001', true);
+set local role authenticated;
+select throws_ok($$select public.set_sniper_query_active((select id from public.sniper_queries where query_key = 'legacy-category-test'), true)$$, 'P0001', 'Nur reine Markenfilter koennen aktiviert werden', 'Alte Nicht-Markenauftraege koennen nicht aktiviert werden');
+select lives_ok($$select public.set_sniper_query_active((select id from public.sniper_queries where query_key = 'legacy-category-test'), false)$$, 'Alte Auftraege koennen noch pausiert werden');
+reset role;
 update public.sniper_queries set consecutive_failures = 3 where brand_id = 53;
 update public.sniper_runtime_status set reported_at = now() - interval '5 minutes';
 select set_config('request.jwt.claim.sub', 'a0000000-0000-4000-8000-000000000001', true);
@@ -60,7 +68,7 @@ select lives_ok($$select public.upsert_sniper_query(null, 'Ralph Lauren', 88, 10
 select is((select count(*) from public.sniper_queries where brand_id in (53, 14, 88)), 3::bigint, 'Je Marke genau ein zentraler Filter besteht');
 select ok((select bool_and(search_text is null and catalog_id is null and price_from is null and price_to is null and not is_active)
            from public.sniper_queries where brand_id in (14, 88)), 'Neue Filter enthalten keine weiteren Suchkriterien und bleiben pausiert');
-select is((select count(*) from public.sniper_queries where brand_id is null), 0::bigint, 'Der zentrale Markenbestand enthält keine ungefilterte Suche');
+select is((select count(*) from public.sniper_queries where query_key like 'vinted|search=|catalog=-|brand=%' and brand_id is null), 0::bigint, 'Neue zentrale Filter enthalten keine ungefilterte Suche');
 reset role;
 select throws_ok($$insert into public.sniper_queries(query_key) values ('empty-direct-test')$$, '23514', null, 'Tabellenregel verbietet vollstaendig ungefilterte Auftraege');
 select throws_ok($$insert into public.sniper_queries(query_key, brand_id) values ('invalid-brand-direct-test', 0)$$, '23514', null, 'Tabellenregel akzeptiert keine ungueltige Marke als einzigen Filter');

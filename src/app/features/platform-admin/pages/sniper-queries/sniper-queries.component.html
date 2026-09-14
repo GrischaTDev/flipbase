@@ -23,7 +23,7 @@
         [query]="editing()"
         [saving]="saving()"
         (saved)="save($event)"
-        (cancelled)="closeEditor()"
+        (cancelled)="modalClosed()"
       />
     </app-modal-shell>
   }
@@ -131,22 +131,35 @@
                   </td>
                   <td class="min-w-[110px] whitespace-nowrap p-3">
                     <div class="flex justify-end gap-1.5">
-                      <app-button
-                        variant="ghost"
-                        size="md"
-                        [icon]="editIcon"
-                        [iconOnly]="true"
-                        [disabled]="editorOpen()"
-                        [title]="'Markenfilter bearbeiten: ' + queryTitle(query)"
-                        [ariaLabel]="'Markenfilter bearbeiten: ' + queryTitle(query)"
-                        (clicked)="openEditor(query)"
-                      />
+                      @if (isBrandOnly(query)) {
+                        <app-button
+                          variant="ghost"
+                          size="md"
+                          [icon]="editIcon"
+                          [iconOnly]="true"
+                          [disabled]="editorOpen()"
+                          [title]="'Markenfilter bearbeiten: ' + queryTitle(query)"
+                          [ariaLabel]="'Markenfilter bearbeiten: ' + queryTitle(query)"
+                          (clicked)="openEditor(query)"
+                        />
+                      } @else {
+                        <span
+                          class="self-center text-xs text-fb-text-muted"
+                          title="Altes Filterformat kann hier nicht bearbeitet werden"
+                        >
+                          Altes Filterformat
+                        </span>
+                      }
                       <app-button
                         variant="ghost"
                         size="md"
                         [icon]="query.is_active ? pauseIcon : activateIcon"
                         [iconOnly]="true"
-                        [disabled]="busyId() !== null || editorOpen()"
+                        [disabled]="
+                          busyId() !== null ||
+                          editorOpen() ||
+                          (!isBrandOnly(query) && !query.is_active)
+                        "
                         [loading]="busyId() === query.id"
                         [title]="
                           (query.is_active
