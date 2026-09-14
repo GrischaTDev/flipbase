@@ -1,5 +1,30 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-14 – Gemini 3.8 Flash (Google DeepMind) – Konzeptabstimmung Vinted-Bot: Eigene Unterseiten für Suchfilter & Favoriten
+
+**Auftrag:** Präzisierung der Vinted-Bot-Struktur auf Wunsch des Nutzers:
+
+1. Unterseiten-Struktur im Seitenmenü unter „Vinted Bot“:
+   - **Bot** (`/vinted-bot`): Reiner Live-Feed & Deals mit Größen-Schnellfilter und Bild-Großansicht.
+   - **Suchfilter** (`/vinted-bot/filters`): Eigene Unterseite zur Verwaltung aller automatischen Suchkriterien (vormals „Merkzettel“).
+   - **Favoriten** (`/vinted-bot/favorites`): Eigene Unterseite für mit Herz ❤️ gespeicherte Einzelangebote.
+2. Interaktion auf der Anzeige: Herz-Button neben „Auf Vinted ansehen“.
+3. Größenfilterung: Schnelles Größen-Dropdown direkt über dem Live-Feed.
+4. Farbakzente für Info-Icons auf den Karten.
+
+**Befund:**
+
+- Entflechtet den Deal-Monitor maßgeblich: Die bisherige Ansichten-Umschaltung im Header (`Artikel | Deals | Merkzettel`) wird sauberer; Suchfilter erhalten ihren eigenen Raum zur Verwaltung.
+- `SidebarComponent` unterstützt bereits `children` und das Shopify-typische Ausklappen im DOM bei aktiver Route.
+
+**Ergebnis:**
+
+- Vollständiges Konzept dokumentiert. Umsetzung startet modular (Schritt 1: Größen-Select-Box, farbige Icons und Umbenennung; Schritt 2: Aufteilung in Unterseiten für Suchfilter und Favoriten).
+
+**Prüfung:**
+
+- `sidebar.component.ts`, `deal-monitor.component.html` und Routing-Möglichkeiten analysiert.
+
 ## 2026-09-14 – Claude Opus 5 (Anthropic) – Kleinanzeigen-Erweiterung repariert
 
 **Auftrag:** Die Erweiterung aus PR #73/#74 meldet auf Kleinanzeigen „Titel-, Preis-

@@ -49,17 +49,21 @@
       <dl class="flex flex-wrap gap-x-3 gap-y-1.5 text-xs text-fb-text-secondary">
         <div class="flex min-w-0 items-center gap-1.5">
           <dt>
-            <span class="sr-only">Marke</span
-            ><svg [lucideIcon]="icons.brand" class="h-3.5 w-3.5 shrink-0" aria-hidden="true"></svg>
+            <span class="sr-only">Marke</span>
+            <svg
+              [lucideIcon]="icons.brand"
+              class="h-3.5 w-3.5 shrink-0 text-sky-500 dark:text-sky-400"
+              aria-hidden="true"
+            ></svg>
           </dt>
           <dd class="break-words">{{ item().brand || 'Ohne Markenangabe' }}</dd>
         </div>
         <div class="flex min-w-0 items-center gap-1.5">
           <dt>
-            <span class="sr-only">Zustand</span
-            ><svg
+            <span class="sr-only">Zustand</span>
+            <svg
               [lucideIcon]="icons.condition"
-              class="h-3.5 w-3.5 shrink-0"
+              class="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400"
               aria-hidden="true"
             ></svg>
           </dt>
@@ -68,8 +72,12 @@
         @if (item().size) {
           <div class="flex min-w-0 items-center gap-1.5">
             <dt>
-              <span class="sr-only">Größe</span
-              ><svg [lucideIcon]="icons.size" class="h-3.5 w-3.5 shrink-0" aria-hidden="true"></svg>
+              <span class="sr-only">Größe</span>
+              <svg
+                [lucideIcon]="icons.size"
+                class="h-3.5 w-3.5 shrink-0 text-amber-500 dark:text-amber-400"
+                aria-hidden="true"
+              ></svg>
             </dt>
             <dd>{{ item().size }}</dd>
           </div>
@@ -88,7 +96,7 @@
       <p class="flex items-start gap-1.5 text-xs text-fb-text-secondary">
         <svg
           [lucideIcon]="icons.protection"
-          class="mt-0.5 h-3.5 w-3.5 shrink-0"
+          class="mt-0.5 h-3.5 w-3.5 shrink-0 text-indigo-500 dark:text-indigo-400"
           aria-hidden="true"
         ></svg>
         <span
@@ -100,7 +108,7 @@
         <p class="text-xs text-fb-text-secondary">
           Vergleich: {{ item().reference_price | currency: 'EUR' }} · {{ referenceLabel() }}
         </p>
-        <p class="text-xs text-fb-text-muted">Merkzettel: {{ item().watchlist_title }}</p>
+        <p class="text-xs text-fb-text-muted">Suchfilter: {{ item().watchlist_title }}</p>
       }
       @if (item().is_hidden) {
         <app-badge tone="caution">Noch nicht kaufbar</app-badge>

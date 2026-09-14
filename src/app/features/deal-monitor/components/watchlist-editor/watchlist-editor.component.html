@@ -2,19 +2,19 @@
   <form
     [formGroup]="form"
     (ngSubmit)="submit()"
-    aria-label="Merkzettel bearbeiten"
+    aria-label="Suchfilter bearbeiten"
     class="flex flex-col gap-4"
   >
     <fieldset [disabled]="saving()" class="flex min-w-0 flex-col gap-4">
       <h2 class="text-base font-semibold">
-        {{ watchlist() ? 'Merkzettel bearbeiten' : 'Neuer Merkzettel' }}
+        {{ watchlist() ? 'Suchfilter bearbeiten' : 'Neuer Suchfilter' }}
       </h2>
       <p class="text-sm text-fb-text-secondary">
         Artikel zeigt auch passenden Bestand. Neue Deals werden ab dem Speichern deiner
         Suchkriterien gemeldet.
       </p>
       <app-text-field
-        label="Name des Merkzettels"
+        label="Name des Suchfilters"
         formControlName="title"
         placeholder="Zum Beispiel Nike-Sneaker"
         [error]="
@@ -109,7 +109,7 @@
       <div class="flex justify-end gap-2">
         <app-button (clicked)="cancelled.emit()" [disabled]="saving()">Abbrechen</app-button
         ><app-button type="submit" variant="primary" [loading]="saving()"
-          >Merkzettel speichern</app-button
+          >Suchfilter speichern</app-button
         >
       </div>
     </fieldset>
