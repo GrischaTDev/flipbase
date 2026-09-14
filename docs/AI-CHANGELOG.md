@@ -1,29 +1,33 @@
 # 🤖 KI-Änderungsprotokoll
 
-## 2026-09-14 – Gemini 3.8 Flash (Google DeepMind) – Konzeptabstimmung Vinted-Bot: Eigene Unterseiten für Suchfilter & Favoriten
+## 2026-09-14 – Gemini 3.8 Flash (Google DeepMind) – Vinted-Bot: Größen-Schnellfilter, Suchfilter-Harmonisierung & Icon-Farben
 
-**Auftrag:** Präzisierung der Vinted-Bot-Struktur auf Wunsch des Nutzers:
+**Auftrag:** Umsetzung von Phase 1 im Vinted-Bot:
 
-1. Unterseiten-Struktur im Seitenmenü unter „Vinted Bot“:
-   - **Bot** (`/vinted-bot`): Reiner Live-Feed & Deals mit Größen-Schnellfilter und Bild-Großansicht.
-   - **Suchfilter** (`/vinted-bot/filters`): Eigene Unterseite zur Verwaltung aller automatischen Suchkriterien (vormals „Merkzettel“).
-   - **Favoriten** (`/vinted-bot/favorites`): Eigene Unterseite für mit Herz ❤️ gespeicherte Einzelangebote.
-2. Interaktion auf der Anzeige: Herz-Button neben „Auf Vinted ansehen“.
-3. Größenfilterung: Schnelles Größen-Dropdown direkt über dem Live-Feed.
-4. Farbakzente für Info-Icons auf den Karten.
+1. Schneller Größenfilter (Select-Box) direkt im Feed.
+2. Vollständige Umbenennung von „Merkzettel“ zu „Suchfilter“ (Vorbereitung auf die künftigen Artikel-Favoriten).
+3. Farbliche Akzentuierung der Informations-Icons auf den Anzeigenkarten.
 
 **Befund:**
 
-- Entflechtet den Deal-Monitor maßgeblich: Die bisherige Ansichten-Umschaltung im Header (`Artikel | Deals | Merkzettel`) wird sauberer; Suchfilter erhalten ihren eigenen Raum zur Verwaltung.
-- `SidebarComponent` unterstützt bereits `children` und das Shopify-typische Ausklappen im DOM bei aktiver Route.
+- `public.sniper_listings` und `FeedItem` liefern `size` bereits mit.
+- Umbenennung beseitigt begriffliche Dopplungen mit künftigen Favoriten.
+- Vinted-Größenformat-Vielfalt (`XXL / 54`, `2XL`, `L / 40`) wird über einen dedizierten Matcher präzise abgedeckt.
 
 **Ergebnis:**
 
-- Vollständiges Konzept dokumentiert. Umsetzung startet modular (Schritt 1: Größen-Select-Box, farbige Icons und Umbenennung; Schritt 2: Aufteilung in Unterseiten für Suchfilter und Favoriten).
+- Neue Utility-Funktion `matchesSize()` mit vollständiger Testabdeckung.
+- Größen-Select-Box im Feed mit reaktiver Filterung von Highlights und Grid.
+- Alle Buttons, Reiter, Modale und Fehlermeldungen konsistent auf „Suchfilter“ umgestellt.
+- Icons für Marke (Himmelblau), Zustand (Smaragdgrün), Größe (Bernstein) und Käuferschutz (Indigo) visuell akzentuiert.
+- Neuer Test `deal-monitor.component.angular.spec.ts` ergänzt. Commit `77c0e25` auf Branch `feat/vinted-bot-filters`.
 
 **Prüfung:**
 
-- `sidebar.component.ts`, `deal-monitor.component.html` und Routing-Möglichkeiten analysiert.
+- `npx vitest run src/app/features/deal-monitor`: 3/3 Testsuiten, 22/22 Tests bestanden.
+- `npm run typecheck`: Exitcode 0.
+- `npx eslint src/app/features/deal-monitor/`: 0 Fehler, 0 Warnungen.
+- `npm run build`: Exitcode 0.
 
 ## 2026-09-14 – Claude Opus 5 (Anthropic) – Kleinanzeigen-Erweiterung repariert
 
