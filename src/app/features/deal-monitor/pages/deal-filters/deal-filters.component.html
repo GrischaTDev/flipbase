@@ -4,9 +4,25 @@
     subtitle="Suchkriterien und automatische Deal-Erkennung für den Vinted-Bot verwalten"
   >
     <div header-actions data-new-filter>
-      <app-button [icon]="icons.plus" (clicked)="openEditor()">Neuer Suchfilter</app-button>
+      <app-button
+        [icon]="icons.plus"
+        [disabled]="demo() || !workspace() || editorOpen() || saving()"
+        (clicked)="openEditor()"
+      >
+        Neuer Suchfilter
+      </app-button>
     </div>
   </app-page-header>
+
+  @if (demo()) {
+    <div
+      role="status"
+      class="rounded-xl border border-blue-500/30 bg-blue-500/10 p-4 text-sm text-blue-600 dark:text-blue-400"
+    >
+      Der Vinted Bot benötigt einen angemeldeten Arbeitsbereich. Im Demo-Modus werden keine
+      Serverdaten geladen.
+    </div>
+  }
 
   @if (message()) {
     <div
@@ -36,22 +52,50 @@
         <svg [lucideIcon]="icons.alert" class="h-5 w-5 shrink-0" aria-hidden="true"></svg>
         <span>{{ error() }}</span>
       </div>
-      <button
-        type="button"
-        (click)="error.set(null)"
-        class="cursor-pointer text-xs font-semibold uppercase hover:underline"
-      >
-        Schließen
-      </button>
+      <div class="flex items-center gap-3">
+        <button
+          type="button"
+          (click)="loadWatchlists()"
+          class="cursor-pointer text-xs font-semibold uppercase hover:underline"
+        >
+          Erneut laden
+        </button>
+        <button
+          type="button"
+          (click)="error.set(null)"
+          class="cursor-pointer text-xs font-semibold uppercase hover:underline"
+        >
+          Schließen
+        </button>
+      </div>
     </div>
   }
 
   @if (categoryError()) {
     <div
       role="alert"
-      class="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-600 dark:text-amber-400"
+      class="flex items-center justify-between rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-600 dark:text-amber-400"
     >
-      {{ categoryError() }}
+      <div class="flex items-center gap-2">
+        <svg [lucideIcon]="icons.alert" class="h-5 w-5 shrink-0" aria-hidden="true"></svg>
+        <span>{{ categoryError() }}</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <button
+          type="button"
+          (click)="loadCategories()"
+          class="cursor-pointer text-xs font-semibold uppercase hover:underline"
+        >
+          Erneut laden
+        </button>
+        <button
+          type="button"
+          (click)="categoryError.set(null)"
+          class="cursor-pointer text-xs font-semibold uppercase hover:underline"
+        >
+          Schließen
+        </button>
+      </div>
     </div>
   }
 
@@ -79,7 +123,11 @@
               <div class="flex justify-between">
                 <dt class="text-fb-text-muted">Max. Preis:</dt>
                 <dd class="font-medium text-fb-text-primary">
-                  {{ row.price_to ? (row.price_to | currency: 'EUR') : 'Keine Grenze' }}
+                  {{
+                    row.price_to !== null && row.price_to !== undefined
+                      ? (row.price_to | currency: 'EUR')
+                      : 'Keine Grenze'
+                  }}
                 </dd>
               </div>
               <div class="flex justify-between">
@@ -139,7 +187,12 @@
           Vinted-Bot überwacht Angebote automatisch und erkennt Deals.
         </p>
       </div>
-      <app-button (clicked)="openEditor()">Ersten Suchfilter anlegen</app-button>
+      <app-button
+        [disabled]="demo() || !workspace() || editorOpen() || saving()"
+        (clicked)="openEditor()"
+      >
+        Ersten Suchfilter anlegen
+      </app-button>
     </div>
   }
 </div>

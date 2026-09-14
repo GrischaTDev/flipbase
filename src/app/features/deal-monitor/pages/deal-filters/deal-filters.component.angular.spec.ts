@@ -7,6 +7,8 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DealFiltersComponent } from './deal-filters.component';
 import { DealMonitorService } from '../../services/deal-monitor.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
+import { AuthService } from '../../../../core/services/auth.service';
+import { canLeaveUnsavedEntry } from '../../../../shared/guards/unsaved-entry.guard';
 import { PageHeaderComponent } from '../../../../shared/components/page-header/page-header.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
@@ -107,6 +109,7 @@ describe('DealFiltersComponent', () => {
 
   let comp: DealFiltersComponent;
   let currentWorkspace: ReturnType<typeof signal<{ id: string; name: string } | null>>;
+  let isDemoMode: ReturnType<typeof signal<boolean>>;
 
   const mockApi = {
     watchlists: vi.fn().mockResolvedValue([
@@ -132,16 +135,19 @@ describe('DealFiltersComponent', () => {
 
   beforeEach(() => {
     TestBed.resetTestingModule();
+    vi.clearAllMocks();
     currentWorkspace = signal<{ id: string; name: string } | null>({
       id: 'ws-1',
       name: 'Filter Test Studio',
     });
+    isDemoMode = signal(false);
 
     TestBed.configureTestingModule({
       providers: [
         DealFiltersComponent,
         { provide: DealMonitorService, useValue: mockApi },
         { provide: WorkspaceService, useValue: { currentWorkspace } },
+        { provide: AuthService, useValue: { isDemoMode } },
         { provide: ElementRef, useValue: new ElementRef(document.createElement('div')) },
       ],
     });
@@ -155,6 +161,62 @@ describe('DealFiltersComponent', () => {
 
     expect(comp.watchlists().length).toBe(1);
     expect(comp.watchlists()[0].title).toBe('Vintage Sweatshirts');
+  });
+
+  it('implements isSaving correctly for unsavedEntryGuard', () => {
+    expect(comp.isSaving()).toBe(false);
+    expect(canLeaveUnsavedEntry(comp)).toBe(true);
+
+    comp.saving.set(true);
+    expect(comp.isSaving()).toBe(true);
+    expect(canLeaveUnsavedEntry(comp)).toBe(false);
+  });
+
+  it('does not load watchlists or categories in demo mode', async () => {
+    isDemoMode.set(true);
+    vi.clearAllMocks();
+    TestBed.flushEffects();
+
+    await comp.loadWatchlists('ws-1');
+    await comp.loadCategories();
+
+    expect(mockApi.watchlists).not.toHaveBeenCalled();
+    expect(mockApi.categories).not.toHaveBeenCalled();
+  });
+
+  it('does not save or delete in demo mode', async () => {
+    isDemoMode.set(true);
+
+    await comp.save({
+      id: null,
+      title: 'Demo Filter',
+      catalog_id: null,
+      brand: null,
+      search_text: null,
+      condition: null,
+      price_from: null,
+      price_to: null,
+      discount_threshold_percent: 40,
+      is_active: true,
+    });
+    expect(mockApi.save).not.toHaveBeenCalled();
+
+    comp.deleting.set({
+      id: 'wl-1',
+      workspace_id: 'ws-1',
+      title: 'Vintage Sweatshirts',
+      catalog_id: 1,
+      brand: 'Nike',
+      search_text: 'Vintage',
+      price_from: null,
+      price_to: 45,
+      condition: null,
+      discount_threshold_percent: 40,
+      is_active: true,
+      legacy_brand_id: null,
+    });
+    await comp.confirmDelete();
+    expect(mockApi.delete).not.toHaveBeenCalled();
   });
 
   it('opens and closes editor', () => {
@@ -190,5 +252,26 @@ describe('DealFiltersComponent', () => {
       ...row,
       is_active: false,
     });
+  });
+
+  it('renders template with watchlists without template errors', async () => {
+    const fixture = TestBed.createComponent(DealFiltersComponent);
+    fixture.detectChanges();
+    await fixture.componentInstance.loadWatchlists('ws-1');
+    fixture.detectChanges();
+
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.textContent).toContain('Suchfilter');
+    expect(root.textContent).toContain('Vintage Sweatshirts');
+    expect(root.textContent).toContain('40 % unter Referenzpreis');
+  });
+
+  it('renders demo notice when in demo mode', () => {
+    isDemoMode.set(true);
+    const fixture = TestBed.createComponent(DealFiltersComponent);
+    fixture.detectChanges();
+
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.textContent).toContain('Der Vinted Bot benötigt einen angemeldeten Arbeitsbereich');
   });
 });

@@ -26,6 +26,36 @@ angezeigt werden.
 
 **Prüfung:** 13/13 Tests der Brand-Picker-Suite bestanden.
 
+## 2026-09-14 – Antigravity (Google DeepMind) – Vinted-Bot Suchfilter: Behebung von Runtime-Fehlern, Demo-Modus-Unterstützung & Router-Entsperrung
+
+**Auftrag:** Behebung von Fehlern und Entsperrung der Seite `Suchfilter` (`/vinted-bot/filters`):
+
+1. Beseitigung der Blockade beim Verlassen oder Wechseln der Seite.
+2. Beseitigung der Fehlerflut beim Aufruf der Seite (insbesondere im Demo-Modus oder bei lokalem Betrieb).
+3. Absicherung von Template-Pipes und Bereitstellung von Wiederholen-Aktionen für Netzwerkfehler.
+
+**Befund:**
+
+- **Navigation blockiert**: In `src/app/app.routes.ts` ist für `/vinted-bot/filters` der Guard `canDeactivate: [unsavedEntryGuard]` aktiv. Dieser prüft `if (component.isSaving()) return false;`. In `DealFiltersComponent` war jedoch `isSaving()` nicht implementiert, wodurch Angular auf jeden Navigationsversuch mit `TypeError: component.isSaving is not a function` reagierte, die Router-Transition abbrach und den Nutzer auf der Seite festsetzte.
+- **Fehler im Demo-Modus**: `DealFiltersComponent` prüfte `AuthService.isDemoMode` nicht ab und feuerte beim Laden sofort zwei Supabase-Abfragen (`watchlists` und `categories`). Im Demo-Modus (oder bei lokaler Entwicklung ohne Supabase-Container) schlugen diese fehl und warfen Fehler in Konsole und UI.
+- **Defensiver Verlassensschutz**: `canLeaveUnsavedEntry` im Guard prüfte nicht ab, ob `component.isSaving` oder `component.hasUnsavedChanges` tatsächlich als Funktion existieren.
+
+**Ergebnis:**
+
+- `DealFiltersComponent`: `UnsavedEntryPage` implementiert und `isSaving(): boolean { return this.saving(); }` ergänzt.
+- `AuthService.isDemoMode` integriert: Im Demo-Modus werden keine fehlschlagenden Supabase-Abfragen gestartet, der Status-Hinweis wird analog zu `DealMonitorComponent` angezeigt und die Buttons zur Filteranlage werden sauber deaktiviert.
+- `unsaved-entry.guard.ts`: `canLeaveUnsavedEntry` defensiv abgesichert (`typeof component?.isSaving === 'function'`), um Navigations-Lockups künftig auszuschließen.
+- `deal-filters.component.html`: Wiederholungsbuttons für Ladefehler ergänzt, sichere Fallbacks für Preis- und Prozentwerte hinterlegt.
+- Tests hinzugefügt für `isSaving()`, Verlassensschutz, Demo-Modus und Template-Rendering.
+
+**Prüfung:**
+
+- `npx vitest run src/app/shared/guards/unsaved-entry.guard.angular.spec.ts`: 4/4 Tests bestanden.
+- `npx vitest run src/app/features/deal-monitor/`: 7/7 Testdateien, 39/39 Tests bestanden.
+- `npm run typecheck`: Bestanden (Exitcode 0).
+- `npm run lint`: Bestanden (Exitcode 0).
+- `npm run build`: Bestanden ohne Warnungen oder Fehler (Exitcode 0).
+
 ## 2026-09-14 – Antigravity (Google DeepMind) – Vinted-Bot Administration: UI-Vereinfachung, Tabellen-Kompaktierung & Auftrags-Modal
 
 **Auftrag:** Bereinigung und Optimierung der Benutzeroberfläche unter Vinted Administration > Vinted Bot (`/admin/vinted-bot/*`) sowie in den Einstellungen:
