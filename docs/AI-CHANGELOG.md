@@ -1,5 +1,35 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-14 – Codex – Zentrale Vinted-Markenfilter vereinfacht
+
+**Auftrag:** Die Administration des Vinted-Bots soll nur noch zentrale
+Markenfilter verwalten. Kategorien, Suchbegriffe, Preise und Zustände gehören in
+die persönlichen Suchfilter der Nutzer.
+
+**Befund:** Die Administration verwendete noch den alten Sammelauftrag-Editor
+mit Suchlink, Kategorie, Suchtext und Preisfeldern. Die RPC akzeptierte dadurch
+weiterhin alle diese Kriterien. Eine Markenkennung allein reicht für die
+Vinted-Abfrage; die übrigen Kriterien werden im gemeinsamen Nutzerbestand
+geprüft.
+
+**Änderung:** Sammelaufträge werden als benannte Markenfilter mit Vinted-
+Markenkennung, Abfragetakt und Notiz gespeichert. Die neue RPC akzeptiert nur
+diesen Vertrag; die alte Signatur bleibt während des Rollouts als gesperrter
+Kompatibilitätsweg erhalten und lehnt Kategorien, Suchtexte und Preise ab. Die
+Datenbank migriert bestehende Zeilen mit sicheren Rückfallnamen und bewahrt
+ihre Funde. Die Admin-Tabelle nutzt die gemeinsame breite
+Tabellenoberfläche; Anlegen und Bearbeiten öffnen ein einfaches Modal mit
+Icon-Aktionen. Die bestehende Tabelle und RPC bleiben für persönliche Filter
+kompatibel. Die bekannte Einschränkung bleibt dokumentiert: Reine
+Markenantworten liefern noch keine Kategoriekennung.
+
+**Prüfung:** Modell- und Diensttests, Typprüfung, lokaler Supabase-Reset mit
+allen Datenbanktests und Angular-Produktionsbau erfolgreich.
+
+Der PR-Smoke-Test wurde nach der UI-Umstellung ebenfalls auf den neuen
+Markenfilter-Ablauf angepasst und lokal in hellem Desktop- sowie dunklem
+mobilem Layout erfolgreich ausgeführt.
+
 ## 2026-09-14 – Codex – Separates Sniper-Deployment und Prüfstatus ergänzt
 
 **Auftrag:** Nach dem Produktionsdeploy blieb der Vinted-Bot bei der

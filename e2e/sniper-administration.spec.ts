@@ -74,6 +74,7 @@ async function mockAdministration(page: Page) {
           Object.assign(
             rows.find((row) => row['id'] === body['p_id'])!,
             {
+              title: body['p_title'],
               notes: body['p_notes'],
               poll_interval_ms: body['p_poll_interval_ms'],
             },
@@ -81,13 +82,14 @@ async function mockAdministration(page: Page) {
         else
           rows.push({
             id: `query-${rows.length + 1}`,
-            query_key: 'test',
+            title: body['p_title'],
+            query_key: `vinted|search=|catalog=-|brand=${body['p_brand_id']}|price_from=-|price_to=-`,
             marketplace: 'vinted',
-            search_text: body['p_search_text'],
-            catalog_id: body['p_catalog_id'],
+            search_text: null,
+            catalog_id: null,
             brand_id: body['p_brand_id'],
-            price_from: body['p_price_from'],
-            price_to: body['p_price_to'],
+            price_from: null,
+            price_to: null,
             poll_interval_ms: body['p_poll_interval_ms'],
             notes: body['p_notes'],
             is_active: false,
@@ -163,7 +165,7 @@ async function openVintedBotSection(page: Page, name: string) {
 }
 
 for (const theme of ['light', 'dark']) {
-  test(`Sammelaufträge anlegen, Fehler beheben, aktivieren und pausieren ${theme} @pr-smoke`, async ({
+  test(`Markenfilter anlegen, bearbeiten, aktivieren und pausieren ${theme} @pr-smoke`, async ({
     page,
   }, testInfo) => {
     await page.setViewportSize({ width: theme === 'dark' ? 390 : 1440, height: 1000 });
@@ -173,72 +175,59 @@ for (const theme of ['light', 'dark']) {
     const errors: string[] = [];
     page.on('pageerror', (error) => errors.push(error.message));
     await page.goto('/admin/queries');
-    await expect(page.getByRole('button', { name: 'Neuer Auftrag', exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'Neuer Auftrag', exact: true }).click();
     await expect(
-      page.getByRole('textbox', { name: 'Vinted-Suchlink übernehmen (optional)', exact: true }),
-    ).toBeFocused();
-    await page.getByRole('button', { name: 'Pausiert anlegen' }).click();
-    await expect(page.getByRole('alert')).toContainText('Kategorie, Marke oder einen Suchbegriff');
+      page.getByRole('button', { name: 'Neuer Markenfilter', exact: true }),
+    ).toBeVisible();
+    await page.getByRole('button', { name: 'Neuer Markenfilter', exact: true }).click();
+    await expect(page.getByRole('textbox', { name: 'Filtername', exact: true })).toBeFocused();
+    await page.getByRole('button', { name: 'Markenfilter speichern', exact: true }).click();
+    await expect(page.getByRole('alert')).toContainText('Filtername');
+    await page.getByRole('textbox', { name: 'Filtername', exact: true }).fill('Nike zentral');
+    await page.getByRole('spinbutton', { name: 'Vinted-Markenkennung', exact: true }).fill('53');
     await page
-      .getByRole('searchbox', { name: 'Kategorie suchen', exact: true })
-      .fill('Damen Stiefel');
-    const category = page.getByRole('combobox', { name: 'Kategorie', exact: true });
-    await category.scrollIntoViewIfNeeded();
-    // Das Scrollen des Ankers schliesst die Shared-Auswahl absichtlich.
-    // Erst nach dem Layout-Takt oeffnen, wie bei einer menschlichen Eingabe.
-    await page.evaluate(
-      () =>
-        new Promise<void>((resolve) =>
-          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
-        ),
-    );
-    await category.focus();
-    await category.press('Enter');
-    await page.getByRole('option', { name: 'Damen > Schuhe > Stiefel', exact: true }).click();
-    await page
-      .getByRole('textbox', { name: 'Vinted-Suchlink übernehmen (optional)', exact: true })
-      .fill('https://www.vinted.de/catalog?catalog_ids[]=1049&brand_ids[]=53&price_to=50');
-    await page.getByRole('button', { name: 'Filter übernehmen' }).click();
-    await expect(page.getByRole('combobox', { name: 'Kategorie', exact: true })).toContainText(
-      'Damen > Schuhe > Stiefel',
-    );
+      .getByRole('spinbutton', { name: 'Abstand zwischen Abfragen in Sekunden', exact: true })
+      .fill('30');
+    await page.getByRole('textbox', { name: 'Notiz (optional)', exact: true }).fill('Sportmarken');
     await checkAxe(page);
     await page.screenshot({ path: testInfo.outputPath('query-editor.png'), fullPage: true });
     backend.failSave(true);
-    await page.getByRole('button', { name: 'Pausiert anlegen' }).click();
+    await page.getByRole('button', { name: 'Markenfilter speichern', exact: true }).click();
     await expect(page.getByRole('alert')).toContainText('Speichern vorübergehend fehlgeschlagen');
     await expect(
       page.getByRole('spinbutton', { name: 'Vinted-Markenkennung', exact: true }),
     ).toHaveValue('53');
     backend.failSave(false);
-    await page.getByRole('button', { name: 'Pausiert anlegen' }).click();
+    await page.getByRole('button', { name: 'Markenfilter speichern', exact: true }).click();
+    await expect(page.getByRole('table')).toContainText('Pausiert');
+    await expect(page.getByRole('table')).toContainText('Nike zentral');
+    await expect(page.getByRole('table')).toContainText('Vinted-Markenkennung 53');
+    await page
+      .getByRole('button', { name: 'Markenfilter aktivieren: Nike zentral', exact: true })
+      .click();
+    await expect(page.getByRole('status').filter({ hasText: 'Wird geprüft' })).toBeVisible();
+    await page
+      .getByRole('button', { name: 'Markenfilter pausieren: Nike zentral', exact: true })
+      .click();
     await expect(page.getByRole('table')).toContainText('Pausiert');
     await page
-      .getByRole('button', { name: 'Aktivieren: Damen > Schuhe > Stiefel', exact: true })
+      .getByRole('button', { name: 'Markenfilter bearbeiten: Nike zentral', exact: true })
       .click();
-    await expect(page.getByRole('table')).toContainText('Aktiv');
-    await page
-      .getByRole('button', { name: 'Pausieren: Damen > Schuhe > Stiefel', exact: true })
-      .click();
-    await expect(page.getByRole('table')).toContainText('Pausiert');
-    await page
-      .getByRole('button', {
-        name: 'Takt und Notiz bearbeiten: Damen > Schuhe > Stiefel',
-        exact: true,
-      })
-      .click();
-    await expect(page.getByRole('combobox', { name: 'Kategorie', exact: true })).toBeDisabled();
-    await expect(page.getByRole('combobox', { name: 'Kategorie', exact: true })).toContainText(
-      'Damen > Schuhe > Stiefel',
-    );
+    await expect(
+      page.getByRole('spinbutton', { name: 'Vinted-Markenkennung', exact: true }),
+    ).toBeDisabled();
+    await page.getByRole('textbox', { name: 'Filtername', exact: true }).fill('Nike geändert');
     await page.getByRole('textbox', { name: 'Notiz (optional)' }).fill('Gezielter Testbereich');
     page.once('dialog', (dialog) => dialog.dismiss());
-    await openVintedBotSection(page, 'Botbetrieb');
-    await expect(page).toHaveURL(/\/admin\/vinted-bot\/queries$/);
+    await page.getByRole('button', { name: 'Dialog schließen', exact: true }).click();
+    await expect(
+      page.getByRole('heading', { name: 'Markenfilter bearbeiten', exact: true }),
+    ).toBeVisible();
     await page.getByRole('button', { name: 'Änderungen speichern' }).click();
     await expect(page.getByRole('table')).toContainText('Gezielter Testbereich');
-    await expect(page.getByRole('button', { name: 'Neuer Auftrag', exact: true })).toBeFocused();
+    await expect(page.getByRole('table')).toContainText('Nike geändert');
+    await expect(
+      page.getByRole('button', { name: 'Neuer Markenfilter', exact: true }),
+    ).toBeFocused();
     await checkAxe(page);
     await page.screenshot({ path: testInfo.outputPath('query-list.png'), fullPage: true });
     await openVintedBotSection(page, 'Botbetrieb');
@@ -258,44 +247,17 @@ for (const theme of ['light', 'dark']) {
       backend.calls.some(
         (call) =>
           call.name === 'upsert_sniper_query' &&
-          call.body['p_catalog_id'] === 1049 &&
+          call.body['p_title'] === 'Nike zentral' &&
           call.body['p_brand_id'] === 53,
       ),
     ).toBe(true);
-    await page.goto('/admin/vinted-bot/queries');
-    await page.getByRole('button', { name: 'Neuer Auftrag', exact: true }).click();
-    await page
-      .getByRole('textbox', { name: 'Vinted-Suchlink übernehmen (optional)', exact: true })
-      .fill('https://www.vinted.de/catalog?brand_ids[]=53');
-    await page.getByRole('button', { name: 'Filter übernehmen' }).click();
-    await expect(
-      page.getByRole('textbox', {
-        name: 'Suchbegriff (optional bei Kategorie oder Marke)',
-        exact: true,
-      }),
-    ).toHaveValue('');
-    await expect(
-      page.getByRole('spinbutton', { name: 'Höchstpreis in EUR', exact: true }),
-    ).toHaveValue('');
-    await expect(
-      page.getByText('Ohne Kategorie werden Artikel gesammelt.', { exact: false }),
-    ).toBeVisible();
-    await checkAxe(page);
-    await page.screenshot({ path: testInfo.outputPath('brand-only-editor.png'), fullPage: true });
-    await page.getByRole('button', { name: 'Pausiert anlegen' }).click();
-    const brandRow = page.getByRole('row').filter({ hasText: 'Alle Kategorien' });
-    await expect(brandRow).toContainText('Markenkennung 53');
-    await expect(brandRow).toContainText('Pausiert');
-    backend.staleRuntime();
     const savedBrand = backend.calls
       .filter((call) => call.name === 'upsert_sniper_query')
       .at(-1)?.body;
     expect(savedBrand).toMatchObject({
-      p_catalog_id: null,
+      p_title: 'Nike geändert',
       p_brand_id: 53,
-      p_search_text: '',
-      p_price_from: null,
-      p_price_to: null,
+      p_poll_interval_ms: 30000,
     });
     expect(errors).toEqual([]);
   });

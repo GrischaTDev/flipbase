@@ -10,35 +10,32 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { LucidePause, LucidePencil, LucidePlay } from '@lucide/angular';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
-import { CardComponent } from '../../../../shared/components/card/card.component';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { CustomSearchInputComponent } from '../../../../shared/components/custom-search-input/custom-search-input.component';
 import { TableToolbarComponent } from '../../../../shared/components/table-toolbar/table-toolbar.component';
 import { LoadingIndicatorComponent } from '../../../../shared/components/loading-indicator/loading-indicator.component';
+import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { SniperQueryEditorComponent } from '../../components/sniper-query-editor/sniper-query-editor.component';
 import { SniperAdminService } from '../../services/sniper-admin.service';
 import { SniperAdminState } from '../../services/sniper-admin-state';
-import { VintedCategoryService } from '../../services/vinted-category.service';
-import { VintedCategory } from '../../models/vinted-category.model';
 import { QueryDraft, SniperQuery, queryStatusLabel } from '../../models/sniper-query.model';
 
 @Component({
   selector: 'app-sniper-queries',
   imports: [
-    CurrencyPipe,
     DatePipe,
-    DecimalPipe,
     ReactiveFormsModule,
     ButtonComponent,
-    CardComponent,
     BadgeComponent,
     CustomSearchInputComponent,
     TableToolbarComponent,
     LoadingIndicatorComponent,
+    ModalShellComponent,
     SniperQueryEditorComponent,
   ],
   templateUrl: './sniper-queries.component.html',
@@ -51,10 +48,7 @@ export class SniperQueriesComponent {
   private readonly editor = viewChild(SniperQueryEditorComponent);
   readonly state = inject(SniperAdminState);
   private readonly api = inject(SniperAdminService);
-  private readonly categoryApi = inject(VintedCategoryService);
   private readonly destroyRef = inject(DestroyRef);
-  readonly categories = signal<VintedCategory[]>([]);
-  readonly categoryError = signal<string | null>(null);
   readonly editorOpen = signal(false);
   readonly editing = signal<SniperQuery | null>(null);
   readonly saving = signal(false);
@@ -69,17 +63,16 @@ export class SniperQueriesComponent {
     return this.state
       .queries()
       .filter((q) =>
-        [q.search_text, this.categoryPath(q), q.notes, q.brand_id]
-          .join(' ')
-          .toLocaleLowerCase('de')
-          .includes(term),
+        [q.title, q.notes, q.brand_id].join(' ').toLocaleLowerCase('de').includes(term),
       );
   });
+  readonly activeCount = computed(
+    () => this.state.queries().filter((query) => query.is_active).length,
+  );
   readonly statusLabel = queryStatusLabel;
-
-  constructor() {
-    void this.loadCategories();
-  }
+  readonly editIcon = LucidePencil;
+  readonly pauseIcon = LucidePause;
+  readonly activateIcon = LucidePlay;
 
   hasUnsavedChanges(): boolean {
     return this.editor()?.form.dirty ?? false;
@@ -88,26 +81,24 @@ export class SniperQueriesComponent {
     return this.saving() || this.busyId() !== null;
   }
 
-  async loadCategories(): Promise<void> {
-    try {
-      const categories = await this.categoryApi.listLeaves();
-      if (this.destroyRef.destroyed) return;
-      this.categories.set(categories);
-      this.categoryError.set(null);
-    } catch {
-      if (!this.destroyRef.destroyed)
-        this.categoryError.set('Die Kategorien konnten nicht geladen werden.');
-    }
+  queryTitle(query: SniperQuery): string {
+    return query.title || (query.brand_id ? `Marke ${query.brand_id}` : 'Unbenannter Markenfilter');
   }
 
-  categoryPath(query: SniperQuery): string {
+  isBrandOnly(query: SniperQuery): boolean {
     return (
-      this.categories().find((c) => c.id === query.catalog_id)?.path ??
-      (query.catalog_id ? `Kategorie ${query.catalog_id}` : 'Alle Kategorien')
+      query.marketplace === 'vinted' &&
+      query.brand_id !== null &&
+      query.search_text === null &&
+      query.catalog_id === null &&
+      query.price_from === null &&
+      query.price_to === null &&
+      query.query_key === `vinted|search=|catalog=-|brand=${query.brand_id}|price_from=-|price_to=-`
     );
   }
 
   openEditor(query: SniperQuery | null = null): void {
+    if (query && !this.isBrandOnly(query)) return;
     this.editing.set(query);
     this.error.set(null);
     this.message.set(null);
@@ -125,6 +116,13 @@ export class SniperQueriesComponent {
     );
   }
 
+  modalClosed(): void {
+    if (this.isSaving()) return;
+    if (this.hasUnsavedChanges() && !globalThis.confirm('Ungespeicherte Änderungen verwerfen?'))
+      return;
+    this.closeEditor();
+  }
+
   async save(draft: QueryDraft): Promise<void> {
     if (this.saving()) return;
     this.saving.set(true);
@@ -136,7 +134,7 @@ export class SniperQueriesComponent {
       this.message.set(
         draft.id
           ? 'Änderungen gespeichert.'
-          : 'Auftrag gespeichert. Du kannst ihn jetzt aktivieren.',
+          : 'Markenfilter gespeichert. Du kannst ihn jetzt aktivieren.',
       );
       await this.state.refreshAfterMutation();
     } catch (error) {
@@ -166,8 +164,8 @@ export class SniperQueriesComponent {
       }
       this.message.set(
         query.is_active
-          ? 'Auftrag pausiert. Eine bereits laufende Abfrage kann noch abgeschlossen werden.'
-          : 'Auftrag aktiviert. Die erste Vinted-Abfrage läuft jetzt an.',
+          ? 'Markenfilter pausiert. Eine bereits laufende Abfrage kann noch abgeschlossen werden.'
+          : 'Markenfilter aktiviert. Die erste Vinted-Abfrage läuft jetzt an.',
       );
       await this.state.refreshAfterMutation();
     } catch (error) {

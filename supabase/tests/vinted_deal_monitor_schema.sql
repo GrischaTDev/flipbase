@@ -10,7 +10,7 @@ declare
   required_columns text[] := array[
     'id', 'query_key', 'marketplace', 'search_text', 'catalog_id', 'brand_id',
     'price_to', 'is_standard', 'poll_interval_ms', 'is_seeded', 'is_active',
-    'last_polled_at', 'last_status', 'consecutive_failures'
+    'last_polled_at', 'last_status', 'consecutive_failures', 'title'
   ];
   missing_columns text[];
 begin

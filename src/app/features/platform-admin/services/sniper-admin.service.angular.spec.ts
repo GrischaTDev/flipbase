@@ -1,11 +1,13 @@
 import { TestBed } from '@angular/core/testing';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SupabaseService } from '../../../core/services/supabase.service';
+import { QueryDraft } from '../models/sniper-query.model';
 import { SniperAdminService } from './sniper-admin.service';
 
 describe('SniperAdminService', () => {
   afterEach(() => TestBed.resetTestingModule());
-  it('sends only editable query values and keeps absent filters null', async () => {
+
+  it('sends only the editable values of a central brand filter', async () => {
     const rpc = vi.fn().mockResolvedValue({ data: 'query', error: null });
     TestBed.configureTestingModule({
       providers: [{ provide: SupabaseService, useValue: { client: { rpc } } }],
@@ -13,22 +15,16 @@ describe('SniperAdminService', () => {
     const api = TestBed.inject(SniperAdminService);
     await api.save({
       id: null,
-      catalogId: 1049,
-      searchText: '',
-      brandId: null,
-      priceFrom: null,
-      priceTo: 50,
-      intervalSeconds: 60,
+      title: 'Nike',
+      brandId: 53,
+      intervalSeconds: 20,
       notes: 'Test',
-    });
+    } satisfies QueryDraft);
     expect(rpc).toHaveBeenCalledWith('upsert_sniper_query', {
       p_id: null,
-      p_catalog_id: 1049,
-      p_search_text: '',
-      p_brand_id: null,
-      p_price_from: null,
-      p_price_to: 50,
-      p_poll_interval_ms: 60000,
+      p_title: 'Nike',
+      p_brand_id: 53,
+      p_poll_interval_ms: 20000,
       p_notes: 'Test',
     });
     rpc.mockResolvedValueOnce({ error: { message: 'Keine Berechtigung' } });

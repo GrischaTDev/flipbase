@@ -47,15 +47,10 @@ export class SniperAdminService {
   }
 
   async save(draft: QueryDraft): Promise<void> {
-    // Der Generator bildet nullable SQL-Parameter als Pflichtwerte ab. Die
-    // Zusicherungen aendern keine Laufzeitwerte: SQL erhaelt ausdruecklich null.
     const { error } = await this.client.rpc('upsert_sniper_query', {
       p_id: draft.id!,
-      p_search_text: draft.searchText,
-      p_catalog_id: draft.catalogId!,
+      p_title: draft.title,
       p_brand_id: draft.brandId!,
-      p_price_from: draft.priceFrom!,
-      p_price_to: draft.priceTo!,
       p_poll_interval_ms: draft.intervalSeconds * 1000,
       p_notes: draft.notes,
     });

@@ -2834,6 +2834,7 @@ export type Database = {
           price_to: number | null
           query_key: string
           search_text: string | null
+          title: string
           updated_at: string
         }
         Insert: {
@@ -2854,6 +2855,7 @@ export type Database = {
           price_to?: number | null
           query_key: string
           search_text?: string | null
+          title?: string
           updated_at?: string
         }
         Update: {
@@ -2874,6 +2876,7 @@ export type Database = {
           price_to?: number | null
           query_key?: string
           search_text?: string | null
+          title?: string
           updated_at?: string
         }
         Relationships: []
@@ -4519,19 +4522,30 @@ export type Database = {
         Args: { p_purchase_id: string; p_status: string }
         Returns: Json
       }
-      upsert_sniper_query: {
-        Args: {
-          p_brand_id: number
-          p_catalog_id: number
-          p_id: string
-          p_notes: string
-          p_poll_interval_ms: number
-          p_price_from: number
-          p_price_to: number
-          p_search_text: string
-        }
-        Returns: string
-      }
+      upsert_sniper_query:
+        | {
+            Args: {
+              p_brand_id: number
+              p_catalog_id: number
+              p_id: string
+              p_notes: string
+              p_poll_interval_ms: number
+              p_price_from: number
+              p_price_to: number
+              p_search_text: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_brand_id: number
+              p_id: string
+              p_notes: string
+              p_poll_interval_ms: number
+              p_title: string
+            }
+            Returns: string
+          }
       validate_inventory_item_sale_integrity: {
         Args: { p_inventory_item_id: string }
         Returns: undefined

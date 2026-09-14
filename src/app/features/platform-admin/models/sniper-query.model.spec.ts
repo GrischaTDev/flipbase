@@ -1,59 +1,37 @@
 import { describe, expect, it } from 'vitest';
-import { QueryDraft, parseVintedSearchUrl, queryDraftError } from './sniper-query.model';
+import { QueryDraft, queryDraftError } from './sniper-query.model';
 
-const draft: QueryDraft = {
-  id: null,
-  catalogId: 1049,
-  brandId: null,
-  searchText: '',
-  priceFrom: null,
-  priceTo: 50,
-  intervalSeconds: 60,
-  notes: '',
-};
-describe('Vinted search management', () => {
-  it.each([53, 14, 88])('accepts a brand-only search without price limits: %s', (brandId) => {
-    const imported = parseVintedSearchUrl(`https://www.vinted.de/catalog?brand_ids[]=${brandId}`);
-    expect(imported).toEqual({
-      catalogId: null,
-      brandId,
-      searchText: '',
-      priceFrom: null,
-      priceTo: null,
-    });
-    expect(queryDraftError({ ...draft, ...imported })).toBeNull();
-    expect(queryDraftError({ ...draft, ...imported, brandId: 0 })).toContain('Markenkennung');
-    expect(queryDraftError({ ...draft, ...imported, brandId: null })).toContain('Kategorie');
+type ProposedQueryDraft = QueryDraft & { title: string };
+
+const draft = (overrides: Partial<ProposedQueryDraft> = {}): ProposedQueryDraft =>
+  ({
+    id: null,
+    title: 'Nike',
+    brandId: 53,
+    intervalSeconds: 20,
+    notes: '',
+    ...overrides,
+  }) as ProposedQueryDraft;
+
+describe('central Vinted brand filter validation', () => {
+  it('accepts a named brand-only filter', () => {
+    expect(queryDraftError(draft())).toBeNull();
   });
-  it('imports category, brand and prices without a network request', () => {
-    expect(
-      parseVintedSearchUrl(
-        'https://www.vinted.de/catalog?catalog_ids[]=1049&brand_ids[]=53&price_to=50&search_text=Air+Max',
-      ),
-    ).toEqual({
-      catalogId: 1049,
-      brandId: 53,
-      priceTo: 50,
-      priceFrom: null,
-      searchText: 'Air Max',
-    });
-  });
+
   it.each([
-    'https://evil.test/catalog?catalog_ids=1049',
-    'https://www.vinted.de/catalog?brand_ids=1,2',
-    'https://www.vinted.de/catalog?brand_ids[]=1&brand_ids[]=2',
-    'https://www.vinted.de/catalog?status_ids[]=1',
-    'https://www.vinted.de/catalog?currency=GBP',
-    'https://www.vinted.de/catalog?price_to=NaN',
-  ])('rejects unsupported filters instead of widening a search: %s', (value) => {
-    expect(() => parseVintedSearchUrl(value)).toThrow();
+    ['', 'Filtername'],
+    [' '.repeat(101), 'Filtername'],
+  ])('rejects an invalid filter name', (title, message) => {
+    expect(queryDraftError(draft({ title }))).toContain(message);
   });
-  it('accepts category-only queries and validates range and interval', () => {
-    expect(queryDraftError(draft)).toBeNull();
-    expect(queryDraftError({ ...draft, catalogId: null })).toContain('Kategorie');
-    expect(queryDraftError({ ...draft, priceFrom: 51 })).toContain('Mindestpreis');
-    expect(queryDraftError({ ...draft, intervalSeconds: 0 })).toContain('Takt');
-    expect(queryDraftError({ ...draft, intervalSeconds: NaN })).toContain('Takt');
-    expect(queryDraftError({ ...draft, brandId: 1.5 })).toContain('Markenkennung');
+
+  it.each([null, 0, -1, 1.5, 2147483648])('rejects an invalid Vinted brand id: %s', (brandId) => {
+    expect(queryDraftError(draft({ brandId }))).toContain('Markenkennung');
+  });
+
+  it('rejects an overlong note and an invalid interval', () => {
+    expect(queryDraftError(draft({ notes: 'x'.repeat(2001) }))).toContain('Notiz');
+    expect(queryDraftError(draft({ intervalSeconds: 9 }))).toContain('Takt');
+    expect(queryDraftError(draft({ intervalSeconds: 86401 }))).toContain('Takt');
   });
 });

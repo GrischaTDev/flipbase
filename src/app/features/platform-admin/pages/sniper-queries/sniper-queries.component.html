@@ -1,117 +1,99 @@
 <section class="flex flex-col gap-4">
-  @if (state.error(); as message) {
-    <p role="alert">
-      {{ message }} <app-button (clicked)="state.refresh()">Erneut laden</app-button>
+  @if (state.error(); as stateMessage) {
+    <p role="alert" class="flex flex-wrap items-center gap-2">
+      <span>{{ stateMessage }}</span>
+      <app-button (clicked)="state.refresh()">Erneut laden</app-button>
     </p>
   }
-  @if (categoryError(); as message) {
-    <p role="alert">
-      {{ message }} <app-button (clicked)="loadCategories()">Kategorien erneut laden</app-button>
-    </p>
+  @if (error(); as errorMessage) {
+    <p role="alert">{{ errorMessage }}</p>
   }
-  @if (error(); as message) {
-    <p role="alert">{{ message }}</p>
+  @if (message(); as statusMessage) {
+    <p role="status" class="text-sm text-fb-text-secondary">{{ statusMessage }}</p>
   }
-  <p role="status" class="text-sm text-fb-text-secondary">{{ message() }}</p>
 
   @if (editorOpen()) {
-    <app-sniper-query-editor
-      [query]="editing()"
-      [categories]="categories()"
-      [saving]="saving()"
-      [plannedRate]="state.plannedRate()"
-      [budget]="state.stale() ? null : (state.runtime()?.request_budget ?? null)"
-      (saved)="save($event)"
-      (cancelled)="closeEditor()"
-    />
+    <app-modal-shell
+      [title]="editing() ? 'Markenfilter bearbeiten' : 'Neuen Markenfilter anlegen'"
+      size="md"
+      [hasFooter]="false"
+      (closed)="modalClosed()"
+    >
+      <app-sniper-query-editor
+        [query]="editing()"
+        [saving]="saving()"
+        (saved)="save($event)"
+        (cancelled)="modalClosed()"
+      />
+    </app-modal-shell>
   }
 
-  <app-card padding="none">
+  <div class="linear-surface overflow-hidden rounded-xl">
     <div class="flex flex-col">
       <app-table-toolbar>
         <app-custom-search-input
           table-search
           variant="toolbar"
           [formControl]="search"
-          ariaLabel="Sammelaufträge durchsuchen"
-          placeholder="Kategorie, Suchbegriff, Markenkennung oder Notiz"
+          ariaLabel="Zentrale Markenfilter durchsuchen"
+          placeholder="Nach Filtername, Notiz oder Markenkennung suchen"
         />
         <div data-new-query table-settings>
           <app-button
             variant="primary"
             [disabled]="editorOpen() || !state.loaded()"
             (clicked)="openEditor()"
-            >Neuer Auftrag</app-button
+            >Neuer Markenfilter</app-button
           >
         </div>
       </app-table-toolbar>
 
-      <p class="px-4 pt-3 text-sm text-fb-text-secondary md:px-5">
-        {{ state.queries().length }} Aufträge · Geplant:
-        {{ state.plannedRate() | number: '1.0-2' }} Abfragen pro Minute, zusätzlich Aufwärmung und
-        Wiederholungen.
-      </p>
+      <div class="flex flex-wrap items-center justify-between gap-2 px-4 py-3 md:px-5">
+        <p class="text-sm text-fb-text-secondary">
+          {{ state.queries().length }} Markenfilter · {{ activeCount() }} aktiv
+        </p>
+        <p class="text-xs text-fb-text-muted">Die Filter gelten zentral für alle Nutzer.</p>
+      </div>
 
       @if (!state.loaded() && !state.error()) {
-        <p class="p-4" role="status">Aufträge werden geladen …</p>
+        <p class="p-4" role="status">Markenfilter werden geladen …</p>
       } @else if (state.loaded() && state.queries().length === 0) {
-        <p class="p-4">
-          Noch keine Sammelaufträge. Lege zunächst eine Kategorie, Marke oder einen Suchbegriff
-          fest.
-        </p>
+        <p class="p-4">Noch keine Markenfilter. Lege den ersten zentralen Markenfilter an.</p>
       } @else if (state.loaded() && filtered().length === 0) {
-        <p class="p-4">Keine Aufträge für diese Suche gefunden.</p>
+        <p class="p-4">Keine Markenfilter für diese Suche gefunden.</p>
       } @else if (state.loaded()) {
         <div
           class="overflow-x-auto focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
           tabindex="0"
           role="region"
-          aria-label="Sammelaufträge durchblättern"
+          aria-label="Zentrale Markenfilter durchblättern"
         >
-          <table class="linear-table min-w-[1080px]">
+          <table class="linear-table min-w-[900px]">
             <caption class="sr-only">
-              Zentrale Vinted-Sammelaufträge
+              Zentrale Vinted-Markenfilter
             </caption>
             <thead>
               <tr class="border-b border-fb-border">
-                <th scope="col" class="min-w-[320px] p-3">Suchbereich</th>
-                <th scope="col" class="min-w-[150px] p-3">Preis und Takt</th>
-                <th scope="col" class="min-w-[260px] p-3">Betrieb</th>
-                <th scope="col" class="min-w-[140px] p-3 text-center">Neue Funde · 24 h</th>
-                <th scope="col" class="min-w-[210px] p-3">Aktionen</th>
+                <th scope="col" class="min-w-[300px] p-3">Name</th>
+                <th scope="col" class="min-w-[150px] p-3">Abfrage</th>
+                <th scope="col" class="min-w-[280px] p-3">Status</th>
+                <th scope="col" class="min-w-[140px] p-3 text-center">Funde · 24 h</th>
+                <th scope="col" class="min-w-[110px] p-3 text-right">Aktionen</th>
               </tr>
             </thead>
             <tbody>
               @for (query of filtered(); track query.id) {
-                <tr class="border-b border-fb-border align-top">
-                  <th scope="row" class="min-w-[320px] max-w-[400px] p-3 font-normal">
-                    <p
-                      class="font-medium text-fb-text-primary truncate"
-                      [title]="categoryPath(query)"
-                    >
-                      {{ categoryPath(query) }}
+                <tr class="border-b border-fb-border align-middle last:border-0">
+                  <th scope="row" class="min-w-[300px] p-3 text-left font-normal">
+                    <p class="break-words font-medium text-fb-text-primary">
+                      {{ queryTitle(query) }}
                     </p>
-                    <div
-                      class="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-fb-text-secondary"
-                    >
-                      @if (query.search_text) {
-                        <span class="truncate max-w-[240px]" [title]="query.search_text"
-                          >„{{ query.search_text }}“</span
-                        >
-                      } @else if (!query.brand_id) {
-                        <span class="text-fb-text-muted">Ohne Suchbegriff</span>
-                      }
-                      @if (query.brand_id) {
-                        <span
-                          class="inline-flex items-center rounded border border-fb-border bg-fb-subtle px-1.5 py-0.5 text-[11px] font-medium text-fb-text-muted"
-                        >
-                          Markenkennung {{ query.brand_id }}
-                        </span>
-                      }
-                    </div>
+                    <p class="mt-0.5 text-xs text-fb-text-muted">
+                      Vinted-Markenkennung {{ query.brand_id ?? 'unbekannt' }}
+                    </p>
                     @if (query.notes) {
                       <p
-                        class="mt-0.5 max-w-[360px] truncate text-xs text-fb-text-muted"
+                        class="mt-0.5 max-w-[420px] truncate text-xs text-fb-text-muted"
                         [title]="query.notes"
                       >
                         {{ query.notes }}
@@ -119,17 +101,9 @@
                     }
                   </th>
                   <td class="min-w-[150px] whitespace-nowrap p-3">
-                    <span class="font-medium">
-                      {{
-                        query.price_from === null ? 'Offen' : (query.price_from | currency: 'EUR')
-                      }}
-                      – {{ query.price_to === null ? 'offen' : (query.price_to | currency: 'EUR') }}
-                    </span>
-                    <p class="text-xs text-fb-text-muted">
-                      alle {{ query.poll_interval_ms / 1000 }}s
-                    </p>
+                    alle {{ query.poll_interval_ms / 1000 }} Sekunden
                   </td>
-                  <td class="min-w-[260px] whitespace-nowrap p-3">
+                  <td class="min-w-[280px] p-3">
                     @if (isCheckPending(query)) {
                       <span
                         class="inline-flex items-center gap-1.5 text-xs text-fb-text-muted"
@@ -139,12 +113,10 @@
                         Wird geprüft …
                       </span>
                     } @else {
-                      <div class="flex items-center gap-1.5">
-                        <app-badge [tone]="query.is_active ? 'success' : 'neutral'">{{
-                          query.is_active ? 'Aktiv' : 'Pausiert'
-                        }}</app-badge>
-                        <span class="text-xs text-fb-text-muted">· {{ statusLabel(query) }}</span>
-                      </div>
+                      <app-badge [tone]="query.is_active ? 'success' : 'neutral'">
+                        {{ query.is_active ? 'Aktiv' : 'Pausiert' }}
+                      </app-badge>
+                      <p class="mt-1 text-xs text-fb-text-muted">{{ statusLabel(query) }}</p>
                     }
                     @if (query.last_polled_at) {
                       <p class="mt-0.5 text-[11px] text-fb-text-muted">
@@ -153,26 +125,54 @@
                     }
                   </td>
                   <td class="min-w-[140px] whitespace-nowrap p-3 text-center tabular-nums">
-                    <span class="font-medium text-fb-text-primary">{{
-                      state.counts()[query.id] ?? 0
-                    }}</span>
+                    <span class="font-medium text-fb-text-primary">
+                      {{ state.counts()[query.id] ?? 0 }}
+                    </span>
                   </td>
-                  <td class="min-w-[210px] whitespace-nowrap p-3">
-                    <div class="flex items-center gap-2">
+                  <td class="min-w-[110px] whitespace-nowrap p-3">
+                    <div class="flex justify-end gap-1.5">
+                      @if (isBrandOnly(query)) {
+                        <app-button
+                          variant="ghost"
+                          size="md"
+                          [icon]="editIcon"
+                          [iconOnly]="true"
+                          [disabled]="editorOpen()"
+                          [title]="'Markenfilter bearbeiten: ' + queryTitle(query)"
+                          [ariaLabel]="'Markenfilter bearbeiten: ' + queryTitle(query)"
+                          (clicked)="openEditor(query)"
+                        />
+                      } @else {
+                        <span
+                          class="self-center text-xs text-fb-text-muted"
+                          title="Altes Filterformat kann hier nicht bearbeitet werden"
+                        >
+                          Altes Filterformat
+                        </span>
+                      }
                       <app-button
-                        [disabled]="editorOpen()"
-                        [ariaLabel]="'Takt und Notiz bearbeiten: ' + categoryPath(query)"
-                        (clicked)="openEditor(query)"
-                        >Bearbeiten</app-button
-                      ><app-button
-                        [disabled]="busyId() !== null || editorOpen()"
+                        variant="ghost"
+                        size="md"
+                        [icon]="query.is_active ? pauseIcon : activateIcon"
+                        [iconOnly]="true"
+                        [disabled]="
+                          busyId() !== null ||
+                          editorOpen() ||
+                          (!isBrandOnly(query) && !query.is_active)
+                        "
                         [loading]="busyId() === query.id"
+                        [title]="
+                          (query.is_active
+                            ? 'Markenfilter pausieren: '
+                            : 'Markenfilter aktivieren: ') + queryTitle(query)
+                        "
                         [ariaLabel]="
-                          (query.is_active ? 'Pausieren: ' : 'Aktivieren: ') + categoryPath(query)
+                          (query.is_active
+                            ? 'Markenfilter pausieren: '
+                            : 'Markenfilter aktivieren: ') + queryTitle(query)
                         "
                         (clicked)="toggle(query)"
-                        >{{ query.is_active ? 'Pausieren' : 'Aktivieren' }}</app-button
-                      >
+                      />
                     </div>
                   </td>
                 </tr>
@@ -181,10 +181,6 @@
           </table>
         </div>
       }
-      <p class="px-4 py-3 text-xs text-fb-text-muted md:px-5">
-        Neue Funde zählen beim Auftrag, der sie zuerst entdeckt hat. Bei überlappenden Aufträgen
-        wird derselbe Artikel nur einmal gezählt.
-      </p>
     </div>
-  </app-card>
+  </div>
 </section>

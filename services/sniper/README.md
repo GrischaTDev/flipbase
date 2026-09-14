@@ -150,28 +150,28 @@ und `up -d` ausführen. Kategorien und Geschäftsdaten dabei nicht löschen.
 ## Sammelaufträge und Betrieb
 
 Die Administration enthält jetzt **Sammelaufträge** (`/admin/queries`) und
-**Botbetrieb** (`/admin/operation`). Ein Auftrag braucht eine gespeicherte
-Blattkategorie, eine Marke oder einen Suchbegriff. Ein deutscher Vinted-Suchlink kann eine
-Kategorie, eine Markenkennung und Preisgrenzen übernehmen; nicht unterstützte
-Filter werden abgelehnt. Eine Live-Markensuche nach Namen ist noch nicht enthalten.
-Neue Aufträge werden pausiert gespeichert. Aktivieren setzt eine höchstens zwei
-Minuten alte Betriebsmeldung voraus. Der Suchzuschnitt bleibt nach dem Anlegen
-unveränderlich, damit bisherige Funde und Preisvergleiche ihre Bedeutung behalten;
-Takt und Notiz bleiben bearbeitbar. Für andere Filter einen neuen Auftrag anlegen.
+**Botbetrieb** (`/admin/operation`). Die Sammelaufträge sind zentrale
+Markenfilter für alle Nutzer. Ein Filter besteht aus einem frei wählbaren Namen,
+einer Vinted-Markenkennung, dem Abfragetakt und einer optionalen Notiz.
+Kategorien, Suchbegriffe, Preise und Zustände werden ausschließlich im
+persönlichen Suchfilter des jeweiligen Arbeitsbereichs gepflegt. Neue
+Markenfilter werden pausiert gespeichert; Aktivieren setzt eine höchstens zwei
+Minuten alte Betriebsmeldung voraus. Name, Takt und Notiz bleiben bearbeitbar,
+die Marke und der Sammelschlüssel bleiben unverändert.
 
-Reine Markenaufträge brauchen weder Suchtext noch Preisgrenzen. Leere
-Preisfelder bedeuten unbegrenzt, ein leerer Suchtext setzt keinen zusätzlichen
-Titelfilter. Im Formular genügt beispielsweise
-`https://www.vinted.de/catalog?brand_ids[]=53` für Nike. Vollständig ungefilterte
-Aufträge bleiben gesperrt. Ohne bekannte Artikelkategorie gibt es weiterhin
-keinen Referenzpreis oder bewerteten Deal; die Artikelansicht funktioniert.
+Die Administration fügt Marken einzeln hinzu. Wenn ein Nutzer eine weitere
+Marke benötigt, wird dafür ein zusätzlicher zentraler Markenfilter angelegt.
+Vollständig ungefilterte Aufträge bleiben gesperrt. Die Vinted-Katalogantwort
+enthält bei einem reinen Markenauftrag weiterhin keine Kategoriekennung. Deshalb
+greifen persönliche Kategoriefilter und die Deal-Berechnung für neue Artikel
+erst, sobald eine Kategorie-Anreicherung vorhanden ist; Marke, Suchbegriff,
+Zustand und Preis können bereits auf dem gemeinsamen Bestand filtern.
 
 ### Gewünschter Markenstart vom 12.09.2026
 
-Der Nutzer wählt Nike, adidas und Ralph Lauren ohne Preisgrenzen. Geplant ist
-je ein eigener Auftrag mit leeren Kategorie-/Suchtext-/Preisfeldern und zunächst
-20 Sekunden Takt, zusammen etwa neun Katalogabrufe pro Minute. Diese Tabelle ist
-die Vorbereitung, kein Nachweis bereits angelegter oder aktivierter Aufträge.
+Der Nutzer legt Nike, adidas und Ralph Lauren als getrennte Markenfilter an.
+Jeder Filter hat keine zusätzlichen Kategorie-, Suchtext- oder Preisbedingungen
+und startet zunächst mit 20 Sekunden Takt.
 
 | Marke        | Vinted-Suchlink                                                  | Preisgrenzen |
 | ------------ | ---------------------------------------------------------------- | ------------ |
@@ -186,8 +186,8 @@ keine Garantie lückenloser Erfassung. Antworten enthalten keine Kategoriekennun
 die Kategorie wird nicht aus Titel oder Marke geraten. Separate Marken wie
 „Polo Ralph Lauren“ sind nicht automatisch Bestandteil der Kennung 88.
 
-Nach Veröffentlichung der Markenauftrag-Migration die drei Aufträge über die
-Administration pausiert anlegen, Kriterien kontrollieren und aktivieren.
+Nach Veröffentlichung der Markenfilter-Migration die drei Aufträge über die
+Administration pausiert anlegen, Namen und Kennungen kontrollieren und aktivieren.
 Anschließend Erstbestand, mindestens einen weiteren Sammellauf und Botfehler
 prüfen. Persönliche Merkzettel bleiben die zweite Filterebene auf dem Bestand.
 Diese Änderung benötigt keinen neuen Sammlercode; der veröffentlichte Bot

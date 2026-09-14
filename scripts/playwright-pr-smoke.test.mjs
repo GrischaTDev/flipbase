@@ -46,11 +46,11 @@ const expectedSmokeTests = [
   ['entry-pages.spec.ts', 'keeps the new entry pages free of automated WCAG AA violations'],
   [
     'sniper-administration.spec.ts',
-    'Sammelaufträge anlegen, Fehler beheben, aktivieren und pausieren light',
+    'Markenfilter anlegen, bearbeiten, aktivieren und pausieren light',
   ],
   [
     'sniper-administration.spec.ts',
-    'Sammelaufträge anlegen, Fehler beheben, aktivieren und pausieren dark',
+    'Markenfilter anlegen, bearbeiten, aktivieren und pausieren dark',
   ],
 ];
 
