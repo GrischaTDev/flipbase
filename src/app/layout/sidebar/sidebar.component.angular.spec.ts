@@ -17,6 +17,9 @@ Component({ selector: 'app-test-page', template: '' })(TestPageComponent);
 // weil hier nur die Navigation geprueft wird.
 const routes: Routes = [
   { path: 'dashboard', component: TestPageComponent },
+  { path: 'vinted-bot', component: TestPageComponent },
+  { path: 'vinted-bot/filters', component: TestPageComponent },
+  { path: 'vinted-bot/favorites', component: TestPageComponent },
   {
     path: 'admin',
     children: [
@@ -116,6 +119,23 @@ describe('SidebarComponent', () => {
     expect(adminLink).not.toBeNull();
     expect(adminLink?.classList.contains('font-semibold')).toBe(false);
     expect(subLinks).toEqual([]);
+  });
+
+  it('klappt die Unterpunkte fuer Vinted-Bot auf und hebt die aktive Seite hervor', async () => {
+    const { element, subLinks } = await renderAt('/vinted-bot/filters', false);
+
+    expect(subLinks.map((link) => link.textContent?.trim())).toEqual([
+      'Bot',
+      'Suchfilter',
+      'Favoriten',
+    ]);
+    expect(subLinks.map((link) => link.getAttribute('href'))).toEqual([
+      '/vinted-bot',
+      '/vinted-bot/filters',
+      '/vinted-bot/favorites',
+    ]);
+    expect(subLinks.map((link) => link.getAttribute('aria-current'))).toEqual([null, 'page', null]);
+    expect(element.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
   });
 
   it('zeigt Nicht-Betreibern weder Administration noch Unterpunkte', async () => {

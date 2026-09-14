@@ -205,7 +205,7 @@ async function checkAxe(page: Page) {
 }
 
 for (const theme of ['light', 'dark'] as const) {
-  test(`Vinted Bot pausieren und Merkzettel verwalten ${theme} @pr-smoke`, async ({ page }) => {
+  test(`Vinted Bot pausieren und Suchfilter verwalten ${theme} @pr-smoke`, async ({ page }) => {
     await page.setViewportSize(
       theme === 'light' ? { width: 1440, height: 1000 } : { width: 390, height: 844 },
     );
@@ -293,33 +293,33 @@ for (const theme of ['light', 'dark'] as const) {
     await page.getByRole('button', { name: 'Neueste Artikel anzeigen' }).click();
     await expect(page.getByRole('article')).toHaveCount(12);
 
-    await page.getByRole('button', { name: 'Neuer Merkzettel', exact: true }).click();
-    await expect(page.getByLabel('Name des Merkzettels')).toBeFocused();
-    await page.getByLabel('Name des Merkzettels').fill('Meine Sneaker');
+    await page.getByRole('button', { name: 'Neuer Suchfilter', exact: true }).click();
+    await expect(page.getByLabel('Name des Suchfilters')).toBeFocused();
+    await page.getByLabel('Name des Suchfilters').fill('Meine Sneaker');
     await page.getByLabel('Marke (optional)', { exact: true }).fill('Nike');
     await checkAxe(page);
     mock.failSave(true);
-    await page.getByRole('button', { name: 'Merkzettel speichern', exact: true }).click();
+    await page.getByRole('button', { name: 'Suchfilter speichern', exact: true }).click();
     await expect(
-      page.getByRole('alert').filter({ hasText: 'Merkzettel konnte nicht gespeichert' }),
+      page.getByRole('alert').filter({ hasText: 'Suchfilter konnte nicht gespeichert' }),
     ).toBeVisible();
-    await expect(page.getByLabel('Name des Merkzettels')).toHaveValue('Meine Sneaker');
+    await expect(page.getByLabel('Name des Suchfilters')).toHaveValue('Meine Sneaker');
     mock.failSave(false);
-    await page.getByRole('button', { name: 'Merkzettel speichern', exact: true }).click();
-    await expect(page.getByLabel('Merkzettel bearbeiten')).toHaveCount(0);
-    await page.getByRole('button', { name: 'Merkzettel · 1', exact: true }).click();
+    await page.getByRole('button', { name: 'Suchfilter speichern', exact: true }).click();
+    await expect(page.getByLabel('Suchfilter bearbeiten')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Suchfilter · 1', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Meine Sneaker', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Pausieren', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Aktivieren', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
-    await page.getByLabel('Name des Merkzettels').fill('Ungespeichert');
+    await page.getByLabel('Name des Suchfilters').fill('Ungespeichert');
     await page.getByRole('button', { name: 'Abbrechen', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Änderungen verwerfen?' })).toBeVisible();
     await page.getByRole('button', { name: 'Verwerfen', exact: true }).click();
     await page.getByRole('button', { name: 'Löschen', exact: true }).click();
     await checkAxe(page);
-    await page.getByRole('button', { name: 'Merkzettel löschen', exact: true }).click();
-    await expect(page.getByRole('button', { name: 'Merkzettel · 0', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Suchfilter löschen', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Suchfilter · 0', exact: true })).toBeVisible();
     expect(
       mock.calls
         .filter((call) => call.name === 'save_sniper_watchlist')
@@ -333,11 +333,11 @@ for (const theme of ['light', 'dark'] as const) {
       page.getByText('Für diesen Bereich sammelt der Monitor noch nicht.', { exact: false }),
     ).toBeVisible();
     // Der Speichervorgang darf nach einem Arbeitsbereichswechsel keinen alten
-    // Feed wiederherstellen, auch wenn erst sein nachgeladener Merkzettel kommt.
-    await page.getByRole('button', { name: 'Neuer Merkzettel', exact: true }).click();
-    await page.getByLabel('Name des Merkzettels').fill('Verzögert gespeichert');
+    // Feed wiederherstellen, auch wenn erst sein nachgeladener Suchfilter kommt.
+    await page.getByRole('button', { name: 'Neuer Suchfilter', exact: true }).click();
+    await page.getByLabel('Name des Suchfilters').fill('Verzögert gespeichert');
     mock.holdWatchlists();
-    await page.getByRole('button', { name: 'Merkzettel speichern', exact: true }).click();
+    await page.getByRole('button', { name: 'Suchfilter speichern', exact: true }).click();
     await expect.poll(mock.waitingForWatchlists).toBe(true);
     await page.locator('[aria-controls="header-workspace-menu"]').click();
     await page.getByRole('button', { name: 'Zweitbereich', exact: true }).click();
@@ -346,7 +346,7 @@ for (const theme of ['light', 'dark'] as const) {
     ).toBeVisible();
     const feedsBeforeRelease = mock.calls.filter((call) => call.name === 'sniper_feed').length;
     mock.releaseWatchlists();
-    await expect(page.getByRole('button', { name: 'Neuer Merkzettel', exact: true })).toBeEnabled();
+    await expect(page.getByRole('button', { name: 'Neuer Suchfilter', exact: true })).toBeEnabled();
     await expect(
       page.getByRole('article', { name: 'Nike Sneaker 700', exact: true }),
     ).toBeVisible();

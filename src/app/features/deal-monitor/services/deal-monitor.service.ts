@@ -22,7 +22,7 @@ export class DealMonitorService {
         .order('created_at')
         .order('id')
         .range(rows.length, rows.length + 999);
-      if (error) throw new Error('Merkzettel konnten nicht geladen werden.');
+      if (error) throw new Error('Suchfilter konnten nicht geladen werden.');
       if (!data?.length) return rows;
       rows.push(...data);
     }
@@ -75,7 +75,7 @@ export class DealMonitorService {
     });
     if (error)
       throw new Error(
-        'Merkzettel konnte nicht gespeichert werden. Bitte Angaben prüfen und erneut versuchen.',
+        'Suchfilter konnte nicht gespeichert werden. Bitte Angaben prüfen und erneut versuchen.',
       );
   }
 
@@ -84,6 +84,6 @@ export class DealMonitorService {
       p_workspace_id: workspace,
       p_id: id,
     });
-    if (error) throw new Error('Merkzettel konnte nicht gelöscht werden.');
+    if (error) throw new Error('Suchfilter konnte nicht gelöscht werden.');
   }
 }

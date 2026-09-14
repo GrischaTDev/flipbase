@@ -26,29 +26,98 @@ angezeigt werden.
 
 **Prüfung:** 13/13 Tests der Brand-Picker-Suite bestanden.
 
-## 2026-09-14 – Claude Opus 5 (Anthropic) – Entwurf Kategorie- und Markenauswahl
+## 2026-09-14 – Antigravity (Google DeepMind) – Vinted-Bot Administration: UI-Vereinfachung, Tabellen-Kompaktierung & Auftrags-Modal
 
-**Auftrag:** Nutzer meldet Mängel im Listing Studio (falsche „KI“-Versprechen,
-veraltetes Design, nur ein Artikel in der Auswahl, Kategorie auf Kleinanzeigen nicht
-gewählt) und wünscht Kategorien und Marken aus festen Listen statt Freitext. Zweig
-`feat/product-categories-brands`, abgezweigt von `origin/master` (4d0b8c3).
+**Auftrag:** Bereinigung und Optimierung der Benutzeroberfläche unter Vinted Administration > Vinted Bot (`/admin/vinted-bot/*`) sowie in den Einstellungen:
+
+1. Redundante Zwischenüberschriften und Beschreibungen auf den Unterseiten von `/admin/vinted-bot/*` (Sammelaufträge, Betrieb, Kategorien) sowie `/settings/numbering` entfernen, da die übergeordnete Navigations- und Kopfzeilen-Struktur den Bereich bereits eindeutig vorgibt.
+2. Sammelauftrags-Tabelle entschlacken: Spaltenmaße optimieren, horizontales Scrollen verhindern, Suchbereich mit Truncation und Tooltips versehen, Metadaten (Suchbegriff, Marke) kompakt bündeln und lange Notizen auf eine Zeile begrenzen.
+3. Den Sammelauftrags-Editor (`app-sniper-query-editor`) übersichtlich direkt über der Tabelle öffnen, inklusive Fokus-Management, Tastaturunterstützung, Abbrechen-/Speichern-Aktionen und sauberer Anbindung an den Angular-Verlassensschutz (`unsavedEntryGuard`).
 
 **Befund:**
 
-- Artikelauswahl im Listing Studio zeigt nur Status `ready`/`listed` ohne aktiven
-  Verkauf (`isSellableInventoryItem`); das wird nirgends erklärt.
-- „KI-SEO optimieren“ und die Artikel-„Erkennung“ sind feste Textregeln, keine KI.
-- Kategorie und Marke sind an `inventory_items` und `catalog_products` freier Text.
+- Die Hüllen `vinted-bot-shell` und `settings-shell` tragen die Navigation bereits im Kopf- und Seitenbereich. Die Unterseiten wiederholten dieselben Titel (`h2`) und Beschreibungen im Inhaltsbereich unnötig.
+- Bei `sniper-queries` erzeugten lange Notizen und ungekürzte Kategoriepfade eine Überbreite von über 1000px, was bei Desktop-Auflösungen zu erzwungenem horizontalen Scrollen führte.
+- Durch die Truncation in der Tabelle sind ausufernde Texte gebändigt; beim Klick auf „Bearbeiten“ öffnet sich der Editor direkt darüber mit vollem Zugriff auf alle Felder. Der Verlassensschutz fängt ungespeicherte Absprünge im Seitenmenü sauber ab.
 
-**Ergebnis:** Aufteilung in drei Projekte (Listing Studio, Kategorien/Marken,
-Kleinanzeigen-Kategorie). Entwurf für Projekt 2 abgestimmt und unter
-`docs/superpowers/specs/2026-09-14-product-categories-brands-design.md` abgelegt:
-Shopify-Taxonomie v2026-08 (deutsch, MIT) als Tabelle, Markenliste je Workspace,
-Textspalten bleiben und werden per Trigger gefüllt, alte Kategorietexte werden
-verworfen.
+**Ergebnis:**
 
-**Prüfung:** Shopify-Release und deutsche Datei geladen und ausgezählt (14.606
-Kategorien, 26 Hauptbereiche, 8 Ebenen). Kein Code geändert.
+- Redundante Titel in `sniper-queries`, `sniper-operation`, `vinted-categories` und `numbering-settings` entfernt.
+- Button „Neuer Auftrag“ in die Toolbar über der Tabelle integriert.
+- Tabelle in `sniper-queries` modernisiert und verschlankt: Truncation für Kategorie und Notizen, kompakte Preis-/Intervall- und Statusdarstellung.
+- Verbindungskarte in `sniper-operation` mit aufgeräumter Kopfzeile und Statusbadges ausgestattet.
+- E2E- und Unit-Tests angepasst und verifiziert.
+
+**Prüfung:**
+
+- `npx vitest run src/app/features/settings/pages/numbering-settings/numbering-settings.component.angular.spec.ts`: 5/5 Tests bestanden.
+- `npx vitest run src/app/features/platform-admin/`: 8/8 Testsuiten, 47/47 Tests bestanden.
+- `node --test scripts/playwright-pr-smoke.test.mjs`: 8/8 Smoke-Tests bestanden.
+- `npm run typecheck`: Erfolgreich (Exitcode 0).
+- `npm run lint`: Keine Fehler (Exitcode 0).
+- `npm run build`: Erfolgreich generiert (Exitcode 0).
+
+## 2026-09-14 – Gemini 3.8 Flash (Google DeepMind) – Vinted-Bot: Favoriten, Bild-Großansicht (Lightbox) & Sub-Navigation
+
+**Auftrag:** Umsetzung von Phase 2 im Vinted-Bot:
+
+1. Favoriten-Funktion mit Herz-Button ❤️ auf allen Anzeigenkarten und persistenter Speicherung je Arbeitsbereich.
+2. Bild-Großansicht (Lightbox-Modal mit Galerie, Pfeil-Navigation und Thumbnail-Leiste) beim Klick auf Artikelkarten zur detaillierten Zustandsprüfung.
+3. Strukturierung der linken Seitenleiste im Shopify-Admin-Stil mit aufklappbaren Unterseiten:
+   - `Bot` (`/vinted-bot`): Live-Feed & Deals mit Größen-Schnellfilter.
+   - `Suchfilter` (`/vinted-bot/filters`): Eigene Seite zur Erstellung, Verwaltung und Pausierung von Suchfiltern.
+   - `Favoriten` (`/vinted-bot/favorites`): Eigene Seite für gemerkte Einzelanzeigen mit Größenfilter und Großansicht.
+
+**Befund:**
+
+- Die Menüstruktur im Shopify-Stil war bereits für `Administration` angelegt, wurde aber noch nicht für reguläre Menüpunkte mit `children` im Template gerendert.
+- `localStorage` eignet sich ideal für das lokale Merken von Artikeln je Workspace, ohne unnötige Backend-Anfragen zu erzeugen.
+- Der Bild-Zoom und die Großansicht über `ModalShellComponent` im XL-Format erlauben eine übersichtliche Zwei-Spalten-Darstellung von Galerie und Artikelattributen.
+
+**Ergebnis:**
+
+- `DealFavoritesService` mit reaktiven Signalen und Workspace-isoliertem `localStorage`.
+- `DealCardComponent` um Herz-Favoriten-Button und Klick auf Bildbereich zur Großansicht erweitert.
+- `DealDetailModalComponent` mit interaktiver Bildergallerie, Tastatur- und Mausnavigation und direkten Aktionen implementiert.
+- `DealFiltersComponent` (`/vinted-bot/filters`) und `DealFavoritesComponent` (`/vinted-bot/favorites`) als eigenständige Seiten gebaut und geroutet.
+- `SidebarComponent` erweitert, um `children` dynamisch aufzuklappen, sobald man sich im Bereich `/vinted-bot` befindet, mit vollständiger Barrierefreiheit (`aria-current="page"` nur auf dem aktiven Unterpunkt).
+- Umfassende automatisierte Tests für alle neuen Komponenten und Services (`deal-favorites.service.angular.spec.ts`, `deal-detail-modal.component.angular.spec.ts`, `deal-favorites.component.angular.spec.ts`, `deal-filters.component.angular.spec.ts`, `sidebar.component.angular.spec.ts`).
+
+**Prüfung:**
+
+- `npx vitest run src/app/features/deal-monitor/ src/app/layout/sidebar/`: 8/8 Testsuiten, 41/41 Tests bestanden.
+- `npm run typecheck`: Exitcode 0.
+- `npx eslint`: 0 Fehler, 0 Warnungen.
+- `npm run build`: Produktionsbau erfolgreich (Exitcode 0).
+
+## 2026-09-14 – Gemini 3.8 Flash (Google DeepMind) – Vinted-Bot: Größen-Schnellfilter, Suchfilter-Harmonisierung & Icon-Farben
+
+**Auftrag:** Umsetzung von Phase 1 im Vinted-Bot:
+
+1. Schneller Größenfilter (Select-Box) direkt im Feed.
+2. Vollständige Umbenennung von „Merkzettel“ zu „Suchfilter“ (Vorbereitung auf die künftigen Artikel-Favoriten).
+3. Farbliche Akzentuierung der Informations-Icons auf den Anzeigenkarten.
+
+**Befund:**
+
+- `public.sniper_listings` und `FeedItem` liefern `size` bereits mit.
+- Umbenennung beseitigt begriffliche Dopplungen mit künftigen Favoriten.
+- Vinted-Größenformat-Vielfalt (`XXL / 54`, `2XL`, `L / 40`) wird über einen dedizierten Matcher präzise abgedeckt.
+
+**Ergebnis:**
+
+- Neue Utility-Funktion `matchesSize()` mit vollständiger Testabdeckung.
+- Größen-Select-Box im Feed mit reaktiver Filterung von Highlights und Grid.
+- Alle Buttons, Reiter, Modale und Fehlermeldungen konsistent auf „Suchfilter“ umgestellt.
+- Icons für Marke (Himmelblau), Zustand (Smaragdgrün), Größe (Bernstein) und Käuferschutz (Indigo) visuell akzentuiert.
+- Neuer Test `deal-monitor.component.angular.spec.ts` ergänzt. Commit `77c0e25` auf Branch `feat/vinted-bot-filters`.
+
+**Prüfung:**
+
+- `npx vitest run src/app/features/deal-monitor`: 3/3 Testsuiten, 22/22 Tests bestanden.
+- `npm run typecheck`: Exitcode 0.
+- `npx eslint src/app/features/deal-monitor/`: 0 Fehler, 0 Warnungen.
+- `npm run build`: Exitcode 0.
 
 ## 2026-09-14 – Claude Opus 5 (Anthropic) – Kleinanzeigen-Erweiterung repariert
 
