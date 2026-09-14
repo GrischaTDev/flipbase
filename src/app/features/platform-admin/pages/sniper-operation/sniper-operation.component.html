@@ -12,7 +12,7 @@
       <div class="flex flex-col gap-3">
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div class="flex items-center gap-2.5">
-            <h3 class="text-base font-semibold text-fb-text-primary">Verbindung zum Bot</h3>
+            <h2 class="text-base font-semibold text-fb-text-primary">Verbindung zum Bot</h2>
             <app-badge [tone]="state.stale() || state.error() ? 'caution' : 'success'">{{
               state.stale() || state.error()
                 ? 'Betriebsstand unbestätigt'
@@ -85,7 +85,9 @@
     </div>
     <app-card padding="md">
       <div class="flex flex-col gap-3">
-        <h3 class="text-base font-semibold">Geplante Last und letzte Fehler</h3>
+        <h2 class="text-base font-semibold text-fb-text-primary">
+          Geplante Last und letzte Fehler
+        </h2>
         <p class="text-sm">
           Aktive Aufträge benötigen rechnerisch {{ state.plannedRate() | number: '1.0-2' }} Abfragen
           pro Minute. Aufwärmung und Wiederholungen zählen zusätzlich gegen das Budget.
