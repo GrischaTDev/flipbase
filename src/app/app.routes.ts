@@ -172,7 +172,6 @@ export const routes: Routes = [
       { path: 'deal-monitor', redirectTo: 'vinted-bot', pathMatch: 'full' },
       {
         path: 'vinted-bot',
-        canDeactivate: [unsavedEntryGuard],
         loadComponent: () =>
           import('./features/deal-monitor/deal-monitor.component').then(
             (m) => m.DealMonitorComponent,

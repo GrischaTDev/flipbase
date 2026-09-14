@@ -184,6 +184,7 @@ describe('DealMonitorComponent', () => {
   it('initializes size filter and options', () => {
     expect(comp.selectedSize()).toBeNull();
     expect(comp.sizeOptions.some((opt) => opt.value === 'xxl')).toBe(true);
+    expect(comp.sizeOptions.find((opt) => opt.value === 'xxl')?.label).toBe('XXL');
     expect(comp.sizeOptions.some((opt) => opt.value === 'xl')).toBe(true);
   });
 
@@ -211,15 +212,19 @@ describe('DealMonitorComponent', () => {
     expect(comp.filteredItems().length).toBe(5);
   });
 
-  it('computes highlights and grid from filtered items', async () => {
+  it('keeps the first three findings as one featured gallery', async () => {
     TestBed.flushEffects();
     await comp.state.refresh();
 
     expect(comp.highlights().length).toBe(3);
+    expect(comp.featuredLead()?.id).toBe('1');
+    expect(comp.featuredSupport().map((item) => item.id)).toEqual(['2', '3']);
     expect(comp.grid().length).toBe(2);
 
     comp.selectedSize.set('l');
     expect(comp.highlights().length).toBe(1);
+    expect(comp.featuredLead()?.id).toBe('2');
+    expect(comp.featuredSupport()).toEqual([]);
     expect(comp.grid().length).toBe(0);
   });
 
