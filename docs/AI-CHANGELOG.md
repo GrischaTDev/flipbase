@@ -26,6 +26,10 @@ Markenantworten liefern noch keine Kategoriekennung.
 **Prüfung:** Modell- und Diensttests, Typprüfung, lokaler Supabase-Reset mit
 allen Datenbanktests und Angular-Produktionsbau erfolgreich.
 
+Der PR-Smoke-Test wurde nach der UI-Umstellung ebenfalls auf den neuen
+Markenfilter-Ablauf angepasst und lokal in hellem Desktop- sowie dunklem
+mobilem Layout erfolgreich ausgeführt.
+
 ## 2026-09-14 – Codex – Separates Sniper-Deployment und Prüfstatus ergänzt
 
 **Auftrag:** Nach dem Produktionsdeploy blieb der Vinted-Bot bei der
