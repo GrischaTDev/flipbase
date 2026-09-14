@@ -17,6 +17,7 @@ import { ButtonComponent } from '../../../../shared/components/button/button.com
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
+import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { SniperQueryEditorComponent } from '../../components/sniper-query-editor/sniper-query-editor.component';
 import { SniperAdminService } from '../../services/sniper-admin.service';
 import { SniperAdminState } from '../../services/sniper-admin-state';
@@ -35,6 +36,7 @@ import { QueryDraft, SniperQuery, queryStatusLabel } from '../../models/sniper-q
     CardComponent,
     BadgeComponent,
     TextFieldComponent,
+    ModalShellComponent,
     SniperQueryEditorComponent,
   ],
   templateUrl: './sniper-queries.component.html',

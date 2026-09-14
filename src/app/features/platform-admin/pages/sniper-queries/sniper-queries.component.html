@@ -1,20 +1,4 @@
 <section class="flex flex-col gap-4">
-  <!-- Zwischenueberschrift: Den Seitentitel "Vinted Bot" traegt die Huelle. -->
-  <header class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-    <div class="min-w-0 space-y-1">
-      <h2 class="text-base font-semibold text-fb-text-primary">Sammelaufträge</h2>
-      <p class="text-[13px] text-fb-text-muted">
-        Hier legst du fest, welche Bereiche der Vinted-Bot regelmäßig durchsucht.
-      </p>
-    </div>
-    <app-button
-      data-new-query
-      variant="primary"
-      [disabled]="editorOpen() || !state.loaded()"
-      (clicked)="openEditor()"
-      >Neuer Auftrag</app-button
-    >
-  </header>
   @if (state.error(); as message) {
     <p role="alert">
       {{ message }} <app-button (clicked)="state.refresh()">Erneut laden</app-button>
@@ -29,30 +13,53 @@
     <p role="alert">{{ message }}</p>
   }
   <p role="status" class="text-sm text-fb-text-secondary">{{ message() }}</p>
+
   @if (editorOpen()) {
-    <app-sniper-query-editor
-      [query]="editing()"
-      [categories]="categories()"
-      [saving]="saving()"
-      [plannedRate]="state.plannedRate()"
-      [budget]="state.stale() ? null : (state.runtime()?.request_budget ?? null)"
-      (saved)="save($event)"
-      (cancelled)="closeEditor()"
-    />
+    <app-modal-shell
+      [title]="editing() ? 'Takt und Notiz bearbeiten' : 'Neuer Sammelauftrag'"
+      size="lg"
+      [hasFooter]="false"
+      (closed)="closeEditor()"
+    >
+      <app-sniper-query-editor
+        [query]="editing()"
+        [categories]="categories()"
+        [saving]="saving()"
+        [plannedRate]="state.plannedRate()"
+        [budget]="state.stale() ? null : (state.runtime()?.request_budget ?? null)"
+        (saved)="save($event)"
+        (cancelled)="closeEditor()"
+      />
+    </app-modal-shell>
   }
+
   <app-card padding="md">
     <div class="flex flex-col gap-3">
-      <app-text-field
-        label="Aufträge durchsuchen"
-        type="search"
-        [formControl]="search"
-        placeholder="Kategorie, Suchbegriff, Markenkennung oder Notiz"
-      />
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div class="min-w-0 flex-1">
+          <app-text-field
+            label="Aufträge durchsuchen"
+            type="search"
+            [formControl]="search"
+            placeholder="Kategorie, Suchbegriff, Markenkennung oder Notiz"
+          />
+        </div>
+        <div data-new-query class="shrink-0 sm:self-end">
+          <app-button
+            variant="primary"
+            [disabled]="editorOpen() || !state.loaded()"
+            (clicked)="openEditor()"
+            >Neuer Auftrag</app-button
+          >
+        </div>
+      </div>
+
       <p class="text-sm text-fb-text-secondary">
         {{ state.queries().length }} Aufträge · Geplant:
         {{ state.plannedRate() | number: '1.0-2' }} Abfragen pro Minute, zusätzlich Aufwärmung und
         Wiederholungen.
       </p>
+
       @if (!state.loaded() && !state.error()) {
         <p role="status">Aufträge werden geladen …</p>
       } @else if (state.loaded() && state.queries().length === 0) {
@@ -78,44 +85,78 @@
                 <th scope="col" class="p-3">Suchbereich</th>
                 <th scope="col" class="p-3">Preis und Takt</th>
                 <th scope="col" class="p-3">Betrieb</th>
-                <th scope="col" class="p-3">Neue Funde · 24 h</th>
+                <th scope="col" class="p-3 text-center">Neue Funde · 24 h</th>
                 <th scope="col" class="p-3">Aktionen</th>
               </tr>
             </thead>
             <tbody>
               @for (query of filtered(); track query.id) {
                 <tr class="border-b border-fb-border align-top">
-                  <th scope="row" class="max-w-sm p-3 font-normal">
-                    <p class="font-semibold">{{ categoryPath(query) }}</p>
-                    <p>{{ query.search_text || 'Ohne Suchbegriff' }}</p>
-                    @if (query.brand_id) {
-                      <p>Markenkennung {{ query.brand_id }}</p>
-                    }
+                  <th scope="row" class="max-w-[280px] p-3 font-normal">
+                    <p
+                      class="font-medium text-fb-text-primary truncate"
+                      [title]="categoryPath(query)"
+                    >
+                      {{ categoryPath(query) }}
+                    </p>
+                    <div
+                      class="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-fb-text-secondary"
+                    >
+                      @if (query.search_text) {
+                        <span class="truncate max-w-[180px]" [title]="query.search_text"
+                          >„{{ query.search_text }}“</span
+                        >
+                      } @else if (!query.brand_id) {
+                        <span class="text-fb-text-muted">Ohne Suchbegriff</span>
+                      }
+                      @if (query.brand_id) {
+                        <span
+                          class="inline-flex items-center rounded border border-fb-border bg-fb-subtle px-1.5 py-0.5 text-[11px] font-medium text-fb-text-muted"
+                        >
+                          Marke {{ query.brand_id }}
+                        </span>
+                      }
+                    </div>
                     @if (query.notes) {
-                      <p class="mt-1 text-fb-text-muted">{{ query.notes }}</p>
+                      <p
+                        class="mt-0.5 max-w-[260px] truncate text-xs text-fb-text-muted"
+                        [title]="query.notes"
+                      >
+                        {{ query.notes }}
+                      </p>
                     }
                   </th>
                   <td class="whitespace-nowrap p-3">
-                    {{ query.price_from === null ? 'Offen' : (query.price_from | currency: 'EUR') }}
-                    – {{ query.price_to === null ? 'offen' : (query.price_to | currency: 'EUR') }}
-                    <p class="text-fb-text-muted">
-                      Alle {{ query.poll_interval_ms / 1000 }} Sekunden
+                    <span class="font-medium">
+                      {{
+                        query.price_from === null ? 'Offen' : (query.price_from | currency: 'EUR')
+                      }}
+                      – {{ query.price_to === null ? 'offen' : (query.price_to | currency: 'EUR') }}
+                    </span>
+                    <p class="text-xs text-fb-text-muted">
+                      alle {{ query.poll_interval_ms / 1000 }}s
                     </p>
                   </td>
-                  <td class="p-3">
-                    <app-badge [tone]="query.is_active ? 'success' : 'neutral'">{{
-                      query.is_active ? 'Aktiv' : 'Pausiert'
-                    }}</app-badge>
-                    <p class="mt-1">{{ statusLabel(query) }}</p>
+                  <td class="whitespace-nowrap p-3">
+                    <div class="flex items-center gap-1.5">
+                      <app-badge [tone]="query.is_active ? 'success' : 'neutral'">{{
+                        query.is_active ? 'Aktiv' : 'Pausiert'
+                      }}</app-badge>
+                      <span class="text-xs text-fb-text-muted">· {{ statusLabel(query) }}</span>
+                    </div>
                     @if (query.last_polled_at) {
-                      <p class="whitespace-nowrap text-xs text-fb-text-muted">
-                        {{ query.last_polled_at | date: 'dd.MM.yyyy, HH:mm:ss' }}
+                      <p class="mt-0.5 text-[11px] text-fb-text-muted">
+                        {{ query.last_polled_at | date: 'dd.MM.yyyy, HH:mm' }}
                       </p>
                     }
                   </td>
-                  <td class="p-3 tabular-nums">{{ state.counts()[query.id] ?? 0 }}</td>
-                  <td class="p-3">
-                    <div class="flex flex-wrap gap-2">
+                  <td class="whitespace-nowrap p-3 text-center tabular-nums">
+                    <span class="font-medium text-fb-text-primary">{{
+                      state.counts()[query.id] ?? 0
+                    }}</span>
+                  </td>
+                  <td class="whitespace-nowrap p-3">
+                    <div class="flex items-center gap-2">
                       <app-button
                         [disabled]="editorOpen()"
                         [ariaLabel]="'Takt und Notiz bearbeiten: ' + categoryPath(query)"

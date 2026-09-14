@@ -173,7 +173,7 @@ for (const theme of ['light', 'dark']) {
     const errors: string[] = [];
     page.on('pageerror', (error) => errors.push(error.message));
     await page.goto('/admin/queries');
-    await expect(page.getByRole('heading', { name: 'Sammelaufträge', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Neuer Auftrag', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Neuer Auftrag', exact: true }).click();
     await expect(
       page.getByRole('textbox', { name: 'Vinted-Suchlink übernehmen (optional)', exact: true }),
@@ -242,7 +242,9 @@ for (const theme of ['light', 'dark']) {
     await checkAxe(page);
     await page.screenshot({ path: testInfo.outputPath('query-list.png'), fullPage: true });
     await openVintedBotSection(page, 'Botbetrieb');
-    await expect(page.getByRole('heading', { name: 'Botbetrieb', exact: true })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'Verbindung zum Bot', exact: true }),
+    ).toBeVisible();
     await expect(page.getByText('Aktuelle Betriebsmeldung', { exact: true })).toBeVisible();
     await checkAxe(page);
     await page.screenshot({ path: testInfo.outputPath('bot-operation.png'), fullPage: true });

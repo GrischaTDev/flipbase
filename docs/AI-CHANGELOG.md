@@ -1,5 +1,37 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-14 – Antigravity (Google DeepMind) – Vinted-Bot Administration: UI-Vereinfachung, Tabellen-Kompaktierung & Auftrags-Modal
+
+**Auftrag:** Bereinigung und Optimierung der Benutzeroberfläche unter Vinted Administration > Vinted Bot (`/admin/vinted-bot/*`) sowie in den Einstellungen:
+
+1. Redundante Zwischenüberschriften und Beschreibungen auf den Unterseiten von `/admin/vinted-bot/*` (Sammelaufträge, Betrieb, Kategorien) sowie `/settings/numbering` entfernen, da die übergeordnete Navigations- und Kopfzeilen-Struktur den Bereich bereits eindeutig vorgibt.
+2. Sammelauftrags-Tabelle entschlacken: Spaltenmaße optimieren, horizontales Scrollen verhindern, Suchbereich mit Truncation und Tooltips versehen, Metadaten (Suchbegriff, Marke) kompakt bündeln und lange Notizen auf eine Zeile begrenzen.
+3. Den Sammelauftrags-Editor (`app-sniper-query-editor`) in einem sauberen Modal-Dialog (`app-modal-shell`) öffnen, statt ihn inline in den Seitenfluss zu setzen, inklusive Fokus-Management, Escape-Unterstützung und Abbrechen-/Speichern-Aktionen.
+
+**Befund:**
+
+- Die Hüllen `vinted-bot-shell` und `settings-shell` tragen die Navigation bereits im Kopf- und Seitenbereich. Die Unterseiten wiederholten dieselben Titel (`h2`) und Beschreibungen im Inhaltsbereich unnötig.
+- Bei `sniper-queries` erzeugten lange Notizen und ungekürzte Kategoriepfade eine Überbreite von über 1000px, was bei Desktop-Auflösungen zu erzwungenem horizontalen Scrollen führte.
+- Der Inline-Editor drückte die Tabelle bei Aktivierung nach unten und wirkte unruhig. `ModalShellComponent` bietet eine barrierefreie Dialog-Lösung, die sich nahtlos in das Flipbase-Design einfügt.
+
+**Ergebnis:**
+
+- Redundante Titel in `sniper-queries`, `sniper-operation`, `vinted-categories` und `numbering-settings` entfernt.
+- Button „Neuer Auftrag“ in die Toolbar über der Tabelle integriert.
+- Tabelle in `sniper-queries` modernisiert und verschlankt: Truncation für Kategorie und Notizen, kompakte Preis-/Intervall- und Statusdarstellung.
+- `sniper-query-editor` von überflüssigen Card-Rahmen und doppelten Headings befreit und in `app-modal-shell` gekapselt.
+- Verbindungskarte in `sniper-operation` mit aufgeräumter Kopfzeile und Statusbadges ausgestattet.
+- E2E- und Unit-Tests angepasst und verifiziert.
+
+**Prüfung:**
+
+- `npx vitest run src/app/features/settings/pages/numbering-settings/numbering-settings.component.angular.spec.ts`: 5/5 Tests bestanden.
+- `npx vitest run src/app/features/platform-admin/`: 8/8 Testsuiten, 47/47 Tests bestanden.
+- `node --test scripts/playwright-pr-smoke.test.mjs`: 8/8 Smoke-Tests bestanden.
+- `npm run typecheck`: Erfolgreich (Exitcode 0).
+- `npm run lint`: Keine Fehler (Exitcode 0).
+- `npm run build`: Erfolgreich generiert (Exitcode 0).
+
 ## 2026-09-14 – Gemini 3.8 Flash (Google DeepMind) – Vinted-Bot: Favoriten, Bild-Großansicht (Lightbox) & Sub-Navigation
 
 **Auftrag:** Umsetzung von Phase 2 im Vinted-Bot:

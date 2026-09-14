@@ -1,12 +1,4 @@
 <section class="flex flex-col gap-4">
-  <!-- Zwischenueberschrift: Den Seitentitel "Vinted Bot" traegt die Huelle. -->
-  <header class="min-w-0 space-y-1">
-    <h2 class="text-base font-semibold text-fb-text-primary">Botbetrieb</h2>
-    <p class="text-[13px] text-fb-text-muted">
-      Anfragen, Rückmeldungen und Sammelaufträge im Blick. Der Stand wird alle zehn Sekunden neu
-      geladen.
-    </p>
-  </header>
   @if (state.error(); as message) {
     <p role="alert">
       {{ message }} <app-button (clicked)="state.refresh()">Erneut laden</app-button>
@@ -17,30 +9,36 @@
   }
   @if (state.loaded()) {
     <app-card padding="md">
-      <div class="flex flex-col gap-2">
-        <h3 class="text-base font-semibold">Verbindung zum Bot</h3>
-        <div>
-          <app-badge [tone]="state.stale() || state.error() ? 'caution' : 'success'">{{
-            state.stale() || state.error()
-              ? 'Betriebsstand unbestätigt'
-              : 'Aktuelle Betriebsmeldung'
-          }}</app-badge>
+      <div class="flex flex-col gap-3">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-2.5">
+            <h3 class="text-base font-semibold text-fb-text-primary">Verbindung zum Bot</h3>
+            <app-badge [tone]="state.stale() || state.error() ? 'caution' : 'success'">{{
+              state.stale() || state.error()
+                ? 'Betriebsstand unbestätigt'
+                : 'Aktuelle Betriebsmeldung'
+            }}</app-badge>
+          </div>
+          @if (state.runtime(); as runtime) {
+            <span class="text-xs text-fb-text-muted">
+              Letzte Meldung: {{ runtime.reported_at | date: 'dd.MM.yyyy, HH:mm:ss' }}
+            </span>
+          }
         </div>
         @if (state.runtime(); as runtime) {
-          <p class="text-sm">
-            Letzte Meldung: {{ runtime.reported_at | date: 'dd.MM.yyyy, HH:mm:ss' }}
-          </p>
           @if (state.stale()) {
-            <p role="status" class="text-sm">
+            <p role="status" class="text-sm text-fb-text-secondary">
               Seit mehr als zwei Minuten keine neue Meldung. Der Bot kann gestoppt sein, keine
               Verbindung haben oder noch in einer langen Abfrage stecken.
             </p>
           }
           @if (runtime.last_cycle_error) {
-            <p role="status" class="text-sm">Letzter Durchlauf: {{ runtime.last_cycle_error }}</p>
+            <p role="status" class="text-sm text-rose-500">
+              Letzter Durchlauf: {{ runtime.last_cycle_error }}
+            </p>
           }
         } @else {
-          <p class="text-sm">
+          <p class="text-sm text-fb-text-secondary">
             Noch keine Betriebsmeldung. Prüfe, ob der Bot mit der aktuellen Version gestartet wurde.
           </p>
         }

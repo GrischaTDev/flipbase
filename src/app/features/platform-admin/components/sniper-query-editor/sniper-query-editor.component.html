@@ -1,151 +1,144 @@
-<app-card padding="md">
-  <form
-    [formGroup]="form"
-    (ngSubmit)="submit()"
-    class="flex flex-col gap-4"
-    aria-label="Sammelauftrag bearbeiten"
-  >
-    <fieldset [disabled]="saving()" class="flex min-w-0 flex-col gap-4">
-      <h2 class="text-base font-semibold text-fb-text-primary">
-        {{ editing() ? 'Takt und Notiz bearbeiten' : 'Neuer Sammelauftrag' }}
-      </h2>
-      @if (editing()) {
-        <p class="text-sm text-fb-text-secondary">
-          Die Suchfilter bleiben für gespeicherte Funde unverändert. Für andere Filter bitte einen
-          neuen Auftrag anlegen.
-        </p>
-      } @else {
-        <div class="flex flex-col gap-2">
-          <app-text-field
-            label="Vinted-Suchlink übernehmen (optional)"
-            [formControl]="searchUrl"
-            placeholder="https://www.vinted.de/catalog?…"
-            helpText="Kategorie, eine Marke, Suchbegriff und Preise direkt aus deiner Vinted-Suche übernehmen."
-          />
-          <div>
-            <app-button (clicked)="importUrl()" [disabled]="saving()">Filter übernehmen</app-button>
-          </div>
-        </div>
+<form
+  [formGroup]="form"
+  (ngSubmit)="submit()"
+  class="flex flex-col gap-4"
+  aria-label="Sammelauftrag bearbeiten"
+>
+  <fieldset [disabled]="saving()" class="flex min-w-0 flex-col gap-4">
+    @if (editing()) {
+      <p class="text-sm text-fb-text-secondary">
+        Die Suchfilter bleiben für gespeicherte Funde unverändert. Für andere Filter bitte einen
+        neuen Auftrag anlegen.
+      </p>
+    } @else {
+      <div class="flex flex-col gap-2">
         <app-text-field
-          label="Kategorie suchen"
-          type="search"
-          [formControl]="categorySearch"
-          placeholder="Zum Beispiel Damen Schuhe Stiefel"
-          helpText="Suche im vollständigen Kategoriepfad. Bei vielen Treffern bitte genauer eingrenzen."
+          label="Vinted-Suchlink übernehmen (optional)"
+          [formControl]="searchUrl"
+          placeholder="https://www.vinted.de/catalog?…"
+          helpText="Kategorie, eine Marke, Suchbegriff und Preise direkt aus deiner Vinted-Suche übernehmen."
         />
-      }
-      <div class="flex flex-col gap-1">
-        <label for="sniper-category" class="text-sm text-fb-text-primary">Kategorie</label>
-        <app-custom-select
-          triggerId="sniper-category"
-          ariaLabel="Kategorie"
-          formControlName="catalogId"
-          [options]="categoryOptions()"
-          placeholder="Alle Kategorien"
-        />
-        @if (!editing()) {
-          <p class="text-xs text-fb-text-muted">
-            {{ matches().length }} Kategorien gefunden, höchstens 30 zur Auswahl.
-          </p>
-        }
-      </div>
-      @if (!selectedCategory()) {
-        <p class="text-sm text-fb-text-secondary">
-          Ohne Kategorie werden Artikel gesammelt. Solange ihre Kategorie unbekannt ist, gibt es für
-          sie keinen Preisvergleich und keine bewerteten Deals.
-        </p>
-      }
-      <div class="grid gap-4 sm:grid-cols-2">
-        <app-text-field
-          label="Suchbegriff (optional bei Kategorie oder Marke)"
-          formControlName="searchText"
-          placeholder="Zum Beispiel Nike Air Max"
-        />
-        <div class="flex flex-col gap-1">
-          <label for="sniper-brand" class="text-sm text-fb-text-primary"
-            >Vinted-Markenkennung (optional)</label
-          >
-          <app-number-input
-            id="sniper-brand"
-            ariaLabel="Vinted-Markenkennung"
-            formControlName="brandId"
-            [min]="1"
-            [showStepper]="false"
-          />
-          <p class="text-xs text-fb-text-muted">
-            Die Nummer wird aus dem Suchlink übernommen. Leer bedeutet alle Marken.
-          </p>
+        <div>
+          <app-button (clicked)="importUrl()" [disabled]="saving()">Filter übernehmen</app-button>
         </div>
-        <div class="flex flex-col gap-1">
-          <label for="sniper-price-from" class="text-sm text-fb-text-primary"
-            >Mindestpreis in EUR</label
-          >
-          <app-number-input
-            id="sniper-price-from"
-            ariaLabel="Mindestpreis in EUR"
-            formControlName="priceFrom"
-            [min]="0"
-            [step]="0.01"
-            [asCurrency]="true"
-          />
-        </div>
-        <div class="flex flex-col gap-1">
-          <label for="sniper-price-to" class="text-sm text-fb-text-primary"
-            >Höchstpreis in EUR</label
-          >
-          <app-number-input
-            id="sniper-price-to"
-            ariaLabel="Höchstpreis in EUR"
-            formControlName="priceTo"
-            [min]="0"
-            [step]="0.01"
-            [asCurrency]="true"
-          />
-        </div>
-      </div>
-      <div class="flex flex-col gap-1">
-        <label for="sniper-interval" class="text-sm text-fb-text-primary"
-          >Abstand zwischen Abfragen in Sekunden</label
-        >
-        <app-number-input
-          id="sniper-interval"
-          ariaLabel="Abstand zwischen Abfragen in Sekunden"
-          formControlName="intervalSeconds"
-          [min]="10"
-          [max]="86400"
-        />
-        <p class="text-sm text-fb-text-secondary">
-          Dieser Auftrag: etwa {{ ownRate() | number: '1.0-2' }} Anfragen pro Minute. Zusammen bei
-          Aktivierung: {{ totalRate() | number: '1.0-2' }}.
-          @if (budget(); as limit) {
-            Das zuletzt gemeldete Budget beträgt {{ limit }} Anfragen pro Minute.
-          }
-        </p>
-        <p class="text-xs text-fb-text-muted">
-          Aufwärmung und Wiederholungen brauchen zusätzlich Platz. Pro Abruf kommen höchstens 96
-          Artikel; ein breiter Bereich braucht einen kürzeren Takt oder engere Preisgrenzen.
-        </p>
-        @if (budget() && totalRate() >= budget()!) {
-          <p role="status" class="text-sm text-fb-text-primary">
-            Das geplante Budget ist ausgeschöpft. Aufträge können verspätet abgefragt werden.
-          </p>
-        }
       </div>
       <app-text-field
-        label="Notiz (optional)"
-        formControlName="notes"
-        [multiline]="3"
-        placeholder="Warum sammeln wir diesen Bereich?"
+        label="Kategorie suchen"
+        type="search"
+        [formControl]="categorySearch"
+        placeholder="Zum Beispiel Damen Schuhe Stiefel"
+        helpText="Suche im vollständigen Kategoriepfad. Bei vielen Treffern bitte genauer eingrenzen."
       />
-      @if (error(); as message) {
-        <p role="alert" class="text-sm text-fb-text-primary">{{ message }}</p>
+    }
+    <div class="flex flex-col gap-1">
+      <label for="sniper-category" class="text-sm text-fb-text-primary">Kategorie</label>
+      <app-custom-select
+        triggerId="sniper-category"
+        ariaLabel="Kategorie"
+        formControlName="catalogId"
+        [options]="categoryOptions()"
+        placeholder="Alle Kategorien"
+      />
+      @if (!editing()) {
+        <p class="text-xs text-fb-text-muted">
+          {{ matches().length }} Kategorien gefunden, höchstens 30 zur Auswahl.
+        </p>
       }
-      <div class="flex flex-wrap justify-end gap-2">
-        <app-button [disabled]="saving()" (clicked)="cancelled.emit()">Abbrechen</app-button>
-        <app-button type="submit" variant="primary" [loading]="saving()">{{
-          editing() ? 'Änderungen speichern' : 'Pausiert anlegen'
-        }}</app-button>
+    </div>
+    @if (!selectedCategory()) {
+      <p class="text-sm text-fb-text-secondary">
+        Ohne Kategorie werden Artikel gesammelt. Solange ihre Kategorie unbekannt ist, gibt es für
+        sie keinen Preisvergleich und keine bewerteten Deals.
+      </p>
+    }
+    <div class="grid gap-4 sm:grid-cols-2">
+      <app-text-field
+        label="Suchbegriff (optional bei Kategorie oder Marke)"
+        formControlName="searchText"
+        placeholder="Zum Beispiel Nike Air Max"
+      />
+      <div class="flex flex-col gap-1">
+        <label for="sniper-brand" class="text-sm text-fb-text-primary"
+          >Vinted-Markenkennung (optional)</label
+        >
+        <app-number-input
+          id="sniper-brand"
+          ariaLabel="Vinted-Markenkennung"
+          formControlName="brandId"
+          [min]="1"
+          [showStepper]="false"
+        />
+        <p class="text-xs text-fb-text-muted">
+          Die Nummer wird aus dem Suchlink übernommen. Leer bedeutet alle Marken.
+        </p>
       </div>
-    </fieldset>
-  </form>
-</app-card>
+      <div class="flex flex-col gap-1">
+        <label for="sniper-price-from" class="text-sm text-fb-text-primary"
+          >Mindestpreis in EUR</label
+        >
+        <app-number-input
+          id="sniper-price-from"
+          ariaLabel="Mindestpreis in EUR"
+          formControlName="priceFrom"
+          [min]="0"
+          [step]="0.01"
+          [asCurrency]="true"
+        />
+      </div>
+      <div class="flex flex-col gap-1">
+        <label for="sniper-price-to" class="text-sm text-fb-text-primary">Höchstpreis in EUR</label>
+        <app-number-input
+          id="sniper-price-to"
+          ariaLabel="Höchstpreis in EUR"
+          formControlName="priceTo"
+          [min]="0"
+          [step]="0.01"
+          [asCurrency]="true"
+        />
+      </div>
+    </div>
+    <div class="flex flex-col gap-1">
+      <label for="sniper-interval" class="text-sm text-fb-text-primary"
+        >Abstand zwischen Abfragen in Sekunden</label
+      >
+      <app-number-input
+        id="sniper-interval"
+        ariaLabel="Abstand zwischen Abfragen in Sekunden"
+        formControlName="intervalSeconds"
+        [min]="10"
+        [max]="86400"
+      />
+      <p class="text-sm text-fb-text-secondary">
+        Dieser Auftrag: etwa {{ ownRate() | number: '1.0-2' }} Anfragen pro Minute. Zusammen bei
+        Aktivierung: {{ totalRate() | number: '1.0-2' }}.
+        @if (budget(); as limit) {
+          Das zuletzt gemeldete Budget beträgt {{ limit }} Anfragen pro Minute.
+        }
+      </p>
+      <p class="text-xs text-fb-text-muted">
+        Aufwärmung und Wiederholungen brauchen zusätzlich Platz. Pro Abruf kommen höchstens 96
+        Artikel; ein breiter Bereich braucht einen kürzeren Takt oder engere Preisgrenzen.
+      </p>
+      @if (budget() && totalRate() >= budget()!) {
+        <p role="status" class="text-sm text-fb-text-primary">
+          Das geplante Budget ist ausgeschöpft. Aufträge können verspätet abgefragt werden.
+        </p>
+      }
+    </div>
+    <app-text-field
+      label="Notiz (optional)"
+      formControlName="notes"
+      [multiline]="3"
+      placeholder="Warum sammeln wir diesen Bereich?"
+    />
+    @if (error(); as message) {
+      <p role="alert" class="text-sm text-fb-text-primary">{{ message }}</p>
+    }
+    <div class="flex flex-wrap justify-end gap-2">
+      <app-button [disabled]="saving()" (clicked)="cancelled.emit()">Abbrechen</app-button>
+      <app-button type="submit" variant="primary" [loading]="saving()">{{
+        editing() ? 'Änderungen speichern' : 'Pausiert anlegen'
+      }}</app-button>
+    </div>
+  </fieldset>
+</form>

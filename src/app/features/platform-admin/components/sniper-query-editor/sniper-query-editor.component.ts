@@ -18,7 +18,6 @@ import { TextFieldComponent } from '../../../../shared/components/text-field/tex
 import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
 import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
-import { CardComponent } from '../../../../shared/components/card/card.component';
 import {
   QueryDraft,
   SniperQuery,
@@ -36,7 +35,6 @@ import { VintedCategory } from '../../models/vinted-category.model';
     NumberInputComponent,
     CustomSelectComponent,
     ButtonComponent,
-    CardComponent,
   ],
   templateUrl: './sniper-query-editor.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
