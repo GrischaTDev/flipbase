@@ -101,6 +101,9 @@ export class CategoryPickerComponent implements ControlValueAccessor {
       ? this.optionId(index)
       : null;
   });
+  readonly emptyMessage = computed(() =>
+    this.isSearching() ? 'Keine passende Kategorie gefunden.' : 'Keine Unterkategorien vorhanden.',
+  );
 
   protected readonly chevronDownIcon = LucideChevronDown;
   protected readonly chevronLeftIcon = LucideChevronLeft;
@@ -261,7 +264,7 @@ export class CategoryPickerComponent implements ControlValueAccessor {
         if (active && this.status() === 'ready') this.activate(active);
         break;
       case 'ArrowRight':
-        if (!this.isSearching() && active && !active.isLeaf) {
+        if (!this.searchTerm() && active && !active.isLeaf) {
           event.preventDefault();
           void this.showLevel([...this.trail(), active]);
         }

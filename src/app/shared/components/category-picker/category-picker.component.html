@@ -121,12 +121,7 @@
             @case ('ready') {
               @if (entries().length === 0) {
                 <p class="px-2 py-3 text-[13px] text-fb-text-muted" role="status">
-                  {{
-                    isSearching()
-                      ? 'Keine passende Kategorie gefunden.'
-                      : 'Keine Unterkategorien
-          vorhanden.'
-                  }}
+                  {{ emptyMessage() }}
                 </p>
               }
             }

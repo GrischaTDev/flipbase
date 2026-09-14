@@ -236,6 +236,28 @@ describe('CategoryPickerComponent', () => {
     ).toBe(true);
   });
 
+  it('lässt den Cursor bei einem Zeichen in der Suche nativ nach rechts springen', async () => {
+    const { fixture } = create();
+    trigger(fixture).click();
+    await settle(fixture);
+
+    search(fixture).value = 'e';
+    search(fixture).dispatchEvent(new Event('input', { bubbles: true }));
+    await settle(fixture);
+
+    const event = new KeyboardEvent('keydown', {
+      key: 'ArrowRight',
+      bubbles: true,
+      cancelable: true,
+    });
+    search(fixture).dispatchEvent(event);
+    await settle(fixture);
+
+    expect(event.defaultPrevented).toBe(false);
+    expect(service.loadChildren).not.toHaveBeenCalledWith('el');
+    expect(buttonWithText(fixture, '„Elektronik“ auswählen')).toBeUndefined();
+  });
+
   it('sucht nach kurzer Pause und zeigt Name und Pfad', async () => {
     vi.useFakeTimers();
     try {
@@ -266,6 +288,16 @@ describe('CategoryPickerComponent', () => {
 
     expect(search(fixture).value).toBe('Laptop');
     expect(element(fixture).textContent).toContain('Mehr als 50 Treffer – bitte genauer suchen.');
+  });
+
+  it('zeigt den einzeiligen Leerstand-Text ohne Unterkategorien', async () => {
+    service.loadChildren.mockResolvedValueOnce([]);
+    const { fixture } = create();
+    trigger(fixture).click();
+    await settle(fixture);
+
+    const status = element(fixture).querySelector('[role="status"]');
+    expect(status?.textContent?.trim()).toBe('Keine Unterkategorien vorhanden.');
   });
 
   it('zeigt einen Fehler mit Erneut versuchen', async () => {
