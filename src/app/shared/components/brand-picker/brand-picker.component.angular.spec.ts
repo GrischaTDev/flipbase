@@ -201,6 +201,35 @@ describe('BrandPickerComponent', () => {
     expect(field(fixture).value).toBe('Anker');
   });
 
+  it('überschreibt begonnenes Tippen nicht durch einen verspäteten Vorschlag', async () => {
+    let releaseLoad!: () => void;
+    service.ensureLoaded.mockImplementationOnce(
+      () =>
+        new Promise<undefined>((resolve) => {
+          releaseLoad = () => resolve(undefined);
+        }),
+    );
+    const { fixture, changes } = create({ suggestion: 'Sony' });
+    await Promise.resolve();
+
+    type(fixture, 'Mak');
+    releaseLoad();
+    await settle(fixture);
+
+    expect(field(fixture).value).toBe('Mak');
+    expect(changes).toEqual([]);
+  });
+
+  it('markiert das Feld beim Tabben auch ohne geöffnetes Popover als berührt', () => {
+    const { fixture } = create();
+    const touched = vi.fn();
+    fixture.componentInstance.registerOnTouched(touched);
+
+    field(fixture).dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));
+
+    expect(touched).toHaveBeenCalledOnce();
+  });
+
   it('leert die Auswahl über „Marke entfernen“', async () => {
     const { fixture, changes } = create({ value: 'b2' });
     await settle(fixture);

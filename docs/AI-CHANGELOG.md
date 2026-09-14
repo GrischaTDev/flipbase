@@ -1,5 +1,17 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-14 – Codex – Review-Fixes am Marken-Wähler
+
+**Auftrag:** Nach dem Token-Limit des vorherigen Assistenten zwei Review-Befunde
+am neuen Marken-Wähler beheben.
+
+**Änderung:** Ein verspätet eintreffender Markenvorschlag überschreibt kein bereits
+begonnenes Eingabefeld mehr. Außerdem wird das Feld beim Verlassen per Tab auch
+bei geschlossenem Popover als berührt gemeldet, damit Formularfehler zuverlässig
+angezeigt werden.
+
+**Prüfung:** 13/13 Tests der Brand-Picker-Suite bestanden.
+
 ## 2026-09-14 – Claude Opus 5 (Anthropic) – Entwurf Kategorie- und Markenauswahl
 
 **Auftrag:** Nutzer meldet Mängel im Listing Studio (falsche „KI“-Versprechen,

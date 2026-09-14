@@ -244,7 +244,8 @@ export class BrandPickerComponent implements ControlValueAccessor {
         }
         break;
       case 'Tab':
-        this.close();
+        if (this.isOpen()) this.close();
+        else this.onTouched();
         break;
     }
   }
@@ -259,9 +260,9 @@ export class BrandPickerComponent implements ControlValueAccessor {
   }
 
   private async applySuggestion(suggestion: string): Promise<void> {
-    if (this.value()) return;
+    if (this.value() || this.query().trim()) return;
     await this.brandService.ensureLoaded();
-    if (this.value()) return;
+    if (this.value() || this.query().trim()) return;
     const match = this.brandService.findByName(suggestion);
     if (match) this.choose(match);
     else this.query.set(suggestion);
