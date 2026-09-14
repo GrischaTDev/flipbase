@@ -26,18 +26,17 @@
     />
   }
 
-  <app-card padding="md">
-    <div class="flex flex-col gap-3">
-      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div class="min-w-0 flex-1">
-          <app-text-field
-            label="Aufträge durchsuchen"
-            type="search"
-            [formControl]="search"
-            placeholder="Kategorie, Suchbegriff, Markenkennung oder Notiz"
-          />
-        </div>
-        <div data-new-query class="shrink-0 sm:self-end">
+  <app-card padding="none">
+    <div class="flex flex-col">
+      <app-table-toolbar>
+        <app-custom-search-input
+          table-search
+          variant="toolbar"
+          [formControl]="search"
+          ariaLabel="Sammelaufträge durchsuchen"
+          placeholder="Kategorie, Suchbegriff, Markenkennung oder Notiz"
+        />
+        <div data-new-query table-settings>
           <app-button
             variant="primary"
             [disabled]="editorOpen() || !state.loaded()"
@@ -45,23 +44,23 @@
             >Neuer Auftrag</app-button
           >
         </div>
-      </div>
+      </app-table-toolbar>
 
-      <p class="text-sm text-fb-text-secondary">
+      <p class="px-4 pt-3 text-sm text-fb-text-secondary md:px-5">
         {{ state.queries().length }} Aufträge · Geplant:
         {{ state.plannedRate() | number: '1.0-2' }} Abfragen pro Minute, zusätzlich Aufwärmung und
         Wiederholungen.
       </p>
 
       @if (!state.loaded() && !state.error()) {
-        <p role="status">Aufträge werden geladen …</p>
+        <p class="p-4" role="status">Aufträge werden geladen …</p>
       } @else if (state.loaded() && state.queries().length === 0) {
-        <p>
+        <p class="p-4">
           Noch keine Sammelaufträge. Lege zunächst eine Kategorie, Marke oder einen Suchbegriff
           fest.
         </p>
       } @else if (state.loaded() && filtered().length === 0) {
-        <p>Keine Aufträge für diese Suche gefunden.</p>
+        <p class="p-4">Keine Aufträge für diese Suche gefunden.</p>
       } @else if (state.loaded()) {
         <div
           class="overflow-x-auto focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
@@ -69,23 +68,23 @@
           role="region"
           aria-label="Sammelaufträge durchblättern"
         >
-          <table class="w-full text-left text-sm">
+          <table class="linear-table min-w-[1080px]">
             <caption class="sr-only">
               Zentrale Vinted-Sammelaufträge
             </caption>
             <thead>
               <tr class="border-b border-fb-border">
-                <th scope="col" class="p-3">Suchbereich</th>
-                <th scope="col" class="p-3">Preis und Takt</th>
-                <th scope="col" class="p-3">Betrieb</th>
-                <th scope="col" class="p-3 text-center">Neue Funde · 24 h</th>
-                <th scope="col" class="p-3">Aktionen</th>
+                <th scope="col" class="min-w-[320px] p-3">Suchbereich</th>
+                <th scope="col" class="min-w-[150px] p-3">Preis und Takt</th>
+                <th scope="col" class="min-w-[260px] p-3">Betrieb</th>
+                <th scope="col" class="min-w-[140px] p-3 text-center">Neue Funde · 24 h</th>
+                <th scope="col" class="min-w-[210px] p-3">Aktionen</th>
               </tr>
             </thead>
             <tbody>
               @for (query of filtered(); track query.id) {
                 <tr class="border-b border-fb-border align-top">
-                  <th scope="row" class="max-w-[280px] p-3 font-normal">
+                  <th scope="row" class="min-w-[320px] max-w-[400px] p-3 font-normal">
                     <p
                       class="font-medium text-fb-text-primary truncate"
                       [title]="categoryPath(query)"
@@ -96,7 +95,7 @@
                       class="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-fb-text-secondary"
                     >
                       @if (query.search_text) {
-                        <span class="truncate max-w-[180px]" [title]="query.search_text"
+                        <span class="truncate max-w-[240px]" [title]="query.search_text"
                           >„{{ query.search_text }}“</span
                         >
                       } @else if (!query.brand_id) {
@@ -112,14 +111,14 @@
                     </div>
                     @if (query.notes) {
                       <p
-                        class="mt-0.5 max-w-[260px] truncate text-xs text-fb-text-muted"
+                        class="mt-0.5 max-w-[360px] truncate text-xs text-fb-text-muted"
                         [title]="query.notes"
                       >
                         {{ query.notes }}
                       </p>
                     }
                   </th>
-                  <td class="whitespace-nowrap p-3">
+                  <td class="min-w-[150px] whitespace-nowrap p-3">
                     <span class="font-medium">
                       {{
                         query.price_from === null ? 'Offen' : (query.price_from | currency: 'EUR')
@@ -130,7 +129,7 @@
                       alle {{ query.poll_interval_ms / 1000 }}s
                     </p>
                   </td>
-                  <td class="whitespace-nowrap p-3">
+                  <td class="min-w-[260px] whitespace-nowrap p-3">
                     <div class="flex items-center gap-1.5">
                       <app-badge [tone]="query.is_active ? 'success' : 'neutral'">{{
                         query.is_active ? 'Aktiv' : 'Pausiert'
@@ -143,12 +142,12 @@
                       </p>
                     }
                   </td>
-                  <td class="whitespace-nowrap p-3 text-center tabular-nums">
+                  <td class="min-w-[140px] whitespace-nowrap p-3 text-center tabular-nums">
                     <span class="font-medium text-fb-text-primary">{{
                       state.counts()[query.id] ?? 0
                     }}</span>
                   </td>
-                  <td class="whitespace-nowrap p-3">
+                  <td class="min-w-[210px] whitespace-nowrap p-3">
                     <div class="flex items-center gap-2">
                       <app-button
                         [disabled]="editorOpen()"
@@ -172,7 +171,7 @@
           </table>
         </div>
       }
-      <p class="text-xs text-fb-text-muted">
+      <p class="px-4 py-3 text-xs text-fb-text-muted md:px-5">
         Neue Funde zählen beim Auftrag, der sie zuerst entdeckt hat. Bei überlappenden Aufträgen
         wird derselbe Artikel nur einmal gezählt.
       </p>

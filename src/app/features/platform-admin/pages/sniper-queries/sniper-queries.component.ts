@@ -16,7 +16,8 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
-import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
+import { CustomSearchInputComponent } from '../../../../shared/components/custom-search-input/custom-search-input.component';
+import { TableToolbarComponent } from '../../../../shared/components/table-toolbar/table-toolbar.component';
 import { SniperQueryEditorComponent } from '../../components/sniper-query-editor/sniper-query-editor.component';
 import { SniperAdminService } from '../../services/sniper-admin.service';
 import { SniperAdminState } from '../../services/sniper-admin-state';
@@ -34,7 +35,8 @@ import { QueryDraft, SniperQuery, queryStatusLabel } from '../../models/sniper-q
     ButtonComponent,
     CardComponent,
     BadgeComponent,
-    TextFieldComponent,
+    CustomSearchInputComponent,
+    TableToolbarComponent,
     SniperQueryEditorComponent,
   ],
   templateUrl: './sniper-queries.component.html',
