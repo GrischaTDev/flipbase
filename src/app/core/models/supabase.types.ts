@@ -2834,6 +2834,7 @@ export type Database = {
           price_to: number | null
           query_key: string
           search_text: string | null
+          title: string
           updated_at: string
         }
         Insert: {
@@ -2854,6 +2855,7 @@ export type Database = {
           price_to?: number | null
           query_key: string
           search_text?: string | null
+          title?: string
           updated_at?: string
         }
         Update: {
@@ -2874,6 +2876,7 @@ export type Database = {
           price_to?: number | null
           query_key?: string
           search_text?: string | null
+          title?: string
           updated_at?: string
         }
         Relationships: []
@@ -4522,13 +4525,10 @@ export type Database = {
       upsert_sniper_query: {
         Args: {
           p_brand_id: number
-          p_catalog_id: number
           p_id: string
           p_notes: string
           p_poll_interval_ms: number
-          p_price_from: number
-          p_price_to: number
-          p_search_text: string
+          p_title: string
         }
         Returns: string
       }

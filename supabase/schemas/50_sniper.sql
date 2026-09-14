@@ -35,6 +35,7 @@ create table if not exists public.sniper_queries (
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now(),
     notes text,
+    title text not null default 'Markenfilter',
     constraint sniper_queries_filter_required check (
         nullif(btrim(search_text), '') is not null or catalog_id is not null
         or (brand_id is not null and brand_id > 0)
@@ -45,6 +46,9 @@ create table if not exists public.sniper_queries (
 
 comment on table public.sniper_queries is
     'Eine Abfrage ist die Einheit, die tatsaechlich bei Vinted gepollt wird. Gleiche Filter mehrerer Arbeitsbereiche teilen sich ueber query_key eine Zeile.';
+
+comment on column public.sniper_queries.title is
+    'Anzeigename des zentralen Markenfilters in der Administration.';
 
 create table if not exists public.sniper_listings (
     id uuid primary key default gen_random_uuid(),
