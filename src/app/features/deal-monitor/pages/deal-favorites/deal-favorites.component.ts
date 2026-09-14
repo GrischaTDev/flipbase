@@ -53,7 +53,7 @@ export class DealFavoritesComponent {
     { value: 'm', label: 'M' },
     { value: 'l', label: 'L' },
     { value: 'xl', label: 'XL' },
-    { value: 'xxl', label: 'XXL (2XL)' },
+    { value: 'xxl', label: 'XXL' },
     { value: '3xl', label: '3XL+' },
   ];
 

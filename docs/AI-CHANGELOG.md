@@ -1,5 +1,27 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-14 – Codex – Vinted-Bot-Feed vereinfacht
+
+**Auftrag:** Die noch sichtbaren internen Bot-Hinweise und die doppelte
+Suchfilter-Verwaltung aus dem Vinted-Bot entfernen. Die Funde sollen als ein
+verständlicher Bereich erscheinen und die Größenbezeichnungen sollen ohne
+zusätzliche Synonyme auskommen.
+
+**Änderung:** Die Bot-Seite zeigt nur noch Artikel und Deals; die alte
+Suchfilter-Ansicht samt Editor und Dialogen bleibt ausschließlich auf der
+dedizierten Suchfilter-Seite. Die Hinweise zu Abfrageintervall, Aufbewahrung,
+Botmeldung und Zulaufsteuerung wurden aus dem Feed entfernt. „Neue Funde“
+fasst die bisher getrennten Bereiche zusammen und stellt die ersten drei
+Artikel wieder als großes Bild links mit zwei gestapelten Karten rechts dar.
+Die Größe XXL wird im Feed und bei Favoriten nur noch als „XXL“ beschriftet.
+Die Bestätigungsdialoge der Suchfilterseite zeigen ihre Footer-Aktionen wieder
+und die Bot-Route trägt keinen nicht mehr benötigten Formularschutz.
+
+**Prüfung:** Der Angular-Feed-Test prüft die neue Galerieaufteilung und die
+Größenbezeichnung. Der PR-Smoke-Test deckt die entfernten Bedienelemente, den
+zusammengeführten Fundebereich und die Filterverwaltung unter ihrer neuen
+Adresse ab.
+
 ## 2026-09-14 – Codex – Zentrale Vinted-Markenfilter vereinfacht
 
 **Auftrag:** Die Administration des Vinted-Bots soll nur noch zentrale

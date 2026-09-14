@@ -222,12 +222,7 @@
 }
 
 @if (deleting(); as row) {
-  <app-modal-shell
-    title="Suchfilter löschen?"
-    size="sm"
-    [hasFooter]="false"
-    (closed)="deleting.set(null)"
-  >
+  <app-modal-shell title="Suchfilter löschen?" size="sm" (closed)="deleting.set(null)">
     <p class="text-sm text-fb-text-secondary">
       „{{ row.title }}“ und die zugehörigen Treffer werden gelöscht. Gesammelte Artikel bleiben
       erhalten.
@@ -242,12 +237,7 @@
 }
 
 @if (discarding()) {
-  <app-modal-shell
-    title="Änderungen verwerfen?"
-    size="sm"
-    [hasFooter]="false"
-    (closed)="discarding.set(false)"
-  >
+  <app-modal-shell title="Änderungen verwerfen?" size="sm" (closed)="discarding.set(false)">
     <p class="text-sm text-fb-text-secondary">Deine ungespeicherten Änderungen gehen verloren.</p>
     <div modal-footer class="mt-4 flex justify-end gap-2">
       <app-button (clicked)="discarding.set(false)">Weiter bearbeiten</app-button>

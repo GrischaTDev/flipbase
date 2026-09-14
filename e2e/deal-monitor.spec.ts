@@ -205,7 +205,7 @@ async function checkAxe(page: Page) {
 }
 
 for (const theme of ['light', 'dark'] as const) {
-  test(`Vinted Bot pausieren und Suchfilter verwalten ${theme} @pr-smoke`, async ({ page }) => {
+  test(`Vinted Bot Feed und Suchfilter verwalten ${theme} @pr-smoke`, async ({ page }) => {
     await page.setViewportSize(
       theme === 'light' ? { width: 1440, height: 1000 } : { width: 390, height: 844 },
     );
@@ -219,7 +219,19 @@ for (const theme of ['light', 'dark'] as const) {
     await expect(page).toHaveURL(/\/vinted-bot$/);
     await expect(page.getByRole('heading', { name: 'Vinted Bot', exact: true })).toBeVisible();
     await expect(page.getByRole('article')).toHaveCount(8);
-    await expect(page.getByLabel('Die neuesten Funde').getByRole('article')).toHaveCount(3);
+    const finds = page.getByRole('region', { name: 'Neue Funde', exact: true });
+    await expect(finds.getByRole('article')).toHaveCount(8);
+    await expect(page.getByText('Weitere Funde', { exact: true })).toHaveCount(0);
+    await expect(
+      page.getByText('Prüft alle 2 Sekunden auf neue Funde', { exact: false }),
+    ).toHaveCount(0);
+    await expect(page.getByText('Botmeldung', { exact: false })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Zulauf pausieren', exact: true })).toHaveCount(
+      0,
+    );
+    await expect(page.getByRole('button', { name: 'Neuer Suchfilter', exact: true })).toHaveCount(
+      0,
+    );
     const firstCard = page.getByRole('article', { name: 'Nike Sneaker 1', exact: true });
     await expect(firstCard.getByRole('img')).toHaveCount(3);
     await expect(
@@ -253,6 +265,18 @@ for (const theme of ['light', 'dark'] as const) {
     expect(boxes[1].x).toBeCloseTo(boxes[2].x, 0);
     expect(boxes[1].y + boxes[1].height).toBeLessThan(boxes[2].y);
     expect(boxes[0].height).toBeCloseTo(boxes[1].height + boxes[2].height + 4, 0);
+    if (theme === 'light') {
+      const featuredCards = await finds.getByRole('article').evaluateAll((articles) =>
+        articles.slice(0, 3).map((article) => {
+          const { x, y, width, height } = article.getBoundingClientRect();
+          return { x, y, width, height };
+        }),
+      );
+      expect(featuredCards[0].x).toBeLessThan(featuredCards[1].x);
+      expect(featuredCards[1].x).toBeCloseTo(featuredCards[2].x, 0);
+      expect(featuredCards[1].y).toBeLessThan(featuredCards[2].y);
+      expect(featuredCards[0].height).toBeGreaterThan(featuredCards[1].height);
+    }
     const viewItem = firstCard.getByRole('link', {
       name: 'Nike Sneaker 1 – auf Vinted ansehen (neuer Tab)',
       exact: true,
@@ -274,7 +298,6 @@ for (const theme of ['light', 'dark'] as const) {
     await itemTab.close();
     await page.bringToFront();
     await expect(page).toHaveURL(/\/vinted-bot$/);
-    await page.getByRole('button', { name: 'Zulauf fortsetzen', exact: true }).click();
     await expect(firstCard).toBeVisible();
     await checkAxe(page);
     await firstCard.evaluate((card) => card.scrollIntoView({ block: 'center' }));
@@ -282,17 +305,8 @@ for (const theme of ['light', 'dark'] as const) {
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({ path: `test-results/deal-monitor-${theme}.png`, fullPage: true });
 
-    // Bereits bekannte Funde nicht durch eine künstliche Ausgabewarteschlange verzögern.
-    mock.add(101, 102, 103);
-    await expect(page.getByRole('article')).toHaveCount(11, { timeout: 5_000 });
-    await expect(page.getByLabel('Die neuesten Funde').getByRole('article')).toHaveCount(3);
-    await page.getByRole('button', { name: 'Zulauf pausieren', exact: true }).click();
-    mock.add();
-    await expect(page.getByText('1 neue Artikel warten.')).toBeVisible({ timeout: 5_000 });
-    await expect(page.getByRole('article')).toHaveCount(11);
-    await page.getByRole('button', { name: 'Neueste Artikel anzeigen' }).click();
-    await expect(page.getByRole('article')).toHaveCount(12);
-
+    await page.goto('/vinted-bot/filters');
+    await expect(page.getByRole('heading', { name: 'Suchfilter', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Neuer Suchfilter', exact: true }).click();
     await expect(page.getByLabel('Name des Suchfilters')).toBeFocused();
     await page.getByLabel('Name des Suchfilters').fill('Meine Sneaker');
@@ -306,34 +320,42 @@ for (const theme of ['light', 'dark'] as const) {
     await expect(page.getByLabel('Name des Suchfilters')).toHaveValue('Meine Sneaker');
     mock.failSave(false);
     await page.getByRole('button', { name: 'Suchfilter speichern', exact: true }).click();
-    await expect(page.getByLabel('Suchfilter bearbeiten')).toHaveCount(0);
-    await page.getByRole('button', { name: 'Suchfilter · 1', exact: true }).click();
+    await expect(
+      page.getByRole('form', { name: 'Suchfilter bearbeiten', exact: true }),
+    ).toHaveCount(0);
     await expect(page.getByRole('heading', { name: 'Meine Sneaker', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Pausieren', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Aktivieren', exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
+    await page.getByRole('button', { name: 'Suchfilter bearbeiten', exact: true }).click();
     await page.getByLabel('Name des Suchfilters').fill('Ungespeichert');
     await page.getByRole('button', { name: 'Abbrechen', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Änderungen verwerfen?' })).toBeVisible();
     await page.getByRole('button', { name: 'Verwerfen', exact: true }).click();
-    await page.getByRole('button', { name: 'Löschen', exact: true }).click();
-    await checkAxe(page);
     await page.getByRole('button', { name: 'Suchfilter löschen', exact: true }).click();
-    await expect(page.getByRole('button', { name: 'Suchfilter · 0', exact: true })).toBeVisible();
+    await checkAxe(page);
+    await page
+      .getByRole('dialog', { name: 'Suchfilter löschen?', exact: true })
+      .getByRole('button', { name: 'Suchfilter löschen', exact: true })
+      .click();
+    await expect(
+      page.getByRole('heading', { name: 'Noch keine Suchfilter angelegt', exact: true }),
+    ).toBeVisible();
     expect(
       mock.calls
         .filter((call) => call.name === 'save_sniper_watchlist')
         .every((call) => call.body['p_workspace_id'] === workspace),
     ).toBe(true);
+    mock.uncovered();
+    await page.goto('/vinted-bot');
     await page.getByRole('button', { name: 'Deals', exact: true }).click();
     await expect(page.getByRole('article')).toHaveCount(1);
-    mock.uncovered();
     await page.getByRole('button', { name: 'Artikel', exact: true }).click();
     await expect(
       page.getByText('Für diesen Bereich sammelt der Monitor noch nicht.', { exact: false }),
     ).toBeVisible();
     // Der Speichervorgang darf nach einem Arbeitsbereichswechsel keinen alten
     // Feed wiederherstellen, auch wenn erst sein nachgeladener Suchfilter kommt.
+    await page.goto('/vinted-bot/filters');
     await page.getByRole('button', { name: 'Neuer Suchfilter', exact: true }).click();
     await page.getByLabel('Name des Suchfilters').fill('Verzögert gespeichert');
     mock.holdWatchlists();
@@ -341,12 +363,13 @@ for (const theme of ['light', 'dark'] as const) {
     await expect.poll(mock.waitingForWatchlists).toBe(true);
     await page.locator('[aria-controls="header-workspace-menu"]').click();
     await page.getByRole('button', { name: 'Zweitbereich', exact: true }).click();
+    await page.goto('/vinted-bot');
     await expect(
       page.getByRole('article', { name: 'Nike Sneaker 700', exact: true }),
     ).toBeVisible();
     const feedsBeforeRelease = mock.calls.filter((call) => call.name === 'sniper_feed').length;
     mock.releaseWatchlists();
-    await expect(page.getByRole('button', { name: 'Neuer Suchfilter', exact: true })).toBeEnabled();
+    await expect(page.getByRole('heading', { name: 'Vinted Bot', exact: true })).toBeVisible();
     await expect(
       page.getByRole('article', { name: 'Nike Sneaker 700', exact: true }),
     ).toBeVisible();
