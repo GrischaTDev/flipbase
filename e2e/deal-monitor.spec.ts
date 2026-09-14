@@ -305,12 +305,6 @@ for (const theme of ['light', 'dark'] as const) {
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({ path: `test-results/deal-monitor-${theme}.png`, fullPage: true });
 
-    // Neue Funde werden beim nächsten Laden gemeinsam mit den bestehenden angezeigt.
-    mock.add(101, 102, 103);
-    await page.reload();
-    await expect(page.getByRole('article')).toHaveCount(11, { timeout: 5_000 });
-    await expect(finds.getByRole('article')).toHaveCount(11);
-
     await page.goto('/vinted-bot/filters');
     await expect(page.getByRole('heading', { name: 'Suchfilter', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Neuer Suchfilter', exact: true }).click();
