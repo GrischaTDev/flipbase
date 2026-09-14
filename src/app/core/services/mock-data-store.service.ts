@@ -29,6 +29,8 @@ import type {
 } from '../../features/purchases/services/purchase-package.service';
 import type { DemoRecordComment } from '../models/record-comment.models';
 import { buildProductCostPlan } from '../utils/product-cost-plan';
+import { Brand, CategoryBrandRecord, brandNameKey } from '../models/product-category.models';
+import { DEMO_PRODUCT_CATEGORIES } from './demo-product-categories';
 
 const DEMO_WS_ID = 'ws-1';
 
@@ -49,6 +51,13 @@ const STORAGE_KEY_PRODUCT_RECEIPTS = 'flipbase_local_product_receipts';
 const STORAGE_KEY_RECEIPT_JOURNAL = 'flipbase_local_individual_receipt_journal';
 const STORAGE_KEY_RECORD_COMMENTS = 'flipbase_local_record_comments';
 const STORAGE_KEY_PACKAGE_CAPTURES = 'flipbase_local_package_captures';
+const STORAGE_KEY_BRANDS = 'flipbase_local_brands';
+
+interface DemoBrandRecord {
+  readonly id: string;
+  readonly workspace_id: string;
+  readonly name: string;
+}
 
 interface PackageCaptureRequest {
   readonly id: string;
@@ -680,6 +689,60 @@ export class MockDataStoreService {
     return this.getSales();
   }
 
+  // --- Marken und Kategorien (nur Demo-Modus) ---
+  getBrands(workspaceId: string): Brand[] {
+    return this.getWorkspaceRecords<DemoBrandRecord>(STORAGE_KEY_BRANDS, workspaceId)
+      .map((record) => ({ id: record.id, workspaceId: record.workspace_id, name: record.name }))
+      .sort((left, right) => left.name.localeCompare(right.name, 'de-DE'));
+  }
+
+  /** Liefert die Demo-Marke gleicher Vergleichsform oder legt sie an. */
+  ensureBrand(workspaceId: string, name: string): Brand | null {
+    const trimmed = name.trim().slice(0, 120).trim();
+    if (!trimmed || !this.isDemoMode()) return null;
+    const existing = this.getBrands(workspaceId).find(
+      (brand) => brandNameKey(brand.name) === brandNameKey(trimmed),
+    );
+    if (existing) return existing;
+    const record: DemoBrandRecord = {
+      id: createLocalDemoId('brand'),
+      workspace_id: workspaceId,
+      name: trimmed,
+    };
+    this.saveWorkspaceRecord(STORAGE_KEY_BRANDS, record);
+    return { id: record.id, workspaceId, name: trimmed };
+  }
+
+  /**
+   * Bildet public.sync_category_brand_text() nach: Die Kennung hat Vorrang, Markentext
+   * zählt nur beim Anlegen ohne Kennung oder bei geändertem Text mit gleicher Kennung.
+   * Kategorietext folgt immer der Kennung.
+   */
+  applyCategoryBrandText<T extends CategoryBrandRecord>(
+    record: T,
+    previous?: CategoryBrandRecord,
+  ): T {
+    let brandId = record.brand_id ?? null;
+    const resolveText =
+      previous === undefined
+        ? brandId === null
+        : brandId === (previous.brand_id ?? null) &&
+          (record.brand ?? null) !== (previous.brand ?? null);
+    if (resolveText) {
+      brandId = record.brand?.trim()
+        ? (this.ensureBrand(record.workspace_id, record.brand)?.id ?? null)
+        : null;
+    }
+    const brand = brandId
+      ? (this.getBrands(record.workspace_id).find((entry) => entry.id === brandId)?.name ?? null)
+      : null;
+    const categoryId = record.category_id ?? null;
+    const category = categoryId
+      ? (DEMO_PRODUCT_CATEGORIES.find((entry) => entry.id === categoryId)?.fullName ?? null)
+      : null;
+    return { ...record, brand_id: brandId, brand, category_id: categoryId, category };
+  }
+
   // --- Mengenartikel, Einkaufspositionen und Lose (nur Demo-Modus) ---
   getCatalogProducts(workspaceId?: string): CatalogProduct[] {
     return this.getWorkspaceRecords<CatalogProduct>(STORAGE_KEY_CATALOG_PRODUCTS, workspaceId);
@@ -949,22 +1012,24 @@ export class MockDataStoreService {
     if (purchase.shipment_status !== 'arrived')
       return fail('Der Einkauf muss vor der Paketerfassung angekommen sein.');
     const createdAt = new Date().toISOString();
-    const inventoryItems: InventoryItem[] = normalized.map((entry) => ({
-      ...entry,
-      id: this.newId('item'),
-      workspace_id: workspaceId,
-      purchase_id: purchase.id,
-      purchase_line_id: null,
-      source_package_line_id: lineId,
-      is_public_store: false,
-      status: purchase.entry_status === 'finalized' ? 'ready' : 'received',
-      allocated_purchase_cost: null,
-      tax_purchase_cost: null,
-      sale_state: 'no_active_sale',
-      active_sale_count: 0,
-      active_sale_id: null,
-      created_at: createdAt,
-    }));
+    const inventoryItems: InventoryItem[] = normalized.map((entry) =>
+      this.applyCategoryBrandText<InventoryItem>({
+        ...entry,
+        id: this.newId('item'),
+        workspace_id: workspaceId,
+        purchase_id: purchase.id,
+        purchase_line_id: null,
+        source_package_line_id: lineId,
+        is_public_store: false,
+        status: purchase.entry_status === 'finalized' ? 'ready' : 'received',
+        allocated_purchase_cost: null,
+        tax_purchase_cost: null,
+        sale_state: 'no_active_sale',
+        active_sale_count: 0,
+        active_sale_id: null,
+        created_at: createdAt,
+      }),
+    );
     const updatedLine = { ...line, received_quantity: 1 };
     const updatedLines = lines.map((entry) =>
       entry.id === lineId && entry.workspace_id === workspaceId ? updatedLine : entry,
