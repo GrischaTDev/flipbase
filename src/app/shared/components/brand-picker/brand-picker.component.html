@@ -1,0 +1,140 @@
+<div class="w-full space-y-1.5">
+  @if (label()) {
+    <label
+      [for]="fieldId()"
+      class="block text-[13px] font-semibold text-fb-text-primary"
+      [class.sr-only]="labelHidden()"
+      >{{ label() }}</label
+    >
+  }
+
+  <div class="relative">
+    <input
+      #field
+      type="text"
+      role="combobox"
+      autocomplete="off"
+      aria-autocomplete="list"
+      [id]="fieldId()"
+      [attr.aria-label]="label() ? null : 'Marke'"
+      [attr.aria-expanded]="isOpen()"
+      [attr.aria-controls]="isOpen() ? listboxId() : null"
+      [attr.aria-activedescendant]="activeDescendantId()"
+      [attr.aria-invalid]="createError() ? 'true' : null"
+      [attr.aria-describedby]="
+        createError()
+          ? fieldId() + '-error'
+          : showPendingHint()
+            ? fieldId() + '-pending'
+            : helpText()
+              ? fieldId() + '-help'
+              : null
+      "
+      [placeholder]="placeholder()"
+      [value]="query()"
+      [disabled]="isDisabled()"
+      (focus)="onFocus()"
+      (click)="openList()"
+      (input)="onInput($event)"
+      (keydown)="onKeydown($event)"
+      class="linear-input min-h-8 w-full rounded-lg py-1.5 pl-3 pr-8 text-[13px] outline-none transition-colors focus-visible:border-fb-primary focus-visible:ring-2 focus-visible:ring-fb-primary/50 disabled:cursor-not-allowed disabled:opacity-40"
+    />
+    @if (query() && !isDisabled()) {
+      <button
+        type="button"
+        (click)="clear()"
+        aria-label="Marke entfernen"
+        class="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-fb-text-muted transition-colors hover:bg-fb-surface-hover hover:text-fb-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/50"
+      >
+        <svg [lucideIcon]="clearIcon" class="size-3.5" aria-hidden="true"></svg>
+      </button>
+    }
+    @if (isOpen()) {
+      <div
+        #panel
+        [attr.popover]="supportsPopover ? 'manual' : null"
+        class="brand-picker-panel fb-popover-enter absolute left-0 top-full z-50 mt-1.5 w-full rounded-xl border border-fb-border bg-fb-surface p-1.5 shadow-lg"
+        [style.left.px]="supportsPopover ? panelPosition().left : null"
+        [style.top.px]="supportsPopover ? panelPosition().top : null"
+        [style.width.px]="supportsPopover ? panelPosition().width : null"
+      >
+        @if (brandService.loadError()) {
+          <div class="space-y-2 px-2 py-2" role="alert">
+            <p class="text-[13px] text-fb-text-primary">Marken konnten nicht geladen werden.</p>
+            <button
+              type="button"
+              (click)="retryLoad()"
+              class="min-h-8 rounded-lg px-2 text-[13px] font-semibold text-fb-primary transition-colors hover:bg-fb-primary-subtle"
+            >
+              Erneut versuchen
+            </button>
+          </div>
+        } @else if (brandService.loading() && optionCount() === 0) {
+          <p class="px-2 py-2 text-[13px] text-fb-text-muted" role="status">
+            Marken werden geladen …
+          </p>
+        } @else if (optionCount() === 0) {
+          <p class="px-2 py-2 text-[13px] text-fb-text-muted" role="status">
+            Noch keine Marken angelegt. Namen eintippen, um eine anzulegen.
+          </p>
+        }
+
+        <div
+          role="listbox"
+          [id]="listboxId()"
+          aria-label="Marken"
+          class="max-h-60 space-y-0.5 overflow-y-auto"
+          [hidden]="optionCount() === 0"
+        >
+          @for (brand of matches(); track brand.id; let index = $index) {
+            <button
+              type="button"
+              role="option"
+              tabindex="-1"
+              [id]="optionId(index)"
+              [attr.aria-selected]="value() === brand.id"
+              (click)="choose(brand)"
+              (mousemove)="activeIndex.set(index)"
+              class="flex min-h-9 w-full items-center rounded-md px-2.5 py-1.5 text-left text-[13px] text-fb-text-primary transition-colors"
+              [class.bg-fb-surface-alt]="activeIndex() === index"
+              [class.font-semibold]="value() === brand.id"
+            >
+              <span class="truncate">{{ brand.name }}</span>
+            </button>
+          }
+          @if (canCreate()) {
+            <button
+              type="button"
+              role="option"
+              tabindex="-1"
+              [id]="optionId(createIndex())"
+              aria-selected="false"
+              [disabled]="creating()"
+              (click)="createFromQuery()"
+              (mousemove)="activeIndex.set(createIndex())"
+              class="flex min-h-9 w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[13px] font-semibold text-fb-primary transition-colors disabled:opacity-60"
+              [class.bg-fb-primary-subtle]="activeIndex() === createIndex()"
+            >
+              <svg [lucideIcon]="plusIcon" class="size-4 shrink-0" aria-hidden="true"></svg>
+              <span class="truncate">„{{ trimmedQuery() }}“ als neue Marke anlegen</span>
+            </button>
+          }
+        </div>
+      </div>
+    }
+  </div>
+
+  @if (createError(); as message) {
+    <p [id]="fieldId() + '-error'" class="text-xs text-rose-700 dark:text-rose-400" role="alert">
+      {{ message }}
+    </p>
+  } @else if (showPendingHint()) {
+    <p [id]="fieldId() + '-pending'" class="text-xs text-fb-text-muted">
+      Noch nicht übernommen – Marke auswählen oder neu anlegen.
+    </p>
+  } @else if (helpText()) {
+    <p [id]="fieldId() + '-help'" class="text-xs leading-relaxed text-fb-text-muted">
+      {{ helpText() }}
+    </p>
+  }
+</div>
