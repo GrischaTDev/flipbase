@@ -19,9 +19,11 @@ select ok(not has_table_privilege('authenticated', 'public.product_categories', 
 select ok(has_table_privilege('authenticated', 'public.product_categories', 'select'), 'Angemeldete dürfen Kategorien lesen');
 
 -- Testdaten als postgres. Kennungen „zz“ kommen in der Shopify-Taxonomie nicht vor.
+-- Eigene Testversion „1999-01“, damit sie nicht mit der echten importierten Version
+-- 2026-08 kollidiert (sonst zählt der Import-Test unten die Testkategorie mit).
 insert into public.product_categories (id, parent_id, name, full_name, level, is_leaf, taxonomy_version) values
-  ('zz', null, 'Testbereich', 'Testbereich', 1, false, '2026-08'),
-  ('zz-1', 'zz', 'Unterbereich', 'Testbereich > Unterbereich', 2, true, '2026-08');
+  ('zz', null, 'Testbereich', 'Testbereich', 1, false, '1999-01'),
+  ('zz-1', 'zz', 'Unterbereich', 'Testbereich > Unterbereich', 2, true, '1999-01');
 insert into auth.users (id, aud, role, email, raw_app_meta_data, raw_user_meta_data) values
   ('c5100000-0000-4000-8000-000000000001', 'authenticated', 'authenticated', 'brands-a@example.test', '{}', '{}'),
   ('c5100000-0000-4000-8000-000000000002', 'authenticated', 'authenticated', 'brands-b@example.test', '{}', '{}');
@@ -118,6 +120,14 @@ select is((select brand from public.inventory_items where id = 'c5100000-0000-40
 select is((select concat_ws('|', brand, category) from public.catalog_products where id = 'c5100000-0000-4000-8000-000000000071'), 'Nintendo', 'Katalogprodukt übernommen, Kategorie geleert');
 select is((select concat_ws('|', brand, category) from public.inventory_items where id = 'c5100000-0000-4000-8000-000000000041'), 'Sony Group|Testbereich > Unterbereich', 'Verknüpfte Artikel bleiben unverändert');
 select throws_ok($$update public.inventory_items set title = 'Nach Übernahme' where id = 'c5100000-0000-4000-8000-000000000061'$$, '55000', null, 'Archivschutz ist danach wieder aktiv');
+
+-- Importierte Shopify-Taxonomie v2026-08
+select is((select count(*)::int from public.product_categories where level = 1 and taxonomy_version = '2026-08'), 21, '21 Hauptbereiche nach Ausblenden von fünf');
+select is((select count(*)::int from public.product_categories where split_part(id, '-', 1) in ('gc', 'se', 'bu', 'pa', 'na')), 0, 'Ausgeblendete Bereiche fehlen');
+select cmp_ok((select count(*)::int from public.product_categories where taxonomy_version = '2026-08'), '>', 14000, 'Taxonomie ist vollständig importiert');
+select is((select full_name from public.product_categories where id = 'el-6-6'), 'Elektronik > Computer > Laptops', 'Pfad einer bekannten Kategorie');
+select is((select is_leaf from public.product_categories where id = 'el-6'), false, 'Computer hat Unterkategorien');
+select is((select count(*)::int from public.product_categories child left join public.product_categories parent on parent.id = child.parent_id where child.parent_id is not null and parent.id is null), 0, 'Jede Oberkategorie existiert');
 
 select * from finish();
 rollback;

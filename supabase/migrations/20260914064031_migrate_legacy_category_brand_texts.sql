@@ -1,0 +1,13 @@
+-- Zweck: Freie Kategorie- und Markentexte in das neue Modell übernehmen.
+-- Betroffen: public.brands (neue Zeilen je Workspace),
+--   public.inventory_items und public.catalog_products (brand_id, brand, category).
+--
+-- DESTRUKTIV: Alle Kategorietexte ohne category_id werden geleert. Der Nutzer hat
+-- das am 14.09.2026 ausdrücklich entschieden (Option C im Entwurf
+-- docs/superpowers/specs/2026-09-14-product-categories-brands-design.md): freie Texte
+-- passen nicht verlässlich auf eine Shopify-Kategorie. Kategorien werden danach im
+-- Wähler neu vergeben. Markentexte gehen nicht verloren, sie werden zu Marken.
+--
+-- Die Funktion schaltet den Archivschutz nur innerhalb dieser Transaktion ab; siehe
+-- Kommentar an public.migrate_legacy_category_brand_texts().
+select public.migrate_legacy_category_brand_texts();

@@ -246,6 +246,38 @@ export type Database = {
         }
         Relationships: []
       }
+      brands: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          name_key: string | null
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          name_key?: string | null
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          name_key?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brands_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       business_events: {
         Row: {
           actor_id: string | null
@@ -444,7 +476,9 @@ export type Database = {
       catalog_products: {
         Row: {
           brand: string | null
+          brand_id: string | null
           category: string | null
+          category_id: string | null
           condition: string | null
           condition_notes: string | null
           created_at: string
@@ -464,7 +498,9 @@ export type Database = {
         }
         Insert: {
           brand?: string | null
+          brand_id?: string | null
           category?: string | null
+          category_id?: string | null
           condition?: string | null
           condition_notes?: string | null
           created_at?: string
@@ -484,7 +520,9 @@ export type Database = {
         }
         Update: {
           brand?: string | null
+          brand_id?: string | null
           category?: string | null
+          category_id?: string | null
           condition?: string | null
           condition_notes?: string | null
           created_at?: string
@@ -503,6 +541,20 @@ export type Database = {
           workspace_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "catalog_products_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "product_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_products_workspace_brand_fkey"
+            columns: ["workspace_id", "brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["workspace_id", "id"]
+          },
           {
             foreignKeyName: "catalog_products_workspace_id_fkey"
             columns: ["workspace_id"]
@@ -562,7 +614,9 @@ export type Database = {
           archived_at: string | null
           archived_by: string | null
           brand: string | null
+          brand_id: string | null
           category: string | null
+          category_id: string | null
           condition: string
           created_at: string
           description: string | null
@@ -591,7 +645,9 @@ export type Database = {
           archived_at?: string | null
           archived_by?: string | null
           brand?: string | null
+          brand_id?: string | null
           category?: string | null
+          category_id?: string | null
           condition?: string
           created_at?: string
           description?: string | null
@@ -620,7 +676,9 @@ export type Database = {
           archived_at?: string | null
           archived_by?: string | null
           brand?: string | null
+          brand_id?: string | null
           category?: string | null
+          category_id?: string | null
           condition?: string
           created_at?: string
           description?: string | null
@@ -646,6 +704,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "inventory_items_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "product_categories"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "inventory_items_package_origin_fkey"
             columns: ["workspace_id", "source_package_line_id"]
             isOneToOne: false
@@ -665,6 +730,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "purchase_lines"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_items_workspace_brand_fkey"
+            columns: ["workspace_id", "brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["workspace_id", "id"]
           },
           {
             foreignKeyName: "inventory_items_workspace_id_fkey"
@@ -1413,6 +1485,47 @@ export type Database = {
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_categories: {
+        Row: {
+          full_name: string
+          id: string
+          is_deprecated: boolean
+          is_leaf: boolean
+          level: number
+          name: string
+          parent_id: string | null
+          taxonomy_version: string
+        }
+        Insert: {
+          full_name: string
+          id: string
+          is_deprecated?: boolean
+          is_leaf?: boolean
+          level: number
+          name: string
+          parent_id?: string | null
+          taxonomy_version: string
+        }
+        Update: {
+          full_name?: string
+          id?: string
+          is_deprecated?: boolean
+          is_leaf?: boolean
+          level?: number
+          name?: string
+          parent_id?: string | null
+          taxonomy_version?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_categories_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "product_categories"
             referencedColumns: ["id"]
           },
         ]
@@ -3951,6 +4064,7 @@ export type Database = {
           reason: string
         }[]
       }
+      migrate_legacy_category_brand_texts: { Args: never; Returns: undefined }
       migrate_purchase_costing_legacy: {
         Args: {
           p_confirm: boolean
@@ -4202,7 +4316,9 @@ export type Database = {
           archived_at: string | null
           archived_by: string | null
           brand: string | null
+          brand_id: string | null
           category: string | null
+          category_id: string | null
           condition: string
           created_at: string
           description: string | null
@@ -4555,3 +4671,4 @@ export const Constants = {
     Enums: {},
   },
 } as const
+
