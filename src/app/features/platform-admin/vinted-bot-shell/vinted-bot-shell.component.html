@@ -1,4 +1,4 @@
-<div class="mx-auto flex max-w-6xl flex-col gap-4">
+<div class="mx-auto flex w-full max-w-[90rem] flex-col gap-4">
   <app-page-header
     title="Vinted Bot"
     subtitle="Sammelaufträge, Betrieb und Kategorien des Vinted-Bots verwalten."
@@ -29,7 +29,12 @@
               [attr.aria-current]="activeLink.isActive ? 'page' : null"
               class="flex min-h-11 items-center gap-3 rounded-lg border border-transparent px-3 py-2 text-fb-text-secondary outline-none transition hover:bg-fb-surface-hover hover:text-fb-text-primary focus-visible:ring-2 focus-visible:ring-fb-primary"
             >
-              <svg [lucideIcon]="item.icon" class="h-4 w-4 shrink-0" aria-hidden="true"></svg>
+              <svg
+                [lucideIcon]="item.icon"
+                class="h-4 w-4 shrink-0 text-fb-text-muted"
+                [class.text-fb-text-primary]="activeLink.isActive"
+                aria-hidden="true"
+              ></svg>
               <span class="min-w-0">
                 <span class="block text-[13px] font-semibold">{{ item.label }}</span>
                 <span class="block text-xs text-fb-text-muted">{{ item.description }}</span>

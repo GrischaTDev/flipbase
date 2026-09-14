@@ -1,5 +1,23 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-14 – Codex – Vinted-Bot-Tabelle verbreitert und Icons beruhigt
+
+**Auftrag:** Die Administration des Vinted-Bots nach der visuellen Prüfung der
+Sammelaufträge-Ansicht verbessern.
+
+**Befund:** Die Hülle begrenzte den Bereich trotz Seitenmenü auf `max-w-6xl`.
+Dadurch waren die Tabellen-Spalten und Aktionen auf üblichen Bildschirmbreiten
+zu eng. Die Seite verwendete außerdem ein eigenes Tabellenmuster und die
+Navigation ließ die Icon-Farbe vollständig vom Link erben.
+
+**Änderung:** Die Vinted-Bot-Hülle nutzt jetzt eine breite Arbeitsfläche. Die
+Sammelaufträge verwenden die gemeinsame Tabellenoberfläche mit Toolbar,
+lesbaren Mindestbreiten und horizontalem Überlauf auf schmalen Ansichten.
+Die Navigation zeigt Icons neutral und hebt nur den aktiven Bereich hervor.
+
+**Prüfung:** Formatierung, Lint, Typprüfung, Angular-Test der Vinted-Bot-Hülle,
+Produktionsbau und Admin-UI-Prüfung erfolgreich.
+
 ## 2026-09-14 – Codex – PR-Review-Fixes für Kategorie- und Marken-Picker
 
 **Auftrag:** Den Zweig `feat/product-categories-brands` nach dem aktuellen
