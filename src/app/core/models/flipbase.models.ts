@@ -292,8 +292,12 @@ export interface InventoryItem {
   purchase_id?: string | null;
   purchase_line_id?: string | null;
   category?: string | null;
+  /** Verweis auf public.product_categories; der Text in `category` folgt daraus. */
+  category_id?: string | null;
   title: string;
   brand?: string | null;
+  /** Verweis auf public.brands; der Text in `brand` folgt daraus. */
+  brand_id?: string | null;
   model?: string | null;
   condition: ItemCondition;
   condition_notes?: string | null;
@@ -468,9 +472,13 @@ export interface CatalogProduct {
   workspace_id: string;
   title: string;
   brand?: string | null;
+  /** Verweis auf public.brands; der Text in `brand` folgt daraus. */
+  brand_id?: string | null;
   model?: string | null;
   ean?: string | null;
   category?: string | null;
+  /** Verweis auf public.product_categories; der Text in `category` folgt daraus. */
+  category_id?: string | null;
   condition?: ItemCondition | null;
   condition_notes?: string | null;
   tracking_mode: TrackingMode;
