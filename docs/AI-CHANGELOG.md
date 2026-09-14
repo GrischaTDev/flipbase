@@ -6,20 +6,19 @@
 
 1. Redundante Zwischenüberschriften und Beschreibungen auf den Unterseiten von `/admin/vinted-bot/*` (Sammelaufträge, Betrieb, Kategorien) sowie `/settings/numbering` entfernen, da die übergeordnete Navigations- und Kopfzeilen-Struktur den Bereich bereits eindeutig vorgibt.
 2. Sammelauftrags-Tabelle entschlacken: Spaltenmaße optimieren, horizontales Scrollen verhindern, Suchbereich mit Truncation und Tooltips versehen, Metadaten (Suchbegriff, Marke) kompakt bündeln und lange Notizen auf eine Zeile begrenzen.
-3. Den Sammelauftrags-Editor (`app-sniper-query-editor`) in einem sauberen Modal-Dialog (`app-modal-shell`) öffnen, statt ihn inline in den Seitenfluss zu setzen, inklusive Fokus-Management, Escape-Unterstützung und Abbrechen-/Speichern-Aktionen.
+3. Den Sammelauftrags-Editor (`app-sniper-query-editor`) übersichtlich direkt über der Tabelle öffnen, inklusive Fokus-Management, Tastaturunterstützung, Abbrechen-/Speichern-Aktionen und sauberer Anbindung an den Angular-Verlassensschutz (`unsavedEntryGuard`).
 
 **Befund:**
 
 - Die Hüllen `vinted-bot-shell` und `settings-shell` tragen die Navigation bereits im Kopf- und Seitenbereich. Die Unterseiten wiederholten dieselben Titel (`h2`) und Beschreibungen im Inhaltsbereich unnötig.
 - Bei `sniper-queries` erzeugten lange Notizen und ungekürzte Kategoriepfade eine Überbreite von über 1000px, was bei Desktop-Auflösungen zu erzwungenem horizontalen Scrollen führte.
-- Der Inline-Editor drückte die Tabelle bei Aktivierung nach unten und wirkte unruhig. `ModalShellComponent` bietet eine barrierefreie Dialog-Lösung, die sich nahtlos in das Flipbase-Design einfügt.
+- Durch die Truncation in der Tabelle sind ausufernde Texte gebändigt; beim Klick auf „Bearbeiten“ öffnet sich der Editor direkt darüber mit vollem Zugriff auf alle Felder. Der Verlassensschutz fängt ungespeicherte Absprünge im Seitenmenü sauber ab.
 
 **Ergebnis:**
 
 - Redundante Titel in `sniper-queries`, `sniper-operation`, `vinted-categories` und `numbering-settings` entfernt.
 - Button „Neuer Auftrag“ in die Toolbar über der Tabelle integriert.
 - Tabelle in `sniper-queries` modernisiert und verschlankt: Truncation für Kategorie und Notizen, kompakte Preis-/Intervall- und Statusdarstellung.
-- `sniper-query-editor` von überflüssigen Card-Rahmen und doppelten Headings befreit und in `app-modal-shell` gekapselt.
 - Verbindungskarte in `sniper-operation` mit aufgeräumter Kopfzeile und Statusbadges ausgestattet.
 - E2E- und Unit-Tests angepasst und verifiziert.
 

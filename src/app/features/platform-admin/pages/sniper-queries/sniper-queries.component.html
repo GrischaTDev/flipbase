@@ -15,22 +15,15 @@
   <p role="status" class="text-sm text-fb-text-secondary">{{ message() }}</p>
 
   @if (editorOpen()) {
-    <app-modal-shell
-      [title]="editing() ? 'Takt und Notiz bearbeiten' : 'Neuer Sammelauftrag'"
-      size="lg"
-      [hasFooter]="false"
-      (closed)="closeEditor()"
-    >
-      <app-sniper-query-editor
-        [query]="editing()"
-        [categories]="categories()"
-        [saving]="saving()"
-        [plannedRate]="state.plannedRate()"
-        [budget]="state.stale() ? null : (state.runtime()?.request_budget ?? null)"
-        (saved)="save($event)"
-        (cancelled)="closeEditor()"
-      />
-    </app-modal-shell>
+    <app-sniper-query-editor
+      [query]="editing()"
+      [categories]="categories()"
+      [saving]="saving()"
+      [plannedRate]="state.plannedRate()"
+      [budget]="state.stale() ? null : (state.runtime()?.request_budget ?? null)"
+      (saved)="save($event)"
+      (cancelled)="closeEditor()"
+    />
   }
 
   <app-card padding="md">
