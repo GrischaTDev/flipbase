@@ -18,6 +18,7 @@ import { CardComponent } from '../../../../shared/components/card/card.component
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { CustomSearchInputComponent } from '../../../../shared/components/custom-search-input/custom-search-input.component';
 import { TableToolbarComponent } from '../../../../shared/components/table-toolbar/table-toolbar.component';
+import { LoadingIndicatorComponent } from '../../../../shared/components/loading-indicator/loading-indicator.component';
 import { SniperQueryEditorComponent } from '../../components/sniper-query-editor/sniper-query-editor.component';
 import { SniperAdminService } from '../../services/sniper-admin.service';
 import { SniperAdminState } from '../../services/sniper-admin-state';
@@ -37,6 +38,7 @@ import { QueryDraft, SniperQuery, queryStatusLabel } from '../../models/sniper-q
     BadgeComponent,
     CustomSearchInputComponent,
     TableToolbarComponent,
+    LoadingIndicatorComponent,
     SniperQueryEditorComponent,
   ],
   templateUrl: './sniper-queries.component.html',
@@ -57,6 +59,7 @@ export class SniperQueriesComponent {
   readonly editing = signal<SniperQuery | null>(null);
   readonly saving = signal(false);
   readonly busyId = signal<string | null>(null);
+  readonly pendingCheckBaselines = signal<Record<string, string | null>>({});
   readonly message = signal<string | null>(null);
   readonly error = signal<string | null>(null);
   readonly search = new FormControl('', { nonNullable: true });
@@ -149,10 +152,22 @@ export class SniperQueriesComponent {
     this.error.set(null);
     try {
       await this.api.setActive(query.id, !query.is_active);
+      if (query.is_active) {
+        this.pendingCheckBaselines.update((baselines) => {
+          const next = { ...baselines };
+          delete next[query.id];
+          return next;
+        });
+      } else {
+        this.pendingCheckBaselines.update((baselines) => ({
+          ...baselines,
+          [query.id]: query.last_polled_at,
+        }));
+      }
       this.message.set(
         query.is_active
           ? 'Auftrag pausiert. Eine bereits laufende Abfrage kann noch abgeschlossen werden.'
-          : 'Auftrag aktiviert. Der Bot übernimmt ihn im nächsten verfügbaren Takt.',
+          : 'Auftrag aktiviert. Die erste Vinted-Abfrage läuft jetzt an.',
       );
       await this.state.refreshAfterMutation();
     } catch (error) {
@@ -162,5 +177,11 @@ export class SniperQueriesComponent {
     } finally {
       this.busyId.set(null);
     }
+  }
+
+  isCheckPending(query: SniperQuery): boolean {
+    const baselines = this.pendingCheckBaselines();
+    if (!Object.prototype.hasOwnProperty.call(baselines, query.id)) return false;
+    return query.last_polled_at === baselines[query.id];
   }
 }

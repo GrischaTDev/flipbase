@@ -9,8 +9,9 @@ ist – die nächtliche Sicherung erfasst Datenbank und Schlüssel, aber nicht d
 Konfiguration des Reverse Proxy.
 
 Sie werden **nicht automatisch ausgerollt**. Wer hier etwas ändert, muss es
-auch auf den Server bringen. Die Ausnahme ist die Anwendung selbst – die rollt
-seit der Einrichtung der Pipeline bei jedem Push auf `master` von allein aus.
+auch auf den Server bringen. Die Ausnahme sind die Anwendung und der
+Sniper-Dienst – beide rollen bei einem passenden Push auf `master` von allein
+aus.
 
 ## Deployment der Anwendung
 
@@ -19,14 +20,17 @@ Bei jedem Push auf `master` läuft [`.github/workflows/ci.yml`](../.github/workf
 1. **Required checks** – Format, Lint, Typen und alle ausgewählten Prüfungen.
    PRs bauen Angular in Quality, master im Docker-Job. Ohne erfolgreiche
    Gesamtfreigabe gibt es kein Deployment.
-2. **Publish image** – baut das Produktionsabbild, prüft HTTP und statische Dateien
-   und legt genau dieses Image als `sha-<kurz>` in die GitHub Container Registry.
-   Der vollständige Digest wird für den neuen Releaseweg weitergereicht.
+2. **Publish image** – baut bei Anwendungsänderungen das Webabbild und bei
+   Änderungen unter `services/sniper` zusätzlich das separate Botabbild. Beide
+   werden geprüft und unter `sha-<kurz>` in die GitHub Container Registry gelegt.
+   Der vollständige Digest des Webabbilds wird für den neuen Releaseweg
+   weitergereicht.
 3. **Deploy** – meldet sich per SSH am Server an und startet
-   `/opt/flipbase/deploy.sh`, das genau diese Kennzeichnung lädt, den Container
-   austauscht und wartet, bis er sich gesund meldet. Danach verlangt die
-   Pipeline von der öffentlichen Startseite HTTP 200 und vergleicht die dort
-   ausgelieferte vollständige Build-SHA mit dem auslösenden Git-Commit.
+   `/opt/flipbase/deploy.sh` mit den geänderten Diensten. Das Skript lädt die
+   passenden Kennzeichnungen, tauscht Web- und/oder Sniper-Container aus und
+   wartet, bis jeder gestartete Container sich gesund meldet. Danach verlangt
+   die Pipeline von der öffentlichen Startseite HTTP 200 und vergleicht die
+   dort ausgelieferte vollständige Build-SHA mit dem auslösenden Git-Commit.
 
 Der Server baut also **nichts** mehr selbst. Er lädt ein fertiges Abbild.
 
@@ -89,20 +93,21 @@ Backend auszuliefern.
 
 ## Was wohin gehört
 
-| Datei                           | Ort auf dem Server                            |
-| ------------------------------- | --------------------------------------------- |
-| `Caddyfile`                     | `/opt/supabase/volumes/proxy/caddy/Caddyfile` |
-| `docker-compose.localports.yml` | `/opt/supabase/`                              |
-| `docker-compose.landing.yml`    | `/opt/supabase/`                              |
-| `docker-compose.app.yml`        | `/opt/flipbase/docker-compose.yml`            |
-| `backup.sh`                     | `/opt/flipbase/backup.sh`                     |
-| `deploy.sh`                     | `/opt/flipbase/deploy.sh` (ausführbar)        |
-| `cron-aufraeumen-n8n-server`    | `/etc/cron.d/…` auf dem **zweiten** Server    |
-| `docker-compose.authelia.yml`   | `/opt/supabase/`                              |
-| `authelia/configuration.yml`    | `/opt/authelia/config/configuration.yml`      |
-| `authelia/passwort-setzen.sh`   | `/opt/authelia/passwort-setzen.sh`            |
-| `authelia/users.example.yml`    | Vorlage für `/opt/authelia/config/users.yml`  |
-| `landing/index.html`            | `/opt/flipbase-landing/index.html`            |
+| Datei                           | Ort auf dem Server                               |
+| ------------------------------- | ------------------------------------------------ |
+| `Caddyfile`                     | `/opt/supabase/volumes/proxy/caddy/Caddyfile`    |
+| `docker-compose.localports.yml` | `/opt/supabase/`                                 |
+| `docker-compose.landing.yml`    | `/opt/supabase/`                                 |
+| `docker-compose.app.yml`        | `/opt/flipbase/docker-compose.yml`               |
+| `docker-compose.sniper.yml`     | `/opt/flipbase-sniper/docker-compose.sniper.yml` |
+| `backup.sh`                     | `/opt/flipbase/backup.sh`                        |
+| `deploy.sh`                     | `/opt/flipbase/deploy.sh` (ausführbar)           |
+| `cron-aufraeumen-n8n-server`    | `/etc/cron.d/…` auf dem **zweiten** Server       |
+| `docker-compose.authelia.yml`   | `/opt/supabase/`                                 |
+| `authelia/configuration.yml`    | `/opt/authelia/config/configuration.yml`         |
+| `authelia/passwort-setzen.sh`   | `/opt/authelia/passwort-setzen.sh`               |
+| `authelia/users.example.yml`    | Vorlage für `/opt/authelia/config/users.yml`     |
+| `landing/index.html`            | `/opt/flipbase-landing/index.html`               |
 
 Die beiden Zusatzdateien unter `/opt/supabase` sind in `COMPOSE_FILE` in der
 `.env` eingetragen. Reihenfolge beachten: `docker-compose.caddy.yml` muss vor

@@ -130,12 +130,22 @@
                     </p>
                   </td>
                   <td class="min-w-[260px] whitespace-nowrap p-3">
-                    <div class="flex items-center gap-1.5">
-                      <app-badge [tone]="query.is_active ? 'success' : 'neutral'">{{
-                        query.is_active ? 'Aktiv' : 'Pausiert'
-                      }}</app-badge>
-                      <span class="text-xs text-fb-text-muted">· {{ statusLabel(query) }}</span>
-                    </div>
+                    @if (isCheckPending(query)) {
+                      <span
+                        class="inline-flex items-center gap-1.5 text-xs text-fb-text-muted"
+                        role="status"
+                      >
+                        <app-loading-indicator aria-hidden="true" />
+                        Wird geprüft …
+                      </span>
+                    } @else {
+                      <div class="flex items-center gap-1.5">
+                        <app-badge [tone]="query.is_active ? 'success' : 'neutral'">{{
+                          query.is_active ? 'Aktiv' : 'Pausiert'
+                        }}</app-badge>
+                        <span class="text-xs text-fb-text-muted">· {{ statusLabel(query) }}</span>
+                      </div>
+                    }
                     @if (query.last_polled_at) {
                       <p class="mt-0.5 text-[11px] text-fb-text-muted">
                         {{ query.last_polled_at | date: 'dd.MM.yyyy, HH:mm' }}

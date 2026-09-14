@@ -5,6 +5,11 @@ ihn nicht. Er liest Kategorien auch dann ein, wenn noch keine Suchaufträge
 existieren. Welche Artikel gesammelt werden, bestimmen ausschließlich aktive
 Zeilen in `public.sniper_queries`.
 
+Änderungen unter `services/sniper` bauen und veröffentlichen über die
+Produktionspipeline automatisch ein eigenes Botabbild. Der Webcontainer und der
+Snipercontainer werden dabei getrennt aktualisiert; ein erfolgreicher
+Webdeploy allein beweist deshalb noch kein Botupdate.
+
 ## Nachgewiesener Ausgangsfehler am 12.09.2026
 
 Auf dem Flipbase-Server war kein Bot-Container oder Bot-Systemdienst vorhanden.

@@ -22,6 +22,7 @@ env:
   # Hard-coded rather than derived from github.repository, because a registry
   # path has to be lowercase and the owner is spelled "GrischaTDev".
   IMAGE: ghcr.io/grischatdev/flipbase
+  SNIPER_IMAGE: ghcr.io/grischatdev/flipbase-sniper
   DEPLOY_HOST: 168.119.246.33
   DEPLOY_USER: root
   DEPLOY_DIR: /opt/flipbase
@@ -337,15 +338,17 @@ jobs:
   image:
     name: Publish image
     needs: changes
-    if: ${{ github.event_name == 'push' && needs.changes.outputs.application == 'true' }}
+    if: ${{ github.event_name == 'push' && (needs.changes.outputs.application == 'true' || needs.changes.outputs.sniper == 'true') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
       contents: read
       packages: write
     outputs:
-      tag: ${{ steps.tag.outputs.value }}
-      digest: ${{ steps.publish.outputs.digest }}
+      app_tag: ${{ steps.tag.outputs.value }}
+      app_digest: ${{ steps.publish-app.outputs.digest }}
+      sniper_tag: ${{ steps.tag.outputs.value }}
+      sniper_digest: ${{ steps.publish-sniper.outputs.digest }}
       version: ${{ steps.gitversion.outputs.value }}
     steps:
       - name: Check out repository
@@ -380,6 +383,7 @@ jobs:
       # it is only safe because row level security is switched on. The service
       # role key must never end up in a frontend build.
       - name: Write the production environment file
+        if: ${{ needs.changes.outputs.application == 'true' }}
         env:
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
@@ -417,6 +421,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build production image
+        if: ${{ needs.changes.outputs.application == 'true' }}
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: .
@@ -435,6 +440,7 @@ jobs:
       # Gleicher Produktionsbau vor dem Push: nur HTTP und statische Dateien,
       # keine Anmeldung oder Schreibzugriffe auf das Produktionsbackend.
       - name: Smoke test production image
+        if: ${{ needs.changes.outputs.application == 'true' }}
         env:
           TAG: ${{ steps.tag.outputs.value }}
         run: |
@@ -453,7 +459,8 @@ jobs:
           '
 
       - name: Publish checked image
-        id: publish
+        id: publish-app
+        if: ${{ needs.changes.outputs.application == 'true' }}
         env:
           TAG: ${{ steps.tag.outputs.value }}
         run: |
@@ -461,6 +468,33 @@ jobs:
           reference=$(docker inspect --format '{{index .RepoDigests 0}}' "$IMAGE:$TAG")
           digest=${reference##*@}
           [[ "$reference" == "$IMAGE@$digest" && "$digest" =~ ^sha256:[a-f0-9]{64}$ ]]
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
+      - name: Build Sniper image
+        if: ${{ needs.changes.outputs.sniper == 'true' }}
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: services/sniper
+          file: services/sniper/Dockerfile
+          load: true
+          tags: ${{ env.SNIPER_IMAGE }}:${{ steps.tag.outputs.value }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test Sniper image
+        if: ${{ needs.changes.outputs.sniper == 'true' }}
+        run: node services/sniper/scripts/smoke-image.mjs "$SNIPER_IMAGE:${{ steps.tag.outputs.value }}"
+
+      - name: Publish checked Sniper image
+        id: publish-sniper
+        if: ${{ needs.changes.outputs.sniper == 'true' }}
+        env:
+          TAG: ${{ steps.tag.outputs.value }}
+        run: |
+          docker push "$SNIPER_IMAGE:$TAG"
+          reference=$(docker inspect --format '{{index .RepoDigests 0}}' "$SNIPER_IMAGE:$TAG")
+          digest=${reference##*@}
+          [[ "$reference" == "$SNIPER_IMAGE@$digest" && "$digest" =~ ^sha256:[a-f0-9]{64}$ ]]
           echo "digest=$digest" >> "$GITHUB_OUTPUT"
 
   required-checks:
@@ -505,7 +539,7 @@ jobs:
   deploy:
     name: Deploy to production
     needs: [changes, required-checks, image]
-    if: ${{ github.event_name == 'push' && always() && needs.changes.outputs.application == 'true' && needs.required-checks.result == 'success' && needs.image.result == 'success' }}
+    if: ${{ github.event_name == 'push' && always() && (needs.changes.outputs.application == 'true' || needs.changes.outputs.sniper == 'true') && needs.required-checks.result == 'success' && needs.image.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     # Read access to the package, so the server can be handed a token that is
@@ -590,17 +624,31 @@ jobs:
       # container is not yet a working one.
       - name: Deploy the image and wait for the container to be healthy
         env:
-          TAG: ${{ needs.image.outputs.tag }}
-          DIGEST: ${{ needs.image.outputs.digest }}
+          APP_TAG: ${{ needs.image.outputs.app_tag }}
+          APP_DIGEST: ${{ needs.image.outputs.app_digest }}
+          SNIPER_TAG: ${{ needs.image.outputs.sniper_tag }}
+          APPLICATION_CHANGED: ${{ needs.changes.outputs.application }}
+          SNIPER_CHANGED: ${{ needs.changes.outputs.sniper }}
           RELEASE_MIGRATIONS_V1: ${{ vars.RELEASE_MIGRATIONS_V1 }}
           REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if [ "$RELEASE_MIGRATIONS_V1" = true ]; then
-            [[ "$DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
-            TAG="release-v1 $DIGEST"
+          command=""
+          if [ "$APPLICATION_CHANGED" = true ]; then
+            if [ "$RELEASE_MIGRATIONS_V1" = true ]; then
+              [[ "$APP_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
+              command="release-v1 $APP_DIGEST"
+            else
+              command="web $APP_TAG"
+            fi
           fi
+          if [ "$SNIPER_CHANGED" = true ]; then
+            [[ "$SNIPER_TAG" =~ ^sha-[0-9a-f]{7}$ ]]
+            if [ -n "$command" ]; then command="$command "; fi
+            command="${command}sniper $SNIPER_TAG"
+          fi
+          test -n "$command"
           printf '%s' "$REGISTRY_TOKEN" \
-            | ssh -o BatchMode=yes "$DEPLOY_USER@$DEPLOY_HOST" "$TAG"
+            | ssh -o BatchMode=yes "$DEPLOY_USER@$DEPLOY_HOST" "$command"
 
       # Container-Health allein beweist nicht, dass der Reverse Proxy schon
       # genau dieses Build ausliefert. Die Prüfung verlangt deshalb HTTP 200

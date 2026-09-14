@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { chmod, mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -136,6 +136,56 @@ esac
       assert.doesNotMatch(result.stdout, /Landingpage synchronisiert\./);
     } finally {
       await rm(fixtureDirectory, { force: true, recursive: true });
+    }
+  },
+);
+
+test(
+  'rollt ein separates Sniper-Abbild aus und wartet auf dessen Healthcheck',
+  { skip: process.platform === 'win32' },
+  async () => {
+    const root = await mkdtemp(join(tmpdir(), 'flipbase-sniper-deploy-'));
+    const bin = join(root, 'bin');
+    const log = join(root, 'docker.log');
+    await mkdir(bin);
+    try {
+      await writeFile(
+        join(bin, 'docker'),
+        `#!/bin/bash
+echo "$*" >> "$DOCKER_LOG"
+case "$1" in
+ login) cat >/dev/null ;;
+ compose)
+   if [[ "$2" == "-f" ]]; then
+     [[ "$FLIPBASE_SNIPER_IMAGE" == "$EXPECTED_SNIPER_IMAGE" ]] || exit 90
+   fi
+   ;;
+ inspect) echo healthy ;;
+ logout|image) ;;
+ *) exit 91 ;;
+esac
+`,
+        { mode: 0o755 },
+      );
+      const result = await runDeploy({
+        ...process.env,
+        PATH: `${bin}:${process.env.PATH ?? ''}`,
+        FLIPBASE_DEPLOY_DIR: root,
+        FLIPBASE_LANDING_DIR: join(root, 'absent'),
+        FLIPBASE_SNIPER_COMPOSE_FILE: join(root, 'docker-compose.sniper.yml'),
+        SSH_ORIGINAL_COMMAND: 'web sha-1234567 sniper sha-7654321',
+        DOCKER_LOG: log,
+        EXPECTED_SNIPER_IMAGE: 'ghcr.io/grischatdev/flipbase-sniper:sha-7654321',
+      });
+
+      assert.equal(result.code, 0, result.stderr);
+      assert.match(result.stdout, /flipbase-web ist gesund\./);
+      assert.match(result.stdout, /flipbase-sniper ist gesund\./);
+      const dockerCalls = await readFile(log, 'utf8');
+      assert.match(dockerCalls, /compose -f .* pull sniper/);
+      assert.match(dockerCalls, /compose -f .* up -d --pull never sniper/);
+    } finally {
+      await rm(root, { force: true, recursive: true });
     }
   },
 );

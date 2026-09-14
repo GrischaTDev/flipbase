@@ -72,6 +72,19 @@ test('akzeptiert im Pull Request ein übersprungenes Image', () => {
   assert.equal(result.status, 0, result.stderr);
 });
 
+test('verlangt bei einer reinen Sniper-Änderung ein Produktionsabbild', () => {
+  const sniperOnly = {
+    APPLICATION_CHANGED: 'false',
+    SUPABASE_CHANGED: 'false',
+    UNIT_RESULT: 'skipped',
+    DATABASE_RESULT: 'skipped',
+    BROWSER_RESULT: 'skipped',
+  };
+  const result = runChecker(sniperOnly);
+  assert.equal(result.status, 0, result.stderr);
+  assert.notEqual(runChecker({ ...sniperOnly, IMAGE_RESULT: 'skipped' }).status, 0);
+});
+
 test('lehnt Fehler, Abbrüche und unbekannte Änderungsausgaben fail-closed ab', () => {
   const cases = [
     { QUALITY_RESULT: 'failure' },
