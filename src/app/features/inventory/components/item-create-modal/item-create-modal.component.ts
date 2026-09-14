@@ -36,6 +36,8 @@ import {
   ImageCropperModalComponent,
   CroppedImageResult,
 } from '../../../../shared/components/image-cropper-modal/image-cropper-modal.component';
+import { CategoryPickerComponent } from '../../../../shared/components/category-picker/category-picker.component';
+import { BrandPickerComponent } from '../../../../shared/components/brand-picker/brand-picker.component';
 import { InventoryItem, ItemCondition, ItemStatus } from '../../../../core/models/flipbase.models';
 
 import {
@@ -57,6 +59,11 @@ interface MehrfachAnlageErgebnis {
   readonly fehler: readonly Error[];
 }
 
+type ItemCreatePayload = CreateItemPayload & {
+  readonly categoryId: string | null;
+  readonly brandId: string | null;
+};
+
 @Component({
   selector: 'app-item-create-modal',
   imports: [
@@ -68,6 +75,8 @@ interface MehrfachAnlageErgebnis {
     AiPhotoScannerModalComponent,
     ImageCropperModalComponent,
     CustomSelectComponent,
+    CategoryPickerComponent,
+    BrandPickerComponent,
   ],
   templateUrl: './item-create-modal.component.html',
   host: { class: 'contents' },
@@ -153,6 +162,9 @@ export class ItemCreateModalComponent {
   readonly selectedImageFile = signal<File | null>(null);
   readonly selectedImageDataUrl = signal<string | null>(null);
   readonly errorMessage = signal<string | null>(null);
+  /** Erkannte Texte (Titel, Barcode, Foto) – nur Vorschläge, nie automatisch gespeichert. */
+  readonly categorySuggestion = signal<string | null>(null);
+  readonly brandSuggestion = signal<string | null>(null);
 
   readonly form = new FormGroup({
     purchase_id: new FormControl<string | null>(null),
@@ -160,8 +172,8 @@ export class ItemCreateModalComponent {
       nonNullable: true,
       validators: [Validators.required, Validators.minLength(2)],
     }),
-    category: new FormControl(''),
-    brand: new FormControl(''),
+    category_id: new FormControl<string | null>(null),
+    brand_id: new FormControl<string | null>(null),
     model: new FormControl(''),
     condition: new FormControl<ItemCondition>('very_good', {
       nonNullable: true,
@@ -215,28 +227,26 @@ export class ItemCreateModalComponent {
 
     this.form.patchValue({
       title: ai.cleanTitle,
-      brand: ai.brand || this.form.get('brand')?.value,
       model: ai.model || this.form.get('model')?.value,
-      category: ai.category || this.form.get('category')?.value,
       condition: ai.condition || this.form.get('condition')?.value,
       // Der geschaetzte Marktwert wird bewusst nicht uebernommen: Er entsteht
       // aus einer festen Vorgabe und ein paar Aufschlaegen, nicht aus
       // Marktdaten. Als ausgefuelltes Feld sieht er aus wie eine Recherche -
       // und genau dieses Feld traegt spaeter die Margenrechnung.
     });
+    this.schlageKategorieUndMarkeVor(ai.category, ai.brand);
   }
 
   onPhotoScanned(res: AiVisualScanResult): void {
     this.isScanningPhoto.set(false);
     this.form.patchValue({
       title: res.title,
-      brand: res.brand || this.form.get('brand')?.value,
       model: res.model || this.form.get('model')?.value,
-      category: res.category || this.form.get('category')?.value,
       condition: res.condition || this.form.get('condition')?.value,
       expected_value: res.estimatedMarketValue || this.form.get('expected_value')?.value,
       condition_notes: res.conditionNotes || this.form.get('condition_notes')?.value,
     });
+    this.schlageKategorieUndMarkeVor(res.category, res.brand);
   }
 
   async onBarcodeScanned(ean: string): Promise<void> {
@@ -259,9 +269,9 @@ export class ItemCreateModalComponent {
       const current = this.form.getRawValue();
       this.form.patchValue({
         title: current.title.trim() ? current.title : product.title,
-        brand: current.brand?.trim() ? current.brand : (product.brand ?? ''),
         model: current.model?.trim() ? current.model : (product.model ?? ''),
-        category: current.category?.trim() ? current.category : (product.category ?? ''),
+        brand_id: current.brand_id ?? product.brand_id ?? null,
+        category_id: current.category_id ?? product.category_id ?? null,
       });
       return;
     }
@@ -270,23 +280,23 @@ export class ItemCreateModalComponent {
     if (info) {
       this.form.patchValue({
         title: info.title || this.form.get('title')?.value,
-        brand: info.brand || this.form.get('brand')?.value,
-        category: info.category || this.form.get('category')?.value,
         expected_value: info.estimatedPrice || this.form.get('expected_value')?.value,
       });
+      this.schlageKategorieUndMarkeVor(info.category, info.brand);
     }
   }
 
   prefillWithAiResult(res: AiVisualScanResult): void {
     this.form.patchValue({
       title: res.title,
-      brand: res.brand || '',
+      brand_id: this.form.controls.brand_id.value,
       model: res.model || '',
-      category: res.category || '',
+      category_id: this.form.controls.category_id.value,
       condition: res.condition || 'very_good',
       expected_value: res.estimatedMarketValue || null,
       condition_notes: res.conditionNotes || '',
     });
+    this.schlageKategorieUndMarkeVor(res.category, res.brand);
   }
 
   onImageCropped(result: CroppedImageResult): void {
@@ -308,8 +318,8 @@ export class ItemCreateModalComponent {
       this.form.patchValue({
         purchase_id: vorhandener.purchase_id ?? null,
         title: vorhandener.title,
-        category: vorhandener.category ?? '',
-        brand: vorhandener.brand ?? '',
+        category_id: vorhandener.category_id ?? null,
+        brand_id: vorhandener.brand_id ?? null,
         model: vorhandener.model ?? '',
         condition: vorhandener.condition,
         status: vorhandener.status,
@@ -332,13 +342,13 @@ export class ItemCreateModalComponent {
     this.errorMessage.set(null);
 
     const val = this.form.getRawValue();
-    const payload: CreateItemPayload = {
+    const payload: ItemCreatePayload = {
       purchase_id: this.item()?.source_package_line_id
         ? this.item()!.purchase_id
         : val.purchase_id || undefined,
       title: val.title.trim(),
-      category: val.category?.trim() || undefined,
-      brand: val.brand?.trim() || undefined,
+      categoryId: val.category_id ?? null,
+      brandId: val.brand_id ?? null,
       model: val.model?.trim() || undefined,
       condition: val.condition,
       status: val.status,
@@ -357,8 +367,8 @@ export class ItemCreateModalComponent {
         // Der Titel ist Pflicht, die uebrigen Felder duerfen bewusst geleert
         // werden - deshalb null statt undefined, sonst bliebe der alte Wert
         // stehen und ein geloeschtes Feld waere nicht loeschbar.
-        category: payload.category ?? null,
-        brand: payload.brand ?? null,
+        categoryId: payload.categoryId ?? null,
+        brandId: payload.brandId ?? null,
         model: payload.model ?? null,
         sku: payload.sku ?? null,
         ean: payload.ean ?? null,
@@ -522,6 +532,12 @@ export class ItemCreateModalComponent {
     }
     this.created.emit();
     this.closed.emit();
+  }
+
+  private schlageKategorieUndMarkeVor(category?: string | null, brand?: string | null): void {
+    if (category?.trim() && !this.form.controls.category_id.value)
+      this.categorySuggestion.set(category.trim());
+    if (brand?.trim() && !this.form.controls.brand_id.value) this.brandSuggestion.set(brand.trim());
   }
 
   private meldeFehlerWennNichtSynchronisiert(title: string, error: Error): void {

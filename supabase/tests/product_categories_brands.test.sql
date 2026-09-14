@@ -11,12 +11,34 @@ select has_column('public', 'catalog_products', 'category_id', 'Katalogprodukte 
 select has_column('public', 'catalog_products', 'brand_id', 'Katalogprodukte verweisen auf eine Marke');
 select ok((select relrowsecurity from pg_class where oid = 'public.product_categories'::regclass), 'RLS auf Kategorien');
 select ok((select relrowsecurity from pg_class where oid = 'public.brands'::regclass), 'RLS auf Marken');
+select policies_are(
+  'public',
+  'product_categories',
+  array['Angemeldete lesen Produktkategorien'],
+  'Kategorien behalten ihre bestehende Lesepolicy'
+);
+select policies_are(
+  'public',
+  'brands',
+  array['Marken aendern', 'Marken anlegen', 'Marken lesen', 'Marken loeschen'],
+  'Marken behalten ihre bestehenden Policies'
+);
 select ok(not has_function_privilege('authenticated', 'public.migrate_legacy_category_brand_texts()', 'execute'), 'Übernahme ist für Angemeldete nicht aufrufbar');
 select ok(not has_table_privilege('authenticated', 'public.product_categories', 'insert'), 'Angemeldete dürfen keine Kategorien einfügen');
 select ok(not has_table_privilege('authenticated', 'public.product_categories', 'update'), 'Angemeldete dürfen keine Kategorien ändern');
 select ok(not has_table_privilege('authenticated', 'public.product_categories', 'delete'), 'Angemeldete dürfen keine Kategorien löschen');
 select ok(not has_table_privilege('authenticated', 'public.product_categories', 'truncate'), 'Angemeldete dürfen Kategorien nicht leeren');
 select ok(has_table_privilege('authenticated', 'public.product_categories', 'select'), 'Angemeldete dürfen Kategorien lesen');
+select ok(has_table_privilege('authenticated', 'public.brands', 'select'), 'Angemeldete dürfen Marken lesen');
+select ok(has_table_privilege('authenticated', 'public.brands', 'insert'), 'Angemeldete dürfen Marken anlegen');
+select ok(has_table_privilege('authenticated', 'public.brands', 'update'), 'Angemeldete dürfen Marken ändern');
+select ok(has_table_privilege('authenticated', 'public.brands', 'delete'), 'Angemeldete dürfen Marken löschen');
+select ok(not has_table_privilege('authenticated', 'public.brands', 'truncate'), 'Angemeldete dürfen Marken nicht leeren');
+select ok(not has_table_privilege('anon', 'public.brands', 'select'), 'anon erhält kein Markenrecht');
+select ok(not has_table_privilege('anon', 'public.brands', 'insert'), 'anon darf keine Marken anlegen');
+select ok(not has_table_privilege('anon', 'public.brands', 'update'), 'anon darf keine Marken ändern');
+select ok(not has_table_privilege('anon', 'public.brands', 'delete'), 'anon darf keine Marken löschen');
+select ok(not has_table_privilege('anon', 'public.brands', 'truncate'), 'anon darf Marken nicht leeren');
 
 -- Testdaten als postgres. Kennungen „zz“ kommen in der Shopify-Taxonomie nicht vor.
 -- Eigene Testversion „1999-01“, damit sie nicht mit der echten importierten Version
@@ -60,6 +82,29 @@ select lives_ok($$insert into public.catalog_products (id, workspace_id, title, 
   'Katalogprodukt mit anderer Schreibweise');
 select is((select count(*)::int from public.brands where workspace_id = 'c5100000-0000-4000-8000-000000000011' and name_key = 'bosch'), 1, 'Gleiche Marke entsteht nur einmal');
 select is((select brand from public.catalog_products where id = 'c5100000-0000-4000-8000-000000000051'), 'Bosch', 'Vorhandene Schreibweise gilt');
+select lives_ok($$insert into public.inventory_items (id, workspace_id, title, brand, brand_id, category)
+  values (
+    'c5100000-0000-4000-8000-000000000044',
+    'c5100000-0000-4000-8000-000000000011',
+    'Kennungen und exakter Kategoriepfad',
+    'Ignorierter Markentext',
+    (select id from public.brands where workspace_id = 'c5100000-0000-4000-8000-000000000011' and name_key = 'bosch'),
+    'Testbereich > Unterbereich'
+  )$$,
+  'Exakter Kategorietext ohne category_id und vorhandene brand_id werden synchronisiert');
+select is((select category_id from public.inventory_items where id = 'c5100000-0000-4000-8000-000000000044'), 'zz-1', 'Exakter Kategorietext wird in category_id aufgelöst');
+select is((select category from public.inventory_items where id = 'c5100000-0000-4000-8000-000000000044'), 'Testbereich > Unterbereich', 'Aufgelöster Kategoriepfad bleibt erhalten');
+select is((select brand from public.inventory_items where id = 'c5100000-0000-4000-8000-000000000044'), 'Bosch', 'Vorhandene brand_id setzt den abgeleiteten Markentext');
+select lives_ok($$insert into public.catalog_products (id, workspace_id, title, category)
+  values ('c5100000-0000-4000-8000-000000000052', 'c5100000-0000-4000-8000-000000000011', 'Kategorie aus Text', 'Testbereich > Unterbereich')$$,
+  'Katalogprodukt darf einen exakten Kategoriepfad ohne category_id senden');
+select is((select category_id from public.catalog_products where id = 'c5100000-0000-4000-8000-000000000052'), 'zz-1', 'Katalogprodukt erhält die aufgelöste category_id');
+select is((select category from public.catalog_products where id = 'c5100000-0000-4000-8000-000000000052'), 'Testbereich > Unterbereich', 'Katalogprodukt behält den aufgelösten Kategoriepfad');
+select lives_ok($$insert into public.inventory_items (id, workspace_id, title, category)
+  values ('c5100000-0000-4000-8000-000000000045', 'c5100000-0000-4000-8000-000000000011', 'Unbekannter Kategorietext', 'Nicht in der Taxonomie')$$,
+  'Unbekannter freier Kategorietext wird weiterhin angenommen');
+select is((select category_id from public.inventory_items where id = 'c5100000-0000-4000-8000-000000000045'), null::text, 'Unbekannter Kategorietext erzeugt keine Kategorie');
+select is((select category from public.inventory_items where id = 'c5100000-0000-4000-8000-000000000045'), null::text, 'Unbekannter Kategorietext wird weiterhin verworfen');
 select lives_ok($$update public.inventory_items set category = 'Freitext' where id = 'c5100000-0000-4000-8000-000000000042'$$, 'Freier Kategorietext wird angenommen');
 select is((select category from public.inventory_items where id = 'c5100000-0000-4000-8000-000000000042'), 'Testbereich > Unterbereich', 'Freier Kategorietext wird überschrieben');
 select lives_ok($$update public.brands set name = 'Robert Bosch' where workspace_id = 'c5100000-0000-4000-8000-000000000011' and name_key = 'bosch'$$, 'Marke umbenennen');

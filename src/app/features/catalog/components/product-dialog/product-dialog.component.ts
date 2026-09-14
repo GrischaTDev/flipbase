@@ -28,6 +28,8 @@ import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { BrandPickerComponent } from '../../../../shared/components/brand-picker/brand-picker.component';
+import { CategoryPickerComponent } from '../../../../shared/components/category-picker/category-picker.component';
 import {
   CustomSelectComponent,
   SelectOption,
@@ -43,6 +45,11 @@ export const PRODUCT_CONDITIONS: readonly SelectOption<ItemCondition>[] = [
   { value: 'defective', label: 'Defekt / Ersatzteil' },
 ];
 
+type ProductDialogInitialProduct = Partial<Omit<CreateCatalogProductInput, 'workspaceId'>> & {
+  brandId?: string | null;
+  categoryId?: string | null;
+};
+
 @Component({
   selector: 'app-product-dialog',
   imports: [
@@ -53,6 +60,8 @@ export const PRODUCT_CONDITIONS: readonly SelectOption<ItemCondition>[] = [
     CustomSelectComponent,
     CustomCheckboxComponent,
     NumberInputComponent,
+    BrandPickerComponent,
+    CategoryPickerComponent,
   ],
   templateUrl: './product-dialog.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -67,15 +76,15 @@ export class ProductDialogComponent {
   private readonly catalog = inject(CatalogService);
   private readonly media = inject(MediaService);
   private readonly workspace = inject(WorkspaceService);
-  readonly initialProduct = input<Partial<Omit<CreateCatalogProductInput, 'workspaceId'>> | null>(
-    null,
-  );
+  readonly initialProduct = input<ProductDialogInitialProduct | null>(null);
   readonly closed = output<void>();
   readonly created = output<CatalogProduct>();
   readonly saving = signal(false);
   readonly error = signal<string | null>(null);
   readonly savedProduct = signal<CatalogProduct | null>(null);
   readonly image = signal<File | null>(null);
+  readonly categorySuggestion = signal<string | null>(null);
+  readonly brandSuggestion = signal<string | null>(null);
   readonly conditionOptions: readonly SelectOption<string>[] = [
     { value: '', label: 'Nicht angegeben' },
     ...PRODUCT_CONDITIONS,
@@ -96,9 +105,9 @@ export class ProductDialogComponent {
             control.value.trim() && !normalizeGtin(control.value) ? { gtin: true } : null,
         ],
       }),
-      brand: new FormControl('', { nonNullable: true }),
+      brandId: new FormControl<string | null>(null),
       model: new FormControl('', { nonNullable: true }),
-      category: new FormControl('', { nonNullable: true }),
+      categoryId: new FormControl<string | null>(null),
       condition: new FormControl<ItemCondition | ''>('', { nonNullable: true }),
       conditionNotes: new FormControl('', { nonNullable: true }),
       isPublicStore: new FormControl(false, { nonNullable: true }),
@@ -118,14 +127,16 @@ export class ProductDialogComponent {
       this.form.patchValue({
         title: value.title ?? '',
         ean: value.ean ?? '',
-        brand: value.brand ?? '',
+        brandId: value.brandId ?? null,
         model: value.model ?? '',
-        category: value.category ?? '',
+        categoryId: value.categoryId ?? null,
         condition: value.condition ?? '',
         conditionNotes: value.conditionNotes ?? '',
         isPublicStore: value.isPublicStore ?? false,
         listingPrice: value.listingPrice ?? null,
       });
+      this.brandSuggestion.set(value.brandId ? null : value.brand?.trim() || null);
+      this.categorySuggestion.set(value.categoryId ? null : value.category?.trim() || null);
     });
   }
 

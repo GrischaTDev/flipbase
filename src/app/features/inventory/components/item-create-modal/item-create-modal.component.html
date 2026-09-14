@@ -186,36 +186,34 @@
           }
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-          <div>
-            <label
-              for="itemCategory"
-              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
-            >
-              Kategorie
-            </label>
-            <input
-              id="itemCategory"
-              type="text"
-              formControlName="category"
-              placeholder="z.B. Werkzeug"
-              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs"
-            />
-          </div>
+        <div>
+          <span
+            class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
+            aria-hidden="true"
+            >Kategorie</span
+          >
+          <app-category-picker
+            id="itemCategory"
+            label="Kategorie"
+            [labelHidden]="true"
+            formControlName="category_id"
+            [suggestion]="categorySuggestion()"
+          />
+        </div>
 
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           <div>
-            <label
-              for="itemBrand"
+            <span
               class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
+              aria-hidden="true"
+              >Marke</span
             >
-              Marke
-            </label>
-            <input
+            <app-brand-picker
               id="itemBrand"
-              type="text"
-              formControlName="brand"
-              placeholder="z.B. Bosch"
-              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs"
+              label="Marke"
+              [labelHidden]="true"
+              formControlName="brand_id"
+              [suggestion]="brandSuggestion()"
             />
           </div>
 

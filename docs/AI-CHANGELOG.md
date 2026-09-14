@@ -1,5 +1,25 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-14 – Codex – PR-Review-Fixes für Kategorie- und Marken-Picker
+
+**Auftrag:** Den Zweig `feat/product-categories-brands` nach dem aktuellen
+`master`-Stand erneut prüfen und vor dem Merge PR-reif machen.
+
+**Befund:** Der Review fand zu weitgehende Markenrechte, fehlende ID-Payloads
+beim Speichern und Picker, die in den echten Artikel- und Katalogformularen
+noch nicht verwendet wurden.
+
+**Änderung:** Markenrechte sind auf Lesen, Anlegen, Ändern und Löschen begrenzt;
+die Trigger lösen exakte Kategoriepfade auf und halten abgeleitete Texte aktuell.
+Inventar- und Katalogformulare speichern jetzt Kategorie- und Marken-IDs über
+die Picker. Freie Texte aus KI-Erkennung bleiben Vorschläge, bis sie gewählt
+oder als Marke angelegt werden. Die bestehende bewusste Löschung nicht eindeutig
+zuordenbarer alter Kategorietexte bleibt erhalten.
+
+**Prüfung:** Datenbanktests (48 Dateien, 1.781 Tests), vollständige Verifikation
+(138 Node-Dateien, 1.351 Tests; 22 DOM-Dateien, 250 Tests; 94 Angular-Dateien,
+830 Tests), Typecheck, Lint und Produktionsbau erfolgreich.
+
 ## 2026-09-14 – Codex – Browser-Test korrekt klassifiziert
 
 **Auftrag:** Die PR-Reife des Zweigs `feat/product-categories-brands` nach der

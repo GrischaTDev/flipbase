@@ -3,6 +3,7 @@ import { signal } from '@angular/core';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CatalogService } from './catalog.service';
 import { CatalogProduct } from '../models/flipbase.models';
+import { MockDataStoreService } from './mock-data-store.service';
 import { SyncStatusService } from './sync-status.service';
 
 const product: CatalogProduct = {
@@ -58,7 +59,11 @@ describe('CatalogService', () => {
     const service = Object.create(CatalogService.prototype) as CatalogService;
     Object.assign(service, {
       products: signal<CatalogProduct[]>([]),
-      mockStore: { isDemoMode: () => true, saveCatalogProduct },
+      mockStore: {
+        isDemoMode: () => true,
+        saveCatalogProduct,
+        applyCategoryBrandText: (value: CatalogProduct) => value,
+      },
     });
     const result = await service.createProduct({
       workspaceId: 'workspace-1',
@@ -115,6 +120,76 @@ describe('CatalogService', () => {
         condition_notes: 'originalverpackt',
       }),
     );
+  });
+
+  it('sendet beim Anlegen Verweise und keinen abgeleiteten Kategorie- oder Markentext', async () => {
+    let payload: Record<string, unknown> | undefined;
+    const insert = vi.fn((value: Record<string, unknown>) => {
+      payload = value;
+      return {
+        select: () => ({
+          single: async () => ({
+            data: {
+              ...product,
+              category_id: 'el-6-6',
+              category: 'Elektronik > Computer > Laptops',
+              brand_id: 'brand-1',
+              brand: 'Lenovo',
+            },
+            error: null,
+          }),
+        }),
+      };
+    });
+    const service = Object.create(CatalogService.prototype) as CatalogService;
+    Object.assign(service, {
+      products: signal<CatalogProduct[]>([]),
+      mockStore: { isDemoMode: () => false },
+      syncStatus: new SyncStatusService(),
+      supabase: { client: { from: () => ({ insert }) } },
+    });
+
+    const result = await service.createProduct({
+      workspaceId: product.workspace_id,
+      title: product.title,
+      categoryId: 'el-6-6',
+      brandId: 'brand-1',
+    });
+
+    expect(payload).toMatchObject({ category_id: 'el-6-6', brand_id: 'brand-1' });
+    expect(payload).not.toHaveProperty('category');
+    expect(payload).not.toHaveProperty('brand');
+    expect(result.data).toMatchObject({
+      category: 'Elektronik > Computer > Laptops',
+      brand: 'Lenovo',
+    });
+  });
+
+  it('übernimmt beim Anlegen ohne Markenverweis den alten Markentext für den Trigger', async () => {
+    let payload: Record<string, unknown> | undefined;
+    const insert = vi.fn((value: Record<string, unknown>) => {
+      payload = value;
+      return {
+        select: () => ({
+          single: async () => ({ data: product, error: null }),
+        }),
+      };
+    });
+    const service = Object.create(CatalogService.prototype) as CatalogService;
+    Object.assign(service, {
+      products: signal<CatalogProduct[]>([]),
+      mockStore: { isDemoMode: () => false },
+      syncStatus: new SyncStatusService(),
+      supabase: { client: { from: () => ({ insert }) } },
+    });
+
+    await service.createProduct({
+      workspaceId: product.workspace_id,
+      title: product.title,
+      brand: ' Anker ',
+    });
+
+    expect(payload).toMatchObject({ brand: 'Anker', brand_id: null, category_id: null });
   });
 
   it('stellt einen Ladefehler für die Artikelstammdaten bereit', async () => {
@@ -205,7 +280,11 @@ describe('CatalogService', () => {
     const service = Object.create(CatalogService.prototype) as CatalogService;
     Object.assign(service, {
       products: signal<CatalogProduct[]>([]),
-      mockStore: { isDemoMode: () => true, saveCatalogProduct },
+      mockStore: {
+        isDemoMode: () => true,
+        saveCatalogProduct,
+        applyCategoryBrandText: (value: CatalogProduct) => value,
+      },
     });
 
     const result = await service.createProduct({
@@ -240,7 +319,10 @@ describe('CatalogService.updateProduct', () => {
     );
     const eq = vi.fn();
     eq.mockImplementation(() => ({ eq, select: () => ({ single }) }));
-    const update = vi.fn(() => ({ eq }));
+    const update = vi.fn((payload: Record<string, unknown>) => {
+      void payload;
+      return { eq };
+    });
     const insert = vi.fn();
     const saveCatalogProduct = vi.fn();
     const service = Object.create(CatalogService.prototype) as CatalogService;
@@ -274,6 +356,21 @@ describe('CatalogService.updateProduct', () => {
     ]);
     expect(insert).not.toHaveBeenCalled();
     expect(service.products()).toEqual([{ ...stored, title: 'Neuer Titel' }]);
+  });
+
+  it('speichert Verweise inklusive explizitem Leeren und sendet keine camelCase-Felder', async () => {
+    const { service, update } = setup();
+
+    const result = await service.updateProduct(product.id, {
+      workspaceId: product.workspace_id,
+      categoryId: null,
+      brandId: 'brand-1',
+    });
+
+    expect(result.error).toBeNull();
+    expect(update).toHaveBeenCalledExactlyOnceWith({ category_id: null, brand_id: 'brand-1' });
+    expect(update.mock.calls[0]?.[0]).not.toHaveProperty('categoryId');
+    expect(update.mock.calls[0]?.[0]).not.toHaveProperty('brandId');
   });
 
   it('speichert Demoänderungen dauerhaft und erhält Medien und nicht bearbeitete Felder', async () => {
@@ -499,6 +596,7 @@ describe('Suchmaschineneintrag', () => {
           saved = value;
         },
         getCatalogProducts: () => (saved ? [saved] : []),
+        applyCategoryBrandText: (value: CatalogProduct) => value,
       },
     });
     const result = await service.createProduct({
@@ -528,6 +626,35 @@ describe('Suchmaschineneintrag', () => {
       seo_title: null,
       seo_description: null,
       url_handle: 'neuer-pfad',
+    });
+  });
+});
+
+describe('CatalogService – Demo-Kategorie und -Marke', () => {
+  it('setzt im Demo-Modus die abgeleiteten Texte aus den Verweisen', async () => {
+    const mockStore = new MockDataStoreService();
+    mockStore.isDemoMode.set(true);
+    const brand = mockStore.ensureBrand(product.workspace_id, 'Sony');
+    expect(brand).not.toBeNull();
+    const service = Object.create(CatalogService.prototype) as CatalogService;
+    Object.assign(service, {
+      products: signal<CatalogProduct[]>([]),
+      mockStore,
+      syncStatus: new SyncStatusService(),
+    });
+
+    const result = await service.createProduct({
+      workspaceId: product.workspace_id,
+      title: 'Controller',
+      categoryId: 'el-18-5',
+      brandId: brand!.id,
+    });
+
+    expect(result.data).toMatchObject({
+      category_id: 'el-18-5',
+      category: 'Elektronik > Zubehör für Videospielkonsolen > Videospiel-Controller',
+      brand_id: brand!.id,
+      brand: 'Sony',
     });
   });
 });

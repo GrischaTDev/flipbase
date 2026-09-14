@@ -71,7 +71,8 @@ create policy "Marken loeschen" on public.brands
     for delete to authenticated
     using (public.is_workspace_member(workspace_id));
 
-revoke all on table public.brands from anon;
+revoke all on table public.brands from anon, authenticated;
+grant select, insert, update, delete on table public.brands to authenticated;
 
 create trigger "00_protect_archived_workspace" before insert or update or delete on public.brands
 for each row execute function public.protect_archived_workspace_data();
@@ -100,7 +101,8 @@ create index if not exists idx_catalog_products_workspace_brand on public.catalo
 
 -- Füllt category und brand aus den Verweisen.
 --
--- Kategorie: Freier Text wird nie ausgewertet (Nutzerentscheidung vom 14.09.2026).
+-- Kategorie: Ein exakter vorhandener full_name wird in die Kennung aufgelöst.
+-- Andere freie Texte werden nie ausgewertet (Nutzerentscheidung vom 14.09.2026).
 -- Marke: Die Kennung hat Vorrang. Markentext wird nur ausgewertet, wenn beim Anlegen
 -- keine Kennung mitkommt oder sich beim Ändern der Text ändert und die Kennung gleich
 -- bleibt. So bleiben Paketerfassung, CSV-Import und Barcode-Übernahme unverändert.
@@ -140,6 +142,14 @@ begin
     from public.brands as brand
     where brand.workspace_id = new.workspace_id
       and brand.id = new.brand_id;
+  end if;
+
+  if new.category_id is null and new.category is not null then
+    select category.id into new.category_id
+    from public.product_categories as category
+    where category.full_name = new.category
+    order by category.id
+    limit 1;
   end if;
 
   if new.category_id is null then

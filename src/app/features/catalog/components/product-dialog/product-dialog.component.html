@@ -25,8 +25,20 @@
           form.controls.ean.touched && form.controls.ean.invalid ? 'Ungültige EAN/GTIN.' : null
         "
       />
-      <app-text-field label="Kategorie (optional)" formControlName="category" />
-      <app-text-field label="Marke (optional)" formControlName="brand" />
+      <app-category-picker
+        label="Kategorie (optional)"
+        placeholder="Kategorie wählen"
+        id="product-category"
+        formControlName="categoryId"
+        [suggestion]="categorySuggestion()"
+      />
+      <app-brand-picker
+        label="Marke (optional)"
+        placeholder="Marke suchen oder anlegen"
+        id="product-brand"
+        formControlName="brandId"
+        [suggestion]="brandSuggestion()"
+      />
       <app-text-field label="Modell (optional)" formControlName="model" />
     </div>
     <div>

@@ -14,6 +14,7 @@ import { createLocalDemoId } from '../utils/client-identity';
 import { MutationResult } from '../models/mutation-result.model';
 import { normalizeProductHandle } from '../utils/product-seo';
 import { MediaService } from './media.service';
+import type { TablesInsert } from '../models/supabase.types';
 
 export type { MutationResult } from '../models/mutation-result.model';
 
@@ -22,9 +23,14 @@ export interface CreateCatalogProductInput {
   readonly title: string;
   readonly condition?: ItemCondition | null;
   readonly conditionNotes?: string | null;
+  /** Verweis auf eine Marke; den Anzeigetext setzt der Trigger. */
+  readonly brandId?: string | null;
   readonly brand?: string | null;
   readonly model?: string | null;
   readonly ean?: string | null;
+  /** Verweis auf eine Produktkategorie; den Anzeigetext setzt der Trigger. */
+  readonly categoryId?: string | null;
+  /** Legacy-Freitext für bestehende Importwege. */
   readonly category?: string | null;
   readonly isPublicStore?: boolean;
   readonly listingPrice?: number | null;
@@ -36,6 +42,15 @@ export interface CreateCatalogProductInput {
 
 export type UpdateCatalogProductInput = Pick<CreateCatalogProductInput, 'workspaceId'> &
   Partial<Omit<CreateCatalogProductInput, 'workspaceId'>>;
+
+function touchesCategoryOrBrand(input: UpdateCatalogProductInput): boolean {
+  return (
+    input.categoryId !== undefined ||
+    input.brandId !== undefined ||
+    input.category !== undefined ||
+    input.brand !== undefined
+  );
+}
 
 export interface CatalogProductEntry extends PurchaseLine {
   readonly inventory_items: InventoryItem[];
@@ -186,10 +201,12 @@ export class CatalogService {
         tracking_mode: 'quantity',
         condition: input.condition ?? null,
         condition_notes: input.conditionNotes?.trim() || null,
-        brand: input.brand?.trim() || null,
+        brand_id: input.brandId ?? null,
+        brand: input.brandId === undefined ? input.brand?.trim() || null : null,
         model: input.model?.trim() || null,
         ean: input.ean?.trim() || null,
-        category: input.category?.trim() || null,
+        category_id: input.categoryId ?? null,
+        category: input.categoryId === undefined ? input.category?.trim() || null : null,
         description: input.description?.trim() || null,
         seo_title: input.seoTitle?.trim() || null,
         seo_description: input.seoDescription?.trim() || null,
@@ -197,31 +214,36 @@ export class CatalogService {
         is_public_store: input.isPublicStore ?? false,
         listing_price: input.listingPrice ?? null,
       };
-      this.mockStore.saveCatalogProduct(product);
-      this.includeCreatedProduct(product);
-      return { data: product, error: null, reportedBySyncStatus: false };
+      const demoProduct = this.mockStore.applyCategoryBrandText(product);
+      this.mockStore.saveCatalogProduct(demoProduct);
+      this.includeCreatedProduct(demoProduct);
+      return { data: demoProduct, error: null, reportedBySyncStatus: false };
     }
 
     try {
+      const insertPayload: TablesInsert<'catalog_products'> = {
+        workspace_id: input.workspaceId,
+        title: input.title.trim(),
+        tracking_mode: 'quantity',
+        condition: input.condition ?? null,
+        condition_notes: input.conditionNotes?.trim() || null,
+        brand_id: input.brandId ?? null,
+        model: input.model?.trim() || null,
+        ean: input.ean?.trim() || null,
+        category_id: input.categoryId ?? null,
+        description: input.description?.trim() || null,
+        seo_title: input.seoTitle?.trim() || null,
+        seo_description: input.seoDescription?.trim() || null,
+        url_handle: normalizeProductHandle(input.urlHandle?.trim() || input.title) || null,
+        is_public_store: input.isPublicStore ?? false,
+        listing_price: input.listingPrice ?? null,
+        ...(input.brandId === undefined ? { brand: input.brand?.trim() || null } : {}),
+        ...(input.categoryId === undefined ? { category: input.category?.trim() || null } : {}),
+      };
+
       const { data, error } = await this.supabase.client
         .from('catalog_products')
-        .insert({
-          workspace_id: input.workspaceId,
-          title: input.title.trim(),
-          tracking_mode: 'quantity',
-          condition: input.condition ?? null,
-          condition_notes: input.conditionNotes?.trim() || null,
-          brand: input.brand?.trim() || null,
-          model: input.model?.trim() || null,
-          ean: input.ean?.trim() || null,
-          category: input.category?.trim() || null,
-          description: input.description?.trim() || null,
-          seo_title: input.seoTitle?.trim() || null,
-          seo_description: input.seoDescription?.trim() || null,
-          url_handle: normalizeProductHandle(input.urlHandle?.trim() || input.title) || null,
-          is_public_store: input.isPublicStore ?? false,
-          listing_price: input.listingPrice ?? null,
-        })
+        .insert(insertPayload)
         .select()
         .single();
       if (error || !data) {
@@ -250,10 +272,12 @@ export class CatalogService {
         if (!input.title.trim()) throw new Error('Bitte einen Namen eingeben.');
         patch.title = input.title.trim();
       }
-      if (input.brand !== undefined) patch.brand = input.brand?.trim() || null;
+      if (input.brandId !== undefined) patch.brand_id = input.brandId;
+      else if (input.brand !== undefined) patch.brand = input.brand?.trim() || null;
       if (input.model !== undefined) patch.model = input.model?.trim() || null;
       if (input.ean !== undefined) patch.ean = input.ean?.trim() || null;
-      if (input.category !== undefined) patch.category = input.category?.trim() || null;
+      if (input.categoryId !== undefined) patch.category_id = input.categoryId;
+      else if (input.category !== undefined) patch.category = input.category?.trim() || null;
       if (input.description !== undefined) patch.description = input.description?.trim() || null;
       if (input.seoTitle !== undefined) patch.seo_title = input.seoTitle?.trim() || null;
       if (input.seoDescription !== undefined)
@@ -278,7 +302,9 @@ export class CatalogService {
           .getCatalogProducts(input.workspaceId)
           .find((entry) => entry.id === productId && entry.workspace_id === input.workspaceId);
         if (!existing) throw new Error('Artikel wurde nicht gefunden oder ist nicht zugänglich.');
-        product = { ...existing, ...patch };
+        product = touchesCategoryOrBrand(input)
+          ? this.mockStore.applyCategoryBrandText({ ...existing, ...patch }, existing)
+          : { ...existing, ...patch };
         this.mockStore.saveCatalogProduct(product);
       } else {
         const { data, error } = await this.supabase.client

@@ -16,6 +16,10 @@ const original: CatalogProduct = {
   id: 'product-1',
   workspace_id: 'workspace-1',
   title: 'Alter Titel',
+  brand: 'Sony',
+  brand_id: 'brand-1',
+  category: 'Elektronik > Computer > Laptops',
+  category_id: 'category-1',
   description: 'Alte Beschreibung',
   tracking_mode: 'quantity',
   is_public_store: false,
@@ -165,10 +169,24 @@ describe('ProductDetailComponent', () => {
   it('lädt den bestehenden Artikel, verwendet den id-Parameter und aktiviert Bestand per Query', () => {
     expect(component.product()?.id).toBe(original.id);
     expect(component.form.controls.description.value).toBe('Alte Beschreibung');
+    expect(component.form.get('brandId')?.value).toBe('brand-1');
+    expect(component.form.get('categoryId')?.value).toBe('category-1');
     expect(component.stockView()).toBe(false);
     query.next(convertToParamMap({ view: 'stock' }));
     expect(component.stockView()).toBe(true);
     expect(catalog.loadProductEntries).toHaveBeenCalledWith(original.id, original.workspace_id);
+  });
+
+  it('sendet beim Bearbeiten die Picker-IDs und übernimmt das Leeren als null', async () => {
+    component.form.get('brandId')?.setValue(null);
+    component.form.get('categoryId')?.setValue(null);
+
+    await component.save();
+
+    expect(catalog.updateProduct).toHaveBeenCalledWith(
+      original.id,
+      expect.objectContaining({ brandId: null, categoryId: null }),
+    );
   });
 
   it('speichert Änderungen über updateProduct und beendet den Guard-Entwurf erst nach Erfolg', async () => {
@@ -401,6 +419,8 @@ describe('ProductDetailComponent', () => {
     await component.save();
     expect(catalog.createProduct).not.toHaveBeenCalled();
     component.form.controls.title.setValue('Neue Kamera');
+    component.form.get('brandId')?.setValue('brand-1');
+    component.form.get('categoryId')?.setValue('category-1');
     expect(component.hasUnsavedChanges()).toBe(true);
     await component.save();
     expect(catalog.createProduct).toHaveBeenCalledExactlyOnceWith(
@@ -408,6 +428,8 @@ describe('ProductDetailComponent', () => {
         title: 'Neue Kamera',
         workspaceId: original.workspace_id,
         isPublicStore: false,
+        brandId: 'brand-1',
+        categoryId: 'category-1',
       }),
     );
     expect(component.product()?.id).toBe('created-product');

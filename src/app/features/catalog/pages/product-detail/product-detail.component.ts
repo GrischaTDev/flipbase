@@ -29,7 +29,9 @@ import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { ARTICLE_VIEWS } from '../../../../core/config/article-navigation';
 import { SectionNavigationComponent } from '../../../../shared/components/section-navigation/section-navigation.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { BrandPickerComponent } from '../../../../shared/components/brand-picker/brand-picker.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
+import { CategoryPickerComponent } from '../../../../shared/components/category-picker/category-picker.component';
 import { PageHeaderComponent } from '../../../../shared/components/page-header/page-header.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
@@ -45,7 +47,9 @@ import { summarizeProductStock } from './product-detail-stock';
     ReactiveFormsModule,
     SectionNavigationComponent,
     ButtonComponent,
+    BrandPickerComponent,
     CardComponent,
+    CategoryPickerComponent,
     PageHeaderComponent,
     TextFieldComponent,
     CustomCheckboxComponent,
@@ -147,7 +151,7 @@ export class ProductDetailComponent implements UnsavedEntryPage {
           (control) => (control.value.trim() ? null : { required: true }),
         ],
       }),
-      brand: new FormControl('', { nonNullable: true }),
+      brandId: new FormControl<string | null>(null),
       model: new FormControl('', { nonNullable: true }),
       ean: new FormControl('', {
         nonNullable: true,
@@ -156,7 +160,7 @@ export class ProductDetailComponent implements UnsavedEntryPage {
             control.value.trim() && !normalizeGtin(control.value) ? { gtin: true } : null,
         ],
       }),
-      category: new FormControl('', { nonNullable: true }),
+      categoryId: new FormControl<string | null>(null),
       description: new FormControl('', { nonNullable: true }),
       isPublicStore: new FormControl(false, { nonNullable: true }),
       listingPrice: new FormControl<number | null>(null),
@@ -526,10 +530,10 @@ export class ProductDetailComponent implements UnsavedEntryPage {
     this.form.reset(
       {
         title: product.title,
-        brand: product.brand ?? '',
+        brandId: product.brand_id ?? null,
         model: product.model ?? '',
         ean: product.ean ?? '',
-        category: product.category ?? '',
+        categoryId: product.category_id ?? null,
         description: product.description ?? '',
         isPublicStore: product.is_public_store,
         listingPrice: product.listing_price ?? null,
