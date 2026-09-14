@@ -12,6 +12,11 @@ select has_column('public', 'catalog_products', 'brand_id', 'Katalogprodukte ver
 select ok((select relrowsecurity from pg_class where oid = 'public.product_categories'::regclass), 'RLS auf Kategorien');
 select ok((select relrowsecurity from pg_class where oid = 'public.brands'::regclass), 'RLS auf Marken');
 select ok(not has_function_privilege('authenticated', 'public.migrate_legacy_category_brand_texts()', 'execute'), 'Übernahme ist für Angemeldete nicht aufrufbar');
+select ok(not has_table_privilege('authenticated', 'public.product_categories', 'insert'), 'Angemeldete dürfen keine Kategorien einfügen');
+select ok(not has_table_privilege('authenticated', 'public.product_categories', 'update'), 'Angemeldete dürfen keine Kategorien ändern');
+select ok(not has_table_privilege('authenticated', 'public.product_categories', 'delete'), 'Angemeldete dürfen keine Kategorien löschen');
+select ok(not has_table_privilege('authenticated', 'public.product_categories', 'truncate'), 'Angemeldete dürfen Kategorien nicht leeren');
+select ok(has_table_privilege('authenticated', 'public.product_categories', 'select'), 'Angemeldete dürfen Kategorien lesen');
 
 -- Testdaten als postgres. Kennungen „zz“ kommen in der Shopify-Taxonomie nicht vor.
 insert into public.product_categories (id, parent_id, name, full_name, level, is_leaf, taxonomy_version) values
@@ -32,6 +37,13 @@ insert into public.inventory_items (id, workspace_id, title, brand, category_id)
   ('c5100000-0000-4000-8000-000000000041', 'c5100000-0000-4000-8000-000000000011', 'Abgeschlossener Artikel', 'Sony', 'zz-1');
 update public.inventory_items set purchase_id = 'c5100000-0000-4000-8000-000000000031'
 where id = 'c5100000-0000-4000-8000-000000000041';
+
+-- Kürzung auf 120 Zeichen darf keine abgeschnittene Markenschreibweise mit
+-- Leerzeichen am Ende erzeugen, sonst verletzt sie name = btrim(name).
+select lives_ok($$insert into public.inventory_items (id, workspace_id, title, brand, category_id)
+  values ('c5100000-0000-4000-8000-000000000043', 'c5100000-0000-4000-8000-000000000011', 'Trimmtest', repeat('x', 119) || ' Ende', 'zz-1')$$,
+  'Auf 120 Zeichen gekürzter Markentext mit Leerzeichen an Kürzungsstelle wird angenommen');
+select is((select brand from public.inventory_items where id = 'c5100000-0000-4000-8000-000000000043'), repeat('x', 119), 'Gekürzter Markentext behält kein Leerzeichen am Ende');
 
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"c5100000-0000-4000-8000-000000000001","role":"authenticated"}', true);
@@ -65,6 +77,12 @@ set local role anon;
 select throws_ok('select count(*) from public.product_categories', '42501', null, 'anon liest keine Kategorien');
 select throws_ok('select count(*) from public.brands', '42501', null, 'anon liest keine Marken');
 reset role;
+
+-- Umbenennung einer Kategorie zieht bei verknüpften Artikeln nach.
+update public.product_categories set full_name = 'Testbereich > Umbenannt', name = 'Umbenannt' where id = 'zz-1';
+select is((select category from public.inventory_items where id = 'c5100000-0000-4000-8000-000000000042'), 'Testbereich > Umbenannt', 'Kategorie-Umbenennung zieht beim Artikel nach');
+-- Zurückbenennen, damit die Erwartungen im Altbestand-Block unten unverändert bleiben.
+update public.product_categories set full_name = 'Testbereich > Unterbereich', name = 'Unterbereich' where id = 'zz-1';
 
 -- Altbestand: freie Texte ohne Verweise. Der Sync-Trigger würde sie beim Einfügen
 -- sofort bereinigen, deshalb ist er nur für die Testdaten abgeschaltet.

@@ -21,11 +21,11 @@ begin
   alter table public.brands disable trigger "00_protect_archived_workspace";
 
   with spellings as (
-    select item.workspace_id, pg_catalog.left(pg_catalog.btrim(item.brand), 120) as name
+    select item.workspace_id, pg_catalog.btrim(pg_catalog.left(pg_catalog.btrim(item.brand), 120)) as name
     from public.inventory_items as item
     where pg_catalog.btrim(coalesce(item.brand, '')) <> ''
     union all
-    select product.workspace_id, pg_catalog.left(pg_catalog.btrim(product.brand), 120)
+    select product.workspace_id, pg_catalog.btrim(pg_catalog.left(pg_catalog.btrim(product.brand), 120))
     from public.catalog_products as product
     where pg_catalog.btrim(coalesce(product.brand, '')) <> ''
   ),
@@ -56,7 +56,7 @@ begin
   set brand_id = coalesce(item.brand_id, (
         select brand.id from public.brands as brand
         where brand.workspace_id = item.workspace_id
-          and brand.name_key = pg_catalog.lower(pg_catalog.left(pg_catalog.btrim(item.brand), 120))
+          and brand.name_key = pg_catalog.lower(pg_catalog.btrim(pg_catalog.left(pg_catalog.btrim(item.brand), 120)))
       )),
       category = null
   where item.brand is not null or item.category is not null;
@@ -65,7 +65,7 @@ begin
   set brand_id = coalesce(product.brand_id, (
         select brand.id from public.brands as brand
         where brand.workspace_id = product.workspace_id
-          and brand.name_key = pg_catalog.lower(pg_catalog.left(pg_catalog.btrim(product.brand), 120))
+          and brand.name_key = pg_catalog.lower(pg_catalog.btrim(pg_catalog.left(pg_catalog.btrim(product.brand), 120)))
       )),
       category = null
   where product.brand is not null or product.category is not null;
@@ -101,6 +101,8 @@ begin
 end;
 $function$;
 
+ALTER FUNCTION public.sync_brand_name_to_records() OWNER TO postgres;
+
 REVOKE ALL ON FUNCTION public.sync_brand_name_to_records() FROM PUBLIC, anon, authenticated, service_role;
 
 CREATE FUNCTION public.sync_category_brand_text()
@@ -116,7 +118,7 @@ begin
       and new.brand_id is not distinct from old.brand_id
       and new.brand is distinct from old.brand)
   then
-    v_brand_name := pg_catalog.left(pg_catalog.btrim(coalesce(new.brand, '')), 120);
+    v_brand_name := pg_catalog.btrim(pg_catalog.left(pg_catalog.btrim(coalesce(new.brand, '')), 120));
     if v_brand_name = '' then
       new.brand_id := null;
     else
@@ -183,6 +185,8 @@ begin
 end;
 $function$;
 
+ALTER FUNCTION public.sync_category_name_to_records() OWNER TO postgres;
+
 REVOKE ALL ON FUNCTION public.sync_category_name_to_records() FROM PUBLIC, anon, authenticated, service_role;
 
 CREATE TABLE public.brands (
@@ -212,6 +216,8 @@ ALTER TABLE public.brands
 
 ALTER TABLE public.brands
   ADD CONSTRAINT brands_workspace_name_key UNIQUE (workspace_id, name_key);
+
+REVOKE ALL ON public.brands FROM anon;
 
 GRANT ALL ON public.brands TO authenticated;
 
@@ -334,6 +340,8 @@ ALTER TABLE public.product_categories
 
 ALTER TABLE public.product_categories
   ADD CONSTRAINT product_categories_taxonomy_version_check CHECK (taxonomy_version ~ '^[0-9]{4}-[0-9]{2}$'::text);
+
+REVOKE ALL ON public.product_categories FROM anon, authenticated;
 
 GRANT SELECT ON public.product_categories TO authenticated;
 
