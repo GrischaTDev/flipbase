@@ -1,0 +1,11 @@
+:host {
+  display: block;
+}
+
+// Wie app-custom-select: als Popover fest am Fenster ausgerichtet.
+.category-picker-panel[popover] {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  max-width: none;
+}
