@@ -96,7 +96,14 @@
   </div>
 
   @if (view() === 'watchlists') {
-    @if (watchlists().length === 0) {
+    @if (watchlistsLoading()) {
+      <p
+        role="status"
+        class="rounded-xl border border-fb-border bg-fb-surface p-6 text-sm text-fb-text-secondary"
+      >
+        Suchfilter werden geladen …
+      </p>
+    } @else if (watchlists().length === 0) {
       <app-card
         ><h2 class="text-base font-semibold">Dein erster Suchfilter</h2>
         <p class="mt-2 text-sm text-fb-text-secondary">

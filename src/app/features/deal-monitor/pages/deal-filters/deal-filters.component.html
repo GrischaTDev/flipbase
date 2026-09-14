@@ -99,7 +99,14 @@
     </div>
   }
 
-  @if (watchlists().length > 0) {
+  @if (watchlistsLoading()) {
+    <p
+      role="status"
+      class="rounded-xl border border-fb-border bg-fb-surface p-6 text-sm text-fb-text-secondary"
+    >
+      Suchfilter werden geladen …
+    </p>
+  } @else if (watchlists().length > 0) {
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
       @for (row of watchlists(); track row.id) {
         <app-card padding="md" class="flex flex-col justify-between">
@@ -171,7 +178,7 @@
         </app-card>
       }
     </div>
-  } @else {
+  } @else if (!error() && workspace()) {
     <div
       class="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-fb-border bg-fb-surface p-16 text-center"
     >

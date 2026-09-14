@@ -1,43 +1,22 @@
 import type { MarketplaceListing } from '../domain/listing.js';
 import type { SniperQuery } from '../domain/query.js';
-import { ForbiddenError, RateLimitedError, UnauthorizedError, VintedHttpError } from './errors.js';
+import { parseVintedCatalogPage } from './catalog-page.js';
+import { ForbiddenError, RateLimitedError, VintedHttpError } from './errors.js';
 import { normalizeVintedItem } from './normalizer.js';
-import { VintedCatalogSchema } from './schema.js';
-import {
-  sleep,
-  type FetchLike,
-  type SessionOptions,
-  type Sleep,
-  type VintedSession,
-} from './session.js';
+import { sleep, type FetchLike, type SessionOptions, type Sleep } from './session.js';
 
-const CATALOG_PATH = '/api/v2/catalog/items';
+const CATALOG_PATH = '/catalog';
 const PER_PAGE = '96';
 const RETRY_DELAYS_MS = [500, 1000] as const;
 
 export class VintedCollector {
   constructor(
     private readonly options: SessionOptions,
-    private readonly session: VintedSession,
     private readonly fetchFn: FetchLike = fetch,
     private readonly sleepFn: Sleep = sleep,
   ) {}
 
   async collect(query: SniperQuery): Promise<MarketplaceListing[]> {
-    try {
-      return await this.collectOnce(query);
-    } catch (error) {
-      // Die Hauptursache fuer 401 ist im Cookie-Zusammenbau behoben. Falls
-      // doch einer durchkommt: genau ein Neuaufwaermen, danach
-      // uebernimmt der Taktgeber - endloses Wiederholen wuerde nur Anfragen
-      // verbrennen und das Sperrrisiko erhoehen.
-      if (!(error instanceof UnauthorizedError)) throw error;
-      this.session.invalidate();
-      return this.collectOnce(query);
-    }
-  }
-
-  private async collectOnce(query: SniperQuery): Promise<MarketplaceListing[]> {
     const url = new URL(CATALOG_PATH, this.options.baseUrl);
     if (query.searchText) url.searchParams.set('search_text', query.searchText);
     url.searchParams.set('order', 'newest_first');
@@ -48,25 +27,24 @@ export class VintedCollector {
     if (query.priceTo !== null) url.searchParams.set('price_to', String(query.priceTo));
     if (query.priceFrom !== null) url.searchParams.set('price_from', String(query.priceFrom));
 
-    const response = await this.request(url, await this.session.cookieHeader());
-    const body: unknown = await response.json();
+    const response = await this.request(url);
+    const body = await response.text();
 
-    return VintedCatalogSchema.parse(body).items.map(normalizeVintedItem);
+    return parseVintedCatalogPage(body, this.options.baseUrl).map(normalizeVintedItem);
   }
 
-  private async request(url: URL, cookie: string): Promise<Response> {
+  private async request(url: URL): Promise<Response> {
     let retryIndex = 0;
 
     for (;;) {
       const response = await this.fetchFn(url, {
         headers: {
-          Accept: 'application/json',
+          Accept: 'text/html,application/xhtml+xml',
+          'Accept-Language': 'de-DE,de;q=0.9,en;q=0.8',
           'User-Agent': this.options.userAgent,
-          Cookie: cookie,
         },
       });
 
-      if (response.status === 401) throw new UnauthorizedError();
       if (response.status === 429) throw new RateLimitedError();
       if (response.status === 403) throw new ForbiddenError();
 

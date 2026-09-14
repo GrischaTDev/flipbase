@@ -60,6 +60,7 @@ export class DealFiltersComponent implements UnsavedEntryPage {
   private readonly editor = viewChild(WatchlistEditorComponent);
 
   readonly watchlists = signal<Watchlist[]>([]);
+  readonly watchlistsLoading = signal(false);
   readonly categories = signal<FeedCategory[]>([]);
   readonly editing = signal<Watchlist | null>(null);
   readonly editorOpen = signal(false);
@@ -91,6 +92,7 @@ export class DealFiltersComponent implements UnsavedEntryPage {
         this.error.set(null);
         this.message.set('');
         this.listGeneration++;
+        this.watchlistsLoading.set(Boolean(workspace));
         if (workspace) void this.loadWatchlists(workspace);
       });
     });
@@ -111,8 +113,12 @@ export class DealFiltersComponent implements UnsavedEntryPage {
   }
 
   async loadWatchlists(workspace = this.demo() ? undefined : this.workspace()?.id): Promise<void> {
-    if (this.demo() || !workspace) return;
+    if (this.demo() || !workspace) {
+      this.watchlistsLoading.set(false);
+      return;
+    }
     const generation = ++this.listGeneration;
+    this.watchlistsLoading.set(true);
     try {
       const rows = await this.api.watchlists(workspace);
       if (generation !== this.listGeneration || this.destroyRef.destroyed) return;
@@ -121,6 +127,10 @@ export class DealFiltersComponent implements UnsavedEntryPage {
     } catch (error) {
       if (generation === this.listGeneration) {
         this.error.set(error instanceof Error ? error.message : 'Laden fehlgeschlagen.');
+      }
+    } finally {
+      if (generation === this.listGeneration && !this.destroyRef.destroyed) {
+        this.watchlistsLoading.set(false);
       }
     }
   }

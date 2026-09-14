@@ -163,6 +163,21 @@ describe('DealFiltersComponent', () => {
     expect(comp.watchlists()[0].title).toBe('Vintage Sweatshirts');
   });
 
+  it('keeps the loading state until the watchlist request finishes', async () => {
+    let resolveRows!: (rows: never[]) => void;
+    const pending = new Promise<never[]>((resolve) => {
+      resolveRows = resolve;
+    });
+    mockApi.watchlists.mockReturnValueOnce(pending);
+
+    const loading = comp.loadWatchlists('ws-1');
+    expect(comp.watchlistsLoading()).toBe(true);
+
+    resolveRows([]);
+    await loading;
+    expect(comp.watchlistsLoading()).toBe(false);
+  });
+
   it('implements isSaving correctly for unsavedEntryGuard', () => {
     expect(comp.isSaving()).toBe(false);
     expect(canLeaveUnsavedEntry(comp)).toBe(true);
@@ -273,5 +288,16 @@ describe('DealFiltersComponent', () => {
 
     const root = fixture.nativeElement as HTMLElement;
     expect(root.textContent).toContain('Der Vinted Bot benötigt einen angemeldeten Arbeitsbereich');
+  });
+
+  it('renders a loading state instead of the empty state', () => {
+    const fixture = TestBed.createComponent(DealFiltersComponent);
+    fixture.componentInstance.watchlistsLoading.set(true);
+    fixture.componentInstance.watchlists.set([]);
+    fixture.detectChanges();
+
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.textContent).toContain('Suchfilter werden geladen');
+    expect(root.textContent).not.toContain('Noch keine Suchfilter angelegt');
   });
 });

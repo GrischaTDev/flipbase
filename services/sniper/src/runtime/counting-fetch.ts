@@ -11,10 +11,10 @@ import type { FetchLike } from '../vinted/session.js';
  * antwortet - zu wenig zaehlen.
  *
  * Das ist die Stelle, an der `RequestBudget.record()` tatsaechlich
- * aufgerufen wird: `VintedSession` und `VintedCollector` bekommen diese
+ * aufgerufen wird: `VintedCollector` und der Kategorieabruf bekommen diese
  * umschlossene Funktion statt der rohen `fetch`, damit jede HTTP-Anfrage
- * zaehlt - Session-Aufwaermen, Wiederholungen bei 5xx und das
- * Neuaufwaermen bei 401 eingeschlossen.
+ * zaehlt - Katalogabfragen, Wiederholungen bei 5xx und Kategorieabrufe
+ * eingeschlossen.
  */
 export function countingFetch(fetchFn: FetchLike, onRequest: () => void): FetchLike {
   return (input, init) => {
