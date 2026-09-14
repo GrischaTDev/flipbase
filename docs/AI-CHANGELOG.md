@@ -1,5 +1,27 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-14 – Codex – Separates Sniper-Deployment und Prüfstatus ergänzt
+
+**Auftrag:** Nach dem Produktionsdeploy blieb der Vinted-Bot bei der
+Aktivierung fehlerhaft und zeigte weiter `Abfrage fehlgeschlagen`.
+
+**Befund:** Der Server lief noch mit dem alten Sniperabbild, obwohl der PR den
+Sammlercode geprüft und die Webanwendung ausgerollt hatte. Die bestehende
+Pipeline baute und deployte nur das Webabbild; die getrennte Bot-Compose-Datei
+wurde nicht berücksichtigt.
+
+**Änderung:** Die Pipeline baut, prüft und veröffentlicht bei Änderungen unter
+`services/sniper` ein separates `flipbase-sniper`-Abbild und rollt es über das
+Deploy-Skript aus. Das Skript wartet nun für jeden geänderten Container auf den
+Healthcheck. Die Sammelauftragsseite zeigt nach dem Aktivieren bis zur ersten
+neuen Botmeldung einen Spinner mit „Wird geprüft …“ und blendet den alten
+Fehlerstatus in dieser Zeit aus.
+
+**Prüfung:** Workflow-Vertrag (66 Tests), Lint, Typprüfung, Angular-Build und
+alle 832 Angular-Tests sind lokal grün; die 118 Sniper-Tests, Sniper-Typprüfung
+und Sniper-Build sind ebenfalls grün. Die Shell-Fixtures für das Deployment
+werden unter Windows übersprungen und im Linux-PR-Lauf ausgeführt.
+
 ## 2026-09-14 – Codex – Vinted-Bot-Sammler und Suchfilter-Ladezustand repariert
 
 **Auftrag:** Den Vinted-Bot untersuchen, weil aktivierte Aufträge kurz danach

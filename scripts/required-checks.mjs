@@ -35,7 +35,9 @@ try {
   requireConditional('Sniper-Dienst', sniperChanged && !reused, process.env.SNIPER_RESULT);
 
   const expectedImage =
-    process.env.EVENT_NAME === 'push' && applicationChanged ? 'success' : 'skipped';
+    process.env.EVENT_NAME === 'push' && (applicationChanged || sniperChanged)
+      ? 'success'
+      : 'skipped';
   requireValue('Produktionsabbild', process.env.IMAGE_RESULT, expectedImage);
 } catch (error) {
   console.error(error instanceof Error ? error.message : error);

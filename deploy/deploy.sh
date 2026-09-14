@@ -17,9 +17,10 @@
 set -euo pipefail
 
 VERZEICHNIS="${FLIPBASE_DEPLOY_DIR:-/opt/flipbase}"
-CONTAINER="flipbase-web"
 REGISTRY="ghcr.io"
 LANDING_DIRECTORY="${FLIPBASE_LANDING_DIR:-/opt/flipbase-landing}"
+SNIPER_COMPOSE_FILE="${FLIPBASE_SNIPER_COMPOSE_FILE:-/opt/flipbase-sniper/docker-compose.sniper.yml}"
+SNIPER_IMAGE_REPOSITORY="${FLIPBASE_SNIPER_IMAGE_REPOSITORY:-ghcr.io/grischatdev/flipbase-sniper}"
 
 BEFEHL="${SSH_ORIGINAL_COMMAND:-latest}"
 
@@ -36,29 +37,78 @@ if [ "$BEFEHL" = "migrationen" ]; then
   exit 0
 fi
 
-TAG="$BEFEHL"
+WEB_TAG=""
+SNIPER_TAG=""
 release_image=""
-if [[ "$BEFEHL" =~ ^release-v1\ (sha256:[a-f0-9]{64})$ ]]; then
-  release_image="ghcr.io/grischatdev/flipbase@${BASH_REMATCH[1]}"
-  TAG=release-v1
-  if [[ ! -x "$VERZEICHNIS/apply-release-migrations.sh" || ! -x "$VERZEICHNIS/migration-backup.sh" ]]; then
-    echo 'Release-v1 erfordert den Serverbootstrap aus deploy/RELEASE-PIPELINE.md.' >&2
-    exit 1
-  fi
-fi
 
 # Die Kennzeichnung landet in einem Docker-Befehl. Sie wird deshalb streng
 # geprueft, statt sie durchzureichen: Der Schluessel darf zwar nur dieses
 # Skript starten, aber ein ungeprueftes Argument waere ein Weg daran vorbei.
-case "$TAG" in
-  release-v1) [[ -n "$release_image" ]] || exit 2 ;;
-  latest) ;;
-  sha-[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]) ;;
-  *)
+# Die Pipeline kann damit Anwendung und Sniper gemeinsam oder einzeln ausrollen.
+parts=()
+read -r -a parts <<< "$BEFEHL"
+if [[ ${#parts[@]} -eq 1 ]]; then
+  if [[ "${parts[0]:-}" == "latest" || "${parts[0]:-}" =~ ^sha-[0-9a-f]{7}$ ]]; then
+    WEB_TAG="${parts[0]}"
+  else
     echo 'Ungueltige Kennzeichnung; fuer Release-v1 zuerst Serverbootstrap pruefen.' >&2
     exit 2
-    ;;
-esac
+  fi
+elif [[ "${parts[0]:-}" == "release-v1" ]]; then
+  if [[ ${#parts[@]} -ne 2 && ${#parts[@]} -ne 4 ]] || [[ ! "${parts[1]:-}" =~ ^sha256:[a-f0-9]{64}$ ]]; then
+    echo 'Ungueltige Release-Kennzeichnung.' >&2
+    exit 2
+  fi
+  release_image="ghcr.io/grischatdev/flipbase@${parts[1]}"
+  if [[ ! -x "$VERZEICHNIS/apply-release-migrations.sh" || ! -x "$VERZEICHNIS/migration-backup.sh" ]]; then
+    echo 'Release-v1 erfordert den Serverbootstrap aus deploy/RELEASE-PIPELINE.md.' >&2
+    exit 1
+  fi
+  if [[ ${#parts[@]} -eq 4 ]]; then
+    if [[ "${parts[2]}" != "sniper" || ! "${parts[3]:-}" =~ ^sha-[0-9a-f]{7}$ ]]; then
+      echo 'Ungueltige Sniper-Kennzeichnung.' >&2
+      exit 2
+    fi
+    SNIPER_TAG="${parts[3]}"
+  fi
+elif [[ ${#parts[@]} -eq 2 || ${#parts[@]} -eq 4 ]]; then
+  for ((index = 0; index < ${#parts[@]}; index += 2)); do
+    service="${parts[index]}"
+    tag="${parts[index + 1]}"
+    if [[ ! "$tag" =~ ^sha-[0-9a-f]{7}$ ]]; then
+      echo 'Ungueltige Image-Kennzeichnung.' >&2
+      exit 2
+    fi
+    case "$service" in
+      web)
+        [[ -z "$WEB_TAG" ]] || { echo 'Web wurde doppelt angegeben.' >&2; exit 2; }
+        WEB_TAG="$tag"
+        ;;
+      sniper)
+        [[ -z "$SNIPER_TAG" ]] || { echo 'Sniper wurde doppelt angegeben.' >&2; exit 2; }
+        SNIPER_TAG="$tag"
+        ;;
+      *)
+        echo 'Unbekannter Dienst.' >&2
+        exit 2
+        ;;
+    esac
+  done
+else
+  echo 'Ungueltige Deployment-Kennzeichnung.' >&2
+  exit 2
+fi
+
+if [[ -z "$WEB_TAG" && -z "$release_image" && -z "$SNIPER_TAG" ]]; then
+  echo 'Kein Dienst zum Ausrollen angegeben.' >&2
+  exit 2
+fi
+
+if [[ -n "$release_image" ]]; then
+  TAG="release-v1"
+else
+  TAG="${WEB_TAG:-$SNIPER_TAG}"
+fi
 
 cd "$VERZEICHNIS"
 exec 9>"$VERZEICHNIS/deploy.lock"
@@ -93,9 +143,15 @@ if [[ -n "$release_image" ]]; then
   # Auch der Start verwendet den Digest. Eine inzwischen verschobene Markierung
   # kann dadurch kein anderes als das geprüfte Abbild starten.
   FLIPBASE_IMAGE="$release_image" docker compose up -d --pull never web
-else
-  IMAGE_TAG="$TAG" docker compose pull web
-  IMAGE_TAG="$TAG" docker compose up -d web
+elif [[ -n "$WEB_TAG" ]]; then
+  IMAGE_TAG="$WEB_TAG" docker compose pull web
+  IMAGE_TAG="$WEB_TAG" docker compose up -d web
+fi
+
+if [[ -n "$SNIPER_TAG" ]]; then
+  sniper_image="$SNIPER_IMAGE_REPOSITORY:$SNIPER_TAG"
+  FLIPBASE_SNIPER_IMAGE="$sniper_image" docker compose -f "$SNIPER_COMPOSE_FILE" pull sniper
+  FLIPBASE_SNIPER_IMAGE="$sniper_image" docker compose -f "$SNIPER_COMPOSE_FILE" up -d --pull never sniper
 fi
 
 docker logout "$REGISTRY" >/dev/null
@@ -103,19 +159,30 @@ docker image prune -f >/dev/null
 
 # Ein neu gestarteter Container ist noch kein arbeitender. Ohne diese Pruefung
 # meldet die Pipeline einen kaputten Stand als erfolgreiches Deployment.
-for _ in $(seq 1 30); do
-  zustand="$(docker inspect -f '{{.State.Health.Status}}' "$CONTAINER" 2>/dev/null || echo fehlt)"
-  if [ "$zustand" = "healthy" ]; then
-    echo "$CONTAINER ist gesund."
-    if [ -d "$LANDING_DIRECTORY" ]; then
-      docker cp "$CONTAINER":/usr/share/nginx/landing/. "$LANDING_DIRECTORY"/
-      echo "Landingpage synchronisiert."
+wait_for_healthy() {
+  local container="$1"
+  for _ in $(seq 1 30); do
+    zustand="$(docker inspect -f '{{.State.Health.Status}}' "$container" 2>/dev/null || echo fehlt)"
+    if [ "$zustand" = "healthy" ]; then
+      echo "$container ist gesund."
+      return 0
     fi
-    exit 0
-  fi
-  sleep 2
-done
+    sleep 2
+  done
 
-echo "$CONTAINER wurde nicht gesund. Letzte Ausgaben:" >&2
-docker logs --tail 50 "$CONTAINER" >&2
-exit 1
+  echo "$container wurde nicht gesund. Letzte Ausgaben:" >&2
+  docker logs --tail 50 "$container" >&2
+  return 1
+}
+
+if [[ -n "$WEB_TAG" || -n "$release_image" ]]; then
+  wait_for_healthy flipbase-web
+  if [ -d "$LANDING_DIRECTORY" ]; then
+    docker cp flipbase-web:/usr/share/nginx/landing/. "$LANDING_DIRECTORY"/
+    echo "Landingpage synchronisiert."
+  fi
+fi
+
+if [[ -n "$SNIPER_TAG" ]]; then
+  wait_for_healthy flipbase-sniper
+fi
