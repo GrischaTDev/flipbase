@@ -1,11 +1,11 @@
-type CatalogPageItem = {
+interface CatalogPageItem {
   id: number;
   title: string;
   url: string;
   price: { amount: string; currencyCode: string };
   totalItemPrice: { amount: string; currencyCode: string };
   thumbnailUrls: string[];
-  photos: Array<{ url: string; isMain: boolean }>;
+  photos: { url: string; isMain: boolean }[];
   user: { id: number; photo: null; thumbnailUrl: null; isBusiness: false };
   itemBox: {
     firstLine: string;
@@ -13,7 +13,7 @@ type CatalogPageItem = {
     accessibilityLabel: string;
     itemId: string;
   };
-};
+}
 
 export function catalogPage(): string {
   const item: CatalogPageItem = {
