@@ -30,6 +30,7 @@ describe('Anlegen mehrerer Artikel', () => {
         },
         getItems: () => gespeichert,
         saveActivityLog: () => undefined,
+        applyCategoryBrandText: (i: InventoryItem) => i,
       },
       // logActivity schreibt im Demo-Modus nur lokal.
       activityLogs: signal([]),

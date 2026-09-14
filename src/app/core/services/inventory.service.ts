@@ -14,15 +14,20 @@ import {
   InventoryItemSaleState,
   Sale,
 } from '../models/flipbase.models';
-import type { TablesUpdate } from '../models/supabase.types';
+import type { TablesInsert, TablesUpdate } from '../models/supabase.types';
 import { isInventoryItemMutationLocked } from '../models/inventory-sellability';
 import { INVENTORY_RECONCILIATION_AUDIT_REASONS } from '../models/inventory-reconciliation';
 
 export interface CreateItemPayload {
   purchase_id?: string | null;
   purchase_line_id?: string | null;
-  category?: string | null;
+  /** Verweis auf eine Produktkategorie; den Anzeigetext setzt der Trigger. */
+  categoryId?: string | null;
   title: string;
+  /** Verweis auf eine Marke; ohne Verweis bleibt der alte Markentext möglich. */
+  brandId?: string | null;
+  /** Legacy-Freitext für Übernahmen und bestehende Importwege. */
+  category?: string | null;
   brand?: string | null;
   model?: string | null;
   condition: ItemCondition;
@@ -32,6 +37,31 @@ export interface CreateItemPayload {
   description?: string | null;
   allocated_purchase_cost: number | null;
   expected_value?: number | null;
+}
+
+export type UpdateItemPayload = Partial<Omit<InventoryItem, 'category_id' | 'brand_id'>> & {
+  /** Verweis auf eine Produktkategorie; null entfernt die Auswahl. */
+  categoryId?: string | null;
+  /** Verweis auf eine Marke; null entfernt die Auswahl. */
+  brandId?: string | null;
+};
+
+const CATEGORY_BRAND_TEXT_FIELDS = ['category', 'brand'] as const;
+
+function touchesCategoryOrBrand(updates: UpdateItemPayload): boolean {
+  return (
+    updates.categoryId !== undefined ||
+    updates.brandId !== undefined ||
+    CATEGORY_BRAND_TEXT_FIELDS.some((field) => updates[field] !== undefined)
+  );
+}
+
+function mapItemUpdates(updates: UpdateItemPayload): Partial<InventoryItem> {
+  const { categoryId, brandId, ...legacyUpdates } = updates;
+  const mapped: Partial<InventoryItem> = { ...legacyUpdates };
+  if (categoryId !== undefined) mapped.category_id = categoryId;
+  if (brandId !== undefined) mapped.brand_id = brandId;
+  return mapped;
 }
 
 export interface CreateItemProblem {
@@ -625,9 +655,11 @@ export class InventoryService {
       workspace_id: ws.id,
       purchase_id: payload.purchase_id || null,
       purchase_line_id: payload.purchase_line_id || null,
-      category: payload.category?.trim() || null,
+      category_id: payload.categoryId ?? null,
+      category: payload.categoryId === undefined ? payload.category?.trim() || null : null,
       title: payload.title.trim(),
-      brand: payload.brand?.trim() || null,
+      brand_id: payload.brandId ?? null,
+      brand: payload.brandId === undefined ? payload.brand?.trim() || null : null,
       model: payload.model?.trim() || null,
       condition: payload.condition,
       status: payload.status || 'received',
@@ -639,7 +671,9 @@ export class InventoryService {
       created_at: new Date().toISOString(),
     };
 
-    const enriched = this.enrichItemTotals(newItem);
+    const enriched = this.enrichItemTotals(
+      this.mockStore.isDemoMode() ? this.mockStore.applyCategoryBrandText(newItem) : newItem,
+    );
 
     if (this.mockStore.isDemoMode()) {
       this.mockStore.saveItem(enriched);
@@ -667,24 +701,28 @@ export class InventoryService {
     }
 
     try {
+      const insertPayload: TablesInsert<'inventory_items'> = {
+        workspace_id: ws.id,
+        purchase_id: payload.purchase_id || null,
+        purchase_line_id: payload.purchase_line_id || null,
+        category_id: payload.categoryId ?? null,
+        title: payload.title.trim(),
+        brand_id: payload.brandId ?? null,
+        model: payload.model?.trim() || null,
+        condition: payload.condition,
+        status: payload.status || 'received',
+        sku: payload.sku?.trim() || null,
+        ean: payload.ean?.trim() || null,
+        description: payload.description?.trim() || null,
+        allocated_purchase_cost: payload.allocated_purchase_cost,
+        expected_value: payload.expected_value || null,
+        ...(payload.categoryId === undefined ? { category: payload.category?.trim() || null } : {}),
+        ...(payload.brandId === undefined ? { brand: payload.brand?.trim() || null } : {}),
+      };
+
       const { data: dbData, error: dbError } = await this.supabase.client
         .from('inventory_items')
-        .insert({
-          workspace_id: ws.id,
-          purchase_id: payload.purchase_id || null,
-          purchase_line_id: payload.purchase_line_id || null,
-          category: payload.category?.trim() || null,
-          title: payload.title.trim(),
-          brand: payload.brand?.trim() || null,
-          model: payload.model?.trim() || null,
-          condition: payload.condition,
-          status: payload.status || 'received',
-          sku: payload.sku?.trim() || null,
-          ean: payload.ean?.trim() || null,
-          description: payload.description?.trim() || null,
-          allocated_purchase_cost: payload.allocated_purchase_cost,
-          expected_value: payload.expected_value || null,
-        })
+        .insert(insertPayload)
         .select()
         .single();
 
@@ -737,10 +775,7 @@ export class InventoryService {
     };
   }
 
-  async updateItem(
-    itemId: string,
-    updates: Partial<InventoryItem>,
-  ): Promise<{ error: Error | null }> {
+  async updateItem(itemId: string, updates: UpdateItemPayload): Promise<{ error: Error | null }> {
     if (this.isMutationLocked(itemId)) return this.lockedMutationResult();
     const existing =
       this.items().find((item) => item.id === itemId) ??
@@ -755,33 +790,42 @@ export class InventoryService {
             updates.purchase_line_id !== existing.purchase_line_id)))
     )
       return { error: new Error('Die Herkunft eines Paketinhalts kann nicht geändert werden.') };
-    const aenderungenLokalUebernehmen = (): void => {
+    const mappedUpdates = mapItemUpdates(updates);
+    const aenderungenLokalUebernehmen = (aenderungen: Partial<InventoryItem>): void => {
       const stored = this.mockStore.getItems().find((i) => i.id === itemId);
       const base = stored || this.items().find((i) => i.id === itemId) || this.selectedItem();
       if (base) {
-        const updated = this.enrichItemTotals({ ...base, ...updates });
+        const updated = this.enrichItemTotals({ ...base, ...aenderungen });
         this.mockStore.saveItem(updated);
       }
 
       this.items.update((list) =>
         list.map((item) =>
-          item.id === itemId ? this.enrichItemTotals({ ...item, ...updates }) : item,
+          item.id === itemId ? this.enrichItemTotals({ ...item, ...aenderungen }) : item,
         ),
       );
 
       const currentSel = this.selectedItem();
       if (currentSel && currentSel.id === itemId) {
-        this.selectedItem.set(this.enrichItemTotals({ ...currentSel, ...updates }));
+        this.selectedItem.set(this.enrichItemTotals({ ...currentSel, ...aenderungen }));
       }
     };
 
     if (this.mockStore.isDemoMode()) {
-      aenderungenLokalUebernehmen();
+      const demoUpdates =
+        existing && touchesCategoryOrBrand(updates)
+          ? this.mockStore.applyCategoryBrandText({ ...existing, ...mappedUpdates }, existing)
+          : mappedUpdates;
+      aenderungenLokalUebernehmen(demoUpdates);
       return { error: null };
     }
 
     try {
       const {
+        categoryId,
+        brandId,
+        category: legacyCategory,
+        brand: legacyBrand,
         total_item_cost,
         profit_potential,
         costs,
@@ -795,12 +839,16 @@ export class InventoryService {
         notes: _notes,
         condition_notes: _conditionNotes,
         ...dbUpdates
-      } = updates as Partial<InventoryItem> & { activity_logs?: ActivityLog[] };
+      } = updates as UpdateItemPayload & { activity_logs?: ActivityLog[] };
 
       const payload: TablesUpdate<'inventory_items'> = {
         ...dbUpdates,
         updated_at: new Date().toISOString(),
       };
+      if (categoryId !== undefined) payload.category_id = categoryId;
+      else if (legacyCategory !== undefined) payload.category = legacyCategory;
+      if (brandId !== undefined) payload.brand_id = brandId;
+      else if (legacyBrand !== undefined) payload.brand = legacyBrand;
 
       const { error, count } = await this.supabase.client
         .from('inventory_items')
@@ -818,11 +866,26 @@ export class InventoryService {
           }),
         };
       }
+      if (touchesCategoryOrBrand(updates)) {
+        // Der Trigger setzt die abgeleiteten Texte. Ohne Nachlesen bliebe der
+        // lokale Artikel bis zum nächsten Laden veraltet.
+        const { data: derived, error: readError } = await this.supabase.client
+          .from('inventory_items')
+          .select('category_id, category, brand_id, brand')
+          .eq('id', itemId)
+          .maybeSingle();
+        if (readError)
+          return { error: this.syncStatus.melde('Aktualisieren des Artikels', readError) };
+        if (derived) {
+          aenderungenLokalUebernehmen({ ...mappedUpdates, ...derived });
+          return { error: null };
+        }
+      }
     } catch (e: unknown) {
       return { error: this.syncStatus.melde('Aktualisieren des Artikels', e) };
     }
 
-    aenderungenLokalUebernehmen();
+    aenderungenLokalUebernehmen(mappedUpdates);
     return { error: null };
   }
 

@@ -91,7 +91,7 @@
               helpText="Allgemeine Beschreibung dieses Artikels."
             />
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <app-text-field label="Marke" formControlName="brand" />
+              <app-brand-picker label="Marke" id="product-brand" formControlName="brandId" />
               <app-text-field label="Modell" formControlName="model" />
               <app-text-field
                 label="EAN / GTIN"
@@ -102,7 +102,11 @@
                     : null
                 "
               />
-              <app-text-field label="Kategorie" formControlName="category" />
+              <app-category-picker
+                label="Kategorie"
+                id="product-category"
+                formControlName="categoryId"
+              />
             </div>
           </div>
         </app-card>

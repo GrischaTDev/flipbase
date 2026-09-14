@@ -1221,3 +1221,162 @@ describe('Paketinhalt im Inventar', () => {
     expect(update).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('InventoryService – Kategorie und Marke', () => {
+  it('sendet beim Anlegen Verweise und keinen abgeleiteten Text', async () => {
+    const { dienst, aufrufe } = erstelleDienst({
+      data: {
+        ...gespeicherterArtikel,
+        category_id: 'el-6-6',
+        category: 'Elektronik > Computer > Laptops',
+        brand_id: 'brand-1',
+        brand: 'Lenovo',
+      },
+      error: null,
+    });
+
+    const ergebnis = await dienst.createItem({
+      title: 'Laptop',
+      condition: 'used',
+      categoryId: 'el-6-6',
+      brandId: 'brand-1',
+      allocated_purchase_cost: 0,
+    });
+
+    const insertPayload = aufrufe.find(({ tabelle }) => tabelle === 'inventory_items')?.payload;
+    expect(insertPayload).toMatchObject({ category_id: 'el-6-6', brand_id: 'brand-1' });
+    expect(insertPayload).not.toHaveProperty('category');
+    expect(insertPayload).not.toHaveProperty('brand');
+    expect(ergebnis.data).toMatchObject({
+      category: 'Elektronik > Computer > Laptops',
+      brand: 'Lenovo',
+    });
+  });
+
+  it('liest nach geänderten Verweisen die abgeleiteten Texte aus der Datenbank nach', async () => {
+    const update = vi.fn((payload: Record<string, unknown>, options?: unknown) => {
+      void payload;
+      void options;
+      return {
+        eq: vi.fn(async () => ({ error: null, count: 1 })),
+      };
+    });
+    const maybeSingle = vi.fn(async () => ({
+      data: {
+        category_id: 'el-6-6',
+        category: 'Elektronik > Computer > Laptops',
+        brand_id: null,
+        brand: null,
+      },
+      error: null,
+    }));
+    const select = vi.fn(() => ({
+      eq: () => ({ maybeSingle }),
+    }));
+    const { dienst } = injiziereDienst({
+      from: () => ({ update, select }),
+    });
+    const oldItem = {
+      ...gespeicherterArtikel,
+      category_id: 'old-category',
+      category: 'Alt',
+      brand_id: 'old-brand',
+      brand: 'Alt',
+    };
+    dienst.items.set([oldItem]);
+
+    const ergebnis = await dienst.updateItem(oldItem.id, {
+      categoryId: 'el-6-6',
+      brandId: null,
+    });
+
+    expect(ergebnis.error).toBeNull();
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({ category_id: 'el-6-6', brand_id: null }),
+      { count: 'exact' },
+    );
+    expect(update.mock.calls[0]?.[0]).not.toHaveProperty('categoryId');
+    expect(update.mock.calls[0]?.[0]).not.toHaveProperty('brandId');
+    expect(select).toHaveBeenCalledWith('category_id, category, brand_id, brand');
+    expect(dienst.items()[0]).toMatchObject({
+      category_id: 'el-6-6',
+      category: 'Elektronik > Computer > Laptops',
+      brand_id: null,
+      brand: null,
+    });
+  });
+
+  it('liest bei anderen Änderungen keine Kategorie- oder Markenfelder nach', async () => {
+    const update = vi.fn(() => ({
+      eq: vi.fn(async () => ({ error: null, count: 1 })),
+    }));
+    const select = vi.fn();
+    const { dienst } = injiziereDienst({ from: () => ({ update, select }) });
+    const oldItem = {
+      ...gespeicherterArtikel,
+      category_id: 'old-category',
+      brand_id: 'old-brand',
+    };
+    dienst.items.set([oldItem]);
+
+    await dienst.updateItem(oldItem.id, { title: 'Neu' });
+
+    expect(select).not.toHaveBeenCalled();
+    expect(dienst.items()[0]).toMatchObject({
+      title: 'Neu',
+      category_id: 'old-category',
+      brand_id: 'old-brand',
+    });
+  });
+
+  it('setzt im Demo-Modus Kategorie und Marke über ihre Verweise', async () => {
+    const mockStore = new MockDataStoreService();
+    mockStore.isDemoMode.set(true);
+    const brand = mockStore.ensureBrand(workspace.id, 'Bosch');
+    expect(brand).not.toBeNull();
+    const { dienst } = injiziereDienst({}, mockStore);
+
+    const ergebnis = await dienst.createItem({
+      title: 'Bohrer',
+      condition: 'used',
+      categoryId: 'ha-15-14',
+      brandId: brand!.id,
+      allocated_purchase_cost: 0,
+    });
+
+    expect(ergebnis.data).toMatchObject({
+      category_id: 'ha-15-14',
+      category: 'Heimwerkerbedarf > Werkzeuge > Bohrmaschinen',
+      brand_id: brand!.id,
+      brand: 'Bosch',
+    });
+  });
+
+  it('speichert das Leeren der Verweise im Demo-Modus als null', async () => {
+    const mockStore = new MockDataStoreService();
+    mockStore.isDemoMode.set(true);
+    const brand = mockStore.ensureBrand(workspace.id, 'Bosch');
+    const { dienst } = injiziereDienst({}, mockStore);
+    const created = await dienst.createItem({
+      title: 'Bohrer',
+      condition: 'used',
+      categoryId: 'ha-15-14',
+      brandId: brand!.id,
+      allocated_purchase_cost: 0,
+    });
+    dienst.items.set([{ ...created.data!, sale_state: 'no_active_sale' }]);
+
+    const ergebnis = await dienst.updateItem(created.data!.id, {
+      categoryId: null,
+      brandId: null,
+    });
+
+    expect(ergebnis.error).toBeNull();
+    expect(dienst.items()[0]).toMatchObject({
+      category_id: null,
+      category: null,
+      brand_id: null,
+      brand: null,
+    });
+  });
+});

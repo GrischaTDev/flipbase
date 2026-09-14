@@ -1,0 +1,10 @@
+:host {
+  display: block;
+}
+
+.brand-picker-panel[popover] {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  max-width: none;
+}

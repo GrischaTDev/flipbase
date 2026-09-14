@@ -40,8 +40,8 @@ function erstelleKomponente(
     form: new FormGroup({
       purchase_id: new FormControl<string | null>(null),
       title: new FormControl('Neuer Artikel', { nonNullable: true }),
-      category: new FormControl(''),
-      brand: new FormControl(''),
+      category_id: new FormControl<string | null>(null),
+      brand_id: new FormControl<string | null>(null),
       model: new FormControl(''),
       condition: new FormControl<ItemCondition>('used', { nonNullable: true }),
       status: new FormControl<ItemStatus>('received', { nonNullable: true }),
@@ -55,6 +55,8 @@ function erstelleKomponente(
     }),
     isSubmitting: signal(false),
     errorMessage: signal<string | null>(null),
+    categorySuggestion: signal<string | null>(null),
+    brandSuggestion: signal<string | null>(null),
     selectedImageFile: signal<File | null>(null),
     mediaService,
     logger: { warn: vi.fn() },
@@ -350,4 +352,58 @@ describe('Paketinhalt bearbeiten', () => {
       expect(inventoryService.createItem).not.toHaveBeenCalled();
     },
   );
+});
+
+describe('ItemCreateModalComponent – Kategorie und Marke', () => {
+  it('speichert beim Anlegen die gewählten Verweise', async () => {
+    const { komponente, inventoryService } = erstelleKomponente({ data: artikel, error: null });
+    komponente.form.patchValue({ category_id: 'el-6-6', brand_id: 'brand-1' });
+
+    await komponente.onSubmit();
+
+    expect(inventoryService.createItem.mock.calls[0][0]).toMatchObject({
+      categoryId: 'el-6-6',
+      brandId: 'brand-1',
+    });
+  });
+
+  it('leert beim Bearbeiten entfernte Verweise ausdrücklich', async () => {
+    const { komponente, inventoryService } = erstelleKomponente(
+      { data: artikel, error: null },
+      {
+        ...artikel,
+        category_id: 'el-6-6',
+        brand_id: 'brand-1',
+      },
+    );
+
+    await komponente.onSubmit();
+
+    expect(inventoryService.updateItem).toHaveBeenCalledWith(
+      artikel.id,
+      expect.objectContaining({ categoryId: null, brandId: null }),
+    );
+  });
+
+  it('gibt erkannte Texte nur als Vorschlag weiter', async () => {
+    const { komponente } = erstelleKomponente({ data: artikel, error: null });
+    Object.assign(komponente, {
+      isAiLoading: signal(false),
+      aiService: {
+        identifyProduct: vi.fn(async () => ({
+          cleanTitle: 'Nintendo Switch',
+          brand: 'Nintendo',
+          model: null,
+          category: 'Gaming & Konsolen',
+          condition: 'used',
+        })),
+      },
+    });
+
+    await komponente.onAiAutofill();
+
+    expect(komponente.categorySuggestion()).toBe('Gaming & Konsolen');
+    expect(komponente.brandSuggestion()).toBe('Nintendo');
+    expect(komponente.form.getRawValue()).toMatchObject({ category_id: null, brand_id: null });
+  });
 });

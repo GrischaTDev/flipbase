@@ -66,7 +66,9 @@ enabled = true
 # 50_sniper.sql Tabellen und Funktionen aus database.sql und muss deshalb danach stehen).
 # 100_vinted_categories steht nach 99_platform_admin, weil seine Policies
 # public.is_platform_operator() aus dieser Datei aufrufen.
-schema_paths = ["./schemas/database.sql", "./schemas/50_sniper.sql", "./schemas/60_audit_snapshot.sql", "./schemas/60_catalog_product_media.sql", "./schemas/65_purchase_receipts.sql", "./schemas/70_realtime_sessions.sql", "./schemas/80_workspace_retention.sql", "./schemas/90_release_permissions.sql", "./schemas/95_purchase_cost_repair.sql", "./schemas/96_record_comments.sql", "./schemas/97_inventory_archive.sql", "./schemas/98_barcode_identifiers.sql", "./schemas/99_platform_admin.sql", "./schemas/100_vinted_categories.sql", "./schemas/105_sniper_administration.sql", "./schemas/106_sniper_watchlists.sql", "./schemas/110_numbering.sql", "./schemas/120_purchase_entry_redesign.sql", "./schemas/130_purchase_tax_costs.sql", "./schemas/140_purchase_package_contents.sql"]
+# 150_product_categories_brands steht nach 140, weil es Tabellen aus database.sql
+# und den Archivschutz aus 80_workspace_retention erweitert.
+schema_paths = ["./schemas/database.sql", "./schemas/50_sniper.sql", "./schemas/60_audit_snapshot.sql", "./schemas/60_catalog_product_media.sql", "./schemas/65_purchase_receipts.sql", "./schemas/70_realtime_sessions.sql", "./schemas/80_workspace_retention.sql", "./schemas/90_release_permissions.sql", "./schemas/95_purchase_cost_repair.sql", "./schemas/96_record_comments.sql", "./schemas/97_inventory_archive.sql", "./schemas/98_barcode_identifiers.sql", "./schemas/99_platform_admin.sql", "./schemas/100_vinted_categories.sql", "./schemas/105_sniper_administration.sql", "./schemas/106_sniper_watchlists.sql", "./schemas/110_numbering.sql", "./schemas/120_purchase_entry_redesign.sql", "./schemas/130_purchase_tax_costs.sql", "./schemas/140_purchase_package_contents.sql", "./schemas/150_product_categories_brands.sql"]
 
 [db.seed]
 # If enabled, seeds the database after migrations during a db reset.
