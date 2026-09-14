@@ -23,10 +23,11 @@ import { BadgeComponent } from '../../shared/components/badge/badge.component';
 import { CustomSelectComponent } from '../../shared/components/custom-select/custom-select.component';
 import { ModalShellComponent } from '../../shared/components/modal-shell/modal-shell.component';
 import { DealCardComponent } from './components/deal-card/deal-card.component';
+import { DealDetailModalComponent } from './components/deal-detail-modal/deal-detail-modal.component';
 import { WatchlistEditorComponent } from './components/watchlist-editor/watchlist-editor.component';
 import { DealMonitorService } from './services/deal-monitor.service';
 import { DealFeedState } from './services/deal-feed-state';
-import { FeedCategory, Watchlist, WatchlistDraft } from './models/deal-monitor.model';
+import { FeedCategory, FeedItem, Watchlist, WatchlistDraft } from './models/deal-monitor.model';
 import { matchesSize } from './utils/size-matcher';
 
 @Component({
@@ -41,6 +42,7 @@ import { matchesSize } from './utils/size-matcher';
     CustomSelectComponent,
     ModalShellComponent,
     DealCardComponent,
+    DealDetailModalComponent,
     WatchlistEditorComponent,
   ],
   templateUrl: './deal-monitor.component.html',
@@ -60,6 +62,7 @@ export class DealMonitorComponent {
   readonly categories = signal<FeedCategory[]>([]);
   readonly selected = signal<string | null>(null);
   readonly selectedSize = signal<string | null>(null);
+  readonly selectedDeal = signal<FeedItem | null>(null);
   readonly sizeOptions = [
     { value: null as string | null, label: 'Alle Größen' },
     { value: 'xs', label: 'XS' },

@@ -1,5 +1,38 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-14 – Gemini 3.8 Flash (Google DeepMind) – Vinted-Bot: Favoriten, Bild-Großansicht (Lightbox) & Sub-Navigation
+
+**Auftrag:** Umsetzung von Phase 2 im Vinted-Bot:
+
+1. Favoriten-Funktion mit Herz-Button ❤️ auf allen Anzeigenkarten und persistenter Speicherung je Arbeitsbereich.
+2. Bild-Großansicht (Lightbox-Modal mit Galerie, Pfeil-Navigation und Thumbnail-Leiste) beim Klick auf Artikelkarten zur detaillierten Zustandsprüfung.
+3. Strukturierung der linken Seitenleiste im Shopify-Admin-Stil mit aufklappbaren Unterseiten:
+   - `Bot` (`/vinted-bot`): Live-Feed & Deals mit Größen-Schnellfilter.
+   - `Suchfilter` (`/vinted-bot/filters`): Eigene Seite zur Erstellung, Verwaltung und Pausierung von Suchfiltern.
+   - `Favoriten` (`/vinted-bot/favorites`): Eigene Seite für gemerkte Einzelanzeigen mit Größenfilter und Großansicht.
+
+**Befund:**
+
+- Die Menüstruktur im Shopify-Stil war bereits für `Administration` angelegt, wurde aber noch nicht für reguläre Menüpunkte mit `children` im Template gerendert.
+- `localStorage` eignet sich ideal für das lokale Merken von Artikeln je Workspace, ohne unnötige Backend-Anfragen zu erzeugen.
+- Der Bild-Zoom und die Großansicht über `ModalShellComponent` im XL-Format erlauben eine übersichtliche Zwei-Spalten-Darstellung von Galerie und Artikelattributen.
+
+**Ergebnis:**
+
+- `DealFavoritesService` mit reaktiven Signalen und Workspace-isoliertem `localStorage`.
+- `DealCardComponent` um Herz-Favoriten-Button und Klick auf Bildbereich zur Großansicht erweitert.
+- `DealDetailModalComponent` mit interaktiver Bildergallerie, Tastatur- und Mausnavigation und direkten Aktionen implementiert.
+- `DealFiltersComponent` (`/vinted-bot/filters`) und `DealFavoritesComponent` (`/vinted-bot/favorites`) als eigenständige Seiten gebaut und geroutet.
+- `SidebarComponent` erweitert, um `children` dynamisch aufzuklappen, sobald man sich im Bereich `/vinted-bot` befindet, mit vollständiger Barrierefreiheit (`aria-current="page"` nur auf dem aktiven Unterpunkt).
+- Umfassende automatisierte Tests für alle neuen Komponenten und Services (`deal-favorites.service.angular.spec.ts`, `deal-detail-modal.component.angular.spec.ts`, `deal-favorites.component.angular.spec.ts`, `deal-filters.component.angular.spec.ts`, `sidebar.component.angular.spec.ts`).
+
+**Prüfung:**
+
+- `npx vitest run src/app/features/deal-monitor/ src/app/layout/sidebar/`: 8/8 Testsuiten, 41/41 Tests bestanden.
+- `npm run typecheck`: Exitcode 0.
+- `npx eslint`: 0 Fehler, 0 Warnungen.
+- `npm run build`: Produktionsbau erfolgreich (Exitcode 0).
+
 ## 2026-09-14 – Gemini 3.8 Flash (Google DeepMind) – Vinted-Bot: Größen-Schnellfilter, Suchfilter-Harmonisierung & Icon-Farben
 
 **Auftrag:** Umsetzung von Phase 1 im Vinted-Bot:

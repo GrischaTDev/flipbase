@@ -234,6 +234,7 @@
                 class="snap-start motion-safe:transition motion-safe:duration-200 motion-safe:starting:opacity-0 motion-safe:starting:-translate-x-3"
                 [item]="item"
                 [featured]="true"
+                (inspect)="selectedDeal.set($event)"
               />
             }
           </div>
@@ -246,6 +247,7 @@
                 <app-deal-card
                   class="snap-start motion-safe:transition motion-safe:duration-200 motion-safe:starting:opacity-0 motion-safe:starting:-translate-x-3"
                   [item]="item"
+                  (inspect)="selectedDeal.set($event)"
                 />
               }
             </div>
@@ -296,4 +298,7 @@
       ><app-button variant="destructive" (clicked)="closeEditor()">Verwerfen</app-button>
     </div></app-modal-shell
   >
+}
+@if (selectedDeal(); as deal) {
+  <app-deal-detail-modal [item]="deal" (closed)="selectedDeal.set(null)" />
 }

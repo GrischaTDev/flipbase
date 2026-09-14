@@ -15,6 +15,7 @@ import { BadgeComponent } from '../../shared/components/badge/badge.component';
 import { CustomSelectComponent } from '../../shared/components/custom-select/custom-select.component';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { DealCardComponent } from './components/deal-card/deal-card.component';
+import { DealDetailModalComponent } from './components/deal-detail-modal/deal-detail-modal.component';
 import { WatchlistEditorComponent } from './components/watchlist-editor/watchlist-editor.component';
 
 interface AngularInputMetadata {
@@ -56,6 +57,10 @@ const componentResources: Readonly<Record<string, string>> = {
     'src/app/shared/components/modal-shell/modal-shell.component.scss',
   './deal-card.component.html':
     'src/app/features/deal-monitor/components/deal-card/deal-card.component.html',
+  './deal-detail-modal.component.html':
+    'src/app/features/deal-monitor/components/deal-detail-modal/deal-detail-modal.component.html',
+  './deal-detail-modal.component.scss':
+    'src/app/features/deal-monitor/components/deal-detail-modal/deal-detail-modal.component.scss',
   './watchlist-editor.component.html':
     'src/app/features/deal-monitor/components/watchlist-editor/watchlist-editor.component.html',
   './text-field.component.html': 'src/app/shared/components/text-field/text-field.component.html',
@@ -115,6 +120,7 @@ describe('DealMonitorComponent', () => {
       'ariaLabel',
     ]);
     registerSignalInputs(DealCardComponent, ['item', 'featured']);
+    registerSignalInputs(DealDetailModalComponent, ['item']);
     registerSignalInputs(WatchlistEditorComponent, ['watchlist', 'categories', 'saving']);
   });
 
@@ -215,5 +221,16 @@ describe('DealMonitorComponent', () => {
     comp.selectedSize.set('l');
     expect(comp.highlights().length).toBe(1);
     expect(comp.grid().length).toBe(0);
+  });
+
+  it('manages selected deal for detail modal inspection', () => {
+    expect(comp.selectedDeal()).toBeNull();
+
+    const item = mockFeedItem('test-deal');
+    comp.selectedDeal.set(item);
+    expect(comp.selectedDeal()).toEqual(item);
+
+    comp.selectedDeal.set(null);
+    expect(comp.selectedDeal()).toBeNull();
   });
 });

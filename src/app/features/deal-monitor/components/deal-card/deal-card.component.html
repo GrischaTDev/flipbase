@@ -1,6 +1,14 @@
 <app-card padding="none" class="h-full">
   <article class="relative flex h-full flex-col" [attr.aria-label]="item().title">
-    <div class="relative aspect-[4/3] overflow-hidden bg-fb-surface-hover">
+    <div
+      class="group relative aspect-[4/3] cursor-pointer overflow-hidden bg-fb-surface-hover"
+      tabindex="0"
+      role="button"
+      [attr.aria-label]="item().title + ' in Großansicht öffnen'"
+      (click)="openDetail($event)"
+      (keydown.enter)="openDetail($event)"
+      (keydown.space)="openDetail($event); $event.preventDefault()"
+    >
       @if (images().length) {
         <div class="grid h-full grid-cols-2 grid-rows-2 gap-1">
           @for (src of images(); track src; let index = $index) {
@@ -11,7 +19,7 @@
               "
               loading="lazy"
               decoding="async"
-              class="h-full min-h-0 w-full min-w-0 object-cover"
+              class="h-full min-h-0 w-full min-w-0 object-cover transition-transform duration-300 group-hover:scale-[1.02]"
               [class.row-span-2]="index === 0 || images().length < 3"
               [class.col-span-2]="images().length === 1"
               (error)="imageFailed(src)"
@@ -23,6 +31,12 @@
           Kein Artikelbild
         </div>
       }
+      <div
+        class="absolute bottom-2 right-2 flex items-center gap-1.5 rounded-md bg-black/65 px-2 py-1 text-xs text-white opacity-0 backdrop-blur-xs transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100"
+      >
+        <svg [lucideIcon]="icons.eye" class="h-3.5 w-3.5" aria-hidden="true"></svg>
+        <span>Großansicht</span>
+      </div>
       @if (featured()) {
         <div class="absolute left-3 top-3">
           <app-badge tone="neutral">Zuletzt entdeckt</app-badge>
@@ -121,18 +135,40 @@
         ></svg>
         <span>Entdeckt {{ item().first_seen_at | date: 'dd.MM. · HH:mm:ss' }}</span>
       </p>
-      @if (link(); as href) {
-        <app-button
-          class="mt-1"
-          [href]="href"
-          target="_blank"
-          [fullWidth]="true"
-          [icon]="icons.external"
-          iconPosition="end"
-          [ariaLabel]="item().title + ' – auf Vinted ansehen (neuer Tab)'"
-          >Auf Vinted ansehen</app-button
+      <div class="mt-1 flex items-center gap-2">
+        @if (link(); as href) {
+          <app-button
+            class="min-w-0 flex-1"
+            [href]="href"
+            target="_blank"
+            [fullWidth]="true"
+            [icon]="icons.external"
+            iconPosition="end"
+            [ariaLabel]="item().title + ' – auf Vinted ansehen (neuer Tab)'"
+            >Auf Vinted ansehen</app-button
+          >
+        }
+        <button
+          type="button"
+          (click)="toggleFavorite($event)"
+          [class]="
+            isFavorite()
+              ? 'border-rose-300 bg-rose-50 text-rose-600 hover:bg-rose-100 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-400 dark:hover:bg-rose-900/50'
+              : 'border-fb-border bg-fb-surface text-fb-text-secondary hover:bg-fb-surface-hover hover:text-fb-text-primary'
+          "
+          class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
+          [attr.aria-label]="isFavorite() ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'"
+          [title]="isFavorite() ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'"
         >
-      }
+          <svg
+            [lucideIcon]="icons.heart"
+            class="h-4 w-4 transition-transform active:scale-125"
+            [class.fill-rose-500]="isFavorite()"
+            [class.text-rose-500]="isFavorite()"
+            aria-hidden="true"
+          ></svg>
+        </button>
+      </div>
     </div>
   </article>
 </app-card>
