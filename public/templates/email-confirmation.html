@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bestätige deine E-Mail-Adresse für Flipbase</title>
+  </head>
+  <body
+    style="
+      margin: 0;
+      padding: 0;
+      background-color: #f4f5f7;
+      font-family:
+        -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      color: #334155;
+      -webkit-font-smoothing: antialiased;
+    "
+  >
+    <table
+      role="presentation"
+      width="100%"
+      cellspacing="0"
+      cellpadding="0"
+      border="0"
+      style="background-color: #f4f5f7; padding: 40px 16px"
+    >
+      <tr>
+        <td align="center">
+          <table
+            role="presentation"
+            width="100%"
+            cellspacing="0"
+            cellpadding="0"
+            border="0"
+            style="
+              max-width: 520px;
+              background-color: #ffffff;
+              border: 1px solid #e2e8f0;
+              border-radius: 16px;
+              box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+              overflow: hidden;
+            "
+          >
+            <!-- Header mit Logo & Brand -->
+            <tr>
+              <td
+                style="
+                  padding: 32px 36px 20px 36px;
+                  text-align: center;
+                  border-bottom: 1px solid #f1f5f9;
+                "
+              >
+                <div
+                  style="
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 10px;
+                  "
+                >
+                  <img
+                    src="https://app.flipbase.de/images/logo-mark.png"
+                    width="36"
+                    height="36"
+                    alt="Flipbase"
+                    style="display: inline-block; vertical-align: middle; border-radius: 8px"
+                  />
+                  <span
+                    style="
+                      display: inline-block;
+                      vertical-align: middle;
+                      font-size: 22px;
+                      font-weight: 800;
+                      color: #0f172a;
+                      letter-spacing: -0.5px;
+                      margin-left: 8px;
+                    "
+                  >
+                    Flipbase
+                  </span>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Content Body -->
+            <tr>
+              <td style="padding: 32px 36px 24px 36px">
+                <h1
+                  style="
+                    margin: 0 0 16px 0;
+                    font-size: 20px;
+                    font-weight: 700;
+                    color: #0f172a;
+                    line-height: 1.3;
+                    text-align: center;
+                  "
+                >
+                  Willkommen bei Flipbase!
+                </h1>
+
+                <p
+                  style="
+                    margin: 0 0 20px 0;
+                    font-size: 15px;
+                    line-height: 24px;
+                    color: #475569;
+                    text-align: center;
+                  "
+                >
+                  Vielen Dank für deine Registrierung. Bitte bestätige kurz deine E-Mail-Adresse, um
+                  dein Konto zu aktivieren und direkt im Flipbase Dashboard loszulegen.
+                </p>
+
+                <!-- CTA Button -->
+                <table
+                  role="presentation"
+                  cellspacing="0"
+                  cellpadding="0"
+                  border="0"
+                  style="margin: 28px auto 28px auto"
+                >
+                  <tr>
+                    <td align="center" style="border-radius: 12px; background-color: #fcc601">
+                      <a
+                        href="{{ .ConfirmationURL }}"
+                        target="_blank"
+                        style="
+                          display: inline-block;
+                          background-color: #fcc601;
+                          color: #111827;
+                          font-size: 15px;
+                          font-weight: 700;
+                          text-decoration: none;
+                          padding: 14px 32px;
+                          border-radius: 12px;
+                          border: 1px solid #eab308;
+                        "
+                      >
+                        E-Mail-Adresse bestätigen
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+
+                <!-- Fallback Link -->
+                <p
+                  style="
+                    margin: 28px 0 0 0;
+                    padding-top: 20px;
+                    border-top: 1px solid #f1f5f9;
+                    font-size: 12px;
+                    line-height: 18px;
+                    color: #94a3b8;
+                    text-align: center;
+                  "
+                >
+                  Falls der Button oben nicht funktioniert, kopiere bitte diesen Link in deinen
+                  Browser:
+                  <br />
+                  <a
+                    href="{{ .ConfirmationURL }}"
+                    style="color: #64748b; text-decoration: underline; word-break: break-all"
+                  >
+                    {{ .ConfirmationURL }}
+                  </a>
+                </p>
+              </td>
+            </tr>
+
+            <!-- Footer -->
+            <tr>
+              <td
+                style="
+                  padding: 20px 36px 28px 36px;
+                  background-color: #f8fafc;
+                  border-top: 1px solid #f1f5f9;
+                  text-align: center;
+                  font-size: 12px;
+                  line-height: 18px;
+                  color: #94a3b8;
+                "
+              >
+                <p style="margin: 0 0 6px 0">
+                  Du hast dieses Konto nicht angefordert? Dann kannst du diese E-Mail einfach
+                  ignorieren.
+                </p>
+                <p style="margin: 0; color: #cbd5e1">
+                  © Flipbase · All-in-One Betriebssystem für Reseller ·
+                  <a
+                    href="https://flipbase.de"
+                    target="_blank"
+                    style="color: #94a3b8; text-decoration: none"
+                  >
+                    flipbase.de
+                  </a>
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

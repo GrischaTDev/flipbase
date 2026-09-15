@@ -1156,6 +1156,40 @@ html:not(.dark) select.linear-input {
   transform-origin: top right;
 }
 
+@keyframes checkmarkPop {
+  0% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-checkmark-pop {
+  animation: checkmarkPop 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes checkmarkStroke {
+  0% {
+    stroke-dashoffset: 48;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.animate-checkmark-stroke {
+  stroke-dasharray: 48;
+  stroke-dashoffset: 48;
+  animation: checkmarkStroke 0.4s 0.2s ease-out forwards;
+}
+
 /* Systemeinstellung "Bewegung reduzieren" respektieren (WCAG 2.3.3).
    Relevant fuer Menschen mit vestibulaeren Beschwerden. */
 @media (prefers-reduced-motion: reduce) {

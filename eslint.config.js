@@ -81,11 +81,9 @@ module.exports = tseslint.config(
   },
   {
     files: ['**/*.html'],
-    // Die Marketing-Seite ist kein Angular Template, sondern Caddy-Go-Template
-    // mit {{ }} Syntax. Der Angular Parser kann diese nicht lesen. Bewusst auf
-    // diese eine Datei beschraenkt, damit weitere Seiten im Ordner ihre
-    // Accessibility-Pruefung behalten.
-    ignores: ['landing/index.html'],
+    // Die Marketing-Seite und E-Mail-Vorlagen sind keine Angular Templates, sondern
+    // Go-Templates mit {{ }} Syntax. Der Angular Parser kann diese nicht lesen.
+    ignores: ['landing/index.html', '**/templates/*.html'],
     extends: [...angular.configs.templateRecommended, ...angular.configs.templateAccessibility],
     rules: {},
   },

@@ -1,5 +1,25 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-15 – Antigravity – Registrierungs-Erfolgsansicht mit Checkmark-Animation & deutsches E-Mail-Template
+
+**Auftrag:** Nach erfolgreicher Registrierung eine animierte Erfolgsansicht mit grünem Haken, Hinweis zur Bestätigungs-E-Mail und „Jetzt anmelden“-Button anzeigen. Passendes, deutsches E-Mail-Design ohne verwirrenden Code-Hinweis erstellen und in Supabase GoTrue einbinden.
+
+**Befund:**
+
+1. Bisher blendete die Registrierung bei Erfolg nur eine kleine grüne Box ein und leitete nach 1,2 Sekunden auf `/dashboard` weiter, was bei aktiver E-Mail-Bestätigung zu einem AuthGuard-Redirect auf `/auth/login` führte.
+2. Das Standard-Mail-Template von Supabase Auth GoTrue enthielt englische Standardtexte und einen 6-stelligen Token-Code, für den im Frontend gar kein Eingabefeld existiert.
+3. GoTrue unterstützt HTML-E-Mail-Templates über `GOTRUE_MAILER_TEMPLATES_CONFIRMATION` und konfigurierbare Betreffzeilen (`GOTRUE_MAILER_SUBJECTS_CONFIRMATION`).
+
+**Änderung:**
+
+1. `translations.ts`: Neue Übersetzungsschlüssel für den Registrierungserfolg auf Deutsch und Englisch hinzugefügt (`REGISTER_SUCCESS_TITLE`, `REGISTER_SUCCESS_TEXT`, `REGISTER_SUCCESS_INSTRUCTION`, `REGISTER_CHECK_SPAM`, `GO_TO_LOGIN`).
+2. `styles.css`: CSS-Keyframes `@keyframes checkmarkPop` und `@keyframes checkmarkStroke` für flüssig einzeichnende Haken-Animationen ergänzt (inklusive `prefers-reduced-motion`-Unterstützung).
+3. `register.component.ts` & `.html`: Zustand `isRegistered` und `registeredEmail` eingeführt. Nach erfolgreichem `signUp()` wird statt des Formulars eine zentrierte Bestätigungskarte mit animiertem grünen Checkmark, der Empfänger-E-Mail-Adresse, Hinweisen zum Postfach/Spamordner und einem prominenten Button „Jetzt anmelden“ angezeigt.
+4. `public/templates/email-confirmation.html` & `landing/templates/email-confirmation.html`: Responsives deutsches HTML-E-Mail-Template im Flipbase-Markendesign (Logo, Markenfarben `#fcc601`, Schaltfläche zur Bestätigung, Fallback-Link, ohne OTP-Code) erstellt.
+5. Server (`/opt/supabase/docker-compose.yml` & `.env`): `GOTRUE_MAILER_TEMPLATES_CONFIRMATION` auf die Landing-Template-URL und Betreffzeile auf „Bestätige deine E-Mail-Adresse für Flipbase“ gesetzt, `supabase-auth` aktualisiert.
+
+**Prüfung:** Prettier, ESLint und Angular-Bau erfolgreich durchgelaufen; Template-Auslieferung via Caddy verifiziert (HTTP 200).
+
 ## 2026-09-15 – Antigravity – Auth Header-Zentrierung, Registrierungs-Layout & SMTP-Timeout behoben
 
 **Auftrag:** Registrierungs-Timeout („Processing this request timed out, please retry after a moment“) untersuchen und beheben. Header in Login und Registrierung einheitlich mittig mit Logo und Text nebeneinander ausrichten, Tagline in Registrierung entfernen, Card- und Label-Styling vereinheitlichen.
