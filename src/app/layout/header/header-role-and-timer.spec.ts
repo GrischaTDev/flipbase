@@ -13,26 +13,9 @@ function member(
 }
 
 describe('Kopfzeile – Rollenanzeige', () => {
-  it('zeigt den Rollen-Badge nur für echte Administratoren', () => {
-    expect(visibleHeaderRole('admin')).toBe('admin');
-    expect(visibleHeaderRole('owner')).toBeNull();
-    expect(visibleHeaderRole('member')).toBeNull();
-    expect(visibleHeaderRole(null)).toBeNull();
-    expect(
-      visibleHeaderRole(
-        resolveCurrentUserRole(
-          [member('admin@flipbase.de', 'admin')],
-          null,
-          'ADMIN@FLIPBASE.DE',
-          false,
-        ),
-      ),
-    ).toBe('admin');
-  });
-
-  it('zeigt den Badge auch für einen Plattform-Administrator ohne Workspace-Adminrolle', () => {
-    expect(visibleHeaderRole(null, true)).toBe('admin');
-    expect(visibleHeaderRole('owner', true)).toBe('admin');
+  it('zeigt den Badge ausschließlich für Plattform-Administratoren', () => {
+    expect(visibleHeaderRole(false)).toBeNull();
+    expect(visibleHeaderRole(true)).toBe('admin');
   });
 
   it('übernimmt bei einem unbekannten angemeldeten Konto nicht fälschlich die Inhaberrolle', () => {

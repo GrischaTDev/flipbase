@@ -31,24 +31,20 @@ import {
 } from '@lucide/angular';
 import { AuthService } from '../../core/services/auth.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
-import { WorkspaceMemberService } from '../../core/services/workspace-member.service';
 import { WebhookService } from '../../core/services/webhook.service';
 import { ConfirmDialogService } from '../../shared/components/confirm-dialog/confirm-dialog.service';
 import { AppNotification } from '../../core/models/webhook.models';
 import { ThemeService } from '../../core/services/theme.service';
 import { PwaService } from '../../core/services/pwa.service';
-import { Workspace, WorkspaceRole } from '../../core/models/flipbase.models';
+import { Workspace } from '../../core/models/flipbase.models';
 import { DatePipe } from '@angular/common';
 import { ToastService } from '../../shared/components/toast/toast.service';
 import { SyncStatusService } from '../../core/services/sync-status.service';
 import { PlatformOperatorService } from '../../core/services/platform-operator.service';
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
 
-export function visibleHeaderRole(
-  role: WorkspaceRole | null,
-  isPlatformOperator = false,
-): 'admin' | null {
-  return role === 'admin' || isPlatformOperator ? 'admin' : null;
+export function visibleHeaderRole(isPlatformOperator: boolean): 'admin' | null {
+  return isPlatformOperator ? 'admin' : null;
 }
 
 @Component({
@@ -73,7 +69,6 @@ export class HeaderComponent {
   readonly isSidebarOpen = input<boolean>(false);
   readonly auth = inject(AuthService);
   readonly workspaceService = inject(WorkspaceService);
-  readonly memberService = inject(WorkspaceMemberService);
   readonly webhookService = inject(WebhookService);
   private readonly dialog = inject(ConfirmDialogService);
   readonly themeService = inject(ThemeService);
@@ -95,9 +90,7 @@ export class HeaderComponent {
   readonly notificationContainer = viewChild<ElementRef<HTMLElement>>('notificationContainer');
   readonly userContainer = viewChild<ElementRef<HTMLElement>>('userContainer');
 
-  readonly headerAdminRole = computed(() =>
-    visibleHeaderRole(this.memberService.currentUserRole(), this.operatorService.operator()),
-  );
+  readonly headerAdminRole = computed(() => visibleHeaderRole(this.operatorService.operator()));
 
   // Icons
   readonly LayersIcon = Layers;
@@ -119,8 +112,8 @@ export class HeaderComponent {
 
   constructor() {
     // Der Header verwendet dieselbe Datenbankprüfung wie der Admin-Wächter.
-    // So bleibt der Badge auch sichtbar, wenn der Nutzer keine Workspace-Adminrolle,
-    // aber Plattformzugriff auf /admin besitzt.
+    // Workspace-Rollen allein verleihen keinen Zugriff auf /admin und zeigen
+    // deshalb auch keinen Plattform-Admin-Badge.
     void this.operatorService.isOperator();
   }
 

@@ -1,12 +1,22 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-15 – Codex – Admin-Badge exakt an den Plattformzugriff gekoppelt
+
+**Auftrag:** Das Ergebnis des Code-Reviews vor dem Merge einarbeiten, damit der Header exakt dieselbe Berechtigung wie der Administrationsbereich abbildet.
+
+**Befund:** Eine Workspace-Adminrolle allein öffnet `/admin` nicht, konnte aber weiterhin den roten Plattform-Admin-Badge anzeigen. Außerdem konnte eine verspätete RPC-Antwort eines vorherigen Kontos das Operator-Signal überschreiben.
+
+**Änderung:** Der Badge hängt jetzt ausschließlich am `PlatformOperatorService`-Signal. Das Signal wird beim Start einer neuen Nutzerprüfung zunächst gesperrt und verspätete Antworten werden nur noch für die zugehörige Nutzerkennung übernommen.
+
+**Prüfung:** Die Header- und Platform-Operator-Tests laufen mit 11 Tests grün.
+
 ## 2026-09-15 – Codex – Plattform-Admin-Badge an den tatsächlichen Zugriff gebunden
 
 **Auftrag:** Den fehlenden Admin-Hinweis für einen Account beheben, der den Plattform-Administrationsbereich öffnen darf.
 
 **Befund:** Der Header leitete den Badge ausschließlich aus der Workspace-Mitgliedsrolle ab. Der Zugriff auf `/admin` wird jedoch über `is_platform_operator()` geprüft. Beides kann bei einem Plattform-Administrator auseinanderfallen.
 
-**Änderung:** Der Header nutzt jetzt das gemeinsame `PlatformOperatorService`-Signal des Admin-Wächters und zeigt den roten `Admin`-Badge bei Plattformzugriff; eine Workspace-Adminrolle bleibt ebenfalls sichtbar. Ein Regressionstest deckt einen Plattform-Administrator ohne Workspace-Adminrolle ab.
+**Änderung:** Der Header nutzt jetzt das gemeinsame `PlatformOperatorService`-Signal des Admin-Wächters und zeigt den roten `Admin`-Badge ausschließlich bei Plattformzugriff. Ein Regressionstest deckt einen Plattform-Administrator ohne Workspace-Adminrolle ab.
 
 **Prüfung:** Der neue Regressionstest läuft grün; die bereits geprüfte Rollen-, Bot-, Typ-, Lint- und Bauprüfung bleibt auf dem Arbeitszweig bestehen.
 

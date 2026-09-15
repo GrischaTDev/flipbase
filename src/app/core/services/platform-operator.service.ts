@@ -43,7 +43,8 @@ export class PlatformOperatorService {
       return this.check;
     }
 
-    this.check = this.query();
+    this.operator.set(false);
+    this.check = this.query(userId);
     return this.check;
   }
 
@@ -52,11 +53,11 @@ export class PlatformOperatorService {
     return data.session?.user.id ?? null;
   }
 
-  private async query(): Promise<boolean> {
+  private async query(userId: string): Promise<boolean> {
     try {
       const { data, error } = await this.supabase.client.rpc('is_platform_operator');
       const isOperator = !error && data === true;
-      this.operator.set(isOperator);
+      if (this.checkedFor === userId) this.operator.set(isOperator);
       return isOperator;
     } catch {
       // Eine abgelehnte Promise statt eines error-Objekts wuerde sonst
@@ -66,7 +67,7 @@ export class PlatformOperatorService {
       // Zwischenspeicher hier zurueckgesetzt, damit der naechste Aufruf neu
       // fragt.
       this.check = null;
-      this.operator.set(false);
+      if (this.checkedFor === userId) this.operator.set(false);
       return false;
     }
   }
