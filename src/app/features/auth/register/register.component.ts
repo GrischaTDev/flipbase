@@ -96,6 +96,8 @@ export class RegisterComponent {
   readonly isLoading = signal<boolean>(false);
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
+  readonly isRegistered = signal<boolean>(false);
+  readonly registeredEmail = signal<string>('');
 
   readonly showPassword = signal<boolean>(false);
   readonly showConfirmPassword = signal<boolean>(false);
@@ -217,10 +219,8 @@ export class RegisterComponent {
     if (error) {
       this.errorMessage.set(error.message);
     } else {
-      this.successMessage.set(this.translate.instant('AUTH.SUCCESS_REGISTER'));
-      setTimeout(() => {
-        this.router.navigate(['/dashboard']);
-      }, 1200);
+      this.registeredEmail.set(email);
+      this.isRegistered.set(true);
     }
   }
 }
