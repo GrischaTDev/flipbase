@@ -1,5 +1,49 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-16 – Antigravity – PR #92 Konfliktbereinigung & Integration mit Master
+
+**Auftrag:** PR #92 (`codex/bot-vinted-uptime`) prüfen und abschließen, nachdem Codex sein Limit erreichte und Luna den PR wegen Merge-Konflikten mit Master nicht abschließen konnte.
+
+**Befund:** Durch die zwischenzeitlich gemergten PRs #90 und #91 auf `master` gab es Merge-Konflikte in `index.ts`, `collector.ts` und `AI-CHANGELOG.md`. Nach dem Zusammenführen schlug die Typprüfung im Sniper-Test `vinted-connection-state.spec.ts` fehl, da `SniperQuery` durch PR #90 um neue Pflichtfelder (`runState`, `nextAttemptAt`, etc.) erweitert worden war.
+
+**Änderung:**
+
+1. `services/sniper/test/runtime/vinted-connection-state.spec.ts`: Test-Fixture `query` um die fehlenden Felder aus dem aktualisierten `SniperQuery`-Interface ergänzt.
+2. `docs/AI-CHANGELOG.md`: Zusammenführung formatiert und protokolliert.
+3. Merge von `origin/master` in `codex/bot-vinted-uptime` abgeschlossen.
+
+**Prüfung:** Sniper Typprüfung, Vitest (24/24 Testdateien, 179 Tests), Sniper-Build, Angular Typprüfung, Angular Vitest-Tests (94/94 Testdateien, 835 Tests), Workflow-Tests (66/66 Tests), ESLint, Prettier und Angular-Produktionsbau erfolgreich bestanden.
+
+## 2026-09-15 – Codex – Admin-Badge exakt an den Plattformzugriff gekoppelt
+
+**Auftrag:** Das Ergebnis des Code-Reviews vor dem Merge einarbeiten, damit der Header exakt dieselbe Berechtigung wie der Administrationsbereich abbildet.
+
+**Befund:** Eine Workspace-Adminrolle allein öffnet `/admin` nicht, konnte aber weiterhin den roten Plattform-Admin-Badge anzeigen. Außerdem konnte eine verspätete RPC-Antwort eines vorherigen Kontos das Operator-Signal überschreiben.
+
+**Änderung:** Der Badge hängt jetzt ausschließlich am `PlatformOperatorService`-Signal. Das Signal wird beim Start einer neuen Nutzerprüfung zunächst gesperrt und verspätete Antworten werden nur noch für die zugehörige Nutzerkennung übernommen.
+
+**Prüfung:** Die Header- und Platform-Operator-Tests laufen mit 11 Tests grün.
+
+## 2026-09-15 – Codex – Plattform-Admin-Badge an den tatsächlichen Zugriff gebunden
+
+**Auftrag:** Den fehlenden Admin-Hinweis für einen Account beheben, der den Plattform-Administrationsbereich öffnen darf.
+
+**Befund:** Der Header leitete den Badge ausschließlich aus der Workspace-Mitgliedsrolle ab. Der Zugriff auf `/admin` wird jedoch über `is_platform_operator()` geprüft. Beides kann bei einem Plattform-Administrator auseinanderfallen.
+
+**Änderung:** Der Header nutzt jetzt das gemeinsame `PlatformOperatorService`-Signal des Admin-Wächters und zeigt den roten `Admin`-Badge ausschließlich bei Plattformzugriff. Ein Regressionstest deckt einen Plattform-Administrator ohne Workspace-Adminrolle ab.
+
+**Prüfung:** Der neue Regressionstest läuft grün; die bereits geprüfte Rollen-, Bot-, Typ-, Lint- und Bauprüfung bleibt auf dem Arbeitszweig bestehen.
+
+## 2026-09-15 – Codex – Vinted-Laufzeit als serverseitigen Botstatus umgesetzt
+
+**Auftrag:** Den zurückgesetzten Browser-/Sitzungstimer entfernen und im Admin-Panel unter Botbetrieb die ununterbrochene Laufzeit seit der letzten bestätigten Vinted-Verbindung anzeigen.
+
+**Befund:** Der bisherige Zähler startete bei jedem Laden der Angular-Anwendung neu und konnte deshalb keine Botlaufzeit abbilden. Der Sniper meldete bislang nur einen aktuellen Datenbank-Heartbeat.
+
+**Änderung:** Der Sniper führt jetzt den aktuellen Abschnitt erfolgreicher Vinted-Operationen im Speicher und schreibt Startzeit sowie letzten Erfolg in `sniper_runtime_status`. Ein endgültig fehlgeschlagener Katalog- oder Kategorieabruf setzt den Abschnitt zurück. Das Admin-Panel liest diese Zeitpunkte aus Supabase und zählt sie lokal sichtbar weiter, solange der serverseitige Heartbeat frisch ist. Der irreführende Timer im Header wurde entfernt.
+
+**Prüfung:** Sniper-Tests (20 Dateien, 132 Tests), gezielte Angular-Tests, Typprüfung, ESLint und Angular-Produktionsbau erfolgreich. Der lokale Supabase-Typgenerator und DB-Test konnten wegen nicht laufendem Docker nicht ausgeführt werden.
+
 ## 2026-09-15 – Antigravity – Sniper Stabilität AP3.2: Deal-Erkennung aus gemeinsamem Datenbestand entkoppeln
 
 **Auftrag:** Umsetzung von Arbeitspaket 3.2: Deal-Erkennung aus dem gemeinsamen Datenbestand entkoppeln gemäß Update- und Umsetzungsplan.

@@ -9,9 +9,11 @@ create table public.sniper_runtime_status (
     requests_last_minute integer not null check (requests_last_minute >= 0),
     rejected_last_minute integer not null check (rejected_last_minute >= 0),
     request_budget integer not null check (request_budget > 0),
-    last_cycle_error text
+    last_cycle_error text,
+    vinted_connected_since timestamptz,
+    vinted_last_success_at timestamptz
 );
-comment on table public.sniper_runtime_status is 'Letzte Betriebsmeldung des einzigen Sammlers; fehlende oder alte Meldung ist kein gesunder Betrieb.';
+comment on table public.sniper_runtime_status is 'Letzte Betriebsmeldung des einzigen Sammlers mit dem aktuellen Abschnitt erfolgreicher Vinted-Abfragen; fehlende oder alte Meldung ist kein gesunder Betrieb.';
 alter table public.sniper_runtime_status enable row level security;
 revoke all on public.sniper_runtime_status from public, anon, authenticated;
 grant select on public.sniper_runtime_status to authenticated;

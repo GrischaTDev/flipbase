@@ -46,6 +46,39 @@
           Eine Betriebsmeldung bestätigt den Kontakt zur Datenbank. Erfolgreiche Vinted-Abfragen
           stehen separat an den Aufträgen.
         </p>
+        @let uptimeSeconds = state.vintedUptimeSeconds();
+        <div class="flex flex-wrap items-end justify-between gap-4 border-t border-fb-border pt-3">
+          <div>
+            <p id="vinted-uptime-label" class="text-xs font-medium text-fb-text-muted">
+              Ununterbrochene Vinted-Laufzeit
+            </p>
+            @if (uptimeSeconds !== null) {
+              <p
+                class="mt-1 font-mono text-2xl font-semibold tabular-nums text-fb-text-primary"
+                role="timer"
+                aria-labelledby="vinted-uptime-label"
+              >
+                {{ formatBotUptime(uptimeSeconds) }}
+              </p>
+              @if (state.runtime()?.vinted_connected_since; as connectedSince) {
+                <p class="text-xs text-fb-text-muted">
+                  Seit
+                  <time [attr.datetime]="connectedSince">
+                    {{ connectedSince | date: 'dd.MM.yyyy, HH:mm:ss' }}
+                  </time>
+                </p>
+              }
+            } @else {
+              <p class="mt-1 text-lg font-semibold text-fb-text-secondary">Nicht bestätigt</p>
+              <p class="text-xs text-fb-text-muted">
+                Eine erfolgreiche Vinted-Abfrage steht noch aus oder wurde unterbrochen.
+              </p>
+            }
+          </div>
+          <app-badge [tone]="uptimeSeconds !== null ? 'success' : 'caution'">
+            {{ uptimeSeconds !== null ? 'Vinted verbunden' : 'Vinted nicht bestätigt' }}
+          </app-badge>
+        </div>
       </div>
     </app-card>
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

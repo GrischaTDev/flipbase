@@ -16,6 +16,8 @@ describe('SniperAdminState', () => {
       rejected_last_minute: 1,
       request_budget: 30,
       last_cycle_error: null,
+      vinted_connected_since: '2026-09-12T15:00:00.000Z',
+      vinted_last_success_at: '2026-09-12T15:59:00.000Z',
     });
     api.counts.mockReset().mockResolvedValue({});
     TestBed.configureTestingModule({
@@ -39,6 +41,34 @@ describe('SniperAdminState', () => {
     expect(state.error()).toBeNull();
     await vi.advanceTimersByTimeAsync(110_000);
     expect(state.stale()).toBe(true);
+    expect(state.vintedUptimeSeconds()).toBeNull();
+  });
+
+  it('counts the server-reported Vinted connection uptime independently of page navigation', async () => {
+    const state = TestBed.inject(SniperAdminState);
+    await state.refresh();
+
+    expect(state.vintedUptimeSeconds()).toBe(3600);
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(state.vintedUptimeSeconds()).toBe(3605);
+  });
+
+  it('does not show a runtime when the bot has no current Vinted connection', async () => {
+    api.runtime.mockResolvedValue({
+      id: 1,
+      reported_at: new Date().toISOString(),
+      requests_last_minute: 0,
+      rejected_last_minute: 0,
+      request_budget: 30,
+      last_cycle_error: null,
+      vinted_connected_since: null,
+      vinted_last_success_at: null,
+    });
+    const state = TestBed.inject(SniperAdminState);
+
+    await state.refresh();
+
+    expect(state.vintedUptimeSeconds()).toBeNull();
   });
 
   it('does not overlap slow reads and fetches again after a mutation', async () => {

@@ -70,6 +70,40 @@ describe('PlatformOperatorService', () => {
     expect(rpc).toHaveBeenCalledTimes(2);
   });
 
+  it('laesst eine verspaetete Antwort des vorherigen Nutzers nicht den Badge setzen', async () => {
+    let resolveFirst!: (value: { data: boolean; error: null }) => void;
+    const rpc = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveFirst = resolve;
+          }),
+      )
+      .mockResolvedValueOnce({ data: false, error: null });
+    const getSession = vi
+      .fn()
+      .mockResolvedValueOnce({ data: { session: { user: { id: 'u1' } } } })
+      .mockResolvedValueOnce({ data: { session: { user: { id: 'u2' } } } });
+    TestBed.configureTestingModule({
+      providers: [
+        {
+          provide: SupabaseService,
+          useValue: { client: { rpc, auth: { getSession } } },
+        },
+      ],
+    });
+    const service = TestBed.inject(PlatformOperatorService);
+
+    const firstCheck = service.isOperator();
+    await Promise.resolve();
+    await expect(service.isOperator()).resolves.toBe(false);
+    resolveFirst({ data: true, error: null });
+
+    await expect(firstCheck).resolves.toBe(true);
+    expect(service.operator()).toBe(false);
+  });
+
   it('liefert false ohne Sitzung, ohne die Datenbank zu fragen', async () => {
     const { service, rpc } = serviceWith({ data: true, error: null }, null);
 

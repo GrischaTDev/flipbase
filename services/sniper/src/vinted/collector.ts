@@ -12,6 +12,7 @@ import {
   VintedServerError,
 } from './errors.js';
 import { normalizeVintedItem } from './normalizer.js';
+import type { VintedConnectionState } from '../runtime/vinted-connection-state.js';
 import { sleep, type FetchLike, type SessionOptions, type Sleep } from './session.js';
 
 const CATALOG_PATH = '/catalog';
@@ -25,6 +26,7 @@ export class VintedCollector {
     private readonly options: SessionOptions,
     private readonly fetchFn: FetchLike = fetch,
     private readonly sleepFn: Sleep = sleep,
+    private readonly connectionState?: VintedConnectionState,
   ) {}
 
   async collect(query: SniperQuery): Promise<MarketplaceListing[]> {
@@ -38,33 +40,42 @@ export class VintedCollector {
     if (query.priceTo !== null) url.searchParams.set('price_to', String(query.priceTo));
     if (query.priceFrom !== null) url.searchParams.set('price_from', String(query.priceFrom));
 
-    const response = await this.request(url, query.id);
-    const body = await response.text();
-
-    // Challenge-Erkennung: Cloudflare oder Datadome kann bei HTTP 200 eine Challenge-Seite ausliefern
-    if (
-      response.headers.get('cf-mitigated') === 'challenge' ||
-      body.includes('challenge-running') ||
-      body.includes('<title>Just a moment...</title>')
-    ) {
-      this.cookies.clear();
-      throw new ForbiddenError('Vinted access challenge detected', {
-        status: response.status,
-        phase: 'body',
-        queryId: query.id,
-        responseSample: body.slice(0, 300),
-      });
-    }
-
     try {
-      return parseVintedCatalogPage(body, this.options.baseUrl).map(normalizeVintedItem);
+      const response = await this.request(url, query.id);
+      const body = await response.text();
+
+      // Challenge-Erkennung: Cloudflare oder Datadome kann bei HTTP 200 eine Challenge-Seite ausliefern
+      if (
+        response.headers.get('cf-mitigated') === 'challenge' ||
+        body.includes('challenge-running') ||
+        body.includes('<title>Just a moment...</title>')
+      ) {
+        this.cookies.clear();
+        throw new ForbiddenError('Vinted access challenge detected', {
+          status: response.status,
+          phase: 'body',
+          queryId: query.id,
+          responseSample: body.slice(0, 300),
+        });
+      }
+
+      let listings: MarketplaceListing[];
+      try {
+        listings = parseVintedCatalogPage(body, this.options.baseUrl).map(normalizeVintedItem);
+      } catch (error) {
+        if (error instanceof VintedCollectorError) throw error;
+        throw new VintedParserError(error instanceof Error ? error.message : String(error), {
+          phase: 'parse',
+          queryId: query.id,
+          responseSample: body.slice(0, 300),
+        });
+      }
+
+      this.connectionState?.recordSuccess();
+      return listings;
     } catch (error) {
-      if (error instanceof VintedCollectorError) throw error;
-      throw new VintedParserError(error instanceof Error ? error.message : String(error), {
-        phase: 'parse',
-        queryId: query.id,
-        responseSample: body.slice(0, 300),
-      });
+      this.connectionState?.recordFailure();
+      throw error;
     }
   }
 

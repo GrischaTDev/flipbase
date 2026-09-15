@@ -6,7 +6,17 @@ insert into auth.users (id, email) values
  ('a0000000-0000-4000-8000-000000000001', 'sniper-admin@example.test'),
  ('a0000000-0000-4000-8000-000000000002', 'sniper-member@example.test');
 insert into public.platform_operators (user_id) values ('a0000000-0000-4000-8000-000000000001');
-insert into public.sniper_runtime_status values (1, now(), 3, 1, 30, null);
+insert into public.sniper_runtime_status (
+    id,
+    reported_at,
+    requests_last_minute,
+    rejected_last_minute,
+    request_budget,
+    last_cycle_error,
+    vinted_connected_since,
+    vinted_last_success_at
+)
+values (1, now(), 3, 1, 30, null, now() - interval '1 minute', now() - interval '10 seconds');
 
 set local role anon;
 select throws_ok('select public.set_sniper_query_active(null, true)', '42501', null, 'anon darf keine Auftraege schalten');
@@ -43,6 +53,8 @@ select is((select notes from public.sniper_queries where brand_id = 53), 'Neue N
 select throws_ok($$select public.upsert_sniper_query((select id from public.sniper_queries where brand_id = 53), 'Andere Marke', 14, 60000, null)$$, 'P0001', 'Nur reine Markenfilter koennen bearbeitet werden', 'Marke eines vorhandenen Filters bleibt fest');
 select throws_ok($$update public.sniper_queries set is_active = false$$, '42501', null, 'Direktes Schreiben bleibt auch der Administration verboten');
 select is((select count(*) from public.sniper_runtime_status), 1::bigint, 'Administration sieht echte Betriebsmeldung');
+select ok((select vinted_connected_since is not null and vinted_last_success_at is not null
+           from public.sniper_runtime_status), 'Betriebsmeldung enthaelt die Vinted-Laufzeitdaten');
 select lives_ok($$select public.set_sniper_query_active((select id from public.sniper_queries where brand_id = 53), false)$$, 'Administration kann pausieren');
 select is((select is_active from public.sniper_queries where brand_id = 53), false, 'Markenfilter ist wieder pausiert');
 reset role;

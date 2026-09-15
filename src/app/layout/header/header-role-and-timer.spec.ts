@@ -2,7 +2,7 @@ import '@angular/compiler';
 import { describe, expect, it } from 'vitest';
 import { WorkspaceMember, WorkspaceRole } from '../../core/models/flipbase.models';
 import { resolveCurrentUserRole } from '../../core/services/workspace-member.service';
-import { formatSiteOnlineDuration, visibleHeaderRole } from './header.component';
+import { visibleHeaderRole } from './header.component';
 
 function member(
   email: string,
@@ -12,22 +12,10 @@ function member(
   return userId ? { email, role, user_id: userId } : { email, role };
 }
 
-describe('Kopfzeile – Rolle und Sitzungszeit', () => {
-  it('zeigt den Rollen-Badge nur für echte Administratoren', () => {
-    expect(visibleHeaderRole('admin')).toBe('admin');
-    expect(visibleHeaderRole('owner')).toBeNull();
-    expect(visibleHeaderRole('member')).toBeNull();
-    expect(visibleHeaderRole(null)).toBeNull();
-    expect(
-      visibleHeaderRole(
-        resolveCurrentUserRole(
-          [member('admin@flipbase.de', 'admin')],
-          null,
-          'ADMIN@FLIPBASE.DE',
-          false,
-        ),
-      ),
-    ).toBe('admin');
+describe('Kopfzeile – Rollenanzeige', () => {
+  it('zeigt den Badge ausschließlich für Plattform-Administratoren', () => {
+    expect(visibleHeaderRole(false)).toBeNull();
+    expect(visibleHeaderRole(true)).toBe('admin');
   });
 
   it('übernimmt bei einem unbekannten angemeldeten Konto nicht fälschlich die Inhaberrolle', () => {
@@ -49,12 +37,5 @@ describe('Kopfzeile – Rolle und Sitzungszeit', () => {
     expect(resolveCurrentUserRole([member('', 'admin', 'user-42')], 'user-42', null, false)).toBe(
       'admin',
     );
-  });
-
-  it('formatiert die Dauer der aktuellen App-Sitzung als Stunden, Minuten und Sekunden', () => {
-    expect(formatSiteOnlineDuration(0)).toBe('00:00:00');
-    expect(formatSiteOnlineDuration(65)).toBe('00:01:05');
-    expect(formatSiteOnlineDuration(3661)).toBe('01:01:01');
-    expect(formatSiteOnlineDuration(-10)).toBe('00:00:00');
   });
 });

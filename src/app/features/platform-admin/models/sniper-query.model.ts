@@ -2,6 +2,15 @@ import { Database } from '../../../core/models/supabase.types';
 
 export type SniperQuery = Database['public']['Tables']['sniper_queries']['Row'];
 export type SniperRuntimeStatus = Database['public']['Tables']['sniper_runtime_status']['Row'];
+
+export function formatBotUptime(totalSeconds: number): string {
+  const seconds = Number.isFinite(totalSeconds) ? Math.max(0, Math.floor(totalSeconds)) : 0;
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remainder = seconds % 60;
+  return [hours, minutes, remainder].map((value) => String(value).padStart(2, '0')).join(':');
+}
+
 export interface QueryDraft {
   id: string | null;
   title: string;
