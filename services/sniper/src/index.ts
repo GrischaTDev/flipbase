@@ -11,6 +11,7 @@ import { QueryScheduler } from './runtime/scheduler.js';
 import { RequestMetrics } from './runtime/request-metrics.js';
 import { CategoryStore } from './store/category.store.js';
 import { ListingStore } from './store/listing.store.js';
+import { OriginStateStore } from './store/origin-state.store.js';
 import { QueryStore } from './store/query.store.js';
 import { createSupabaseClient } from './store/supabase.js';
 import { VintedCollector } from './vinted/collector.js';
@@ -32,6 +33,7 @@ const counted = countingFetch(metrics.wrap(fetch), () => budget.record());
 
 const health = createHealthState(() => budget.usageRatio());
 const queries = new QueryStore(client);
+const originState = new OriginStateStore(client);
 const categories = new CategoryStore(client);
 const listings = new ListingStore(client);
 const retention = new ListingRetention(() => listings.purgeExpired(), log);
@@ -39,16 +41,12 @@ const retention = new ListingRetention(() => listings.purgeExpired(), log);
 const scheduler = new QueryScheduler({
   queries: {
     dueQueries: (now) => queries.dueQueries(now),
+    recordSuccess: (id, now) => queries.recordSuccess(id, now),
+    recordFailure: (id, decision, now) => queries.recordFailure(id, decision, now),
     markPolled: (id, status) => queries.markPolled(id, status),
     markSeeded: (id) => queries.markSeeded(id),
-    // Der Taktgeber legt eine Abfrage nach drei Fehlern in Folge still. Hier
-    // mitzuzaehlen ist die einzige Stelle, an der das sichtbar wird - der
-    // Health-Endpunkt meldet es, sonst faellt es niemandem auf.
-    deactivate: async (id) => {
-      await queries.deactivate(id);
-      health.recordDeactivation();
-    },
   },
+  originState,
   collector: new VintedCollector(sessionOptions, counted),
   listings,
   budget,

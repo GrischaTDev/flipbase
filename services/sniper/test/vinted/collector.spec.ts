@@ -16,6 +16,13 @@ const query: SniperQuery = {
   pollIntervalMs: 60000,
   isSeeded: true,
   isActive: true,
+  runState: 'ready',
+  nextAttemptAt: null,
+  lastAttemptAt: null,
+  lastSuccessAt: null,
+  lastErrorKind: null,
+  lastErrorAt: null,
+  lastErrorMessage: null,
   lastPolledAt: null,
   lastStatus: 'never_polled',
   consecutiveFailures: 0,
@@ -200,5 +207,42 @@ describe('VintedCollector', () => {
       string
     >;
     expect(fourthHeaders['Cookie']).toBeUndefined();
+  });
+
+  it('extracts retryAfterSeconds on 429 when Retry-After header is present', async () => {
+    const fetchFn = vi.fn().mockResolvedValueOnce(
+      new Response('', {
+        status: 429,
+        headers: { 'retry-after': '120' },
+      }),
+    );
+
+    try {
+      await build(fetchFn).collect(query);
+      expect.unreachable();
+    } catch (error) {
+      expect(error).toBeInstanceOf(RateLimitedError);
+      expect((error as RateLimitedError).retryAfterSeconds).toBe(120);
+      expect((error as RateLimitedError).queryId).toBe(query.id);
+    }
+  });
+
+  it('detects Cloudflare challenge page and throws ForbiddenError', async () => {
+    const challengeHtml =
+      '<html><head><title>Just a moment...</title></head><body>challenge-running</body></html>';
+    const fetchFn = vi.fn().mockResolvedValueOnce(
+      new Response(challengeHtml, {
+        status: 200,
+        headers: { 'content-type': 'text/html' },
+      }),
+    );
+
+    try {
+      await build(fetchFn).collect(query);
+      expect.unreachable();
+    } catch (error) {
+      expect(error).toBeInstanceOf(ForbiddenError);
+      expect((error as ForbiddenError).phase).toBe('body');
+    }
   });
 });

@@ -135,6 +135,8 @@ begin
         raise exception 'Keine aktuelle Betriebsmeldung. Bitte zuerst den Bot starten oder aktualisieren';
     end if;
     update public.sniper_queries set is_active = p_active,
+        run_state = case when p_active then 'ready' else run_state end,
+        next_attempt_at = case when p_active then null else next_attempt_at end,
         consecutive_failures = case when p_active then 0 else consecutive_failures end,
         updated_at = now()
     where id = p_id;
