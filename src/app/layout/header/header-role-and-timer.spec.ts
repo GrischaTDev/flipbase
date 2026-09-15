@@ -4,8 +4,12 @@ import { WorkspaceMember, WorkspaceRole } from '../../core/models/flipbase.model
 import { resolveCurrentUserRole } from '../../core/services/workspace-member.service';
 import { formatSiteOnlineDuration, visibleHeaderRole } from './header.component';
 
-function member(email: string, role: WorkspaceRole): Pick<WorkspaceMember, 'email' | 'role'> {
-  return { email, role };
+function member(
+  email: string,
+  role: WorkspaceRole,
+  userId?: string,
+): Pick<WorkspaceMember, 'email' | 'role'> & Partial<Pick<WorkspaceMember, 'user_id'>> {
+  return userId ? { email, role, user_id: userId } : { email, role };
 }
 
 describe('Kopfzeile – Rolle und Sitzungszeit', () => {
@@ -16,7 +20,12 @@ describe('Kopfzeile – Rolle und Sitzungszeit', () => {
     expect(visibleHeaderRole(null)).toBeNull();
     expect(
       visibleHeaderRole(
-        resolveCurrentUserRole([member('admin@flipbase.de', 'admin')], 'ADMIN@FLIPBASE.DE', false),
+        resolveCurrentUserRole(
+          [member('admin@flipbase.de', 'admin')],
+          null,
+          'ADMIN@FLIPBASE.DE',
+          false,
+        ),
       ),
     ).toBe('admin');
   });
@@ -25,6 +34,7 @@ describe('Kopfzeile – Rolle und Sitzungszeit', () => {
     expect(
       resolveCurrentUserRole(
         [member('anderes-konto@flipbase.de', 'owner')],
+        'new-user-id',
         'neues-konto@flipbase.de',
         false,
       ),
@@ -32,7 +42,13 @@ describe('Kopfzeile – Rolle und Sitzungszeit', () => {
   });
 
   it('behält den bewusst verwendeten Demo-Workspace als Inhaber', () => {
-    expect(resolveCurrentUserRole([], 'demo@flipbase.app', true)).toBe('owner');
+    expect(resolveCurrentUserRole([], null, 'demo@flipbase.app', true)).toBe('owner');
+  });
+
+  it('ermittelt die Rolle auch ohne Profil-E-Mail über die Benutzer-ID', () => {
+    expect(resolveCurrentUserRole([member('', 'admin', 'user-42')], 'user-42', null, false)).toBe(
+      'admin',
+    );
   });
 
   it('formatiert die Dauer der aktuellen App-Sitzung als Stunden, Minuten und Sekunden', () => {

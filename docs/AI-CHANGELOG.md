@@ -158,6 +158,7 @@ allen Datenbanktests und Angular-Produktionsbau erfolgreich.
 Der PR-Smoke-Test wurde nach der UI-Umstellung ebenfalls auf den neuen
 Markenfilter-Ablauf angepasst und lokal in hellem Desktop- sowie dunklem
 mobilem Layout erfolgreich ausgeführt.
+
 ## 2026-09-15 – Codex – Rollenanzeige und App-Sitzungstimer korrigiert
 
 **Auftrag:** Den fälschlichen „Inhaber“-Hinweis bei neuen Konten entfernen,
@@ -172,6 +173,11 @@ Shared-Badge „Admin“, alle anderen Rollen bleiben dort ohne Rollenhinweis. D
 neue Zähler zeigt die Zeit seit dem Öffnen der aktuellen App-Sitzung und wird
 beim Verlassen der Kopfzeile sauber beendet. Er ist ausdrücklich kein
 Server-/Bot-Uptime-Messer.
+
+**Nachtrag vor dem PR:** Die Rollenauflösung priorisiert jetzt die stabile
+Benutzer-ID und nutzt die E-Mail nur als Rückfall für ältere Datensätze. Die
+Mitgliederliste wird vor jedem echten Ladevorgang geleert und verspätete
+Antworten eines vorherigen Workspace-Ladevorgangs werden verworfen.
 
 **Prüfung:** Regressionstests für Rollenauflösung und Zeitformatierung,
 betroffene Kopf-/Einstellungs-/Protokolltests, Typprüfung, Produktionsbau,
