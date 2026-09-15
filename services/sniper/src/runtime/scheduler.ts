@@ -86,7 +86,7 @@ export interface ListingStoreLike {
     listings: MarketplaceListing[],
     discoveredByQueryId: string,
   ): Promise<MarketplaceListing[]>;
-  evaluateHits(queryId: string, reportHits: boolean): Promise<number>;
+  evaluateHits?(queryId: string, reportHits: boolean): Promise<number>;
 }
 
 export interface CycleReport {
@@ -262,15 +262,18 @@ export class QueryScheduler {
     report.polled += 1;
 
     let evaluated = false;
-    try {
-      report.newHits += await this.deps.listings.evaluateHits(query.id, query.isSeeded);
+    if (this.deps.listings.evaluateHits) {
+      try {
+        report.newHits += await this.deps.listings.evaluateHits(query.id, query.isSeeded);
+        evaluated = true;
+      } catch (error) {
+        this.deps.log.error('evaluate_hits_failed', {
+          queryId: query.id,
+          reason: error instanceof Error ? error.message : String(error),
+        });
+      }
+    } else {
       evaluated = true;
-    } catch (error) {
-      report.failed += 1;
-      this.deps.log.error('evaluate_hits_failed', {
-        queryId: query.id,
-        reason: error instanceof Error ? error.message : String(error),
-      });
     }
 
     if (query.isSeeded) {
