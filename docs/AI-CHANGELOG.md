@@ -1,5 +1,18 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-15 – Antigravity – Auth-Design & Checkbox-Markenfarbe an Shopify Admin angepasst
+
+**Auftrag:** Registrierung und Anmeldung an Shopify-Admin-Design anpassen (Logo links mit Text daneben, Tagline entfernen, normale Groß-/Kleinschreibung für Labels), Haken bei Passwortübereinstimmung grün färben, Fokus-Rahmen am Passwort-Sichtbarkeits-Toggle begradigen, gelbe Markenfarbe für die AGB-Checkbox unterstützen und Shared-Button einsetzen.
+
+**Änderung:**
+
+1. `custom-checkbox`: Farbvariante `color="brand"` hinzugefügt (`#fcc601` mit dunklem Haken).
+2. `register.component.html` & `login.component.html`: Card auf `rounded-2xl shadow-xs` umgestellt, Header mit Logo (32 px) links neben „Flipbase“ platziert, Tagline entfernt, Labels ohne künstliche Versalien, und rohe Submit-Buttons durch `<app-button variant="primary" size="lg" [fullWidth]="true">` ersetzt.
+3. `register.component.ts` & `login.component.ts`: Host-Klasse um `fb-admin` ergänzt, damit Shopify-Admin-Design-Tokens greifen.
+4. Registrierung: Passwort-Übereinstimmung auf `text-emerald-500` & `border-emerald-500` korrigiert, Toggle-Button mit zentriertem `rounded-lg` und sauberem Fokus-Ring versehen.
+
+**Prüfung:** Unit-Tests (11/11 custom-checkbox), Prettier, ESLint und Angular-Bau erfolgreich durchgelaufen.
+
 ## 2026-09-15 – Antigravity – Vinted-Bot Host-Netzwerk auf Hetzner angewendet & Feed-Layout begradigt
 
 **Auftrag:** Vinted Bot auf Hetzner-Server untersuchen (ständige Verbindungsabbrüche) und das Feed-Layout korrigieren (erste drei Artikel oben größer in einer Reihe, darunter normal eingereiht).

@@ -34,6 +34,8 @@ import { environment } from '../../../../environments/environment';
 import { TermsModalComponent } from '../components/terms-modal/terms-modal.component';
 import { PrivacyModalComponent } from '../components/privacy-modal/privacy-modal.component';
 
+import { ButtonComponent } from '../../../shared/components/button/button.component';
+
 /** Validator to ensure password and confirmPassword match */
 const passwordMatchValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
   const password = control.get('password')?.value;
@@ -50,12 +52,13 @@ const passwordMatchValidator: ValidatorFn = (control: AbstractControl): Validati
     TranslatePipe,
     LucideDynamicIcon,
     CustomCheckboxComponent,
+    ButtonComponent,
     NgOptimizedImage,
     TermsModalComponent,
     PrivacyModalComponent,
   ],
   templateUrl: './register.component.html',
-  host: { class: 'block' },
+  host: { class: 'block fb-admin' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class RegisterComponent {

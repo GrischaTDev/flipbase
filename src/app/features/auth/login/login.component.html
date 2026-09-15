@@ -54,22 +54,25 @@
     </div>
   </div>
 
-  <div class="max-w-md w-full bg-fb-surface-alt border border-fb-border rounded-3xl p-8 shadow-2xl">
-    <!-- Logo & Title -->
-    <div class="text-center mb-8">
-      <img
-        ngSrc="images/logo-mark.png"
-        width="48"
-        height="48"
-        alt="Flipbase"
-        class="fb-logo-mark inline-block w-12 h-12 mb-3"
-        priority
-      />
-      <h1 class="text-2xl font-extrabold text-fb-text-primary tracking-tight">Flipbase</h1>
-      <p class="text-xs text-fb-text-muted mt-1">{{ 'AUTH.TAGLINE' | translate }}</p>
-      <h2 class="text-lg font-bold text-fb-text-secondary mt-4">
+  <div
+    class="max-w-md w-full bg-fb-surface-alt border border-fb-border rounded-2xl p-6 sm:p-8 shadow-xs"
+  >
+    <!-- Brand & Heading -->
+    <div class="mb-6">
+      <div class="flex items-center gap-2.5 mb-2">
+        <img
+          ngSrc="images/logo-mark.png"
+          width="32"
+          height="32"
+          alt="Flipbase"
+          class="fb-logo-mark w-8 h-8 shrink-0"
+          priority
+        />
+        <span class="text-xl font-bold text-fb-text-primary tracking-tight">Flipbase</span>
+      </div>
+      <h1 class="text-base font-semibold text-fb-text-secondary">
         {{ 'AUTH.SIGN_IN_TITLE' | translate }}
-      </h2>
+      </h1>
     </div>
 
     <!-- Error Box -->
@@ -84,10 +87,7 @@
     <!-- Form -->
     <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-4">
       <div>
-        <label
-          for="email"
-          class="block text-xs font-semibold uppercase tracking-wider text-fb-text-secondary mb-1.5"
-        >
+        <label for="email" class="block text-xs font-semibold text-fb-text-secondary mb-1.5">
           {{ 'AUTH.EMAIL' | translate }}
         </label>
         <div class="relative flex items-center">
@@ -107,10 +107,7 @@
       </div>
 
       <div>
-        <label
-          for="password"
-          class="block text-xs font-semibold uppercase tracking-wider text-fb-text-secondary mb-1.5"
-        >
+        <label for="password" class="block text-xs font-semibold text-fb-text-secondary mb-1.5">
           {{ 'AUTH.PASSWORD' | translate }}
         </label>
         <div class="relative flex items-center">
@@ -129,16 +126,18 @@
         </div>
       </div>
 
-      <button
+      <app-button
         type="submit"
-        [disabled]="form.invalid || isLoading()"
-        class="linear-btn-primary w-full mt-2 py-3 rounded-xl font-bold text-sm shadow-lg shadow-amber-500/20 disabled:opacity-50 transition flex items-center justify-center gap-2 cursor-pointer"
+        variant="primary"
+        size="lg"
+        [fullWidth]="true"
+        [disabled]="form.invalid"
+        [loading]="isLoading()"
+        [icon]="loginIcon"
+        class="mt-2 block w-full"
       >
-        <svg [lucideIcon]="loginIcon" class="w-4 h-4"></svg>
-        <span>{{
-          isLoading() ? ('COMMON.LOADING' | translate) : ('AUTH.SUBMIT_LOGIN' | translate)
-        }}</span>
-      </button>
+        {{ 'AUTH.SUBMIT_LOGIN' | translate }}
+      </app-button>
 
       <!-- Demo-Modus – nur wenn die Umgebung ihn erlaubt -->
       @if (isDemoModeAllowed) {
