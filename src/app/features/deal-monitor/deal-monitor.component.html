@@ -114,42 +114,17 @@
           <h2 id="feed-finds-title" class="text-base font-semibold">Neue Funde</h2>
         </div>
         <div role="region" aria-labelledby="feed-finds-title" class="space-y-4">
-          @if (featuredLead(); as lead) {
-            @if (highlights().length === 3) {
-              <div class="grid gap-4 lg:grid-cols-2 lg:grid-rows-2">
-                <app-deal-card
-                  class="lg:row-span-2 motion-safe:transition motion-safe:duration-200 motion-safe:starting:opacity-0 motion-safe:starting:-translate-x-3"
-                  [item]="lead"
-                  [featured]="true"
-                  (inspect)="selectedDeal.set($event)"
-                />
-                @for (item of featuredSupport(); track item.id) {
-                  <app-deal-card
-                    class="motion-safe:transition motion-safe:duration-200 motion-safe:starting:opacity-0 motion-safe:starting:-translate-x-3"
-                    [item]="item"
-                    [featured]="true"
-                    (inspect)="selectedDeal.set($event)"
-                  />
-                }
-              </div>
-            } @else {
-              <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          @if (highlights().length > 0) {
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              @for (item of highlights(); track item.id) {
                 <app-deal-card
                   class="motion-safe:transition motion-safe:duration-200 motion-safe:starting:opacity-0 motion-safe:starting:-translate-x-3"
-                  [item]="lead"
+                  [item]="item"
                   [featured]="true"
                   (inspect)="selectedDeal.set($event)"
                 />
-                @for (item of featuredSupport(); track item.id) {
-                  <app-deal-card
-                    class="motion-safe:transition motion-safe:duration-200 motion-safe:starting:opacity-0 motion-safe:starting:-translate-x-3"
-                    [item]="item"
-                    [featured]="true"
-                    (inspect)="selectedDeal.set($event)"
-                  />
-                }
-              </div>
-            }
+              }
+            </div>
           }
           @if (grid().length > 0) {
             <div class="grid grid-cols-2 gap-3 xl:grid-cols-4">

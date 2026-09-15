@@ -1,5 +1,21 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-15 – Antigravity – Vinted-Bot Host-Netzwerk auf Hetzner angewendet & Feed-Layout begradigt
+
+**Auftrag:** Vinted Bot auf Hetzner-Server untersuchen (ständige Verbindungsabbrüche) und das Feed-Layout korrigieren (erste drei Artikel oben größer in einer Reihe, darunter normal eingereiht).
+
+**Befund:**
+
+1. Auf dem Hetzner-Server fehlte in `/opt/flipbase-sniper/docker-compose.sniper.yml` noch das `network_mode: host` aus PR #85. Der Container lief im Bridge-Netzwerk ohne IPv6-Routing (`ENETUNREACH`), fiel auf IPv4 zurück und wurde von Vinted/Cloudflare mit 403 abgewiesen, was alle Filter stilllegte.
+2. Im Vinted-Bot-Feed waren die ersten 3 Artikel als asymmetrisches Raster (linke Karte über zwei Zeilen gestreckt mit leerem Freiraum, rechte zwei Karten gestapelt) statt einer gleichmäßigen größeren 3er-Reihe dargestellt.
+
+**Änderung:**
+
+1. Server-Compose auf `network_mode: host` aktualisiert, Container neu gestartet und Filter reaktiviert; der Dienst sammelt stabil über IPv6.
+2. Im Feed-Template die asymmetrische 2x2-Verschachtelung durch ein dreispaltiges Raster (`grid-cols-1 sm:grid-cols-2 lg:grid-cols-3`) für die ersten drei Funde ersetzt; die übrigen Artikel bleiben darunter im regulären Raster eingereiht. E2E-Prüfung auf die 3er-Reihe und Breitenverhältnis aktualisiert.
+
+**Prüfung:** Live-Betrieb auf Hetzner erfolgreich verifiziert (Funde laufen über IPv6 ein, 0 Fehler); lokal Angular Unit-Tests (4/4), Typprüfung, ESLint, Prettier, Produktionsbau und Playwright-E2E-Tests (Light & Dark) grün.
+
 ## 2026-09-14 – Codex – Vinted-Zugriff aus dem Sniper repariert
 
 **Auftrag:** Aktive Vinted-Filter wurden kurz nach dem Start mit „Zugriff
