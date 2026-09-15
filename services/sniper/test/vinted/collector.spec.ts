@@ -141,4 +141,64 @@ describe('VintedCollector', () => {
     const url = new URL(fetchFn.mock.calls[0]![0] as string);
     expect(url.searchParams.get('price_from')).toBe('10');
   });
+
+  it('sends modern browser headers including sec-ch-ua', async () => {
+    const fetchFn = vi.fn().mockResolvedValueOnce(catalog());
+
+    await build(fetchFn).collect(query);
+
+    const headers = (fetchFn.mock.calls[0]?.[1] as RequestInit).headers as Record<string, string>;
+    expect(headers['Sec-Ch-Ua']).toContain('Google Chrome');
+    expect(headers['Sec-Fetch-Dest']).toBe('document');
+    expect(headers['Sec-Fetch-Mode']).toBe('navigate');
+  });
+
+  it('persists cookies across requests and clears them on 403', async () => {
+    const responseWithCookie = new Response(catalogPage(), {
+      status: 200,
+      headers: {
+        'content-type': 'text/html; charset=utf-8',
+        'set-cookie': 'anon_id=abc123; Path=/',
+      },
+    });
+    const secondResponse = catalog();
+    const forbiddenResponse = new Response('', { status: 403 });
+    const recoveryResponse = catalog();
+
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce(responseWithCookie)
+      .mockResolvedValueOnce(secondResponse)
+      .mockResolvedValueOnce(forbiddenResponse)
+      .mockResolvedValueOnce(recoveryResponse);
+
+    const collector = build(fetchFn);
+
+    // 1. First request has no cookies, receives anon_id cookie
+    await collector.collect(query);
+    const firstHeaders = (fetchFn.mock.calls[0]?.[1] as RequestInit).headers as Record<
+      string,
+      string
+    >;
+    expect(firstHeaders['Cookie']).toBeUndefined();
+
+    // 2. Second request sends the stored cookie
+    await collector.collect(query);
+    const secondHeaders = (fetchFn.mock.calls[1]?.[1] as RequestInit).headers as Record<
+      string,
+      string
+    >;
+    expect(secondHeaders['Cookie']).toBe('anon_id=abc123');
+
+    // 3. Third request fails with 403, which clears cookies
+    await expect(collector.collect(query)).rejects.toBeInstanceOf(ForbiddenError);
+
+    // 4. Fourth request has no cookies again
+    await collector.collect(query);
+    const fourthHeaders = (fetchFn.mock.calls[3]?.[1] as RequestInit).headers as Record<
+      string,
+      string
+    >;
+    expect(fourthHeaders['Cookie']).toBeUndefined();
+  });
 });

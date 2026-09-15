@@ -6,7 +6,12 @@ const EnvSchema = z.object({
   VINTED_BASE_URL: z.string().min(1).default('https://www.vinted.de'),
   SNIPER_REQUESTS_PER_MINUTE: z.coerce.number().int().min(1).default(30),
   SNIPER_TICK_INTERVAL_MS: z.coerce.number().int().min(1000).default(5000),
-  SNIPER_USER_AGENT: z.string().min(1).default('Mozilla/5.0 (compatible; FlipbaseSniper/0.1)'),
+  SNIPER_USER_AGENT: z
+    .string()
+    .min(1)
+    .default(
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
+    ),
   SNIPER_HEALTH_PORT: z.coerce.number().int().min(1).max(65535).default(8080),
   SNIPER_CATEGORY_MAX_AGE_MS: z.coerce.number().int().min(60_000).default(86_400_000),
 });

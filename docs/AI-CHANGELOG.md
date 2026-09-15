@@ -1,5 +1,25 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-15 – Antigravity – Vinted-Bot Anfrageschutz, Cookie-Persistenz & Backoff gehärtet
+
+**Auftrag:** Vinted-Bot gegen wiederkehrende 403-Sperren und Deaktivierungen absichern.
+
+**Befund:**
+
+1. Bei einem HTTP 403 (z. B. temporäre Cloudflare-Challenge) hat der Scheduler die Abfrage sofort dauerhaft in der Datenbank deaktiviert (`is_active = false`), wodurch der Bot nach einer einzigen Challenge stoppte.
+2. Vinted liefert gelegentlich `thumbnailUrls` als einzelnen String statt eines String-Arrays aus, was die Zod-Validierung zum Absturz brachte.
+3. Der `VintedCollector` sendete keine Cookies und nur minimale Header mit dem Bot-User-Agent `FlipbaseSniper/0.1`, was Bot-Erkennungssysteme begünstigte.
+
+**Änderung:**
+
+1. `scheduler.ts`: Bei `ForbiddenError` wird die Abfrage nicht mehr deaktiviert, sondern der Status vermerkt und pausiert.
+2. `query.store.ts`: In `isDue()` greift bei `rate_limited` oder `forbidden` ein exponentieller Backoff (2, 4, 8, max. 10 Minuten), sodass sich der Bot nach temporären Sperren selbstständig erholt.
+3. `collector.ts`: Realistische Chrome-Browser-Header (`sec-ch-ua`, `sec-fetch-*` etc.) und automatisches Parsen/Persistieren von `set-cookie`-Headern; bei 403 wird der Cookie-Speicher geleert.
+4. `catalog-page.ts`: `thumbnailUrls` tolerant auf String oder Array normalisiert.
+5. Standard-User-Agent in `config.ts` auf modernes Chrome umgestellt.
+
+**Prüfung:** Sniper Unit-Tests (19/19 Dateien, 128/128 Tests), Root Typprüfung, ESLint und Prettier erfolgreich durchgelaufen.
+
 ## 2026-09-15 – Antigravity – Auth-Design & Checkbox-Markenfarbe an Shopify Admin angepasst
 
 **Auftrag:** Registrierung und Anmeldung an Shopify-Admin-Design anpassen (Logo links mit Text daneben, Tagline entfernen, normale Groß-/Kleinschreibung für Labels), Haken bei Passwortübereinstimmung grün färben, Fokus-Rahmen am Passwort-Sichtbarkeits-Toggle begradigen, gelbe Markenfarbe für die AGB-Checkbox unterstützen und Shared-Button einsetzen.

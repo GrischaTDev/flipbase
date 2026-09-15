@@ -10,6 +10,8 @@ const PER_PAGE = '96';
 const RETRY_DELAYS_MS = [500, 1000] as const;
 
 export class VintedCollector {
+  private readonly cookies = new Map<string, string>();
+
   constructor(
     private readonly options: SessionOptions,
     private readonly fetchFn: FetchLike = fetch,
@@ -37,16 +39,33 @@ export class VintedCollector {
     let retryIndex = 0;
 
     for (;;) {
-      const response = await this.fetchFn(url, {
-        headers: {
-          Accept: 'text/html,application/xhtml+xml',
-          'Accept-Language': 'de-DE,de;q=0.9,en;q=0.8',
-          'User-Agent': this.options.userAgent,
-        },
-      });
+      const headers: Record<string, string> = {
+        Accept:
+          'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7',
+        'Sec-Ch-Ua': '"Not_A Brand";v="8", "Chromium";v="133", "Google Chrome";v="133"',
+        'Sec-Ch-Ua-Mobile': '?0',
+        'Sec-Ch-Ua-Platform': '"Windows"',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-User': '?1',
+        'Upgrade-Insecure-Requests': '1',
+        'User-Agent': this.options.userAgent,
+      };
+
+      if (this.cookies.size > 0) {
+        headers['Cookie'] = [...this.cookies].map(([name, value]) => `${name}=${value}`).join('; ');
+      }
+
+      const response = await this.fetchFn(url, { headers });
+      this.recordCookies(response.headers);
 
       if (response.status === 429) throw new RateLimitedError();
-      if (response.status === 403) throw new ForbiddenError();
+      if (response.status === 403) {
+        this.cookies.clear();
+        throw new ForbiddenError();
+      }
 
       if (response.status >= 500 && retryIndex < RETRY_DELAYS_MS.length) {
         await this.sleepFn(RETRY_DELAYS_MS[retryIndex]!);
@@ -57,6 +76,25 @@ export class VintedCollector {
       if (!response.ok) throw new VintedHttpError(response.status);
 
       return response;
+    }
+  }
+
+  private recordCookies(headers: Headers): void {
+    const rawCookies: string[] =
+      typeof headers.getSetCookie === 'function'
+        ? headers.getSetCookie()
+        : headers.get('set-cookie')
+          ? [headers.get('set-cookie')!]
+          : [];
+
+    for (const raw of rawCookies) {
+      const pair = raw.split(';', 1)[0]?.trim();
+      if (!pair) continue;
+
+      const separator = pair.indexOf('=');
+      if (separator <= 0) continue;
+
+      this.cookies.set(pair.slice(0, separator).trim(), pair.slice(separator + 1).trim());
     }
   }
 }
