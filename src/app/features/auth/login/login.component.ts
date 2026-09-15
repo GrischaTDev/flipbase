@@ -17,12 +17,20 @@ import { AuthService } from '../../../core/services/auth.service';
 import { ThemeService } from '../../../core/services/theme.service';
 import { NgOptimizedImage } from '@angular/common';
 import { environment } from '../../../../environments/environment';
+import { ButtonComponent } from '../../../shared/components/button/button.component';
 
 @Component({
   selector: 'app-login',
-  imports: [ReactiveFormsModule, RouterLink, TranslatePipe, LucideDynamicIcon, NgOptimizedImage],
+  imports: [
+    ReactiveFormsModule,
+    RouterLink,
+    TranslatePipe,
+    LucideDynamicIcon,
+    NgOptimizedImage,
+    ButtonComponent,
+  ],
   templateUrl: './login.component.html',
-  host: { class: 'block' },
+  host: { class: 'block fb-admin' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LoginComponent {

@@ -20,6 +20,8 @@
     [class.h-4]="size() === 'md'"
     [class.w-5]="size() === 'lg'"
     [class.h-5]="size() === 'lg'"
+    [class.bg-[#fcc601]]="(checked() || indeterminate()) && color() === 'brand'"
+    [class.border-[#fcc601]]="(checked() || indeterminate()) && color() === 'brand'"
     [class.bg-emerald-700]="(checked() || indeterminate()) && color() === 'emerald'"
     [class.dark:bg-emerald-600]="(checked() || indeterminate()) && color() === 'emerald'"
     [class.border-emerald-700]="(checked() || indeterminate()) && color() === 'emerald'"
@@ -31,6 +33,9 @@
     [class.shadow-sm]="checked() || indeterminate()"
     [class.bg-fb-well]="!checked() && !indeterminate()"
     [class.border-fb-border-hover]="!checked() && !indeterminate()"
+    [class.group-hover:border-[#fcc601]]="
+      !checked() && !indeterminate() && !effectiveDisabled() && color() === 'brand'
+    "
     [class.group-hover:border-emerald-500]="
       !checked() && !indeterminate() && !effectiveDisabled() && color() === 'emerald'
     "
@@ -47,7 +52,9 @@
         stroke-width="3.5"
         stroke-linecap="round"
         stroke-linejoin="round"
-        class="text-fb-on-accent w-2.5 h-2.5 animate-scale-in"
+        class="w-2.5 h-2.5 animate-scale-in"
+        [class.text-slate-950]="color() === 'brand'"
+        [class.text-fb-on-accent]="color() !== 'brand'"
       >
         <polyline points="20 6 9 17 4 12"></polyline>
       </svg>
@@ -59,7 +66,9 @@
         stroke-width="4"
         stroke-linecap="round"
         stroke-linejoin="round"
-        class="text-fb-on-accent w-2.5 h-2.5 animate-scale-in"
+        class="w-2.5 h-2.5"
+        [class.text-slate-950]="color() === 'brand'"
+        [class.text-fb-on-accent]="color() !== 'brand'"
       >
         <line x1="5" y1="12" x2="19" y2="12"></line>
       </svg>

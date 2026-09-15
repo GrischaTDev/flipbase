@@ -266,16 +266,17 @@ for (const theme of ['light', 'dark'] as const) {
     expect(boxes[1].y + boxes[1].height).toBeLessThan(boxes[2].y);
     expect(boxes[0].height).toBeCloseTo(boxes[1].height + boxes[2].height + 4, 0);
     if (theme === 'light') {
-      const featuredCards = await finds.getByRole('article').evaluateAll((articles) =>
-        articles.slice(0, 3).map((article) => {
+      const allCards = await finds.getByRole('article').evaluateAll((articles) =>
+        articles.map((article) => {
           const { x, y, width, height } = article.getBoundingClientRect();
           return { x, y, width, height };
         }),
       );
-      expect(featuredCards[0].x).toBeLessThan(featuredCards[1].x);
-      expect(featuredCards[1].x).toBeCloseTo(featuredCards[2].x, 0);
-      expect(featuredCards[1].y).toBeLessThan(featuredCards[2].y);
-      expect(featuredCards[0].height).toBeGreaterThan(featuredCards[1].height);
+      expect(allCards[0].x).toBeLessThan(allCards[1].x);
+      expect(allCards[1].x).toBeLessThan(allCards[2].x);
+      expect(allCards[0].y).toBeCloseTo(allCards[1].y, 0);
+      expect(allCards[1].y).toBeCloseTo(allCards[2].y, 0);
+      expect(allCards[0].width).toBeGreaterThan(allCards[3].width);
     }
     const viewItem = firstCard.getByRole('link', {
       name: 'Nike Sneaker 1 – auf Vinted ansehen (neuer Tab)',
