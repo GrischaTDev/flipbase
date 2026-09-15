@@ -48,14 +48,26 @@ function toQuery(row: QueryRow): SniperQuery {
  * ist. Bewusst in TypeScript entschieden statt in SQL: So bleibt die Regel
  * ohne Datenbank testbar, und der Taktgeber ist die einzige Stelle, die ueber
  * Reihenfolge und Budget entscheidet.
+ *
+ * Wenn die letzte Abfrage durch Vinted gebremst wurde (429 Rate Limit oder 403 Forbidden),
+ * pausieren wir mit exponentiellem Backoff statt die Abfrage stillzulegen:
+ * 1 Fehlversuch -> 2 Min, 2 -> 4 Min, 3 -> 8 Min (max. 10 Min).
  */
-function isDue(query: SniperQuery, now: Date): boolean {
+export function isDue(query: SniperQuery, now: Date): boolean {
   if (query.lastPolledAt === null) {
     return true;
   }
 
   const elapsed = now.getTime() - new Date(query.lastPolledAt).getTime();
-  return elapsed >= query.pollIntervalMs;
+  let minInterval = query.pollIntervalMs;
+
+  if (query.lastStatus === 'rate_limited' || query.lastStatus === 'forbidden') {
+    const backoffExponent = Math.min(Math.max(0, query.consecutiveFailures - 1), 4);
+    const backoffMs = Math.min(120_000 * Math.pow(2, backoffExponent), 600_000);
+    minInterval = Math.max(minInterval, backoffMs);
+  }
+
+  return elapsed >= minInterval;
 }
 
 export class QueryStore {

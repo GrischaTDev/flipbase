@@ -6,6 +6,14 @@ const MoneySchema = z.object({
   currencyCode: z.string(),
 });
 
+const ThumbnailUrlsSchema = z
+  .union([z.string(), z.array(z.string())])
+  .nullish()
+  .transform((val): string[] => {
+    if (!val) return [];
+    return Array.isArray(val) ? val : [val];
+  });
+
 const CatalogProductSchema = z
   .object({
     id: z.union([z.number(), z.string()]),
@@ -13,7 +21,7 @@ const CatalogProductSchema = z
     url: z.string(),
     price: MoneySchema.nullish(),
     totalItemPrice: MoneySchema,
-    thumbnailUrls: z.array(z.string()).nullish(),
+    thumbnailUrls: ThumbnailUrlsSchema,
     photos: z
       .array(
         z.object({

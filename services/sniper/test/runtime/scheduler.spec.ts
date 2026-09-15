@@ -168,14 +168,15 @@ describe('QueryScheduler', () => {
     expect(report.failed).toBe(1);
   });
 
-  it('deactivates a query that was forbidden', async () => {
+  it('records a forbidden error without deactivating the query', async () => {
     const collector = { collect: vi.fn().mockRejectedValue(new ForbiddenError()) };
     const { scheduler, queries } = build(makeQuery(), { collector });
 
-    await scheduler.runOnce(NOW);
+    const report = await scheduler.runOnce(NOW);
 
     expect(queries.markPolled).toHaveBeenCalledWith('q1', 'forbidden');
-    expect(queries.deactivate).toHaveBeenCalledWith('q1');
+    expect(queries.deactivate).not.toHaveBeenCalled();
+    expect(report.failed).toBe(1);
   });
 
   it('deactivates a query after the third consecutive failure', async () => {

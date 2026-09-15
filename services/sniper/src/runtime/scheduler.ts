@@ -196,7 +196,6 @@ export class QueryScheduler {
     if (error instanceof ForbiddenError) {
       this.deps.log.error('forbidden', { query: query.id });
       await this.deps.queries.markPolled(query.id, 'forbidden');
-      await this.deps.queries.deactivate(query.id);
       return;
     }
 

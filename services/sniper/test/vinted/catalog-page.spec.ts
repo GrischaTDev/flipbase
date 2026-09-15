@@ -18,6 +18,16 @@ describe('parseVintedCatalogPage', () => {
     });
   });
 
+  it('tolerates thumbnailUrls provided as a single string', () => {
+    const rawPage = catalogPage().replace(
+      '"thumbnailUrls":["https://images.vinted.test/1001-thumb.webp"]',
+      '"thumbnailUrls":"https://images.vinted.test/1001-single.webp"',
+    );
+    const [item] = parseVintedCatalogPage(rawPage, 'https://www.vinted.de');
+    expect(item).toBeDefined();
+    expect(item?.id).toBe(1001);
+  });
+
   it('rejects a page without catalog item data', () => {
     expect(() =>
       parseVintedCatalogPage('<html><body>loading</body></html>', 'https://www.vinted.de'),
