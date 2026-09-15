@@ -158,6 +158,119 @@ allen Datenbanktests und Angular-Produktionsbau erfolgreich.
 Der PR-Smoke-Test wurde nach der UI-Umstellung ebenfalls auf den neuen
 Markenfilter-Ablauf angepasst und lokal in hellem Desktop- sowie dunklem
 mobilem Layout erfolgreich ausgeführt.
+## 2026-09-15 – Codex – Rollenanzeige und App-Sitzungstimer korrigiert
+
+**Auftrag:** Den fälschlichen „Inhaber“-Hinweis bei neuen Konten entfernen,
+einen roten Admin-Badge nur für echte Administratoren anzeigen und einen
+Online-Zähler ergänzen.
+
+**Ursache und Umsetzung:** Die Rollenauflösung fiel bei unbekannten oder noch
+nicht geladenen Konten pauschal auf `owner` zurück. Sie liefert jetzt `null`,
+solange kein Mitglied gefunden wurde; der bewusst lokale Demo-Workspace bleibt
+intern Inhaber. Die Kopfzeile zeigt ausschließlich für `admin` den roten
+Shared-Badge „Admin“, alle anderen Rollen bleiben dort ohne Rollenhinweis. Der
+neue Zähler zeigt die Zeit seit dem Öffnen der aktuellen App-Sitzung und wird
+beim Verlassen der Kopfzeile sauber beendet. Er ist ausdrücklich kein
+Server-/Bot-Uptime-Messer.
+
+**Prüfung:** Regressionstests für Rollenauflösung und Zeitformatierung,
+betroffene Kopf-/Einstellungs-/Protokolltests, Typprüfung, Produktionsbau,
+Prettier, ESLint und lokale sichtbare Prüfung im Demo-Modus erfolgreich. Keine
+Datenbank- oder Berechtigungsänderung.
+
+## 2026-09-15 – Codex – Bot-Laufzeit im Admin-Panel geprüft
+
+**Auftrag:** Lesend prüfen, ob der aktuelle Vinted-Bot-Bereich eine Laufzeit,
+Online-Dauer oder Unterbrechungszeit ausweist.
+
+**Befund:** Die lokale Anwendung läuft im Demo-Modus; der Betreiberbereich wird
+für diese Sitzung daher zurück zum Dashboard geleitet. Die Botbetriebsseite
+zeigt laut aktuellem Template nur die letzte Betriebsmeldung, deren Alter
+(älter als zwei Minuten gilt als unbestätigt), Anfragezahlen, Abweisungen und
+Fehler. Die Tabelle `sniper_runtime_status` speichert dafür `reported_at`,
+Fensterzähler und den letzten Fehler, aber weder `started_at` noch
+`stopped_at`, `uptime` oder eine Unterbrechungshistorie. Keine Produkt- oder
+Datenänderung vorgenommen.
+
+## 2026-09-14 – Codex – Intensive Recherche zu Marktplatz- und Einmalkäufen
+
+**Auftrag:** Die erste Recherche vertiefen: Prüfen, wie Einkäufe über eBay,
+Vinted und ähnliche Plattformen erfasst werden können, wenn der tatsächliche
+Verkäufer unbekannt ist oder keine vollständigen Personendaten liefern soll.
+
+**Befund:** Buchhaltungssysteme kennen mit „Diverse Lieferanten“ bzw. „Diverse
+Adressen“ ein etabliertes Muster für seltene oder einmalige Geschäftspartner.
+Die konkreten Angaben werden am einzelnen Beleg erfasst, ohne für jeden
+Vorgang einen dauerhaften Lieferantenstammsatz anzulegen. SAP weist zugleich
+darauf hin, dass eine unstrukturierte Sammelverwendung bei vielen Vorgängen
+unübersichtlich wird. DATEV unterstützt diverse Adressen und zugehörige Belege.
+
+**Produktvergleich:** Reselling-Tools führen Quelle/Plattform und Verkäufer
+getrennt. Inventra speichert unter anderem Plattform, Verkäufer, Einkaufspreis
+und Kaufdokument am Artikel; Sentra nennt Quelle, Preis und Fotos für Flohmarkt,
+eBay und Vinted; Plugstation trennt Beschaffung vom späteren Verkaufskanal.
+WarenFlow und RepairVision behandeln private Ankäufe als einzelne Vorgänge mit
+Artikel, Preis, Datum und – sofern vorhanden – Verkäuferdaten.
+
+**Empfehlung:** Keine dritte rechtliche Verkäuferart „Plattform“ in der
+Lieferantentabelle erzwingen. Stattdessen `private` und `business` für bekannte
+Verkäufer beibehalten und auf Einkaufsebene ergänzen: optionale Quelle/Plattform,
+optionale Verkäuferangabe bzw. Nutzername, optionale Profil-/Anzeigen-URL,
+Bestell-/Transaktionsnummer und Beleg. Für unbekannte oder einmalige Käufe ist
+`Diverse / Einmalkauf` als Erfassungsfall sinnvoll; dabei bleibt der eigentliche
+Verkäufer optional und wird nicht durch „Vinted“ oder „eBay“ ersetzt.
+
+**Prüfung:** SAP-, DATEV-, BMF-, sevdesk-, Odoo-, ERPNext- und mehrere
+Reselling-Produktquellen erneut geprüft. Die steuerliche Einordnung einzelner
+Belege bleibt ein Fall für die Steuerberatung. Keine Anwendungscode-, Schema-
+oder Produktivdatenänderung.
+
+## 2026-09-14 – Codex – Steuerliche Grenze bei unbekanntem Zahlungsempfänger präzisiert
+
+**Nachtrag:** Die BMF-Anwendungshinweise zu § 160 AO stellen klar, dass das
+Finanzamt die Benennung auch verlangen darf, wenn Name und Anschrift beim Kauf
+unbekannt waren oder vom Verkäufer abgelehnt wurden. Für eine genaue Benennung
+werden grundsätzlich voller Name und Adresse benötigt; „Diverse Lieferanten“,
+Nutzername oder „Vinted“ lösen diese Anforderung nicht automatisch.
+
+**Produktfolge:** `Diverse / Einmalkauf` ist nur eine ehrliche Erfassungs- und
+Dokumentationsmöglichkeit, keine steuerliche Freistellung. Flipbase muss deshalb
+unterscheiden zwischen „Vorgang intern erfasst“ und „Zahlungsempfänger
+vollständig nachweisbar“ und darf die Plattform nicht als tatsächlichen
+Zahlungsempfänger ausgeben. Die genaue steuerliche Behandlung muss die
+Steuerberatung des Nutzers bestätigen.
+
+## 2026-09-14 – Codex – Vinted-Einkäufe und Verkäufermodell recherchiert
+
+**Auftrag:** Prüfen, wie ein Einkauf von einer unbekannten Privatperson über
+Vinted in Flipbase erfasst werden sollte und ob dafür eine weitere Verkäuferart
+notwendig ist. Vergleich mit Buchhaltungs- und Reselling-Tools.
+
+**Befund:** Der aktuelle Verkäuferdialog verlangt einen Namen und unterscheidet
+nur `private` und `business`. Im Datenmodell existieren `sources` und
+`source_id` noch technisch, sie sind im aktuellen Einkauf aber bewusst nicht
+mehr sichtbar. Ein Vinted-Marktplatz ist nicht automatisch der Verkäufer des
+Artikels; auf Vinted wird der Artikel einem Mitglied zugeordnet und der
+Käuferschutz separat ausgewiesen.
+
+**Vergleich:** sevdesk und Odoo trennen Kontaktart (Person/Organisation) von
+der Rolle als Lieferant bzw. Verkäufer. ERPNext verwendet zusätzlich eine
+separate Lieferantengruppe. Spezialisierte Reselling-Systeme wie Sentra,
+WarenFlow und RepairVision erfassen Quelle, Einkaufspreis, Artikel und – sofern
+vorhanden – Verkäuferdaten am einzelnen Einkauf beziehungsweise Artikel.
+
+**Empfehlung:** `Privatperson` und `Unternehmen` als rechtliche Verkäuferarten
+beibehalten. Für Vinted sollte der Einkauf eine optionale Plattform/Quelle,
+einen optionalen Vinted-Nutzernamen oder Verkäuferhinweis sowie eine
+Transaktionsreferenz und den Beleg aufnehmen. Ein eigener Verkäuferstammsatz
+ist nur für bekannte oder wiederkehrende Verkäufer sinnvoll. Als kurzfristige
+UI-Abkürzung wäre `Plattform / Marktplatz` mit „Vinted“ möglich, aber nur als
+klar gekennzeichneter Kanal und nicht als erfundener rechtlicher Verkäufer.
+
+**Prüfung:** Aktuellen Angular-/Supabase-Code, die Projekt-UI-Vorgaben und
+öffentliche Dokumentation von BMF, UStG, sevdesk, Odoo, ERPNext, Sentra,
+WarenFlow und RepairVision geprüft. Keine Anwendungscode-, Schema- oder
+Produktivdatenänderung.
 
 ## 2026-09-14 – Codex – Separates Sniper-Deployment und Prüfstatus ergänzt
 

@@ -14,6 +14,22 @@ type WorkspaceMemberQueryRow = Pick<
   profile: Pick<Tables<'profiles'>, 'email' | 'full_name'> | null;
 };
 
+export function resolveCurrentUserRole(
+  members: readonly Pick<WorkspaceMember, 'email' | 'role'>[],
+  currentEmail: string | null | undefined,
+  isDemoMode: boolean,
+): WorkspaceRole | null {
+  if (isDemoMode) return 'owner';
+
+  const normalizedEmail = currentEmail?.trim().toLowerCase();
+  if (!normalizedEmail) return null;
+
+  return (
+    members.find((member) => (member.email ?? '').trim().toLowerCase() === normalizedEmail)?.role ??
+    null
+  );
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -68,13 +84,9 @@ export class WorkspaceMemberService {
 
   readonly isLoading = signal<boolean>(false);
 
-  readonly currentUserRole = computed<WorkspaceRole>(() => {
-    const currentEmail = this.auth.userEmail()?.toLowerCase();
-    if (!currentEmail) return 'owner';
-
-    const member = this.members().find((m) => (m.email ?? '').toLowerCase() === currentEmail);
-    return member?.role || 'owner';
-  });
+  readonly currentUserRole = computed<WorkspaceRole | null>(() =>
+    resolveCurrentUserRole(this.members(), this.auth.userEmail(), this.auth.isDemoMode()),
+  );
 
   constructor() {
     // Hinweis: effect() benoetigt einen ChangeDetectionScheduler. Die

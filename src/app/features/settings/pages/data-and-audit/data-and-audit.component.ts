@@ -59,7 +59,7 @@ const ENTITY_TYPES: readonly BusinessEntityType[] = [
   'export',
   'workspace',
 ];
-export function canExportAuditData(role: WorkspaceRole): boolean {
+export function canExportAuditData(role: WorkspaceRole | null): boolean {
   return role === 'owner' || role === 'admin' || role === 'accountant';
 }
 
