@@ -1,5 +1,23 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-15 – Antigravity – Auth Header-Zentrierung, Registrierungs-Layout & SMTP-Timeout behoben
+
+**Auftrag:** Registrierungs-Timeout („Processing this request timed out, please retry after a moment“) untersuchen und beheben. Header in Login und Registrierung einheitlich mittig mit Logo und Text nebeneinander ausrichten, Tagline in Registrierung entfernen, Card- und Label-Styling vereinheitlichen.
+
+**Befund:**
+
+1. Der Registrierungs-Timeout trat beim Bestätigungsmail-Versand auf: In `/opt/supabase/.env` war `SMTP_PORT=465` konfiguriert. Da GoTrue `net/smtp` nutzt, lief die SMTPS-Verbindung in einen 10-Sekunden-Context-Deadline-Fehler (Port 465 hängt, während Port 587 mit STARTTLS sofort erfolgreich verbindet und sendet).
+2. Im Registrierungs-Template war das Logo noch vertikal über der Überschrift gestapelt und zeigte weiterhin die Tagline sowie künstliche Versalien bei den Labels.
+3. Im Login-Template war der Header noch linksbündig statt zentriert.
+
+**Änderung:**
+
+1. Server (`/opt/supabase/.env`): `SMTP_PORT` von 465 auf 587 (STARTTLS) korrigiert, Auth-Container neu gestartet. Versand über Mailbox.org mit `account@flipbase.de` verifiziert.
+2. `login.component.html`: Brand-Header (`logo-mark` und „Flipbase“) und `AUTH.SIGN_IN_TITLE` zentriert (`justify-center text-center`).
+3. `register.component.html`: Card-Rahmen und Schatten an Shopify-Admin angepasst (`rounded-2xl shadow-xs`), Header analog zum Login zentriert (`justify-center text-center`) mit Logo und Text nebeneinander, Tagline entfernt, alle Formular-Labels auf normale Groß-/Kleinschreibung vereinheitlicht.
+
+**Prüfung:** Mail-Versand über Port 587 auf Server verifiziert (Status SUCCESS_SENT); Prettier, ESLint und Angular-Bau erfolgreich durchgelaufen.
+
 ## 2026-09-15 – Antigravity – Vinted-Bot Anfrageschutz, Cookie-Persistenz & Backoff gehärtet
 
 **Auftrag:** Vinted-Bot gegen wiederkehrende 403-Sperren und Deaktivierungen absichern.

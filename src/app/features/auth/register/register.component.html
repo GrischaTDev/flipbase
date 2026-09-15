@@ -55,23 +55,24 @@
   </div>
 
   <div
-    class="max-w-md w-full bg-fb-surface-alt border border-fb-border rounded-3xl p-6 sm:p-8 shadow-2xl animate-fade-in"
+    class="max-w-md w-full bg-fb-surface-alt border border-fb-border rounded-2xl p-6 sm:p-8 shadow-xs"
   >
-    <!-- Logo & Title -->
-    <div class="text-center mb-6">
-      <img
-        ngSrc="images/logo-mark.png"
-        width="48"
-        height="48"
-        alt="Flipbase"
-        class="fb-logo-mark inline-block w-12 h-12 mb-3"
-        priority
-      />
-      <h1 class="text-2xl font-extrabold text-fb-text-primary tracking-tight">Flipbase</h1>
-      <p class="text-xs text-fb-text-muted mt-0.5">{{ 'AUTH.TAGLINE' | translate }}</p>
-      <h2 class="text-base font-bold text-fb-text-secondary mt-3">
+    <!-- Brand & Heading -->
+    <div class="mb-6 text-center">
+      <div class="flex items-center justify-center gap-2.5 mb-2">
+        <img
+          ngSrc="images/logo-mark.png"
+          width="32"
+          height="32"
+          alt="Flipbase"
+          class="fb-logo-mark w-8 h-8 shrink-0"
+          priority
+        />
+        <span class="text-xl font-bold text-fb-text-primary tracking-tight">Flipbase</span>
+      </div>
+      <h1 class="text-base font-semibold text-fb-text-secondary">
         {{ 'AUTH.SIGN_UP_TITLE' | translate }}
-      </h2>
+      </h1>
     </div>
 
     <!-- Error Box -->
@@ -98,10 +99,7 @@
     <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-4">
       <!-- Full Name -->
       <div>
-        <label
-          for="regFullName"
-          class="block text-xs font-semibold uppercase tracking-wider text-fb-text-secondary mb-1.5"
-        >
+        <label for="regFullName" class="block text-xs font-semibold text-fb-text-secondary mb-1.5">
           {{ 'AUTH.FULL_NAME' | translate }}
         </label>
         <div class="relative flex items-center">
@@ -128,10 +126,7 @@
 
       <!-- Email -->
       <div>
-        <label
-          for="regEmail"
-          class="block text-xs font-semibold uppercase tracking-wider text-fb-text-secondary mb-1.5"
-        >
+        <label for="regEmail" class="block text-xs font-semibold text-fb-text-secondary mb-1.5">
           {{ 'AUTH.EMAIL' | translate }}
         </label>
         <div class="relative flex items-center">
@@ -158,10 +153,7 @@
 
       <!-- Password -->
       <div>
-        <label
-          for="regPassword"
-          class="block text-xs font-semibold uppercase tracking-wider text-fb-text-secondary mb-1.5"
-        >
+        <label for="regPassword" class="block text-xs font-semibold text-fb-text-secondary mb-1.5">
           {{ 'AUTH.PASSWORD' | translate }}
         </label>
         <div class="relative flex items-center">
