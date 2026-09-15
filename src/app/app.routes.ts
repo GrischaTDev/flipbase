@@ -58,20 +58,28 @@ export const routes: Routes = [
     ],
   },
 
-  // Auth Routes – fuer bereits angemeldete Nutzer gesperrt
+  // Auth Routes
   {
     path: 'auth',
-    canActivate: [guestGuard],
     children: [
       {
         path: 'login',
+        canActivate: [guestGuard],
         loadComponent: () =>
           import('./features/auth/login/login.component').then((m) => m.LoginComponent),
       },
       {
         path: 'register',
+        canActivate: [guestGuard],
         loadComponent: () =>
           import('./features/auth/register/register.component').then((m) => m.RegisterComponent),
+      },
+      {
+        path: 'set-password',
+        loadComponent: () =>
+          import('./features/auth/set-password/set-password.component').then(
+            (m) => m.SetPasswordComponent,
+          ),
       },
       {
         path: '',

@@ -1,5 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { SupabaseService } from '../../../core/services/supabase.service';
+import { LoggerService } from '../../../core/services/logger.service';
 import { BetaApplication, BetaApplicationStatus } from '../models/beta-application.model';
 
 /**
@@ -11,6 +12,7 @@ import { BetaApplication, BetaApplicationStatus } from '../models/beta-applicati
 @Injectable({ providedIn: 'root' })
 export class BetaApplicationService {
   private readonly supabase = inject(SupabaseService);
+  private readonly logger = inject(LoggerService, { optional: true });
 
   async list(): Promise<BetaApplication[]> {
     const { data, error } = await this.supabase.client
@@ -32,6 +34,16 @@ export class BetaApplicationService {
     }));
   }
 
+  async sendInvite(id: string): Promise<{ alreadyRegistered?: boolean }> {
+    const { data, error } = await this.supabase.client.functions.invoke('beta-invite', {
+      body: { applicationId: id },
+    });
+    if (error) {
+      throw new Error(error.message || 'Einladung konnte nicht gesendet werden.');
+    }
+    return (data ?? {}) as { alreadyRegistered?: boolean };
+  }
+
   async decide(
     id: string,
     status: Exclude<BetaApplicationStatus, 'open'>,
@@ -46,5 +58,13 @@ export class BetaApplicationService {
       .eq('id', id);
 
     if (error) throw new Error(error.message);
+
+    if (status === 'accepted') {
+      try {
+        await this.sendInvite(id);
+      } catch (inviteErr) {
+        this.logger?.warn('Einladung konnte nicht automatisch versendet werden:', inviteErr);
+      }
+    }
   }
 }

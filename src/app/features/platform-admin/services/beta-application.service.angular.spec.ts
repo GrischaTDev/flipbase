@@ -61,11 +61,12 @@ describe('BetaApplicationService', () => {
     await expect(service.list()).rejects.toThrow('weg');
   });
 
-  it('schreibt die Entscheidung mit Laufzeit und Notiz', async () => {
+  it('schreibt die Entscheidung mit Laufzeit und Notiz und versendet Einladung bei Annahme', async () => {
     const eq = vi.fn().mockResolvedValue({ error: null });
     const update = vi.fn().mockReturnValue({ eq });
     const from = vi.fn().mockReturnValue({ update });
-    const service = serviceWith({ from });
+    const invoke = vi.fn().mockResolvedValue({ data: { ok: true }, error: null });
+    const service = serviceWith({ from, functions: { invoke } });
 
     await service.decide('a1', 'accepted', 180, 'passt');
 
@@ -75,5 +76,25 @@ describe('BetaApplicationService', () => {
       decision_note: 'passt',
     });
     expect(eq).toHaveBeenCalledWith('id', 'a1');
+    expect(invoke).toHaveBeenCalledWith('beta-invite', {
+      body: { applicationId: 'a1' },
+    });
+  });
+
+  it('versendet keine Einladung bei Ablehnung', async () => {
+    const eq = vi.fn().mockResolvedValue({ error: null });
+    const update = vi.fn().mockReturnValue({ eq });
+    const from = vi.fn().mockReturnValue({ update });
+    const invoke = vi.fn().mockResolvedValue({ data: { ok: true }, error: null });
+    const service = serviceWith({ from, functions: { invoke } });
+
+    await service.decide('a1', 'rejected', null, 'leider nein');
+
+    expect(update).toHaveBeenCalledWith({
+      status: 'rejected',
+      granted_days: null,
+      decision_note: 'leider nein',
+    });
+    expect(invoke).not.toHaveBeenCalled();
   });
 });

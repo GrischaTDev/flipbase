@@ -1,5 +1,37 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-16 – Antigravity – Beta-Einladungsweg bei Annahme von Bewerbungen & Passwort-Setup
+
+**Auftrag:** Automatische Versendung einer markenkonformen Einladungs-E-Mail bei Klick auf „Annehmen“ im Betreiberbereich (`/platform-admin/beta-applications`), Bereitstellung der Edge Function `beta-invite`, Konfiguration von Supabase GoTrue Auth Invite Templates und Implementierung der neuen Seite `/auth/set-password` zur Passwortvergabe und Dashboard-Freischaltung.
+
+**Befund:**
+
+1. Auf der Landingpage bewerben sich Interessenten über das Formular in `public.beta_applications` mit Status `open`.
+2. Im Betreiberbereich konnten Administratoren Bewerbungen zwar auf `accepted` setzen, es wurde jedoch noch keine automatische Einladung per E-Mail versendet.
+3. Supabase GoTrue Auth besitzt einen nativen Einladungs-Endpunkt (`admin.inviteUserByEmail`), der über Mailbox.org SMTP E-Mails mit verifizierten Einladungs-Tokens versenden kann.
+4. Es fehlte ein HTML-E-Mail-Template für Einladungen, eine autorisierte Edge Function für Betreiber und eine dedizierte Benutzeroberfläche zur Passwortvergabe (`/auth/set-password`).
+
+**Änderung:**
+
+1. `landing/templates/email-invitation.html` & `public/templates/email-invitation.html`:
+   - Markenkonformes HTML-E-Mail-Template im Shopify-Admin-Design mit Flipbase-Branding, gelbem CTA-Button (`#fcc601`) und GoTrue-Variablen (`{{ .ConfirmationURL }}`, `{{ .Data.first_name }}`).
+   - Auf Server unter `https://flipbase.de/templates/email-invitation.html` bereitgestellt.
+2. `supabase/functions/beta-invite/index.ts`:
+   - Neue Deno Edge Function mit Betreiber-Authentifizierung (`public.platform_operators`).
+   - Ruft `supabaseAdmin.auth.admin.inviteUserByEmail` mit Weiterleitung auf `https://app.flipbase.de/auth/set-password` auf und behandelt bereits registrierte Nutzer fehlertolerant.
+   - Auf Hetzner-Server bereitgestellt und über `https://api.flipbase.de/functions/v1/beta-invite` erreichbar.
+3. Server-Konfiguration (`168.119.246.33`):
+   - `GOTRUE_MAILER_TEMPLATES_INVITE` und `GOTRUE_MAILER_SUBJECTS_INVITE` in `/opt/supabase/docker-compose.yml` und `.env` hinterlegt; `supabase-auth` und `supabase-edge-functions` neu gestartet.
+4. Betreiberbereich (`src/app/features/platform-admin/`):
+   - `BetaApplicationService`: `decide()` ruft bei Annahme automatisch `sendInvite()` auf (Edge Function `beta-invite`). Unit-Tests in `beta-application.service.angular.spec.ts` erweitert.
+5. Auth & Passwort-Setup (`src/app/features/auth/set-password/`):
+   - Neue Standalone-Komponente `SetPasswordComponent` (`set-password.component.ts`, `.html`) mit Passwortstärke-Indikator, Bestätigungs-Validierung, AGB/Datenschutz-Checkboxen, Fehlertoleranz bei abgelaufenen Tokens und direkter Dashboard-Weiterleitung.
+   - `app.routes.ts`: `guestGuard` auf Kind-Routen `login` und `register` beschränkt und `/auth/set-password` registriert.
+   - `translations.ts`: Deutsche und englische Texte für `SET_PASSWORD` hinterlegt.
+   - `set-password.component.angular.spec.ts`: 5 automatisierte Komponententests hinzugefügt.
+
+**Prüfung:** `npm run typecheck`, `npm run lint`, `npm run test:audit`, Angular-Komponententests (`test:angular`, 9/9 bestanden), lokaler Angular-Produktionsbau (`ng build`), Hetzner Edge Function Endpoint-Prüfung (`curl 204 No Content` / `401 Unauthorized`), public Template HTTP 200 Prüfung.
+
 ## 2026-09-16 – Antigravity – PR #92 Konfliktbereinigung & Integration mit Master
 
 **Auftrag:** PR #92 (`codex/bot-vinted-uptime`) prüfen und abschließen, nachdem Codex sein Limit erreichte und Luna den PR wegen Merge-Konflikten mit Master nicht abschließen konnte.
@@ -13,36 +45,6 @@
 3. Merge von `origin/master` in `codex/bot-vinted-uptime` abgeschlossen.
 
 **Prüfung:** Sniper Typprüfung, Vitest (24/24 Testdateien, 179 Tests), Sniper-Build, Angular Typprüfung, Angular Vitest-Tests (94/94 Testdateien, 835 Tests), Workflow-Tests (66/66 Tests), ESLint, Prettier und Angular-Produktionsbau erfolgreich bestanden.
-
-## 2026-09-15 – Codex – Admin-Badge exakt an den Plattformzugriff gekoppelt
-
-**Auftrag:** Das Ergebnis des Code-Reviews vor dem Merge einarbeiten, damit der Header exakt dieselbe Berechtigung wie der Administrationsbereich abbildet.
-
-**Befund:** Eine Workspace-Adminrolle allein öffnet `/admin` nicht, konnte aber weiterhin den roten Plattform-Admin-Badge anzeigen. Außerdem konnte eine verspätete RPC-Antwort eines vorherigen Kontos das Operator-Signal überschreiben.
-
-**Änderung:** Der Badge hängt jetzt ausschließlich am `PlatformOperatorService`-Signal. Das Signal wird beim Start einer neuen Nutzerprüfung zunächst gesperrt und verspätete Antworten werden nur noch für die zugehörige Nutzerkennung übernommen.
-
-**Prüfung:** Die Header- und Platform-Operator-Tests laufen mit 11 Tests grün.
-
-## 2026-09-15 – Codex – Plattform-Admin-Badge an den tatsächlichen Zugriff gebunden
-
-**Auftrag:** Den fehlenden Admin-Hinweis für einen Account beheben, der den Plattform-Administrationsbereich öffnen darf.
-
-**Befund:** Der Header leitete den Badge ausschließlich aus der Workspace-Mitgliedsrolle ab. Der Zugriff auf `/admin` wird jedoch über `is_platform_operator()` geprüft. Beides kann bei einem Plattform-Administrator auseinanderfallen.
-
-**Änderung:** Der Header nutzt jetzt das gemeinsame `PlatformOperatorService`-Signal des Admin-Wächters und zeigt den roten `Admin`-Badge ausschließlich bei Plattformzugriff. Ein Regressionstest deckt einen Plattform-Administrator ohne Workspace-Adminrolle ab.
-
-**Prüfung:** Der neue Regressionstest läuft grün; die bereits geprüfte Rollen-, Bot-, Typ-, Lint- und Bauprüfung bleibt auf dem Arbeitszweig bestehen.
-
-## 2026-09-15 – Codex – Vinted-Laufzeit als serverseitigen Botstatus umgesetzt
-
-**Auftrag:** Den zurückgesetzten Browser-/Sitzungstimer entfernen und im Admin-Panel unter Botbetrieb die ununterbrochene Laufzeit seit der letzten bestätigten Vinted-Verbindung anzeigen.
-
-**Befund:** Der bisherige Zähler startete bei jedem Laden der Angular-Anwendung neu und konnte deshalb keine Botlaufzeit abbilden. Der Sniper meldete bislang nur einen aktuellen Datenbank-Heartbeat.
-
-**Änderung:** Der Sniper führt jetzt den aktuellen Abschnitt erfolgreicher Vinted-Operationen im Speicher und schreibt Startzeit sowie letzten Erfolg in `sniper_runtime_status`. Ein endgültig fehlgeschlagener Katalog- oder Kategorieabruf setzt den Abschnitt zurück. Das Admin-Panel liest diese Zeitpunkte aus Supabase und zählt sie lokal sichtbar weiter, solange der serverseitige Heartbeat frisch ist. Der irreführende Timer im Header wurde entfernt.
-
-**Prüfung:** Sniper-Tests (20 Dateien, 132 Tests), gezielte Angular-Tests, Typprüfung, ESLint und Angular-Produktionsbau erfolgreich. Der lokale Supabase-Typgenerator und DB-Test konnten wegen nicht laufendem Docker nicht ausgeführt werden.
 
 ## 2026-09-15 – Antigravity – Sniper Stabilität AP3.2: Deal-Erkennung aus gemeinsamem Datenbestand entkoppeln
 

@@ -66,6 +66,14 @@ export const TRANSLATIONS_DE = {
       'Bitte klicke auf den Link in der E-Mail, um dein Konto zu aktivieren.',
     REGISTER_CHECK_SPAM: 'Keine E-Mail erhalten? Bitte prüfe auch deinen Spam-Ordner.',
     GO_TO_LOGIN: 'Jetzt anmelden',
+    SET_PASSWORD_TITLE: 'Passwort festlegen',
+    SET_PASSWORD_SUBTITLE:
+      'Willkommen bei Flipbase! Bitte wähle dein persönliches Passwort, um deinen Beta-Zugang zu starten.',
+    SUBMIT_SET_PASSWORD: 'Passwort speichern & Loslegen',
+    SET_PASSWORD_SUCCESS: 'Dein Passwort wurde festgelegt! Du wirst weitergeleitet...',
+    SET_PASSWORD_INVALID_TITLE: 'Ungültiger Einladungslink',
+    SET_PASSWORD_INVALID_TEXT:
+      'Dieser Einladungslink ist leider nicht mehr gültig oder abgelaufen. Bitte prüfe deine E-Mail oder melde dich direkt an.',
     ACCEPT_TERMS: 'Ich akzeptiere die',
     TERMS_LINK: 'AGB',
     AND: 'und die',
@@ -400,6 +408,14 @@ export const TRANSLATIONS_EN = {
     REGISTER_SUCCESS_INSTRUCTION: 'Please click the link in the email to activate your account.',
     REGISTER_CHECK_SPAM: "Didn't receive an email? Please check your spam folder.",
     GO_TO_LOGIN: 'Sign in now',
+    SET_PASSWORD_TITLE: 'Set Password',
+    SET_PASSWORD_SUBTITLE:
+      'Welcome to Flipbase! Please choose your personal password to start your beta access.',
+    SUBMIT_SET_PASSWORD: 'Save Password & Get Started',
+    SET_PASSWORD_SUCCESS: 'Your password has been set! Redirecting...',
+    SET_PASSWORD_INVALID_TITLE: 'Invalid Invitation Link',
+    SET_PASSWORD_INVALID_TEXT:
+      'This invitation link is no longer valid or has expired. Please check your email or sign in directly.',
     ACCEPT_TERMS: 'I accept the',
     TERMS_LINK: 'Terms and Conditions',
     AND: 'and the',
