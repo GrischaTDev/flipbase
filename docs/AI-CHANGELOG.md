@@ -1,5 +1,25 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-15 – Codex – Plattform-Admin-Badge an den tatsächlichen Zugriff gebunden
+
+**Auftrag:** Den fehlenden Admin-Hinweis für einen Account beheben, der den Plattform-Administrationsbereich öffnen darf.
+
+**Befund:** Der Header leitete den Badge ausschließlich aus der Workspace-Mitgliedsrolle ab. Der Zugriff auf `/admin` wird jedoch über `is_platform_operator()` geprüft. Beides kann bei einem Plattform-Administrator auseinanderfallen.
+
+**Änderung:** Der Header nutzt jetzt das gemeinsame `PlatformOperatorService`-Signal des Admin-Wächters und zeigt den roten `Admin`-Badge bei Plattformzugriff; eine Workspace-Adminrolle bleibt ebenfalls sichtbar. Ein Regressionstest deckt einen Plattform-Administrator ohne Workspace-Adminrolle ab.
+
+**Prüfung:** Der neue Regressionstest läuft grün; die bereits geprüfte Rollen-, Bot-, Typ-, Lint- und Bauprüfung bleibt auf dem Arbeitszweig bestehen.
+
+## 2026-09-15 – Codex – Vinted-Laufzeit als serverseitigen Botstatus umgesetzt
+
+**Auftrag:** Den zurückgesetzten Browser-/Sitzungstimer entfernen und im Admin-Panel unter Botbetrieb die ununterbrochene Laufzeit seit der letzten bestätigten Vinted-Verbindung anzeigen.
+
+**Befund:** Der bisherige Zähler startete bei jedem Laden der Angular-Anwendung neu und konnte deshalb keine Botlaufzeit abbilden. Der Sniper meldete bislang nur einen aktuellen Datenbank-Heartbeat.
+
+**Änderung:** Der Sniper führt jetzt den aktuellen Abschnitt erfolgreicher Vinted-Operationen im Speicher und schreibt Startzeit sowie letzten Erfolg in `sniper_runtime_status`. Ein endgültig fehlgeschlagener Katalog- oder Kategorieabruf setzt den Abschnitt zurück. Das Admin-Panel liest diese Zeitpunkte aus Supabase und zählt sie lokal sichtbar weiter, solange der serverseitige Heartbeat frisch ist. Der irreführende Timer im Header wurde entfernt.
+
+**Prüfung:** Sniper-Tests (20 Dateien, 132 Tests), gezielte Angular-Tests, Typprüfung, ESLint und Angular-Produktionsbau erfolgreich. Der lokale Supabase-Typgenerator und DB-Test konnten wegen nicht laufendem Docker nicht ausgeführt werden.
+
 ## 2026-09-15 – Antigravity – Registrierungs-Erfolgsansicht mit Checkmark-Animation & deutsches E-Mail-Template
 
 **Auftrag:** Nach erfolgreicher Registrierung eine animierte Erfolgsansicht mit grünem Haken, Hinweis zur Bestätigungs-E-Mail und „Jetzt anmelden“-Button anzeigen. Passendes, deutsches E-Mail-Design ohne verwirrenden Code-Hinweis erstellen und in Supabase GoTrue einbinden.

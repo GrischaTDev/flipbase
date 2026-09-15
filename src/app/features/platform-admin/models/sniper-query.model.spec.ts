@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { QueryDraft, queryDraftError } from './sniper-query.model';
+import { QueryDraft, formatBotUptime, queryDraftError } from './sniper-query.model';
 
 type ProposedQueryDraft = QueryDraft & { title: string };
 
@@ -33,5 +33,18 @@ describe('central Vinted brand filter validation', () => {
     expect(queryDraftError(draft({ notes: 'x'.repeat(2001) }))).toContain('Notiz');
     expect(queryDraftError(draft({ intervalSeconds: 9 }))).toContain('Takt');
     expect(queryDraftError(draft({ intervalSeconds: 86401 }))).toContain('Takt');
+  });
+});
+
+describe('formatBotUptime', () => {
+  it('zeigt die ununterbrochene Laufzeit als Stunden, Minuten und Sekunden', () => {
+    expect(formatBotUptime(0)).toBe('00:00:00');
+    expect(formatBotUptime(65)).toBe('00:01:05');
+    expect(formatBotUptime(3661)).toBe('01:01:01');
+  });
+
+  it('begrenzt negative oder nicht endliche Werte auf null', () => {
+    expect(formatBotUptime(-10)).toBe('00:00:00');
+    expect(formatBotUptime(Number.NaN)).toBe('00:00:00');
   });
 });

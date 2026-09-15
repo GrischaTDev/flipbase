@@ -1,7 +1,6 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  DestroyRef,
   ElementRef,
   computed,
   inject,
@@ -42,18 +41,14 @@ import { Workspace, WorkspaceRole } from '../../core/models/flipbase.models';
 import { DatePipe } from '@angular/common';
 import { ToastService } from '../../shared/components/toast/toast.service';
 import { SyncStatusService } from '../../core/services/sync-status.service';
+import { PlatformOperatorService } from '../../core/services/platform-operator.service';
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
 
-export function visibleHeaderRole(role: WorkspaceRole | null): 'admin' | null {
-  return role === 'admin' ? 'admin' : null;
-}
-
-export function formatSiteOnlineDuration(totalSeconds: number): string {
-  const seconds = Math.max(0, Math.floor(totalSeconds));
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const remainder = seconds % 60;
-  return [hours, minutes, remainder].map((value) => String(value).padStart(2, '0')).join(':');
+export function visibleHeaderRole(
+  role: WorkspaceRole | null,
+  isPlatformOperator = false,
+): 'admin' | null {
+  return role === 'admin' || isPlatformOperator ? 'admin' : null;
 }
 
 @Component({
@@ -75,7 +70,6 @@ export function formatSiteOnlineDuration(totalSeconds: number): string {
   },
 })
 export class HeaderComponent {
-  private readonly destroyRef = inject(DestroyRef);
   readonly isSidebarOpen = input<boolean>(false);
   readonly auth = inject(AuthService);
   readonly workspaceService = inject(WorkspaceService);
@@ -87,6 +81,7 @@ export class HeaderComponent {
   private readonly translate = inject(TranslateService);
   private readonly toast = inject(ToastService);
   private readonly syncStatus = inject(SyncStatusService);
+  private readonly operatorService = inject(PlatformOperatorService);
 
   readonly toggleSidebar = output<void>();
   readonly openCreateWorkspace = output<void>();
@@ -100,13 +95,8 @@ export class HeaderComponent {
   readonly notificationContainer = viewChild<ElementRef<HTMLElement>>('notificationContainer');
   readonly userContainer = viewChild<ElementRef<HTMLElement>>('userContainer');
 
-  private readonly siteOnlineStartedAt = Date.now();
-  private readonly siteOnlineNow = signal(Date.now());
-  readonly siteOnlineDuration = computed(() =>
-    formatSiteOnlineDuration((this.siteOnlineNow() - this.siteOnlineStartedAt) / 1000),
-  );
   readonly headerAdminRole = computed(() =>
-    visibleHeaderRole(this.memberService.currentUserRole()),
+    visibleHeaderRole(this.memberService.currentUserRole(), this.operatorService.operator()),
   );
 
   // Icons
@@ -128,8 +118,10 @@ export class HeaderComponent {
   currentLanguage = signal<string>('de');
 
   constructor() {
-    const timer = setInterval(() => this.siteOnlineNow.set(Date.now()), 1000);
-    this.destroyRef.onDestroy(() => clearInterval(timer));
+    // Der Header verwendet dieselbe Datenbankprüfung wie der Admin-Wächter.
+    // So bleibt der Badge auch sichtbar, wenn der Nutzer keine Workspace-Adminrolle,
+    // aber Plattformzugriff auf /admin besitzt.
+    void this.operatorService.isOperator();
   }
 
   toggleWorkspaceDropdown(): void {

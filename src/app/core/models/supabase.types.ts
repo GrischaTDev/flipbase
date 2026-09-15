@@ -2931,6 +2931,8 @@ export type Database = {
           reported_at: string
           request_budget: number
           requests_last_minute: number
+          vinted_connected_since: string | null
+          vinted_last_success_at: string | null
         }
         Insert: {
           id: number
@@ -2939,6 +2941,8 @@ export type Database = {
           reported_at: string
           request_budget: number
           requests_last_minute: number
+          vinted_connected_since?: string | null
+          vinted_last_success_at?: string | null
         }
         Update: {
           id?: number
@@ -2947,6 +2951,8 @@ export type Database = {
           reported_at?: string
           request_budget?: number
           requests_last_minute?: number
+          vinted_connected_since?: string | null
+          vinted_last_success_at?: string | null
         }
         Relationships: []
       }
@@ -4685,4 +4691,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-

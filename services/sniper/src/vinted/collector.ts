@@ -3,6 +3,7 @@ import type { SniperQuery } from '../domain/query.js';
 import { parseVintedCatalogPage } from './catalog-page.js';
 import { ForbiddenError, RateLimitedError, VintedHttpError } from './errors.js';
 import { normalizeVintedItem } from './normalizer.js';
+import type { VintedConnectionState } from '../runtime/vinted-connection-state.js';
 import { sleep, type FetchLike, type SessionOptions, type Sleep } from './session.js';
 
 const CATALOG_PATH = '/catalog';
@@ -16,6 +17,7 @@ export class VintedCollector {
     private readonly options: SessionOptions,
     private readonly fetchFn: FetchLike = fetch,
     private readonly sleepFn: Sleep = sleep,
+    private readonly connectionState?: VintedConnectionState,
   ) {}
 
   async collect(query: SniperQuery): Promise<MarketplaceListing[]> {
@@ -29,10 +31,16 @@ export class VintedCollector {
     if (query.priceTo !== null) url.searchParams.set('price_to', String(query.priceTo));
     if (query.priceFrom !== null) url.searchParams.set('price_from', String(query.priceFrom));
 
-    const response = await this.request(url);
-    const body = await response.text();
-
-    return parseVintedCatalogPage(body, this.options.baseUrl).map(normalizeVintedItem);
+    try {
+      const response = await this.request(url);
+      const body = await response.text();
+      const listings = parseVintedCatalogPage(body, this.options.baseUrl).map(normalizeVintedItem);
+      this.connectionState?.recordSuccess();
+      return listings;
+    } catch (error) {
+      this.connectionState?.recordFailure();
+      throw error;
+    }
   }
 
   private async request(url: URL): Promise<Response> {

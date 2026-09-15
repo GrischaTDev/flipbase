@@ -9,6 +9,7 @@ import { ListingRetention } from './runtime/listing-retention.js';
 import { refreshCategoriesIfDue } from './runtime/refresh-categories.js';
 import { QueryScheduler } from './runtime/scheduler.js';
 import { RequestMetrics } from './runtime/request-metrics.js';
+import { VintedConnectionState } from './runtime/vinted-connection-state.js';
 import { CategoryStore } from './store/category.store.js';
 import { ListingStore } from './store/listing.store.js';
 import { QueryStore } from './store/query.store.js';
@@ -29,6 +30,7 @@ const budget = new RequestBudget(config.requestsPerMinute);
 // Wiederholungen nach 5xx und der getrennte Kategorieabruf gleichermassen.
 const metrics = new RequestMetrics();
 const counted = countingFetch(metrics.wrap(fetch), () => budget.record());
+const vintedConnection = new VintedConnectionState();
 
 const health = createHealthState(() => budget.usageRatio());
 const queries = new QueryStore(client);
@@ -49,7 +51,7 @@ const scheduler = new QueryScheduler({
       health.recordDeactivation();
     },
   },
-  collector: new VintedCollector(sessionOptions, counted),
+  collector: new VintedCollector(sessionOptions, counted, sleep, vintedConnection),
   listings,
   budget,
   log,
@@ -94,11 +96,21 @@ while (!controller.signal.aborted) {
         store: categories,
         hasCapacity: () => budget.hasCapacity(),
         fetchHomepage: async () => {
-          const response = await counted(config.vintedBaseUrl, {
-            headers: { Accept: 'text/html,application/xhtml+xml', 'User-Agent': config.userAgent },
-          });
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          return response.text();
+          try {
+            const response = await counted(config.vintedBaseUrl, {
+              headers: {
+                Accept: 'text/html,application/xhtml+xml',
+                'User-Agent': config.userAgent,
+              },
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const html = await response.text();
+            vintedConnection.recordSuccess();
+            return html;
+          } catch (error) {
+            vintedConnection.recordFailure();
+            throw error;
+          }
         },
         maxAgeMs: config.categoryMaxAgeMs,
         log,
@@ -122,6 +134,7 @@ while (!controller.signal.aborted) {
   await retention.runIfDue();
   try {
     const snapshot = metrics.snapshot();
+    const connection = vintedConnection.snapshot();
     const { error } = await client.from('sniper_runtime_status').upsert({
       id: 1,
       reported_at: new Date().toISOString(),
@@ -129,6 +142,8 @@ while (!controller.signal.aborted) {
       rejected_last_minute: snapshot.rejected,
       request_budget: config.requestsPerMinute,
       last_cycle_error: cycleError ?? retention.error,
+      vinted_connected_since: connection.connectedSince?.toISOString() ?? null,
+      vinted_last_success_at: connection.lastSuccessAt?.toISOString() ?? null,
     });
     if (error) throw error;
   } catch {

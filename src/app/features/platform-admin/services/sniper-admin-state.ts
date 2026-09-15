@@ -8,6 +8,7 @@ export class SniperAdminState {
   private readonly api = inject(SniperAdminService);
   private readonly destroyRef = inject(DestroyRef);
   private timer?: ReturnType<typeof setTimeout>;
+  private readonly uptimeTimer: ReturnType<typeof setInterval>;
   private pending: Promise<void> | null = null;
   readonly queries = signal<SniperQuery[]>([]);
   readonly runtime = signal<SniperRuntimeStatus | null>(null);
@@ -15,9 +16,24 @@ export class SniperAdminState {
   readonly error = signal<string | null>(null);
   readonly loaded = signal(false);
   readonly now = signal(Date.now());
-  readonly stale = computed(
-    () => !this.runtime() || this.now() - Date.parse(this.runtime()!.reported_at) > 120_000,
-  );
+  readonly stale = computed(() => {
+    const runtime = this.runtime();
+    if (!runtime) return true;
+    const reportedAt = Date.parse(runtime.reported_at);
+    return !Number.isFinite(reportedAt) || this.now() - reportedAt > 120_000;
+  });
+  readonly vintedUptimeSeconds = computed(() => {
+    const runtime = this.runtime();
+    if (this.error() || this.stale() || !runtime?.vinted_connected_since) return null;
+
+    const connectedSince = Date.parse(runtime.vinted_connected_since);
+    const lastSuccessAt = runtime.vinted_last_success_at
+      ? Date.parse(runtime.vinted_last_success_at)
+      : Number.NaN;
+    if (!Number.isFinite(connectedSince) || !Number.isFinite(lastSuccessAt)) return null;
+
+    return Math.max(0, Math.floor((this.now() - connectedSince) / 1000));
+  });
   readonly plannedRate = computed(() =>
     this.queries()
       .filter((q) => q.is_active)
@@ -25,7 +41,11 @@ export class SniperAdminState {
   );
 
   constructor() {
-    this.destroyRef.onDestroy(() => clearTimeout(this.timer));
+    this.uptimeTimer = setInterval(() => this.now.set(Date.now()), 1000);
+    this.destroyRef.onDestroy(() => {
+      clearTimeout(this.timer);
+      clearInterval(this.uptimeTimer);
+    });
     void this.refresh();
   }
 

@@ -4,7 +4,7 @@ import { CardComponent } from '../../../../shared/components/card/card.component
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { SniperAdminState } from '../../services/sniper-admin-state';
-import { queryStatusLabel } from '../../models/sniper-query.model';
+import { formatBotUptime, queryStatusLabel } from '../../models/sniper-query.model';
 
 @Component({
   selector: 'app-sniper-operation',
@@ -22,4 +22,5 @@ export class SniperOperationComponent {
   );
   readonly stoppedQueries = computed(() => this.problemQueries().filter((q) => !q.is_active));
   readonly statusLabel = queryStatusLabel;
+  readonly formatBotUptime = formatBotUptime;
 }

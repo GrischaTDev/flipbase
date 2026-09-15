@@ -81,23 +81,6 @@
       </span>
     }
 
-    <div
-      class="hidden items-center gap-1.5 rounded-lg border border-fb-border bg-fb-surface px-2.5 py-1 lg:inline-flex"
-      title="Zeit seit dem Öffnen dieser App-Sitzung"
-      aria-label="Aktive App-Sitzung"
-    >
-      <span
-        class="h-1.5 w-1.5 rounded-full"
-        [class.bg-emerald-400]="pwaService.isOnline()"
-        [class.bg-amber-400]="!pwaService.isOnline()"
-        aria-hidden="true"
-      ></span>
-      <span class="text-xs text-fb-text-muted">Online</span>
-      <time class="font-mono text-xs tabular-nums text-fb-text-secondary">{{
-        siteOnlineDuration()
-      }}</time>
-    </div>
-
     <!--
       Der Knopf zum Installieren steht jetzt in der Fusszeile der
       Seitenleiste. Hier trug er `hidden sm:inline-flex` und war damit auf
