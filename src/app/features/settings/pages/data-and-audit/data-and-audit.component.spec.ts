@@ -78,13 +78,14 @@ describe('Daten & Protokolle', () => {
     });
   });
 
-  it.each<[WorkspaceRole, boolean]>([
+  it.each<[WorkspaceRole | null, boolean]>([
     ['owner', true],
     ['admin', true],
     ['accountant', true],
     ['member', false],
     ['fulfillment', false],
     ['readonly', false],
+    [null, false],
   ])('erteilt der Rolle %s den erwarteten globalen Exportzugriff', (role, expected) => {
     expect(canExportAuditData(role)).toBe(expected);
   });

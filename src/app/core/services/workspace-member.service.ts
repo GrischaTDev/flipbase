@@ -14,6 +14,32 @@ type WorkspaceMemberQueryRow = Pick<
   profile: Pick<Tables<'profiles'>, 'email' | 'full_name'> | null;
 };
 
+type WorkspaceMemberRoleEntry = Pick<WorkspaceMember, 'role'> &
+  Partial<Pick<WorkspaceMember, 'user_id' | 'email'>>;
+
+export function resolveCurrentUserRole(
+  members: readonly WorkspaceMemberRoleEntry[],
+  currentUserId: string | null | undefined,
+  currentEmail: string | null | undefined,
+  isDemoMode: boolean,
+): WorkspaceRole | null {
+  if (isDemoMode) return 'owner';
+
+  const normalizedUserId = currentUserId?.trim();
+  const memberById = normalizedUserId
+    ? members.find((member) => member.user_id === normalizedUserId)
+    : undefined;
+  if (memberById) return memberById.role;
+
+  const normalizedEmail = currentEmail?.trim().toLowerCase();
+  if (!normalizedEmail) return null;
+
+  return (
+    members.find((member) => (member.email ?? '').trim().toLowerCase() === normalizedEmail)?.role ??
+    null
+  );
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -24,7 +50,7 @@ export class WorkspaceMemberService {
   private readonly auth = inject(AuthService);
   private readonly mockStore = inject(MockDataStoreService);
 
-  readonly members = signal<WorkspaceMember[]>([
+  private readonly demoMembers: WorkspaceMember[] = [
     {
       id: 'wm-1',
       workspace_id: 'ws-1',
@@ -52,7 +78,9 @@ export class WorkspaceMemberService {
       role: 'accountant',
       joined_at: '2026-02-01T09:00:00Z',
     },
-  ]);
+  ];
+
+  readonly members = signal<WorkspaceMember[]>(this.mockStore.isDemoMode() ? this.demoMembers : []);
 
   readonly invites = signal<WorkspaceInvite[]>([
     {
@@ -67,14 +95,16 @@ export class WorkspaceMemberService {
   ]);
 
   readonly isLoading = signal<boolean>(false);
+  private membersLoadVersion = 0;
 
-  readonly currentUserRole = computed<WorkspaceRole>(() => {
-    const currentEmail = this.auth.userEmail()?.toLowerCase();
-    if (!currentEmail) return 'owner';
-
-    const member = this.members().find((m) => (m.email ?? '').toLowerCase() === currentEmail);
-    return member?.role || 'owner';
-  });
+  readonly currentUserRole = computed<WorkspaceRole | null>(() =>
+    resolveCurrentUserRole(
+      this.members(),
+      this.auth.currentUser()?.id,
+      this.auth.userEmail(),
+      this.auth.isDemoMode(),
+    ),
+  );
 
   constructor() {
     // Hinweis: effect() benoetigt einen ChangeDetectionScheduler. Die
@@ -97,6 +127,8 @@ export class WorkspaceMemberService {
   async loadMembers(workspaceId: string): Promise<void> {
     if (this.mockStore.isDemoMode()) return;
 
+    const loadVersion = ++this.membersLoadVersion;
+    this.members.set([]);
     this.isLoading.set(true);
     try {
       const { data, error } = await this.supabase.client
@@ -113,9 +145,11 @@ export class WorkspaceMemberService {
         )
         .eq('workspace_id', workspaceId);
 
+      if (loadVersion !== this.membersLoadVersion) return;
+
       if (error) {
         this.syncStatus.melde('Laden der Workspace-Mitglieder', error);
-      } else if (data && data.length > 0) {
+      } else {
         const mapped: WorkspaceMember[] = (data as WorkspaceMemberQueryRow[]).map((m) => ({
           id: m.id,
           workspace_id: m.workspace_id,
@@ -129,9 +163,13 @@ export class WorkspaceMemberService {
         this.members.set(mapped);
       }
     } catch (err) {
-      this.syncStatus.melde('Laden der Workspace-Mitglieder', err);
+      if (loadVersion === this.membersLoadVersion) {
+        this.syncStatus.melde('Laden der Workspace-Mitglieder', err);
+      }
     } finally {
-      this.isLoading.set(false);
+      if (loadVersion === this.membersLoadVersion) {
+        this.isLoading.set(false);
+      }
     }
   }
 

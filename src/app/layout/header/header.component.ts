@@ -1,7 +1,9 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   ElementRef,
+  computed,
   inject,
   input,
   output,
@@ -36,14 +38,34 @@ import { ConfirmDialogService } from '../../shared/components/confirm-dialog/con
 import { AppNotification } from '../../core/models/webhook.models';
 import { ThemeService } from '../../core/services/theme.service';
 import { PwaService } from '../../core/services/pwa.service';
-import { Workspace } from '../../core/models/flipbase.models';
+import { Workspace, WorkspaceRole } from '../../core/models/flipbase.models';
 import { DatePipe } from '@angular/common';
 import { ToastService } from '../../shared/components/toast/toast.service';
 import { SyncStatusService } from '../../core/services/sync-status.service';
+import { BadgeComponent } from '../../shared/components/badge/badge.component';
+
+export function visibleHeaderRole(role: WorkspaceRole | null): 'admin' | null {
+  return role === 'admin' ? 'admin' : null;
+}
+
+export function formatSiteOnlineDuration(totalSeconds: number): string {
+  const seconds = Math.max(0, Math.floor(totalSeconds));
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remainder = seconds % 60;
+  return [hours, minutes, remainder].map((value) => String(value).padStart(2, '0')).join(':');
+}
 
 @Component({
   selector: 'app-header',
-  imports: [RouterLink, TranslatePipe, LucideDynamicIcon, DatePipe, NgTemplateOutlet],
+  imports: [
+    RouterLink,
+    TranslatePipe,
+    LucideDynamicIcon,
+    DatePipe,
+    NgTemplateOutlet,
+    BadgeComponent,
+  ],
   templateUrl: './header.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
@@ -53,6 +75,7 @@ import { SyncStatusService } from '../../core/services/sync-status.service';
   },
 })
 export class HeaderComponent {
+  private readonly destroyRef = inject(DestroyRef);
   readonly isSidebarOpen = input<boolean>(false);
   readonly auth = inject(AuthService);
   readonly workspaceService = inject(WorkspaceService);
@@ -77,6 +100,15 @@ export class HeaderComponent {
   readonly notificationContainer = viewChild<ElementRef<HTMLElement>>('notificationContainer');
   readonly userContainer = viewChild<ElementRef<HTMLElement>>('userContainer');
 
+  private readonly siteOnlineStartedAt = Date.now();
+  private readonly siteOnlineNow = signal(Date.now());
+  readonly siteOnlineDuration = computed(() =>
+    formatSiteOnlineDuration((this.siteOnlineNow() - this.siteOnlineStartedAt) / 1000),
+  );
+  readonly headerAdminRole = computed(() =>
+    visibleHeaderRole(this.memberService.currentUserRole()),
+  );
+
   // Icons
   readonly LayersIcon = Layers;
   readonly GlobeIcon = Globe;
@@ -94,6 +126,11 @@ export class HeaderComponent {
   readonly WifiOffIcon = WifiOff;
 
   currentLanguage = signal<string>('de');
+
+  constructor() {
+    const timer = setInterval(() => this.siteOnlineNow.set(Date.now()), 1000);
+    this.destroyRef.onDestroy(() => clearInterval(timer));
+  }
 
   toggleWorkspaceDropdown(): void {
     this.isWorkspaceDropdownOpen.update((v) => !v);
