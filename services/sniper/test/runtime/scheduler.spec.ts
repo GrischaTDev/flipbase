@@ -4,6 +4,7 @@ import { RequestBudget } from '../../src/runtime/budget.js';
 import { ForbiddenError, RateLimitedError } from '../../src/vinted/errors.js';
 import type { MarketplaceListing } from '../../src/domain/listing.js';
 import type { SniperQuery } from '../../src/domain/query.js';
+import { isDue } from '../../src/store/query.store.js';
 
 const NOW = new Date('2026-08-30T10:00:00.000Z');
 
@@ -20,6 +21,13 @@ function makeQuery(overrides: Partial<SniperQuery> = {}): SniperQuery {
     pollIntervalMs: 60000,
     isSeeded: true,
     isActive: true,
+    runState: 'ready',
+    nextAttemptAt: null,
+    lastAttemptAt: null,
+    lastSuccessAt: null,
+    lastErrorKind: null,
+    lastErrorAt: null,
+    lastErrorMessage: null,
     lastPolledAt: null,
     lastStatus: 'never_polled',
     consecutiveFailures: 0,
@@ -56,12 +64,25 @@ function makeListing(externalId: string): MarketplaceListing {
 function buildMany(
   queries: SniperQuery[],
   overrides: {
-    queries?: Partial<Record<'markPolled' | 'markSeeded' | 'deactivate', ReturnType<typeof vi.fn>>>;
+    queries?: Partial<
+      Record<
+        | 'dueQueries'
+        | 'recordSuccess'
+        | 'recordFailure'
+        | 'markPolled'
+        | 'markSeeded'
+        | 'deactivate',
+        ReturnType<typeof vi.fn>
+      >
+    >;
     collector?: { collect: ReturnType<typeof vi.fn> };
     listings?: {
       saveNew: ReturnType<typeof vi.fn>;
       evaluateHits?: ReturnType<typeof vi.fn>;
     };
+    originState?: unknown;
+    budget?: RequestBudget;
+    log?: { info: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
   } = {},
 ) {
   const queryStore = {
@@ -79,14 +100,15 @@ function buildMany(
     evaluateHits: vi.fn().mockResolvedValue(0),
     ...overrides.listings,
   };
-  const log = { info: vi.fn(), error: vi.fn() };
-  const budget = new RequestBudget(10, () => NOW.getTime());
+  const log = overrides.log ?? { info: vi.fn(), error: vi.fn() };
+  const budget = overrides.budget ?? new RequestBudget(10, () => NOW.getTime());
 
   const scheduler = new QueryScheduler({
     queries: queryStore,
     collector,
     listings,
     budget,
+    originState: overrides.originState as never,
     log,
   } as never);
 
@@ -99,23 +121,31 @@ function build(query: SniperQuery, overrides: Record<string, unknown> = {}) {
     markPolled: vi.fn().mockResolvedValue(undefined),
     markSeeded: vi.fn().mockResolvedValue(undefined),
     deactivate: vi.fn().mockResolvedValue(undefined),
+    ...(overrides.queries as Record<string, unknown> | undefined),
   };
-  const collector = { collect: vi.fn().mockResolvedValue([makeListing('a'), makeListing('b')]) };
+  const collector = (overrides.collector as { collect: ReturnType<typeof vi.fn> } | undefined) ?? {
+    collect: vi.fn().mockResolvedValue([makeListing('a'), makeListing('b')]),
+  };
   const listings = {
     saveNew: vi.fn().mockResolvedValue([makeListing('a')]),
     evaluateHits: vi.fn().mockResolvedValue(0),
     ...(overrides.listings as Record<string, unknown> | undefined),
   };
-  const log = { info: vi.fn(), error: vi.fn() };
-  const budget = new RequestBudget(10, () => NOW.getTime());
+  const log = (overrides.log as
+    { info: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> } | undefined) ?? {
+    info: vi.fn(),
+    error: vi.fn(),
+  };
+  const budget =
+    (overrides.budget as RequestBudget | undefined) ?? new RequestBudget(10, () => NOW.getTime());
 
   const scheduler = new QueryScheduler({
     queries,
     collector,
     listings,
     budget,
+    originState: overrides.originState as never,
     log,
-    ...overrides,
   } as never);
 
   return { scheduler, queries, collector, listings, log };
@@ -179,14 +209,14 @@ describe('QueryScheduler', () => {
     expect(report.failed).toBe(1);
   });
 
-  it('deactivates a query after the third consecutive failure', async () => {
+  it('does not deactivate a query after repeated failures (run_state and backoff handle retries)', async () => {
     const collector = { collect: vi.fn().mockRejectedValue(new Error('network down')) };
     const { scheduler, queries } = build(makeQuery({ consecutiveFailures: 2 }), { collector });
 
     await scheduler.runOnce(NOW);
 
     expect(queries.markPolled).toHaveBeenCalledWith('q1', 'failed');
-    expect(queries.deactivate).toHaveBeenCalledWith('q1');
+    expect(queries.deactivate).not.toHaveBeenCalled();
   });
 
   it('does not mark anything as seen when the response was rejected', async () => {
@@ -388,5 +418,186 @@ describe('QueryScheduler', () => {
     expect(queries.markSeeded).not.toHaveBeenCalled();
     expect(report.seeded).toBe(0);
     expect(queries.markPolled).toHaveBeenCalledWith('q1', 'ok');
+  });
+
+  describe('Arbeitspaket 1: Operational Run State & Origin Protection (Regressionstests)', () => {
+    it('Regression 1: HTTP 403 marks query and origin as blocked, leaves is_active untouched', async () => {
+      const originState = {
+        getState: vi.fn().mockResolvedValue({
+          origin: 'vinted',
+          state: 'ready',
+          blockedUntil: null,
+          reason: null,
+          probeInFlight: false,
+          updatedAt: NOW.toISOString(),
+        }),
+        setCooldown: vi.fn().mockResolvedValue(undefined),
+        setBlocked: vi.fn().mockResolvedValue(undefined),
+        tryAcquireProbe: vi.fn().mockResolvedValue(true),
+        releaseProbe: vi.fn().mockResolvedValue(undefined),
+        reset: vi.fn().mockResolvedValue(undefined),
+      };
+      const recordFailure = vi.fn().mockResolvedValue(undefined);
+      const queryStore = {
+        dueQueries: vi.fn().mockResolvedValue([makeQuery({ id: 'q1', isActive: true })]),
+        recordFailure,
+        markSeeded: vi.fn().mockResolvedValue(undefined),
+        deactivate: vi.fn().mockResolvedValue(undefined),
+      };
+      const collector = { collect: vi.fn().mockRejectedValue(new ForbiddenError()) };
+      const { scheduler } = build(makeQuery(), {
+        queries: queryStore,
+        collector,
+        originState,
+      });
+
+      await scheduler.runOnce(NOW);
+
+      expect(queryStore.deactivate).not.toHaveBeenCalled();
+      expect(originState.setBlocked).toHaveBeenCalledWith('vinted', expect.any(String));
+      expect(recordFailure).toHaveBeenCalledWith(
+        'q1',
+        expect.objectContaining({
+          runState: 'blocked',
+          errorKind: 'forbidden',
+        }),
+        NOW,
+      );
+    });
+
+    it('Regression 2: HTTP 429 sets origin cooldown and halts subsequent queries in the same cycle', async () => {
+      const originState = {
+        getState: vi.fn().mockResolvedValue({
+          origin: 'vinted',
+          state: 'ready',
+          blockedUntil: null,
+          reason: null,
+          probeInFlight: false,
+          updatedAt: NOW.toISOString(),
+        }),
+        setCooldown: vi.fn().mockResolvedValue(undefined),
+        setBlocked: vi.fn().mockResolvedValue(undefined),
+        tryAcquireProbe: vi.fn().mockResolvedValue(true),
+        releaseProbe: vi.fn().mockResolvedValue(undefined),
+        reset: vi.fn().mockResolvedValue(undefined),
+      };
+      const q1 = makeQuery({ id: 'q1' });
+      const q2 = makeQuery({ id: 'q2' });
+      const collector = {
+        collect: vi
+          .fn()
+          .mockRejectedValueOnce(new RateLimitedError('Rate limited', { retryAfterSeconds: 60 })),
+      };
+      const recordFailure = vi.fn().mockResolvedValue(undefined);
+      const { scheduler } = buildMany([q1, q2], {
+        collector,
+        queries: {
+          dueQueries: vi.fn().mockResolvedValue([q1, q2]),
+          recordFailure,
+        },
+        originState,
+      } as never);
+
+      const report = await scheduler.runOnce(NOW);
+
+      expect(originState.setCooldown).toHaveBeenCalledWith(
+        'vinted',
+        new Date(NOW.getTime() + 60_000),
+        'rate_limited',
+      );
+      // q2 should not have been polled because q1 triggered an origin cooldown
+      expect(collector.collect).toHaveBeenCalledTimes(1);
+      expect(report.failed).toBe(1);
+      expect(report.polled).toBe(0);
+    });
+
+    it('Regression 3: queries with next_attempt_at in the future are not due', () => {
+      const future = new Date(NOW.getTime() + 300_000).toISOString();
+      const q = makeQuery({
+        id: 'q1',
+        runState: 'cooldown',
+        nextAttemptAt: future,
+        isActive: true,
+      });
+      expect(isDue(q, NOW)).toBe(false);
+
+      const afterCooldown = new Date(NOW.getTime() + 300_001);
+      expect(isDue(q, afterCooldown)).toBe(true);
+    });
+
+    it('Regression 4: when origin cooldown expires, exactly one probe is executed and resets origin to ready on success', async () => {
+      const originState = {
+        getState: vi.fn().mockResolvedValue({
+          origin: 'vinted',
+          state: 'cooldown',
+          blockedUntil: new Date(NOW.getTime() - 1000).toISOString(), // expired cooldown
+          reason: 'rate_limited',
+          probeInFlight: false,
+          updatedAt: NOW.toISOString(),
+        }),
+        tryAcquireProbe: vi.fn().mockResolvedValue(true),
+        releaseProbe: vi.fn().mockResolvedValue(undefined),
+        setCooldown: vi.fn().mockResolvedValue(undefined),
+        setBlocked: vi.fn().mockResolvedValue(undefined),
+        reset: vi.fn().mockResolvedValue(undefined),
+      };
+      const q1 = makeQuery({ id: 'q1' });
+      const q2 = makeQuery({ id: 'q2' });
+      const collector = { collect: vi.fn().mockResolvedValue([makeListing('probe-item')]) };
+      const recordSuccess = vi.fn().mockResolvedValue(undefined);
+      const { scheduler } = buildMany([q1, q2], {
+        collector,
+        queries: {
+          dueQueries: vi.fn().mockResolvedValue([q1, q2]),
+          recordSuccess,
+        },
+        originState,
+      } as never);
+
+      const report = await scheduler.runOnce(NOW);
+
+      expect(originState.tryAcquireProbe).toHaveBeenCalledWith('vinted');
+      // Only the single probe query was executed, despite multiple due queries
+      expect(collector.collect).toHaveBeenCalledTimes(1);
+      expect(originState.releaseProbe).toHaveBeenCalledWith('vinted', true);
+      expect(recordSuccess).toHaveBeenCalledWith('q1', NOW);
+      expect(report.polled).toBe(1);
+    });
+
+    it('Regression 5: successful collection calls recordSuccess which clears consecutive failures and resets run_state', async () => {
+      const recordSuccess = vi.fn().mockResolvedValue(undefined);
+      const q = makeQuery({ id: 'q1', runState: 'cooldown', consecutiveFailures: 2 });
+      const { scheduler } = build(q, {
+        queries: {
+          dueQueries: vi.fn().mockResolvedValue([q]),
+          recordSuccess,
+        },
+      });
+
+      const report = await scheduler.runOnce(NOW);
+
+      expect(recordSuccess).toHaveBeenCalledWith('q1', NOW);
+      expect(report.polled).toBe(1);
+    });
+
+    it('Regression 6: manual deactivation (is_active = false) is never reactivated or altered by scheduler', async () => {
+      const queryStore = {
+        dueQueries: vi.fn().mockResolvedValue([]),
+        recordSuccess: vi.fn().mockResolvedValue(undefined),
+        recordFailure: vi.fn().mockResolvedValue(undefined),
+        markSeeded: vi.fn().mockResolvedValue(undefined),
+        deactivate: vi.fn().mockResolvedValue(undefined),
+      };
+      const { scheduler, collector } = build(makeQuery({ isActive: false }), {
+        queries: queryStore,
+      });
+
+      await scheduler.runOnce(NOW);
+
+      expect(collector.collect).not.toHaveBeenCalled();
+      expect(queryStore.deactivate).not.toHaveBeenCalled();
+      expect(queryStore.recordSuccess).not.toHaveBeenCalled();
+      expect(queryStore.recordFailure).not.toHaveBeenCalled();
+    });
   });
 });

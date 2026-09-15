@@ -1,16 +1,80 @@
 import type { MarketplaceListing } from '../domain/listing.js';
 import type { QueryStatus, SniperQuery } from '../domain/query.js';
 import type { Logger } from '../log.js';
-import { ForbiddenError, RateLimitedError } from '../vinted/errors.js';
+import type { OriginState } from '../store/origin-state.store.js';
 import type { RequestBudget } from './budget.js';
-
-const MAX_CONSECUTIVE_FAILURES = 3;
+import { evaluateFailure, type RetryDecision } from './retry-policy.js';
 
 export interface QueryStoreLike {
   dueQueries(now: Date): Promise<SniperQuery[]>;
-  markPolled(id: string, status: QueryStatus): Promise<void>;
+  recordSuccess?(id: string, now?: Date): Promise<void>;
+  recordFailure?(id: string, decision: RetryDecision, now?: Date): Promise<void>;
   markSeeded(id: string): Promise<void>;
-  deactivate(id: string): Promise<void>;
+  markPolled?(id: string, status: QueryStatus): Promise<void>;
+  deactivate?(id: string): Promise<void>;
+}
+
+export interface OriginStateStoreLike {
+  getState(origin: string): Promise<OriginState>;
+  setCooldown(origin: string, blockedUntil: Date, reason: string): Promise<void>;
+  setBlocked(origin: string, reason: string): Promise<void>;
+  tryAcquireProbe(origin: string): Promise<boolean>;
+  releaseProbe(origin: string, success: boolean): Promise<void>;
+  reset(origin: string): Promise<void>;
+}
+
+class InMemoryOriginStateStore implements OriginStateStoreLike {
+  private state: 'ready' | 'cooldown' | 'blocked' = 'ready';
+  private blockedUntil: string | null = null;
+  private reason: string | null = null;
+  private probeInFlight = false;
+
+  async getState(origin: string): Promise<OriginState> {
+    return {
+      origin,
+      state: this.state,
+      blockedUntil: this.blockedUntil,
+      reason: this.reason,
+      probeInFlight: this.probeInFlight,
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
+  async setCooldown(origin: string, blockedUntil: Date, reason: string): Promise<void> {
+    this.state = 'cooldown';
+    this.blockedUntil = blockedUntil.toISOString();
+    this.reason = reason;
+    this.probeInFlight = false;
+  }
+
+  async setBlocked(origin: string, reason: string): Promise<void> {
+    this.state = 'blocked';
+    this.blockedUntil = null;
+    this.reason = reason;
+    this.probeInFlight = false;
+  }
+
+  async tryAcquireProbe(_origin: string): Promise<boolean> {
+    if (this.probeInFlight) return false;
+    this.probeInFlight = true;
+    return true;
+  }
+
+  async releaseProbe(_origin: string, success: boolean): Promise<void> {
+    this.probeInFlight = false;
+    if (success) {
+      this.state = 'ready';
+      this.blockedUntil = null;
+      this.reason = null;
+    }
+  }
+
+  async reset(_origin: string): Promise<void> {
+    this.state = 'ready';
+    this.blockedUntil = null;
+    this.reason = null;
+    this.probeInFlight = false;
+  }
 }
 
 export interface CollectorLike {
@@ -39,11 +103,19 @@ export interface SchedulerDeps {
   collector: CollectorLike;
   listings: ListingStoreLike;
   budget: RequestBudget;
+  originState?: OriginStateStoreLike;
   log: Logger;
+  origin?: string;
 }
 
 export class QueryScheduler {
-  constructor(private readonly deps: SchedulerDeps) {}
+  private readonly origin: string;
+  private readonly originStore: OriginStateStoreLike;
+
+  constructor(private readonly deps: SchedulerDeps) {
+    this.origin = deps.origin ?? 'vinted';
+    this.originStore = deps.originState ?? new InMemoryOriginStateStore();
+  }
 
   async runOnce(now: Date): Promise<CycleReport> {
     const report: CycleReport = {
@@ -55,19 +127,52 @@ export class QueryScheduler {
       newHits: 0,
     };
 
-    // Rueckfallnetz: `dueQueries()` haengt an genau demselben Store wie
-    // `markPolled`/`saveNew` und kann ebenso an einem voruebergehenden
-    // Datenbankfehler scheitern. Dieser Aufruf sitzt aber vor der Schleife,
-    // also ausserhalb jedes try/catch dort drinnen - ohne eigene Absicherung
-    // wuerde ein Fehlschlag hier ungefangen aus runOnce() durchschlagen und
-    // den gesamten Durchlauf zum Absturz bringen, noch bevor ueberhaupt ein
-    // CycleReport entsteht. Ein eigener Log-Ereignisname (statt
-    // `cycle_failed`) haelt diesen Fall von einem einzelnen fehlgeschlagenen
-    // Abfrage-Poll unterscheidbar.
+    const origin = this.origin;
+    const originState = await this.originStore.getState(origin);
+
+    // 1. Origin ist dauerhaft geblockt (z. B. 403 Challenge) -> keine Anfragen senden
+    if (originState.state === 'blocked') {
+      if (this.deps.log.warn) {
+        this.deps.log.warn('origin_blocked', { origin, reason: originState.reason });
+      } else {
+        this.deps.log.info('origin_blocked', { origin, reason: originState.reason });
+      }
+      return report;
+    }
+
+    let isProbeCycle = false;
+
+    // 2. Origin ist im Cooldown (z. B. nach 429)
+    if (originState.state === 'cooldown') {
+      const blockedUntilMs = originState.blockedUntil
+        ? new Date(originState.blockedUntil).getTime()
+        : null;
+
+      if (blockedUntilMs !== null && blockedUntilMs > now.getTime()) {
+        this.deps.log.info('origin_in_cooldown', {
+          origin,
+          blockedUntil: originState.blockedUntil,
+          reason: originState.reason,
+        });
+        return report;
+      }
+
+      // Cooldown ist abgelaufen: Genau ein Probe-Request zulaessig!
+      const acquired = await this.originStore.tryAcquireProbe(origin);
+      if (!acquired) {
+        this.deps.log.info('origin_probe_already_in_flight', { origin });
+        return report;
+      }
+      isProbeCycle = true;
+    }
+
     let dueQueries: SniperQuery[];
     try {
       dueQueries = await this.deps.queries.dueQueries(now);
     } catch (error) {
+      if (isProbeCycle) {
+        await this.originStore.releaseProbe(origin, false);
+      }
       report.failed += 1;
       this.deps.log.error('due_queries_failed', {
         reason: error instanceof Error ? error.message : String(error),
@@ -75,45 +180,48 @@ export class QueryScheduler {
       return report;
     }
 
-    // Die aelteste Abfrage zuerst - das Budget entscheidet bei Knappheit nach
-    // Wartezeit, nicht nach Paket.
-    for (const query of dueQueries) {
-      // `hasCapacity()` fragt hier nur um Erlaubnis - sie zaehlt selbst
-      // nichts mit. Die tatsaechlichen HTTP-Anfragen, die ein einzelner
-      // collect()-Aufruf ausloesen kann (Session-Aufwaermen, Wiederholungen
-      // bei 5xx, Neuaufwaermen bei 401 mit eigener Wiederholung), werden auf
-      // der Transportebene gezaehlt: `countingFetch` (runtime/counting-
-      // fetch.ts) umschliesst die fetch-Funktion und ruft fuer jede
-      // tatsaechlich abgeschickte Anfrage `budget.record()`. So spiegelt das
-      // Budget echte Anfragen wider, nicht Abfrage-Durchlaeufe.
+    if (dueQueries.length === 0) {
+      if (isProbeCycle) {
+        await this.originStore.releaseProbe(origin, false);
+      }
+      return report;
+    }
+
+    // Wenn Probe-Zyklus: Nur genau eine Abfrage ausfuehren!
+    const queriesToRun = isProbeCycle ? [dueQueries[0]!] : dueQueries;
+
+    for (const query of queriesToRun) {
       if (!this.deps.budget.hasCapacity()) {
         report.skippedForBudget += 1;
+        if (isProbeCycle) {
+          await this.originStore.releaseProbe(origin, false);
+        }
         continue;
       }
 
-      // Rueckfallnetz: Alles, was aus pollOne() ungefangen durchschlaegt - ein
-      // Speicherfehler nach erfolgreichem collect(), oder ein Fehler beim
-      // Aufzeichnen eines bereits erkannten Fehlschlags in handleFailure() -
-      // darf nicht den ganzen Durchlauf mitreissen. Eine Abfrage bleibt eine
-      // Abfrage; die naechste faellige soll trotzdem noch drankommen.
-      //
-      // Es wird hier bewusst kein erneuter Store-Aufruf versucht: War der
-      // Store selbst der Grund fuer den Fehler, wuerde ein weiterer Versuch
-      // denselben Fehler nur wiederholen und koennte so das Rueckfallnetz
-      // selbst zum Absturz bringen. `failedBefore` verhindert lediglich eine
-      // doppelte Zaehlung, wenn handleFailure() den Fehlschlag schon erfasst
-      // hatte, bevor sein eigener Store-Aufruf ebenfalls scheiterte.
       const failedBefore = report.failed;
+      let cycleHalted = false;
+
       try {
-        await this.pollOne(query, report);
+        const result = await this.pollOne(query, report, now, isProbeCycle);
+        if (result.haltedOrigin) {
+          cycleHalted = true;
+        }
       } catch (error) {
         if (report.failed === failedBefore) {
           report.failed += 1;
+        }
+        if (isProbeCycle) {
+          await this.originStore.releaseProbe(origin, false);
         }
         this.deps.log.error('cycle_failed_unhandled', {
           query: query.id,
           reason: error instanceof Error ? error.message : String(error),
         });
+      }
+
+      if (cycleHalted) {
+        break; // Keine weiteren Abfragen in diesem Zyklus nach Origin-Cooldown / Block
       }
     }
 
@@ -130,29 +238,30 @@ export class QueryScheduler {
     return report;
   }
 
-  private async pollOne(query: SniperQuery, report: CycleReport): Promise<void> {
+  private async pollOne(
+    query: SniperQuery,
+    report: CycleReport,
+    now: Date,
+    isProbe: boolean,
+  ): Promise<{ haltedOrigin: boolean }> {
     let listings: MarketplaceListing[];
 
     try {
       listings = await this.deps.collector.collect(query);
     } catch (error) {
-      await this.handleFailure(query, error, report);
-      return;
+      const decision = await this.handleFailure(query, error, report, now, isProbe);
+      return { haltedOrigin: decision.originUpdate !== undefined };
+    }
+
+    // Erfolgreicher Abruf!
+    if (isProbe) {
+      await this.originStore.releaseProbe(this.origin, true);
     }
 
     const created = await this.deps.listings.saveNew(listings, query.id);
     report.polled += 1;
 
-    // Der Einlese-Lauf meldet nichts. Er hakt den vorgefundenen Bestand nur
-    // als geprueft ab - sonst wuerde die erste Runde einer neuen Abfrage jedes
-    // vorhandene Angebot unter dem Median als Fund ausrufen.
-    //
-    // Eine gescheiterte Bewertung darf den Fund nicht entwerten: Gespeichert
-    // ist er, und die Abfrage gilt als gepollt. Sonst holte der naechste
-    // Durchgang dieselben Artikel noch einmal. Ungeprueft Gebliebenes kommt
-    // von selbst wieder dran, weil der Vermerk in der Zeile fehlt.
     let evaluated = false;
-
     try {
       report.newHits += await this.deps.listings.evaluateHits(query.id, query.isSeeded);
       evaluated = true;
@@ -165,48 +274,68 @@ export class QueryScheduler {
     }
 
     if (query.isSeeded) {
-      // Nur ausserhalb des Einlese-Laufs gelten neue Artikel als Fund.
       report.newListings += created.length;
     } else if (evaluated) {
-      // Eingelesen ist die Abfrage erst, wenn der Bestand auch wirklich
-      // abgehakt wurde. Ein einziger Netzfehler an dieser Stelle wuerde sonst
-      // genuegen: Die Abfrage gilt als eingelesen, der Bestand traegt aber
-      // keinen Vermerk - und der naechste Durchgang meldete ihn vollstaendig.
-      // Ein wiederholter Einlese-Lauf kostet dagegen nichts, er ist stumm.
       await this.deps.queries.markSeeded(query.id);
       report.seeded += 1;
     }
 
-    await this.deps.queries.markPolled(query.id, 'ok');
+    if (this.deps.queries.recordSuccess) {
+      await this.deps.queries.recordSuccess(query.id, now);
+    } else if (this.deps.queries.markPolled) {
+      await this.deps.queries.markPolled(query.id, 'ok');
+    }
+
+    return { haltedOrigin: false };
   }
 
   private async handleFailure(
     query: SniperQuery,
     error: unknown,
     report: CycleReport,
-  ): Promise<void> {
+    now: Date,
+    isProbe: boolean,
+  ): Promise<RetryDecision> {
     report.failed += 1;
 
-    if (error instanceof RateLimitedError) {
-      this.deps.log.error('rate_limited', { query: query.id });
-      await this.deps.queries.markPolled(query.id, 'rate_limited');
-      return;
+    if (isProbe) {
+      await this.originStore.releaseProbe(this.origin, false);
     }
 
-    if (error instanceof ForbiddenError) {
-      this.deps.log.error('forbidden', { query: query.id });
-      await this.deps.queries.markPolled(query.id, 'forbidden');
-      return;
-    }
+    const decision = evaluateFailure(error, query, now);
 
-    this.deps.log.error('cycle_failed', {
+    this.deps.log.error('query_failed', {
       query: query.id,
-      reason: error instanceof Error ? error.message : String(error),
+      kind: decision.errorKind,
+      runState: decision.runState,
+      nextAttemptAt: decision.nextAttemptAt?.toISOString() ?? null,
+      reason: decision.errorMessage,
     });
-    await this.deps.queries.markPolled(query.id, 'failed');
 
-    if (query.consecutiveFailures + 1 >= MAX_CONSECUTIVE_FAILURES) {
-      await this.deps.queries.deactivate(query.id);
+    if (this.deps.queries.recordFailure) {
+      await this.deps.queries.recordFailure(query.id, decision, now);
+    } else if (this.deps.queries.markPolled) {
+      const status: QueryStatus =
+        decision.errorKind === 'rate_limited'
+          ? 'rate_limited'
+          : decision.errorKind === 'forbidden'
+            ? 'forbidden'
+            : 'failed';
+      await this.deps.queries.markPolled(query.id, status);
     }
+
+    if (decision.originUpdate) {
+      if (decision.originUpdate.state === 'cooldown' && decision.originUpdate.blockedUntil) {
+        await this.originStore.setCooldown(
+          this.origin,
+          decision.originUpdate.blockedUntil,
+          decision.originUpdate.reason,
+        );
+      } else if (decision.originUpdate.state === 'blocked') {
+        await this.originStore.setBlocked(this.origin, decision.originUpdate.reason);
+      }
+    }
+
+    return decision;
   }
 }

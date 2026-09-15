@@ -28,6 +28,14 @@ create table if not exists public.sniper_queries (
     poll_interval_ms integer not null default 60000,
     is_seeded boolean not null default false,
     is_active boolean not null default true,
+    run_state text not null default 'ready'
+        check (run_state in ('ready', 'cooldown', 'blocked', 'invalid')),
+    next_attempt_at timestamptz,
+    last_attempt_at timestamptz,
+    last_success_at timestamptz,
+    last_error_kind text,
+    last_error_at timestamptz,
+    last_error_message text,
     last_polled_at timestamptz,
     last_status text not null default 'never_polled'
         check (last_status in ('never_polled', 'ok', 'rate_limited', 'forbidden', 'failed')),
@@ -44,6 +52,25 @@ create table if not exists public.sniper_queries (
     constraint sniper_queries_price_range_valid check (price_from is null or price_to is null or price_from <= price_to),
     constraint sniper_queries_title_valid check (length(btrim(title)) between 1 and 100)
 );
+
+create table if not exists public.sniper_origin_state (
+    origin text primary key,
+    state text not null default 'ready' check (state in ('ready', 'cooldown', 'blocked')),
+    blocked_until timestamptz,
+    reason text,
+    probe_in_flight boolean not null default false,
+    updated_at timestamptz not null default now()
+);
+
+comment on table public.sniper_origin_state is
+    'Zentraler Zugangs- und Sperrzustand fuer externe Marktplatz-Origins.';
+
+alter table public.sniper_origin_state enable row level security;
+revoke all on public.sniper_origin_state from public, anon, authenticated;
+grant select on public.sniper_origin_state to authenticated;
+grant select, insert, update, delete on public.sniper_origin_state to service_role;
+create policy "sniper_origin_state_operator_select" on public.sniper_origin_state
+    for select to authenticated using ((select public.is_platform_operator()));
 
 comment on table public.sniper_queries is
     'Eine Abfrage ist die Einheit, die tatsaechlich bei Vinted gepollt wird. Gleiche Filter mehrerer Arbeitsbereiche teilen sich ueber query_key eine Zeile.';

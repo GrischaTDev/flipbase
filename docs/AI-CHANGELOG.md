@@ -1,5 +1,27 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-15 – Antigravity – Sniper Stabilität AP1: Operational Run State & Origin-Schutz
+
+**Auftrag:** Umsetzung von Arbeitspaket 1 (P0): Diagnose und Fehlerzustände für den Vinted-Bot gemäß Update- und Umsetzungsplan.
+
+**Befund:**
+
+1. Bisher wurden technische Fehler (403, 429, Timeouts) im Scheduler mit einer dauerhaften Deaktivierung (`is_active = false`) quittiert, wodurch Filter nach einzelnen Fehlern tot in der Datenbank verblieben.
+2. Es fehlte eine gemeinsame Schutzschaltung (`sniper_origin_state`) für den gemeinsamen Vinted-Zugang: Bei 429-Rate-Limits oder 403-Challenges fragte die nächste Marke einfach weiter, statt die gemeinsame Infrastruktur vorsorglich zu pausieren.
+3. Fehlerursachen waren im Datenmodell nicht differenziert nachvollziehbar (`last_error_kind`, `run_state`, `next_attempt_at`).
+
+**Änderung:**
+
+1. `services/sniper/src/vinted/errors.ts`: Spezifische Fehlerhierarchie mit `VintedCollectorError`, RFC-9110 `Retry-After`-Parsing und Bereinigung von sensiblen Response-Samples.
+2. `services/sniper/src/runtime/retry-policy.ts`: Pure, testbare Fehlerpolitik `evaluateFailure()`.
+3. `services/sniper/src/store/origin-state.store.ts` & `supabase/schemas/50_sniper.sql`: Origin-weite Zustandstabelle `sniper_origin_state` mit atomarem Probe-Verfahren (`tryAcquireProbe`, `releaseProbe`).
+4. `services/sniper/src/store/query.store.ts`: `is_active` ist rein administrativ. Technische Fehler steuern ausschließlich `run_state` (`ready`, `cooldown`, `blocked`, `invalid`), `next_attempt_at` und Fehler-Metriken über `recordFailure()`. Erfolgreiche Abfragen setzen den Zustand über `recordSuccess()` zurück.
+5. `services/sniper/src/runtime/scheduler.ts`: Origin-Status wird vor jedem Abrufzyklus geprüft; bei Cooldown ist nach Ablauf genau ein Probe-Request zugelassen; Folgebefehle nach 429/403 pausieren sofort.
+6. `supabase/migrations/20260915150000_sniper_run_state_and_origin.sql`: Additive Migration für neue Spalten und Origin-State-Tabelle.
+7. Alle 6 Pflicht-Regressionstests im Scheduler und QueryStore implementiert.
+
+**Prüfung:** Sniper Unit-Tests (22/22 Testdateien, 167/167 Tests bestanden), Root TypeScript-Typprüfung, ESLint, Prettier-Prüfung und Workflow-Tests (`npm run test:workflow`, 66/66 bestanden) fehlerfrei.
+
 ## 2026-09-15 – Antigravity – Registrierungs-Erfolgsansicht mit Checkmark-Animation & deutsches E-Mail-Template
 
 **Auftrag:** Nach erfolgreicher Registrierung eine animierte Erfolgsansicht mit grünem Haken, Hinweis zur Bestätigungs-E-Mail und „Jetzt anmelden“-Button anzeigen. Passendes, deutsches E-Mail-Design ohne verwirrenden Code-Hinweis erstellen und in Supabase GoTrue einbinden.
