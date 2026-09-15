@@ -10,8 +10,10 @@ import { refreshCategoriesIfDue } from './runtime/refresh-categories.js';
 import { QueryScheduler } from './runtime/scheduler.js';
 import { RequestMetrics } from './runtime/request-metrics.js';
 import { VintedConnectionState } from './runtime/vinted-connection-state.js';
+import { WatchlistEvaluator } from './runtime/watchlist-evaluator.js';
 import { CategoryStore } from './store/category.store.js';
 import { ListingStore } from './store/listing.store.js';
+import { OriginStateStore } from './store/origin-state.store.js';
 import { QueryStore } from './store/query.store.js';
 import { createSupabaseClient } from './store/supabase.js';
 import { VintedCollector } from './vinted/collector.js';
@@ -34,23 +36,26 @@ const vintedConnection = new VintedConnectionState();
 
 const health = createHealthState(() => budget.usageRatio());
 const queries = new QueryStore(client);
+const originState = new OriginStateStore(client);
 const categories = new CategoryStore(client);
 const listings = new ListingStore(client);
 const retention = new ListingRetention(() => listings.purgeExpired(), log);
+const evaluator = new WatchlistEvaluator({
+  listings: {
+    evaluatePending: (batchSize) => listings.evaluatePending(batchSize),
+  },
+  log,
+});
 
 const scheduler = new QueryScheduler({
   queries: {
     dueQueries: (now) => queries.dueQueries(now),
+    recordSuccess: (id, now) => queries.recordSuccess(id, now),
+    recordFailure: (id, decision, now) => queries.recordFailure(id, decision, now),
     markPolled: (id, status) => queries.markPolled(id, status),
     markSeeded: (id) => queries.markSeeded(id),
-    // Der Taktgeber legt eine Abfrage nach drei Fehlern in Folge still. Hier
-    // mitzuzaehlen ist die einzige Stelle, an der das sichtbar wird - der
-    // Health-Endpunkt meldet es, sonst faellt es niemandem auf.
-    deactivate: async (id) => {
-      await queries.deactivate(id);
-      health.recordDeactivation();
-    },
   },
+  originState,
   collector: new VintedCollector(sessionOptions, counted, sleep, vintedConnection),
   listings,
   budget,
@@ -129,6 +134,9 @@ while (!controller.signal.aborted) {
     cycleError = error instanceof Error ? error.message : String(error);
     log.error('tick_failed', { reason: cycleError });
   }
+
+  // Merkzettel-Bewertung laeuft eigenstaendig und unbeeinflusst von Vinted-Fehlern
+  await evaluator.runOnce();
 
   // Eigene Fehlergrenze: Eine fehlende Statusmeldung darf das Sammeln nicht stoppen.
   await retention.runIfDue();

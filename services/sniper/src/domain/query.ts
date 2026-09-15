@@ -1,5 +1,7 @@
 export type QueryStatus = 'never_polled' | 'ok' | 'rate_limited' | 'forbidden' | 'failed';
 
+export type QueryRunState = 'ready' | 'cooldown' | 'blocked' | 'invalid';
+
 export interface QueryKeyInput {
   searchText: string | null;
   catalogId?: number | null;
@@ -20,6 +22,13 @@ export interface SniperQuery {
   pollIntervalMs: number;
   isSeeded: boolean;
   isActive: boolean;
+  runState: QueryRunState;
+  nextAttemptAt: string | null;
+  lastAttemptAt: string | null;
+  lastSuccessAt: string | null;
+  lastErrorKind: string | null;
+  lastErrorAt: string | null;
+  lastErrorMessage: string | null;
   lastPolledAt: string | null;
   lastStatus: QueryStatus;
   consecutiveFailures: number;

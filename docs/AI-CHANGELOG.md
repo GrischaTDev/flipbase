@@ -1,5 +1,19 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-16 – Antigravity – PR #92 Konfliktbereinigung & Integration mit Master
+
+**Auftrag:** PR #92 (`codex/bot-vinted-uptime`) prüfen und abschließen, nachdem Codex sein Limit erreichte und Luna den PR wegen Merge-Konflikten mit Master nicht abschließen konnte.
+
+**Befund:** Durch die zwischenzeitlich gemergten PRs #90 und #91 auf `master` gab es Merge-Konflikte in `index.ts`, `collector.ts` und `AI-CHANGELOG.md`. Nach dem Zusammenführen schlug die Typprüfung im Sniper-Test `vinted-connection-state.spec.ts` fehl, da `SniperQuery` durch PR #90 um neue Pflichtfelder (`runState`, `nextAttemptAt`, etc.) erweitert worden war.
+
+**Änderung:**
+
+1. `services/sniper/test/runtime/vinted-connection-state.spec.ts`: Test-Fixture `query` um die fehlenden Felder aus dem aktualisierten `SniperQuery`-Interface ergänzt.
+2. `docs/AI-CHANGELOG.md`: Zusammenführung formatiert und protokolliert.
+3. Merge von `origin/master` in `codex/bot-vinted-uptime` abgeschlossen.
+
+**Prüfung:** Sniper Typprüfung, Vitest (24/24 Testdateien, 179 Tests), Sniper-Build, Angular Typprüfung, Angular Vitest-Tests (94/94 Testdateien, 835 Tests), Workflow-Tests (66/66 Tests), ESLint, Prettier und Angular-Produktionsbau erfolgreich bestanden.
+
 ## 2026-09-15 – Codex – Admin-Badge exakt an den Plattformzugriff gekoppelt
 
 **Auftrag:** Das Ergebnis des Code-Reviews vor dem Merge einarbeiten, damit der Header exakt dieselbe Berechtigung wie der Administrationsbereich abbildet.
@@ -29,6 +43,60 @@
 **Änderung:** Der Sniper führt jetzt den aktuellen Abschnitt erfolgreicher Vinted-Operationen im Speicher und schreibt Startzeit sowie letzten Erfolg in `sniper_runtime_status`. Ein endgültig fehlgeschlagener Katalog- oder Kategorieabruf setzt den Abschnitt zurück. Das Admin-Panel liest diese Zeitpunkte aus Supabase und zählt sie lokal sichtbar weiter, solange der serverseitige Heartbeat frisch ist. Der irreführende Timer im Header wurde entfernt.
 
 **Prüfung:** Sniper-Tests (20 Dateien, 132 Tests), gezielte Angular-Tests, Typprüfung, ESLint und Angular-Produktionsbau erfolgreich. Der lokale Supabase-Typgenerator und DB-Test konnten wegen nicht laufendem Docker nicht ausgeführt werden.
+
+## 2026-09-15 – Antigravity – Sniper Stabilität AP3.2: Deal-Erkennung aus gemeinsamem Datenbestand entkoppeln
+
+**Auftrag:** Umsetzung von Arbeitspaket 3.2: Deal-Erkennung aus dem gemeinsamen Datenbestand entkoppeln gemäß Update- und Umsetzungsplan.
+
+**Befund:**
+
+1. Bisher war die Merkzettel- und Deal-Erkennung (`evaluateHits`) synchron in den Abrufzyklus jeder einzelnen `sniper_query` (`pollOne`) eingebettet.
+2. Wenn die Merkzettelbewertung fehlschlug (z. B. DB-Timeout, Berechnungs- oder Schemafehler), wurde die Abfrage als `failed` gewertet (`report.failed += 1`), die Initialisierung (`isSeeded`) blockiert und unnötige Fehlerzählung ausgelöst, obwohl der Vinted-HTTP-Abruf 100 % fehlerfrei war.
+3. Unbewertete Datensätze (`watchlist_evaluated_at IS NULL`) konnten nur durch einen erneuten Vinted-HTTP-Abruf genau dieser Abfrage nachgeholt werden. Bei Origin-Sperren oder inaktiven Abfragen blieben Artikel unbewertet liegen.
+
+**Änderung:**
+
+1. `supabase/schemas/106_sniper_watchlists.sql` & `supabase/migrations/20260915200000_sniper_decoupled_watchlist_evaluation.sql`:
+   - Neue RPC-Funktion `public.sniper_evaluate_pending_watchlist_hits(p_batch_size)` für paketweise Nachholung unbewerteter Artikel (`watchlist_evaluated_at IS NULL`).
+   - Schützt die Warteschlange vor Head-of-Line-Blocking: Bereinigt vorab ungültige Währungen (`!= 'EUR'`), ungültige Preise (`<= 0`) und abgelaufene Angebote (`> 14 Tage`), priorisiert frische Funde (`first_seen_at desc`) und wertet gegen aktive Merkzettel aus.
+   - Partieller Index `idx_sniper_listings_watchlist_pending_global` auf `sniper_listings(first_seen_at desc, id desc) where watchlist_evaluated_at is null`.
+2. `services/sniper/src/store/listing.store.ts`:
+   - Neue Methode `evaluatePending(batchSize = 100)` ruft die neue RPC-Funktion auf und liefert `{ processed, hits }`.
+3. `services/sniper/src/runtime/watchlist-evaluator.ts`:
+   - Neuer `WatchlistEvaluator` verarbeitet ausstehende Angebote in begrenzten Batches bis zur Erschöpfung der Warteschlange (oder bis `maxBatchesPerRun`), kapselt DB-Fehler und verbraucht kein externes Vinted-Budget.
+4. `services/sniper/src/runtime/scheduler.ts`:
+   - `evaluateHits` ist in `ListingStoreLike` optional.
+   - Fehler bei der Bewertung erhöhen **nicht** mehr `report.failed` und verhindern **nicht** mehr den erfolgreichen Abrufstatus (`recordSuccess` / `markPolled`).
+5. `services/sniper/src/index.ts`:
+   - `WatchlistEvaluator` instanziiert und als eigenständige Phase in der Hauptschleife verankert – läuft auch dann, wenn Vinted im Cooldown ist.
+6. Tests:
+   - `test/runtime/watchlist-evaluator.spec.ts`: 4 Unittests für Batching, Obergrenze, Fehlertoleranz und Logging.
+   - `test/runtime/scheduler.spec.ts`: Regressionstests für getrennte Fehlerbehandlung und puren Ingest-Modus.
+   - `test/store/listing.store.spec.ts`: Unittests für `evaluatePending`.
+
+**Prüfung:** Sniper Unit-Tests (23/23 Testdateien, 175/175 Tests bestanden), Sniper TypeScript-Typprüfung und Build, ESLint, Prettier-Formatierung und Root Workflow-Tests (`npm run test:workflow`, 66/66 bestanden).
+
+## 2026-09-15 – Antigravity – Sniper Stabilität AP1: Operational Run State & Origin-Schutz
+
+**Auftrag:** Umsetzung von Arbeitspaket 1 (P0): Diagnose und Fehlerzustände für den Vinted-Bot gemäß Update- und Umsetzungsplan.
+
+**Befund:**
+
+1. Bisher wurden technische Fehler (403, 429, Timeouts) im Scheduler mit einer dauerhaften Deaktivierung (`is_active = false`) quittiert, wodurch Filter nach einzelnen Fehlern tot in der Datenbank verblieben.
+2. Es fehlte eine gemeinsame Schutzschaltung (`sniper_origin_state`) für den gemeinsamen Vinted-Zugang: Bei 429-Rate-Limits oder 403-Challenges fragte die nächste Marke einfach weiter, statt die gemeinsame Infrastruktur vorsorglich zu pausieren.
+3. Fehlerursachen waren im Datenmodell nicht differenziert nachvollziehbar (`last_error_kind`, `run_state`, `next_attempt_at`).
+
+**Änderung:**
+
+1. `services/sniper/src/vinted/errors.ts`: Spezifische Fehlerhierarchie mit `VintedCollectorError`, RFC-9110 `Retry-After`-Parsing und Bereinigung von sensiblen Response-Samples.
+2. `services/sniper/src/runtime/retry-policy.ts`: Pure, testbare Fehlerpolitik `evaluateFailure()`.
+3. `services/sniper/src/store/origin-state.store.ts` & `supabase/schemas/50_sniper.sql`: Origin-weite Zustandstabelle `sniper_origin_state` mit atomarem Probe-Verfahren (`tryAcquireProbe`, `releaseProbe`).
+4. `services/sniper/src/store/query.store.ts`: `is_active` ist rein administrativ. Technische Fehler steuern ausschließlich `run_state` (`ready`, `cooldown`, `blocked`, `invalid`), `next_attempt_at` und Fehler-Metriken über `recordFailure()`. Erfolgreiche Abfragen setzen den Zustand über `recordSuccess()` zurück.
+5. `services/sniper/src/runtime/scheduler.ts`: Origin-Status wird vor jedem Abrufzyklus geprüft; bei Cooldown ist nach Ablauf genau ein Probe-Request zugelassen; Folgebefehle nach 429/403 pausieren sofort.
+6. `supabase/migrations/20260915150000_sniper_run_state_and_origin.sql`: Additive Migration für neue Spalten und Origin-State-Tabelle.
+7. Alle 6 Pflicht-Regressionstests im Scheduler und QueryStore implementiert.
+
+**Prüfung:** Sniper Unit-Tests (22/22 Testdateien, 167/167 Tests bestanden), Root TypeScript-Typprüfung, ESLint, Prettier-Prüfung und Workflow-Tests (`npm run test:workflow`, 66/66 bestanden) fehlerfrei.
 
 ## 2026-09-15 – Antigravity – Registrierungs-Erfolgsansicht mit Checkmark-Animation & deutsches E-Mail-Template
 

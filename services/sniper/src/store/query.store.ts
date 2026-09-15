@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-import type { QueryStatus, SniperQuery } from '../domain/query.js';
+import type { QueryRunState, QueryStatus, SniperQuery } from '../domain/query.js';
+import type { RetryDecision } from '../runtime/retry-policy.js';
 
 interface QueryRow {
   id: string;
@@ -14,13 +15,20 @@ interface QueryRow {
   poll_interval_ms: number;
   is_seeded: boolean;
   is_active: boolean;
+  run_state: QueryRunState;
+  next_attempt_at: string | null;
+  last_attempt_at: string | null;
+  last_success_at: string | null;
+  last_error_kind: string | null;
+  last_error_at: string | null;
+  last_error_message: string | null;
   last_polled_at: string | null;
   last_status: QueryStatus;
   consecutive_failures: number;
 }
 
 const COLUMNS =
-  'id, query_key, marketplace, search_text, catalog_id, brand_id, price_to, price_from, poll_interval_ms, is_seeded, is_active, last_polled_at, last_status, consecutive_failures';
+  'id, query_key, marketplace, search_text, catalog_id, brand_id, price_to, price_from, poll_interval_ms, is_seeded, is_active, run_state, next_attempt_at, last_attempt_at, last_success_at, last_error_kind, last_error_at, last_error_message, last_polled_at, last_status, consecutive_failures';
 
 function toQuery(row: QueryRow): SniperQuery {
   return {
@@ -37,6 +45,13 @@ function toQuery(row: QueryRow): SniperQuery {
     pollIntervalMs: row.poll_interval_ms,
     isSeeded: row.is_seeded,
     isActive: row.is_active,
+    runState: row.run_state ?? 'ready',
+    nextAttemptAt: row.next_attempt_at,
+    lastAttemptAt: row.last_attempt_at,
+    lastSuccessAt: row.last_success_at,
+    lastErrorKind: row.last_error_kind,
+    lastErrorAt: row.last_error_at,
+    lastErrorMessage: row.last_error_message,
     lastPolledAt: row.last_polled_at,
     lastStatus: row.last_status,
     consecutiveFailures: row.consecutive_failures,
@@ -44,17 +59,21 @@ function toQuery(row: QueryRow): SniperQuery {
 }
 
 /**
- * Faellig ist eine Abfrage, wenn sie noch nie lief oder ihr Takt abgelaufen
- * ist. Bewusst in TypeScript entschieden statt in SQL: So bleibt die Regel
- * ohne Datenbank testbar, und der Taktgeber ist die einzige Stelle, die ueber
- * Reihenfolge und Budget entscheidet.
- *
- * Wenn die letzte Abfrage durch Vinted gebremst wurde (429 Rate Limit oder 403 Forbidden),
- * pausieren wir mit exponentiellem Backoff statt die Abfrage stillzulegen:
- * 1 Fehlversuch -> 2 Min, 2 -> 4 Min, 3 -> 8 Min (max. 10 Min).
+ * Faellig ist eine Abfrage, wenn:
+ * 1. Ihr run_state weder 'blocked' noch 'invalid' ist.
+ * 2. Ein evtl. gesetzter next_attempt_at erreicht ist.
+ * 3. Sie noch nie lief oder ihr pollIntervalMs bzw. Backoff abgelaufen ist.
  */
 export function isDue(query: SniperQuery, now: Date): boolean {
-  if (query.lastPolledAt === null) {
+  if (query.runState === 'blocked' || query.runState === 'invalid') {
+    return false;
+  }
+
+  if (query.nextAttemptAt != null) {
+    return now.getTime() >= new Date(query.nextAttemptAt).getTime();
+  }
+
+  if (query.lastPolledAt == null) {
     return true;
   }
 
@@ -78,6 +97,7 @@ export class QueryStore {
       .from('sniper_queries')
       .select(COLUMNS)
       .eq('is_active', true)
+      .not('run_state', 'in', '("blocked","invalid")')
       .order('last_polled_at', { ascending: true, nullsFirst: true });
 
     if (error) {
@@ -88,11 +108,74 @@ export class QueryStore {
   }
 
   /**
-   * Ein erfolgreicher Lauf setzt den Fehlerzaehler zurueck, ein misslungener
-   * zaehlt ihn hoch - der Taktgeber schaltet eine Abfrage nach drei Fehlern in
-   * Folge ab.
+   * Ein erfolgreicher Lauf setzt run_state auf 'ready', Fehlerzaehler auf 0
+   * und leert next_attempt_at.
+   */
+  async recordSuccess(id: string, now: Date = new Date()): Promise<void> {
+    const timestamp = now.toISOString();
+    const { error } = await this.client
+      .from('sniper_queries')
+      .update({
+        run_state: 'ready',
+        next_attempt_at: null,
+        last_attempt_at: timestamp,
+        last_success_at: timestamp,
+        last_polled_at: timestamp,
+        last_status: 'ok',
+        consecutive_failures: 0,
+        updated_at: timestamp,
+      })
+      .eq('id', id);
+
+    if (error) {
+      throw new Error(`recording success for query ${id} failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Speichert das Ergebnis einer Fehlerentscheidung (RetryDecision).
+   * Wichtig: `is_active` wird hier NIEMALS veraendert - technische Fehler
+   * steuern ausschliesslich run_state und next_attempt_at.
+   */
+  async recordFailure(id: string, decision: RetryDecision, now: Date = new Date()): Promise<void> {
+    const timestamp = now.toISOString();
+    let status: QueryStatus = 'failed';
+    if (decision.errorKind === 'rate_limited') {
+      status = 'rate_limited';
+    } else if (decision.errorKind === 'forbidden') {
+      status = 'forbidden';
+    }
+
+    const { error } = await this.client
+      .from('sniper_queries')
+      .update({
+        run_state: decision.runState,
+        next_attempt_at: decision.nextAttemptAt ? decision.nextAttemptAt.toISOString() : null,
+        last_attempt_at: timestamp,
+        last_error_kind: decision.errorKind,
+        last_error_at: timestamp,
+        last_error_message: decision.errorMessage.slice(0, 500),
+        last_polled_at: timestamp,
+        last_status: status,
+        consecutive_failures: decision.consecutiveFailures,
+        updated_at: timestamp,
+      })
+      .eq('id', id);
+
+    if (error) {
+      throw new Error(`recording failure for query ${id} failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Legacy-Kompatibilitaet: delegiert bei 'ok' an recordSuccess.
    */
   async markPolled(id: string, status: QueryStatus): Promise<void> {
+    if (status === 'ok') {
+      await this.recordSuccess(id);
+      return;
+    }
+
     const { data, error: readError } = await this.client
       .from('sniper_queries')
       .select('consecutive_failures')
@@ -103,15 +186,16 @@ export class QueryStore {
       throw new Error(`reading query ${id} failed: ${readError.message}`);
     }
 
-    const failures = status === 'ok' ? 0 : (data!.consecutive_failures as number) + 1;
+    const failures = (data!.consecutive_failures as number) + 1;
+    const timestamp = new Date().toISOString();
 
     const { error } = await this.client
       .from('sniper_queries')
       .update({
-        last_polled_at: new Date().toISOString(),
+        last_polled_at: timestamp,
         last_status: status,
         consecutive_failures: failures,
-        updated_at: new Date().toISOString(),
+        updated_at: timestamp,
       })
       .eq('id', id);
 
@@ -132,6 +216,7 @@ export class QueryStore {
     }
   }
 
+  /** Administrativ vom Nutzer ausgeloestes Stilllegen. */
   async deactivate(id: string): Promise<void> {
     const { error } = await this.client
       .from('sniper_queries')

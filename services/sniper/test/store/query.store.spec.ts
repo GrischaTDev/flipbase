@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { SniperQuery } from '../../src/domain/query.js';
-import { isDue } from '../../src/store/query.store.js';
+import { isDue, QueryStore } from '../../src/store/query.store.js';
 
 function query(overrides: Partial<SniperQuery> = {}): SniperQuery {
   return {
@@ -15,6 +15,13 @@ function query(overrides: Partial<SniperQuery> = {}): SniperQuery {
     pollIntervalMs: 60_000,
     isSeeded: true,
     isActive: true,
+    runState: 'ready',
+    nextAttemptAt: null,
+    lastAttemptAt: null,
+    lastSuccessAt: null,
+    lastErrorKind: null,
+    lastErrorAt: null,
+    lastErrorMessage: null,
     lastPolledAt: null,
     lastStatus: 'never_polled',
     consecutiveFailures: 0,
@@ -37,6 +44,24 @@ describe('isDue', () => {
     const now = new Date(1_000_000);
     const lastPolled = new Date(1_000_000 - 61_000).toISOString();
     expect(isDue(query({ lastPolledAt: lastPolled, pollIntervalMs: 60_000 }), now)).toBe(true);
+  });
+
+  it('is not due when runState is blocked or invalid', () => {
+    const now = new Date(1_000_000);
+    expect(isDue(query({ runState: 'blocked', lastPolledAt: null }), now)).toBe(false);
+    expect(isDue(query({ runState: 'invalid', lastPolledAt: null }), now)).toBe(false);
+  });
+
+  it('respects nextAttemptAt over pollIntervalMs', () => {
+    const now = new Date(1_000_000);
+    const future = new Date(1_050_000).toISOString();
+    const past = new Date(950_000).toISOString();
+
+    // In future: not due even if pollInterval has passed
+    expect(isDue(query({ nextAttemptAt: future, lastPolledAt: null }), now)).toBe(false);
+
+    // Reached / in past: due
+    expect(isDue(query({ nextAttemptAt: past, lastPolledAt: null }), now)).toBe(true);
   });
 
   it('applies exponential backoff on rate_limited status', () => {
@@ -87,5 +112,66 @@ describe('isDue', () => {
 
     expect(isDue(q, now)).toBe(false);
     expect(isDue({ ...q, lastPolledAt: polled10mAgo }, now)).toBe(true);
+  });
+});
+
+describe('QueryStore database operations', () => {
+  it('recordSuccess updates operational state without touching is_active', async () => {
+    const update = vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) });
+    const client = {
+      from: vi.fn().mockReturnValue({ update }),
+    };
+    const store = new QueryStore(client as never);
+    const now = new Date('2026-09-15T12:00:00Z');
+
+    await store.recordSuccess('q1', now);
+
+    expect(client.from).toHaveBeenCalledWith('sniper_queries');
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        run_state: 'ready',
+        next_attempt_at: null,
+        last_status: 'ok',
+        consecutive_failures: 0,
+      }),
+    );
+    expect(update).not.toHaveBeenCalledWith(
+      expect.objectContaining({ is_active: expect.anything() }),
+    );
+  });
+
+  it('recordFailure updates run_state, next_attempt_at and error details without touching is_active', async () => {
+    const update = vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) });
+    const client = {
+      from: vi.fn().mockReturnValue({ update }),
+    };
+    const store = new QueryStore(client as never);
+    const now = new Date('2026-09-15T12:00:00Z');
+    const nextAttempt = new Date('2026-09-15T12:05:00Z');
+
+    await store.recordFailure(
+      'q1',
+      {
+        runState: 'cooldown',
+        nextAttemptAt: nextAttempt,
+        errorKind: 'rate_limited',
+        errorMessage: 'Rate limit hit',
+        consecutiveFailures: 3,
+      },
+      now,
+    );
+
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        run_state: 'cooldown',
+        next_attempt_at: nextAttempt.toISOString(),
+        last_error_kind: 'rate_limited',
+        last_status: 'rate_limited',
+        consecutive_failures: 3,
+      }),
+    );
+    expect(update).not.toHaveBeenCalledWith(
+      expect.objectContaining({ is_active: expect.anything() }),
+    );
   });
 });
