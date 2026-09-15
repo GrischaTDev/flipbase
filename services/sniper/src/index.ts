@@ -9,6 +9,7 @@ import { ListingRetention } from './runtime/listing-retention.js';
 import { refreshCategoriesIfDue } from './runtime/refresh-categories.js';
 import { QueryScheduler } from './runtime/scheduler.js';
 import { RequestMetrics } from './runtime/request-metrics.js';
+import { WatchlistEvaluator } from './runtime/watchlist-evaluator.js';
 import { CategoryStore } from './store/category.store.js';
 import { ListingStore } from './store/listing.store.js';
 import { OriginStateStore } from './store/origin-state.store.js';
@@ -37,6 +38,12 @@ const originState = new OriginStateStore(client);
 const categories = new CategoryStore(client);
 const listings = new ListingStore(client);
 const retention = new ListingRetention(() => listings.purgeExpired(), log);
+const evaluator = new WatchlistEvaluator({
+  listings: {
+    evaluatePending: (batchSize) => listings.evaluatePending(batchSize),
+  },
+  log,
+});
 
 const scheduler = new QueryScheduler({
   queries: {
@@ -115,6 +122,9 @@ while (!controller.signal.aborted) {
     cycleError = error instanceof Error ? error.message : String(error);
     log.error('tick_failed', { reason: cycleError });
   }
+
+  // Merkzettel-Bewertung laeuft eigenstaendig und unbeeinflusst von Vinted-Fehlern
+  await evaluator.runOnce();
 
   // Eigene Fehlergrenze: Eine fehlende Statusmeldung darf das Sammeln nicht stoppen.
   await retention.runIfDue();

@@ -381,10 +381,11 @@ describe('QueryScheduler', () => {
     expect(report.newHits).toBe(0);
   });
 
-  it('laesst eine gescheiterte Bewertung den Durchgang nicht abbrechen', async () => {
+  it('laesst eine gescheiterte Bewertung den Durchgang nicht abbrechen und erhoeht failed nicht', async () => {
     // Ein Fund ist gespeichert, auch wenn die Bewertung scheitert. Wuerde der
     // Fehler durchschlagen, bliebe die Abfrage als nicht gepollt stehen und der
-    // naechste Durchgang holte dieselben Artikel erneut.
+    // naechste Durchgang holte dieselben Artikel erneut. Ein DB-Bewertungsfehler
+    // zaehlt nicht als Vinted-Sammelfehler (failed bleibt 0).
     const listings = {
       saveNew: vi.fn().mockResolvedValue([makeListing('a')]),
       evaluateHits: vi.fn().mockRejectedValue(new Error('evaluation failed')),
@@ -399,7 +400,7 @@ describe('QueryScheduler', () => {
       queryId: 'q1',
       reason: 'evaluation failed',
     });
-    expect(report.failed).toBe(1);
+    expect(report.failed).toBe(0);
   });
 
   it('gilt nicht als eingelesen, wenn die Bewertung scheitert', async () => {
@@ -598,6 +599,94 @@ describe('QueryScheduler', () => {
       expect(queryStore.deactivate).not.toHaveBeenCalled();
       expect(queryStore.recordSuccess).not.toHaveBeenCalled();
       expect(queryStore.recordFailure).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Arbeitspaket 3.2: Deal-Erkennung aus gemeinsamem Datenbestand entkoppeln (Regressionstests)', () => {
+    it('Regression 1: evaluation database failure does not mark query failed or alter origin state', async () => {
+      const originState = {
+        getState: vi.fn().mockResolvedValue({
+          origin: 'vinted',
+          state: 'ready',
+          blockedUntil: null,
+          reason: null,
+          probeInFlight: false,
+          updatedAt: NOW.toISOString(),
+        }),
+        setCooldown: vi.fn(),
+        setBlocked: vi.fn(),
+        tryAcquireProbe: vi.fn().mockResolvedValue(true),
+        releaseProbe: vi.fn(),
+        reset: vi.fn(),
+      };
+      const recordSuccess = vi.fn().mockResolvedValue(undefined);
+      const recordFailure = vi.fn().mockResolvedValue(undefined);
+      const queryStore = {
+        dueQueries: vi.fn().mockResolvedValue([makeQuery({ id: 'q-eval-fail' })]),
+        recordSuccess,
+        recordFailure,
+        markPolled: vi.fn().mockResolvedValue(undefined),
+        markSeeded: vi.fn().mockResolvedValue(undefined),
+        deactivate: vi.fn().mockResolvedValue(undefined),
+      };
+      const listings = {
+        saveNew: vi.fn().mockResolvedValue([makeListing('a')]),
+        evaluateHits: vi
+          .fn()
+          .mockRejectedValue(new Error('relation sniper_watchlists does not exist')),
+      };
+      const log = { info: vi.fn(), error: vi.fn() };
+      const budget = new RequestBudget(10, () => NOW.getTime());
+      const scheduler = new QueryScheduler({
+        queries: queryStore,
+        collector: { collect: vi.fn().mockResolvedValue([makeListing('a')]) },
+        listings,
+        budget,
+        originState: originState as never,
+        log,
+      });
+
+      const report = await scheduler.runOnce(NOW);
+
+      // Vinted-Erfassung war erfolgreich: query wurde erfolgreich verbucht
+      expect(recordSuccess).toHaveBeenCalledWith('q-eval-fail', NOW);
+      expect(recordFailure).not.toHaveBeenCalled();
+      expect(originState.setCooldown).not.toHaveBeenCalled();
+      expect(originState.setBlocked).not.toHaveBeenCalled();
+      expect(report.polled).toBe(1);
+      expect(report.failed).toBe(0);
+      expect(report.newHits).toBe(0);
+      expect(log.error).toHaveBeenCalledWith('evaluate_hits_failed', {
+        queryId: 'q-eval-fail',
+        reason: 'relation sniper_watchlists does not exist',
+      });
+    });
+
+    it('Regression 2: scheduler runs in pure ingest mode when evaluateHits is omitted', async () => {
+      const recordSuccess = vi.fn().mockResolvedValue(undefined);
+      const queryStore = {
+        dueQueries: vi.fn().mockResolvedValue([makeQuery({ id: 'q-pure' })]),
+        recordSuccess,
+        markPolled: vi.fn().mockResolvedValue(undefined),
+        markSeeded: vi.fn().mockResolvedValue(undefined),
+      };
+      const listings = {
+        saveNew: vi.fn().mockResolvedValue([makeListing('a')]),
+      };
+      const scheduler = new QueryScheduler({
+        queries: queryStore,
+        collector: { collect: vi.fn().mockResolvedValue([makeListing('a')]) },
+        listings,
+        budget: new RequestBudget(10, () => NOW.getTime()),
+        log: { info: vi.fn(), error: vi.fn() },
+      });
+
+      const report = await scheduler.runOnce(NOW);
+
+      expect(report.polled).toBe(1);
+      expect(report.failed).toBe(0);
+      expect(report.newListings).toBe(1);
+      expect(recordSuccess).toHaveBeenCalledWith('q-pure', NOW);
     });
   });
 });
