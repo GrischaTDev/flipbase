@@ -170,3 +170,4 @@ export function isIdeasRoute(url: string): boolean {
 function isWithinPath(target: string, url: string): boolean {
   const path = url.split(/[?#]/, 1)[0];
   return path === target || path.startsWith(target + '/');
+}
