@@ -1,5 +1,9 @@
 # Verbindliche Testregeln
 
+Aktueller CI-Umfang: [Schlanke CI für Flipbase](lean-ci.md). Die sechs allgemeinen
+Browser-Kernfälle laufen automatisch; zusätzliche Featureprüfungen werden vor
+einem betroffenen Merge gezielt ausgeführt. Es gibt keine geplanten Zusatzläufe.
+
 Tests schützen beobachtbares Produktionsverhalten und die fachlichen Risiken von Flipbase. Jeder neue Test braucht deshalb drei klar erkennbare Bestandteile:
 
 1. einen Aufruf von Produktionscode,

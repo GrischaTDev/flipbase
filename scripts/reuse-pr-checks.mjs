@@ -5,7 +5,8 @@ import { promisify } from 'node:util';
 import { pathToFileURL } from 'node:url';
 
 const exec = promisify(execFile);
-const scopes = ['application', 'supabase', 'sniper'];
+// V2 belegt Prüfungen, nicht den davon unabhängigen Release-Schalter.
+const scopes = ['application_tests', 'supabase', 'sniper'];
 const shaPattern = /^[a-f0-9]{40}$/u;
 
 async function git(cwd, ...args) {
@@ -31,6 +32,7 @@ export async function findReusableChecks({
 }) {
   if (eventName !== 'push' || !shaPattern.test(headSha ?? '') || !shaPattern.test(beforeSha ?? ''))
     return null;
+  if (scopes.some((scope) => typeof changes?.[scope] !== 'boolean')) return null;
   try {
     const parents = (await git(cwd, 'show', '-s', '--format=%P', headSha)).split(' ');
     if (parents.length !== 2 || parents[0] !== beforeSha) return null;
@@ -53,7 +55,7 @@ export async function findReusableChecks({
         `repos/${repository}/actions/runs/${run.id}/artifacts?per_page=100`,
       );
       const matches = artifacts.some((artifact) => {
-        const match = /^verified-tree-v1-([a-f0-9]{40})-([01]{3})$/u.exec(artifact.name ?? '');
+        const match = /^verified-tree-v2-([a-f0-9]{40})-([01]{3})$/u.exec(artifact.name ?? '');
         return (
           artifact.expired === false &&
           match?.[1] === tree &&
@@ -80,7 +82,7 @@ async function main() {
   const headSha = process.env.GITHUB_SHA;
   if (!shaPattern.test(headSha ?? '')) throw new Error('Ungültiger Commit.');
   const tree = await git(process.cwd(), 'rev-parse', `${headSha}^{tree}`);
-  const receiptName = `verified-tree-v1-${tree}-${scopes.map((scope) => Number(changes[scope])).join('')}`;
+  const receiptName = `verified-tree-v2-${tree}-${scopes.map((scope) => Number(changes[scope])).join('')}`;
   const runId = await findReusableChecks({
     eventName: process.env.GITHUB_EVENT_NAME,
     repository: process.env.GITHUB_REPOSITORY,

@@ -37,7 +37,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
+      # application bleibt die Release-Auswahl; application_tests steuert nur Prüfungen.
       application: ${{ steps.filter.outputs.application }}
+      application_tests: ${{ steps.filter.outputs.application_tests }}
       supabase: ${{ steps.filter.outputs.supabase }}
       sniper: ${{ steps.filter.outputs.sniper }}
       tests_reused: ${{ steps.reuse.outputs.tests_reused }}
@@ -71,7 +73,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PUSH_BEFORE_SHA: ${{ github.event.before }}
-          APPLICATION_CHANGED: ${{ steps.filter.outputs.application }}
+          APPLICATION_TESTS_CHANGED: ${{ steps.filter.outputs.application_tests }}
           SUPABASE_CHANGED: ${{ steps.filter.outputs.supabase }}
           SNIPER_CHANGED: ${{ steps.filter.outputs.sniper }}
         run: node scripts/reuse-pr-checks.mjs
@@ -152,16 +154,16 @@ jobs:
         run: npm run test:audit
 
       - name: Test landing page contract
-        if: ${{ needs.changes.outputs.application == 'true' }}
+        if: ${{ needs.changes.outputs.application_tests == 'true' }}
         run: npm run test:landing
 
       - name: Build
-        if: ${{ github.event_name == 'pull_request' && needs.changes.outputs.application == 'true' }}
+        if: ${{ github.event_name == 'pull_request' && needs.changes.outputs.application_tests == 'true' }}
         run: npm run build
 
   unit:
     name: Unit ${{ matrix.suite }} ${{ matrix.shard }}
-    if: ${{ needs.changes.outputs.application == 'true' && needs.changes.outputs.tests_reused != 'true' }}
+    if: ${{ needs.changes.outputs.application_tests == 'true' && needs.changes.outputs.tests_reused != 'true' }}
     needs: changes
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -298,7 +300,7 @@ jobs:
 
   browser-smoke:
     name: Browser smoke
-    if: ${{ needs.changes.outputs.application == 'true' && needs.changes.outputs.tests_reused != 'true' }}
+    if: ${{ needs.changes.outputs.application_tests == 'true' && needs.changes.outputs.tests_reused != 'true' }}
     needs: changes
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -515,6 +517,7 @@ jobs:
           CHANGES_RESULT: ${{ needs.changes.result }}
           TESTS_REUSED: ${{ needs.changes.outputs.tests_reused }}
           APPLICATION_CHANGED: ${{ needs.changes.outputs.application }}
+          APPLICATION_TESTS_CHANGED: ${{ needs.changes.outputs.application_tests }}
           SUPABASE_CHANGED: ${{ needs.changes.outputs.supabase }}
           SNIPER_CHANGED: ${{ needs.changes.outputs.sniper }}
           QUALITY_RESULT: ${{ needs.quality.result }}

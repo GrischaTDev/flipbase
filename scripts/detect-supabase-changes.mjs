@@ -115,11 +115,17 @@ function selectsPath(path, prefix) {
 
 export function classifyChanges(paths) {
   if (paths === null) {
-    return { application: true, supabase: true, sniper: true };
+    return { application: true, application_tests: true, supabase: true, sniper: true };
   }
 
   return {
+    // Release-Auswahl unverändert lassen: darüber laufen auch SQL-Paket und Versionsprüfung.
     application: paths.some((path) => !isDocumentationOnly(path)),
+    // Nur das eigenständige Dienstpaket ist sicher vom Frontend abgrenzbar.
+    // Unbekannte oder gemischte Änderungen bleiben im vollständigen Prüfumfang.
+    application_tests: paths.some(
+      (path) => !isDocumentationOnly(path) && !path.startsWith('services/sniper/'),
+    ),
     supabase: paths.some(
       (path) =>
         selectsPath(path, 'supabase/') ||
@@ -145,7 +151,7 @@ async function main() {
   if (!outputPath) throw new Error('GITHUB_OUTPUT fehlt.');
   await appendFile(
     outputPath,
-    `application=${changes.application}\nsupabase=${changes.supabase}\nsniper=${changes.sniper}\n`,
+    `application=${changes.application}\nsupabase=${changes.supabase}\nsniper=${changes.sniper}\napplication_tests=${changes.application_tests}\n`,
     'utf8',
   );
 }

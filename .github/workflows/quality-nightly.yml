@@ -1,294 +1,122 @@
-name: Scheduled full quality checks
+name: Optional quality checks
 
-# Zwei Takte in einer Datei. Jeder Zeitplan startet genau die Auftraege, die
-# zu ihm gehoeren - erkennbar an github.event.schedule. Ein Lauf von Hand
-# laesst beide Bedingungen zu und faehrt damit alles.
-#
-# Cron ist bei GitHub Actions immer UTC; einen timezone-Schluessel gibt es
-# nicht. Die Zeiten unten sind so gewaehlt, dass sie in Berlin nachts liegen.
+# Keine täglichen oder wöchentlichen Wiederholungen. Nur den benötigten Check starten.
 on:
-  schedule:
-    # 02:17 Berlin (Sommerzeit) - taeglich
-    - cron: '17 0 * * *'
-    # 03:17 Berlin (Sommerzeit) - zusaetzlich sonntags
-    - cron: '17 1 * * 0'
   workflow_dispatch:
+    inputs:
+      check:
+        description: 'Gezielte Zusatzprüfung'
+        type: choice
+        default: browser
+        options: [browser, coverage, database]
+      browser:
+        description: 'Browser für die erweiterte Regression'
+        type: choice
+        default: chromium
+        options: [chromium, firefox, webkit]
 
 permissions:
   contents: read
 
+concurrency:
+  group: optional-quality-${{ github.ref }}-${{ inputs.check }}-${{ inputs.browser }}
+  cancel-in-progress: true
+
 jobs:
-  gate:
-    name: Check whether master moved
+  browser:
+    name: Extended browser regression
+    if: ${{ inputs.check == 'browser' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 5
-    outputs:
-      run: ${{ steps.decide.outputs.run }}
+    timeout-minutes: 15
+    env:
+      BROWSER: ${{ inputs.browser }}
     steps:
-      - name: Check out repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-
-      # Es gibt Tage ohne einen einzigen Push. Ein voller Durchgang auf
-      # exakt demselben Stand wie in der Nacht davor kostet Minuten und
-      # liefert dieselbe Antwort. Deshalb entscheidet das Alter des
-      # juengsten Commits, ob ueberhaupt etwas laeuft.
-      #
-      # Ein Lauf von Hand geht immer durch - wer ihn ausloest, will ihn.
-      - name: Decide whether anything needs to run
-        id: decide
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          CRON: ${{ github.event.schedule }}
-        run: |
-          if [ "$EVENT_NAME" != 'schedule' ]; then
-            echo 'Lauf von Hand - es wird alles ausgefuehrt.'
-            echo 'run=true' >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          # Ein wenig Luft ueber den Taktabstand hinaus, damit ein Commit
-          # kurz vor dem letzten Lauf nicht durch die Ritzen faellt.
-          if [ "$CRON" = '17 1 * * 0' ]; then
-            grenze=169
-            takt='woechentlich'
-          else
-            grenze=25
-            takt='taeglich'
-          fi
-
-          alter=$(( ( $(date +%s) - $(git log -1 --format=%ct) ) / 3600 ))
-          echo "Takt: $takt; juengster Commit ist $alter h alt; Grenze $grenze h."
-
-          if [ "$alter" -lt "$grenze" ]; then
-            echo 'run=true' >> "$GITHUB_OUTPUT"
-          else
-            echo 'Nichts Neues auf master - dieser Durchgang wird uebersprungen.'
-            echo 'run=false' >> "$GITHUB_OUTPUT"
-          fi
-
-  coverage-critical:
-    name: Coverage of the money paths
-    # Taeglich. Misst nur die drei Dateien mit den 95/90-Grenzen - Steuer,
-    # Gewinn und Verkaeuflichkeit. Deren Tests liegen alle im Node-Projekt
-    # und sind in einer Minute durch, waehrend die vollstaendige Messung ueber
-    # alle drei Projekte inzwischen ueber eine Viertelstunde braucht.
-    needs: gate
-    if: ${{ needs.gate.outputs.run == 'true' && github.event.schedule != '17 1 * * 0' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          persist-credentials: false
-      - name: Set up Node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: '22'
           cache: npm
           cache-dependency-path: package-lock.json
-      - name: Install dependencies
-        run: npm ci
-      - name: Run coverage of the money paths
-        run: npm run test:coverage:critical
+      - run: npm ci
+      - name: Install selected browser
+        run: |
+          case "$BROWSER" in
+            chromium) npx playwright install --with-deps --only-shell chromium ;;
+            firefox|webkit) npx playwright install --with-deps "$BROWSER" ;;
+            *) echo 'Unknown browser' >&2; exit 1 ;;
+          esac
+      - name: Run extended regression
+        run: npm run test:e2e:nightly -- --project="$BROWSER"
+      - name: Retain failure diagnostics
+        if: ${{ failure() || cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: optional-browser-${{ inputs.browser }}
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 3
 
-  coverage-full:
+  coverage:
     name: Full coverage
-    # Woechentlich. Hier greifen zusaetzlich die globalen Untergrenzen ueber
-    # alle Dateien - die fangen ab, wenn ein groesserer Bereich ohne Tests
-    # dazukommt, und dafuer reicht ein Blick pro Woche.
-    #
-    # 25 Minuten, weil 15 zu knapp geworden sind: Gemessene Laeufe brauchen
-    # zwischen 11:45 und ueber 15 Minuten, je nach Runner. Am 06.09.2026 sind
-    # zwei Laeufe genau daran gescheitert - ohne einen einzigen roten Test,
-    # nur am Zeitlimit. Die Grenze bleibt bewusst endlich, damit ein echter
-    # Haenger nicht ewig laeuft.
-    needs: gate
-    if: ${{ needs.gate.outputs.run == 'true' && github.event.schedule != '17 0 * * *' }}
+    if: ${{ inputs.check == 'coverage' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - name: Check out repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - name: Set up Node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: '22'
           cache: npm
           cache-dependency-path: package-lock.json
-      - name: Install dependencies
-        run: npm ci
-      - name: Run full coverage
-        run: npm run test:coverage
-      - name: Upload coverage report
+      - run: npm ci
+      - run: npm run test:coverage
+      - name: Retain coverage report
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: nightly-coverage
+          name: optional-coverage
           path: coverage/
           if-no-files-found: ignore
-          retention-days: 7
+          retention-days: 3
 
-  browser-webkit:
-    name: Browser smoke (webkit)
-    # Taeglich, weil WebKit die einzige Engine ist, die in keinem anderen
-    # Lauf vorkommt. Chromium hat frueher hier ein zweites Mal dieselben
-    # acht Tests gefahren, die ci.yml schon bei jedem Push durchlaeuft -
-    # das war reine Dublette und ist ersatzlos gestrichen.
-    needs: gate
-    if: ${{ needs.gate.outputs.run == 'true' && github.event.schedule != '17 1 * * 0' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          persist-credentials: false
-      - name: Set up Node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
-        with:
-          node-version: '22'
-          cache: npm
-          cache-dependency-path: package-lock.json
-      - name: Install dependencies
-        run: npm ci
-      - name: Install WebKit
-        run: npx playwright install --with-deps webkit
-      - name: Run WebKit smoke tests
-        run: npm run test:e2e:nightly -- --project=webkit
-      - name: Upload browser failure artifacts
-        if: ${{ failure() || cancelled() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: nightly-browser-webkit-failure
-          path: |
-            playwright-report/
-            test-results/
-          if-no-files-found: ignore
-          retention-days: 7
-
-  browser-firefox:
-    name: Browser smoke (firefox)
-    # Woechentlich. Gecko bricht selten etwas, das Chromium nicht auch
-    # bricht - einmal pro Woche faengt das frueh genug ab.
-    needs: gate
-    if: ${{ needs.gate.outputs.run == 'true' && github.event.schedule != '17 0 * * *' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          persist-credentials: false
-      - name: Set up Node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
-        with:
-          node-version: '22'
-          cache: npm
-          cache-dependency-path: package-lock.json
-      - name: Install dependencies
-        run: npm ci
-      - name: Install Firefox
-        run: npx playwright install --with-deps firefox
-      - name: Run Firefox smoke tests
-        run: npm run test:e2e:nightly -- --project=firefox
-      - name: Upload browser failure artifacts
-        if: ${{ failure() || cancelled() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: nightly-browser-firefox-failure
-          path: |
-            playwright-report/
-            test-results/
-          if-no-files-found: ignore
-          retention-days: 7
-
-  node-stress:
-    name: Node order stress
-    # Woechentlich. Reihenfolgeabhaengige Tests entstehen nur, wenn sich die
-    # Suite-Struktur aendert - dafuer braucht es keine Tagesaufloesung.
-    needs: gate
-    if: ${{ needs.gate.outputs.run == 'true' && github.event.schedule != '17 0 * * *' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          persist-credentials: false
-      - name: Set up Node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
-        with:
-          node-version: '22'
-          cache: npm
-          cache-dependency-path: package-lock.json
-      - name: Install dependencies
-        run: npm ci
-      - name: Run 20 shuffled Node suites
-        env:
-          GITHUB_RUN_ID: ${{ github.run_id }}
-          GITHUB_RUN_ATTEMPT: ${{ github.run_attempt }}
-        shell: bash
-        run: npm run test:stress:20 2>&1 | tee node-stress.log
-      - name: Upload stress failure log
-        if: ${{ failure() || cancelled() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: nightly-node-stress-failure
-          path: node-stress.log
-          if-no-files-found: ignore
-          retention-days: 7
-
-  database-full:
+  database:
     name: Full local database checks
-    # Woechentlich. pgTAP laeuft in ci.yml ohnehin, sobald sich supabase/
-    # aendert; der Zusatznutzen hier ist die Nebenlaeufigkeitsprobe.
-    #
-    # Die beiden Migrations-Harnesse (inventory_integrity_upgrade und
-    # run_inventory_sales_legacy_migration) sind hier bewusst nicht mehr
-    # dabei. Sie pruefen je eine bestimmte, laengst ausgelieferte Migration
-    # gegen einen Legacy-Datenbestand - eine einmalige Abnahme, kein
-    # wiederkehrendes Merkmal. Als Werkzeuge von Hand bleiben sie unter
-    # supabase/test-support/manual/ erhalten.
-    needs: gate
-    if: ${{ needs.gate.outputs.run == 'true' && github.event.schedule != '17 0 * * *' }}
+    if: ${{ inputs.check == 'database' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Check out repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - name: Set up Node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: '22'
           cache: npm
           cache-dependency-path: package-lock.json
-      - name: Install dependencies
-        run: npm ci
+      - run: npm ci
       - name: Start local Supabase
         run: npx supabase start
-      - name: Run pgTAP suite
+      - name: Run database tests and concurrent sale check
         shell: bash
-        run: npm run test:db 2>&1 | tee -a database-full.log
-      - name: Run parallel sale harness
-        shell: bash
-        run: pwsh -NoProfile -File supabase/test-support/manual/inventory_double_sale.ps1 2>&1 | tee -a database-full.log
+        run: |
+          npm run test:db 2>&1 | tee database-full.log
+          pwsh -NoProfile -File supabase/test-support/manual/inventory_double_sale.ps1 2>&1 | tee -a database-full.log
       - name: Stop local Supabase
         if: ${{ always() }}
         run: npx supabase stop --no-backup
-      - name: Upload database failure logs
+      - name: Retain failure diagnostics
         if: ${{ failure() || cancelled() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: nightly-database-failure
+          name: optional-database
           path: |
             database-full.log
             supabase/.temp/logs/
           if-no-files-found: ignore
-          retention-days: 7
+          retention-days: 3
