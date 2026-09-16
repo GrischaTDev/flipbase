@@ -95,7 +95,10 @@ test('Pull Requests vergleichen ausschließlich mit der PR-Basis', async () => {
     });
 
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(result.output, 'application=true\nsupabase=true\nsniper=false\n');
+    assert.equal(
+      result.output,
+      'application=true\nsupabase=true\nsniper=false\napplication_tests=true\n',
+    );
   });
 });
 
@@ -117,7 +120,10 @@ test('Pushes vergleichen ausschließlich mit github.event.before', async () => {
     });
 
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(result.output, 'application=true\nsupabase=true\nsniper=false\n');
+    assert.equal(
+      result.output,
+      'application=true\nsupabase=true\nsniper=false\napplication_tests=true\n',
+    );
   });
 });
 
@@ -139,7 +145,10 @@ test('Null-SHA verwendet bei vorhandenem Vorgänger den direkten Parent', async 
     });
 
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(result.output, 'application=true\nsupabase=true\nsniper=false\n');
+    assert.equal(
+      result.output,
+      'application=true\nsupabase=true\nsniper=false\napplication_tests=true\n',
+    );
   });
 });
 
@@ -157,7 +166,10 @@ test('erster Commit entscheidet ohne Vorgänger für beide Bereiche konservativ'
     assert.equal(result.status, 0, result.stderr);
     // Ohne Vergleichspunkt laesst sich nichts ausschliessen. Dann lieber alles
     // laufen lassen als eine Pruefung stillschweigend ueberspringen.
-    assert.equal(result.output, 'application=true\nsupabase=true\nsniper=true\n');
+    assert.equal(
+      result.output,
+      'application=true\nsupabase=true\nsniper=true\napplication_tests=true\n',
+    );
   });
 });
 
@@ -190,7 +202,10 @@ test('Supabase-Diff setzt die Ausgabe auf true', async () => {
     });
 
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(result.output, 'application=true\nsupabase=true\nsniper=false\n');
+    assert.equal(
+      result.output,
+      'application=true\nsupabase=true\nsniper=false\napplication_tests=true\n',
+    );
   });
 });
 
@@ -207,7 +222,10 @@ test('Diff außerhalb von Supabase setzt die Ausgabe auf false', async () => {
     });
 
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(result.output, 'application=false\nsupabase=false\nsniper=false\n');
+    assert.equal(
+      result.output,
+      'application=false\nsupabase=false\nsniper=false\napplication_tests=false\n',
+    );
   });
 });
 
@@ -235,11 +253,14 @@ test('Technischer Pfad bleibt bei einem Rename nach docs anwendungsrelevant', as
     });
 
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(result.output, 'application=true\nsupabase=false\nsniper=false\n');
+    assert.equal(
+      result.output,
+      'application=true\nsupabase=false\nsniper=false\napplication_tests=true\n',
+    );
   });
 });
 
-test('Diff unter services/sniper setzt ausschließlich die Sniper-Ausgabe', async () => {
+test('reine Sniper-Änderung erhält den Release-Weg, überspringt aber Anwendungstests', async () => {
   await withRepository(async (repository) => {
     const base = await commitFile(repository, 'services/sniper/src/config.ts', 'base\n', 'base');
     const head = await commitFile(
@@ -257,9 +278,11 @@ test('Diff unter services/sniper setzt ausschließlich die Sniper-Ausgabe', asyn
     });
 
     assert.equal(result.status, 0, result.stderr);
-    // Ohne die Trennung liefe der Datenbankauftrag bei jeder Aenderung am
-    // Dienst mit - und der Dienstauftrag bei jeder Migration.
-    assert.equal(result.output, 'application=true\nsupabase=false\nsniper=true\n');
+    // Der Release-Schalter bleibt bestehen. Nur die fachfremden Anwendungstests entfallen.
+    assert.equal(
+      result.output,
+      'application=true\nsupabase=false\nsniper=true\napplication_tests=false\n',
+    );
   });
 });
 
@@ -277,7 +300,10 @@ test('bekannte Dokumentation unter docs und Root-Markdown überspringt die Anwen
     });
 
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(result.output, 'application=false\nsupabase=false\nsniper=false\n');
+    assert.equal(
+      result.output,
+      'application=false\nsupabase=false\nsniper=false\napplication_tests=false\n',
+    );
   });
 });
 
@@ -295,7 +321,10 @@ test('AGENTS und unbekannte Pfade lösen die Anwendungsprüfung konservativ aus'
       });
 
       assert.equal(result.status, 0, result.stderr);
-      assert.equal(result.output, 'application=true\nsupabase=false\nsniper=false\n');
+      assert.equal(
+        result.output,
+        'application=true\nsupabase=false\nsniper=false\napplication_tests=true\n',
+      );
     });
   }
 });
@@ -314,7 +343,65 @@ test('gemeinsame Abhängigkeiten und CI-Werkzeuge lösen alle betroffenen Prüfu
       });
 
       assert.equal(result.status, 0, result.stderr);
-      assert.equal(result.output, 'application=true\nsupabase=true\nsniper=true\n');
+      assert.equal(
+        result.output,
+        'application=true\nsupabase=true\nsniper=true\napplication_tests=true\n',
+      );
     });
   }
+});
+
+test('nur das getrennte Sniper-Paket darf Anwendungstests ohne Release-Verlust sparen', () => {
+  const bot = 'services/sniper/src/runtime/scheduler.ts';
+  for (const [paths, expected] of [
+    [[bot], false],
+    [[bot, 'docs/bot.md', 'README.md'], false],
+    [['services/sniper/package-lock.json'], false],
+    [['services/sniper/test/runtime/scheduler.spec.ts'], false],
+    [[bot, 'src/app/features/deal-monitor/deal-monitor.component.ts'], true],
+    [[bot, 'src/app/layout/sidebar/sidebar.component.html'], true],
+    [[bot, 'src/styles.css'], true],
+    [[bot, 'public/i18n/de.json'], true],
+    [[bot, 'e2e/deal-monitor.spec.ts'], true],
+    [[bot, 'supabase/migrations/20260916000000_test.sql'], true],
+    [[bot, 'supabase/schemas/50_sniper.sql'], true],
+    [[bot, 'deploy/deploy.sh'], true],
+    [[bot, 'docker/Dockerfile'], true],
+    [[bot, 'package-lock.json'], true],
+    [[bot, '.github/workflows/ci.yml'], true],
+    [[bot, 'AGENTS.md'], true],
+    [[bot, 'unknown/config.json'], true],
+    [['services/sniper-other/src/config.ts'], true],
+  ]) {
+    const changes = classifyChanges(paths);
+    assert.equal(changes.application_tests, expected, JSON.stringify(paths));
+    assert.equal(changes.application, true, 'Release-Auswahl bleibt erhalten');
+  }
+  assert.deepEqual(classifyChanges(null), {
+    application: true,
+    application_tests: true,
+    supabase: true,
+    sniper: true,
+  });
+  assert.equal(classifyChanges([]).application_tests, false);
+  assert.equal(classifyChanges(['docs/guide.md']).application_tests, false);
+});
+
+test('Verschieben einer UI-Datei ins Bot-Paket bleibt anwendungsrelevant', async () => {
+  await withRepository(async (repository) => {
+    const source = 'src/app/example.ts';
+    const target = 'services/sniper/src/example.ts';
+    const base = await commitFile(repository, source, 'export const value = 1;\n', 'source');
+    await mkdir(dirname(join(repository, target)), { recursive: true });
+    await rename(join(repository, source), join(repository, target));
+    git(repository, 'add', '-A');
+    git(repository, 'commit', '--quiet', '-m', 'move to service');
+    const result = await runDetector(repository, {
+      EVENT_NAME: 'pull_request',
+      PR_BASE_SHA: base,
+      HEAD_SHA: git(repository, 'rev-parse', 'HEAD'),
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.output, /application_tests=true\n/);
+  });
 });

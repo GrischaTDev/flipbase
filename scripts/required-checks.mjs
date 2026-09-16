@@ -22,13 +22,28 @@ try {
   requireValue('Qualität', process.env.QUALITY_RESULT, reused ? 'skipped' : 'success');
 
   const applicationChanged = requireBoolean('Anwendung', process.env.APPLICATION_CHANGED);
+  const applicationTestsChanged = requireBoolean(
+    'Anwendungstests',
+    process.env.APPLICATION_TESTS_CHANGED,
+  );
   const supabaseChanged = requireBoolean('Supabase', process.env.SUPABASE_CHANGED);
   const sniperChanged = requireBoolean('Sniper', process.env.SNIPER_CHANGED);
 
-  requireConditional('Anwendungstests', applicationChanged && !reused, process.env.UNIT_RESULT);
+  // Ohne Frontendprüfung ist ein Release hier nur für reine Dienständerungen erlaubt.
+  if (
+    (applicationTestsChanged && !applicationChanged) ||
+    (applicationChanged && !applicationTestsChanged && (!sniperChanged || supabaseChanged))
+  ) {
+    throw new Error('Unzulässige Trennung von Release- und Anwendungstestumfang.');
+  }
+  requireConditional(
+    'Anwendungstests',
+    applicationTestsChanged && !reused,
+    process.env.UNIT_RESULT,
+  );
   requireConditional(
     'Browser-Smoke-Test',
-    applicationChanged && !reused,
+    applicationTestsChanged && !reused,
     process.env.BROWSER_RESULT,
   );
   requireConditional('Datenbank', supabaseChanged && !reused, process.env.DATABASE_RESULT);

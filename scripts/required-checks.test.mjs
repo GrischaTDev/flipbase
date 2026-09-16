@@ -14,6 +14,7 @@ function runChecker(overrides = {}) {
       TESTS_REUSED: 'false',
       CHANGES_RESULT: 'success',
       APPLICATION_CHANGED: 'true',
+      APPLICATION_TESTS_CHANGED: 'true',
       SUPABASE_CHANGED: 'true',
       SNIPER_CHANGED: 'true',
       QUALITY_RESULT: 'success',
@@ -56,6 +57,7 @@ test('akzeptiert wiederverwendete PR-Prüfungen nur beim Push mit erfolgreichem 
 test('akzeptiert dokumentationsreine Änderungen nur mit übersprungenen Anwendungsjobs', () => {
   const result = runChecker({
     APPLICATION_CHANGED: 'false',
+    APPLICATION_TESTS_CHANGED: 'false',
     SUPABASE_CHANGED: 'false',
     SNIPER_CHANGED: 'false',
     UNIT_RESULT: 'skipped',
@@ -75,6 +77,7 @@ test('akzeptiert im Pull Request ein übersprungenes Image', () => {
 test('verlangt bei einer reinen Sniper-Änderung ein Produktionsabbild', () => {
   const sniperOnly = {
     APPLICATION_CHANGED: 'false',
+    APPLICATION_TESTS_CHANGED: 'false',
     SUPABASE_CHANGED: 'false',
     UNIT_RESULT: 'skipped',
     DATABASE_RESULT: 'skipped',
@@ -113,5 +116,54 @@ test('lehnt einen unpassenden Erfolgs- oder Skip-Zustand ab', () => {
   for (const overrides of cases) {
     const result = runChecker(overrides);
     assert.notEqual(result.status, 0, JSON.stringify(overrides));
+  }
+});
+
+test('reines Bot-Paket behält das Produktionsimage ohne fachfremde Anwendungstests', () => {
+  const bot = {
+    APPLICATION_CHANGED: 'true',
+    APPLICATION_TESTS_CHANGED: 'false',
+    SUPABASE_CHANGED: 'false',
+    SNIPER_CHANGED: 'true',
+    UNIT_RESULT: 'skipped',
+    BROWSER_RESULT: 'skipped',
+    DATABASE_RESULT: 'skipped',
+  };
+  assert.equal(runChecker(bot).status, 0);
+  assert.equal(
+    runChecker({ ...bot, EVENT_NAME: 'pull_request', IMAGE_RESULT: 'skipped' }).status,
+    0,
+  );
+  for (const override of [
+    { SNIPER_RESULT: 'failure' },
+    { SNIPER_RESULT: 'skipped' },
+    { IMAGE_RESULT: 'skipped' },
+    { QUALITY_RESULT: 'failure' },
+    { UNIT_RESULT: 'cancelled' },
+    { BROWSER_RESULT: 'failure' },
+  ]) {
+    assert.notEqual(runChecker({ ...bot, ...override }).status, 0, JSON.stringify(override));
+  }
+});
+
+test('lehnt fehlende oder unzulässige Testauswahl auch bei Wiederverwendung ab', () => {
+  for (const TESTS_REUSED of ['true', 'false']) {
+    const states =
+      TESTS_REUSED === 'true'
+        ? {
+            QUALITY_RESULT: 'skipped',
+            UNIT_RESULT: 'skipped',
+            BROWSER_RESULT: 'skipped',
+            DATABASE_RESULT: 'skipped',
+            SNIPER_RESULT: 'skipped',
+          }
+        : {};
+    for (const value of ['', 'maybe', 'false']) {
+      assert.notEqual(
+        runChecker({ ...states, TESTS_REUSED, APPLICATION_TESTS_CHANGED: value }).status,
+        0,
+        `${TESTS_REUSED}/${value}`,
+      );
+    }
   }
 });
