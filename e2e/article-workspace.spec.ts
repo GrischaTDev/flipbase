@@ -105,7 +105,7 @@ for (const theme of ['light', 'dark'] as const) {
           await expect(page.getByRole('columnheader', { name, exact: true })).toHaveCount(0);
         }
         await expect(
-          page.locator('app-sidebar').getByRole('link', { name: 'Artikel', exact: true }),
+          page.locator('app-sidebar').getByRole('link', { name: 'Artikelübersicht', exact: true }),
         ).toHaveAttribute('aria-current', 'page');
       } else {
         await expect(
