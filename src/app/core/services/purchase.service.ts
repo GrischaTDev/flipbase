@@ -108,7 +108,6 @@ export interface CreatePurchasePayload {
   items_count?: number;
   initial_costs?: readonly CreatePurchaseCostInput[];
   single_item_title?: string;
-  single_item_category?: string;
   single_item_condition?: string;
   single_item_expected_value?: number;
   purchase_lines?: readonly CreatePurchaseLineInput[];
@@ -1849,7 +1848,6 @@ export class PurchaseService {
       purchase_id: einkauf.id,
       purchase_line_id: purchaseLineId ?? null,
       title: payload.single_item_title?.trim() || einkauf.title,
-      category: payload.single_item_category?.trim() || null,
       condition: (payload.single_item_condition as ItemCondition) || 'used',
       status: payload.tracking_number?.trim() ? 'needs_review' : 'received',
       allocated_purchase_cost: 0,
@@ -2566,7 +2564,6 @@ export class PurchaseService {
     purchaseId: string,
     itemData: {
       title: string;
-      category?: string;
       condition: ItemCondition;
       expected_value?: number;
       purchase_line_id?: string | null;
@@ -2576,7 +2573,6 @@ export class PurchaseService {
       purchase_id: purchaseId,
       purchase_line_id: itemData.purchase_line_id ?? null,
       title: itemData.title,
-      category: itemData.category || null,
       condition: itemData.condition,
       status: 'received',
       allocated_purchase_cost: 0,
