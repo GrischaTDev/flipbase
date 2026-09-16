@@ -165,7 +165,10 @@ test('Shop zeigt den freigegebenen Katalogartikel mit Galerie und echten Metadat
   ).toHaveCount(0);
   await expect(page.locator('link[rel=canonical]')).toHaveCount(0);
   await page.getByRole('link', { name: 'Händler-Cockpit', exact: true }).click();
-  await page.locator('app-sidebar').getByRole('link', { name: 'Artikel', exact: true }).click();
+  await page
+    .locator('app-sidebar')
+    .getByRole('link', { name: 'Artikelübersicht', exact: true })
+    .click();
   await page.getByRole('link', { name: 'USB-C Ladegerät 30 W', exact: true }).click();
   await editor.getByRole('button', { name: 'Bild 2 als Hauptbild', exact: true }).click();
   await editor.getByRole('button', { name: 'Speichern', exact: true }).click();
