@@ -11,30 +11,21 @@ permissions:
 jobs:
   prepare:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 3
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          ref: 08d170740b964cbadff7c5e6a0f7bd885f263706
-          fetch-depth: 0
-          persist-credentials: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: '22'
-          cache: npm
-      - name: Install the locked development dependencies
-        run: npm ci --no-audit --no-fund
-      - name: Package source objects and development dependencies without credentials
+      - name: Package matching Node runtime without credentials
         run: |
-          mkdir -p "$RUNNER_TEMP/purchase-workspace"
-          git bundle create "$RUNNER_TEMP/purchase-workspace/source.bundle" HEAD
-          tar -czf "$RUNNER_TEMP/purchase-workspace/dependencies.tar.gz" node_modules
-          git rev-parse HEAD > "$RUNNER_TEMP/purchase-workspace/base-sha.txt"
-          node --version > "$RUNNER_TEMP/purchase-workspace/node-version.txt"
+          mkdir -p "$RUNNER_TEMP/purchase-runtime/bin"
+          cp "$(command -v node)" "$RUNNER_TEMP/purchase-runtime/bin/node"
+          node --version > "$RUNNER_TEMP/purchase-runtime/version.txt"
+          tar -czf "$RUNNER_TEMP/purchase-runtime.tar.gz" -C "$RUNNER_TEMP/purchase-runtime" .
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: purchase-validation-workspace
-          path: ${{ runner.temp }}/purchase-workspace/
+          name: purchase-validation-node-runtime
+          path: ${{ runner.temp }}/purchase-runtime.tar.gz
           compression-level: 0
           retention-days: 1
           if-no-files-found: error
