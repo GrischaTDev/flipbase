@@ -53,176 +53,144 @@
     </button>
   </div>
 
-  <!-- Navigation Links -->
+  <!-- Arbeitsnavigation: feste fachliche Gruppen statt Arraypositionen. -->
   <nav aria-label="Bereiche" class="flex-1 min-h-0 overflow-y-auto px-2 py-2 space-y-0.5">
-    <div class="px-2 pb-1 pt-1 text-xs font-semibold text-fb-text-muted">Übersicht</div>
+    <ng-container
+      [ngTemplateOutlet]="navigationItem"
+      [ngTemplateOutletContext]="{ $implicit: dashboardItem, indented: false }"
+    />
 
-    @for (item of navItems.slice(0, 2); track item.path) {
-      <a
-        [routerLink]="item.path"
-        [attr.aria-current]="isItemActive(item) ? 'page' : null"
-        [class.font-semibold]="isItemActive(item)"
-        (click)="closed.emit()"
-        class="flex items-center gap-2 px-2 py-1 leading-5 rounded-md text-[13px] font-medium text-fb-text-secondary hover:text-fb-text-primary hover:bg-fb-surface-hover transition group border border-transparent"
+    @for (group of navigationGroups; track group.id) {
+      <div
+        role="group"
+        [attr.data-navigation-group]="group.id"
+        [attr.aria-labelledby]="'sidebar-group-' + group.id"
       >
-        <svg
-          [lucideIcon]="item.icon"
-          class="w-4 h-4 text-fb-text-muted group-hover:text-fb-text-primary shrink-0"
-        ></svg>
-        <span class="min-w-0 break-words">{{ (item.labelKey | translate) || item.label }}</span>
-        @if (item.baustelle) {
-          <span
-            class="ml-auto px-1.5 py-0.5 rounded text-[11px] font-bold uppercase tracking-wide bg-fb-nav-subtle text-fb-nav-badge border border-fb-nav-border shrink-0"
-            title="Noch nicht einsatzbereit – Zahlungen und Rechtstexte sind Platzhalter"
-          >
-            Demo
-          </span>
-        }
-      </a>
-    }
-
-    <div class="px-2 pb-1 pt-3 text-xs font-semibold text-fb-text-muted">
-      Warenwirtschaft & Store
-    </div>
-
-    @for (item of navItems.slice(2, 5); track item.path) {
-      <a
-        [routerLink]="item.path"
-        [attr.aria-current]="isItemActive(item) ? 'page' : null"
-        [class.font-semibold]="isItemActive(item)"
-        (click)="closed.emit()"
-        class="flex items-center gap-2 px-2 py-1 leading-5 rounded-md text-[13px] font-medium text-fb-text-secondary hover:text-fb-text-primary hover:bg-fb-surface-hover transition group border border-transparent"
-      >
-        <svg
-          [lucideIcon]="item.icon"
-          class="w-4 h-4 text-fb-text-muted group-hover:text-fb-text-primary shrink-0"
-        ></svg>
-        <span class="min-w-0 break-words">{{ (item.labelKey | translate) || item.label }}</span>
-        @if (item.baustelle) {
-          <span
-            class="ml-auto px-1.5 py-0.5 rounded text-[11px] font-bold uppercase tracking-wide bg-fb-nav-subtle text-fb-nav-badge border border-fb-nav-border shrink-0"
-            title="Noch nicht einsatzbereit – Zahlungen und Rechtstexte sind Platzhalter"
-          >
-            Demo
-          </span>
-        }
-      </a>
-    }
-
-    <div class="px-2 pb-1 pt-3 text-xs font-semibold text-fb-text-muted">Werkzeuge & Ertrag</div>
-
-    @for (item of navItems.slice(5, 11); track item.path) {
-      <a
-        [routerLink]="item.path"
-        [attr.aria-current]="!item.children && isItemActive(item) ? 'page' : null"
-        [class.font-semibold]="isItemActive(item)"
-        (click)="closed.emit()"
-        class="flex items-center gap-2 px-2 py-1 leading-5 rounded-md text-[13px] font-medium text-fb-text-secondary hover:text-fb-text-primary hover:bg-fb-surface-hover transition group border border-transparent"
-      >
-        <svg
-          [lucideIcon]="item.icon"
-          class="w-4 h-4 text-fb-text-muted group-hover:text-fb-text-primary shrink-0"
-        ></svg>
-        <span class="min-w-0 break-words">{{ (item.labelKey | translate) || item.label }}</span>
-        @if (item.baustelle) {
-          <span
-            class="ml-auto px-1.5 py-0.5 rounded text-[11px] font-bold uppercase tracking-wide bg-fb-nav-subtle text-fb-nav-badge border border-fb-nav-border shrink-0"
-            title="Noch nicht einsatzbereit – Zahlungen und Rechtstexte sind Platzhalter"
-          >
-            Demo
-          </span>
-        }
-      </a>
-
-      @if (item.children && isItemActive(item)) {
-        <ul data-sub-navigation class="space-y-0.5">
-          @for (child of item.children; track child.path) {
-            @let active = isChildActive(child);
+        @let groupLabel = group.labelKey | translate;
+        <div
+          [id]="'sidebar-group-' + group.id"
+          class="px-2 pb-1 pt-3 text-xs font-semibold text-fb-text-muted"
+        >
+          {{ groupLabel === group.labelKey ? group.label : groupLabel }}
+        </div>
+        <ul class="space-y-0.5">
+          @for (item of group.items; track item.path) {
             <li>
-              <a
-                [routerLink]="child.path"
-                [attr.aria-current]="active ? 'page' : null"
-                [class.font-semibold]="active"
-                [class.font-medium]="!active"
-                [class.text-fb-text-primary]="active"
-                [class.text-fb-text-secondary]="!active"
-                (click)="closed.emit()"
-                class="flex items-center py-1 pl-8 pr-2 leading-5 rounded-md text-[13px] hover:text-fb-text-primary hover:bg-fb-surface-hover transition border border-transparent"
-              >
-                <span class="min-w-0 break-words">{{ child.label }}</span>
-              </a>
+              <ng-container
+                [ngTemplateOutlet]="navigationItem"
+                [ngTemplateOutletContext]="{ $implicit: item, indented: false }"
+              />
             </li>
           }
         </ul>
-      }
-    }
-
-    <div class="px-2 pb-1 pt-3 text-xs font-semibold text-fb-text-muted">System & Daten</div>
-
-    @for (item of navItems.slice(11); track item.path) {
-      <a
-        [routerLink]="item.path"
-        [attr.aria-current]="isItemActive(item) ? 'page' : null"
-        [class.font-semibold]="isItemActive(item)"
-        (click)="closed.emit()"
-        class="flex items-center gap-2 px-2 py-1 leading-5 rounded-md text-[13px] font-medium text-fb-text-secondary hover:text-fb-text-primary hover:bg-fb-surface-hover transition group border border-transparent"
-      >
-        <svg
-          [lucideIcon]="item.icon"
-          class="w-4 h-4 text-fb-text-muted group-hover:text-fb-text-primary shrink-0"
-        ></svg>
-        <span class="min-w-0 break-words">{{ (item.labelKey | translate) || item.label }}</span>
-      </a>
-    }
-
-    @if (isOperator()) {
-      <div class="px-2 pb-1 pt-3 text-xs font-semibold text-fb-text-muted">
-        {{ 'NAV.OPERATIONS' | translate }}
       </div>
+    }
 
-      <a
-        [routerLink]="operatorItem.path"
-        [class.font-semibold]="isItemActive(operatorItem)"
-        (click)="closed.emit()"
-        class="flex items-center gap-2 px-2 py-1 leading-5 rounded-md text-[13px] text-fb-text-secondary hover:text-fb-text-primary hover:bg-fb-surface-hover transition group border border-transparent"
+    <div class="pt-3">
+      @let ideasLabel = ideasGroup.labelKey | translate;
+      <button
+        type="button"
+        aria-controls="sidebar-ideas"
+        [attr.aria-expanded]="ideasExpanded()"
+        [class.font-semibold]="ideasActive()"
+        (click)="toggleIdeas()"
+        class="w-full flex items-center gap-2 px-2 py-1 leading-5 rounded-md text-left text-[13px] font-medium text-fb-text-secondary hover:text-fb-text-primary hover:bg-fb-surface-hover transition group border border-transparent cursor-pointer"
       >
         <svg
-          [lucideIcon]="operatorItem.icon"
+          [lucideIcon]="ideasIcon"
           class="w-4 h-4 text-fb-text-muted group-hover:text-fb-text-primary shrink-0"
+          aria-hidden="true"
         ></svg>
         <span class="min-w-0 break-words">{{
-          (operatorItem.labelKey | translate) || operatorItem.label
+          ideasLabel === ideasGroup.labelKey ? ideasGroup.label : ideasLabel
         }}</span>
-      </a>
+        <svg
+          [lucideIcon]="chevronIcon"
+          [class.rotate-90]="ideasExpanded()"
+          class="ml-auto w-4 h-4 shrink-0 transition-transform motion-reduce:transition-none"
+          aria-hidden="true"
+        ></svg>
+      </button>
+      <ul id="sidebar-ideas" [hidden]="!ideasExpanded()" class="space-y-0.5">
+        @for (item of ideasGroup.items; track item.path) {
+          <li>
+            <ng-container
+              [ngTemplateOutlet]="navigationItem"
+              [ngTemplateOutletContext]="{ $implicit: item, indented: true }"
+            />
+          </li>
+        }
+      </ul>
+    </div>
 
-      <!--
-        Wie im Shopify-Admin: Die Unterpunkte stehen nur im DOM, solange man im
-        Bereich ist. Der Bereichslink traegt dann kein aria-current, damit es
-        genau eine aktuelle Seite gibt - die des Unterpunkts.
-      -->
-      @if (operatorItem.children && isItemActive(operatorItem)) {
-        <ul data-sub-navigation class="space-y-0.5">
-          @for (child of operatorItem.children; track child.path) {
-            @let active = isChildActive(child);
-            <li>
-              <a
-                [routerLink]="child.path"
-                [attr.aria-current]="active ? 'page' : null"
-                [class.font-semibold]="active"
-                [class.font-medium]="!active"
-                [class.text-fb-text-primary]="active"
-                [class.text-fb-text-secondary]="!active"
-                (click)="closed.emit()"
-                class="flex items-center py-1 pl-8 pr-2 leading-5 rounded-md text-[13px] hover:text-fb-text-primary hover:bg-fb-surface-hover transition border border-transparent"
-              >
-                <span class="min-w-0 break-words">{{ child.label }}</span>
-              </a>
-            </li>
-          }
-        </ul>
+    <div class="mt-3 pt-2 border-t border-fb-border-subtle">
+      <ng-container
+        [ngTemplateOutlet]="navigationItem"
+        [ngTemplateOutletContext]="{ $implicit: settingsItem, indented: false }"
+      />
+      @if (isOperator()) {
+        <ng-container
+          [ngTemplateOutlet]="navigationItem"
+          [ngTemplateOutletContext]="{ $implicit: operatorItem, indented: false }"
+        />
       }
-    }
+    </div>
   </nav>
+
+  <!-- Ein Linktemplate erhält Markierungen und Untermenüs in allen Gruppen konsistent. -->
+  <ng-template #navigationItem let-item let-indented="indented">
+    @let itemLabel = item.labelKey | translate;
+    <a
+      [routerLink]="item.path"
+      [attr.aria-current]="!item.children && isItemActive(item) ? 'page' : null"
+      [class.font-semibold]="isItemActive(item)"
+      [class.pl-8]="indented"
+      [class.pl-2]="!indented"
+      (click)="closed.emit()"
+      class="flex items-center gap-2 pr-2 py-1 leading-5 rounded-md text-[13px] font-medium text-fb-text-secondary hover:text-fb-text-primary hover:bg-fb-surface-hover transition group border border-transparent"
+    >
+      @if (!indented) {
+        <svg
+          [lucideIcon]="iconFor(item)"
+          class="w-4 h-4 text-fb-text-muted group-hover:text-fb-text-primary shrink-0"
+          aria-hidden="true"
+        ></svg>
+      }
+      <span class="min-w-0 break-words">{{
+        itemLabel === item.labelKey ? item.label : itemLabel
+      }}</span>
+      @if (item.demo) {
+        <span
+          class="ml-auto px-1.5 py-0.5 rounded text-[11px] font-bold bg-fb-nav-subtle text-fb-nav-badge border border-fb-nav-border shrink-0"
+          title="Noch nicht einsatzbereit – Zahlungen und Rechtstexte sind Platzhalter"
+        >
+          Demo
+        </span>
+      }
+    </a>
+
+    @if (item.children && isItemActive(item)) {
+      <ul data-sub-navigation class="space-y-0.5">
+        @for (child of item.children; track child.path) {
+          @let active = isChildActive(child);
+          <li>
+            <a
+              [routerLink]="child.path"
+              [attr.aria-current]="active ? 'page' : null"
+              [class.font-semibold]="active"
+              [class.font-medium]="!active"
+              [class.text-fb-text-primary]="active"
+              [class.text-fb-text-secondary]="!active"
+              (click)="closed.emit()"
+              class="flex items-center py-1 pl-8 pr-2 leading-5 rounded-md text-[13px] hover:text-fb-text-primary hover:bg-fb-surface-hover transition border border-transparent"
+            >
+              <span class="min-w-0 break-words">{{ child.label }}</span>
+            </a>
+          </li>
+        }
+      </ul>
+    }
+  </ng-template>
 
   <!-- Fusszeile: Installation und Version -->
   <div class="p-3 border-t border-fb-border-subtle space-y-2.5">
