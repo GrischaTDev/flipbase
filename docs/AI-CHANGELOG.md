@@ -9,6 +9,27 @@ Die vollständige bisherige Historie ist im
 bytegleich erhalten. Das Archiv liegt im selben Ordner, damit seine relativen
 Dateiverweise weiterhin denselben Ausgangspunkt haben.
 
+## 2026-09-16 – Claude Opus 5 (Anthropic) – Unbenutzte Einkaufskategorie entfernt
+
+**Auftrag:** Offene Reste aus dem Plan
+`docs/superpowers/plans/2026-09-14-product-categories-brands.md` erledigen, nachdem
+Codex den Zweig `feat/product-categories-brands` am 14.09.2026 zu Ende geführt und
+gemergt hat.
+
+**Befund:** `purchase.service.ts` gab noch `single_item_category` und
+`addItemToPurchase(…).category` als freien Kategorietext an den Artikel-Service
+weiter. Kein Formular und kein Test übergibt diese Werte, und die Datenbank setzt
+den Kategorietext seit dem Trigger `sync_category_brand_text()` ausschließlich aus
+`category_id`. Die Felder waren damit wirkungslos und irreführend.
+
+**Änderung:** Die vier Zeilen entfernt (Feld im Payload-Typ, Weitergabe beim
+Einzelartikel, Parameter und Weitergabe in `addItemToPurchase`). Keine
+Verhaltensänderung.
+
+**Prüfung:** Prettier und ESLint auf `purchase.service.ts`, `npm run typecheck`
+(Exitcode 0), `purchase.service.spec.ts`, `purchase-create-persistence.spec.ts`
+und `purchase-detail.component.angular.spec.ts` (3 Dateien, 88 Tests bestanden).
+
 ## 2026-09-16 – ChatGPT – Abschluss der CI-Dokumentation
 
 **Auftrag:** Die nach PR #96 offenen Aufräumpunkte angehen. Keine weitere
