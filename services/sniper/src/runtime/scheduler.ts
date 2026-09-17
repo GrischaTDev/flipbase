@@ -130,20 +130,12 @@ export class QueryScheduler {
     const origin = this.origin;
     const originState = await this.originStore.getState(origin);
 
-    // 1. Origin ist dauerhaft geblockt (z. B. 403 Challenge) -> keine Anfragen senden
-    if (originState.state === 'blocked') {
-      if (this.deps.log.warn) {
-        this.deps.log.warn('origin_blocked', { origin, reason: originState.reason });
-      } else {
-        this.deps.log.info('origin_blocked', { origin, reason: originState.reason });
-      }
-      return report;
-    }
-
     let isProbeCycle = false;
 
-    // 2. Origin ist im Cooldown (z. B. nach 429)
-    if (originState.state === 'cooldown') {
+    // Origin ist im Cooldown (z. B. nach 429 oder 403). Ein aelterer Zustand
+    // 'blocked' ohne Ablaufzeit gilt als abgelaufener Cooldown, damit eine
+    // bereits gespeicherte Dauersperre sich nach dem Deployment selbst loest.
+    if (originState.state === 'cooldown' || originState.state === 'blocked') {
       const blockedUntilMs = originState.blockedUntil
         ? new Date(originState.blockedUntil).getTime()
         : null;

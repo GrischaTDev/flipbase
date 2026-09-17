@@ -60,12 +60,14 @@ function toQuery(row: QueryRow): SniperQuery {
 
 /**
  * Faellig ist eine Abfrage, wenn:
- * 1. Ihr run_state weder 'blocked' noch 'invalid' ist.
+ * 1. Ihr run_state nicht 'invalid' ist.
  * 2. Ein evtl. gesetzter next_attempt_at erreicht ist.
  * 3. Sie noch nie lief oder ihr pollIntervalMs bzw. Backoff abgelaufen ist.
  */
 export function isDue(query: SniperQuery, now: Date): boolean {
-  if (query.runState === 'blocked' || query.runState === 'invalid') {
+  // 'blocked' wird nicht mehr vergeben. Bestehende Zeilen laufen ueber den
+  // Backoff fuer 'forbidden' weiter, statt nie wieder abgefragt zu werden.
+  if (query.runState === 'invalid') {
     return false;
   }
 

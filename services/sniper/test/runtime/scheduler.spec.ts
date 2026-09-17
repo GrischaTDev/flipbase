@@ -422,7 +422,7 @@ describe('QueryScheduler', () => {
   });
 
   describe('Arbeitspaket 1: Operational Run State & Origin Protection (Regressionstests)', () => {
-    it('Regression 1: HTTP 403 marks query and origin as blocked, leaves is_active untouched', async () => {
+    it('Regression 1: HTTP 403 puts query and origin into an expiring cooldown, leaves is_active untouched', async () => {
       const originState = {
         getState: vi.fn().mockResolvedValue({
           origin: 'vinted',
@@ -455,15 +455,59 @@ describe('QueryScheduler', () => {
       await scheduler.runOnce(NOW);
 
       expect(queryStore.deactivate).not.toHaveBeenCalled();
-      expect(originState.setBlocked).toHaveBeenCalledWith('vinted', expect.any(String));
+      expect(originState.setBlocked).not.toHaveBeenCalled();
+      expect(originState.setCooldown).toHaveBeenCalledWith(
+        'vinted',
+        new Date(NOW.getTime() + 300_000),
+        'forbidden',
+      );
       expect(recordFailure).toHaveBeenCalledWith(
         'q1',
         expect.objectContaining({
-          runState: 'blocked',
+          runState: 'cooldown',
           errorKind: 'forbidden',
         }),
         NOW,
       );
+    });
+
+    it('Regression 1b: a legacy permanent origin block is probed again and cleared on success', async () => {
+      // Produktionszustand seit 16.09.2026: state = blocked ohne Ablaufzeit.
+      // Ohne Selbstheilung bliebe der Bot auch nach dem Deployment stumm.
+      const originState = {
+        getState: vi.fn().mockResolvedValue({
+          origin: 'vinted',
+          state: 'blocked',
+          blockedUntil: null,
+          reason: 'forbidden',
+          probeInFlight: false,
+          updatedAt: '2026-08-29T00:48:35.866Z',
+        }),
+        tryAcquireProbe: vi.fn().mockResolvedValue(true),
+        releaseProbe: vi.fn().mockResolvedValue(undefined),
+        setCooldown: vi.fn().mockResolvedValue(undefined),
+        setBlocked: vi.fn().mockResolvedValue(undefined),
+        reset: vi.fn().mockResolvedValue(undefined),
+      };
+      const q1 = makeQuery({ id: 'q1' });
+      const q2 = makeQuery({ id: 'q2' });
+      const collector = { collect: vi.fn().mockResolvedValue([makeListing('probe-item')]) };
+      const recordSuccess = vi.fn().mockResolvedValue(undefined);
+      const { scheduler } = buildMany([q1, q2], {
+        collector,
+        queries: {
+          dueQueries: vi.fn().mockResolvedValue([q1, q2]),
+          recordSuccess,
+        },
+        originState,
+      } as never);
+
+      const report = await scheduler.runOnce(NOW);
+
+      expect(originState.tryAcquireProbe).toHaveBeenCalledWith('vinted');
+      expect(collector.collect).toHaveBeenCalledTimes(1);
+      expect(originState.releaseProbe).toHaveBeenCalledWith('vinted', true);
+      expect(report.polled).toBe(1);
     });
 
     it('Regression 2: HTTP 429 sets origin cooldown and halts subsequent queries in the same cycle', async () => {
