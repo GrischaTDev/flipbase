@@ -9,6 +9,49 @@ Die vollständige bisherige Historie ist im
 bytegleich erhalten. Das Archiv liegt im selben Ordner, damit seine relativen
 Dateiverweise weiterhin denselben Ausgangspunkt haben.
 
+## 2026-09-17 – Claude Opus 5 (Anthropic) – Einkauf: Quelle, Verkäufer-Snapshot und Nachtrag
+
+**Auftrag:** Übernahme des Einkaufsumbaus von ChatGPT. Nutzerentscheidungen: drei PRs
+nacheinander (dieser ist Teil 1), Migration und Typen über einen GitHub-Runner statt
+lokalem Docker, Weiterarbeit auf `feat/purchase-workflow-20260916`, Bezeichnungsfeld
+aus PR #59 mit aufnehmen, Grund beim Nachtrag optional. Konzept und Plan liegen unter
+`docs/superpowers/specs/2026-09-17-purchase-seller-details-design.md` und
+`docs/superpowers/plans/2026-09-17-purchase-seller-details.md`.
+
+**Vorgefunden:** Der Zweig enthielt nur Transferreste (Base64-Teile und einen
+Einmal-Workflow) und lag 18 Commits zurück. Das entpackbare Paket war ein
+unvollständiger Diff gegen `08d1707` mit 25 Frontenddateien, ohne Datenbankteil. Es
+diente als Nachschlagewerk; übernommen wurde daraus kein Code. Transferdateien
+entfernt, `master` gemergt.
+
+**Änderung:** `purchases` erhält Verkäufer-Snapshot (Art, Name, Plattform-Benutzername,
+Anschrift, Ländercode), `external_order_id` und `seller_details_version`. Anlegen und
+Entwurfsspeichern übernehmen die Felder und zählen die Version bei geänderten
+Herkunftsangaben hoch. Die neue Funktion `update_purchase_seller_details` trägt
+Herkunftsangaben auch bei abgeschlossenen Einkäufen nach, prüft Mitgliedschaft,
+erlaubte Felder, Workspace-Zugehörigkeit und erwartete Version und schreibt ein
+Fachereignis `purchase_seller_details_updated` mit Grund. Kosten, Positionen, Bestand
+und Abschlussstatus bleiben unberührt. Formular zeigt Bezeichnung, Quelle,
+Benutzername, Verkäuferart, Name, Anschrift, Angebotslink und Bestellnummer;
+die Auswahl eines gespeicherten Verkäufers kopiert dessen Angaben bewusst. Detailseite
+zeigt den Snapshot und öffnet bei abgeschlossenen Einkäufen einen Nachtragsdialog mit
+Konfliktmeldung. Liste und Suche berücksichtigen einmalige Verkäufer.
+
+**Prüfung:** Vollständige Vitest-Projekte node (1409) und angular (866), Typprüfung,
+ESLint, Prettier, Test-Audit und Shared-UI-Prüfung mit Exitcode 0. Migration und
+Supabase-Typen wurden im GitHub-Runner erzeugt; die Typdatei enthielt zusätzlich
+bisher nicht übernommene Sniper-Tabellen. Von den neuen Datenbanktests waren im
+dritten Lauf neun Prüfungen grün, darunter Nachtrag nach Abschluss, unveränderte
+Kosten und Bestände sowie das Ereignis mit Grund.
+
+**Offen:** `supabase db diff` scheitert am vorhandenen Schema (50_sniper.sql nutzt
+`is_platform_operator` vor 99_platform_admin.sql); die Migration wurde deshalb aus den
+Schemadateien zusammengestellt. Der abschließende Datenbanklauf, der Angular-Bau und
+die PR-Prüfungen stehen aus, weil GitHub Actions seit 17.09.2026 17:10 UTC keine Läufe
+mehr startet („recent account payments have failed or your spending limit needs to be
+increased“). Der vorläufige Workflow `purchase-seller-schema-preview.yml` und der
+Entwurfs-PR #103 bleiben bis dahin bestehen und werden vor dem Merge entfernt.
+
 ## 2026-09-17 – Claude Opus 5 (Anthropic) – Dashboard mit Gewinn, Ausgaben, Vorzeitraum und offenen Kosten
 
 **Auftrag:** Die Dashboard-Empfehlung vom 13.09. auf aktuellem `master` umsetzen.
