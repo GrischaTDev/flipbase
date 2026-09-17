@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { schreibeImHintergrund } from './supabase-schreiben';
+import { schreibeImHintergrund } from './supabase-write';
 import { SyncStatusService } from './sync-status.service';
 
 /**

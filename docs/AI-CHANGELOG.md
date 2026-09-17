@@ -9,6 +9,33 @@ Die vollständige bisherige Historie ist im
 bytegleich erhalten. Das Archiv liegt im selben Ordner, damit seine relativen
 Dateiverweise weiterhin denselben Ausgangspunkt haben.
 
+## 2026-09-17 – Claude Opus 5 (Anthropic) – Deutsche Dateinamen auf Englisch umgestellt
+
+**Auftrag:** Die noch deutsch benannten Dateien umbenennen. Zweig
+`refactor/english-filenames` von `origin/master` (`ca5a993`).
+
+**Änderung:** Rein mechanischer Commit ohne Logikänderung. Zwölf Dateien unter
+`src/` (u. a. `speicher-migration.ts` → `storage-migration.ts`,
+`stammdaten-filter.ts` → `master-data-filter.ts`, `supabase-schreiben.ts` →
+`supabase-write.ts`, `formular-bindungen.spec.ts` → `form-bindings.spec.ts`) und
+`scripts/version-generieren.mjs` → `scripts/generate-version.mjs`; Importe,
+npm-Lebenszyklusskripte und Pfadkommentare angepasst. Das npm-Skript
+`version:generieren` heißt jetzt `version:generate`.
+
+**Bewusst unverändert:** `deploy/erstinstallation.sh` und
+`deploy/cron-aufraeumen-n8n-server`, weil der Server sie unter diesem Namen
+verwendet; `landing/datenschutz` als öffentliche Adresse; „kleinanzeigen“ als
+Markenname. Deutsche Funktions- und Variablennamen innerhalb der Dateien (z. B.
+`uebernehmeAltenBrowserSpeicher`, `nurAktive`, `schreibeImHintergrund`,
+`VERSION.nummer`) bleiben offen für einen eigenen Schritt.
+
+**Prüfung:** `npm run typecheck` Exitcode 0, die zehn umbenannten Testdateien
+bestehen (125 Tests), `npm run test:audit` Exitcode 0, ESLint und Prettier sauber,
+Versionsskript unter neuem Namen ausgeführt. Kein Verweis auf die alten Namen
+außerhalb der Dokumentationshistorie. Der Angular-Bau lief lokal nicht, weil das
+installierte Node 22.16.0 unter dem Minimum der Angular CLI liegt; er wird im PR
+geprüft.
+
 ## 2026-09-17 – Claude Opus 5 (Anthropic) – Vinted-Bot nach einzelner 403 dauerhaft gesperrt
 
 **Auftrag:** Der Vinted-Bot sammelt wieder keine Daten. Ursache finden und beheben.
