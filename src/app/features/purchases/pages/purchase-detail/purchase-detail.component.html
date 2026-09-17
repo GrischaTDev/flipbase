@@ -171,6 +171,7 @@
                 }
               </dl>
             </app-card>
+            <app-purchase-documents-card [purchase]="p" />
             <!-- Einkaufspositionen und zugehöriger Bestand -->
             <ng-container [ngTemplateOutlet]="packageContents" />
             <app-card title="Artikel" rounded="xl">

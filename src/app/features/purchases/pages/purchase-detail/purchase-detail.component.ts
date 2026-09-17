@@ -79,6 +79,7 @@ import { PurchaseCostingService } from '../../../../core/services/purchase-costi
 import { PurchaseCorrectionDialogComponent } from '../../components/purchase-correction-dialog/purchase-correction-dialog.component';
 import { PurchaseLifecycleActionsComponent } from '../../components/purchase-lifecycle-actions/purchase-lifecycle-actions.component';
 import { PurchaseSellerDetailsDialogComponent } from '../../components/purchase-seller-details-dialog/purchase-seller-details-dialog.component';
+import { PurchaseDocumentsCardComponent } from '../../components/purchase-documents-card/purchase-documents-card.component';
 import { purchaseSellerDetailRows, purchaseSellerLabel } from '../../utils/purchase-seller';
 import { PurchaseDetailTableComponent } from '../../components/purchase-detail-table/purchase-detail-table.component';
 import { getPurchaseDisplayTitle, mapPurchaseDetailRows } from '../../utils/purchase-presentation';
@@ -111,6 +112,7 @@ import { PurchaseCostSummaryComponent } from '../../components/purchase-cost-sum
     PurchaseCorrectionDialogComponent,
     PurchaseLifecycleActionsComponent,
     PurchaseSellerDetailsDialogComponent,
+    PurchaseDocumentsCardComponent,
     PurchaseDetailTableComponent,
     RecordHistoryContainer,
     EntryPageLayoutComponent,
