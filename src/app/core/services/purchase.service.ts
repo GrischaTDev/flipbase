@@ -27,6 +27,14 @@ import {
   PurchaseCostAllocationMethod,
   PurchaseLinePriceMode,
 } from '../models/purchase-costing.models';
+import {
+  normalizePurchaseSellerDetails,
+  PurchaseSellerDetails,
+  sellerDetailsFromPurchase,
+} from '../models/purchase-seller.models';
+
+export const PURCHASE_SELLER_DETAILS_CONFLICT_MESSAGE =
+  'Der Einkauf wurde zwischenzeitlich geändert. Bitte neu laden.';
 
 export interface CreatePurchaseLineInput {
   readonly isPackage?: boolean;
@@ -99,6 +107,15 @@ export interface CreatePurchasePayload {
   pricing_mode?: 'individual' | 'total';
   shipment_status?: 'not_shipped' | 'in_transit' | 'arrived';
   supplier_reference?: string | null;
+  seller_type?: Purchase['seller_type'];
+  seller_name?: string | null;
+  seller_marketplace_username?: string | null;
+  seller_street?: string | null;
+  seller_address_extra?: string | null;
+  seller_postal_code?: string | null;
+  seller_city?: string | null;
+  seller_country_code?: string | null;
+  external_order_id?: string | null;
   cost_allocation_mode?: CostAllocationMode;
   notes?: string | null;
   tracking_number?: string | null;
@@ -821,6 +838,8 @@ export class PurchaseService {
       pricing_mode: payload.pricing_mode ?? null,
       shipment_status: payload.shipment_status ?? 'not_shipped',
       supplier_reference: payload.supplier_reference?.trim() || null,
+      ...this.sellerSnapshotFields(payload),
+      seller_details_version: 0,
       request_id: payload.request_id ?? null,
       total_purchase_cost: totalCost,
       cost_allocation_mode: mode,
@@ -934,6 +953,7 @@ export class PurchaseService {
           tracking_status:
             payload.tracking_status || (payload.tracking_number ? 'in_transit' : 'pending'),
           original_url: payload.original_url || null,
+          ...this.sellerSnapshotFields(payload),
         },
         p_expenses: kostenZeilen.map((cost) => ({
           type: cost.type,
@@ -1135,6 +1155,7 @@ export class PurchaseService {
           tracking_status:
             payload.tracking_status || (payload.tracking_number ? 'in_transit' : 'pending'),
           original_url: payload.original_url || null,
+          ...this.sellerSnapshotFields(payload),
         },
         p_expenses: costs,
         p_lines: normalizedLines.data.map((line) => ({
@@ -1512,10 +1533,16 @@ export class PurchaseService {
       tracking_status:
         payload.tracking_status || (payload.tracking_number?.trim() ? 'in_transit' : 'pending'),
       original_url: payload.original_url || null,
+      ...this.sellerSnapshotFields(payload),
       items_count: this.zaehleArtikel(existingPurchase, inventoryItems, updatedLines),
       costs: persistedCosts,
       updated_at: new Date().toISOString(),
     };
+    // Wie update_purchase_draft: geänderte Herkunftsangaben machen einen offenen
+    // Nachtragsdialog mit altem Stand ungültig.
+    draftPurchase.seller_details_version =
+      (existingPurchase.seller_details_version ?? 0) +
+      (this.sameSellerDetails(existingPurchase, draftPurchase) ? 0 : 1);
     const allocatedLines = this.allocateLocalPurchaseCosts(draftPurchase, updatedLines);
     const persistedPurchase: Purchase = { ...draftPurchase, purchase_lines: allocatedLines };
     const persistenceError = this.mockStore.savePurchaseWithLines(
@@ -1995,6 +2022,97 @@ export class PurchaseService {
 
     lokalAnwenden();
     return { error: null };
+  }
+
+  /**
+   * Trägt Quelle und Verkäuferangaben nach, auch bei abgeschlossenen Einkäufen.
+   * Kosten, Positionen, Bestand und Status bleiben unberührt; ein veralteter
+   * Versionsstand wird als Konflikt gemeldet statt still zu überschreiben.
+   */
+  async updatePurchaseSellerDetails(
+    purchaseId: string,
+    expectedVersion: number,
+    details: PurchaseSellerDetails,
+    reason: string | null,
+  ): Promise<{ error: Error | null; conflict: boolean }> {
+    const workspace = this.workspaceService.currentWorkspace();
+    if (!workspace) return { error: new Error('Kein aktiver Workspace'), conflict: false };
+
+    const normalized = normalizePurchaseSellerDetails(details);
+    const source = normalized.source_id
+      ? this.sourcesService.sources().find((entry) => entry.id === normalized.source_id)
+      : undefined;
+    const supplier = normalized.supplier_id
+      ? this.suppliersService.suppliers().find((entry) => entry.id === normalized.supplier_id)
+      : undefined;
+    const apply = (purchase: Purchase, version: number, confirmed?: Purchase): Purchase => ({
+      ...purchase,
+      ...(confirmed ?? {}),
+      ...normalized,
+      source,
+      supplier,
+      seller_details_version: version,
+      updated_at: confirmed?.updated_at ?? new Date().toISOString(),
+    });
+    const applyLocally = (version: number, confirmed?: Purchase): void => {
+      this.purchasesRaw.update((list) =>
+        list.map((entry) => (entry.id === purchaseId ? apply(entry, version, confirmed) : entry)),
+      );
+      this.selectedPurchaseRaw.update((entry) =>
+        entry?.id === purchaseId ? apply(entry, version, confirmed) : entry,
+      );
+      const stored = this.mockStore.getPurchases().find((entry) => entry.id === purchaseId);
+      if (stored) this.mockStore.savePurchase(apply(stored, version, confirmed));
+    };
+
+    if (this.mockStore.isDemoMode()) {
+      const current = this.mockStore.getPurchases().find((entry) => entry.id === purchaseId);
+      if (!current)
+        return { error: new Error('Der Einkauf wurde nicht gefunden.'), conflict: false };
+      const currentVersion = current.seller_details_version ?? 0;
+      if (currentVersion !== expectedVersion) {
+        return { error: new Error(PURCHASE_SELLER_DETAILS_CONFLICT_MESSAGE), conflict: true };
+      }
+      if (this.sameSellerDetails(current, normalized)) return { error: null, conflict: false };
+      applyLocally(currentVersion + 1);
+      return { error: null, conflict: false };
+    }
+
+    try {
+      const { data, error } = await this.supabase.client.rpc('update_purchase_seller_details', {
+        p_workspace_id: workspace.id,
+        p_purchase_id: purchaseId,
+        p_expected_version: expectedVersion,
+        p_details: { ...normalized },
+        p_reason: reason?.trim() || undefined,
+      });
+      if (error) {
+        if (error.code === '40001') {
+          return { error: new Error(PURCHASE_SELLER_DETAILS_CONFLICT_MESSAGE), conflict: true };
+        }
+        return {
+          error: this.syncStatus.melde('Speichern der Verkäuferangaben', error),
+          conflict: false,
+        };
+      }
+      const confirmed = this.purchaseFromMutationResult(data);
+      if (!confirmed) {
+        return {
+          error: this.syncStatus.melde(
+            'Speichern der Verkäuferangaben',
+            new Error('Die bestätigte Einkaufsänderung fehlt.'),
+          ),
+          conflict: false,
+        };
+      }
+      applyLocally(confirmed.seller_details_version ?? expectedVersion, confirmed);
+      return { error: null, conflict: false };
+    } catch (cause: unknown) {
+      return {
+        error: this.syncStatus.melde('Speichern der Verkäuferangaben', cause),
+        conflict: false,
+      };
+    }
   }
 
   async setPurchaseWorkflowStatus(
@@ -2605,6 +2723,28 @@ export class PurchaseService {
       Object.entries(mutation).filter(([, value]) => value !== undefined),
     );
     return { ...existing, ...definedMutation };
+  }
+
+  private sellerSnapshotFields(payload: CreatePurchasePayload) {
+    return {
+      seller_type: payload.seller_type ?? null,
+      seller_name: payload.seller_name?.trim() || null,
+      seller_marketplace_username: payload.seller_marketplace_username?.trim() || null,
+      seller_street: payload.seller_street?.trim() || null,
+      seller_address_extra: payload.seller_address_extra?.trim() || null,
+      seller_postal_code: payload.seller_postal_code?.trim() || null,
+      seller_city: payload.seller_city?.trim() || null,
+      seller_country_code: payload.seller_country_code?.trim().toUpperCase() || null,
+      external_order_id: payload.external_order_id?.trim() || null,
+    };
+  }
+
+  private sameSellerDetails(purchase: Purchase, other: Purchase | PurchaseSellerDetails): boolean {
+    const left = normalizePurchaseSellerDetails(sellerDetailsFromPurchase(purchase));
+    const right = normalizePurchaseSellerDetails(
+      'workspace_id' in other ? sellerDetailsFromPurchase(other) : other,
+    );
+    return JSON.stringify(left) === JSON.stringify(right);
   }
 
   private purchaseFromMutationResult(data: unknown): Purchase | null {

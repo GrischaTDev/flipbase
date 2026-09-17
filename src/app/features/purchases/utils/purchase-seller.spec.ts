@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { Purchase, Supplier } from '../../../core/models/flipbase.models';
 import {
-  hasPurchaseSellerSnapshot,
   normalizePurchaseSellerDetails,
-  purchaseSellerLabel,
   PurchaseSellerDetails,
   sellerDetailsFromPurchase,
+} from '../../../core/models/purchase-seller.models';
+import {
+  hasPurchaseSellerSnapshot,
+  purchaseSellerLabel,
   sellerSnapshotFromSupplier,
 } from './purchase-seller';
 
@@ -26,10 +28,19 @@ const supplier: Supplier = {
 
 describe('purchaseSellerLabel', () => {
   it.each([
-    [{ seller_name: 'Lea Mustermann', seller_marketplace_username: 'vintage_lea92', supplier }, 'Lea Mustermann'],
-    [{ seller_name: null, seller_marketplace_username: 'vintage_lea92', supplier }, 'vintage_lea92'],
+    [
+      { seller_name: 'Lea Mustermann', seller_marketplace_username: 'vintage_lea92', supplier },
+      'Lea Mustermann',
+    ],
+    [
+      { seller_name: null, seller_marketplace_username: 'vintage_lea92', supplier },
+      'vintage_lea92',
+    ],
     [{ seller_name: null, seller_marketplace_username: null, supplier }, 'Großhandel Nord'],
-    [{ seller_name: null, seller_marketplace_username: null, supplier: undefined }, 'Nicht angegeben'],
+    [
+      { seller_name: null, seller_marketplace_username: null, supplier: undefined },
+      'Nicht angegeben',
+    ],
   ] as const)('zeigt für %j den Verkäufer %s', (purchase, expected) => {
     expect(purchaseSellerLabel(purchase)).toBe(expected);
   });
@@ -49,9 +60,7 @@ describe('sellerSnapshotFromSupplier', () => {
   });
 
   it('erfindet für fehlende Angaben keine Werte', () => {
-    expect(
-      sellerSnapshotFromSupplier({ id: 's', workspace_id: 'w', name: 'Nur Name' }),
-    ).toEqual({
+    expect(sellerSnapshotFromSupplier({ id: 's', workspace_id: 'w', name: 'Nur Name' })).toEqual({
       seller_type: null,
       seller_name: 'Nur Name',
       seller_street: null,
@@ -124,7 +133,10 @@ describe('sellerDetailsFromPurchase und hasPurchaseSellerSnapshot', () => {
 
   it('erkennt einen gespeicherten Snapshot schon an einem einzelnen Feld', () => {
     expect(
-      hasPurchaseSellerSnapshot({ ...legacyPurchase, seller_marketplace_username: 'vintage_lea92' }),
+      hasPurchaseSellerSnapshot({
+        ...legacyPurchase,
+        seller_marketplace_username: 'vintage_lea92',
+      }),
     ).toBe(true);
   });
 });
