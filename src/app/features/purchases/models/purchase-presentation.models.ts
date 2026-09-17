@@ -58,6 +58,8 @@ export interface PurchaseListRow {
   readonly typeLabel: string;
   readonly purchaseDate: string;
   readonly supplierLabel: string;
+  /** Benutzername, Name, Bestellnummer und Stammdaten-Name für die Suche. */
+  readonly sellerSearchText: string;
   readonly purchaseStatus: PurchaseStatusLabel;
   readonly purchaseStatusTone: BadgeTone;
   readonly allocationOpen: boolean;

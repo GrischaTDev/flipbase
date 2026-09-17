@@ -1,0 +1,91 @@
+<app-modal-shell
+  title="Verkäuferangaben bearbeiten"
+  subtitle="Kosten, Positionen und Bestand bleiben unverändert."
+  size="md"
+  (closed)="closed.emit()"
+>
+  <form
+    data-seller-details-form
+    class="space-y-4"
+    [formGroup]="form"
+    (ngSubmit)="save()"
+    id="purchase-seller-details-form"
+  >
+    @if (errorMessage()) {
+      <p
+        role="alert"
+        data-seller-details-error
+        class="rounded-lg border border-fb-line bg-fb-subtle p-3 text-[13px] text-fb-text-primary"
+      >
+        {{ errorMessage() }}
+        @if (hasConflict()) {
+          Deine Eingaben bleiben erhalten; schließe den Dialog und lade die Seite neu.
+        }
+      </p>
+    }
+
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div class="min-w-0">
+        <span class="mb-1.5 block text-[13px] font-semibold">Quelle</span>
+        <app-custom-select
+          formControlName="source_id"
+          [options]="sourceOptions()"
+          ariaLabel="Quelle auswählen"
+        />
+      </div>
+      <div class="min-w-0">
+        <span class="mb-1.5 block text-[13px] font-semibold">Gespeicherter Verkäufer</span>
+        <app-custom-select
+          formControlName="supplier_id"
+          [options]="supplierOptions()"
+          ariaLabel="Gespeicherten Verkäufer auswählen"
+          (valueChange)="onSupplierSelected($event)"
+        />
+      </div>
+      <app-text-field
+        formControlName="seller_marketplace_username"
+        label="Plattform-Benutzername"
+      />
+      <div class="min-w-0">
+        <span class="mb-1.5 block text-[13px] font-semibold">Verkäuferart</span>
+        <app-custom-select
+          formControlName="seller_type"
+          [options]="sellerTypeOptions"
+          ariaLabel="Verkäuferart"
+        />
+      </div>
+      <app-text-field formControlName="seller_name" label="Name" />
+      <app-text-field formControlName="seller_street" label="Straße und Hausnummer" />
+      <app-text-field formControlName="seller_address_extra" label="Adresszusatz" />
+      <app-text-field formControlName="seller_postal_code" label="PLZ" />
+      <app-text-field formControlName="seller_city" label="Ort" />
+      <div class="min-w-0">
+        <span class="mb-1.5 block text-[13px] font-semibold">Land</span>
+        <app-custom-select
+          formControlName="seller_country_code"
+          [options]="countryOptions"
+          ariaLabel="Land des Verkäufers"
+        />
+      </div>
+      <app-text-field formControlName="external_order_id" label="Bestellnummer der Plattform" />
+      <app-text-field formControlName="supplier_reference" label="Referenznummer" />
+      <div class="min-w-0 sm:col-span-2">
+        <app-text-field formControlName="original_url" type="url" label="Angebotslink" />
+      </div>
+      <div class="min-w-0 sm:col-span-2">
+        <app-text-field formControlName="reason" label="Grund (optional)" [multiline]="2" />
+      </div>
+    </div>
+  </form>
+
+  <app-button modal-footer variant="secondary" (clicked)="closed.emit()">Abbrechen</app-button>
+  <app-button
+    modal-footer
+    variant="primary"
+    data-save-seller-details
+    [loading]="isSaving()"
+    (clicked)="save()"
+  >
+    Speichern
+  </app-button>
+</app-modal-shell>

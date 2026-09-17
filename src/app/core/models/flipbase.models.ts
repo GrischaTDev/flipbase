@@ -208,6 +208,19 @@ export interface Purchase {
   shipment_status?: 'not_shipped' | 'in_transit' | 'arrived';
   supplier_reference?: string | null;
   discount_amount?: number;
+  /** Verkäufer-Snapshot dieses Einkaufs; leer heißt nicht angegeben, nicht privat. */
+  seller_type?: 'private' | 'business' | null;
+  seller_name?: string | null;
+  seller_marketplace_username?: string | null;
+  seller_street?: string | null;
+  seller_address_extra?: string | null;
+  seller_postal_code?: string | null;
+  seller_city?: string | null;
+  seller_country_code?: string | null;
+  /** Bestellnummer der Plattform oder des Shops, nicht die interne Einkaufsnummer. */
+  external_order_id?: string | null;
+  /** Schützt Nachträge der Herkunftsangaben vor veralteten Ständen. */
+  seller_details_version?: number;
   id: string;
   workspace_id: string;
   type: PurchaseType;

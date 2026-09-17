@@ -6,6 +6,7 @@ import type {
   StockLot,
   StockMovement,
 } from '../../../core/models/flipbase.models';
+import { purchaseSellerLabel } from './purchase-seller';
 import type { CostState } from '../../../shared/components/cost-state/cost-state.component';
 import { ItemConditionLabelPipe } from '../../../shared/pipes/item-condition-label.pipe';
 import { PurchaseTypeLabelPipe } from '../../../shared/pipes/purchase-type-label.pipe';
@@ -276,7 +277,15 @@ export function mapPurchaseListRow(
     type: purchase.type,
     typeLabel: purchaseTypeLabels.transform(purchase.type),
     purchaseDate: purchase.purchase_date,
-    supplierLabel: purchase.supplier?.name || 'Kein Verkäufer',
+    supplierLabel: purchaseSellerLabel(purchase),
+    sellerSearchText: [
+      purchase.seller_name,
+      purchase.seller_marketplace_username,
+      purchase.external_order_id,
+      purchase.supplier?.name,
+    ]
+      .filter(Boolean)
+      .join(' '),
     purchaseStatus: purchaseStatus.label,
     purchaseStatusTone: purchaseStatus.tone,
     allocationOpen: getAllocationOpen(purchase, items, totalCost),

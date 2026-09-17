@@ -31,7 +31,13 @@ import {
   CustomSelectComponent,
   SelectOption,
 } from '../../../../shared/components/custom-select/custom-select.component';
-import { Purchase } from '../../../../core/models/flipbase.models';
+import { Purchase, Supplier } from '../../../../core/models/flipbase.models';
+import { PurchaseSellerType } from '../../../../core/models/purchase-seller.models';
+import {
+  PURCHASE_SELLER_TYPE_OPTIONS,
+  purchaseSellerCountryOptions,
+  sellerSnapshotFromSupplier,
+} from '../../utils/purchase-seller';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { SyncStatusService } from '../../../../core/services/sync-status.service';
 import { PurchaseCostingService } from '../../../../core/services/purchase-costing.service';
@@ -159,7 +165,7 @@ export class PurchaseEntryFormComponent {
   ]);
 
   readonly lieferantenOptionen = computed<SelectOption<string | null>[]>(() => [
-    { value: null, label: '-- Optional: Lieferant wählen --' },
+    { value: null, label: 'Kein gespeicherter Verkäufer' },
     ...this.suppliersService.suppliers().map((l) => ({ value: l.id, label: l.name })),
   ]);
 
@@ -184,6 +190,11 @@ export class PurchaseEntryFormComponent {
     { value: 'total', label: 'Gesamtkaufpreis / Paketpreis' },
     { value: 'individual', label: 'Einzelpreise' },
   ];
+
+  readonly sellerTypeOptions = PURCHASE_SELLER_TYPE_OPTIONS;
+  readonly countryOptions = purchaseSellerCountryOptions();
+  /** Die Anschrift ist oft erst später bekannt und bleibt bis dahin eingeklappt. */
+  readonly sellerAddressExpanded = signal(false);
 
   readonly sellerDialogOpen = signal(false);
   readonly costDialogOpen = signal(false);
@@ -254,11 +265,63 @@ export class PurchaseEntryFormComponent {
     tracking_number: new FormControl<string>(''),
     tracking_carrier: new FormControl<TrackingCarrier | null>(null),
     original_url: new FormControl<string>(''),
+    external_order_id: new FormControl('', { nonNullable: true }),
+    seller_type: new FormControl<PurchaseSellerType | null>(null),
+    seller_name: new FormControl('', { nonNullable: true }),
+    seller_marketplace_username: new FormControl('', { nonNullable: true }),
+    seller_street: new FormControl('', { nonNullable: true }),
+    seller_address_extra: new FormControl('', { nonNullable: true }),
+    seller_postal_code: new FormControl('', { nonNullable: true }),
+    seller_city: new FormControl('', { nonNullable: true }),
+    seller_country_code: new FormControl<string | null>(null),
     notes: new FormControl<string>(''),
     // Single item specific fields
     single_item_condition: new FormControl<ItemCondition>('used', { nonNullable: true }),
     single_item_expected_value: new FormControl<number | null>(null),
   });
+
+  /**
+   * Übernimmt die Angaben eines gespeicherten Verkäufers bewusst in den Einkauf.
+   * Danach gehören sie dem Einkauf; spätere Änderungen am Kontakt wirken nicht zurück.
+   */
+  onSupplierSelected(supplierId: string | null): void {
+    const supplier = supplierId
+      ? this.suppliersService.suppliers().find((entry) => entry.id === supplierId)
+      : undefined;
+    if (supplier) this.applySupplierSnapshot(supplier);
+  }
+
+  onSellerAddressToggle(event: Event): void {
+    this.sellerAddressExpanded.set((event.target as HTMLDetailsElement).open);
+  }
+
+  onSellerCreated(supplier: Supplier): void {
+    this.form.controls.supplier_id.setValue(supplier.id);
+    this.applySupplierSnapshot(supplier);
+    this.sellerDialogOpen.set(false);
+  }
+
+  private applySupplierSnapshot(supplier: Supplier): void {
+    const snapshot = sellerSnapshotFromSupplier(supplier);
+    this.form.patchValue({
+      seller_type: snapshot.seller_type,
+      seller_name: snapshot.seller_name ?? '',
+      seller_street: snapshot.seller_street ?? '',
+      seller_address_extra: snapshot.seller_address_extra ?? '',
+      seller_postal_code: snapshot.seller_postal_code ?? '',
+      seller_city: snapshot.seller_city ?? '',
+      seller_country_code: snapshot.seller_country_code,
+    });
+    this.form.markAsDirty();
+    if (
+      snapshot.seller_street ||
+      snapshot.seller_postal_code ||
+      snapshot.seller_city ||
+      snapshot.seller_country_code
+    ) {
+      this.sellerAddressExpanded.set(true);
+    }
+  }
 
   async saveNewSource(): Promise<void> {
     const name = this.newSourceName().trim();
@@ -346,6 +409,15 @@ export class PurchaseEntryFormComponent {
 
   resetToPurchase(vorhandener: Purchase): void {
     this.befuelltFuer = vorhandener.id;
+    this.sellerAddressExpanded.set(
+      Boolean(
+        vorhandener.seller_street ||
+        vorhandener.seller_address_extra ||
+        vorhandener.seller_postal_code ||
+        vorhandener.seller_city ||
+        vorhandener.seller_country_code,
+      ),
+    );
     this.completed.set(false);
     this.persistedDraft.set(null);
     this.errorMessage.set(null);
@@ -370,6 +442,15 @@ export class PurchaseEntryFormComponent {
       purchase_date: vorhandener.purchase_date,
       purchase_price: vorhandener.purchase_price,
       original_url: vorhandener.original_url ?? '',
+      external_order_id: vorhandener.external_order_id ?? '',
+      seller_type: vorhandener.seller_type ?? null,
+      seller_name: vorhandener.seller_name ?? '',
+      seller_marketplace_username: vorhandener.seller_marketplace_username ?? '',
+      seller_street: vorhandener.seller_street ?? '',
+      seller_address_extra: vorhandener.seller_address_extra ?? '',
+      seller_postal_code: vorhandener.seller_postal_code ?? '',
+      seller_city: vorhandener.seller_city ?? '',
+      seller_country_code: vorhandener.seller_country_code ?? null,
       notes: vorhandener.notes ?? '',
       tracking_number: vorhandener.tracking_number ?? '',
       tracking_carrier: vorhandener.tracking_carrier ?? null,
@@ -524,7 +605,16 @@ export class PurchaseEntryFormComponent {
       tracking_carrier:
         f.tracking_carrier ||
         (f.tracking_number ? this.trackingService.autoDetectCarrier(f.tracking_number) : null),
-      original_url: f.original_url || null,
+      original_url: f.original_url?.trim() || null,
+      external_order_id: f.external_order_id.trim() || null,
+      seller_type: f.seller_type,
+      seller_name: f.seller_name.trim() || null,
+      seller_marketplace_username: f.seller_marketplace_username.trim() || null,
+      seller_street: f.seller_street.trim() || null,
+      seller_address_extra: f.seller_address_extra.trim() || null,
+      seller_postal_code: f.seller_postal_code.trim() || null,
+      seller_city: f.seller_city.trim() || null,
+      seller_country_code: f.seller_country_code,
       notes: f.notes || null,
       initial_costs: this.costDrafts().filter((cost) => cost.amount > 0),
       single_item_condition: f.single_item_condition,

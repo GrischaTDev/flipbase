@@ -8,16 +8,48 @@
     <div main class="space-y-4" data-testid="purchase-entry-main">
       <app-card title="Verkäufer und Einkauf" padding="md" rounded="xl">
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div class="min-w-0 md:col-span-2">
+            <app-text-field formControlName="title" label="Bezeichnung (optional)" />
+          </div>
           <div class="min-w-0">
-            <span class="mb-1.5 block text-[13px] font-semibold">Verkäufer</span>
+            <span class="mb-1.5 block text-[13px] font-semibold">Quelle</span>
+            <app-custom-select
+              formControlName="source_id"
+              [options]="quellenOptionen()"
+              ariaLabel="Quelle auswählen"
+              placeholder="Quelle auswählen"
+            />
+          </div>
+          <div class="min-w-0">
+            <span class="mb-1.5 block text-[13px] font-semibold"
+              >Gespeicherter Verkäufer (optional)</span
+            >
             <app-custom-select
               formControlName="supplier_id"
               [options]="lieferantenOptionen()"
-              ariaLabel="Verkäufer auswählen"
-              placeholder="Verkäufer auswählen"
+              ariaLabel="Gespeicherten Verkäufer auswählen"
+              placeholder="Gespeicherten Verkäufer auswählen"
               actionLabel="Verkäufer erstellen"
               (action)="sellerDialogOpen.set(true)"
+              (valueChange)="onSupplierSelected($event)"
             />
+          </div>
+          <div class="min-w-0">
+            <app-text-field
+              formControlName="seller_marketplace_username"
+              label="Plattform-Benutzername (optional)"
+            />
+          </div>
+          <div class="min-w-0">
+            <span class="mb-1.5 block text-[13px] font-semibold">Verkäuferart</span>
+            <app-custom-select
+              formControlName="seller_type"
+              [options]="sellerTypeOptions"
+              ariaLabel="Verkäuferart"
+            />
+          </div>
+          <div class="min-w-0">
+            <app-text-field formControlName="seller_name" label="Name (optional)" />
           </div>
           <div class="min-w-0">
             <label for="purchase-date" class="mb-1.5 block text-[13px] font-semibold"
@@ -30,6 +62,30 @@
             />
           </div>
         </div>
+        <details
+          data-seller-address
+          class="mt-4 border-t border-fb-line pt-4"
+          [open]="sellerAddressExpanded()"
+          (toggle)="onSellerAddressToggle($event)"
+        >
+          <summary class="cursor-pointer text-[13px] font-semibold text-fb-text-primary">
+            Anschrift des Verkäufers (optional)
+          </summary>
+          <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+            <app-text-field formControlName="seller_street" label="Straße und Hausnummer" />
+            <app-text-field formControlName="seller_address_extra" label="Adresszusatz" />
+            <app-text-field formControlName="seller_postal_code" label="PLZ" />
+            <app-text-field formControlName="seller_city" label="Ort" />
+            <div class="min-w-0">
+              <span class="mb-1.5 block text-[13px] font-semibold">Land</span>
+              <app-custom-select
+                formControlName="seller_country_code"
+                [options]="countryOptions"
+                ariaLabel="Land des Verkäufers"
+              />
+            </div>
+          </div>
+        </details>
       </app-card>
 
       <app-card padding="md" rounded="xl">
@@ -78,6 +134,15 @@
 
       <app-card title="Einkaufsdetails" padding="md" rounded="xl">
         <div class="space-y-4">
+          <app-text-field
+            formControlName="original_url"
+            type="url"
+            label="Angebotslink (optional)"
+          />
+          <app-text-field
+            formControlName="external_order_id"
+            label="Bestellnummer der Plattform (optional)"
+          />
           <app-text-field formControlName="supplier_reference" label="Referenznummer (optional)" />
           <app-text-field formControlName="notes" label="Beschreibung (optional)" [multiline]="3" />
         </div>
@@ -93,9 +158,7 @@
 @if (sellerDialogOpen()) {
   <app-purchase-seller-dialog
     (closed)="sellerDialogOpen.set(false)"
-    (created)="
-      form.controls.supplier_id.setValue($event.id); form.markAsDirty(); sellerDialogOpen.set(false)
-    "
+    (created)="onSellerCreated($event)"
   />
 }
 

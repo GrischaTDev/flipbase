@@ -1826,6 +1826,7 @@ export type Database = {
           discount_amount: number
           entry_status: string
           estimated_delivery: string | null
+          external_order_id: string | null
           finalized_at: string | null
           finalized_by: string | null
           id: string
@@ -1840,6 +1841,15 @@ export type Database = {
           receiving_status: string
           record_number: string | null
           request_id: string | null
+          seller_address_extra: string | null
+          seller_city: string | null
+          seller_country_code: string | null
+          seller_details_version: number
+          seller_marketplace_username: string | null
+          seller_name: string | null
+          seller_postal_code: string | null
+          seller_street: string | null
+          seller_type: string | null
           shipment_status: string
           source_id: string | null
           supplier_id: string | null
@@ -1861,6 +1871,7 @@ export type Database = {
           discount_amount?: number
           entry_status?: string
           estimated_delivery?: string | null
+          external_order_id?: string | null
           finalized_at?: string | null
           finalized_by?: string | null
           id?: string
@@ -1875,6 +1886,15 @@ export type Database = {
           receiving_status?: string
           record_number?: string | null
           request_id?: string | null
+          seller_address_extra?: string | null
+          seller_city?: string | null
+          seller_country_code?: string | null
+          seller_details_version?: number
+          seller_marketplace_username?: string | null
+          seller_name?: string | null
+          seller_postal_code?: string | null
+          seller_street?: string | null
+          seller_type?: string | null
           shipment_status?: string
           source_id?: string | null
           supplier_id?: string | null
@@ -1896,6 +1916,7 @@ export type Database = {
           discount_amount?: number
           entry_status?: string
           estimated_delivery?: string | null
+          external_order_id?: string | null
           finalized_at?: string | null
           finalized_by?: string | null
           id?: string
@@ -1910,6 +1931,15 @@ export type Database = {
           receiving_status?: string
           record_number?: string | null
           request_id?: string | null
+          seller_address_extra?: string | null
+          seller_city?: string | null
+          seller_country_code?: string | null
+          seller_details_version?: number
+          seller_marketplace_username?: string | null
+          seller_name?: string | null
+          seller_postal_code?: string | null
+          seller_street?: string | null
+          seller_type?: string | null
           shipment_status?: string
           source_id?: string | null
           supplier_id?: string | null
@@ -2815,6 +2845,33 @@ export type Database = {
           },
         ]
       }
+      sniper_origin_state: {
+        Row: {
+          blocked_until: string | null
+          origin: string
+          probe_in_flight: boolean
+          reason: string | null
+          state: string
+          updated_at: string
+        }
+        Insert: {
+          blocked_until?: string | null
+          origin: string
+          probe_in_flight?: boolean
+          reason?: string | null
+          state?: string
+          updated_at?: string
+        }
+        Update: {
+          blocked_until?: string | null
+          origin?: string
+          probe_in_flight?: boolean
+          reason?: string | null
+          state?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       sniper_queries: {
         Row: {
           brand_id: number | null
@@ -2825,14 +2882,21 @@ export type Database = {
           is_active: boolean
           is_seeded: boolean
           is_standard: boolean
+          last_attempt_at: string | null
+          last_error_at: string | null
+          last_error_kind: string | null
+          last_error_message: string | null
           last_polled_at: string | null
           last_status: string
+          last_success_at: string | null
           marketplace: string
+          next_attempt_at: string | null
           notes: string | null
           poll_interval_ms: number
           price_from: number | null
           price_to: number | null
           query_key: string
+          run_state: string
           search_text: string | null
           title: string
           updated_at: string
@@ -2846,14 +2910,21 @@ export type Database = {
           is_active?: boolean
           is_seeded?: boolean
           is_standard?: boolean
+          last_attempt_at?: string | null
+          last_error_at?: string | null
+          last_error_kind?: string | null
+          last_error_message?: string | null
           last_polled_at?: string | null
           last_status?: string
+          last_success_at?: string | null
           marketplace?: string
+          next_attempt_at?: string | null
           notes?: string | null
           poll_interval_ms?: number
           price_from?: number | null
           price_to?: number | null
           query_key: string
+          run_state?: string
           search_text?: string | null
           title?: string
           updated_at?: string
@@ -2867,14 +2938,21 @@ export type Database = {
           is_active?: boolean
           is_seeded?: boolean
           is_standard?: boolean
+          last_attempt_at?: string | null
+          last_error_at?: string | null
+          last_error_kind?: string | null
+          last_error_message?: string | null
           last_polled_at?: string | null
           last_status?: string
+          last_success_at?: string | null
           marketplace?: string
+          next_attempt_at?: string | null
           notes?: string | null
           poll_interval_ms?: number
           price_from?: number | null
           price_to?: number | null
           query_key?: string
+          run_state?: string
           search_text?: string | null
           title?: string
           updated_at?: string
@@ -4083,6 +4161,10 @@ export type Database = {
         }
         Returns: Json
       }
+      normalize_purchase_seller_details: {
+        Args: { p_details: Json }
+        Returns: Json
+      }
       place_store_order: {
         Args: {
           p_buyer_notes: string
@@ -4137,6 +4219,10 @@ export type Database = {
       }
       purchase_draft_audit_snapshot: {
         Args: { p_purchase_id: string; p_workspace_id: string }
+        Returns: Json
+      }
+      purchase_seller_details_snapshot: {
+        Args: { p_purchase: Database["public"]["Tables"]["purchases"]["Row"] }
         Returns: Json
       }
       receive_individual_purchase_line: {
@@ -4201,6 +4287,7 @@ export type Database = {
           discount_amount: number
           entry_status: string
           estimated_delivery: string | null
+          external_order_id: string | null
           finalized_at: string | null
           finalized_by: string | null
           id: string
@@ -4215,6 +4302,15 @@ export type Database = {
           receiving_status: string
           record_number: string | null
           request_id: string | null
+          seller_address_extra: string | null
+          seller_city: string | null
+          seller_country_code: string | null
+          seller_details_version: number
+          seller_marketplace_username: string | null
+          seller_name: string | null
+          seller_postal_code: string | null
+          seller_street: string | null
+          seller_type: string | null
           shipment_status: string
           source_id: string | null
           supplier_id: string | null
@@ -4391,6 +4487,10 @@ export type Database = {
         Args: { p_query_id: string; p_report_hits?: boolean }
         Returns: number
       }
+      sniper_evaluate_pending_watchlist_hits: {
+        Args: { p_batch_size?: number }
+        Returns: Json
+      }
       sniper_evaluate_watchlist_hits: {
         Args: { p_query_id: string; p_report_hits?: boolean }
         Returns: number
@@ -4511,6 +4611,16 @@ export type Database = {
           p_lines?: Json
           p_purchase: Json
           p_purchase_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      update_purchase_seller_details: {
+        Args: {
+          p_details: Json
+          p_expected_version: number
+          p_purchase_id: string
+          p_reason?: string
           p_workspace_id: string
         }
         Returns: Json
@@ -4691,3 +4801,4 @@ export const Constants = {
     Enums: {},
   },
 } as const
+

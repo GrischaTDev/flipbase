@@ -119,6 +119,29 @@ describe('purchase presentation mapper', () => {
     expect(row.title).toBe(basePurchase.title);
   });
 
+  it('zeigt einmalige Verkäufer ohne Stammdatensatz und macht Plattformangaben durchsuchbar', () => {
+    const row = mapPurchaseListRow(
+      {
+        ...basePurchase,
+        supplier: undefined,
+        supplier_id: null,
+        seller_marketplace_username: 'vintage_lea92',
+        external_order_id: '84739392',
+      },
+      context(),
+    );
+
+    expect(row.supplierLabel).toBe('vintage_lea92');
+    expect(row.sellerSearchText).toContain('vintage_lea92');
+    expect(row.sellerSearchText).toContain('84739392');
+  });
+
+  it('zeigt ohne jede Verkäuferangabe „Nicht angegeben“', () => {
+    const row = mapPurchaseListRow({ ...basePurchase, supplier: undefined }, context());
+
+    expect(row.supplierLabel).toBe('Nicht angegeben');
+  });
+
   it('verwendet ohne Einkaufsnummer nicht ersatzweise die Bezeichnung', () => {
     const row = mapPurchaseListRow({ ...basePurchase, record_number: null }, context());
 

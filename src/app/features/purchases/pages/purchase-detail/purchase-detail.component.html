@@ -129,16 +129,46 @@
                   ariaLabel="Verkäufer und Einkauf bearbeiten"
                   (clicked)="editPurchase(p.id)"
                 />
+              } @else {
+                <app-button
+                  card-header-actions
+                  data-edit-seller-details
+                  variant="ghost"
+                  [icon]="editIcon"
+                  [iconOnly]="true"
+                  ariaLabel="Verkäuferangaben bearbeiten"
+                  (clicked)="isSellerDetailsDialogOpen.set(true)"
+                />
               }
               <dl class="grid grid-cols-1 gap-4 text-[13px] sm:grid-cols-2">
                 <div>
                   <dt class="text-fb-text-muted">Verkäufer</dt>
-                  <dd class="mt-1">{{ p.supplier?.name || 'Nicht angegeben' }}</dd>
+                  <dd class="mt-1">{{ purchaseSellerLabel(p) }}</dd>
                 </div>
                 <div>
                   <dt class="text-fb-text-muted">Einkaufsdatum</dt>
                   <dd class="mt-1">{{ p.purchase_date | date: 'dd.MM.yyyy' }}</dd>
                 </div>
+                @for (row of purchaseSellerDetailRows(p); track row.label) {
+                  <div data-seller-detail-row>
+                    <dt class="text-fb-text-muted">{{ row.label }}</dt>
+                    <dd class="mt-1 break-words">{{ row.value }}</dd>
+                  </div>
+                }
+                @if (p.original_url) {
+                  <div class="sm:col-span-2">
+                    <dt class="text-fb-text-muted">Angebotslink</dt>
+                    <dd class="mt-1 break-all">
+                      <a
+                        class="text-fb-text-primary underline"
+                        [href]="p.original_url"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        >{{ p.original_url }}</a
+                      >
+                    </dd>
+                  </div>
+                }
               </dl>
             </app-card>
             <!-- Einkaufspositionen und zugehöriger Bestand -->
@@ -505,6 +535,13 @@
     [line]="line"
     (closed)="capturingPackage.set(null)"
     (saved)="packageContentSaved()"
+  />
+}
+
+@if (isSellerDetailsDialogOpen() && purchaseService.selectedPurchase(); as purchaseToAmend) {
+  <app-purchase-seller-details-dialog
+    [purchase]="purchaseToAmend"
+    (closed)="isSellerDetailsDialogOpen.set(false)"
   />
 }
 

@@ -25,6 +25,15 @@ describe('timelineSentence', () => {
     expect(sentence).toBe('Du hast diesen Einkauf als bestellt markiert.');
   });
 
+  it('beschreibt einen Nachtrag der Verkäuferangaben', () => {
+    const sentence = timelineSentence(
+      createEvent('purchase_seller_details_updated'),
+      'Lena Meyer',
+      'actor-2',
+    );
+    expect(sentence).toBe('Lena Meyer hat die Verkäuferangaben ergänzt.');
+  });
+
   it('nennt fremde Verursacher beim Namen', () => {
     const sentence = timelineSentence(createEvent('purchase_ordered'), 'Lena Meyer', 'actor-2');
     expect(sentence).toBe('Lena Meyer hat diesen Einkauf als bestellt markiert.');

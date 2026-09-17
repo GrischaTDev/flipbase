@@ -6428,7 +6428,10 @@ as $$
           'source_id', 'supplier_id', 'type', 'title', 'purchase_date',
           'purchase_price', 'cost_allocation_mode', 'notes', 'tracking_number',
           'tracking_carrier', 'tracking_status', 'original_url', 'content_status',
-          'pricing_mode', 'supplier_reference', 'discount_amount'
+          'pricing_mode', 'supplier_reference', 'discount_amount', 'seller_type',
+          'seller_name', 'seller_marketplace_username', 'seller_street',
+          'seller_address_extra', 'seller_postal_code', 'seller_city',
+          'seller_country_code', 'external_order_id'
         ])
     ),
     'lines', coalesce((select pg_catalog.jsonb_agg(value order by value) from lines), '[]'::jsonb),
@@ -6472,6 +6475,7 @@ declare
   v_max_purchase_units constant integer := 100000;
   v_audit_after jsonb;
   v_catalog_product_id uuid;
+  v_seller_details jsonb := public.normalize_purchase_seller_details(p_purchase);
 begin
   if (select auth.uid()) is null
     or not (select public.is_workspace_member(p_workspace_id)) then
@@ -6702,7 +6706,10 @@ begin
     workspace_id, source_id, supplier_id, type, title, purchase_date,
     purchase_price, cost_allocation_mode, notes, tracking_number,
     tracking_carrier, tracking_status, original_url, receiving_status,
-    content_status, pricing_mode, supplier_reference, request_id, discount_amount
+    content_status, pricing_mode, supplier_reference, request_id, discount_amount,
+    seller_type, seller_name, seller_marketplace_username, seller_street,
+    seller_address_extra, seller_postal_code, seller_city, seller_country_code,
+    external_order_id
   ) values (
     p_workspace_id,
     v_source_id,
@@ -6722,7 +6729,16 @@ begin
     p_purchase ->> 'pricing_mode',
     nullif(btrim(p_purchase ->> 'supplier_reference'), ''),
     nullif(p_purchase ->> 'request_id', '')::uuid,
-    coalesce((p_purchase ->> 'discount_amount')::numeric, 0)
+    coalesce((p_purchase ->> 'discount_amount')::numeric, 0),
+    v_seller_details ->> 'seller_type',
+    v_seller_details ->> 'seller_name',
+    v_seller_details ->> 'seller_marketplace_username',
+    v_seller_details ->> 'seller_street',
+    v_seller_details ->> 'seller_address_extra',
+    v_seller_details ->> 'seller_postal_code',
+    v_seller_details ->> 'seller_city',
+    v_seller_details ->> 'seller_country_code',
+    v_seller_details ->> 'external_order_id'
   ) returning * into v_purchase;
 
   for v_line in select value from jsonb_array_elements(p_lines) loop
@@ -6916,6 +6932,8 @@ declare
   v_max_purchase_units constant integer := 100000;
   v_audit_before jsonb;
   v_audit_after jsonb;
+  v_seller_details jsonb := public.normalize_purchase_seller_details(p_purchase);
+  v_seller_details_before jsonb;
 begin
   if (select auth.uid()) is null
     or not (select public.is_workspace_member(p_workspace_id)) then
@@ -6965,6 +6983,7 @@ begin
       message = 'Nur ein nicht finalisierter Einkaufsentwurf kann bearbeitet werden.';
   end if;
 
+  v_seller_details_before := public.purchase_seller_details_snapshot(v_purchase);
   v_audit_before := public.purchase_draft_audit_snapshot(p_workspace_id, p_purchase_id);
 
   if pg_catalog.jsonb_array_length(p_lines) > v_max_purchase_lines then
@@ -7433,10 +7452,29 @@ begin
       tracking_carrier = nullif(p_purchase ->> 'tracking_carrier', ''),
       tracking_status = coalesce(nullif(p_purchase ->> 'tracking_status', ''), 'pending'),
       original_url = nullif(p_purchase ->> 'original_url', ''),
+      seller_type = v_seller_details ->> 'seller_type',
+      seller_name = v_seller_details ->> 'seller_name',
+      seller_marketplace_username = v_seller_details ->> 'seller_marketplace_username',
+      seller_street = v_seller_details ->> 'seller_street',
+      seller_address_extra = v_seller_details ->> 'seller_address_extra',
+      seller_postal_code = v_seller_details ->> 'seller_postal_code',
+      seller_city = v_seller_details ->> 'seller_city',
+      seller_country_code = v_seller_details ->> 'seller_country_code',
+      external_order_id = v_seller_details ->> 'external_order_id',
       updated_at = pg_catalog.clock_timestamp()
   where workspace_id = p_workspace_id
     and id = p_purchase_id
   returning * into v_purchase;
+
+  -- Ein offener Nachtragsdialog soll einen zwischenzeitlich gespeicherten Entwurf
+  -- nicht überschreiben; deshalb zählt auch dieser Weg die Version hoch.
+  if public.purchase_seller_details_snapshot(v_purchase) is distinct from v_seller_details_before then
+    update public.purchases
+    set seller_details_version = seller_details_version + 1
+    where workspace_id = p_workspace_id
+      and id = p_purchase_id
+    returning * into v_purchase;
+  end if;
 
   v_audit_after := public.purchase_draft_audit_snapshot(p_workspace_id, p_purchase_id);
   if v_audit_before is distinct from v_audit_after then
