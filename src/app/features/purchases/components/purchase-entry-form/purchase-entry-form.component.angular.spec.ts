@@ -101,6 +101,19 @@ function erstelleKomponente(vorhandener: Purchase | null = null) {
     ),
   };
   const suppliersService = {
+    suppliers: signal([
+      {
+        id: 'supplier-nord',
+        workspace_id: 'workspace-1',
+        name: 'Großhandel Nord',
+        seller_type: 'business' as const,
+        street: 'Hafenstraße 1',
+        postal_code: '20457',
+        city: 'Hamburg',
+        country_code: 'DE',
+        email: 'einkauf@nord.example',
+      },
+    ]),
     createSupplier: vi.fn(
       async (): Promise<{ data: { id: string } | null; error: Error | null }> => ({
         data: { id: 'supplier-1' },
@@ -132,6 +145,7 @@ function erstelleKomponente(vorhandener: Purchase | null = null) {
     packagePriceStale: signal(false),
     completed: signal(false),
     sellerDialogOpen: signal(false),
+    sellerAddressExpanded: signal(false),
     lineEditor: () => undefined,
     costOverviewDialog: () => undefined,
     isAddingSource: signal(true),
@@ -169,6 +183,15 @@ function erstelleKomponente(vorhandener: Purchase | null = null) {
       tracking_number: new FormControl('', { nonNullable: true }),
       tracking_carrier: new FormControl<'dhl' | null>(null),
       original_url: new FormControl('', { nonNullable: true }),
+      external_order_id: new FormControl('', { nonNullable: true }),
+      seller_type: new FormControl<'private' | 'business' | null>(null),
+      seller_name: new FormControl('', { nonNullable: true }),
+      seller_marketplace_username: new FormControl('', { nonNullable: true }),
+      seller_street: new FormControl('', { nonNullable: true }),
+      seller_address_extra: new FormControl('', { nonNullable: true }),
+      seller_postal_code: new FormControl('', { nonNullable: true }),
+      seller_city: new FormControl('', { nonNullable: true }),
+      seller_country_code: new FormControl<string | null>(null),
       notes: new FormControl('', { nonNullable: true }),
       single_item_condition: new FormControl<'used'>('used', { nonNullable: true }),
       single_item_expected_value: new FormControl<number | null>(null),
@@ -221,7 +244,7 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
-  it('zeigt den vereinfachten Ablauf ohne alte Quellen- und Mystery-Felder', () => {
+  it('zeigt Quelle, Verkäuferangaben und Angebotslink ohne alte Mystery-Felder', () => {
     const template = readFileSync(
       'src/app/features/purchases/components/purchase-entry-form/purchase-entry-form.component.html',
       'utf8',
@@ -230,6 +253,11 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
     expect(template).not.toContain('Plattform / Bezugsquelle');
     expect(template).not.toContain('Noch nicht vollständig bekannt');
     expect(template).not.toContain('Beleg / Angebotslink');
+    expect(template).toContain('formControlName="title"');
+    expect(template).toContain('formControlName="source_id"');
+    expect(template).toContain('formControlName="seller_marketplace_username"');
+    expect(template).toContain('formControlName="external_order_id"');
+    expect(template).toContain('label="Angebotslink (optional)"');
     expect(template).not.toContain('Interne Notiz');
     expect(template).not.toContain('Referenz des Verkäufers');
     expect(template).toContain('actionLabel="Verkäufer erstellen"');
@@ -404,6 +432,67 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
       }),
     );
     expect(purchaseCostingService.finalizePurchase).not.toHaveBeenCalled();
+  });
+
+  it('speichert Bezeichnung, Quelle und Verkäufer-Snapshot ohne gespeicherten Verkäufer', async () => {
+    const { komponente, purchaseService } = erstelleKomponente();
+    komponente.form.patchValue({
+      title: 'Vinted-Jacke',
+      source_id: 'source-vinted',
+      supplier_id: null,
+      seller_marketplace_username: ' vintage_lea92 ',
+      seller_type: null,
+      seller_name: '',
+      seller_city: ' Köln ',
+      seller_country_code: 'DE',
+      external_order_id: ' 84739392 ',
+      original_url: ' https://www.vinted.de/items/1 ',
+    });
+
+    await komponente.onSubmit();
+
+    expect(purchaseService.createPurchase).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Vinted-Jacke',
+        source_id: 'source-vinted',
+        supplier_id: null,
+        seller_marketplace_username: 'vintage_lea92',
+        seller_type: null,
+        seller_name: null,
+        seller_city: 'Köln',
+        seller_country_code: 'DE',
+        external_order_id: '84739392',
+        original_url: 'https://www.vinted.de/items/1',
+      }),
+    );
+  });
+
+  it('übernimmt Art, Name und Anschrift eines gespeicherten Verkäufers bewusst in den Einkauf', () => {
+    const { komponente } = erstelleKomponente();
+    komponente.form.controls.seller_marketplace_username.setValue('grosshandel_nord');
+
+    komponente.onSupplierSelected('supplier-nord');
+
+    expect(komponente.form.getRawValue()).toMatchObject({
+      seller_type: 'business',
+      seller_name: 'Großhandel Nord',
+      seller_street: 'Hafenstraße 1',
+      seller_postal_code: '20457',
+      seller_city: 'Hamburg',
+      seller_country_code: 'DE',
+      seller_marketplace_username: 'grosshandel_nord',
+    });
+    expect(komponente.form.dirty).toBe(true);
+    expect(komponente.sellerAddressExpanded()).toBe(true);
+  });
+
+  it('lässt die Verkäuferangaben stehen, wenn kein gespeicherter Verkäufer gewählt wird', () => {
+    const { komponente } = erstelleKomponente();
+    komponente.form.controls.seller_name.setValue('Lea Mustermann');
+
+    komponente.onSupplierSelected(null);
+
+    expect(komponente.form.controls.seller_name.value).toBe('Lea Mustermann');
   });
 
   it('bewahrt technische Bestands- und Versandwerte beim Bearbeiten', async () => {
