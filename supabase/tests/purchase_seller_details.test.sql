@@ -223,7 +223,13 @@ select is(
   'das Ereignis enthält nur die tatsächlich geänderten Felder'
 );
 
--- Ohne Änderung: keine neue Version und kein Ereignis.
+-- Ohne Änderung: keine neue Version und kein Ereignis. Die interne Hilfsfunktion
+-- ist für Nutzer gesperrt; der unveränderte Stand wird daher vorher gelesen.
+insert into seller_test_results (name, snapshot)
+select 'current-details', public.purchase_seller_details_snapshot(purchase)
+from public.purchases as purchase
+where purchase.id = (select id from seller_test_results where name = 'one-off');
+
 select set_config('request.jwt.claim.sub', 'e1600000-0000-4000-8000-000000000001', true);
 set local role authenticated;
 insert into seller_test_results (name, snapshot)
@@ -231,7 +237,7 @@ select 'no-change', public.update_purchase_seller_details(
   'e1600000-0000-4000-8000-000000000011',
   (select id from seller_test_results where name = 'one-off'),
   2,
-  public.purchase_seller_details_snapshot((select purchase from public.purchases as purchase where purchase.id = (select id from seller_test_results where name = 'one-off'))),
+  (select snapshot from seller_test_results where name = 'current-details'),
   null
 );
 reset role;
