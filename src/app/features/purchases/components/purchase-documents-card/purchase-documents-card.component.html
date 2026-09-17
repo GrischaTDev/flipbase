@@ -64,7 +64,9 @@
             class="flex flex-col gap-2 py-3 text-[13px] sm:flex-row sm:items-center sm:justify-between"
           >
             <div class="min-w-0">
-              <p class="font-semibold text-fb-text-primary">{{ row.document.original_file_name }}</p>
+              <p class="font-semibold text-fb-text-primary">
+                {{ row.document.original_file_name }}
+              </p>
               <p class="mt-0.5 text-xs text-fb-text-muted">
                 {{ row.typeLabel }} · {{ row.sizeLabel }} ·
                 {{ row.document.created_at | date: 'dd.MM.yyyy' }}
