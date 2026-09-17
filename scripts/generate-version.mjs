@@ -50,7 +50,7 @@ const stand =
   ausGit('git log -1 --format=%cs', new Date().toISOString().slice(0, 10));
 
 const inhalt = `/**
- * Erzeugt von scripts/version-generieren.mjs - nicht von Hand aendern.
+ * Erzeugt von scripts/generate-version.mjs - nicht von Hand aendern.
  * Die Datei steht in .gitignore und entsteht bei jedem Build neu.
  */
 export const VERSION = {

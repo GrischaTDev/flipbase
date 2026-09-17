@@ -4,7 +4,7 @@ import { WorkspaceService } from './workspace.service';
 import { MockDataStoreService } from './mock-data-store.service';
 import { SyncStatusService } from './sync-status.service';
 import { Source } from '../models/flipbase.models';
-import { nurAktive } from './stammdaten-filter';
+import { nurAktive } from './master-data-filter';
 
 @Injectable({
   providedIn: 'root',
