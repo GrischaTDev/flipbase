@@ -37,11 +37,23 @@ export class SessionChannelService {
   private fuerNutzer: string | null = null;
 
   /**
-   * Hoert auf dem Kanal dieses Nutzers mit. Mehrfaches Aufrufen fuer denselben
-   * Nutzer aendert nichts – der Kanal wird nur einmal geoeffnet.
+   * Hoert auf dem Kanal dieses Nutzers mit. Der Kanal wird fuer denselben Nutzer
+   * nicht neu aufgebaut; ein erneuerter Access-Token wird aber an Supabase
+   * weitergereicht, damit bestehende private Kanaele nach einem Auth-Refresh
+   * nicht mit einem abgelaufenen Token weiterlaufen.
    */
   verbinde(nutzerId: string, zugriffsToken: string, beiAbmeldung: () => void): void {
-    if (this.fuerNutzer === nutzerId && this.kanal) return;
+    if (this.fuerNutzer === nutzerId && this.kanal) {
+      try {
+        this.supabase.client.realtime.setAuth(zugriffsToken);
+      } catch {
+        // Der bestehende Kanal darf die restliche App nicht blockieren. Kann
+        // Realtime den neuen Token nicht uebernehmen, wird beim naechsten
+        // Neuaufbau wieder ein frischer Verbindungsversuch gemacht.
+      }
+      return;
+    }
+
     this.trenne();
 
     try {

@@ -11,7 +11,10 @@ beforeAll(async () => {
   );
 });
 
-afterEach(() => TestBed.resetTestingModule());
+afterEach(() => {
+  TestBed.resetTestingModule();
+  document.body.style.overflow = '';
+});
 
 it('sperrt bei übereinander geöffneten Dialogen nur den Hintergrund und stellt ihn wieder her', () => {
   TestBed.configureTestingModule({ imports: [CustomSelectDialogTestHostComponent] });
@@ -38,4 +41,33 @@ it('sperrt bei übereinander geöffneten Dialogen nur den Hintergrund und stellt
   expect(document.body.style.overflow).toBe('scroll');
   background.remove();
   document.body.style.overflow = '';
+});
+
+it('räumt eine verwaiste Modalsperre auf, wenn ein Hintergrund-Tab wieder sichtbar wird', () => {
+  TestBed.configureTestingModule({ imports: [CustomSelectDialogTestHostComponent] });
+  const background = document.createElement('button');
+  document.body.append(background);
+  document.body.style.overflow = 'scroll';
+
+  const fixture = TestBed.createComponent(CustomSelectDialogTestHostComponent);
+  fixture.detectChanges();
+  TestBed.tick();
+
+  expect(background.inert).toBe(true);
+  expect(document.body.style.overflow).toBe('hidden');
+
+  // Bildet den problematischen Browser-Zustand nach: Der Dialog-Knoten ist nach
+  // längerem Backgrounding nicht mehr im Dokument, die Direktive hält aber noch
+  // ihren alten Zustand. Beim Zurückkehren darf dieser Zustand die App nicht
+  // weiter unbedienbar machen.
+  (fixture.nativeElement as HTMLElement).remove();
+  document.dispatchEvent(new Event('visibilitychange'));
+
+  // jsdom liefert fuer den nicht gesetzten inert-Zustand `undefined`; relevant
+  // ist hier nur, dass der Hintergrund nicht mehr gesperrt ist.
+  expect(background.inert).not.toBe(true);
+  expect(document.body.style.overflow).toBe('scroll');
+
+  fixture.destroy();
+  background.remove();
 });
