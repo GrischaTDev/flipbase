@@ -111,7 +111,7 @@ export class SidebarComponent {
   readonly ideasExpanded = signal(isIdeasRoute(this.router.url));
   readonly ideasActive = computed(() => isIdeasRoute(this.currentUrl()));
 
-  /** Aus Git und package.json erzeugt, siehe scripts/version-generieren.mjs. */
+  /** Aus Git und package.json erzeugt, siehe scripts/generate-version.mjs. */
   readonly version = VERSION;
 
   constructor() {

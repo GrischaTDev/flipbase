@@ -1,3 +1,4 @@
+import { createClient } from '@supabase/supabase-js';
 import { describe, expect, it, vi } from 'vitest';
 import type { SniperQuery } from '../../src/domain/query.js';
 import { isDue, QueryStore } from '../../src/store/query.store.js';
@@ -46,10 +47,27 @@ describe('isDue', () => {
     expect(isDue(query({ lastPolledAt: lastPolled, pollIntervalMs: 60_000 }), now)).toBe(true);
   });
 
-  it('is not due when runState is blocked or invalid', () => {
+  it('is not due when runState is invalid', () => {
     const now = new Date(1_000_000);
-    expect(isDue(query({ runState: 'blocked', lastPolledAt: null }), now)).toBe(false);
     expect(isDue(query({ runState: 'invalid', lastPolledAt: null }), now)).toBe(false);
+  });
+
+  it('recovers a legacy blocked query after the forbidden backoff instead of never polling it', () => {
+    // Produktionszustand seit 16.09.2026: Filter nach einer einzelnen 403 ohne
+    // Ablaufzeit gesperrt.
+    const now = new Date(1_000_000);
+    const blocked = query({
+      runState: 'blocked',
+      nextAttemptAt: null,
+      lastPolledAt: new Date(1_000_000 - 60_000).toISOString(),
+      lastStatus: 'forbidden',
+      consecutiveFailures: 1,
+    });
+
+    expect(isDue(blocked, now)).toBe(false);
+    expect(
+      isDue({ ...blocked, lastPolledAt: new Date(1_000_000 - 125_000).toISOString() }, now),
+    ).toBe(true);
   });
 
   it('respects nextAttemptAt over pollIntervalMs', () => {
@@ -173,5 +191,55 @@ describe('QueryStore database operations', () => {
     expect(update).not.toHaveBeenCalledWith(
       expect.objectContaining({ is_active: expect.anything() }),
     );
+  });
+});
+
+describe('QueryStore.dueQueries', () => {
+  it('loads legacy blocked queries so the forbidden backoff can recover them', async () => {
+    // Nach dem Fix vom 17.09.2026 sammelten Nike und adidas wieder, der am
+    // 16.09. gesperrte Filter "Ralph Lauren" blieb aber stehen: Die Abfrage
+    // sortierte 'blocked' schon in der Datenbank aus, bevor isDue greifen konnte.
+    const params: URLSearchParams[] = [];
+    const client = createClient('https://unit.example.test', 'unit-service-role', {
+      auth: { persistSession: false, autoRefreshToken: false },
+      global: {
+        fetch: async (input) => {
+          params.push(new URL(String(input)).searchParams);
+          return new Response(
+            JSON.stringify([
+              {
+                id: 'q-ralph',
+                query_key: 'vinted|brand=88',
+                marketplace: 'vinted',
+                search_text: null,
+                catalog_id: null,
+                brand_id: 88,
+                price_to: null,
+                price_from: null,
+                poll_interval_ms: 20_000,
+                is_seeded: true,
+                is_active: true,
+                run_state: 'blocked',
+                next_attempt_at: null,
+                last_attempt_at: '2026-09-16T00:48:35.776Z',
+                last_success_at: '2026-09-16T00:48:11.114Z',
+                last_error_kind: 'forbidden',
+                last_error_at: '2026-09-16T00:48:35.776Z',
+                last_error_message: 'Vinted refused the request',
+                last_polled_at: '2026-09-16T00:48:35.776Z',
+                last_status: 'forbidden',
+                consecutive_failures: 1,
+              },
+            ]),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          );
+        },
+      },
+    });
+
+    const due = await new QueryStore(client).dueQueries(new Date('2026-09-17T07:00:00.000Z'));
+
+    expect(params[0]?.getAll('run_state')).toEqual(['neq.invalid']);
+    expect(due.map((query) => query.id)).toEqual(['q-ralph']);
   });
 });

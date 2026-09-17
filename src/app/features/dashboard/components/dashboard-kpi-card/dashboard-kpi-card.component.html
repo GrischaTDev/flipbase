@@ -1,0 +1,19 @@
+<div class="linear-kpi h-full rounded-xl border border-fb-line p-4">
+  <div class="flex items-center justify-between text-[13px] font-medium text-fb-text-muted">
+    <span>{{ label() }}</span>
+    @if (icon(); as kpiIcon) {
+      <svg [lucideIcon]="kpiIcon" class="h-4 w-4 text-fb-text-muted" aria-hidden="true"></svg>
+    }
+  </div>
+  <p [class]="valueClasses()">{{ value() }}</p>
+  @if (change(); as kpiChange) {
+    <p data-kpi-change class="mt-1 text-xs text-fb-text-muted">
+      <span [class]="changeClasses()" aria-hidden="true">{{ kpiChange.text }}</span>
+      <span aria-hidden="true"> ggü. {{ comparisonLabel() }}</span>
+      <span class="sr-only">{{ kpiChange.description }}</span>
+    </p>
+  }
+  @if (hint()) {
+    <p data-kpi-hint class="mt-1 text-xs text-fb-text-muted">{{ hint() }}</p>
+  }
+</div>

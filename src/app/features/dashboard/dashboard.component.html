@@ -7,7 +7,7 @@
           Ertrag im Blick
         </h1>
         <p class="mt-1 max-w-2xl text-xs text-fb-text-muted">
-          Verkaufserlöse, Wareneinsatz und direkte Verkaufskosten aus bestätigten Verkäufen.
+          Gewinn, Umsatz und Ausgaben im gewählten Zeitraum, verglichen mit dem Zeitraum davor.
         </p>
       </div>
       <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
@@ -49,76 +49,73 @@
     }
   </header>
 
-  <section class="grid gap-3 sm:grid-cols-2 xl:grid-cols-5" aria-label="Kennzahlen">
-    <div class="linear-kpi rounded-xl border border-fb-line p-4">
-      <div class="flex items-center justify-between text-[13px] font-medium text-fb-text-muted">
-        <span>Verkaufserlöse</span
-        ><svg [lucideIcon]="coinsIcon" class="h-4 w-4 text-fb-text-muted"></svg>
-      </div>
-      <p class="mt-2 font-mono text-xl font-semibold tracking-tight text-fb-text-primary">
-        {{ report().revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-      </p>
-      <p class="mt-1 text-xs text-fb-text-muted">Bestätigte Verkäufe im Zeitraum</p>
+  <section class="space-y-3" aria-label="Kennzahlen">
+    <div class="grid gap-3 md:grid-cols-3">
+      <app-dashboard-kpi-card
+        data-kpi="gross-profit"
+        size="large"
+        label="Gewinn"
+        [icon]="trendingIcon"
+        [value]="kpis().grossProfit.value"
+        [valueTone]="kpis().grossProfit.tone"
+        [hint]="kpis().grossProfit.hint"
+        [change]="kpis().grossProfit.change"
+        [comparisonLabel]="kpis().comparisonLabel"
+      />
+      <app-dashboard-kpi-card
+        data-kpi="revenue"
+        size="large"
+        label="Umsatz"
+        [icon]="coinsIcon"
+        [value]="kpis().revenue.value"
+        hint="Bestätigte Verkäufe im Zeitraum"
+        [change]="kpis().revenue.change"
+        [comparisonLabel]="kpis().comparisonLabel"
+      />
+      <app-dashboard-kpi-card
+        data-kpi="expenses"
+        size="large"
+        label="Ausgaben"
+        [icon]="walletIcon"
+        [value]="kpis().expenses.value"
+        [hint]="kpis().expenses.hint"
+        [change]="kpis().expenses.change"
+        [comparisonLabel]="kpis().comparisonLabel"
+      />
     </div>
-    <div class="linear-kpi rounded-xl border border-fb-line p-4">
-      <div class="flex items-center justify-between text-[13px] font-medium text-fb-text-muted">
-        <span>Ergebnis nach direkten Kosten</span
-        ><svg [lucideIcon]="trendingIcon" class="h-4 w-4 text-fb-text-muted"></svg>
-      </div>
-      <p
-        class="mt-2 font-mono text-xl font-semibold tracking-tight"
-        [class.text-emerald-400]="(report().resultAfterDirectCosts ?? 0) >= 0"
-        [class.text-rose-400]="(report().resultAfterDirectCosts ?? 0) < 0"
-      >
-        @if (report().resultAfterDirectCosts === null) {
-          <span class="font-sans text-base text-amber-300">Kosten noch offen</span>
-        } @else {
-          {{ report().resultAfterDirectCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-        }
-      </p>
-      <p class="mt-1 text-xs text-fb-text-muted">
-        Nur vollständig belegte Verkäufe werden summiert
-      </p>
-    </div>
-    <div class="linear-kpi rounded-xl border border-fb-line p-4">
-      <div class="flex items-center justify-between text-[13px] font-medium text-fb-text-muted">
-        <span>Aktueller Bestandswert</span
-        ><svg [lucideIcon]="boxesIcon" class="h-4 w-4 text-fb-text-muted"></svg>
-      </div>
-      <p class="mt-2 font-mono text-xl font-semibold tracking-tight text-fb-text-primary">
-        @if (report().inventoryCostValue === null) {
-          Unbekannt
-        } @else {
-          {{ report().inventoryCostValue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-        }
-      </p>
-      <p class="mt-1 text-xs text-fb-text-muted">Anschaffungswert aktuell vorhandener Ware</p>
-    </div>
-    <div class="linear-kpi rounded-xl border border-fb-line p-4">
-      <div class="flex items-center justify-between text-[13px] font-medium text-fb-text-muted">
-        <span>Verkaufte Artikel</span
-        ><svg [lucideIcon]="receiptIcon" class="h-4 w-4 text-fb-text-muted"></svg>
-      </div>
-      <p class="mt-2 font-mono text-xl font-semibold tracking-tight text-fb-text-primary">
-        {{ report().soldItems }}
-      </p>
-      <p class="mt-1 text-xs text-fb-text-muted">Bestätigte Stückzahl im Zeitraum</p>
-    </div>
-    <div class="linear-kpi rounded-xl border border-fb-line p-4">
-      <div class="flex items-center justify-between text-[13px] font-medium text-fb-text-muted">
-        <span>Durchschnittliche Marge</span
-        ><svg [lucideIcon]="trendingIcon" class="h-4 w-4 text-fb-text-muted"></svg>
-      </div>
-      <p class="mt-2 font-mono text-xl font-semibold tracking-tight text-fb-text-primary">
-        @if (report().averageMarginPercent === null) {
-          –
-        } @else {
-          {{ report().averageMarginPercent }} %
-        }
-      </p>
-      <p class="mt-1 text-xs text-fb-text-muted">Nur Verkäufe mit bekannten Kosten</p>
+    <div class="grid gap-3 sm:grid-cols-3">
+      <app-dashboard-kpi-card
+        data-kpi="inventory"
+        label="Bestandswert"
+        [icon]="boxesIcon"
+        [value]="kpis().inventory.value"
+        [hint]="kpis().inventory.hint"
+      />
+      <app-dashboard-kpi-card
+        data-kpi="sold-items"
+        label="Verkaufte Artikel"
+        [icon]="receiptIcon"
+        [value]="kpis().soldItems.value"
+        hint="Bestätigte Stückzahl im Zeitraum"
+        [change]="kpis().soldItems.change"
+        [comparisonLabel]="kpis().comparisonLabel"
+      />
+      <app-dashboard-kpi-card
+        data-kpi="margin"
+        label="Durchschnittliche Marge"
+        [icon]="trendingIcon"
+        [value]="kpis().margin.value"
+        hint="Nur Verkäufe mit bekannten Kosten"
+        [change]="kpis().margin.change"
+        [comparisonLabel]="kpis().comparisonLabel"
+      />
     </div>
   </section>
+
+  <app-dashboard-open-costs
+    [openCosts]="report().openCosts"
+    [salesWithoutPurchase]="report().salesWithoutPurchase"
+  />
 
   <app-card rounded="xl">
     <app-revenue-chart [points]="report().points"></app-revenue-chart>
