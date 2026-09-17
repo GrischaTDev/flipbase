@@ -63,7 +63,9 @@ it('räumt eine verwaiste Modalsperre auf, wenn ein Hintergrund-Tab wieder sicht
   (fixture.nativeElement as HTMLElement).remove();
   document.dispatchEvent(new Event('visibilitychange'));
 
-  expect(background.inert).toBe(false);
+  // jsdom liefert fuer den nicht gesetzten inert-Zustand `undefined`; relevant
+  // ist hier nur, dass der Hintergrund nicht mehr gesperrt ist.
+  expect(background.inert).not.toBe(true);
   expect(document.body.style.overflow).toBe('scroll');
 
   fixture.destroy();
