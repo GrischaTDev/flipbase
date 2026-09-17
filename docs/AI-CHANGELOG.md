@@ -44,13 +44,18 @@ bisher nicht übernommene Sniper-Tabellen. Von den neuen Datenbanktests waren im
 dritten Lauf neun Prüfungen grün, darunter Nachtrag nach Abschluss, unveränderte
 Kosten und Bestände sowie das Ereignis mit Grund.
 
+**Nachtrag 18.09.2026:** Nach der Umstellung des Repositories auf öffentlich laufen die
+GitHub-Prüfungen wieder. Migration, erzeugte Typen und Datenbanktests sind bestätigt:
+49 Testdateien mit 1803 Prüfungen bestanden, darunter die neue Datei
+`purchase_seller_details.test.sql`. Die committeten Typen sind byteweise identisch mit
+den im Lauf erzeugten. Der vorläufige Workflow `purchase-seller-schema-preview.yml`
+wurde vor dem Review entfernt.
+
 **Offen:** `supabase db diff` scheitert am vorhandenen Schema (50_sniper.sql nutzt
 `is_platform_operator` vor 99_platform_admin.sql); die Migration wurde deshalb aus den
-Schemadateien zusammengestellt. Der abschließende Datenbanklauf, der Angular-Bau und
-die PR-Prüfungen stehen aus, weil GitHub Actions seit 17.09.2026 17:10 UTC keine Läufe
-mehr startet („recent account payments have failed or your spending limit needs to be
-increased“). Der vorläufige Workflow `purchase-seller-schema-preview.yml` und der
-Entwurfs-PR #103 bleiben bis dahin bestehen und werden vor dem Merge entfernt.
+Schemadateien zusammengestellt. Teil 2 (Belege) und Teil 3 (Einkauf drucken) folgen als
+eigene PRs. Eine Sichtprüfung im Browser steht aus, weil das lokale Node unter dem
+Minimum der Angular CLI liegt.
 
 ## 2026-09-17 – Claude Opus 5 (Anthropic) – Dashboard mit Gewinn, Ausgaben, Vorzeitraum und offenen Kosten
 
