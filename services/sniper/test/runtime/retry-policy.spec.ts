@@ -65,16 +65,28 @@ describe('evaluateFailure', () => {
     expect(d3.nextAttemptAt?.toISOString()).toBe('2026-09-15T12:04:00.000Z'); // 240s
   });
 
-  it('handles 403 by marking runState as blocked and origin as blocked', () => {
+  it('handles 403 with an expiring origin cooldown instead of a permanent block', () => {
+    // Am 16.09.2026 legte eine einzelne 403 den Bot ueber 30 Stunden still,
+    // obwohl Vinted wenige Stunden spaeter wieder erreichbar war.
     const error = new ForbiddenError('Cloudflare challenge detected');
     const decision = evaluateFailure(error, makeQuery(), NOW);
 
-    expect(decision.runState).toBe('blocked');
-    expect(decision.nextAttemptAt).toBeNull();
+    expect(decision.runState).toBe('cooldown');
+    expect(decision.nextAttemptAt?.toISOString()).toBe('2026-09-15T12:05:00.000Z'); // +5m
     expect(decision.errorKind).toBe('forbidden');
     expect(decision.consecutiveFailures).toBe(1);
-    expect(decision.originUpdate?.state).toBe('blocked');
-    expect(decision.originUpdate?.blockedUntil).toBeNull();
+    expect(decision.originUpdate?.state).toBe('cooldown');
+    expect(decision.originUpdate?.blockedUntil?.toISOString()).toBe('2026-09-15T12:05:00.000Z');
+  });
+
+  it('escalates repeated 403 cooldowns up to one hour', () => {
+    const error = new ForbiddenError();
+    const delayMinutes = [0, 1, 2, 3, 4, 9].map((consecutiveFailures) => {
+      const decision = evaluateFailure(error, makeQuery({ consecutiveFailures }), NOW);
+      return ((decision.nextAttemptAt?.getTime() ?? 0) - NOW.getTime()) / 60_000;
+    });
+
+    expect(delayMinutes).toEqual([5, 10, 20, 40, 60, 60]);
   });
 
   it('handles 401 with short cooldown', () => {

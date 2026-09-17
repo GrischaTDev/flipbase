@@ -25,6 +25,11 @@ export interface RetryDecision {
 
 const SERVER_ERROR_DELAYS_MS = [30_000, 60_000, 120_000, 300_000, 600_000, 900_000] as const;
 
+// Eine 403 ist bei Vinted meist eine voruebergehende Cloudflare-Pruefung. Eine
+// dauerhafte Sperre ohne Ablaufzeit hat den Bot am 16.09.2026 ueber 30 Stunden
+// stillgelegt, obwohl Vinted wenige Stunden spaeter wieder antwortete.
+const FORBIDDEN_DELAYS_MS = [300_000, 600_000, 1_200_000, 2_400_000, 3_600_000] as const;
+
 /**
  * Reine, vollstaendig mit injizierter Uhr testbare Fehlerpolitik.
  * Technische Fehler veraendern niemals das administrative Feld `is_active`.
@@ -63,15 +68,17 @@ export function evaluateFailure(
   }
 
   if (error instanceof ForbiddenError) {
+    const delayIndex = Math.min(failures - 1, FORBIDDEN_DELAYS_MS.length - 1);
+    const nextAttemptAt = new Date(now.getTime() + FORBIDDEN_DELAYS_MS[Math.max(0, delayIndex)]!);
     return {
-      runState: 'blocked',
-      nextAttemptAt: null,
+      runState: 'cooldown',
+      nextAttemptAt,
       errorKind: 'forbidden',
       errorMessage: rawMessage,
       consecutiveFailures: failures,
       originUpdate: {
-        state: 'blocked',
-        blockedUntil: null,
+        state: 'cooldown',
+        blockedUntil: nextAttemptAt,
         reason: 'forbidden',
       },
     };
