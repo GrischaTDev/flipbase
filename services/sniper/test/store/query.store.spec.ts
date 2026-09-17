@@ -46,10 +46,27 @@ describe('isDue', () => {
     expect(isDue(query({ lastPolledAt: lastPolled, pollIntervalMs: 60_000 }), now)).toBe(true);
   });
 
-  it('is not due when runState is blocked or invalid', () => {
+  it('is not due when runState is invalid', () => {
     const now = new Date(1_000_000);
-    expect(isDue(query({ runState: 'blocked', lastPolledAt: null }), now)).toBe(false);
     expect(isDue(query({ runState: 'invalid', lastPolledAt: null }), now)).toBe(false);
+  });
+
+  it('recovers a legacy blocked query after the forbidden backoff instead of never polling it', () => {
+    // Produktionszustand seit 16.09.2026: Filter nach einer einzelnen 403 ohne
+    // Ablaufzeit gesperrt.
+    const now = new Date(1_000_000);
+    const blocked = query({
+      runState: 'blocked',
+      nextAttemptAt: null,
+      lastPolledAt: new Date(1_000_000 - 60_000).toISOString(),
+      lastStatus: 'forbidden',
+      consecutiveFailures: 1,
+    });
+
+    expect(isDue(blocked, now)).toBe(false);
+    expect(
+      isDue({ ...blocked, lastPolledAt: new Date(1_000_000 - 125_000).toISOString() }, now),
+    ).toBe(true);
   });
 
   it('respects nextAttemptAt over pollIntervalMs', () => {

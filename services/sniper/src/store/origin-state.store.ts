@@ -9,6 +9,8 @@ export interface OriginState {
   updatedAt: string;
 }
 
+const STALE_PROBE_MS = 5 * 60_000;
+
 export class OriginStateStore {
   constructor(private readonly client: SupabaseClient) {}
 
@@ -76,21 +78,41 @@ export class OriginStateStore {
 
   /**
    * Versucht, genau einen Probeabruf fuer die abgekuehlte Origin zu reservieren.
-   * Wenn probe_in_flight bereits true ist, muss der Aufrufer warten.
+   * Wenn probe_in_flight bereits true ist, muss der Aufrufer warten - ausser die
+   * Reservierung ist aelter als STALE_PROBE_MS. Dann wurde der Prozess waehrend
+   * des Probeabrufs beendet (z. B. Deployment) und haette sie nie freigegeben.
    */
-  async tryAcquireProbe(origin: string): Promise<boolean> {
-    const { data, error } = await this.client
+  async tryAcquireProbe(origin: string, now: Date = new Date()): Promise<boolean> {
+    const acquired = { probe_in_flight: true, updated_at: now.toISOString() };
+
+    const free = await this.client
       .from('sniper_origin_state')
-      .update({ probe_in_flight: true, updated_at: new Date().toISOString() })
+      .update(acquired)
       .eq('origin', origin)
       .eq('probe_in_flight', false)
       .select('origin');
 
-    if (error) {
-      throw new Error(`acquiring probe for ${origin} failed: ${error.message}`);
+    if (free.error) {
+      throw new Error(`acquiring probe for ${origin} failed: ${free.error.message}`);
+    }
+    if ((free.data?.length ?? 0) > 0) {
+      return true;
     }
 
-    return (data?.length ?? 0) > 0;
+    const staleBefore = new Date(now.getTime() - STALE_PROBE_MS).toISOString();
+    const stale = await this.client
+      .from('sniper_origin_state')
+      .update(acquired)
+      .eq('origin', origin)
+      .eq('probe_in_flight', true)
+      .lt('updated_at', staleBefore)
+      .select('origin');
+
+    if (stale.error) {
+      throw new Error(`taking over stale probe for ${origin} failed: ${stale.error.message}`);
+    }
+
+    return (stale.data?.length ?? 0) > 0;
   }
 
   async releaseProbe(origin: string, success: boolean): Promise<void> {

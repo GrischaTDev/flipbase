@@ -36,6 +36,58 @@ außerhalb der Dokumentationshistorie. Der Angular-Bau lief lokal nicht, weil da
 installierte Node 22.16.0 unter dem Minimum der Angular CLI liegt; er wird im PR
 geprüft.
 
+## 2026-09-17 – Claude Opus 5 (Anthropic) – Vinted-Bot nach einzelner 403 dauerhaft gesperrt
+
+**Auftrag:** Der Vinted-Bot sammelt wieder keine Daten. Ursache finden und beheben.
+Zweig `fix/sniper-forbidden-recovery` von `origin/master` (`ca5a993`).
+
+**Befund (lesend auf dem Hetzner-Server, vom Nutzer freigegeben):** Container
+`flipbase-sniper` läuft gesund, protokolliert aber alle fünf Sekunden nur
+`origin_blocked reason=forbidden`. `sniper_origin_state` steht seit 16.09.2026
+00:48:35 UTC auf `blocked` ohne Ablaufzeit. Auslöser war eine einzelne 403 beim
+Filter „Ralph Lauren“ (`consecutive_failures = 1`); Nike und adidas waren
+Sekunden zuvor erfolgreich. Letzter gespeicherter Fund 00:48:05 UTC. Um 15:17 UTC
+lud der Bot die Vinted-Startseite erfolgreich (`vinted_last_success_at`), die
+Sperre blieb trotzdem bestehen. Seit AP1 vom 15.09. setzt eine 403 Origin und
+Filter dauerhaft auf `blocked`; weder Bot noch Admin-Bereich heben das auf, auch
+nicht das Reaktivieren eines Filters oder ein Container-Neustart.
+
+**Änderung:** Eine 403 startet eine ablaufende Abkühlphase (5, 10, 20, 40, dann
+60 Minuten); danach prüft der vorhandene Einzelprobeabruf den Zugang. Bereits
+gespeicherte Dauersperren gelten als abgelaufene Abkühlphase bzw. laufen über
+den vorhandenen Backoff für `forbidden`, sodass sich der Produktionszustand nach
+dem Deployment ohne Datenmigration löst. Zweiter Commit: Eine Probe-Reservierung,
+die ein beendeter Prozess nicht freigeben konnte (z. B. Neustart beim
+Deployment), wird nach fünf Minuten übernommen statt dauerhaft zu blockieren.
+Keine Schema-, Migrations- oder Frontend-Änderung.
+
+**Prüfung:** Neue Regressionstests für Retry-Politik, Scheduler, `isDue` und
+`OriginStateStore` schlugen vor der Änderung fehl und bestehen danach; alle
+185 Sniper-Unit-Tests grün, ESLint und Prettier sauber. Lokale Typprüfung meldet
+nur das fehlende lokale `dotenv`-Paket, das ebenso auf `master` auftritt. Keine
+Produktionsdaten geändert. Die Gegenprüfung gegen eine echte PostgREST-API und
+die Wirkung im Betrieb stehen bis zum Deployment aus.
+
+## 2026-09-17 – Claude Opus 5 (Anthropic) – Übersicht offener Punkte
+
+**Auftrag:** Offene Punkte im Projekt zusammenstellen. Reine Analyse, keine
+Code-, Schema- oder Zweigänderung.
+
+**Befund:** Offene PRs #58 und #59 (je 128 Commits hinter `master`); auf `master`
+fehlt weiterhin ein Eingabefeld für die Einkaufsbezeichnung, das #59 ergänzt.
+Unvollständiger Übertragungszweig `feat/purchase-workflow-20260916` mit
+Base64-Teilen und Einmal-Workflow. Die drei Fix-Zweige vom 05.09. sind laut
+`git cherry` inhaltsgleich in `master` und nur noch aufzuräumen. Produktübergang laut
+`2026-09-08-product-transition-checklist.md` noch nicht abgeschlossen
+(`tracking_mode`/`line_kind` und Legacy-RPCs vorhanden). Neun deutsch benannte
+Dateien in `src/app/core/services/`. Dashboard-Kennzahlen-Empfehlung vom 13.09.
+nicht umgesetzt. Viele gemergte Zweige lokal und remote nicht aufgeräumt.
+
+**Prüfung:** `git fetch --prune`, Vorsprung/Rückstand aller Zweige gegen
+`origin/master`, `git cherry`, `gh pr list`/`gh issue list` (keine offenen Issues),
+Suche nach Offen-Markierungen in Protokoll, Archiv, Plänen und Audits sowie
+Stichproben im Code.
+
 ## 2026-09-16 – Claude Opus 5 (Anthropic) – Unbenutzte Einkaufskategorie entfernt
 
 **Auftrag:** Offene Reste aus dem Plan
