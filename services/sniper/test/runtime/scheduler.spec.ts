@@ -504,7 +504,7 @@ describe('QueryScheduler', () => {
 
       const report = await scheduler.runOnce(NOW);
 
-      expect(originState.tryAcquireProbe).toHaveBeenCalledWith('vinted');
+      expect(originState.tryAcquireProbe).toHaveBeenCalledWith('vinted', NOW);
       expect(collector.collect).toHaveBeenCalledTimes(1);
       expect(originState.releaseProbe).toHaveBeenCalledWith('vinted', true);
       expect(report.polled).toBe(1);
@@ -601,7 +601,7 @@ describe('QueryScheduler', () => {
 
       const report = await scheduler.runOnce(NOW);
 
-      expect(originState.tryAcquireProbe).toHaveBeenCalledWith('vinted');
+      expect(originState.tryAcquireProbe).toHaveBeenCalledWith('vinted', NOW);
       // Only the single probe query was executed, despite multiple due queries
       expect(collector.collect).toHaveBeenCalledTimes(1);
       expect(originState.releaseProbe).toHaveBeenCalledWith('vinted', true);

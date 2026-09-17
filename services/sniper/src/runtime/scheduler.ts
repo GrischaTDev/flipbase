@@ -18,7 +18,7 @@ export interface OriginStateStoreLike {
   getState(origin: string): Promise<OriginState>;
   setCooldown(origin: string, blockedUntil: Date, reason: string): Promise<void>;
   setBlocked(origin: string, reason: string): Promise<void>;
-  tryAcquireProbe(origin: string): Promise<boolean>;
+  tryAcquireProbe(origin: string, now: Date): Promise<boolean>;
   releaseProbe(origin: string, success: boolean): Promise<void>;
   reset(origin: string): Promise<void>;
 }
@@ -150,7 +150,7 @@ export class QueryScheduler {
       }
 
       // Cooldown ist abgelaufen: Genau ein Probe-Request zulaessig!
-      const acquired = await this.originStore.tryAcquireProbe(origin);
+      const acquired = await this.originStore.tryAcquireProbe(origin, now);
       if (!acquired) {
         this.deps.log.info('origin_probe_already_in_flight', { origin });
         return report;
