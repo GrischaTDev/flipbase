@@ -16,6 +16,8 @@ import { CustomSelectComponent } from '../../shared/components/custom-select/cus
 import { RevenueChartComponent } from '../../shared/components/revenue-chart/revenue-chart.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
 import { CardComponent } from '../../shared/components/card/card.component';
+import { DashboardKpiCardComponent } from './components/dashboard-kpi-card/dashboard-kpi-card.component';
+import { DashboardOpenCostsComponent } from './components/dashboard-open-costs/dashboard-open-costs.component';
 import { DashboardComponent } from './dashboard.component';
 import { DashboardPreferences } from './models/dashboard-preferences';
 import { DashboardPreferencesService } from './services/dashboard-preferences.service';
@@ -36,18 +38,37 @@ const componentResources: Readonly<Record<string, string>> = {
   './custom-select.component.scss':
     'src/app/shared/components/custom-select/custom-select.component.scss',
   './dashboard.component.html': 'src/app/features/dashboard/dashboard.component.html',
+  './dashboard-kpi-card.component.html':
+    'src/app/features/dashboard/components/dashboard-kpi-card/dashboard-kpi-card.component.html',
+  './dashboard-open-costs.component.html':
+    'src/app/features/dashboard/components/dashboard-open-costs/dashboard-open-costs.component.html',
   './revenue-chart.component.html':
     'src/app/shared/components/revenue-chart/revenue-chart.component.html',
 };
 
 const emptyReport: DashboardReport = {
-  expenses: 0,
+  grossProfit: 0,
   revenue: 0,
-  realizedProfit: 0,
-  resultAfterDirectCosts: 0,
+  revenueWithoutCost: 0,
+  salesWithoutCostCount: 0,
+  purchaseSpend: 0,
+  sellingCosts: 0,
+  totalExpenses: 0,
+  purchasesIncluded: true,
   soldItems: 0,
   averageMarginPercent: null,
   inventoryCostValue: 0,
+  inventoryItemsWithoutCost: 0,
+  comparison: {
+    label: '01.01.–16.09.2025',
+    grossProfit: 0,
+    revenue: 0,
+    totalExpenses: 0,
+    soldItems: 0,
+    averageMarginPercent: null,
+  },
+  openCosts: [],
+  salesWithoutPurchase: 0,
   points: [],
   rows: [],
 };
@@ -73,6 +94,11 @@ beforeAll(async () => {
   for (const [component, names] of [
     [ButtonComponent, ['variant', 'size', 'link', 'icon', 'iconPosition', 'ariaPressed']],
     [CardComponent, ['padding', 'rounded']],
+    [
+      DashboardKpiCardComponent,
+      ['label', 'value', 'icon', 'hint', 'change', 'comparisonLabel', 'size', 'valueTone'],
+    ],
+    [DashboardOpenCostsComponent, ['openCosts', 'salesWithoutPurchase']],
   ] as const) {
     const metadata = (component as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp;
     metadata.inputs = { ...metadata.inputs };
@@ -288,10 +314,15 @@ describe('DashboardComponent', () => {
       expect(fixture.componentInstance.report()).toMatchObject({
         revenue: 42.98,
         soldItems: 1,
-        resultAfterDirectCosts: null,
+        grossProfit: 0,
+        revenueWithoutCost: 42.98,
+        salesWithoutCostCount: 1,
+        salesWithoutPurchase: 1,
       });
       expect(fixture.componentInstance.report().rows).toHaveLength(1);
       expect(host.textContent).toContain('Kosten noch offen');
+      expect(host.textContent).toContain('davon ohne Kosten: 42,98 € Umsatz (1 Verkauf)');
+      expect(host.textContent).toContain('1 Verkauf ohne nachvollziehbare Kosten');
     } finally {
       createReport.mockImplementation(() => emptyReport);
     }
@@ -300,12 +331,15 @@ describe('DashboardComponent', () => {
   it('verwendet für Karten und Verkaufsjournal dieselben verständlichen Kennzahlen', () => {
     createReport.mockReturnValueOnce({
       ...emptyReport,
+      grossProfit: 20.09,
       revenue: 42.98,
-      realizedProfit: 20.09,
-      resultAfterDirectCosts: 20.09,
+      purchaseSpend: 24.95,
+      sellingCosts: 12.89,
+      totalExpenses: 37.84,
       soldItems: 2,
       averageMarginPercent: 46.74,
       inventoryCostValue: 16.67,
+      comparison: { ...emptyReport.comparison, grossProfit: 10, revenue: 42.98, totalExpenses: 0 },
       rows: [
         {
           saleId: 'sale-1',
@@ -332,14 +366,26 @@ describe('DashboardComponent', () => {
     );
 
     for (const label of [
-      'Verkaufserlöse',
-      'Ergebnis nach direkten Kosten',
-      'Aktueller Bestandswert',
+      'Gewinn',
+      'Umsatz',
+      'Ausgaben',
+      'Bestandswert',
       'Verkaufte Artikel',
       'Durchschnittliche Marge',
     ]) {
       expect(text).toContain(label);
     }
+    const kpi = (name: string) =>
+      host.querySelector(`[data-kpi="${name}"]`)?.textContent?.replace(/\s+/g, ' ').trim();
+    expect(kpi('gross-profit')).toContain('20,09 €');
+    expect(kpi('gross-profit')).toContain('▲ 101 % ggü. 01.01.–16.09.2025');
+    expect(kpi('revenue')).toContain('±0 %');
+    expect(kpi('expenses')).toContain('37,84 €');
+    expect(kpi('expenses')).toContain('Einkäufe 24,95 € · Verkaufskosten 12,89 €');
+    expect(kpi('expenses')).toContain('neu');
+    expect(kpi('inventory')).not.toContain('ggü.');
+    expect(kpi('margin')).toContain('46,74 %');
+    expect(kpi('margin')).not.toContain('ggü.');
     expect(headers).toEqual([
       'Datum',
       'Artikel',

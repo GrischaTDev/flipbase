@@ -1,5 +1,8 @@
 import { Injectable, inject } from '@angular/core';
 import {
+  DashboardComparison,
+  DashboardOpenCost,
+  DashboardOpenCostReason,
   DashboardRange,
   DashboardReport,
   DashboardSaleRow,
@@ -15,7 +18,7 @@ import { PurchaseService } from './purchase.service';
 import { SalesService } from './sales.service';
 import { StockService } from './stock.service';
 import { calculateStoredSaleMetrics } from '../utils/sale-metrics';
-import { inventoryItemCost, purchaseForCost } from '../utils/cost-basis';
+import { inventoryItemCost, purchaseForCost, purchaseIsFinalized } from '../utils/cost-basis';
 import { lotCostResult } from '../utils/lot-cost';
 
 export type DashboardPlatform = 'all' | string;
@@ -32,6 +35,45 @@ interface DateWindow {
   readonly end: Date;
   readonly bucket: 'day' | 'month';
 }
+
+interface DatedPurchase {
+  readonly purchase: Purchase;
+  readonly date: Date;
+  /** `null`, solange der Einkaufspreis fehlt. */
+  readonly amount: number | null;
+}
+
+interface DatedSale {
+  readonly sale: Sale;
+  readonly date: Date;
+  readonly row: DashboardSaleRow;
+}
+
+/** Kennzahlen eines beliebigen Fensters; Grundlage für Zeitraum und Vergleich. */
+interface PeriodFigures {
+  readonly purchases: readonly DatedPurchase[];
+  readonly sales: readonly DatedSale[];
+  readonly grossProfit: number;
+  readonly revenue: number;
+  readonly revenueWithoutCost: number;
+  readonly purchaseSpend: number;
+  readonly sellingCosts: number;
+  readonly soldItems: number;
+  readonly averageMarginPercent: number | null;
+}
+
+interface OpenCostEntry {
+  purchase: Purchase;
+  reason: DashboardOpenCostReason;
+  affectedSales: number;
+  affectedInventory: number;
+}
+
+const REASON_PRIORITY: Readonly<Record<DashboardOpenCostReason, number>> = {
+  price_missing: 0,
+  not_finalized: 1,
+  cost_not_allocated: 2,
+};
 
 /**
  * Eine reine Projektion der bereits bestaetigten Buchungen. Der Dienst nimmt
@@ -71,25 +113,70 @@ export class DashboardReportService {
     now = new Date(),
   ): DashboardReport {
     const window = this.windowFor(range, now);
-    const points = this.createPoints(window);
-    const pointByDate = new Map(points.map((point) => [point.date, point]));
+    const previousWindow = this.previousWindowFor(range, window);
+    const current = this.periodFigures(window, platform, records);
+    const previous = this.periodFigures(previousWindow, platform, records);
+    const openCosts = new Map<string, OpenCostEntry>();
 
-    let expenses = 0;
-    for (const purchase of records.purchases) {
-      const date = this.calendarDate(purchase.purchase_date);
-      if (!date || !this.isInWindow(date, window)) continue;
+    const unknownSales = current.sales.filter(({ row }) => row.resultAfterDirectCosts === null);
+    let salesWithoutPurchase = 0;
+    for (const { sale } of unknownSales) {
+      const causes = this.saleOpenCostCauses(sale, records);
+      if (causes.length === 0) salesWithoutPurchase += 1;
+      for (const cause of causes) this.addOpenCost(openCosts, cause.purchase, cause.reason, 1, 0);
+    }
+    if (platform === 'all') {
+      for (const { purchase, amount } of current.purchases) {
+        if (amount === null) this.addOpenCost(openCosts, purchase, 'price_missing', 0, 0);
+      }
+    }
+    const inventory = this.inventoryValue(records, openCosts);
 
-      const amount = this.purchaseAmount(purchase);
-      if (amount === null) continue;
-      expenses += amount;
-      this.addToPoint(pointByDate, this.bucketKey(date, window), { expenses: amount });
+    return {
+      grossProfit: current.grossProfit,
+      revenue: current.revenue,
+      revenueWithoutCost: current.revenueWithoutCost,
+      salesWithoutCostCount: unknownSales.length,
+      purchaseSpend: current.purchaseSpend,
+      sellingCosts: current.sellingCosts,
+      totalExpenses: this.money(current.purchaseSpend + current.sellingCosts),
+      purchasesIncluded: platform === 'all',
+      soldItems: current.soldItems,
+      averageMarginPercent: current.averageMarginPercent,
+      inventoryCostValue: inventory.value,
+      inventoryItemsWithoutCost: inventory.unitsWithoutCost,
+      comparison: this.comparison(range, previousWindow, previous),
+      openCosts: this.sortedOpenCosts(openCosts),
+      salesWithoutPurchase,
+      points: this.points(window, current),
+      rows: current.sales.map(({ row }) => row).sort((a, b) => b.date.localeCompare(a.date)),
+    };
+  }
+
+  private periodFigures(
+    window: DateWindow,
+    platform: DashboardPlatform,
+    records: ReportRecords,
+  ): PeriodFigures {
+    const purchases: DatedPurchase[] = [];
+    let purchaseSpend = 0;
+    if (platform === 'all') {
+      for (const purchase of records.purchases) {
+        const date = this.calendarDate(purchase.purchase_date);
+        if (!date || !this.isInWindow(date, window)) continue;
+        const amount = this.purchaseAmount(purchase);
+        purchases.push({ purchase, date, amount });
+        purchaseSpend += amount ?? 0;
+      }
     }
 
-    const rows: DashboardSaleRow[] = [];
+    const sales: DatedSale[] = [];
+    let grossProfit = 0;
     let revenue = 0;
-    let resultAfterDirectCosts = 0;
-    let hasUnknownResult = false;
+    let revenueWithoutCost = 0;
+    let sellingCosts = 0;
     let soldItems = 0;
+    const margins: number[] = [];
     for (const sale of records.sales) {
       const date = this.calendarDate(sale.sale_date);
       if (
@@ -102,14 +189,58 @@ export class DashboardReportService {
       }
 
       const row = this.saleRow(sale, records);
-      rows.push(row);
+      sales.push({ sale, date, row });
       revenue += row.revenue;
-      if (row.resultAfterDirectCosts === null) {
-        hasUnknownResult = true;
-      } else {
-        resultAfterDirectCosts += row.resultAfterDirectCosts;
-      }
+      sellingCosts += row.sellingCosts;
       soldItems += row.quantity;
+      if (row.resultAfterDirectCosts === null) {
+        revenueWithoutCost += row.revenue;
+      } else {
+        grossProfit += row.resultAfterDirectCosts;
+      }
+      if (row.marginPercent !== null) margins.push(row.marginPercent);
+    }
+
+    return {
+      purchases,
+      sales,
+      grossProfit: this.money(grossProfit),
+      revenue: this.money(revenue),
+      revenueWithoutCost: this.money(revenueWithoutCost),
+      purchaseSpend: this.money(purchaseSpend),
+      sellingCosts: this.money(sellingCosts),
+      soldItems,
+      averageMarginPercent:
+        margins.length === 0
+          ? null
+          : this.money(margins.reduce((sum, margin) => sum + margin, 0) / margins.length),
+    };
+  }
+
+  private comparison(
+    range: DashboardRange,
+    window: DateWindow,
+    figures: PeriodFigures,
+  ): DashboardComparison {
+    return {
+      label: this.windowLabel(range, window),
+      grossProfit: figures.grossProfit,
+      revenue: figures.revenue,
+      totalExpenses: this.money(figures.purchaseSpend + figures.sellingCosts),
+      soldItems: figures.soldItems,
+      averageMarginPercent: figures.averageMarginPercent,
+    };
+  }
+
+  private points(window: DateWindow, figures: PeriodFigures): DashboardTimePoint[] {
+    const points = this.createPoints(window);
+    const pointByDate = new Map(points.map((point) => [point.date, point]));
+    for (const { date, amount } of figures.purchases) {
+      if (amount !== null) {
+        this.addToPoint(pointByDate, this.bucketKey(date, window), { expenses: amount });
+      }
+    }
+    for (const { date, row } of figures.sales) {
       this.addToPoint(pointByDate, this.bucketKey(date, window), {
         revenue: row.revenue,
         costOfGoodsSold: row.costOfGoodsSold,
@@ -117,36 +248,17 @@ export class DashboardReportService {
         resultAfterDirectCosts: row.resultAfterDirectCosts,
       });
     }
-
-    const margins = rows
-      .map((row) => row.marginPercent)
-      .filter((margin): margin is number => margin !== null);
-    const roundedResult = hasUnknownResult ? null : this.money(resultAfterDirectCosts);
-
-    return {
-      expenses: this.money(expenses),
-      revenue: this.money(revenue),
-      realizedProfit: roundedResult,
-      resultAfterDirectCosts: roundedResult,
-      soldItems,
-      averageMarginPercent:
-        hasUnknownResult || margins.length === 0
-          ? null
-          : this.money(margins.reduce((sum, margin) => sum + margin, 0) / margins.length),
-      inventoryCostValue: this.inventoryCostValue(records),
-      points: points.map((point) => ({
-        ...point,
-        revenue: this.money(point.revenue),
-        costOfGoodsSold: point.costOfGoodsSold === null ? null : this.money(point.costOfGoodsSold),
-        sellingCosts: this.money(point.sellingCosts),
-        resultAfterDirectCosts:
-          point.resultAfterDirectCosts === null ? null : this.money(point.resultAfterDirectCosts),
-        expenses: this.money(point.expenses),
-        realizedProfit:
-          point.resultAfterDirectCosts === null ? null : this.money(point.resultAfterDirectCosts),
-      })),
-      rows: rows.sort((a, b) => b.date.localeCompare(a.date)),
-    };
+    return points.map((point) => ({
+      ...point,
+      revenue: this.money(point.revenue),
+      costOfGoodsSold: point.costOfGoodsSold === null ? null : this.money(point.costOfGoodsSold),
+      sellingCosts: this.money(point.sellingCosts),
+      resultAfterDirectCosts:
+        point.resultAfterDirectCosts === null ? null : this.money(point.resultAfterDirectCosts),
+      expenses: this.money(point.expenses),
+      realizedProfit:
+        point.resultAfterDirectCosts === null ? null : this.money(point.resultAfterDirectCosts),
+    }));
   }
 
   private saleRow(sale: Sale, records: ReportRecords): DashboardSaleRow {
@@ -171,6 +283,152 @@ export class DashboardReportService {
     };
   }
 
+  /** Einkäufe, an denen die offenen Kosten eines Verkaufs hängen, je einmal. */
+  private saleOpenCostCauses(
+    sale: Sale,
+    records: ReportRecords,
+  ): { purchase: Purchase; reason: DashboardOpenCostReason }[] {
+    const lines = sale.has_persisted_lines === false ? [] : (sale.lines ?? []);
+    const causes = new Map<string, { purchase: Purchase; reason: DashboardOpenCostReason }>();
+    const add = (purchase: Purchase | undefined, item: InventoryItem | undefined) => {
+      if (!purchase) return;
+      const reason = this.openCostReason(purchase, item);
+      const known = causes.get(purchase.id);
+      if (reason && (!known || REASON_PRIORITY[reason] < REASON_PRIORITY[known.reason])) {
+        causes.set(purchase.id, { purchase, reason });
+      }
+    };
+
+    if (lines.length === 0) {
+      const item = this.saleItem(sale, sale.inventory_item_id, sale.inventory_item, records);
+      if (item) add(purchaseForCost(item, records), item);
+    }
+    for (const line of lines) {
+      if (line.inventory_item_id || line.inventory_item) {
+        const item = this.saleItem(sale, line.inventory_item_id, line.inventory_item, records);
+        if (item) add(purchaseForCost(item, records), item);
+        continue;
+      }
+      for (const allocation of this.lineAllocations(line, sale)) {
+        const lot =
+          allocation.stock_lot ??
+          records.stockLots.find(
+            (candidate) =>
+              candidate.id === allocation.stock_lot_id &&
+              candidate.workspace_id === sale.workspace_id,
+          );
+        if (lot) add(purchaseForCost(lot, records), undefined);
+      }
+    }
+    return [...causes.values()];
+  }
+
+  private saleItem(
+    sale: Sale,
+    itemId: string | null | undefined,
+    embedded: InventoryItem | undefined,
+    records: ReportRecords,
+  ): InventoryItem | undefined {
+    return (
+      embedded ??
+      records.inventoryItems.find(
+        (item) => item.id === itemId && item.workspace_id === sale.workspace_id,
+      )
+    );
+  }
+
+  private lineAllocations(line: SaleLine, sale: Sale) {
+    return (line.lot_allocations ?? sale.lot_allocations ?? []).filter(
+      (allocation) => allocation.sale_line_id === line.id,
+    );
+  }
+
+  /**
+   * Prüft in fester Reihenfolge, warum die Kosten nicht belastbar sind. Ohne
+   * Artikel (Los) gilt ein abgeschlossener Einkauf mit Preis als belastbar.
+   */
+  private openCostReason(
+    purchase: Purchase,
+    item: InventoryItem | undefined,
+  ): DashboardOpenCostReason | null {
+    if (purchase.purchase_price === null) return 'price_missing';
+    if (!purchaseIsFinalized(purchase)) return 'not_finalized';
+    if (item && inventoryItemCost(item, purchase) === null) return 'cost_not_allocated';
+    return null;
+  }
+
+  private inventoryValue(
+    records: ReportRecords,
+    openCosts: Map<string, OpenCostEntry>,
+  ): { value: number; unitsWithoutCost: number } {
+    let totalCents = 0;
+    let unitsWithoutCost = 0;
+    for (const lot of records.stockLots.filter((lot) => lot.remaining_quantity > 0)) {
+      const purchase = purchaseForCost(lot, records);
+      const value = lotCostResult(lot, purchase, records.sales, 'known').remainingValueCents;
+      if (value !== null) {
+        totalCents += value;
+        continue;
+      }
+      unitsWithoutCost += lot.remaining_quantity;
+      if (purchase) {
+        const reason = this.openCostReason(purchase, undefined) ?? 'cost_not_allocated';
+        this.addOpenCost(openCosts, purchase, reason, 0, lot.remaining_quantity);
+      }
+    }
+    for (const item of records.inventoryItems.filter(
+      (item) => item.status !== 'sold' && item.status !== 'archived',
+    )) {
+      const purchase = purchaseForCost(item, records);
+      const value = inventoryItemCost(item, purchase);
+      if (value !== null) {
+        totalCents += Math.round((value + Number.EPSILON) * 100);
+        continue;
+      }
+      unitsWithoutCost += 1;
+      if (purchase) {
+        const reason = this.openCostReason(purchase, item) ?? 'cost_not_allocated';
+        this.addOpenCost(openCosts, purchase, reason, 0, 1);
+      }
+    }
+    return { value: totalCents / 100, unitsWithoutCost };
+  }
+
+  private addOpenCost(
+    openCosts: Map<string, OpenCostEntry>,
+    purchase: Purchase,
+    reason: DashboardOpenCostReason,
+    affectedSales: number,
+    affectedInventory: number,
+  ): void {
+    const entry = openCosts.get(purchase.id);
+    if (!entry) {
+      openCosts.set(purchase.id, { purchase, reason, affectedSales, affectedInventory });
+      return;
+    }
+    if (REASON_PRIORITY[reason] < REASON_PRIORITY[entry.reason]) entry.reason = reason;
+    entry.affectedSales += affectedSales;
+    entry.affectedInventory += affectedInventory;
+  }
+
+  private sortedOpenCosts(openCosts: Map<string, OpenCostEntry>): DashboardOpenCost[] {
+    return [...openCosts.values()]
+      .map(({ purchase, reason, affectedSales, affectedInventory }) => ({
+        purchaseId: purchase.id,
+        title: purchase.title?.trim() || 'Einkauf',
+        recordNumber: purchase.record_number ?? null,
+        reason,
+        affectedSales,
+        affectedInventory,
+      }))
+      .sort(
+        (a, b) =>
+          b.affectedSales - a.affectedSales ||
+          b.affectedInventory - a.affectedInventory ||
+          a.title.localeCompare(b.title, 'de'),
+      );
+  }
+
   private saleRevenue(sale: Sale, lines: readonly SaleLine[]): number {
     const persistedRevenue = lines.reduce((sum, line) => sum + this.number(line.line_total), 0);
     if (persistedRevenue > 0) {
@@ -192,28 +450,6 @@ export class DashboardReportService {
     );
   }
 
-  private inventoryCostValue(records: ReportRecords): number | null {
-    let total = 0;
-    for (const lot of records.stockLots.filter((lot) => lot.remaining_quantity > 0)) {
-      const value = lotCostResult(
-        lot,
-        purchaseForCost(lot, records),
-        records.sales,
-        'known',
-      ).remainingValueCents;
-      if (value === null) return null;
-      total += value;
-    }
-    for (const item of records.inventoryItems.filter(
-      (item) => item.status !== 'sold' && item.status !== 'archived',
-    )) {
-      const value = inventoryItemCost(item, purchaseForCost(item, records));
-      if (value === null) return null;
-      total += Math.round((value + Number.EPSILON) * 100);
-    }
-    return total / 100;
-  }
-
   private windowFor(range: DashboardRange, now: Date): DateWindow {
     const end = this.startOfDay(now);
     if (range === 'today') return { start: end, end, bucket: 'day' };
@@ -226,6 +462,45 @@ export class DashboardReportService {
       return { start: new Date(end.getFullYear(), end.getMonth(), 1), end, bucket: 'day' };
     }
     return { start: new Date(end.getFullYear(), 0, 1), end, bucket: 'month' };
+  }
+
+  /**
+   * Gleich langer Zeitraum davor: Heute → gestern, 7 Tage → 7 Tage davor,
+   * Monat und Jahr → vom Anfang bis zum gleichen Kalendertag, höchstens bis
+   * zum Monatsende (31.03. → 28.02., 29.02. → 28.02. des Vorjahres).
+   */
+  private previousWindowFor(range: DashboardRange, window: DateWindow): DateWindow {
+    const { start, end, bucket } = window;
+    if (range === 'today' || range === 'last_7_days') {
+      const days = range === 'today' ? 1 : 7;
+      return {
+        start: new Date(start.getFullYear(), start.getMonth(), start.getDate() - days),
+        end: new Date(end.getFullYear(), end.getMonth(), end.getDate() - days),
+        bucket,
+      };
+    }
+    const year = range === 'year' ? end.getFullYear() - 1 : end.getFullYear();
+    const month = range === 'year' ? end.getMonth() : end.getMonth() - 1;
+    const lastDay = new Date(year, month + 1, 0).getDate();
+    return {
+      start: range === 'year' ? new Date(year, 0, 1) : new Date(year, month, 1),
+      end: new Date(year, month, Math.min(end.getDate(), lastDay)),
+      bucket,
+    };
+  }
+
+  private windowLabel(range: DashboardRange, window: DateWindow): string {
+    if (range === 'today') return 'gestern';
+    const day = (date: Date) => String(date.getDate()).padStart(2, '0');
+    const dayMonth = (date: Date) =>
+      `${day(date)}.${String(date.getMonth() + 1).padStart(2, '0')}.`;
+    if (range === 'year')
+      return `${dayMonth(window.start)}–${dayMonth(window.end)}${window.end.getFullYear()}`;
+    if (window.start.getTime() === window.end.getTime()) return dayMonth(window.end);
+    const sameMonth =
+      window.start.getFullYear() === window.end.getFullYear() &&
+      window.start.getMonth() === window.end.getMonth();
+    return `${sameMonth ? `${day(window.start)}.` : dayMonth(window.start)}–${dayMonth(window.end)}`;
   }
 
   private createPoints(window: DateWindow): DashboardTimePoint[] {
