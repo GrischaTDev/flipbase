@@ -658,18 +658,60 @@ export interface DashboardSaleRow {
   profit: number | null;
 }
 
-export interface DashboardReport {
-  /** Auszahlungen fuer im Zeitraum erfasste Einkaeufe, nicht der Lagerwert. */
-  expenses: number;
-  /** Umsatz aus noch nicht retournierten, bestaetigten Verkaeufen. */
+/** Grund, warum Kosten eines Einkaufs im Dashboard noch nicht belastbar sind. */
+export type DashboardOpenCostReason = 'price_missing' | 'not_finalized' | 'cost_not_allocated';
+
+export interface DashboardOpenCost {
+  purchaseId: string;
+  title: string;
+  recordNumber: string | null;
+  reason: DashboardOpenCostReason;
+  /** Verkäufe im Zeitraum, deren Kosten an diesem Einkauf hängen. */
+  affectedSales: number;
+  /** Aktuell vorhandene Stück ohne bekannten Anschaffungswert. */
+  affectedInventory: number;
+}
+
+/** Kennzahlen des gleich langen Zeitraums davor. */
+export interface DashboardComparison {
+  /** Sichtbare Beschreibung, z. B. „gestern“ oder „01.–17.08.“. */
+  label: string;
+  grossProfit: number;
   revenue: number;
-  /** Verkaufserlös minus Wareneinsatz und direkte Verkaufskosten; kein Prognosewert. */
-  realizedProfit: number | null;
-  resultAfterDirectCosts: number | null;
+  totalExpenses: number;
   soldItems: number;
   averageMarginPercent: number | null;
-  /** Anschaffungswert der aktuell vorhandenen Ware. */
-  inventoryCostValue: number | null;
+}
+
+export interface DashboardReport {
+  /**
+   * Verkaufserlös minus Wareneinsatz und direkte Verkaufskosten, nur aus
+   * Verkäufen mit bekannten Kosten (wie Shopifys Rohertrag).
+   */
+  grossProfit: number;
+  /** Umsatz aus noch nicht retournierten, bestaetigten Verkaeufen. */
+  revenue: number;
+  /** Anteil des Umsatzes, dessen Wareneinsatz noch nicht belegt ist. */
+  revenueWithoutCost: number;
+  salesWithoutCostCount: number;
+  /** Einkaufskosten nach Kaufdatum; 0, wenn ein Plattformfilter gesetzt ist. */
+  purchaseSpend: number;
+  /** Direkte Verkaufskosten der Verkäufe im Zeitraum. */
+  sellingCosts: number;
+  totalExpenses: number;
+  /** Einkäufe haben keine Plattform und zählen nur ohne Plattformfilter. */
+  purchasesIncluded: boolean;
+  soldItems: number;
+  /** Durchschnitt der Verkäufe mit bekannten Kosten. */
+  averageMarginPercent: number | null;
+  /** Anschaffungswert der aktuell vorhandenen Ware mit bekannten Kosten. */
+  inventoryCostValue: number;
+  /** Aktuell vorhandene Stück ohne bekannten Anschaffungswert. */
+  inventoryItemsWithoutCost: number;
+  comparison: DashboardComparison;
+  openCosts: readonly DashboardOpenCost[];
+  /** Verkäufe ohne bekannte Kosten, die keinem Einkauf zugeordnet werden können. */
+  salesWithoutPurchase: number;
   points: readonly DashboardTimePoint[];
   rows: readonly DashboardSaleRow[];
 }

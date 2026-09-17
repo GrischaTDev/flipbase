@@ -1,0 +1,44 @@
+@if (hasContent()) {
+  <section aria-labelledby="dashboard-open-costs-heading">
+    <app-card padding="none" rounded="xl">
+      <div card-header>
+        <h2 id="dashboard-open-costs-heading" class="text-sm font-semibold text-fb-text-primary">
+          Offene Kosten
+        </h2>
+        <p class="mt-1 text-xs text-fb-text-muted">
+          Diese Angaben fehlen noch für einen vollständigen Gewinn und Bestandswert.
+        </p>
+      </div>
+      <ul class="divide-y divide-fb-line">
+        @for (entry of visibleEntries(); track entry.purchaseId) {
+          <li
+            data-open-cost
+            class="flex flex-col gap-1 px-4 py-3 text-[13px] sm:flex-row sm:items-center sm:justify-between md:px-5"
+          >
+            <div class="min-w-0">
+              <app-button variant="plain" [link]="entry.link">{{ entry.title }}</app-button>
+              <p class="mt-0.5 text-xs text-fb-text-muted">{{ entry.scope }}</p>
+            </div>
+            <p class="shrink-0 font-medium text-fb-text-secondary">{{ entry.reason }}</p>
+          </li>
+        }
+        @if (salesWithoutPurchase() > 0) {
+          <li
+            data-open-cost-sales
+            class="flex flex-col gap-1 px-4 py-3 text-[13px] sm:flex-row sm:items-center sm:justify-between md:px-5"
+          >
+            <app-button variant="plain" link="/sales">{{ salesWithoutPurchaseText() }}</app-button>
+            <p class="shrink-0 font-medium text-fb-text-secondary">Kein Einkauf zugeordnet</p>
+          </li>
+        }
+      </ul>
+      @if (hiddenCount() > 0) {
+        <div card-footer>
+          <app-button data-open-cost-more variant="plain" link="/purchases">
+            +{{ hiddenCount() }} weitere Einkäufe
+          </app-button>
+        </div>
+      }
+    </app-card>
+  </section>
+}
