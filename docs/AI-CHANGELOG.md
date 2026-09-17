@@ -9,6 +9,33 @@ Die vollständige bisherige Historie ist im
 bytegleich erhalten. Das Archiv liegt im selben Ordner, damit seine relativen
 Dateiverweise weiterhin denselben Ausgangspunkt haben.
 
+## 2026-09-17 – Claude Opus 5 (Anthropic) – Dashboard mit Gewinn, Ausgaben, Vorzeitraum und offenen Kosten
+
+**Auftrag:** Die Dashboard-Empfehlung vom 13.09. auf aktuellem `master` umsetzen.
+Zweig `feat/dashboard-kpis` von `origin/master` (`a971725`). Entscheidungen des
+Nutzers: Gewinn als Verkaufsgewinn; Vergleich mit dem gleich langen Zeitraum davor;
+offene Kosten wie Shopify (nur Verkäufe mit Kosten im Gewinn, Umsatz ohne Kosten
+getrennt) plus Einkaufsliste; Node lokal nicht aktualisieren. Konzept in
+`docs/superpowers/specs/2026-09-17-dashboard-kpis-design.md`.
+
+**Änderung:** Oben Gewinn, Umsatz und Ausgaben (Einkäufe nach Kaufdatum plus
+Verkaufskosten), darunter Bestandswert, verkaufte Artikel und Marge. Jede
+Zeitraumkennzahl mit Veränderung gegenüber dem Vorzeitraum (Prozent, bei der
+Marge Prozentpunkte). Gewinn, Marge und Bestandswert bleiben bei einzelnen
+offenen Kosten sichtbar und weisen den fehlenden Teil aus. Neuer Bereich
+„Offene Kosten“ mit Einkauf, Grund und Link. Diagramm und Verkaufsjournal
+unverändert; keine Schemaänderung.
+
+**Prüfung:** Service-, Modell- und Komponententests einschließlich AXE; komplette
+Vitest-Projekte node (1389) und angular (859), `npm run typecheck`, ESLint,
+Prettier, `npm run test:audit` und Shared-UI-Prüfung mit Exitcode 0. Angular-Bau
+und Sichtprüfung im Browser lokal nicht möglich (Node 22.16.0 unter dem Minimum der
+Angular CLI); der Bau läuft im PR.
+
+**Nachtrag zu PR #101:** Nach dem Deployment von `sha-a971725` lesend geprüft:
+Nike, adidas und Ralph Lauren stehen auf `ready`/`ok`, Vinted-Zugang `ready`,
+907 neue Funde in den ersten zehn Minuten, `failed=0`.
+
 ## 2026-09-17 – Claude Opus 5 (Anthropic) – Gesperrten Vinted-Filter nachträglich freigegeben
 
 **Auftrag:** Nachprüfung von PR #99 im Betrieb. Zweig
