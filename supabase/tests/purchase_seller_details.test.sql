@@ -33,7 +33,7 @@ $$;
 
 create function pg_temp.single_line()
 returns jsonb language sql as $$
-  select '[{"title_snapshot":"Jacke","line_kind":"individual","ordered_quantity":1,"unit_purchase_price":10,"line_total":10}]'::jsonb;
+  select '[{"client_ref":"jacke","title_snapshot":"Jacke","line_kind":"individual","ordered_quantity":1,"unit_purchase_price":10,"line_total":10}]'::jsonb;
 $$;
 
 select set_config('request.jwt.claim.sub', 'e1600000-0000-4000-8000-000000000001', true);
