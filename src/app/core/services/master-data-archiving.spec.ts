@@ -4,7 +4,7 @@ import { signal } from '@angular/core';
 import { SourcesService } from './sources.service';
 import { SuppliersService } from './suppliers.service';
 import { Source, Supplier } from '../models/flipbase.models';
-import { nurAktive, istArchiviert } from './stammdaten-filter';
+import { nurAktive, istArchiviert } from './master-data-filter';
 
 /**
  * Quellen und Lieferanten werden archiviert statt geloescht.

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { uebernehmeAltenBrowserSpeicher } from './speicher-migration';
+import { uebernehmeAltenBrowserSpeicher } from './storage-migration';
 
 /**
  * Der Umzug laeuft genau einmal und im Hintergrund - wenn er etwas verliert,
