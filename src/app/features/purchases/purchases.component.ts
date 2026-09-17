@@ -191,7 +191,7 @@ export class PurchasesComponent {
     const query = this.searchQuery().trim().toLocaleLowerCase('de');
     const filtered = query
       ? rows.filter((row) =>
-          [row.reference, row.title, row.supplierLabel, row.supplierReference]
+          [row.reference, row.title, row.supplierLabel, row.sellerSearchText, row.supplierReference]
             .join(' ')
             .toLocaleLowerCase('de')
             .includes(query),
