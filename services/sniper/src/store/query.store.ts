@@ -99,7 +99,8 @@ export class QueryStore {
       .from('sniper_queries')
       .select(COLUMNS)
       .eq('is_active', true)
-      .not('run_state', 'in', '("blocked","invalid")')
+      // 'blocked' bleibt geladen: isDue fuehrt Altbestaende ueber den Backoff zurueck.
+      .neq('run_state', 'invalid')
       .order('last_polled_at', { ascending: true, nullsFirst: true });
 
     if (error) {
