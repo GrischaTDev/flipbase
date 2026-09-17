@@ -78,6 +78,8 @@ import { MockDataStoreService } from '../../../../core/services/mock-data-store.
 import { PurchaseCostingService } from '../../../../core/services/purchase-costing.service';
 import { PurchaseCorrectionDialogComponent } from '../../components/purchase-correction-dialog/purchase-correction-dialog.component';
 import { PurchaseLifecycleActionsComponent } from '../../components/purchase-lifecycle-actions/purchase-lifecycle-actions.component';
+import { PurchaseSellerDetailsDialogComponent } from '../../components/purchase-seller-details-dialog/purchase-seller-details-dialog.component';
+import { purchaseSellerDetailRows, purchaseSellerLabel } from '../../utils/purchase-seller';
 import { PurchaseDetailTableComponent } from '../../components/purchase-detail-table/purchase-detail-table.component';
 import { getPurchaseDisplayTitle, mapPurchaseDetailRows } from '../../utils/purchase-presentation';
 import { InventoryService } from '../../../../core/services/inventory.service';
@@ -108,6 +110,7 @@ import { PurchaseCostSummaryComponent } from '../../components/purchase-cost-sum
     CustomSelectComponent,
     PurchaseCorrectionDialogComponent,
     PurchaseLifecycleActionsComponent,
+    PurchaseSellerDetailsDialogComponent,
     PurchaseDetailTableComponent,
     RecordHistoryContainer,
     EntryPageLayoutComponent,
@@ -323,6 +326,9 @@ export class PurchaseDetailComponent {
   readonly selectedImageDataUrl = signal<string | null>(null);
   readonly isLifecycleSubmitting = signal(false);
   readonly isCorrectionDialogOpen = signal(false);
+  readonly isSellerDetailsDialogOpen = signal(false);
+  readonly purchaseSellerLabel = purchaseSellerLabel;
+  readonly purchaseSellerDetailRows = purchaseSellerDetailRows;
 
   editPurchase(purchaseId: string): void {
     const purchase = this.purchaseService.selectedPurchase();

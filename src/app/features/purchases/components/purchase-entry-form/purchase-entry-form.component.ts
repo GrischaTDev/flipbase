@@ -33,8 +33,11 @@ import {
 } from '../../../../shared/components/custom-select/custom-select.component';
 import { Purchase, Supplier } from '../../../../core/models/flipbase.models';
 import { PurchaseSellerType } from '../../../../core/models/purchase-seller.models';
-import { buildGermanCountryOptions } from '../../utils/country-options';
-import { sellerSnapshotFromSupplier } from '../../utils/purchase-seller';
+import {
+  PURCHASE_SELLER_TYPE_OPTIONS,
+  purchaseSellerCountryOptions,
+  sellerSnapshotFromSupplier,
+} from '../../utils/purchase-seller';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { SyncStatusService } from '../../../../core/services/sync-status.service';
 import { PurchaseCostingService } from '../../../../core/services/purchase-costing.service';
@@ -188,15 +191,8 @@ export class PurchaseEntryFormComponent {
     { value: 'individual', label: 'Einzelpreise' },
   ];
 
-  readonly sellerTypeOptions: readonly SelectOption<PurchaseSellerType | null>[] = [
-    { value: null, label: 'Unbekannt' },
-    { value: 'private', label: 'Privatperson' },
-    { value: 'business', label: 'Unternehmen' },
-  ];
-  readonly countryOptions: readonly SelectOption<string | null>[] = [
-    { value: null, label: 'Nicht angegeben' },
-    ...buildGermanCountryOptions().map((country) => ({ value: country.code, label: country.name })),
-  ];
+  readonly sellerTypeOptions = PURCHASE_SELLER_TYPE_OPTIONS;
+  readonly countryOptions = purchaseSellerCountryOptions();
   /** Die Anschrift ist oft erst später bekannt und bleibt bis dahin eingeklappt. */
   readonly sellerAddressExpanded = signal(false);
 

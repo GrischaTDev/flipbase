@@ -7,6 +7,7 @@ import {
 } from '../../../core/models/purchase-seller.models';
 import {
   hasPurchaseSellerSnapshot,
+  purchaseSellerDetailRows,
   purchaseSellerLabel,
   sellerSnapshotFromSupplier,
 } from './purchase-seller';
@@ -138,5 +139,43 @@ describe('sellerDetailsFromPurchase und hasPurchaseSellerSnapshot', () => {
         seller_marketplace_username: 'vintage_lea92',
       }),
     ).toBe(true);
+  });
+});
+
+describe('purchaseSellerDetailRows', () => {
+  const base = {
+    id: 'purchase-2',
+    workspace_id: 'workspace-1',
+    type: 'single',
+    title: 'Jacke',
+    purchase_date: '2026-09-17',
+    purchase_price: 10,
+    cost_allocation_mode: 'even',
+  } as Purchase;
+
+  it('zeigt nur erfasste Angaben in fester Reihenfolge mit lesbarer Anschrift', () => {
+    const rows = purchaseSellerDetailRows({
+      ...base,
+      source: { id: 'source-vinted', workspace_id: 'workspace-1', name: 'Vinted' },
+      seller_marketplace_username: 'vintage_lea92',
+      seller_type: 'private',
+      seller_street: 'Musterweg 5',
+      seller_postal_code: '50667',
+      seller_city: 'Köln',
+      seller_country_code: 'DE',
+      external_order_id: '84739392',
+    });
+
+    expect(rows).toEqual([
+      { label: 'Quelle', value: 'Vinted' },
+      { label: 'Plattform-Benutzername', value: 'vintage_lea92' },
+      { label: 'Verkäuferart', value: 'Privatperson' },
+      { label: 'Anschrift', value: 'Musterweg 5, 50667 Köln, Deutschland' },
+      { label: 'Bestellnummer der Plattform', value: '84739392' },
+    ]);
+  });
+
+  it('zeigt bei einem alten Einkauf ohne Snapshot keine erfundenen Zeilen', () => {
+    expect(purchaseSellerDetailRows({ ...base, supplier_id: supplier.id, supplier })).toEqual([]);
   });
 });

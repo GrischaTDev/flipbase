@@ -3,6 +3,8 @@ import {
   PurchaseSellerDetails,
   PurchaseSellerType,
 } from '../../../core/models/purchase-seller.models';
+import { SelectOption } from '../../../shared/components/custom-select/custom-select.component';
+import { buildGermanCountryOptions } from './country-options';
 
 export type PurchaseSellerSnapshot = Pick<
   PurchaseSellerDetails,
@@ -61,4 +63,56 @@ export function sellerSnapshotFromSupplier(supplier: Supplier): PurchaseSellerSn
     seller_city: supplier.city ?? null,
     seller_country_code: supplier.country_code ?? null,
   };
+}
+
+/** „Unbekannt“ bleibt leer und wird nie stillschweigend zu „Privatperson“. */
+export const PURCHASE_SELLER_TYPE_OPTIONS: readonly SelectOption<PurchaseSellerType | null>[] = [
+  { value: null, label: 'Unbekannt' },
+  { value: 'private', label: SELLER_TYPE_LABELS.private },
+  { value: 'business', label: SELLER_TYPE_LABELS.business },
+];
+
+export function purchaseSellerCountryOptions(): readonly SelectOption<string | null>[] {
+  return [
+    { value: null, label: 'Nicht angegeben' },
+    ...buildGermanCountryOptions().map((country) => ({ value: country.code, label: country.name })),
+  ];
+}
+
+export interface PurchaseSellerDetailRow {
+  readonly label: string;
+  readonly value: string;
+}
+
+const regionNames = new Intl.DisplayNames(['de'], { type: 'region' });
+
+/** Nur tatsächlich erfasste Angaben erscheinen; leere Felder werden nicht aufgefüllt. */
+export function purchaseSellerDetailRows(purchase: Purchase): readonly PurchaseSellerDetailRow[] {
+  const cityLine = [purchase.seller_postal_code, purchase.seller_city].filter(Boolean).join(' ');
+  const country = purchase.seller_country_code
+    ? (regionNames.of(purchase.seller_country_code) ?? purchase.seller_country_code)
+    : null;
+  const address = [purchase.seller_street, purchase.seller_address_extra, cityLine, country]
+    .filter(Boolean)
+    .join(', ');
+  const rows: (PurchaseSellerDetailRow | null)[] = [
+    purchase.source?.name ? { label: 'Quelle', value: purchase.source.name } : null,
+    purchase.seller_marketplace_username
+      ? { label: 'Plattform-Benutzername', value: purchase.seller_marketplace_username }
+      : null,
+    purchase.seller_type
+      ? { label: 'Verkäuferart', value: SELLER_TYPE_LABELS[purchase.seller_type] }
+      : null,
+    address ? { label: 'Anschrift', value: address } : null,
+    purchase.supplier && hasPurchaseSellerSnapshot(purchase)
+      ? { label: 'Gespeicherter Verkäufer', value: purchase.supplier.name }
+      : null,
+    purchase.external_order_id
+      ? { label: 'Bestellnummer der Plattform', value: purchase.external_order_id }
+      : null,
+    purchase.supplier_reference
+      ? { label: 'Referenznummer', value: purchase.supplier_reference }
+      : null,
+  ];
+  return rows.filter((row): row is PurchaseSellerDetailRow => row !== null);
 }
