@@ -1625,6 +1625,60 @@ export type Database = {
           },
         ]
       }
+      purchase_documents: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          document_type: string
+          file_size: number
+          id: string
+          mime_type: string
+          original_file_name: string
+          purchase_id: string
+          storage_path: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          document_type: string
+          file_size: number
+          id?: string
+          mime_type: string
+          original_file_name: string
+          purchase_id: string
+          storage_path: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          document_type?: string
+          file_size?: number
+          id?: string
+          mime_type?: string
+          original_file_name?: string
+          purchase_id?: string
+          storage_path?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_documents_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_documents_workspace_id_purchase_id_fkey"
+            columns: ["workspace_id", "purchase_id"]
+            isOneToOne: false
+            referencedRelation: "purchases"
+            referencedColumns: ["workspace_id", "id"]
+          },
+        ]
+      }
       purchase_lines: {
         Row: {
           allocated_additional_cost: number
@@ -4082,6 +4136,10 @@ export type Database = {
         Returns: boolean
       }
       is_platform_operator: { Args: never; Returns: boolean }
+      is_purchase_document_path: {
+        Args: { p_path: string; p_purchase_id: string; p_workspace_id: string }
+        Returns: boolean
+      }
       is_valid_gtin: { Args: { p_value: string }; Returns: boolean }
       is_workspace_admin: { Args: { ws_id: string }; Returns: boolean }
       is_workspace_member: { Args: { ws_id: string }; Returns: boolean }

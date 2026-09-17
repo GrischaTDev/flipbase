@@ -63,6 +63,8 @@ const FIELD_LABELS: Readonly<Record<string, string>> = {
   seller_city: 'Ort',
   seller_country_code: 'Land',
   external_order_id: 'Bestellnummer der Plattform',
+  document_type: 'Belegart',
+  original_file_name: 'Dateiname',
   discount_amount: 'Rabatt',
   catalog_product_id: 'Katalogartikel',
   ean_snapshot: 'EAN',

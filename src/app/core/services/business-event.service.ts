@@ -28,6 +28,8 @@ const EVENT_LABELS: Readonly<Record<string, string>> = {
   purchase_ordered: 'Einkauf als bestellt markiert',
   purchase_arrived: 'Einkauf als angekommen markiert',
   purchase_seller_details_updated: 'Verkäuferangaben ergänzt',
+  purchase_document_added: 'Beleg hinzugefügt',
+  purchase_document_removed: 'Beleg entfernt',
   purchase_package_contents_captured: 'Paketinhalt erfasst',
   purchase_tracking_added: 'Sendungsverfolgung hinzugefügt',
   purchase_tracking_updated: 'Sendungsverfolgung aktualisiert',

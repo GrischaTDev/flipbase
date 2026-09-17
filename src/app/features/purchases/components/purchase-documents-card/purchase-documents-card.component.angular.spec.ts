@@ -40,7 +40,10 @@ const document: PurchaseDocument = {
 const documents = signal<readonly PurchaseDocument[]>([document]);
 const isDemoMode = signal(false);
 const loadForPurchase = vi.fn(async () => undefined);
-const upload = vi.fn(async () => ({ data: document, error: null as Error | null }));
+const upload = vi.fn(async (): Promise<{ data: PurchaseDocument | null; error: Error | null }> => ({
+  data: document,
+  error: null,
+}));
 const remove = vi.fn(async () => ({ error: null as Error | null }));
 const toastSuccess = vi.fn();
 
@@ -78,7 +81,10 @@ beforeEach(() => {
 });
 
 function fileEvent(file: File | null): Event {
-  const input = { files: file ? [file] : [], value: 'C:/fake/Zahlung.png' } as unknown as HTMLInputElement;
+  const input = {
+    files: file ? [file] : [],
+    value: 'C:/fake/Zahlung.png',
+  } as unknown as HTMLInputElement;
   return { target: input } as unknown as Event;
 }
 
@@ -96,9 +102,7 @@ describe('PurchaseDocumentsCardComponent', () => {
   it('zeigt Belegart, Größe und Datum je Beleg', () => {
     const card = createCard();
 
-    expect(card.rows()).toEqual([
-      { document, typeLabel: 'Zahlungsnachweis', sizeLabel: '2.0 KB' },
-    ]);
+    expect(card.rows()).toEqual([{ document, typeLabel: 'Zahlungsnachweis', sizeLabel: '2.0 KB' }]);
   });
 
   it('lädt die Belege des gezeigten Einkaufs', () => {

@@ -62,8 +62,8 @@ function createService(
     workspaceService: { currentWorkspace: signal(workspace) },
     mockStore: { isDemoMode: signal(options.demo ?? false) },
     syncStatus: new SyncStatusService(),
+    auth: { currentUser: () => ({ id: 'user-1' }) },
     supabase: {
-      session: () => ({ user: { id: 'user-1' } }),
       client: {
         storage: { from: () => ({ upload, remove: removeFile, download }) },
         from: () => ({

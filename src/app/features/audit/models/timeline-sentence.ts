@@ -12,6 +12,8 @@ const PREDICATES: Readonly<Record<string, string>> = {
   purchase_ordered: 'diesen Einkauf als bestellt markiert',
   purchase_arrived: 'diesen Einkauf als angekommen markiert',
   purchase_seller_details_updated: 'die Verkäuferangaben ergänzt',
+  purchase_document_added: 'einen Beleg hinzugefügt',
+  purchase_document_removed: 'einen Beleg entfernt',
   purchase_package_contents_captured: 'Paketinhalt erfasst',
   purchase_finalized: 'diesen Einkauf abgeschlossen',
   purchase_costing_finalized: 'diesen Einkauf abgeschlossen',

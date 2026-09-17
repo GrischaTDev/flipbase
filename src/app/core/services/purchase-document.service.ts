@@ -7,6 +7,7 @@ import {
   purchaseDocumentPath,
   validatePurchaseDocumentFile,
 } from '../models/purchase-document.models';
+import { AuthService } from './auth.service';
 import { MockDataStoreService } from './mock-data-store.service';
 import { SupabaseService } from './supabase.service';
 import { SyncStatusService } from './sync-status.service';
@@ -25,6 +26,7 @@ export class PurchaseDocumentService {
   private readonly mockStore = inject(MockDataStoreService);
   private readonly syncStatus = inject(SyncStatusService);
   private readonly workspaceService = inject(WorkspaceService);
+  private readonly auth = inject(AuthService, { optional: true });
 
   private readonly documentsRaw = signal<readonly PurchaseDocument[]>([]);
   readonly documents = this.documentsRaw.asReadonly();
@@ -91,7 +93,7 @@ export class PurchaseDocumentService {
           storage_path: path,
           mime_type: file.type,
           file_size: file.size,
-          created_by: this.supabase.session()?.user.id ?? null,
+          created_by: this.auth?.currentUser()?.id ?? null,
         })
         .select()
         .single();

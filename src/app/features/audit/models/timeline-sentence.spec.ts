@@ -34,6 +34,15 @@ describe('timelineSentence', () => {
     expect(sentence).toBe('Lena Meyer hat die Verkäuferangaben ergänzt.');
   });
 
+  it('beschreibt einen hinzugefügten und einen entfernten Beleg', () => {
+    expect(timelineSentence(createEvent('purchase_document_added'), 'Lena Meyer', 'actor-2')).toBe(
+      'Lena Meyer hat einen Beleg hinzugefügt.',
+    );
+    expect(
+      timelineSentence(createEvent('purchase_document_removed'), 'Lena Meyer', 'actor-1'),
+    ).toBe('Du hast einen Beleg entfernt.');
+  });
+
   it('nennt fremde Verursacher beim Namen', () => {
     const sentence = timelineSentence(createEvent('purchase_ordered'), 'Lena Meyer', 'actor-2');
     expect(sentence).toBe('Lena Meyer hat diesen Einkauf als bestellt markiert.');
