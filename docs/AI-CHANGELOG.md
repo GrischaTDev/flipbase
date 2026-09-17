@@ -9,6 +9,26 @@ Die vollständige bisherige Historie ist im
 bytegleich erhalten. Das Archiv liegt im selben Ordner, damit seine relativen
 Dateiverweise weiterhin denselben Ausgangspunkt haben.
 
+## 2026-09-17 – Claude Opus 5 (Anthropic) – Gesperrten Vinted-Filter nachträglich freigegeben
+
+**Auftrag:** Nachprüfung von PR #99 im Betrieb. Zweig
+`fix/sniper-legacy-blocked-queries` von `origin/master` (`ea9ba63`).
+
+**Befund (lesend auf dem Hetzner-Server):** Nach dem Deployment von `sha-ea9ba63`
+steht `sniper_origin_state` wieder auf `ready`; in den ersten Minuten kamen 212 neue
+Funde, Nike und adidas melden `ok`. Der am 16.09. gesperrte Filter „Ralph Lauren“
+bleibt aber auf `blocked`: `dueQueries` schloss `blocked` schon in der
+Datenbankabfrage aus, sodass der in #99 ergänzte Backoff in `isDue` die Zeile nie
+erreichte. Der Test in #99 prüfte nur `isDue`, nicht den Abfragefilter.
+
+**Änderung:** Die Abfrage schließt nur noch `invalid` aus. Alte `blocked`-Zeilen
+laufen über den vorhandenen `forbidden`-Backoff und werden beim nächsten
+erfolgreichen Abruf auf `ready` gesetzt.
+
+**Prüfung:** Neuer Test auf die tatsächlichen Abfrageparameter schlug vorher fehl
+und besteht danach; alle 186 Sniper-Unit-Tests grün, ESLint und Prettier sauber.
+Wirkung im Betrieb steht bis zum Deployment aus.
+
 ## 2026-09-17 – Claude Opus 5 (Anthropic) – Vinted-Bot nach einzelner 403 dauerhaft gesperrt
 
 **Auftrag:** Der Vinted-Bot sammelt wieder keine Daten. Ursache finden und beheben.
