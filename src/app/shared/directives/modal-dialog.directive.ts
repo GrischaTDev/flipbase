@@ -85,6 +85,8 @@ export class ModalDialogDirective implements OnDestroy {
     // Falls der Browser einen Tab lange pausiert und ein Dialog-Knoten dabei
     // verschwindet, darf dessen statischer Zustand keinen spaeteren Dialog
     // beeinflussen. Vor jedem neuen Dialog deshalb verwaiste Eintraege abbauen.
+    // Ein frischer Seitenzustand ohne Modalsperre darf dabei seinen eigenen
+    // Overflow-Wert behalten; er wird erst danach als Ausgangszustand gemerkt.
     ModalDialogDirective.synchronisiereHintergrund();
 
     if (ModalDialogDirective.activeDialogs.length === 0) {
@@ -105,8 +107,9 @@ export class ModalDialogDirective implements OnDestroy {
     // Ein verwaister Dialog kann beim Wieder-Sichtbarwerden bereits aus der
     // Liste entfernt worden sein. `splice(-1, 1)` wuerde dann faelschlich den
     // letzten noch echten Dialog entfernen.
-    if (index >= 0) dialogs.splice(index, 1);
-    ModalDialogDirective.synchronisiereHintergrund();
+    const warRegistriert = index >= 0;
+    if (warRegistriert) dialogs.splice(index, 1);
+    ModalDialogDirective.synchronisiereHintergrund(warRegistriert);
     // Fokus dorthin zurückgeben, wo er herkam – sonst springt er an den
     // Seitenanfang und der Nutzer verliert die Orientierung.
     if (wasTopDialog) this.zuvorFokussiert?.focus?.();
@@ -116,8 +119,15 @@ export class ModalDialogDirective implements OnDestroy {
    * Stellt Seitensperre und Scrollzustand aus den tatsaechlich noch im Dokument
    * vorhandenen Dialogen neu her. Damit kann ein vom Browser/Framework
    * abgehängter Dialog keine unsichtbare `inert`-Schicht zurücklassen.
+   *
+   * `restauriereOverflowWennLeer` wird beim normalen Zerstoeren gesetzt: Dort
+   * wurde der letzte Dialog bereits aus der Liste entfernt, die Methode muss
+   * aber trotzdem wissen, dass `originalOverflow` wiederherzustellen ist.
    */
-  private static synchronisiereHintergrund(): void {
+  private static synchronisiereHintergrund(restauriereOverflowWennLeer = false): void {
+    const hatteDialoge = this.activeDialogs.length > 0;
+    const hatteSperren = this.backgroundLocks.size > 0;
+
     for (let index = this.activeDialogs.length - 1; index >= 0; index -= 1) {
       if (!this.activeDialogs[index].host.nativeElement.isConnected) {
         this.activeDialogs.splice(index, 1);
@@ -129,7 +139,12 @@ export class ModalDialogDirective implements OnDestroy {
 
     const active = this.activeDialogs.at(-1);
     if (!active) {
-      document.body.style.overflow = this.originalOverflow;
+      // Beim allerersten Dialog gibt es noch nichts wiederherzustellen. Ohne
+      // diese Unterscheidung wuerde ein bereits gesetztes `overflow: scroll`
+      // vor dem Speichern durch den statischen Defaultwert ueberschrieben.
+      if (restauriereOverflowWennLeer || hatteDialoge || hatteSperren) {
+        document.body.style.overflow = this.originalOverflow;
+      }
       return;
     }
 
