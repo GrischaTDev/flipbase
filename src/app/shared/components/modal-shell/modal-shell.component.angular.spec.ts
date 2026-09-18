@@ -72,6 +72,16 @@ describe('ModalShellComponent', () => {
     expect(h2.textContent).toContain('Einkauf erfassen');
   });
 
+  it('uses the shared brand tone for branded modal icons', () => {
+    fixture.componentRef.setInput('iconTone', 'brand');
+    fixture.componentRef.setInput('icon', {});
+    fixture.detectChanges();
+
+    const iconWrapper = fixture.nativeElement.querySelector('header div.border');
+    expect(iconWrapper?.className).toContain('bg-fb-brand-surface');
+    expect(iconWrapper?.className).toContain('border-fb-brand-border');
+  });
+
   it('should emit closed when close button is clicked', () => {
     let closed = false;
     component.closed.subscribe(() => {
