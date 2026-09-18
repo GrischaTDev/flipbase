@@ -4,6 +4,7 @@ import {
   OperatingExpenseCategory,
   OperatingExpenseCreateInput,
   RecurringOperatingExpense,
+  RecurringOperatingExpenseCreateInput,
 } from '../models/operating-expense.models';
 import { AuthService } from './auth.service';
 import { MockDataStoreService } from './mock-data-store.service';
@@ -93,6 +94,146 @@ export class OperatingExpenseService {
       return;
     }
     await this.loadWorkspace(workspace.id, throughDate);
+  }
+
+  async createCategory(
+    name: string,
+  ): Promise<{ data: OperatingExpenseCategory | null; error: Error | null }> {
+    const workspace = this.workspaceService.currentWorkspace();
+    if (!workspace) return { data: null, error: new Error('Kein aktiver Workspace') };
+    const normalized = name.trim();
+    if (!normalized) return { data: null, error: new Error('Bitte einen Kategorienamen eingeben.') };
+    if (this.mockStore.isDemoMode()) {
+      return { data: null, error: new Error('Im Demo-Modus werden Kategorien nicht gespeichert.') };
+    }
+
+    try {
+      const { data, error } = await this.supabase.client
+        .from('operating_expense_categories')
+        .insert({
+          workspace_id: workspace.id,
+          name: normalized,
+          default_key: null,
+          created_by: this.auth?.currentUser()?.id ?? null,
+        })
+        .select()
+        .single();
+      if (error || !data) throw error ?? new Error('Die Kategorie wurde nicht zurückgegeben.');
+      const category = data as OperatingExpenseCategory;
+      this.categoriesRaw.update((current) =>
+        [...current.filter((entry) => entry.id !== category.id), category].sort((a, b) =>
+          a.name.localeCompare(b.name, 'de'),
+        ),
+      );
+      return { data: category, error: null };
+    } catch (cause: unknown) {
+      return { data: null, error: this.syncStatus.melde('Speichern der Kategorie', cause) };
+    }
+  }
+
+  async renameCategory(
+    categoryId: string,
+    name: string,
+  ): Promise<{ data: OperatingExpenseCategory | null; error: Error | null }> {
+    return this.updateCategory(categoryId, { name: name.trim() });
+  }
+
+  async archiveCategory(
+    categoryId: string,
+  ): Promise<{ data: OperatingExpenseCategory | null; error: Error | null }> {
+    return this.updateCategory(categoryId, { archived_at: new Date().toISOString() });
+  }
+
+  async restoreCategory(
+    categoryId: string,
+  ): Promise<{ data: OperatingExpenseCategory | null; error: Error | null }> {
+    return this.updateCategory(categoryId, { archived_at: null });
+  }
+
+  private async updateCategory(
+    categoryId: string,
+    patch: Record<string, unknown>,
+  ): Promise<{ data: OperatingExpenseCategory | null; error: Error | null }> {
+    const workspace = this.workspaceService.currentWorkspace();
+    if (!workspace) return { data: null, error: new Error('Kein aktiver Workspace') };
+    try {
+      const { data, error } = await this.supabase.client
+        .from('operating_expense_categories')
+        .update(patch)
+        .eq('id', categoryId)
+        .eq('workspace_id', workspace.id)
+        .select()
+        .single();
+      if (error || !data) throw error ?? new Error('Die Kategorie wurde nicht zurückgegeben.');
+      const category = data as OperatingExpenseCategory;
+      this.categoriesRaw.update((current) =>
+        current.map((entry) => (entry.id === category.id ? category : entry)),
+      );
+      return { data: category, error: null };
+    } catch (cause: unknown) {
+      return { data: null, error: this.syncStatus.melde('Aktualisieren der Kategorie', cause) };
+    }
+  }
+
+  async createRecurringRule(
+    input: RecurringOperatingExpenseCreateInput,
+    throughDate = this.today(),
+  ): Promise<{ data: RecurringOperatingExpense | null; error: Error | null }> {
+    const workspace = this.workspaceService.currentWorkspace();
+    if (!workspace) return { data: null, error: new Error('Kein aktiver Workspace') };
+    if (this.mockStore.isDemoMode()) {
+      return { data: null, error: new Error('Im Demo-Modus werden Fixkosten nicht gespeichert.') };
+    }
+
+    try {
+      const { data, error } = await this.supabase.client
+        .from('recurring_operating_expenses')
+        .insert({
+          workspace_id: workspace.id,
+          category_id: input.categoryId,
+          title: input.title.trim(),
+          gross_amount: input.grossAmount,
+          vat_rate: input.vatRate,
+          interval: input.interval,
+          start_date: input.startDate,
+          end_date: input.endDate,
+          next_due_date: input.startDate,
+          created_by: this.auth?.currentUser()?.id ?? null,
+        })
+        .select()
+        .single();
+      if (error || !data) throw error ?? new Error('Die Fixkostenregel wurde nicht zurückgegeben.');
+      const rule = data as RecurringOperatingExpense;
+      this.recurringRulesRaw.update((current) => [...current, rule]);
+      await this.loadWorkspace(workspace.id, throughDate);
+      return { data: rule, error: null };
+    } catch (cause: unknown) {
+      return { data: null, error: this.syncStatus.melde('Speichern der Fixkosten', cause) };
+    }
+  }
+
+  async archiveRecurringRule(
+    ruleId: string,
+  ): Promise<{ data: RecurringOperatingExpense | null; error: Error | null }> {
+    const workspace = this.workspaceService.currentWorkspace();
+    if (!workspace) return { data: null, error: new Error('Kein aktiver Workspace') };
+    try {
+      const { data, error } = await this.supabase.client
+        .from('recurring_operating_expenses')
+        .update({ archived_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+        .eq('id', ruleId)
+        .eq('workspace_id', workspace.id)
+        .select()
+        .single();
+      if (error || !data) throw error ?? new Error('Die Fixkostenregel wurde nicht zurückgegeben.');
+      const rule = data as RecurringOperatingExpense;
+      this.recurringRulesRaw.update((current) =>
+        current.map((entry) => (entry.id === rule.id ? rule : entry)),
+      );
+      return { data: rule, error: null };
+    } catch (cause: unknown) {
+      return { data: null, error: this.syncStatus.melde('Archivieren der Fixkosten', cause) };
+    }
   }
 
   async createExpense(
