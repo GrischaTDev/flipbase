@@ -1,5 +1,5 @@
 import '@angular/compiler';
-import { signal } from '@angular/core';
+import { computed, signal } from '@angular/core';
 import { describe, expect, it, vi } from 'vitest';
 import { ExpenseCategory } from '../models/expense.models';
 import { ExpenseCategoryService } from './expense-category.service';
@@ -50,6 +50,9 @@ function createService(options: { demo?: boolean } = {}) {
   const categories = signal<readonly ExpenseCategory[]>([]);
   Object.assign(service, {
     categories,
+    activeCategories: computed(() => categories().filter((entry) => !entry.is_archived)),
+    isLoading: signal(false),
+    loadError: signal<string | null>(null),
     workspaceService: { currentWorkspace: signal(workspace) },
     mockStore: { isDemoMode: signal(options.demo ?? false) },
     syncStatus: new SyncStatusService(),
