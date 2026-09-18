@@ -19,9 +19,18 @@
       <button
         type="button"
         (click)="toggleWorkspaceDropdown()"
+        [disabled]="workspaceActionsBlocked()"
         [attr.aria-expanded]="isWorkspaceDropdownOpen()"
         aria-controls="header-workspace-menu"
-        class="flex min-h-9 max-w-full items-center gap-2 px-2.5 py-1 rounded-md border border-fb-border bg-fb-surface text-[13px] font-medium text-fb-text-primary hover:bg-fb-surface-hover hover:border-fb-border-hover transition-colors shadow-xs cursor-pointer"
+        [title]="
+          workspaceActionsBlocked()
+            ? 'Workspacewechsel ist in einer Erfassungsmaske gesperrt.'
+            : null
+        "
+        [class.opacity-60]="workspaceActionsBlocked()"
+        [class.cursor-not-allowed]="workspaceActionsBlocked()"
+        [class.cursor-pointer]="!workspaceActionsBlocked()"
+        class="flex min-h-9 max-w-full items-center gap-2 px-2.5 py-1 rounded-md border border-fb-border bg-fb-surface text-[13px] font-medium text-fb-text-primary hover:bg-fb-surface-hover hover:border-fb-border-hover transition-colors shadow-xs"
       >
         <svg [lucideIcon]="LayersIcon" class="shrink-0 w-3.5 h-3.5 text-indigo-400"></svg>
         <span class="max-w-[120px] md:max-w-[180px] truncate font-semibold">
@@ -43,7 +52,11 @@
             <button
               type="button"
               (click)="selectWorkspace(ws)"
-              class="w-full text-left px-3 py-2 text-[13px] flex items-center justify-between hover:bg-fb-surface-hover transition-colors text-fb-text-secondary hover:text-fb-text-primary cursor-pointer"
+              [disabled]="workspaceActionsBlocked()"
+              class="w-full text-left px-3 py-2 text-[13px] flex items-center justify-between hover:bg-fb-surface-hover transition-colors text-fb-text-secondary hover:text-fb-text-primary"
+              [class.cursor-pointer]="!workspaceActionsBlocked()"
+              [class.cursor-not-allowed]="workspaceActionsBlocked()"
+              [class.opacity-60]="workspaceActionsBlocked()"
               [class.font-semibold]="ws.id === workspaceService.currentWorkspace()?.id"
               [class.text-fb-primary]="ws.id === workspaceService.currentWorkspace()?.id"
             >
@@ -59,7 +72,11 @@
           <button
             type="button"
             (click)="openCreateWorkspace.emit(); isWorkspaceDropdownOpen.set(false)"
-            class="w-full text-left px-3 py-2 text-[13px] text-fb-primary hover:bg-fb-primary-subtle flex items-center gap-2 font-medium cursor-pointer"
+            [disabled]="workspaceActionsBlocked()"
+            class="w-full text-left px-3 py-2 text-[13px] text-fb-primary hover:bg-fb-primary-subtle flex items-center gap-2 font-medium"
+            [class.cursor-pointer]="!workspaceActionsBlocked()"
+            [class.cursor-not-allowed]="workspaceActionsBlocked()"
+            [class.opacity-60]="workspaceActionsBlocked()"
           >
             <svg [lucideIcon]="PlusIcon" class="w-3.5 h-3.5"></svg>
             <span>Neuer Workspace</span>

@@ -67,6 +67,7 @@ export function visibleHeaderRole(isPlatformOperator: boolean): 'admin' | null {
 })
 export class HeaderComponent {
   readonly isSidebarOpen = input<boolean>(false);
+  readonly workspaceActionsBlocked = input<boolean>(false);
   readonly auth = inject(AuthService);
   readonly workspaceService = inject(WorkspaceService);
   readonly webhookService = inject(WebhookService);
@@ -118,6 +119,7 @@ export class HeaderComponent {
   }
 
   toggleWorkspaceDropdown(): void {
+    if (this.workspaceActionsBlocked()) return;
     this.isWorkspaceDropdownOpen.update((v) => !v);
     this.isUserDropdownOpen.set(false);
     this.isNotificationDropdownOpen.set(false);
@@ -136,6 +138,7 @@ export class HeaderComponent {
   }
 
   selectWorkspace(ws: Workspace): void {
+    if (this.workspaceActionsBlocked()) return;
     this.workspaceService.setCurrentWorkspace(ws);
     this.isWorkspaceDropdownOpen.set(false);
   }
