@@ -55,6 +55,8 @@ function createService() {
   const rules = signal<readonly ExpenseRecurringRule[]>([]);
   Object.assign(service, {
     rules,
+    isLoading: signal(false),
+    loadError: signal<string | null>(null),
     workspaceService: { currentWorkspace: signal(workspace) },
     mockStore: { isDemoMode: signal(false) },
     syncStatus: new SyncStatusService(),
