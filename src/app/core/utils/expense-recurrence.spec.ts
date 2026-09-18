@@ -26,30 +26,35 @@ describe('dueOccurrences', () => {
   });
 
   it('behält bei Monatsenden den ursprünglichen Kalendertag als Anker', () => {
-    expect(
-      dueOccurrences(rule({ start_date: '2026-01-31' }), '2026-04-30'),
-    ).toEqual(['2026-01-31', '2026-02-28', '2026-03-31', '2026-04-30']);
+    expect(dueOccurrences(rule({ start_date: '2026-01-31' }), '2026-04-30')).toEqual([
+      '2026-01-31',
+      '2026-02-28',
+      '2026-03-31',
+      '2026-04-30',
+    ]);
   });
 
   it('unterstützt quartalsweise Wiederholungen', () => {
-    expect(
-      dueOccurrences(rule({ frequency: 'quarterly' }), '2026-10-15'),
-    ).toEqual(['2026-01-15', '2026-04-15', '2026-07-15', '2026-10-15']);
+    expect(dueOccurrences(rule({ frequency: 'quarterly' }), '2026-10-15')).toEqual([
+      '2026-01-15',
+      '2026-04-15',
+      '2026-07-15',
+      '2026-10-15',
+    ]);
   });
 
   it('behandelt den Schalttag bei jährlichen Regeln ohne Drift', () => {
     expect(
-      dueOccurrences(
-        rule({ start_date: '2024-02-29', frequency: 'yearly' }),
-        '2028-02-29',
-      ),
+      dueOccurrences(rule({ start_date: '2024-02-29', frequency: 'yearly' }), '2028-02-29'),
     ).toEqual(['2024-02-29', '2025-02-28', '2026-02-28', '2027-02-28', '2028-02-29']);
   });
 
   it('beachtet ein Enddatum einschließlich', () => {
-    expect(
-      dueOccurrences(rule({ end_date: '2026-03-15' }), '2026-12-31'),
-    ).toEqual(['2026-01-15', '2026-02-15', '2026-03-15']);
+    expect(dueOccurrences(rule({ end_date: '2026-03-15' }), '2026-12-31')).toEqual([
+      '2026-01-15',
+      '2026-02-15',
+      '2026-03-15',
+    ]);
   });
 
   it('liefert für inaktive Regeln keine Fälligkeiten', () => {
@@ -67,8 +72,6 @@ describe('nextOccurrence', () => {
   });
 
   it('liefert nach dem Enddatum keine weitere Fälligkeit', () => {
-    expect(
-      nextOccurrence(rule({ end_date: '2026-03-15' }), '2026-03-15'),
-    ).toBeNull();
+    expect(nextOccurrence(rule({ end_date: '2026-03-15' }), '2026-03-15')).toBeNull();
   });
 });
