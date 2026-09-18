@@ -31,19 +31,17 @@ import {
   TableSortState,
 } from '../../core/models/table-preferences.models';
 import { TablePreferencesService } from '../../core/services/table-preferences.service';
-import { TableColumnMenuComponent } from '../../shared/components/table-column-menu/table-column-menu.component';
 import { TableSortHeaderComponent } from '../../shared/components/table-sort-header/table-sort-header.component';
 
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
-import { CustomSearchInputComponent } from '../../shared/components/custom-search-input/custom-search-input.component';
 import {
   CustomSelectComponent,
   SelectOption,
 } from '../../shared/components/custom-select/custom-select.component';
-import { TableToolbarComponent } from '../../shared/components/table-toolbar/table-toolbar.component';
 import { PurchaseReceiptPreviewComponent } from './components/purchase-receipt-preview/purchase-receipt-preview.component';
+import { DataTableComponent } from '../../shared/components/data-table/data-table.component';
 
 @Component({
   selector: 'app-purchases',
@@ -56,11 +54,9 @@ import { PurchaseReceiptPreviewComponent } from './components/purchase-receipt-p
     PageHeaderComponent,
     BadgeComponent,
     ButtonComponent,
-    TableColumnMenuComponent,
     TableSortHeaderComponent,
-    TableToolbarComponent,
-    CustomSearchInputComponent,
     CustomSelectComponent,
+    DataTableComponent,
     PurchaseReceiptPreviewComponent,
   ],
   templateUrl: './purchases.component.html',
@@ -130,8 +126,12 @@ export class PurchasesComponent {
   readonly orderedVisibleColumns = computed(() =>
     this.tablePrefs().columns.filter((column) => column.visible),
   );
-  readonly viewModified = computed(() =>
-    tableStateDiffersFromDefaults(this.tablePrefs(), this.purchasesTableConfig),
+  readonly viewModified = computed(
+    () =>
+      this.activeStatus() !== 'all' ||
+      this.sellerId() !== '' ||
+      this.searchQuery().trim() !== '' ||
+      tableStateDiffersFromDefaults(this.tablePrefs(), this.purchasesTableConfig),
   );
 
   ariaSort(field: string): 'ascending' | 'descending' | null {
@@ -231,6 +231,7 @@ export class PurchasesComponent {
   }
 
   resetView(): void {
+    this.clearFilters();
     this.resetTablePreferences();
   }
 
