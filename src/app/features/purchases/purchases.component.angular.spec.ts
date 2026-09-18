@@ -335,7 +335,7 @@ describe('PurchasesComponent – responsive Einkaufsübersicht', () => {
 
     const host = fixture.nativeElement as HTMLElement;
     const search = host.querySelector<HTMLInputElement>('app-custom-search-input input');
-    const reset = host.querySelector<HTMLButtonElement>('[data-reset-purchase-view]');
+    const reset = host.querySelector<HTMLButtonElement>('[data-reset-purchase-view] button');
 
     expect(search).not.toBeNull();
     expect(search?.value).toBe('zzznichtvorhanden');
