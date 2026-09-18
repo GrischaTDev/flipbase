@@ -37,6 +37,7 @@ export const TRANSLATIONS_DE = {
     SALES: 'Verkäufe',
     FULFILLMENT: 'Packtisch & Versand',
     ACCOUNTING: 'Steuern & DATEV',
+    EXPENSES: 'Ausgaben',
     SELLERS: 'Verkäufer',
     ANALYTICS: 'Analytics',
     SETTINGS: 'Einstellungen',
