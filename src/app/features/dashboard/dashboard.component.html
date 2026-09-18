@@ -98,7 +98,7 @@
       <div card-header class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 id="sales-table-heading" class="text-sm font-semibold text-fb-text-primary">
-            Verkaufsjournal
+            Verkäufe
           </h2>
           <p class="mt-1 text-xs text-fb-text-muted">
             {{ report().rows.length }} bestätigte Verkäufe im gewählten Zeitraum
@@ -119,7 +119,7 @@
           class="hidden overflow-x-auto md:block"
           tabindex="0"
           role="region"
-          aria-label="Verkaufsjournal-Tabelle"
+          aria-label="Verkäufe-Tabelle"
         >
           <table class="linear-table w-full min-w-[760px] text-[13px] tabular-nums">
             <thead class="bg-fb-well/60 text-[13px] font-semibold text-fb-text-secondary">
@@ -128,10 +128,16 @@
                 <th scope="col" class="px-4 py-3">Artikel</th>
                 <th scope="col" class="px-4 py-3 text-right">Menge</th>
                 <th scope="col" class="px-4 py-3">Plattform</th>
-                <th scope="col" class="px-4 py-3 text-right">Verkaufserlös</th>
-                <th scope="col" class="px-4 py-3 text-right">Wareneinsatz</th>
-                <th scope="col" class="px-4 py-3 text-right">Verkaufskosten</th>
-                <th scope="col" class="px-4 py-3 text-right">Ergebnis nach direkten Kosten</th>
+                <th scope="col" class="px-4 py-3 text-right">Einnahmen</th>
+                <th scope="col" class="px-4 py-3 text-right">Einkaufspreis</th>
+                <th
+                  scope="col"
+                  class="px-4 py-3 text-right"
+                  title="Plattformgebühren, Versand, Verpackung und weitere Kosten dieses Verkaufs"
+                >
+                  Gebühren & Versand
+                </th>
+                <th scope="col" class="px-4 py-3 text-right">Gewinn</th>
                 <th scope="col" class="px-4 py-3 text-right">Marge</th>
               </tr>
             </thead>
@@ -165,7 +171,18 @@
                   <td class="px-4 py-3 text-right font-mono text-fb-text-secondary">
                     {{ row.sellingCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                   </td>
-                  <td class="px-4 py-3 text-right font-mono font-semibold text-fb-text-primary">
+                  <td
+                    class="px-4 py-3 text-right font-mono font-semibold"
+                    [class.text-fb-success]="
+                      row.resultAfterDirectCosts !== null && row.resultAfterDirectCosts > 0
+                    "
+                    [class.text-fb-critical]="
+                      row.resultAfterDirectCosts !== null && row.resultAfterDirectCosts < 0
+                    "
+                    [class.text-fb-text-primary]="
+                      row.resultAfterDirectCosts === null || row.resultAfterDirectCosts === 0
+                    "
+                  >
                     @if (row.resultAfterDirectCosts === null) {
                       <span class="font-sans text-xs text-fb-text-secondary"
                         >Kosten noch offen</span
@@ -201,11 +218,11 @@
               <dl
                 class="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-fb-text-secondary"
               >
-                <dt>Verkaufserlös</dt>
+                <dt>Einnahmen</dt>
                 <dd class="text-right tabular-nums">
                   {{ row.revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                 </dd>
-                <dt>Wareneinsatz</dt>
+                <dt>Einkaufspreis</dt>
                 <dd class="text-right tabular-nums">
                   @if (row.costOfGoodsSold === null) {
                     Kosten noch offen
@@ -213,12 +230,27 @@
                     {{ row.costOfGoodsSold | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                   }
                 </dd>
-                <dt>Verkaufskosten</dt>
+                <dt
+                  title="Plattformgebühren, Versand, Verpackung und weitere Kosten dieses Verkaufs"
+                >
+                  Gebühren & Versand
+                </dt>
                 <dd class="text-right tabular-nums">
                   {{ row.sellingCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                 </dd>
-                <dt class="font-semibold text-fb-text-primary">Ergebnis nach direkten Kosten</dt>
-                <dd class="text-right font-semibold tabular-nums text-fb-text-primary">
+                <dt class="font-semibold text-fb-text-primary">Gewinn</dt>
+                <dd
+                  class="text-right font-semibold tabular-nums"
+                  [class.text-fb-success]="
+                    row.resultAfterDirectCosts !== null && row.resultAfterDirectCosts > 0
+                  "
+                  [class.text-fb-critical]="
+                    row.resultAfterDirectCosts !== null && row.resultAfterDirectCosts < 0
+                  "
+                  [class.text-fb-text-primary]="
+                    row.resultAfterDirectCosts === null || row.resultAfterDirectCosts === 0
+                  "
+                >
                   @if (row.resultAfterDirectCosts === null) {
                     Kosten noch offen
                   } @else {
