@@ -1,0 +1,28 @@
+<app-modal-shell [title]="document().original_file_name" subtitle="Originalbeleg dieser Ausgabe" size="lg" (closed)="closed.emit()">
+  <div class="min-h-48">
+    @if (isLoading()) {
+      <p role="status" class="py-10 text-center text-[13px] text-fb-text-muted">Beleg wird geladen …</p>
+    } @else if (errorMessage()) {
+      <p role="alert" class="py-10 text-center text-[13px] text-fb-text-primary">{{ errorMessage() }}</p>
+    } @else if (objectUrl(); as url) {
+      @switch (kind()) {
+        @case ('image') {
+          <img [src]="url" [alt]="document().original_file_name" class="mx-auto max-h-[70vh] w-auto rounded-lg" />
+        }
+        @case ('pdf') {
+          <iframe [src]="pdfUrl()" [title]="document().original_file_name" class="h-[70vh] w-full rounded-lg border border-fb-line"></iframe>
+        }
+        @default {
+          <p class="py-10 text-center text-[13px] text-fb-text-muted">
+            Diese Datei lässt sich nicht im Browser anzeigen. Lade sie herunter, um sie zu öffnen.
+          </p>
+        }
+      }
+    }
+  </div>
+
+  <app-button modal-footer variant="secondary" (clicked)="closed.emit()">Schließen</app-button>
+  <app-button modal-footer variant="primary" [disabled]="!objectUrl()" (clicked)="download()">
+    Herunterladen
+  </app-button>
+</app-modal-shell>
