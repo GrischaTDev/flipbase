@@ -39,7 +39,9 @@ describe('RecurringExpenseDialogComponent', () => {
           },
         },
       ],
-    }).createComponent(RecurringExpenseDialogComponent);
+    })
+      .overrideComponent(RecurringExpenseDialogComponent, { set: { template: '' } })
+      .createComponent(RecurringExpenseDialogComponent);
 
     fixture.detectChanges();
     const component = fixture.componentInstance;
