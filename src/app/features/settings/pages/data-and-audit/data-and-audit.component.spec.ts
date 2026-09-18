@@ -1,5 +1,6 @@
 import '@angular/compiler';
 import { convertToParamMap } from '@angular/router';
+import { readFile } from 'node:fs/promises';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { WorkspaceRole } from '../../../../core/models/flipbase.models';
 import {
@@ -89,4 +90,15 @@ describe('Daten & Protokolle', () => {
   ])('erteilt der Rolle %s den erwarteten globalen Exportzugriff', (role, expected) => {
     expect(canExportAuditData(role)).toBe(expected);
   });
+  it('hält Workspace-Aufbewahrung aus Daten & Protokolle heraus und bündelt Zusatzexporte', async () => {
+    const template = await readFile(
+      new URL('./data-and-audit.component.html', import.meta.url),
+      'utf8',
+    );
+
+    expect(template).not.toContain('Aufbewahrung & Löschung');
+    expect(template).not.toContain('<app-workspace-retention');
+    expect(template).toContain('Weitere Exporte');
+  });
+
 });

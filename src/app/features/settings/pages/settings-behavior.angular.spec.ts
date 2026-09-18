@@ -420,6 +420,14 @@ async function renderWorkspace(
   options: {
     readonly updateError?: Error | null;
     readonly createError?: Error | null;
+    readonly deleteResult?: {
+      readonly success: boolean;
+      readonly reportedBySyncStatus: boolean;
+      readonly retentionBlocked?: boolean;
+    };
+    readonly archiveError?: Error | null;
+    readonly restoreError?: Error | null;
+    readonly confirmations?: readonly boolean[];
   } = {},
 ) {
   const workspaceA = workspace('workspace-a', 'Workspace A');
@@ -431,14 +439,26 @@ async function renderWorkspace(
     updateWorkspaceSettings: vi.fn(async () => ({ error: options.updateError ?? null })),
     createWorkspace: vi.fn(async () => ({ error: options.createError ?? null })),
     switchWorkspace: vi.fn(),
+    deleteWorkspace: vi.fn(async () =>
+      Promise.resolve(
+        options.deleteResult ?? { success: true, reportedBySyncStatus: false },
+      ),
+    ),
+    archiveWorkspace: vi.fn(async () => ({ error: options.archiveError ?? null })),
+    restoreWorkspace: vi.fn(async () => ({ error: options.restoreError ?? null })),
   };
   const router = { navigate: vi.fn(async () => true) };
+  const confirmations = [...(options.confirmations ?? [true, true])];
+  const dialog = {
+    frage: vi.fn(async () => Promise.resolve(confirmations.shift() ?? true)),
+  };
   await TestBed.configureTestingModule({
     imports: [WorkspaceSettingsComponent],
     providers: [
       ToastService,
       { provide: WorkspaceService, useValue: workspaceService },
       { provide: Router, useValue: router },
+      { provide: ConfirmDialogService, useValue: dialog },
     ],
   }).compileComponents();
   const fixture = TestBed.createComponent(WorkspaceSettingsComponent);
@@ -448,6 +468,7 @@ async function renderWorkspace(
     workspaceService,
     currentWorkspace,
     router,
+    dialog,
     toast: TestBed.inject(ToastService),
   };
 }
@@ -689,24 +710,59 @@ describe('Workspace-Einstellungen – echte Angular-Fixture', () => {
     expectOnlyToast(toast, 'success', 'Workspace wurde erstellt.');
   });
 
-  it('bindet Aktivieren und Aufbewahrung an den jeweils gerenderten Workspace', async () => {
-    const { fixture, workspaceService, router, toast } = await renderWorkspace();
+  it('aktiviert den gewählten Workspace und löscht einen leeren Workspace direkt', async () => {
+    const { fixture, workspaceService, dialog, router, toast } = await renderWorkspace();
 
     renderedButton(fixture, 'Aktivieren').click();
     await flushAsyncAction(fixture);
-    const retentionButton = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
-      '[aria-label="Workspace B zur Aufbewahrung öffnen"]',
+    const deleteButton = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+      '[aria-label="Workspace B löschen"]',
     );
-    expect(retentionButton).not.toBeNull();
-    retentionButton?.click();
+    expect(deleteButton).not.toBeNull();
+    deleteButton?.click();
     await flushAsyncAction(fixture);
 
     expect(workspaceService.switchWorkspace).toHaveBeenCalledWith('workspace-b');
-    expect(router.navigate).toHaveBeenCalledWith(['/settings/data'], {
-      queryParams: { retentionWorkspace: 'workspace-b' },
-      fragment: 'retention-heading',
+    expect(dialog.frage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        titel: 'Workspace löschen?',
+        bestaetigenText: 'Workspace löschen',
+        gefahr: true,
+      }),
+    );
+    expect(workspaceService.deleteWorkspace).toHaveBeenCalledWith('workspace-b');
+    expect(router.navigate).not.toHaveBeenCalled();
+    expectOnlyToast(toast, 'success', 'Workspace wurde gelöscht.');
+  });
+
+  it('bietet nach blockierter Löschung direkt die Archivierung an statt umzuleiten', async () => {
+    const { fixture, workspaceService, dialog, router, toast } = await renderWorkspace({
+      deleteResult: {
+        success: false,
+        reportedBySyncStatus: true,
+        retentionBlocked: true,
+      },
+      confirmations: [true, true],
     });
-    expect(toast.toasts()).toEqual([]);
+
+    const deleteButton = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+      '[aria-label="Workspace B löschen"]',
+    );
+    expect(deleteButton).not.toBeNull();
+    deleteButton?.click();
+    await flushAsyncAction(fixture);
+
+    expect(dialog.frage).toHaveBeenCalledTimes(2);
+    expect(dialog.frage).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        titel: 'Workspace kann nicht gelöscht werden',
+        bestaetigenText: 'Workspace archivieren',
+      }),
+    );
+    expect(workspaceService.archiveWorkspace).toHaveBeenCalledWith('workspace-b');
+    expect(router.navigate).not.toHaveBeenCalled();
+    expectOnlyToast(toast, 'success', 'Workspace wurde archiviert.');
   });
 });
 
