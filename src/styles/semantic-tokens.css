@@ -129,6 +129,12 @@ html:not(.dark) .fb-admin {
   --fb-c-rose-500: var(--fb-semantic-critical);
   --fb-c-rose-600: var(--fb-semantic-critical-text);
 
+  --fb-c-indigo-200: var(--fb-semantic-brand-text);
+  --fb-c-indigo-300: var(--fb-semantic-brand-text);
+  --fb-c-indigo-400: var(--fb-semantic-brand-text);
+  --fb-c-indigo-500: var(--fb-semantic-brand);
+  --fb-c-indigo-600: var(--fb-semantic-brand-text);
+
   --fb-c-blue-300: var(--fb-semantic-info-text);
   --fb-c-blue-400: var(--fb-semantic-info-text);
   --fb-c-blue-500: var(--fb-semantic-info);
@@ -165,6 +171,12 @@ html.dark .fb-admin {
   --fb-c-rose-400: var(--fb-semantic-critical);
   --fb-c-rose-500: var(--fb-semantic-critical);
   --fb-c-rose-600: #a33b3b;
+
+  --fb-c-indigo-200: var(--fb-semantic-brand-text);
+  --fb-c-indigo-300: var(--fb-semantic-brand-text);
+  --fb-c-indigo-400: var(--fb-semantic-brand);
+  --fb-c-indigo-500: var(--fb-semantic-brand);
+  --fb-c-indigo-600: #8a6a00;
 
   --fb-c-blue-300: var(--fb-semantic-info-text);
   --fb-c-blue-400: var(--fb-semantic-info);
