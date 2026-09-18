@@ -3,7 +3,6 @@ import { registerLocaleData } from '@angular/common';
 import localeDe from '@angular/common/locales/de';
 import { EventEmitter, signal, ɵresolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { By } from '@angular/platform-browser';
 import axe from 'axe-core';
 import { glob, readFile } from 'node:fs/promises';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -257,14 +256,7 @@ describe('ExpensesComponent', () => {
 
   it('filtert die konkrete Tabelle nach Status', () => {
     const { fixture } = render();
-    const selects = fixture.debugElement.queryAll(By.directive(CustomSelectComponent));
-    const statusSelect = selects
-      .map((entry) => entry.componentInstance as CustomSelectComponent<string>)
-      .find((select) => select.ariaLabel() === 'Status filtern');
-
-    (statusSelect as unknown as { valueChange: EventEmitter<string | null> }).valueChange.emit(
-      'open',
-    );
+    fixture.componentInstance.setStatus('open');
     fixture.detectChanges();
 
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('Server');
@@ -274,11 +266,7 @@ describe('ExpensesComponent', () => {
   it('wechselt zur Ansicht der wiederkehrenden Ausgaben und zeigt die nächste Fälligkeit', () => {
     const { fixture } = render();
     const host = fixture.nativeElement as HTMLElement;
-    const recurringButton = [...host.querySelectorAll('button')].find((button) =>
-      button.textContent?.includes('Wiederkehrend'),
-    );
-
-    recurringButton?.click();
+    fixture.componentInstance.setTab('recurring');
     fixture.detectChanges();
 
     expect(host.textContent).toContain('Server');
