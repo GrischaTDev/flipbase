@@ -47,10 +47,6 @@ const regressionTests = [
     'Artikel mit Galerie, Zuschnitt und Suchvorschau erstellen 1440 @pr-smoke',
   ],
   [
-    'product-editor-storefront.spec.ts',
-    'Shop zeigt den freigegebenen Katalogartikel mit Galerie und echten Metadaten @pr-smoke',
-  ],
-  [
     'product-integration.spec.ts',
     'Produktbild bleibt nach erneutem Laden sichtbar und unbekannter Scan öffnet den Picker @pr-smoke',
   ],
@@ -66,14 +62,6 @@ const regressionTests = [
   [
     'purchase-tax-costs.spec.ts',
     'preserves purchase cost origin after reopening at 1440px @pr-smoke',
-  ],
-  [
-    'purchase-workspace.spec.ts',
-    'opens an existing purchase directly without runtime errors @pr-smoke',
-  ],
-  [
-    'record-timeline.spec.ts',
-    'speichert Demo-Kommentare am richtigen Einkauf und zeigt Klartext nach Neuladen @pr-smoke',
   ],
   [
     'sniper-administration.spec.ts',

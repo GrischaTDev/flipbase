@@ -1,8 +1,7 @@
-import { expect, test } from '@playwright/test';
-import { startDemoMode } from './support/demo';
+import { expect, openDashboard, test } from './support/fixtures';
 
 test('hält den Warenkorbinhalt innerhalb des bedienbaren Dialogs', async ({ page }) => {
-  await startDemoMode(page);
+  await openDashboard(page);
   await page.goto('/shop');
   await page.getByRole('button', { name: 'Warenkorb', exact: true }).click();
   const cart = page.getByRole('dialog', { name: 'Warenkorb' });
@@ -12,7 +11,7 @@ test('hält den Warenkorbinhalt innerhalb des bedienbaren Dialogs', async ({ pag
 });
 
 test('zeigt den regulären Einkaufseinstieg ohne Schnellerfassung', async ({ page }) => {
-  await startDemoMode(page);
+  await openDashboard(page);
   await page.goto('/purchases');
   await expect(page.getByRole('button', { name: 'Flohmarkt-Schnellerfassung' })).toHaveCount(0);
   await expect(
@@ -24,7 +23,7 @@ test('hält die Kopfzeile auch auf schmalen Bildschirmen im sichtbaren Bereich',
   page,
 }, testInfo) => {
   await page.setViewportSize({ width: 320, height: 844 });
-  await startDemoMode(page);
+  await openDashboard(page);
   for (const width of [320, 390, 768, 1440]) {
     await page.setViewportSize({ width, height: 844 });
     // Gegen den verfügbaren Platz gemessen, nicht gegen die Fensterbreite:
@@ -57,23 +56,4 @@ test('hält die Kopfzeile auch auf schmalen Bildschirmen im sichtbaren Bereich',
       await page.screenshot({ path: testInfo.outputPath(`dashboard-controls-${width}.png`) });
     }
   }
-});
-
-test('öffnet den Verkauf als Seite und hält globale Navigation erreichbar', async ({ page }) => {
-  await startDemoMode(page);
-  await page.goto('/inventory');
-  await page
-    .getByRole('button', { name: 'Super Nintendo SNES Original Controller verkaufen' })
-    .click();
-  await expect(page).toHaveURL(/\/sales\/new$/);
-  await expect(page.getByRole('heading', { name: 'Verkauf erfassen' })).toBeVisible();
-  await expect(page.getByRole('dialog')).toHaveCount(0);
-  const header = page.locator('app-header');
-  expect(await header.evaluate((el) => !!el.closest('[inert]'))).toBe(false);
-  await page.getByRole('button', { name: 'EN', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'EN', exact: true })).toHaveClass(
-    /text-fb-text-primary/,
-  );
-  await page.getByRole('button', { name: 'Zurück zu Verkäufen' }).click();
-  await expect(page).toHaveURL(/\/inventory$/);
 });

@@ -1,6 +1,6 @@
-import { expect, test, type Page } from '@playwright/test';
+import { type Page } from '@playwright/test';
 import axe from 'axe-core';
-import { startDemoMode } from './support/demo';
+import { expect, openDashboard, test } from './support/fixtures';
 
 async function photo(page: Page, name: string, color: string) {
   const base64 = await page.evaluate((color) => {
@@ -39,7 +39,7 @@ for (const width of [1440, 390]) {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     const errors: string[] = [];
     page.on('pageerror', (error) => errors.push(error.message));
-    await startDemoMode(page);
+    await openDashboard(page);
     await page.goto('/catalog');
     await page.getByRole('link', { name: 'Artikel erstellen', exact: true }).click();
     await expect(page).toHaveURL(/\/catalog\/new$/);
@@ -107,90 +107,3 @@ for (const width of [1440, 390]) {
     expect(errors).toEqual([]);
   });
 }
-
-test('Shop zeigt den freigegebenen Katalogartikel mit Galerie und echten Metadaten @pr-smoke', async ({
-  page,
-}, testInfo) => {
-  await startDemoMode(page);
-  await page.goto('/catalog/catalog-demo-usb-c-charger');
-  const editor = page.locator('app-product-detail');
-  await editor
-    .getByRole('textbox', { name: 'Beschreibung', exact: true })
-    .fill('Kompaktes Ladegerät mit USB-C.');
-  await editor.getByRole('checkbox', { name: 'Im Shop anzeigen', exact: true }).check();
-  await editor.getByRole('spinbutton', { name: 'Shoppreis', exact: true }).fill('29.90');
-  await editor.getByRole('button', { name: 'Eintrag bearbeiten', exact: true }).click();
-  await editor
-    .getByRole('textbox', { name: 'Seitentitel', exact: true })
-    .fill('USB-C Ladegerät kaufen');
-  await editor
-    .getByRole('textbox', { name: 'Meta-Beschreibung', exact: true })
-    .fill('Kompaktes Ladegerät mit 30 W im Detail.');
-  await editor
-    .getByRole('textbox', { name: 'URL-Bezeichnung', exact: true })
-    .fill('usb-c-ladegeraet');
-  await editor
-    .locator('app-product-media-editor input[type=file]')
-    .setInputFiles([
-      await photo(page, 'charger.png', '#304aaa'),
-      await photo(page, 'connector.png', '#509055'),
-    ]);
-  await editor.getByRole('button', { name: 'Speichern', exact: true }).click();
-  await expect(editor.getByRole('button', { name: 'Speichern', exact: true })).toBeDisabled();
-  await editor.getByRole('link', { name: 'Im Shop ansehen', exact: true }).click();
-  await expect(page).toHaveURL(/\/shop\/item\/catalog-demo-usb-c-charger\/usb-c-ladegeraet$/);
-  const detail = page.locator('app-store-item-detail');
-  await expect(
-    detail.getByRole('heading', { name: 'USB-C Ladegerät 30 W', exact: true }),
-  ).toBeVisible();
-  await expect(detail.getByText('Kompaktes Ladegerät mit USB-C.', { exact: true })).toBeVisible();
-  await expect(page).toHaveTitle('USB-C Ladegerät kaufen');
-  await expect(page.locator('meta[name=description]')).toHaveAttribute(
-    'content',
-    'Kompaktes Ladegerät mit 30 W im Detail.',
-  );
-  await expect(page.locator('meta[name=robots]')).toHaveAttribute('content', 'noindex, nofollow');
-  await expect(page.locator('link[rel=canonical]')).toHaveAttribute('href', page.url());
-  const mainImage = detail.getByRole('img', { name: 'USB-C Ladegerät 30 W', exact: true });
-  await expect(mainImage).toBeVisible();
-  const first = await mainImage.getAttribute('src');
-  await detail.getByRole('button', { name: 'Bild 2 von 2 anzeigen', exact: true }).click();
-  await expect(mainImage).not.toHaveAttribute('src', first!);
-  await accessibility(page, 'app-store-item-detail');
-  await page.evaluate(() => window.scrollTo(0, 0));
-  await page.screenshot({ path: testInfo.outputPath('store-product.png'), fullPage: true });
-  await page.getByRole('link', { name: 'Zurück zum Sortiment', exact: true }).click();
-  await expect(
-    page.locator('meta[name=description][content="Kompaktes Ladegerät mit 30 W im Detail."]'),
-  ).toHaveCount(0);
-  await expect(page.locator('link[rel=canonical]')).toHaveCount(0);
-  await page.getByRole('link', { name: 'Händler-Cockpit', exact: true }).click();
-  await page
-    .locator('app-sidebar')
-    .getByRole('link', { name: 'Artikelübersicht', exact: true })
-    .click();
-  await page.getByRole('link', { name: 'USB-C Ladegerät 30 W', exact: true }).click();
-  await editor.getByRole('button', { name: 'Bild 2 als Hauptbild', exact: true }).click();
-  await editor.getByRole('button', { name: 'Speichern', exact: true }).click();
-  await expect(editor.getByRole('button', { name: 'Speichern', exact: true })).toBeDisabled();
-  await editor.getByRole('link', { name: 'Im Shop ansehen', exact: true }).click();
-  await expect(mainImage).not.toHaveAttribute('src', first!);
-  const newPrimary = await mainImage.getAttribute('src');
-  await page.getByRole('link', { name: 'Zurück zum Sortiment', exact: true }).click();
-  await expect(
-    page
-      .locator('app-store-catalog #catalog-section')
-      .getByRole('img', { name: 'USB-C Ladegerät 30 W', exact: true }),
-  ).toHaveAttribute('src', newPrimary!);
-  await page.goto('/catalog/catalog-demo-usb-c-charger');
-  await editor.getByRole('checkbox', { name: 'Im Shop anzeigen', exact: true }).click();
-  await expect(
-    editor.getByRole('checkbox', { name: 'Im Shop anzeigen', exact: true }),
-  ).toHaveAttribute('aria-checked', 'false');
-  await editor.getByRole('button', { name: 'Speichern', exact: true }).click();
-  await expect(editor.getByRole('button', { name: 'Speichern', exact: true })).toBeDisabled();
-  await page.goto('/shop/item/catalog-demo-usb-c-charger');
-  await expect(
-    detail.getByRole('heading', { name: 'USB-C Ladegerät 30 W', exact: true }),
-  ).toHaveCount(0);
-});

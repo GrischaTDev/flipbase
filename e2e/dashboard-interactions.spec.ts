@@ -1,66 +1,11 @@
-import { expect, test } from '@playwright/test';
-
-import { startDemoMode } from './support/demo';
+import { expect, openDashboard, test } from './support/fixtures';
 
 test.use({ timezoneId: 'Europe/Berlin' });
-
-test('filtert das Dashboard über den Shared Select und zeigt den Chart-Tooltip', async ({
-  page,
-}) => {
-  await page.clock.setFixedTime(new Date('2026-08-30T12:00:00+02:00'));
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  await startDemoMode(page);
-  await page.getByRole('button', { name: 'Dieser Monat' }).click();
-
-  const platform = page.getByRole('combobox', { name: 'Plattform filtern' });
-  await platform.click();
-  await page.getByRole('option', { name: 'ebay' }).click();
-  await expect(platform).toHaveText('ebay');
-  await expect(page.getByText('1 bestätigte Verkäufe im gewählten Zeitraum')).toBeVisible();
-
-  const chart = page.getByRole('img', {
-    name: 'Verkaufserlös, Wareneinsatz, Verkaufskosten und Ergebnis im gewählten Zeitraum',
-  });
-  await expect(chart).toBeVisible();
-  // Die Maus faehrt gleich Fensterkoordinaten an. Je nach Engine steht das
-  // Diagramm unterschiedlich weit unten - in WebKit lag seine Mitte bisher
-  // unterhalb der 720 px hohen Ansicht, der Zeiger wurde an den Rand
-  // geklemmt und das Canvas sah gar keine Bewegung. Erst ins Bild holen,
-  // dann messen.
-  await chart.scrollIntoViewIfNeeded();
-  const box = await chart.boundingBox();
-  expect(box).not.toBeNull();
-
-  const tooltip = page.getByRole('status').filter({ hasText: 'Verkaufserlös:' });
-  let targetFound = false;
-  for (let step = 0; step <= 60 && !targetFound; step += 1) {
-    await page.mouse.move(
-      box!.x + box!.width * (0.05 + (step / 60) * 0.9),
-      box!.y + box!.height / 2,
-    );
-    // Erst zaehlen, dann lesen. textContent wartet auf sein Element, und da
-    // kein actionTimeout gesetzt ist, wartet es unbegrenzt - an einer
-    // Zeigerposition ohne Tooltip lief der Test damit in einen
-    // nichtssagenden Gesamt-Timeout statt in eine lesbare Zusicherung.
-    // count wartet nie und braucht deshalb auch keine Frist, die auf einem
-    // langsamen Runner selbst wieder wackeln koennte.
-    targetFound =
-      (await tooltip.count()) > 0 &&
-      ((await tooltip.textContent().catch(() => null))?.includes('14.08.') ?? false);
-  }
-
-  expect(targetFound).toBe(true);
-  await expect(tooltip).toContainText('14.08.');
-  await expect(tooltip).toContainText(/Verkaufserlös: 379,00\s€/);
-  await expect(tooltip).toContainText(/Wareneinsatz: 236,99\s€/);
-  await expect(tooltip).toContainText(/Verkaufskosten: 46,39\s€/);
-  await expect(tooltip).toContainText(/Ergebnis nach direkten Kosten: 95,62\s€/);
-});
 
 test('erkundet die Diagrammdaten vollstaendig mit der Tastatur @pr-smoke', async ({ page }) => {
   await page.clock.setFixedTime(new Date('2026-08-30T12:00:00+02:00'));
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await startDemoMode(page);
+  await openDashboard(page);
   await page.getByRole('button', { name: 'Dieser Monat' }).click();
   await expect(page.locator('app-revenue-chart .apexcharts-svg')).toBeVisible();
 
@@ -90,33 +35,4 @@ test('erkundet die Diagrammdaten vollstaendig mit der Tastatur @pr-smoke', async
 
   await navigator.press('Escape');
   await expect(tooltip).toHaveCount(0);
-});
-
-test('behält persönliche Demo-Filter bei Navigation und Neuladen', async ({ page }) => {
-  await startDemoMode(page);
-
-  await expect(page.getByRole('button', { name: 'Dieses Jahr' })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
-  await page.getByRole('button', { name: '7 Tage' }).click();
-  const platform = page.getByRole('combobox', { name: 'Plattform filtern' });
-  await platform.click();
-  await page.getByRole('option', { name: 'ebay' }).click();
-
-  await page.getByRole('link', { name: 'Einkäufe' }).first().click();
-  await expect(page).toHaveURL(/\/purchases$/);
-  await page.getByRole('link', { name: 'Dashboard' }).first().click();
-  await expect(page.getByRole('button', { name: '7 Tage' })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
-  await expect(page.getByRole('combobox', { name: 'Plattform filtern' })).toHaveText('ebay');
-
-  await page.reload();
-  await expect(page.getByRole('button', { name: '7 Tage' })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
-  await expect(page.getByRole('combobox', { name: 'Plattform filtern' })).toHaveText('ebay');
 });

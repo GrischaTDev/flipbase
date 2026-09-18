@@ -1,10 +1,9 @@
-import { expect, test } from '@playwright/test';
-import { startDemoMode } from './support/demo';
+import { expect, openDashboard, test } from './support/fixtures';
 
 test('can save a draft after dismissing an open cost selector and cancelling the dialog', async ({
   page,
 }) => {
-  await startDemoMode(page);
+  await openDashboard(page);
   await page.goto('/purchases/new');
   await page.getByRole('button', { name: 'Kosten bearbeiten', exact: true }).click();
   const trigger = page.getByRole('combobox', { name: 'Anpassung 1', exact: true });
@@ -14,9 +13,7 @@ test('can save a draft after dismissing an open cost selector and cancelling the
   await page.getByRole('button', { name: 'Abbrechen', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'Kostenübersicht verwalten' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Kosten bearbeiten', exact: true })).toBeFocused();
-  await page
-    .getByRole('textbox', { name: 'Beschreibung (optional)' })
-    .fill('Dropdown-Abbruch-Test');
+  await page.getByRole('textbox', { name: 'Bezeichnung (optional)' }).fill('Dropdown-Abbruch-Test');
   await page.getByRole('button', { name: 'Entwurf speichern', exact: true }).click();
   await expect(page).toHaveURL(/\/purchases$/);
   await expect(
@@ -28,7 +25,7 @@ test('keeps cost options above the modal footer and preserves keyboard dismissal
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await startDemoMode(page);
+  await openDashboard(page);
   await page.goto('/purchases/new');
   await page.getByRole('button', { name: 'Kosten bearbeiten', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Kostenübersicht verwalten' });
@@ -79,7 +76,7 @@ test('keeps the menu within a small viewport and closes it when the viewport cha
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 600 });
-  await startDemoMode(page);
+  await openDashboard(page);
   await page.goto('/purchases/new');
   await page.getByRole('button', { name: 'Kosten bearbeiten', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Kostenübersicht verwalten' });

@@ -1,5 +1,4 @@
-import { expect, test } from '@playwright/test';
-import { startDemoMode } from './support/demo';
+import { expect, openDashboard, test } from './support/fixtures';
 
 /**
  * Wie viele Pixel die Seite breiter ist als der Platz, den sie hat. Null heißt:
@@ -17,7 +16,7 @@ test('nutzt breite Bildschirme für Datenansichten ohne seitlichen Seitenüberla
   page,
 }) => {
   await page.setViewportSize({ width: 2560, height: 1080 });
-  await startDemoMode(page);
+  await openDashboard(page);
   for (const route of ['/dashboard', '/purchases', '/inventory', '/sales']) {
     await page.goto(route);
     await expect(page.locator('main h1')).toBeVisible();
@@ -33,7 +32,7 @@ test('nutzt breite Bildschirme für Datenansichten ohne seitlichen Seitenüberla
 // Breite in ihrem eigenen Zeitfenster und benennt sich im Fehlerfall selbst.
 for (const width of [390, 768, 1024, 1100, 1280]) {
   test(`hält Datenansichten bei ${width}px im Fenster`, async ({ page }) => {
-    await startDemoMode(page);
+    await openDashboard(page);
     await page.setViewportSize({ width, height: 900 });
     for (const route of ['/dashboard', '/purchases', '/inventory', '/sales']) {
       await page.goto(route);
