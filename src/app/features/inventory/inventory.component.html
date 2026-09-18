@@ -29,8 +29,6 @@
     </div>
   </app-page-header>
 
-  <app-section-navigation [links]="articleViews" label="Artikelansichten" />
-
   @if (scanMeldung(); as message) {
     <p
       class="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200"
@@ -40,8 +38,37 @@
     </p>
   }
 
-  <section class="linear-surface space-y-3 rounded-xl p-3" aria-label="Bestand filtern">
-    <div class="flex flex-wrap gap-2" role="group" aria-label="Bestandsansicht">
+  <app-data-table
+    ariaLabel="Bestand"
+    [searchValue]="searchQuery()"
+    searchPlaceholder="Artikel, Marke, Modell oder SKU suchen…"
+    searchAriaLabel="Bestand durchsuchen"
+    [columns]="tablePrefs().columns"
+    [sortOptions]="inventoryTableConfig.sortOptions"
+    [currentSort]="tablePrefs().sort"
+    [viewModified]="viewModified()"
+    [loading]="inventoryPresentation().sourceState === 'loading'"
+    [errorMessage]="
+      inventoryPresentation().sourceState === 'error'
+        ? 'Inventardaten konnten nicht vollständig geladen werden.'
+        : null
+    "
+    [hasRows]="filteredPresentationRows().length > 0"
+    loadingText="Inventardaten werden vollständig geladen …"
+    emptyTitle="Keine Inventarpositionen gefunden"
+    emptyText="Passe Suche oder Filter an."
+    (searchValueChange)="searchQuery.set($event)"
+    (columnVisibilityToggled)="toggleColumnVisibility($event)"
+    (columnsReordered)="onColumnsReordered($event)"
+    (sortChanged)="onSortChanged($event)"
+    (viewResetRequested)="resetView()"
+  >
+    <div
+      table-view
+      class="flex items-center gap-1 overflow-x-auto"
+      role="group"
+      aria-label="Bestandsansicht"
+    >
       @for (view of stockViews; track view.value) {
         <app-button
           size="slim"
@@ -53,164 +80,130 @@
         </app-button>
       }
     </div>
-    <div class="flex flex-wrap items-center gap-2.5">
-      <div class="min-w-48 flex-1">
-        <app-custom-search-input
-          placeholder="Artikel, Marke, Modell oder SKU suchen…"
-          [(value)]="searchQuery"
-        />
-      </div>
+
+    <div table-filters class="flex items-center gap-1" role="group" aria-label="Archivansicht">
       <app-button
-        variant="secondary"
         size="slim"
-        [ariaExpanded]="filtersExpanded()"
-        ariaControls="inventory-additional-filters"
-        (clicked)="filtersExpanded.set(!filtersExpanded())"
-      >
-        Weitere Filter
-        @if (activeFilterCount() > 0) {
-          ({{ activeFilterCount() }} aktiv)
-        }
-      </app-button>
-    </div>
-    @if (filtersExpanded()) {
-      <div id="inventory-additional-filters" class="grid gap-2.5 sm:grid-cols-3">
-        <app-custom-select
-          ariaLabel="Weitere Filter"
-          variant="filter"
-          [options]="filterPresetOptions"
-          [(value)]="activePreset"
-        />
-        <app-custom-select
-          ariaLabel="Zustand filtern"
-          variant="filter"
-          [options]="filterConditionOptions"
-          [(value)]="selectedCondition"
-        />
-        <app-custom-select
-          ariaLabel="Status filtern"
-          variant="filter"
-          [options]="filterStatusOptions"
-          [(value)]="selectedStatus"
-        />
-      </div>
-    }
-
-    <div class="flex flex-wrap items-center justify-between gap-2">
-      <p class="text-xs text-fb-text-muted">
-        Auswahl und Etikettendruck beziehen sich auf einzeln nachverfolgte Artikel.
-      </p>
-      <button
-        type="button"
-        (click)="toggleSelectAll()"
-        class="linear-btn-secondary rounded-lg px-3 py-1.5 text-xs font-semibold"
-        [attr.aria-pressed]="isAllSelected()"
-      >
-        {{ isAllSelected() ? 'Auswahl aufheben' : 'Alle sichtbaren Artikel auswählen' }}
-      </button>
-    </div>
-  </section>
-
-  @if (inventoryPresentation().sourceState === 'loading') {
-    <p class="linear-surface rounded-xl px-4 py-3 text-sm text-fb-text-secondary" role="status">
-      Inventardaten werden vollständig geladen…
-    </p>
-  } @else if (inventoryPresentation().sourceState === 'error') {
-    <div
-      class="linear-surface flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-500/30 px-4 py-3"
-      role="alert"
-    >
-      <div>
-        <p class="text-sm font-semibold text-rose-300">
-          Inventardaten konnten nicht vollständig geladen werden
-        </p>
-        <p class="text-xs text-fb-text-muted">Mengen und Geldwerte bleiben bis dahin offen.</p>
-      </div>
-      <button
-        type="button"
-        (click)="reloadInventorySources()"
-        class="linear-btn-secondary cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold"
-      >
-        Erneut laden
-      </button>
-    </div>
-  }
-
-  <app-stock-position-list
-    [imageUrls]="imageUrls()"
-    (imageFailed)="onImageFailed($event)"
-    [tableColumns]="tablePrefs().columns"
-    [sortOptions]="inventoryTableConfig.sortOptions"
-    [currentSort]="tablePrefs().sort"
-    (columnVisibilityToggled)="toggleColumnVisibility($event)"
-    (columnsReordered)="onColumnsReordered($event)"
-    (sortChanged)="onSortChanged($event)"
-    [viewModified]="viewModified()"
-    (viewResetRequested)="resetView()"
-    [archivePendingIds]="archiveService.pendingIds()"
-    (archiveItem)="onArchiveItem($event)"
-    [visibleColumns]="visibleColumns()"
-    [presentationRows]="filteredPresentationRows()"
-    [positions]="stockService.positions()"
-    [individualItems]="inventoryService.items()"
-    [lots]="stockService.lots()"
-    [movements]="stockService.movements()"
-    [purchases]="purchaseService.purchases()"
-    [sales]="salesService.sales()"
-    [workspaceId]="workspaceService.currentWorkspace()?.id ?? ''"
-    [inventoryState]="inventorySourceState()"
-    [stockState]="stockSourceState()"
-    [stockWorkspaceId]="stockService.loadedWorkspaceId()"
-    [purchaseState]="purchaseSourceState()"
-    [salesState]="salesSourceState()"
-    [selectedItemIds]="selectedItemIds()"
-    (sell)="openSaleForStockPosition($event)"
-    (sellIndividual)="openSaleForIndividualItem($event)"
-    (selectionChanged)="toggleSelectItem($event)"
-    (labelIndividual)="openSingleLabel($event)"
-    (storeToggle)="onTogglePublicStore($event)"
-    (statusChange)="onChangeItemStatus($event.item, $event.status)"
-    (restoreLegacy)="onRestoreLegacyItem($event)"
-    (reconcileSale)="openLegacySaleReconciliation($event)"
-  >
-    <div
-      table-toolbar-leading
-      role="group"
-      aria-label="Inventaransicht"
-      class="inline-flex rounded-md border border-fb-line bg-fb-well p-0.5"
-    >
-      <button
-        type="button"
-        class="cursor-pointer rounded px-2.5 py-1.5 text-xs font-semibold text-fb-text-secondary transition hover:bg-fb-surface-hover hover:text-fb-text-primary focus-visible:outline-2 focus-visible:outline-fb-primary"
-        [class.bg-fb-surface]="archiveView() === 'active'"
-        [class.text-fb-text-primary]="archiveView() === 'active'"
-        [attr.aria-pressed]="archiveView() === 'active'"
-        (click)="archiveView.set('active')"
+        [variant]="archiveView() === 'active' ? 'secondary' : 'ghost'"
+        [ariaPressed]="archiveView() === 'active'"
+        (clicked)="archiveView.set('active')"
       >
         Aktiv
-      </button>
-      <button
-        type="button"
-        class="cursor-pointer rounded px-2.5 py-1.5 text-xs font-semibold text-fb-text-secondary transition hover:bg-fb-surface-hover hover:text-fb-text-primary focus-visible:outline-2 focus-visible:outline-fb-primary"
-        [class.bg-fb-surface]="archiveView() === 'archive'"
-        [class.text-fb-text-primary]="archiveView() === 'archive'"
-        [attr.aria-pressed]="archiveView() === 'archive'"
-        (click)="archiveView.set('archive')"
+      </app-button>
+      <app-button
+        size="slim"
+        [variant]="archiveView() === 'archive' ? 'secondary' : 'ghost'"
+        [ariaPressed]="archiveView() === 'archive'"
+        (clicked)="archiveView.set('archive')"
       >
         Archiv
-      </button>
-      <button
-        type="button"
-        class="cursor-pointer rounded px-2.5 py-1.5 text-xs font-semibold text-fb-text-secondary transition hover:bg-fb-surface-hover hover:text-fb-text-primary focus-visible:outline-2 focus-visible:outline-fb-primary"
-        [class.bg-fb-surface]="archiveView() === 'all'"
-        [class.text-fb-text-primary]="archiveView() === 'all'"
-        [attr.aria-pressed]="archiveView() === 'all'"
-        (click)="archiveView.set('all')"
+      </app-button>
+      <app-button
+        size="slim"
+        [variant]="archiveView() === 'all' ? 'secondary' : 'ghost'"
+        [ariaPressed]="archiveView() === 'all'"
+        (clicked)="archiveView.set('all')"
       >
         Alle
-      </button>
+      </app-button>
     </div>
-  </app-stock-position-list>
+
+    <app-button
+      table-filters
+      variant="secondary"
+      size="slim"
+      [ariaExpanded]="filtersExpanded()"
+      ariaControls="inventory-additional-filters"
+      (clicked)="filtersExpanded.set(!filtersExpanded())"
+    >
+      Weitere Filter
+      @if (activeFilterCount() > 0) {
+        ({{ activeFilterCount() }} aktiv)
+      }
+    </app-button>
+
+    <div table-filter-panel class="border-b border-fb-line px-3 py-2">
+      @if (filtersExpanded()) {
+        <div id="inventory-additional-filters" class="grid gap-2.5 pb-2 sm:grid-cols-3">
+          <app-custom-select
+            ariaLabel="Weitere Filter"
+            variant="filter"
+            [options]="filterPresetOptions"
+            [(value)]="activePreset"
+          />
+          <app-custom-select
+            ariaLabel="Zustand filtern"
+            variant="filter"
+            [options]="filterConditionOptions"
+            [(value)]="selectedCondition"
+          />
+          <app-custom-select
+            ariaLabel="Status filtern"
+            variant="filter"
+            [options]="filterStatusOptions"
+            [(value)]="selectedStatus"
+          />
+        </div>
+      }
+
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <p class="text-xs text-fb-text-muted">
+          Auswahl und Etikettendruck beziehen sich auf einzeln nachverfolgte Artikel.
+        </p>
+        <app-button
+          variant="secondary"
+          size="slim"
+          [ariaPressed]="isAllSelected()"
+          (clicked)="toggleSelectAll()"
+        >
+          {{ isAllSelected() ? 'Auswahl aufheben' : 'Alle sichtbaren Artikel auswählen' }}
+        </app-button>
+      </div>
+    </div>
+
+    <app-button
+      table-error-action
+      variant="secondary"
+      size="slim"
+      (clicked)="reloadInventorySources()"
+    >
+      Erneut laden
+    </app-button>
+
+    <app-stock-position-list
+      table-content
+      [imageUrls]="imageUrls()"
+      (imageFailed)="onImageFailed($event)"
+      [tableColumns]="tablePrefs().columns"
+      [currentSort]="tablePrefs().sort"
+      (sortChanged)="onSortChanged($event)"
+      [archivePendingIds]="archiveService.pendingIds()"
+      (archiveItem)="onArchiveItem($event)"
+      [visibleColumns]="visibleColumns()"
+      [presentationRows]="filteredPresentationRows()"
+      [positions]="stockService.positions()"
+      [individualItems]="inventoryService.items()"
+      [lots]="stockService.lots()"
+      [movements]="stockService.movements()"
+      [purchases]="purchaseService.purchases()"
+      [sales]="salesService.sales()"
+      [workspaceId]="workspaceService.currentWorkspace()?.id ?? ''"
+      [inventoryState]="inventorySourceState()"
+      [stockState]="stockSourceState()"
+      [stockWorkspaceId]="stockService.loadedWorkspaceId()"
+      [purchaseState]="purchaseSourceState()"
+      [salesState]="salesSourceState()"
+      [selectedItemIds]="selectedItemIds()"
+      (sell)="openSaleForStockPosition($event)"
+      (sellIndividual)="openSaleForIndividualItem($event)"
+      (selectionChanged)="toggleSelectItem($event)"
+      (labelIndividual)="openSingleLabel($event)"
+      (storeToggle)="onTogglePublicStore($event)"
+      (statusChange)="onChangeItemStatus($event.item, $event.status)"
+      (restoreLegacy)="onRestoreLegacyItem($event)"
+      (reconcileSale)="openLegacySaleReconciliation($event)"
+    />
+  </app-data-table>
 
   @if (isAiScannerOpen()) {
     <app-ai-photo-scanner-modal

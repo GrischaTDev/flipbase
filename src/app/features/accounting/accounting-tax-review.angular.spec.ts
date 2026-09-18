@@ -21,6 +21,8 @@ import { CustomSearchInputComponent } from '../../shared/components/custom-searc
 import { TableColumnMenuComponent } from '../../shared/components/table-column-menu/table-column-menu.component';
 import { TableSortHeaderComponent } from '../../shared/components/table-sort-header/table-sort-header.component';
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
+import { DataTableComponent } from '../../shared/components/data-table/data-table.component';
+import { ButtonComponent } from '../../shared/components/button/button.component';
 
 interface InputMetadata {
   inputs: Record<string, unknown>;
@@ -48,6 +50,32 @@ beforeAll(async () => {
     if (matches.length !== 1) throw new Error(`Uneindeutige Ressource: ${url}`);
     return readFile(matches[0], 'utf8');
   });
+  registerInputs(DataTableComponent, [
+    'ariaLabel',
+    'searchValue',
+    'searchPlaceholder',
+    'searchAriaLabel',
+    'searchEnabled',
+    'toolbarVisible',
+    'columns',
+    'sortOptions',
+    'currentSort',
+    'viewModified',
+    'loading',
+    'errorMessage',
+    'hasRows',
+    'loadingText',
+    'emptyTitle',
+    'emptyText',
+  ]);
+  registerInputs(ButtonComponent, [
+    'variant',
+    'size',
+    'icon',
+    'disabled',
+    'ariaLabel',
+    'ariaPressed',
+  ]);
   registerInputs(CustomSelectComponent, [
     'options',
     'value',

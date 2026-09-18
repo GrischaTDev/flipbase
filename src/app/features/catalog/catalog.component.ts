@@ -1,6 +1,5 @@
 import { TablePreferencesService } from '../../core/services/table-preferences.service';
 import { CatalogColumnId, CatalogSortField } from '../../core/config/table-defaults.config';
-import { TableColumnMenuComponent } from '../../shared/components/table-column-menu/table-column-menu.component';
 import { TableSortHeaderComponent } from '../../shared/components/table-sort-header/table-sort-header.component';
 import {
   tableStateDiffersFromDefaults,
@@ -21,20 +20,14 @@ import { RouterLink } from '@angular/router';
 import { InventoryService } from '../../core/services/inventory.service';
 import { PurchaseService } from '../../core/services/purchase.service';
 import { MediaService } from '../../core/services/media.service';
-import { ARTICLE_VIEWS } from '../../core/config/article-navigation';
-import { SectionNavigationComponent } from '../../shared/components/section-navigation/section-navigation.component';
 import { buildCatalogOverview, CatalogOverviewRow } from './utils/catalog-overview';
 import { CatalogViewStateService } from './services/catalog-view-state.service';
-import {
-  LucidePlus as Plus,
-  LucideSearch as Search,
-  LucideBookOpen as BookOpen,
-} from '@lucide/angular';
+import { LucidePlus as Plus, LucideBookOpen as BookOpen } from '@lucide/angular';
 import { CatalogService } from '../../core/services/catalog.service';
 import { StockService } from '../../core/services/stock.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { ProductThumbnailComponent } from '../../shared/components/product-thumbnail/product-thumbnail.component';
-import { TextFieldComponent } from '../../shared/components/text-field/text-field.component';
+import { DataTableComponent } from '../../shared/components/data-table/data-table.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
 import { parseCsv } from '../../shared/utils/csv';
 import { normalizeGtin } from '../../shared/utils/gtin';
@@ -51,12 +44,10 @@ interface CatalogImportRow {
   selector: 'app-catalog',
   imports: [
     RouterLink,
-    SectionNavigationComponent,
-    TableColumnMenuComponent,
+    DataTableComponent,
     TableSortHeaderComponent,
     ReactiveFormsModule,
     ProductThumbnailComponent,
-    TextFieldComponent,
     ButtonComponent,
     PageHeaderComponent,
   ],
@@ -72,7 +63,6 @@ export class CatalogComponent {
   private readonly purchaseService = inject(PurchaseService);
   private readonly mediaService = inject(MediaService);
   private readonly viewState = inject(CatalogViewStateService);
-  readonly articleViews = ARTICLE_VIEWS;
   private readonly workspaceService = inject(WorkspaceService);
   readonly workspaceId = computed(() => this.workspaceService.currentWorkspace()?.id ?? 'default');
   readonly catalogTableConfig = this.tablePreferences.getTableConfig<
@@ -95,7 +85,6 @@ export class CatalogComponent {
   );
 
   readonly plusIcon = Plus;
-  readonly searchIcon = Search;
   readonly bookOpenIcon = BookOpen;
   readonly searchControl = new FormControl(this.viewState.searchFor(this.workspaceId()), {
     nonNullable: true,

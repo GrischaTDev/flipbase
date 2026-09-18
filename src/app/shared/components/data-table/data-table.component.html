@@ -1,0 +1,79 @@
+<section
+  data-data-table
+  class="linear-surface relative overflow-visible rounded-xl"
+  [attr.aria-label]="ariaLabel()"
+>
+  @if (toolbarVisible()) {
+    <div
+      data-data-table-toolbar
+      class="flex min-h-11 flex-wrap items-center gap-1 border-b border-fb-line p-2"
+    >
+      <div data-data-table-view class="contents">
+        <ng-content select="[table-view]" />
+      </div>
+
+      @if (searchEnabled()) {
+        <div data-data-table-search class="min-w-44 flex-1">
+          <app-custom-search-input
+            variant="toolbar"
+            size="sm"
+            [value]="searchValue()"
+            [placeholder]="searchPlaceholder()"
+            [ariaLabel]="searchAriaLabel()"
+            (valueChange)="searchValueChange.emit($event)"
+          />
+        </div>
+      }
+
+      <div data-data-table-filters class="contents">
+        <ng-content select="[table-filters]" />
+      </div>
+
+      @if (settings(); as tableSettings) {
+        <div
+          data-data-table-settings
+          class="ml-auto flex items-center border-l border-fb-line pl-2"
+        >
+          <app-table-column-menu
+            [columns]="tableSettings.columns"
+            [sortOptions]="tableSettings.sortOptions"
+            [currentSort]="tableSettings.currentSort"
+            [viewModified]="viewModified()"
+            (columnVisibilityToggled)="columnVisibilityToggled.emit($event)"
+            (columnsReordered)="columnsReordered.emit($event)"
+            (sortChanged)="sortChanged.emit($event)"
+            (viewResetRequested)="viewResetRequested.emit()"
+          />
+        </div>
+      }
+    </div>
+  }
+
+  <ng-content select="[table-filter-panel]" />
+
+  @if (loading()) {
+    <div data-data-table-loading class="px-5 py-10 text-center" role="status">
+      <p class="text-[13px] text-fb-text-muted">{{ loadingText() }}</p>
+    </div>
+  } @else if (errorMessage(); as message) {
+    <div data-data-table-error class="px-5 py-10 text-center" role="alert">
+      <p class="text-[13px] text-fb-critical">{{ message }}</p>
+      <ng-content select="[table-error-action]" />
+    </div>
+  } @else if (!hasRows()) {
+    <div data-data-table-empty class="px-5 py-10 text-center">
+      <p class="text-sm font-semibold text-fb-text-primary">{{ emptyTitle() }}</p>
+      @if (emptyText()) {
+        <p class="mx-auto mt-1 max-w-md text-xs text-fb-text-muted">{{ emptyText() }}</p>
+      }
+      <ng-content select="[table-empty-action]" />
+    </div>
+  } @else {
+    <div data-data-table-content>
+      <ng-content select="[table-content]" />
+    </div>
+    <div data-data-table-mobile>
+      <ng-content select="[table-mobile]" />
+    </div>
+  }
+</section>

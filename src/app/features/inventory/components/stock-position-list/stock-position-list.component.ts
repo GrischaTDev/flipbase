@@ -5,7 +5,6 @@ import {
   LucideChevronDown as ChevronDown,
   LucideChevronUp as ChevronUp,
   LucideShoppingCart as ShoppingCart,
-  LucidePackageOpen as PackageOpen,
   LucideArrowRight as ArrowRight,
   LucidePrinter as Printer,
   LucideStore as Store,
@@ -34,13 +33,8 @@ import {
 } from '../../../../shared/components/custom-select/custom-select.component';
 import { CostStateComponent } from '../../../../shared/components/cost-state/cost-state.component';
 import { ItemConditionLabelPipe } from '../../../../shared/pipes/item-condition-label.pipe';
-import { TableColumnMenuComponent } from '../../../../shared/components/table-column-menu/table-column-menu.component';
 import { TableSortHeaderComponent } from '../../../../shared/components/table-sort-header/table-sort-header.component';
-import {
-  ColumnDefinition,
-  SortFieldOption,
-  TableSortState,
-} from '../../../../core/models/table-preferences.models';
+import { ColumnDefinition, TableSortState } from '../../../../core/models/table-preferences.models';
 import type { InventoryPresentationRow } from '../../models/inventory-presentation.models';
 import { editableItemStatusOptions } from '../../models/item-status-options';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
@@ -65,7 +59,6 @@ import {
     CustomSelectComponent,
     CostStateComponent,
     ItemConditionLabelPipe,
-    TableColumnMenuComponent,
     TableSortHeaderComponent,
   ],
   templateUrl: './stock-position-list.component.html',
@@ -76,16 +69,11 @@ export class StockPositionListComponent {
   readonly imageUrls = input<Readonly<Record<string, string>>>({});
   readonly imageFailed = output<string>();
   readonly tableColumns = input<readonly ColumnDefinition<InventoryColumnId>[]>([]);
-  readonly sortOptions = input<readonly SortFieldOption<InventorySortField>[]>([]);
   readonly currentSort = input<TableSortState<InventorySortField>>({
     field: 'updated_at',
     direction: 'desc',
   });
-  readonly columnVisibilityToggled = output<InventoryColumnId>();
-  readonly columnsReordered = output<{ previousIndex: number; currentIndex: number }>();
   readonly sortChanged = output<TableSortState<InventorySortField>>();
-  readonly viewModified = input(false);
-  readonly viewResetRequested = output<void>();
   readonly archivePendingIds = input<ReadonlySet<string>>(new Set());
   readonly archiveItem = output<InventoryItem>();
   readonly visibleColumns = input<readonly string[]>([
@@ -122,7 +110,6 @@ export class StockPositionListComponent {
   readonly chevronDownIcon = ChevronDown;
   readonly chevronUpIcon = ChevronUp;
   readonly shoppingCartIcon = ShoppingCart;
-  readonly packageOpenIcon = PackageOpen;
   readonly arrowRightIcon = ArrowRight;
   readonly printerIcon = Printer;
   readonly storeIcon = Store;

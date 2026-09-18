@@ -179,12 +179,15 @@ describe('Arbeitsnavigation und Ideen in der Sidebar', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('markiert Bestandsdetails weiterhin als Artikeluebersicht', async () => {
+  it('markiert Bestandsdetails im Artikeluntermenue als Bestand', async () => {
     const { element } = await renderAt('/inventory/123?tab=details');
     const article = element.querySelector('a[href="/catalog"]');
+    const inventory = element.querySelector('a[href="/inventory"]');
 
     expect(article?.textContent?.trim()).toBe('Artikelübersicht');
-    expect(article?.getAttribute('aria-current')).toBe('page');
+    expect(article?.getAttribute('aria-current')).toBeNull();
+    expect(inventory?.textContent?.trim()).toBe('Bestand');
+    expect(inventory?.getAttribute('aria-current')).toBe('page');
     expect(element.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
   });
 

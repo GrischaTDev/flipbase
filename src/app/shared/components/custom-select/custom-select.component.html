@@ -46,7 +46,7 @@
       [attr.aria-expanded]="isOpen()"
       [attr.aria-controls]="isOpen() ? listboxId() : null"
       [attr.aria-activedescendant]="activeDescendantId()"
-      class="inline-flex h-7 w-full max-w-full items-center justify-between gap-1 rounded-lg border border-transparent bg-transparent px-2 text-[13px] font-medium text-fb-text-primary transition-colors hover:bg-fb-subtle focus-visible:border-fb-primary focus-visible:bg-fb-surface focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-fb-primary"
+      class="inline-flex h-8 w-full max-w-full items-center justify-between gap-1 rounded-lg border border-fb-border-subtle bg-fb-subtle px-2 text-[13px] font-medium text-fb-text-primary transition-colors hover:border-fb-border hover:bg-fb-surface-hover focus-visible:border-fb-primary focus-visible:bg-fb-surface focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-fb-primary"
     >
       <span class="truncate">{{ selectedOption()?.label || placeholder() }}</span>
       <svg [lucideIcon]="chevronIcon" class="size-3 shrink-0 opacity-70"></svg>

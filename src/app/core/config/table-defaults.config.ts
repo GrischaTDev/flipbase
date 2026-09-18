@@ -137,7 +137,46 @@ export const PURCHASES_TABLE_CONFIG: TableConfig<PurchasesColumnId, PurchasesSor
 };
 
 // ==========================================
-// 5. Buchhaltung (Accounting / Bank Transactions)
+// 5. Ausgaben (Expenses)
+// ==========================================
+export type ExpensesColumnId =
+  | 'expense_date'
+  | 'title'
+  | 'category'
+  | 'gross_amount'
+  | 'vat_rate'
+  | 'status'
+  | 'due_or_paid'
+  | 'recurring'
+  | 'documents'
+  | 'actions';
+
+export type ExpensesSortField = 'expense_date' | 'title' | 'gross_amount' | 'status';
+
+export const EXPENSES_TABLE_CONFIG: TableConfig<ExpensesColumnId, ExpensesSortField> = {
+  defaultColumns: [
+    { id: 'expense_date', label: 'Datum', visible: true, order: 0 },
+    { id: 'title', label: 'Bezeichnung', visible: true, order: 1, locked: true },
+    { id: 'category', label: 'Kategorie', visible: true, order: 2 },
+    { id: 'gross_amount', label: 'Brutto', visible: true, order: 3 },
+    { id: 'vat_rate', label: 'MwSt.', visible: true, order: 4 },
+    { id: 'status', label: 'Status', visible: true, order: 5 },
+    { id: 'due_or_paid', label: 'Fällig / bezahlt am', visible: true, order: 6 },
+    { id: 'recurring', label: 'Wiederholung', visible: true, order: 7 },
+    { id: 'documents', label: 'Beleg', visible: true, order: 8 },
+    { id: 'actions', label: 'Aktionen', visible: true, order: 9, locked: true },
+  ],
+  defaultSort: { field: 'expense_date', direction: 'desc' },
+  sortOptions: [
+    { value: 'expense_date', label: 'Datum', kind: 'date' },
+    { value: 'title', label: 'Bezeichnung', kind: 'text' },
+    { value: 'gross_amount', label: 'Brutto', kind: 'number' },
+    { value: 'status', label: 'Status', kind: 'text' },
+  ],
+};
+
+// ==========================================
+// 6. Buchhaltung (Accounting / Bank Transactions)
 // ==========================================
 export type AccountingColumnId =
   'booking_date' | 'counterparty' | 'purpose' | 'amount' | 'match' | 'status' | 'actions';
@@ -169,7 +208,7 @@ export const ACCOUNTING_TABLE_CONFIG: TableConfig<AccountingColumnId, Accounting
 };
 
 // ==========================================
-// 6. Betreiber-Beta-Bewerbungen
+// 7. Betreiber-Beta-Bewerbungen
 // ==========================================
 export type BetaApplicationsColumnId =
   'applicant' | 'email' | 'created_at' | 'status' | 'granted_days' | 'decision_note' | 'actions';

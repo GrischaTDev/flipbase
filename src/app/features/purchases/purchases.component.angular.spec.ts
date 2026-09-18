@@ -3,6 +3,7 @@ import { registerLocaleData } from '@angular/common';
 import localeDe from '@angular/common/locales/de';
 import { signal, ɵresolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { provideRouter } from '@angular/router';
 import { provideTranslateService } from '@ngx-translate/core';
 import { glob, readFile } from 'node:fs/promises';
@@ -24,6 +25,7 @@ import { CostStateComponent } from '../../shared/components/cost-state/cost-stat
 import { CustomSearchInputComponent } from '../../shared/components/custom-search-input/custom-search-input.component';
 import { CustomSelectComponent } from '../../shared/components/custom-select/custom-select.component';
 import { PurchaseReceiptPreviewComponent } from './components/purchase-receipt-preview/purchase-receipt-preview.component';
+import { DataTableComponent } from '../../shared/components/data-table/data-table.component';
 
 interface AngularInputMetadata {
   inputs: Record<string, unknown>;
@@ -68,6 +70,24 @@ beforeAll(async () => {
     return readFile(matches[0], 'utf8');
   });
   registerSignalInputs(PageHeaderComponent, ['icon']);
+  registerSignalInputs(DataTableComponent, [
+    'ariaLabel',
+    'searchValue',
+    'searchPlaceholder',
+    'searchAriaLabel',
+    'searchEnabled',
+    'toolbarVisible',
+    'columns',
+    'sortOptions',
+    'currentSort',
+    'viewModified',
+    'loading',
+    'errorMessage',
+    'hasRows',
+    'loadingText',
+    'emptyTitle',
+    'emptyText',
+  ]);
   registerSignalInputs(TableColumnMenuComponent, [
     'columns',
     'sortOptions',
@@ -87,6 +107,10 @@ beforeAll(async () => {
     'ariaExpanded',
     'ariaControls',
     'ariaHaspopup',
+    'ariaLabel',
+    'ariaPressed',
+    'variant',
+    'size',
   ]);
   registerSignalInputs(CostStateComponent, ['state']);
   registerSignalInputs(CustomSearchInputComponent, [
@@ -178,6 +202,7 @@ beforeEach(() => {
       PageHeaderComponent,
       TableColumnMenuComponent,
       TableSortHeaderComponent,
+      DataTableComponent,
     ],
     providers: [
       provideRouter([]),
@@ -311,13 +336,14 @@ describe('PurchasesComponent – responsive Einkaufsübersicht', () => {
 
     const host = fixture.nativeElement as HTMLElement;
     const search = host.querySelector<HTMLInputElement>('app-custom-search-input input');
-    const reset = host.querySelector<HTMLButtonElement>('[data-reset-purchase-view]');
+    const reset = fixture.debugElement.query(By.css('[data-reset-purchase-view]'));
 
     expect(search).not.toBeNull();
     expect(search?.value).toBe('zzznichtvorhanden');
     expect(host.textContent).toContain('Keine passenden Einkäufe');
+    expect(reset).not.toBeNull();
 
-    reset?.click();
+    reset.triggerEventHandler('clicked', new MouseEvent('click'));
     fixture.detectChanges();
 
     expect(fixture.componentInstance.searchQuery()).toBe('');

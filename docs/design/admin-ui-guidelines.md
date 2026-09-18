@@ -29,6 +29,42 @@ Eine wiederkehrende Kombination wird als Shared-Komposition angelegt, sobald min
 
 Neue oder geänderte Admin-Oberflächen müssen eine automatisierte Architekturprüfung bestehen, die neue native Select-Nachbauten und lokale Status-Pills erkennt. Notwendige Ausnahmen werden pfadgenau mit Begründung geführt. Ein vorhandener Altbestand ist kein Freibrief für neue Abweichungen und wird bei den betroffenen Arbeiten schrittweise abgebaut.
 
+## Verbindlicher Tabellen- und Listenstandard
+
+Nutzerfestlegung vom 19.09.2026: Verwaltbare Datenlisten im Admin verwenden
+`DataTableComponent` als gemeinsamen Rahmen. Feature-Seiten liefern Daten,
+Spalten, fachliche Filter, Zeileninhalte und Aktionen, definieren aber nicht mehr
+selbst die Geometrie der Tabellenleiste oder die Position der Bedienelemente.
+
+Die Reihenfolge in der Tabellenleiste ist verbindlich:
+**Ansicht/Status → Suche → fachliche Filter → Spalten/Sortierung**. Die Suche nimmt
+den flexiblen Platz ein; das Spalten-/Sortiermenü steht, sofern die Tabelle
+konfigurierbare Spalten besitzt, am rechten Ende. Suchfeld und Toolbar-Selects
+sind bereits im Ruhezustand durch eine sehr dezente neutrale Fläche und einen
+leichten Rahmen als bedienbare Elemente erkennbar. Hover verstärkt diesen
+Zustand nur, statt ihn erstmals sichtbar zu machen.
+
+Feature-Templates verwenden `TableColumnMenuComponent` und die frühere
+`TableToolbarComponent` nicht direkt. `DataTableComponent` kapselt
+Tabellenfläche, Toolbar, Suche, optionales Spalten-/Sortiermenü sowie Lade-,
+Fehler- und Leerzustände. Fachliche Filter werden über die vorgesehenen
+Projektionsbereiche eingesetzt und dürfen deren Reihenfolge nicht umgehen.
+
+Kleine statische Tabellen wie CSV-Vorschauen, Druckansichten, reine
+Detailaufstellungen und Berichtstabellen brauchen keine künstliche
+Such-/Filterleiste. Solche Tabellen werden in der automatisierten Shared-UI-
+Prüfung ausdrücklich und eng als statisch klassifiziert. Eine pauschale
+Ausnahme für ganze Features oder Verzeichnisse ist unzulässig.
+
+Artikelübersicht und Bestand verwenden keine zweite Navigation im Seiteninhalt.
+Beide Ansichten liegen unter dem aufklappbaren Sidebar-Punkt
+„Artikelübersicht“ mit den Unterpunkten „Alle Artikel“ und „Bestand“.
+
+Die Architekturprüfung `scripts/check-admin-shared-ui.mjs` schützt diesen
+Vertrag: direkte Spaltenmenüs, die alte Tabellen-Toolbar, native Suchfelder an
+verwaltbaren Tabellen und nicht klassifizierte Tabellenvarianten werden als
+Abweichung gemeldet.
+
 ## Verbindliche Präzisierung: Schreibweise und Farbdisziplin
 
 Nutzerfestlegung vom 06.09.2026: Seiten-, Karten-, Abschnitts- und Tabellenüberschriften sowie Feldbeschriftungen verwenden normale deutsche Groß-/Kleinschreibung. Keine dekorative Versalschrift durch `uppercase`, keine künstlich gesperrten Überschriften durch `tracking-wider`/`tracking-widest`. Fachliche Kürzel wie SKU, EAN, EUR und DATEV bleiben korrekt geschrieben; Eingaben, Marken und Kennungen werden nicht pauschal kleingeschrieben. Auch Badges erhalten keine automatische Versalschrift.

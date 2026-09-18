@@ -40,7 +40,6 @@ import {
   CustomSelectComponent,
   SelectOption,
 } from '../../shared/components/custom-select/custom-select.component';
-import { CustomSearchInputComponent } from '../../shared/components/custom-search-input/custom-search-input.component';
 import { BarcodeScannerComponent } from '../../shared/components/barcode-scanner/barcode-scanner.component';
 import { SyncStatusService } from '../../core/services/sync-status.service';
 import { ToastService } from '../../shared/components/toast/toast.service';
@@ -58,21 +57,19 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
 import { CatalogService } from '../../core/services/catalog.service';
-import { ARTICLE_VIEWS } from '../../core/config/article-navigation';
-import { SectionNavigationComponent } from '../../shared/components/section-navigation/section-navigation.component';
 import { InventoryViewStateService } from './services/inventory-view-state.service';
 import { MediaService } from '../../core/services/media.service';
+import { DataTableComponent } from '../../shared/components/data-table/data-table.component';
 
 @Component({
   selector: 'app-inventory',
   imports: [
     BarcodeScannerComponent,
-    SectionNavigationComponent,
     AiPhotoScannerModalComponent,
     InventoryLabelModalComponent,
     CustomSelectComponent,
-    CustomSearchInputComponent,
     StockPositionListComponent,
+    DataTableComponent,
     PageHeaderComponent,
     BadgeComponent,
     ButtonComponent,
@@ -82,7 +79,6 @@ import { MediaService } from '../../core/services/media.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class InventoryComponent {
-  readonly articleViews = ARTICLE_VIEWS;
   private readonly viewState = inject(InventoryViewStateService);
   readonly catalogService = inject(CatalogService);
   private readonly mediaService = inject(MediaService);

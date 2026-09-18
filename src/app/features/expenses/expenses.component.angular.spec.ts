@@ -6,15 +6,20 @@ import { TestBed } from '@angular/core/testing';
 import axe from 'axe-core';
 import { glob, readFile } from 'node:fs/promises';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { EXPENSES_TABLE_CONFIG } from '../../core/config/table-defaults.config';
 import { Expense, ExpenseCategory, ExpenseRecurringRule } from '../../core/models/expense.models';
 import { ExpenseCategoryService } from '../../core/services/expense-category.service';
 import { ExpenseRecurringService } from '../../core/services/expense-recurring.service';
 import { ExpenseService } from '../../core/services/expense.service';
+import { TablePreferencesService } from '../../core/services/table-preferences.service';
+import { WorkspaceService } from '../../core/services/workspace.service';
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
 import { CardComponent } from '../../shared/components/card/card.component';
 import { CustomSelectComponent } from '../../shared/components/custom-select/custom-select.component';
+import { DataTableComponent } from '../../shared/components/data-table/data-table.component';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
+import { TableSortHeaderComponent } from '../../shared/components/table-sort-header/table-sort-header.component';
 import { ExpensesComponent } from './expenses.component';
 
 interface AngularInputMetadata {
@@ -58,6 +63,25 @@ beforeAll(async () => {
   registerInputs(ButtonComponent, ['variant', 'size', 'icon', 'ariaPressed']);
   registerInputs(CardComponent, ['padding', 'rounded']);
   registerInputs(BadgeComponent, ['tone', 'mono']);
+  registerInputs(DataTableComponent, [
+    'ariaLabel',
+    'searchValue',
+    'searchPlaceholder',
+    'searchAriaLabel',
+    'searchEnabled',
+    'toolbarVisible',
+    'columns',
+    'sortOptions',
+    'currentSort',
+    'viewModified',
+    'loading',
+    'errorMessage',
+    'hasRows',
+    'loadingText',
+    'emptyTitle',
+    'emptyText',
+  ]);
+  registerInputs(TableSortHeaderComponent, ['label', 'sortField', 'currentSort', 'align']);
   registerInputs(CustomSelectComponent, [
     'options',
     'value',
@@ -212,6 +236,21 @@ function render() {
       },
     ]),
   };
+  const tableState = signal({
+    columns: [...EXPENSES_TABLE_CONFIG.defaultColumns],
+    sort: { ...EXPENSES_TABLE_CONFIG.defaultSort },
+  });
+  const tablePreferences = {
+    getTableConfig: vi.fn(() => EXPENSES_TABLE_CONFIG),
+    getTablePreferences: vi.fn(() => tableState.asReadonly()),
+    toggleColumnVisibility: vi.fn(),
+    reorderColumns: vi.fn(),
+    setSort: vi.fn(),
+    resetToDefaults: vi.fn(),
+  };
+  const workspaceService = {
+    currentWorkspace: signal({ id: 'ws-1' }),
+  };
 
   const fixture = TestBed.configureTestingModule({
     imports: [ExpensesComponent],
@@ -219,6 +258,8 @@ function render() {
       { provide: ExpenseService, useValue: expenseService },
       { provide: ExpenseCategoryService, useValue: categoryService },
       { provide: ExpenseRecurringService, useValue: recurringService },
+      { provide: TablePreferencesService, useValue: tablePreferences },
+      { provide: WorkspaceService, useValue: workspaceService },
     ],
   }).createComponent(ExpensesComponent);
   fixture.detectChanges();
@@ -240,6 +281,9 @@ describe('ExpensesComponent', () => {
     expect(host.textContent).toContain('29,90');
     expect(host.textContent).toContain('Ausgabe hinzufügen');
     expect(host.textContent).toContain('Kategorien verwalten');
+    expect(host.querySelector('app-data-table')).toBeTruthy();
+    expect(host.querySelector('[data-data-table-toolbar]')).toBeTruthy();
+    expect(host.querySelector('[data-data-table-settings]')).toBeTruthy();
     expect(headings).toEqual([
       'Datum',
       'Bezeichnung',
@@ -272,6 +316,7 @@ describe('ExpensesComponent', () => {
     expect(host.textContent).toContain('Server');
     expect(host.textContent).toContain('monatlich');
     expect(host.textContent).toContain('18.10.2026');
+    expect(host.querySelector('app-data-table')).toBeTruthy();
   });
 
   it('besteht die automatischen Barrierefreiheitsprüfungen', async () => {

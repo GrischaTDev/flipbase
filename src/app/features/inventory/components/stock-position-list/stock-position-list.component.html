@@ -1,397 +1,354 @@
-<section class="linear-surface overflow-visible rounded-xl" aria-label="Inventartabelle">
-  <div class="flex flex-wrap items-center justify-end gap-3 border-b border-fb-line px-4 py-2">
-    <div class="flex flex-wrap items-center justify-end gap-2">
-      <ng-content select="[table-toolbar-leading]"></ng-content>
-      @if (tableColumns().length > 0 && currentSort(); as sort) {
-        <div class="border-l border-fb-line pl-2">
-          <app-table-column-menu
-            [columns]="tableColumns()"
-            [sortOptions]="sortOptions()"
-            [currentSort]="sort"
-            [viewModified]="viewModified()"
-            (columnVisibilityToggled)="columnVisibilityToggled.emit($event)"
-            (columnsReordered)="columnsReordered.emit($event)"
-            (sortChanged)="sortChanged.emit($event)"
-            (viewResetRequested)="viewResetRequested.emit()"
-          />
-        </div>
-      }
-    </div>
-  </div>
-  @if (rows().length > 0) {
-    <div class="overflow-x-auto">
-      <table
-        [style.min-width.px]="440 + (orderedVisibleColumns().length - 3) * 80"
-        data-unified-inventory-table
-        class="linear-table w-full"
-      >
-        <caption class="sr-only">
-          Bestand mit Artikel, auf Lager, verfügbar und reserviert
-        </caption>
-        <thead class="bg-fb-surface text-[13px] font-semibold text-fb-text-secondary">
-          <tr>
+@if (rows().length > 0) {
+  <div class="overflow-x-auto">
+    <table
+      [style.min-width.px]="440 + (orderedVisibleColumns().length - 3) * 80"
+      data-unified-inventory-table
+      data-shared-ui-exception="data-table-content"
+      class="linear-table w-full"
+    >
+      <caption class="sr-only">
+        Bestand mit Artikel, auf Lager, verfügbar und reserviert
+      </caption>
+      <thead class="bg-fb-surface text-[13px] font-semibold text-fb-text-secondary">
+        <tr>
+          @for (column of orderedVisibleColumns(); track column) {
+            @switch (column) {
+              @case ('selection') {
+                <th scope="col" class="w-12 border-b border-fb-line px-3 py-2.5 text-center">
+                  Auswahl
+                </th>
+              }
+              @case ('title') {
+                <th
+                  scope="col"
+                  [attr.aria-sort]="ariaSort('title')"
+                  class="min-w-60 border-b border-fb-line px-3 py-2.5 text-left"
+                >
+                  <app-table-sort-header
+                    label="Artikel"
+                    sortField="title"
+                    [currentSort]="currentSort()"
+                    (sortChanged)="sortChanged.emit($event)"
+                  />
+                </th>
+              }
+              @case ('condition') {
+                <th scope="col" class="border-b border-fb-line px-3 py-2.5 text-left">Zustand</th>
+              }
+              @case ('quantity') {
+                <th
+                  scope="col"
+                  [attr.aria-sort]="ariaSort('quantity')"
+                  class="border-b border-fb-line px-3 py-2.5 text-left"
+                >
+                  <app-table-sort-header
+                    label="Auf Lager"
+                    sortField="quantity"
+                    [currentSort]="currentSort()"
+                    (sortChanged)="sortChanged.emit($event)"
+                  />
+                </th>
+              }
+              @case ('available') {
+                <th scope="col" class="border-b border-fb-line px-3 py-2.5 text-right">
+                  Verfügbar
+                </th>
+              }
+              @case ('reserved') {
+                <th scope="col" class="border-b border-fb-line px-3 py-2.5 text-right">
+                  Reserviert
+                </th>
+              }
+              @case ('status') {
+                <th scope="col" class="border-b border-fb-line px-3 py-2.5 text-left">Status</th>
+              }
+              @case ('origin') {
+                <th scope="col" class="min-w-44 border-b border-fb-line px-3 py-2.5 text-left">
+                  Herkunft
+                </th>
+              }
+              @case ('unit_cost') {
+                <th
+                  scope="col"
+                  [attr.aria-sort]="ariaSort('unit_cost')"
+                  class="border-b border-fb-line px-3 py-2.5 text-right"
+                >
+                  <app-table-sort-header
+                    label="Kosten pro Stück"
+                    sortField="unit_cost"
+                    [currentSort]="currentSort()"
+                    (sortChanged)="sortChanged.emit($event)"
+                    align="right"
+                  />
+                </th>
+              }
+              @case ('inventory_value') {
+                <th
+                  scope="col"
+                  [attr.aria-sort]="ariaSort('inventory_value')"
+                  class="border-b border-fb-line px-3 py-2.5 text-right"
+                >
+                  <app-table-sort-header
+                    label="Bestandswert"
+                    sortField="inventory_value"
+                    [currentSort]="currentSort()"
+                    (sortChanged)="sortChanged.emit($event)"
+                    align="right"
+                  />
+                </th>
+              }
+              @case ('sale') {
+                <th scope="col" class="border-b border-fb-line px-3 py-2.5 text-left">Verkauf</th>
+              }
+              @case ('actions') {
+                <th scope="col" class="border-b border-fb-line px-3 py-2.5 text-right">Aktionen</th>
+              }
+            }
+          }
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-fb-line">
+        @for (row of rows(); track row.id) {
+          <tr
+            [attr.data-stock-row]="row.trackingMode === 'quantity' ? '' : null"
+            [attr.data-individual-row]="row.trackingMode === 'individual' ? '' : null"
+            class="align-top transition hover:bg-fb-surface-alt"
+            [class.bg-fb-surface-alt]="row.inventoryItem && isItemSelected(row.inventoryItem.id)"
+          >
             @for (column of orderedVisibleColumns(); track column) {
               @switch (column) {
                 @case ('selection') {
-                  <th scope="col" class="w-12 border-b border-fb-line px-3 py-2.5 text-center">
-                    Auswahl
-                  </th>
+                  <td class="px-3 py-3 text-center">
+                    @if (row.inventoryItem; as item) {
+                      <div data-item-select class="flex justify-center">
+                        <input
+                          type="checkbox"
+                          [checked]="isItemSelected(item.id)"
+                          (change)="selectionChanged.emit(item.id)"
+                          [attr.aria-label]="'Artikel ' + item.title + ' auswählen'"
+                          class="h-4 w-4 cursor-pointer rounded border-fb-border bg-fb-well text-emerald-600 focus:ring-2 focus:ring-emerald-400"
+                        />
+                      </div>
+                    } @else {
+                      <span aria-hidden="true">—</span>
+                    }
+                  </td>
                 }
                 @case ('title') {
-                  <th
-                    scope="col"
-                    [attr.aria-sort]="ariaSort('title')"
-                    class="min-w-60 border-b border-fb-line px-3 py-2.5 text-left"
-                  >
-                    <app-table-sort-header
-                      label="Artikel"
-                      sortField="title"
-                      [currentSort]="currentSort()"
-                      (sortChanged)="sortChanged.emit($event)"
-                    />
-                  </th>
-                }
-                @case ('condition') {
-                  <th scope="col" class="border-b border-fb-line px-3 py-2.5 text-left">Zustand</th>
-                }
-                @case ('quantity') {
-                  <th
-                    scope="col"
-                    [attr.aria-sort]="ariaSort('quantity')"
-                    class="border-b border-fb-line px-3 py-2.5 text-left"
-                  >
-                    <app-table-sort-header
-                      label="Auf Lager"
-                      sortField="quantity"
-                      [currentSort]="currentSort()"
-                      (sortChanged)="sortChanged.emit($event)"
-                    />
-                  </th>
-                }
-                @case ('available') {
-                  <th scope="col" class="border-b border-fb-line px-3 py-2.5 text-right">
-                    Verfügbar
-                  </th>
-                }
-                @case ('reserved') {
-                  <th scope="col" class="border-b border-fb-line px-3 py-2.5 text-right">
-                    Reserviert
-                  </th>
-                }
-                @case ('status') {
-                  <th scope="col" class="border-b border-fb-line px-3 py-2.5 text-left">Status</th>
-                }
-                @case ('origin') {
-                  <th scope="col" class="min-w-44 border-b border-fb-line px-3 py-2.5 text-left">
-                    Herkunft
-                  </th>
-                }
-                @case ('unit_cost') {
-                  <th
-                    scope="col"
-                    [attr.aria-sort]="ariaSort('unit_cost')"
-                    class="border-b border-fb-line px-3 py-2.5 text-right"
-                  >
-                    <app-table-sort-header
-                      label="Kosten pro Stück"
-                      sortField="unit_cost"
-                      [currentSort]="currentSort()"
-                      (sortChanged)="sortChanged.emit($event)"
-                      align="right"
-                    />
-                  </th>
-                }
-                @case ('inventory_value') {
-                  <th
-                    scope="col"
-                    [attr.aria-sort]="ariaSort('inventory_value')"
-                    class="border-b border-fb-line px-3 py-2.5 text-right"
-                  >
-                    <app-table-sort-header
-                      label="Bestandswert"
-                      sortField="inventory_value"
-                      [currentSort]="currentSort()"
-                      (sortChanged)="sortChanged.emit($event)"
-                      align="right"
-                    />
-                  </th>
-                }
-                @case ('sale') {
-                  <th scope="col" class="border-b border-fb-line px-3 py-2.5 text-left">Verkauf</th>
-                }
-                @case ('actions') {
-                  <th scope="col" class="border-b border-fb-line px-3 py-2.5 text-right">
-                    Aktionen
-                  </th>
-                }
-              }
-            }
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-fb-line">
-          @for (row of rows(); track row.id) {
-            <tr
-              [attr.data-stock-row]="row.trackingMode === 'quantity' ? '' : null"
-              [attr.data-individual-row]="row.trackingMode === 'individual' ? '' : null"
-              class="align-top transition hover:bg-fb-surface-alt"
-              [class.bg-fb-surface-alt]="row.inventoryItem && isItemSelected(row.inventoryItem.id)"
-            >
-              @for (column of orderedVisibleColumns(); track column) {
-                @switch (column) {
-                  @case ('selection') {
-                    <td class="px-3 py-3 text-center">
-                      @if (row.inventoryItem; as item) {
-                        <div data-item-select class="flex justify-center">
-                          <input
-                            type="checkbox"
-                            [checked]="isItemSelected(item.id)"
-                            (change)="selectionChanged.emit(item.id)"
-                            [attr.aria-label]="'Artikel ' + item.title + ' auswählen'"
-                            class="h-4 w-4 cursor-pointer rounded border-fb-border bg-fb-well text-emerald-600 focus:ring-2 focus:ring-emerald-400"
-                          />
-                        </div>
-                      } @else {
-                        <span aria-hidden="true">—</span>
-                      }
-                    </td>
-                  }
-                  @case ('title') {
-                    <td class="px-3 py-3">
-                      <div class="flex items-start gap-3">
-                        <app-product-thumbnail
-                          (imageFailed)="imageFailed.emit(row.actionId)"
-                          [src]="imageUrls()[row.actionId] || null"
-                        />
-                        <div class="min-w-0 space-y-1">
-                          <a
-                            [attr.data-item-details]="row.inventoryItem ? '' : null"
-                            [attr.data-catalog-stock-link]="row.inventoryItem ? null : ''"
-                            [routerLink]="
-                              row.inventoryItem
-                                ? ['/inventory', row.actionId]
-                                : ['/catalog', row.actionId]
-                            "
-                            [queryParams]="row.inventoryItem ? null : { view: 'stock' }"
-                            class="font-semibold text-fb-text-primary hover:underline focus-visible:outline-2 focus-visible:outline-fb-primary"
-                            >{{ row.title }}</a
-                          >
-                          @if (
-                            row.quantityState === 'review_required' ||
-                            row.status.kind === 'conflict'
-                          ) {
-                            <div>
-                              <app-badge
-                                [tone]="row.status.kind === 'conflict' ? 'critical' : 'caution'"
-                              >
-                                {{
-                                  row.status.kind === 'conflict' || row.status.kind === 'review'
-                                    ? row.status.label
-                                    : 'Bestand klären'
-                                }}
-                              </app-badge>
-                            </div>
-                          } @else if (row.quantityState === 'error') {
-                            <div>
-                              <app-badge tone="critical">Bestand nicht verfügbar</app-badge>
-                            </div>
-                          }
-                          @if (row.originState === 'error' || row.salesState === 'error') {
-                            <div>
-                              <app-badge tone="caution"
-                                >Belege nicht vollständig verfügbar</app-badge
-                              >
-                            </div>
-                          }
+                  <td class="px-3 py-3">
+                    <div class="flex items-start gap-3">
+                      <app-product-thumbnail
+                        (imageFailed)="imageFailed.emit(row.actionId)"
+                        [src]="imageUrls()[row.actionId] || null"
+                      />
+                      <div class="min-w-0 space-y-1">
+                        <a
+                          [attr.data-item-details]="row.inventoryItem ? '' : null"
+                          [attr.data-catalog-stock-link]="row.inventoryItem ? null : ''"
+                          [routerLink]="
+                            row.inventoryItem
+                              ? ['/inventory', row.actionId]
+                              : ['/catalog', row.actionId]
+                          "
+                          [queryParams]="row.inventoryItem ? null : { view: 'stock' }"
+                          class="font-semibold text-fb-text-primary hover:underline focus-visible:outline-2 focus-visible:outline-fb-primary"
+                          >{{ row.title }}</a
+                        >
+                        @if (
+                          row.quantityState === 'review_required' || row.status.kind === 'conflict'
+                        ) {
                           <div>
-                            <app-button
-                              variant="plain"
-                              size="slim"
-                              [icon]="areLotsOpen(row.actionId) ? chevronUpIcon : chevronDownIcon"
-                              (clicked)="toggleLots(row.actionId)"
-                              [attr.data-stock-origin-toggle]="row.actionId"
-                              [ariaLabel]="
-                                'Details für ' +
-                                row.title +
-                                (areLotsOpen(row.actionId) ? ' zuklappen' : ' aufklappen')
-                              "
-                              [ariaExpanded]="areLotsOpen(row.actionId)"
-                              [ariaControls]="'stock-origins-' + row.actionId"
-                              >Details</app-button
+                            <app-badge
+                              [tone]="row.status.kind === 'conflict' ? 'critical' : 'caution'"
                             >
+                              {{
+                                row.status.kind === 'conflict' || row.status.kind === 'review'
+                                  ? row.status.label
+                                  : 'Bestand klären'
+                              }}
+                            </app-badge>
                           </div>
+                        } @else if (row.quantityState === 'error') {
+                          <div>
+                            <app-badge tone="critical">Bestand nicht verfügbar</app-badge>
+                          </div>
+                        }
+                        @if (row.originState === 'error' || row.salesState === 'error') {
+                          <div>
+                            <app-badge tone="caution">Belege nicht vollständig verfügbar</app-badge>
+                          </div>
+                        }
+                        <div>
+                          <app-button
+                            variant="plain"
+                            size="slim"
+                            [icon]="areLotsOpen(row.actionId) ? chevronUpIcon : chevronDownIcon"
+                            (clicked)="toggleLots(row.actionId)"
+                            [attr.data-stock-origin-toggle]="row.actionId"
+                            [ariaLabel]="
+                              'Details für ' +
+                              row.title +
+                              (areLotsOpen(row.actionId) ? ' zuklappen' : ' aufklappen')
+                            "
+                            [ariaExpanded]="areLotsOpen(row.actionId)"
+                            [ariaControls]="'stock-origins-' + row.actionId"
+                            >Details</app-button
+                          >
                         </div>
                       </div>
-                    </td>
-                  }
-                  @case ('condition') {
-                    <td class="px-3 py-3 text-xs text-fb-text-secondary">
-                      @if (row.condition) {
-                        {{ row.condition | itemConditionLabel }}
-                      } @else {
-                        <span class="text-fb-text-muted">—</span>
-                      }
-                    </td>
-                  }
-                  @case ('quantity') {
-                    <td
-                      data-stock-quantity="quantity"
-                      class="px-3 py-3 text-right text-[13px] tabular-nums text-fb-text-primary"
-                    >
-                      @if (row.quantityState === 'known') {
-                        {{ row.onHandQuantity }}
-                      } @else {
-                        <span class="text-fb-text-muted" [attr.aria-label]="quantityStateLabel(row)"
-                          >—</span
-                        >
-                      }
-                    </td>
-                  }
-                  @case ('available') {
-                    <td
-                      data-stock-quantity="available"
-                      class="px-3 py-3 text-right text-[13px] tabular-nums text-fb-text-primary"
-                    >
-                      @if (row.quantityState === 'known') {
-                        {{ row.quantity.available }}
-                      } @else {
-                        <span class="text-fb-text-muted" [attr.aria-label]="quantityStateLabel(row)"
-                          >—</span
-                        >
-                      }
-                    </td>
-                  }
-                  @case ('reserved') {
-                    <td
-                      data-stock-quantity="reserved"
-                      class="px-3 py-3 text-right text-[13px] tabular-nums text-fb-text-primary"
-                    >
-                      @if (row.quantityState === 'known') {
-                        {{ row.quantity.reserved }}
-                      } @else {
-                        <span class="text-fb-text-muted" [attr.aria-label]="quantityStateLabel(row)"
-                          >—</span
-                        >
-                      }
-                    </td>
-                  }
-                  @case ('status') {
-                    <td class="px-3 py-3">
-                      <ng-container
-                        [ngTemplateOutlet]="statusDetails"
-                        [ngTemplateOutletContext]="{ $implicit: row }"
-                      />
-                    </td>
-                  }
-                  @case ('origin') {
-                    <td class="px-3 py-3 text-xs text-fb-text-secondary">
-                      <ng-container
-                        [ngTemplateOutlet]="originDetails"
-                        [ngTemplateOutletContext]="{ $implicit: row }"
-                      />
-                    </td>
-                  }
-                  @case ('unit_cost') {
-                    <td class="px-3 py-3 text-right font-mono text-xs">
-                      <ng-container
-                        [ngTemplateOutlet]="unit_costDetails"
-                        [ngTemplateOutletContext]="{ $implicit: row }"
-                      />
-                    </td>
-                  }
-                  @case ('inventory_value') {
-                    <td class="px-3 py-3 text-right font-mono text-xs">
-                      <ng-container
-                        [ngTemplateOutlet]="inventory_valueDetails"
-                        [ngTemplateOutletContext]="{ $implicit: row }"
-                      />
-                    </td>
-                  }
-                  @case ('sale') {
-                    <td class="px-3 py-3 text-xs">
-                      <ng-container
-                        [ngTemplateOutlet]="saleDetails"
-                        [ngTemplateOutletContext]="{ $implicit: row }"
-                      />
-                    </td>
-                  }
-                  @case ('actions') {
-                    <td class="px-3 py-3 text-right">
-                      <div class="flex items-center justify-end gap-1.5">
-                        @if (row.inventoryItem; as item) {
-                          @if (
-                            item.archived_at ||
-                            (item.sale_state === 'sold' && item.active_sale_count === 1)
-                          ) {
-                            <button
-                              type="button"
-                              data-item-archive
-                              (click)="archiveItem.emit(item)"
-                              [disabled]="archivePendingIds().has(item.id)"
-                              class="linear-btn-secondary cursor-pointer rounded-lg px-2.5 py-1.5 text-xs font-semibold disabled:opacity-50"
-                            >
-                              {{ item.archived_at ? 'Aus Archiv holen' : 'Archivieren' }}
-                            </button>
-                          }
+                    </div>
+                  </td>
+                }
+                @case ('condition') {
+                  <td class="px-3 py-3 text-xs text-fb-text-secondary">
+                    @if (row.condition) {
+                      {{ row.condition | itemConditionLabel }}
+                    } @else {
+                      <span class="text-fb-text-muted">—</span>
+                    }
+                  </td>
+                }
+                @case ('quantity') {
+                  <td
+                    data-stock-quantity="quantity"
+                    class="px-3 py-3 text-right text-[13px] tabular-nums text-fb-text-primary"
+                  >
+                    @if (row.quantityState === 'known') {
+                      {{ row.onHandQuantity }}
+                    } @else {
+                      <span class="text-fb-text-muted" [attr.aria-label]="quantityStateLabel(row)"
+                        >—</span
+                      >
+                    }
+                  </td>
+                }
+                @case ('available') {
+                  <td
+                    data-stock-quantity="available"
+                    class="px-3 py-3 text-right text-[13px] tabular-nums text-fb-text-primary"
+                  >
+                    @if (row.quantityState === 'known') {
+                      {{ row.quantity.available }}
+                    } @else {
+                      <span class="text-fb-text-muted" [attr.aria-label]="quantityStateLabel(row)"
+                        >—</span
+                      >
+                    }
+                  </td>
+                }
+                @case ('reserved') {
+                  <td
+                    data-stock-quantity="reserved"
+                    class="px-3 py-3 text-right text-[13px] tabular-nums text-fb-text-primary"
+                  >
+                    @if (row.quantityState === 'known') {
+                      {{ row.quantity.reserved }}
+                    } @else {
+                      <span class="text-fb-text-muted" [attr.aria-label]="quantityStateLabel(row)"
+                        >—</span
+                      >
+                    }
+                  </td>
+                }
+                @case ('status') {
+                  <td class="px-3 py-3">
+                    <ng-container
+                      [ngTemplateOutlet]="statusDetails"
+                      [ngTemplateOutletContext]="{ $implicit: row }"
+                    />
+                  </td>
+                }
+                @case ('origin') {
+                  <td class="px-3 py-3 text-xs text-fb-text-secondary">
+                    <ng-container
+                      [ngTemplateOutlet]="originDetails"
+                      [ngTemplateOutletContext]="{ $implicit: row }"
+                    />
+                  </td>
+                }
+                @case ('unit_cost') {
+                  <td class="px-3 py-3 text-right font-mono text-xs">
+                    <ng-container
+                      [ngTemplateOutlet]="unit_costDetails"
+                      [ngTemplateOutletContext]="{ $implicit: row }"
+                    />
+                  </td>
+                }
+                @case ('inventory_value') {
+                  <td class="px-3 py-3 text-right font-mono text-xs">
+                    <ng-container
+                      [ngTemplateOutlet]="inventory_valueDetails"
+                      [ngTemplateOutletContext]="{ $implicit: row }"
+                    />
+                  </td>
+                }
+                @case ('sale') {
+                  <td class="px-3 py-3 text-xs">
+                    <ng-container
+                      [ngTemplateOutlet]="saleDetails"
+                      [ngTemplateOutletContext]="{ $implicit: row }"
+                    />
+                  </td>
+                }
+                @case ('actions') {
+                  <td class="px-3 py-3 text-right">
+                    <div class="flex items-center justify-end gap-1.5">
+                      @if (row.inventoryItem; as item) {
+                        @if (
+                          item.archived_at ||
+                          (item.sale_state === 'sold' && item.active_sale_count === 1)
+                        ) {
                           <button
-                            data-item-label
                             type="button"
-                            (click)="labelIndividual.emit(item)"
-                            class="cursor-pointer rounded-lg p-1.5 text-fb-text-muted transition hover:bg-fb-line hover:text-fb-text-primary"
-                            [attr.aria-label]="'Etikett für ' + row.title + ' drucken'"
+                            data-item-archive
+                            (click)="archiveItem.emit(item)"
+                            [disabled]="archivePendingIds().has(item.id)"
+                            class="linear-btn-secondary cursor-pointer rounded-lg px-2.5 py-1.5 text-xs font-semibold disabled:opacity-50"
+                          >
+                            {{ item.archived_at ? 'Aus Archiv holen' : 'Archivieren' }}
+                          </button>
+                        }
+                        <button
+                          data-item-label
+                          type="button"
+                          (click)="labelIndividual.emit(item)"
+                          class="cursor-pointer rounded-lg p-1.5 text-fb-text-muted transition hover:bg-fb-line hover:text-fb-text-primary"
+                          [attr.aria-label]="'Etikett für ' + row.title + ' drucken'"
+                        >
+                          <svg [lucideIcon]="printerIcon" class="h-4 w-4" aria-hidden="true"></svg>
+                        </button>
+                        <a
+                          data-item-details
+                          [routerLink]="['/inventory', item.id]"
+                          class="rounded-lg p-1.5 text-fb-text-muted transition hover:bg-fb-line hover:text-fb-text-primary"
+                          [attr.aria-label]="'Details für ' + row.title + ' öffnen'"
+                          ><svg
+                            [lucideIcon]="arrowRightIcon"
+                            class="h-4 w-4"
+                            aria-hidden="true"
+                          ></svg
+                        ></a>
+                        @if (row.canMutate) {
+                          <button
+                            data-item-store-toggle
+                            type="button"
+                            (click)="emitStoreToggle(item)"
+                            class="cursor-pointer rounded-lg p-1.5 transition hover:bg-fb-line"
+                            [attr.aria-label]="row.title + ' Webshop-Freigabe ändern'"
                           >
                             <svg
-                              [lucideIcon]="printerIcon"
-                              class="h-4 w-4"
+                              [lucideIcon]="storeIcon"
+                              class="h-4 w-4 text-fb-text-muted"
                               aria-hidden="true"
                             ></svg>
                           </button>
-                          <a
-                            data-item-details
-                            [routerLink]="['/inventory', item.id]"
-                            class="rounded-lg p-1.5 text-fb-text-muted transition hover:bg-fb-line hover:text-fb-text-primary"
-                            [attr.aria-label]="'Details für ' + row.title + ' öffnen'"
-                            ><svg
-                              [lucideIcon]="arrowRightIcon"
-                              class="h-4 w-4"
-                              aria-hidden="true"
-                            ></svg
-                          ></a>
-                          @if (row.canMutate) {
-                            <button
-                              data-item-store-toggle
-                              type="button"
-                              (click)="emitStoreToggle(item)"
-                              class="cursor-pointer rounded-lg p-1.5 transition hover:bg-fb-line"
-                              [attr.aria-label]="row.title + ' Webshop-Freigabe ändern'"
-                            >
-                              <svg
-                                [lucideIcon]="storeIcon"
-                                class="h-4 w-4 text-fb-text-muted"
-                                aria-hidden="true"
-                              ></svg>
-                            </button>
-                          }
-                          @if (row.canSell) {
-                            <button
-                              data-item-sell
-                              type="button"
-                              (click)="emitIndividualSale(item)"
-                              class="linear-btn-secondary inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold"
-                              [attr.aria-label]="row.title + ' verkaufen'"
-                            >
-                              <svg
-                                [lucideIcon]="shoppingCartIcon"
-                                class="h-3.5 w-3.5"
-                                aria-hidden="true"
-                              ></svg
-                              >Verkaufen
-                            </button>
-                          }
-                        } @else if (row.canSell) {
+                        }
+                        @if (row.canSell) {
                           <button
+                            data-item-sell
                             type="button"
-                            (click)="sell.emit(stockPosition(row))"
-                            class="linear-btn-secondary inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
+                            (click)="emitIndividualSale(item)"
+                            class="linear-btn-secondary inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold"
                             [attr.aria-label]="row.title + ' verkaufen'"
                           >
                             <svg
@@ -402,88 +359,90 @@
                             >Verkaufen
                           </button>
                         }
-                      </div>
-                    </td>
-                  }
-                }
-              }
-            </tr>
-            @if (areLotsOpen(row.actionId)) {
-              <tr>
-                <td [attr.colspan]="orderedVisibleColumns().length" class="bg-fb-well px-5 py-3">
-                  <div
-                    [id]="'stock-origins-' + row.actionId"
-                    class="space-y-2"
-                    aria-label="Artikeldetails"
-                  >
-                    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                      @for (
-                        detail of [
-                          { label: 'Status', template: statusDetails },
-                          { label: 'Herkunft', template: originDetails },
-                          { label: 'Kosten pro Stück', template: unit_costDetails },
-                          { label: 'Bestandswert', template: inventory_valueDetails },
-                          { label: 'Verkäufe', template: saleDetails },
-                        ];
-                        track detail.label
-                      ) {
-                        <div>
-                          <h3 class="mb-1 text-[13px] font-semibold text-fb-text-secondary">
-                            {{ detail.label }}
-                          </h3>
-                          <ng-container
-                            [ngTemplateOutlet]="detail.template"
-                            [ngTemplateOutletContext]="{ $implicit: row }"
-                          />
-                        </div>
+                      } @else if (row.canSell) {
+                        <button
+                          type="button"
+                          (click)="sell.emit(stockPosition(row))"
+                          class="linear-btn-secondary inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
+                          [attr.aria-label]="row.title + ' verkaufen'"
+                        >
+                          <svg
+                            [lucideIcon]="shoppingCartIcon"
+                            class="h-3.5 w-3.5"
+                            aria-hidden="true"
+                          ></svg
+                          >Verkaufen
+                        </button>
                       }
                     </div>
-                    @if (row.lots.length > 0) {
-                      <div class="grid grid-cols-4 gap-3 text-xs font-semibold text-fb-text-muted">
-                        <span>Herkunft</span><span>Wareneingang</span
-                        ><span class="text-right">Restmenge</span
-                        ><span class="text-right">Kosten pro Stück</span>
+                  </td>
+                }
+              }
+            }
+          </tr>
+          @if (areLotsOpen(row.actionId)) {
+            <tr>
+              <td [attr.colspan]="orderedVisibleColumns().length" class="bg-fb-well px-5 py-3">
+                <div
+                  [id]="'stock-origins-' + row.actionId"
+                  class="space-y-2"
+                  aria-label="Artikeldetails"
+                >
+                  <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    @for (
+                      detail of [
+                        { label: 'Status', template: statusDetails },
+                        { label: 'Herkunft', template: originDetails },
+                        { label: 'Kosten pro Stück', template: unit_costDetails },
+                        { label: 'Bestandswert', template: inventory_valueDetails },
+                        { label: 'Verkäufe', template: saleDetails },
+                      ];
+                      track detail.label
+                    ) {
+                      <div>
+                        <h3 class="mb-1 text-[13px] font-semibold text-fb-text-secondary">
+                          {{ detail.label }}
+                        </h3>
+                        <ng-container
+                          [ngTemplateOutlet]="detail.template"
+                          [ngTemplateOutletContext]="{ $implicit: row }"
+                        />
                       </div>
-                      @for (lot of row.lots; track lot.id) {
-                        <div
-                          [attr.data-stock-origin]="lot.id"
-                          class="grid grid-cols-4 gap-3 border-t border-fb-line/70 pt-2 font-mono text-xs text-fb-text-secondary"
-                        >
-                          <a
-                            [routerLink]="['/purchases', lot.purchaseId]"
-                            class="font-sans text-fb-text-primary hover:underline"
-                            >Einkauf öffnen</a
-                          >
-                          <span class="font-sans">{{ lot.receivedAt | date: 'dd.MM.yyyy' }}</span
-                          ><span class="text-right">{{ lot.remainingQuantity }} Stück</span
-                          ><span class="text-right"
-                            ><app-cost-state [state]="lot.costPerUnit"
-                          /></span>
-                        </div>
-                      }
                     }
                   </div>
-                </td>
-              </tr>
-            }
+                  @if (row.lots.length > 0) {
+                    <div class="grid grid-cols-4 gap-3 text-xs font-semibold text-fb-text-muted">
+                      <span>Herkunft</span><span>Wareneingang</span
+                      ><span class="text-right">Restmenge</span
+                      ><span class="text-right">Kosten pro Stück</span>
+                    </div>
+                    @for (lot of row.lots; track lot.id) {
+                      <div
+                        [attr.data-stock-origin]="lot.id"
+                        class="grid grid-cols-4 gap-3 border-t border-fb-line/70 pt-2 font-mono text-xs text-fb-text-secondary"
+                      >
+                        <a
+                          [routerLink]="['/purchases', lot.purchaseId]"
+                          class="font-sans text-fb-text-primary hover:underline"
+                          >Einkauf öffnen</a
+                        >
+                        <span class="font-sans">{{ lot.receivedAt | date: 'dd.MM.yyyy' }}</span
+                        ><span class="text-right">{{ lot.remainingQuantity }} Stück</span
+                        ><span class="text-right"
+                          ><app-cost-state [state]="lot.costPerUnit"
+                        /></span>
+                      </div>
+                    }
+                  }
+                </div>
+              </td>
+            </tr>
           }
-        </tbody>
-      </table>
-    </div>
-  } @else {
-    <div class="px-5 py-10 text-center">
-      <svg
-        [lucideIcon]="packageOpenIcon"
-        class="mx-auto h-6 w-6 text-fb-text-muted"
-        aria-hidden="true"
-      ></svg>
-      <h2 class="mt-3 text-sm font-semibold text-fb-text-secondary">
-        Keine Inventarpositionen gefunden
-      </h2>
-      <p class="mt-1 text-xs text-fb-text-muted">Passe Suche oder Filter an.</p>
-    </div>
-  }
-</section>
+        }
+      </tbody>
+    </table>
+  </div>
+}
 
 @if (movementRows().length > 0) {
   <div class="mt-4">
@@ -508,7 +467,7 @@
         </h2>
       </div>
       <div class="overflow-x-auto">
-        <table class="linear-table w-full">
+        <table class="linear-table w-full" data-shared-ui-exception="static-table">
           <caption class="sr-only">
             vollständige Bewegungshistorie aller Wareneingänge
           </caption>

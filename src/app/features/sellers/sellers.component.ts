@@ -16,6 +16,7 @@ import {
   SelectOption,
 } from '../../shared/components/custom-select/custom-select.component';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
+import { DataTableComponent } from '../../shared/components/data-table/data-table.component';
 import { ToastService } from '../../shared/components/toast/toast.service';
 import { PurchaseSellerDialogComponent } from './components/purchase-seller-dialog/purchase-seller-dialog.component';
 import {
@@ -31,6 +32,7 @@ import {
     BadgeComponent,
     ButtonComponent,
     CustomSelectComponent,
+    DataTableComponent,
     LucideDynamicIcon,
     PageHeaderComponent,
     PurchaseSellerDialogComponent,

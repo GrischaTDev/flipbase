@@ -14,7 +14,10 @@
     <p class="text-[13px] text-rose-700 dark:text-rose-400" role="alert">{{ importError() }}</p>
   }
   @if (lineCount() > 0) {
-    <table class="block w-full table-fixed text-[13px] md:table">
+    <table
+      data-shared-ui-exception="embedded-table"
+      class="block w-full table-fixed text-[13px] md:table"
+    >
       <caption class="sr-only">
         Einkaufspositionen
       </caption>

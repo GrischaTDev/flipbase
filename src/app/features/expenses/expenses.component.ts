@@ -12,10 +12,17 @@ import {
   LucidePlus as Plus,
   LucideSettings2 as Settings2,
 } from '@lucide/angular';
+import { ExpensesColumnId, ExpensesSortField } from '../../core/config/table-defaults.config';
 import { Expense, ExpenseRecurringRule, ExpenseStatus } from '../../core/models/expense.models';
+import {
+  TableSortState,
+  tableStateDiffersFromDefaults,
+} from '../../core/models/table-preferences.models';
 import { ExpenseCategoryService } from '../../core/services/expense-category.service';
 import { ExpenseRecurringService } from '../../core/services/expense-recurring.service';
 import { ExpenseService } from '../../core/services/expense.service';
+import { TablePreferencesService } from '../../core/services/table-preferences.service';
+import { WorkspaceService } from '../../core/services/workspace.service';
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
 import { CardComponent } from '../../shared/components/card/card.component';
@@ -23,8 +30,10 @@ import {
   CustomSelectComponent,
   SelectOption,
 } from '../../shared/components/custom-select/custom-select.component';
+import { DataTableComponent } from '../../shared/components/data-table/data-table.component';
 import { ModalShellComponent } from '../../shared/components/modal-shell/modal-shell.component';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
+import { TableSortHeaderComponent } from '../../shared/components/table-sort-header/table-sort-header.component';
 import { ExpenseCategoryDialogComponent } from './components/expense-category-dialog/expense-category-dialog.component';
 import { ExpenseDialogComponent } from './components/expense-dialog/expense-dialog.component';
 import { ExpenseDocumentsComponent } from './components/expense-documents/expense-documents.component';
@@ -51,6 +60,8 @@ function localDateKey(date = new Date()): string {
     CardComponent,
     BadgeComponent,
     CustomSelectComponent,
+    DataTableComponent,
+    TableSortHeaderComponent,
     ModalShellComponent,
     ExpenseCategoryDialogComponent,
     ExpenseDialogComponent,
@@ -64,6 +75,8 @@ export class ExpensesComponent implements OnInit {
   readonly expenseService = inject(ExpenseService);
   readonly categoryService = inject(ExpenseCategoryService);
   readonly recurringService = inject(ExpenseRecurringService);
+  private readonly tablePreferences = inject(TablePreferencesService);
+  private readonly workspaceService = inject(WorkspaceService);
 
   readonly activeTab = signal<ExpenseTab>('expenses');
   readonly statusFilter = signal<ExpenseStatusFilter>('all');
@@ -79,6 +92,20 @@ export class ExpensesComponent implements OnInit {
   readonly pageIcon = CircleDollarSign;
   readonly addIcon = Plus;
   readonly settingsIcon = Settings2;
+  readonly workspaceId = computed(() => this.workspaceService.currentWorkspace()?.id ?? 'default');
+  readonly expensesTableConfig = this.tablePreferences.getTableConfig<
+    ExpensesColumnId,
+    ExpensesSortField
+  >('expenses');
+  readonly tablePrefs = computed(() =>
+    this.tablePreferences.getTablePreferences<ExpensesColumnId, ExpensesSortField>(
+      'expenses',
+      this.workspaceId(),
+    )(),
+  );
+  readonly orderedVisibleColumns = computed(() =>
+    this.tablePrefs().columns.filter((column) => column.visible),
+  );
 
   readonly statusOptions: readonly SelectOption<ExpenseStatusFilter>[] = [
     { value: 'all', label: 'Alle Status' },
@@ -98,13 +125,33 @@ export class ExpensesComponent implements OnInit {
     const status = this.statusFilter();
     const category = this.categoryFilter();
     const query = this.search().trim().toLocaleLowerCase('de-DE');
-
-    return this.expenseService
+    const sort = this.tablePrefs().sort;
+    const rows = this.expenseService
       .expenses()
       .filter((expense) => status === 'all' || expense.status === status)
       .filter((expense) => category === 'all' || expense.category_id === category)
       .filter((expense) => !query || expense.title.toLocaleLowerCase('de-DE').includes(query));
+
+    return [...rows].sort((left, right) => {
+      const comparison =
+        sort.field === 'gross_amount'
+          ? Number(left.gross_amount) - Number(right.gross_amount)
+          : sort.field === 'title'
+            ? left.title.localeCompare(right.title, 'de', { sensitivity: 'base' })
+            : sort.field === 'status'
+              ? left.status.localeCompare(right.status, 'de', { sensitivity: 'base' })
+              : left.expense_date.localeCompare(right.expense_date);
+      return sort.direction === 'asc' ? comparison : -comparison;
+    });
   });
+
+  readonly viewModified = computed(
+    () =>
+      this.search().trim() !== '' ||
+      this.statusFilter() !== 'all' ||
+      this.categoryFilter() !== 'all' ||
+      tableStateDiffersFromDefaults(this.tablePrefs(), this.expensesTableConfig),
+  );
 
   readonly summary = computed(() => {
     const expenses = this.expenseService.expenses();
@@ -183,8 +230,34 @@ export class ExpensesComponent implements OnInit {
     this.categoryFilter.set(value ?? 'all');
   }
 
-  setSearch(event: Event): void {
-    this.search.set((event.target as HTMLInputElement).value);
+  toggleColumnVisibility(columnId: ExpensesColumnId): void {
+    this.tablePreferences.toggleColumnVisibility('expenses', columnId, this.workspaceId());
+  }
+
+  onColumnsReordered(event: { previousIndex: number; currentIndex: number }): void {
+    this.tablePreferences.reorderColumns(
+      'expenses',
+      event.previousIndex,
+      event.currentIndex,
+      this.workspaceId(),
+    );
+  }
+
+  onSortChanged(sort: TableSortState<ExpensesSortField>): void {
+    this.tablePreferences.setSort('expenses', sort, this.workspaceId());
+  }
+
+  resetView(): void {
+    this.search.set('');
+    this.statusFilter.set('all');
+    this.categoryFilter.set('all');
+    this.tablePreferences.resetToDefaults('expenses', this.workspaceId());
+  }
+
+  ariaSort(field: ExpensesSortField): 'ascending' | 'descending' | null {
+    const sort = this.tablePrefs().sort;
+    if (sort.field !== field) return null;
+    return sort.direction === 'asc' ? 'ascending' : 'descending';
   }
 
   categoryName(categoryId: string): string {

@@ -25,7 +25,6 @@ import { StockPositionListComponent } from './stock-position-list.component';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
 import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
 import { CostStateComponent } from '../../../../shared/components/cost-state/cost-state.component';
-import { TableColumnMenuComponent } from '../../../../shared/components/table-column-menu/table-column-menu.component';
 import { TableSortHeaderComponent } from '../../../../shared/components/table-sort-header/table-sort-header.component';
 
 interface AngularInputMetadata {
@@ -69,10 +68,6 @@ beforeAll(async () => {
       'src/app/shared/components/custom-select/custom-select.component.html',
     './custom-select.component.scss':
       'src/app/shared/components/custom-select/custom-select.component.scss',
-    './table-column-menu.component.html':
-      'src/app/shared/components/table-column-menu/table-column-menu.component.html',
-    './table-column-menu.component.scss':
-      'src/app/shared/components/table-column-menu/table-column-menu.component.scss',
     './table-sort-header.component.html':
       'src/app/shared/components/table-sort-header/table-sort-header.component.html',
   };
@@ -117,12 +112,6 @@ beforeAll(async () => {
     'triggerId',
   ]);
   registerSignalInputs(CostStateComponent, ['state']);
-  registerSignalInputs(TableColumnMenuComponent, [
-    'columns',
-    'sortOptions',
-    'currentSort',
-    'viewModified',
-  ]);
   registerSignalInputs(TableSortHeaderComponent, [
     'label',
     'sortField',
@@ -147,7 +136,6 @@ beforeEach(async () => {
       StockPositionListComponent,
       CustomSelectComponent,
       CostStateComponent,
-      TableColumnMenuComponent,
       TableSortHeaderComponent,
     ],
     providers: [provideRouter([])],

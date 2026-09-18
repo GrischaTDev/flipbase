@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { isArticleRoute } from './article-navigation';
+import { ARTICLE_VIEWS, isArticleRoute } from './article-navigation';
 
 describe('Gemeinsamer Artikelbereich', () => {
+  it('liefert die gemeinsamen Sidebar-Unterpunkte in stabiler Reihenfolge', () => {
+    expect(ARTICLE_VIEWS).toEqual([
+      { label: 'Alle Artikel', path: '/catalog' },
+      { label: 'Bestand', path: '/inventory' },
+    ]);
+  });
+
   it.each([
     '/catalog',
     '/catalog/product?view=stock',
