@@ -34,6 +34,252 @@ export type Database = {
   }
   public: {
     Tables: {
+      expense_categories: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          is_archived: boolean
+          is_default: boolean
+          name: string
+          sort_order: number
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_archived?: boolean
+          is_default?: boolean
+          name: string
+          sort_order?: number
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_archived?: boolean
+          is_default?: boolean
+          name?: string
+          sort_order?: number
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expense_categories_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      expense_recurring_rules: {
+        Row: {
+          category_id: string
+          created_at: string
+          created_by: string | null
+          end_date: string | null
+          frequency: string
+          gross_amount: number
+          id: string
+          is_active: boolean
+          notes: string | null
+          start_date: string
+          title: string
+          updated_at: string
+          vat_rate: number | null
+          workspace_id: string
+        }
+        Insert: {
+          category_id: string
+          created_at?: string
+          created_by?: string | null
+          end_date?: string | null
+          frequency: string
+          gross_amount: number
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          start_date: string
+          title: string
+          updated_at?: string
+          vat_rate?: number | null
+          workspace_id: string
+        }
+        Update: {
+          category_id?: string
+          created_at?: string
+          created_by?: string | null
+          end_date?: string | null
+          frequency?: string
+          gross_amount?: number
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          start_date?: string
+          title?: string
+          updated_at?: string
+          vat_rate?: number | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expense_recurring_rules_workspace_id_category_id_fkey"
+            columns: ["workspace_id", "category_id"]
+            isOneToOne: false
+            referencedRelation: "expense_categories"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "expense_recurring_rules_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      expenses: {
+        Row: {
+          category_id: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          due_date: string | null
+          expense_date: string
+          gross_amount: number
+          id: string
+          notes: string | null
+          occurrence_date: string | null
+          payment_date: string | null
+          recurring_rule_id: string | null
+          status: string
+          title: string
+          updated_at: string
+          vat_rate: number | null
+          workspace_id: string
+        }
+        Insert: {
+          category_id: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          due_date?: string | null
+          expense_date: string
+          gross_amount: number
+          id?: string
+          notes?: string | null
+          occurrence_date?: string | null
+          payment_date?: string | null
+          recurring_rule_id?: string | null
+          status: string
+          title: string
+          updated_at?: string
+          vat_rate?: number | null
+          workspace_id: string
+        }
+        Update: {
+          category_id?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          due_date?: string | null
+          expense_date?: string
+          gross_amount?: number
+          id?: string
+          notes?: string | null
+          occurrence_date?: string | null
+          payment_date?: string | null
+          recurring_rule_id?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+          vat_rate?: number | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expenses_workspace_id_category_id_fkey"
+            columns: ["workspace_id", "category_id"]
+            isOneToOne: false
+            referencedRelation: "expense_categories"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "expenses_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expenses_workspace_id_recurring_rule_id_fkey"
+            columns: ["workspace_id", "recurring_rule_id"]
+            isOneToOne: false
+            referencedRelation: "expense_recurring_rules"
+            referencedColumns: ["workspace_id", "id"]
+          },
+        ]
+      }
+      expense_documents: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          document_type: string
+          expense_id: string
+          file_size: number
+          id: string
+          mime_type: string
+          original_file_name: string
+          storage_path: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          document_type: string
+          expense_id: string
+          file_size: number
+          id?: string
+          mime_type: string
+          original_file_name: string
+          storage_path: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          document_type?: string
+          expense_id?: string
+          file_size?: number
+          id?: string
+          mime_type?: string
+          original_file_name?: string
+          storage_path?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expense_documents_workspace_id_expense_id_fkey"
+            columns: ["workspace_id", "expense_id"]
+            isOneToOne: false
+            referencedRelation: "expenses"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "expense_documents_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       activity_logs: {
         Row: {
           action: string
