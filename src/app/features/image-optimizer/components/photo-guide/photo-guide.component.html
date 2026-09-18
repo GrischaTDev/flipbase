@@ -1,367 +1,314 @@
-<dialog
-  #dialog
-  aria-labelledby="photo-guide-title"
-  class="m-auto max-h-[min(90dvh,52rem)] w-[min(94vw,58rem)] overflow-hidden rounded-2xl border border-fb-border bg-fb-surface p-0 text-fb-text-primary shadow-2xl backdrop:bg-slate-950/80"
-  (cancel)="onCancel($event)"
-  (close)="closed.emit()"
-  (pointerdown)="onBackdropClick($event)"
+<app-modal-shell
+  title="Bessere Produktbilder, weniger Nacharbeit"
+  subtitle="Flipbase Fotoguide · Aufnahme-Tipps und geprüfte Vorgaben für deine Verkaufsplattformen"
+  [icon]="bookIcon"
+  iconTone="brand"
+  size="xl"
+  [hasFooter]="false"
+  [closeOnBackdrop]="true"
+  (closed)="closed.emit()"
 >
-  <div class="flex max-h-[min(90dvh,52rem)] flex-col">
-    <header class="relative overflow-hidden border-b border-fb-border px-5 py-4 sm:px-6">
-      <div
-        class="pointer-events-none absolute -right-12 -top-20 h-44 w-44 rounded-full bg-indigo-500/15 blur-3xl"
-        aria-hidden="true"
-      ></div>
-      <div class="relative flex items-start justify-between gap-4">
-        <div class="flex min-w-0 items-start gap-3">
-          <span
-            class="hidden h-10 w-10 shrink-0 place-items-center rounded-xl bg-indigo-500/15 text-indigo-300 sm:grid"
-          >
-            <svg [lucideIcon]="bookIcon" class="h-5 w-5" aria-hidden="true"></svg>
-          </span>
-          <div>
-            <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-indigo-300">
-              Flipbase Fotoguide
-            </p>
-            <h2 id="photo-guide-title" class="mt-0.5 break-words text-sm font-bold sm:text-lg">
-              Bessere Produktbilder, weniger Nacharbeit
-            </h2>
-            <p
-              class="mt-1 hidden max-w-2xl text-xs leading-relaxed text-fb-text-secondary sm:block"
-            >
-              Aufnahme-Tipps und geprüfte Vorgaben für deine Verkaufsplattformen.
-            </p>
-          </div>
-        </div>
-        <button
-          type="button"
-          aria-label="Fotoguide schließen"
-          class="grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded-lg border border-fb-border text-fb-text-muted hover:bg-fb-surface-hover hover:text-fb-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
-          (click)="close()"
-        >
-          <svg [lucideIcon]="xIcon" class="h-4 w-4" aria-hidden="true"></svg>
-        </button>
-      </div>
-    </header>
+  <nav
+    class="-mx-5 -mt-5 flex gap-1 overflow-x-auto border-b border-fb-border px-5 py-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+    aria-label="Bereiche des Fotoguides"
+  >
+    @for (tab of tabs; track tab.id) {
+      <button
+        type="button"
+        [attr.aria-pressed]="state().activeTab() === tab.id"
+        [class.bg-fb-brand-surface]="state().activeTab() === tab.id"
+        [class.text-fb-text-primary]="state().activeTab() === tab.id"
+        [class.text-fb-text-muted]="state().activeTab() !== tab.id"
+        class="shrink-0 cursor-pointer rounded-lg px-3 py-2 text-xs font-semibold hover:bg-fb-surface-hover hover:text-fb-text-primary focus-visible:outline-2 focus-visible:outline-fb-primary"
+        (click)="state().selectTab(tab.id)"
+      >
+        {{ tab.label }}
+      </button>
+    }
+  </nav>
 
-    <nav
-      class="flex gap-1 overflow-x-auto border-b border-fb-border px-4 py-2 [-ms-overflow-style:none] [scrollbar-width:none] sm:px-6 [&::-webkit-scrollbar]:hidden"
-      aria-label="Bereiche des Fotoguides"
-    >
-      @for (tab of tabs; track tab.id) {
-        <button
-          type="button"
-          [attr.aria-pressed]="state().activeTab() === tab.id"
-          [class.bg-indigo-500/15]="state().activeTab() === tab.id"
-          [class.text-indigo-200]="state().activeTab() === tab.id"
-          [class.text-fb-text-muted]="state().activeTab() !== tab.id"
-          class="shrink-0 cursor-pointer rounded-lg px-3 py-2 text-xs font-semibold hover:bg-fb-surface-hover hover:text-fb-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
-          (click)="state().selectTab(tab.id)"
-        >
-          {{ tab.label }}
-        </button>
-      }
-    </nav>
-
-    <div class="overflow-y-auto px-5 py-5 sm:px-6">
-      @switch (state().activeTab()) {
-        @case ('aufnehmen') {
-          <div class="space-y-5">
-            <section>
-              <div class="flex items-start gap-3">
-                <svg
-                  [lucideIcon]="cameraIcon"
-                  class="mt-0.5 h-5 w-5 shrink-0 text-indigo-300"
-                  aria-hidden="true"
-                ></svg>
-                <div>
-                  <h3 class="text-sm font-bold">Das Produkt bestimmt das Format</h3>
-                  <p class="mt-1 text-xs leading-relaxed text-fb-text-secondary">
-                    Fotografiere hohe Artikel hochkant und breite Artikel quer. Lass rundherum etwa
-                    15–20 % Luft, damit Flipbase für alle Plattformen sauber zuschneiden kann.
-                  </p>
-                </div>
-              </div>
-            </section>
-
-            <div class="grid gap-3 sm:grid-cols-3">
-              <article class="rounded-xl border border-fb-border bg-slate-950/25 p-3">
-                <div
-                  class="relative grid aspect-[4/3] place-items-center overflow-hidden rounded-lg bg-slate-200"
-                >
-                  <span
-                    class="absolute inset-3 rounded border border-dashed border-amber-500"
-                    aria-hidden="true"
-                  ></span>
-                  <span
-                    class="h-2/3 w-1/2 rounded-lg bg-slate-700 shadow-lg"
-                    aria-hidden="true"
-                  ></span>
-                </div>
-                <h4 class="mt-3 text-xs font-bold">Genug Rand lassen</h4>
-                <p class="mt-1 text-[11px] leading-relaxed text-fb-text-muted">
-                  Nichts direkt am Bildrand platzieren.
-                </p>
-              </article>
-              <article class="rounded-xl border border-fb-border bg-slate-950/25 p-3">
-                <div
-                  class="relative grid aspect-[4/3] place-items-center overflow-hidden rounded-lg bg-slate-200"
-                >
-                  <span
-                    class="absolute inset-3 rounded border border-dashed border-amber-500"
-                    aria-hidden="true"
-                  ></span>
-                  <span
-                    class="h-3/4 w-1/3 rounded-lg bg-slate-700 shadow-lg"
-                    aria-hidden="true"
-                  ></span>
-                </div>
-                <h4 class="mt-3 text-xs font-bold">Hohes Produkt</h4>
-                <p class="mt-1 text-[11px] leading-relaxed text-fb-text-muted">
-                  Hochkant und möglichst mittig aufnehmen.
-                </p>
-              </article>
-              <article class="rounded-xl border border-fb-border bg-slate-950/25 p-3">
-                <div
-                  class="relative grid aspect-[4/3] place-items-center overflow-hidden rounded-lg bg-slate-200"
-                >
-                  <span
-                    class="absolute inset-3 rounded border border-dashed border-amber-500"
-                    aria-hidden="true"
-                  ></span>
-                  <span
-                    class="h-2/5 w-3/4 rounded-lg bg-slate-700 shadow-lg"
-                    aria-hidden="true"
-                  ></span>
-                </div>
-                <h4 class="mt-3 text-xs font-bold">Breites Produkt</h4>
-                <p class="mt-1 text-[11px] leading-relaxed text-fb-text-muted">
-                  Querformat verhindert unnötigen Beschnitt.
-                </p>
-              </article>
-            </div>
-
-            <div class="grid gap-2 sm:grid-cols-2">
-              @for (
-                tip of [
-                  'Original in höchster Auflösung verwenden',
-                  'Neutraler, ruhiger Hintergrund',
-                  'Gleichmäßiges Tageslicht ohne harten Blitz',
-                  'Erstes Bild zeigt den Artikel vollständig',
-                  'Details aus mehreren Blickwinkeln fotografieren',
-                  'Mängel ehrlich und gut erkennbar zeigen',
-                ];
-                track tip
-              ) {
-                <div
-                  class="flex items-start gap-2 rounded-lg border border-fb-border bg-slate-950/20 p-2.5"
-                >
-                  <svg
-                    [lucideIcon]="checkIcon"
-                    class="mt-0.5 h-4 w-4 shrink-0 text-emerald-400"
-                    aria-hidden="true"
-                  ></svg>
-                  <span class="text-[11px] leading-relaxed text-fb-text-secondary">{{ tip }}</span>
-                </div>
-              }
-            </div>
-
-            <div class="flex gap-3 rounded-xl border border-amber-400/25 bg-amber-400/10 p-3">
-              <svg
-                [lucideIcon]="lightbulbIcon"
-                class="h-5 w-5 shrink-0 text-amber-300"
-                aria-hidden="true"
-              ></svg>
-              <p class="text-[11px] leading-relaxed text-amber-100/80">
-                Schneide das Foto vor dem Upload nicht knapp zu. Flipbase erstellt aus einem
-                großzügigen Original die passenden Fassungen für alle drei Plattformen.
+  @switch (state().activeTab()) {
+    @case ('aufnehmen') {
+      <div class="space-y-5">
+        <section>
+          <div class="flex items-start gap-3">
+            <svg
+              [lucideIcon]="cameraIcon"
+              class="mt-0.5 h-5 w-5 shrink-0 text-fb-brand-strong"
+              aria-hidden="true"
+            ></svg>
+            <div>
+              <h3 class="text-sm font-semibold text-fb-text-primary">
+                Das Produkt bestimmt das Format
+              </h3>
+              <p class="mt-1 text-xs leading-relaxed text-fb-text-secondary">
+                Fotografiere hohe Artikel hochkant und breite Artikel quer. Lass rundherum etwa
+                15–20 % Luft, damit Flipbase für alle Plattformen sauber zuschneiden kann.
               </p>
             </div>
           </div>
-        }
+        </section>
 
-        @case ('ebay') {
-          <div class="space-y-4">
-            <div class="flex items-start justify-between gap-4">
-              <div>
-                <h3 class="text-base font-bold">eBay</h3>
-                <p class="mt-1 text-xs text-fb-text-secondary">
-                  Quadratische Ausgabe ohne künstliches Hochskalieren.
-                </p>
-              </div>
-              <app-badge tone="success">Offiziell geprüft</app-badge>
-            </div>
-            <div class="grid gap-3 sm:grid-cols-3">
-              <div class="rounded-xl border border-fb-border p-3">
-                <span class="text-[10px] uppercase tracking-wider text-fb-text-muted"
-                  >Flipbase-Ausgabe</span
-                ><strong class="mt-1 block text-sm">1600 × 1600 px</strong
-                ><span class="text-[10px] text-fb-text-muted">1:1 · Empfehlung</span>
-              </div>
-              <div class="rounded-xl border border-fb-border p-3">
-                <span class="text-[10px] uppercase tracking-wider text-fb-text-muted"
-                  >Mindestgröße</span
-                ><strong class="mt-1 block text-sm">500 px</strong
-                ><span class="text-[10px] text-fb-text-muted">an der längsten Seite</span>
-              </div>
-              <div class="rounded-xl border border-fb-border p-3">
-                <span class="text-[10px] uppercase tracking-wider text-fb-text-muted"
-                  >Maximale Datei</span
-                ><strong class="mt-1 block text-sm">12 MB</strong
-                ><span class="text-[10px] text-fb-text-muted">pro Bild</span>
-              </div>
-            </div>
-            <ul class="space-y-2 text-xs leading-relaxed text-fb-text-secondary">
-              <li class="flex gap-2">
-                <svg
-                  [lucideIcon]="scanIcon"
-                  class="mt-0.5 h-4 w-4 shrink-0 text-indigo-300"
-                  aria-hidden="true"
-                ></svg
-                ><span>Artikel vollständig, scharf und vor einem ruhigen Hintergrund zeigen.</span>
-              </li>
-              <li class="flex gap-2">
-                <svg
-                  [lucideIcon]="sunIcon"
-                  class="mt-0.5 h-4 w-4 shrink-0 text-indigo-300"
-                  aria-hidden="true"
-                ></svg
-                ><span
-                  >Bei reflektierenden Artikeln kann ein dunkler Hintergrund besser
-                  funktionieren.</span
-                >
-              </li>
-            </ul>
-            <a
-              href="https://www.ebay.de/help/selling/listings/bilder-zu-angeboten-hinzufgen?id=4148"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-300 hover:text-indigo-200"
-              >Offizielle eBay-Hilfe öffnen
-              <svg [lucideIcon]="externalLinkIcon" class="h-3.5 w-3.5" aria-hidden="true"></svg
-            ></a>
-          </div>
-        }
-
-        @case ('kleinanzeigen') {
-          <div class="space-y-4">
-            <div class="flex items-start justify-between gap-4">
-              <div>
-                <h3 class="text-base font-bold">Kleinanzeigen</h3>
-                <p class="mt-1 text-xs text-fb-text-secondary">
-                  Breite Vorschaukacheln im 4:3-Format.
-                </p>
-              </div>
+        <div class="grid gap-3 sm:grid-cols-3">
+          <article class="rounded-xl border border-fb-border bg-fb-surface-alt p-3">
+            <div
+              class="relative grid aspect-[4/3] place-items-center overflow-hidden rounded-lg bg-fb-well"
+            >
               <span
-                class="rounded-full bg-sky-500/15 px-2.5 py-1 text-[10px] font-bold text-sky-300"
-                >Offiziell + Live-Messung</span
-              >
-            </div>
-            <div class="grid gap-3 sm:grid-cols-3">
-              <div class="rounded-xl border border-fb-border p-3">
-                <span class="text-[10px] uppercase tracking-wider text-fb-text-muted"
-                  >Flipbase-Ausgabe</span
-                ><strong class="mt-1 block text-sm">1600 × 1200 px</strong
-                ><span class="text-[10px] text-fb-text-muted">4:3 · Empfehlung</span>
-              </div>
-              <div class="rounded-xl border border-fb-border p-3">
-                <span class="text-[10px] uppercase tracking-wider text-fb-text-muted"
-                  >Maximale Datei</span
-                ><strong class="mt-1 block text-sm">12 MB</strong
-                ><span class="text-[10px] text-fb-text-muted">offizielle Grenze</span>
-              </div>
-              <div class="rounded-xl border border-fb-border p-3">
-                <span class="text-[10px] uppercase tracking-wider text-fb-text-muted"
-                  >Dateitypen</span
-                ><strong class="mt-1 block text-sm">JPG · PNG</strong
-                ><span class="text-[10px] text-fb-text-muted">auch GIF und HEIC</span>
-              </div>
-            </div>
-            <p class="text-xs leading-relaxed text-fb-text-secondary">
-              Kleinanzeigen nennt keine verbindliche Pixelgröße. Das 4:3-Format wurde an der
-              aktuellen Desktop-Trefferliste gemessen; 1600 × 1200 px ist deshalb eine
-              Flipbase-Empfehlung.
-            </p>
-            <a
-              href="https://hilfe.kleinanzeigen.de/hc/de/articles/17049460199196-Wie-f%C3%BCge-ich-Bilder-zu-meiner-Anzeige-hinzu"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-300 hover:text-indigo-200"
-              >Offizielle Kleinanzeigen-Hilfe öffnen
-              <svg [lucideIcon]="externalLinkIcon" class="h-3.5 w-3.5" aria-hidden="true"></svg
-            ></a>
-          </div>
-        }
-
-        @case ('vinted') {
-          <div class="space-y-4">
-            <div class="flex items-start justify-between gap-4">
-              <div>
-                <h3 class="text-base font-bold">Vinted</h3>
-                <p class="mt-1 text-xs text-fb-text-secondary">
-                  Hochformat für die aktuelle Katalogansicht.
-                </p>
-              </div>
+                class="absolute inset-3 rounded border border-dashed border-fb-brand-strong"
+                aria-hidden="true"
+              ></span>
               <span
-                class="rounded-full bg-sky-500/15 px-2.5 py-1 text-[10px] font-bold text-sky-300"
-                >Offiziell + Live-Messung</span
-              >
+                class="h-2/3 w-1/2 rounded-lg bg-fb-text-secondary shadow-lg"
+                aria-hidden="true"
+              ></span>
             </div>
-            <div class="grid gap-3 sm:grid-cols-3">
-              <div class="rounded-xl border border-fb-border p-3">
-                <span class="text-[10px] uppercase tracking-wider text-fb-text-muted"
-                  >Flipbase-Ausgabe</span
-                ><strong class="mt-1 block text-sm">1200 × 1800 px</strong
-                ><span class="text-[10px] text-fb-text-muted">2:3 · Empfehlung</span>
-              </div>
-              <div class="rounded-xl border border-fb-border p-3">
-                <span class="text-[10px] uppercase tracking-wider text-fb-text-muted"
-                  >Bilder pro Angebot</span
-                ><strong class="mt-1 block text-sm">Bis zu 20</strong
-                ><span class="text-[10px] text-fb-text-muted">offizielle Angabe</span>
-              </div>
-              <div class="rounded-xl border border-fb-border p-3">
-                <span class="text-[10px] uppercase tracking-wider text-fb-text-muted"
-                  >Erstes Bild</span
-                ><strong class="mt-1 block text-sm">Vollansicht</strong
-                ><span class="text-[10px] text-fb-text-muted">keine Collage</span>
-              </div>
-            </div>
-            <ul class="space-y-2 text-xs leading-relaxed text-fb-text-secondary">
-              <li class="flex gap-2">
-                <svg
-                  [lucideIcon]="cameraIcon"
-                  class="mt-0.5 h-4 w-4 shrink-0 text-indigo-300"
-                  aria-hidden="true"
-                ></svg
-                ><span
-                  >Eigene Fotos verwenden und Details aus verschiedenen Perspektiven zeigen.</span
-                >
-              </li>
-              <li class="flex gap-2">
-                <svg
-                  [lucideIcon]="sunIcon"
-                  class="mt-0.5 h-4 w-4 shrink-0 text-indigo-300"
-                  aria-hidden="true"
-                ></svg
-                ><span>Tageslicht bevorzugen; auf Blitzlicht und Filter verzichten.</span>
-              </li>
-            </ul>
-            <p class="text-[11px] leading-relaxed text-fb-text-muted">
-              Vinted veröffentlicht keine verbindliche Pixel- oder Dateigrößengrenze. Das 2:3-Format
-              stammt aus der aktuellen Desktop-Katalogansicht.
+            <h4 class="mt-3 text-xs font-semibold text-fb-text-primary">Genug Rand lassen</h4>
+            <p class="mt-1 text-[11px] leading-relaxed text-fb-text-muted">
+              Nichts direkt am Bildrand platzieren.
             </p>
-            <a
-              href="https://www.vinted.de/help/4/48-hoe-maak-ik-geweldige-foto-s"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-300 hover:text-indigo-200"
-              >Offizielle Vinted-Hilfe öffnen
-              <svg [lucideIcon]="externalLinkIcon" class="h-3.5 w-3.5" aria-hidden="true"></svg
-            ></a>
+          </article>
+          <article class="rounded-xl border border-fb-border bg-fb-surface-alt p-3">
+            <div
+              class="relative grid aspect-[4/3] place-items-center overflow-hidden rounded-lg bg-fb-well"
+            >
+              <span
+                class="absolute inset-3 rounded border border-dashed border-fb-brand-strong"
+                aria-hidden="true"
+              ></span>
+              <span
+                class="h-3/4 w-1/3 rounded-lg bg-fb-text-secondary shadow-lg"
+                aria-hidden="true"
+              ></span>
+            </div>
+            <h4 class="mt-3 text-xs font-semibold text-fb-text-primary">Hohes Produkt</h4>
+            <p class="mt-1 text-[11px] leading-relaxed text-fb-text-muted">
+              Hochkant und möglichst mittig aufnehmen.
+            </p>
+          </article>
+          <article class="rounded-xl border border-fb-border bg-fb-surface-alt p-3">
+            <div
+              class="relative grid aspect-[4/3] place-items-center overflow-hidden rounded-lg bg-fb-well"
+            >
+              <span
+                class="absolute inset-3 rounded border border-dashed border-fb-brand-strong"
+                aria-hidden="true"
+              ></span>
+              <span
+                class="h-2/5 w-3/4 rounded-lg bg-fb-text-secondary shadow-lg"
+                aria-hidden="true"
+              ></span>
+            </div>
+            <h4 class="mt-3 text-xs font-semibold text-fb-text-primary">Breites Produkt</h4>
+            <p class="mt-1 text-[11px] leading-relaxed text-fb-text-muted">
+              Querformat verhindert unnötigen Beschnitt.
+            </p>
+          </article>
+        </div>
+
+        <div class="grid gap-2 sm:grid-cols-2">
+          @for (
+            tip of [
+              'Original in höchster Auflösung verwenden',
+              'Neutraler, ruhiger Hintergrund',
+              'Gleichmäßiges Tageslicht ohne harten Blitz',
+              'Erstes Bild zeigt den Artikel vollständig',
+              'Details aus mehreren Blickwinkeln fotografieren',
+              'Mängel ehrlich und gut erkennbar zeigen',
+            ];
+            track tip
+          ) {
+            <div
+              class="flex items-start gap-2 rounded-lg border border-fb-border bg-fb-surface-alt p-2.5"
+            >
+              <svg
+                [lucideIcon]="checkIcon"
+                class="mt-0.5 h-4 w-4 shrink-0 text-fb-success"
+                aria-hidden="true"
+              ></svg>
+              <span class="text-[11px] leading-relaxed text-fb-text-secondary">{{ tip }}</span>
+            </div>
+          }
+        </div>
+
+        <div
+          class="flex gap-3 rounded-xl border border-fb-warning-border bg-fb-warning-surface p-3"
+        >
+          <svg
+            [lucideIcon]="lightbulbIcon"
+            class="h-5 w-5 shrink-0 text-fb-warning"
+            aria-hidden="true"
+          ></svg>
+          <p class="text-[11px] leading-relaxed text-fb-warning">
+            Schneide das Foto vor dem Upload nicht knapp zu. Flipbase erstellt aus einem
+            großzügigen Original die passenden Fassungen für alle drei Plattformen.
+          </p>
+        </div>
+      </div>
+    }
+
+    @case ('ebay') {
+      <div class="space-y-4">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <h3 class="text-base font-semibold text-fb-text-primary">eBay</h3>
+            <p class="mt-1 text-xs text-fb-text-secondary">
+              Quadratische Ausgabe ohne künstliches Hochskalieren.
+            </p>
           </div>
-        }
-      }
-    </div>
-  </div>
-</dialog>
+          <app-badge tone="success">Offiziell geprüft</app-badge>
+        </div>
+        <div class="grid gap-3 sm:grid-cols-3">
+          <div class="rounded-xl border border-fb-border bg-fb-surface-alt p-3">
+            <span class="text-[10px] font-medium text-fb-text-muted">Flipbase-Ausgabe</span>
+            <strong class="mt-1 block text-sm text-fb-text-primary">1600 × 1600 px</strong>
+            <span class="text-[10px] text-fb-text-muted">1:1 · Empfehlung</span>
+          </div>
+          <div class="rounded-xl border border-fb-border bg-fb-surface-alt p-3">
+            <span class="text-[10px] font-medium text-fb-text-muted">Mindestgröße</span>
+            <strong class="mt-1 block text-sm text-fb-text-primary">500 px</strong>
+            <span class="text-[10px] text-fb-text-muted">an der längsten Seite</span>
+          </div>
+          <div class="rounded-xl border border-fb-border bg-fb-surface-alt p-3">
+            <span class="text-[10px] font-medium text-fb-text-muted">Maximale Datei</span>
+            <strong class="mt-1 block text-sm text-fb-text-primary">12 MB</strong>
+            <span class="text-[10px] text-fb-text-muted">pro Bild</span>
+          </div>
+        </div>
+        <ul class="space-y-2 text-xs leading-relaxed text-fb-text-secondary">
+          <li class="flex gap-2">
+            <svg
+              [lucideIcon]="scanIcon"
+              class="mt-0.5 h-4 w-4 shrink-0 text-fb-brand-strong"
+              aria-hidden="true"
+            ></svg>
+            <span>Artikel vollständig, scharf und vor einem ruhigen Hintergrund zeigen.</span>
+          </li>
+          <li class="flex gap-2">
+            <svg
+              [lucideIcon]="sunIcon"
+              class="mt-0.5 h-4 w-4 shrink-0 text-fb-brand-strong"
+              aria-hidden="true"
+            ></svg>
+            <span>Bei reflektierenden Artikeln kann ein dunkler Hintergrund besser funktionieren.</span>
+          </li>
+        </ul>
+        <a
+          href="https://www.ebay.de/help/selling/listings/bilder-zu-angeboten-hinzufgen?id=4148"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="inline-flex items-center gap-1.5 text-xs font-semibold text-fb-text-primary underline decoration-fb-brand-strong decoration-2 underline-offset-4 hover:text-fb-text-secondary"
+        >
+          Offizielle eBay-Hilfe öffnen
+          <svg [lucideIcon]="externalLinkIcon" class="h-3.5 w-3.5" aria-hidden="true"></svg>
+        </a>
+      </div>
+    }
+
+    @case ('kleinanzeigen') {
+      <div class="space-y-4">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <h3 class="text-base font-semibold text-fb-text-primary">Kleinanzeigen</h3>
+            <p class="mt-1 text-xs text-fb-text-secondary">
+              Breite Vorschaukacheln im 4:3-Format.
+            </p>
+          </div>
+          <app-badge tone="info">Offiziell + Live-Messung</app-badge>
+        </div>
+        <div class="grid gap-3 sm:grid-cols-3">
+          <div class="rounded-xl border border-fb-border bg-fb-surface-alt p-3">
+            <span class="text-[10px] font-medium text-fb-text-muted">Flipbase-Ausgabe</span>
+            <strong class="mt-1 block text-sm text-fb-text-primary">1600 × 1200 px</strong>
+            <span class="text-[10px] text-fb-text-muted">4:3 · Empfehlung</span>
+          </div>
+          <div class="rounded-xl border border-fb-border bg-fb-surface-alt p-3">
+            <span class="text-[10px] font-medium text-fb-text-muted">Maximale Datei</span>
+            <strong class="mt-1 block text-sm text-fb-text-primary">12 MB</strong>
+            <span class="text-[10px] text-fb-text-muted">offizielle Grenze</span>
+          </div>
+          <div class="rounded-xl border border-fb-border bg-fb-surface-alt p-3">
+            <span class="text-[10px] font-medium text-fb-text-muted">Dateitypen</span>
+            <strong class="mt-1 block text-sm text-fb-text-primary">JPG · PNG</strong>
+            <span class="text-[10px] text-fb-text-muted">auch GIF und HEIC</span>
+          </div>
+        </div>
+        <p class="text-xs leading-relaxed text-fb-text-secondary">
+          Kleinanzeigen nennt keine verbindliche Pixelgröße. Das 4:3-Format wurde an der aktuellen
+          Desktop-Trefferliste gemessen; 1600 × 1200 px ist deshalb eine Flipbase-Empfehlung.
+        </p>
+        <a
+          href="https://hilfe.kleinanzeigen.de/hc/de/articles/17049460199196-Wie-f%C3%BCge-ich-Bilder-zu-meiner-Anzeige-hinzu"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="inline-flex items-center gap-1.5 text-xs font-semibold text-fb-text-primary underline decoration-fb-brand-strong decoration-2 underline-offset-4 hover:text-fb-text-secondary"
+        >
+          Offizielle Kleinanzeigen-Hilfe öffnen
+          <svg [lucideIcon]="externalLinkIcon" class="h-3.5 w-3.5" aria-hidden="true"></svg>
+        </a>
+      </div>
+    }
+
+    @case ('vinted') {
+      <div class="space-y-4">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <h3 class="text-base font-semibold text-fb-text-primary">Vinted</h3>
+            <p class="mt-1 text-xs text-fb-text-secondary">
+              Hochformat für die aktuelle Katalogansicht.
+            </p>
+          </div>
+          <app-badge tone="info">Offiziell + Live-Messung</app-badge>
+        </div>
+        <div class="grid gap-3 sm:grid-cols-3">
+          <div class="rounded-xl border border-fb-border bg-fb-surface-alt p-3">
+            <span class="text-[10px] font-medium text-fb-text-muted">Flipbase-Ausgabe</span>
+            <strong class="mt-1 block text-sm text-fb-text-primary">1200 × 1800 px</strong>
+            <span class="text-[10px] text-fb-text-muted">2:3 · Empfehlung</span>
+          </div>
+          <div class="rounded-xl border border-fb-border bg-fb-surface-alt p-3">
+            <span class="text-[10px] font-medium text-fb-text-muted">Bilder pro Angebot</span>
+            <strong class="mt-1 block text-sm text-fb-text-primary">Bis zu 20</strong>
+            <span class="text-[10px] text-fb-text-muted">offizielle Angabe</span>
+          </div>
+          <div class="rounded-xl border border-fb-border bg-fb-surface-alt p-3">
+            <span class="text-[10px] font-medium text-fb-text-muted">Erstes Bild</span>
+            <strong class="mt-1 block text-sm text-fb-text-primary">Vollansicht</strong>
+            <span class="text-[10px] text-fb-text-muted">keine Collage</span>
+          </div>
+        </div>
+        <ul class="space-y-2 text-xs leading-relaxed text-fb-text-secondary">
+          <li class="flex gap-2">
+            <svg
+              [lucideIcon]="cameraIcon"
+              class="mt-0.5 h-4 w-4 shrink-0 text-fb-brand-strong"
+              aria-hidden="true"
+            ></svg>
+            <span>Eigene Fotos verwenden und Details aus verschiedenen Perspektiven zeigen.</span>
+          </li>
+          <li class="flex gap-2">
+            <svg
+              [lucideIcon]="sunIcon"
+              class="mt-0.5 h-4 w-4 shrink-0 text-fb-brand-strong"
+              aria-hidden="true"
+            ></svg>
+            <span>Tageslicht bevorzugen; auf Blitzlicht und Filter verzichten.</span>
+          </li>
+        </ul>
+        <p class="text-[11px] leading-relaxed text-fb-text-muted">
+          Vinted veröffentlicht keine verbindliche Pixel- oder Dateigrößengrenze. Das 2:3-Format
+          stammt aus der aktuellen Desktop-Katalogansicht.
+        </p>
+        <a
+          href="https://www.vinted.de/help/4/48-hoe-maak-ik-geweldige-foto-s"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="inline-flex items-center gap-1.5 text-xs font-semibold text-fb-text-primary underline decoration-fb-brand-strong decoration-2 underline-offset-4 hover:text-fb-text-secondary"
+        >
+          Offizielle Vinted-Hilfe öffnen
+          <svg [lucideIcon]="externalLinkIcon" class="h-3.5 w-3.5" aria-hidden="true"></svg>
+        </a>
+      </div>
+    }
+  }
+</app-modal-shell>
