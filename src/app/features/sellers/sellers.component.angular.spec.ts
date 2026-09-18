@@ -11,6 +11,7 @@ import { BadgeComponent } from '../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
 import { CustomSelectComponent } from '../../shared/components/custom-select/custom-select.component';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
+import { DataTableComponent } from '../../shared/components/data-table/data-table.component';
 import { ToastService } from '../../shared/components/toast/toast.service';
 import { PurchaseSellerDialogComponent } from './components/purchase-seller-dialog/purchase-seller-dialog.component';
 import { SellersComponent } from './sellers.component';
@@ -52,7 +53,32 @@ beforeAll(async () => {
     return readFile(matches[0], 'utf8');
   });
   registerSignalInputs(PageHeaderComponent, ['title', 'subtitle', 'icon']);
-  registerSignalInputs(ButtonComponent, ['variant', 'size', 'icon']);
+  registerSignalInputs(ButtonComponent, [
+    'variant',
+    'size',
+    'icon',
+    'ariaLabel',
+    'ariaPressed',
+    'disabled',
+  ]);
+  registerSignalInputs(DataTableComponent, [
+    'ariaLabel',
+    'searchValue',
+    'searchPlaceholder',
+    'searchAriaLabel',
+    'searchEnabled',
+    'toolbarVisible',
+    'columns',
+    'sortOptions',
+    'currentSort',
+    'viewModified',
+    'loading',
+    'errorMessage',
+    'hasRows',
+    'loadingText',
+    'emptyTitle',
+    'emptyText',
+  ]);
   registerSignalInputs(BadgeComponent, ['tone', 'mono']);
   registerSignalInputs(CustomSelectComponent, [
     'options',
