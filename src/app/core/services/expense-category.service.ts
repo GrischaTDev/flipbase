@@ -59,7 +59,8 @@ export class ExpenseCategoryService {
     const workspace = this.workspaceService.currentWorkspace();
     const trimmed = name.trim();
     if (!workspace) return { data: null, error: new Error('Kein aktiver Workspace.') };
-    if (!trimmed) return { data: null, error: new Error('Der Kategoriename darf nicht leer sein.') };
+    if (!trimmed)
+      return { data: null, error: new Error('Der Kategoriename darf nicht leer sein.') };
     if (this.mockStore.isDemoMode()) return { data: null, error: new Error(DEMO_ERROR) };
 
     try {
@@ -90,7 +91,10 @@ export class ExpenseCategoryService {
       this.categories.update((current) => [...current, category]);
       return { data: category, error: null };
     } catch (cause: unknown) {
-      return { data: null, error: this.syncStatus.melde('Anlegen der Ausgabenkategorie', cause) };
+      return {
+        data: null,
+        error: this.syncStatus.melde('Anlegen der Ausgabenkategorie', cause),
+      };
     }
   }
 
