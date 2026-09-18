@@ -63,11 +63,11 @@ describe('Arbeitsnavigation', () => {
     assert.deepEqual(paths.slice().sort(), [
       '/accounting',
       '/admin',
-      '/expenses',
       '/analytics',
       '/catalog',
       '/dashboard',
       '/deal-calculator',
+      '/expenses',
       '/fulfillment',
       '/image-optimizer',
       '/listings',
