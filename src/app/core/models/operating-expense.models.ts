@@ -61,6 +61,16 @@ export interface OperatingExpenseDocument {
   readonly created_by: string | null;
 }
 
+export interface RecurringOperatingExpenseCreateInput {
+  readonly categoryId: string;
+  readonly title: string;
+  readonly grossAmount: number;
+  readonly vatRate: OperatingExpenseVatRate;
+  readonly interval: OperatingExpenseInterval;
+  readonly startDate: string;
+  readonly endDate: string | null;
+}
+
 export interface OperatingExpenseCreateInput {
   readonly categoryId: string;
   readonly title: string;
