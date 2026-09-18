@@ -98,7 +98,10 @@ beforeAll(async () => {
       DashboardKpiCardComponent,
       ['label', 'value', 'icon', 'hint', 'change', 'comparisonLabel', 'size', 'valueTone'],
     ],
-    [DashboardOpenCostsComponent, ['openCosts', 'salesWithoutPurchase', 'inventoryItemsWithoutCost']],
+    [
+      DashboardOpenCostsComponent,
+      ['openCosts', 'salesWithoutPurchase', 'inventoryItemsWithoutCost'],
+    ],
   ] as const) {
     const metadata = (component as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp;
     metadata.inputs = { ...metadata.inputs };
