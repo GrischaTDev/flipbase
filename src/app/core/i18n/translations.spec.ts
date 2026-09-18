@@ -60,6 +60,7 @@ describe('i18n Translations', () => {
     const expectedNavKeys = [
       'DASHBOARD',
       'PURCHASES',
+      'EXPENSES',
       'INVENTORY',
       'STORE',
       'RESEARCH',

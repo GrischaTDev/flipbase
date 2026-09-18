@@ -53,6 +53,7 @@ const emptyReport: DashboardReport = {
   salesWithoutCostCount: 0,
   purchaseSpend: 0,
   sellingCosts: 0,
+  operatingExpenseSpend: 0,
   totalExpenses: 0,
   purchasesIncluded: true,
   soldItems: 0,
@@ -340,7 +341,8 @@ describe('DashboardComponent', () => {
       revenue: 42.98,
       purchaseSpend: 24.95,
       sellingCosts: 12.89,
-      totalExpenses: 37.84,
+      operatingExpenseSpend: 7,
+      totalExpenses: 44.84,
       soldItems: 2,
       averageMarginPercent: 46.74,
       inventoryCostValue: 16.67,
@@ -394,16 +396,18 @@ describe('DashboardComponent', () => {
     expect(kpi('revenue')).toContain('42,98 €');
     expect(kpi('gross-profit')).toContain('20,09 €');
     expect(kpi('margin')).toContain('46,74 %');
-    expect(kpi('cashflow')).toContain('5,14 €');
+    expect(kpi('cashflow')).toContain('-1,86 €');
 
     const expenses = host.querySelector('[data-dashboard-expenses]');
     const expensesText = expenses?.textContent?.replace(/\s+/g, ' ') ?? '';
     expect(expensesText).toContain('Ausgaben');
-    expect(expensesText).toContain('37,84 €');
+    expect(expensesText).toContain('44,84 €');
     expect(expensesText).toContain('Einkäufe');
     expect(expensesText).toContain('24,95 €');
     expect(expensesText).toContain('Gebühren & Versand');
     expect(expensesText).toContain('12,89 €');
+    expect(expensesText).toContain('Betriebsausgaben');
+    expect(expensesText).toContain('7,00 €');
 
     expect(kpiSection.querySelector('[data-kpi-change]')).toBeNull();
     expect(kpiSection.querySelector('[data-kpi-hint]')).toBeNull();

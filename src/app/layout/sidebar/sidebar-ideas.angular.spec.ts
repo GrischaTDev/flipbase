@@ -81,7 +81,7 @@ describe('Arbeitsnavigation und Ideen in der Sidebar', () => {
       ['/purchases', '/sellers', '/vinted-bot'],
       ['/catalog', '/image-optimizer'],
       ['/listings', '/sales'],
-      ['/accounting', '/analytics'],
+      ['/expenses', '/accounting', '/analytics'],
     ]);
     expect(element.textContent).not.toContain('Warenwirtschaft & Store');
     expect(element.textContent).not.toContain('Werkzeuge & Ertrag');

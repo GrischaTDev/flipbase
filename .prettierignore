@@ -25,3 +25,7 @@ deploy/*.yml
 # Stelle, an der ein naiver Parser scheitern soll. Das Fixture pruefte danach
 # nichts mehr, sondern taeuschte den Parser.
 services/sniper/test/fixtures/
+
+# Agentische Design-/Planartefakte werden von ihren Skills strukturiert geschrieben.
+docs/superpowers/specs/2026-09-18-expenses-foundation-design.md
+docs/superpowers/plans/2026-09-18-expenses-foundation.md

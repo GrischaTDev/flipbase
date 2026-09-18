@@ -1,0 +1,80 @@
+<app-modal-shell
+  [title]="rule() ? 'Wiederkehrende Ausgabe bearbeiten' : 'Wiederkehrende Ausgabe hinzufügen'"
+  subtitle="Fällige Ausgaben werden automatisch als einzelne offene Einträge erzeugt."
+  size="md"
+  (closed)="closed.emit()"
+>
+  <form class="space-y-4" [formGroup]="form" (ngSubmit)="save()">
+    @if (errorMessage()) {
+      <p role="alert" class="rounded-lg border border-fb-line bg-fb-subtle p-3 text-[13px]">
+        {{ errorMessage() }}
+      </p>
+    }
+
+    <app-text-field formControlName="title" label="Bezeichnung" placeholder="z. B. Server" />
+
+    <div>
+      <span class="mb-1.5 block text-[13px] font-semibold">Kategorie</span>
+      <app-custom-select
+        formControlName="category_id"
+        ariaLabel="Kategorie"
+        [options]="categoryOptions()"
+      />
+    </div>
+
+    <div class="grid gap-4 sm:grid-cols-2">
+      <label class="block">
+        <span class="mb-1.5 block text-[13px] font-semibold">Bruttobetrag</span>
+        <input
+          type="number"
+          min="0.01"
+          step="0.01"
+          formControlName="gross_amount"
+          class="linear-input min-h-9 w-full rounded-lg px-3 text-[13px]"
+        />
+      </label>
+      <div>
+        <span class="mb-1.5 block text-[13px] font-semibold">MwSt.</span>
+        <app-custom-select
+          formControlName="vat_rate"
+          ariaLabel="Mehrwertsteuersatz"
+          [options]="vatOptions"
+        />
+      </div>
+    </div>
+
+    <div>
+      <span class="mb-1.5 block text-[13px] font-semibold">Rhythmus</span>
+      <app-custom-select
+        formControlName="frequency"
+        ariaLabel="Wiederholungsrhythmus"
+        [options]="frequencyOptions"
+      />
+    </div>
+
+    <div class="grid gap-4 sm:grid-cols-2">
+      <div>
+        <span class="mb-1.5 block text-[13px] font-semibold">Startdatum</span>
+        <app-date-picker formControlName="start_date" ariaLabel="Startdatum" />
+      </div>
+      <div>
+        <span class="mb-1.5 block text-[13px] font-semibold">Enddatum (optional)</span>
+        <app-date-picker formControlName="end_date" ariaLabel="Enddatum" />
+      </div>
+    </div>
+
+    @if (rule()) {
+      <label class="flex items-center gap-2 text-[13px]">
+        <input type="checkbox" formControlName="is_active" />
+        Regel aktiv
+      </label>
+    }
+
+    <app-text-field formControlName="notes" label="Notizen" [multiline]="3" />
+  </form>
+
+  <app-button modal-footer variant="secondary" (clicked)="closed.emit()">Abbrechen</app-button>
+  <app-button modal-footer variant="primary" [loading]="isSaving()" (clicked)="save()">
+    Speichern
+  </app-button>
+</app-modal-shell>
