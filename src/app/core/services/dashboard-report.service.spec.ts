@@ -1,5 +1,6 @@
 import '@angular/compiler';
 import { describe, expect, it } from 'vitest';
+import { Expense } from '../models/expense.models';
 import { DashboardRange, InventoryItem, Purchase, Sale } from '../models/flipbase.models';
 import { DashboardReportService } from './dashboard-report.service';
 
@@ -70,6 +71,7 @@ function report(
     purchases?: Purchase[];
     sales?: Sale[];
     inventoryItems?: InventoryItem[];
+    expenses?: Expense[];
   },
   at = now,
   platform = 'all',
@@ -82,6 +84,7 @@ function report(
       sales: records.sales ?? [],
       inventoryItems: records.inventoryItems ?? [],
       stockLots: [],
+      expenses: records.expenses ?? [],
     },
     at,
   );
@@ -154,6 +157,53 @@ describe('DashboardReportService', () => {
     // 19,98 € Umsatz - 9,98 € Wareneinsatz - 1,00 € Plattformgebühr.
     expect(result.grossProfit).toBe(9);
     expect(result.rows[0]).toMatchObject({ quantity: 2, costOfGoodsSold: 9.98, profit: 9 });
+  });
+
+  it('zählt nur bezahlte Betriebsausgaben nach Zahlungsdatum zum Cashflow, ohne Gewinn oder Marge zu ändern', () => {
+    const paid: Expense = {
+      id: 'expense-paid',
+      workspace_id: 'workspace-1',
+      category_id: 'category-1',
+      recurring_rule_id: null,
+      occurrence_date: null,
+      title: 'Server',
+      gross_amount: 15,
+      vat_rate: 19,
+      expense_date: '2026-08-20',
+      due_date: null,
+      status: 'paid',
+      payment_date: '2026-08-27',
+      notes: null,
+      deleted_at: null,
+      created_at: '2026-08-20T00:00:00Z',
+      created_by: 'user-1',
+      updated_at: '2026-08-27T00:00:00Z',
+    };
+    const open: Expense = {
+      ...paid,
+      id: 'expense-open',
+      gross_amount: 20,
+      status: 'open',
+      payment_date: null,
+    };
+    const paidOutside: Expense = {
+      ...paid,
+      id: 'expense-outside',
+      gross_amount: 30,
+      payment_date: '2026-08-01',
+    };
+
+    const withoutOperating = report('last_7_days', { purchases: [receipt], sales: [sale] });
+    const result = report('last_7_days', {
+      purchases: [receipt],
+      sales: [sale],
+      expenses: [paid, open, paidOutside],
+    });
+
+    expect(result.operatingExpenseSpend).toBe(15);
+    expect(result.totalExpenses).toBe(40.95);
+    expect(result.grossProfit).toBe(withoutOperating.grossProfit);
+    expect(result.averageMarginPercent).toBe(withoutOperating.averageMarginPercent);
   });
 
   it('zählt bei Plattformfilter nur die Verkaufskosten dieser Plattform zu den Ausgaben', () => {
