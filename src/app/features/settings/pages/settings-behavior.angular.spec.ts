@@ -743,7 +743,7 @@ describe('Workspace-Einstellungen – echte Angular-Fixture', () => {
     const { fixture, workspaceService, dialog, router, toast } = await renderWorkspace({
       deleteResult: {
         success: false,
-        reportedBySyncStatus: true,
+        reportedBySyncStatus: false,
         retentionBlocked: true,
       },
       confirmations: [true, true],
