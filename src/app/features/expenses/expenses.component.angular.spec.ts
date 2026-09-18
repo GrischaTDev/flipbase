@@ -1,4 +1,6 @@
 import '@angular/compiler';
+import { registerLocaleData } from '@angular/common';
+import localeDe from '@angular/common/locales/de';
 import { EventEmitter, signal, ɵresolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
@@ -44,6 +46,7 @@ function registerInputs(component: unknown, names: readonly string[]) {
 }
 
 beforeAll(async () => {
+  registerLocaleData(localeDe);
   await ɵresolveComponentResources(async (url) => {
     const fileName = url.replace(/^\.\//, '');
     const matches: string[] = [];
