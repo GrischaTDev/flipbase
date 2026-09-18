@@ -113,6 +113,9 @@ export class DashboardComponent {
         total: report.purchasesIncluded ? euro.format(report.totalExpenses) : '–',
         purchases: report.purchasesIncluded ? euro.format(report.purchaseSpend) : '–',
         selling: euro.format(report.sellingCosts),
+        operating: report.purchasesIncluded
+          ? euro.format(report.operatingExpenseSpend ?? 0)
+          : '–',
       },
     };
   });
