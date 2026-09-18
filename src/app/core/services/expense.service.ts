@@ -59,12 +59,18 @@ export class ExpenseService {
     if (this.syncPromise) return this.syncPromise;
 
     this.syncPromise = (async () => {
+      let materializationError: Error | null = null;
       if (this.recurring) {
         await this.recurring.load();
         const materialized = await this.recurring.materializeDue(this.localDateKey());
-        if (materialized.error) throw materialized.error;
+        materializationError = materialized.error;
       }
+
       await this.load();
+      if (materializationError) {
+        this.loadError.set(materializationError);
+        return;
+      }
       this.syncedWorkspaceId = workspaceId;
     })();
 
