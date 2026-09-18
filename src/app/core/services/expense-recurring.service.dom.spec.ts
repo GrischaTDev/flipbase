@@ -42,7 +42,12 @@ function createService(rows: ExpenseRecurringRule[] = [rule]) {
     order: async () => ({ data: rows, error: null }),
   });
 
-  const upsert = vi.fn(async () => ({ error: null }));
+  const upsert = vi.fn(
+    async (
+      _rows: unknown[],
+      _options?: { readonly onConflict: string; readonly ignoreDuplicates: boolean },
+    ) => ({ error: null }),
+  );
   const insert = vi.fn(() => ({
     select: () => ({ single: async () => ({ data: rule, error: null }) }),
   }));
