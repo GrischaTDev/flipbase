@@ -7,6 +7,13 @@ const localStatusPillPattern =
   /<span\b[^>]*class\s*=\s*"[^"]*(?:rounded-full|rounded-lg|rounded-md)[^"]*px-[^"]*(?:bg-(?:amber|blue|emerald|rose)-|text-(?:amber|blue|emerald|rose)-)[^"]*"[^>]*>/giu;
 const blackPrimaryVariantPattern =
   /<app-button\b[^>]*\bvariant\s*=\s*["']primary-dark["'][^>]*>/giu;
+const directTableColumnMenuPattern = /<app-table-column-menu\b/giu;
+const legacyTableToolbarPattern = /<app-table-toolbar\b/giu;
+const nativeTableSearchPattern = /<input\b[^>]*\btype\s*=\s*["']search["'][^>]*>/giu;
+const tablePattern = /<table\b[^>]*>/giu;
+const dataTablePattern = /<app-data-table\b/giu;
+const tableExceptionPattern =
+  /\bdata-shared-ui-exception\s*=\s*["'](?:static-table|embedded-table|data-table-content)["']/u;
 const purchaseWorkspacePath =
   /\/purchases\/(?:components|pages)\/(?:purchase-entry-form|purchase-line-editor|purchase-cost-editor|purchase-cost-summary|purchase-cost-overview-dialog|purchase-create|purchase-detail|purchase-edit)\//u;
 const nativeWorkspaceControlPattern = /<(?:button|input|textarea)\b[^>]*>/giu;
@@ -26,6 +33,35 @@ export function findAdminSharedUiViolations(path, source) {
   for (const match of source.matchAll(blackPrimaryVariantPattern)) {
     violations.push({ rule: 'black-primary-variant', line: lineAt(source, match.index) });
   }
+  for (const match of source.matchAll(directTableColumnMenuPattern)) {
+    violations.push({ rule: 'direct-table-column-menu', line: lineAt(source, match.index) });
+  }
+  for (const match of source.matchAll(legacyTableToolbarPattern)) {
+    violations.push({ rule: 'legacy-table-toolbar', line: lineAt(source, match.index) });
+  }
+
+  const tables = [...source.matchAll(tablePattern)];
+  const dataTableCount = [...source.matchAll(dataTablePattern)].length;
+  if (tables.length > 0) {
+    for (const match of source.matchAll(nativeTableSearchPattern)) {
+      violations.push({ rule: 'native-table-search', line: lineAt(source, match.index) });
+    }
+
+    const unclassifiedTables = tables.filter((match) => !tableExceptionPattern.test(match[0]));
+    if (dataTableCount === 0) {
+      for (const match of unclassifiedTables) {
+        violations.push({
+          rule: 'managed-table-without-data-table',
+          line: lineAt(source, match.index),
+        });
+      }
+    } else if (unclassifiedTables.length > dataTableCount) {
+      for (const match of unclassifiedTables) {
+        violations.push({ rule: 'unclassified-table', line: lineAt(source, match.index) });
+      }
+    }
+  }
+
   if (purchaseWorkspacePath.test(path.replaceAll('\\', '/'))) {
     for (const match of source.matchAll(nativeWorkspaceControlPattern)) {
       const tag = match[0];
