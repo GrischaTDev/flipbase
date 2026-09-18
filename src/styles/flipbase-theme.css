@@ -14,9 +14,17 @@
 :root {
   /* Brand */
   --fb-color-brand: #fcc601;
-  --fb-color-brand-text: #7a4c05;
-  --fb-color-brand-surface: rgb(252 198 1 / 14%);
-  --fb-color-brand-border: rgb(161 98 7 / 30%);
+  --fb-color-brand-text: #303030;
+  --fb-color-brand-surface: rgb(252 198 1 / 22%);
+  --fb-color-brand-border: rgb(229 178 1 / 70%);
+  --fb-color-brand-badge-surface: #fcc601;
+  --fb-color-brand-badge-text: #1a1a1a;
+  --fb-color-brand-badge-border: #e5b201;
+
+  /* Admin ist eine Rollenkennzeichnung, kein Fehlerstatus. Bewusst eigenes Rot. */
+  --fb-color-admin-surface: #d92d20;
+  --fb-color-admin-text: #ffffff;
+  --fb-color-admin-border: #b42318;
 
   /* Erfolg / positiver Zustand – bewusst warmes, weiches Gruen. */
   --fb-color-success: #86c98c;
@@ -55,6 +63,11 @@
   --fb-avatar-surface: var(--fb-color-brand-surface);
   --fb-avatar-text: var(--fb-color-brand-text);
   --fb-avatar-border: var(--fb-color-brand-border);
+
+  /* Der Bildeditor bleibt absichtlich dunkel, damit helle Produktbilder neutral beurteilbar sind. */
+  --fb-image-editor-canvas: #090b12;
+  --fb-image-editor-toolbar: #12141c;
+  --fb-image-editor-overlay: rgb(9 11 18 / 72%);
 }
 
 html.dark {
@@ -62,6 +75,13 @@ html.dark {
   --fb-color-brand-text: #fcc601;
   --fb-color-brand-surface: rgb(252 198 1 / 13%);
   --fb-color-brand-border: rgb(252 198 1 / 30%);
+  --fb-color-brand-badge-surface: rgb(252 198 1 / 13%);
+  --fb-color-brand-badge-text: #fcc601;
+  --fb-color-brand-badge-border: rgb(252 198 1 / 30%);
+
+  --fb-color-admin-surface: #d92d20;
+  --fb-color-admin-text: #ffffff;
+  --fb-color-admin-border: #f97066;
 
   --fb-color-success: #8fcb78;
   --fb-color-success-text: #a9dda0;
