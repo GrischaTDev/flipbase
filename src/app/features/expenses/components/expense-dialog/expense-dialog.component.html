@@ -1,0 +1,92 @@
+<app-modal-shell
+  [title]="expense() ? 'Ausgabe bearbeiten' : 'Ausgabe hinzufügen'"
+  subtitle="Betriebsausgaben gehören hierher, Wareneinkäufe weiterhin unter Einkäufe."
+  size="md"
+  (closed)="closed.emit()"
+>
+  <form id="expense-form" class="space-y-4" [formGroup]="form" (ngSubmit)="save()">
+    @if (errorMessage()) {
+      <p role="alert" class="rounded-lg border border-fb-line bg-fb-subtle p-3 text-[13px]">
+        {{ errorMessage() }}
+      </p>
+    }
+
+    <app-text-field formControlName="title" label="Bezeichnung" placeholder="z. B. Versandkartons" />
+
+    <div>
+      <span class="mb-1.5 block text-[13px] font-semibold">Kategorie</span>
+      <app-custom-select
+        formControlName="category_id"
+        ariaLabel="Ausgabenkategorie"
+        [options]="categoryOptions()"
+      />
+    </div>
+
+    <div class="grid gap-4 sm:grid-cols-2">
+      <label class="block">
+        <span class="mb-1.5 block text-[13px] font-semibold">Bruttobetrag</span>
+        <input
+          data-gross-amount
+          type="number"
+          min="0.01"
+          step="0.01"
+          formControlName="gross_amount"
+          class="linear-input min-h-9 w-full rounded-lg px-3 text-[13px]"
+        />
+      </label>
+      <div>
+        <span class="mb-1.5 block text-[13px] font-semibold">MwSt.</span>
+        <app-custom-select
+          formControlName="vat_rate"
+          ariaLabel="Mehrwertsteuersatz"
+          [options]="vatOptions"
+        />
+      </div>
+    </div>
+
+    @if (form.controls.gross_amount.value) {
+      <p class="text-xs text-fb-text-muted">
+        @if (taxBreakdown().net !== null) {
+          Netto {{ taxBreakdown().net }} € · MwSt. {{ taxBreakdown().tax }} €
+        } @else {
+          Netto und Steueranteil ohne MwSt.-Angabe nicht berechnet.
+        }
+      </p>
+    }
+
+    <div class="grid gap-4 sm:grid-cols-2">
+      <div>
+        <span class="mb-1.5 block text-[13px] font-semibold">Ausgabedatum</span>
+        <app-date-picker formControlName="expense_date" ariaLabel="Ausgabedatum" />
+      </div>
+      <div>
+        <span class="mb-1.5 block text-[13px] font-semibold">Status</span>
+        <app-custom-select
+          formControlName="status"
+          ariaLabel="Ausgabenstatus"
+          [options]="statusOptions"
+          (valueChange)="onStatusChanged($event)"
+        />
+      </div>
+    </div>
+
+    @if (form.controls.status.value === 'paid') {
+      <div>
+        <span class="mb-1.5 block text-[13px] font-semibold">Bezahlt am</span>
+        <app-date-picker formControlName="payment_date" ariaLabel="Zahlungsdatum" />
+      </div>
+    } @else {
+      <div>
+        <span class="mb-1.5 block text-[13px] font-semibold">Fällig am (optional)</span>
+        <app-date-picker formControlName="due_date" ariaLabel="Fälligkeitsdatum" />
+      </div>
+    }
+
+    <app-text-field formControlName="notes" label="Notizen" [multiline]="3" />
+  </form>
+
+  <app-button modal-footer variant="secondary" (clicked)="closed.emit()">Abbrechen</app-button>
+  <app-button modal-footer variant="primary" [loading]="isSaving()" (clicked)="save()">
+    Speichern
+  </app-button>
+</app-modal-shell>
