@@ -34,7 +34,7 @@ beforeAll(async () => {
   for (const [component, names] of [
     [ButtonComponent, ['variant', 'link']],
     [CardComponent, ['padding', 'rounded']],
-    [DashboardOpenCostsComponent, ['openCosts', 'salesWithoutPurchase']],
+    [DashboardOpenCostsComponent, ['openCosts', 'salesWithoutPurchase', 'inventoryItemsWithoutCost']],
   ] as const) {
     const metadata = (component as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp;
     metadata.inputs = { ...metadata.inputs };
@@ -62,10 +62,15 @@ function entry(index: number, overrides: Partial<DashboardOpenCost> = {}): Dashb
   };
 }
 
-function render(openCosts: DashboardOpenCost[], salesWithoutPurchase = 0) {
+function render(
+  openCosts: DashboardOpenCost[],
+  salesWithoutPurchase = 0,
+  inventoryItemsWithoutCost = 0,
+) {
   const fixture = TestBed.createComponent(DashboardOpenCostsComponent);
   fixture.componentRef.setInput('openCosts', openCosts);
   fixture.componentRef.setInput('salesWithoutPurchase', salesWithoutPurchase);
+  fixture.componentRef.setInput('inventoryItemsWithoutCost', inventoryItemsWithoutCost);
   fixture.detectChanges();
   return fixture.nativeElement as HTMLElement;
 }
@@ -75,53 +80,41 @@ function text(element: Element | null | undefined): string {
 }
 
 describe('DashboardOpenCostsComponent', () => {
-  it('bleibt unsichtbar, solange nichts offen ist', () => {
+  it('bleibt unsichtbar, solange nichts zu erledigen ist', () => {
     const host = render([]);
 
     expect(host.querySelector('section')).toBeNull();
   });
 
-  it('verlinkt jeden Einkauf mit Nummer, Grund und Umfang', () => {
-    const host = render([
-      entry(1, {
-        title: 'Kiste vom Flohmarkt',
-        recordNumber: 'EK-0007',
-        reason: 'cost_not_allocated',
-        affectedSales: 2,
-        affectedInventory: 1,
-      }),
-      entry(2, { reason: 'price_missing', affectedSales: 0 }),
-    ]);
-    const rows = [...host.querySelectorAll('[data-open-cost]')];
+  it('fasst fehlende Kostenangaben kompakt als Aufgabe zusammen', () => {
+    const host = render([entry(1), entry(2)], 0, 5);
+    const task = host.querySelector('[data-open-cost-purchases]');
 
-    expect(rows).toHaveLength(2);
-    expect(text(rows[0])).toContain('EK-0007 · Kiste vom Flohmarkt');
-    expect(text(rows[0])).toContain('betrifft 2 Verkäufe · 1 Artikel im Bestand');
-    expect(text(rows[0])).toContain('Kosten nicht auf Artikel verteilt');
-    expect(rows[0]?.querySelector('a')?.getAttribute('href')).toBe('/purchases/purchase-1');
-    expect(text(rows[1])).toContain('Einkaufspreis fehlt');
-    expect(text(rows[1])).toContain('Einkauf im gewählten Zeitraum');
+    expect(host.textContent).toContain('Zu erledigen');
+    expect(text(task)).toContain('5 Artikel ohne Kostenangabe');
+    expect(task?.querySelector('a')?.getAttribute('href')).toBe('/purchases');
+    expect(host.querySelector('[data-open-cost]')).toBeNull();
+    expect(host.textContent).not.toContain('Offene Kosten');
   });
 
-  it('zeigt höchstens fünf Einkäufe und verweist für den Rest auf die Einkaufsliste', () => {
-    const host = render(Array.from({ length: 7 }, (_, index) => entry(index + 1)));
-    const more = host.querySelector('[data-open-cost-more] a');
+  it('nennt offene Einkäufe, wenn kein konkreter Artikelbestand betroffen ist', () => {
+    const host = render([entry(1), entry(2)]);
+    const task = host.querySelector('[data-open-cost-purchases]');
 
-    expect(host.querySelectorAll('[data-open-cost]')).toHaveLength(5);
-    expect(text(more)).toBe('+2 weitere Einkäufe');
-    expect(more?.getAttribute('href')).toBe('/purchases');
+    expect(text(task)).toContain('2 Einkäufe mit fehlenden Kostenangaben');
+    expect(task?.querySelector('a')?.getAttribute('href')).toBe('/purchases');
   });
 
   it('führt Verkäufe ohne zuordenbaren Einkauf zur Verkaufsliste', () => {
     const host = render([], 3);
-    const row = host.querySelector('[data-open-cost-sales]');
+    const task = host.querySelector('[data-open-cost-sales]');
 
-    expect(text(row)).toContain('3 Verkäufe ohne nachvollziehbare Kosten');
-    expect(row?.querySelector('a')?.getAttribute('href')).toBe('/sales');
+    expect(text(task)).toContain('3 Verkäufe ohne nachvollziehbare Kosten');
+    expect(task?.querySelector('a')?.getAttribute('href')).toBe('/sales');
   });
 
   it('besteht AXE', async () => {
-    const host = render([entry(1), entry(2)], 1);
+    const host = render([entry(1), entry(2)], 1, 2);
 
     const result = await axe.run(host, { rules: { 'color-contrast': { enabled: false } } });
 
