@@ -1,4 +1,4 @@
-import { Inject, Injectable, InjectionToken } from '@angular/core';
+import { Injectable, InjectionToken, inject } from '@angular/core';
 import { VERSION } from '../version';
 import { isStaleChunkLoadError } from '../utils/stale-chunk-error';
 
@@ -21,7 +21,7 @@ export const STALE_CHUNK_BROWSER = new InjectionToken<StaleChunkBrowser>('STALE_
 
 @Injectable({ providedIn: 'root' })
 export class StaleChunkRecoveryService {
-  constructor(@Inject(STALE_CHUNK_BROWSER) private readonly browser: StaleChunkBrowser) {}
+  private readonly browser = inject(STALE_CHUNK_BROWSER);
 
   tryRecover(error: unknown): boolean {
     if (!isStaleChunkLoadError(error)) return false;
