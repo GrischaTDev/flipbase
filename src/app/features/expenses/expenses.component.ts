@@ -5,7 +5,11 @@ import {
   LucidePlus as Plus,
   LucideSettings2 as Settings2,
 } from '@lucide/angular';
-import { ExpenseStatus } from '../../core/models/expense.models';
+import {
+  Expense,
+  ExpenseRecurringRule,
+  ExpenseStatus,
+} from '../../core/models/expense.models';
 import { ExpenseCategoryService } from '../../core/services/expense-category.service';
 import { ExpenseRecurringService } from '../../core/services/expense-recurring.service';
 import { ExpenseService } from '../../core/services/expense.service';
@@ -16,7 +20,12 @@ import {
   CustomSelectComponent,
   SelectOption,
 } from '../../shared/components/custom-select/custom-select.component';
+import { ModalShellComponent } from '../../shared/components/modal-shell/modal-shell.component';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
+import { ExpenseCategoryDialogComponent } from './components/expense-category-dialog/expense-category-dialog.component';
+import { ExpenseDialogComponent } from './components/expense-dialog/expense-dialog.component';
+import { ExpenseDocumentsComponent } from './components/expense-documents/expense-documents.component';
+import { RecurringExpenseDialogComponent } from './components/recurring-expense-dialog/recurring-expense-dialog.component';
 
 type ExpenseTab = 'expenses' | 'recurring';
 type ExpenseStatusFilter = 'all' | ExpenseStatus;
@@ -52,6 +61,12 @@ export class ExpensesComponent implements OnInit {
   readonly statusFilter = signal<ExpenseStatusFilter>('all');
   readonly categoryFilter = signal<string>('all');
   readonly search = signal('');
+  readonly expenseDialogOpen = signal(false);
+  readonly editingExpense = signal<Expense | null>(null);
+  readonly recurringDialogOpen = signal(false);
+  readonly editingRule = signal<ExpenseRecurringRule | null>(null);
+  readonly categoryDialogOpen = signal(false);
+  readonly documentExpense = signal<Expense | null>(null);
 
   readonly pageIcon = CircleDollarSign;
   readonly addIcon = Plus;
@@ -103,6 +118,49 @@ export class ExpensesComponent implements OnInit {
     await this.recurringService.load();
     await this.recurringService.materializeDue(localDateKey());
     await this.expenseService.load();
+  }
+
+  openNewExpense(): void {
+    this.editingExpense.set(null);
+    this.expenseDialogOpen.set(true);
+  }
+
+  editExpense(expense: Expense): void {
+    this.editingExpense.set(expense);
+    this.expenseDialogOpen.set(true);
+  }
+
+  closeExpenseDialog(): void {
+    this.expenseDialogOpen.set(false);
+    this.editingExpense.set(null);
+  }
+
+  openNewRecurring(): void {
+    this.editingRule.set(null);
+    this.recurringDialogOpen.set(true);
+  }
+
+  editRecurring(rule: ExpenseRecurringRule): void {
+    this.editingRule.set(rule);
+    this.recurringDialogOpen.set(true);
+  }
+
+  closeRecurringDialog(): void {
+    this.recurringDialogOpen.set(false);
+    this.editingRule.set(null);
+  }
+
+  async refreshAfterRecurringSave(): Promise<void> {
+    await this.expenseService.load();
+  }
+
+  async markPaid(expense: Expense): Promise<void> {
+    await this.expenseService.markPaid(expense.id, localDateKey());
+  }
+
+  async removeExpense(expense: Expense): Promise<void> {
+    if (typeof window !== 'undefined' && !window.confirm('Ausgabe wirklich löschen?')) return;
+    await this.expenseService.remove(expense.id);
   }
 
   setTab(tab: ExpenseTab): void {
