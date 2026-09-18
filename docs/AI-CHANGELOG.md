@@ -45,7 +45,9 @@ bricht unter 120 Sekunden Restlaufzeit mit einer klaren deutschen Meldung ab, un
 eine fehlende `e2e/.auth/session.json` meldet sich jetzt auch verständlich statt mit
 rohem ENOENT. Der Steuerjournal-Test in `purchase-tax-costs.spec.ts` bestand nur,
 weil die Buchhaltungsseite fest auf 2026/08 startet; er wählt Jahr und Zeitraum jetzt
-selbst über die Oberfläche.
+selbst über die Oberfläche. Nach diesen Korrekturen liefen `npm run test:e2e:pr` (6 von
+6 bestanden), `npm run test:workflow`, `scripts/seed-isolation.test.mjs`, Prettier und
+ESLint jeweils mit Exitcode 0.
 
 **Befunde:** `deal-monitor.spec.ts` schlägt schon auf dem Ausgangsstand des Zweigs
 fehl (zwei Fälle, Workspacewechsel in der Erfassungsmaske gesperrt) - kein neuer
