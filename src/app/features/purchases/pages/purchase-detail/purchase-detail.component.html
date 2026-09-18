@@ -32,6 +32,15 @@
           >
         } @else {
           <app-button
+            data-purchase-print-link
+            [link]="'/purchases/' + p.id + '/print'"
+            size="slim"
+            [icon]="printIcon"
+            [ariaLabel]="purchaseDisplayTitle() + ' drucken oder als PDF speichern'"
+          >
+            Einkauf drucken
+          </app-button>
+          <app-button
             data-purchase-audit-print-link
             link="/settings/data/print"
             size="slim"

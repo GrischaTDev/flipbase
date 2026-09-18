@@ -9,6 +9,25 @@ Die vollständige bisherige Historie ist im
 bytegleich erhalten. Das Archiv liegt im selben Ordner, damit seine relativen
 Dateiverweise weiterhin denselben Ausgangspunkt haben.
 
+## 2026-09-18 – Claude Opus 5 (Anthropic) – Einkauf drucken
+
+**Auftrag:** Teil 3 des Einkaufsumbaus. Nutzerentscheidungen: eigene Druckseite wie
+beim Prüfbeleg, Druckknopf nur auf der Detailseite.
+
+**Änderung:** Neue Seite `/purchases/:id/print` mit Kopf (Einkaufsnummer,
+Bezeichnung, Datum), Verkäufer-Snapshot samt Quelle, Bestellnummer und Angebotslink,
+Positionstabelle, Kostenaufstellung mit Rabatt und Zusatzkosten, Gesamtkosten nach
+derselben Regel wie die Detailseite sowie der Liste hinterlegter Belege. Die
+Bedienleiste verschwindet beim Drucken; gedruckt wird über den Browserdialog, auch als
+PDF. Die Aufbereitung liegt als reine Funktion in `utils/purchase-print.ts`; die
+Kostenart-Bezeichnungen wurden dafür aus der Kostenübersicht in
+`utils/purchase-cost-labels.ts` ausgelagert. Der Prüfbeleg mit der Historie bleibt
+unverändert und separat. Keine Datenbankänderung.
+
+**Prüfung:** Vitest für den Einkaufsbereich (30 Dateien, 279 Tests), Typprüfung,
+ESLint, Prettier, Test-Audit und Shared-UI-Prüfung mit Exitcode 0. Der Angular-Bau
+läuft wegen der lokalen Node-Version nur in der CI.
+
 ## 2026-09-18 – Claude Opus 5 (Anthropic) – Einkaufsbelege als private Dateien
 
 **Auftrag:** Teil 2 von 3 des Einkaufsumbaus, nach dem veröffentlichten Teil 1 (PR #103).

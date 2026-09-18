@@ -7,6 +7,7 @@ import {
   PurchaseCostTaxTreatment,
   purchaseCostTaxTreatmentLabel,
 } from '../purchase-cost-editor/purchase-cost-adjustments';
+import { purchaseCostTypeLabel } from '../../utils/purchase-cost-labels';
 
 export interface PurchaseCostSummaryCost {
   readonly type: string;
@@ -72,7 +73,7 @@ export class PurchaseCostSummaryComponent {
     }
     for (const cost of this.costs()) {
       rows.push({
-        label: cost.description || costTypeLabel(cost.type),
+        label: cost.description || purchaseCostTypeLabel(cost.type),
         detail: purchaseCostTaxTreatmentLabel(
           cost.tax_treatment !== undefined ? cost.tax_treatment : cost.taxTreatment,
         ),
@@ -102,18 +103,4 @@ export class PurchaseCostSummaryComponent {
     if (amount === null) return '—';
     return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(amount);
   }
-}
-
-function costTypeLabel(type: string): string {
-  const labels: Record<string, string> = {
-    shipping: 'Versandkosten',
-    travel: 'Fahrtkosten',
-    packaging: 'Verpackung',
-    transport: 'Frachtgebühr',
-    customs: 'Zölle',
-    import: 'Importabgaben',
-    fee: 'Gebühr',
-    other: 'Sonstiges',
-  };
-  return labels[type] ?? 'Zusätzliche Kosten';
 }
