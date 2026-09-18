@@ -1,5 +1,31 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-18 – ChatGPT GPT-5.6 Sol (OpenAI) – Entwurf: einheitliches Data-Table-System
+
+**Auftrag:** Alle administrativen Tabellen und verwaltbaren Listen sollen dasselbe
+Shared-System für Tabellenfläche, Suche, Filterpositionen, Spalten-/Sortiermenü und
+Zustände verwenden. Neue Listen dürfen keine eigene Tabellenvariante mehr einführen.
+Zusätzlich soll die doppelte Artikelnavigation entfallen und Artikelübersicht in der
+Sidebar die Unterpunkte „Alle Artikel“ und „Bestand“ erhalten.
+
+**Befund:** Einkäufe verwenden bereits die gemeinsame TableToolbar-Struktur, während
+Verkäufe, Inventar, Artikelstamm, Buchhaltung und Beta-Bewerbungen jeweils eigene
+Varianten derselben Leiste besitzen. Ausgaben und Verkäufer bauen Filter und
+Tabellenhülle lokal nach. Toolbar-Suche und Toolbar-Selects sind im Ruhezustand teils
+transparent und dadurch schlecht als Interaktionen erkennbar.
+
+**Ergebnis:** Entwurf
+`docs/superpowers/specs/2026-09-18-unified-data-table-system-design.md`. Vorgesehen ist
+ein verbindlicher `DataTableComponent`, der Toolbar-Anordnung, Suche,
+Filter-Projektionen, optionales Spalten-/Sortiermenü sowie Lade-, Fehler- und
+Leerzustände zentral besitzt. Feature-Seiten liefern nur Fachfilter, Daten, Spalten,
+Zeilen und Aktionen. `scripts/check-admin-shared-ui.mjs` soll neue lokale
+Tabellenvarianten künftig automatisiert verhindern.
+
+**Prüfung:** Repository-Struktur, aktuelle Tabellenbausteine, Designrichtlinie,
+Tabellenpräferenzen und mehrere bestehende Listen wurden analysiert. Noch kein
+Anwendungscode geändert.
+
 Neue Sitzungen werden hier oben ergänzt: Datum, Assistent, Thema sowie Auftrag,
 Änderung und tatsächlich ausgeführte Prüfungen. Die Vorgaben aus `AGENTS.md` gelten
 unverändert.
