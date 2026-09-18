@@ -1,0 +1,62 @@
+<section class="space-y-3" aria-label="Belege">
+  @if (errorMessage() || documentService.loadError()) {
+    <p role="alert" class="rounded-lg border border-fb-line bg-fb-subtle p-3 text-[13px]">
+      {{ errorMessage() || documentService.loadError() }}
+    </p>
+  }
+
+  <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+    <app-custom-select
+      ariaLabel="Belegart"
+      size="sm"
+      widthClass="w-48"
+      [options]="typeOptions"
+      [value]="selectedType()"
+      (valueChange)="selectedType.set($event ?? 'invoice')"
+    />
+    <label class="fb-button linear-btn-secondary inline-flex min-h-8 cursor-pointer items-center justify-center rounded-lg border border-fb-border px-3 text-[13px] font-semibold">
+      {{ isUploading() ? 'Wird hochgeladen …' : 'Beleg hinzufügen' }}
+      <input
+        type="file"
+        class="sr-only"
+        accept=".pdf,.jpg,.jpeg,.png,.xml,application/pdf,image/jpeg,image/png,application/xml,text/xml"
+        [disabled]="isUploading()"
+        (change)="onFileSelected($event)"
+      />
+    </label>
+  </div>
+
+  @if (documentService.isLoading()) {
+    <p role="status" class="text-[13px] text-fb-text-muted">Belege werden geladen …</p>
+  } @else if (documentService.documents().length === 0) {
+    <p class="text-[13px] text-fb-text-muted">Noch kein Beleg hinterlegt.</p>
+  } @else {
+    <div class="divide-y divide-fb-line rounded-xl border border-fb-line">
+      @for (document of documentService.documents(); track document.id) {
+        <div class="flex items-center gap-3 px-3 py-2.5">
+          <div class="min-w-0 flex-1">
+            <p class="truncate text-[13px] font-medium text-fb-text-primary">
+              {{ document.original_file_name }}
+            </p>
+            <p class="text-xs text-fb-text-muted">
+              {{ EXPENSE_DOCUMENT_TYPE_LABELS[document.document_type] }}
+            </p>
+          </div>
+          <app-button size="slim" variant="ghost" (clicked)="preview.set(document)">
+            Öffnen
+          </app-button>
+          <app-button size="slim" variant="ghost" (clicked)="remove(document)">
+            Entfernen
+          </app-button>
+        </div>
+      }
+    </div>
+  }
+</section>
+
+@if (preview(); as document) {
+  <app-expense-document-preview-dialog
+    [document]="document"
+    (closed)="preview.set(null)"
+  />
+}
