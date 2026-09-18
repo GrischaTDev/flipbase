@@ -28,18 +28,23 @@ const category: ExpenseCategory = {
   updated_at: '2026-09-18T10:00:00.000Z',
 };
 
-function createService(options: {
-  rows?: ExpenseCategory[];
-  insertRow?: ExpenseCategory;
-  updateRow?: ExpenseCategory;
-  demo?: boolean;
-} = {}) {
+function createService(
+  options: {
+    rows?: ExpenseCategory[];
+    insertRow?: ExpenseCategory;
+    updateRow?: ExpenseCategory;
+    demo?: boolean;
+  } = {},
+) {
   const currentWorkspace = signal(workspace);
   const selectResult = vi.fn(async () => ({ data: options.rows ?? [category], error: null }));
   const singleInsert = vi.fn(async () => ({
-    data:
-      options.insertRow ??
-      { ...category, id: 'custom', name: 'Eigene Kategorie', is_default: false },
+    data: options.insertRow ?? {
+      ...category,
+      id: 'custom',
+      name: 'Eigene Kategorie',
+      is_default: false,
+    },
     error: null,
   }));
   const singleUpdate = vi.fn(async () => ({

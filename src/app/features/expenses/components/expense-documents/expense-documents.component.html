@@ -14,7 +14,9 @@
       [value]="selectedType()"
       (valueChange)="selectedType.set($event ?? 'invoice')"
     />
-    <label class="fb-button linear-btn-secondary inline-flex min-h-8 cursor-pointer items-center justify-center rounded-lg border border-fb-border px-3 text-[13px] font-semibold">
+    <label
+      class="fb-button linear-btn-secondary inline-flex min-h-8 cursor-pointer items-center justify-center rounded-lg border border-fb-border px-3 text-[13px] font-semibold"
+    >
       {{ isUploading() ? 'Wird hochgeladen …' : 'Beleg hinzufügen' }}
       <input
         type="file"
@@ -55,8 +57,5 @@
 </section>
 
 @if (preview(); as document) {
-  <app-expense-document-preview-dialog
-    [document]="document"
-    (closed)="preview.set(null)"
-  />
+  <app-expense-document-preview-dialog [document]="document" (closed)="preview.set(null)" />
 }

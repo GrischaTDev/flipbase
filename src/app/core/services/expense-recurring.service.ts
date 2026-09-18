@@ -106,7 +106,10 @@ export class ExpenseRecurringService {
     const workspaceId = this.workspace.currentWorkspace()?.id;
     if (!workspaceId) return { data: null, error: new Error('Kein aktiver Workspace.') };
     if (this.mockStore.isDemoMode())
-      return { data: null, error: new Error('Wiederkehrende Ausgaben werden im Demo-Modus nicht gespeichert.') };
+      return {
+        data: null,
+        error: new Error('Wiederkehrende Ausgaben werden im Demo-Modus nicht gespeichert.'),
+      };
 
     try {
       const { data, error } = await this.supabase.client

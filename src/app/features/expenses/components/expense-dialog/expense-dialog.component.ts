@@ -1,10 +1,15 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, output, signal } from '@angular/core';
-import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
-  Expense,
-  ExpenseStatus,
-  ExpenseVatRate,
-} from '../../../../core/models/expense.models';
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  computed,
+  inject,
+  input,
+  output,
+  signal,
+} from '@angular/core';
+import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Expense, ExpenseStatus, ExpenseVatRate } from '../../../../core/models/expense.models';
 import { ExpenseCategoryService } from '../../../../core/services/expense-category.service';
 import { ExpenseService } from '../../../../core/services/expense.service';
 import { calculateExpenseTax } from '../../../../core/utils/expense-money';
@@ -72,10 +77,7 @@ export class ExpenseDialogComponent implements OnInit {
       validators: [Validators.required, Validators.maxLength(160)],
     }),
     category_id: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
-    gross_amount: new FormControl<number | null>(null, [
-      Validators.required,
-      Validators.min(0.01),
-    ]),
+    gross_amount: new FormControl<number | null>(null, [Validators.required, Validators.min(0.01)]),
     vat_rate: new FormControl<ExpenseVatRate>(null),
     expense_date: new FormControl(localDateKey(), {
       nonNullable: true,
@@ -116,7 +118,10 @@ export class ExpenseDialogComponent implements OnInit {
   }
 
   taxBreakdown() {
-    return calculateExpenseTax(Number(this.form.controls.gross_amount.value ?? 0), this.form.controls.vat_rate.value);
+    return calculateExpenseTax(
+      Number(this.form.controls.gross_amount.value ?? 0),
+      this.form.controls.vat_rate.value,
+    );
   }
 
   async save(): Promise<void> {
@@ -151,7 +156,9 @@ export class ExpenseDialogComponent implements OnInit {
         ? await this.expenseService.update(this.expense()!.id, input)
         : await this.expenseService.create(input);
       if (result.error || !result.data) {
-        this.errorMessage.set(result.error?.message ?? 'Die Ausgabe konnte nicht gespeichert werden.');
+        this.errorMessage.set(
+          result.error?.message ?? 'Die Ausgabe konnte nicht gespeichert werden.',
+        );
         return;
       }
       this.saved.emit(result.data);

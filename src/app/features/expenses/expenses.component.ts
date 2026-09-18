@@ -1,15 +1,18 @@
 import { CurrencyPipe, DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import {
   LucideCircleDollarSign as CircleDollarSign,
   LucidePlus as Plus,
   LucideSettings2 as Settings2,
 } from '@lucide/angular';
-import {
-  Expense,
-  ExpenseRecurringRule,
-  ExpenseStatus,
-} from '../../core/models/expense.models';
+import { Expense, ExpenseRecurringRule, ExpenseStatus } from '../../core/models/expense.models';
 import { ExpenseCategoryService } from '../../core/services/expense-category.service';
 import { ExpenseRecurringService } from '../../core/services/expense-recurring.service';
 import { ExpenseService } from '../../core/services/expense.service';
@@ -168,9 +171,7 @@ export class ExpensesComponent implements OnInit {
   }
 
   setStatus(value: string | null): void {
-    this.statusFilter.set(
-      value === 'open' || value === 'paid' ? value : 'all',
-    );
+    this.statusFilter.set(value === 'open' || value === 'paid' ? value : 'all');
   }
 
   setCategory(value: string | null): void {

@@ -142,7 +142,9 @@ export class ExpenseDocumentService {
         .select();
       if (error) throw error;
       if (!data || data.length === 0) {
-        return { error: new Error('Der Beleg wurde nicht gefunden oder darf nicht entfernt werden.') };
+        return {
+          error: new Error('Der Beleg wurde nicht gefunden oder darf nicht entfernt werden.'),
+        };
       }
 
       const cleanup = await this.supabase.client.storage

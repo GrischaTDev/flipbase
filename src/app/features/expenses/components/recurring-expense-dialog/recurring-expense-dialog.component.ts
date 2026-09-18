@@ -1,4 +1,13 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, output, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  computed,
+  inject,
+  input,
+  output,
+  signal,
+} from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
   ExpenseFrequency,
@@ -69,13 +78,13 @@ export class RecurringExpenseDialogComponent implements OnInit {
   readonly form = new FormGroup({
     title: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     category_id: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
-    gross_amount: new FormControl<number | null>(null, [
-      Validators.required,
-      Validators.min(0.01),
-    ]),
+    gross_amount: new FormControl<number | null>(null, [Validators.required, Validators.min(0.01)]),
     vat_rate: new FormControl<ExpenseVatRate>(null),
     frequency: new FormControl<ExpenseFrequency>('monthly', { nonNullable: true }),
-    start_date: new FormControl(localDateKey(), { nonNullable: true, validators: [Validators.required] }),
+    start_date: new FormControl(localDateKey(), {
+      nonNullable: true,
+      validators: [Validators.required],
+    }),
     end_date: new FormControl<string | null>(null),
     is_active: new FormControl(true, { nonNullable: true }),
     notes: new FormControl('', { nonNullable: true }),
@@ -124,7 +133,9 @@ export class RecurringExpenseDialogComponent implements OnInit {
         ? await this.recurringService.update(this.rule()!.id, input)
         : await this.recurringService.create(input);
       if (result.error || !result.data) {
-        this.errorMessage.set(result.error?.message ?? 'Die Regel konnte nicht gespeichert werden.');
+        this.errorMessage.set(
+          result.error?.message ?? 'Die Regel konnte nicht gespeichert werden.',
+        );
         return;
       }
 

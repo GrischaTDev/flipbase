@@ -51,7 +51,6 @@ export interface Expense {
   readonly updated_at: string;
 }
 
-
 export interface ExpenseCreateInput {
   readonly category_id: string;
   readonly title: string;

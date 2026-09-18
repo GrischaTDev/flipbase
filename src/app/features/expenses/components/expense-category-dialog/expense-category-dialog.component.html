@@ -1,4 +1,9 @@
-<app-modal-shell title="Kategorien verwalten" subtitle="Standardkategorien und eigene Kategorien für deinen Workspace." size="md" (closed)="closed.emit()">
+<app-modal-shell
+  title="Kategorien verwalten"
+  subtitle="Standardkategorien und eigene Kategorien für deinen Workspace."
+  size="md"
+  (closed)="closed.emit()"
+>
   @if (errorMessage()) {
     <p role="alert" class="rounded-lg border border-fb-line bg-fb-subtle p-3 text-[13px]">
       {{ errorMessage() }}
@@ -44,10 +49,18 @@
               }
             </p>
           </div>
-          <app-button size="slim" variant="ghost" (clicked)="startRename(category.id, category.name)">
+          <app-button
+            size="slim"
+            variant="ghost"
+            (clicked)="startRename(category.id, category.name)"
+          >
             Umbenennen
           </app-button>
-          <app-button size="slim" variant="ghost" (clicked)="toggleArchived(category.id, category.is_archived)">
+          <app-button
+            size="slim"
+            variant="ghost"
+            (clicked)="toggleArchived(category.id, category.is_archived)"
+          >
             {{ category.is_archived ? 'Wiederherstellen' : 'Archivieren' }}
           </app-button>
         }

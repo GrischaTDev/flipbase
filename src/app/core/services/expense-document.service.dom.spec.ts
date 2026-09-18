@@ -1,10 +1,7 @@
 import '@angular/compiler';
 import { signal } from '@angular/core';
 import { describe, expect, it, vi } from 'vitest';
-import {
-  ExpenseDocument,
-  EXPENSE_DOCUMENT_BUCKET,
-} from '../models/expense-document.models';
+import { ExpenseDocument, EXPENSE_DOCUMENT_BUCKET } from '../models/expense-document.models';
 import { ExpenseDocumentService } from './expense-document.service';
 import { SyncStatusService } from './sync-status.service';
 
@@ -102,9 +99,7 @@ describe('ExpenseDocumentService', () => {
     expect(result.error).toBeNull();
     expect(upload).toHaveBeenCalledWith(
       expect.stringMatching(
-        new RegExp(
-          `^${EXPENSE_DOCUMENT_BUCKET}/${workspace.id}/${expenseId}/[0-9a-f-]{36}\\.pdf$`,
-        ),
+        new RegExp(`^${EXPENSE_DOCUMENT_BUCKET}/${workspace.id}/${expenseId}/[0-9a-f-]{36}\\.pdf$`),
       ),
       expect.anything(),
       { contentType: 'application/pdf', upsert: false },

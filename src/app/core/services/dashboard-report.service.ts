@@ -447,10 +447,7 @@ export class DashboardReportService {
     return this.number(sale.sale_price_total ?? sale.sale_price);
   }
 
-  private paidOperatingExpenseSpend(
-    window: DateWindow,
-    expenses: readonly Expense[],
-  ): number {
+  private paidOperatingExpenseSpend(window: DateWindow, expenses: readonly Expense[]): number {
     return this.money(
       expenses
         .filter(

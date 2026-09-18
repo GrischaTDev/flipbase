@@ -15,7 +15,11 @@
 
     <div>
       <span class="mb-1.5 block text-[13px] font-semibold">Kategorie</span>
-      <app-custom-select formControlName="category_id" ariaLabel="Kategorie" [options]="categoryOptions()" />
+      <app-custom-select
+        formControlName="category_id"
+        ariaLabel="Kategorie"
+        [options]="categoryOptions()"
+      />
     </div>
 
     <div class="grid gap-4 sm:grid-cols-2">
@@ -31,13 +35,21 @@
       </label>
       <div>
         <span class="mb-1.5 block text-[13px] font-semibold">MwSt.</span>
-        <app-custom-select formControlName="vat_rate" ariaLabel="Mehrwertsteuersatz" [options]="vatOptions" />
+        <app-custom-select
+          formControlName="vat_rate"
+          ariaLabel="Mehrwertsteuersatz"
+          [options]="vatOptions"
+        />
       </div>
     </div>
 
     <div>
       <span class="mb-1.5 block text-[13px] font-semibold">Rhythmus</span>
-      <app-custom-select formControlName="frequency" ariaLabel="Wiederholungsrhythmus" [options]="frequencyOptions" />
+      <app-custom-select
+        formControlName="frequency"
+        ariaLabel="Wiederholungsrhythmus"
+        [options]="frequencyOptions"
+      />
     </div>
 
     <div class="grid gap-4 sm:grid-cols-2">

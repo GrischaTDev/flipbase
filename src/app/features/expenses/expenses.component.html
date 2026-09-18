@@ -154,7 +154,11 @@
                       {{ expense.recurring_rule_id ? 'Ja' : '–' }}
                     </td>
                     <td class="px-4 py-3 text-fb-text-secondary">
-                      <app-button variant="ghost" size="slim" (clicked)="documentExpense.set(expense)">
+                      <app-button
+                        variant="ghost"
+                        size="slim"
+                        (clicked)="documentExpense.set(expense)"
+                      >
                         Belege
                       </app-button>
                     </td>
@@ -168,11 +172,7 @@
                         <app-button variant="ghost" size="slim" (clicked)="editExpense(expense)">
                           Bearbeiten
                         </app-button>
-                        <app-button
-                          variant="ghost"
-                          size="slim"
-                          (clicked)="removeExpense(expense)"
-                        >
+                        <app-button variant="ghost" size="slim" (clicked)="removeExpense(expense)">
                           Löschen
                         </app-button>
                       </div>
@@ -268,7 +268,6 @@
     </section>
   }
 </div>
-
 
 @if (expenseDialogOpen()) {
   <app-expense-dialog

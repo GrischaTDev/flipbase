@@ -161,9 +161,7 @@ export class ExpenseService {
     return this.persistUpdate(id, { status: 'paid', payment_date: paymentDate });
   }
 
-  markOpen(
-    id: string,
-  ): Promise<{ readonly data: Expense | null; readonly error: Error | null }> {
+  markOpen(id: string): Promise<{ readonly data: Expense | null; readonly error: Error | null }> {
     return this.persistUpdate(id, { status: 'open', payment_date: null });
   }
 

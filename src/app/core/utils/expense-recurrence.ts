@@ -52,7 +52,7 @@ function frequencyMonths(frequency: ExpenseFrequency): number {
 function occurrenceAt(start: CalendarDate, monthOffset: number): string {
   const zeroBasedMonth = start.month - 1 + monthOffset;
   const year = start.year + Math.floor(zeroBasedMonth / 12);
-  const month = ((zeroBasedMonth % 12) + 12) % 12 + 1;
+  const month = (((zeroBasedMonth % 12) + 12) % 12) + 1;
   const day = Math.min(start.day, daysInMonth(year, month));
   return dateKey({ year, month, day });
 }
