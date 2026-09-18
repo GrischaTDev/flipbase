@@ -1,5 +1,6 @@
 @import 'tailwindcss';
 @import 'intl-tel-input/styles';
+@import './styles/flipbase-theme.css';
 
 /* ==========================================================================
    FLIPBASE OS – ZENTRALE DESIGN-VARIABLEN (THEME CONFIG)
@@ -55,11 +56,11 @@
      Auspraegung noetig, damit aktive Icons und Fokusrahmen lesbar bleiben. */
   --fb-brand-yellow: #fcc601;
   --fb-brand-yellow-rgb: 252 198 1;
-  --fb-nav-accent: #a16207;
-  --fb-nav-accent-rgb: 161 98 7;
-  --fb-nav-badge-text: #713f12;
-  --fb-nav-accent-subtle: rgb(var(--fb-brand-yellow-rgb) / 14%);
-  --fb-nav-accent-border: rgb(var(--fb-nav-accent-rgb) / 30%);
+  --fb-nav-accent: var(--fb-color-brand-text);
+  --fb-nav-accent-rgb: 122 76 5;
+  --fb-nav-badge-text: var(--fb-color-brand-text);
+  --fb-nav-accent-subtle: var(--fb-color-brand-surface);
+  --fb-nav-accent-border: var(--fb-color-brand-border);
 
   /* 5. Finanz- & Statusfarben */
   --fb-profit: #047857;
@@ -235,10 +236,11 @@ html.dark {
   --fb-primary-border: rgba(248, 157, 19, 0.35);
 
   /* Im dunklen Design kann das helle Logo-Gelb direkt als Iconfarbe dienen. */
-  --fb-nav-accent: var(--fb-brand-yellow);
+  --fb-nav-accent: var(--fb-color-brand-text);
   --fb-nav-accent-rgb: var(--fb-brand-yellow-rgb);
-  --fb-nav-badge-text: var(--fb-brand-yellow);
-  --fb-nav-accent-border: rgb(var(--fb-nav-accent-rgb) / 34%);
+  --fb-nav-badge-text: var(--fb-color-brand-text);
+  --fb-nav-accent-subtle: var(--fb-color-brand-surface);
+  --fb-nav-accent-border: var(--fb-color-brand-border);
 
   /* 5. Finanz- & Statusfarben */
   --fb-profit: #57c776;
@@ -423,6 +425,37 @@ html.dark {
   --color-fb-nav-border: var(--fb-nav-accent-border);
   --color-fb-nav-badge: var(--fb-nav-badge-text);
 
+  /* Zentrale Flipbase-Farbrollen fuer Shared Components und Statusdarstellungen. */
+  --color-fb-brand: var(--fb-color-brand-text);
+  --color-fb-brand-strong: var(--fb-color-brand);
+  --color-fb-brand-surface: var(--fb-color-brand-surface);
+  --color-fb-brand-border: var(--fb-color-brand-border);
+
+  --color-fb-success: var(--fb-color-success-text);
+  --color-fb-success-strong: var(--fb-color-success);
+  --color-fb-success-surface: var(--fb-color-success-surface);
+  --color-fb-success-border: var(--fb-color-success-border);
+
+  --color-fb-warning: var(--fb-color-warning-text);
+  --color-fb-warning-strong: var(--fb-color-warning);
+  --color-fb-warning-surface: var(--fb-color-warning-surface);
+  --color-fb-warning-border: var(--fb-color-warning-border);
+
+  --color-fb-critical: var(--fb-color-critical-text);
+  --color-fb-critical-strong: var(--fb-color-critical);
+  --color-fb-critical-surface: var(--fb-color-critical-surface);
+  --color-fb-critical-border: var(--fb-color-critical-border);
+
+  --color-fb-info: var(--fb-color-info-text);
+  --color-fb-info-strong: var(--fb-color-info);
+  --color-fb-info-surface: var(--fb-color-info-surface);
+  --color-fb-info-border: var(--fb-color-info-border);
+
+  --color-fb-status-neutral: var(--fb-color-neutral-text);
+  --color-fb-status-neutral-strong: var(--fb-color-neutral);
+  --color-fb-status-neutral-surface: var(--fb-color-neutral-surface);
+  --color-fb-status-neutral-border: var(--fb-color-neutral-border);
+
   /* Die Akzentfarben von Tailwind werden auf themenabhaengige Variablen
      umgebogen. Dadurch passen sich rund 480 bereits vorhandene Klassen wie
      text-emerald-400 automatisch an das Design an, ohne dass die Templates
@@ -582,7 +615,7 @@ html.dark {
 /* UI-Hilfsklassen, gebunden an die zentralen Variablen */
 /* Verwaltungsdesign: lokale Variablen lassen Shop, Login und Landingpage unverändert. */
 html:not(.dark) .fb-admin {
-  --fb-c-amber-200: #92400e;
+  --fb-c-amber-200: var(--fb-color-warning-text);
   --fb-bg-app: #f1f1f1;
   --fb-bg-sidebar: #ebebeb;
   --fb-bg-header: #f1f1f1;
@@ -606,11 +639,11 @@ html:not(.dark) .fb-admin {
   --fb-primary-subtle: rgb(var(--fb-brand-yellow-rgb) / 12%);
   --fb-primary-border: rgb(138 86 6 / 35%);
   --fb-border-focus: var(--fb-nav-accent);
-  --fb-c-indigo-200: #8a5606;
-  --fb-c-indigo-300: #8a5606;
-  --fb-c-indigo-400: #8a5606;
-  --fb-c-indigo-500: #f89d13;
-  --fb-c-indigo-600: #8a5606;
+  --fb-c-indigo-200: var(--fb-color-brand-text);
+  --fb-c-indigo-300: var(--fb-color-brand-text);
+  --fb-c-indigo-400: var(--fb-color-brand-text);
+  --fb-c-indigo-500: var(--fb-color-brand);
+  --fb-c-indigo-600: var(--fb-color-brand-text);
   --fb-c-indigo-950: #1a1207;
   --fb-shadow-sm: 0 1px 2px rgb(0 0 0 / 4%);
   --fb-shadow-md:

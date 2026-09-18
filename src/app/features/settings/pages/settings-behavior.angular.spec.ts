@@ -82,6 +82,8 @@ const resourceFiles: Readonly<Record<string, string>> = {
     '../../../shared/components/custom-select/custom-select.component.html',
   'custom-select.component.scss':
     '../../../shared/components/custom-select/custom-select.component.scss',
+  'badge.component.html': '../../../shared/components/badge/badge.component.html',
+  'badge.component.scss': '../../../shared/components/badge/badge.component.scss',
 };
 
 beforeAll(async () => {

@@ -9,6 +9,28 @@ Die vollständige bisherige Historie ist im
 bytegleich erhalten. Das Archiv liegt im selben Ordner, damit seine relativen
 Dateiverweise weiterhin denselben Ausgangspunkt haben.
 
+## 2026-09-18 – ChatGPT GPT-5.6 Sol (OpenAI) – Flipbase Theme und lesbare AI-Regeln
+
+**Auftrag:** Die uneinheitlichen Farben von Toasts, Badges, Header, Navigation und
+Statusdarstellungen auf eine gemeinsame Flipbase-Designsprache ausrichten. Danach die
+AI-Regeln so ergänzen, dass englische Code-Namen zugleich konkret, lesbar und am
+Projektzweck orientiert bleiben; PR-Titel und PR-Beschreibungen ausdrücklich auf
+Englisch festlegen.
+
+**Änderung:** Zentrale Theme-Datei `src/styles/flipbase-theme.css` mit verständlichen
+Farbrollen für Brand, Erfolg, Warnung, kritisch und neutral in Light/Dark. Shared
+Badges, Toasts und Buttons sowie Header, Workspace-Status und Dashboard-KPIs greifen
+auf diese Rollen zurück. Toasts erhalten eine neutrale Oberfläche und sauber
+ausgerichtete Icon-/Text-/Close-Spalten. `AGENTS.md` verlangt jetzt zusätzlich
+intention-revealing English names, bevorzugt konkrete Projekt-/Fachnamen vor
+abstraktem Jargon, und definiert PR-Titel sowie PR-Beschreibungen ausdrücklich als
+englisch.
+
+**Prüfung:** PR-CI nach den UI-Änderungen: Formatierung, ESLint, Typprüfung, Build,
+Browser-Smoke inklusive AXE, Node-, DOM- und beide Angular-Test-Shards erfolgreich.
+Die anschließende reine Dokumentationsänderung an `AGENTS.md` wurde im selben PR
+ergänzt.
+
 ## 2026-09-18 – Claude Opus 5 (Anthropic) – Einkauf drucken
 
 **Auftrag:** Teil 3 des Einkaufsumbaus. Nutzerentscheidungen: eigene Druckseite wie

@@ -14,10 +14,11 @@ import {
   SelectOption,
 } from '../../../../shared/components/custom-select/custom-select.component';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
+import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 
 @Component({
   selector: 'app-workspace-settings',
-  imports: [ReactiveFormsModule, LucideDynamicIcon, CustomSelectComponent],
+  imports: [ReactiveFormsModule, LucideDynamicIcon, CustomSelectComponent, BadgeComponent],
   templateUrl: './workspace-settings.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },

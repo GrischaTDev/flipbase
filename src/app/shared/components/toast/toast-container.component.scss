@@ -1,0 +1,47 @@
+:host {
+  display: contents;
+}
+
+.fb-toast {
+  background: var(--fb-toast-surface);
+  border-color: var(--fb-toast-border);
+  color: var(--fb-text-primary);
+  box-shadow: var(--fb-toast-shadow);
+  --toast-accent: var(--fb-color-info);
+  --toast-surface: var(--fb-color-info-surface);
+  --toast-border: var(--fb-color-info-border);
+}
+
+.fb-toast--success {
+  --toast-accent: var(--fb-color-success);
+  --toast-surface: var(--fb-color-success-surface);
+  --toast-border: var(--fb-color-success-border);
+}
+
+.fb-toast--error {
+  --toast-accent: var(--fb-color-critical);
+  --toast-surface: var(--fb-color-critical-surface);
+  --toast-border: var(--fb-color-critical-border);
+}
+
+.fb-toast--warning {
+  --toast-accent: var(--fb-color-warning);
+  --toast-surface: var(--fb-color-warning-surface);
+  --toast-border: var(--fb-color-warning-border);
+}
+
+.fb-toast--info {
+  --toast-accent: var(--fb-color-info);
+  --toast-surface: var(--fb-color-info-surface);
+  --toast-border: var(--fb-color-info-border);
+}
+
+.fb-toast__icon {
+  color: var(--toast-accent);
+  background: var(--toast-surface);
+  border: 1px solid var(--toast-border);
+}
+
+.fb-toast__close:hover {
+  background: var(--fb-bg-surface-hover);
+}
