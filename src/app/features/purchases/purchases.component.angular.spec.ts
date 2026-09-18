@@ -24,6 +24,7 @@ import { CostStateComponent } from '../../shared/components/cost-state/cost-stat
 import { CustomSearchInputComponent } from '../../shared/components/custom-search-input/custom-search-input.component';
 import { CustomSelectComponent } from '../../shared/components/custom-select/custom-select.component';
 import { PurchaseReceiptPreviewComponent } from './components/purchase-receipt-preview/purchase-receipt-preview.component';
+import { DataTableComponent } from '../../shared/components/data-table/data-table.component';
 
 interface AngularInputMetadata {
   inputs: Record<string, unknown>;
@@ -68,6 +69,24 @@ beforeAll(async () => {
     return readFile(matches[0], 'utf8');
   });
   registerSignalInputs(PageHeaderComponent, ['icon']);
+  registerSignalInputs(DataTableComponent, [
+    'ariaLabel',
+    'searchValue',
+    'searchPlaceholder',
+    'searchAriaLabel',
+    'searchEnabled',
+    'toolbarVisible',
+    'columns',
+    'sortOptions',
+    'currentSort',
+    'viewModified',
+    'loading',
+    'errorMessage',
+    'hasRows',
+    'loadingText',
+    'emptyTitle',
+    'emptyText',
+  ]);
   registerSignalInputs(TableColumnMenuComponent, [
     'columns',
     'sortOptions',
@@ -87,6 +106,10 @@ beforeAll(async () => {
     'ariaExpanded',
     'ariaControls',
     'ariaHaspopup',
+    'ariaLabel',
+    'ariaPressed',
+    'variant',
+    'size',
   ]);
   registerSignalInputs(CostStateComponent, ['state']);
   registerSignalInputs(CustomSearchInputComponent, [
@@ -178,6 +201,7 @@ beforeEach(() => {
       PageHeaderComponent,
       TableColumnMenuComponent,
       TableSortHeaderComponent,
+      DataTableComponent,
     ],
     providers: [
       provideRouter([]),
