@@ -50,6 +50,8 @@ function createService(options: { metadataFails?: boolean; demo?: boolean } = {}
   const documents = signal<readonly ExpenseDocument[]>([]);
   Object.assign(service, {
     documents,
+    isLoading: signal(false),
+    loadError: signal<string | null>(null),
     workspaceService: { currentWorkspace: signal(workspace) },
     mockStore: { isDemoMode: signal(options.demo ?? false) },
     syncStatus: new SyncStatusService(),
