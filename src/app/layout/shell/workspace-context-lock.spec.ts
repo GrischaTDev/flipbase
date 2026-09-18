@@ -1,29 +1,36 @@
 import '@angular/compiler';
 import type { ActivatedRouteSnapshot } from '@angular/router';
 import { describe, expect, it } from 'vitest';
-import { unsavedEntryGuard } from '../../shared/guards/unsaved-entry.guard';
-import { blocksWorkspaceActions } from './shell.component';
+import { routeLocksWorkspaceContext } from '../../core/services/workspace-context-lock.service';
 
 function snapshot(
-  canDeactivate: unknown[] = [],
-  firstChild: ActivatedRouteSnapshot | null = null,
+  options: {
+    canDeactivate?: unknown[];
+    workspaceContextLocked?: boolean;
+    firstChild?: ActivatedRouteSnapshot | null;
+  } = {},
 ): ActivatedRouteSnapshot {
   return {
-    routeConfig: { canDeactivate },
-    firstChild,
+    data: options.workspaceContextLocked ? { workspaceContextLocked: true } : {},
+    routeConfig: { canDeactivate: options.canDeactivate ?? [] },
+    firstChild: options.firstChild ?? null,
   } as unknown as ActivatedRouteSnapshot;
 }
 
 describe('Workspace-Kontext in Erfassungsmasken', () => {
   it('sperrt Workspace-Aktionen auf Seiten mit dem Unsaved-Entry-Guard', () => {
-    expect(blocksWorkspaceActions(snapshot([unsavedEntryGuard]))).toBe(true);
+    expect(routeLocksWorkspaceContext(snapshot({ canDeactivate: [() => true] }))).toBe(true);
   });
 
   it('erkennt den Guard auch in einer untergeordneten Route', () => {
-    expect(blocksWorkspaceActions(snapshot([], snapshot([unsavedEntryGuard])))).toBe(true);
+    expect(
+      routeLocksWorkspaceContext(
+        snapshot({ firstChild: snapshot({ workspaceContextLocked: true }) }),
+      ),
+    ).toBe(true);
   });
 
   it('lässt Workspace-Aktionen auf normalen Übersichtsseiten zu', () => {
-    expect(blocksWorkspaceActions(snapshot())).toBe(false);
+    expect(routeLocksWorkspaceContext(snapshot())).toBe(false);
   });
 });
