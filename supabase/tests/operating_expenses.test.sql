@@ -186,6 +186,11 @@ select is(
   'zukünftige Ausgaben werden nicht erzeugt'
 );
 
+update public.recurring_operating_expenses
+set archived_at = now()
+where id = 'e1800000-0000-4000-8000-000000000041';
+
+
 insert into public.recurring_operating_expenses (
   id, workspace_id, category_id, title, gross_amount, interval,
   start_date, next_due_date, created_by
