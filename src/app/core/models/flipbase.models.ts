@@ -711,6 +711,8 @@ export interface DashboardReport {
   purchaseSpend: number;
   /** Direkte Verkaufskosten der Verkäufe im Zeitraum. */
   sellingCosts: number;
+  /** Bezahlte allgemeine Betriebsausgaben nach Zahlungsdatum. */
+  operatingExpenseSpend?: number;
   totalExpenses: number;
   /** Einkäufe haben keine Plattform und zählen nur ohne Plattformfilter. */
   purchasesIncluded: boolean;
