@@ -1,11 +1,13 @@
 import '@angular/compiler';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Injector, runInInjectionContext } from '@angular/core';
+import { Router } from '@angular/router';
 import { WorkspaceService } from './workspace.service';
 import { InventoryItem, Purchase, Sale, Workspace } from '../models/flipbase.models';
 import { SupabaseService } from './supabase.service';
 import { AuthService } from './auth.service';
 import { SyncStatusService } from './sync-status.service';
+import { WorkspaceContextLockService } from './workspace-context-lock.service';
 
 describe('Multi-Workspace & Holding Consolidation Service', () => {
   describe('Archiv-Lebenszyklus', () => {
@@ -117,6 +119,54 @@ describe('Multi-Workspace & Holding Consolidation Service', () => {
 
     const delRes = await service.deleteWorkspace(res.data!.id);
     expect(delRes.success).toBe(true);
+  });
+
+  it('blockiert Workspace-Wechsel und Neuanlage zentral während einer Erfassung', async () => {
+    const injector = Injector.create({
+      providers: [
+        {
+          provide: WorkspaceContextLockService,
+          useValue: { locked: () => true },
+        },
+      ],
+    });
+    const lockedService = runInInjectionContext(injector, () => new WorkspaceService());
+    await lockedService.loadWorkspaces();
+    const original = lockedService.currentWorkspace();
+    const target = lockedService.workspaces().find((workspace) => workspace.id !== original?.id)!;
+    const before = [...lockedService.workspaces()];
+
+    expect(lockedService.switchWorkspace(target.id)).toBe(false);
+    expect(lockedService.currentWorkspace()).toEqual(original);
+
+    const result = await lockedService.createWorkspace('Darf nicht entstehen');
+
+    expect(result.data).toBeNull();
+    expect(result.error?.message).toContain('laufenden Erfassung');
+    expect(lockedService.workspaces()).toEqual(before);
+    expect(lockedService.currentWorkspace()).toEqual(original);
+  });
+
+  it('landet nach jeder erfolgreichen Workspace-Neuanlage auf dem Dashboard', async () => {
+    const navigate = vi.fn().mockResolvedValue(true);
+    const injector = Injector.create({
+      providers: [
+        {
+          provide: WorkspaceContextLockService,
+          useValue: { locked: () => false },
+        },
+        { provide: Router, useValue: { navigate } },
+      ],
+    });
+    const routedService = runInInjectionContext(injector, () => new WorkspaceService());
+    await routedService.loadWorkspaces();
+
+    const result = await routedService.createWorkspace('Neuer Workspace');
+
+    expect(result.error).toBeNull();
+    expect(result.data?.name).toBe('Neuer Workspace');
+    expect(routedService.currentWorkspace()?.id).toBe(result.data?.id);
+    expect(navigate).toHaveBeenCalledWith(['/dashboard']);
   });
 
   it('behält einen gefüllten Workspace bei Datenbankablehnung vollständig lokal und meldet den Grund', async () => {
