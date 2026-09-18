@@ -1,0 +1,59 @@
+<app-modal-shell title="Kategorien verwalten" subtitle="Standardkategorien und eigene Kategorien für deinen Workspace." size="md" (closed)="closed.emit()">
+  @if (errorMessage()) {
+    <p role="alert" class="rounded-lg border border-fb-line bg-fb-subtle p-3 text-[13px]">
+      {{ errorMessage() }}
+    </p>
+  }
+
+  <div class="flex gap-2">
+    <label class="min-w-0 flex-1">
+      <span class="sr-only">Neue Kategorie</span>
+      <input
+        type="text"
+        maxlength="80"
+        class="linear-input min-h-9 w-full rounded-lg px-3 text-[13px]"
+        placeholder="Eigene Kategorie"
+        [value]="newName()"
+        (input)="newName.set($any($event.target).value)"
+        (keydown.enter)="$event.preventDefault(); createCategory()"
+      />
+    </label>
+    <app-button variant="primary" [loading]="isSaving()" (clicked)="createCategory()">
+      Hinzufügen
+    </app-button>
+  </div>
+
+  <div class="divide-y divide-fb-line rounded-xl border border-fb-line">
+    @for (category of categoryService.allCategories(); track category.id) {
+      <div class="flex items-center gap-2 px-3 py-2.5">
+        @if (editingId() === category.id) {
+          <input
+            type="text"
+            class="linear-input min-h-8 min-w-0 flex-1 rounded-lg px-2.5 text-[13px]"
+            [value]="editingName()"
+            (input)="editingName.set($any($event.target).value)"
+          />
+          <app-button size="slim" variant="primary" (clicked)="saveRename()">Speichern</app-button>
+        } @else {
+          <div class="min-w-0 flex-1">
+            <p class="truncate text-[13px] font-medium text-fb-text-primary">{{ category.name }}</p>
+            <p class="text-xs text-fb-text-muted">
+              {{ category.is_default ? 'Standard' : 'Eigene Kategorie' }}
+              @if (category.is_archived) {
+                · Archiviert
+              }
+            </p>
+          </div>
+          <app-button size="slim" variant="ghost" (clicked)="startRename(category.id, category.name)">
+            Umbenennen
+          </app-button>
+          <app-button size="slim" variant="ghost" (clicked)="toggleArchived(category.id, category.is_archived)">
+            {{ category.is_archived ? 'Wiederherstellen' : 'Archivieren' }}
+          </app-button>
+        }
+      </div>
+    }
+  </div>
+
+  <app-button modal-footer variant="secondary" (clicked)="closed.emit()">Schließen</app-button>
+</app-modal-shell>
