@@ -333,7 +333,7 @@ describe('DashboardComponent', () => {
     }
   });
 
-  it('zeigt nur die vier Hauptkennzahlen ohne Vergleichs- und Erklärungstexte', () => {
+  it('zeigt Umsatz, Gewinn, Marge und Cashflow sowie eine kompakte Ausgabenübersicht', () => {
     createReport.mockReturnValueOnce({
       ...emptyReport,
       grossProfit: 20.09,
@@ -383,18 +383,26 @@ describe('DashboardComponent', () => {
     );
 
     expect(kpiSection.querySelectorAll('app-dashboard-kpi-card')).toHaveLength(4);
-    for (const label of ['Gewinn', 'Umsatz', 'Verkaufte Artikel', 'Durchschnittliche Marge']) {
+    for (const label of ['Umsatz', 'Gewinn', 'Marge', 'Cashflow']) {
       expect(kpiSection.textContent).toContain(label);
     }
-    expect(kpiSection.textContent).not.toContain('Ausgaben');
+    expect(kpiSection.textContent).not.toContain('Verkaufte Artikel');
     expect(kpiSection.textContent).not.toContain('Bestandswert');
 
     const kpi = (name: string) =>
       host.querySelector(`[data-kpi="${name}"]`)?.textContent?.replace(/\s+/g, ' ').trim();
-    expect(kpi('gross-profit')).toContain('20,09 €');
     expect(kpi('revenue')).toContain('42,98 €');
-    expect(kpi('sold-items')).toContain('2');
+    expect(kpi('gross-profit')).toContain('20,09 €');
     expect(kpi('margin')).toContain('46,74 %');
+    expect(kpi('cashflow')).toContain('5,14 €');
+
+    const expenses = host.querySelector('[data-dashboard-expenses]');
+    expect(expenses?.textContent).toContain('Ausgaben');
+    expect(expenses?.textContent).toContain('37,84 €');
+    expect(expenses?.textContent).toContain('Einkäufe');
+    expect(expenses?.textContent).toContain('24,95 €');
+    expect(expenses?.textContent).toContain('Gebühren & Versand');
+    expect(expenses?.textContent).toContain('12,89 €');
 
     expect(kpiSection.querySelector('[data-kpi-change]')).toBeNull();
     expect(kpiSection.querySelector('[data-kpi-hint]')).toBeNull();
@@ -439,6 +447,50 @@ describe('DashboardComponent', () => {
     expect(mobileProfitLabel?.nextElementSibling?.className).toContain('text-fb-success');
     expect(text).not.toContain('COGS');
     expect(text).not.toContain('Realisierter Gewinn');
+  });
+
+  it('markiert einen negativen Cashflow rot, ohne ihn mit dem Verkaufsgewinn zu vermischen', () => {
+    createReport.mockReturnValueOnce({
+      ...emptyReport,
+      revenue: 100,
+      grossProfit: 30,
+      averageMarginPercent: 30,
+      purchaseSpend: 140,
+      sellingCosts: 10,
+      totalExpenses: 150,
+    });
+
+    const fixture = createDashboard();
+    const host = fixture.nativeElement as HTMLElement;
+    const cashflow = host.querySelector('[data-kpi="cashflow"]');
+
+    expect(cashflow?.textContent).toContain('-50,00 €');
+    expect(cashflow?.querySelector('p')?.className ?? '').not.toContain('text-fb-critical');
+    expect(cashflow?.textContent).not.toContain('30,00 €');
+  });
+
+  it('zeigt bei einem Plattformfilter keinen unvollständigen Cashflow als echte Kennzahl', () => {
+    preferences.set({ range: 'year', platform: 'ebay' });
+    createReport.mockReturnValueOnce({
+      ...emptyReport,
+      revenue: 100,
+      sellingCosts: 10,
+      totalExpenses: 10,
+      purchaseSpend: 0,
+      purchasesIncluded: false,
+    });
+
+    const fixture = createDashboard();
+    const host = fixture.nativeElement as HTMLElement;
+    const cashflow = host.querySelector('[data-kpi="cashflow"]');
+    const expenses = host.querySelector('[data-dashboard-expenses]');
+
+    expect(cashflow?.textContent).toContain('–');
+    expect(cashflow?.textContent).not.toContain('90,00 €');
+    expect(expenses?.textContent).toContain('Einkäufe');
+    expect(expenses?.textContent).toContain('–');
+    expect(expenses?.textContent).toContain('Gebühren & Versand');
+    expect(expenses?.textContent).toContain('10,00 €');
   });
 
   it('markiert einen negativen Verkaufsgewinn rot, ohne normale Kosten als Fehler zu färben', () => {
