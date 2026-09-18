@@ -4,7 +4,6 @@ import {
   LucideArrowUpRight as ArrowUpRight,
   LucideCoins as Coins,
   LucideDynamicIcon,
-  LucideReceiptText as ReceiptText,
   LucideTrendingUp as TrendingUp,
 } from '@lucide/angular';
 import { DashboardRange } from '../../core/models/flipbase.models';
@@ -80,6 +79,7 @@ export class DashboardComponent {
 
   readonly kpis = computed(() => {
     const report = this.report();
+    const cashflow = report.purchasesIncluded ? report.revenue - report.totalExpenses : null;
 
     return {
       grossProfit: {
@@ -94,21 +94,31 @@ export class DashboardComponent {
       revenue: {
         value: euro.format(report.revenue),
       },
-      soldItems: {
-        value: String(report.soldItems),
-      },
       margin: {
         value:
           report.averageMarginPercent === null
             ? '–'
             : `${percent.format(report.averageMarginPercent)} %`,
       },
+      cashflow: {
+        value: cashflow === null ? '–' : euro.format(cashflow),
+        tone:
+          cashflow === null || cashflow === 0
+            ? ('default' as const)
+            : cashflow > 0
+              ? ('positive' as const)
+              : ('negative' as const),
+      },
+      expenses: {
+        total: report.purchasesIncluded ? euro.format(report.totalExpenses) : '–',
+        purchases: report.purchasesIncluded ? euro.format(report.purchaseSpend) : '–',
+        selling: euro.format(report.sellingCosts),
+      },
     };
   });
 
   readonly trendingIcon = TrendingUp;
   readonly coinsIcon = Coins;
-  readonly receiptIcon = ReceiptText;
   readonly arrowIcon = ArrowUpRight;
 
   setRange(range: DashboardRange): void {
