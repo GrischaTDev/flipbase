@@ -129,6 +129,31 @@ export class OperatingExpenseDocumentService {
     }
   }
 
+  async remove(document: OperatingExpenseDocument): Promise<{ error: Error | null }> {
+    if (this.mockStore.isDemoMode()) return { error: new Error(DEMO_MESSAGE) };
+    try {
+      const { data, error } = await this.supabase.client
+        .from('operating_expense_documents')
+        .delete()
+        .eq('id', document.id)
+        .select();
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        return { error: new Error('Der Beleg wurde nicht gefunden oder konnte nicht entfernt werden.') };
+      }
+
+      const cleanup = await this.supabase.client.storage
+        .from(OPERATING_EXPENSE_DOCUMENT_BUCKET)
+        .remove([document.storage_path]);
+      if (cleanup.error) throw cleanup.error;
+
+      this.documentsRaw.update((current) => current.filter((entry) => entry.id !== document.id));
+      return { error: null };
+    } catch (cause: unknown) {
+      return { error: this.syncStatus.melde('Entfernen des Ausgabenbelegs', cause) };
+    }
+  }
+
   async removeAllForExpense(expenseId: string): Promise<{ error: Error | null }> {
     if (this.mockStore.isDemoMode()) return { error: new Error(DEMO_MESSAGE) };
     try {
