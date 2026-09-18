@@ -32,6 +32,7 @@ import {
   LucideExternalLink as ExternalLink,
   LucideCoins as Coins,
   LucideReceipt as Receipt,
+  LucidePrinter as Printer,
   LucideSparkles as Sparkles,
   LucideSliders as Sliders,
   LucideCheckCircle2 as CheckCircle2,
@@ -304,6 +305,7 @@ export class PurchaseDetailComponent {
   readonly linkIcon = ExternalLink;
   readonly coinsIcon = Coins;
   readonly receiptIcon = Receipt;
+  readonly printIcon = Printer;
   readonly sparklesIcon = Sparkles;
   readonly slidersIcon = Sliders;
   readonly checkIcon = CheckCircle2;

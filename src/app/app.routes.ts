@@ -123,6 +123,13 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'purchases/:id/print',
+        loadComponent: () =>
+          import('./features/purchases/pages/purchase-print/purchase-print.component').then(
+            (m) => m.PurchasePrintComponent,
+          ),
+      },
+      {
         path: 'purchases/:id',
         canDeactivate: [unsavedEntryGuard],
         loadComponent: () =>
