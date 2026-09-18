@@ -82,6 +82,8 @@ function createService(existing: Expense[] = [storedExpense]) {
   const expenses = signal<readonly Expense[]>([]);
   Object.assign(service, {
     expenses,
+    isLoading: signal(false),
+    loadError: signal<string | null>(null),
     workspaceService: { currentWorkspace: signal(workspace) },
     mockStore: { isDemoMode: signal(false) },
     syncStatus: new SyncStatusService(),
