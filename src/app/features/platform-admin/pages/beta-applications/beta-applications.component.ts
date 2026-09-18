@@ -18,9 +18,11 @@ import {
   TableSortState,
 } from '../../../../core/models/table-preferences.models';
 import { TablePreferencesService } from '../../../../core/services/table-preferences.service';
-import { TableColumnMenuComponent } from '../../../../shared/components/table-column-menu/table-column-menu.component';
 import { TableSortHeaderComponent } from '../../../../shared/components/table-sort-header/table-sort-header.component';
 import { PageHeaderComponent } from '../../../../shared/components/page-header/page-header.component';
+import { DataTableComponent } from '../../../../shared/components/data-table/data-table.component';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { LucideShieldCheck as ShieldCheck } from '@lucide/angular';
 
 const MIN_GRANTED_DAYS = 1;
@@ -28,7 +30,14 @@ const MAX_GRANTED_DAYS = 3650;
 
 @Component({
   selector: 'app-beta-applications',
-  imports: [DatePipe, TableColumnMenuComponent, TableSortHeaderComponent, PageHeaderComponent],
+  imports: [
+    DatePipe,
+    TableSortHeaderComponent,
+    PageHeaderComponent,
+    DataTableComponent,
+    ButtonComponent,
+    BadgeComponent,
+  ],
   templateUrl: './beta-applications.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
