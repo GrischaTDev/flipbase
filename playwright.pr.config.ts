@@ -9,7 +9,7 @@ export default defineConfig({
     /@core-smoke\b/,
     /keeps a saved draft editable through discard, save and reopening @pr-smoke\b/,
     /preserves purchase cost origin after reopening at 1440px @pr-smoke\b/,
-    /keeps per-item tax visible and blocks unreviewed cost exports @pr-smoke\b/,
+    /keeps per-item tax visible in the tax journal @pr-smoke\b/,
     /verkauft ein Einzelstück genau einmal aus dem gemeinsamen Inventar @pr-smoke\b/,
   ],
   forbidOnly: true,

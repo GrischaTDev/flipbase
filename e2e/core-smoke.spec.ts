@@ -1,11 +1,10 @@
-import { expect, test } from '@playwright/test';
-import { startDemoMode } from './support/demo';
+import { expect, openDashboard, test } from './support/fixtures';
 
-// Absichtlich Demo-Daten: keine Produktionszugriffe und kein Ersatz für Auth/RLS-Tests.
-test('öffnet Demo und zentrale Arbeitsbereiche @core-smoke', async ({ page }) => {
+// Lokale Supabase mit frischem Test-Workspace; kein Ersatz für Auth/RLS-Tests.
+test('öffnet die App und zentrale Arbeitsbereiche @core-smoke', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
-  await startDemoMode(page);
+  await openDashboard(page);
 
   for (const path of ['/purchases', '/catalog', '/sales']) {
     await page.locator(`app-sidebar a[href="${path}"]`).click();
@@ -18,7 +17,7 @@ test('öffnet Demo und zentrale Arbeitsbereiche @core-smoke', async ({ page }) =
 test('speichert einen Artikel mit Bild und lädt ihn erneut @core-smoke', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
-  await startDemoMode(page);
+  await openDashboard(page);
   await page.goto('/catalog/new');
   const editor = page.locator('app-product-detail');
   const title = editor.getByRole('textbox', { name: 'Name', exact: true });

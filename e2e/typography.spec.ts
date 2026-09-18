@@ -1,12 +1,11 @@
-import { expect, test } from '@playwright/test';
-import { startDemoMode } from './support/demo';
+import { expect, openDashboard, test } from './support/fixtures';
 
 test('setzt Inter als globale Anwendungsschrift', async ({ page }) => {
   const fontRequests: string[] = [];
   page.on('request', (request) => {
     if (request.resourceType() === 'font') fontRequests.push(request.url());
   });
-  await startDemoMode(page);
+  await openDashboard(page);
   const loaded = await page.evaluate(async () => {
     const faces = await document.fonts.load('450 13px Inter', 'ÄÖÜäöüß €');
     return faces.length;

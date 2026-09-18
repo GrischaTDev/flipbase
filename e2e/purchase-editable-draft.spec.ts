@@ -1,11 +1,10 @@
-import { expect, test } from '@playwright/test';
+import { expect, openDashboard, test } from './support/fixtures';
 import { addNewPurchaseProduct } from './support/products';
-import { startDemoMode } from './support/demo';
 
 test('keeps a saved draft editable through discard, save and reopening @pr-smoke', async ({
   page,
 }) => {
-  await startDemoMode(page);
+  await openDashboard(page);
   await page.goto('/purchases/new');
   const description = page.getByRole('textbox', { name: 'Beschreibung (optional)' });
   await description.fill('Direkt bearbeitbarer Entwurf');
@@ -50,7 +49,7 @@ test('keeps a saved draft editable through discard, save and reopening @pr-smoke
 test('keeps receiving accessible for saved quantity drafts and blocks it while dirty', async ({
   page,
 }) => {
-  await startDemoMode(page);
+  await openDashboard(page);
   await page.goto('/purchases/new');
   const description = page.getByRole('textbox', { name: 'Beschreibung (optional)' });
   await description.fill('Mengenentwurf');

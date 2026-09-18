@@ -1,6 +1,6 @@
-import { expect, test, type Page } from '@playwright/test';
+import { type Page } from '@playwright/test';
 import axe from 'axe-core';
-import { startDemoMode } from './support/demo';
+import { expect, openDashboard, test } from './support/fixtures';
 
 async function expectEntrySurface(page: Page, path: string): Promise<void> {
   await expect(page).toHaveURL(new RegExp(path + '$'));
@@ -19,10 +19,12 @@ async function expectEntrySurface(page: Page, path: string): Promise<void> {
 test('opens sales and catalog creation as pages while preserving the inventory shortcut', async ({
   page,
 }) => {
-  await startDemoMode(page);
+  await openDashboard(page);
 
   await page.goto('/sales');
-  await page.getByRole('button', { name: 'Verkauf erfassen', exact: true }).click();
+  // .first(): der leere Arbeitsbereich zeigt zusätzlich zum Kopfzeilenknopf denselben
+  // Text als Leerstand-Aktion; geprüft wird der Knopf in der Kopfzeile.
+  await page.getByRole('button', { name: 'Verkauf erfassen', exact: true }).first().click();
   await expect(page).toHaveURL(/\/sales\/new$/);
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByRole('region', { name: 'Kennzahlen zum Verkauf' })).toBeVisible();
@@ -45,7 +47,7 @@ test('opens sales and catalog creation as pages while preserving the inventory s
 
 test('stacks entry cards without horizontal page overflow on mobile', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await startDemoMode(page);
+  await openDashboard(page);
 
   for (const path of ['/sales/new', '/inventory/new', '/purchases/new', '/catalog/new']) {
     await page.goto(path);
@@ -61,7 +63,7 @@ test('keeps the new entry pages free of automated WCAG AA violations @pr-smoke',
   page,
 }) => {
   test.setTimeout(60_000);
-  await startDemoMode(page);
+  await openDashboard(page);
 
   for (const path of ['/sales/new', '/inventory/new', '/purchases/new', '/catalog/new']) {
     await page.goto(path);

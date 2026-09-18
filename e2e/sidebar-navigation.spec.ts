@@ -1,11 +1,10 @@
-import { expect, test } from '@playwright/test';
 import axe from 'axe-core';
-import { startDemoMode } from './support/demo';
+import { expect, openDashboard, test } from './support/fixtures';
 
 test('hält die Sidebar kompakt und hebt den aktiven Bereich in Logo-Gelb hervor', async ({
   page,
 }) => {
-  await startDemoMode(page);
+  await openDashboard(page);
   await page.goto('/sales');
 
   const sidebar = page.locator('app-sidebar > aside[aria-label="Hauptnavigation"]');
@@ -60,7 +59,7 @@ test('hält die Sidebar kompakt und hebt den aktiven Bereich in Logo-Gelb hervor
 test('verwendet im dunklen Design das helle Logo-Gelb für den aktiven Menüpunkt', async ({
   page,
 }) => {
-  await startDemoMode(page);
+  await openDashboard(page);
   await page.evaluate(() => localStorage.setItem('flipbase_theme', 'dark'));
   await page.goto('/sales');
 
@@ -76,7 +75,7 @@ test('verwendet im dunklen Design das helle Logo-Gelb für den aktiven Menüpunk
 });
 
 test('übernimmt den gelben aktiven Zustand auch in der mobilen Navigation', async ({ page }) => {
-  await startDemoMode(page);
+  await openDashboard(page);
   await page.setViewportSize({ width: 390, height: 900 });
   await page.goto('/sales');
 
@@ -96,7 +95,7 @@ test('bindet die Desktop-Sidebar an den Viewport und lässt die Navigation inter
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 480 });
-  await startDemoMode(page);
+  await openDashboard(page);
   await page.goto('/sales');
 
   const sidebar = page.locator('app-sidebar > aside[aria-label="Hauptnavigation"]');

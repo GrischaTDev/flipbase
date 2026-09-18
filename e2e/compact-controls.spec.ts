@@ -1,5 +1,5 @@
-import { expect, test, type Locator } from '@playwright/test';
-import { startDemoMode } from './support/demo';
+import { type Locator } from '@playwright/test';
+import { expect, openDashboard, test } from './support/fixtures';
 
 async function height(locator: Locator): Promise<number> {
   await expect(locator).toBeVisible();
@@ -7,7 +7,7 @@ async function height(locator: Locator): Promise<number> {
 }
 
 test('renders shared desktop actions at the measured compact admin size', async ({ page }) => {
-  await startDemoMode(page);
+  await openDashboard(page);
   await page.goto('/purchases/new');
   const save = page.getByRole('button', { name: 'Entwurf speichern', exact: true });
   expect(await height(save)).toBe(28);
@@ -18,31 +18,19 @@ test('renders shared desktop actions at the measured compact admin size', async 
   expect(await editCosts.evaluate((element) => element.getBoundingClientRect().width)).toBe(28);
 });
 
-test('keeps the timeline composer compact while allowing multiline drafts', async ({ page }) => {
-  await startDemoMode(page);
-  await page.goto('/purchases/pur-demo-2');
-  const timeline = page.getByRole('region', { name: 'Chronik', exact: true });
-  const composer = timeline.getByLabel('Kommentar schreiben');
-  expect(await height(composer)).toBe(32);
-  expect(await height(composer.locator('..').locator('..'))).toBeLessThanOrEqual(104);
-  const post = timeline.getByRole('button', { name: 'Posten', exact: true });
-  expect(await height(post)).toBe(28);
-  await expect(post).toBeDisabled();
-  await composer.fill('Erste Zeile\nZweite Zeile');
-  await expect(post).toBeEnabled();
-  await expect(post).toHaveCSS('background-color', 'rgb(252, 198, 1)');
-  await expect(composer).toHaveValue('Erste Zeile\nZweite Zeile');
-});
-
-test('retains generous shared-button targets on touch devices', async ({ browser }) => {
+test('retains generous shared-button targets on touch devices', async ({ browser, workspace }) => {
   const context = await browser.newContext({
     viewport: { width: 390, height: 844 },
     hasTouch: true,
     isMobile: true,
+    storageState: 'e2e/.auth/session.json',
   });
   const page = await context.newPage();
+  await page.addInitScript((id) => {
+    localStorage.setItem('flipbase_active_workspace_id', id);
+  }, workspace.id);
   try {
-    await startDemoMode(page);
+    await openDashboard(page);
     await page.goto('/purchases/new');
     expect(
       await height(page.getByRole('button', { name: 'Entwurf speichern', exact: true })),

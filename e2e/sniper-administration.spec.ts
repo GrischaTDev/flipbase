@@ -1,6 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
 import axe from 'axe-core';
 
+// Diese Datei mockt die gesamte Supabase-API und braucht keine echte Sitzung.
+test.use({ storageState: { cookies: [], origins: [] } });
+
 /** Ausschliesslich lokale HTTP-Fixtures; kein Betreiberkonto und keine echten Botauftraege. */
 async function mockAdministration(page: Page) {
   const user = {

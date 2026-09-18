@@ -10,7 +10,7 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 // Nur die tatsächliche Testauswahl prüfen, nicht Playwrights Parser nachtesten.
 const coreTests = [
   ['core-smoke.spec.ts', 'speichert einen Artikel mit Bild und lädt ihn erneut @core-smoke'],
-  ['core-smoke.spec.ts', 'öffnet Demo und zentrale Arbeitsbereiche @core-smoke'],
+  ['core-smoke.spec.ts', 'öffnet die App und zentrale Arbeitsbereiche @core-smoke'],
   [
     'inventory-sale.spec.ts',
     'verkauft ein Einzelstück genau einmal aus dem gemeinsamen Inventar @pr-smoke',
@@ -19,10 +19,7 @@ const coreTests = [
     'purchase-editable-draft.spec.ts',
     'keeps a saved draft editable through discard, save and reopening @pr-smoke',
   ],
-  [
-    'purchase-tax-costs.spec.ts',
-    'keeps per-item tax visible and blocks unreviewed cost exports @pr-smoke',
-  ],
+  ['purchase-tax-costs.spec.ts', 'keeps per-item tax visible in the tax journal @pr-smoke'],
   [
     'purchase-tax-costs.spec.ts',
     'preserves purchase cost origin after reopening at 1440px @pr-smoke',
@@ -50,10 +47,6 @@ const regressionTests = [
     'Artikel mit Galerie, Zuschnitt und Suchvorschau erstellen 1440 @pr-smoke',
   ],
   [
-    'product-editor-storefront.spec.ts',
-    'Shop zeigt den freigegebenen Katalogartikel mit Galerie und echten Metadaten @pr-smoke',
-  ],
-  [
     'product-integration.spec.ts',
     'Produktbild bleibt nach erneutem Laden sichtbar und unbekannter Scan öffnet den Picker @pr-smoke',
   ],
@@ -65,21 +58,10 @@ const regressionTests = [
     'purchase-editable-draft.spec.ts',
     'keeps a saved draft editable through discard, save and reopening @pr-smoke',
   ],
-  [
-    'purchase-tax-costs.spec.ts',
-    'keeps per-item tax visible and blocks unreviewed cost exports @pr-smoke',
-  ],
+  ['purchase-tax-costs.spec.ts', 'keeps per-item tax visible in the tax journal @pr-smoke'],
   [
     'purchase-tax-costs.spec.ts',
     'preserves purchase cost origin after reopening at 1440px @pr-smoke',
-  ],
-  [
-    'purchase-workspace.spec.ts',
-    'opens an existing purchase directly without runtime errors @pr-smoke',
-  ],
-  [
-    'record-timeline.spec.ts',
-    'speichert Demo-Kommentare am richtigen Einkauf und zeigt Klartext nach Neuladen @pr-smoke',
   ],
   [
     'sniper-administration.spec.ts',

@@ -1,6 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
 import axe from 'axe-core';
 
+// Diese Datei mockt die gesamte Supabase-API und braucht keine echte Sitzung.
+test.use({ storageState: { cookies: [], origins: [] } });
+
 const workspace = '92000000-0000-4000-8000-000000000003';
 const secondWorkspace = '92000000-0000-4000-8000-000000000004';
 const makeItem = (i: number) => ({

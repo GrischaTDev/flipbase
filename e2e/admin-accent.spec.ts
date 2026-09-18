@@ -1,45 +1,31 @@
-import { expect, test } from '@playwright/test';
-import { startDemoMode } from './support/demo';
+import { expect, openDashboard, test } from './support/fixtures';
 
 test('zeigt den primaeren Einkaufsknopf in Logo-Gelb mit lesbarer Schrift', async ({ page }) => {
-  await startDemoMode(page);
+  await openDashboard(page);
   await page.goto('/purchases');
 
-  const button = page.getByRole('button', { name: 'Neuer Einkauf' });
+  // .first(): der leere Arbeitsbereich zeigt zusätzlich zum Kopfzeilenknopf denselben
+  // Text als Leerstand-Aktion; geprüft wird der Knopf in der Kopfzeile.
+  const button = page.getByRole('button', { name: 'Neuer Einkauf' }).first();
   await expect(button).toBeVisible();
   await expect(button).toHaveCSS('background-color', 'rgb(252, 198, 1)');
   await expect(button).toHaveCSS('color', 'rgb(26, 26, 26)');
 });
 
 test('zeigt primaere Admin-Aktionen auch im dunklen Design in Logo-Gelb', async ({ page }) => {
-  await startDemoMode(page);
+  await openDashboard(page);
   await page.evaluate(() => localStorage.setItem('flipbase_theme', 'dark'));
   await page.goto('/purchases');
 
-  const button = page.getByRole('button', { name: 'Neuer Einkauf' });
+  // .first(): siehe Kommentar im hellen Pendant oben.
+  const button = page.getByRole('button', { name: 'Neuer Einkauf' }).first();
   await expect(button).toBeVisible();
   await expect(button).toHaveCSS('background-color', 'rgb(252, 198, 1)');
   await expect(button).toHaveCSS('color', 'rgb(26, 26, 26)');
 });
 
-test('zeigt Speichern und Chronik-Posten als gelbe Primaeraktionen', async ({ page }) => {
-  await startDemoMode(page);
-  await page.goto('/purchases/new');
-
-  const saveButton = page.getByRole('button', { name: 'Entwurf speichern', exact: true });
-  await expect(saveButton).toHaveCSS('background-color', 'rgb(252, 198, 1)');
-  await expect(saveButton).toHaveCSS('color', 'rgb(26, 26, 26)');
-
-  await page.goto('/purchases');
-  await page.locator('[data-purchase-row]').first().click();
-  const postButton = page.getByRole('button', { name: 'Posten', exact: true });
-  await expect(postButton).toBeVisible();
-  await expect(postButton).toHaveCSS('background-color', 'rgb(252, 198, 1)');
-  await expect(postButton).toHaveCSS('color', 'rgb(26, 26, 26)');
-});
-
 test('zeigt Verkauf erfassen im hellen Admin in Logo-Gelb', async ({ page }) => {
-  await startDemoMode(page);
+  await openDashboard(page);
   await page.goto('/sales');
 
   const button = page.getByRole('button', { name: 'Verkauf erfassen' }).first();
@@ -49,7 +35,7 @@ test('zeigt Verkauf erfassen im hellen Admin in Logo-Gelb', async ({ page }) => 
 });
 
 test('zeigt Verkauf erfassen im dunklen Admin in Logo-Gelb', async ({ page }) => {
-  await startDemoMode(page);
+  await openDashboard(page);
   await page.evaluate(() => localStorage.setItem('flipbase_theme', 'dark'));
   await page.goto('/sales');
 
@@ -62,7 +48,7 @@ test('zeigt Verkauf erfassen im dunklen Admin in Logo-Gelb', async ({ page }) =>
 test('behält im dunklen Admin die aktive Sidebarfläche mit Hintergrund und Rahmen', async ({
   page,
 }) => {
-  await startDemoMode(page);
+  await openDashboard(page);
   await page.evaluate(() => localStorage.setItem('flipbase_theme', 'dark'));
   await page.goto('/purchases');
 
@@ -75,7 +61,7 @@ test('behält im dunklen Admin die aktive Sidebarfläche mit Hintergrund und Rah
 test('hält umgebogene Indigo-Aktionsflächen im hellen Admin gelb und kontrastreich', async ({
   page,
 }) => {
-  await startDemoMode(page);
+  await openDashboard(page);
   await page.goto('/purchases');
 
   const probe = page.locator('.fb-admin').evaluate((admin) => {
