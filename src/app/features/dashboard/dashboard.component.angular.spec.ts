@@ -53,6 +53,7 @@ const emptyReport: DashboardReport = {
   salesWithoutCostCount: 0,
   purchaseSpend: 0,
   sellingCosts: 0,
+  operatingExpenseSpend: 0,
   totalExpenses: 0,
   purchasesIncluded: true,
   soldItems: 0,
