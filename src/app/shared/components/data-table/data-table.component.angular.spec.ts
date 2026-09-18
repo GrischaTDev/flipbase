@@ -1,6 +1,7 @@
 import '@angular/compiler';
 import { ɵresolveComponentResources } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import axe from 'axe-core';
 import { glob, readFile } from 'node:fs/promises';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -133,10 +134,10 @@ describe('DataTableComponent', () => {
   it('emits changed search values from the shared toolbar search', () => {
     const changed = vi.fn<(value: string) => void>();
     fixture.componentInstance.searchValueChange.subscribe(changed);
-    const input = fixture.nativeElement.querySelector('input[type="search"]') as HTMLInputElement;
+    const search = fixture.debugElement.query(By.directive(CustomSearchInputComponent));
 
-    input.value = 'Nike';
-    input.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(search).not.toBeNull();
+    search.triggerEventHandler('valueChange', 'Nike');
     fixture.detectChanges();
 
     expect(changed).toHaveBeenCalledWith('Nike');
