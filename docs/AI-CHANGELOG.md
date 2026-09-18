@@ -1,5 +1,38 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-19 – ChatGPT GPT-5.6 Sol (OpenAI) – Einheitliches Data-Table-System umgesetzt
+
+**Auftrag:** Alle administrativen verwaltbaren Tabellen und Listen auf ein
+einheitliches Shared-System umstellen. Suche, fachliche Filter,
+Spalten-/Sortiersteuerung und Zustände sollen überall an denselben Positionen
+liegen; neue Features dürfen keine eigene Tabellenvariante mehr einführen.
+
+**Änderung:** Neuer `DataTableComponent` als gemeinsamer Rahmen für
+Tabellenfläche, Toolbar, Shared-Suche, Filterprojektionen,
+Spalten-/Sortiermenü sowie Lade-, Fehler- und Leerzustände. Die Toolbar-Felder
+besitzen jetzt bereits im Ruhezustand eine dezente neutrale Fläche und einen
+leichten Rahmen. Ausgaben wurden mit einer eigenen Tabellenkonfiguration in
+`TablePreferencesService` aufgenommen. Die verwaltbaren Listen für Einkäufe,
+Verkäufe, Artikelübersicht, Bestand, Ausgaben, Verkäufer, Bankabgleich,
+Beta-Bewerbungen, zentrale Vinted-Markenfilter und Prüfprotokoll verwenden den
+gemeinsamen Rahmen. Statische Vorschau-, Detail-, Druck- und Berichtstabellen
+sind ausdrücklich klassifiziert und erhalten keine künstliche Toolbar.
+
+Die zusätzliche Artikelnavigation im Seiteninhalt wurde entfernt.
+„Artikelübersicht“ besitzt in der Sidebar nun die Unterpunkte „Alle Artikel“
+und „Bestand“. Der alte `TableToolbarComponent` wurde nach der Migration
+entfernt. `scripts/check-admin-shared-ui.mjs` beanstandet künftig direkte
+Spaltenmenüs, die alte Tabellen-Toolbar, native Suchfelder an verwaltbaren
+Tabellen und nicht klassifizierte Tabellen außerhalb des gemeinsamen Rahmens.
+Die verbindliche Regel steht zusätzlich in
+`docs/design/admin-ui-guidelines.md`.
+
+**Prüfung:** Branch-Diff gegen `master` und die betroffenen Shared-/Feature-
+Templates wurden manuell auf den gemeinsamen Komponentenvertrag geprüft.
+Lokale npm-/Vitest-/Build-Kommandos können über den verwendeten GitHub-Connector
+nicht ausgeführt werden; die vollständige technische Prüfung steht deshalb
+noch im PR-CI-Lauf aus.
+
 ## 2026-09-18 – ChatGPT GPT-5.6 Sol (OpenAI) – Entwurf: einheitliches Data-Table-System
 
 **Auftrag:** Alle administrativen Tabellen und verwaltbaren Listen sollen dasselbe
