@@ -76,6 +76,8 @@ begin
   end loop;
   perform public.finalize_purchase_costing(v_workspace_id, v_purchase_id);
 
+  -- Direkter Insert wie in der Anwendung: Artikel ohne Einkauf legt auch die App
+  -- so an (kein DB-Funktionsaufruf nötig); die schützenden Trigger greifen trotzdem.
   insert into public.inventory_items (workspace_id, title, condition, status, expected_value) values
     (v_workspace_id, 'Levi''s 501 Vintage Jeans (W32 L34)', 'used', 'ready', 55),
     (v_workspace_id, 'Canon EOS M50 Mark II', 'like_new', 'ready', 480);
