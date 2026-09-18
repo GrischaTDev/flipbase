@@ -428,10 +428,14 @@ async function renderWorkspace(
     readonly archiveError?: Error | null;
     readonly restoreError?: Error | null;
     readonly confirmations?: readonly boolean[];
+    readonly workspaceBArchived?: boolean;
   } = {},
 ) {
   const workspaceA = workspace('workspace-a', 'Workspace A');
-  const workspaceB = workspace('workspace-b', 'Workspace B');
+  const workspaceB = {
+    ...workspace('workspace-b', 'Workspace B'),
+    archived_at: options.workspaceBArchived ? '2026-09-04T12:00:00.000Z' : null,
+  };
   const currentWorkspace = signal<Workspace | null>(workspaceA);
   const workspaceService = {
     currentWorkspace,
@@ -763,6 +767,18 @@ describe('Workspace-Einstellungen – echte Angular-Fixture', () => {
     expect(workspaceService.archiveWorkspace).toHaveBeenCalledWith('workspace-b');
     expect(router.navigate).not.toHaveBeenCalled();
     expectOnlyToast(toast, 'success', 'Workspace wurde archiviert.');
+  });
+
+  it('stellt einen archivierten Workspace direkt in der Workspace-Verwaltung wieder her', async () => {
+    const { fixture, workspaceService, toast } = await renderWorkspace({
+      workspaceBArchived: true,
+    });
+
+    renderedButton(fixture, 'Wiederherstellen').click();
+    await flushAsyncAction(fixture);
+
+    expect(workspaceService.restoreWorkspace).toHaveBeenCalledWith('workspace-b');
+    expectOnlyToast(toast, 'success', 'Workspace wurde wiederhergestellt.');
   });
 });
 

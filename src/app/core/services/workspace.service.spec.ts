@@ -226,11 +226,10 @@ describe('Multi-Workspace & Holding Consolidation Service', () => {
 
     const result = await produktivService.deleteWorkspace(zweiterWorkspace.id);
 
-    expect(result).toEqual({ success: false, reportedBySyncStatus: true, retentionBlocked: true });
+    expect(result).toEqual({ success: false, reportedBySyncStatus: false, retentionBlocked: true });
     expect(produktivService.workspaces()).toEqual([ersterWorkspace, zweiterWorkspace]);
     expect(produktivService.currentWorkspace()).toEqual(zweiterWorkspace);
-    expect(syncStatus.fehler()).toHaveLength(1);
-    expect(syncStatus.fehler()[0]?.meldung).toContain('Geschäftsdaten');
+    expect(syncStatus.fehler()).toHaveLength(0);
   });
 
   it('entfernt lokal nichts, wenn die Datenbank keine gelöschte Workspace-Zeile bestätigt', async () => {
