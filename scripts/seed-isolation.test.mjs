@@ -39,5 +39,10 @@ test('Seed-Daten gelangen weder ins Migrationspaket noch in die Veröffentlichun
   for (const workflow of await filesBelow('.github/workflows')) {
     const content = await readFile(join(root, workflow), 'utf8');
     assert.doesNotMatch(content, /include-seed/i, `${workflow} spielt Seed-Daten ein`);
+    assert.doesNotMatch(
+      content,
+      /db reset[^\n]*(--linked|--db-url)/i,
+      `${workflow} setzt eine entfernte Datenbank zurück`,
+    );
   }
 });
