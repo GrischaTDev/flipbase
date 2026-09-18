@@ -699,7 +699,6 @@ html:not(.dark) .fb-admin .bg-indigo-600.text-white {
   color: var(--fb-nav-accent);
 }
 
-
 .fb-admin app-bottom-nav a[aria-current='page'] {
   color: var(--fb-nav-accent);
 }
