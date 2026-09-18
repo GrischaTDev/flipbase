@@ -33,7 +33,9 @@ describe('ExpenseCategoryDialogComponent', () => {
           },
         },
       ],
-    }).createComponent(ExpenseCategoryDialogComponent);
+    })
+      .overrideComponent(ExpenseCategoryDialogComponent, { set: { template: '' } })
+      .createComponent(ExpenseCategoryDialogComponent);
 
     fixture.detectChanges();
     const component = fixture.componentInstance;
