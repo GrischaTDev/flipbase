@@ -138,8 +138,7 @@
         Webshop
       </app-button>
     </div>
-
-<div table-content class="relative hidden overflow-x-auto md:block">
+      <div table-content class="relative overflow-x-auto hidden md:block">
         <table class="linear-table min-w-[1000px] w-full text-left">
           <thead class="bg-fb-surface text-fb-text-secondary font-semibold text-[13px]">
             <tr>
@@ -282,8 +281,308 @@
                                   line.title_snapshot
                                 }}</span>
                               }
+                            } @else {
+                              <a
+                                [routerLink]="['/inventory', sale.inventory_item_id]"
+                                class="transition hover:text-emerald-400"
+                                >{{ sale.inventory_item?.title || 'Artikel' }}</a
+                              >
+                            }
+                          </div>
+                          @if (sale.returned_at || ret) {
+                            <app-badge tone="critical" [mono]="true"> Retourniert </app-badge>
+                          }
+                        </div>
+                      </td>
+                    }
+                    @case ('quantity') {
+                      <td class="px-3 py-3 text-right font-mono text-fb-text-secondary">
+                        {{ saleQuantity(sale) }}
+                      </td>
+                    }
+                    @case ('platform') {
+                      <td class="px-3 py-3">
+                        <app-badge tone="neutral" [mono]="true">
+                          {{ sale.platform }}
+                        </app-badge>
+                      </td>
+                    }
+                    @case ('sale_date') {
+                      <td class="px-3 py-3 font-mono text-[11px] text-fb-text-muted">
+                        {{ sale.sale_date | date: 'dd.MM.yyyy' }}
+                      </td>
+                    }
+                    @case ('revenue') {
+                      <td
+                        class="px-3 py-3 text-right font-mono font-semibold text-fb-text-secondary"
+                      >
+                        {{ metrics.revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                      </td>
+                    }
+                    @case ('cost_of_goods_sold') {
+                      <td class="px-3 py-3 text-right font-mono text-fb-text-secondary">
+                        @if (metrics.costOfGoodsSold === null) {
+                          <span class="font-sans text-[11px] text-amber-300"
+                            >Kosten noch offen</span
+                          >
+                        } @else {
+                          {{
+                            metrics.costOfGoodsSold | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+                          }}
+                        }
+                      </td>
+                    }
+                    @case ('selling_costs') {
+                      <td class="px-3 py-3 text-right font-mono text-fb-text-secondary">
+                        {{ metrics.sellingCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                      </td>
+                    }
+                    @case ('profit') {
+                      <td
+                        class="px-3 py-3 text-right font-mono font-bold"
+                        [class.text-emerald-400]="(metrics.resultAfterDirectCosts ?? 0) >= 0"
+                        [class.text-rose-400]="(metrics.resultAfterDirectCosts ?? 0) < 0"
+                      >
+                        @if (metrics.resultAfterDirectCosts === null) {
+                          <span class="font-sans text-[11px] text-amber-300"
+                            >Kosten noch offen</span
+                          >
+                        } @else {
+                          {{
+                            metrics.resultAfterDirectCosts
+                              | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+                          }}
+                        }
+                      </td>
+                    }
+                    @case ('margin') {
+                      <td class="px-3 py-3 text-right font-mono font-bold text-fb-text-secondary">
+                        @if (metrics.marginPercent === null) {
+                          –
+                        } @else {
+                          {{ metrics.marginPercent }} %
+                        }
+                      </td>
+                    }
+                    @case ('holding_days') {
+                      <td class="px-3 py-3 text-right font-mono text-fb-text-secondary">
+                        {{ sale.holding_duration_days }} Tage
+                      </td>
+                    }
+                    @case ('actions') {
+                      <td class="px-4 py-3 text-center">
+                        <div class="flex items-center justify-center gap-1.5">
+                          <a
+                            data-sale-audit-print-link
+                            [routerLink]="['/settings/data/print']"
+                            [queryParams]="{ entityType: 'sale', entityId: sale.id }"
+                            [attr.aria-label]="
+                              'Prüfbeleg für ' + saleTitle(sale) + ' drucken oder als PDF speichern'
+                            "
+                            class="rounded-lg p-1.5 text-fb-text-muted transition hover:bg-emerald-500/15 hover:text-emerald-300"
+                            title="Prüfbeleg drucken oder als PDF speichern"
+                          >
+                            <svg
+                              [lucideIcon]="receiptIcon"
+                              aria-hidden="true"
+                              class="h-3.5 w-3.5"
+                            ></svg>
+                            <span class="sr-only">Prüfbeleg drucken</span>
+                          </a>
+                          <button
+                            type="button"
+                            (click)="openRecordHistory(sale)"
+                            class="cursor-pointer rounded-lg p-1.5 text-fb-text-muted transition hover:bg-indigo-500/15 hover:text-indigo-300"
+                            title="Chronik ansehen"
+                            aria-label="Chronik ansehen"
+                          >
+                            <svg [lucideIcon]="historyIcon" class="h-3.5 w-3.5"></svg>
+                          </button>
+                          <button
+                            type="button"
+                            (click)="openInvoiceForSale(sale)"
+                            [disabled]="isCreatingInvoice()"
+                            [attr.aria-busy]="isCreatingInvoice()"
+                            [attr.aria-disabled]="isCreatingInvoice()"
+                            class="cursor-pointer rounded-lg p-1.5 text-indigo-400 transition hover:bg-indigo-500/15 hover:text-indigo-300 disabled:cursor-not-allowed disabled:opacity-50"
+                            title="§ 25a Differenzbesteuerungs-Rechnung anzeigen"
+                          >
+                            <svg [lucideIcon]="fileIcon" class="h-3.5 w-3.5"></svg>
+                          </button>
+                          @if (ret) {
+                            <button
+                              type="button"
+                              (click)="openCreditNoteForSale(sale)"
+                              class="cursor-pointer rounded-lg p-1.5 text-amber-400 transition hover:bg-amber-500/15 hover:text-amber-300"
+                              title="Gutschriftsbeleg anzeigen ({{ ret.credit_note_number }})"
+                            >
+                              <svg [lucideIcon]="receiptIcon" class="h-3.5 w-3.5"></svg>
+                            </button>
+                          } @else if (!sale.returned_at) {
+                            <button
+                              type="button"
+                              (click)="openReturnModal(sale)"
+                              class="cursor-pointer rounded-lg p-1.5 text-rose-400 transition hover:bg-rose-500/15 hover:text-rose-300"
+                              title="Retoure / Gutschrift erfassen"
+                            >
+                              <svg [lucideIcon]="returnIcon" class="h-3.5 w-3.5"></svg>
+                            </button>
+                          }
+                        </div>
+                      </td>
+                    }
+                  }
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
 
-    <app-button table-empty-action class="mt-4" variant="primary" [icon]="plusIcon" (clicked)="openCreatePage()">
+      <!-- Mobile Cards -->
+      <div table-mobile class="space-y-2 md:hidden p-3 border-t border-[var(--fb-border)]">
+        @for (sale of filteredSales(); track sale.id) {
+          @let ret = getReturnForSale(sale.id);
+          @let metrics = saleMetrics(sale);
+          <div
+            [id]="'sale-mobile-' + sale.id"
+            tabindex="-1"
+            [attr.data-sale-highlighted]="highlightedSaleId() === sale.id ? 'true' : null"
+            class="linear-card-interactive p-3.5 rounded-xl block space-y-2.5 font-mono outline-none"
+            [class.bg-indigo-500/15]="highlightedSaleId() === sale.id"
+            [class.ring-2]="highlightedSaleId() === sale.id"
+            [class.ring-indigo-400]="highlightedSaleId() === sale.id"
+          >
+            <div class="flex items-start justify-between gap-2">
+              <div>
+                @if (sale.record_number) {
+                  <p class="text-[11px] font-semibold text-fb-text-muted">
+                    {{ sale.record_number }}
+                  </p>
+                }
+                <div class="flex items-center gap-1.5">
+                  <h3 class="text-xs font-semibold text-fb-text-primary line-clamp-1 font-sans">
+                    {{ saleTitle(sale) }}
+                  </h3>
+                  @if (sale.returned_at || ret) {
+                    <app-badge tone="critical" [mono]="true">Retourniert</app-badge>
+                  }
+                </div>
+                <p class="text-[11px] text-fb-text-muted">
+                  {{ sale.sale_date | date: 'dd.MM.yyyy' }} • {{ sale.platform }}
+                </p>
+              </div>
+              <strong class="text-xs font-bold text-fb-text-primary">
+                {{ metrics.revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+              </strong>
+            </div>
+
+            <div class="flex items-center justify-between text-xs pt-2 border-t border-fb-line">
+              <div>
+                <span class="text-[10px] text-fb-text-muted font-sans block">Ergebnis</span>
+                @if (metrics.resultAfterDirectCosts === null) {
+                  <strong class="font-sans text-amber-300">Kosten noch offen</strong>
+                } @else {
+                  <strong
+                    [class.text-emerald-400]="metrics.resultAfterDirectCosts >= 0"
+                    [class.text-rose-400]="metrics.resultAfterDirectCosts < 0"
+                  >
+                    {{
+                      metrics.resultAfterDirectCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+                    }}
+                  </strong>
+                }
+              </div>
+
+              <div>
+                <span class="text-[10px] text-fb-text-muted font-sans block">Marge</span>
+                <strong class="text-fb-text-secondary">
+                  @if (metrics.marginPercent === null) {
+                    –
+                  } @else {
+                    {{ metrics.marginPercent }} %
+                  }
+                </strong>
+              </div>
+
+              <div class="text-right">
+                <span class="text-[10px] text-fb-text-muted font-sans block">Menge</span>
+                <strong class="text-fb-text-secondary">{{ saleQuantity(sale) }}</strong>
+              </div>
+
+              <div class="text-right">
+                <span class="text-[10px] text-fb-text-muted font-sans block">Haltedauer</span>
+                <strong class="text-fb-text-secondary"
+                  >{{ sale.holding_duration_days }} Tage</strong
+                >
+              </div>
+            </div>
+
+            <div class="pt-2 border-t border-fb-line flex justify-end gap-2">
+              <a
+                data-sale-audit-print-link
+                [routerLink]="['/settings/data/print']"
+                [queryParams]="{ entityType: 'sale', entityId: sale.id }"
+                [attr.aria-label]="
+                  'Prüfbeleg für ' + saleTitle(sale) + ' drucken oder als PDF speichern'
+                "
+                class="linear-btn-secondary px-2.5 py-1 rounded text-[11px] font-sans flex items-center gap-1 text-emerald-300"
+              >
+                <svg [lucideIcon]="receiptIcon" aria-hidden="true" class="w-3 h-3"></svg>
+                <span>Prüfbeleg</span>
+              </a>
+              <button
+                type="button"
+                (click)="openRecordHistory(sale)"
+                class="linear-btn-secondary px-2.5 py-1 rounded text-[11px] font-sans flex items-center gap-1 text-fb-text-secondary"
+              >
+                <svg [lucideIcon]="historyIcon" class="w-3 h-3"></svg>
+                <span>Chronik ansehen</span>
+              </button>
+
+              <button
+                type="button"
+                (click)="openInvoiceForSale(sale)"
+                [disabled]="isCreatingInvoice()"
+                [attr.aria-busy]="isCreatingInvoice()"
+                [attr.aria-disabled]="isCreatingInvoice()"
+                class="linear-btn-secondary px-2.5 py-1 rounded text-[11px] font-sans flex items-center gap-1 text-indigo-300 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <svg [lucideIcon]="fileIcon" class="w-3 h-3"></svg>
+                <span>§ 25a Rechnung</span>
+              </button>
+
+              @if (ret) {
+                <button
+                  type="button"
+                  (click)="openCreditNoteForSale(sale)"
+                  class="linear-btn-secondary px-2.5 py-1 rounded text-[11px] font-sans flex items-center gap-1 text-amber-300"
+                >
+                  <svg [lucideIcon]="receiptIcon" class="w-3 h-3"></svg>
+                  <span>Gutschrift</span>
+                </button>
+              } @else if (!sale.returned_at) {
+                <button
+                  type="button"
+                  (click)="openReturnModal(sale)"
+                  class="linear-btn-secondary px-2.5 py-1 rounded text-[11px] font-sans flex items-center gap-1 text-rose-300"
+                >
+                  <svg [lucideIcon]="returnIcon" class="w-3 h-3"></svg>
+                  <span>Retoure</span>
+                </button>
+              }
+            </div>
+          </div>
+        }
+      </div>
+
+    <app-button
+      table-empty-action
+      class="mt-4"
+      variant="primary"
+      [icon]="plusIcon"
+      (clicked)="openCreatePage()"
+    >
       Verkauf erfassen
     </app-button>
   </app-data-table>
