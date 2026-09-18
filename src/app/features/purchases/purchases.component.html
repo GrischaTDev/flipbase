@@ -190,8 +190,25 @@
       </table>
     </div>
 
-    <app-button table-empty-action class="mt-4" variant="primary" [icon]="plusIcon" routerLink="/purchases/new">
-      Neuer Einkauf
-    </app-button>
+    @if (activeStatus() !== 'all' || sellerId() !== '' || searchQuery().trim() !== '') {
+      <app-button
+        table-empty-action
+        class="mt-4"
+        variant="secondary"
+        (clicked)="clearFilters()"
+      >
+        Suche und Filter löschen
+      </app-button>
+    } @else {
+      <app-button
+        table-empty-action
+        class="mt-4"
+        variant="primary"
+        [icon]="plusIcon"
+        routerLink="/purchases/new"
+      >
+        Neuer Einkauf
+      </app-button>
+    }
   </app-data-table>
 </div>
