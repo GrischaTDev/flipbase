@@ -9,6 +9,7 @@
     <!-- Header -->
     <app-header
       [isSidebarOpen]="isSidebarOpen()"
+      [workspaceActionsBlocked]="workspaceActionsBlocked()"
       (toggleSidebar)="toggleSidebar()"
       (openCreateWorkspace)="openCreateWorkspace()"
     ></app-header>
@@ -58,7 +59,7 @@
   @if (isCreateWorkspaceModalOpen()) {
     <app-workspace-modal
       (closed)="closeCreateWorkspace()"
-      (created)="closeCreateWorkspace()"
+      (created)="onWorkspaceCreated()"
     ></app-workspace-modal>
   }
 </div>
