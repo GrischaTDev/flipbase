@@ -9,6 +9,26 @@ Die vollständige bisherige Historie ist im
 bytegleich erhalten. Das Archiv liegt im selben Ordner, damit seine relativen
 Dateiverweise weiterhin denselben Ausgangspunkt haben.
 
+## 2026-09-18 – Claude Opus 5 (Anthropic) – Entwurf: Demo-Modus entfernen
+
+**Auftrag:** Der Nutzer will den Demo-Modus komplett entfernen, weil jede Funktion
+doppelt gepflegt werden muss. Später soll es einen 14-Tage-Testzugang mit echtem Konto
+geben.
+
+**Befund:** Der Demo-Modus ist im Live-Betrieb aus (`allowDemoMode: false`). Die
+Ersatz-Datenbank `MockDataStoreService` hat rund 2.550 Zeilen. Dazu kommen rund 185
+Weichen in 46 Dateien. 28 von 30 Browser-Tests laufen im Demo-Modus, darunter alle
+Pflichttests. Die lokale Anmeldung begrenzt Registrierungen und Anmeldungen auf 30 je
+5 Minuten. Der erste Ansatz „ein Konto je Test“ hätte den vollen Testlauf deshalb
+blockiert.
+
+**Ergebnis:** Entwurf `docs/superpowers/specs/2026-09-18-remove-demo-mode-design.md`.
+PR 1 stellt die Browser-Tests auf die lokale Supabase um: ein Konto je Lauf, ein
+Workspace je Test, dazu ein lokales Testkonto mit Beispieldaten und Sicherungen gegen
+Datenlecks. PR 2 entfernt den Demo-Code.
+
+**Prüfung:** Nur Analyse und Entwurf, kein Anwendungscode geändert.
+
 ## 2026-09-18 – Claude Opus 5 (Anthropic) – Einkauf drucken
 
 **Auftrag:** Teil 3 des Einkaufsumbaus. Nutzerentscheidungen: eigene Druckseite wie
