@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   ElementRef,
   Injector,
   afterNextRender,
@@ -45,6 +46,7 @@ import {
 import { DatePickerComponent } from '../../../../shared/components/date-picker/date-picker.component';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { SyncStatusService } from '../../../../core/services/sync-status.service';
+import { WorkspaceContextLockService } from '../../../../core/services/workspace-context-lock.service';
 
 type SaleLineForm = FormGroup<{
   target: FormControl<string>;
@@ -96,6 +98,9 @@ export class SaleCreateModalComponent {
   private readonly syncStatus = inject(SyncStatusService);
   private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef, { optional: true });
   private readonly injector = inject(Injector);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly workspaceContext = inject(WorkspaceContextLockService);
+  private readonly releaseWorkspaceLock = this.workspaceContext.acquire();
 
   readonly closeIcon = X;
   readonly plusIcon = Plus;
@@ -243,6 +248,7 @@ export class SaleCreateModalComponent {
   private hasExplicitShippingMode = false;
 
   constructor() {
+    this.destroyRef.onDestroy(this.releaseWorkspaceLock);
     this.form.controls.platform.valueChanges.subscribe((platform) =>
       this.applyShippingDefault(platform),
     );

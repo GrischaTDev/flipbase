@@ -85,7 +85,6 @@ export class WorkspaceSettingsComponent {
     if (error) return;
     this.newWorkspaceName.reset();
     this.toast.success('Workspace wurde erstellt.');
-    await this.router.navigate(['/dashboard']);
   }
   onSwitchWorkspace(workspaceId: string): void {
     this.workspaceService.switchWorkspace(workspaceId);

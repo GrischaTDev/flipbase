@@ -2,6 +2,7 @@ import {
   afterNextRender,
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   computed,
   ElementRef,
   effect,
@@ -14,6 +15,7 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import IntlTelInput from '@intl-tel-input/angular/with-utils';
 import { de as germanPhoneTranslations } from 'intl-tel-input/locale';
 import { SuppliersService } from '../../../../core/services/suppliers.service';
+import { WorkspaceContextLockService } from '../../../../core/services/workspace-context-lock.service';
 import { SellerFormValue, Supplier } from '../../../../core/models/flipbase.models';
 import {
   CustomSelectComponent,
@@ -31,6 +33,9 @@ import { buildGermanCountryOptions } from '../../../purchases/utils/country-opti
 export class PurchaseSellerDialogComponent {
   private readonly suppliers = inject(SuppliersService);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly workspaceContext = inject(WorkspaceContextLockService);
+  private readonly releaseWorkspaceLock = this.workspaceContext.acquire();
 
   readonly seller = input<Supplier | null>(null);
   readonly closed = output<void>();
@@ -85,6 +90,7 @@ export class PurchaseSellerDialogComponent {
   ] as const;
 
   constructor() {
+    this.destroyRef.onDestroy(this.releaseWorkspaceLock);
     afterNextRender(() => {
       const countrySelector = this.host.nativeElement.querySelector<HTMLElement>(
         '.iti__country-selector[role="dialog"]',
@@ -111,6 +117,14 @@ export class PurchaseSellerDialogComponent {
         notes: seller.notes ?? '',
       });
     });
+  }
+
+  hasUnsavedChanges(): boolean {
+    return this.form.dirty;
+  }
+
+  isSaving(): boolean {
+    return this.saving();
   }
 
   async save(): Promise<void> {

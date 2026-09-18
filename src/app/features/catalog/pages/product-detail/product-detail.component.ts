@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   ChangeDetectorRef,
   Component,
+  DestroyRef,
   computed,
   effect,
   inject,
@@ -26,6 +27,7 @@ import { CatalogProductEntry, CatalogService } from '../../../../core/services/c
 import { MediaService } from '../../../../core/services/media.service';
 import { StockService } from '../../../../core/services/stock.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
+import { WorkspaceContextLockService } from '../../../../core/services/workspace-context-lock.service';
 import { ARTICLE_VIEWS } from '../../../../core/config/article-navigation';
 import { SectionNavigationComponent } from '../../../../shared/components/section-navigation/section-navigation.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
@@ -66,6 +68,9 @@ export class ProductDetailComponent implements UnsavedEntryPage {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly workspace = inject(WorkspaceService);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly workspaceContext = inject(WorkspaceContextLockService);
+  private readonly releaseWorkspaceLock = this.workspaceContext.acquire();
   readonly catalog = inject(CatalogService);
   readonly stock = inject(StockService);
   readonly media = inject(MediaService);
@@ -186,6 +191,7 @@ export class ProductDetailComponent implements UnsavedEntryPage {
   private savedValue = JSON.stringify(this.form.getRawValue());
 
   constructor() {
+    this.destroyRef.onDestroy(this.releaseWorkspaceLock);
     effect(() => {
       const routeId = this.routeId();
       const workspaceId = this.workspace.currentWorkspace()?.id;

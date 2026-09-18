@@ -1,8 +1,10 @@
 import { Injectable, effect, inject, signal } from '@angular/core';
+import { Router } from '@angular/router';
 import { SupabaseService } from './supabase.service';
 import { AuthService } from './auth.service';
 import { MockDataStoreService } from './mock-data-store.service';
 import { SyncStatusService } from './sync-status.service';
+import { WorkspaceContextLockService } from './workspace-context-lock.service';
 import {
   ConsolidatedHoldingSummary,
   InventoryItem,
@@ -31,6 +33,8 @@ export class WorkspaceService {
   private readonly syncStatus = inject(SyncStatusService, { optional: true })!;
   private readonly auth = inject(AuthService, { optional: true });
   private readonly mockStore = inject(MockDataStoreService, { optional: true });
+  private readonly workspaceContext = inject(WorkspaceContextLockService, { optional: true });
+  private readonly router = inject(Router, { optional: true });
 
   private readonly defaultWorkspaces: Workspace[] = [
     {
@@ -160,11 +164,12 @@ export class WorkspaceService {
     } catch {}
   }
 
-  switchWorkspace(workspaceId: string): void {
+  switchWorkspace(workspaceId: string): boolean {
+    if (this.workspaceContext?.locked()) return false;
     const target = this.workspaces().find((w) => w.id === workspaceId);
-    if (target) {
-      this.setCurrentWorkspace(target);
-    }
+    if (!target) return false;
+    this.setCurrentWorkspace(target);
+    return true;
   }
 
   async updateWorkspaceSettings(
@@ -213,6 +218,15 @@ export class WorkspaceService {
   }
 
   async createWorkspace(name: string): Promise<{ data: Workspace | null; error: Error | null }> {
+    if (this.workspaceContext?.locked()) {
+      return {
+        data: null,
+        error: new Error(
+          'Während einer laufenden Erfassung kann kein neuer Workspace erstellt werden. Speichere oder verlasse die Erfassung zuerst.',
+        ),
+      };
+    }
+
     const newWs: Workspace = {
       id: `ws-${Date.now()}`,
       name: name.trim(),
@@ -238,7 +252,7 @@ export class WorkspaceService {
           const dbWs: Workspace = { ...newWs, id: newId };
           this.workspaces.update((list) => [...list, dbWs]);
           this.persistWorkspaces();
-          this.setCurrentWorkspace(dbWs);
+          await this.activateCreatedWorkspace(dbWs);
           return { data: dbWs, error: null };
         }
       } catch (err: unknown) {
@@ -248,8 +262,13 @@ export class WorkspaceService {
 
     this.workspaces.update((list) => [...list, newWs]);
     this.persistWorkspaces();
-    this.setCurrentWorkspace(newWs);
+    await this.activateCreatedWorkspace(newWs);
     return { data: newWs, error: null };
+  }
+
+  private async activateCreatedWorkspace(workspace: Workspace): Promise<void> {
+    this.setCurrentWorkspace(workspace);
+    await this.router?.navigate?.(['/dashboard']);
   }
 
   archiveWorkspace(workspaceId: string): Promise<{ error: Error | null }> {

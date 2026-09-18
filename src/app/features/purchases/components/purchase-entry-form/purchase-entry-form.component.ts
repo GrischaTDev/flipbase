@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   computed,
   effect,
   inject,
@@ -40,6 +41,7 @@ import {
 } from '../../utils/purchase-seller';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { SyncStatusService } from '../../../../core/services/sync-status.service';
+import { WorkspaceContextLockService } from '../../../../core/services/workspace-context-lock.service';
 import { PurchaseCostingService } from '../../../../core/services/purchase-costing.service';
 import {
   PurchaseLineDraft,
@@ -143,6 +145,9 @@ export class PurchaseEntryFormComponent {
   private readonly toast = inject(ToastService);
   private readonly syncStatus = inject(SyncStatusService);
   private readonly purchaseCostingService = inject(PurchaseCostingService);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly workspaceContext = inject(WorkspaceContextLockService);
+  private readonly releaseWorkspaceLock = this.workspaceContext.acquire();
   readonly sourcesService = inject(SourcesService);
   readonly suppliersService = inject(SuppliersService);
   readonly trackingService = inject(InboundTrackingService);
@@ -388,6 +393,7 @@ export class PurchaseEntryFormComponent {
   private befuelltFuer: string | null = null;
 
   constructor() {
+    this.destroyRef.onDestroy(this.releaseWorkspaceLock);
     this.form.controls.pricing_mode.valueChanges.subscribe((mode) => {
       this.pricingMode.set(mode);
       this.updatePurchasePriceEditability();
