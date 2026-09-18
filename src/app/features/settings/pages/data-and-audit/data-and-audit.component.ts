@@ -8,12 +8,7 @@ import {
 } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
-import {
-  LucideDownload,
-  LucideFileText,
-  LucideFilter,
-  LucideRefreshCw,
-} from '@lucide/angular';
+import { LucideDownload, LucideFileText, LucideFilter, LucideRefreshCw } from '@lucide/angular';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import {
   BusinessEntityType,

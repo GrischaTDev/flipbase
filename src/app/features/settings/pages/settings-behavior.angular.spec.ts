@@ -444,9 +444,7 @@ async function renderWorkspace(
     createWorkspace: vi.fn(async () => ({ error: options.createError ?? null })),
     switchWorkspace: vi.fn(),
     deleteWorkspace: vi.fn(async () =>
-      Promise.resolve(
-        options.deleteResult ?? { success: true, reportedBySyncStatus: false },
-      ),
+      Promise.resolve(options.deleteResult ?? { success: true, reportedBySyncStatus: false }),
     ),
     archiveWorkspace: vi.fn(async () => ({ error: options.archiveError ?? null })),
     restoreWorkspace: vi.fn(async () => ({ error: options.restoreError ?? null })),

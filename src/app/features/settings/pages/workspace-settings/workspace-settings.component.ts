@@ -159,10 +159,7 @@ export class WorkspaceSettingsComponent {
     try {
       const result = await this.workspaceService.restoreWorkspace(workspaceId);
       if (result.error) {
-        this.toast.error(
-          'Workspace konnte nicht wiederhergestellt werden.',
-          result.error.message,
-        );
+        this.toast.error('Workspace konnte nicht wiederhergestellt werden.', result.error.message);
         return;
       }
       this.toast.success('Workspace wurde wiederhergestellt.');

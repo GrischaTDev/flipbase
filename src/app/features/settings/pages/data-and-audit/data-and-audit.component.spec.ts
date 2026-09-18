@@ -100,5 +100,4 @@ describe('Daten & Protokolle', () => {
     expect(template).not.toContain('<app-workspace-retention');
     expect(template).toContain('Weitere Exporte');
   });
-
 });
