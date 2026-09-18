@@ -34,7 +34,10 @@ beforeAll(async () => {
   for (const [component, names] of [
     [ButtonComponent, ['variant', 'link']],
     [CardComponent, ['padding', 'rounded']],
-    [DashboardOpenCostsComponent, ['openCosts', 'salesWithoutPurchase', 'inventoryItemsWithoutCost']],
+    [
+      DashboardOpenCostsComponent,
+      ['openCosts', 'salesWithoutPurchase', 'inventoryItemsWithoutCost'],
+    ],
   ] as const) {
     const metadata = (component as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp;
     metadata.inputs = { ...metadata.inputs };
