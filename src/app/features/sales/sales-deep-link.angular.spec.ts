@@ -19,6 +19,8 @@ import { CostStateComponent } from '../../shared/components/cost-state/cost-stat
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { TableColumnMenuComponent } from '../../shared/components/table-column-menu/table-column-menu.component';
 import { TableSortHeaderComponent } from '../../shared/components/table-sort-header/table-sort-header.component';
+import { DataTableComponent } from '../../shared/components/data-table/data-table.component';
+import { ButtonComponent } from '../../shared/components/button/button.component';
 
 interface AngularInputMetadata {
   inputs: Record<string, unknown>;
@@ -64,6 +66,32 @@ beforeAll(async () => {
     return readFile(matches[0], 'utf8');
   });
   registerSignalInputs(PageHeaderComponent, ['icon']);
+  registerSignalInputs(DataTableComponent, [
+    'ariaLabel',
+    'searchValue',
+    'searchPlaceholder',
+    'searchAriaLabel',
+    'searchEnabled',
+    'toolbarVisible',
+    'columns',
+    'sortOptions',
+    'currentSort',
+    'viewModified',
+    'loading',
+    'errorMessage',
+    'hasRows',
+    'loadingText',
+    'emptyTitle',
+    'emptyText',
+  ]);
+  registerSignalInputs(ButtonComponent, [
+    'variant',
+    'size',
+    'icon',
+    'disabled',
+    'ariaLabel',
+    'ariaPressed',
+  ]);
   registerSignalInputs(TableColumnMenuComponent, [
     'columns',
     'sortOptions',
@@ -152,6 +180,7 @@ beforeEach(() => {
       PageHeaderComponent,
       TableColumnMenuComponent,
       TableSortHeaderComponent,
+      DataTableComponent,
     ],
     providers: [
       provideRouter([{ path: 'sales', component: SalesComponent }]),
