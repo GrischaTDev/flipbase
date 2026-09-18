@@ -2,6 +2,7 @@ import '@angular/compiler';
 import { ɵresolveComponentResources } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { readFile } from 'node:fs/promises';
+import { LucideInfo } from '@lucide/angular';
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { ModalShellComponent } from './modal-shell.component';
 
@@ -70,6 +71,16 @@ describe('ModalShellComponent', () => {
     expect(component).toBeTruthy();
     const h2 = fixture.nativeElement.querySelector('h2');
     expect(h2.textContent).toContain('Einkauf erfassen');
+  });
+
+  it('uses the shared brand tone for branded modal icons', () => {
+    fixture.componentRef.setInput('iconTone', 'brand');
+    fixture.componentRef.setInput('icon', LucideInfo);
+    fixture.detectChanges();
+
+    const iconWrapper = fixture.nativeElement.querySelector('header div.border');
+    expect(iconWrapper?.className).toContain('bg-fb-brand-surface');
+    expect(iconWrapper?.className).toContain('border-fb-brand-border');
   });
 
   it('should emit closed when close button is clicked', () => {

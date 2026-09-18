@@ -9,6 +9,28 @@ Die vollständige bisherige Historie ist im
 bytegleich erhalten. Das Archiv liegt im selben Ordner, damit seine relativen
 Dateiverweise weiterhin denselben Ausgangspunkt haben.
 
+## 2026-09-18 – ChatGPT GPT-5.6 Sol (OpenAI) – Theme-Konsistenz im hellen Design und Bildoptimierer
+
+**Auftrag:** Das helle Theme soll das echte Flipbase-Gelb sichtbarer verwenden statt
+gold-brauner Ersatzfarben. Der Admin-Badge soll als auffällige rote Rollenkennzeichnung
+erhalten bleiben. Bildoptimierer und Fotoguide sollen dieselbe Flipbase-Designsprache
+wie der restliche Admin verwenden.
+
+**Änderung:** Brand-Flächen im hellen Theme sind heller und tragen dunklen Text für
+ausreichenden Kontrast; aktive Navigation erhält zusätzlich eine echte gelbe
+Markenmarkierung. Brand-Badges verwenden im hellen Theme das Logo-Gelb. Für den
+Plattform-Admin gibt es einen eigenen roten Badge-Ton statt Brand oder Critical.
+Der gemeinsame `ModalShellComponent` verwendet die zentralen Theme-Farben und bietet
+einen Brand-Ton. Der Fotoguide wurde vom eigenen nativen Dialog auf den Shared
+`ModalShellComponent` umgestellt. Bildoptimierer-Komponenten verwenden für Auswahl,
+Fokus, Warnung, Erfolg, Fehler und Editor-Akzente die zentralen Flipbase-Variablen;
+alte Indigo-, Sky-, Amber- und Emerald-Akzente wurden in diesem Feature entfernt.
+Die Designrichtlinie dokumentiert diese Nutzerentscheidungen.
+
+**Prüfung:** Ausstehend bis zum PR-Lauf; betroffen sind Theme, Shared Badge/Modal und
+der Bildoptimierer. Geplant sind Formatierung, Lint, Typprüfung, Build,
+Accessibility-Browser-Smoke sowie die relevanten Angular-Tests.
+
 ## 2026-09-18 – ChatGPT GPT-5.6 Sol (OpenAI) – Flipbase Theme und lesbare AI-Regeln
 
 **Auftrag:** Die uneinheitlichen Farben von Toasts, Badges, Header, Navigation und

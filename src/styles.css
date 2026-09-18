@@ -52,12 +52,12 @@
   --fb-primary-subtle: rgba(79, 70, 229, 0.1);
   --fb-primary-border: rgba(79, 70, 229, 0.25);
 
-  /* Marken-Gelb fuer Navigation. Auf hellem Grund ist die dunklere
-     Auspraegung noetig, damit aktive Icons und Fokusrahmen lesbar bleiben. */
+  /* Marken-Gelb fuer Navigation. Im hellen Theme liegt das echte Gelb auf
+     der Flaeche; Text und Icons bleiben dunkel und damit gut lesbar. */
   --fb-brand-yellow: #fcc601;
   --fb-brand-yellow-rgb: 252 198 1;
   --fb-nav-accent: var(--fb-color-brand-text);
-  --fb-nav-accent-rgb: 122 76 5;
+  --fb-nav-accent-rgb: 48 48 48;
   --fb-nav-badge-text: var(--fb-color-brand-text);
   --fb-nav-accent-subtle: var(--fb-color-brand-surface);
   --fb-nav-accent-border: var(--fb-color-brand-border);
@@ -430,6 +430,13 @@ html.dark {
   --color-fb-brand-strong: var(--fb-color-brand);
   --color-fb-brand-surface: var(--fb-color-brand-surface);
   --color-fb-brand-border: var(--fb-color-brand-border);
+  --color-fb-brand-badge: var(--fb-color-brand-badge-text);
+  --color-fb-brand-badge-surface: var(--fb-color-brand-badge-surface);
+  --color-fb-brand-badge-border: var(--fb-color-brand-badge-border);
+
+  --color-fb-admin: var(--fb-color-admin-text);
+  --color-fb-admin-surface: var(--fb-color-admin-surface);
+  --color-fb-admin-border: var(--fb-color-admin-border);
 
   --color-fb-success: var(--fb-color-success-text);
   --color-fb-success-strong: var(--fb-color-success);
@@ -637,7 +644,7 @@ html:not(.dark) .fb-admin {
   --fb-primary-hover: #e5b201;
   --fb-text-on-accent: #1a1a1a;
   --fb-primary-subtle: rgb(var(--fb-brand-yellow-rgb) / 12%);
-  --fb-primary-border: rgb(138 86 6 / 35%);
+  --fb-primary-border: var(--fb-color-brand-badge-border);
   --fb-border-focus: var(--fb-nav-accent);
   --fb-c-indigo-200: var(--fb-color-brand-text);
   --fb-c-indigo-300: var(--fb-color-brand-text);
@@ -679,8 +686,9 @@ html:not(.dark) .fb-admin .bg-indigo-600.text-white {
   color: var(--fb-text-on-accent);
 }
 
-/* Der aktive Zustand bleibt in beiden Designs gleich aufgebaut: gelb
-   getoentes Feld, dezenter Rahmen, gelbes Icon. */
+/* Aktive Navigation: Marken-Gelb traegt die Flaeche. Im hellen Theme bleiben
+   Text und Icon dunkel; ein echter gelber Innenstrich macht die Marke sichtbar,
+   ohne den Kontrast der Beschriftung zu opfern. */
 .fb-admin app-sidebar nav a[aria-current='page'] {
   background-color: var(--fb-nav-accent-subtle);
   border-color: var(--fb-nav-accent-border);
@@ -691,8 +699,17 @@ html:not(.dark) .fb-admin .bg-indigo-600.text-white {
   color: var(--fb-nav-accent);
 }
 
+html:not(.dark) .fb-admin app-sidebar nav a[aria-current='page'] {
+  box-shadow: inset 3px 0 0 var(--fb-color-brand);
+}
+
 .fb-admin app-bottom-nav a[aria-current='page'] {
   color: var(--fb-nav-accent);
+}
+
+html:not(.dark) .fb-admin app-bottom-nav a[aria-current='page'] {
+  background-color: var(--fb-color-brand-surface);
+  box-shadow: inset 0 -2px 0 var(--fb-color-brand);
 }
 
 /* Navigation: schmal, ruhig und auf dem 4-Pixel-Raster des Shopify-Admins. */
