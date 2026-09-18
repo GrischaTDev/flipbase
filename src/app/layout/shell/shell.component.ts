@@ -1,8 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
-import type { ActivatedRouteSnapshot } from '@angular/router';
-import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
-import { filter } from 'rxjs';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { RouterLink, RouterOutlet } from '@angular/router';
 import { HeaderComponent } from '../header/header.component';
 import { SidebarComponent } from '../sidebar/sidebar.component';
 import { BottomNavComponent } from '../bottom-nav/bottom-nav.component';
@@ -10,20 +7,7 @@ import { WorkspaceModalComponent } from '../../shared/components/workspace-modal
 import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/confirm-dialog.component';
 import { AuthService } from '../../core/services/auth.service';
 import { MockDataStoreService } from '../../core/services/mock-data-store.service';
-import { unsavedEntryGuard } from '../../shared/guards/unsaved-entry.guard';
-
-export function blocksWorkspaceActions(route: ActivatedRouteSnapshot | null): boolean {
-  let current = route;
-
-  while (current) {
-    if (current.routeConfig?.canDeactivate?.some((guard) => guard === unsavedEntryGuard)) {
-      return true;
-    }
-    current = current.firstChild;
-  }
-
-  return false;
-}
+import { WorkspaceContextLockService } from '../../core/services/workspace-context-lock.service';
 
 @Component({
   selector: 'app-shell',
@@ -43,20 +27,11 @@ export function blocksWorkspaceActions(route: ActivatedRouteSnapshot | null): bo
 export class ShellComponent {
   readonly auth = inject(AuthService);
   private readonly mockStore = inject(MockDataStoreService);
-  private readonly router = inject(Router);
-  private readonly navigationEnd = toSignal(
-    this.router.events.pipe(
-      filter((event): event is NavigationEnd => event instanceof NavigationEnd),
-    ),
-    { initialValue: null },
-  );
+  private readonly workspaceContext = inject(WorkspaceContextLockService);
 
   readonly isSidebarOpen = signal<boolean>(false);
   readonly isCreateWorkspaceModalOpen = signal<boolean>(false);
-  readonly workspaceActionsBlocked = computed(() => {
-    this.navigationEnd();
-    return blocksWorkspaceActions(this.router.routerState.snapshot.root);
-  });
+  readonly workspaceActionsBlocked = this.workspaceContext.locked;
 
   reloadDemoData(): void {
     this.mockStore.resetToDemoShowcase();
@@ -80,8 +55,7 @@ export class ShellComponent {
     this.isCreateWorkspaceModalOpen.set(false);
   }
 
-  async onWorkspaceCreated(): Promise<void> {
+  onWorkspaceCreated(): void {
     this.closeCreateWorkspace();
-    await this.router.navigate(['/dashboard']);
   }
 }
