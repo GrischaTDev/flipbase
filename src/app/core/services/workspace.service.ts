@@ -268,7 +268,7 @@ export class WorkspaceService {
 
   private async activateCreatedWorkspace(workspace: Workspace): Promise<void> {
     this.setCurrentWorkspace(workspace);
-    if (this.router) await this.router.navigate(['/dashboard']);
+    await this.router?.navigate?.(['/dashboard']);
   }
 
   archiveWorkspace(workspaceId: string): Promise<{ error: Error | null }> {
