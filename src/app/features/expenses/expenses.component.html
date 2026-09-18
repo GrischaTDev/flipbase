@@ -1,0 +1,238 @@
+<div class="space-y-4 animate-fade-in">
+  <app-page-header
+    title="Ausgaben"
+    subtitle="Betriebsausgaben, laufende Kosten und Belege im Blick behalten."
+    [icon]="pageIcon"
+  >
+    <div actions class="flex flex-wrap items-center gap-2">
+      <app-button [icon]="settingsIcon">Kategorien verwalten</app-button>
+      <app-button variant="primary" [icon]="addIcon">Ausgabe hinzufügen</app-button>
+    </div>
+  </app-page-header>
+
+  <div
+    class="inline-flex rounded-lg border border-fb-line bg-fb-well p-1"
+    role="group"
+    aria-label="Ausgabenansicht"
+  >
+    <app-button
+      size="slim"
+      [variant]="activeTab() === 'expenses' ? 'secondary' : 'ghost'"
+      [ariaPressed]="activeTab() === 'expenses'"
+      (clicked)="setTab('expenses')"
+    >
+      Ausgaben
+    </app-button>
+    <app-button
+      size="slim"
+      [variant]="activeTab() === 'recurring' ? 'secondary' : 'ghost'"
+      [ariaPressed]="activeTab() === 'recurring'"
+      (clicked)="setTab('recurring')"
+    >
+      Wiederkehrend
+    </app-button>
+  </div>
+
+  @if (activeTab() === 'expenses') {
+    <section aria-label="Ausgabensummen" class="grid gap-3 sm:grid-cols-3">
+      <app-card rounded="xl">
+        <p class="text-xs font-medium text-fb-text-muted">Gesamt</p>
+        <p class="mt-1 font-mono text-lg font-semibold text-fb-text-primary">
+          {{ summary().total | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+        </p>
+      </app-card>
+      <app-card rounded="xl">
+        <p class="text-xs font-medium text-fb-text-muted">Bezahlt</p>
+        <p class="mt-1 font-mono text-lg font-semibold text-fb-success">
+          {{ summary().paid | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+        </p>
+      </app-card>
+      <app-card rounded="xl">
+        <p class="text-xs font-medium text-fb-text-muted">Offen</p>
+        <p class="mt-1 font-mono text-lg font-semibold text-fb-warning">
+          {{ summary().open | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+        </p>
+      </app-card>
+    </section>
+
+    <section class="space-y-3" aria-label="Ausgaben filtern">
+      <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+        <label class="min-w-0 flex-1">
+          <span class="sr-only">Ausgaben durchsuchen</span>
+          <input
+            type="search"
+            class="linear-input min-h-9 w-full rounded-lg border border-fb-line bg-fb-surface px-3 text-[13px] text-fb-text-primary"
+            placeholder="Ausgaben durchsuchen"
+            [value]="search()"
+            (input)="setSearch($event)"
+          />
+        </label>
+        <app-custom-select
+          ariaLabel="Status filtern"
+          triggerId="expense-status-filter"
+          variant="filter"
+          widthClass="w-44"
+          [options]="statusOptions"
+          [value]="statusFilter()"
+          (valueChange)="setStatus($event)"
+        />
+        <app-custom-select
+          ariaLabel="Kategorie filtern"
+          triggerId="expense-category-filter"
+          variant="filter"
+          widthClass="w-52"
+          [options]="categoryOptions()"
+          [value]="categoryFilter()"
+          (valueChange)="setCategory($event)"
+        />
+      </div>
+
+      <app-card padding="none" rounded="xl">
+        @if (expenseService.isLoading()) {
+          <p role="status" class="px-4 py-8 text-center text-[13px] text-fb-text-muted">
+            Ausgaben werden geladen …
+          </p>
+        } @else if (expenseService.loadError()) {
+          <p role="alert" class="px-4 py-8 text-center text-[13px] text-fb-critical">
+            Die Ausgaben konnten nicht geladen werden.
+          </p>
+        } @else if (visibleExpenses().length > 0) {
+          <div class="overflow-x-auto" tabindex="0" role="region" aria-label="Ausgaben-Tabelle">
+            <table class="linear-table w-full min-w-[1080px] text-[13px] tabular-nums">
+              <thead class="bg-fb-well/60 font-semibold text-fb-text-secondary">
+                <tr>
+                  <th scope="col" class="px-4 py-3">Datum</th>
+                  <th scope="col" class="px-4 py-3">Bezeichnung</th>
+                  <th scope="col" class="px-4 py-3">Kategorie</th>
+                  <th scope="col" class="px-4 py-3 text-right">Brutto</th>
+                  <th scope="col" class="px-4 py-3 text-right">MwSt.</th>
+                  <th scope="col" class="px-4 py-3">Status</th>
+                  <th scope="col" class="px-4 py-3">Fällig / bezahlt am</th>
+                  <th scope="col" class="px-4 py-3">Wiederholung</th>
+                  <th scope="col" class="px-4 py-3">Beleg</th>
+                  <th scope="col" class="px-4 py-3 text-right">Aktionen</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-fb-line">
+                @for (expense of visibleExpenses(); track expense.id) {
+                  <tr class="hover:bg-fb-surface-alt/60">
+                    <td class="px-4 py-3 text-fb-text-secondary">
+                      {{ expense.expense_date | date: 'dd.MM.yyyy' }}
+                    </td>
+                    <td class="px-4 py-3 font-semibold text-fb-text-primary">
+                      {{ expense.title }}
+                    </td>
+                    <td class="px-4 py-3 text-fb-text-secondary">
+                      {{ categoryName(expense.category_id) }}
+                    </td>
+                    <td class="px-4 py-3 text-right font-mono text-fb-text-primary">
+                      {{ expense.gross_amount | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                    </td>
+                    <td class="px-4 py-3 text-right font-mono text-fb-text-secondary">
+                      {{ expense.vat_rate === null ? '–' : expense.vat_rate + ' %' }}
+                    </td>
+                    <td class="px-4 py-3">
+                      <app-badge [tone]="statusTone(expense.status)">
+                        {{ expense.status === 'paid' ? 'Bezahlt' : 'Offen' }}
+                      </app-badge>
+                    </td>
+                    <td class="px-4 py-3 text-fb-text-secondary">
+                      @if (expense.status === 'paid' && expense.payment_date) {
+                        {{ expense.payment_date | date: 'dd.MM.yyyy' }}
+                      } @else if (expense.due_date) {
+                        {{ expense.due_date | date: 'dd.MM.yyyy' }}
+                      } @else {
+                        –
+                      }
+                    </td>
+                    <td class="px-4 py-3 text-fb-text-secondary">
+                      {{ expense.recurring_rule_id ? 'Ja' : '–' }}
+                    </td>
+                    <td class="px-4 py-3 text-fb-text-secondary">–</td>
+                    <td class="px-4 py-3 text-right">
+                      <app-button variant="ghost" size="slim">Bearbeiten</app-button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <div class="px-4 py-10 text-center">
+            <p class="text-sm font-semibold text-fb-text-primary">Keine Ausgaben gefunden</p>
+            <p class="mt-1 text-xs text-fb-text-muted">
+              Passe die Filter an oder erfasse deine erste Betriebsausgabe.
+            </p>
+          </div>
+        }
+      </app-card>
+    </section>
+  } @else {
+    <section class="space-y-3" aria-labelledby="recurring-expenses-heading">
+      <div class="flex items-center justify-between gap-3">
+        <div>
+          <h2 id="recurring-expenses-heading" class="text-sm font-semibold text-fb-text-primary">
+            Wiederkehrende Ausgaben
+          </h2>
+          <p class="mt-1 text-xs text-fb-text-muted">
+            Monatliche, quartalsweise und jährliche Fixkosten.
+          </p>
+        </div>
+        <app-button variant="primary" [icon]="addIcon">Wiederkehrende Ausgabe hinzufügen</app-button>
+      </div>
+
+      <app-card padding="none" rounded="xl">
+        @if (recurringService.rules().length > 0) {
+          <div class="overflow-x-auto">
+            <table class="linear-table w-full min-w-[760px] text-[13px]">
+              <thead class="bg-fb-well/60 font-semibold text-fb-text-secondary">
+                <tr>
+                  <th scope="col" class="px-4 py-3">Bezeichnung</th>
+                  <th scope="col" class="px-4 py-3">Kategorie</th>
+                  <th scope="col" class="px-4 py-3">Rhythmus</th>
+                  <th scope="col" class="px-4 py-3 text-right">Betrag</th>
+                  <th scope="col" class="px-4 py-3">Nächste Fälligkeit</th>
+                  <th scope="col" class="px-4 py-3">Status</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-fb-line">
+                @for (rule of recurringService.rules(); track rule.id) {
+                  <tr>
+                    <td class="px-4 py-3 font-semibold text-fb-text-primary">{{ rule.title }}</td>
+                    <td class="px-4 py-3 text-fb-text-secondary">
+                      {{ categoryName(rule.category_id) }}
+                    </td>
+                    <td class="px-4 py-3 text-fb-text-secondary">
+                      {{ frequencyLabel(rule.frequency) }}
+                    </td>
+                    <td class="px-4 py-3 text-right font-mono text-fb-text-primary">
+                      {{ rule.gross_amount | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                    </td>
+                    <td class="px-4 py-3 text-fb-text-secondary">
+                      @if (nextOccurrence(rule.id); as occurrence) {
+                        {{ occurrence | date: 'dd.MM.yyyy' }}
+                      } @else {
+                        –
+                      }
+                    </td>
+                    <td class="px-4 py-3">
+                      <app-badge [tone]="rule.is_active ? 'success' : 'neutral'">
+                        {{ rule.is_active ? 'Aktiv' : 'Inaktiv' }}
+                      </app-badge>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <div class="px-4 py-10 text-center">
+            <p class="text-sm font-semibold text-fb-text-primary">
+              Noch keine wiederkehrenden Ausgaben
+            </p>
+          </div>
+        }
+      </app-card>
+    </section>
+  }
+</div>
