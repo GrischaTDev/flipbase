@@ -404,19 +404,77 @@ describe('DashboardComponent', () => {
     expect(text).toContain('Zu erledigen');
     expect(text).toContain('5 Artikel ohne Kostenangabe');
 
+    expect(journal?.querySelector('h2')?.textContent?.trim()).toBe('Verkäufe');
+    expect(journal?.querySelector('[role="region"]')?.getAttribute('aria-label')).toBe(
+      'Verkäufe-Tabelle',
+    );
     expect(headers).toEqual([
       'Datum',
       'Artikel',
       'Menge',
       'Plattform',
-      'Verkaufserlös',
-      'Wareneinsatz',
-      'Verkaufskosten',
-      'Ergebnis nach direkten Kosten',
+      'Einnahmen',
+      'Einkaufspreis',
+      'Gebühren & Versand',
+      'Gewinn',
       'Marge',
     ]);
+
+    const desktopProfit = journal?.querySelector('tbody tr td:nth-child(8)');
+    expect(desktopProfit?.className).toContain('text-fb-success');
+
+    const mobileLabels = [...(journal?.querySelectorAll('article dt') ?? [])].map((label) =>
+      label.textContent?.replace(/\s+/g, ' ').trim(),
+    );
+    expect(mobileLabels).toEqual([
+      'Einnahmen',
+      'Einkaufspreis',
+      'Gebühren & Versand',
+      'Gewinn',
+      'Marge',
+    ]);
+    const mobileProfitLabel = [...(journal?.querySelectorAll('article dt') ?? [])].find(
+      (label) => label.textContent?.trim() === 'Gewinn',
+    );
+    expect(mobileProfitLabel?.nextElementSibling?.className).toContain('text-fb-success');
     expect(text).not.toContain('COGS');
     expect(text).not.toContain('Realisierter Gewinn');
+  });
+
+  it('markiert einen negativen Verkaufsgewinn rot, ohne normale Kosten als Fehler zu färben', () => {
+    createReport.mockReturnValueOnce({
+      ...emptyReport,
+      rows: [
+        {
+          saleId: 'sale-loss',
+          date: '2026-09-18',
+          articles: 'Verlustverkauf',
+          quantity: 1,
+          platform: 'ebay',
+          revenue: 20,
+          costOfGoodsSold: 18,
+          sellingCosts: 5,
+          resultAfterDirectCosts: -3,
+          marginPercent: -15,
+          profit: -3,
+        },
+      ],
+    });
+
+    const fixture = createDashboard();
+    const journal = (fixture.nativeElement as HTMLElement)
+      .querySelector('#sales-table-heading')
+      ?.closest('section');
+    const cells = journal?.querySelectorAll('tbody tr td');
+
+    expect(cells?.[5]?.className).not.toContain('text-fb-critical');
+    expect(cells?.[6]?.className).not.toContain('text-fb-critical');
+    expect(cells?.[7]?.className).toContain('text-fb-critical');
+
+    const mobileProfitLabel = [...(journal?.querySelectorAll('article dt') ?? [])].find(
+      (label) => label.textContent?.trim() === 'Gewinn',
+    );
+    expect(mobileProfitLabel?.nextElementSibling?.className).toContain('text-fb-critical');
   });
 
   it('isoliert den Chart-Lifecycle im Dashboard-Header-Test ohne Angular-Laufzeitfehler', async () => {
