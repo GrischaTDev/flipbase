@@ -31,7 +31,11 @@ function daysInMonth(year: number, month: number): number {
 }
 
 function dateKey({ year, month, day }: CalendarDate): string {
-  return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  return [
+    String(year).padStart(4, '0'),
+    String(month).padStart(2, '0'),
+    String(day).padStart(2, '0'),
+  ].join('-');
 }
 
 function frequencyMonths(frequency: ExpenseFrequency): number {
