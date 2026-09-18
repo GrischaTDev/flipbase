@@ -27,6 +27,8 @@ export class ExpenseDocumentsComponent implements OnInit {
   readonly isUploading = signal(false);
   readonly errorMessage = signal<string | null>(null);
 
+  readonly documentTypeLabels = EXPENSE_DOCUMENT_TYPE_LABELS;
+
   readonly typeOptions: readonly SelectOption<ExpenseDocumentType>[] = (
     Object.entries(EXPENSE_DOCUMENT_TYPE_LABELS) as [ExpenseDocumentType, string][]
   ).map(([value, label]) => ({ value, label }));
