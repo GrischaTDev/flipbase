@@ -8,6 +8,7 @@ import {
   OperatingExpenseVatRate,
 } from '../../core/models/operating-expense.models';
 import { OperatingExpenseService } from '../../core/services/operating-expense.service';
+import { ExpenseDocumentsComponent } from './components/expense-documents/expense-documents.component';
 
 const euro = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' });
 
@@ -17,7 +18,7 @@ type ExpenseStatusFilter = 'all' | 'open' | 'paid';
 @Component({
   selector: 'app-expenses',
   standalone: true,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, ExpenseDocumentsComponent],
   template: `
     <div class="space-y-4 animate-fade-in">
       <header
@@ -179,8 +180,26 @@ type ExpenseStatusFilter = 'all' | 'open' | 'paid';
                       <td class="px-4 py-3 text-fb-text-secondary">
                         {{ expense.recurring_rule_id ? 'Wiederkehrend' : 'Einmalig' }}
                       </td>
-                      <td class="px-4 py-3 text-fb-text-secondary">–</td>
-                      <td class="px-4 py-3 text-right text-fb-text-secondary">•••</td>
+                      <td class="px-4 py-3">
+                        <button
+                          type="button"
+                          class="h-7 rounded-lg border border-fb-line px-2 text-xs text-fb-text-secondary"
+                          (click)="documentExpenseId.set(expense.id)"
+                        >
+                          Belege
+                        </button>
+                      </td>
+                      <td class="px-4 py-3 text-right">
+                        @if (expense.status === 'open') {
+                          <button
+                            type="button"
+                            class="h-7 rounded-lg border border-fb-line px-2 text-xs text-fb-text-secondary"
+                            (click)="markPaid(expense)"
+                          >
+                            Als bezahlt
+                          </button>
+                        }
+                      </td>
                     </tr>
                   }
                 </tbody>
@@ -249,6 +268,13 @@ type ExpenseStatusFilter = 'all' | 'open' | 'paid';
           }
         </section>
       }
+      @if (documentExpenseId(); as expenseId) {
+        <app-expense-documents
+          [expenseId]="expenseId"
+          (closed)="documentExpenseId.set(null)"
+        />
+      }
+
       @if (showExpenseForm()) {
         <div
           data-expense-form
@@ -542,6 +568,7 @@ export class ExpensesComponent implements OnInit {
   readonly showRecurringForm = signal(false);
   readonly showCategoryManager = signal(false);
   readonly formError = signal<string | null>(null);
+  readonly documentExpenseId = signal<string | null>(null);
 
   readonly expenseForm = new FormGroup({
     title: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
@@ -600,6 +627,10 @@ export class ExpensesComponent implements OnInit {
 
   ngOnInit(): void {
     void this.expenseService.loadCurrentWorkspace();
+  }
+
+  async markPaid(expense: OperatingExpense): Promise<void> {
+    await this.expenseService.markPaid(expense, this.today());
   }
 
   openExpenseForm(): void {
