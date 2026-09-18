@@ -45,7 +45,8 @@ function monthsPerOccurrence(frequency: ExpenseFrequency): number {
 }
 
 function occurrenceAt(start: CalendarDate, frequency: ExpenseFrequency, index: number): string {
-  const absoluteMonth = start.year * 12 + (start.month - 1) + monthsPerOccurrence(frequency) * index;
+  const absoluteMonth =
+    start.year * 12 + (start.month - 1) + monthsPerOccurrence(frequency) * index;
   const year = Math.floor(absoluteMonth / 12);
   const monthIndex = absoluteMonth % 12;
   const month = monthIndex + 1;
