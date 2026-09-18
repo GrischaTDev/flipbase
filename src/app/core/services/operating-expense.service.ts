@@ -1,4 +1,4 @@
-import { inject, Injectable, signal } from '@angular/core';
+import { effect, inject, Injectable, signal } from '@angular/core';
 import {
   OperatingExpense,
   OperatingExpenseCategory,
@@ -31,6 +31,24 @@ export class OperatingExpenseService {
   readonly loadError = signal<string | null>(null);
 
   private currentRequestId = 0;
+
+  constructor() {
+    try {
+      effect(() => {
+        const workspace = this.workspaceService.currentWorkspace();
+        if (workspace) {
+          void this.loadWorkspace(workspace.id);
+        } else {
+          this.currentRequestId += 1;
+          this.categoriesRaw.set([]);
+          this.expensesRaw.set([]);
+          this.recurringRulesRaw.set([]);
+        }
+      });
+    } catch {
+      // Tests, die den Dienst ohne Angular-Scheduler erzeugen, laden explizit.
+    }
+  }
 
   async loadWorkspace(workspaceId: string, throughDate = this.today()): Promise<void> {
     const requestId = ++this.currentRequestId;
