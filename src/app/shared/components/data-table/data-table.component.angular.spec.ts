@@ -2,12 +2,20 @@ import '@angular/compiler';
 import { ɵresolveComponentResources } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import axe from 'axe-core';
-import { readFile } from 'node:fs/promises';
+import { glob, readFile } from 'node:fs/promises';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DataTableComponent } from './data-table.component';
 
 beforeAll(async () => {
-  await ɵresolveComponentResources((url) => readFile(new URL(url, import.meta.url), 'utf8'));
+  await ɵresolveComponentResources(async (url) => {
+    const fileName = url.replace(/^\.\//, '');
+    const matches: string[] = [];
+    for await (const match of glob(`src/app/**/${fileName}`)) matches.push(match);
+    if (matches.length !== 1) {
+      throw new Error(`Test-Ressource ${url} ist nicht eindeutig: ${matches.join(', ')}`);
+    }
+    return readFile(matches[0], 'utf8');
+  });
 });
 
 describe('DataTableComponent', () => {
