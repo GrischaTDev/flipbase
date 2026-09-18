@@ -1,7 +1,5 @@
 <div class="flex flex-wrap items-center gap-2" role="group" aria-label="Exportplattformen">
-  <span class="mr-1 text-xs font-medium text-fb-text-muted">
-    Plattformen
-  </span>
+  <span class="mr-1 text-xs font-medium text-fb-text-muted">Plattformen</span>
   @for (p of platforms(); track p.id) {
     <div
       class="inline-flex items-stretch overflow-hidden rounded-xl border"
@@ -24,7 +22,9 @@
           ></svg>
         }
         <span>{{ p.name }}</span>
-        <!-- Das Format bleibt auch auf der gelben Auswahlfläche mit normalem Kontrast lesbar. -->
+        <!--
+          Das Format bleibt auch auf der gelben Auswahlfläche mit normalem Kontrast lesbar.
+        -->
         <span class="text-[10px] font-normal text-fb-text-secondary">{{ ratioLabel(p) }}</span>
       </button>
       <button
