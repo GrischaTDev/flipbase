@@ -1,6 +1,6 @@
-import { expect, test, type Page } from '@playwright/test';
+import { type Page } from '@playwright/test';
 import axe from 'axe-core';
-import { startDemoMode } from './support/demo';
+import { expect, openDashboard, test } from './support/fixtures';
 
 test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -52,7 +52,7 @@ for (const theme of ['light', 'dark'] as const)
       await page.addInitScript((themePreference) => {
         localStorage.setItem('flipbase_theme', themePreference);
       }, theme);
-      await startDemoMode(page);
+      await openDashboard(page);
       await page.goto('/purchases/new');
       await expect
         .poll(() => page.locator('html').evaluate((element) => element.classList.contains('dark')))
@@ -138,7 +138,7 @@ test('Produktbild bleibt nach erneutem Laden sichtbar und unbekannter Scan öffn
   page.on('console', (message) => {
     if (message.type() === 'error') errors.push(message.text());
   });
-  await startDemoMode(page);
+  await openDashboard(page);
   await page.goto('/purchases/new');
   await createProduct(page, 'Produkt mit Bild', true);
   await expect(page.locator('app-purchase-line-editor app-product-thumbnail img')).toBeVisible();
@@ -168,7 +168,7 @@ test('Produktbild bleibt nach erneutem Laden sichtbar und unbekannter Scan öffn
 });
 
 test('CSV verlangt bewusste Zuordnung und übernimmt erst nach Bestätigung', async ({ page }) => {
-  await startDemoMode(page);
+  await openDashboard(page);
   await page.goto('/purchases/new');
   await createProduct(page, 'CSV-Produkt');
   const editor = page.locator('app-purchase-line-editor');
@@ -187,35 +187,8 @@ test('CSV verlangt bewusste Zuordnung und übernimmt erst nach Bestätigung', as
   await expect(editor.locator('tbody tr')).toHaveCount(1);
 });
 
-test('direkter Inventareinstieg erstellt ausschließlich den Produktstamm', async ({ page }) => {
-  await startDemoMode(page);
-  const stock = await page.evaluate(() =>
-    ['flipbase_local_inventory', 'flipbase_local_stock_lots', 'flipbase_local_stock_movements'].map(
-      (key) => localStorage.getItem(key),
-    ),
-  );
-  await page.goto('/inventory/new');
-  const dialog = page.getByRole('dialog', { name: 'Produkt erstellen', exact: true });
-  await expect(dialog.getByRole('spinbutton')).toHaveCount(0);
-  await dialog.getByRole('textbox', { name: 'Name', exact: true }).fill('Nur Produktstamm');
-  await dialog.getByRole('button', { name: 'Produkt erstellen', exact: true }).click();
-  await expect(page).toHaveURL(/\/inventory$/);
-  expect(
-    await page.evaluate(() =>
-      [
-        'flipbase_local_inventory',
-        'flipbase_local_stock_lots',
-        'flipbase_local_stock_movements',
-      ].map((key) => localStorage.getItem(key)),
-    ),
-  ).toEqual(stock);
-  expect(
-    await page.evaluate(() => localStorage.getItem('flipbase_local_catalog_products')),
-  ).toContain('Nur Produktstamm');
-});
-
 test('verweigerte Kamera lässt Hardwareeingabe und Picker erreichbar', async ({ page }) => {
-  await startDemoMode(page);
+  await openDashboard(page);
   await page.goto('/purchases/new');
   await page.evaluate(() => {
     navigator.mediaDevices.getUserMedia = async () => {

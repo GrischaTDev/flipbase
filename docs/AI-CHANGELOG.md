@@ -9,6 +9,86 @@ Die vollständige bisherige Historie ist im
 bytegleich erhalten. Das Archiv liegt im selben Ordner, damit seine relativen
 Dateiverweise weiterhin denselben Ausgangspunkt haben.
 
+## 2026-09-18 – Claude Opus 5 (Anthropic) – Demo-Modus entfernen, PR 1: Browser-Tests auf lokale Supabase
+
+**Auftrag:** Umsetzung von PR 1 aus dem Entwurf unten. Die Browser-Tests sollen gegen
+die lokale Supabase laufen statt gegen Demo-Daten, damit der Demo-Code danach in PR 2
+gefahrlos entfernt werden kann. Sechs Aufgaben aus
+`docs/superpowers/plans/2026-09-18-remove-demo-mode-pr-1.md`.
+
+**Änderung:** Ein globales Setup registriert je Testlauf genau ein Konto einmal; alle
+Worker teilen sich die Sitzung als `storageState`. Eine automatische Fixture in
+`e2e/support/fixtures.ts` legt für jeden Test einen frischen Workspace an und
+wechselt per `addInitScript` dorthin. Testdaten entstehen über die echten
+Datenbankfunktionen in `e2e/support/sample-data.ts`, nicht über Mocks. Die sechs
+Pflichttests des Chromium-Laufs sind auf dieses Muster umgestellt; der Steuertest
+verkürzt sich auf die Journalprüfung, weil die Exportsperre bereits der
+Angular-Test `accounting-tax-review.angular.spec.ts` abdeckt. Der Browser-Job in der
+CI startet jetzt die lokale Supabase, ein neuer Workflow-Test sichert die Trennung
+der Testkonten ab (Seed-Isolation). `supabase/seed.sql` legt lokal das Konto
+`test@flipbase.local` / `flipbase-test` mit Beispieldaten an. Von den übrigen
+Browser-Tests wurden alle fest an Demo-Daten hängenden Fälle gelöscht statt
+umgestellt: 29 Einträge in 17 Dateien (rund 34 einzelne Testfälle, Theme-/Breiten-/
+Pfad-Varianten mitgezählt), davon sechs Dateien vollständig entfernt
+(`badge-text.spec.ts`, `demo-login.spec.ts`, `purchase-item-navigation.spec.ts`,
+`purchase-package-contents.spec.ts`, `record-timeline.spec.ts`,
+`e2e/support/demo.ts`). Die vollständige Liste steht im Commit `ebee08c`.
+
+**Nachbesserung (Abschlussprüfung):** Der optionale Nightly-Workflow
+(`quality-nightly.yml`, Job `browser`) startete und stoppte die lokale Supabase
+nicht, obwohl `test:e2e:nightly` dasselbe globale Setup wie der PR-Job nutzt – jetzt
+mit denselben Schritten wie `browser-smoke` in `ci.yml` ergänzt, Timeout 15 auf 20
+Minuten angehoben. Die geteilte Testsitzung (`jwt_expiry = 900`) lief bei langen
+Läufen nach rund 13,5 Minuten in die Token-Rotation und schlug dann unklar fehl;
+`e2e/support/test-account.ts` liest jetzt `expires_at` mit, die `workspace`-Fixture
+bricht unter 120 Sekunden Restlaufzeit mit einer klaren deutschen Meldung ab, und
+eine fehlende `e2e/.auth/session.json` meldet sich jetzt auch verständlich statt mit
+rohem ENOENT. Der Steuerjournal-Test in `purchase-tax-costs.spec.ts` bestand nur,
+weil die Buchhaltungsseite fest auf 2026/08 startet; er wählt Jahr und Zeitraum jetzt
+selbst über die Oberfläche. Nach diesen Korrekturen liefen `npm run test:e2e:pr` (6 von
+6 bestanden), `npm run test:workflow`, `scripts/seed-isolation.test.mjs`, Prettier und
+ESLint jeweils mit Exitcode 0.
+
+**Befunde:** `deal-monitor.spec.ts` schlägt schon auf dem Ausgangsstand des Zweigs
+fehl (zwei Fälle, Workspacewechsel in der Erfassungsmaske gesperrt) - kein neuer
+Fehler durch diese Arbeit. Das Kalender-Popover bei 390px öffnet sich manchmal nicht
+beim ersten Tastendruck; der Test wiederholt das über `toPass`, ein App-Fehler zum
+Nachverfolgen. Die Buchhaltungsseite startet fest auf 2026/08
+(`accounting.component.ts:172-173`) statt auf dem aktuellen Monat.
+
+**Prüfung:** `npm run test:db` (1812 Tests in 50 Dateien) mit Exitcode 0. `npm run
+verify` (Format, Lint, Typen, Workflow-Tests, Suite-Audit, alle Anwendungstests, Bau)
+mit Exitcode 0. `npx playwright test --project=chromium`: 74 von 76 Fällen bestanden;
+die zwei Fehlschläge sind die oben genannten vorbestehenden Fälle in
+`deal-monitor.spec.ts`. `grep -rn "startDemoMode|support/demo" e2e` ohne Treffer.
+
+## 2026-09-18 – Claude Opus 5 (Anthropic) – Entwurf: Demo-Modus entfernen
+
+**Auftrag:** Der Nutzer will den Demo-Modus komplett entfernen, weil jede Funktion
+doppelt gepflegt werden muss. Später soll es einen 14-Tage-Testzugang mit echtem Konto
+geben.
+
+**Befund:** Der Demo-Modus ist im Live-Betrieb aus (`allowDemoMode: false`). Die
+Ersatz-Datenbank `MockDataStoreService` hat rund 2.550 Zeilen. Dazu kommen rund 185
+Weichen in 46 Dateien. 28 von 30 Browser-Tests laufen im Demo-Modus, darunter alle
+Pflichttests. Die lokale Anmeldung begrenzt Registrierungen und Anmeldungen auf 30 je
+5 Minuten. Der erste Ansatz „ein Konto je Test“ hätte den vollen Testlauf deshalb
+blockiert.
+
+**Ergebnis:** Entwurf `docs/superpowers/specs/2026-09-18-remove-demo-mode-design.md`.
+PR 1 stellt die Browser-Tests auf die lokale Supabase um: ein Konto je Lauf, ein
+Workspace je Test, dazu ein lokales Testkonto mit Beispieldaten und Sicherungen gegen
+Datenlecks. PR 2 entfernt den Demo-Code.
+
+**Plan:** `docs/superpowers/plans/2026-09-18-remove-demo-mode-pr-1.md` mit sechs
+Aufgaben für PR 1. Beim Planen zeigte sich, dass die Browser-Tests rund 95 Fälle in
+28 Dateien umfassen und rund zwölf Dateien fest an Demo-Daten hängen. Nutzerentscheid:
+Pflichttests und Tests ohne Datenbedarf umstellen, demo-gebundene Tests löschen. Der
+Steuer-Pflichttest verliert den Teil zur Exportsperre, weil ihn kein Mitglied
+herstellen kann; er ist im Angular-Test `accounting-tax-review` abgedeckt.
+
+**Prüfung:** Nur Analyse und Entwurf, kein Anwendungscode geändert.
+
 ## 2026-09-18 – ChatGPT GPT-5.6 Sol (OpenAI) – Navigation und Upload-Button vereinheitlicht
 
 **Auftrag:** Die nach dem Theme-Umbau ergänzte gelbe Seitenmarkierung an aktiven

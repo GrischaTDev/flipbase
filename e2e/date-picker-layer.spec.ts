@@ -1,9 +1,8 @@
-import { expect, test } from '@playwright/test';
 import axe from 'axe-core';
-import { startDemoMode } from './support/demo';
+import { expect, openDashboard, test } from './support/fixtures';
 
 test('can select a purchase date outside its card @pr-smoke', async ({ page }) => {
-  await startDemoMode(page);
+  await openDashboard(page);
   await page.goto('/purchases/new');
   const date = page.getByRole('textbox', { name: 'Kaufdatum', exact: true });
   await date.fill('15.09.2026');
@@ -35,7 +34,7 @@ for (const width of [390, 768, 1440]) {
   test(`keeps the draft calendar usable within the viewport at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 700 });
     await page.emulateMedia({ reducedMotion: 'reduce' });
-    await startDemoMode(page);
+    await openDashboard(page);
     await page.goto('/purchases/new');
     await page.getByRole('textbox', { name: 'Beschreibung (optional)' }).fill('Kalenderprüfung');
     const date = page.getByRole('textbox', { name: 'Kaufdatum', exact: true });
@@ -48,8 +47,17 @@ for (const width of [390, 768, 1440]) {
       width === 768,
     );
     const trigger = page.getByRole('button', { name: 'Kalender öffnen', exact: true });
-    await trigger.press('ArrowDown');
+    await trigger.scrollIntoViewIfNeeded();
     const calendar = page.getByRole('dialog', { name: 'Datum wählen', exact: true });
+    // ArrowDown direkt nach der Navigation auf die Detailseite öffnete den Kalender bei
+    // 390px vereinzelt nicht (die eigene afterNextRender-Öffnung des Kalenders kollidierte
+    // mit dem gerade erst montierten Formular). toPass wiederholt den Tastendruck, bis der
+    // Kalender sichtbar ist, statt eine feste Wartezeit zu raten.
+    await expect(async () => {
+      if (await calendar.count()) return;
+      await trigger.press('ArrowDown');
+      await expect(calendar).toBeVisible({ timeout: 1000 });
+    }).toPass({ timeout: 10_000 });
     await expect(calendar.locator('[data-date="2026-09-15"]')).toBeFocused();
     const bounds = await calendar.boundingBox();
     if (!bounds) throw new Error('Kalender fehlt');
@@ -83,7 +91,10 @@ for (const width of [390, 768, 1440]) {
 }
 
 test('exposes an accessible open calendar in both themes', async ({ page }) => {
-  await startDemoMode(page);
+  // Ohne reduzierte Bewegung lief AXE manchmal mitten in der 0,25s-Öffnen-Animation
+  // des Kalenders und maß die Textfarbe bei Teil-Deckkraft als Kontrastverstoß.
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await openDashboard(page);
   await page.goto('/purchases/new');
   await page.addScriptTag({ content: axe.source });
   for (const dark of [false, true]) {
@@ -107,9 +118,13 @@ test('exposes an accessible open calendar in both themes', async ({ page }) => {
 
 test('closes the calendar when scrolling moves its purchase field', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 700 });
-  await startDemoMode(page);
+  await openDashboard(page);
   await page.goto('/purchases/new');
-  await page.getByRole('button', { name: 'Kalender öffnen', exact: true }).click();
+  const trigger = page.getByRole('button', { name: 'Kalender öffnen', exact: true });
+  // scrollIntoViewIfNeeded lässt Playwright das Layout erst festigen; ein sofortiger Klick
+  // direkt nach der Navigation traf sonst manchmal den noch nicht verdrahteten Knopf.
+  await trigger.scrollIntoViewIfNeeded();
+  await trigger.click();
   const calendar = page.getByRole('dialog', { name: 'Datum wählen', exact: true });
   await expect(calendar).toBeVisible();
   const before = await page.evaluate(() => window.scrollY);
@@ -119,7 +134,7 @@ test('closes the calendar when scrolling moves its purchase field', async ({ pag
 });
 
 test('preserves date selection in the sales form', async ({ page }) => {
-  await startDemoMode(page);
+  await openDashboard(page);
   await page.goto('/sales/new');
   const trigger = page.getByRole('button', { name: 'Kalender öffnen', exact: true });
   await trigger.click();

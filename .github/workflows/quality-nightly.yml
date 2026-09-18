@@ -27,7 +27,7 @@ jobs:
     name: Extended browser regression
     if: ${{ inputs.check == 'browser' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     env:
       BROWSER: ${{ inputs.browser }}
     steps:
@@ -47,6 +47,8 @@ jobs:
             firefox|webkit) npx playwright install --with-deps "$BROWSER" ;;
             *) echo 'Unknown browser' >&2; exit 1 ;;
           esac
+      - name: Start local Supabase
+        run: npx supabase start
       - name: Run extended regression
         run: npm run test:e2e:nightly -- --project="$BROWSER"
       - name: Retain failure diagnostics
@@ -59,6 +61,9 @@ jobs:
             test-results/
           if-no-files-found: ignore
           retention-days: 3
+      - name: Stop local Supabase
+        if: ${{ always() }}
+        run: npx supabase stop --no-backup
 
   coverage:
     name: Full coverage

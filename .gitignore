@@ -41,6 +41,7 @@ yarn-error.log
 # Artefakte der Playwright-MCP-Sitzungen (Seitenabzuege). Rein lokal.
 /.playwright-mcp/
 /test-results/
+/e2e/.auth/
 /blob-report/
 /libpeerconnection.log
 testem.log
