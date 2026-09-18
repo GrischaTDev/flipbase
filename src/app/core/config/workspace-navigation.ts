@@ -101,6 +101,12 @@ export const WORKSPACE_NAVIGATION_GROUPS: readonly WorkspaceNavigationGroup[] = 
     label: 'Finanzen',
     items: [
       {
+        path: '/expenses',
+        labelKey: 'NAV.EXPENSES',
+        label: 'Ausgaben',
+        icon: 'receipt',
+      },
+      {
         path: '/accounting',
         labelKey: 'NAV.ACCOUNTING',
         label: 'Steuern & DATEV',
