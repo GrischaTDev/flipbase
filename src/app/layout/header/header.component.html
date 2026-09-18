@@ -159,7 +159,7 @@
                 type="button"
                 (click)="onClearNotifications()"
                 [disabled]="isUpdatingNotifications()"
-                class="text-xs text-fb-text-muted hover:text-rose-400 cursor-pointer p-1 rounded hover:bg-rose-500/10"
+                class="text-xs text-fb-text-muted hover:text-fb-critical cursor-pointer p-1 rounded hover:bg-fb-critical-surface"
                 title="Verlauf leeren"
                 aria-label="Benachrichtigungsverlauf leeren"
               >
@@ -190,7 +190,7 @@
                   type="button"
                   (click)="oeffneBenachrichtigung(notif)"
                   class="group block w-full text-left py-2 px-2 text-xs rounded-lg transition hover:bg-fb-surface-hover cursor-pointer"
-                  [class.bg-indigo-500/5]="!notif.read"
+                  [class.bg-fb-brand-surface]="!notif.read"
                 >
                   <ng-container
                     *ngTemplateOutlet="meldungsInhalt; context: { $implicit: notif }"
@@ -317,9 +317,9 @@
           <button
             type="button"
             (click)="onSignOut()"
-            class="w-full text-left px-3 py-2 text-[13px] text-rose-400 hover:bg-rose-500/10 flex items-center gap-2 cursor-pointer"
+            class="w-full text-left px-3 py-2 text-[13px] text-fb-critical hover:bg-fb-critical-surface flex items-center gap-2 cursor-pointer"
           >
-            <svg [lucideIcon]="LogOutIcon" class="w-3.5 h-3.5 text-rose-400"></svg>
+            <svg [lucideIcon]="LogOutIcon" class="w-3.5 h-3.5 text-fb-critical"></svg>
             <span>{{ 'AUTH.LOGOUT' | translate }}</span>
           </button>
         </div>
