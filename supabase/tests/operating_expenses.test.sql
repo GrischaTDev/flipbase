@@ -300,6 +300,14 @@ select throws_ok(
 
 reset role;
 
+select throws_ok(
+  $delete from public.workspaces
+    where id = 'e1800000-0000-4000-8000-000000000011'$,
+  'P0001',
+  'Workspace enthält Geschäftsdaten und kann nicht gelöscht werden. Erfasste Belege und Buchungen müssen erhalten bleiben.',
+  'Betriebsausgaben zählen als zu erhaltende Geschäftsdaten'
+);
+
 select ok(
   not has_table_privilege(
     'anon',
