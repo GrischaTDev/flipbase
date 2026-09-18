@@ -1,8 +1,5 @@
 import { inject, Injectable, signal } from '@angular/core';
-import {
-  ExpenseRecurringRule,
-  ExpenseRecurringRuleInput,
-} from '../models/expense.models';
+import { ExpenseRecurringRule, ExpenseRecurringRuleInput } from '../models/expense.models';
 import { nextOccurrence } from '../utils/expense-recurrence';
 import { AuthService } from './auth.service';
 import { MockDataStoreService } from './mock-data-store.service';
@@ -44,12 +41,16 @@ export class ExpenseRecurringService {
         .eq('workspace_id', workspace.id)
         .order('start_date', { ascending: true });
       if (error) {
-        this.loadError.set(this.syncStatus.melde('Laden der wiederkehrenden Ausgaben', error).message);
+        this.loadError.set(
+          this.syncStatus.melde('Laden der wiederkehrenden Ausgaben', error).message,
+        );
         return;
       }
       this.rules.set((data ?? []) as ExpenseRecurringRule[]);
     } catch (cause: unknown) {
-      this.loadError.set(this.syncStatus.melde('Laden der wiederkehrenden Ausgaben', cause).message);
+      this.loadError.set(
+        this.syncStatus.melde('Laden der wiederkehrenden Ausgaben', cause).message,
+      );
     } finally {
       this.isLoading.set(false);
     }
