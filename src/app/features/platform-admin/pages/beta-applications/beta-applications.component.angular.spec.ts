@@ -1,6 +1,7 @@
 import '@angular/compiler';
 import { ɵresolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { glob, readFile } from 'node:fs/promises';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BetaApplicationsComponent } from './beta-applications.component';
@@ -150,10 +151,11 @@ describe('BetaApplicationsComponent', () => {
     noteInput.dispatchEvent(new Event('input'));
     fixture.detectChanges();
 
-    const acceptButton: HTMLButtonElement = fixture.nativeElement.querySelector(
-      'button[aria-label="Bewerbung von Anna Beispiel annehmen"]',
-    );
-    acceptButton.click();
+    const acceptButton = fixture.debugElement
+      .queryAll(By.directive(ButtonComponent))
+      .find((element) => element.nativeElement.textContent?.includes('Annehmen'));
+    expect(acceptButton).toBeDefined();
+    acceptButton?.triggerEventHandler('clicked', new MouseEvent('click'));
     await fixture.whenStable();
 
     // Die Notiz wird beschnitten; eine leere Notiz wird zu null, damit in der
