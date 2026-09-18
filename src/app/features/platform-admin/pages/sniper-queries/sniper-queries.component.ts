@@ -11,15 +11,12 @@ import {
   viewChild,
 } from '@angular/core';
 import { DatePipe } from '@angular/common';
-import { FormControl, ReactiveFormsModule } from '@angular/forms';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { LucidePause, LucidePencil, LucidePlay } from '@lucide/angular';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
-import { CustomSearchInputComponent } from '../../../../shared/components/custom-search-input/custom-search-input.component';
-import { TableToolbarComponent } from '../../../../shared/components/table-toolbar/table-toolbar.component';
 import { LoadingIndicatorComponent } from '../../../../shared/components/loading-indicator/loading-indicator.component';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
+import { DataTableComponent } from '../../../../shared/components/data-table/data-table.component';
 import { SniperQueryEditorComponent } from '../../components/sniper-query-editor/sniper-query-editor.component';
 import { SniperAdminService } from '../../services/sniper-admin.service';
 import { SniperAdminState } from '../../services/sniper-admin-state';
@@ -29,13 +26,11 @@ import { QueryDraft, SniperQuery, queryStatusLabel } from '../../models/sniper-q
   selector: 'app-sniper-queries',
   imports: [
     DatePipe,
-    ReactiveFormsModule,
     ButtonComponent,
     BadgeComponent,
-    CustomSearchInputComponent,
-    TableToolbarComponent,
     LoadingIndicatorComponent,
     ModalShellComponent,
+    DataTableComponent,
     SniperQueryEditorComponent,
   ],
   templateUrl: './sniper-queries.component.html',
@@ -56,10 +51,9 @@ export class SniperQueriesComponent {
   readonly pendingCheckBaselines = signal<Record<string, string | null>>({});
   readonly message = signal<string | null>(null);
   readonly error = signal<string | null>(null);
-  readonly search = new FormControl('', { nonNullable: true });
-  private readonly term = toSignal(this.search.valueChanges, { initialValue: '' });
+  readonly search = signal('');
   readonly filtered = computed(() => {
-    const term = this.term().toLocaleLowerCase('de');
+    const term = this.search().toLocaleLowerCase('de');
     return this.state
       .queries()
       .filter((q) =>
