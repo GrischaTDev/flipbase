@@ -27,6 +27,13 @@ PR 1 stellt die Browser-Tests auf die lokale Supabase um: ein Konto je Lauf, ein
 Workspace je Test, dazu ein lokales Testkonto mit Beispieldaten und Sicherungen gegen
 Datenlecks. PR 2 entfernt den Demo-Code.
 
+**Plan:** `docs/superpowers/plans/2026-09-18-remove-demo-mode-pr-1.md` mit sechs
+Aufgaben für PR 1. Beim Planen zeigte sich, dass die Browser-Tests rund 95 Fälle in
+28 Dateien umfassen und rund zwölf Dateien fest an Demo-Daten hängen. Nutzerentscheid:
+Pflichttests und Tests ohne Datenbedarf umstellen, demo-gebundene Tests löschen. Der
+Steuer-Pflichttest verliert den Teil zur Exportsperre, weil ihn kein Mitglied
+herstellen kann; er ist im Angular-Test `accounting-tax-review` abgedeckt.
+
 **Prüfung:** Nur Analyse und Entwurf, kein Anwendungscode geändert.
 
 ## 2026-09-18 – Claude Opus 5 (Anthropic) – Einkauf drucken

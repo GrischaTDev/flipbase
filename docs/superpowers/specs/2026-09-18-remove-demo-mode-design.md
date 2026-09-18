@@ -20,11 +20,12 @@ bekommt einen 14-Tage-Testzugang mit echtem Konto. Der ist nicht Teil dieses Pro
   Kategorien, Marken und Medien im Browser-Speicher nach.
 - Rund 185 `isDemoMode()`-Weichen in 46 App-Dateien, rund 57 Testdateien mit
   Demo-Bezug.
-- 28 von 30 Playwright-Tests starten über `e2e/support/demo.ts` den Demo-Modus, darunter
-  alle sechs Pflichttests aus `playwright.pr.config.ts` (`@core-smoke` und die vier
-  benannten `@pr-smoke`-Fälle). Fünf Tests verlassen sich auf fest eingebaute
-  Demo-Artikel (`article-workspace`, `inventory-sale`, `layout-overlays`,
-  `product-editor-storefront`, `purchase-item-navigation`).
+- 28 von 30 Playwright-Dateien mit zusammen rund 95 Tests starten über
+  `e2e/support/demo.ts` den Demo-Modus, darunter alle sechs Pflichttests aus
+  `playwright.pr.config.ts` (zwei `@core-smoke`-Fälle und die vier benannten
+  `@pr-smoke`-Fälle). Rund zwölf Dateien hängen fest an Demo-Daten: Sie schreiben
+  `flipbase_local_*` direkt in den Browser-Speicher, nutzen Demo-Kennungen wie
+  `pur-demo-4` oder setzen gefüllte Tabellen voraus.
 - Jeder Bereich hat einen echten Datenbankweg. Die Ersatz-Datenbank wird außerhalb des
   Demo-Modus nicht genutzt; `saveItem` und Co. tun dort nichts.
 - Die Entwicklungsumgebung (`environment.development.ts`) nutzt die lokale Supabase
@@ -39,13 +40,13 @@ bekommt einen 14-Tage-Testzugang mit echtem Konto. Der ist nicht Teil dieses Pro
 
 ## Entscheidungen des Nutzers
 
-| Frage                          | Entscheidung                                                   |
-| ------------------------------ | -------------------------------------------------------------- |
-| Demo-Modus behalten?           | Nein, komplett entfernen                                       |
-| Lokale Anmeldung danach        | Testkonto mit Beispieldaten, automatisch angelegt              |
-| Vorgehen                       | Zwei PRs: erst Browser-Tests umstellen, dann Demo-Code löschen |
-| Umgang mit bestehenden Tests   | Alle 28 umstellen, keine löschen                               |
-| Testlauf und Anmeldebegrenzung | Ein Konto je Testlauf, ein frischer Workspace je Test          |
+| Frage                          | Entscheidung                                                                                  |
+| ------------------------------ | --------------------------------------------------------------------------------------------- |
+| Demo-Modus behalten?           | Nein, komplett entfernen                                                                      |
+| Lokale Anmeldung danach        | Testkonto mit Beispieldaten, automatisch angelegt                                             |
+| Vorgehen                       | Zwei PRs: erst Browser-Tests umstellen, dann Demo-Code löschen                                |
+| Umgang mit bestehenden Tests   | Pflichttests und Tests ohne Datenbedarf umstellen, fest an Demo-Daten gebundene Tests löschen |
+| Testlauf und Anmeldebegrenzung | Ein Konto je Testlauf, ein frischer Workspace je Test                                         |
 
 Nicht betroffen ist das „Demo“-Schild am Online-Shop in der Seitenleiste
 (`WorkspaceNavigationItem.demo`). Es markiert eine unfertige Seite und bleibt.
@@ -72,21 +73,36 @@ Nicht betroffen ist das „Demo“-Schild am Online-Shop in der Seitenleiste
 
 1. **Globales Setup** (Playwright `globalSetup`): registriert ein Testkonto
    `e2e-<zufall>@flipbase.local` mit zufälligem Passwort über die öffentliche lokale
-   Anmeldung und meldet es einmal an. Die Sitzung wird als Playwright-`storageState`
-   gespeichert. Das kostet zwei Anmeldeanfragen je Lauf.
-2. **Je Test** (Fixture): legt über `create_workspace` einen frischen Workspace im
-   Testkonto an, setzt `flipbase_active_workspace_id` per `addInitScript` und öffnet
-   die App angemeldet.
-3. **Testdaten:** Ein Hilfsmodul legt Artikel, Einkäufe und Verkäufe über dieselben
-   Datenbankfunktionen wie die App an. Die fünf Tests mit festen Demo-Artikeln legen
-   diese vorher selbst an.
-4. Ein eigener Test prüft die echte Anmeldung über die Login-Seite. Er ersetzt
-   `e2e/demo-login.spec.ts`.
+   Anmeldung. Weil lokal keine Bestätigung nötig ist, liefert die Registrierung
+   direkt die Sitzung. Sie wird als Playwright-`storageState` gespeichert, also als
+   derselbe Browser-Speichereintrag, den die App selbst schreibt. Das kostet eine
+   Anmeldeanfrage je Lauf.
+2. **Je Test** (Fixture): legt über `create_workspace` mit dem Zugangs-Token dieser
+   Sitzung einen frischen Workspace an, setzt `flipbase_active_workspace_id` per
+   `addInitScript` und öffnet die App angemeldet.
+3. **Testdaten:** Ein kleines Hilfsmodul legt über dieselben Datenbankfunktionen wie
+   die App einen abgeschlossenen Einkauf mit verkaufbaren Artikeln an
+   (`create_purchase`, `receive_individual_purchase_line`,
+   `finalize_purchase_costing`) und bucht Verkäufe (`record_sale`).
+4. Ein eigener Test prüft die echte Anmeldung über die Login-Seite mit einem eigenen
+   Konto. Er ersetzt `e2e/demo-login.spec.ts`.
 
-**Umfang:** 23 Tests brauchen nur den Tausch von `startDemoMode` gegen die neue
-Anmeldung, fünf Tests zusätzlich eigene Daten. Die Pflichtauswahl in
-`playwright.pr.config.ts` bleibt unverändert. Der Demo-Modus selbst bleibt in PR 1
-bestehen, wird aber von keinem Test mehr benutzt.
+**Umfang (Nutzerentscheid a):**
+
+- Die sechs Pflichttests ziehen um. „Verkauf eines Einzelstücks“ und „Steuer je
+  Artikel“ legen ihre Daten über das Hilfsmodul an.
+- Der Steuertest prüft danach nur noch das Steuerjournal mit echten Daten. Die
+  Exportsperre bei ungeprüften Kosten verlangt einen Zustand, den kein Mitglied
+  herstellen kann. Sie ist in `accounting-tax-review.angular.spec.ts` abgedeckt.
+  Der Testname und die Auswahllisten in `playwright.pr.config.ts` und
+  `scripts/playwright-pr-smoke.test.mjs` werden angepasst.
+- Tests ohne Datenbedarf ziehen mit dem Tausch der Anmeldung um.
+- Tests, die fest an Demo-Daten hängen, werden gelöscht. Dazu gehören Tests, die
+  `flipbase_local_*` schreiben, Demo-Kennungen oder -Artikel nutzen oder gefüllte
+  Tabellen voraussetzen. Die gelöschten Tests nennt der Commit-Body; die Liste der
+  manuellen Regressionsfälle in `scripts/playwright-pr-smoke.test.mjs` wird angepasst.
+- Der Demo-Modus selbst bleibt in PR 1 bestehen, wird aber von keinem Test mehr
+  benutzt.
 
 **CI:** Der Job „Browser smoke“ startet vorher `npx supabase start`. Das kostet
 voraussichtlich 2–4 Minuten je Lauf. Dafür prüfen die Browser-Tests erstmals die echten
