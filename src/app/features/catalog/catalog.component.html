@@ -22,33 +22,6 @@
       >
     </div>
   </app-page-header>
-  <app-section-navigation label="Artikelansichten" [links]="articleViews" />
-
-  <div class="linear-surface relative overflow-visible rounded-xl">
-    <div class="flex flex-wrap items-center gap-2 p-2">
-      <app-text-field
-        class="min-w-0 flex-1"
-        label="Artikel durchsuchen"
-        [labelHidden]="true"
-        type="search"
-        placeholder="Titel, EAN, Marke oder Modell suchen …"
-        [prefixIcon]="searchIcon"
-        [formControl]="searchControl"
-      />
-      <div class="ml-auto border-l border-fb-line pl-2">
-        <app-table-column-menu
-          [columns]="tablePrefs().columns"
-          [sortOptions]="catalogTableConfig.sortOptions"
-          [currentSort]="tablePrefs().sort"
-          [viewModified]="viewModified()"
-          (columnVisibilityToggled)="toggleColumnVisibility($event)"
-          (columnsReordered)="onColumnsReordered($event)"
-          (sortChanged)="onSortChanged($event)"
-          (viewResetRequested)="resetView()"
-        />
-      </div>
-    </div>
-  </div>
   @if (csvError(); as error) {
     <div
       class="linear-surface rounded-xl border border-rose-500/30 p-3 text-sm text-rose-300"
@@ -81,7 +54,7 @@
         </button>
       </div>
       <div class="overflow-x-auto">
-        <table class="linear-table w-full text-xs">
+        <table class="linear-table w-full text-xs" data-shared-ui-exception="static-table">
           <caption class="sr-only">
             CSV-Vorschau der Artikelstammdaten
           </caption>
@@ -107,27 +80,32 @@
       </div>
     </section>
   }
-  @if (isLoading()) {
-    <div class="linear-surface rounded-xl px-5 py-10 text-center" role="status">
-      <p class="text-sm font-semibold text-fb-text-secondary">Artikel werden geladen…</p>
-      <p class="mt-1 text-xs text-fb-text-muted">Bestandspositionen werden abgeglichen.</p>
-    </div>
-  } @else if (loadError(); as error) {
-    <div
-      class="linear-surface rounded-xl border border-rose-500/30 px-5 py-8 text-center"
-      role="alert"
-    >
-      <h2 class="text-sm font-semibold text-rose-700 dark:text-rose-400">
-        Artikel konnten nicht geladen werden
-      </h2>
-      <p class="mt-1 text-xs text-fb-text-muted">{{ error.message }}</p>
-      <app-button class="mt-4" variant="secondary" (clicked)="reload()">
-        Erneut versuchen
-      </app-button>
-    </div>
-  } @else if (filteredProducts().length > 0) {
-    <div class="linear-surface overflow-hidden rounded-xl">
-      <div class="hidden overflow-x-auto md:block">
+  <app-data-table
+    ariaLabel="Artikelübersicht"
+    [searchValue]="searchQuery()"
+    searchPlaceholder="Titel, EAN, Marke oder Modell suchen …"
+    searchAriaLabel="Artikel durchsuchen"
+    [columns]="tablePrefs().columns"
+    [sortOptions]="catalogTableConfig.sortOptions"
+    [currentSort]="tablePrefs().sort"
+    [viewModified]="viewModified()"
+    [loading]="isLoading()"
+    [errorMessage]="loadError()?.message ?? null"
+    [hasRows]="filteredProducts().length > 0"
+    loadingText="Artikel werden geladen …"
+    emptyTitle="Keine Artikel gefunden"
+    emptyText="Lege einen Artikel an oder passe die Suche an."
+    (searchValueChange)="searchControl.setValue($event)"
+    (columnVisibilityToggled)="toggleColumnVisibility($event)"
+    (columnsReordered)="onColumnsReordered($event)"
+    (sortChanged)="onSortChanged($event)"
+    (viewResetRequested)="resetView()"
+  >
+    <app-button table-error-action class="mt-4" variant="secondary" (clicked)="reload()">
+      Erneut versuchen
+    </app-button>
+
+    <div table-content class="hidden overflow-x-auto md:block">
         <table
           [style.min-width.px]="260 + (visibleColumns().length - 1) * 105"
           class="linear-table"
@@ -236,8 +214,8 @@
             }
           </tbody>
         </table>
-      </div>
-      <div class="space-y-2 p-2 md:hidden">
+    </div>
+    <div table-mobile class="space-y-2 p-2 md:hidden">
         @for (product of filteredProducts(); track product.key) {
           <article class="rounded-lg border border-fb-line bg-fb-well p-3">
             <div class="flex items-start justify-between gap-3">
@@ -279,12 +257,6 @@
             }
           </article>
         }
-      </div>
     </div>
-  } @else {
-    <div class="linear-surface rounded-xl px-5 py-10 text-center">
-      <h2 class="text-sm font-semibold text-fb-text-secondary">Keine Artikel gefunden</h2>
-      <p class="mt-1 text-xs text-fb-text-muted">Lege einen Artikel an oder passe die Suche an.</p>
-    </div>
-  }
+  </app-data-table>
 </div>
