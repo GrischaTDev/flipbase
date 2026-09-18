@@ -1,3 +1,11 @@
+import {
+  PRIVATE_DOCUMENT_EXTENSIONS,
+  PRIVATE_DOCUMENT_MAX_BYTES,
+  PrivateDocumentFile,
+  privateDocumentExtension,
+  validatePrivateDocumentFile,
+} from './private-document.models';
+
 export type PurchaseDocumentType = 'invoice' | 'purchase_proof' | 'payment_proof' | 'other';
 
 export interface PurchaseDocument {
@@ -13,42 +21,14 @@ export interface PurchaseDocument {
   readonly created_by: string | null;
 }
 
-/** Gleiche Grenze wie der Bucket; größere Dateien lehnt schon der Browser ab. */
-export const PURCHASE_DOCUMENT_MAX_BYTES = 20 * 1024 * 1024;
+export const PURCHASE_DOCUMENT_MAX_BYTES = PRIVATE_DOCUMENT_MAX_BYTES;
+export const PURCHASE_DOCUMENT_EXTENSIONS = PRIVATE_DOCUMENT_EXTENSIONS;
+export type PurchaseDocumentFile = PrivateDocumentFile;
+
+export const purchaseDocumentExtension = privateDocumentExtension;
+export const validatePurchaseDocumentFile = validatePrivateDocumentFile;
 
 export const PURCHASE_DOCUMENT_BUCKET = 'purchase-documents';
-
-/** Erlaubte Typen mit den Endungen, die der Datenbankpfad zulässt. */
-export const PURCHASE_DOCUMENT_EXTENSIONS: Readonly<Record<string, readonly string[]>> = {
-  'application/pdf': ['pdf'],
-  'image/jpeg': ['jpg', 'jpeg'],
-  'image/png': ['png'],
-  'application/xml': ['xml'],
-  'text/xml': ['xml'],
-};
-
-export interface PurchaseDocumentFile {
-  readonly name: string;
-  readonly type: string;
-  readonly size: number;
-}
-
-export function purchaseDocumentExtension(file: PurchaseDocumentFile): string | null {
-  const extension = file.name.split('.').at(-1)?.toLowerCase() ?? '';
-  return PURCHASE_DOCUMENT_EXTENSIONS[file.type]?.includes(extension) ? extension : null;
-}
-
-/** Prüft Typ, Endung und Größe, bevor eine Datei den Rechner verlässt. */
-export function validatePurchaseDocumentFile(file: PurchaseDocumentFile): Error | null {
-  if (!purchaseDocumentExtension(file)) {
-    return new Error(`${file.name}: Bitte eine PDF-, JPG-, PNG- oder XML-Datei auswählen.`);
-  }
-  if (file.size <= 0) return new Error(`${file.name}: Die Datei ist leer.`);
-  if (file.size > PURCHASE_DOCUMENT_MAX_BYTES) {
-    return new Error(`${file.name}: Die Datei ist größer als 20 MiB.`);
-  }
-  return null;
-}
 
 export function purchaseDocumentPath(
   workspaceId: string,
