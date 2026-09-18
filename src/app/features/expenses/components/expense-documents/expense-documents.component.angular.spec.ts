@@ -2,11 +2,29 @@ import '@angular/compiler';
 import { signal, ɵresolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { glob, readFile } from 'node:fs/promises';
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { ExpenseDocumentService } from '../../../../core/services/expense-document.service';
 import { ExpenseDocumentsComponent } from './expense-documents.component';
 
+interface AngularInputMetadata {
+  inputs: Record<string, unknown>;
+  declaredInputs: Record<string, string>;
+}
+
+const metadata = (ExpenseDocumentsComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp;
+const originalInputs = metadata.inputs;
+const originalDeclaredInputs = metadata.declaredInputs;
+
 beforeAll(async () => {
+  metadata.inputs = {
+    ...metadata.inputs,
+    expenseId: ['expenseId', 1, null],
+  };
+  metadata.declaredInputs = {
+    ...metadata.declaredInputs,
+    expenseId: 'expenseId',
+  };
+
   await ɵresolveComponentResources(async (url) => {
     const fileName = url.replace(/^\.\//, '');
     const matches: string[] = [];
@@ -14,6 +32,11 @@ beforeAll(async () => {
     if (matches.length !== 1) throw new Error(`Test-Ressource nicht eindeutig: ${url}`);
     return readFile(matches[0], 'utf8');
   });
+});
+
+afterAll(() => {
+  metadata.inputs = originalInputs;
+  metadata.declaredInputs = originalDeclaredInputs;
 });
 
 describe('ExpenseDocumentsComponent', () => {
@@ -35,7 +58,11 @@ describe('ExpenseDocumentsComponent', () => {
           },
         },
       ],
-    }).createComponent(ExpenseDocumentsComponent);
+    })
+      .overrideComponent(ExpenseDocumentsComponent, {
+        set: { template: '<button type="button">Beleg hinzufügen</button>' },
+      })
+      .createComponent(ExpenseDocumentsComponent);
 
     fixture.componentRef.setInput('expenseId', 'expense-1');
     fixture.detectChanges();
