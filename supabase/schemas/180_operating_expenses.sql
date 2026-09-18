@@ -208,12 +208,12 @@ begin
   end if;
 
   v_day := least(
-    pg_catalog.extract(day from p_start)::integer,
-    pg_catalog.extract(day from v_target_last)::integer
+    extract(day from p_start)::integer,
+    extract(day from v_target_last)::integer
   );
   return pg_catalog.make_date(
-    pg_catalog.extract(year from v_target_first)::integer,
-    pg_catalog.extract(month from v_target_first)::integer,
+    extract(year from v_target_first)::integer,
+    extract(month from v_target_first)::integer,
     v_day
   );
 end;
