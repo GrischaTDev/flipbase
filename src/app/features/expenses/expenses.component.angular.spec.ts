@@ -90,6 +90,11 @@ beforeEach(() => {
           isLoading: signal(false),
           loadError: signal<string | null>(null),
           loadCurrentWorkspace: async () => undefined,
+          createExpense: async () => ({ data: expenses()[0] ?? null, error: null }),
+          createCategory: async () => ({ data: category, error: null }),
+          archiveCategory: async () => ({ data: category, error: null }),
+          createRecurringRule: async () => ({ data: recurringRules()[0] ?? null, error: null }),
+          archiveRecurringRule: async () => ({ data: recurringRules()[0] ?? null, error: null }),
         },
       },
     ],
@@ -153,6 +158,61 @@ describe('ExpensesComponent', () => {
     expect(text).toContain('Monatlich');
     expect(text).toContain('20,00 €');
     expect(text).toContain('20.10.2026');
+  });
+
+  it('öffnet eine einfache Erfassung mit bezahlt als Standard', () => {
+    const fixture = createPage();
+    const host = fixture.nativeElement as HTMLElement;
+    const addButton = [...host.querySelectorAll('button')].find(
+      (button) => button.textContent?.trim() === 'Ausgabe hinzufügen',
+    );
+
+    addButton?.click();
+    fixture.detectChanges();
+
+    expect(host.querySelector('[data-expense-form]')).not.toBeNull();
+    expect(host.querySelector<HTMLInputElement>('[data-expense-title]')).not.toBeNull();
+    expect(host.querySelector('[data-expense-paid]')?.getAttribute('aria-pressed')).toBe('true');
+    expect(host.textContent).toContain('Bruttobetrag');
+    expect(host.textContent).toContain('MwSt.');
+    expect(host.textContent).toContain('Bezahlt am');
+  });
+
+  it('öffnet Kategorieverwaltung mit vorhandenen Standardkategorien', () => {
+    const fixture = createPage();
+    const host = fixture.nativeElement as HTMLElement;
+    const manageButton = [...host.querySelectorAll('button')].find(
+      (button) => button.textContent?.trim() === 'Kategorien verwalten',
+    );
+
+    manageButton?.click();
+    fixture.detectChanges();
+
+    expect(host.querySelector('[data-category-manager]')).not.toBeNull();
+    expect(host.textContent).toContain('Hosting & Server');
+    expect(host.textContent).toContain('Kategorie hinzufügen');
+  });
+
+  it('öffnet im Wiederkehrend-Tab die Fixkostenerfassung', () => {
+    const fixture = createPage();
+    const host = fixture.nativeElement as HTMLElement;
+    const recurringTab = [...host.querySelectorAll('button')].find(
+      (button) => button.textContent?.trim() === 'Wiederkehrend',
+    );
+    recurringTab?.click();
+    fixture.detectChanges();
+
+    const addRecurring = [...host.querySelectorAll('button')].find(
+      (button) => button.textContent?.trim() === 'Wiederkehrende Ausgabe hinzufügen',
+    );
+    addRecurring?.click();
+    fixture.detectChanges();
+
+    expect(host.querySelector('[data-recurring-form]')).not.toBeNull();
+    expect(host.textContent).toContain('Intervall');
+    expect(host.textContent).toContain('Monatlich');
+    expect(host.textContent).toContain('Quartalsweise');
+    expect(host.textContent).toContain('Jährlich');
   });
 
   it('bietet Suche, Status- und Kategorieauswahl an', () => {
