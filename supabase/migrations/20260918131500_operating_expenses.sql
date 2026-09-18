@@ -6,7 +6,7 @@
 
 create table if not exists public.operating_expense_categories (
   id uuid primary key default gen_random_uuid(),
-  workspace_id uuid not null references public.workspaces(id) on delete restrict,
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
   name text not null check (pg_catalog.char_length(pg_catalog.btrim(name)) between 1 and 80),
   default_key text,
   archived_at timestamptz,
@@ -21,7 +21,7 @@ create unique index if not exists operating_expense_categories_name_idx
 
 create table if not exists public.recurring_operating_expenses (
   id uuid primary key default gen_random_uuid(),
-  workspace_id uuid not null references public.workspaces(id) on delete restrict,
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
   category_id uuid not null,
   title text not null check (pg_catalog.char_length(pg_catalog.btrim(title)) between 1 and 160),
   gross_amount numeric(12, 2) not null check (gross_amount > 0),
@@ -43,7 +43,7 @@ create table if not exists public.recurring_operating_expenses (
 
 create table if not exists public.operating_expenses (
   id uuid primary key default gen_random_uuid(),
-  workspace_id uuid not null references public.workspaces(id) on delete restrict,
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
   category_id uuid not null,
   recurring_rule_id uuid,
   recurrence_date date,
@@ -75,7 +75,7 @@ create table if not exists public.operating_expenses (
 
 create table if not exists public.operating_expense_documents (
   id uuid primary key default gen_random_uuid(),
-  workspace_id uuid not null references public.workspaces(id) on delete restrict,
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
   expense_id uuid not null,
   document_type text not null check (document_type in ('invoice', 'payment_proof', 'other')),
   original_file_name text not null
@@ -445,6 +445,57 @@ create policy "Betriebsausgabenbelege löschen"
 drop policy if exists "Betriebsausgabenbelege Storage lesen" on storage.objects;
 drop policy if exists "Betriebsausgabenbelege Storage hochladen" on storage.objects;
 drop policy if exists "Betriebsausgabenbelege Storage löschen" on storage.objects;
+
+-- Betriebsausgaben und Fixkosten sind Geschäftsdaten. Reine Kategorien dagegen
+-- sind Workspace-Konfiguration und dürfen mit einem ansonsten leeren Workspace verschwinden.
+create or replace function public.prevent_workspace_with_business_data_deletion()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $
+begin
+  if exists (select 1 from public.purchases where workspace_id = old.id)
+    or exists (select 1 from public.inventory_items where workspace_id = old.id)
+    or exists (select 1 from public.stock_lots where workspace_id = old.id)
+    or exists (select 1 from public.stock_movements where workspace_id = old.id)
+    or exists (select 1 from public.sales where workspace_id = old.id)
+    or exists (select 1 from public.inventory_reconciliation_events where workspace_id = old.id)
+    or exists (select 1 from public.business_events where workspace_id = old.id)
+    or exists (select 1 from public.activity_logs where workspace_id = old.id)
+    or exists (select 1 from public.returns where workspace_id = old.id)
+    or exists (select 1 from public.invoices where workspace_id = old.id)
+    or exists (select 1 from public.email_confirmations where workspace_id = old.id)
+    or exists (select 1 from public.shipping_orders where workspace_id = old.id)
+    or exists (select 1 from public.store_orders where workspace_id = old.id)
+    or exists (select 1 from public.bank_transactions where workspace_id = old.id)
+    or exists (select 1 from public.offline_purchase_entries where workspace_id = old.id)
+    or exists (select 1 from public.cash_wallet_sessions where workspace_id = old.id)
+    or exists (select 1 from public.catalog_product_media where workspace_id = old.id)
+    or exists (select 1 from public.purchase_receipt_requests where workspace_id = old.id)
+    or exists (select 1 from public.operating_expenses where workspace_id = old.id)
+    or exists (select 1 from public.recurring_operating_expenses where workspace_id = old.id) then
+    raise exception using errcode = 'P0001',
+      message = 'Workspace enthält Geschäftsdaten und kann nicht gelöscht werden. Erfasste Belege und Buchungen müssen erhalten bleiben.';
+  end if;
+  return old;
+end;
+$;
+
+revoke all on function public.prevent_workspace_with_business_data_deletion()
+  from public, anon, authenticated, service_role;
+
+create trigger "00_protect_archived_workspace"
+  before insert or update or delete on public.recurring_operating_expenses
+  for each row execute function public.protect_archived_workspace_data();
+
+create trigger "00_protect_archived_workspace"
+  before insert or update or delete on public.operating_expenses
+  for each row execute function public.protect_archived_workspace_data();
+
+create trigger "00_protect_archived_workspace"
+  before insert or update or delete on public.operating_expense_documents
+  for each row execute function public.protect_archived_workspace_data();
 
 create policy "Betriebsausgabenbelege Storage lesen"
   on storage.objects for select to authenticated
