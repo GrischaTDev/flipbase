@@ -68,6 +68,8 @@
   --fb-image-editor-canvas: #090b12;
   --fb-image-editor-toolbar: #12141c;
   --fb-image-editor-overlay: rgb(9 11 18 / 72%);
+  --fb-image-editor-guide: rgb(255 255 255 / 78%);
+  --fb-image-editor-control: #1a1a1a;
 }
 
 html.dark {
