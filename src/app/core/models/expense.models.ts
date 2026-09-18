@@ -50,3 +50,38 @@ export interface Expense {
   readonly created_by: string | null;
   readonly updated_at: string;
 }
+
+
+export interface ExpenseCreateInput {
+  readonly category_id: string;
+  readonly title: string;
+  readonly gross_amount: number;
+  readonly vat_rate: ExpenseVatRate;
+  readonly expense_date: string;
+  readonly due_date: string | null;
+  readonly status: ExpenseStatus;
+  readonly payment_date: string | null;
+  readonly notes: string | null;
+}
+
+export type ExpenseUpdateInput = Partial<ExpenseCreateInput>;
+
+export interface ExpenseRecurringRuleInput {
+  readonly category_id: string;
+  readonly title: string;
+  readonly gross_amount: number;
+  readonly vat_rate: ExpenseVatRate;
+  readonly frequency: ExpenseFrequency;
+  readonly start_date: string;
+  readonly end_date: string | null;
+  readonly is_active: boolean;
+  readonly notes: string | null;
+}
+
+export interface UpcomingExpense {
+  readonly ruleId: string;
+  readonly title: string;
+  readonly categoryId: string;
+  readonly grossAmount: number;
+  readonly occurrenceDate: string;
+}
