@@ -22,18 +22,17 @@
       />
     </div>
 
-    <label
-      class="inline-flex cursor-pointer items-center justify-center rounded-xl border border-fb-primary-border bg-fb-primary px-4 py-2.5 text-xs font-semibold text-fb-on-accent shadow-sm hover:bg-fb-primary-hover focus-within:ring-2 focus-within:ring-fb-brand-border"
-    >
-      <input
-        type="file"
-        accept="image/*"
-        multiple
-        [disabled]="disabled()"
-        class="sr-only"
-        (change)="onFileInput($event.target)"
-      />
+    <input
+      #fileInput
+      type="file"
+      accept="image/*"
+      multiple
+      [disabled]="disabled()"
+      class="sr-only"
+      (change)="onFileInput($event.target)"
+    />
+    <app-button variant="primary" size="lg" [disabled]="disabled()" (clicked)="fileInput.click()">
       Bilder hinzufügen
-    </label>
+    </app-button>
   </div>
 </div>

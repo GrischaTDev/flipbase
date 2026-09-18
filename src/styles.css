@@ -687,8 +687,8 @@ html:not(.dark) .fb-admin .bg-indigo-600.text-white {
 }
 
 /* Aktive Navigation: Marken-Gelb traegt die Flaeche. Im hellen Theme bleiben
-   Text und Icon dunkel; ein echter gelber Innenstrich macht die Marke sichtbar,
-   ohne den Kontrast der Beschriftung zu opfern. */
+   Text und Icon dunkel, damit der Zustand zum restlichen Admin-Design passt
+   und gleichzeitig gut lesbar bleibt. */
 .fb-admin app-sidebar nav a[aria-current='page'] {
   background-color: var(--fb-nav-accent-subtle);
   border-color: var(--fb-nav-accent-border);
@@ -699,17 +699,12 @@ html:not(.dark) .fb-admin .bg-indigo-600.text-white {
   color: var(--fb-nav-accent);
 }
 
-html:not(.dark) .fb-admin app-sidebar nav a[aria-current='page'] {
-  box-shadow: inset 3px 0 0 var(--fb-color-brand);
-}
-
 .fb-admin app-bottom-nav a[aria-current='page'] {
   color: var(--fb-nav-accent);
 }
 
 html:not(.dark) .fb-admin app-bottom-nav a[aria-current='page'] {
   background-color: var(--fb-color-brand-surface);
-  box-shadow: inset 0 -2px 0 var(--fb-color-brand);
 }
 
 /* Navigation: schmal, ruhig und auf dem 4-Pixel-Raster des Shopify-Admins. */
