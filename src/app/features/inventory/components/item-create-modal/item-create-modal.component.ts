@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   computed,
   effect,
   inject,
@@ -50,6 +51,7 @@ import { ToastService } from '../../../../shared/components/toast/toast.service'
 import { SyncStatusService } from '../../../../core/services/sync-status.service';
 import { CatalogService } from '../../../../core/services/catalog.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
+import { WorkspaceContextLockService } from '../../../../core/services/workspace-context-lock.service';
 import { normalizeGtin } from '../../../../shared/utils/gtin';
 
 interface MehrfachAnlageErgebnis {
@@ -109,6 +111,9 @@ export class ItemCreateModalComponent {
   readonly barcodeLookup = inject(BarcodeLookupService);
   readonly catalogService = inject(CatalogService);
   private readonly workspaceService = inject(WorkspaceService);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly workspaceContext = inject(WorkspaceContextLockService);
+  private readonly releaseWorkspaceLock = this.workspaceContext.acquire();
   private readonly toast = inject(ToastService);
   private readonly syncStatus = inject(SyncStatusService);
 
@@ -311,6 +316,7 @@ export class ItemCreateModalComponent {
   }
 
   constructor() {
+    this.destroyRef.onDestroy(this.releaseWorkspaceLock);
     effect(() => {
       const vorhandener = this.item();
       if (!vorhandener) return;
