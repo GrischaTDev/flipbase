@@ -144,6 +144,15 @@ describe('OperatingExpenseDocumentService', () => {
     expect(result.data).toBeInstanceOf(Blob);
   });
 
+  it('entfernt einen einzelnen Beleg samt privater Datei', async () => {
+    const { service, removeFile } = createService();
+
+    const result = await service.remove(storedDocument);
+
+    expect(result.error).toBeNull();
+    expect(removeFile).toHaveBeenCalledWith([storedDocument.storage_path]);
+  });
+
   it('entfernt beim Löschen einer Ausgabe alle zugehörigen Dateien und Metadaten', async () => {
     const { service, removeFile } = createService();
 
