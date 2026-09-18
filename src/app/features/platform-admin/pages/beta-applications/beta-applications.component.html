@@ -22,7 +22,7 @@
     </label>
   </app-page-header>
 
-  @if (error(); as meldung) {
+  @if (error() && applications().length > 0; as meldung) {
     <p
       class="rounded-lg border border-fb-critical-border bg-fb-critical-surface p-3 text-sm text-fb-critical"
       role="alert"
@@ -41,6 +41,7 @@
     [currentSort]="tablePrefs().sort"
     [viewModified]="viewModified()"
     [loading]="loading()"
+    [errorMessage]="applications().length === 0 ? error() : null"
     [hasRows]="filteredApplications().length > 0"
     loadingText="Bewerbungen werden geladen …"
     [emptyTitle]="
