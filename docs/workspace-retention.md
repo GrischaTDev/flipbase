@@ -69,27 +69,31 @@ Datenbankadministrator, der Trigger oder Rechte absichtlich entfernt.
 
 ## Löschablauf
 
-Der bisherige Löschknopf führt zur Aufbewahrungssektion unter Daten & Protokolle.
-Der angefragte Workspace steht in einem reaktiv gelesenen URL-Parameter.
-Ein anderer Workspace wird erst durch eine ausdrückliche Auswahl aktiviert.
-Es wird keine Inhaberrolle angenommen, solange keine passende Mitgliedschaft
-des angemeldeten Nutzers geladen ist.
+Die Workspace-Verwaltung versucht nach einer eindeutigen Bestätigung zuerst die
+direkte Löschung. Ein leerer Test-Workspace verschwindet damit ohne Seitenwechsel.
+Ein Datenexport ist vor der Löschung nicht verpflichtend.
 
-Vor der endgültigen Bestätigung wird ein ungefiltertes Prüfarchiv für exakt
-diesen Workspace angeboten. Ein Geschäftsdaten-Fehler wird nicht automatisch
-wiederholt; die Oberfläche bietet Archivierung an. Der Datenbankschutz umfasst
-auch Lagerlose, Lagerbewegungen und das Journal. Schon eine frühere Archivierung
-eines leeren Workspace erzeugt aufbewahrte Journaldaten und verhindert danach
-die direkte Löschung. Im Demo-Modus ist dieser Server-Lebenszyklus ausdrücklich
-deaktiviert.
+Lehnt die Datenbank die Löschung wegen aufbewahrungsrelevanter Geschäftsdaten
+oder Prüfprotokolle ab, behandelt die Oberfläche das als erwarteten Fachzustand
+und nicht als technischen Sync-Fehler. Sie erklärt den Grund und bietet direkt
+die Archivierung als Alternative an. Der Workspace bleibt dann lesbar, neue
+operative Änderungen werden gesperrt. Bereits archivierte Workspaces können in
+der Workspace-Verwaltung wiederhergestellt werden.
+
+Der vollständige Datenexport bleibt unabhängig davon unter Daten & Protokolle
+verfügbar. Der Datenbankschutz umfasst weiterhin auch Lagerlose,
+Lagerbewegungen und das Journal. Schon eine frühere Archivierung eines leeren
+Workspace erzeugt aufbewahrte Journaldaten und verhindert danach die direkte
+Löschung. Im Demo-Modus ist dieser Server-Lebenszyklus ausdrücklich deaktiviert.
 
 ## Prüfung
 
 `supabase/tests/workspace_retention.sql` enthält 88 Verhaltenstests einschließlich
 Rollen, direkter Umgehungsversuche, Kosten-/Medien-/Belegkindern, Buchungs-RPCs,
 Verschiebungen, Wiederherstellung, Leserechten und Export.
-Service- und Komponententests prüfen Bestätigung, Abbruch, Fehler, verspätete
-Antworten, Workspace-Wechsel und den korrekten Exportkontext.
+Service- und Komponententests prüfen Bestätigung, direkte Löschung,
+Aufbewahrungssperren ohne technischen Sync-Fehler, Archivierung als Alternative
+und Wiederherstellung in der Workspace-Verwaltung.
 
 Lokale Supabase-Befehle nur mit einem ausdrücklich isolierten `--workdir`
 ausführen. Nach Migrationen Typen regenerieren, alle Datenbanktests und Advisors

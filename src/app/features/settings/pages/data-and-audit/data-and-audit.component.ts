@@ -8,14 +8,7 @@ import {
 } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
-import {
-  LucideArchive,
-  LucideDownload,
-  LucideDynamicIcon,
-  LucideFileText,
-  LucideFilter,
-  LucideRefreshCw,
-} from '@lucide/angular';
+import { LucideDownload, LucideFileText, LucideFilter, LucideRefreshCw } from '@lucide/angular';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import {
   BusinessEntityType,
@@ -42,7 +35,6 @@ import {
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { DataTableComponent } from '../../../../shared/components/data-table/data-table.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
-import { WorkspaceRetentionComponent } from './workspace-retention.component';
 
 export interface AuditFilterValue {
   readonly from: string;
@@ -125,12 +117,10 @@ function localDayBoundaryAsUtc(value: string, endOfDay: boolean): string {
   selector: 'app-data-and-audit',
   imports: [
     ReactiveFormsModule,
-    LucideDynamicIcon,
     CustomSelectComponent,
     DataTableComponent,
     ButtonComponent,
     DatePipe,
-    WorkspaceRetentionComponent,
   ],
   templateUrl: './data-and-audit.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -154,7 +144,6 @@ export class DataAndAuditComponent {
   readonly refreshIcon = LucideRefreshCw;
   readonly downloadIcon = LucideDownload;
   readonly fileIcon = LucideFileText;
-  readonly archiveIcon = LucideArchive;
 
   readonly filters = new FormGroup({
     from: new FormControl('', { nonNullable: true }),
@@ -190,7 +179,8 @@ export class DataAndAuditComponent {
   readonly nextCursor = signal<string | null>(null);
   readonly isLoading = signal(false);
   readonly isLoadingMore = signal(false);
-  readonly filtersExpanded = signal(true);
+  readonly filtersExpanded = signal(false);
+  readonly additionalExportsExpanded = signal(false);
   readonly error = signal<string | null>(null);
   readonly isExporting = signal(false);
   readonly exportProgress = signal(0);
@@ -249,7 +239,8 @@ export class DataAndAuditComponent {
     this.error.set(null);
     try {
       const archive = await this.exportService.createArchive({
-        ...toBusinessEventFilter(workspaceId, this.filters.getRawValue()),
+        workspaceId,
+        pageSize: 100,
         signal: this.exportAbortController.signal,
         onProgress: (progress) => this.exportProgress.set(progress),
       });
