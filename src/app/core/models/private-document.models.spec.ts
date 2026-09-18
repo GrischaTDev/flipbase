@@ -23,9 +23,9 @@ describe('private document validation', () => {
   });
 
   it('lehnt Typ, Endung, leere und zu große Dateien verständlich ab', () => {
-    expect(validatePrivateDocumentFile(file({ name: 'bild.gif', type: 'image/gif' }))?.message).toContain(
-      'PDF-, JPG-, PNG- oder XML',
-    );
+    expect(
+      validatePrivateDocumentFile(file({ name: 'bild.gif', type: 'image/gif' }))?.message,
+    ).toContain('PDF-, JPG-, PNG- oder XML');
     expect(validatePrivateDocumentFile(file({ name: 'rechnung.txt' }))?.message).toContain(
       'PDF-, JPG-, PNG- oder XML',
     );
