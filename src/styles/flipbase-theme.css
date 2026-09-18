@@ -1,0 +1,190 @@
+/*
+  Flipbase Theme – Farben und Design-Variablen
+
+  Die Marke besitzt genau zwei warme Leitfarben:
+    Gelb   #FCC601  – Brand, Navigation, Primaeraktion
+    Orange #F89D13  – Warnung und warmer Sekundaerakzent
+
+  Alle Komponenten greifen auf zentrale Farbnamen statt auf konkrete Tailwind-Farben zu.
+  Dadurch bleiben Badge, Toast, Avatar, Navigation und Statusdarstellungen
+  in derselben Farbfamilie. Die Rollen orientieren sich an Shopify Polaris:
+  neutrale Oberflaechen, sparsame Farbflaechen, Farbe traegt Bedeutung.
+*/
+
+:root {
+  /* Brand */
+  --fb-color-brand: #fcc601;
+  --fb-color-brand-text: #7a4c05;
+  --fb-color-brand-surface: rgb(252 198 1 / 14%);
+  --fb-color-brand-border: rgb(161 98 7 / 30%);
+
+  /* Erfolg / positiver Zustand – bewusst warmes, weiches Gruen. */
+  --fb-color-success: #86c98c;
+  --fb-color-success-text: #3f6f49;
+  --fb-color-success-surface: rgb(134 201 140 / 14%);
+  --fb-color-success-border: rgb(63 111 73 / 28%);
+
+  /* Warnung – aus dem Orange der Wort-/Bildmarke abgeleitet. */
+  --fb-color-warning: #f89d13;
+  --fb-color-warning-text: #9a5708;
+  --fb-color-warning-surface: rgb(248 157 19 / 14%);
+  --fb-color-warning-border: rgb(154 87 8 / 28%);
+
+  /* Kritisch / Fehler – warmes Coral statt kaltem Signalrot. */
+  --fb-color-critical: #f58c8c;
+  --fb-color-critical-text: #a84b4b;
+  --fb-color-critical-surface: rgb(245 140 140 / 14%);
+  --fb-color-critical-border: rgb(168 75 75 / 28%);
+
+  /* Information ist bewusst neutral und fuehrt keine zusaetzliche Markenfarbe ein. */
+  --fb-color-info: #9aa0a8;
+  --fb-color-info-text: #5f6670;
+  --fb-color-info-surface: rgb(95 102 112 / 9%);
+  --fb-color-info-border: rgb(95 102 112 / 20%);
+
+  --fb-color-neutral: #7b818a;
+  --fb-color-neutral-text: #5f6670;
+  --fb-color-neutral-surface: rgb(95 102 112 / 8%);
+  --fb-color-neutral-border: rgb(95 102 112 / 16%);
+
+  /* Wiederverwendbare Oberflaechenrollen. */
+  --fb-toast-surface: rgb(255 255 255 / 98%);
+  --fb-toast-border: #dedede;
+  --fb-toast-shadow: 0 12px 32px -12px rgb(0 0 0 / 20%);
+
+  --fb-avatar-surface: var(--fb-color-brand-surface);
+  --fb-avatar-text: var(--fb-color-brand-text);
+  --fb-avatar-border: var(--fb-color-brand-border);
+}
+
+html.dark {
+  --fb-color-brand: #fcc601;
+  --fb-color-brand-text: #fcc601;
+  --fb-color-brand-surface: rgb(252 198 1 / 13%);
+  --fb-color-brand-border: rgb(252 198 1 / 30%);
+
+  --fb-color-success: #8fcb78;
+  --fb-color-success-text: #a9dda0;
+  --fb-color-success-surface: rgb(143 203 120 / 13%);
+  --fb-color-success-border: rgb(143 203 120 / 28%);
+
+  --fb-color-warning: #f89d13;
+  --fb-color-warning-text: #f7b653;
+  --fb-color-warning-surface: rgb(248 157 19 / 13%);
+  --fb-color-warning-border: rgb(248 157 19 / 28%);
+
+  --fb-color-critical: #f58c8c;
+  --fb-color-critical-text: #f7aaaa;
+  --fb-color-critical-surface: rgb(245 140 140 / 13%);
+  --fb-color-critical-border: rgb(245 140 140 / 28%);
+
+  --fb-color-info: #c4c4c4;
+  --fb-color-info-text: #d6d6d6;
+  --fb-color-info-surface: rgb(196 196 196 / 10%);
+  --fb-color-info-border: rgb(196 196 196 / 20%);
+
+  --fb-color-neutral: #a8a8a8;
+  --fb-color-neutral-text: #c4c4c4;
+  --fb-color-neutral-surface: rgb(196 196 196 / 8%);
+  --fb-color-neutral-border: rgb(196 196 196 / 16%);
+
+  --fb-toast-surface: rgb(43 43 43 / 98%);
+  --fb-toast-border: #494949;
+  --fb-toast-shadow: 0 16px 38px -14px rgb(0 0 0 / 70%);
+
+  --fb-avatar-surface: var(--fb-color-brand-surface);
+  --fb-avatar-text: var(--fb-color-brand-text);
+  --fb-avatar-border: var(--fb-color-brand-border);
+}
+
+/*
+  Kompatibilitaet fuer bestehende Templates:
+  alte Tailwind-Farbnamen werden innerhalb der Verwaltungs-App auf die
+  zentralen Flipbase-Farbrollen gelegt. Neue Komponenten sollen direkt die
+  fb-* Rollen verwenden.
+*/
+html:not(.dark) .fb-admin {
+  --fb-profit: var(--fb-color-success-text);
+  --fb-profit-subtle: var(--fb-color-success-surface);
+  --fb-profit-border: var(--fb-color-success-border);
+
+  --fb-c-emerald-300: var(--fb-color-success-text);
+  --fb-c-emerald-400: var(--fb-color-success-text);
+  --fb-c-emerald-500: var(--fb-color-success);
+  --fb-c-emerald-600: var(--fb-color-success-text);
+  --fb-c-emerald-700: var(--fb-color-success-text);
+  --fb-c-emerald-800: #31563a;
+
+  --fb-c-amber-200: var(--fb-color-warning-text);
+  --fb-c-amber-300: var(--fb-color-warning-text);
+  --fb-c-amber-400: var(--fb-color-warning-text);
+  --fb-c-amber-500: var(--fb-color-warning);
+  --fb-c-amber-600: var(--fb-color-warning-text);
+  --fb-c-amber-700: var(--fb-color-warning-text);
+
+  --fb-c-rose-300: var(--fb-color-critical-text);
+  --fb-c-rose-400: var(--fb-color-critical-text);
+  --fb-c-rose-500: var(--fb-color-critical);
+  --fb-c-rose-600: var(--fb-color-critical-text);
+
+  --fb-c-indigo-200: var(--fb-color-brand-text);
+  --fb-c-indigo-300: var(--fb-color-brand-text);
+  --fb-c-indigo-400: var(--fb-color-brand-text);
+  --fb-c-indigo-500: var(--fb-color-brand);
+  --fb-c-indigo-600: var(--fb-color-brand-text);
+
+  --fb-c-blue-300: var(--fb-color-info-text);
+  --fb-c-blue-400: var(--fb-color-info-text);
+  --fb-c-blue-500: var(--fb-color-info);
+  --fb-c-blue-600: var(--fb-color-info-text);
+  --fb-c-purple-300: var(--fb-color-info-text);
+  --fb-c-purple-400: var(--fb-color-info-text);
+  --fb-c-purple-500: var(--fb-color-info);
+  --fb-c-purple-600: var(--fb-color-info-text);
+  --fb-c-cyan-300: var(--fb-color-info-text);
+  --fb-c-cyan-500: var(--fb-color-info);
+  --fb-c-cyan-600: var(--fb-color-info-text);
+}
+
+html.dark .fb-admin {
+  --fb-profit: var(--fb-color-success-text);
+  --fb-profit-subtle: var(--fb-color-success-surface);
+  --fb-profit-border: var(--fb-color-success-border);
+
+  --fb-c-emerald-300: var(--fb-color-success-text);
+  --fb-c-emerald-400: var(--fb-color-success);
+  --fb-c-emerald-500: var(--fb-color-success);
+  --fb-c-emerald-600: #497a43;
+  --fb-c-emerald-700: #3c6638;
+  --fb-c-emerald-800: #31532e;
+
+  --fb-c-amber-200: var(--fb-color-warning-text);
+  --fb-c-amber-300: var(--fb-color-warning-text);
+  --fb-c-amber-400: var(--fb-color-warning);
+  --fb-c-amber-500: var(--fb-color-warning);
+  --fb-c-amber-600: #8a5606;
+  --fb-c-amber-700: #7a4c05;
+
+  --fb-c-rose-300: var(--fb-color-critical-text);
+  --fb-c-rose-400: var(--fb-color-critical);
+  --fb-c-rose-500: var(--fb-color-critical);
+  --fb-c-rose-600: #a33b3b;
+
+  --fb-c-indigo-200: var(--fb-color-brand-text);
+  --fb-c-indigo-300: var(--fb-color-brand-text);
+  --fb-c-indigo-400: var(--fb-color-brand);
+  --fb-c-indigo-500: var(--fb-color-brand);
+  --fb-c-indigo-600: #8a6a00;
+
+  --fb-c-blue-300: var(--fb-color-info-text);
+  --fb-c-blue-400: var(--fb-color-info);
+  --fb-c-blue-500: var(--fb-color-info);
+  --fb-c-blue-600: #565656;
+  --fb-c-purple-300: var(--fb-color-info-text);
+  --fb-c-purple-400: var(--fb-color-info);
+  --fb-c-purple-500: var(--fb-color-info);
+  --fb-c-purple-600: #565656;
+  --fb-c-cyan-300: var(--fb-color-info-text);
+  --fb-c-cyan-500: var(--fb-color-info);
+  --fb-c-cyan-600: #565656;
+}
