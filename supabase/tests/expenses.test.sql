@@ -242,9 +242,9 @@ select throws_ok(
       '2026-09-18',
       'f1800000-0000-4000-8000-000000000001'
     )$$,
-  '23503',
+  '42501',
   null,
-  'eine Kategorie aus einem anderen Workspace ist nicht zuordenbar'
+  'eine Kategorie aus einem anderen Workspace wird bereits durch RLS abgelehnt'
 );
 
 select ok(
