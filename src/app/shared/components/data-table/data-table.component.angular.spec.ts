@@ -3,8 +3,33 @@ import { ɵresolveComponentResources } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import axe from 'axe-core';
 import { glob, readFile } from 'node:fs/promises';
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { CustomSearchInputComponent } from '../custom-search-input/custom-search-input.component';
+import { TableColumnMenuComponent } from '../table-column-menu/table-column-menu.component';
 import { DataTableComponent } from './data-table.component';
+
+interface AngularInputMetadata {
+  inputs: Record<string, unknown>;
+  declaredInputs: Record<string, string>;
+}
+
+const inputMetadataSnapshots = new Map<unknown, AngularInputMetadata>();
+
+function registerSignalInputs(component: unknown, inputNames: readonly string[]): void {
+  const metadata = (component as { ɵcmp: AngularInputMetadata }).ɵcmp;
+  inputMetadataSnapshots.set(component, {
+    inputs: metadata.inputs,
+    declaredInputs: metadata.declaredInputs,
+  });
+  metadata.inputs = {
+    ...metadata.inputs,
+    ...Object.fromEntries(inputNames.map((name) => [name, [name, 1, null]])),
+  };
+  metadata.declaredInputs = {
+    ...metadata.declaredInputs,
+    ...Object.fromEntries(inputNames.map((name) => [name, name])),
+  };
+}
 
 beforeAll(async () => {
   await ɵresolveComponentResources(async (url) => {
@@ -16,6 +41,49 @@ beforeAll(async () => {
     }
     return readFile(matches[0], 'utf8');
   });
+
+  registerSignalInputs(DataTableComponent, [
+    'ariaLabel',
+    'searchValue',
+    'searchPlaceholder',
+    'searchAriaLabel',
+    'searchEnabled',
+    'toolbarVisible',
+    'columns',
+    'sortOptions',
+    'currentSort',
+    'viewModified',
+    'loading',
+    'errorMessage',
+    'hasRows',
+    'loadingText',
+    'emptyTitle',
+    'emptyText',
+  ]);
+  registerSignalInputs(CustomSearchInputComponent, [
+    'value',
+    'placeholder',
+    'disabled',
+    'clearable',
+    'size',
+    'variant',
+    'id',
+    'ariaLabel',
+  ]);
+  registerSignalInputs(TableColumnMenuComponent, [
+    'columns',
+    'sortOptions',
+    'currentSort',
+    'viewModified',
+  ]);
+});
+
+afterAll(() => {
+  for (const [component, snapshot] of inputMetadataSnapshots) {
+    const metadata = (component as { ɵcmp: AngularInputMetadata }).ɵcmp;
+    metadata.inputs = snapshot.inputs;
+    metadata.declaredInputs = snapshot.declaredInputs;
+  }
 });
 
 describe('DataTableComponent', () => {
