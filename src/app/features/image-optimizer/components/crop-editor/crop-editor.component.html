@@ -1,4 +1,4 @@
-<div class="flex h-[62vh] min-h-96 flex-col overflow-hidden rounded-2xl bg-[#090b12] shadow-inner">
+<div class="flex h-[62vh] min-h-96 flex-col overflow-hidden rounded-2xl bg-[var(--fb-image-editor-canvas)] shadow-inner">
   <div class="relative flex min-h-0 flex-1 items-center justify-center p-3">
     <image-cropper
       [imageURL]="dataUrl()"
@@ -13,14 +13,14 @@
       [transform]="transform()"
       [disabled]="disabled()"
       style="
-        --cropper-outline-color: rgba(9, 11, 18, 0.72);
-        --cropper-overlay-color: #090b12;
+        --cropper-outline-color: var(--fb-image-editor-overlay);
+        --cropper-overlay-color: var(--fb-image-editor-canvas);
         --cropper-color: rgba(255, 255, 255, 0.78);
-        --cropper-border: 2px solid rgb(129 140 248);
-        --cropper-hover-border: 2px solid rgb(165 180 252);
-        --cropper-focus-border: 3px solid rgb(199 210 254);
-        --cropper-resize-square-bg: rgb(238 242 255);
-        --cropper-resize-square-border: 2px solid rgb(79 70 229);
+        --cropper-border: 2px solid var(--fb-color-brand);
+        --cropper-hover-border: 2px solid var(--fb-primary-hover);
+        --cropper-focus-border: 3px solid var(--fb-color-brand);
+        --cropper-resize-square-bg: var(--fb-color-brand);
+        --cropper-resize-square-border: 2px solid #1a1a1a;
       "
       (imageCropped)="onCropped($event)"
       (transformChange)="onTransform($event)"
@@ -43,7 +43,7 @@
       meist hell, und bei Transparenz waere kein Kontrastverhaeltnis
       zusicherbar. WCAG AA verlangt 4,5:1 fuer Text und 3:1 fuer Bedienelemente.
     -->
-    <div class="flex flex-wrap items-center gap-1.5 rounded-xl bg-[#12141c] px-2 py-1.5 shadow-lg">
+    <div class="flex flex-wrap items-center gap-1.5 rounded-xl bg-[var(--fb-image-editor-toolbar)] px-2 py-1.5 shadow-lg">
       <button
         type="button"
         (click)="rotateRequested.emit()"
@@ -118,7 +118,7 @@
         Metadaten
         @if (hasLocation()) {
           <span
-            class="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-amber-400"
+            class="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-fb-warning-strong"
             aria-hidden="true"
           ></span>
           <span class="sr-only">Dieses Foto enthält den Aufnahmeort.</span>
