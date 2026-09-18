@@ -30,7 +30,9 @@ export class WorkspaceContextLockService {
 
   constructor() {
     this.refreshRouteLock();
-    this.router?.events
+    const events = this.router?.events;
+    if (!events) return;
+    events
       .pipe(
         filter((event): event is NavigationEnd => event instanceof NavigationEnd),
         takeUntilDestroyed(),
@@ -50,8 +52,7 @@ export class WorkspaceContextLockService {
   }
 
   private refreshRouteLock(): void {
-    this.routeLocked.set(
-      this.router ? routeLocksWorkspaceContext(this.router.routerState.snapshot.root) : false,
-    );
+    const root = this.router?.routerState?.snapshot?.root ?? null;
+    this.routeLocked.set(routeLocksWorkspaceContext(root));
   }
 }
