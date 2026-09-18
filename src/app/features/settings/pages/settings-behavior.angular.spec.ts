@@ -443,16 +443,16 @@ async function renderWorkspace(
     updateWorkspaceSettings: vi.fn(async () => ({ error: options.updateError ?? null })),
     createWorkspace: vi.fn(async () => ({ error: options.createError ?? null })),
     switchWorkspace: vi.fn(),
-    deleteWorkspace: vi.fn(async () =>
+    deleteWorkspace: vi.fn(() =>
       Promise.resolve(options.deleteResult ?? { success: true, reportedBySyncStatus: false }),
     ),
-    archiveWorkspace: vi.fn(async () => ({ error: options.archiveError ?? null })),
-    restoreWorkspace: vi.fn(async () => ({ error: options.restoreError ?? null })),
+    archiveWorkspace: vi.fn(() => Promise.resolve({ error: options.archiveError ?? null })),
+    restoreWorkspace: vi.fn(() => Promise.resolve({ error: options.restoreError ?? null })),
   };
   const router = { navigate: vi.fn(async () => true) };
   const confirmations = [...(options.confirmations ?? [true, true])];
   const dialog = {
-    frage: vi.fn(async () => Promise.resolve(confirmations.shift() ?? true)),
+    frage: vi.fn(() => Promise.resolve(confirmations.shift() ?? true)),
   };
   await TestBed.configureTestingModule({
     imports: [WorkspaceSettingsComponent],
@@ -762,6 +762,8 @@ describe('Workspace-Einstellungen – echte Angular-Fixture', () => {
         bestaetigenText: 'Workspace archivieren',
       }),
     );
+
+    await flushAsyncAction(fixture);
     expect(workspaceService.archiveWorkspace).toHaveBeenCalledWith('workspace-b');
     expect(router.navigate).not.toHaveBeenCalled();
     expectOnlyToast(toast, 'success', 'Workspace wurde archiviert.');
