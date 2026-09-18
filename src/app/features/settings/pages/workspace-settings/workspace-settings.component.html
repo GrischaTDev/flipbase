@@ -22,6 +22,7 @@
       @for (workspace of workspaceService.workspaces(); track workspace.id) {
         <div
           class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-fb-border bg-fb-subtle p-3"
+          [attr.aria-busy]="workspaceActionId() === workspace.id ? 'true' : null"
         >
           <div class="min-w-0">
             <strong class="block break-words text-xs text-fb-text-primary">{{
@@ -33,29 +34,47 @@
               <span>§ 25a UStG</span>
             </div>
           </div>
-          @if (workspaceService.currentWorkspace()?.id === workspace.id) {
-            <app-badge tone="success">Aktiv</app-badge>
-          } @else {
-            <div class="flex gap-2">
+          <div class="flex flex-wrap items-center justify-end gap-2">
+            @if (workspaceService.currentWorkspace()?.id === workspace.id) {
+              <app-badge tone="success">Aktiv</app-badge>
+            }
+            @if (workspace.archived_at) {
+              <app-badge tone="caution">Archiviert</app-badge>
+            }
+            @if (workspaceService.currentWorkspace()?.id !== workspace.id) {
               <button
                 type="button"
                 (click)="onSwitchWorkspace(workspace.id)"
-                class="linear-btn-secondary min-h-11 rounded-lg px-3 text-xs font-semibold"
+                [disabled]="workspaceActionId() !== null"
+                class="linear-btn-secondary min-h-11 rounded-lg px-3 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Aktivieren
               </button>
-              @if (workspaceService.workspaces().length > 1) {
-                <button
-                  type="button"
-                  (click)="onDeleteWorkspace(workspace.id)"
-                  class="min-h-11 rounded-lg px-2 text-fb-text-secondary hover:text-fb-critical"
-                  [attr.aria-label]="workspace.name + ' zur Aufbewahrung öffnen'"
-                >
-                  <svg [lucideIcon]="trashIcon" class="h-4 w-4" aria-hidden="true"></svg>
-                </button>
-              }
-            </div>
-          }
+            }
+            @if (workspace.archived_at) {
+              <button
+                type="button"
+                (click)="onRestoreWorkspace(workspace.id)"
+                [disabled]="workspaceActionId() !== null"
+                class="linear-btn-secondary min-h-11 rounded-lg px-3 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Wiederherstellen
+              </button>
+            } @else if (
+              workspaceService.currentWorkspace()?.id !== workspace.id &&
+              workspaceService.workspaces().length > 1
+            ) {
+              <button
+                type="button"
+                (click)="onDeleteWorkspace(workspace.id)"
+                [disabled]="workspaceActionId() !== null"
+                class="min-h-11 rounded-lg px-2 text-fb-text-secondary hover:text-fb-critical disabled:cursor-not-allowed disabled:opacity-50"
+                [attr.aria-label]="workspace.name + ' löschen'"
+              >
+                <svg [lucideIcon]="trashIcon" class="h-4 w-4" aria-hidden="true"></svg>
+              </button>
+            }
+          </div>
         </div>
       }
     </div>

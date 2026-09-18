@@ -1,5 +1,33 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-19 – ChatGPT GPT-5.6 Sol (OpenAI) – Workspace-Löschung und Datenexport vereinfacht
+
+**Auftrag:** Frisch angelegte Test-Workspaces sollen sich direkt löschen lassen,
+ohne zuerst auf „Daten & Protokolle“ zu landen. Gleichzeitig soll diese Seite
+übersichtlicher werden und klar zwischen Prüfprotokoll und Export unterscheiden.
+
+**Änderung:** Der Papierkorb bestätigt die Löschung jetzt direkt in der
+Workspace-Verwaltung. Leere Workspaces werden ohne Seitenwechsel gelöscht. Wenn
+die Datenbank wegen aufbewahrungsrelevanter Geschäftsdaten oder Prüfprotokolle
+blockiert, erscheint statt eines technischen Sync-Fehlers eine verständliche
+Archivierungsentscheidung; der Datenexport bleibt ausdrücklich optional.
+Archivierte Workspaces lassen sich direkt in der Workspace-Liste
+wiederherstellen.
+
+„Daten & Protokolle“ enthält nur noch Prüfprotokoll und Datenexport. Die frühere
+Sektion „Aufbewahrung & Löschung“ samt eigener Retention-Komponente wurde
+entfernt. Das vollständige Datenarchiv ist die sichtbare Hauptaktion; PDF- und
+CSV-Ausgaben liegen hinter „Weitere Exporte“. Die erweiterten
+Prüfprotokoll-Filter starten eingeklappt. Das vollständige Archiv wird nicht mehr
+durch die aktuell gesetzten Prüfprotokoll-Filter eingeschränkt.
+
+**Prüfung:** Regressionstests für direkte Löschung, blockierte Löschung mit
+Archivierungsalternative, Wiederherstellung und die vereinfachte Daten-Seite
+wurden vor der Implementierung ergänzt. Die lokale Ausführung ist in dieser
+Sitzung nicht möglich, weil der bereitgestellte Container keinen Netzwerkzugriff
+zum Repository beziehungsweise zu npm besitzt. Die vollständige Prüfung erfolgt
+im PR-Lauf.
+
 ## 2026-09-19 – ChatGPT GPT-5.6 Sol (OpenAI) – Einheitliches Data-Table-System umgesetzt
 
 **Auftrag:** Alle administrativen verwaltbaren Tabellen und Listen auf ein

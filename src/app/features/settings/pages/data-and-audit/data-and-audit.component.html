@@ -217,130 +217,108 @@
     aria-labelledby="archive-heading"
     class="linear-surface rounded-2xl border border-fb-border p-4 sm:p-5"
   >
-    <h2 id="archive-heading" class="text-base font-bold text-fb-text-primary">Export & Archiv</h2>
-    <p class="mt-1 text-xs leading-relaxed text-fb-text-muted">
-      Das ZIP-Archiv enthält verknüpfte CSV- und JSON-Dateien mit stabilen Kennungen. Die
-      Druckansicht ist gut lesbar, ersetzt aber allein kein maschinenlesbares Archiv.
+    <h2 id="archive-heading" class="text-base font-bold text-fb-text-primary">Datenexport</h2>
+    <p class="mt-1 max-w-3xl text-xs leading-relaxed text-fb-text-muted">
+      Lade bei Bedarf ein vollständiges Archiv des aktuellen Workspace herunter. Einzelne
+      Druck- und CSV-Exporte sind unter „Weitere Exporte“ gebündelt.
     </p>
+
     @if (isAuthorized()) {
-      <div class="mt-4 flex flex-col gap-3 sm:flex-row">
-        <button
-          type="button"
-          (click)="downloadArchive()"
+      <div class="mt-4 flex flex-wrap gap-2">
+        <app-button
+          variant="primary"
+          size="md"
+          [icon]="downloadIcon"
+          [loading]="isExporting()"
           [disabled]="isExporting()"
-          class="linear-btn-primary inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl px-5 text-xs font-bold disabled:opacity-50"
+          (clicked)="downloadArchive()"
         >
-          <svg [lucideIcon]="downloadIcon" class="h-4 w-4" aria-hidden="true"></svg>
           {{ isExporting() ? 'Archiv wird erstellt …' : 'Datenarchiv herunterladen' }}
-        </button>
-        <button
-          type="button"
-          (click)="openPrintView()"
-          class="linear-btn-secondary inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl px-5 text-xs font-bold"
+        </app-button>
+        <app-button
+          variant="secondary"
+          size="md"
+          [ariaExpanded]="additionalExportsExpanded()"
+          ariaControls="additional-exports"
+          (clicked)="additionalExportsExpanded.set(!additionalExportsExpanded())"
         >
-          <svg [lucideIcon]="fileIcon" class="h-4 w-4" aria-hidden="true"></svg>
-          Druckansicht / PDF
-        </button>
+          Weitere Exporte
+        </app-button>
         @if (isExporting()) {
-          <button
-            type="button"
-            (click)="cancelExport()"
-            class="min-h-11 cursor-pointer rounded-xl px-4 text-xs font-semibold text-rose-300 hover:bg-rose-500/10"
-          >
-            Abbrechen
-          </button>
+          <app-button variant="plain" size="md" (clicked)="cancelExport()">Abbrechen</app-button>
         }
       </div>
+
       @if (isExporting()) {
         <p role="status" class="mt-3 text-xs text-fb-text-muted">
           Fortschritt: {{ exportProgress() }} %
         </p>
       }
-      <div class="mt-5 border-t border-fb-border pt-4">
-        <h3 class="text-sm font-bold text-fb-text-primary">Einzelne CSV-Auswertungen</h3>
-        <p class="mt-1 text-xs text-fb-text-muted">
-          Die bisherigen kompakten Auswertungen bleiben zusätzlich verfügbar.
-        </p>
-        <div class="mt-3 flex flex-wrap gap-2">
-          <button
-            type="button"
-            (click)="downloadPurchasesCsv()"
-            class="linear-btn-secondary min-h-11 cursor-pointer rounded-xl px-4 text-xs font-semibold"
-          >
-            Einkäufe als CSV
-          </button>
-          <button
-            type="button"
-            (click)="downloadInventoryCsv()"
-            class="linear-btn-secondary min-h-11 cursor-pointer rounded-xl px-4 text-xs font-semibold"
-          >
-            Inventar als CSV
-          </button>
-          <button
-            type="button"
-            (click)="downloadSalesCsv()"
-            class="linear-btn-secondary min-h-11 cursor-pointer rounded-xl px-4 text-xs font-semibold"
-          >
-            Verkäufe als CSV
-          </button>
+
+      @if (additionalExportsExpanded()) {
+        <div id="additional-exports" class="mt-4 border-t border-fb-border pt-4">
+          <p class="text-xs text-fb-text-muted">
+            Diese Formate sind für einzelne Auswertungen oder eine lesbare Druckansicht gedacht.
+          </p>
+          <div class="mt-3 flex flex-wrap gap-2">
+            <app-button
+              variant="secondary"
+              size="slim"
+              [icon]="fileIcon"
+              (clicked)="openPrintView()"
+            >
+              Druckansicht / PDF
+            </app-button>
+            <app-button variant="secondary" size="slim" (clicked)="downloadPurchasesCsv()">
+              Einkäufe als CSV
+            </app-button>
+            <app-button variant="secondary" size="slim" (clicked)="downloadInventoryCsv()">
+              Inventar als CSV
+            </app-button>
+            <app-button variant="secondary" size="slim" (clicked)="downloadSalesCsv()">
+              Verkäufe als CSV
+            </app-button>
+          </div>
         </div>
-      </div>
+      }
     } @else if (isDemoMode()) {
       <p class="mt-4 text-sm text-fb-text-muted">
         Das vollständige Datenarchiv steht nach der Anmeldung für einen echten Workspace zur
-        Verfügung. Die lokalen Beispieldaten kannst du hier als einfache CSV-Auswertungen laden.
+        Verfügung.
       </p>
-      <div class="mt-3 flex flex-wrap gap-2">
-        <button
-          type="button"
-          (click)="downloadPurchasesCsv()"
-          class="linear-btn-secondary min-h-11 cursor-pointer rounded-xl px-4 text-xs font-semibold"
+      <div class="mt-3">
+        <app-button
+          variant="secondary"
+          size="md"
+          [ariaExpanded]="additionalExportsExpanded()"
+          ariaControls="additional-exports"
+          (clicked)="additionalExportsExpanded.set(!additionalExportsExpanded())"
         >
-          Einkäufe als CSV
-        </button>
-        <button
-          type="button"
-          (click)="downloadInventoryCsv()"
-          class="linear-btn-secondary min-h-11 cursor-pointer rounded-xl px-4 text-xs font-semibold"
-        >
-          Inventar als CSV
-        </button>
-        <button
-          type="button"
-          (click)="downloadSalesCsv()"
-          class="linear-btn-secondary min-h-11 cursor-pointer rounded-xl px-4 text-xs font-semibold"
-        >
-          Verkäufe als CSV
-        </button>
+          Weitere Exporte
+        </app-button>
       </div>
+      @if (additionalExportsExpanded()) {
+        <div id="additional-exports" class="mt-4 border-t border-fb-border pt-4">
+          <p class="text-xs text-fb-text-muted">
+            Die lokalen Beispieldaten kannst du als einzelne CSV-Dateien herunterladen.
+          </p>
+          <div class="mt-3 flex flex-wrap gap-2">
+            <app-button variant="secondary" size="slim" (clicked)="downloadPurchasesCsv()">
+              Einkäufe als CSV
+            </app-button>
+            <app-button variant="secondary" size="slim" (clicked)="downloadInventoryCsv()">
+              Inventar als CSV
+            </app-button>
+            <app-button variant="secondary" size="slim" (clicked)="downloadSalesCsv()">
+              Verkäufe als CSV
+            </app-button>
+          </div>
+        </div>
+      }
     } @else {
       <p class="mt-4 text-sm text-fb-text-muted">
         Globale Exporte stehen Inhabern, Administratoren und der Buchhaltung zur Verfügung.
       </p>
     }
-  </section>
-
-  <section
-    aria-labelledby="retention-heading"
-    class="linear-surface rounded-2xl border border-fb-border p-4 sm:p-5"
-  >
-    <div class="flex items-center gap-2">
-      <svg [lucideIcon]="archiveIcon" class="h-4 w-4 text-amber-300" aria-hidden="true"></svg>
-      <h2 id="retention-heading" class="text-base font-bold text-fb-text-primary">
-        Aufbewahrung & Löschung
-      </h2>
-    </div>
-    <p class="mt-2 text-xs leading-relaxed text-fb-text-muted">
-      Flipbase verwendet für relevante Geschäftsdaten vorsorglich einen Aufbewahrungsrahmen von zehn
-      Jahren und verhindert das direkte Löschen eines Workspace mit Geschäftsvorgängen. Die konkrete
-      gesetzliche Aufbewahrungsdauer hängt von Datenart, Unternehmen und Einzelfall ab. Kläre deine
-      Pflichten bei Bedarf mit einer Steuer- oder Rechtsberatung.
-    </p>
-    <p class="mt-2 text-xs leading-relaxed text-fb-text-muted">
-      Diese Funktionen unterstützen Dokumentations- und Aufbewahrungspflichten. Sie sind keine
-      Zusage automatischer rechtlicher oder steuerlicher Konformität. Nach zehn Jahren erfolgt keine
-      automatische Löschung.
-    </p>
-    <app-workspace-retention />
   </section>
 </div>

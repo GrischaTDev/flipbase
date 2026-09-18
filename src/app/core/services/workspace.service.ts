@@ -326,18 +326,21 @@ export class WorkspaceService {
           .select('id')
           .maybeSingle();
         if (error || !data) {
+          const retentionBlocked =
+            error?.code === 'P0001' && error.message.includes('Geschäftsdaten');
+          if (retentionBlocked) {
+            return {
+              success: false,
+              reportedBySyncStatus: false,
+              retentionBlocked: true,
+            };
+          }
           this.syncStatus.melde(
             'Löschen des Workspace',
             error ??
               new Error('Die Löschung des Workspace wurde von der Datenbank nicht bestätigt.'),
           );
-          return {
-            success: false,
-            reportedBySyncStatus: true,
-            ...(error?.code === 'P0001' && error.message.includes('Geschäftsdaten')
-              ? { retentionBlocked: true }
-              : {}),
-          };
+          return { success: false, reportedBySyncStatus: true };
         }
       } catch (err) {
         this.syncStatus.melde('Löschen des Workspace', err);
