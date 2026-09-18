@@ -27,33 +27,31 @@ describe('dueOccurrences', () => {
   });
 
   it('bleibt am ursprünglichen Monatstag verankert statt nach Februar zu driften', () => {
-    expect(
-      dueOccurrences(rule({ start_date: '2026-01-31' }), '2026-03-31'),
-    ).toEqual(['2026-01-31', '2026-02-28', '2026-03-31']);
+    expect(dueOccurrences(rule({ start_date: '2026-01-31' }), '2026-03-31')).toEqual([
+      '2026-01-31',
+      '2026-02-28',
+      '2026-03-31',
+    ]);
   });
 
   it('behandelt Schalttage jährlich ohne dauerhaftes Driften', () => {
     expect(
-      dueOccurrences(
-        rule({ start_date: '2024-02-29', frequency: 'yearly' }),
-        '2026-03-01',
-      ),
+      dueOccurrences(rule({ start_date: '2024-02-29', frequency: 'yearly' }), '2026-03-01'),
     ).toEqual(['2024-02-29', '2025-02-28', '2026-02-28']);
   });
 
   it('unterstützt quartalsweise Fälligkeiten', () => {
     expect(
-      dueOccurrences(
-        rule({ start_date: '2026-01-31', frequency: 'quarterly' }),
-        '2026-10-31',
-      ),
+      dueOccurrences(rule({ start_date: '2026-01-31', frequency: 'quarterly' }), '2026-10-31'),
     ).toEqual(['2026-01-31', '2026-04-30', '2026-07-31', '2026-10-31']);
   });
 
   it('beachtet ein Enddatum einschließlich des letzten gültigen Termins', () => {
-    expect(
-      dueOccurrences(rule({ end_date: '2026-03-15' }), '2026-08-15'),
-    ).toEqual(['2026-01-15', '2026-02-15', '2026-03-15']);
+    expect(dueOccurrences(rule({ end_date: '2026-03-15' }), '2026-08-15')).toEqual([
+      '2026-01-15',
+      '2026-02-15',
+      '2026-03-15',
+    ]);
   });
 
   it('erzeugt keine Termine für deaktivierte Regeln', () => {
