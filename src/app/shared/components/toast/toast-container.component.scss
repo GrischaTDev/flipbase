@@ -7,33 +7,33 @@
   border-color: var(--fb-toast-border);
   color: var(--fb-text-primary);
   box-shadow: var(--fb-toast-shadow);
-  --toast-accent: var(--fb-semantic-info);
-  --toast-surface: var(--fb-semantic-info-surface);
-  --toast-border: var(--fb-semantic-info-border);
+  --toast-accent: var(--fb-color-info);
+  --toast-surface: var(--fb-color-info-surface);
+  --toast-border: var(--fb-color-info-border);
 }
 
 .fb-toast--success {
-  --toast-accent: var(--fb-semantic-success);
-  --toast-surface: var(--fb-semantic-success-surface);
-  --toast-border: var(--fb-semantic-success-border);
+  --toast-accent: var(--fb-color-success);
+  --toast-surface: var(--fb-color-success-surface);
+  --toast-border: var(--fb-color-success-border);
 }
 
 .fb-toast--error {
-  --toast-accent: var(--fb-semantic-critical);
-  --toast-surface: var(--fb-semantic-critical-surface);
-  --toast-border: var(--fb-semantic-critical-border);
+  --toast-accent: var(--fb-color-critical);
+  --toast-surface: var(--fb-color-critical-surface);
+  --toast-border: var(--fb-color-critical-border);
 }
 
 .fb-toast--warning {
-  --toast-accent: var(--fb-semantic-warning);
-  --toast-surface: var(--fb-semantic-warning-surface);
-  --toast-border: var(--fb-semantic-warning-border);
+  --toast-accent: var(--fb-color-warning);
+  --toast-surface: var(--fb-color-warning-surface);
+  --toast-border: var(--fb-color-warning-border);
 }
 
 .fb-toast--info {
-  --toast-accent: var(--fb-semantic-info);
-  --toast-surface: var(--fb-semantic-info-surface);
-  --toast-border: var(--fb-semantic-info-border);
+  --toast-accent: var(--fb-color-info);
+  --toast-surface: var(--fb-color-info-surface);
+  --toast-border: var(--fb-color-info-border);
 }
 
 .fb-toast__icon {
