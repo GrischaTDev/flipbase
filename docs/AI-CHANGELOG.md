@@ -28,10 +28,12 @@ Die verbindliche Regel steht zusätzlich in
 `docs/design/admin-ui-guidelines.md`.
 
 **Prüfung:** Branch-Diff gegen `master` und die betroffenen Shared-/Feature-
-Templates wurden manuell auf den gemeinsamen Komponentenvertrag geprüft.
-Lokale npm-/Vitest-/Build-Kommandos können über den verwendeten GitHub-Connector
-nicht ausgeführt werden; die vollständige technische Prüfung steht deshalb
-noch im PR-CI-Lauf aus.
+Templates wurden manuell auf den gemeinsamen Komponentenvertrag geprüft. Der
+erste PR-Lauf hat den zuvor abgeschnittenen Verkaufstabellen-Block gefunden;
+dieser wurde vollständig aus `master` wiederhergestellt. DOM- und Node-Suite
+waren danach grün. Die 22 von Prettier gemeldeten Dateien wurden im
+GitHub-Runner mit der Projektversion formatiert. Die abschließende vollständige
+PR-CI läuft auf dem formatierten Stand erneut.
 
 ## 2026-09-18 – ChatGPT GPT-5.6 Sol (OpenAI) – Entwurf: einheitliches Data-Table-System
 
