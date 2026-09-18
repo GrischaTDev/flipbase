@@ -2,7 +2,10 @@ import { randomUUID } from 'node:crypto';
 import { test as base, expect, type Page } from '@playwright/test';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createUserClient } from './local-supabase';
-import { readAccessToken } from './test-account';
+import { readAccessToken, readSessionRemainingSeconds } from './test-account';
+
+/** Unter dieser verbleibenden Gültigkeit (Sekunden) wird kein neuer Workspace mehr angelegt. */
+const MIN_SESSION_SECONDS_REMAINING = 120;
 
 export interface TestWorkspace {
   readonly id: string;
@@ -13,6 +16,12 @@ export interface TestWorkspace {
 export const test = base.extend<{ workspace: TestWorkspace }>({
   workspace: [
     async ({ page }, use) => {
+      const remainingSeconds = readSessionRemainingSeconds();
+      if (remainingSeconds < MIN_SESSION_SECONDS_REMAINING) {
+        throw new Error(
+          'Die gemeinsame Testsitzung läuft ab. Testlauf neu starten oder kürzer halten (Sitzung gilt 15 Minuten).',
+        );
+      }
       const client = createUserClient(readAccessToken());
       const { data, error } = await client.rpc('create_workspace', {
         p_name: `E2E ${randomUUID().slice(0, 8)}`,

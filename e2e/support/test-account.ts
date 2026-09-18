@@ -13,11 +13,42 @@ interface StorageState {
   }[];
 }
 
-export function readAccessToken(): string {
-  const state = JSON.parse(readFileSync(AUTH_STATE_PATH, 'utf8')) as StorageState;
+interface StoredSession {
+  readonly access_token: string;
+  /** Unix-Zeitstempel in Sekunden, ab dem das Access-Token abgelaufen ist. */
+  readonly expires_at?: number;
+}
+
+function readStoredSession(): StoredSession {
+  let raw: string;
+  try {
+    raw = readFileSync(AUTH_STATE_PATH, 'utf8');
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new Error(
+        `Die Sitzungsdatei ${AUTH_STATE_PATH} fehlt. Lief das globale Setup (e2e/global-setup.ts) vor diesem Test?`,
+        { cause: error },
+      );
+    }
+    throw error;
+  }
+  const state = JSON.parse(raw) as StorageState;
   const entry = state.origins
     .flatMap((origin) => origin.localStorage)
     .find((item) => item.name === AUTH_STORAGE_KEY);
   if (!entry) throw new Error('Die Sitzung des Testkontos fehlt. Lief das globale Setup?');
-  return (JSON.parse(entry.value) as { access_token: string }).access_token;
+  return JSON.parse(entry.value) as StoredSession;
+}
+
+export function readAccessToken(): string {
+  return readStoredSession().access_token;
+}
+
+/** Verbleibende Gültigkeit der gemeinsamen Sitzung in Sekunden (kann negativ sein). */
+export function readSessionRemainingSeconds(): number {
+  const { expires_at: expiresAt } = readStoredSession();
+  if (expiresAt === undefined) {
+    throw new Error('Die Sitzung des Testkontos enthält kein Ablaufdatum (expires_at).');
+  }
+  return expiresAt - Math.floor(Date.now() / 1000);
 }
