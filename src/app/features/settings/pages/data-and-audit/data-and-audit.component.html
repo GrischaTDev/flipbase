@@ -88,7 +88,10 @@
               class="grid gap-3 border-b border-fb-line px-3 py-3 md:grid-cols-2 xl:grid-cols-4"
             >
               <div>
-                <label for="audit-from" class="mb-1 block text-xs font-semibold text-fb-text-secondary">
+                <label
+                  for="audit-from"
+                  class="mb-1 block text-xs font-semibold text-fb-text-secondary"
+                >
                   Zeitraum von
                 </label>
                 <input
@@ -99,7 +102,10 @@
                 />
               </div>
               <div>
-                <label for="audit-to" class="mb-1 block text-xs font-semibold text-fb-text-secondary">
+                <label
+                  for="audit-to"
+                  class="mb-1 block text-xs font-semibold text-fb-text-secondary"
+                >
                   Zeitraum bis
                 </label>
                 <input
@@ -181,8 +187,7 @@
                         }
                         <pre
                           class="max-w-lg overflow-auto whitespace-pre-wrap rounded-lg bg-black/20 p-3 text-[10px] text-fb-text-secondary"
-                          >{{ formattedChanges(event) }}</pre
-                        >
+                          >{{ formattedChanges(event) }}</pre>
                       </details>
                     </td>
                   </tr>

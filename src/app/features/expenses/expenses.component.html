@@ -69,7 +69,9 @@
       [currentSort]="tablePrefs().sort"
       [viewModified]="viewModified()"
       [loading]="expenseService.isLoading()"
-      [errorMessage]="expenseService.loadError() ? 'Die Ausgaben konnten nicht geladen werden.' : null"
+      [errorMessage]="
+        expenseService.loadError() ? 'Die Ausgaben konnten nicht geladen werden.' : null
+      "
       [hasRows]="visibleExpenses().length > 0"
       loadingText="Ausgaben werden geladen …"
       emptyTitle="Keine Ausgaben gefunden"
@@ -101,7 +103,13 @@
         (valueChange)="setCategory($event)"
       />
 
-      <div table-content class="overflow-x-auto" tabindex="0" role="region" aria-label="Ausgaben-Tabelle">
+      <div
+        table-content
+        class="overflow-x-auto"
+        tabindex="0"
+        role="region"
+        aria-label="Ausgaben-Tabelle"
+      >
         <table class="linear-table w-full min-w-[1080px] text-[13px] tabular-nums">
           <thead>
             <tr>
@@ -184,7 +192,9 @@
                       <td class="font-semibold text-fb-text-primary">{{ expense.title }}</td>
                     }
                     @case ('category') {
-                      <td class="text-fb-text-secondary">{{ categoryName(expense.category_id) }}</td>
+                      <td class="text-fb-text-secondary">
+                        {{ categoryName(expense.category_id) }}
+                      </td>
                     }
                     @case ('gross_amount') {
                       <td class="text-right font-mono text-fb-text-primary">
@@ -215,11 +225,17 @@
                       </td>
                     }
                     @case ('recurring') {
-                      <td class="text-fb-text-secondary">{{ expense.recurring_rule_id ? 'Ja' : '–' }}</td>
+                      <td class="text-fb-text-secondary">
+                        {{ expense.recurring_rule_id ? 'Ja' : '–' }}
+                      </td>
                     }
                     @case ('documents') {
                       <td>
-                        <app-button variant="ghost" size="slim" (clicked)="documentExpense.set(expense)">
+                        <app-button
+                          variant="ghost"
+                          size="slim"
+                          (clicked)="documentExpense.set(expense)"
+                        >
                           Belege
                         </app-button>
                       </td>
@@ -235,7 +251,11 @@
                           <app-button variant="ghost" size="slim" (clicked)="editExpense(expense)">
                             Bearbeiten
                           </app-button>
-                          <app-button variant="ghost" size="slim" (clicked)="removeExpense(expense)">
+                          <app-button
+                            variant="ghost"
+                            size="slim"
+                            (clicked)="removeExpense(expense)"
+                          >
                             Löschen
                           </app-button>
                         </div>

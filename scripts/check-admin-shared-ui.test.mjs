@@ -59,7 +59,10 @@ test('accepts data-table managed tables and narrow documented table exceptions',
     <table data-shared-ui-exception="data-table-content"></table>
   `;
 
-  assert.deepEqual(findAdminSharedUiViolations('src/app/features/example/example.html', source), []);
+  assert.deepEqual(
+    findAdminSharedUiViolations('src/app/features/example/example.html', source),
+    [],
+  );
 });
 
 test('accepts shared controls and documented native technical inputs', () => {

@@ -12,10 +12,7 @@ import {
   LucidePlus as Plus,
   LucideSettings2 as Settings2,
 } from '@lucide/angular';
-import {
-  ExpensesColumnId,
-  ExpensesSortField,
-} from '../../core/config/table-defaults.config';
+import { ExpensesColumnId, ExpensesSortField } from '../../core/config/table-defaults.config';
 import { Expense, ExpenseRecurringRule, ExpenseStatus } from '../../core/models/expense.models';
 import {
   TableSortState,

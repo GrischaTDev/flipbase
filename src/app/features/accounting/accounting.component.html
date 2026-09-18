@@ -263,7 +263,9 @@
 
           <div table-content class="overflow-x-auto">
             <table class="linear-table min-w-[900px]">
-              <caption class="sr-only">Banktransaktionen</caption>
+              <caption class="sr-only">
+                Banktransaktionen
+              </caption>
               <thead>
                 <tr>
                   @for (column of orderedVisibleColumns(); track column.id) {
@@ -339,7 +341,10 @@
                         }
                         @case ('purpose') {
                           <td class="max-w-xs">
-                            <p class="line-clamp-2 text-[11px] text-fb-text-muted" [title]="tx.purpose">
+                            <p
+                              class="line-clamp-2 text-[11px] text-fb-text-muted"
+                              [title]="tx.purpose"
+                            >
                               {{ tx.purpose }}
                             </p>
                           </td>
@@ -351,9 +356,8 @@
                               [class.text-fb-profit]="tx.amount > 0"
                               [class.text-rose-400]="tx.amount < 0"
                             >
-                              {{ tx.amount > 0 ? '+' : '' }}{{
-                                tx.amount | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
-                              }}
+                              {{ tx.amount > 0 ? '+' : ''
+                              }}{{ tx.amount | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                             </span>
                           </td>
                         }

@@ -136,7 +136,6 @@ export const PURCHASES_TABLE_CONFIG: TableConfig<PurchasesColumnId, PurchasesSor
   ],
 };
 
-
 // ==========================================
 // 5. Ausgaben (Expenses)
 // ==========================================

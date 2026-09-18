@@ -106,157 +106,152 @@
     </app-button>
 
     <div table-content class="hidden overflow-x-auto md:block">
-        <table
-          [style.min-width.px]="260 + (visibleColumns().length - 1) * 105"
-          class="linear-table"
-        >
-          <caption class="sr-only">
-            Alle Artikel
-          </caption>
-          <thead class="bg-fb-surface text-[13px] font-semibold text-fb-text-secondary">
-            <tr>
+      <table [style.min-width.px]="260 + (visibleColumns().length - 1) * 105" class="linear-table">
+        <caption class="sr-only">
+          Alle Artikel
+        </caption>
+        <thead class="bg-fb-surface text-[13px] font-semibold text-fb-text-secondary">
+          <tr>
+            @for (column of orderedVisibleColumns(); track column.id) {
+              @switch (column.id) {
+                @case ('title') {
+                  <th
+                    scope="col"
+                    [attr.aria-sort]="ariaSort('title')"
+                    class="border-b border-fb-line px-4 py-2.5 text-left"
+                  >
+                    <app-table-sort-header
+                      label="Artikel"
+                      sortField="title"
+                      [currentSort]="tablePrefs().sort"
+                      (sortChanged)="onSortChanged($event)"
+                    />
+                  </th>
+                }
+                @case ('ean') {
+                  <th scope="col" class="border-b border-fb-line px-3 py-2.5 text-left">EAN</th>
+                }
+                @case ('available') {
+                  <th
+                    scope="col"
+                    [attr.aria-sort]="ariaSort('available')"
+                    class="border-b border-fb-line px-3 py-2.5 text-right"
+                  >
+                    <app-table-sort-header
+                      label="Verfügbar"
+                      sortField="available"
+                      [currentSort]="tablePrefs().sort"
+                      (sortChanged)="onSortChanged($event)"
+                      align="right"
+                    />
+                  </th>
+                }
+                @case ('store') {
+                  <th scope="col" class="border-b border-fb-line px-4 py-2.5 text-right">
+                    Webshop
+                  </th>
+                }
+              }
+            }
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-fb-line">
+          @for (product of filteredProducts(); track product.key) {
+            <tr class="transition hover:bg-fb-surface-alt">
               @for (column of orderedVisibleColumns(); track column.id) {
                 @switch (column.id) {
                   @case ('title') {
-                    <th
-                      scope="col"
-                      [attr.aria-sort]="ariaSort('title')"
-                      class="border-b border-fb-line px-4 py-2.5 text-left"
-                    >
-                      <app-table-sort-header
-                        label="Artikel"
-                        sortField="title"
-                        [currentSort]="tablePrefs().sort"
-                        (sortChanged)="onSortChanged($event)"
-                      />
-                    </th>
+                    <td class="px-4 py-3">
+                      <div class="flex items-center gap-2">
+                        <app-product-thumbnail
+                          (imageFailed)="imageFailed(product)"
+                          [src]="imageUrl(product)"
+                        />
+                        <a
+                          [routerLink]="product.detailLink"
+                          [queryParams]="{ returnTo: '/catalog' }"
+                          class="min-w-0 break-words font-semibold text-fb-text-primary underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-fb-primary"
+                          >{{ product.title }}</a
+                        >
+                      </div>
+                      @if (product.brand || product.model) {
+                        <p class="mt-0.5 text-xs text-fb-text-muted">
+                          {{ product.brand }} {{ product.model }}
+                        </p>
+                      }
+                    </td>
                   }
                   @case ('ean') {
-                    <th scope="col" class="border-b border-fb-line px-3 py-2.5 text-left">EAN</th>
+                    <td class="px-3 py-3 font-mono text-xs text-fb-text-secondary">
+                      {{ product.ean || '—' }}
+                    </td>
                   }
                   @case ('available') {
-                    <th
-                      scope="col"
-                      [attr.aria-sort]="ariaSort('available')"
-                      class="border-b border-fb-line px-3 py-2.5 text-right"
-                    >
-                      <app-table-sort-header
-                        label="Verfügbar"
-                        sortField="available"
-                        [currentSort]="tablePrefs().sort"
-                        (sortChanged)="onSortChanged($event)"
-                        align="right"
-                      />
-                    </th>
+                    <td class="px-3 py-3 text-right font-mono font-bold text-fb-text-primary">
+                      {{
+                        availableStock(product) === null
+                          ? 'Zu prüfen'
+                          : availableStock(product) + ' Stück'
+                      }}
+                    </td>
                   }
                   @case ('store') {
-                    <th scope="col" class="border-b border-fb-line px-4 py-2.5 text-right">
-                      Webshop
-                    </th>
+                    <td class="px-4 py-3 text-right">
+                      <span
+                        class="text-xs font-semibold"
+                        [class.text-fb-text-primary]="product.is_public_store"
+                        [class.text-fb-text-muted]="!product.is_public_store"
+                        >{{ product.is_public_store ? 'Öffentlich' : 'Intern' }}</span
+                      >
+                    </td>
                   }
                 }
               }
             </tr>
-          </thead>
-          <tbody class="divide-y divide-fb-line">
-            @for (product of filteredProducts(); track product.key) {
-              <tr class="transition hover:bg-fb-surface-alt">
-                @for (column of orderedVisibleColumns(); track column.id) {
-                  @switch (column.id) {
-                    @case ('title') {
-                      <td class="px-4 py-3">
-                        <div class="flex items-center gap-2">
-                          <app-product-thumbnail
-                            (imageFailed)="imageFailed(product)"
-                            [src]="imageUrl(product)"
-                          />
-                          <a
-                            [routerLink]="product.detailLink"
-                            [queryParams]="{ returnTo: '/catalog' }"
-                            class="min-w-0 break-words font-semibold text-fb-text-primary underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-fb-primary"
-                            >{{ product.title }}</a
-                          >
-                        </div>
-                        @if (product.brand || product.model) {
-                          <p class="mt-0.5 text-xs text-fb-text-muted">
-                            {{ product.brand }} {{ product.model }}
-                          </p>
-                        }
-                      </td>
-                    }
-                    @case ('ean') {
-                      <td class="px-3 py-3 font-mono text-xs text-fb-text-secondary">
-                        {{ product.ean || '—' }}
-                      </td>
-                    }
-                    @case ('available') {
-                      <td class="px-3 py-3 text-right font-mono font-bold text-fb-text-primary">
-                        {{
-                          availableStock(product) === null
-                            ? 'Zu prüfen'
-                            : availableStock(product) + ' Stück'
-                        }}
-                      </td>
-                    }
-                    @case ('store') {
-                      <td class="px-4 py-3 text-right">
-                        <span
-                          class="text-xs font-semibold"
-                          [class.text-fb-text-primary]="product.is_public_store"
-                          [class.text-fb-text-muted]="!product.is_public_store"
-                          >{{ product.is_public_store ? 'Öffentlich' : 'Intern' }}</span
-                        >
-                      </td>
-                    }
-                  }
-                }
-              </tr>
-            }
-          </tbody>
-        </table>
+          }
+        </tbody>
+      </table>
     </div>
     <div table-mobile class="space-y-2 p-2 md:hidden">
-        @for (product of filteredProducts(); track product.key) {
-          <article class="rounded-lg border border-fb-line bg-fb-well p-3">
-            <div class="flex items-start justify-between gap-3">
-              <div>
-                <div class="flex items-center gap-2">
-                  <app-product-thumbnail
-                    (imageFailed)="imageFailed(product)"
-                    [src]="imageUrl(product)"
-                  />
-                  <h2 class="min-w-0 text-sm font-semibold">
-                    <a
-                      [routerLink]="product.detailLink"
-                      [queryParams]="{ returnTo: '/catalog' }"
-                      class="break-words text-fb-text-primary hover:underline focus-visible:outline-2 focus-visible:outline-fb-primary"
-                      >{{ product.title }}</a
-                    >
-                  </h2>
-                </div>
-                @if (visibleColumns().includes('ean')) {
-                  <p class="mt-0.5 font-mono text-xs text-fb-text-muted">
-                    EAN {{ product.ean || '—' }}
-                  </p>
-                }
+      @for (product of filteredProducts(); track product.key) {
+        <article class="rounded-lg border border-fb-line bg-fb-well p-3">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <div class="flex items-center gap-2">
+                <app-product-thumbnail
+                  (imageFailed)="imageFailed(product)"
+                  [src]="imageUrl(product)"
+                />
+                <h2 class="min-w-0 text-sm font-semibold">
+                  <a
+                    [routerLink]="product.detailLink"
+                    [queryParams]="{ returnTo: '/catalog' }"
+                    class="break-words text-fb-text-primary hover:underline focus-visible:outline-2 focus-visible:outline-fb-primary"
+                    >{{ product.title }}</a
+                  >
+                </h2>
               </div>
-              @if (visibleColumns().includes('available')) {
-                <span class="font-mono text-xs font-bold text-fb-text-primary">{{
-                  availableStock(product) === null
-                    ? 'Zu prüfen'
-                    : availableStock(product) + ' Stück'
-                }}</span>
+              @if (visibleColumns().includes('ean')) {
+                <p class="mt-0.5 font-mono text-xs text-fb-text-muted">
+                  EAN {{ product.ean || '—' }}
+                </p>
               }
             </div>
-            @if (visibleColumns().includes('store')) {
-              <p class="mt-2 text-xs text-fb-text-secondary">
-                @if (visibleColumns().includes('store')) {
-                  <span>{{ product.is_public_store ? 'Im Webshop' : 'Nur intern' }}</span>
-                }
-              </p>
+            @if (visibleColumns().includes('available')) {
+              <span class="font-mono text-xs font-bold text-fb-text-primary">{{
+                availableStock(product) === null ? 'Zu prüfen' : availableStock(product) + ' Stück'
+              }}</span>
             }
-          </article>
-        }
+          </div>
+          @if (visibleColumns().includes('store')) {
+            <p class="mt-2 text-xs text-fb-text-secondary">
+              @if (visibleColumns().includes('store')) {
+                <span>{{ product.is_public_store ? 'Im Webshop' : 'Nur intern' }}</span>
+              }
+            </p>
+          }
+        </article>
+      }
     </div>
   </app-data-table>
 </div>

@@ -26,6 +26,7 @@
 ### Task 1: Shared DataTableComponent und erkennbare Toolbar-Felder
 
 **Files:**
+
 - Create: `src/app/shared/components/data-table/data-table.component.ts`
 - Create: `src/app/shared/components/data-table/data-table.component.html`
 - Create: `src/app/shared/components/data-table/data-table.component.angular.spec.ts`
@@ -35,6 +36,7 @@
 - Remove after migration: `src/app/shared/components/table-toolbar/table-toolbar.component.html`
 
 **Interfaces:**
+
 - Consumes: `ColumnDefinition<TColumnId>`, `SortFieldOption<TSortField>`, `TableSortState<TSortField>`, `TableColumnMenuComponent`, `CustomSearchInputComponent`.
 - Produces:
   - inputs `ariaLabel: string`, `searchValue: string`, `searchPlaceholder: string`, `searchAriaLabel: string`, `searchEnabled: boolean`, `columns?: readonly ColumnDefinition[]`, `sortOptions?: readonly SortFieldOption[]`, `currentSort?: TableSortState`, `viewModified: boolean`, `loading: boolean`, `errorMessage: string | null`, `hasRows: boolean`, `loadingText: string`, `emptyTitle: string`, `emptyText: string`.
@@ -44,6 +46,7 @@
 - [ ] **Step 1: Write failing Angular tests**
 
 Create tests that render `DataTableComponent` and assert:
+
 - `[data-data-table]` exists.
 - toolbar DOM order is view -> search -> filters -> settings.
 - search emits `searchValueChange`.
@@ -59,47 +62,54 @@ Expected before implementation: component import/file missing.
 Core template structure:
 
 ```html
-<section data-data-table class="linear-surface relative overflow-visible rounded-xl" [attr.aria-label]="ariaLabel()">
-  <div data-data-table-toolbar class="flex min-h-11 flex-wrap items-center gap-1 border-b border-fb-line p-2">
+<section
+  data-data-table
+  class="linear-surface relative overflow-visible rounded-xl"
+  [attr.aria-label]="ariaLabel()"
+>
+  <div
+    data-data-table-toolbar
+    class="flex min-h-11 flex-wrap items-center gap-1 border-b border-fb-line p-2"
+  >
     <ng-content select="[table-view]" />
     @if (searchEnabled()) {
-      <div data-data-table-search class="min-w-44 flex-1">
-        <app-custom-search-input
-          variant="toolbar"
-          size="sm"
-          [value]="searchValue()"
-          [placeholder]="searchPlaceholder()"
-          [ariaLabel]="searchAriaLabel()"
-          (valueChange)="searchValueChange.emit($event)"
-        />
-      </div>
+    <div data-data-table-search class="min-w-44 flex-1">
+      <app-custom-search-input
+        variant="toolbar"
+        size="sm"
+        [value]="searchValue()"
+        [placeholder]="searchPlaceholder()"
+        [ariaLabel]="searchAriaLabel()"
+        (valueChange)="searchValueChange.emit($event)"
+      />
+    </div>
     }
     <ng-content select="[table-filters]" />
     @if (hasSettings()) {
-      <div data-data-table-settings class="ml-auto flex items-center border-l border-fb-line pl-2">
-        <app-table-column-menu
-          [columns]="columns()!"
-          [sortOptions]="sortOptions()!"
-          [currentSort]="currentSort()!"
-          [viewModified]="viewModified()"
-          (columnVisibilityToggled)="columnVisibilityToggled.emit($event)"
-          (columnsReordered)="columnsReordered.emit($event)"
-          (sortChanged)="sortChanged.emit($event)"
-          (viewResetRequested)="viewResetRequested.emit()"
-        />
-      </div>
+    <div data-data-table-settings class="ml-auto flex items-center border-l border-fb-line pl-2">
+      <app-table-column-menu
+        [columns]="columns()!"
+        [sortOptions]="sortOptions()!"
+        [currentSort]="currentSort()!"
+        [viewModified]="viewModified()"
+        (columnVisibilityToggled)="columnVisibilityToggled.emit($event)"
+        (columnsReordered)="columnsReordered.emit($event)"
+        (sortChanged)="sortChanged.emit($event)"
+        (viewResetRequested)="viewResetRequested.emit()"
+      />
+    </div>
     }
   </div>
 
   @if (loading()) {
-    <div data-data-table-loading role="status">...</div>
+  <div data-data-table-loading role="status">...</div>
   } @else if (errorMessage()) {
-    <div data-data-table-error role="alert">...</div>
+  <div data-data-table-error role="alert">...</div>
   } @else if (!hasRows()) {
-    <div data-data-table-empty>...</div>
+  <div data-data-table-empty>...</div>
   } @else {
-    <div data-data-table-content><ng-content select="[table-content]" /></div>
-    <div data-data-table-mobile><ng-content select="[table-mobile]" /></div>
+  <div data-data-table-content><ng-content select="[table-content]" /></div>
+  <div data-data-table-mobile><ng-content select="[table-mobile]" /></div>
   }
 </section>
 ```
@@ -111,13 +121,14 @@ Core template structure:
 Change toolbar search classes from transparent to a quiet neutral resting state:
 
 ```ts
-'w-full rounded-lg border border-fb-border-subtle bg-fb-subtle hover:border-fb-border hover:bg-fb-surface-hover focus:bg-fb-surface focus:border-fb-primary focus:ring-1 focus:ring-fb-primary'
+'w-full rounded-lg border border-fb-border-subtle bg-fb-subtle hover:border-fb-border hover:bg-fb-surface-hover focus:bg-fb-surface focus:border-fb-primary focus:ring-1 focus:ring-fb-primary';
 ```
 
 Change `variant="toolbar"` select trigger equivalently:
 
 ```html
-class="... border border-fb-border-subtle bg-fb-subtle ... hover:border-fb-border hover:bg-fb-surface-hover ..."
+class="... border border-fb-border-subtle bg-fb-subtle ... hover:border-fb-border
+hover:bg-fb-surface-hover ..."
 ```
 
 No new colors.
@@ -125,6 +136,7 @@ No new colors.
 - [ ] **Step 4: Run targeted tests**
 
 Run:
+
 ```bash
 npx vitest run --project=angular src/app/shared/components/data-table/data-table.component.angular.spec.ts src/app/shared/components/table-column-menu/table-column-menu.component.angular.spec.ts
 ```
@@ -143,6 +155,7 @@ git commit -m "feat(ui): add shared data table frame"
 ### Task 2: Ausgaben vollständig auf den Shared-Rahmen und Tabellenpräferenzen umstellen
 
 **Files:**
+
 - Modify: `src/app/core/config/table-defaults.config.ts`
 - Modify: `src/app/core/models/table-preferences.models.ts`
 - Modify: `src/app/core/services/table-preferences.service.ts`
@@ -151,6 +164,7 @@ git commit -m "feat(ui): add shared data table frame"
 - Modify: `src/app/features/expenses/expenses.component.angular.spec.ts`
 
 **Interfaces:**
+
 - Produces table id `expenses`.
 - Produces `ExpensesColumnId` and `ExpensesSortField`.
 - Consumes `DataTableComponent`.
@@ -158,6 +172,7 @@ git commit -m "feat(ui): add shared data table frame"
 - [ ] **Step 1: Write failing expense table tests**
 
 Assert that:
+
 - normal expenses render inside `app-data-table`,
 - toolbar search placeholder is `Ausgaben durchsuchen`,
 - status and category filters occupy `[table-filters]`,
@@ -193,16 +208,18 @@ Add `'expenses'` to `TableId` and registry.
 - [ ] **Step 3: Move expense state to table preferences**
 
 Inject `TablePreferencesService` and `WorkspaceService`. Add:
+
 - `expensesTableConfig`
 - `tablePrefs`
 - `orderedVisibleColumns`
 - `viewModified`
 - handlers matching purchases/catalog.
-Sort after filtering using the selected sort.
+  Sort after filtering using the selected sort.
 
 - [ ] **Step 4: Replace local filter/card wrapper with DataTableComponent**
 
 Use:
+
 - status as `table-view` or first filter depending on final visual fit,
 - search through shared search input owned by DataTable,
 - category and remaining status control as `table-filters`,
@@ -232,6 +249,7 @@ git commit -m "refactor(ui): move expenses to shared data table"
 ### Task 3: Artikelübersicht, Bestand und Artikelnavigation vereinheitlichen
 
 **Files:**
+
 - Modify: `src/app/core/config/workspace-navigation.ts`
 - Modify: `src/app/core/config/article-navigation.ts`
 - Modify: `src/app/core/config/article-navigation.spec.ts`
@@ -243,12 +261,14 @@ git commit -m "refactor(ui): move expenses to shared data table"
 - Modify relevant Angular specs.
 
 **Interfaces:**
+
 - Sidebar parent `/catalog` exposes children `/catalog` label `Alle Artikel` and `/inventory` label `Bestand`.
 - Catalog and inventory consume `DataTableComponent`.
 
 - [ ] **Step 1: Write failing navigation tests**
 
 Assert:
+
 - Article overview navigation item has two children.
 - `/catalog` activates child `Alle Artikel`.
 - `/inventory` activates parent and child `Bestand`.
@@ -286,6 +306,7 @@ git commit -m "refactor(ui): unify article tables and navigation"
 ### Task 4: Hauptlisten auf DataTableComponent migrieren
 
 **Files:**
+
 - Modify: `src/app/features/purchases/purchases.component.html`
 - Modify: `src/app/features/purchases/purchases.component.ts`
 - Modify: `src/app/features/sales/sales.component.html`
@@ -298,6 +319,7 @@ git commit -m "refactor(ui): unify article tables and navigation"
 - Modify: corresponding Angular specs.
 
 **Interfaces:**
+
 - All consume `DataTableComponent`.
 - Existing feature signals/handlers remain the source of data and filters.
 
@@ -313,18 +335,20 @@ Keep status, seller and search behavior unchanged.
 - [ ] **Step 3: Migrate sales**
 
 Replace custom tab/search/settings toolbar with:
+
 - platform/return tabs in `table-view`,
 - shared search,
 - settings owned by DataTable.
-Keep mobile sales rendering unchanged under `table-mobile`.
+  Keep mobile sales rendering unchanged under `table-mobile`.
 
 - [ ] **Step 4: Migrate sellers**
 
 Use DataTable with:
+
 - seller type in `table-view`,
 - `searchEnabled=false` unless a real seller search is added as part of the existing behavior,
 - archived visibility as `table-filters`.
-No fake search is introduced.
+  No fake search is introduced.
 
 - [ ] **Step 5: Migrate accounting bank transaction list**
 
@@ -352,11 +376,13 @@ git commit -m "refactor(ui): migrate core lists to shared data table"
 ### Task 5: Weitere verwaltbare Admin-Listen migrieren
 
 **Files:**
+
 - Modify as found: `src/app/features/platform-admin/pages/sniper-queries/*`
 - Modify as found: other admin feature templates containing managed `linear-table` lists.
 - Tests: matching Angular specs.
 
 **Interfaces:**
+
 - Same DataTable contract as Task 4.
 
 - [ ] **Step 1: Inventory current admin table usage**
@@ -368,6 +394,7 @@ rg -n '<table|linear-table|app-table-toolbar|app-table-column-menu|type="search"
 ```
 
 Classify every hit:
+
 - managed list -> migrate,
 - static report/detail/preview/print -> documented exception.
 
@@ -395,10 +422,12 @@ git commit -m "refactor(ui): migrate remaining admin lists"
 ### Task 6: Architekturprüfung für den Tabellenstandard verschärfen
 
 **Files:**
+
 - Modify: `scripts/check-admin-shared-ui.mjs`
 - Modify: `scripts/check-admin-shared-ui.test.mjs`
 
 **Interfaces:**
+
 - Produces rules:
   - `direct-table-column-menu`
   - `local-managed-table-toolbar`
@@ -413,13 +442,17 @@ Add fixtures proving rejection of:
 <app-table-column-menu />
 <input type="search" />
 <div class="border-b ..."><app-custom-search-input /></div>
-<section><table class="linear-table">...</table></section>
+<section>
+  <table class="linear-table">
+    ...
+  </table>
+</section>
 ```
 
 Allow explicit static exceptions only with a narrow marker:
 
 ```html
-<table class="linear-table" data-shared-ui-exception="static-table">
+<table class="linear-table" data-shared-ui-exception="static-table"></table>
 ```
 
 The marker is valid for preview/report/detail/print tables only; it never exempts a whole directory.
@@ -456,12 +489,14 @@ git commit -m "test(ui): enforce shared data table usage"
 ### Task 7: Abschluss, Dokumentation und Vollprüfung
 
 **Files:**
+
 - Modify: `docs/design/admin-ui-guidelines.md`
 - Modify: `docs/AI-CHANGELOG.md`
 
 - [ ] **Step 1: Document the mandatory table contract**
 
 Add a concise rule:
+
 - managed admin list = `DataTableComponent`,
 - fixed toolbar order,
 - no direct feature-level column menu,
@@ -508,6 +543,7 @@ git commit -m "docs(ui): document shared data table standard"
 - [ ] **Step 7: Final branch review**
 
 Compare branch against master and confirm:
+
 - no feature template directly renders `app-table-column-menu`,
 - no managed list uses a local toolbar,
 - no duplicate article section navigation remains,

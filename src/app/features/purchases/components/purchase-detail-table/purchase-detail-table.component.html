@@ -1,6 +1,10 @@
 @if (rows().length > 0) {
   <div data-purchase-detail-table class="overflow-x-auto">
-    <table data-shared-ui-exception="static-table" [style.min-width.px]="260 + (visibleColumns().length - 1) * 105" class="linear-table">
+    <table
+      data-shared-ui-exception="static-table"
+      [style.min-width.px]="260 + (visibleColumns().length - 1) * 105"
+      class="linear-table"
+    >
       <caption class="sr-only">
         Artikel dieses Einkaufs
       </caption>

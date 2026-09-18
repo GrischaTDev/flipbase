@@ -101,9 +101,7 @@
                 <th scope="col" class="border-b border-fb-line px-3 py-2.5 text-left">Verkauf</th>
               }
               @case ('actions') {
-                <th scope="col" class="border-b border-fb-line px-3 py-2.5 text-right">
-                  Aktionen
-                </th>
+                <th scope="col" class="border-b border-fb-line px-3 py-2.5 text-right">Aktionen</th>
               }
             }
           }
@@ -157,8 +155,7 @@
                           >{{ row.title }}</a
                         >
                         @if (
-                          row.quantityState === 'review_required' ||
-                          row.status.kind === 'conflict'
+                          row.quantityState === 'review_required' || row.status.kind === 'conflict'
                         ) {
                           <div>
                             <app-badge
@@ -178,9 +175,7 @@
                         }
                         @if (row.originState === 'error' || row.salesState === 'error') {
                           <div>
-                            <app-badge tone="caution"
-                              >Belege nicht vollständig verfügbar</app-badge
-                            >
+                            <app-badge tone="caution">Belege nicht vollständig verfügbar</app-badge>
                           </div>
                         }
                         <div>
@@ -320,11 +315,7 @@
                           class="cursor-pointer rounded-lg p-1.5 text-fb-text-muted transition hover:bg-fb-line hover:text-fb-text-primary"
                           [attr.aria-label]="'Etikett für ' + row.title + ' drucken'"
                         >
-                          <svg
-                            [lucideIcon]="printerIcon"
-                            class="h-4 w-4"
-                            aria-hidden="true"
-                          ></svg>
+                          <svg [lucideIcon]="printerIcon" class="h-4 w-4" aria-hidden="true"></svg>
                         </button>
                         <a
                           data-item-details
@@ -454,179 +445,179 @@
 }
 
 @if (movementRows().length > 0) {
-<div class="mt-4">
-  <app-button
-    variant="plain"
-    [ariaExpanded]="showMovements()"
-    ariaControls="inventory-movements"
-    (clicked)="showMovements.set(!showMovements())"
-    >Bestandsbewegungen</app-button
-  >
-</div>
-@if (showMovements()) {
-  <section
-    id="inventory-movements"
-    data-stock-movement-history
-    aria-labelledby="stock-movement-history-title"
-    class="linear-surface mt-4 overflow-hidden rounded-xl"
-  >
-    <div class="border-b border-fb-line px-4 py-3">
-      <h2 id="stock-movement-history-title" class="text-sm font-semibold text-fb-text-primary">
-        Bestandsbewegungen
-      </h2>
-    </div>
-    <div class="overflow-x-auto">
-      <table class="linear-table w-full" data-shared-ui-exception="static-table">
-        <caption class="sr-only">
-          vollständige Bewegungshistorie aller Wareneingänge
-        </caption>
-        <thead class="bg-fb-surface text-[13px] text-fb-text-secondary">
-          <tr>
-            <th scope="col" class="px-3 py-2 text-left">Datum</th>
-            <th scope="col" class="px-3 py-2 text-left">Artikel</th>
-            <th scope="col" class="px-3 py-2 text-left">Vorgang</th>
-            <th scope="col" class="px-3 py-2 text-right">Menge</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-fb-line">
-          @for (movement of movementRows(); track movement.id) {
+  <div class="mt-4">
+    <app-button
+      variant="plain"
+      [ariaExpanded]="showMovements()"
+      ariaControls="inventory-movements"
+      (clicked)="showMovements.set(!showMovements())"
+      >Bestandsbewegungen</app-button
+    >
+  </div>
+  @if (showMovements()) {
+    <section
+      id="inventory-movements"
+      data-stock-movement-history
+      aria-labelledby="stock-movement-history-title"
+      class="linear-surface mt-4 overflow-hidden rounded-xl"
+    >
+      <div class="border-b border-fb-line px-4 py-3">
+        <h2 id="stock-movement-history-title" class="text-sm font-semibold text-fb-text-primary">
+          Bestandsbewegungen
+        </h2>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="linear-table w-full" data-shared-ui-exception="static-table">
+          <caption class="sr-only">
+            vollständige Bewegungshistorie aller Wareneingänge
+          </caption>
+          <thead class="bg-fb-surface text-[13px] text-fb-text-secondary">
             <tr>
-              <td class="px-3 py-2 text-xs text-fb-text-muted">
-                {{ movement.created_at | date: 'dd.MM.yyyy HH:mm' }}
-              </td>
-              <td class="px-3 py-2 text-xs font-semibold text-fb-text-primary">
-                {{ movement.title }}
-              </td>
-              <td class="px-3 py-2 text-xs text-fb-text-secondary">
-                {{ movementReason(movement.reason) }}
-              </td>
-              <td class="px-3 py-2 text-right font-mono text-xs">
-                {{ movement.direction === 'in' ? '+' : '−' }}{{ movement.quantity }}
-              </td>
+              <th scope="col" class="px-3 py-2 text-left">Datum</th>
+              <th scope="col" class="px-3 py-2 text-left">Artikel</th>
+              <th scope="col" class="px-3 py-2 text-left">Vorgang</th>
+              <th scope="col" class="px-3 py-2 text-right">Menge</th>
             </tr>
-          }
-        </tbody>
-      </table>
-    </div>
-  </section>
-}
+          </thead>
+          <tbody class="divide-y divide-fb-line">
+            @for (movement of movementRows(); track movement.id) {
+              <tr>
+                <td class="px-3 py-2 text-xs text-fb-text-muted">
+                  {{ movement.created_at | date: 'dd.MM.yyyy HH:mm' }}
+                </td>
+                <td class="px-3 py-2 text-xs font-semibold text-fb-text-primary">
+                  {{ movement.title }}
+                </td>
+                <td class="px-3 py-2 text-xs text-fb-text-secondary">
+                  {{ movementReason(movement.reason) }}
+                </td>
+                <td class="px-3 py-2 text-right font-mono text-xs">
+                  {{ movement.direction === 'in' ? '+' : '−' }}{{ movement.quantity }}
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+  }
 }
 
 <ng-template #statusDetails let-row>
-@if (row.status.kind === 'editable' && row.inventoryItem; as item) {
-  <div data-item-status>
-    <app-custom-select
-      [ariaLabel]="'Status für ' + row.title"
-      size="sm"
-      variant="pill"
-      [options]="statusOptions"
-      [value]="item.status"
-      (valueChange)="emitStatusChange(item, $event)"
-    />
-  </div>
-} @else {
-  <app-badge
-    data-item-status-badge
-    [attr.data-sold-badge]="row.status.kind === 'sold' ? '' : null"
-    [attr.data-integrity-conflict]="row.status.kind === 'conflict' ? '' : null"
-    [tone]="
-      row.status.kind === 'conflict'
-        ? 'critical'
-        : row.status.kind === 'review'
-          ? 'caution'
-          : 'neutral'
-    "
-    >{{ row.status.label }}</app-badge
-  >
-}
-@if (row.inventoryItem?.sale_state === 'legacy_sold_unverified') {
-  <div class="mt-2 w-64 space-y-2">
-    <div class="flex flex-wrap gap-1.5">
-      <button
-        data-restore-stock
-        type="button"
-        (click)="emitRestoreLegacy(row.inventoryItem!)"
-        class="linear-btn-secondary cursor-pointer rounded-lg px-2 py-1 text-xs font-semibold"
-      >
-        Artikel ist noch vorhanden
-      </button>
-      <button
-        data-reconcile-sale
-        type="button"
-        (click)="reconcileSale.emit(row.inventoryItem!)"
-        class="linear-btn-secondary cursor-pointer rounded-lg px-2 py-1 text-xs font-semibold"
-      >
-        Verkauf nachtragen
-      </button>
+  @if (row.status.kind === 'editable' && row.inventoryItem; as item) {
+    <div data-item-status>
+      <app-custom-select
+        [ariaLabel]="'Status für ' + row.title"
+        size="sm"
+        variant="pill"
+        [options]="statusOptions"
+        [value]="item.status"
+        (valueChange)="emitStatusChange(item, $event)"
+      />
     </div>
-  </div>
-}
+  } @else {
+    <app-badge
+      data-item-status-badge
+      [attr.data-sold-badge]="row.status.kind === 'sold' ? '' : null"
+      [attr.data-integrity-conflict]="row.status.kind === 'conflict' ? '' : null"
+      [tone]="
+        row.status.kind === 'conflict'
+          ? 'critical'
+          : row.status.kind === 'review'
+            ? 'caution'
+            : 'neutral'
+      "
+      >{{ row.status.label }}</app-badge
+    >
+  }
+  @if (row.inventoryItem?.sale_state === 'legacy_sold_unverified') {
+    <div class="mt-2 w-64 space-y-2">
+      <div class="flex flex-wrap gap-1.5">
+        <button
+          data-restore-stock
+          type="button"
+          (click)="emitRestoreLegacy(row.inventoryItem!)"
+          class="linear-btn-secondary cursor-pointer rounded-lg px-2 py-1 text-xs font-semibold"
+        >
+          Artikel ist noch vorhanden
+        </button>
+        <button
+          data-reconcile-sale
+          type="button"
+          (click)="reconcileSale.emit(row.inventoryItem!)"
+          class="linear-btn-secondary cursor-pointer rounded-lg px-2 py-1 text-xs font-semibold"
+        >
+          Verkauf nachtragen
+        </button>
+      </div>
+    </div>
+  }
 </ng-template>
 
 <ng-template #originDetails let-row>
-@switch (row.originState) {
-  @case ('known') {
-    @for (origin of row.origins; track origin.purchaseId) {
-      <a
-        data-inventory-origin-link
-        [routerLink]="origin.link"
-        class="block font-semibold text-fb-text-primary hover:underline"
-        >{{ origin.label }}</a
-      >
+  @switch (row.originState) {
+    @case ('known') {
+      @for (origin of row.origins; track origin.purchaseId) {
+        <a
+          data-inventory-origin-link
+          [routerLink]="origin.link"
+          class="block font-semibold text-fb-text-primary hover:underline"
+          >{{ origin.label }}</a
+        >
+      }
+    }
+    @case ('loading') {
+      <span class="text-fb-text-muted" role="status">Herkunft wird geladen…</span>
+    }
+    @case ('error') {
+      <span class="font-semibold text-rose-300">Herkunft nicht verfügbar</span>
+    }
+    @case ('not_linked') {
+      <span class="text-fb-text-muted">Nicht verknüpft</span>
     }
   }
-  @case ('loading') {
-    <span class="text-fb-text-muted" role="status">Herkunft wird geladen…</span>
-  }
-  @case ('error') {
-    <span class="font-semibold text-rose-300">Herkunft nicht verfügbar</span>
-  }
-  @case ('not_linked') {
-    <span class="text-fb-text-muted">Nicht verknüpft</span>
-  }
-}
 </ng-template>
 
 <ng-template #unit_costDetails let-row>
-<app-cost-state [state]="row.costPerUnit" />
+  <app-cost-state [state]="row.costPerUnit" />
 </ng-template>
 
 <ng-template #inventory_valueDetails let-row>
-<app-cost-state [state]="row.inventoryValue" />
+  <app-cost-state [state]="row.inventoryValue" />
 </ng-template>
 
 <ng-template #saleDetails let-row>
-@switch (row.salesState) {
-  @case ('loading') {
-    <span class="text-fb-text-muted" role="status">Verkäufe werden geladen…</span>
-  }
-  @case ('error') {
-    <span class="text-rose-300">Verkäufe nicht verfügbar</span>
-  }
-  @case ('known') {
-    @for (sale of row.sales; track sale.id) {
-      <div data-inventory-sale class="mb-2 last:mb-0">
-        <a
-          data-inventory-sale-link
-          [routerLink]="['/sales']"
-          [queryParams]="{ saleId: sale.id }"
-          class="font-semibold text-fb-text-primary hover:underline"
-          >{{ sale.saleDate | date: 'dd.MM.yyyy' }} · {{ sale.revenueLabel }}
-          {{ sale.revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}</a
-        >
-        <p class="text-xs text-fb-text-muted">
-          {{ sale.stateLabel }}
-          @if (sale.directResult !== null) {
-            · Ergebnis
-            {{ sale.directResult | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-          } @else if (sale.showResultInSale) {
-            · Ergebnis im Verkauf ansehen
-          }
-        </p>
-      </div>
-    } @empty {
-      <span class="text-fb-text-muted">—</span>
+  @switch (row.salesState) {
+    @case ('loading') {
+      <span class="text-fb-text-muted" role="status">Verkäufe werden geladen…</span>
+    }
+    @case ('error') {
+      <span class="text-rose-300">Verkäufe nicht verfügbar</span>
+    }
+    @case ('known') {
+      @for (sale of row.sales; track sale.id) {
+        <div data-inventory-sale class="mb-2 last:mb-0">
+          <a
+            data-inventory-sale-link
+            [routerLink]="['/sales']"
+            [queryParams]="{ saleId: sale.id }"
+            class="font-semibold text-fb-text-primary hover:underline"
+            >{{ sale.saleDate | date: 'dd.MM.yyyy' }} · {{ sale.revenueLabel }}
+            {{ sale.revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}</a
+          >
+          <p class="text-xs text-fb-text-muted">
+            {{ sale.stateLabel }}
+            @if (sale.directResult !== null) {
+              · Ergebnis
+              {{ sale.directResult | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+            } @else if (sale.showResultInSale) {
+              · Ergebnis im Verkauf ansehen
+            }
+          </p>
+        </div>
+      } @empty {
+        <span class="text-fb-text-muted">—</span>
+      }
     }
   }
-}
 </ng-template>

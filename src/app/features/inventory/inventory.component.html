@@ -63,7 +63,12 @@
     (sortChanged)="onSortChanged($event)"
     (viewResetRequested)="resetView()"
   >
-    <div table-view class="flex items-center gap-1 overflow-x-auto" role="group" aria-label="Bestandsansicht">
+    <div
+      table-view
+      class="flex items-center gap-1 overflow-x-auto"
+      role="group"
+      aria-label="Bestandsansicht"
+    >
       @for (view of stockViews; track view.value) {
         <app-button
           size="slim"
@@ -156,7 +161,12 @@
       </div>
     </div>
 
-    <app-button table-error-action variant="secondary" size="slim" (clicked)="reloadInventorySources()">
+    <app-button
+      table-error-action
+      variant="secondary"
+      size="slim"
+      (clicked)="reloadInventorySources()"
+    >
       Erneut laden
     </app-button>
 

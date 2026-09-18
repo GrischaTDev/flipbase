@@ -45,7 +45,9 @@
     [hasRows]="filteredApplications().length > 0"
     loadingText="Bewerbungen werden geladen …"
     [emptyTitle]="
-      applications().length === 0 ? 'Es liegt noch keine Bewerbung vor.' : 'Keine Bewerbung gefunden.'
+      applications().length === 0
+        ? 'Es liegt noch keine Bewerbung vor.'
+        : 'Keine Bewerbung gefunden.'
     "
     emptyText="Passe Suche oder Statusfilter an."
     (searchValueChange)="searchQuery.set($event)"
@@ -74,7 +76,9 @@
 
     <div table-content class="overflow-x-auto">
       <table data-beta-applications-table class="linear-table min-w-[900px]">
-        <caption class="sr-only">Bewerbungen für die Beta-Phase</caption>
+        <caption class="sr-only">
+          Bewerbungen für die Beta-Phase
+        </caption>
         <thead>
           <tr>
             @for (column of orderedVisibleColumns(); track column.id) {
@@ -161,7 +165,9 @@
                   }
                   @case ('granted_days') {
                     <td class="text-right font-mono">
-                      {{ application.grantedDays === null ? '—' : application.grantedDays + ' Tage' }}
+                      {{
+                        application.grantedDays === null ? '—' : application.grantedDays + ' Tage'
+                      }}
                     </td>
                   }
                   @case ('decision_note') {

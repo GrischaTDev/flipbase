@@ -22,10 +22,7 @@ import { PurchaseService } from '../../core/services/purchase.service';
 import { MediaService } from '../../core/services/media.service';
 import { buildCatalogOverview, CatalogOverviewRow } from './utils/catalog-overview';
 import { CatalogViewStateService } from './services/catalog-view-state.service';
-import {
-  LucidePlus as Plus,
-  LucideBookOpen as BookOpen,
-} from '@lucide/angular';
+import { LucidePlus as Plus, LucideBookOpen as BookOpen } from '@lucide/angular';
 import { CatalogService } from '../../core/services/catalog.service';
 import { StockService } from '../../core/services/stock.service';
 import { WorkspaceService } from '../../core/services/workspace.service';

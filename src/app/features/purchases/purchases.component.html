@@ -86,7 +86,9 @@
 
     <div table-content class="overflow-x-auto">
       <table data-purchase-table class="linear-table min-w-[760px]">
-        <caption class="sr-only">Einkaufstabelle</caption>
+        <caption class="sr-only">
+          Einkaufstabelle
+        </caption>
         <thead>
           <tr>
             @for (column of orderedVisibleColumns(); track column.id) {
@@ -121,7 +123,11 @@
                   <th scope="col">Status</th>
                 }
                 @case ('total_cost') {
-                  <th scope="col" class="min-w-28 text-right" [attr.aria-sort]="ariaSort('total_cost')">
+                  <th
+                    scope="col"
+                    class="min-w-28 text-right"
+                    [attr.aria-sort]="ariaSort('total_cost')"
+                  >
                     <app-table-sort-header
                       label="Gesamt"
                       sortField="total_cost"
@@ -167,10 +173,18 @@
                     <td>{{ row.supplierLabel }}</td>
                   }
                   @case ('purchase_date') {
-                    <td><time [attr.datetime]="row.purchaseDate">{{ row.purchaseDate | date: 'dd.MM.yyyy' }}</time></td>
+                    <td>
+                      <time [attr.datetime]="row.purchaseDate">{{
+                        row.purchaseDate | date: 'dd.MM.yyyy'
+                      }}</time>
+                    </td>
                   }
                   @case ('status') {
-                    <td><app-badge [tone]="row.purchaseStatusTone">{{ row.purchaseStatus }}</app-badge></td>
+                    <td>
+                      <app-badge [tone]="row.purchaseStatusTone">{{
+                        row.purchaseStatus
+                      }}</app-badge>
+                    </td>
                   }
                   @case ('total_cost') {
                     <td class="min-w-28 text-right font-mono font-semibold tabular-nums">

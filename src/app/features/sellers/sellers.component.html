@@ -27,7 +27,9 @@
     [loading]="suppliersService.isLoading()"
     [hasRows]="filteredSellers().length > 0"
     [emptyTitle]="
-      suppliersService.suppliers().length === 0 ? 'Noch keine Verkäufer' : 'Keine passenden Verkäufer'
+      suppliersService.suppliers().length === 0
+        ? 'Noch keine Verkäufer'
+        : 'Keine passenden Verkäufer'
     "
     [emptyText]="
       suppliersService.suppliers().length === 0
@@ -59,7 +61,9 @@
 
     <div table-content class="overflow-x-auto">
       <table class="linear-table min-w-[900px]">
-        <caption class="sr-only">Gespeicherte Verkäufer</caption>
+        <caption class="sr-only">
+          Gespeicherte Verkäufer
+        </caption>
         <thead>
           <tr>
             <th scope="col">Name / Firma</th>
@@ -107,7 +111,8 @@
                     size="slim"
                     [icon]="seller.is_active === false ? restoreIcon : archiveIcon"
                     [ariaLabel]="
-                      seller.name + (seller.is_active === false ? ' wiederherstellen' : ' archivieren')
+                      seller.name +
+                      (seller.is_active === false ? ' wiederherstellen' : ' archivieren')
                     "
                     (clicked)="setArchived(seller, seller.is_active !== false)"
                   />
@@ -119,7 +124,13 @@
       </table>
     </div>
 
-    <app-button table-empty-action class="mt-4" variant="primary" [icon]="plusIcon" (clicked)="openCreateDialog()">
+    <app-button
+      table-empty-action
+      class="mt-4"
+      variant="primary"
+      [icon]="plusIcon"
+      (clicked)="openCreateDialog()"
+    >
       Verkäufer erstellen
     </app-button>
   </app-data-table>

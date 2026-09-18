@@ -34,10 +34,7 @@ import {
 import { CostStateComponent } from '../../../../shared/components/cost-state/cost-state.component';
 import { ItemConditionLabelPipe } from '../../../../shared/pipes/item-condition-label.pipe';
 import { TableSortHeaderComponent } from '../../../../shared/components/table-sort-header/table-sort-header.component';
-import {
-  ColumnDefinition,
-  TableSortState,
-} from '../../../../core/models/table-preferences.models';
+import { ColumnDefinition, TableSortState } from '../../../../core/models/table-preferences.models';
 import type { InventoryPresentationRow } from '../../models/inventory-presentation.models';
 import { editableItemStatusOptions } from '../../models/item-status-options';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
