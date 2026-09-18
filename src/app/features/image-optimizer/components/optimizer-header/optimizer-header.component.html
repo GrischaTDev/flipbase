@@ -31,12 +31,7 @@
       class="sr-only"
       (change)="onFileInput($event.target)"
     />
-    <app-button
-      variant="primary"
-      size="lg"
-      [disabled]="disabled()"
-      (clicked)="fileInput.click()"
-    >
+    <app-button variant="primary" size="lg" [disabled]="disabled()" (clicked)="fileInput.click()">
       Bilder hinzufügen
     </app-button>
   </div>
