@@ -92,6 +92,12 @@ ng serve
 
 Die Anwendung ist im Browser unter `http://localhost:4200/` erreichbar.
 
+### Lokales Testkonto
+
+Nach `npx supabase db reset` gibt es lokal das Konto `test@flipbase.local` mit dem
+Passwort `flipbase-test` und einigen Beispieldaten. Es existiert nur in der lokalen
+Datenbank.
+
 ### Unit Tests ausführen
 
 ```bash

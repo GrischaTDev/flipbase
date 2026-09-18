@@ -12,7 +12,7 @@ keine fachfremden Frontend-Testjobs und keinen zusätzlichen Frontend-PR-Build.
 
 Der allgemeine Chromium-Pflichtlauf prüft sechs Arbeitsabläufe:
 
-1. Demo starten und die zentralen Arbeitsbereiche über die Navigation öffnen.
+1. Anmelden und die zentralen Arbeitsbereiche über die Navigation öffnen.
 2. Artikel mit einem Bild speichern und nach Neuladen wieder öffnen.
 3. Einkaufsentwurf bearbeiten, Änderungen verwerfen und speichern.
 4. Kostenherkunft nach erneutem Öffnen erhalten.
@@ -25,9 +25,11 @@ Das historische Kennzeichen `@pr-smoke` bezeichnet den bestehenden erweiterten
 Regressionstestbestand und macht neue Fälle nicht automatisch zur PR-Pflicht.
 Die Auswahlliste steht direkt in `playwright.pr.config.ts`.
 
-Die Browserfälle verwenden Demo-Daten oder Mocks. Sie beweisen weder eine echte
-Backend-Anmeldung noch die serverseitige Mandantentrennung. Die bestehenden
-Datenbank-, Berechtigungs-, Migrations- und fachlichen Tests werden nicht ersetzt.
+Die Browser-Tests laufen gegen die lokale Supabase (`npx supabase start`). Ein globales
+Setup registriert je Lauf ein Testkonto, jeder Test bekommt einen frischen Workspace.
+Testdaten entstehen über die echten Datenbankfunktionen (`e2e/support/sample-data.ts`).
+Die bestehenden Datenbank-, Berechtigungs-, Migrations- und fachlichen Tests werden
+dadurch nicht ersetzt.
 
 ## Gezielte Prüfung einer Änderung
 

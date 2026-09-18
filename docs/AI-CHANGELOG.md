@@ -9,6 +9,42 @@ Die vollständige bisherige Historie ist im
 bytegleich erhalten. Das Archiv liegt im selben Ordner, damit seine relativen
 Dateiverweise weiterhin denselben Ausgangspunkt haben.
 
+## 2026-09-18 – Claude Opus 5 (Anthropic) – Demo-Modus entfernen, PR 1: Browser-Tests auf lokale Supabase
+
+**Auftrag:** Umsetzung von PR 1 aus dem Entwurf unten. Die Browser-Tests sollen gegen
+die lokale Supabase laufen statt gegen Demo-Daten, damit der Demo-Code danach in PR 2
+gefahrlos entfernt werden kann. Sechs Aufgaben aus
+`docs/superpowers/plans/2026-09-18-remove-demo-mode-pr-1.md`.
+
+**Änderung:** Ein globales Setup meldet je Testlauf genau ein Konto einmal an; alle
+Worker teilen sich die Sitzung als `storageState`. Eine automatische Fixture in
+`e2e/support/fixtures.ts` legt für jeden Test einen frischen Workspace an und
+wechselt per `addInitScript` dorthin. Testdaten entstehen über die echten
+Datenbankfunktionen in `e2e/support/sample-data.ts`, nicht über Mocks. Die sechs
+Pflichttests des Chromium-Laufs sind auf dieses Muster umgestellt; der Steuertest
+verkürzt sich auf die Journalprüfung, weil die Exportsperre bereits der
+Angular-Test `accounting-tax-review.angular.spec.ts` abdeckt. Der Browser-Job in der
+CI startet jetzt die lokale Supabase, ein neuer Workflow-Test sichert die Trennung
+der Testkonten ab (Seed-Isolation). `supabase/seed.sql` legt lokal das Konto
+`test@flipbase.local` / `flipbase-test` mit Beispieldaten an. Von den übrigen
+Browser-Tests wurden alle fest an Demo-Daten hängenden Fälle gelöscht statt
+umgestellt: 29 Fälle in 15 Dateien, davon vier Dateien vollständig entfernt
+(`badge-text`, `purchase-item-navigation`, `purchase-package-contents`,
+`record-timeline`). Die vollständige Liste steht im Commit `ebee08c`.
+
+**Befunde:** `deal-monitor.spec.ts` schlägt schon auf dem Ausgangsstand des Zweigs
+fehl (zwei Fälle, Workspacewechsel in der Erfassungsmaske gesperrt) - kein neuer
+Fehler durch diese Arbeit. Das Kalender-Popover bei 390px öffnet sich manchmal nicht
+beim ersten Tastendruck; der Test wiederholt das über `toPass`, ein App-Fehler zum
+Nachverfolgen. Die Buchhaltungsseite startet fest auf 2026/08
+(`accounting.component.ts:172-173`) statt auf dem aktuellen Monat.
+
+**Prüfung:** `npm run test:db` (1812 Tests in 50 Dateien) mit Exitcode 0. `npm run
+verify` (Format, Lint, Typen, Workflow-Tests, Suite-Audit, alle Anwendungstests, Bau)
+mit Exitcode 0. `npx playwright test --project=chromium`: 74 von 76 Fällen bestanden;
+die zwei Fehlschläge sind die oben genannten vorbestehenden Fälle in
+`deal-monitor.spec.ts`. `grep -rn "startDemoMode|support/demo" e2e` ohne Treffer.
+
 ## 2026-09-18 – Claude Opus 5 (Anthropic) – Entwurf: Demo-Modus entfernen
 
 **Auftrag:** Der Nutzer will den Demo-Modus komplett entfernen, weil jede Funktion
