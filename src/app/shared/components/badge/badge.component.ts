@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 
-export type BadgeTone = 'neutral' | 'brand' | 'info' | 'success' | 'caution' | 'critical';
+export type BadgeTone = 'neutral' | 'brand' | 'admin' | 'info' | 'success' | 'caution' | 'critical';
 export type BadgeSize = 'sm' | 'md';
 
 @Component({
@@ -29,7 +29,9 @@ export class BadgeComponent {
     const toneClasses: Record<BadgeTone, string> = {
       neutral:
         'bg-fb-status-neutral-surface text-fb-status-neutral border-fb-status-neutral-border',
-      brand: 'bg-fb-brand-surface text-fb-brand border-fb-brand-border',
+      brand:
+        'bg-fb-brand-badge-surface text-fb-brand-badge border-fb-brand-badge-border',
+      admin: 'bg-fb-admin-surface text-fb-admin border-fb-admin-border',
       info: 'bg-fb-info-surface text-fb-info border-fb-info-border',
       success: 'bg-fb-success-surface text-fb-success border-fb-success-border',
       caution: 'bg-fb-warning-surface text-fb-warning border-fb-warning-border',
