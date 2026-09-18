@@ -94,6 +94,12 @@ test('keeps per-item tax visible in the tax journal @pr-smoke', async ({ page, w
   await expect(
     page.getByRole('heading', { name: 'Finanzen, Steuern & Bankabgleich' }),
   ).toBeVisible();
+  // Zeitraum bewusst über die Oberfläche setzen statt sich auf den Startwert der
+  // Komponente zu verlassen (der ändert sich unabhängig von diesem Test).
+  await page.getByRole('combobox', { name: 'Steuerjahr', exact: true }).click();
+  await page.getByRole('option', { name: '2026', exact: true }).click();
+  await page.getByRole('combobox', { name: 'Besteuerungszeitraum', exact: true }).click();
+  await page.getByRole('option', { name: 'August (08)', exact: true }).click();
   const journal = page.getByRole('table', { name: 'Steuerjournal' });
   await expect(journal.getByRole('row').filter({ hasText: 'Steuerstück A' })).toContainText('3,19');
   await expect(journal.getByRole('row').filter({ hasText: 'Steuerstück B' })).toContainText('0,00');
