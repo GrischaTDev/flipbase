@@ -45,7 +45,9 @@ export class ShellComponent {
   private readonly mockStore = inject(MockDataStoreService);
   private readonly router = inject(Router);
   private readonly navigationEnd = toSignal(
-    this.router.events.pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd)),
+    this.router.events.pipe(
+      filter((event): event is NavigationEnd => event instanceof NavigationEnd),
+    ),
     { initialValue: null },
   );
 
