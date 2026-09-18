@@ -1,9 +1,5 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
-import {
-  Expense,
-  ExpenseCreateInput,
-  ExpenseUpdateInput,
-} from '../models/expense.models';
+import { Expense, ExpenseCreateInput, ExpenseUpdateInput } from '../models/expense.models';
 import { AuthService } from './auth.service';
 import { MockDataStoreService } from './mock-data-store.service';
 import { SupabaseService } from './supabase.service';
@@ -124,7 +120,7 @@ export class ExpenseService {
   }
 
   async remove(id: string): Promise<{ readonly error: Error | null }> {
-    const result = await this.persistUpdate(id, { deleted_at: new Date().toISOString() } as never);
+    const result = await this.persistUpdate(id, { deleted_at: new Date().toISOString() });
     if (!result.error) {
       this.expensesRaw.update((current) => current.filter((expense) => expense.id !== id));
     }
