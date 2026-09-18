@@ -13,7 +13,9 @@ import {
   SaleLine,
   StockLot,
 } from '../models/flipbase.models';
+import { OperatingExpense } from '../models/operating-expense.models';
 import { InventoryService } from './inventory.service';
+import { OperatingExpenseService } from './operating-expense.service';
 import { PurchaseService } from './purchase.service';
 import { SalesService } from './sales.service';
 import { StockService } from './stock.service';
@@ -28,6 +30,7 @@ interface ReportRecords {
   readonly sales: readonly Sale[];
   readonly inventoryItems: readonly InventoryItem[];
   readonly stockLots: readonly StockLot[];
+  readonly operatingExpenses?: readonly OperatingExpense[];
 }
 
 interface DateWindow {
@@ -86,6 +89,7 @@ export class DashboardReportService {
   private readonly purchaseService = inject(PurchaseService);
   private readonly inventoryService = inject(InventoryService);
   private readonly stockService = inject(StockService);
+  private readonly operatingExpenseService = inject(OperatingExpenseService);
 
   createReport(
     range: DashboardRange,
@@ -100,6 +104,7 @@ export class DashboardReportService {
         sales: this.salesService.sales(),
         inventoryItems: this.inventoryService.items(),
         stockLots: this.stockService.lots(),
+        operatingExpenses: this.operatingExpenseService.expenses(),
       },
       now,
     );
@@ -116,6 +121,14 @@ export class DashboardReportService {
     const previousWindow = this.previousWindowFor(range, window);
     const current = this.periodFigures(window, platform, records);
     const previous = this.periodFigures(previousWindow, platform, records);
+    const operatingExpenseSpend =
+      platform === 'all'
+        ? this.paidOperatingExpenseSpend(window, records.operatingExpenses ?? [])
+        : 0;
+    const previousOperatingExpenseSpend =
+      platform === 'all'
+        ? this.paidOperatingExpenseSpend(previousWindow, records.operatingExpenses ?? [])
+        : 0;
     const openCosts = new Map<string, OpenCostEntry>();
 
     const unknownSales = current.sales.filter(({ row }) => row.resultAfterDirectCosts === null);
@@ -139,13 +152,19 @@ export class DashboardReportService {
       salesWithoutCostCount: unknownSales.length,
       purchaseSpend: current.purchaseSpend,
       sellingCosts: current.sellingCosts,
-      totalExpenses: this.money(current.purchaseSpend + current.sellingCosts),
+      operatingExpenseSpend,
+      totalExpenses: this.money(current.purchaseSpend + current.sellingCosts + operatingExpenseSpend),
       purchasesIncluded: platform === 'all',
       soldItems: current.soldItems,
       averageMarginPercent: current.averageMarginPercent,
       inventoryCostValue: inventory.value,
       inventoryItemsWithoutCost: inventory.unitsWithoutCost,
-      comparison: this.comparison(range, previousWindow, previous),
+      comparison: this.comparison(
+        range,
+        previousWindow,
+        previous,
+        previousOperatingExpenseSpend,
+      ),
       openCosts: this.sortedOpenCosts(openCosts),
       salesWithoutPurchase,
       points: this.points(window, current),
@@ -216,12 +235,15 @@ export class DashboardReportService {
     range: DashboardRange,
     window: DateWindow,
     figures: PeriodFigures,
+    operatingExpenseSpend = 0,
   ): DashboardComparison {
     return {
       label: this.windowLabel(range, window),
       grossProfit: figures.grossProfit,
       revenue: figures.revenue,
-      totalExpenses: this.money(figures.purchaseSpend + figures.sellingCosts),
+      totalExpenses: this.money(
+        figures.purchaseSpend + figures.sellingCosts + operatingExpenseSpend,
+      ),
       soldItems: figures.soldItems,
       averageMarginPercent: figures.averageMarginPercent,
     };
@@ -588,6 +610,20 @@ export class DashboardReportService {
 
   private marginPercent(profit: number, revenue: number): number | null {
     return revenue === 0 ? null : this.money((profit / revenue) * 100);
+  }
+
+  private paidOperatingExpenseSpend(
+    window: DateWindow,
+    expenses: readonly OperatingExpense[],
+  ): number {
+    const total = expenses
+      .filter((expense) => expense.status === 'paid' && expense.paid_at)
+      .filter((expense) => {
+        const paidAt = this.calendarDate(expense.paid_at);
+        return paidAt !== null && this.isInWindow(paidAt, window);
+      })
+      .reduce((sum, expense) => sum + this.number(expense.gross_amount), 0);
+    return this.money(total);
   }
 
   private money(value: number): number {
