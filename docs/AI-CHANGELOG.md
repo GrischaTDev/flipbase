@@ -16,7 +16,7 @@ die lokale Supabase laufen statt gegen Demo-Daten, damit der Demo-Code danach in
 gefahrlos entfernt werden kann. Sechs Aufgaben aus
 `docs/superpowers/plans/2026-09-18-remove-demo-mode-pr-1.md`.
 
-**Änderung:** Ein globales Setup meldet je Testlauf genau ein Konto einmal an; alle
+**Änderung:** Ein globales Setup registriert je Testlauf genau ein Konto einmal; alle
 Worker teilen sich die Sitzung als `storageState`. Eine automatische Fixture in
 `e2e/support/fixtures.ts` legt für jeden Test einen frischen Workspace an und
 wechselt per `addInitScript` dorthin. Testdaten entstehen über die echten
@@ -28,9 +28,24 @@ CI startet jetzt die lokale Supabase, ein neuer Workflow-Test sichert die Trennu
 der Testkonten ab (Seed-Isolation). `supabase/seed.sql` legt lokal das Konto
 `test@flipbase.local` / `flipbase-test` mit Beispieldaten an. Von den übrigen
 Browser-Tests wurden alle fest an Demo-Daten hängenden Fälle gelöscht statt
-umgestellt: 29 Fälle in 15 Dateien, davon vier Dateien vollständig entfernt
-(`badge-text`, `purchase-item-navigation`, `purchase-package-contents`,
-`record-timeline`). Die vollständige Liste steht im Commit `ebee08c`.
+umgestellt: 29 Einträge in 17 Dateien (rund 34 einzelne Testfälle, Theme-/Breiten-/
+Pfad-Varianten mitgezählt), davon sechs Dateien vollständig entfernt
+(`badge-text.spec.ts`, `demo-login.spec.ts`, `purchase-item-navigation.spec.ts`,
+`purchase-package-contents.spec.ts`, `record-timeline.spec.ts`,
+`e2e/support/demo.ts`). Die vollständige Liste steht im Commit `ebee08c`.
+
+**Nachbesserung (Abschlussprüfung):** Der optionale Nightly-Workflow
+(`quality-nightly.yml`, Job `browser`) startete und stoppte die lokale Supabase
+nicht, obwohl `test:e2e:nightly` dasselbe globale Setup wie der PR-Job nutzt – jetzt
+mit denselben Schritten wie `browser-smoke` in `ci.yml` ergänzt, Timeout 15 auf 20
+Minuten angehoben. Die geteilte Testsitzung (`jwt_expiry = 900`) lief bei langen
+Läufen nach rund 13,5 Minuten in die Token-Rotation und schlug dann unklar fehl;
+`e2e/support/test-account.ts` liest jetzt `expires_at` mit, die `workspace`-Fixture
+bricht unter 120 Sekunden Restlaufzeit mit einer klaren deutschen Meldung ab, und
+eine fehlende `e2e/.auth/session.json` meldet sich jetzt auch verständlich statt mit
+rohem ENOENT. Der Steuerjournal-Test in `purchase-tax-costs.spec.ts` bestand nur,
+weil die Buchhaltungsseite fest auf 2026/08 startet; er wählt Jahr und Zeitraum jetzt
+selbst über die Oberfläche.
 
 **Befunde:** `deal-monitor.spec.ts` schlägt schon auf dem Ausgangsstand des Zweigs
 fehl (zwei Fälle, Workspacewechsel in der Erfassungsmaske gesperrt) - kein neuer
