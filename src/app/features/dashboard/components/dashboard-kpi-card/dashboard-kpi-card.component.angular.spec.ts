@@ -71,7 +71,7 @@ describe('DashboardKpiCardComponent', () => {
     expect(change?.querySelector('.sr-only')?.textContent).toBe(
       'gestiegen um 12 Prozent gegenüber gestern',
     );
-    expect(change?.querySelector('[aria-hidden="true"]')?.className).toContain('text-emerald-700');
+    expect(change?.querySelector('[aria-hidden="true"]')?.className).toContain('text-fb-success');
   });
 
   it('lässt die Vergleichszeile ohne belastbaren Vergleich weg', () => {
@@ -87,7 +87,7 @@ describe('DashboardKpiCardComponent', () => {
       element.textContent?.includes('-5,00 €'),
     );
 
-    expect(value?.className).toContain('text-rose-700');
+    expect(value?.className).toContain('text-fb-critical');
     expect(value?.className).toContain('text-2xl');
   });
 });
