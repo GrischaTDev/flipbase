@@ -1,13 +1,18 @@
-import { expect, test } from '@playwright/test';
-
-import { startDemoMode } from './support/demo';
+import { expect, openDashboard, test } from './support/fixtures';
+import { createFinalizedPurchase } from './support/sample-data';
 
 const saleItem = 'Super Nintendo SNES Original Controller';
 
 test('verkauft ein Einzelstück genau einmal aus dem gemeinsamen Inventar @pr-smoke', async ({
   page,
+  workspace,
 }) => {
-  await startDemoMode(page);
+  await createFinalizedPurchase(workspace, {
+    title: 'Retro-Zubehör',
+    purchaseDate: '2026-09-01',
+    items: [{ title: saleItem, price: 20 }],
+  });
+  await openDashboard(page);
   await page.goto('/inventory');
 
   const inventory = page.getByRole('table', {
@@ -31,7 +36,9 @@ test('verkauft ein Einzelstück genau einmal aus dem gemeinsamen Inventar @pr-sm
   await expect(page).toHaveURL(/\/inventory$/);
   await page.goto('/sales');
   await expect(page).toHaveURL(/\/sales$/);
-  await expect(page.getByRole('heading', { name: 'Verkäufe' })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('heading', { name: 'Verkäufe & Retouren' })).toBeVisible({
+    timeout: 15_000,
+  });
   const recordedSales = page.getByRole('row').filter({ hasText: saleItem });
   await expect(recordedSales).toHaveCount(1);
   await expect(recordedSales).toContainText('35,00 €');
