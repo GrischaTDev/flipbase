@@ -37,7 +37,9 @@ describe('ExpenseDialogComponent', () => {
           },
         },
       ],
-    }).createComponent(ExpenseDialogComponent);
+    })
+      .overrideComponent(ExpenseDialogComponent, { set: { template: '' } })
+      .createComponent(ExpenseDialogComponent);
 
     fixture.detectChanges();
     const component = fixture.componentInstance;
