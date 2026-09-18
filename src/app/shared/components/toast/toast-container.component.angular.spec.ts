@@ -38,7 +38,7 @@ describe('ToastContainerComponent', () => {
     expect(close.classList).toContain('w-8');
   });
 
-  it('verwendet eine neutrale Toast-Fläche mit semantischem Erfolgston', () => {
+  it('verwendet eine neutrale Toast-Fläche mit dem Flipbase-Erfolgston', () => {
     service.success('Workspace wurde erstellt.');
     fixture.detectChanges();
 
