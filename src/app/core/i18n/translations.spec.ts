@@ -68,6 +68,7 @@ describe('i18n Translations', () => {
       'SALES',
       'FULFILLMENT',
       'ACCOUNTING',
+      'EXPENSES',
       'SELLERS',
       'ANALYTICS',
       'SETTINGS',
