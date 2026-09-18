@@ -25,7 +25,7 @@ describe('Arbeitsnavigation', () => {
         ['/purchases', '/sellers', '/vinted-bot'],
         ['/catalog', '/image-optimizer'],
         ['/listings', '/sales'],
-        ['/accounting', '/analytics'],
+        ['/expenses', '/accounting', '/analytics'],
       ],
     );
   });
@@ -47,6 +47,7 @@ describe('Arbeitsnavigation', () => {
     const items = WORKSPACE_NAVIGATION_GROUPS.flatMap((group) => group.items);
     assert.equal(items.find((item) => item.path === '/catalog')?.label, 'Artikelübersicht');
     assert.equal(items.find((item) => item.path === '/listings')?.label, 'Inserate erstellen');
+    assert.equal(items.find((item) => item.path === '/expenses')?.label, 'Ausgaben');
     assert.equal(items.find((item) => item.path === '/analytics')?.label, 'Auswertungen');
   });
 
@@ -62,6 +63,7 @@ describe('Arbeitsnavigation', () => {
     assert.deepEqual(paths.slice().sort(), [
       '/accounting',
       '/admin',
+      '/expenses',
       '/analytics',
       '/catalog',
       '/dashboard',
