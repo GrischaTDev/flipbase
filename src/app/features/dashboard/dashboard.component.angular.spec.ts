@@ -397,12 +397,13 @@ describe('DashboardComponent', () => {
     expect(kpi('cashflow')).toContain('5,14 €');
 
     const expenses = host.querySelector('[data-dashboard-expenses]');
-    expect(expenses?.textContent).toContain('Ausgaben');
-    expect(expenses?.textContent).toContain('37,84 €');
-    expect(expenses?.textContent).toContain('Einkäufe');
-    expect(expenses?.textContent).toContain('24,95 €');
-    expect(expenses?.textContent).toContain('Gebühren & Versand');
-    expect(expenses?.textContent).toContain('12,89 €');
+    const expensesText = expenses?.textContent?.replace(/\s+/g, ' ') ?? '';
+    expect(expensesText).toContain('Ausgaben');
+    expect(expensesText).toContain('37,84 €');
+    expect(expensesText).toContain('Einkäufe');
+    expect(expensesText).toContain('24,95 €');
+    expect(expensesText).toContain('Gebühren & Versand');
+    expect(expensesText).toContain('12,89 €');
 
     expect(kpiSection.querySelector('[data-kpi-change]')).toBeNull();
     expect(kpiSection.querySelector('[data-kpi-hint]')).toBeNull();
@@ -464,9 +465,10 @@ describe('DashboardComponent', () => {
     const host = fixture.nativeElement as HTMLElement;
     const cashflow = host.querySelector('[data-kpi="cashflow"]');
 
-    expect(cashflow?.textContent).toContain('-50,00 €');
+    const cashflowText = cashflow?.textContent?.replace(/\s+/g, ' ') ?? '';
+    expect(cashflowText).toContain('-50,00 €');
     expect(cashflow?.querySelector('p')?.className ?? '').toContain('text-fb-critical');
-    expect(cashflow?.textContent).not.toContain('30,00 €');
+    expect(cashflowText).not.toContain('30,00 €');
   });
 
   it('zeigt bei einem Plattformfilter keinen unvollständigen Cashflow als echte Kennzahl', () => {
@@ -485,12 +487,14 @@ describe('DashboardComponent', () => {
     const cashflow = host.querySelector('[data-kpi="cashflow"]');
     const expenses = host.querySelector('[data-dashboard-expenses]');
 
-    expect(cashflow?.textContent).toContain('–');
-    expect(cashflow?.textContent).not.toContain('90,00 €');
-    expect(expenses?.textContent).toContain('Einkäufe');
-    expect(expenses?.textContent).toContain('–');
-    expect(expenses?.textContent).toContain('Gebühren & Versand');
-    expect(expenses?.textContent).toContain('10,00 €');
+    const cashflowText = cashflow?.textContent?.replace(/\s+/g, ' ') ?? '';
+    const expensesText = expenses?.textContent?.replace(/\s+/g, ' ') ?? '';
+    expect(cashflowText).toContain('–');
+    expect(cashflowText).not.toContain('90,00 €');
+    expect(expensesText).toContain('Einkäufe');
+    expect(expensesText).toContain('–');
+    expect(expensesText).toContain('Gebühren & Versand');
+    expect(expensesText).toContain('10,00 €');
   });
 
   it('markiert einen negativen Verkaufsgewinn rot, ohne normale Kosten als Fehler zu färben', () => {
