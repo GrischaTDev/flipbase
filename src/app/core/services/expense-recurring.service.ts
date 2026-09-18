@@ -30,7 +30,9 @@ export class ExpenseRecurringService {
   private readonly auth = inject(AuthService);
 
   private readonly rulesRaw = signal<readonly ExpenseRecurringRule[]>([]);
-  readonly rules = computed(() => [...this.rulesRaw()].sort((a, b) => a.title.localeCompare(b.title, 'de-DE')));
+  readonly rules = computed(() =>
+    [...this.rulesRaw()].sort((a, b) => a.title.localeCompare(b.title, 'de-DE')),
+  );
   readonly isLoading = signal(false);
   readonly loadError = signal<Error | null>(null);
 
@@ -70,7 +72,10 @@ export class ExpenseRecurringService {
     const workspaceId = this.workspace.currentWorkspace()?.id;
     if (!workspaceId) return { data: null, error: new Error('Kein aktiver Workspace.') };
     if (this.mockStore.isDemoMode())
-      return { data: null, error: new Error('Wiederkehrende Ausgaben werden im Demo-Modus nicht gespeichert.') };
+      return {
+        data: null,
+        error: new Error('Wiederkehrende Ausgaben werden im Demo-Modus nicht gespeichert.'),
+      };
 
     try {
       const { data, error } = await this.supabase.client
@@ -87,7 +92,10 @@ export class ExpenseRecurringService {
       this.rulesRaw.update((current) => [...current, rule]);
       return { data: rule, error: null };
     } catch (cause: unknown) {
-      return { data: null, error: this.syncStatus.melde('Speichern der wiederkehrenden Ausgabe', cause) };
+      return {
+        data: null,
+        error: this.syncStatus.melde('Speichern der wiederkehrenden Ausgabe', cause),
+      };
     }
   }
 
@@ -113,7 +121,10 @@ export class ExpenseRecurringService {
       this.rulesRaw.update((rules) => rules.map((rule) => (rule.id === id ? updated : rule)));
       return { data: updated, error: null };
     } catch (cause: unknown) {
-      return { data: null, error: this.syncStatus.melde('Ändern der wiederkehrenden Ausgabe', cause) };
+      return {
+        data: null,
+        error: this.syncStatus.melde('Ändern der wiederkehrenden Ausgabe', cause),
+      };
     }
   }
 
