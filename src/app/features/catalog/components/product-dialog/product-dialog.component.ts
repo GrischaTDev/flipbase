@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   computed,
   effect,
   inject,
@@ -25,6 +26,7 @@ import {
 } from '../../../../core/services/catalog.service';
 import { MediaService } from '../../../../core/services/media.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
+import { WorkspaceContextLockService } from '../../../../core/services/workspace-context-lock.service';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
@@ -76,6 +78,9 @@ export class ProductDialogComponent {
   private readonly catalog = inject(CatalogService);
   private readonly media = inject(MediaService);
   private readonly workspace = inject(WorkspaceService);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly workspaceContext = inject(WorkspaceContextLockService);
+  private readonly releaseWorkspaceLock = this.workspaceContext.acquire();
   readonly initialProduct = input<ProductDialogInitialProduct | null>(null);
   readonly closed = output<void>();
   readonly created = output<CatalogProduct>();
@@ -121,6 +126,7 @@ export class ProductDialogComponent {
   });
 
   constructor() {
+    this.destroyRef.onDestroy(this.releaseWorkspaceLock);
     effect(() => {
       const value = this.initialProduct();
       if (!value || this.form.dirty) return;
