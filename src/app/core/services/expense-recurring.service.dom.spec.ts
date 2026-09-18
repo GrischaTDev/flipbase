@@ -115,7 +115,7 @@ describe('ExpenseRecurringService', () => {
 
     await service.materializeDue('2026-08-15');
 
-    const rows = upsert.mock.calls[0]?.[0] as Array<{ occurrence_date: string }>;
+    const rows = upsert.mock.calls[0]?.[0] as { occurrence_date: string }[];
     expect(rows.map((entry) => entry.occurrence_date)).toEqual([
       '2026-06-01',
       '2026-07-01',
