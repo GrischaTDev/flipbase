@@ -52,6 +52,13 @@
   <section aria-label="Kennzahlen">
     <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       <app-dashboard-kpi-card
+        data-kpi="revenue"
+        size="large"
+        label="Umsatz"
+        [icon]="coinsIcon"
+        [value]="kpis().revenue.value"
+      />
+      <app-dashboard-kpi-card
         data-kpi="gross-profit"
         size="large"
         label="Gewinn"
@@ -60,27 +67,48 @@
         [valueTone]="kpis().grossProfit.tone"
       />
       <app-dashboard-kpi-card
-        data-kpi="revenue"
-        size="large"
-        label="Umsatz"
-        [icon]="coinsIcon"
-        [value]="kpis().revenue.value"
-      />
-      <app-dashboard-kpi-card
-        data-kpi="sold-items"
-        size="large"
-        label="Verkaufte Artikel"
-        [icon]="receiptIcon"
-        [value]="kpis().soldItems.value"
-      />
-      <app-dashboard-kpi-card
         data-kpi="margin"
         size="large"
-        label="Durchschnittliche Marge"
+        label="Marge"
         [icon]="trendingIcon"
         [value]="kpis().margin.value"
       />
+      <app-dashboard-kpi-card
+        data-kpi="cashflow"
+        size="large"
+        label="Cashflow"
+        [icon]="coinsIcon"
+        [value]="kpis().cashflow.value"
+        [valueTone]="kpis().cashflow.tone"
+      />
     </div>
+  </section>
+
+  <section data-dashboard-expenses aria-labelledby="dashboard-expenses-heading">
+    <app-card rounded="xl">
+      <div card-header class="flex items-center justify-between gap-4">
+        <h2 id="dashboard-expenses-heading" class="text-sm font-semibold text-fb-text-primary">
+          Ausgaben
+        </h2>
+        <p class="font-mono text-sm font-semibold text-fb-text-primary">
+          {{ kpis().expenses.total }}
+        </p>
+      </div>
+      <dl class="grid gap-3 text-[13px] sm:grid-cols-2">
+        <div class="flex items-center justify-between gap-3">
+          <dt class="text-fb-text-secondary">Einkäufe</dt>
+          <dd class="font-mono font-medium text-fb-text-primary">
+            {{ kpis().expenses.purchases }}
+          </dd>
+        </div>
+        <div class="flex items-center justify-between gap-3">
+          <dt class="text-fb-text-secondary">Gebühren & Versand</dt>
+          <dd class="font-mono font-medium text-fb-text-primary">
+            {{ kpis().expenses.selling }}
+          </dd>
+        </div>
+      </dl>
+    </app-card>
   </section>
 
   <app-dashboard-open-costs

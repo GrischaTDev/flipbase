@@ -206,6 +206,51 @@ describe('DashboardReportService', () => {
     });
   });
 
+  it('gewichtet die Dashboard-Marge nach Umsatz statt kleine und große Verkäufe gleich zu behandeln', () => {
+    const smallSale: Sale = {
+      ...sale,
+      id: 'sale-small',
+      sale_price: 20,
+      sale_price_total: 20,
+      platform_fee: 0,
+      lines: [
+        {
+          ...sale.lines![0],
+          id: 'line-small',
+          sale_id: 'sale-small',
+          quantity: 1,
+          unit_sale_price: 20,
+          line_total: 20,
+          cost_of_goods_sold: 10,
+        },
+      ],
+    };
+    const largeSale: Sale = {
+      ...sale,
+      id: 'sale-large',
+      sale_price: 100,
+      sale_price_total: 100,
+      platform_fee: 0,
+      lines: [
+        {
+          ...sale.lines![0],
+          id: 'line-large',
+          sale_id: 'sale-large',
+          quantity: 1,
+          unit_sale_price: 100,
+          line_total: 100,
+          cost_of_goods_sold: 90,
+        },
+      ],
+    };
+
+    const result = report('last_7_days', { sales: [smallSale, largeSale] });
+
+    expect(result.revenue).toBe(120);
+    expect(result.grossProfit).toBe(20);
+    expect(result.averageMarginPercent).toBe(16.67);
+  });
+
   it('nimmt Verkäufe ohne belegbaren Wareneinsatz aus dem Gewinn und weist ihren Umsatz getrennt aus', () => {
     const result = report('last_7_days', { sales: [sale, saleWithoutCostBasis] });
 

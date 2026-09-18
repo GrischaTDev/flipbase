@@ -176,7 +176,6 @@ export class DashboardReportService {
     let revenueWithoutCost = 0;
     let sellingCosts = 0;
     let soldItems = 0;
-    const margins: number[] = [];
     for (const sale of records.sales) {
       const date = this.calendarDate(sale.sale_date);
       if (
@@ -198,7 +197,6 @@ export class DashboardReportService {
       } else {
         grossProfit += row.resultAfterDirectCosts;
       }
-      if (row.marginPercent !== null) margins.push(row.marginPercent);
     }
 
     return {
@@ -210,10 +208,7 @@ export class DashboardReportService {
       purchaseSpend: this.money(purchaseSpend),
       sellingCosts: this.money(sellingCosts),
       soldItems,
-      averageMarginPercent:
-        margins.length === 0
-          ? null
-          : this.money(margins.reduce((sum, margin) => sum + margin, 0) / margins.length),
+      averageMarginPercent: this.marginPercent(grossProfit, revenue - revenueWithoutCost),
     };
   }
 
@@ -589,6 +584,10 @@ export class DashboardReportService {
 
   private number(value: number | null | undefined): number {
     return Number.isFinite(Number(value)) ? Number(value) : 0;
+  }
+
+  private marginPercent(profit: number, revenue: number): number | null {
+    return revenue === 0 ? null : this.money((profit / revenue) * 100);
   }
 
   private money(value: number): number {
