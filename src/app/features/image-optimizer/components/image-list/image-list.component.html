@@ -7,7 +7,7 @@
       type="button"
       (click)="clearAllRequested.emit()"
       [disabled]="disabled()"
-      class="cursor-pointer rounded-lg px-2 py-1 text-[10px] font-semibold text-fb-text-muted hover:bg-rose-500/15 hover:text-rose-300 disabled:cursor-not-allowed disabled:opacity-40"
+      class="cursor-pointer rounded-lg px-2 py-1 text-[10px] font-semibold text-fb-text-muted hover:bg-fb-critical-surface hover:text-fb-critical disabled:cursor-not-allowed disabled:opacity-40"
     >
       Alle entfernen
     </button>
@@ -32,9 +32,9 @@
       cdkDragPreviewContainer="parent"
       [cdkDragStartDelay]="dragStartDelay"
       class="group relative overflow-hidden rounded-xl border bg-fb-surface transition-[border-color,box-shadow,opacity]"
-      [class.border-indigo-400]="image.id === activeId()"
+      [class.border-fb-brand-border]="image.id === activeId()"
       [class.ring-2]="image.id === activeId()"
-      [class.ring-indigo-400/30]="image.id === activeId()"
+      [class.ring-fb-brand-border]="image.id === activeId()"
       [class.border-fb-border]="image.id !== activeId()"
       [class.opacity-60]="!image.reviewed && image.id !== activeId()"
     >
@@ -77,16 +77,16 @@
             mit Schwarz sind es 9,82:1.
           -->
           <span
-            class="absolute left-2 top-2 rounded-full bg-indigo-500 px-2 py-1 text-[9px] font-bold text-black shadow"
+            class="absolute left-2 top-2 rounded-full bg-fb-primary px-2 py-1 text-[9px] font-semibold text-fb-on-accent shadow"
           >
-            AKTIV
+            Aktiv
           </span>
         }
         @if (i === 0) {
           <span
             class="absolute bottom-2 left-2 rounded-full bg-black/75 px-2 py-1 text-[9px] font-bold text-white shadow"
           >
-            HAUPTBILD
+            Hauptbild
           </span>
         }
       </button>
@@ -121,7 +121,7 @@
           type="button"
           (click)="removed.emit(image.id)"
           [disabled]="disabled()"
-          class="grid h-7 w-7 cursor-pointer place-items-center rounded-md text-white/80 hover:bg-rose-500/40 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+          class="grid h-7 w-7 cursor-pointer place-items-center rounded-md text-white/80 hover:bg-fb-critical-surface hover:text-fb-critical disabled:cursor-not-allowed disabled:opacity-40"
           aria-label="Bild entfernen"
           title="Entfernen"
         >
@@ -142,8 +142,8 @@
               : 'Bild ' + (i + 1) + ' als durchgesehen markieren'
           "
           class="ml-auto inline-flex cursor-pointer items-center rounded-full px-1.5 py-0.5 text-[9px] font-bold disabled:cursor-not-allowed disabled:opacity-40"
-          [class.bg-emerald-500/20]="image.reviewed"
-          [class.text-emerald-300]="image.reviewed"
+          [class.bg-fb-success-surface]="image.reviewed"
+          [class.text-fb-success]="image.reviewed"
           [class.bg-fb-surface-hover]="!image.reviewed"
           [class.text-fb-text-muted]="!image.reviewed"
         >
