@@ -53,7 +53,7 @@ export class CustomSearchInputComponent implements ControlValueAccessor {
 
     const variantClass =
       this.variant() === 'toolbar'
-        ? 'w-full rounded-lg border border-transparent bg-transparent hover:bg-fb-subtle focus:bg-fb-surface focus:border-fb-primary focus:ring-1 focus:ring-fb-primary'
+        ? 'w-full rounded-lg border border-fb-border-subtle bg-fb-subtle hover:border-fb-border hover:bg-fb-surface-hover focus:bg-fb-surface focus:border-fb-primary focus:ring-1 focus:ring-fb-primary'
         : 'linear-input w-full rounded-md border-fb-border bg-fb-subtle focus:border-fb-primary focus:ring-2 focus:ring-fb-primary/20';
 
     return [
