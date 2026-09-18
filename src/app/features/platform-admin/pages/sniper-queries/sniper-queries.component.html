@@ -28,159 +28,171 @@
     </app-modal-shell>
   }
 
-  <div class="linear-surface overflow-hidden rounded-xl">
-    <div class="flex flex-col">
-      <app-table-toolbar>
-        <app-custom-search-input
-          table-search
-          variant="toolbar"
-          [formControl]="search"
-          ariaLabel="Zentrale Markenfilter durchsuchen"
-          placeholder="Nach Filtername, Notiz oder Markenkennung suchen"
-        />
-        <div data-new-query table-settings>
-          <app-button
-            variant="primary"
-            [disabled]="editorOpen() || !state.loaded()"
-            (clicked)="openEditor()"
-            >Neuer Markenfilter</app-button
-          >
-        </div>
-      </app-table-toolbar>
+  <app-data-table
+    ariaLabel="Zentrale Vinted-Markenfilter"
+    [searchValue]="search()"
+    searchPlaceholder="Nach Filtername, Notiz oder Markenkennung suchen"
+    searchAriaLabel="Zentrale Markenfilter durchsuchen"
+    [loading]="!state.loaded() && !state.error()"
+    [hasRows]="filtered().length > 0"
+    loadingText="Markenfilter werden geladen …"
+    [emptyTitle]="
+      state.queries().length === 0
+        ? 'Noch keine Markenfilter'
+        : 'Keine Markenfilter für diese Suche gefunden'
+    "
+    [emptyText]="
+      state.queries().length === 0
+        ? 'Lege den ersten zentralen Markenfilter an.'
+        : 'Passe den Suchbegriff an.'
+    "
+    (searchValueChange)="search.set($event)"
+  >
+    <app-button
+      data-new-query
+      table-filters
+      variant="primary"
+      size="slim"
+      [disabled]="editorOpen() || !state.loaded()"
+      (clicked)="openEditor()"
+    >
+      Neuer Markenfilter
+    </app-button>
 
-      <div class="flex flex-wrap items-center justify-between gap-2 px-4 py-3 md:px-5">
-        <p class="text-sm text-fb-text-secondary">
-          {{ state.queries().length }} Markenfilter · {{ activeCount() }} aktiv
-        </p>
-        <p class="text-xs text-fb-text-muted">Die Filter gelten zentral für alle Nutzer.</p>
-      </div>
-
-      @if (!state.loaded() && !state.error()) {
-        <p class="p-4" role="status">Markenfilter werden geladen …</p>
-      } @else if (state.loaded() && state.queries().length === 0) {
-        <p class="p-4">Noch keine Markenfilter. Lege den ersten zentralen Markenfilter an.</p>
-      } @else if (state.loaded() && filtered().length === 0) {
-        <p class="p-4">Keine Markenfilter für diese Suche gefunden.</p>
-      } @else if (state.loaded()) {
-        <div
-          class="overflow-x-auto focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
-          tabindex="0"
-          role="region"
-          aria-label="Zentrale Markenfilter durchblättern"
-        >
-          <table class="linear-table min-w-[900px]">
-            <caption class="sr-only">
-              Zentrale Vinted-Markenfilter
-            </caption>
-            <thead>
-              <tr class="border-b border-fb-border">
-                <th scope="col" class="min-w-[300px] p-3">Name</th>
-                <th scope="col" class="min-w-[150px] p-3">Abfrage</th>
-                <th scope="col" class="min-w-[280px] p-3">Status</th>
-                <th scope="col" class="min-w-[140px] p-3 text-center">Funde · 24 h</th>
-                <th scope="col" class="min-w-[110px] p-3 text-right">Aktionen</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (query of filtered(); track query.id) {
-                <tr class="border-b border-fb-border align-middle last:border-0">
-                  <th scope="row" class="min-w-[300px] p-3 text-left font-normal">
-                    <p class="break-words font-medium text-fb-text-primary">
-                      {{ queryTitle(query) }}
-                    </p>
-                    <p class="mt-0.5 text-xs text-fb-text-muted">
-                      Vinted-Markenkennung {{ query.brand_id ?? 'unbekannt' }}
-                    </p>
-                    @if (query.notes) {
-                      <p
-                        class="mt-0.5 max-w-[420px] truncate text-xs text-fb-text-muted"
-                        [title]="query.notes"
-                      >
-                        {{ query.notes }}
-                      </p>
-                    }
-                  </th>
-                  <td class="min-w-[150px] whitespace-nowrap p-3">
-                    alle {{ query.poll_interval_ms / 1000 }} Sekunden
-                  </td>
-                  <td class="min-w-[280px] p-3">
-                    @if (isCheckPending(query)) {
-                      <span
-                        class="inline-flex items-center gap-1.5 text-xs text-fb-text-muted"
-                        role="status"
-                      >
-                        <app-loading-indicator aria-hidden="true" />
-                        Wird geprüft …
-                      </span>
-                    } @else {
-                      <app-badge [tone]="query.is_active ? 'success' : 'neutral'">
-                        {{ query.is_active ? 'Aktiv' : 'Pausiert' }}
-                      </app-badge>
-                      <p class="mt-1 text-xs text-fb-text-muted">{{ statusLabel(query) }}</p>
-                    }
-                    @if (query.last_polled_at) {
-                      <p class="mt-0.5 text-[11px] text-fb-text-muted">
-                        {{ query.last_polled_at | date: 'dd.MM.yyyy, HH:mm' }}
-                      </p>
-                    }
-                  </td>
-                  <td class="min-w-[140px] whitespace-nowrap p-3 text-center tabular-nums">
-                    <span class="font-medium text-fb-text-primary">
-                      {{ state.counts()[query.id] ?? 0 }}
-                    </span>
-                  </td>
-                  <td class="min-w-[110px] whitespace-nowrap p-3">
-                    <div class="flex justify-end gap-1.5">
-                      @if (isBrandOnly(query)) {
-                        <app-button
-                          variant="ghost"
-                          size="md"
-                          [icon]="editIcon"
-                          [iconOnly]="true"
-                          [disabled]="editorOpen()"
-                          [title]="'Markenfilter bearbeiten: ' + queryTitle(query)"
-                          [ariaLabel]="'Markenfilter bearbeiten: ' + queryTitle(query)"
-                          (clicked)="openEditor(query)"
-                        />
-                      } @else {
-                        <span
-                          class="self-center text-xs text-fb-text-muted"
-                          title="Altes Filterformat kann hier nicht bearbeitet werden"
-                        >
-                          Altes Filterformat
-                        </span>
-                      }
-                      <app-button
-                        variant="ghost"
-                        size="md"
-                        [icon]="query.is_active ? pauseIcon : activateIcon"
-                        [iconOnly]="true"
-                        [disabled]="
-                          busyId() !== null ||
-                          editorOpen() ||
-                          (!isBrandOnly(query) && !query.is_active)
-                        "
-                        [loading]="busyId() === query.id"
-                        [title]="
-                          (query.is_active
-                            ? 'Markenfilter pausieren: '
-                            : 'Markenfilter aktivieren: ') + queryTitle(query)
-                        "
-                        [ariaLabel]="
-                          (query.is_active
-                            ? 'Markenfilter pausieren: '
-                            : 'Markenfilter aktivieren: ') + queryTitle(query)
-                        "
-                        (clicked)="toggle(query)"
-                      />
-                    </div>
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        </div>
-      }
+    <div
+      table-filter-panel
+      class="flex flex-wrap items-center justify-between gap-2 border-b border-fb-line px-4 py-2.5"
+    >
+      <p class="text-sm text-fb-text-secondary">
+        {{ state.queries().length }} Markenfilter · {{ activeCount() }} aktiv
+      </p>
+      <p class="text-xs text-fb-text-muted">Die Filter gelten zentral für alle Nutzer.</p>
     </div>
-  </div>
+
+    <div
+      table-content
+      class="overflow-x-auto focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
+      tabindex="0"
+      role="region"
+      aria-label="Zentrale Markenfilter durchblättern"
+    >
+      <table class="linear-table min-w-[900px]">
+        <caption class="sr-only">Zentrale Vinted-Markenfilter</caption>
+        <thead>
+          <tr>
+            <th scope="col" class="min-w-[300px]">Name</th>
+            <th scope="col" class="min-w-[150px]">Abfrage</th>
+            <th scope="col" class="min-w-[280px]">Status</th>
+            <th scope="col" class="min-w-[140px] text-center">Funde · 24 h</th>
+            <th scope="col" class="min-w-[110px] text-right">Aktionen</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (query of filtered(); track query.id) {
+            <tr class="align-middle">
+              <th scope="row" class="min-w-[300px] text-left font-normal">
+                <p class="break-words font-medium text-fb-text-primary">
+                  {{ queryTitle(query) }}
+                </p>
+                <p class="mt-0.5 text-xs text-fb-text-muted">
+                  Vinted-Markenkennung {{ query.brand_id ?? 'unbekannt' }}
+                </p>
+                @if (query.notes) {
+                  <p
+                    class="mt-0.5 max-w-[420px] truncate text-xs text-fb-text-muted"
+                    [title]="query.notes"
+                  >
+                    {{ query.notes }}
+                  </p>
+                }
+              </th>
+              <td class="min-w-[150px] whitespace-nowrap">
+                alle {{ query.poll_interval_ms / 1000 }} Sekunden
+              </td>
+              <td class="min-w-[280px]">
+                @if (isCheckPending(query)) {
+                  <span
+                    class="inline-flex items-center gap-1.5 text-xs text-fb-text-muted"
+                    role="status"
+                  >
+                    <app-loading-indicator aria-hidden="true" />
+                    Wird geprüft …
+                  </span>
+                } @else {
+                  <app-badge [tone]="query.is_active ? 'success' : 'neutral'">
+                    {{ query.is_active ? 'Aktiv' : 'Pausiert' }}
+                  </app-badge>
+                  <p class="mt-1 text-xs text-fb-text-muted">{{ statusLabel(query) }}</p>
+                }
+                @if (query.last_polled_at) {
+                  <p class="mt-0.5 text-[11px] text-fb-text-muted">
+                    {{ query.last_polled_at | date: 'dd.MM.yyyy, HH:mm' }}
+                  </p>
+                }
+              </td>
+              <td class="min-w-[140px] whitespace-nowrap text-center tabular-nums">
+                <span class="font-medium text-fb-text-primary">
+                  {{ state.counts()[query.id] ?? 0 }}
+                </span>
+              </td>
+              <td class="min-w-[110px] whitespace-nowrap">
+                <div class="flex justify-end gap-1.5">
+                  @if (isBrandOnly(query)) {
+                    <app-button
+                      variant="ghost"
+                      size="md"
+                      [icon]="editIcon"
+                      [iconOnly]="true"
+                      [disabled]="editorOpen()"
+                      [title]="'Markenfilter bearbeiten: ' + queryTitle(query)"
+                      [ariaLabel]="'Markenfilter bearbeiten: ' + queryTitle(query)"
+                      (clicked)="openEditor(query)"
+                    />
+                  } @else {
+                    <span
+                      class="self-center text-xs text-fb-text-muted"
+                      title="Altes Filterformat kann hier nicht bearbeitet werden"
+                    >
+                      Altes Filterformat
+                    </span>
+                  }
+                  <app-button
+                    variant="ghost"
+                    size="md"
+                    [icon]="query.is_active ? pauseIcon : activateIcon"
+                    [iconOnly]="true"
+                    [disabled]="
+                      busyId() !== null ||
+                      editorOpen() ||
+                      (!isBrandOnly(query) && !query.is_active)
+                    "
+                    [loading]="busyId() === query.id"
+                    [title]="
+                      (query.is_active ? 'Markenfilter pausieren: ' : 'Markenfilter aktivieren: ') +
+                      queryTitle(query)
+                    "
+                    [ariaLabel]="
+                      (query.is_active ? 'Markenfilter pausieren: ' : 'Markenfilter aktivieren: ') +
+                      queryTitle(query)
+                    "
+                    (clicked)="toggle(query)"
+                  />
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <app-button
+      table-empty-action
+      class="mt-4"
+      variant="primary"
+      [disabled]="editorOpen() || !state.loaded()"
+      (clicked)="openEditor()"
+    >
+      Neuer Markenfilter
+    </app-button>
+  </app-data-table>
 </section>
