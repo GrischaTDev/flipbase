@@ -15,6 +15,17 @@ insert into public.workspace_members (workspace_id, user_id, role) values
   ('f1800000-0000-4000-8000-000000000011', 'f1800000-0000-4000-8000-000000000001', 'owner'),
   ('f1800000-0000-4000-8000-000000000012', 'f1800000-0000-4000-8000-000000000002', 'owner');
 
+insert into public.expense_categories (
+  id, workspace_id, name, sort_order, is_default, created_by
+) values (
+  'f1800000-0000-4000-8000-000000000022',
+  'f1800000-0000-4000-8000-000000000012',
+  'Fremde feste Kategorie',
+  900,
+  false,
+  'f1800000-0000-4000-8000-000000000002'
+);
+
 select ok(
   (select count(*) from public.expense_categories
    where workspace_id = 'f1800000-0000-4000-8000-000000000011') >= 13,
@@ -223,9 +234,7 @@ select throws_ok(
       expense_date, status, payment_date, created_by
     ) values (
       'f1800000-0000-4000-8000-000000000011',
-      (select id from public.expense_categories
-       where workspace_id = 'f1800000-0000-4000-8000-000000000012'
-       order by sort_order limit 1),
+      'f1800000-0000-4000-8000-000000000022',
       'Fremde Kategorie',
       10,
       '2026-09-18',
