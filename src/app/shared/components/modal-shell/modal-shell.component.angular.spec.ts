@@ -2,6 +2,7 @@ import '@angular/compiler';
 import { ɵresolveComponentResources } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { readFile } from 'node:fs/promises';
+import { LucideInfo } from '@lucide/angular';
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { ModalShellComponent } from './modal-shell.component';
 
@@ -74,7 +75,7 @@ describe('ModalShellComponent', () => {
 
   it('uses the shared brand tone for branded modal icons', () => {
     fixture.componentRef.setInput('iconTone', 'brand');
-    fixture.componentRef.setInput('icon', {});
+    fixture.componentRef.setInput('icon', LucideInfo);
     fixture.detectChanges();
 
     const iconWrapper = fixture.nativeElement.querySelector('header div.border');
