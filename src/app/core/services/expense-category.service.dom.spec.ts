@@ -37,7 +37,9 @@ function createService(options: {
   const currentWorkspace = signal(workspace);
   const selectResult = vi.fn(async () => ({ data: options.rows ?? [category], error: null }));
   const singleInsert = vi.fn(async () => ({
-    data: options.insertRow ?? { ...category, id: 'custom', name: 'Eigene Kategorie', is_default: false },
+    data:
+      options.insertRow ??
+      { ...category, id: 'custom', name: 'Eigene Kategorie', is_default: false },
     error: null,
   }));
   const singleUpdate = vi.fn(async () => ({
