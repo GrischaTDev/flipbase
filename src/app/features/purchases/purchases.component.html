@@ -192,6 +192,7 @@
 
     @if (activeStatus() !== 'all' || sellerId() !== '' || searchQuery().trim() !== '') {
       <app-button
+        data-reset-purchase-view
         table-empty-action
         class="mt-4"
         variant="secondary"
