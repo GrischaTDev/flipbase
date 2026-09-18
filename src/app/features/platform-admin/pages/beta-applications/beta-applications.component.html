@@ -24,222 +24,192 @@
 
   @if (error(); as meldung) {
     <p
-      class="rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-700"
+      class="rounded-lg border border-fb-critical-border bg-fb-critical-surface p-3 text-sm text-fb-critical"
       role="alert"
     >
       {{ meldung }}
     </p>
   }
 
-  <div class="linear-surface relative overflow-visible rounded-xl">
-    <div class="flex flex-wrap items-center gap-2 border-b border-fb-line p-2">
-      <div
-        class="flex items-center gap-1 overflow-x-auto text-xs"
-        role="group"
-        aria-label="Bewerbungsstatus filtern"
-      >
-        @for (filter of betaStatusFilters; track filter.value) {
-          <button
-            type="button"
-            class="cursor-pointer whitespace-nowrap rounded-md px-2.5 py-1.5 font-semibold transition"
-            [class.bg-fb-line]="statusFilter() === filter.value"
-            [class.text-fb-text-primary]="statusFilter() === filter.value"
-            [class.text-fb-text-secondary]="statusFilter() !== filter.value"
-            [class.hover:bg-fb-surface-hover]="statusFilter() !== filter.value"
-            [attr.aria-pressed]="statusFilter() === filter.value"
-            (click)="statusFilter.set(filter.value)"
-          >
-            {{ filter.label }}
-          </button>
-        }
-      </div>
-      <label class="relative min-w-56 flex-1">
-        <span class="sr-only">Bewerbungen durchsuchen</span>
-        <input
-          [value]="searchQuery()"
-          (input)="searchQuery.set($any($event.target).value)"
-          type="search"
-          placeholder="Suchen und filtern …"
-          class="linear-input w-full rounded-md py-2 pl-3 pr-3 text-[13px]"
-        />
-      </label>
-      <div class="border-l border-fb-line pl-2">
-        <app-table-column-menu
-          [columns]="tablePrefs().columns"
-          [sortOptions]="betaTableConfig.sortOptions"
-          [currentSort]="tablePrefs().sort"
-          [viewModified]="viewModified()"
-          (columnVisibilityToggled)="toggleColumnVisibility($event)"
-          (columnsReordered)="onColumnsReordered($event)"
-          (sortChanged)="onSortChanged($event)"
-          (viewResetRequested)="resetView()"
-        />
-      </div>
+  <app-data-table
+    ariaLabel="Beta-Bewerbungen"
+    [searchValue]="searchQuery()"
+    searchPlaceholder="Suchen und filtern …"
+    searchAriaLabel="Bewerbungen durchsuchen"
+    [columns]="tablePrefs().columns"
+    [sortOptions]="betaTableConfig.sortOptions"
+    [currentSort]="tablePrefs().sort"
+    [viewModified]="viewModified()"
+    [loading]="loading()"
+    [hasRows]="filteredApplications().length > 0"
+    loadingText="Bewerbungen werden geladen …"
+    [emptyTitle]="
+      applications().length === 0 ? 'Es liegt noch keine Bewerbung vor.' : 'Keine Bewerbung gefunden.'
+    "
+    emptyText="Passe Suche oder Statusfilter an."
+    (searchValueChange)="searchQuery.set($event)"
+    (columnVisibilityToggled)="toggleColumnVisibility($event)"
+    (columnsReordered)="onColumnsReordered($event)"
+    (sortChanged)="onSortChanged($event)"
+    (viewResetRequested)="resetView()"
+  >
+    <div
+      table-view
+      class="flex items-center gap-1 overflow-x-auto"
+      role="group"
+      aria-label="Bewerbungsstatus filtern"
+    >
+      @for (filter of betaStatusFilters; track filter.value) {
+        <app-button
+          size="slim"
+          [variant]="statusFilter() === filter.value ? 'secondary' : 'ghost'"
+          [ariaPressed]="statusFilter() === filter.value"
+          (clicked)="statusFilter.set(filter.value)"
+        >
+          {{ filter.label }}
+        </app-button>
+      }
     </div>
 
-    @if (loading()) {
-      <div class="px-5 py-10 text-center" role="status">
-        <p class="text-sm font-semibold text-fb-text-secondary">Bewerbungen werden geladen …</p>
-      </div>
-    } @else if (filteredApplications().length === 0) {
-      <div class="px-5 py-10 text-center">
-        @if (!error()) {
-          <p class="text-sm font-semibold text-fb-text-secondary">
-            {{
-              applications().length === 0
-                ? 'Es liegt noch keine Bewerbung vor.'
-                : 'Keine Bewerbung gefunden.'
-            }}
-          </p>
-        }
-      </div>
-    } @else {
-      <div class="overflow-x-auto">
-        <table data-beta-applications-table class="linear-table min-w-[900px]">
-          <caption class="sr-only">
-            Bewerbungen für die Beta-Phase
-          </caption>
-          <thead>
-            <tr>
+    <div table-content class="overflow-x-auto">
+      <table data-beta-applications-table class="linear-table min-w-[900px]">
+        <caption class="sr-only">Bewerbungen für die Beta-Phase</caption>
+        <thead>
+          <tr>
+            @for (column of orderedVisibleColumns(); track column.id) {
+              @switch (column.id) {
+                @case ('applicant') {
+                  <th scope="col" [attr.aria-sort]="ariaSort('applicant')" class="min-w-48">
+                    <app-table-sort-header
+                      label="Name"
+                      sortField="applicant"
+                      [currentSort]="tablePrefs().sort"
+                      (sortChanged)="onSortChanged($event)"
+                    />
+                  </th>
+                }
+                @case ('email') {
+                  <th scope="col" class="min-w-56">E-Mail</th>
+                }
+                @case ('created_at') {
+                  <th scope="col" [attr.aria-sort]="ariaSort('created_at')">
+                    <app-table-sort-header
+                      label="Eingang"
+                      sortField="created_at"
+                      [currentSort]="tablePrefs().sort"
+                      (sortChanged)="onSortChanged($event)"
+                    />
+                  </th>
+                }
+                @case ('status') {
+                  <th scope="col" [attr.aria-sort]="ariaSort('status')">
+                    <app-table-sort-header
+                      label="Status"
+                      sortField="status"
+                      [currentSort]="tablePrefs().sort"
+                      (sortChanged)="onSortChanged($event)"
+                    />
+                  </th>
+                }
+                @case ('granted_days') {
+                  <th scope="col" class="text-right">Laufzeit</th>
+                }
+                @case ('decision_note') {
+                  <th scope="col" class="min-w-56">Notiz</th>
+                }
+                @case ('actions') {
+                  <th scope="col" class="min-w-80 text-right">Aktionen</th>
+                }
+              }
+            }
+          </tr>
+        </thead>
+        <tbody>
+          @for (application of filteredApplications(); track application.id) {
+            @let bewerberName = applicantName(application);
+            <tr class="transition hover:bg-fb-surface-hover">
               @for (column of orderedVisibleColumns(); track column.id) {
                 @switch (column.id) {
                   @case ('applicant') {
-                    <th scope="col" [attr.aria-sort]="ariaSort('applicant')" class="min-w-48">
-                      <app-table-sort-header
-                        label="Name"
-                        sortField="applicant"
-                        [currentSort]="tablePrefs().sort"
-                        (sortChanged)="onSortChanged($event)"
-                      />
-                    </th>
+                    <td class="font-semibold text-fb-text-primary">{{ bewerberName }}</td>
                   }
                   @case ('email') {
-                    <th scope="col" class="min-w-56">E-Mail</th>
+                    <td class="text-fb-text-secondary">{{ application.email }}</td>
                   }
                   @case ('created_at') {
-                    <th scope="col" [attr.aria-sort]="ariaSort('created_at')">
-                      <app-table-sort-header
-                        label="Eingang"
-                        sortField="created_at"
-                        [currentSort]="tablePrefs().sort"
-                        (sortChanged)="onSortChanged($event)"
-                      />
-                    </th>
+                    <td>
+                      <time [attr.datetime]="application.createdAt">{{
+                        application.createdAt | date: 'dd.MM.yyyy'
+                      }}</time>
+                    </td>
                   }
                   @case ('status') {
-                    <th scope="col" [attr.aria-sort]="ariaSort('status')">
-                      <app-table-sort-header
-                        label="Status"
-                        sortField="status"
-                        [currentSort]="tablePrefs().sort"
-                        (sortChanged)="onSortChanged($event)"
-                      />
-                    </th>
+                    <td>
+                      <app-badge
+                        [tone]="
+                          application.status === 'accepted'
+                            ? 'success'
+                            : application.status === 'open'
+                              ? 'caution'
+                              : 'neutral'
+                        "
+                      >
+                        {{ statusLabel(application.status) }}
+                      </app-badge>
+                    </td>
                   }
                   @case ('granted_days') {
-                    <th scope="col" class="text-right">Laufzeit</th>
+                    <td class="text-right font-mono">
+                      {{ application.grantedDays === null ? '—' : application.grantedDays + ' Tage' }}
+                    </td>
                   }
                   @case ('decision_note') {
-                    <th scope="col" class="min-w-56">Notiz</th>
+                    <td class="max-w-72 truncate text-fb-text-secondary">
+                      {{ application.decisionNote || '—' }}
+                    </td>
                   }
                   @case ('actions') {
-                    <th scope="col" class="min-w-80 text-right">Aktionen</th>
+                    <td class="text-right">
+                      @if (application.status === 'open') {
+                        <div class="flex flex-wrap items-center justify-end gap-2">
+                          <input
+                            #note
+                            type="text"
+                            maxlength="500"
+                            placeholder="Notiz (optional)"
+                            [attr.aria-label]="'Notiz zur Entscheidung über ' + bewerberName"
+                            class="linear-input w-48 rounded-md px-2.5 py-2 text-[13px]"
+                          />
+                          <app-button
+                            variant="primary"
+                            size="slim"
+                            [disabled]="decidingId() === application.id"
+                            [ariaLabel]="'Bewerbung von ' + bewerberName + ' annehmen'"
+                            (clicked)="accept(application, note.value)"
+                          >
+                            Annehmen
+                          </app-button>
+                          <app-button
+                            variant="secondary"
+                            size="slim"
+                            [disabled]="decidingId() === application.id"
+                            [ariaLabel]="'Bewerbung von ' + bewerberName + ' ablehnen'"
+                            (clicked)="reject(application, note.value)"
+                          >
+                            Ablehnen
+                          </app-button>
+                        </div>
+                      } @else {
+                        <span class="text-xs text-fb-text-muted">Entscheidung gespeichert</span>
+                      }
+                    </td>
                   }
                 }
               }
             </tr>
-          </thead>
-          <tbody>
-            @for (application of filteredApplications(); track application.id) {
-              @let bewerberName = applicantName(application);
-              <tr class="transition hover:bg-fb-surface-hover">
-                @for (column of orderedVisibleColumns(); track column.id) {
-                  @switch (column.id) {
-                    @case ('applicant') {
-                      <td class="font-semibold text-fb-text-primary">{{ bewerberName }}</td>
-                    }
-                    @case ('email') {
-                      <td class="text-fb-text-secondary">{{ application.email }}</td>
-                    }
-                    @case ('created_at') {
-                      <td>
-                        <time [attr.datetime]="application.createdAt">{{
-                          application.createdAt | date: 'dd.MM.yyyy'
-                        }}</time>
-                      </td>
-                    }
-                    @case ('status') {
-                      <td>
-                        <span
-                          class="inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold"
-                          [class.border-amber-500/40]="application.status === 'open'"
-                          [class.bg-amber-500/10]="application.status === 'open'"
-                          [class.text-amber-800]="application.status === 'open'"
-                          [class.border-emerald-500/40]="application.status === 'accepted'"
-                          [class.bg-emerald-500/10]="application.status === 'accepted'"
-                          [class.text-emerald-800]="application.status === 'accepted'"
-                          [class.border-fb-line]="application.status === 'rejected'"
-                          [class.text-fb-text-secondary]="application.status === 'rejected'"
-                        >
-                          {{ statusLabel(application.status) }}
-                        </span>
-                      </td>
-                    }
-                    @case ('granted_days') {
-                      <td class="text-right font-mono">
-                        {{
-                          application.grantedDays === null ? '—' : application.grantedDays + ' Tage'
-                        }}
-                      </td>
-                    }
-                    @case ('decision_note') {
-                      <td class="max-w-72 truncate text-fb-text-secondary">
-                        {{ application.decisionNote || '—' }}
-                      </td>
-                    }
-                    @case ('actions') {
-                      <td class="text-right">
-                        @if (application.status === 'open') {
-                          <div class="flex flex-wrap items-center justify-end gap-2">
-                            <input
-                              #note
-                              type="text"
-                              maxlength="500"
-                              placeholder="Notiz (optional)"
-                              [attr.aria-label]="'Notiz zur Entscheidung über ' + bewerberName"
-                              class="linear-input w-48 rounded-md px-2.5 py-2 text-[13px]"
-                            />
-                            <button
-                              type="button"
-                              class="linear-btn-primary rounded-md px-2.5 py-2 text-xs font-semibold"
-                              [disabled]="decidingId() === application.id"
-                              [attr.aria-label]="'Bewerbung von ' + bewerberName + ' annehmen'"
-                              (click)="accept(application, note.value)"
-                            >
-                              Annehmen
-                            </button>
-                            <button
-                              type="button"
-                              class="linear-btn-secondary rounded-md px-2.5 py-2 text-xs font-semibold"
-                              [disabled]="decidingId() === application.id"
-                              [attr.aria-label]="'Bewerbung von ' + bewerberName + ' ablehnen'"
-                              (click)="reject(application, note.value)"
-                            >
-                              Ablehnen
-                            </button>
-                          </div>
-                        } @else {
-                          <span class="text-xs text-fb-text-muted">Entscheidung gespeichert</span>
-                        }
-                      </td>
-                    }
-                  }
-                }
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
-    }
-  </div>
+          }
+        </tbody>
+      </table>
+    </div>
+  </app-data-table>
 </section>
