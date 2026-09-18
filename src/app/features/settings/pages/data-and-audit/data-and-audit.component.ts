@@ -40,6 +40,8 @@ import {
   SelectOption,
 } from '../../../../shared/components/custom-select/custom-select.component';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
+import { DataTableComponent } from '../../../../shared/components/data-table/data-table.component';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { WorkspaceRetentionComponent } from './workspace-retention.component';
 
 export interface AuditFilterValue {
@@ -125,6 +127,8 @@ function localDayBoundaryAsUtc(value: string, endOfDay: boolean): string {
     ReactiveFormsModule,
     LucideDynamicIcon,
     CustomSelectComponent,
+    DataTableComponent,
+    ButtonComponent,
     DatePipe,
     WorkspaceRetentionComponent,
   ],
@@ -186,6 +190,7 @@ export class DataAndAuditComponent {
   readonly nextCursor = signal<string | null>(null);
   readonly isLoading = signal(false);
   readonly isLoadingMore = signal(false);
+  readonly filtersExpanded = signal(true);
   readonly error = signal<string | null>(null);
   readonly isExporting = signal(false);
   readonly exportProgress = signal(0);
