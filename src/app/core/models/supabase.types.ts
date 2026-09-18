@@ -10,11 +10,189 @@ export type Database = {
   graphql_public: {
     Tables: {
       [_ in never]: never
+      operating_expense_categories: {
+        Row: {
+          archived_at: string | null
+          created_at: string
+          created_by: string | null
+          default_key: string | null
+          id: string
+          name: string
+          workspace_id: string
+        }
+        Insert: {
+          archived_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          default_key?: string | null
+          id?: string
+          name: string
+          workspace_id: string
+        }
+        Update: {
+          archived_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          default_key?: string | null
+          id?: string
+          name?: string
+          workspace_id?: string
+        }
+        Relationships: []
+      }
+      recurring_operating_expenses: {
+        Row: {
+          archived_at: string | null
+          category_id: string
+          created_at: string
+          created_by: string | null
+          end_date: string | null
+          gross_amount: number
+          id: string
+          interval: string
+          next_due_date: string
+          start_date: string
+          title: string
+          updated_at: string
+          vat_rate: number | null
+          workspace_id: string
+        }
+        Insert: {
+          archived_at?: string | null
+          category_id: string
+          created_at?: string
+          created_by?: string | null
+          end_date?: string | null
+          gross_amount: number
+          id?: string
+          interval: string
+          next_due_date: string
+          start_date: string
+          title: string
+          updated_at?: string
+          vat_rate?: number | null
+          workspace_id: string
+        }
+        Update: {
+          archived_at?: string | null
+          category_id?: string
+          created_at?: string
+          created_by?: string | null
+          end_date?: string | null
+          gross_amount?: number
+          id?: string
+          interval?: string
+          next_due_date?: string
+          start_date?: string
+          title?: string
+          updated_at?: string
+          vat_rate?: number | null
+          workspace_id?: string
+        }
+        Relationships: []
+      }
+      operating_expenses: {
+        Row: {
+          category_id: string
+          created_at: string
+          created_by: string | null
+          due_date: string | null
+          expense_date: string
+          gross_amount: number
+          id: string
+          paid_at: string | null
+          recurrence_date: string | null
+          recurring_rule_id: string | null
+          status: string
+          title: string
+          updated_at: string
+          vat_rate: number | null
+          workspace_id: string
+        }
+        Insert: {
+          category_id: string
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          expense_date: string
+          gross_amount: number
+          id?: string
+          paid_at?: string | null
+          recurrence_date?: string | null
+          recurring_rule_id?: string | null
+          status: string
+          title: string
+          updated_at?: string
+          vat_rate?: number | null
+          workspace_id: string
+        }
+        Update: {
+          category_id?: string
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          expense_date?: string
+          gross_amount?: number
+          id?: string
+          paid_at?: string | null
+          recurrence_date?: string | null
+          recurring_rule_id?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+          vat_rate?: number | null
+          workspace_id?: string
+        }
+        Relationships: []
+      }
+      operating_expense_documents: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          document_type: string
+          expense_id: string
+          file_size: number
+          id: string
+          mime_type: string
+          original_file_name: string
+          storage_path: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          document_type: string
+          expense_id: string
+          file_size: number
+          id?: string
+          mime_type: string
+          original_file_name: string
+          storage_path: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          document_type?: string
+          expense_id?: string
+          file_size?: number
+          id?: string
+          mime_type?: string
+          original_file_name?: string
+          storage_path?: string
+          workspace_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      materialize_due_operating_expenses: {
+        Args: { p_through_date: string; p_workspace_id: string }
+        Returns: number
+      }
       graphql: {
         Args: {
           extensions?: Json
