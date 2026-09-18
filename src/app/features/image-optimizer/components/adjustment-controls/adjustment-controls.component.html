@@ -20,7 +20,7 @@
             [attr.aria-describedby]="slider.hint ? 'adjust-hint-' + slider.key : null"
             [disabled]="disabled()"
             (input)="onSlider(slider.key, $any($event.target).value)"
-            class="h-1.5 flex-1 cursor-pointer accent-indigo-500 disabled:cursor-not-allowed disabled:opacity-40"
+            class="h-1.5 flex-1 cursor-pointer accent-fb-primary disabled:cursor-not-allowed disabled:opacity-40"
           />
           <span class="w-14 text-right text-[10px] tabular-nums text-fb-text-muted">
             {{ displayOf(slider) }}
@@ -43,7 +43,7 @@
       type="button"
       (click)="applyToAllRequested.emit()"
       [disabled]="disabled() || !canApplyToAll()"
-      class="cursor-pointer rounded-lg border border-fb-border px-3 py-1.5 text-[11px] font-semibold text-fb-text-secondary hover:border-indigo-500/40 hover:text-fb-text-primary disabled:cursor-not-allowed disabled:opacity-40"
+      class="cursor-pointer rounded-lg border border-fb-border px-3 py-1.5 text-[11px] font-semibold text-fb-text-secondary hover:border-fb-brand-border hover:bg-fb-brand-surface hover:text-fb-text-primary disabled:cursor-not-allowed disabled:opacity-40"
     >
       Auf alle Bilder übernehmen
     </button>
