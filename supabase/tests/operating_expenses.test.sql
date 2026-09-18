@@ -232,7 +232,7 @@ select is(
     'e1800000-0000-4000-8000-000000000011',
     '2026-07-15'
   ),
-  5,
+  4,
   'quartalsweise und jährliche Regeln erzeugen die fälligen Instanzen'
 );
 
