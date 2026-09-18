@@ -453,7 +453,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path = ''
-as $
+as $expense_retention$
 begin
   if exists (select 1 from public.purchases where workspace_id = old.id)
     or exists (select 1 from public.inventory_items where workspace_id = old.id)
@@ -480,7 +480,7 @@ begin
   end if;
   return old;
 end;
-$;
+$expense_retention$;
 
 revoke all on function public.prevent_workspace_with_business_data_deletion()
   from public, anon, authenticated, service_role;
