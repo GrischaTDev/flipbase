@@ -9,6 +9,36 @@ Die vollständige bisherige Historie ist im
 bytegleich erhalten. Das Archiv liegt im selben Ordner, damit seine relativen
 Dateiverweise weiterhin denselben Ausgangspunkt haben.
 
+## 2026-09-18 – Claude Opus 5 (Anthropic) – Einkaufsbelege als private Dateien
+
+**Auftrag:** Teil 2 von 3 des Einkaufsumbaus, nach dem veröffentlichten Teil 1 (PR #103).
+Nutzerentscheidungen: Löschen nur vor dem Abschluss, im Demo-Modus kein Upload, Anzeige
+als Vorschau im Dialog. Konzept und Plan liegen unter
+`docs/superpowers/specs/2026-09-18-purchase-documents-design.md` und
+`docs/superpowers/plans/2026-09-18-purchase-documents.md`.
+
+**Änderung:** Neuer privater Bucket `purchase-documents` (20 MiB, PDF/JPG/PNG/XML) mit
+kanonischem Pfad je Workspace, Einkauf und Beleg. Neue Tabelle `purchase_documents` mit
+RLS je Operation: lesen und anlegen für Mitglieder, löschen nur bei nicht abgeschlossenem
+Einkauf, kein Ändern. Dieselben Bedingungen gelten für die Datei in `storage.objects`.
+Trigger schreiben `purchase_document_added` und `purchase_document_removed` in die
+vorhandene Historie. Der neue Dienst prüft Typ, Endung und Größe vor dem Upload, legt
+erst die Datei und dann die Metadaten an und nimmt die Datei zurück, wenn die Metadaten
+scheitern; das Entfernen löscht erst den Eintrag, damit die Datenbankregeln entscheiden.
+Neue Belegkarte auf der Einkaufs-Detailseite mit Liste, Belegart-Auswahl, Vorschau
+(Bild oder PDF aus dem privaten Bucket) und Download. Belege lassen sich auch nach dem
+Abschluss ergänzen; ein Hinweis erklärt, dass sie dann nicht mehr entfernt werden können.
+Im Demo-Modus ist der Upload gesperrt.
+
+**Prüfung:** Datenbanktests und vollständige PR-CI auf `feat/purchase-documents` grün
+(Migration, Policies, Bau, Browser-Smoke). Lokal: Vitest node (1423), angular (877) und
+dom (250), Typprüfung, ESLint, Prettier, Test-Audit und Shared-UI-Prüfung mit Exitcode 0.
+Die Supabase-Typen kommen aus einem GitHub-Lauf, nicht von Hand.
+
+**Offen:** Sichtprüfung im Browser (lokales Node unter dem Minimum der Angular CLI);
+Teil 3 (Einkauf drucken) folgt. Ein Wiederherstellungstest der gesicherten
+Storage-Dateien ist weiterhin eine Betriebsaufgabe und nicht Teil dieses PRs.
+
 ## 2026-09-17 – Claude Opus 5 (Anthropic) – Einkauf: Quelle, Verkäufer-Snapshot und Nachtrag
 
 **Auftrag:** Übernahme des Einkaufsumbaus von ChatGPT. Nutzerentscheidungen: drei PRs

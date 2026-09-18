@@ -21,6 +21,7 @@ describe('PurchaseDetailComponent', () => {
     expect(template).toContain('>Angebotslink<');
     expect(template).toContain('rel="noopener noreferrer"');
     expect(template).toContain('<app-purchase-seller-details-dialog');
+    expect(template).toContain('<app-purchase-documents-card');
     expect(template).not.toContain('Original-Angebot');
     expect(template).not.toContain('>Lieferant<');
   });
