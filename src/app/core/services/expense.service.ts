@@ -1,6 +1,7 @@
-import { computed, inject, Injectable, signal } from '@angular/core';
+import { computed, effect, inject, Injectable, signal } from '@angular/core';
 import { Expense, ExpenseCreateInput, ExpenseUpdateInput } from '../models/expense.models';
 import { AuthService } from './auth.service';
+import { ExpenseRecurringService } from './expense-recurring.service';
 import { MockDataStoreService } from './mock-data-store.service';
 import { SupabaseService } from './supabase.service';
 import { SyncStatusService } from './sync-status.service';
@@ -17,6 +18,10 @@ export class ExpenseService {
   private readonly mockStore = inject(MockDataStoreService);
   private readonly syncStatus = inject(SyncStatusService);
   private readonly auth = inject(AuthService);
+  private readonly recurring = inject(ExpenseRecurringService, { optional: true });
+
+  private syncedWorkspaceId: string | null = null;
+  private syncPromise: Promise<void> | null = null;
 
   private readonly expensesRaw = signal<readonly Expense[]>([]);
   readonly expenses = computed(() =>
@@ -26,6 +31,49 @@ export class ExpenseService {
   );
   readonly isLoading = signal(false);
   readonly loadError = signal<Error | null>(null);
+
+  constructor() {
+    try {
+      effect(() => {
+        const workspaceId = this.workspace.currentWorkspace()?.id ?? null;
+        if (!workspaceId) {
+          this.syncedWorkspaceId = null;
+          this.expensesRaw.set([]);
+          return;
+        }
+        if (workspaceId !== this.syncedWorkspaceId) void this.ensureCurrentWorkspaceLoaded();
+      });
+    } catch {
+      // Einige fokussierte Service-Tests haben keinen Angular-Scheduler.
+    }
+  }
+
+  async ensureCurrentWorkspaceLoaded(): Promise<void> {
+    const workspaceId = this.workspace.currentWorkspace()?.id ?? null;
+    if (!workspaceId) {
+      this.expensesRaw.set([]);
+      this.syncedWorkspaceId = null;
+      return;
+    }
+    if (this.syncedWorkspaceId === workspaceId && !this.syncPromise) return;
+    if (this.syncPromise) return this.syncPromise;
+
+    this.syncPromise = (async () => {
+      if (this.recurring) {
+        await this.recurring.load();
+        const materialized = await this.recurring.materializeDue(this.localDateKey());
+        if (materialized.error) throw materialized.error;
+      }
+      await this.load();
+      this.syncedWorkspaceId = workspaceId;
+    })();
+
+    try {
+      await this.syncPromise;
+    } finally {
+      this.syncPromise = null;
+    }
+  }
 
   async load(): Promise<void> {
     const workspaceId = this.workspace.currentWorkspace()?.id;
@@ -140,6 +188,14 @@ export class ExpenseService {
         )
         .reduce((sum, expense) => sum + Number(expense.gross_amount), 0),
     );
+  }
+
+  private localDateKey(date = new Date()): string {
+    return [
+      date.getFullYear(),
+      String(date.getMonth() + 1).padStart(2, '0'),
+      String(date.getDate()).padStart(2, '0'),
+    ].join('-');
   }
 
   private async persistUpdate(
