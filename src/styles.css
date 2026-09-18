@@ -644,7 +644,7 @@ html:not(.dark) .fb-admin {
   --fb-primary-hover: #e5b201;
   --fb-text-on-accent: #1a1a1a;
   --fb-primary-subtle: rgb(var(--fb-brand-yellow-rgb) / 12%);
-  --fb-primary-border: rgb(138 86 6 / 35%);
+  --fb-primary-border: var(--fb-color-brand-badge-border);
   --fb-border-focus: var(--fb-nav-accent);
   --fb-c-indigo-200: var(--fb-color-brand-text);
   --fb-c-indigo-300: var(--fb-color-brand-text);
