@@ -1,11 +1,6 @@
 <div class="space-y-5">
-  <section
-    aria-labelledby="audit-heading"
-    class="linear-surface rounded-2xl border border-fb-border p-4 sm:p-5"
-  >
-    <div
-      class="flex flex-col gap-2 border-b border-fb-border pb-4 sm:flex-row sm:items-start sm:justify-between"
-    >
+  <section aria-labelledby="audit-heading" class="space-y-3">
+    <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
       <div>
         <h2 id="audit-heading" class="text-base font-bold text-fb-text-primary">Prüfprotokoll</h2>
         <p class="mt-1 max-w-3xl text-xs leading-relaxed text-fb-text-muted">
@@ -13,178 +8,201 @@
           Entwürfe erscheinen erst nach dem Abschließen.
         </p>
       </div>
-      <button
-        type="button"
-        (click)="applyFilters()"
-        [disabled]="isLoading() || !isAuthorized()"
-        class="linear-btn-secondary inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl px-4 text-xs font-bold focus-visible:ring-2 focus-visible:ring-indigo-400 disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        <svg [lucideIcon]="refreshIcon" class="h-4 w-4" aria-hidden="true"></svg>
-        Aktualisieren
-      </button>
     </div>
 
     @if (isDemoMode()) {
       <p
         role="status"
-        class="mt-4 rounded-xl border border-indigo-500/30 bg-indigo-500/10 p-3 text-sm text-fb-text-secondary"
+        class="rounded-xl border border-fb-border bg-fb-subtle p-3 text-sm text-fb-text-secondary"
       >
         Im Demo-Modus gibt es kein serverseitiges Prüfprotokoll. Die Beispieldaten bleiben nur in
         diesem Browser und werden nicht als Geschäftsnachweis archiviert.
       </p>
-    } @else if (isAuthorized()) {
-      <form [formGroup]="filters" (ngSubmit)="applyFilters()" class="mt-4 space-y-4">
-        <fieldset class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          <legend class="sr-only">Prüfprotokoll filtern</legend>
-          <div>
-            <label for="audit-from" class="mb-1 block text-xs font-semibold text-fb-text-secondary"
-              >Zeitraum von</label
-            >
-            <input
-              id="audit-from"
-              type="date"
-              formControlName="from"
-              class="linear-input min-h-11 w-full rounded-xl px-3 text-sm"
-            />
-          </div>
-          <div>
-            <label for="audit-to" class="mb-1 block text-xs font-semibold text-fb-text-secondary"
-              >Zeitraum bis</label
-            >
-            <input
-              id="audit-to"
-              type="date"
-              formControlName="to"
-              class="linear-input min-h-11 w-full rounded-xl px-3 text-sm"
-            />
-          </div>
-          <div>
-            <span class="mb-1 block text-xs font-semibold text-fb-text-secondary">Benutzer</span>
-            <app-custom-select
-              ariaLabel="Benutzer filtern"
-              [options]="actorOptions()"
-              formControlName="actorId"
-            />
-          </div>
-          <div>
-            <span class="mb-1 block text-xs font-semibold text-fb-text-secondary"
-              >Datensatzart</span
-            >
-            <app-custom-select
-              ariaLabel="Datensatzart filtern"
-              [options]="entityOptions"
-              formControlName="entityType"
-            />
-          </div>
-          <div>
-            <label for="audit-event" class="mb-1 block text-xs font-semibold text-fb-text-secondary"
-              >Vorgangstyp</label
-            >
-            <input
-              id="audit-event"
-              type="text"
-              formControlName="eventType"
-              placeholder="z. B. sale_finalized"
-              class="linear-input min-h-11 w-full rounded-xl px-3 text-sm"
-            />
-          </div>
-          <div>
-            <span class="mb-1 block text-xs font-semibold text-fb-text-secondary"
-              >Einträge je Seite</span
-            >
-            <app-custom-select
-              ariaLabel="Einträge je Seite"
-              [options]="pageSizeOptions"
-              formControlName="pageSize"
-            />
-          </div>
-        </fieldset>
-        <div class="flex justify-end">
-          <button
-            type="submit"
-            class="linear-btn-primary inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl px-5 text-xs font-bold focus-visible:ring-2 focus-visible:ring-indigo-400"
-          >
-            <svg [lucideIcon]="filterIcon" class="h-4 w-4" aria-hidden="true"></svg>
-            Filter anwenden
-          </button>
-        </div>
-      </form>
     }
 
     @if (error()) {
       <div
         role="alert"
-        class="mt-4 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-300"
+        class="rounded-xl border border-fb-critical-border bg-fb-critical-surface p-3 text-sm text-fb-critical"
       >
         {{ error() }}
       </div>
     }
 
-    @if (isLoading()) {
-      <p role="status" class="mt-5 text-sm text-fb-text-muted">Prüfprotokoll wird geladen …</p>
-    } @else if (isAuthorized() && events().length === 0 && !error()) {
-      <p
-        class="mt-5 rounded-xl border border-dashed border-fb-border p-6 text-center text-sm text-fb-text-muted"
-      >
-        Für diese Filter wurden keine protokollierten Vorgänge gefunden.
-      </p>
-    } @else if (events().length > 0) {
-      <div class="mt-5 overflow-x-auto rounded-xl border border-fb-border">
-        <table class="linear-table w-full min-w-[52rem] text-left">
-          <thead class="bg-fb-subtle text-fb-text-muted">
-            <tr>
-              <th scope="col" class="px-3 py-3 font-semibold">Zeitpunkt</th>
-              <th scope="col" class="px-3 py-3 font-semibold">Vorgang</th>
-              <th scope="col" class="px-3 py-3 font-semibold">Datensatz</th>
-              <th scope="col" class="px-3 py-3 font-semibold">Benutzer</th>
-              <th scope="col" class="px-3 py-3 font-semibold">Details</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-fb-border">
-            @for (event of events(); track event.id) {
-              <tr class="align-top">
-                <td class="whitespace-nowrap px-3 py-3 text-fb-text-secondary">
-                  {{ event.createdAt | date: 'dd.MM.yyyy, HH:mm:ss' }}
-                </td>
-                <td class="px-3 py-3">
-                  <strong class="block text-fb-text-primary">{{ event.eventLabel }}</strong>
-                  <code class="text-[10px] text-fb-text-muted">{{ event.eventType }}</code>
-                </td>
-                <td class="px-3 py-3 text-fb-text-secondary">
-                  <span class="block">{{ entityLabel(event.entityType) }}</span>
-                  <code class="text-[10px] text-fb-text-muted">{{ event.entityId }}</code>
-                </td>
-                <td class="px-3 py-3 text-fb-text-secondary">{{ actorLabel(event.actorId) }}</td>
-                <td class="px-3 py-3">
-                  <details>
-                    <summary
-                      class="min-h-11 cursor-pointer py-3 font-semibold text-indigo-300 outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
-                    >
-                      Änderungen anzeigen
-                    </summary>
-                    @if (event.reason) {
-                      <p class="mb-2 text-fb-text-secondary">Grund: {{ event.reason }}</p>
-                    }
-                    <pre
-                      class="max-w-lg overflow-auto whitespace-pre-wrap rounded-lg bg-black/20 p-3 text-[10px] text-fb-text-secondary"
-                      >{{ formattedChanges(event) }}</pre>
-                  </details>
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
+    @if (!isDemoMode() && isAuthorized()) {
+      <form [formGroup]="filters" (ngSubmit)="applyFilters()">
+        <app-data-table
+          ariaLabel="Prüfprotokoll"
+          [searchEnabled]="false"
+          [loading]="isLoading()"
+          [hasRows]="events().length > 0"
+          loadingText="Prüfprotokoll wird geladen …"
+          emptyTitle="Keine protokollierten Vorgänge gefunden"
+          emptyText="Passe die Filter an oder aktualisiere das Prüfprotokoll."
+        >
+          <app-custom-select
+            table-view
+            ariaLabel="Datensatzart filtern"
+            variant="toolbar"
+            widthClass="min-w-44 max-w-56"
+            [options]="entityOptions"
+            formControlName="entityType"
+          />
+
+          <app-custom-select
+            table-filters
+            ariaLabel="Benutzer filtern"
+            variant="toolbar"
+            widthClass="min-w-44 max-w-64"
+            [options]="actorOptions()"
+            formControlName="actorId"
+          />
+
+          <app-button
+            table-filters
+            size="slim"
+            variant="secondary"
+            [icon]="filterIcon"
+            [ariaExpanded]="filtersExpanded()"
+            ariaControls="audit-additional-filters"
+            (clicked)="filtersExpanded.set(!filtersExpanded())"
+          >
+            Weitere Filter
+          </app-button>
+
+          <app-button
+            table-filters
+            size="slim"
+            variant="secondary"
+            [icon]="refreshIcon"
+            [disabled]="isLoading()"
+            (clicked)="applyFilters()"
+          >
+            Aktualisieren
+          </app-button>
+
+          @if (filtersExpanded()) {
+            <div
+              table-filter-panel
+              id="audit-additional-filters"
+              class="grid gap-3 border-b border-fb-line px-3 py-3 md:grid-cols-2 xl:grid-cols-4"
+            >
+              <div>
+                <label for="audit-from" class="mb-1 block text-xs font-semibold text-fb-text-secondary">
+                  Zeitraum von
+                </label>
+                <input
+                  id="audit-from"
+                  type="date"
+                  formControlName="from"
+                  class="linear-input min-h-9 w-full rounded-md px-3 text-[13px]"
+                />
+              </div>
+              <div>
+                <label for="audit-to" class="mb-1 block text-xs font-semibold text-fb-text-secondary">
+                  Zeitraum bis
+                </label>
+                <input
+                  id="audit-to"
+                  type="date"
+                  formControlName="to"
+                  class="linear-input min-h-9 w-full rounded-md px-3 text-[13px]"
+                />
+              </div>
+              <div>
+                <label
+                  for="audit-event"
+                  class="mb-1 block text-xs font-semibold text-fb-text-secondary"
+                >
+                  Vorgangstyp
+                </label>
+                <input
+                  id="audit-event"
+                  type="text"
+                  formControlName="eventType"
+                  placeholder="z. B. sale_finalized"
+                  class="linear-input min-h-9 w-full rounded-md px-3 text-[13px]"
+                />
+              </div>
+              <div>
+                <span class="mb-1 block text-xs font-semibold text-fb-text-secondary">
+                  Einträge je Seite
+                </span>
+                <app-custom-select
+                  ariaLabel="Einträge je Seite"
+                  [options]="pageSizeOptions"
+                  formControlName="pageSize"
+                  size="sm"
+                />
+              </div>
+              <div class="md:col-span-2 xl:col-span-4 flex justify-end">
+                <app-button type="submit" variant="primary" size="md" [icon]="filterIcon">
+                  Filter anwenden
+                </app-button>
+              </div>
+            </div>
+          }
+
+          <div table-content class="overflow-x-auto">
+            <table class="linear-table w-full min-w-[52rem] text-left">
+              <thead>
+                <tr>
+                  <th scope="col">Zeitpunkt</th>
+                  <th scope="col">Vorgang</th>
+                  <th scope="col">Datensatz</th>
+                  <th scope="col">Benutzer</th>
+                  <th scope="col">Details</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (event of events(); track event.id) {
+                  <tr class="align-top">
+                    <td class="whitespace-nowrap text-fb-text-secondary">
+                      {{ event.createdAt | date: 'dd.MM.yyyy, HH:mm:ss' }}
+                    </td>
+                    <td>
+                      <strong class="block text-fb-text-primary">{{ event.eventLabel }}</strong>
+                      <code class="text-[10px] text-fb-text-muted">{{ event.eventType }}</code>
+                    </td>
+                    <td class="text-fb-text-secondary">
+                      <span class="block">{{ entityLabel(event.entityType) }}</span>
+                      <code class="text-[10px] text-fb-text-muted">{{ event.entityId }}</code>
+                    </td>
+                    <td class="text-fb-text-secondary">{{ actorLabel(event.actorId) }}</td>
+                    <td>
+                      <details>
+                        <summary
+                          class="min-h-11 cursor-pointer py-3 font-semibold text-fb-text-primary outline-none focus-visible:ring-2 focus-visible:ring-fb-primary"
+                        >
+                          Änderungen anzeigen
+                        </summary>
+                        @if (event.reason) {
+                          <p class="mb-2 text-fb-text-secondary">Grund: {{ event.reason }}</p>
+                        }
+                        <pre
+                          class="max-w-lg overflow-auto whitespace-pre-wrap rounded-lg bg-black/20 p-3 text-[10px] text-fb-text-secondary"
+                          >{{ formattedChanges(event) }}</pre
+                        >
+                      </details>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </app-data-table>
+      </form>
+
       @if (nextCursor()) {
-        <div class="mt-4 flex justify-center">
-          <button
-            type="button"
-            (click)="loadMore()"
+        <div class="mt-3 flex justify-center">
+          <app-button
+            variant="secondary"
+            [loading]="isLoadingMore()"
             [disabled]="isLoadingMore()"
-            class="linear-btn-secondary min-h-11 cursor-pointer rounded-xl px-5 text-xs font-bold disabled:opacity-50"
+            (clicked)="loadMore()"
           >
             {{ isLoadingMore() ? 'Weitere Einträge werden geladen …' : 'Weitere Einträge laden' }}
-          </button>
+          </app-button>
         </div>
       }
     }
