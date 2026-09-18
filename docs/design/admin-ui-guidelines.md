@@ -38,14 +38,20 @@ Neutrale Hintergründe, weiße beziehungsweise themegerechte Karten, dezente Rah
 Nutzerpräzisierung vom 18.09.2026: Das helle Admin-Theme verwendet das echte
 Flipbase-Gelb auch sichtbar für aktive Navigation und Brand-Badges; stumpfe
 Gold-/Brauntöne sind dafür keine Ersatz-Markenfarbe. Weil `#fcc601` als Text
-auf hellem Grund nicht genügend Kontrast hat, liegt das Gelb dort auf Fläche,
-Rahmen oder Markierung und die Beschriftung bleibt dunkel. Der Plattform-Admin-
-Badge ist eine bewusst auffällige Rollenkennzeichnung und bleibt kräftig rot;
-er darf nicht in die normale Brand-Farbe umgefärbt werden. Bildoptimierer,
+auf hellem Grund nicht genügend Kontrast hat, liegt das Gelb dort auf der
+abgerundeten aktiven Fläche beziehungsweise ihrem Rahmen und die Beschriftung
+bleibt dunkel. **Keine zusätzliche Seitenlinie, kein farbiger Innenstrich und
+keine Unterstreichung am aktiven Menüpunkt**; der aktive Menüeintrag bleibt
+dieselbe ruhige, vollflächige Navigation wie im übrigen Admin. Der Plattform-
+Admin-Badge ist eine bewusst auffällige Rollenkennzeichnung und bleibt kräftig
+rot; er darf nicht in die normale Brand-Farbe umgefärbt werden. Bildoptimierer,
 Fotoguide und andere Spezialoberflächen verwenden dieselben zentralen
 Theme-Farben und Shared-Komponenten statt eigener Indigo-, Sky-, Amber- oder
 sonstiger Parallelpaletten. Der Fotoguide verwendet den gemeinsamen
-`ModalShellComponent`.
+`ModalShellComponent`. Sichtbare Upload-Aktionen verwenden ebenfalls den
+`ButtonComponent`; ein verstecktes natives `input[type='file']` darf nur
+den technischen Dateiauswahldialog bereitstellen und bekommt keine eigene
+Button-Gestaltung.
 
 Einkaufserfassung und -details folgen der sichtbaren Shopify-Referenz in Anordnung und Proportionen: zentrierter Seitenbereich, breite Positionskarte links, schmalere Kosten-/Detailkarten rechts, Chronik unter dem Arbeitsbereich. Eigene Verkäufer-, Paket- und Kostenfunktionen in diese Struktur integrieren. Visuelle Abnahme bei vergleichbarer Fenstergröße gegen Referenz einschließlich Feldern, Dialogen, Tabellen, Leerzuständen, Radien, Schatten und Bewegung; gemessene Abweichungen dokumentieren.
 
