@@ -1,4 +1,4 @@
-import { isArticleRoute } from './article-navigation';
+import { ARTICLE_VIEWS, isArticleRoute } from './article-navigation';
 import { PLATFORM_ADMIN_NAVIGATION } from './platform-admin-navigation';
 import type { SubNavigationItem } from './platform-admin-navigation';
 import { VINTED_BOT_NAVIGATION } from './vinted-bot-navigation';
@@ -72,6 +72,7 @@ export const WORKSPACE_NAVIGATION_GROUPS: readonly WorkspaceNavigationGroup[] = 
         labelKey: 'NAV.ARTICLE_OVERVIEW',
         label: 'Artikelübersicht',
         icon: 'bookOpen',
+        children: ARTICLE_VIEWS,
       },
       {
         path: '/image-optimizer',
