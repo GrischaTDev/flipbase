@@ -1,6 +1,7 @@
 import '@angular/compiler';
 import { describe, expect, it } from 'vitest';
 import { DashboardRange, InventoryItem, Purchase, Sale } from '../models/flipbase.models';
+import { OperatingExpense } from '../models/operating-expense.models';
 import { DashboardReportService } from './dashboard-report.service';
 
 const now = new Date(2026, 7, 28);
@@ -70,6 +71,7 @@ function report(
     purchases?: Purchase[];
     sales?: Sale[];
     inventoryItems?: InventoryItem[];
+    operatingExpenses?: OperatingExpense[];
   },
   at = now,
   platform = 'all',
@@ -82,6 +84,7 @@ function report(
       sales: records.sales ?? [],
       inventoryItems: records.inventoryItems ?? [],
       stockLots: [],
+      operatingExpenses: records.operatingExpenses ?? [],
     },
     at,
   );
@@ -249,6 +252,47 @@ describe('DashboardReportService', () => {
     expect(result.revenue).toBe(120);
     expect(result.grossProfit).toBe(20);
     expect(result.averageMarginPercent).toBe(16.67);
+  });
+
+  it('zieht nur bezahlte Betriebsausgaben nach Zahlungsdatum vom Cashflow ab, nicht von der Marge', () => {
+    const baseExpense: OperatingExpense = {
+      id: 'expense-paid',
+      workspace_id: 'workspace-1',
+      category_id: 'category-1',
+      recurring_rule_id: null,
+      recurrence_date: null,
+      title: 'Server',
+      gross_amount: 15,
+      vat_rate: 19,
+      expense_date: '2026-08-20',
+      status: 'paid',
+      due_date: null,
+      paid_at: '2026-08-27',
+      created_at: '2026-08-20T08:00:00.000Z',
+      updated_at: '2026-08-20T08:00:00.000Z',
+      created_by: 'user-1',
+    };
+
+    const result = report('last_7_days', {
+      purchases: [receipt],
+      sales: [sale],
+      operatingExpenses: [
+        baseExpense,
+        { ...baseExpense, id: 'open', status: 'open', paid_at: null, gross_amount: 20 },
+        {
+          ...baseExpense,
+          id: 'paid-outside',
+          expense_date: '2026-08-27',
+          paid_at: '2026-08-01',
+          gross_amount: 30,
+        },
+      ],
+    });
+
+    expect(result.operatingExpenseSpend).toBe(15);
+    expect(result.totalExpenses).toBe(40.95);
+    expect(result.grossProfit).toBe(9);
+    expect(result.averageMarginPercent).toBe(45.05);
   });
 
   it('nimmt Verkäufe ohne belegbaren Wareneinsatz aus dem Gewinn und weist ihren Umsatz getrennt aus', () => {
