@@ -1,14 +1,15 @@
 import '@angular/compiler';
 import { ɵresolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { glob, readFile } from 'node:fs/promises';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BetaApplicationsComponent } from './beta-applications.component';
 import { BetaApplicationService } from '../../services/beta-application.service';
-import { TableColumnMenuComponent } from '../../../../shared/components/table-column-menu/table-column-menu.component';
 import { TableSortHeaderComponent } from '../../../../shared/components/table-sort-header/table-sort-header.component';
 import { PageHeaderComponent } from '../../../../shared/components/page-header/page-header.component';
+import { DataTableComponent } from '../../../../shared/components/data-table/data-table.component';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 
 interface AngularInputMetadata {
   inputs: Record<string, unknown>;
@@ -37,27 +38,33 @@ function registerSignalInputs(component: unknown, inputNames: readonly string[])
 // jede Komponente mit externem templateUrl - so laeuft auch jeder andere
 // Komponententest in diesem Projekt (siehe cost-state.component.angular.spec.ts).
 beforeAll(async () => {
-  const resources: Record<string, string> = {
-    './beta-applications.component.html':
-      'src/app/features/platform-admin/pages/beta-applications/beta-applications.component.html',
-    './table-column-menu.component.html':
-      'src/app/shared/components/table-column-menu/table-column-menu.component.html',
-    './table-column-menu.component.scss':
-      'src/app/shared/components/table-column-menu/table-column-menu.component.scss',
-    './table-sort-header.component.html':
-      'src/app/shared/components/table-sort-header/table-sort-header.component.html',
-    './page-header.component.html':
-      'src/app/shared/components/page-header/page-header.component.html',
-    './page-header.component.scss':
-      'src/app/shared/components/page-header/page-header.component.scss',
-  };
-  await ɵresolveComponentResources((url) => readFile(resolve(resources[url] ?? url), 'utf8'));
+  await ɵresolveComponentResources(async (url) => {
+    const fileName = url.replace(/^\.\//, '');
+    const matches: string[] = [];
+    for await (const match of glob(`src/app/**/${fileName}`)) matches.push(match);
+    if (matches.length !== 1) {
+      throw new Error(`Test-Ressource ${url} ist nicht eindeutig: ${matches.join(', ')}`);
+    }
+    return readFile(matches[0], 'utf8');
+  });
   registerSignalInputs(PageHeaderComponent, ['icon']);
-  registerSignalInputs(TableColumnMenuComponent, [
+  registerSignalInputs(DataTableComponent, [
+    'ariaLabel',
+    'searchValue',
+    'searchPlaceholder',
+    'searchAriaLabel',
+    'searchEnabled',
+    'toolbarVisible',
     'columns',
     'sortOptions',
     'currentSort',
     'viewModified',
+    'loading',
+    'errorMessage',
+    'hasRows',
+    'loadingText',
+    'emptyTitle',
+    'emptyText',
   ]);
   registerSignalInputs(TableSortHeaderComponent, [
     'label',
@@ -65,6 +72,15 @@ beforeAll(async () => {
     'currentSort',
     'description',
   ]);
+  registerSignalInputs(ButtonComponent, [
+    'variant',
+    'size',
+    'icon',
+    'disabled',
+    'ariaLabel',
+    'ariaPressed',
+  ]);
+  registerSignalInputs(BadgeComponent, ['tone', 'mono']);
 });
 
 const application = {
@@ -89,7 +105,7 @@ describe('BetaApplicationsComponent', () => {
     await TestBed.configureTestingModule({
       imports: [
         BetaApplicationsComponent,
-        TableColumnMenuComponent,
+        DataTableComponent,
         TableSortHeaderComponent,
         PageHeaderComponent,
       ],
