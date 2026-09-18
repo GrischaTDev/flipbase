@@ -52,10 +52,8 @@ import { RecordHistoryContainer } from '../audit/components/record-history/recor
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
-import { CardComponent } from '../../shared/components/card/card.component';
-import { CustomSearchInputComponent } from '../../shared/components/custom-search-input/custom-search-input.component';
-import { TableColumnMenuComponent } from '../../shared/components/table-column-menu/table-column-menu.component';
 import { TableSortHeaderComponent } from '../../shared/components/table-sort-header/table-sort-header.component';
+import { DataTableComponent } from '../../shared/components/data-table/data-table.component';
 import { TablePreferencesService } from '../../core/services/table-preferences.service';
 import { SalesColumnId, SalesSortField } from '../../core/config/table-defaults.config';
 import {
@@ -86,10 +84,8 @@ function validatedSaleTargetId(value: string | null): string | null {
     PageHeaderComponent,
     ButtonComponent,
     BadgeComponent,
-    CardComponent,
-    CustomSearchInputComponent,
-    TableColumnMenuComponent,
     TableSortHeaderComponent,
+    DataTableComponent,
   ],
   templateUrl: './sales.component.html',
   host: { class: 'block' },
