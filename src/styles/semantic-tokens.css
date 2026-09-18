@@ -50,8 +50,7 @@
   /* Wiederverwendbare Oberflaechenrollen. */
   --fb-toast-surface: rgb(255 255 255 / 98%);
   --fb-toast-border: #dedede;
-  --fb-toast-shadow:
-    0 12px 32px -12px rgb(0 0 0 / 20%), 0 3px 10px -4px rgb(0 0 0 / 10%);
+  --fb-toast-shadow: 0 12px 32px -12px rgb(0 0 0 / 20%);
 
   --fb-avatar-surface: var(--fb-semantic-brand-surface);
   --fb-avatar-text: var(--fb-semantic-brand-text);
@@ -91,8 +90,7 @@ html.dark {
 
   --fb-toast-surface: rgb(43 43 43 / 98%);
   --fb-toast-border: #494949;
-  --fb-toast-shadow:
-    0 16px 38px -14px rgb(0 0 0 / 70%), 0 4px 12px -4px rgb(0 0 0 / 45%);
+  --fb-toast-shadow: 0 16px 38px -14px rgb(0 0 0 / 70%);
 
   --fb-avatar-surface: var(--fb-semantic-brand-surface);
   --fb-avatar-text: var(--fb-semantic-brand-text);
