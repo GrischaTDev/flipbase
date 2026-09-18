@@ -15,12 +15,12 @@
       style="
         --cropper-outline-color: var(--fb-image-editor-overlay);
         --cropper-overlay-color: var(--fb-image-editor-canvas);
-        --cropper-color: rgba(255, 255, 255, 0.78);
+        --cropper-color: var(--fb-image-editor-guide);
         --cropper-border: 2px solid var(--fb-color-brand);
         --cropper-hover-border: 2px solid var(--fb-primary-hover);
         --cropper-focus-border: 3px solid var(--fb-color-brand);
         --cropper-resize-square-bg: var(--fb-color-brand);
-        --cropper-resize-square-border: 2px solid #1a1a1a;
+        --cropper-resize-square-border: 2px solid var(--fb-image-editor-control);
       "
       (imageCropped)="onCropped($event)"
       (transformChange)="onTransform($event)"
