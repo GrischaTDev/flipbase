@@ -2,12 +2,10 @@ import { CurrencyPipe, DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import {
   LucideArrowUpRight as ArrowUpRight,
-  LucideBoxes as Boxes,
   LucideCoins as Coins,
   LucideDynamicIcon,
   LucideReceiptText as ReceiptText,
   LucideTrendingUp as TrendingUp,
-  LucideWallet as Wallet,
 } from '@lucide/angular';
 import { DashboardRange } from '../../core/models/flipbase.models';
 import {
@@ -24,7 +22,6 @@ import { ButtonComponent } from '../../shared/components/button/button.component
 import { CardComponent } from '../../shared/components/card/card.component';
 import { DashboardKpiCardComponent } from './components/dashboard-kpi-card/dashboard-kpi-card.component';
 import { DashboardOpenCostsComponent } from './components/dashboard-open-costs/dashboard-open-costs.component';
-import { kpiChange, KpiChangeFormat } from './models/kpi-change';
 import { DashboardPreferencesService } from './services/dashboard-preferences.service';
 
 const euro = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' });
@@ -83,17 +80,8 @@ export class DashboardComponent {
 
   readonly kpis = computed(() => {
     const report = this.report();
-    const { comparison } = report;
-    const change = (
-      current: number | null,
-      previous: number | null,
-      colored: boolean,
-      format: KpiChangeFormat = 'percent',
-    ) => kpiChange({ current, previous, format, colored, comparisonLabel: comparison.label });
-    const salesWithoutCost = report.salesWithoutCostCount;
 
     return {
-      comparisonLabel: comparison.label,
       grossProfit: {
         value: euro.format(report.grossProfit),
         tone:
@@ -102,47 +90,18 @@ export class DashboardComponent {
             : report.grossProfit < 0
               ? ('negative' as const)
               : ('default' as const),
-        hint:
-          salesWithoutCost > 0
-            ? `davon ohne Kosten: ${euro.format(report.revenueWithoutCost)} Umsatz (${
-                salesWithoutCost === 1 ? '1 Verkauf' : `${salesWithoutCost} Verkäufe`
-              })`
-            : 'Nur Verkäufe mit bekannten Kosten',
-        change: change(report.grossProfit, comparison.grossProfit, true),
       },
       revenue: {
         value: euro.format(report.revenue),
-        change: change(report.revenue, comparison.revenue, true),
-      },
-      expenses: {
-        value: euro.format(report.totalExpenses),
-        hint: report.purchasesIncluded
-          ? `Einkäufe ${euro.format(report.purchaseSpend)} · Verkaufskosten ${euro.format(report.sellingCosts)}`
-          : 'Nur Verkaufskosten dieser Plattform',
-        change: change(report.totalExpenses, comparison.totalExpenses, false),
-      },
-      inventory: {
-        value: euro.format(report.inventoryCostValue),
-        hint:
-          report.inventoryItemsWithoutCost > 0
-            ? `${report.inventoryItemsWithoutCost} Artikel ohne Kosten`
-            : 'Anschaffungswert aktuell vorhandener Ware',
       },
       soldItems: {
         value: String(report.soldItems),
-        change: change(report.soldItems, comparison.soldItems, false),
       },
       margin: {
         value:
           report.averageMarginPercent === null
             ? '–'
             : `${percent.format(report.averageMarginPercent)} %`,
-        change: change(
-          report.averageMarginPercent,
-          comparison.averageMarginPercent,
-          false,
-          'points',
-        ),
       },
     };
   });
@@ -150,8 +109,6 @@ export class DashboardComponent {
   readonly trendingIcon = TrendingUp;
   readonly coinsIcon = Coins;
   readonly receiptIcon = ReceiptText;
-  readonly boxesIcon = Boxes;
-  readonly walletIcon = Wallet;
   readonly arrowIcon = ArrowUpRight;
 
   setRange(range: DashboardRange): void {
