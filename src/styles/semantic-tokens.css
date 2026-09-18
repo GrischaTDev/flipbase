@@ -104,7 +104,7 @@ html.dark {
   fb-* Rollen verwenden.
 */
 html:not(.dark) .fb-admin {
-  --fb-profit: var(--fb-semantic-success);
+  --fb-profit: var(--fb-semantic-success-text);
   --fb-profit-subtle: var(--fb-semantic-success-surface);
   --fb-profit-border: var(--fb-semantic-success-border);
 
@@ -147,7 +147,7 @@ html:not(.dark) .fb-admin {
 }
 
 html.dark .fb-admin {
-  --fb-profit: var(--fb-semantic-success);
+  --fb-profit: var(--fb-semantic-success-text);
   --fb-profit-subtle: var(--fb-semantic-success-surface);
   --fb-profit-border: var(--fb-semantic-success-border);
 
