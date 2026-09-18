@@ -190,113 +190,86 @@
           </div>
         </div>
 
-        <!-- Toolbar & Filter Controls -->
-        <div
-          class="linear-surface relative overflow-visible rounded-xl p-2 flex flex-col md:flex-row md:items-center justify-between gap-2 text-xs"
+        <app-data-table
+          ariaLabel="Banktransaktionen"
+          [searchValue]="bankSearchQuery()"
+          searchPlaceholder="Suchen …"
+          searchAriaLabel="Banktransaktionen durchsuchen"
+          [columns]="tablePrefs().columns"
+          [sortOptions]="accountingTableConfig.sortOptions"
+          [currentSort]="tablePrefs().sort"
+          [viewModified]="viewModified()"
+          [hasRows]="filteredBankTransactions().length > 0"
+          emptyTitle="Keine passenden Banktransaktionen"
+          emptyText="Passe Suche oder Statusfilter an."
+          (searchValueChange)="bankSearchQuery.set($event)"
+          (columnVisibilityToggled)="toggleColumnVisibility($event)"
+          (columnsReordered)="onColumnsReordered($event)"
+          (sortChanged)="onSortChanged($event)"
+          (viewResetRequested)="resetView()"
         >
-          <!-- Filter Tabs -->
-          <div class="flex flex-wrap items-center gap-1.5">
-            <button
-              type="button"
-              (click)="bankTxFilter.set('all')"
-              class="px-3 py-1 rounded-lg font-medium transition cursor-pointer"
-              [class.bg-fb-surface-alt]="bankTxFilter() === 'all'"
-              [class.text-fb-text-primary]="bankTxFilter() === 'all'"
-              [class.text-fb-text-muted]="bankTxFilter() !== 'all'"
+          <div
+            table-view
+            class="flex items-center gap-1 overflow-x-auto"
+            role="group"
+            aria-label="Bankstatus filtern"
+          >
+            <app-button
+              size="slim"
+              [variant]="bankTxFilter() === 'all' ? 'secondary' : 'ghost'"
+              [ariaPressed]="bankTxFilter() === 'all'"
+              (clicked)="bankTxFilter.set('all')"
             >
               Alle ({{ sum.totalCount }})
-            </button>
-
-            <button
-              type="button"
-              (click)="bankTxFilter.set('matched')"
-              class="px-3 py-1 rounded-lg font-medium transition cursor-pointer flex items-center gap-1"
-              [class.bg-fb-surface-alt]="bankTxFilter() === 'matched'"
-              [class.text-fb-profit]="bankTxFilter() === 'matched'"
-              [class.text-fb-text-muted]="bankTxFilter() !== 'matched'"
+            </app-button>
+            <app-button
+              size="slim"
+              [variant]="bankTxFilter() === 'matched' ? 'secondary' : 'ghost'"
+              [ariaPressed]="bankTxFilter() === 'matched'"
+              [icon]="checkIcon"
+              (clicked)="bankTxFilter.set('matched')"
             >
-              <svg [lucideIcon]="checkIcon" class="w-3 h-3 text-fb-profit"></svg>
-              <span>Bereit zum Buchen ({{ sum.matchedCount }})</span>
-            </button>
-
-            <button
-              type="button"
-              (click)="bankTxFilter.set('pending')"
-              class="px-3 py-1 rounded-lg font-medium transition cursor-pointer"
-              [class.bg-fb-surface-alt]="bankTxFilter() === 'pending'"
-              [class.text-amber-400]="bankTxFilter() === 'pending'"
-              [class.text-fb-text-muted]="bankTxFilter() !== 'pending'"
+              Bereit zum Buchen ({{ sum.matchedCount }})
+            </app-button>
+            <app-button
+              size="slim"
+              [variant]="bankTxFilter() === 'pending' ? 'secondary' : 'ghost'"
+              [ariaPressed]="bankTxFilter() === 'pending'"
+              (clicked)="bankTxFilter.set('pending')"
             >
               Offen / Ungeklärt ({{ sum.openCount }})
-            </button>
-
-            <button
-              type="button"
-              (click)="bankTxFilter.set('booked')"
-              class="px-3 py-1 rounded-lg font-medium transition cursor-pointer"
-              [class.bg-fb-surface-alt]="bankTxFilter() === 'booked'"
-              [class.text-fb-text-primary]="bankTxFilter() === 'booked'"
-              [class.text-fb-text-muted]="bankTxFilter() !== 'booked'"
+            </app-button>
+            <app-button
+              size="slim"
+              [variant]="bankTxFilter() === 'booked' ? 'secondary' : 'ghost'"
+              [ariaPressed]="bankTxFilter() === 'booked'"
+              (clicked)="bankTxFilter.set('booked')"
             >
               Bereits gebucht ({{ sum.bookedCount }})
-            </button>
+            </app-button>
           </div>
 
-          <!-- Search, Column Menu & Batch Book Button -->
-          <div class="flex items-center gap-2">
-            <div class="w-40 sm:w-52">
-              <app-custom-search-input
-                placeholder="Suchen..."
-                [(value)]="bankSearchQuery"
-                size="sm"
-              ></app-custom-search-input>
-            </div>
+          @if (sum.matchedCount > 0) {
+            <app-button
+              table-filters
+              variant="primary"
+              size="slim"
+              [icon]="checkCheckIcon"
+              (clicked)="onBookAllExactMatches()"
+            >
+              Alle Treffer buchen ({{ sum.matchedCount }})
+            </app-button>
+          }
 
-            <div class="border-l border-fb-line pl-2">
-              <app-table-column-menu
-                [columns]="tablePrefs().columns"
-                [sortOptions]="accountingTableConfig.sortOptions"
-                [currentSort]="tablePrefs().sort"
-                [viewModified]="viewModified()"
-                (columnVisibilityToggled)="toggleColumnVisibility($event)"
-                (columnsReordered)="onColumnsReordered($event)"
-                (sortChanged)="onSortChanged($event)"
-                (viewResetRequested)="resetView()"
-              />
-            </div>
-
-            @if (sum.matchedCount > 0) {
-              <button
-                type="button"
-                (click)="onBookAllExactMatches()"
-                class="linear-btn-primary text-xs py-1.5 px-3 flex items-center gap-1.5 cursor-pointer shrink-0 shadow-xs rounded-lg"
-              >
-                <svg [lucideIcon]="checkCheckIcon" class="w-3.5 h-3.5"></svg>
-                <span>Alle Treffer buchen ({{ sum.matchedCount }})</span>
-              </button>
-            }
-          </div>
-        </div>
-
-        <!-- Bank Transactions Table -->
-        <div class="linear-surface overflow-visible rounded-xl">
-          <div class="overflow-x-auto">
+          <div table-content class="overflow-x-auto">
             <table class="linear-table min-w-[900px]">
-              <caption class="sr-only">
-                Banktransaktionen
-              </caption>
+              <caption class="sr-only">Banktransaktionen</caption>
               <thead>
-                <tr
-                  class="border-b border-fb-line bg-fb-surface text-fb-text-secondary font-semibold text-[13px]"
-                >
+                <tr>
                   @for (column of orderedVisibleColumns(); track column.id) {
                     @switch (column.id) {
                       @case ('booking_date') {
-                        <th
-                          scope="col"
-                          [attr.aria-sort]="ariaSort('booking_date')"
-                          class="px-4 py-2.5"
-                        >
+                        <th scope="col" [attr.aria-sort]="ariaSort('booking_date')">
                           <app-table-sort-header
                             label="Datum"
                             sortField="booking_date"
@@ -306,11 +279,7 @@
                         </th>
                       }
                       @case ('counterparty') {
-                        <th
-                          scope="col"
-                          [attr.aria-sort]="ariaSort('counterparty')"
-                          class="px-4 py-2.5"
-                        >
+                        <th scope="col" [attr.aria-sort]="ariaSort('counterparty')">
                           <app-table-sort-header
                             label="Auftraggeber / Empfänger"
                             sortField="counterparty"
@@ -320,14 +289,10 @@
                         </th>
                       }
                       @case ('purpose') {
-                        <th scope="col" class="px-4 py-2.5">Verwendungszweck</th>
+                        <th scope="col">Verwendungszweck</th>
                       }
                       @case ('amount') {
-                        <th
-                          scope="col"
-                          [attr.aria-sort]="ariaSort('amount')"
-                          class="px-4 py-2.5 text-right"
-                        >
+                        <th scope="col" class="text-right" [attr.aria-sort]="ariaSort('amount')">
                           <app-table-sort-header
                             label="Betrag"
                             sortField="amount"
@@ -338,32 +303,30 @@
                         </th>
                       }
                       @case ('match') {
-                        <th scope="col" class="px-4 py-2.5">Zugeordnetes Objekt / Match</th>
+                        <th scope="col">Zugeordnetes Objekt / Match</th>
                       }
                       @case ('status') {
-                        <th scope="col" class="px-4 py-2.5 text-center">Status</th>
+                        <th scope="col" class="text-center">Status</th>
                       }
                       @case ('actions') {
-                        <th scope="col" class="px-4 py-2.5 text-right">Aktionen</th>
+                        <th scope="col" class="text-right">Aktionen</th>
                       }
                     }
                   }
                 </tr>
               </thead>
-              <tbody class="divide-y divide-border/30">
+              <tbody>
                 @for (tx of filteredBankTransactions(); track tx.id) {
-                  <tr class="hover:bg-fb-subtle/40 transition">
+                  <tr class="transition hover:bg-fb-surface-hover">
                     @for (column of orderedVisibleColumns(); track column.id) {
                       @switch (column.id) {
                         @case ('booking_date') {
-                          <td
-                            class="whitespace-nowrap px-4 py-3 font-mono text-[11px] text-fb-text-muted"
-                          >
+                          <td class="whitespace-nowrap font-mono text-[11px] text-fb-text-muted">
                             {{ tx.bookingDate | date: 'dd.MM.yyyy' }}
                           </td>
                         }
                         @case ('counterparty') {
-                          <td class="px-4 py-3">
+                          <td>
                             <strong class="block font-medium text-fb-text-primary">{{
                               tx.counterpartyName
                             }}</strong>
@@ -375,118 +338,88 @@
                           </td>
                         }
                         @case ('purpose') {
-                          <td class="max-w-xs px-4 py-3">
-                            <p
-                              class="line-clamp-2 text-[11px] text-fb-text-muted"
-                              [title]="tx.purpose"
-                            >
+                          <td class="max-w-xs">
+                            <p class="line-clamp-2 text-[11px] text-fb-text-muted" [title]="tx.purpose">
                               {{ tx.purpose }}
                             </p>
                           </td>
                         }
                         @case ('amount') {
-                          <td class="whitespace-nowrap px-4 py-3 text-right">
+                          <td class="whitespace-nowrap text-right">
                             <span
                               class="font-mono text-xs font-bold"
                               [class.text-fb-profit]="tx.amount > 0"
                               [class.text-rose-400]="tx.amount < 0"
                             >
-                              {{ tx.amount > 0 ? '+' : ''
-                              }}{{ tx.amount | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                              {{ tx.amount > 0 ? '+' : '' }}{{
+                                tx.amount | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+                              }}
                             </span>
                           </td>
                         }
                         @case ('match') {
-                          <td class="px-4 py-3">
+                          <td>
                             @if (tx.match; as m) {
                               <div class="space-y-1">
                                 <div class="flex items-center gap-1.5">
-                                  <span
-                                    class="rounded border px-1.5 py-0.5 font-mono text-[10px] font-bold"
-                                    [class.bg-fb-profit/15]="m.confidence >= 95"
-                                    [class.border-fb-profit/40]="m.confidence >= 95"
-                                    [class.text-fb-profit]="m.confidence >= 95"
-                                    [class.bg-blue-500/15]="m.confidence >= 80 && m.confidence < 95"
-                                    [class.border-blue-500/40]="
-                                      m.confidence >= 80 && m.confidence < 95
-                                    "
-                                    [class.text-blue-400]="m.confidence >= 80 && m.confidence < 95"
-                                    [class.bg-amber-500/15]="m.confidence < 80"
-                                    [class.border-amber-500/40]="m.confidence < 80"
-                                    [class.text-amber-400]="m.confidence < 80"
-                                  >
-                                    {{ m.confidence }}% Match
+                                  <span class="text-[11px] font-semibold text-fb-text-primary">
+                                    {{ m.confidence }}% · {{ m.targetReference }}
                                   </span>
-                                  <strong class="text-[11px] text-fb-text-primary">{{
-                                    m.targetReference
-                                  }}</strong>
                                 </div>
                                 <span class="block line-clamp-1 text-[10px] text-fb-text-muted">{{
                                   m.reason
                                 }}</span>
                               </div>
                             } @else {
-                              <span class="text-[11px] italic text-fb-text-muted"
-                                >Kein automatischer Treffer</span
-                              >
+                              <span class="text-[11px] italic text-fb-text-muted">
+                                Kein automatischer Treffer
+                              </span>
                             }
                           </td>
                         }
                         @case ('status') {
-                          <td class="whitespace-nowrap px-4 py-3 text-center">
+                          <td class="whitespace-nowrap text-center">
                             @if (tx.status === 'booked') {
-                              <span
-                                class="rounded-full border border-fb-profit/30 bg-fb-profit/15 px-2 py-0.5 text-[10px] font-bold text-fb-profit"
-                              >
-                                Gebucht
-                              </span>
+                              <app-badge tone="success">Gebucht</app-badge>
                             } @else if (tx.status === 'matched') {
                               <app-badge tone="info">Bereit</app-badge>
                             } @else if (tx.status === 'ignored') {
-                              <span
-                                class="rounded-full bg-fb-surface-alt px-2 py-0.5 text-[10px] font-medium text-fb-text-muted"
-                              >
-                                Ignoriert
-                              </span>
+                              <app-badge tone="neutral">Ignoriert</app-badge>
                             } @else {
                               <app-badge tone="caution">Offen</app-badge>
                             }
                           </td>
                         }
                         @case ('actions') {
-                          <td class="whitespace-nowrap px-4 py-3 text-right">
+                          <td class="whitespace-nowrap text-right">
                             <div class="flex items-center justify-end gap-1.5">
                               @if (tx.status === 'matched') {
-                                <button
-                                  type="button"
-                                  (click)="onBookTransaction(tx.id)"
-                                  class="linear-btn-primary flex cursor-pointer items-center gap-1 rounded-lg px-2.5 py-1 text-[11px]"
-                                  title="Buchung bestätigen & abgleichen"
+                                <app-button
+                                  variant="primary"
+                                  size="slim"
+                                  [icon]="checkSingleIcon"
+                                  (clicked)="onBookTransaction(tx.id)"
                                 >
-                                  <svg [lucideIcon]="checkSingleIcon" class="h-3 w-3"></svg>
-                                  <span>Buchen</span>
-                                </button>
+                                  Buchen
+                                </app-button>
                               }
                               @if (tx.status === 'pending') {
-                                <button
-                                  type="button"
-                                  (click)="openManualAssign(tx)"
-                                  class="linear-btn-secondary cursor-pointer rounded-lg px-2 py-1 text-[11px]"
-                                  title="Manuell zuordnen"
+                                <app-button
+                                  variant="secondary"
+                                  size="slim"
+                                  (clicked)="openManualAssign(tx)"
                                 >
                                   Zuweisen
-                                </button>
+                                </app-button>
                               }
                               @if (tx.status !== 'booked') {
-                                <button
-                                  type="button"
-                                  (click)="onIgnoreTransaction(tx.id)"
-                                  class="cursor-pointer p-1 text-fb-text-muted transition hover:text-fb-text-primary"
-                                  title="Ignorieren"
-                                  aria-label="Transaktion ignorieren"
-                                >
-                                  <svg [lucideIcon]="closeIcon" class="h-3.5 w-3.5"></svg>
-                                </button>
+                                <app-button
+                                  variant="ghost"
+                                  size="slim"
+                                  [icon]="closeIcon"
+                                  ariaLabel="Transaktion ignorieren"
+                                  (clicked)="onIgnoreTransaction(tx.id)"
+                                />
                               }
                             </div>
                           </td>
@@ -498,7 +431,7 @@
               </tbody>
             </table>
           </div>
-        </div>
+        </app-data-table>
       }
     </div>
   }
@@ -651,7 +584,7 @@
         </div>
 
         <div class="overflow-x-auto">
-          <table class="linear-table w-full text-left">
+          <table class="linear-table w-full text-left" data-shared-ui-exception="static-table">
             <caption class="sr-only">
               Steuerjournal
             </caption>
