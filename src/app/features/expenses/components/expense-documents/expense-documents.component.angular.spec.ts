@@ -11,11 +11,22 @@ interface AngularInputMetadata {
   declaredInputs: Record<string, string>;
 }
 
-const metadata = (ExpenseDocumentsComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp;
-const originalInputs = metadata.inputs;
-const originalDeclaredInputs = metadata.declaredInputs;
+let metadata: AngularInputMetadata;
+let originalInputs: Record<string, unknown>;
+let originalDeclaredInputs: Record<string, string>;
 
 beforeAll(async () => {
+  await ɵresolveComponentResources(async (url) => {
+    const fileName = url.replace(/^\.\//, '');
+    const matches: string[] = [];
+    for await (const match of glob(`src/app/**/${fileName}`)) matches.push(match);
+    if (matches.length !== 1) throw new Error(`Test-Ressource nicht eindeutig: ${url}`);
+    return readFile(matches[0], 'utf8');
+  });
+
+  metadata = (ExpenseDocumentsComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp;
+  originalInputs = metadata.inputs;
+  originalDeclaredInputs = metadata.declaredInputs;
   metadata.inputs = {
     ...metadata.inputs,
     expenseId: ['expenseId', 1, null],
@@ -24,14 +35,6 @@ beforeAll(async () => {
     ...metadata.declaredInputs,
     expenseId: 'expenseId',
   };
-
-  await ɵresolveComponentResources(async (url) => {
-    const fileName = url.replace(/^\.\//, '');
-    const matches: string[] = [];
-    for await (const match of glob(`src/app/**/${fileName}`)) matches.push(match);
-    if (matches.length !== 1) throw new Error(`Test-Ressource nicht eindeutig: ${url}`);
-    return readFile(matches[0], 'utf8');
-  });
 });
 
 afterAll(() => {
