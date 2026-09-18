@@ -32,221 +32,166 @@
     </div>
   }
 
-  <!-- Polaris-nahe Einkaufstabelle -->
-  <div data-purchase-list class="linear-surface relative overflow-visible rounded-xl">
-    <app-table-toolbar>
-      <app-custom-select
-        table-view
-        variant="toolbar"
-        widthClass="w-auto"
-        ariaLabel="Einkaufsstatus"
-        [options]="statusOptions"
-        [value]="activeStatus()"
-        (valueChange)="activeStatus.set($event ?? 'all')"
-      />
-      <app-custom-search-input
-        table-search
-        variant="toolbar"
-        size="sm"
-        placeholder="Suchen und filtern …"
-        ariaLabel="Einkäufe durchsuchen"
-        [value]="searchQuery()"
-        (valueChange)="searchQuery.set($event)"
-      />
-      <app-custom-select
-        table-filters
-        variant="toolbar"
-        widthClass="min-w-60 max-w-80"
-        ariaLabel="Verkäufer ist"
-        [options]="sellerSelectOptions()"
-        [value]="sellerId()"
-        (valueChange)="sellerId.set($event ?? '')"
-      />
-      <div table-settings>
-        <app-table-column-menu
-          [columns]="tablePrefs().columns"
-          [sortOptions]="purchasesTableConfig.sortOptions"
-          [currentSort]="tablePrefs().sort"
-          [viewModified]="viewModified()"
-          (columnVisibilityToggled)="toggleColumnVisibility($event)"
-          (columnsReordered)="onColumnsReordered($event)"
-          (sortChanged)="onSortChanged($event)"
-          (viewResetRequested)="resetView()"
-        />
-      </div>
-    </app-table-toolbar>
+  <app-data-table
+    data-purchase-list
+    ariaLabel="Einkäufe"
+    [searchValue]="searchQuery()"
+    searchPlaceholder="Suchen und filtern …"
+    searchAriaLabel="Einkäufe durchsuchen"
+    [columns]="tablePrefs().columns"
+    [sortOptions]="purchasesTableConfig.sortOptions"
+    [currentSort]="tablePrefs().sort"
+    [viewModified]="viewModified()"
+    [hasRows]="purchaseRows().length > 0"
+    emptyTitle="Keine passenden Einkäufe"
+    emptyText="Ändere Suche oder Filter oder erfasse einen neuen Einkauf."
+    (searchValueChange)="searchQuery.set($event)"
+    (columnVisibilityToggled)="toggleColumnVisibility($event)"
+    (columnsReordered)="onColumnsReordered($event)"
+    (sortChanged)="onSortChanged($event)"
+    (viewResetRequested)="resetView()"
+  >
+    <app-custom-select
+      table-view
+      variant="toolbar"
+      widthClass="w-auto"
+      ariaLabel="Einkaufsstatus"
+      [options]="statusOptions"
+      [value]="activeStatus()"
+      (valueChange)="activeStatus.set($event ?? 'all')"
+    />
+
+    <app-custom-select
+      table-filters
+      variant="toolbar"
+      widthClass="min-w-60 max-w-80"
+      ariaLabel="Verkäufer ist"
+      [options]="sellerSelectOptions()"
+      [value]="sellerId()"
+      (valueChange)="sellerId.set($event ?? '')"
+    />
 
     @if (selectedSeller(); as seller) {
-      <div class="border-b border-fb-line px-3 py-2">
-        <button
-          type="button"
-          class="rounded-lg border border-fb-line px-2 py-1 text-xs text-fb-text-primary hover:bg-fb-surface-hover focus-visible:outline-2 focus-visible:outline-fb-primary"
-          (click)="sellerId.set('')"
-          [attr.aria-label]="'Filter Verkäufer ist ' + seller.name + ' entfernen'"
+      <div table-filter-panel class="border-b border-fb-line px-3 py-2">
+        <app-button
+          variant="secondary"
+          size="slim"
+          (clicked)="sellerId.set('')"
+          [ariaLabel]="'Filter Verkäufer ist ' + seller.name + ' entfernen'"
         >
           Verkäufer ist {{ seller.name }} · {{ seller.id.slice(-6) }} ×
-        </button>
+        </app-button>
       </div>
     }
 
-    @if (purchaseRows().length > 0) {
-      <div class="overflow-x-auto">
-        <table data-purchase-table class="linear-table min-w-[760px]">
-          <caption class="sr-only">
-            Einkaufstabelle
-          </caption>
-          <thead>
-            <tr>
+    <div table-content class="overflow-x-auto">
+      <table data-purchase-table class="linear-table min-w-[760px]">
+        <caption class="sr-only">Einkaufstabelle</caption>
+        <thead>
+          <tr>
+            @for (column of orderedVisibleColumns(); track column.id) {
+              @switch (column.id) {
+                @case ('title') {
+                  <th scope="col">Einkauf</th>
+                }
+                @case ('description') {
+                  <th scope="col" class="min-w-56" [attr.aria-sort]="ariaSort('title')">
+                    <app-table-sort-header
+                      label="Bezeichnung"
+                      sortField="title"
+                      [currentSort]="tablePrefs().sort"
+                      (sortChanged)="onSortChanged($event)"
+                    />
+                  </th>
+                }
+                @case ('seller') {
+                  <th scope="col">Verkäufer</th>
+                }
+                @case ('purchase_date') {
+                  <th scope="col" [attr.aria-sort]="ariaSort('purchase_date')">
+                    <app-table-sort-header
+                      label="Kaufdatum"
+                      sortField="purchase_date"
+                      [currentSort]="tablePrefs().sort"
+                      (sortChanged)="onSortChanged($event)"
+                    />
+                  </th>
+                }
+                @case ('status') {
+                  <th scope="col">Status</th>
+                }
+                @case ('total_cost') {
+                  <th scope="col" class="min-w-28 text-right" [attr.aria-sort]="ariaSort('total_cost')">
+                    <app-table-sort-header
+                      label="Gesamt"
+                      sortField="total_cost"
+                      [currentSort]="tablePrefs().sort"
+                      (sortChanged)="onSortChanged($event)"
+                      align="right"
+                    />
+                  </th>
+                }
+                @case ('receipt') {
+                  <th scope="col">Erhalten</th>
+                }
+              }
+            }
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of purchaseRows(); track row.id) {
+            <tr
+              data-purchase-table-row
+              (click)="openPurchase($event, row.id)"
+              class="cursor-pointer transition hover:bg-fb-surface-hover"
+            >
               @for (column of orderedVisibleColumns(); track column.id) {
                 @switch (column.id) {
                   @case ('title') {
-                    <th scope="col">Einkauf</th>
+                    <td>
+                      <a
+                        [routerLink]="['/purchases', row.id]"
+                        data-purchase-row
+                        data-purchase-reference
+                        [attr.data-purchase-row]="row.id"
+                        class="font-semibold text-fb-text-primary transition hover:text-fb-primary focus-visible:outline-2 focus-visible:outline-fb-primary"
+                      >
+                        {{ row.reference }}
+                      </a>
+                    </td>
                   }
                   @case ('description') {
-                    <th scope="col" class="min-w-56" [attr.aria-sort]="ariaSort('title')">
-                      <app-table-sort-header
-                        label="Bezeichnung"
-                        sortField="title"
-                        [currentSort]="tablePrefs().sort"
-                        (sortChanged)="onSortChanged($event)"
-                      />
-                    </th>
+                    <td data-purchase-description>{{ row.title }}</td>
                   }
                   @case ('seller') {
-                    <th scope="col">Verkäufer</th>
+                    <td>{{ row.supplierLabel }}</td>
                   }
                   @case ('purchase_date') {
-                    <th scope="col" [attr.aria-sort]="ariaSort('purchase_date')">
-                      <app-table-sort-header
-                        label="Kaufdatum"
-                        sortField="purchase_date"
-                        [currentSort]="tablePrefs().sort"
-                        (sortChanged)="onSortChanged($event)"
-                      />
-                    </th>
+                    <td><time [attr.datetime]="row.purchaseDate">{{ row.purchaseDate | date: 'dd.MM.yyyy' }}</time></td>
                   }
                   @case ('status') {
-                    <th scope="col">Status</th>
+                    <td><app-badge [tone]="row.purchaseStatusTone">{{ row.purchaseStatus }}</app-badge></td>
                   }
                   @case ('total_cost') {
-                    <th
-                      scope="col"
-                      class="min-w-28 text-right"
-                      [attr.aria-sort]="ariaSort('total_cost')"
-                    >
-                      <app-table-sort-header
-                        label="Gesamt"
-                        sortField="total_cost"
-                        [currentSort]="tablePrefs().sort"
-                        (sortChanged)="onSortChanged($event)"
-                        align="right"
-                      />
-                    </th>
+                    <td class="min-w-28 text-right font-mono font-semibold tabular-nums">
+                      <app-cost-state [state]="row.totalCost" />
+                    </td>
                   }
                   @case ('receipt') {
-                    <th scope="col">Erhalten</th>
+                    <td>
+                      <app-purchase-receipt-preview [purchaseId]="row.id" [receipt]="row.receipt" />
+                    </td>
                   }
                 }
               }
             </tr>
-          </thead>
-          <tbody>
-            @for (row of purchaseRows(); track row.id) {
-              <tr
-                data-purchase-table-row
-                (click)="openPurchase($event, row.id)"
-                class="cursor-pointer transition hover:bg-fb-surface-hover"
-              >
-                @for (column of orderedVisibleColumns(); track column.id) {
-                  @switch (column.id) {
-                    @case ('title') {
-                      <td>
-                        <a
-                          [routerLink]="['/purchases', row.id]"
-                          data-purchase-row
-                          data-purchase-reference
-                          [attr.data-purchase-row]="row.id"
-                          class="font-semibold text-fb-text-primary transition hover:text-fb-primary focus-visible:outline-2 focus-visible:outline-fb-primary"
-                        >
-                          {{ row.reference }}
-                        </a>
-                      </td>
-                    }
-                    @case ('description') {
-                      <td data-purchase-description>{{ row.title }}</td>
-                    }
-                    @case ('seller') {
-                      <td>{{ row.supplierLabel }}</td>
-                    }
-                    @case ('purchase_date') {
-                      <td>
-                        <time [attr.datetime]="row.purchaseDate">{{
-                          row.purchaseDate | date: 'dd.MM.yyyy'
-                        }}</time>
-                      </td>
-                    }
-                    @case ('status') {
-                      <td>
-                        <app-badge [tone]="row.purchaseStatusTone">
-                          {{ row.purchaseStatus }}
-                        </app-badge>
-                      </td>
-                    }
-                    @case ('total_cost') {
-                      <td class="min-w-28 text-right font-mono font-semibold tabular-nums">
-                        <app-cost-state [state]="row.totalCost" />
-                      </td>
-                    }
-                    @case ('receipt') {
-                      <td>
-                        <app-purchase-receipt-preview
-                          [purchaseId]="row.id"
-                          [receipt]="row.receipt"
-                        />
-                      </td>
-                    }
-                  }
-                }
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
-    } @else {
-      <div class="p-10 text-center">
-        <div
-          class="w-10 h-10 rounded-lg bg-fb-well border border-fb-line text-fb-text-muted mx-auto flex items-center justify-center mb-3"
-        >
-          <svg [lucideIcon]="bagIcon" class="w-5 h-5"></svg>
-        </div>
-        @if (activeStatus() !== 'all' || sellerId() !== '' || searchQuery().trim() !== '') {
-          <h3 class="text-sm font-bold text-fb-text-secondary">Keine passenden Einkäufe</h3>
-          <p class="mx-auto mb-4 mt-1 max-w-sm text-xs text-fb-text-muted">
-            Ändere den Suchbegriff oder setze die aktuelle Ansicht zurück.
-          </p>
-          <button
-            data-reset-purchase-view
-            type="button"
-            (click)="clearFilters()"
-            class="linear-btn-secondary inline-flex cursor-pointer items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-semibold"
-          >
-            Suche und Filter löschen
-          </button>
-        } @else {
-          <h3 class="text-sm font-bold text-fb-text-secondary">Noch keine Einkäufe</h3>
-          <p class="mx-auto mb-4 mt-1 max-w-sm text-xs text-fb-text-muted">
-            Erfasse deinen ersten Einkauf, um ihn hier zu verwalten.
-          </p>
-          <button
-            type="button"
-            routerLink="/purchases/new"
-            class="linear-btn-primary inline-flex cursor-pointer items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-semibold"
-          >
-            <svg [lucideIcon]="plusIcon" class="h-3.5 w-3.5" aria-hidden="true"></svg>
-            <span>Neuer Einkauf</span>
-          </button>
-        }
-      </div>
-    }
-  </div>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <app-button table-empty-action class="mt-4" variant="primary" [icon]="plusIcon" routerLink="/purchases/new">
+      Neuer Einkauf
+    </app-button>
+  </app-data-table>
 </div>
