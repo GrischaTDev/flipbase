@@ -85,7 +85,10 @@ export class ExpenseService {
       this.expenses.update((current) => [expense, ...current]);
       return { data: expense, error: null };
     } catch (cause: unknown) {
-      return { data: null, error: this.syncStatus.melde('Anlegen der Ausgabe', cause) };
+      return {
+        data: null,
+        error: this.syncStatus.melde('Anlegen der Ausgabe', cause),
+      };
     }
   }
 
