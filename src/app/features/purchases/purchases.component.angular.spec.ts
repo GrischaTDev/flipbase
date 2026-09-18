@@ -3,6 +3,7 @@ import { registerLocaleData } from '@angular/common';
 import localeDe from '@angular/common/locales/de';
 import { signal, ɵresolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { provideRouter } from '@angular/router';
 import { provideTranslateService } from '@ngx-translate/core';
 import { glob, readFile } from 'node:fs/promises';
@@ -335,13 +336,14 @@ describe('PurchasesComponent – responsive Einkaufsübersicht', () => {
 
     const host = fixture.nativeElement as HTMLElement;
     const search = host.querySelector<HTMLInputElement>('app-custom-search-input input');
-    const reset = host.querySelector<HTMLButtonElement>('[data-reset-purchase-view] button');
+    const reset = fixture.debugElement.query(By.css('[data-reset-purchase-view]'));
 
     expect(search).not.toBeNull();
     expect(search?.value).toBe('zzznichtvorhanden');
     expect(host.textContent).toContain('Keine passenden Einkäufe');
+    expect(reset).not.toBeNull();
 
-    reset?.click();
+    reset.triggerEventHandler('clicked', new MouseEvent('click'));
     fixture.detectChanges();
 
     expect(fixture.componentInstance.searchQuery()).toBe('');
