@@ -391,6 +391,7 @@ export const TRANSLATIONS_EN = {
     SALES: 'Sales',
     FULFILLMENT: 'Fulfillment & Shipping',
     ACCOUNTING: 'Accounting & Tax',
+    EXPENSES: 'Expenses',
     SELLERS: 'Sellers',
     ANALYTICS: 'Analytics',
     SETTINGS: 'Settings',
