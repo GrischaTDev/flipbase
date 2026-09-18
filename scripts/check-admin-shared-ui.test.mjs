@@ -19,6 +19,49 @@ test('rejects native selects, local status pills and black primary variants in a
   ]);
 });
 
+test('rejects local managed-table shells and native table search controls', () => {
+  const source = `
+    <app-table-column-menu />
+    <app-table-toolbar></app-table-toolbar>
+    <input type="search" />
+    <table class="linear-table"></table>
+  `;
+
+  assert.deepEqual(findAdminSharedUiViolations('src/app/features/example/example.html', source), [
+    { rule: 'direct-table-column-menu', line: 2 },
+    { rule: 'legacy-table-toolbar', line: 3 },
+    { rule: 'native-table-search', line: 4 },
+    { rule: 'managed-table-without-data-table', line: 5 },
+  ]);
+});
+
+test('requires extra tables beside a data table to declare their role', () => {
+  const source = `
+    <app-data-table>
+      <div table-content><table class="linear-table"></table></div>
+    </app-data-table>
+    <table class="linear-table"></table>
+  `;
+
+  assert.deepEqual(findAdminSharedUiViolations('src/app/features/example/example.html', source), [
+    { rule: 'unclassified-table', line: 3 },
+    { rule: 'unclassified-table', line: 5 },
+  ]);
+});
+
+test('accepts data-table managed tables and narrow documented table exceptions', () => {
+  const source = `
+    <app-data-table>
+      <div table-content><table class="linear-table"></table></div>
+    </app-data-table>
+    <table class="linear-table" data-shared-ui-exception="static-table"></table>
+    <table data-shared-ui-exception="embedded-table"></table>
+    <table data-shared-ui-exception="data-table-content"></table>
+  `;
+
+  assert.deepEqual(findAdminSharedUiViolations('src/app/features/example/example.html', source), []);
+});
+
 test('accepts shared controls and documented native technical inputs', () => {
   const source = `
     <app-custom-select label="Status" />
@@ -38,7 +81,11 @@ test('requires zero findings in admin feature templates', async () => {
     const feature = join(root, 'src/app/features/example');
     await mkdir(feature, { recursive: true });
     const path = 'src/app/features/example/example.html';
-    await writeFile(join(root, path), '<app-custom-select />', 'utf8');
+    await writeFile(
+      join(root, path),
+      '<app-data-table><div table-content><table></table></div></app-data-table>',
+      'utf8',
+    );
     await assert.doesNotReject(checkAdminSharedUi(root));
 
     await writeFile(join(root, path), '<select></select>', 'utf8');
