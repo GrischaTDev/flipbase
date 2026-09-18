@@ -139,8 +139,7 @@ export class HeaderComponent {
 
   selectWorkspace(ws: Workspace): void {
     if (this.workspaceActionsBlocked()) return;
-    this.workspaceService.setCurrentWorkspace(ws);
-    this.isWorkspaceDropdownOpen.set(false);
+    if (this.workspaceService.switchWorkspace(ws.id)) this.isWorkspaceDropdownOpen.set(false);
   }
 
   switchLanguage(lang: string): void {
