@@ -5,8 +5,12 @@
     [icon]="pageIcon"
   >
     <div actions class="flex flex-wrap items-center gap-2">
-      <app-button [icon]="settingsIcon">Kategorien verwalten</app-button>
-      <app-button variant="primary" [icon]="addIcon">Ausgabe hinzufügen</app-button>
+      <app-button [icon]="settingsIcon" (clicked)="categoryDialogOpen.set(true)">
+        Kategorien verwalten
+      </app-button>
+      <app-button variant="primary" [icon]="addIcon" (clicked)="openNewExpense()">
+        Ausgabe hinzufügen
+      </app-button>
     </div>
   </app-page-header>
 
@@ -107,6 +111,7 @@
                   <th scope="col" class="px-4 py-3 text-right">Brutto</th>
                   <th scope="col" class="px-4 py-3 text-right">MwSt.</th>
                   <th scope="col" class="px-4 py-3">Status</th>
+                  <th scope="col" class="px-4 py-3 text-right">Aktionen</th>
                   <th scope="col" class="px-4 py-3">Fällig / bezahlt am</th>
                   <th scope="col" class="px-4 py-3">Wiederholung</th>
                   <th scope="col" class="px-4 py-3">Beleg</th>
@@ -148,9 +153,29 @@
                     <td class="px-4 py-3 text-fb-text-secondary">
                       {{ expense.recurring_rule_id ? 'Ja' : '–' }}
                     </td>
-                    <td class="px-4 py-3 text-fb-text-secondary">–</td>
+                    <td class="px-4 py-3 text-fb-text-secondary">
+                      <app-button variant="ghost" size="slim" (clicked)="documentExpense.set(expense)">
+                        Belege
+                      </app-button>
+                    </td>
                     <td class="px-4 py-3 text-right">
-                      <app-button variant="ghost" size="slim">Bearbeiten</app-button>
+                      <div class="flex justify-end gap-1">
+                        @if (expense.status === 'open') {
+                          <app-button variant="ghost" size="slim" (clicked)="markPaid(expense)">
+                            Als bezahlt
+                          </app-button>
+                        }
+                        <app-button variant="ghost" size="slim" (clicked)="editExpense(expense)">
+                          Bearbeiten
+                        </app-button>
+                        <app-button
+                          variant="ghost"
+                          size="slim"
+                          (clicked)="removeExpense(expense)"
+                        >
+                          Löschen
+                        </app-button>
+                      </div>
                     </td>
                   </tr>
                 }
@@ -178,7 +203,9 @@
             Monatliche, quartalsweise und jährliche Fixkosten.
           </p>
         </div>
-        <app-button variant="primary" [icon]="addIcon">Wiederkehrende Ausgabe hinzufügen</app-button>
+        <app-button variant="primary" [icon]="addIcon" (clicked)="openNewRecurring()">
+          Wiederkehrende Ausgabe hinzufügen
+        </app-button>
       </div>
 
       <app-card padding="none" rounded="xl">
@@ -220,6 +247,11 @@
                         {{ rule.is_active ? 'Aktiv' : 'Inaktiv' }}
                       </app-badge>
                     </td>
+                    <td class="px-4 py-3 text-right">
+                      <app-button size="slim" variant="ghost" (clicked)="editRecurring(rule)">
+                        Bearbeiten
+                      </app-button>
+                    </td>
                   </tr>
                 }
               </tbody>
@@ -236,3 +268,38 @@
     </section>
   }
 </div>
+
+
+@if (expenseDialogOpen()) {
+  <app-expense-dialog
+    [expense]="editingExpense()"
+    (closed)="closeExpenseDialog()"
+    (saved)="expenseService.load()"
+  />
+}
+
+@if (recurringDialogOpen()) {
+  <app-recurring-expense-dialog
+    [rule]="editingRule()"
+    (closed)="closeRecurringDialog()"
+    (saved)="refreshAfterRecurringSave()"
+  />
+}
+
+@if (categoryDialogOpen()) {
+  <app-expense-category-dialog
+    (closed)="categoryDialogOpen.set(false)"
+    (changed)="categoryService.load()"
+  />
+}
+
+@if (documentExpense(); as expense) {
+  <app-modal-shell
+    title="Belege"
+    [subtitle]="expense.title"
+    size="lg"
+    (closed)="documentExpense.set(null)"
+  >
+    <app-expense-documents [expenseId]="expense.id" />
+  </app-modal-shell>
+}
