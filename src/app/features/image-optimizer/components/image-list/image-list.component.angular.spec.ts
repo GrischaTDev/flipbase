@@ -104,7 +104,7 @@ describe('Bilderraster', () => {
   it('kennzeichnet das erste Bild als Hauptbild', () => {
     const element = render([image('a'), image('b')]);
 
-    expect(element.textContent).toContain('HAUPTBILD');
+    expect(element.textContent).toContain('Hauptbild');
   });
 
   it('macht die Werkzeuge einer nicht aktiven Kachel unklickbar, solange sie unsichtbar sind', () => {
