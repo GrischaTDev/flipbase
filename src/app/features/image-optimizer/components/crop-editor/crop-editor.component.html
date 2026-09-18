@@ -1,6 +1,4 @@
-<div
-  class="flex h-[62vh] min-h-96 flex-col overflow-hidden rounded-2xl bg-[var(--fb-image-editor-canvas)] shadow-inner"
->
+<div class="flex h-[62vh] min-h-96 flex-col overflow-hidden rounded-2xl bg-[var(--fb-image-editor-canvas)] shadow-inner">
   <div class="relative flex min-h-0 flex-1 items-center justify-center p-3">
     <image-cropper
       [imageURL]="dataUrl()"
@@ -45,9 +43,7 @@
       meist hell, und bei Transparenz waere kein Kontrastverhaeltnis
       zusicherbar. WCAG AA verlangt 4,5:1 fuer Text und 3:1 fuer Bedienelemente.
     -->
-    <div
-      class="flex flex-wrap items-center gap-1.5 rounded-xl bg-[var(--fb-image-editor-toolbar)] px-2 py-1.5 shadow-lg"
-    >
+    <div class="flex flex-wrap items-center gap-1.5 rounded-xl bg-[var(--fb-image-editor-toolbar)] px-2 py-1.5 shadow-lg">
       <button
         type="button"
         (click)="rotateRequested.emit()"
