@@ -45,15 +45,15 @@ import { SyncStatusService } from '../../core/services/sync-status.service';
 import { ToastService } from '../../shared/components/toast/toast.service';
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
 
-import { CustomSearchInputComponent } from '../../shared/components/custom-search-input/custom-search-input.component';
 import { ModalDialogDirective } from '../../shared/directives/modal-dialog.directive';
 import { MockDataStoreService } from '../../core/services/mock-data-store.service';
 import {
   CustomSelectComponent,
   SelectOption,
 } from '../../shared/components/custom-select/custom-select.component';
-import { TableColumnMenuComponent } from '../../shared/components/table-column-menu/table-column-menu.component';
 import { TableSortHeaderComponent } from '../../shared/components/table-sort-header/table-sort-header.component';
+import { DataTableComponent } from '../../shared/components/data-table/data-table.component';
+import { ButtonComponent } from '../../shared/components/button/button.component';
 import { TablePreferencesService } from '../../core/services/table-preferences.service';
 import { AccountingColumnId, AccountingSortField } from '../../core/config/table-defaults.config';
 import {
@@ -72,10 +72,10 @@ export type BankTxFilter = 'all' | 'matched' | 'pending' | 'booked' | 'ignored';
     CurrencyPipe,
     DatePipe,
     LucideDynamicIcon,
-    CustomSearchInputComponent,
     CustomSelectComponent,
-    TableColumnMenuComponent,
     TableSortHeaderComponent,
+    DataTableComponent,
+    ButtonComponent,
     BadgeComponent,
   ],
   templateUrl: './accounting.component.html',
