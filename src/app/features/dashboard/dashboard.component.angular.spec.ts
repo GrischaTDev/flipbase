@@ -465,7 +465,7 @@ describe('DashboardComponent', () => {
     const cashflow = host.querySelector('[data-kpi="cashflow"]');
 
     expect(cashflow?.textContent).toContain('-50,00 €');
-    expect(cashflow?.querySelector('p')?.className ?? '').not.toContain('text-fb-critical');
+    expect(cashflow?.querySelector('p')?.className ?? '').toContain('text-fb-critical');
     expect(cashflow?.textContent).not.toContain('30,00 €');
   });
 
