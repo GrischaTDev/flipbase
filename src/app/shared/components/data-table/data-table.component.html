@@ -49,6 +49,8 @@
     </div>
   }
 
+  <ng-content select="[table-filter-panel]" />
+
   @if (loading()) {
     <div data-data-table-loading class="px-5 py-10 text-center" role="status">
       <p class="text-[13px] text-fb-text-muted">{{ loadingText() }}</p>
