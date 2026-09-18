@@ -3,7 +3,7 @@
 // diese eine Stildatei.
 .cdk-drag-preview {
   border-radius: 0.75rem;
-  box-shadow: 0 12px 32px rgb(0 0 0 / 35%);
+  box-shadow: var(--fb-shadow-lg);
   // Die Vorschau wird vom CDK per `transform` bei jeder Zeigerbewegung
   // verschoben. Eine eigene Uebergangszeit liesse sie dem Zeiger hinterher-
   // ziehen wie an einem Gummiband - auch bei reduzierter Bewegung.
