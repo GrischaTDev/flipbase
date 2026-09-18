@@ -98,7 +98,7 @@ beforeAll(async () => {
       DashboardKpiCardComponent,
       ['label', 'value', 'icon', 'hint', 'change', 'comparisonLabel', 'size', 'valueTone'],
     ],
-    [DashboardOpenCostsComponent, ['openCosts', 'salesWithoutPurchase']],
+    [DashboardOpenCostsComponent, ['openCosts', 'salesWithoutPurchase', 'inventoryItemsWithoutCost']],
   ] as const) {
     const metadata = (component as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp;
     metadata.inputs = { ...metadata.inputs };
@@ -321,14 +321,16 @@ describe('DashboardComponent', () => {
       });
       expect(fixture.componentInstance.report().rows).toHaveLength(1);
       expect(host.textContent).toContain('Kosten noch offen');
-      expect(host.textContent).toContain('davon ohne Kosten: 42,98 € Umsatz (1 Verkauf)');
+      expect(host.textContent).not.toContain('davon ohne Kosten');
+      expect(host.textContent).toContain('Zu erledigen');
       expect(host.textContent).toContain('1 Verkauf ohne nachvollziehbare Kosten');
+      expect(host.textContent).not.toContain('Offene Kosten');
     } finally {
       createReport.mockImplementation(() => emptyReport);
     }
   });
 
-  it('verwendet für Karten und Verkaufsjournal dieselben verständlichen Kennzahlen', () => {
+  it('zeigt nur die vier Hauptkennzahlen ohne Vergleichs- und Erklärungstexte', () => {
     createReport.mockReturnValueOnce({
       ...emptyReport,
       grossProfit: 20.09,
@@ -339,7 +341,18 @@ describe('DashboardComponent', () => {
       soldItems: 2,
       averageMarginPercent: 46.74,
       inventoryCostValue: 16.67,
+      inventoryItemsWithoutCost: 5,
       comparison: { ...emptyReport.comparison, grossProfit: 10, revenue: 42.98, totalExpenses: 0 },
+      openCosts: [
+        {
+          purchaseId: 'purchase-1',
+          title: 'Testkauf',
+          recordNumber: null,
+          reason: 'price_missing',
+          affectedSales: 0,
+          affectedInventory: 5,
+        },
+      ],
       rows: [
         {
           saleId: 'sale-1',
@@ -360,32 +373,34 @@ describe('DashboardComponent', () => {
     const fixture = createDashboard();
     const host = fixture.nativeElement as HTMLElement;
     const text = host.textContent ?? '';
+    const kpiSection = host.querySelector('[aria-label="Kennzahlen"]') as HTMLElement;
     const journal = host.querySelector('#sales-table-heading')?.closest('section');
     const headers = [...(journal?.querySelectorAll('thead th') ?? [])].map((header) =>
       header.textContent?.replace(/\s+/g, ' ').trim(),
     );
 
-    for (const label of [
-      'Gewinn',
-      'Umsatz',
-      'Ausgaben',
-      'Bestandswert',
-      'Verkaufte Artikel',
-      'Durchschnittliche Marge',
-    ]) {
-      expect(text).toContain(label);
+    expect(kpiSection.querySelectorAll('app-dashboard-kpi-card')).toHaveLength(4);
+    for (const label of ['Gewinn', 'Umsatz', 'Verkaufte Artikel', 'Durchschnittliche Marge']) {
+      expect(kpiSection.textContent).toContain(label);
     }
+    expect(kpiSection.textContent).not.toContain('Ausgaben');
+    expect(kpiSection.textContent).not.toContain('Bestandswert');
+
     const kpi = (name: string) =>
       host.querySelector(`[data-kpi="${name}"]`)?.textContent?.replace(/\s+/g, ' ').trim();
     expect(kpi('gross-profit')).toContain('20,09 €');
-    expect(kpi('gross-profit')).toContain('▲ 101 % ggü. 01.01.–16.09.2025');
-    expect(kpi('revenue')).toContain('±0 %');
-    expect(kpi('expenses')).toContain('37,84 €');
-    expect(kpi('expenses')).toContain('Einkäufe 24,95 € · Verkaufskosten 12,89 €');
-    expect(kpi('expenses')).toContain('neu');
-    expect(kpi('inventory')).not.toContain('ggü.');
+    expect(kpi('revenue')).toContain('42,98 €');
+    expect(kpi('sold-items')).toContain('2');
     expect(kpi('margin')).toContain('46,74 %');
-    expect(kpi('margin')).not.toContain('ggü.');
+
+    expect(kpiSection.querySelector('[data-kpi-change]')).toBeNull();
+    expect(kpiSection.querySelector('[data-kpi-hint]')).toBeNull();
+    expect(kpiSection.textContent).not.toContain('ggü.');
+    expect(kpiSection.textContent).not.toContain('neu');
+    expect(kpiSection.textContent).not.toContain('Artikel ohne Kosten');
+    expect(text).toContain('Zu erledigen');
+    expect(text).toContain('5 Artikel ohne Kostenangabe');
+
     expect(headers).toEqual([
       'Datum',
       'Artikel',
