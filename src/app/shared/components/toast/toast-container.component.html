@@ -6,98 +6,92 @@
   @for (toast of toastService.toasts(); track toast.id) {
     <article
       [attr.role]="toast.type === 'error' ? 'alert' : 'status'"
-      class="pointer-events-auto flex items-start gap-3 rounded-xl border px-4 py-3 shadow-2xl backdrop-blur-md motion-reduce:transition-none"
-      [class.border-emerald-500/40]="toast.type === 'success'"
-      [class.bg-emerald-950/95]="toast.type === 'success'"
-      [class.text-emerald-100]="toast.type === 'success'"
-      [class.border-red-500/40]="toast.type === 'error'"
-      [class.bg-red-950/95]="toast.type === 'error'"
-      [class.text-red-100]="toast.type === 'error'"
-      [class.border-amber-500/40]="toast.type === 'warning'"
-      [class.bg-amber-950/95]="toast.type === 'warning'"
-      [class.text-amber-100]="toast.type === 'warning'"
-      [class.border-sky-500/40]="toast.type === 'info'"
-      [class.bg-sky-950/95]="toast.type === 'info'"
-      [class.text-sky-100]="toast.type === 'info'"
+      class="fb-toast pointer-events-auto grid grid-cols-[2rem_minmax(0,1fr)_2rem] items-start gap-3 rounded-xl border px-3.5 py-3 backdrop-blur-md motion-reduce:transition-none"
+      [class.fb-toast--success]="toast.type === 'success'"
+      [class.fb-toast--error]="toast.type === 'error'"
+      [class.fb-toast--warning]="toast.type === 'warning'"
+      [class.fb-toast--info]="toast.type === 'info'"
     >
-      @switch (toast.type) {
-        @case ('success') {
-          <svg
-            aria-hidden="true"
-            class="mt-0.5 h-5 w-5 shrink-0"
-            fill="none"
-            stroke="currentColor"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            viewBox="0 0 24 24"
-          >
-            <circle cx="12" cy="12" r="10"></circle>
-            <path d="m9 12 2 2 4-4"></path>
-          </svg>
+      <div class="fb-toast__icon flex h-8 w-8 items-center justify-center rounded-lg">
+        @switch (toast.type) {
+          @case ('success') {
+            <svg
+              aria-hidden="true"
+              class="h-[18px] w-[18px]"
+              fill="none"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+            >
+              <circle cx="12" cy="12" r="10"></circle>
+              <path d="m9 12 2 2 4-4"></path>
+            </svg>
+          }
+          @case ('error') {
+            <svg
+              aria-hidden="true"
+              class="h-[18px] w-[18px]"
+              fill="none"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+            >
+              <circle cx="12" cy="12" r="10"></circle>
+              <path d="m15 9-6 6"></path>
+              <path d="m9 9 6 6"></path>
+            </svg>
+          }
+          @case ('warning') {
+            <svg
+              aria-hidden="true"
+              class="h-[18px] w-[18px]"
+              fill="none"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+            >
+              <path
+                d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"
+              ></path>
+              <path d="M12 9v4"></path>
+              <path d="M12 17h.01"></path>
+            </svg>
+          }
+          @case ('info') {
+            <svg
+              aria-hidden="true"
+              class="h-[18px] w-[18px]"
+              fill="none"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+            >
+              <circle cx="12" cy="12" r="10"></circle>
+              <path d="M12 16v-4"></path>
+              <path d="M12 8h.01"></path>
+            </svg>
+          }
         }
-        @case ('error') {
-          <svg
-            aria-hidden="true"
-            class="mt-0.5 h-5 w-5 shrink-0"
-            fill="none"
-            stroke="currentColor"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            viewBox="0 0 24 24"
-          >
-            <circle cx="12" cy="12" r="10"></circle>
-            <path d="m15 9-6 6"></path>
-            <path d="m9 9 6 6"></path>
-          </svg>
-        }
-        @case ('warning') {
-          <svg
-            aria-hidden="true"
-            class="mt-0.5 h-5 w-5 shrink-0"
-            fill="none"
-            stroke="currentColor"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            viewBox="0 0 24 24"
-          >
-            <path
-              d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"
-            ></path>
-            <path d="M12 9v4"></path>
-            <path d="M12 17h.01"></path>
-          </svg>
-        }
-        @case ('info') {
-          <svg
-            aria-hidden="true"
-            class="mt-0.5 h-5 w-5 shrink-0"
-            fill="none"
-            stroke="currentColor"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            viewBox="0 0 24 24"
-          >
-            <circle cx="12" cy="12" r="10"></circle>
-            <path d="M12 16v-4"></path>
-            <path d="M12 8h.01"></path>
-          </svg>
-        }
-      }
+      </div>
 
-      <div class="min-w-0 flex-1">
-        <p class="text-sm font-semibold">{{ toast.title }}</p>
+      <div class="flex min-h-8 min-w-0 flex-1 flex-col justify-center py-0.5">
+        <p class="text-[13px] font-semibold leading-5 text-fb-text-primary">{{ toast.title }}</p>
         @if (toast.description) {
-          <p class="mt-1 text-xs leading-5 text-current/80">{{ toast.description }}</p>
+          <p class="mt-0.5 text-xs leading-5 text-fb-text-muted">{{ toast.description }}</p>
         }
       </div>
 
       <button
         type="button"
-        class="-mr-1 -mt-1 inline-flex min-h-8 min-w-8 shrink-0 items-center justify-center rounded-lg text-current/70 transition hover:bg-white/10 hover:text-current focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current motion-reduce:transition-none"
+        class="fb-toast__close inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-fb-text-muted transition hover:text-fb-text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current motion-reduce:transition-none"
         [attr.aria-label]="'Meldung schließen: ' + toast.title"
         (click)="toastService.dismiss(toast.id)"
       >

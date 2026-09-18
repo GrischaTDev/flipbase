@@ -3,7 +3,7 @@ import { LucideDynamicIcon, LucideIconInput, LucideX } from '@lucide/angular';
 import { ModalDialogDirective } from '../../directives/modal-dialog.directive';
 
 export type ModalSize = 'sm' | 'md' | 'lg' | 'xl' | 'full';
-export type ModalTone = 'neutral' | 'info' | 'success' | 'caution' | 'critical';
+export type ModalTone = 'neutral' | 'brand' | 'info' | 'success' | 'caution' | 'critical';
 
 @Component({
   selector: 'app-modal-shell',
@@ -45,11 +45,13 @@ export class ModalShellComponent {
 
   protected readonly iconToneClasses = computed(() => {
     const tones: Record<ModalTone, string> = {
-      neutral: 'bg-fb-subtle text-fb-text-secondary border-fb-border',
-      info: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30',
-      success: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
-      caution: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
-      critical: 'bg-rose-500/15 text-rose-400 border-rose-500/30',
+      neutral:
+        'bg-fb-status-neutral-surface text-fb-status-neutral border-fb-status-neutral-border',
+      brand: 'bg-fb-brand-surface text-fb-brand border-fb-brand-border',
+      info: 'bg-fb-info-surface text-fb-info border-fb-info-border',
+      success: 'bg-fb-success-surface text-fb-success border-fb-success-border',
+      caution: 'bg-fb-warning-surface text-fb-warning border-fb-warning-border',
+      critical: 'bg-fb-critical-surface text-fb-critical border-fb-critical-border',
     };
     return tones[this.iconTone()];
   });

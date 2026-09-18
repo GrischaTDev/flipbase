@@ -35,6 +35,24 @@ Nutzerfestlegung vom 06.09.2026: Seiten-, Karten-, Abschnitts- und Tabellenüber
 
 Neutrale Hintergründe, weiße beziehungsweise themegerechte Karten, dezente Rahmen und einheitliche Textfarben dominieren. Farbe kennzeichnet Bedeutung: Statusbadges, erforderliche Hinweise, Fehler und die bestehenden primären Markenaktionen. Keine dekorativ wechselnden Indigo-, Violett-, Grün- oder Orangeflächen an Karten, Titeln, Icons oder normalen Beträgen. Statusfarben zentral und in allen Bereichen mit derselben Bedeutung verwenden; Text/Symbol ergänzt die Farbe. Das ausdrücklich festgelegte Logo-Gelb `#fcc601` bleibt bestehen.
 
+Nutzerpräzisierung vom 18.09.2026: Das helle Admin-Theme verwendet das echte
+Flipbase-Gelb auch sichtbar für aktive Navigation und Brand-Badges; stumpfe
+Gold-/Brauntöne sind dafür keine Ersatz-Markenfarbe. Weil `#fcc601` als Text
+auf hellem Grund nicht genügend Kontrast hat, liegt das Gelb dort auf der
+abgerundeten aktiven Fläche beziehungsweise ihrem Rahmen und die Beschriftung
+bleibt dunkel. **Keine zusätzliche Seitenlinie, kein farbiger Innenstrich und
+keine Unterstreichung am aktiven Menüpunkt**; der aktive Menüeintrag bleibt
+dieselbe ruhige, vollflächige Navigation wie im übrigen Admin. Der Plattform-
+Admin-Badge ist eine bewusst auffällige Rollenkennzeichnung und bleibt kräftig
+rot; er darf nicht in die normale Brand-Farbe umgefärbt werden. Bildoptimierer,
+Fotoguide und andere Spezialoberflächen verwenden dieselben zentralen
+Theme-Farben und Shared-Komponenten statt eigener Indigo-, Sky-, Amber- oder
+sonstiger Parallelpaletten. Der Fotoguide verwendet den gemeinsamen
+`ModalShellComponent`. Sichtbare Upload-Aktionen verwenden ebenfalls den
+`ButtonComponent`; ein verstecktes natives `input[type='file']` darf nur
+den technischen Dateiauswahldialog bereitstellen und bekommt keine eigene
+Button-Gestaltung.
+
 Einkaufserfassung und -details folgen der sichtbaren Shopify-Referenz in Anordnung und Proportionen: zentrierter Seitenbereich, breite Positionskarte links, schmalere Kosten-/Detailkarten rechts, Chronik unter dem Arbeitsbereich. Eigene Verkäufer-, Paket- und Kostenfunktionen in diese Struktur integrieren. Visuelle Abnahme bei vergleichbarer Fenstergröße gegen Referenz einschließlich Feldern, Dialogen, Tabellen, Leerzuständen, Radien, Schatten und Bewegung; gemessene Abweichungen dokumentieren.
 
 Präzisierung vom 07.09.2026: Erstellen, Ansicht und Bearbeiten verwenden denselben Seitenrahmen und dieselbe Zweispalten-Komposition. Die Chronik liegt unter den Positionen **innerhalb der linken Spalte**, nicht über die gesamte Seitenbreite. Bearbeiten öffnet die gemeinsame Erfassungsmaske im Arbeitsbereich; gespeicherte Einkäufe behalten Chronik und relevante Zusatzinformationen. Keine separate Einkaufsart-Auswahl: Inhaltskenntnis und Preisführung sind unabhängige Einstellungen. Technische Altdaten-Typen werden dadurch nicht ungeprüft entfernt.

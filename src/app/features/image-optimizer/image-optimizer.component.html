@@ -25,7 +25,7 @@
         <button
           type="button"
           (click)="photoGuide.open()"
-          class="ml-auto inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-amber-400/25 bg-amber-400/10 px-2.5 py-1.5 text-[10px] font-bold text-amber-200 hover:bg-amber-400/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+          class="ml-auto inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-fb-brand-border bg-fb-brand-surface px-2.5 py-1.5 text-[11px] font-semibold text-fb-text-primary hover:bg-fb-primary-subtle focus-visible:outline-2 focus-visible:outline-fb-primary"
         >
           <svg [lucideIcon]="bookIcon" class="h-3.5 w-3.5" aria-hidden="true"></svg>
           Fotoguide
@@ -48,9 +48,7 @@
         @if (workingPlatform(); as platform) {
           <header class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p class="text-[10px] font-bold uppercase tracking-wider text-fb-text-muted">
-                Ausschnitt bearbeiten
-              </p>
+              <p class="text-xs font-medium text-fb-text-muted">Ausschnitt bearbeiten</p>
               <h2 class="mt-0.5 text-sm font-bold text-fb-text-primary">
                 {{ platform.name }} · {{ platform.exportWidth }} × {{ platform.exportHeight }} px
                 maximal
@@ -60,7 +58,7 @@
               type="button"
               (click)="applyToAll(image.id)"
               [disabled]="isBusy() || activeCrop() === null || selectedPlatforms().length < 2"
-              class="cursor-pointer rounded-lg border border-fb-border px-3 py-2 text-[11px] font-semibold text-fb-text-secondary hover:border-indigo-500/40 hover:text-fb-text-primary disabled:cursor-not-allowed disabled:opacity-40"
+              class="cursor-pointer rounded-lg border border-fb-border px-3 py-2 text-[11px] font-semibold text-fb-text-secondary hover:border-fb-brand-border hover:bg-fb-brand-surface hover:text-fb-text-primary disabled:cursor-not-allowed disabled:opacity-40"
             >
               Auf andere Plattformen übernehmen
             </button>

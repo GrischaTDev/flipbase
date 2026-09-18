@@ -59,7 +59,7 @@ export class ButtonComponent {
       secondary:
         'linear-btn-secondary text-fb-text-secondary border border-fb-border hover:text-fb-text-primary hover:bg-fb-surface-hover shadow-sm',
       destructive:
-        'bg-rose-600 hover:bg-rose-500 text-white border border-rose-700 shadow-sm font-semibold focus-visible:outline-rose-500',
+        'bg-fb-critical-surface hover:bg-fb-critical-border text-fb-critical border border-fb-critical-border shadow-sm font-semibold focus-visible:outline-fb-critical',
       ghost:
         'bg-transparent text-fb-text-secondary hover:text-fb-text-primary hover:bg-fb-surface-hover border border-transparent',
       plain:

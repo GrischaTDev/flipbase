@@ -89,6 +89,68 @@ herstellen kann; er ist im Angular-Test `accounting-tax-review` abgedeckt.
 
 **Prüfung:** Nur Analyse und Entwurf, kein Anwendungscode geändert.
 
+## 2026-09-18 – ChatGPT GPT-5.6 Sol (OpenAI) – Navigation und Upload-Button vereinheitlicht
+
+**Auftrag:** Die nach dem Theme-Umbau ergänzte gelbe Seitenmarkierung an aktiven
+Sidebar-Einträgen entfernen, weil sie nicht zur bestehenden Admin-Navigation passt.
+Außerdem prüfen, ob „Bilder hinzufügen“ im Bildoptimierer wirklich die gemeinsame
+Button-Komponente verwendet.
+
+**Änderung:** Die zusätzliche `box-shadow`-Seitenmarkierung der aktiven Sidebar
+sowie die entsprechende Unterkante der mobilen Navigation wurden entfernt; der aktive
+Zustand verwendet wieder ausschließlich die gemeinsame abgerundete Brand-Fläche.
+„Bilder hinzufügen“ war tatsächlich als lokal gestyltes `label` umgesetzt. Der
+sichtbare Auslöser verwendet jetzt `ButtonComponent` mit `variant="primary"` und
+`size="lg"`; nur das technisch notwendige versteckte Datei-Input bleibt nativ.
+Die Designrichtlinie hält beide Entscheidungen verbindlich fest.
+
+**Prüfung:** Ausstehend bis zum PR-Lauf; betroffen sind Styles und der
+Bildoptimierer-Header.
+
+## 2026-09-18 – ChatGPT GPT-5.6 Sol (OpenAI) – Theme-Konsistenz im hellen Design und Bildoptimierer
+
+**Auftrag:** Das helle Theme soll das echte Flipbase-Gelb sichtbarer verwenden statt
+gold-brauner Ersatzfarben. Der Admin-Badge soll als auffällige rote Rollenkennzeichnung
+erhalten bleiben. Bildoptimierer und Fotoguide sollen dieselbe Flipbase-Designsprache
+wie der restliche Admin verwenden.
+
+**Änderung:** Brand-Flächen im hellen Theme sind heller und tragen dunklen Text für
+ausreichenden Kontrast; aktive Navigation erhält zusätzlich eine echte gelbe
+Markenmarkierung. Brand-Badges verwenden im hellen Theme das Logo-Gelb. Für den
+Plattform-Admin gibt es einen eigenen roten Badge-Ton statt Brand oder Critical.
+Der gemeinsame `ModalShellComponent` verwendet die zentralen Theme-Farben und bietet
+einen Brand-Ton. Der Fotoguide wurde vom eigenen nativen Dialog auf den Shared
+`ModalShellComponent` umgestellt. Bildoptimierer-Komponenten verwenden für Auswahl,
+Fokus, Warnung, Erfolg, Fehler und Editor-Akzente die zentralen Flipbase-Variablen;
+alte Indigo-, Sky-, Amber- und Emerald-Akzente wurden in diesem Feature entfernt.
+Die Designrichtlinie dokumentiert diese Nutzerentscheidungen.
+
+**Prüfung:** Ausstehend bis zum PR-Lauf; betroffen sind Theme, Shared Badge/Modal und
+der Bildoptimierer. Geplant sind Formatierung, Lint, Typprüfung, Build,
+Accessibility-Browser-Smoke sowie die relevanten Angular-Tests.
+
+## 2026-09-18 – ChatGPT GPT-5.6 Sol (OpenAI) – Flipbase Theme und lesbare AI-Regeln
+
+**Auftrag:** Die uneinheitlichen Farben von Toasts, Badges, Header, Navigation und
+Statusdarstellungen auf eine gemeinsame Flipbase-Designsprache ausrichten. Danach die
+AI-Regeln so ergänzen, dass englische Code-Namen zugleich konkret, lesbar und am
+Projektzweck orientiert bleiben; PR-Titel und PR-Beschreibungen ausdrücklich auf
+Englisch festlegen.
+
+**Änderung:** Zentrale Theme-Datei `src/styles/flipbase-theme.css` mit verständlichen
+Farbrollen für Brand, Erfolg, Warnung, kritisch und neutral in Light/Dark. Shared
+Badges, Toasts und Buttons sowie Header, Workspace-Status und Dashboard-KPIs greifen
+auf diese Rollen zurück. Toasts erhalten eine neutrale Oberfläche und sauber
+ausgerichtete Icon-/Text-/Close-Spalten. `AGENTS.md` verlangt jetzt zusätzlich
+intention-revealing English names, bevorzugt konkrete Projekt-/Fachnamen vor
+abstraktem Jargon, und definiert PR-Titel sowie PR-Beschreibungen ausdrücklich als
+englisch.
+
+**Prüfung:** PR-CI nach den UI-Änderungen: Formatierung, ESLint, Typprüfung, Build,
+Browser-Smoke inklusive AXE, Node-, DOM- und beide Angular-Test-Shards erfolgreich.
+Die anschließende reine Dokumentationsänderung an `AGENTS.md` wurde im selben PR
+ergänzt.
+
 ## 2026-09-18 – Claude Opus 5 (Anthropic) – Einkauf drucken
 
 **Auftrag:** Teil 3 des Einkaufsumbaus. Nutzerentscheidungen: eigene Druckseite wie

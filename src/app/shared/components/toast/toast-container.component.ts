@@ -5,6 +5,7 @@ import { ToastService } from './toast.service';
   selector: 'app-toast-container',
   imports: [],
   templateUrl: './toast-container.component.html',
+  styleUrl: './toast-container.component.scss',
   host: { class: 'contents' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

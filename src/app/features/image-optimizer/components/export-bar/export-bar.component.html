@@ -3,12 +3,12 @@
 >
   <div aria-live="polite">
     @if (status().kind === 'error') {
-      <p class="text-[11px] text-rose-300" role="alert">{{ status().title }}</p>
+      <p class="text-[11px] text-fb-critical" role="alert">{{ status().title }}</p>
       @if (status().detail; as detail) {
-        <p class="text-[10px] text-rose-400/80">{{ detail }}</p>
+        <p class="text-[10px] text-fb-critical">{{ detail }}</p>
       }
     } @else if (status().kind === 'progress') {
-      <p class="text-xs font-semibold text-sky-300">{{ status().title }}</p>
+      <p class="text-xs font-semibold text-fb-info">{{ status().title }}</p>
     } @else {
       <p class="text-xs font-semibold text-fb-text-primary">{{ status().title }}</p>
       @if (status().detail; as detail) {

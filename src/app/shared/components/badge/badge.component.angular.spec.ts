@@ -66,7 +66,16 @@ describe('BadgeComponent', () => {
     fixture.detectChanges();
 
     const span: HTMLElement = fixture.nativeElement.querySelector('span');
-    expect(span.className).toContain('text-emerald-300');
+    expect(span.className).toContain('text-fb-success');
+  });
+
+  it('renders the admin role with its dedicated red tone', () => {
+    fixture.componentRef.setInput('tone', 'admin');
+    fixture.detectChanges();
+
+    const span: HTMLElement = fixture.nativeElement.querySelector('span');
+    expect(span.className).toContain('bg-fb-admin-surface');
+    expect(span.className).toContain('text-fb-admin');
   });
 
   it('does not expose decorative marker, icon or uppercase variants', () => {
@@ -75,7 +84,7 @@ describe('BadgeComponent', () => {
     }
   });
 
-  it.each(['neutral', 'info', 'success', 'caution', 'critical'])(
+  it.each(['neutral', 'brand', 'admin', 'info', 'success', 'caution', 'critical'])(
     'renders %s status as unchanged text without a marker',
     (tone) => {
       const host = document.createElement('div');

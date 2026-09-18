@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 
-export type BadgeTone = 'neutral' | 'info' | 'success' | 'caution' | 'critical';
+export type BadgeTone = 'neutral' | 'brand' | 'admin' | 'info' | 'success' | 'caution' | 'critical';
 export type BadgeSize = 'sm' | 'md';
 
 @Component({
@@ -19,7 +19,7 @@ export class BadgeComponent {
 
   protected readonly badgeClasses = computed(() => {
     const base =
-      'inline-flex items-center font-semibold rounded-lg border-0 transition-colors select-none';
+      'inline-flex items-center justify-center font-semibold rounded-lg border transition-colors select-none';
 
     const sizeClass =
       this.size() === 'md'
@@ -27,11 +27,14 @@ export class BadgeComponent {
         : 'h-5 px-2 text-xs gap-1 leading-4';
 
     const toneClasses: Record<BadgeTone, string> = {
-      neutral: 'bg-fb-subtle text-fb-text-secondary border-fb-border',
-      info: 'bg-blue-500/15 text-blue-300 border-blue-500/30',
-      success: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
-      caution: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
-      critical: 'bg-rose-500/15 text-rose-300 border-rose-500/30',
+      neutral:
+        'bg-fb-status-neutral-surface text-fb-status-neutral border-fb-status-neutral-border',
+      brand: 'bg-fb-brand-badge-surface text-fb-brand-badge border-fb-brand-badge-border',
+      admin: 'bg-fb-admin-surface text-fb-admin border-fb-admin-border',
+      info: 'bg-fb-info-surface text-fb-info border-fb-info-border',
+      success: 'bg-fb-success-surface text-fb-success border-fb-success-border',
+      caution: 'bg-fb-warning-surface text-fb-warning border-fb-warning-border',
+      critical: 'bg-fb-critical-surface text-fb-critical border-fb-critical-border',
     };
 
     const monoClass = this.mono() ? 'font-mono' : '';

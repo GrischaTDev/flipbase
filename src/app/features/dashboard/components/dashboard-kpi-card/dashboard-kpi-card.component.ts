@@ -26,16 +26,16 @@ export class DashboardKpiCardComponent {
     const size = this.size() === 'large' ? 'text-2xl' : 'text-xl';
     const tone = {
       default: 'text-fb-text-primary',
-      positive: 'text-emerald-700 dark:text-emerald-400',
-      negative: 'text-rose-700 dark:text-rose-400',
+      positive: 'text-fb-success',
+      negative: 'text-fb-critical',
     }[this.valueTone()];
     return `mt-2 font-mono font-semibold tracking-tight ${size} ${tone}`;
   });
 
   protected readonly changeClasses = computed(() => {
     const tone = {
-      success: 'text-emerald-700 dark:text-emerald-400',
-      critical: 'text-rose-700 dark:text-rose-400',
+      success: 'text-fb-success',
+      critical: 'text-fb-critical',
       neutral: 'text-fb-text-secondary',
     }[this.change()?.tone ?? 'neutral'];
     return `font-medium tabular-nums ${tone}`;

@@ -7,7 +7,7 @@
           Ertrag im Blick
         </h1>
         <p class="mt-1 max-w-2xl text-xs text-fb-text-muted">
-          Gewinn, Umsatz und Ausgaben im gewählten Zeitraum, verglichen mit dem Zeitraum davor.
+          Die wichtigsten Kennzahlen im gewählten Zeitraum.
         </p>
       </div>
       <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
@@ -49,8 +49,15 @@
     }
   </header>
 
-  <section class="space-y-3" aria-label="Kennzahlen">
-    <div class="grid gap-3 md:grid-cols-3">
+  <section aria-label="Kennzahlen">
+    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <app-dashboard-kpi-card
+        data-kpi="revenue"
+        size="large"
+        label="Umsatz"
+        [icon]="coinsIcon"
+        [value]="kpis().revenue.value"
+      />
       <app-dashboard-kpi-card
         data-kpi="gross-profit"
         size="large"
@@ -58,63 +65,56 @@
         [icon]="trendingIcon"
         [value]="kpis().grossProfit.value"
         [valueTone]="kpis().grossProfit.tone"
-        [hint]="kpis().grossProfit.hint"
-        [change]="kpis().grossProfit.change"
-        [comparisonLabel]="kpis().comparisonLabel"
-      />
-      <app-dashboard-kpi-card
-        data-kpi="revenue"
-        size="large"
-        label="Umsatz"
-        [icon]="coinsIcon"
-        [value]="kpis().revenue.value"
-        hint="Bestätigte Verkäufe im Zeitraum"
-        [change]="kpis().revenue.change"
-        [comparisonLabel]="kpis().comparisonLabel"
-      />
-      <app-dashboard-kpi-card
-        data-kpi="expenses"
-        size="large"
-        label="Ausgaben"
-        [icon]="walletIcon"
-        [value]="kpis().expenses.value"
-        [hint]="kpis().expenses.hint"
-        [change]="kpis().expenses.change"
-        [comparisonLabel]="kpis().comparisonLabel"
-      />
-    </div>
-    <div class="grid gap-3 sm:grid-cols-3">
-      <app-dashboard-kpi-card
-        data-kpi="inventory"
-        label="Bestandswert"
-        [icon]="boxesIcon"
-        [value]="kpis().inventory.value"
-        [hint]="kpis().inventory.hint"
-      />
-      <app-dashboard-kpi-card
-        data-kpi="sold-items"
-        label="Verkaufte Artikel"
-        [icon]="receiptIcon"
-        [value]="kpis().soldItems.value"
-        hint="Bestätigte Stückzahl im Zeitraum"
-        [change]="kpis().soldItems.change"
-        [comparisonLabel]="kpis().comparisonLabel"
       />
       <app-dashboard-kpi-card
         data-kpi="margin"
-        label="Durchschnittliche Marge"
+        size="large"
+        label="Marge"
         [icon]="trendingIcon"
         [value]="kpis().margin.value"
-        hint="Nur Verkäufe mit bekannten Kosten"
-        [change]="kpis().margin.change"
-        [comparisonLabel]="kpis().comparisonLabel"
+      />
+      <app-dashboard-kpi-card
+        data-kpi="cashflow"
+        size="large"
+        label="Cashflow"
+        [icon]="coinsIcon"
+        [value]="kpis().cashflow.value"
+        [valueTone]="kpis().cashflow.tone"
       />
     </div>
+  </section>
+
+  <section data-dashboard-expenses aria-labelledby="dashboard-expenses-heading">
+    <app-card rounded="xl">
+      <div card-header class="flex items-center justify-between gap-4">
+        <h2 id="dashboard-expenses-heading" class="text-sm font-semibold text-fb-text-primary">
+          Ausgaben
+        </h2>
+        <p class="font-mono text-sm font-semibold text-fb-text-primary">
+          {{ kpis().expenses.total }}
+        </p>
+      </div>
+      <dl class="grid gap-3 text-[13px] sm:grid-cols-2">
+        <div class="flex items-center justify-between gap-3">
+          <dt class="text-fb-text-secondary">Einkäufe</dt>
+          <dd class="font-mono font-medium text-fb-text-primary">
+            {{ kpis().expenses.purchases }}
+          </dd>
+        </div>
+        <div class="flex items-center justify-between gap-3">
+          <dt class="text-fb-text-secondary">Gebühren & Versand</dt>
+          <dd class="font-mono font-medium text-fb-text-primary">
+            {{ kpis().expenses.selling }}
+          </dd>
+        </div>
+      </dl>
+    </app-card>
   </section>
 
   <app-dashboard-open-costs
     [openCosts]="report().openCosts"
     [salesWithoutPurchase]="report().salesWithoutPurchase"
+    [inventoryItemsWithoutCost]="report().inventoryItemsWithoutCost"
   />
 
   <app-card rounded="xl">
@@ -126,7 +126,7 @@
       <div card-header class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 id="sales-table-heading" class="text-sm font-semibold text-fb-text-primary">
-            Verkaufsjournal
+            Verkäufe
           </h2>
           <p class="mt-1 text-xs text-fb-text-muted">
             {{ report().rows.length }} bestätigte Verkäufe im gewählten Zeitraum
@@ -147,7 +147,7 @@
           class="hidden overflow-x-auto md:block"
           tabindex="0"
           role="region"
-          aria-label="Verkaufsjournal-Tabelle"
+          aria-label="Verkäufe-Tabelle"
         >
           <table class="linear-table w-full min-w-[760px] text-[13px] tabular-nums">
             <thead class="bg-fb-well/60 text-[13px] font-semibold text-fb-text-secondary">
@@ -156,10 +156,16 @@
                 <th scope="col" class="px-4 py-3">Artikel</th>
                 <th scope="col" class="px-4 py-3 text-right">Menge</th>
                 <th scope="col" class="px-4 py-3">Plattform</th>
-                <th scope="col" class="px-4 py-3 text-right">Verkaufserlös</th>
-                <th scope="col" class="px-4 py-3 text-right">Wareneinsatz</th>
-                <th scope="col" class="px-4 py-3 text-right">Verkaufskosten</th>
-                <th scope="col" class="px-4 py-3 text-right">Ergebnis nach direkten Kosten</th>
+                <th scope="col" class="px-4 py-3 text-right">Einnahmen</th>
+                <th scope="col" class="px-4 py-3 text-right">Einkaufspreis</th>
+                <th
+                  scope="col"
+                  class="px-4 py-3 text-right"
+                  title="Plattformgebühren, Versand, Verpackung und weitere Kosten dieses Verkaufs"
+                >
+                  Gebühren & Versand
+                </th>
+                <th scope="col" class="px-4 py-3 text-right">Gewinn</th>
                 <th scope="col" class="px-4 py-3 text-right">Marge</th>
               </tr>
             </thead>
@@ -193,7 +199,18 @@
                   <td class="px-4 py-3 text-right font-mono text-fb-text-secondary">
                     {{ row.sellingCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                   </td>
-                  <td class="px-4 py-3 text-right font-mono font-semibold text-fb-text-primary">
+                  <td
+                    class="px-4 py-3 text-right font-mono font-semibold"
+                    [class.text-fb-success]="
+                      row.resultAfterDirectCosts !== null && row.resultAfterDirectCosts > 0
+                    "
+                    [class.text-fb-critical]="
+                      row.resultAfterDirectCosts !== null && row.resultAfterDirectCosts < 0
+                    "
+                    [class.text-fb-text-primary]="
+                      row.resultAfterDirectCosts === null || row.resultAfterDirectCosts === 0
+                    "
+                  >
                     @if (row.resultAfterDirectCosts === null) {
                       <span class="font-sans text-xs text-fb-text-secondary"
                         >Kosten noch offen</span
@@ -229,11 +246,11 @@
               <dl
                 class="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-fb-text-secondary"
               >
-                <dt>Verkaufserlös</dt>
+                <dt>Einnahmen</dt>
                 <dd class="text-right tabular-nums">
                   {{ row.revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                 </dd>
-                <dt>Wareneinsatz</dt>
+                <dt>Einkaufspreis</dt>
                 <dd class="text-right tabular-nums">
                   @if (row.costOfGoodsSold === null) {
                     Kosten noch offen
@@ -241,12 +258,27 @@
                     {{ row.costOfGoodsSold | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                   }
                 </dd>
-                <dt>Verkaufskosten</dt>
+                <dt
+                  title="Plattformgebühren, Versand, Verpackung und weitere Kosten dieses Verkaufs"
+                >
+                  Gebühren & Versand
+                </dt>
                 <dd class="text-right tabular-nums">
                   {{ row.sellingCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                 </dd>
-                <dt class="font-semibold text-fb-text-primary">Ergebnis nach direkten Kosten</dt>
-                <dd class="text-right font-semibold tabular-nums text-fb-text-primary">
+                <dt class="font-semibold text-fb-text-primary">Gewinn</dt>
+                <dd
+                  class="text-right font-semibold tabular-nums"
+                  [class.text-fb-success]="
+                    row.resultAfterDirectCosts !== null && row.resultAfterDirectCosts > 0
+                  "
+                  [class.text-fb-critical]="
+                    row.resultAfterDirectCosts !== null && row.resultAfterDirectCosts < 0
+                  "
+                  [class.text-fb-text-primary]="
+                    row.resultAfterDirectCosts === null || row.resultAfterDirectCosts === 0
+                  "
+                >
                   @if (row.resultAfterDirectCosts === null) {
                     Kosten noch offen
                   } @else {

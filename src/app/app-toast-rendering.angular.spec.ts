@@ -20,6 +20,8 @@ beforeAll(async () => {
     './app.css': 'src/app/app.css',
     './toast-container.component.html':
       'src/app/shared/components/toast/toast-container.component.html',
+    './toast-container.component.scss':
+      'src/app/shared/components/toast/toast-container.component.scss',
     './store-layout.component.html':
       'src/app/features/store/store-layout/store-layout.component.html',
     './store-cart-drawer.component.html':

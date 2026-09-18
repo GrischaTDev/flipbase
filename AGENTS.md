@@ -10,6 +10,29 @@ hierher.
 - **Bezeichner im Code immer englisch** — Variablen, Funktionen, Dateien, Tabellen.
 - Deutsch bleibt in Chat, Code-Kommentaren und Oberflächentexten.
 
+## Benennung & Lesbarkeit
+
+- **Dateien, Ordner und Code-Bezeichner bleiben Englisch.** Das gilt insbesondere
+  für Klassen, Interfaces, Services, Funktionen, Variablen, Routenmodelle und
+  Dateinamen.
+- **Namen müssen den Zweck direkt erkennen lassen.** Ein Entwickler soll auch
+  nach mehreren Wochen aus einem Namen verstehen können, wofür eine Datei,
+  Komponente oder ein Service zuständig ist, ohne zuerst die Implementierung
+  lesen zu müssen.
+- **Konkrete Projekt- und Fachnamen vor abstraktem Jargon bevorzugen.** Zum
+  Beispiel `flipbase-theme.css` statt `semantic-tokens.css` oder
+  `workspace-context-lock.service.ts` statt eines allgemeinen
+  `context-manager.service.ts`.
+- Generische Sammelnamen wie `manager`, `helper`, `common`, `misc`,
+  `data` oder `utils` nur verwenden, wenn sie die Verantwortung wirklich
+  präzise beschreiben. Bei fachlichem Inhalt einen fachlichen Namen wählen.
+- Etablierte Framework- und Architekturbegriffe wie `guard`, `interceptor`,
+  `adapter` oder `repository` sind sinnvoll, wenn die Datei genau diese
+  Rolle erfüllt. Keine Fachbegriffe nur deshalb verwenden, weil sie technisch
+  klingen.
+- Bei neuen Abstraktionen zuerst fragen: **„Versteht jemand am Namen, was das
+  in Flipbase tut?“** Wenn nicht, den Namen vereinfachen oder fachlicher machen.
+
 ## Techstack
 
 - **Framework:** Angular 22
@@ -56,6 +79,18 @@ An diesem Projekt arbeiten mehrere KI-Assistenten, teils gleichzeitig.
     - _Hinweis:_ Während der Beta (0.x) steuert GitVersion Breaking Changes automatisch als Minor-Bump (0.x), um einen vorzeitigen 1.0.0-Sprung zu verhindern.
 - Die Beschreibung im Body erklärt das **Warum**, nicht die Dateiliste: welches Problem,
   welche Ursache, welche Abwägung — und was tatsächlich geprüft wurde.
+
+## Pull Requests
+
+- **PR-Titel und PR-Beschreibungen immer auf Englisch.**
+- PR-Titel kurz und eindeutig formulieren, bevorzugt im Conventional-Commit-Stil
+  passend zur Hauptänderung, z. B. `feat(ui): introduce central Flipbase theme`.
+- Auch im PR-Text konkrete, lesbare Begriffe verwenden. Keine unnötig abstrakten
+  Formulierungen oder Schlagwörter, wenn ein einfacher Projekt- oder Fachbegriff
+  denselben Sachverhalt klarer beschreibt.
+- Der PR-Body beschreibt Problem, Grund der Änderung, wesentliche
+  Verhaltensänderungen/Abwägungen und die tatsächlich ausgeführten Prüfungen.
+  Keine bloße Dateiliste und keine automatisch aufgeblähte Zusammenfassung.
 
 ## Vor dem Pushen
 

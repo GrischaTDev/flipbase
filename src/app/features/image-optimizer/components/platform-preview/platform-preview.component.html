@@ -18,7 +18,7 @@
           class="absolute inset-0 grid place-items-center bg-black/35 px-4 text-center"
           role="status"
         >
-          <span class="text-xs font-medium text-rose-200">Vorschau nicht verfügbar</span>
+          <span class="text-xs font-medium text-fb-critical-strong">Vorschau nicht verfügbar</span>
         </div>
       }
     </div>
@@ -26,10 +26,10 @@
   @default {
     <div
       class="flex h-full flex-col overflow-hidden rounded-xl border transition"
-      [class.border-indigo-400]="isActive()"
+      [class.border-fb-brand-border]="isActive()"
       [class.ring-2]="isActive()"
-      [class.ring-indigo-400/30]="isActive()"
-      [class.border-rose-400]="issue() !== null"
+      [class.ring-fb-brand-border]="isActive()"
+      [class.border-fb-critical-border]="issue() !== null"
       [class.border-fb-border]="!isActive() && issue() === null"
     >
       <button
@@ -59,7 +59,9 @@
                 class="absolute inset-0 grid place-items-center bg-black/35 px-2 text-center"
                 role="status"
               >
-                <span class="text-[10px] font-medium text-rose-200">Vorschau nicht verfügbar</span>
+                <span class="text-[10px] font-medium text-fb-critical-strong"
+                  >Vorschau nicht verfügbar</span
+                >
               </div>
             }
           </div>
@@ -83,11 +85,7 @@
           ueber dem Bild musste sie erst die Plattform nennen, und bei mehreren
           betroffenen Plattformen zeigte sie nur die erste.
 
-          Die Textfarbe ist bewusst themenabhaengiges rose-400 statt des
-          statischen rose-200 aus dem Overlay oben: Diese Flaeche liegt auf dem
-          Seitenhintergrund (--fb-bg-app), nicht auf der Kachel selbst - die
-          umschliessende Kachel setzt keinen eigenen Hintergrund. Gemessen:
-          rund 4,76:1 im hellen und 5,43:1 im dunklen Design.
+          Farbe und Flaeche kommen aus dem zentralen Critical-Ton des Flipbase Themes.
 
           `role="status"` statt `role="alert"`: Waehrend der Nutzer am
           Zuschnitt zieht, aktualisieren sich die Zahlen bei jedem
@@ -95,7 +93,7 @@
           hoefliche statt eine unterbrechende Ansage.
         -->
         <p
-          class="bg-rose-500/15 px-2.5 py-1.5 text-[10px] leading-snug text-rose-400"
+          class="bg-fb-critical-surface px-2.5 py-1.5 text-[10px] leading-snug text-fb-critical"
           role="status"
         >
           Nur {{ tooSmall.width }} × {{ tooSmall.height }} px – {{ platform().name }} verlangt mehr.
