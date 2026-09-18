@@ -56,11 +56,11 @@
      Auspraegung noetig, damit aktive Icons und Fokusrahmen lesbar bleiben. */
   --fb-brand-yellow: #fcc601;
   --fb-brand-yellow-rgb: 252 198 1;
-  --fb-nav-accent: #a16207;
-  --fb-nav-accent-rgb: 161 98 7;
-  --fb-nav-badge-text: #713f12;
-  --fb-nav-accent-subtle: rgb(var(--fb-brand-yellow-rgb) / 14%);
-  --fb-nav-accent-border: rgb(var(--fb-nav-accent-rgb) / 30%);
+  --fb-nav-accent: var(--fb-semantic-brand-text);
+  --fb-nav-accent-rgb: 122 76 5;
+  --fb-nav-badge-text: var(--fb-semantic-brand-text);
+  --fb-nav-accent-subtle: var(--fb-semantic-brand-surface);
+  --fb-nav-accent-border: var(--fb-semantic-brand-border);
 
   /* 5. Finanz- & Statusfarben */
   --fb-profit: #047857;
@@ -236,10 +236,11 @@ html.dark {
   --fb-primary-border: rgba(248, 157, 19, 0.35);
 
   /* Im dunklen Design kann das helle Logo-Gelb direkt als Iconfarbe dienen. */
-  --fb-nav-accent: var(--fb-brand-yellow);
+  --fb-nav-accent: var(--fb-semantic-brand-text);
   --fb-nav-accent-rgb: var(--fb-brand-yellow-rgb);
-  --fb-nav-badge-text: var(--fb-brand-yellow);
-  --fb-nav-accent-border: rgb(var(--fb-nav-accent-rgb) / 34%);
+  --fb-nav-badge-text: var(--fb-semantic-brand-text);
+  --fb-nav-accent-subtle: var(--fb-semantic-brand-surface);
+  --fb-nav-accent-border: var(--fb-semantic-brand-border);
 
   /* 5. Finanz- & Statusfarben */
   --fb-profit: #57c776;
