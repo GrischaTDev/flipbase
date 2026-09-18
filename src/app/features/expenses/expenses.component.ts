@@ -228,7 +228,7 @@ type ExpenseStatusFilter = 'all' | 'open' | 'paid';
               Wiederkehrende Ausgabe hinzufügen
             </button>
           </div>
-          @if (expenseService.recurringRules().length > 0) {
+          @if (activeRecurringRules().length > 0) {
             <div class="overflow-x-auto">
               <table class="linear-table w-full min-w-[720px] text-[13px] tabular-nums">
                 <thead class="bg-fb-well/60 font-semibold text-fb-text-secondary">
@@ -238,10 +238,11 @@ type ExpenseStatusFilter = 'all' | 'open' | 'paid';
                     <th class="px-4 py-3 text-right">Betrag</th>
                     <th class="px-4 py-3">Intervall</th>
                     <th class="px-4 py-3">Nächste Fälligkeit</th>
+                    <th class="px-4 py-3 text-right">Aktionen</th>
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-fb-line">
-                  @for (rule of expenseService.recurringRules(); track rule.id) {
+                  @for (rule of activeRecurringRules(); track rule.id) {
                     <tr>
                       <td class="px-4 py-3 font-semibold text-fb-text-primary">{{ rule.title }}</td>
                       <td class="px-4 py-3 text-fb-text-secondary">
@@ -255,6 +256,15 @@ type ExpenseStatusFilter = 'all' | 'open' | 'paid';
                       </td>
                       <td class="px-4 py-3 font-mono text-fb-text-secondary">
                         {{ formatDate(rule.next_due_date) }}
+                      </td>
+                      <td class="px-4 py-3 text-right">
+                        <button
+                          type="button"
+                          class="h-7 rounded-lg border border-fb-line px-2 text-xs text-fb-text-secondary"
+                          (click)="archiveRecurringRule(rule.id)"
+                        >
+                          Archivieren
+                        </button>
                       </td>
                     </tr>
                   }
@@ -596,6 +606,9 @@ export class ExpensesComponent implements OnInit {
   readonly activeCategories = computed(() =>
     this.expenseService.categories().filter((category) => !category.archived_at),
   );
+  readonly activeRecurringRules = computed(() =>
+    this.expenseService.recurringRules().filter((rule) => !rule.archived_at),
+  );
 
   readonly monthExpenses = computed(() => {
     const now = new Date();
@@ -710,6 +723,10 @@ export class ExpensesComponent implements OnInit {
       endDate: value.endDate || null,
     });
     if (!result.error) this.showRecurringForm.set(false);
+  }
+
+  async archiveRecurringRule(ruleId: string): Promise<void> {
+    await this.expenseService.archiveRecurringRule(ruleId);
   }
 
   async createCategory(): Promise<void> {
