@@ -1,5 +1,6 @@
 @import 'tailwindcss';
 @import 'intl-tel-input/styles';
+@import './styles/semantic-tokens.css';
 
 /* ==========================================================================
    FLIPBASE OS – ZENTRALE DESIGN-VARIABLEN (THEME CONFIG)
@@ -423,6 +424,37 @@ html.dark {
   --color-fb-nav-border: var(--fb-nav-accent-border);
   --color-fb-nav-badge: var(--fb-nav-badge-text);
 
+  /* Semantische Designrollen fuer Shared Components und Statusdarstellungen. */
+  --color-fb-brand: var(--fb-semantic-brand-text);
+  --color-fb-brand-strong: var(--fb-semantic-brand);
+  --color-fb-brand-surface: var(--fb-semantic-brand-surface);
+  --color-fb-brand-border: var(--fb-semantic-brand-border);
+
+  --color-fb-success: var(--fb-semantic-success-text);
+  --color-fb-success-strong: var(--fb-semantic-success);
+  --color-fb-success-surface: var(--fb-semantic-success-surface);
+  --color-fb-success-border: var(--fb-semantic-success-border);
+
+  --color-fb-warning: var(--fb-semantic-warning-text);
+  --color-fb-warning-strong: var(--fb-semantic-warning);
+  --color-fb-warning-surface: var(--fb-semantic-warning-surface);
+  --color-fb-warning-border: var(--fb-semantic-warning-border);
+
+  --color-fb-critical: var(--fb-semantic-critical-text);
+  --color-fb-critical-strong: var(--fb-semantic-critical);
+  --color-fb-critical-surface: var(--fb-semantic-critical-surface);
+  --color-fb-critical-border: var(--fb-semantic-critical-border);
+
+  --color-fb-info: var(--fb-semantic-info-text);
+  --color-fb-info-strong: var(--fb-semantic-info);
+  --color-fb-info-surface: var(--fb-semantic-info-surface);
+  --color-fb-info-border: var(--fb-semantic-info-border);
+
+  --color-fb-status-neutral: var(--fb-semantic-neutral-text);
+  --color-fb-status-neutral-strong: var(--fb-semantic-neutral);
+  --color-fb-status-neutral-surface: var(--fb-semantic-neutral-surface);
+  --color-fb-status-neutral-border: var(--fb-semantic-neutral-border);
+
   /* Die Akzentfarben von Tailwind werden auf themenabhaengige Variablen
      umgebogen. Dadurch passen sich rund 480 bereits vorhandene Klassen wie
      text-emerald-400 automatisch an das Design an, ohne dass die Templates
@@ -582,7 +614,7 @@ html.dark {
 /* UI-Hilfsklassen, gebunden an die zentralen Variablen */
 /* Verwaltungsdesign: lokale Variablen lassen Shop, Login und Landingpage unverändert. */
 html:not(.dark) .fb-admin {
-  --fb-c-amber-200: #92400e;
+  --fb-c-amber-200: var(--fb-semantic-warning-text);
   --fb-bg-app: #f1f1f1;
   --fb-bg-sidebar: #ebebeb;
   --fb-bg-header: #f1f1f1;
@@ -606,11 +638,11 @@ html:not(.dark) .fb-admin {
   --fb-primary-subtle: rgb(var(--fb-brand-yellow-rgb) / 12%);
   --fb-primary-border: rgb(138 86 6 / 35%);
   --fb-border-focus: var(--fb-nav-accent);
-  --fb-c-indigo-200: #8a5606;
-  --fb-c-indigo-300: #8a5606;
-  --fb-c-indigo-400: #8a5606;
-  --fb-c-indigo-500: #f89d13;
-  --fb-c-indigo-600: #8a5606;
+  --fb-c-indigo-200: var(--fb-semantic-brand-text);
+  --fb-c-indigo-300: var(--fb-semantic-brand-text);
+  --fb-c-indigo-400: var(--fb-semantic-brand-text);
+  --fb-c-indigo-500: var(--fb-semantic-brand);
+  --fb-c-indigo-600: var(--fb-semantic-brand-text);
   --fb-c-indigo-950: #1a1207;
   --fb-shadow-sm: 0 1px 2px rgb(0 0 0 / 4%);
   --fb-shadow-md:
