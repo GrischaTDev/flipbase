@@ -41,7 +41,7 @@
               {{ document.original_file_name }}
             </p>
             <p class="text-xs text-fb-text-muted">
-              {{ EXPENSE_DOCUMENT_TYPE_LABELS[document.document_type] }}
+              {{ documentTypeLabels[document.document_type] }}
             </p>
           </div>
           <app-button size="slim" variant="ghost" (clicked)="preview.set(document)">
