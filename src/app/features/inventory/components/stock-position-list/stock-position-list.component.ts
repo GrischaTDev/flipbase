@@ -5,7 +5,6 @@ import {
   LucideChevronDown as ChevronDown,
   LucideChevronUp as ChevronUp,
   LucideShoppingCart as ShoppingCart,
-  LucidePackageOpen as PackageOpen,
   LucideArrowRight as ArrowRight,
   LucidePrinter as Printer,
   LucideStore as Store,
@@ -114,7 +113,6 @@ export class StockPositionListComponent {
   readonly chevronDownIcon = ChevronDown;
   readonly chevronUpIcon = ChevronUp;
   readonly shoppingCartIcon = ShoppingCart;
-  readonly packageOpenIcon = PackageOpen;
   readonly arrowRightIcon = ArrowRight;
   readonly printerIcon = Printer;
   readonly storeIcon = Store;
