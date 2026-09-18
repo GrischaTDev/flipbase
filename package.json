@@ -37,7 +37,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.spec.json",
-    "format:check": "prettier --check . || (prettier --write src/app/features/image-optimizer/components/photo-guide/photo-guide.component.html && git diff -- src/app/features/image-optimizer/components/photo-guide/photo-guide.component.html && exit 1)",
+    "format:check": "prettier --check .",
     "verify": "npm run format:check && npm run lint && npm run typecheck && npm run test:workflow && npm run test:audit && npm test && npm run test:landing && npm run build",
     "format": "prettier --write .",
     "supabase:start": "supabase start",
