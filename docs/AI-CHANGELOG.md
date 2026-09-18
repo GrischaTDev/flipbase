@@ -9,6 +9,24 @@ Die vollständige bisherige Historie ist im
 bytegleich erhalten. Das Archiv liegt im selben Ordner, damit seine relativen
 Dateiverweise weiterhin denselben Ausgangspunkt haben.
 
+## 2026-09-18 – ChatGPT GPT-5.6 Sol (OpenAI) – Navigation und Upload-Button vereinheitlicht
+
+**Auftrag:** Die nach dem Theme-Umbau ergänzte gelbe Seitenmarkierung an aktiven
+Sidebar-Einträgen entfernen, weil sie nicht zur bestehenden Admin-Navigation passt.
+Außerdem prüfen, ob „Bilder hinzufügen“ im Bildoptimierer wirklich die gemeinsame
+Button-Komponente verwendet.
+
+**Änderung:** Die zusätzliche `box-shadow`-Seitenmarkierung der aktiven Sidebar
+sowie die entsprechende Unterkante der mobilen Navigation wurden entfernt; der aktive
+Zustand verwendet wieder ausschließlich die gemeinsame abgerundete Brand-Fläche.
+„Bilder hinzufügen“ war tatsächlich als lokal gestyltes `label` umgesetzt. Der
+sichtbare Auslöser verwendet jetzt `ButtonComponent` mit `variant="primary"` und
+`size="lg"`; nur das technisch notwendige versteckte Datei-Input bleibt nativ.
+Die Designrichtlinie hält beide Entscheidungen verbindlich fest.
+
+**Prüfung:** Ausstehend bis zum PR-Lauf; betroffen sind Styles und der
+Bildoptimierer-Header.
+
 ## 2026-09-18 – ChatGPT GPT-5.6 Sol (OpenAI) – Theme-Konsistenz im hellen Design und Bildoptimierer
 
 **Auftrag:** Das helle Theme soll das echte Flipbase-Gelb sichtbarer verwenden statt
