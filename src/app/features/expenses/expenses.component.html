@@ -371,9 +371,15 @@
                     </app-badge>
                   </td>
                   <td class="text-right">
-                    <app-button size="slim" variant="ghost" (clicked)="editRecurring(rule)">
-                      Bearbeiten
-                    </app-button>
+                    <app-button
+                      size="slim"
+                      variant="ghost"
+                      [icon]="editIcon"
+                      [iconOnly]="true"
+                      [ariaLabel]="'Wiederkehrende Ausgabe bearbeiten: ' + rule.title"
+                      [title]="'Wiederkehrende Ausgabe bearbeiten: ' + rule.title"
+                      (clicked)="editRecurring(rule)"
+                    />
                   </td>
                 </tr>
               }
