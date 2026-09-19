@@ -32,3 +32,11 @@ export function calculateExpenseTax(
     tax: (grossCents - netCents) / 100,
   };
 }
+
+export function calculateExpenseUnitPrice(
+  grossAmount: number,
+  quantity: number,
+): number | null {
+  if (!Number.isFinite(grossAmount) || !Number.isInteger(quantity) || quantity <= 0) return null;
+  return Math.round(cents(grossAmount) / quantity) / 100;
+}
