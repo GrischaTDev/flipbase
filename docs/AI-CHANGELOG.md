@@ -1,5 +1,33 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-19 – ChatGPT GPT-5.6 Terra (OpenAI) – Ausgaben pro Workspace sicher laden
+
+**Auftrag:** Den zweiten Reparaturabschnitt aus der Bestandsaufnahme umsetzen:
+Ausgaben, Kategorien, Wiederholungsregeln und Belegstatus nach Workspace-Wechseln
+sicher halten, die täglichen Wiederholungen zuverlässig prüfen und große
+Ausgabenlisten vollständig laden.
+
+**Änderung:** Alle vier Ausgaben-Dienste verwerfen Antworten, die nach einem
+Workspace-Wechsel eintreffen, und leeren ihren sichtbaren Zustand sofort beim
+Wechsel oder Abmelden. Neue Ladeversuche bleiben nach einem Fehler möglich;
+gleichzeitige Ausgaben-Ladevorgänge werden nur für denselben Workspace und
+Kalendertag geteilt. Wiederholungsausgaben werden deshalb beim ersten Aufruf
+eines neuen Tages erneut abgeglichen. Die Ausgabenabfrage lädt Seiten mit je
+1.000 Datensätzen, sodass mehr als 1.000 Einträge vollständig in der Tabelle
+ankommen. Belegabfragen und Löschungen sind zusätzlich an den aktiven Workspace
+gebunden.
+
+Die Ausgabenseite lädt nach jedem Workspace-Wechsel Kategorien, Ausgaben und
+Belegstatus erneut. Erfassungs-, Wiederholungs-, Kategorien- und Belegdialoge
+sperren den Workspace für ihre Lebensdauer; laufende Speicheraktionen können
+dadurch nicht in einen anderen Workspace umgelenkt werden.
+
+**Prüfung:** Regressionstests decken verspätete Workspace-Antworten,
+Tageswechsel, Retry nach Fehlern, parallele Ladevorgänge, 1.001 Ausgaben,
+Belegstatus und Dialogsperren ab. Die fokussierten DOM- und Angular-Tests sowie
+die strikte Typprüfung, die vollständige Testsuite, Workflow-Prüfung, Prettier,
+ESLint und der Produktionsbau wurden lokal erfolgreich ausgeführt.
+
 ## 2026-09-19 – ChatGPT GPT-5.6 Terra (OpenAI) – Wiederholungsausgaben zuverlässig anlegen
 
 **Auftrag:** Den ersten Reparaturabschnitt aus der Bestandsaufnahme umsetzen:

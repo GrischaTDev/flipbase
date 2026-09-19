@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   OnInit,
   computed,
   inject,
@@ -23,6 +24,7 @@ import {
 } from '../../../../core/models/expense.models';
 import { ExpenseCategoryService } from '../../../../core/services/expense-category.service';
 import { ExpenseRecurringService } from '../../../../core/services/expense-recurring.service';
+import { WorkspaceContextLockService } from '../../../../core/services/workspace-context-lock.service';
 import {
   calculateExpenseTax,
   calculateExpenseUnitPrice,
@@ -64,6 +66,9 @@ function positiveInteger(control: AbstractControl): ValidationErrors | null {
 })
 export class RecurringExpenseDialogComponent implements OnInit {
   private readonly recurringService = inject(ExpenseRecurringService);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly workspaceContext = inject(WorkspaceContextLockService);
+  private readonly releaseWorkspaceLock = this.workspaceContext.acquire();
   readonly categoryService = inject(ExpenseCategoryService);
 
   readonly rule = input<ExpenseRecurringRule | null>(null);
@@ -112,6 +117,10 @@ export class RecurringExpenseDialogComponent implements OnInit {
     is_active: new FormControl(true, { nonNullable: true }),
     notes: new FormControl('', { nonNullable: true }),
   });
+
+  constructor() {
+    this.destroyRef.onDestroy(this.releaseWorkspaceLock);
+  }
 
   ngOnInit(): void {
     const rule = this.rule();

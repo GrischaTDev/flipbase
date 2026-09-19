@@ -3,6 +3,7 @@ import { Injector, runInInjectionContext, signal } from '@angular/core';
 import { describe, expect, it, vi } from 'vitest';
 import { Expense } from '../models/expense.models';
 import { AuthService } from './auth.service';
+import { ExpenseRecurringService } from './expense-recurring.service';
 import { ExpenseService } from './expense.service';
 import { MockDataStoreService } from './mock-data-store.service';
 import { SupabaseService } from './supabase.service';
@@ -45,7 +46,8 @@ function createService(rows: Expense[] = [paidExpense]) {
     select: () => query,
     eq: () => query,
     is: () => query,
-    order: async () => ({ data: rows, error: null }),
+    order: () => query,
+    range: async () => ({ data: rows, error: null }),
   });
 
   const insert = vi.fn(() => ({
@@ -74,6 +76,69 @@ function createService(rows: Expense[] = [paidExpense]) {
 
   const service = runInInjectionContext(injector, () => new ExpenseService());
   return { service, insert, update };
+}
+
+interface QueryResult {
+  readonly data: Expense[] | null;
+  readonly error: Error | null;
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
+
+function workspaceExpense(workspaceId: string): Expense {
+  return {
+    ...paidExpense,
+    id: `expense-${workspaceId}`,
+    workspace_id: workspaceId,
+    title: workspaceId,
+  };
+}
+
+function createWorkspaceHarness(
+  queryResult: (workspaceId: string, from: number, to: number) => Promise<QueryResult>,
+  recurring: Pick<ExpenseRecurringService, 'load' | 'materializeDue'> | null = null,
+) {
+  const currentWorkspace = signal({ id: 'workspace-a' });
+  const queriedWorkspaces: string[] = [];
+  const ranges: (readonly [number, number])[] = [];
+  const from = vi.fn(() => {
+    let workspaceId = '';
+    const query = {
+      select: () => query,
+      eq: (column: string, value: string) => {
+        if (column === 'workspace_id') workspaceId = value;
+        return query;
+      },
+      is: () => query,
+      order: () => query,
+      range: (start: number, end: number) => {
+        queriedWorkspaces.push(workspaceId);
+        ranges.push([start, end]);
+        return queryResult(workspaceId, start, end);
+      },
+    };
+    return query;
+  });
+  const mockStore = new MockDataStoreService();
+  mockStore.isDemoMode.set(false);
+  const injector = Injector.create({
+    providers: [
+      { provide: SupabaseService, useValue: { client: { from } } },
+      { provide: WorkspaceService, useValue: { currentWorkspace } },
+      { provide: MockDataStoreService, useValue: mockStore },
+      { provide: SyncStatusService, useValue: { melde: (_label: string, cause: Error) => cause } },
+      { provide: AuthService, useValue: { currentUser: () => ({ id: 'user-1' }) } },
+      { provide: ExpenseRecurringService, useValue: recurring },
+    ],
+  });
+  const service = runInInjectionContext(injector, () => new ExpenseService());
+  return { service, currentWorkspace, queriedWorkspaces, ranges, injector };
 }
 
 describe('ExpenseService', () => {
@@ -152,5 +217,96 @@ describe('ExpenseService', () => {
     await service.load();
 
     expect(service.paidTotalBetween('2026-09-01', '2026-09-30')).toBe(12.5);
+  });
+
+  it('prüft beim nächsten Aufruf an einem neuen Tag erneut fällige Wiederholungen', async () => {
+    vi.useFakeTimers();
+    const materializeDue = vi.fn().mockResolvedValue({ count: 0, error: null });
+    const harness = createWorkspaceHarness(async () => ({ data: [], error: null }), {
+      load: vi.fn().mockResolvedValue(true),
+      materializeDue,
+    });
+
+    try {
+      vi.setSystemTime(new Date(2026, 8, 19, 12));
+      await harness.service.ensureCurrentWorkspaceLoaded();
+      vi.setSystemTime(new Date(2026, 8, 20, 12));
+      await harness.service.ensureCurrentWorkspaceLoaded();
+
+      expect(materializeDue.mock.calls.map(([date]) => date)).toEqual(['2026-09-19', '2026-09-20']);
+    } finally {
+      vi.useRealTimers();
+      harness.injector.destroy();
+    }
+  });
+
+  it('verwirft die verspätete Antwort des vorherigen Workspace', async () => {
+    const first = deferred<QueryResult>();
+    const harness = createWorkspaceHarness(async (workspaceId) =>
+      workspaceId === 'workspace-a'
+        ? first.promise
+        : { data: [workspaceExpense(workspaceId)], error: null },
+    );
+
+    const initial = harness.service.load();
+    harness.currentWorkspace.set({ id: 'workspace-b' });
+    await harness.service.load();
+    first.resolve({ data: [workspaceExpense('workspace-a')], error: null });
+    await initial;
+
+    expect(harness.service.expenses().map((row) => row.workspace_id)).toEqual(['workspace-b']);
+    harness.injector.destroy();
+  });
+
+  it('lädt den neuen Workspace auch bei noch laufender Anfrage des vorherigen', async () => {
+    const first = deferred<QueryResult>();
+    const harness = createWorkspaceHarness(async (workspaceId) =>
+      workspaceId === 'workspace-a'
+        ? first.promise
+        : { data: [workspaceExpense(workspaceId)], error: null },
+    );
+
+    const initial = harness.service.ensureCurrentWorkspaceLoaded();
+    harness.currentWorkspace.set({ id: 'workspace-b' });
+    const next = harness.service.ensureCurrentWorkspaceLoaded();
+    first.resolve({ data: [workspaceExpense('workspace-a')], error: null });
+    await Promise.all([initial, next]);
+
+    expect(harness.queriedWorkspaces).toContain('workspace-b');
+    harness.injector.destroy();
+  });
+
+  it('wiederholt einen fehlgeschlagenen Ladevorgang beim nächsten Aufruf', async () => {
+    const response = vi
+      .fn()
+      .mockResolvedValueOnce({ data: null, error: new Error('offline') })
+      .mockResolvedValue({ data: [workspaceExpense('workspace-a')], error: null });
+    const harness = createWorkspaceHarness(async () => response());
+
+    await harness.service.ensureCurrentWorkspaceLoaded();
+    await harness.service.ensureCurrentWorkspaceLoaded();
+
+    expect(response).toHaveBeenCalledTimes(2);
+    harness.injector.destroy();
+  });
+
+  it('lädt auch mehr als tausend Ausgaben vollständig', async () => {
+    const rows = Array.from({ length: 1001 }, (_, index) => ({
+      ...workspaceExpense('workspace-a'),
+      id: `expense-${index}`,
+    }));
+    const harness = createWorkspaceHarness(async (_workspaceId, start) => ({
+      data: rows.slice(start, start + 1000),
+      error: null,
+    }));
+
+    await harness.service.load();
+
+    expect(harness.service.expenses()).toHaveLength(1001);
+    expect(harness.ranges).toEqual([
+      [0, 999],
+      [1000, 1999],
+    ]);
+    harness.injector.destroy();
   });
 });

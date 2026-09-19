@@ -240,6 +240,7 @@ function createFixture() {
     categories: signal(categories),
     allCategories: signal(categories),
     load: vi.fn().mockResolvedValue(undefined),
+    loadError: signal(null),
   };
   const recurringService = {
     rules: signal(rules),
@@ -290,7 +291,15 @@ function createFixture() {
   }).createComponent(ExpensesComponent);
   fixture.detectChanges();
 
-  return { fixture, expenseService, categoryService, recurringService, documentService, dialog };
+  return {
+    fixture,
+    expenseService,
+    categoryService,
+    recurringService,
+    documentService,
+    dialog,
+    workspaceService,
+  };
 }
 
 async function render() {
@@ -370,6 +379,17 @@ describe('ExpensesComponent', () => {
       'expense-paid',
       'expense-open',
     ]);
+  });
+
+  it('lädt Kategorien und Ausgaben erneut, wenn der Workspace wechselt', async () => {
+    const { fixture, categoryService, expenseService, workspaceService } = await render();
+
+    workspaceService.currentWorkspace.set({ id: 'ws-2' });
+    fixture.detectChanges();
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+    expect(categoryService.load).toHaveBeenCalledTimes(2);
+    expect(expenseService.ensureCurrentWorkspaceLoaded).toHaveBeenCalledTimes(2);
   });
 
   it('zeigt konsistente Icon-Aktionen und den Belegzustand', async () => {

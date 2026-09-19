@@ -1,10 +1,19 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  OnInit,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
 import {
   EXPENSE_DOCUMENT_TYPE_LABELS,
   ExpenseDocument,
   ExpenseDocumentType,
 } from '../../../../core/models/expense-document.models';
 import { ExpenseDocumentService } from '../../../../core/services/expense-document.service';
+import { WorkspaceContextLockService } from '../../../../core/services/workspace-context-lock.service';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import {
   CustomSelectComponent,
@@ -20,6 +29,9 @@ import { ExpenseDocumentPreviewDialogComponent } from '../expense-document-previ
 })
 export class ExpenseDocumentsComponent implements OnInit {
   readonly documentService = inject(ExpenseDocumentService);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly workspaceContext = inject(WorkspaceContextLockService);
+  private readonly releaseWorkspaceLock = this.workspaceContext.acquire();
   readonly expenseId = input.required<string>();
 
   readonly selectedType = signal<ExpenseDocumentType>('invoice');
@@ -32,6 +44,10 @@ export class ExpenseDocumentsComponent implements OnInit {
   readonly typeOptions: readonly SelectOption<ExpenseDocumentType>[] = (
     Object.entries(EXPENSE_DOCUMENT_TYPE_LABELS) as [ExpenseDocumentType, string][]
   ).map(([value, label]) => ({ value, label }));
+
+  constructor() {
+    this.destroyRef.onDestroy(this.releaseWorkspaceLock);
+  }
 
   async ngOnInit(): Promise<void> {
     await this.documentService.loadForExpense(this.expenseId());

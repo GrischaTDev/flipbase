@@ -7,6 +7,7 @@ import { Expense } from '../../../../core/models/expense.models';
 import { ExpenseCategoryService } from '../../../../core/services/expense-category.service';
 import { ExpenseDocumentService } from '../../../../core/services/expense-document.service';
 import { ExpenseService } from '../../../../core/services/expense.service';
+import { WorkspaceContextLockService } from '../../../../core/services/workspace-context-lock.service';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { ExpenseDialogComponent } from './expense-dialog.component';
 
@@ -49,6 +50,8 @@ function render(expense: Expense | null = null) {
   const update = vi.fn().mockResolvedValue({ data: storedExpense, error: null });
   const upload = vi.fn().mockResolvedValue({ data: { id: 'document-1' }, error: null });
   const warning = vi.fn();
+  const releaseWorkspaceLock = vi.fn();
+  const acquireWorkspaceLock = vi.fn(() => releaseWorkspaceLock);
 
   const fixture = TestBed.configureTestingModule({
     imports: [ExpenseDialogComponent],
@@ -56,6 +59,7 @@ function render(expense: Expense | null = null) {
       { provide: ExpenseService, useValue: { create, update } },
       { provide: ExpenseDocumentService, useValue: { upload } },
       { provide: ToastService, useValue: { warning } },
+      { provide: WorkspaceContextLockService, useValue: { acquire: acquireWorkspaceLock } },
       {
         provide: ExpenseCategoryService,
         useValue: {
@@ -72,7 +76,15 @@ function render(expense: Expense | null = null) {
     value: () => expense,
   });
   fixture.detectChanges();
-  return { fixture, create, update, upload, warning };
+  return {
+    fixture,
+    create,
+    update,
+    upload,
+    warning,
+    acquireWorkspaceLock,
+    releaseWorkspaceLock,
+  };
 }
 
 describe('ExpenseDialogComponent', () => {
@@ -92,6 +104,14 @@ describe('ExpenseDialogComponent', () => {
   it('behält bei bestehenden Ausgaben eine fehlende MwSt-Angabe bei', () => {
     const { fixture } = render({ ...storedExpense, vat_rate: null });
     expect(fixture.componentInstance.form.controls.vat_rate.value).toBeNull();
+  });
+
+  it('sperrt den Workspace während der geöffneten Ausgabe und gibt ihn beim Schließen frei', () => {
+    const { fixture, acquireWorkspaceLock, releaseWorkspaceLock } = render();
+
+    expect(acquireWorkspaceLock).toHaveBeenCalledTimes(1);
+    fixture.destroy();
+    expect(releaseWorkspaceLock).toHaveBeenCalledTimes(1);
   });
 
   it('speichert Anbieter, Menge und Gesamtbetrag und lädt einen vorgemerkten Beleg danach hoch', async () => {

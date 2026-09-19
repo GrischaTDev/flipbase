@@ -69,9 +69,7 @@
       [currentSort]="tablePrefs().sort"
       [viewModified]="viewModified()"
       [loading]="isInitializing() || expenseService.isLoading()"
-      [errorMessage]="
-        expenseService.loadError() ? 'Die Ausgaben konnten nicht geladen werden.' : null
-      "
+      [errorMessage]="dataLoadError()"
       [hasRows]="visibleExpenses().length > 0"
       loadingText="Ausgaben werden geladen …"
       emptyTitle="Keine Ausgaben gefunden"

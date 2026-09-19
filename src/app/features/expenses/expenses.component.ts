@@ -2,8 +2,8 @@ import { CurrencyPipe, DatePipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
-  OnInit,
   computed,
+  effect,
   inject,
   signal,
 } from '@angular/core';
@@ -77,7 +77,7 @@ function localDateKey(date = new Date()): string {
   templateUrl: './expenses.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ExpensesComponent implements OnInit {
+export class ExpensesComponent {
   readonly expenseService = inject(ExpenseService);
   readonly categoryService = inject(ExpenseCategoryService);
   readonly recurringService = inject(ExpenseRecurringService);
@@ -85,6 +85,7 @@ export class ExpensesComponent implements OnInit {
   private readonly tablePreferences = inject(TablePreferencesService);
   private readonly workspaceService = inject(WorkspaceService);
   private readonly dialog = inject(ConfirmDialogService);
+  private initializationSequence = 0;
 
   readonly activeTab = signal<ExpenseTab>('expenses');
   readonly statusFilter = signal<ExpenseStatusFilter>('all');
@@ -188,17 +189,39 @@ export class ExpensesComponent implements OnInit {
   });
 
   readonly upcoming = computed(() => this.recurringService.upcoming(localDateKey(), 30));
+  readonly dataLoadError = computed(() => {
+    if (this.expenseService.loadError()) return 'Die Ausgaben konnten nicht geladen werden.';
+    if (this.categoryService.loadError())
+      return 'Die Ausgabenkategorien konnten nicht geladen werden.';
+    return null;
+  });
 
-  async ngOnInit(): Promise<void> {
+  constructor() {
+    effect(() => {
+      const workspaceId = this.workspaceService.currentWorkspace()?.id ?? null;
+      void this.initializeWorkspace(workspaceId);
+    });
+  }
+
+  private async initializeWorkspace(workspaceId: string | null): Promise<void> {
+    const sequence = ++this.initializationSequence;
     this.isInitializing.set(true);
+    if (!workspaceId) {
+      this.isInitializing.set(false);
+      return;
+    }
+
     try {
       await Promise.all([
         this.categoryService.load(),
         this.expenseService.ensureCurrentWorkspaceLoaded(),
       ]);
+      if (!this.isCurrentInitialization(workspaceId, sequence)) return;
       await this.loadDocumentSummary();
     } finally {
-      this.isInitializing.set(false);
+      if (this.isCurrentInitialization(workspaceId, sequence)) {
+        this.isInitializing.set(false);
+      }
     }
   }
 
@@ -327,6 +350,13 @@ export class ExpensesComponent implements OnInit {
   private async loadDocumentSummary(): Promise<void> {
     await this.documentService.loadSummaryForExpenses(
       this.expenseService.expenses().map((expense) => expense.id),
+    );
+  }
+
+  private isCurrentInitialization(workspaceId: string, sequence: number): boolean {
+    return (
+      this.initializationSequence === sequence &&
+      this.workspaceService.currentWorkspace()?.id === workspaceId
     );
   }
 }

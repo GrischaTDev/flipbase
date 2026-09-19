@@ -35,13 +35,23 @@ const rule: ExpenseRecurringRule = {
   updated_at: '2026-06-01T00:00:00.000Z',
 };
 
-function createService(rows: ExpenseRecurringRule[] = [rule]) {
+function createService(
+  rows: ExpenseRecurringRule[] = [rule],
+  loadResult?: (workspaceId: string) => Promise<{
+    readonly data: ExpenseRecurringRule[] | null;
+    readonly error: Error | null;
+  }>,
+) {
   const currentWorkspace = signal(workspace);
   const selectQuery: Record<string, unknown> = {};
+  let selectedWorkspaceId = '';
   Object.assign(selectQuery, {
     select: () => selectQuery,
-    eq: () => selectQuery,
-    order: async () => ({ data: rows, error: null }),
+    eq: (column: string, value: string) => {
+      if (column === 'workspace_id') selectedWorkspaceId = value;
+      return selectQuery;
+    },
+    order: () => loadResult?.(selectedWorkspaceId) ?? Promise.resolve({ data: rows, error: null }),
   });
 
   const upsert = vi.fn(
@@ -78,7 +88,7 @@ function createService(rows: ExpenseRecurringRule[] = [rule]) {
   });
 
   const service = runInInjectionContext(injector, () => new ExpenseRecurringService());
-  return { service, upsert, insert, update, from };
+  return { service, upsert, insert, update, from, currentWorkspace };
 }
 
 describe('ExpenseRecurringService', () => {
@@ -142,5 +152,30 @@ describe('ExpenseRecurringService', () => {
       expect.objectContaining({ ruleId: rule.id, occurrenceDate: '2026-10-01' }),
     ]);
     expect(upsert).not.toHaveBeenCalled();
+  });
+
+  it('verwirft eine verspätete Regel-Antwort nach dem Workspace-Wechsel', async () => {
+    let resolveFirst!: (value: { data: ExpenseRecurringRule[]; error: Error | null }) => void;
+    const first = new Promise<{ data: ExpenseRecurringRule[]; error: Error | null }>((resolve) => {
+      resolveFirst = resolve;
+    });
+    const otherWorkspaceId = '33333333-3333-4333-8333-333333333333';
+    const otherRule = {
+      ...rule,
+      id: 'other-rule',
+      workspace_id: otherWorkspaceId,
+      title: 'Anderer Workspace',
+    };
+    const { service, currentWorkspace } = createService([rule], (workspaceId) =>
+      workspaceId === workspace.id ? first : Promise.resolve({ data: [otherRule], error: null }),
+    );
+
+    const initial = service.load();
+    currentWorkspace.set({ ...workspace, id: otherWorkspaceId });
+    await service.load();
+    resolveFirst({ data: [rule], error: null });
+    await initial;
+
+    expect(service.rules()).toEqual([otherRule]);
   });
 });

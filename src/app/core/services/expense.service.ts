@@ -20,8 +20,10 @@ export class ExpenseService {
   private readonly auth = inject(AuthService);
   private readonly recurring = inject(ExpenseRecurringService, { optional: true });
 
-  private syncedWorkspaceId: string | null = null;
-  private syncPromise: Promise<void> | null = null;
+  private workspaceContextId: string | null = null;
+  private lastSyncedContext: string | null = null;
+  private readonly syncPromises = new Map<string, Promise<void>>();
+  private loadRequestSequence = 0;
 
   private readonly expensesRaw = signal<readonly Expense[]>([]);
   readonly expenses = computed(() =>
@@ -36,12 +38,8 @@ export class ExpenseService {
     try {
       effect(() => {
         const workspaceId = this.workspace.currentWorkspace()?.id ?? null;
-        if (!workspaceId) {
-          this.syncedWorkspaceId = null;
-          this.expensesRaw.set([]);
-          return;
-        }
-        if (workspaceId !== this.syncedWorkspaceId) void this.ensureCurrentWorkspaceLoaded();
+        const changed = this.resetWorkspaceContext(workspaceId);
+        if (workspaceId && changed) void this.ensureCurrentWorkspaceLoaded();
       });
     } catch {
       // Einige fokussierte Service-Tests haben keinen Angular-Scheduler.
@@ -50,69 +48,44 @@ export class ExpenseService {
 
   async ensureCurrentWorkspaceLoaded(): Promise<void> {
     const workspaceId = this.workspace.currentWorkspace()?.id ?? null;
+    this.resetWorkspaceContext(workspaceId);
     if (!workspaceId) {
-      this.expensesRaw.set([]);
-      this.syncedWorkspaceId = null;
       return;
     }
-    if (this.syncedWorkspaceId === workspaceId && !this.syncPromise) return;
-    if (this.syncPromise) return this.syncPromise;
+    const dateKey = this.localDateKey();
+    const syncContext = this.syncContext(workspaceId, dateKey);
+    if (this.lastSyncedContext === syncContext) return;
+    const existingSync = this.syncPromises.get(syncContext);
+    if (existingSync) return existingSync;
 
-    this.syncPromise = (async () => {
-      let materializationError: Error | null = null;
-      if (this.recurring) {
-        await this.recurring.load();
-        const materialized = await this.recurring.materializeDue(this.localDateKey());
-        materializationError = materialized.error;
-      }
-
-      await this.load();
-      if (materializationError) {
-        this.loadError.set(materializationError);
-        return;
-      }
-      this.syncedWorkspaceId = workspaceId;
-    })();
+    const syncPromise = this.syncWorkspace(workspaceId, dateKey, syncContext);
+    this.syncPromises.set(syncContext, syncPromise);
 
     try {
-      await this.syncPromise;
+      await syncPromise;
     } finally {
-      this.syncPromise = null;
+      if (this.syncPromises.get(syncContext) === syncPromise) {
+        this.syncPromises.delete(syncContext);
+      }
     }
   }
 
-  async load(): Promise<void> {
+  async load(): Promise<boolean> {
     const workspaceId = this.workspace.currentWorkspace()?.id;
+    this.resetWorkspaceContext(workspaceId ?? null);
     if (!workspaceId) {
-      this.expensesRaw.set([]);
-      return;
+      return false;
     }
-    if (this.mockStore.isDemoMode()) return;
+    if (this.mockStore.isDemoMode()) return true;
 
-    this.isLoading.set(true);
-    this.loadError.set(null);
-    try {
-      const { data, error } = await this.supabase.client
-        .from('expenses')
-        .select('*')
-        .eq('workspace_id', workspaceId)
-        .is('deleted_at', null)
-        .order('expense_date', { ascending: false });
-      if (error) throw error;
-      this.expensesRaw.set((data ?? []) as unknown as Expense[]);
-    } catch (cause: unknown) {
-      const error = this.syncStatus.melde('Laden der Ausgaben', cause);
-      this.loadError.set(error);
-      this.expensesRaw.set([]);
-    } finally {
-      this.isLoading.set(false);
-    }
+    return this.loadWorkspace(workspaceId);
   }
 
   async create(
     input: ExpenseCreateInput,
   ): Promise<{ readonly data: Expense | null; readonly error: Error | null }> {
     const workspaceId = this.workspace.currentWorkspace()?.id;
+    this.resetWorkspaceContext(workspaceId ?? null);
     if (!workspaceId) return { data: null, error: new Error('Kein aktiver Workspace.') };
 
     if (this.mockStore.isDemoMode()) {
@@ -128,7 +101,9 @@ export class ExpenseService {
         updated_at: now,
         ...input,
       };
-      this.expensesRaw.update((current) => [...current, expense]);
+      if (this.isCurrentWorkspace(workspaceId)) {
+        this.expensesRaw.update((current) => [...current, expense]);
+      }
       return { data: expense, error: null };
     }
 
@@ -146,7 +121,9 @@ export class ExpenseService {
         .single();
       if (error || !data) throw error ?? new Error('Die Ausgabe wurde nicht zurückgegeben.');
       const expense = data as unknown as Expense;
-      this.expensesRaw.update((current) => [...current, expense]);
+      if (this.isCurrentWorkspace(workspaceId)) {
+        this.expensesRaw.update((current) => [...current, expense]);
+      }
       return { data: expense, error: null };
     } catch (cause: unknown) {
       return { data: null, error: this.syncStatus.melde('Speichern der Ausgabe', cause) };
@@ -172,8 +149,9 @@ export class ExpenseService {
   }
 
   async remove(id: string): Promise<{ readonly error: Error | null }> {
+    const workspaceId = this.workspace.currentWorkspace()?.id;
     const result = await this.persistUpdate(id, { deleted_at: new Date().toISOString() });
-    if (!result.error) {
+    if (!result.error && workspaceId && this.isCurrentWorkspace(workspaceId)) {
       this.expensesRaw.update((current) => current.filter((expense) => expense.id !== id));
     }
     return { error: result.error };
@@ -194,6 +172,75 @@ export class ExpenseService {
     );
   }
 
+  private async syncWorkspace(
+    workspaceId: string,
+    dateKey: string,
+    syncContext: string,
+  ): Promise<void> {
+    let materializationError: Error | null = null;
+    if (this.recurring) {
+      const rulesLoaded = await this.recurring.load();
+      if (!this.isCurrentWorkspace(workspaceId)) return;
+      if (!rulesLoaded) {
+        const error = this.recurring.loadError();
+        if (error) this.loadError.set(error);
+        return;
+      }
+
+      const materialized = await this.recurring.materializeDue(dateKey);
+      if (!this.isCurrentWorkspace(workspaceId)) return;
+      materializationError = materialized.error;
+    }
+
+    const expensesLoaded = await this.loadWorkspace(workspaceId);
+    if (!this.isCurrentWorkspace(workspaceId)) return;
+    if (materializationError) {
+      this.loadError.set(materializationError);
+      return;
+    }
+    if (expensesLoaded) this.lastSyncedContext = syncContext;
+  }
+
+  private async loadWorkspace(workspaceId: string): Promise<boolean> {
+    const requestId = ++this.loadRequestSequence;
+
+    this.isLoading.set(true);
+    this.loadError.set(null);
+    try {
+      const expenses: Expense[] = [];
+      const pageSize = 1000;
+      for (let from = 0; ; from += pageSize) {
+        const { data, error } = await this.supabase.client
+          .from('expenses')
+          .select('*')
+          .eq('workspace_id', workspaceId)
+          .is('deleted_at', null)
+          .order('expense_date', { ascending: false })
+          .range(from, from + pageSize - 1);
+        if (!this.isLatestRequest(workspaceId, requestId)) return false;
+        if (error) throw error;
+
+        const page = (data ?? []) as unknown as Expense[];
+        expenses.push(...page);
+        if (page.length < pageSize) break;
+      }
+
+      if (!this.isLatestRequest(workspaceId, requestId)) return false;
+      this.expensesRaw.set(expenses);
+      return true;
+    } catch (cause: unknown) {
+      if (!this.isLatestRequest(workspaceId, requestId)) return false;
+      const error = this.syncStatus.melde('Laden der Ausgaben', cause);
+      this.loadError.set(error);
+      this.expensesRaw.set([]);
+      return false;
+    } finally {
+      if (this.isLatestRequest(workspaceId, requestId)) {
+        this.isLoading.set(false);
+      }
+    }
+  }
+
   private localDateKey(date = new Date()): string {
     return [
       date.getFullYear(),
@@ -207,6 +254,7 @@ export class ExpenseService {
     changes: ExpenseUpdateInput | { readonly deleted_at: string },
   ): Promise<{ readonly data: Expense | null; readonly error: Error | null }> {
     const workspaceId = this.workspace.currentWorkspace()?.id;
+    this.resetWorkspaceContext(workspaceId ?? null);
     if (!workspaceId) return { data: null, error: new Error('Kein aktiver Workspace.') };
     const existing = this.expensesRaw().find((expense) => expense.id === id);
 
@@ -217,9 +265,11 @@ export class ExpenseService {
         ...changes,
         updated_at: new Date().toISOString(),
       } as Expense;
-      this.expensesRaw.update((current) =>
-        current.map((expense) => (expense.id === id ? updated : expense)),
-      );
+      if (this.isCurrentWorkspace(workspaceId)) {
+        this.expensesRaw.update((current) =>
+          current.map((expense) => (expense.id === id ? updated : expense)),
+        );
+      }
       return { data: updated, error: null };
     }
 
@@ -234,12 +284,40 @@ export class ExpenseService {
       if (error || !data) throw error ?? new Error('Die Ausgabe wurde nicht zurückgegeben.');
       const returned = data as unknown as Expense;
       const updated = existing ? ({ ...existing, ...changes, ...returned } as Expense) : returned;
-      this.expensesRaw.update((current) =>
-        current.map((expense) => (expense.id === id ? updated : expense)),
-      );
+      if (this.isCurrentWorkspace(workspaceId)) {
+        this.expensesRaw.update((current) =>
+          current.map((expense) => (expense.id === id ? updated : expense)),
+        );
+      }
       return { data: updated, error: null };
     } catch (cause: unknown) {
       return { data: null, error: this.syncStatus.melde('Ändern der Ausgabe', cause) };
     }
+  }
+
+  private resetWorkspaceContext(workspaceId: string | null): boolean {
+    if (this.workspaceContextId === workspaceId) return false;
+    this.workspaceContextId = workspaceId;
+    this.lastSyncedContext = null;
+    this.loadRequestSequence += 1;
+    this.expensesRaw.set([]);
+    this.loadError.set(null);
+    this.isLoading.set(false);
+    return true;
+  }
+
+  private isCurrentWorkspace(workspaceId: string): boolean {
+    return (
+      this.workspaceContextId === workspaceId &&
+      this.workspace.currentWorkspace()?.id === workspaceId
+    );
+  }
+
+  private isLatestRequest(workspaceId: string, requestId: number): boolean {
+    return this.isCurrentWorkspace(workspaceId) && this.loadRequestSequence === requestId;
+  }
+
+  private syncContext(workspaceId: string, dateKey: string): string {
+    return `${workspaceId}:${dateKey}`;
   }
 }

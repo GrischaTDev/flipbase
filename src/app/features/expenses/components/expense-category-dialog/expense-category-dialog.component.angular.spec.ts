@@ -4,6 +4,7 @@ import { TestBed } from '@angular/core/testing';
 import { glob, readFile } from 'node:fs/promises';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { ExpenseCategoryService } from '../../../../core/services/expense-category.service';
+import { WorkspaceContextLockService } from '../../../../core/services/workspace-context-lock.service';
 import { ExpenseCategoryDialogComponent } from './expense-category-dialog.component';
 
 beforeAll(async () => {
@@ -32,6 +33,7 @@ describe('ExpenseCategoryDialogComponent', () => {
             restore: vi.fn(),
           },
         },
+        { provide: WorkspaceContextLockService, useValue: { acquire: () => () => undefined } },
       ],
     })
       .overrideComponent(ExpenseCategoryDialogComponent, { set: { template: '' } })
