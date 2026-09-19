@@ -11,6 +11,10 @@ function money(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
+function normalizedVendorName(value: string | null | undefined): string | null {
+  return value?.trim() || null;
+}
+
 @Injectable({ providedIn: 'root' })
 export class ExpenseService {
   private readonly supabase = inject(SupabaseService);
@@ -115,6 +119,11 @@ export class ExpenseService {
     const workspaceId = this.workspace.currentWorkspace()?.id;
     if (!workspaceId) return { data: null, error: new Error('Kein aktiver Workspace.') };
 
+    const persistedInput: ExpenseCreateInput = {
+      ...input,
+      vendor_name: normalizedVendorName(input.vendor_name),
+    };
+
     if (this.mockStore.isDemoMode()) {
       const now = new Date().toISOString();
       const expense: Expense = {
@@ -126,7 +135,7 @@ export class ExpenseService {
         created_at: now,
         created_by: this.auth.currentUser()?.id ?? null,
         updated_at: now,
-        ...input,
+        ...persistedInput,
       };
       this.expensesRaw.update((current) => [...current, expense]);
       return { data: expense, error: null };
@@ -136,7 +145,7 @@ export class ExpenseService {
       const { data, error } = await this.supabase.client
         .from('expenses')
         .insert({
-          ...input,
+          ...persistedInput,
           workspace_id: workspaceId,
           recurring_rule_id: null,
           occurrence_date: null,
@@ -157,7 +166,11 @@ export class ExpenseService {
     id: string,
     input: ExpenseUpdateInput,
   ): Promise<{ readonly data: Expense | null; readonly error: Error | null }> {
-    return this.persistUpdate(id, input);
+    const persistedInput =
+      input.vendor_name === undefined
+        ? input
+        : { ...input, vendor_name: normalizedVendorName(input.vendor_name) };
+    return this.persistUpdate(id, persistedInput);
   }
 
   markPaid(
