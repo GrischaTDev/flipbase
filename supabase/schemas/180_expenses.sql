@@ -492,3 +492,244 @@ using (
       and (select public.is_workspace_member(expense.workspace_id))
   )
 );
+
+-- ---------------------------------------------------------------------------
+-- Prüfprotokoll
+-- ---------------------------------------------------------------------------
+
+create or replace function public.expense_audit_values(p_expense public.expenses)
+returns jsonb
+language sql
+stable
+security invoker
+set search_path = ''
+as $$
+  select pg_catalog.jsonb_build_object(
+    'category_id', p_expense.category_id,
+    'recurring_rule_id', p_expense.recurring_rule_id,
+    'occurrence_date', p_expense.occurrence_date,
+    'title', p_expense.title,
+    'vendor_name', p_expense.vendor_name,
+    'quantity', p_expense.quantity,
+    'gross_amount', p_expense.gross_amount,
+    'vat_rate', p_expense.vat_rate,
+    'expense_date', p_expense.expense_date,
+    'due_date', p_expense.due_date,
+    'status', p_expense.status,
+    'payment_date', p_expense.payment_date,
+    'notes', p_expense.notes,
+    'deleted_at', p_expense.deleted_at
+  );
+$$;
+
+alter function public.expense_audit_values(public.expenses) owner to postgres;
+revoke all on function public.expense_audit_values(public.expenses)
+  from public, anon, authenticated, service_role;
+
+create or replace function public.expense_recurring_rule_audit_values(
+  p_rule public.expense_recurring_rules
+)
+returns jsonb
+language sql
+stable
+security invoker
+set search_path = ''
+as $$
+  select pg_catalog.jsonb_build_object(
+    'category_id', p_rule.category_id,
+    'title', p_rule.title,
+    'vendor_name', p_rule.vendor_name,
+    'quantity', p_rule.quantity,
+    'gross_amount', p_rule.gross_amount,
+    'vat_rate', p_rule.vat_rate,
+    'frequency', p_rule.frequency,
+    'start_date', p_rule.start_date,
+    'end_date', p_rule.end_date,
+    'is_active', p_rule.is_active,
+    'notes', p_rule.notes
+  );
+$$;
+
+alter function public.expense_recurring_rule_audit_values(public.expense_recurring_rules) owner to postgres;
+revoke all on function public.expense_recurring_rule_audit_values(public.expense_recurring_rules)
+  from public, anon, authenticated, service_role;
+
+create or replace function public.log_expense_event()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_before jsonb;
+  v_after jsonb;
+  v_event_type text;
+begin
+  if tg_op = 'INSERT' then
+    insert into public.business_events (
+      workspace_id, entity_type, entity_id, event_type, actor_id, changes
+    ) values (
+      new.workspace_id,
+      'expense',
+      new.id,
+      'expense_created',
+      (select auth.uid()),
+      pg_catalog.jsonb_build_object('after', public.expense_audit_values(new))
+    );
+    return new;
+  end if;
+
+  if tg_op = 'DELETE' then
+    insert into public.business_events (
+      workspace_id, entity_type, entity_id, event_type, actor_id, changes
+    ) values (
+      old.workspace_id,
+      'expense',
+      old.id,
+      'expense_removed',
+      (select auth.uid()),
+      pg_catalog.jsonb_build_object('before', public.expense_audit_values(old))
+    );
+    return old;
+  end if;
+
+  v_before := public.expense_audit_values(old);
+  v_after := public.expense_audit_values(new);
+  if v_before = v_after then
+    return new;
+  end if;
+
+  v_event_type := case
+    when old.deleted_at is null and new.deleted_at is not null then 'expense_removed'
+    when old.deleted_at is not null and new.deleted_at is null then 'expense_restored'
+    when old.status is distinct from new.status and new.status = 'paid' then 'expense_marked_paid'
+    when old.status is distinct from new.status and new.status = 'open' then 'expense_marked_open'
+    else 'expense_updated'
+  end;
+
+  insert into public.business_events (
+    workspace_id, entity_type, entity_id, event_type, actor_id, changes
+  ) values (
+    new.workspace_id,
+    'expense',
+    new.id,
+    v_event_type,
+    (select auth.uid()),
+    pg_catalog.jsonb_build_object('before', v_before, 'after', v_after)
+  );
+  return new;
+end;
+$$;
+
+alter function public.log_expense_event() owner to postgres;
+revoke all on function public.log_expense_event() from public, anon, authenticated, service_role;
+
+drop trigger if exists log_expense_event on public.expenses;
+create trigger log_expense_event
+after insert or update or delete on public.expenses
+for each row execute function public.log_expense_event();
+
+create or replace function public.log_expense_recurring_rule_event()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_before jsonb;
+  v_after jsonb;
+begin
+  if tg_op = 'INSERT' then
+    insert into public.business_events (
+      workspace_id, entity_type, entity_id, event_type, actor_id, changes
+    ) values (
+      new.workspace_id,
+      'expense',
+      new.id,
+      'expense_recurring_rule_created',
+      (select auth.uid()),
+      pg_catalog.jsonb_build_object('after', public.expense_recurring_rule_audit_values(new))
+    );
+    return new;
+  end if;
+
+  if tg_op = 'DELETE' then
+    insert into public.business_events (
+      workspace_id, entity_type, entity_id, event_type, actor_id, changes
+    ) values (
+      old.workspace_id,
+      'expense',
+      old.id,
+      'expense_recurring_rule_removed',
+      (select auth.uid()),
+      pg_catalog.jsonb_build_object('before', public.expense_recurring_rule_audit_values(old))
+    );
+    return old;
+  end if;
+
+  v_before := public.expense_recurring_rule_audit_values(old);
+  v_after := public.expense_recurring_rule_audit_values(new);
+  if v_before is distinct from v_after then
+    insert into public.business_events (
+      workspace_id, entity_type, entity_id, event_type, actor_id, changes
+    ) values (
+      new.workspace_id,
+      'expense',
+      new.id,
+      'expense_recurring_rule_updated',
+      (select auth.uid()),
+      pg_catalog.jsonb_build_object('before', v_before, 'after', v_after)
+    );
+  end if;
+  return new;
+end;
+$$;
+
+alter function public.log_expense_recurring_rule_event() owner to postgres;
+revoke all on function public.log_expense_recurring_rule_event()
+  from public, anon, authenticated, service_role;
+
+drop trigger if exists log_expense_recurring_rule_event on public.expense_recurring_rules;
+create trigger log_expense_recurring_rule_event
+after insert or update or delete on public.expense_recurring_rules
+for each row execute function public.log_expense_recurring_rule_event();
+
+create or replace function public.log_expense_document_event()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_document public.expense_documents := case when tg_op = 'DELETE' then old else new end;
+begin
+  insert into public.business_events (
+    workspace_id, entity_type, entity_id, event_type, actor_id, changes
+  ) values (
+    v_document.workspace_id,
+    'expense',
+    v_document.expense_id,
+    case when tg_op = 'DELETE' then 'expense_document_removed' else 'expense_document_added' end,
+    (select auth.uid()),
+    pg_catalog.jsonb_build_object(
+      'document_type', v_document.document_type,
+      'original_file_name', v_document.original_file_name
+    )
+  );
+  return v_document;
+end;
+$$;
+
+alter function public.log_expense_document_event() owner to postgres;
+revoke all on function public.log_expense_document_event()
+  from public, anon, authenticated, service_role;
+
+drop trigger if exists log_expense_document_added on public.expense_documents;
+create trigger log_expense_document_added
+after insert on public.expense_documents
+for each row execute function public.log_expense_document_event();
+
+drop trigger if exists log_expense_document_removed on public.expense_documents;
+create trigger log_expense_document_removed
+after delete on public.expense_documents
+for each row execute function public.log_expense_document_event();

@@ -1,6 +1,6 @@
 \set ON_ERROR_STOP on
 begin;
-select plan(24);
+select no_plan();
 select has_function('public', 'export_audit_snapshot', array['uuid', 'jsonb'], 'Prüfarchiv besitzt eine gemeinsame Snapshot-RPC');
 select is((select provolatile::text from pg_proc where oid = 'public.export_audit_snapshot(uuid,jsonb)'::regprocedure), 's', 'Alle Abfragen benutzen den aufrufenden STABLE-Snapshot');
 select ok(not has_function_privilege('anon', 'public.export_audit_snapshot(uuid,jsonb)', 'execute'), 'Anonyme dürfen das Archiv nicht aufrufen');
@@ -47,6 +47,68 @@ insert into public.invoices (id, workspace_id, invoice_number, order_number, sal
 insert into public.invoice_items (id, invoice_id, title, quantity, unit_price, total_price) values
   ('84000000-0000-4000-8000-000000000022', '84000000-0000-4000-8000-000000000020', 'Eigene Rechnungsposition', 1, 20, 20),
   ('84000000-0000-4000-8000-000000000023', '84000000-0000-4000-8000-000000000021', 'Fremde Rechnungsposition', 1, 30, 30);
+insert into public.purchases (id, workspace_id, type, title) values
+  ('84000000-0000-4000-8000-000000000024', '84000000-0000-4000-8000-000000000002', 'single', 'Eigener Einkauf'),
+  ('84000000-0000-4000-8000-000000000025', '84000000-0000-4000-8000-000000000003', 'single', 'Fremder Einkauf');
+insert into public.purchase_documents (
+  id, workspace_id, purchase_id, document_type, original_file_name, storage_path, mime_type, file_size
+) values
+  (
+    '84000000-0000-4000-8000-000000000026',
+    '84000000-0000-4000-8000-000000000002',
+    '84000000-0000-4000-8000-000000000024',
+    'invoice',
+    'Eigene-Rechnung.pdf',
+    'purchase-documents/84000000-0000-4000-8000-000000000002/84000000-0000-4000-8000-000000000024/84000000-0000-4000-8000-000000000026.pdf',
+    'application/pdf',
+    12
+  ),
+  (
+    '84000000-0000-4000-8000-000000000027',
+    '84000000-0000-4000-8000-000000000003',
+    '84000000-0000-4000-8000-000000000025',
+    'invoice',
+    'Fremde-Rechnung.pdf',
+    'purchase-documents/84000000-0000-4000-8000-000000000003/84000000-0000-4000-8000-000000000025/84000000-0000-4000-8000-000000000027.pdf',
+    'application/pdf',
+    12
+  );
+insert into public.expense_categories (id, workspace_id, name, sort_order, is_default) values
+  ('84000000-0000-4000-8000-000000000028', '84000000-0000-4000-8000-000000000002', 'Eigene Ausgaben', 900, false),
+  ('84000000-0000-4000-8000-000000000029', '84000000-0000-4000-8000-000000000003', 'Fremde Ausgaben', 900, false);
+insert into public.expense_recurring_rules (
+  id, workspace_id, category_id, title, gross_amount, frequency, start_date
+) values
+  ('84000000-0000-4000-8000-000000000030', '84000000-0000-4000-8000-000000000002', '84000000-0000-4000-8000-000000000028', 'Eigene Regel', 12, 'monthly', '2026-09-01'),
+  ('84000000-0000-4000-8000-000000000031', '84000000-0000-4000-8000-000000000003', '84000000-0000-4000-8000-000000000029', 'Fremde Regel', 13, 'monthly', '2026-09-01');
+insert into public.expenses (
+  id, workspace_id, category_id, recurring_rule_id, occurrence_date, title, gross_amount, expense_date, status
+) values
+  ('84000000-0000-4000-8000-000000000032', '84000000-0000-4000-8000-000000000002', '84000000-0000-4000-8000-000000000028', '84000000-0000-4000-8000-000000000030', '2026-09-01', 'Eigene Ausgabe', 12, '2026-09-01', 'open'),
+  ('84000000-0000-4000-8000-000000000033', '84000000-0000-4000-8000-000000000003', '84000000-0000-4000-8000-000000000029', '84000000-0000-4000-8000-000000000031', '2026-09-01', 'Fremde Ausgabe', 13, '2026-09-01', 'open');
+insert into public.expense_documents (
+  id, workspace_id, expense_id, document_type, original_file_name, storage_path, mime_type, file_size
+) values
+  (
+    '84000000-0000-4000-8000-000000000034',
+    '84000000-0000-4000-8000-000000000002',
+    '84000000-0000-4000-8000-000000000032',
+    'invoice',
+    'Eigene-Ausgabe.pdf',
+    'expense-documents/84000000-0000-4000-8000-000000000002/84000000-0000-4000-8000-000000000032/84000000-0000-4000-8000-000000000034.pdf',
+    'application/pdf',
+    12
+  ),
+  (
+    '84000000-0000-4000-8000-000000000035',
+    '84000000-0000-4000-8000-000000000003',
+    '84000000-0000-4000-8000-000000000033',
+    'invoice',
+    'Fremde-Ausgabe.pdf',
+    'expense-documents/84000000-0000-4000-8000-000000000003/84000000-0000-4000-8000-000000000033/84000000-0000-4000-8000-000000000035.pdf',
+    'application/pdf',
+    12
+  );
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '84000000-0000-4000-8000-000000000001', true);
@@ -57,7 +119,7 @@ select is(jsonb_array_length(public.export_audit_snapshot('84000000-0000-4000-80
 select is((public.export_audit_snapshot('84000000-0000-4000-8000-000000000002', '{}')->'item_costs'->0->>'amount')::numeric, 12::numeric, 'Kostenbetrag bleibt unverändert');
 select ok(
   public.export_audit_snapshot('84000000-0000-4000-8000-000000000002', '{}')
-    ?& array['business_events', 'suppliers', 'catalog_products', 'purchases', 'purchase_lines', 'purchase_costs', 'inventory_items', 'item_costs', 'stock_lots', 'stock_movements', 'sales', 'sale_lines', 'sale_cost_entries', 'sale_line_lot_allocations', 'returns', 'inventory_reconciliation_events', 'invoices', 'invoice_items']
+    ?& array['business_events', 'suppliers', 'catalog_products', 'purchases', 'purchase_lines', 'purchase_costs', 'inventory_items', 'item_costs', 'stock_lots', 'stock_movements', 'sales', 'sale_lines', 'sale_cost_entries', 'sale_line_lot_allocations', 'returns', 'inventory_reconciliation_events', 'invoices', 'invoice_items', 'purchase_documents', 'expense_categories', 'expense_recurring_rules', 'expenses', 'expense_documents']
   and not public.export_audit_snapshot('84000000-0000-4000-8000-000000000002', '{}') ? 'sources',
   'Alle erforderlichen Datenmengen ohne die abgelösten Quellen sind vorhanden'
 );
@@ -68,9 +130,14 @@ select is(
     jsonb_array_length(public.export_audit_snapshot('84000000-0000-4000-8000-000000000002', '{}')->'returns'),
     jsonb_array_length(public.export_audit_snapshot('84000000-0000-4000-8000-000000000002', '{}')->'inventory_reconciliation_events'),
     jsonb_array_length(public.export_audit_snapshot('84000000-0000-4000-8000-000000000002', '{}')->'invoices'),
-    jsonb_array_length(public.export_audit_snapshot('84000000-0000-4000-8000-000000000002', '{}')->'invoice_items')
+    jsonb_array_length(public.export_audit_snapshot('84000000-0000-4000-8000-000000000002', '{}')->'invoice_items'),
+    jsonb_array_length(public.export_audit_snapshot('84000000-0000-4000-8000-000000000002', '{}')->'purchase_documents'),
+    jsonb_array_length(public.export_audit_snapshot('84000000-0000-4000-8000-000000000002', '{}')->'expense_categories'),
+    jsonb_array_length(public.export_audit_snapshot('84000000-0000-4000-8000-000000000002', '{}')->'expense_recurring_rules'),
+    jsonb_array_length(public.export_audit_snapshot('84000000-0000-4000-8000-000000000002', '{}')->'expenses'),
+    jsonb_array_length(public.export_audit_snapshot('84000000-0000-4000-8000-000000000002', '{}')->'expense_documents')
   )::text,
-  '[1, 1, 1, 1, 1, 1]',
+  '[1, 1, 1, 1, 1, 1, 1, 14, 1, 1, 1]',
   'jede ergänzte Datenmenge bleibt auf den angeforderten Workspace begrenzt'
 );
 select is(

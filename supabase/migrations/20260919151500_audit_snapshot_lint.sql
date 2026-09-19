@@ -1,6 +1,11 @@
--- Ein gemeinsamer MVCC-Snapshot für alle fachlichen Archivdateien.
--- SECURITY DEFINER ist nötig, weil business_events absichtlich nicht direkt
--- lesbar ist. Vor jeder Abfrage wird die privilegierte Mitgliedschaft geprüft.
+-- Macht den vollständigen Prüfarchiv-Export auch für den Datenbank-Advisor prüfbar.
+-- Betroffen: public.export_audit_snapshot.
+-- Migration unit 1: schema_changes
+-- Transaction mode: transactional
+-- Boundary reason: default
+
+set check_function_bodies = false;
+
 create or replace function public.export_audit_snapshot(
   p_workspace_id uuid,
   p_filter jsonb default '{}'::jsonb
@@ -113,9 +118,3 @@ begin
   return v_result;
 end;
 $$;
-
-alter function public.export_audit_snapshot(uuid, jsonb) owner to postgres;
-comment on function public.export_audit_snapshot(uuid, jsonb) is
-  'Vollständige Archivtabellen aus einem gemeinsamen STABLE-Snapshot für Owner/Admin/Accountant; maximal 100000 Zeilen und 50 MiB JSON, sonst expliziter Fehler.';
-revoke all on function public.export_audit_snapshot(uuid, jsonb) from public, anon;
-grant execute on function public.export_audit_snapshot(uuid, jsonb) to authenticated;

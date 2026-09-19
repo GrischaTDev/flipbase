@@ -9,7 +9,7 @@ import {
   escapeAuditCsvCell,
 } from './audit-export.service';
 
-function snapshotFixture() {
+function snapshotFixture(): Record<string, unknown> {
   return {
     captured_at: '2026-09-04T16:00:00Z',
     snapshot: '1:3:',
@@ -31,23 +31,34 @@ function snapshotFixture() {
     inventory_reconciliation_events: [],
     invoices: [],
     invoice_items: [],
+    purchase_documents: [],
+    expense_categories: [],
+    expense_recurring_rules: [],
+    expenses: [],
+    expense_documents: [],
   };
 }
 
 function snapshotService(
   response: () => Promise<{ data: unknown; error: { message: string } | null }>,
+  download: (path: string) => Promise<{
+    data: { arrayBuffer: () => Promise<ArrayBuffer> } | null;
+    error: { message: string } | null;
+  }> = async () => ({ data: null, error: null }),
 ) {
   let workspaceId = 'w';
   const rpc = vi.fn(response);
+  const storage = { from: vi.fn(() => ({ download })) };
   const service = Object.create(AuditExportService.prototype) as AuditExportService;
   Object.assign(service, {
     mockStore: { isDemoMode: () => false },
     workspaceService: { currentWorkspace: () => ({ id: workspaceId }) },
-    supabase: { client: { rpc } },
+    supabase: { client: { rpc, storage } },
   });
   return {
     service,
     rpc,
+    storage,
     switchWorkspace: () => {
       workspaceId = 'other';
     },
@@ -74,18 +85,24 @@ describe('Audit-Snapshot-Vertrag', () => {
     });
     expect(result.manifest.createdAt).toBe('2026-09-04T16:00:00Z');
     expect(result.manifest.filters['snapshot']).toBe('1:3:');
-    expect(result.manifest.files).toHaveLength(19);
+    expect(result.manifest.files).toHaveLength(25);
     expect(result.manifest.files.map((file) => file.name).sort()).toEqual(
       [
         'business-events.csv',
         'business-events.json',
         'catalog-products.csv',
+        'document-downloads.json',
+        'expense-categories.csv',
+        'expense-documents.csv',
+        'expense-recurring-rules.csv',
+        'expenses.csv',
         'inventory-items.csv',
         'inventory-reconciliation-events.csv',
         'invoice-items.csv',
         'invoices.csv',
         'item-costs.csv',
         'purchase-costs.csv',
+        'purchase-documents.csv',
         'purchase-lines.csv',
         'purchases.csv',
         'returns.csv',
@@ -98,6 +115,50 @@ describe('Audit-Snapshot-Vertrag', () => {
         'suppliers.csv',
       ].sort(),
     );
+  });
+  it('nimmt verfügbare Originalbelege unter einem stabilen Pfad auf und meldet fehlende Dateien', async () => {
+    const data = snapshotFixture();
+    data['purchase_documents'] = [
+      {
+        id: 'purchase-document-1',
+        original_file_name: 'Vinted-Rechnung.pdf',
+        storage_path: 'purchase-documents/w/purchase-1/purchase-document-1.pdf',
+      },
+    ];
+    data['expense_documents'] = [
+      {
+        id: 'expense-document-1',
+        original_file_name: 'Hosting-Rechnung.pdf',
+        storage_path: 'expense-documents/w/expense-1/expense-document-1.pdf',
+      },
+    ];
+    const download = vi.fn(async (path: string) =>
+      path.startsWith('purchase-documents/')
+        ? { data: { arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer }, error: null }
+        : { data: null, error: { message: 'Datei fehlt' } },
+    );
+    const { service, storage } = snapshotService(async () => ({ data, error: null }), download);
+
+    const result = await service.createArchive({ workspaceId: 'w', pageSize: 10 });
+    const zip = await JSZip.loadAsync(result.bytes);
+
+    expect(storage.from).toHaveBeenNthCalledWith(1, 'purchase-documents');
+    expect(storage.from).toHaveBeenNthCalledWith(2, 'expense-documents');
+    expect(
+      await zip
+        .file('documents/purchase-documents/w/purchase-1/purchase-document-1.pdf')!
+        .async('uint8array'),
+    ).toEqual(new Uint8Array([1, 2, 3]));
+    expect(result.documentFailures).toEqual([
+      expect.objectContaining({
+        documentId: 'expense-document-1',
+        message: 'Datei fehlt',
+      }),
+    ]);
+    expect(JSON.parse(await zip.file('document-downloads.json')!.async('string'))).toEqual([
+      expect.objectContaining({ status: 'included' }),
+      expect.objectContaining({ status: 'unavailable', message: 'Datei fehlt' }),
+    ]);
   });
   it('verwirft Antworten nach einem Workspace-Wechsel', async () => {
     const fixture = snapshotService(async () => {
@@ -247,6 +308,52 @@ describe('AuditExportService archive builder', () => {
           quantity: 1,
         },
       ],
+      purchaseDocuments: [
+        {
+          id: 'purchase-document-1',
+          workspace_id: 'workspace-1',
+          purchase_id: 'purchase-1',
+          original_file_name: 'Einkauf.pdf',
+        },
+      ],
+      expenseCategories: [
+        { id: 'expense-category-1', workspace_id: 'workspace-1', name: 'Software & Abos' },
+      ],
+      expenseRecurringRules: [
+        { id: 'expense-rule-1', workspace_id: 'workspace-1', title: 'Hosting' },
+      ],
+      expenses: [
+        { id: 'expense-1', workspace_id: 'workspace-1', title: 'Hosting', gross_amount: 12 },
+      ],
+      expenseDocuments: [
+        {
+          id: 'expense-document-1',
+          workspace_id: 'workspace-1',
+          expense_id: 'expense-1',
+          original_file_name: 'Hosting.pdf',
+        },
+      ],
+      documents: [
+        {
+          bucket: 'purchase-documents',
+          documentId: 'purchase-document-1',
+          originalFileName: 'Einkauf.pdf',
+          storagePath: 'purchase-documents/workspace-1/purchase-1/purchase-document-1.pdf',
+          archivePath:
+            'documents/purchase-documents/workspace-1/purchase-1/purchase-document-1.pdf',
+          content: new Uint8Array([7, 8]),
+          failure: null,
+        },
+        {
+          bucket: 'expense-documents',
+          documentId: 'expense-document-1',
+          originalFileName: 'Hosting.pdf',
+          storagePath: 'expense-documents/workspace-1/expense-1/expense-document-1.pdf',
+          archivePath: 'documents/expense-documents/workspace-1/expense-1/expense-document-1.pdf',
+          content: null,
+          failure: 'Datei fehlt',
+        },
+      ],
     };
 
     const result = await buildAuditArchive(data, {
@@ -257,11 +364,22 @@ describe('AuditExportService archive builder', () => {
     const zip = await JSZip.loadAsync(result.bytes);
 
     expect(result.filename).toBe('flipbase-audit-2026-09-01T08-09-10Z.zip');
-    expect(Object.keys(zip.files).sort()).toEqual(
+    expect(
+      Object.entries(zip.files)
+        .filter(([, file]) => !file.dir)
+        .map(([name]) => name)
+        .sort(),
+    ).toEqual(
       [
         'business-events.csv',
         'business-events.json',
         'catalog-products.csv',
+        'document-downloads.json',
+        'documents/purchase-documents/workspace-1/purchase-1/purchase-document-1.pdf',
+        'expense-categories.csv',
+        'expense-documents.csv',
+        'expense-recurring-rules.csv',
+        'expenses.csv',
         'inventory-items.csv',
         'inventory-reconciliation-events.csv',
         'invoice-items.csv',
@@ -270,6 +388,7 @@ describe('AuditExportService archive builder', () => {
         'sale-line-lot-allocations.csv',
         'manifest.json',
         'purchase-costs.csv',
+        'purchase-documents.csv',
         'purchase-lines.csv',
         'purchases.csv',
         'returns.csv',
@@ -287,8 +406,8 @@ describe('AuditExportService archive builder', () => {
     const purchasesCsv = await zip.file('purchases.csv')!.async('string');
 
     expect(manifest).toMatchObject({
-      schemaVersion: '1.2.0',
-      exportVersion: '1.2.0',
+      schemaVersion: '1.3.0',
+      exportVersion: '1.3.0',
       workspaceId: 'workspace-1',
       filters: { entity_type: 'purchase' },
     });
@@ -341,6 +460,13 @@ describe('AuditExportService archive builder', () => {
     expect(await zip.file('invoice-items.csv')!.async('string')).toContain(
       'invoice-item-1;invoice-1',
     );
+    expect(await zip.file('expenses.csv')!.async('string')).toContain('expense-1;workspace-1');
+    expect(await zip.file('purchase-documents.csv')!.async('string')).toContain(
+      'purchase-document-1;workspace-1;purchase-1',
+    );
+    expect(result.documentFailures).toEqual([
+      expect.objectContaining({ documentId: 'expense-document-1', message: 'Datei fehlt' }),
+    ]);
   });
 
   it('neutralisiert Tabellenformeln und quotiert Trennzeichen, Zeilenumbrüche und Anführungszeichen', () => {

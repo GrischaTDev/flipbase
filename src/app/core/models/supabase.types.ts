@@ -4358,6 +4358,16 @@ export type Database = {
         Args: { p_id: string; p_workspace_id: string }
         Returns: undefined
       }
+      expense_audit_values: {
+        Args: { p_expense: Database["public"]["Tables"]["expenses"]["Row"] }
+        Returns: Json
+      }
+      expense_recurring_rule_audit_values: {
+        Args: {
+          p_rule: Database["public"]["Tables"]["expense_recurring_rules"]["Row"]
+        }
+        Returns: Json
+      }
       export_audit_snapshot: {
         Args: { p_filter?: Json; p_workspace_id: string }
         Returns: Json
@@ -5125,4 +5135,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-

@@ -50,6 +50,7 @@ const ENTITY_TYPES: readonly BusinessEntityType[] = [
   'inventory_item',
   'sale',
   'return',
+  'expense',
   'export',
   'workspace',
 ];
@@ -171,6 +172,7 @@ export class DataAndAuditComponent {
     { value: 'inventory_item', label: 'Inventarartikel' },
     { value: 'sale', label: 'Verkauf' },
     { value: 'return', label: 'Retoure' },
+    { value: 'expense', label: 'Ausgabe' },
     { value: 'export', label: 'Export' },
     { value: 'workspace', label: 'Workspace' },
   ];
@@ -292,7 +294,14 @@ export class DataAndAuditComponent {
       });
       if (this.workspaceService.currentWorkspace()?.id !== workspaceId) return;
       this.exportService.downloadArchive(archive);
-      this.toast.success('Datenarchiv wurde erstellt.');
+      if (archive.documentFailures.length > 0) {
+        this.toast.warning(
+          'Datenarchiv wurde mit fehlenden Originalbelegen erstellt.',
+          `${archive.documentFailures.length} Belegdatei(en) fehlen oder konnten nicht geladen werden. Details stehen in document-downloads.json.`,
+        );
+      } else {
+        this.toast.success('Datenarchiv wurde erstellt.');
+      }
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return;
       this.error.set(

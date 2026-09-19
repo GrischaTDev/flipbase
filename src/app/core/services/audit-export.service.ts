@@ -29,7 +29,31 @@ type ArchiveTableName =
   | 'returns'
   | 'inventory_reconciliation_events'
   | 'invoices'
-  | 'invoice_items';
+  | 'invoice_items'
+  | 'purchase_documents'
+  | 'expense_categories'
+  | 'expense_recurring_rules'
+  | 'expenses'
+  | 'expense_documents';
+
+type ArchiveDocumentBucket = 'purchase-documents' | 'expense-documents';
+
+interface AuditArchiveDocumentRequest {
+  readonly bucket: ArchiveDocumentBucket;
+  readonly documentId: string;
+  readonly originalFileName: string;
+  readonly storagePath: string;
+  readonly archivePath: string;
+}
+
+export interface AuditArchiveDocument extends AuditArchiveDocumentRequest {
+  readonly content: Uint8Array | null;
+  readonly failure: string | null;
+}
+
+export interface AuditArchiveDocumentFailure extends AuditArchiveDocumentRequest {
+  readonly message: string;
+}
 
 export interface AuditArchiveData {
   readonly businessEvents: readonly BusinessEvent[];
@@ -50,6 +74,12 @@ export interface AuditArchiveData {
   readonly inventoryReconciliationEvents: readonly ArchiveRow[];
   readonly invoices: readonly ArchiveRow[];
   readonly invoiceItems: readonly ArchiveRow[];
+  readonly purchaseDocuments: readonly ArchiveRow[];
+  readonly expenseCategories: readonly ArchiveRow[];
+  readonly expenseRecurringRules: readonly ArchiveRow[];
+  readonly expenses: readonly ArchiveRow[];
+  readonly expenseDocuments: readonly ArchiveRow[];
+  readonly documents: readonly AuditArchiveDocument[];
 }
 
 export interface AuditArchiveOptions {
@@ -62,6 +92,7 @@ export interface AuditArchiveResult {
   readonly filename: string;
   readonly bytes: Uint8Array;
   readonly manifest: AuditExportManifest;
+  readonly documentFailures: readonly AuditArchiveDocumentFailure[];
 }
 
 export interface AuditArchiveRequest extends Omit<BusinessEventFilter, 'cursor'> {
@@ -87,6 +118,11 @@ const ARCHIVE_TABLES = {
   inventoryReconciliationEvents: 'inventory_reconciliation_events',
   invoices: 'invoices',
   invoiceItems: 'invoice_items',
+  purchaseDocuments: 'purchase_documents',
+  expenseCategories: 'expense_categories',
+  expenseRecurringRules: 'expense_recurring_rules',
+  expenses: 'expenses',
+  expenseDocuments: 'expense_documents',
 } as const;
 
 const ARCHIVE_HEADERS = {
@@ -344,6 +380,80 @@ const ARCHIVE_HEADERS = {
     'unit_price',
     'total_price',
   ],
+  purchaseDocuments: [
+    'id',
+    'workspace_id',
+    'purchase_id',
+    'document_type',
+    'original_file_name',
+    'storage_path',
+    'mime_type',
+    'file_size',
+    'created_at',
+    'created_by',
+  ],
+  expenseCategories: [
+    'id',
+    'workspace_id',
+    'name',
+    'sort_order',
+    'is_default',
+    'is_archived',
+    'created_at',
+    'created_by',
+    'updated_at',
+  ],
+  expenseRecurringRules: [
+    'id',
+    'workspace_id',
+    'category_id',
+    'title',
+    'vendor_name',
+    'quantity',
+    'gross_amount',
+    'vat_rate',
+    'frequency',
+    'start_date',
+    'end_date',
+    'is_active',
+    'notes',
+    'created_at',
+    'created_by',
+    'updated_at',
+  ],
+  expenses: [
+    'id',
+    'workspace_id',
+    'category_id',
+    'recurring_rule_id',
+    'occurrence_date',
+    'title',
+    'vendor_name',
+    'quantity',
+    'gross_amount',
+    'vat_rate',
+    'expense_date',
+    'due_date',
+    'status',
+    'payment_date',
+    'notes',
+    'deleted_at',
+    'created_at',
+    'created_by',
+    'updated_at',
+  ],
+  expenseDocuments: [
+    'id',
+    'workspace_id',
+    'expense_id',
+    'document_type',
+    'original_file_name',
+    'storage_path',
+    'mime_type',
+    'file_size',
+    'created_at',
+    'created_by',
+  ],
 } as const satisfies {
   [
     K in keyof typeof ARCHIVE_TABLES
@@ -393,12 +503,14 @@ function eventToArchiveRow(event: BusinessEvent): ArchiveRow {
   };
 }
 
-async function sha256(content: string): Promise<string | null> {
+type ArchiveFileContent = string | Uint8Array;
+
+async function sha256(content: ArchiveFileContent): Promise<string | null> {
   if (!globalThis.crypto?.subtle) return null;
-  const digest = await globalThis.crypto.subtle.digest(
-    'SHA-256',
-    new TextEncoder().encode(content),
-  );
+  const source = typeof content === 'string' ? new TextEncoder().encode(content) : content;
+  const bytes = new Uint8Array(source.byteLength);
+  bytes.set(source);
+  const digest = await globalThis.crypto.subtle.digest('SHA-256', bytes);
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
@@ -423,7 +535,7 @@ export async function buildAuditArchive(
     null,
     2,
   );
-  const files = new Map<string, { content: string; rows: number }>([
+  const files = new Map<string, { content: ArchiveFileContent; rows: number }>([
     [
       'business-events.csv',
       { content: rowsToCsv(eventRows, BUSINESS_EVENT_HEADERS), rows: eventRows.length },
@@ -542,7 +654,75 @@ export async function buildAuditArchive(
         rows: data.invoiceItems.length,
       },
     ],
+    [
+      'purchase-documents.csv',
+      {
+        content: rowsToCsv(data.purchaseDocuments, ARCHIVE_HEADERS.purchaseDocuments),
+        rows: data.purchaseDocuments.length,
+      },
+    ],
+    [
+      'expense-categories.csv',
+      {
+        content: rowsToCsv(data.expenseCategories, ARCHIVE_HEADERS.expenseCategories),
+        rows: data.expenseCategories.length,
+      },
+    ],
+    [
+      'expense-recurring-rules.csv',
+      {
+        content: rowsToCsv(data.expenseRecurringRules, ARCHIVE_HEADERS.expenseRecurringRules),
+        rows: data.expenseRecurringRules.length,
+      },
+    ],
+    [
+      'expenses.csv',
+      { content: rowsToCsv(data.expenses, ARCHIVE_HEADERS.expenses), rows: data.expenses.length },
+    ],
+    [
+      'expense-documents.csv',
+      {
+        content: rowsToCsv(data.expenseDocuments, ARCHIVE_HEADERS.expenseDocuments),
+        rows: data.expenseDocuments.length,
+      },
+    ],
   ]);
+  const documentFailures: AuditArchiveDocumentFailure[] = [];
+  const documentReport = data.documents.map((document) => {
+    if (document.content) {
+      files.set(document.archivePath, { content: document.content, rows: 0 });
+      return {
+        bucket: document.bucket,
+        document_id: document.documentId,
+        original_file_name: document.originalFileName,
+        storage_path: document.storagePath,
+        archive_path: document.archivePath,
+        status: 'included',
+      };
+    }
+    const message = document.failure ?? 'Die Originaldatei war nicht verfügbar.';
+    documentFailures.push({
+      bucket: document.bucket,
+      documentId: document.documentId,
+      originalFileName: document.originalFileName,
+      storagePath: document.storagePath,
+      archivePath: document.archivePath,
+      message,
+    });
+    return {
+      bucket: document.bucket,
+      document_id: document.documentId,
+      original_file_name: document.originalFileName,
+      storage_path: document.storagePath,
+      archive_path: document.archivePath,
+      status: 'unavailable',
+      message,
+    };
+  });
+  files.set('document-downloads.json', {
+    content: JSON.stringify(documentReport, null, 2),
+    rows: documentReport.length,
+  });
   const manifestFiles = await Promise.all(
     Array.from(files, async ([name, file]) => ({
       name,
@@ -551,8 +731,8 @@ export async function buildAuditArchive(
     })),
   );
   const manifest: AuditExportManifest = {
-    schemaVersion: '1.2.0',
-    exportVersion: '1.2.0',
+    schemaVersion: '1.3.0',
+    exportVersion: '1.3.0',
     createdAt: options.createdAt,
     workspaceId: options.workspaceId,
     filters: options.filters,
@@ -563,7 +743,7 @@ export async function buildAuditArchive(
   zip.file('manifest.json', JSON.stringify(manifest, null, 2));
   const bytes = await zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE' });
   const filename = `flipbase-audit-${options.createdAt.replace(/\.\d{3}Z$/u, 'Z').replaceAll(':', '-')}.zip`;
-  return { filename, bytes, manifest };
+  return { filename, bytes, manifest, documentFailures };
 }
 
 @Injectable({ providedIn: 'root' })
@@ -594,7 +774,7 @@ export class AuditExportService {
     const snapshot = data as Record<string, unknown>;
     if (typeof snapshot['captured_at'] !== 'string' || typeof snapshot['snapshot'] !== 'string')
       throw new Error('Der Snapshot-Nachweis fehlt.');
-    request.onProgress?.(60);
+    request.onProgress?.(50);
     const tables = Object.values(ARCHIVE_TABLES);
     const collected = new Map<ArchiveTableName, readonly ArchiveRow[]>();
     for (const table of tables) {
@@ -616,6 +796,19 @@ export class AuditExportService {
         createdAt: event.created_at,
       };
     });
+    const documents = await this.downloadDocuments(
+      [
+        ...this.snapshotDocumentRequests(
+          collected.get('purchase_documents') ?? [],
+          'purchase-documents',
+        ),
+        ...this.snapshotDocumentRequests(
+          collected.get('expense_documents') ?? [],
+          'expense-documents',
+        ),
+      ],
+      request,
+    );
     this.assertCurrentRequest(request);
     const createdAt = snapshot['captured_at'];
     const archive = await buildAuditArchive(
@@ -638,6 +831,12 @@ export class AuditExportService {
         inventoryReconciliationEvents: collected.get('inventory_reconciliation_events') ?? [],
         invoices: collected.get('invoices') ?? [],
         invoiceItems: collected.get('invoice_items') ?? [],
+        purchaseDocuments: collected.get('purchase_documents') ?? [],
+        expenseCategories: collected.get('expense_categories') ?? [],
+        expenseRecurringRules: collected.get('expense_recurring_rules') ?? [],
+        expenses: collected.get('expenses') ?? [],
+        expenseDocuments: collected.get('expense_documents') ?? [],
+        documents,
       },
       {
         workspaceId: request.workspaceId,
@@ -661,6 +860,61 @@ export class AuditExportService {
     link.click();
     link.remove();
     setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
+
+  private snapshotDocumentRequests(
+    rows: readonly ArchiveRow[],
+    bucket: ArchiveDocumentBucket,
+  ): readonly AuditArchiveDocumentRequest[] {
+    return rows.map((row) => {
+      const documentId = row['id'];
+      const originalFileName = row['original_file_name'];
+      const storagePath = row['storage_path'];
+      if (
+        typeof documentId !== 'string' ||
+        typeof originalFileName !== 'string' ||
+        typeof storagePath !== 'string' ||
+        !storagePath.startsWith(`${bucket}/`) ||
+        storagePath.includes('..')
+      ) {
+        throw new Error(`Die Belegmetadaten aus ${bucket} sind unvollständig.`);
+      }
+      return {
+        bucket,
+        documentId,
+        originalFileName,
+        storagePath,
+        archivePath: `documents/${storagePath}`,
+      };
+    });
+  }
+
+  private async downloadDocuments(
+    documents: readonly AuditArchiveDocumentRequest[],
+    request: AuditArchiveRequest,
+  ): Promise<readonly AuditArchiveDocument[]> {
+    const downloaded: AuditArchiveDocument[] = [];
+    for (const [index, document] of documents.entries()) {
+      this.assertCurrentRequest(request);
+      const { data, error } = await this.supabase.client.storage
+        .from(document.bucket)
+        .download(document.storagePath);
+      this.assertCurrentRequest(request);
+      let content: Uint8Array | null = null;
+      let failure: string | null = null;
+      if (error) {
+        failure = error.message || 'Die Originaldatei konnte nicht geladen werden.';
+      } else if (!data) {
+        failure = 'Die Originaldatei wurde nicht gefunden.';
+      } else {
+        content = new Uint8Array(await data.arrayBuffer());
+        this.assertCurrentRequest(request);
+      }
+      downloaded.push({ ...document, content, failure });
+      request.onProgress?.(50 + Math.round(((index + 1) / documents.length) * 35));
+    }
+    if (documents.length === 0) request.onProgress?.(85);
+    return downloaded;
   }
 
   private snapshotRows(snapshot: Record<string, unknown>, table: string): readonly ArchiveRow[] {

@@ -77,8 +77,23 @@ for (const [path, source] of sources) {
   syntaxCounts.assertions += counts.assertions;
 }
 
-const forbiddenInNode =
-  /\b(TestBed|ComponentFixture|window|document|DOMParser|HTMLElement|HTMLCanvasElement|FileReader|File|Blob|Image|ImageData|ResizeObserver|localStorage|navigator)\b/g;
+const forbiddenInNode = new Set([
+  'TestBed',
+  'ComponentFixture',
+  'window',
+  'document',
+  'DOMParser',
+  'HTMLElement',
+  'HTMLCanvasElement',
+  'FileReader',
+  'File',
+  'Blob',
+  'Image',
+  'ImageData',
+  'ResizeObserver',
+  'localStorage',
+  'navigator',
+]);
 const documentedNodeFixtures = new Map([
   [
     'src/app/core/services/bank-reconciliation.service.spec.ts',
@@ -101,16 +116,6 @@ const documentedNodeFixtures = new Map([
     ],
   ],
   [
-    'src/app/core/services/landing-hint.service.spec.ts',
-    [
-      {
-        marker: 'document',
-        line: /document\.cookie in jsdom/,
-        reason: 'erläutert im Kommentar das durch DOCUMENT ersetzte Browserverhalten',
-      },
-    ],
-  ],
-  [
     'src/app/features/accounting/accounting-toast-actions.spec.ts',
     [
       {
@@ -120,33 +125,51 @@ const documentedNodeFixtures = new Map([
       },
     ],
   ],
-  [
-    'src/app/core/services/purchase.service.spec.ts',
-    [
-      {
-        marker: 'localStorage',
-        line: /vi\.stubGlobal\('localStorage', memoryStorage\)/,
-        reason: 'installiert pro Test ein lokales Storage-Testdouble',
-      },
-    ],
-  ],
 ]);
 const violations = [];
 const matchedAllowances = new Set();
+
+function findForbiddenNodeGlobals(path, source) {
+  const sourceFile = ts.createSourceFile(
+    path,
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
+  );
+  const scanner = ts.createScanner(
+    ts.ScriptTarget.Latest,
+    false,
+    ts.LanguageVariant.Standard,
+    source,
+  );
+  const matches = [];
+
+  for (let token = scanner.scan(); token !== ts.SyntaxKind.EndOfFileToken; token = scanner.scan()) {
+    if (token !== ts.SyntaxKind.Identifier) continue;
+    const marker = scanner.getTokenText();
+    if (!forbiddenInNode.has(marker)) continue;
+    const lineIndex = sourceFile.getLineAndCharacterOfPosition(scanner.getTokenPos()).line;
+    matches.push({ lineIndex, marker });
+  }
+
+  return matches;
+}
+
 for (const path of node) {
   const relativePath = path.slice(process.cwd().length + 1).replaceAll('\\', '/');
   const source = sources.get(path);
   const allowances = documentedNodeFixtures.get(relativePath) ?? [];
-  for (const [lineIndex, line] of source.split(/\r?\n/u).entries()) {
-    for (const match of line.matchAll(forbiddenInNode)) {
-      const allowanceIndex = allowances.findIndex(
-        (allowance) => allowance.marker === match[0] && allowance.line.test(line),
-      );
-      if (allowanceIndex === -1) {
-        violations.push(`${relativePath}:${lineIndex + 1} (${match[0]})`);
-      } else {
-        matchedAllowances.add(`${relativePath}:${allowanceIndex}`);
-      }
+  const lines = source.split(/\r?\n/u);
+  for (const { lineIndex, marker } of findForbiddenNodeGlobals(path, source)) {
+    const line = lines[lineIndex];
+    const allowanceIndex = allowances.findIndex(
+      (allowance) => allowance.marker === marker && allowance.line.test(line),
+    );
+    if (allowanceIndex === -1) {
+      violations.push(`${relativePath}:${lineIndex + 1} (${marker})`);
+    } else {
+      matchedAllowances.add(`${relativePath}:${allowanceIndex}`);
     }
   }
 }

@@ -681,7 +681,7 @@ create table public.business_events (
     id uuid primary key default gen_random_uuid(),
     workspace_id uuid not null references public.workspaces(id) on delete restrict,
     entity_type text not null
-      check (entity_type in ('purchase', 'inventory_item', 'sale', 'return', 'export', 'workspace')),
+      check (entity_type in ('purchase', 'inventory_item', 'sale', 'return', 'expense', 'export', 'workspace')),
     entity_id uuid not null,
     event_type text not null,
     actor_id uuid references auth.users(id) on delete restrict,
@@ -1347,6 +1347,13 @@ begin
         from public.returns as returned_sale
         where returned_sale.workspace_id = p_workspace_id
           and returned_sale.id = p_entity_id
+      ) into v_has_entity_access;
+    when 'expense' then
+      select exists (
+        select 1
+        from public.expenses as expense
+        where expense.workspace_id = p_workspace_id
+          and expense.id = p_entity_id
       ) into v_has_entity_access;
     when 'export' then
       if v_privileged_role then
