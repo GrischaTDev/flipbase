@@ -33,10 +33,7 @@ export function calculateExpenseTax(
   };
 }
 
-export function calculateExpenseUnitPrice(
-  grossAmount: number,
-  quantity: number,
-): number | null {
+export function calculateExpenseUnitPrice(grossAmount: number, quantity: number): number | null {
   if (!Number.isFinite(grossAmount) || !Number.isInteger(quantity) || quantity <= 0) return null;
   return cents(grossAmount / quantity) / 100;
 }

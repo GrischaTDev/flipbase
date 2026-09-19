@@ -114,10 +114,7 @@ export class ExpenseDialogComponent implements OnInit {
     }),
     category_id: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     quantity: new FormControl<number | null>(1, [Validators.required, positiveInteger]),
-    gross_amount: new FormControl<number | null>(null, [
-      Validators.required,
-      Validators.min(0.01),
-    ]),
+    gross_amount: new FormControl<number | null>(null, [Validators.required, Validators.min(0.01)]),
     vat_rate: new FormControl<ExpenseVatRate>(19),
     expense_date: new FormControl(localDateKey(), {
       nonNullable: true,

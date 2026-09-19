@@ -347,11 +347,11 @@ describe('ExpensesComponent', () => {
   it(
     'initialisiert Ausgaben nur über den deduplizierten Service-Pfad und lädt danach Belegstatus',
     async () => {
-    const { fixture, expenseService, recurringService, documentService } = await render();
+      const { expenseService, recurringService, documentService } = await render();
 
-    expect(expenseService.ensureCurrentWorkspaceLoaded).toHaveBeenCalled();
-    expect(recurringService.load).not.toHaveBeenCalled();
-    expect(recurringService.materializeDue).not.toHaveBeenCalled();
+      expect(expenseService.ensureCurrentWorkspaceLoaded).toHaveBeenCalled();
+      expect(recurringService.load).not.toHaveBeenCalled();
+      expect(recurringService.materializeDue).not.toHaveBeenCalled();
       expect(documentService.loadSummaryForExpenses).toHaveBeenCalledWith([
         'expense-paid',
         'expense-open',

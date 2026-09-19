@@ -67,7 +67,10 @@ function render(expense: Expense | null = null) {
     .overrideComponent(ExpenseDialogComponent, { set: { template: '' } })
     .createComponent(ExpenseDialogComponent);
 
-  fixture.componentRef.setInput('expense', expense);
+  Object.defineProperty(fixture.componentInstance, 'expense', {
+    configurable: true,
+    value: () => expense,
+  });
   fixture.detectChanges();
   return { fixture, create, update, upload, warning };
 }
