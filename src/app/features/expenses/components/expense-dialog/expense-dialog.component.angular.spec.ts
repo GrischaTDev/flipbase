@@ -1,6 +1,6 @@
 import '@angular/compiler';
 import { signal, ɵresolveComponentResources } from '@angular/core';
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { TestBed } from '@angular/core/testing';
 import { glob, readFile } from 'node:fs/promises';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { Expense } from '../../../../core/models/expense.models';
@@ -80,8 +80,8 @@ function createFixture(options: {
   return { fixture, component: fixture.componentInstance, create, update, upload };
 }
 
-function fillRequiredFields(fixture: ComponentFixture<ExpenseDialogComponent>): void {
-  fixture.componentInstance.form.patchValue({
+function fillRequiredFields(component: ExpenseDialogComponent): void {
+  component.form.patchValue({
     title: 'Versandkartons',
     vendor_name: '  Amazon  ',
     category_id: 'cat-1',
@@ -117,7 +117,7 @@ describe('ExpenseDialogComponent', () => {
 
   it('speichert Anbieter, Menge und Gesamtbetrag', async () => {
     const { component, create } = createFixture();
-    fillRequiredFields({ componentInstance: component } as ComponentFixture<ExpenseDialogComponent>);
+    fillRequiredFields(component);
 
     await component.save();
 
@@ -137,7 +137,7 @@ describe('ExpenseDialogComponent', () => {
       createResult: { data: created, error: null },
       uploadResult: { data: null, error: new Error('Storage nicht erreichbar') },
     });
-    fillRequiredFields({ componentInstance: component } as ComponentFixture<ExpenseDialogComponent>);
+    fillRequiredFields(component);
     component.pendingDocument.set(
       new File(['pdf'], 'rechnung.pdf', { type: 'application/pdf' }),
     );
