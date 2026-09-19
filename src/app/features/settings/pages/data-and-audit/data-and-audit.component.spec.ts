@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { WorkspaceRole } from '../../../../core/models/flipbase.models';
 import {
+  auditAccessState,
   auditFiltersFromQueryParams,
   canExportAuditData,
   toBusinessEventFilter,
@@ -78,6 +79,27 @@ describe('Daten & Protokolle', () => {
       pageSize: 25,
     });
   });
+
+  it.each<[
+    boolean,
+    boolean,
+    WorkspaceRole | null,
+    'loading' | 'authorized' | 'forbidden',
+  ]>([
+    [false, false, null, 'loading'],
+    [false, false, 'owner', 'loading'],
+    [false, true, 'owner', 'authorized'],
+    [false, true, 'admin', 'authorized'],
+    [false, true, 'accountant', 'authorized'],
+    [false, true, 'member', 'forbidden'],
+    [false, true, null, 'forbidden'],
+    [true, false, null, 'authorized'],
+  ])(
+    'bewertet Demo=%s, Rollenstatus geladen=%s und Rolle=%s als %s',
+    (demoMode, membersResolved, role, expected) => {
+      expect(auditAccessState(demoMode, membersResolved, role)).toBe(expected);
+    },
+  );
 
   it.each<[WorkspaceRole | null, boolean]>([
     ['owner', true],
