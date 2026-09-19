@@ -95,7 +95,14 @@ export class WorkspaceMemberService {
   ]);
 
   readonly isLoading = signal<boolean>(false);
+  readonly loadedWorkspaceId = signal<string | null>(null);
   private membersLoadVersion = 0;
+
+  readonly isCurrentWorkspaceLoaded = computed(() => {
+    if (this.mockStore.isDemoMode()) return true;
+    const workspaceId = this.workspaceService.currentWorkspace()?.id ?? null;
+    return workspaceId !== null && this.loadedWorkspaceId() === workspaceId;
+  });
 
   readonly currentUserRole = computed<WorkspaceRole | null>(() =>
     resolveCurrentUserRole(
@@ -116,7 +123,12 @@ export class WorkspaceMemberService {
       effect(() => {
         const ws = this.workspaceService.currentWorkspace();
         if (ws) {
-          this.loadMembers(ws.id);
+          void this.loadMembers(ws.id);
+        } else {
+          this.membersLoadVersion++;
+          this.members.set([]);
+          this.loadedWorkspaceId.set(null);
+          this.isLoading.set(false);
         }
       });
     } catch {
@@ -125,9 +137,15 @@ export class WorkspaceMemberService {
   }
 
   async loadMembers(workspaceId: string): Promise<void> {
-    if (this.mockStore.isDemoMode()) return;
+    if (this.mockStore.isDemoMode()) {
+      this.loadedWorkspaceId.set(workspaceId);
+      return;
+    }
 
     const loadVersion = ++this.membersLoadVersion;
+    if (this.workspaceService.currentWorkspace()?.id === workspaceId) {
+      this.loadedWorkspaceId.set(null);
+    }
     this.members.set([]);
     this.isLoading.set(true);
     try {
@@ -169,6 +187,9 @@ export class WorkspaceMemberService {
     } finally {
       if (loadVersion === this.membersLoadVersion) {
         this.isLoading.set(false);
+        if (this.workspaceService.currentWorkspace()?.id === workspaceId) {
+          this.loadedWorkspaceId.set(workspaceId);
+        }
       }
     }
   }
