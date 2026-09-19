@@ -328,6 +328,34 @@ describe('TablePreferencesService – Polaris Table Preferences & Reordering', (
     expect(prefs.columns.length).toBe(SALES_TABLE_CONFIG.defaultColumns.length);
   });
 
+  it('stellt die unveränderte alte Ausgabenansicht auf die kompakte neue Standardansicht um', () => {
+    const key = `flipbase:table_prefs:${testWorkspaceId}:expenses`;
+    const oldIds = [
+      'expense_date',
+      'title',
+      'category',
+      'gross_amount',
+      'vat_rate',
+      'status',
+      'due_or_paid',
+      'recurring',
+      'documents',
+      'actions',
+    ];
+    localStorage.setItem(
+      key,
+      JSON.stringify({
+        version: 1,
+        columns: oldIds.map((id, order) => ({ id, visible: true, order })),
+        sort: { field: 'expense_date', direction: 'desc' },
+      }),
+    );
+
+    const prefs = service.getTablePreferences('expenses', testWorkspaceId)();
+
+    expect(prefs.columns).toEqual(EXPENSES_TABLE_CONFIG.defaultColumns);
+  });
+
   it('ergänzt neue Ausgabenspalten in bestehende gespeicherte Präferenzen', () => {
     const key = `flipbase:table_prefs:${testWorkspaceId}:expenses`;
     localStorage.setItem(
