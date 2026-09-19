@@ -193,7 +193,7 @@ describe('Fulfillment & Smart Bundling Engine (Chapter 27)', () => {
     });
   });
 
-  it('behält im Demo-Modus die gemeinsame sale_id eines Sammelpakets', async () => {
+  it('behält beim Bündeln die gemeinsame sale_id eines Sammelpakets', async () => {
     const ausgang = service.bundleCandidates()[0];
     const candidate = {
       ...ausgang,

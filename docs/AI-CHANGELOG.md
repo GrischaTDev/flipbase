@@ -1,5 +1,22 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-19 – Codex GPT-5.6 Terra (OpenAI) – Demo-Code: Einstieg entfernt, Restbereich erweitert
+
+**Auftrag:** Den letzten Abschnitt des Demo-Code-Umbaus beginnen: Anmeldung,
+Shell, Umgebungen und Übersetzungen bereinigen und anschließend den
+Ersatz-Datenspeicher löschen.
+
+**Änderung:** Der Zugang zum Demo-Modus, die Demo-Anmeldung, Hinweise in der
+Shell und die Umgebungseinstellung sind entfernt. Die Anwendung ist nur noch
+mit einer echten Supabase-Sitzung erreichbar.
+
+**Offen:** Die Schlusssuche zeigte, dass später hinzugekommene Ausgaben- und
+Fixkostendienste noch Demo-Zweige verwenden. Sie waren im älteren Plan nicht
+enthalten. Der Ersatz-Datenspeicher und die davon abhängigen Modelle bleiben
+deshalb vorerst bestehen und werden erst nach deren Umstellung entfernt.
+
+**Prüfung:** Typprüfung bestand. Kein Push/Merge.
+
 ## 2026-09-19 – Codex GPT-5.6 Terra (OpenAI) – Demo-Code: Workspace, Einstellungen und Vinted Bot
 
 **Auftrag:** Den vierten Abschnitt des vereinbarten Umbaus umsetzen: den

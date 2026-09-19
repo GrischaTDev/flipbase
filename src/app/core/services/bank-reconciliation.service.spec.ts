@@ -161,17 +161,6 @@ describe('BankReconciliationService', () => {
     expect(matchedTx.match?.targetReference).toBe('ORD-100200');
   });
 
-  it('should load demo statements and calculate summary statistics', () => {
-    service.loadDemoStatement();
-    expect(service.transactions().length).toBeGreaterThanOrEqual(4);
-
-    const summary = service.summary();
-    expect(summary.totalCount).toBeGreaterThanOrEqual(4);
-    expect(summary.totalIncome).toBeGreaterThan(0);
-    expect(summary.totalExpense).toBeGreaterThan(0);
-    expect(summary.autoMatchRate).toBeGreaterThanOrEqual(10);
-  });
-
   it('should book transaction and update store order payment status', async () => {
     mockStoreOrders.set([
       {

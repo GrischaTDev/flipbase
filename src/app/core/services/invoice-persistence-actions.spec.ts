@@ -57,7 +57,7 @@ describe('InvoiceService – bestätigte Rechnungserstellung', () => {
     expect(dienst.invoices()).toEqual([]);
   });
 
-  it('übergibt aufgeteilte Mengenpositionen im Nicht-Demo-Modus unverändert an das Rechnungs-RPC', async () => {
+  it('übergibt aufgeteilte Mengenpositionen unverändert an das Rechnungs-RPC', async () => {
     const rpc = vi.fn(async (_name: string, args: Record<string, unknown>) => {
       const invoice = args['p_invoice'] as Record<string, unknown>;
       const items = args['p_items'];

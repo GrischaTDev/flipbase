@@ -1,11 +1,10 @@
 import '@angular/compiler';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { Injector, runInInjectionContext, signal } from '@angular/core';
+import { Injector, runInInjectionContext } from '@angular/core';
 import { Router } from '@angular/router';
 import type { AuthChangeEvent, AuthSession } from '@supabase/supabase-js';
 import { AuthService } from './auth.service';
 import { SupabaseService } from './supabase.service';
-import { MockDataStoreService } from './mock-data-store.service';
 import { LandingHintService } from './landing-hint.service';
 import { SyncStatusService } from './sync-status.service';
 import { SessionChannelService } from './session-channel.service';
@@ -91,10 +90,6 @@ function baueUmgebung(getUserFehler: unknown = null): Umgebung {
       { provide: SupabaseService, useValue: supabase },
       { provide: SyncStatusService, useValue: syncStatus },
       { provide: SessionChannelService, useValue: sessionChannel },
-      {
-        provide: MockDataStoreService,
-        useValue: { isDemoMode: signal(false), ensureShowcaseData: () => undefined },
-      },
       { provide: Router, useValue: { navigate: (befehle: unknown[]) => ziele.push(befehle) } },
       {
         provide: LandingHintService,

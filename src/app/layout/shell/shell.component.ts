@@ -1,19 +1,16 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { RouterLink, RouterOutlet } from '@angular/router';
+import { RouterOutlet } from '@angular/router';
 import { HeaderComponent } from '../header/header.component';
 import { SidebarComponent } from '../sidebar/sidebar.component';
 import { BottomNavComponent } from '../bottom-nav/bottom-nav.component';
 import { WorkspaceModalComponent } from '../../shared/components/workspace-modal/workspace-modal.component';
 import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/confirm-dialog.component';
-import { AuthService } from '../../core/services/auth.service';
-import { MockDataStoreService } from '../../core/services/mock-data-store.service';
 import { WorkspaceContextLockService } from '../../core/services/workspace-context-lock.service';
 
 @Component({
   selector: 'app-shell',
   imports: [
     RouterOutlet,
-    RouterLink,
     HeaderComponent,
     SidebarComponent,
     BottomNavComponent,
@@ -25,18 +22,11 @@ import { WorkspaceContextLockService } from '../../core/services/workspace-conte
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ShellComponent {
-  readonly auth = inject(AuthService);
-  private readonly mockStore = inject(MockDataStoreService);
   private readonly workspaceContext = inject(WorkspaceContextLockService);
 
   readonly isSidebarOpen = signal<boolean>(false);
   readonly isCreateWorkspaceModalOpen = signal<boolean>(false);
   readonly workspaceActionsBlocked = this.workspaceContext.locked;
-
-  reloadDemoData(): void {
-    this.mockStore.resetToDemoShowcase();
-    window.location.reload();
-  }
 
   toggleSidebar(): void {
     this.isSidebarOpen.update((v) => !v);

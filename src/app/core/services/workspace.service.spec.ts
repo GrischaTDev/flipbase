@@ -84,8 +84,8 @@ describe('Multi-Workspace & Holding Consolidation Service', () => {
     service = runInInjectionContext(injector, () => new WorkspaceService());
     // Die Workspace-Signale starten bewusst leer, damit ohne Anmeldung keine
     // Abfragen mit der Mock-Kennung "ws-1" an die Datenbank gehen. Ohne
-    // Backend faellt der Dienst auf die Demo-Workspaces zurueck - fuer diese
-    // Tests wird dieser Zustand hier ausdruecklich hergestellt.
+    // Backend-Dienst faellt der Dienst auf die Standard-Workspaces zurueck -
+    // fuer diese Tests wird dieser Zustand hier ausdruecklich hergestellt.
     await service.loadWorkspaces();
   });
 
