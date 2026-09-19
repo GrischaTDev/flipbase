@@ -215,6 +215,68 @@ select lives_ok(
   'eine offene Ausgabe lässt sich korrekt als bezahlt markieren'
 );
 
+select lives_ok(
+  $$update public.expense_recurring_rules
+    set gross_amount = 34.90
+    where id = 'f1800000-0000-4000-8000-000000000031'$$,
+  'eine Wiederholungsregel lässt sich fachlich ändern'
+);
+
+select lives_ok(
+  $$update public.expenses
+    set gross_amount = 45, expense_date = '2026-09-19'
+    where id = 'f1800000-0000-4000-8000-000000000042'$$,
+  'Betrag und Datum einer Ausgabe lassen sich fachlich ändern'
+);
+
+reset role;
+select ok(
+  exists (
+    select 1
+    from public.business_events
+    where workspace_id = 'f1800000-0000-4000-8000-000000000011'
+      and entity_type = 'expense'
+      and entity_id = 'f1800000-0000-4000-8000-000000000041'
+      and event_type = 'expense_created'
+  ),
+  'das Anlegen einer Ausgabe steht im Prüfprotokoll'
+);
+select ok(
+  exists (
+    select 1
+    from public.business_events
+    where workspace_id = 'f1800000-0000-4000-8000-000000000011'
+      and entity_id = 'f1800000-0000-4000-8000-000000000041'
+      and event_type = 'expense_marked_paid'
+      and changes -> 'after' ->> 'payment_date' = '2026-09-18'
+  ),
+  'bezahlt und Zahlungsdatum stehen mit Vorher-Nachher-Werten im Prüfprotokoll'
+);
+select ok(
+  exists (
+    select 1
+    from public.business_events
+    where workspace_id = 'f1800000-0000-4000-8000-000000000011'
+      and entity_id = 'f1800000-0000-4000-8000-000000000031'
+      and event_type = 'expense_recurring_rule_updated'
+      and changes -> 'after' ->> 'gross_amount' = '34.90'
+  ),
+  'Änderungen an Wiederholungsregeln stehen im Prüfprotokoll'
+);
+select ok(
+  exists (
+    select 1
+    from public.business_events
+    where workspace_id = 'f1800000-0000-4000-8000-000000000011'
+      and entity_id = 'f1800000-0000-4000-8000-000000000042'
+      and event_type = 'expense_updated'
+      and changes -> 'after' ->> 'gross_amount' = '45.00'
+      and changes -> 'after' ->> 'expense_date' = '2026-09-19'
+  ),
+  'Betrag und Datum stehen mit Vorher-Nachher-Werten im Prüfprotokoll'
+);
+set local role authenticated;
+
 select throws_ok(
   $$insert into public.expenses (
       workspace_id, category_id, title, gross_amount, vat_rate,
@@ -299,6 +361,20 @@ select throws_ok(
 update public.expenses
 set deleted_at = now()
 where id = 'f1800000-0000-4000-8000-000000000041';
+
+reset role;
+select ok(
+  exists (
+    select 1
+    from public.business_events
+    where workspace_id = 'f1800000-0000-4000-8000-000000000011'
+      and entity_id = 'f1800000-0000-4000-8000-000000000041'
+      and event_type = 'expense_removed'
+      and changes -> 'after' ->> 'deleted_at' is not null
+  ),
+  'das Entfernen einer Ausgabe steht im Prüfprotokoll'
+);
+set local role authenticated;
 
 select throws_ok(
   $$insert into public.expenses (

@@ -216,7 +216,9 @@ begin
   v_rows := case tg_op when 'INSERT' then array[to_jsonb(new)]
     when 'DELETE' then array[to_jsonb(old)] else array[to_jsonb(old),to_jsonb(new)] end;
   foreach v_row in array v_rows loop
-    if v_row ->> 'bucket_id' <> 'item-media' then continue; end if;
+    if v_row ->> 'bucket_id' not in ('item-media', 'purchase-documents', 'expense-documents') then
+      continue;
+    end if;
     v_path := v_row ->> 'name';
     -- UUIDs werden als Text verglichen: ungültige Fremdpfade lösen keinen Castfehler aus.
     for v_workspace in
@@ -231,6 +233,18 @@ begin
         where split_part(v_path,'/',1) <> 'catalog-products'
           and cardinality(storage.foldername(v_path)) = 1
           and i.id::text = (storage.foldername(v_path))[1]
+        union
+        select p.workspace_id from public.purchases p
+        where v_row ->> 'bucket_id' = 'purchase-documents'
+          and p.workspace_id::text = (storage.foldername(v_path))[2]
+          and p.id::text = (storage.foldername(v_path))[3]
+          and public.is_purchase_document_path(v_path, p.workspace_id, p.id)
+        union
+        select e.workspace_id from public.expenses e
+        where v_row ->> 'bucket_id' = 'expense-documents'
+          and e.workspace_id::text = (storage.foldername(v_path))[2]
+          and e.id::text = (storage.foldername(v_path))[3]
+          and public.is_expense_document_path(v_path, e.workspace_id, e.id)
       )
       order by w.id for share of w
     loop
@@ -275,7 +289,11 @@ begin
     or exists (select 1 from public.offline_purchase_entries where workspace_id = old.id)
     or exists (select 1 from public.cash_wallet_sessions where workspace_id = old.id)
     or exists (select 1 from public.catalog_product_media where workspace_id = old.id)
-    or exists (select 1 from public.purchase_receipt_requests where workspace_id = old.id) then
+    or exists (select 1 from public.purchase_receipt_requests where workspace_id = old.id)
+    or exists (select 1 from public.purchase_documents where workspace_id = old.id)
+    or exists (select 1 from public.expense_recurring_rules where workspace_id = old.id)
+    or exists (select 1 from public.expenses where workspace_id = old.id)
+    or exists (select 1 from public.expense_documents where workspace_id = old.id) then
     raise exception using errcode = 'P0001',
       message = 'Workspace enthält Geschäftsdaten und kann nicht gelöscht werden. Erfasste Belege und Buchungen müssen erhalten bleiben.';
   end if;

@@ -25,13 +25,14 @@ Die Registrierung steht in `supabase/schemas/80_workspace_retention.sql`.
 Jede Tabelle wird bei `insert`, `update` und `delete` geprüft, auch unter
 `security definer` und `service_role`.
 
-| Direkter Workspace-Bezug     | Tabellen                                                                                                                                 |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| Einkäufe                     | purchases, purchase_lines, purchase_costs                                                                                                |
-| Inventar und Bestand         | inventory_items, inventory_reconciliation_events, catalog_products, stock_lots, stock_movements                                          |
-| Verkäufe                     | sales, sale_lines, sale_cost_entries, sale_line_lot_allocations                                                                          |
-| Belege, Versand und Zahlung  | returns, invoices, shipping_orders, store_orders, bank_transactions, offline_purchase_entries, cash_wallet_sessions, email_confirmations |
-| Artikelrecherche und Verlauf | market_research, activity_logs                                                                                                           |
+| Direkter Workspace-Bezug     | Tabellen                                                                                                                                                                        |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Einkäufe                     | purchases, purchase_lines, purchase_costs                                                                                                                                       |
+| Inventar und Bestand         | inventory_items, inventory_reconciliation_events, catalog_products, stock_lots, stock_movements                                                                                 |
+| Verkäufe                     | sales, sale_lines, sale_cost_entries, sale_line_lot_allocations                                                                                                                 |
+| Belege, Versand und Zahlung  | returns, invoices, shipping_orders, store_orders, bank_transactions, offline_purchase_entries, cash_wallet_sessions, email_confirmations, purchase_documents, expense_documents |
+| Betriebsausgaben             | expense_categories, expense_recurring_rules, expenses                                                                                                                           |
+| Artikelrecherche und Verlauf | market_research, activity_logs                                                                                                                                                  |
 
 | Kind ohne workspace_id                 | Verbindlicher Elternpfad            |
 | -------------------------------------- | ----------------------------------- |
@@ -86,9 +87,25 @@ Lagerbewegungen und das Journal. Schon eine frühere Archivierung eines leeren
 Workspace erzeugt aufbewahrte Journaldaten und verhindert danach die direkte
 Löschung. Im Demo-Modus ist dieser Server-Lebenszyklus ausdrücklich deaktiviert.
 
+Standard- und eigene Ausgabenkategorien sperren eine Löschung für sich allein
+nicht. Eine Wiederholungsregel, eine Ausgabe oder ein Beleg gilt dagegen als
+aufbewahrungsrelevante Geschäftsdaten und führt zuverlässig zur
+Archivierungsentscheidung.
+
+## Vollständiges Datenarchiv
+
+Das ZIP enthält zusätzlich zu den CSV-Dateien für Einkäufe und Ausgaben die
+Metadaten beider Belegarten. Vorhandene Originaldateien liegen unverändert unter
+`documents/<storage_path>`; dieser Pfad ist aus dem jeweiligen Metadaten-Datensatz
+ableitbar und bleibt damit über Exporte hinweg stabil. `document-downloads.json`
+nennt für jeden Beleg, ob seine Originaldatei aufgenommen werden konnte. Fehlende
+oder nicht lesbare Dateien werden dort mit Ursache ausgewiesen und führen in der
+Oberfläche zu einer Warnung statt zu einer Erfolgsmeldung für ein vollständiges
+Archiv.
+
 ## Prüfung
 
-`supabase/tests/workspace_retention.sql` enthält 88 Verhaltenstests einschließlich
+`supabase/tests/workspace_retention.sql` enthält Verhaltenstests einschließlich
 Rollen, direkter Umgehungsversuche, Kosten-/Medien-/Belegkindern, Buchungs-RPCs,
 Verschiebungen, Wiederherstellung, Leserechten und Export.
 Service- und Komponententests prüfen Bestätigung, direkte Löschung,

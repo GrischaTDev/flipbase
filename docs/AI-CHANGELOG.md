@@ -1,5 +1,53 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-19 – ChatGPT GPT-5.6 Terra (OpenAI) – Archivierung und vollständiger Ausgabenexport
+
+**Auftrag:** Den dritten Reparaturabschnitt aus der Bestandsaufnahme umsetzen:
+Archivierte Workspaces vollständig gegen Änderungen schützen, eine verständliche
+Löschentscheidung für reine Ausgaben-Workspaces liefern und das Prüfarchiv um
+Ausgaben, Belege und die tatsächlichen Originaldateien ergänzen.
+
+**Änderung:** Archivierte Workspaces sperren nun auch Ausgabenkategorien,
+Wiederholungsregeln, Ausgaben, Einkaufsbelege und Ausgabenbelege. Das gilt für
+Metadaten und für die drei zugehörigen Storage-Buckets. Ein Workspace mit
+Ausgaben, Wiederholungsregeln oder Belegen meldet beim Löschen gezielt den
+bekannten Aufbewahrungsfehler; leere Standard- oder eigene Kategorien allein
+verhindern die Löschung nicht.
+
+Das vollständige Archiv enthält zusätzlich Kategorien, Wiederholungsregeln,
+Ausgaben sowie beide Belegmetadaten. Verfügbare Originalbelege liegen mit ihrem
+stabilen Storage-Pfad unter `documents/` im ZIP. `document-downloads.json`
+protokolliert jede einbezogene oder fehlende Datei. Bei fehlenden Originaldateien
+zeigt die Oberfläche eine Warnung mit der tatsächlichen Anzahl, statt den Export
+uneingeschränkt als Erfolg auszugeben.
+
+Ausgaben, Statuswechsel, Betrag-/Datumsänderungen, Entfernen/Wiederherstellen,
+Wiederholungsregeln und Ausgabenbelege erzeugen jetzt nachvollziehbare
+Prüfprotokollereignisse. Der Filter und die Bezeichnungen auf „Daten &
+Protokolle“ kennen den Bereich „Ausgaben“.
+
+**Qualität:** Der Node-Test-Auditor prüft Browser-Globals jetzt als echte
+TypeScript-Bezeichner. Namen in Testdaten wie `document-downloads.json` werden
+dadurch nicht mehr fälschlich als Browserzugriff gewertet; reale globale
+Browserzugriffe bleiben gesperrt.
+
+**Datenbank:** Die Migrationen
+`20260919145632_expense_archive_retention.sql` und
+`20260919151500_audit_snapshot_lint.sql` wurden aus dem lokalen Diff erzeugt
+und anschließend geprüft. Der Generator zeigte daneben ältere,
+paketfremde Abweichungen bei Sniper-Funktionen, Katalogrechten und
+Einkaufspaket-Rechten. Diese Änderungen gehören nicht zu diesem Reparaturpaket
+und wurden bewusst nicht in die Migrationen aufgenommen; ihr deklarativer
+Schema-Abgleich bleibt ein eigener Aufräumpunkt.
+
+**Prüfung:** `supabase db reset --local`, die vollständige Datenbanktestsuite
+(1.857 Tests in 51 Dateien), `supabase db lint --fail-on error`, die
+Typengenerierung mit identischem Ergebnis, die Workflow-Suite (72 erfolgreich,
+5 bestehende Skips) und `npm run verify` mit 2.668 Anwendungstests sowie
+Produktionsbau wurden lokal erfolgreich ausgeführt. Der Datenbank-Advisor hat
+keine Fehler mehr; seine drei verbleibenden Hinweise betreffen die bestehenden
+Funktionen `is_valid_gtin` und `save_number_series` außerhalb dieses Pakets.
+
 ## 2026-09-19 – ChatGPT GPT-5.6 Terra (OpenAI) – Ausgaben pro Workspace sicher laden
 
 **Auftrag:** Den zweiten Reparaturabschnitt aus der Bestandsaufnahme umsetzen:
