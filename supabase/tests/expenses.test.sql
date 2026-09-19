@@ -55,13 +55,15 @@ insert into public.expense_categories (
 );
 
 insert into public.expense_recurring_rules (
-  id, workspace_id, category_id, title, gross_amount, vat_rate, frequency,
+  id, workspace_id, category_id, title, vendor_name, quantity, gross_amount, vat_rate, frequency,
   start_date, end_date, is_active, created_by
 ) values (
   'f1800000-0000-4000-8000-000000000031',
   'f1800000-0000-4000-8000-000000000011',
   'f1800000-0000-4000-8000-000000000021',
   'Server',
+  'Hetzner',
+  2,
   29.90,
   19,
   'monthly',
@@ -73,7 +75,7 @@ insert into public.expense_recurring_rules (
 
 insert into public.expenses (
   id, workspace_id, category_id, recurring_rule_id, occurrence_date, title,
-  gross_amount, vat_rate, expense_date, due_date, status, payment_date, created_by
+  vendor_name, quantity, gross_amount, vat_rate, expense_date, due_date, status, payment_date, created_by
 ) values (
   'f1800000-0000-4000-8000-000000000041',
   'f1800000-0000-4000-8000-000000000011',
@@ -81,6 +83,8 @@ insert into public.expenses (
   'f1800000-0000-4000-8000-000000000031',
   '2026-09-01',
   'Server',
+  'Hetzner',
+  2,
   29.90,
   19,
   '2026-09-01',
@@ -106,8 +110,52 @@ insert into public.expenses (
   'f1800000-0000-4000-8000-000000000001'
 );
 
+select is(
+  (select quantity from public.expenses where id = 'f1800000-0000-4000-8000-000000000042'),
+  1,
+  'manuelle Ausgaben erhalten ohne Angabe standardmäßig Menge 1'
+);
+
+select is(
+  (select vendor_name from public.expenses where id = 'f1800000-0000-4000-8000-000000000041'),
+  'Hetzner',
+  'Händler oder Anbieter wird an der Ausgabe gespeichert'
+);
+
+select is(
+  (select quantity from public.expense_recurring_rules where id = 'f1800000-0000-4000-8000-000000000031'),
+  2,
+  'Wiederholungsregeln speichern die Menge'
+);
+
+select is(
+  (select vendor_name from public.expense_recurring_rules where id = 'f1800000-0000-4000-8000-000000000031'),
+  'Hetzner',
+  'Wiederholungsregeln speichern den Anbieter'
+);
+
+select throws_ok(
+  $insert into public.expenses (
+      workspace_id, category_id, title, quantity, gross_amount,
+      expense_date, status, payment_date, created_by
+    ) values (
+      'f1800000-0000-4000-8000-000000000011',
+      'f1800000-0000-4000-8000-000000000021',
+      'Ungültige Menge',
+      0,
+      10,
+      '2026-09-18',
+      'paid',
+      '2026-09-18',
+      'f1800000-0000-4000-8000-000000000001'
+    )$,
+  '23514',
+  null,
+  'eine Ausgabe verlangt eine positive Menge'
+);
+
 select lives_ok(
-  $$update public.expense_categories
+  $update public.expense_categories
     set name = 'Eigenes Versandmaterial'
     where id = 'f1800000-0000-4000-8000-000000000021'$$,
   'eigene Kategorien lassen sich ändern'
