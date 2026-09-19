@@ -5,6 +5,7 @@ import { glob, readFile } from 'node:fs/promises';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { Expense } from '../../../../core/models/expense.models';
 import { ExpenseCategoryService } from '../../../../core/services/expense-category.service';
+import { ExpenseDocumentService } from '../../../../core/services/expense-document.service';
 import { ExpenseService } from '../../../../core/services/expense.service';
 import { ExpenseDialogComponent } from './expense-dialog.component';
 
@@ -40,11 +41,16 @@ const existingExpense: Expense = {
   updated_at: '2026-09-18T00:00:00Z',
 };
 
-function createFixture(create = vi.fn()) {
+function createFixture(
+  create = vi.fn(),
+  update = vi.fn(),
+  upload = vi.fn().mockResolvedValue({ data: null, error: null }),
+) {
   return TestBed.configureTestingModule({
     imports: [ExpenseDialogComponent],
     providers: [
-      { provide: ExpenseService, useValue: { create, update: vi.fn() } },
+      { provide: ExpenseService, useValue: { create, update } },
+      { provide: ExpenseDocumentService, useValue: { upload } },
       {
         provide: ExpenseCategoryService,
         useValue: {
@@ -121,6 +127,69 @@ describe('ExpenseDialogComponent', () => {
         vat_rate: 19,
       }),
     );
+  });
+
+  it('lädt einen vorgemerkten Beleg erst nach erfolgreicher Neuanlage hoch', async () => {
+    const createdExpense = { ...existingExpense, id: 'created-expense' };
+    const create = vi.fn().mockResolvedValue({ data: createdExpense, error: null });
+    const upload = vi.fn().mockResolvedValue({
+      data: { id: 'document-1' },
+      error: null,
+    });
+    const fixture = createFixture(create, vi.fn(), upload)
+      .overrideComponent(ExpenseDialogComponent, { set: { template: '' } })
+      .createComponent(ExpenseDialogComponent);
+    fixture.detectChanges();
+
+    fixture.componentInstance.form.patchValue({
+      title: 'Versandkartons',
+      category_id: 'cat-1',
+      quantity: 10,
+      gross_amount: 25,
+    });
+    const document = new File(['pdf'], 'rechnung.pdf', { type: 'application/pdf' });
+    fixture.componentInstance.selectPendingDocument(document);
+
+    expect(upload).not.toHaveBeenCalled();
+
+    await fixture.componentInstance.save();
+
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(upload).toHaveBeenCalledWith('created-expense', document, 'invoice');
+  });
+
+  it('erstellt bei erneutem Speichern nach Belegfehler keine doppelte Ausgabe', async () => {
+    const createdExpense = { ...existingExpense, id: 'created-expense' };
+    const create = vi.fn().mockResolvedValue({ data: createdExpense, error: null });
+    const update = vi.fn().mockResolvedValue({ data: createdExpense, error: null });
+    const upload = vi
+      .fn()
+      .mockResolvedValueOnce({ data: null, error: new Error('Storage nicht erreichbar') })
+      .mockResolvedValueOnce({ data: { id: 'document-1' }, error: null });
+    const fixture = createFixture(create, update, upload)
+      .overrideComponent(ExpenseDialogComponent, { set: { template: '' } })
+      .createComponent(ExpenseDialogComponent);
+    fixture.detectChanges();
+
+    fixture.componentInstance.form.patchValue({
+      title: 'Versandkartons',
+      category_id: 'cat-1',
+      quantity: 10,
+      gross_amount: 25,
+    });
+    fixture.componentInstance.selectPendingDocument(
+      new File(['pdf'], 'rechnung.pdf', { type: 'application/pdf' }),
+    );
+
+    await fixture.componentInstance.save();
+    expect(fixture.componentInstance.errorMessage()).toContain('Ausgabe wurde gespeichert');
+    expect(create).toHaveBeenCalledTimes(1);
+
+    await fixture.componentInstance.save();
+
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(upload).toHaveBeenCalledTimes(2);
   });
 
   it('benennt den Betrag als Gesamtbetrag und hält Steuerdetails sekundär', async () => {
