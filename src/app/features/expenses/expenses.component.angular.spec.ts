@@ -294,6 +294,16 @@ function render() {
 }
 
 describe('ExpensesComponent', () => {
+  it('zeigt beim ersten Rendern den Ladezustand statt kurz die leere Tabelle', () => {
+    const { fixture } = render();
+    const host = fixture.nativeElement as HTMLElement;
+
+    expect(host.querySelector('[data-data-table-loading]')?.textContent).toContain(
+      'Ausgaben werden geladen',
+    );
+    expect(host.querySelector('[data-data-table-empty]')).toBeNull();
+  });
+
   it('zeigt Summen, Filter und die Ausgabentabelle verständlich', async () => {
     const { fixture } = render();
     await fixture.whenStable();

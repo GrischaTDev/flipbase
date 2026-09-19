@@ -3,6 +3,7 @@ import { signal, ɵresolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { glob, readFile } from 'node:fs/promises';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { ExpenseRecurringRule } from '../../../../core/models/expense.models';
 import { ExpenseCategoryService } from '../../../../core/services/expense-category.service';
 import { ExpenseRecurringService } from '../../../../core/services/expense-recurring.service';
 import { RecurringExpenseDialogComponent } from './recurring-expense-dialog.component';
@@ -67,5 +68,49 @@ describe('RecurringExpenseDialogComponent', () => {
       }),
     );
     expect(materializeDue).toHaveBeenCalled();
+  });
+
+  it('bewahrt bei einer bestehenden Regel eine unbekannte MwSt. unverändert', () => {
+    const existingRule: ExpenseRecurringRule = {
+      id: 'rule-existing',
+      workspace_id: 'workspace-1',
+      category_id: 'cat-1',
+      title: 'Server',
+      vendor_name: 'Netcup',
+      quantity: 1,
+      gross_amount: 29.9,
+      vat_rate: null,
+      frequency: 'monthly',
+      start_date: '2026-09-18',
+      end_date: null,
+      is_active: true,
+      notes: null,
+      created_at: '2026-09-18T00:00:00Z',
+      created_by: 'user-1',
+      updated_at: '2026-09-18T00:00:00Z',
+    };
+
+    const fixture = TestBed.configureTestingModule({
+      imports: [RecurringExpenseDialogComponent],
+      providers: [
+        {
+          provide: ExpenseRecurringService,
+          useValue: { create: vi.fn(), update: vi.fn(), materializeDue: vi.fn() },
+        },
+        {
+          provide: ExpenseCategoryService,
+          useValue: {
+            categories: signal([{ id: 'cat-1', name: 'Hosting & Server', is_archived: false }]),
+          },
+        },
+      ],
+    })
+      .overrideComponent(RecurringExpenseDialogComponent, { set: { template: '' } })
+      .createComponent(RecurringExpenseDialogComponent);
+
+    fixture.componentRef.setInput('rule', existingRule);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.form.controls.vat_rate.value).toBeNull();
   });
 });

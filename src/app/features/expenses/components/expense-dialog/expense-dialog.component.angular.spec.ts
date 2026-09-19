@@ -48,7 +48,10 @@ function createFixture(options: {
   uploadResult?: { data: null; error: Error | null };
 } = {}) {
   const create = vi.fn(async () => options.createResult ?? { data: existingExpense, error: null });
-  const update = vi.fn(async () => ({ data: existingExpense, error: null }));
+  const update = vi.fn(async (id: string, changes: Partial<Expense>) => ({
+    data: { ...existingExpense, ...changes, id },
+    error: null,
+  }));
   const upload = vi.fn(async () => options.uploadResult ?? { data: null, error: null });
 
   const fixture = TestBed.configureTestingModule({
@@ -157,6 +160,7 @@ describe('ExpenseDialogComponent', () => {
     expect(create).toHaveBeenCalledTimes(1);
     expect(update).toHaveBeenCalledWith('created-expense', expect.any(Object));
     expect(upload).toHaveBeenCalledTimes(2);
+    expect(upload).toHaveBeenLastCalledWith('created-expense', expect.any(File), 'invoice');
   });
 
   it('akzeptiert keine Menge kleiner als 1', () => {
