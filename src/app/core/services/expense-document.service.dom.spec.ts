@@ -38,6 +38,7 @@ function createService(
     download?: ReturnType<typeof vi.fn>;
     insert?: ReturnType<typeof vi.fn>;
     deleteRow?: ReturnType<typeof vi.fn>;
+    summaryRows?: readonly { expense_id: string }[];
   } = {},
 ) {
   const upload = options.upload ?? vi.fn(async () => ({ error: null }));
@@ -55,10 +56,12 @@ function createService(
     }));
 
   const documentsRaw = signal<readonly ExpenseDocument[]>([]);
+  const documentCounts = signal<ReadonlyMap<string, number>>(new Map());
   const service = Object.create(ExpenseDocumentService.prototype) as ExpenseDocumentService;
   Object.assign(service, {
     documentsRaw,
     documents: documentsRaw.asReadonly(),
+    documentCounts,
     isLoading: signal(false),
     loadError: signal<string | null>(null),
     workspaceService: { currentWorkspace: signal(workspace) },
@@ -71,9 +74,21 @@ function createService(
         from: () => ({
           insert,
           delete: deleteRow,
-          select: () => ({
-            eq: () => ({ order: async () => ({ data: [storedDocument], error: null }) }),
-          }),
+          select: (columns = '*') => {
+            if (columns === 'expense_id') {
+              return {
+                eq: () => ({
+                  in: async () => ({
+                    data: options.summaryRows ?? [{ expense_id: expenseId }],
+                    error: null,
+                  }),
+                }),
+              };
+            }
+            return {
+              eq: () => ({ order: async () => ({ data: [storedDocument], error: null }) }),
+            };
+          },
         }),
       },
     },
@@ -83,6 +98,18 @@ function createService(
 }
 
 describe('ExpenseDocumentService', () => {
+  it('lädt den Belegstatus für mehrere Ausgaben ohne Dateien herunterzuladen', async () => {
+    const secondExpenseId = '66666666-6666-4666-8666-666666666666';
+    const { service } = createService({
+      summaryRows: [{ expense_id: expenseId }, { expense_id: expenseId }],
+    });
+
+    await service.loadSummaryForExpenses([expenseId, secondExpenseId]);
+
+    expect(service.hasDocuments(expenseId)).toBe(true);
+    expect(service.hasDocuments(secondExpenseId)).toBe(false);
+  });
+
   it('lädt Belege einer konkreten Ausgabe', async () => {
     const { service } = createService();
 
@@ -111,6 +138,7 @@ describe('ExpenseDocumentService', () => {
         original_file_name: 'Serverrechnung.pdf',
       }),
     );
+    expect(service.hasDocuments(expenseId)).toBe(true);
   });
 
   it('räumt die Datei auf, wenn die Metadaten nicht gespeichert werden', async () => {
@@ -145,6 +173,7 @@ describe('ExpenseDocumentService', () => {
     expect(result.error).toBeNull();
     expect(removeFile).toHaveBeenCalledWith([storedDocument.storage_path]);
     expect(service.documents()).toEqual([]);
+    expect(service.hasDocuments(expenseId)).toBe(false);
   });
 
   it('speichert im Demo-Modus keine privaten Dateien', async () => {

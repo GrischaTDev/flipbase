@@ -6,7 +6,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthService } from './auth.service';
 import { SupabaseService } from './supabase.service';
 import { TablePreferencesService } from './table-preferences.service';
-import { INVENTORY_TABLE_CONFIG, SALES_TABLE_CONFIG } from '../config/table-defaults.config';
+import {
+  EXPENSES_TABLE_CONFIG,
+  INVENTORY_TABLE_CONFIG,
+  SALES_TABLE_CONFIG,
+} from '../config/table-defaults.config';
 import { StoredTablePreferences } from '../models/table-preferences.models';
 
 const definitions = [
@@ -326,6 +330,35 @@ describe('TablePreferencesService – Polaris Table Preferences & Reordering', (
 
     const prefs = service.getTablePreferences('sales', testWorkspaceId)();
     expect(prefs.columns.length).toBe(SALES_TABLE_CONFIG.defaultColumns.length);
+  });
+
+  it('ergänzt neue Ausgabenspalten in einer gespeicherten alten Ansicht', () => {
+    const key = `flipbase:table_prefs:${testWorkspaceId}:expenses`;
+    localStorage.setItem(
+      key,
+      JSON.stringify({
+        version: 1,
+        columns: [
+          { id: 'expense_date', visible: true, order: 0 },
+          { id: 'title', visible: true, order: 1 },
+          { id: 'category', visible: true, order: 2 },
+          { id: 'gross_amount', visible: true, order: 3 },
+          { id: 'vat_rate', visible: false, order: 4 },
+          { id: 'status', visible: true, order: 5 },
+          { id: 'due_or_paid', visible: false, order: 6 },
+          { id: 'recurring', visible: false, order: 7 },
+          { id: 'documents', visible: true, order: 8 },
+          { id: 'actions', visible: true, order: 9 },
+        ],
+        sort: { field: 'expense_date', direction: 'desc' },
+      }),
+    );
+
+    const state = service.getTablePreferences('expenses', testWorkspaceId)();
+
+    expect(state.columns.find((column) => column.id === 'vendor')?.visible).toBe(true);
+    expect(state.columns.find((column) => column.id === 'quantity')?.visible).toBe(true);
+    expect(state.columns.length).toBe(EXPENSES_TABLE_CONFIG.defaultColumns.length);
   });
 
   it('should reconcile schema drift when columns are added to default config', () => {

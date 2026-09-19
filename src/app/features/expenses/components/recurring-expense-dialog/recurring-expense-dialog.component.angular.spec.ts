@@ -46,16 +46,26 @@ describe('RecurringExpenseDialogComponent', () => {
     fixture.detectChanges();
     const component = fixture.componentInstance;
     expect(component.form.controls.frequency.value).toBe('monthly');
+    expect(component.form.controls.quantity.value).toBe(1);
+    expect(component.form.controls.vat_rate.value).toBe(19);
 
     component.form.patchValue({
       title: 'Server',
+      vendor_name: 'Netcup',
       category_id: 'cat-1',
+      quantity: 2,
       gross_amount: 29.9,
       start_date: '2026-09-18',
     });
     await component.save();
 
-    expect(create).toHaveBeenCalled();
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        vendor_name: 'Netcup',
+        quantity: 2,
+        vat_rate: 19,
+      }),
+    );
     expect(materializeDue).toHaveBeenCalled();
   });
 });
