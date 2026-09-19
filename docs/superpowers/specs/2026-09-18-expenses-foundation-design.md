@@ -8,8 +8,12 @@ Betriebsausgaben. Wareneinkäufe bleiben im bestehenden Einkaufsbereich.
 1. Wiederkehrende Kosten erzeugen echte einzelne Ausgaben.
 2. Wareneinkäufe (Sneaker, Kleidung, Paletten usw.) bleiben unter „Einkäufe“.
    „Ausgaben“ erfasst allgemeine Betriebsausgaben.
-3. Betragserfassung: Bruttobetrag Pflicht; MwSt.-Satz optional (keine Angabe, 0 %, 7 %, 19 %).
-   Netto und Steueranteil werden daraus berechnet.
+3. Betragserfassung: Der tatsächlich gezahlte Gesamtbetrag ist die führende Eingabe.
+   Menge und Händler/Anbieter werden separat erfasst. Neue manuelle Ausgaben starten in
+   der Oberfläche mit 19 % enthaltener MwSt.; 7 %, 0 % sowie „nicht ausgewiesen /
+   unbekannt“ bleiben auswählbar. Netto und Steueranteil werden nur informativ berechnet.
+   Der konkretisierte Ablauf steht in
+   `docs/superpowers/specs/2026-09-19-expense-entry-redesign-design.md`.
 4. Flipbase liefert gängige Standardkategorien und erlaubt eigene Kategorien je Workspace.
 5. Wiederholungen: monatlich, quartalsweise, jährlich; Startdatum Pflicht, Enddatum optional.
 6. Belege hängen an der konkreten Ausgabe, nicht an der Wiederholungsregel.
@@ -89,8 +93,10 @@ Tabelle:
 - Datum
 - Bezeichnung
 - Kategorie
-- Brutto
-- MwSt.
+- Anbieter
+- Menge
+- Gesamtbetrag
+- Steuer (optional einblendbar)
 - Status
 - Fällig / bezahlt am
 - Wiederholung
