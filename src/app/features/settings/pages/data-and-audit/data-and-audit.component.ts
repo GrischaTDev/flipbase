@@ -197,8 +197,15 @@ export class DataAndAuditComponent {
   readonly isExporting = signal(false);
   readonly exportProgress = signal(0);
   readonly isDemoMode = this.mockStore.isDemoMode;
+  readonly accessState = computed(() =>
+    auditAccessState(
+      this.isDemoMode(),
+      this.memberService.currentWorkspaceMembersResolved(),
+      this.memberService.currentUserRole(),
+    ),
+  );
   readonly isAuthorized = computed(
-    () => !this.isDemoMode() && canExportAuditData(this.memberService.currentUserRole()),
+    () => !this.isDemoMode() && this.accessState() === 'authorized',
   );
   private requestSequence = 0;
   private loadedAccessContext: string | null = null;
@@ -209,11 +216,7 @@ export class DataAndAuditComponent {
     effect(() => {
       const workspaceId = this.workspaceService.currentWorkspace()?.id ?? null;
       const role = this.memberService.currentUserRole();
-      const accessState = auditAccessState(
-        this.isDemoMode(),
-        this.memberService.currentWorkspaceMembersResolved(),
-        role,
-      );
+      const accessState = this.accessState();
 
       if (!workspaceId) {
         this.loadedAccessContext = null;
@@ -353,11 +356,7 @@ export class DataAndAuditComponent {
       return;
     }
 
-    const accessState = auditAccessState(
-      false,
-      this.memberService.currentWorkspaceMembersResolved(),
-      this.memberService.currentUserRole(),
-    );
+    const accessState = this.accessState();
     if (accessState === 'loading') {
       this.error.set(null);
       return;
