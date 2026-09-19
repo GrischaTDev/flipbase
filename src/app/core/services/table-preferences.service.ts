@@ -284,6 +284,33 @@ export class TablePreferencesService {
         return { columns, sort: validSort };
       }
 
+      const legacyExpenseColumns = [
+        'expense_date',
+        'title',
+        'category',
+        'gross_amount',
+        'vat_rate',
+        'status',
+        'due_or_paid',
+        'recurring',
+        'documents',
+        'actions',
+      ];
+      if (
+        tableId === 'expenses' &&
+        parsed.columns.length === legacyExpenseColumns.length &&
+        parsed.columns.every(
+          (column, index) =>
+            column.id === legacyExpenseColumns[index] &&
+            column.visible === true &&
+            column.order === index,
+        )
+      ) {
+        const columns = [...config.defaultColumns];
+        this.savePreferences(tableId, workspaceId, columns, validSort);
+        return { columns, sort: validSort };
+      }
+
       // Entfernte Einkaufsspalten dauerhaft aus Altpräferenzen entfernen;
       // übrige Sichtbarkeit und Reihenfolge bleiben bestehen.
       const removedPurchaseColumns = new Set(['type', 'cost_status', 'actions']);
