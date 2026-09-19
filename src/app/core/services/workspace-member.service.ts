@@ -115,7 +115,7 @@ export class WorkspaceMemberService {
       this.workspaceService.currentWorkspace()?.id ?? null,
       this.loadedWorkspaceIdSignal(),
       this.isLoading(),
-      this.mockStore.isDemoMode(),
+      this.auth.isDemoMode(),
     ),
   );
 
