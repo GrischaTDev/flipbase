@@ -10,7 +10,6 @@ import {
 import {
   LucideCheck as Check,
   LucideCircleDollarSign as CircleDollarSign,
-  LucideFilePlus2 as FilePlus2,
   LucideFileText as FileText,
   LucidePencil as Pencil,
   LucidePlus as Plus,
@@ -105,7 +104,7 @@ export class ExpensesComponent implements OnInit {
   readonly paidIcon = Check;
   readonly editIcon = Pencil;
   readonly deleteIcon = Trash2;
-  readonly addDocumentIcon = FilePlus2;
+  readonly addDocumentIcon = Plus;
   readonly viewDocumentIcon = FileText;
 
   readonly workspaceId = computed(() => this.workspaceService.currentWorkspace()?.id ?? 'default');
