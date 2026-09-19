@@ -9,8 +9,13 @@ import {
   signal,
 } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  ExpenseDocumentType,
+  validateExpenseDocumentFile,
+} from '../../../../core/models/expense-document.models';
 import { Expense, ExpenseStatus, ExpenseVatRate } from '../../../../core/models/expense.models';
 import { ExpenseCategoryService } from '../../../../core/services/expense-category.service';
+import { ExpenseDocumentService } from '../../../../core/services/expense-document.service';
 import { ExpenseService } from '../../../../core/services/expense.service';
 import { calculateExpenseTax, calculateExpenseUnitPrice } from '../../../../core/utils/expense-money';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
@@ -45,6 +50,7 @@ function localDateKey(date = new Date()): string {
 })
 export class ExpenseDialogComponent implements OnInit {
   private readonly expenseService = inject(ExpenseService);
+  private readonly documentService = inject(ExpenseDocumentService);
   readonly categoryService = inject(ExpenseCategoryService);
 
   readonly expense = input<Expense | null>(null);
@@ -54,6 +60,9 @@ export class ExpenseDialogComponent implements OnInit {
   readonly isSaving = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly taxDetailsExpanded = signal(false);
+  readonly pendingDocument = signal<File | null>(null);
+  readonly pendingDocumentType = signal<ExpenseDocumentType>('invoice');
+  private readonly persistedExpense = signal<Expense | null>(null);
 
   readonly vatOptions: readonly SelectOption<ExpenseVatRate>[] = [
     { value: 19, label: '19 % enthalten' },
@@ -114,6 +123,38 @@ export class ExpenseDialogComponent implements OnInit {
       payment_date: expense.payment_date,
       notes: expense.notes ?? '',
     });
+  }
+
+  selectPendingDocument(file: File): void {
+    const error = validateExpenseDocumentFile(file);
+    if (error) {
+      this.errorMessage.set(error.message);
+      return;
+    }
+
+    this.pendingDocument.set(file);
+    this.errorMessage.set(null);
+  }
+
+  onFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0] ?? null;
+    input.value = '';
+    if (file) this.selectPendingDocument(file);
+  }
+
+  onDocumentDragOver(event: DragEvent): void {
+    event.preventDefault();
+  }
+
+  onDocumentDrop(event: DragEvent): void {
+    event.preventDefault();
+    const file = event.dataTransfer?.files?.[0] ?? null;
+    if (file) this.selectPendingDocument(file);
+  }
+
+  removePendingDocument(): void {
+    this.pendingDocument.set(null);
   }
 
   onStatusChanged(status: ExpenseStatus | null): void {
@@ -192,8 +233,9 @@ export class ExpenseDialogComponent implements OnInit {
         payment_date: values.status === 'paid' ? values.payment_date : null,
         notes: values.notes.trim() || null,
       };
-      const result = this.expense()
-        ? await this.expenseService.update(this.expense()!.id, input)
+      const currentExpense = this.persistedExpense() ?? this.expense();
+      const result = currentExpense
+        ? await this.expenseService.update(currentExpense.id, input)
         : await this.expenseService.create(input);
       if (result.error || !result.data) {
         this.errorMessage.set(
@@ -201,6 +243,24 @@ export class ExpenseDialogComponent implements OnInit {
         );
         return;
       }
+      this.persistedExpense.set(result.data);
+
+      const pendingDocument = this.pendingDocument();
+      if (pendingDocument) {
+        const upload = await this.documentService.upload(
+          result.data.id,
+          pendingDocument,
+          this.pendingDocumentType(),
+        );
+        if (upload.error) {
+          this.errorMessage.set(
+            `Ausgabe wurde gespeichert, der Beleg konnte aber nicht hochgeladen werden: ${upload.error.message}`,
+          );
+          return;
+        }
+        this.pendingDocument.set(null);
+      }
+
       this.saved.emit(result.data);
       this.closed.emit();
     } finally {
