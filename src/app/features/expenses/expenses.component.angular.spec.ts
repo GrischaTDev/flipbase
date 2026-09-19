@@ -360,7 +360,7 @@ describe('ExpensesComponent', () => {
   });
 
   it('nutzt genau den deduplizierten Initial-Ladepfad und lädt Belegstatus danach', async () => {
-    const { fixture, expenseService, recurringService, documentService } = await render();
+    const { expenseService, recurringService, documentService } = await render();
 
     expect(expenseService.ensureCurrentWorkspaceLoaded).toHaveBeenCalledTimes(1);
     expect(expenseService.load).not.toHaveBeenCalled();
