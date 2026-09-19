@@ -1,13 +1,11 @@
 import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
-import { MockDataStoreService } from './mock-data-store.service';
 import { InventoryService } from './inventory.service';
 import { SourcesService } from './sources.service';
 import { SuppliersService } from './suppliers.service';
 import { WebhookService } from './webhook.service';
 import { SyncStatusService } from './sync-status.service';
-import { createLocalDemoId } from '../utils/client-identity';
 import { ReceivePurchaseLineInput, ReceivePurchaseResult, StockService } from './stock.service';
 import { MutationResult } from '../models/mutation-result.model';
 import {
@@ -30,7 +28,6 @@ import {
 import {
   normalizePurchaseSellerDetails,
   PurchaseSellerDetails,
-  sellerDetailsFromPurchase,
 } from '../models/purchase-seller.models';
 
 export const PURCHASE_SELLER_DETAILS_CONFLICT_MESSAGE =
@@ -219,7 +216,6 @@ export class PurchaseService {
   private readonly supabase = inject(SupabaseService);
   private readonly syncStatus = inject(SyncStatusService);
   private readonly workspaceService = inject(WorkspaceService);
-  private readonly mockStore = inject(MockDataStoreService);
   private readonly webhookService = inject(WebhookService);
   private readonly stockService = inject(StockService);
   // Der Inventardienst ist die einzige Quelle fuer Artikel. Diese Richtung der
@@ -354,39 +350,6 @@ export class PurchaseService {
     this.loadedWorkspaceId.set(null);
     this.purchasesRaw.set([]);
     try {
-      if (this.mockStore.isDemoMode()) {
-        const localPurchases = this.mockStore.getPurchases(workspaceId);
-        const localItems = this.mockStore.getItems(workspaceId);
-        const localPurchaseLines = this.mockStore.getPurchaseLines(workspaceId);
-        const localSources = this.mockStore.getSources();
-        const localSuppliers = this.mockStore.getSuppliers();
-
-        const enrichedLocal = localPurchases.map((p) => {
-          const matchingItems = localItems.filter((i) => i.purchase_id === p.id);
-          const matchingLines = localPurchaseLines.filter((line) => line.purchase_id === p.id);
-          const source =
-            p.source || (p.source_id ? localSources.find((s) => s.id === p.source_id) : undefined);
-          const supplier =
-            p.supplier ||
-            (p.supplier_id ? localSuppliers.find((s) => s.id === p.supplier_id) : undefined);
-          return {
-            ...p,
-            source,
-            supplier,
-            purchase_lines: matchingLines,
-            items_count: this.zaehleArtikel(
-              { ...p, purchase_lines: matchingLines },
-              matchingItems,
-              matchingLines,
-            ),
-          } as Purchase;
-        });
-        if (!this.isCurrentListLoad(requestId, workspaceId)) return;
-        this.purchasesRaw.set(enrichedLocal);
-        this.loadedWorkspaceId.set(workspaceId);
-        return;
-      }
-
       const { data, error } = await this.supabase.client
         .from('purchases')
         .select(
@@ -470,49 +433,6 @@ export class PurchaseService {
     const saleHistoryLoad = workspaceId
       ? this.loadPurchaseSaleHistory(workspaceId, id)
       : Promise.resolve<PurchaseSaleHistoryState>('error');
-    // Die lokale Abkürzung gilt nur im Demo-Modus. Für angemeldete Nutzer muss
-    // die Datenbank gefragt werden: Die zugehörigen Artikel stehen seit der
-    // Umstellung auf „Datenbank zuerst" nicht mehr im lokalen Spiegel, wodurch
-    // die Einkaufs-Detailseite gar keine Artikel mehr anzeigte – und die
-    // Kostenverteilung damit ins Leere lief.
-    const existing = this.mockStore.isDemoMode()
-      ? this.purchases().find((p) => p.id === id && p.workspace_id === workspaceId) ||
-        this.mockStore
-          .getPurchases(workspaceId)
-          .find((p) => p.id === id && p.workspace_id === workspaceId)
-      : undefined;
-    if (existing) {
-      const items = this.mockStore
-        .getItems(workspaceId)
-        .filter((i) => i.purchase_id === id && i.workspace_id === workspaceId);
-      const lines = this.mockStore
-        .getPurchaseLines(workspaceId)
-        .filter((line) => line.purchase_id === id && line.workspace_id === workspaceId);
-      const localSources = this.mockStore.getSources(workspaceId);
-      const localSuppliers = this.mockStore.getSuppliers(workspaceId);
-      const source =
-        existing.source ||
-        (existing.source_id ? localSources.find((s) => s.id === existing.source_id) : undefined);
-      const supplier =
-        existing.supplier ||
-        (existing.supplier_id
-          ? localSuppliers.find((s) => s.id === existing.supplier_id)
-          : undefined);
-      const enriched: Purchase = {
-        ...existing,
-        source,
-        supplier,
-        purchase_lines: lines,
-        items_count: this.zaehleArtikel({ ...existing, purchase_lines: lines }, items, lines),
-      };
-      await saleHistoryLoad;
-      if (!this.isCurrentDetailLoad(requestId, workspaceId)) return null;
-      this.selectedPurchaseRaw.set(enriched);
-      this.purchaseItemsFallback.set(items);
-      this.purchaseLinesRaw.set(lines);
-      return enriched;
-    }
-
     this.isLoading.set(true);
     try {
       const { data, error } = await this.supabase.client
@@ -608,45 +528,39 @@ export class PurchaseService {
 
     let nextState: PurchaseSaleHistoryState;
     let nextReviewInventoryItemId: string | null = null;
-    if (this.mockStore.isDemoMode()) {
-      const outcome = this.getLocalPurchaseSaleHistoryOutcome(workspaceId, purchaseId);
-      nextState = outcome.state;
-      nextReviewInventoryItemId = outcome.reviewInventoryItemId;
-    } else {
-      try {
-        const { data, error } = await (
-          this.supabase.client as unknown as PurchaseSaleHistoryRpcClient
-        ).rpc('get_purchase_sale_history', {
-          p_workspace_id: workspaceId,
-          p_purchase_id: purchaseId,
-        });
-        if (
-          requestId !== this.saleHistoryLoadRequestId ||
-          this.workspaceService.currentWorkspace()?.id !== workspaceId
-        ) {
-          return this.purchaseSaleHistoryState();
-        }
-        const outcome = error ? null : parsePurchaseSaleHistoryOutcome(data);
-        if (!outcome) {
-          this.syncStatus.melde(
-            'Prüfen des Einkaufs-Verkaufsverlaufs',
-            error ?? new Error('Die Antwort zum Verkaufsverlauf ist ungültig.'),
-          );
-          nextState = 'error';
-        } else {
-          nextState = outcome.state;
-          nextReviewInventoryItemId = outcome.reviewInventoryItemId;
-        }
-      } catch (error: unknown) {
-        if (
-          requestId !== this.saleHistoryLoadRequestId ||
-          this.workspaceService.currentWorkspace()?.id !== workspaceId
-        ) {
-          return this.purchaseSaleHistoryState();
-        }
-        this.syncStatus.melde('Prüfen des Einkaufs-Verkaufsverlaufs', error);
-        nextState = 'error';
+    try {
+      const { data, error } = await (
+        this.supabase.client as unknown as PurchaseSaleHistoryRpcClient
+      ).rpc('get_purchase_sale_history', {
+        p_workspace_id: workspaceId,
+        p_purchase_id: purchaseId,
+      });
+      if (
+        requestId !== this.saleHistoryLoadRequestId ||
+        this.workspaceService.currentWorkspace()?.id !== workspaceId
+      ) {
+        return this.purchaseSaleHistoryState();
       }
+      const outcome = error ? null : parsePurchaseSaleHistoryOutcome(data);
+      if (!outcome) {
+        this.syncStatus.melde(
+          'Prüfen des Einkaufs-Verkaufsverlaufs',
+          error ?? new Error('Die Antwort zum Verkaufsverlauf ist ungültig.'),
+        );
+        nextState = 'error';
+      } else {
+        nextState = outcome.state;
+        nextReviewInventoryItemId = outcome.reviewInventoryItemId;
+      }
+    } catch (error: unknown) {
+      if (
+        requestId !== this.saleHistoryLoadRequestId ||
+        this.workspaceService.currentWorkspace()?.id !== workspaceId
+      ) {
+        return this.purchaseSaleHistoryState();
+      }
+      this.syncStatus.melde('Prüfen des Einkaufs-Verkaufsverlaufs', error);
+      nextState = 'error';
     }
 
     if (
@@ -658,51 +572,6 @@ export class PurchaseService {
     this.purchaseSaleHistoryState.set(nextState);
     this.purchaseSaleReviewInventoryItemId.set(nextReviewInventoryItemId);
     return nextState;
-  }
-
-  private getLocalPurchaseSaleHistoryOutcome(
-    workspaceId: string,
-    purchaseId: string,
-  ): PurchaseSaleHistoryOutcome {
-    const items = this.mockStore
-      .getItems(workspaceId)
-      .filter((item) => item.purchase_id === purchaseId);
-    const itemIds = new Set(items.map((item) => item.id));
-    const lotIds = new Set(
-      this.mockStore
-        .getStockLots(workspaceId)
-        .filter((lot) => lot.purchase_id === purchaseId)
-        .map((lot) => lot.id),
-    );
-
-    const sales = this.mockStore.getSales(workspaceId);
-    const recordedItemIds = new Set(
-      sales.flatMap((sale) =>
-        (sale.lines ?? [])
-          .map((line) => line.inventory_item_id)
-          .filter((itemId): itemId is string => itemId !== null && itemId !== undefined),
-      ),
-    );
-    const reviewItem = items
-      .filter((item) => item.status === 'sold' && !recordedItemIds.has(item.id))
-      .sort((left, right) => left.id.localeCompare(right.id))[0];
-    if (reviewItem) {
-      return { state: 'review_required', reviewInventoryItemId: reviewItem.id };
-    }
-
-    const hasRecordedSale = sales.some(
-      (sale) =>
-        (sale.lines ?? []).some(
-          (line) =>
-            line.inventory_item_id !== null &&
-            line.inventory_item_id !== undefined &&
-            itemIds.has(line.inventory_item_id),
-        ) || (sale.lot_allocations ?? []).some((allocation) => lotIds.has(allocation.stock_lot_id)),
-    );
-    return {
-      state: hasRecordedSale ? 'recorded' : 'none',
-      reviewInventoryItemId: null,
-    };
   }
 
   async loadPurchaseLines(purchaseId: string, detailRequestId?: number): Promise<void> {
@@ -717,16 +586,6 @@ export class PurchaseService {
       detailRequestId === undefined
         ? this.workspaceService.currentWorkspace()?.id === workspaceId
         : this.isCurrentDetailLoad(detailRequestId, workspaceId);
-
-    if (this.mockStore.isDemoMode()) {
-      const lines = this.mockStore
-        .getPurchaseLines(workspaceId)
-        .filter((line) => line.purchase_id === purchaseId);
-      if (mayPublish()) {
-        this.purchaseLinesRaw.set(lines);
-      }
-      return;
-    }
 
     try {
       const { data, error } = await this.supabase.client
@@ -823,7 +682,7 @@ export class PurchaseService {
       : undefined;
 
     const newPurchase: Purchase = {
-      id: this.mockStore.isDemoMode() ? createLocalDemoId('purchase') : `pur-${Date.now()}`,
+      id: `pur-${Date.now()}`,
       workspace_id: ws.id,
       source_id: payload.source_id || null,
       supplier_id: payload.supplier_id || null,
@@ -859,75 +718,6 @@ export class PurchaseService {
       costs: kostenZeilen,
       created_at: new Date().toISOString(),
     };
-
-    if (this.mockStore.isDemoMode()) {
-      const createdLines = this.createLocalPurchaseLines(
-        ws.id,
-        newPurchase.id,
-        normalizedLines.data,
-      );
-      const lineIdsByDraftId = new Map<string, string>();
-      normalizedLines.data.forEach((line, index) => {
-        if (line.draftId) lineIdsByDraftId.set(line.draftId, createdLines[index].id);
-      });
-      const unknownDirectTarget = kostenZeilen.find(
-        (cost) =>
-          cost.allocation_method === 'direct' &&
-          (!cost.target_purchase_line_id || !lineIdsByDraftId.has(cost.target_purchase_line_id)),
-      );
-      if (unknownDirectTarget) {
-        return {
-          status: 'failed',
-          data: null,
-          error: new Error('Die direkte Kostenzuordnung verweist auf keine Einkaufsposition.'),
-          reportedBySyncStatus: false,
-          problems: [],
-        };
-      }
-      const persistedPurchase: Purchase = {
-        ...newPurchase,
-        costs: kostenZeilen.map((cost) => ({
-          ...cost,
-          target_purchase_line_id:
-            cost.allocation_method === 'direct' && cost.target_purchase_line_id
-              ? (lineIdsByDraftId.get(cost.target_purchase_line_id) ?? null)
-              : null,
-        })),
-      };
-      const lines = this.allocateLocalPurchaseCosts(persistedPurchase, createdLines);
-      const purchaseWithLines: Purchase = { ...persistedPurchase, purchase_lines: lines };
-      const persistenceError = this.mockStore.savePurchaseWithLines(purchaseWithLines, lines);
-      if (persistenceError) {
-        return {
-          status: 'failed',
-          data: null,
-          error: persistenceError,
-          reportedBySyncStatus: false,
-          problems: [],
-        };
-      }
-      this.purchasesRaw.update((list) => [purchaseWithLines, ...list]);
-      if (this.selectedPurchase()?.id === purchaseWithLines.id) {
-        this.purchaseLinesRaw.update((current) => [...current, ...lines]);
-      }
-      const problems: PurchaseCreateProblem[] = [];
-      this.webhookService.sendPurchaseNotification(purchaseWithLines);
-      return problems.length > 0
-        ? {
-            status: 'partial',
-            data: purchaseWithLines,
-            error: null,
-            reportedBySyncStatus: problems.some((problem) => problem.reportedBySyncStatus),
-            problems,
-          }
-        : {
-            status: 'success',
-            data: purchaseWithLines,
-            error: null,
-            reportedBySyncStatus: false,
-            problems: [],
-          };
-    }
 
     try {
       const { data, error } = await this.supabase.client.rpc('create_purchase', {
@@ -1035,7 +825,6 @@ export class PurchaseService {
         items_count: persistedLines.reduce((count, line) => count + line.ordered_quantity, 0),
         total_purchase_cost: dbPurchase.total_purchase_cost ?? newPurchase.total_purchase_cost,
       };
-      this.mockStore.savePurchase(finalPurchase);
       this.purchasesRaw.update((list) => [
         finalPurchase,
         ...list.filter((purchase) => purchase.id !== finalPurchase.id),
@@ -1118,18 +907,6 @@ export class PurchaseService {
     const supplier = payload.supplier_id
       ? this.suppliersService.suppliers().find((entry) => entry.id === payload.supplier_id)
       : undefined;
-
-    if (this.mockStore.isDemoMode()) {
-      return this.updateLocalPurchaseDraft(
-        workspace.id,
-        purchaseId,
-        payload,
-        normalizedLines.data,
-        costs,
-        source,
-        supplier,
-      );
-    }
 
     try {
       const { data, error } = await this.supabase.client.rpc('update_purchase_draft', {
@@ -1215,7 +992,6 @@ export class PurchaseService {
         purchase_lines: persistedLines,
         items_count: persistedLines.reduce((count, line) => count + line.ordered_quantity, 0),
       };
-      this.mockStore.savePurchase(updatedPurchase);
       this.purchasesRaw.update((current) =>
         current.map((purchase) => (purchase.id === purchaseId ? updatedPurchase : purchase)),
       );
@@ -1274,52 +1050,6 @@ export class PurchaseService {
       allocated_additional_cost: line.allocatedAdditionalCost ?? 0,
     }));
 
-    if (this.mockStore.isDemoMode()) {
-      const purchase = this.purchases().find((entry) => entry.id === purchaseId);
-      if (purchase) {
-        const existingLines = this.mockStore
-          .getPurchaseLines(workspaceId)
-          .filter((line) => line.purchase_id === purchaseId);
-        if (existingLines.some((line) => line.received_quantity > 0)) {
-          return {
-            data: null,
-            error: new Error(
-              'Nach dem ersten Wareneingang können keine Positionen ergänzt werden.',
-            ),
-            reportedBySyncStatus: false,
-          };
-        }
-        const insertedLines = this.createLocalPurchaseLines(
-          workspaceId,
-          purchaseId,
-          normalized.data,
-        );
-        const allLines = this.allocateLocalPurchaseCosts(purchase, [
-          ...existingLines,
-          ...insertedLines,
-        ]);
-        allLines.forEach((line) => this.mockStore.savePurchaseLine(line));
-        if (this.selectedPurchase()?.id === purchaseId) this.purchaseLinesRaw.set(allLines);
-        const hasOpen = allLines.some((line) => line.received_quantity < line.ordered_quantity);
-        const hasReceived = allLines.some((line) => line.received_quantity > 0);
-        this.uebernehmeEinkaufLokal({
-          ...purchase,
-          receiving_status: hasOpen ? (hasReceived ? 'partially_received' : 'ordered') : 'received',
-        });
-        const insertedIds = new Set(insertedLines.map((line) => line.id));
-        return {
-          data: allLines.filter((line) => insertedIds.has(line.id)),
-          error: null,
-          reportedBySyncStatus: false,
-        };
-      }
-      return {
-        data: null,
-        error: new Error('Der Einkauf wurde nicht gefunden.'),
-        reportedBySyncStatus: false,
-      };
-    }
-
     try {
       const { data, error } = await this.supabase.client.rpc('add_purchase_lines', {
         p_workspace_id: workspaceId,
@@ -1361,270 +1091,6 @@ export class PurchaseService {
       const reported = this.syncStatus.melde('Speichern der Einkaufspositionen', error);
       return { data: null, error: reported, reportedBySyncStatus: true };
     }
-  }
-
-  private updateLocalPurchaseDraft(
-    workspaceId: string,
-    purchaseId: string,
-    payload: CreatePurchasePayload,
-    inputs: readonly CreatePurchaseLineInput[],
-    costs: readonly {
-      type: string;
-      amount: number;
-      description: string | null;
-      tax_treatment: PurchaseCostTaxTreatment | null;
-      allocation_method: PurchaseCostAllocationMethod;
-      target_purchase_line_ref: string | null;
-    }[],
-    source: Purchase['source'],
-    supplier: Purchase['supplier'],
-  ): MutationResult<Purchase> {
-    const existingPurchase = this.mockStore
-      .getPurchases(workspaceId)
-      .find((purchase) => purchase.id === purchaseId);
-    if (!existingPurchase) {
-      return {
-        data: null,
-        error: new Error('Der Einkauf wurde nicht gefunden.'),
-        reportedBySyncStatus: false,
-      };
-    }
-    if (existingPurchase.entry_status === 'finalized') {
-      return {
-        data: null,
-        error: new Error('Nur ein nicht finalisierter Einkaufsentwurf kann bearbeitet werden.'),
-        reportedBySyncStatus: false,
-      };
-    }
-
-    const existingLines = this.mockStore
-      .getPurchaseLines(workspaceId)
-      .filter((line) => line.purchase_id === purchaseId);
-    const existingLinesById = new Map(existingLines.map((line) => [line.id, line]));
-    const inventoryItems = this.mockStore.getItems(workspaceId);
-    const stockLots = this.mockStore.getStockLots(workspaceId);
-    const lineIdsByRef = new Map<string, string>();
-    const unsafeStructuralChange = inputs.find((input) => {
-      const existingLine = input.draftId ? existingLinesById.get(input.draftId) : undefined;
-      if (!existingLine) return false;
-      const hasReceivedInventory =
-        existingLine.received_quantity > 0 ||
-        inventoryItems.some(
-          (item) =>
-            item.purchase_line_id === existingLine.id ||
-            item.source_package_line_id === existingLine.id,
-        ) ||
-        stockLots.some((lot) => lot.purchase_line_id === existingLine.id);
-      return (
-        hasReceivedInventory &&
-        (Boolean(existingLine.is_package) !== Boolean(input.isPackage) ||
-          existingLine.line_kind !== input.lineKind ||
-          existingLine.ordered_quantity !== input.orderedQuantity ||
-          existingLine.catalog_product_id !== input.catalogProductId)
-      );
-    });
-    if (unsafeStructuralChange) {
-      return {
-        data: null,
-        error: new Error(
-          'Bereits erfasste Einkaufspositionen dürfen strukturell nicht verändert werden.',
-        ),
-        reportedBySyncStatus: false,
-      };
-    }
-    const updatedLines = inputs.map((input) => {
-      const existingLine = input.draftId ? existingLinesById.get(input.draftId) : undefined;
-      const line: PurchaseLine = {
-        ...(existingLine ?? this.createLocalPurchaseLines(workspaceId, purchaseId, [input])[0]),
-        catalog_product_id: input.catalogProductId,
-        title_snapshot: input.titleSnapshot,
-        ean_snapshot: input.ean ?? null,
-        line_kind: input.lineKind,
-        is_package: input.isPackage ?? false,
-        ordered_quantity: input.orderedQuantity,
-        unit_purchase_price: input.unitPurchasePrice,
-        line_total: input.lineTotal,
-        allocated_additional_cost: input.allocatedAdditionalCost ?? 0,
-        price_mode: input.priceMode ?? 'priced',
-        condition_snapshot: input.condition ?? null,
-        estimated_market_value: input.estimatedMarketValue ?? null,
-      };
-      if (input.draftId) lineIdsByRef.set(input.draftId, line.id);
-      lineIdsByRef.set(line.id, line.id);
-      return line;
-    });
-
-    const retainedLineIds = new Set(updatedLines.map((line) => line.id));
-    const removedReceivedLine = existingLines.find(
-      (line) =>
-        !retainedLineIds.has(line.id) &&
-        (line.received_quantity > 0 ||
-          inventoryItems.some(
-            (item) => item.purchase_line_id === line.id || item.source_package_line_id === line.id,
-          ) ||
-          stockLots.some((lot) => lot.purchase_line_id === line.id)),
-    );
-    if (removedReceivedLine) {
-      return {
-        data: null,
-        error: new Error('Bereits erfasste Einkaufspositionen dürfen nicht entfernt werden.'),
-        reportedBySyncStatus: false,
-      };
-    }
-
-    const unknownDirectTarget = costs.find(
-      (cost) =>
-        cost.allocation_method === 'direct' &&
-        (!cost.target_purchase_line_ref || !lineIdsByRef.has(cost.target_purchase_line_ref)),
-    );
-    if (unknownDirectTarget) {
-      return {
-        data: null,
-        error: new Error('Die direkte Kostenzuordnung verweist auf keine Einkaufsposition.'),
-        reportedBySyncStatus: false,
-      };
-    }
-
-    const persistedCosts: PurchaseCost[] = costs.map((cost) => ({
-      type: cost.type,
-      amount: cost.amount,
-      description: cost.description,
-      tax_treatment: cost.tax_treatment,
-      allocation_method: cost.allocation_method,
-      target_purchase_line_id:
-        cost.allocation_method === 'direct' && cost.target_purchase_line_ref
-          ? (lineIdsByRef.get(cost.target_purchase_line_ref) ?? null)
-          : null,
-    }));
-    const totalAdditionalCosts = persistedCosts.reduce((sum, cost) => sum + cost.amount, 0);
-    const draftPurchase: Purchase = {
-      ...existingPurchase,
-      source_id: payload.source_id ?? null,
-      supplier_id: payload.supplier_id ?? null,
-      source,
-      supplier,
-      type: payload.type,
-      title: payload.title.trim(),
-      purchase_date: payload.purchase_date,
-      purchase_price: payload.purchase_price,
-      discount_amount: payload.discount_amount ?? 0,
-      content_status: payload.content_status ?? existingPurchase.content_status ?? 'known',
-      pricing_mode:
-        payload.pricing_mode ??
-        existingPurchase.pricing_mode ??
-        (payload.type === 'mystery_pack' ? 'total' : 'individual'),
-      shipment_status: payload.shipment_status ?? existingPurchase.shipment_status ?? 'not_shipped',
-      supplier_reference: payload.supplier_reference?.trim() || null,
-      total_purchase_cost:
-        payload.purchase_price === null
-          ? null
-          : Number(
-              (
-                payload.purchase_price -
-                (payload.discount_amount ?? 0) +
-                totalAdditionalCosts
-              ).toFixed(2),
-            ),
-      cost_allocation_mode: payload.cost_allocation_mode ?? 'even',
-      notes: payload.notes?.trim() || null,
-      tracking_number: payload.tracking_number?.trim() || null,
-      tracking_carrier:
-        payload.tracking_carrier || (payload.tracking_number?.trim() ? 'dhl' : null),
-      tracking_status:
-        payload.tracking_status || (payload.tracking_number?.trim() ? 'in_transit' : 'pending'),
-      original_url: payload.original_url || null,
-      ...this.sellerSnapshotFields(payload),
-      items_count: this.zaehleArtikel(existingPurchase, inventoryItems, updatedLines),
-      costs: persistedCosts,
-      updated_at: new Date().toISOString(),
-    };
-    // Wie update_purchase_draft: geänderte Herkunftsangaben machen einen offenen
-    // Nachtragsdialog mit altem Stand ungültig.
-    draftPurchase.seller_details_version =
-      (existingPurchase.seller_details_version ?? 0) +
-      (this.sameSellerDetails(existingPurchase, draftPurchase) ? 0 : 1);
-    const allocatedLines = this.allocateLocalPurchaseCosts(draftPurchase, updatedLines);
-    const persistedPurchase: Purchase = { ...draftPurchase, purchase_lines: allocatedLines };
-    const persistenceError = this.mockStore.savePurchaseWithLines(
-      persistedPurchase,
-      allocatedLines,
-    );
-    if (persistenceError) {
-      return { data: null, error: persistenceError, reportedBySyncStatus: false };
-    }
-
-    this.purchasesRaw.update((current) =>
-      current.map((purchase) => (purchase.id === purchaseId ? persistedPurchase : purchase)),
-    );
-    if (this.selectedPurchase()?.id === purchaseId) {
-      this.selectedPurchaseRaw.set(persistedPurchase);
-      this.purchaseLinesRaw.set(allocatedLines);
-    }
-    return { data: persistedPurchase, error: null, reportedBySyncStatus: false };
-  }
-
-  private createLocalPurchaseLines(
-    workspaceId: string,
-    purchaseId: string,
-    inputs: readonly CreatePurchaseLineInput[],
-  ): PurchaseLine[] {
-    return inputs.map((line) => ({
-      id: createLocalDemoId('line'),
-      workspace_id: workspaceId,
-      purchase_id: purchaseId,
-      catalog_product_id: line.catalogProductId,
-      title_snapshot: line.titleSnapshot,
-      ean_snapshot: line.ean ?? null,
-      line_kind: line.lineKind,
-      is_package: line.isPackage ?? false,
-      ordered_quantity: line.orderedQuantity,
-      received_quantity: 0,
-      unit_purchase_price: line.unitPurchasePrice,
-      line_total: line.lineTotal,
-      allocated_additional_cost: line.allocatedAdditionalCost ?? 0,
-      price_mode: line.priceMode ?? 'priced',
-      condition_snapshot: line.condition ?? null,
-      estimated_market_value: line.estimatedMarketValue ?? null,
-    }));
-  }
-
-  private allocateLocalPurchaseCosts(
-    purchase: Purchase,
-    lines: readonly PurchaseLine[],
-  ): PurchaseLine[] {
-    if (lines.length === 0) return [];
-    if (purchase.cost_allocation_mode === 'manual') return lines.map((line) => ({ ...line }));
-    const totalCents = Math.round(
-      (purchase.costs ?? []).reduce((sum, cost) => sum + Number(cost.amount || 0), 0) * 100,
-    );
-    const pricedLines = lines.filter(
-      (line): line is PurchaseLine & { line_total: number } => line.line_total !== null,
-    );
-    const valueTotal = pricedLines.reduce((sum, line) => sum + line.line_total, 0);
-    const weights = lines.map((line) =>
-      purchase.cost_allocation_mode === 'value_weighted' && valueTotal > 0
-        ? line.line_total === null
-          ? 0
-          : line.line_total
-        : line.ordered_quantity,
-    );
-    const weightTotal = weights.reduce((sum, weight) => sum + weight, 0);
-    const shares = weights.map((weight, index) => {
-      const exact = weightTotal > 0 ? (totalCents * weight) / weightTotal : 0;
-      return { index, cents: Math.floor(exact), fraction: exact - Math.floor(exact) };
-    });
-    let remainder = totalCents - shares.reduce((sum, share) => sum + share.cents, 0);
-    for (const share of [...shares].sort(
-      (left, right) => right.fraction - left.fraction || left.index - right.index,
-    )) {
-      if (remainder <= 0) break;
-      share.cents += 1;
-      remainder -= 1;
-    }
-    return lines.map((line, index) => ({
-      ...line,
-      allocated_additional_cost: shares[index].cents / 100,
-    }));
   }
 
   private async persistPurchaseLineEans(
@@ -1897,18 +1363,6 @@ export class PurchaseService {
   }
 
   /**
-   * Nimmt die vorläufige Anzeige eines Einkaufs zurück, wenn das Speichern in
-   * der Datenbank fehlgeschlagen ist.
-   *
-   * Ohne das bliebe der Einkauf in Liste und Browser-Speicher stehen, obwohl er
-   * nirgends dauerhaft existiert – und wäre beim nächsten Neuladen verschwunden.
-   */
-  private verwerfeVorlaeufigenEinkauf(vorlaeufigeId: string): void {
-    this.mockStore.deletePurchase(vorlaeufigeId);
-    this.purchasesRaw.update((list) => list.filter((p) => p.id !== vorlaeufigeId));
-  }
-
-  /**
    * Aendert die Stammangaben eines Einkaufs.
    *
    * Bis hierhin liess sich an einem Einkauf nur die Sendungsnummer und der
@@ -1974,15 +1428,7 @@ export class PurchaseService {
         liste.map((p) => (p.id === purchaseId ? anwenden(p) : p)),
       );
       this.selectedPurchaseRaw.update((p) => (p && p.id === purchaseId ? anwenden(p) : p));
-
-      const gespeichert = this.mockStore.getPurchases().find((p) => p.id === purchaseId);
-      if (gespeichert) this.mockStore.savePurchase(anwenden(gespeichert));
     };
-
-    if (this.mockStore.isDemoMode()) {
-      lokalAnwenden();
-      return { error: null };
-    }
 
     try {
       const { error } = await this.supabase.client
@@ -2061,22 +1507,7 @@ export class PurchaseService {
       this.selectedPurchaseRaw.update((entry) =>
         entry?.id === purchaseId ? apply(entry, version, confirmed) : entry,
       );
-      const stored = this.mockStore.getPurchases().find((entry) => entry.id === purchaseId);
-      if (stored) this.mockStore.savePurchase(apply(stored, version, confirmed));
     };
-
-    if (this.mockStore.isDemoMode()) {
-      const current = this.mockStore.getPurchases().find((entry) => entry.id === purchaseId);
-      if (!current)
-        return { error: new Error('Der Einkauf wurde nicht gefunden.'), conflict: false };
-      const currentVersion = current.seller_details_version ?? 0;
-      if (currentVersion !== expectedVersion) {
-        return { error: new Error(PURCHASE_SELLER_DETAILS_CONFLICT_MESSAGE), conflict: true };
-      }
-      if (this.sameSellerDetails(current, normalized)) return { error: null, conflict: false };
-      applyLocally(currentVersion + 1);
-      return { error: null, conflict: false };
-    }
 
     try {
       const { data, error } = await this.supabase.client.rpc('update_purchase_seller_details', {
@@ -2121,18 +1552,6 @@ export class PurchaseService {
   ): Promise<{ error: Error | null }> {
     const purchase = this.purchases().find((entry) => entry.id === purchaseId);
     if (!purchase) return { error: new Error('Der Einkauf wurde nicht gefunden.') };
-
-    if (this.mockStore.isDemoMode()) {
-      const updated: Purchase = {
-        ...purchase,
-        receiving_status: status === 'ordered' ? 'ordered' : 'received',
-        shipment_status: status === 'ordered' ? 'not_shipped' : 'arrived',
-        arrived_at: status === 'arrived' ? new Date().toISOString() : null,
-        updated_at: new Date().toISOString(),
-      };
-      this.uebernehmeEinkaufLokal(updated);
-      return { error: null };
-    }
 
     try {
       const { data, error } = await this.supabase.client.rpc('update_purchase_workflow', {
@@ -2214,15 +1633,7 @@ export class PurchaseService {
         liste.map((p) => (p.id === purchaseId ? anwenden(p) : p)),
       );
       this.selectedPurchaseRaw.update((p) => (p && p.id === purchaseId ? anwenden(p) : p));
-
-      const gespeichert = this.mockStore.getPurchases().find((p) => p.id === purchaseId);
-      if (gespeichert) this.mockStore.savePurchase(anwenden(gespeichert));
     };
-
-    if (this.mockStore.isDemoMode()) {
-      lokalAktualisieren();
-      return { error: null };
-    }
 
     try {
       const { error: loeschFehler } = await this.supabase.client
@@ -2283,11 +1694,6 @@ export class PurchaseService {
       tracking_status: status ?? 'pending',
       updated_at: new Date().toISOString(),
     };
-
-    if (this.mockStore.isDemoMode()) {
-      this.uebernehmeEinkaufLokal(pendingUpdate);
-      return { data: pendingUpdate, error: null };
-    }
 
     try {
       const { data, error } = await this.supabase.client.rpc('update_purchase_tracking', {
@@ -2358,47 +1764,6 @@ export class PurchaseService {
       return {
         data: null,
         error: new Error('Kein aktiver Workspace'),
-        reportedBySyncStatus: false,
-      };
-    }
-
-    if (this.mockStore.isDemoMode()) {
-      const result = this.mockStore.receiveIndividualPurchaseLine(
-        workspaceId,
-        purchaseId,
-        purchaseLineId,
-        { title: input.title, condition: input.condition },
-      );
-      if (result.error || !result.purchaseLine || !result.inventoryItem || !result.purchase) {
-        return {
-          data: null,
-          error: result.error ?? new Error('Der Einzelartikel wurde nicht zurückgegeben.'),
-          reportedBySyncStatus: false,
-        };
-      }
-      await this.refreshInventoryAfterMutation(workspaceId);
-      if (this.workspaceService.currentWorkspace()?.id !== workspaceId) {
-        return {
-          data: {
-            purchaseLine: result.purchaseLine,
-            inventoryItem: result.inventoryItem,
-            purchase: result.purchase,
-          },
-          error: null,
-          reportedBySyncStatus: false,
-        };
-      }
-      this.purchaseLinesRaw.update((lines) =>
-        lines.map((line) => (line.id === purchaseLineId ? result.purchaseLine! : line)),
-      );
-      this.uebernehmeEinkaufLokal(result.purchase);
-      return {
-        data: {
-          purchaseLine: result.purchaseLine,
-          inventoryItem: result.inventoryItem,
-          purchase: result.purchase,
-        },
-        error: null,
         reportedBySyncStatus: false,
       };
     }
@@ -2485,31 +1850,15 @@ export class PurchaseService {
   }
 
   async deletePurchase(purchaseId: string): Promise<{ error: Error | null }> {
-    if (
-      this.mockStore.isDemoMode() &&
-      this.mockStore
-        .getItems(this.workspaceService.currentWorkspace()?.id)
-        .some((item) => item.purchase_id === purchaseId && item.source_package_line_id)
-    ) {
-      return {
-        error: new Error('Ein Einkauf mit erfasstem Paketinhalt darf nicht gelöscht werden.'),
-      };
-    }
-    if (!this.mockStore.isDemoMode()) {
-      try {
-        const { error } = await this.supabase.client
-          .from('purchases')
-          .delete()
-          .eq('id', purchaseId);
-        if (error) {
-          return { error: this.syncStatus.melde('Löschen des Einkaufs', error) };
-        }
-      } catch (e: unknown) {
-        return { error: this.syncStatus.melde('Löschen des Einkaufs', e) };
+    try {
+      const { error } = await this.supabase.client.from('purchases').delete().eq('id', purchaseId);
+      if (error) {
+        return { error: this.syncStatus.melde('Löschen des Einkaufs', error) };
       }
+    } catch (e: unknown) {
+      return { error: this.syncStatus.melde('Löschen des Einkaufs', e) };
     }
 
-    this.mockStore.deletePurchase(purchaseId);
     this.purchasesRaw.update((list) => list.filter((p) => p.id !== purchaseId));
     // Die Datenbank raeumt die Artikel per Fremdschluessel mit ab; die Anzeige
     // muss nach dem bestaetigten Loeschen im selben Moment nachziehen.
@@ -2531,30 +1880,28 @@ export class PurchaseService {
     const purchase = this.purchasesRaw().find((entry) => entry.id === purchaseId);
     if (!purchase) return { error: new Error('Der Einkauf wurde nicht gefunden.') };
 
-    let costId = `cost-${Date.now()}`;
+    let costId: string;
 
-    if (!this.mockStore.isDemoMode()) {
-      try {
-        const { data, error } = await this.supabase.client
-          .from('purchase_costs')
-          .insert({
-            workspace_id: purchase.workspace_id,
-            purchase_id: purchaseId,
-            type,
-            amount,
-            description: description?.trim() || null,
-            tax_treatment: taxTreatment,
-          })
-          .select('id')
-          .single();
+    try {
+      const { data, error } = await this.supabase.client
+        .from('purchase_costs')
+        .insert({
+          workspace_id: purchase.workspace_id,
+          purchase_id: purchaseId,
+          type,
+          amount,
+          description: description?.trim() || null,
+          tax_treatment: taxTreatment,
+        })
+        .select('id')
+        .single();
 
-        if (error) {
-          return { error: this.syncStatus.melde('Hinzufügen der Einkaufskosten', error) };
-        }
-        costId = data.id;
-      } catch (e: unknown) {
-        return { error: this.syncStatus.melde('Hinzufügen der Einkaufskosten', e) };
+      if (error) {
+        return { error: this.syncStatus.melde('Hinzufügen der Einkaufskosten', error) };
       }
+      costId = data.id;
+    } catch (e: unknown) {
+      return { error: this.syncStatus.melde('Hinzufügen der Einkaufskosten', e) };
     }
 
     const neueKosten: PurchaseCost = {
@@ -2582,11 +1929,6 @@ export class PurchaseService {
       purchase?.id === purchaseId ? anwenden(purchase) : purchase,
     );
 
-    const gespeichert = this.mockStore
-      .getPurchases()
-      .find((purchase) => purchase.id === purchaseId);
-    if (gespeichert) this.mockStore.savePurchase(anwenden(gespeichert));
-
     return { error: null };
   }
 
@@ -2605,8 +1947,6 @@ export class PurchaseService {
     purchaseId: string,
     mode: CostAllocationMode,
   ): Promise<{ error: Error | null }> {
-    if (this.mockStore.isDemoMode()) return { error: null };
-
     try {
       const { error } = await this.supabase.client
         .from('purchases')
@@ -2628,17 +1968,9 @@ export class PurchaseService {
     if (current && current.id === purchaseId) {
       const updated = { ...current, cost_allocation_mode: mode };
       this.selectedPurchaseRaw.set(updated);
-      this.mockStore.savePurchase(updated);
     }
     this.purchasesRaw.update((list) =>
-      list.map((p) => {
-        if (p.id === purchaseId) {
-          const updated = { ...p, cost_allocation_mode: mode };
-          this.mockStore.savePurchase(updated);
-          return updated;
-        }
-        return p;
-      }),
+      list.map((p) => (p.id === purchaseId ? { ...p, cost_allocation_mode: mode } : p)),
     );
   }
 
@@ -2654,18 +1986,13 @@ export class PurchaseService {
   }
 
   async deletePurchaseCost(costId: string, purchaseId: string): Promise<{ error: Error | null }> {
-    if (!this.mockStore.isDemoMode()) {
-      try {
-        const { error } = await this.supabase.client
-          .from('purchase_costs')
-          .delete()
-          .eq('id', costId);
-        if (error) {
-          return { error: this.syncStatus.melde('Löschen der Einkaufskosten', error) };
-        }
-      } catch (e: unknown) {
-        return { error: this.syncStatus.melde('Löschen der Einkaufskosten', e) };
+    try {
+      const { error } = await this.supabase.client.from('purchase_costs').delete().eq('id', costId);
+      if (error) {
+        return { error: this.syncStatus.melde('Löschen der Einkaufskosten', error) };
       }
+    } catch (e: unknown) {
+      return { error: this.syncStatus.melde('Löschen der Einkaufskosten', e) };
     }
     await this.getPurchaseById(purchaseId);
     return { error: null };
@@ -2699,15 +2026,7 @@ export class PurchaseService {
   }
 
   private uebernehmeEinkaufLokal(purchase: Purchase): void {
-    const savedPurchase = this.purchasesRaw().find((entry) => entry.id === purchase.id);
     const selectedPurchase = this.selectedPurchaseRaw();
-    const purchaseForStore = savedPurchase
-      ? this.mergePurchaseMutation(savedPurchase, purchase)
-      : selectedPurchase?.id === purchase.id
-        ? this.mergePurchaseMutation(selectedPurchase, purchase)
-        : purchase;
-
-    this.mockStore.savePurchase(purchaseForStore);
     this.purchasesRaw.update((list) =>
       list.map((entry) =>
         entry.id === purchase.id ? this.mergePurchaseMutation(entry, purchase) : entry,
@@ -2737,14 +2056,6 @@ export class PurchaseService {
       seller_country_code: payload.seller_country_code?.trim().toUpperCase() || null,
       external_order_id: payload.external_order_id?.trim() || null,
     };
-  }
-
-  private sameSellerDetails(purchase: Purchase, other: Purchase | PurchaseSellerDetails): boolean {
-    const left = normalizePurchaseSellerDetails(sellerDetailsFromPurchase(purchase));
-    const right = normalizePurchaseSellerDetails(
-      'workspace_id' in other ? sellerDetailsFromPurchase(other) : other,
-    );
-    return JSON.stringify(left) === JSON.stringify(right);
   }
 
   private purchaseFromMutationResult(data: unknown): Purchase | null {

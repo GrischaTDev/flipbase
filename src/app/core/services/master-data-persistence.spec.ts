@@ -48,53 +48,27 @@ function fehlerClient(stammdatenTabelle: 'sources' | 'suppliers') {
 }
 
 function erstelleQuellenDienst() {
-  let lokal = [quelle];
-  const mockStore = {
-    isDemoMode: signal(false),
-    getPurchases: () => [],
-    getSources: () => lokal,
-    saveSource: (wert: Source) => {
-      lokal = [...lokal.filter((item) => item.id !== wert.id), wert];
-    },
-    deleteSource: (id: string) => {
-      lokal = lokal.filter((item) => item.id !== id);
-    },
-  };
   const dienst = Object.create(SourcesService.prototype) as SourcesService;
   Object.assign(dienst, {
     supabase: { client: fehlerClient('sources') },
     syncStatus: new SyncStatusService(),
     workspaceService: { currentWorkspace: signal({ id: 'workspace-1' }) },
-    mockStore,
     sources: signal<Source[]>([quelle]),
     zeigeArchivierte: signal(false),
   });
-  return { dienst, lokal: () => lokal };
+  return { dienst };
 }
 
 function erstelleLieferantenDienst() {
-  let lokal = [lieferant];
-  const mockStore = {
-    isDemoMode: signal(false),
-    getPurchases: () => [],
-    getSuppliers: () => lokal,
-    saveSupplier: (wert: Supplier) => {
-      lokal = [...lokal.filter((item) => item.id !== wert.id), wert];
-    },
-    deleteSupplier: (id: string) => {
-      lokal = lokal.filter((item) => item.id !== id);
-    },
-  };
   const dienst = Object.create(SuppliersService.prototype) as SuppliersService;
   Object.assign(dienst, {
     supabase: { client: fehlerClient('suppliers') },
     syncStatus: new SyncStatusService(),
     workspaceService: { currentWorkspace: signal({ id: 'workspace-1' }) },
-    mockStore,
     suppliers: signal<Supplier[]>([lieferant]),
     zeigeArchivierte: signal(false),
   });
-  return { dienst, lokal: () => lokal };
+  return { dienst };
 }
 
 describe('Stammdatenservices – bestätigte lokale Zustände', () => {
@@ -118,10 +92,6 @@ describe('Stammdatenservices – bestätigte lokale Zustände', () => {
       },
       syncStatus: new SyncStatusService(),
       workspaceService: { currentWorkspace: signal({ id: 'workspace-1' }) },
-      mockStore: {
-        isDemoMode: signal(false),
-        saveSupplier: () => undefined,
-      },
       suppliers: signal<Supplier[]>([]),
     });
 
@@ -184,10 +154,6 @@ describe('Stammdatenservices – bestätigte lokale Zustände', () => {
         },
       },
       syncStatus: new SyncStatusService(),
-      mockStore: {
-        isDemoMode: signal(false),
-        saveSupplier: () => undefined,
-      },
       suppliers: signal<Supplier[]>([strukturierterLieferant]),
     });
 
@@ -233,7 +199,7 @@ describe('Stammdatenservices – bestätigte lokale Zustände', () => {
   it.each<Aktion>(['anlegen', 'ändern', 'archivieren', 'löschen'])(
     'übernimmt Quellen beim %s erst nach Datenbankerfolg',
     async (aktion) => {
-      const { dienst, lokal } = erstelleQuellenDienst();
+      const { dienst } = erstelleQuellenDienst();
       const ergebnis =
         aktion === 'anlegen'
           ? await dienst.createSource('Kleinanzeigen')
@@ -245,14 +211,13 @@ describe('Stammdatenservices – bestätigte lokale Zustände', () => {
 
       expect(ergebnis.error).toBeInstanceOf(Error);
       expect(dienst.sources()).toEqual([quelle]);
-      expect(lokal()).toEqual([quelle]);
     },
   );
 
   it.each<Aktion>(['anlegen', 'ändern', 'archivieren', 'löschen'])(
     'übernimmt Lieferanten beim %s erst nach Datenbankerfolg',
     async (aktion) => {
-      const { dienst, lokal } = erstelleLieferantenDienst();
+      const { dienst } = erstelleLieferantenDienst();
       const ergebnis =
         aktion === 'anlegen'
           ? await dienst.createSupplier('Neu')
@@ -264,7 +229,6 @@ describe('Stammdatenservices – bestätigte lokale Zustände', () => {
 
       expect(ergebnis.error).toBeInstanceOf(Error);
       expect(dienst.suppliers()).toEqual([lieferant]);
-      expect(lokal()).toEqual([lieferant]);
     },
   );
 });

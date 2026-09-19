@@ -63,7 +63,6 @@ describe('Workspace-isoliertes Laden der Konfigurationen', () => {
       orders: signal([{ id: 'order-a' }]),
       loadedWorkspaceId: signal<string | null>('workspace-a'),
       workspaceService: { currentWorkspace },
-      mockStore: { isDemoMode: () => false },
       logger: { error: vi.fn() },
       supabase: {
         client: queryClient({
@@ -117,7 +116,6 @@ describe('Workspace-isoliertes Laden der Konfigurationen', () => {
       orders: signal([{ id: 'order-a' }]),
       loadedWorkspaceId: signal<string | null>('workspace-a'),
       workspaceService: { currentWorkspace },
-      mockStore: { isDemoMode: () => false },
       logger: { error: vi.fn() },
       supabase: {
         client: queryClient({
@@ -181,7 +179,6 @@ describe('Workspace-isoliertes Laden der Konfigurationen', () => {
       notifications: signal([{ id: 'notification-a' }]),
       loadedWorkspaceId: signal<string | null>('workspace-a'),
       workspaceService: { currentWorkspace },
-      mockStore: { isDemoMode: () => false },
       logger: { error: vi.fn() },
       supabase: {
         client: queryClient({

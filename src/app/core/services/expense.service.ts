@@ -2,7 +2,6 @@ import { computed, effect, inject, Injectable, signal } from '@angular/core';
 import { Expense, ExpenseCreateInput, ExpenseUpdateInput } from '../models/expense.models';
 import { AuthService } from './auth.service';
 import { ExpenseRecurringService } from './expense-recurring.service';
-import { MockDataStoreService } from './mock-data-store.service';
 import { SupabaseService } from './supabase.service';
 import { SyncStatusService } from './sync-status.service';
 import { WorkspaceService } from './workspace.service';
@@ -15,7 +14,6 @@ function money(value: number): number {
 export class ExpenseService {
   private readonly supabase = inject(SupabaseService);
   private readonly workspace = inject(WorkspaceService);
-  private readonly mockStore = inject(MockDataStoreService);
   private readonly syncStatus = inject(SyncStatusService);
   private readonly auth = inject(AuthService);
   private readonly recurring = inject(ExpenseRecurringService, { optional: true });
@@ -76,8 +74,6 @@ export class ExpenseService {
     if (!workspaceId) {
       return false;
     }
-    if (this.mockStore.isDemoMode()) return true;
-
     return this.loadWorkspace(workspaceId);
   }
 
@@ -87,25 +83,6 @@ export class ExpenseService {
     const workspaceId = this.workspace.currentWorkspace()?.id;
     this.resetWorkspaceContext(workspaceId ?? null);
     if (!workspaceId) return { data: null, error: new Error('Kein aktiver Workspace.') };
-
-    if (this.mockStore.isDemoMode()) {
-      const now = new Date().toISOString();
-      const expense: Expense = {
-        id: crypto.randomUUID(),
-        workspace_id: workspaceId,
-        recurring_rule_id: null,
-        occurrence_date: null,
-        deleted_at: null,
-        created_at: now,
-        created_by: this.auth.currentUser()?.id ?? null,
-        updated_at: now,
-        ...input,
-      };
-      if (this.isCurrentWorkspace(workspaceId)) {
-        this.expensesRaw.update((current) => [...current, expense]);
-      }
-      return { data: expense, error: null };
-    }
 
     try {
       const { data, error } = await this.supabase.client
@@ -258,21 +235,6 @@ export class ExpenseService {
     this.resetWorkspaceContext(workspaceId ?? null);
     if (!workspaceId) return { data: null, error: new Error('Kein aktiver Workspace.') };
     const existing = this.expensesRaw().find((expense) => expense.id === id);
-
-    if (this.mockStore.isDemoMode()) {
-      if (!existing) return { data: null, error: new Error('Ausgabe nicht gefunden.') };
-      const updated = {
-        ...existing,
-        ...changes,
-        updated_at: new Date().toISOString(),
-      } as Expense;
-      if (this.isCurrentWorkspace(workspaceId)) {
-        this.expensesRaw.update((current) =>
-          current.map((expense) => (expense.id === id ? updated : expense)),
-        );
-      }
-      return { data: updated, error: null };
-    }
 
     try {
       const { data, error } = await this.supabase.client

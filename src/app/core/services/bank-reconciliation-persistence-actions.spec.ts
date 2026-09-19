@@ -10,7 +10,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { BankTransaction } from '../models/bank-reconciliation.models';
 import { StoreOrder } from '../models/store.models';
 import { InvoiceService } from './invoice.service';
-import { MockDataStoreService } from './mock-data-store.service';
 import { PurchaseService } from './purchase.service';
 import { SalesService } from './sales.service';
 import { StoreService } from './store.service';
@@ -90,7 +89,6 @@ describe('BankReconciliationService – bestätigte Persistenz', () => {
         provideZonelessChangeDetection(),
         { provide: SupabaseService, useValue: { client: { rpc } } },
         { provide: WorkspaceService, useValue: { currentWorkspace: workspace } },
-        { provide: MockDataStoreService, useValue: { isDemoMode: () => false } },
         { provide: SyncStatusService, useValue: syncStatus },
         { provide: StoreService, useValue: { orders } },
         { provide: SalesService, useValue: { sales: signal([]) } },

@@ -14,7 +14,6 @@ describe('StockService', () => {
     const service = Object.create(StockService.prototype) as StockService;
     Object.assign(service, {
       pendingReceipts: new Map(),
-      mockStore: { isDemoMode: () => false },
       workspaceService: { currentWorkspace: () => ({ id: 'workspace-1' }) },
       syncStatus: new SyncStatusService(),
       supabase: { client: { rpc } },
@@ -53,7 +52,6 @@ describe('StockService', () => {
       loadError: signal<Error | null>(null),
       loadedWorkspaceId: signal<string | null>(null),
       loadRequestId: 0,
-      mockStore: { isDemoMode: signal(false) },
       workspaceService: { currentWorkspace: () => ({ id: 'workspace-1' }) },
       syncStatus: new SyncStatusService(),
       supabase: { client: { from } },
@@ -77,7 +75,6 @@ describe('StockService', () => {
       loadError: signal<Error | null>(null),
       loadedWorkspaceId: signal<string | null>(null),
       loadRequestId: 0,
-      mockStore: { isDemoMode: signal(false) },
       workspaceService: { currentWorkspace: () => ({ id: 'workspace-1' }) },
       syncStatus: new SyncStatusService(),
       supabase: {
@@ -157,7 +154,6 @@ describe('StockService', () => {
       loadError: signal<Error | null>(null),
       loadedWorkspaceId: signal<string | null>(null),
       loadRequestId: 0,
-      mockStore: { isDemoMode: signal(false) },
       workspaceService: { currentWorkspace: () => ({ id: 'workspace-1' }) },
       syncStatus: new SyncStatusService(),
       supabase: {
@@ -221,7 +217,6 @@ describe('StockService', () => {
       loadError: signal<Error | null>(null),
       loadedWorkspaceId: signal<string | null>(null),
       loadRequestId: 0,
-      mockStore: { isDemoMode: signal(false) },
       workspaceService: { currentWorkspace },
       syncStatus: new SyncStatusService(),
       supabase: {
@@ -330,7 +325,6 @@ describe('StockService', () => {
       loadError: signal<Error | null>(null),
       loadedWorkspaceId: signal<string | null>(null),
       loadRequestId: 0,
-      mockStore: { isDemoMode: signal(false) },
       workspaceService: { currentWorkspace: () => ({ id: 'workspace-1' }) },
       syncStatus: new SyncStatusService(),
       supabase: { client: { from } },

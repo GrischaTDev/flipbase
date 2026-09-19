@@ -969,16 +969,16 @@ describe('buildInventoryPresentation', () => {
     expect(result.rows[0].originState).toBe('not_linked');
   });
 
-  it('löst den Titel aus der Einkaufsposition für ausverkaufte Demo-Mengenware auf', () => {
+  it('löst den Titel aus der Einkaufsposition für ausverkaufte Mengenware auf', () => {
     const sourcePurchase = {
-      ...purchase('purchase-demo'),
+      ...purchase('purchase-example'),
       purchase_lines: [
         {
-          id: 'purchase-line-demo',
+          id: 'purchase-line-example',
           workspace_id: workspaceId,
-          purchase_id: 'purchase-demo',
+          purchase_id: 'purchase-example',
           catalog_product_id: position.catalog_product_id,
-          title_snapshot: 'Demo-Titel aus Einkauf',
+          title_snapshot: 'Testtitel aus Einkauf',
           line_kind: 'quantity' as const,
           ordered_quantity: 2,
           received_quantity: 2,
@@ -987,14 +987,14 @@ describe('buildInventoryPresentation', () => {
         },
       ],
     };
-    const soldLot = lot('lot-demo', sourcePurchase.id, 2, 0, 10);
+    const soldLot = lot('lot-example', sourcePurchase.id, 2, 0, 10);
     const result = build({
       lots: [soldLot],
-      movements: [movement('sold-demo', soldLot.id, 'out', 2, 'sale')],
+      movements: [movement('sold-example', soldLot.id, 'out', 2, 'sale')],
       purchases: [sourcePurchase],
     });
 
-    expect(result.rows[0].title).toBe('Demo-Titel aus Einkauf');
+    expect(result.rows[0].title).toBe('Testtitel aus Einkauf');
   });
 });
 

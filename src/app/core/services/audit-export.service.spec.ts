@@ -51,7 +51,6 @@ function snapshotService(
   const storage = { from: vi.fn(() => ({ download })) };
   const service = Object.create(AuditExportService.prototype) as AuditExportService;
   Object.assign(service, {
-    mockStore: { isDemoMode: () => false },
     workspaceService: { currentWorkspace: () => ({ id: workspaceId }) },
     supabase: { client: { rpc, storage } },
   });

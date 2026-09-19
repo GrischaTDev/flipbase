@@ -6,7 +6,6 @@ import {
 } from '../models/expense.models';
 import { dueOccurrences, nextOccurrence } from '../utils/expense-recurrence';
 import { AuthService } from './auth.service';
-import { MockDataStoreService } from './mock-data-store.service';
 import { SupabaseService } from './supabase.service';
 import { SyncStatusService } from './sync-status.service';
 import { WorkspaceService } from './workspace.service';
@@ -25,7 +24,6 @@ function addCalendarDays(dateKey: string, days: number): string {
 export class ExpenseRecurringService {
   private readonly supabase = inject(SupabaseService);
   private readonly workspace = inject(WorkspaceService);
-  private readonly mockStore = inject(MockDataStoreService);
   private readonly syncStatus = inject(SyncStatusService);
   private readonly auth = inject(AuthService);
   private workspaceContextId: string | null = null;
@@ -54,11 +52,6 @@ export class ExpenseRecurringService {
     if (!workspaceId) {
       return false;
     }
-    if (this.mockStore.isDemoMode()) {
-      if (this.isCurrentWorkspace(workspaceId)) this.rulesRaw.set([]);
-      return this.isCurrentWorkspace(workspaceId);
-    }
-
     const requestId = ++this.loadRequestSequence;
     this.isLoading.set(true);
     this.loadError.set(null);
@@ -91,12 +84,6 @@ export class ExpenseRecurringService {
     const workspaceId = this.workspace.currentWorkspace()?.id;
     this.resetWorkspaceContext(workspaceId ?? null);
     if (!workspaceId) return { data: null, error: new Error('Kein aktiver Workspace.') };
-    if (this.mockStore.isDemoMode())
-      return {
-        data: null,
-        error: new Error('Wiederkehrende Ausgaben werden im Demo-Modus nicht gespeichert.'),
-      };
-
     try {
       const { data, error } = await this.supabase.client
         .from('expense_recurring_rules')
@@ -128,12 +115,6 @@ export class ExpenseRecurringService {
     const workspaceId = this.workspace.currentWorkspace()?.id;
     this.resetWorkspaceContext(workspaceId ?? null);
     if (!workspaceId) return { data: null, error: new Error('Kein aktiver Workspace.') };
-    if (this.mockStore.isDemoMode())
-      return {
-        data: null,
-        error: new Error('Wiederkehrende Ausgaben werden im Demo-Modus nicht gespeichert.'),
-      };
-
     try {
       const { data, error } = await this.supabase.client
         .from('expense_recurring_rules')
@@ -167,8 +148,6 @@ export class ExpenseRecurringService {
     const workspaceId = this.workspace.currentWorkspace()?.id;
     this.resetWorkspaceContext(workspaceId ?? null);
     if (!workspaceId) return { count: 0, error: new Error('Kein aktiver Workspace.') };
-    if (this.mockStore.isDemoMode()) return { count: 0, error: null };
-
     const candidates = this.rulesRaw()
       .filter((rule) => rule.workspace_id === workspaceId && rule.is_active)
       .flatMap((rule) =>

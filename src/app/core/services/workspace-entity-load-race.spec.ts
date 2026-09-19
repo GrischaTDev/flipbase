@@ -83,7 +83,6 @@ describe('workspacegebundene Listenladevorgänge', () => {
       loadError: signal<Error | null>(null),
       loadRequestId: 0,
       workspaceService: { currentWorkspace },
-      mockStore: { isDemoMode: signal(false) },
       syncStatus: new SyncStatusService(),
       supabase: {
         client: {
@@ -144,7 +143,6 @@ describe('workspacegebundene Listenladevorgänge', () => {
       loadError: signal<Error | null>(null),
       loadRequestId: 0,
       workspaceService: { currentWorkspace: () => ({ id: 'workspace-b' }) },
-      mockStore: { isDemoMode: signal(false) },
       syncStatus: new SyncStatusService(),
       supabase: {
         client: {
@@ -180,7 +178,6 @@ describe('workspacegebundene Listenladevorgänge', () => {
       loadError: signal<Error | null>(null),
       loadRequestId: 4,
       workspaceService: { currentWorkspace: () => ({ id: 'workspace-b' }) },
-      mockStore: { isDemoMode: signal(false) },
       syncStatus: new SyncStatusService(),
       supabase: { client: { from } },
     });
@@ -203,7 +200,6 @@ describe('workspacegebundene Listenladevorgänge', () => {
       loadError: signal<Error | null>(null),
       loadRequestId: 0,
       workspaceService: { currentWorkspace },
-      mockStore: { isDemoMode: signal(false) },
       syncStatus: new SyncStatusService(),
       profitEngine: {
         calculateProfit: () => 10,
@@ -244,7 +240,6 @@ describe('workspacegebundene Listenladevorgänge', () => {
       loadError: signal<Error | null>(null),
       loadRequestId: 0,
       workspaceService: { currentWorkspace },
-      mockStore: { isDemoMode: signal(false) },
       syncStatus: { melde: vi.fn((_: string, error: Error) => error) },
       inventory: { items: signal([]), istGeladen: signal(false) },
       supabase: { client: { from: () => purchaseQueries.queryFor() } },

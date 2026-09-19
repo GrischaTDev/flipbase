@@ -1,5 +1,102 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-19 – Codex GPT-5.6 Terra (OpenAI) – Demo-Code vollständig entfernt
+
+**Auftrag:** Den letzten Abschnitt des Demo-Code-Umbaus abschließen: Anmeldung,
+Shell, Umgebungen, Übersetzungen, Ausgaben und Fixkosten bereinigen und den
+Ersatz-Datenspeicher löschen.
+
+**Änderung:** Der Zugang zum Demo-Modus, die Demo-Anmeldung, Hinweise in der
+Shell und die Umgebungseinstellung sind entfernt. Ausgaben, Kategorien,
+wiederkehrende Ausgaben und Belege verwenden nur noch Supabase. Der rund 2.550
+Zeilen große Ersatz-Datenspeicher sowie ausschließlich davon abhängige
+Kategorien und Kommentarmodelle sind gelöscht. Lokale Client-IDs tragen keinen
+Demo-Begriff mehr.
+
+Eine erweiterte Inhaltssuche fand zusätzlich fest eingebaute Versand-, Radar-
+und Retourendaten sowie eine erfundene Workspace-ID im Aktivitätsprotokoll.
+Diese Rückfälle sind entfernt. Leere Datenbankantworten räumen nun veraltete
+lokale Retouren und Radarartikel auf. Tests setzen ihre Beispieldaten selbst,
+statt dafür öffentliche Demo-Ladefunktionen in den App-Diensten zu benötigen.
+
+**Prüfung:** Die betroffenen Tests wurden vor den Änderungen gezielt rot und
+danach grün ausgeführt. `npm run verify` bestand vollständig: Formatierung,
+ESLint, Typprüfung, Workflow- und Suite-Audit, 1.401 Node-, 232 DOM-, 918
+Angular- und 13 Landing-Tests sowie Produktionsbau. Der Bau meldet weiterhin
+drei bekannte NG8113-Hinweise zu ungenutzten `LucideDynamicIcon`-Importen. Kein
+Push/Merge.
+
+## 2026-09-19 – Codex GPT-5.6 Terra (OpenAI) – Demo-Code: Workspace, Einstellungen und Vinted Bot
+
+**Auftrag:** Den vierten Abschnitt des vereinbarten Umbaus umsetzen: den
+Demo-Modus aus Workspace, Einstellungen, Dashboard-Einstellungen und dem
+Vinted-Bot entfernen.
+
+**Änderung:** Workspaces, Mitglieder, Webhooks sowie Tabellen- und
+Dashboard-Einstellungen verwenden nur noch den angemeldeten Nutzer und den
+aktuellen Workspace. Der Vinted-Bot lädt Kategorien, Filter und Favoriten ohne
+Demo-Sonderfall; zugehörige Hinweise und Tests sind entfernt.
+
+**Prüfung:** 44 fokussierte Node-Tests und 45 Angular-Tests bestanden. Zusätzlich
+bestanden Typprüfung, ESLint, projektweite Prettier-Prüfung und Produktionsbau.
+Der Bau meldet weiterhin drei bekannte, paketfremde NG8113-Hinweise zu
+ungenutzten `LucideDynamicIcon`-Importen. Kein Push/Merge.
+
+## 2026-09-19 – Codex GPT-5.6 Terra (OpenAI) – Demo-Code: Verkauf, Finanzen und Prüfung
+
+**Auftrag:** Den dritten Abschnitt des vereinbarten Umbaus umsetzen: den
+Demo-Modus aus Verkauf, Finanzen, Prüfprotokoll und zugehörigen Oberflächen
+entfernen.
+
+**Änderung:** Verkauf, Retouren, Rechnungen, Bankabgleich, Fulfillment,
+Preisrecherche, Geschäftsereignisse und Prüfexporte verwenden ausschließlich
+Supabase. Die Buchhaltung bietet keine erfundenen Kontoauszüge mehr. Daten und
+Prüfung richtet den Zugriff nur noch nach der geladenen Workspace-Rolle aus;
+Demo-Hinweise und lokale Prüfkommentare sind entfernt.
+
+**Prüfung:** 85 fokussierte Node-Tests, 14 fokussierte DOM-Tests, 15 fokussierte
+Angular-Tests und zusätzlich 33 Tests für Buchhaltungsaktionen und Daten &
+Prüfung bestanden. Typprüfung, ESLint, projektweite Prettier-Prüfung und
+Produktionsbau bestanden ebenfalls. Der Bau meldet weiterhin drei bekannte,
+paketfremde NG8113-Hinweise zu ungenutzten `LucideDynamicIcon`-Importen. Kein
+Push/Merge.
+
+## 2026-09-19 – Codex GPT-5.6 Terra (OpenAI) – Demo-Code: Bestand, Katalog und Medien
+
+**Auftrag:** Den zweiten Abschnitt des vereinbarten Umbaus umsetzen: den
+Demo-Modus aus Bestand, Katalog, Medien, Lagerzugängen, Kategorien, Marken und
+den Inventaransichten entfernen.
+
+**Änderung:** Alle genannten Dienste laden und verändern Daten ausschließlich
+über Supabase. Die Ansichtseinstellungen sind nur noch nach angemeldetem Nutzer
+und Workspace getrennt. Ein Test für ausschließlich lokal erzeugte Demo-IDs
+entfällt; die übrigen Tests prüfen bestätigte Datenbankantworten.
+
+**Prüfung:** 139 fokussierte Node-Tests, 31 fokussierte DOM-Tests und 6
+Angular-Tests bestanden. Zusätzlich bestanden Typprüfung, ESLint,
+projektweite Prettier-Prüfung und Produktionsbau. Der Bau meldet weiterhin drei
+bekannte, paketfremde NG8113-Hinweise zu ungenutzten `LucideDynamicIcon`-Importen.
+Kein Push/Merge.
+
+## 2026-09-19 – Codex GPT-5.6 Terra (OpenAI) – Demo-Code: Einkaufsbereich
+
+**Auftrag:** Den ersten Abschnitt des vereinbarten Umbaus umsetzen: den
+Demo-Modus aus Einkauf, Stammdaten für Quellen und Lieferanten,
+Einkaufsbelegen, Kostenverteilung und der Paket-Erfassung entfernen.
+
+**Änderung:** Die genannten Dienste verwenden nur noch bestätigte
+Supabase-Antworten. Die Einkaufsdetailseite, Belegkarte und Paket-Erfassung
+enthalten keine Demo-Sperren mehr. Sechs Tests, die ausschließlich den
+Browser-Demo-Speicher abdeckten, sind entfernt. Neue DOM-Tests belegen, dass
+Quellen und Lieferanten ohne Demo-Speicher direkt über die Datenbank angelegt
+werden.
+
+**Prüfung:** 146 fokussierte Node-Tests, 37 fokussierte DOM-Tests und 9
+Angular-Tests bestanden. Zusätzlich bestanden Typprüfung, ESLint,
+projektweite Prettier-Prüfung und Produktionsbau. Der Bau meldet weiterhin drei
+bekannte, paketfremde NG8113-Hinweise zu ungenutzten `LucideDynamicIcon`-Importen.
+Kein Push/Merge.
+
 ## 2026-09-19 – Codex (OpenAI) – Prüfung und Nachbesserung der vier Terra-Pakete
 
 **Auftrag:** Die mit Terra umgesetzten Pakete 1–4 (PRs #126–#129) auf Qualität,

@@ -24,12 +24,12 @@ export function createSecureClientUuid(): string {
 let localSequence = 0;
 
 /**
- * Kennung ausschließlich für lokale Demo- und kurzlebige Clientdaten.
+ * Kennung ausschließlich für lokale und kurzlebige Clientdaten.
  *
  * Der nicht-kryptografische Fallback darf nie für Datenbank-IDs,
  * Berechtigungen, Sicherheitswerte oder Idempotenzschlüssel verwendet werden.
  */
-export function createLocalDemoId(prefix: string): string {
+export function createLocalClientId(prefix: string): string {
   try {
     return createSecureClientUuid();
   } catch {

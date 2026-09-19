@@ -1,12 +1,11 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { PurchaseLine, StockLot, StockMovement, StockPosition } from '../models/flipbase.models';
 import { MutationResult } from '../models/mutation-result.model';
-import { MockDataStoreService } from './mock-data-store.service';
 import { SupabaseService } from './supabase.service';
 import { SyncStatusService } from './sync-status.service';
 import { WorkspaceService } from './workspace.service';
 import { hasSellableLotCost } from '../utils/stock-availability';
-import { createLocalDemoId } from '../utils/client-identity';
+import { createLocalClientId } from '../utils/client-identity';
 
 export interface ReceivePurchaseLineInput {
   readonly purchaseLineId: string;
@@ -24,7 +23,6 @@ export class StockService {
   private readonly supabase = inject(SupabaseService);
   private readonly syncStatus = inject(SyncStatusService);
   private readonly workspaceService = inject(WorkspaceService);
-  private readonly mockStore = inject(MockDataStoreService);
 
   readonly positions = signal<StockPosition[]>([]);
   /**
@@ -47,24 +45,6 @@ export class StockService {
     this.isLoading.set(true);
     this.loadError.set(null);
     try {
-      if (this.mockStore.isDemoMode()) {
-        const purchases = this.mockStore.getPurchases();
-        const lots = this.mockStore.getStockLots(workspaceId).map((lot) => ({
-          ...lot,
-          purchase: purchases.find(
-            (purchase) => purchase.id === lot.purchase_id && purchase.workspace_id === workspaceId,
-          ),
-        }));
-        if (!this.isCurrentLoad(requestId, workspaceId)) return;
-        this.lots.set(lots);
-        this.movements.set(this.mockStore.getStockMovements(workspaceId));
-        this.positions.set(
-          this.aggregateLots(lots, this.mockStore.getCatalogProducts(workspaceId)),
-        );
-        this.loadedWorkspaceId.set(workspaceId);
-        return;
-      }
-
       const [lotResult, movementResult] = await Promise.all([
         this.supabase.client
           .from('stock_lots')
@@ -109,30 +89,13 @@ export class StockService {
       return this.failure('Wareneingang buchen', new Error('Kein aktiver Workspace'));
     const key = JSON.stringify([workspaceId, purchaseId, requestId ?? null, lines]);
     const pending = this.pendingReceipts.get(key) ?? {
-      requestId: requestId ?? createLocalDemoId('receipt'),
+      requestId: requestId ?? createLocalClientId('receipt'),
       lines: lines.map((line) => ({
         ...line,
         receivedAt: line.receivedAt ?? new Date().toISOString(),
       })),
     };
     this.pendingReceipts.set(key, pending);
-
-    if (this.mockStore.isDemoMode()) {
-      const result = this.mockStore.receivePurchaseLines(
-        workspaceId,
-        purchaseId,
-        pending.lines,
-        pending.requestId,
-      );
-      if (result.error) return this.failure('Wareneingang buchen', result.error);
-      this.pendingReceipts.delete(key);
-      await this.loadPositions(workspaceId);
-      return {
-        data: { purchaseLines: result.purchaseLines, stockLots: result.stockLots },
-        error: null,
-        reportedBySyncStatus: false,
-      };
-    }
 
     try {
       const { data, error } = await this.supabase.client.rpc('receive_purchase_lines_idempotent', {

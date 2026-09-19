@@ -106,16 +106,6 @@ const documentedNodeFixtures = new Map([
     ],
   ],
   [
-    'src/app/core/services/demo-data-isolation.spec.ts',
-    [
-      {
-        marker: 'localStorage',
-        line: /\.localStorage = attrappe/,
-        reason: 'installiert eine eigene Speicherattrappe auf globalThis',
-      },
-    ],
-  ],
-  [
     'src/app/features/accounting/accounting-toast-actions.spec.ts',
     [
       {

@@ -128,7 +128,6 @@ function erstelleDienst() {
   Object.assign(service, {
     supabase: { client },
     workspaceService: { currentWorkspace },
-    mockStore: { isDemoMode: signal(false) },
     syncStatus,
     inventory: { items: signal<InventoryItem[]>([]), istGeladen: signal(false) },
     purchasesRaw: signal<Purchase[]>([]),

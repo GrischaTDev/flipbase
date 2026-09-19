@@ -7,7 +7,6 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DealMonitorComponent } from './deal-monitor.component';
 import { DealMonitorService } from './services/deal-monitor.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
-import { AuthService } from '../../core/services/auth.service';
 import { FeedItem } from './models/deal-monitor.model';
 import { ButtonComponent } from '../../shared/components/button/button.component';
 import { CardComponent } from '../../shared/components/card/card.component';
@@ -126,7 +125,6 @@ describe('DealMonitorComponent', () => {
 
   let comp: DealMonitorComponent;
   let currentWorkspace: ReturnType<typeof signal<{ id: string; name: string } | null>>;
-  let isDemoMode: ReturnType<typeof signal<boolean>>;
 
   const mockApi = {
     watchlists: vi.fn().mockResolvedValue([
@@ -167,14 +165,12 @@ describe('DealMonitorComponent', () => {
       id: 'ws-1',
       name: 'Vintage Studio',
     });
-    isDemoMode = signal(false);
 
     TestBed.configureTestingModule({
       providers: [
         DealMonitorComponent,
         { provide: DealMonitorService, useValue: mockApi },
         { provide: WorkspaceService, useValue: { currentWorkspace } },
-        { provide: AuthService, useValue: { isDemoMode } },
         { provide: ElementRef, useValue: new ElementRef(document.createElement('div')) },
       ],
     });

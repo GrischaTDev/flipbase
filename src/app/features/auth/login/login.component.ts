@@ -8,7 +8,6 @@ import {
   LucideSparkles as Sparkles,
   LucideMail as Mail,
   LucideLock as Lock,
-  LucideZap as Zap,
   LucideArrowLeft as ArrowLeft,
   LucideSun as Sun,
   LucideMoon as Moon,
@@ -44,7 +43,6 @@ export class LoginComponent {
   readonly logoIcon = Sparkles;
   readonly mailIcon = Mail;
   readonly lockIcon = Lock;
-  readonly zapIcon = Zap;
   readonly arrowLeftIcon = ArrowLeft;
   readonly sunIcon = Sun;
   readonly moonIcon = Moon;
@@ -70,13 +68,6 @@ export class LoginComponent {
       validators: [Validators.required, Validators.minLength(6)],
     }),
   });
-
-  /** Ob der Demo-Modus in dieser Umgebung angeboten wird. */
-  readonly isDemoModeAllowed = this.authService.isDemoModeAllowed;
-
-  onDemoLogin(): void {
-    this.authService.enterDemoMode();
-  }
 
   /** Zielseite, auf die der Guard umgeleitet hat – sonst das Dashboard. */
   private redirectTarget(): string {

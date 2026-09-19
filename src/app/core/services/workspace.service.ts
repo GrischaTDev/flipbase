@@ -2,7 +2,6 @@ import { Injectable, effect, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { SupabaseService } from './supabase.service';
 import { AuthService } from './auth.service';
-import { MockDataStoreService } from './mock-data-store.service';
 import { SyncStatusService } from './sync-status.service';
 import { WorkspaceContextLockService } from './workspace-context-lock.service';
 import {
@@ -32,7 +31,6 @@ export class WorkspaceService {
   private readonly supabase = inject(SupabaseService, { optional: true });
   private readonly syncStatus = inject(SyncStatusService, { optional: true })!;
   private readonly auth = inject(AuthService, { optional: true });
-  private readonly mockStore = inject(MockDataStoreService, { optional: true });
   private readonly workspaceContext = inject(WorkspaceContextLockService, { optional: true });
   private readonly router = inject(Router, { optional: true });
 
@@ -86,9 +84,8 @@ export class WorkspaceService {
     try {
       effect(() => {
         const isAuth = this.auth?.isAuthenticated();
-        const isDemo = this.auth?.isDemoMode();
 
-        if (isDemo || !this.supabase) {
+        if (!this.supabase) {
           this.workspaces.set(this.defaultWorkspaces);
           this.currentWorkspace.set(this.defaultWorkspaces[0]);
         } else if (isAuth) {
@@ -104,7 +101,7 @@ export class WorkspaceService {
   }
 
   async loadWorkspaces(): Promise<void> {
-    if (this.auth?.isDemoMode() || !this.supabase) {
+    if (!this.supabase) {
       this.workspaces.set(this.defaultWorkspaces);
       this.currentWorkspace.set(this.defaultWorkspaces[0]);
       return;
@@ -156,14 +153,6 @@ export class WorkspaceService {
     } catch {}
   }
 
-  private persistWorkspaces(): void {
-    try {
-      if (typeof window !== 'undefined' && this.auth?.isDemoMode()) {
-        localStorage.setItem('flipbase_saved_workspaces', JSON.stringify(this.workspaces()));
-      }
-    } catch {}
-  }
-
   switchWorkspace(workspaceId: string): boolean {
     if (this.workspaceContext?.locked()) return false;
     const target = this.workspaces().find((w) => w.id === workspaceId);
@@ -185,14 +174,13 @@ export class WorkspaceService {
     const currentList = this.workspaces();
     const updatedList = currentList.map((w) => (w.id === workspaceId ? { ...w, ...updates } : w));
     this.workspaces.set(updatedList);
-    this.persistWorkspaces();
 
     if (this.currentWorkspace()?.id === workspaceId) {
       const updatedCurrent = updatedList.find((w) => w.id === workspaceId);
       if (updatedCurrent) this.currentWorkspace.set(updatedCurrent);
     }
 
-    if (this.supabase && this.auth?.isAuthenticated() && !this.auth.isDemoMode()) {
+    if (this.supabase && this.auth?.isAuthenticated()) {
       try {
         const { error } = await this.supabase.client
           .from('workspaces')
@@ -237,7 +225,7 @@ export class WorkspaceService {
       created_at: new Date().toISOString(),
     };
 
-    if (this.supabase && this.auth?.isAuthenticated() && !this.auth.isDemoMode()) {
+    if (this.supabase && this.auth?.isAuthenticated()) {
       try {
         const { data: newId, error } = await this.supabase.client.rpc('create_workspace', {
           p_name: name.trim(),
@@ -251,7 +239,6 @@ export class WorkspaceService {
         } else if (newId) {
           const dbWs: Workspace = { ...newWs, id: newId };
           this.workspaces.update((list) => [...list, dbWs]);
-          this.persistWorkspaces();
           await this.activateCreatedWorkspace(dbWs);
           return { data: dbWs, error: null };
         }
@@ -261,7 +248,6 @@ export class WorkspaceService {
     }
 
     this.workspaces.update((list) => [...list, newWs]);
-    this.persistWorkspaces();
     await this.activateCreatedWorkspace(newWs);
     return { data: newWs, error: null };
   }
@@ -283,9 +269,11 @@ export class WorkspaceService {
     workspaceId: string,
     operation: 'archive_workspace' | 'restore_workspace',
   ): Promise<{ error: Error | null }> {
-    if (!this.supabase || this.auth?.isDemoMode() || !this.auth?.isAuthenticated()) {
+    if (!this.supabase || !this.auth?.isAuthenticated()) {
       return {
-        error: new Error('Archivieren und Wiederherstellen sind im Demo-Modus nicht verfügbar.'),
+        error: new Error(
+          'Archivieren und Wiederherstellen sind nur für angemeldete Nutzer verfügbar.',
+        ),
       };
     }
     try {
@@ -317,7 +305,7 @@ export class WorkspaceService {
       return { success: false, reportedBySyncStatus: false }; // Cannot delete only workspace
     }
 
-    if (this.supabase && this.auth?.isAuthenticated() && !this.auth.isDemoMode()) {
+    if (this.supabase && this.auth?.isAuthenticated()) {
       try {
         const { data, error } = await this.supabase.client
           .from('workspaces')
@@ -350,7 +338,6 @@ export class WorkspaceService {
 
     const filtered = this.workspaces().filter((w) => w.id !== workspaceId);
     this.workspaces.set(filtered);
-    this.persistWorkspaces();
 
     if (this.currentWorkspace()?.id === workspaceId) {
       this.setCurrentWorkspace(filtered[0]);

@@ -1,26 +1,9 @@
 import { computed, effect, inject, Injectable, signal } from '@angular/core';
 import { ExpenseCategory } from '../models/expense.models';
 import { AuthService } from './auth.service';
-import { MockDataStoreService } from './mock-data-store.service';
 import { SupabaseService } from './supabase.service';
 import { SyncStatusService } from './sync-status.service';
 import { WorkspaceService } from './workspace.service';
-
-const DEFAULT_CATEGORY_NAMES = [
-  'Versandmaterial',
-  'Technik & Geräte',
-  'Bürobedarf',
-  'Software & Abos',
-  'Hosting & Server',
-  'Miete & Räume',
-  'Werbung',
-  'Dienstleistungen',
-  'Gebühren',
-  'Fahrzeug & Fahrtkosten',
-  'Versicherungen',
-  'Steuer & Beratung',
-  'Sonstiges',
-] as const;
 
 function sortCategories(categories: readonly ExpenseCategory[]): ExpenseCategory[] {
   return [...categories].sort(
@@ -33,7 +16,6 @@ function sortCategories(categories: readonly ExpenseCategory[]): ExpenseCategory
 export class ExpenseCategoryService {
   private readonly supabase = inject(SupabaseService);
   private readonly workspace = inject(WorkspaceService);
-  private readonly mockStore = inject(MockDataStoreService);
   private readonly syncStatus = inject(SyncStatusService);
   private readonly auth = inject(AuthService);
   private workspaceContextId: string | null = null;
@@ -62,26 +44,6 @@ export class ExpenseCategoryService {
     this.resetWorkspaceContext(workspaceId ?? null);
     if (!workspaceId) {
       return false;
-    }
-
-    if (this.mockStore.isDemoMode()) {
-      const now = new Date().toISOString();
-      if (this.isCurrentWorkspace(workspaceId)) {
-        this.categoriesRaw.set(
-          DEFAULT_CATEGORY_NAMES.map((name, index) => ({
-            id: `demo-expense-category-${index + 1}`,
-            workspace_id: workspaceId,
-            name,
-            sort_order: (index + 1) * 10,
-            is_default: true,
-            is_archived: false,
-            created_at: now,
-            created_by: null,
-            updated_at: now,
-          })),
-        );
-      }
-      return this.isCurrentWorkspace(workspaceId);
     }
 
     const requestId = ++this.loadRequestSequence;
@@ -121,25 +83,6 @@ export class ExpenseCategoryService {
     const workspaceId = this.workspace.currentWorkspace()?.id;
     this.resetWorkspaceContext(workspaceId ?? null);
     if (!workspaceId) return { data: null, error: new Error('Kein aktiver Workspace.') };
-
-    if (this.mockStore.isDemoMode()) {
-      const now = new Date().toISOString();
-      const category: ExpenseCategory = {
-        id: crypto.randomUUID(),
-        workspace_id: workspaceId,
-        name: trimmed,
-        sort_order: Math.max(0, ...this.categoriesRaw().map((entry) => entry.sort_order)) + 10,
-        is_default: false,
-        is_archived: false,
-        created_at: now,
-        created_by: this.auth.currentUser()?.id ?? null,
-        updated_at: now,
-      };
-      if (this.isCurrentWorkspace(workspaceId)) {
-        this.categoriesRaw.update((current) => [...current, category]);
-      }
-      return { data: category, error: null };
-    }
 
     try {
       const { data, error } = await this.supabase.client
@@ -195,22 +138,6 @@ export class ExpenseCategoryService {
     const workspaceId = this.workspace.currentWorkspace()?.id;
     this.resetWorkspaceContext(workspaceId ?? null);
     if (!workspaceId) return { data: null, error: new Error('Kein aktiver Workspace.') };
-
-    const current = this.categoriesRaw().find((category) => category.id === id);
-    if (this.mockStore.isDemoMode()) {
-      if (!current) return { data: null, error: new Error('Kategorie nicht gefunden.') };
-      const updated: ExpenseCategory = {
-        ...current,
-        ...changes,
-        updated_at: new Date().toISOString(),
-      };
-      if (this.isCurrentWorkspace(workspaceId)) {
-        this.categoriesRaw.update((categories) =>
-          categories.map((category) => (category.id === id ? updated : category)),
-        );
-      }
-      return { data: updated, error: null };
-    }
 
     try {
       const { data, error } = await this.supabase.client

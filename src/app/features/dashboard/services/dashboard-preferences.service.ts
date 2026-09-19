@@ -5,7 +5,6 @@ import { DashboardRange } from '../../../core/models/flipbase.models';
 import { DashboardPlatform } from '../../../core/services/dashboard-report.service';
 import { DashboardPreferences, parseDashboardPreferences } from '../models/dashboard-preferences';
 
-const demoStorageKey = 'flipbase_demo_dashboard_v1';
 const defaultPreferences: DashboardPreferences = { range: 'year', platform: 'all' };
 
 @Injectable({ providedIn: 'root' })
@@ -24,11 +23,10 @@ export class DashboardPreferencesService {
   readonly saveError: Signal<string | null> = this.saveErrorState.asReadonly();
 
   constructor() {
-    this.synchronizeContext(this.auth.isDemoMode(), this.auth.currentUser());
+    this.synchronizeContext(this.auth.currentUser());
     effect(() => {
-      const demoMode = this.auth.isDemoMode();
       const user = this.auth.currentUser();
-      this.synchronizeContext(demoMode, user);
+      this.synchronizeContext(user);
     });
   }
 
@@ -45,11 +43,6 @@ export class DashboardPreferencesService {
     this.saveErrorState.set(null);
     this.editRevision += 1;
 
-    if (this.auth.isDemoMode()) {
-      this.storeDemoPreferences(preferences);
-      return;
-    }
-
     const userId = this.auth.currentUser()?.id;
     if (!userId || userId !== this.activeUserId) return;
     this.queuedPreferences = preferences;
@@ -64,18 +57,7 @@ export class DashboardPreferencesService {
     this.saveErrorState.set(null);
   }
 
-  private synchronizeContext(
-    demoMode: boolean,
-    user: ReturnType<AuthService['currentUser']>,
-  ): void {
-    if (demoMode) {
-      if (this.activeUserId !== 'demo') {
-        this.switchContext('demo');
-        this.preferencesState.set(this.readDemoPreferences());
-      }
-      return;
-    }
-
+  private synchronizeContext(user: ReturnType<AuthService['currentUser']>): void {
     if (!user) {
       if (this.activeUserId !== null) {
         this.switchContext(null);
@@ -132,7 +114,7 @@ export class DashboardPreferencesService {
       }
     } finally {
       this.saving = false;
-      if (this.queuedPreferences && this.activeUserId && this.activeUserId !== 'demo') {
+      if (this.queuedPreferences && this.activeUserId) {
         const activeUserId = this.activeUserId;
         const generation = this.generation;
         if (this.isCurrentUser(activeUserId, generation)) {
@@ -146,26 +128,8 @@ export class DashboardPreferencesService {
     return (
       this.generation === generation &&
       this.activeUserId === userId &&
-      this.auth.currentUser()?.id === userId &&
-      !this.auth.isDemoMode()
+      this.auth.currentUser()?.id === userId
     );
-  }
-
-  private readDemoPreferences(): DashboardPreferences {
-    try {
-      const stored = localStorage.getItem(demoStorageKey);
-      return parseDashboardPreferences(stored ? JSON.parse(stored) : undefined);
-    } catch {
-      return defaultPreferences;
-    }
-  }
-
-  private storeDemoPreferences(preferences: DashboardPreferences): void {
-    try {
-      localStorage.setItem(demoStorageKey, JSON.stringify(preferences));
-    } catch {
-      this.saveErrorState.set('Die Dashboard-Auswahl konnte lokal nicht gespeichert werden.');
-    }
   }
 
   private errorMessage(error: unknown): string {

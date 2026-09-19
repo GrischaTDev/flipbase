@@ -1,7 +1,6 @@
 import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
-import { MockDataStoreService } from './mock-data-store.service';
 import { SyncStatusService } from './sync-status.service';
 import { SellerFormValue, Supplier } from '../models/flipbase.models';
 import { nurAktive } from './master-data-filter';
@@ -42,7 +41,6 @@ export class SuppliersService {
   private readonly supabase = inject(SupabaseService);
   private readonly syncStatus = inject(SyncStatusService);
   private readonly workspaceService = inject(WorkspaceService);
-  private readonly mockStore = inject(MockDataStoreService);
 
   readonly suppliers = signal<Supplier[]>([]);
   readonly isLoading = signal<boolean>(false);
@@ -80,12 +78,6 @@ export class SuppliersService {
   readonly aktiveSuppliers = computed<Supplier[]>(() => nurAktive(this.suppliers()));
 
   async loadSuppliers(workspaceId: string): Promise<void> {
-    if (this.mockStore.isDemoMode()) {
-      const local = this.mockStore.getSuppliers(workspaceId);
-      this.suppliers.set(this.zeigeArchivierte() ? local : nurAktive(local));
-      return;
-    }
-
     this.isLoading.set(true);
     try {
       let abfrage = this.supabase.client
@@ -179,12 +171,6 @@ export class SuppliersService {
       is_active: true,
     };
 
-    if (this.mockStore.isDemoMode()) {
-      this.mockStore.saveSupplier(newSup);
-      this.suppliers.update((list) => [...list, newSup]);
-      return { data: newSup, error: null };
-    }
-
     try {
       const { data: dbSup, error: dbError } = await this.supabase.client
         .from('suppliers')
@@ -202,7 +188,6 @@ export class SuppliersService {
       if (!dbSup) return { data: null, error: new Error('Lieferant wurde nicht zurückgegeben') };
 
       const finalSup: Supplier = { ...newSup, id: dbSup.id };
-      this.mockStore.saveSupplier(finalSup);
       this.suppliers.update((list) => [finalSup, ...list.filter((s) => s.id !== finalSup.id)]);
       return { data: finalSup, error: null };
     } catch (e) {
@@ -259,22 +244,19 @@ export class SuppliersService {
         list.map((s) => (s.id === supplierId ? { ...s, ...bereinigt } : s)),
       );
       const vorhanden = this.suppliers().find((s) => s.id === supplierId);
-      if (vorhanden) this.mockStore.saveSupplier(vorhanden);
       return vorhanden ?? null;
     };
 
-    if (!this.mockStore.isDemoMode()) {
-      try {
-        const { error } = await this.supabase.client
-          .from('suppliers')
-          .update(bereinigt)
-          .eq('id', supplierId);
-        if (error) {
-          return { data: null, error: this.syncStatus.melde('Ändern des Lieferanten', error) };
-        }
-      } catch (e: unknown) {
-        return { data: null, error: this.syncStatus.melde('Ändern des Lieferanten', e) };
+    try {
+      const { error } = await this.supabase.client
+        .from('suppliers')
+        .update(bereinigt)
+        .eq('id', supplierId);
+      if (error) {
+        return { data: null, error: this.syncStatus.melde('Ändern des Lieferanten', error) };
       }
+    } catch (e: unknown) {
+      return { data: null, error: this.syncStatus.melde('Ändern des Lieferanten', e) };
     }
     return { data: lokalAnwenden(), error: null };
   }
@@ -292,8 +274,6 @@ export class SuppliersService {
     const neuerWert = !archiviert;
 
     const lokalAnwenden = () => {
-      const geaendert = this.suppliers().find((s) => s.id === supplierId);
-      if (geaendert) this.mockStore.saveSupplier({ ...geaendert, is_active: neuerWert });
       this.suppliers.update((list) =>
         this.zeigeArchivierte()
           ? list.map((s) => (s.id === supplierId ? { ...s, is_active: neuerWert } : s))
@@ -301,18 +281,16 @@ export class SuppliersService {
       );
     };
 
-    if (!this.mockStore.isDemoMode()) {
-      try {
-        const { error } = await this.supabase.client
-          .from('suppliers')
-          .update({ is_active: neuerWert })
-          .eq('id', supplierId);
-        if (error) {
-          return { error: this.syncStatus.melde('Archivieren des Lieferanten', error) };
-        }
-      } catch (e: unknown) {
-        return { error: this.syncStatus.melde('Archivieren des Lieferanten', e) };
+    try {
+      const { error } = await this.supabase.client
+        .from('suppliers')
+        .update({ is_active: neuerWert })
+        .eq('id', supplierId);
+      if (error) {
+        return { error: this.syncStatus.melde('Archivieren des Lieferanten', error) };
       }
+    } catch (e: unknown) {
+      return { error: this.syncStatus.melde('Archivieren des Lieferanten', e) };
     }
     lokalAnwenden();
     return { error: null };
@@ -322,12 +300,6 @@ export class SuppliersService {
   async zaehleVerknuepfteEinkaeufe(
     supplierId: string,
   ): Promise<{ count: number | null; error: Error | null }> {
-    if (this.mockStore.isDemoMode()) {
-      return {
-        count: this.mockStore.getPurchases().filter((p) => p.supplier_id === supplierId).length,
-        error: null,
-      };
-    }
     try {
       const { count, error } = await this.supabase.client
         .from('purchases')
@@ -368,20 +340,14 @@ export class SuppliersService {
       };
     }
 
-    if (!this.mockStore.isDemoMode()) {
-      try {
-        const { error } = await this.supabase.client
-          .from('suppliers')
-          .delete()
-          .eq('id', supplierId);
-        if (error) {
-          return { error: this.syncStatus.melde('Löschen des Lieferanten', error) };
-        }
-      } catch (e: unknown) {
-        return { error: this.syncStatus.melde('Löschen des Lieferanten', e) };
+    try {
+      const { error } = await this.supabase.client.from('suppliers').delete().eq('id', supplierId);
+      if (error) {
+        return { error: this.syncStatus.melde('Löschen des Lieferanten', error) };
       }
+    } catch (e: unknown) {
+      return { error: this.syncStatus.melde('Löschen des Lieferanten', e) };
     }
-    this.mockStore.deleteSupplier(supplierId);
     this.suppliers.update((list) => list.filter((s) => s.id !== supplierId));
     return { error: null };
   }

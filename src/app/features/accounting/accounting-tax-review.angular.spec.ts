@@ -13,7 +13,6 @@ import { WorkspaceService } from '../../core/services/workspace.service';
 import { PurchaseService } from '../../core/services/purchase.service';
 import { SalesService } from '../../core/services/sales.service';
 import { BankReconciliationService } from '../../core/services/bank-reconciliation.service';
-import { MockDataStoreService } from '../../core/services/mock-data-store.service';
 import { TablePreferencesService } from '../../core/services/table-preferences.service';
 import { ACCOUNTING_TABLE_CONFIG } from '../../core/config/table-defaults.config';
 import { CustomSelectComponent } from '../../shared/components/custom-select/custom-select.component';
@@ -170,7 +169,6 @@ describe('Steuerjournal – ungeklärte Kosten', () => {
         { provide: PurchaseService, useValue: { purchases: signal([]) } },
         { provide: SalesService, useValue: { sales: signal([]) } },
         { provide: BankReconciliationService, useValue: { summary: () => ({ matchedCount: 0 }) } },
-        { provide: MockDataStoreService, useValue: { isDemoMode: () => true } },
         {
           provide: TablePreferencesService,
           useValue: { getTableConfig: () => ACCOUNTING_TABLE_CONFIG },

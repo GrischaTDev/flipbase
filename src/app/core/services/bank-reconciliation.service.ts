@@ -4,7 +4,6 @@ import { SalesService } from './sales.service';
 import { PurchaseService } from './purchase.service';
 import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
-import { MockDataStoreService } from './mock-data-store.service';
 import { LoggerService } from './logger.service';
 import { SyncFehlerAktion, SyncStatusService } from './sync-status.service';
 import { Json, Tables } from '../models/supabase.types';
@@ -41,7 +40,6 @@ export class BankReconciliationService {
   // Faellt auf eine eigene Instanz zurueck, damit Dienste auch ausserhalb
   // eines Injektionskontexts nutzbar bleiben - so erzeugen die Tests sie.
   private readonly logger = inject(LoggerService, { optional: true }) ?? new LoggerService();
-  private readonly mockStore = inject(MockDataStoreService, { optional: true });
   private readonly workspaceService = inject(WorkspaceService, { optional: true });
   private readonly syncStatus = inject(SyncStatusService, { optional: true });
   private readonly storeService = inject(StoreService);
@@ -66,7 +64,7 @@ export class BankReconciliationService {
   }
 
   async loadFromSupabase(workspaceId: string): Promise<void> {
-    if (!this.supabase || this.mockStore?.isDemoMode()) return;
+    if (!this.supabase) return;
 
     try {
       const { data, error } = await this.supabase.client
@@ -181,7 +179,7 @@ export class BankReconciliationService {
     vorgang: string,
   ): Promise<BankMutationResult> {
     const ws = this.workspaceService?.currentWorkspace();
-    if (!this.supabase || this.mockStore?.isDemoMode()) {
+    if (!this.supabase) {
       this.transactions.set(liste);
       this.persistLocalCache(liste);
       return { status: 'success', success: true, message: `${vorgang} erfolgreich.` };
@@ -769,14 +767,14 @@ export class BankReconciliationService {
 
     const now = new Date().toISOString();
     const ws = this.workspaceService?.currentWorkspace();
-    if (this.supabase && !this.mockStore?.isDemoMode() && !ws) {
+    if (this.supabase && !ws) {
       return this.fehlgeschlageneMutation(
         'Buchen der Banktransaktion',
         new Error('Kein aktiver Workspace.'),
         aktion,
       );
     }
-    if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
+    if (this.supabase && ws) {
       try {
         const { data, error } = await this.supabase.client.rpc('book_bank_transaction', {
           p_workspace_id: ws.id,
@@ -799,7 +797,7 @@ export class BankReconciliationService {
     const aktualisiert = list.map((t) =>
       t.id === txId ? { ...t, status: 'booked' as const, bookedAt: now } : t,
     );
-    if (!this.supabase || !ws || this.mockStore?.isDemoMode()) {
+    if (!this.supabase || !ws) {
       const persistenz = await this.persistTransactions(aktualisiert, 'Buchen der Banktransaktion');
       if (persistenz.status === 'failed') return persistenz;
     } else {
@@ -916,93 +914,6 @@ export class BankReconciliationService {
    */
   async resetStatement(): Promise<BankMutationResult> {
     return this.persistTransactions([], 'Zurücksetzen des Kontoauszugs');
-  }
-
-  /**
-   * Loads realistic pre-configured Sparkasse statement data matching demo store orders and purchases.
-   */
-  loadDemoStatement(): void {
-    const orders = this.storeService.orders();
-    const firstOrder = orders.length > 0 ? orders[0] : null;
-    const purchases = this.purchaseService.purchases();
-    const firstPurchase = purchases.length > 0 ? purchases[0] : null;
-
-    const demoTx: BankTransaction[] = [
-      {
-        id: 'tx-demo-1',
-        bookingDate: '2026-08-16',
-        counterpartyName: firstOrder
-          ? `${firstOrder.customer.firstName} ${firstOrder.customer.lastName}`
-          : 'Maximilian Weber',
-        counterpartyIban: 'DE89 1005 0000 1234 5678 90',
-        purpose: firstOrder
-          ? `Bestellung ${firstOrder.orderNumber} Webshop Einkauf`
-          : 'Bestellung ORD-748291 Webshop Einkauf',
-        amount: firstOrder ? firstOrder.total : 149.99,
-        currency: 'EUR',
-        sourceFormat: 'csv_sparkasse',
-        status: 'pending',
-      },
-      {
-        id: 'tx-demo-2',
-        bookingDate: '2026-08-15',
-        counterpartyName: 'eBay Payments S.a.r.l.',
-        counterpartyIban: 'LU12 0000 9876 5432 1000',
-        purpose: 'eBay Auszahlung Verkaufserlöse ID: EBAY-849204',
-        amount: 389.5,
-        currency: 'EUR',
-        sourceFormat: 'csv_sparkasse',
-        status: 'pending',
-      },
-      {
-        id: 'tx-demo-3',
-        bookingDate: '2026-08-14',
-        counterpartyName: firstPurchase?.supplier?.name || 'Insolvenzverwerter Nord',
-        counterpartyIban: 'DE44 2004 0000 8888 9999 00',
-        purpose: `Rechnung Wareneinkauf ${firstPurchase?.title || 'Elektronik Konvolut'}`,
-        amount: -(firstPurchase?.purchase_price || 250.0),
-        currency: 'EUR',
-        sourceFormat: 'csv_sparkasse',
-        status: 'pending',
-      },
-      {
-        id: 'tx-demo-4',
-        bookingDate: '2026-08-14',
-        counterpartyName: 'DHL Paket GmbH',
-        counterpartyIban: 'DE02 1001 0010 0123 4567 89',
-        purpose: 'Portoabrechnung Geschäftskunden Juli/August 2026',
-        amount: -45.9,
-        currency: 'EUR',
-        sourceFormat: 'csv_sparkasse',
-        status: 'pending',
-      },
-      {
-        id: 'tx-demo-5',
-        bookingDate: '2026-08-12',
-        counterpartyName: 'Sandra Lehmann',
-        counterpartyIban: 'DE21 5005 0000 5555 4444 33',
-        purpose: 'Vorauskasse Shop Artikel Audio Verstärker Lehmann',
-        amount: 89.0,
-        currency: 'EUR',
-        sourceFormat: 'csv_sparkasse',
-        status: 'pending',
-      },
-      {
-        id: 'tx-demo-6',
-        bookingDate: '2026-08-10',
-        counterpartyName: 'VerpackungsPlus GmbH',
-        counterpartyIban: 'DE33 3003 0000 1111 2222 33',
-        purpose: 'Kartonagen & Luftpolsterfolie 50x Faltkarton',
-        amount: -32.5,
-        currency: 'EUR',
-        sourceFormat: 'csv_sparkasse',
-        status: 'pending',
-      },
-    ];
-
-    const matched = demoTx.map((tx) => this.runMatchingEngine(tx));
-    this.transactions.set(matched);
-    this.persistLocalCache(matched);
   }
 
   // --- Helper Methods ---

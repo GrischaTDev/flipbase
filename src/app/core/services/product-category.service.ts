@@ -1,7 +1,5 @@
 import { Injectable, inject } from '@angular/core';
 import { ProductCategory } from '../models/product-category.models';
-import { DEMO_PRODUCT_CATEGORIES } from './demo-product-categories';
-import { MockDataStoreService } from './mock-data-store.service';
 import { SupabaseService } from './supabase.service';
 
 export const CATEGORY_SEARCH_LIMIT = 50;
@@ -35,14 +33,6 @@ function mapRow(row: ProductCategoryRow): ProductCategory {
   };
 }
 
-function byName(left: ProductCategory, right: ProductCategory): number {
-  return left.name.localeCompare(right.name, 'de-DE');
-}
-
-function bySearchRelevance(left: ProductCategory, right: ProductCategory): number {
-  return left.level - right.level || left.fullName.localeCompare(right.fullName, 'de-DE');
-}
-
 /** Maskiert die Platzhalter von LIKE/ILIKE, damit „50%" wörtlich gesucht wird. */
 export function escapeLikePattern(value: string): string {
   return value.replace(/[\\%_]/gu, (character) => `\\${character}`);
@@ -55,19 +45,15 @@ export function escapeLikePattern(value: string): string {
 @Injectable({ providedIn: 'root' })
 export class ProductCategoryService {
   private readonly supabase = inject(SupabaseService);
-  private readonly mockStore = inject(MockDataStoreService);
   private readonly childrenCache = new Map<string, Promise<readonly ProductCategory[]>>();
   private readonly categoriesById = new Map<string, ProductCategory>();
 
   loadChildren(parentId: string | null): Promise<readonly ProductCategory[]> {
-    const demo = this.mockStore.isDemoMode();
-    const key = `${demo ? 'demo' : 'db'}:${parentId ?? ''}`;
+    const key = `db:${parentId ?? ''}`;
     const cached = this.childrenCache.get(key);
     if (cached) return cached;
 
-    const request = (
-      demo ? Promise.resolve(this.demoChildren(parentId)) : this.fetchChildren(parentId)
-    ).then(
+    const request = this.fetchChildren(parentId).then(
       (categories) => {
         for (const category of categories) this.categoriesById.set(category.id, category);
         return categories;
@@ -87,29 +73,17 @@ export class ProductCategoryService {
     const words = term.trim().split(/\s+/u).filter(Boolean);
     if (words.join(' ').length < 2) return { categories: [], hasMore: false };
 
-    let categories: ProductCategory[];
-    if (this.mockStore.isDemoMode()) {
-      const needles = words.map((word) => word.toLocaleLowerCase('de-DE'));
-      categories = DEMO_PRODUCT_CATEGORIES.filter(
-        (category) =>
-          !category.isDeprecated &&
-          needles.every((needle) => category.fullName.toLocaleLowerCase('de-DE').includes(needle)),
-      )
-        .sort(bySearchRelevance)
-        .slice(0, CATEGORY_SEARCH_LIMIT + 1);
-    } else {
-      let query = this.supabase.client
-        .from('product_categories')
-        .select(CATEGORY_COLUMNS)
-        .eq('is_deprecated', false);
-      for (const word of words) query = query.ilike('full_name', `%${escapeLikePattern(word)}%`);
-      const { data, error } = await query
-        .order('level')
-        .order('full_name')
-        .limit(CATEGORY_SEARCH_LIMIT + 1);
-      if (error) throw new Error(error.message);
-      categories = (data ?? []).map(mapRow);
-    }
+    let query = this.supabase.client
+      .from('product_categories')
+      .select(CATEGORY_COLUMNS)
+      .eq('is_deprecated', false);
+    for (const word of words) query = query.ilike('full_name', `%${escapeLikePattern(word)}%`);
+    const { data, error } = await query
+      .order('level')
+      .order('full_name')
+      .limit(CATEGORY_SEARCH_LIMIT + 1);
+    if (error) throw new Error(error.message);
+    const categories: ProductCategory[] = (data ?? []).map(mapRow);
 
     for (const category of categories) this.categoriesById.set(category.id, category);
     return {
@@ -121,8 +95,6 @@ export class ProductCategoryService {
   async getById(id: string): Promise<ProductCategory | null> {
     const known = this.categoriesById.get(id);
     if (known) return known;
-    if (this.mockStore.isDemoMode())
-      return DEMO_PRODUCT_CATEGORIES.find((category) => category.id === id) ?? null;
 
     const { data, error } = await this.supabase.client
       .from('product_categories')
@@ -134,12 +106,6 @@ export class ProductCategoryService {
     const category = mapRow(data);
     this.categoriesById.set(category.id, category);
     return category;
-  }
-
-  private demoChildren(parentId: string | null): readonly ProductCategory[] {
-    return DEMO_PRODUCT_CATEGORIES.filter(
-      (category) => category.parentId === parentId && !category.isDeprecated,
-    ).sort(byName);
   }
 
   private async fetchChildren(parentId: string | null): Promise<readonly ProductCategory[]> {

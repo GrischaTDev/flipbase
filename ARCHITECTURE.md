@@ -16,7 +16,7 @@ Dieses Dokument beschreibt die interne Architektur, Entwurfsmuster, Service-Schi
    - Alle Margen, Vorsteuern und USt-Zahllasten werden zentimetergenau nach **§ 25a UStG (Differenzbesteuerung)** und **19% Regelbesteuerung** berechnet.
 
 3. **Offline-First & Graceful Degradation**:
-   - Die Anwendung funktioniert sowohl im reinen Demo-/Offline-Modus als auch mit angeschlossenem Supabase-Cloud-Backend.
+   - Die Anwendung arbeitet immer mit Supabase; lokal mit der Supabase aus Docker und dem Testkonto aus `supabase/seed.sql`.
    - Offline-Einkäufe (z. B. auf Flohmärkten) werden in einer lokalen Warteschlange gesichert und bei Netzverbindung automatisch synchronisiert.
 
 4. **Pure Service Instantiation & Testbarkeit**:

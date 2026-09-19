@@ -1,7 +1,6 @@
 import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
-import { MockDataStoreService } from './mock-data-store.service';
 import { SyncStatusService } from './sync-status.service';
 import { Source } from '../models/flipbase.models';
 import { nurAktive } from './master-data-filter';
@@ -13,7 +12,6 @@ export class SourcesService {
   private readonly supabase = inject(SupabaseService);
   private readonly syncStatus = inject(SyncStatusService);
   private readonly workspaceService = inject(WorkspaceService);
-  private readonly mockStore = inject(MockDataStoreService);
 
   readonly sources = signal<Source[]>([]);
   readonly isLoading = signal<boolean>(false);
@@ -51,12 +49,6 @@ export class SourcesService {
   readonly aktiveSources = computed<Source[]>(() => nurAktive(this.sources()));
 
   async loadSources(workspaceId: string): Promise<void> {
-    if (this.mockStore.isDemoMode()) {
-      const local = this.mockStore.getSources(workspaceId);
-      this.sources.set(this.zeigeArchivierte() ? local : nurAktive(local));
-      return;
-    }
-
     this.isLoading.set(true);
     try {
       let abfrage = this.supabase.client
@@ -103,12 +95,6 @@ export class SourcesService {
       type,
     };
 
-    if (this.mockStore.isDemoMode()) {
-      this.mockStore.saveSource(newSrc);
-      this.sources.update((list) => [...list, newSrc]);
-      return { data: newSrc, error: null };
-    }
-
     try {
       const { data: dbSrc, error: dbError } = await this.supabase.client
         .from('sources')
@@ -128,7 +114,6 @@ export class SourcesService {
       if (!dbSrc) return { data: null, error: new Error('Quelle wurde nicht zurückgegeben') };
 
       const finalSrc: Source = { ...newSrc, id: dbSrc.id };
-      this.mockStore.saveSource(finalSrc);
       this.sources.update((list) => [finalSrc, ...list.filter((s) => s.id !== finalSrc.id)]);
       return { data: finalSrc, error: null };
     } catch (e) {
@@ -160,22 +145,18 @@ export class SourcesService {
       this.sources.update((list) =>
         list.map((s) => (s.id === sourceId ? { ...s, ...bereinigt } : s)),
       );
-      const vorhanden = this.sources().find((s) => s.id === sourceId);
-      if (vorhanden) this.mockStore.saveSource(vorhanden);
     };
 
-    if (!this.mockStore.isDemoMode()) {
-      try {
-        const { error } = await this.supabase.client
-          .from('sources')
-          .update(bereinigt)
-          .eq('id', sourceId);
-        if (error) {
-          return { error: this.syncStatus.melde('Ändern der Quelle', error) };
-        }
-      } catch (e: unknown) {
-        return { error: this.syncStatus.melde('Ändern der Quelle', e) };
+    try {
+      const { error } = await this.supabase.client
+        .from('sources')
+        .update(bereinigt)
+        .eq('id', sourceId);
+      if (error) {
+        return { error: this.syncStatus.melde('Ändern der Quelle', error) };
       }
+    } catch (e: unknown) {
+      return { error: this.syncStatus.melde('Ändern der Quelle', e) };
     }
     lokalAnwenden();
     return { error: null };
@@ -195,8 +176,6 @@ export class SourcesService {
     const neuerWert = !archiviert;
 
     const lokalAnwenden = () => {
-      const geaendert = this.sources().find((s) => s.id === sourceId);
-      if (geaendert) this.mockStore.saveSource({ ...geaendert, is_active: neuerWert });
       this.sources.update((list) =>
         this.zeigeArchivierte()
           ? list.map((s) => (s.id === sourceId ? { ...s, is_active: neuerWert } : s))
@@ -204,18 +183,16 @@ export class SourcesService {
       );
     };
 
-    if (!this.mockStore.isDemoMode()) {
-      try {
-        const { error } = await this.supabase.client
-          .from('sources')
-          .update({ is_active: neuerWert })
-          .eq('id', sourceId);
-        if (error) {
-          return { error: this.syncStatus.melde('Archivieren der Quelle', error) };
-        }
-      } catch (e: unknown) {
-        return { error: this.syncStatus.melde('Archivieren der Quelle', e) };
+    try {
+      const { error } = await this.supabase.client
+        .from('sources')
+        .update({ is_active: neuerWert })
+        .eq('id', sourceId);
+      if (error) {
+        return { error: this.syncStatus.melde('Archivieren der Quelle', error) };
       }
+    } catch (e: unknown) {
+      return { error: this.syncStatus.melde('Archivieren der Quelle', e) };
     }
     lokalAnwenden();
     return { error: null };
@@ -225,12 +202,6 @@ export class SourcesService {
   async zaehleVerknuepfteEinkaeufe(
     sourceId: string,
   ): Promise<{ count: number | null; error: Error | null }> {
-    if (this.mockStore.isDemoMode()) {
-      return {
-        count: this.mockStore.getPurchases().filter((p) => p.source_id === sourceId).length,
-        error: null,
-      };
-    }
     try {
       const { count, error } = await this.supabase.client
         .from('purchases')
@@ -273,17 +244,14 @@ export class SourcesService {
       };
     }
 
-    if (!this.mockStore.isDemoMode()) {
-      try {
-        const { error } = await this.supabase.client.from('sources').delete().eq('id', sourceId);
-        if (error) {
-          return { error: this.syncStatus.melde('Löschen der Quelle', error) };
-        }
-      } catch (e: unknown) {
-        return { error: this.syncStatus.melde('Löschen der Quelle', e) };
+    try {
+      const { error } = await this.supabase.client.from('sources').delete().eq('id', sourceId);
+      if (error) {
+        return { error: this.syncStatus.melde('Löschen der Quelle', error) };
       }
+    } catch (e: unknown) {
+      return { error: this.syncStatus.melde('Löschen der Quelle', e) };
     }
-    this.mockStore.deleteSource(sourceId);
     this.sources.update((list) => list.filter((s) => s.id !== sourceId));
     return { error: null };
   }

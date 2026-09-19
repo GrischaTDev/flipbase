@@ -7,7 +7,6 @@ import { InventoryService } from '../../../core/services/inventory.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
 import { SupabaseService } from '../../../core/services/supabase.service';
 import { AuthService } from '../../../core/services/auth.service';
-import { MockDataStoreService } from '../../../core/services/mock-data-store.service';
 import { InventoryArchiveService, isArchivedInventoryItem } from './inventory-archive.service';
 
 describe('InventoryArchiveService', () => {
@@ -41,11 +40,10 @@ describe('InventoryArchiveService', () => {
         { provide: WorkspaceService, useValue: { currentWorkspace: workspace } },
         {
           provide: AuthService,
-          useValue: { isDemoMode: signal(false), currentUser: signal({ id: 'a' }) },
+          useValue: { currentUser: signal({ id: 'a' }) },
         },
         { provide: SupabaseService, useValue: { client: { rpc } } },
         { provide: InventoryService, useValue: { items, selectedItem, applyArchiveMetadata } },
-        { provide: MockDataStoreService, useValue: {} },
       ],
     });
   });

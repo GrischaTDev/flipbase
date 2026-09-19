@@ -2,7 +2,6 @@ import '@angular/compiler';
 import { computed, Injector, runInInjectionContext, signal } from '@angular/core';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MediaService } from './media.service';
-import { MockDataStoreService } from './mock-data-store.service';
 import { SupabaseService } from './supabase.service';
 import { SyncStatusService } from './sync-status.service';
 import { WorkspaceService } from './workspace.service';
@@ -16,15 +15,12 @@ const product = {
   is_public_store: false,
 };
 const injectors: ReturnType<typeof Injector.create>[] = [];
-function setup(client: unknown, demo = false) {
-  const store = new MockDataStoreService();
-  store.isDemoMode.set(demo);
+function setup(client: unknown) {
   const workspace = signal({ id: product.workspace_id });
   const session = signal<{ access_token: string } | null>({ access_token: 'session-a' });
   const injector = Injector.create({
     providers: [
       { provide: SupabaseService, useValue: { client } },
-      { provide: MockDataStoreService, useValue: store },
       { provide: SyncStatusService, useValue: new SyncStatusService() },
       { provide: WorkspaceService, useValue: { currentWorkspace: workspace } },
       { provide: AuthService, useValue: { session } },
@@ -33,7 +29,6 @@ function setup(client: unknown, demo = false) {
   injectors.push(injector);
   return {
     service: runInInjectionContext(injector, () => new MediaService()),
-    store,
     workspace,
     session,
   };
@@ -151,23 +146,6 @@ describe('Produktmedien', () => {
     expect(backend.upload).not.toHaveBeenCalled();
   });
 
-  it('persistiert Demo-Bilder getrennt von Item-Medien über neue Instanzen hinweg', async () => {
-    const { service, store } = setup({}, true);
-    store.saveCatalogProduct(product);
-    localStorage.setItem('flipbase_local_media', '[]');
-    const result = await service.uploadProductMedia(
-      product.id,
-      new File(['bild'], 'a.png', { type: 'image/png' }),
-    );
-    expect(result.error).toBeNull();
-    const reloaded = setup({}, true);
-    expect(await reloaded.service.loadProductMedia(product.id)).toEqual([result.data]);
-    expect(localStorage.getItem('flipbase_local_media')).toBe('[]');
-    expect(localStorage.getItem('flipbase_local_catalog_product_media')).toContain(
-      'data:image/png;base64,',
-    );
-  });
-
   it('signiert Listen im Batch und erneuert URLs vor dem Ablauf', async () => {
     vi.useFakeTimers();
     const createSignedUrls = vi.fn(async (paths: string[]) => ({
@@ -255,44 +233,6 @@ describe('Produktmedien', () => {
 });
 
 describe('Galeriespeicherung', () => {
-  it('sortiert und entfernt Demo-Bilder dauerhaft, erkennt aber konkurrierende Änderungen', async () => {
-    const { service, store } = setup({}, true);
-    store.saveCatalogProduct(product);
-    const first = await service.uploadProductMedia(
-      product.id,
-      new File(['a'], 'a.png', { type: 'image/png' }),
-    );
-    const second = await service.uploadProductMedia(
-      product.id,
-      new File(['b'], 'b.png', { type: 'image/png' }),
-    );
-    const ids = [first.data!.id, second.data!.id];
-    const conflict = await service.updateProductMediaLayout(
-      product.id,
-      [ids[0]!],
-      [ids[0]!],
-      product.workspace_id,
-    );
-    expect(conflict.error?.message).toContain('zwischenzeitlich');
-    expect(store.getCatalogProductMedia(product.id)).toHaveLength(2);
-    const result = await service.updateProductMediaLayout(
-      product.id,
-      [...ids].reverse(),
-      ids,
-      product.workspace_id,
-    );
-    expect(result.data?.map((entry) => [entry.id, entry.sort_order, entry.is_primary])).toEqual([
-      [ids[1], 0, true],
-      [ids[0], 1, false],
-    ]);
-    expect(
-      (await service.updateProductMediaLayout(product.id, [ids[0]!], ids, product.workspace_id))
-        .data,
-    ).toHaveLength(1);
-    const reloaded = new MockDataStoreService();
-    reloaded.isDemoMode.set(true);
-    expect(reloaded.getCatalogProductMedia(product.id)).toHaveLength(1);
-  });
   it('verhindert doppelte IDs und fremde Workspaces ohne RPC', async () => {
     const rpc = vi.fn();
     const { service } = setup({ rpc });

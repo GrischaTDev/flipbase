@@ -2,7 +2,6 @@ import '@angular/compiler';
 import { Injector, runInInjectionContext, signal } from '@angular/core';
 import { describe, expect, it, vi } from 'vitest';
 import { AuthService } from './auth.service';
-import { MockDataStoreService } from './mock-data-store.service';
 import { SupabaseService } from './supabase.service';
 import { SyncStatusService } from './sync-status.service';
 import { WorkspaceMemberService } from './workspace-member.service';
@@ -71,21 +70,16 @@ function createService() {
     }),
   }));
 
-  const mockStore = new MockDataStoreService();
-  mockStore.isDemoMode.set(false);
-
   const injector = Injector.create({
     providers: [
       { provide: SupabaseService, useValue: { client: { from } } },
       { provide: WorkspaceService, useValue: { currentWorkspace } },
-      { provide: MockDataStoreService, useValue: mockStore },
       { provide: SyncStatusService, useValue: new SyncStatusService() },
       {
         provide: AuthService,
         useValue: {
           currentUser: () => ({ id: 'user-owner' }),
           userEmail: () => 'owner@flipbase.de',
-          isDemoMode: () => false,
           userName: () => 'Owner',
         },
       },

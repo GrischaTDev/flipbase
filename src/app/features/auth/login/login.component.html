@@ -138,32 +138,6 @@
       >
         {{ 'AUTH.SUBMIT_LOGIN' | translate }}
       </app-button>
-
-      <!-- Demo-Modus – nur wenn die Umgebung ihn erlaubt -->
-      @if (isDemoModeAllowed) {
-        <div class="pt-2">
-          <div class="relative flex py-2 items-center">
-            <div class="grow border-t border-fb-border"></div>
-            <span class="shrink mx-3 text-[10px] uppercase font-bold text-fb-text-dimmed">
-              {{ 'AUTH.OR_DEMO_MODE' | translate }}
-            </span>
-            <div class="grow border-t border-fb-border"></div>
-          </div>
-
-          <button
-            type="button"
-            (click)="onDemoLogin()"
-            class="w-full py-2.5 rounded-xl border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 font-bold text-xs shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
-          >
-            <svg [lucideIcon]="zapIcon" class="w-4 h-4 text-amber-400"></svg>
-            <span>{{ 'AUTH.START_DEMO_MODE' | translate }}</span>
-          </button>
-
-          <p class="mt-2 text-[10px] text-fb-text-dimmed leading-relaxed text-center">
-            {{ 'AUTH.DEMO_MODE_DESCRIPTION' | translate }}
-          </p>
-        </div>
-      }
     </form>
 
     <!-- Footer Switch to Register -->

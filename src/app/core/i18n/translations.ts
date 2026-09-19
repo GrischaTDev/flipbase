@@ -108,10 +108,6 @@ export const TRANSLATIONS_DE = {
     PASSWORD_STRENGTH_LABEL: 'Sicherheitsstufe:',
     PASSWORD_SHOW: 'Passwort anzeigen',
     PASSWORD_HIDE: 'Passwort verbergen',
-    OR_DEMO_MODE: 'Oder ohne Backend',
-    START_DEMO_MODE: 'Demo-Modus starten (ohne Anmeldung)',
-    DEMO_MODE_DESCRIPTION:
-      'Der Demo-Modus arbeitet ausschliesslich mit Daten in diesem Browser. Es besteht kein Zugriff auf Serverdaten, und nichts wird dauerhaft gespeichert.',
     TERMS_HEADING: 'Flipbase – Allgemeine Geschäftsbedingungen',
     TERMS_NOTE:
       'Hinweis: Die verbindlichen Rechtstexte werden hier rechtzeitig vor dem offiziellen Produktivstart hinterlegt.',
@@ -327,7 +323,6 @@ export const TRANSLATIONS_DE = {
     INVITE_MEMBER: 'Mitglied einladen',
     BACKUP_DATA: 'Daten-Backup (JSON)',
     RESTORE_DATA: 'Backup wiederherstellen',
-    RESET_DEMO: 'Demodaten zurücksetzen',
   },
   STORE: {
     TITLE: 'Online-Shop',
@@ -461,10 +456,6 @@ export const TRANSLATIONS_EN = {
     PASSWORD_STRENGTH_LABEL: 'Security level:',
     PASSWORD_SHOW: 'Show password',
     PASSWORD_HIDE: 'Hide password',
-    OR_DEMO_MODE: 'Or without backend',
-    START_DEMO_MODE: 'Start demo mode (without sign in)',
-    DEMO_MODE_DESCRIPTION:
-      'Demo mode works exclusively with data in this browser. There is no access to server data, and nothing is permanently stored.',
     TERMS_HEADING: 'Flipbase – Terms and Conditions',
     TERMS_NOTE: 'Note: Binding legal terms will be provided here prior to official release.',
     PRIVACY_HEADING: 'Flipbase – Privacy Policy',
@@ -678,7 +669,6 @@ export const TRANSLATIONS_EN = {
     INVITE_MEMBER: 'Invite Member',
     BACKUP_DATA: 'Data Backup (JSON)',
     RESTORE_DATA: 'Restore Backup',
-    RESET_DEMO: 'Reset Demo Data',
   },
   STORE: {
     TITLE: 'Online Shop',

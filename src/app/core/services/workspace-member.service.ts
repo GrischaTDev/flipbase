@@ -2,7 +2,6 @@ import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
 import { AuthService } from './auth.service';
-import { MockDataStoreService } from './mock-data-store.service';
 import { SyncStatusService } from './sync-status.service';
 import { WorkspaceInvite, WorkspaceMember, WorkspaceRole } from '../models/flipbase.models';
 import { Tables } from '../models/supabase.types';
@@ -21,10 +20,7 @@ export function resolveCurrentUserRole(
   members: readonly WorkspaceMemberRoleEntry[],
   currentUserId: string | null | undefined,
   currentEmail: string | null | undefined,
-  isDemoMode: boolean,
 ): WorkspaceRole | null {
-  if (isDemoMode) return 'owner';
-
   const normalizedUserId = currentUserId?.trim();
   const memberById = normalizedUserId
     ? members.find((member) => member.user_id === normalizedUserId)
@@ -48,39 +44,8 @@ export class WorkspaceMemberService {
   private readonly syncStatus = inject(SyncStatusService);
   private readonly workspaceService = inject(WorkspaceService);
   private readonly auth = inject(AuthService);
-  private readonly mockStore = inject(MockDataStoreService);
 
-  private readonly demoMembers: WorkspaceMember[] = [
-    {
-      id: 'wm-1',
-      workspace_id: 'ws-1',
-      user_id: 'user-owner',
-      email: 'alex.flipbase@example.com',
-      full_name: 'Alex (Inhaber)',
-      role: 'owner',
-      joined_at: '2026-01-01T10:00:00Z',
-    },
-    {
-      id: 'wm-2',
-      workspace_id: 'ws-1',
-      user_id: 'user-sourcing',
-      email: 'sarah.sourcing@example.com',
-      full_name: 'Sarah (Sourcing & Einkauf)',
-      role: 'member',
-      joined_at: '2026-01-15T14:30:00Z',
-    },
-    {
-      id: 'wm-3',
-      workspace_id: 'ws-1',
-      user_id: 'user-tax',
-      email: 'kanzlei.steuer@datev-berater.de',
-      full_name: 'StB Müller (DATEV / Buchhaltung)',
-      role: 'accountant',
-      joined_at: '2026-02-01T09:00:00Z',
-    },
-  ];
-
-  readonly members = signal<WorkspaceMember[]>(this.mockStore.isDemoMode() ? this.demoMembers : []);
+  readonly members = signal<WorkspaceMember[]>([]);
 
   readonly invites = signal<WorkspaceInvite[]>([
     {
@@ -99,18 +64,12 @@ export class WorkspaceMemberService {
   private membersLoadVersion = 0;
 
   readonly isCurrentWorkspaceLoaded = computed(() => {
-    if (this.mockStore.isDemoMode()) return true;
     const workspaceId = this.workspaceService.currentWorkspace()?.id ?? null;
     return workspaceId !== null && this.loadedWorkspaceId() === workspaceId;
   });
 
   readonly currentUserRole = computed<WorkspaceRole | null>(() =>
-    resolveCurrentUserRole(
-      this.members(),
-      this.auth.currentUser()?.id,
-      this.auth.userEmail(),
-      this.auth.isDemoMode(),
-    ),
+    resolveCurrentUserRole(this.members(), this.auth.currentUser()?.id, this.auth.userEmail()),
   );
 
   constructor() {
@@ -137,11 +96,6 @@ export class WorkspaceMemberService {
   }
 
   async loadMembers(workspaceId: string): Promise<void> {
-    if (this.mockStore.isDemoMode()) {
-      this.loadedWorkspaceId.set(workspaceId);
-      return;
-    }
-
     const loadVersion = ++this.membersLoadVersion;
     if (this.workspaceService.currentWorkspace()?.id === workspaceId) {
       this.loadedWorkspaceId.set(null);
@@ -234,19 +188,17 @@ export class WorkspaceMemberService {
       list.map((m) => (m.id === memberId ? { ...m, role: newRole } : m)),
     );
 
-    if (!this.mockStore.isDemoMode()) {
-      try {
-        const { error } = await this.supabase.client
-          .from('workspace_members')
-          .update({ role: newRole })
-          .eq('id', memberId);
+    try {
+      const { error } = await this.supabase.client
+        .from('workspace_members')
+        .update({ role: newRole })
+        .eq('id', memberId);
 
-        if (error) {
-          return { error: this.syncStatus.melde('Aktualisieren der Mitgliederrolle', error) };
-        }
-      } catch (err: unknown) {
-        return { error: this.syncStatus.melde('Aktualisieren der Rolle', err) };
+      if (error) {
+        return { error: this.syncStatus.melde('Aktualisieren der Mitgliederrolle', error) };
       }
+    } catch (err: unknown) {
+      return { error: this.syncStatus.melde('Aktualisieren der Rolle', err) };
     }
 
     return { error: null };
@@ -255,18 +207,16 @@ export class WorkspaceMemberService {
   async removeMember(memberId: string): Promise<{ error: Error | null }> {
     this.members.update((list) => list.filter((m) => m.id !== memberId));
 
-    if (!this.mockStore.isDemoMode()) {
-      try {
-        const { error } = await this.supabase.client
-          .from('workspace_members')
-          .delete()
-          .eq('id', memberId);
-        if (error) {
-          return { error: this.syncStatus.melde('Entfernen des Mitglieds', error) };
-        }
-      } catch (err: unknown) {
-        return { error: this.syncStatus.melde('Entfernen des Mitglieds', err) };
+    try {
+      const { error } = await this.supabase.client
+        .from('workspace_members')
+        .delete()
+        .eq('id', memberId);
+      if (error) {
+        return { error: this.syncStatus.melde('Entfernen des Mitglieds', error) };
       }
+    } catch (err: unknown) {
+      return { error: this.syncStatus.melde('Entfernen des Mitglieds', err) };
     }
 
     return { error: null };

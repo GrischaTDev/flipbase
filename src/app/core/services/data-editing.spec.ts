@@ -47,13 +47,16 @@ describe('Bearbeiten vorhandener Daten', () => {
         dienst: baue<PurchaseService>(PurchaseService.prototype, {
           purchasesRaw,
           selectedPurchaseRaw,
-          mockStore: {
-            isDemoMode: () => true,
-            getPurchases: () => [],
-            savePurchase: () => undefined,
-          },
           sourcesService: { sources: () => [{ id: 'q-1', name: 'Flohmarkt' }] },
           suppliersService: { suppliers: () => [] },
+          syncStatus: { melde: (_bereich: string, fehler: unknown) => new Error(String(fehler)) },
+          supabase: {
+            client: {
+              from: () => ({
+                update: () => ({ eq: () => Promise.resolve({ error: null }) }),
+              }),
+            },
+          },
         }),
       };
     }
@@ -103,11 +106,6 @@ describe('Bearbeiten vorhandener Daten', () => {
         dienst: baue<PurchaseService>(PurchaseService.prototype, {
           purchasesRaw,
           selectedPurchaseRaw,
-          mockStore: {
-            isDemoMode: () => false,
-            getPurchases: () => [],
-            savePurchase: () => undefined,
-          },
           sourcesService: { sources: () => [] },
           suppliersService: { suppliers: () => [] },
           syncStatus: { melde: (_bereich: string, fehler: unknown) => new Error(String(fehler)) },
@@ -183,7 +181,6 @@ describe('Bearbeiten vorhandener Daten', () => {
         sales,
         dienst: baue<SalesService>(SalesService.prototype, {
           sales,
-          mockStore: { isDemoMode: () => true, saveSale: () => undefined },
           profitEngine: new ProfitEngineService(),
         }),
       };

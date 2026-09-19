@@ -8,7 +8,6 @@ import { WebhookService } from './webhook.service';
 import { WebPushService } from './web-push.service';
 import { SupabaseService } from './supabase.service';
 import { SyncStatusService } from './sync-status.service';
-import { MockDataStoreService } from './mock-data-store.service';
 import { SalesService } from './sales.service';
 import { Tables } from '../models/supabase.types';
 
@@ -34,7 +33,6 @@ export interface ReturnFollowUpProblem {
 })
 export class ReturnService {
   private readonly supabase = inject(SupabaseService, { optional: true });
-  private readonly mockStore = inject(MockDataStoreService, { optional: true });
   private readonly syncStatus = inject(SyncStatusService, { optional: true })!;
   private readonly inventoryService = inject(InventoryService, { optional: true });
   private readonly salesService = inject(SalesService, { optional: true });
@@ -71,23 +69,7 @@ export class ReturnService {
       }
     } catch {}
 
-    return [
-      {
-        id: 'ret-1',
-        workspace_id: 'ws-1',
-        sale_id: 'sale-demo-1',
-        inventory_item_id: 'item-demo-1',
-        credit_note_number: 'GS-2026-0001',
-        return_date: '2026-08-14',
-        reason: 'buyer_remorse',
-        refund_amount: 89.0,
-        is_full_refund: true,
-        restock_action: 'restock_ready',
-        buyer_name: 'Kunde Michael B.',
-        notes: 'Widerruf innerhalb 14 Tagen. Originalverpackt und ungeöffnet zurückerhalten.',
-        created_at: '2026-08-14T11:00:00Z',
-      },
-    ];
+    return [];
   }
 
   private persistReturns(): void {
@@ -99,7 +81,7 @@ export class ReturnService {
   }
 
   async loadReturns(workspaceId: string): Promise<void> {
-    if (!this.supabase || this.mockStore?.isDemoMode()) return;
+    if (!this.supabase) return;
 
     this.isLoading.set(true);
     try {
@@ -111,8 +93,8 @@ export class ReturnService {
 
       if (error) {
         this.syncStatus.melde('Laden der Retouren', error);
-      } else if (data && data.length > 0) {
-        const mapped: ReturnRecord[] = (data as Tables<'returns'>[]).map((r) => ({
+      } else {
+        const mapped: ReturnRecord[] = ((data ?? []) as Tables<'returns'>[]).map((r) => ({
           ...r,
           reason: r.reason as ReturnReason,
           restock_action: r.restock_action as RestockAction,

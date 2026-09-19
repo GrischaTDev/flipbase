@@ -8,10 +8,59 @@ import { SyncStatusService } from './sync-status.service';
 describe('Fulfillment & Smart Bundling Engine (Chapter 27)', () => {
   let service: FulfillmentService;
 
+  const testOrders: ShippingOrder[] = [
+    {
+      id: 'ship-1',
+      workspace_id: 'ws-1',
+      sale_id: 'sale-1',
+      order_number: 'ORD-1001',
+      order_date: '2026-09-19T10:00:00.000Z',
+      platform: 'ebay',
+      item_title: 'Konsole',
+      sale_price: 360,
+      customer: {
+        name: 'Maximilian Weber',
+        street: 'Hauptstraße',
+        house_number: '42b',
+        postal_code: '80331',
+        city: 'München',
+        country: 'Deutschland',
+        email: 'max@example.com',
+      },
+      carrier: 'dhl',
+      package_type: 'DHL Paket bis 2 kg',
+      status: 'ready_to_pack',
+      created_at: '2026-09-19T10:00:00.000Z',
+    },
+    {
+      id: 'ship-2',
+      workspace_id: 'ws-1',
+      sale_id: 'sale-2',
+      order_number: 'ORD-1002',
+      order_date: '2026-09-19T10:00:00.000Z',
+      platform: 'ebay',
+      item_title: 'Controller',
+      sale_price: 55,
+      customer: {
+        name: 'Maximilian Weber',
+        street: 'Hauptstraße',
+        house_number: '42b',
+        postal_code: '80331',
+        city: 'München',
+        country: 'Deutschland',
+        email: 'max@example.com',
+      },
+      carrier: 'dhl',
+      package_type: 'DHL Warenpost',
+      status: 'ready_to_pack',
+      created_at: '2026-09-19T10:00:00.000Z',
+    },
+  ];
+
   beforeEach(() => {
     const injector = Injector.create({ providers: [] });
     service = runInInjectionContext(injector, () => new FulfillmentService());
-    service.loadDemoOrders();
+    service.orders.set(testOrders);
   });
 
   it('should automatically detect bundle candidates for same customer', () => {
@@ -80,7 +129,6 @@ describe('Fulfillment & Smart Bundling Engine (Chapter 27)', () => {
     Object.assign(service, {
       supabase: { client: { from: () => ({ update }) } },
       workspaceService: { currentWorkspace: () => ({ id: order.workspace_id }) },
-      mockStore: { isDemoMode: () => false },
     });
 
     const vorgang = service.markAsDelivered(order.id);
@@ -105,7 +153,6 @@ describe('Fulfillment & Smart Bundling Engine (Chapter 27)', () => {
     Object.assign(service, {
       supabase: { client: { from: () => ({ update }) } },
       workspaceService: { currentWorkspace: () => ({ id: order.workspace_id }) },
-      mockStore: { isDemoMode: () => false },
       syncStatus,
     });
 
@@ -132,7 +179,6 @@ describe('Fulfillment & Smart Bundling Engine (Chapter 27)', () => {
     Object.assign(service, {
       supabase: { client: { rpc } },
       workspaceService: { currentWorkspace: () => ({ id: candidate.orders[0].workspace_id }) },
-      mockStore: { isDemoMode: () => false },
     });
 
     const ergebnis = await service.bundleOrders(candidate);
@@ -157,7 +203,6 @@ describe('Fulfillment & Smart Bundling Engine (Chapter 27)', () => {
         client: { rpc: vi.fn(async () => ({ data: null, error: new Error('offline') })) },
       },
       workspaceService: { currentWorkspace: () => ({ id: candidate.orders[0].workspace_id }) },
-      mockStore: { isDemoMode: () => false },
     });
 
     const ergebnis = await service.bundleOrders(candidate);
@@ -185,7 +230,6 @@ describe('Fulfillment & Smart Bundling Engine (Chapter 27)', () => {
     Object.assign(service, {
       supabase: { client: { rpc } },
       workspaceService: { currentWorkspace: () => ({ id: bündel.workspace_id }) },
-      mockStore: { isDemoMode: () => false },
     });
 
     const ergebnis = await service.unbundleOrder(bündel.id);
@@ -198,7 +242,7 @@ describe('Fulfillment & Smart Bundling Engine (Chapter 27)', () => {
     });
   });
 
-  it('behält im Demo-Modus die gemeinsame sale_id eines Sammelpakets', async () => {
+  it('behält beim Bündeln die gemeinsame sale_id eines Sammelpakets', async () => {
     const ausgang = service.bundleCandidates()[0];
     const candidate = {
       ...ausgang,
@@ -252,7 +296,6 @@ describe('Fulfillment & Smart Bundling Engine (Chapter 27)', () => {
     });
     Object.assign(service, {
       supabase: { client: { from } },
-      mockStore: { isDemoMode: () => false },
     });
 
     await service.loadFromSupabase('ws-1');

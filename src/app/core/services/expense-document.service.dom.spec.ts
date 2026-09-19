@@ -32,7 +32,6 @@ function file(overrides: Partial<{ name: string; type: string; size: number }> =
 
 function createService(
   options: {
-    demo?: boolean;
     upload?: ReturnType<typeof vi.fn>;
     removeFile?: ReturnType<typeof vi.fn>;
     download?: ReturnType<typeof vi.fn>;
@@ -85,7 +84,6 @@ function createService(
     isLoading: signal(false),
     loadError: signal<string | null>(null),
     workspaceService: { currentWorkspace },
-    mockStore: { isDemoMode: signal(options.demo ?? false) },
     syncStatus: new SyncStatusService(),
     auth: { currentUser: () => ({ id: 'user-1' }) },
     supabase: {
@@ -225,15 +223,6 @@ describe('ExpenseDocumentService', () => {
     expect(result.error).toBeNull();
     expect(removeFile).toHaveBeenCalledWith([storedDocument.storage_path]);
     expect(service.documents()).toEqual([]);
-  });
-
-  it('speichert im Demo-Modus keine privaten Dateien', async () => {
-    const { service, upload } = createService({ demo: true });
-
-    const result = await service.upload(expenseId, file(), 'invoice');
-
-    expect(result.error?.message).toContain('Demo');
-    expect(upload).not.toHaveBeenCalled();
   });
 
   it('verwirft einen verspäteten Belegstatus nach dem Workspace-Wechsel', async () => {

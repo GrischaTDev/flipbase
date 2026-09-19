@@ -15,7 +15,6 @@ import {
   PurchaseDocument,
   PurchaseDocumentType,
 } from '../../../../core/models/purchase-document.models';
-import { MockDataStoreService } from '../../../../core/services/mock-data-store.service';
 import { PurchaseDocumentService } from '../../../../core/services/purchase-document.service';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
@@ -49,7 +48,6 @@ interface PurchaseDocumentRow {
 })
 export class PurchaseDocumentsCardComponent implements OnInit {
   private readonly documentService = inject(PurchaseDocumentService);
-  private readonly mockStore = inject(MockDataStoreService);
   private readonly toast = inject(ToastService);
 
   readonly purchase = input.required<Purchase>();
@@ -60,7 +58,6 @@ export class PurchaseDocumentsCardComponent implements OnInit {
   readonly errorMessage = signal<string | null>(null);
   readonly previewDocument = signal<PurchaseDocument | null>(null);
 
-  readonly isDemoMode = computed(() => this.mockStore.isDemoMode());
   readonly canRemove = computed(() => this.purchase().entry_status !== 'finalized');
 
   readonly documentTypeControl = new FormControl<PurchaseDocumentType>('invoice', {

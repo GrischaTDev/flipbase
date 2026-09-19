@@ -17,7 +17,7 @@ describe('Multi-Workspace & Holding Consolidation Service', () => {
           { provide: SupabaseService, useValue: { client: { rpc } } },
           {
             provide: AuthService,
-            useValue: { isAuthenticated: () => true, isDemoMode: () => false },
+            useValue: { isAuthenticated: () => true },
           },
         ],
       });
@@ -67,12 +67,14 @@ describe('Multi-Workspace & Holding Consolidation Service', () => {
       expect(workspaceService.currentWorkspace()?.id).toBe('a');
     });
 
-    it('meldet im Demo-Modus ausdrücklich keine Server-Archivierung', async () => {
+    it('meldet ohne aktive Anmeldung ausdrücklich keine Server-Archivierung', async () => {
       const injector = Injector.create({ providers: [] });
-      const demo = runInInjectionContext(injector, () => new WorkspaceService());
-      await demo.loadWorkspaces();
-      expect((await demo.archiveWorkspace('ws-1')).error?.message).toContain('Demo');
-      expect(demo.currentWorkspace()?.archived_at).toBeUndefined();
+      const ohneAnmeldung = runInInjectionContext(injector, () => new WorkspaceService());
+      await ohneAnmeldung.loadWorkspaces();
+      expect((await ohneAnmeldung.archiveWorkspace('ws-1')).error?.message).toContain(
+        'angemeldete',
+      );
+      expect(ohneAnmeldung.currentWorkspace()?.archived_at).toBeUndefined();
     });
   });
   let service: WorkspaceService;
@@ -82,8 +84,8 @@ describe('Multi-Workspace & Holding Consolidation Service', () => {
     service = runInInjectionContext(injector, () => new WorkspaceService());
     // Die Workspace-Signale starten bewusst leer, damit ohne Anmeldung keine
     // Abfragen mit der Mock-Kennung "ws-1" an die Datenbank gehen. Ohne
-    // Backend faellt der Dienst auf die Demo-Workspaces zurueck - fuer diese
-    // Tests wird dieser Zustand hier ausdruecklich hergestellt.
+    // Backend-Dienst faellt der Dienst auf die Standard-Workspaces zurueck -
+    // fuer diese Tests wird dieser Zustand hier ausdruecklich hergestellt.
     await service.loadWorkspaces();
   });
 
@@ -214,7 +216,6 @@ describe('Multi-Workspace & Holding Consolidation Service', () => {
           provide: AuthService,
           useValue: {
             isAuthenticated: () => true,
-            isDemoMode: () => false,
           },
         },
         { provide: SyncStatusService, useValue: syncStatus },
@@ -260,7 +261,7 @@ describe('Multi-Workspace & Holding Consolidation Service', () => {
         },
         {
           provide: AuthService,
-          useValue: { isAuthenticated: () => true, isDemoMode: () => false },
+          useValue: { isAuthenticated: () => true },
         },
         { provide: SyncStatusService, useValue: syncStatus },
       ],

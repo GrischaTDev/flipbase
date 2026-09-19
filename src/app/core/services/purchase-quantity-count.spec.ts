@@ -94,7 +94,6 @@ function erstelleDienst(purchaseOverrides: Partial<Purchase> = {}) {
   Object.assign(service, {
     supabase: { client },
     workspaceService: { currentWorkspace: signal(workspace) },
-    mockStore: { isDemoMode: signal(false) },
     syncStatus: { melde: vi.fn() },
     inventory: { items: signal<InventoryItem[]>([]), istGeladen: signal(false) },
     purchasesRaw,

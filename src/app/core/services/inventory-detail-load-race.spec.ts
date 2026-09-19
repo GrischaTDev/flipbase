@@ -111,11 +111,6 @@ function erstelleDienst() {
   Object.assign(service, {
     supabase: { client },
     workspaceService: { currentWorkspace },
-    mockStore: {
-      isDemoMode: signal(false),
-      getActivityLogs: () => [],
-      getItemCosts: () => [],
-    },
     syncStatus: { melde: vi.fn((_context: string, error: unknown) => error) },
     items: signal<InventoryItem[]>([]),
     selectedItem,

@@ -3,7 +3,6 @@ import { signal } from '@angular/core';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CatalogService } from './catalog.service';
 import { CatalogProduct } from '../models/flipbase.models';
-import { MockDataStoreService } from './mock-data-store.service';
 import { SyncStatusService } from './sync-status.service';
 
 const product: CatalogProduct = {
@@ -25,7 +24,6 @@ describe('CatalogService', () => {
       isLoading: signal(false),
       loadError: signal(null),
       loadRequestId: 0,
-      mockStore: { isDemoMode: () => false },
       syncStatus: new SyncStatusService(),
       supabase: {
         client: {
@@ -54,34 +52,6 @@ describe('CatalogService', () => {
     expect((await creation).data).toEqual(product);
     expect(service.products()).toEqual([{ ...second, primary_media_path: null }]);
   });
-  it('legt Produkte ohne Bestandsart an und speichert ihren Zustand ohne Wareneingang', async () => {
-    const saveCatalogProduct = vi.fn();
-    const service = Object.create(CatalogService.prototype) as CatalogService;
-    Object.assign(service, {
-      products: signal<CatalogProduct[]>([]),
-      mockStore: {
-        isDemoMode: () => true,
-        saveCatalogProduct,
-        applyCategoryBrandText: (value: CatalogProduct) => value,
-      },
-    });
-    const result = await service.createProduct({
-      workspaceId: 'workspace-1',
-      title: '  Schuh  ',
-      condition: 'defective',
-      conditionNotes: '  Naht beschädigt  ',
-    });
-    expect(result.error).toBeNull();
-    expect(saveCatalogProduct).toHaveBeenCalledExactlyOnceWith(
-      expect.objectContaining({
-        title: 'Schuh',
-        tracking_mode: 'quantity',
-        condition: 'defective',
-        condition_notes: 'Naht beschädigt',
-      }),
-    );
-  });
-
   afterEach(() => {
     vi.unstubAllGlobals();
   });
@@ -93,7 +63,6 @@ describe('CatalogService', () => {
     const service = Object.create(CatalogService.prototype) as CatalogService;
     Object.assign(service, {
       products: signal<CatalogProduct[]>([]),
-      mockStore: { isDemoMode: signal(false) },
       syncStatus: new SyncStatusService(),
       supabase: {
         client: {
@@ -144,7 +113,6 @@ describe('CatalogService', () => {
     const service = Object.create(CatalogService.prototype) as CatalogService;
     Object.assign(service, {
       products: signal<CatalogProduct[]>([]),
-      mockStore: { isDemoMode: () => false },
       syncStatus: new SyncStatusService(),
       supabase: { client: { from: () => ({ insert }) } },
     });
@@ -178,7 +146,6 @@ describe('CatalogService', () => {
     const service = Object.create(CatalogService.prototype) as CatalogService;
     Object.assign(service, {
       products: signal<CatalogProduct[]>([]),
-      mockStore: { isDemoMode: () => false },
       syncStatus: new SyncStatusService(),
       supabase: { client: { from: () => ({ insert }) } },
     });
@@ -200,7 +167,6 @@ describe('CatalogService', () => {
       loadError: signal<Error | null>(null),
       loadedWorkspaceId: signal<string | null>(null),
       loadRequestId: 0,
-      mockStore: { isDemoMode: signal(false) },
       syncStatus: new SyncStatusService(),
       supabase: {
         client: {
@@ -235,7 +201,6 @@ describe('CatalogService', () => {
       loadError: signal<Error | null>(null),
       loadedWorkspaceId,
       loadRequestId: 0,
-      mockStore: { isDemoMode: signal(false) },
       syncStatus: new SyncStatusService(),
       supabase: {
         client: {
@@ -268,36 +233,6 @@ describe('CatalogService', () => {
     expect(service.isLoading()).toBe(false);
     expect(service.loadError()).toBeNull();
   });
-
-  it('legt im Demo-Modus auch ohne crypto.randomUUID einen Katalogartikel an', async () => {
-    vi.stubGlobal('crypto', {
-      getRandomValues: (values: Uint8Array) => {
-        values.set(Array.from({ length: values.length }, (_, index) => index));
-        return values;
-      },
-    });
-    const saveCatalogProduct = vi.fn();
-    const service = Object.create(CatalogService.prototype) as CatalogService;
-    Object.assign(service, {
-      products: signal<CatalogProduct[]>([]),
-      mockStore: {
-        isDemoMode: () => true,
-        saveCatalogProduct,
-        applyCategoryBrandText: (value: CatalogProduct) => value,
-      },
-    });
-
-    const result = await service.createProduct({
-      workspaceId: product.workspace_id,
-      title: product.title,
-    });
-
-    expect(result.error).toBeNull();
-    expect(result.data?.id).toMatch(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
-    );
-    expect(saveCatalogProduct).toHaveBeenCalledWith(result.data);
-  });
 });
 
 // Änderungen dürfen ausschließlich den Artikelstamm und dessen Workspace betreffen.
@@ -324,21 +259,15 @@ describe('CatalogService.updateProduct', () => {
       return { eq };
     });
     const insert = vi.fn();
-    const saveCatalogProduct = vi.fn();
     const service = Object.create(CatalogService.prototype) as CatalogService;
     Object.assign(service, {
       workspace: { currentWorkspace: activeWorkspace },
       products: signal<CatalogProduct[]>([stored]),
       requestedWorkspaceId: 'workspace-1',
-      mockStore: {
-        isDemoMode: () => false,
-        getCatalogProducts: () => [stored],
-        saveCatalogProduct,
-      },
       syncStatus: new SyncStatusService(),
       supabase: { client: { from: vi.fn(() => ({ update, insert })) } },
     });
-    return { service, activeWorkspace, stored, single, eq, update, insert, saveCatalogProduct };
+    return { service, activeWorkspace, stored, single, eq, update, insert };
   }
 
   it('aktualisiert statt anzulegen und begrenzt die Abfrage auf ID und Workspace', async () => {
@@ -371,22 +300,6 @@ describe('CatalogService.updateProduct', () => {
     expect(update).toHaveBeenCalledExactlyOnceWith({ category_id: null, brand_id: 'brand-1' });
     expect(update.mock.calls[0]?.[0]).not.toHaveProperty('categoryId');
     expect(update.mock.calls[0]?.[0]).not.toHaveProperty('brandId');
-  });
-
-  it('speichert Demoänderungen dauerhaft und erhält Medien und nicht bearbeitete Felder', async () => {
-    const { service, stored, saveCatalogProduct } = setup();
-    Object.assign(service, {
-      mockStore: { isDemoMode: () => true, getCatalogProducts: () => [stored], saveCatalogProduct },
-    });
-    await service.updateProduct(product.id, {
-      workspaceId: product.workspace_id,
-      description: ' Beschreibung ',
-    });
-    expect(saveCatalogProduct).toHaveBeenCalledExactlyOnceWith({
-      ...stored,
-      description: 'Beschreibung',
-    });
-    expect(service.products()).toEqual([{ ...stored, description: 'Beschreibung' }]);
   });
 
   it('blockiert einen bereits gewechselten Workspace vor dem Schreiben', async () => {
@@ -439,63 +352,6 @@ describe('CatalogService.updateProduct', () => {
       expect(service.products()).toEqual([stored]);
     },
   );
-
-  it('legt im Demo-Modus keinen unbekannten oder fremden Artikel an', async () => {
-    const { service, stored, saveCatalogProduct } = setup();
-    Object.assign(service, {
-      mockStore: {
-        isDemoMode: () => true,
-        getCatalogProducts: () => [{ ...stored, workspace_id: 'foreign' }],
-        saveCatalogProduct,
-      },
-    });
-    expect(
-      (await service.updateProduct(product.id, { workspaceId: product.workspace_id, title: 'Neu' }))
-        .error,
-    ).toBeInstanceOf(Error);
-    expect(saveCatalogProduct).not.toHaveBeenCalled();
-  });
-
-  it('liefert Demozuordnungen ausschließlich über Einkaufspositionen und verändert deren Text nicht', async () => {
-    const { service, stored, saveCatalogProduct } = setup();
-    const line = {
-      id: 'line-1',
-      workspace_id: product.workspace_id,
-      catalog_product_id: product.id,
-      purchase_id: 'purchase-1',
-      title_snapshot: 'Historischer Einkaufstext',
-    };
-    const item = {
-      id: 'item-1',
-      workspace_id: product.workspace_id,
-      purchase_line_id: line.id,
-      title: 'Historisches Stück',
-    };
-    Object.assign(service, {
-      mockStore: {
-        isDemoMode: () => true,
-        getCatalogProducts: () => [stored],
-        saveCatalogProduct,
-        getPurchaseLines: () => [line, { ...line, id: 'other-line', catalog_product_id: 'other' }],
-        getItems: () => [
-          item,
-          { ...item, id: 'unlinked', purchase_line_id: null },
-          { ...item, id: 'foreign', workspace_id: 'foreign' },
-        ],
-        getPurchases: () => [
-          { id: 'purchase-1', workspace_id: product.workspace_id, title: 'Einkauf' },
-        ],
-      },
-    });
-    await service.updateProduct(product.id, {
-      workspaceId: product.workspace_id,
-      title: 'Neuer Stammtitel',
-    });
-    const result = await service.loadProductEntries(product.id, product.workspace_id);
-    expect(result.data).toHaveLength(1);
-    expect(result.data?.[0].inventory_items).toEqual([item]);
-    expect(result.data?.[0].title_snapshot).toBe('Historischer Einkaufstext');
-  });
 });
 
 describe('CatalogService.loadProductEntries', () => {
@@ -539,7 +395,6 @@ describe('CatalogService.loadProductEntries', () => {
     const service = Object.create(CatalogService.prototype) as CatalogService;
     Object.assign(service, {
       workspace: { currentWorkspace: () => ({ id: product.workspace_id }) },
-      mockStore: { isDemoMode: () => false },
       syncStatus: new SyncStatusService(),
       supabase: { client: { from } },
     });
@@ -569,7 +424,6 @@ describe('CatalogService.loadProduct', () => {
     Object.assign(service, {
       products: signal<CatalogProduct[]>([]),
       workspace: { currentWorkspace: () => ({ id: product.workspace_id }) },
-      mockStore: { isDemoMode: () => false },
       syncStatus: new SyncStatusService(),
       supabase: { client: { from } },
     });
@@ -579,83 +433,6 @@ describe('CatalogService.loadProduct', () => {
       ['id', product.id],
     ]);
     expect(service.products()).toEqual([]);
-  });
-});
-
-describe('Suchmaschineneintrag', () => {
-  it('legt einen normalisierten Handle an und hält ihn bei Titeländerung stabil', async () => {
-    let saved: CatalogProduct | undefined;
-    const service = Object.create(CatalogService.prototype) as CatalogService;
-    Object.assign(service, {
-      products: signal<CatalogProduct[]>([]),
-      workspace: { currentWorkspace: () => ({ id: 'workspace-1' }) },
-      syncStatus: new SyncStatusService(),
-      mockStore: {
-        isDemoMode: () => true,
-        saveCatalogProduct: (value: CatalogProduct) => {
-          saved = value;
-        },
-        getCatalogProducts: () => (saved ? [saved] : []),
-        applyCategoryBrandText: (value: CatalogProduct) => value,
-      },
-    });
-    const result = await service.createProduct({
-      workspaceId: 'workspace-1',
-      title: 'Grüner Schuh',
-      urlHandle: ' ',
-      seoTitle: '  Wunschname  ',
-      seoDescription: ' Beschreibung ',
-    });
-    expect(result.data).toMatchObject({
-      url_handle: 'gruener-schuh',
-      seo_title: 'Wunschname',
-      seo_description: 'Beschreibung',
-    });
-    const update = await service.updateProduct(result.data!.id, {
-      workspaceId: 'workspace-1',
-      title: 'Anderer Name',
-    });
-    expect(update.data?.url_handle).toBe('gruener-schuh');
-    const clear = await service.updateProduct(result.data!.id, {
-      workspaceId: 'workspace-1',
-      seoTitle: '',
-      seoDescription: null,
-      urlHandle: 'Neuer Pfad!',
-    });
-    expect(clear.data).toMatchObject({
-      seo_title: null,
-      seo_description: null,
-      url_handle: 'neuer-pfad',
-    });
-  });
-});
-
-describe('CatalogService – Demo-Kategorie und -Marke', () => {
-  it('setzt im Demo-Modus die abgeleiteten Texte aus den Verweisen', async () => {
-    const mockStore = new MockDataStoreService();
-    mockStore.isDemoMode.set(true);
-    const brand = mockStore.ensureBrand(product.workspace_id, 'Sony');
-    expect(brand).not.toBeNull();
-    const service = Object.create(CatalogService.prototype) as CatalogService;
-    Object.assign(service, {
-      products: signal<CatalogProduct[]>([]),
-      mockStore,
-      syncStatus: new SyncStatusService(),
-    });
-
-    const result = await service.createProduct({
-      workspaceId: product.workspace_id,
-      title: 'Controller',
-      categoryId: 'el-18-5',
-      brandId: brand!.id,
-    });
-
-    expect(result.data).toMatchObject({
-      category_id: 'el-18-5',
-      category: 'Elektronik > Zubehör für Videospielkonsolen > Videospiel-Controller',
-      brand_id: brand!.id,
-      brand: 'Sony',
-    });
   });
 });
 

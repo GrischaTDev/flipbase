@@ -76,7 +76,6 @@ describe('Verkaufsnahe Schreibvorgänge', () => {
         calculateRoi: () => 150,
         calculateHoldingDurationDays: () => 0,
       },
-      mockStore: { isDemoMode: () => false, saveSale: () => undefined },
       webhookService: { sendSaleNotification: () => undefined },
       syncStatus,
       sales: signal<Sale[]>([]),
@@ -110,7 +109,6 @@ describe('Verkaufsnahe Schreibvorgänge', () => {
     const dienst = Object.create(ReturnService.prototype) as ReturnService;
     Object.assign(dienst, {
       workspaceService: { currentWorkspace: () => workspace },
-      mockStore: { isDemoMode: () => false },
       syncStatus,
       returns: signal([]),
       supabase: {
@@ -143,7 +141,6 @@ describe('Verkaufsnahe Schreibvorgänge', () => {
     const dienst = Object.create(InvoiceService.prototype) as InvoiceService;
     Object.assign(dienst, {
       workspaceService: { currentWorkspace: () => workspace },
-      mockStore: { isDemoMode: () => false },
       syncStatus,
       sentEmails: signal([]),
       supabase: {
@@ -187,7 +184,6 @@ describe('Verkaufsnahe Schreibvorgänge', () => {
         calculateRoi: () => 150,
         calculateHoldingDurationDays: () => 0,
       },
-      mockStore: { isDemoMode: () => false, saveSale: vi.fn() },
       webhookService: { sendSaleNotification: vi.fn() },
       syncStatus,
       sales: signal<Sale[]>([]),
@@ -213,7 +209,6 @@ describe('Verkaufsnahe Schreibvorgänge', () => {
     const dienst = Object.create(ReturnService.prototype) as ReturnService;
     Object.assign(dienst, {
       workspaceService: { currentWorkspace: () => workspace },
-      mockStore: { isDemoMode: () => false },
       syncStatus,
       returns: signal([]),
       salesService: {
@@ -271,10 +266,6 @@ describe('Verkaufsnahe Schreibvorgänge', () => {
       profitEngine: {
         calculateProfit: vi.fn(() => 25),
         calculateRoi: vi.fn(() => 100),
-      },
-      mockStore: {
-        isDemoMode: () => false,
-        saveSale: vi.fn(),
       },
       syncStatus,
       supabase: { client: { from } },

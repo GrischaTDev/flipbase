@@ -14,30 +14,6 @@
       (openCreateWorkspace)="openCreateWorkspace()"
     ></app-header>
 
-    <!-- Demo-Modus deutlich kennzeichnen -->
-    @if (auth.isDemoMode()) {
-      <div
-        class="bg-amber-500/15 border-b border-amber-500/30 px-4 md:px-6 py-2 flex flex-wrap items-center justify-center gap-3 text-center"
-        role="status"
-      >
-        <p class="text-[11px] text-amber-300 leading-relaxed">
-          <strong>Demo-Modus</strong> &ndash; alle Daten liegen nur in diesem Browser und werden
-          nicht auf dem Server gespeichert.
-          <a routerLink="/auth/login" class="underline font-semibold hover:text-amber-200 ml-1">
-            Mit Konto anmelden
-          </a>
-        </p>
-        <button
-          type="button"
-          (click)="reloadDemoData()"
-          class="px-2.5 py-1 text-[10px] font-bold rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40 cursor-pointer transition flex items-center gap-1"
-        >
-          <span>🔄</span>
-          <span>Beispieldaten neu laden</span>
-        </button>
-      </div>
-    }
-
     <!-- Page Content Container -->
     <main
       id="hauptinhalt"

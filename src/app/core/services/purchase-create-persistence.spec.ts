@@ -76,22 +76,11 @@ function erstelleGeldPayload(
 
 function erstelleDienste(client: unknown) {
   const syncStatus = new SyncStatusService();
-  const isDemoMode = signal(false);
-  const mockStore = {
-    isDemoMode,
-    savePurchase: vi.fn(),
-    deletePurchase: vi.fn(),
-    saveItem: vi.fn(),
-    deleteItem: vi.fn(),
-    saveActivityLog: vi.fn(),
-    getItems: () => [],
-  };
   const inventory = Object.create(InventoryService.prototype) as InventoryService;
   Object.assign(inventory, {
     supabase: { client },
     syncStatus,
     workspaceService: { currentWorkspace: signal(workspace) },
-    mockStore,
     items: signal<InventoryItem[]>([]),
     selectedItem: signal<InventoryItem | null>(null),
     itemCosts: signal([]),
@@ -104,7 +93,6 @@ function erstelleDienste(client: unknown) {
     supabase: { client },
     syncStatus,
     workspaceService: { currentWorkspace: signal(workspace) },
-    mockStore,
     purchasesRaw: signal<Purchase[]>([]),
     selectedPurchaseRaw: signal<Purchase | null>(null),
     selectedPurchase: () => null,

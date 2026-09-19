@@ -2,15 +2,10 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthSession, User } from '@supabase/supabase-js';
 import { SupabaseService } from './supabase.service';
-import { MockDataStoreService } from './mock-data-store.service';
 import { UserProfile } from '../models/flipbase.models';
-import { environment } from '../../../environments/environment';
 import { SyncStatusService } from './sync-status.service';
 import { LandingHintService } from './landing-hint.service';
 import { SessionChannelService } from './session-channel.service';
-
-/** Speicherschlüssel für den bewusst gewählten Demo-Modus. */
-const DEMO_MODE_KEY = 'flipbase_demo_mode';
 
 export interface ProfileUpdateResult {
   readonly error: Error | null;
@@ -37,12 +32,9 @@ export function istSitzungWiderrufen(fehler: unknown): boolean {
  *
  * Wichtige Unterscheidung:
  * - `isAuthenticated` bedeutet: es gibt eine **echte** Supabase-Sitzung.
- * - `isDemoMode` bedeutet: der Nutzer hat den Demo-Modus **bewusst gewählt**.
- *   Es werden ausschliesslich lokale Daten dieses Browsers angezeigt, es
- *   besteht kein Zugriff auf Serverdaten.
  * - `canAccessApp` ist das, worauf der Router-Guard prüft.
  *
- * Diese drei Begriffe waren zuvor in einer einzigen Variable vermischt, die
+ * Diese Begriffe waren zuvor in einer einzigen Variable vermischt, die
  * standardmässig auf "angemeldet" stand. Damit war jede Zugriffsprüfung
  * wirkungslos.
  */
@@ -52,7 +44,6 @@ export function istSitzungWiderrufen(fehler: unknown): boolean {
 export class AuthService {
   private readonly supabase = inject(SupabaseService);
   private readonly syncStatus = inject(SyncStatusService, { optional: true });
-  private readonly mockStore = inject(MockDataStoreService);
   private readonly router = inject(Router);
   private readonly landingHint = inject(LandingHintService);
   private readonly sessionChannel = inject(SessionChannelService);
@@ -62,30 +53,16 @@ export class AuthService {
   readonly profile = signal<UserProfile | null>(null);
   readonly isLoading = signal<boolean>(false);
 
-  /**
-   * Demo-Modus. Standard ist **aus** – er muss auf der Anmeldeseite aktiv
-   * gewählt werden.
-   */
-  readonly isDemoMode = signal<boolean>(this.readStoredDemoMode());
-
-  /** Ob der Demo-Modus überhaupt angeboten wird (im Web-Betrieb abschaltbar). */
-  readonly isDemoModeAllowed = environment.allowDemoMode;
-
   /** Echte Anmeldung – ausschliesslich eine gültige Supabase-Sitzung. */
   readonly isAuthenticated = computed<boolean>(() => !!this.currentUser());
 
-  /** Zugriffsrecht auf die Anwendung: echte Anmeldung oder gewählter Demo-Modus. */
-  readonly canAccessApp = computed<boolean>(
-    () => this.isAuthenticated() || (this.isDemoModeAllowed && this.isDemoMode()),
-  );
+  /** Zugriffsrecht auf die Anwendung: nur mit echter Supabase-Sitzung. */
+  readonly canAccessApp = computed<boolean>(() => this.isAuthenticated());
 
-  readonly userEmail = computed<string>(() => {
-    if (this.isAuthenticated()) return this.currentUser()?.email ?? '';
-    return this.isDemoMode() ? 'demo@flipbase.app' : '';
-  });
+  readonly userEmail = computed<string>(() => this.currentUser()?.email ?? '');
 
   readonly userName = computed<string>(() => {
-    if (!this.isAuthenticated()) return this.isDemoMode() ? 'Demo Reseller' : '';
+    if (!this.isAuthenticated()) return '';
     return (
       this.profile()?.full_name ||
       this.currentUser()?.user_metadata?.['full_name'] ||
@@ -101,10 +78,6 @@ export class AuthService {
   readonly sessionReady: Promise<void>;
 
   constructor() {
-    this.mockStore.isDemoMode.set(this.isDemoMode());
-    if (this.isDemoMode()) {
-      this.mockStore.ensureShowcaseData();
-    }
     this.sessionReady = this.initAuth();
     this.watchAuthState();
 
@@ -220,8 +193,6 @@ export class AuthService {
   private applySession(session: AuthSession): void {
     this.session.set(session);
     this.currentUser.set(session.user);
-    // Eine echte Anmeldung beendet den Demo-Modus.
-    this.setDemoMode(false);
     // Der Landingpage mitteilen, dass hier jemand angemeldet ist.
     this.landingHint.anmelden();
 
@@ -441,44 +412,9 @@ export class AuthService {
         // Auch ohne erreichbares Backend lokal abmelden.
       }
       this.leereSitzungsdaten();
-      this.setDemoMode(false);
       this.router.navigate(['/auth/login']);
     } finally {
       this.isLoading.set(false);
-    }
-  }
-
-  /** Startet den Demo-Modus als bewusste Entscheidung des Nutzers. */
-  enterDemoMode(): void {
-    if (!this.isDemoModeAllowed) return;
-    this.setDemoMode(true);
-    // Nur ergaenzen, nicht ueberschreiben: Zuvor wurde hier der komplette
-    // lokale Bestand ersetzt - wer als echter Nutzer versehentlich auf
-    // "Demo-Modus starten" klickte, verlor seine lokalen Daten.
-    this.mockStore.ensureShowcaseData();
-    this.router.navigate(['/dashboard']);
-  }
-
-  private setDemoMode(active: boolean): void {
-    this.isDemoMode.set(active);
-    this.mockStore.isDemoMode.set(active);
-    try {
-      if (active) {
-        localStorage.setItem(DEMO_MODE_KEY, 'true');
-      } else {
-        localStorage.removeItem(DEMO_MODE_KEY);
-      }
-    } catch {
-      // Ohne Speicher gilt der Modus nur für diese Sitzung.
-    }
-  }
-
-  private readStoredDemoMode(): boolean {
-    if (!environment.allowDemoMode) return false;
-    try {
-      return localStorage.getItem(DEMO_MODE_KEY) === 'true';
-    } catch {
-      return false;
     }
   }
 }

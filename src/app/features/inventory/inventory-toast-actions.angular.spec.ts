@@ -363,7 +363,7 @@ describe('InventoryComponent – Aktionsmeldungen', () => {
                 received_at: '2026-08-01T10:00:00.000Z',
                 catalog_product: {
                   id: 'catalog-sold',
-                  title: 'Ausverkaufte Demo-Tassen',
+                  title: 'Ausverkaufte Test-Tassen',
                   is_public_store: false,
                 },
               },
@@ -432,7 +432,7 @@ describe('InventoryComponent – Aktionsmeldungen', () => {
       expect.arrayContaining([
         expect.objectContaining({
           id: 'quantity:catalog-sold',
-          title: 'Ausverkaufte Demo-Tassen',
+          title: 'Ausverkaufte Test-Tassen',
         }),
       ]),
     );

@@ -90,13 +90,9 @@ describe('Daten & Protokolle', () => {
   ] as const)(
     'unterscheidet Rollen-Ladezustand %s / %s als %s',
     (membershipLoaded, role, expected) => {
-      expect(resolveAuditAccessState(false, membershipLoaded, role)).toBe(expected);
+      expect(resolveAuditAccessState(membershipLoaded, role)).toBe(expected);
     },
   );
-
-  it('behandelt den Demo-Modus unabhängig vom Workspace-Mitgliederladen', () => {
-    expect(resolveAuditAccessState(true, false, null)).toBe('demo');
-  });
 
   it.each<[WorkspaceRole | null, boolean]>([
     ['owner', true],

@@ -3,7 +3,6 @@ import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
 import { ProfitEngineService } from './profit-engine.service';
 import { InventoryService } from './inventory.service';
-import { MockDataStoreService } from './mock-data-store.service';
 import { WebhookService } from './webhook.service';
 import { SyncStatusService } from './sync-status.service';
 import {
@@ -18,7 +17,6 @@ import {
 import { MutationResult } from '../models/mutation-result.model';
 import { StockService } from './stock.service';
 import { ReturnRecord } from '../models/return.models';
-import { createLocalDemoId } from '../utils/client-identity';
 import { INVENTORY_RECONCILIATION_AUDIT_REASONS } from '../models/inventory-reconciliation';
 import { calculateStoredSaleMetrics } from '../utils/sale-metrics';
 import { saleCostBasisStatus } from '../utils/cost-basis';
@@ -119,7 +117,6 @@ export class SalesService {
   private readonly workspaceService = inject(WorkspaceService);
   private readonly profitEngine = inject(ProfitEngineService);
   private readonly inventoryService = inject(InventoryService);
-  private readonly mockStore = inject(MockDataStoreService);
   private readonly webhookService = inject(WebhookService);
 
   private get legacySaleClient(): LegacySaleRpcClient {
@@ -164,16 +161,6 @@ export class SalesService {
     this.loadedWorkspaceId.set(null);
     this.sales.set([]);
     try {
-      if (this.mockStore.isDemoMode()) {
-        const localSales = this.mockStore
-          .getSales(workspaceId)
-          .map((s) => this.enrichSaleMetrics(s));
-        if (!this.isCurrentLoad(requestId, workspaceId)) return;
-        this.sales.set(localSales);
-        this.loadedWorkspaceId.set(workspaceId);
-        return;
-      }
-
       const { data, error } = await this.supabase.client
         .from('sales')
         .select(
@@ -223,16 +210,10 @@ export class SalesService {
 
   public enrichSaleMetrics(raw: Sale): Sale {
     const item = raw.inventory_item;
-    const records = this.mockStore.isDemoMode()
-      ? {
-          purchases: this.mockStore.getPurchases(raw.workspace_id),
-          inventoryItems: this.mockStore.getItems(raw.workspace_id),
-          stockLots: this.mockStore.getStockLots(raw.workspace_id),
-        }
-      : {
-          inventoryItems: this.inventoryService?.items?.(),
-          stockLots: this.stockService?.lots?.(),
-        };
+    const records = {
+      inventoryItems: this.inventoryService?.items?.(),
+      stockLots: this.stockService?.lots?.(),
+    };
     const metrics = calculateStoredSaleMetrics(raw, records);
     const grossRevenue = Number((metrics.revenue + Number(raw.refund_amount ?? 0)).toFixed(2));
 
@@ -309,21 +290,6 @@ export class SalesService {
     const workspaceId = this.workspaceService.currentWorkspace()?.id;
     if (!workspaceId)
       return this.mutationFailure('Verkauf buchen', new Error('Kein aktiver Workspace'));
-
-    if (this.mockStore.isDemoMode()) {
-      let result: RecordSaleResult;
-      try {
-        result = this.recordDemoSale(workspaceId, input);
-      } catch (error: unknown) {
-        return this.mutationFailure('Verkauf buchen', error);
-      }
-      this.sales.update((sales) => [
-        result.sale,
-        ...sales.filter((sale) => sale.id !== result.sale.id),
-      ]);
-      await this.refreshAffectedState(workspaceId);
-      return { data: result, error: null, reportedBySyncStatus: false };
-    }
 
     try {
       const { data, error } = await this.supabase.client.rpc('record_sale', {
@@ -437,59 +403,6 @@ export class SalesService {
     if (!workspaceId)
       return this.mutationFailure('Retoure buchen', new Error('Kein aktiver Workspace'));
 
-    if (this.mockStore.isDemoMode()) {
-      const existing = this.sales().find((sale) => sale.id === input.saleId);
-      if (!existing)
-        return this.mutationFailure(
-          'Retoure buchen',
-          new Error('Der Verkauf wurde nicht gefunden.'),
-        );
-      if (existing.returned_at) {
-        return this.mutationFailure(
-          'Retoure buchen',
-          new Error('Der Verkauf wurde bereits retourniert.'),
-        );
-      }
-      const saleTotal = this.grossSaleRevenue(existing);
-      const totalRefund = Math.min(
-        saleTotal,
-        Number(existing.refund_amount ?? 0) + input.refundAmount,
-      );
-      const isFullRefund = totalRefund >= saleTotal;
-      const saleReturnedAt = isFullRefund ? new Date().toISOString() : null;
-      const saleDraft: Sale = {
-        ...existing,
-        returned_at: saleReturnedAt,
-        refund_amount: totalRefund,
-      };
-      const returnResult = isFullRefund
-        ? this.mockStore.returnSaleAtomically(workspaceId, saleDraft, input.restock)
-        : { sale: saleDraft, movements: [] as StockMovement[], restockedQuantity: 0, error: null };
-      if (returnResult.error || !returnResult.sale) {
-        return this.mutationFailure(
-          'Retoure buchen',
-          returnResult.error ?? new Error('Die Demo-Retoure wurde nicht gespeichert.'),
-        );
-      }
-      const sale = this.enrichSaleMetrics({
-        ...returnResult.sale,
-        stock_movements: returnResult.movements,
-      });
-      if (!isFullRefund) this.mockStore.saveSale(sale);
-      this.sales.update((sales) => sales.map((entry) => (entry.id === sale.id ? sale : entry)));
-      await this.refreshAffectedState(workspaceId);
-      return {
-        data: {
-          sale,
-          returnRecord: undefined,
-          restockedQuantity: returnResult.restockedQuantity,
-          saleReturnedAt,
-        },
-        error: null,
-        reportedBySyncStatus: false,
-      };
-    }
-
     try {
       const { data, error } = await this.supabase.client.rpc('record_sale_return', {
         p_workspace_id: workspaceId,
@@ -546,77 +459,6 @@ export class SalesService {
       stock_movements: movements,
     });
     return { sale, saleLines: lines, lotAllocations: allocations, stockMovements: movements };
-  }
-
-  private grossSaleRevenue(sale: Sale): number {
-    const lines = sale.has_persisted_lines === false ? [] : (sale.lines ?? []);
-    if (lines.length > 0) {
-      const positionTotal = lines.reduce((sum, line) => sum + Number(line.line_total || 0), 0);
-      return Math.round((positionTotal + Number(sale.shipping_revenue ?? 0)) * 100) / 100;
-    }
-    return Number(sale.sale_price_total ?? sale.sale_price ?? 0);
-  }
-
-  private recordDemoSale(workspaceId: string, input: RecordSaleInput): RecordSaleResult {
-    const saleId = createLocalDemoId('sale');
-    const lines: SaleLine[] = input.lines.map((line) => ({
-      id: createLocalDemoId('sale-line'),
-      sale_id: saleId,
-      catalog_product_id: line.catalogProductId ?? null,
-      inventory_item_id: line.inventoryItemId ?? null,
-      title_snapshot: line.titleSnapshot ?? 'Artikel',
-      quantity: line.quantity,
-      unit_sale_price: line.unitSalePrice,
-      line_total: line.quantity * line.unitSalePrice,
-      cost_of_goods_sold: null,
-      tax_mode: 'diff_25a',
-    }));
-    const lineTotal = lines.reduce((sum, line) => sum + line.line_total, 0);
-    const costEntries: SaleCostEntry[] = this.saleCostInputs(input).map((entry) => ({
-      id: createLocalDemoId('sale-cost'),
-      workspace_id: workspaceId,
-      sale_id: saleId,
-      category: entry.category,
-      description: entry.description ?? null,
-      amount: entry.amount,
-    }));
-    const packagingCost = costEntries
-      .filter((entry) => entry.category === 'packaging')
-      .reduce((sum, entry) => sum + entry.amount, 0);
-    const otherCosts = costEntries
-      .filter((entry) => entry.category !== 'packaging')
-      .reduce((sum, entry) => sum + entry.amount, 0);
-    const shippingRevenue = input.shippingRevenue ?? 0;
-    const grossRevenue = lineTotal + shippingRevenue;
-    const saleDraft: Sale = {
-      id: saleId,
-      workspace_id: workspaceId,
-      platform: input.platform,
-      sale_price: grossRevenue,
-      sale_price_total: grossRevenue,
-      sale_date: input.saleDate,
-      platform_fee: input.platformFee ?? 0,
-      shipping_cost: input.shippingCost ?? 0,
-      packaging_cost: packagingCost,
-      other_costs: otherCosts,
-      shipping_revenue: shippingRevenue,
-      shipping_mode: input.shippingMode ?? null,
-      external_order_id: input.externalOrderId ?? null,
-      external_listing_id: input.externalListingId ?? null,
-      buyer_notes: input.buyerNotes ?? null,
-      lines,
-      cost_entries: costEntries,
-    };
-    const booking = this.mockStore.bookSaleAtomically(workspaceId, saleDraft, lines);
-    if (booking.error) throw booking.error;
-    if (!booking.sale) throw new Error('Der Demo-Verkauf wurde nicht gespeichert.');
-    const sale = this.enrichSaleMetrics(booking.sale);
-    return {
-      sale,
-      saleLines: booking.saleLines,
-      lotAllocations: booking.allocations,
-      stockMovements: booking.movements,
-    };
   }
 
   private arrayValue<T>(value: unknown): T[] {

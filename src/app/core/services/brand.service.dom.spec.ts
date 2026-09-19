@@ -3,7 +3,6 @@ import { Injector, runInInjectionContext, signal } from '@angular/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Workspace } from '../models/flipbase.models';
 import { BrandService } from './brand.service';
-import { MockDataStoreService } from './mock-data-store.service';
 import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
 
@@ -39,7 +38,6 @@ function createService(options: {
     data: BrandRow | null;
     error: { code?: string; message: string } | null;
   };
-  readonly demo?: boolean;
 }) {
   const current = signal<Workspace | null>(workspace('ws-1'));
   const pages = options.pages ?? [];
@@ -55,17 +53,14 @@ function createService(options: {
     selects.push(select);
     return { ...select.query, insert };
   });
-  const mockStore = new MockDataStoreService();
-  mockStore.isDemoMode.set(options.demo ?? false);
   const injector = Injector.create({
     providers: [
       { provide: SupabaseService, useValue: { client: { from } } },
-      { provide: MockDataStoreService, useValue: mockStore },
       { provide: WorkspaceService, useValue: { currentWorkspace: current } },
     ],
   });
   const service = runInInjectionContext(injector, () => new BrandService());
-  return { service, from, insert, current, mockStore, selects };
+  return { service, from, insert, current, selects };
 }
 
 describe('BrandService', () => {
@@ -165,68 +160,5 @@ describe('BrandService', () => {
     await expect(service.create('   ')).resolves.toMatchObject({ data: null });
     await expect(service.create('x'.repeat(121))).resolves.toMatchObject({ data: null });
     expect(from).not.toHaveBeenCalled();
-  });
-
-  it('arbeitet im Demo-Modus mit lokalen Marken', async () => {
-    const { service, from, mockStore } = createService({ demo: true });
-
-    const created = await service.create('Nintendo');
-
-    expect(created.data?.name).toBe('Nintendo');
-    expect(mockStore.getBrands('ws-1').map((brand) => brand.name)).toEqual(['Nintendo']);
-    expect(from).not.toHaveBeenCalled();
-  });
-});
-
-describe('MockDataStoreService.applyCategoryBrandText', () => {
-  beforeEach(() => localStorage.clear());
-
-  function demoStore() {
-    const store = new MockDataStoreService();
-    store.isDemoMode.set(true);
-    return store;
-  }
-
-  it('wertet beim Anlegen Markentext aus und setzt den Kategoriepfad', () => {
-    const store = demoStore();
-
-    const record = store.applyCategoryBrandText({
-      workspace_id: 'ws-1',
-      brand_id: null,
-      brand: ' Bosch ',
-      category_id: 'ha-15-14',
-      category: 'Freitext',
-    });
-
-    expect(record.brand).toBe('Bosch');
-    expect(record.brand_id).toBe(store.getBrands('ws-1')[0].id);
-    expect(record.category).toBe('Heimwerkerbedarf > Werkzeuge > Bohrmaschinen');
-  });
-
-  it('lässt beim Ändern der Kennung den alten Text unbeachtet', () => {
-    const store = demoStore();
-    const bosch = store.ensureBrand('ws-1', 'Bosch')!;
-    const makita = store.ensureBrand('ws-1', 'Makita')!;
-    const previous = { workspace_id: 'ws-1', brand_id: bosch.id, brand: 'Bosch' };
-
-    const record = store.applyCategoryBrandText({ ...previous, brand_id: makita.id }, previous);
-
-    expect(record.brand).toBe('Makita');
-  });
-
-  it('entfernt Text ohne Verweis und unbekannte Kategorien', () => {
-    const store = demoStore();
-
-    const record = store.applyCategoryBrandText(
-      { workspace_id: 'ws-1', brand_id: null, brand: 'Bosch', category_id: 'zz', category: 'Alt' },
-      { workspace_id: 'ws-1', brand_id: null, brand: 'Bosch' },
-    );
-
-    expect(record).toMatchObject({
-      brand_id: null,
-      brand: null,
-      category_id: 'zz',
-      category: null,
-    });
   });
 });

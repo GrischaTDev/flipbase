@@ -71,7 +71,7 @@ describe('BankReconciliationService', () => {
     service = runInInjectionContext(injector, () => new BankReconciliationService());
   });
 
-  it('should be created and start with clean transactions or demo data', () => {
+  it('should be created and start with clean transactions', () => {
     expect(service).toBeTruthy();
     expect(Array.isArray(service.transactions())).toBe(true);
   });
@@ -159,17 +159,6 @@ describe('BankReconciliationService', () => {
     expect(matchedTx.match?.confidence).toBe(100);
     expect(matchedTx.match?.confidenceLabel).toBe('exact');
     expect(matchedTx.match?.targetReference).toBe('ORD-100200');
-  });
-
-  it('should load demo statements and calculate summary statistics', () => {
-    service.loadDemoStatement();
-    expect(service.transactions().length).toBeGreaterThanOrEqual(4);
-
-    const summary = service.summary();
-    expect(summary.totalCount).toBeGreaterThanOrEqual(4);
-    expect(summary.totalIncome).toBeGreaterThan(0);
-    expect(summary.totalExpense).toBeGreaterThan(0);
-    expect(summary.autoMatchRate).toBeGreaterThanOrEqual(10);
   });
 
   it('should book transaction and update store order payment status', async () => {
@@ -281,7 +270,6 @@ describe('BankReconciliationService', () => {
       const s = service as unknown as Record<string, unknown>;
       s['supabase'] = { client };
       s['workspaceService'] = { currentWorkspace: () => ({ id: 'ws-1' }) };
-      s['mockStore'] = { isDemoMode: () => false };
 
       return { gesendet };
     }
@@ -331,16 +319,6 @@ describe('BankReconciliationService', () => {
 
       expect(gesendet.funktion).toBe('replace_bank_transactions');
       expect(gesendet.parameter?.['p_transactions']).toEqual([]);
-    });
-
-    it('schreibt im Demo-Modus nichts in die Datenbank', async () => {
-      const { gesendet } = mitAttrappe();
-      (service as unknown as Record<string, unknown>)['mockStore'] = { isDemoMode: () => true };
-      service.transactions.set([beispiel]);
-
-      await service.ignoreTransaction(beispiel.id);
-
-      expect(gesendet.funktion).toBeUndefined();
     });
   });
 });

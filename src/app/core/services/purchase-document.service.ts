@@ -8,13 +8,9 @@ import {
   validatePurchaseDocumentFile,
 } from '../models/purchase-document.models';
 import { AuthService } from './auth.service';
-import { MockDataStoreService } from './mock-data-store.service';
 import { SupabaseService } from './supabase.service';
 import { SyncStatusService } from './sync-status.service';
 import { WorkspaceService } from './workspace.service';
-
-const DEMO_MESSAGE =
-  'Im Demo-Modus werden keine Belege gespeichert. Melde dich an, um Originaldateien abzulegen.';
 
 /**
  * Originalbelege eines Einkaufs. Dateien liegen ausschließlich im privaten Bucket;
@@ -23,7 +19,6 @@ const DEMO_MESSAGE =
 @Injectable({ providedIn: 'root' })
 export class PurchaseDocumentService {
   private readonly supabase = inject(SupabaseService);
-  private readonly mockStore = inject(MockDataStoreService);
   private readonly syncStatus = inject(SyncStatusService);
   private readonly workspaceService = inject(WorkspaceService);
   private readonly auth = inject(AuthService, { optional: true });
@@ -35,10 +30,6 @@ export class PurchaseDocumentService {
 
   async loadForPurchase(purchaseId: string): Promise<void> {
     this.loadError.set(null);
-    if (this.mockStore.isDemoMode()) {
-      this.documentsRaw.set([]);
-      return;
-    }
     this.isLoading.set(true);
     try {
       const { data, error } = await this.supabase.client
@@ -65,7 +56,6 @@ export class PurchaseDocumentService {
   ): Promise<{ data: PurchaseDocument | null; error: Error | null }> {
     const invalid = validatePurchaseDocumentFile(file);
     if (invalid) return { data: null, error: invalid };
-    if (this.mockStore.isDemoMode()) return { data: null, error: new Error(DEMO_MESSAGE) };
 
     const workspace = this.workspaceService.currentWorkspace();
     if (!workspace) return { data: null, error: new Error('Kein aktiver Workspace') };
@@ -122,7 +112,6 @@ export class PurchaseDocumentService {
   }
 
   async download(document: PurchaseDocument): Promise<{ data: Blob | null; error: Error | null }> {
-    if (this.mockStore.isDemoMode()) return { data: null, error: new Error(DEMO_MESSAGE) };
     try {
       const { data, error } = await this.supabase.client.storage
         .from(PURCHASE_DOCUMENT_BUCKET)
@@ -139,7 +128,6 @@ export class PurchaseDocumentService {
    * offen ist. Erst danach verschwindet die Datei.
    */
   async remove(document: PurchaseDocument): Promise<{ error: Error | null }> {
-    if (this.mockStore.isDemoMode()) return { error: new Error(DEMO_MESSAGE) };
     try {
       const { data, error } = await this.supabase.client
         .from('purchase_documents')
