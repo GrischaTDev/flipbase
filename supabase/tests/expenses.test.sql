@@ -138,6 +138,60 @@ select is(
   'eine Wiederholungsregel speichert den Händler oder Anbieter'
 );
 
+select lives_ok(
+  $$insert into public.expenses (
+      workspace_id, category_id, recurring_rule_id, occurrence_date, title,
+      gross_amount, vat_rate, expense_date, due_date, status, payment_date, created_by
+    ) values (
+      'f1800000-0000-4000-8000-000000000011',
+      'f1800000-0000-4000-8000-000000000021',
+      'f1800000-0000-4000-8000-000000000031',
+      '2026-09-01',
+      'Server erneut',
+      99,
+      19,
+      '2026-09-01',
+      '2026-09-01',
+      'open',
+      null,
+      'f1800000-0000-4000-8000-000000000001'
+    ) on conflict (workspace_id, recurring_rule_id, occurrence_date) do nothing$$,
+  'derselbe Konfliktschlüssel wie PostgREST ist verwendbar'
+);
+
+select is(
+  (select count(*) from public.expenses
+   where recurring_rule_id = 'f1800000-0000-4000-8000-000000000031'
+     and occurrence_date = '2026-09-01'),
+  1::bigint,
+  'erneutes Erzeugen verdoppelt die Fälligkeit nicht'
+);
+
+select is(
+  (select gross_amount from public.expenses
+   where id = 'f1800000-0000-4000-8000-000000000041'),
+  29.90::numeric,
+  'erneutes Erzeugen überschreibt den historischen Betrag nicht'
+);
+
+select lives_ok(
+  $$insert into public.expenses (
+      id, workspace_id, category_id, title, gross_amount,
+      expense_date, status, payment_date, created_by
+    ) values (
+      'f1800000-0000-4000-8000-000000000043',
+      'f1800000-0000-4000-8000-000000000011',
+      'f1800000-0000-4000-8000-000000000021',
+      'Zweite manuelle Ausgabe',
+      8,
+      '2026-09-19',
+      'open',
+      null,
+      'f1800000-0000-4000-8000-000000000001'
+    )$$,
+  'mehrere manuelle Ausgaben ohne Wiederholungsregel bleiben zulässig'
+);
+
 select throws_ok(
   $$update public.expenses
     set quantity = 0

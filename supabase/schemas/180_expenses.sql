@@ -105,8 +105,7 @@ create table if not exists public.expenses (
 );
 
 create unique index if not exists expenses_recurring_occurrence_uidx
-  on public.expenses (workspace_id, recurring_rule_id, occurrence_date)
-  where recurring_rule_id is not null and occurrence_date is not null;
+  on public.expenses (workspace_id, recurring_rule_id, occurrence_date);
 
 create index if not exists expenses_workspace_payment_idx
   on public.expenses (workspace_id, payment_date)
