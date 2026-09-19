@@ -1,7 +1,6 @@
 import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
-import { MockDataStoreService } from './mock-data-store.service';
 import {
   AddressInfo,
   BundleCandidate,
@@ -61,7 +60,6 @@ export class FulfillmentService {
   // eines Injektionskontexts nutzbar bleiben - so erzeugen die Tests sie.
   private readonly logger = inject(LoggerService, { optional: true }) ?? new LoggerService();
   private readonly workspaceService = inject(WorkspaceService, { optional: true });
-  private readonly mockStore = inject(MockDataStoreService, { optional: true });
   private readonly webPushService = inject(WebPushService, { optional: true });
 
   readonly availableRates: CarrierRate[] = [
@@ -360,7 +358,7 @@ export class FulfillmentService {
       return;
     }
     if (!this.isCurrentWorkspace(requestedWorkspaceId)) return;
-    if (!this.supabase || this.mockStore?.isDemoMode()) {
+    if (!this.supabase) {
       this.loadedWorkspaceId.set(requestedWorkspaceId);
       return;
     }
@@ -564,7 +562,7 @@ export class FulfillmentService {
     const shippedAt = new Date().toISOString();
     const ws = this.workspaceService?.currentWorkspace();
 
-    if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
+    if (this.supabase && ws) {
       try {
         const { error, count } = await this.supabase.client
           .from('shipping_orders')
@@ -849,7 +847,7 @@ export class FulfillmentService {
   }
 
   private istPersistenterModus(): boolean {
-    return this.supabase !== null && this.supabase !== undefined && !this.mockStore?.isDemoMode();
+    return this.supabase !== null && this.supabase !== undefined;
   }
 
   private rpcClient(): FulfillmentRpcClient {

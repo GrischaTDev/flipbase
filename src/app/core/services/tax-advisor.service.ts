@@ -11,7 +11,6 @@ import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
 import { SyncStatusService } from './sync-status.service';
 import { TaxEngineService } from './tax-engine.service';
-import { MockDataStoreService } from './mock-data-store.service';
 
 const STORAGE_KEY_ADVISOR = 'flipbase_tax_advisor_config';
 
@@ -20,7 +19,6 @@ const STORAGE_KEY_ADVISOR = 'flipbase_tax_advisor_config';
 })
 export class TaxAdvisorService {
   private readonly supabase = inject(SupabaseService, { optional: true });
-  private readonly mockStore = inject(MockDataStoreService, { optional: true });
   private readonly taxEngine = inject(TaxEngineService);
   private readonly syncStatus = inject(SyncStatusService, { optional: true })!;
   private readonly workspaceService = inject(WorkspaceService, { optional: true });
@@ -75,7 +73,7 @@ export class TaxAdvisorService {
   }
 
   async loadFromSupabase(workspaceId: string): Promise<void> {
-    if (!this.supabase || this.mockStore?.isDemoMode()) return;
+    if (!this.supabase) return;
 
     try {
       const { data, error } = await this.supabase.client
@@ -118,7 +116,7 @@ export class TaxAdvisorService {
     } catch {}
 
     const ws = this.workspaceService?.currentWorkspace();
-    if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
+    if (this.supabase && ws) {
       this.supabase.client
         .from('tax_advisor_configs')
         .upsert(

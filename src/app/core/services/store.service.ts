@@ -3,7 +3,6 @@ import { InventoryService } from './inventory.service';
 import { WorkspaceService } from './workspace.service';
 import { WebPushService } from './web-push.service';
 import { SupabaseService } from './supabase.service';
-import { MockDataStoreService } from './mock-data-store.service';
 import { InventoryItem } from '../models/flipbase.models';
 import { isSellableInventoryItem } from '../models/inventory-sellability';
 import { Json, Tables } from '../models/supabase.types';
@@ -90,7 +89,6 @@ export class StoreService {
   // Faellt auf eine eigene Instanz zurueck, damit Dienste auch ausserhalb
   // eines Injektionskontexts nutzbar bleiben - so erzeugen die Tests sie.
   private readonly logger = inject(LoggerService, { optional: true }) ?? new LoggerService();
-  private readonly mockStore = inject(MockDataStoreService, { optional: true });
   private readonly inventoryService = inject(InventoryService, { optional: true });
   private readonly catalogService = inject(CatalogService, { optional: true });
   private readonly stockService = inject(StockService, { optional: true });
@@ -261,7 +259,7 @@ export class StoreService {
       return;
     }
     if (!this.isCurrentWorkspace(requestedWorkspaceId)) return;
-    if (!this.supabase || this.mockStore?.isDemoMode()) {
+    if (!this.supabase) {
       this.loadedWorkspaceId.set(requestedWorkspaceId);
       return;
     }
@@ -375,7 +373,7 @@ export class StoreService {
     } catch {}
 
     const ws = this.workspaceService?.currentWorkspace();
-    if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
+    if (this.supabase && ws) {
       this.supabase.client
         .from('store_settings')
         .upsert(
@@ -405,7 +403,7 @@ export class StoreService {
     const workspaceId = this.workspaceService?.currentWorkspace()?.id ?? null;
     const updatedPayments = { ...this.storeSettings().payments, ...payments };
     const updatedSettings = { ...this.storeSettings(), payments: updatedPayments };
-    const persistent = Boolean(this.supabase && !this.mockStore?.isDemoMode());
+    const persistent = Boolean(this.supabase);
 
     if (persistent && !workspaceId)
       return this.storeConfigFehler(new Error('Kein aktiver Workspace.'));
@@ -671,7 +669,7 @@ export class StoreService {
 
     const ws = this.workspaceService?.currentWorkspace();
     let bestaetigteBestellung = newOrder;
-    if (this.supabase && !this.mockStore?.isDemoMode()) {
+    if (this.supabase) {
       if (!ws) return this.fehlgeschlageneBestellung(new Error('Kein aktiver Workspace.'));
 
       try {
@@ -724,15 +722,6 @@ export class StoreService {
       } catch (error: unknown) {
         return this.fehlgeschlageneBestellung(error);
       }
-    } else if (this.mockStore?.isDemoMode()) {
-      if (!ws) return this.fehlgeschlageneBestellung(new Error('Kein aktiver Workspace.'));
-      if (!this.salesService) {
-        return this.fehlgeschlageneBestellung(
-          new Error('Der zentrale Verkaufsdienst ist nicht verfügbar.'),
-        );
-      }
-      const saleResult = await this.salesService.recordSale(saleInput);
-      if (saleResult.error) return this.fehlgeschlageneBestellung(saleResult.error);
     }
 
     this.orders.update((orders) => {

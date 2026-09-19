@@ -7,7 +7,6 @@ import {
 } from '../models/business-event.models';
 import { Database } from '../models/supabase.types';
 import { mapBusinessEventLabel } from './business-event.service';
-import { MockDataStoreService } from './mock-data-store.service';
 import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
 
@@ -749,15 +748,9 @@ export async function buildAuditArchive(
 @Injectable({ providedIn: 'root' })
 export class AuditExportService {
   private readonly supabase = inject(SupabaseService);
-  private readonly mockStore = inject(MockDataStoreService);
   private readonly workspaceService = inject(WorkspaceService);
 
   async createArchive(request: AuditArchiveRequest): Promise<AuditArchiveResult> {
-    if (this.mockStore.isDemoMode()) {
-      throw new Error(
-        'Das vollständige Prüfarchiv steht im lokalen Demo-Modus nicht zur Verfügung.',
-      );
-    }
     if (this.workspaceService.currentWorkspace()?.id !== request.workspaceId) {
       throw new Error('Ein Datenarchiv kann nur für den aktiven Workspace erstellt werden.');
     }

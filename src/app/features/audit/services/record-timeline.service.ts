@@ -1,7 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { SupabaseService } from '../../../core/services/supabase.service';
 import { AuthService } from '../../../core/services/auth.service';
-import { MockDataStoreService } from '../../../core/services/mock-data-store.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
 import {
   mapBusinessEventLabel,
@@ -10,7 +9,6 @@ import {
 import { Json } from '../../../core/models/supabase.types';
 import {
   canSubmitComment,
-  compareTimelineEntries,
   decodeTimelineCursor,
   encodeTimelineCursor,
   RecordTimelineEntityType,
@@ -24,7 +22,6 @@ const PAGE_SIZE = 20;
 export class RecordTimelineService {
   private readonly supabase = inject(SupabaseService);
   private readonly auth = inject(AuthService);
-  private readonly mockStore = inject(MockDataStoreService);
   private readonly workspace = inject(WorkspaceService);
 
   async list(
@@ -36,42 +33,6 @@ export class RecordTimelineService {
     this.assertScope(workspaceId, entityId);
     const identity = this.auth.currentUser()?.id;
     const position = cursor ? decodeTimelineCursor(cursor) : null;
-    if (this.mockStore.isDemoMode()) {
-      const comments: RecordTimelineEntry[] = this.mockStore
-        .getRecordComments(workspaceId, entityType, entityId)
-        .map((comment) => ({
-          id: comment.id,
-          kind: 'comment' as const,
-          createdAt: comment.createdAt,
-          actorName: comment.actorName,
-          body: comment.body,
-          event: null,
-        }));
-      const captured =
-        entityType === 'purchase'
-          ? this.mockStore.getPackageCaptureEvents(workspaceId, entityId)
-          : [];
-      const events: RecordTimelineEntry[] = captured.map((event) => ({
-        id: event.id,
-        kind: 'event',
-        createdAt: event.createdAt,
-        actorName: 'Demo',
-        body: null,
-        event: {
-          ...event,
-          entityType,
-          actorId: event.actorId ?? null,
-          reason: event.reason ?? null,
-          eventLabel: mapBusinessEventLabel(event.eventType),
-          changes: event.changes as Json,
-        },
-      }));
-      const entries = [...comments, ...events]
-        .sort(compareTimelineEntries)
-        .filter((entry) => !position || compareTimelineEntries(entry, position) > 0)
-        .slice(0, PAGE_SIZE);
-      return this.page(entries);
-    }
     const { data, error } = await this.supabase.client.rpc('list_record_timeline', {
       p_workspace_id: workspaceId,
       p_entity_type: entityType,
@@ -128,26 +89,6 @@ export class RecordTimelineService {
     if (this.workspace.currentWorkspace()?.archived_at)
       throw new Error('Dieser Workspace ist archiviert.');
     const actorName = this.auth.profile()?.full_name?.trim() || 'Mitglied';
-    if (this.mockStore.isDemoMode()) {
-      const saved = {
-        id: crypto.randomUUID(),
-        workspace_id: workspaceId,
-        entityType,
-        entityId,
-        createdAt: new Date().toISOString(),
-        actorName,
-        body: body.trim(),
-      };
-      this.mockStore.addRecordComment(saved);
-      return {
-        id: saved.id,
-        kind: 'comment',
-        createdAt: saved.createdAt,
-        actorName,
-        body: saved.body,
-        event: null,
-      };
-    }
     const authorId = this.auth.currentUser()?.id;
     if (!authorId) throw new Error('Bitte erneut anmelden, um einen Kommentar zu schreiben.');
     const { data, error } = await this.supabase.client

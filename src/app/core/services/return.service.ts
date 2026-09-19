@@ -8,7 +8,6 @@ import { WebhookService } from './webhook.service';
 import { WebPushService } from './web-push.service';
 import { SupabaseService } from './supabase.service';
 import { SyncStatusService } from './sync-status.service';
-import { MockDataStoreService } from './mock-data-store.service';
 import { SalesService } from './sales.service';
 import { Tables } from '../models/supabase.types';
 
@@ -34,7 +33,6 @@ export interface ReturnFollowUpProblem {
 })
 export class ReturnService {
   private readonly supabase = inject(SupabaseService, { optional: true });
-  private readonly mockStore = inject(MockDataStoreService, { optional: true });
   private readonly syncStatus = inject(SyncStatusService, { optional: true })!;
   private readonly inventoryService = inject(InventoryService, { optional: true });
   private readonly salesService = inject(SalesService, { optional: true });
@@ -99,7 +97,7 @@ export class ReturnService {
   }
 
   async loadReturns(workspaceId: string): Promise<void> {
-    if (!this.supabase || this.mockStore?.isDemoMode()) return;
+    if (!this.supabase) return;
 
     this.isLoading.set(true);
     try {

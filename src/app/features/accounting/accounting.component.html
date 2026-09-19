@@ -105,21 +105,6 @@
               <span>Datei auswählen</span>
             </label>
 
-            <!-- Nur im Demo-Modus. Der Knopf legt sechs erfundene Bankbewegungen
-                 mit erfundenen IBANs an, die anschliessend echten Bestellungen
-                 zugeordnet werden koennen. In einer Buchhaltung, mit der
-                 tatsaechlich gearbeitet wird, hat so etwas nichts verloren. -->
-            @if (istDemoModus()) {
-              <button
-                type="button"
-                (click)="onLoadDemoStatement()"
-                class="linear-btn-secondary text-xs py-2 px-4 flex items-center gap-1.5 cursor-pointer rounded-lg"
-              >
-                <svg [lucideIcon]="sparklesIcon" class="w-3.5 h-3.5 text-fb-profit"></svg>
-                <span>Demo-Kontoauszug laden</span>
-              </button>
-            }
-
             @if (bankService.transactions().length > 0) {
               <button
                 type="button"

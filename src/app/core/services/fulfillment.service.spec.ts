@@ -80,7 +80,6 @@ describe('Fulfillment & Smart Bundling Engine (Chapter 27)', () => {
     Object.assign(service, {
       supabase: { client: { from: () => ({ update }) } },
       workspaceService: { currentWorkspace: () => ({ id: order.workspace_id }) },
-      mockStore: { isDemoMode: () => false },
     });
 
     const vorgang = service.markAsDelivered(order.id);
@@ -105,7 +104,6 @@ describe('Fulfillment & Smart Bundling Engine (Chapter 27)', () => {
     Object.assign(service, {
       supabase: { client: { from: () => ({ update }) } },
       workspaceService: { currentWorkspace: () => ({ id: order.workspace_id }) },
-      mockStore: { isDemoMode: () => false },
       syncStatus,
     });
 
@@ -132,7 +130,6 @@ describe('Fulfillment & Smart Bundling Engine (Chapter 27)', () => {
     Object.assign(service, {
       supabase: { client: { rpc } },
       workspaceService: { currentWorkspace: () => ({ id: candidate.orders[0].workspace_id }) },
-      mockStore: { isDemoMode: () => false },
     });
 
     const ergebnis = await service.bundleOrders(candidate);
@@ -157,7 +154,6 @@ describe('Fulfillment & Smart Bundling Engine (Chapter 27)', () => {
         client: { rpc: vi.fn(async () => ({ data: null, error: new Error('offline') })) },
       },
       workspaceService: { currentWorkspace: () => ({ id: candidate.orders[0].workspace_id }) },
-      mockStore: { isDemoMode: () => false },
     });
 
     const ergebnis = await service.bundleOrders(candidate);
@@ -185,7 +181,6 @@ describe('Fulfillment & Smart Bundling Engine (Chapter 27)', () => {
     Object.assign(service, {
       supabase: { client: { rpc } },
       workspaceService: { currentWorkspace: () => ({ id: bündel.workspace_id }) },
-      mockStore: { isDemoMode: () => false },
     });
 
     const ergebnis = await service.unbundleOrder(bündel.id);
@@ -252,7 +247,6 @@ describe('Fulfillment & Smart Bundling Engine (Chapter 27)', () => {
     });
     Object.assign(service, {
       supabase: { client: { from } },
-      mockStore: { isDemoMode: () => false },
     });
 
     await service.loadFromSupabase('ws-1');

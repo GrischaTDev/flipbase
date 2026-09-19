@@ -23,7 +23,6 @@ import {
 } from '../../../../core/services/business-event.service';
 import { ExportService } from '../../../../core/services/export.service';
 import { InventoryService } from '../../../../core/services/inventory.service';
-import { MockDataStoreService } from '../../../../core/services/mock-data-store.service';
 import { PurchaseService } from '../../../../core/services/purchase.service';
 import { SalesService } from '../../../../core/services/sales.service';
 import { WorkspaceMemberService } from '../../../../core/services/workspace-member.service';
@@ -54,18 +53,16 @@ const ENTITY_TYPES: readonly BusinessEntityType[] = [
   'export',
   'workspace',
 ];
-export type AuditAccessState = 'demo' | 'loading' | 'authorized' | 'forbidden';
+export type AuditAccessState = 'loading' | 'authorized' | 'forbidden';
 
 export function canExportAuditData(role: WorkspaceRole | null): boolean {
   return role === 'owner' || role === 'admin' || role === 'accountant';
 }
 
 export function resolveAuditAccessState(
-  isDemoMode: boolean,
   membershipLoaded: boolean,
   role: WorkspaceRole | null,
 ): AuditAccessState {
-  if (isDemoMode) return 'demo';
   if (!membershipLoaded) return 'loading';
   return canExportAuditData(role) ? 'authorized' : 'forbidden';
 }
@@ -149,7 +146,6 @@ export class DataAndAuditComponent {
   private readonly csvExportService = inject(ExportService);
   private readonly purchaseService = inject(PurchaseService);
   private readonly inventoryService = inject(InventoryService);
-  private readonly mockStore = inject(MockDataStoreService);
   private readonly salesService = inject(SalesService);
   private readonly toast = inject(ToastService);
 
@@ -198,10 +194,8 @@ export class DataAndAuditComponent {
   readonly error = signal<string | null>(null);
   readonly isExporting = signal(false);
   readonly exportProgress = signal(0);
-  readonly isDemoMode = this.mockStore.isDemoMode;
   readonly auditAccessState = computed(() =>
     resolveAuditAccessState(
-      this.isDemoMode(),
       this.memberService.isCurrentWorkspaceLoaded(),
       this.memberService.currentUserRole(),
     ),
@@ -236,7 +230,7 @@ export class DataAndAuditComponent {
       this.isLoading.set(false);
       this.isLoadingMore.set(false);
 
-      if (accessState === 'demo' || accessState === 'loading') {
+      if (accessState === 'loading') {
         this.error.set(null);
         return;
       }
@@ -364,12 +358,6 @@ export class DataAndAuditComponent {
   private async loadPage(reset: boolean): Promise<void> {
     const workspaceId = this.workspaceService.currentWorkspace()?.id;
     if (!workspaceId) return;
-    if (this.isDemoMode()) {
-      this.events.set([]);
-      this.nextCursor.set(null);
-      this.error.set(null);
-      return;
-    }
     if (!this.memberService.isCurrentWorkspaceLoaded()) {
       this.error.set(null);
       return;

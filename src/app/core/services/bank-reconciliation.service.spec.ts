@@ -281,7 +281,6 @@ describe('BankReconciliationService', () => {
       const s = service as unknown as Record<string, unknown>;
       s['supabase'] = { client };
       s['workspaceService'] = { currentWorkspace: () => ({ id: 'ws-1' }) };
-      s['mockStore'] = { isDemoMode: () => false };
 
       return { gesendet };
     }
@@ -331,16 +330,6 @@ describe('BankReconciliationService', () => {
 
       expect(gesendet.funktion).toBe('replace_bank_transactions');
       expect(gesendet.parameter?.['p_transactions']).toEqual([]);
-    });
-
-    it('schreibt im Demo-Modus nichts in die Datenbank', async () => {
-      const { gesendet } = mitAttrappe();
-      (service as unknown as Record<string, unknown>)['mockStore'] = { isDemoMode: () => true };
-      service.transactions.set([beispiel]);
-
-      await service.ignoreTransaction(beispiel.id);
-
-      expect(gesendet.funktion).toBeUndefined();
     });
   });
 });

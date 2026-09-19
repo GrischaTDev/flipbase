@@ -1,7 +1,6 @@
 import { Injectable, effect, inject, signal } from '@angular/core';
 import { WorkspaceService } from './workspace.service';
 import { SupabaseService } from './supabase.service';
-import { MockDataStoreService } from './mock-data-store.service';
 import { InventoryItem, Sale, SaleLine, TaxMode } from '../models/flipbase.models';
 import { StoreOrder } from '../models/store.models';
 import { EmailConfirmation, Invoice, InvoiceItem, InvoiceParty } from '../models/invoice.models';
@@ -37,7 +36,6 @@ export class InvoiceService {
   // Faellt auf eine eigene Instanz zurueck, damit Dienste auch ausserhalb
   // eines Injektionskontexts nutzbar bleiben - so erzeugen die Tests sie.
   private readonly logger = inject(LoggerService, { optional: true }) ?? new LoggerService();
-  private readonly mockStore = inject(MockDataStoreService, { optional: true });
   private readonly workspaceService = inject(WorkspaceService, { optional: true });
 
   readonly invoices = signal<Invoice[]>(this.loadInvoices());
@@ -109,7 +107,7 @@ export class InvoiceService {
       return;
     }
     if (!this.isCurrentWorkspace(requestedWorkspaceId)) return;
-    if (!this.supabase || this.mockStore?.isDemoMode()) return;
+    if (!this.supabase) return;
 
     const loadVersion = ++this.loadVersion;
     this.resetWorkspaceData();
@@ -593,7 +591,7 @@ export class InvoiceService {
   }
 
   private istPersistenterModus(): boolean {
-    return Boolean(this.supabase && !this.mockStore?.isDemoMode());
+    return Boolean(this.supabase);
   }
 
   private rechnungsfehler(ursache: unknown): InvoiceGenerationResult {
@@ -627,7 +625,7 @@ export class InvoiceService {
   ): Promise<EmailConfirmationResult> {
     const ws = this.workspaceService?.currentWorkspace();
     const requestVersion = this.loadVersion ?? 0;
-    if (this.supabase && !this.mockStore?.isDemoMode() && !ws) {
+    if (this.supabase && !ws) {
       return {
         success: false,
         message: '',
@@ -651,7 +649,7 @@ export class InvoiceService {
       orderNumber: invoice.orderNumber,
     };
 
-    if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
+    if (this.supabase && ws) {
       try {
         const { data, error } = await this.supabase.client
           .from('email_confirmations')

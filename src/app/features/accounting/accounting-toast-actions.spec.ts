@@ -39,7 +39,6 @@ function erstelleKomponente() {
       success: true,
       message: 'Eine Transaktion importiert.',
     })),
-    loadDemoStatement: vi.fn(),
     bookTransaction,
     bookAllExactMatches,
     ignoreTransaction,
@@ -115,10 +114,6 @@ describe('AccountingComponent – Aktionsmeldungen', () => {
   });
 
   it.each([
-    [
-      'Demo-Kontoauszug wurde geladen.',
-      (komponente: AccountingComponent) => komponente.onLoadDemoStatement(),
-    ],
     [
       'Transaktion wurde ignoriert.',
       (komponente: AccountingComponent) => komponente.onIgnoreTransaction('tx-1'),

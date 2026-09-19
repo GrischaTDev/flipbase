@@ -17,7 +17,6 @@ import {
   LucideMail as Mail,
   LucideSend as Send,
   LucideBuilding as Building,
-  LucideSparkles as Sparkles,
   LucideExternalLink as ExternalLink,
   LucideUploadCloud as UploadCloud,
   LucideCheckCheck as CheckCheck,
@@ -46,7 +45,6 @@ import { ToastService } from '../../shared/components/toast/toast.service';
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
 
 import { ModalDialogDirective } from '../../shared/directives/modal-dialog.directive';
-import { MockDataStoreService } from '../../core/services/mock-data-store.service';
 import {
   CustomSelectComponent,
   SelectOption,
@@ -130,11 +128,6 @@ export class AccountingComponent {
   readonly bankService = inject(BankReconciliationService);
   private readonly syncStatus = inject(SyncStatusService);
   private readonly toast = inject(ToastService);
-  private readonly mockStore = inject(MockDataStoreService);
-
-  /** Nur im Demo-Modus darf erfundenes Buchungsmaterial geladen werden. */
-  readonly istDemoModus = computed(() => this.mockStore.isDemoMode());
-
   // Tab State
   readonly activeTab = signal<AccountingTab>('tax_journal');
 
@@ -155,7 +148,6 @@ export class AccountingComponent {
   readonly mailIcon = Mail;
   readonly sendIcon = Send;
   readonly buildingIcon = Building;
-  readonly sparklesIcon = Sparkles;
   readonly linkIcon = ExternalLink;
   readonly uploadIcon = UploadCloud;
   readonly searchIcon = Search;
@@ -392,15 +384,6 @@ export class AccountingComponent {
       }
     } catch (error: unknown) {
       this.meldeLokalenFehler('Kontoauszug konnte nicht importiert werden.', error);
-    }
-  }
-
-  onLoadDemoStatement(): void {
-    try {
-      this.bankService.loadDemoStatement();
-      this.toast.success('Demo-Kontoauszug wurde geladen.');
-    } catch (error: unknown) {
-      this.meldeLokalenFehler('Demo-Kontoauszug konnte nicht geladen werden.', error);
     }
   }
 

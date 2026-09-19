@@ -3,7 +3,6 @@ import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
 import { ProfitEngineService } from './profit-engine.service';
 import { EbayApiService } from './ebay-api.service';
-import { MockDataStoreService } from './mock-data-store.service';
 import { ResearchQuery } from '../models/flipbase.models';
 import { LoggerService } from './logger.service';
 
@@ -59,7 +58,6 @@ export class ResearchService {
   // Faellt auf eine eigene Instanz zurueck, damit Dienste auch ausserhalb
   // eines Injektionskontexts nutzbar bleiben - so erzeugen die Tests sie.
   private readonly logger = inject(LoggerService, { optional: true }) ?? new LoggerService();
-  private readonly mockStore = inject(MockDataStoreService, { optional: true });
   private readonly workspaceService = inject(WorkspaceService);
   private readonly ebayApiService = inject(EbayApiService);
   private readonly profitEngine = new ProfitEngineService();
@@ -89,9 +87,6 @@ export class ResearchService {
   }
 
   async loadRecentQueries(workspaceId: string): Promise<void> {
-    // Im Demo-Modus bleibt alles im Browser - kein Serverzugriff.
-    if (this.mockStore?.isDemoMode()) return;
-
     try {
       const { data, error } = await this.supabase.client
         .from('research_queries')
@@ -182,7 +177,7 @@ export class ResearchService {
 
       // Persist query to Supabase if workspace is active
       const ws = this.workspaceService.currentWorkspace();
-      if (ws && queryText.trim() && !this.mockStore?.isDemoMode()) {
+      if (ws && queryText.trim()) {
         try {
           await this.supabase.client.from('research_queries').insert({
             workspace_id: ws.id,

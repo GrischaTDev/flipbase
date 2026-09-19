@@ -24,7 +24,6 @@ function erstelleDienst(rpc: ReturnType<typeof vi.fn>) {
   const dienst = Object.create(InvoiceService.prototype) as InvoiceService;
   Object.assign(dienst, {
     workspaceService: { currentWorkspace: () => workspace },
-    mockStore: { isDemoMode: () => false },
     syncStatus,
     invoices: signal([]),
     supabase: { client: { rpc } },

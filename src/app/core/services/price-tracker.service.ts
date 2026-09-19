@@ -10,7 +10,6 @@ import { WorkspaceService } from './workspace.service';
 import { WebhookService } from './webhook.service';
 import { WebPushService } from './web-push.service';
 import { SupabaseService } from './supabase.service';
-import { MockDataStoreService } from './mock-data-store.service';
 import { Json, Tables } from '../models/supabase.types';
 import { LoggerService } from './logger.service';
 import { SyncStatusService } from './sync-status.service';
@@ -32,7 +31,6 @@ export class PriceTrackerService {
   // Faellt auf eine eigene Instanz zurueck, damit Dienste auch ausserhalb
   // eines Injektionskontexts nutzbar bleiben - so erzeugen die Tests sie.
   private readonly logger = inject(LoggerService, { optional: true }) ?? new LoggerService();
-  private readonly mockStore = inject(MockDataStoreService, { optional: true });
   private readonly inventoryService = inject(InventoryService, { optional: true });
   private readonly workspaceService = inject(WorkspaceService, { optional: true });
   private readonly webhookService = inject(WebhookService, { optional: true });
@@ -84,7 +82,7 @@ export class PriceTrackerService {
   }
 
   async loadFromSupabase(workspaceId: string): Promise<void> {
-    if (!this.supabase || this.mockStore?.isDemoMode()) return;
+    if (!this.supabase) return;
 
     try {
       const { data, error } = await this.supabase.client
@@ -421,7 +419,7 @@ export class PriceTrackerService {
   }
 
   private istPersistenterModus(): boolean {
-    return this.supabase !== null && this.supabase !== undefined && !this.mockStore?.isDemoMode();
+    return this.supabase !== null && this.supabase !== undefined;
   }
 
   private mutationsfehler<T>(vorgang: string, ursache: unknown): PriceTrackerMutationResult<T> {

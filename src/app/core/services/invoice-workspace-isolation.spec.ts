@@ -124,7 +124,6 @@ function createService(
     isInvoiceModalOpen: signal(true),
     isLoading: signal(false),
     workspaceService: { currentWorkspace },
-    mockStore: { isDemoMode: () => false },
     syncStatus: new SyncStatusService(),
     logger: { error: vi.fn() },
     supabase: { client },
@@ -242,7 +241,6 @@ describe('InvoiceService – Workspace-Isolation', () => {
       loadVersion: 0,
       sentEmails,
       workspaceService: { currentWorkspace },
-      mockStore: { isDemoMode: () => false },
       syncStatus: new SyncStatusService(),
       supabase: {
         client: {

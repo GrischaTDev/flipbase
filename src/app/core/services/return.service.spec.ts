@@ -156,7 +156,6 @@ describe('ReturnService & Credit Note Engine (Chapter 25)', () => {
     };
     Object.assign(reloaded, {
       supabase: { client: { from: () => query } },
-      mockStore: { isDemoMode: () => false },
       syncStatus: { melde: vi.fn() },
       returns: signal([]),
       isLoading: signal(false),

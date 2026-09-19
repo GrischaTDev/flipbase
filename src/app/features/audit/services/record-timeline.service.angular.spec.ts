@@ -4,7 +4,6 @@ import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SupabaseService } from '../../../core/services/supabase.service';
 import { AuthService } from '../../../core/services/auth.service';
-import { MockDataStoreService } from '../../../core/services/mock-data-store.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
 import { RecordTimelineService } from './record-timeline.service';
 import {
@@ -32,12 +31,10 @@ describe('RecordTimelineService', () => {
   const rpc = vi.fn();
   const from = vi.fn();
   const workspace = signal({ id: 'workspace-1' });
-  const isDemoMode = signal(false);
   beforeEach(() => {
     rpc.mockReset();
     from.mockReset();
     workspace.set({ id: 'workspace-1' });
-    isDemoMode.set(false);
     TestBed.configureTestingModule({
       providers: [
         RecordTimelineService,
@@ -50,7 +47,6 @@ describe('RecordTimelineService', () => {
           },
         },
         { provide: WorkspaceService, useValue: { currentWorkspace: workspace } },
-        { provide: MockDataStoreService, useValue: { isDemoMode } },
       ],
     });
   });
@@ -175,26 +171,6 @@ describe('RecordTimelineService', () => {
       error: null,
     });
     await expect(pending).rejects.toThrow();
-  });
-
-  it('hält Demo-Kommentare lokal getrennt nach Workspace, Typ und Datensatz', async () => {
-    TestBed.overrideProvider(MockDataStoreService, {
-      useFactory: () => new MockDataStoreService(),
-    });
-    const store = TestBed.inject(MockDataStoreService);
-    store.isDemoMode.set(true);
-    localStorage.clear();
-    const service = TestBed.inject(RecordTimelineService);
-    await service.addComment('workspace-1', 'purchase', 'p1', 'Lokal');
-    expect((await service.list('workspace-1', 'purchase', 'p1')).entries).toHaveLength(1);
-    expect((await service.list('workspace-1', 'sale', 'p1')).entries).toEqual([]);
-    expect((await service.list('workspace-1', 'purchase', 'p2')).entries).toEqual([]);
-    workspace.set({ id: 'workspace-2' });
-    expect((await service.list('workspace-2', 'purchase', 'p1')).entries).toEqual([]);
-    expect(rpc).not.toHaveBeenCalled();
-    expect(from).not.toHaveBeenCalled();
-    store.isDemoMode.set(false);
-    expect(store.getRecordComments('workspace-1', 'purchase', 'p1')).toEqual([]);
   });
 
   it('ordnet Mikrosekunden vor der Art und unterstützt volle Unicode-Zeichen', () => {

@@ -4,7 +4,6 @@ import { SalesService } from './sales.service';
 import { PurchaseService } from './purchase.service';
 import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
-import { MockDataStoreService } from './mock-data-store.service';
 import { LoggerService } from './logger.service';
 import { SyncFehlerAktion, SyncStatusService } from './sync-status.service';
 import { Json, Tables } from '../models/supabase.types';
@@ -41,7 +40,6 @@ export class BankReconciliationService {
   // Faellt auf eine eigene Instanz zurueck, damit Dienste auch ausserhalb
   // eines Injektionskontexts nutzbar bleiben - so erzeugen die Tests sie.
   private readonly logger = inject(LoggerService, { optional: true }) ?? new LoggerService();
-  private readonly mockStore = inject(MockDataStoreService, { optional: true });
   private readonly workspaceService = inject(WorkspaceService, { optional: true });
   private readonly syncStatus = inject(SyncStatusService, { optional: true });
   private readonly storeService = inject(StoreService);
@@ -66,7 +64,7 @@ export class BankReconciliationService {
   }
 
   async loadFromSupabase(workspaceId: string): Promise<void> {
-    if (!this.supabase || this.mockStore?.isDemoMode()) return;
+    if (!this.supabase) return;
 
     try {
       const { data, error } = await this.supabase.client
@@ -181,7 +179,7 @@ export class BankReconciliationService {
     vorgang: string,
   ): Promise<BankMutationResult> {
     const ws = this.workspaceService?.currentWorkspace();
-    if (!this.supabase || this.mockStore?.isDemoMode()) {
+    if (!this.supabase) {
       this.transactions.set(liste);
       this.persistLocalCache(liste);
       return { status: 'success', success: true, message: `${vorgang} erfolgreich.` };
@@ -769,14 +767,14 @@ export class BankReconciliationService {
 
     const now = new Date().toISOString();
     const ws = this.workspaceService?.currentWorkspace();
-    if (this.supabase && !this.mockStore?.isDemoMode() && !ws) {
+    if (this.supabase && !ws) {
       return this.fehlgeschlageneMutation(
         'Buchen der Banktransaktion',
         new Error('Kein aktiver Workspace.'),
         aktion,
       );
     }
-    if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
+    if (this.supabase && ws) {
       try {
         const { data, error } = await this.supabase.client.rpc('book_bank_transaction', {
           p_workspace_id: ws.id,
@@ -799,7 +797,7 @@ export class BankReconciliationService {
     const aktualisiert = list.map((t) =>
       t.id === txId ? { ...t, status: 'booked' as const, bookedAt: now } : t,
     );
-    if (!this.supabase || !ws || this.mockStore?.isDemoMode()) {
+    if (!this.supabase || !ws) {
       const persistenz = await this.persistTransactions(aktualisiert, 'Buchen der Banktransaktion');
       if (persistenz.status === 'failed') return persistenz;
     } else {

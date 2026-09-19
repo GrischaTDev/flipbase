@@ -3,7 +3,6 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SupabaseService } from './supabase.service';
-import { MockDataStoreService } from './mock-data-store.service';
 import { WorkspaceService } from './workspace.service';
 import {
   BusinessEventService,
@@ -14,16 +13,13 @@ import {
 
 describe('BusinessEventService', () => {
   const rpc = vi.fn();
-  const isDemoMode = signal(false);
 
   beforeEach(() => {
     rpc.mockReset();
-    isDemoMode.set(false);
     TestBed.configureTestingModule({
       providers: [
         BusinessEventService,
         { provide: SupabaseService, useValue: { client: { rpc } } },
-        { provide: MockDataStoreService, useValue: { isDemoMode } },
         {
           provide: WorkspaceService,
           useValue: { currentWorkspace: signal({ id: 'workspace-1' }) },
@@ -80,16 +76,6 @@ describe('BusinessEventService', () => {
     );
     await expect(service.listEvents({ workspaceId: '', pageSize: 50 })).rejects.toThrow(
       'Workspace',
-    );
-    expect(rpc).not.toHaveBeenCalled();
-  });
-
-  it('sendet im lokalen Demo-Modus keine Journalabfrage an Supabase', async () => {
-    isDemoMode.set(true);
-    const service = TestBed.inject(BusinessEventService);
-
-    await expect(service.listEvents({ workspaceId: 'workspace-1', pageSize: 50 })).resolves.toEqual(
-      { events: [], nextCursor: null },
     );
     expect(rpc).not.toHaveBeenCalled();
   });

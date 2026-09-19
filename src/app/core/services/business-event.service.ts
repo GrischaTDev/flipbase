@@ -8,7 +8,6 @@ import {
 } from '../models/business-event.models';
 import { Database, Json } from '../models/supabase.types';
 import { SupabaseService } from './supabase.service';
-import { MockDataStoreService } from './mock-data-store.service';
 import { WorkspaceService } from './workspace.service';
 
 type BusinessEventRow = Database['public']['Functions']['list_business_events']['Returns'][number];
@@ -111,12 +110,10 @@ export function decodeBusinessEventCursor(cursor: string): BusinessEventCursor {
 @Injectable({ providedIn: 'root' })
 export class BusinessEventService {
   private readonly supabase = inject(SupabaseService);
-  private readonly mockStore = inject(MockDataStoreService);
   private readonly workspaceService = inject(WorkspaceService);
 
   async listEvents(filter: BusinessEventFilter): Promise<BusinessEventPage> {
     this.assertCurrentWorkspace(filter.workspaceId);
-    if (this.mockStore.isDemoMode()) return { events: [], nextCursor: null };
     const pageSize = this.boundPageSize(filter.pageSize);
     const cursor = filter.cursor ? decodeBusinessEventCursor(filter.cursor) : null;
     const rpcFilter: Record<string, string> = {};
@@ -141,23 +138,6 @@ export class BusinessEventService {
   async listEntityEvents(filter: EntityBusinessEventFilter): Promise<BusinessEventPage> {
     this.assertCurrentWorkspace(filter.workspaceId);
     if (!filter.entityId) throw new Error('Eine Datensatz-ID ist erforderlich.');
-    if (this.mockStore.isDemoMode()) {
-      const events =
-        filter.entityType === 'purchase'
-          ? this.mockStore.getPackageCaptureEvents(filter.workspaceId, filter.entityId)
-          : [];
-      return {
-        events: events.map((event) => ({
-          ...event,
-          entityType: filter.entityType,
-          eventLabel: mapBusinessEventLabel(event.eventType),
-          actorId: event.actorId ?? null,
-          reason: event.reason ?? null,
-          changes: event.changes as Json,
-        })),
-        nextCursor: null,
-      };
-    }
     const pageSize = this.boundPageSize(filter.pageSize);
     const cursor = filter.cursor ? decodeBusinessEventCursor(filter.cursor) : null;
     const { data, error } = await this.supabase.client.rpc('list_entity_business_events', {

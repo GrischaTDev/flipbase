@@ -10,17 +10,7 @@
       </div>
     </div>
 
-    @if (isDemoMode()) {
-      <p
-        role="status"
-        class="rounded-xl border border-fb-border bg-fb-subtle p-3 text-sm text-fb-text-secondary"
-      >
-        Im Demo-Modus gibt es kein serverseitiges Prüfprotokoll. Die Beispieldaten bleiben nur in
-        diesem Browser und werden nicht als Geschäftsnachweis archiviert.
-      </p>
-    }
-
-    @if (!isDemoMode() && auditAccessState() === 'loading') {
+    @if (auditAccessState() === 'loading') {
       <p
         role="status"
         class="rounded-xl border border-fb-border bg-fb-subtle p-3 text-sm text-fb-text-secondary"
@@ -38,7 +28,7 @@
       </div>
     }
 
-    @if (!isDemoMode() && isAuthorized()) {
+    @if (isAuthorized()) {
       <form [formGroup]="filters" (ngSubmit)="applyFilters()">
         <app-data-table
           ariaLabel="Prüfprotokoll"
@@ -282,40 +272,6 @@
             >
               Druckansicht / PDF
             </app-button>
-            <app-button variant="secondary" size="slim" (clicked)="downloadPurchasesCsv()">
-              Einkäufe als CSV
-            </app-button>
-            <app-button variant="secondary" size="slim" (clicked)="downloadInventoryCsv()">
-              Inventar als CSV
-            </app-button>
-            <app-button variant="secondary" size="slim" (clicked)="downloadSalesCsv()">
-              Verkäufe als CSV
-            </app-button>
-          </div>
-        </div>
-      }
-    } @else if (isDemoMode()) {
-      <p class="mt-4 text-sm text-fb-text-muted">
-        Das vollständige Datenarchiv steht nach der Anmeldung für einen echten Workspace zur
-        Verfügung.
-      </p>
-      <div class="mt-3">
-        <app-button
-          variant="secondary"
-          size="md"
-          [ariaExpanded]="additionalExportsExpanded()"
-          ariaControls="additional-exports"
-          (clicked)="additionalExportsExpanded.set(!additionalExportsExpanded())"
-        >
-          Weitere Exporte
-        </app-button>
-      </div>
-      @if (additionalExportsExpanded()) {
-        <div id="additional-exports" class="mt-4 border-t border-fb-border pt-4">
-          <p class="text-xs text-fb-text-muted">
-            Die lokalen Beispieldaten kannst du als einzelne CSV-Dateien herunterladen.
-          </p>
-          <div class="mt-3 flex flex-wrap gap-2">
             <app-button variant="secondary" size="slim" (clicked)="downloadPurchasesCsv()">
               Einkäufe als CSV
             </app-button>

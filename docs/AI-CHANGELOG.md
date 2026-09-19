@@ -1,5 +1,24 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-19 – Codex GPT-5.6 Terra (OpenAI) – Demo-Code: Verkauf, Finanzen und Prüfung
+
+**Auftrag:** Den dritten Abschnitt des vereinbarten Umbaus umsetzen: den
+Demo-Modus aus Verkauf, Finanzen, Prüfprotokoll und zugehörigen Oberflächen
+entfernen.
+
+**Änderung:** Verkauf, Retouren, Rechnungen, Bankabgleich, Fulfillment,
+Preisrecherche, Geschäftsereignisse und Prüfexporte verwenden ausschließlich
+Supabase. Die Buchhaltung bietet keine erfundenen Kontoauszüge mehr. Daten und
+Prüfung richtet den Zugriff nur noch nach der geladenen Workspace-Rolle aus;
+Demo-Hinweise und lokale Prüfkommentare sind entfernt.
+
+**Prüfung:** 85 fokussierte Node-Tests, 14 fokussierte DOM-Tests, 15 fokussierte
+Angular-Tests und zusätzlich 33 Tests für Buchhaltungsaktionen und Daten &
+Prüfung bestanden. Typprüfung, ESLint, projektweite Prettier-Prüfung und
+Produktionsbau bestanden ebenfalls. Der Bau meldet weiterhin drei bekannte,
+paketfremde NG8113-Hinweise zu ungenutzten `LucideDynamicIcon`-Importen. Kein
+Push/Merge.
+
 ## 2026-09-19 – Codex GPT-5.6 Terra (OpenAI) – Demo-Code: Bestand, Katalog und Medien
 
 **Auftrag:** Den zweiten Abschnitt des vereinbarten Umbaus umsetzen: den

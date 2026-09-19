@@ -91,7 +91,6 @@ describe('PriceTrackerService & Competitor Radar (Chapter 26)', () => {
     Object.assign(service, {
       supabase: { client: { from: () => ({ insert }) } },
       workspaceService: { currentWorkspace: () => ({ id: 'workspace-1' }) },
-      mockStore: { isDemoMode: () => false },
     });
 
     const vorgang = service.addTrackedItem({ title: 'Kamera', price: 200 });
@@ -115,7 +114,6 @@ describe('PriceTrackerService & Competitor Radar (Chapter 26)', () => {
     Object.assign(service, {
       supabase: { client: { from: () => ({ delete: remove }) } },
       workspaceService: { currentWorkspace: () => ({ id: erster.workspace_id }) },
-      mockStore: { isDemoMode: () => false },
       syncStatus,
     });
 
