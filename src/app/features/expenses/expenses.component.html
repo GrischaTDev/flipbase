@@ -217,7 +217,9 @@
                     }
                     @case ('vat_rate') {
                       <td class="text-right font-mono text-fb-text-secondary">
-                        {{ expense.vat_rate === null ? 'Nicht ausgewiesen' : expense.vat_rate + ' %' }}
+                        {{
+                          expense.vat_rate === null ? 'Nicht ausgewiesen' : expense.vat_rate + ' %'
+                        }}
                       </td>
                     }
                     @case ('status') {

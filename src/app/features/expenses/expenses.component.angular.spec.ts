@@ -62,7 +62,15 @@ beforeAll(async () => {
   });
 
   registerInputs(PageHeaderComponent, ['title', 'subtitle', 'icon']);
-  registerInputs(ButtonComponent, ['variant', 'size', 'icon', 'iconOnly', 'ariaPressed', 'ariaLabel', 'title']);
+  registerInputs(ButtonComponent, [
+    'variant',
+    'size',
+    'icon',
+    'iconOnly',
+    'ariaPressed',
+    'ariaLabel',
+    'title',
+  ]);
   registerInputs(CardComponent, ['padding', 'rounded']);
   registerInputs(BadgeComponent, ['tone', 'mono']);
   registerInputs(DataTableComponent, [
@@ -283,11 +291,17 @@ async function render() {
     ],
   }).createComponent(ExpensesComponent);
   fixture.detectChanges();
-  await Promise.resolve();
-  await Promise.resolve();
+  await new Promise<void>((resolve) => setTimeout(resolve, 0));
   fixture.detectChanges();
 
-  return { fixture, expenseService, categoryService, recurringService, documentService, dialog };
+  return {
+    fixture,
+    expenseService,
+    categoryService,
+    recurringService,
+    documentService,
+    dialog,
+  };
 }
 
 describe('ExpensesComponent', () => {
@@ -330,17 +344,20 @@ describe('ExpensesComponent', () => {
     ]);
   });
 
-  it('initialisiert Ausgaben nur über den deduplizierten Service-Pfad und lädt danach Belegstatus', async () => {
+  it(
+    'initialisiert Ausgaben nur über den deduplizierten Service-Pfad und lädt danach Belegstatus',
+    async () => {
     const { fixture, expenseService, recurringService, documentService } = await render();
 
     expect(expenseService.ensureCurrentWorkspaceLoaded).toHaveBeenCalled();
     expect(recurringService.load).not.toHaveBeenCalled();
     expect(recurringService.materializeDue).not.toHaveBeenCalled();
-    expect(documentService.loadSummaryForExpenses).toHaveBeenCalledWith([
-      'expense-paid',
-      'expense-open',
-    ]);
-  });
+      expect(documentService.loadSummaryForExpenses).toHaveBeenCalledWith([
+        'expense-paid',
+        'expense-open',
+      ]);
+    },
+  );
 
   it('verwendet den gemeinsamen Bestätigungsdialog zum Löschen', async () => {
     const { fixture, expenseService, dialog } = await render();

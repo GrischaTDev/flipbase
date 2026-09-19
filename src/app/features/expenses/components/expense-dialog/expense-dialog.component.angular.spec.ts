@@ -2,7 +2,7 @@ import '@angular/compiler';
 import { signal, ɵresolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { glob, readFile } from 'node:fs/promises';
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { Expense } from '../../../../core/models/expense.models';
 import { ExpenseCategoryService } from '../../../../core/services/expense-category.service';
 import { ExpenseDocumentService } from '../../../../core/services/expense-document.service';
@@ -19,6 +19,8 @@ beforeAll(async () => {
     return readFile(matches[0], 'utf8');
   });
 });
+
+afterEach(() => TestBed.resetTestingModule());
 
 const storedExpense: Expense = {
   id: 'expense-1',

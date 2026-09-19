@@ -6,7 +6,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthService } from './auth.service';
 import { SupabaseService } from './supabase.service';
 import { TablePreferencesService } from './table-preferences.service';
-import { EXPENSES_TABLE_CONFIG, INVENTORY_TABLE_CONFIG, SALES_TABLE_CONFIG } from '../config/table-defaults.config';
+import {
+  EXPENSES_TABLE_CONFIG,
+  INVENTORY_TABLE_CONFIG,
+  SALES_TABLE_CONFIG,
+} from '../config/table-defaults.config';
 import { StoredTablePreferences } from '../models/table-preferences.models';
 
 const definitions = [

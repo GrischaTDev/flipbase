@@ -33,7 +33,6 @@ export function calculateExpenseTax(
   };
 }
 
-
 export function calculateExpenseUnitPrice(
   grossAmount: number,
   quantity: number,
