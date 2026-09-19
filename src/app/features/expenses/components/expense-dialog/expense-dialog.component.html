@@ -17,6 +17,12 @@
       placeholder="z. B. Versandkartons"
     />
 
+    <app-text-field
+      formControlName="vendor_name"
+      label="Händler / Anbieter"
+      placeholder="z. B. Amazon, Netcup oder DHL"
+    />
+
     <div>
       <span class="mb-1.5 block text-[13px] font-semibold">Kategorie</span>
       <app-custom-select
@@ -28,7 +34,17 @@
 
     <div class="grid gap-4 sm:grid-cols-2">
       <label class="block">
-        <span class="mb-1.5 block text-[13px] font-semibold">Bruttobetrag</span>
+        <span class="mb-1.5 block text-[13px] font-semibold">Menge</span>
+        <input
+          type="number"
+          min="1"
+          step="1"
+          formControlName="quantity"
+          class="linear-input min-h-9 w-full rounded-lg px-3 text-[13px]"
+        />
+      </label>
+      <label class="block">
+        <span class="mb-1.5 block text-[13px] font-semibold">Gesamtbetrag</span>
         <input
           data-gross-amount
           type="number"
@@ -37,26 +53,49 @@
           formControlName="gross_amount"
           class="linear-input min-h-9 w-full rounded-lg px-3 text-[13px]"
         />
+        <span class="mt-1 block text-xs text-fb-text-muted">
+          Betrag, den du laut Beleg insgesamt bezahlt hast.
+        </span>
       </label>
-      <div>
-        <span class="mb-1.5 block text-[13px] font-semibold">MwSt.</span>
-        <app-custom-select
-          formControlName="vat_rate"
-          ariaLabel="Mehrwertsteuersatz"
-          [options]="vatOptions"
-        />
-      </div>
     </div>
 
-    @if (form.controls.gross_amount.value) {
-      <p class="text-xs text-fb-text-muted">
-        @if (taxBreakdown().net !== null) {
-          Netto {{ taxBreakdown().net }} € · MwSt. {{ taxBreakdown().tax }} €
-        } @else {
-          Netto und Steueranteil ohne MwSt.-Angabe nicht berechnet.
-        }
-      </p>
+    @if (form.controls.quantity.value && form.controls.quantity.value > 1 && unitPrice() !== null) {
+      <p class="text-xs text-fb-text-muted">{{ unitPrice() }} € pro Stück</p>
     }
+
+    <div class="rounded-xl border border-fb-border bg-fb-subtle p-3">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <span class="text-[13px] font-medium text-fb-text-secondary">{{ taxSummary() }}</span>
+        <app-button
+          variant="plain"
+          size="slim"
+          [ariaExpanded]="taxDetailsExpanded()"
+          ariaControls="expense-tax-details"
+          (clicked)="taxDetailsExpanded.set(!taxDetailsExpanded())"
+        >
+          Steuerdetails ändern
+        </app-button>
+      </div>
+
+      @if (taxDetailsExpanded()) {
+        <div id="expense-tax-details" class="mt-3 space-y-2 border-t border-fb-border pt-3">
+          <app-custom-select
+            formControlName="vat_rate"
+            ariaLabel="Enthaltene Mehrwertsteuer"
+            [options]="vatOptions"
+          />
+          @if (form.controls.gross_amount.value) {
+            <p class="text-xs text-fb-text-muted">
+              @if (taxBreakdown().net !== null) {
+                Netto {{ taxBreakdown().net }} € · enthaltene MwSt. {{ taxBreakdown().tax }} €
+              } @else {
+                Netto und Steueranteil werden ohne ausgewiesene MwSt. nicht berechnet.
+              }
+            </p>
+          }
+        </div>
+      }
+    </div>
 
     <div class="grid gap-4 sm:grid-cols-2">
       <div>
@@ -85,6 +124,53 @@
         <app-date-picker formControlName="due_date" ariaLabel="Fälligkeitsdatum" />
       </div>
     }
+
+    <div class="space-y-2">
+      <span class="block text-[13px] font-semibold">Beleg (optional)</span>
+      <div
+        class="rounded-xl border border-dashed border-fb-border bg-fb-subtle p-4"
+        (dragover)="onDragOver($event)"
+        (drop)="onDrop($event)"
+      >
+        @if (pendingDocument(); as document) {
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <span class="min-w-0 truncate text-[13px] text-fb-text-primary">
+              {{ document.name }}
+            </span>
+            <app-button variant="plain" size="slim" (clicked)="clearPendingDocument()">
+              Entfernen
+            </app-button>
+          </div>
+        } @else {
+          <p class="text-[13px] text-fb-text-secondary">
+            Beleg hier hineinziehen oder Datei auswählen.
+          </p>
+          <p class="mt-1 text-xs text-fb-text-muted">PDF, JPG, PNG oder XML · maximal 20 MiB</p>
+        }
+
+        <div class="mt-3 flex flex-wrap items-center gap-2">
+          <app-custom-select
+            ariaLabel="Belegart"
+            size="sm"
+            widthClass="w-44"
+            [options]="documentTypeOptions"
+            [value]="selectedDocumentType()"
+            (valueChange)="selectedDocumentType.set($event ?? 'invoice')"
+          />
+          <label
+            class="fb-button linear-btn-secondary inline-flex min-h-8 cursor-pointer items-center justify-center rounded-lg border border-fb-border px-3 text-[13px] font-semibold"
+          >
+            Datei auswählen
+            <input
+              type="file"
+              class="sr-only"
+              accept=".pdf,.jpg,.jpeg,.png,.xml,application/pdf,image/jpeg,image/png,application/xml,text/xml"
+              (change)="onFileSelected($event)"
+            />
+          </label>
+        </div>
+      </div>
+    </div>
 
     <app-text-field formControlName="notes" label="Notizen" [multiline]="3" />
   </form>
