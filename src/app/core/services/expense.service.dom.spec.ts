@@ -23,6 +23,8 @@ const paidExpense: Expense = {
   recurring_rule_id: null,
   occurrence_date: null,
   title: 'Paketband',
+  vendor_name: 'Bürohandel',
+  quantity: 4,
   gross_amount: 12.5,
   vat_rate: null,
   expense_date: '2026-09-01',
@@ -89,6 +91,8 @@ describe('ExpenseService', () => {
     const result = await service.create({
       category_id: paidExpense.category_id,
       title: 'Paketband',
+      vendor_name: 'Bürohandel',
+      quantity: 4,
       gross_amount: 12.5,
       vat_rate: null,
       expense_date: '2026-09-01',
@@ -99,7 +103,13 @@ describe('ExpenseService', () => {
     });
 
     expect(result.error).toBeNull();
-    expect(insert).toHaveBeenCalled();
+    expect(insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        vendor_name: 'Bürohandel',
+        quantity: 4,
+        gross_amount: 12.5,
+      }),
+    );
   });
 
   it('markiert eine Ausgabe bezahlt und wieder offen', async () => {

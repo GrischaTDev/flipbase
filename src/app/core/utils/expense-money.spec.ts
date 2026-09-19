@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { calculateExpenseTax } from './expense-money';
+import { calculateExpenseTax, calculateExpenseUnitPrice } from './expense-money';
 
 describe('calculateExpenseTax', () => {
   it('zerlegt 19 Prozent aus einem Bruttobetrag centgenau', () => {
@@ -7,7 +7,25 @@ describe('calculateExpenseTax', () => {
       gross: 29.9,
       net: 25.13,
       tax: 4.77,
+      it('zerlegt 119 Euro bei 19 Prozent in 100 Euro netto und 19 Euro Steuer', () => {
+    expect(calculateExpenseTax(119, 19)).toEqual({
+      gross: 119,
+      net: 100,
+      tax: 19,
     });
+  });
+});
+
+describe('calculateExpenseUnitPrice', () => {
+  it('berechnet den Stückpreis aus Gesamtbetrag und Menge', () => {
+    expect(calculateExpenseUnitPrice(25, 10)).toBe(2.5);
+    expect(calculateExpenseUnitPrice(25, 1)).toBe(25);
+  });
+
+  it('liefert bei ungültiger Menge keinen Stückpreis', () => {
+    expect(calculateExpenseUnitPrice(25, 0)).toBeNull();
+  });
+});
   });
 
   it('zerlegt 7 Prozent aus einem Bruttobetrag centgenau', () => {

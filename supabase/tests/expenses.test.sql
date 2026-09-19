@@ -55,13 +55,15 @@ insert into public.expense_categories (
 );
 
 insert into public.expense_recurring_rules (
-  id, workspace_id, category_id, title, gross_amount, vat_rate, frequency,
+  id, workspace_id, category_id, title, vendor_name, quantity, gross_amount, vat_rate, frequency,
   start_date, end_date, is_active, created_by
 ) values (
   'f1800000-0000-4000-8000-000000000031',
   'f1800000-0000-4000-8000-000000000011',
   'f1800000-0000-4000-8000-000000000021',
   'Server',
+  'Netcup',
+  2,
   29.90,
   19,
   'monthly',
@@ -91,19 +93,58 @@ insert into public.expenses (
 );
 
 insert into public.expenses (
-  id, workspace_id, category_id, title, gross_amount, vat_rate,
+  id, workspace_id, category_id, title, vendor_name, quantity, gross_amount, vat_rate,
   expense_date, status, payment_date, created_by
 ) values (
   'f1800000-0000-4000-8000-000000000042',
   'f1800000-0000-4000-8000-000000000011',
   'f1800000-0000-4000-8000-000000000021',
   'Paketband',
+  'Bürohandel',
+  4,
   12.50,
   null,
   '2026-09-18',
   'paid',
   '2026-09-18',
   'f1800000-0000-4000-8000-000000000001'
+);
+
+select is(
+  (select quantity from public.expenses
+   where id = 'f1800000-0000-4000-8000-000000000042'),
+  4,
+  'eine Ausgabe speichert die Stückzahl'
+);
+
+select is(
+  (select vendor_name from public.expenses
+   where id = 'f1800000-0000-4000-8000-000000000042'),
+  'Bürohandel',
+  'eine Ausgabe speichert den Händler oder Anbieter'
+);
+
+select is(
+  (select quantity from public.expense_recurring_rules
+   where id = 'f1800000-0000-4000-8000-000000000031'),
+  2,
+  'eine Wiederholungsregel speichert die Stückzahl'
+);
+
+select is(
+  (select vendor_name from public.expense_recurring_rules
+   where id = 'f1800000-0000-4000-8000-000000000031'),
+  'Netcup',
+  'eine Wiederholungsregel speichert den Händler oder Anbieter'
+);
+
+select throws_ok(
+  $$update public.expenses
+    set quantity = 0
+    where id = 'f1800000-0000-4000-8000-000000000042'$$,
+  '23514',
+  null,
+  'die Stückzahl muss positiv sein'
 );
 
 select lives_ok(
