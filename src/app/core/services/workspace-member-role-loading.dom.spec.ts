@@ -21,6 +21,11 @@ const workspaceB = {
   name: 'Workspace B',
 };
 
+interface Deferred<T> {
+  readonly promise: Promise<T>;
+  readonly resolve: (value: T) => void;
+}
+
 interface MemberResponse {
   readonly data: readonly {
     readonly id: string;
@@ -33,7 +38,7 @@ interface MemberResponse {
   readonly error: Error | null;
 }
 
-function deferred<T>() {
+function deferred<T>(): Deferred<T> {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>((resolver) => {
     resolve = resolver;
@@ -54,7 +59,7 @@ function ownerRow(workspaceId: string): MemberResponse['data'][number] {
 
 function createService() {
   const currentWorkspace = signal(workspaceA);
-  const requests = new Map<string, ReturnType<typeof deferred<MemberResponse>>>();
+  const requests = new Map<string, Deferred<MemberResponse>>();
 
   const from = vi.fn(() => ({
     select: () => ({

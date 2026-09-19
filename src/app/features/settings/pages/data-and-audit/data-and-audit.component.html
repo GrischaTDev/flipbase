@@ -20,6 +20,15 @@
       </p>
     }
 
+    @if (!isDemoMode() && auditAccessState() === 'loading') {
+      <p
+        role="status"
+        class="rounded-xl border border-fb-border bg-fb-subtle p-3 text-sm text-fb-text-secondary"
+      >
+        Workspace-Berechtigungen werden geladen …
+      </p>
+    }
+
     @if (error()) {
       <div
         role="alert"
@@ -223,7 +232,11 @@
       CSV-Exporte sind unter „Weitere Exporte“ gebündelt.
     </p>
 
-    @if (isAuthorized()) {
+    @if (auditAccessState() === 'loading') {
+      <p role="status" class="mt-4 text-sm text-fb-text-muted">
+        Workspace-Berechtigungen werden geladen …
+      </p>
+    } @else if (isAuthorized()) {
       <div class="mt-4 flex flex-wrap gap-2">
         <app-button
           variant="primary"

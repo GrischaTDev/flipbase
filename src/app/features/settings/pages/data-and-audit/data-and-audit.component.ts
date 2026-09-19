@@ -53,8 +53,20 @@ const ENTITY_TYPES: readonly BusinessEntityType[] = [
   'export',
   'workspace',
 ];
+export type AuditAccessState = 'demo' | 'loading' | 'authorized' | 'forbidden';
+
 export function canExportAuditData(role: WorkspaceRole | null): boolean {
   return role === 'owner' || role === 'admin' || role === 'accountant';
+}
+
+export function resolveAuditAccessState(
+  isDemoMode: boolean,
+  membershipLoaded: boolean,
+  role: WorkspaceRole | null,
+): AuditAccessState {
+  if (isDemoMode) return 'demo';
+  if (!membershipLoaded) return 'loading';
+  return canExportAuditData(role) ? 'authorized' : 'forbidden';
 }
 
 export function auditFiltersFromQueryParams(params: ParamMap): AuditFilterValue {
@@ -185,21 +197,55 @@ export class DataAndAuditComponent {
   readonly isExporting = signal(false);
   readonly exportProgress = signal(0);
   readonly isDemoMode = this.mockStore.isDemoMode;
-  readonly isAuthorized = computed(
-    () => !this.isDemoMode() && canExportAuditData(this.memberService.currentUserRole()),
+  readonly auditAccessState = computed(() =>
+    resolveAuditAccessState(
+      this.isDemoMode(),
+      this.memberService.isCurrentWorkspaceLoaded(),
+      this.memberService.currentUserRole(),
+    ),
   );
+  readonly isAuthorized = computed(() => this.auditAccessState() === 'authorized');
   private requestSequence = 0;
-  private loadedWorkspaceId: string | null = null;
+  private loadedAccessContext: string | null = null;
   private exportAbortController: AbortController | null = null;
 
   constructor() {
     this.filters.setValue(auditFiltersFromQueryParams(this.route.snapshot.queryParamMap));
     effect(() => {
       const workspaceId = this.workspaceService.currentWorkspace()?.id ?? null;
-      if (!workspaceId || workspaceId === this.loadedWorkspaceId) return;
-      this.loadedWorkspaceId = workspaceId;
+      const accessState = this.auditAccessState();
+      const role = this.memberService.currentUserRole();
+
+      if (!workspaceId) {
+        this.loadedAccessContext = null;
+        this.requestSequence++;
+        this.events.set([]);
+        this.nextCursor.set(null);
+        this.error.set(null);
+        return;
+      }
+
+      const accessContext = `${workspaceId}:${accessState}:${role ?? 'none'}`;
+      if (accessContext === this.loadedAccessContext) return;
+      this.loadedAccessContext = accessContext;
+      this.requestSequence++;
       this.events.set([]);
       this.nextCursor.set(null);
+      this.isLoading.set(false);
+      this.isLoadingMore.set(false);
+
+      if (accessState === 'demo' || accessState === 'loading') {
+        this.error.set(null);
+        return;
+      }
+
+      if (accessState === 'forbidden') {
+        this.error.set(
+          'Für das globale Prüfprotokoll ist eine Inhaber-, Admin- oder Buchhaltungsrolle erforderlich.',
+        );
+        return;
+      }
+
       void this.loadPage(true);
     });
   }
@@ -312,6 +358,10 @@ export class DataAndAuditComponent {
     if (this.isDemoMode()) {
       this.events.set([]);
       this.nextCursor.set(null);
+      this.error.set(null);
+      return;
+    }
+    if (!this.memberService.isCurrentWorkspaceLoaded()) {
       this.error.set(null);
       return;
     }
