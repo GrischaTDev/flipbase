@@ -40,6 +40,17 @@ export function resolveCurrentUserRole(
   );
 }
 
+export function isWorkspaceMemberContextResolved(
+  activeWorkspaceId: string | null,
+  loadedWorkspaceId: string | null,
+  isLoading: boolean,
+  isDemoMode: boolean,
+): boolean {
+  if (!activeWorkspaceId) return false;
+  if (isDemoMode) return true;
+  return !isLoading && loadedWorkspaceId === activeWorkspaceId;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -95,7 +106,18 @@ export class WorkspaceMemberService {
   ]);
 
   readonly isLoading = signal<boolean>(false);
+  private readonly loadedWorkspaceIdSignal = signal<string | null>(null);
+  readonly loadedWorkspaceId = this.loadedWorkspaceIdSignal.asReadonly();
   private membersLoadVersion = 0;
+
+  readonly currentWorkspaceMembersResolved = computed<boolean>(() =>
+    isWorkspaceMemberContextResolved(
+      this.workspaceService.currentWorkspace()?.id ?? null,
+      this.loadedWorkspaceIdSignal(),
+      this.isLoading(),
+      this.mockStore.isDemoMode(),
+    ),
+  );
 
   readonly currentUserRole = computed<WorkspaceRole | null>(() =>
     resolveCurrentUserRole(
@@ -128,6 +150,7 @@ export class WorkspaceMemberService {
     if (this.mockStore.isDemoMode()) return;
 
     const loadVersion = ++this.membersLoadVersion;
+    this.loadedWorkspaceIdSignal.set(null);
     this.members.set([]);
     this.isLoading.set(true);
     try {
@@ -161,6 +184,7 @@ export class WorkspaceMemberService {
           joined_at: m.created_at,
         }));
         this.members.set(mapped);
+        this.loadedWorkspaceIdSignal.set(workspaceId);
       }
     } catch (err) {
       if (loadVersion === this.membersLoadVersion) {
