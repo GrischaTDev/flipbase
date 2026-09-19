@@ -8,14 +8,7 @@ import {
   output,
   signal,
 } from '@angular/core';
-import {
-  AbstractControl,
-  FormControl,
-  FormGroup,
-  ReactiveFormsModule,
-  ValidationErrors,
-  Validators,
-} from '@angular/forms';
+import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
   ExpenseDocumentType,
   validateExpenseDocumentFile,
@@ -46,10 +39,6 @@ function localDateKey(date = new Date()): string {
   ].join('-');
 }
 
-function positiveInteger(control: AbstractControl): ValidationErrors | null {
-  const value = Number(control.value);
-  return Number.isInteger(value) && value > 0 ? null : { positiveInteger: true };
-}
 
 @Component({
   selector: 'app-expense-dialog',
@@ -113,7 +102,10 @@ export class ExpenseDialogComponent implements OnInit {
       validators: [Validators.maxLength(160)],
     }),
     category_id: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
-    quantity: new FormControl<number | null>(1, [Validators.required, positiveInteger]),
+    quantity: new FormControl(1, {
+      nonNullable: true,
+      validators: [Validators.required, Validators.min(1), Validators.pattern(/^[1-9]\d*$/u)],
+    }),
     gross_amount: new FormControl<number | null>(null, [Validators.required, Validators.min(0.01)]),
     vat_rate: new FormControl<ExpenseVatRate>(19),
     expense_date: new FormControl(localDateKey(), {
@@ -166,7 +158,7 @@ export class ExpenseDialogComponent implements OnInit {
   unitPrice(): number | null {
     return calculateExpenseUnitPrice(
       Number(this.form.controls.gross_amount.value ?? 0),
-      Number(this.form.controls.quantity.value ?? 0),
+      this.form.controls.quantity.value,
     );
   }
 
@@ -217,7 +209,7 @@ export class ExpenseDialogComponent implements OnInit {
       this.errorMessage.set('Bitte ein Zahlungsdatum angeben.');
       return;
     }
-    if (this.form.invalid || values.gross_amount === null || values.quantity === null) {
+    if (this.form.invalid || values.gross_amount === null) {
       this.errorMessage.set(
         'Bitte Bezeichnung, Kategorie, Menge und einen gültigen Gesamtbetrag angeben.',
       );
@@ -231,7 +223,7 @@ export class ExpenseDialogComponent implements OnInit {
         category_id: values.category_id,
         title: values.title.trim(),
         vendor_name: values.vendor_name.trim() || null,
-        quantity: Number(values.quantity),
+        quantity: values.quantity,
         gross_amount: Number(values.gross_amount),
         vat_rate: values.vat_rate,
         expense_date: values.expense_date,

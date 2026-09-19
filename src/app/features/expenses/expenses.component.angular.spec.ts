@@ -226,7 +226,7 @@ const rules: ExpenseRecurringRule[] = [
   },
 ];
 
-async function render() {
+function render() {
   const expenseService = {
     expenses: signal(expenses),
     isLoading: signal(false),
@@ -291,22 +291,15 @@ async function render() {
     ],
   }).createComponent(ExpensesComponent);
   fixture.detectChanges();
-  await new Promise<void>((resolve) => setTimeout(resolve, 0));
-  fixture.detectChanges();
 
-  return {
-    fixture,
-    expenseService,
-    categoryService,
-    recurringService,
-    documentService,
-    dialog,
-  };
+  return { fixture, expenseService, categoryService, recurringService, documentService, dialog };
 }
 
 describe('ExpensesComponent', () => {
   it('zeigt Summen, Filter und die Ausgabentabelle verständlich', async () => {
-    const { fixture } = await render();
+    const { fixture } = render();
+    await fixture.whenStable();
+    fixture.detectChanges();
     const host = fixture.nativeElement as HTMLElement;
     const headings = [...host.querySelectorAll('thead th')].map((entry) =>
       entry.textContent?.replace(/\s+/g, ' ').trim(),
@@ -335,7 +328,9 @@ describe('ExpensesComponent', () => {
   });
 
   it('findet Ausgaben auch über den Anbieter', async () => {
-    const { fixture } = await render();
+    const { fixture } = render();
+    await fixture.whenStable();
+    fixture.detectChanges();
     fixture.componentInstance.search.set('netcup');
     fixture.detectChanges();
 
@@ -347,9 +342,10 @@ describe('ExpensesComponent', () => {
   it(
     'initialisiert Ausgaben nur über den deduplizierten Service-Pfad und lädt danach Belegstatus',
     async () => {
-      const { expenseService, recurringService, documentService } = await render();
+      const { fixture, expenseService, recurringService, documentService } = render();
+      await fixture.whenStable();
 
-      expect(expenseService.ensureCurrentWorkspaceLoaded).toHaveBeenCalled();
+      expect(expenseService.ensureCurrentWorkspaceLoaded).toHaveBeenCalledTimes(1);
       expect(recurringService.load).not.toHaveBeenCalled();
       expect(recurringService.materializeDue).not.toHaveBeenCalled();
       expect(documentService.loadSummaryForExpenses).toHaveBeenCalledWith([
@@ -360,7 +356,8 @@ describe('ExpensesComponent', () => {
   );
 
   it('verwendet den gemeinsamen Bestätigungsdialog zum Löschen', async () => {
-    const { fixture, expenseService, dialog } = await render();
+    const { fixture, expenseService, dialog } = render();
+    await fixture.whenStable();
 
     await fixture.componentInstance.removeExpense(expenses[0]);
 
@@ -371,7 +368,9 @@ describe('ExpensesComponent', () => {
   });
 
   it('filtert die konkrete Tabelle nach Status', async () => {
-    const { fixture } = await render();
+    const { fixture } = render();
+    await fixture.whenStable();
+    fixture.detectChanges();
     fixture.componentInstance.setStatus('open');
     fixture.detectChanges();
 
@@ -380,7 +379,9 @@ describe('ExpensesComponent', () => {
   });
 
   it('wechselt zur Ansicht der wiederkehrenden Ausgaben und zeigt die nächste Fälligkeit', async () => {
-    const { fixture } = await render();
+    const { fixture } = render();
+    await fixture.whenStable();
+    fixture.detectChanges();
     const host = fixture.nativeElement as HTMLElement;
     fixture.componentInstance.setTab('recurring');
     fixture.detectChanges();
@@ -392,7 +393,9 @@ describe('ExpensesComponent', () => {
   });
 
   it('besteht die automatischen Barrierefreiheitsprüfungen', async () => {
-    const { fixture } = await render();
+    const { fixture } = render();
+    await fixture.whenStable();
+    fixture.detectChanges();
 
     const result = await axe.run(fixture.nativeElement as HTMLElement, {
       rules: { 'color-contrast': { enabled: false } },
