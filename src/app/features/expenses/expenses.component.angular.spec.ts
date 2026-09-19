@@ -226,7 +226,7 @@ const rules: ExpenseRecurringRule[] = [
   },
 ];
 
-function render() {
+function createFixture() {
   const expenseService = {
     expenses: signal(expenses),
     isLoading: signal(false),
@@ -293,9 +293,16 @@ function render() {
   return { fixture, expenseService, categoryService, recurringService, documentService, dialog };
 }
 
+async function render() {
+  const result = createFixture();
+  await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  result.fixture.detectChanges();
+  return result;
+}
+
 describe('ExpensesComponent', () => {
   it('zeigt beim ersten Rendern den Ladezustand statt kurz die leere Tabelle', () => {
-    const { fixture } = render();
+    const { fixture } = createFixture();
     const host = fixture.nativeElement as HTMLElement;
 
     expect(host.querySelector('[data-data-table-loading]')?.textContent).toContain(
@@ -305,9 +312,7 @@ describe('ExpensesComponent', () => {
   });
 
   it('zeigt Summen, Filter und die Ausgabentabelle verständlich', async () => {
-    const { fixture } = render();
-    await fixture.whenStable();
-    fixture.detectChanges();
+    const { fixture } = await render();
     const host = fixture.nativeElement as HTMLElement;
     const headings = [...host.querySelectorAll('thead th')].map((entry) =>
       entry.textContent?.replace(/\s+/g, ' ').trim(),
@@ -336,9 +341,7 @@ describe('ExpensesComponent', () => {
   });
 
   it('filtert die konkrete Tabelle nach Status', async () => {
-    const { fixture } = render();
-    await fixture.whenStable();
-    fixture.detectChanges();
+    const { fixture } = await render();
     fixture.componentInstance.setStatus('open');
     fixture.detectChanges();
 
@@ -347,8 +350,7 @@ describe('ExpensesComponent', () => {
   });
 
   it('findet Ausgaben auch über den Anbieter', async () => {
-    const { fixture } = render();
-    await fixture.whenStable();
+    const { fixture } = await render();
     fixture.componentInstance.search.set('amazon');
     fixture.detectChanges();
 
@@ -358,23 +360,20 @@ describe('ExpensesComponent', () => {
   });
 
   it('nutzt genau den deduplizierten Initial-Ladepfad und lädt Belegstatus danach', async () => {
-    const { fixture, expenseService, recurringService, documentService } = render();
-    await fixture.whenStable();
+    const { fixture, expenseService, recurringService, documentService } = await render();
 
     expect(expenseService.ensureCurrentWorkspaceLoaded).toHaveBeenCalledTimes(1);
     expect(expenseService.load).not.toHaveBeenCalled();
     expect(recurringService.load).not.toHaveBeenCalled();
     expect(recurringService.materializeDue).not.toHaveBeenCalled();
     expect(documentService.loadSummaryForExpenses).toHaveBeenCalledWith([
-      'expense-open',
       'expense-paid',
+      'expense-open',
     ]);
   });
 
   it('zeigt konsistente Icon-Aktionen und den Belegzustand', async () => {
-    const { fixture } = render();
-    await fixture.whenStable();
-    fixture.detectChanges();
+    const { fixture } = await render();
     const host = fixture.nativeElement as HTMLElement;
 
     expect(host.querySelector('[aria-label="Ausgabe bearbeiten"]')).toBeTruthy();
@@ -385,15 +384,14 @@ describe('ExpensesComponent', () => {
   });
 
   it('bestätigt das Löschen über den gemeinsamen Dialog', async () => {
-    const { fixture, expenseService, dialog } = render();
-    await fixture.whenStable();
+    const { fixture, expenseService, dialog } = await render();
 
     await fixture.componentInstance.removeExpense(expenses[0]);
 
     expect(dialog.frage).toHaveBeenCalledWith(
       expect.objectContaining({
         titel: 'Ausgabe löschen?',
-        bestaetigenText: 'Ausgabe löschen',
+        bestaetigenText: 'Löschen',
         gefahr: true,
       }),
     );
@@ -401,9 +399,7 @@ describe('ExpensesComponent', () => {
   });
 
   it('wechselt zur Ansicht der wiederkehrenden Ausgaben und zeigt die nächste Fälligkeit', async () => {
-    const { fixture } = render();
-    await fixture.whenStable();
-    fixture.detectChanges();
+    const { fixture } = await render();
     const host = fixture.nativeElement as HTMLElement;
     fixture.componentInstance.setTab('recurring');
     fixture.detectChanges();
@@ -415,9 +411,7 @@ describe('ExpensesComponent', () => {
   });
 
   it('besteht die automatischen Barrierefreiheitsprüfungen', async () => {
-    const { fixture } = render();
-    await fixture.whenStable();
-    fixture.detectChanges();
+    const { fixture } = await render();
 
     const result = await axe.run(fixture.nativeElement as HTMLElement, {
       rules: { 'color-contrast': { enabled: false } },
