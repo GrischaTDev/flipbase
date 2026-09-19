@@ -1,3 +1,4 @@
+import { CurrencyPipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -38,6 +39,7 @@ function localDateKey(date = new Date()): string {
   selector: 'app-recurring-expense-dialog',
   imports: [
     ReactiveFormsModule,
+    CurrencyPipe,
     ModalShellComponent,
     ButtonComponent,
     CustomSelectComponent,
