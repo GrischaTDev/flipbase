@@ -6,6 +6,7 @@ import { WorkspaceRole } from '../../../../core/models/flipbase.models';
 import {
   auditFiltersFromQueryParams,
   canExportAuditData,
+  resolveAuditAccessState,
   toBusinessEventFilter,
 } from './data-and-audit.component';
 
@@ -77,6 +78,24 @@ describe('Daten & Protokolle', () => {
       to: '2026-01-15T22:59:59.999Z',
       pageSize: 25,
     });
+  });
+
+  it.each([
+    [false, null, 'loading'],
+    [true, 'owner', 'authorized'],
+    [true, 'admin', 'authorized'],
+    [true, 'accountant', 'authorized'],
+    [true, 'member', 'forbidden'],
+    [true, null, 'forbidden'],
+  ] as const)(
+    'unterscheidet Rollen-Ladezustand %s / %s als %s',
+    (membershipLoaded, role, expected) => {
+      expect(resolveAuditAccessState(false, membershipLoaded, role)).toBe(expected);
+    },
+  );
+
+  it('behandelt den Demo-Modus unabhängig vom Workspace-Mitgliederladen', () => {
+    expect(resolveAuditAccessState(true, false, null)).toBe('demo');
   });
 
   it.each<[WorkspaceRole | null, boolean]>([
