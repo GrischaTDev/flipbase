@@ -9,10 +9,12 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import { EXPENSES_TABLE_CONFIG } from '../../core/config/table-defaults.config';
 import { Expense, ExpenseCategory, ExpenseRecurringRule } from '../../core/models/expense.models';
 import { ExpenseCategoryService } from '../../core/services/expense-category.service';
+import { ExpenseDocumentService } from '../../core/services/expense-document.service';
 import { ExpenseRecurringService } from '../../core/services/expense-recurring.service';
 import { ExpenseService } from '../../core/services/expense.service';
 import { TablePreferencesService } from '../../core/services/table-preferences.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
+import { ConfirmDialogService } from '../../shared/components/confirm-dialog/confirm-dialog.service';
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
 import { CardComponent } from '../../shared/components/card/card.component';
@@ -60,7 +62,7 @@ beforeAll(async () => {
   });
 
   registerInputs(PageHeaderComponent, ['title', 'subtitle', 'icon']);
-  registerInputs(ButtonComponent, ['variant', 'size', 'icon', 'ariaPressed']);
+  registerInputs(ButtonComponent, ['variant', 'size', 'icon', 'iconOnly', 'ariaPressed', 'ariaLabel', 'title']);
   registerInputs(CardComponent, ['padding', 'rounded']);
   registerInputs(BadgeComponent, ['tone', 'mono']);
   registerInputs(DataTableComponent, [
@@ -158,6 +160,8 @@ const expenses: Expense[] = [
     recurring_rule_id: null,
     occurrence_date: null,
     title: 'Versandkartons',
+    vendor_name: 'Amazon',
+    quantity: 10,
     gross_amount: 35,
     vat_rate: 19,
     expense_date: '2026-09-10',
@@ -177,6 +181,8 @@ const expenses: Expense[] = [
     recurring_rule_id: 'rule-server',
     occurrence_date: '2026-09-18',
     title: 'Server',
+    vendor_name: 'Netcup',
+    quantity: 1,
     gross_amount: 29.9,
     vat_rate: 19,
     expense_date: '2026-09-18',
@@ -197,6 +203,8 @@ const rules: ExpenseRecurringRule[] = [
     workspace_id: 'ws-1',
     category_id: 'cat-host',
     title: 'Server',
+    vendor_name: 'Netcup',
+    quantity: 1,
     gross_amount: 29.9,
     vat_rate: 19,
     frequency: 'monthly',
@@ -216,6 +224,9 @@ function render() {
     isLoading: signal(false),
     loadError: signal(null),
     load: vi.fn().mockResolvedValue(undefined),
+    ensureCurrentWorkspaceLoaded: vi.fn().mockResolvedValue(undefined),
+    markPaid: vi.fn().mockResolvedValue({ data: expenses[1], error: null }),
+    remove: vi.fn().mockResolvedValue({ error: null }),
   };
   const categoryService = {
     categories: signal(categories),
@@ -251,6 +262,13 @@ function render() {
   const workspaceService = {
     currentWorkspace: signal({ id: 'ws-1' }),
   };
+  const documentService = {
+    loadSummaryForExpenses: vi.fn().mockResolvedValue(undefined),
+    hasDocuments: vi.fn((expenseId: string) => expenseId === 'expense-paid'),
+  };
+  const dialog = {
+    frage: vi.fn().mockResolvedValue(true),
+  };
 
   const fixture = TestBed.configureTestingModule({
     imports: [ExpensesComponent],
@@ -260,11 +278,13 @@ function render() {
       { provide: ExpenseRecurringService, useValue: recurringService },
       { provide: TablePreferencesService, useValue: tablePreferences },
       { provide: WorkspaceService, useValue: workspaceService },
+      { provide: ExpenseDocumentService, useValue: documentService },
+      { provide: ConfirmDialogService, useValue: dialog },
     ],
   }).createComponent(ExpensesComponent);
   fixture.detectChanges();
 
-  return { fixture, expenseService, categoryService, recurringService };
+  return { fixture, expenseService, categoryService, recurringService, documentService, dialog };
 }
 
 describe('ExpensesComponent', () => {
@@ -287,15 +307,48 @@ describe('ExpensesComponent', () => {
     expect(headings).toEqual([
       'Datum',
       'Bezeichnung',
+      'Anbieter',
       'Kategorie',
-      'Brutto',
-      'MwSt.',
+      'Menge',
+      'Gesamtbetrag',
       'Status',
-      'Fällig / bezahlt am',
-      'Wiederholung',
       'Beleg',
       'Aktionen',
     ]);
+  });
+
+  it('findet Ausgaben auch über den Anbieter', () => {
+    const { fixture } = render();
+    fixture.componentInstance.search.set('netcup');
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.visibleExpenses().map((entry) => entry.id)).toEqual([
+      'expense-open',
+    ]);
+  });
+
+  it('initialisiert Ausgaben nur über den deduplizierten Service-Pfad und lädt danach Belegstatus', async () => {
+    const { fixture, expenseService, recurringService, documentService } = render();
+    await fixture.componentInstance.ngOnInit();
+
+    expect(expenseService.ensureCurrentWorkspaceLoaded).toHaveBeenCalled();
+    expect(recurringService.load).not.toHaveBeenCalled();
+    expect(recurringService.materializeDue).not.toHaveBeenCalled();
+    expect(documentService.loadSummaryForExpenses).toHaveBeenCalledWith([
+      'expense-paid',
+      'expense-open',
+    ]);
+  });
+
+  it('verwendet den gemeinsamen Bestätigungsdialog zum Löschen', async () => {
+    const { fixture, expenseService, dialog } = render();
+
+    await fixture.componentInstance.removeExpense(expenses[0]);
+
+    expect(dialog.frage).toHaveBeenCalledWith(
+      expect.objectContaining({ titel: 'Ausgabe löschen?', gefahr: true }),
+    );
+    expect(expenseService.remove).toHaveBeenCalledWith('expense-paid');
   });
 
   it('filtert die konkrete Tabelle nach Status', () => {
