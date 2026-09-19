@@ -1,3 +1,4 @@
+import { parseTemplate } from '@angular/compiler';
 import { readFile, readdir } from 'node:fs/promises';
 import { dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -10,16 +11,60 @@ const blackPrimaryVariantPattern =
 const directTableColumnMenuPattern = /<app-table-column-menu\b/giu;
 const legacyTableToolbarPattern = /<app-table-toolbar\b/giu;
 const nativeTableSearchPattern = /<input\b[^>]*\btype\s*=\s*["']search["'][^>]*>/giu;
-const tablePattern = /<table\b[^>]*>/giu;
-const dataTablePattern = /<app-data-table\b/giu;
-const tableExceptionPattern =
-  /\bdata-shared-ui-exception\s*=\s*["'](?:static-table|embedded-table|data-table-content)["']/u;
 const purchaseWorkspacePath =
   /\/purchases\/(?:components|pages)\/(?:purchase-entry-form|purchase-line-editor|purchase-cost-editor|purchase-cost-summary|purchase-cost-overview-dialog|purchase-create|purchase-detail|purchase-edit)\//u;
 const nativeWorkspaceControlPattern = /<(?:button|input|textarea)\b[^>]*>/giu;
 
+const approvedTableExceptions = new Map([
+  [
+    'src/app/features/purchases/pages/purchase-print/purchase-print.component.html',
+    new Set(['static-table']),
+  ],
+  [
+    'src/app/features/purchases/components/purchase-line-editor/purchase-line-editor.component.html',
+    new Set(['embedded-table']),
+  ],
+  [
+    'src/app/features/purchases/components/purchase-detail-table/purchase-detail-table.component.html',
+    new Set(['static-table']),
+  ],
+  ['src/app/features/accounting/accounting.component.html', new Set(['static-table'])],
+  ['src/app/features/analytics/analytics.component.html', new Set(['static-table'])],
+  ['src/app/features/fulfillment/fulfillment.component.html', new Set(['static-table'])],
+  ['src/app/features/dashboard/dashboard.component.html', new Set(['static-table'])],
+  ['src/app/features/catalog/catalog.component.html', new Set(['static-table'])],
+  [
+    'src/app/features/inventory/components/stock-position-list/stock-position-list.component.html',
+    new Set(['data-table-content', 'static-table']),
+  ],
+]);
+
 function lineAt(source, offset) {
   return source.slice(0, offset).split(/\r?\n/u).length;
+}
+
+function attributeValue(node, name) {
+  const attribute = [...(node.attributes ?? []), ...(node.templateAttrs ?? [])].find(
+    (candidate) => candidate.name === name,
+  );
+  return attribute?.value ?? null;
+}
+
+function templateElements(source, path) {
+  const parsed = parseTemplate(source, path, { preserveWhitespaces: false });
+  if (parsed.errors?.length) {
+    throw new Error(parsed.errors.map((error) => error.toString()).join('\n'));
+  }
+  const elements = [];
+  const walk = (nodes, ancestors) => {
+    for (const node of nodes ?? []) {
+      const nextAncestors = typeof node.name === 'string' ? [...ancestors, node] : ancestors;
+      if (typeof node.name === 'string') elements.push({ node, ancestors });
+      walk(node.children, nextAncestors);
+    }
+  };
+  walk(parsed.nodes, []);
+  return elements;
 }
 
 export function findAdminSharedUiViolations(path, source) {
@@ -40,24 +85,30 @@ export function findAdminSharedUiViolations(path, source) {
     violations.push({ rule: 'legacy-table-toolbar', line: lineAt(source, match.index) });
   }
 
-  const tables = [...source.matchAll(tablePattern)];
-  const dataTableCount = [...source.matchAll(dataTablePattern)].length;
+  const tables = templateElements(source, path).filter(({ node }) => node.name === 'table');
   if (tables.length > 0) {
     for (const match of source.matchAll(nativeTableSearchPattern)) {
       violations.push({ rule: 'native-table-search', line: lineAt(source, match.index) });
     }
 
-    const unclassifiedTables = tables.filter((match) => !tableExceptionPattern.test(match[0]));
-    if (dataTableCount === 0) {
-      for (const match of unclassifiedTables) {
-        violations.push({
-          rule: 'managed-table-without-data-table',
-          line: lineAt(source, match.index),
-        });
+    for (const { node, ancestors } of tables) {
+      const line = node.sourceSpan.start.line + 1;
+      const exception = attributeValue(node, 'data-shared-ui-exception');
+      if (exception !== null) {
+        if (!approvedTableExceptions.get(path)?.has(exception)) {
+          violations.push({ rule: 'unapproved-table-exception', line });
+        }
+        continue;
       }
-    } else if (unclassifiedTables.length > dataTableCount) {
-      for (const match of unclassifiedTables) {
-        violations.push({ rule: 'unclassified-table', line: lineAt(source, match.index) });
+
+      const dataTableIndex = ancestors.findIndex((ancestor) => ancestor.name === 'app-data-table');
+      const inContentSlot = ancestors
+        .slice(dataTableIndex + 1)
+        .some((ancestor) => attributeValue(ancestor, 'table-content') !== null);
+      if (dataTableIndex < 0) {
+        violations.push({ rule: 'managed-table-without-data-table', line });
+      } else if (!inContentSlot) {
+        violations.push({ rule: 'table-outside-content-slot', line });
       }
     }
   }
