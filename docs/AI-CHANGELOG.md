@@ -1,5 +1,50 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-19 – ChatGPT GPT-5.6 Sol (OpenAI) – Ausgaben-Erfassung vereinfacht
+
+**Auftrag:** Die Ausgabenseite flackerfrei machen, Tabellenaktionen an das
+gemeinsame Icon-System angleichen, Belege direkt beim Erfassen ermöglichen und
+Ausgaben um Händler/Anbieter sowie Stückzahl ergänzen. Die bisher gleichwertig
+dargestellten Felder „Bruttobetrag“ und „MwSt.“ sollen im normalen Arbeitsablauf
+nicht wie eine Buchhaltungsaufgabe wirken.
+
+**Änderung:** Ausgaben und Wiederholungsregeln speichern jetzt optional den
+Anbieter und eine positive ganzzahlige Menge (Standard 1). Der gespeicherte
+`gross_amount` bleibt der Gesamtbetrag des Belegs; ein Stückpreis wird nur
+berechnet. Neue manuelle und wiederkehrende Einträge starten in der Oberfläche
+mit 19 % enthaltener MwSt., während bestehende unbekannte Steuerwerte beim
+Bearbeiten unverändert bleiben. Steuerdetails sind standardmäßig eingeklappt;
+0 % und „nicht ausgewiesen / unbekannt“ bleiben getrennte Zustände.
+
+Der Erfassungsdialog unterstützt einen optionalen privaten Beleg per Auswahl
+oder Drag & Drop. Erst die Ausgabe wird gespeichert, danach der Beleg
+hochgeladen. Scheitert nur der Upload, bleibt die Ausgabe erhalten und ein
+erneuter Versuch aktualisiert denselben Datensatz statt eine Dublette zu
+erzeugen. Die Tabelle zeigt Beleg vorhanden/fehlt über Icons, verwendet
+Stift/Papierkorb/Bezahlt-Icons für Zeilenaktionen und nutzt den gemeinsamen
+Bestätigungsdialog zum Löschen.
+
+Der Seitenstart verwendet nur noch
+`ExpenseService.ensureCurrentWorkspaceLoaded()` als deduplizierten
+Ausgaben-Ladepfad. Ein synchroner Initialzustand hält die Tabelle bis zum
+Abschluss stabil im Ladezustand; der zusätzliche direkte
+`recurringService.load() -> materializeDue() -> expenseService.load()`-Pfad
+wurde aus der Komponente entfernt.
+
+**Datenbank:** Neue additive Migration
+`20260919063600_expense_vendor_quantity.sql` ergänzt `vendor_name` und
+`quantity` in `expenses` und `expense_recurring_rules`, einschließlich
+Längen- und Positivitäts-Constraints. Deklaratives Schema, Typen und SQL-Tests
+wurden entsprechend angepasst.
+
+**Prüfung:** Regressionstests wurden vor den jeweiligen Implementierungsschritten
+für Datenmodell, Stückpreis/Steuerzerlegung, Belegstatus, Beleg-Upload,
+Tabellenspalten, Icon-Aktionen, Tabellenpräferenzen und dedupliziertes Laden
+ergänzt. Der Branch wurde statisch gegen den aktuellen `master` und auf
+Schema-/Migration-Abgleich geprüft. Eine lokale npm-/Supabase-Ausführung ist in
+dieser Sitzung nicht verfügbar; die ausführbare Format-, Lint-, Typ-, Angular-,
+Anwendungs- und Datenbankprüfung erfolgt im PR-CI-Lauf.
+
 ## 2026-09-19 – ChatGPT GPT-5.6 Sol (OpenAI) – Prüfprotokoll wartet auf Workspace-Rolle
 
 **Auftrag:** Beheben, dass „Daten & Protokolle“ trotz Inhaberrolle kurzzeitig

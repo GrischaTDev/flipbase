@@ -1,5 +1,12 @@
 # Ausgaben: Betriebskosten, Wiederholungen und Belege
 
+> **Aktueller UX-Stand:** Die fachliche Grundlage dieses Dokuments bleibt gültig.
+> Die Erfassungs- und Tabellen-UX wurde am 19. September 2026 durch
+> `docs/superpowers/specs/2026-09-19-expense-entry-redesign-design.md`
+> konkretisiert. Insbesondere ersetzt dort „Gesamtbetrag + eingeklappte
+> Steuerdetails“ die hier beschriebene gleichwertige Brutto/MwSt.-Darstellung;
+> Anbieter und Menge wurden additiv ergänzt.
+
 Stand: 18. September 2026. Ziel ist ein eigenständiger Finanzbaustein für allgemeine
 Betriebsausgaben. Wareneinkäufe bleiben im bestehenden Einkaufsbereich.
 
