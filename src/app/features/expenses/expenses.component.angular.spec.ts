@@ -5,7 +5,7 @@ import { EventEmitter, signal, ɵresolveComponentResources } from '@angular/core
 import { TestBed } from '@angular/core/testing';
 import axe from 'axe-core';
 import { glob, readFile } from 'node:fs/promises';
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EXPENSES_TABLE_CONFIG } from '../../core/config/table-defaults.config';
 import { Expense, ExpenseCategory, ExpenseRecurringRule } from '../../core/models/expense.models';
 import { ExpenseCategoryService } from '../../core/services/expense-category.service';
@@ -115,7 +115,15 @@ beforeAll(async () => {
   });
 });
 
-afterEach(() => TestBed.resetTestingModule());
+beforeEach(() => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  vi.setSystemTime(new Date(2026, 8, 19, 12));
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+  TestBed.resetTestingModule();
+});
 
 afterAll(() => {
   for (const [component, snapshot] of snapshots) {

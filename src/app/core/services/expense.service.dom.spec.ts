@@ -107,6 +107,7 @@ function createWorkspaceHarness(
   const currentWorkspace = signal({ id: 'workspace-a' });
   const queriedWorkspaces: string[] = [];
   const ranges: (readonly [number, number])[] = [];
+  const orders: (readonly [string, boolean])[] = [];
   const from = vi.fn(() => {
     let workspaceId = '';
     const query = {
@@ -116,7 +117,10 @@ function createWorkspaceHarness(
         return query;
       },
       is: () => query,
-      order: () => query,
+      order: (column: string, options: { ascending: boolean }) => {
+        orders.push([column, options.ascending]);
+        return query;
+      },
       range: (start: number, end: number) => {
         queriedWorkspaces.push(workspaceId);
         ranges.push([start, end]);
@@ -138,10 +142,45 @@ function createWorkspaceHarness(
     ],
   });
   const service = runInInjectionContext(injector, () => new ExpenseService());
-  return { service, currentWorkspace, queriedWorkspaces, ranges, injector };
+  return { service, currentWorkspace, queriedWorkspaces, ranges, orders, injector };
 }
 
 describe('ExpenseService', () => {
+  it('lädt A nach A→B→A frisch, wenn die erste A-Anfrage noch läuft', async () => {
+    const first = deferred<QueryResult>();
+    let aRequests = 0;
+    const harness = createWorkspaceHarness(async (workspaceId) => {
+      if (workspaceId === 'workspace-a' && ++aRequests === 1) return first.promise;
+      return { data: [workspaceExpense(workspaceId)], error: null };
+    });
+
+    const initial = harness.service.ensureCurrentWorkspaceLoaded();
+    harness.currentWorkspace.set({ id: 'workspace-b' });
+    await harness.service.ensureCurrentWorkspaceLoaded();
+    harness.currentWorkspace.set({ id: 'workspace-a' });
+    const returned = harness.service.ensureCurrentWorkspaceLoaded();
+    first.resolve({ data: [workspaceExpense('workspace-a')], error: null });
+    await Promise.all([initial, returned]);
+
+    try {
+      expect(harness.service.expenses().map((row) => row.workspace_id)).toEqual(['workspace-a']);
+    } finally {
+      harness.injector.destroy();
+    }
+  });
+
+  it('ordnet Ausgabenseiten stabil nach Datum und ID', async () => {
+    const harness = createWorkspaceHarness(async () => ({ data: [], error: null }));
+
+    await harness.service.load();
+
+    expect(harness.orders).toEqual([
+      ['expense_date', false],
+      ['id', false],
+    ]);
+    harness.injector.destroy();
+  });
+
   it('lädt nur aktive Ausgaben des aktuellen Workspace', async () => {
     const { service } = createService();
 

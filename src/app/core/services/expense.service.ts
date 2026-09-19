@@ -216,6 +216,7 @@ export class ExpenseService {
           .eq('workspace_id', workspaceId)
           .is('deleted_at', null)
           .order('expense_date', { ascending: false })
+          .order('id', { ascending: false })
           .range(from, from + pageSize - 1);
         if (!this.isLatestRequest(workspaceId, requestId)) return false;
         if (error) throw error;
@@ -299,6 +300,7 @@ export class ExpenseService {
     if (this.workspaceContextId === workspaceId) return false;
     this.workspaceContextId = workspaceId;
     this.lastSyncedContext = null;
+    this.syncPromises.clear();
     this.loadRequestSequence += 1;
     this.expensesRaw.set([]);
     this.loadError.set(null);

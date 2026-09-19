@@ -39,7 +39,12 @@ function createService(
     insert?: ReturnType<typeof vi.fn>;
     deleteRow?: ReturnType<typeof vi.fn>;
     summaryRows?: readonly { expense_id: string }[];
-    summaryResult?: (workspaceId: string) => Promise<{
+    summaryResult?: (
+      workspaceId: string,
+      expenseIds: readonly string[],
+      from: number,
+      to: number,
+    ) => Promise<{
       readonly data: readonly { expense_id: string }[] | null;
       readonly error: Error | null;
     }>;
@@ -67,7 +72,8 @@ function createService(
   const documentCounts = signal<ReadonlyMap<string, number>>(new Map());
   const currentWorkspace = signal(workspace);
   const summaryRows = options.summaryRows ?? [{ expense_id: expenseId }];
-  let summaryWorkspaceId = '';
+  const summaryBatches: string[][] = [];
+  const summaryRanges: (readonly [number, number])[] = [];
   const service = Object.create(ExpenseDocumentService.prototype) as ExpenseDocumentService;
   Object.assign(service, {
     documentsRaw,
@@ -90,16 +96,33 @@ function createService(
           delete: deleteRow,
           select: (columns?: string) => {
             if (columns === 'expense_id') {
-              return {
+              let summaryWorkspaceId = '';
+              let summaryExpenseIds: readonly string[] = [];
+              const summaryQuery = {
                 eq: (column: string, value: string) => {
                   if (column === 'workspace_id') summaryWorkspaceId = value;
-                  return {
-                    in: () =>
-                      options.summaryResult?.(summaryWorkspaceId) ??
-                      Promise.resolve({ data: summaryRows, error: null }),
-                  };
+                  return summaryQuery;
+                },
+                in: (_column: string, values: readonly string[]) => {
+                  summaryExpenseIds = values;
+                  summaryBatches.push([...values]);
+                  return summaryQuery;
+                },
+                order: () => summaryQuery,
+                range: (from: number, to: number) => {
+                  summaryRanges.push([from, to]);
+                  return (
+                    options.summaryResult?.(summaryWorkspaceId, summaryExpenseIds, from, to) ??
+                    Promise.resolve({
+                      data: summaryRows
+                        .filter((row) => summaryExpenseIds.includes(row.expense_id))
+                        .slice(from, to + 1),
+                      error: null,
+                    })
+                  );
                 },
               };
+              return summaryQuery;
             }
             const documentQuery = {
               eq: () => documentQuery,
@@ -114,7 +137,17 @@ function createService(
     },
   });
 
-  return { service, upload, removeFile, download, insert, deleteRow, currentWorkspace };
+  return {
+    service,
+    upload,
+    removeFile,
+    download,
+    insert,
+    deleteRow,
+    currentWorkspace,
+    summaryBatches,
+    summaryRanges,
+  };
 }
 
 describe('ExpenseDocumentService', () => {
@@ -231,5 +264,35 @@ describe('ExpenseDocumentService', () => {
 
     expect(service.hasDocuments(expenseId)).toBe(false);
     expect(service.hasDocuments(otherExpenseId)).toBe(true);
+  });
+
+  it('teilt große Ausgabenlisten in kurze Belegabfragen auf', async () => {
+    const expenseIds = Array.from(
+      { length: 1001 },
+      (_, index) => `expense-${String(index).padStart(4, '0')}`,
+    );
+    const { service, summaryBatches } = createService({ summaryRows: [] });
+
+    await service.loadSummaryForExpenses(expenseIds);
+
+    expect(summaryBatches.flat()).toEqual(expenseIds);
+    expect(Math.max(...summaryBatches.map((batch) => batch.length))).toBeLessThanOrEqual(100);
+  });
+
+  it('lädt alle Seiten einer Belegabfrage', async () => {
+    const expenseIds = Array.from(
+      { length: 100 },
+      (_, index) => `expense-${String(index).padStart(3, '0')}`,
+    );
+    const rows = expenseIds.flatMap((id) => Array.from({ length: 11 }, () => ({ expense_id: id })));
+    const { service, summaryRanges } = createService({ summaryRows: rows });
+
+    await service.loadSummaryForExpenses(expenseIds);
+
+    expect(service.hasDocuments('expense-099')).toBe(true);
+    expect(summaryRanges).toEqual([
+      [0, 999],
+      [1000, 1999],
+    ]);
   });
 });
