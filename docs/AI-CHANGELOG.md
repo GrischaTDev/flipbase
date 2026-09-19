@@ -1,5 +1,33 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-19 – ChatGPT GPT-5.6 Sol (OpenAI) – Entwurf: Ausgaben-Erfassung und Rollen-Ladezustand
+
+**Auftrag:** Den Rollenfehler unter „Daten & Protokolle“ analysieren sowie die
+Ausgabenseite hinsichtlich Tabellenflackern, Belegfluss, Tabellenaktionen,
+Stückzahl/Anbieter und verständlicherer MwSt.-Erfassung überarbeiten.
+
+**Befund:** Das Prüfprotokoll wertet eine vorübergehend noch nicht geladene
+Workspace-Rolle als fehlende Berechtigung und lädt nach dem Eintreffen der
+`owner`-Rolle nicht erneut. Auf der Ausgabenseite existieren zwei konkurrierende
+Initial-Ladepfade. Belege können erst nachträglich über einen Textbutton verwaltet
+werden; Händler und Menge fehlen. Die Steuerdarstellung behandelt Gesamtbetrag
+und MwSt.-Satz zu gleichwertig, obwohl der bezahlte Gesamtbetrag die primäre
+Eingabe ist.
+
+**Ergebnis:** Entwurf
+`docs/superpowers/specs/2026-09-19-expense-entry-redesign-design.md`.
+Vorgesehen sind ein stabiler einmaliger Initial-Ladepfad, Händler und positive
+Stückzahl im Datenmodell, Gesamtbetrag als führende Betragsangabe, standardmäßig
+eingeklappte Steuerdetails mit 19 % als Neuanlagen-Default, Beleg-Drag-and-Drop
+bereits beim Erfassen, Belegstatus-Icons sowie konsistente Icon-Aktionen. Der
+Rollenfehler wird als separater kleiner Bugfix mit explizitem
+Mitglieder-Ladezustand behandelt.
+
+**Prüfung:** Aktuelle Ausgaben-, Dokument-, Rollen-, Tabellen- und
+Datenbankschichten wurden gegen den bestehenden gemeinsamen UI- und
+Private-Document-Aufbau analysiert. Noch kein Anwendungscode oder Datenbankschema
+geändert.
+
 ## 2026-09-19 – ChatGPT GPT-5.6 Sol (OpenAI) – Workspace-Löschung und Datenexport vereinfacht
 
 **Auftrag:** Frisch angelegte Test-Workspaces sollen sich direkt löschen lassen,
