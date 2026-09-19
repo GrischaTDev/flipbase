@@ -154,6 +154,25 @@ select throws_ok(
   'eine Ausgabe verlangt eine positive Menge'
 );
 
+select throws_ok(
+  $$insert into public.expense_recurring_rules (
+      workspace_id, category_id, title, quantity, gross_amount, frequency,
+      start_date, is_active, created_by
+    ) values (
+      'f1800000-0000-4000-8000-000000000011',
+      'f1800000-0000-4000-8000-000000000021',
+      'Ungültige Wiederholung',
+      0,
+      10,
+      'monthly',
+      '2026-09-18',
+      true,
+      'f1800000-0000-4000-8000-000000000001'
+    )$$,
+  '23514',
+  null,
+  'auch Wiederholungsregeln verlangen eine positive Menge'
+);
 select lives_ok(
   $$update public.expense_categories
     set name = 'Eigenes Versandmaterial'
