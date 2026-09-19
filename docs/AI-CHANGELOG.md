@@ -1,5 +1,28 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-19 – ChatGPT GPT-5.6 Sol (OpenAI) – Prüfprotokoll wartet auf Workspace-Rolle
+
+**Auftrag:** „Daten & Protokolle“ meldete einem tatsächlichen Workspace-Inhaber beim
+ersten Öffnen fälschlich, dass eine Inhaber-, Admin- oder Buchhaltungsrolle
+erforderlich sei.
+
+**Ursache:** Die Seite bewertete die vorübergehend leere Mitgliederliste während
+der asynchronen Rollenabfrage bereits als „nicht berechtigt“ und merkte sich den
+Workspace danach als geladen. Die später eintreffende `owner`-Rolle startete
+keinen neuen Ladevorgang.
+
+**Änderung:** `WorkspaceMemberService` unterscheidet jetzt einen erfolgreich
+aufgelösten Mitgliederkontext vom bloßen Ende eines Ladeversuchs. Die
+Prüfprotokollseite behandelt den Zugriff explizit als `loading`,
+`authorized` oder `forbidden` und lädt automatisch nach, sobald die echte
+Workspace-Rolle feststeht. Das rote Admin-Badge im Header bleibt unverändert ein
+Plattform-Operator-Badge.
+
+**Prüfung:** Regressionstests wurden vor der Implementierung für
+Workspace-Mitglieder-Readiness und Audit-Zugriffszustände ergänzt. In dieser
+Sitzung steht kein lokaler Repository-/Node-Workspace zur Verfügung; die
+ausführbare RED/GREEN- und Integrationsprüfung erfolgt im PR-CI.
+
 ## 2026-09-19 – ChatGPT GPT-5.6 Sol (OpenAI) – Workspace-Löschung und Datenexport vereinfacht
 
 **Auftrag:** Frisch angelegte Test-Workspaces sollen sich direkt löschen lassen,
