@@ -59,9 +59,14 @@
       </label>
     </div>
 
-    @if (form.controls.gross_amount.value && form.controls.quantity.value > 1 && unitPrice() !== null) {
+    @if (
+      form.controls.gross_amount.value &&
+      form.controls.quantity.value > 1 &&
+      unitPrice() !== null
+    ) {
       <p class="text-xs text-fb-text-muted">
-        {{ unitPrice() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }} pro Stück bei {{ form.controls.quantity.value }} Stück
+        {{ unitPrice() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }} pro Stück bei
+        {{ form.controls.quantity.value }} Stück
       </p>
     }
 
@@ -89,8 +94,10 @@
           @if (form.controls.gross_amount.value) {
             <p class="text-xs text-fb-text-muted">
               @if (taxBreakdown().net !== null) {
-                Netto {{ taxBreakdown().net | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }} · enthaltene
-                MwSt. {{ taxBreakdown().tax | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                Netto
+                {{ taxBreakdown().net | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }} · enthaltene
+                MwSt.
+                {{ taxBreakdown().tax | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
               } @else {
                 Netto und Steueranteil werden ohne ausgewiesene MwSt. nicht berechnet.
               }
@@ -139,13 +146,19 @@
         (drop)="onDocumentDrop($event)"
       >
         @if (pendingDocument(); as file) {
-          <strong class="max-w-full truncate text-[13px] text-fb-text-primary">{{ file.name }}</strong>
+          <strong class="max-w-full truncate text-[13px] text-fb-text-primary">
+            {{ file.name }}
+          </strong>
           <span class="mt-1 text-xs text-fb-text-muted">
             Klicken oder eine andere Datei hier ablegen, um den Beleg zu ersetzen.
           </span>
         } @else {
-          <strong class="text-[13px] text-fb-text-primary">Beleg hier ablegen oder auswählen</strong>
-          <span class="mt-1 text-xs text-fb-text-muted">PDF, JPG, PNG oder XML · maximal 20 MiB</span>
+          <strong class="text-[13px] text-fb-text-primary">
+            Beleg hier ablegen oder auswählen
+          </strong>
+          <span class="mt-1 text-xs text-fb-text-muted">
+            PDF, JPG, PNG oder XML · maximal 20 MiB
+          </span>
         }
         <input
           type="file"
