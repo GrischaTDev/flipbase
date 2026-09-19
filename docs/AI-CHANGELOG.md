@@ -1,5 +1,32 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-20 – Codex (OpenAI) – Einkaufsübersicht und offene Preise abgesichert
+
+**Auftrag:** Die vereinbarten Schutzregeln für Einkaufslisten und die
+fachliche Erweiterung für offene Positionspreise umsetzen.
+
+**Änderung:** Die Einkaufsübersicht verwendet die gemeinsamen
+Tabellen-Grenzen, zeigt Verkäuferdaten vor dem optionalen Titel und macht einen
+Vinted-Einkauf ohne gespeicherten Verkäufer nach dem erneuten Öffnen über
+Plattform-Benutzernamen und Bestellnummer eindeutig. Normale Einkaufspositionen
+können nun einen offenen Preis im Entwurf behalten und erneut gespeichert
+werden. Ein expliziter Preis von 0,00 € bleibt ein bezahlter Preis. Offene
+Preise werden verständlich angezeigt und sperren Abschluss, Ankunft,
+Wareneingang sowie jede Übernahme in Bestand und Bestandslose. Der allgemeine
+Status `open` ergänzt den erhaltenen Altwert `unpriced_mystery`; Schema,
+generierte Migration, Datenbankfunktionen und Supabase-Typen wurden zusammen
+aktualisiert.
+
+**Prüfung:** Gezielte Service-, Komponenten-, pgTAP- und Chromium-Regressionen
+für offenen Preis, 0,00 €, Speichern, erneutes Öffnen sowie die Sperren liefen
+grün. `npm run verify` bestand mit Formatierung, Lint, Typprüfung,
+Architektur- und Suite-Audit sowie 1.421 Node-, 235 DOM-, 927 Angular- und 13
+Landing-Tests. `npm run test:db` bestand mit 52 Dateien und 1.878 Tests,
+`npm run test:e2e:pr` mit sechs Chromium-Tests und die vollständige
+Einkaufs-Regression mit zwei Chromium-Tests. Der Produktionsbau meldet weiter
+die drei bekannten NG8113-Hinweise zu ungenutzten `LucideDynamicIcon`-Importen.
+Kein Push/Merge.
+
 ## 2026-09-19 – Codex (OpenAI) – Restarbeiten der Demo-Entfernung behoben
 
 **Auftrag:** Die drei bestätigten Lücken aus der kritischen Nachprüfung beheben.
