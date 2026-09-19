@@ -57,6 +57,18 @@ export function canExportAuditData(role: WorkspaceRole | null): boolean {
   return role === 'owner' || role === 'admin' || role === 'accountant';
 }
 
+export type AuditAccessState = 'loading' | 'authorized' | 'forbidden';
+
+export function auditAccessState(
+  isDemoMode: boolean,
+  membersResolved: boolean,
+  role: WorkspaceRole | null,
+): AuditAccessState {
+  if (isDemoMode) return 'authorized';
+  if (!membersResolved) return 'loading';
+  return canExportAuditData(role) ? 'authorized' : 'forbidden';
+}
+
 export function auditFiltersFromQueryParams(params: ParamMap): AuditFilterValue {
   const entity = params.get('entity') ?? '';
   const requestedPageSize = Number(params.get('pageSize') ?? 50);
@@ -189,15 +201,40 @@ export class DataAndAuditComponent {
     () => !this.isDemoMode() && canExportAuditData(this.memberService.currentUserRole()),
   );
   private requestSequence = 0;
-  private loadedWorkspaceId: string | null = null;
+  private loadedAccessContext: string | null = null;
   private exportAbortController: AbortController | null = null;
 
   constructor() {
     this.filters.setValue(auditFiltersFromQueryParams(this.route.snapshot.queryParamMap));
     effect(() => {
       const workspaceId = this.workspaceService.currentWorkspace()?.id ?? null;
-      if (!workspaceId || workspaceId === this.loadedWorkspaceId) return;
-      this.loadedWorkspaceId = workspaceId;
+      const role = this.memberService.currentUserRole();
+      const accessState = auditAccessState(
+        this.isDemoMode(),
+        this.memberService.currentWorkspaceMembersResolved(),
+        role,
+      );
+
+      if (!workspaceId) {
+        this.loadedAccessContext = null;
+        this.events.set([]);
+        this.nextCursor.set(null);
+        this.error.set(null);
+        return;
+      }
+
+      if (accessState === 'loading') {
+        this.loadedAccessContext = null;
+        this.events.set([]);
+        this.nextCursor.set(null);
+        this.error.set(null);
+        return;
+      }
+
+      const accessContext = `${workspaceId}:${role ?? 'none'}`;
+      if (accessContext === this.loadedAccessContext) return;
+
+      this.loadedAccessContext = accessContext;
       this.events.set([]);
       this.nextCursor.set(null);
       void this.loadPage(true);
@@ -315,7 +352,17 @@ export class DataAndAuditComponent {
       this.error.set(null);
       return;
     }
-    if (!this.isAuthorized()) {
+
+    const accessState = auditAccessState(
+      false,
+      this.memberService.currentWorkspaceMembersResolved(),
+      this.memberService.currentUserRole(),
+    );
+    if (accessState === 'loading') {
+      this.error.set(null);
+      return;
+    }
+    if (accessState === 'forbidden') {
       this.events.set([]);
       this.nextCursor.set(null);
       this.error.set(
