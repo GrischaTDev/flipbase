@@ -167,6 +167,8 @@ describe('DashboardReportService', () => {
       recurring_rule_id: null,
       occurrence_date: null,
       title: 'Server',
+      vendor_name: 'Hetzner',
+      quantity: 1,
       gross_amount: 15,
       vat_rate: 19,
       expense_date: '2026-08-20',
