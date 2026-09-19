@@ -153,6 +153,8 @@ export class ExpenseRecurringService {
           recurring_rule_id: rule.id,
           occurrence_date: occurrenceDate,
           title: rule.title,
+          vendor_name: rule.vendor_name,
+          quantity: rule.quantity,
           gross_amount: rule.gross_amount,
           vat_rate: rule.vat_rate,
           expense_date: occurrenceDate,
@@ -193,6 +195,8 @@ export class ExpenseRecurringService {
           ruleId: rule.id,
           title: rule.title,
           categoryId: rule.category_id,
+          vendorName: rule.vendor_name,
+          quantity: rule.quantity,
           grossAmount: rule.gross_amount,
           occurrenceDate: occurrence,
         });
