@@ -57,6 +57,7 @@
             [receivingStatus]="p.receiving_status ?? 'draft'"
             [shipmentStatus]="p.shipment_status ?? 'not_shipped'"
             [contentStatus]="p.content_status ?? (p.type === 'mystery_pack' ? 'unknown' : 'known')"
+            [hasOpenPrices]="hasOpenPurchasePrices()"
             [saleHistoryState]="purchaseService.purchaseSaleHistoryState()"
             [saleReviewInventoryItemId]="purchaseService.purchaseSaleReviewInventoryItemId()"
             [submitting]="isLifecycleSubmitting()"
@@ -92,7 +93,10 @@
           >
             <ng-container [ngTemplateOutlet]="packageContents" />
           </div>
-          @if (quantityPurchaseLines().length > 0 || individualPurchaseLines().length > 0) {
+          @if (
+            !hasOpenPurchasePrices() &&
+            (quantityPurchaseLines().length > 0 || individualPurchaseLines().length > 0)
+          ) {
             <app-card
               entry-main-extra
               title="Wareneingang"
@@ -185,7 +189,11 @@
             <ng-container [ngTemplateOutlet]="packageContents" />
             <app-card title="Artikel" rounded="xl">
               <div card-header-actions>
-                @if (p.entry_status !== 'finalized' && quantityPurchaseLines().length > 0) {
+                @if (
+                  p.entry_status !== 'finalized' &&
+                  !hasOpenPurchasePrices() &&
+                  quantityPurchaseLines().length > 0
+                ) {
                   <div class="flex items-center gap-2">
                     <app-button
                       variant="primary"
@@ -224,6 +232,7 @@
                     [visibleColumns]="visibleColumns()"
                     [purchaseId]="p.id"
                     [rows]="purchaseDetailRows()"
+                    [canCaptureIndividual]="!hasOpenPurchasePrices()"
                     (captureIndividual)="captureIndividualItemById($event)"
                   />
                 } @else if (packageLines().length === 0) {

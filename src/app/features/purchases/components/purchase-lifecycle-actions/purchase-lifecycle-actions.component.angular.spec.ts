@@ -58,6 +58,7 @@ function render(
   } = { receiving: 'received', shipment: 'arrived', content: 'known' },
   editing = false,
   submitting = false,
+  hasOpenPrices = false,
 ) {
   TestBed.resetTestingModule();
   const fixture = TestBed.configureTestingModule({
@@ -73,6 +74,7 @@ function render(
     contentStatus: signal(workflow.content),
     editing: signal(editing),
     submitting: signal(submitting),
+    hasOpenPrices: signal(hasOpenPrices),
   });
   fixture.detectChanges();
   return fixture;
@@ -243,5 +245,24 @@ describe('PurchaseLifecycleActionsComponent', () => {
     expect(host.querySelector('[data-mark-transit]')).toBeNull();
     expect(host.querySelector('[data-mark-arrived]')).not.toBeNull();
     expect(host.textContent).not.toContain('Unterwegs');
+  });
+
+  it('sperrt Ankunft, Inhaltserfassung und Abschluss bei offenen Einkaufspreisen', () => {
+    const fixture = render(
+      'capturing',
+      'idle',
+      null,
+      { receiving: 'ordered', shipment: 'not_shipped', content: 'known' },
+      false,
+      false,
+      true,
+    );
+    const host = fixture.nativeElement as HTMLElement;
+
+    expect(host.querySelector('[data-mark-ordered]')).toBeNull();
+    expect(host.querySelector('[data-mark-arrived]')).toBeNull();
+    expect(host.querySelector('[data-capture-content]')).toBeNull();
+    expect(host.querySelector('[data-finalize-purchase]')).toBeNull();
+    expect(host.textContent).toContain('Einkaufspreise offen');
   });
 });

@@ -4581,6 +4581,10 @@ export type Database = {
         Args: { p_purchase_id: string; p_workspace_id: string }
         Returns: Json
       }
+      purchase_has_open_prices: {
+        Args: { p_purchase_id: string; p_workspace_id: string }
+        Returns: boolean
+      }
       purchase_seller_details_snapshot: {
         Args: { p_purchase: Database["public"]["Tables"]["purchases"]["Row"] }
         Returns: Json

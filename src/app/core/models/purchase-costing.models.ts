@@ -1,4 +1,8 @@
-export type PurchaseLinePriceMode = 'priced' | 'unpriced_mystery';
+/**
+ * `open` hält einen noch unbekannten Preis im Entwurf fest. Der historische
+ * Mystery-Wert bleibt lesbar, weil er die Gesamtpreis-Verteilung beschreibt.
+ */
+export type PurchaseLinePriceMode = 'priced' | 'open' | 'unpriced_mystery';
 
 export type PurchaseEntryStatus = 'draft' | 'capturing' | 'finalized';
 

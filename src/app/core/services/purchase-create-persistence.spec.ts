@@ -334,6 +334,81 @@ describe('PurchaseService – abhängige Schreibvorgänge beim Anlegen', () => {
     );
   });
 
+  it('speichert offene normale Positionspreise getrennt von 0,00 € beim Anlegen und Wiederöffnen', async () => {
+    const openLine = {
+      ...centgenauePosition,
+      draftId: 'open-line',
+      priceMode: 'open' as const,
+      unitPurchasePrice: null,
+      lineTotal: null,
+    };
+    const openPurchase = {
+      ...gespeicherterEinkauf,
+      purchase_price: null,
+      purchase_lines: [
+        {
+          id: 'open-line',
+          workspace_id: workspace.id,
+          purchase_id: gespeicherterEinkauf.id,
+          title_snapshot: openLine.titleSnapshot,
+          line_kind: openLine.lineKind,
+          ordered_quantity: openLine.orderedQuantity,
+          received_quantity: 0,
+          price_mode: 'open' as const,
+          unit_purchase_price: null,
+          line_total: null,
+        },
+      ],
+    };
+    const rpc = vi.fn(async () => ({
+      data: {
+        purchase: openPurchase,
+        purchase_lines: openPurchase.purchase_lines,
+        purchase_costs: [],
+      },
+      error: null,
+    }));
+    const { purchase } = erstelleDienste({ rpc });
+    const payload = erstelleGeldPayload({
+      purchase_price: null,
+      purchase_lines: [openLine],
+    });
+
+    const created = await purchase.createPurchase(payload);
+    const reopened = await purchase.updatePurchaseDraft(gespeicherterEinkauf.id, payload);
+
+    expect(created).toMatchObject({ status: 'success', error: null });
+    expect(reopened).toMatchObject({ data: { purchase_price: null }, error: null });
+    expect(rpc).toHaveBeenNthCalledWith(
+      1,
+      'create_purchase',
+      expect.objectContaining({
+        p_purchase: expect.objectContaining({ purchase_price: null }),
+        p_lines: [
+          expect.objectContaining({
+            price_mode: 'open',
+            unit_purchase_price: null,
+            line_total: null,
+          }),
+        ],
+      }),
+    );
+    expect(rpc).toHaveBeenNthCalledWith(
+      2,
+      'update_purchase_draft',
+      expect.objectContaining({
+        p_purchase: expect.objectContaining({ purchase_price: null }),
+        p_lines: [
+          expect.objectContaining({
+            price_mode: 'open',
+            unit_purchase_price: null,
+            line_total: null,
+          }),
+        ],
+      }),
+    );
+  });
+
   it('schreibt den Legacy-Zusatzkostenpfad mit dem validierten Workspace', async () => {
     const insert = vi.fn(async () => ({ error: null }));
     const { purchase } = erstelleDienste({
@@ -470,6 +545,34 @@ describe('PurchaseService – abhängige Schreibvorgänge beim Anlegen', () => {
     ]);
 
     expect(ergebnis).toMatchObject({ data: null, error: expect.any(Error) });
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it('hält offene Preise beim Ergänzen einzelner Positionen vom alten RPC fern', async () => {
+    const rpc = vi.fn(async () => ({
+      data: { purchase_lines: [] },
+      error: null,
+    }));
+    const { purchase } = erstelleDienste({ rpc });
+
+    const ergebnis = await purchase.createPurchaseLines(gespeicherterEinkauf.id, [
+      {
+        catalogProductId: 'catalog-1',
+        titleSnapshot: 'Noch offener Entwurfsartikel',
+        lineKind: 'quantity',
+        orderedQuantity: 1,
+        priceMode: 'open',
+        unitPurchasePrice: null,
+        lineTotal: null,
+      },
+    ]);
+
+    expect(ergebnis).toMatchObject({
+      data: null,
+      error: expect.objectContaining({
+        message: 'Offene Preise können nur zusammen mit dem Einkaufsentwurf gespeichert werden.',
+      }),
+    });
     expect(rpc).not.toHaveBeenCalled();
   });
 

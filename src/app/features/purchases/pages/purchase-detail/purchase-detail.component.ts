@@ -352,6 +352,10 @@ export class PurchaseDetailComponent {
     );
   }
 
+  private hasOpenPricesForStock(): boolean {
+    return this.hasOpenPurchasePrices?.() ?? false;
+  }
+
   isSaving(): boolean {
     return (
       (this.isReloadingAfterSave() && !this.saveReloadFailed()) ||
@@ -457,6 +461,22 @@ export class PurchaseDetailComponent {
   readonly quantityPurchaseLines = computed(() =>
     this.purchaseService.purchaseLines().filter((line) => line.line_kind === 'quantity'),
   );
+  readonly hasOpenPurchasePrices = computed(() => {
+    const purchase = this.purchaseService.selectedPurchase();
+    if (!purchase) return false;
+    const pricingMode =
+      purchase.pricing_mode ?? (purchase.type === 'mystery_pack' ? 'total' : 'individual');
+    if (pricingMode === 'total') return false;
+    const loadedLines = this.purchaseService.purchaseLines();
+    const lines = loadedLines.length > 0 ? loadedLines : (purchase.purchase_lines ?? []);
+    return lines.some(
+      (line) =>
+        line.price_mode === 'open' ||
+        line.price_mode === 'unpriced_mystery' ||
+        line.unit_purchase_price === null ||
+        line.line_total === null,
+    );
+  });
   readonly individualPurchaseLines = computed(() =>
     this.purchaseService
       .purchaseLines()
@@ -486,6 +506,7 @@ export class PurchaseDetailComponent {
     const purchase = this.purchase();
     return (
       !!purchase &&
+      !this.hasOpenPurchasePrices() &&
       purchase.receiving_status !== 'archived' &&
       (purchase.shipment_status === 'arrived' ||
         !!purchase.arrived_at ||
@@ -713,6 +734,7 @@ export class PurchaseDetailComponent {
     if (
       !purchase ||
       purchase.entry_status === 'finalized' ||
+      this.hasOpenPricesForStock() ||
       lines.length === 0 ||
       this.isSavingPurchaseLines()
     )
@@ -742,6 +764,7 @@ export class PurchaseDetailComponent {
   startReceivingLines(): void {
     if (
       this.purchaseService.selectedPurchase()?.entry_status === 'finalized' ||
+      this.hasOpenPricesForStock() ||
       this.hasUnsavedChanges() ||
       this.isSaving()
     )
@@ -771,6 +794,7 @@ export class PurchaseDetailComponent {
     if (
       !purchase ||
       purchase.entry_status === 'finalized' ||
+      this.hasOpenPricesForStock() ||
       this.hasUnsavedChanges() ||
       this.isSaving() ||
       nowReceived < 1 ||
@@ -801,6 +825,7 @@ export class PurchaseDetailComponent {
     if (
       !purchase ||
       purchase.entry_status === 'finalized' ||
+      this.hasOpenPricesForStock() ||
       this.hasUnsavedChanges() ||
       this.isSaving() ||
       line.received_quantity >= line.ordered_quantity
@@ -833,7 +858,13 @@ export class PurchaseDetailComponent {
 
   async onAddItem(): Promise<void> {
     const purchase = this.purchaseService.selectedPurchase();
-    if (!purchase || purchase.entry_status === 'finalized' || this.itemForm.invalid) return;
+    if (
+      !purchase ||
+      purchase.entry_status === 'finalized' ||
+      this.hasOpenPricesForStock() ||
+      this.itemForm.invalid
+    )
+      return;
 
     const val = this.itemForm.getRawValue();
     const res = await this.purchaseService.addItemToPurchase(purchase.id, {
@@ -934,6 +965,7 @@ export class PurchaseDetailComponent {
     if (
       !purchase ||
       purchase.entry_status === 'finalized' ||
+      this.hasOpenPricesForStock() ||
       this.isLifecycleSubmitting() ||
       this.hasUnsavedChanges() ||
       this.isSaving()
@@ -1001,7 +1033,13 @@ export class PurchaseDetailComponent {
     successMessage: string,
   ): Promise<void> {
     const purchase = this.purchaseService.selectedPurchase();
-    if (!purchase || this.isLifecycleSubmitting() || this.hasUnsavedChanges() || this.isSaving())
+    if (
+      !purchase ||
+      this.isLifecycleSubmitting() ||
+      this.hasUnsavedChanges() ||
+      this.isSaving() ||
+      (status === 'arrived' && this.hasOpenPricesForStock())
+    )
       return;
     this.isLifecycleSubmitting.set(true);
     const { error } = await this.purchaseService.setPurchaseWorkflowStatus(purchase.id, status);
@@ -1091,7 +1129,7 @@ export class PurchaseDetailComponent {
 
   async markDeliveredAndSync(): Promise<void> {
     const p = this.purchaseService.selectedPurchase();
-    if (!p || this.hasUnsavedChanges() || this.isSaving()) return;
+    if (!p || this.hasOpenPricesForStock() || this.hasUnsavedChanges() || this.isSaving()) return;
     this.isMarkingDelivered.set(true);
     let ergebnis: { error: Error | null };
     try {

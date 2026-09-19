@@ -27,6 +27,7 @@ export class PurchaseDetailTableComponent {
   ]);
   readonly purchaseId = input.required<string>();
   readonly rows = input.required<readonly PurchaseDetailRow[]>();
+  readonly canCaptureIndividual = input(true);
   readonly captureIndividual = output<string>();
   readonly isMystery = computed(() => this.rows()[0]?.kind === 'mystery');
 }

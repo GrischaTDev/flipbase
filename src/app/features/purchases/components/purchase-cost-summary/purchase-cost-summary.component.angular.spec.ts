@@ -161,6 +161,21 @@ describe('PurchaseCostSummaryComponent', () => {
     fixture.detectChanges();
 
     expect(fixture.componentInstance.displayedTotal()).toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-purchase-cost-open]')?.textContent).toBe(
+      'Kosten offen',
+    );
+  });
+
+  it('zeigt einen expliziten Nullpreis als bezahlten Gesamtbetrag', async () => {
+    const fixture = await createSummary();
+    fixture.componentRef.setInput('totalAmount', 0);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.displayedTotal()).toBe(0);
+    expect(fixture.nativeElement.querySelector('[data-purchase-cost-open]')).toBeNull();
+    expect((fixture.nativeElement as HTMLElement).textContent?.replace(/\s+/g, ' ')).toContain(
+      'Gesamt 0,00 €',
+    );
   });
 
   it('berechnet nur bei undefined einen auf zwei Stellen gerundeten Fallback', async () => {

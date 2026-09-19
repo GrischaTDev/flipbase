@@ -21,6 +21,7 @@ import {
   PurchaseCostTaxTreatment,
 } from '../purchase-cost-editor/purchase-cost-adjustments';
 import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
+import { PurchaseLinePriceMode } from '../../../../core/models/purchase-costing.models';
 
 type LineForm = FormGroup<{
   id: FormControl<string>;
@@ -28,7 +29,7 @@ type LineForm = FormGroup<{
   title: FormControl<string>;
   lineKind: FormControl<'quantity' | 'individual'>;
   quantity: FormControl<number>;
-  priceMode: FormControl<'priced' | 'unpriced_mystery'>;
+  priceMode: FormControl<PurchaseLinePriceMode>;
   unitPrice: FormControl<number | null>;
   lineTotal: FormControl<number | null>;
   condition: FormControl<CorrectPurchaseLineInput['condition_snapshot']>;

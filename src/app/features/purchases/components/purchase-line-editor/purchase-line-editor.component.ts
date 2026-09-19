@@ -38,6 +38,7 @@ import { ProductThumbnailComponent } from '../../../../shared/components/product
 import { ProductDialogComponent } from '../../../catalog/components/product-dialog/product-dialog.component';
 import { previewPurchaseImport, PurchaseImportPreviewRow } from './purchase-import-preview';
 import { canonicalGtin, normalizeGtin } from '../../../../shared/utils/gtin';
+import { PurchaseLinePriceMode } from '../../../../core/models/purchase-costing.models';
 
 export interface PurchaseLineDraft {
   readonly isPackage?: boolean;
@@ -49,7 +50,7 @@ export interface PurchaseLineDraft {
   readonly lineKind: TrackingMode;
   readonly orderedQuantity: number;
   readonly condition: ItemCondition;
-  readonly priceMode: 'priced' | 'unpriced_mystery';
+  readonly priceMode: PurchaseLinePriceMode;
   readonly unitPurchasePrice: number | null;
   readonly lineTotal: number | null;
   readonly estimatedMarketValue: number | null;
@@ -76,7 +77,7 @@ interface PurchaseLineControls {
   lineKind: FormControl<TrackingMode>;
   orderedQuantity: FormControl<number>;
   condition: FormControl<ItemCondition>;
-  priceMode: FormControl<'priced' | 'unpriced_mystery'>;
+  priceMode: FormControl<PurchaseLinePriceMode>;
   unitPurchasePrice: FormControl<number | null>;
   lineTotal: FormControl<number | null>;
   estimatedMarketValue: FormControl<number | null>;
@@ -363,7 +364,7 @@ export class PurchaseLineEditorComponent {
           condition: entry.condition ?? product.condition ?? 'used',
           unitPurchasePrice: entry.unitPrice,
           lineTotal: entry.total,
-          priceMode: entry.unitPrice === null ? 'unpriced_mystery' : 'priced',
+          priceMode: entry.unitPrice === null ? this.emptyPriceMode() : 'priced',
         },
         { emitEvent: false },
       );
@@ -413,9 +414,10 @@ export class PurchaseLineEditorComponent {
 
   recalculate(index: number, changedField: PriceField): void {
     const row = this.lineRows.at(index);
-    if (this.isMysteryPurchase() && row.controls.priceMode.value === 'unpriced_mystery') {
+    if (this.isMysteryPurchase()) {
       row.controls.unitPurchasePrice.setValue(null, { emitEvent: false });
       row.controls.lineTotal.setValue(null, { emitEvent: false });
+      row.controls.priceMode.setValue('unpriced_mystery', { emitEvent: false });
       this.emitDrafts();
       return;
     }
@@ -431,7 +433,7 @@ export class PurchaseLineEditorComponent {
       const unitPrice = row.controls.unitPurchasePrice.value;
       if (unitPrice === null) {
         row.controls.lineTotal.setValue(null, { emitEvent: false });
-        row.controls.priceMode.setValue('unpriced_mystery', { emitEvent: false });
+        row.controls.priceMode.setValue(this.emptyPriceMode(), { emitEvent: false });
         this.emitDrafts();
         return;
       }
@@ -454,6 +456,7 @@ export class PurchaseLineEditorComponent {
     const lineTotal = row.controls.lineTotal.value;
     if (lineTotal === null) {
       row.controls.unitPurchasePrice.setValue(null, { emitEvent: false });
+      row.controls.priceMode.setValue(this.emptyPriceMode(), { emitEvent: false });
       this.emitDrafts();
       return;
     }
@@ -522,7 +525,7 @@ export class PurchaseLineEditorComponent {
             : this.normalizeUnitPrice(draft.unitPurchasePrice),
         priceMode:
           draft.unitPurchasePrice === null || draft.lineTotal === null
-            ? 'unpriced_mystery'
+            ? this.emptyPriceMode()
             : 'priced',
       };
     });
@@ -595,9 +598,12 @@ export class PurchaseLineEditorComponent {
         ],
       }),
       condition: new FormControl<ItemCondition>('used', { nonNullable: true }),
-      priceMode: new FormControl(isMysteryPurchase ? 'unpriced_mystery' : 'priced', {
-        nonNullable: true,
-      }),
+      priceMode: new FormControl<PurchaseLinePriceMode>(
+        isMysteryPurchase ? 'unpriced_mystery' : 'open',
+        {
+          nonNullable: true,
+        },
+      ),
       unitPurchasePrice: new FormControl<number | null>(null, {
         validators: [(control) => (this.validUnitPrice(control.value) ? null : { money: true })],
       }),
@@ -625,7 +631,11 @@ export class PurchaseLineEditorComponent {
     const isMysteryPurchase = purchaseType === 'mystery_pack';
     for (const row of this.lineRows.controls) {
       row.controls.priceMode.setValue(
-        row.controls.unitPurchasePrice.value === null ? 'unpriced_mystery' : 'priced',
+        row.controls.unitPurchasePrice.value === null
+          ? isMysteryPurchase
+            ? 'unpriced_mystery'
+            : 'open'
+          : 'priced',
         {
           emitEvent: false,
         },
@@ -655,6 +665,10 @@ export class PurchaseLineEditorComponent {
         value <= 9999999999.99 &&
         Math.abs(value * 100 - Math.round(value * 100)) < 0.0001)
     );
+  }
+
+  private emptyPriceMode(): Extract<PurchaseLinePriceMode, 'open' | 'unpriced_mystery'> {
+    return this.isMysteryPurchase() ? 'unpriced_mystery' : 'open';
   }
 
   private validUnitPrice(value: number | null): boolean {
