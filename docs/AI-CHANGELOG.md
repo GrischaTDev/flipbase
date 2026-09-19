@@ -1,5 +1,36 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-19 – ChatGPT GPT-5.6 Terra (OpenAI) – Wiederholungsausgaben zuverlässig anlegen
+
+**Auftrag:** Den ersten Reparaturabschnitt aus der Bestandsaufnahme umsetzen:
+die fehlende Schema-Registrierung für Ausgaben beheben, Wiederholungsausgaben
+über PostgREST sicher erneut ausführen können und doppelte Regeln nach einem
+Teilfehler im Dialog verhindern.
+
+**Änderung:** Die deklarative Ausgabendatei ist jetzt registriert. Die
+Schema-Reihenfolge lädt außerdem die Betreiberfunktion vor ihren abhängigen
+Bot-Policies; ein neuer Workflow-Test schützt beide Regeln. Der
+Eindeutigkeitsindex für erzeugte Wiederholungsausgaben ist nicht mehr partiell,
+sodass der von PostgREST verwendete Konfliktschlüssel gültig ist. Mehrere
+manuelle Ausgaben ohne Wiederholungsbezug bleiben weiterhin möglich.
+
+Nach einem Fehler beim Erzeugen fälliger Ausgaben behält der Dialog die bereits
+gespeicherte Regel. Ein erneuter Klick aktualisiert diese Regel, statt eine
+zweite anzulegen. Der Hinweis erklärt dabei ausdrücklich, dass nur das
+nachgelagerte Erzeugen der Fälligkeiten fehlgeschlagen ist.
+
+**Datenbank:** Migration
+`20260919131400_repair_expense_recurrence_conflict.sql` ersetzt den partiellen
+Index `expenses_recurring_occurrence_uidx` durch einen vollständigen
+Eindeutigkeitsindex. Die aus der lokalen Datenbank generierten Supabase-Typen
+sind aktualisiert.
+
+**Prüfung:** `supabase db reset`, die vollständige Datenbanktestsuite (1.835
+Tests), der neue PostgREST-Browsertest, der Angular-Komponententest, Lint,
+Prettier, der Schema-Registrierungstest, die Workflow-Prüfung, der
+Produktionsbau und die vollständige Anwendungstestsuite (2.657 Tests) wurden
+lokal ausgeführt.
+
 ## 2026-09-19 – ChatGPT GPT-5.6 Sol (OpenAI) – Ausgaben-Erfassung vereinfacht
 
 **Auftrag:** Die Ausgabenseite soll ohne Tabellenflackern laden, dieselben
