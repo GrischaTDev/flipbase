@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  signal,
+} from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import {
@@ -39,6 +46,7 @@ import {
 } from '../../shared/components/custom-select/custom-select.component';
 import { SyncStatusService } from '../../core/services/sync-status.service';
 import { ToastService } from '../../shared/components/toast/toast.service';
+import { WorkspaceService } from '../../core/services/workspace.service';
 
 @Component({
   selector: 'app-fulfillment',
@@ -73,6 +81,7 @@ export class FulfillmentComponent {
   readonly fulfillmentService = inject(FulfillmentService);
   private readonly syncStatus = inject(SyncStatusService);
   private readonly toast = inject(ToastService);
+  private readonly workspaceService = inject(WorkspaceService, { optional: true });
   // Faellt auf eine eigene Instanz zurueck, damit Dienste auch ausserhalb
   // eines Injektionskontexts nutzbar bleiben - so erzeugen die Tests sie.
   private readonly logger = inject(LoggerService, { optional: true }) ?? new LoggerService();
@@ -126,6 +135,23 @@ export class FulfillmentComponent {
     }),
   });
 
+  private activeWorkspaceId: string | null | undefined;
+  private workspaceActionVersion = 0;
+
+  constructor() {
+    effect(() => {
+      const workspaceId = this.workspaceService?.currentWorkspace()?.id ?? null;
+      if (this.activeWorkspaceId === undefined) {
+        this.activeWorkspaceId = workspaceId;
+        return;
+      }
+      if (workspaceId !== this.activeWorkspaceId) {
+        this.closeWorkspaceDialogs();
+        this.activeWorkspaceId = workspaceId;
+      }
+    });
+  }
+
   readonly filteredOrders = computed(() => {
     let list = this.fulfillmentService.orders();
     const tab = this.selectedStatusTab();
@@ -154,36 +180,43 @@ export class FulfillmentComponent {
   });
 
   async onBundleCandidate(candidate: BundleCandidate): Promise<void> {
+    const action = this.beginWorkspaceAction();
     this.isBundling.set(true);
     try {
       const { error } = await this.fulfillmentService.bundleOrders(candidate);
+      if (!this.isCurrentWorkspaceAction(action)) return;
       if (error) {
         this.meldeFehler('Sendungen konnten nicht gebündelt werden.', error);
         return;
       }
       this.toast.success('Sendungen wurden gebündelt.');
     } catch (error: unknown) {
+      if (!this.isCurrentWorkspaceAction(action)) return;
       this.meldeFehler('Sendungen konnten nicht gebündelt werden.', error);
     } finally {
-      this.isBundling.set(false);
+      if (this.isCurrentWorkspaceAction(action)) this.isBundling.set(false);
     }
   }
 
   async onUnbundleOrder(order: ShippingOrder): Promise<void> {
+    const action = this.beginWorkspaceAction();
     const bestaetigt = await this.dialog.frage({
       titel: 'Sammelpaket aufteilen?',
       text: 'Das Sammelpaket wird wieder in einzelne Sendungen zerlegt.',
       bestaetigenText: 'Aufteilen',
     });
+    if (!this.isCurrentWorkspaceAction(action)) return;
     if (bestaetigt) {
       try {
         const { error } = await this.fulfillmentService.unbundleOrder(order.id);
+        if (!this.isCurrentWorkspaceAction(action)) return;
         if (error) {
           this.meldeFehler('Sammelpaket konnte nicht aufgelöst werden.', error);
           return;
         }
         this.toast.success('Sammelpaket wurde aufgelöst.');
       } catch (error: unknown) {
+        if (!this.isCurrentWorkspaceAction(action)) return;
         this.meldeFehler('Sammelpaket konnte nicht aufgelöst werden.', error);
       }
     }
@@ -208,6 +241,13 @@ export class FulfillmentComponent {
    * kommt ueber "Sendungsnummer erfassen" herein.
    */
   openLabelModal(order: ShippingOrder): void {
+    if (!this.fulfillmentService.getSenderAddress()) {
+      this.toast.warning(
+        'Absenderadresse fehlt.',
+        'Hinterlege die Absenderdaten zuerst in den Versand-Einstellungen.',
+      );
+      return;
+    }
     this.fulfillmentService.selectedOrderForLabel.set(order);
     this.isLabelModalOpen.set(true);
   }
@@ -243,6 +283,7 @@ export class FulfillmentComponent {
 
   async onSaveTracking(): Promise<void> {
     if (this.trackingForm.invalid) return;
+    const action = this.beginWorkspaceAction();
     const { carrier, trackingNumber } = this.trackingForm.getRawValue();
     try {
       const { error } = await this.fulfillmentService.markAsShipped(
@@ -250,6 +291,7 @@ export class FulfillmentComponent {
         trackingNumber,
         carrier,
       );
+      if (!this.isCurrentWorkspaceAction(action)) return;
       if (error) {
         this.meldeFehler('Sendungsverfolgung konnte nicht gespeichert werden.', error);
         return;
@@ -257,15 +299,18 @@ export class FulfillmentComponent {
       this.closeTrackingModal();
       this.toast.success('Sendungsverfolgung wurde gespeichert.');
     } catch (error: unknown) {
+      if (!this.isCurrentWorkspaceAction(action)) return;
       this.meldeFehler('Sendungsverfolgung konnte nicht gespeichert werden.', error);
     }
   }
 
   async markDelivered(orderId: string): Promise<void> {
     if (this.deliveringOrderId() !== null) return;
+    const action = this.beginWorkspaceAction();
     this.deliveringOrderId.set(orderId);
     try {
       const result = await this.fulfillmentService.markAsDelivered(orderId);
+      if (!this.isCurrentWorkspaceAction(action)) return;
       if (result.error) {
         if (!result.reportedBySyncStatus) {
           this.meldeFehler('Sendung konnte nicht als zugestellt markiert werden.', result.error);
@@ -274,9 +319,10 @@ export class FulfillmentComponent {
       }
       this.toast.success('Sendung wurde als zugestellt markiert.');
     } catch (error: unknown) {
+      if (!this.isCurrentWorkspaceAction(action)) return;
       this.meldeFehler('Sendung konnte nicht als zugestellt markiert werden.', error);
     } finally {
-      this.deliveringOrderId.set(null);
+      if (this.isCurrentWorkspaceAction(action)) this.deliveringOrderId.set(null);
     }
   }
 
@@ -286,6 +332,45 @@ export class FulfillmentComponent {
 
   printCurrentDocument(): void {
     window.print();
+  }
+
+  private closeWorkspaceDialogs(): void {
+    this.workspaceActionVersion += 1;
+    this.isLabelModalOpen.set(false);
+    this.isSlipModalOpen.set(false);
+    this.isTrackingModalOpen.set(false);
+    this.isPurchaseModalOpen.set(false);
+    this.isBundleModalOpen.set(false);
+    this.isBundling.set(false);
+    this.isPurchasing.set(false);
+    this.deliveringOrderId.set(null);
+    this.trackingOrderId.set('');
+    this.trackingForm.reset({ carrier: 'dhl', trackingNumber: '' });
+    this.selectedOrderForPurchase.set(null);
+    this.fulfillmentService.selectedOrderForLabel.set(null);
+    this.fulfillmentService.selectedOrderForSlip.set(null);
+    this.fulfillmentService.selectedOrderForPurchase.set(null);
+    this.fulfillmentService.selectedBundleCandidate.set(null);
+  }
+
+  private beginWorkspaceAction(): {
+    readonly version: number;
+    readonly workspaceId: string | null;
+  } {
+    return {
+      version: this.workspaceActionVersion,
+      workspaceId: this.workspaceService?.currentWorkspace()?.id ?? null,
+    };
+  }
+
+  private isCurrentWorkspaceAction(action: {
+    readonly version: number;
+    readonly workspaceId: string | null;
+  }): boolean {
+    return (
+      action.version === this.workspaceActionVersion &&
+      action.workspaceId === (this.workspaceService?.currentWorkspace()?.id ?? null)
+    );
   }
 
   private meldeFehler(titel: string, error: unknown): void {

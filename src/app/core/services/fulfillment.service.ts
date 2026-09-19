@@ -16,17 +16,23 @@ import { LoggerService } from './logger.service';
 import { SyncStatusService } from './sync-status.service';
 import { Tables } from '../models/supabase.types';
 
-const STORAGE_KEY_CARRIER_CFG = 'flipbase_carrier_config';
-const STORAGE_KEY_SHIPPING_ORDERS = 'flipbase_shipping_orders';
-
 function createDefaultCarrierConfig(): CarrierConfig {
   return {
-    dhlEnabled: true,
-    dhlEkp: '5001234567',
+    dhlEnabled: false,
+    dhlEkp: '',
     dhlApiKey: '',
-    hermesEnabled: true,
-    hermesClientId: 'HERMES-99421',
+    hermesEnabled: false,
+    hermesClientId: '',
     hermesApiKey: '',
+    senderName: '',
+    senderCompany: '',
+    senderStreet: '',
+    senderHouseNumber: '',
+    senderPostalCode: '',
+    senderCity: '',
+    senderCountry: '',
+    senderEmail: '',
+    senderPhone: '',
   };
 }
 
@@ -120,10 +126,11 @@ export class FulfillmentService {
     },
   ];
 
-  readonly carrierConfig = signal<CarrierConfig>(this.loadCarrierConfig());
+  readonly carrierConfig = signal<CarrierConfig>(createDefaultCarrierConfig());
   readonly loadedWorkspaceId = signal<string | null>(null);
+  readonly loadError = signal<Error | null>(null);
   private loadVersion = 0;
-  readonly orders = signal<ShippingOrder[]>(this.loadPersistedOrders());
+  readonly orders = signal<ShippingOrder[]>([]);
 
   readonly selectedOrderForLabel = signal<ShippingOrder | null>(null);
   readonly selectedOrderForSlip = signal<ShippingOrder | null>(null);
@@ -205,36 +212,6 @@ export class FulfillmentService {
     }
   }
 
-  private loadPersistedOrders(): ShippingOrder[] {
-    try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        const stored = localStorage.getItem(STORAGE_KEY_SHIPPING_ORDERS);
-        if (stored) return JSON.parse(stored);
-      }
-    } catch {}
-
-    return [];
-  }
-
-  private persistOrders(): void {
-    try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        localStorage.setItem(STORAGE_KEY_SHIPPING_ORDERS, JSON.stringify(this.orders()));
-      }
-    } catch {}
-  }
-
-  private loadCarrierConfig(): CarrierConfig {
-    try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        const stored = localStorage.getItem(STORAGE_KEY_CARRIER_CFG);
-        if (stored) return JSON.parse(stored);
-      }
-    } catch {}
-
-    return createDefaultCarrierConfig();
-  }
-
   async loadFromSupabase(workspaceId: string): Promise<void> {
     const requestedWorkspaceId = workspaceId.trim();
     const loadVersion = (this.loadVersion ?? 0) + 1;
@@ -249,6 +226,7 @@ export class FulfillmentService {
       return;
     }
     this.resetWorkspaceData();
+    this.loadError.set(null);
 
     try {
       const [orderRes, cfgRes] = await Promise.all([
@@ -296,7 +274,6 @@ export class FulfillmentService {
         }),
       );
       this.orders.set(mapped);
-      this.persistOrders();
 
       if (cfgRes.data) {
         const cfg: CarrierConfig = {
@@ -306,18 +283,25 @@ export class FulfillmentService {
           hermesEnabled: cfgRes.data.hermes_enabled,
           hermesClientId: cfgRes.data.hermes_client_id || '',
           hermesApiKey: cfgRes.data.hermes_api_key || '',
+          senderName: cfgRes.data.sender_name || '',
+          senderCompany: cfgRes.data.sender_company || '',
+          senderStreet: cfgRes.data.sender_street || '',
+          senderHouseNumber: cfgRes.data.sender_house_number || '',
+          senderPostalCode: cfgRes.data.sender_postal_code || '',
+          senderCity: cfgRes.data.sender_city || '',
+          senderCountry: cfgRes.data.sender_country || '',
+          senderEmail: cfgRes.data.sender_email || '',
+          senderPhone: cfgRes.data.sender_phone || '',
         };
         this.carrierConfig.set(cfg);
-        try {
-          if (typeof window !== 'undefined') {
-            localStorage.setItem(STORAGE_KEY_CARRIER_CFG, JSON.stringify(cfg));
-          }
-        } catch {}
       }
       this.loadedWorkspaceId.set(requestedWorkspaceId);
     } catch (err) {
       if (this.isCurrentLoad(requestedWorkspaceId, loadVersion)) {
-        this.logger.error('Verbindungsfehler beim Laden der Versanddaten:', err);
+        const error = this.asLoadError(err);
+        this.loadError.set(error);
+        this.loadedWorkspaceId.set(requestedWorkspaceId);
+        this.logger.error('Verbindungsfehler beim Laden der Versanddaten:', error);
       }
     }
   }
@@ -326,6 +310,11 @@ export class FulfillmentService {
     this.carrierConfig.set(createDefaultCarrierConfig());
     this.orders.set([]);
     this.loadedWorkspaceId.set(null);
+    this.loadError.set(null);
+    this.selectedOrderForLabel.set(null);
+    this.selectedOrderForSlip.set(null);
+    this.selectedOrderForPurchase.set(null);
+    this.selectedBundleCandidate.set(null);
   }
 
   private isCurrentWorkspace(workspaceId: string): boolean {
@@ -355,6 +344,15 @@ export class FulfillmentService {
               hermes_enabled: updated.hermesEnabled,
               hermes_client_id: updated.hermesClientId,
               hermes_api_key: updated.hermesApiKey,
+              sender_name: updated.senderName,
+              sender_company: updated.senderCompany,
+              sender_street: updated.senderStreet,
+              sender_house_number: updated.senderHouseNumber,
+              sender_postal_code: updated.senderPostalCode,
+              sender_city: updated.senderCity,
+              sender_country: updated.senderCountry,
+              sender_email: updated.senderEmail,
+              sender_phone: updated.senderPhone,
               updated_at: new Date().toISOString(),
             },
             { onConflict: 'workspace_id' },
@@ -373,6 +371,15 @@ export class FulfillmentService {
           hermesEnabled: data.hermes_enabled,
           hermesClientId: data.hermes_client_id || '',
           hermesApiKey: data.hermes_api_key || '',
+          senderName: data.sender_name || '',
+          senderCompany: data.sender_company || '',
+          senderStreet: data.sender_street || '',
+          senderHouseNumber: data.sender_house_number || '',
+          senderPostalCode: data.sender_postal_code || '',
+          senderCity: data.sender_city || '',
+          senderCountry: data.sender_country || '',
+          senderEmail: data.sender_email || '',
+          senderPhone: data.sender_phone || '',
         };
       } catch (error: unknown) {
         return this.carrierConfigFehler(error);
@@ -386,11 +393,6 @@ export class FulfillmentService {
       }
     }
     this.carrierConfig.set(confirmed);
-    try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        localStorage.setItem(STORAGE_KEY_CARRIER_CFG, JSON.stringify(confirmed));
-      }
-    } catch {}
     return { data: confirmed, error: null, reportedBySyncStatus: false };
   }
 
@@ -413,18 +415,28 @@ export class FulfillmentService {
     return `https://www.paketverfolgung.de/?id=${trackingNumber}`;
   }
 
-  getSenderAddress(): AddressInfo {
-    const wsName = this.workspaceService?.currentWorkspace()?.name || 'Flipbase Reselling HQ';
+  getSenderAddress(): AddressInfo | null {
+    const config = this.carrierConfig();
+    if (
+      !config.senderName.trim() ||
+      !config.senderStreet.trim() ||
+      !config.senderHouseNumber.trim() ||
+      !config.senderPostalCode.trim() ||
+      !config.senderCity.trim() ||
+      !config.senderCountry.trim()
+    ) {
+      return null;
+    }
     return {
-      name: wsName,
-      company: 'Flipbase E-Commerce Einzelunternehmen',
-      street: 'Gewerbestraße',
-      house_number: '10',
-      postal_code: '10115',
-      city: 'Berlin',
-      country: 'Deutschland',
-      email: 'versand@flipbase.de',
-      phone: '+49 30 98765432',
+      name: config.senderName.trim(),
+      company: config.senderCompany.trim() || undefined,
+      street: config.senderStreet.trim(),
+      house_number: config.senderHouseNumber.trim(),
+      postal_code: config.senderPostalCode.trim(),
+      city: config.senderCity.trim(),
+      country: config.senderCountry.trim(),
+      email: config.senderEmail.trim() || undefined,
+      phone: config.senderPhone.trim() || undefined,
     };
   }
 
@@ -433,6 +445,16 @@ export class FulfillmentService {
     trackingNumber?: string,
     carrier: CarrierType = 'dhl',
   ): Promise<FulfillmentMutationResult<ShippingOrder>> {
+    const trk = trackingNumber?.trim() ?? '';
+    if (!trk) {
+      return {
+        data: null,
+        error: this.meldePersistenzfehler(
+          'Speichern der Sendungsverfolgung',
+          new Error('Eine Sendungsnummer ist erforderlich.'),
+        ),
+      };
+    }
     const vorhandeneBestellung = this.orders().find((order) => order.id === orderId);
     if (!vorhandeneBestellung) {
       return {
@@ -443,15 +465,22 @@ export class FulfillmentService {
         ),
       };
     }
-    const trk = trackingNumber || `TRK-${Date.now()}`;
     const url = this.getTrackingUrl(carrier, trk);
     const shippedAt = new Date().toISOString();
     const ws = this.workspaceService?.currentWorkspace();
 
-    if (this.supabase && ws) {
+    if (this.istPersistenterModus()) {
+      if (!ws || vorhandeneBestellung.workspace_id !== ws.id) {
+        return {
+          data: null,
+          error: this.meldePersistenzfehler(
+            'Speichern der Sendungsverfolgung',
+            new Error('Die Sendung gehört nicht zum ausgewählten Workspace.'),
+          ),
+        };
+      }
       try {
-        const { error, count } = await this.supabase.client
-          .from('shipping_orders')
+        const { error, count } = await this.supabase!.client.from('shipping_orders')
           .update(
             {
               carrier,
@@ -477,6 +506,9 @@ export class FulfillmentService {
               message: 'Die Sendung wurde nicht gefunden.',
             }),
           };
+        if (!this.isCurrentWorkspace(ws.id)) {
+          return this.workspaceWechselFehler('Speichern der Sendungsverfolgung');
+        }
       } catch (error: unknown) {
         return {
           data: null,
@@ -494,7 +526,6 @@ export class FulfillmentService {
       shipped_at: shippedAt,
     };
     this.orders.update((prev) => prev.map((o) => (o.id === orderId ? aktualisierteBestellung : o)));
-    this.persistOrders();
     return { data: aktualisierteBestellung, error: null };
   }
 
@@ -585,11 +616,13 @@ export class FulfillmentService {
             ),
           };
         }
+        if (!this.isCurrentWorkspace(ws.id)) {
+          return this.workspaceWechselFehler('Bündeln der Sendungen');
+        }
         this.orders.update((prev) => [
           gespeichertesBündel,
           ...prev.filter((order) => !orderIds.includes(order.id)),
         ]);
-        this.persistOrders();
         this.meldeBündelung(candidate, gespeichertesBündel);
         return { data: gespeichertesBündel, error: null };
       } catch (error: unknown) {
@@ -598,7 +631,6 @@ export class FulfillmentService {
     }
 
     this.orders.update((prev) => [bundledOrder, ...prev.filter((o) => !orderIds.includes(o.id))]);
-    this.persistOrders();
 
     if (this.webPushService) {
       this.webPushService.sendNotification(`Sammelpaket gebündelt: ${candidate.customerName}`, {
@@ -673,11 +705,13 @@ export class FulfillmentService {
             }),
           };
         }
+        if (!this.isCurrentWorkspace(ws.id)) {
+          return this.workspaceWechselFehler('Auflösen des Sammelpakets');
+        }
         this.orders.update((prev) => [
           ...wiederhergestellteAufträge,
           ...prev.filter((order) => order.id !== bundledOrderId),
         ]);
-        this.persistOrders();
         return { data: wiederhergestellteAufträge, error: null };
       } catch (error: unknown) {
         return {
@@ -691,7 +725,6 @@ export class FulfillmentService {
       ...restoredOrders,
       ...prev.filter((o) => o.id !== bundledOrderId),
     ]);
-    this.persistOrders();
     return { data: restoredOrders, error: null };
   }
 
@@ -730,6 +763,26 @@ export class FulfillmentService {
   private meldePersistenzfehler(vorgang: string, ursache: unknown): Error {
     if (this.syncStatus) return this.syncStatus.melde(vorgang, ursache);
     return ursache instanceof Error ? ursache : new Error(String(ursache));
+  }
+
+  private workspaceWechselFehler<T>(vorgang: string): FulfillmentMutationResult<T> {
+    return {
+      data: null,
+      error: new Error(`Der Workspace wurde während „${vorgang}“ gewechselt.`),
+    };
+  }
+
+  private asLoadError(reason: unknown): Error {
+    if (reason instanceof Error) return reason;
+    if (
+      typeof reason === 'object' &&
+      reason !== null &&
+      'message' in reason &&
+      typeof reason.message === 'string'
+    ) {
+      return new Error(reason.message);
+    }
+    return new Error('Die Versanddaten konnten nicht geladen werden.');
   }
 
   private istPersistenterModus(): boolean {
@@ -800,6 +853,12 @@ export class FulfillmentService {
             message: 'Die Sendung wurde nicht gefunden.',
           });
         }
+        if (!this.isCurrentWorkspace(ws.id)) {
+          const result = this.workspaceWechselFehler<ShippingOrder>(
+            'Markieren der Sendung als zugestellt',
+          );
+          return { ...result, reportedBySyncStatus: false };
+        }
       } catch (error: unknown) {
         return this.zustellfehler(error);
       }
@@ -812,7 +871,6 @@ export class FulfillmentService {
     this.orders.update((prev) =>
       prev.map((order) => (order.id === orderId ? aktualisierteBestellung : order)),
     );
-    this.persistOrders();
     return { data: aktualisierteBestellung, error: null, reportedBySyncStatus: false };
   }
 

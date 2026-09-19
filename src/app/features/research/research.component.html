@@ -480,7 +480,10 @@
             >Scanner-Status</span
           >
           <div class="text-sm font-bold text-indigo-300 mt-2 flex items-center gap-1.5 font-sans">
-            @if (priceTrackerService.isScanning()) {
+            @if (!priceTrackerService.marktdatenAngebunden) {
+              <span class="w-2 h-2 rounded-full bg-fb-text-muted"></span>
+              <span class="text-fb-text-muted">Nicht verbunden</span>
+            } @else if (priceTrackerService.isScanning()) {
               <svg
                 [lucideIcon]="refreshIcon"
                 class="w-3.5 h-3.5 animate-spin text-indigo-400"
@@ -515,7 +518,11 @@
                   {{ item.category }}
                 </span>
 
-                @if (item.alertTriggered === 'undercut') {
+                @if (!item.marketDataVerified) {
+                  <span class="px-2 py-0.5 rounded text-[10px] text-fb-text-muted bg-fb-subtle">
+                    Keine Marktdaten
+                  </span>
+                } @else if (item.alertTriggered === 'undercut') {
                   <span
                     class="px-2 py-0.5 rounded text-[10px] font-bold uppercase font-mono bg-rose-500/20 text-rose-300 border border-rose-500/40 animate-pulse flex items-center gap-1"
                   >
@@ -557,59 +564,70 @@
             </div>
 
             <!-- Middle: Price Comparison Metrics (Our Price vs Lowest vs Avg) -->
-            <div
-              class="grid grid-cols-3 gap-3 font-mono text-xs text-center shrink-0 border-y md:border-y-0 md:border-x border-fb-border py-2 md:py-0 md:px-4"
-            >
-              <div>
-                <span class="text-[10px] font-sans text-fb-text-muted block">Unser Preis</span>
-                <strong class="text-sm font-black text-fb-text-primary">{{
+            @if (item.marketDataVerified) {
+              <div
+                class="grid grid-cols-3 gap-3 font-mono text-xs text-center shrink-0 border-y md:border-y-0 md:border-x border-fb-border py-2 md:py-0 md:px-4"
+              >
+                <div>
+                  <span class="text-[10px] font-sans text-fb-text-muted block">Unser Preis</span>
+                  <strong class="text-sm font-black text-fb-text-primary">{{
+                    item.currentOurPrice | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+                  }}</strong>
+                </div>
+
+                <div>
+                  <span class="text-[10px] font-sans text-fb-text-muted block">Günstigster</span>
+                  <strong
+                    class="text-sm font-black"
+                    [class.text-rose-400]="item.currentMarketLowest < item.currentOurPrice"
+                    [class.text-emerald-400]="item.currentMarketLowest >= item.currentOurPrice"
+                  >
+                    {{ item.currentMarketLowest | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                  </strong>
+                </div>
+
+                <div>
+                  <span class="text-[10px] font-sans text-fb-text-muted block">Ø Markt</span>
+                  <strong class="text-sm font-bold text-indigo-300">{{
+                    item.currentMarketAverage | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+                  }}</strong>
+                </div>
+              </div>
+            } @else {
+              <div class="text-xs text-fb-text-muted md:px-4">
+                Eigener Preis:
+                <strong class="text-fb-text-primary">{{
                   item.currentOurPrice | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
                 }}</strong>
               </div>
-
-              <div>
-                <span class="text-[10px] font-sans text-fb-text-muted block">Günstigster</span>
-                <strong
-                  class="text-sm font-black"
-                  [class.text-rose-400]="item.currentMarketLowest < item.currentOurPrice"
-                  [class.text-emerald-400]="item.currentMarketLowest >= item.currentOurPrice"
-                >
-                  {{ item.currentMarketLowest | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-                </strong>
-              </div>
-
-              <div>
-                <span class="text-[10px] font-sans text-fb-text-muted block">Ø Markt</span>
-                <strong class="text-sm font-bold text-indigo-300">{{
-                  item.currentMarketAverage | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
-                }}</strong>
-              </div>
-            </div>
+            }
 
             <!-- Right: 1-Click Repricing & Actions -->
             <div class="flex items-center gap-2 shrink-0">
-              <button
-                type="button"
-                (click)="onApplyRadarPrice(item.id)"
-                class="linear-btn-primary px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-500/20"
-                [title]="'Preis im Inventar auf ' + item.recommendedPrice + ' € anpassen'"
-              >
-                <svg [lucideIcon]="zapIcon" class="w-3.5 h-3.5 text-amber-300"></svg>
-                <span
-                  >Auf
-                  {{ item.recommendedPrice | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-                  anpassen</span
+              @if (item.marketDataVerified) {
+                <button
+                  type="button"
+                  (click)="onApplyRadarPrice(item.id)"
+                  class="linear-btn-primary px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-500/20"
+                  [title]="'Preis im Inventar auf ' + item.recommendedPrice + ' € anpassen'"
                 >
-              </button>
+                  <svg [lucideIcon]="zapIcon" class="w-3.5 h-3.5 text-amber-300"></svg>
+                  <span
+                    >Auf
+                    {{ item.recommendedPrice | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                    anpassen</span
+                  >
+                </button>
 
-              <button
-                type="button"
-                (click)="onScanRadarLive(item.id)"
-                class="p-2 rounded-xl text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-subtle transition cursor-pointer"
-                title="Diesen Artikel jetzt einzeln scannen"
-              >
-                <svg [lucideIcon]="refreshIcon" class="w-4 h-4"></svg>
-              </button>
+                <button
+                  type="button"
+                  (click)="onScanRadarLive(item.id)"
+                  class="p-2 rounded-xl text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-subtle transition cursor-pointer"
+                  title="Diesen Artikel jetzt einzeln scannen"
+                >
+                  <svg [lucideIcon]="refreshIcon" class="w-4 h-4"></svg>
+                </button>
+              }
 
               <button
                 type="button"

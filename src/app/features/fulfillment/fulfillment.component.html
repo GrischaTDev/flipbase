@@ -501,12 +501,15 @@
               <span class="text-[10px] uppercase font-bold text-fb-text-muted block"
                 >Absender:</span
               >
-              @let sender = fulfillmentService.getSenderAddress();
-              <strong class="block text-xs font-bold">{{ sender.name }}</strong>
-              <div>{{ sender.company }}</div>
-              <div>{{ sender.street }} {{ sender.house_number }}</div>
-              <div>{{ sender.postal_code }} {{ sender.city }}</div>
-              <div class="text-fb-text-secondary">{{ sender.country }}</div>
+              @if (fulfillmentService.getSenderAddress(); as sender) {
+                <strong class="block text-xs font-bold">{{ sender.name }}</strong>
+                @if (sender.company) {
+                  <div>{{ sender.company }}</div>
+                }
+                <div>{{ sender.street }} {{ sender.house_number }}</div>
+                <div>{{ sender.postal_code }} {{ sender.city }}</div>
+                <div class="text-fb-text-secondary">{{ sender.country }}</div>
+              }
             </div>
 
             <!-- Recipient -->

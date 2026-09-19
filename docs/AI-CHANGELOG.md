@@ -1,5 +1,62 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-19 – Codex (OpenAI) – Restarbeiten der Demo-Entfernung behoben
+
+**Auftrag:** Die drei bestätigten Lücken aus der kritischen Nachprüfung beheben.
+
+**Änderung:** Retouren, Preisradar und Versand übernehmen keine Geschäftsdaten
+mehr aus globalen Browser-Caches. Retouren und Preisradar leeren ihren Zustand
+bei Abmeldung oder Workspace-Wechsel und verwerfen verspätete Antworten des
+vorherigen Workspaces. Neue Preisbeobachtungen enthalten ohne angebundene
+Marktdatenquelle keine erfundenen Vergleichspreise, Wettbewerber, Verläufe oder
+Alarme; gespeicherte Altwerte werden in diesem Zustand weder angezeigt noch für
+Preisanpassungen verwendet.
+
+Die Beispielkonten und die fest eingebaute Absenderadresse im Versand sind
+entfernt. Absenderdaten werden nun je Workspace in `carrier_configs` gespeichert
+und in den Versand-Einstellungen gepflegt. Ohne vollständige Adresse bleibt der
+Etikettendruck mit einem verständlichen Hinweis gesperrt. Beim manuellen Versand
+wird außerdem keine Ersatz-Sendungsnummer mehr erfunden. Deklaratives Schema,
+Migration und generierte Supabase-Typen wurden gemeinsam aktualisiert.
+
+Der unabhängige Abschlussreview fand weitere Wechsel- und Fehlerpfade. Laufende
+Schreibantworten dürfen nun keine Daten in einen inzwischen ausgewählten anderen
+Workspace übernehmen; offene Versanddialoge und ausgewählte Aufträge werden beim
+Wechsel geleert. Alte Marktwerte bleiben über einen dauerhaften Vertrauensstatus
+auch nach einer späteren Quellenanbindung gesperrt. Absender-Pflichtfelder weisen
+Leerzeichen sowie ungültige E-Mail-Adressen verständlich aus. Ladefehler der
+Versandkonfiguration enden in einem sichtbaren Fehlerzustand mit erneutem Versuch.
+Der Kontrollreview ergänzte die Absicherung laufender Versandaktionen beim Wechsel
+und die tatsächliche, idempotente Löschung der vier früheren Browser-Cache-Schlüssel.
+Ein abschließender Release-Review zeigte, dass diese Bereinigung noch vom Öffnen
+eines betroffenen Bereichs abhing. Sie läuft deshalb nun direkt nach der alten
+Speichermigration und vor dem Angular-Start; dadurch können migrierte Altwerte
+nicht erneut als globale Geschäftsdaten liegen bleiben.
+
+**Prüfung:** Die Regressionstests wurden vor der Umsetzung rot und danach grün
+ausgeführt. Die Gesamtprüfung bestand mit 1.419 Node-, 235 DOM-, 920 Angular- und
+13 Landing-Tests sowie Formatprüfung, ESLint, Typprüfung und Produktionsbau.
+Schema-/Migrationsprüfungen, lokaler Datenbank-Reset und 1.857 Datenbanktests
+bestanden ebenfalls. Der Bau meldet weiterhin drei bekannte NG8113-Hinweise zu
+ungenutzten `LucideDynamicIcon`-Importen. Drei unabhängige Branch-Reviews lieferten
+zusammen acht wichtige Befunde; sie wurden behoben. Kein Push/Merge.
+
+## 2026-09-19 – Codex (OpenAI) – Kritische Nachprüfung der Demo-Entfernung
+
+**Auftrag:** Prüfen, ob der zuletzt integrierte Stand vollständig und sauber ist.
+
+**Ergebnis:** Drei verbliebene Lücken bestätigt: fehlende Workspace-Isolation in
+Retouren und Preisradar, weiterhin erfundene Marktwerte beim Anlegen von
+Preisbeobachtungen und fest eingebaute Absenderdaten in der Versandansicht.
+Die frühere Aussage „Demo-Code vollständig entfernt“ war zu weitgehend.
+Die Stellen bestanden bereits vor PR #131. Befunde, Umfang und Abnahmekriterien
+stehen in [der Nachprüfung](audit/2026-09-19-demo-removal-follow-up.md).
+
+**Prüfung:** 28 vorhandene Node-Tests bestanden. Fünf temporäre DOM-Reproduktionen
+bestätigten das Fehlverhalten; die Testdatei wurde danach entfernt. Kein erneuter
+Gesamt-Testlauf oder Bau. Nur Dokumentation geändert, keine Fehlerbehebung,
+kein Push/Merge.
+
 ## 2026-09-19 – Codex GPT-5.6 Terra (OpenAI) – Demo-Code vollständig entfernt
 
 **Auftrag:** Den letzten Abschnitt des Demo-Code-Umbaus abschließen: Anmeldung,

@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { prepareBrowserStorage } from '../utils/browser-storage-initialization';
 import { uebernehmeAltenBrowserSpeicher } from './storage-migration';
 
 /**
@@ -92,5 +93,23 @@ describe('Umzug des Browser-Speichers auf das neue Praefix', () => {
 
     expect(anzahl).toBe(10);
     expect(Object.keys(inhalt).filter((k) => k.startsWith('reflip_'))).toEqual([]);
+  });
+
+  it('entfernt globale Geschäftsdaten direkt nach der Präfix-Migration', () => {
+    inhalt['reflip_saved_returns'] = '[{"id":"return-a"}]';
+    inhalt['reflip_price_radar_items'] = '[{"id":"track-a"}]';
+    inhalt['flipbase_shipping_orders'] = '[{"id":"shipping-a"}]';
+    inhalt['flipbase_carrier_config'] = '{"dhlEkp":"foreign-account"}';
+    inhalt['reflip_theme'] = 'dark';
+
+    prepareBrowserStorage(speicher);
+
+    expect(inhalt['reflip_saved_returns']).toBeUndefined();
+    expect(inhalt['reflip_price_radar_items']).toBeUndefined();
+    expect(inhalt['flipbase_saved_returns']).toBeUndefined();
+    expect(inhalt['flipbase_price_radar_items']).toBeUndefined();
+    expect(inhalt['flipbase_shipping_orders']).toBeUndefined();
+    expect(inhalt['flipbase_carrier_config']).toBeUndefined();
+    expect(inhalt['flipbase_theme']).toBe('dark');
   });
 });

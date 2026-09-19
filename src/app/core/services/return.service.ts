@@ -11,8 +11,6 @@ import { SyncStatusService } from './sync-status.service';
 import { SalesService } from './sales.service';
 import { Tables } from '../models/supabase.types';
 
-const STORAGE_KEY_RETURNS = 'flipbase_saved_returns';
-
 export interface ProcessReturnResult {
   readonly status: 'success' | 'partial' | 'error';
   readonly data: ReturnRecord | null;
@@ -40,8 +38,9 @@ export class ReturnService {
   private readonly webhookService = inject(WebhookService, { optional: true });
   private readonly webPushService = inject(WebPushService, { optional: true });
 
-  readonly returns = signal<ReturnRecord[]>(this.loadPersistedReturns());
+  readonly returns = signal<ReturnRecord[]>([]);
   readonly isLoading = signal<boolean>(false);
+  private loadVersion = 0;
 
   constructor() {
     // Hinweis: effect() benoetigt einen ChangeDetectionScheduler. Die
@@ -52,47 +51,35 @@ export class ReturnService {
     try {
       effect(() => {
         const ws = this.workspaceService?.currentWorkspace();
-        if (ws) {
-          this.loadReturns(ws.id);
-        }
+        void this.loadReturns(ws?.id ?? '');
       });
     } catch {
       // nur Testumgebung ohne Scheduler
     }
   }
 
-  private loadPersistedReturns(): ReturnRecord[] {
-    try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        const stored = localStorage.getItem(STORAGE_KEY_RETURNS);
-        if (stored) return JSON.parse(stored);
-      }
-    } catch {}
-
-    return [];
-  }
-
-  private persistReturns(): void {
-    try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        localStorage.setItem(STORAGE_KEY_RETURNS, JSON.stringify(this.returns()));
-      }
-    } catch {}
-  }
-
   async loadReturns(workspaceId: string): Promise<void> {
-    if (!this.supabase) return;
+    const requestedWorkspaceId = workspaceId.trim();
+    const loadVersion = (this.loadVersion ?? 0) + 1;
+    this.loadVersion = loadVersion;
+    this.returns.set([]);
+    if (!requestedWorkspaceId) {
+      this.isLoading.set(false);
+      return;
+    }
+    if (!this.isCurrentWorkspace(requestedWorkspaceId) || !this.supabase) return;
 
     this.isLoading.set(true);
     try {
       const { data, error } = await this.supabase.client
         .from('returns')
         .select('*')
-        .eq('workspace_id', workspaceId)
+        .eq('workspace_id', requestedWorkspaceId)
         .order('return_date', { ascending: false });
 
+      if (!this.isCurrentLoad(requestedWorkspaceId, loadVersion)) return;
       if (error) {
-        this.syncStatus.melde('Laden der Retouren', error);
+        this.syncStatus?.melde('Laden der Retouren', error);
       } else {
         const mapped: ReturnRecord[] = ((data ?? []) as Tables<'returns'>[]).map((r) => ({
           ...r,
@@ -103,13 +90,22 @@ export class ReturnService {
           notes: r.notes || undefined,
         }));
         this.returns.set(mapped);
-        this.persistReturns();
       }
     } catch (err) {
-      this.syncStatus.melde('Laden der Retouren', err);
+      if (this.isCurrentLoad(requestedWorkspaceId, loadVersion)) {
+        this.syncStatus?.melde('Laden der Retouren', err);
+      }
     } finally {
-      this.isLoading.set(false);
+      if (this.loadVersion === loadVersion) this.isLoading.set(false);
     }
+  }
+
+  private isCurrentWorkspace(workspaceId: string): boolean {
+    return !this.workspaceService || this.workspaceService.currentWorkspace()?.id === workspaceId;
+  }
+
+  private isCurrentLoad(workspaceId: string, loadVersion: number): boolean {
+    return this.loadVersion === loadVersion && this.isCurrentWorkspace(workspaceId);
   }
 
   /**
@@ -183,6 +179,16 @@ export class ReturnService {
     const restock =
       payload.isFullRefund &&
       (payload.restockAction === 'restock_ready' || payload.restockAction === 'restock_repair');
+    const requestedWorkspaceId =
+      this.workspaceService?.currentWorkspace()?.id ?? payload.sale.workspace_id;
+    if (payload.sale.workspace_id !== requestedWorkspaceId) {
+      return {
+        status: 'error',
+        data: null,
+        error: new Error('Der Verkauf gehört nicht zum ausgewählten Workspace.'),
+        problems: [],
+      };
+    }
     const booking = await this.salesService.recordReturn({
       saleId: payload.sale.id,
       refundAmount: payload.refundAmount,
@@ -194,6 +200,14 @@ export class ReturnService {
     });
     if (booking.error || !booking.data) {
       return { status: 'error', data: null, error: booking.error, problems: [] };
+    }
+    if (!this.isCurrentWorkspace(requestedWorkspaceId)) {
+      return {
+        status: 'error',
+        data: null,
+        error: new Error('Der Workspace wurde während des Speicherns gewechselt.'),
+        problems: [],
+      };
     }
 
     const confirmedSale: Sale = {
@@ -256,7 +270,6 @@ export class ReturnService {
       retoure,
       ...list.filter((eintrag) => eintrag.id !== retoure.id),
     ]);
-    this.persistReturns();
   }
 
   /** Ergänzt eine vom RPC erzeugte Retoure nur noch um die lokale Belegansicht. */

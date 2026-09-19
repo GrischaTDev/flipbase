@@ -32,6 +32,15 @@ export interface CarrierConfig {
   hermesEnabled: boolean;
   hermesClientId: string;
   hermesApiKey: string;
+  senderName: string;
+  senderCompany: string;
+  senderStreet: string;
+  senderHouseNumber: string;
+  senderPostalCode: string;
+  senderCity: string;
+  senderCountry: string;
+  senderEmail: string;
+  senderPhone: string;
 }
 
 export interface ShippingOrder {
