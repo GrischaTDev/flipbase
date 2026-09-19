@@ -5,7 +5,7 @@ import { SupabaseService } from './supabase.service';
 import { SyncStatusService } from './sync-status.service';
 import { WorkspaceService } from './workspace.service';
 import { hasSellableLotCost } from '../utils/stock-availability';
-import { createLocalDemoId } from '../utils/client-identity';
+import { createLocalClientId } from '../utils/client-identity';
 
 export interface ReceivePurchaseLineInput {
   readonly purchaseLineId: string;
@@ -89,7 +89,7 @@ export class StockService {
       return this.failure('Wareneingang buchen', new Error('Kein aktiver Workspace'));
     const key = JSON.stringify([workspaceId, purchaseId, requestId ?? null, lines]);
     const pending = this.pendingReceipts.get(key) ?? {
-      requestId: requestId ?? createLocalDemoId('receipt'),
+      requestId: requestId ?? createLocalClientId('receipt'),
       lines: lines.map((line) => ({
         ...line,
         receivedAt: line.receivedAt ?? new Date().toISOString(),

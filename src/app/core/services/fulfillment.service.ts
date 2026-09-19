@@ -205,64 +205,6 @@ export class FulfillmentService {
     }
   }
 
-  loadDemoOrders(): void {
-    const now = new Date();
-    const demoOrders: ShippingOrder[] = [
-      {
-        id: 'ship-1',
-        workspace_id: 'ws-1',
-        sale_id: 'sale-1',
-        order_number: 'ORD-2026-8801',
-        order_date: now.toISOString(),
-        platform: 'ebay' as const,
-        item_title: 'Sony PlayStation 5 Digital Edition (CFI-1116B)',
-        item_sku: 'SKU-PS5-DIG',
-        item_condition: 'Sehr gut',
-        sale_price: 360.0,
-        customer: {
-          name: 'Maximilian Weber',
-          street: 'Hauptstraße',
-          house_number: '42b',
-          postal_code: '80331',
-          city: 'München',
-          country: 'Deutschland',
-          email: 'max.weber@beispiel.de',
-        },
-        carrier: 'dhl' as const,
-        package_type: 'DHL Paket bis 2 kg',
-        status: 'ready_to_pack' as const,
-        created_at: now.toISOString(),
-      },
-      {
-        id: 'ship-2',
-        workspace_id: 'ws-1',
-        sale_id: 'sale-2',
-        order_number: 'ORD-2026-8802',
-        order_date: now.toISOString(),
-        platform: 'ebay' as const,
-        item_title: 'DualSense Wireless Controller (Midnight Black)',
-        item_sku: 'SKU-PS5-CTRL',
-        item_condition: 'Neuwertig',
-        sale_price: 55.0,
-        customer: {
-          name: 'Maximilian Weber',
-          street: 'Hauptstraße',
-          house_number: '42b',
-          postal_code: '80331',
-          city: 'München',
-          country: 'Deutschland',
-          email: 'max.weber@beispiel.de',
-        },
-        carrier: 'dhl' as const,
-        package_type: 'DHL Warenpost',
-        status: 'ready_to_pack' as const,
-        created_at: now.toISOString(),
-      },
-    ];
-    this.orders.set(demoOrders);
-    this.persistOrders();
-  }
-
   private loadPersistedOrders(): ShippingOrder[] {
     try {
       if (typeof window !== 'undefined' && window.localStorage) {
@@ -271,63 +213,7 @@ export class FulfillmentService {
       }
     } catch {}
 
-    const now = new Date();
-    return [
-      {
-        id: 'ship-1',
-        workspace_id: 'ws-1',
-        sale_id: 'sale-1',
-        order_number: 'ORD-2026-8801',
-        order_date: now.toISOString(),
-        platform: 'ebay' as const,
-        item_title: 'Sony PlayStation 5 Digital Edition (CFI-1116B)',
-        item_sku: 'SKU-PS5-DIG',
-        item_condition: 'Sehr gut',
-        sale_price: 360.0,
-        customer: {
-          name: 'Maximilian Weber',
-          street: 'Hauptstraße',
-          house_number: '42b',
-          postal_code: '80331',
-          city: 'München',
-          country: 'Deutschland',
-          email: 'max.weber@beispiel.de',
-        },
-        carrier: 'dhl' as const,
-        package_type: 'DHL Paket bis 2 kg',
-        status: 'ready_to_pack' as const,
-        created_at: now.toISOString(),
-      },
-      {
-        id: 'ship-2',
-        workspace_id: 'ws-1',
-        sale_id: 'sale-2',
-        order_number: 'ORD-2026-8802',
-        order_date: new Date(now.getTime() - 86400000).toISOString(),
-        platform: 'ebay' as const,
-        item_title: 'Bosch Professional Akku-Bohrschrauber GSR 18V-55',
-        item_sku: 'SKU-BOSCH-18V',
-        item_condition: 'Wie neu',
-        sale_price: 75.0,
-        customer: {
-          name: 'Laura Becker',
-          street: 'Kaiserstraße',
-          house_number: '17',
-          postal_code: '60311',
-          city: 'Frankfurt am Main',
-          country: 'Deutschland',
-          email: 'laura.becker@beispiel.de',
-        },
-        carrier: 'dhl' as const,
-        package_type: 'DHL Paket bis 2 kg',
-        tracking_number: '00340434289012345678',
-        tracking_url:
-          'https://www.dhl.de/de/privatkunden/pakete-empfangen/verfolgen.html?piececode=00340434289012345678',
-        status: 'shipped' as const,
-        created_at: new Date(now.getTime() - 86400000).toISOString(),
-        shipped_at: new Date(now.getTime() - 3600000).toISOString(),
-      },
-    ];
+    return [];
   }
 
   private persistOrders(): void {

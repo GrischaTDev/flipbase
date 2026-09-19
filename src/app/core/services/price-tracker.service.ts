@@ -91,138 +91,36 @@ export class PriceTrackerService {
         .eq('workspace_id', workspaceId)
         .order('created_at', { ascending: false });
 
-      if (!error && data && data.length > 0) {
-        const mapped: PriceTrackedItem[] = (data as Tables<'price_tracked_items'>[]).map((t) => ({
-          id: t.id,
-          workspace_id: t.workspace_id,
-          inventory_item_id: t.inventory_item_id || undefined,
-          title: t.title,
-          category: t.category || 'Allgemein',
-          currentOurPrice: Number(t.current_our_price || 0),
-          currentMarketAverage: Number(t.current_market_average || 0),
-          currentMarketLowest: Number(t.current_market_lowest || 0),
-          recommendedPrice: Number(t.recommended_price || 0),
-          lowestCompetitorTitle: t.lowest_competitor_title || undefined,
-          lowestCompetitorPlatform: (t.lowest_competitor_platform || 'kleinanzeigen') as
-            'ebay' | 'kleinanzeigen' | 'vinted',
-          lowestCompetitorUrl: t.lowest_competitor_url || undefined,
-          priceTrend: t.price_trend as PriceTrend,
-          priceDifferencePercent: Number(t.price_difference_percent || 0),
-          alertTriggered: t.alert_triggered as PriceAlert,
-          lastCheckedAt: t.last_checked_at || new Date().toISOString(),
-          isTrackingActive: t.is_tracking_active,
-          priceHistory: (t.price_history as unknown as PricePoint[]) || [],
-        }));
+      if (!error) {
+        const mapped: PriceTrackedItem[] = ((data ?? []) as Tables<'price_tracked_items'>[]).map(
+          (t) => ({
+            id: t.id,
+            workspace_id: t.workspace_id,
+            inventory_item_id: t.inventory_item_id || undefined,
+            title: t.title,
+            category: t.category || 'Allgemein',
+            currentOurPrice: Number(t.current_our_price || 0),
+            currentMarketAverage: Number(t.current_market_average || 0),
+            currentMarketLowest: Number(t.current_market_lowest || 0),
+            recommendedPrice: Number(t.recommended_price || 0),
+            lowestCompetitorTitle: t.lowest_competitor_title || undefined,
+            lowestCompetitorPlatform: (t.lowest_competitor_platform || 'kleinanzeigen') as
+              'ebay' | 'kleinanzeigen' | 'vinted',
+            lowestCompetitorUrl: t.lowest_competitor_url || undefined,
+            priceTrend: t.price_trend as PriceTrend,
+            priceDifferencePercent: Number(t.price_difference_percent || 0),
+            alertTriggered: t.alert_triggered as PriceAlert,
+            lastCheckedAt: t.last_checked_at || new Date().toISOString(),
+            isTrackingActive: t.is_tracking_active,
+            priceHistory: (t.price_history as unknown as PricePoint[]) || [],
+          }),
+        );
         this.trackedItems.set(mapped);
         this.persistItems();
       }
     } catch (err) {
       this.logger.error('Verbindungsfehler beim Laden des Preisradars:', err);
     }
-  }
-
-  loadDemoItems(): void {
-    const now = new Date();
-    const d1 = new Date(now.getTime() - 86400000 * 7).toISOString().split('T')[0];
-    const d2 = new Date(now.getTime() - 86400000 * 3).toISOString().split('T')[0];
-    const d3 = now.toISOString().split('T')[0];
-
-    const demo: PriceTrackedItem[] = [
-      {
-        id: 'track-1',
-        workspace_id: 'ws-1',
-        title: 'Sony WH-1000XM5 Noise Cancelling Kopfhörer',
-        category: 'Elektronik & Audio',
-        currentOurPrice: 249.0,
-        currentMarketAverage: 228.0,
-        currentMarketLowest: 209.0,
-        recommendedPrice: 219.0,
-        lowestCompetitorTitle: 'Sony WH-1000XM5 wie neu mit OVP & Tasche',
-        lowestCompetitorPlatform: 'kleinanzeigen',
-        lowestCompetitorUrl: 'https://www.kleinanzeigen.de/s-sony-wh1000xm5/k0',
-        priceTrend: 'falling',
-        priceDifferencePercent: -16.0,
-        alertTriggered: 'undercut',
-        lastCheckedAt: new Date().toISOString(),
-        isTrackingActive: true,
-        priceHistory: [
-          { timestamp: d1, avgPrice: 245.0, lowestPrice: 230.0, listingsCount: 14 },
-          { timestamp: d2, avgPrice: 235.0, lowestPrice: 215.0, listingsCount: 19 },
-          { timestamp: d3, avgPrice: 228.0, lowestPrice: 209.0, listingsCount: 24 },
-        ],
-      },
-      {
-        id: 'track-2',
-        workspace_id: 'ws-1',
-        title: 'LEGO Star Wars Millennium Falcon 75192 (UCS)',
-        category: 'Spielwaren & Sammler',
-        currentOurPrice: 680.0,
-        currentMarketAverage: 755.0,
-        currentMarketLowest: 720.0,
-        recommendedPrice: 739.0,
-        lowestCompetitorTitle: 'Lego 75192 UCS Millennium Falcon Neuwertig',
-        lowestCompetitorPlatform: 'ebay',
-        lowestCompetitorUrl: 'https://www.ebay.de/itm/lego-75192',
-        priceTrend: 'rising',
-        priceDifferencePercent: 8.6,
-        alertTriggered: 'price_surge',
-        lastCheckedAt: new Date().toISOString(),
-        isTrackingActive: true,
-        priceHistory: [
-          { timestamp: d1, avgPrice: 710.0, lowestPrice: 680.0, listingsCount: 8 },
-          { timestamp: d2, avgPrice: 735.0, lowestPrice: 700.0, listingsCount: 6 },
-          { timestamp: d3, avgPrice: 755.0, lowestPrice: 720.0, listingsCount: 5 },
-        ],
-      },
-      {
-        id: 'track-3',
-        workspace_id: 'ws-1',
-        title: 'Pokemon Glurak VMAX Shiny Holo Glänzendes Schicksal',
-        category: 'Sammelkarten & TCG',
-        currentOurPrice: 115.0,
-        currentMarketAverage: 118.0,
-        currentMarketLowest: 110.0,
-        recommendedPrice: 115.0,
-        lowestCompetitorTitle: 'Glurak VMAX SV107/SV122 Boosterfrisch Near Mint',
-        lowestCompetitorPlatform: 'ebay',
-        lowestCompetitorUrl: 'https://www.ebay.de/sch/i.html?_nkw=glurak+vmax+shiny',
-        priceTrend: 'stable',
-        priceDifferencePercent: -4.3,
-        alertTriggered: 'none',
-        lastCheckedAt: new Date().toISOString(),
-        isTrackingActive: true,
-        priceHistory: [
-          { timestamp: d1, avgPrice: 119.0, lowestPrice: 108.0, listingsCount: 32 },
-          { timestamp: d2, avgPrice: 117.0, lowestPrice: 112.0, listingsCount: 29 },
-          { timestamp: d3, avgPrice: 118.0, lowestPrice: 110.0, listingsCount: 30 },
-        ],
-      },
-      {
-        id: 'track-4',
-        workspace_id: 'ws-1',
-        title: 'Sony PlayStation 5 Digital Edition 825GB',
-        category: 'Gaming & Konsolen',
-        currentOurPrice: 349.0,
-        currentMarketAverage: 320.0,
-        currentMarketLowest: 299.0,
-        recommendedPrice: 319.0,
-        lowestCompetitorTitle: 'PS5 Digital Edition top Zustand inkl. Controller',
-        lowestCompetitorPlatform: 'kleinanzeigen',
-        lowestCompetitorUrl: 'https://www.kleinanzeigen.de/s-ps5-digital/k0',
-        priceTrend: 'falling',
-        priceDifferencePercent: -14.3,
-        alertTriggered: 'undercut',
-        lastCheckedAt: new Date().toISOString(),
-        isTrackingActive: true,
-        priceHistory: [
-          { timestamp: d1, avgPrice: 345.0, lowestPrice: 330.0, listingsCount: 18 },
-          { timestamp: d2, avgPrice: 330.0, lowestPrice: 310.0, listingsCount: 25 },
-          { timestamp: d3, avgPrice: 320.0, lowestPrice: 299.0, listingsCount: 31 },
-        ],
-      },
-    ];
-    this.trackedItems.set(demo);
-    this.persistItems();
   }
 
   private persistItems(): void {

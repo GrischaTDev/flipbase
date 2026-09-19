@@ -1,21 +1,30 @@
 # 🤖 KI-Änderungsprotokoll
 
-## 2026-09-19 – Codex GPT-5.6 Terra (OpenAI) – Demo-Code: Einstieg entfernt, Restbereich erweitert
+## 2026-09-19 – Codex GPT-5.6 Terra (OpenAI) – Demo-Code vollständig entfernt
 
-**Auftrag:** Den letzten Abschnitt des Demo-Code-Umbaus beginnen: Anmeldung,
-Shell, Umgebungen und Übersetzungen bereinigen und anschließend den
+**Auftrag:** Den letzten Abschnitt des Demo-Code-Umbaus abschließen: Anmeldung,
+Shell, Umgebungen, Übersetzungen, Ausgaben und Fixkosten bereinigen und den
 Ersatz-Datenspeicher löschen.
 
 **Änderung:** Der Zugang zum Demo-Modus, die Demo-Anmeldung, Hinweise in der
-Shell und die Umgebungseinstellung sind entfernt. Die Anwendung ist nur noch
-mit einer echten Supabase-Sitzung erreichbar.
+Shell und die Umgebungseinstellung sind entfernt. Ausgaben, Kategorien,
+wiederkehrende Ausgaben und Belege verwenden nur noch Supabase. Der rund 2.550
+Zeilen große Ersatz-Datenspeicher sowie ausschließlich davon abhängige
+Kategorien und Kommentarmodelle sind gelöscht. Lokale Client-IDs tragen keinen
+Demo-Begriff mehr.
 
-**Offen:** Die Schlusssuche zeigte, dass später hinzugekommene Ausgaben- und
-Fixkostendienste noch Demo-Zweige verwenden. Sie waren im älteren Plan nicht
-enthalten. Der Ersatz-Datenspeicher und die davon abhängigen Modelle bleiben
-deshalb vorerst bestehen und werden erst nach deren Umstellung entfernt.
+Eine erweiterte Inhaltssuche fand zusätzlich fest eingebaute Versand-, Radar-
+und Retourendaten sowie eine erfundene Workspace-ID im Aktivitätsprotokoll.
+Diese Rückfälle sind entfernt. Leere Datenbankantworten räumen nun veraltete
+lokale Retouren und Radarartikel auf. Tests setzen ihre Beispieldaten selbst,
+statt dafür öffentliche Demo-Ladefunktionen in den App-Diensten zu benötigen.
 
-**Prüfung:** Typprüfung bestand. Kein Push/Merge.
+**Prüfung:** Die betroffenen Tests wurden vor den Änderungen gezielt rot und
+danach grün ausgeführt. `npm run verify` bestand vollständig: Formatierung,
+ESLint, Typprüfung, Workflow- und Suite-Audit, 1.401 Node-, 232 DOM-, 918
+Angular- und 13 Landing-Tests sowie Produktionsbau. Der Bau meldet weiterhin
+drei bekannte NG8113-Hinweise zu ungenutzten `LucideDynamicIcon`-Importen. Kein
+Push/Merge.
 
 ## 2026-09-19 – Codex GPT-5.6 Terra (OpenAI) – Demo-Code: Workspace, Einstellungen und Vinted Bot
 

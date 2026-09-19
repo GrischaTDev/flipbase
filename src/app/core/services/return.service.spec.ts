@@ -53,10 +53,39 @@ describe('ReturnService & Credit Note Engine (Chapter 25)', () => {
     allocated_purchase_cost: 80.0,
   };
 
-  it('should initialize with persisted returns', () => {
-    const list = service.returns();
-    expect(list.length).toBeGreaterThanOrEqual(1);
-    expect(list[0].credit_note_number).toContain('GS-2026');
+  it('startet ohne gespeicherte Retouren leer', () => {
+    expect(service.returns()).toEqual([]);
+  });
+
+  it('entfernt veraltete lokale Retouren, wenn der Workspace keine Datensätze enthält', async () => {
+    service.returns.set([
+      {
+        id: 'old-return',
+        workspace_id: 'old-workspace',
+        sale_id: 'old-sale',
+        inventory_item_id: null,
+        credit_note_number: 'GS-2025-0001',
+        return_date: '2025-01-01',
+        reason: 'other',
+        refund_amount: 10,
+        is_full_refund: true,
+        restock_action: 'keep_with_buyer',
+        created_at: '2025-01-01T00:00:00.000Z',
+      },
+    ]);
+    const query = {
+      select: () => query,
+      eq: () => query,
+      order: async () => ({ data: [], error: null }),
+    };
+    Object.assign(service, {
+      supabase: { client: { from: () => query } },
+      syncStatus: { melde: vi.fn() },
+    });
+
+    await service.loadReturns('workspace-1');
+
+    expect(service.returns()).toEqual([]);
   });
 
   it('should process full return, restock ready item and generate credit note invoice', async () => {

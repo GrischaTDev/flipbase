@@ -4,7 +4,6 @@ import { describe, expect, it, vi } from 'vitest';
 import { ExpenseRecurringRule } from '../models/expense.models';
 import { AuthService } from './auth.service';
 import { ExpenseRecurringService } from './expense-recurring.service';
-import { MockDataStoreService } from './mock-data-store.service';
 import { SupabaseService } from './supabase.service';
 import { SyncStatusService } from './sync-status.service';
 import { WorkspaceService } from './workspace.service';
@@ -74,14 +73,10 @@ function createService(
     table === 'expenses' ? { upsert } : { ...selectQuery, insert, update },
   );
 
-  const mockStore = new MockDataStoreService();
-  mockStore.isDemoMode.set(false);
-
   const injector = Injector.create({
     providers: [
       { provide: SupabaseService, useValue: { client: { from } } },
       { provide: WorkspaceService, useValue: { currentWorkspace } },
-      { provide: MockDataStoreService, useValue: mockStore },
       { provide: SyncStatusService, useValue: new SyncStatusService() },
       { provide: AuthService, useValue: { currentUser: () => ({ id: 'user-1' }) } },
     ],

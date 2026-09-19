@@ -3,6 +3,42 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Injector, runInInjectionContext } from '@angular/core';
 import { PriceTrackerService } from './price-tracker.service';
 import { SyncStatusService } from './sync-status.service';
+import { PriceTrackedItem } from '../models/price-tracker.models';
+
+const trackedItems: PriceTrackedItem[] = [
+  {
+    id: 'track-1',
+    workspace_id: 'ws-1',
+    title: 'Kopfhörer',
+    category: 'Elektronik',
+    currentOurPrice: 249,
+    currentMarketAverage: 228,
+    currentMarketLowest: 209,
+    recommendedPrice: 219,
+    priceTrend: 'falling',
+    priceDifferencePercent: -16,
+    alertTriggered: 'undercut',
+    lastCheckedAt: '2026-09-19T10:00:00.000Z',
+    isTrackingActive: true,
+    priceHistory: [],
+  },
+  {
+    id: 'track-2',
+    workspace_id: 'ws-1',
+    title: 'Bausatz',
+    category: 'Spielwaren',
+    currentOurPrice: 680,
+    currentMarketAverage: 755,
+    currentMarketLowest: 720,
+    recommendedPrice: 739,
+    priceTrend: 'rising',
+    priceDifferencePercent: 8.6,
+    alertTriggered: 'price_surge',
+    lastCheckedAt: '2026-09-19T10:00:00.000Z',
+    isTrackingActive: true,
+    priceHistory: [],
+  },
+];
 
 describe('PriceTrackerService & Competitor Radar (Chapter 26)', () => {
   let service: PriceTrackerService;
@@ -10,13 +46,28 @@ describe('PriceTrackerService & Competitor Radar (Chapter 26)', () => {
   beforeEach(() => {
     const injector = Injector.create({ providers: [] });
     service = runInInjectionContext(injector, () => new PriceTrackerService());
-    service.loadDemoItems();
+    service.trackedItems.set(trackedItems);
   });
 
-  it('should initialize with pre-configured radar items', () => {
+  it('wertet die im Test gesetzten Radarartikel aus', () => {
     const list = service.trackedItems();
-    expect(list.length).toBeGreaterThanOrEqual(2);
+    expect(list).toHaveLength(2);
     expect(list.some((t) => t.alertTriggered === 'undercut')).toBe(true);
+  });
+
+  it('entfernt veraltete lokale Radarartikel, wenn der Workspace keine Datensätze enthält', async () => {
+    const query = {
+      select: () => query,
+      eq: () => query,
+      order: async () => ({ data: [], error: null }),
+    };
+    Object.assign(service, {
+      supabase: { client: { from: () => query } },
+    });
+
+    await service.loadFromSupabase('workspace-1');
+
+    expect(service.trackedItems()).toEqual([]);
   });
 
   it('should add a new tracked item', async () => {

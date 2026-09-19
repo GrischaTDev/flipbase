@@ -5,7 +5,6 @@ import { Expense } from '../models/expense.models';
 import { AuthService } from './auth.service';
 import { ExpenseRecurringService } from './expense-recurring.service';
 import { ExpenseService } from './expense.service';
-import { MockDataStoreService } from './mock-data-store.service';
 import { SupabaseService } from './supabase.service';
 import { SyncStatusService } from './sync-status.service';
 import { WorkspaceService } from './workspace.service';
@@ -61,14 +60,10 @@ function createService(rows: Expense[] = [paidExpense]) {
   const update = vi.fn(() => updateQuery);
   const from = vi.fn(() => ({ ...query, insert, update }));
 
-  const mockStore = new MockDataStoreService();
-  mockStore.isDemoMode.set(false);
-
   const injector = Injector.create({
     providers: [
       { provide: SupabaseService, useValue: { client: { from } } },
       { provide: WorkspaceService, useValue: { currentWorkspace } },
-      { provide: MockDataStoreService, useValue: mockStore },
       { provide: SyncStatusService, useValue: new SyncStatusService() },
       { provide: AuthService, useValue: { currentUser: () => ({ id: 'user-1' }) } },
     ],
@@ -129,13 +124,10 @@ function createWorkspaceHarness(
     };
     return query;
   });
-  const mockStore = new MockDataStoreService();
-  mockStore.isDemoMode.set(false);
   const injector = Injector.create({
     providers: [
       { provide: SupabaseService, useValue: { client: { from } } },
       { provide: WorkspaceService, useValue: { currentWorkspace } },
-      { provide: MockDataStoreService, useValue: mockStore },
       { provide: SyncStatusService, useValue: { melde: (_label: string, cause: Error) => cause } },
       { provide: AuthService, useValue: { currentUser: () => ({ id: 'user-1' }) } },
       { provide: ExpenseRecurringService, useValue: recurring },

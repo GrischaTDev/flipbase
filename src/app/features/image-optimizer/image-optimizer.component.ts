@@ -65,7 +65,7 @@ import { ToastService } from '../../shared/components/toast/toast.service';
 import { ConfirmDialogService } from '../../shared/components/confirm-dialog/confirm-dialog.service';
 import { SplitPaneComponent } from '../../shared/components/split-pane/split-pane.component';
 import { ModalShellComponent } from '../../shared/components/modal-shell/modal-shell.component';
-import { createLocalDemoId } from '../../core/utils/client-identity';
+import { createLocalClientId } from '../../core/utils/client-identity';
 
 /**
  * Hinweistext fuer Bilder, die der Browser nicht als Bild dekodieren kann -
@@ -383,7 +383,7 @@ export class ImageOptimizerComponent {
     if (images.length === 0) return;
 
     const added: OptimizerImage[] = images.map((file) => ({
-      id: createLocalDemoId('image'),
+      id: createLocalClientId('image'),
       file,
       dataUrl: URL.createObjectURL(file),
       crops: {},

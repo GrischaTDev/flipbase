@@ -71,7 +71,7 @@ describe('BankReconciliationService', () => {
     service = runInInjectionContext(injector, () => new BankReconciliationService());
   });
 
-  it('should be created and start with clean transactions or demo data', () => {
+  it('should be created and start with clean transactions', () => {
     expect(service).toBeTruthy();
     expect(Array.isArray(service.transactions())).toBe(true);
   });

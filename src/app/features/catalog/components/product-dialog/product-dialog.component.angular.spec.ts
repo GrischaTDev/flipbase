@@ -183,7 +183,7 @@ async function settle(fixture: ComponentFixture<ProductDialogComponent>): Promis
 }
 
 describe('ProductDialogComponent picker integration', () => {
-  it('bindet Demo-Auswahlen an die ID-Controls und leert beide Picker als null', async () => {
+  it('bindet Testauswahlen an die ID-Controls und leert beide Picker als null', async () => {
     const fixture = TestBed.createComponent(ProductDialogComponent);
     await settle(fixture);
 

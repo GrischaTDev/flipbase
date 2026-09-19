@@ -817,7 +817,10 @@ export class InventoryService {
   }
 
   async logActivity(itemId: string, action: string, notes?: string): Promise<ActivityLogResult> {
-    const wsId = this.workspaceService.currentWorkspace()?.id || 'demo-workspace-1';
+    const wsId = this.workspaceService.currentWorkspace()?.id;
+    if (!wsId) {
+      return { error: new Error('Kein aktiver Workspace.'), reportedBySyncStatus: false };
+    }
     const newLog: ActivityLog = {
       id: `log-${Date.now()}`,
       workspace_id: wsId,

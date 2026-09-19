@@ -591,7 +591,7 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
     expect(closed.emit).not.toHaveBeenCalled();
   });
 
-  it('zeigt die zentrale Demo-Einschränkung ohne Erfolg, Schließen oder doppelten Toast', async () => {
+  it('zeigt einen zentral gemeldeten Speicherfehler ohne Erfolg, Schließen oder doppelten Toast', async () => {
     const { komponente, toast, syncStatus, purchaseCostingService, created, closed } =
       erstelleKomponente();
     komponente.onPurchaseLinesChanged([
@@ -610,7 +610,7 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
     ]);
     const centralError = syncStatus.melde(
       'Finalisieren des Einkaufs',
-      new Error('In der Demo können aktuell nur Mystery Boxen abgeschlossen werden.'),
+      new Error('Der Einkauf konnte nicht gespeichert werden.'),
     );
     purchaseCostingService.finalizePurchase.mockResolvedValue({
       data: null,
@@ -620,9 +620,7 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
 
     await komponente.onFinalize();
 
-    expect(komponente.errorMessage()).toContain(
-      'In der Demo können aktuell nur Mystery Boxen abgeschlossen werden.',
-    );
+    expect(komponente.errorMessage()).toContain('Der Einkauf konnte nicht gespeichert werden.');
     expect(toast.toasts()).toEqual([]);
     expect(created.emit).not.toHaveBeenCalled();
     expect(closed.emit).not.toHaveBeenCalled();

@@ -4,7 +4,6 @@ import { describe, expect, it, vi } from 'vitest';
 import { ExpenseCategory } from '../models/expense.models';
 import { AuthService } from './auth.service';
 import { ExpenseCategoryService } from './expense-category.service';
-import { MockDataStoreService } from './mock-data-store.service';
 import { SupabaseService } from './supabase.service';
 import { SyncStatusService } from './sync-status.service';
 import { WorkspaceService } from './workspace.service';
@@ -33,7 +32,6 @@ function createService(
     rows?: ExpenseCategory[];
     insertRow?: ExpenseCategory;
     updateRow?: ExpenseCategory;
-    demo?: boolean;
     loadResult?: (workspaceId: string) => Promise<{
       readonly data: ExpenseCategory[] | null;
       readonly error: Error | null;
@@ -79,14 +77,10 @@ function createService(
     update: vi.fn(() => updateQuery),
   }));
 
-  const mockStore = new MockDataStoreService();
-  mockStore.isDemoMode.set(options.demo ?? false);
-
   const injector = Injector.create({
     providers: [
       { provide: SupabaseService, useValue: { client: { from } } },
       { provide: WorkspaceService, useValue: { currentWorkspace } },
-      { provide: MockDataStoreService, useValue: mockStore },
       { provide: SyncStatusService, useValue: new SyncStatusService() },
       { provide: AuthService, useValue: { currentUser: () => ({ id: 'user-1' }) } },
     ],

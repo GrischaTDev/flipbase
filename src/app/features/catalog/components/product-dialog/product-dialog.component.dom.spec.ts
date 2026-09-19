@@ -76,7 +76,7 @@ describe('ProductDialogComponent', () => {
     expect(created.emit).toHaveBeenCalledExactlyOnceWith(product);
   });
   it('beendet den Speichervorgang und zeigt einen geworfenen Servicefehler an', async () => {
-    const createProduct = vi.fn().mockRejectedValue(new Error('Demo-Speicher nicht verfügbar'));
+    const createProduct = vi.fn().mockRejectedValue(new Error('Speicher nicht verfügbar'));
     const component = Object.create(ProductDialogComponent.prototype) as ProductDialogComponent;
     Object.assign(component, {
       catalog: { createProduct, loadProducts: vi.fn() },
@@ -103,7 +103,7 @@ describe('ProductDialogComponent', () => {
     await component.save();
 
     expect(component.saving()).toBe(false);
-    expect(component.error()).toBe('Demo-Speicher nicht verfügbar');
+    expect(component.error()).toBe('Speicher nicht verfügbar');
     expect(component.savedProduct()).toBeNull();
   });
 

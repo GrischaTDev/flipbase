@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createLocalDemoId, createSecureClientUuid } from './client-identity';
+import { createLocalClientId, createSecureClientUuid } from './client-identity';
 
 describe('client identity', () => {
   afterEach(() => {
@@ -23,9 +23,9 @@ describe('client identity', () => {
     expect(() => createSecureClientUuid()).toThrow('sichere Browser-UUID');
   });
 
-  it('nutzt ohne Browser-Zufallsquelle nur für lokale Demo-Daten eine temporäre Kennung', () => {
+  it('nutzt ohne Browser-Zufallsquelle nur für kurzlebige Clientdaten eine temporäre Kennung', () => {
     vi.stubGlobal('crypto', undefined);
 
-    expect(createLocalDemoId('catalog')).toMatch(/^catalog-local-[a-z0-9]+-[a-z0-9]+-[a-z0-9]+$/);
+    expect(createLocalClientId('catalog')).toMatch(/^catalog-local-[a-z0-9]+-[a-z0-9]+-[a-z0-9]+$/);
   });
 });
