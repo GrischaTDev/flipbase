@@ -38,6 +38,7 @@ function createService(
     download?: ReturnType<typeof vi.fn>;
     insert?: ReturnType<typeof vi.fn>;
     deleteRow?: ReturnType<typeof vi.fn>;
+    summaryRows?: readonly { expense_id: string }[];
   } = {},
 ) {
   const upload = options.upload ?? vi.fn(async () => ({ error: null }));
@@ -55,10 +56,13 @@ function createService(
     }));
 
   const documentsRaw = signal<readonly ExpenseDocument[]>([]);
+  const documentCounts = signal<ReadonlyMap<string, number>>(new Map());
+  const summaryRows = options.summaryRows ?? [{ expense_id: expenseId }];
   const service = Object.create(ExpenseDocumentService.prototype) as ExpenseDocumentService;
   Object.assign(service, {
     documentsRaw,
     documents: documentsRaw.asReadonly(),
+    documentCounts,
     isLoading: signal(false),
     loadError: signal<string | null>(null),
     workspaceService: { currentWorkspace: signal(workspace) },
@@ -71,9 +75,18 @@ function createService(
         from: () => ({
           insert,
           delete: deleteRow,
-          select: () => ({
-            eq: () => ({ order: async () => ({ data: [storedDocument], error: null }) }),
-          }),
+          select: (columns?: string) => {
+            if (columns === 'expense_id') {
+              return {
+                eq: () => ({
+                  in: async () => ({ data: summaryRows, error: null }),
+                }),
+              };
+            }
+            return {
+              eq: () => ({ order: async () => ({ data: [storedDocument], error: null }) }),
+            };
+          },
         }),
       },
     },
@@ -83,6 +96,18 @@ function createService(
 }
 
 describe('ExpenseDocumentService', () => {
+  it('lädt den Belegstatus mehrerer Ausgaben ohne Originaldateien', async () => {
+    const { service } = createService({
+      summaryRows: [{ expense_id: expenseId }, { expense_id: expenseId }, { expense_id: 'other' }],
+    });
+
+    await service.loadSummaryForExpenses([expenseId, 'other', 'empty']);
+
+    expect(service.hasDocuments(expenseId)).toBe(true);
+    expect(service.hasDocuments('other')).toBe(true);
+    expect(service.hasDocuments('empty')).toBe(false);
+  });
+
   it('lädt Belege einer konkreten Ausgabe', async () => {
     const { service } = createService();
 
