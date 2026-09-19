@@ -135,7 +135,7 @@ select is(
 );
 
 select throws_ok(
-  $insert into public.expenses (
+  $$insert into public.expenses (
       workspace_id, category_id, title, quantity, gross_amount,
       expense_date, status, payment_date, created_by
     ) values (
@@ -148,14 +148,14 @@ select throws_ok(
       'paid',
       '2026-09-18',
       'f1800000-0000-4000-8000-000000000001'
-    )$,
+    )$$,
   '23514',
   null,
   'eine Ausgabe verlangt eine positive Menge'
 );
 
 select lives_ok(
-  $update public.expense_categories
+  $$update public.expense_categories
     set name = 'Eigenes Versandmaterial'
     where id = 'f1800000-0000-4000-8000-000000000021'$,
   'eigene Kategorien lassen sich ändern'
