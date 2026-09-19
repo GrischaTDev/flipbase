@@ -9,6 +9,8 @@ import {
 } from '@angular/core';
 import {
   LucideCheck as Check,
+  LucideChevronLeft as ChevronLeft,
+  LucideChevronRight as ChevronRight,
   LucideCircleDollarSign as CircleDollarSign,
   LucideFileText as FileText,
   LucidePencil as Pencil,
@@ -28,6 +30,7 @@ import { ExpenseRecurringService } from '../../core/services/expense-recurring.s
 import { ExpenseService } from '../../core/services/expense.service';
 import { TablePreferencesService } from '../../core/services/table-preferences.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
+import { nextOccurrence as nextExpenseOccurrence } from '../../core/utils/expense-recurrence';
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
 import { CardComponent } from '../../shared/components/card/card.component';
@@ -47,6 +50,7 @@ import { RecurringExpenseDialogComponent } from './components/recurring-expense-
 
 type ExpenseTab = 'expenses' | 'recurring';
 type ExpenseStatusFilter = 'all' | ExpenseStatus;
+type ExpensePeriod = string | null;
 
 function localDateKey(date = new Date()): string {
   return [
@@ -54,6 +58,15 @@ function localDateKey(date = new Date()): string {
     String(date.getMonth() + 1).padStart(2, '0'),
     String(date.getDate()).padStart(2, '0'),
   ].join('-');
+}
+
+function localMonthKey(date = new Date()): string {
+  return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0')].join('-');
+}
+
+function shiftMonthKey(monthKey: string, offset: number): string {
+  const [year, month] = monthKey.split('-').map(Number);
+  return localMonthKey(new Date(year, month - 1 + offset, 1));
 }
 
 @Component({
@@ -88,6 +101,7 @@ export class ExpensesComponent {
   private initializationSequence = 0;
 
   readonly activeTab = signal<ExpenseTab>('expenses');
+  readonly expensePeriod = signal<ExpensePeriod>(localMonthKey());
   readonly statusFilter = signal<ExpenseStatusFilter>('all');
   readonly categoryFilter = signal<string>('all');
   readonly search = signal('');
@@ -103,6 +117,8 @@ export class ExpensesComponent {
   readonly addIcon = Plus;
   readonly settingsIcon = Settings2;
   readonly paidIcon = Check;
+  readonly previousMonthIcon = ChevronLeft;
+  readonly nextMonthIcon = ChevronRight;
   readonly editIcon = Pencil;
   readonly deleteIcon = Trash2;
   readonly addDocumentIcon = Plus;
@@ -137,13 +153,25 @@ export class ExpensesComponent {
     })),
   ]);
 
+  readonly expensePeriodLabel = computed(() => {
+    const period = this.expensePeriod();
+    if (period === null) return 'Alle Zeiträume';
+    const [year, month] = period.split('-').map(Number);
+    return new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' }).format(
+      new Date(year, month - 1, 1),
+    );
+  });
+
   readonly visibleExpenses = computed(() => {
+    const period = this.expensePeriod();
     const status = this.statusFilter();
     const category = this.categoryFilter();
     const query = this.search().trim().toLocaleLowerCase('de-DE');
     const sort = this.tablePrefs().sort;
     const rows = this.expenseService
       .expenses()
+      .filter((expense) => expense.deleted_at === null)
+      .filter((expense) => period === null || expense.expense_date.startsWith(`${period}-`))
       .filter((expense) => status === 'all' || expense.status === status)
       .filter((expense) => category === 'all' || expense.category_id === category)
       .filter((expense) => {
@@ -170,13 +198,14 @@ export class ExpensesComponent {
   readonly viewModified = computed(
     () =>
       this.search().trim() !== '' ||
+      this.expensePeriod() !== localMonthKey() ||
       this.statusFilter() !== 'all' ||
       this.categoryFilter() !== 'all' ||
       tableStateDiffersFromDefaults(this.tablePrefs(), this.expensesTableConfig),
   );
 
   readonly summary = computed(() => {
-    const expenses = this.expenseService.expenses();
+    const expenses = this.visibleExpenses();
     const total = expenses.reduce((sum, expense) => sum + Number(expense.gross_amount), 0);
     const paid = expenses
       .filter((expense) => expense.status === 'paid')
@@ -188,7 +217,6 @@ export class ExpensesComponent {
     return { total, paid, open };
   });
 
-  readonly upcoming = computed(() => this.recurringService.upcoming(localDateKey(), 30));
   readonly dataLoadError = computed(() => {
     if (this.expenseService.loadError()) return 'Die Ausgaben konnten nicht geladen werden.';
     if (this.categoryService.loadError())
@@ -291,6 +319,14 @@ export class ExpensesComponent {
     this.categoryFilter.set(value ?? 'all');
   }
 
+  moveExpensePeriod(offset: number): void {
+    this.expensePeriod.set(shiftMonthKey(this.expensePeriod() ?? localMonthKey(), offset));
+  }
+
+  showAllExpensePeriods(): void {
+    this.expensePeriod.set(null);
+  }
+
   toggleColumnVisibility(columnId: ExpensesColumnId): void {
     this.tablePreferences.toggleColumnVisibility('expenses', columnId, this.workspaceId());
   }
@@ -310,6 +346,7 @@ export class ExpensesComponent {
 
   resetView(): void {
     this.search.set('');
+    this.expensePeriod.set(localMonthKey());
     this.statusFilter.set('all');
     this.categoryFilter.set('all');
     this.tablePreferences.resetToDefaults('expenses', this.workspaceId());
@@ -340,7 +377,8 @@ export class ExpensesComponent {
   }
 
   nextOccurrence(ruleId: string): string | null {
-    return this.upcoming().find((entry) => entry.ruleId === ruleId)?.occurrenceDate ?? null;
+    const rule = this.recurringService.rules().find((entry) => entry.id === ruleId);
+    return rule ? nextExpenseOccurrence(rule, localDateKey()) : null;
   }
 
   statusTone(status: ExpenseStatus): 'success' | 'caution' {

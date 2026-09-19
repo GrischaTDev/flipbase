@@ -208,6 +208,59 @@ describe('DashboardReportService', () => {
     expect(result.averageMarginPercent).toBe(withoutOperating.averageMarginPercent);
   });
 
+  it('zählt eine August-Rechnung erst mit ihrer September-Zahlung zum September-Cashflow', () => {
+    const paidInSeptember: Expense = {
+      id: 'expense-paid-september',
+      workspace_id: 'workspace-1',
+      category_id: 'category-1',
+      recurring_rule_id: null,
+      occurrence_date: null,
+      title: 'Versandkartons',
+      vendor_name: null,
+      quantity: 2,
+      gross_amount: 23.8,
+      vat_rate: 19,
+      expense_date: '2026-08-31',
+      due_date: null,
+      status: 'paid',
+      payment_date: '2026-09-02',
+      notes: null,
+      deleted_at: null,
+      created_at: '2026-08-31T00:00:00Z',
+      created_by: 'user-1',
+      updated_at: '2026-09-02T00:00:00Z',
+    };
+    const result = report(
+      'month',
+      {
+        expenses: [
+          paidInSeptember,
+          {
+            ...paidInSeptember,
+            id: 'expense-open-october',
+            title: 'Oktoberrechnung',
+            status: 'open',
+            payment_date: null,
+            expense_date: '2026-10-01',
+          },
+          {
+            ...paidInSeptember,
+            id: 'expense-deleted',
+            title: 'Gelöschte Ausgabe',
+            gross_amount: 9,
+            deleted_at: '2026-09-03T00:00:00Z',
+          },
+        ],
+      },
+      new Date(2026, 8, 19),
+    );
+
+    expect(result.operatingExpenseSpend).toBe(23.8);
+    expect(result.totalExpenses).toBe(23.8);
+    expect(result.grossProfit).toBe(0);
+    expect(result.averageMarginPercent).toBeNull();
+  });
+
   it('zählt bei Plattformfilter nur die Verkaufskosten dieser Plattform zu den Ausgaben', () => {
     const vintedSale: Sale = { ...sale, id: 'sale-vinted', platform: 'vinted', platform_fee: 2 };
     const result = report(

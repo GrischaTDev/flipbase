@@ -59,6 +59,10 @@
       </app-card>
     </section>
 
+    <p class="text-xs text-fb-text-muted">
+      Tabelle und Summen beziehen sich auf das Rechnungs- bzw. Ausgabedatum.
+    </p>
+
     <app-data-table
       ariaLabel="Ausgaben"
       [searchValue]="search()"
@@ -90,16 +94,55 @@
         [value]="statusFilter()"
         (valueChange)="setStatus($event)"
       />
-      <app-custom-select
-        table-filters
-        ariaLabel="Kategorie filtern"
-        triggerId="expense-category-filter"
-        variant="toolbar"
-        widthClass="min-w-44 max-w-64"
-        [options]="categoryOptions()"
-        [value]="categoryFilter()"
-        (valueChange)="setCategory($event)"
-      />
+      <div table-filters class="flex flex-wrap items-center gap-2">
+        <div
+          class="inline-flex items-center gap-1 rounded-lg border border-fb-line bg-fb-well p-1"
+          role="group"
+          aria-label="Ausgabenzeitraum"
+        >
+          <app-button
+            size="slim"
+            variant="ghost"
+            [icon]="previousMonthIcon"
+            [iconOnly]="true"
+            ariaLabel="Vorheriger Monat"
+            title="Vorheriger Monat"
+            (clicked)="moveExpensePeriod(-1)"
+          />
+          <span
+            class="min-w-28 px-1 text-center text-xs font-medium text-fb-text-primary"
+            aria-live="polite"
+          >
+            {{ expensePeriodLabel() }}
+          </span>
+          <app-button
+            size="slim"
+            variant="ghost"
+            [icon]="nextMonthIcon"
+            [iconOnly]="true"
+            ariaLabel="Nächster Monat"
+            title="Nächster Monat"
+            (clicked)="moveExpensePeriod(1)"
+          />
+          <app-button
+            size="slim"
+            [variant]="expensePeriod() === null ? 'secondary' : 'ghost'"
+            [ariaPressed]="expensePeriod() === null"
+            (clicked)="showAllExpensePeriods()"
+          >
+            Alle
+          </app-button>
+        </div>
+        <app-custom-select
+          ariaLabel="Kategorie filtern"
+          triggerId="expense-category-filter"
+          variant="toolbar"
+          widthClass="min-w-44 max-w-64"
+          [options]="categoryOptions()"
+          [value]="categoryFilter()"
+          (valueChange)="setCategory($event)"
+        />
+      </div>
 
       <div
         table-content
