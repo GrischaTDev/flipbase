@@ -218,13 +218,15 @@ const rules: ExpenseRecurringRule[] = [
   },
 ];
 
-async function render() {
+async function render(
+  options: { readonly ensurePromise?: Promise<void>; readonly waitForInit?: boolean } = {},
+) {
   const expenseService = {
     expenses: signal(expenses),
     isLoading: signal(false),
     loadError: signal(null),
     load: vi.fn().mockResolvedValue(undefined),
-    ensureCurrentWorkspaceLoaded: vi.fn().mockResolvedValue(undefined),
+    ensureCurrentWorkspaceLoaded: vi.fn(() => options.ensurePromise ?? Promise.resolve()),
     markPaid: vi.fn().mockResolvedValue({ data: expenses[1], error: null }),
     remove: vi.fn().mockResolvedValue({ error: null }),
   };
@@ -284,8 +286,10 @@ async function render() {
     ],
   }).createComponent(ExpensesComponent);
   fixture.detectChanges();
-  await fixture.whenStable();
-  fixture.detectChanges();
+  if (options.waitForInit !== false) {
+    await fixture.whenStable();
+    fixture.detectChanges();
+  }
 
   return { fixture, expenseService, categoryService, recurringService, documentService, dialog };
 }
@@ -365,6 +369,27 @@ describe('ExpensesComponent', () => {
       }),
     );
     expect(expenseService.remove).toHaveBeenCalledWith('expense-paid');
+  });
+
+  it('zeigt während der ersten Abfrage einen stabilen Ladezustand statt kurz die leere Tabelle', async () => {
+    let resolveExpenseLoad!: () => void;
+    const ensurePromise = new Promise<void>((resolve) => {
+      resolveExpenseLoad = resolve;
+    });
+    const { fixture } = await render({ ensurePromise, waitForInit: false });
+    const host = fixture.nativeElement as HTMLElement;
+
+    expect(fixture.componentInstance.initializing()).toBe(true);
+    expect(host.querySelector('[data-data-table-loading]')).toBeTruthy();
+    expect(host.querySelector('[data-data-table-empty]')).toBeNull();
+
+    resolveExpenseLoad();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.initializing()).toBe(false);
+    expect(host.querySelector('[data-data-table-loading]')).toBeNull();
+    expect(host.querySelector('[data-data-table-content]')).toBeTruthy();
   });
 
   it('nutzt beim Initialisieren nur den deduplizierten Expense-Ladepfad', async () => {
