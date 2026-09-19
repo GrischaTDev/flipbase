@@ -61,7 +61,7 @@
 
     @if (form.controls.gross_amount.value && form.controls.quantity.value > 1 && unitPrice() !== null) {
       <p class="text-xs text-fb-text-muted">
-        {{ unitPrice() }} € pro Stück bei {{ form.controls.quantity.value }} Stück
+        {{ unitPrice() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }} pro Stück bei {{ form.controls.quantity.value }} Stück
       </p>
     }
 
@@ -89,7 +89,8 @@
           @if (form.controls.gross_amount.value) {
             <p class="text-xs text-fb-text-muted">
               @if (taxBreakdown().net !== null) {
-                Netto {{ taxBreakdown().net }} € · enthaltene MwSt. {{ taxBreakdown().tax }} €
+                Netto {{ taxBreakdown().net | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }} · enthaltene
+                MwSt. {{ taxBreakdown().tax | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
               } @else {
                 Netto und Steueranteil werden ohne ausgewiesene MwSt. nicht berechnet.
               }
