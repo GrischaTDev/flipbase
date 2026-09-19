@@ -62,13 +62,13 @@
     <app-data-table
       ariaLabel="Ausgaben"
       [searchValue]="search()"
-      searchPlaceholder="Ausgaben durchsuchen"
-      searchAriaLabel="Ausgaben durchsuchen"
+      searchPlaceholder="Ausgaben oder Anbieter durchsuchen"
+      searchAriaLabel="Ausgaben oder Anbieter durchsuchen"
       [columns]="tablePrefs().columns"
       [sortOptions]="expensesTableConfig.sortOptions"
       [currentSort]="tablePrefs().sort"
       [viewModified]="viewModified()"
-      [loading]="expenseService.isLoading()"
+      [loading]="isInitializing() || expenseService.isLoading()"
       [errorMessage]="
         expenseService.loadError() ? 'Die Ausgaben konnten nicht geladen werden.' : null
       "
@@ -110,7 +110,7 @@
         role="region"
         aria-label="Ausgaben-Tabelle"
       >
-        <table class="linear-table w-full min-w-[1080px] text-[13px] tabular-nums">
+        <table class="linear-table w-full min-w-[1120px] text-[13px] tabular-nums">
           <thead>
             <tr>
               @for (column of orderedVisibleColumns(); track column.id) {
@@ -126,7 +126,7 @@
                     </th>
                   }
                   @case ('title') {
-                    <th scope="col" [attr.aria-sort]="ariaSort('title')" class="min-w-56">
+                    <th scope="col" [attr.aria-sort]="ariaSort('title')" class="min-w-52">
                       <app-table-sort-header
                         label="Bezeichnung"
                         sortField="title"
@@ -135,13 +135,19 @@
                       />
                     </th>
                   }
+                  @case ('vendor') {
+                    <th scope="col">Anbieter</th>
+                  }
                   @case ('category') {
                     <th scope="col">Kategorie</th>
+                  }
+                  @case ('quantity') {
+                    <th scope="col" class="text-right">Menge</th>
                   }
                   @case ('gross_amount') {
                     <th scope="col" class="text-right" [attr.aria-sort]="ariaSort('gross_amount')">
                       <app-table-sort-header
-                        label="Brutto"
+                        label="Gesamtbetrag"
                         sortField="gross_amount"
                         [currentSort]="tablePrefs().sort"
                         (sortChanged)="onSortChanged($event)"
@@ -150,7 +156,7 @@
                     </th>
                   }
                   @case ('vat_rate') {
-                    <th scope="col" class="text-right">MwSt.</th>
+                    <th scope="col" class="text-right">Steuer</th>
                   }
                   @case ('status') {
                     <th scope="col" [attr.aria-sort]="ariaSort('status')">
@@ -191,9 +197,17 @@
                     @case ('title') {
                       <td class="font-semibold text-fb-text-primary">{{ expense.title }}</td>
                     }
+                    @case ('vendor') {
+                      <td class="text-fb-text-secondary">{{ expense.vendor_name || '–' }}</td>
+                    }
                     @case ('category') {
                       <td class="text-fb-text-secondary">
                         {{ categoryName(expense.category_id) }}
+                      </td>
+                    }
+                    @case ('quantity') {
+                      <td class="text-right font-mono text-fb-text-secondary">
+                        {{ expense.quantity }}
                       </td>
                     }
                     @case ('gross_amount') {
@@ -203,7 +217,7 @@
                     }
                     @case ('vat_rate') {
                       <td class="text-right font-mono text-fb-text-secondary">
-                        {{ expense.vat_rate === null ? '–' : expense.vat_rate + ' %' }}
+                        {{ expense.vat_rate === null ? 'Nicht ausgewiesen' : expense.vat_rate + ' %' }}
                       </td>
                     }
                     @case ('status') {
@@ -231,33 +245,61 @@
                     }
                     @case ('documents') {
                       <td>
-                        <app-button
-                          variant="ghost"
-                          size="slim"
-                          (clicked)="documentExpense.set(expense)"
-                        >
-                          Belege
-                        </app-button>
+                        @if (documentService.hasDocuments(expense.id)) {
+                          <app-button
+                            variant="ghost"
+                            size="slim"
+                            [icon]="viewDocumentIcon"
+                            [iconOnly]="true"
+                            ariaLabel="Beleg ansehen"
+                            title="Beleg ansehen"
+                            (clicked)="documentExpense.set(expense)"
+                          />
+                        } @else {
+                          <app-button
+                            variant="ghost"
+                            size="slim"
+                            [icon]="addDocumentIcon"
+                            [iconOnly]="true"
+                            ariaLabel="Beleg hinzufügen"
+                            title="Beleg hinzufügen"
+                            (clicked)="documentExpense.set(expense)"
+                          />
+                        }
                       </td>
                     }
                     @case ('actions') {
                       <td class="text-right">
                         <div class="flex justify-end gap-1">
                           @if (expense.status === 'open') {
-                            <app-button variant="ghost" size="slim" (clicked)="markPaid(expense)">
-                              Als bezahlt
-                            </app-button>
+                            <app-button
+                              variant="ghost"
+                              size="slim"
+                              [icon]="paidIcon"
+                              [iconOnly]="true"
+                              ariaLabel="Als bezahlt markieren"
+                              title="Als bezahlt markieren"
+                              (clicked)="markPaid(expense)"
+                            />
                           }
-                          <app-button variant="ghost" size="slim" (clicked)="editExpense(expense)">
-                            Bearbeiten
-                          </app-button>
                           <app-button
                             variant="ghost"
                             size="slim"
+                            [icon]="editIcon"
+                            [iconOnly]="true"
+                            ariaLabel="Ausgabe bearbeiten"
+                            title="Ausgabe bearbeiten"
+                            (clicked)="editExpense(expense)"
+                          />
+                          <app-button
+                            variant="ghost"
+                            size="slim"
+                            [icon]="deleteIcon"
+                            [iconOnly]="true"
+                            ariaLabel="Ausgabe löschen"
+                            title="Ausgabe löschen"
                             (clicked)="removeExpense(expense)"
-                          >
-                            Löschen
-                          </app-button>
+                          />
                         </div>
                       </td>
                     }
@@ -293,13 +335,15 @@
         emptyTitle="Noch keine wiederkehrenden Ausgaben"
       >
         <div table-content class="overflow-x-auto">
-          <table class="linear-table w-full min-w-[760px] text-[13px]">
+          <table class="linear-table w-full min-w-[880px] text-[13px]">
             <thead>
               <tr>
                 <th scope="col">Bezeichnung</th>
+                <th scope="col">Anbieter</th>
                 <th scope="col">Kategorie</th>
+                <th scope="col" class="text-right">Menge</th>
                 <th scope="col">Rhythmus</th>
-                <th scope="col" class="text-right">Betrag</th>
+                <th scope="col" class="text-right">Gesamtbetrag</th>
                 <th scope="col">Nächste Fälligkeit</th>
                 <th scope="col">Status</th>
                 <th scope="col" class="text-right">Aktionen</th>
@@ -309,7 +353,9 @@
               @for (rule of recurringService.rules(); track rule.id) {
                 <tr>
                   <td class="font-semibold text-fb-text-primary">{{ rule.title }}</td>
+                  <td class="text-fb-text-secondary">{{ rule.vendor_name || '–' }}</td>
                   <td class="text-fb-text-secondary">{{ categoryName(rule.category_id) }}</td>
+                  <td class="text-right font-mono text-fb-text-secondary">{{ rule.quantity }}</td>
                   <td class="text-fb-text-secondary">{{ frequencyLabel(rule.frequency) }}</td>
                   <td class="text-right font-mono text-fb-text-primary">
                     {{ rule.gross_amount | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
@@ -327,9 +373,15 @@
                     </app-badge>
                   </td>
                   <td class="text-right">
-                    <app-button size="slim" variant="ghost" (clicked)="editRecurring(rule)">
-                      Bearbeiten
-                    </app-button>
+                    <app-button
+                      size="slim"
+                      variant="ghost"
+                      [icon]="editIcon"
+                      [iconOnly]="true"
+                      ariaLabel="Wiederkehrende Ausgabe bearbeiten"
+                      title="Wiederkehrende Ausgabe bearbeiten"
+                      (clicked)="editRecurring(rule)"
+                    />
                   </td>
                 </tr>
               }
@@ -345,7 +397,7 @@
   <app-expense-dialog
     [expense]="editingExpense()"
     (closed)="closeExpenseDialog()"
-    (saved)="expenseService.load()"
+    (saved)="onExpenseSaved($event)"
   />
 }
 
