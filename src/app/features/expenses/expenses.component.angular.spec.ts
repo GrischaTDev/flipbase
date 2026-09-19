@@ -218,7 +218,7 @@ const rules: ExpenseRecurringRule[] = [
   },
 ];
 
-function render() {
+async function render() {
   const expenseService = {
     expenses: signal(expenses),
     isLoading: signal(false),
@@ -284,13 +284,15 @@ function render() {
     ],
   }).createComponent(ExpensesComponent);
   fixture.detectChanges();
+  await fixture.whenStable();
+  fixture.detectChanges();
 
   return { fixture, expenseService, categoryService, recurringService, documentService, dialog };
 }
 
 describe('ExpensesComponent', () => {
-  it('zeigt Summen, Filter und die Ausgabentabelle verständlich', () => {
-    const { fixture } = render();
+  it('zeigt Summen, Filter und die Ausgabentabelle verständlich', async () => {
+    const { fixture } = await render();
     const host = fixture.nativeElement as HTMLElement;
     const headings = [...host.querySelectorAll('thead th')].map((entry) =>
       entry.textContent?.replace(/\s+/g, ' ').trim(),
@@ -318,8 +320,8 @@ describe('ExpensesComponent', () => {
     ]);
   });
 
-  it('filtert die konkrete Tabelle nach Status', () => {
-    const { fixture } = render();
+  it('filtert die konkrete Tabelle nach Status', async () => {
+    const { fixture } = await render();
     fixture.componentInstance.setStatus('open');
     fixture.detectChanges();
 
@@ -327,8 +329,8 @@ describe('ExpensesComponent', () => {
     expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Versandkartons');
   });
 
-  it('findet Ausgaben auch über den Anbieter', () => {
-    const { fixture } = render();
+  it('findet Ausgaben auch über den Anbieter', async () => {
+    const { fixture } = await render();
     fixture.componentInstance.search.set('hetzner');
     fixture.detectChanges();
 
@@ -337,7 +339,7 @@ describe('ExpensesComponent', () => {
     ]);
   });
 
-  it('verwendet für Belege und Aktionen kompakte zugängliche Icons', () => {
+  it('verwendet für Belege und Aktionen kompakte zugängliche Icons', async () => {
     const { fixture } = render();
     const host = fixture.nativeElement as HTMLElement;
 
@@ -351,7 +353,7 @@ describe('ExpensesComponent', () => {
   });
 
   it('bestätigt das Löschen über den gemeinsamen Dialog', async () => {
-    const { fixture, expenseService, dialog } = render();
+    const { fixture, expenseService, dialog } = await render();
 
     await fixture.componentInstance.removeExpense(expenses[0]);
 
@@ -366,7 +368,7 @@ describe('ExpensesComponent', () => {
   });
 
   it('nutzt beim Initialisieren nur den deduplizierten Expense-Ladepfad', async () => {
-    const { expenseService, recurringService, documentService } = render();
+    const { expenseService, recurringService, documentService } = await render();
     await Promise.resolve();
     await Promise.resolve();
     await Promise.resolve();
@@ -381,7 +383,7 @@ describe('ExpensesComponent', () => {
     ]);
   });
 
-  it('wechselt zur Ansicht der wiederkehrenden Ausgaben und zeigt die nächste Fälligkeit', () => {
+  it('wechselt zur Ansicht der wiederkehrenden Ausgaben und zeigt die nächste Fälligkeit', async () => {
     const { fixture } = render();
     const host = fixture.nativeElement as HTMLElement;
     fixture.componentInstance.setTab('recurring');
