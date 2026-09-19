@@ -29,6 +29,14 @@ create table if not exists public.expense_recurring_rules (
   category_id uuid not null,
   title text not null
     check (pg_catalog.char_length(pg_catalog.btrim(title)) between 1 and 160),
+  vendor_name text
+    constraint expense_recurring_rules_vendor_name_check
+    check (
+      vendor_name is null
+      or pg_catalog.char_length(pg_catalog.btrim(vendor_name)) between 1 and 160
+    ),
+  quantity integer not null default 1
+    constraint expense_recurring_rules_quantity_check check (quantity > 0),
   gross_amount numeric(12,2) not null
     check (
       gross_amount <> 'NaN'::numeric
@@ -60,6 +68,14 @@ create table if not exists public.expenses (
   occurrence_date date,
   title text not null
     check (pg_catalog.char_length(pg_catalog.btrim(title)) between 1 and 160),
+  vendor_name text
+    constraint expenses_vendor_name_check
+    check (
+      vendor_name is null
+      or pg_catalog.char_length(pg_catalog.btrim(vendor_name)) between 1 and 160
+    ),
+  quantity integer not null default 1
+    constraint expenses_quantity_check check (quantity > 0),
   gross_amount numeric(12,2) not null
     check (
       gross_amount <> 'NaN'::numeric

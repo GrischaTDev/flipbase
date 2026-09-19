@@ -10,6 +10,11 @@ function cents(value: number): number {
   return Math.round((value + Number.EPSILON) * 100);
 }
 
+export function calculateExpenseUnitPrice(totalAmount: number, quantity: number): number | null {
+  if (!Number.isFinite(totalAmount) || !Number.isInteger(quantity) || quantity <= 0) return null;
+  return cents(totalAmount / quantity) / 100;
+}
+
 export function calculateExpenseTax(
   grossAmount: number,
   vatRate: ExpenseVatRate,

@@ -1680,10 +1680,12 @@ export type Database = {
           id: string
           is_active: boolean
           notes: string | null
+          quantity: number
           start_date: string
           title: string
           updated_at: string
           vat_rate: number | null
+          vendor_name: string | null
           workspace_id: string
         }
         Insert: {
@@ -1696,10 +1698,12 @@ export type Database = {
           id?: string
           is_active?: boolean
           notes?: string | null
+          quantity?: number
           start_date: string
           title: string
           updated_at?: string
           vat_rate?: number | null
+          vendor_name?: string | null
           workspace_id: string
         }
         Update: {
@@ -1712,10 +1716,12 @@ export type Database = {
           id?: string
           is_active?: boolean
           notes?: string | null
+          quantity?: number
           start_date?: string
           title?: string
           updated_at?: string
           vat_rate?: number | null
+          vendor_name?: string | null
           workspace_id?: string
         }
         Relationships: [
@@ -1748,11 +1754,13 @@ export type Database = {
           notes: string | null
           occurrence_date: string | null
           payment_date: string | null
+          quantity: number
           recurring_rule_id: string | null
           status: string
           title: string
           updated_at: string
           vat_rate: number | null
+          vendor_name: string | null
           workspace_id: string
         }
         Insert: {
@@ -1767,11 +1775,13 @@ export type Database = {
           notes?: string | null
           occurrence_date?: string | null
           payment_date?: string | null
+          quantity?: number
           recurring_rule_id?: string | null
           status: string
           title: string
           updated_at?: string
           vat_rate?: number | null
+          vendor_name?: string | null
           workspace_id: string
         }
         Update: {
@@ -1786,11 +1796,13 @@ export type Database = {
           notes?: string | null
           occurrence_date?: string | null
           payment_date?: string | null
+          quantity?: number
           recurring_rule_id?: string | null
           status?: string
           title?: string
           updated_at?: string
           vat_rate?: number | null
+          vendor_name?: string | null
           workspace_id?: string
         }
         Relationships: [

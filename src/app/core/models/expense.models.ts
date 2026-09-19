@@ -19,6 +19,8 @@ export interface ExpenseRecurringRule {
   readonly workspace_id: string;
   readonly category_id: string;
   readonly title: string;
+  readonly vendor_name: string | null;
+  readonly quantity: number;
   readonly gross_amount: number;
   readonly vat_rate: ExpenseVatRate;
   readonly frequency: ExpenseFrequency;
@@ -38,6 +40,8 @@ export interface Expense {
   readonly recurring_rule_id: string | null;
   readonly occurrence_date: string | null;
   readonly title: string;
+  readonly vendor_name: string | null;
+  readonly quantity: number;
   readonly gross_amount: number;
   readonly vat_rate: ExpenseVatRate;
   readonly expense_date: string;
@@ -54,6 +58,8 @@ export interface Expense {
 export interface ExpenseCreateInput {
   readonly category_id: string;
   readonly title: string;
+  readonly vendor_name: string | null;
+  readonly quantity: number;
   readonly gross_amount: number;
   readonly vat_rate: ExpenseVatRate;
   readonly expense_date: string;
@@ -68,6 +74,8 @@ export type ExpenseUpdateInput = Partial<ExpenseCreateInput>;
 export interface ExpenseRecurringRuleInput {
   readonly category_id: string;
   readonly title: string;
+  readonly vendor_name: string | null;
+  readonly quantity: number;
   readonly gross_amount: number;
   readonly vat_rate: ExpenseVatRate;
   readonly frequency: ExpenseFrequency;
