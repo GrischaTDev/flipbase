@@ -9,6 +9,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import { EXPENSES_TABLE_CONFIG } from '../../core/config/table-defaults.config';
 import { Expense, ExpenseCategory, ExpenseRecurringRule } from '../../core/models/expense.models';
 import { ExpenseCategoryService } from '../../core/services/expense-category.service';
+import { ExpenseDocumentService } from '../../core/services/expense-document.service';
 import { ExpenseRecurringService } from '../../core/services/expense-recurring.service';
 import { ExpenseService } from '../../core/services/expense.service';
 import { TablePreferencesService } from '../../core/services/table-preferences.service';
@@ -17,6 +18,7 @@ import { BadgeComponent } from '../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
 import { CardComponent } from '../../shared/components/card/card.component';
 import { CustomSelectComponent } from '../../shared/components/custom-select/custom-select.component';
+import { ConfirmDialogService } from '../../shared/components/confirm-dialog/confirm-dialog.service';
 import { DataTableComponent } from '../../shared/components/data-table/data-table.component';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { TableSortHeaderComponent } from '../../shared/components/table-sort-header/table-sort-header.component';
@@ -60,7 +62,7 @@ beforeAll(async () => {
   });
 
   registerInputs(PageHeaderComponent, ['title', 'subtitle', 'icon']);
-  registerInputs(ButtonComponent, ['variant', 'size', 'icon', 'ariaPressed']);
+  registerInputs(ButtonComponent, ['variant', 'size', 'icon', 'iconOnly', 'ariaLabel', 'title', 'ariaPressed']);
   registerInputs(CardComponent, ['padding', 'rounded']);
   registerInputs(BadgeComponent, ['tone', 'mono']);
   registerInputs(DataTableComponent, [
@@ -158,6 +160,8 @@ const expenses: Expense[] = [
     recurring_rule_id: null,
     occurrence_date: null,
     title: 'Versandkartons',
+    vendor_name: 'Büromarkt',
+    quantity: 10,
     gross_amount: 35,
     vat_rate: 19,
     expense_date: '2026-09-10',
@@ -177,6 +181,8 @@ const expenses: Expense[] = [
     recurring_rule_id: 'rule-server',
     occurrence_date: '2026-09-18',
     title: 'Server',
+    vendor_name: 'Hetzner',
+    quantity: 1,
     gross_amount: 29.9,
     vat_rate: 19,
     expense_date: '2026-09-18',
@@ -197,6 +203,8 @@ const rules: ExpenseRecurringRule[] = [
     workspace_id: 'ws-1',
     category_id: 'cat-host',
     title: 'Server',
+    vendor_name: 'Hetzner',
+    quantity: 1,
     gross_amount: 29.9,
     vat_rate: 19,
     frequency: 'monthly',
@@ -216,6 +224,9 @@ function render() {
     isLoading: signal(false),
     loadError: signal(null),
     load: vi.fn().mockResolvedValue(undefined),
+    ensureCurrentWorkspaceLoaded: vi.fn().mockResolvedValue(undefined),
+    markPaid: vi.fn().mockResolvedValue({ data: expenses[1], error: null }),
+    remove: vi.fn().mockResolvedValue({ error: null }),
   };
   const categoryService = {
     categories: signal(categories),
@@ -252,19 +263,29 @@ function render() {
     currentWorkspace: signal({ id: 'ws-1' }),
   };
 
+  const documentService = {
+    hasDocuments: vi.fn((expenseId: string) => expenseId === 'expense-paid'),
+    loadSummaryForExpenses: vi.fn().mockResolvedValue(undefined),
+  };
+  const dialog = {
+    frage: vi.fn().mockResolvedValue(true),
+  };
+
   const fixture = TestBed.configureTestingModule({
     imports: [ExpensesComponent],
     providers: [
       { provide: ExpenseService, useValue: expenseService },
       { provide: ExpenseCategoryService, useValue: categoryService },
       { provide: ExpenseRecurringService, useValue: recurringService },
+      { provide: ExpenseDocumentService, useValue: documentService },
+      { provide: ConfirmDialogService, useValue: dialog },
       { provide: TablePreferencesService, useValue: tablePreferences },
       { provide: WorkspaceService, useValue: workspaceService },
     ],
   }).createComponent(ExpensesComponent);
   fixture.detectChanges();
 
-  return { fixture, expenseService, categoryService, recurringService };
+  return { fixture, expenseService, categoryService, recurringService, documentService, dialog };
 }
 
 describe('ExpensesComponent', () => {
@@ -287,12 +308,11 @@ describe('ExpensesComponent', () => {
     expect(headings).toEqual([
       'Datum',
       'Bezeichnung',
+      'Anbieter',
       'Kategorie',
-      'Brutto',
-      'MwSt.',
+      'Menge',
+      'Gesamtbetrag',
       'Status',
-      'Fällig / bezahlt am',
-      'Wiederholung',
       'Beleg',
       'Aktionen',
     ]);
@@ -305,6 +325,60 @@ describe('ExpensesComponent', () => {
 
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('Server');
     expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Versandkartons');
+  });
+
+  it('findet Ausgaben auch über den Anbieter', () => {
+    const { fixture } = render();
+    fixture.componentInstance.search.set('hetzner');
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.visibleExpenses().map((expense) => expense.id)).toEqual([
+      'expense-open',
+    ]);
+  });
+
+  it('verwendet für Belege und Aktionen kompakte zugängliche Icons', () => {
+    const { fixture } = render();
+    const host = fixture.nativeElement as HTMLElement;
+
+    expect(host.querySelector('[aria-label="Beleg ansehen: Versandkartons"]')).toBeTruthy();
+    expect(host.querySelector('[aria-label="Beleg hinzufügen: Server"]')).toBeTruthy();
+    expect(host.querySelector('[aria-label="Ausgabe bearbeiten: Versandkartons"]')).toBeTruthy();
+    expect(host.querySelector('[aria-label="Ausgabe löschen: Versandkartons"]')).toBeTruthy();
+    expect(host.querySelector('[aria-label="Als bezahlt markieren: Server"]')).toBeTruthy();
+    expect(host.textContent).not.toContain('Bearbeiten');
+    expect(host.textContent).not.toContain('Löschen');
+  });
+
+  it('bestätigt das Löschen über den gemeinsamen Dialog', async () => {
+    const { fixture, expenseService, dialog } = render();
+
+    await fixture.componentInstance.removeExpense(expenses[0]);
+
+    expect(dialog.frage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        titel: 'Ausgabe löschen?',
+        bestaetigenText: 'Löschen',
+        gefahr: true,
+      }),
+    );
+    expect(expenseService.remove).toHaveBeenCalledWith('expense-paid');
+  });
+
+  it('nutzt beim Initialisieren nur den deduplizierten Expense-Ladepfad', async () => {
+    const { expenseService, recurringService, documentService } = render();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(expenseService.ensureCurrentWorkspaceLoaded).toHaveBeenCalledTimes(1);
+    expect(expenseService.load).not.toHaveBeenCalled();
+    expect(recurringService.load).not.toHaveBeenCalled();
+    expect(recurringService.materializeDue).not.toHaveBeenCalled();
+    expect(documentService.loadSummaryForExpenses).toHaveBeenCalledWith([
+      'expense-paid',
+      'expense-open',
+    ]);
   });
 
   it('wechselt zur Ansicht der wiederkehrenden Ausgaben und zeigt die nächste Fälligkeit', () => {
