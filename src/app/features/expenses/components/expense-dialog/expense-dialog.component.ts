@@ -12,7 +12,7 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { Expense, ExpenseStatus, ExpenseVatRate } from '../../../../core/models/expense.models';
 import { ExpenseCategoryService } from '../../../../core/services/expense-category.service';
 import { ExpenseService } from '../../../../core/services/expense.service';
-import { calculateExpenseTax } from '../../../../core/utils/expense-money';
+import { calculateExpenseTax, calculateExpenseUnitPrice } from '../../../../core/utils/expense-money';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import {
   CustomSelectComponent,
@@ -53,12 +53,13 @@ export class ExpenseDialogComponent implements OnInit {
 
   readonly isSaving = signal(false);
   readonly errorMessage = signal<string | null>(null);
+  readonly taxDetailsExpanded = signal(false);
 
   readonly vatOptions: readonly SelectOption<ExpenseVatRate>[] = [
-    { value: null, label: 'Keine Angabe' },
+    { value: 19, label: '19 % enthalten' },
+    { value: 7, label: '7 % enthalten' },
     { value: 0, label: '0 %' },
-    { value: 7, label: '7 %' },
-    { value: 19, label: '19 %' },
+    { value: null, label: 'Nicht ausgewiesen / unbekannt' },
   ];
   readonly statusOptions: readonly SelectOption<ExpenseStatus>[] = [
     { value: 'paid', label: 'Bezahlt' },
@@ -76,9 +77,17 @@ export class ExpenseDialogComponent implements OnInit {
       nonNullable: true,
       validators: [Validators.required, Validators.maxLength(160)],
     }),
+    vendor_name: new FormControl('', {
+      nonNullable: true,
+      validators: [Validators.maxLength(160)],
+    }),
     category_id: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
+    quantity: new FormControl(1, {
+      nonNullable: true,
+      validators: [Validators.required, Validators.min(1)],
+    }),
     gross_amount: new FormControl<number | null>(null, [Validators.required, Validators.min(0.01)]),
-    vat_rate: new FormControl<ExpenseVatRate>(null),
+    vat_rate: new FormControl<ExpenseVatRate>(19),
     expense_date: new FormControl(localDateKey(), {
       nonNullable: true,
       validators: [Validators.required],
@@ -94,7 +103,9 @@ export class ExpenseDialogComponent implements OnInit {
     if (!expense) return;
     this.form.reset({
       title: expense.title,
+      vendor_name: expense.vendor_name ?? '',
       category_id: expense.category_id,
+      quantity: expense.quantity,
       gross_amount: expense.gross_amount,
       vat_rate: expense.vat_rate,
       expense_date: expense.expense_date,
@@ -117,6 +128,26 @@ export class ExpenseDialogComponent implements OnInit {
     );
   }
 
+  unitPrice(): number | null {
+    return calculateExpenseUnitPrice(
+      Number(this.form.controls.gross_amount.value ?? 0),
+      this.form.controls.quantity.value,
+    );
+  }
+
+  vatSummaryLabel(): string {
+    switch (this.form.controls.vat_rate.value) {
+      case 19:
+        return '19 % MwSt. enthalten';
+      case 7:
+        return '7 % MwSt. enthalten';
+      case 0:
+        return '0 % MwSt.';
+      case null:
+        return 'MwSt. nicht ausgewiesen / unbekannt';
+    }
+  }
+
   taxBreakdown() {
     return calculateExpenseTax(
       Number(this.form.controls.gross_amount.value ?? 0),
@@ -133,8 +164,15 @@ export class ExpenseDialogComponent implements OnInit {
       this.errorMessage.set('Bitte ein Zahlungsdatum angeben.');
       return;
     }
-    if (this.form.invalid || values.gross_amount === null) {
-      this.errorMessage.set('Bitte Bezeichnung, Kategorie und einen gültigen Betrag angeben.');
+    if (
+      this.form.invalid ||
+      values.gross_amount === null ||
+      !Number.isInteger(values.quantity) ||
+      values.quantity < 1
+    ) {
+      this.errorMessage.set(
+        'Bitte Bezeichnung, Kategorie, eine gültige Menge und einen Gesamtbetrag angeben.',
+      );
       return;
     }
 
@@ -144,6 +182,8 @@ export class ExpenseDialogComponent implements OnInit {
       const input = {
         category_id: values.category_id,
         title: values.title.trim(),
+        vendor_name: values.vendor_name.trim() || null,
+        quantity: values.quantity,
         gross_amount: Number(values.gross_amount),
         vat_rate: values.vat_rate,
         expense_date: values.expense_date,
