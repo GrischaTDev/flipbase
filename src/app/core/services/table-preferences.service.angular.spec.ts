@@ -194,6 +194,49 @@ describe('TablePreferencesService – Polaris Table Preferences & Reordering', (
     ).toBe(false);
   });
 
+  it('stellt die unveränderte alte Ausgabenansicht auf die neue kompakte Standardansicht um', () => {
+    const oldIds = [
+      'expense_date',
+      'title',
+      'category',
+      'gross_amount',
+      'vat_rate',
+      'status',
+      'due_or_paid',
+      'recurring',
+      'documents',
+      'actions',
+    ];
+    localStorage.setItem(
+      `flipbase:table_prefs:${testWorkspaceId}:expenses`,
+      JSON.stringify({
+        version: 1,
+        columns: oldIds.map((id, order) => ({ id, order, visible: true })),
+        sort: { field: 'expense_date', direction: 'desc' },
+      }),
+    );
+
+    const state = service.getTablePreferences('expenses', testWorkspaceId)();
+
+    expect(state.columns.map((column) => column.id)).toEqual([
+      'expense_date',
+      'title',
+      'vendor',
+      'category',
+      'quantity',
+      'gross_amount',
+      'status',
+      'documents',
+      'vat_rate',
+      'due_or_paid',
+      'recurring',
+      'actions',
+    ]);
+    expect(state.columns.find((column) => column.id === 'vat_rate')?.visible).toBe(false);
+    expect(state.columns.find((column) => column.id === 'due_or_paid')?.visible).toBe(false);
+    expect(state.columns.find((column) => column.id === 'recurring')?.visible).toBe(false);
+  });
+
   it('should return default preferences when nothing is stored', () => {
     const prefs = service.getTablePreferences('sales', testWorkspaceId)();
     expect(prefs.columns.length).toBe(SALES_TABLE_CONFIG.defaultColumns.length);
