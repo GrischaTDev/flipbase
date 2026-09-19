@@ -190,7 +190,7 @@ const expenses: Expense[] = [
     occurrence_date: '2026-09-18',
     title: 'Server',
     vendor_name: 'Netcup',
-    quantity: 1,
+    quantity: 2,
     gross_amount: 29.9,
     vat_rate: 19,
     expense_date: '2026-09-18',
@@ -212,7 +212,7 @@ const rules: ExpenseRecurringRule[] = [
     category_id: 'cat-host',
     title: 'Server',
     vendor_name: 'Netcup',
-    quantity: 1,
+    quantity: 2,
     gross_amount: 29.9,
     vat_rate: 19,
     frequency: 'monthly',
@@ -233,7 +233,7 @@ function render() {
     loadError: signal(null),
     load: vi.fn().mockResolvedValue(undefined),
     ensureCurrentWorkspaceLoaded: vi.fn().mockResolvedValue(undefined),
-    markPaid: vi.fn().mockResolvedValue({ data: expenses[1], error: null }),
+    markPaid: vi.fn().mockResolvedValue({ data: null, error: null }),
     remove: vi.fn().mockResolvedValue({ error: null }),
   };
   const categoryService = {
@@ -272,11 +272,9 @@ function render() {
   };
   const documentService = {
     loadSummaryForExpenses: vi.fn().mockResolvedValue(undefined),
-    hasDocuments: vi.fn((expenseId: string) => expenseId === 'expense-paid'),
+    hasDocuments: vi.fn((id: string) => id === 'expense-paid'),
   };
-  const dialog = {
-    frage: vi.fn().mockResolvedValue(true),
-  };
+  const dialog = { frage: vi.fn().mockResolvedValue(true) };
 
   const fixture = TestBed.configureTestingModule({
     imports: [ExpensesComponent],
@@ -296,6 +294,16 @@ function render() {
 }
 
 describe('ExpensesComponent', () => {
+  it('zeigt beim ersten Rendern den Ladezustand statt kurz die leere Tabelle', () => {
+    const { fixture } = render();
+    const host = fixture.nativeElement as HTMLElement;
+
+    expect(host.querySelector('[data-data-table-loading]')?.textContent).toContain(
+      'Ausgaben werden geladen',
+    );
+    expect(host.querySelector('[data-data-table-empty]')).toBeNull();
+  });
+
   it('zeigt Summen, Filter und die Ausgabentabelle verständlich', async () => {
     const { fixture } = render();
     await fixture.whenStable();
@@ -327,46 +335,6 @@ describe('ExpensesComponent', () => {
     ]);
   });
 
-  it('findet Ausgaben auch über den Anbieter', async () => {
-    const { fixture } = render();
-    await fixture.whenStable();
-    fixture.detectChanges();
-    fixture.componentInstance.search.set('netcup');
-    fixture.detectChanges();
-
-    expect(fixture.componentInstance.visibleExpenses().map((entry) => entry.id)).toEqual([
-      'expense-open',
-    ]);
-  });
-
-  it(
-    'initialisiert Ausgaben nur über den deduplizierten Service-Pfad und lädt danach Belegstatus',
-    async () => {
-      const { fixture, expenseService, recurringService, documentService } = render();
-      await fixture.whenStable();
-
-      expect(expenseService.ensureCurrentWorkspaceLoaded).toHaveBeenCalledTimes(1);
-      expect(recurringService.load).not.toHaveBeenCalled();
-      expect(recurringService.materializeDue).not.toHaveBeenCalled();
-      expect(documentService.loadSummaryForExpenses).toHaveBeenCalledWith([
-        'expense-paid',
-        'expense-open',
-      ]);
-    },
-  );
-
-  it('verwendet den gemeinsamen Bestätigungsdialog zum Löschen', async () => {
-    const { fixture, expenseService, dialog } = render();
-    await fixture.whenStable();
-
-    await fixture.componentInstance.removeExpense(expenses[0]);
-
-    expect(dialog.frage).toHaveBeenCalledWith(
-      expect.objectContaining({ titel: 'Ausgabe löschen?', gefahr: true }),
-    );
-    expect(expenseService.remove).toHaveBeenCalledWith('expense-paid');
-  });
-
   it('filtert die konkrete Tabelle nach Status', async () => {
     const { fixture } = render();
     await fixture.whenStable();
@@ -376,6 +344,60 @@ describe('ExpensesComponent', () => {
 
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('Server');
     expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Versandkartons');
+  });
+
+  it('findet Ausgaben auch über den Anbieter', async () => {
+    const { fixture } = render();
+    await fixture.whenStable();
+    fixture.componentInstance.search.set('amazon');
+    fixture.detectChanges();
+
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('Versandkartons');
+    expect(text).not.toContain('Server');
+  });
+
+  it('nutzt genau den deduplizierten Initial-Ladepfad und lädt Belegstatus danach', async () => {
+    const { fixture, expenseService, recurringService, documentService } = render();
+    await fixture.whenStable();
+
+    expect(expenseService.ensureCurrentWorkspaceLoaded).toHaveBeenCalledTimes(1);
+    expect(expenseService.load).not.toHaveBeenCalled();
+    expect(recurringService.load).not.toHaveBeenCalled();
+    expect(recurringService.materializeDue).not.toHaveBeenCalled();
+    expect(documentService.loadSummaryForExpenses).toHaveBeenCalledWith([
+      'expense-open',
+      'expense-paid',
+    ]);
+  });
+
+  it('zeigt konsistente Icon-Aktionen und den Belegzustand', async () => {
+    const { fixture } = render();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+
+    expect(host.querySelector('[aria-label="Ausgabe bearbeiten"]')).toBeTruthy();
+    expect(host.querySelector('[aria-label="Ausgabe löschen"]')).toBeTruthy();
+    expect(host.querySelector('[aria-label="Als bezahlt markieren"]')).toBeTruthy();
+    expect(host.querySelector('[aria-label="Beleg ansehen"]')).toBeTruthy();
+    expect(host.querySelector('[aria-label="Beleg hinzufügen"]')).toBeTruthy();
+  });
+
+  it('bestätigt das Löschen über den gemeinsamen Dialog', async () => {
+    const { fixture, expenseService, dialog } = render();
+    await fixture.whenStable();
+
+    await fixture.componentInstance.removeExpense(expenses[0]);
+
+    expect(dialog.frage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        titel: 'Ausgabe löschen?',
+        bestaetigenText: 'Ausgabe löschen',
+        gefahr: true,
+      }),
+    );
+    expect(expenseService.remove).toHaveBeenCalledWith('expense-paid');
   });
 
   it('wechselt zur Ansicht der wiederkehrenden Ausgaben und zeigt die nächste Fälligkeit', async () => {

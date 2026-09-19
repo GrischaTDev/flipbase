@@ -147,9 +147,8 @@ describe('ExpenseDialogComponent', () => {
     await component.save();
 
     expect(create).toHaveBeenCalledTimes(1);
-    expect(warning).toHaveBeenCalledWith(
-      'Ausgabe gespeichert, Beleg nicht hochgeladen.',
-      'storage offline',
-    );
+    expect(warning).toHaveBeenCalledWith('Ausgabe gespeichert, Beleg fehlt', 'storage offline');
+    expect(component.persistedExpense()?.id).toBe(storedExpense.id);
+    expect(component.errorMessage()).toContain('Ausgabe wurde gespeichert');
   });
 });

@@ -1,3 +1,4 @@
+import { CurrencyPipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -39,10 +40,10 @@ function localDateKey(date = new Date()): string {
   ].join('-');
 }
 
-
 @Component({
   selector: 'app-expense-dialog',
   imports: [
+    CurrencyPipe,
     ReactiveFormsModule,
     ModalShellComponent,
     ButtonComponent,
@@ -68,18 +69,14 @@ export class ExpenseDialogComponent implements OnInit {
   readonly taxDetailsExpanded = signal(false);
   readonly pendingDocument = signal<File | null>(null);
   readonly selectedDocumentType = signal<ExpenseDocumentType>('invoice');
+  readonly isDraggingDocument = signal(false);
+  readonly persistedExpense = signal<Expense | null>(null);
 
   readonly vatOptions: readonly SelectOption<ExpenseVatRate>[] = [
     { value: 19, label: '19 % enthalten' },
     { value: 7, label: '7 % enthalten' },
     { value: 0, label: '0 %' },
     { value: null, label: 'Nicht ausgewiesen / unbekannt' },
-  ];
-  readonly documentTypeOptions: readonly SelectOption<ExpenseDocumentType>[] = [
-    { value: 'invoice', label: 'Rechnung' },
-    { value: 'receipt', label: 'Quittung' },
-    { value: 'payment_proof', label: 'Zahlungsnachweis' },
-    { value: 'other', label: 'Sonstiges' },
   ];
   readonly statusOptions: readonly SelectOption<ExpenseStatus>[] = [
     { value: 'paid', label: 'Bezahlt' },
@@ -121,6 +118,7 @@ export class ExpenseDialogComponent implements OnInit {
   ngOnInit(): void {
     const expense = this.expense();
     if (!expense) return;
+    this.persistedExpense.set(expense);
     this.form.reset({
       title: expense.title,
       vendor_name: expense.vendor_name ?? '',
@@ -162,11 +160,17 @@ export class ExpenseDialogComponent implements OnInit {
     );
   }
 
-  taxSummary(): string {
-    const rate = this.form.controls.vat_rate.value;
-    if (rate === null) return 'MwSt. nicht ausgewiesen / unbekannt';
-    if (rate === 0) return '0 % MwSt.';
-    return `${rate} % MwSt. enthalten`;
+  vatSummary(): string {
+    switch (this.form.controls.vat_rate.value) {
+      case 19:
+        return '19 % MwSt. enthalten';
+      case 7:
+        return '7 % MwSt. enthalten';
+      case 0:
+        return '0 % MwSt.';
+      case null:
+        return 'MwSt. nicht ausgewiesen / unbekannt';
+    }
   }
 
   onFileSelected(event: Event): void {
@@ -176,28 +180,25 @@ export class ExpenseDialogComponent implements OnInit {
     input.value = '';
   }
 
-  onDragOver(event: DragEvent): void {
+  onDocumentDragOver(event: DragEvent): void {
     event.preventDefault();
+    this.isDraggingDocument.set(true);
   }
 
-  onDrop(event: DragEvent): void {
+  onDocumentDragLeave(event: DragEvent): void {
     event.preventDefault();
+    this.isDraggingDocument.set(false);
+  }
+
+  onDocumentDrop(event: DragEvent): void {
+    event.preventDefault();
+    this.isDraggingDocument.set(false);
     const file = event.dataTransfer?.files?.[0];
     if (file) this.setPendingDocument(file);
   }
 
   clearPendingDocument(): void {
     this.pendingDocument.set(null);
-  }
-
-  private setPendingDocument(file: File): void {
-    const invalid = validateExpenseDocumentFile(file);
-    if (invalid) {
-      this.errorMessage.set(invalid.message);
-      return;
-    }
-    this.errorMessage.set(null);
-    this.pendingDocument.set(file);
   }
 
   async save(): Promise<void> {
@@ -209,9 +210,14 @@ export class ExpenseDialogComponent implements OnInit {
       this.errorMessage.set('Bitte ein Zahlungsdatum angeben.');
       return;
     }
-    if (this.form.invalid || values.gross_amount === null) {
+    if (
+      this.form.invalid ||
+      values.gross_amount === null ||
+      !Number.isInteger(values.quantity) ||
+      values.quantity < 1
+    ) {
       this.errorMessage.set(
-        'Bitte Bezeichnung, Kategorie, Menge und einen gültigen Gesamtbetrag angeben.',
+        'Bitte Bezeichnung, Kategorie, eine gültige Menge und einen gültigen Gesamtbetrag angeben.',
       );
       return;
     }
@@ -232,8 +238,10 @@ export class ExpenseDialogComponent implements OnInit {
         payment_date: values.status === 'paid' ? values.payment_date : null,
         notes: values.notes.trim() || null,
       };
-      const result = this.expense()
-        ? await this.expenseService.update(this.expense()!.id, input)
+
+      const persisted = this.persistedExpense() ?? this.expense();
+      const result = persisted
+        ? await this.expenseService.update(persisted.id, input)
         : await this.expenseService.create(input);
       if (result.error || !result.data) {
         this.errorMessage.set(
@@ -241,6 +249,8 @@ export class ExpenseDialogComponent implements OnInit {
         );
         return;
       }
+
+      this.persistedExpense.set(result.data);
 
       const pendingDocument = this.pendingDocument();
       if (pendingDocument) {
@@ -250,11 +260,14 @@ export class ExpenseDialogComponent implements OnInit {
           this.selectedDocumentType(),
         );
         if (upload.error) {
-          this.toast.warning(
-            'Ausgabe gespeichert, Beleg nicht hochgeladen.',
-            upload.error.message,
+          this.saved.emit(result.data);
+          this.errorMessage.set(
+            `Die Ausgabe wurde gespeichert. Der Beleg konnte nicht hochgeladen werden: ${upload.error.message}`,
           );
+          this.toast.warning('Ausgabe gespeichert, Beleg fehlt', upload.error.message);
+          return;
         }
+        this.pendingDocument.set(null);
       }
 
       this.saved.emit(result.data);
@@ -262,5 +275,16 @@ export class ExpenseDialogComponent implements OnInit {
     } finally {
       this.isSaving.set(false);
     }
+  }
+
+  private setPendingDocument(file: File): void {
+    const invalid = validateExpenseDocumentFile(file);
+    if (invalid) {
+      this.pendingDocument.set(null);
+      this.errorMessage.set(invalid.message);
+      return;
+    }
+    this.errorMessage.set(null);
+    this.pendingDocument.set(file);
   }
 }
