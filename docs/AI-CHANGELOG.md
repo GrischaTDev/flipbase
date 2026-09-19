@@ -1,5 +1,50 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-19 – ChatGPT GPT-5.6 Sol (OpenAI) – Ausgaben-Erfassung vereinfacht
+
+**Auftrag:** Die Ausgabenseite soll ohne Tabellenflackern laden, dieselben
+Icon-Aktionen wie die übrigen Tabellen verwenden und Betriebsausgaben mit
+Händler, Menge und Beleg einfacher erfassen. Die Mehrwertsteuer soll den
+normalen Eingabefluss nicht dominieren.
+
+**Änderung:** Ausgaben und wiederkehrende Ausgaben speichern jetzt optional
+Händler/Anbieter sowie eine positive Stückzahl mit Standardwert 1. Der
+Gesamtbetrag bleibt der tatsächlich bezahlte Gesamtbetrag; ein Stückpreis wird
+nur abgeleitet. Neue manuelle und wiederkehrende Ausgaben starten in der UI mit
+19 % enthaltener MwSt.; 7 %, 0 % und „nicht ausgewiesen / unbekannt“ bleiben
+änderbar hinter eingeklappten Steuerdetails. Bestehende Datensätze mit
+unbekannter MwSt. werden beim Bearbeiten nicht auf 19 % umgestellt.
+
+Belege können bereits beim Erfassen per Datei oder Drag-and-Drop vorgemerkt und
+nach erfolgreicher Speicherung hochgeladen werden. Ein fehlgeschlagener
+optionaler Upload verwirft die gespeicherte Ausgabe nicht. Die Tabelle kennt
+den Belegstatus über eine schlanke Metadatenabfrage und zeigt abhängig davon
+„Beleg hinzufügen“ oder „Beleg ansehen“ als Icon-Aktion. Die Belegansicht bietet
+Ansehen, Drucken und Download.
+
+Die Ausgabentabelle zeigt standardmäßig Datum, Bezeichnung, Anbieter, Kategorie,
+Menge, Gesamtbetrag, Status, Beleg und Aktionen. Steuer, Fälligkeit/Zahlungsdatum
+und Wiederholung bleiben über den Spaltenwechsler verfügbar. Bearbeiten,
+Löschen und „als bezahlt markieren“ verwenden die gemeinsame Icon-Button-
+Komponente; Löschen nutzt den gemeinsamen Bestätigungsdialog.
+
+Das kurze Tabellenflackern wurde auf zwei konkurrierende Initial-Ladepfade
+zurückgeführt. Die Seite initialisiert nun Kategorien und den bereits
+deduplizierenden `ExpenseService.ensureCurrentWorkspaceLoaded()`-Pfad einmal,
+lädt danach die Belegübersicht und hält die Tabelle bis dahin im Ladezustand.
+
+**Datenbank:** `expenses` und `expense_recurring_rules` wurden additiv um
+`vendor_name` und `quantity` ergänzt. Die Migration
+`20260919080000_expense_vendor_quantity.sql` setzt Menge 1 für bestehende
+Datensätze und erzwingt positive Ganzzahlen.
+
+**Prüfung:** Regressionstests wurden vor den jeweiligen Implementierungsschritten
+für Datenvertrag, Stückpreis/Steuerberechnung, Formulare, Belegstatus,
+Tabellenspalten, Anbieter-Suche, Bestätigungsdialog und Initialisierung ergänzt.
+Eine lokale Testausführung ist in dieser Sitzung nicht möglich; die
+ausführbaren Format-, Lint-, Typ-, Angular-, Datenbank- und Browserprüfungen
+müssen im PR-CI-Lauf erfolgen.
+
 ## 2026-09-19 – ChatGPT GPT-5.6 Sol (OpenAI) – Prüfprotokoll wartet auf Workspace-Rolle
 
 **Auftrag:** Beheben, dass „Daten & Protokolle“ trotz Inhaberrolle kurzzeitig

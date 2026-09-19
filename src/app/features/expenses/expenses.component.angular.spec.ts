@@ -218,7 +218,7 @@ const rules: ExpenseRecurringRule[] = [
   },
 ];
 
-function render() {
+async function render() {
   const expenseService = {
     expenses: signal(expenses),
     isLoading: signal(false),
@@ -283,13 +283,16 @@ function render() {
     ],
   }).createComponent(ExpensesComponent);
   fixture.detectChanges();
+  await Promise.resolve();
+  await Promise.resolve();
+  fixture.detectChanges();
 
   return { fixture, expenseService, categoryService, recurringService, documentService, dialog };
 }
 
 describe('ExpensesComponent', () => {
-  it('zeigt Summen, Filter und die Ausgabentabelle verständlich', () => {
-    const { fixture } = render();
+  it('zeigt Summen, Filter und die Ausgabentabelle verständlich', async () => {
+    const { fixture } = await render();
     const host = fixture.nativeElement as HTMLElement;
     const headings = [...host.querySelectorAll('thead th')].map((entry) =>
       entry.textContent?.replace(/\s+/g, ' ').trim(),
@@ -317,8 +320,8 @@ describe('ExpensesComponent', () => {
     ]);
   });
 
-  it('findet Ausgaben auch über den Anbieter', () => {
-    const { fixture } = render();
+  it('findet Ausgaben auch über den Anbieter', async () => {
+    const { fixture } = await render();
     fixture.componentInstance.search.set('netcup');
     fixture.detectChanges();
 
@@ -328,8 +331,7 @@ describe('ExpensesComponent', () => {
   });
 
   it('initialisiert Ausgaben nur über den deduplizierten Service-Pfad und lädt danach Belegstatus', async () => {
-    const { fixture, expenseService, recurringService, documentService } = render();
-    await fixture.componentInstance.ngOnInit();
+    const { fixture, expenseService, recurringService, documentService } = await render();
 
     expect(expenseService.ensureCurrentWorkspaceLoaded).toHaveBeenCalled();
     expect(recurringService.load).not.toHaveBeenCalled();
@@ -341,7 +343,7 @@ describe('ExpensesComponent', () => {
   });
 
   it('verwendet den gemeinsamen Bestätigungsdialog zum Löschen', async () => {
-    const { fixture, expenseService, dialog } = render();
+    const { fixture, expenseService, dialog } = await render();
 
     await fixture.componentInstance.removeExpense(expenses[0]);
 
@@ -351,8 +353,8 @@ describe('ExpensesComponent', () => {
     expect(expenseService.remove).toHaveBeenCalledWith('expense-paid');
   });
 
-  it('filtert die konkrete Tabelle nach Status', () => {
-    const { fixture } = render();
+  it('filtert die konkrete Tabelle nach Status', async () => {
+    const { fixture } = await render();
     fixture.componentInstance.setStatus('open');
     fixture.detectChanges();
 
@@ -360,8 +362,8 @@ describe('ExpensesComponent', () => {
     expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Versandkartons');
   });
 
-  it('wechselt zur Ansicht der wiederkehrenden Ausgaben und zeigt die nächste Fälligkeit', () => {
-    const { fixture } = render();
+  it('wechselt zur Ansicht der wiederkehrenden Ausgaben und zeigt die nächste Fälligkeit', async () => {
+    const { fixture } = await render();
     const host = fixture.nativeElement as HTMLElement;
     fixture.componentInstance.setTab('recurring');
     fixture.detectChanges();
@@ -373,7 +375,7 @@ describe('ExpensesComponent', () => {
   });
 
   it('besteht die automatischen Barrierefreiheitsprüfungen', async () => {
-    const { fixture } = render();
+    const { fixture } = await render();
 
     const result = await axe.run(fixture.nativeElement as HTMLElement, {
       rules: { 'color-contrast': { enabled: false } },
