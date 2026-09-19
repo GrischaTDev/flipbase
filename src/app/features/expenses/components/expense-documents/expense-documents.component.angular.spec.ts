@@ -40,4 +40,39 @@ describe('ExpenseDocumentsComponent', () => {
       ]),
     );
   });
+
+  it('lädt einen abgelegten Beleg über denselben Uploadpfad hoch', async () => {
+    const upload = vi.fn().mockResolvedValue({ data: null, error: null });
+    const injector = Injector.create({
+      providers: [
+        {
+          provide: ExpenseDocumentService,
+          useValue: {
+            documents: signal([]),
+            isLoading: signal(false),
+            loadError: signal(null),
+            loadForExpense: vi.fn().mockResolvedValue(undefined),
+            upload,
+            remove: vi.fn(),
+            download: vi.fn(),
+          },
+        },
+      ],
+    });
+    const component = runInInjectionContext(injector, () => new ExpenseDocumentsComponent());
+    Object.defineProperty(component, 'expenseId', {
+      configurable: true,
+      value: () => 'expense-1',
+    });
+    const file = new File(['pdf'], 'rechnung.pdf', { type: 'application/pdf' });
+    const preventDefault = vi.fn();
+
+    await component.onDocumentDrop({
+      preventDefault,
+      dataTransfer: { files: [file] },
+    } as unknown as DragEvent);
+
+    expect(preventDefault).toHaveBeenCalled();
+    expect(upload).toHaveBeenCalledWith('expense-1', file, 'invoice');
+  });
 });
