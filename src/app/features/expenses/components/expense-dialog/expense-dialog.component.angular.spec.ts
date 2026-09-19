@@ -56,7 +56,7 @@ function createFixture(options: {
     providers: [
       { provide: ExpenseService, useValue: { create, update } },
       { provide: ExpenseDocumentService, useValue: { upload } },
-      { provide: ToastService, useValue: new ToastService() },
+      { provide: ToastService, useValue: { warning: vi.fn() } },
       {
         provide: ExpenseCategoryService,
         useValue: {

@@ -374,6 +374,22 @@ describe('ExpensesComponent', () => {
     expect(host.querySelector('[aria-label="Beleg hinzufügen"]')).toBeTruthy();
   });
 
+  it('bestätigt das Löschen über den gemeinsamen Dialog', async () => {
+    const { fixture, expenseService, dialog } = render();
+    await fixture.whenStable();
+
+    await fixture.componentInstance.removeExpense(expenses[0]);
+
+    expect(dialog.frage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        titel: 'Ausgabe löschen?',
+        bestaetigenText: 'Ausgabe löschen',
+        gefahr: true,
+      }),
+    );
+    expect(expenseService.remove).toHaveBeenCalledWith('expense-paid');
+  });
+
   it('wechselt zur Ansicht der wiederkehrenden Ausgaben und zeigt die nächste Fälligkeit', async () => {
     const { fixture } = render();
     await fixture.whenStable();
