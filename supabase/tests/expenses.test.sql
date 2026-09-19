@@ -157,7 +157,7 @@ select throws_ok(
 select lives_ok(
   $$update public.expense_categories
     set name = 'Eigenes Versandmaterial'
-    where id = 'f1800000-0000-4000-8000-000000000021'$,
+    where id = 'f1800000-0000-4000-8000-000000000021'$$,
   'eigene Kategorien lassen sich ändern'
 );
 
