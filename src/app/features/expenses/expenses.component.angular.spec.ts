@@ -384,7 +384,7 @@ describe('ExpensesComponent', () => {
   });
 
   it('wechselt zur Ansicht der wiederkehrenden Ausgaben und zeigt die nächste Fälligkeit', async () => {
-    const { fixture } = render();
+    const { fixture } = await render();
     const host = fixture.nativeElement as HTMLElement;
     fixture.componentInstance.setTab('recurring');
     fixture.detectChanges();
