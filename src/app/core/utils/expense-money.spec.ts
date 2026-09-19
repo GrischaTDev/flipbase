@@ -13,6 +13,14 @@ describe('calculateExpenseUnitPrice', () => {
 });
 
 describe('calculateExpenseTax', () => {
+  it('zeigt bei 119 Euro mit 19 Prozent genau 100 Euro netto und 19 Euro Steuer', () => {
+    expect(calculateExpenseTax(119, 19)).toEqual({
+      gross: 119,
+      net: 100,
+      tax: 19,
+    });
+  });
+
   it('zerlegt 19 Prozent aus einem Bruttobetrag centgenau', () => {
     expect(calculateExpenseTax(29.9, 19)).toEqual({
       gross: 29.9,

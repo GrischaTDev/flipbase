@@ -129,7 +129,7 @@ select is(
 );
 
 select throws_ok(
-  $insert into public.expenses (
+  $expense$insert into public.expenses (
       workspace_id, category_id, title, vendor_name, quantity, gross_amount,
       expense_date, status, payment_date, created_by
     ) values (
@@ -143,10 +143,31 @@ select throws_ok(
       'paid',
       '2026-09-18',
       'f1800000-0000-4000-8000-000000000001'
-    )$,
+    )$expense$,
   '23514',
   null,
   'eine Ausgabe verlangt eine positive Menge'
+);
+
+select throws_ok(
+  $rule$insert into public.expense_recurring_rules (
+      workspace_id, category_id, title, vendor_name, quantity, gross_amount, frequency,
+      start_date, is_active, created_by
+    ) values (
+      'f1800000-0000-4000-8000-000000000011',
+      'f1800000-0000-4000-8000-000000000021',
+      'Ungültige Regelmenge',
+      'Netcup',
+      0,
+      29.90,
+      'monthly',
+      '2026-09-19',
+      true,
+      'f1800000-0000-4000-8000-000000000001'
+    )$rule$,
+  '23514',
+  null,
+  'eine Wiederholungsregel verlangt eine positive Menge'
 );
 
 select lives_ok(
