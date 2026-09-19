@@ -52,7 +52,9 @@
     </div>
 
     @if (form.controls.quantity.value > 1 && unitPrice() !== null) {
-      <p class="text-xs text-fb-text-muted">{{ unitPrice() }} € pro Stück</p>
+      <p class="text-xs text-fb-text-muted">
+        {{ unitPrice() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }} pro Stück
+      </p>
     }
 
     <div class="rounded-xl border border-fb-border bg-fb-subtle px-3 py-2.5">
@@ -82,7 +84,10 @@
           @if (form.controls.gross_amount.value) {
             <p class="text-xs text-fb-text-muted">
               @if (taxBreakdown().net !== null) {
-                Netto {{ taxBreakdown().net }} € · enthaltene MwSt. {{ taxBreakdown().tax }} €
+                Netto
+                {{ taxBreakdown().net | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                · enthaltene MwSt.
+                {{ taxBreakdown().tax | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
               } @else {
                 Netto und Steueranteil werden ohne ausgewiesene MwSt. nicht berechnet.
               }
