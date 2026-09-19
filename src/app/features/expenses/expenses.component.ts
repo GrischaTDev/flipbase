@@ -8,9 +8,14 @@ import {
   signal,
 } from '@angular/core';
 import {
+  LucideCheck as Check,
   LucideCircleDollarSign as CircleDollarSign,
+  LucideFilePlus2 as FilePlus2,
+  LucideFileText as FileText,
+  LucidePencil as Pencil,
   LucidePlus as Plus,
   LucideSettings2 as Settings2,
+  LucideTrash2 as Trash2,
 } from '@lucide/angular';
 import { ExpensesColumnId, ExpensesSortField } from '../../core/config/table-defaults.config';
 import { Expense, ExpenseRecurringRule, ExpenseStatus } from '../../core/models/expense.models';
@@ -19,6 +24,7 @@ import {
   tableStateDiffersFromDefaults,
 } from '../../core/models/table-preferences.models';
 import { ExpenseCategoryService } from '../../core/services/expense-category.service';
+import { ExpenseDocumentService } from '../../core/services/expense-document.service';
 import { ExpenseRecurringService } from '../../core/services/expense-recurring.service';
 import { ExpenseService } from '../../core/services/expense.service';
 import { TablePreferencesService } from '../../core/services/table-preferences.service';
@@ -30,6 +36,7 @@ import {
   CustomSelectComponent,
   SelectOption,
 } from '../../shared/components/custom-select/custom-select.component';
+import { ConfirmDialogService } from '../../shared/components/confirm-dialog/confirm-dialog.service';
 import { DataTableComponent } from '../../shared/components/data-table/data-table.component';
 import { ModalShellComponent } from '../../shared/components/modal-shell/modal-shell.component';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
@@ -74,7 +81,9 @@ function localDateKey(date = new Date()): string {
 export class ExpensesComponent implements OnInit {
   readonly expenseService = inject(ExpenseService);
   readonly categoryService = inject(ExpenseCategoryService);
+  readonly documentService = inject(ExpenseDocumentService);
   readonly recurringService = inject(ExpenseRecurringService);
+  private readonly dialog = inject(ConfirmDialogService);
   private readonly tablePreferences = inject(TablePreferencesService);
   private readonly workspaceService = inject(WorkspaceService);
 
@@ -88,10 +97,16 @@ export class ExpensesComponent implements OnInit {
   readonly editingRule = signal<ExpenseRecurringRule | null>(null);
   readonly categoryDialogOpen = signal(false);
   readonly documentExpense = signal<Expense | null>(null);
+  readonly initializing = signal(true);
 
   readonly pageIcon = CircleDollarSign;
   readonly addIcon = Plus;
   readonly settingsIcon = Settings2;
+  readonly paidIcon = Check;
+  readonly editIcon = Pencil;
+  readonly deleteIcon = Trash2;
+  readonly addDocumentIcon = FilePlus2;
+  readonly viewDocumentIcon = FileText;
   readonly workspaceId = computed(() => this.workspaceService.currentWorkspace()?.id ?? 'default');
   readonly expensesTableConfig = this.tablePreferences.getTableConfig<
     ExpensesColumnId,
@@ -130,7 +145,12 @@ export class ExpensesComponent implements OnInit {
       .expenses()
       .filter((expense) => status === 'all' || expense.status === status)
       .filter((expense) => category === 'all' || expense.category_id === category)
-      .filter((expense) => !query || expense.title.toLocaleLowerCase('de-DE').includes(query));
+      .filter(
+        (expense) =>
+          !query ||
+          expense.title.toLocaleLowerCase('de-DE').includes(query) ||
+          (expense.vendor_name ?? '').toLocaleLowerCase('de-DE').includes(query),
+      );
 
     return [...rows].sort((left, right) => {
       const comparison =
@@ -169,10 +189,16 @@ export class ExpensesComponent implements OnInit {
   readonly upcoming = computed(() => this.recurringService.upcoming(localDateKey(), 30));
 
   async ngOnInit(): Promise<void> {
-    await this.categoryService.load();
-    await this.recurringService.load();
-    await this.recurringService.materializeDue(localDateKey());
-    await this.expenseService.load();
+    this.initializing.set(true);
+    try {
+      await Promise.all([
+        this.categoryService.load(),
+        this.expenseService.ensureCurrentWorkspaceLoaded(),
+      ]);
+      await this.refreshDocumentSummary();
+    } finally {
+      this.initializing.set(false);
+    }
   }
 
   openNewExpense(): void {
@@ -205,8 +231,13 @@ export class ExpensesComponent implements OnInit {
     this.editingRule.set(null);
   }
 
+  async onExpenseSaved(): Promise<void> {
+    await this.refreshDocumentSummary();
+  }
+
   async refreshAfterRecurringSave(): Promise<void> {
     await this.expenseService.load();
+    await this.refreshDocumentSummary();
   }
 
   async markPaid(expense: Expense): Promise<void> {
@@ -214,8 +245,22 @@ export class ExpensesComponent implements OnInit {
   }
 
   async removeExpense(expense: Expense): Promise<void> {
-    if (typeof window !== 'undefined' && !window.confirm('Ausgabe wirklich löschen?')) return;
+    const confirmed = await this.dialog.frage({
+      titel: 'Ausgabe löschen?',
+      text: `„${expense.title}“ wird aus der aktiven Ausgabenliste entfernt.`,
+      bestaetigenText: 'Löschen',
+      gefahr: true,
+    });
+    if (!confirmed) return;
+
     await this.expenseService.remove(expense.id);
+    await this.refreshDocumentSummary();
+  }
+
+  private async refreshDocumentSummary(): Promise<void> {
+    await this.documentService.loadSummaryForExpenses(
+      this.expenseService.expenses().map((expense) => expense.id),
+    );
   }
 
   setTab(tab: ExpenseTab): void {
