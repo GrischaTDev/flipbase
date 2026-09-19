@@ -21,6 +21,8 @@ const rule: ExpenseRecurringRule = {
   workspace_id: workspace.id,
   category_id: '22222222-2222-4222-8222-222222222222',
   title: 'Server',
+  vendor_name: 'Hetzner',
+  quantity: 2,
   gross_amount: 29.9,
   vat_rate: 19,
   frequency: 'monthly',
@@ -100,6 +102,8 @@ describe('ExpenseRecurringService', () => {
         expect.objectContaining({
           recurring_rule_id: rule.id,
           occurrence_date: '2026-06-01',
+          vendor_name: 'Hetzner',
+          quantity: 2,
           status: 'open',
           payment_date: null,
         }),
