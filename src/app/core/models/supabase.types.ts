@@ -1682,6 +1682,8 @@ export type Database = {
           notes: string | null
           start_date: string
           title: string
+          vendor_name: string | null
+          quantity: number
           updated_at: string
           vat_rate: number | null
           workspace_id: string
@@ -1698,6 +1700,8 @@ export type Database = {
           notes?: string | null
           start_date: string
           title: string
+          vendor_name?: string | null
+          quantity?: number
           updated_at?: string
           vat_rate?: number | null
           workspace_id: string
@@ -1714,6 +1718,8 @@ export type Database = {
           notes?: string | null
           start_date?: string
           title?: string
+          vendor_name?: string | null
+          quantity?: number
           updated_at?: string
           vat_rate?: number | null
           workspace_id?: string
@@ -1751,6 +1757,8 @@ export type Database = {
           recurring_rule_id: string | null
           status: string
           title: string
+          vendor_name: string | null
+          quantity: number
           updated_at: string
           vat_rate: number | null
           workspace_id: string
@@ -1770,6 +1778,8 @@ export type Database = {
           recurring_rule_id?: string | null
           status: string
           title: string
+          vendor_name?: string | null
+          quantity?: number
           updated_at?: string
           vat_rate?: number | null
           workspace_id: string
@@ -1789,6 +1799,8 @@ export type Database = {
           recurring_rule_id?: string | null
           status?: string
           title?: string
+          vendor_name?: string | null
+          quantity?: number
           updated_at?: string
           vat_rate?: number | null
           workspace_id?: string

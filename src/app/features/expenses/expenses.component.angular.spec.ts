@@ -9,10 +9,12 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import { EXPENSES_TABLE_CONFIG } from '../../core/config/table-defaults.config';
 import { Expense, ExpenseCategory, ExpenseRecurringRule } from '../../core/models/expense.models';
 import { ExpenseCategoryService } from '../../core/services/expense-category.service';
+import { ExpenseDocumentService } from '../../core/services/expense-document.service';
 import { ExpenseRecurringService } from '../../core/services/expense-recurring.service';
 import { ExpenseService } from '../../core/services/expense.service';
 import { TablePreferencesService } from '../../core/services/table-preferences.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
+import { ConfirmDialogService } from '../../shared/components/confirm-dialog/confirm-dialog.service';
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
 import { CardComponent } from '../../shared/components/card/card.component';
@@ -60,7 +62,15 @@ beforeAll(async () => {
   });
 
   registerInputs(PageHeaderComponent, ['title', 'subtitle', 'icon']);
-  registerInputs(ButtonComponent, ['variant', 'size', 'icon', 'ariaPressed']);
+  registerInputs(ButtonComponent, [
+    'variant',
+    'size',
+    'icon',
+    'iconOnly',
+    'ariaPressed',
+    'ariaLabel',
+    'title',
+  ]);
   registerInputs(CardComponent, ['padding', 'rounded']);
   registerInputs(BadgeComponent, ['tone', 'mono']);
   registerInputs(DataTableComponent, [
@@ -158,6 +168,8 @@ const expenses: Expense[] = [
     recurring_rule_id: null,
     occurrence_date: null,
     title: 'Versandkartons',
+    vendor_name: 'Amazon',
+    quantity: 10,
     gross_amount: 35,
     vat_rate: 19,
     expense_date: '2026-09-10',
@@ -177,6 +189,8 @@ const expenses: Expense[] = [
     recurring_rule_id: 'rule-server',
     occurrence_date: '2026-09-18',
     title: 'Server',
+    vendor_name: 'Netcup',
+    quantity: 2,
     gross_amount: 29.9,
     vat_rate: 19,
     expense_date: '2026-09-18',
@@ -197,6 +211,8 @@ const rules: ExpenseRecurringRule[] = [
     workspace_id: 'ws-1',
     category_id: 'cat-host',
     title: 'Server',
+    vendor_name: 'Netcup',
+    quantity: 2,
     gross_amount: 29.9,
     vat_rate: 19,
     frequency: 'monthly',
@@ -210,12 +226,15 @@ const rules: ExpenseRecurringRule[] = [
   },
 ];
 
-function render() {
+function createFixture() {
   const expenseService = {
     expenses: signal(expenses),
     isLoading: signal(false),
     loadError: signal(null),
     load: vi.fn().mockResolvedValue(undefined),
+    ensureCurrentWorkspaceLoaded: vi.fn().mockResolvedValue(undefined),
+    markPaid: vi.fn().mockResolvedValue({ data: null, error: null }),
+    remove: vi.fn().mockResolvedValue({ error: null }),
   };
   const categoryService = {
     categories: signal(categories),
@@ -251,6 +270,11 @@ function render() {
   const workspaceService = {
     currentWorkspace: signal({ id: 'ws-1' }),
   };
+  const documentService = {
+    loadSummaryForExpenses: vi.fn().mockResolvedValue(undefined),
+    hasDocuments: vi.fn((id: string) => id === 'expense-paid'),
+  };
+  const dialog = { frage: vi.fn().mockResolvedValue(true) };
 
   const fixture = TestBed.configureTestingModule({
     imports: [ExpensesComponent],
@@ -260,16 +284,35 @@ function render() {
       { provide: ExpenseRecurringService, useValue: recurringService },
       { provide: TablePreferencesService, useValue: tablePreferences },
       { provide: WorkspaceService, useValue: workspaceService },
+      { provide: ExpenseDocumentService, useValue: documentService },
+      { provide: ConfirmDialogService, useValue: dialog },
     ],
   }).createComponent(ExpensesComponent);
   fixture.detectChanges();
 
-  return { fixture, expenseService, categoryService, recurringService };
+  return { fixture, expenseService, categoryService, recurringService, documentService, dialog };
+}
+
+async function render() {
+  const result = createFixture();
+  await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  result.fixture.detectChanges();
+  return result;
 }
 
 describe('ExpensesComponent', () => {
-  it('zeigt Summen, Filter und die Ausgabentabelle verständlich', () => {
-    const { fixture } = render();
+  it('zeigt beim ersten Rendern den Ladezustand statt kurz die leere Tabelle', () => {
+    const { fixture } = createFixture();
+    const host = fixture.nativeElement as HTMLElement;
+
+    expect(host.querySelector('[data-data-table-loading]')?.textContent).toContain(
+      'Ausgaben werden geladen',
+    );
+    expect(host.querySelector('[data-data-table-empty]')).toBeNull();
+  });
+
+  it('zeigt Summen, Filter und die Ausgabentabelle verständlich', async () => {
+    const { fixture } = await render();
     const host = fixture.nativeElement as HTMLElement;
     const headings = [...host.querySelectorAll('thead th')].map((entry) =>
       entry.textContent?.replace(/\s+/g, ' ').trim(),
@@ -287,19 +330,18 @@ describe('ExpensesComponent', () => {
     expect(headings).toEqual([
       'Datum',
       'Bezeichnung',
+      'Anbieter',
       'Kategorie',
-      'Brutto',
-      'MwSt.',
+      'Menge',
+      'Gesamtbetrag',
       'Status',
-      'Fällig / bezahlt am',
-      'Wiederholung',
       'Beleg',
       'Aktionen',
     ]);
   });
 
-  it('filtert die konkrete Tabelle nach Status', () => {
-    const { fixture } = render();
+  it('filtert die konkrete Tabelle nach Status', async () => {
+    const { fixture } = await render();
     fixture.componentInstance.setStatus('open');
     fixture.detectChanges();
 
@@ -307,8 +349,57 @@ describe('ExpensesComponent', () => {
     expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Versandkartons');
   });
 
-  it('wechselt zur Ansicht der wiederkehrenden Ausgaben und zeigt die nächste Fälligkeit', () => {
-    const { fixture } = render();
+  it('findet Ausgaben auch über den Anbieter', async () => {
+    const { fixture } = await render();
+    fixture.componentInstance.search.set('amazon');
+    fixture.detectChanges();
+
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('Versandkartons');
+    expect(text).not.toContain('Server');
+  });
+
+  it('nutzt genau den deduplizierten Initial-Ladepfad und lädt Belegstatus danach', async () => {
+    const { expenseService, recurringService, documentService } = await render();
+
+    expect(expenseService.ensureCurrentWorkspaceLoaded).toHaveBeenCalledTimes(1);
+    expect(expenseService.load).not.toHaveBeenCalled();
+    expect(recurringService.load).not.toHaveBeenCalled();
+    expect(recurringService.materializeDue).not.toHaveBeenCalled();
+    expect(documentService.loadSummaryForExpenses).toHaveBeenCalledWith([
+      'expense-paid',
+      'expense-open',
+    ]);
+  });
+
+  it('zeigt konsistente Icon-Aktionen und den Belegzustand', async () => {
+    const { fixture } = await render();
+    const host = fixture.nativeElement as HTMLElement;
+
+    expect(host.querySelector('[aria-label="Ausgabe bearbeiten"]')).toBeTruthy();
+    expect(host.querySelector('[aria-label="Ausgabe löschen"]')).toBeTruthy();
+    expect(host.querySelector('[aria-label="Als bezahlt markieren"]')).toBeTruthy();
+    expect(host.querySelector('[aria-label="Beleg ansehen"]')).toBeTruthy();
+    expect(host.querySelector('[aria-label="Beleg hinzufügen"]')).toBeTruthy();
+  });
+
+  it('bestätigt das Löschen über den gemeinsamen Dialog', async () => {
+    const { fixture, expenseService, dialog } = await render();
+
+    await fixture.componentInstance.removeExpense(expenses[0]);
+
+    expect(dialog.frage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        titel: 'Ausgabe löschen?',
+        bestaetigenText: 'Löschen',
+        gefahr: true,
+      }),
+    );
+    expect(expenseService.remove).toHaveBeenCalledWith('expense-paid');
+  });
+
+  it('wechselt zur Ansicht der wiederkehrenden Ausgaben und zeigt die nächste Fälligkeit', async () => {
+    const { fixture } = await render();
     const host = fixture.nativeElement as HTMLElement;
     fixture.componentInstance.setTab('recurring');
     fixture.detectChanges();
@@ -320,7 +411,7 @@ describe('ExpensesComponent', () => {
   });
 
   it('besteht die automatischen Barrierefreiheitsprüfungen', async () => {
-    const { fixture } = render();
+    const { fixture } = await render();
 
     const result = await axe.run(fixture.nativeElement as HTMLElement, {
       rules: { 'color-contrast': { enabled: false } },

@@ -25,9 +25,58 @@ export class ExpenseDocumentService {
   private readonly auth = inject(AuthService, { optional: true });
 
   private readonly documentsRaw = signal<readonly ExpenseDocument[]>([]);
+  private readonly documentCounts = signal<ReadonlyMap<string, number>>(new Map());
   readonly documents = this.documentsRaw.asReadonly();
   readonly isLoading = signal(false);
   readonly loadError = signal<string | null>(null);
+
+  hasDocuments(expenseId: string): boolean {
+    return (this.documentCounts().get(expenseId) ?? 0) > 0;
+  }
+
+  async loadSummaryForExpenses(expenseIds: readonly string[]): Promise<void> {
+    const uniqueIds = [...new Set(expenseIds.filter(Boolean))];
+    if (uniqueIds.length === 0) return;
+
+    if (this.mockStore.isDemoMode()) {
+      this.documentCounts.update((current) => {
+        const next = new Map(current);
+        uniqueIds.forEach((id) => next.delete(id));
+        return next;
+      });
+      return;
+    }
+
+    const workspaceId = this.workspaceService.currentWorkspace()?.id;
+    if (!workspaceId) return;
+
+    try {
+      const { data, error } = await this.supabase.client
+        .from('expense_documents')
+        .select('expense_id')
+        .eq('workspace_id', workspaceId)
+        .in('expense_id', uniqueIds);
+      if (error) throw error;
+
+      const counts = new Map<string, number>();
+      for (const row of data ?? []) {
+        counts.set(row.expense_id, (counts.get(row.expense_id) ?? 0) + 1);
+      }
+
+      this.documentCounts.update((current) => {
+        const next = new Map(current);
+        uniqueIds.forEach((id) => next.set(id, counts.get(id) ?? 0));
+        return next;
+      });
+    } catch (cause: unknown) {
+      this.syncStatus.melde('Laden des Ausgabenbelegstatus', cause);
+      this.documentCounts.update((current) => {
+        const next = new Map(current);
+        uniqueIds.forEach((id) => next.delete(id));
+        return next;
+      });
+    }
+  }
 
   async loadForExpense(expenseId: string): Promise<void> {
     this.loadError.set(null);
@@ -47,7 +96,13 @@ export class ExpenseDocumentService {
         this.loadError.set(this.syncStatus.melde('Laden der Ausgabenbelege', error).message);
         return;
       }
-      this.documentsRaw.set((data ?? []) as ExpenseDocument[]);
+      const documents = (data ?? []) as ExpenseDocument[];
+      this.documentsRaw.set(documents);
+      this.documentCounts.update((current) => {
+        const next = new Map(current);
+        next.set(expenseId, documents.length);
+        return next;
+      });
     } catch (cause: unknown) {
       this.loadError.set(this.syncStatus.melde('Laden der Ausgabenbelege', cause).message);
     } finally {
@@ -101,6 +156,11 @@ export class ExpenseDocumentService {
       uploadedPath = null;
       const document = data as ExpenseDocument;
       this.documentsRaw.update((current) => [...current, document]);
+      this.documentCounts.update((current) => {
+        const next = new Map(current);
+        next.set(expenseId, (next.get(expenseId) ?? 0) + 1);
+        return next;
+      });
       return { data: document, error: null };
     } catch (cause: unknown) {
       const failure = this.syncStatus.melde('Speichern des Ausgabenbelegs', cause);
@@ -151,6 +211,12 @@ export class ExpenseDocumentService {
         .from(EXPENSE_DOCUMENT_BUCKET)
         .remove([document.storage_path]);
       this.documentsRaw.update((current) => current.filter((entry) => entry.id !== document.id));
+      this.documentCounts.update((current) => {
+        const next = new Map(current);
+        const count = Math.max(0, (next.get(document.expense_id) ?? 1) - 1);
+        next.set(document.expense_id, count);
+        return next;
+      });
       if (cleanup.error) {
         return {
           error: this.syncStatus.melde(

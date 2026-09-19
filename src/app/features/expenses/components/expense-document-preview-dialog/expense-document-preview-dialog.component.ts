@@ -58,6 +58,15 @@ export class ExpenseDocumentPreviewDialogComponent implements OnInit, OnDestroy 
     if (url) URL.revokeObjectURL(url);
   }
 
+  print(): void {
+    const url = this.objectUrl();
+    if (!url) return;
+    const printWindow = window.open(url, '_blank');
+    if (!printWindow) return;
+    printWindow.opener = null;
+    printWindow.addEventListener('load', () => printWindow.print(), { once: true });
+  }
+
   download(): void {
     const url = this.objectUrl();
     if (!url) return;

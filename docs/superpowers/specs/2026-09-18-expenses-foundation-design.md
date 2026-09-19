@@ -8,8 +8,7 @@ Betriebsausgaben. Wareneinkäufe bleiben im bestehenden Einkaufsbereich.
 1. Wiederkehrende Kosten erzeugen echte einzelne Ausgaben.
 2. Wareneinkäufe (Sneaker, Kleidung, Paletten usw.) bleiben unter „Einkäufe“.
    „Ausgaben“ erfasst allgemeine Betriebsausgaben.
-3. Betragserfassung: Bruttobetrag Pflicht; MwSt.-Satz optional (keine Angabe, 0 %, 7 %, 19 %).
-   Netto und Steueranteil werden daraus berechnet.
+3. Betragserfassung: Der Gesamtbetrag ist Pflicht und entspricht dem tatsächlich bezahlten Betrag. Neue Erfassungen starten mit 19 % enthaltener MwSt.; 7 %, 0 % sowie „nicht ausgewiesen / unbekannt“ sind änderbar. Netto und Steueranteil werden nur informativ daraus berechnet.
 4. Flipbase liefert gängige Standardkategorien und erlaubt eigene Kategorien je Workspace.
 5. Wiederholungen: monatlich, quartalsweise, jährlich; Startdatum Pflicht, Enddatum optional.
 6. Belege hängen an der konkreten Ausgabe, nicht an der Wiederholungsregel.
@@ -143,6 +142,8 @@ anlegen. Kategorien, die bereits verwendet werden, werden archiviert statt hart 
 - `workspace_id uuid not null`
 - `title text not null`
 - `category_id uuid not null`
+- `vendor_name text null`
+- `quantity integer not null default 1 check > 0`
 - `gross_amount numeric(12,2) not null check > 0`
 - `vat_rate numeric(5,2) null check in (0,7,19)`
 - `frequency text not null check in ('monthly','quarterly','yearly')`
@@ -163,6 +164,8 @@ bleiben historische Einzelbuchungen und werden nicht rückwirkend überschrieben
 - `recurring_rule_id uuid null`
 - `occurrence_date date null`
 - `title text not null`
+- `vendor_name text null`
+- `quantity integer not null default 1 check > 0`
 - `gross_amount numeric(12,2) not null check > 0`
 - `vat_rate numeric(5,2) null check in (0,7,19)`
 - `expense_date date not null`

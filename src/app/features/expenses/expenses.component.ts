@@ -8,9 +8,13 @@ import {
   signal,
 } from '@angular/core';
 import {
+  LucideCheck as Check,
   LucideCircleDollarSign as CircleDollarSign,
+  LucideFileText as FileText,
+  LucidePencil as Pencil,
   LucidePlus as Plus,
   LucideSettings2 as Settings2,
+  LucideTrash2 as Trash2,
 } from '@lucide/angular';
 import { ExpensesColumnId, ExpensesSortField } from '../../core/config/table-defaults.config';
 import { Expense, ExpenseRecurringRule, ExpenseStatus } from '../../core/models/expense.models';
@@ -19,6 +23,7 @@ import {
   tableStateDiffersFromDefaults,
 } from '../../core/models/table-preferences.models';
 import { ExpenseCategoryService } from '../../core/services/expense-category.service';
+import { ExpenseDocumentService } from '../../core/services/expense-document.service';
 import { ExpenseRecurringService } from '../../core/services/expense-recurring.service';
 import { ExpenseService } from '../../core/services/expense.service';
 import { TablePreferencesService } from '../../core/services/table-preferences.service';
@@ -26,6 +31,7 @@ import { WorkspaceService } from '../../core/services/workspace.service';
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
 import { CardComponent } from '../../shared/components/card/card.component';
+import { ConfirmDialogService } from '../../shared/components/confirm-dialog/confirm-dialog.service';
 import {
   CustomSelectComponent,
   SelectOption,
@@ -75,8 +81,10 @@ export class ExpensesComponent implements OnInit {
   readonly expenseService = inject(ExpenseService);
   readonly categoryService = inject(ExpenseCategoryService);
   readonly recurringService = inject(ExpenseRecurringService);
+  readonly documentService = inject(ExpenseDocumentService);
   private readonly tablePreferences = inject(TablePreferencesService);
   private readonly workspaceService = inject(WorkspaceService);
+  private readonly dialog = inject(ConfirmDialogService);
 
   readonly activeTab = signal<ExpenseTab>('expenses');
   readonly statusFilter = signal<ExpenseStatusFilter>('all');
@@ -88,10 +96,17 @@ export class ExpensesComponent implements OnInit {
   readonly editingRule = signal<ExpenseRecurringRule | null>(null);
   readonly categoryDialogOpen = signal(false);
   readonly documentExpense = signal<Expense | null>(null);
+  readonly isInitializing = signal(true);
 
   readonly pageIcon = CircleDollarSign;
   readonly addIcon = Plus;
   readonly settingsIcon = Settings2;
+  readonly paidIcon = Check;
+  readonly editIcon = Pencil;
+  readonly deleteIcon = Trash2;
+  readonly addDocumentIcon = Plus;
+  readonly viewDocumentIcon = FileText;
+
   readonly workspaceId = computed(() => this.workspaceService.currentWorkspace()?.id ?? 'default');
   readonly expensesTableConfig = this.tablePreferences.getTableConfig<
     ExpensesColumnId,
@@ -130,7 +145,13 @@ export class ExpensesComponent implements OnInit {
       .expenses()
       .filter((expense) => status === 'all' || expense.status === status)
       .filter((expense) => category === 'all' || expense.category_id === category)
-      .filter((expense) => !query || expense.title.toLocaleLowerCase('de-DE').includes(query));
+      .filter((expense) => {
+        if (!query) return true;
+        return (
+          expense.title.toLocaleLowerCase('de-DE').includes(query) ||
+          (expense.vendor_name ?? '').toLocaleLowerCase('de-DE').includes(query)
+        );
+      });
 
     return [...rows].sort((left, right) => {
       const comparison =
@@ -169,10 +190,16 @@ export class ExpensesComponent implements OnInit {
   readonly upcoming = computed(() => this.recurringService.upcoming(localDateKey(), 30));
 
   async ngOnInit(): Promise<void> {
-    await this.categoryService.load();
-    await this.recurringService.load();
-    await this.recurringService.materializeDue(localDateKey());
-    await this.expenseService.load();
+    this.isInitializing.set(true);
+    try {
+      await Promise.all([
+        this.categoryService.load(),
+        this.expenseService.ensureCurrentWorkspaceLoaded(),
+      ]);
+      await this.loadDocumentSummary();
+    } finally {
+      this.isInitializing.set(false);
+    }
   }
 
   openNewExpense(): void {
@@ -188,6 +215,10 @@ export class ExpensesComponent implements OnInit {
   closeExpenseDialog(): void {
     this.expenseDialogOpen.set(false);
     this.editingExpense.set(null);
+  }
+
+  async onExpenseSaved(expense: Expense): Promise<void> {
+    await this.documentService.loadSummaryForExpenses([expense.id]);
   }
 
   openNewRecurring(): void {
@@ -207,6 +238,7 @@ export class ExpensesComponent implements OnInit {
 
   async refreshAfterRecurringSave(): Promise<void> {
     await this.expenseService.load();
+    await this.loadDocumentSummary();
   }
 
   async markPaid(expense: Expense): Promise<void> {
@@ -214,7 +246,13 @@ export class ExpensesComponent implements OnInit {
   }
 
   async removeExpense(expense: Expense): Promise<void> {
-    if (typeof window !== 'undefined' && !window.confirm('Ausgabe wirklich löschen?')) return;
+    const confirmed = await this.dialog.frage({
+      titel: 'Ausgabe löschen?',
+      text: `„${expense.title}“ wird aus der aktiven Ausgabenliste entfernt.`,
+      bestaetigenText: 'Löschen',
+      gefahr: true,
+    });
+    if (!confirmed) return;
     await this.expenseService.remove(expense.id);
   }
 
@@ -284,5 +322,11 @@ export class ExpensesComponent implements OnInit {
 
   statusTone(status: ExpenseStatus): 'success' | 'caution' {
     return status === 'paid' ? 'success' : 'caution';
+  }
+
+  private async loadDocumentSummary(): Promise<void> {
+    await this.documentService.loadSummaryForExpenses(
+      this.expenseService.expenses().map((expense) => expense.id),
+    );
   }
 }
