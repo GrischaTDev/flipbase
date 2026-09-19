@@ -15,8 +15,9 @@ keinen neuen Ladevorgang.
 aufgelösten Mitgliederkontext vom bloßen Ende eines Ladeversuchs. Die
 Prüfprotokollseite behandelt den Zugriff explizit als `loading`,
 `authorized` oder `forbidden` und lädt automatisch nach, sobald die echte
-Workspace-Rolle feststeht. Das rote Admin-Badge im Header bleibt unverändert ein
-Plattform-Operator-Badge.
+Workspace-Rolle feststeht. Während der Rollenauflösung zeigen Prüfprotokoll und
+Datenexport nur einen neutralen Ladehinweis statt einer falschen Rechtewarnung.
+Das rote Admin-Badge im Header bleibt unverändert ein Plattform-Operator-Badge.
 
 **Prüfung:** Regressionstests wurden vor der Implementierung für
 Workspace-Mitglieder-Readiness und Audit-Zugriffszustände ergänzt. In dieser
