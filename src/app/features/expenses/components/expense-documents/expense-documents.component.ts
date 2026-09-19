@@ -25,6 +25,7 @@ export class ExpenseDocumentsComponent implements OnInit {
   readonly selectedType = signal<ExpenseDocumentType>('invoice');
   readonly preview = signal<ExpenseDocument | null>(null);
   readonly isUploading = signal(false);
+  readonly isDragging = signal(false);
   readonly errorMessage = signal<string | null>(null);
 
   readonly documentTypeLabels = EXPENSE_DOCUMENT_TYPE_LABELS;
@@ -40,8 +41,34 @@ export class ExpenseDocumentsComponent implements OnInit {
   async onFileSelected(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
-    if (!file) return;
+    if (file) await this.uploadFile(file);
+    input.value = '';
+  }
 
+  onDocumentDragOver(event: DragEvent): void {
+    event.preventDefault();
+    if (!this.isUploading()) this.isDragging.set(true);
+  }
+
+  onDocumentDragLeave(event: DragEvent): void {
+    event.preventDefault();
+    this.isDragging.set(false);
+  }
+
+  async onDocumentDrop(event: DragEvent): Promise<void> {
+    event.preventDefault();
+    this.isDragging.set(false);
+    if (this.isUploading()) return;
+    const file = event.dataTransfer?.files?.[0];
+    if (file) await this.uploadFile(file);
+  }
+
+  async remove(document: ExpenseDocument): Promise<void> {
+    const result = await this.documentService.remove(document);
+    if (result.error) this.errorMessage.set(result.error.message);
+  }
+
+  private async uploadFile(file: File): Promise<void> {
     this.isUploading.set(true);
     this.errorMessage.set(null);
     try {
@@ -49,12 +76,6 @@ export class ExpenseDocumentsComponent implements OnInit {
       if (result.error) this.errorMessage.set(result.error.message);
     } finally {
       this.isUploading.set(false);
-      input.value = '';
     }
-  }
-
-  async remove(document: ExpenseDocument): Promise<void> {
-    const result = await this.documentService.remove(document);
-    if (result.error) this.errorMessage.set(result.error.message);
   }
 }
