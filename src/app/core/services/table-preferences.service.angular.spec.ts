@@ -129,6 +129,17 @@ describe('TablePreferencesService – Polaris Table Preferences & Reordering', (
   let service: TablePreferencesService;
   const testWorkspaceId = 'test-ws-123';
 
+  function storePurchaseColumns(ids: readonly string[], hidden = new Set<string>()): void {
+    localStorage.setItem(
+      `flipbase:table_prefs:${testWorkspaceId}:purchases`,
+      JSON.stringify({
+        version: 1,
+        columns: ids.map((id, order) => ({ id, order, visible: !hidden.has(id) })),
+        sort: { field: 'purchase_date', direction: 'desc' },
+      }),
+    );
+  }
+
   beforeEach(() => {
     localStorage.clear();
     TestBed.configureTestingModule({
@@ -184,6 +195,91 @@ describe('TablePreferencesService – Polaris Table Preferences & Reordering', (
         ['type', 'cost_status', 'actions', 'units', 'capture'].includes(column.id),
       ),
     ).toBe(false);
+  });
+
+  it('zieht die unveränderte alte Einkaufsansicht einmalig auf Verkäufer vor Bezeichnung nach', () => {
+    storePurchaseColumns([
+      'title',
+      'description',
+      'seller',
+      'purchase_date',
+      'status',
+      'receipt',
+      'total_cost',
+    ]);
+
+    const state = service.getTablePreferences('purchases', testWorkspaceId)();
+
+    expect(state.columns.map((column) => column.id)).toEqual([
+      'title',
+      'seller',
+      'description',
+      'purchase_date',
+      'status',
+      'receipt',
+      'total_cost',
+    ]);
+    expect(state.sort).toEqual({ field: 'purchase_date', direction: 'desc' });
+  });
+
+  it('erhält eine persönlich sortierte Einkaufsansicht unverändert', () => {
+    const personal = [
+      'title',
+      'total_cost',
+      'seller',
+      'description',
+      'purchase_date',
+      'status',
+      'receipt',
+    ];
+    storePurchaseColumns(personal);
+
+    const state = service.getTablePreferences('purchases', testWorkspaceId)();
+
+    expect(state.columns.map((column) => column.id)).toEqual(personal);
+  });
+
+  it('erhält die Sichtbarkeit bei der Migration der alten Standardreihenfolge', () => {
+    storePurchaseColumns(
+      ['title', 'description', 'seller', 'purchase_date', 'status', 'receipt', 'total_cost'],
+      new Set(['description']),
+    );
+
+    const state = service.getTablePreferences('purchases', testWorkspaceId)();
+
+    expect(state.columns.find((column) => column.id === 'description')?.visible).toBe(false);
+  });
+
+  it('entfernt alle historischen Einkaufsspalten auch aus dem gespeicherten Wert', () => {
+    storePurchaseColumns([
+      'title',
+      'description',
+      'seller',
+      'purchase_date',
+      'status',
+      'receipt',
+      'total_cost',
+      'type',
+      'cost_status',
+      'actions',
+      'units',
+      'capture',
+    ]);
+
+    service.getTablePreferences('purchases', testWorkspaceId)();
+
+    const stored = JSON.parse(
+      localStorage.getItem(`flipbase:table_prefs:${testWorkspaceId}:purchases`) ?? '{}',
+    ) as { columns?: { id: string }[] };
+    expect(stored.columns?.map((column) => column.id)).toEqual([
+      'title',
+      'seller',
+      'description',
+      'purchase_date',
+      'status',
+      'receipt',
+      'total_cost',
+    ]);
   });
 
   it('should return default preferences when nothing is stored', () => {
