@@ -1,5 +1,13 @@
-import { ChangeDetectionStrategy, Component, inject, output, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  inject,
+  output,
+  signal,
+} from '@angular/core';
 import { ExpenseCategoryService } from '../../../../core/services/expense-category.service';
+import { WorkspaceContextLockService } from '../../../../core/services/workspace-context-lock.service';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 
@@ -11,6 +19,9 @@ import { ModalShellComponent } from '../../../../shared/components/modal-shell/m
 })
 export class ExpenseCategoryDialogComponent {
   readonly categoryService = inject(ExpenseCategoryService);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly workspaceContext = inject(WorkspaceContextLockService);
+  private readonly releaseWorkspaceLock = this.workspaceContext.acquire();
   readonly closed = output<void>();
   readonly changed = output<void>();
 
@@ -19,6 +30,10 @@ export class ExpenseCategoryDialogComponent {
   readonly editingName = signal('');
   readonly errorMessage = signal<string | null>(null);
   readonly isSaving = signal(false);
+
+  constructor() {
+    this.destroyRef.onDestroy(this.releaseWorkspaceLock);
+  }
 
   async createCategory(): Promise<void> {
     const name = this.newName().trim();

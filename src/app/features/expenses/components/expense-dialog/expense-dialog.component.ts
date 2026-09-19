@@ -2,6 +2,7 @@ import { CurrencyPipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   OnInit,
   computed,
   inject,
@@ -18,6 +19,7 @@ import { Expense, ExpenseStatus, ExpenseVatRate } from '../../../../core/models/
 import { ExpenseCategoryService } from '../../../../core/services/expense-category.service';
 import { ExpenseDocumentService } from '../../../../core/services/expense-document.service';
 import { ExpenseService } from '../../../../core/services/expense.service';
+import { WorkspaceContextLockService } from '../../../../core/services/workspace-context-lock.service';
 import {
   calculateExpenseTax,
   calculateExpenseUnitPrice,
@@ -58,6 +60,9 @@ export class ExpenseDialogComponent implements OnInit {
   private readonly expenseService = inject(ExpenseService);
   private readonly documentService = inject(ExpenseDocumentService);
   private readonly toast = inject(ToastService);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly workspaceContext = inject(WorkspaceContextLockService);
+  private readonly releaseWorkspaceLock = this.workspaceContext.acquire();
   readonly categoryService = inject(ExpenseCategoryService);
 
   readonly expense = input<Expense | null>(null);
@@ -114,6 +119,10 @@ export class ExpenseDialogComponent implements OnInit {
     payment_date: new FormControl<string | null>(localDateKey()),
     notes: new FormControl('', { nonNullable: true }),
   });
+
+  constructor() {
+    this.destroyRef.onDestroy(this.releaseWorkspaceLock);
+  }
 
   ngOnInit(): void {
     const expense = this.expense();

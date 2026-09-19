@@ -1,4 +1,4 @@
-import { computed, inject, Injectable, signal } from '@angular/core';
+import { computed, effect, inject, Injectable, signal } from '@angular/core';
 import {
   ExpenseRecurringRule,
   ExpenseRecurringRuleInput,
@@ -28,6 +28,8 @@ export class ExpenseRecurringService {
   private readonly mockStore = inject(MockDataStoreService);
   private readonly syncStatus = inject(SyncStatusService);
   private readonly auth = inject(AuthService);
+  private workspaceContextId: string | null = null;
+  private loadRequestSequence = 0;
 
   private readonly rulesRaw = signal<readonly ExpenseRecurringRule[]>([]);
   readonly rules = computed(() =>
@@ -36,17 +38,28 @@ export class ExpenseRecurringService {
   readonly isLoading = signal(false);
   readonly loadError = signal<Error | null>(null);
 
-  async load(): Promise<void> {
+  constructor() {
+    try {
+      effect(() => {
+        this.resetWorkspaceContext(this.workspace.currentWorkspace()?.id ?? null);
+      });
+    } catch {
+      // Einige fokussierte Service-Tests haben keinen Angular-Scheduler.
+    }
+  }
+
+  async load(): Promise<boolean> {
     const workspaceId = this.workspace.currentWorkspace()?.id;
+    this.resetWorkspaceContext(workspaceId ?? null);
     if (!workspaceId) {
-      this.rulesRaw.set([]);
-      return;
+      return false;
     }
     if (this.mockStore.isDemoMode()) {
-      this.rulesRaw.set([]);
-      return;
+      if (this.isCurrentWorkspace(workspaceId)) this.rulesRaw.set([]);
+      return this.isCurrentWorkspace(workspaceId);
     }
 
+    const requestId = ++this.loadRequestSequence;
     this.isLoading.set(true);
     this.loadError.set(null);
     try {
@@ -55,14 +68,20 @@ export class ExpenseRecurringService {
         .select('*')
         .eq('workspace_id', workspaceId)
         .order('start_date', { ascending: true });
+      if (!this.isLatestRequest(workspaceId, requestId)) return false;
       if (error) throw error;
       this.rulesRaw.set((data ?? []) as unknown as ExpenseRecurringRule[]);
+      return true;
     } catch (cause: unknown) {
+      if (!this.isLatestRequest(workspaceId, requestId)) return false;
       const error = this.syncStatus.melde('Laden der wiederkehrenden Ausgaben', cause);
       this.loadError.set(error);
       this.rulesRaw.set([]);
+      return false;
     } finally {
-      this.isLoading.set(false);
+      if (this.isLatestRequest(workspaceId, requestId)) {
+        this.isLoading.set(false);
+      }
     }
   }
 
@@ -70,6 +89,7 @@ export class ExpenseRecurringService {
     input: ExpenseRecurringRuleInput,
   ): Promise<{ readonly data: ExpenseRecurringRule | null; readonly error: Error | null }> {
     const workspaceId = this.workspace.currentWorkspace()?.id;
+    this.resetWorkspaceContext(workspaceId ?? null);
     if (!workspaceId) return { data: null, error: new Error('Kein aktiver Workspace.') };
     if (this.mockStore.isDemoMode())
       return {
@@ -89,7 +109,9 @@ export class ExpenseRecurringService {
         .single();
       if (error || !data) throw error ?? new Error('Die Regel wurde nicht zurückgegeben.');
       const rule = data as unknown as ExpenseRecurringRule;
-      this.rulesRaw.update((current) => [...current, rule]);
+      if (this.isCurrentWorkspace(workspaceId)) {
+        this.rulesRaw.update((current) => [...current, rule]);
+      }
       return { data: rule, error: null };
     } catch (cause: unknown) {
       return {
@@ -104,6 +126,7 @@ export class ExpenseRecurringService {
     input: Partial<ExpenseRecurringRuleInput>,
   ): Promise<{ readonly data: ExpenseRecurringRule | null; readonly error: Error | null }> {
     const workspaceId = this.workspace.currentWorkspace()?.id;
+    this.resetWorkspaceContext(workspaceId ?? null);
     if (!workspaceId) return { data: null, error: new Error('Kein aktiver Workspace.') };
     if (this.mockStore.isDemoMode())
       return {
@@ -121,7 +144,9 @@ export class ExpenseRecurringService {
         .single();
       if (error || !data) throw error ?? new Error('Die Regel wurde nicht zurückgegeben.');
       const updated = data as unknown as ExpenseRecurringRule;
-      this.rulesRaw.update((rules) => rules.map((rule) => (rule.id === id ? updated : rule)));
+      if (this.isCurrentWorkspace(workspaceId)) {
+        this.rulesRaw.update((rules) => rules.map((rule) => (rule.id === id ? updated : rule)));
+      }
       return { data: updated, error: null };
     } catch (cause: unknown) {
       return {
@@ -140,11 +165,12 @@ export class ExpenseRecurringService {
     throughDate: string,
   ): Promise<{ readonly count: number; readonly error: Error | null }> {
     const workspaceId = this.workspace.currentWorkspace()?.id;
+    this.resetWorkspaceContext(workspaceId ?? null);
     if (!workspaceId) return { count: 0, error: new Error('Kein aktiver Workspace.') };
     if (this.mockStore.isDemoMode()) return { count: 0, error: null };
 
     const candidates = this.rulesRaw()
-      .filter((rule) => rule.is_active)
+      .filter((rule) => rule.workspace_id === workspaceId && rule.is_active)
       .flatMap((rule) =>
         dueOccurrences(rule, throughDate).map((occurrenceDate) => ({
           id: crypto.randomUUID(),
@@ -204,5 +230,26 @@ export class ExpenseRecurringService {
       }
     }
     return upcoming.sort((a, b) => a.occurrenceDate.localeCompare(b.occurrenceDate));
+  }
+
+  private resetWorkspaceContext(workspaceId: string | null): boolean {
+    if (this.workspaceContextId === workspaceId) return false;
+    this.workspaceContextId = workspaceId;
+    this.loadRequestSequence += 1;
+    this.rulesRaw.set([]);
+    this.loadError.set(null);
+    this.isLoading.set(false);
+    return true;
+  }
+
+  private isCurrentWorkspace(workspaceId: string): boolean {
+    return (
+      this.workspaceContextId === workspaceId &&
+      this.workspace.currentWorkspace()?.id === workspaceId
+    );
+  }
+
+  private isLatestRequest(workspaceId: string, requestId: number): boolean {
+    return this.isCurrentWorkspace(workspaceId) && this.loadRequestSequence === requestId;
   }
 }

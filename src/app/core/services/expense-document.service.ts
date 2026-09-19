@@ -1,4 +1,4 @@
-import { inject, Injectable, signal } from '@angular/core';
+import { effect, inject, Injectable, signal } from '@angular/core';
 import {
   EXPENSE_DOCUMENT_BUCKET,
   ExpenseDocument,
@@ -23,6 +23,9 @@ export class ExpenseDocumentService {
   private readonly syncStatus = inject(SyncStatusService);
   private readonly workspaceService = inject(WorkspaceService);
   private readonly auth = inject(AuthService, { optional: true });
+  private workspaceContextId: string | null = null;
+  private documentRequestSequence = 0;
+  private summaryRequestSequence = 0;
 
   private readonly documentsRaw = signal<readonly ExpenseDocument[]>([]);
   private readonly documentCounts = signal<ReadonlyMap<string, number>>(new Map());
@@ -30,25 +33,37 @@ export class ExpenseDocumentService {
   readonly isLoading = signal(false);
   readonly loadError = signal<string | null>(null);
 
+  constructor() {
+    try {
+      effect(() => {
+        this.resetWorkspaceContext(this.workspaceService.currentWorkspace()?.id ?? null);
+      });
+    } catch {
+      // Einige fokussierte Service-Tests haben keinen Angular-Scheduler.
+    }
+  }
+
   hasDocuments(expenseId: string): boolean {
     return (this.documentCounts().get(expenseId) ?? 0) > 0;
   }
 
-  async loadSummaryForExpenses(expenseIds: readonly string[]): Promise<void> {
-    const uniqueIds = [...new Set(expenseIds.filter(Boolean))];
-    if (uniqueIds.length === 0) return;
+  async loadSummaryForExpenses(expenseIds: readonly string[]): Promise<boolean> {
+    const workspaceId = this.workspaceService.currentWorkspace()?.id;
+    this.resetWorkspaceContext(workspaceId ?? null);
+    if (!workspaceId) return false;
 
-    if (this.mockStore.isDemoMode()) {
-      this.documentCounts.update((current) => {
-        const next = new Map(current);
-        uniqueIds.forEach((id) => next.delete(id));
-        return next;
-      });
-      return;
+    const uniqueIds = [...new Set(expenseIds.filter(Boolean))];
+    if (uniqueIds.length === 0) {
+      this.documentCounts.set(new Map());
+      return true;
     }
 
-    const workspaceId = this.workspaceService.currentWorkspace()?.id;
-    if (!workspaceId) return;
+    if (this.mockStore.isDemoMode()) {
+      if (this.isCurrentWorkspace(workspaceId)) this.documentCounts.set(new Map());
+      return this.isCurrentWorkspace(workspaceId);
+    }
+
+    const requestId = ++this.summaryRequestSequence;
 
     try {
       const { data, error } = await this.supabase.client
@@ -56,6 +71,7 @@ export class ExpenseDocumentService {
         .select('expense_id')
         .eq('workspace_id', workspaceId)
         .in('expense_id', uniqueIds);
+      if (!this.isLatestSummaryRequest(workspaceId, requestId)) return false;
       if (error) throw error;
 
       const counts = new Map<string, number>();
@@ -68,33 +84,43 @@ export class ExpenseDocumentService {
         uniqueIds.forEach((id) => next.set(id, counts.get(id) ?? 0));
         return next;
       });
+      return true;
     } catch (cause: unknown) {
+      if (!this.isLatestSummaryRequest(workspaceId, requestId)) return false;
       this.syncStatus.melde('Laden des Ausgabenbelegstatus', cause);
       this.documentCounts.update((current) => {
         const next = new Map(current);
         uniqueIds.forEach((id) => next.delete(id));
         return next;
       });
+      return false;
     }
   }
 
-  async loadForExpense(expenseId: string): Promise<void> {
+  async loadForExpense(expenseId: string): Promise<boolean> {
+    const workspaceId = this.workspaceService.currentWorkspace()?.id;
+    this.resetWorkspaceContext(workspaceId ?? null);
+    if (!workspaceId) return false;
+
     this.loadError.set(null);
     if (this.mockStore.isDemoMode()) {
-      this.documentsRaw.set([]);
-      return;
+      if (this.isCurrentWorkspace(workspaceId)) this.documentsRaw.set([]);
+      return this.isCurrentWorkspace(workspaceId);
     }
 
+    const requestId = ++this.documentRequestSequence;
     this.isLoading.set(true);
     try {
       const { data, error } = await this.supabase.client
         .from('expense_documents')
         .select('*')
+        .eq('workspace_id', workspaceId)
         .eq('expense_id', expenseId)
         .order('created_at', { ascending: true });
+      if (!this.isLatestDocumentRequest(workspaceId, requestId)) return false;
       if (error) {
         this.loadError.set(this.syncStatus.melde('Laden der Ausgabenbelege', error).message);
-        return;
+        return false;
       }
       const documents = (data ?? []) as ExpenseDocument[];
       this.documentsRaw.set(documents);
@@ -103,10 +129,15 @@ export class ExpenseDocumentService {
         next.set(expenseId, documents.length);
         return next;
       });
+      return true;
     } catch (cause: unknown) {
+      if (!this.isLatestDocumentRequest(workspaceId, requestId)) return false;
       this.loadError.set(this.syncStatus.melde('Laden der Ausgabenbelege', cause).message);
+      return false;
     } finally {
-      this.isLoading.set(false);
+      if (this.isLatestDocumentRequest(workspaceId, requestId)) {
+        this.isLoading.set(false);
+      }
     }
   }
 
@@ -120,6 +151,7 @@ export class ExpenseDocumentService {
     if (this.mockStore.isDemoMode()) return { data: null, error: new Error(DEMO_MESSAGE) };
 
     const workspace = this.workspaceService.currentWorkspace();
+    this.resetWorkspaceContext(workspace?.id ?? null);
     if (!workspace) return { data: null, error: new Error('Kein aktiver Workspace') };
 
     const extension = expenseDocumentExtension(file);
@@ -155,12 +187,14 @@ export class ExpenseDocumentService {
 
       uploadedPath = null;
       const document = data as ExpenseDocument;
-      this.documentsRaw.update((current) => [...current, document]);
-      this.documentCounts.update((current) => {
-        const next = new Map(current);
-        next.set(expenseId, (next.get(expenseId) ?? 0) + 1);
-        return next;
-      });
+      if (this.isCurrentWorkspace(workspace.id)) {
+        this.documentsRaw.update((current) => [...current, document]);
+        this.documentCounts.update((current) => {
+          const next = new Map(current);
+          next.set(expenseId, (next.get(expenseId) ?? 0) + 1);
+          return next;
+        });
+      }
       return { data: document, error: null };
     } catch (cause: unknown) {
       const failure = this.syncStatus.melde('Speichern des Ausgabenbelegs', cause);
@@ -181,6 +215,11 @@ export class ExpenseDocumentService {
 
   async download(document: ExpenseDocument): Promise<{ data: Blob | null; error: Error | null }> {
     if (this.mockStore.isDemoMode()) return { data: null, error: new Error(DEMO_MESSAGE) };
+    const workspaceId = this.workspaceService.currentWorkspace()?.id;
+    this.resetWorkspaceContext(workspaceId ?? null);
+    if (!workspaceId || document.workspace_id !== workspaceId) {
+      return { data: null, error: new Error('Der Beleg gehört nicht zum aktiven Workspace.') };
+    }
     try {
       const { data, error } = await this.supabase.client.storage
         .from(EXPENSE_DOCUMENT_BUCKET)
@@ -194,10 +233,16 @@ export class ExpenseDocumentService {
 
   async remove(document: ExpenseDocument): Promise<{ error: Error | null }> {
     if (this.mockStore.isDemoMode()) return { error: new Error(DEMO_MESSAGE) };
+    const workspaceId = this.workspaceService.currentWorkspace()?.id;
+    this.resetWorkspaceContext(workspaceId ?? null);
+    if (!workspaceId || document.workspace_id !== workspaceId) {
+      return { error: new Error('Der Beleg gehört nicht zum aktiven Workspace.') };
+    }
     try {
       const { data, error } = await this.supabase.client
         .from('expense_documents')
         .delete()
+        .eq('workspace_id', workspaceId)
         .eq('id', document.id)
         .select();
       if (error) throw error;
@@ -210,13 +255,15 @@ export class ExpenseDocumentService {
       const cleanup = await this.supabase.client.storage
         .from(EXPENSE_DOCUMENT_BUCKET)
         .remove([document.storage_path]);
-      this.documentsRaw.update((current) => current.filter((entry) => entry.id !== document.id));
-      this.documentCounts.update((current) => {
-        const next = new Map(current);
-        const count = Math.max(0, (next.get(document.expense_id) ?? 1) - 1);
-        next.set(document.expense_id, count);
-        return next;
-      });
+      if (this.isCurrentWorkspace(workspaceId)) {
+        this.documentsRaw.update((current) => current.filter((entry) => entry.id !== document.id));
+        this.documentCounts.update((current) => {
+          const next = new Map(current);
+          const count = Math.max(0, (next.get(document.expense_id) ?? 1) - 1);
+          next.set(document.expense_id, count);
+          return next;
+        });
+      }
       if (cleanup.error) {
         return {
           error: this.syncStatus.melde(
@@ -229,5 +276,32 @@ export class ExpenseDocumentService {
     } catch (cause: unknown) {
       return { error: this.syncStatus.melde('Entfernen des Ausgabenbelegs', cause) };
     }
+  }
+
+  private resetWorkspaceContext(workspaceId: string | null): boolean {
+    if (this.workspaceContextId === workspaceId) return false;
+    this.workspaceContextId = workspaceId;
+    this.documentRequestSequence += 1;
+    this.summaryRequestSequence += 1;
+    this.documentsRaw.set([]);
+    this.documentCounts.set(new Map());
+    this.loadError.set(null);
+    this.isLoading.set(false);
+    return true;
+  }
+
+  private isCurrentWorkspace(workspaceId: string): boolean {
+    return (
+      this.workspaceContextId === workspaceId &&
+      this.workspaceService.currentWorkspace()?.id === workspaceId
+    );
+  }
+
+  private isLatestDocumentRequest(workspaceId: string, requestId: number): boolean {
+    return this.isCurrentWorkspace(workspaceId) && this.documentRequestSequence === requestId;
+  }
+
+  private isLatestSummaryRequest(workspaceId: string, requestId: number): boolean {
+    return this.isCurrentWorkspace(workspaceId) && this.summaryRequestSequence === requestId;
   }
 }

@@ -39,6 +39,10 @@ function createService(
     insert?: ReturnType<typeof vi.fn>;
     deleteRow?: ReturnType<typeof vi.fn>;
     summaryRows?: readonly { expense_id: string }[];
+    summaryResult?: (workspaceId: string) => Promise<{
+      readonly data: readonly { expense_id: string }[] | null;
+      readonly error: Error | null;
+    }>;
   } = {},
 ) {
   const upload = options.upload ?? vi.fn(async () => ({ error: null }));
@@ -51,21 +55,30 @@ function createService(
     }));
   const deleteRow =
     options.deleteRow ??
-    vi.fn(() => ({
-      eq: () => ({ select: async () => ({ data: [{ id: storedDocument.id }], error: null }) }),
-    }));
+    vi.fn(() => {
+      const query = {
+        eq: () => query,
+        select: async () => ({ data: [{ id: storedDocument.id }], error: null }),
+      };
+      return query;
+    });
 
   const documentsRaw = signal<readonly ExpenseDocument[]>([]);
   const documentCounts = signal<ReadonlyMap<string, number>>(new Map());
+  const currentWorkspace = signal(workspace);
   const summaryRows = options.summaryRows ?? [{ expense_id: expenseId }];
+  let summaryWorkspaceId = '';
   const service = Object.create(ExpenseDocumentService.prototype) as ExpenseDocumentService;
   Object.assign(service, {
     documentsRaw,
     documents: documentsRaw.asReadonly(),
     documentCounts,
+    workspaceContextId: null,
+    documentRequestSequence: 0,
+    summaryRequestSequence: 0,
     isLoading: signal(false),
     loadError: signal<string | null>(null),
-    workspaceService: { currentWorkspace: signal(workspace) },
+    workspaceService: { currentWorkspace },
     mockStore: { isDemoMode: signal(options.demo ?? false) },
     syncStatus: new SyncStatusService(),
     auth: { currentUser: () => ({ id: 'user-1' }) },
@@ -78,13 +91,22 @@ function createService(
           select: (columns?: string) => {
             if (columns === 'expense_id') {
               return {
-                eq: () => ({
-                  in: async () => ({ data: summaryRows, error: null }),
-                }),
+                eq: (column: string, value: string) => {
+                  if (column === 'workspace_id') summaryWorkspaceId = value;
+                  return {
+                    in: () =>
+                      options.summaryResult?.(summaryWorkspaceId) ??
+                      Promise.resolve({ data: summaryRows, error: null }),
+                  };
+                },
               };
             }
+            const documentQuery = {
+              eq: () => documentQuery,
+              order: async () => ({ data: [storedDocument], error: null }),
+            };
             return {
-              eq: () => ({ order: async () => ({ data: [storedDocument], error: null }) }),
+              eq: () => documentQuery,
             };
           },
         }),
@@ -92,7 +114,7 @@ function createService(
     },
   });
 
-  return { service, upload, removeFile, download, insert, deleteRow };
+  return { service, upload, removeFile, download, insert, deleteRow, currentWorkspace };
 }
 
 describe('ExpenseDocumentService', () => {
@@ -179,5 +201,35 @@ describe('ExpenseDocumentService', () => {
 
     expect(result.error?.message).toContain('Demo');
     expect(upload).not.toHaveBeenCalled();
+  });
+
+  it('verwirft einen verspäteten Belegstatus nach dem Workspace-Wechsel', async () => {
+    let resolveFirst!: (value: {
+      data: readonly { expense_id: string }[] | null;
+      error: Error | null;
+    }) => void;
+    const first = new Promise<{
+      data: readonly { expense_id: string }[] | null;
+      error: Error | null;
+    }>((resolve) => {
+      resolveFirst = resolve;
+    });
+    const otherWorkspaceId = '33333333-3333-4333-8333-333333333333';
+    const otherExpenseId = '66666666-6666-4666-8666-666666666666';
+    const { service, currentWorkspace } = createService({
+      summaryResult: (workspaceId) =>
+        workspaceId === workspace.id
+          ? first
+          : Promise.resolve({ data: [{ expense_id: otherExpenseId }], error: null }),
+    });
+
+    const initial = service.loadSummaryForExpenses([expenseId]);
+    currentWorkspace.set({ id: otherWorkspaceId });
+    await service.loadSummaryForExpenses([otherExpenseId]);
+    resolveFirst({ data: [{ expense_id: expenseId }], error: null });
+    await initial;
+
+    expect(service.hasDocuments(expenseId)).toBe(false);
+    expect(service.hasDocuments(otherExpenseId)).toBe(true);
   });
 });

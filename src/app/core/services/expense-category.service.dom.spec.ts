@@ -34,6 +34,10 @@ function createService(
     insertRow?: ExpenseCategory;
     updateRow?: ExpenseCategory;
     demo?: boolean;
+    loadResult?: (workspaceId: string) => Promise<{
+      readonly data: ExpenseCategory[] | null;
+      readonly error: Error | null;
+    }>;
   } = {},
 ) {
   const currentWorkspace = signal(workspace);
@@ -53,10 +57,14 @@ function createService(
   }));
 
   const selectQuery: Record<string, unknown> = {};
+  let selectedWorkspaceId = '';
   Object.assign(selectQuery, {
     select: () => selectQuery,
-    eq: () => selectQuery,
-    order: () => selectResult(),
+    eq: (column: string, value: string) => {
+      if (column === 'workspace_id') selectedWorkspaceId = value;
+      return selectQuery;
+    },
+    order: () => options.loadResult?.(selectedWorkspaceId) ?? selectResult(),
   });
 
   const updateQuery: Record<string, unknown> = {};
@@ -138,5 +146,33 @@ describe('ExpenseCategoryService', () => {
 
     expect(result.error).toBeNull();
     expect(service.categories()).toEqual([]);
+  });
+
+  it('verwirft eine verspätete Kategorien-Antwort nach dem Workspace-Wechsel', async () => {
+    let resolveFirst!: (value: { data: ExpenseCategory[]; error: Error | null }) => void;
+    const first = new Promise<{ data: ExpenseCategory[]; error: Error | null }>((resolve) => {
+      resolveFirst = resolve;
+    });
+    const otherWorkspaceId = '33333333-3333-4333-8333-333333333333';
+    const otherCategory = {
+      ...category,
+      id: 'other-category',
+      workspace_id: otherWorkspaceId,
+      name: 'Anderer Workspace',
+    };
+    const { service, currentWorkspace } = createService({
+      loadResult: (workspaceId) =>
+        workspaceId === workspace.id
+          ? first
+          : Promise.resolve({ data: [otherCategory], error: null }),
+    });
+
+    const initial = service.load();
+    currentWorkspace.set({ ...workspace, id: otherWorkspaceId });
+    await service.load();
+    resolveFirst({ data: [category], error: null });
+    await initial;
+
+    expect(service.categories()).toEqual([otherCategory]);
   });
 });

@@ -2,6 +2,7 @@ import '@angular/compiler';
 import { Injector, runInInjectionContext, signal } from '@angular/core';
 import { describe, expect, it, vi } from 'vitest';
 import { ExpenseDocumentService } from '../../../../core/services/expense-document.service';
+import { WorkspaceContextLockService } from '../../../../core/services/workspace-context-lock.service';
 import { ExpenseDocumentsComponent } from './expense-documents.component';
 
 describe('ExpenseDocumentsComponent', () => {
@@ -21,6 +22,7 @@ describe('ExpenseDocumentsComponent', () => {
             download: vi.fn(),
           },
         },
+        { provide: WorkspaceContextLockService, useValue: { acquire: () => () => undefined } },
       ],
     });
 

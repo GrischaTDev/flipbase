@@ -5,6 +5,7 @@ import { glob, readFile } from 'node:fs/promises';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { ExpenseCategoryService } from '../../../../core/services/expense-category.service';
 import { ExpenseRecurringService } from '../../../../core/services/expense-recurring.service';
+import { WorkspaceContextLockService } from '../../../../core/services/workspace-context-lock.service';
 import { RecurringExpenseDialogComponent } from './recurring-expense-dialog.component';
 
 beforeAll(async () => {
@@ -40,6 +41,7 @@ describe('RecurringExpenseDialogComponent', () => {
             categories: signal([{ id: 'cat-1', name: 'Hosting & Server', is_archived: false }]),
           },
         },
+        { provide: WorkspaceContextLockService, useValue: { acquire: () => () => undefined } },
       ],
     })
       .overrideComponent(RecurringExpenseDialogComponent, { set: { template: '' } })
@@ -91,6 +93,7 @@ describe('RecurringExpenseDialogComponent', () => {
             categories: signal([{ id: 'cat-1', name: 'Hosting & Server', is_archived: false }]),
           },
         },
+        { provide: WorkspaceContextLockService, useValue: { acquire: () => () => undefined } },
       ],
     })
       .overrideComponent(RecurringExpenseDialogComponent, { set: { template: '' } })
@@ -137,6 +140,7 @@ describe('RecurringExpenseDialogComponent', () => {
             categories: signal([{ id: 'cat-1', name: 'Hosting & Server', is_archived: false }]),
           },
         },
+        { provide: WorkspaceContextLockService, useValue: { acquire: () => () => undefined } },
       ],
     })
       .overrideComponent(RecurringExpenseDialogComponent, { set: { template: '' } })

@@ -1,4 +1,4 @@
-import { computed, inject, Injectable, signal } from '@angular/core';
+import { computed, effect, inject, Injectable, signal } from '@angular/core';
 import { ExpenseCategory } from '../models/expense.models';
 import { AuthService } from './auth.service';
 import { MockDataStoreService } from './mock-data-store.service';
@@ -36,6 +36,8 @@ export class ExpenseCategoryService {
   private readonly mockStore = inject(MockDataStoreService);
   private readonly syncStatus = inject(SyncStatusService);
   private readonly auth = inject(AuthService);
+  private workspaceContextId: string | null = null;
+  private loadRequestSequence = 0;
 
   private readonly categoriesRaw = signal<readonly ExpenseCategory[]>([]);
   readonly categories = computed(() =>
@@ -45,31 +47,44 @@ export class ExpenseCategoryService {
   readonly isLoading = signal(false);
   readonly loadError = signal<Error | null>(null);
 
-  async load(): Promise<void> {
+  constructor() {
+    try {
+      effect(() => {
+        this.resetWorkspaceContext(this.workspace.currentWorkspace()?.id ?? null);
+      });
+    } catch {
+      // Einige fokussierte Service-Tests haben keinen Angular-Scheduler.
+    }
+  }
+
+  async load(): Promise<boolean> {
     const workspaceId = this.workspace.currentWorkspace()?.id;
+    this.resetWorkspaceContext(workspaceId ?? null);
     if (!workspaceId) {
-      this.categoriesRaw.set([]);
-      return;
+      return false;
     }
 
     if (this.mockStore.isDemoMode()) {
       const now = new Date().toISOString();
-      this.categoriesRaw.set(
-        DEFAULT_CATEGORY_NAMES.map((name, index) => ({
-          id: `demo-expense-category-${index + 1}`,
-          workspace_id: workspaceId,
-          name,
-          sort_order: (index + 1) * 10,
-          is_default: true,
-          is_archived: false,
-          created_at: now,
-          created_by: null,
-          updated_at: now,
-        })),
-      );
-      return;
+      if (this.isCurrentWorkspace(workspaceId)) {
+        this.categoriesRaw.set(
+          DEFAULT_CATEGORY_NAMES.map((name, index) => ({
+            id: `demo-expense-category-${index + 1}`,
+            workspace_id: workspaceId,
+            name,
+            sort_order: (index + 1) * 10,
+            is_default: true,
+            is_archived: false,
+            created_at: now,
+            created_by: null,
+            updated_at: now,
+          })),
+        );
+      }
+      return this.isCurrentWorkspace(workspaceId);
     }
 
+    const requestId = ++this.loadRequestSequence;
     this.isLoading.set(true);
     this.loadError.set(null);
     try {
@@ -78,14 +93,20 @@ export class ExpenseCategoryService {
         .select('*')
         .eq('workspace_id', workspaceId)
         .order('sort_order', { ascending: true });
+      if (!this.isLatestRequest(workspaceId, requestId)) return false;
       if (error) throw error;
       this.categoriesRaw.set((data ?? []) as ExpenseCategory[]);
+      return true;
     } catch (cause: unknown) {
+      if (!this.isLatestRequest(workspaceId, requestId)) return false;
       const error = this.syncStatus.melde('Laden der Ausgabenkategorien', cause);
       this.loadError.set(error);
       this.categoriesRaw.set([]);
+      return false;
     } finally {
-      this.isLoading.set(false);
+      if (this.isLatestRequest(workspaceId, requestId)) {
+        this.isLoading.set(false);
+      }
     }
   }
 
@@ -98,6 +119,7 @@ export class ExpenseCategoryService {
       return { data: null, error: new Error('Der Kategoriename darf höchstens 80 Zeichen haben.') };
 
     const workspaceId = this.workspace.currentWorkspace()?.id;
+    this.resetWorkspaceContext(workspaceId ?? null);
     if (!workspaceId) return { data: null, error: new Error('Kein aktiver Workspace.') };
 
     if (this.mockStore.isDemoMode()) {
@@ -113,7 +135,9 @@ export class ExpenseCategoryService {
         created_by: this.auth.currentUser()?.id ?? null,
         updated_at: now,
       };
-      this.categoriesRaw.update((current) => [...current, category]);
+      if (this.isCurrentWorkspace(workspaceId)) {
+        this.categoriesRaw.update((current) => [...current, category]);
+      }
       return { data: category, error: null };
     }
 
@@ -132,7 +156,9 @@ export class ExpenseCategoryService {
         .single();
       if (error || !data) throw error ?? new Error('Die Kategorie wurde nicht zurückgegeben.');
       const category = data as ExpenseCategory;
-      this.categoriesRaw.update((current) => [...current, category]);
+      if (this.isCurrentWorkspace(workspaceId)) {
+        this.categoriesRaw.update((current) => [...current, category]);
+      }
       return { data: category, error: null };
     } catch (cause: unknown) {
       return {
@@ -167,6 +193,7 @@ export class ExpenseCategoryService {
       return { data: null, error: new Error('Bitte einen Kategorienamen eingeben.') };
 
     const workspaceId = this.workspace.currentWorkspace()?.id;
+    this.resetWorkspaceContext(workspaceId ?? null);
     if (!workspaceId) return { data: null, error: new Error('Kein aktiver Workspace.') };
 
     const current = this.categoriesRaw().find((category) => category.id === id);
@@ -177,9 +204,11 @@ export class ExpenseCategoryService {
         ...changes,
         updated_at: new Date().toISOString(),
       };
-      this.categoriesRaw.update((categories) =>
-        categories.map((category) => (category.id === id ? updated : category)),
-      );
+      if (this.isCurrentWorkspace(workspaceId)) {
+        this.categoriesRaw.update((categories) =>
+          categories.map((category) => (category.id === id ? updated : category)),
+        );
+      }
       return { data: updated, error: null };
     }
 
@@ -193,9 +222,11 @@ export class ExpenseCategoryService {
         .single();
       if (error || !data) throw error ?? new Error('Die Kategorie wurde nicht zurückgegeben.');
       const updated = data as ExpenseCategory;
-      this.categoriesRaw.update((categories) =>
-        categories.map((category) => (category.id === id ? updated : category)),
-      );
+      if (this.isCurrentWorkspace(workspaceId)) {
+        this.categoriesRaw.update((categories) =>
+          categories.map((category) => (category.id === id ? updated : category)),
+        );
+      }
       return { data: updated, error: null };
     } catch (cause: unknown) {
       return {
@@ -203,5 +234,26 @@ export class ExpenseCategoryService {
         error: this.syncStatus.melde('Ändern der Ausgabenkategorie', cause),
       };
     }
+  }
+
+  private resetWorkspaceContext(workspaceId: string | null): boolean {
+    if (this.workspaceContextId === workspaceId) return false;
+    this.workspaceContextId = workspaceId;
+    this.loadRequestSequence += 1;
+    this.categoriesRaw.set([]);
+    this.loadError.set(null);
+    this.isLoading.set(false);
+    return true;
+  }
+
+  private isCurrentWorkspace(workspaceId: string): boolean {
+    return (
+      this.workspaceContextId === workspaceId &&
+      this.workspace.currentWorkspace()?.id === workspaceId
+    );
+  }
+
+  private isLatestRequest(workspaceId: string, requestId: number): boolean {
+    return this.isCurrentWorkspace(workspaceId) && this.loadRequestSequence === requestId;
   }
 }
