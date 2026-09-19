@@ -24,7 +24,6 @@ describe('PurchaseService – fehlgeschlagenes Löschen', () => {
   it('entfernt den Einkauf erst nach bestätigtem Löschen aus der Datenbank', async () => {
     const purchasesRaw = signal<Purchase[]>([einkauf]);
     const selectedPurchaseRaw = signal<Purchase | null>(einkauf);
-    const lokaleLoeschung = vi.fn();
     const artikelEntfernen = vi.fn();
     const service = Object.create(PurchaseService.prototype) as PurchaseService;
 
@@ -32,10 +31,6 @@ describe('PurchaseService – fehlgeschlagenes Löschen', () => {
       purchasesRaw,
       selectedPurchaseRaw,
       selectedPurchase: () => selectedPurchaseRaw(),
-      mockStore: {
-        isDemoMode: signal(false),
-        deletePurchase: lokaleLoeschung,
-      },
       inventory: { entferneArtikelZuEinkauf: artikelEntfernen },
       syncStatus: new SyncStatusService(),
       supabase: {
@@ -54,29 +49,20 @@ describe('PurchaseService – fehlgeschlagenes Löschen', () => {
     expect(ergebnis.error).toBeInstanceOf(Error);
     expect(purchasesRaw()).toEqual([einkauf]);
     expect(selectedPurchaseRaw()).toEqual(einkauf);
-    expect(lokaleLoeschung).not.toHaveBeenCalled();
     expect(artikelEntfernen).not.toHaveBeenCalled();
   });
 });
 
 describe('PurchaseService – fehlgeschlagenes Bearbeiten', () => {
-  it('behält Signal und lokalen Store bei einem Datenbankfehler unverändert', async () => {
+  it('behält das Signal bei einem Datenbankfehler unverändert', async () => {
     const purchasesRaw = signal<Purchase[]>([einkauf]);
     const selectedPurchaseRaw = signal<Purchase | null>(einkauf);
-    let lokal = einkauf;
     const service = Object.create(PurchaseService.prototype) as PurchaseService;
     Object.assign(service, {
       purchasesRaw,
       selectedPurchaseRaw,
       sourcesService: { sources: signal([]) },
       suppliersService: { suppliers: signal([]) },
-      mockStore: {
-        isDemoMode: signal(false),
-        getPurchases: () => [lokal],
-        savePurchase: (wert: Purchase) => {
-          lokal = wert;
-        },
-      },
       syncStatus: new SyncStatusService(),
       supabase: {
         client: {
@@ -94,7 +80,6 @@ describe('PurchaseService – fehlgeschlagenes Bearbeiten', () => {
     expect(ergebnis.error).toBeInstanceOf(Error);
     expect(purchasesRaw()).toEqual([einkauf]);
     expect(selectedPurchaseRaw()).toEqual(einkauf);
-    expect(lokal).toEqual(einkauf);
   });
 });
 
@@ -102,7 +87,6 @@ describe('PurchaseService – bestätigte Tracking- und Verteiländerungen', () 
   it('ändert das Tracking im lokalen Bestand erst nach erfolgreichem Datenbank-Update', async () => {
     const purchasesRaw = signal<Purchase[]>([einkauf]);
     const selectedPurchaseRaw = signal<Purchase | null>(einkauf);
-    const lokalSpeichern = vi.fn();
     const rpc = vi.fn(async () => ({ data: null, error: { code: '42501', message: 'denied' } }));
     const service = Object.create(PurchaseService.prototype) as PurchaseService;
 
@@ -111,10 +95,6 @@ describe('PurchaseService – bestätigte Tracking- und Verteiländerungen', () 
       purchases: () => purchasesRaw(),
       selectedPurchaseRaw,
       selectedPurchase: () => selectedPurchaseRaw(),
-      mockStore: {
-        isDemoMode: signal(false),
-        savePurchase: lokalSpeichern,
-      },
       syncStatus: new SyncStatusService(),
       supabase: { client: { rpc } },
     });
@@ -124,7 +104,6 @@ describe('PurchaseService – bestätigte Tracking- und Verteiländerungen', () 
     expect(ergebnis.error).toBeInstanceOf(Error);
     expect(purchasesRaw()).toEqual([einkauf]);
     expect(selectedPurchaseRaw()).toEqual(einkauf);
-    expect(lokalSpeichern).not.toHaveBeenCalled();
     expect(rpc).toHaveBeenCalledWith('update_purchase_tracking', {
       p_purchase_id: einkauf.id,
       p_tracking_number: 'TRACK-NEU',
@@ -167,18 +146,12 @@ describe('PurchaseService – bestätigte Tracking- und Verteiländerungen', () 
   it('ändert die Verteilmethode lokal erst nach erfolgreichem Datenbank-Update', async () => {
     const purchasesRaw = signal<Purchase[]>([einkauf]);
     const selectedPurchaseRaw = signal<Purchase | null>(einkauf);
-    const lokalSpeichern = vi.fn();
     const service = Object.create(PurchaseService.prototype) as PurchaseService;
 
     Object.assign(service, {
       purchasesRaw,
       selectedPurchaseRaw,
       selectedPurchase: () => selectedPurchaseRaw(),
-      mockStore: {
-        isDemoMode: signal(false),
-        getPurchases: () => [einkauf],
-        savePurchase: lokalSpeichern,
-      },
       syncStatus: new SyncStatusService(),
       supabase: {
         client: {
@@ -196,7 +169,6 @@ describe('PurchaseService – bestätigte Tracking- und Verteiländerungen', () 
     expect(ergebnis.error).toBeInstanceOf(Error);
     expect(purchasesRaw()).toEqual([einkauf]);
     expect(selectedPurchaseRaw()).toEqual(einkauf);
-    expect(lokalSpeichern).not.toHaveBeenCalled();
   });
 
   it('bricht die Kostenverteilung bei einem Modusfehler vor allen lokalen Artikeländerungen ab', async () => {
@@ -224,11 +196,6 @@ describe('PurchaseService – bestätigte Tracking- und Verteiländerungen', () 
       purchaseItems: () => [artikel],
       profitEngine: { allocateCosts: () => [31.98] },
       inventory: { uebernehmeArtikelAenderungen: artikelLokalUebernehmen },
-      mockStore: {
-        isDemoMode: signal(false),
-        getPurchases: () => [einkauf],
-        savePurchase: vi.fn(),
-      },
       syncStatus: new SyncStatusService(),
       supabase: {
         client: {
@@ -269,7 +236,6 @@ describe('PurchaseService – bestätigte Tracking- und Verteiländerungen', () 
     const purchasesRaw = signal<Purchase[]>([einkauf]);
     const selectedPurchaseRaw = signal<Purchase | null>(einkauf);
     const artikelLokalUebernehmen = vi.fn();
-    const lokalSpeichern = vi.fn();
     const tabellen: string[] = [];
     const service = Object.create(PurchaseService.prototype) as PurchaseService;
     Object.assign(service, {
@@ -279,11 +245,6 @@ describe('PurchaseService – bestätigte Tracking- und Verteiländerungen', () 
       purchaseItems: () => [artikel],
       profitEngine: { allocateCosts: () => [31.98] },
       inventory: { uebernehmeArtikelAenderungen: artikelLokalUebernehmen },
-      mockStore: {
-        isDemoMode: signal(false),
-        getPurchases: () => [einkauf],
-        savePurchase: lokalSpeichern,
-      },
       syncStatus: new SyncStatusService(),
       supabase: {
         client: {
@@ -306,7 +267,6 @@ describe('PurchaseService – bestätigte Tracking- und Verteiländerungen', () 
     expect(ergebnis.error).toBeNull();
     expect(tabellen).toEqual(['purchases']);
     expect(artikelLokalUebernehmen).not.toHaveBeenCalled();
-    expect(lokalSpeichern).toHaveBeenCalled();
     expect(purchasesRaw()[0]).toMatchObject({
       cost_allocation_mode: 'value_weighted',
     });
@@ -333,7 +293,7 @@ describe('PurchaseService – autoritativer Einzelartikel-Wareneingang', () => {
     line_total: null,
   };
 
-  function createReceiptService(options?: { readonly demo?: boolean }) {
+  function createReceiptService() {
     const workspace = signal<{ id: string } | null>({ id: einkauf.workspace_id });
     const purchasesRaw = signal<Purchase[]>([einkauf]);
     const selectedPurchaseRaw = signal<Purchase | null>({
@@ -358,7 +318,7 @@ describe('PurchaseService – autoritativer Einzelartikel-Wareneingang', () => {
     });
     const unsafeUpsert = vi.fn();
     let receiptNumber = 0;
-    const receiveDemo = vi.fn(() => {
+    const simuliereRpcEingang = vi.fn(() => {
       receiptNumber += 1;
       const confirmed = { ...line, received_quantity: receiptNumber };
       const item: InventoryItem = {
@@ -385,7 +345,7 @@ describe('PurchaseService – autoritativer Einzelartikel-Wareneingang', () => {
       };
     });
     const rpc = vi.fn(async () => {
-      const result = receiveDemo();
+      const result = simuliereRpcEingang();
       return {
         data: {
           purchase_line: result.purchaseLine,
@@ -407,11 +367,6 @@ describe('PurchaseService – autoritativer Einzelartikel-Wareneingang', () => {
         loadInventory,
         uebernehmeArtikelAenderungen: unsafeUpsert,
       },
-      mockStore: {
-        isDemoMode: signal(options?.demo ?? false),
-        receiveIndividualPurchaseLine: receiveDemo,
-        savePurchase: vi.fn(),
-      },
       syncStatus: new SyncStatusService(),
       supabase: { client: { rpc } },
     });
@@ -426,45 +381,42 @@ describe('PurchaseService – autoritativer Einzelartikel-Wareneingang', () => {
     };
   }
 
-  it.each([false, true])(
-    'lädt nach dem %s-Wareneingang den autoritativen Inventarzustand statt das rohe RPC-Objekt einzusetzen',
-    async (demo) => {
-      const { service, items, loadInventory, unsafeUpsert } = createReceiptService({ demo });
+  it('lädt nach dem Wareneingang den autoritativen Inventarzustand statt das rohe RPC-Objekt einzusetzen', async () => {
+    const { service, items, loadInventory, unsafeUpsert } = createReceiptService();
 
-      const result = await service.receiveIndividualPurchaseLine(einkauf.id, line.id, {
-        title: line.title_snapshot,
-        condition: 'used',
-      });
+    const result = await service.receiveIndividualPurchaseLine(einkauf.id, line.id, {
+      title: line.title_snapshot,
+      condition: 'used',
+    });
 
-      expect(result.error).toBeNull();
-      expect(loadInventory).toHaveBeenCalledWith(einkauf.workspace_id);
-      expect(unsafeUpsert).not.toHaveBeenCalled();
-      expect(items()).toMatchObject([
-        { id: 'item-1', sale_state: 'no_active_sale', active_sale_count: 0 },
-      ]);
-      const rows = mapPurchaseDetailRows(
-        { ...einkauf, purchase_lines: [{ ...line, received_quantity: 1 }] },
-        {
-          inventoryItems: items(),
-          stockLots: [],
-          stockMovements: [],
-          sales: [],
-          inventoryState: 'loaded',
-          stockState: 'loaded',
-          salesState: 'loaded',
-        },
-      );
-      expect(rows).toMatchObject([
-        {
-          availableUnits: 1,
-          inventoryItemLinks: [{ id: 'item-1', label: 'Artikel 1' }],
-        },
-      ]);
-    },
-  );
+    expect(result.error).toBeNull();
+    expect(loadInventory).toHaveBeenCalledWith(einkauf.workspace_id);
+    expect(unsafeUpsert).not.toHaveBeenCalled();
+    expect(items()).toMatchObject([
+      { id: 'item-1', sale_state: 'no_active_sale', active_sale_count: 0 },
+    ]);
+    const rows = mapPurchaseDetailRows(
+      { ...einkauf, purchase_lines: [{ ...line, received_quantity: 1 }] },
+      {
+        inventoryItems: items(),
+        stockLots: [],
+        stockMovements: [],
+        sales: [],
+        inventoryState: 'loaded',
+        stockState: 'loaded',
+        salesState: 'loaded',
+      },
+    );
+    expect(rows).toMatchObject([
+      {
+        availableUnits: 1,
+        inventoryItemLinks: [{ id: 'item-1', label: 'Artikel 1' }],
+      },
+    ]);
+  });
 
-  it('zeigt nach drei Demo-Eingängen drei Artikellinks in genau einer Positionszeile', async () => {
-    const { service, items, purchaseLinesRaw } = createReceiptService({ demo: true });
+  it('zeigt nach drei Eingängen drei Artikellinks in genau einer Positionszeile', async () => {
+    const { service, items, purchaseLinesRaw } = createReceiptService();
 
     for (let index = 0; index < 3; index += 1) {
       await service.receiveIndividualPurchaseLine(einkauf.id, line.id, {

@@ -1,5 +1,5 @@
 import '@angular/compiler';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { signal } from '@angular/core';
 import { SourcesService } from './sources.service';
 import { SuppliersService } from './suppliers.service';
@@ -23,9 +23,18 @@ import { nurAktive, istArchiviert } from './master-data-filter';
  */
 
 interface Attrappen {
-  demoModus: boolean;
   gespeicherteQuellen: Source[];
   gespeicherteLieferanten: Supplier[];
+}
+
+/** Genuegt fuer update(...).eq(...) und delete().eq(...): beides schliesst mit `{ error: null }`. */
+function baueSupabaseAttrappe() {
+  const query = {
+    update: () => query,
+    delete: () => query,
+    eq: async () => ({ error: null }),
+  };
+  return { client: { from: () => query } };
 }
 
 function baueSourcesService(zustand: Attrappen, verknuepfteEinkaeufe: number): SourcesService {
@@ -35,14 +44,8 @@ function baueSourcesService(zustand: Attrappen, verknuepfteEinkaeufe: number): S
     sources: signal<Source[]>(zustand.gespeicherteQuellen),
     isLoading: signal(false),
     zeigeArchivierte: signal(false),
-    mockStore: {
-      isDemoMode: () => zustand.demoModus,
-      saveSource: vi.fn(),
-      deleteSource: vi.fn(),
-      getPurchases: () => [],
-    },
     syncStatus: { melde: (_v: string, e: unknown) => e as Error },
-    supabase: { client: {} },
+    supabase: baueSupabaseAttrappe(),
     workspaceService: { currentWorkspace: () => ({ id: 'ws-1' }) },
   });
 
@@ -63,14 +66,8 @@ function baueSuppliersService(zustand: Attrappen, verknuepfteEinkaeufe: number):
     suppliers: signal<Supplier[]>(zustand.gespeicherteLieferanten),
     isLoading: signal(false),
     zeigeArchivierte: signal(false),
-    mockStore: {
-      isDemoMode: () => zustand.demoModus,
-      saveSupplier: vi.fn(),
-      deleteSupplier: vi.fn(),
-      getPurchases: () => [],
-    },
     syncStatus: { melde: (_v: string, e: unknown) => e as Error },
-    supabase: { client: {} },
+    supabase: baueSupabaseAttrappe(),
     workspaceService: { currentWorkspace: () => ({ id: 'ws-1' }) },
   });
 
@@ -101,7 +98,6 @@ describe('Stammdaten archivieren statt loeschen', () => {
 
   beforeEach(() => {
     zustand = {
-      demoModus: true,
       gespeicherteQuellen: [
         { id: 'q-1', workspace_id: 'ws-1', name: 'Flohmarkt', is_default: false, is_active: true },
         { id: 'q-2', workspace_id: 'ws-1', name: 'eBay', is_default: false, is_active: true },
@@ -174,22 +170,6 @@ describe('Stammdaten archivieren statt loeschen', () => {
       const eintrag = dienst.sources().find((s) => s.id === 'q-1');
       expect(eintrag).toBeTruthy();
       expect(eintrag?.is_active).toBe(false);
-    });
-
-    it('sichert den archivierten Zustand im lokalen Speicher', async () => {
-      // Ohne dieses Sichern galt das Archivieren im Demo-Modus nur bis zum
-      // naechsten Laden - der Eintrag war danach wieder aktiv. Im Browser
-      // aufgefallen, nicht durch den Compiler.
-      const dienst = baueSourcesService(zustand, 0);
-      const gespeichert = (
-        dienst as unknown as { mockStore: { saveSource: ReturnType<typeof vi.fn> } }
-      ).mockStore.saveSource;
-
-      await dienst.setSourceArchiviert('q-1', true);
-
-      expect(gespeichert).toHaveBeenCalledWith(
-        expect.objectContaining({ id: 'q-1', is_active: false }),
-      );
     });
 
     it('holt eine archivierte Quelle zurueck', async () => {

@@ -1,7 +1,6 @@
 import '@angular/compiler';
 import { signal, WritableSignal } from '@angular/core';
 import { describe, expect, it, vi } from 'vitest';
-import { InventoryItem, Sale, StockLot } from '../models/flipbase.models';
 import { PurchaseService } from './purchase.service';
 import { SyncStatusService } from './sync-status.service';
 
@@ -32,11 +31,7 @@ function deferred<T>(): Deferred<T> {
 }
 
 function createService(options?: {
-  readonly demo?: boolean;
   readonly rpc?: (name: string, args: Readonly<Record<string, unknown>>) => Promise<unknown>;
-  readonly items?: readonly InventoryItem[];
-  readonly lots?: readonly StockLot[];
-  readonly sales?: readonly Sale[];
 }): SaleHistoryService {
   const syncStatus = new SyncStatusService();
   const service = Object.create(PurchaseService.prototype) as PurchaseService & SaleHistoryService;
@@ -44,12 +39,6 @@ function createService(options?: {
     supabase: { client: { rpc: options?.rpc ?? vi.fn() } },
     syncStatus,
     workspaceService: { currentWorkspace: signal({ id: 'workspace-1' }) },
-    mockStore: {
-      isDemoMode: signal(options?.demo ?? false),
-      getItems: () => [...(options?.items ?? [])],
-      getStockLots: () => [...(options?.lots ?? [])],
-      getSales: () => [...(options?.sales ?? [])],
-    },
     purchaseSaleHistoryState: signal<SaleHistoryState>('idle'),
     purchaseSaleReviewInventoryItemId: signal<string | null>(null),
     saleHistoryLoadRequestId: 0,
@@ -165,70 +154,5 @@ describe('PurchaseService – unveränderlicher Verkaufsverlauf', () => {
     expect(service.purchaseSaleReviewInventoryItemId()).toBe(
       '95000000-0000-4000-8000-000000000406',
     );
-  });
-
-  it('wertet im Demo-Modus auch retournierte und stornierte Belege als Historie', async () => {
-    const items = [
-      {
-        id: 'item-1',
-        workspace_id: 'workspace-1',
-        purchase_id: 'purchase-individual',
-      } as InventoryItem,
-      {
-        id: 'item-legacy',
-        workspace_id: 'workspace-1',
-        purchase_id: 'purchase-review',
-        status: 'sold',
-      } as InventoryItem,
-    ];
-    const lots = [
-      {
-        id: 'lot-1',
-        workspace_id: 'workspace-1',
-        purchase_id: 'purchase-quantity',
-      } as StockLot,
-    ];
-    const sales = [
-      {
-        id: 'sale-returned',
-        workspace_id: 'workspace-1',
-        returned_at: '2026-08-31T12:00:00.000Z',
-        lines: [{ inventory_item_id: 'item-1' }],
-      } as Sale,
-      {
-        id: 'sale-voided',
-        workspace_id: 'workspace-1',
-        voided_at: '2026-08-31T13:00:00.000Z',
-        lot_allocations: [{ stock_lot_id: 'lot-1' }],
-      } as Sale,
-      {
-        id: 'sale-legacy-header',
-        workspace_id: 'workspace-1',
-        inventory_item_id: 'item-legacy',
-        platform: 'direct',
-        sale_price: 10,
-        sale_date: '2026-08-31',
-        platform_fee: 0,
-        shipping_cost: 0,
-        packaging_cost: 0,
-        other_costs: 0,
-        lines: [],
-      } as Sale,
-    ];
-    const service = createService({ demo: true, items, lots, sales });
-
-    expect(await service.loadPurchaseSaleHistory('workspace-1', 'purchase-individual')).toBe(
-      'recorded',
-    );
-    expect(await service.loadPurchaseSaleHistory('workspace-1', 'purchase-quantity')).toBe(
-      'recorded',
-    );
-    expect(await service.loadPurchaseSaleHistory('workspace-1', 'purchase-never-sold')).toBe(
-      'none',
-    );
-    expect(await service.loadPurchaseSaleHistory('workspace-1', 'purchase-review')).toBe(
-      'review_required',
-    );
-    expect(service.purchaseSaleReviewInventoryItemId()).toBe('item-legacy');
   });
 });

@@ -1,11 +1,9 @@
 import '@angular/compiler';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { readFileSync } from 'node:fs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Purchase } from '../../../../core/models/flipbase.models';
 import { PurchaseDocument } from '../../../../core/models/purchase-document.models';
-import { MockDataStoreService } from '../../../../core/services/mock-data-store.service';
 import { PurchaseDocumentService } from '../../../../core/services/purchase-document.service';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import {
@@ -38,7 +36,6 @@ const document: PurchaseDocument = {
 };
 
 const documents = signal<readonly PurchaseDocument[]>([document]);
-const isDemoMode = signal(false);
 const loadForPurchase = vi.fn(async () => undefined);
 const upload = vi.fn(async (): Promise<{ data: PurchaseDocument | null; error: Error | null }> => ({
   data: document,
@@ -55,7 +52,6 @@ function createCard(purchase = openPurchase) {
 
 beforeEach(() => {
   documents.set([document]);
-  isDemoMode.set(false);
   loadForPurchase.mockClear();
   upload.mockClear().mockResolvedValue({ data: document, error: null });
   remove.mockClear().mockResolvedValue({ error: null });
@@ -74,7 +70,6 @@ beforeEach(() => {
           remove,
         },
       },
-      { provide: MockDataStoreService, useValue: { isDemoMode } },
       { provide: ToastService, useValue: { success: toastSuccess } },
     ],
   });
@@ -145,18 +140,5 @@ describe('PurchaseDocumentsCardComponent', () => {
     await card.removeDocument(document);
 
     expect(card.errorMessage()).toBe('Der Einkauf ist abgeschlossen.');
-  });
-
-  it('sperrt das Hinzufügen im Demo-Modus und erklärt es im Template', () => {
-    isDemoMode.set(true);
-    const template = readFileSync(
-      'src/app/features/purchases/components/purchase-documents-card/purchase-documents-card.component.html',
-      'utf8',
-    );
-
-    expect(createCard().isDemoMode()).toBe(true);
-    expect(template).toContain('[disabled]="isDemoMode()"');
-    expect(template).toContain('data-document-demo-hint');
-    expect(template).toContain('@if (canRemove())');
   });
 });

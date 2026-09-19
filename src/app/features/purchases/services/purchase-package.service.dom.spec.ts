@@ -1,8 +1,7 @@
 import '@angular/compiler';
 import { Injector, runInInjectionContext, signal } from '@angular/core';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { InventoryService } from '../../../core/services/inventory.service';
-import { MockDataStoreService } from '../../../core/services/mock-data-store.service';
 import { SupabaseService } from '../../../core/services/supabase.service';
 import { SyncStatusService } from '../../../core/services/sync-status.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
@@ -38,26 +37,20 @@ function setup() {
     .fn<(...args: unknown[]) => Promise<{ data: unknown; error: unknown }>>()
     .mockResolvedValue({ data: response, error: null });
   const loadInventory = vi.fn().mockResolvedValue(undefined);
-  const store = new MockDataStoreService();
   const syncStatus = new SyncStatusService();
   const injector = Injector.create({
     providers: [
       { provide: SupabaseService, useValue: { client: { rpc } } },
       { provide: WorkspaceService, useValue: { currentWorkspace } },
       { provide: InventoryService, useValue: { loadInventory } },
-      { provide: MockDataStoreService, useValue: store },
       { provide: SyncStatusService, useValue: syncStatus },
     ],
   });
   const service = runInInjectionContext(injector, () => new PurchasePackageService());
-  return { service, rpc, loadInventory, currentWorkspace, store, syncStatus };
+  return { service, rpc, loadInventory, currentWorkspace, syncStatus };
 }
 
 describe('PurchasePackageService', () => {
-  beforeEach(() => {
-    localStorage.clear();
-  });
-
   it('sendet Herkunft und stabile Anfrage-ID ohne Preise an die RPC und lädt das Inventar neu', async () => {
     const { service, rpc, loadInventory } = setup();
     expect(await service.capture(lineId, input, requestId)).toEqual({
@@ -120,49 +113,5 @@ describe('PurchasePackageService', () => {
       data: [item],
       error: null,
     });
-  });
-
-  it('erfasst nach Abschluss in der Demo ohne RPC, ohne Kostenverteilung und mit stabiler Wiederholung', async () => {
-    const { service, store, rpc, loadInventory } = setup();
-    store.isDemoMode.set(true);
-    store.savePurchaseWithLines(
-      {
-        id: 'purchase-1',
-        workspace_id: workspaceId,
-        title: 'Paket',
-        type: 'lot',
-        purchase_date: '2026-09-13',
-        purchase_price: 100,
-        cost_allocation_mode: 'even',
-        shipment_status: 'arrived',
-        entry_status: 'finalized',
-      },
-      [
-        {
-          id: lineId,
-          workspace_id: workspaceId,
-          purchase_id: 'purchase-1',
-          title_snapshot: 'Paket',
-          catalog_product_id: null,
-          line_kind: 'individual',
-          is_package: true,
-          ordered_quantity: 1,
-          received_quantity: 0,
-          line_total: 100,
-          unit_purchase_price: 100,
-        },
-      ],
-    );
-    const first = await service.capture(lineId, input, requestId);
-    expect(first.error).toBeNull();
-    expect(first.data?.[0]).toMatchObject({
-      status: 'ready',
-      allocated_purchase_cost: null,
-      source_package_line_id: lineId,
-    });
-    expect(await service.capture(lineId, input, requestId)).toEqual(first);
-    expect(store.getItems()).toHaveLength(1);
-    expect(rpc).not.toHaveBeenCalled();
-    expect(loadInventory).toHaveBeenCalledTimes(2);
   });
 });

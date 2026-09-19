@@ -75,7 +75,6 @@ import {
 } from '../../components/purchase-line-editor/purchase-line-editor.component';
 import { PurchaseLine } from '../../../../core/models/flipbase.models';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
-import { MockDataStoreService } from '../../../../core/services/mock-data-store.service';
 import { PurchaseCostingService } from '../../../../core/services/purchase-costing.service';
 import { PurchaseCorrectionDialogComponent } from '../../components/purchase-correction-dialog/purchase-correction-dialog.component';
 import { PurchaseLifecycleActionsComponent } from '../../components/purchase-lifecycle-actions/purchase-lifecycle-actions.component';
@@ -239,7 +238,6 @@ export class PurchaseDetailComponent {
   private readonly toast = inject(ToastService);
   private readonly syncStatus = inject(SyncStatusService);
   private readonly workspaceService = inject(WorkspaceService);
-  private readonly mockStore = inject(MockDataStoreService);
   private readonly purchaseCostingService = inject(PurchaseCostingService);
 
   /** Fortschrittsstufen der Sendungsverfolgung – typisiert, damit der Zugriff auf statusConfig im Template typsicher bleibt. */
@@ -635,7 +633,6 @@ export class PurchaseDetailComponent {
     effect(() => {
       const purchaseId = this.id();
       const workspaceId = this.workspaceService.currentWorkspace()?.id;
-      this.mockStore.isDemoMode();
       this.capturingPackage.set(null);
       // Die Workspace-Initialisierung verwirft vorherige Detailanfragen. Erst danach
       // laden; ein Listenfehler darf den unabhängig ladbaren Einkauf nicht blockieren.

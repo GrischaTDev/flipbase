@@ -51,8 +51,7 @@ const amendment: PurchaseSellerDetails = {
   original_url: null,
 };
 
-function createService(options: { demo: boolean; rpc?: ReturnType<typeof vi.fn> }) {
-  let stored = finalizedPurchase;
+function createService(options: { rpc?: ReturnType<typeof vi.fn> } = {}) {
   const purchasesRaw = signal<Purchase[]>([finalizedPurchase]);
   const selectedPurchaseRaw = signal<Purchase | null>(finalizedPurchase);
   const service = Object.create(PurchaseService.prototype) as PurchaseService;
@@ -63,16 +62,9 @@ function createService(options: { demo: boolean; rpc?: ReturnType<typeof vi.fn> 
     sourcesService: { sources: signal([source]) },
     suppliersService: { suppliers: signal([supplier]) },
     syncStatus: new SyncStatusService(),
-    mockStore: {
-      isDemoMode: signal(options.demo),
-      getPurchases: () => [stored],
-      savePurchase: (purchase: Purchase) => {
-        stored = purchase;
-      },
-    },
     supabase: { client: { rpc: options.rpc ?? vi.fn() } },
   });
-  return { service, purchasesRaw, selectedPurchaseRaw, stored: () => stored };
+  return { service, purchasesRaw, selectedPurchaseRaw };
 }
 
 describe('PurchaseService.updatePurchaseSellerDetails', () => {
@@ -88,7 +80,7 @@ describe('PurchaseService.updatePurchaseSellerDetails', () => {
       },
       error: null,
     });
-    const { service, selectedPurchaseRaw } = createService({ demo: false, rpc });
+    const { service, selectedPurchaseRaw } = createService({ rpc });
 
     const result = await service.updatePurchaseSellerDetails(
       finalizedPurchase.id,
@@ -127,7 +119,7 @@ describe('PurchaseService.updatePurchaseSellerDetails', () => {
         message: 'Der Einkauf wurde zwischenzeitlich geändert. Bitte neu laden.',
       },
     });
-    const { service, selectedPurchaseRaw } = createService({ demo: false, rpc });
+    const { service, selectedPurchaseRaw } = createService({ rpc });
 
     const result = await service.updatePurchaseSellerDetails(
       finalizedPurchase.id,
@@ -141,45 +133,12 @@ describe('PurchaseService.updatePurchaseSellerDetails', () => {
     expect(selectedPurchaseRaw()).toBe(finalizedPurchase);
   });
 
-  it('trägt im Demo-Modus nach, erhöht die Version und lässt Kosten und Status unverändert', async () => {
-    const { service, purchasesRaw, stored } = createService({ demo: true });
-
-    const result = await service.updatePurchaseSellerDetails(
-      finalizedPurchase.id,
-      2,
-      amendment,
-      null,
-    );
-
-    expect(result).toEqual({ error: null, conflict: false });
-    expect(stored()).toMatchObject({
-      seller_name: 'Lea Mustermann',
-      seller_city: 'Köln',
-      seller_country_code: 'DE',
-      seller_details_version: 3,
-      entry_status: 'finalized',
-      total_purchase_cost: 12,
-      costs: finalizedPurchase.costs,
-    });
-    expect(purchasesRaw()[0]).toMatchObject({ seller_details_version: 3 });
-  });
-
-  it('lehnt im Demo-Modus einen veralteten Stand genauso ab', async () => {
-    const { service, stored } = createService({ demo: true });
-
-    const result = await service.updatePurchaseSellerDetails(
-      finalizedPurchase.id,
-      1,
-      amendment,
-      null,
-    );
-
-    expect(result.conflict).toBe(true);
-    expect(stored()).toBe(finalizedPurchase);
-  });
-
   it('entfernt eine gelöschte Quelle auch aus der lokalen Anzeige', async () => {
-    const { service, selectedPurchaseRaw } = createService({ demo: true });
+    const rpc = vi.fn().mockResolvedValue({
+      data: { purchase: { id: finalizedPurchase.id }, eventId: 'event-1' },
+      error: null,
+    });
+    const { service, selectedPurchaseRaw } = createService({ rpc });
 
     await service.updatePurchaseSellerDetails(
       finalizedPurchase.id,

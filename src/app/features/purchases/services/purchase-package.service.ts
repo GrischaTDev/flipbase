@@ -2,7 +2,6 @@ import { Injectable, inject } from '@angular/core';
 import { InventoryItem, ItemCondition, PurchaseLine } from '../../../core/models/flipbase.models';
 import { MutationResult } from '../../../core/models/mutation-result.model';
 import { InventoryService } from '../../../core/services/inventory.service';
-import { MockDataStoreService } from '../../../core/services/mock-data-store.service';
 import { SupabaseService } from '../../../core/services/supabase.service';
 import { SyncStatusService } from '../../../core/services/sync-status.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
@@ -24,7 +23,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 export class PurchasePackageService {
   private readonly supabase = inject(SupabaseService);
   private readonly workspaceService = inject(WorkspaceService);
-  private readonly mockStore = inject(MockDataStoreService);
   private readonly inventory = inject(InventoryService);
   private readonly syncStatus = inject(SyncStatusService);
 
@@ -81,58 +79,43 @@ export class PurchasePackageService {
     }));
     let captured: InventoryItem[];
     try {
-      if (this.mockStore.isDemoMode()) {
-        const result = this.mockStore.capturePurchasePackageContents(
-          workspaceId,
-          lineId,
-          payload,
-          requestId,
+      const { data, error } = await this.supabase.client.rpc('capture_purchase_package_contents', {
+        p_workspace_id: workspaceId,
+        p_purchase_line_id: lineId,
+        p_items: payload,
+        p_request_id: requestId,
+      });
+      if (error) throw error;
+      if (
+        !isRecord(data) ||
+        !isRecord(data['purchase_line']) ||
+        !Array.isArray(data['inventory_items'])
+      )
+        throw new Error(
+          'Die Antwort zum Paketinhalt ist unvollständig. Bitte den Einkauf neu laden.',
         );
-        if (result.error || !result.data)
-          throw result.error ?? new Error('Der Paketinhalt wurde nicht zurückgegeben.');
-        captured = result.data.inventory_items;
-      } else {
-        const { data, error } = await this.supabase.client.rpc(
-          'capture_purchase_package_contents',
-          {
-            p_workspace_id: workspaceId,
-            p_purchase_line_id: lineId,
-            p_items: payload,
-            p_request_id: requestId,
-          },
-        );
-        if (error) throw error;
-        if (
-          !isRecord(data) ||
-          !isRecord(data['purchase_line']) ||
-          !Array.isArray(data['inventory_items'])
+      const line = data['purchase_line'];
+      const rows: unknown[] = data['inventory_items'];
+      if (
+        line['id'] !== lineId ||
+        line['workspace_id'] !== workspaceId ||
+        line['is_package'] !== true ||
+        rows.length !== items.length ||
+        rows.some(
+          (row) =>
+            !isRecord(row) ||
+            typeof row['id'] !== 'string' ||
+            row['workspace_id'] !== workspaceId ||
+            row['purchase_id'] !== line['purchase_id'] ||
+            row['source_package_line_id'] !== lineId ||
+            row['allocated_purchase_cost'] !== null,
         )
-          throw new Error(
-            'Die Antwort zum Paketinhalt ist unvollständig. Bitte den Einkauf neu laden.',
-          );
-        const line = data['purchase_line'];
-        const rows: unknown[] = data['inventory_items'];
-        if (
-          line['id'] !== lineId ||
-          line['workspace_id'] !== workspaceId ||
-          line['is_package'] !== true ||
-          rows.length !== items.length ||
-          rows.some(
-            (row) =>
-              !isRecord(row) ||
-              typeof row['id'] !== 'string' ||
-              row['workspace_id'] !== workspaceId ||
-              row['purchase_id'] !== line['purchase_id'] ||
-              row['source_package_line_id'] !== lineId ||
-              row['allocated_purchase_cost'] !== null,
-          )
-        ) {
-          throw new Error(
-            'Die Herkunft oder Bewertung des Paketinhhalts ist ungültig. Bitte den Einkauf neu laden.',
-          );
-        }
-        captured = rows as InventoryItem[];
+      ) {
+        throw new Error(
+          'Die Herkunft oder Bewertung des Paketinhhalts ist ungültig. Bitte den Einkauf neu laden.',
+        );
       }
+      captured = rows as InventoryItem[];
     } catch (cause: unknown) {
       const error = this.syncStatus.melde('Paketinhalt erfassen', cause);
       return { data: null, error, reportedBySyncStatus: this.syncStatus.istZentralGemeldet(error) };

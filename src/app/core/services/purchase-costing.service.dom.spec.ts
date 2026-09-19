@@ -3,7 +3,7 @@ import { Injector, runInInjectionContext } from '@angular/core';
 import { describe, expect, it, vi } from 'vitest';
 import { PurchaseCostingService } from './purchase-costing.service';
 import { SyncStatusService } from './sync-status.service';
-import { MockDataStoreService } from './mock-data-store.service';
+import { SupabaseService } from './supabase.service';
 
 const finalizedResult = {
   purchaseId: 'purchase-1',
@@ -14,7 +14,6 @@ const finalizedResult = {
 };
 
 function createService(options?: {
-  readonly demo?: boolean;
   readonly rpc?: (name: string, args: Record<string, unknown>) => Promise<unknown>;
 }) {
   const syncStatus = new SyncStatusService();
@@ -25,15 +24,15 @@ function createService(options?: {
         error: null,
       })),
   );
-  const service = Object.create(PurchaseCostingService.prototype) as PurchaseCostingService;
-  Object.assign(service, {
-    mockStore: {
-      isDemoMode: () => options?.demo ?? false,
-      finalizePurchaseCosting: () => ({ data: finalizedResult, error: null }),
-    },
-    syncStatus,
-    supabase: { client: { rpc } },
-  });
+  const service = runInInjectionContext(
+    Injector.create({
+      providers: [
+        { provide: SupabaseService, useValue: { client: { rpc } } },
+        { provide: SyncStatusService, useValue: syncStatus },
+      ],
+    }),
+    () => new PurchaseCostingService(),
+  );
   return { service, rpc, syncStatus };
 }
 
@@ -334,78 +333,5 @@ describe('PurchaseCostingService', () => {
     expect(result.data).toBeNull();
     expect(result.reportedBySyncStatus).toBe(true);
     expect(syncStatus.anzahl()).toBe(1);
-  });
-
-  it('finalisiert den Demo-Einkauf über denselben lokalen Buchungsvertrag', async () => {
-    const { service, rpc, syncStatus } = createService({ demo: true });
-
-    const result = await service.finalizePurchase('workspace-1', 'purchase-1');
-
-    expect(rpc).not.toHaveBeenCalled();
-    expect(result.data).toEqual(finalizedResult);
-    expect(result.reportedBySyncStatus).toBe(false);
-    expect(syncStatus.anzahl()).toBe(0);
-  });
-
-  it('meldet die nicht unterstützte normale Demo-Finalisierung zentral und lässt den Draft unverändert', async () => {
-    globalThis.localStorage.clear();
-    const store = runInInjectionContext(
-      Injector.create({ providers: [] }),
-      () => new MockDataStoreService(),
-    );
-    store.isDemoMode.set(true);
-    store.savePurchase({
-      id: 'purchase-normal',
-      workspace_id: 'workspace-1',
-      type: 'single',
-      title: 'Normaler Einkauf 10/90',
-      purchase_date: '2026-09-01',
-      purchase_price: 100,
-      cost_allocation_mode: 'even',
-      entry_status: 'draft',
-    });
-    store.savePurchaseLine({
-      id: 'line-10',
-      workspace_id: 'workspace-1',
-      purchase_id: 'purchase-normal',
-      catalog_product_id: null,
-      title_snapshot: 'Artikel für 10 Euro',
-      line_kind: 'individual',
-      ordered_quantity: 1,
-      received_quantity: 0,
-      price_mode: 'priced',
-      unit_purchase_price: 10,
-      line_total: 10,
-    });
-    store.savePurchaseLine({
-      id: 'line-90',
-      workspace_id: 'workspace-1',
-      purchase_id: 'purchase-normal',
-      catalog_product_id: null,
-      title_snapshot: 'Artikel für 90 Euro',
-      line_kind: 'individual',
-      ordered_quantity: 1,
-      received_quantity: 0,
-      price_mode: 'priced',
-      unit_purchase_price: 90,
-      line_total: 90,
-    });
-    const syncStatus = new SyncStatusService();
-    const service = Object.create(PurchaseCostingService.prototype) as PurchaseCostingService;
-    Object.assign(service, {
-      mockStore: store,
-      syncStatus,
-      supabase: { client: { rpc: vi.fn() } },
-    });
-
-    const result = await service.finalizePurchase('workspace-1', 'purchase-normal');
-
-    expect(result.data).toBeNull();
-    expect(result.reportedBySyncStatus).toBe(true);
-    expect(syncStatus.neuesterFehler()?.meldung).toBe(
-      'In der Demo können aktuell nur Mystery Boxen abgeschlossen werden.',
-    );
-    expect(store.getPurchases('workspace-1')[0]).toMatchObject({ entry_status: 'draft' });
-    expect(store.getItems('workspace-1')).toEqual([]);
   });
 });

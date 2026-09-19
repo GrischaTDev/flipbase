@@ -1,5 +1,24 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-19 – Codex GPT-5.6 Terra (OpenAI) – Demo-Code: Einkaufsbereich
+
+**Auftrag:** Den ersten Abschnitt des vereinbarten Umbaus umsetzen: den
+Demo-Modus aus Einkauf, Stammdaten für Quellen und Lieferanten,
+Einkaufsbelegen, Kostenverteilung und der Paket-Erfassung entfernen.
+
+**Änderung:** Die genannten Dienste verwenden nur noch bestätigte
+Supabase-Antworten. Die Einkaufsdetailseite, Belegkarte und Paket-Erfassung
+enthalten keine Demo-Sperren mehr. Sechs Tests, die ausschließlich den
+Browser-Demo-Speicher abdeckten, sind entfernt. Neue DOM-Tests belegen, dass
+Quellen und Lieferanten ohne Demo-Speicher direkt über die Datenbank angelegt
+werden.
+
+**Prüfung:** 146 fokussierte Node-Tests, 37 fokussierte DOM-Tests und 9
+Angular-Tests bestanden. Zusätzlich bestanden Typprüfung, ESLint,
+projektweite Prettier-Prüfung und Produktionsbau. Der Bau meldet weiterhin drei
+bekannte, paketfremde NG8113-Hinweise zu ungenutzten `LucideDynamicIcon`-Importen.
+Kein Push/Merge.
+
 ## 2026-09-19 – Codex (OpenAI) – Prüfung und Nachbesserung der vier Terra-Pakete
 
 **Auftrag:** Die mit Terra umgesetzten Pakete 1–4 (PRs #126–#129) auf Qualität,

@@ -7,7 +7,6 @@ import {
   PurchaseCostingResult,
   PurchaseLinePriceMode,
 } from '../models/purchase-costing.models';
-import { MockDataStoreService } from './mock-data-store.service';
 import { SupabaseService } from './supabase.service';
 import { SyncStatusService } from './sync-status.service';
 
@@ -76,14 +75,12 @@ interface PurchaseCostingRpcClient {
 export class PurchaseCostingService {
   private readonly supabase = inject(SupabaseService);
   private readonly syncStatus = inject(SyncStatusService);
-  private readonly mockStore = inject(MockDataStoreService);
 
   async previewCostRepair(
     workspaceId: string,
     purchaseId: string,
   ): Promise<MutationResult<PurchaseCostRepairPreview>> {
     const operation = 'Prüfen der Einkaufskosten';
-    if (this.mockStore.isDemoMode()) return this.demoFailure(operation);
     try {
       const { data, error } = await this.rpcClient().rpc('preview_purchase_cost_repair', {
         p_workspace_id: workspaceId,
@@ -157,7 +154,6 @@ export class PurchaseCostingService {
     const operation = 'Übernehmen der Einkaufskosten';
     if (!workspaceId || !purchaseId || !fingerprint)
       return this.failure(operation, new Error('Bitte zuerst diesen Einkauf prüfen.'));
-    if (this.mockStore.isDemoMode()) return this.demoFailure(operation);
     try {
       const { data, error } = await this.rpcClient().rpc('migrate_purchase_costing_legacy', {
         p_workspace_id: workspaceId,
@@ -178,16 +174,6 @@ export class PurchaseCostingService {
     workspaceId: string,
     purchaseId: string,
   ): Promise<MutationResult<PurchaseCostingResult>> {
-    if (this.mockStore.isDemoMode()) {
-      const result = this.mockStore.finalizePurchaseCosting(workspaceId, purchaseId);
-      if (result.error || !result.data) {
-        return this.failure(
-          'Finalisieren des Einkaufs',
-          result.error ?? new Error('Die Demo-Finalisierung wurde unvollständig zurückgegeben.'),
-        );
-      }
-      return { data: result.data, error: null, reportedBySyncStatus: false };
-    }
     return this.runCostingMutation(
       'Finalisieren des Einkaufs',
       'finalize_purchase_costing',
@@ -260,17 +246,6 @@ export class PurchaseCostingService {
     if (!this.isBusinessEntityType(entityType)) {
       return this.failure(operation, new Error('Der Datensatztyp ist ungültig.'));
     }
-    if (this.mockStore.isDemoMode()) {
-      return {
-        data:
-          entityType === 'purchase'
-            ? this.mockStore.getPackageCaptureEvents(workspaceId, entityId)
-            : [],
-        error: null,
-        reportedBySyncStatus: false,
-      };
-    }
-
     try {
       const { data, error } = await this.rpcClient().rpc('list_entity_business_events', {
         p_workspace_id: workspaceId,
@@ -306,8 +281,6 @@ export class PurchaseCostingService {
     expectedStatus: PurchaseCostingResult['entryStatus'],
     expectedPurchaseId: string,
   ): Promise<MutationResult<PurchaseCostingResult>> {
-    if (this.mockStore.isDemoMode()) return this.demoFailure(operation);
-
     try {
       const { data, error } = await this.rpcClient().rpc(rpcName, args);
       if (error) return this.failure(operation, error);
@@ -392,13 +365,6 @@ export class PurchaseCostingService {
 
   private rpcClient(): PurchaseCostingRpcClient {
     return this.supabase.client as unknown as PurchaseCostingRpcClient;
-  }
-
-  private demoFailure<T>(operation: string): MutationResult<T> {
-    return this.failure(
-      operation,
-      new Error('Diese verbindliche Buchung ist im Demo-Modus nicht verfügbar.'),
-    );
   }
 
   private failure<T>(operation: string, cause: unknown): MutationResult<T> {

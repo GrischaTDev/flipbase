@@ -1,5 +1,5 @@
 import '@angular/compiler';
-import { signal } from '@angular/core';
+import { Injector, runInInjectionContext, signal } from '@angular/core';
 import { describe, expect, it, vi } from 'vitest';
 import {
   PurchaseDocument,
@@ -7,7 +7,10 @@ import {
   validatePurchaseDocumentFile,
 } from '../models/purchase-document.models';
 import { PurchaseDocumentService } from './purchase-document.service';
+import { AuthService } from './auth.service';
+import { SupabaseService } from './supabase.service';
 import { SyncStatusService } from './sync-status.service';
+import { WorkspaceService } from './workspace.service';
 
 const workspace = { id: '11111111-1111-4111-8111-111111111111' };
 const purchaseId = '22222222-2222-4222-8222-222222222222';
@@ -31,7 +34,6 @@ function file(overrides: Partial<{ name: string; type: string; size: number }> =
 
 function createService(
   options: {
-    demo?: boolean;
     upload?: ReturnType<typeof vi.fn>;
     removeFile?: ReturnType<typeof vi.fn>;
     download?: ReturnType<typeof vi.fn>;
@@ -60,7 +62,6 @@ function createService(
     isLoading: signal(false),
     loadError: signal<string | null>(null),
     workspaceService: { currentWorkspace: signal(workspace) },
-    mockStore: { isDemoMode: signal(options.demo ?? false) },
     syncStatus: new SyncStatusService(),
     auth: { currentUser: () => ({ id: 'user-1' }) },
     supabase: {
@@ -136,13 +137,35 @@ describe('PurchaseDocumentService.upload', () => {
     expect(service.documents()).toEqual([]);
   });
 
-  it('lädt im Demo-Modus nichts hoch und erklärt das', async () => {
-    const { service, upload } = createService({ demo: true });
+  it('speichert Belege ohne eine Browser-Ersatzdatenbank über den privaten Bucket', async () => {
+    const upload = vi.fn(async () => ({ error: null }));
+    const insert = vi.fn(() => ({
+      select: () => ({ single: async () => ({ data: storedDocument, error: null }) }),
+    }));
+    const service = runInInjectionContext(
+      Injector.create({
+        providers: [
+          {
+            provide: SupabaseService,
+            useValue: {
+              client: {
+                storage: { from: () => ({ upload }) },
+                from: () => ({ insert }),
+              },
+            },
+          },
+          { provide: WorkspaceService, useValue: { currentWorkspace: signal(workspace) } },
+          { provide: SyncStatusService, useValue: new SyncStatusService() },
+          { provide: AuthService, useValue: { currentUser: () => ({ id: 'user-1' }) } },
+        ],
+      }),
+      () => new PurchaseDocumentService(),
+    );
 
     const result = await service.upload(purchaseId, file(), 'invoice');
 
-    expect(upload).not.toHaveBeenCalled();
-    expect(result.error?.message).toContain('Demo');
+    expect(result.error).toBeNull();
+    expect(upload).toHaveBeenCalledOnce();
   });
 
   it('lehnt eine unerlaubte Datei ab, bevor sie hochgeladen wird', async () => {

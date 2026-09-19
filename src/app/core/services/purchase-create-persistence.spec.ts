@@ -104,7 +104,6 @@ function erstelleDienste(client: unknown) {
     supabase: { client },
     syncStatus,
     workspaceService: { currentWorkspace: signal(workspace) },
-    mockStore,
     purchasesRaw: signal<Purchase[]>([]),
     selectedPurchaseRaw: signal<Purchase | null>(null),
     selectedPurchase: () => null,

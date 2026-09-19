@@ -14,7 +14,7 @@
       class="sr-only"
       data-document-input
       accept="application/pdf,image/jpeg,image/png,application/xml,text/xml"
-      [disabled]="isDemoMode() || isUploading()"
+      [disabled]="isUploading()"
       (change)="onFileSelected($event)"
     />
     <app-button
@@ -22,7 +22,6 @@
       variant="secondary"
       size="slim"
       [loading]="isUploading()"
-      [disabled]="isDemoMode()"
       (clicked)="fileInput.click()"
     >
       Beleg hinzufügen
@@ -30,11 +29,7 @@
   </div>
 
   <div class="space-y-3">
-    @if (isDemoMode()) {
-      <p data-document-demo-hint class="text-[13px] text-fb-text-muted">
-        Im Demo-Modus werden keine Belege gespeichert. Melde dich an, um Originaldateien abzulegen.
-      </p>
-    } @else if (!canRemove()) {
+    @if (!canRemove()) {
       <p class="text-[13px] text-fb-text-muted">
         Der Einkauf ist abgeschlossen. Belege lassen sich weiter hinzufügen, aber nicht mehr
         entfernen.
