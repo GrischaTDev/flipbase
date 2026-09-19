@@ -68,7 +68,7 @@
       [sortOptions]="expensesTableConfig.sortOptions"
       [currentSort]="tablePrefs().sort"
       [viewModified]="viewModified()"
-      [loading]="expenseService.isLoading()"
+      [loading]="initializing() || expenseService.isLoading()"
       [errorMessage]="
         expenseService.loadError() ? 'Die Ausgaben konnten nicht geladen werden.' : null
       "
@@ -135,13 +135,19 @@
                       />
                     </th>
                   }
+                  @case ('vendor') {
+                    <th scope="col">Anbieter</th>
+                  }
                   @case ('category') {
                     <th scope="col">Kategorie</th>
+                  }
+                  @case ('quantity') {
+                    <th scope="col" class="text-right">Menge</th>
                   }
                   @case ('gross_amount') {
                     <th scope="col" class="text-right" [attr.aria-sort]="ariaSort('gross_amount')">
                       <app-table-sort-header
-                        label="Brutto"
+                        label="Gesamtbetrag"
                         sortField="gross_amount"
                         [currentSort]="tablePrefs().sort"
                         (sortChanged)="onSortChanged($event)"
@@ -191,9 +197,19 @@
                     @case ('title') {
                       <td class="font-semibold text-fb-text-primary">{{ expense.title }}</td>
                     }
+                    @case ('vendor') {
+                      <td class="text-fb-text-secondary">
+                        {{ expense.vendor_name || '–' }}
+                      </td>
+                    }
                     @case ('category') {
                       <td class="text-fb-text-secondary">
                         {{ categoryName(expense.category_id) }}
+                      </td>
+                    }
+                    @case ('quantity') {
+                      <td class="text-right font-mono text-fb-text-secondary">
+                        {{ expense.quantity }}
                       </td>
                     }
                     @case ('gross_amount') {
@@ -231,33 +247,61 @@
                     }
                     @case ('documents') {
                       <td>
-                        <app-button
-                          variant="ghost"
-                          size="slim"
-                          (clicked)="documentExpense.set(expense)"
-                        >
-                          Belege
-                        </app-button>
+                        @if (documentService.hasDocuments(expense.id)) {
+                          <app-button
+                            variant="ghost"
+                            size="slim"
+                            [icon]="viewDocumentIcon"
+                            [iconOnly]="true"
+                            [ariaLabel]="'Beleg ansehen: ' + expense.title"
+                            [title]="'Beleg ansehen: ' + expense.title"
+                            (clicked)="documentExpense.set(expense)"
+                          />
+                        } @else {
+                          <app-button
+                            variant="ghost"
+                            size="slim"
+                            [icon]="addDocumentIcon"
+                            [iconOnly]="true"
+                            [ariaLabel]="'Beleg hinzufügen: ' + expense.title"
+                            [title]="'Beleg hinzufügen: ' + expense.title"
+                            (clicked)="documentExpense.set(expense)"
+                          />
+                        }
                       </td>
                     }
                     @case ('actions') {
                       <td class="text-right">
                         <div class="flex justify-end gap-1">
                           @if (expense.status === 'open') {
-                            <app-button variant="ghost" size="slim" (clicked)="markPaid(expense)">
-                              Als bezahlt
-                            </app-button>
+                            <app-button
+                              variant="ghost"
+                              size="slim"
+                              [icon]="paidIcon"
+                              [iconOnly]="true"
+                              [ariaLabel]="'Als bezahlt markieren: ' + expense.title"
+                              [title]="'Als bezahlt markieren: ' + expense.title"
+                              (clicked)="markPaid(expense)"
+                            />
                           }
-                          <app-button variant="ghost" size="slim" (clicked)="editExpense(expense)">
-                            Bearbeiten
-                          </app-button>
                           <app-button
                             variant="ghost"
                             size="slim"
+                            [icon]="editIcon"
+                            [iconOnly]="true"
+                            [ariaLabel]="'Ausgabe bearbeiten: ' + expense.title"
+                            [title]="'Ausgabe bearbeiten: ' + expense.title"
+                            (clicked)="editExpense(expense)"
+                          />
+                          <app-button
+                            variant="ghost"
+                            size="slim"
+                            [icon]="deleteIcon"
+                            [iconOnly]="true"
+                            [ariaLabel]="'Ausgabe löschen: ' + expense.title"
+                            [title]="'Ausgabe löschen: ' + expense.title"
                             (clicked)="removeExpense(expense)"
-                          >
-                            Löschen
-                          </app-button>
+                          />
                         </div>
                       </td>
                     }
@@ -345,7 +389,7 @@
   <app-expense-dialog
     [expense]="editingExpense()"
     (closed)="closeExpenseDialog()"
-    (saved)="expenseService.load()"
+    (saved)="onExpenseSaved()"
   />
 }
 
