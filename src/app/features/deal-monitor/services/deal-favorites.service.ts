@@ -1,15 +1,12 @@
 import { Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
 import { WorkspaceService } from '../../../core/services/workspace.service';
-import { AuthService } from '../../../core/services/auth.service';
 import { FeedItem } from '../models/deal-monitor.model';
 
 const STORAGE_PREFIX = 'flipbase_vinted_favorites_';
-const DEMO_STORAGE_KEY = 'flipbase_demo_vinted_favorites';
 
 @Injectable({ providedIn: 'root' })
 export class DealFavoritesService {
   private readonly workspaceService = inject(WorkspaceService);
-  private readonly auth = inject(AuthService);
 
   readonly favorites = signal<FeedItem[]>([]);
   readonly count = computed(() => this.favorites().length);
@@ -17,10 +14,9 @@ export class DealFavoritesService {
 
   constructor() {
     effect(() => {
-      const isDemo = this.auth.isDemoMode();
       const workspaceId = this.workspaceService.currentWorkspace()?.id;
       untracked(() => {
-        this.loadFromStorage(isDemo, workspaceId);
+        this.loadFromStorage(workspaceId);
       });
     });
   }
@@ -53,14 +49,13 @@ export class DealFavoritesService {
     this.saveToStorage();
   }
 
-  private getStorageKey(isDemo: boolean, workspaceId?: string | null): string | null {
-    if (isDemo) return DEMO_STORAGE_KEY;
+  private getStorageKey(workspaceId?: string | null): string | null {
     if (!workspaceId) return null;
     return `${STORAGE_PREFIX}${workspaceId}`;
   }
 
-  private loadFromStorage(isDemo: boolean, workspaceId?: string | null): void {
-    const key = this.getStorageKey(isDemo, workspaceId);
+  private loadFromStorage(workspaceId?: string | null): void {
+    const key = this.getStorageKey(workspaceId);
     if (!key) {
       this.favorites.set([]);
       return;
@@ -84,9 +79,8 @@ export class DealFavoritesService {
   }
 
   private saveToStorage(): void {
-    const isDemo = this.auth.isDemoMode();
     const workspaceId = this.workspaceService.currentWorkspace()?.id;
-    const key = this.getStorageKey(isDemo, workspaceId);
+    const key = this.getStorageKey(workspaceId);
     if (!key) return;
 
     try {

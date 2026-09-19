@@ -17,7 +17,7 @@ describe('Multi-Workspace & Holding Consolidation Service', () => {
           { provide: SupabaseService, useValue: { client: { rpc } } },
           {
             provide: AuthService,
-            useValue: { isAuthenticated: () => true, isDemoMode: () => false },
+            useValue: { isAuthenticated: () => true },
           },
         ],
       });
@@ -67,12 +67,14 @@ describe('Multi-Workspace & Holding Consolidation Service', () => {
       expect(workspaceService.currentWorkspace()?.id).toBe('a');
     });
 
-    it('meldet im Demo-Modus ausdrücklich keine Server-Archivierung', async () => {
+    it('meldet ohne aktive Anmeldung ausdrücklich keine Server-Archivierung', async () => {
       const injector = Injector.create({ providers: [] });
-      const demo = runInInjectionContext(injector, () => new WorkspaceService());
-      await demo.loadWorkspaces();
-      expect((await demo.archiveWorkspace('ws-1')).error?.message).toContain('Demo');
-      expect(demo.currentWorkspace()?.archived_at).toBeUndefined();
+      const ohneAnmeldung = runInInjectionContext(injector, () => new WorkspaceService());
+      await ohneAnmeldung.loadWorkspaces();
+      expect((await ohneAnmeldung.archiveWorkspace('ws-1')).error?.message).toContain(
+        'angemeldete',
+      );
+      expect(ohneAnmeldung.currentWorkspace()?.archived_at).toBeUndefined();
     });
   });
   let service: WorkspaceService;
@@ -214,7 +216,6 @@ describe('Multi-Workspace & Holding Consolidation Service', () => {
           provide: AuthService,
           useValue: {
             isAuthenticated: () => true,
-            isDemoMode: () => false,
           },
         },
         { provide: SyncStatusService, useValue: syncStatus },
@@ -260,7 +261,7 @@ describe('Multi-Workspace & Holding Consolidation Service', () => {
         },
         {
           provide: AuthService,
-          useValue: { isAuthenticated: () => true, isDemoMode: () => false },
+          useValue: { isAuthenticated: () => true },
         },
         { provide: SyncStatusService, useValue: syncStatus },
       ],

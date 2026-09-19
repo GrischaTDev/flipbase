@@ -24,18 +24,11 @@ describe('Kopfzeile – Rollenanzeige', () => {
         [member('anderes-konto@flipbase.de', 'owner')],
         'new-user-id',
         'neues-konto@flipbase.de',
-        false,
       ),
     ).toBeNull();
   });
 
-  it('behält den bewusst verwendeten Demo-Workspace als Inhaber', () => {
-    expect(resolveCurrentUserRole([], null, 'demo@flipbase.app', true)).toBe('owner');
-  });
-
   it('ermittelt die Rolle auch ohne Profil-E-Mail über die Benutzer-ID', () => {
-    expect(resolveCurrentUserRole([member('', 'admin', 'user-42')], 'user-42', null, false)).toBe(
-      'admin',
-    );
+    expect(resolveCurrentUserRole([member('', 'admin', 'user-42')], 'user-42', null)).toBe('admin');
   });
 });

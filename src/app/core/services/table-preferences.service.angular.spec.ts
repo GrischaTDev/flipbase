@@ -33,18 +33,16 @@ const settle = async () => {
 
 describe('TablePreferencesService – Column Picker & Auth Sync (Codex)', () => {
   const currentUser = signal<User | null>(null);
-  const isDemoMode = signal(false);
   const getUser = vi.fn();
   const updateUser = vi.fn();
   beforeEach(() => {
     currentUser.set(user('a'));
-    isDemoMode.set(false);
     localStorage.clear();
     getUser.mockReset().mockResolvedValue({ data: { user: null }, error: null });
     updateUser.mockReset().mockResolvedValue({ error: null });
     TestBed.configureTestingModule({
       providers: [
-        { provide: AuthService, useValue: { currentUser, isDemoMode } },
+        { provide: AuthService, useValue: { currentUser } },
         { provide: SupabaseService, useValue: { client: { auth: { getUser, updateUser } } } },
       ],
     });
@@ -73,7 +71,7 @@ describe('TablePreferencesService – Column Picker & Auth Sync (Codex)', () => 
     currentUser.set(user('a', { inventory: ['title'], sales: [] }));
     TestBed.configureTestingModule({
       providers: [
-        { provide: AuthService, useValue: { currentUser, isDemoMode } },
+        { provide: AuthService, useValue: { currentUser } },
         { provide: SupabaseService, useValue: { client: { auth: { getUser, updateUser } } } },
       ],
     });
@@ -125,16 +123,6 @@ describe('TablePreferencesService – Column Picker & Auth Sync (Codex)', () => 
     expect(updateUser).toHaveBeenCalledTimes(1);
     expect(service.visibleColumns('inventory', definitions)).toEqual(['title', 'cost']);
   });
-
-  it('stores demo selections separately without writing auth metadata', () => {
-    isDemoMode.set(true);
-    const service = TestBed.inject(TablePreferencesService);
-    service.setVisibleColumns('inventory', []);
-    expect(JSON.parse(localStorage.getItem('flipbase_demo_table_preferences_v1')!)).toEqual({
-      inventory: [],
-    });
-    expect(updateUser).not.toHaveBeenCalled();
-  });
 });
 
 describe('TablePreferencesService – Polaris Table Preferences & Reordering', () => {
@@ -147,7 +135,7 @@ describe('TablePreferencesService – Polaris Table Preferences & Reordering', (
       providers: [
         {
           provide: AuthService,
-          useValue: { currentUser: signal(null), isDemoMode: signal(true) },
+          useValue: { currentUser: signal(null) },
         },
         {
           provide: SupabaseService,

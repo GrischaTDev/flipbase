@@ -23,7 +23,6 @@ import {
 import { AuthService } from './auth.service';
 import { SupabaseService } from './supabase.service';
 
-const demoStorageKey = 'flipbase_demo_table_preferences_v1';
 const CURRENT_PREFERENCES_VERSION = 1;
 
 export interface TableState<TColumnId extends string = string, TSortField extends string = string> {
@@ -350,14 +349,6 @@ export class TablePreferencesService {
     this.preferences.set(preferences);
     this.error.set(null);
     this.editRevision++;
-    if (this.auth.isDemoMode()) {
-      try {
-        localStorage.setItem(demoStorageKey, JSON.stringify(preferences));
-      } catch {
-        this.error.set('Die Spaltenauswahl konnte lokal nicht gespeichert werden.');
-      }
-      return;
-    }
     const userId = this.auth.currentUser()?.id;
     if (!userId || userId !== this.activeUserId) return;
     this.queued = preferences;
@@ -365,35 +356,23 @@ export class TablePreferencesService {
   }
 
   private synchronizeContext(): void {
-    const demo = this.auth.isDemoMode();
     const user = this.auth.currentUser();
-    const id = demo ? 'demo' : (user?.id ?? null);
+    const id = user?.id ?? null;
     if (this.activeUserId === id) return;
     this.activeUserId = id;
     this.generation++;
     this.editRevision = 0;
     this.queued = null;
     this.error.set(null);
-    if (demo) {
-      try {
-        this.preferences.set(
-          parseTablePreferences(JSON.parse(localStorage.getItem(demoStorageKey) ?? 'null')),
-        );
-      } catch {
-        this.preferences.set({});
-      }
-    } else {
-      this.preferences.set(parseTablePreferences(user?.user_metadata?.['table_preferences_v1']));
-      if (id) void this.refresh(id, this.generation, this.editRevision);
-    }
+    this.preferences.set(parseTablePreferences(user?.user_metadata?.['table_preferences_v1']));
+    if (id) void this.refresh(id, this.generation, this.editRevision);
   }
 
   private isCurrent(userId: string, generation: number): boolean {
     return (
       this.generation === generation &&
       this.activeUserId === userId &&
-      this.auth.currentUser()?.id === userId &&
-      !this.auth.isDemoMode()
+      this.auth.currentUser()?.id === userId
     );
   }
 

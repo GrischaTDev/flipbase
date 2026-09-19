@@ -4,7 +4,6 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { DealFavoritesService } from './deal-favorites.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
-import { AuthService } from '../../../core/services/auth.service';
 import { FeedItem } from '../models/deal-monitor.model';
 
 const createItem = (id: string): FeedItem => ({
@@ -30,7 +29,6 @@ const createItem = (id: string): FeedItem => ({
 
 describe('DealFavoritesService', () => {
   let currentWorkspace: ReturnType<typeof signal<{ id: string; name: string } | null>>;
-  let isDemoMode: ReturnType<typeof signal<boolean>>;
 
   beforeEach(() => {
     localStorage.clear();
@@ -39,14 +37,12 @@ describe('DealFavoritesService', () => {
       id: 'ws-123',
       name: 'Test Studio',
     });
-    isDemoMode = signal(false);
 
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
       providers: [
         DealFavoritesService,
         { provide: WorkspaceService, useValue: { currentWorkspace } },
-        { provide: AuthService, useValue: { isDemoMode } },
       ],
     });
   });
@@ -85,7 +81,6 @@ describe('DealFavoritesService', () => {
       providers: [
         DealFavoritesService,
         { provide: WorkspaceService, useValue: { currentWorkspace } },
-        { provide: AuthService, useValue: { isDemoMode } },
       ],
     });
     const newService = TestBed.inject(DealFavoritesService);

@@ -3,13 +3,11 @@ import { WebhookConfig, AppNotification, AppNotificationType } from '../models/w
 import { Sale, Purchase, EINKAUFSART_BEZEICHNUNG } from '../models/flipbase.models';
 import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
-import { MockDataStoreService } from './mock-data-store.service';
 import { LoggerService } from './logger.service';
 import { SyncStatusService } from './sync-status.service';
 import { Tables } from '../models/supabase.types';
 
 const STORAGE_KEY_CONFIG = 'flipbase_webhook_config';
-const STORAGE_KEY_NOTIFS = 'flipbase_app_notifications';
 
 interface WindowWithWebkitAudio extends Window {
   readonly webkitAudioContext?: typeof AudioContext;
@@ -69,11 +67,10 @@ export class WebhookService {
   // Faellt auf eine eigene Instanz zurueck, damit Dienste auch ausserhalb
   // eines Injektionskontexts nutzbar bleiben - so erzeugen die Tests sie.
   private readonly logger = inject(LoggerService, { optional: true }) ?? new LoggerService();
-  private readonly mockStore = inject(MockDataStoreService, { optional: true });
   private readonly workspaceService = inject(WorkspaceService, { optional: true });
 
   readonly config = signal<WebhookConfig>(this.loadConfig());
-  readonly notifications = signal<AppNotification[]>(this.loadNotifications());
+  readonly notifications = signal<AppNotification[]>([]);
   readonly loadedWorkspaceId = signal<string | null>(null);
   private loadVersion = 0;
 
@@ -105,48 +102,6 @@ export class WebhookService {
     return createDefaultWebhookConfig();
   }
 
-  /**
-   * Legt die Benachrichtigungen lokal ab – aber nur im Demo-Modus.
-   *
-   * Für angemeldete Nutzer ist die Tabelle `app_notifications` die Quelle der
-   * Wahrheit. Ein lokaler Zwischenspeicher würde dort nur veralten.
-   */
-  private speichereLokal(liste: AppNotification[]): void {
-    if (!this.mockStore?.isDemoMode()) return;
-    try {
-      getStorage()?.setItem(STORAGE_KEY_NOTIFS, JSON.stringify(liste));
-    } catch {
-      // Ohne Speicher gilt die Liste nur fuer diese Sitzung.
-    }
-  }
-
-  private loadNotifications(): AppNotification[] {
-    if (this.mockStore && !this.mockStore.isDemoMode()) return [];
-    try {
-      const storage = getStorage();
-      const stored = storage?.getItem(STORAGE_KEY_NOTIFS);
-      if (stored) return JSON.parse(stored);
-    } catch {}
-
-    return [
-      {
-        id: 'notif-init-1',
-        type: 'system',
-        title: 'Willkommen bei Flipbase',
-        message: 'Kurz erklärt, wie du anfängst.',
-        details:
-          'Flipbase begleitet einen Artikel vom Einkauf bis zum Gewinn.\n\n' +
-          'Fang mit einem Einkauf an: Trag ein, was du bezahlt hast, und leg die enthaltenen Artikel an. ' +
-          'Nebenkosten wie Versand oder Fahrtkosten kommen dazu und werden auf die Artikel verteilt – ' +
-          'so weißt du bei jedem einzelnen, was er dich wirklich gekostet hat.\n\n' +
-          'Sobald du verkaufst, rechnet Flipbase Gebühren und Versand gegen und zeigt dir den echten Gewinn. ' +
-          'Benachrichtigungen nach Discord oder Telegram richtest du unter „Einstellungen“ ein.',
-        timestamp: new Date().toISOString(),
-        read: false,
-      },
-    ];
-  }
-
   async loadFromSupabase(workspaceId: string): Promise<void> {
     const requestedWorkspaceId = workspaceId.trim();
     const loadVersion = (this.loadVersion ?? 0) + 1;
@@ -156,7 +111,7 @@ export class WebhookService {
       return;
     }
     if (!this.isCurrentWorkspace(requestedWorkspaceId)) return;
-    if (!this.supabase || this.mockStore?.isDemoMode()) {
+    if (!this.supabase) {
       this.loadedWorkspaceId.set(requestedWorkspaceId);
       return;
     }
@@ -213,7 +168,6 @@ export class WebhookService {
         link: n.link || undefined,
       }));
       this.notifications.set(mapped);
-      this.speichereLokal(mapped);
       this.loadedWorkspaceId.set(requestedWorkspaceId);
     } catch (err) {
       if (this.isCurrentLoad(requestedWorkspaceId, loadVersion)) {
@@ -302,10 +256,9 @@ export class WebhookService {
 
     const updated = [item, ...this.notifications()].slice(0, 50);
     this.notifications.set(updated);
-    this.speichereLokal(updated);
 
     const ws = this.workspaceService?.currentWorkspace();
-    if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
+    if (this.supabase && ws) {
       void this.schreibeMeldungInDieDatenbank(item, ws.id);
     }
 
@@ -398,7 +351,6 @@ export class WebhookService {
     const updatedNotification = { ...notification, read: true };
     const updated = vorher.map((n) => (n.id === id ? updatedNotification : n));
     this.notifications.set(updated);
-    this.speichereLokal(updated);
     return { data: updatedNotification, error: null, reportedBySyncStatus: false };
   }
 
@@ -433,7 +385,6 @@ export class WebhookService {
     }
     const updated = this.notifications().map((n) => ({ ...n, read: true }));
     this.notifications.set(updated);
-    this.speichereLokal(updated);
     return { data: updated, error: null, reportedBySyncStatus: false };
   }
 
@@ -463,7 +414,6 @@ export class WebhookService {
       }
     }
     this.notifications.set([]);
-    this.speichereLokal([]);
     return { data: [], error: null, reportedBySyncStatus: false };
   }
 
@@ -660,7 +610,7 @@ export class WebhookService {
   }
 
   private istPersistenterModus(): boolean {
-    return Boolean(this.supabase && !this.mockStore?.isDemoMode());
+    return Boolean(this.supabase);
   }
 
   private webhookFehler<T>(vorgang: string, ursache: unknown): WebhookMutationResult<T> {

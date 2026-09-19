@@ -7,7 +7,6 @@ import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { DealFavoritesComponent } from './deal-favorites.component';
 import { DealFavoritesService } from '../../services/deal-favorites.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
-import { AuthService } from '../../../../core/services/auth.service';
 import { FeedItem } from '../../models/deal-monitor.model';
 import { PageHeaderComponent } from '../../../../shared/components/page-header/page-header.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
@@ -108,7 +107,6 @@ describe('DealFavoritesComponent', () => {
   let comp: DealFavoritesComponent;
   let favoritesService: DealFavoritesService;
   let currentWorkspace: ReturnType<typeof signal<{ id: string; name: string } | null>>;
-  let isDemoMode: ReturnType<typeof signal<boolean>>;
 
   beforeEach(() => {
     localStorage.clear();
@@ -116,7 +114,6 @@ describe('DealFavoritesComponent', () => {
       id: 'ws-fav-1',
       name: 'Favorite Test Studio',
     });
-    isDemoMode = signal(false);
 
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
@@ -124,7 +121,6 @@ describe('DealFavoritesComponent', () => {
         DealFavoritesComponent,
         DealFavoritesService,
         { provide: WorkspaceService, useValue: { currentWorkspace } },
-        { provide: AuthService, useValue: { isDemoMode } },
         { provide: ElementRef, useValue: new ElementRef(document.createElement('div')) },
       ],
     });

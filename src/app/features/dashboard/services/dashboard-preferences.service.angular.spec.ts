@@ -34,20 +34,18 @@ async function settle(): Promise<void> {
 
 describe('DashboardPreferencesService', () => {
   const currentUser = signal<User | null>(null);
-  const isDemoMode = signal(false);
   const getUser = vi.fn();
   const updateUser = vi.fn();
 
   beforeEach(() => {
     localStorage.clear();
     currentUser.set(null);
-    isDemoMode.set(false);
     getUser.mockReset().mockResolvedValue({ data: { user: null }, error: null });
     updateUser.mockReset().mockResolvedValue({ data: { user: null }, error: null });
     TestBed.configureTestingModule({
       providers: [
         DashboardPreferencesService,
-        { provide: AuthService, useValue: { currentUser, isDemoMode } },
+        { provide: AuthService, useValue: { currentUser } },
         { provide: SupabaseService, useValue: { client: { auth: { getUser, updateUser } } } },
       ],
     });
@@ -66,25 +64,6 @@ describe('DashboardPreferencesService', () => {
     expect(service.preferences()).toEqual({ range: 'year', platform: 'all' });
     await settle();
     expect(service.preferences()).toEqual({ range: 'last_7_days', platform: 'ebay' });
-  });
-
-  it('stores demo preferences locally without an auth request', async () => {
-    isDemoMode.set(true);
-    localStorage.setItem(
-      'flipbase_demo_dashboard_v1',
-      JSON.stringify({ range: 'month', platform: 'vinted' }),
-    );
-    const service = TestBed.inject(DashboardPreferencesService);
-    await settle();
-
-    expect(service.preferences()).toEqual({ range: 'month', platform: 'vinted' });
-    service.setRange('today');
-    expect(JSON.parse(localStorage.getItem('flipbase_demo_dashboard_v1')!)).toEqual({
-      range: 'today',
-      platform: 'vinted',
-    });
-    expect(getUser).not.toHaveBeenCalled();
-    expect(updateUser).not.toHaveBeenCalled();
   });
 
   it('does not let the initial server response overwrite a newer local edit', async () => {

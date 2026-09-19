@@ -1,5 +1,21 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-19 – Codex GPT-5.6 Terra (OpenAI) – Demo-Code: Workspace, Einstellungen und Vinted Bot
+
+**Auftrag:** Den vierten Abschnitt des vereinbarten Umbaus umsetzen: den
+Demo-Modus aus Workspace, Einstellungen, Dashboard-Einstellungen und dem
+Vinted-Bot entfernen.
+
+**Änderung:** Workspaces, Mitglieder, Webhooks sowie Tabellen- und
+Dashboard-Einstellungen verwenden nur noch den angemeldeten Nutzer und den
+aktuellen Workspace. Der Vinted-Bot lädt Kategorien, Filter und Favoriten ohne
+Demo-Sonderfall; zugehörige Hinweise und Tests sind entfernt.
+
+**Prüfung:** 44 fokussierte Node-Tests und 45 Angular-Tests bestanden. Zusätzlich
+bestanden Typprüfung, ESLint, projektweite Prettier-Prüfung und Produktionsbau.
+Der Bau meldet weiterhin drei bekannte, paketfremde NG8113-Hinweise zu
+ungenutzten `LucideDynamicIcon`-Importen. Kein Push/Merge.
+
 ## 2026-09-19 – Codex GPT-5.6 Terra (OpenAI) – Demo-Code: Verkauf, Finanzen und Prüfung
 
 **Auftrag:** Den dritten Abschnitt des vereinbarten Umbaus umsetzen: den

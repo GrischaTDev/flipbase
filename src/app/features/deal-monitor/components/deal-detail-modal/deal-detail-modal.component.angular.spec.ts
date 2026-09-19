@@ -8,7 +8,6 @@ import { DealDetailModalComponent } from './deal-detail-modal.component';
 import { FeedItem } from '../../models/deal-monitor.model';
 import { DealFavoritesService } from '../../services/deal-favorites.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
-import { AuthService } from '../../../../core/services/auth.service';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
@@ -94,7 +93,6 @@ describe('DealDetailModalComponent', () => {
   });
 
   let currentWorkspace: ReturnType<typeof signal<{ id: string; name: string } | null>>;
-  let isDemoMode: ReturnType<typeof signal<boolean>>;
 
   beforeEach(() => {
     localStorage.clear();
@@ -102,14 +100,12 @@ describe('DealDetailModalComponent', () => {
       id: 'ws-1',
       name: 'Test Studio',
     });
-    isDemoMode = signal(false);
 
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
       providers: [
         DealFavoritesService,
         { provide: WorkspaceService, useValue: { currentWorkspace } },
-        { provide: AuthService, useValue: { isDemoMode } },
         { provide: ElementRef, useValue: new ElementRef(document.createElement('div')) },
       ],
     });

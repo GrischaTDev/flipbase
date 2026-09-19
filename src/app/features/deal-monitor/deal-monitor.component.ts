@@ -11,7 +11,6 @@ import {
 } from '@angular/core';
 import { UpperCasePipe } from '@angular/common';
 import { WorkspaceService } from '../../core/services/workspace.service';
-import { AuthService } from '../../core/services/auth.service';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
 import { CardComponent } from '../../shared/components/card/card.component';
@@ -40,7 +39,6 @@ import { matchesSize } from './utils/size-matcher';
 export class DealMonitorComponent {
   private readonly api = inject(DealMonitorService);
   readonly workspace = inject(WorkspaceService).currentWorkspace;
-  readonly demo = inject(AuthService).isDemoMode;
   private readonly destroyRef = inject(DestroyRef);
   private readonly document = inject(DOCUMENT);
   readonly state = new DealFeedState((request) => this.api.feed(request));
@@ -86,7 +84,7 @@ export class DealMonitorComponent {
 
   constructor() {
     effect(() => {
-      const workspace = this.demo() ? null : (this.workspace()?.id ?? null);
+      const workspace = this.workspace()?.id ?? null;
       untracked(() => {
         this.selected.set(null);
         this.selectedSize.set(null);
@@ -97,7 +95,7 @@ export class DealMonitorComponent {
       });
     });
     effect(() => {
-      const workspace = this.demo() ? null : this.workspace()?.id;
+      const workspace = this.workspace()?.id;
       const watchlist = this.selected();
       const dealsOnly = this.view() === 'deals';
       untracked(() =>

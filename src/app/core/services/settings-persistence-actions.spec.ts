@@ -43,7 +43,6 @@ describe('Konfigurationsdienste – DB-first', () => {
         noticeText: '',
       }),
       workspaceService: { currentWorkspace },
-      mockStore: { isDemoMode: () => false },
       supabase: { client: { from: vi.fn(() => ({ upsert })) } },
     });
 
@@ -67,7 +66,6 @@ describe('Konfigurationsdienste – DB-first', () => {
     Object.assign(service, {
       storeSettings,
       workspaceService: { currentWorkspace: () => workspace },
-      mockStore: { isDemoMode: () => false },
       syncStatus: new SyncStatusService(),
       supabase: supabaseUpsert({ data: null, error: null }),
     });
@@ -92,7 +90,6 @@ describe('Konfigurationsdienste – DB-first', () => {
     Object.assign(service, {
       carrierConfig,
       workspaceService: { currentWorkspace: () => workspace },
-      mockStore: { isDemoMode: () => false },
       syncStatus: new SyncStatusService(),
       supabase: supabaseUpsert({
         data: {
@@ -120,7 +117,6 @@ describe('Konfigurationsdienste – DB-first', () => {
     Object.assign(service, {
       config,
       workspaceService: { currentWorkspace: () => null },
-      mockStore: { isDemoMode: () => false },
       syncStatus: new SyncStatusService(),
       supabase: supabaseUpsert({ data: null, error: null }),
     });

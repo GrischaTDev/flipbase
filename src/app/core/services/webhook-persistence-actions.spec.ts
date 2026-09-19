@@ -28,7 +28,6 @@ function erstelleDienst(
   Object.assign(service, {
     notifications: signal([notification]),
     workspaceService: { currentWorkspace: () => ({ id: '11111111-1111-4111-8111-111111111111' }) },
-    mockStore: { isDemoMode: () => false },
     syncStatus: new SyncStatusService(),
     supabase: { client: { from: vi.fn(() => chain) } },
   });

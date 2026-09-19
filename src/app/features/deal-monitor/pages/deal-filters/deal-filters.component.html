@@ -6,23 +6,13 @@
     <div header-actions data-new-filter>
       <app-button
         [icon]="icons.plus"
-        [disabled]="demo() || !workspace() || editorOpen() || saving()"
+        [disabled]="!workspace() || editorOpen() || saving()"
         (clicked)="openEditor()"
       >
         Neuer Suchfilter
       </app-button>
     </div>
   </app-page-header>
-
-  @if (demo()) {
-    <div
-      role="status"
-      class="rounded-xl border border-blue-500/30 bg-blue-500/10 p-4 text-sm text-blue-600 dark:text-blue-400"
-    >
-      Der Vinted Bot benötigt einen angemeldeten Arbeitsbereich. Im Demo-Modus werden keine
-      Serverdaten geladen.
-    </div>
-  }
 
   @if (message()) {
     <div
@@ -194,10 +184,7 @@
           Vinted-Bot überwacht Angebote automatisch und erkennt Deals.
         </p>
       </div>
-      <app-button
-        [disabled]="demo() || !workspace() || editorOpen() || saving()"
-        (clicked)="openEditor()"
-      >
+      <app-button [disabled]="!workspace() || editorOpen() || saving()" (clicked)="openEditor()">
         Ersten Suchfilter anlegen
       </app-button>
     </div>

@@ -29,7 +29,6 @@ import { ModalShellComponent } from '../../../../shared/components/modal-shell/m
 import { WatchlistEditorComponent } from '../../components/watchlist-editor/watchlist-editor.component';
 import { DealMonitorService } from '../../services/deal-monitor.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
-import { AuthService } from '../../../../core/services/auth.service';
 import { UnsavedEntryPage } from '../../../../shared/guards/unsaved-entry.guard';
 import { FeedCategory, Watchlist, WatchlistDraft } from '../../models/deal-monitor.model';
 
@@ -53,7 +52,6 @@ import { FeedCategory, Watchlist, WatchlistDraft } from '../../models/deal-monit
 export class DealFiltersComponent implements UnsavedEntryPage {
   private readonly api = inject(DealMonitorService);
   readonly workspace = inject(WorkspaceService).currentWorkspace;
-  readonly demo = inject(AuthService).isDemoMode;
   private readonly destroyRef = inject(DestroyRef);
   private readonly element = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly injector = inject(Injector);
@@ -84,7 +82,7 @@ export class DealFiltersComponent implements UnsavedEntryPage {
 
   constructor() {
     effect(() => {
-      const workspace = this.demo() ? null : (this.workspace()?.id ?? null);
+      const workspace = this.workspace()?.id ?? null;
       untracked(() => {
         this.watchlists.set([]);
         this.editorOpen.set(false);
@@ -97,7 +95,7 @@ export class DealFiltersComponent implements UnsavedEntryPage {
       });
     });
 
-    if (!this.demo()) void this.loadCategories();
+    void this.loadCategories();
 
     this.destroyRef.onDestroy(() => {
       this.listGeneration++;
@@ -112,8 +110,8 @@ export class DealFiltersComponent implements UnsavedEntryPage {
     return this.saving();
   }
 
-  async loadWatchlists(workspace = this.demo() ? undefined : this.workspace()?.id): Promise<void> {
-    if (this.demo() || !workspace) {
+  async loadWatchlists(workspace = this.workspace()?.id): Promise<void> {
+    if (!workspace) {
       this.watchlistsLoading.set(false);
       return;
     }
@@ -136,7 +134,6 @@ export class DealFiltersComponent implements UnsavedEntryPage {
   }
 
   async loadCategories(): Promise<void> {
-    if (this.demo()) return;
     try {
       const rows = await this.api.categories();
       if (!this.destroyRef.destroyed) {
@@ -178,7 +175,6 @@ export class DealFiltersComponent implements UnsavedEntryPage {
   }
 
   async save(draft: WatchlistDraft): Promise<void> {
-    if (this.demo()) return;
     const workspace = this.workspace()?.id;
     if (!workspace || this.saving()) return;
     this.saving.set(true);
@@ -201,12 +197,10 @@ export class DealFiltersComponent implements UnsavedEntryPage {
   }
 
   toggle(row: Watchlist): void {
-    if (this.demo()) return;
     void this.save({ ...row, is_active: !row.is_active });
   }
 
   async confirmDelete(): Promise<void> {
-    if (this.demo()) return;
     const row = this.deleting();
     const workspace = this.workspace()?.id;
     if (!row || !workspace || this.saving()) return;

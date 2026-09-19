@@ -6,12 +6,6 @@
   @if (!workspace()) {
     <p role="status">Bitte einen Arbeitsbereich auswählen.</p>
   }
-  @if (demo()) {
-    <p role="status">
-      Der Vinted Bot benötigt einen angemeldeten Arbeitsbereich. Im Demo-Modus werden keine
-      Serverdaten geladen.
-    </p>
-  }
   @if (error(); as text) {
     <p role="alert">
       {{ text }} <app-button (clicked)="loadWatchlists()">Suchfilter erneut laden</app-button>

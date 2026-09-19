@@ -16,13 +16,12 @@ describe('Webhook & Notification Service', () => {
     vi.unstubAllGlobals();
   });
 
-  it('should initialize with default config and system notification', () => {
+  it('should initialize with default config and no notifications', () => {
     const cfg = webhookService.config();
     expect(cfg.notifyOnSale).toBe(true);
 
-    const notifs = webhookService.notifications();
-    expect(notifs.length).toBeGreaterThan(0);
-    expect(webhookService.unreadCount()).toBe(1);
+    expect(webhookService.notifications()).toEqual([]);
+    expect(webhookService.unreadCount()).toBe(0);
   });
 
   it('should update config properly', () => {
@@ -44,7 +43,7 @@ describe('Webhook & Notification Service', () => {
       message: 'Artikel verkauft für 100 €',
     });
 
-    expect(webhookService.unreadCount()).toBe(2);
+    expect(webhookService.unreadCount()).toBe(1);
 
     webhookService.markAllAsRead();
     expect(webhookService.unreadCount()).toBe(0);
@@ -191,6 +190,11 @@ describe('Webhook & Notification Service', () => {
     });
 
     it('aendert nichts, wenn die Meldung schon gelesen ist', () => {
+      webhookService.addNotification({
+        type: 'sale',
+        title: 'Erste',
+        message: 'Test',
+      });
       const id = webhookService.notifications()[0].id;
       webhookService.markAsRead(id);
       const zwischenstand = webhookService.unreadCount();
