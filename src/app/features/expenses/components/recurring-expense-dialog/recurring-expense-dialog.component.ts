@@ -73,6 +73,7 @@ export class RecurringExpenseDialogComponent implements OnInit {
   readonly isSaving = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly taxDetailsExpanded = signal(false);
+  private readonly persistedRule = signal<ExpenseRecurringRule | null>(null);
 
   readonly frequencyOptions: readonly SelectOption<ExpenseFrequency>[] = [
     { value: 'monthly', label: 'Monatlich' },
@@ -178,8 +179,9 @@ export class RecurringExpenseDialogComponent implements OnInit {
         is_active: values.is_active,
         notes: values.notes.trim() || null,
       };
-      const result = this.rule()
-        ? await this.recurringService.update(this.rule()!.id, input)
+      const existingRule = this.persistedRule() ?? this.rule();
+      const result = existingRule
+        ? await this.recurringService.update(existingRule.id, input)
         : await this.recurringService.create(input);
       if (result.error || !result.data) {
         this.errorMessage.set(
@@ -188,9 +190,13 @@ export class RecurringExpenseDialogComponent implements OnInit {
         return;
       }
 
+      this.persistedRule.set(result.data);
+
       const materialized = await this.recurringService.materializeDue(localDateKey());
       if (materialized.error) {
-        this.errorMessage.set(materialized.error.message);
+        this.errorMessage.set(
+          `Die Regel wurde gespeichert, aber die Fälligkeiten konnten nicht erzeugt werden: ${materialized.error.message}`,
+        );
         return;
       }
 
