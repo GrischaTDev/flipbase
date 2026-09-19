@@ -16,6 +16,10 @@ import {
 } from '../../../../core/models/expense.models';
 import { ExpenseCategoryService } from '../../../../core/services/expense-category.service';
 import { ExpenseRecurringService } from '../../../../core/services/expense-recurring.service';
+import {
+  calculateExpenseTax,
+  calculateExpenseUnitPrice,
+} from '../../../../core/utils/expense-money';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import {
   CustomSelectComponent,
@@ -56,6 +60,7 @@ export class RecurringExpenseDialogComponent implements OnInit {
 
   readonly isSaving = signal(false);
   readonly errorMessage = signal<string | null>(null);
+  readonly taxDetailsExpanded = signal(false);
 
   readonly frequencyOptions: readonly SelectOption<ExpenseFrequency>[] = [
     { value: 'monthly', label: 'Monatlich' },
@@ -63,10 +68,10 @@ export class RecurringExpenseDialogComponent implements OnInit {
     { value: 'yearly', label: 'Jährlich' },
   ];
   readonly vatOptions: readonly SelectOption<ExpenseVatRate>[] = [
-    { value: null, label: 'Keine Angabe' },
+    { value: 19, label: '19 % enthalten' },
+    { value: 7, label: '7 % enthalten' },
     { value: 0, label: '0 %' },
-    { value: 7, label: '7 %' },
-    { value: 19, label: '19 %' },
+    { value: null, label: 'Nicht ausgewiesen / unbekannt' },
   ];
   readonly categoryOptions = computed<readonly SelectOption<string>[]>(() =>
     this.categoryService.categories().map((category) => ({
@@ -77,9 +82,17 @@ export class RecurringExpenseDialogComponent implements OnInit {
 
   readonly form = new FormGroup({
     title: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
+    vendor_name: new FormControl('', {
+      nonNullable: true,
+      validators: [Validators.maxLength(160)],
+    }),
     category_id: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
+    quantity: new FormControl(1, {
+      nonNullable: true,
+      validators: [Validators.required, Validators.min(1), Validators.pattern(/^[1-9]\d*$/u)],
+    }),
     gross_amount: new FormControl<number | null>(null, [Validators.required, Validators.min(0.01)]),
-    vat_rate: new FormControl<ExpenseVatRate>(null),
+    vat_rate: new FormControl<ExpenseVatRate>(19),
     frequency: new FormControl<ExpenseFrequency>('monthly', { nonNullable: true }),
     start_date: new FormControl(localDateKey(), {
       nonNullable: true,
@@ -95,7 +108,9 @@ export class RecurringExpenseDialogComponent implements OnInit {
     if (!rule) return;
     this.form.reset({
       title: rule.title,
+      vendor_name: rule.vendor_name ?? '',
       category_id: rule.category_id,
+      quantity: rule.quantity,
       gross_amount: rule.gross_amount,
       vat_rate: rule.vat_rate,
       frequency: rule.frequency,
@@ -106,12 +121,46 @@ export class RecurringExpenseDialogComponent implements OnInit {
     });
   }
 
+  taxBreakdown() {
+    return calculateExpenseTax(
+      Number(this.form.controls.gross_amount.value ?? 0),
+      this.form.controls.vat_rate.value,
+    );
+  }
+
+  unitPrice(): number | null {
+    return calculateExpenseUnitPrice(
+      Number(this.form.controls.gross_amount.value ?? 0),
+      this.form.controls.quantity.value,
+    );
+  }
+
+  vatSummary(): string {
+    switch (this.form.controls.vat_rate.value) {
+      case 19:
+        return '19 % MwSt. enthalten';
+      case 7:
+        return '7 % MwSt. enthalten';
+      case 0:
+        return '0 % MwSt.';
+      case null:
+        return 'MwSt. nicht ausgewiesen / unbekannt';
+    }
+  }
+
   async save(): Promise<void> {
     if (this.isSaving()) return;
     this.form.markAllAsTouched();
     const values = this.form.getRawValue();
-    if (this.form.invalid || values.gross_amount === null) {
-      this.errorMessage.set('Bitte Bezeichnung, Kategorie, Betrag und Startdatum angeben.');
+    if (
+      this.form.invalid ||
+      values.gross_amount === null ||
+      !Number.isInteger(values.quantity) ||
+      values.quantity < 1
+    ) {
+      this.errorMessage.set(
+        'Bitte Bezeichnung, Kategorie, Menge, Gesamtbetrag und Startdatum angeben.',
+      );
       return;
     }
 
@@ -121,6 +170,8 @@ export class RecurringExpenseDialogComponent implements OnInit {
       const input = {
         category_id: values.category_id,
         title: values.title.trim(),
+        vendor_name: values.vendor_name.trim() || null,
+        quantity: values.quantity,
         gross_amount: Number(values.gross_amount),
         vat_rate: values.vat_rate,
         frequency: values.frequency,
