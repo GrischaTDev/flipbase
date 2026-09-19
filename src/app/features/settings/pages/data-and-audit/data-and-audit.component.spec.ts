@@ -112,6 +112,15 @@ describe('Daten & Protokolle', () => {
   ])('erteilt der Rolle %s den erwarteten globalen Exportzugriff', (role, expected) => {
     expect(canExportAuditData(role)).toBe(expected);
   });
+  it('zeigt während der Rollenauflösung einen neutralen Ladehinweis statt einer Rechtewarnung', async () => {
+    const template = await readFile(
+      new URL('./data-and-audit.component.html', import.meta.url),
+      'utf8',
+    );
+
+    expect(template).toContain('Berechtigungen werden geladen');
+  });
+
   it('hält Workspace-Aufbewahrung aus Daten & Protokolle heraus und bündelt Zusatzexporte', async () => {
     const template = await readFile(
       new URL('./data-and-audit.component.html', import.meta.url),
