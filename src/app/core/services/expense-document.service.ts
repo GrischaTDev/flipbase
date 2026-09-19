@@ -66,17 +66,29 @@ export class ExpenseDocumentService {
     const requestId = ++this.summaryRequestSequence;
 
     try {
-      const { data, error } = await this.supabase.client
-        .from('expense_documents')
-        .select('expense_id')
-        .eq('workspace_id', workspaceId)
-        .in('expense_id', uniqueIds);
-      if (!this.isLatestSummaryRequest(workspaceId, requestId)) return false;
-      if (error) throw error;
-
       const counts = new Map<string, number>();
-      for (const row of data ?? []) {
-        counts.set(row.expense_id, (counts.get(row.expense_id) ?? 0) + 1);
+      const batchSize = 100;
+      const pageSize = 1000;
+      for (let batchStart = 0; batchStart < uniqueIds.length; batchStart += batchSize) {
+        const expenseIdBatch = uniqueIds.slice(batchStart, batchStart + batchSize);
+        for (let from = 0; ; from += pageSize) {
+          const { data, error } = await this.supabase.client
+            .from('expense_documents')
+            .select('expense_id')
+            .eq('workspace_id', workspaceId)
+            .in('expense_id', expenseIdBatch)
+            .order('expense_id', { ascending: true })
+            .order('id', { ascending: true })
+            .range(from, from + pageSize - 1);
+          if (!this.isLatestSummaryRequest(workspaceId, requestId)) return false;
+          if (error) throw error;
+
+          const page = data ?? [];
+          for (const row of page) {
+            counts.set(row.expense_id, (counts.get(row.expense_id) ?? 0) + 1);
+          }
+          if (page.length < pageSize) break;
+        }
       }
 
       this.documentCounts.update((current) => {

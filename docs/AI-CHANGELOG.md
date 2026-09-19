@@ -1,5 +1,31 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-19 – Codex (OpenAI) – Prüfung und Nachbesserung der vier Terra-Pakete
+
+**Auftrag:** Die mit Terra umgesetzten Pakete 1–4 (PRs #126–#129) auf Qualität,
+verbliebene Fehler und Eignung für die weitere Arbeit prüfen und die bestätigten
+Fehler anschließend beheben.
+
+**Ergebnis:** Vier Befunde wurden reproduziert und behoben: Nach schnellem
+A→B→A startet wieder eine frische Ausgabenabfrage; die Seitennavigation sortiert
+zusätzlich eindeutig nach ID; Belegstatus-Abfragen werden in kurze Pakete geteilt
+und vollständig paginiert; die Komponentensuite verwendet eine feste Testzeit.
+Die IN-Abfrage für Belege war eine ältere Schwäche, die bei der zugesagten
+Unterstützung großer Listen unberücksichtigt blieb. Kein vollständiger Neuaufbau
+war nötig; Terra bleibt für begrenzte Aufgaben brauchbar, sensible Änderungen
+brauchen unabhängige Prüfung.
+
+**Prüfung:** Vor der Korrektur schlugen die neuen Regressionen für A→B→A,
+eindeutige Sortierung, 1.001 Ausgaben-IDs und mehr als 1.000 Belegzeilen gezielt
+fehl. Vier vorhandene Seitentests wurden mit Oktober-Uhrzeit rot ausgeführt.
+Zusätzlich wurden eine doppelte ID über SQL-Seitengrenzen und HTTP 414 lokal
+nachgewiesen. Nach der Korrektur bestanden 32 fokussierte Service-DOM-, 44 Node-,
+26 Angular- und 157 Datenbanktests. `npm run verify` bestand vollständig mit
+1.449 Node-, 305 DOM- und 926 Angular-Anwendungstests sowie Produktionsbau; es
+blieben nur drei bekannte NG8113-Hinweise. Kein Push/Merge.
+
+**Dokumentation:** `docs/audit/2026-09-19-terra-implementation-review.md`.
+
 ## 2026-09-19 – ChatGPT GPT-5.6 Terra (OpenAI) – Ausgabenzeitraum und nächste Fälligkeit
 
 **Auftrag:** Den vierten Reparaturabschnitt aus der Bestandsaufnahme umsetzen:
