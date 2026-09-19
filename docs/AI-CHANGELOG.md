@@ -1,5 +1,36 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-19 – ChatGPT GPT-5.6 Terra (OpenAI) – Ausgabenzeitraum und nächste Fälligkeit
+
+**Auftrag:** Den vierten Reparaturabschnitt aus der Bestandsaufnahme umsetzen:
+Ausgaben nach einem eindeutig benannten Monat anzeigen, Summen und Tabelle auf
+denselben Filter beziehen sowie die nächste Fälligkeit von der 30-Tage-Vorschau
+entkoppeln.
+
+**Änderung:** Die Ausgabenseite startet nun im aktuellen Monat. Vor- und
+Zurückschalten sowie „Alle“ stehen in der gemeinsamen Tabellenleiste zur
+Verfügung; „Ansicht zurücksetzen“ stellt wieder den aktuellen Monat her.
+Tabelle und drei Summenkarten verwenden dieselbe Menge aus Zeitraum, Suche,
+Kategorie und Status. Der sichtbare Hinweis benennt dafür ausdrücklich das
+Rechnungs- beziehungsweise Ausgabedatum. Gelöschte Ausgaben bleiben auch bei
+einem unerwarteten Client-Datensatz ausgeschlossen.
+
+Die wiederkehrende Tabelle berechnet ihre nächste Fälligkeit direkt aus der
+Regel. Dadurch zeigt eine Jahresregel im Dezember auch im September einen
+Folgetermin, obwohl sie nicht zur 30-Tage-Vorschau gehört. Der Gesamtbetrag
+bleibt unabhängig von der Menge unverändert. Ein Dashboard-Regressionstest
+belegt zusätzlich: Eine August-Rechnung zählt erst nach der September-Zahlung
+zum Cashflow; offene und gelöschte Ausgaben verändern ihn nicht und die
+Verkaufsmarge bleibt getrennt.
+
+**Prüfung:** Die neuen Tests wurden zuerst gegen den alten Stand ausgeführt und
+schlugen erwartungsgemäß für Monatsfilter und Jahresfälligkeit fehl. Danach
+bestanden die fokussierten Angular-Tests (16) und die zugehörigen Node-Tests
+(36) sowie Prettier und ESLint. `npm run verify` bestand anschließend mit
+2.676 Anwendungstests, Typprüfung, Workflow- und Test-Audit sowie
+Produktionsbau. Der Bau meldet weiterhin drei bekannte, paketfremde
+NG8113-Hinweise zu ungenutzten `LucideDynamicIcon`-Importen.
+
 ## 2026-09-19 – ChatGPT GPT-5.6 Terra (OpenAI) – Archivierung und vollständiger Ausgabenexport
 
 **Auftrag:** Den dritten Reparaturabschnitt aus der Bestandsaufnahme umsetzen:

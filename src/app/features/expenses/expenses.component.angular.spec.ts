@@ -349,6 +349,105 @@ describe('ExpensesComponent', () => {
     ]);
   });
 
+  it('beschränkt Tabelle und Summen standardmäßig auf den aktuellen Rechnungsmonat', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 8, 19, 12));
+    try {
+      const { fixture, expenseService } = createFixture();
+      expenseService.expenses.set([
+        {
+          ...expenses[0],
+          id: 'august-paid',
+          title: 'Augustrechnung',
+          quantity: 2,
+          gross_amount: 23.8,
+          expense_date: '2026-08-31',
+          payment_date: '2026-09-02',
+        },
+        {
+          ...expenses[1],
+          id: 'september-open',
+          title: 'Septemberrechnung',
+          gross_amount: 17,
+          expense_date: '2026-09-18',
+          due_date: '2026-09-18',
+        },
+        {
+          ...expenses[1],
+          id: 'october-open',
+          title: 'Oktoberrechnung',
+          gross_amount: 22,
+          expense_date: '2026-10-01',
+          due_date: '2026-10-01',
+        },
+        {
+          ...expenses[1],
+          id: 'deleted-september',
+          title: 'Gelöschte Ausgabe',
+          gross_amount: 9,
+          expense_date: '2026-09-12',
+          deleted_at: '2026-09-13T10:00:00Z',
+        },
+      ]);
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.visibleExpenses().map((expense) => expense.id)).toEqual([
+        'september-open',
+      ]);
+      expect(fixture.componentInstance.summary()).toEqual({ total: 17, paid: 0, open: 17 });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('wechselt mit der Zeitraumsteuerung zum vorherigen Monat', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 8, 19, 12));
+    try {
+      const { fixture } = createFixture();
+      const component = fixture.componentInstance;
+
+      component.moveExpensePeriod(-1);
+
+      expect(component.expensePeriod()).toBe('2026-08');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('zeigt auf Wunsch alle Ausgaben ohne Zeitraumbegrenzung', () => {
+    const { fixture } = createFixture();
+    const component = fixture.componentInstance;
+
+    component.showAllExpensePeriods();
+
+    expect(component.expensePeriod()).toBeNull();
+  });
+
+  it('stellt beim Zurücksetzen wieder den aktuellen Monat ein', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 8, 19, 12));
+    try {
+      const { fixture } = createFixture();
+      const component = fixture.componentInstance;
+      component.moveExpensePeriod(-1);
+
+      component.resetView();
+
+      expect(component.expensePeriod()).toBe('2026-09');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('kennzeichnet Zeitraumsteuerung und Rechnungsbezug der Ausgabentabelle', async () => {
+    const { fixture } = await render();
+    const host = fixture.nativeElement as HTMLElement;
+
+    expect(host.querySelector('[aria-label="Ausgabenzeitraum"]')).not.toBeNull();
+    expect(host.textContent).toContain('Rechnungs- bzw. Ausgabedatum');
+  });
+
   it('filtert die konkrete Tabelle nach Status', async () => {
     const { fixture } = await render();
     fixture.componentInstance.setStatus('open');
@@ -428,6 +527,28 @@ describe('ExpensesComponent', () => {
     expect(host.textContent).toContain('monatlich');
     expect(host.textContent).toContain('18.10.2026');
     expect(host.querySelector('app-data-table')).toBeTruthy();
+  });
+
+  it('zeigt die nächste Jahresfälligkeit auch außerhalb der 30-Tage-Vorschau', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 8, 19, 12));
+    try {
+      const { fixture, recurringService } = createFixture();
+      recurringService.rules.set([
+        {
+          ...rules[0],
+          id: 'rule-yearly',
+          frequency: 'yearly',
+          start_date: '2025-12-18',
+        },
+      ]);
+      recurringService.upcoming.mockReturnValue([]);
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.nextOccurrence('rule-yearly')).toBe('2026-12-18');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('besteht die automatischen Barrierefreiheitsprüfungen', async () => {

@@ -74,4 +74,10 @@ describe('nextOccurrence', () => {
   it('liefert nach dem Enddatum keine weitere Fälligkeit', () => {
     expect(nextOccurrence(rule({ end_date: '2026-03-15' }), '2026-03-15')).toBeNull();
   });
+
+  it('berechnet die nächste Jahresfälligkeit auch mehrere Monate nach dem Referenzdatum', () => {
+    expect(
+      nextOccurrence(rule({ start_date: '2025-12-18', frequency: 'yearly' }), '2026-09-19'),
+    ).toBe('2026-12-18');
+  });
 });
