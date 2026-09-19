@@ -20,8 +20,74 @@
     >
   </div>
   <p class="text-xs text-fb-text-muted">
-    Hinterlege Zugangsdaten für automatischen Versandmarken-Kauf und Tracking-Generierung.
+    Hinterlege Absenderdaten und erfasse echte Sendungsnummern nach dem Kauf beim Zusteller.
   </p>
+  @if (fulfillmentService.loadError(); as loadError) {
+    <div class="rounded-xl border border-rose-500/40 bg-rose-500/10 p-3" role="alert">
+      <p class="text-xs font-semibold text-rose-300">Versanddaten konnten nicht geladen werden.</p>
+      <p class="mt-1 text-xs text-fb-text-muted">{{ loadError.message }}</p>
+      <button
+        type="button"
+        (click)="retryLoad()"
+        class="mt-2 min-h-9 rounded-lg border border-fb-border px-3 text-xs font-semibold text-fb-text-primary"
+      >
+        Erneut laden
+      </button>
+    </div>
+  }
+  <fieldset class="space-y-3 border-b border-fb-border pb-4">
+    <legend class="mb-2 text-sm font-semibold text-fb-text-primary">Absenderadresse</legend>
+    <p class="text-xs text-fb-text-muted">
+      Diese Angaben erscheinen auf druckbaren Versandetiketten. Ohne vollständige Adresse ist der
+      Etikettendruck gesperrt.
+    </p>
+    <div class="grid gap-3 sm:grid-cols-2">
+      <app-text-field
+        formControlName="senderName"
+        label="Name *"
+        [required]="true"
+        [error]="fieldError(carrierForm.controls.senderName, 'Name')"
+      />
+      <app-text-field formControlName="senderCompany" label="Firma (optional)" />
+      <app-text-field
+        formControlName="senderStreet"
+        label="Straße *"
+        [required]="true"
+        [error]="fieldError(carrierForm.controls.senderStreet, 'Straße')"
+      />
+      <app-text-field
+        formControlName="senderHouseNumber"
+        label="Hausnummer *"
+        [required]="true"
+        [error]="fieldError(carrierForm.controls.senderHouseNumber, 'Hausnummer')"
+      />
+      <app-text-field
+        formControlName="senderPostalCode"
+        label="Postleitzahl *"
+        [required]="true"
+        [error]="fieldError(carrierForm.controls.senderPostalCode, 'Postleitzahl')"
+      />
+      <app-text-field
+        formControlName="senderCity"
+        label="Ort *"
+        [required]="true"
+        [error]="fieldError(carrierForm.controls.senderCity, 'Ort')"
+      />
+      <app-text-field
+        formControlName="senderCountry"
+        label="Land *"
+        [required]="true"
+        [error]="fieldError(carrierForm.controls.senderCountry, 'Land')"
+      />
+      <app-text-field
+        formControlName="senderEmail"
+        label="E-Mail (optional)"
+        type="email"
+        [error]="fieldError(carrierForm.controls.senderEmail, 'E-Mail')"
+      />
+      <app-text-field formControlName="senderPhone" label="Telefon (optional)" type="tel" />
+    </div>
+  </fieldset>
   <fieldset class="space-y-3">
     <legend class="sr-only">Versanddienstleister</legend>
     <label
@@ -59,7 +125,12 @@
   <div class="flex justify-end">
     <button
       type="submit"
-      [disabled]="isSavingCarrierConfig() || isLoadingWorkspaceConfig()"
+      [disabled]="
+        isSavingCarrierConfig() ||
+        isLoadingWorkspaceConfig() ||
+        fulfillmentService.loadError() ||
+        carrierForm.invalid
+      "
       class="linear-btn-primary inline-flex min-h-11 items-center gap-2 rounded-xl px-4 text-xs font-bold disabled:opacity-40"
     >
       <svg [lucideIcon]="saveIcon" class="h-4 w-4" aria-hidden="true"></svg

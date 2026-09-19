@@ -1,20 +1,32 @@
 import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
-import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import {
+  AbstractControl,
+  FormControl,
+  FormGroup,
+  ReactiveFormsModule,
+  ValidationErrors,
+  Validators,
+} from '@angular/forms';
 import { LucideDynamicIcon, LucideSave, LucideTruck } from '@lucide/angular';
 import { FulfillmentService } from '../../../../core/services/fulfillment.service';
 import { SyncStatusService } from '../../../../core/services/sync-status.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
+import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
+
+function trimmedRequired(control: AbstractControl<string>): ValidationErrors | null {
+  return control.value.trim() ? null : { trimmedRequired: true };
+}
 
 @Component({
   selector: 'app-shipping-settings',
-  imports: [ReactiveFormsModule, LucideDynamicIcon],
+  imports: [ReactiveFormsModule, LucideDynamicIcon, TextFieldComponent],
   templateUrl: './shipping-settings.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
 })
 export class ShippingSettingsComponent {
-  private readonly fulfillmentService = inject(FulfillmentService);
+  readonly fulfillmentService = inject(FulfillmentService);
   private readonly workspaceService = inject(WorkspaceService);
   private readonly toast = inject(ToastService);
   private readonly syncStatus = inject(SyncStatusService);
@@ -27,6 +39,24 @@ export class ShippingSettingsComponent {
     hermesEnabled: new FormControl(true),
     hermesClientId: new FormControl(''),
     hermesApiKey: new FormControl(''),
+    senderName: new FormControl('', { nonNullable: true, validators: [trimmedRequired] }),
+    senderCompany: new FormControl('', { nonNullable: true }),
+    senderStreet: new FormControl('', { nonNullable: true, validators: [trimmedRequired] }),
+    senderHouseNumber: new FormControl('', {
+      nonNullable: true,
+      validators: [trimmedRequired],
+    }),
+    senderPostalCode: new FormControl('', {
+      nonNullable: true,
+      validators: [trimmedRequired],
+    }),
+    senderCity: new FormControl('', { nonNullable: true, validators: [trimmedRequired] }),
+    senderCountry: new FormControl('', {
+      nonNullable: true,
+      validators: [trimmedRequired],
+    }),
+    senderEmail: new FormControl('', { nonNullable: true, validators: [Validators.email] }),
+    senderPhone: new FormControl('', { nonNullable: true }),
   });
   readonly isLoadingWorkspaceConfig = signal(true);
   readonly isSavingCarrierConfig = signal(false);
@@ -50,6 +80,15 @@ export class ShippingSettingsComponent {
             hermesEnabled: false,
             hermesClientId: '',
             hermesApiKey: '',
+            senderName: '',
+            senderCompany: '',
+            senderStreet: '',
+            senderHouseNumber: '',
+            senderPostalCode: '',
+            senderCity: '',
+            senderCountry: '',
+            senderEmail: '',
+            senderPhone: '',
           },
           { emitEvent: false },
         );
@@ -61,7 +100,12 @@ export class ShippingSettingsComponent {
   }
   async onSaveCarrierConfig(): Promise<void> {
     const workspaceId = this.workspaceService.currentWorkspace()?.id;
-    if (!workspaceId || this.isLoadingWorkspaceConfig()) return;
+    if (!workspaceId || this.isLoadingWorkspaceConfig() || this.fulfillmentService.loadError())
+      return;
+    if (this.carrierForm.invalid) {
+      this.carrierForm.markAllAsTouched();
+      return;
+    }
     const value = this.carrierForm.getRawValue();
     const requestId = ++this.saveRequestId;
     this.isSavingCarrierConfig.set(true);
@@ -73,6 +117,15 @@ export class ShippingSettingsComponent {
         hermesEnabled: !!value.hermesEnabled,
         hermesClientId: value.hermesClientId?.trim() || '',
         hermesApiKey: value.hermesApiKey?.trim() || '',
+        senderName: value.senderName.trim(),
+        senderCompany: value.senderCompany.trim(),
+        senderStreet: value.senderStreet.trim(),
+        senderHouseNumber: value.senderHouseNumber.trim(),
+        senderPostalCode: value.senderPostalCode.trim(),
+        senderCity: value.senderCity.trim(),
+        senderCountry: value.senderCountry.trim(),
+        senderEmail: value.senderEmail.trim(),
+        senderPhone: value.senderPhone.trim(),
       });
       if (!this.isCurrentSave(requestId, workspaceId)) return;
       if (result.error || !result.data) {
@@ -90,6 +143,17 @@ export class ShippingSettingsComponent {
     } finally {
       if (this.isCurrentSave(requestId, workspaceId)) this.isSavingCarrierConfig.set(false);
     }
+  }
+  retryLoad(): void {
+    const workspaceId = this.workspaceService.currentWorkspace()?.id;
+    if (workspaceId) void this.fulfillmentService.loadFromSupabase(workspaceId);
+  }
+
+  fieldError(control: FormControl<string>, label: string): string | null {
+    if (!control.touched && !control.dirty) return null;
+    if (control.hasError('trimmedRequired')) return `${label} ist erforderlich.`;
+    if (control.hasError('email')) return 'Bitte gib eine gültige E-Mail-Adresse ein.';
+    return null;
   }
   private isCurrentSave(requestId: number, workspaceId: string): boolean {
     return (

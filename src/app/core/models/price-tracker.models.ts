@@ -27,4 +27,5 @@ export interface PriceTrackedItem {
   alertTriggered: PriceAlert;
   lastCheckedAt: string;
   isTrackingActive: boolean;
+  marketDataVerified?: boolean;
 }

@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Injector, runInInjectionContext, signal } from '@angular/core';
 import { ReturnService } from './return.service';
 import { InventoryItem, Sale } from '../models/flipbase.models';
+import { ReturnRecord } from '../models/return.models';
 
 describe('ReturnService & Credit Note Engine (Chapter 25)', () => {
   let service: ReturnService;
@@ -53,6 +54,20 @@ describe('ReturnService & Credit Note Engine (Chapter 25)', () => {
     allocated_purchase_cost: 80.0,
   };
 
+  const sampleReturn: ReturnRecord = {
+    id: 'return-1',
+    workspace_id: 'ws-1',
+    sale_id: sampleSale.id,
+    inventory_item_id: sampleItem.id,
+    credit_note_number: 'GS-2026-0001',
+    return_date: '2026-09-19',
+    reason: 'other',
+    refund_amount: 10,
+    is_full_refund: true,
+    restock_action: 'keep_with_buyer',
+    created_at: '2026-09-19T10:00:00.000Z',
+  };
+
   it('startet ohne gespeicherte Retouren leer', () => {
     expect(service.returns()).toEqual([]);
   });
@@ -86,6 +101,97 @@ describe('ReturnService & Credit Note Engine (Chapter 25)', () => {
     await service.loadReturns('workspace-1');
 
     expect(service.returns()).toEqual([]);
+  });
+
+  it('verwirft eine verspätete Antwort des vorherigen Workspaces', async () => {
+    const pending = new Map<string, (result: { data: unknown[]; error: null }) => void>();
+    let currentWorkspaceId = 'workspace-a';
+    const query = {
+      select: () => query,
+      eq: (_column: string, workspaceId: string) => ({
+        order: () =>
+          new Promise<{ data: unknown[]; error: null }>((resolve) => {
+            pending.set(workspaceId, resolve);
+          }),
+      }),
+    };
+    Object.assign(service, {
+      supabase: { client: { from: () => query } },
+      workspaceService: { currentWorkspace: () => ({ id: currentWorkspaceId }) },
+      syncStatus: { melde: vi.fn() },
+    });
+
+    const firstLoad = service.loadReturns('workspace-a');
+    currentWorkspaceId = 'workspace-b';
+    const secondLoad = service.loadReturns('workspace-b');
+    pending.get('workspace-b')!({
+      data: [{ ...sampleReturn, id: 'return-b', workspace_id: 'workspace-b' }],
+      error: null,
+    });
+    await secondLoad;
+    pending.get('workspace-a')!({
+      data: [{ ...sampleReturn, id: 'return-a', workspace_id: 'workspace-a' }],
+      error: null,
+    });
+    await firstLoad;
+
+    expect(service.returns().map((entry) => entry.id)).toEqual(['return-b']);
+  });
+
+  it('leert Retouren bei Abmeldung ohne Datenbankabfrage', async () => {
+    const from = vi.fn();
+    service.returns.set([{ ...sampleReturn, id: 'old-return' }]);
+    Object.assign(service, { supabase: { client: { from } } });
+
+    await service.loadReturns('');
+
+    expect(service.returns()).toEqual([]);
+    expect(from).not.toHaveBeenCalled();
+  });
+
+  it('übernimmt eine verspätete Retourenbuchung nicht in den neuen Workspace', async () => {
+    let currentWorkspaceId = 'ws-1';
+    let resolveBooking!: (value: {
+      data: {
+        sale: Sale;
+        restockedQuantity: number;
+        saleReturnedAt: string;
+      };
+      error: null;
+      reportedBySyncStatus: false;
+    }) => void;
+    const response = new Promise<Parameters<typeof resolveBooking>[0]>((resolve) => {
+      resolveBooking = resolve;
+    });
+    Object.assign(service, {
+      workspaceService: { currentWorkspace: () => ({ id: currentWorkspaceId }) },
+      salesService: { recordReturn: vi.fn(() => response) },
+    });
+
+    const operation = service.processReturn({
+      sale: sampleSale,
+      item: sampleItem,
+      reason: 'other',
+      refundAmount: 10,
+      isFullRefund: false,
+      restockAction: 'keep_with_buyer',
+    });
+    currentWorkspaceId = 'ws-2';
+    service.returns.set([{ ...sampleReturn, id: 'return-ws-2', workspace_id: 'ws-2' }]);
+    resolveBooking({
+      data: {
+        sale: { ...sampleSale, returned_at: '2026-09-19T10:00:00.000Z' },
+        restockedQuantity: 0,
+        saleReturnedAt: '2026-09-19T10:00:00.000Z',
+      },
+      error: null,
+      reportedBySyncStatus: false,
+    });
+    const result = await operation;
+
+    expect(result.status).toBe('error');
+    expect(result.error?.message).toContain('Workspace');
+    expect(service.returns().map((entry) => entry.id)).toEqual(['return-ws-2']);
   });
 
   it('should process full return, restock ready item and generate credit note invoice', async () => {

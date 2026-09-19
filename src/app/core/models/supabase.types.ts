@@ -335,6 +335,15 @@ export type Database = {
           hermes_client_id: string | null
           hermes_enabled: boolean
           id: string
+          sender_city: string | null
+          sender_company: string | null
+          sender_country: string | null
+          sender_email: string | null
+          sender_house_number: string | null
+          sender_name: string | null
+          sender_phone: string | null
+          sender_postal_code: string | null
+          sender_street: string | null
           updated_at: string
           workspace_id: string
         }
@@ -347,6 +356,15 @@ export type Database = {
           hermes_client_id?: string | null
           hermes_enabled?: boolean
           id?: string
+          sender_city?: string | null
+          sender_company?: string | null
+          sender_country?: string | null
+          sender_email?: string | null
+          sender_house_number?: string | null
+          sender_name?: string | null
+          sender_phone?: string | null
+          sender_postal_code?: string | null
+          sender_street?: string | null
           updated_at?: string
           workspace_id: string
         }
@@ -359,6 +377,15 @@ export type Database = {
           hermes_client_id?: string | null
           hermes_enabled?: boolean
           id?: string
+          sender_city?: string | null
+          sender_company?: string | null
+          sender_country?: string | null
+          sender_email?: string | null
+          sender_house_number?: string | null
+          sender_name?: string | null
+          sender_phone?: string | null
+          sender_postal_code?: string | null
+          sender_street?: string | null
           updated_at?: string
           workspace_id?: string
         }
@@ -1674,6 +1701,7 @@ export type Database = {
           lowest_competitor_platform: string | null
           lowest_competitor_title: string | null
           lowest_competitor_url: string | null
+          market_data_verified: boolean
           price_difference_percent: number
           price_history: Json
           price_trend: string
@@ -1695,6 +1723,7 @@ export type Database = {
           lowest_competitor_platform?: string | null
           lowest_competitor_title?: string | null
           lowest_competitor_url?: string | null
+          market_data_verified?: boolean
           price_difference_percent?: number
           price_history?: Json
           price_trend?: string
@@ -1716,6 +1745,7 @@ export type Database = {
           lowest_competitor_platform?: string | null
           lowest_competitor_title?: string | null
           lowest_competitor_url?: string | null
+          market_data_verified?: boolean
           price_difference_percent?: number
           price_history?: Json
           price_trend?: string

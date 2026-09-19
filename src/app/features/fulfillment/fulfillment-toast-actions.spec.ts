@@ -64,6 +64,8 @@ function erstelleKomponente(ergebnis: { readonly error: Error | null }) {
       error: null,
       reportedBySyncStatus: false,
     })),
+    getSenderAddress: vi.fn(() => null),
+    selectedOrderForLabel: signal<ShippingOrder | null>(null),
   };
   const dialog = { frage: vi.fn(async () => true) };
   const komponente = Object.create(FulfillmentComponent.prototype) as FulfillmentComponent;
@@ -75,6 +77,7 @@ function erstelleKomponente(ergebnis: { readonly error: Error | null }) {
     isBundling: signal(false),
     isPurchaseModalOpen: signal(true),
     isTrackingModalOpen: signal(true),
+    isLabelModalOpen: signal(false),
     deliveringOrderId: signal<string | null>(null),
     trackingOrderId: signal(bestellung.id),
     trackingForm: {
@@ -88,6 +91,36 @@ function erstelleKomponente(ergebnis: { readonly error: Error | null }) {
 }
 
 describe('FulfillmentComponent – Aktionsmeldungen', () => {
+  it('lässt eine verspätete A-Antwort den laufenden B-Zustand unverändert', async () => {
+    let currentWorkspaceId = 'workspace-a';
+    let resolveA!: (value: { error: null }) => void;
+    let resolveB!: (value: { error: null }) => void;
+    const responseA = new Promise<{ error: null }>((resolve) => (resolveA = resolve));
+    const responseB = new Promise<{ error: null }>((resolve) => (resolveB = resolve));
+    const { komponente, fulfillmentService, toast } = erstelleKomponente({ error: null });
+    fulfillmentService.bundleOrders.mockReturnValueOnce(responseA).mockReturnValueOnce(responseB);
+    Object.assign(komponente, {
+      workspaceService: { currentWorkspace: () => ({ id: currentWorkspaceId }) },
+      workspaceActionVersion: 0,
+    });
+
+    const operationA = komponente.onBundleCandidate(kandidat);
+    currentWorkspaceId = 'workspace-b';
+    Object.assign(komponente, { workspaceActionVersion: 1 });
+    komponente.isBundling.set(false);
+    const operationB = komponente.onBundleCandidate(kandidat);
+
+    resolveA({ error: null });
+    await operationA;
+    expect(komponente.isBundling()).toBe(true);
+    expect(toast.toasts()).toEqual([]);
+
+    resolveB({ error: null });
+    await operationB;
+    expect(komponente.isBundling()).toBe(false);
+    expect(toast.toasts()[0]).toMatchObject({ title: 'Sendungen wurden gebündelt.' });
+  });
+
   it('bestätigt das Bündeln erst nach Erfolg', async () => {
     const { komponente, toast } = erstelleKomponente({ error: null });
 
@@ -96,6 +129,19 @@ describe('FulfillmentComponent – Aktionsmeldungen', () => {
     expect(toast.toasts()[0]).toMatchObject({
       type: 'success',
       title: 'Sendungen wurden gebündelt.',
+    });
+  });
+
+  it('öffnet ohne hinterlegte Absenderadresse kein druckbares Etikett', () => {
+    const { komponente, fulfillmentService, toast } = erstelleKomponente({ error: null });
+
+    komponente.openLabelModal(bestellung);
+
+    expect(komponente.isLabelModalOpen()).toBe(false);
+    expect(fulfillmentService.selectedOrderForLabel()).toBeNull();
+    expect(toast.toasts()[0]).toMatchObject({
+      type: 'warning',
+      title: 'Absenderadresse fehlt.',
     });
   });
 

@@ -33,6 +33,7 @@ import { ConfirmDialogService } from '../../../shared/components/confirm-dialog/
 import { CustomCheckboxComponent } from '../../../shared/components/custom-checkbox/custom-checkbox.component';
 import { CustomSelectComponent } from '../../../shared/components/custom-select/custom-select.component';
 import { ToastService, ToastType } from '../../../shared/components/toast/toast.service';
+import { TextFieldComponent } from '../../../shared/components/text-field/text-field.component';
 import { AccountSettingsComponent } from './account-settings/account-settings.component';
 import { AppSettingsComponent } from './app-settings/app-settings.component';
 import { NotificationSettingsComponent } from './notification-settings/notification-settings.component';
@@ -63,6 +64,7 @@ type AngularViewQuery = (renderFlags: number, context: unknown) => void;
 
 let selectMetadataSnapshot: AngularBindingMetadata | null = null;
 let checkboxMetadataSnapshot: AngularBindingMetadata | null = null;
+let textFieldMetadataSnapshot: AngularBindingMetadata | null = null;
 let selectViewQuerySnapshot: AngularViewQuery | null | undefined;
 
 const resourceFiles: Readonly<Record<string, string>> = {
@@ -84,6 +86,8 @@ const resourceFiles: Readonly<Record<string, string>> = {
     '../../../shared/components/custom-select/custom-select.component.scss',
   'badge.component.html': '../../../shared/components/badge/badge.component.html',
   'badge.component.scss': '../../../shared/components/badge/badge.component.scss',
+  'text-field.component.html': '../../../shared/components/text-field/text-field.component.html',
+  'text-field.component.scss': '../../../shared/components/text-field/text-field.component.scss',
 };
 
 beforeAll(async () => {
@@ -176,6 +180,24 @@ beforeAll(async () => {
     ...checkboxMetadata.outputs,
     checkedChange: 'checked',
   };
+
+  const textFieldMetadata = (TextFieldComponent as unknown as { ɵcmp: AngularBindingMetadata })
+    .ɵcmp;
+  textFieldMetadataSnapshot = {
+    inputs: textFieldMetadata.inputs,
+    declaredInputs: textFieldMetadata.declaredInputs,
+    outputs: textFieldMetadata.outputs,
+  };
+  textFieldMetadata.inputs = {
+    ...textFieldMetadata.inputs,
+    error: ['error', 1, null],
+    required: ['required', 1, null],
+  };
+  textFieldMetadata.declaredInputs = {
+    ...textFieldMetadata.declaredInputs,
+    error: 'error',
+    required: 'required',
+  };
 });
 
 afterAll(() => {
@@ -202,6 +224,13 @@ afterAll(() => {
     metadata.declaredInputs = checkboxMetadataSnapshot.declaredInputs;
     metadata.outputs = checkboxMetadataSnapshot.outputs;
     checkboxMetadataSnapshot = null;
+  }
+  if (textFieldMetadataSnapshot) {
+    const metadata = (TextFieldComponent as unknown as { ɵcmp: AngularBindingMetadata }).ɵcmp;
+    metadata.inputs = textFieldMetadataSnapshot.inputs;
+    metadata.declaredInputs = textFieldMetadataSnapshot.declaredInputs;
+    metadata.outputs = textFieldMetadataSnapshot.outputs;
+    textFieldMetadataSnapshot = null;
   }
 });
 
@@ -248,6 +277,15 @@ function carrierConfig(secret: string): CarrierConfig {
     hermesEnabled: true,
     hermesClientId: 'hermes-account',
     hermesApiKey: `${secret}-hermes`,
+    senderName: 'Ada Lovelace',
+    senderCompany: 'Analytical Engines GmbH',
+    senderStreet: 'Testweg',
+    senderHouseNumber: '42a',
+    senderPostalCode: '10115',
+    senderCity: 'Berlin',
+    senderCountry: 'Deutschland',
+    senderEmail: 'ada@example.com',
+    senderPhone: '+49 30 123456',
   };
 }
 
@@ -1634,11 +1672,19 @@ async function renderShipping(
   const currentWorkspace = signal<Workspace | null>(workspace('workspace-a', 'Workspace A'));
   const config = signal<CarrierConfig>(carrierConfig('dhl-a-secret'));
   const loadedWorkspaceId = signal<string | null>('workspace-a');
+  const loadError = signal<Error | null>(null);
+  const loadFromSupabase = vi.fn(async () => undefined);
   const updateCarrierConfig = vi.fn(
     async (): Promise<MutationResult> =>
       options.updateResult ?? { data: {}, error: null, reportedBySyncStatus: false },
   );
-  const fulfillmentService = { carrierConfig: config, loadedWorkspaceId, updateCarrierConfig };
+  const fulfillmentService = {
+    carrierConfig: config,
+    loadedWorkspaceId,
+    loadError,
+    loadFromSupabase,
+    updateCarrierConfig,
+  };
   const syncStatus = {
     istZentralGemeldet: vi.fn(() => options.centralThrow ?? false),
   };
@@ -1658,6 +1704,7 @@ async function renderShipping(
     currentWorkspace,
     config,
     loadedWorkspaceId,
+    loadError,
     fulfillmentService,
     syncStatus,
     toast: TestBed.inject(ToastService),
@@ -1665,6 +1712,41 @@ async function renderShipping(
 }
 
 describe('Versandeinstellungen – echte Angular-Fixture', () => {
+  it('weist leere Pflichtfelder und eine ungültige E-Mail verständlich aus', async () => {
+    const { fixture, fulfillmentService } = await renderShipping();
+    fixture.componentInstance.carrierForm.patchValue({
+      senderName: '   ',
+      senderEmail: 'keine-mail',
+    });
+    fixture.componentInstance.carrierForm.controls.senderName.markAsTouched();
+    fixture.componentInstance.carrierForm.controls.senderEmail.markAsTouched();
+    fixture.detectChanges();
+
+    expect(renderedButton(fixture, 'Carrier-Einstellungen speichern').disabled).toBe(true);
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Name ist erforderlich.');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain(
+      'Bitte gib eine gültige E-Mail-Adresse ein.',
+    );
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('input[aria-invalid="true"]'),
+    ).not.toBeNull();
+    expect(fulfillmentService.updateCarrierConfig).not.toHaveBeenCalled();
+  });
+
+  it('zeigt Ladefehler an und bietet einen erneuten Versuch an', async () => {
+    const { fixture, loadError, fulfillmentService } = await renderShipping();
+    loadError.set(new Error('Datenbank offline'));
+    fixture.detectChanges();
+
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain(
+      'Versanddaten konnten nicht geladen werden.',
+    );
+    renderedButton(fixture, 'Erneut laden').click();
+
+    expect(fulfillmentService.loadFromSupabase).toHaveBeenCalledWith('workspace-a');
+    expect(renderedButton(fixture, 'Carrier-Einstellungen speichern').disabled).toBe(true);
+  });
+
   it('leert A-Geheimnisse beim Wechsel, ignoriert verspätetes A und patcht erst geladenes B', async () => {
     const { fixture, currentWorkspace, config, loadedWorkspaceId } = await renderShipping();
     expect(fixture.componentInstance.carrierForm.controls.dhlApiKey.value).toBe('dhl-a-secret');
@@ -1704,6 +1786,15 @@ describe('Versandeinstellungen – echte Angular-Fixture', () => {
       hermesEnabled: true,
       hermesClientId: ' hermes-id ',
       hermesApiKey: ' hermes-secret ',
+      senderName: ' Ada Lovelace ',
+      senderCompany: ' Analytical Engines GmbH ',
+      senderStreet: ' Testweg ',
+      senderHouseNumber: ' 42a ',
+      senderPostalCode: ' 10115 ',
+      senderCity: ' Berlin ',
+      senderCountry: ' Deutschland ',
+      senderEmail: 'ada@example.com',
+      senderPhone: ' +49 30 123456 ',
     });
     fixture.detectChanges();
 
@@ -1718,6 +1809,15 @@ describe('Versandeinstellungen – echte Angular-Fixture', () => {
       hermesEnabled: true,
       hermesClientId: 'hermes-id',
       hermesApiKey: 'hermes-secret',
+      senderName: 'Ada Lovelace',
+      senderCompany: 'Analytical Engines GmbH',
+      senderStreet: 'Testweg',
+      senderHouseNumber: '42a',
+      senderPostalCode: '10115',
+      senderCity: 'Berlin',
+      senderCountry: 'Deutschland',
+      senderEmail: 'ada@example.com',
+      senderPhone: '+49 30 123456',
     });
     expectOnlyToast(toast, 'success', 'Versanddienstleister wurden gespeichert.');
   });

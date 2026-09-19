@@ -115,6 +115,11 @@ describe('Workspace-isoliertes Laden der Konfigurationen', () => {
       }),
       orders: signal([{ id: 'order-a' }]),
       loadedWorkspaceId: signal<string | null>('workspace-a'),
+      loadError: signal<Error | null>(null),
+      selectedOrderForLabel: signal(null),
+      selectedOrderForSlip: signal(null),
+      selectedOrderForPurchase: signal(null),
+      selectedBundleCandidate: signal(null),
       workspaceService: { currentWorkspace },
       logger: { error: vi.fn() },
       supabase: {

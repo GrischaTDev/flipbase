@@ -14,8 +14,6 @@ import { Json, Tables } from '../models/supabase.types';
 import { LoggerService } from './logger.service';
 import { SyncStatusService } from './sync-status.service';
 
-const STORAGE_KEY_RADAR = 'flipbase_price_radar_items';
-
 export interface PriceTrackerMutationResult<T> {
   readonly data: T | null;
   readonly error: Error | null;
@@ -36,9 +34,10 @@ export class PriceTrackerService {
   private readonly webhookService = inject(WebhookService, { optional: true });
   private readonly webPushService = inject(WebPushService, { optional: true });
 
-  readonly trackedItems = signal<PriceTrackedItem[]>(this.loadPersistedItems());
+  readonly trackedItems = signal<PriceTrackedItem[]>([]);
   readonly isScanning = signal<boolean>(false);
   readonly lastScanTimestamp = signal<string>(new Date().toISOString());
+  private loadVersion = 0;
 
   readonly activeAlertsCount = computed(
     () => this.trackedItems().filter((item) => item.alertTriggered !== 'none').length,
@@ -61,74 +60,85 @@ export class PriceTrackerService {
     try {
       effect(() => {
         const ws = this.workspaceService?.currentWorkspace();
-        if (ws) {
-          this.loadFromSupabase(ws.id);
-        }
+        void this.loadFromSupabase(ws?.id ?? '');
       });
     } catch {
       // nur Testumgebung ohne Scheduler
     }
   }
 
-  private loadPersistedItems(): PriceTrackedItem[] {
-    try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        const stored = localStorage.getItem(STORAGE_KEY_RADAR);
-        if (stored) return JSON.parse(stored);
-      }
-    } catch {}
-
-    return [];
-  }
-
   async loadFromSupabase(workspaceId: string): Promise<void> {
-    if (!this.supabase) return;
+    const requestedWorkspaceId = workspaceId.trim();
+    const loadVersion = (this.loadVersion ?? 0) + 1;
+    this.loadVersion = loadVersion;
+    this.trackedItems.set([]);
+    if (!requestedWorkspaceId) return;
+    if (!this.isCurrentWorkspace(requestedWorkspaceId) || !this.supabase) return;
 
     try {
       const { data, error } = await this.supabase.client
         .from('price_tracked_items')
         .select('*')
-        .eq('workspace_id', workspaceId)
+        .eq('workspace_id', requestedWorkspaceId)
         .order('created_at', { ascending: false });
 
+      if (!this.isCurrentLoad(requestedWorkspaceId, loadVersion)) return;
       if (!error) {
         const mapped: PriceTrackedItem[] = ((data ?? []) as Tables<'price_tracked_items'>[]).map(
-          (t) => ({
-            id: t.id,
-            workspace_id: t.workspace_id,
-            inventory_item_id: t.inventory_item_id || undefined,
-            title: t.title,
-            category: t.category || 'Allgemein',
-            currentOurPrice: Number(t.current_our_price || 0),
-            currentMarketAverage: Number(t.current_market_average || 0),
-            currentMarketLowest: Number(t.current_market_lowest || 0),
-            recommendedPrice: Number(t.recommended_price || 0),
-            lowestCompetitorTitle: t.lowest_competitor_title || undefined,
-            lowestCompetitorPlatform: (t.lowest_competitor_platform || 'kleinanzeigen') as
-              'ebay' | 'kleinanzeigen' | 'vinted',
-            lowestCompetitorUrl: t.lowest_competitor_url || undefined,
-            priceTrend: t.price_trend as PriceTrend,
-            priceDifferencePercent: Number(t.price_difference_percent || 0),
-            alertTriggered: t.alert_triggered as PriceAlert,
-            lastCheckedAt: t.last_checked_at || new Date().toISOString(),
-            isTrackingActive: t.is_tracking_active,
-            priceHistory: (t.price_history as unknown as PricePoint[]) || [],
-          }),
+          (t) => {
+            const hasVerifiedMarketData =
+              this.marktdatenAngebunden && t.market_data_verified === true;
+            return {
+              id: t.id,
+              workspace_id: t.workspace_id,
+              inventory_item_id: t.inventory_item_id || undefined,
+              title: t.title,
+              category: t.category || 'Allgemein',
+              currentOurPrice: Number(t.current_our_price || 0),
+              currentMarketAverage: hasVerifiedMarketData
+                ? Number(t.current_market_average || 0)
+                : 0,
+              currentMarketLowest: hasVerifiedMarketData ? Number(t.current_market_lowest || 0) : 0,
+              recommendedPrice: hasVerifiedMarketData ? Number(t.recommended_price || 0) : 0,
+              lowestCompetitorTitle: hasVerifiedMarketData
+                ? t.lowest_competitor_title || undefined
+                : undefined,
+              lowestCompetitorPlatform: hasVerifiedMarketData
+                ? ((t.lowest_competitor_platform || 'kleinanzeigen') as
+                    'ebay' | 'kleinanzeigen' | 'vinted')
+                : undefined,
+              lowestCompetitorUrl: hasVerifiedMarketData
+                ? t.lowest_competitor_url || undefined
+                : undefined,
+              priceTrend: hasVerifiedMarketData ? (t.price_trend as PriceTrend) : 'stable',
+              priceDifferencePercent: hasVerifiedMarketData
+                ? Number(t.price_difference_percent || 0)
+                : 0,
+              alertTriggered: hasVerifiedMarketData ? (t.alert_triggered as PriceAlert) : 'none',
+              lastCheckedAt: t.last_checked_at || new Date().toISOString(),
+              isTrackingActive: t.is_tracking_active,
+              priceHistory: hasVerifiedMarketData
+                ? (t.price_history as unknown as PricePoint[]) || []
+                : [],
+              marketDataVerified: hasVerifiedMarketData,
+            };
+          },
         );
         this.trackedItems.set(mapped);
-        this.persistItems();
       }
     } catch (err) {
-      this.logger.error('Verbindungsfehler beim Laden des Preisradars:', err);
+      if (this.isCurrentLoad(requestedWorkspaceId, loadVersion)) {
+        this.logger.error('Verbindungsfehler beim Laden des Preisradars:', err);
+      }
     }
   }
 
-  private persistItems(): void {
-    try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        localStorage.setItem(STORAGE_KEY_RADAR, JSON.stringify(this.trackedItems()));
-      }
-    } catch {}
+  private isCurrentWorkspace(workspaceId: string): boolean {
+    return !this.workspaceService || this.workspaceService.currentWorkspace()?.id === workspaceId;
+  }
+
+  private isCurrentLoad(workspaceId: string, loadVersion: number): boolean {
+    return this.loadVersion === loadVersion && this.isCurrentWorkspace(workspaceId);
   }
 
   /**
@@ -141,10 +151,6 @@ export class PriceTrackerService {
     inventory_item_id?: string;
   }): Promise<PriceTrackerMutationResult<PriceTrackedItem>> {
     const ws = this.workspaceService?.currentWorkspace();
-    const marketAvg = Number((item.price * 0.95).toFixed(2));
-    const marketLowest = Number((item.price * 0.88).toFixed(2));
-    const today = new Date().toISOString().split('T')[0];
-
     let newItem: PriceTrackedItem = {
       id: `track-${Date.now()}`,
       workspace_id: ws?.id || 'ws-1',
@@ -152,20 +158,16 @@ export class PriceTrackerService {
       title: item.title,
       category: item.category || 'Allgemein',
       currentOurPrice: item.price,
-      currentMarketAverage: marketAvg,
-      currentMarketLowest: marketLowest,
-      recommendedPrice: Number(((marketAvg + marketLowest) / 2).toFixed(2)),
-      lowestCompetitorTitle: `${item.title} (Aktuelles Konkurrenzangebot)`,
-      lowestCompetitorPlatform: 'kleinanzeigen',
-      lowestCompetitorUrl: `https://www.kleinanzeigen.de/s-${encodeURIComponent(item.title)}/k0`,
-      priceTrend: 'falling',
-      priceDifferencePercent: Number((((marketLowest - item.price) / item.price) * 100).toFixed(1)),
-      alertTriggered: marketLowest < item.price ? 'undercut' : 'none',
+      currentMarketAverage: 0,
+      currentMarketLowest: 0,
+      recommendedPrice: 0,
+      priceTrend: 'stable',
+      priceDifferencePercent: 0,
+      alertTriggered: 'none',
       lastCheckedAt: new Date().toISOString(),
       isTrackingActive: true,
-      priceHistory: [
-        { timestamp: today, avgPrice: marketAvg, lowestPrice: marketLowest, listingsCount: 12 },
-      ],
+      priceHistory: [],
+      marketDataVerified: false,
     };
 
     if (this.istPersistenterModus()) {
@@ -194,6 +196,7 @@ export class PriceTrackerService {
             alert_triggered: newItem.alertTriggered,
             is_tracking_active: newItem.isTrackingActive,
             price_history: newItem.priceHistory as unknown as Json,
+            market_data_verified: false,
           })
           .select('id')
           .single();
@@ -204,6 +207,12 @@ export class PriceTrackerService {
             new Error('Die Datenbank hat keine Preisbeobachtung zurückgegeben.'),
           );
         }
+        if (!this.isCurrentWorkspace(ws.id)) {
+          return this.mutationsfehler(
+            'Speichern der Preisbeobachtung',
+            new Error('Der Workspace wurde während des Speicherns gewechselt.'),
+          );
+        }
         newItem = { ...newItem, id: data.id };
       } catch (error: unknown) {
         return this.mutationsfehler('Speichern der Preisbeobachtung', error);
@@ -211,7 +220,6 @@ export class PriceTrackerService {
     }
 
     this.trackedItems.update((list) => [newItem, ...list]);
-    this.persistItems();
     return { data: newItem, error: null, reportedBySyncStatus: false };
   }
 
@@ -240,8 +248,9 @@ export class PriceTrackerService {
    * Applies the AI/Radar recommended price directly to the Inventory Item!
    */
   async applyRecommendedPrice(trackedItemId: string): Promise<boolean> {
+    if (!this.marktdatenAngebunden) return false;
     const tracked = this.trackedItems().find((t) => t.id === trackedItemId);
-    if (!tracked) return false;
+    if (!tracked || tracked.marketDataVerified !== true) return false;
 
     const newPrice = tracked.recommendedPrice;
 
@@ -250,6 +259,7 @@ export class PriceTrackerService {
         expected_value: newPrice,
       });
       if (error) throw error;
+      if (!this.isCurrentWorkspace(tracked.workspace_id)) return false;
     }
 
     this.trackedItems.update((list) =>
@@ -266,8 +276,6 @@ export class PriceTrackerService {
           : t,
       ),
     );
-    this.persistItems();
-
     return true;
   }
 
@@ -275,7 +283,6 @@ export class PriceTrackerService {
     this.trackedItems.update((list) =>
       list.map((t) => (t.id === itemId ? { ...t, isTrackingActive: !t.isTrackingActive } : t)),
     );
-    this.persistItems();
   }
 
   async deleteTrackedItem(itemId: string): Promise<PriceTrackerMutationResult<boolean>> {
@@ -306,13 +313,18 @@ export class PriceTrackerService {
             message: 'Die Preisbeobachtung wurde nicht gefunden.',
           });
         }
+        if (!this.isCurrentWorkspace(ws.id)) {
+          return this.mutationsfehler(
+            'Löschen der Preisbeobachtung',
+            new Error('Der Workspace wurde während des Löschens gewechselt.'),
+          );
+        }
       } catch (error: unknown) {
         return this.mutationsfehler('Löschen der Preisbeobachtung', error);
       }
     }
 
     this.trackedItems.update((list) => list.filter((item) => item.id !== itemId));
-    this.persistItems();
     return { data: true, error: null, reportedBySyncStatus: false };
   }
 

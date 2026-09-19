@@ -63,6 +63,58 @@ describe('Fulfillment & Smart Bundling Engine (Chapter 27)', () => {
     service.orders.set(testOrders);
   });
 
+  it('startet ohne erfundene Carrier-Konten und ohne Absenderadresse', () => {
+    expect(service.carrierConfig()).toMatchObject({
+      dhlEnabled: false,
+      dhlEkp: '',
+      hermesEnabled: false,
+      hermesClientId: '',
+    });
+    expect(service.getSenderAddress()).toBeNull();
+  });
+
+  it('verwendet ausschließlich die gespeicherte Absenderadresse des Workspaces', () => {
+    service.carrierConfig.set({
+      ...service.carrierConfig(),
+      senderName: 'Ada Lovelace',
+      senderCompany: 'Analytical Engines GmbH',
+      senderStreet: 'Testweg',
+      senderHouseNumber: '42a',
+      senderPostalCode: '10115',
+      senderCity: 'Berlin',
+      senderCountry: 'Deutschland',
+      senderEmail: 'ada@example.com',
+      senderPhone: '+49 30 123456',
+    } as never);
+
+    expect(service.getSenderAddress()).toEqual({
+      name: 'Ada Lovelace',
+      company: 'Analytical Engines GmbH',
+      street: 'Testweg',
+      house_number: '42a',
+      postal_code: '10115',
+      city: 'Berlin',
+      country: 'Deutschland',
+      email: 'ada@example.com',
+      phone: '+49 30 123456',
+    });
+  });
+
+  it('leert ausgewählte Versanddaten bei Workspace-Wechsel oder Abmeldung', async () => {
+    const order = service.orders()[0];
+    service.selectedOrderForLabel.set(order);
+    service.selectedOrderForSlip.set(order);
+    service.selectedOrderForPurchase.set(order);
+    service.selectedBundleCandidate.set(service.bundleCandidates()[0]);
+
+    await service.loadFromSupabase('');
+
+    expect(service.selectedOrderForLabel()).toBeNull();
+    expect(service.selectedOrderForSlip()).toBeNull();
+    expect(service.selectedOrderForPurchase()).toBeNull();
+    expect(service.selectedBundleCandidate()).toBeNull();
+  });
+
   it('should automatically detect bundle candidates for same customer', () => {
     const candidates = service.bundleCandidates();
     expect(candidates.length).toBeGreaterThanOrEqual(1);
@@ -114,6 +166,16 @@ describe('Fulfillment & Smart Bundling Engine (Chapter 27)', () => {
     expect(ergebnis.error).toBeNull();
     const aktualisiert = service.orders().find((o) => o.id === order.id);
     expect(aktualisiert?.tracking_number).toBe('00340434161094015902');
+  });
+
+  it('erfindet beim Versand keine Sendungsnummer', async () => {
+    const order = service.orders()[0];
+
+    const ergebnis = await service.markAsShipped(order.id, '   ', 'dhl');
+
+    expect(ergebnis.data).toBeNull();
+    expect(ergebnis.error?.message).toContain('Sendungsnummer');
+    expect(service.orders().find((o) => o.id === order.id)?.status).toBe('ready_to_pack');
   });
 
   it('übernimmt den Zustellstatus erst nach bestätigter Datenbankänderung', async () => {
@@ -210,6 +272,62 @@ describe('Fulfillment & Smart Bundling Engine (Chapter 27)', () => {
     expect(ergebnis.data).toBeNull();
     expect(ergebnis.error).not.toBeNull();
     expect(service.orders()).toEqual(vorher);
+  });
+
+  it('übernimmt ein verspätetes Sammelpaket nicht in den neuen Workspace', async () => {
+    const candidate = service.bundleCandidates()[0];
+    let currentWorkspaceId = candidate.orders[0].workspace_id;
+    let resolveRpc!: (value: { data: ShippingOrder; error: null }) => void;
+    const response = new Promise<{ data: ShippingOrder; error: null }>((resolve) => {
+      resolveRpc = resolve;
+    });
+    Object.assign(service, {
+      supabase: { client: { rpc: vi.fn(() => response) } },
+      workspaceService: { currentWorkspace: () => ({ id: currentWorkspaceId }) },
+    });
+
+    const operation = service.bundleOrders(candidate);
+    currentWorkspaceId = 'ws-2';
+    const workspaceBOrder = { ...testOrders[0], id: 'ship-b', workspace_id: 'ws-2' };
+    service.orders.set([workspaceBOrder]);
+    resolveRpc({
+      data: {
+        ...candidate.orders[0],
+        id: '16e23c35-3972-49fe-a4df-afb37990088d',
+        is_bundled: true,
+        bundled_order_ids: candidate.orders.map((order) => order.id),
+        bundled_item_titles: candidate.orders.map((order) => order.item_title),
+      },
+      error: null,
+    });
+    const result = await operation;
+
+    expect(result.error?.message).toContain('Workspace');
+    expect(service.orders()).toEqual([workspaceBOrder]);
+  });
+
+  it('beendet den Ladezustand mit einem sichtbaren Fehler', async () => {
+    const databaseError = { message: 'Datenbank offline' };
+    Object.assign(service, {
+      workspaceService: { currentWorkspace: () => ({ id: 'ws-1' }) },
+      supabase: {
+        client: {
+          from: (table: string) => ({
+            select: () => ({
+              eq: () =>
+                table === 'shipping_orders'
+                  ? { order: async () => ({ data: null, error: databaseError }) }
+                  : { maybeSingle: async () => ({ data: null, error: null }) },
+            }),
+          }),
+        },
+      },
+    });
+
+    await service.loadFromSupabase('ws-1');
+
+    expect(service.loadedWorkspaceId()).toBe('ws-1');
+    expect(service.loadError()?.message).toBe(databaseError.message);
   });
 
   it('stellt beim Auflösen die ausschließlich von der RPC zurückgegebenen Originalaufträge wieder her', async () => {
