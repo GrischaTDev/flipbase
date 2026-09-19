@@ -39,6 +39,9 @@
   </div>
 
   <app-button modal-footer variant="secondary" (clicked)="closed.emit()">Schließen</app-button>
+  <app-button modal-footer variant="secondary" [disabled]="!objectUrl()" (clicked)="print()">
+    Drucken
+  </app-button>
   <app-button modal-footer variant="primary" [disabled]="!objectUrl()" (clicked)="download()">
     Herunterladen
   </app-button>

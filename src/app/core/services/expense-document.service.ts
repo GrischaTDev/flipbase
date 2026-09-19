@@ -96,7 +96,13 @@ export class ExpenseDocumentService {
         this.loadError.set(this.syncStatus.melde('Laden der Ausgabenbelege', error).message);
         return;
       }
-      this.documentsRaw.set((data ?? []) as ExpenseDocument[]);
+      const documents = (data ?? []) as ExpenseDocument[];
+      this.documentsRaw.set(documents);
+      this.documentCounts.update((current) => {
+        const next = new Map(current);
+        next.set(expenseId, documents.length);
+        return next;
+      });
     } catch (cause: unknown) {
       this.loadError.set(this.syncStatus.melde('Laden der Ausgabenbelege', cause).message);
     } finally {

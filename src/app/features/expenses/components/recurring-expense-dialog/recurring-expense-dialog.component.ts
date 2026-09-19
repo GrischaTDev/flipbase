@@ -44,9 +44,9 @@ function localDateKey(date = new Date()): string {
   ].join('-');
 }
 
-function positiveInteger(control: AbstractControl<number | null>): ValidationErrors | null {
-  const value = control.value;
-  return value !== null && Number.isInteger(value) && value > 0 ? null : { positiveInteger: true };
+function positiveInteger(control: AbstractControl): ValidationErrors | null {
+  const value = Number(control.value);
+  return Number.isInteger(value) && value > 0 ? null : { positiveInteger: true };
 }
 
 @Component({
