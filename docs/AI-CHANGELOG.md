@@ -1,5 +1,23 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-19 – ChatGPT GPT-5.6 Sol (OpenAI) – Implementierungspläne für Ausgaben und Prüfprotokoll
+
+**Auftrag:** Den freigegebenen Entwurf in konkrete, getrennt ausführbare
+Implementierungspläne überführen.
+
+**Änderung:** Der bereits angelegte Ausgabenplan
+`docs/superpowers/plans/2026-09-19-expense-entry-redesign.md` beschreibt
+Schemaerweiterung, Händler/Menge, Gesamtbetrag-/MwSt.-UX, Belegfluss,
+Tabellenaktionen und flackerfreies Laden. Ergänzend wurde
+`docs/superpowers/plans/2026-09-19-audit-role-loading-fix.md` für den
+unabhängigen Rollen-Ladefehler erstellt. Der Rollenfix soll zuerst auf einem
+eigenen Feature-Zweig integriert werden; der Ausgabenumbau startet danach vom
+aktuellen `master`.
+
+**Prüfung:** Beide Pläne gegen den freigegebenen Spec, aktuelle Tests,
+Servicegrenzen und `AGENTS.md` abgeglichen. Noch kein Anwendungscode oder
+Datenbankschema geändert.
+
 ## 2026-09-19 – ChatGPT GPT-5.6 Sol (OpenAI) – Entwurf: Ausgaben-Erfassung und Rollen-Ladezustand
 
 **Auftrag:** Den Rollenfehler unter „Daten & Protokolle“ analysieren sowie die

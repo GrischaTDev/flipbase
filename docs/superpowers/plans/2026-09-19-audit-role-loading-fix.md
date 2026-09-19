@@ -2,62 +2,220 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Prevent „Daten & Protokolle“ from showing a false authorization error while the current workspace membership is still loading, and automatically load the audit log once the real owner/admin/accountant role resolves.
+**Goal:** Prevent “Daten & Protokolle” from showing a false authorization error while the current workspace membership is still loading.
 
-**Architecture:** `WorkspaceMemberService` exposes whether the member context for the active workspace has been successfully resolved. `DataAndAuditComponent` waits for that readiness instead of treating transient `null` as unauthorized, and reacts to workspace + readiness + resolved role as one access context.
+**Architecture:** Keep workspace authorization in `WorkspaceMemberService`, but explicitly expose whether the membership context for the active workspace has finished loading. Make `DataAndAuditComponent` wait for that state and react when the resolved role changes from pending `null` to the real workspace role.
 
-**Tech Stack:** Angular 22 standalone components, Signals, Vitest/Angular TestBed, Supabase.
+**Tech Stack:** Angular 22 signals/effects, TypeScript 6, Vitest 4, Supabase.
 
 **Spec:** `docs/superpowers/specs/2026-09-19-expense-entry-redesign-design.md`
 
 ## Global Constraints
 
-- The red header „Admin“ badge remains a platform-operator indicator and is not changed.
-- Audit access remains limited to `owner`, `admin`, and `accountant`.
-- A transient loading state must never be presented as an authorization failure.
-- A failed member query stays a technical SyncStatus error, not a false role error.
-- UI text remains German.
-- Record the implementation in `docs/AI-CHANGELOG.md`.
+- German UI text, English code identifiers.
+- Keep the red header Admin badge unchanged; it represents platform operator status.
+- Workspace audit access continues to allow only `owner`, `admin`, and `accountant`.
+- A temporary unresolved role must not be treated as a completed authorization denial.
+- Add regression coverage before implementation.
+- Record implementation in `docs/AI-CHANGELOG.md`.
+- Finish on a dedicated feature branch and follow the PR/CI workflow in `AGENTS.md`.
 
 ---
 
-### Task 1: Expose resolved workspace-member context
+### Task 1: Expose resolved workspace-membership state
 
 **Files:**
 - Modify: `src/app/core/services/workspace-member.service.ts`
-- Create/Test: `src/app/core/services/workspace-member-role-loading.spec.ts`
+- Create/Test: `src/app/core/services/workspace-member-role-loading.dom.spec.ts`
 
 **Interfaces:**
-- Produces `loadedWorkspaceId: Signal<string | null>`
-- Produces `currentWorkspaceMembersResolved: Signal<boolean>`
-- Keeps `currentUserRole(): WorkspaceRole | null`
+- Produce: `readonly loadedWorkspaceId = signal<string | null>(null)`
+- Produce: `readonly isCurrentWorkspaceLoaded = computed<boolean>(...)`
+- Preserve: `readonly currentUserRole: Signal<WorkspaceRole | null>`
 
-- [ ] **Step 1:** Write deferred-query tests proving unresolved before completion, resolved owner after success, invalidation on workspace switch, and unresolved state on query failure.
-- [ ] **Step 2:** Run `npx vitest run src/app/core/services/workspace-member-role-loading.spec.ts` and confirm failure.
-- [ ] **Step 3:** Add a private loaded-workspace signal. Set it only after a successful member query for that workspace. Expose a computed readiness signal that is true in demo mode or when the active workspace equals the successfully loaded workspace and loading is false.
-- [ ] **Step 4:** Re-run the focused test and confirm pass.
-- [ ] **Step 5:** Commit `fix(core): expose resolved workspace membership context`.
+- [ ] **Step 1: Write the failing service test**
 
-### Task 2: Make Data & Audit react to readiness and role
+Create a focused test fixture with an active workspace and delayed member query.
+
+Assert:
+
+```ts
+expect(service.isCurrentWorkspaceLoaded()).toBe(false);
+
+await service.loadMembers(workspace.id);
+
+expect(service.isCurrentWorkspaceLoaded()).toBe(true);
+expect(service.currentUserRole()).toBe('owner');
+```
+
+Add a superseded-request case: when workspace B starts loading before workspace A finishes, A must not mark the current membership context as loaded.
+
+- [ ] **Step 2: Run the focused test and verify failure**
+
+```bash
+npm run test:dom -- src/app/core/services/workspace-member-role-loading.dom.spec.ts
+```
+
+Expected: FAIL because the explicit loaded-workspace state does not yet exist.
+
+- [ ] **Step 3: Implement the minimal loading-state contract**
+
+Add:
+
+```ts
+readonly loadedWorkspaceId = signal<string | null>(null);
+readonly isCurrentWorkspaceLoaded = computed(
+  () => this.loadedWorkspaceId() === (this.workspaceService.currentWorkspace()?.id ?? null),
+);
+```
+
+When a new real workspace load starts, clear `loadedWorkspaceId`. When the current request finishes — success or handled failure — mark that workspace id as loaded. Guard every completion with the existing `membersLoadVersion` so stale responses cannot mark the wrong workspace ready.
+
+- [ ] **Step 4: Run the focused service test**
+
+Expected: PASS.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/app/core/services/workspace-member.service.ts src/app/core/services/workspace-member-role-loading.dom.spec.ts
+git commit -m "fix(core): expose workspace member loading state"
+```
+
+---
+
+### Task 2: Make Data & Audit wait for the resolved role
 
 **Files:**
 - Modify: `src/app/features/settings/pages/data-and-audit/data-and-audit.component.ts`
-- Modify/Test: `src/app/features/settings/pages/data-and-audit/data-and-audit.component.spec.ts`
+- Modify/Test: `src/app/features/settings/pages/data-and-audit/data-and-audit.component.spec.ts` or add a focused Angular fixture spec beside it.
 
 **Interfaces:**
-- Consumes `memberService.currentWorkspaceMembersResolved()`
-- Consumes `memberService.currentUserRole()`
-- Keeps `canExportAuditData(role)`
+- Consume: `memberService.isCurrentWorkspaceLoaded()`
+- Consume: `memberService.currentUserRole()`
+- Preserve: `canExportAuditData(role)`
 
-- [ ] **Step 1:** Add regression tests: unresolved/null role shows no authorization error and performs no audit request; readiness then owner triggers the request automatically; resolved member role shows the existing error; member-load failure does not masquerade as unauthorized.
-- [ ] **Step 2:** Run the focused spec and confirm failure.
-- [ ] **Step 3:** Replace the workspace-only load gate with an access-context key built from workspace ID + readiness + resolved role. Do not mark a workspace as loaded while membership is unresolved. Only let `loadPage()` emit the authorization error after readiness is true.
-- [ ] **Step 4:** Run the focused spec plus `settings-behavior.angular.spec.ts` and the new service spec.
-- [ ] **Step 5:** Update `docs/AI-CHANGELOG.md` and commit `fix(ui): wait for workspace role before audit authorization`.
+- [ ] **Step 1: Add the failing production regression**
 
-### Task 3: Verify the bugfix branch
+Reproduce this sequence:
 
-- [ ] **Step 1:** Run formatting/lint for touched files.
-- [ ] **Step 2:** Run the focused role/settings tests and the project quality/build command selected by CI.
-- [ ] **Step 3:** Review the diff: platform Admin logic untouched; owner/admin/accountant semantics unchanged; no false role error while unresolved; real unauthorized users still see the message.
-- [ ] **Step 4:** Prepare a dedicated `fix/audit-role-loading` PR only after the repository merge workflow permits it.
+```ts
+// Active workspace exists.
+loadedWorkspaceId.set(null);
+members.set([]);
+fixture.detectChanges();
+
+expect(component.error()).toBeNull();
+expect(listEvents).not.toHaveBeenCalled();
+
+// Member load resolves.
+members.set([ownerMember]);
+loadedWorkspaceId.set(workspaceId);
+fixture.detectChanges();
+await flushAsync();
+
+expect(listEvents).toHaveBeenCalledTimes(1);
+expect(component.error()).toBeNull();
+```
+
+Add a second test for a completed membership load with role `member`; only that case should produce:
+
+`Für das globale Prüfprotokoll ist eine Inhaber-, Admin- oder Buchhaltungsrolle erforderlich.`
+
+- [ ] **Step 2: Run the focused Angular test and verify failure**
+
+```bash
+npm run test:angular-fallback -- src/app/features/settings/pages/data-and-audit
+```
+
+Expected: FAIL because the current effect only keys off the workspace id.
+
+- [ ] **Step 3: Implement the reactive authorization gate**
+
+The component effect must read:
+
+- current workspace id
+- membership-loaded state
+- current user role
+
+Behavior:
+
+```ts
+if (!workspaceId) return;
+
+if (!membershipLoaded) {
+  this.error.set(null);
+  return;
+}
+
+if (!canExportAuditData(role)) {
+  this.events.set([]);
+  this.nextCursor.set(null);
+  this.error.set(AUTH_MESSAGE);
+  return;
+}
+
+void this.loadPage(true);
+```
+
+Prevent duplicate loads with a marker that is only set for a resolved authorized workspace/role state. Do not mark a workspace “loaded” while membership is still pending.
+
+- [ ] **Step 4: Run focused tests**
+
+```bash
+npm run test:dom -- src/app/core/services/workspace-member-role-loading.dom.spec.ts
+npm run test:angular-fallback -- src/app/features/settings/pages/data-and-audit
+```
+
+Expected: PASS.
+
+- [ ] **Step 5: Update changelog and commit**
+
+```bash
+git add src/app/core/services/workspace-member.service.ts src/app/core/services/workspace-member-role-loading.dom.spec.ts src/app/features/settings/pages/data-and-audit docs/AI-CHANGELOG.md
+git commit -m "fix(ui): wait for workspace role before audit access"
+```
+
+---
+
+### Task 3: Verify the isolated fix
+
+**Files:**
+- No new source files unless verification exposes a real defect.
+
+- [ ] **Step 1: Format touched files**
+
+```bash
+npx prettier --write src/app/core/services/workspace-member.service.ts src/app/core/services/workspace-member-role-loading.dom.spec.ts src/app/features/settings/pages/data-and-audit/data-and-audit.component.ts src/app/features/settings/pages/data-and-audit/data-and-audit.component.spec.ts docs/AI-CHANGELOG.md
+```
+
+- [ ] **Step 2: Run targeted tests**
+
+```bash
+npm run test:dom -- src/app/core/services/workspace-member-role-loading.dom.spec.ts
+npm run test:angular-fallback -- src/app/features/settings/pages/data-and-audit
+```
+
+- [ ] **Step 3: Run lint/type/build**
+
+```bash
+npm run lint
+npm run typecheck
+npm run build
+```
+
+Expected: all exit 0.
+
+- [ ] **Step 4: Diff review**
+
+Confirm:
+- no changes to `HeaderComponent` or `PlatformOperatorService`
+- owner/admin/accountant remain the only audit roles
+- pending membership never creates a false access error
+- real unauthorized roles still do
+
+- [ ] **Step 5: PR handoff**
+
+After successful verification ask exactly:
+
+`Soll ich jetzt den PR erstellen und nach erfolgreichen Tests mergen?`
