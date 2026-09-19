@@ -127,6 +127,63 @@
       </div>
     }
 
+    <section class="space-y-2" aria-label="Beleg hinzufügen">
+      <div>
+        <p class="text-[13px] font-semibold text-fb-text-primary">Beleg (optional)</p>
+        <p class="mt-0.5 text-xs text-fb-text-muted">
+          PDF, JPG, PNG oder XML bis 20 MiB. Du kannst die Datei hier ablegen oder auswählen.
+        </p>
+      </div>
+
+      <div
+        class="rounded-xl border border-dashed border-fb-border bg-fb-subtle p-4"
+        (dragover)="onDocumentDragOver($event)"
+        (drop)="onDocumentDrop($event)"
+      >
+        <input
+          #expenseDocumentInput
+          type="file"
+          class="sr-only"
+          accept=".pdf,.jpg,.jpeg,.png,.xml,application/pdf,image/jpeg,image/png,application/xml,text/xml"
+          (change)="onFileSelected($event)"
+        />
+
+        @if (pendingDocument(); as document) {
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="min-w-0">
+              <p class="truncate text-[13px] font-semibold text-fb-text-primary">
+                {{ document.name }}
+              </p>
+              <p class="text-xs text-fb-text-muted">Wird nach dem Speichern hochgeladen.</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <app-button
+                variant="secondary"
+                size="slim"
+                (clicked)="expenseDocumentInput.click()"
+              >
+                Ersetzen
+              </app-button>
+              <app-button variant="plain" size="slim" (clicked)="removePendingDocument()">
+                Entfernen
+              </app-button>
+            </div>
+          </div>
+        } @else {
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <p class="text-xs text-fb-text-muted">Beleg hier hineinziehen</p>
+            <app-button
+              variant="secondary"
+              size="slim"
+              (clicked)="expenseDocumentInput.click()"
+            >
+              Datei auswählen
+            </app-button>
+          </div>
+        }
+      </div>
+    </section>
+
     <app-text-field formControlName="notes" label="Notizen" [multiline]="3" />
   </form>
 
