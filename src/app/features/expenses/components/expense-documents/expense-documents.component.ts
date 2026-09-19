@@ -39,8 +39,23 @@ export class ExpenseDocumentsComponent implements OnInit {
 
   async onFileSelected(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    if (!file) return;
+    const file = input.files?.[0] ?? null;
+    input.value = '';
+    if (file) await this.uploadFile(file);
+  }
+
+  onFileDragOver(event: DragEvent): void {
+    event.preventDefault();
+  }
+
+  async onFileDrop(event: DragEvent): Promise<void> {
+    event.preventDefault();
+    const file = event.dataTransfer?.files?.[0] ?? null;
+    if (file) await this.uploadFile(file);
+  }
+
+  private async uploadFile(file: File): Promise<void> {
+    if (this.isUploading()) return;
 
     this.isUploading.set(true);
     this.errorMessage.set(null);
@@ -49,7 +64,6 @@ export class ExpenseDocumentsComponent implements OnInit {
       if (result.error) this.errorMessage.set(result.error.message);
     } finally {
       this.isUploading.set(false);
-      input.value = '';
     }
   }
 
