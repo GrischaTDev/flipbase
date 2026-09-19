@@ -1,5 +1,54 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-19 – ChatGPT GPT-5.6 Sol (OpenAI) – Ausgaben-Erfassung vereinfacht und Tabellenflackern behoben
+
+**Auftrag:** Die Ausgabenseite soll beim Öffnen nicht mehr kurz flackern, die
+Tabellenaktionen sollen den gemeinsamen Icon-Konventionen entsprechen und die
+Erfassung soll Händler/Anbieter, Menge sowie einen direkten Beleg-Upload
+unterstützen. Die bisherige Darstellung von Bruttobetrag und MwSt. war zu
+buchhalterisch und im normalen Erfassen unnötig präsent.
+
+**Änderung:** Ausgaben und wiederkehrende Ausgaben speichern jetzt optional
+`vendor_name` und eine positive ganzzahlige `quantity` mit Standardwert 1.
+Der gespeicherte `gross_amount` bleibt unverändert der Gesamtbetrag des ganzen
+Belegs bzw. Vorgangs; ein Stückpreis wird ausschließlich zur Anzeige berechnet.
+Neue manuelle und wiederkehrende Erfassungen starten mit 19 % enthaltener MwSt.,
+während bestehende unbekannte Steuerangaben unverändert bleiben. Steuerdetails
+sind standardmäßig eingeklappt und unterscheiden weiterhin 19 %, 7 %, 0 % und
+„nicht ausgewiesen / unbekannt“.
+
+Ein Beleg kann bereits beim Erfassen per Dateiauswahl oder Drag-and-Drop
+vorgemerkt werden. Die Ausgabe wird zuerst gespeichert, anschließend der
+optionale Beleg. Scheitert nur der Upload, bleibt die Ausgabe erhalten und ein
+erneuter Speicherversuch aktualisiert dieselbe Ausgabe statt eine Dublette
+anzulegen. Die Tabelle lädt einen schlanken Belegstatus und zeigt je Zeile
+„Beleg hinzufügen“ bzw. „Beleg ansehen“ als Icon-Aktion.
+
+Die Ausgabentabelle zeigt standardmäßig Datum, Bezeichnung, Anbieter, Kategorie,
+Menge, Gesamtbetrag, Status, Beleg und Aktionen. Steuer, Fällig-/Zahlungsdatum
+und Wiederholung bleiben über den Spaltenwechsler verfügbar. Bearbeiten,
+Löschen und „Als bezahlt markieren“ verwenden die gemeinsamen Icon-Buttons;
+Löschen läuft über den gemeinsamen Bestätigungsdialog. Die Suche berücksichtigt
+zusätzlich den Anbieter.
+
+Der doppelte Initial-Ladeweg wurde entfernt. Die Seite nutzt für
+Wiederholungsmaterialisierung und Ausgabenladen nur noch
+`ExpenseService.ensureCurrentWorkspaceLoaded()` und hält die Shared-Tabelle vom
+ersten Rendern bis zum Abschluss der Initialisierung stabil im Ladezustand.
+Unveränderte alte Ausgaben-Standardansichten werden einmalig auf die neue
+kompakte Spaltenbelegung migriert; individuelle Tabellenanpassungen bleiben
+erhalten.
+
+**Prüfung:** Regressionstests wurden für Datenbankschema, Anbieter/Menge,
+Steuer-/Stückpreisberechnung, Belegstatus und Upload-Reihenfolge,
+Dublettenschutz nach Belegfehler, Tabellenpräferenzen, Icon-Aktionen,
+Anbietersuche und den stabilen Initial-Ladezustand ergänzt. Zusätzlich wurden
+die geänderten Produktionsdateien statisch auf alte Textaktionen,
+`window.confirm`, „Bruttobetrag“ und den doppelten Initial-Ladepfad geprüft.
+In dieser Sitzung steht kein lokaler Repository-/Node-/Supabase-Workspace zur
+Verfügung; die ausführbare Test-, Format-, Lint-, Build- und Datenbankprüfung
+muss deshalb im PR-CI erfolgen.
+
 ## 2026-09-19 – ChatGPT GPT-5.6 Sol (OpenAI) – Workspace-Löschung und Datenexport vereinfacht
 
 **Auftrag:** Frisch angelegte Test-Workspaces sollen sich direkt löschen lassen,
