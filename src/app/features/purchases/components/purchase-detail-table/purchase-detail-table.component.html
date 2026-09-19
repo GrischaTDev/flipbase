@@ -127,7 +127,7 @@
                   }
                 }
 
-                @if (row.captureRemaining > 0) {
+                @if (row.captureRemaining > 0 && canCaptureIndividual()) {
                   <button
                     type="button"
                     data-capture-individual

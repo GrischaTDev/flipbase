@@ -21,6 +21,7 @@ export class PurchaseLifecycleActionsComponent {
   readonly saleReviewInventoryItemId = input<string | null>(null);
   readonly submitting = input(false);
   readonly editing = input(false);
+  readonly hasOpenPrices = input(false);
 
   readonly editRequested = output<void>();
   readonly deleteRequested = output<void>();

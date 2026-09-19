@@ -34,6 +34,16 @@ export interface TableState<TColumnId extends string = string, TSortField extend
   providedIn: 'root',
 })
 export class TablePreferencesService {
+  private static readonly formerPurchaseDefaultOrder = [
+    'title',
+    'description',
+    'seller',
+    'purchase_date',
+    'status',
+    'receipt',
+    'total_cost',
+  ] as const;
+
   private readonly auth = inject(AuthService);
   private readonly supabase = inject(SupabaseService);
   private readonly preferences = signal<TablePreferences>({});
@@ -186,6 +196,16 @@ export class TablePreferencesService {
 
   // --- Private Helpers ---
 
+  private hasFormerPurchaseDefault(columns: readonly { id: string; order?: number }[]): boolean {
+    const orderedIds = [...columns]
+      .sort((left, right) => (left.order ?? 0) - (right.order ?? 0))
+      .map((column) => column.id);
+    const former = TablePreferencesService.formerPurchaseDefaultOrder;
+    return (
+      orderedIds.length === former.length && orderedIds.every((id, index) => id === former[index])
+    );
+  }
+
   private getCacheKey(tableId: TableId, workspaceId: string): string {
     return `${workspaceId}:${tableId}`;
   }
@@ -231,6 +251,17 @@ export class TablePreferencesService {
 
       // Schema-drift merge: reconcile stored columns with defaults
       const storedMap = new Map(parsed.columns.map((c) => [c.id, c]));
+      const storedOrder = new Map(parsed.columns.map((column) => [column.id as string, column]));
+      const removedPurchaseColumns = new Set([
+        'type',
+        'cost_status',
+        'actions',
+        'units',
+        'capture',
+      ]);
+      const purchaseColumnsWithoutLegacy = parsed.columns.filter(
+        (column) => !removedPurchaseColumns.has(column.id),
+      );
       const mergedColumns: ColumnDefinition<TColumnId>[] = [];
 
       for (const defCol of config.defaultColumns) {
@@ -253,6 +284,16 @@ export class TablePreferencesService {
       const validSort: TableSortState<TSortField> = isValidSortField
         ? parsed.sort
         : { ...config.defaultSort };
+
+      if (tableId === 'purchases' && this.hasFormerPurchaseDefault(purchaseColumnsWithoutLegacy)) {
+        const reordered = config.defaultColumns.map((column, order) => ({
+          ...column,
+          visible: column.locked ? true : (storedOrder.get(column.id)?.visible ?? column.visible),
+          order,
+        })) as ColumnDefinition<TColumnId>[];
+        this.savePreferences(tableId, workspaceId, reordered, validSort);
+        return { columns: reordered, sort: validSort };
+      }
 
       // Nur unveränderte alte Standardansichten umstellen. Bewusste
       // Spaltenwahl und Reihenfolge des Nutzers bleiben erhalten.
@@ -312,7 +353,6 @@ export class TablePreferencesService {
 
       // Entfernte Einkaufsspalten dauerhaft aus Altpräferenzen entfernen;
       // übrige Sichtbarkeit und Reihenfolge bleiben bestehen.
-      const removedPurchaseColumns = new Set(['type', 'cost_status', 'actions']);
       if (
         tableId === 'purchases' &&
         parsed.columns.some((column) => removedPurchaseColumns.has(column.id))

@@ -244,6 +244,16 @@ beforeEach(() => {
 });
 
 describe('PurchasesComponent – responsive Einkaufsübersicht', () => {
+  it('zeigt Verkäufer vor der optionalen Bezeichnung', () => {
+    const fixture = TestBed.createComponent(PurchasesComponent);
+    fixture.detectChanges();
+
+    const headings = [...(fixture.nativeElement as HTMLElement).querySelectorAll('thead th')].map(
+      (heading) => heading.textContent?.trim(),
+    );
+    expect(headings.slice(0, 3)).toEqual(['Einkauf', 'Verkäufer', 'Bezeichnung']);
+  });
+
   it('trennt Einkaufsnummer und Bezeichnung und zeigt den Wareneingang statt Erfassungsbestand', () => {
     const fixture = TestBed.createComponent(PurchasesComponent);
     fixture.detectChanges();

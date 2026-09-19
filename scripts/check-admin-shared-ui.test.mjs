@@ -35,7 +35,7 @@ test('rejects local managed-table shells and native table search controls', () =
   ]);
 });
 
-test('requires extra tables beside a data table to declare their role', () => {
+test('rejects a table outside a data table even when another data table is present', () => {
   const source = `
     <app-data-table>
       <div table-content><table class="linear-table"></table></div>
@@ -44,24 +44,54 @@ test('requires extra tables beside a data table to declare their role', () => {
   `;
 
   assert.deepEqual(findAdminSharedUiViolations('src/app/features/example/example.html', source), [
-    { rule: 'unclassified-table', line: 3 },
-    { rule: 'unclassified-table', line: 5 },
+    { rule: 'managed-table-without-data-table', line: 5 },
   ]);
 });
 
-test('accepts data-table managed tables and narrow documented table exceptions', () => {
+test('accepts a managed table in the table-content slot', () => {
   const source = `
     <app-data-table>
       <div table-content><table class="linear-table"></table></div>
     </app-data-table>
-    <table class="linear-table" data-shared-ui-exception="static-table"></table>
-    <table data-shared-ui-exception="embedded-table"></table>
-    <table data-shared-ui-exception="data-table-content"></table>
   `;
 
   assert.deepEqual(
     findAdminSharedUiViolations('src/app/features/example/example.html', source),
     [],
+  );
+});
+
+test('rejects a table exception outside the exact allowlist', () => {
+  const source = '<table data-shared-ui-exception="static-table"></table>';
+  assert.deepEqual(findAdminSharedUiViolations('src/app/features/example/example.html', source), [
+    { rule: 'unapproved-table-exception', line: 1 },
+  ]);
+});
+
+test('requires a managed table to use the table-content slot', () => {
+  const source = '<app-data-table><div><table></table></div></app-data-table>';
+  assert.deepEqual(findAdminSharedUiViolations('src/app/features/example/example.html', source), [
+    { rule: 'table-outside-content-slot', line: 1 },
+  ]);
+});
+
+test('accepts a managed table inside the table-content slot', () => {
+  const source = '<app-data-table><div table-content><table></table></div></app-data-table>';
+  assert.deepEqual(
+    findAdminSharedUiViolations('src/app/features/example/example.html', source),
+    [],
+  );
+});
+
+test('accepts only the declared exception kind at its declared path', () => {
+  const path = 'src/app/features/purchases/pages/purchase-print/purchase-print.component.html';
+  assert.deepEqual(
+    findAdminSharedUiViolations(path, '<table data-shared-ui-exception="static-table"></table>'),
+    [],
+  );
+  assert.deepEqual(
+    findAdminSharedUiViolations(path, '<table data-shared-ui-exception="embedded-table"></table>'),
+    [{ rule: 'unapproved-table-exception', line: 1 }],
   );
 });
 

@@ -1030,6 +1030,15 @@ export class PurchaseService {
     if (normalized.error) {
       return { data: null, error: normalized.error, reportedBySyncStatus: false };
     }
+    if (normalized.data.some((line) => line.priceMode === 'open')) {
+      return {
+        data: null,
+        error: new Error(
+          'Offene Preise können nur zusammen mit dem Einkaufsentwurf gespeichert werden.',
+        ),
+        reportedBySyncStatus: false,
+      };
+    }
     if (normalized.data.length === 0) {
       return { data: [], error: null, reportedBySyncStatus: false };
     }
@@ -1123,7 +1132,10 @@ export class PurchaseService {
       titleSnapshot: line.titleSnapshot.trim(),
       ean: line.ean === undefined ? undefined : line.ean?.trim() || null,
       orderedQuantity: Number(line.orderedQuantity),
-      priceMode: line.priceMode ?? 'priced',
+      priceMode:
+        pricingMode === 'individual' && line.priceMode === 'unpriced_mystery'
+          ? 'open'
+          : (line.priceMode ?? 'priced'),
       unitPurchasePrice: line.unitPurchasePrice === null ? null : Number(line.unitPurchasePrice),
       lineTotal: line.lineTotal === null ? null : Number(line.lineTotal),
       estimatedMarketValue:
@@ -1190,6 +1202,12 @@ export class PurchaseService {
           line.lineTotal === null;
         if (isLegacyUnpricedLine) continue;
       }
+      const isOpenPriceLine =
+        pricingMode === 'individual' &&
+        line.priceMode === 'open' &&
+        line.unitPurchasePrice === null &&
+        line.lineTotal === null;
+      if (isOpenPriceLine) continue;
       if (
         line.priceMode !== 'priced' ||
         line.unitPurchasePrice === null ||

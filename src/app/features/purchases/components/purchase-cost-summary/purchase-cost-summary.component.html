@@ -35,7 +35,11 @@
     <div class="flex items-center justify-between gap-4 py-3">
       <dt class="font-semibold text-fb-text-primary">Gesamt</dt>
       <dd class="font-semibold tabular-nums text-fb-text-primary">
-        {{ formatCurrency(displayedTotal()) }}
+        @if (displayedTotal() === null) {
+          <span data-purchase-cost-open>Kosten offen</span>
+        } @else {
+          {{ formatCurrency(displayedTotal()) }}
+        }
       </dd>
     </div>
   </dl>

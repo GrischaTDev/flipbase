@@ -346,7 +346,7 @@ describe('PurchaseLineEditorComponent', () => {
       catalogProductId: ledProduct.id,
       unitPurchasePrice: null,
       lineTotal: null,
-      priceMode: 'unpriced_mystery',
+      priceMode: 'open',
     });
   });
 
@@ -554,12 +554,14 @@ describe('PurchaseLineEditorComponent', () => {
     const row = editor.lineRows.at(0);
     expect(row.controls.unitPurchasePrice.value).toBeNull();
     expect(row.controls.lineTotal.value).toBeNull();
+    expect(editor.getDrafts()[0]?.priceMode).toBe('open');
 
     row.controls.unitPurchasePrice.setValue(0);
     editor.recalculate(0, 'unitPurchasePrice');
 
     expect(row.controls.unitPurchasePrice.value).toBe(0);
     expect(row.controls.lineTotal.value).toBe(0);
+    expect(editor.getDrafts()[0]?.priceMode).toBe('priced');
   });
 
   it('meldet nach dem Leeren des Stückpreises beide Preisfelder als unbekannt an den Parent', () => {
@@ -575,7 +577,7 @@ describe('PurchaseLineEditorComponent', () => {
 
     expect(row.controls.lineTotal.value).toBeNull();
     expect(linesChanged.emit).toHaveBeenCalledWith([
-      expect.objectContaining({ unitPurchasePrice: null, lineTotal: null }),
+      expect.objectContaining({ priceMode: 'open', unitPurchasePrice: null, lineTotal: null }),
     ]);
   });
 
@@ -592,7 +594,7 @@ describe('PurchaseLineEditorComponent', () => {
 
     expect(row.controls.unitPurchasePrice.value).toBeNull();
     expect(linesChanged.emit).toHaveBeenCalledWith([
-      expect.objectContaining({ unitPurchasePrice: null, lineTotal: null }),
+      expect.objectContaining({ priceMode: 'open', unitPurchasePrice: null, lineTotal: null }),
     ]);
   });
 
