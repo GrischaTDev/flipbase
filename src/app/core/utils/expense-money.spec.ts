@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { calculateExpenseTax } from './expense-money';
+import { calculateExpenseTax, calculateExpenseUnitPrice } from './expense-money';
+
+describe('calculateExpenseUnitPrice', () => {
+  it('berechnet den Stückpreis aus Gesamtbetrag und Menge', () => {
+    expect(calculateExpenseUnitPrice(25, 10)).toBe(2.5);
+    expect(calculateExpenseUnitPrice(25, 1)).toBe(25);
+  });
+
+  it('liefert für eine ungültige Menge keinen Stückpreis', () => {
+    expect(calculateExpenseUnitPrice(25, 0)).toBeNull();
+  });
+});
 
 describe('calculateExpenseTax', () => {
   it('zerlegt 19 Prozent aus einem Bruttobetrag centgenau', () => {
