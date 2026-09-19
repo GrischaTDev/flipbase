@@ -340,7 +340,7 @@ describe('ExpensesComponent', () => {
   });
 
   it('verwendet für Belege und Aktionen kompakte zugängliche Icons', async () => {
-    const { fixture } = render();
+    const { fixture } = await render();
     const host = fixture.nativeElement as HTMLElement;
 
     expect(host.querySelector('[aria-label="Beleg ansehen: Versandkartons"]')).toBeTruthy();
@@ -396,7 +396,7 @@ describe('ExpensesComponent', () => {
   });
 
   it('besteht die automatischen Barrierefreiheitsprüfungen', async () => {
-    const { fixture } = render();
+    const { fixture } = await render();
 
     const result = await axe.run(fixture.nativeElement as HTMLElement, {
       rules: { 'color-contrast': { enabled: false } },
