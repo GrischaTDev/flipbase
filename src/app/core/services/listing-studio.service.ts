@@ -6,7 +6,6 @@ import { Injectable, effect, inject, signal } from '@angular/core';
 import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
 import { InventoryService } from './inventory.service';
-import { MockDataStoreService } from './mock-data-store.service';
 import { InventoryItem, ListingDraft } from '../models/flipbase.models';
 import { LoggerService } from './logger.service';
 
@@ -73,7 +72,6 @@ export class ListingStudioService {
   // Faellt auf eine eigene Instanz zurueck, damit Dienste auch ausserhalb
   // eines Injektionskontexts nutzbar bleiben - so erzeugen die Tests sie.
   private readonly logger = inject(LoggerService, { optional: true }) ?? new LoggerService();
-  private readonly mockStore = inject(MockDataStoreService, { optional: true });
   private readonly workspaceService = inject(WorkspaceService, { optional: true });
   private readonly inventoryService = inject(InventoryService, { optional: true });
 
@@ -102,7 +100,7 @@ export class ListingStudioService {
 
   async loadDrafts(_workspaceId: string): Promise<void> {
     try {
-      if (!this.supabase || this.mockStore?.isDemoMode()) return;
+      if (!this.supabase) return;
       const { data, error } = await this.supabase.client
         .from('listing_drafts')
         .select('*')

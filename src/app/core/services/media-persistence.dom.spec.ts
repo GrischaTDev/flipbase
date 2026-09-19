@@ -2,7 +2,6 @@ import '@angular/compiler';
 import { Injector, runInInjectionContext } from '@angular/core';
 import { describe, expect, it, vi } from 'vitest';
 import { MediaService } from './media.service';
-import { MockDataStoreService } from './mock-data-store.service';
 import { SupabaseService } from './supabase.service';
 import { SyncStatusService } from './sync-status.service';
 
@@ -18,20 +17,16 @@ const gespeichertesMedium = {
 };
 
 function injiziereDienst(client: unknown) {
-  const mockStore = new MockDataStoreService();
-  mockStore.isDemoMode.set(false);
   const syncStatus = new SyncStatusService();
   const injector = Injector.create({
     providers: [
       { provide: SupabaseService, useValue: { client } },
-      { provide: MockDataStoreService, useValue: mockStore },
       { provide: SyncStatusService, useValue: syncStatus },
     ],
   });
 
   return {
     dienst: runInInjectionContext(injector, () => new MediaService()),
-    mockStore,
     syncStatus,
   };
 }
@@ -54,20 +49,6 @@ function erstelleFilterQuery<T>(antwort: T, filter: [string, string][] = []) {
 }
 
 describe('MediaService – bestätigte lokale Zustandsänderungen', () => {
-  it('löscht im Demo-Modus kein Medium eines anderen Artikels', async () => {
-    const { dienst, mockStore } = injiziereDienst({});
-    mockStore.isDemoMode.set(true);
-    vi.spyOn(mockStore, 'getItemMedia').mockImplementation((itemId?: string) =>
-      itemId === gespeichertesMedium.inventory_item_id ? [gespeichertesMedium] : [],
-    );
-    const lokalLoeschen = vi.spyOn(mockStore, 'deleteItemMedia');
-
-    const ergebnis = await dienst.deleteMedia('fremder-artikel', gespeichertesMedium.id);
-
-    expect(ergebnis.error).toBeInstanceOf(Error);
-    expect(lokalLoeschen).not.toHaveBeenCalled();
-  });
-
   it('verwendet beim Cloud-Löschen nur den kanonischen Pfad und begrenzt Lesen und Löschen auf den Artikel', async () => {
     const leseFilter: [string, string][] = [];
     const loeschFilter: [string, string][] = [];
@@ -115,13 +96,11 @@ describe('MediaService – bestätigte lokale Zustandsänderungen', () => {
       },
       from: () => ({ select: () => leseQuery, delete: () => loeschQuery }),
     };
-    const { dienst, mockStore, syncStatus } = injiziereDienst(client);
-    const lokalLoeschen = vi.spyOn(mockStore, 'deleteItemMedia');
+    const { dienst, syncStatus } = injiziereDienst(client);
 
     const ergebnis = await dienst.deleteMedia('artikel-1', 'medium-1');
 
     expect(ergebnis.error).toBeInstanceOf(Error);
-    expect(lokalLoeschen).not.toHaveBeenCalled();
     expect(syncStatus.fehler()).toHaveLength(1);
   });
 
@@ -140,14 +119,12 @@ describe('MediaService – bestätigte lokale Zustandsänderungen', () => {
         },
       }),
     };
-    const { dienst, mockStore, syncStatus } = injiziereDienst(client);
-    const lokalFestlegen = vi.spyOn(mockStore, 'setItemMediaPrimary');
+    const { dienst, syncStatus } = injiziereDienst(client);
 
     const ergebnis = await dienst.setPrimary('artikel-1', 'medium-1');
 
     expect(ergebnis.error).toBeInstanceOf(Error);
     expect(zweitesUpdate).not.toHaveBeenCalled();
-    expect(lokalFestlegen).not.toHaveBeenCalled();
     expect(syncStatus.fehler()).toHaveLength(1);
   });
 
@@ -159,14 +136,12 @@ describe('MediaService – bestätigte lokale Zustandsänderungen', () => {
         update,
       }),
     };
-    const { dienst, mockStore, syncStatus } = injiziereDienst(client);
-    const lokalFestlegen = vi.spyOn(mockStore, 'setItemMediaPrimary');
+    const { dienst, syncStatus } = injiziereDienst(client);
 
     const ergebnis = await dienst.setPrimary('artikel-1', 'medium-fehlt');
 
     expect(ergebnis.error).toBeInstanceOf(Error);
     expect(update).not.toHaveBeenCalled();
-    expect(lokalFestlegen).not.toHaveBeenCalled();
     expect(syncStatus.fehler()).toHaveLength(1);
   });
 
@@ -182,15 +157,13 @@ describe('MediaService – bestätigte lokale Zustandsänderungen', () => {
         delete: loeschen,
       }),
     };
-    const { dienst, mockStore, syncStatus } = injiziereDienst(client);
-    const lokalLoeschen = vi.spyOn(mockStore, 'deleteItemMedia');
+    const { dienst, syncStatus } = injiziereDienst(client);
 
     const ergebnis = await dienst.deleteMedia('artikel-1', 'medium-fehlt');
 
     expect(ergebnis.error).toBeInstanceOf(Error);
     expect(remove).not.toHaveBeenCalled();
     expect(loeschen).not.toHaveBeenCalled();
-    expect(lokalLoeschen).not.toHaveBeenCalled();
     expect(syncStatus.fehler()).toHaveLength(1);
   });
 
@@ -208,8 +181,7 @@ describe('MediaService – bestätigte lokale Zustandsänderungen', () => {
         },
       }),
     };
-    const { dienst, mockStore } = injiziereDienst(client);
-    const lokalFestlegen = vi.spyOn(mockStore, 'setItemMediaPrimary');
+    const { dienst } = injiziereDienst(client);
 
     const ergebnis = await dienst.setPrimary('artikel-1', 'medium-1');
 
@@ -223,7 +195,6 @@ describe('MediaService – bestätigte lokale Zustandsänderungen', () => {
       ['id', 'medium-1'],
       ['inventory_item_id', 'artikel-1'],
     ]);
-    expect(lokalFestlegen).toHaveBeenCalledWith('artikel-1', 'medium-1');
   });
 
   it('bricht einen primären Upload ab, wenn das bisherige Hauptbild nicht zurückgesetzt wird', async () => {

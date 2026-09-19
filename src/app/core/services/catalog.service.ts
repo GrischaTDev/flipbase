@@ -7,10 +7,8 @@ import {
   PurchaseLine,
 } from '../models/flipbase.models';
 import { WorkspaceService } from './workspace.service';
-import { MockDataStoreService } from './mock-data-store.service';
 import { SupabaseService } from './supabase.service';
 import { SyncStatusService } from './sync-status.service';
-import { createLocalDemoId } from '../utils/client-identity';
 import { MutationResult } from '../models/mutation-result.model';
 import { normalizeProductHandle } from '../utils/product-seo';
 import { MediaService } from './media.service';
@@ -43,15 +41,6 @@ export interface CreateCatalogProductInput {
 export type UpdateCatalogProductInput = Pick<CreateCatalogProductInput, 'workspaceId'> &
   Partial<Omit<CreateCatalogProductInput, 'workspaceId'>>;
 
-function touchesCategoryOrBrand(input: UpdateCatalogProductInput): boolean {
-  return (
-    input.categoryId !== undefined ||
-    input.brandId !== undefined ||
-    input.category !== undefined ||
-    input.brand !== undefined
-  );
-}
-
 export interface CatalogProductEntry extends PurchaseLine {
   readonly inventory_items: InventoryItem[];
   readonly purchase: Pick<Purchase, 'id' | 'title'> | null;
@@ -61,7 +50,6 @@ export interface CatalogProductEntry extends PurchaseLine {
 export class CatalogService {
   private readonly supabase = inject(SupabaseService);
   private readonly syncStatus = inject(SyncStatusService);
-  private readonly mockStore = inject(MockDataStoreService);
   private readonly media = inject(MediaService);
   private readonly workspace = inject(WorkspaceService);
 
@@ -112,20 +100,6 @@ export class CatalogService {
     this.isLoading.set(true);
     this.loadError.set(null);
     try {
-      if (this.mockStore.isDemoMode()) {
-        if (requestId !== this.loadRequestId) return;
-        const media = this.mockStore.getCatalogProductMedia();
-        this.products.set(
-          this.mockStore.getCatalogProducts(workspaceId).map((product) => ({
-            ...product,
-            primary_media_path:
-              media.find((entry) => entry.catalog_product_id === product.id)?.storage_path ?? null,
-          })),
-        );
-        this.loadedWorkspaceId.set(workspaceId);
-        return;
-      }
-
       const { data, error } = await this.supabase.client
         .from('catalog_products')
         .select('*, catalog_product_media(storage_path, is_primary, sort_order, created_at, id)')
@@ -167,12 +141,6 @@ export class CatalogService {
     try {
       if (this.workspace.currentWorkspace()?.id !== workspaceId)
         throw new Error('Der Workspace wurde gewechselt.');
-      if (this.mockStore.isDemoMode()) {
-        const product = this.mockStore
-          .getCatalogProducts(workspaceId)
-          .find((entry) => entry.id === productId && entry.workspace_id === workspaceId);
-        return { data: product ?? null, error: null, reportedBySyncStatus: false };
-      }
       const { data, error } = await this.supabase.client
         .from('catalog_products')
         .select('*')
@@ -193,32 +161,6 @@ export class CatalogService {
   async createProduct(input: CreateCatalogProductInput): Promise<MutationResult<CatalogProduct>> {
     if (this.workspace && this.workspace.currentWorkspace()?.id !== input.workspaceId)
       return this.failure('Anlegen des Artikels', new Error('Der Workspace wurde gewechselt.'));
-    if (this.mockStore.isDemoMode()) {
-      const product: CatalogProduct = {
-        id: createLocalDemoId('catalog'),
-        workspace_id: input.workspaceId,
-        title: input.title.trim(),
-        tracking_mode: 'quantity',
-        condition: input.condition ?? null,
-        condition_notes: input.conditionNotes?.trim() || null,
-        brand_id: input.brandId ?? null,
-        brand: input.brandId === undefined ? input.brand?.trim() || null : null,
-        model: input.model?.trim() || null,
-        ean: input.ean?.trim() || null,
-        category_id: input.categoryId ?? null,
-        category: input.categoryId === undefined ? input.category?.trim() || null : null,
-        description: input.description?.trim() || null,
-        seo_title: input.seoTitle?.trim() || null,
-        seo_description: input.seoDescription?.trim() || null,
-        url_handle: normalizeProductHandle(input.urlHandle?.trim() || input.title) || null,
-        is_public_store: input.isPublicStore ?? false,
-        listing_price: input.listingPrice ?? null,
-      };
-      const demoProduct = this.mockStore.applyCategoryBrandText(product);
-      this.mockStore.saveCatalogProduct(demoProduct);
-      this.includeCreatedProduct(demoProduct);
-      return { data: demoProduct, error: null, reportedBySyncStatus: false };
-    }
 
     try {
       const insertPayload: TablesInsert<'catalog_products'> = {
@@ -296,28 +238,16 @@ export class CatalogService {
           throw new Error('Bitte einen positiven Shoppreis eingeben.');
         patch.listing_price = input.listingPrice;
       }
-      let product: CatalogProduct;
-      if (this.mockStore.isDemoMode()) {
-        const existing = this.mockStore
-          .getCatalogProducts(input.workspaceId)
-          .find((entry) => entry.id === productId && entry.workspace_id === input.workspaceId);
-        if (!existing) throw new Error('Artikel wurde nicht gefunden oder ist nicht zugänglich.');
-        product = touchesCategoryOrBrand(input)
-          ? this.mockStore.applyCategoryBrandText({ ...existing, ...patch }, existing)
-          : { ...existing, ...patch };
-        this.mockStore.saveCatalogProduct(product);
-      } else {
-        const { data, error } = await this.supabase.client
-          .from('catalog_products')
-          .update(patch)
-          .eq('id', productId)
-          .eq('workspace_id', input.workspaceId)
-          .select()
-          .single();
-        if (error || !data)
-          throw error ?? new Error('Artikel wurde nicht gefunden oder ist nicht zugänglich.');
-        product = this.mapProduct(data);
-      }
+      const { data, error } = await this.supabase.client
+        .from('catalog_products')
+        .update(patch)
+        .eq('id', productId)
+        .eq('workspace_id', input.workspaceId)
+        .select()
+        .single();
+      if (error || !data)
+        throw error ?? new Error('Artikel wurde nicht gefunden oder ist nicht zugänglich.');
+      const product = this.mapProduct(data);
       if (
         this.workspace.currentWorkspace()?.id === input.workspaceId &&
         (!this.requestedWorkspaceId || this.requestedWorkspaceId === input.workspaceId)
@@ -343,30 +273,6 @@ export class CatalogService {
     try {
       if (this.workspace.currentWorkspace()?.id !== workspaceId)
         throw new Error('Der Workspace wurde gewechselt.');
-      if (this.mockStore.isDemoMode()) {
-        const items = this.mockStore.getItems();
-        const purchases = this.mockStore.getPurchases();
-        return {
-          data: this.mockStore
-            .getPurchaseLines(workspaceId)
-            .filter(
-              (line) => line.catalog_product_id === productId && line.workspace_id === workspaceId,
-            )
-            .map((line) => ({
-              ...line,
-              inventory_items: items.filter(
-                (item) => item.purchase_line_id === line.id && item.workspace_id === workspaceId,
-              ),
-              purchase:
-                purchases.find(
-                  (purchase) =>
-                    purchase.id === line.purchase_id && purchase.workspace_id === workspaceId,
-                ) ?? null,
-            })),
-          error: null,
-          reportedBySyncStatus: false,
-        };
-      }
       const { data, error } = await this.supabase.client
         .from('purchase_lines')
         .select(

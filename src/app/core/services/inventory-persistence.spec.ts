@@ -1,9 +1,8 @@
 import '@angular/compiler';
 import { Injector, runInInjectionContext, signal } from '@angular/core';
 import { describe, expect, it, vi } from 'vitest';
-import { InventoryItem, ItemCost, Sale, Workspace } from '../models/flipbase.models';
+import { InventoryItem, ItemCost, Workspace } from '../models/flipbase.models';
 import { InventoryService } from './inventory.service';
-import { MockDataStoreService } from './mock-data-store.service';
 import { ProfitEngineService } from './profit-engine.service';
 import { SupabaseService } from './supabase.service';
 import { SyncStatusService } from './sync-status.service';
@@ -42,15 +41,12 @@ interface SupabaseAntwort {
   readonly error: { code: string; message: string } | null;
 }
 
-function injiziereDienst(client: unknown, bereitgestellterMockStore?: MockDataStoreService) {
-  const mockStore = bereitgestellterMockStore ?? new MockDataStoreService();
-  if (!bereitgestellterMockStore) mockStore.isDemoMode.set(false);
+function injiziereDienst(client: unknown) {
   const syncStatus = new SyncStatusService();
   const injector = Injector.create({
     providers: [
       ProfitEngineService,
       { provide: SupabaseService, useValue: { client } },
-      { provide: MockDataStoreService, useValue: mockStore },
       { provide: SyncStatusService, useValue: syncStatus },
       { provide: WorkspaceService, useValue: { currentWorkspace: signal(workspace) } },
     ],
@@ -248,41 +244,6 @@ describe('InventoryService – abhängige Schreibvorgänge', () => {
     ]);
   });
 
-  it('verknüpft einen Demo-Artikel im Detail mit seinem finalisierten Einkauf', async () => {
-    const mockStore = new MockDataStoreService();
-    mockStore.isDemoMode.set(true);
-    mockStore.savePurchase({
-      id: gespeicherterArtikel.purchase_id!,
-      workspace_id: workspace.id,
-      type: 'mystery_pack',
-      title: 'Finalisierte Mystery Box',
-      purchase_date: '2026-09-01',
-      purchase_price: 100,
-      total_purchase_cost: 100,
-      cost_allocation_mode: 'even',
-      receiving_status: 'received',
-      entry_status: 'finalized',
-      finalized_at: '2026-09-01T10:00:00.000Z',
-    });
-    mockStore.saveItem({
-      ...gespeicherterArtikel,
-      allocated_purchase_cost: 16.67,
-      status: 'ready',
-    });
-    const { dienst } = injiziereDienst({}, mockStore);
-
-    const detail = await dienst.getItemById(gespeicherterArtikel.id);
-
-    expect(detail).toMatchObject({
-      allocated_purchase_cost: 16.67,
-      purchase: {
-        id: gespeicherterArtikel.purchase_id,
-        workspace_id: workspace.id,
-        entry_status: 'finalized',
-      },
-    });
-  });
-
   it('merged den bestandswirksamen View-Zustand anhand der Artikel-ID', async () => {
     let updatePayload: Record<string, unknown> | null = null;
     const client = {
@@ -403,64 +364,6 @@ describe('InventoryService – abhängige Schreibvorgänge', () => {
 
     expect(results.every(({ error }) => error?.message.includes('Korrekturvorgang'))).toBe(true);
     expect(dienst.items()[0]).toEqual(lockedItem);
-  });
-
-  it('klassifiziert Demo-Artikel aus persistierten Positionen und Legacy-Köpfen', async () => {
-    const lineItem = { ...gespeicherterArtikel, id: 'demo-line', status: 'sold' as const };
-    const legacyItem = { ...gespeicherterArtikel, id: 'demo-header', status: 'sold' as const };
-    const sales: Sale[] = [
-      {
-        id: 'sale-line',
-        workspace_id: workspace.id,
-        inventory_item_id: lineItem.id,
-        platform: 'direct',
-        sale_price: 20,
-        sale_date: '2026-08-29',
-        platform_fee: 0,
-        shipping_cost: 0,
-        packaging_cost: 0,
-        other_costs: 0,
-        lines: [
-          {
-            id: 'line',
-            sale_id: 'sale-line',
-            inventory_item_id: lineItem.id,
-            title_snapshot: 'Line',
-            quantity: 1,
-            unit_sale_price: 20,
-            line_total: 20,
-            cost_of_goods_sold: 5,
-            tax_mode: 'diff_25a',
-          },
-        ],
-      },
-      {
-        id: 'sale-header',
-        workspace_id: workspace.id,
-        inventory_item_id: legacyItem.id,
-        platform: 'direct',
-        sale_price: 18,
-        sale_date: '2026-08-29',
-        platform_fee: 0,
-        shipping_cost: 0,
-        packaging_cost: 0,
-        other_costs: 0,
-        lines: [],
-      },
-    ];
-    const demoStore = {
-      isDemoMode: signal(true),
-      getItems: () => [lineItem, legacyItem],
-      getSales: () => sales,
-    } as unknown as MockDataStoreService;
-    const { dienst } = injiziereDienst({}, demoStore);
-
-    await dienst.loadInventory(workspace.id);
-
-    expect(dienst.items().find(({ id }) => id === lineItem.id)?.sale_state).toBe('sold');
-    expect(dienst.items().find(({ id }) => id === legacyItem.id)?.sale_state).toBe(
-      'legacy_sale_header_without_line',
-    );
   });
 
   it.each([
@@ -597,111 +500,6 @@ describe('InventoryService – abhängige Schreibvorgänge', () => {
     expect(detail).toBeNull();
     expect(dienst.selectedItem()).toBeNull();
     expect(syncStatus.hatFehler()).toBe(true);
-  });
-
-  it.each([
-    ['legacy_sold_unverified', 'demo-legacy'],
-    ['legacy_sale_header_without_line', 'demo-header'],
-    ['multiple_active_sales', 'demo-multiple'],
-    ['sale_status_conflict', 'demo-conflict'],
-  ] as const)(
-    'klassifiziert beim kalten Demo-Detailaufruf %s aus Rohdaten und Verkäufen',
-    async (expectedSaleState, itemId) => {
-      const status = expectedSaleState === 'sale_status_conflict' ? 'ready' : 'sold';
-      const rawItem: InventoryItem = { ...gespeicherterArtikel, id: itemId, status };
-      const lineFor = (saleId: string): NonNullable<Sale['lines']>[number] => ({
-        id: `line-${saleId}`,
-        sale_id: saleId,
-        inventory_item_id: itemId,
-        title_snapshot: rawItem.title,
-        quantity: 1,
-        unit_sale_price: 20,
-        line_total: 20,
-        cost_of_goods_sold: 5,
-        tax_mode: 'diff_25a',
-      });
-      let sales: Sale[] = [];
-      if (expectedSaleState === 'legacy_sale_header_without_line') {
-        sales = [
-          {
-            id: 'sale-header',
-            workspace_id: workspace.id,
-            inventory_item_id: itemId,
-            platform: 'direct',
-            sale_price: 20,
-            sale_date: '2026-08-29',
-            platform_fee: 0,
-            shipping_cost: 0,
-            packaging_cost: 0,
-            other_costs: 0,
-            lines: [],
-          },
-        ];
-      } else if (
-        expectedSaleState === 'multiple_active_sales' ||
-        expectedSaleState === 'sale_status_conflict'
-      ) {
-        const saleIds =
-          expectedSaleState === 'multiple_active_sales' ? ['sale-one', 'sale-two'] : ['sale-one'];
-        sales = saleIds.map((saleId) => ({
-          id: saleId,
-          workspace_id: workspace.id,
-          inventory_item_id: null,
-          platform: 'direct',
-          sale_price: 20,
-          sale_date: '2026-08-29',
-          platform_fee: 0,
-          shipping_cost: 0,
-          packaging_cost: 0,
-          other_costs: 0,
-          lines: [lineFor(saleId)],
-        }));
-      }
-      const demoStore = {
-        isDemoMode: signal(true),
-        getItems: () => [rawItem],
-        getSales: () => sales,
-        getItemCosts: () => [],
-        getActivityLogs: () => [],
-      } as unknown as MockDataStoreService;
-      const { dienst } = injiziereDienst({}, demoStore);
-
-      const detail = await dienst.getItemById(itemId);
-
-      expect(detail?.sale_state).toBe(expectedSaleState);
-      expect(dienst.selectedItem()?.sale_state).toBe(expectedSaleState);
-    },
-  );
-
-  it('bevorzugt beim Demo-Detailaufruf einen bereits sicher klassifizierten Signal-Eintrag', async () => {
-    const rawItem: InventoryItem = {
-      ...gespeicherterArtikel,
-      id: 'demo-signal',
-      status: 'sold',
-    };
-    const classifiedItem: InventoryItem = {
-      ...rawItem,
-      sale_state: 'multiple_active_sales',
-      active_sale_count: 2,
-      active_sale_id: null,
-    };
-    const demoStore = {
-      isDemoMode: signal(true),
-      getItems: () => [rawItem],
-      getSales: () => [],
-      getItemCosts: () => [],
-      getActivityLogs: () => [],
-    } as unknown as MockDataStoreService;
-    const { dienst } = injiziereDienst({}, demoStore);
-    dienst.items.set([classifiedItem]);
-
-    const detail = await dienst.getItemById(rawItem.id);
-
-    expect(detail).toMatchObject({
-      sale_state: 'multiple_active_sales',
-      active_sale_count: 2,
-      active_sale_id: null,
-    });
   });
 
   it('aktualisiert lokale Signale erst nach bestätigter Legacy-Klärung', async () => {
@@ -1326,57 +1124,6 @@ describe('InventoryService – Kategorie und Marke', () => {
       title: 'Neu',
       category_id: 'old-category',
       brand_id: 'old-brand',
-    });
-  });
-
-  it('setzt im Demo-Modus Kategorie und Marke über ihre Verweise', async () => {
-    const mockStore = new MockDataStoreService();
-    mockStore.isDemoMode.set(true);
-    const brand = mockStore.ensureBrand(workspace.id, 'Bosch');
-    expect(brand).not.toBeNull();
-    const { dienst } = injiziereDienst({}, mockStore);
-
-    const ergebnis = await dienst.createItem({
-      title: 'Bohrer',
-      condition: 'used',
-      categoryId: 'ha-15-14',
-      brandId: brand!.id,
-      allocated_purchase_cost: 0,
-    });
-
-    expect(ergebnis.data).toMatchObject({
-      category_id: 'ha-15-14',
-      category: 'Heimwerkerbedarf > Werkzeuge > Bohrmaschinen',
-      brand_id: brand!.id,
-      brand: 'Bosch',
-    });
-  });
-
-  it('speichert das Leeren der Verweise im Demo-Modus als null', async () => {
-    const mockStore = new MockDataStoreService();
-    mockStore.isDemoMode.set(true);
-    const brand = mockStore.ensureBrand(workspace.id, 'Bosch');
-    const { dienst } = injiziereDienst({}, mockStore);
-    const created = await dienst.createItem({
-      title: 'Bohrer',
-      condition: 'used',
-      categoryId: 'ha-15-14',
-      brandId: brand!.id,
-      allocated_purchase_cost: 0,
-    });
-    dienst.items.set([{ ...created.data!, sale_state: 'no_active_sale' }]);
-
-    const ergebnis = await dienst.updateItem(created.data!.id, {
-      categoryId: null,
-      brandId: null,
-    });
-
-    expect(ergebnis.error).toBeNull();
-    expect(dienst.items()[0]).toMatchObject({
-      category_id: null,
-      category: null,
-      brand_id: null,
-      brand: null,
     });
   });
 });

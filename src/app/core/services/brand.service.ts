@@ -1,6 +1,5 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { Brand, brandNameKey } from '../models/product-category.models';
-import { MockDataStoreService } from './mock-data-store.service';
 import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
 
@@ -19,14 +18,13 @@ function sortBrands(brands: readonly Brand[]): Brand[] {
 /**
  * Marken des aktuellen Workspace.
  *
- * Der Kontext besteht aus Workspace und Demo-Modus. Bewusst ohne AuthService: Der
+ * Der Kontext besteht aus dem Workspace. Bewusst ohne AuthService: Der
  * Dienst steckt in Formularen, deren Tests sonst die ganze Anmeldekette brauchten.
  * Ein anderer Nutzer bedeutet in Flipbase auch einen anderen Workspace-Stand.
  */
 @Injectable({ providedIn: 'root' })
 export class BrandService {
   private readonly supabase = inject(SupabaseService);
-  private readonly mockStore = inject(MockDataStoreService);
   private readonly workspace = inject(WorkspaceService);
 
   private readonly loaded = signal<LoadedBrands | null>(null);
@@ -35,10 +33,7 @@ export class BrandService {
   readonly loading = signal(false);
   readonly loadError = signal<Error | null>(null);
 
-  private readonly contextKey = computed(() => {
-    const workspaceId = this.workspace.currentWorkspace()?.id;
-    return workspaceId ? `${workspaceId}:${this.mockStore.isDemoMode()}` : null;
-  });
+  private readonly contextKey = computed(() => this.workspace.currentWorkspace()?.id ?? null);
 
   /** Nie Marken eines anderen Workspace oder Modus. */
   readonly brands = computed<readonly Brand[]>(() => {
@@ -107,27 +102,19 @@ export class BrandService {
     if (existing) return { data: existing, error: null };
 
     try {
-      let brand: Brand;
-      if (this.mockStore.isDemoMode()) {
-        const created = this.mockStore.ensureBrand(workspaceId, trimmed);
-        if (!created) throw new Error('Die Marke konnte nicht angelegt werden.');
-        brand = created;
-      } else {
-        const { data, error } = await this.supabase.client
-          .from('brands')
-          .insert({ workspace_id: workspaceId, name: trimmed })
-          .select('id, workspace_id, name')
-          .single();
-        if (error?.code === '23505') {
-          // Jemand hat dieselbe Marke gerade angelegt: vorhandene übernehmen.
-          await this.reload();
-          const concurrent = this.findByName(trimmed);
-          if (concurrent) return { data: concurrent, error: null };
-        }
-        if (error || !data)
-          throw new Error(error?.message ?? 'Die Marke wurde nicht zurückgegeben.');
-        brand = { id: data.id, workspaceId: data.workspace_id, name: data.name };
+      const { data, error } = await this.supabase.client
+        .from('brands')
+        .insert({ workspace_id: workspaceId, name: trimmed })
+        .select('id, workspace_id, name')
+        .single();
+      if (error?.code === '23505') {
+        // Jemand hat dieselbe Marke gerade angelegt: vorhandene übernehmen.
+        await this.reload();
+        const concurrent = this.findByName(trimmed);
+        if (concurrent) return { data: concurrent, error: null };
       }
+      if (error || !data) throw new Error(error?.message ?? 'Die Marke wurde nicht zurückgegeben.');
+      const brand: Brand = { id: data.id, workspaceId: data.workspace_id, name: data.name };
       this.loaded.update((state) =>
         state && state.key === key ? { key, brands: sortBrands([...state.brands, brand]) } : state,
       );
@@ -145,9 +132,7 @@ export class BrandService {
     this.loading.set(true);
     this.loadError.set(null);
     try {
-      const brands = this.mockStore.isDemoMode()
-        ? this.mockStore.getBrands(workspaceId)
-        : await this.fetchBrands(workspaceId);
+      const brands = await this.fetchBrands(workspaceId);
       if (this.contextKey() === key) this.loaded.set({ key, brands: sortBrands(brands) });
     } catch (error: unknown) {
       if (this.contextKey() === key)

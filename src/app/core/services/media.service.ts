@@ -1,6 +1,5 @@
 import { DestroyRef, EnvironmentInjector, Injectable, effect, inject, signal } from '@angular/core';
 import { SupabaseService } from './supabase.service';
-import { MockDataStoreService } from './mock-data-store.service';
 import { SyncFehlerAktion, SyncStatusService } from './sync-status.service';
 import { CatalogProductMedia, ItemMedia } from '../models/flipbase.models';
 import { WorkspaceService } from './workspace.service';
@@ -12,7 +11,6 @@ import { AuthService } from './auth.service';
 })
 export class MediaService {
   private readonly supabase = inject(SupabaseService);
-  private readonly mockStore = inject(MockDataStoreService);
   private readonly syncStatus = inject(SyncStatusService, { optional: true });
   private readonly workspace = inject(WorkspaceService, { optional: true });
   private readonly auth = inject(AuthService, { optional: true });
@@ -33,7 +31,7 @@ export class MediaService {
   }
 
   private synchronizeContext(deferSignalWrite = false): number {
-    const key = `${this.workspace?.currentWorkspace()?.id ?? ''}:${this.auth?.session()?.access_token ?? ''}:${this.mockStore.isDemoMode()}`;
+    const key = `${this.workspace?.currentWorkspace()?.id ?? ''}:${this.auth?.session()?.access_token ?? ''}`;
     if (key !== this.contextKey) {
       this.contextKey = key;
       this.clearCache(deferSignalWrite);
@@ -239,13 +237,6 @@ export class MediaService {
   async loadProductMedia(productId: string): Promise<CatalogProductMedia[]> {
     const generation = this.synchronizeContext();
     try {
-      if (this.mockStore.isDemoMode())
-        return this.mockStore
-          .getCatalogProductMedia(productId)
-          .filter(
-            (entry) =>
-              !this.workspace || entry.workspace_id === this.workspace.currentWorkspace()?.id,
-          );
       const { data, error } = await this.supabase.client
         .from('catalog_product_media')
         .select('*')
@@ -282,9 +273,7 @@ export class MediaService {
       const extension = file.name.split('.').at(-1)?.toLowerCase() ?? '';
       if (!extensions[file.type]?.includes(extension) || file.size === 0)
         throw new Error('Bitte ein JPEG-, PNG-, WebP-, GIF- oder AVIF-Bild auswählen.');
-      const product = this.mockStore.isDemoMode()
-        ? this.mockStore.getCatalogProducts().find((entry) => entry.id === productId)
-        : await this.readProductForUpload(productId);
+      const product = await this.readProductForUpload(productId);
       if (!product) throw new Error('Das Produkt wurde nicht gefunden oder ist nicht zugänglich.');
       if (generation !== this.synchronizeContext())
         throw new Error('Workspace oder Sitzung wurde gewechselt. Bitte erneut versuchen.');
@@ -301,27 +290,6 @@ export class MediaService {
         file_size: file.size,
         mime_type: file.type,
       };
-      if (this.mockStore.isDemoMode()) {
-        const dataUrl = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () =>
-            typeof reader.result === 'string'
-              ? resolve(reader.result)
-              : reject(new Error('Bild konnte nicht gelesen werden.'));
-          reader.onerror = () => reject(new Error('Bild konnte nicht gelesen werden.'));
-          reader.readAsDataURL(file);
-        });
-        if (generation !== this.synchronizeContext())
-          throw new Error('Workspace oder Sitzung wurde gewechselt.');
-        const media: CatalogProductMedia = {
-          ...metadata,
-          id,
-          storage_path: dataUrl,
-          created_at: new Date().toISOString(),
-        };
-        this.mockStore.saveCatalogProductMedia(media);
-        return { data: media, error: null };
-      }
       if (generation !== this.synchronizeContext())
         throw new Error('Workspace oder Sitzung wurde gewechselt.');
       const { error: uploadError } = await this.supabase.client.storage
@@ -380,50 +348,31 @@ export class MediaService {
       const existing = await this.loadProductMedia(productId);
       if (generation !== this.synchronizeContext())
         throw new Error('Workspace oder Sitzung wurde gewechselt.');
-      let result: CatalogProductMedia[];
-      if (this.mockStore.isDemoMode()) {
-        const product = this.mockStore
-          .getCatalogProducts(workspaceId)
-          .find((entry) => entry.id === productId && entry.workspace_id === workspaceId);
-        if (!product) throw new Error('Produkt ist nicht zugänglich.');
-        if (
-          existing.length !== expectedMediaIds.length ||
-          existing.some((entry) => !expectedMediaIds.includes(entry.id))
-        )
-          throw new Error('Die Bilder wurden zwischenzeitlich geändert. Bitte erneut laden.');
-        result = orderedMediaIds.map((id, index) => ({
-          ...existing.find((entry) => entry.id === id)!,
-          sort_order: index,
-          is_primary: index === 0,
-        }));
-        this.mockStore.replaceCatalogProductMedia(productId, workspaceId, result);
-      } else {
-        const { data, error } = await this.supabase.client.rpc('update_product_media_layout', {
-          p_product_id: productId,
-          p_ordered_media_ids: [...orderedMediaIds],
-          p_expected_media_ids: [...expectedMediaIds],
-          p_workspace_id: workspaceId,
-        });
-        if (error) throw error;
-        if (!data) throw new Error('Die gespeicherte Bilderliste wurde nicht zurückgegeben.');
-        result = data;
-        // Eine bestätigte Änderung bleibt erfolgreich, auch wenn die Dateibereinigung scheitert.
-        // Nach Kontextwechsel keine weiteren Schreibzugriffe mit einer anderen Sitzung ausführen.
-        if (generation === this.synchronizeContext()) {
-          const removed = existing.filter(
-            (entry) => !orderedMediaIds.includes(entry.id) && entry.workspace_id === workspaceId,
-          );
-          if (removed.length) {
-            try {
-              const cleanup = await this.supabase.client.storage
-                .from('item-media')
-                .remove(removed.map((entry) => entry.storage_path));
-              if (cleanup.error) throw cleanup.error;
-              if (generation === this.synchronizeContext())
-                removed.forEach((entry) => this.invalidateMediaUrl(entry.storage_path));
-            } catch (error: unknown) {
-              this.melde('Aufräumen entfernter Produktbilder', error);
-            }
+      const { data, error } = await this.supabase.client.rpc('update_product_media_layout', {
+        p_product_id: productId,
+        p_ordered_media_ids: [...orderedMediaIds],
+        p_expected_media_ids: [...expectedMediaIds],
+        p_workspace_id: workspaceId,
+      });
+      if (error) throw error;
+      if (!data) throw new Error('Die gespeicherte Bilderliste wurde nicht zurückgegeben.');
+      const result = data;
+      // Eine bestätigte Änderung bleibt erfolgreich, auch wenn die Dateibereinigung scheitert.
+      // Nach Kontextwechsel keine weiteren Schreibzugriffe mit einer anderen Sitzung ausführen.
+      if (generation === this.synchronizeContext()) {
+        const removed = existing.filter(
+          (entry) => !orderedMediaIds.includes(entry.id) && entry.workspace_id === workspaceId,
+        );
+        if (removed.length) {
+          try {
+            const cleanup = await this.supabase.client.storage
+              .from('item-media')
+              .remove(removed.map((entry) => entry.storage_path));
+            if (cleanup.error) throw cleanup.error;
+            if (generation === this.synchronizeContext())
+              removed.forEach((entry) => this.invalidateMediaUrl(entry.storage_path));
+          } catch (error: unknown) {
+            this.melde('Aufräumen entfernter Produktbilder', error);
           }
         }
       }
@@ -452,12 +401,6 @@ export class MediaService {
    * Loads all media records for a given inventory item.
    */
   async loadItemMedia(itemId: string): Promise<ItemMedia[]> {
-    const local = this.mockStore.getItemMedia(itemId);
-
-    if (this.mockStore.isDemoMode()) {
-      return local;
-    }
-
     try {
       const queryPromise = this.supabase.client
         .from('item_media')
@@ -471,15 +414,13 @@ export class MediaService {
         // unterscheiden von einem Artikel, der nie welche hatte.
         this.melde('Laden der Bilder', error);
       } else if (data && data.length > 0) {
-        const medien = data as unknown as ItemMedia[];
-        medien.forEach((m) => this.mockStore.saveItemMedia(m));
-        return medien;
+        return data as unknown as ItemMedia[];
       }
     } catch (e: unknown) {
       this.melde('Laden der Bilder', e);
     }
 
-    return local;
+    return [];
   }
 
   /**
@@ -497,24 +438,6 @@ export class MediaService {
     return new Promise((resolve) => {
       const reader = new FileReader();
       reader.onload = async () => {
-        const dataUrl = reader.result as string;
-        const localMedia: ItemMedia = {
-          id: 'media-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7),
-          inventory_item_id: itemId,
-          storage_path: dataUrl,
-          is_primary: isPrimary,
-          file_name: file.name,
-          file_size: file.size,
-          mime_type: file.type,
-          created_at: new Date().toISOString(),
-        };
-
-        if (this.mockStore.isDemoMode()) {
-          this.mockStore.saveItemMedia(localMedia);
-          resolve({ data: localMedia, error: null });
-          return;
-        }
-
         // 2. In den Speicher der Datenbank hochladen.
         //
         // Frueher endete jeder Fehlschlag hier in einem leeren catch mit dem
@@ -580,7 +503,6 @@ export class MediaService {
             }
 
             const cloudMedia = inserted as ItemMedia;
-            this.mockStore.saveItemMedia(cloudMedia);
             resolve({ data: cloudMedia, error: null });
             return;
           }
@@ -608,19 +530,6 @@ export class MediaService {
    * Deletes a media item from storage and database.
    */
   async deleteMedia(itemId: string, mediaId: string): Promise<{ error: Error | null }> {
-    if (this.mockStore.isDemoMode()) {
-      const medium = this.mockStore
-        .getItemMedia(itemId)
-        .find((candidate) => candidate.id === mediaId);
-      if (!medium) {
-        return {
-          error: this.melde('Löschen des Bildes', new Error('Das Bild wurde nicht gefunden.')),
-        };
-      }
-      this.mockStore.deleteItemMedia(mediaId);
-      return { error: null };
-    }
-
     try {
       const { data: medium, error: leseFehler } = await this.supabase.client
         .from('item_media')
@@ -662,7 +571,6 @@ export class MediaService {
       return { error: this.melde('Löschen des Bildes', err) };
     }
 
-    this.mockStore.deleteItemMedia(mediaId);
     return { error: null };
   }
 
@@ -670,22 +578,6 @@ export class MediaService {
    * Sets a specific media as the primary thumbnail.
    */
   async setPrimary(itemId: string, mediaId: string): Promise<{ error: Error | null }> {
-    if (this.mockStore.isDemoMode()) {
-      const medium = this.mockStore
-        .getItemMedia(itemId)
-        .find((candidate) => candidate.id === mediaId);
-      if (!medium) {
-        return {
-          error: this.melde(
-            'Festlegen des Hauptbilds',
-            new Error('Das Bild wurde nicht gefunden.'),
-          ),
-        };
-      }
-      this.mockStore.setItemMediaPrimary(itemId, mediaId);
-      return { error: null };
-    }
-
     try {
       const { data: medium, error: leseFehler } = await this.supabase.client
         .from('item_media')
@@ -726,7 +618,6 @@ export class MediaService {
       return { error: this.melde('Festlegen des Hauptbilds', err) };
     }
 
-    this.mockStore.setItemMediaPrimary(itemId, mediaId);
     return { error: null };
   }
 }

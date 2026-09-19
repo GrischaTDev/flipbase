@@ -1,7 +1,6 @@
 import '@angular/compiler';
 import { Injector, runInInjectionContext } from '@angular/core';
 import { describe, expect, it, vi } from 'vitest';
-import { MockDataStoreService } from './mock-data-store.service';
 import {
   CATEGORY_SEARCH_LIMIT,
   ProductCategoryService,
@@ -64,36 +63,26 @@ const laptopRow = {
   is_deprecated: false,
 };
 
-function createService(results: QueryResult[], demo = false) {
+function createService(results: QueryResult[]) {
   const queries = results.map(createQuery);
   const from = vi.fn(() => {
     const next = queries.shift();
     if (!next) throw new Error('Unerwartete Abfrage');
     return next;
   });
-  const mockStore = new MockDataStoreService();
-  mockStore.isDemoMode.set(demo);
   const injector = Injector.create({
-    providers: [
-      { provide: SupabaseService, useValue: { client: { from } } },
-      { provide: MockDataStoreService, useValue: mockStore },
-    ],
+    providers: [{ provide: SupabaseService, useValue: { client: { from } } }],
   });
   const service = runInInjectionContext(injector, () => new ProductCategoryService());
-  return { service, from, mockStore };
+  return { service, from };
 }
 
 describe('ProductCategoryService', () => {
   it('lädt Hauptbereiche ohne veraltete Kategorien und merkt sie sich', async () => {
     const query = createQuery({ data: [laptopRow], error: null });
     const from = vi.fn(() => query);
-    const mockStore = new MockDataStoreService();
-    mockStore.isDemoMode.set(false);
     const injector = Injector.create({
-      providers: [
-        { provide: SupabaseService, useValue: { client: { from } } },
-        { provide: MockDataStoreService, useValue: mockStore },
-      ],
+      providers: [{ provide: SupabaseService, useValue: { client: { from } } }],
     });
     const service = runInInjectionContext(injector, () => new ProductCategoryService());
 
@@ -136,13 +125,8 @@ describe('ProductCategoryService', () => {
     }));
     const query = createQuery({ data: rows, error: null });
     const from = vi.fn(() => query);
-    const mockStore = new MockDataStoreService();
-    mockStore.isDemoMode.set(false);
     const injector = Injector.create({
-      providers: [
-        { provide: SupabaseService, useValue: { client: { from } } },
-        { provide: MockDataStoreService, useValue: mockStore },
-      ],
+      providers: [{ provide: SupabaseService, useValue: { client: { from } } }],
     });
     const service = runInInjectionContext(injector, () => new ProductCategoryService());
 
@@ -160,17 +144,6 @@ describe('ProductCategoryService', () => {
 
   it('maskiert Platzhalter für ilike', () => {
     expect(escapeLikePattern('a%b_c\\d')).toBe('a\\%b\\_c\\\\d');
-  });
-
-  it('nutzt im Demo-Modus die festen Beispielkategorien ohne Datenbank', async () => {
-    const { service, from } = createService([], true);
-
-    const roots = await service.loadChildren(null);
-    const search = await service.search('laptops');
-
-    expect(roots.map((category) => category.id)).toEqual(['aa', 'el', 'ha', 'co']);
-    expect(search.categories.map((category) => category.id)).toEqual(['el-6-6']);
-    expect(from).not.toHaveBeenCalled();
   });
 
   it('liefert bekannte Kategorien aus dem Zwischenspeicher und lädt unbekannte einzeln', async () => {

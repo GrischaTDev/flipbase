@@ -2,9 +2,7 @@ import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
 import { ProfitEngineService } from './profit-engine.service';
-import { MockDataStoreService } from './mock-data-store.service';
 import { SyncFehlerAktion, SyncStatusService } from './sync-status.service';
-import { createLocalDemoId } from '../utils/client-identity';
 import {
   InventoryItem,
   ItemCost,
@@ -12,7 +10,6 @@ import {
   ItemCondition,
   ActivityLog,
   InventoryItemSaleState,
-  Sale,
 } from '../models/flipbase.models';
 import type { TablesInsert, TablesUpdate } from '../models/supabase.types';
 import { isInventoryItemMutationLocked } from '../models/inventory-sellability';
@@ -122,20 +119,6 @@ interface InventoryIntegrityClient {
   }>;
 }
 
-/**
- * Vorlaeufige Kennung fuer einen neuen Artikel.
- *
- * Stand vorher auf `item-${Date.now()}`. Werden zwei Artikel in derselben
- * Millisekunde angelegt - beim Erfassen mehrerer gleicher Stuecke passiert
- * genau das -, bekommen sie dieselbe Kennung, und der zweite ueberschreibt den
- * ersten. Aufgefallen beim Anlegen von fuenf Stueck: angekommen sind zwei.
- *
- * Die endgueltige Kennung vergibt anschliessend die Datenbank.
- */
-function vorlaeufigeKennung(): string {
-  return createLocalDemoId('item');
-}
-
 @Injectable({
   providedIn: 'root',
 })
@@ -144,7 +127,6 @@ export class InventoryService {
   private readonly syncStatus = inject(SyncStatusService);
   private readonly workspaceService = inject(WorkspaceService);
   private readonly profitEngine = inject(ProfitEngineService);
-  private readonly mockStore = inject(MockDataStoreService);
 
   private get integrityClient(): InventoryIntegrityClient {
     return this.supabase.client as unknown as InventoryIntegrityClient;
@@ -243,17 +225,6 @@ export class InventoryService {
     this.loadedWorkspaceId.set(null);
     this.items.set([]);
     try {
-      if (this.mockStore.isDemoMode()) {
-        const localItems = this.classifyDemoSaleStates(
-          this.mockStore.getItems(workspaceId),
-          this.mockStore.getSales(workspaceId),
-        ).map((i) => this.enrichItemTotals(i));
-        if (!this.isCurrentLoad(requestId, workspaceId)) return;
-        this.items.set(localItems);
-        this.loadedWorkspaceId.set(workspaceId);
-        return;
-      }
-
       const { data, error } = await this.supabase.client
         .from('inventory_items')
         .select(
@@ -338,60 +309,16 @@ export class InventoryService {
     );
     let existing: InventoryItem | undefined;
 
-    if (this.mockStore.isDemoMode()) {
-      const rawItem =
-        this.mockStore
-          .getItems(workspaceId)
-          .find((item) => item.id === itemId && item.workspace_id === workspaceId) ?? signalItem;
-      const classifiedItem = rawItem
-        ? this.classifyDemoSaleStates(
-            [{ ...(signalItem ?? {}), ...rawItem }],
-            this.mockStore.getSales(workspaceId),
-          )[0]
-        : undefined;
-      existing =
-        classifiedItem && signalItem?.sale_state !== undefined
-          ? {
-              ...classifiedItem,
-              sale_state: signalItem.sale_state,
-              active_sale_count: signalItem.active_sale_count,
-              active_sale_id: signalItem.active_sale_id,
-            }
-          : classifiedItem;
-      const linkedPurchase = existing?.purchase_id
-        ? (this.mockStore.getPurchases?.(workspaceId) ?? []).find(
-            (purchase) =>
-              purchase.id === existing?.purchase_id && purchase.workspace_id === workspaceId,
-          )
-        : undefined;
-      if (existing && linkedPurchase) {
-        const source =
-          linkedPurchase.source ??
-          (linkedPurchase.source_id
-            ? (this.mockStore.getSources?.(workspaceId) ?? []).find(
-                (entry) => entry.id === linkedPurchase.source_id,
-              )
-            : undefined);
-        const supplier =
-          linkedPurchase.supplier ??
-          (linkedPurchase.supplier_id
-            ? (this.mockStore.getSuppliers?.(workspaceId) ?? []).find(
-                (entry) => entry.id === linkedPurchase.supplier_id,
-              )
-            : undefined);
-        existing = { ...existing, purchase: { ...linkedPurchase, source, supplier } };
-      }
-    } else if (signalItem?.sale_state !== undefined) {
+    if (signalItem?.sale_state !== undefined) {
       existing = signalItem;
     }
 
     if (existing) {
       const enriched = this.enrichItemTotals(existing);
-      const costs = this.mockStore.getItemCosts(itemId);
       await this.loadActivityLogs(itemId, workspaceId, requestId);
       if (!this.isCurrentDetailLoad(requestId, workspaceId)) return null;
       this.selectedItem.set(enriched);
-      this.itemCosts.set(costs.length > 0 ? costs : enriched.costs || []);
+      this.itemCosts.set(enriched.costs || []);
       this.isLoading.set(false);
       return enriched;
     }
@@ -481,16 +408,6 @@ export class InventoryService {
     const isCurrent = (): boolean =>
       this.workspaceService.currentWorkspace()?.id === workspaceId &&
       (detailRequestId === undefined || this.isCurrentDetailLoad(detailRequestId, workspaceId));
-    const localLogs = this.mockStore
-      .getActivityLogs(itemId)
-      .filter((log) => log.workspace_id === workspaceId);
-    if (localLogs.length > 0) {
-      if (isCurrent()) this.activityLogs.set(localLogs);
-    }
-
-    if (this.mockStore.isDemoMode()) {
-      return;
-    }
 
     try {
       const { data, error } = await this.supabase.client
@@ -534,68 +451,9 @@ export class InventoryService {
     } as InventoryItem;
   }
 
-  private classifyDemoSaleStates(items: InventoryItem[], sales: Sale[]): InventoryItem[] {
-    const activeSalesByItem = new Map<string, Set<string>>();
-    const legacyHeadersWithoutLine = new Set<string>();
-
-    const addSale = (itemId: string, saleId: string): void => {
-      const saleIds = activeSalesByItem.get(itemId) ?? new Set<string>();
-      saleIds.add(saleId);
-      activeSalesByItem.set(itemId, saleIds);
-    };
-
-    for (const sale of sales) {
-      if (sale.returned_at || sale.voided_at) continue;
-
-      const persistedLines = sale.has_persisted_lines === false ? [] : (sale.lines ?? []);
-      for (const line of persistedLines) {
-        if (line.inventory_item_id) addSale(line.inventory_item_id, sale.id);
-      }
-
-      if (sale.inventory_item_id) {
-        addSale(sale.inventory_item_id, sale.id);
-        const hasMatchingLine = persistedLines.some(
-          (line) => line.inventory_item_id === sale.inventory_item_id,
-        );
-        if (!hasMatchingLine) legacyHeadersWithoutLine.add(sale.inventory_item_id);
-      }
-    }
-
-    return items.map((item) => {
-      const activeSaleIds = [...(activeSalesByItem.get(item.id) ?? [])];
-      const activeSaleCount = activeSaleIds.length;
-      let saleState: InventoryItemSaleState;
-
-      if (activeSaleCount > 1) saleState = 'multiple_active_sales';
-      else if (legacyHeadersWithoutLine.has(item.id)) {
-        saleState = 'legacy_sale_header_without_line';
-      } else if (item.status === 'sold' && activeSaleCount === 0) {
-        saleState = 'legacy_sold_unverified';
-      } else if (item.status !== 'sold' && activeSaleCount > 0) {
-        saleState = 'sale_status_conflict';
-      } else if (activeSaleCount === 1) saleState = 'sold';
-      else saleState = 'no_active_sale';
-
-      return {
-        ...item,
-        sale_state: saleState,
-        active_sale_count: activeSaleCount,
-        active_sale_id: activeSaleCount === 1 ? activeSaleIds[0] : null,
-      };
-    });
-  }
-
   async resolveLegacySoldItem(itemId: string): Promise<{ error: Error | null }> {
     const workspace = this.workspaceService.currentWorkspace();
     if (!workspace) return { error: new Error('Kein aktiver Workspace') };
-
-    if (this.mockStore.isDemoMode()) {
-      return {
-        error: new Error(
-          'Die Klärung des historischen Verkaufs benötigt eine Datenbankverbindung.',
-        ),
-      };
-    }
 
     try {
       const { data, error } = await this.integrityClient.rpc('resolve_legacy_sold_item', {
@@ -650,56 +508,6 @@ export class InventoryService {
       };
     }
 
-    const newItem: InventoryItem = {
-      id: vorlaeufigeKennung(),
-      workspace_id: ws.id,
-      purchase_id: payload.purchase_id || null,
-      purchase_line_id: payload.purchase_line_id || null,
-      category_id: payload.categoryId ?? null,
-      category: payload.categoryId === undefined ? payload.category?.trim() || null : null,
-      title: payload.title.trim(),
-      brand_id: payload.brandId ?? null,
-      brand: payload.brandId === undefined ? payload.brand?.trim() || null : null,
-      model: payload.model?.trim() || null,
-      condition: payload.condition,
-      status: payload.status || 'received',
-      sku: payload.sku?.trim() || this.naechsteArtikelnummer(),
-      ean: payload.ean?.trim() || null,
-      description: payload.description?.trim() || null,
-      allocated_purchase_cost: payload.allocated_purchase_cost,
-      expected_value: payload.expected_value || null,
-      created_at: new Date().toISOString(),
-    };
-
-    const enriched = this.enrichItemTotals(
-      this.mockStore.isDemoMode() ? this.mockStore.applyCategoryBrandText(newItem) : newItem,
-    );
-
-    if (this.mockStore.isDemoMode()) {
-      this.mockStore.saveItem(enriched);
-      this.items.update((list) => [enriched, ...list]);
-      const logErgebnis = await this.logActivity(
-        newItem.id,
-        'received',
-        `Artikel angelegt (${newItem.title})`,
-      );
-      if (logErgebnis.error) {
-        return {
-          data: enriched,
-          error: null,
-          reportedBySyncStatus: logErgebnis.reportedBySyncStatus,
-          problems: [
-            {
-              kind: 'activity_log',
-              error: logErgebnis.error,
-              reportedBySyncStatus: logErgebnis.reportedBySyncStatus,
-            },
-          ],
-        };
-      }
-      return { data: enriched, error: null, reportedBySyncStatus: false, problems: [] };
-    }
-
     try {
       const insertPayload: TablesInsert<'inventory_items'> = {
         workspace_id: ws.id,
@@ -735,7 +543,6 @@ export class InventoryService {
         };
       } else if (dbData) {
         const finalEnriched = this.enrichItemTotals(dbData as unknown as InventoryItem);
-        this.mockStore.saveItem(finalEnriched);
         this.items.update((list) => [finalEnriched, ...list]);
         const logErgebnis = await this.logActivity(
           finalEnriched.id,
@@ -779,8 +586,7 @@ export class InventoryService {
     if (this.isMutationLocked(itemId)) return this.lockedMutationResult();
     const existing =
       this.items().find((item) => item.id === itemId) ??
-      (this.selectedItem()?.id === itemId ? this.selectedItem() : undefined) ??
-      this.mockStore.getItems().find((item) => item.id === itemId);
+      (this.selectedItem()?.id === itemId ? this.selectedItem() : undefined);
     if (
       (updates.source_package_line_id !== undefined &&
         updates.source_package_line_id !== existing?.source_package_line_id) ||
@@ -792,13 +598,6 @@ export class InventoryService {
       return { error: new Error('Die Herkunft eines Paketinhalts kann nicht geändert werden.') };
     const mappedUpdates = mapItemUpdates(updates);
     const aenderungenLokalUebernehmen = (aenderungen: Partial<InventoryItem>): void => {
-      const stored = this.mockStore.getItems().find((i) => i.id === itemId);
-      const base = stored || this.items().find((i) => i.id === itemId) || this.selectedItem();
-      if (base) {
-        const updated = this.enrichItemTotals({ ...base, ...aenderungen });
-        this.mockStore.saveItem(updated);
-      }
-
       this.items.update((list) =>
         list.map((item) =>
           item.id === itemId ? this.enrichItemTotals({ ...item, ...aenderungen }) : item,
@@ -810,15 +609,6 @@ export class InventoryService {
         this.selectedItem.set(this.enrichItemTotals({ ...currentSel, ...aenderungen }));
       }
     };
-
-    if (this.mockStore.isDemoMode()) {
-      const demoUpdates =
-        existing && touchesCategoryOrBrand(updates)
-          ? this.mockStore.applyCategoryBrandText({ ...existing, ...mappedUpdates }, existing)
-          : mappedUpdates;
-      aenderungenLokalUebernehmen(demoUpdates);
-      return { error: null };
-    }
 
     try {
       const {
@@ -896,12 +686,6 @@ export class InventoryService {
   ): Promise<{ error: Error | null }> {
     if (this.isMutationLocked(itemId)) return this.lockedMutationResult();
     const statusLokalUebernehmen = (): void => {
-      const stored = this.mockStore.getItems().find((i) => i.id === itemId);
-      const base = stored || this.items().find((i) => i.id === itemId) || this.selectedItem();
-      if (base) {
-        this.mockStore.saveItem({ ...base, status: newStatus });
-      }
-
       this.items.update((list) =>
         list.map((item) => (item.id === itemId ? { ...item, status: newStatus } : item)),
       );
@@ -911,12 +695,6 @@ export class InventoryService {
         this.selectedItem.set({ ...currentSel, status: newStatus });
       }
     };
-
-    if (this.mockStore.isDemoMode()) {
-      statusLokalUebernehmen();
-      await this.logActivity(itemId, newStatus, notes || `Status geändert auf: ${newStatus}`);
-      return { error: null };
-    }
 
     try {
       const { error, count } = await this.supabase.client
@@ -952,40 +730,18 @@ export class InventoryService {
     description?: string,
   ): Promise<{ error: Error | null }> {
     if (this.isMutationLocked(itemId)) return this.lockedMutationResult();
-    const newCost: ItemCost = {
-      id: `cost-${Date.now()}`,
-      inventory_item_id: itemId,
-      type,
-      amount,
-      description: description?.trim() || null,
-      created_at: new Date().toISOString(),
-    };
-
     const kostenLokalUebernehmen = (kosten: ItemCost): void => {
-      this.mockStore.saveItemCost(kosten);
       this.itemCosts.update((costs) => [...costs, kosten]);
       this.items.update((list) =>
         list.map((i) => {
           if (i.id === itemId) {
             const updatedCosts = [...(i.costs || []), kosten];
-            const updatedItem = this.enrichItemTotals({ ...i, costs: updatedCosts });
-            this.mockStore.saveItem(updatedItem);
-            return updatedItem;
+            return this.enrichItemTotals({ ...i, costs: updatedCosts });
           }
           return i;
         }),
       );
     };
-
-    if (this.mockStore.isDemoMode()) {
-      kostenLokalUebernehmen(newCost);
-      await this.logActivity(
-        itemId,
-        'cost_added',
-        `Kosten hinzugefügt: ${amount.toFixed(2)} € (${type})`,
-      );
-      return { error: null };
-    }
 
     try {
       const { data, error } = await this.supabase.client
@@ -1024,41 +780,36 @@ export class InventoryService {
   async deleteItemCost(itemId: string, costId: string): Promise<{ error: Error | null }> {
     if (this.isMutationLocked(itemId)) return this.lockedMutationResult();
     const kostenLokalEntfernen = (): void => {
-      this.mockStore.deleteItemCost(costId);
       this.itemCosts.update((costs) => costs.filter((c) => c.id !== costId));
       this.items.update((list) =>
         list.map((i) => {
           if (i.id === itemId) {
             const updatedCosts = (i.costs || []).filter((c) => c.id !== costId);
-            const updatedItem = this.enrichItemTotals({ ...i, costs: updatedCosts });
-            this.mockStore.saveItem(updatedItem);
-            return updatedItem;
+            return this.enrichItemTotals({ ...i, costs: updatedCosts });
           }
           return i;
         }),
       );
     };
 
-    if (!this.mockStore.isDemoMode()) {
-      try {
-        const { error, count } = await this.supabase.client
-          .from('item_costs')
-          .delete({ count: 'exact' })
-          .eq('id', costId);
-        if (error) {
-          return { error: this.syncStatus.melde('Löschen der Artikelkosten', error) };
-        }
-        if (count === 0) {
-          return {
-            error: this.syncStatus.melde('Löschen der Artikelkosten', {
-              code: 'PGRST116',
-              message: 'Die Artikelkosten wurden nicht gefunden.',
-            }),
-          };
-        }
-      } catch (e: unknown) {
-        return { error: this.syncStatus.melde('Löschen der Artikelkosten', e) };
+    try {
+      const { error, count } = await this.supabase.client
+        .from('item_costs')
+        .delete({ count: 'exact' })
+        .eq('id', costId);
+      if (error) {
+        return { error: this.syncStatus.melde('Löschen der Artikelkosten', error) };
       }
+      if (count === 0) {
+        return {
+          error: this.syncStatus.melde('Löschen der Artikelkosten', {
+            code: 'PGRST116',
+            message: 'Die Artikelkosten wurden nicht gefunden.',
+          }),
+        };
+      }
+    } catch (e: unknown) {
+      return { error: this.syncStatus.melde('Löschen der Artikelkosten', e) };
     }
 
     kostenLokalEntfernen();
@@ -1076,66 +827,29 @@ export class InventoryService {
       created_at: new Date().toISOString(),
     };
 
-    if (!this.mockStore.isDemoMode()) {
-      try {
-        const { error } = await this.supabase.client.from('activity_logs').insert({
-          workspace_id: wsId,
-          inventory_item_id: itemId,
-          action,
-          notes: notes || null,
-        });
+    try {
+      const { error } = await this.supabase.client.from('activity_logs').insert({
+        workspace_id: wsId,
+        inventory_item_id: itemId,
+        action,
+        notes: notes || null,
+      });
 
-        if (error) {
-          return {
-            error: this.syncStatus.melde('Speichern des Aktivitätsprotokolls', error),
-            reportedBySyncStatus: true,
-          };
-        }
-      } catch (e: unknown) {
+      if (error) {
         return {
-          error: this.syncStatus.melde('Speichern des Aktivitätsprotokolls', e),
+          error: this.syncStatus.melde('Speichern des Aktivitätsprotokolls', error),
           reportedBySyncStatus: true,
         };
       }
+    } catch (e: unknown) {
+      return {
+        error: this.syncStatus.melde('Speichern des Aktivitätsprotokolls', e),
+        reportedBySyncStatus: true,
+      };
     }
 
-    this.mockStore.saveActivityLog(newLog);
     this.activityLogs.update((logs) => [newLog, ...logs]);
     return { error: null, reportedBySyncStatus: false };
-  }
-
-  /**
-   * Vergibt die naechste interne Artikelnummer, z. B. FB-2026-0042.
-   *
-   * Das Feld gab es schon, nur hat es niemand ausgefuellt - es war ein reines
-   * Eingabefeld, und auf dem Etikett stand ersatzweise ein Stueck der internen
-   * Kennung. Eine eigene Nummer ist das, was Warenwirtschaften fuer
-   * Gebrauchtware ueber Seriennummern loesen: Sie macht das einzelne Stueck
-   * ansprechbar - auf dem Etikett, im Regal und in den Aufzeichnungen zu
-   * § 25a.
-   *
-   * Die Nummer zaehlt je Jahr hoch und weicht aus, falls es sie schon gibt.
-   * Das reicht fuer einen Betrieb, in dem eine Person erfasst; bei mehreren
-   * gleichzeitig muesste die Datenbank die Nummer vergeben.
-   */
-  private naechsteArtikelnummer(): string {
-    const jahr = new Date().getFullYear();
-    const praefix = `FB-${jahr}-`;
-
-    const hoechste = this.items()
-      .map((i) => i.sku)
-      .filter((nr): nr is string => !!nr && nr.startsWith(praefix))
-      .map((nr) => Number(nr.slice(praefix.length)))
-      .filter((n) => Number.isFinite(n))
-      .reduce((max, n) => Math.max(max, n), 0);
-
-    const vergeben = new Set(this.items().map((i) => i.sku));
-    let naechste = hoechste + 1;
-    while (vergeben.has(praefix + String(naechste).padStart(4, '0'))) {
-      naechste++;
-    }
-
-    return praefix + String(naechste).padStart(4, '0');
   }
 
   /**
@@ -1159,8 +873,6 @@ export class InventoryService {
     if (aktuell && nachId.has(aktuell.id)) {
       this.selectedItem.set(this.enrichItemTotals({ ...aktuell, ...nachId.get(aktuell.id)! }));
     }
-
-    geaenderte.forEach((i) => this.mockStore.saveItem(i));
   }
 
   /**
@@ -1178,29 +890,26 @@ export class InventoryService {
 
   async deleteItem(itemId: string): Promise<{ error: Error | null }> {
     if (this.isMutationLocked(itemId)) return this.lockedMutationResult();
-    if (!this.mockStore.isDemoMode()) {
-      try {
-        const { error, count } = await this.supabase.client
-          .from('inventory_items')
-          .delete({ count: 'exact' })
-          .eq('id', itemId);
-        if (error) {
-          return { error: this.syncStatus.melde('Löschen des Artikels', error) };
-        }
-        if (count === 0) {
-          return {
-            error: this.syncStatus.melde('Löschen des Artikels', {
-              code: 'PGRST116',
-              message: 'Der Artikel wurde nicht gefunden.',
-            }),
-          };
-        }
-      } catch (e: unknown) {
-        return { error: this.syncStatus.melde('Löschen des Artikels', e) };
+    try {
+      const { error, count } = await this.supabase.client
+        .from('inventory_items')
+        .delete({ count: 'exact' })
+        .eq('id', itemId);
+      if (error) {
+        return { error: this.syncStatus.melde('Löschen des Artikels', error) };
       }
+      if (count === 0) {
+        return {
+          error: this.syncStatus.melde('Löschen des Artikels', {
+            code: 'PGRST116',
+            message: 'Der Artikel wurde nicht gefunden.',
+          }),
+        };
+      }
+    } catch (e: unknown) {
+      return { error: this.syncStatus.melde('Löschen des Artikels', e) };
     }
 
-    this.mockStore.deleteItem(itemId);
     this.items.update((list) => list.filter((i) => i.id !== itemId));
     if (this.selectedItem()?.id === itemId) {
       this.selectedItem.set(null);

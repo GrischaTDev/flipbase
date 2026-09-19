@@ -1,5 +1,22 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-19 – Codex GPT-5.6 Terra (OpenAI) – Demo-Code: Bestand, Katalog und Medien
+
+**Auftrag:** Den zweiten Abschnitt des vereinbarten Umbaus umsetzen: den
+Demo-Modus aus Bestand, Katalog, Medien, Lagerzugängen, Kategorien, Marken und
+den Inventaransichten entfernen.
+
+**Änderung:** Alle genannten Dienste laden und verändern Daten ausschließlich
+über Supabase. Die Ansichtseinstellungen sind nur noch nach angemeldetem Nutzer
+und Workspace getrennt. Ein Test für ausschließlich lokal erzeugte Demo-IDs
+entfällt; die übrigen Tests prüfen bestätigte Datenbankantworten.
+
+**Prüfung:** 139 fokussierte Node-Tests, 31 fokussierte DOM-Tests und 6
+Angular-Tests bestanden. Zusätzlich bestanden Typprüfung, ESLint,
+projektweite Prettier-Prüfung und Produktionsbau. Der Bau meldet weiterhin drei
+bekannte, paketfremde NG8113-Hinweise zu ungenutzten `LucideDynamicIcon`-Importen.
+Kein Push/Merge.
+
 ## 2026-09-19 – Codex GPT-5.6 Terra (OpenAI) – Demo-Code: Einkaufsbereich
 
 **Auftrag:** Den ersten Abschnitt des vereinbarten Umbaus umsetzen: den

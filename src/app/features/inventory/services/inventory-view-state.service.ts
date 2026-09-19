@@ -22,7 +22,7 @@ export class InventoryViewStateService {
   private readonly views = new Map<string, ReturnType<typeof createViewState>>();
 
   readonly current = computed(() => {
-    const account = this.auth.isDemoMode() ? 'demo' : (this.auth.currentUser()?.id ?? 'anonymous');
+    const account = this.auth.currentUser()?.id ?? 'anonymous';
     const key = JSON.stringify([account, this.workspace.currentWorkspace()?.id ?? null]);
     let view = this.views.get(key);
     if (!view) {

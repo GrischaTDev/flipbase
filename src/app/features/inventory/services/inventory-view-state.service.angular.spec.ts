@@ -8,16 +8,14 @@ import { InventoryViewStateService } from './inventory-view-state.service';
 describe('InventoryViewStateService', () => {
   const currentUser = signal({ id: 'user-a' });
   const currentWorkspace = signal({ id: 'workspace-a' });
-  const isDemoMode = signal(false);
 
   beforeEach(() => {
     TestBed.resetTestingModule();
     currentUser.set({ id: 'user-a' });
     currentWorkspace.set({ id: 'workspace-a' });
-    isDemoMode.set(false);
     TestBed.configureTestingModule({
       providers: [
-        { provide: AuthService, useValue: { currentUser, isDemoMode } },
+        { provide: AuthService, useValue: { currentUser } },
         { provide: WorkspaceService, useValue: { currentWorkspace } },
       ],
     });
@@ -38,7 +36,7 @@ describe('InventoryViewStateService', () => {
     expect(reopened.activePreset()).toBe('high_margin');
   });
 
-  it('trennt Konten, Workspaces und Demo und stellt deren eigene Ansicht wieder her', () => {
+  it('trennt Konten und Workspaces und stellt deren eigene Ansicht wieder her', () => {
     const service = TestBed.inject(InventoryViewStateService);
     service.current().searchQuery.set('Tasse');
     currentWorkspace.set({ id: 'workspace-b' });
@@ -50,7 +48,5 @@ describe('InventoryViewStateService', () => {
     expect(service.current().searchQuery()).toBe('Lampe');
     currentWorkspace.set({ id: 'workspace-a' });
     expect(service.current().searchQuery()).toBe('Tasse');
-    isDemoMode.set(true);
-    expect(service.current().searchQuery()).toBe('');
   });
 });
