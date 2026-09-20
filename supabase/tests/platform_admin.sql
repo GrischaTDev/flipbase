@@ -2,14 +2,17 @@
 
 begin;
 
-select plan(14);
+select plan(17);
 
 -- Spalten von beta_applications
 do $$
 declare
   required_columns text[] := array[
     'id', 'first_name', 'last_name', 'email', 'status', 'granted_days',
-    'decision_note', 'decided_by', 'decided_at', 'created_at', 'consent_at'
+    'decision_note', 'decided_by', 'decided_at', 'created_at', 'consent_at',
+    'receipt_email_status', 'receipt_email_sent_at', 'receipt_email_last_error',
+    'auth_user_id', 'invitation_status', 'invitation_sent_at',
+    'invitation_last_error', 'registered_at'
   ];
   missing_columns text[];
 begin
@@ -31,7 +34,7 @@ $$;
 
 select pass('beta_applications besitzt alle benoetigten Spalten');
 
--- RLS ist auf allen drei Tabellen aktiv.
+-- RLS ist auf allen Tabellen des Betreiberbereichs aktiv.
 do $$
 declare
   ungeschuetzt text[];
@@ -41,7 +44,10 @@ begin
   from pg_class
   join pg_namespace on pg_namespace.oid = pg_class.relnamespace
   where pg_namespace.nspname = 'public'
-    and relname in ('platform_operators', 'beta_applications', 'beta_application_attempts')
+    and relname in (
+      'platform_operators', 'beta_applications', 'beta_application_attempts',
+      'workspace_licenses'
+    )
     and relrowsecurity = false;
 
   if ungeschuetzt is not null then
@@ -50,7 +56,7 @@ begin
 end;
 $$;
 
-select pass('RLS ist auf allen drei Tabellen aktiv');
+select pass('RLS ist auf allen Tabellen des Betreiberbereichs aktiv');
 
 -- anon haelt auf keiner der drei Tabellen ein Recht.
 --
@@ -65,7 +71,10 @@ begin
   into offene
   from information_schema.role_table_grants
   where table_schema = 'public'
-    and table_name in ('platform_operators', 'beta_applications', 'beta_application_attempts')
+    and table_name in (
+      'platform_operators', 'beta_applications', 'beta_application_attempts',
+      'workspace_licenses'
+    )
     and grantee = 'anon';
 
   if offene is not null then
@@ -87,8 +96,8 @@ begin
   where table_schema = 'public' and table_name = 'beta_applications'
     and grantee = 'authenticated';
 
-  if rechte is distinct from array['SELECT', 'UPDATE'] then
-    raise exception 'authenticated soll auf beta_applications genau SELECT+UPDATE haben, hat: %', rechte;
+  if rechte is distinct from array['SELECT'] then
+    raise exception 'authenticated soll auf beta_applications genau SELECT haben, hat: %', rechte;
   end if;
 
   select array_agg(privilege_type order by privilege_type)
@@ -109,6 +118,16 @@ begin
 
   if rechte is distinct from array['SELECT'] then
     raise exception 'authenticated soll auf platform_operators genau SELECT haben, hat: %', rechte;
+  end if;
+
+  select array_agg(privilege_type order by privilege_type)
+  into rechte
+  from information_schema.role_table_grants
+  where table_schema = 'public' and table_name = 'workspace_licenses'
+    and grantee = 'authenticated';
+
+  if rechte is distinct from array['SELECT'] then
+    raise exception 'authenticated soll auf workspace_licenses genau SELECT haben, hat: %', rechte;
   end if;
 end;
 $$;
@@ -235,65 +254,68 @@ insert into public.platform_operators (user_id, note) values
   (:'operator_a_id'::uuid, 'Testbetreiber A'),
   (:'operator_b_id'::uuid, 'Testbetreiber B');
 
--- Fall 1: Angemeldeter ohne Betreibereintrag sieht keine Bewerbungen, und
--- sein update trifft keine Zeile.
+-- Fall 1: Angemeldeter ohne Betreibereintrag sieht keine Bewerbungen und kann
+-- die Entscheidungsfunktion nicht verwenden.
 set local role authenticated;
 set local request.jwt.claim.sub = :'plain_user_id';
 
 do $$
 declare
-  betroffen integer;
+  application_id uuid;
 begin
   if (select count(*) from public.beta_applications) <> 0 then
     raise exception 'Angemeldeter ohne Betreibereintrag darf keine Bewerbung sehen';
   end if;
 
-  update public.beta_applications set decision_note = 'sollte nicht ankommen';
-  get diagnostics betroffen = row_count;
-  if betroffen <> 0 then
-    raise exception 'Angemeldeter ohne Betreibereintrag darf keine Bewerbung aendern, betroffen: %', betroffen;
-  end if;
+  select id into application_id
+  from public.beta_applications
+  where lower(email) = 'anna@example.test';
+
+  begin
+    perform public.accept_beta_application(application_id, 60);
+    raise exception 'Ein Nicht-Betreiber haette die Bewerbung nicht annehmen duerfen';
+  exception
+    when insufficient_privilege then null;
+  end;
 end;
 $$;
 
 reset role;
 
-select pass('Ein Angemeldeter ohne Betreibereintrag sieht 0 Bewerbungen, und sein update trifft 0 Zeilen');
+select pass('Ein Angemeldeter ohne Betreibereintrag sieht und entscheidet keine Bewerbung');
 
--- Fall 2: Angemeldeter mit Betreibereintrag sieht die Bewerbungen, und sein
--- update greift.
+-- Fall 2: Ein Betreiber sieht und entscheidet Bewerbungen ueber die Funktion.
 set local role authenticated;
 set local request.jwt.claim.sub = :'operator_a_id';
 
 do $$
 declare
   gesehen integer;
-  betroffen integer;
-  notiz text;
+  application_id uuid;
+  result public.beta_applications;
 begin
   select count(*) into gesehen from public.beta_applications;
   if gesehen = 0 then
     raise exception 'Angemeldeter Betreiber haette Bewerbungen sehen muessen';
   end if;
 
-  update public.beta_applications
-  set decision_note = 'Betreiber A hat geprueft'
-  where email = 'bernd@example.test';
-  get diagnostics betroffen = row_count;
-  if betroffen <> 1 then
-    raise exception 'Betreiber-Update haette genau eine Zeile treffen muessen, betroffen: %', betroffen;
-  end if;
+  select id into application_id
+  from public.beta_applications
+  where lower(email) = 'anna@example.test';
 
-  select decision_note into notiz from public.beta_applications where email = 'bernd@example.test';
-  if notiz is distinct from 'Betreiber A hat geprueft' then
-    raise exception 'Betreiber-Update haette ankommen muessen';
+  result := public.accept_beta_application(application_id, 60);
+  if result.status is distinct from 'accepted'
+     or result.granted_days is distinct from 60
+     or result.invitation_status is distinct from 'sending'
+     or result.decided_by is distinct from (select auth.uid()) then
+    raise exception 'Die Betreiberentscheidung ist unvollstaendig: %', row_to_json(result);
   end if;
 end;
 $$;
 
 reset role;
 
-select pass('Ein Angemeldeter mit Betreibereintrag sieht die Bewerbung, und sein update greift');
+select pass('Ein Betreiber sieht und entscheidet Bewerbungen ueber die Funktion');
 
 -- Fall 3: is_platform_operator() liefert fuer beide Rollen den richtigen Wert.
 set local role authenticated;
@@ -433,6 +455,135 @@ end;
 $$;
 
 select pass('Zaehlversuche aelter als 24 Stunden werden beim Aufruf entfernt');
+
+-- Entscheidungen und Aktivierung laufen nur ueber eng begrenzte Funktionen.
+do $$
+begin
+  if not has_function_privilege(
+    'authenticated', 'public.accept_beta_application(uuid, integer)', 'execute'
+  ) then
+    raise exception 'authenticated muss accept_beta_application ausfuehren duerfen';
+  end if;
+
+  if not has_function_privilege(
+    'authenticated', 'public.reject_beta_application(uuid)', 'execute'
+  ) then
+    raise exception 'authenticated muss reject_beta_application ausfuehren duerfen';
+  end if;
+
+  if not has_function_privilege(
+    'authenticated', 'public.activate_beta_access()', 'execute'
+  ) then
+    raise exception 'authenticated muss activate_beta_access ausfuehren duerfen';
+  end if;
+
+  if has_function_privilege('anon', 'public.activate_beta_access()', 'execute') then
+    raise exception 'anon darf activate_beta_access nicht ausfuehren';
+  end if;
+end;
+$$;
+
+select pass('Nur Angemeldete koennen die begrenzten Beta-Funktionen aufrufen');
+
+-- Eine Beta-Einladung verknuepft Bewerbung, Nutzer, Workspace und Lizenz.
+\set beta_user_id '85000000-0000-4000-8000-000000000010'
+\set beta_application_id '85000000-0000-4000-8000-000000000011'
+
+insert into public.beta_applications (
+  id, first_name, last_name, email, status, granted_days
+) values (
+  :'beta_application_id'::uuid, 'Berta', 'Beta', 'berta@example.test', 'accepted', 60
+);
+
+insert into auth.users (
+  id, aud, role, email, encrypted_password, raw_app_meta_data,
+  raw_user_meta_data, created_at, updated_at
+) values (
+  :'beta_user_id'::uuid, 'authenticated', 'authenticated',
+  'berta@example.test', 'not-used-by-this-test', '{}'::jsonb,
+  jsonb_build_object('beta_application_id', :'beta_application_id'), now(), now()
+);
+
+do $$
+declare
+  linked_user uuid;
+  linked_days integer;
+  linked_status text;
+begin
+  select auth_user_id into linked_user
+  from public.beta_applications
+  where id = '85000000-0000-4000-8000-000000000011'::uuid;
+
+  if linked_user is distinct from '85000000-0000-4000-8000-000000000010'::uuid then
+    raise exception 'Die Bewerbung ist nicht mit dem eingeladenen Nutzer verknuepft';
+  end if;
+
+  select license.granted_days, license.status
+  into linked_days, linked_status
+  from public.workspace_licenses as license
+  where license.beta_application_id = '85000000-0000-4000-8000-000000000011'::uuid;
+
+  if linked_days is distinct from 60 or linked_status is distinct from 'pending' then
+    raise exception 'Die ausstehende Beta-Lizenz fehlt oder ist falsch: %, %',
+      linked_days, linked_status;
+  end if;
+end;
+$$;
+
+select pass('Beta-Einladung verknuepft Bewerbung, Nutzer, Workspace und Lizenz');
+
+-- Die Registrierung startet die Laufzeit genau einmal.
+set local role authenticated;
+set local request.jwt.claim.sub = :'beta_user_id';
+
+do $$
+declare
+  first_start timestamptz;
+  first_end timestamptz;
+  second_start timestamptz;
+  second_end timestamptz;
+begin
+  select starts_at, ends_at
+  into first_start, first_end
+  from public.activate_beta_access();
+
+  perform pg_sleep(0.01);
+
+  select starts_at, ends_at
+  into second_start, second_end
+  from public.activate_beta_access();
+
+  if first_start is null or first_end is null then
+    raise exception 'Die Beta-Aktivierung hat Start oder Ende nicht gesetzt';
+  end if;
+
+  if first_start is distinct from second_start or first_end is distinct from second_end then
+    raise exception 'Wiederholte Aktivierung darf die Beta-Laufzeit nicht verschieben';
+  end if;
+
+  if first_end is distinct from first_start + interval '60 days' then
+    raise exception 'Die Beta-Laufzeit muss exakt 60 Tage betragen';
+  end if;
+end;
+$$;
+
+reset role;
+
+do $$
+declare
+  registered timestamptz;
+begin
+  select registered_at into registered
+  from public.beta_applications
+  where id = '85000000-0000-4000-8000-000000000011'::uuid;
+
+  if registered is null then
+    raise exception 'Die Beta-Aktivierung hat die Registrierung nicht gesetzt';
+  end if;
+end;
+$$;
+
+select pass('Beta-Aktivierung setzt die Laufzeit idempotent ab Registrierung');
 
 select * from finish();
 

@@ -206,6 +206,7 @@ export type Database = {
       }
       beta_applications: {
         Row: {
+          auth_user_id: string | null
           consent_at: string
           created_at: string
           decided_at: string | null
@@ -215,10 +216,18 @@ export type Database = {
           first_name: string
           granted_days: number | null
           id: string
+          invitation_last_error: string | null
+          invitation_sent_at: string | null
+          invitation_status: string
           last_name: string
+          receipt_email_last_error: string | null
+          receipt_email_sent_at: string | null
+          receipt_email_status: string
+          registered_at: string | null
           status: string
         }
         Insert: {
+          auth_user_id?: string | null
           consent_at?: string
           created_at?: string
           decided_at?: string | null
@@ -228,10 +237,18 @@ export type Database = {
           first_name: string
           granted_days?: number | null
           id?: string
+          invitation_last_error?: string | null
+          invitation_sent_at?: string | null
+          invitation_status?: string
           last_name: string
+          receipt_email_last_error?: string | null
+          receipt_email_sent_at?: string | null
+          receipt_email_status?: string
+          registered_at?: string | null
           status?: string
         }
         Update: {
+          auth_user_id?: string | null
           consent_at?: string
           created_at?: string
           decided_at?: string | null
@@ -241,7 +258,14 @@ export type Database = {
           first_name?: string
           granted_days?: number | null
           id?: string
+          invitation_last_error?: string | null
+          invitation_sent_at?: string | null
+          invitation_status?: string
           last_name?: string
+          receipt_email_last_error?: string | null
+          receipt_email_sent_at?: string | null
+          receipt_email_status?: string
+          registered_at?: string | null
           status?: string
         }
         Relationships: []
@@ -4147,6 +4171,57 @@ export type Database = {
           },
         ]
       }
+      workspace_licenses: {
+        Row: {
+          access_source: string
+          beta_application_id: string | null
+          created_at: string
+          ends_at: string | null
+          granted_days: number
+          starts_at: string | null
+          status: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          access_source?: string
+          beta_application_id?: string | null
+          created_at?: string
+          ends_at?: string | null
+          granted_days: number
+          starts_at?: string | null
+          status?: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          access_source?: string
+          beta_application_id?: string | null
+          created_at?: string
+          ends_at?: string | null
+          granted_days?: number
+          starts_at?: string | null
+          status?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_licenses_beta_application_id_fkey"
+            columns: ["beta_application_id"]
+            isOneToOne: true
+            referencedRelation: "beta_applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_licenses_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: true
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workspace_members: {
         Row: {
           created_at: string
@@ -4247,6 +4322,56 @@ export type Database = {
       }
     }
     Functions: {
+      accept_beta_application: {
+        Args: { p_application_id: string; p_granted_days: number }
+        Returns: {
+          auth_user_id: string | null
+          consent_at: string
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          email: string
+          first_name: string
+          granted_days: number | null
+          id: string
+          invitation_last_error: string | null
+          invitation_sent_at: string | null
+          invitation_status: string
+          last_name: string
+          receipt_email_last_error: string | null
+          receipt_email_sent_at: string | null
+          receipt_email_status: string
+          registered_at: string | null
+          status: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "beta_applications"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      activate_beta_access: {
+        Args: never
+        Returns: {
+          access_source: string
+          beta_application_id: string | null
+          created_at: string
+          ends_at: string | null
+          granted_days: number
+          starts_at: string | null
+          status: string
+          updated_at: string
+          workspace_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "workspace_licenses"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       add_purchase_lines: {
         Args: { p_lines: Json; p_purchase_id: string; p_workspace_id: string }
         Returns: Json
@@ -4792,6 +4917,36 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "purchases"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      reject_beta_application: {
+        Args: { p_application_id: string }
+        Returns: {
+          auth_user_id: string | null
+          consent_at: string
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          email: string
+          first_name: string
+          granted_days: number | null
+          id: string
+          invitation_last_error: string | null
+          invitation_sent_at: string | null
+          invitation_status: string
+          last_name: string
+          receipt_email_last_error: string | null
+          receipt_email_sent_at: string | null
+          receipt_email_status: string
+          registered_at: string | null
+          status: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "beta_applications"
           isOneToOne: true
           isSetofReturn: false
         }
