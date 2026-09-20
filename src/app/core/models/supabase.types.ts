@@ -4680,6 +4680,22 @@ export type Database = {
           workspace_id: string
         }[]
       }
+      list_platform_users: {
+        Args: never
+        Returns: {
+          application_status: string
+          beta_ends_at: string
+          beta_starts_at: string
+          email: string
+          full_name: string
+          invitation_status: string
+          license_status: string
+          registered_at: string
+          user_id: string
+          workspace_id: string
+          workspace_name: string
+        }[]
+      }
       list_record_timeline: {
         Args: {
           p_cursor_created_at?: string

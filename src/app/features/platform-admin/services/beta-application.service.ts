@@ -65,20 +65,6 @@ export class BetaApplicationService {
     return this.invokeAction({ applicationId: id, action: 'resend_receipt' });
   }
 
-  /** Bleibt bis zur Umstellung der Verwaltungsseite als kompatibler Aufruf erhalten. */
-  async decide(
-    id: string,
-    status: Exclude<BetaApplicationStatus, 'open'>,
-    grantedDays: number | null,
-    _note: string | null,
-  ): Promise<void> {
-    if (status === 'accepted') {
-      await this.accept(id, grantedDays ?? 60);
-      return;
-    }
-    await this.reject(id);
-  }
-
   private async invokeAction(body: BetaInviteActionBody): Promise<BetaApplication> {
     const { data, error } = await this.supabase.client.functions.invoke('beta-invite', { body });
     if (error) {

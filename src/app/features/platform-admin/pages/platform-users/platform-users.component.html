@@ -1,0 +1,77 @@
+<section class="space-y-4">
+  <app-page-header
+    title="Nutzer"
+    [icon]="adminIcon"
+    subtitle="Konten, Registrierungsstand und aktuelle Beta-Laufzeiten im Überblick."
+  />
+
+  <app-data-table
+    ariaLabel="Plattformnutzer"
+    [searchValue]="searchQuery()"
+    searchPlaceholder="Name, E-Mail oder Workspace suchen …"
+    searchAriaLabel="Nutzer durchsuchen"
+    [loading]="loading()"
+    [errorMessage]="error()"
+    [hasRows]="filteredUsers().length > 0"
+    loadingText="Nutzer werden geladen …"
+    emptyTitle="Keine Nutzer gefunden."
+    emptyText="Passe die Suche an oder prüfe später erneut."
+    (searchValueChange)="searchQuery.set($event)"
+  >
+    <div table-content class="overflow-x-auto">
+      <table data-platform-users-table class="linear-table min-w-[960px]">
+        <caption class="sr-only">
+          Registrierte Plattformnutzer und ihre Beta-Zugänge
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col" class="min-w-48">Nutzer</th>
+            <th scope="col" class="min-w-56">E-Mail</th>
+            <th scope="col" class="min-w-44">Workspace</th>
+            <th scope="col">Registrierung</th>
+            <th scope="col">Zugang</th>
+            <th scope="col">Beta-Start</th>
+            <th scope="col">Beta-Ende</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (user of filteredUsers(); track user.userId) {
+            <tr class="transition hover:bg-fb-surface-hover">
+              <td class="font-semibold text-fb-text-primary">{{ user.fullName }}</td>
+              <td class="text-fb-text-secondary">{{ user.email }}</td>
+              <td class="text-fb-text-secondary">{{ user.workspaceName || '—' }}</td>
+              <td>
+                <app-badge [tone]="registrationStatus(user).tone">
+                  {{ registrationStatus(user).label }}
+                </app-badge>
+              </td>
+              <td>
+                <app-badge [tone]="accessStatus(user).tone">
+                  {{ accessStatus(user).label }}
+                </app-badge>
+              </td>
+              <td>
+                @if (user.betaStartsAt) {
+                  <time [attr.datetime]="user.betaStartsAt">{{
+                    user.betaStartsAt | date: 'dd.MM.yyyy'
+                  }}</time>
+                } @else {
+                  —
+                }
+              </td>
+              <td>
+                @if (user.betaEndsAt) {
+                  <time [attr.datetime]="user.betaEndsAt">{{
+                    user.betaEndsAt | date: 'dd.MM.yyyy'
+                  }}</time>
+                } @else {
+                  —
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </app-data-table>
+</section>

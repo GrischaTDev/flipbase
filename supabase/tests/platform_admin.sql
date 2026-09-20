@@ -2,7 +2,7 @@
 
 begin;
 
-select plan(17);
+select plan(19);
 
 -- Spalten von beta_applications
 do $$
@@ -584,6 +584,53 @@ end;
 $$;
 
 select pass('Beta-Aktivierung setzt die Laufzeit idempotent ab Registrierung');
+
+-- Die Nutzeruebersicht ist kein frei lesbarer Ersatz fuer auth.users.
+set local role authenticated;
+set local request.jwt.claim.sub = :'plain_user_id';
+
+do $$
+begin
+  begin
+    perform public.list_platform_users();
+    raise exception 'Ein Nicht-Betreiber haette die Nutzeruebersicht nicht lesen duerfen';
+  exception
+    when insufficient_privilege then null;
+  end;
+end;
+$$;
+
+reset role;
+
+select pass('Nur Betreiber koennen die Plattformnutzer auflisten');
+
+set local role authenticated;
+set local request.jwt.claim.sub = :'operator_a_id';
+
+do $$
+declare
+  beta_user record;
+begin
+  select * into beta_user
+  from public.list_platform_users()
+  where user_id = '85000000-0000-4000-8000-000000000010'::uuid;
+
+  if beta_user.user_id is null
+     or beta_user.full_name is distinct from 'Berta Beta'
+     or beta_user.email is distinct from 'berta@example.test'
+     or beta_user.application_status is distinct from 'accepted'
+     or beta_user.invitation_status is distinct from 'not_sent'
+     or beta_user.license_status is distinct from 'active'
+     or beta_user.beta_starts_at is null
+     or beta_user.beta_ends_at is null then
+    raise exception 'Die Nutzeruebersicht ist unvollstaendig: %', row_to_json(beta_user);
+  end if;
+end;
+$$;
+
+reset role;
+
+select pass('Betreiber sehen verknuepfte Nutzer, Bewerbung und Beta-Laufzeit');
 
 select * from finish();
 
