@@ -20,4 +20,30 @@ Die Release-Migration prüft den Tabelleninhalt erneut. Sobald nach dieser Prüf
 
 ## Prüfungen der Umsetzung
 
-Die endgültigen lokalen Prüfungen werden vor der PR-Freigabe ergänzt.
+- Die neue Migration wurde aus dem deklarativen Schema erzeugt und auf die
+  tabelleneigenen Löschschritte begrenzt. Sie enthält keine eigene
+  Transaktionssteuerung.
+- Eine Wegwerf-Datenbank bestätigte beide Migrationsausgänge: Mit einer Zeile
+  brach die Migration mit SQLSTATE `55000` ab und erhielt die Zeile; nach dem
+  Leeren wurde `public.listing_drafts` entfernt.
+- Ein vollständiger lokaler Datenbank-Reset wendete alle Migrationen
+  einschließlich der neuen Löschmigration erfolgreich an. Die anschließend
+  erzeugten Supabase-Typen enthalten `public.listings` und keinen Vertrag für
+  `public.listing_drafts` mehr.
+- Die gezielten pgTAP-Läufe bestanden mit 62 Inserate- und 100
+  Archivierungsprüfungen. Die vollständige Datenbanksuite bestand mit 1.937
+  Prüfungen in 53 Dateien.
+- Die Textvorlagen-Tests bestanden mit 4 von 4 und die Editor-Tests mit 12 von
+  12 Fällen.
+- `npm run verify` bestand mit Formatprüfung, ESLint, Typprüfung, 76
+  erfolgreichen Workflow-Prüfungen bei fünf vorgesehenen Plattform-Skips,
+  Suite-Audit, 1.428 Node-, 239 DOM-, 940 Angular- und 13 Landing-Tests sowie
+  dem Produktionsbau.
+- Die PR-Browsersuite bestand mit sieben Chromium-Abläufen einschließlich des
+  vollständigen mobilen Inserate-Lebenszyklus.
+
+Der Bau meldet weiterhin drei bereits bekannte NG8113-Hinweise zu ungenutzten
+`LucideDynamicIcon`-Importen in Dashboard, Einkäufen und Verkäufern. Der
+Steuerjournal-Browserablauf meldet weiterhin NG0956 für eine unveränderte
+identitätsbasierte Schleife in der Buchhaltungsansicht. Keine dieser Stellen
+wurde durch diese Änderung berührt.
