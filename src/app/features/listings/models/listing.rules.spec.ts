@@ -72,7 +72,7 @@ describe('listing rules', () => {
   });
 
   it('uses the agreed German status labels', () => {
-    expect(['prepared', 'online', 'ended'].map(listingStatusLabel)).toEqual([
+    expect((['prepared', 'online', 'ended'] as const).map(listingStatusLabel)).toEqual([
       'Vorbereitet',
       'Online',
       'Beendet',

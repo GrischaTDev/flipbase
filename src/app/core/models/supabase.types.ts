@@ -1370,6 +1370,94 @@ export type Database = {
           },
         ]
       }
+      listings: {
+        Row: {
+          created_at: string
+          description: string
+          end_reason: string | null
+          ended_at: string | null
+          id: string
+          inventory_item_id: string
+          last_listed_at: string | null
+          listed_count: number
+          online_since: string | null
+          platform: string
+          postal_code: string | null
+          price: number
+          price_type: string
+          shipping_price: number | null
+          shipping_type: string
+          status: string
+          title: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          end_reason?: string | null
+          ended_at?: string | null
+          id?: string
+          inventory_item_id: string
+          last_listed_at?: string | null
+          listed_count?: number
+          online_since?: string | null
+          platform?: string
+          postal_code?: string | null
+          price: number
+          price_type: string
+          shipping_price?: number | null
+          shipping_type: string
+          status?: string
+          title: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          end_reason?: string | null
+          ended_at?: string | null
+          id?: string
+          inventory_item_id?: string
+          last_listed_at?: string | null
+          listed_count?: number
+          online_since?: string | null
+          platform?: string
+          postal_code?: string | null
+          price?: number
+          price_type?: string
+          shipping_price?: number | null
+          shipping_type?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "listings_item_workspace_fkey"
+            columns: ["workspace_id", "inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_item_sale_states"
+            referencedColumns: ["workspace_id", "inventory_item_id"]
+          },
+          {
+            foreignKeyName: "listings_item_workspace_fkey"
+            columns: ["workspace_id", "inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "listings_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       market_research: {
         Row: {
           confidence_score: number | null

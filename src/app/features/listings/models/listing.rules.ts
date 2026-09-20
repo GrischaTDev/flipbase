@@ -48,7 +48,12 @@ export function listingStatusLabel(status: ListingStatus): string {
 }
 
 export function listingStatusTone(status: ListingStatus): BadgeTone {
-  return { prepared: 'caution', online: 'success', ended: 'neutral' }[status];
+  const tones: Record<ListingStatus, BadgeTone> = {
+    prepared: 'caution',
+    online: 'success',
+    ended: 'neutral',
+  };
+  return tones[status];
 }
 
 export function validateListingContent(content: ListingContent): ListingValidationError[] {
