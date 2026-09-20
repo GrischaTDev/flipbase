@@ -15,11 +15,23 @@ veralteten Demo-Annahmen. Die alte Tabelle `listing_drafts` bleibt in Schritt 1
 als Sicherheitsnetz bestehen und wird erst nach belegter Datenprüfung in einem
 zweiten PR migriert oder entfernt.
 
+Darauf aufbauend beschreibt ein neuer Umsetzungsplan PR 1 in neun
+testgetriebenen Aufgaben: Fachmodelle, Datenbank und Rechte, transaktionale
+Statusfunktionen, workspace-sicherer Service, Erweiterungsbrücke, Übersicht,
+Editor, Routen/Navigation sowie Browser- und Abschlussprüfung. Der Plan nennt
+für jede Aufgabe konkrete Dateien, Schnittstellen, RED-/GREEN-Befehle und
+Commits.
+
 **Prüfung:** Aktuelle Routen, Navigation, Listing-Service, deklaratives Schema,
 Schema-Registrierung, Demo-Entfernung und der reine Dokumentationszweig
 `feat/listing-studio-listings` wurden gelesen. Die Spezifikation wurde auf
 Platzhalter, widersprüchliche Statusregeln und den abgegrenzten Zwei-PR-Umfang
 geprüft. Noch keine Produktänderung und keine Anwendungstests.
+Der Umsetzungsplan wurde zusätzlich gegen jede Spezifikationsrubrik, die
+Typnamen zwischen den Aufgaben, verbotene Platzhalter und fünf besonders
+riskante Fehlerklassen geprüft. Dabei wurde die Sperre für Paketartikel aus
+wieder geöffneten Einkäufen ausdrücklich in die neue Security-Definer-Funktion
+aufgenommen, weil der ältere Trigger den Datenbankbesitzer bewusst ausnimmt.
 
 ## 2026-09-20 – Codex (OpenAI) – Einkaufsübersicht und offene Preise abgesichert
 
