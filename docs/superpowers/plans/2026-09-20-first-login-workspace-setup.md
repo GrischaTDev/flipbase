@@ -330,7 +330,7 @@ git commit -m "feat(auth): require workspace setup before app access"
 - Consumes: `AuthService.currentUser()`, `AuthService.signOut()`
 - On success: `Router.navigate(['/dashboard'])`
 
-- [ ] **Step 1: Write component behavior and accessibility tests**
+- [x] **Step 1: Write component behavior and accessibility tests**
 
 Create tests that assert:
 
@@ -351,13 +351,13 @@ the submit action is disabled while saving, a load retry invokes
 Run AXE with color contrast disabled only where jsdom cannot calculate the
 project tokens, and require zero critical or serious violations.
 
-- [ ] **Step 2: Run the component test and verify failure**
+- [x] **Step 2: Run the component test and verify failure**
 
 Run: `npx vitest run --project=angular src/app/features/onboarding/workspace-setup/workspace-setup.component.angular.spec.ts`
 
 Expected: FAIL because the component files do not exist.
 
-- [ ] **Step 3: Implement the standalone component**
+- [x] **Step 3: Implement the standalone component**
 
 Use `FormGroup` with a non-null `workspaceName` control and validators:
 
@@ -369,7 +369,7 @@ The component uses Signals for loading, saving and visible error state. It
 selects the first workspace with `setup_completed_at === null`; it never creates
 a workspace. After a confirmed update it navigates to `/dashboard`.
 
-- [ ] **Step 4: Register the route boundaries**
+- [x] **Step 4: Register the route boundaries**
 
 Add the setup route outside the shell:
 
@@ -387,7 +387,7 @@ Add the setup route outside the shell:
 Add `workspaceSetupGuard` after `authGuard` to both the protected `shop` route
 and the root shell route.
 
-- [ ] **Step 5: Build the external template from existing auth patterns**
+- [x] **Step 5: Build the external template from existing auth patterns**
 
 The page contains one `<main>`, one visible `<h1>`, one explicitly labelled
 text input with `autocomplete="organization"`, an inline validation message,
@@ -406,7 +406,7 @@ Abmelden
 
 Add equivalent English translation keys; do not add tax or profitability copy.
 
-- [ ] **Step 6: Run focused UI tests, type check and the shared UI check**
+- [x] **Step 6: Run focused UI tests, type check and the shared UI check**
 
 Run:
 
@@ -418,7 +418,7 @@ node scripts/check-admin-shared-ui.mjs
 
 Expected: all tests PASS and zero shared UI findings.
 
-- [ ] **Step 7: Commit the onboarding page**
+- [x] **Step 7: Commit the onboarding page**
 
 ```bash
 git add src/app/features/onboarding src/app/app.routes.ts src/app/core/i18n/translations.ts

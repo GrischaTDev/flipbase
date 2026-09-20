@@ -172,7 +172,10 @@ export class WorkspaceService {
       } else {
         this.workspaces.set([]);
         this.currentWorkspace.set(null);
-        this.workspacesLoaded = true;
+        // Die Auth-Registrierung und der Workspace-Trigger laufen getrennt.
+        // Solange noch kein Workspace sichtbar ist, muss ein erneuter Versuch
+        // deshalb wirklich wieder den Server fragen.
+        this.workspacesLoaded = false;
       }
     } catch (err) {
       this.workspaceLoadError.set(this.syncStatus.melde('Laden der Workspaces', err));

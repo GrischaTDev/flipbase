@@ -77,6 +77,21 @@ describe('Multi-Workspace & Holding Consolidation Service', () => {
       expect(workspaceService.currentWorkspace()).toEqual(incompleteWorkspace);
     });
 
+    it('lädt nach einem noch fehlenden Workspace bei einem neuen Versuch erneut', async () => {
+      const { workspaceService, order } = setupWorkspaceLifecycle();
+      order
+        .mockResolvedValueOnce({ data: [], error: null })
+        .mockResolvedValueOnce({ data: [incompleteWorkspace], error: null });
+
+      await workspaceService.ensureLoaded();
+      expect(workspaceService.currentWorkspace()).toBeNull();
+
+      await workspaceService.ensureLoaded();
+
+      expect(order).toHaveBeenCalledTimes(2);
+      expect(workspaceService.currentWorkspace()).toEqual(incompleteWorkspace);
+    });
+
     it('übernimmt Namen und Abschlusszeitpunkt erst nach Serverbestätigung', async () => {
       const { workspaceService, update, eq } = setupWorkspaceLifecycle();
       workspaceService.workspaces.set([incompleteWorkspace]);
