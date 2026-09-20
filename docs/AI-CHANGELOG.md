@@ -46,6 +46,32 @@ NG8113-Hinweise außerhalb des Inserate-Bereichs; der unveränderte
 Steuerjournal-Ablauf meldet weiterhin den bestehenden NG0956-Laufzeithinweis.
 Kein Push und kein Merge.
 
+## 2026-09-20 – Codex (OpenAI) – Beta-Anmeldeweg und Betreiberfreigabe analysiert
+
+**Auftrag:** Den aktuellen Stand der Beta-Anmeldung, der E-Mail-Bestätigung,
+der Freigabe im Betreiberbereich und der späteren Verknüpfung mit Nutzerzugang
+und Abrechnung prüfen und daraus einen neuen Umsetzungsentwurf vorbereiten.
+
+**Befund:** Landingpage, Bewerbungstabelle, Betreiberliste, Einladungsfunktion
+und Passwortvergabe existieren bereits, bilden aber keinen verlässlichen
+Lebenszyklus. Die Landingpage zeigt nach erfolgreichem Absenden nur eine kurze
+Textmeldung und versendet keine Bestätigung der Bewerbung. Beim Annehmen wird
+die Bewerbung vor dem Einladungsversand endgültig auf `accepted` gesetzt; ein
+Versandfehler wird anschließend nur protokolliert und bleibt in der Oberfläche
+unsichtbar. Die Einladungsfunktion erzeugt über Supabase Auth bereits Nutzer,
+Profil und Workspace, speichert die Nutzer-ID aber nicht an der Bewerbung und
+kennt keinen Zustand für eingeladen, Link eingelöst oder registriert. Die
+globale Vorgabelaufzeit beträgt 180 statt der gewünschten 60 Tage. Eine
+Workspace-Lizenz beziehungsweise ein vom späteren Bezahlabo getrenntes
+Zugangsmodell ist noch nicht umgesetzt; `granted_days` hat deshalb aktuell
+keine Wirkung. Die offene Registrierung bleibt weiterhin erreichbar.
+
+**Prüfung:** Aktuellen `master`-Stand und offene GitHub-PRs, Landingpage-Skript,
+Edge Functions, Betreiberkomponente und -service, Supabase-Schema und
+Registrierungs-Trigger, Auth-Routen, E-Mail-Templates, vorhandene Tests sowie
+die frühere Betreiberbereich-Spezifikation gelesen. Keine Produktlogik,
+Migration, Konfiguration, Veröffentlichung oder externe Testbewerbung geändert.
+
 ## 2026-09-20 – Codex (OpenAI) – Kontrollreview-Funde im Listing Studio behoben
 
 **Auftrag:** Die bestätigten Blocker aus dem Kontrollreview selbst beheben und den
