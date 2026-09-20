@@ -19,6 +19,8 @@ set -euo pipefail
 VERZEICHNIS="${FLIPBASE_DEPLOY_DIR:-/opt/flipbase}"
 REGISTRY="ghcr.io"
 LANDING_DIRECTORY="${FLIPBASE_LANDING_DIR:-/opt/flipbase-landing}"
+CADDY_CONFIG_PATH="${FLIPBASE_CADDY_CONFIG_PATH:-/opt/supabase/volumes/proxy/caddy/Caddyfile}"
+CADDY_CONTAINER="${FLIPBASE_CADDY_CONTAINER:-supabase-caddy}"
 SNIPER_COMPOSE_FILE="${FLIPBASE_SNIPER_COMPOSE_FILE:-/opt/flipbase-sniper/docker-compose.sniper.yml}"
 SNIPER_IMAGE_REPOSITORY="${FLIPBASE_SNIPER_IMAGE_REPOSITORY:-ghcr.io/grischatdev/flipbase-sniper}"
 
@@ -175,10 +177,63 @@ wait_for_healthy() {
   return 1
 }
 
+restore_caddy_configuration() {
+  local previous="$temporary/Caddyfile.previous"
+  local restore_path="${CADDY_CONFIG_PATH}.restore"
+  [ -f "$previous" ] || return 0
+
+  install -m 644 "$previous" "$restore_path"
+  mv -f "$restore_path" "$CADDY_CONFIG_PATH"
+  docker exec "$CADDY_CONTAINER" caddy reload \
+    --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>&1 || true
+}
+
+activate_release_caddy_configuration() {
+  local candidate="$temporary/Caddyfile"
+  local previous="$temporary/Caddyfile.previous"
+  local next_path="${CADDY_CONFIG_PATH}.next"
+
+  [ -f "$CADDY_CONFIG_PATH" ] || {
+    echo "Caddy-Konfiguration fehlt: $CADDY_CONFIG_PATH" >&2
+    return 1
+  }
+
+  docker cp flipbase-web:/opt/flipbase/Caddyfile "$candidate"
+  if cmp -s "$candidate" "$CADDY_CONFIG_PATH"; then
+    echo "Caddy-Konfiguration ist bereits aktuell."
+    return 0
+  fi
+
+  cp -p "$CADDY_CONFIG_PATH" "$previous"
+  install -m 644 "$candidate" "$next_path"
+  mv -f "$next_path" "$CADDY_CONFIG_PATH"
+
+  if ! docker exec "$CADDY_CONTAINER" caddy validate \
+    --config /etc/caddy/Caddyfile --adapter caddyfile; then
+    echo 'Neue Caddy-Konfiguration ist ungueltig; stelle den vorherigen Stand wieder her.' >&2
+    restore_caddy_configuration
+    return 1
+  fi
+
+  if ! docker exec "$CADDY_CONTAINER" caddy reload \
+    --config /etc/caddy/Caddyfile --adapter caddyfile; then
+    echo 'Caddy konnte die neue Konfiguration nicht laden; stelle den vorherigen Stand wieder her.' >&2
+    restore_caddy_configuration
+    return 1
+  fi
+
+  echo "Caddy-Konfiguration aktiviert."
+}
+
 if [[ -n "$WEB_TAG" || -n "$release_image" ]]; then
   wait_for_healthy flipbase-web
   if [ -d "$LANDING_DIRECTORY" ]; then
-    docker cp flipbase-web:/usr/share/nginx/landing/. "$LANDING_DIRECTORY"/
+    activate_release_caddy_configuration
+    if ! docker cp flipbase-web:/usr/share/nginx/landing/. "$LANDING_DIRECTORY"/; then
+      echo 'Landingpage konnte nicht synchronisiert werden; stelle die vorherige Caddy-Konfiguration wieder her.' >&2
+      restore_caddy_configuration
+      exit 1
+    fi
     echo "Landingpage synchronisiert."
   fi
 fi

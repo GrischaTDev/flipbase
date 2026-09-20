@@ -7,6 +7,43 @@ import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
 const deployScript = fileURLToPath(new URL('../deploy/deploy.sh', import.meta.url));
+const dockerfile = fileURLToPath(new URL('../docker/Dockerfile', import.meta.url));
+
+test('liefert die passende Caddy-Regel vor der Landingpage aus', async () => {
+  const [deploySource, dockerfileSource] = await Promise.all([
+    readFile(deployScript, 'utf8'),
+    readFile(dockerfile, 'utf8'),
+  ]);
+
+  assert.match(
+    dockerfileSource,
+    /COPY --from=build \/app\/deploy\/Caddyfile \/opt\/flipbase\/Caddyfile/u,
+    'Das Release-Abbild muss die geprüfte Caddy-Konfiguration enthalten.',
+  );
+
+  const caddyCopy = deploySource.indexOf('docker cp flipbase-web:/opt/flipbase/Caddyfile');
+  const caddyReloadAfterCopy = deploySource
+    .slice(caddyCopy)
+    .search(/caddy reload\s+\\\s*\n\s*--config \/etc\/caddy\/Caddyfile/u);
+  const caddyActivation = deploySource.lastIndexOf('activate_release_caddy_configuration');
+  const landingCopy = deploySource.indexOf(
+    'docker cp flipbase-web:/usr/share/nginx/landing/. "$LANDING_DIRECTORY"/',
+  );
+  const caddyRestoreAfterLandingCopy = deploySource
+    .slice(landingCopy)
+    .indexOf('restore_caddy_configuration');
+
+  assert.ok(caddyCopy >= 0, 'Das Deployment muss das Caddyfile aus demselben Abbild lesen.');
+  assert.ok(caddyReloadAfterCopy >= 0, 'Caddy muss nach dem Kopieren neu geladen werden.');
+  assert.ok(
+    landingCopy > caddyActivation,
+    'Die neue Landingpage darf erst nach der passenden CSP-Regel sichtbar werden.',
+  );
+  assert.ok(
+    caddyRestoreAfterLandingCopy >= 0,
+    'Ein fehlgeschlagener Landing-Abgleich muss die vorherige Caddy-Konfiguration wiederherstellen.',
+  );
+});
 
 test(
   'Digest-Release sperrt SQL-Fehler vor Containerstart und verwendet denselben Digest',
@@ -104,9 +141,12 @@ test(
     const deployDirectory = join(fixtureDirectory, 'app');
     const landingDirectory = join(fixtureDirectory, 'landing');
     const binDirectory = join(fixtureDirectory, 'bin');
+    const caddyConfig = join(fixtureDirectory, 'Caddyfile');
+    const caddyCandidate = 'fixture-caddy-config\n';
 
     try {
       await Promise.all([mkdir(deployDirectory), mkdir(landingDirectory), mkdir(binDirectory)]);
+      await writeFile(caddyConfig, caddyCandidate, 'utf8');
       const dockerFixture = join(binDirectory, 'docker');
       await writeFile(
         dockerFixture,
@@ -115,7 +155,13 @@ case "$1" in
   login) cat >/dev/null ;;
   compose|logout|image) ;;
   inspect) echo healthy ;;
-  cp) exit 42 ;;
+  cp)
+    if [ "$2" = "flipbase-web:/opt/flipbase/Caddyfile" ]; then
+      printf '%s' "$CADDY_CANDIDATE" > "$3"
+    else
+      exit 42
+    fi
+    ;;
   logs) echo container logs >&2 ;;
 esac
 `,
@@ -129,11 +175,14 @@ esac
         SSH_ORIGINAL_COMMAND: 'sha-1234567',
         FLIPBASE_DEPLOY_DIR: deployDirectory,
         FLIPBASE_LANDING_DIR: landingDirectory,
+        FLIPBASE_CADDY_CONFIG_PATH: caddyConfig,
+        CADDY_CANDIDATE: caddyCandidate,
       });
 
-      assert.equal(result.code, 42);
+      assert.equal(result.code, 1);
       assert.match(result.stdout, /flipbase-web ist gesund\./);
       assert.doesNotMatch(result.stdout, /Landingpage synchronisiert\./);
+      assert.match(result.stderr, /vorherige Caddy-Konfiguration wieder her/u);
     } finally {
       await rm(fixtureDirectory, { force: true, recursive: true });
     }

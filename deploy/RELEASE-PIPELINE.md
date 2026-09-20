@@ -92,7 +92,10 @@ Diese Schritte sind Voraussetzungen, **kein Bestandteil dieser Umsetzung auf dem
    Serverdateien sichern und Unterschiede prüfen. `/opt/flipbase/deploy.sh`,
    `/opt/flipbase/apply-release-migrations.sh` und `/opt/flipbase/migration-backup.sh`
    aus genau dem geprüften Commit mit Eigentümer `root:root` und Modus `0700`
-   installieren. Verzeichnis `/opt/flipbase` darf nicht für andere Benutzer schreibbar sein.
+   installieren. Das aktuelle Deployskript koppelt außerdem
+   `/opt/supabase/volumes/proxy/caddy/Caddyfile` an die Landingpage im selben
+   Release; ohne diese Fassung darf eine neue Landingpage nicht ausgerollt werden.
+   Verzeichnis `/opt/flipbase` darf nicht für andere Benutzer schreibbar sein.
 2. Die bestehende `/opt/flipbase/docker-compose.yml` mit
    `deploy/docker-compose.app.yml` abgleichen und die neue `FLIPBASE_IMAGE`-Auswahl
    übernehmen; sonstige Serveranpassungen erhalten. Mit einem bekannten Digest
