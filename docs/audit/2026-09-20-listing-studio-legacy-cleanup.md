@@ -23,9 +23,11 @@ Die Release-Migration prüft den Tabelleninhalt erneut. Sobald nach dieser Prüf
 - Die neue Migration wurde aus dem deklarativen Schema erzeugt und auf die
   tabelleneigenen Löschschritte begrenzt. Sie enthält keine eigene
   Transaktionssteuerung.
-- Eine Wegwerf-Datenbank bestätigte beide Migrationsausgänge: Mit einer Zeile
-  brach die Migration mit SQLSTATE `55000` ab und erhielt die Zeile; nach dem
-  Leeren wurde `public.listing_drafts` entfernt.
+- Eine Wegwerf-Datenbank bestätigte drei Migrationsfälle: Mit einer bereits
+  vorhandenen Zeile brach die Migration mit SQLSTATE `55000` ab und erhielt die
+  Zeile. Ein gleichzeitig laufender Insert wurde durch den exklusiven
+  Tabellen-Lock zuerst vollständig abgeschlossen, danach erkannt und ebenfalls
+  erhalten. Nach dem Leeren wurde `public.listing_drafts` entfernt.
 - Ein vollständiger lokaler Datenbank-Reset wendete alle Migrationen
   einschließlich der neuen Löschmigration erfolgreich an. Die anschließend
   erzeugten Supabase-Typen enthalten `public.listings` und keinen Vertrag für
@@ -33,11 +35,12 @@ Die Release-Migration prüft den Tabelleninhalt erneut. Sobald nach dieser Prüf
 - Die gezielten pgTAP-Läufe bestanden mit 62 Inserate- und 100
   Archivierungsprüfungen. Die vollständige Datenbanksuite bestand mit 1.937
   Prüfungen in 53 Dateien.
-- Die Textvorlagen-Tests bestanden mit 4 von 4 und die Editor-Tests mit 12 von
-  12 Fällen.
+- Die Textvorlagen-Tests bestanden mit 10 von 10 Fällen. Darin sind alle sechs
+  gültigen Artikelzustände mit ihrem bisherigen vollständigen deutschen Wortlaut
+  abgedeckt. Die Editor-Tests bestanden mit 12 von 12 Fällen.
 - `npm run verify` bestand mit Formatprüfung, ESLint, Typprüfung, 76
   erfolgreichen Workflow-Prüfungen bei fünf vorgesehenen Plattform-Skips,
-  Suite-Audit, 1.428 Node-, 239 DOM-, 940 Angular- und 13 Landing-Tests sowie
+  Suite-Audit, 1.428 Node-, 239 DOM-, 946 Angular- und 13 Landing-Tests sowie
   dem Produktionsbau.
 - Die PR-Browsersuite bestand mit sieben Chromium-Abläufen einschließlich des
   vollständigen mobilen Inserate-Lebenszyklus.
