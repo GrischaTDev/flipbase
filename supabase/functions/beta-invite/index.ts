@@ -1,9 +1,78 @@
 // Supabase Edge Function: beta-invite
 //
-// Versendet eine Einladungs-E-Mail fuer eine angenommene Beta-Bewerbung.
-// Darf ausschliesslich von authentifizierten Plattform-Betreibern aufgerufen werden.
+// Buendelt Betreiberentscheidungen und alle wiederholbaren Beta-E-Mails hinter
+// einer authentifizierten Servergrenze. Der Browser schreibt keine Bewerbung
+// direkt und erhaelt niemals einen Registrierungslink zurueck.
 
-import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
+import { createClient } from 'npm:@supabase/supabase-js@2.112.3';
+import { type BetaEmailMessage, sendBetaEmail } from '../_shared/beta-email-delivery.ts';
+import {
+  renderApplicationReceipt,
+  renderRegistrationInvite,
+} from '../_shared/beta-email-template.ts';
+
+type BetaInviteAction = 'accept' | 'reject' | 'resend' | 'resend_receipt';
+
+export interface BetaInviteApplication {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  status: string;
+  granted_days: number | null;
+  receipt_email_status: string;
+  auth_user_id: string | null;
+  invitation_status: string;
+  registered_at: string | null;
+}
+
+interface BetaInviteUserInput {
+  email: string;
+  redirectTo: string;
+  data: {
+    beta_application_id: string;
+    first_name: string;
+    last_name: string;
+    full_name: string;
+  };
+}
+
+interface BetaRegistrationLinkInput {
+  email: string;
+  redirectTo: string;
+}
+
+type BetaApplicationPatch = Partial<
+  Pick<BetaInviteApplication, 'auth_user_id' | 'invitation_status' | 'receipt_email_status'>
+> & {
+  invitation_sent_at?: string | null;
+  invitation_last_error?: string | null;
+  receipt_email_sent_at?: string | null;
+  receipt_email_last_error?: string | null;
+};
+
+export interface BetaInviteDependencies {
+  authenticate(token: string): Promise<{ id: string } | null>;
+  isOperator(userId: string): Promise<boolean>;
+  loadApplication(applicationId: string): Promise<BetaInviteApplication | null>;
+  acceptApplication(
+    token: string,
+    applicationId: string,
+    grantedDays: number,
+  ): Promise<BetaInviteApplication>;
+  rejectApplication(token: string, applicationId: string): Promise<BetaInviteApplication>;
+  inviteUser(input: BetaInviteUserInput): Promise<{ userId: string }>;
+  generateRegistrationLink(
+    input: BetaRegistrationLinkInput,
+  ): Promise<{ userId: string; actionLink: string }>;
+  sendEmail(message: BetaEmailMessage): Promise<void>;
+  updateApplication(
+    applicationId: string,
+    patch: BetaApplicationPatch,
+  ): Promise<BetaInviteApplication>;
+  now(): string;
+  siteUrl: string;
+}
 
 const ALLOWED_ORIGINS = new Set(
   (
@@ -14,6 +83,9 @@ const ALLOWED_ORIGINS = new Set(
     .map((origin) => origin.trim())
     .filter(Boolean),
 );
+
+const APPLICATION_FIELDS =
+  'id, first_name, last_name, email, status, granted_days, receipt_email_status, auth_user_id, invitation_status, registered_at';
 
 function corsHeaders(origin: string | null): Record<string, string> {
   const headers: Record<string, string> = {
@@ -34,137 +106,312 @@ function respond(data: unknown, status: number, origin: string | null): Response
   });
 }
 
-Deno.serve(async (request: Request) => {
-  const origin = request.headers.get('origin');
+function boundedError(error: unknown): string {
+  const message = error instanceof Error ? error.message : 'Unbekannter Fehler';
+  return message.replaceAll(/https?:\/\/\S+/gu, '[Link entfernt]').slice(0, 500);
+}
 
-  if (request.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: corsHeaders(origin) });
-  }
+function redirectUrl(siteUrl: string): string {
+  return `${siteUrl.replace(/\/$/u, '')}/auth/set-password`;
+}
 
-  if (request.method !== 'POST') {
-    return respond({ error: 'method_not_allowed' }, 405, origin);
-  }
+function isAction(value: unknown): value is BetaInviteAction {
+  return ['accept', 'reject', 'resend', 'resend_receipt'].includes(String(value));
+}
 
-  const authHeader = request.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer ')) {
-    return respond({ error: 'unauthorized' }, 401, origin);
-  }
-  const token = authHeader.replace('Bearer ', '').trim();
+async function storeInvitationFailure(
+  dependencies: BetaInviteDependencies,
+  applicationId: string,
+  error: unknown,
+): Promise<void> {
+  await dependencies.updateApplication(applicationId, {
+    invitation_status: 'failed',
+    invitation_last_error: boundedError(error),
+  });
+}
 
+export function createBetaInviteHandler(
+  dependencies: BetaInviteDependencies,
+): (request: Request) => Promise<Response> {
+  return async (request: Request): Promise<Response> => {
+    const origin = request.headers.get('origin');
+
+    if (request.method === 'OPTIONS') {
+      return new Response(null, { status: 204, headers: corsHeaders(origin) });
+    }
+    if (request.method !== 'POST') {
+      return respond({ error: 'method_not_allowed' }, 405, origin);
+    }
+
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return respond({ error: 'unauthorized' }, 401, origin);
+    }
+    const token = authHeader.slice('Bearer '.length).trim();
+    if (!token) return respond({ error: 'unauthorized' }, 401, origin);
+
+    const user = await dependencies.authenticate(token);
+    if (!user) return respond({ error: 'unauthorized' }, 401, origin);
+    if (!(await dependencies.isOperator(user.id))) {
+      return respond({ error: 'forbidden' }, 403, origin);
+    }
+
+    let rawBody: unknown;
+    try {
+      rawBody = await request.json();
+    } catch {
+      return respond({ error: 'invalid_body' }, 400, origin);
+    }
+    if (typeof rawBody !== 'object' || rawBody === null) {
+      return respond({ error: 'invalid_body' }, 400, origin);
+    }
+
+    const body = rawBody as Record<string, unknown>;
+    const applicationId = typeof body.applicationId === 'string' ? body.applicationId.trim() : '';
+    if (!applicationId) {
+      return respond({ error: 'missing_application_id' }, 400, origin);
+    }
+    if (!isAction(body.action)) {
+      return respond({ error: 'invalid_action' }, 400, origin);
+    }
+
+    if (body.action === 'reject') {
+      try {
+        const application = await dependencies.rejectApplication(token, applicationId);
+        return respond({ ok: true, application }, 200, origin);
+      } catch (error) {
+        return respond({ error: 'decision_failed', message: boundedError(error) }, 400, origin);
+      }
+    }
+
+    if (body.action === 'accept') {
+      const grantedDays = body.grantedDays;
+      if (!Number.isInteger(grantedDays) || Number(grantedDays) < 1 || Number(grantedDays) > 3650) {
+        return respond({ error: 'invalid_granted_days' }, 400, origin);
+      }
+
+      let application: BetaInviteApplication;
+      try {
+        application = await dependencies.acceptApplication(
+          token,
+          applicationId,
+          Number(grantedDays),
+        );
+      } catch (error) {
+        return respond({ error: 'decision_failed', message: boundedError(error) }, 400, origin);
+      }
+
+      try {
+        const fullName = `${application.first_name} ${application.last_name}`.trim();
+        const invited = await dependencies.inviteUser({
+          email: application.email,
+          redirectTo: redirectUrl(dependencies.siteUrl),
+          data: {
+            beta_application_id: application.id,
+            first_name: application.first_name,
+            last_name: application.last_name,
+            full_name: fullName,
+          },
+        });
+        application = await dependencies.updateApplication(application.id, {
+          auth_user_id: invited.userId,
+          invitation_status: 'sent',
+          invitation_sent_at: dependencies.now(),
+          invitation_last_error: null,
+        });
+        return respond({ ok: true, application }, 200, origin);
+      } catch (error) {
+        await storeInvitationFailure(dependencies, application.id, error);
+        return respond(
+          {
+            error: 'invite_failed',
+            message: 'Die Einladung konnte nicht versendet werden.',
+          },
+          502,
+          origin,
+        );
+      }
+    }
+
+    const application = await dependencies.loadApplication(applicationId);
+    if (!application) return respond({ error: 'not_found' }, 404, origin);
+
+    if (body.action === 'resend_receipt') {
+      try {
+        const receipt = renderApplicationReceipt({
+          firstName: application.first_name,
+        });
+        await dependencies.sendEmail({ to: application.email, ...receipt });
+        const updated = await dependencies.updateApplication(application.id, {
+          receipt_email_status: 'sent',
+          receipt_email_sent_at: dependencies.now(),
+          receipt_email_last_error: null,
+        });
+        return respond({ ok: true, application: updated }, 200, origin);
+      } catch (error) {
+        const updated = await dependencies.updateApplication(application.id, {
+          receipt_email_status: 'failed',
+          receipt_email_last_error: boundedError(error),
+        });
+        return respond(
+          {
+            error: 'receipt_failed',
+            message: 'Die Bestaetigung konnte nicht versendet werden.',
+            application: updated,
+          },
+          502,
+          origin,
+        );
+      }
+    }
+
+    if (application.status !== 'accepted' || !application.auth_user_id) {
+      return respond({ error: 'invitation_not_ready' }, 409, origin);
+    }
+    if (application.registered_at) {
+      return respond({ error: 'already_registered' }, 409, origin);
+    }
+    if (!application.granted_days) {
+      return respond({ error: 'missing_granted_days' }, 409, origin);
+    }
+
+    try {
+      const link = await dependencies.generateRegistrationLink({
+        email: application.email,
+        redirectTo: redirectUrl(dependencies.siteUrl),
+      });
+      if (link.userId !== application.auth_user_id) {
+        throw new Error('Der Registrierungslink gehoert nicht zum verknuepften Nutzer.');
+      }
+      const invitation = renderRegistrationInvite({
+        firstName: application.first_name,
+        actionLink: link.actionLink,
+        grantedDays: application.granted_days,
+      });
+      await dependencies.sendEmail({ to: application.email, ...invitation });
+      const updated = await dependencies.updateApplication(application.id, {
+        invitation_status: 'sent',
+        invitation_sent_at: dependencies.now(),
+        invitation_last_error: null,
+      });
+      return respond({ ok: true, application: updated }, 200, origin);
+    } catch (error) {
+      await storeInvitationFailure(dependencies, application.id, error);
+      return respond(
+        {
+          error: 'invite_failed',
+          message: 'Die Einladung konnte nicht versendet werden.',
+        },
+        502,
+        origin,
+      );
+    }
+  };
+}
+
+function createProductionDependencies(): BetaInviteDependencies {
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
-
   if (!supabaseUrl || !serviceRoleKey || !anonKey) {
-    console.error('beta-invite: Fehlende Supabase-Umgebungsvariablen.');
-    return respond({ error: 'internal' }, 500, origin);
+    throw new Error('Fehlende Supabase-Umgebungsvariablen.');
   }
 
-  // 1. Authentifizierung des Aufrufers
-  const userClient = createClient(supabaseUrl, anonKey, {
-    global: { headers: { Authorization: `Bearer ${token}` } },
-    auth: { persistSession: false },
-  });
-
-  const {
-    data: { user },
-    error: userError,
-  } = await userClient.auth.getUser();
-
-  if (userError || !user) {
-    return respond({ error: 'unauthorized' }, 401, origin);
-  }
-
-  // 2. Betreiber-Rolle pruefen
   const serviceClient = createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false },
   });
+  const userClient = (token: string) =>
+    createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: `Bearer ${token}` } },
+      auth: { persistSession: false },
+    });
 
-  const { data: operator, error: operatorError } = await serviceClient
-    .from('platform_operators')
-    .select('user_id')
-    .eq('user_id', user.id)
-    .maybeSingle();
-
-  if (operatorError || !operator) {
-    console.warn(`beta-invite: Nicht-Betreiber ${user.id} versuchte Aufruf.`);
-    return respond({ error: 'forbidden' }, 403, origin);
-  }
-
-  // 3. Rumpf lesen & pruefen
-  let rawBody: unknown;
-  try {
-    rawBody = await request.json();
-  } catch {
-    return respond({ error: 'invalid_body' }, 400, origin);
-  }
-
-  if (typeof rawBody !== 'object' || rawBody === null) {
-    return respond({ error: 'invalid_body' }, 400, origin);
-  }
-
-  const { applicationId } = rawBody as { applicationId?: unknown };
-  if (typeof applicationId !== 'string' || !applicationId.trim()) {
-    return respond({ error: 'missing_application_id' }, 400, origin);
-  }
-
-  // 4. Bewerbung laden
-  const { data: application, error: appError } = await serviceClient
-    .from('beta_applications')
-    .select('id, first_name, last_name, email, status')
-    .eq('id', applicationId.trim())
-    .maybeSingle();
-
-  if (appError || !application) {
-    return respond({ error: 'not_found' }, 404, origin);
-  }
-
-  if (application.status !== 'accepted') {
-    return respond(
-      {
-        error: 'application_not_accepted',
-        message: 'Nur angenommene Bewerbungen koennen eingeladen werden.',
-      },
-      400,
-      origin,
-    );
-  }
-
-  // 5. Einladung ueber Supabase Auth Admin versenden
-  const fullName = `${application.first_name} ${application.last_name}`.trim();
-  const siteUrl = Deno.env.get('SITE_URL') ?? 'https://app.flipbase.de';
-  const redirectTo = `${siteUrl.replace(/\/$/, '')}/auth/set-password`;
-
-  const { data: inviteData, error: inviteError } = await serviceClient.auth.admin.inviteUserByEmail(
-    application.email,
-    {
-      data: {
-        first_name: application.first_name,
-        last_name: application.last_name,
-        full_name: fullName,
-      },
-      redirectTo,
+  return {
+    async authenticate(token) {
+      const { data, error } = await userClient(token).auth.getUser();
+      return error || !data.user ? null : { id: data.user.id };
     },
-  );
+    async isOperator(userId) {
+      const { data, error } = await serviceClient
+        .from('platform_operators')
+        .select('user_id')
+        .eq('user_id', userId)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      return data !== null;
+    },
+    async loadApplication(applicationId) {
+      const { data, error } = await serviceClient
+        .from('beta_applications')
+        .select(APPLICATION_FIELDS)
+        .eq('id', applicationId)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      return data as BetaInviteApplication | null;
+    },
+    async acceptApplication(token, applicationId, grantedDays) {
+      const { data, error } = await userClient(token).rpc('accept_beta_application', {
+        p_application_id: applicationId,
+        p_granted_days: grantedDays,
+      });
+      if (error || !data) {
+        throw new Error(error?.message ?? 'Bewerbung konnte nicht angenommen werden.');
+      }
+      return data as BetaInviteApplication;
+    },
+    async rejectApplication(token, applicationId) {
+      const { data, error } = await userClient(token).rpc('reject_beta_application', {
+        p_application_id: applicationId,
+      });
+      if (error || !data) {
+        throw new Error(error?.message ?? 'Bewerbung konnte nicht abgelehnt werden.');
+      }
+      return data as BetaInviteApplication;
+    },
+    async inviteUser(input) {
+      const { data, error } = await serviceClient.auth.admin.inviteUserByEmail(input.email, {
+        data: input.data,
+        redirectTo: input.redirectTo,
+      });
+      if (error || !data.user) {
+        throw new Error(error?.message ?? 'Einladung fehlgeschlagen.');
+      }
+      return { userId: data.user.id };
+    },
+    async generateRegistrationLink(input) {
+      const { data, error } = await serviceClient.auth.admin.generateLink({
+        type: 'recovery',
+        email: input.email,
+        options: { redirectTo: input.redirectTo },
+      });
+      if (error || !data.properties?.action_link || !data.user) {
+        throw new Error(error?.message ?? 'Registrierungslink konnte nicht erzeugt werden.');
+      }
+      return { userId: data.user.id, actionLink: data.properties.action_link };
+    },
+    sendEmail: sendBetaEmail,
+    async updateApplication(applicationId, patch) {
+      const { data, error } = await serviceClient
+        .from('beta_applications')
+        .update(patch)
+        .eq('id', applicationId)
+        .select(APPLICATION_FIELDS)
+        .single();
+      if (error || !data) {
+        throw new Error(error?.message ?? 'Versandstatus konnte nicht gespeichert werden.');
+      }
+      return data as BetaInviteApplication;
+    },
+    now: () => new Date().toISOString(),
+    siteUrl: Deno.env.get('SITE_URL') ?? 'https://app.flipbase.de',
+  };
+}
 
-  if (inviteError) {
-    const errorMsg = inviteError.message ?? '';
-    // Nutzer existiert bereits
-    if (
-      errorMsg.includes('already registered') ||
-      errorMsg.includes('already been registered') ||
-      inviteError.status === 422
-    ) {
-      console.log(`beta-invite: Nutzer ${application.email} existiert bereits in auth.users.`);
-      return respond({ ok: true, alreadyRegistered: true }, 200, origin);
-    }
-
-    console.error(`beta-invite: Einladungsfehler fuer ${application.email}:`, inviteError.message);
-    return respond({ error: 'invite_failed', message: inviteError.message }, 500, origin);
+if (import.meta.main) {
+  try {
+    Deno.serve(createBetaInviteHandler(createProductionDependencies()));
+  } catch {
+    console.error('beta-invite: Serverkonfiguration ist unvollstaendig.');
+    Deno.serve((request) => respond({ error: 'internal' }, 500, request.headers.get('origin')));
   }
-
-  console.log(
-    `beta-invite: Einladung erfolgreich an ${application.email} gesendet (User ID: ${inviteData.user.id}).`,
-  );
-  return respond({ ok: true, invited: true, userId: inviteData.user.id }, 200, origin);
-});
+}

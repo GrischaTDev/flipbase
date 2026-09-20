@@ -1,4 +1,6 @@
 export type BetaApplicationStatus = 'open' | 'accepted' | 'rejected';
+export type BetaEmailStatus = 'pending' | 'sent' | 'failed';
+export type BetaInvitationStatus = 'not_sent' | 'sending' | 'sent' | 'failed';
 
 export interface BetaApplication {
   id: string;
@@ -8,8 +10,17 @@ export interface BetaApplication {
   status: BetaApplicationStatus;
   grantedDays: number | null;
   decisionNote: string | null;
+  decidedAt: string | null;
   createdAt: string;
+  receiptEmailStatus: BetaEmailStatus;
+  receiptEmailSentAt: string | null;
+  receiptEmailLastError: string | null;
+  authUserId: string | null;
+  invitationStatus: BetaInvitationStatus;
+  invitationSentAt: string | null;
+  invitationLastError: string | null;
+  registeredAt: string | null;
 }
 
-/** Vorgabe laut Entwurf: sechs Monate. */
-export const DEFAULT_GRANTED_DAYS = 180;
+/** Vorgabe fuer neue Beta-Freigaben; im Annahmedialog anpassbar. */
+export const DEFAULT_GRANTED_DAYS = 60;
