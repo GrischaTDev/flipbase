@@ -183,8 +183,6 @@ create trigger "00_protect_archived_workspace" before insert or update or delete
 for each row execute function public.protect_archived_workspace_data('inventory_items','inventory_item_id');
 create trigger "00_protect_archived_workspace" before insert or update or delete on public.item_media
 for each row execute function public.protect_archived_workspace_data('inventory_items','inventory_item_id');
-create trigger "00_protect_archived_workspace" before insert or update or delete on public.listing_drafts
-for each row execute function public.protect_archived_workspace_data('inventory_items','inventory_item_id');
 create trigger "00_protect_archived_workspace" before insert or update or delete on public.store_order_items
 for each row execute function public.protect_archived_workspace_data('store_orders','store_order_id');
 create trigger "00_protect_archived_workspace" before insert or update or delete on public.research_comparables

@@ -1,5 +1,4 @@
 import type { InventoryItem, ItemMedia, ItemStatus } from '../../../core/models/flipbase.models';
-import type { KleinanzeigenListingPayload } from '../../../core/services/listing-studio.service';
 
 export type ListingPlatform = 'kleinanzeigen';
 export type ListingStatus = 'prepared' | 'online' | 'ended';
@@ -7,6 +6,35 @@ export type ListingEndReason = 'sold' | 'manual' | null;
 export type ListingPriceType = 'FIXED' | 'NEGOTIABLE';
 export type ListingShippingType = 'pickup' | 'shipping' | 'both';
 export type ListingFilter = 'open' | 'online' | 'ended' | 'all';
+export type ListingStyleTone = 'dealer' | 'bargain' | 'collector';
+
+export interface KleinanzeigenGenerationOptions {
+  readonly includeDisclaimer: boolean;
+  readonly includeNonSmoking: boolean;
+  readonly styleTone: ListingStyleTone;
+}
+
+export interface GeneratedListingText {
+  readonly title: string;
+  readonly description: string;
+}
+
+export interface ListingImageItem {
+  readonly url: string;
+  readonly name: string;
+}
+
+export interface KleinanzeigenListingPayload {
+  readonly itemId: string;
+  readonly title: string;
+  readonly description: string;
+  readonly price: number;
+  readonly priceType: ListingPriceType;
+  readonly postalCode?: string;
+  readonly shippingType: ListingShippingType;
+  readonly shippingPrice?: number;
+  readonly images: readonly ListingImageItem[];
+}
 
 export interface ListingContent {
   readonly title: string;

@@ -1,5 +1,5 @@
 import { DestroyRef, Injectable, inject, signal } from '@angular/core';
-import type { KleinanzeigenListingPayload } from '../../../core/services/listing-studio.service';
+import type { KleinanzeigenListingPayload } from '../models/listing.models';
 
 const EXTENSION_CHECK_MESSAGE = { type: 'FLIPBASE_CHECK_EXTENSION' } as const;
 

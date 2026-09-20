@@ -7,10 +7,6 @@ import { glob, readFile } from 'node:fs/promises';
 import axe from 'axe-core';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { InventoryItem } from '../../../../core/models/flipbase.models';
-import {
-  ListingStudioService,
-  type KleinanzeigenGenerationOptions,
-} from '../../../../core/services/listing-studio.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
@@ -25,9 +21,11 @@ import type {
   ListingContent,
   ListingEditorItem,
   ListingRow,
+  KleinanzeigenGenerationOptions,
 } from '../../models/listing.models';
 import { ListingExtensionService } from '../../services/listing-extension.service';
 import { ListingService } from '../../services/listing.service';
+import { ListingTemplateService } from '../../services/listing-template.service';
 import { ListingEditorComponent } from './listing-editor.component';
 
 interface AngularInputMetadata {
@@ -268,7 +266,7 @@ describe('ListingEditorComponent', () => {
             publish,
           },
         },
-        { provide: ListingStudioService, useValue: { generateKleinanzeigenListing } },
+        { provide: ListingTemplateService, useValue: { generateKleinanzeigenListing } },
         { provide: ConfirmDialogService, useValue: { frage: confirmOverwrite } },
         { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => null } } } },
         { provide: ToastService, useValue: { error: vi.fn(), success: vi.fn(), warning } },

@@ -29,17 +29,17 @@ Jede Tabelle wird bei `insert`, `update` und `delete` geprüft, auch unter
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Einkäufe                     | purchases, purchase_lines, purchase_costs                                                                                                                                       |
 | Inventar und Bestand         | inventory_items, inventory_reconciliation_events, catalog_products, stock_lots, stock_movements                                                                                 |
-| Verkäufe                     | sales, sale_lines, sale_cost_entries, sale_line_lot_allocations                                                                                                                 |
+| Verkäufe und Inserate        | listings, sales, sale_lines, sale_cost_entries, sale_line_lot_allocations                                                                                                       |
 | Belege, Versand und Zahlung  | returns, invoices, shipping_orders, store_orders, bank_transactions, offline_purchase_entries, cash_wallet_sessions, email_confirmations, purchase_documents, expense_documents |
 | Betriebsausgaben             | expense_categories, expense_recurring_rules, expenses                                                                                                                           |
 | Artikelrecherche und Verlauf | market_research, activity_logs                                                                                                                                                  |
 
-| Kind ohne workspace_id                 | Verbindlicher Elternpfad            |
-| -------------------------------------- | ----------------------------------- |
-| item_costs, item_media, listing_drafts | inventory_item_id → inventory_items |
-| invoice_items                          | invoice_id → invoices               |
-| store_order_items                      | store_order_id → store_orders       |
-| research_comparables                   | research_id → market_research       |
+| Kind ohne workspace_id | Verbindlicher Elternpfad            |
+| ---------------------- | ----------------------------------- |
+| item_costs, item_media | inventory_item_id → inventory_items |
+| invoice_items          | invoice_id → invoices               |
+| store_order_items      | store_order_id → store_orders       |
+| research_comparables   | research_id → market_research       |
 
 Das unveränderliche `business_events`-Journal erlaubt weiterhin ausschließlich
 seine bestehenden internen Schreibwege, darunter die Lifecycle-Ereignisse.

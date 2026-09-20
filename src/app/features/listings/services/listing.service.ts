@@ -4,8 +4,8 @@ import type { Tables } from '../../../core/models/supabase.types';
 import { MediaService } from '../../../core/services/media.service';
 import { SupabaseService } from '../../../core/services/supabase.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
-import type { KleinanzeigenListingPayload } from '../../../core/services/listing-studio.service';
 import type {
+  KleinanzeigenListingPayload,
   Listing,
   ListingActionResult,
   ListingContent,

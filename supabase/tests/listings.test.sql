@@ -1,7 +1,7 @@
 \set ON_ERROR_STOP on
 begin;
 set local search_path = public, extensions;
-select plan(61);
+select plan(62);
 
 insert into auth.users (id, aud, role, email, raw_app_meta_data, raw_user_meta_data) values
   ('23000000-0000-4000-8000-000000000001', 'authenticated', 'authenticated', 'listing-owner@example.test', '{}', '{}'),
@@ -61,6 +61,7 @@ set archived_at = now()
 where id = '23000000-0000-4000-8000-000000000013';
 
 select has_table('public', 'listings', 'listings table exists');
+select hasnt_table('public', 'listing_drafts', 'legacy listing drafts table is removed');
 select ok(
   (select relrowsecurity from pg_catalog.pg_class where oid = 'public.listings'::regclass),
   'listings has rls'

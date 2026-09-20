@@ -1,5 +1,35 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-20 – Codex (OpenAI) – Alten Inseratsentwurfsspeicher entfernt
+
+**Auftrag:** Den zweiten Schritt des Listing Studio umsetzen: den ungenutzten alten
+Entwurfsspeicher und den überholten Mehrplattform-Generator nach einer
+Produktionsprüfung sicher entfernen.
+
+**Änderung:** Die Produktion enthielt keine Zeile in `public.listing_drafts`; auch
+alle zusammengefassten Prüfungen auf ungültige oder verwaiste Daten und Konflikte
+mit aktuellen Inseraten ergaben null. Es wurden keine Inhalte einzelner Datensätze
+gelesen. Die neue Release-Migration sperrt die Tabelle während der erneuten
+Leerprüfung exklusiv und bricht vor jeder Änderung mit SQLSTATE `55000` ab, falls
+nach dieser Prüfung doch wieder ein alter Entwurf entstanden ist. Das deklarative
+Schema, die Archivierungsregistrierung und die generierten Typen enthalten die alte
+Tabelle nicht mehr. Im Frontend bleibt nur der tatsächlich verwendete
+Kleinanzeigen-Textgenerator als kleiner Dienst im Inserate-Feature;
+unbenutzte eBay-, Vinted-, Webshop-, HTML-, SEO- und Direktveröffentlichungswege
+sind entfernt.
+
+**Prüfung:** Der Migrationsschutz wurde in einer Wegwerf-Datenbank in drei Fällen
+geprüft: Ein vorhandener und ein parallel geschriebener Datensatz stoppten die
+Migration und blieben erhalten; eine leere Tabelle wurde entfernt. Der
+Datenbank-Reset, 62 gezielte Inserate-, 100 Archivierungs- und alle 1.937
+Datenbankprüfungen bestanden. `npm run verify` war mit 1.428 Node-, 239 DOM-, 946
+Angular- und 13 Landing-Tests sowie Format, ESLint, Typprüfung,
+Workflow-Prüfungen, Suite-Audit und Produktionsbau grün. Alle sieben
+PR-Chromium-Abläufe bestanden. Der Bau meldet weiterhin die drei bekannten
+NG8113-Hinweise außerhalb des Inserate-Bereichs; der unveränderte
+Steuerjournal-Ablauf meldet weiterhin den bestehenden NG0956-Laufzeithinweis.
+Kein Push und kein Merge.
+
 ## 2026-09-20 – Codex (OpenAI) – Kontrollreview-Funde im Listing Studio behoben
 
 **Auftrag:** Die bestätigten Blocker aus dem Kontrollreview selbst beheben und den
