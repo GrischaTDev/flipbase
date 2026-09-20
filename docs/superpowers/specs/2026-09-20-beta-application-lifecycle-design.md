@@ -177,6 +177,8 @@ Eine Zeile je Workspace beschreibt ausschließlich den aktuellen Zugang:
 Die Zeile wird bei der Auth-Einladung als `pending` angelegt. Die Aktivierung
 setzt atomar `starts_at = now()`, `ends_at = starts_at + granted_days` und
 `status = 'active'`. Bereits gesetzte Zeitpunkte werden nie überschrieben.
+Für Beta-Zugänge ist ein Enddatum Pflicht. Ein späterer unbefristeter
+Abonnementzugang darf dagegen `ends_at = null` verwenden.
 
 Eine spätere Tabelle für Stripe-Abonnements referenziert den Workspace und kann
 die Lizenz auf `access_source = 'subscription'` umstellen. Bewerbung und
