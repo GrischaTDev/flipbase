@@ -3,24 +3,7 @@
     title="Bewerbungen"
     [icon]="adminIcon"
     subtitle="Bewerbungen um einen Beta-Zugang verwalten und Entscheidungen dokumentieren."
-  >
-    <label
-      header-actions
-      class="flex items-center gap-2 text-xs font-medium text-fb-text-secondary"
-    >
-      Laufzeit bei Annahme
-      <span class="sr-only">in Tagen</span>
-      <input
-        type="number"
-        min="1"
-        max="3650"
-        class="linear-input w-24 rounded-md px-2.5 py-2 text-[13px]"
-        [value]="grantedDays()"
-        (change)="onGrantedDaysChange($any($event.target).value)"
-      />
-      Tage
-    </label>
-  </app-page-header>
+  />
 
   @if (applications().length > 0 && error(); as meldung) {
     <p
@@ -150,16 +133,8 @@
                   }
                   @case ('status') {
                     <td>
-                      <app-badge
-                        [tone]="
-                          application.status === 'accepted'
-                            ? 'success'
-                            : application.status === 'open'
-                              ? 'caution'
-                              : 'neutral'
-                        "
-                      >
-                        {{ statusLabel(application.status) }}
+                      <app-badge [tone]="lifecycleStatus(application).tone">
+                        {{ lifecycleStatus(application).label }}
                       </app-badge>
                     </td>
                   }
@@ -177,38 +152,53 @@
                   }
                   @case ('actions') {
                     <td class="text-right">
-                      @if (application.status === 'open') {
-                        <div class="flex flex-wrap items-center justify-end gap-2">
-                          <input
-                            #note
-                            type="text"
-                            maxlength="500"
-                            placeholder="Notiz (optional)"
-                            [attr.aria-label]="'Notiz zur Entscheidung über ' + bewerberName"
-                            class="linear-input w-48 rounded-md px-2.5 py-2 text-[13px]"
-                          />
+                      <div class="flex flex-wrap items-center justify-end gap-2">
+                        @if (application.receiptEmailStatus === 'failed') {
+                          <app-button
+                            variant="secondary"
+                            size="slim"
+                            [disabled]="processingId() === application.id"
+                            [ariaLabel]="'Bestätigung an ' + application.email + ' erneut senden'"
+                            (clicked)="resendApplicationReceipt(application)"
+                          >
+                            Bestätigung erneut senden
+                          </app-button>
+                        }
+                        @if (application.status === 'open') {
                           <app-button
                             variant="primary"
                             size="slim"
-                            [disabled]="decidingId() === application.id"
+                            [disabled]="processingId() === application.id"
                             [ariaLabel]="'Bewerbung von ' + bewerberName + ' annehmen'"
-                            (clicked)="accept(application, note.value)"
+                            (clicked)="openApproval(application)"
                           >
                             Annehmen
                           </app-button>
                           <app-button
                             variant="secondary"
                             size="slim"
-                            [disabled]="decidingId() === application.id"
+                            [disabled]="processingId() === application.id"
                             [ariaLabel]="'Bewerbung von ' + bewerberName + ' ablehnen'"
-                            (clicked)="reject(application, note.value)"
+                            (clicked)="reject(application)"
                           >
                             Ablehnen
                           </app-button>
-                        </div>
-                      } @else {
-                        <span class="text-xs text-fb-text-muted">Entscheidung gespeichert</span>
-                      }
+                        } @else if (
+                          application.invitationStatus === 'failed' && !application.registeredAt
+                        ) {
+                          <app-button
+                            variant="secondary"
+                            size="slim"
+                            [disabled]="processingId() === application.id"
+                            [ariaLabel]="'Einladung an ' + application.email + ' erneut senden'"
+                            (clicked)="resendInvitation(application)"
+                          >
+                            Einladung erneut senden
+                          </app-button>
+                        } @else if (application.receiptEmailStatus !== 'failed') {
+                          <span class="text-xs text-fb-text-muted">Keine Aktion erforderlich</span>
+                        }
+                      </div>
                     </td>
                   }
                 }
@@ -219,4 +209,13 @@
       </table>
     </div>
   </app-data-table>
+
+  @if (selectedApplication(); as application) {
+    <app-beta-approval-dialog
+      [application]="application"
+      [processing]="processingId() === application.id"
+      (approved)="approveSelected($event)"
+      (closed)="closeApproval()"
+    />
+  }
 </section>

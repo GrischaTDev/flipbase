@@ -8,7 +8,7 @@ import {
   signal,
 } from '@angular/core';
 import { BetaApplicationService } from '../../services/beta-application.service';
-import { BetaApplication, DEFAULT_GRANTED_DAYS } from '../../models/beta-application.model';
+import { BetaApplication } from '../../models/beta-application.model';
 import {
   BetaApplicationsColumnId,
   BetaApplicationsSortField,
@@ -22,11 +22,9 @@ import { TableSortHeaderComponent } from '../../../../shared/components/table-so
 import { PageHeaderComponent } from '../../../../shared/components/page-header/page-header.component';
 import { DataTableComponent } from '../../../../shared/components/data-table/data-table.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
-import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
+import { BadgeComponent, BadgeTone } from '../../../../shared/components/badge/badge.component';
 import { LucideShieldCheck as ShieldCheck } from '@lucide/angular';
-
-const MIN_GRANTED_DAYS = 1;
-const MAX_GRANTED_DAYS = 3650;
+import { BetaApprovalDialogComponent } from '../../components/beta-approval-dialog/beta-approval-dialog.component';
 
 @Component({
   selector: 'app-beta-applications',
@@ -37,6 +35,7 @@ const MAX_GRANTED_DAYS = 3650;
     DataTableComponent,
     ButtonComponent,
     BadgeComponent,
+    BetaApprovalDialogComponent,
   ],
   templateUrl: './beta-applications.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -48,7 +47,6 @@ export class BetaApplicationsComponent implements OnInit {
   readonly applications = signal<readonly BetaApplication[]>([]);
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
-  readonly grantedDays = signal(DEFAULT_GRANTED_DAYS);
   readonly searchQuery = signal('');
   readonly statusFilter = signal<'all' | BetaApplication['status']>('all');
   readonly adminIcon = ShieldCheck;
@@ -86,7 +84,11 @@ export class BetaApplicationsComponent implements OnInit {
     const query = this.searchQuery().trim().toLocaleLowerCase('de');
     const filtered = query
       ? this.applications().filter((application) =>
-          [this.applicantName(application), application.email, this.statusLabel(application.status)]
+          [
+            this.applicantName(application),
+            application.email,
+            this.lifecycleStatus(application).label,
+          ]
             .join(' ')
             .toLocaleLowerCase('de')
             .includes(query),
@@ -103,7 +105,10 @@ export class BetaApplicationsComponent implements OnInit {
               sensitivity: 'base',
             })
           : sort.field === 'status'
-            ? this.statusLabel(left.status).localeCompare(this.statusLabel(right.status), 'de')
+            ? this.lifecycleStatus(left).label.localeCompare(
+                this.lifecycleStatus(right).label,
+                'de',
+              )
             : left.createdAt.localeCompare(right.createdAt);
       return sort.direction === 'asc' ? comparison : -comparison;
     });
@@ -116,7 +121,8 @@ export class BetaApplicationsComponent implements OnInit {
    * gesperrt. Ohne das liesse sich per Doppelklick dieselbe Entscheidung
    * zweimal abschicken.
    */
-  readonly decidingId = signal<string | null>(null);
+  readonly processingId = signal<string | null>(null);
+  readonly selectedApplication = signal<BetaApplication | null>(null);
 
   ngOnInit(): void {
     void this.load();
@@ -126,8 +132,23 @@ export class BetaApplicationsComponent implements OnInit {
     return `${application.firstName} ${application.lastName}`.trim();
   }
 
-  statusLabel(status: BetaApplication['status']): string {
-    return status === 'open' ? 'Offen' : status === 'accepted' ? 'Angenommen' : 'Abgelehnt';
+  lifecycleStatus(application: BetaApplication): { label: string; tone: BadgeTone } {
+    if (application.status === 'rejected') return { label: 'Abgelehnt', tone: 'neutral' };
+    if (application.registeredAt) return { label: 'Beta gestartet', tone: 'success' };
+    if (application.invitationStatus === 'failed') {
+      return { label: 'Einladung fehlgeschlagen', tone: 'critical' };
+    }
+    if (application.invitationStatus === 'sending') {
+      return { label: 'Einladung wird gesendet', tone: 'caution' };
+    }
+    if (application.invitationStatus === 'sent') {
+      return { label: 'Wartet auf Registrierung', tone: 'info' };
+    }
+    if (application.receiptEmailStatus === 'failed') {
+      return { label: 'Bestätigung fehlgeschlagen', tone: 'critical' };
+    }
+    if (application.status === 'accepted') return { label: 'Angenommen', tone: 'info' };
+    return { label: 'Offen', tone: 'caution' };
   }
 
   toggleColumnVisibility(columnId: BetaApplicationsColumnId): void {
@@ -175,52 +196,52 @@ export class BetaApplicationsComponent implements OnInit {
     }
   }
 
-  /**
-   * Uebernimmt die Laufzeit nur, wenn sie brauchbar ist.
-   *
-   * Ein geleertes Feld, ein Wert unter eins oder ueber 3650 laesst den
-   * zuletzt gueltigen Wert stehen, statt ihn stillschweigend auf 0 zu setzen.
-   */
-  onGrantedDaysChange(rawValue: string): void {
-    const value = Number(rawValue);
-    const isUsable =
-      rawValue.trim() !== '' &&
-      Number.isFinite(value) &&
-      value >= MIN_GRANTED_DAYS &&
-      value <= MAX_GRANTED_DAYS;
-
-    if (isUsable) {
-      this.grantedDays.set(Math.trunc(value));
-    }
+  openApproval(application: BetaApplication): void {
+    this.selectedApplication.set(application);
   }
 
-  async accept(application: BetaApplication, note: string): Promise<void> {
-    await this.decide(application, 'accepted', note);
+  closeApproval(): void {
+    if (!this.processingId()) this.selectedApplication.set(null);
   }
 
-  async reject(application: BetaApplication, note: string): Promise<void> {
-    await this.decide(application, 'rejected', note);
+  async approveSelected(grantedDays: number): Promise<void> {
+    const application = this.selectedApplication();
+    if (!application) return;
+    const updated = await this.runAction(application, () =>
+      this.service.accept(application.id, grantedDays),
+    );
+    if (updated) this.selectedApplication.set(null);
   }
 
-  private async decide(
+  async reject(application: BetaApplication): Promise<void> {
+    await this.runAction(application, () => this.service.reject(application.id));
+  }
+
+  async resendInvitation(application: BetaApplication): Promise<void> {
+    await this.runAction(application, () => this.service.resendInvitation(application.id));
+  }
+
+  async resendApplicationReceipt(application: BetaApplication): Promise<void> {
+    await this.runAction(application, () => this.service.resendApplicationReceipt(application.id));
+  }
+
+  private async runAction(
     application: BetaApplication,
-    status: 'accepted' | 'rejected',
-    note: string,
-  ): Promise<void> {
+    action: () => Promise<BetaApplication>,
+  ): Promise<BetaApplication | null> {
     this.error.set(null);
-    this.decidingId.set(application.id);
+    this.processingId.set(application.id);
     try {
-      await this.service.decide(
-        application.id,
-        status,
-        status === 'accepted' ? this.grantedDays() : null,
-        note.trim() || null,
+      const updated = await action();
+      this.applications.update((applications) =>
+        applications.map((current) => (current.id === updated.id ? updated : current)),
       );
-      await this.load();
+      return updated;
     } catch (error) {
       this.error.set(error instanceof Error ? error.message : String(error));
+      return null;
     } finally {
-      this.decidingId.set(null);
+      this.processingId.set(null);
     }
   }
 }

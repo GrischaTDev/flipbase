@@ -11,6 +11,9 @@ import { PageHeaderComponent } from '../../../../shared/components/page-header/p
 import { DataTableComponent } from '../../../../shared/components/data-table/data-table.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
+import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
+import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
+import { BetaApprovalDialogComponent } from '../../components/beta-approval-dialog/beta-approval-dialog.component';
 
 interface AngularInputMetadata {
   inputs: Record<string, unknown>;
@@ -82,6 +85,9 @@ beforeAll(async () => {
     'ariaPressed',
   ]);
   registerSignalInputs(BadgeComponent, ['tone', 'mono']);
+  registerSignalInputs(BetaApprovalDialogComponent, ['application', 'processing']);
+  registerSignalInputs(ModalShellComponent, ['title', 'subtitle', 'icon', 'iconTone', 'size']);
+  registerSignalInputs(NumberInputComponent, ['id', 'min', 'max', 'step', 'unit', 'ariaLabel']);
 });
 
 const application = {
@@ -92,16 +98,31 @@ const application = {
   status: 'open' as const,
   grantedDays: null,
   decisionNote: null,
+  decidedAt: null,
   createdAt: '2026-09-05T08:00:00.000Z',
+  receiptEmailStatus: 'sent' as const,
+  receiptEmailSentAt: '2026-09-05T08:01:00.000Z',
+  receiptEmailLastError: null,
+  authUserId: null,
+  invitationStatus: 'not_sent' as const,
+  invitationSentAt: null,
+  invitationLastError: null,
+  registeredAt: null,
 };
 
 describe('BetaApplicationsComponent', () => {
   let list: ReturnType<typeof vi.fn>;
-  let decide: ReturnType<typeof vi.fn>;
+  let accept: ReturnType<typeof vi.fn>;
+  let reject: ReturnType<typeof vi.fn>;
+  let resendInvitation: ReturnType<typeof vi.fn>;
+  let resendApplicationReceipt: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
     list = vi.fn().mockResolvedValue([application]);
-    decide = vi.fn().mockResolvedValue(undefined);
+    accept = vi.fn().mockResolvedValue({ ...application, status: 'accepted' });
+    reject = vi.fn().mockResolvedValue({ ...application, status: 'rejected' });
+    resendInvitation = vi.fn().mockResolvedValue(application);
+    resendApplicationReceipt = vi.fn().mockResolvedValue(application);
 
     await TestBed.configureTestingModule({
       imports: [
@@ -110,7 +131,12 @@ describe('BetaApplicationsComponent', () => {
         TableSortHeaderComponent,
         PageHeaderComponent,
       ],
-      providers: [{ provide: BetaApplicationService, useValue: { list, decide } }],
+      providers: [
+        {
+          provide: BetaApplicationService,
+          useValue: { list, accept, reject, resendInvitation, resendApplicationReceipt },
+        },
+      ],
     }).compileComponents();
   });
 
@@ -134,21 +160,10 @@ describe('BetaApplicationsComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('anna@example.test');
   });
 
-  it('nimmt eine Bewerbung mit der eingestellten Laufzeit an', async () => {
-    // Der Test fuellt das Notizfeld im DOM und klickt den Knopf, statt
-    // `accept()` direkt aufzurufen: Waere die Bindung im Template kaputt -
-    // falsches Argument, Tippfehler bei `note.value` - bliebe ein direkter
-    // Methodenaufruf gruen, obwohl die Anwendung selbst nichts mehr taete.
+  it('oeffnet die Annahme im Dialog und uebergibt dessen Laufzeit', async () => {
     const fixture = TestBed.createComponent(BetaApplicationsComponent);
     fixture.detectChanges();
     await fixture.whenStable();
-    fixture.detectChanges();
-
-    const noteInput: HTMLInputElement = fixture.nativeElement.querySelector(
-      'input[aria-label="Notiz zur Entscheidung über Anna Beispiel"]',
-    );
-    noteInput.value = '  passt  ';
-    noteInput.dispatchEvent(new Event('input'));
     fixture.detectChanges();
 
     const acceptButton = fixture.debugElement
@@ -156,12 +171,64 @@ describe('BetaApplicationsComponent', () => {
       .find((element) => element.nativeElement.textContent?.includes('Annehmen'));
     expect(acceptButton).toBeDefined();
     acceptButton?.triggerEventHandler('clicked', new MouseEvent('click'));
+    fixture.detectChanges();
+
+    const dialog = fixture.debugElement.query(By.directive(BetaApprovalDialogComponent));
+    expect(dialog).not.toBeNull();
+    dialog.triggerEventHandler('approved', 60);
     await fixture.whenStable();
 
-    // Die Notiz wird beschnitten; eine leere Notiz wird zu null, damit in der
-    // Datenbank nicht zwischen "nichts gesagt" und "Leerzeichen" unterschieden
-    // werden muss.
-    expect(decide).toHaveBeenCalledWith('a1', 'accepted', 180, 'passt');
+    expect(accept).toHaveBeenCalledWith('a1', 60);
+    expect(fixture.nativeElement.textContent).not.toContain('Laufzeit bei Annahme');
+    expect(fixture.nativeElement.querySelector('input[placeholder="Notiz (optional)"]')).toBeNull();
+  });
+
+  it('zeigt einen Einladungsfehler und startet den Wiederholungsversand', async () => {
+    list.mockResolvedValueOnce([
+      {
+        ...application,
+        status: 'accepted',
+        grantedDays: 60,
+        authUserId: 'user-1',
+        invitationStatus: 'failed',
+        invitationLastError: 'SMTP nicht erreichbar',
+      },
+    ]);
+    const fixture = TestBed.createComponent(BetaApplicationsComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Einladung fehlgeschlagen');
+    const retryButton = fixture.debugElement
+      .queryAll(By.directive(ButtonComponent))
+      .find((element) => element.nativeElement.textContent?.includes('Einladung erneut senden'));
+    retryButton?.triggerEventHandler('clicked', new MouseEvent('click'));
+    await fixture.whenStable();
+
+    expect(resendInvitation).toHaveBeenCalledWith('a1');
+  });
+
+  it('bietet bei fehlgeschlagener Eingangsbestaetigung einen Wiederholungsversand an', async () => {
+    list.mockResolvedValueOnce([
+      {
+        ...application,
+        receiptEmailStatus: 'failed',
+        receiptEmailLastError: 'SMTP nicht erreichbar',
+      },
+    ]);
+    const fixture = TestBed.createComponent(BetaApplicationsComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const retryButton = fixture.debugElement
+      .queryAll(By.directive(ButtonComponent))
+      .find((element) => element.nativeElement.textContent?.includes('Bestätigung erneut senden'));
+    retryButton?.triggerEventHandler('clicked', new MouseEvent('click'));
+    await fixture.whenStable();
+
+    expect(resendApplicationReceipt).toHaveBeenCalledWith('a1');
   });
 
   it('zeigt einen Ladefehler an, statt eine leere Liste vorzutäuschen', async () => {
