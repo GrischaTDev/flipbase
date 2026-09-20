@@ -1,0 +1,44 @@
+@if (open()) {
+  <app-modal-shell
+    title="Kleinanzeigen-Erweiterung verbinden"
+    subtitle="Die Erweiterung überträgt dein vorbereitetes Inserat in einen neuen Kleinanzeigen-Tab."
+    size="md"
+    (closed)="closeRequested.emit()"
+  >
+    <ol class="list-decimal space-y-3 pl-5 text-sm leading-6 text-fb-text-secondary">
+      <li>
+        Öffne
+        <code class="rounded bg-fb-subtle px-1.5 py-0.5 text-fb-text-primary"
+          >chrome://extensions</code
+        >.
+      </li>
+      <li>Aktiviere den Entwicklermodus und wähle „Entpackte Erweiterung laden“.</li>
+      <li>
+        Wähle den Ordner
+        <code class="rounded bg-fb-subtle px-1.5 py-0.5 text-fb-text-primary"
+          >tools/flipbase-extension</code
+        >.
+      </li>
+      <li>Lade Flipbase anschließend neu und prüfe die Verbindung.</li>
+    </ol>
+
+    <p
+      class="rounded-lg border border-fb-info-border bg-fb-info-surface px-3 py-2 text-sm text-fb-text-secondary"
+    >
+      Die Erweiterung öffnet Kleinanzeigen. Sie veröffentlicht kein Inserat ohne deinen letzten
+      Schritt auf der Plattform.
+    </p>
+
+    <app-button modal-footer variant="secondary" (clicked)="closeRequested.emit()">
+      Schließen
+    </app-button>
+    <app-button
+      modal-footer
+      variant="primary"
+      [loading]="checking()"
+      (clicked)="checkRequested.emit()"
+    >
+      Verbindung prüfen
+    </app-button>
+  </app-modal-shell>
+}
