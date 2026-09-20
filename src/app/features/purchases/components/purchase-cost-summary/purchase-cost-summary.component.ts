@@ -37,6 +37,7 @@ interface CostSummaryRow {
 })
 export class PurchaseCostSummaryComponent {
   readonly goodsAmount = input<number | null>(null);
+  readonly itemCount = input(0);
   readonly discountAmount = input(0);
   readonly costs = input<readonly PurchaseCostSummaryCost[]>([]);
   readonly totalAmount = input<number | null | undefined>(undefined);
@@ -49,12 +50,6 @@ export class PurchaseCostSummaryComponent {
 
   readonly rows = computed<readonly CostSummaryRow[]>(() => {
     const rows: CostSummaryRow[] = [];
-    const goodsAmount = this.goodsAmount();
-    if (goodsAmount !== null)
-      rows.push({ label: 'Warenbetrag', amount: goodsAmount, subtract: false });
-    if (this.discountAmount() > 0) {
-      rows.push({ label: 'Rabatt', amount: this.discountAmount(), subtract: true });
-    }
     if (this.legacyShippingAmount() > 0) {
       rows.push({
         label: 'Versandkosten',
@@ -84,11 +79,15 @@ export class PurchaseCostSummaryComponent {
     return rows;
   });
 
+  readonly displayedGoodsAmount = computed(() => this.goodsAmount() ?? 0);
+  readonly itemCountLabel = computed(() =>
+    this.itemCount() === 1 ? '1 Artikel' : `${this.itemCount()} Artikel`,
+  );
+
   readonly displayedTotal = computed(() => {
     const authoritativeTotal = this.totalAmount();
-    if (authoritativeTotal !== undefined) return authoritativeTotal;
-    const goodsAmount = this.goodsAmount();
-    if (goodsAmount === null) return null;
+    if (authoritativeTotal !== undefined) return authoritativeTotal ?? 0;
+    const goodsAmount = this.goodsAmount() ?? 0;
     const additionalCosts = this.costs().reduce((sum, cost) => sum + cost.amount, 0);
     const calculatedTotal =
       goodsAmount -
@@ -99,8 +98,7 @@ export class PurchaseCostSummaryComponent {
     return Math.round((calculatedTotal + Number.EPSILON) * 100) / 100;
   });
 
-  formatCurrency(amount: number | null): string {
-    if (amount === null) return '—';
+  formatCurrency(amount: number): string {
     return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(amount);
   }
 }

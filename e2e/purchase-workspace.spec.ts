@@ -1,4 +1,4 @@
-import { expect, openDashboard, test } from './support/fixtures';
+import { expect, openDashboard, selectDefaultPurchaseSeller, test } from './support/fixtures';
 import { addNewPurchaseProduct } from './support/products';
 
 test('edits a saved purchase in place and retains discounted totals after reload', async ({
@@ -6,7 +6,8 @@ test('edits a saved purchase in place and retains discounted totals after reload
 }) => {
   await openDashboard(page);
   await page.goto('/purchases/new');
-  await page.getByRole('textbox', { name: 'Bezeichnung (optional)' }).fill('Arbeitsbereich-Test');
+  await selectDefaultPurchaseSeller(page);
+  await page.getByRole('textbox', { name: 'Beschreibung' }).fill('Arbeitsbereich-Test');
   // #purchase-base-price gibt es nicht mehr; der Einkaufspreis kommt aus den Positionen.
   await addNewPurchaseProduct(page, 'Werkstattartikel');
   await page
@@ -20,14 +21,14 @@ test('edits a saved purchase in place and retains discounted totals after reload
   await expect(page).toHaveURL(/\/purchases\/[^/]+$/);
   const detailUrl = page.url();
 
-  await expect(page.getByRole('textbox', { name: 'Bezeichnung (optional)' })).toHaveValue(
+  await expect(page.getByRole('textbox', { name: 'Beschreibung' })).toHaveValue(
     'Arbeitsbereich-Test',
   );
   await expect(page.getByRole('button', { name: 'Verwerfen', exact: true })).toHaveCount(0);
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Bearbeiten', exact: true })).toHaveCount(0);
 
-  await page.getByRole('textbox', { name: 'Bezeichnung (optional)' }).fill('Bearbeiteter Einkauf');
+  await page.getByRole('textbox', { name: 'Beschreibung' }).fill('Bearbeiteter Einkauf');
   await page.getByRole('button', { name: 'Kosten bearbeiten', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Kostenübersicht verwalten' });
   await dialog.getByRole('combobox', { name: 'Anpassung 1', exact: true }).click();
@@ -40,7 +41,7 @@ test('edits a saved purchase in place and retains discounted totals after reload
     0,
   );
   await expect(page).toHaveURL(detailUrl);
-  await expect(page.getByRole('textbox', { name: 'Bezeichnung (optional)' })).toHaveValue(
+  await expect(page.getByRole('textbox', { name: 'Beschreibung' })).toHaveValue(
     'Bearbeiteter Einkauf',
   );
   await expect(page.getByRole('region', { name: 'Kostenübersicht', exact: true })).toContainText(

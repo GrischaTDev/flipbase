@@ -244,26 +244,6 @@ function addLegacyLine(editor: PurchaseLineEditorComponent): void {
 }
 
 describe('PurchaseLineEditorComponent', () => {
-  it('erfasst ein Paket als eine bezahlte Position ohne Katalogprodukt und erhält es beim Neuladen', () => {
-    const { editor } = erstelleEditor();
-    editor.addPackage();
-    editor.lineRows.at(0).controls.unitPurchasePrice.setValue(100);
-    editor.recalculate(0, 'unitPurchasePrice');
-    expect(editor.getDrafts()).toEqual([
-      expect.objectContaining({
-        isPackage: true,
-        lineKind: 'individual',
-        catalogProductId: null,
-        orderedQuantity: 1,
-        unitPurchasePrice: 100,
-        lineTotal: 100,
-      }),
-    ]);
-    const draft = editor.getDrafts();
-    editor.resetToLines(draft);
-    expect(editor.getDrafts()).toEqual(draft);
-    expect(editor.lineRows.valid).toBe(true);
-  });
   it('übernimmt weder Auswahl noch verspätete Anlage aus einem fremden Workspace', () => {
     const { editor } = erstelleEditor();
     const foreign = { ...ledProduct, workspace_id: workspaceTwo.id };
@@ -607,47 +587,6 @@ describe('PurchaseLineEditorComponent', () => {
     editor.recalculate(0, 'lineTotal');
 
     expect(row.controls.unitPurchasePrice.value).toBe(5.99);
-  });
-
-  it('verteilt einen Paketpreis einmalig je Position und behält die centgenaue Positionssumme', () => {
-    const { editor, linesChanged } = erstelleEditor();
-    editor.addProducts([ledProduct, ledProduct]);
-    editor.lineRows.at(0).controls.orderedQuantity.setValue(1, { emitEvent: false });
-    editor.lineRows.at(1).controls.orderedQuantity.setValue(3, { emitEvent: false });
-    linesChanged.emit.mockClear();
-
-    editor.applyPackagePrice(10);
-
-    expect(editor.lineRows.at(0).controls.lineTotal.value).toBe(5);
-    expect(editor.lineRows.at(1).controls.lineTotal.value).toBe(5);
-    expect(editor.lineRows.at(1).controls.unitPurchasePrice.value).toBeCloseTo(5 / 3, 10);
-    expect(linesChanged.emit).toHaveBeenCalledTimes(1);
-  });
-
-  it('multipliziert den gerundeten Durchschnittspreis nicht auf die Positionssumme zurück', () => {
-    const { editor } = erstelleEditor();
-    editor.addProducts([ledProduct]);
-    editor.lineRows.at(0).controls.orderedQuantity.setValue(3, { emitEvent: false });
-
-    editor.applyPackagePrice(3.34);
-
-    expect(editor.getDrafts()[0].lineTotal).toBe(3.34);
-    expect(editor.getDrafts()[0].unitPurchasePrice).toBeCloseTo(3.34 / 3, 10);
-  });
-
-  it('macht einen auf sieben Stück verteilten Euro mit höchstens 16 Nachkommastellen speicherbar', () => {
-    const { editor } = erstelleEditor();
-    editor.addProducts([ledProduct]);
-    const row = editor.lineRows.at(0);
-    row.controls.orderedQuantity.setValue(7, { emitEvent: false });
-
-    editor.applyPackagePrice(1);
-
-    const draft = editor.getDrafts()[0];
-    expect(row.valid).toBe(true);
-    expect(draft).toMatchObject({ lineTotal: 1, unitPurchasePrice: 0.1428571428571428 });
-    expect(String(draft.unitPurchasePrice).split('.')[1]?.length).toBeLessThanOrEqual(16);
-    expect(Math.round((draft.unitPurchasePrice ?? 0) * 7 * 100) / 100).toBe(1);
   });
 
   it('erhält historische Einzelstückzeilen mit Menge eins', () => {

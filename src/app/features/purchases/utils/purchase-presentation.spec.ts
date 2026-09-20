@@ -22,6 +22,7 @@ const basePurchase: Purchase = {
   workspace_id: workspaceId,
   type: 'single',
   title: 'Haushaltswaren August',
+  notes: 'Haushaltswaren August',
   purchase_date: '2026-08-20',
   purchase_price: 40,
   total_purchase_cost: 45,
@@ -119,21 +120,17 @@ describe('purchase presentation mapper', () => {
     expect(row.title).toBe(basePurchase.title);
   });
 
-  it('zeigt einmalige Verkäufer ohne Stammdatensatz und macht Plattformangaben durchsuchbar', () => {
+  it('macht den gewählten Verkäufer durchsuchbar', () => {
     const row = mapPurchaseListRow(
       {
         ...basePurchase,
-        supplier: undefined,
-        supplier_id: null,
-        seller_marketplace_username: 'vintage_lea92',
-        external_order_id: '84739392',
+        seller_name: 'Großhandel Nord',
       },
       context(),
     );
 
-    expect(row.supplierLabel).toBe('vintage_lea92');
-    expect(row.sellerSearchText).toContain('vintage_lea92');
-    expect(row.sellerSearchText).toContain('84739392');
+    expect(row.supplierLabel).toBe('Großhandel Nord');
+    expect(row.sellerSearchText).toContain('Großhandel Nord');
   });
 
   it('zeigt ohne jede Verkäuferangabe „Nicht angegeben“', () => {
@@ -674,34 +671,34 @@ describe('getPurchaseDisplayTitle', () => {
     ).toBe('PO-0001');
   });
 
-  it('fällt auf den Titel zurück wenn Belegnummer fehlt oder leer ist', () => {
+  it('fällt auf die Beschreibung zurück wenn die Belegnummer fehlt oder leer ist', () => {
     expect(
       getPurchaseDisplayTitle({
         ...basePurchase,
         record_number: '   ',
-        title: 'Flohmarktfund',
+        notes: 'Flohmarktfund',
         supplier: { id: 's1', workspace_id: workspaceId, name: 'Lieferant' },
       }),
     ).toBe('Flohmarktfund');
   });
 
-  it('fällt auf den Lieferantennamen zurück wenn Belegnummer und Titel fehlen', () => {
+  it('fällt auf den Lieferantennamen zurück wenn Belegnummer und Beschreibung fehlen', () => {
     expect(
       getPurchaseDisplayTitle({
         ...basePurchase,
         record_number: '',
-        title: '   ',
+        notes: '   ',
         supplier: { id: 's1', workspace_id: workspaceId, name: 'Großhandel Nord' },
       }),
     ).toBe('Großhandel Nord');
   });
 
-  it('gibt null zurück wenn weder Belegnummer noch Titel noch Lieferant vorhanden sind', () => {
+  it('gibt null zurück wenn weder Belegnummer noch Beschreibung noch Lieferant vorhanden sind', () => {
     expect(
       getPurchaseDisplayTitle({
         ...basePurchase,
         record_number: '',
-        title: '',
+        notes: '',
         supplier: undefined,
       }),
     ).toBeNull();

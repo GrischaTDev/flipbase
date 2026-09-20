@@ -1687,11 +1687,10 @@ begin
   insert into public.purchases (
     workspace_id, source_id, supplier_id, type, title, purchase_date,
     purchase_price, cost_allocation_mode, notes, tracking_number,
-    tracking_carrier, tracking_status, original_url, receiving_status,
+    tracking_carrier, tracking_status, receiving_status,
     content_status, pricing_mode, supplier_reference, request_id, discount_amount,
-    seller_type, seller_name, seller_marketplace_username, seller_street,
-    seller_address_extra, seller_postal_code, seller_city, seller_country_code,
-    external_order_id
+    seller_type, seller_name, seller_street, seller_address_extra,
+    seller_postal_code, seller_city, seller_country_code
   ) values (
     p_workspace_id,
     v_source_id,
@@ -1705,7 +1704,6 @@ begin
     nullif(btrim(p_purchase ->> 'tracking_number'), ''),
     nullif(p_purchase ->> 'tracking_carrier', ''),
     coalesce(nullif(p_purchase ->> 'tracking_status', ''), 'pending'),
-    nullif(p_purchase ->> 'original_url', ''),
     'draft',
     coalesce(p_purchase ->> 'content_status', 'known'),
     p_purchase ->> 'pricing_mode',
@@ -1714,13 +1712,11 @@ begin
     coalesce((p_purchase ->> 'discount_amount')::numeric, 0),
     v_seller_details ->> 'seller_type',
     v_seller_details ->> 'seller_name',
-    v_seller_details ->> 'seller_marketplace_username',
     v_seller_details ->> 'seller_street',
     v_seller_details ->> 'seller_address_extra',
     v_seller_details ->> 'seller_postal_code',
     v_seller_details ->> 'seller_city',
-    v_seller_details ->> 'seller_country_code',
-    v_seller_details ->> 'external_order_id'
+    v_seller_details ->> 'seller_country_code'
   ) returning * into v_purchase;
 
   for v_line in select value from jsonb_array_elements(p_lines) loop
@@ -2477,16 +2473,13 @@ begin
       tracking_number = nullif(pg_catalog.btrim(p_purchase ->> 'tracking_number'), ''),
       tracking_carrier = nullif(p_purchase ->> 'tracking_carrier', ''),
       tracking_status = coalesce(nullif(p_purchase ->> 'tracking_status', ''), 'pending'),
-      original_url = nullif(p_purchase ->> 'original_url', ''),
       seller_type = v_seller_details ->> 'seller_type',
       seller_name = v_seller_details ->> 'seller_name',
-      seller_marketplace_username = v_seller_details ->> 'seller_marketplace_username',
       seller_street = v_seller_details ->> 'seller_street',
       seller_address_extra = v_seller_details ->> 'seller_address_extra',
       seller_postal_code = v_seller_details ->> 'seller_postal_code',
       seller_city = v_seller_details ->> 'seller_city',
       seller_country_code = v_seller_details ->> 'seller_country_code',
-      external_order_id = v_seller_details ->> 'external_order_id',
       updated_at = pg_catalog.clock_timestamp()
   where workspace_id = p_workspace_id
     and id = p_purchase_id

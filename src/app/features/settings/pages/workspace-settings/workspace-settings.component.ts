@@ -134,7 +134,7 @@ export class WorkspaceSettingsComponent {
         text:
           '„' +
           workspace.name +
-          '“ enthält aufbewahrungsrelevante Geschäftsdaten oder Prüfprotokolle und muss deshalb erhalten bleiben. Du kannst ihn stattdessen archivieren. Er bleibt dann lesbar, neue Geschäftsdaten werden aber gesperrt. Ein Datenexport ist optional unter „Daten & Protokolle“ verfügbar.',
+          '“ enthält aufbewahrungsrelevante Geschäftsdaten oder Prüfprotokolle und muss deshalb erhalten bleiben. Du kannst ihn stattdessen archivieren. Er bleibt dann lesbar, neue Geschäftsdaten werden aber gesperrt. Ein Datenexport ist unter „Daten & Protokolle“ verfügbar.',
         bestaetigenText: 'Workspace archivieren',
         abbrechenText: 'Abbrechen',
       });

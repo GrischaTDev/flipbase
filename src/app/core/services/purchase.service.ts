@@ -106,19 +106,16 @@ export interface CreatePurchasePayload {
   supplier_reference?: string | null;
   seller_type?: Purchase['seller_type'];
   seller_name?: string | null;
-  seller_marketplace_username?: string | null;
   seller_street?: string | null;
   seller_address_extra?: string | null;
   seller_postal_code?: string | null;
   seller_city?: string | null;
   seller_country_code?: string | null;
-  external_order_id?: string | null;
   cost_allocation_mode?: CostAllocationMode;
   notes?: string | null;
   tracking_number?: string | null;
   tracking_carrier?: TrackingCarrier | null;
   tracking_status?: InboundTrackingStatus | null;
-  original_url?: string | null;
   items_count?: number;
   initial_costs?: readonly CreatePurchaseCostInput[];
   single_item_title?: string;
@@ -706,7 +703,6 @@ export class PurchaseService {
       tracking_number: payload.tracking_number?.trim() || null,
       tracking_carrier: payload.tracking_carrier || (payload.tracking_number ? 'dhl' : null),
       tracking_status: payload.tracking_status || (payload.tracking_number ? 'in_transit' : null),
-      original_url: payload.original_url || null,
       receiving_status: 'draft',
       items_count:
         normalizedLines.data.length > 0
@@ -742,7 +738,6 @@ export class PurchaseService {
           tracking_carrier: payload.tracking_carrier || (payload.tracking_number ? 'dhl' : null),
           tracking_status:
             payload.tracking_status || (payload.tracking_number ? 'in_transit' : 'pending'),
-          original_url: payload.original_url || null,
           ...this.sellerSnapshotFields(payload),
         },
         p_expenses: kostenZeilen.map((cost) => ({
@@ -931,7 +926,6 @@ export class PurchaseService {
           tracking_carrier: payload.tracking_carrier || (payload.tracking_number ? 'dhl' : null),
           tracking_status:
             payload.tracking_status || (payload.tracking_number ? 'in_transit' : 'pending'),
-          original_url: payload.original_url || null,
           ...this.sellerSnapshotFields(payload),
         },
         p_expenses: costs,
@@ -1403,7 +1397,6 @@ export class PurchaseService {
       purchase_price?: number | null;
       source_id?: string | null;
       supplier_id?: string | null;
-      original_url?: string | null;
       notes?: string | null;
       tracking_number?: string | null;
       tracking_carrier?: TrackingCarrier | null;
@@ -1458,7 +1451,6 @@ export class PurchaseService {
           purchase_price: updates.purchase_price,
           source_id: updates.source_id,
           supplier_id: updates.supplier_id,
-          original_url: updates.original_url,
           notes: updates.notes,
           tracking_number:
             updates.tracking_number === undefined
@@ -2066,13 +2058,11 @@ export class PurchaseService {
     return {
       seller_type: payload.seller_type ?? null,
       seller_name: payload.seller_name?.trim() || null,
-      seller_marketplace_username: payload.seller_marketplace_username?.trim() || null,
       seller_street: payload.seller_street?.trim() || null,
       seller_address_extra: payload.seller_address_extra?.trim() || null,
       seller_postal_code: payload.seller_postal_code?.trim() || null,
       seller_city: payload.seller_city?.trim() || null,
       seller_country_code: payload.seller_country_code?.trim().toUpperCase() || null,
-      external_order_id: payload.external_order_id?.trim() || null,
     };
   }
 

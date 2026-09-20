@@ -19,7 +19,12 @@
 >
   <!-- Brand Logo Header -->
   <div class="h-12 flex items-center justify-between px-3 border-b border-fb-border-subtle">
-    <div class="flex items-center gap-2.5">
+    <a
+      routerLink="/dashboard"
+      aria-label="Zum Dashboard"
+      (click)="closed.emit()"
+      class="flex items-center gap-2.5 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/60"
+    >
       <!--
         Das Zeichen bringt seinen eigenen dunklen Grund mit und steht deshalb
         in beiden Designs. Der Schriftzug daneben bleibt Text: So faerbt er
@@ -41,7 +46,7 @@
           OS
         </span>
       </div>
-    </div>
+    </a>
 
     <button
       type="button"

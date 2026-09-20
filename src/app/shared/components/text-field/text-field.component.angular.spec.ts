@@ -43,6 +43,7 @@ describe('TextFieldComponent', () => {
       disabled: ['disabled', 1, null],
       id: ['id', 1, null],
       autocomplete: ['autocomplete', 1, null],
+      required: ['required', 1, null],
     };
     metadata.declaredInputs = {
       ...metadata.declaredInputs,
@@ -61,6 +62,7 @@ describe('TextFieldComponent', () => {
       disabled: 'disabled',
       id: 'id',
       autocomplete: 'autocomplete',
+      required: 'required',
     };
 
     TestBed.resetTestingModule();
@@ -93,6 +95,19 @@ describe('TextFieldComponent', () => {
     const input = fixture.nativeElement.querySelector('input');
     expect(label.textContent).toContain('Lieferantenname');
     expect(label.getAttribute('for')).toBe(input.id);
+  });
+
+  it('kennzeichnet Pflichtfelder sichtbar, ohne den zugänglichen Namen zu verändern', () => {
+    fixture.componentRef.setInput('label', 'Verkäufer');
+    fixture.componentRef.setInput('required', true);
+    fixture.detectChanges();
+
+    const marker = fixture.nativeElement.querySelector('[data-required-indicator]');
+    const input = fixture.nativeElement.querySelector('input');
+
+    expect(marker?.textContent?.trim()).toBe('*');
+    expect(marker?.getAttribute('aria-hidden')).toBe('true');
+    expect(input.required).toBe(true);
   });
 
   it('should render error and mark input invalid', () => {

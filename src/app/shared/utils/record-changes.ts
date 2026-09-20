@@ -50,19 +50,16 @@ const FIELD_LABELS: Readonly<Record<string, string>> = {
   tracking_number: 'Sendungsnummer',
   tracking_carrier: 'Versanddienstleister',
   tracking_status: 'Sendungsstatus',
-  original_url: 'Angebotslink',
   content_status: 'Inhaltskenntnis',
   pricing_mode: 'Preisführung',
   supplier_reference: 'Verkäuferreferenz',
   seller_type: 'Verkäuferart',
   seller_name: 'Verkäufername',
-  seller_marketplace_username: 'Plattform-Benutzername',
   seller_street: 'Straße',
   seller_address_extra: 'Adresszusatz',
   seller_postal_code: 'PLZ',
   seller_city: 'Ort',
   seller_country_code: 'Land',
-  external_order_id: 'Bestellnummer der Plattform',
   document_type: 'Belegart',
   original_file_name: 'Dateiname',
   discount_amount: 'Rabatt',
@@ -74,6 +71,7 @@ const FIELD_LABELS: Readonly<Record<string, string>> = {
   condition_snapshot: 'Zustand',
   estimated_market_value: 'Geschätzter Marktwert',
   direct_costs: 'Direkte Kosten',
+  external_order_id: 'Bestellnummer',
 };
 
 /** Einzahlform für Einträge einer Liste, damit „Position 2“ statt „Positionen · 2“ erscheint. */

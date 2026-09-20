@@ -194,9 +194,6 @@
       (change)="importCsv($event)"
     />
   </div>
-  @if (!isMysteryPurchase()) {
-    <app-button variant="plain" (clicked)="addPackage()">Paket hinzufügen</app-button>
-  }
   @if (scannerOpen()) {
     <div class="space-y-2">
       <div class="flex flex-wrap items-end gap-2">
@@ -276,7 +273,7 @@
         </p>
       } @else {
         <app-text-field
-          label="EAN / GTIN (optional)"
+          label="EAN / GTIN"
           formControlName="ean"
           [error]="row.controls.ean.invalid ? 'Ungültige EAN/GTIN.' : null"
         />
@@ -293,7 +290,7 @@
       @if (isMysteryPurchase()) {
         <div>
           <label for="line-market-value" class="mb-1.5 block text-[13px] font-semibold"
-            >Geschätzter Marktwert (optional)</label
+            >Geschätzter Marktwert</label
           ><app-number-input
             id="line-market-value"
             ariaLabel="Geschätzter Marktwert"

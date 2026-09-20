@@ -1,5 +1,5 @@
 <app-modal-shell
-  title="Verkäuferangaben bearbeiten"
+  title="Einkaufsangaben bearbeiten"
   subtitle="Kosten, Positionen und Bestand bleiben unverändert."
   size="md"
   (closed)="closed.emit()"
@@ -34,46 +34,20 @@
         />
       </div>
       <div class="min-w-0">
-        <span class="mb-1.5 block text-[13px] font-semibold">Gespeicherter Verkäufer</span>
+        <span class="mb-1.5 block text-[13px] font-semibold">
+          Verkäufer <span aria-hidden="true" class="text-fb-primary">*</span>
+        </span>
         <app-custom-select
           formControlName="supplier_id"
           [options]="supplierOptions()"
-          ariaLabel="Gespeicherten Verkäufer auswählen"
+          [required]="true"
+          ariaLabel="Verkäufer auswählen"
           (valueChange)="onSupplierSelected($event)"
         />
       </div>
-      <app-text-field
-        formControlName="seller_marketplace_username"
-        label="Plattform-Benutzername"
-      />
-      <div class="min-w-0">
-        <span class="mb-1.5 block text-[13px] font-semibold">Verkäuferart</span>
-        <app-custom-select
-          formControlName="seller_type"
-          [options]="sellerTypeOptions"
-          ariaLabel="Verkäuferart"
-        />
-      </div>
-      <app-text-field formControlName="seller_name" label="Name" />
-      <app-text-field formControlName="seller_street" label="Straße und Hausnummer" />
-      <app-text-field formControlName="seller_address_extra" label="Adresszusatz" />
-      <app-text-field formControlName="seller_postal_code" label="PLZ" />
-      <app-text-field formControlName="seller_city" label="Ort" />
-      <div class="min-w-0">
-        <span class="mb-1.5 block text-[13px] font-semibold">Land</span>
-        <app-custom-select
-          formControlName="seller_country_code"
-          [options]="countryOptions"
-          ariaLabel="Land des Verkäufers"
-        />
-      </div>
-      <app-text-field formControlName="external_order_id" label="Bestellnummer der Plattform" />
       <app-text-field formControlName="supplier_reference" label="Referenznummer" />
       <div class="min-w-0 sm:col-span-2">
-        <app-text-field formControlName="original_url" type="url" label="Angebotslink" />
-      </div>
-      <div class="min-w-0 sm:col-span-2">
-        <app-text-field formControlName="reason" label="Grund (optional)" [multiline]="2" />
+        <app-text-field formControlName="reason" label="Grund" [multiline]="2" />
       </div>
     </div>
   </form>

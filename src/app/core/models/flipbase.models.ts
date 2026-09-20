@@ -212,14 +212,11 @@ export interface Purchase {
   /** Verkäufer-Snapshot dieses Einkaufs; leer heißt nicht angegeben, nicht privat. */
   seller_type?: 'private' | 'business' | null;
   seller_name?: string | null;
-  seller_marketplace_username?: string | null;
   seller_street?: string | null;
   seller_address_extra?: string | null;
   seller_postal_code?: string | null;
   seller_city?: string | null;
   seller_country_code?: string | null;
-  /** Bestellnummer der Plattform oder des Shops, nicht die interne Einkaufsnummer. */
-  external_order_id?: string | null;
   /** Schützt Nachträge der Herkunftsangaben vor veralteten Ständen. */
   seller_details_version?: number;
   id: string;
@@ -234,7 +231,6 @@ export interface Purchase {
   shipping_cost?: number;
   other_costs?: number;
   cost_allocation_mode: CostAllocationMode;
-  original_url?: string | null;
   tracking_number?: string | null;
   tracking_carrier?: TrackingCarrier | null;
   tracking_status?: InboundTrackingStatus | null;

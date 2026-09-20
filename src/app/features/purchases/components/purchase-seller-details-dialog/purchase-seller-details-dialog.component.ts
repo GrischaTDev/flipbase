@@ -12,7 +12,6 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { Purchase } from '../../../../core/models/flipbase.models';
 import {
   PurchaseSellerDetails,
-  PurchaseSellerType,
   sellerDetailsFromPurchase,
 } from '../../../../core/models/purchase-seller.models';
 import { PurchaseService } from '../../../../core/services/purchase.service';
@@ -26,11 +25,7 @@ import {
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
-import {
-  PURCHASE_SELLER_TYPE_OPTIONS,
-  purchaseSellerCountryOptions,
-  sellerSnapshotFromSupplier,
-} from '../../utils/purchase-seller';
+import { sellerSnapshotFromSupplier } from '../../utils/purchase-seller';
 
 /**
  * Trägt Quelle und Verkäuferangaben nach, ohne den Einkauf wieder zu öffnen.
@@ -58,14 +53,12 @@ export class PurchaseSellerDetailsDialogComponent implements OnInit {
   readonly closed = output<void>();
   readonly saved = output<void>();
 
-  readonly sellerTypeOptions = PURCHASE_SELLER_TYPE_OPTIONS;
-  readonly countryOptions = purchaseSellerCountryOptions();
   readonly sourceOptions = computed<readonly SelectOption<string | null>[]>(() => [
     { value: null, label: 'Keine Quelle' },
     ...this.sourcesService.sources().map((source) => ({ value: source.id, label: source.name })),
   ]);
   readonly supplierOptions = computed<readonly SelectOption<string | null>[]>(() => [
-    { value: null, label: 'Kein gespeicherter Verkäufer' },
+    { value: null, label: '-- Verkäufer wählen --' },
     ...this.suppliersService
       .suppliers()
       .map((supplier) => ({ value: supplier.id, label: supplier.name })),
@@ -77,18 +70,8 @@ export class PurchaseSellerDetailsDialogComponent implements OnInit {
 
   readonly form = new FormGroup({
     source_id: new FormControl<string | null>(null),
-    supplier_id: new FormControl<string | null>(null),
-    seller_type: new FormControl<PurchaseSellerType | null>(null),
-    seller_name: new FormControl('', { nonNullable: true }),
-    seller_marketplace_username: new FormControl('', { nonNullable: true }),
-    seller_street: new FormControl('', { nonNullable: true }),
-    seller_address_extra: new FormControl('', { nonNullable: true }),
-    seller_postal_code: new FormControl('', { nonNullable: true }),
-    seller_city: new FormControl('', { nonNullable: true }),
-    seller_country_code: new FormControl<string | null>(null),
-    external_order_id: new FormControl('', { nonNullable: true }),
+    supplier_id: new FormControl<string | null>(null, { validators: [Validators.required] }),
     supplier_reference: new FormControl('', { nonNullable: true }),
-    original_url: new FormControl('', { nonNullable: true }),
     reason: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(500)] }),
   });
 
@@ -108,17 +91,7 @@ export class PurchaseSellerDetailsDialogComponent implements OnInit {
     this.form.reset({
       source_id: details.source_id,
       supplier_id: details.supplier_id,
-      seller_type: details.seller_type,
-      seller_name: details.seller_name ?? '',
-      seller_marketplace_username: details.seller_marketplace_username ?? '',
-      seller_street: details.seller_street ?? '',
-      seller_address_extra: details.seller_address_extra ?? '',
-      seller_postal_code: details.seller_postal_code ?? '',
-      seller_city: details.seller_city ?? '',
-      seller_country_code: details.seller_country_code,
-      external_order_id: details.external_order_id ?? '',
       supplier_reference: details.supplier_reference ?? '',
-      original_url: details.original_url ?? '',
       reason: '',
     });
   }
@@ -127,40 +100,38 @@ export class PurchaseSellerDetailsDialogComponent implements OnInit {
     const supplier = supplierId
       ? this.suppliersService.suppliers().find((entry) => entry.id === supplierId)
       : undefined;
-    if (!supplier) return;
-    const snapshot = sellerSnapshotFromSupplier(supplier);
-    this.form.patchValue({
-      seller_type: snapshot.seller_type,
-      seller_name: snapshot.seller_name ?? '',
-      seller_street: snapshot.seller_street ?? '',
-      seller_address_extra: snapshot.seller_address_extra ?? '',
-      seller_postal_code: snapshot.seller_postal_code ?? '',
-      seller_city: snapshot.seller_city ?? '',
-      seller_country_code: snapshot.seller_country_code,
-    });
-    this.form.markAsDirty();
+    if (supplier) this.form.markAsDirty();
   }
 
   async save(): Promise<void> {
     if (this.isSaving()) return;
     this.form.markAllAsTouched();
     if (this.form.invalid) {
-      this.errorMessage.set('Der Grund darf höchstens 500 Zeichen lang sein.');
+      this.errorMessage.set(
+        this.form.controls.supplier_id.hasError('required')
+          ? 'Bitte einen Verkäufer auswählen.'
+          : 'Der Grund darf höchstens 500 Zeichen lang sein.',
+      );
       return;
     }
 
-    const { reason, ...values } = this.form.getRawValue();
+    const values = this.form.getRawValue();
+    const supplier = values.supplier_id
+      ? this.suppliersService.suppliers().find((entry) => entry.id === values.supplier_id)
+      : undefined;
+    const snapshot = supplier ? sellerSnapshotFromSupplier(supplier) : null;
     const details: PurchaseSellerDetails = {
-      ...values,
-      seller_name: values.seller_name || null,
-      seller_marketplace_username: values.seller_marketplace_username || null,
-      seller_street: values.seller_street || null,
-      seller_address_extra: values.seller_address_extra || null,
-      seller_postal_code: values.seller_postal_code || null,
-      seller_city: values.seller_city || null,
-      external_order_id: values.external_order_id || null,
+      ...sellerDetailsFromPurchase(this.purchase()),
+      source_id: values.source_id,
+      supplier_id: values.supplier_id,
+      seller_type: snapshot?.seller_type ?? null,
+      seller_name: snapshot?.seller_name ?? null,
+      seller_street: snapshot?.seller_street ?? null,
+      seller_address_extra: snapshot?.seller_address_extra ?? null,
+      seller_postal_code: snapshot?.seller_postal_code ?? null,
+      seller_city: snapshot?.seller_city ?? null,
+      seller_country_code: snapshot?.seller_country_code ?? null,
       supplier_reference: values.supplier_reference || null,
-      original_url: values.original_url || null,
     };
 
     this.isSaving.set(true);
@@ -170,7 +141,7 @@ export class PurchaseSellerDetailsDialogComponent implements OnInit {
         this.purchase().id,
         this.expectedVersion,
         details,
-        reason || null,
+        values.reason || null,
       );
       if (result.error) {
         this.hasConflict.set(result.conflict);

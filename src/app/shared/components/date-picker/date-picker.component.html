@@ -5,6 +5,7 @@
     [value]="displayValue()"
     [placeholder]="effectivePlaceholder()"
     [disabled]="effectiveDisabled()"
+    [required]="required()"
     [attr.aria-label]="effectiveAriaLabel() || null"
     (input)="onInput($event)"
     (blur)="onBlur($event)"

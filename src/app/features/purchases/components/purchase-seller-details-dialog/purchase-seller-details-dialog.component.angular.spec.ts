@@ -35,8 +35,7 @@ const finalizedPurchase: Purchase = {
   cost_allocation_mode: 'even',
   entry_status: 'finalized',
   source_id: 'source-vinted',
-  seller_marketplace_username: 'vintage_lea92',
-  external_order_id: '84739392',
+  supplier_id: 'supplier-nord',
   seller_details_version: 4,
 };
 
@@ -77,22 +76,7 @@ describe('PurchaseSellerDetailsDialogComponent', () => {
     );
 
     expect(controls.sort()).toEqual(
-      [
-        'external_order_id',
-        'original_url',
-        'reason',
-        'seller_address_extra',
-        'seller_city',
-        'seller_country_code',
-        'seller_marketplace_username',
-        'seller_name',
-        'seller_postal_code',
-        'seller_street',
-        'seller_type',
-        'source_id',
-        'supplier_id',
-        'supplier_reference',
-      ].sort(),
+      ['reason', 'source_id', 'supplier_id', 'supplier_reference'].sort(),
     );
   });
 
@@ -100,8 +84,7 @@ describe('PurchaseSellerDetailsDialogComponent', () => {
     updatePurchaseSellerDetails.mockResolvedValue({ error: null, conflict: false });
     const { component, saved, closed } = createDialog();
     component.form.patchValue({
-      seller_name: 'Lea Mustermann',
-      seller_city: 'Köln',
+      supplier_reference: 'RE-42',
       reason: 'Versandanschrift nachgereicht',
     });
 
@@ -112,11 +95,12 @@ describe('PurchaseSellerDetailsDialogComponent', () => {
       4,
       expect.objectContaining({
         source_id: 'source-vinted',
-        seller_marketplace_username: 'vintage_lea92',
-        external_order_id: '84739392',
-        seller_name: 'Lea Mustermann',
-        seller_city: 'Köln',
-        seller_street: null,
+        supplier_id: 'supplier-nord',
+        supplier_reference: 'RE-42',
+        seller_type: 'business',
+        seller_name: 'Großhandel Nord',
+        seller_city: 'Hamburg',
+        seller_street: 'Hafenstraße 1',
       }),
       'Versandanschrift nachgereicht',
     );
@@ -131,27 +115,22 @@ describe('PurchaseSellerDetailsDialogComponent', () => {
       conflict: true,
     });
     const { component, closed } = createDialog();
-    component.form.controls.seller_city.setValue('Köln');
+    component.form.controls.supplier_reference.setValue('RE-42');
 
     await component.save();
 
     expect(component.errorMessage()).toBe(PURCHASE_SELLER_DETAILS_CONFLICT_MESSAGE);
     expect(component.hasConflict()).toBe(true);
-    expect(component.form.controls.seller_city.value).toBe('Köln');
+    expect(component.form.controls.supplier_reference.value).toBe('RE-42');
     expect(component.isSaving()).toBe(false);
     expect(closed).not.toHaveBeenCalled();
   });
 
-  it('kopiert bei Auswahl eines gespeicherten Verkäufers nur Art, Name und Anschrift', () => {
+  it('markiert die Auswahl eines gespeicherten Verkäufers als Änderung', () => {
     const { component } = createDialog();
 
     component.onSupplierSelected('supplier-nord');
 
-    expect(component.form.getRawValue()).toMatchObject({
-      seller_type: 'business',
-      seller_name: 'Großhandel Nord',
-      seller_city: 'Hamburg',
-      seller_marketplace_username: 'vintage_lea92',
-    });
+    expect(component.form.dirty).toBe(true);
   });
 });

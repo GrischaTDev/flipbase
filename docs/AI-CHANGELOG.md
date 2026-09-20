@@ -27,6 +27,39 @@ wurden im Rot-Grün-Verfahren ergänzt. `npm run verify` war vollständig grün:
 Typprüfung und Produktionsbau. Die manuelle Browserprüfung bestätigte den
 Seitensprung bis zum Formular ohne Konsolenfehler oder -warnungen.
 
+## 2026-09-20 – Codex (OpenAI) – Einkaufserfassung auf Verkäufer und Artikel reduziert
+
+**Auftrag:** Die überladene Einkaufserfassung vereinfachen, die Kostenübersicht
+an den bekannten Bestellaufbau angleichen und das Logo wieder mit dem Dashboard
+verknüpfen.
+
+**Änderung:** Verkäufer, Quelle und Kaufdatum stehen wieder am Anfang. Der
+Verkäufer ist verpflichtend, wird aus den Stammdaten gewählt oder dort neu
+angelegt und liefert den unveränderlichen Einkaufssnapshot im Hintergrund. Eine
+Quelle kann direkt aus der Auswahl heraus erstellt werden. Beschreibung und
+Referenznummer bleiben als schlanke Einkaufsdetails; Bezeichnung,
+Plattform-Benutzername, Angebotslink, Plattform-Bestellnummer und die doppelte
+Verkäuferanschrift sind entfernt. Die Datenbankmigration löscht die drei nicht
+mehr verwendeten Einkaufsspalten, ohne die Bestellnummer von Verkäufen zu
+berühren.
+
+Die Kostenübersicht zeigt immer bestellte Artikel, Artikelanzahl, Anpassungen und
+Gesamtbetrag – auch jeweils mit null Euro. Zusatzkosten stehen dazwischen. Die
+Paketpreisverteilung und das Anlegen besonderer Paketpositionen sind aus der
+Erfassung entfernt; normale selbst angelegte Platzhalterartikel bleiben möglich.
+Sichtbare „optional“-Zusätze wurden anwendungsweit entfernt, Pflichtfelder tragen
+den gelben Stern. Das Flipbase-Logo führt wieder zum Dashboard.
+
+**Prüfung:** Nach dem Abgleich mit dem aktuellen `origin/master` waren der
+Datenbank-Reset und alle 1.945 Datenbanktests erfolgreich. Der vollständige
+Verifikationslauf bestand Formatierung, Lint, Typprüfung, 82 Workflow-Prüfungen
+(davon fünf plattformbedingt übersprungen), 10 Edge-Tests, das Suite-Audit mit
+2.357 Testdefinitionen, 2.638 Anwendungs-, 15 Landing-Tests und den
+Produktionsbau. Zusätzlich waren alle neun verpflichtenden Chromium-Abläufe
+erfolgreich. Dabei gefundene veraltete Erwartungen an offene Preise und ein
+fälschlich als geändert markierter geladener Einkauf wurden korrigiert und erneut
+geprüft.
+
 ## 2026-09-20 – Codex (OpenAI) – Beta-Produktionsgrenzen und Gesamtweg abgesichert
 
 **Auftrag:** Die fertige Beta-Anmeldung vor dem Pull Request unabhängig prüfen,

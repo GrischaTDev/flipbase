@@ -15,11 +15,8 @@ const purchase: Purchase = {
   cost_allocation_mode: 'even',
   source: { id: 'source-1', workspace_id: 'workspace-1', name: 'Vinted' },
   seller_name: 'Lea Mustermann',
-  seller_marketplace_username: 'vintage_lea92',
   seller_city: 'Köln',
-  external_order_id: '84739392',
   supplier_reference: 'REF-7',
-  original_url: 'https://www.vinted.de/items/1',
   costs: [
     {
       id: 'cost-1',
@@ -86,12 +83,9 @@ describe('buildPurchasePrintModel', () => {
     expect(model.sellerRows).toEqual(
       expect.arrayContaining([
         { label: 'Quelle', value: 'Vinted' },
-        { label: 'Plattform-Benutzername', value: 'vintage_lea92' },
-        { label: 'Bestellnummer der Plattform', value: '84739392' },
         { label: 'Referenznummer', value: 'REF-7' },
       ]),
     );
-    expect(model.offerUrl).toBe('https://www.vinted.de/items/1');
     expect(model.lines).toEqual([
       { title: 'Jacke', quantity: 2, unitPrice: 20, lineTotal: 40 },
       { title: 'Mütze', quantity: 1, unitPrice: null, lineTotal: null },

@@ -37,7 +37,6 @@ export interface PurchasePrintModel {
   readonly purchaseDate: string;
   readonly sellerLabel: string;
   readonly sellerRows: readonly PurchaseSellerDetailRow[];
-  readonly offerUrl: string | null;
   readonly lines: readonly PurchasePrintLine[];
   readonly costRows: readonly PurchasePrintCostRow[];
   readonly total: number | null;
@@ -69,12 +68,11 @@ export function buildPurchasePrintModel(
   }
 
   return {
-    heading: getPurchaseDisplayTitle(purchase) ?? 'Einkauf',
-    title: purchase.title || '',
+    heading: (getPurchaseDisplayTitle(purchase) ?? purchase.title) || 'Einkauf',
+    title: purchase.notes || purchase.title || '',
     purchaseDate: purchase.purchase_date,
     sellerLabel: purchaseSellerLabel(purchase),
     sellerRows: purchaseSellerDetailRows(purchase),
-    offerUrl: purchase.original_url ?? null,
     lines: lines.map((line) => ({
       title: line.title_snapshot,
       quantity: line.ordered_quantity,

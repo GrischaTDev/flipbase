@@ -42,6 +42,7 @@ beforeEach(() => {
     ariaLabel: ['ariaLabel', 1, null],
     triggerId: ['triggerId', 1, null],
     actionLabel: ['actionLabel', 1, null],
+    required: ['required', 1, null],
   };
   metadata.declaredInputs = {
     ...metadata.declaredInputs,
@@ -56,6 +57,7 @@ beforeEach(() => {
     ariaLabel: 'ariaLabel',
     triggerId: 'triggerId',
     actionLabel: 'actionLabel',
+    required: 'required',
   };
   TestBed.resetTestingModule();
   TestBed.configureTestingModule({ imports: [CustomSelectComponent] });
@@ -82,6 +84,7 @@ function createSelect(
     triggerId?: string;
     options?: readonly SelectOption<string>[];
     actionLabel?: string;
+    required?: boolean;
   } = {},
 ) {
   const fixture = TestBed.createComponent(CustomSelectComponent<string>);
@@ -91,6 +94,7 @@ function createSelect(
   if (config.disabled !== undefined) fixture.componentRef.setInput('disabled', config.disabled);
   if (config.triggerId) fixture.componentRef.setInput('triggerId', config.triggerId);
   if (config.actionLabel) fixture.componentRef.setInput('actionLabel', config.actionLabel);
+  if (config.required !== undefined) fixture.componentRef.setInput('required', config.required);
   fixture.componentInstance.writeValue(config.value ?? null);
   fixture.detectChanges();
 
@@ -139,6 +143,12 @@ async function flushQueuedFocus(fixture: ReturnType<typeof createSelect>): Promi
 }
 
 describe('CustomSelectComponent', () => {
+  it('kennzeichnet eine verpflichtende Auswahl für Hilfstechnologien', () => {
+    const fixture = createSelect({ required: true });
+
+    expect(triggerOf(fixture).getAttribute('aria-required')).toBe('true');
+  });
+
   it('zeigt eine getrennte Aktion am Ende des geöffneten Menüs', () => {
     const fixture = createSelect({ actionLabel: 'Verkäufer erstellen' });
     const action = vi.fn();

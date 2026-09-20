@@ -1,4 +1,4 @@
-import { expect, openDashboard, test } from './support/fixtures';
+import { expect, openDashboard, selectDefaultPurchaseSeller, test } from './support/fixtures';
 import { addNewPurchaseProduct } from './support/products';
 
 test('keeps a saved draft editable through discard, save and reopening @pr-smoke', async ({
@@ -6,7 +6,8 @@ test('keeps a saved draft editable through discard, save and reopening @pr-smoke
 }) => {
   await openDashboard(page);
   await page.goto('/purchases/new');
-  const description = page.getByRole('textbox', { name: 'Beschreibung (optional)' });
+  await selectDefaultPurchaseSeller(page);
+  const description = page.getByRole('textbox', { name: 'Beschreibung' });
   await description.fill('Direkt bearbeitbarer Entwurf');
   await addNewPurchaseProduct(page, 'Entwurfsartikel');
   await page
@@ -51,7 +52,8 @@ test('keeps receiving accessible for saved quantity drafts and blocks it while d
 }) => {
   await openDashboard(page);
   await page.goto('/purchases/new');
-  const description = page.getByRole('textbox', { name: 'Beschreibung (optional)' });
+  await selectDefaultPurchaseSeller(page);
+  const description = page.getByRole('textbox', { name: 'Beschreibung' });
   await description.fill('Mengenentwurf');
   await addNewPurchaseProduct(page, 'Test-Mengenartikel');
   await page
