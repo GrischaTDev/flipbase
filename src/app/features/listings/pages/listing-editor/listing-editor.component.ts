@@ -20,6 +20,7 @@ import {
   ListingStudioService,
   type ListingStyleTone,
 } from '../../../../core/services/listing-studio.service';
+import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { ListingExtensionService } from '../../services/listing-extension.service';
 import { ListingService } from '../../services/listing.service';
 import type {
@@ -47,6 +48,7 @@ export class ListingEditorComponent {
   readonly listingService = inject(ListingService);
   readonly extension = inject(ListingExtensionService);
   private readonly studio = inject(ListingStudioService);
+  private readonly workspaceService = inject(WorkspaceService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
@@ -55,6 +57,7 @@ export class ListingEditorComponent {
   readonly helpOpen = signal(false);
   readonly listingId = signal<string | null>(this.route.snapshot.paramMap.get('id'));
   readonly isEdit = computed(() => this.listingId() !== null);
+  private readonly selectedItemId = signal('');
   readonly priceTypeOptions: readonly SelectOption<ListingPriceType>[] = [
     { value: 'FIXED', label: 'Festpreis' },
     { value: 'NEGOTIABLE', label: 'Verhandlungsbasis' },
@@ -94,22 +97,36 @@ export class ListingEditorComponent {
     includeDisclaimer: new FormControl(true, { nonNullable: true }),
   });
   readonly selectedItem = computed(
-    () =>
-      this.listingService
-        .items()
-        .find((item) => item.id === this.form.controls.inventoryItemId.value) ?? null,
+    () => this.listingService.items().find((item) => item.id === this.selectedItemId()) ?? null,
   );
 
   constructor() {
     this.extension.start();
+    effect(() => {
+      const workspaceId = this.workspaceService.currentWorkspace()?.id;
+      if (!workspaceId) {
+        this.listingService.clear();
+        return;
+      }
+      if (this.listingService.loadedWorkspaceId() !== workspaceId) {
+        void this.listingService.load(workspaceId);
+      }
+    });
     effect(() => {
       const id = this.listingId();
       if (!id) return;
       const row = this.listingService.getById(id);
       if (!row) return;
       this.form.patchValue({ inventoryItemId: row.item.id, ...row.listing.content });
+      this.selectedItemId.set(row.item.id);
       this.form.controls.inventoryItemId.disable({ emitEvent: false });
       this.storeBaseline();
+    });
+    this.form.controls.inventoryItemId.valueChanges.subscribe((itemId) => {
+      this.selectedItemId.set(itemId);
+      if (this.isEdit() || this.form.controls.price.dirty) return;
+      const item = this.listingService.items().find((candidate) => candidate.id === itemId);
+      this.form.controls.price.setValue(item?.expectedValue ?? item?.allocatedPurchaseCost ?? 0);
     });
     this.form.controls.shippingType.valueChanges.subscribe((type) => {
       if (type === 'pickup') this.form.controls.shippingPrice.setValue(null);

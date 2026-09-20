@@ -91,11 +91,13 @@ Removal happens only in Task 8 after the new overview and editor cover every ret
 ### Task 1: Define listing domain contracts and boundary rules
 
 **Files:**
+
 - Create: `src/app/features/listings/models/listing.models.ts`
 - Create: `src/app/features/listings/models/listing.rules.ts`
 - Test: `src/app/features/listings/models/listing.rules.spec.ts`
 
 **Interfaces:**
+
 - Consumes: `InventoryItem`, `ItemStatus`, and `BadgeTone` from current shared models/components.
 - Produces: `Listing`, `ListingContent`, `ListingRow`, `ListingEditorItem`, `ListingFilter`, `ListingStatus`, `ListingEndReason`, `ListingPriceType`, `ListingShippingType`, `LISTING_LIMITS`, `canPrepareListing(item)`, `validateListingContent(content)`, `listingStatusLabel(status)`, and `listingStatusTone(status)`.
 
@@ -113,7 +115,10 @@ import {
   validateListingContent,
 } from './listing.rules';
 
-const item = (status: InventoryItem['status'], archivedAt: string | null = null): InventoryItem => ({
+const item = (
+  status: InventoryItem['status'],
+  archivedAt: string | null = null,
+): InventoryItem => ({
   id: '11111111-1111-4111-8111-111111111111',
   workspace_id: '22222222-2222-4222-8222-222222222222',
   title: 'Bosch Akkuschrauber',
@@ -287,8 +292,7 @@ const PREPARABLE_STATUSES = new Set<InventoryItem['status']>([
 ]);
 
 export type ListingEligibility =
-  | { readonly allowed: true }
-  | { readonly allowed: false; readonly reason: string };
+  { readonly allowed: true } | { readonly allowed: false; readonly reason: string };
 
 export function canPrepareListing(item: InventoryItem): ListingEligibility {
   if (item.archived_at) return { allowed: false, reason: 'Der Artikel ist archiviert.' };
@@ -299,7 +303,10 @@ export function canPrepareListing(item: InventoryItem): ListingEligibility {
     defective: 'Der Artikel ist als defekt markiert.',
     archived: 'Der Artikel ist archiviert.',
   };
-  return { allowed: false, reason: reasons[item.status] ?? 'Dieser Artikel kann nicht inseriert werden.' };
+  return {
+    allowed: false,
+    reason: reasons[item.status] ?? 'Dieser Artikel kann nicht inseriert werden.',
+  };
 }
 
 export function listingStatusLabel(status: ListingStatus): string {
@@ -316,7 +323,10 @@ export function validateListingContent(content: ListingContent): ListingValidati
   if (!title || title.length > LISTING_LIMITS.title)
     errors.push({ field: 'title', message: 'Der Titel muss 1 bis 65 Zeichen enthalten.' });
   if (content.description.length > LISTING_LIMITS.description)
-    errors.push({ field: 'description', message: 'Die Beschreibung darf höchstens 4.000 Zeichen enthalten.' });
+    errors.push({
+      field: 'description',
+      message: 'Die Beschreibung darf höchstens 4.000 Zeichen enthalten.',
+    });
   if (!Number.isFinite(content.price) || content.price < 0 || content.price > LISTING_LIMITS.price)
     errors.push({ field: 'price', message: 'Der Preis muss zwischen 0 und 99.999.999 € liegen.' });
   if (
@@ -325,9 +335,15 @@ export function validateListingContent(content: ListingContent): ListingValidati
   )
     errors.push({ field: 'shippingPrice', message: 'Versandkosten dürfen nicht negativ sein.' });
   if (content.shippingType === 'pickup' && content.shippingPrice !== null)
-    errors.push({ field: 'shippingPrice', message: 'Bei Abholung dürfen keine Versandkosten gespeichert sein.' });
+    errors.push({
+      field: 'shippingPrice',
+      message: 'Bei Abholung dürfen keine Versandkosten gespeichert sein.',
+    });
   if (content.postalCode !== null && !/^\d{5}$/.test(content.postalCode))
-    errors.push({ field: 'postalCode', message: 'Die Postleitzahl muss aus fünf Ziffern bestehen.' });
+    errors.push({
+      field: 'postalCode',
+      message: 'Die Postleitzahl muss aus fünf Ziffern bestehen.',
+    });
   return errors;
 }
 ```
@@ -355,6 +371,7 @@ git commit -m "feat(sales): define saved listing contracts"
 ### Task 2: Add the listings table, RLS, and exact data constraints
 
 **Files:**
+
 - Create: `supabase/schemas/230_listings.sql`
 - Create: `supabase/tests/listings.test.sql`
 - Modify: `supabase/config.toml`
@@ -362,6 +379,7 @@ git commit -m "feat(sales): define saved listing contracts"
 - Modify: `src/app/core/models/supabase.types.ts`
 
 **Interfaces:**
+
 - Consumes: `public.workspaces`, `public.inventory_items`, `public.is_workspace_member(uuid)`, and `public.protect_archived_workspace_data()`.
 - Produces: `public.listings`, its row type, the exact database constraints from Task 1, and authenticated SELECT/update-content access.
 
@@ -518,12 +536,14 @@ git commit -m "feat(sales): add saved listing storage"
 ### Task 3: Add transactional listing lifecycle functions and sale coupling
 
 **Files:**
+
 - Modify: `supabase/schemas/230_listings.sql`
 - Modify: `supabase/tests/listings.test.sql`
 - Create: `supabase/migrations/*_add_listing_lifecycle.sql` through `supabase db diff`
 - Modify: `src/app/core/models/supabase.types.ts`
 
 **Interfaces:**
+
 - Consumes: `public.listings` from Task 2 and current inventory/purchase integrity triggers.
 - Produces: `prepare_listing(uuid, uuid, jsonb)`, `set_listing_online(uuid, uuid)`, `end_listing(uuid, uuid)`, and `end_listings_after_inventory_sale()` returning or updating `public.listings` rows.
 
@@ -660,10 +680,12 @@ git commit -m "feat(sales): add listing lifecycle functions"
 ### Task 4: Build the workspace-safe ListingService
 
 **Files:**
+
 - Create: `src/app/features/listings/services/listing.service.ts`
 - Test: `src/app/features/listings/services/listing.service.angular.spec.ts`
 
 **Interfaces:**
+
 - Consumes: generated `Database` rows/RPCs, `WorkspaceService.currentWorkspace`, `MediaService.resolveMediaUrls`, Task 1 domain types, and Task 3 RPCs.
 - Produces: signals `rows`, `items`, `loading`, `error`, `loadedWorkspaceId`; methods `load(workspaceId)`, `prepare(itemId, content)`, `updateContent(listingId, content)`, `setOnline(listingId)`, `end(listingId)`, `getById(listingId)`, `buildExtensionPayload(row)`, and `clear()`.
 
@@ -784,12 +806,14 @@ git commit -m "feat(sales): add workspace-safe listing service"
 ### Task 5: Extract the reusable Kleinanzeigen extension bridge
 
 **Files:**
+
 - Create: `src/app/features/listings/services/listing-extension.service.ts`
 - Test: `src/app/features/listings/services/listing-extension.service.dom.spec.ts`
 - Create: `src/app/features/listings/components/listing-extension-help/listing-extension-help.component.ts`
 - Create: `src/app/features/listings/components/listing-extension-help/listing-extension-help.component.html`
 
 **Interfaces:**
+
 - Consumes: existing `KleinanzeigenListingPayload` and the established window messages `FLIPBASE_CHECK_EXTENSION`, `FLIPBASE_EXTENSION_READY`, `flipbase:extension-ready`, and `FLIPBASE_PUBLISH_KLEINANZEIGEN`.
 - Produces: signals `available`, `checking`, methods `start()`, `checkNow()`, `publish(payload)`, and automatic cleanup via `DestroyRef`.
 
@@ -855,11 +879,13 @@ git commit -m "refactor(sales): share listing extension bridge"
 ### Task 6: Build the listing overview and lifecycle actions
 
 **Files:**
+
 - Create: `src/app/features/listings/pages/listing-overview/listing-overview.component.ts`
 - Create: `src/app/features/listings/pages/listing-overview/listing-overview.component.html`
 - Test: `src/app/features/listings/pages/listing-overview/listing-overview.component.angular.spec.ts`
 
 **Interfaces:**
+
 - Consumes: `ListingService`, `ListingExtensionService`, `WorkspaceService`, Task 1 rules, Router, shared DataTable/Badge/Button/ProductThumbnail/ConfirmDialog/Toast components.
 - Produces: `/listings` page behavior, filters, search, responsive table/cards, and actions `setOnline`, `openAgain`, `relist`, `edit`, and `end`.
 
@@ -947,6 +973,7 @@ git commit -m "feat(sales): add saved listing overview"
 ### Task 7: Build the create/edit listing editor around the existing generator
 
 **Files:**
+
 - Create: `src/app/features/listings/pages/listing-editor/listing-editor.component.ts`
 - Create: `src/app/features/listings/pages/listing-editor/listing-editor.component.html`
 - Test: `src/app/features/listings/pages/listing-editor/listing-editor.component.angular.spec.ts`
@@ -954,6 +981,7 @@ git commit -m "feat(sales): add saved listing overview"
 - Modify: `src/app/core/services/listing-studio.spec.ts`
 
 **Interfaces:**
+
 - Consumes: `ListingService`, `ListingExtensionService`, current `ListingStudioService.generateListing`, route param `id`, Task 1 rules, shared fields/select/number input/page layout, and `UnsavedEntryPage`.
 - Produces: one editor component for `/listings/new` and `/listings/:id`, with `hasUnsavedChanges()` and `isSaving()`.
 
@@ -1057,6 +1085,7 @@ git commit -m "feat(sales): add listing create and edit flow"
 ### Task 8: Wire routes and navigation, then retire the legacy page
 
 **Files:**
+
 - Create: `src/app/features/listings/listings.routes.ts`
 - Create: `src/app/core/config/listings-navigation.ts`
 - Modify: `src/app/app.routes.ts`
@@ -1067,6 +1096,7 @@ git commit -m "feat(sales): add listing create and edit flow"
 - Remove: `src/app/features/listings/listings-toast-actions.angular.spec.ts`
 
 **Interfaces:**
+
 - Consumes: overview/editor pages, shared `unsavedEntryGuard`, and `SubNavigationItem`.
 - Produces: lazy routes `/listings`, `/listings/new`, `/listings/:id` and sidebar children.
 
@@ -1113,9 +1143,29 @@ Create route order exactly as follows so `new` is not captured as an ID:
 
 ```ts
 export const LISTINGS_ROUTES: Routes = [
-  { path: '', loadComponent: () => import('./pages/listing-overview/listing-overview.component').then((m) => m.ListingOverviewComponent) },
-  { path: 'new', canDeactivate: [unsavedEntryGuard], loadComponent: () => import('./pages/listing-editor/listing-editor.component').then((m) => m.ListingEditorComponent) },
-  { path: ':id', canDeactivate: [unsavedEntryGuard], loadComponent: () => import('./pages/listing-editor/listing-editor.component').then((m) => m.ListingEditorComponent) },
+  {
+    path: '',
+    loadComponent: () =>
+      import('./pages/listing-overview/listing-overview.component').then(
+        (m) => m.ListingOverviewComponent,
+      ),
+  },
+  {
+    path: 'new',
+    canDeactivate: [unsavedEntryGuard],
+    loadComponent: () =>
+      import('./pages/listing-editor/listing-editor.component').then(
+        (m) => m.ListingEditorComponent,
+      ),
+  },
+  {
+    path: ':id',
+    canDeactivate: [unsavedEntryGuard],
+    loadComponent: () =>
+      import('./pages/listing-editor/listing-editor.component').then(
+        (m) => m.ListingEditorComponent,
+      ),
+  },
 ];
 ```
 
@@ -1160,11 +1210,13 @@ git commit -m "refactor(sales): route the saved listing workspace"
 ### Task 9: Add browser acceptance, audit the PR scope, and record verification
 
 **Files:**
+
 - Create: `e2e/listing-studio.spec.ts`
 - Modify: `docs/AI-CHANGELOG.md`
 - Create: `docs/audit/2026-09-20-listing-studio-step-1.md`
 
 **Interfaces:**
+
 - Consumes: complete Step 1 flow and existing authenticated Playwright fixtures.
 - Produces: executable acceptance proof and an honest closeout record.
 

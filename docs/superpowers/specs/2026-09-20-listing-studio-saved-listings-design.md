@@ -31,15 +31,15 @@ Projekt nicht neu gebaut.
 
 ## Verbindliche Nutzerentscheidungen
 
-| Thema | Entscheidung |
-| --- | --- |
-| Plattform | Nur Kleinanzeigen. eBay, Vinted, WhatsApp und Webshop gehören nicht in diesen Arbeitsbereich. |
-| Status | Ein Inserat entsteht als `prepared`, wird manuell auf `online` gesetzt und endet als `ended`. |
-| Neu einstellen | Derselbe Datensatz wird weitergeführt. Zähler und letzter Zeitpunkt werden aktualisiert; der Inhalt darf vorher bearbeitet werden. |
-| Artikelkopplung | `online` setzt einen zulässigen Artikel auf `listed`; ein Verkauf beendet das offene Inserat automatisch mit Grund `sold`. |
-| Artikelauswahl | Alle nicht archivierten und nicht verkauften Artikel werden gezeigt. Nicht zulässige Zustände erhalten einen verständlichen Hinweis. |
-| Textgenerator | Regelbasierte Kleinanzeigen-Vorlagen bleiben. Nicht vorhandene KI-SEO-Funktionen und unfertige Plattformversprechen entfallen. |
-| Offene Inserate | Pro Artikel darf höchstens ein nicht beendetes Kleinanzeigen-Inserat existieren. |
+| Thema           | Entscheidung                                                                                                                         |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Plattform       | Nur Kleinanzeigen. eBay, Vinted, WhatsApp und Webshop gehören nicht in diesen Arbeitsbereich.                                        |
+| Status          | Ein Inserat entsteht als `prepared`, wird manuell auf `online` gesetzt und endet als `ended`.                                        |
+| Neu einstellen  | Derselbe Datensatz wird weitergeführt. Zähler und letzter Zeitpunkt werden aktualisiert; der Inhalt darf vorher bearbeitet werden.   |
+| Artikelkopplung | `online` setzt einen zulässigen Artikel auf `listed`; ein Verkauf beendet das offene Inserat automatisch mit Grund `sold`.           |
+| Artikelauswahl  | Alle nicht archivierten und nicht verkauften Artikel werden gezeigt. Nicht zulässige Zustände erhalten einen verständlichen Hinweis. |
+| Textgenerator   | Regelbasierte Kleinanzeigen-Vorlagen bleiben. Nicht vorhandene KI-SEO-Funktionen und unfertige Plattformversprechen entfallen.       |
+| Offene Inserate | Pro Artikel darf höchstens ein nicht beendetes Kleinanzeigen-Inserat existieren.                                                     |
 
 ## Gewählter Rollout
 
@@ -80,27 +80,27 @@ Migration wird mit `supabase db diff` erzeugt und anschließend inhaltlich gepr�
 
 ### Tabelle `public.listings`
 
-| Spalte | Typ und Regel |
-| --- | --- |
-| `id` | `uuid` Primärschlüssel mit `gen_random_uuid()` |
-| `workspace_id` | `uuid not null`, Fremdschlüssel auf `workspaces`, Löschung kaskadiert |
+| Spalte              | Typ und Regel                                                                              |
+| ------------------- | ------------------------------------------------------------------------------------------ |
+| `id`                | `uuid` Primärschlüssel mit `gen_random_uuid()`                                             |
+| `workspace_id`      | `uuid not null`, Fremdschlüssel auf `workspaces`, Löschung kaskadiert                      |
 | `inventory_item_id` | `uuid not null`, zusammengesetzter Fremdschlüssel mit `workspace_id` auf `inventory_items` |
-| `platform` | `text not null`, ausschließlich `kleinanzeigen` |
-| `status` | `text not null`, `prepared`, `online` oder `ended` |
-| `end_reason` | `sold`, `manual` oder `null`; nur bei `ended` gesetzt |
-| `title` | getrimmter Text mit 1 bis 65 Zeichen |
-| `description` | Text mit höchstens 4.000 Zeichen |
-| `price` | `numeric(12,2)`, 0 bis 99.999.999 |
-| `price_type` | `FIXED` oder `NEGOTIABLE` |
-| `shipping_type` | `pickup`, `shipping` oder `both` |
-| `shipping_price` | `numeric(12,2)` oder `null`; nur bei Versand erlaubt |
-| `postal_code` | fünf Ziffern oder `null` |
-| `listed_count` | nichtnegative Ganzzahl, Standard 0 |
-| `last_listed_at` | Zeitpunkt der letzten Übergabe an die Erweiterung |
-| `online_since` | Zeitpunkt des Wechsels auf `online` |
-| `ended_at` | Zeitpunkt des Beendens |
-| `created_at` | Erstellungszeitpunkt |
-| `updated_at` | letzter Änderungszeitpunkt |
+| `platform`          | `text not null`, ausschließlich `kleinanzeigen`                                            |
+| `status`            | `text not null`, `prepared`, `online` oder `ended`                                         |
+| `end_reason`        | `sold`, `manual` oder `null`; nur bei `ended` gesetzt                                      |
+| `title`             | getrimmter Text mit 1 bis 65 Zeichen                                                       |
+| `description`       | Text mit höchstens 4.000 Zeichen                                                           |
+| `price`             | `numeric(12,2)`, 0 bis 99.999.999                                                          |
+| `price_type`        | `FIXED` oder `NEGOTIABLE`                                                                  |
+| `shipping_type`     | `pickup`, `shipping` oder `both`                                                           |
+| `shipping_price`    | `numeric(12,2)` oder `null`; nur bei Versand erlaubt                                       |
+| `postal_code`       | fünf Ziffern oder `null`                                                                   |
+| `listed_count`      | nichtnegative Ganzzahl, Standard 0                                                         |
+| `last_listed_at`    | Zeitpunkt der letzten Übergabe an die Erweiterung                                          |
+| `online_since`      | Zeitpunkt des Wechsels auf `online`                                                        |
+| `ended_at`          | Zeitpunkt des Beendens                                                                     |
+| `created_at`        | Erstellungszeitpunkt                                                                       |
+| `updated_at`        | letzter Änderungszeitpunkt                                                                 |
 
 Ein partieller eindeutiger Index auf `(inventory_item_id, platform)` für
 `status <> 'ended'` verhindert zwei offene Inserate desselben Artikels. Indizes

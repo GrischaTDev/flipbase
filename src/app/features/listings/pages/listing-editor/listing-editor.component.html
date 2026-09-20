@@ -6,8 +6,8 @@
   <form [formGroup]="form" class="space-y-5" (ngSubmit)="save()">
     <app-two-column-layout>
       <section main class="linear-surface space-y-4 rounded-xl p-5">
-        <label class="block text-sm font-medium text-fb-text-primary"
-          >Bestandsartikel
+        <div class="block text-sm font-medium text-fb-text-primary">
+          <span>Bestandsartikel</span>
           <app-custom-select
             formControlName="inventoryItemId"
             class="mt-1"
@@ -15,7 +15,7 @@
             [options]="itemOptions()"
             placeholder="Artikel wählen"
           />
-        </label>
+        </div>
         @if (selectedItem(); as item) {
           <p class="text-sm text-fb-text-muted">
             {{ item.brand ?? 'Ohne Marke' }} · {{ item.category ?? 'Ohne Kategorie' }} ·
@@ -23,7 +23,7 @@
           </p>
         }
         <div class="flex items-center justify-between">
-          <label class="text-sm font-medium text-fb-text-primary">Titel</label
+          <span class="text-sm font-medium text-fb-text-primary">Titel</span
           ><span class="text-xs text-fb-text-muted">{{ form.controls.title.value.length }}/65</span>
         </div>
         <input
@@ -35,7 +35,7 @@
           <p class="text-xs text-fb-critical">Der Titel muss 1 bis 65 Zeichen enthalten.</p>
         }
         <div class="flex items-center justify-between">
-          <label class="text-sm font-medium text-fb-text-primary">Beschreibung</label
+          <span class="text-sm font-medium text-fb-text-primary">Beschreibung</span
           ><span class="text-xs text-fb-text-muted"
             >{{ form.controls.description.value.length }}/4000</span
           >
@@ -59,20 +59,24 @@
             max="99999999"
             class="linear-input mt-1 w-full rounded-lg px-3 py-2"
         /></label>
-        <label class="block text-sm font-medium text-fb-text-primary"
-          >Preisart<app-custom-select
+        <div class="block text-sm font-medium text-fb-text-primary">
+          <span>Preisart</span>
+          <app-custom-select
             formControlName="priceType"
             class="mt-1"
             ariaLabel="Preisart"
             [options]="priceTypeOptions"
-        /></label>
-        <label class="block text-sm font-medium text-fb-text-primary"
-          >Versand<app-custom-select
+          />
+        </div>
+        <div class="block text-sm font-medium text-fb-text-primary">
+          <span>Versand</span>
+          <app-custom-select
             formControlName="shippingType"
             class="mt-1"
             ariaLabel="Versandart"
             [options]="shippingTypeOptions"
-        /></label>
+          />
+        </div>
         @if (form.controls.shippingType.value !== 'pickup') {
           <label class="block text-sm font-medium text-fb-text-primary"
             >Versandkosten<input

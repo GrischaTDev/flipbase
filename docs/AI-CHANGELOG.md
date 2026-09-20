@@ -16,9 +16,12 @@ wurde entfernt.
 
 **Prüfung:** Lokaler Datenbank-Reset, 61 fokussierte Inseratstests, 1.939
 Datenbanktests, zwei parallele psql-Aufrufe, gezielte Angular- und DOM-Tests,
-Typprüfung, Produktionsbau sowie die Shared-UI-Prüfung liefen erfolgreich. Der
-Bau meldet weiterhin die drei bekannten NG8113-Hinweise zu ungenutzten
-LucideDynamicIcon-Importen außerhalb dieses Bereichs. Kein Push/Merge.
+Typprüfung, Produktionsbau sowie die Shared-UI-Prüfung liefen erfolgreich. Die
+abschließende vollständige Prüfung bestand mit 1.436 Node-, 238 DOM-, 922
+Angular- und 13 Landing-Tests, Formatierung, ESLint, Typprüfung und
+Produktionsbau. Der Bau meldet weiterhin die drei bekannten NG8113-Hinweise zu
+ungenutzten LucideDynamicIcon-Importen außerhalb dieses Bereichs. Kein
+Push/Merge.
 
 ## 2026-09-20 – Codex (OpenAI) – Listing-Studio-Entwurf auf aktuellen Stand gebracht
 
