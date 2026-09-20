@@ -4476,6 +4476,36 @@ export type Database = {
         Args: { p_id: string; p_workspace_id: string }
         Returns: undefined
       }
+      end_listing: {
+        Args: { p_listing_id: string; p_workspace_id: string }
+        Returns: {
+          created_at: string
+          description: string
+          end_reason: string | null
+          ended_at: string | null
+          id: string
+          inventory_item_id: string
+          last_listed_at: string | null
+          listed_count: number
+          online_since: string | null
+          platform: string
+          postal_code: string | null
+          price: number
+          price_type: string
+          shipping_price: number | null
+          shipping_type: string
+          status: string
+          title: string
+          updated_at: string
+          workspace_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "listings"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       expense_audit_values: {
         Args: { p_expense: Database["public"]["Tables"]["expenses"]["Row"] }
         Returns: Json
@@ -4647,6 +4677,40 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "store_orders"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      prepare_listing: {
+        Args: {
+          p_content: Json
+          p_inventory_item_id: string
+          p_workspace_id: string
+        }
+        Returns: {
+          created_at: string
+          description: string
+          end_reason: string | null
+          ended_at: string | null
+          id: string
+          inventory_item_id: string
+          last_listed_at: string | null
+          listed_count: number
+          online_since: string | null
+          platform: string
+          postal_code: string | null
+          price: number
+          price_type: string
+          shipping_price: number | null
+          shipping_type: string
+          status: string
+          title: string
+          updated_at: string
+          workspace_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "listings"
           isOneToOne: true
           isSetofReturn: false
         }
@@ -4910,6 +4974,36 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      set_listing_online: {
+        Args: { p_listing_id: string; p_workspace_id: string }
+        Returns: {
+          created_at: string
+          description: string
+          end_reason: string | null
+          ended_at: string | null
+          id: string
+          inventory_item_id: string
+          last_listed_at: string | null
+          listed_count: number
+          online_since: string | null
+          platform: string
+          postal_code: string | null
+          price: number
+          price_type: string
+          shipping_price: number | null
+          shipping_type: string
+          status: string
+          title: string
+          updated_at: string
+          workspace_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "listings"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       set_purchase_line_eans: {
         Args: { p_lines: Json; p_workspace_id: string }
         Returns: undefined
@@ -5122,6 +5216,7 @@ export type Database = {
         Args: { p_inventory_item_id: string }
         Returns: undefined
       }
+      validate_listing_content: { Args: { p_content: Json }; Returns: Json }
     }
     Enums: {
       [_ in never]: never

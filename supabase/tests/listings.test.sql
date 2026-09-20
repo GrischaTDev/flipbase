@@ -1,7 +1,7 @@
 \set ON_ERROR_STOP on
 begin;
 set local search_path = public, extensions;
-select plan(29);
+select plan(61);
 
 insert into auth.users (id, aud, role, email, raw_app_meta_data, raw_user_meta_data) values
   ('23000000-0000-4000-8000-000000000001', 'authenticated', 'authenticated', 'listing-owner@example.test', '{}', '{}'),
@@ -15,9 +15,50 @@ insert into public.workspace_members (workspace_id, user_id, role) values
   ('23000000-0000-4000-8000-000000000011', '23000000-0000-4000-8000-000000000001', 'owner'),
   ('23000000-0000-4000-8000-000000000012', '23000000-0000-4000-8000-000000000002', 'owner');
 
+insert into public.workspaces (id, name) values
+  ('23000000-0000-4000-8000-000000000013', 'Archivierter Inserate-Workspace');
+insert into public.workspace_members (workspace_id, user_id, role) values
+  ('23000000-0000-4000-8000-000000000013', '23000000-0000-4000-8000-000000000001', 'owner');
+
+insert into public.purchases (id, workspace_id, type, title) values
+  ('23000000-0000-4000-8000-000000000031', '23000000-0000-4000-8000-000000000011', 'lot', 'Wieder geöffneter Paketeinkauf');
+insert into public.purchase_lines (
+  id, workspace_id, purchase_id, title_snapshot, line_kind, ordered_quantity,
+  unit_purchase_price, line_total, is_package
+) values (
+  '23000000-0000-4000-8000-000000000032',
+  '23000000-0000-4000-8000-000000000011',
+  '23000000-0000-4000-8000-000000000031',
+  'Paketposition',
+  'individual',
+  1,
+  10,
+  10,
+  true
+);
+
 insert into public.inventory_items (id, workspace_id, title, status) values
   ('23000000-0000-4000-8000-000000000021', '23000000-0000-4000-8000-000000000011', 'Eigener Artikel', 'ready'),
-  ('23000000-0000-4000-8000-000000000022', '23000000-0000-4000-8000-000000000012', 'Fremder Artikel', 'ready');
+  ('23000000-0000-4000-8000-000000000022', '23000000-0000-4000-8000-000000000012', 'Fremder Artikel', 'ready'),
+  ('23000000-0000-4000-8000-000000000023', '23000000-0000-4000-8000-000000000011', 'Lebenszyklus-Artikel', 'ready'),
+  ('23000000-0000-4000-8000-000000000024', '23000000-0000-4000-8000-000000000011', 'Reservierter Artikel', 'reserved'),
+  ('23000000-0000-4000-8000-000000000026', '23000000-0000-4000-8000-000000000013', 'Archivierter Artikel', 'ready');
+insert into public.inventory_items (
+  id, workspace_id, purchase_id, source_package_line_id, title, status,
+  allocated_purchase_cost, tax_purchase_cost
+) values (
+  '23000000-0000-4000-8000-000000000025',
+  '23000000-0000-4000-8000-000000000011',
+  '23000000-0000-4000-8000-000000000031',
+  '23000000-0000-4000-8000-000000000032',
+  'Paketinhalt',
+  'received',
+  null,
+  null
+);
+update public.workspaces
+set archived_at = now()
+where id = '23000000-0000-4000-8000-000000000013';
 
 select has_table('public', 'listings', 'listings table exists');
 select ok(
@@ -139,6 +180,220 @@ select is(
   (select count(*)::integer from public.listings where workspace_id = '23000000-0000-4000-8000-000000000012'),
   0,
   'non-member sees zero listings'
+);
+reset role;
+
+select has_function('public', 'prepare_listing', array['uuid', 'uuid', 'jsonb']);
+select has_function('public', 'set_listing_online', array['uuid', 'uuid']);
+select has_function('public', 'end_listing', array['uuid', 'uuid']);
+select function_privs_are(
+  'public', 'prepare_listing', array['uuid', 'uuid', 'jsonb'],
+  'authenticated', array['EXECUTE'], 'authenticated can prepare listings'
+);
+select function_privs_are(
+  'public', 'prepare_listing', array['uuid', 'uuid', 'jsonb'],
+  'anon', array[]::text[], 'anon cannot prepare listings'
+);
+
+create temporary table listing_lifecycle_results (
+  name text primary key,
+  listing_id uuid not null
+);
+grant all on table listing_lifecycle_results to authenticated;
+
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '23000000-0000-4000-8000-000000000001', true);
+select lives_ok(
+  $$insert into listing_lifecycle_results(name, listing_id)
+    select 'primary', id from public.prepare_listing(
+      '23000000-0000-4000-8000-000000000011',
+      '23000000-0000-4000-8000-000000000023',
+      '{"title":"Erstes Inserat","description":"Beschreibung","price":"20.50","priceType":"FIXED","shippingType":"shipping","shippingPrice":"4.90","postalCode":"12345"}'
+    )$$,
+  'prepare creates the first listing'
+);
+select is(
+  (select status from public.listings where id = (select listing_id from listing_lifecycle_results where name = 'primary')),
+  'prepared',
+  'prepare stores a prepared listing'
+);
+select is(
+  (select listed_count from public.listings where id = (select listing_id from listing_lifecycle_results where name = 'primary')),
+  1,
+  'first prepare starts the listing counter at one'
+);
+select ok(
+  (select last_listed_at is not null from public.listings where id = (select listing_id from listing_lifecycle_results where name = 'primary')),
+  'prepare stores the listing timestamp'
+);
+select is(
+  (select price from public.listings where id = (select listing_id from listing_lifecycle_results where name = 'primary')),
+  20.50::numeric,
+  'prepare accepts decimal prices'
+);
+select lives_ok(
+  $$insert into listing_lifecycle_results(name, listing_id)
+    select 'primary', id from public.prepare_listing(
+      '23000000-0000-4000-8000-000000000011',
+      '23000000-0000-4000-8000-000000000023',
+      '{"title":"Erneutes Inserat","description":"Beschreibung","price":"21","priceType":"NEGOTIABLE","shippingType":"pickup","shippingPrice":null,"postalCode":null}'
+    )
+    on conflict (name) do update set listing_id = excluded.listing_id$$,
+  'prepare reuses a manually ended or open listing'
+);
+select is(
+  (select title from public.listings where id = (select listing_id from listing_lifecycle_results where name = 'primary')),
+  'Erneutes Inserat',
+  'prepare refreshes the saved content'
+);
+select is(
+  (select listed_count from public.listings where id = (select listing_id from listing_lifecycle_results where name = 'primary')),
+  2,
+  'second prepare increments the listing counter'
+);
+select lives_ok(
+  $$select public.set_listing_online(
+    '23000000-0000-4000-8000-000000000011',
+    (select listing_id from listing_lifecycle_results where name = 'primary')
+  )$$,
+  'set online accepts a prepared listing'
+);
+select is(
+  (select status from public.listings where id = (select listing_id from listing_lifecycle_results where name = 'primary')),
+  'online',
+  'set online changes the listing status'
+);
+select is(
+  (select status from public.inventory_items where id = '23000000-0000-4000-8000-000000000023'),
+  'listed',
+  'set online changes the inventory status'
+);
+select throws_ok(
+  $$select public.set_listing_online(
+    '23000000-0000-4000-8000-000000000011',
+    (select listing_id from listing_lifecycle_results where name = 'primary')
+  )$$,
+  '22023',
+  'Nur vorbereitete Inserate können online gesetzt werden.',
+  'set online rejects a non-prepared listing'
+);
+select lives_ok(
+  $$select public.end_listing(
+    '23000000-0000-4000-8000-000000000011',
+    (select listing_id from listing_lifecycle_results where name = 'primary')
+  )$$,
+  'end listing accepts an online listing'
+);
+select is(
+  (select status || '/' || end_reason from public.listings where id = (select listing_id from listing_lifecycle_results where name = 'primary')),
+  'ended/manual',
+  'end listing records a manual end'
+);
+select is(
+  (select status from public.inventory_items where id = '23000000-0000-4000-8000-000000000023'),
+  'ready',
+  'end listing returns the inventory to ready'
+);
+select lives_ok(
+  $$select public.prepare_listing(
+    '23000000-0000-4000-8000-000000000011',
+    '23000000-0000-4000-8000-000000000023',
+    '{"title":"Zum Verkaufen","description":"Beschreibung","price":"22","priceType":"FIXED","shippingType":"pickup","shippingPrice":null,"postalCode":null}'
+  )$$,
+  'a manually ended listing can be prepared again'
+);
+select lives_ok(
+  $$select public.set_listing_online(
+    '23000000-0000-4000-8000-000000000011',
+    (select listing_id from listing_lifecycle_results where name = 'primary')
+  )$$,
+  'a re-prepared listing can be set online'
+);
+reset role;
+select set_config('flipbase.allow_inventory_sold_transition', 'on', true);
+update public.inventory_items set status = 'sold' where id = '23000000-0000-4000-8000-000000000023';
+select is(
+  (select status from public.listings where id = (select listing_id from listing_lifecycle_results where name = 'primary')),
+  'ended',
+  'selling the item ends every open listing'
+);
+select is(
+  (select end_reason from public.listings where id = (select listing_id from listing_lifecycle_results where name = 'primary')),
+  'sold',
+  'selling the item records the sold end reason'
+);
+
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '23000000-0000-4000-8000-000000000002', true);
+select throws_ok(
+  $$select public.prepare_listing(
+    '23000000-0000-4000-8000-000000000011',
+    '23000000-0000-4000-8000-000000000023',
+    '{"title":"Unbefugt","description":"","price":"1","priceType":"FIXED","shippingType":"pickup","shippingPrice":null,"postalCode":null}'
+  )$$,
+  '42501',
+  'Du bist kein Mitglied dieses Workspace.',
+  'non-members cannot prepare listings'
+);
+
+select set_config('request.jwt.claim.sub', '23000000-0000-4000-8000-000000000001', true);
+select throws_ok(
+  $$select public.prepare_listing(
+    '23000000-0000-4000-8000-000000000013',
+    '23000000-0000-4000-8000-000000000026',
+    '{"title":"Archiv","description":"","price":"1","priceType":"FIXED","shippingType":"pickup","shippingPrice":null,"postalCode":null}'
+  )$$,
+  '42501',
+  'Dieser Workspace ist archiviert. Vor Änderungen bitte wiederherstellen.',
+  'archived workspaces cannot prepare listings'
+);
+select throws_ok(
+  $$select public.prepare_listing(
+    '23000000-0000-4000-8000-000000000011',
+    '23000000-0000-4000-8000-000000000024',
+    '{"title":"Reserviert","description":"","price":"1","priceType":"FIXED","shippingType":"pickup","shippingPrice":null,"postalCode":null}'
+  )$$,
+  '22023',
+  'Dieser Artikel kann nicht inseriert werden.',
+  'reserved items cannot be prepared'
+);
+select throws_ok(
+  $$select public.prepare_listing(
+    '23000000-0000-4000-8000-000000000011',
+    '23000000-0000-4000-8000-000000000025',
+    '{"title":"","description":"","price":"1","priceType":"FIXED","shippingType":"pickup","shippingPrice":null,"postalCode":null}'
+  )$$,
+  '22023',
+  'Der Titel muss 1 bis 65 Zeichen enthalten.',
+  'invalid content is rejected by the RPC'
+);
+select lives_ok(
+  $$insert into listing_lifecycle_results(name, listing_id)
+    select 'package', id from public.prepare_listing(
+      '23000000-0000-4000-8000-000000000011',
+      '23000000-0000-4000-8000-000000000025',
+      '{"title":"Paketinhalt","description":"","price":"1","priceType":"FIXED","shippingType":"pickup","shippingPrice":null,"postalCode":null}'
+    )$$,
+  'a package item can be prepared while its purchase is open'
+);
+select throws_ok(
+  $$select public.set_listing_online(
+    '23000000-0000-4000-8000-000000000011',
+    (select listing_id from listing_lifecycle_results where name = 'package')
+  )$$,
+  '42501',
+  'Bestand eines wieder geöffneten Einkaufs darf nicht verkaufsbereit gesetzt werden.',
+  'a package item from a reopened purchase cannot be set online'
+);
+select is(
+  (select status from public.listings where id = (select listing_id from listing_lifecycle_results where name = 'package')),
+  'prepared',
+  'the blocked package listing stays prepared'
+);
+select is(
+  (select status from public.inventory_items where id = '23000000-0000-4000-8000-000000000025'),
+  'received',
+  'the blocked package inventory stays unchanged'
 );
 reset role;
 
