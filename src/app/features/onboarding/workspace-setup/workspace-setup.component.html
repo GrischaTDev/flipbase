@@ -1,0 +1,97 @@
+<main class="relative flex min-h-screen items-center justify-center bg-fb-well px-4 py-10 sm:px-6">
+  <div
+    class="w-full max-w-md rounded-2xl border border-fb-border bg-fb-surface-alt p-6 shadow-sm sm:p-8"
+  >
+    <div class="mb-7 text-center">
+      <div class="mb-5 flex items-center justify-center gap-2.5">
+        <img
+          ngSrc="images/logo-mark.png"
+          width="36"
+          height="36"
+          alt="Flipbase"
+          class="fb-logo-mark h-9 w-9 shrink-0"
+          priority
+        />
+        <span class="text-xl font-bold tracking-tight text-fb-text-primary">Flipbase</span>
+      </div>
+
+      <h1 class="text-2xl font-semibold tracking-tight text-fb-text-primary">
+        {{ 'WORKSPACE.SETUP_WELCOME' | translate }}
+      </h1>
+    </div>
+
+    @if (errorMessage()) {
+      <div
+        role="alert"
+        class="mb-5 rounded-xl border border-fb-critical-border bg-fb-critical-surface px-4 py-3 text-sm text-fb-critical"
+      >
+        <p>{{ errorMessage() }}</p>
+        @if (canRetryLoad()) {
+          <app-button
+            type="button"
+            variant="plain"
+            size="slim"
+            [disabled]="isLoading()"
+            (clicked)="retryLoad()"
+            class="mt-2 inline-block"
+          >
+            {{ 'WORKSPACE.SETUP_RETRY' | translate }}
+          </app-button>
+        }
+      </div>
+    }
+
+    <form [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+      <div>
+        <label for="workspace-name" class="block text-sm font-semibold text-fb-text-primary">
+          {{ 'WORKSPACE.SETUP_QUESTION' | translate }}
+        </label>
+        <p id="workspace-name-help" class="mt-1 text-xs leading-5 text-fb-text-muted">
+          {{ 'WORKSPACE.SETUP_HELP' | translate }}
+        </p>
+        <input
+          id="workspace-name"
+          type="text"
+          formControlName="workspaceName"
+          autocomplete="organization"
+          maxlength="100"
+          [placeholder]="'WORKSPACE.SETUP_NAME_PLACEHOLDER' | translate"
+          [attr.aria-invalid]="
+            form.controls.workspaceName.invalid && form.controls.workspaceName.touched
+              ? 'true'
+              : null
+          "
+          [attr.aria-describedby]="
+            form.controls.workspaceName.invalid && form.controls.workspaceName.touched
+              ? 'workspace-name-help workspace-name-error'
+              : 'workspace-name-help'
+          "
+          class="mt-2.5 w-full rounded-xl border border-fb-border bg-fb-surface px-3.5 py-2.5 text-sm text-fb-text-primary shadow-xs outline-hidden transition placeholder:text-fb-text-dimmed focus:border-fb-primary focus:ring-2 focus:ring-fb-primary/30"
+        />
+        @if (form.controls.workspaceName.invalid && form.controls.workspaceName.touched) {
+          <p id="workspace-name-error" class="mt-1.5 text-xs text-fb-critical">
+            {{ 'WORKSPACE.SETUP_NAME_ERROR' | translate }}
+          </p>
+        }
+      </div>
+
+      <app-button
+        type="submit"
+        variant="primary"
+        size="lg"
+        [fullWidth]="true"
+        [loading]="isSaving()"
+        [disabled]="submitDisabled()"
+        class="mt-6 block w-full"
+      >
+        {{ 'WORKSPACE.SETUP_SUBMIT' | translate }}
+      </app-button>
+    </form>
+
+    <div class="mt-5 flex justify-center border-t border-fb-border pt-5">
+      <app-button type="button" variant="plain" size="slim" (clicked)="signOut()">
+        {{ 'AUTH.LOGOUT' | translate }}
+      </app-button>
+    </div>
+  </div>
+</main>

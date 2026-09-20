@@ -144,16 +144,57 @@ Ausrollen zusammengehören:
    beide zusammen (`src/app/core/services/landing-template.spec.ts`) und schlägt
    fehl, wenn sie auseinanderlaufen – er repariert aber nichts. Dasselbe gilt für
    die Adresse, die das Skript aufruft: Sie muss von `connect-src` gedeckt sein.
-3. **Die Edge Function rollt keine Pipeline aus.** `beta-application` muss von
-   Hand nach `/opt/supabase/volumes/functions/beta-application/` kopiert werden,
-   danach `docker compose up -d --force-recreate functions`.
+3. **Die Edge Functions rollt keine Pipeline aus.** Der gesamte Inhalt von
+   `supabase/functions/` muss gemeinsam nach
+   `/opt/supabase/volumes/functions/` gespiegelt werden. Das umfasst mindestens
+   `beta-application`, `beta-invite` und deren gemeinsames `_shared`-Verzeichnis.
+   Einzelne Funktionsordner dürfen nicht getrennt ausgerollt werden, weil beide
+   Beta-Funktionen dieselben Mailbausteine importieren. Danach werden Funktions-
+   und Auth-Dienst gemeinsam neu erzeugt:
 
-   Die beiden Variablen unten gehören in `/opt/supabase/.env` **und** müssen an
-   den Container durchgereicht werden: Der `environment:`-Block des Dienstes
+   ```sh
+   rsync -a --delete supabase/functions/ /opt/supabase/volumes/functions/
+   docker compose up -d --force-recreate functions auth
+   ```
+
+   Die beiden Beta-Variablen unten gehören in `/opt/supabase/.env` **und** müssen
+   an den Container durchgereicht werden: Der `environment:`-Block des Dienstes
    `functions` in der mitgelieferten `docker-compose.yml` zählt die Variablen
    einzeln auf, eine neue Zeile in der `.env` allein erreicht ihn also nicht.
    Dafür gibt es `deploy/docker-compose.beta-application.yml`; sie gehört nach
    `/opt/supabase/` und in die Liste `COMPOSE_FILE` in `/opt/supabase/.env`.
+
+   Die Zusatzdatei setzt am Auth-Dienst außerdem
+   `GOTRUE_DISABLE_SIGNUP=true`. Damit weist der produktive GoTrue-Endpunkt
+   `/auth/v1/signup` freie Registrierungen ab; Betreiber-Einladungen bleiben
+   möglich. Nach dem Neustart muss ein anonymer Signup-Smoke-Test fehlschlagen,
+   während eine Einladung über den Betreiberbereich weiterhin versendet werden
+   kann. Die Einstellung nur in `supabase/config.toml` reicht für den
+   selbstgehosteten Produktionsdienst nicht aus.
+
+   In `/opt/supabase/.env` muss außerdem
+   `ADDITIONAL_REDIRECT_URLS=https://app.flipbase.de/auth/set-password` enthalten
+   sein. GoTrue verwirft sonst das Ziel aus dem Einladungslink und leitet nur auf
+   die Startadresse der App weiter; die verpflichtende Passwortvergabe würde
+   dadurch übersprungen. Weitere bereits benötigte Zieladressen bleiben als
+   kommagetrennte Werte in derselben Variablen erhalten.
+
+   Dieselbe Zusatzdatei reicht die vorhandenen GoTrue-SMTP-Werte unter eigenen
+   `BETA_SMTP_*`-Namen an die Edge Functions weiter. Dadurch verwenden
+   Eingangsbestätigung und spätere Einladungswiederholung dasselbe
+   Mailbox.org-Konto, ohne Zugangsdaten im Repository zu speichern:
+
+   | Edge-Variable          | Vorhandener Serverwert |
+   | ---------------------- | ---------------------- |
+   | `BETA_SMTP_HOST`       | `SMTP_HOST`            |
+   | `BETA_SMTP_PORT`       | `SMTP_PORT`            |
+   | `BETA_SMTP_USER`       | `SMTP_USER`            |
+   | `BETA_SMTP_PASS`       | `SMTP_PASS`            |
+   | `BETA_SMTP_FROM_EMAIL` | `SMTP_ADMIN_EMAIL`     |
+   | `BETA_SMTP_FROM_NAME`  | `SMTP_SENDER_NAME`     |
+
+   `BETA_APP_URL` ist die öffentliche App-Adresse für Registrierungslinks und
+   wird in der Zusatzdatei standardmäßig auf `https://app.flipbase.de` gesetzt.
 
    Ohne die Durchreichung antwortet die Funktion mit **500 statt 400** – der
    fehlende Pfeffer wird absichtlich laut, nicht still.

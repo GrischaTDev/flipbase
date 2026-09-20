@@ -1,5 +1,4 @@
-# Reicht die beiden Variablen der Beta-Bewerbungsfunktion an den Funktionsdienst
-# durch.
+# Reicht die Variablen der Beta-Bewerbungsfunktion an den Funktionsdienst durch.
 #
 # Eigene Datei, weil das offizielle Supabase-Paket seine `docker-compose.yml`
 # beim Aktualisieren ueberschreibt. Der dortige `environment:`-Block des Dienstes
@@ -13,7 +12,20 @@
 # Auf dem Server gehoert die Datei nach /opt/supabase/ und in die Liste
 # COMPOSE_FILE in /opt/supabase/.env.
 services:
+  auth:
+    environment:
+      # GoTrue sperrt dadurch den oeffentlichen /signup-Endpunkt. Admin-Einladungen
+      # ueber inviteUserByEmail bleiben weiterhin moeglich.
+      GOTRUE_DISABLE_SIGNUP: "true"
+
   functions:
     environment:
       BETA_APPLICATION_PEPPER: ${BETA_APPLICATION_PEPPER}
       BETA_APPLICATION_ALLOWED_ORIGINS: ${BETA_APPLICATION_ALLOWED_ORIGINS}
+      BETA_SMTP_HOST: ${SMTP_HOST}
+      BETA_SMTP_PORT: ${SMTP_PORT}
+      BETA_SMTP_USER: ${SMTP_USER}
+      BETA_SMTP_PASS: ${SMTP_PASS}
+      BETA_SMTP_FROM_EMAIL: ${SMTP_ADMIN_EMAIL}
+      BETA_SMTP_FROM_NAME: ${SMTP_SENDER_NAME:-Flipbase}
+      BETA_APP_URL: ${BETA_APP_URL:-https://app.flipbase.de}

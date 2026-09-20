@@ -1,17 +1,47 @@
 import { randomUUID } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
-import { createAnonClient } from './support/local-supabase';
+import { createLocalAdminClient } from './support/local-supabase';
 import { APP_ORIGIN, AUTH_STATE_PATH, AUTH_STORAGE_KEY } from './support/test-account';
 
 /**
- * Registriert je Testlauf genau ein Konto. Lokal ist keine E-Mail-Bestätigung nötig,
- * deshalb liefert die Registrierung direkt die Sitzung – ohne zweite Anmeldung.
+ * Legt je Testlauf über die lokale Admin-Grenze ein Konto an. Der öffentliche
+ * Signup bleibt dadurch auch in Browser-Tests geschlossen.
  */
 export default async function globalSetup(): Promise<void> {
-  const { data, error } = await createAnonClient().auth.signUp({
-    email: `e2e-${randomUUID()}@flipbase.local`,
-    password: randomUUID(),
+  const email = `e2e-${randomUUID()}@flipbase.local`;
+  const password = randomUUID();
+  const admin = createLocalAdminClient();
+  const { data: created, error: createError } = await admin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+  });
+  if (createError || !created.user) {
+    throw new Error(
+      `Testkonto konnte nicht angelegt werden: ${createError?.message ?? 'kein Nutzer'}`,
+    );
+  }
+  const { data: membership, error: membershipError } = await admin
+    .from('workspace_members')
+    .select('workspace_id')
+    .eq('user_id', created.user.id)
+    .single();
+  if (membershipError || !membership) {
+    throw new Error(
+      `Initialer Test-Workspace fehlt: ${membershipError?.message ?? 'keine Zuordnung'}`,
+    );
+  }
+  const { error: setupError } = await admin
+    .from('workspaces')
+    .update({ setup_completed_at: new Date().toISOString() })
+    .eq('id', membership.workspace_id);
+  if (setupError) {
+    throw new Error(`Test-Workspace konnte nicht vorbereitet werden: ${setupError.message}`);
+  }
+  const { data, error } = await admin.auth.signInWithPassword({
+    email,
+    password,
   });
   if (error || !data.session) {
     throw new Error(

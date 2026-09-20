@@ -1,5 +1,35 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-20 – Codex (OpenAI) – Beta-Produktionsgrenzen und Gesamtweg abgesichert
+
+**Auftrag:** Die fertige Beta-Anmeldung vor dem Pull Request unabhängig prüfen,
+Produktionsblocker beheben und den vollständigen Weg bis zum gestarteten Zugang
+nachweisen.
+
+**Änderung:** Die selbstgehostete Auth-Konfiguration sperrt öffentliche Signups
+jetzt auch im Produktions-Override und erlaubt den genauen Rücksprung zur
+Passwortvergabe. `beta-application`, `beta-invite` und `_shared` werden laut
+Ausrollanleitung gemeinsam veröffentlicht; die App-Zieladresse ist eine eigene
+Funktionsvariable. Lokale Browserkonten entstehen über die lokale Admin-Grenze,
+damit Tests die geschlossene Registrierung nicht umgehen.
+
+Ein fehlgeschlagener Einladungsversand bleibt im Annahmedialog sichtbar und lässt
+sich dort direkt wiederholen. Bewerbung und Nutzerübersicht unterscheiden aktive,
+abgelaufene und noch ausstehende Beta-Zugänge; bei aktiven Zugängen stehen die
+verbleibenden Tage dabei. Eine fehlgeschlagene automatische Aktivierung kann bei
+einem späteren Sitzungsereignis erneut laufen. Der Dankesdialog sperrt während der
+Anzeige den Seitenhintergrund tatsächlich und verwendet die eindeutige Aktion
+„Schließen“.
+
+**Prüfung:** `npm run verify` erfolgreich mit Format, ESLint, Typprüfung, 82
+Workflow-Prüfungen, 10 eingebundenen Deno-Tests, Suite-Audit, 1.441 Node-, 239
+DOM-, 973 Angular- und 15 Landing-Tests sowie Produktionsbau. Der isolierte
+Datenbank-Neuaufbau und alle 19 Betreiber-Datenbanktests bestanden. Zwei echte
+Chromium-Abläufe bestätigten, dass freie Registrierung scheitert, Betreiber weiter
+einladen können und Freigabe, Mail-Link, Passwortvergabe, Verknüpfung sowie der
+Start einer exakt 60 Tage langen Beta gemeinsam funktionieren. Weiterhin nur die
+drei bekannten NG8113-Bauhinweise in Dashboard, Einkäufen und Verkäufern.
+
 ## 2026-09-20 – Codex (OpenAI) – Inseratserstellung in den Übersichtsablauf eingeordnet
 
 **Auftrag:** Die Inseratserstellung wie beim Einkauf nur aus der Übersicht öffnen
@@ -45,6 +75,74 @@ PR-Chromium-Abläufe bestanden. Der Bau meldet weiterhin die drei bekannten
 NG8113-Hinweise außerhalb des Inserate-Bereichs; der unveränderte
 Steuerjournal-Ablauf meldet weiterhin den bestehenden NG0956-Laufzeithinweis.
 Kein Push und kein Merge.
+
+## 2026-09-20 – Codex (OpenAI) – Verpflichtende Workspace-Ersteinrichtung ergänzt
+
+**Auftrag:** Nach der eingeladenen Beta-Registrierung beim ersten App-Aufruf nur
+die tatsächlich benötigte Initialangabe abfragen: den Namen des bereits
+angelegten Workspace. Keine Steuerart, Zielwerte, Firmen-, Rechnungs- oder
+Zahlungsdaten vorwegnehmen.
+
+**Änderung:** Workspaces besitzen nun einen ausdrücklichen Abschlusszeitpunkt
+für die Ersteinrichtung. Die Migration markiert alle bereits vorhandenen
+Workspaces als abgeschlossen; ein durch die Registrierung erzeugter
+Beta-Workspace bleibt offen. Manuell zusätzlich erstellte Workspaces sind
+sofort abgeschlossen. Die bestehende Beta-Laufzeit startet weiterhin bei der
+erfolgreichen Passwortvergabe und wird von der neuen Seite nicht verschoben.
+
+Ein unvollständiger Workspace wird vor Dashboard und Shop auf eine
+eigenständige, zugängliche Ein-Feld-Seite geleitet. Dort wird ausschließlich
+ein getrimmter Name mit 2 bis 100 Zeichen gespeichert. Der vorhandene
+Workspace wird serverbestätigt aktualisiert und nicht doppelt angelegt.
+Lade- und Speicherfehler bleiben sichtbar und wiederholbar; Abmelden verwendet
+die bestehende Sitzungsfunktion. Vorhandene Flipbase-Farben, Logo und
+Button-Komponenten wurden wiederverwendet. Nach erfolgreichem Abschluss führt
+der Ablauf ins Dashboard und lässt sich nicht erneut öffnen.
+
+**Prüfung:** `npm run verify` erfolgreich mit Format, ESLint, Typprüfung,
+Workflow- und Suite-Audit, 1.448 Node-, 240 DOM-, 960 Angular- und 15
+Landing-Tests sowie Produktionsbau. Die fokussierten 24 Workspace-Service-,
+6 Guard- und 7 Seiten-/AXE-Tests bestanden. Der isolierte Datenbanktest bestand
+mit 19 Prüfungen nach einem sauberen Neuaufbau; der gemeinsame Admin-UI-Check
+meldete bei 95 Dateien keine Abweichung. Weiterhin nur die drei bekannten
+NG8113-Hinweise in Dashboard, Einkäufen und Verkäufern. Kein Push, kein PR und
+kein Merge.
+
+## 2026-09-20 – Codex (OpenAI) – Beta-Anmeldeweg und Betreiberfreigabe umgesetzt
+
+**Auftrag:** Die Beta-Anmeldung auf der Landingpage verlässlich abschließen, die
+Bewerbung im Betreiberbereich mit einer 60-Tage-Vorgabe annehmen und den
+eingeladenen Nutzer bis zur Registrierung und gestarteten Beta nachvollziehbar
+mit der Bewerbung verbinden. Vorhandene Dialoge, Tabellen und Status-Badges
+weiterverwenden und die spätere Abrechnung vorbereiten, aber noch nicht bauen.
+
+**Änderung:** Beide Beta-Formulare zeigen nach erfolgreicher Speicherung einen
+zugänglichen Dankesdialog. Der Bewerber erhält sofort eine gestaltete
+Eingangsbestätigung ohne Registrierungslink; ein Versandfehler wird im Dialog
+sichtbar, ohne die gespeicherte Bewerbung zu verlieren. Im Betreiberbereich
+öffnet „Annehmen“ nun einen vorhandenen Dialogbaustein mit Name, E-Mail und
+änderbaren, auf 60 Tage voreingestellten Laufzeit. Einladungs- und
+Bestätigungsmails lassen sich nach Fehlern erneut senden, und die Liste zeigt
+offen, abgelehnt, Einladung fehlgeschlagen, wartet auf Registrierung oder Beta
+gestartet mit den vorhandenen Badges.
+
+Die Einladung trägt die Bewerbungs-ID in das Auth-Konto. Der bestehende
+Registrierungstrigger verbindet dadurch Bewerbung, Nutzer, Profil, Workspace
+und eine getrennte Workspace-Lizenz. Deren Laufzeit startet idempotent erst
+nach erfolgreicher Passwortvergabe, nicht beim Öffnen des Einladungslinks. Eine
+neue Betreiberseite „Nutzer“ zeigt Registrierung, Workspace und Beta-Zeitraum.
+Öffentliche Registrierungen sind für die Beta geschlossen; die bisherige
+Registrierungsadresse führt zum Login. Das Zugangsmodell trennt die Beta schon
+von einem späteren Abonnement, ohne Stripe-, Rechnungs- oder Zahlungslogik
+vorwegzunehmen.
+
+**Prüfung:** `npm run verify` erfolgreich mit Format, ESLint, Typprüfung,
+Workflow- und Suite-Audit, 1.441 Node-, 240 DOM-, 947 Angular- und 15
+Landing-Tests sowie Produktionsbau. Die 10 Deno-Tests für E-Mail und Einladung,
+der saubere lokale Datenbank-Neuaufbau und alle 19 fokussierten
+Betreiber-Datenbanktests bestanden. Der gemeinsame Admin-UI-Check meldete bei
+94 Dateien keine Abweichung. Weiterhin nur die drei bekannten NG8113-Hinweise
+in Dashboard, Einkäufen und Verkäufern. Kein Push, kein PR und kein Merge.
 
 ## 2026-09-20 – Codex (OpenAI) – Kontrollreview-Funde im Listing Studio behoben
 

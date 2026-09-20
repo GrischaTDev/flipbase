@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
   LucideDynamicIcon,
@@ -22,7 +22,6 @@ import { ButtonComponent } from '../../../shared/components/button/button.compon
   selector: 'app-login',
   imports: [
     ReactiveFormsModule,
-    RouterLink,
     TranslatePipe,
     LucideDynamicIcon,
     NgOptimizedImage,

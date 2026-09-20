@@ -35,22 +35,32 @@ interface Umgebung {
   signalAbmeldung: () => void;
   /** Welcher Bereich beim Abmelden an Supabase uebergeben wurde. */
   bereiche: string[];
+  betaAktivierungen: string[];
 }
 
-function sitzung(): AuthSession {
+function sitzung(betaRegistrationCompleted = false): AuthSession {
   return {
     access_token: 'token',
     refresh_token: 'refresh',
     expires_in: 900,
     token_type: 'bearer',
-    user: { id: 'nutzer-1', email: 'test@test.de' },
+    user: {
+      id: 'nutzer-1',
+      email: 'test@test.de',
+      user_metadata: { beta_registration_completed: betaRegistrationCompleted },
+    },
   } as unknown as AuthSession;
 }
 
-function baueUmgebung(getUserFehler: unknown = null): Umgebung {
+function baueUmgebung(
+  getUserFehler: unknown = null,
+  betaAktivierungsfehler: readonly unknown[] = [],
+): Umgebung {
   const ziele: unknown[][] = [];
   const cookie: string[] = [];
   const bereiche: string[] = [];
+  const betaAktivierungen: string[] = [];
+  const verbleibendeBetaAktivierungsfehler = [...betaAktivierungsfehler];
   let rueckruf: ((ereignis: AuthChangeEvent, sitzung: AuthSession | null) => void) | null = null;
 
   const supabase = {
@@ -66,6 +76,10 @@ function baueUmgebung(getUserFehler: unknown = null): Umgebung {
           rueckruf = cb;
           return { data: { subscription: { unsubscribe: () => undefined } } };
         },
+      },
+      rpc: async (name: string) => {
+        betaAktivierungen.push(name);
+        return { data: [], error: verbleibendeBetaAktivierungsfehler.shift() ?? null };
       },
     },
   } as unknown as SupabaseService;
@@ -109,11 +123,56 @@ function baueUmgebung(getUserFehler: unknown = null): Umgebung {
     cookie,
     kanal,
     bereiche,
+    betaAktivierungen,
     syncStatus,
     melde: (ereignis, s) => rueckruf?.(ereignis, s),
     signalAbmeldung: () => beiAbmeldung?.(),
   };
 }
+
+describe('AuthService: Beta-Aktivierung', () => {
+  it('startet einen ausstehenden Beta-Zugang ueber die Datenbankfunktion', async () => {
+    const umgebung = baueUmgebung();
+
+    await umgebung.dienst.activatePendingBetaAccess();
+
+    expect(umgebung.betaAktivierungen).toEqual(['activate_beta_access']);
+  });
+
+  it('versucht die Aktivierung nach abgeschlossener Registrierung je App-Start nur einmal', async () => {
+    const umgebung = baueUmgebung();
+    const registrierteSitzung = sitzung(true);
+
+    umgebung.melde('SIGNED_IN', registrierteSitzung);
+    umgebung.melde('TOKEN_REFRESHED', registrierteSitzung);
+    await Promise.resolve();
+
+    expect(umgebung.betaAktivierungen).toEqual(['activate_beta_access']);
+  });
+
+  it('versucht eine fehlgeschlagene Aktivierung bei einem spaeteren Sitzungsereignis erneut', async () => {
+    const umgebung = baueUmgebung(null, [{ message: 'Netzwerkfehler' }]);
+    const registrierteSitzung = sitzung(true);
+
+    umgebung.melde('SIGNED_IN', registrierteSitzung);
+    await Promise.resolve();
+    await Promise.resolve();
+    umgebung.melde('TOKEN_REFRESHED', registrierteSitzung);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(umgebung.betaAktivierungen).toEqual(['activate_beta_access', 'activate_beta_access']);
+  });
+
+  it('startet die Beta nicht allein durch das Oeffnen des Einladungslinks', async () => {
+    const umgebung = baueUmgebung();
+
+    umgebung.melde('SIGNED_IN', sitzung(false));
+    await Promise.resolve();
+
+    expect(umgebung.betaAktivierungen).toEqual([]);
+  });
+});
 
 describe('AuthService: Sitzungsende bei offener App', () => {
   let umgebung: Umgebung;

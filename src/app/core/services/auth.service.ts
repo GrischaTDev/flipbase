@@ -47,6 +47,7 @@ export class AuthService {
   private readonly router = inject(Router);
   private readonly landingHint = inject(LandingHintService);
   private readonly sessionChannel = inject(SessionChannelService);
+  private readonly betaActivationAttempts = new Set<string>();
 
   readonly session = signal<AuthSession | null>(null);
   readonly currentUser = signal<User | null>(null);
@@ -203,6 +204,30 @@ export class AuthService {
       // Ein Signal allein meldet niemanden ab, erst die Nachfrage entscheidet.
       this.pruefeSitzungNach(),
     );
+
+    // Der Einladungslink erzeugt bereits eine Sitzung, darf die Laufzeit aber
+    // noch nicht starten. Erst die Passwortseite setzt dieses Merkmal. Falls
+    // der erste Aktivierungsaufruf dort wegen eines Netzausfalls scheitert,
+    // versucht ein spaeterer App-Start oder Login den idempotenten Aufruf
+    // einmal erneut.
+    if (
+      session.user.user_metadata?.['beta_registration_completed'] === true &&
+      !this.betaActivationAttempts.has(session.user.id)
+    ) {
+      this.betaActivationAttempts.add(session.user.id);
+      void this.activatePendingBetaAccess().catch((error: unknown) => {
+        this.betaActivationAttempts.delete(session.user.id);
+        this.syncStatus?.melde('Starten des Beta-Zugangs', error);
+      });
+    }
+  }
+
+  /** Startet eine angenommene Beta erst nach abgeschlossener Registrierung. */
+  async activatePendingBetaAccess(): Promise<void> {
+    const { error } = await this.supabase.client.rpc('activate_beta_access');
+    if (error) {
+      throw new Error(error.message || 'Beta-Zugang konnte nicht gestartet werden.');
+    }
   }
 
   async loadProfile(userId: string): Promise<void> {

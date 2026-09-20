@@ -45,6 +45,7 @@ describe('SetPasswordComponent', () => {
     options: {
       isAuthenticated?: boolean;
       updateUserError?: Error | null;
+      activationError?: Error | null;
     } = {},
   ) {
     const updateUser = vi.fn().mockResolvedValue({
@@ -62,6 +63,9 @@ describe('SetPasswordComponent', () => {
     const fakeAuth = {
       sessionReady: Promise.resolve(),
       isAuthenticated: vi.fn().mockReturnValue(options.isAuthenticated ?? true),
+      activatePendingBetaAccess: vi.fn().mockImplementation(async () => {
+        if (options.activationError) throw options.activationError;
+      }),
       currentUser: signal({
         id: 'u1',
         email: 'test@example.de',
@@ -102,7 +106,13 @@ describe('SetPasswordComponent', () => {
     });
 
     const fixture = TestBed.createComponent(SetPasswordComponent);
-    return { fixture, component: fixture.componentInstance, updateUser, fakeRouter };
+    return {
+      fixture,
+      component: fixture.componentInstance,
+      updateUser,
+      activatePendingBetaAccess: fakeAuth.activatePendingBetaAccess,
+      fakeRouter,
+    };
   }
 
   it('initialisiert das Formular mit leeren Werten und ungueltigem Status', () => {
@@ -137,7 +147,7 @@ describe('SetPasswordComponent', () => {
   });
 
   it('ruft updateUser beim Absenden auf', async () => {
-    const { component, updateUser } = createComponent();
+    const { component, updateUser, activatePendingBetaAccess } = createComponent();
 
     component.form.controls.password.setValue('SicheresPasswort123!');
     component.form.controls.confirmPassword.setValue('SicheresPasswort123!');
@@ -145,7 +155,28 @@ describe('SetPasswordComponent', () => {
 
     await component.onSubmit();
 
-    expect(updateUser).toHaveBeenCalledWith({ password: 'SicheresPasswort123!' });
+    expect(updateUser).toHaveBeenCalledWith({
+      password: 'SicheresPasswort123!',
+      data: { beta_registration_completed: true },
+    });
+    expect(activatePendingBetaAccess).toHaveBeenCalledOnce();
+  });
+
+  it('zeigt einen Aktivierungsfehler und meldet noch keinen Erfolg', async () => {
+    const { component, fakeRouter } = createComponent({
+      activationError: new Error('Beta-Zugang konnte nicht gestartet werden.'),
+    });
+
+    component.form.controls.password.setValue('SicheresPasswort123!');
+    component.form.controls.confirmPassword.setValue('SicheresPasswort123!');
+    component.form.controls.acceptTerms.setValue(true);
+
+    await component.onSubmit();
+
+    expect(component.errorMessage()).toBe('Beta-Zugang konnte nicht gestartet werden.');
+    expect(component.successMessage()).toBeNull();
+    expect(component.isLoading()).toBe(false);
+    expect(fakeRouter.navigate).not.toHaveBeenCalled();
   });
 
   it('markiert den Token als ungueltig wenn keine Sitzung vorhanden ist', async () => {

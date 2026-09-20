@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 import { unsavedEntryGuard } from './shared/guards/unsaved-entry.guard';
 import { authGuard, guestGuard } from './core/guards/auth.guard';
 import { operatorGuard } from './core/guards/operator.guard';
+import { workspaceSetupGuard, workspaceSetupPageGuard } from './core/guards/workspace-setup.guard';
 
 export const routes: Routes = [
   // Kundenansicht des Shops.
@@ -14,7 +15,7 @@ export const routes: Routes = [
   // sieht ihn nur, wer angemeldet ist.
   {
     path: 'shop',
-    canActivate: [authGuard],
+    canActivate: [authGuard, workspaceSetupGuard],
     loadComponent: () =>
       import('./features/store/store-layout/store-layout.component').then(
         (m) => m.StoreLayoutComponent,
@@ -70,9 +71,8 @@ export const routes: Routes = [
       },
       {
         path: 'register',
-        canActivate: [guestGuard],
-        loadComponent: () =>
-          import('./features/auth/register/register.component').then((m) => m.RegisterComponent),
+        redirectTo: 'login',
+        pathMatch: 'full',
       },
       {
         path: 'set-password',
@@ -89,11 +89,20 @@ export const routes: Routes = [
     ],
   },
 
+  {
+    path: 'onboarding/workspace',
+    canActivate: [authGuard, workspaceSetupPageGuard],
+    loadComponent: () =>
+      import('./features/onboarding/workspace-setup/workspace-setup.component').then(
+        (m) => m.WorkspaceSetupComponent,
+      ),
+  },
+
   // Protected Admin OS Dashboard & Workspace
   {
     path: '',
     loadComponent: () => import('./layout/shell/shell.component').then((m) => m.ShellComponent),
-    canActivate: [authGuard],
+    canActivate: [authGuard, workspaceSetupGuard],
     children: [
       {
         path: 'dashboard',

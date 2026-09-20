@@ -71,6 +71,10 @@ export class WorkspaceService {
   readonly workspaces = signal<Workspace[]>([]);
   readonly currentWorkspace = signal<Workspace | null>(null);
   readonly isLoading = signal<boolean>(false);
+  private readonly workspaceLoadError = signal<Error | null>(null);
+  readonly loadError = this.workspaceLoadError.asReadonly();
+  private workspaceLoadPromise: Promise<void> | null = null;
+  private workspacesLoaded = false;
 
   // Holding consolidation mode toggle (across all tenant workspaces)
   readonly isHoldingConsolidatedMode = signal<boolean>(false);
@@ -88,11 +92,12 @@ export class WorkspaceService {
         if (!this.supabase) {
           this.workspaces.set(this.defaultWorkspaces);
           this.currentWorkspace.set(this.defaultWorkspaces[0]);
+          this.workspacesLoaded = true;
+          this.workspaceLoadError.set(null);
         } else if (isAuth) {
-          this.loadWorkspaces();
+          void this.ensureLoaded();
         } else {
-          this.workspaces.set([]);
-          this.currentWorkspace.set(null);
+          this.resetWorkspaceState();
         }
       });
     } catch {
@@ -100,48 +105,95 @@ export class WorkspaceService {
     }
   }
 
-  async loadWorkspaces(): Promise<void> {
+  ensureLoaded(): Promise<void> {
     if (!this.supabase) {
       this.workspaces.set(this.defaultWorkspaces);
       this.currentWorkspace.set(this.defaultWorkspaces[0]);
-      return;
+      this.workspacesLoaded = true;
+      this.workspaceLoadError.set(null);
+      return Promise.resolve();
     }
 
+    if (this.workspacesLoaded) return Promise.resolve();
+    if (this.workspaceLoadPromise) return this.workspaceLoadPromise;
+
+    const request = this.fetchWorkspaces().finally(() => {
+      if (this.workspaceLoadPromise === request) this.workspaceLoadPromise = null;
+    });
+    this.workspaceLoadPromise = request;
+    return request;
+  }
+
+  async loadWorkspaces(): Promise<void> {
+    this.workspacesLoaded = false;
+    await this.ensureLoaded();
+  }
+
+  private async fetchWorkspaces(): Promise<void> {
+    const supabase = this.supabase;
+    if (!supabase) return;
+
     this.isLoading.set(true);
+    this.workspaceLoadError.set(null);
     try {
-      const { data, error } = await this.supabase.client
+      const { data, error } = await supabase.client
         .from('workspaces')
         .select('*')
         .order('created_at', { ascending: true });
 
       if (error) {
-        this.syncStatus.melde('Laden der Workspaces', error);
+        this.workspaceLoadError.set(this.syncStatus.melde('Laden der Workspaces', error));
         this.workspaces.set([]);
         this.currentWorkspace.set(null);
+        this.workspacesLoaded = false;
       } else if (data && data.length > 0) {
         const loadedWorkspaces = data as Workspace[];
         this.workspaces.set(loadedWorkspaces);
 
-        const storedId = localStorage.getItem(ACTIVE_WORKSPACE_KEY);
+        let storedId: string | null = null;
+        try {
+          if (typeof localStorage !== 'undefined') {
+            storedId = localStorage.getItem(ACTIVE_WORKSPACE_KEY);
+          }
+        } catch {}
         const match = loadedWorkspaces.find((w) => w.id === storedId);
 
         if (match) {
           this.currentWorkspace.set(match);
         } else {
           this.currentWorkspace.set(loadedWorkspaces[0]);
-          localStorage.setItem(ACTIVE_WORKSPACE_KEY, loadedWorkspaces[0].id);
+          try {
+            if (typeof localStorage !== 'undefined') {
+              localStorage.setItem(ACTIVE_WORKSPACE_KEY, loadedWorkspaces[0].id);
+            }
+          } catch {}
         }
+        this.workspacesLoaded = true;
       } else {
         this.workspaces.set([]);
         this.currentWorkspace.set(null);
+        // Die Auth-Registrierung und der Workspace-Trigger laufen getrennt.
+        // Solange noch kein Workspace sichtbar ist, muss ein erneuter Versuch
+        // deshalb wirklich wieder den Server fragen.
+        this.workspacesLoaded = false;
       }
     } catch (err) {
-      this.syncStatus.melde('Laden der Workspaces', err);
+      this.workspaceLoadError.set(this.syncStatus.melde('Laden der Workspaces', err));
       this.workspaces.set([]);
       this.currentWorkspace.set(null);
+      this.workspacesLoaded = false;
     } finally {
       this.isLoading.set(false);
     }
+  }
+
+  private resetWorkspaceState(): void {
+    this.workspaces.set([]);
+    this.currentWorkspace.set(null);
+    this.workspaceLoadError.set(null);
+    this.workspacesLoaded = false;
+    this.workspaceLoadPromise = null;
+    this.isLoading.set(false);
   }
 
   setCurrentWorkspace(workspace: Workspace): void {
@@ -203,6 +255,57 @@ export class WorkspaceService {
     }
 
     return { error: null };
+  }
+
+  async completeInitialSetup(workspaceId: string, name: string): Promise<{ error: Error | null }> {
+    const normalizedName = name.trim();
+    if (normalizedName.length < 2 || normalizedName.length > 100) {
+      return { error: new Error('Der Workspace-Name muss 2 bis 100 Zeichen lang sein.') };
+    }
+
+    if (!this.supabase || !this.auth?.isAuthenticated()) {
+      return {
+        error: new Error('Die Workspace-Einrichtung ist nur für angemeldete Nutzer verfügbar.'),
+      };
+    }
+
+    const completedAt = new Date().toISOString();
+    try {
+      const { data, error } = await this.supabase.client
+        .from('workspaces')
+        .update({
+          name: normalizedName,
+          setup_completed_at: completedAt,
+          updated_at: completedAt,
+        })
+        .eq('id', workspaceId)
+        .select('*')
+        .single();
+
+      if (error || !data || data.id !== workspaceId || data.setup_completed_at === null) {
+        return {
+          error: this.syncStatus.melde(
+            'Abschließen der Workspace-Einrichtung',
+            error ?? new Error('Die Datenbank hat den Workspace nicht bestätigt.'),
+          ),
+        };
+      }
+
+      const confirmedWorkspace = data as Workspace;
+      this.workspaces.update((workspaces) =>
+        workspaces.map((workspace) =>
+          workspace.id === workspaceId ? confirmedWorkspace : workspace,
+        ),
+      );
+      if (this.currentWorkspace()?.id === workspaceId) {
+        this.currentWorkspace.set(confirmedWorkspace);
+      }
+      return { error: null };
+    } catch (cause: unknown) {
+      return {
+        error: this.syncStatus.melde('Abschließen der Workspace-Einrichtung', cause),
+      };
+    }
   }
 
   async createWorkspace(name: string): Promise<{ data: Workspace | null; error: Error | null }> {
