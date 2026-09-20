@@ -25,6 +25,7 @@ const routes: Routes = [
     children: [
       { path: '', redirectTo: 'applications', pathMatch: 'full' },
       { path: 'applications', component: TestPageComponent },
+      { path: 'users', component: TestPageComponent },
       {
         path: 'vinted-bot',
         children: [
@@ -75,9 +76,14 @@ describe('SidebarComponent', () => {
   it('zeigt die Unterpunkte der Administration in fester Reihenfolge', async () => {
     const { subLinks } = await renderAt('/admin/applications');
 
-    expect(subLinks.map((link) => link.textContent?.trim())).toEqual(['Bewerbungen', 'Vinted Bot']);
+    expect(subLinks.map((link) => link.textContent?.trim())).toEqual([
+      'Bewerbungen',
+      'Nutzer',
+      'Vinted Bot',
+    ]);
     expect(subLinks.map((link) => link.getAttribute('href'))).toEqual([
       '/admin/applications',
+      '/admin/users',
       '/admin/vinted-bot',
     ]);
   });
@@ -89,6 +95,7 @@ describe('SidebarComponent', () => {
     expect(applications.subLinks.map((link) => link.getAttribute('aria-current'))).toEqual([
       'page',
       null,
+      null,
     ]);
     expect(applications.adminLink?.getAttribute('aria-current')).toBeNull();
     expect(applications.adminLink?.classList.contains('font-semibold')).toBe(true);
@@ -98,6 +105,7 @@ describe('SidebarComponent', () => {
     // Tiefer liegende Bot-Seiten gehoeren zum Punkt "Vinted Bot".
     const operation = await renderAt('/admin/vinted-bot/operation');
     expect(operation.subLinks.map((link) => link.getAttribute('aria-current'))).toEqual([
+      null,
       null,
       'page',
     ]);

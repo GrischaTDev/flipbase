@@ -23,7 +23,8 @@ CREATE TABLE IF NOT EXISTS public.workspaces (
     min_profit_amount NUMERIC NOT NULL DEFAULT 15.0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    archived_at timestamptz
+    archived_at timestamptz,
+    setup_completed_at timestamptz
 );
 
 CREATE TABLE IF NOT EXISTS public.workspace_members (
@@ -1420,8 +1421,8 @@ begin
     raise exception 'Nicht angemeldet';
   end if;
 
-  insert into public.workspaces (name)
-  values (coalesce(nullif(trim(p_name), ''), 'Mein Workspace'))
+  insert into public.workspaces (name, setup_completed_at)
+  values (coalesce(nullif(trim(p_name), ''), 'Mein Workspace'), now())
   returning id into new_ws_id;
 
   insert into public.workspace_members (workspace_id, user_id, role)

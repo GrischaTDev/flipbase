@@ -9,6 +9,10 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 
 // Nur die tatsächliche Testauswahl prüfen, nicht Playwrights Parser nachtesten.
 const coreTests = [
+  [
+    'beta-registration.spec.ts',
+    'genehmigt eine Bewerbung und startet nach der Passwortvergabe 60 Beta-Tage @pr-smoke',
+  ],
   ['core-smoke.spec.ts', 'speichert einen Artikel mit Bild und lädt ihn erneut @core-smoke'],
   ['core-smoke.spec.ts', 'öffnet die App und zentrale Arbeitsbereiche @core-smoke'],
   [
@@ -18,6 +22,10 @@ const coreTests = [
   [
     'listing-studio.spec.ts',
     'creates, publishes and completes the listing lifecycle on mobile @pr-smoke',
+  ],
+  [
+    'local-supabase.spec.ts',
+    'sperrt freie Registrierung und erlaubt Betreiber-Einladungen @pr-smoke',
   ],
   [
     'purchase-editable-draft.spec.ts',
@@ -109,7 +117,7 @@ async function listTests(config) {
 
 const keys = (entries) => entries.map((entry) => JSON.stringify(entry)).sort();
 
-test('PR-Auswahl: sieben Kernfälle, keine Wiederholungen, kein test.only', async () => {
+test('PR-Auswahl: neun Kernfälle, keine Wiederholungen, kein test.only', async () => {
   const { report, selected } = await listTests('playwright.pr.config.ts');
   assert.deepEqual(keys(selected), keys(coreTests));
   assert.equal(report.config.forbidOnly, true);

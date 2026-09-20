@@ -10,6 +10,138 @@ import { SyncStatusService } from './sync-status.service';
 import { WorkspaceContextLockService } from './workspace-context-lock.service';
 
 describe('Multi-Workspace & Holding Consolidation Service', () => {
+  describe('Ersteinrichtung', () => {
+    const incompleteWorkspace: Workspace = {
+      id: '11111111-1111-4111-8111-111111111111',
+      name: 'Mein Workspace',
+      currency: 'EUR',
+      tax_mode: 'diff_25a',
+      min_roi_percent: 30,
+      min_profit_amount: 15,
+      setup_completed_at: null,
+    };
+
+    function setupWorkspaceLifecycle() {
+      const order = vi.fn().mockResolvedValue({ data: [incompleteWorkspace], error: null });
+      const single = vi.fn().mockResolvedValue({
+        data: {
+          ...incompleteWorkspace,
+          name: 'Kamera Handel',
+          setup_completed_at: '2026-09-20T17:45:00.000Z',
+          updated_at: '2026-09-20T17:45:00.000Z',
+        },
+        error: null,
+      });
+      const updateSelect = vi.fn(() => ({ single }));
+      const eq = vi.fn(() => ({ select: updateSelect }));
+      const update = vi.fn(() => ({ eq }));
+      const select = vi.fn(() => ({ order }));
+      const from = vi.fn(() => ({ select, update }));
+      const syncStatus = new SyncStatusService();
+      const injector = Injector.create({
+        providers: [
+          { provide: SupabaseService, useValue: { client: { from } } },
+          { provide: AuthService, useValue: { isAuthenticated: () => true } },
+          { provide: SyncStatusService, useValue: syncStatus },
+        ],
+      });
+      const workspaceService = runInInjectionContext(injector, () => new WorkspaceService());
+      return { workspaceService, order, update, eq, single, syncStatus };
+    }
+
+    it('führt parallele Ladeanforderungen nur einmal gegen die Datenbank aus', async () => {
+      const { workspaceService, order } = setupWorkspaceLifecycle();
+
+      const first = workspaceService.ensureLoaded();
+      const second = workspaceService.ensureLoaded();
+      await Promise.all([first, second]);
+
+      expect(order).toHaveBeenCalledOnce();
+      expect(workspaceService.workspaces()).toEqual([incompleteWorkspace]);
+      expect(workspaceService.loadError()).toBeNull();
+    });
+
+    it('lässt einen fehlgeschlagenen Ladevorgang erneut versuchen', async () => {
+      const { workspaceService, order } = setupWorkspaceLifecycle();
+      order
+        .mockResolvedValueOnce({ data: null, error: { message: 'Verbindung getrennt' } })
+        .mockResolvedValueOnce({ data: [incompleteWorkspace], error: null });
+
+      await workspaceService.ensureLoaded();
+      expect(workspaceService.loadError()).toBeInstanceOf(Error);
+
+      await workspaceService.ensureLoaded();
+
+      expect(order).toHaveBeenCalledTimes(2);
+      expect(workspaceService.loadError()).toBeNull();
+      expect(workspaceService.currentWorkspace()).toEqual(incompleteWorkspace);
+    });
+
+    it('lädt nach einem noch fehlenden Workspace bei einem neuen Versuch erneut', async () => {
+      const { workspaceService, order } = setupWorkspaceLifecycle();
+      order
+        .mockResolvedValueOnce({ data: [], error: null })
+        .mockResolvedValueOnce({ data: [incompleteWorkspace], error: null });
+
+      await workspaceService.ensureLoaded();
+      expect(workspaceService.currentWorkspace()).toBeNull();
+
+      await workspaceService.ensureLoaded();
+
+      expect(order).toHaveBeenCalledTimes(2);
+      expect(workspaceService.currentWorkspace()).toEqual(incompleteWorkspace);
+    });
+
+    it('übernimmt Namen und Abschlusszeitpunkt erst nach Serverbestätigung', async () => {
+      const { workspaceService, update, eq } = setupWorkspaceLifecycle();
+      workspaceService.workspaces.set([incompleteWorkspace]);
+      workspaceService.currentWorkspace.set(incompleteWorkspace);
+
+      const result = await workspaceService.completeInitialSetup(
+        incompleteWorkspace.id,
+        '  Kamera Handel  ',
+      );
+
+      expect(update).toHaveBeenCalledWith({
+        name: 'Kamera Handel',
+        setup_completed_at: expect.any(String),
+        updated_at: expect.any(String),
+      });
+      expect(eq).toHaveBeenCalledWith('id', incompleteWorkspace.id);
+      expect(result.error).toBeNull();
+      expect(workspaceService.currentWorkspace()).toMatchObject({
+        name: 'Kamera Handel',
+        setup_completed_at: '2026-09-20T17:45:00.000Z',
+      });
+    });
+
+    it('behält bei einer Datenbankablehnung den unvollständigen Workspace unverändert', async () => {
+      const { workspaceService, single, syncStatus } = setupWorkspaceLifecycle();
+      single.mockResolvedValueOnce({ data: null, error: { message: 'Keine Berechtigung' } });
+      workspaceService.workspaces.set([incompleteWorkspace]);
+      workspaceService.currentWorkspace.set(incompleteWorkspace);
+
+      const result = await workspaceService.completeInitialSetup(
+        incompleteWorkspace.id,
+        'Kamera Handel',
+      );
+
+      expect(result.error).toBeInstanceOf(Error);
+      expect(workspaceService.currentWorkspace()).toEqual(incompleteWorkspace);
+      expect(workspaceService.workspaces()).toEqual([incompleteWorkspace]);
+      expect(syncStatus.fehler()[0]?.meldung).toContain('Keine Berechtigung');
+    });
+
+    it('weist einen Namen außerhalb der erlaubten Länge vor dem Speichern ab', async () => {
+      const { workspaceService, update } = setupWorkspaceLifecycle();
+
+      const result = await workspaceService.completeInitialSetup(incompleteWorkspace.id, ' A ');
+
+      expect(result.error?.message).toContain('2 bis 100');
+      expect(update).not.toHaveBeenCalled();
+    });
+  });
+
   describe('Archiv-Lebenszyklus', () => {
     function setup(rpc: ReturnType<typeof vi.fn>) {
       const injector = Injector.create({

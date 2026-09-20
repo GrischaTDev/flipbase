@@ -18,7 +18,17 @@ const row = {
   status: 'open',
   granted_days: null,
   decision_note: null,
+  decided_at: null,
   created_at: '2026-09-05T08:00:00.000Z',
+  receipt_email_status: 'sent',
+  receipt_email_sent_at: '2026-09-05T08:01:00.000Z',
+  receipt_email_last_error: null,
+  auth_user_id: null,
+  invitation_status: 'not_sent',
+  invitation_sent_at: null,
+  invitation_last_error: null,
+  registered_at: null,
+  workspace_licenses: { status: 'active', ends_at: '2026-11-19T08:00:00.000Z' },
 };
 
 function serviceWithList(response: { data: unknown; error: unknown }) {
@@ -48,7 +58,18 @@ describe('BetaApplicationService', () => {
         status: 'open',
         grantedDays: null,
         decisionNote: null,
+        decidedAt: null,
         createdAt: '2026-09-05T08:00:00.000Z',
+        receiptEmailStatus: 'sent',
+        receiptEmailSentAt: '2026-09-05T08:01:00.000Z',
+        receiptEmailLastError: null,
+        authUserId: null,
+        invitationStatus: 'not_sent',
+        invitationSentAt: null,
+        invitationLastError: null,
+        registeredAt: null,
+        licenseStatus: 'active',
+        betaEndsAt: '2026-11-19T08:00:00.000Z',
       },
     ]);
   });
@@ -61,40 +82,50 @@ describe('BetaApplicationService', () => {
     await expect(service.list()).rejects.toThrow('weg');
   });
 
-  it('schreibt die Entscheidung mit Laufzeit und Notiz und versendet Einladung bei Annahme', async () => {
-    const eq = vi.fn().mockResolvedValue({ error: null });
-    const update = vi.fn().mockReturnValue({ eq });
-    const from = vi.fn().mockReturnValue({ update });
-    const invoke = vi.fn().mockResolvedValue({ data: { ok: true }, error: null });
-    const service = serviceWith({ from, functions: { invoke } });
+  it('nimmt ueber die geschuetzte Funktion mit der gewaehlten Laufzeit an', async () => {
+    const invoke = vi.fn().mockResolvedValue({ data: { application: row }, error: null });
+    const service = serviceWith({ functions: { invoke } });
 
-    await service.decide('a1', 'accepted', 180, 'passt');
+    await service.accept('a1', 60);
 
-    expect(update).toHaveBeenCalledWith({
-      status: 'accepted',
-      granted_days: 180,
-      decision_note: 'passt',
-    });
-    expect(eq).toHaveBeenCalledWith('id', 'a1');
     expect(invoke).toHaveBeenCalledWith('beta-invite', {
-      body: { applicationId: 'a1' },
+      body: { applicationId: 'a1', grantedDays: 60, action: 'accept' },
     });
   });
 
-  it('versendet keine Einladung bei Ablehnung', async () => {
-    const eq = vi.fn().mockResolvedValue({ error: null });
-    const update = vi.fn().mockReturnValue({ eq });
-    const from = vi.fn().mockReturnValue({ update });
-    const invoke = vi.fn().mockResolvedValue({ data: { ok: true }, error: null });
-    const service = serviceWith({ from, functions: { invoke } });
+  it('lehnt ueber dieselbe geschuetzte Servergrenze ab', async () => {
+    const invoke = vi.fn().mockResolvedValue({ data: { application: row }, error: null });
+    const service = serviceWith({ functions: { invoke } });
 
-    await service.decide('a1', 'rejected', null, 'leider nein');
+    await service.reject('a1');
 
-    expect(update).toHaveBeenCalledWith({
-      status: 'rejected',
-      granted_days: null,
-      decision_note: 'leider nein',
+    expect(invoke).toHaveBeenCalledWith('beta-invite', {
+      body: { applicationId: 'a1', action: 'reject' },
     });
-    expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it('stellt beide fehlgeschlagenen E-Mail-Arten gezielt erneut zu', async () => {
+    const invoke = vi.fn().mockResolvedValue({ data: { application: row }, error: null });
+    const service = serviceWith({ functions: { invoke } });
+
+    await service.resendInvitation('a1');
+    await service.resendApplicationReceipt('a1');
+
+    expect(invoke).toHaveBeenNthCalledWith(1, 'beta-invite', {
+      body: { applicationId: 'a1', action: 'resend' },
+    });
+    expect(invoke).toHaveBeenNthCalledWith(2, 'beta-invite', {
+      body: { applicationId: 'a1', action: 'resend_receipt' },
+    });
+  });
+
+  it('gibt Einladungsfehler an die Oberflaeche weiter', async () => {
+    const invoke = vi.fn().mockResolvedValue({
+      data: null,
+      error: { message: 'Einladung fehlgeschlagen' },
+    });
+    const service = serviceWith({ functions: { invoke } });
+
+    await expect(service.accept('a1', 60)).rejects.toThrow('Einladung fehlgeschlagen');
   });
 });
