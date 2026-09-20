@@ -51,6 +51,12 @@ describe('Arbeitsnavigation', () => {
     assert.equal(items.find((item) => item.path === '/analytics')?.label, 'Auswertungen');
   });
 
+  it('oeffnet das Erstellen eines Inserats nur als Aktion der Uebersicht', () => {
+    const listings = WORKSPACE_NAVIGATION_GROUPS[2].items.find((item) => item.path === '/listings');
+
+    assert.equal(listings?.children, undefined);
+  });
+
   it('erhaelt jeden bisherigen Hauptlink genau einmal', () => {
     const paths = [
       DASHBOARD_NAVIGATION,

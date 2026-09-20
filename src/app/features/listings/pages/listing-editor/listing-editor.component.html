@@ -1,6 +1,7 @@
 <app-entry-page-layout
   [title]="isEdit() ? 'Inserat bearbeiten' : 'Inserat erstellen'"
   subtitle="Kleinanzeigen-Inserat vorbereiten und anschließend übertragen."
+  backLabel="Zurück zu Inseraten"
   (cancelled)="cancel()"
 >
   <form [formGroup]="form" class="space-y-5" (ngSubmit)="save()">
@@ -99,13 +100,16 @@
           />
         </div>
         <div class="block text-sm font-medium text-fb-text-primary">
-          <span>Textstil</span>
+          <span>Textvorlage</span>
           <app-custom-select
             formControlName="styleTone"
             class="mt-1"
-            ariaLabel="Textstil"
+            ariaLabel="Textvorlage"
             [options]="styleToneOptions"
           />
+          <p class="mt-1 text-xs font-normal text-fb-text-muted">
+            Verwendet feste Formulierungen mit den Artikeldaten. Es wird keine KI eingesetzt.
+          </p>
         </div>
         <label class="flex items-start gap-2 text-sm text-fb-text-secondary">
           <input

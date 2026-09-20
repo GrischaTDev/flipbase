@@ -1,5 +1,21 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-20 – Codex (OpenAI) – Inseratserstellung in den Übersichtsablauf eingeordnet
+
+**Auftrag:** Die Inseratserstellung wie beim Einkauf nur aus der Übersicht öffnen
+und die missverständliche Bezeichnung der festen Textvarianten klären.
+
+**Änderung:** „Inserate“ ist ein einzelner Navigationspunkt ohne eigenes Untermenü
+für Übersicht und Erstellen. Die technische Editorroute bleibt für die Aktion
+„Inserat erstellen“ erhalten. Der Editor bietet einen beschrifteten Rückweg zur
+Inseratsübersicht. Die bisherige Auswahl „Textstil“ heißt jetzt „Textvorlage“, die
+neutrale Variante ist verständlich benannt und ein Hinweis erklärt, dass feste
+Formulierungen mit Artikeldaten ohne KI verwendet werden.
+
+**Prüfung:** Die gezielten Navigations- und Angular-Komponententests wurden zunächst
+mit den alten Abweichungen rot und nach der Korrektur mit 14 beziehungsweise 12
+Tests grün ausgeführt. Kein Push und kein Merge.
+
 ## 2026-09-20 – Codex (OpenAI) – Alten Inseratsentwurfsspeicher entfernt
 
 **Auftrag:** Den zweiten Schritt des Listing Studio umsetzen: den ungenutzten alten
