@@ -46,31 +46,41 @@ NG8113-Hinweise außerhalb des Inserate-Bereichs; der unveränderte
 Steuerjournal-Ablauf meldet weiterhin den bestehenden NG0956-Laufzeithinweis.
 Kein Push und kein Merge.
 
-## 2026-09-20 – Codex (OpenAI) – Beta-Anmeldeweg und Betreiberfreigabe analysiert
+## 2026-09-20 – Codex (OpenAI) – Beta-Anmeldeweg und Betreiberfreigabe umgesetzt
 
-**Auftrag:** Den aktuellen Stand der Beta-Anmeldung, der E-Mail-Bestätigung,
-der Freigabe im Betreiberbereich und der späteren Verknüpfung mit Nutzerzugang
-und Abrechnung prüfen und daraus einen neuen Umsetzungsentwurf vorbereiten.
+**Auftrag:** Die Beta-Anmeldung auf der Landingpage verlässlich abschließen, die
+Bewerbung im Betreiberbereich mit einer 60-Tage-Vorgabe annehmen und den
+eingeladenen Nutzer bis zur Registrierung und gestarteten Beta nachvollziehbar
+mit der Bewerbung verbinden. Vorhandene Dialoge, Tabellen und Status-Badges
+weiterverwenden und die spätere Abrechnung vorbereiten, aber noch nicht bauen.
 
-**Befund:** Landingpage, Bewerbungstabelle, Betreiberliste, Einladungsfunktion
-und Passwortvergabe existieren bereits, bilden aber keinen verlässlichen
-Lebenszyklus. Die Landingpage zeigt nach erfolgreichem Absenden nur eine kurze
-Textmeldung und versendet keine Bestätigung der Bewerbung. Beim Annehmen wird
-die Bewerbung vor dem Einladungsversand endgültig auf `accepted` gesetzt; ein
-Versandfehler wird anschließend nur protokolliert und bleibt in der Oberfläche
-unsichtbar. Die Einladungsfunktion erzeugt über Supabase Auth bereits Nutzer,
-Profil und Workspace, speichert die Nutzer-ID aber nicht an der Bewerbung und
-kennt keinen Zustand für eingeladen, Link eingelöst oder registriert. Die
-globale Vorgabelaufzeit beträgt 180 statt der gewünschten 60 Tage. Eine
-Workspace-Lizenz beziehungsweise ein vom späteren Bezahlabo getrenntes
-Zugangsmodell ist noch nicht umgesetzt; `granted_days` hat deshalb aktuell
-keine Wirkung. Die offene Registrierung bleibt weiterhin erreichbar.
+**Änderung:** Beide Beta-Formulare zeigen nach erfolgreicher Speicherung einen
+zugänglichen Dankesdialog. Der Bewerber erhält sofort eine gestaltete
+Eingangsbestätigung ohne Registrierungslink; ein Versandfehler wird im Dialog
+sichtbar, ohne die gespeicherte Bewerbung zu verlieren. Im Betreiberbereich
+öffnet „Annehmen“ nun einen vorhandenen Dialogbaustein mit Name, E-Mail und
+änderbaren, auf 60 Tage voreingestellten Laufzeit. Einladungs- und
+Bestätigungsmails lassen sich nach Fehlern erneut senden, und die Liste zeigt
+offen, abgelehnt, Einladung fehlgeschlagen, wartet auf Registrierung oder Beta
+gestartet mit den vorhandenen Badges.
 
-**Prüfung:** Aktuellen `master`-Stand und offene GitHub-PRs, Landingpage-Skript,
-Edge Functions, Betreiberkomponente und -service, Supabase-Schema und
-Registrierungs-Trigger, Auth-Routen, E-Mail-Templates, vorhandene Tests sowie
-die frühere Betreiberbereich-Spezifikation gelesen. Keine Produktlogik,
-Migration, Konfiguration, Veröffentlichung oder externe Testbewerbung geändert.
+Die Einladung trägt die Bewerbungs-ID in das Auth-Konto. Der bestehende
+Registrierungstrigger verbindet dadurch Bewerbung, Nutzer, Profil, Workspace
+und eine getrennte Workspace-Lizenz. Deren Laufzeit startet idempotent erst
+nach erfolgreicher Passwortvergabe, nicht beim Öffnen des Einladungslinks. Eine
+neue Betreiberseite „Nutzer“ zeigt Registrierung, Workspace und Beta-Zeitraum.
+Öffentliche Registrierungen sind für die Beta geschlossen; die bisherige
+Registrierungsadresse führt zum Login. Das Zugangsmodell trennt die Beta schon
+von einem späteren Abonnement, ohne Stripe-, Rechnungs- oder Zahlungslogik
+vorwegzunehmen.
+
+**Prüfung:** `npm run verify` erfolgreich mit Format, ESLint, Typprüfung,
+Workflow- und Suite-Audit, 1.441 Node-, 240 DOM-, 947 Angular- und 15
+Landing-Tests sowie Produktionsbau. Die 10 Deno-Tests für E-Mail und Einladung,
+der saubere lokale Datenbank-Neuaufbau und alle 19 fokussierten
+Betreiber-Datenbanktests bestanden. Der gemeinsame Admin-UI-Check meldete bei
+94 Dateien keine Abweichung. Weiterhin nur die drei bekannten NG8113-Hinweise
+in Dashboard, Einkäufen und Verkäufern. Kein Push, kein PR und kein Merge.
 
 ## 2026-09-20 – Codex (OpenAI) – Kontrollreview-Funde im Listing Studio behoben
 
