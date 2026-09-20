@@ -1,4 +1,5 @@
 import type { InventoryItem, ItemMedia, ItemStatus } from '../../../core/models/flipbase.models';
+import type { KleinanzeigenListingPayload } from '../../../core/services/listing-studio.service';
 
 export type ListingPlatform = 'kleinanzeigen';
 export type ListingStatus = 'prepared' | 'online' | 'ended';
@@ -53,6 +54,16 @@ export interface ListingRow {
   readonly listing: Listing;
   readonly item: ListingEditorItem;
   readonly primaryImagePath: string | null;
+}
+
+export interface ListingActionResult {
+  readonly data: Listing | null;
+  readonly error: Error | null;
+}
+
+export interface ListingPayloadResult {
+  readonly payload: KleinanzeigenListingPayload;
+  readonly missingImages: readonly string[];
 }
 
 export interface ListingValidationError {
