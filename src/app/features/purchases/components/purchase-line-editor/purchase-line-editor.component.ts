@@ -27,7 +27,6 @@ import {
 import { ItemConditionLabelPipe } from '../../../../shared/pipes/item-condition-label.pipe';
 import { PurchaseProductPickerComponent } from '../purchase-product-picker/purchase-product-picker.component';
 import { BarcodeScannerComponent } from '../../../../shared/components/barcode-scanner/barcode-scanner.component';
-import { allocatePackagePrice } from '../../utils/package-price-allocation';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
@@ -199,15 +198,6 @@ export class PurchaseLineEditorComponent {
   openPicker(): void {
     this.pickerSearch.set('');
     this.pickerOpen.set(true);
-  }
-
-  addPackage(): void {
-    if (this.lineRows.length >= 1000 || this.isMysteryPurchase()) return;
-    const row = this.createLine('individual');
-    row.patchValue({ isPackage: true, titleSnapshot: 'Mystery Pack' }, { emitEvent: false });
-    this.lineRows.push(row);
-    this.emitDrafts();
-    this.detailId.set(row.controls.draftId.value);
   }
 
   addProducts(products: readonly CatalogProduct[]): void {
@@ -472,28 +462,6 @@ export class PurchaseLineEditorComponent {
 
   updateQuantity(index: number): void {
     this.recalculate(index, 'unitPurchasePrice');
-  }
-
-  applyPackagePrice(total: number): void {
-    if (this.lineRows.controls.some((row) => row.controls.isPackage.value)) return;
-    const lineIds = this.lineRows.controls.map((row) => row.controls.draftId.value);
-    const allocation = allocatePackagePrice(total, lineIds);
-
-    for (const row of this.lineRows.controls) {
-      const lineTotal = allocation.get(row.controls.draftId.value);
-      if (lineTotal === undefined) continue;
-      const quantity = row.controls.orderedQuantity.value;
-      row.patchValue(
-        {
-          priceMode: 'priced',
-          lineTotal,
-          unitPurchasePrice: this.normalizeUnitPrice(lineTotal / quantity),
-        },
-        { emitEvent: false },
-      );
-    }
-
-    this.emitDrafts();
   }
 
   removeLine(index: number): void {

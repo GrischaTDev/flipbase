@@ -1,4 +1,4 @@
-import { expect, openDashboard, test } from './support/fixtures';
+import { expect, openDashboard, selectDefaultPurchaseSeller, test } from './support/fixtures';
 
 test('aligns purchase navigation and keeps compact actions with the primary action last', async ({
   page,
@@ -6,7 +6,8 @@ test('aligns purchase navigation and keeps compact actions with the primary acti
   await page.setViewportSize({ width: 1440, height: 1000 });
   await openDashboard(page);
   await page.goto('/purchases/new');
-  await page.getByRole('textbox', { name: 'Bezeichnung (optional)' }).fill('Kopfzeilen-Test');
+  await selectDefaultPurchaseSeller(page);
+  await page.getByRole('textbox', { name: 'Beschreibung' }).fill('Kopfzeilen-Test');
   await page.getByRole('button', { name: 'Entwurf speichern', exact: true }).click();
   await page.locator('[data-purchase-description]').filter({ hasText: 'Kopfzeilen-Test' }).click();
   const header = page.locator('app-entry-page-layout header');

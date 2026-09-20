@@ -56,6 +56,7 @@ async function createSummary(): Promise<ComponentFixture<PurchaseCostSummaryComp
   }).compileComponents();
   const fixture = TestBed.createComponent(PurchaseCostSummaryComponent);
   fixture.componentRef.setInput('goodsAmount', 100);
+  fixture.componentRef.setInput('itemCount', 3);
   fixture.componentRef.setInput('discountAmount', 10);
   fixture.componentRef.setInput('costs', [
     {
@@ -87,6 +88,7 @@ describe('PurchaseCostSummaryComponent', () => {
     });
     bridgeSignalInputs(PurchaseCostSummaryComponent, [
       'goodsAmount',
+      'itemCount',
       'discountAmount',
       'costs',
       'totalAmount',
@@ -112,8 +114,9 @@ describe('PurchaseCostSummaryComponent', () => {
     const fixture = await createSummary();
     const text = (fixture.nativeElement as HTMLElement).textContent?.replace(/\s+/g, ' ');
 
-    expect(text).toContain('Warenbetrag 100,00 €');
-    expect(text).toContain('Rabatt − 10,00 €');
+    expect(text).toContain('Bestellte Artikel 3 Artikel 100,00 €');
+    expect(text).toContain('Anpassungen');
+    expect(text).toContain('− 10,00 €');
     expect(text).toContain('Versandkosten Noch prüfen 15,00 €');
     expect(text).toContain('Gesamt 92,00 €');
   });
@@ -155,15 +158,20 @@ describe('PurchaseCostSummaryComponent', () => {
     expect(host.getAttribute('aria-label')).toBe('Kostenübersicht');
   });
 
-  it('behandelt null als autoritativ unbekannten Gesamtbetrag', async () => {
+  it('zeigt einen leeren Einkauf mit null Artikeln und Nullbeträgen', async () => {
     const fixture = await createSummary();
+    fixture.componentRef.setInput('goodsAmount', null);
+    fixture.componentRef.setInput('itemCount', 0);
+    fixture.componentRef.setInput('discountAmount', 0);
+    fixture.componentRef.setInput('costs', []);
     fixture.componentRef.setInput('totalAmount', null);
     fixture.detectChanges();
 
-    expect(fixture.componentInstance.displayedTotal()).toBeNull();
-    expect(fixture.nativeElement.querySelector('[data-purchase-cost-open]')?.textContent).toBe(
-      'Kosten offen',
-    );
+    const text = (fixture.nativeElement as HTMLElement).textContent?.replace(/\s+/g, ' ');
+    expect(text).toContain('Bestellte Artikel 0 Artikel 0,00 €');
+    expect(text).toContain('Anpassungen 0,00 €');
+    expect(text).toContain('Gesamt 0,00 €');
+    expect(fixture.nativeElement.querySelector('[data-purchase-cost-open]')).toBeNull();
   });
 
   it('zeigt einen expliziten Nullpreis als bezahlten Gesamtbetrag', async () => {

@@ -1,8 +1,8 @@
 -- Verkäuferangaben je Einkauf als eigener Snapshot und ein eng begrenzter
 -- Nachtrag, der auch abgeschlossene Einkäufe nur in ihren Herkunftsangaben ändert.
--- Betroffen: purchases.seller_type, seller_name, seller_marketplace_username,
+-- Betroffen: purchases.seller_type, seller_name,
 -- seller_street, seller_address_extra, seller_postal_code, seller_city,
--- seller_country_code, external_order_id, seller_details_version sowie die
+-- seller_country_code, seller_details_version sowie die
 -- Funktionen normalize_purchase_seller_details, purchase_seller_details_snapshot
 -- und update_purchase_seller_details.
 
@@ -13,9 +13,6 @@ alter table public.purchases
   add column if not exists seller_name text
     constraint purchases_seller_name_length_check
     check (pg_catalog.char_length(seller_name) between 1 and 200),
-  add column if not exists seller_marketplace_username text
-    constraint purchases_seller_marketplace_username_length_check
-    check (pg_catalog.char_length(seller_marketplace_username) between 1 and 100),
   add column if not exists seller_street text
     constraint purchases_seller_street_length_check
     check (pg_catalog.char_length(seller_street) between 1 and 200),
@@ -31,9 +28,6 @@ alter table public.purchases
   add column if not exists seller_country_code text
     constraint purchases_seller_country_code_check
     check (seller_country_code ~ '^[A-Z]{2}$'),
-  add column if not exists external_order_id text
-    constraint purchases_external_order_id_length_check
-    check (pg_catalog.char_length(external_order_id) between 1 and 100),
   add column if not exists seller_details_version integer not null default 0
     constraint purchases_seller_details_version_check
     check (seller_details_version >= 0);
@@ -42,8 +36,6 @@ comment on column public.purchases.seller_type is
   'Verkäuferart dieses Einkaufs: private oder business. Leer heißt unbekannt, nicht privat.';
 comment on column public.purchases.seller_name is
   'Name des Verkäufers, wie er für diesen Einkauf erfasst wurde (Snapshot).';
-comment on column public.purchases.seller_marketplace_username is
-  'Benutzername des Verkäufers auf der Einkaufsplattform, z. B. bei Vinted.';
 comment on column public.purchases.seller_street is
   'Straße und Hausnummer des Verkäufers für diesen Einkauf (Snapshot).';
 comment on column public.purchases.seller_address_extra is
@@ -54,8 +46,6 @@ comment on column public.purchases.seller_city is
   'Ort des Verkäufers für diesen Einkauf (Snapshot).';
 comment on column public.purchases.seller_country_code is
   'ISO-3166-1-Alpha-2-Ländercode des Verkäufers für diesen Einkauf (Snapshot).';
-comment on column public.purchases.external_order_id is
-  'Bestellnummer oder Referenz der Plattform bzw. des Shops; nicht die interne Einkaufsnummer.';
 comment on column public.purchases.seller_details_version is
   'Steigt bei jeder Änderung der Herkunftsangaben und schützt Nachträge vor veralteten Ständen.';
 
@@ -73,17 +63,13 @@ as $$
     'supplier_id', pg_catalog.lower(nullif(pg_catalog.btrim(p_details ->> 'supplier_id'), '')),
     'seller_type', nullif(pg_catalog.btrim(p_details ->> 'seller_type'), ''),
     'seller_name', nullif(pg_catalog.btrim(p_details ->> 'seller_name'), ''),
-    'seller_marketplace_username',
-      nullif(pg_catalog.btrim(p_details ->> 'seller_marketplace_username'), ''),
     'seller_street', nullif(pg_catalog.btrim(p_details ->> 'seller_street'), ''),
     'seller_address_extra', nullif(pg_catalog.btrim(p_details ->> 'seller_address_extra'), ''),
     'seller_postal_code', nullif(pg_catalog.btrim(p_details ->> 'seller_postal_code'), ''),
     'seller_city', nullif(pg_catalog.btrim(p_details ->> 'seller_city'), ''),
     'seller_country_code',
       pg_catalog.upper(nullif(pg_catalog.btrim(p_details ->> 'seller_country_code'), '')),
-    'external_order_id', nullif(pg_catalog.btrim(p_details ->> 'external_order_id'), ''),
-    'supplier_reference', nullif(pg_catalog.btrim(p_details ->> 'supplier_reference'), ''),
-    'original_url', nullif(pg_catalog.btrim(p_details ->> 'original_url'), '')
+    'supplier_reference', nullif(pg_catalog.btrim(p_details ->> 'supplier_reference'), '')
   );
 $$;
 
@@ -106,15 +92,12 @@ as $$
     'supplier_id', p_purchase.supplier_id::text,
     'seller_type', p_purchase.seller_type,
     'seller_name', p_purchase.seller_name,
-    'seller_marketplace_username', p_purchase.seller_marketplace_username,
     'seller_street', p_purchase.seller_street,
     'seller_address_extra', p_purchase.seller_address_extra,
     'seller_postal_code', p_purchase.seller_postal_code,
     'seller_city', p_purchase.seller_city,
     'seller_country_code', p_purchase.seller_country_code,
-    'external_order_id', p_purchase.external_order_id,
-    'supplier_reference', p_purchase.supplier_reference,
-    'original_url', p_purchase.original_url
+    'supplier_reference', p_purchase.supplier_reference
   );
 $$;
 
@@ -166,9 +149,9 @@ begin
     from pg_catalog.jsonb_object_keys(p_details) as detail(key)
     where detail.key <> all (array[
       'source_id', 'supplier_id', 'seller_type', 'seller_name',
-      'seller_marketplace_username', 'seller_street', 'seller_address_extra',
+      'seller_street', 'seller_address_extra',
       'seller_postal_code', 'seller_city', 'seller_country_code',
-      'external_order_id', 'supplier_reference', 'original_url'
+      'supplier_reference'
     ])
   ) then
     raise exception using
@@ -227,15 +210,12 @@ begin
       supplier_id = (v_after_details ->> 'supplier_id')::uuid,
       seller_type = v_after_details ->> 'seller_type',
       seller_name = v_after_details ->> 'seller_name',
-      seller_marketplace_username = v_after_details ->> 'seller_marketplace_username',
       seller_street = v_after_details ->> 'seller_street',
       seller_address_extra = v_after_details ->> 'seller_address_extra',
       seller_postal_code = v_after_details ->> 'seller_postal_code',
       seller_city = v_after_details ->> 'seller_city',
       seller_country_code = v_after_details ->> 'seller_country_code',
-      external_order_id = v_after_details ->> 'external_order_id',
       supplier_reference = v_after_details ->> 'supplier_reference',
-      original_url = v_after_details ->> 'original_url',
       seller_details_version = v_before.seller_details_version + 1,
       updated_at = pg_catalog.clock_timestamp()
   where workspace_id = p_workspace_id
@@ -282,4 +262,4 @@ grant execute on function public.update_purchase_seller_details(uuid, uuid, inte
   to authenticated;
 
 comment on function public.update_purchase_seller_details(uuid, uuid, integer, jsonb, text) is
-  'Trägt Quelle, Verkäufer-Snapshot, Bestellnummer, Referenz und Angebotslink nach, auch bei abgeschlossenen Einkäufen. Ändert keine Kosten, Positionen, Bestände oder Status.';
+  'Trägt Quelle, Verkäufer-Snapshot und Referenz nach, auch bei abgeschlossenen Einkäufen. Ändert keine Kosten, Positionen, Bestände oder Status.';

@@ -128,13 +128,13 @@
       </div>
     } @else {
       <div>
-        <span class="mb-1.5 block text-[13px] font-semibold">Fällig am (optional)</span>
+        <span class="mb-1.5 block text-[13px] font-semibold">Fällig am</span>
         <app-date-picker formControlName="due_date" ariaLabel="Fälligkeitsdatum" />
       </div>
     }
 
     <div class="space-y-2">
-      <span class="block text-[13px] font-semibold">Beleg (optional)</span>
+      <span class="block text-[13px] font-semibold">Beleg</span>
       <label
         class="flex min-h-24 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-fb-border bg-fb-subtle px-4 py-3 text-center transition hover:bg-fb-surface-hover"
         [class.border-fb-primary]="isDraggingDocument()"

@@ -48,7 +48,7 @@
         [required]="true"
         [error]="fieldError(carrierForm.controls.senderName, 'Name')"
       />
-      <app-text-field formControlName="senderCompany" label="Firma (optional)" />
+      <app-text-field formControlName="senderCompany" label="Firma" />
       <app-text-field
         formControlName="senderStreet"
         label="Straße *"
@@ -81,11 +81,11 @@
       />
       <app-text-field
         formControlName="senderEmail"
-        label="E-Mail (optional)"
+        label="E-Mail"
         type="email"
         [error]="fieldError(carrierForm.controls.senderEmail, 'E-Mail')"
       />
-      <app-text-field formControlName="senderPhone" label="Telefon (optional)" type="tel" />
+      <app-text-field formControlName="senderPhone" label="Telefon" type="tel" />
     </div>
   </fieldset>
   <fieldset class="space-y-3">

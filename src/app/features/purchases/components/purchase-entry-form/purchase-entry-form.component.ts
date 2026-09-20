@@ -33,12 +33,7 @@ import {
   SelectOption,
 } from '../../../../shared/components/custom-select/custom-select.component';
 import { Purchase, Supplier } from '../../../../core/models/flipbase.models';
-import { PurchaseSellerType } from '../../../../core/models/purchase-seller.models';
-import {
-  PURCHASE_SELLER_TYPE_OPTIONS,
-  purchaseSellerCountryOptions,
-  sellerSnapshotFromSupplier,
-} from '../../utils/purchase-seller';
+import { sellerSnapshotFromSupplier } from '../../utils/purchase-seller';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { SyncStatusService } from '../../../../core/services/sync-status.service';
 import { WorkspaceContextLockService } from '../../../../core/services/workspace-context-lock.service';
@@ -52,8 +47,6 @@ import {
   PurchaseCostOverviewValue,
   PurchaseCostType,
 } from '../purchase-cost-editor/purchase-cost-adjustments';
-import { PackagePriceDialogComponent } from '../package-price-dialog/package-price-dialog.component';
-import { purchaseLineStructureFingerprint } from '../../utils/purchase-line-structure';
 import { PurchaseCostOverviewDialogComponent } from '../purchase-cost-overview-dialog/purchase-cost-overview-dialog.component';
 import { PurchaseCostSummaryComponent } from '../purchase-cost-summary/purchase-cost-summary.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
@@ -130,7 +123,6 @@ function purchaseCostsEqual(
     PurchaseCostOverviewDialogComponent,
     PurchaseCostSummaryComponent,
     PurchaseSellerDialogComponent,
-    PackagePriceDialogComponent,
     ButtonComponent,
     CardComponent,
     TextFieldComponent,
@@ -170,7 +162,7 @@ export class PurchaseEntryFormComponent {
   ]);
 
   readonly lieferantenOptionen = computed<SelectOption<string | null>[]>(() => [
-    { value: null, label: 'Kein gespeicherter Verkäufer' },
+    { value: null, label: '-- Verkäufer wählen --' },
     ...this.suppliersService.suppliers().map((l) => ({ value: l.id, label: l.name })),
   ]);
 
@@ -196,16 +188,8 @@ export class PurchaseEntryFormComponent {
     { value: 'individual', label: 'Einzelpreise' },
   ];
 
-  readonly sellerTypeOptions = PURCHASE_SELLER_TYPE_OPTIONS;
-  readonly countryOptions = purchaseSellerCountryOptions();
-  /** Die Anschrift ist oft erst später bekannt und bleibt bis dahin eingeklappt. */
-  readonly sellerAddressExpanded = signal(false);
-
   readonly sellerDialogOpen = signal(false);
   readonly costDialogOpen = signal(false);
-  readonly packagePriceDialogOpen = signal(false);
-  readonly confirmedPackageFingerprint = signal<string | null>(null);
-  readonly packagePriceStale = signal(false);
   readonly requestId = crypto.randomUUID();
   readonly pricingMode = signal<'individual' | 'total'>('individual');
   readonly discountAmount = signal(0);
@@ -218,16 +202,17 @@ export class PurchaseEntryFormComponent {
 
   // Quick add states
   readonly isAddingSource = signal<boolean>(false);
-  readonly isAddingSupplier = signal<boolean>(false);
   readonly newSourceName = signal<string>('');
-  readonly newSupplierName = signal<string>('');
+  readonly newSourceControl = new FormControl('', { nonNullable: true });
 
   /** Die Eingaben selbst leben im Kosteneditor; das Modal hält nur dessen aktuellen Entwurf. */
   readonly costDrafts = signal<readonly PurchaseCostDraft[]>([]);
   readonly initialCostDrafts = signal<readonly PurchaseCostDraft[]>([]);
   readonly areAdditionalCostsValid = signal<boolean>(true);
   readonly purchaseLines = signal<readonly PurchaseLineDraft[]>([]);
-  readonly hasPackages = computed(() => this.purchaseLines().some((line) => line.isPackage));
+  readonly orderedItemCount = computed(() =>
+    this.purchaseLines().reduce((total, line) => total + line.orderedQuantity, 0),
+  );
   private readonly baselinePurchaseLines = signal<readonly PurchaseLineDraft[]>([]);
   private readonly baselineCostDrafts = signal<readonly PurchaseCostDraft[]>([]);
   readonly purchaseBasePrice = signal<number | null>(null);
@@ -250,16 +235,15 @@ export class PurchaseEntryFormComponent {
 
   readonly form = new FormGroup({
     type: new FormControl<PurchaseType>('single', { nonNullable: true }),
-    title: new FormControl('', {
-      nonNullable: true,
-      validators: [],
-    }),
+    // Technischer Kompatibilitätswert für ältere Einkaufsdatensätze. Neue Eingaben
+    // verwenden ausschließlich `notes` als sichtbare Beschreibung.
+    title: new FormControl('', { nonNullable: true }),
     content_status: new FormControl<'known' | 'unknown'>('known', { nonNullable: true }),
     pricing_mode: new FormControl<'individual' | 'total'>('individual', { nonNullable: true }),
     supplier_reference: new FormControl('', { nonNullable: true }),
     discount_amount: new FormControl(0, { nonNullable: true, validators: [Validators.min(0)] }),
     source_id: new FormControl<string | null>(null),
-    supplier_id: new FormControl<string | null>(null),
+    supplier_id: new FormControl<string | null>(null, { validators: [Validators.required] }),
     purchase_date: new FormControl<string>(new Date().toISOString().split('T')[0], {
       nonNullable: true,
       validators: [Validators.required],
@@ -269,63 +253,26 @@ export class PurchaseEntryFormComponent {
     }),
     tracking_number: new FormControl<string>(''),
     tracking_carrier: new FormControl<TrackingCarrier | null>(null),
-    original_url: new FormControl<string>(''),
-    external_order_id: new FormControl('', { nonNullable: true }),
-    seller_type: new FormControl<PurchaseSellerType | null>(null),
-    seller_name: new FormControl('', { nonNullable: true }),
-    seller_marketplace_username: new FormControl('', { nonNullable: true }),
-    seller_street: new FormControl('', { nonNullable: true }),
-    seller_address_extra: new FormControl('', { nonNullable: true }),
-    seller_postal_code: new FormControl('', { nonNullable: true }),
-    seller_city: new FormControl('', { nonNullable: true }),
-    seller_country_code: new FormControl<string | null>(null),
-    notes: new FormControl<string>(''),
+    notes: new FormControl('', { nonNullable: true }),
     // Single item specific fields
     single_item_condition: new FormControl<ItemCondition>('used', { nonNullable: true }),
     single_item_expected_value: new FormControl<number | null>(null),
   });
 
-  /**
-   * Übernimmt die Angaben eines gespeicherten Verkäufers bewusst in den Einkauf.
-   * Danach gehören sie dem Einkauf; spätere Änderungen am Kontakt wirken nicht zurück.
-   */
-  onSupplierSelected(supplierId: string | null): void {
-    const supplier = supplierId
-      ? this.suppliersService.suppliers().find((entry) => entry.id === supplierId)
-      : undefined;
-    if (supplier) this.applySupplierSnapshot(supplier);
-  }
-
-  onSellerAddressToggle(event: Event): void {
-    this.sellerAddressExpanded.set((event.target as HTMLDetailsElement).open);
-  }
-
   onSellerCreated(supplier: Supplier): void {
     this.form.controls.supplier_id.setValue(supplier.id);
-    this.applySupplierSnapshot(supplier);
+    this.form.markAsDirty();
     this.sellerDialogOpen.set(false);
   }
 
-  private applySupplierSnapshot(supplier: Supplier): void {
-    const snapshot = sellerSnapshotFromSupplier(supplier);
-    this.form.patchValue({
-      seller_type: snapshot.seller_type,
-      seller_name: snapshot.seller_name ?? '',
-      seller_street: snapshot.seller_street ?? '',
-      seller_address_extra: snapshot.seller_address_extra ?? '',
-      seller_postal_code: snapshot.seller_postal_code ?? '',
-      seller_city: snapshot.seller_city ?? '',
-      seller_country_code: snapshot.seller_country_code,
-    });
-    this.form.markAsDirty();
-    if (
-      snapshot.seller_street ||
-      snapshot.seller_postal_code ||
-      snapshot.seller_city ||
-      snapshot.seller_country_code
-    ) {
-      this.sellerAddressExpanded.set(true);
-    }
+  onNewSourceInput(event: Event): void {
+    this.newSourceName.set((event.target as HTMLInputElement).value);
+  }
+
+  cancelNewSource(): void {
+    this.newSourceName.set('');
+    this.newSourceControl.setValue('');
+    this.isAddingSource.set(false);
   }
 
   async saveNewSource(): Promise<void> {
@@ -347,31 +294,9 @@ export class PurchaseEntryFormComponent {
     this.form.patchValue({ source_id: data.id });
     this.form.markAsDirty();
     this.newSourceName.set('');
+    this.newSourceControl.setValue('');
     this.isAddingSource.set(false);
     this.toast.success('Quelle wurde angelegt.');
-  }
-
-  async saveNewSupplier(): Promise<void> {
-    const name = this.newSupplierName().trim();
-    if (!name) return;
-    let ergebnis: Awaited<ReturnType<SuppliersService['createSupplier']>>;
-    try {
-      ergebnis = await this.suppliersService.createSupplier(name);
-    } catch (ursache: unknown) {
-      ergebnis = { data: null, error: this.alsError(ursache) };
-    }
-    const { data, error } = ergebnis;
-    if (error || !data) {
-      const ursache = error ?? new Error('Der Lieferant wurde nicht zurückgegeben.');
-      this.errorMessage.set(ursache.message);
-      this.meldeFehlerWennNichtSynchronisiert('Lieferant konnte nicht angelegt werden.', ursache);
-      return;
-    }
-    this.form.patchValue({ supplier_id: data.id });
-    this.form.markAsDirty();
-    this.newSupplierName.set('');
-    this.isAddingSupplier.set(false);
-    this.toast.success('Lieferant wurde angelegt.');
   }
 
   onTrackingNumberInput(event: Event): void {
@@ -415,15 +340,6 @@ export class PurchaseEntryFormComponent {
 
   resetToPurchase(vorhandener: Purchase): void {
     this.befuelltFuer = vorhandener.id;
-    this.sellerAddressExpanded.set(
-      Boolean(
-        vorhandener.seller_street ||
-        vorhandener.seller_address_extra ||
-        vorhandener.seller_postal_code ||
-        vorhandener.seller_city ||
-        vorhandener.seller_country_code,
-      ),
-    );
     this.completed.set(false);
     this.persistedDraft.set(null);
     this.errorMessage.set(null);
@@ -431,9 +347,8 @@ export class PurchaseEntryFormComponent {
     this.sellerDialogOpen.set(false);
     this.costDialogOpen.set(false);
     this.isAddingSource.set(false);
-    this.isAddingSupplier.set(false);
     this.newSourceName.set('');
-    this.newSupplierName.set('');
+    this.newSourceControl.setValue('');
 
     this.form.reset({
       type: vorhandener.type,
@@ -447,16 +362,6 @@ export class PurchaseEntryFormComponent {
       supplier_id: vorhandener.supplier_id ?? null,
       purchase_date: vorhandener.purchase_date,
       purchase_price: vorhandener.purchase_price,
-      original_url: vorhandener.original_url ?? '',
-      external_order_id: vorhandener.external_order_id ?? '',
-      seller_type: vorhandener.seller_type ?? null,
-      seller_name: vorhandener.seller_name ?? '',
-      seller_marketplace_username: vorhandener.seller_marketplace_username ?? '',
-      seller_street: vorhandener.seller_street ?? '',
-      seller_address_extra: vorhandener.seller_address_extra ?? '',
-      seller_postal_code: vorhandener.seller_postal_code ?? '',
-      seller_city: vorhandener.seller_city ?? '',
-      seller_country_code: vorhandener.seller_country_code ?? null,
       notes: vorhandener.notes ?? '',
       tracking_number: vorhandener.tracking_number ?? '',
       tracking_carrier: vorhandener.tracking_carrier ?? null,
@@ -519,7 +424,6 @@ export class PurchaseEntryFormComponent {
       (this.costOverviewDialog()?.hasUnsavedChanges() ?? false) ||
       this.form.dirty ||
       this.newSourceName().trim().length > 0 ||
-      this.newSupplierName().trim().length > 0 ||
       (typeof this.lineEditor === 'function' &&
         (this.lineEditor()?.hasUnsavedChanges() ?? false)) ||
       !purchaseLinesEqual(this.purchaseLines(), this.baselinePurchaseLines()) ||
@@ -580,18 +484,15 @@ export class PurchaseEntryFormComponent {
       );
       return;
     }
-    if (this.packagePriceStale()) {
-      this.errorMessage.set(
-        'Die Positionen oder Mengen wurden geändert. Bitte den Paketpreis erneut verteilen.',
-      );
-      return;
-    }
-
     this.isSubmitting.set(true);
     this.errorMessage.set(null);
 
     const f = this.form.getRawValue();
     const vorhandener = this.persistedDraft() ?? this.purchase();
+    const supplier = f.supplier_id
+      ? this.suppliersService.suppliers().find((entry) => entry.id === f.supplier_id)
+      : undefined;
+    const sellerSnapshot = supplier ? sellerSnapshotFromSupplier(supplier) : null;
     const payload: CreatePurchasePayload = {
       type: f.type,
       request_id: this.requestId,
@@ -602,7 +503,7 @@ export class PurchaseEntryFormComponent {
       cost_allocation_mode: vorhandener?.cost_allocation_mode,
       supplier_reference: f.supplier_reference.trim() || null,
       discount_amount: f.discount_amount,
-      title: f.title,
+      title: f.notes.trim() || 'Einkauf',
       source_id: f.source_id,
       supplier_id: f.supplier_id,
       purchase_date: f.purchase_date,
@@ -611,16 +512,16 @@ export class PurchaseEntryFormComponent {
       tracking_carrier:
         f.tracking_carrier ||
         (f.tracking_number ? this.trackingService.autoDetectCarrier(f.tracking_number) : null),
-      original_url: f.original_url?.trim() || null,
-      external_order_id: f.external_order_id.trim() || null,
-      seller_type: f.seller_type,
-      seller_name: f.seller_name.trim() || null,
-      seller_marketplace_username: f.seller_marketplace_username.trim() || null,
-      seller_street: f.seller_street.trim() || null,
-      seller_address_extra: f.seller_address_extra.trim() || null,
-      seller_postal_code: f.seller_postal_code.trim() || null,
-      seller_city: f.seller_city.trim() || null,
-      seller_country_code: f.seller_country_code,
+      seller_type: sellerSnapshot?.seller_type ?? vorhandener?.seller_type ?? null,
+      seller_name: sellerSnapshot?.seller_name ?? vorhandener?.seller_name ?? null,
+      seller_street: sellerSnapshot?.seller_street ?? vorhandener?.seller_street ?? null,
+      seller_address_extra:
+        sellerSnapshot?.seller_address_extra ?? vorhandener?.seller_address_extra ?? null,
+      seller_postal_code:
+        sellerSnapshot?.seller_postal_code ?? vorhandener?.seller_postal_code ?? null,
+      seller_city: sellerSnapshot?.seller_city ?? vorhandener?.seller_city ?? null,
+      seller_country_code:
+        sellerSnapshot?.seller_country_code ?? vorhandener?.seller_country_code ?? null,
       notes: f.notes || null,
       initial_costs: this.costDrafts().filter((cost) => cost.amount > 0),
       single_item_condition: f.single_item_condition,
@@ -745,13 +646,6 @@ export class PurchaseEntryFormComponent {
       return persistedId ? { ...line, draftId: persistedId } : line;
     });
     this.purchaseLines.set(persistedLines);
-    const confirmedFingerprint = this.confirmedPackageFingerprint();
-    if (
-      confirmedFingerprint &&
-      purchaseLineStructureFingerprint(persistedLines) !== confirmedFingerprint
-    ) {
-      this.packagePriceStale.set(true);
-    }
     this.updateAdditionalCostsValidity();
     this.updatePurchasePriceEditability();
     if (this.form.controls.pricing_mode.value === 'total' || persistedLines.length === 0) return;
@@ -762,19 +656,6 @@ export class PurchaseEntryFormComponent {
     }
     const lineTotal = persistedLines.reduce((total, line) => total + (line.lineTotal ?? 0), 0);
     this.form.controls.purchase_price.setValue(Number(lineTotal.toFixed(2)));
-  }
-
-  confirmPackagePrice(total: number): void {
-    const editor = this.lineEditor();
-    if (!editor || this.purchaseLines().length === 0 || this.hasPackages()) return;
-
-    editor.applyPackagePrice(total);
-    this.form.controls.pricing_mode.setValue('individual');
-    this.form.controls.purchase_price.setValue(Number(total.toFixed(2)));
-    this.confirmedPackageFingerprint.set(purchaseLineStructureFingerprint(this.purchaseLines()));
-    this.packagePriceStale.set(false);
-    this.packagePriceDialogOpen.set(false);
-    this.form.markAsDirty();
   }
 
   onCostsChanged(costs: readonly PurchaseCostDraft[]): void {

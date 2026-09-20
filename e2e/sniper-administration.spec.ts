@@ -190,7 +190,7 @@ for (const theme of ['light', 'dark']) {
     await page
       .getByRole('spinbutton', { name: 'Abstand zwischen Abfragen in Sekunden', exact: true })
       .fill('30');
-    await page.getByRole('textbox', { name: 'Notiz (optional)', exact: true }).fill('Sportmarken');
+    await page.getByRole('textbox', { name: 'Notiz', exact: true }).fill('Sportmarken');
     await checkAxe(page);
     await page.screenshot({ path: testInfo.outputPath('query-editor.png'), fullPage: true });
     backend.failSave(true);
@@ -219,7 +219,7 @@ for (const theme of ['light', 'dark']) {
       page.getByRole('spinbutton', { name: 'Vinted-Markenkennung', exact: true }),
     ).toBeDisabled();
     await page.getByRole('textbox', { name: 'Filtername', exact: true }).fill('Nike geändert');
-    await page.getByRole('textbox', { name: 'Notiz (optional)' }).fill('Gezielter Testbereich');
+    await page.getByRole('textbox', { name: 'Notiz' }).fill('Gezielter Testbereich');
     page.once('dialog', (dialog) => dialog.dismiss());
     await page.getByRole('button', { name: 'Dialog schließen', exact: true }).click();
     await expect(

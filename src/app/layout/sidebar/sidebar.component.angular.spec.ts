@@ -113,6 +113,14 @@ describe('SidebarComponent', () => {
     expect(element.querySelector('a[href="/deal-monitor"]')).toBeNull();
   });
 
+  it('verlinkt das Flipbase-Logo mit dem Dashboard', async () => {
+    const { element } = await renderAt('/vinted-bot');
+    const brandLink = element.querySelector<HTMLAnchorElement>('a[aria-label="Zum Dashboard"]');
+
+    expect(brandLink?.getAttribute('href')).toBe('/dashboard');
+    expect(brandLink?.textContent).toContain('Flipbase');
+  });
+
   it('klappt die Unterpunkte ausserhalb der Administration zu', async () => {
     const { adminLink, subLinks } = await renderAt('/dashboard');
 

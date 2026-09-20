@@ -1,5 +1,37 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-20 – Codex (OpenAI) – Einkaufserfassung auf Verkäufer und Artikel reduziert
+
+**Auftrag:** Die überladene Einkaufserfassung vereinfachen, die Kostenübersicht
+an den bekannten Bestellaufbau angleichen und das Logo wieder mit dem Dashboard
+verknüpfen.
+
+**Änderung:** Verkäufer, Quelle und Kaufdatum stehen wieder am Anfang. Der
+Verkäufer ist verpflichtend, wird aus den Stammdaten gewählt oder dort neu
+angelegt und liefert den unveränderlichen Einkaufssnapshot im Hintergrund. Eine
+Quelle kann direkt aus der Auswahl heraus erstellt werden. Beschreibung und
+Referenznummer bleiben als schlanke Einkaufsdetails; Bezeichnung,
+Plattform-Benutzername, Angebotslink, Plattform-Bestellnummer und die doppelte
+Verkäuferanschrift sind entfernt. Die Datenbankmigration löscht die drei nicht
+mehr verwendeten Einkaufsspalten, ohne die Bestellnummer von Verkäufen zu
+berühren.
+
+Die Kostenübersicht zeigt immer bestellte Artikel, Artikelanzahl, Anpassungen und
+Gesamtbetrag – auch jeweils mit null Euro. Zusatzkosten stehen dazwischen. Die
+Paketpreisverteilung und das Anlegen besonderer Paketpositionen sind aus der
+Erfassung entfernt; normale selbst angelegte Platzhalterartikel bleiben möglich.
+Sichtbare „optional“-Zusätze wurden anwendungsweit entfernt, Pflichtfelder tragen
+den gelben Stern. Das Flipbase-Logo führt wieder zum Dashboard.
+
+**Prüfung:** Datenbank-Reset und alle 1.940 Datenbanktests waren erfolgreich. Der
+vollständige Verifikationslauf bestand Formatierung, Lint, Typprüfung, 81
+Workflow-Prüfungen (davon fünf plattformbedingt übersprungen), das Suite-Audit mit
+2.321 Testdefinitionen, 2.599 Anwendungs-, 13 Landing-Tests und den
+Produktionsbau. Zusätzlich waren alle sieben verpflichtenden Chromium-Abläufe
+erfolgreich. Dabei gefundene veraltete Erwartungen an offene Preise und ein
+fälschlich als geändert markierter geladener Einkauf wurden korrigiert und erneut
+geprüft. Kein Push und kein Merge.
+
 ## 2026-09-20 – Codex (OpenAI) – Inseratserstellung in den Übersichtsablauf eingeordnet
 
 **Auftrag:** Die Inseratserstellung wie beim Einkauf nur aus der Übersicht öffnen

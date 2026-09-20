@@ -18,7 +18,12 @@ insert into public.sources (id, workspace_id, name) values
   ('e1600000-0000-4000-8000-000000000021', 'e1600000-0000-4000-8000-000000000011', 'Vinted'),
   ('e1600000-0000-4000-8000-000000000022', 'e1600000-0000-4000-8000-000000000012', 'Fremde Quelle');
 insert into public.suppliers (id, workspace_id, name, seller_type, street, postal_code, city, country_code) values
-  ('e1600000-0000-4000-8000-000000000031', 'e1600000-0000-4000-8000-000000000011', 'Großhandel Nord', 'business', 'Hafenstraße 1', '20457', 'Hamburg', 'DE');
+  ('e1600000-0000-4000-8000-000000000031', 'e1600000-0000-4000-8000-000000000011', 'Großhandel Nord', 'business', 'Hafenstraße 1', '20457', 'Hamburg', 'DE'),
+  ('e1600000-0000-4000-8000-000000000032', 'e1600000-0000-4000-8000-000000000011', 'Lea Mustermann', 'private', 'Musterweg 5', '50667', 'Köln', 'DE');
+
+select hasnt_column('public', 'purchases', 'seller_marketplace_username', 'Plattform-Benutzername ist vollständig entfernt');
+select hasnt_column('public', 'purchases', 'external_order_id', 'Plattform-Bestellnummer ist aus Einkäufen entfernt');
+select hasnt_column('public', 'purchases', 'original_url', 'Angebotslink ist aus Einkäufen entfernt');
 
 create temporary table seller_test_results (name text primary key, id uuid, snapshot jsonb);
 grant all on seller_test_results to authenticated;
@@ -39,16 +44,20 @@ $$;
 select set_config('request.jwt.claim.sub', 'e1600000-0000-4000-8000-000000000001', true);
 set local role authenticated;
 
--- 1 + 2: Einmaliger Vinted-Verkäufer ohne Stammdatensatz.
+-- 1 + 2: Quelle und Verkäufer werden über Stammdaten gewählt; der Snapshot wird
+-- vom Client aus dem ausgewählten Verkäufer übernommen.
 insert into seller_test_results (name, id)
 select 'one-off', (public.create_purchase(
   'e1600000-0000-4000-8000-000000000011',
   pg_temp.purchase_payload('Vinted-Jacke', '{
     "source_id":"e1600000-0000-4000-8000-000000000021",
-    "seller_marketplace_username":"  vintage_lea92 ",
-    "external_order_id":" 84739392 ",
-    "seller_name":"",
-    "seller_country_code":"de"
+    "supplier_id":"e1600000-0000-4000-8000-000000000031",
+    "seller_type":"business",
+    "seller_name":"Großhandel Nord",
+    "seller_street":"Hafenstraße 1",
+    "seller_postal_code":"20457",
+    "seller_city":"Hamburg",
+    "seller_country_code":"DE"
   }'),
   '[]'::jsonb,
   pg_temp.single_line()
@@ -73,10 +82,10 @@ select 'from-supplier', (public.create_purchase(
 reset role;
 
 select is(
-  (select row(supplier_id, source_id, seller_marketplace_username, external_order_id, seller_name, seller_type, seller_country_code, seller_details_version)::text
+  (select row(supplier_id, source_id, seller_name, seller_type, seller_country_code, seller_details_version)::text
    from public.purchases where id = (select id from seller_test_results where name = 'one-off')),
-  row(null::uuid, 'e1600000-0000-4000-8000-000000000021'::uuid, 'vintage_lea92', '84739392', null::text, null::text, 'DE', 0)::text,
-  'Einkauf ohne Stammdatensatz speichert Quelle, Benutzername und Bestellnummer getrimmt; unbekannt bleibt leer'
+  row('e1600000-0000-4000-8000-000000000031'::uuid, 'e1600000-0000-4000-8000-000000000021'::uuid, 'Großhandel Nord', 'business', 'DE', 0)::text,
+  'Einkauf speichert gewählte Quelle, Verkäufer und dessen Snapshot'
 );
 
 select is(
@@ -106,8 +115,8 @@ select public.update_purchase_draft(
   (select id from seller_test_results where name = 'one-off'),
   pg_temp.purchase_payload('Vinted-Jacke', '{
     "source_id":"e1600000-0000-4000-8000-000000000021",
-    "seller_marketplace_username":"vintage_lea92",
-    "external_order_id":"84739392",
+    "supplier_id":"e1600000-0000-4000-8000-000000000031",
+    "seller_name":"Großhandel Nord",
     "seller_country_code":"DE",
     "seller_type":"private"
   }'),
@@ -119,8 +128,8 @@ select public.update_purchase_draft(
   (select id from seller_test_results where name = 'one-off'),
   pg_temp.purchase_payload('Vinted-Jacke', '{
     "source_id":"e1600000-0000-4000-8000-000000000021",
-    "seller_marketplace_username":"vintage_lea92",
-    "external_order_id":"84739392",
+    "supplier_id":"e1600000-0000-4000-8000-000000000031",
+    "seller_name":"Großhandel Nord",
     "seller_country_code":"DE",
     "seller_type":"private"
   }'),
@@ -181,14 +190,13 @@ select 'amendment', public.update_purchase_seller_details(
   1,
   '{
     "source_id":"e1600000-0000-4000-8000-000000000021",
+    "supplier_id":"e1600000-0000-4000-8000-000000000032",
     "seller_type":"private",
     "seller_name":"Lea Mustermann",
-    "seller_marketplace_username":"vintage_lea92",
     "seller_street":"Musterweg 5",
     "seller_postal_code":"50667",
     "seller_city":"Köln",
-    "seller_country_code":"DE",
-    "external_order_id":"84739392"
+    "seller_country_code":"DE"
   }'::jsonb,
   ' Versandanschrift nachgereicht '
 );
@@ -219,7 +227,7 @@ select is(
   (select array(select jsonb_object_keys(event.changes) order by 1)
    from public.business_events as event
    where event.id = ((select snapshot from seller_test_results where name = 'amendment') ->> 'eventId')::uuid),
-  array['seller_city', 'seller_name', 'seller_postal_code', 'seller_street'],
+  array['seller_city', 'seller_name', 'seller_postal_code', 'seller_street', 'supplier_id'],
   'das Ereignis enthält nur die tatsächlich geänderten Felder'
 );
 

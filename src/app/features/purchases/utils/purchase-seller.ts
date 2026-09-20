@@ -20,13 +20,11 @@ export type PurchaseSellerSnapshot = Pick<
 const SNAPSHOT_FIELDS = [
   'seller_type',
   'seller_name',
-  'seller_marketplace_username',
   'seller_street',
   'seller_address_extra',
   'seller_postal_code',
   'seller_city',
   'seller_country_code',
-  'external_order_id',
 ] as const;
 
 export const SELLER_TYPE_LABELS: Readonly<Record<PurchaseSellerType, string>> = {
@@ -34,15 +32,8 @@ export const SELLER_TYPE_LABELS: Readonly<Record<PurchaseSellerType, string>> = 
   business: 'Unternehmen',
 };
 
-export function purchaseSellerLabel(
-  purchase: Pick<Purchase, 'seller_name' | 'seller_marketplace_username' | 'supplier'>,
-): string {
-  return (
-    purchase.seller_name ||
-    purchase.seller_marketplace_username ||
-    purchase.supplier?.name ||
-    'Nicht angegeben'
-  );
+export function purchaseSellerLabel(purchase: Pick<Purchase, 'seller_name' | 'supplier'>): string {
+  return purchase.seller_name || purchase.supplier?.name || 'Nicht angegeben';
 }
 
 export function hasPurchaseSellerSnapshot(purchase: Partial<Purchase>): boolean {
@@ -84,32 +75,10 @@ export interface PurchaseSellerDetailRow {
   readonly value: string;
 }
 
-const regionNames = new Intl.DisplayNames(['de'], { type: 'region' });
-
 /** Nur tatsächlich erfasste Angaben erscheinen; leere Felder werden nicht aufgefüllt. */
 export function purchaseSellerDetailRows(purchase: Purchase): readonly PurchaseSellerDetailRow[] {
-  const cityLine = [purchase.seller_postal_code, purchase.seller_city].filter(Boolean).join(' ');
-  const country = purchase.seller_country_code
-    ? (regionNames.of(purchase.seller_country_code) ?? purchase.seller_country_code)
-    : null;
-  const address = [purchase.seller_street, purchase.seller_address_extra, cityLine, country]
-    .filter(Boolean)
-    .join(', ');
   const rows: (PurchaseSellerDetailRow | null)[] = [
     purchase.source?.name ? { label: 'Quelle', value: purchase.source.name } : null,
-    purchase.seller_marketplace_username
-      ? { label: 'Plattform-Benutzername', value: purchase.seller_marketplace_username }
-      : null,
-    purchase.seller_type
-      ? { label: 'Verkäuferart', value: SELLER_TYPE_LABELS[purchase.seller_type] }
-      : null,
-    address ? { label: 'Anschrift', value: address } : null,
-    purchase.supplier && hasPurchaseSellerSnapshot(purchase)
-      ? { label: 'Gespeicherter Verkäufer', value: purchase.supplier.name }
-      : null,
-    purchase.external_order_id
-      ? { label: 'Bestellnummer der Plattform', value: purchase.external_order_id }
-      : null,
     purchase.supplier_reference
       ? { label: 'Referenznummer', value: purchase.supplier_reference }
       : null,

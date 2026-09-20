@@ -28,7 +28,6 @@ const finalizedPurchase: Purchase = {
   source_id: source.id,
   source,
   supplier_id: null,
-  seller_marketplace_username: 'vintage_lea92',
   seller_details_version: 2,
   costs: [
     { id: 'cost-1', purchase_id: 'x', workspace_id: workspace.id, type: 'shipping', amount: 2 },
@@ -40,15 +39,12 @@ const amendment: PurchaseSellerDetails = {
   supplier_id: null,
   seller_type: 'private',
   seller_name: ' Lea Mustermann ',
-  seller_marketplace_username: 'vintage_lea92',
   seller_street: 'Musterweg 5',
   seller_address_extra: '',
   seller_postal_code: '50667',
   seller_city: 'Köln',
   seller_country_code: 'de',
-  external_order_id: null,
   supplier_reference: null,
-  original_url: null,
 };
 
 function createService(options: { rpc?: ReturnType<typeof vi.fn> } = {}) {

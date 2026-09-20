@@ -19,43 +19,38 @@
     />
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <app-text-field
-        label="EAN / GTIN (optional)"
+        label="EAN / GTIN"
         formControlName="ean"
         [error]="
           form.controls.ean.touched && form.controls.ean.invalid ? 'Ungültige EAN/GTIN.' : null
         "
       />
       <app-category-picker
-        label="Kategorie (optional)"
+        label="Kategorie"
         placeholder="Kategorie wählen"
         id="product-category"
         formControlName="categoryId"
         [suggestion]="categorySuggestion()"
       />
       <app-brand-picker
-        label="Marke (optional)"
+        label="Marke"
         placeholder="Marke suchen oder anlegen"
         id="product-brand"
         formControlName="brandId"
         [suggestion]="brandSuggestion()"
       />
-      <app-text-field label="Modell (optional)" formControlName="model" />
+      <app-text-field label="Modell" formControlName="model" />
     </div>
     <div>
-      <label for="product-condition" class="mb-1.5 block text-[13px] font-semibold"
-        >Zustand (optional)</label
+      <label for="product-condition" class="mb-1.5 block text-[13px] font-semibold">Zustand</label
       ><app-custom-select
         triggerId="product-condition"
-        ariaLabel="Zustand (optional)"
+        ariaLabel="Zustand"
         formControlName="condition"
         [options]="conditionOptions"
       />
     </div>
-    <app-text-field
-      label="Mängelnotiz (optional)"
-      formControlName="conditionNotes"
-      [multiline]="2"
-    />
+    <app-text-field label="Mängelnotiz" formControlName="conditionNotes" [multiline]="2" />
     <div class="flex flex-wrap items-center gap-2">
       <app-button
         variant="secondary"

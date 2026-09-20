@@ -2205,7 +2205,6 @@ export type Database = {
           discount_amount: number
           entry_status: string
           estimated_delivery: string | null
-          external_order_id: string | null
           finalized_at: string | null
           finalized_by: string | null
           id: string
@@ -2213,7 +2212,6 @@ export type Database = {
           numbered_at: string | null
           numbering_series_id: number | null
           numbering_version: number | null
-          original_url: string | null
           pricing_mode: string | null
           purchase_date: string
           purchase_price: number | null
@@ -2224,7 +2222,6 @@ export type Database = {
           seller_city: string | null
           seller_country_code: string | null
           seller_details_version: number
-          seller_marketplace_username: string | null
           seller_name: string | null
           seller_postal_code: string | null
           seller_street: string | null
@@ -2250,7 +2247,6 @@ export type Database = {
           discount_amount?: number
           entry_status?: string
           estimated_delivery?: string | null
-          external_order_id?: string | null
           finalized_at?: string | null
           finalized_by?: string | null
           id?: string
@@ -2258,7 +2254,6 @@ export type Database = {
           numbered_at?: string | null
           numbering_series_id?: number | null
           numbering_version?: number | null
-          original_url?: string | null
           pricing_mode?: string | null
           purchase_date?: string
           purchase_price?: number | null
@@ -2269,7 +2264,6 @@ export type Database = {
           seller_city?: string | null
           seller_country_code?: string | null
           seller_details_version?: number
-          seller_marketplace_username?: string | null
           seller_name?: string | null
           seller_postal_code?: string | null
           seller_street?: string | null
@@ -2295,7 +2289,6 @@ export type Database = {
           discount_amount?: number
           entry_status?: string
           estimated_delivery?: string | null
-          external_order_id?: string | null
           finalized_at?: string | null
           finalized_by?: string | null
           id?: string
@@ -2303,7 +2296,6 @@ export type Database = {
           numbered_at?: string | null
           numbering_series_id?: number | null
           numbering_version?: number | null
-          original_url?: string | null
           pricing_mode?: string | null
           purchase_date?: string
           purchase_price?: number | null
@@ -2314,7 +2306,6 @@ export type Database = {
           seller_city?: string | null
           seller_country_code?: string | null
           seller_details_version?: number
-          seller_marketplace_username?: string | null
           seller_name?: string | null
           seller_postal_code?: string | null
           seller_street?: string | null
@@ -4752,7 +4743,6 @@ export type Database = {
           discount_amount: number
           entry_status: string
           estimated_delivery: string | null
-          external_order_id: string | null
           finalized_at: string | null
           finalized_by: string | null
           id: string
@@ -4760,7 +4750,6 @@ export type Database = {
           numbered_at: string | null
           numbering_series_id: number | null
           numbering_version: number | null
-          original_url: string | null
           pricing_mode: string | null
           purchase_date: string
           purchase_price: number | null
@@ -4771,7 +4760,6 @@ export type Database = {
           seller_city: string | null
           seller_country_code: string | null
           seller_details_version: number
-          seller_marketplace_username: string | null
           seller_name: string | null
           seller_postal_code: string | null
           seller_street: string | null

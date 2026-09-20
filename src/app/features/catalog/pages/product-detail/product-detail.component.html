@@ -153,7 +153,7 @@
                 label="Seitentitel"
                 formControlName="seoTitle"
                 [placeholder]="form.controls.title.value"
-                helpText="Optional. Ohne eigenen Eintrag verwenden wir den Artikelnamen."
+                helpText="Ohne eigenen Eintrag verwenden wir den Artikelnamen."
                 [error]="
                   form.controls.seoTitle.invalid ? 'Bitte höchstens 200 Zeichen verwenden.' : null
                 "
@@ -162,7 +162,7 @@
                 label="Meta-Beschreibung"
                 formControlName="seoDescription"
                 [multiline]="3"
-                helpText="Optional. Ohne eigenen Eintrag verwenden wir die Artikelbeschreibung. Google kann einen anderen Ausschnitt anzeigen."
+                helpText="Ohne eigenen Eintrag verwenden wir die Artikelbeschreibung. Google kann einen anderen Ausschnitt anzeigen."
                 [error]="
                   form.controls.seoDescription.invalid
                     ? 'Bitte höchstens 320 Zeichen verwenden.'

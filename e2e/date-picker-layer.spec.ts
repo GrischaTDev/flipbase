@@ -1,5 +1,5 @@
 import axe from 'axe-core';
-import { expect, openDashboard, test } from './support/fixtures';
+import { expect, openDashboard, selectDefaultPurchaseSeller, test } from './support/fixtures';
 
 test('can select a purchase date outside its card @pr-smoke', async ({ page }) => {
   await openDashboard(page);
@@ -36,7 +36,8 @@ for (const width of [390, 768, 1440]) {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await openDashboard(page);
     await page.goto('/purchases/new');
-    await page.getByRole('textbox', { name: 'Beschreibung (optional)' }).fill('Kalenderprüfung');
+    await selectDefaultPurchaseSeller(page);
+    await page.getByRole('textbox', { name: 'Beschreibung' }).fill('Kalenderprüfung');
     const date = page.getByRole('textbox', { name: 'Kaufdatum', exact: true });
     await date.fill('15.09.2026');
     await page.getByRole('button', { name: 'Entwurf speichern', exact: true }).click();
@@ -84,9 +85,9 @@ for (const width of [390, 768, 1440]) {
     await trigger.click();
     await expect(calendar).toBeVisible();
     await date.click();
-    await page.getByRole('textbox', { name: 'Beschreibung (optional)' }).click();
+    await page.getByRole('textbox', { name: 'Beschreibung' }).click();
     await expect(calendar).toHaveCount(0);
-    await expect(page.getByRole('textbox', { name: 'Beschreibung (optional)' })).toBeFocused();
+    await expect(page.getByRole('textbox', { name: 'Beschreibung' })).toBeFocused();
   });
 }
 

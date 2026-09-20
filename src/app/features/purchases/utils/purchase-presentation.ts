@@ -246,7 +246,7 @@ function summarizeQuantities(
 export function getPurchaseDisplayTitle(purchase?: Purchase | null): string | null {
   if (!purchase) return null;
   const candidate =
-    purchase.record_number?.trim() || purchase.title?.trim() || purchase.supplier?.name?.trim();
+    purchase.record_number?.trim() || purchase.notes?.trim() || purchase.supplier?.name?.trim();
   return candidate || null;
 }
 
@@ -273,19 +273,12 @@ export function mapPurchaseListRow(
             ? 'Inhalt erfassen'
             : 'Erfassung offen',
     id: purchase.id,
-    title: purchase.title || purchase.supplier?.name || 'Einkauf',
+    title: purchase.notes || purchase.title || purchase.supplier?.name || 'Einkauf',
     type: purchase.type,
     typeLabel: purchaseTypeLabels.transform(purchase.type),
     purchaseDate: purchase.purchase_date,
     supplierLabel: purchaseSellerLabel(purchase),
-    sellerSearchText: [
-      purchase.seller_name,
-      purchase.seller_marketplace_username,
-      purchase.external_order_id,
-      purchase.supplier?.name,
-    ]
-      .filter(Boolean)
-      .join(' '),
+    sellerSearchText: [purchase.seller_name, purchase.supplier?.name].filter(Boolean).join(' '),
     purchaseStatus: purchaseStatus.label,
     purchaseStatusTone: purchaseStatus.tone,
     allocationOpen: getAllocationOpen(purchase, items, totalCost),

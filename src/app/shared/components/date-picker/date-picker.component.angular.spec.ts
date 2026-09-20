@@ -32,6 +32,7 @@ describe('DatePickerComponent', () => {
       id: ['id', 1, null],
       placeholder: ['placeholder', 1, null],
       disabled: ['disabled', 1, null],
+      required: ['required', 1, null],
       feldId: ['feldId', 1, null],
       platzhalter: ['platzhalter', 1, null],
     };
@@ -41,6 +42,7 @@ describe('DatePickerComponent', () => {
       id: 'id',
       placeholder: 'placeholder',
       disabled: 'disabled',
+      required: 'required',
       feldId: 'feldId',
       platzhalter: 'platzhalter',
     };
@@ -65,6 +67,13 @@ describe('DatePickerComponent', () => {
 
   it('should create successfully', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('marks the input as required when configured', () => {
+    fixture.componentRef.setInput('required', true);
+    fixture.detectChanges();
+
+    expect((fixture.nativeElement.querySelector('input') as HTMLInputElement).required).toBe(true);
   });
 
   it('should format ISO date correctly for display', () => {

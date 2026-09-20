@@ -1,5 +1,5 @@
 import { type Locator } from '@playwright/test';
-import { expect, openDashboard, test } from './support/fixtures';
+import { expect, openDashboard, selectDefaultPurchaseSeller, test } from './support/fixtures';
 import { addNewPurchaseProduct } from './support/products';
 
 async function visibleBox(locator: Locator) {
@@ -62,7 +62,7 @@ test('leaves a pristine entry page without prompting', async ({ page }) => {
 test('keeps edits after cancelling navigation and leaves after confirmation', async ({ page }) => {
   await openDashboard(page);
   await page.goto('/purchases/new');
-  const description = page.getByRole('textbox', { name: 'Beschreibung (optional)' });
+  const description = page.getByRole('textbox', { name: 'Beschreibung' });
   await description.fill('Nicht verwerfen');
 
   page.once('dialog', (dialog) => dialog.dismiss());
@@ -75,28 +75,26 @@ test('keeps edits after cancelling navigation and leaves after confirmation', as
   await expect(page).toHaveURL(/\/purchases$/);
 });
 
-test('distributes a package price per position', async ({ page }) => {
+test('starts with an empty Shopify-style cost summary and no package controls', async ({
+  page,
+}) => {
   await openDashboard(page);
   await page.goto('/purchases/new');
-  await page.getByRole('textbox', { name: 'Beschreibung (optional)' }).fill('Paket-Entwurf');
-  await addNewPurchaseProduct(page, 'Paketposition A');
-  await addNewPurchaseProduct(page, 'Paketposition B');
-
-  await page.getByRole('button', { name: 'Paketpreis verteilen', exact: true }).click();
-  await page.getByRole('spinbutton', { name: 'Gesamtpreis des Pakets' }).fill('100');
-  await page.getByRole('button', { name: 'Verteilen', exact: true }).click();
-
-  await expect(page.getByRole('textbox', { name: 'Beschreibung (optional)' })).toHaveValue(
-    'Paket-Entwurf',
-  );
-  await expect(page.getByRole('button', { name: 'Entwurf speichern' })).toBeEnabled();
-  await expect(page.getByRole('region', { name: 'Kostenübersicht' })).toContainText('100,00');
+  const summary = page.getByRole('region', { name: 'Kostenübersicht' });
+  await expect(summary).toContainText('Bestellte Artikel');
+  await expect(summary).toContainText('0 Artikel');
+  await expect(summary).toContainText('Anpassungen');
+  await expect(summary).toContainText('Gesamt');
+  await expect(summary.getByText('0,00 €')).toHaveCount(3);
+  await expect(page.getByRole('button', { name: 'Paketpreis verteilen' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Paket hinzufügen' })).toHaveCount(0);
 });
 
 test('applies cost adjustments only when the management dialog is saved', async ({ page }) => {
   await openDashboard(page);
   await page.goto('/purchases/new');
-  await page.getByRole('textbox', { name: 'Beschreibung (optional)' }).fill('Paket-Entwurf');
+  await selectDefaultPurchaseSeller(page);
+  await page.getByRole('textbox', { name: 'Beschreibung' }).fill('Kostenentwurf');
   await addNewPurchaseProduct(page, 'Kostenartikel');
   await page
     .getByRole('spinbutton', { name: 'Stückpreis für Kostenartikel', exact: true })
@@ -130,9 +128,7 @@ test('applies cost adjustments only when the management dialog is saved', async 
   await dialog.getByRole('spinbutton', { name: 'Betrag 1', exact: true }).fill('10');
   await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
 
-  await expect(page.getByRole('textbox', { name: 'Beschreibung (optional)' })).toHaveValue(
-    'Paket-Entwurf',
-  );
+  await expect(page.getByRole('textbox', { name: 'Beschreibung' })).toHaveValue('Kostenentwurf');
   await expect(page.getByRole('button', { name: 'Entwurf speichern' })).toBeEnabled();
   await expect(costSummary).toContainText('110,00');
 });
@@ -140,9 +136,10 @@ test('applies cost adjustments only when the management dialog is saved', async 
 test('keeps create, detail and inline editing in the same centered workspace', async ({ page }) => {
   await openDashboard(page);
   await page.goto('/purchases/new');
+  await selectDefaultPurchaseSeller(page);
   const createWorkspace = page.getByTestId('purchase-entry-workspace');
   const createWorkspaceBox = await visibleBox(createWorkspace);
-  await page.getByRole('textbox', { name: 'Beschreibung (optional)' }).fill('Dialog-Zentrierung');
+  await page.getByRole('textbox', { name: 'Beschreibung' }).fill('Dialog-Zentrierung');
   await addNewPurchaseProduct(page, 'Testartikel');
   await page
     .getByRole('spinbutton', { name: 'Stückpreis für Testartikel', exact: true })
@@ -176,7 +173,7 @@ test('keeps create, detail and inline editing in the same centered workspace', a
 
   await expect(page.locator('app-purchase-entry-form')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Bearbeiten', exact: true })).toHaveCount(0);
-  await page.getByRole('textbox', { name: 'Beschreibung (optional)' }).fill('Geänderter Entwurf');
+  await page.getByRole('textbox', { name: 'Beschreibung' }).fill('Geänderter Entwurf');
 
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page).toHaveURL(detailUrl);

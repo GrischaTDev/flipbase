@@ -1,5 +1,5 @@
 import axe from 'axe-core';
-import { expect, openDashboard, test } from './support/fixtures';
+import { expect, openDashboard, selectDefaultPurchaseSeller, test } from './support/fixtures';
 import { addNewPurchaseProduct } from './support/products';
 import { createFinalizedPurchase, recordSale } from './support/sample-data';
 
@@ -12,6 +12,7 @@ for (const width of [1440, 390]) {
     page.on('pageerror', (error) => errors.push(error.message));
     await openDashboard(page);
     await page.goto('/purchases/new');
+    await selectDefaultPurchaseSeller(page);
     await addNewPurchaseProduct(page, 'Kostenprüfung');
     await page
       .getByRole('spinbutton', { name: 'Stückpreis für Kostenprüfung', exact: true })

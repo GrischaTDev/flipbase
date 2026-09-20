@@ -29,19 +29,9 @@ const supplier: Supplier = {
 
 describe('purchaseSellerLabel', () => {
   it.each([
-    [
-      { seller_name: 'Lea Mustermann', seller_marketplace_username: 'vintage_lea92', supplier },
-      'Lea Mustermann',
-    ],
-    [
-      { seller_name: null, seller_marketplace_username: 'vintage_lea92', supplier },
-      'vintage_lea92',
-    ],
-    [{ seller_name: null, seller_marketplace_username: null, supplier }, 'Großhandel Nord'],
-    [
-      { seller_name: null, seller_marketplace_username: null, supplier: undefined },
-      'Nicht angegeben',
-    ],
+    [{ seller_name: 'Lea Mustermann', supplier }, 'Lea Mustermann'],
+    [{ seller_name: null, supplier }, 'Großhandel Nord'],
+    [{ seller_name: null, supplier: undefined }, 'Nicht angegeben'],
   ] as const)('zeigt für %j den Verkäufer %s', (purchase, expected) => {
     expect(purchaseSellerLabel(purchase)).toBe(expected);
   });
@@ -80,15 +70,12 @@ describe('normalizePurchaseSellerDetails', () => {
       supplier_id: null,
       seller_type: null,
       seller_name: '  Lea  ',
-      seller_marketplace_username: ' vintage_lea92 ',
       seller_street: '   ',
       seller_address_extra: null,
       seller_postal_code: ' 50667',
       seller_city: 'Köln ',
       seller_country_code: 'de',
-      external_order_id: ' 84739392 ',
       supplier_reference: '',
-      original_url: ' https://www.vinted.de/items/1 ',
     };
 
     expect(normalizePurchaseSellerDetails(details)).toEqual({
@@ -96,15 +83,12 @@ describe('normalizePurchaseSellerDetails', () => {
       supplier_id: null,
       seller_type: null,
       seller_name: 'Lea',
-      seller_marketplace_username: 'vintage_lea92',
       seller_street: null,
       seller_address_extra: null,
       seller_postal_code: '50667',
       seller_city: 'Köln',
       seller_country_code: 'DE',
-      external_order_id: '84739392',
       supplier_reference: null,
-      original_url: 'https://www.vinted.de/items/1',
     });
   });
 });
@@ -127,7 +111,6 @@ describe('sellerDetailsFromPurchase und hasPurchaseSellerSnapshot', () => {
       supplier_id: 'supplier-1',
       seller_name: null,
       seller_city: null,
-      external_order_id: null,
     });
     expect(hasPurchaseSellerSnapshot(legacyPurchase)).toBe(false);
   });
@@ -136,7 +119,7 @@ describe('sellerDetailsFromPurchase und hasPurchaseSellerSnapshot', () => {
     expect(
       hasPurchaseSellerSnapshot({
         ...legacyPurchase,
-        seller_marketplace_username: 'vintage_lea92',
+        seller_city: 'Köln',
       }),
     ).toBe(true);
   });
@@ -153,25 +136,21 @@ describe('purchaseSellerDetailRows', () => {
     cost_allocation_mode: 'even',
   } as Purchase;
 
-  it('zeigt nur erfasste Angaben in fester Reihenfolge mit lesbarer Anschrift', () => {
+  it('zeigt nur Quelle und Referenznummer des Einkaufs', () => {
     const rows = purchaseSellerDetailRows({
       ...base,
       source: { id: 'source-vinted', workspace_id: 'workspace-1', name: 'Vinted' },
-      seller_marketplace_username: 'vintage_lea92',
       seller_type: 'private',
       seller_street: 'Musterweg 5',
       seller_postal_code: '50667',
       seller_city: 'Köln',
       seller_country_code: 'DE',
-      external_order_id: '84739392',
+      supplier_reference: 'REF-7',
     });
 
     expect(rows).toEqual([
       { label: 'Quelle', value: 'Vinted' },
-      { label: 'Plattform-Benutzername', value: 'vintage_lea92' },
-      { label: 'Verkäuferart', value: 'Privatperson' },
-      { label: 'Anschrift', value: 'Musterweg 5, 50667 Köln, Deutschland' },
-      { label: 'Bestellnummer der Plattform', value: '84739392' },
+      { label: 'Referenznummer', value: 'REF-7' },
     ]);
   });
 
