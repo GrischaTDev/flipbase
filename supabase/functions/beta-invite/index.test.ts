@@ -28,6 +28,9 @@ function application(overrides: Partial<BetaInviteApplication> = {}): BetaInvite
     invitation_status: 'not_sent',
     invitation_sent_at: null,
     invitation_last_error: null,
+    rejection_email_status: 'not_sent',
+    rejection_email_sent_at: null,
+    rejection_email_last_error: null,
     registered_at: null,
     ...overrides,
   };
@@ -55,8 +58,11 @@ function dependencies(overrides: Partial<BetaInviteDependencies> = {}) {
     generated: [] as unknown[],
     sent: [] as unknown[],
     updated: [] as unknown[],
+    deleted: [] as unknown[],
   };
-  const value: BetaInviteDependencies = {
+  const dependencyValues: BetaInviteDependencies & {
+    deleteRejectedApplication(token: string, applicationId: string): Promise<void>;
+  } = {
     authenticate: () => Promise.resolve({ id: 'operator-1' }),
     isOperator: () => Promise.resolve(true),
     loadApplication: () => Promise.resolve(current),
@@ -94,10 +100,15 @@ function dependencies(overrides: Partial<BetaInviteDependencies> = {}) {
       current = { ...current, ...patch };
       return Promise.resolve(current);
     },
+    deleteRejectedApplication: (token: string, applicationId: string) => {
+      calls.deleted.push({ token, applicationId });
+      return Promise.resolve();
+    },
     now: () => '2026-09-20T18:00:00.000Z',
     siteUrl: 'https://app.flipbase.de',
     ...overrides,
   };
+  const value: BetaInviteDependencies = dependencyValues;
   return {
     value,
     calls,
@@ -157,6 +168,82 @@ Deno.test('nimmt mit 60 Tagen an und verknuepft die Einladung', async () => {
       invitation_last_error: null,
     },
   ]);
+});
+
+Deno.test('lehnt ab und versendet die freundliche Ablehnungsmail', async () => {
+  const setup = dependencies();
+  const response = await createBetaInviteHandler(setup.value)(
+    request({ action: 'reject', applicationId: 'a1' }),
+  );
+
+  assertEquals(response.status, 200);
+  assertEquals(setup.calls.rejected, [{ token: 'operator-token', applicationId: 'a1' }]);
+  assertEquals(setup.calls.sent.length, 1);
+  assertEquals((setup.calls.sent[0] as { to: string }).to, 'anna@example.test');
+  assertEquals(setup.calls.updated, [
+    {
+      rejection_email_status: 'sent',
+      rejection_email_sent_at: '2026-09-20T18:00:00.000Z',
+      rejection_email_last_error: null,
+    },
+  ]);
+});
+
+Deno.test('speichert einen fehlgeschlagenen Ablehnungsversand sichtbar', async () => {
+  const setup = dependencies({
+    sendEmail: () => Promise.reject(new Error('SMTP nicht erreichbar')),
+  });
+  const response = await createBetaInviteHandler(setup.value)(
+    request({ action: 'reject', applicationId: 'a1' }),
+  );
+
+  assertEquals(response.status, 502);
+  assertEquals(setup.calls.updated, [
+    {
+      rejection_email_status: 'failed',
+      rejection_email_last_error: 'SMTP nicht erreichbar',
+    },
+  ]);
+  const body = await json(response);
+  assertEquals(body.error, 'rejection_email_failed');
+});
+
+Deno.test('wiederholt eine fehlgeschlagene Ablehnungsmail', async () => {
+  const setup = dependencies();
+  setup.setApplication(
+    application({
+      status: 'rejected',
+      rejection_email_status: 'failed',
+      rejection_email_last_error: 'SMTP nicht erreichbar',
+    }),
+  );
+
+  const response = await createBetaInviteHandler(setup.value)(
+    request({ action: 'resend_rejection', applicationId: 'a1' }),
+  );
+
+  assertEquals(response.status, 200);
+  assertEquals(setup.calls.sent.length, 1);
+  assertEquals(setup.calls.updated, [
+    {
+      rejection_email_status: 'sent',
+      rejection_email_sent_at: '2026-09-20T18:00:00.000Z',
+      rejection_email_last_error: null,
+    },
+  ]);
+});
+
+Deno.test('loescht eine abgelehnte Bewerbung ueber die Betreibergrenze', async () => {
+  const setup = dependencies();
+  setup.setApplication(application({ status: 'rejected' }));
+
+  const response = await createBetaInviteHandler(setup.value)(
+    request({ action: 'delete_rejected', applicationId: 'a1' }),
+  );
+
+  assertEquals(response.status, 200);
+  assertEquals(setup.calls.deleted, [{ token: 'operator-token', applicationId: 'a1' }]);
+  assertEquals(await json(response), { ok: true, deletedApplicationId: 'a1' });
 });
 
 Deno.test('speichert einen Einladungsfehler sichtbar', async () => {

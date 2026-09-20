@@ -1,6 +1,7 @@
 export type BetaApplicationStatus = 'open' | 'accepted' | 'rejected';
 export type BetaEmailStatus = 'pending' | 'sent' | 'failed';
 export type BetaInvitationStatus = 'not_sent' | 'sending' | 'sent' | 'failed';
+export type BetaRejectionEmailStatus = 'not_sent' | 'sending' | 'sent' | 'failed';
 export type BetaAccessStatus = 'pending' | 'active' | 'expired' | 'suspended';
 
 export interface BetaApplication {
@@ -20,6 +21,9 @@ export interface BetaApplication {
   invitationStatus: BetaInvitationStatus;
   invitationSentAt: string | null;
   invitationLastError: string | null;
+  rejectionEmailStatus: BetaRejectionEmailStatus;
+  rejectionEmailSentAt: string | null;
+  rejectionEmailLastError: string | null;
   registeredAt: string | null;
   licenseStatus: BetaAccessStatus | null;
   betaEndsAt: string | null;

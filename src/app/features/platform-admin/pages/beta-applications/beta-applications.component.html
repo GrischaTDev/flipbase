@@ -183,6 +183,27 @@
                           >
                             Ablehnen
                           </app-button>
+                        } @else if (application.status === 'rejected') {
+                          @if (application.rejectionEmailStatus === 'failed') {
+                            <app-button
+                              variant="secondary"
+                              size="slim"
+                              [disabled]="processingId() === application.id"
+                              [ariaLabel]="'Ablehnung an ' + application.email + ' erneut senden'"
+                              (clicked)="resendRejection(application)"
+                            >
+                              Ablehnung erneut senden
+                            </app-button>
+                          }
+                          <app-button
+                            variant="destructive"
+                            size="slim"
+                            [disabled]="processingId() === application.id"
+                            [ariaLabel]="'Abgelehnte Bewerbung von ' + bewerberName + ' löschen'"
+                            (clicked)="deleteRejected(application)"
+                          >
+                            Löschen
+                          </app-button>
                         } @else if (
                           application.invitationStatus === 'failed' && !application.registeredAt
                         ) {

@@ -8,10 +8,12 @@ import { createClient } from 'npm:@supabase/supabase-js@2.112.3';
 import { type BetaEmailMessage, sendBetaEmail } from '../_shared/beta-email-delivery.ts';
 import {
   renderApplicationReceipt,
+  renderApplicationRejection,
   renderRegistrationInvite,
 } from '../_shared/beta-email-template.ts';
 
-type BetaInviteAction = 'accept' | 'reject' | 'resend' | 'resend_receipt';
+type BetaInviteAction =
+  'accept' | 'reject' | 'resend' | 'resend_receipt' | 'resend_rejection' | 'delete_rejected';
 
 export interface BetaInviteApplication {
   id: string;
@@ -30,6 +32,9 @@ export interface BetaInviteApplication {
   invitation_status: string;
   invitation_sent_at: string | null;
   invitation_last_error: string | null;
+  rejection_email_status: string;
+  rejection_email_sent_at: string | null;
+  rejection_email_last_error: string | null;
   registered_at: string | null;
   workspace_licenses?:
     | { status: string; ends_at: string | null }
@@ -54,12 +59,17 @@ interface BetaRegistrationLinkInput {
 }
 
 type BetaApplicationPatch = Partial<
-  Pick<BetaInviteApplication, 'auth_user_id' | 'invitation_status' | 'receipt_email_status'>
+  Pick<
+    BetaInviteApplication,
+    'auth_user_id' | 'invitation_status' | 'receipt_email_status' | 'rejection_email_status'
+  >
 > & {
   invitation_sent_at?: string | null;
   invitation_last_error?: string | null;
   receipt_email_sent_at?: string | null;
   receipt_email_last_error?: string | null;
+  rejection_email_sent_at?: string | null;
+  rejection_email_last_error?: string | null;
 };
 
 export interface BetaInviteDependencies {
@@ -72,6 +82,7 @@ export interface BetaInviteDependencies {
     grantedDays: number,
   ): Promise<BetaInviteApplication>;
   rejectApplication(token: string, applicationId: string): Promise<BetaInviteApplication>;
+  deleteRejectedApplication(token: string, applicationId: string): Promise<void>;
   inviteUser(input: BetaInviteUserInput): Promise<{ userId: string }>;
   generateRegistrationLink(
     input: BetaRegistrationLinkInput,
@@ -96,7 +107,7 @@ const ALLOWED_ORIGINS = new Set(
 );
 
 const APPLICATION_FIELDS =
-  'id, first_name, last_name, email, status, granted_days, decision_note, decided_at, created_at, receipt_email_status, receipt_email_sent_at, receipt_email_last_error, auth_user_id, invitation_status, invitation_sent_at, invitation_last_error, registered_at, workspace_licenses(status, ends_at)';
+  'id, first_name, last_name, email, status, granted_days, decision_note, decided_at, created_at, receipt_email_status, receipt_email_sent_at, receipt_email_last_error, auth_user_id, invitation_status, invitation_sent_at, invitation_last_error, rejection_email_status, rejection_email_sent_at, rejection_email_last_error, registered_at, workspace_licenses(status, ends_at)';
 
 function corsHeaders(origin: string | null): Record<string, string> {
   const headers: Record<string, string> = {
@@ -140,7 +151,14 @@ function betaAppUrl(): string {
 }
 
 function isAction(value: unknown): value is BetaInviteAction {
-  return ['accept', 'reject', 'resend', 'resend_receipt'].includes(String(value));
+  return [
+    'accept',
+    'reject',
+    'resend',
+    'resend_receipt',
+    'resend_rejection',
+    'delete_rejected',
+  ].includes(String(value));
 }
 
 async function storeInvitationFailure(
@@ -200,11 +218,46 @@ export function createBetaInviteHandler(
     }
 
     if (body.action === 'reject') {
+      let application: BetaInviteApplication;
       try {
-        const application = await dependencies.rejectApplication(token, applicationId);
-        return respond({ ok: true, application }, 200, origin);
+        application = await dependencies.rejectApplication(token, applicationId);
       } catch (error) {
         return respond({ error: 'decision_failed', message: boundedError(error) }, 400, origin);
+      }
+
+      try {
+        const rejection = renderApplicationRejection({ firstName: application.first_name });
+        await dependencies.sendEmail({ to: application.email, ...rejection });
+        application = await dependencies.updateApplication(application.id, {
+          rejection_email_status: 'sent',
+          rejection_email_sent_at: dependencies.now(),
+          rejection_email_last_error: null,
+        });
+        return respond({ ok: true, application }, 200, origin);
+      } catch (error) {
+        const failedApplication = await dependencies.updateApplication(application.id, {
+          rejection_email_status: 'failed',
+          rejection_email_last_error: boundedError(error),
+        });
+        return respond(
+          {
+            error: 'rejection_email_failed',
+            message:
+              'Die Ablehnung wurde gespeichert, aber die E-Mail konnte nicht versendet werden.',
+            application: failedApplication,
+          },
+          502,
+          origin,
+        );
+      }
+    }
+
+    if (body.action === 'delete_rejected') {
+      try {
+        await dependencies.deleteRejectedApplication(token, applicationId);
+        return respond({ ok: true, deletedApplicationId: applicationId }, 200, origin);
+      } catch (error) {
+        return respond({ error: 'delete_failed', message: boundedError(error) }, 400, origin);
       }
     }
 
@@ -260,6 +313,36 @@ export function createBetaInviteHandler(
 
     const application = await dependencies.loadApplication(applicationId);
     if (!application) return respond({ error: 'not_found' }, 404, origin);
+
+    if (body.action === 'resend_rejection') {
+      if (application.status !== 'rejected') {
+        return respond({ error: 'rejection_not_ready' }, 409, origin);
+      }
+      try {
+        const rejection = renderApplicationRejection({ firstName: application.first_name });
+        await dependencies.sendEmail({ to: application.email, ...rejection });
+        const updated = await dependencies.updateApplication(application.id, {
+          rejection_email_status: 'sent',
+          rejection_email_sent_at: dependencies.now(),
+          rejection_email_last_error: null,
+        });
+        return respond({ ok: true, application: updated }, 200, origin);
+      } catch (error) {
+        const updated = await dependencies.updateApplication(application.id, {
+          rejection_email_status: 'failed',
+          rejection_email_last_error: boundedError(error),
+        });
+        return respond(
+          {
+            error: 'rejection_email_failed',
+            message: 'Die Ablehnungsmail konnte nicht versendet werden.',
+            application: updated,
+          },
+          502,
+          origin,
+        );
+      }
+    }
 
     if (body.action === 'resend_receipt') {
       try {
@@ -393,6 +476,14 @@ function createProductionDependencies(): BetaInviteDependencies {
         throw new Error(error?.message ?? 'Bewerbung konnte nicht abgelehnt werden.');
       }
       return data as BetaInviteApplication;
+    },
+    async deleteRejectedApplication(token, applicationId) {
+      const { error } = await userClient(token).rpc('delete_rejected_beta_application', {
+        p_application_id: applicationId,
+      });
+      if (error) {
+        throw new Error(error.message ?? 'Bewerbung konnte nicht gelöscht werden.');
+      }
     },
     async inviteUser(input) {
       const { data, error } = await serviceClient.auth.admin.inviteUserByEmail(input.email, {

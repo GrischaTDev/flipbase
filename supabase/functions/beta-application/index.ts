@@ -8,6 +8,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.112.3';
 import { sendBetaEmail } from '../_shared/beta-email-delivery.ts';
 import { renderApplicationReceipt } from '../_shared/beta-email-template.ts';
+import { classifyDuplicateApplication } from './duplicate-application.ts';
 
 /**
  * Herkuenfte, die diese Funktion aufrufen duerfen.
@@ -232,7 +233,7 @@ Deno.serve(async (request: Request) => {
       email: normalizedEmail,
       consent_at: new Date().toISOString(),
     })
-    .select('id, first_name, email, receipt_email_status')
+    .select('id, first_name, email, status, receipt_email_status')
     .single();
 
   // Eine bereits vorhandene Adresse wird wie ein Erfolg beantwortet. Sonst
@@ -246,7 +247,7 @@ Deno.serve(async (request: Request) => {
   if (!application) {
     const existing = await serviceClient
       .from('beta_applications')
-      .select('id, first_name, email, receipt_email_status')
+      .select('id, first_name, email, status, receipt_email_status')
       .ilike('email', normalizedEmail)
       .maybeSingle();
 
@@ -259,7 +260,14 @@ Deno.serve(async (request: Request) => {
     application = existing.data;
   }
 
-  if (application.receipt_email_status === 'sent') {
+  const disposition = classifyDuplicateApplication({
+    status: application.status,
+    receiptEmailStatus: application.receipt_email_status,
+  });
+  if (disposition === 'rejected') {
+    return respond({ error: 'application_rejected' }, 409, origin);
+  }
+  if (disposition === 'already_confirmed') {
     return respond({ ok: true, receiptEmailSent: true }, 200, origin);
   }
 

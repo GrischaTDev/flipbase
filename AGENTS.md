@@ -7,6 +7,9 @@ hierher.
 ## Sprache
 
 - Antworten im Chat **immer auf Deutsch**, einfach und ohne unnötige Fachbegriffe.
+- Deutschsprachige E-Mails und an Kundinnen oder Kunden gerichtete Oberflächentexte
+  verwenden durchgängig die persönliche Du-Ansprache. Innerhalb eines Textes
+  nicht zwischen Du und Sie wechseln.
 - **Bezeichner im Code immer englisch** — Variablen, Funktionen, Dateien, Tabellen.
 - Deutsch bleibt in Chat, Code-Kommentaren und Oberflächentexten.
 

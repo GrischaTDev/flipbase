@@ -6,6 +6,7 @@ import {
   BetaApplicationStatus,
   BetaEmailStatus,
   BetaInvitationStatus,
+  BetaRejectionEmailStatus,
 } from '../models/beta-application.model';
 
 interface BetaApplicationRow {
@@ -25,6 +26,9 @@ interface BetaApplicationRow {
   invitation_status: string;
   invitation_sent_at: string | null;
   invitation_last_error: string | null;
+  rejection_email_status: string;
+  rejection_email_sent_at: string | null;
+  rejection_email_last_error: string | null;
   registered_at: string | null;
   workspace_licenses?:
     | { status: string; ends_at: string | null }
@@ -34,10 +38,13 @@ interface BetaApplicationRow {
 
 type BetaInviteActionBody =
   | { applicationId: string; action: 'accept'; grantedDays: number }
-  | { applicationId: string; action: 'reject' | 'resend' | 'resend_receipt' };
+  | {
+      applicationId: string;
+      action: 'reject' | 'resend' | 'resend_receipt' | 'resend_rejection' | 'delete_rejected';
+    };
 
 const APPLICATION_FIELDS =
-  'id, first_name, last_name, email, status, granted_days, decision_note, decided_at, created_at, receipt_email_status, receipt_email_sent_at, receipt_email_last_error, auth_user_id, invitation_status, invitation_sent_at, invitation_last_error, registered_at, workspace_licenses(status, ends_at)';
+  'id, first_name, last_name, email, status, granted_days, decision_note, decided_at, created_at, receipt_email_status, receipt_email_sent_at, receipt_email_last_error, auth_user_id, invitation_status, invitation_sent_at, invitation_last_error, rejection_email_status, rejection_email_sent_at, rejection_email_last_error, registered_at, workspace_licenses(status, ends_at)';
 
 /** Liest Bewerbungen und fuehrt Entscheidungen nur ueber die geschuetzte Edge Function aus. */
 @Injectable({ providedIn: 'root' })
@@ -68,6 +75,22 @@ export class BetaApplicationService {
 
   resendApplicationReceipt(id: string): Promise<BetaApplication> {
     return this.invokeAction({ applicationId: id, action: 'resend_receipt' });
+  }
+
+  resendRejection(id: string): Promise<BetaApplication> {
+    return this.invokeAction({ applicationId: id, action: 'resend_rejection' });
+  }
+
+  async deleteRejected(id: string): Promise<void> {
+    const { data, error } = await this.supabase.client.functions.invoke('beta-invite', {
+      body: { applicationId: id, action: 'delete_rejected' },
+    });
+    if (error) {
+      throw new Error(error.message || 'Die Beta-Bewerbung konnte nicht gelöscht werden.');
+    }
+    if ((data as { deletedApplicationId?: unknown } | null)?.deletedApplicationId !== id) {
+      throw new Error('Der Server hat das Löschen der Beta-Bewerbung nicht bestätigt.');
+    }
   }
 
   private async invokeAction(body: BetaInviteActionBody): Promise<BetaApplication> {
@@ -104,6 +127,9 @@ export class BetaApplicationService {
       invitationStatus: row.invitation_status as BetaInvitationStatus,
       invitationSentAt: row.invitation_sent_at,
       invitationLastError: row.invitation_last_error,
+      rejectionEmailStatus: row.rejection_email_status as BetaRejectionEmailStatus,
+      rejectionEmailSentAt: row.rejection_email_sent_at,
+      rejectionEmailLastError: row.rejection_email_last_error,
       registeredAt: row.registered_at,
       licenseStatus: (embeddedLicense?.status as BetaAccessStatus | undefined) ?? null,
       betaEndsAt: embeddedLicense?.ends_at ?? null,

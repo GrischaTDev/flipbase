@@ -15,7 +15,7 @@ const normalizedHtml = html.replace(/\s+/gu, ' ');
 const packageJson = JSON.parse(await readFile(path.join(repositoryRoot, 'package.json'), 'utf8'));
 const css = extractElement(html, 'style');
 
-async function submitBetaApplication(responseBody) {
+async function submitBetaApplication(responseBody, responseStatus = 200) {
   const dom = new JSDOM(html, {
     runScripts: 'outside-only',
     url: 'https://flipbase.de/',
@@ -24,8 +24,8 @@ async function submitBetaApplication(responseBody) {
   dom.window.fetch = async (url, init) => {
     requests.push({ url, init });
     return {
-      ok: true,
-      status: 200,
+      ok: responseStatus >= 200 && responseStatus < 300,
+      status: responseStatus,
       json: async () => responseBody,
     };
   };
@@ -474,7 +474,7 @@ test('confirms a stored beta application in a focused dialog', async () => {
   assert.equal(dialog.getAttribute('role'), 'dialog');
   assert.equal(dialog.getAttribute('aria-modal'), 'true');
   assert.equal(dialog.hidden, false);
-  assert.match(dialog.textContent, /Vielen Dank für Ihre Anmeldung zur Beta/u);
+  assert.match(dialog.textContent, /Vielen Dank für deine Anmeldung zur Beta/u);
   assert.match(dialog.textContent, /anna@example\.test/u);
   assert.match(dialog.textContent, /Bestätigungs-E-Mail/u);
   assert.match(
@@ -501,10 +501,24 @@ test('explains a failed receipt email without losing the application', async () 
   const dialog = dom.window.document.getElementById('beta-success-dialog');
 
   assert.equal(dialog.hidden, false);
-  assert.match(dialog.textContent, /Ihre Bewerbung ist bei uns eingegangen/u);
-  assert.match(dialog.textContent, /Bestätigungs-E-Mail konnte nicht versendet\s+werden/u);
+  assert.match(dialog.textContent, /Deine Bewerbung ist bei uns eingegangen/u);
+  assert.match(dialog.textContent, /Bestätigungs-E-Mail konnte nicht\s+versendet\s+werden/u);
   assert.equal(dom.window.document.getElementById('beta-success-receipt-sent').hidden, true);
   assert.equal(dom.window.document.getElementById('beta-success-receipt-failed').hidden, false);
+  dom.window.close();
+});
+
+test('explains in the dialog that a rejected email address cannot apply again', async () => {
+  const { dom, form } = await submitBetaApplication({ error: 'application_rejected' }, 409);
+  const dialog = dom.window.document.getElementById('beta-success-dialog');
+
+  assert.equal(dialog.hidden, false);
+  assert.equal(dom.window.document.getElementById('beta-success-content').hidden, true);
+  assert.equal(dom.window.document.getElementById('beta-rejected-content').hidden, false);
+  assert.match(dialog.textContent, /Deine Bewerbung wurde bereits abgelehnt/u);
+  assert.match(dialog.textContent, /Eine erneute Bewerbung ist derzeit nicht möglich/u);
+  assert.equal(form.querySelector('[name="email"]').value, 'anna@example.test');
+  assert.equal(form.querySelector('button[type="submit"]').disabled, false);
   dom.window.close();
 });
 

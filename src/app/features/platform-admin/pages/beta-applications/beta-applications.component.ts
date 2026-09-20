@@ -25,6 +25,7 @@ import { ButtonComponent } from '../../../../shared/components/button/button.com
 import { BadgeComponent, BadgeTone } from '../../../../shared/components/badge/badge.component';
 import { LucideShieldCheck as ShieldCheck } from '@lucide/angular';
 import { BetaApprovalDialogComponent } from '../../components/beta-approval-dialog/beta-approval-dialog.component';
+import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
 
 @Component({
   selector: 'app-beta-applications',
@@ -42,6 +43,7 @@ import { BetaApprovalDialogComponent } from '../../components/beta-approval-dial
 })
 export class BetaApplicationsComponent implements OnInit {
   private readonly service = inject(BetaApplicationService);
+  private readonly confirmDialog = inject(ConfirmDialogService);
   readonly tablePreferences = inject(TablePreferencesService);
 
   readonly applications = signal<readonly BetaApplication[]>([]);
@@ -134,6 +136,9 @@ export class BetaApplicationsComponent implements OnInit {
   }
 
   lifecycleStatus(application: BetaApplication): { label: string; tone: BadgeTone } {
+    if (application.status === 'rejected' && application.rejectionEmailStatus === 'failed') {
+      return { label: 'Ablehnung nicht zugestellt', tone: 'critical' };
+    }
     if (application.status === 'rejected') return { label: 'Abgelehnt', tone: 'neutral' };
     if (
       application.licenseStatus === 'expired' ||
@@ -234,7 +239,8 @@ export class BetaApplicationsComponent implements OnInit {
   }
 
   async reject(application: BetaApplication): Promise<void> {
-    await this.runAction(application, () => this.service.reject(application.id));
+    const updated = await this.runAction(application, () => this.service.reject(application.id));
+    if (!updated) await this.refreshApplicationsKeepingError();
   }
 
   async resendInvitation(application: BetaApplication): Promise<void> {
@@ -243,6 +249,34 @@ export class BetaApplicationsComponent implements OnInit {
 
   async resendApplicationReceipt(application: BetaApplication): Promise<void> {
     await this.runAction(application, () => this.service.resendApplicationReceipt(application.id));
+  }
+
+  async resendRejection(application: BetaApplication): Promise<void> {
+    await this.runAction(application, () => this.service.resendRejection(application.id));
+  }
+
+  async deleteRejected(application: BetaApplication): Promise<void> {
+    const confirmed = await this.confirmDialog.frage({
+      titel: 'Abgelehnte Bewerbung löschen?',
+      text: `Die Bewerbung von ${this.applicantName(application)} (${application.email}) wird dauerhaft gelöscht. Danach kann sich diese E-Mail-Adresse erneut für die Beta bewerben.`,
+      bestaetigenText: 'Löschen',
+      abbrechenText: 'Abbrechen',
+      gefahr: true,
+    });
+    if (!confirmed) return;
+
+    this.error.set(null);
+    this.processingId.set(application.id);
+    try {
+      await this.service.deleteRejected(application.id);
+      this.applications.update((applications) =>
+        applications.filter((current) => current.id !== application.id),
+      );
+    } catch (error) {
+      this.error.set(error instanceof Error ? error.message : String(error));
+    } finally {
+      this.processingId.set(null);
+    }
   }
 
   private async runAction(
@@ -278,5 +312,16 @@ export class BetaApplicationsComponent implements OnInit {
       // Ladevorgang gleicht den gespeicherten Zustand erneut ab.
     }
     this.approvalError.set(message);
+  }
+
+  private async refreshApplicationsKeepingError(): Promise<void> {
+    const message = this.error();
+    try {
+      this.applications.set(await this.service.list());
+    } catch {
+      // Der Versandfehler ist fuer die Entscheidung hilfreicher als ein
+      // nachgelagerter Ladefehler. Beim naechsten Laden wird erneut abgeglichen.
+    }
+    this.error.set(message);
   }
 }

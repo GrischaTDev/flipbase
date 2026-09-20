@@ -1,5 +1,30 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-20 – Juna – Ablehnungen und erneute Beta-Bewerbungen vervollständigt
+
+**Auftrag:** Abgelehnte Beta-Bewerbungen per E-Mail mitteilen, eine erneute
+Bewerbung mit derselben E-Mail-Adresse eindeutig abweisen und dem Betreiber das
+kontrollierte Löschen abgelehnter Einträge ermöglichen.
+
+**Änderung:** Beim Ablehnen wird jetzt eine freundliche E-Mail in durchgängiger
+Du-Ansprache versendet. Ein fehlgeschlagener Versand bleibt im Admin sichtbar
+und kann dort erneut angestoßen werden. Die Bewerberliste bietet für abgelehnte,
+noch nicht mit einem Nutzer verknüpfte Einträge eine geschützte Löschaktion mit
+Bestätigungsdialog; erst danach ist die E-Mail-Adresse wieder für eine neue
+Bewerbung frei.
+
+Die Landingpage unterscheidet eine bereits abgelehnte E-Mail-Adresse von einer
+erfolgreichen Bewerbung und zeigt dafür ein eigenes Dialogfenster, ohne die
+Formulardaten zu verwerfen. Die Du-Ansprache für deutschsprachige Kunden-E-Mails
+und Oberflächentexte ist zusätzlich als Projektregel dokumentiert.
+
+**Prüfung:** Der Datenbanktest deckt Berechtigungen, den Schutz offener und
+verknüpfter Bewerbungen sowie Löschen und erneutes Bewerben ab. Edge-, Landing-
+und Angular-Tests prüfen Ablehnung, Versandfehler, Wiederholungsversand, Löschung
+und das eigene Hinweisfenster. Eine lokale Browserprüfung bestätigte Dialog,
+Fokus, Inhalt und den Erhalt der Formulardaten. Der abschließende Gesamtcheck ist
+im zugehörigen Zweig dokumentiert.
+
 ## 2026-09-20 – Juna – Landing-Kopfzeile reduziert und Beta-Mailversand aktiviert
 
 **Auftrag:** Die Kopfzeile der Landingpage auf Logo, Design- und Sprachumschalter
