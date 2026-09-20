@@ -6,6 +6,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { DataTableComponent } from '../../../../shared/components/data-table/data-table.component';
 import { PageHeaderComponent } from '../../../../shared/components/page-header/page-header.component';
+import { PlatformUser } from '../../models/platform-user.model';
 import { PlatformUserService } from '../../services/platform-user.service';
 import { PlatformUsersComponent } from './platform-users.component';
 
@@ -60,7 +61,7 @@ beforeAll(async () => {
   registerSignalInputs(BadgeComponent, ['tone', 'mono']);
 });
 
-const activeUser = {
+const activeUser: PlatformUser = {
   userId: 'user-1',
   fullName: 'Anna Beispiel',
   email: 'anna@example.test',
