@@ -1,6 +1,9 @@
 -- Entfernt den nachweislich leeren alten Inseratsentwurfsspeicher.
 -- Betroffene Tabelle: public.listing_drafts.
 -- Der Schutz bricht vor jeder Änderung ab, falls nach der Produktionsprüfung neue Daten entstanden sind.
+-- Der exklusive Lock schließt parallele Altschreibwege bis zur Leerprüfung und Löschung aus.
+
+lock table public.listing_drafts in access exclusive mode;
 
 do $$
 begin

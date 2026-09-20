@@ -75,22 +75,22 @@ export class ListingTemplateService {
     return lines.join('\n');
   }
 
-  private getConditionText(condition: string): string {
+  private getConditionText(condition: InventoryItem['condition']): string {
     switch (condition) {
       case 'new':
-        return 'Neu / unbenutzt';
+        return 'Neu & Originalverpackt (OVP)';
       case 'like_new':
-        return 'Wie neu';
+        return 'Wie neu (keine sichtbaren Gebrauchsspuren)';
       case 'very_good':
-        return 'Sehr gut';
-      case 'good':
-        return 'Gut';
-      case 'acceptable':
-        return 'Akzeptabel';
+        return 'Sehr gut (minimale Gebrauchsspuren, voll funktionsfähig)';
+      case 'used':
+        return 'Gebraucht (altersübliche Gebrauchsspuren, voll funktionsfähig)';
+      case 'heavily_used':
+        return 'Stark gebraucht (sichtbare Spuren, technisch in Ordnung)';
       case 'defective':
-        return 'Defekt / Ersatzteilspender';
+        return 'Defekt / Für Bastler';
       default:
-        return condition;
+        return 'Geprüfter Zustand';
     }
   }
 

@@ -87,4 +87,21 @@ describe('ListingTemplateService', () => {
     );
     expect(listing.description).not.toContain('Rechtlicher Hinweis:');
   });
+
+  it.each([
+    ['new', 'Neu & Originalverpackt (OVP)'],
+    ['like_new', 'Wie neu (keine sichtbaren Gebrauchsspuren)'],
+    ['very_good', 'Sehr gut (minimale Gebrauchsspuren, voll funktionsfähig)'],
+    ['used', 'Gebraucht (altersübliche Gebrauchsspuren, voll funktionsfähig)'],
+    ['heavily_used', 'Stark gebraucht (sichtbare Spuren, technisch in Ordnung)'],
+    ['defective', 'Defekt / Für Bastler'],
+  ] as const)('keeps the exact listing wording for condition %s', (condition, expectedText) => {
+    const listing = createService().generateKleinanzeigenListing({ ...item, condition }, 75, {
+      includeDisclaimer: false,
+      includeNonSmoking: false,
+      styleTone: 'dealer',
+    });
+
+    expect(listing.description).toContain(`• Zustand: ${expectedText}\n`);
+  });
 });
