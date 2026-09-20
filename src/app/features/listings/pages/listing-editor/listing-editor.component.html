@@ -1,0 +1,112 @@
+<app-entry-page-layout
+  [title]="isEdit() ? 'Inserat bearbeiten' : 'Inserat erstellen'"
+  subtitle="Kleinanzeigen-Inserat vorbereiten und anschließend übertragen."
+  (cancelled)="cancel()"
+>
+  <form [formGroup]="form" class="space-y-5" (ngSubmit)="save()">
+    <app-two-column-layout>
+      <section main class="linear-surface space-y-4 rounded-xl p-5">
+        <label class="block text-sm font-medium text-fb-text-primary"
+          >Bestandsartikel
+          <select
+            formControlName="inventoryItemId"
+            class="linear-input mt-1 w-full rounded-lg px-3 py-2"
+          >
+            <option value="">Artikel wählen</option>
+            @for (item of listingService.items(); track item.id) {
+              <option [value]="item.id">{{ item.title }} · {{ item.status }}</option>
+            }
+          </select>
+        </label>
+        @if (selectedItem(); as item) {
+          <p class="text-sm text-fb-text-muted">
+            {{ item.brand ?? 'Ohne Marke' }} · {{ item.category ?? 'Ohne Kategorie' }} ·
+            Einkaufskosten {{ item.allocatedPurchaseCost ?? 0 }} €
+          </p>
+        }
+        <div class="flex items-center justify-between">
+          <label class="text-sm font-medium text-fb-text-primary">Titel</label
+          ><span class="text-xs text-fb-text-muted">{{ form.controls.title.value.length }}/65</span>
+        </div>
+        <input
+          formControlName="title"
+          maxlength="65"
+          class="linear-input w-full rounded-lg px-3 py-2"
+        />
+        @if (form.controls.title.touched && form.controls.title.invalid) {
+          <p class="text-xs text-fb-critical">Der Titel muss 1 bis 65 Zeichen enthalten.</p>
+        }
+        <div class="flex items-center justify-between">
+          <label class="text-sm font-medium text-fb-text-primary">Beschreibung</label
+          ><span class="text-xs text-fb-text-muted"
+            >{{ form.controls.description.value.length }}/4000</span
+          >
+        </div>
+        <textarea
+          formControlName="description"
+          maxlength="4000"
+          rows="14"
+          class="linear-input w-full rounded-lg px-3 py-2"
+        ></textarea>
+        <app-button variant="secondary" (clicked)="generate()"
+          >Text aus Artikelinformationen erzeugen</app-button
+        >
+      </section>
+      <aside sidebar class="linear-surface space-y-4 rounded-xl p-5">
+        <label class="block text-sm font-medium text-fb-text-primary"
+          >Preis<input
+            formControlName="price"
+            type="number"
+            min="0"
+            max="99999999"
+            class="linear-input mt-1 w-full rounded-lg px-3 py-2"
+        /></label>
+        <label class="block text-sm font-medium text-fb-text-primary"
+          >Preisart<select
+            formControlName="priceType"
+            class="linear-input mt-1 w-full rounded-lg px-3 py-2"
+          >
+            <option value="FIXED">Festpreis</option>
+            <option value="NEGOTIABLE">Verhandlungsbasis</option>
+          </select></label
+        >
+        <label class="block text-sm font-medium text-fb-text-primary"
+          >Versand<select
+            formControlName="shippingType"
+            class="linear-input mt-1 w-full rounded-lg px-3 py-2"
+          >
+            <option value="pickup">Abholung</option>
+            <option value="shipping">Versand</option>
+            <option value="both">Beides</option>
+          </select></label
+        >
+        @if (form.controls.shippingType.value !== 'pickup') {
+          <label class="block text-sm font-medium text-fb-text-primary"
+            >Versandkosten<input
+              formControlName="shippingPrice"
+              type="number"
+              min="0"
+              class="linear-input mt-1 w-full rounded-lg px-3 py-2"
+          /></label>
+        }
+        <label class="block text-sm font-medium text-fb-text-primary"
+          >Postleitzahl <span class="font-normal text-fb-text-muted">(optional)</span
+          ><input
+            formControlName="postalCode"
+            inputmode="numeric"
+            maxlength="5"
+            class="linear-input mt-1 w-full rounded-lg px-3 py-2"
+        /></label>
+        <app-button variant="primary" size="lg" type="submit" [loading]="isSaving()">{{
+          isEdit() ? 'Speichern' : 'Vorbereiten und öffnen'
+        }}</app-button>
+      </aside>
+    </app-two-column-layout>
+  </form>
+</app-entry-page-layout>
+<app-listing-extension-help
+  [open]="helpOpen()"
+  [checking]="extension.checking()"
+  (closeRequested)="helpOpen.set(false)"
+  (checkRequested)="extension.checkNow()"
+/>
