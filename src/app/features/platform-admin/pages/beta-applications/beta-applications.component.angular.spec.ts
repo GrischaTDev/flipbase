@@ -296,6 +296,21 @@ describe('BetaApplicationsComponent', () => {
     ).toBe('Beta abgelaufen');
   });
 
+  it('kennzeichnet offene, angenommene und abgelehnte Bewerbungen eindeutig', () => {
+    const fixture = TestBed.createComponent(BetaApplicationsComponent);
+
+    expect(fixture.componentInstance.lifecycleStatus(application)).toEqual({
+      label: 'Offen',
+      tone: 'caution',
+    });
+    expect(
+      fixture.componentInstance.lifecycleStatus({ ...application, status: 'accepted' }),
+    ).toEqual({ label: 'Angenommen', tone: 'success' });
+    expect(
+      fixture.componentInstance.lifecycleStatus({ ...application, status: 'rejected' }),
+    ).toEqual({ label: 'Abgelehnt', tone: 'critical' });
+  });
+
   it('bietet bei fehlgeschlagener Eingangsbestaetigung einen Wiederholungsversand an', async () => {
     list.mockResolvedValueOnce([
       {

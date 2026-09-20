@@ -16,7 +16,9 @@ Bewerbung frei.
 Die Landingpage unterscheidet eine bereits abgelehnte E-Mail-Adresse von einer
 erfolgreichen Bewerbung und zeigt dafür ein eigenes Dialogfenster, ohne die
 Formulardaten zu verwerfen. Die Du-Ansprache für deutschsprachige Kunden-E-Mails
-und Oberflächentexte ist zusätzlich als Projektregel dokumentiert.
+und Oberflächentexte ist zusätzlich als Projektregel dokumentiert. Die
+Statusbadges kennzeichnen offene Bewerbungen orange, angenommene grün und
+abgelehnte rot.
 
 **Prüfung:** Der Datenbanktest deckt Berechtigungen, den Schutz offener und
 verknüpfter Bewerbungen sowie Löschen und erneutes Bewerben ab. Edge-, Landing-

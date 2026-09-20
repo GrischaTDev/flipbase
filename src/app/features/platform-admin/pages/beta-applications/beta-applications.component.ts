@@ -139,7 +139,7 @@ export class BetaApplicationsComponent implements OnInit {
     if (application.status === 'rejected' && application.rejectionEmailStatus === 'failed') {
       return { label: 'Ablehnung nicht zugestellt', tone: 'critical' };
     }
-    if (application.status === 'rejected') return { label: 'Abgelehnt', tone: 'neutral' };
+    if (application.status === 'rejected') return { label: 'Abgelehnt', tone: 'critical' };
     if (
       application.licenseStatus === 'expired' ||
       (application.betaEndsAt !== null && new Date(application.betaEndsAt).getTime() <= Date.now())
@@ -167,7 +167,7 @@ export class BetaApplicationsComponent implements OnInit {
     if (application.receiptEmailStatus === 'failed') {
       return { label: 'Bestätigung fehlgeschlagen', tone: 'critical' };
     }
-    if (application.status === 'accepted') return { label: 'Angenommen', tone: 'info' };
+    if (application.status === 'accepted') return { label: 'Angenommen', tone: 'success' };
     return { label: 'Offen', tone: 'caution' };
   }
 
