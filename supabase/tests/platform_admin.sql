@@ -509,6 +509,7 @@ declare
   linked_user uuid;
   linked_days integer;
   linked_status text;
+  setup_completed timestamptz;
 begin
   select auth_user_id into linked_user
   from public.beta_applications
@@ -526,6 +527,16 @@ begin
   if linked_days is distinct from 60 or linked_status is distinct from 'pending' then
     raise exception 'Die ausstehende Beta-Lizenz fehlt oder ist falsch: %, %',
       linked_days, linked_status;
+  end if;
+
+  select workspace.setup_completed_at
+  into setup_completed
+  from public.workspaces as workspace
+  join public.workspace_members as member on member.workspace_id = workspace.id
+  where member.user_id = '85000000-0000-4000-8000-000000000010'::uuid;
+
+  if setup_completed is not null then
+    raise exception 'Der automatisch angelegte Beta-Workspace darf noch nicht eingerichtet sein';
   end if;
 end;
 $$;

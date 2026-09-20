@@ -4271,6 +4271,7 @@ export type Database = {
           min_roi_percent: number
           name: string
           numbering_timezone: string
+          setup_completed_at: string | null
           tax_mode: string
           updated_at: string
         }
@@ -4283,6 +4284,7 @@ export type Database = {
           min_roi_percent?: number
           name: string
           numbering_timezone?: string
+          setup_completed_at?: string | null
           tax_mode?: string
           updated_at?: string
         }
@@ -4295,6 +4297,7 @@ export type Database = {
           min_roi_percent?: number
           name?: string
           numbering_timezone?: string
+          setup_completed_at?: string | null
           tax_mode?: string
           updated_at?: string
         }
@@ -4391,6 +4394,7 @@ export type Database = {
           min_roi_percent: number
           name: string
           numbering_timezone: string
+          setup_completed_at: string | null
           tax_mode: string
           updated_at: string
         }
@@ -4995,6 +4999,7 @@ export type Database = {
           min_roi_percent: number
           name: string
           numbering_timezone: string
+          setup_completed_at: string | null
           tax_mode: string
           updated_at: string
         }
@@ -5143,6 +5148,7 @@ export type Database = {
           min_roi_percent: number
           name: string
           numbering_timezone: string
+          setup_completed_at: string | null
           tax_mode: string
           updated_at: string
         }

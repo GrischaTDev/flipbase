@@ -28,7 +28,7 @@
 
 - Modify: `supabase/schemas/database.sql`
 - Modify: `supabase/tests/platform_admin.sql`
-- Create: `supabase/migrations/20260920171500_workspace_initial_setup.sql`
+- Create: `supabase/migrations/20260920172838_workspace_initial_setup.sql`
 - Modify: `src/app/core/models/supabase.types.ts`
 - Modify: `src/app/core/models/flipbase.models.ts`
 
@@ -38,7 +38,7 @@
 - Produces: `public.workspaces.setup_completed_at timestamptz`
 - Existing manually created workspaces receive a non-null completion time; registration-trigger workspaces remain null.
 
-- [ ] **Step 1: Extend the database test with the setup lifecycle**
+- [x] **Step 1: Extend the database test with the setup lifecycle**
 
 Add assertions to the existing beta registration case in `platform_admin.sql`:
 
@@ -56,13 +56,13 @@ end if;
 
 Increase the pgTAP plan only when adding a separate `pass()` assertion.
 
-- [ ] **Step 2: Run the database test and verify the new assertion fails**
+- [x] **Step 2: Run the database test and verify the new assertion fails**
 
 Run: `npx supabase test db supabase/tests/platform_admin.sql`
 
 Expected: FAIL because `setup_completed_at` does not exist.
 
-- [ ] **Step 3: Add the declarative column and creation semantics**
+- [x] **Step 3: Add the declarative column and creation semantics**
 
 Append the column to `public.workspaces` in `database.sql`:
 
@@ -79,7 +79,7 @@ values (coalesce(nullif(trim(p_name), ''), 'Mein Workspace'), now())
 
 Do not alter the beta duration or license functions.
 
-- [ ] **Step 4: Generate and inspect the migration**
+- [x] **Step 4: Generate and inspect the migration**
 
 Run with the isolated Supabase project:
 
@@ -97,7 +97,7 @@ update public.workspaces set setup_completed_at = now() where setup_completed_at
 
 The trigger definition applied after that backfill must leave newly registered workspaces null; `create_workspace` must set `now()`.
 
-- [ ] **Step 5: Reset the isolated database and rerun the focused test**
+- [x] **Step 5: Reset the isolated database and rerun the focused test**
 
 Run:
 
@@ -109,7 +109,7 @@ npx supabase test db supabase/tests/platform_admin.sql
 
 Expected: clean reset and all platform-admin tests PASS.
 
-- [ ] **Step 6: Regenerate types and extend the application model**
+- [x] **Step 6: Regenerate types and extend the application model**
 
 Run:
 
@@ -123,7 +123,7 @@ Add to `Workspace`:
 setup_completed_at?: string | null;
 ```
 
-- [ ] **Step 7: Commit the database lifecycle**
+- [x] **Step 7: Commit the database lifecycle**
 
 ```bash
 git add supabase/schemas/database.sql supabase/tests/platform_admin.sql supabase/migrations src/app/core/models/supabase.types.ts src/app/core/models/flipbase.models.ts
