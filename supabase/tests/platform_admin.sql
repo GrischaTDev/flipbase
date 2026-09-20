@@ -537,6 +537,26 @@ set local role authenticated;
 set local request.jwt.claim.sub = :'beta_user_id';
 
 do $$
+begin
+  begin
+    perform public.activate_beta_access();
+    raise exception 'Der Einladungslink allein haette die Beta nicht starten duerfen';
+  exception
+    when invalid_parameter_value then null;
+  end;
+end;
+$$;
+
+reset role;
+
+update auth.users
+set raw_user_meta_data = raw_user_meta_data || '{"beta_registration_completed": true}'::jsonb
+where id = :'beta_user_id'::uuid;
+
+set local role authenticated;
+set local request.jwt.claim.sub = :'beta_user_id';
+
+do $$
 declare
   first_start timestamptz;
   first_end timestamptz;

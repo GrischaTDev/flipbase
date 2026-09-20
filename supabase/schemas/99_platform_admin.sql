@@ -359,6 +359,16 @@ begin
     raise exception 'Nicht angemeldet' using errcode = '42501';
   end if;
 
+  if not exists (
+    select 1
+    from auth.users as auth_user
+    where auth_user.id = (select auth.uid())
+      and auth_user.raw_user_meta_data->>'beta_registration_completed' = 'true'
+  ) then
+    raise exception 'Die Registrierung ist noch nicht abgeschlossen'
+      using errcode = '22023';
+  end if;
+
   select application.*
   into v_application
   from public.beta_applications as application
