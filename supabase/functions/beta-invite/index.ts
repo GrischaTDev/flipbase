@@ -31,6 +31,10 @@ export interface BetaInviteApplication {
   invitation_sent_at: string | null;
   invitation_last_error: string | null;
   registered_at: string | null;
+  workspace_licenses?:
+    | { status: string; ends_at: string | null }
+    | { status: string; ends_at: string | null }[]
+    | null;
 }
 
 interface BetaInviteUserInput {
@@ -92,7 +96,7 @@ const ALLOWED_ORIGINS = new Set(
 );
 
 const APPLICATION_FIELDS =
-  'id, first_name, last_name, email, status, granted_days, decision_note, decided_at, created_at, receipt_email_status, receipt_email_sent_at, receipt_email_last_error, auth_user_id, invitation_status, invitation_sent_at, invitation_last_error, registered_at';
+  'id, first_name, last_name, email, status, granted_days, decision_note, decided_at, created_at, receipt_email_status, receipt_email_sent_at, receipt_email_last_error, auth_user_id, invitation_status, invitation_sent_at, invitation_last_error, registered_at, workspace_licenses(status, ends_at)';
 
 function corsHeaders(origin: string | null): Record<string, string> {
   const headers: Record<string, string> = {

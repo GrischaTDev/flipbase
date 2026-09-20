@@ -1,10 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { expect, test } from '@playwright/test';
-import {
-  createAnonClient,
-  createLocalAdminClient,
-  createUserClient,
-} from './support/local-supabase';
+import { createAnonClient, createLocalAdminClient } from './support/local-supabase';
+import { AUTH_STORAGE_KEY } from './support/test-account';
 
 interface MailpitMessageSummary {
   readonly ID: string;
@@ -54,6 +51,17 @@ test('genehmigt eine Bewerbung und startet nach der Passwortvergabe 60 Beta-Tage
   expect(operatorId).toBeTruthy();
   const operatorInsert = await admin.from('platform_operators').insert({ user_id: operatorId });
   expect(operatorInsert.error).toBeNull();
+  const operatorMembership = await admin
+    .from('workspace_members')
+    .select('workspace_id')
+    .eq('user_id', operatorId!)
+    .single();
+  expect(operatorMembership.error).toBeNull();
+  const operatorWorkspaceUpdate = await admin
+    .from('workspaces')
+    .update({ setup_completed_at: new Date().toISOString() })
+    .eq('id', operatorMembership.data!.workspace_id);
+  expect(operatorWorkspaceUpdate.error).toBeNull();
 
   const applicationInsert = await admin
     .from('beta_applications')
@@ -74,16 +82,22 @@ test('genehmigt eine Bewerbung und startet nach der Passwortvergabe 60 Beta-Tage
     password: operatorPassword,
   });
   expect(operatorLogin.error).toBeNull();
-  const accessToken = operatorLogin.data.session?.access_token;
-  expect(accessToken).toBeTruthy();
+  expect(operatorLogin.data.session).not.toBeNull();
 
-  const approval = await createUserClient(accessToken!).functions.invoke('beta-invite', {
-    body: { action: 'accept', applicationId, grantedDays: 60 },
-  });
-  const approvalErrorBody = approval.error
-    ? await (approval.error as { context?: Response }).context?.text()
-    : null;
-  expect(approval.error, approvalErrorBody).toBeNull();
+  await page.goto('/');
+  await page.evaluate(
+    ([storageKey, session]) => localStorage.setItem(storageKey, JSON.stringify(session)),
+    [AUTH_STORAGE_KEY, operatorLogin.data.session] as const,
+  );
+  await page.goto('/admin/applications');
+  await expect(page.getByRole('heading', { name: 'Bewerbungen' })).toBeVisible();
+  const applicationRow = page.getByRole('row').filter({ hasText: applicantEmail });
+  await expect(applicationRow).toBeVisible();
+  await applicationRow.getByRole('button', { name: /annehmen/iu }).click();
+  await expect(page.getByRole('heading', { name: 'Beta-Anmeldung annehmen' })).toBeVisible();
+  await expect(page.getByRole('spinbutton', { name: 'Beta-Laufzeit in Tagen' })).toHaveValue('60');
+  await page.getByRole('button', { name: 'Beta-Anmeldung genehmigen' }).click();
+  await expect(applicationRow.getByText('Wartet auf Registrierung')).toBeVisible();
   const invitationLink = await invitationLinkFor(applicantEmail);
 
   await page.goto(invitationLink);
@@ -93,6 +107,9 @@ test('genehmigt eine Bewerbung und startet nach der Passwortvergabe 60 Beta-Tage
   await page.getByRole('checkbox', { name: /AGB und Datenschutzerklärung/u }).click();
   await page.locator('button[type="submit"]').click();
   await expect(page).toHaveURL(/\/onboarding\/workspace$/u, { timeout: 15_000 });
+  await page.getByRole('textbox', { name: 'Wie soll dein Workspace heißen?' }).fill('Anna Handel');
+  await page.getByRole('button', { name: 'Workspace einrichten' }).click();
+  await expect(page).toHaveURL(/\/dashboard$/u);
 
   await expect
     .poll(async () => {
@@ -116,4 +133,18 @@ test('genehmigt eine Bewerbung und startet nach der Passwortvergabe 60 Beta-Tage
   expect(
     new Date(license.data!.ends_at!).getTime() - new Date(license.data!.starts_at!).getTime(),
   ).toBe(60 * 86_400_000);
+
+  await page.evaluate(
+    ([storageKey, session]) => localStorage.setItem(storageKey, JSON.stringify(session)),
+    [AUTH_STORAGE_KEY, operatorLogin.data.session] as const,
+  );
+  await page.goto('/admin/applications');
+  const activeApplicationRow = page.getByRole('row').filter({ hasText: applicantEmail });
+  await expect(activeApplicationRow.getByText('Beta aktiv')).toBeVisible();
+
+  await page.goto('/admin/users');
+  const userRow = page.getByRole('row').filter({ hasText: applicantEmail });
+  await expect(userRow.getByText('Registriert')).toBeVisible();
+  await expect(userRow.getByText('Beta aktiv')).toBeVisible();
+  await expect(userRow.getByText('Noch 60 Tage')).toBeVisible();
 });

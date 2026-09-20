@@ -26,7 +26,7 @@ interface BetaApplicationRow {
   invitation_sent_at: string | null;
   invitation_last_error: string | null;
   registered_at: string | null;
-  workspace_licenses:
+  workspace_licenses?:
     | { status: string; ends_at: string | null }
     | { status: string; ends_at: string | null }[]
     | null;
