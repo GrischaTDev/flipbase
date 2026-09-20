@@ -2,7 +2,7 @@
 
 ## 2026-09-21 – Juna – Updateplan für Einkaufsablauf und Admin-Oberfläche abgestimmt
 
-**Auftrag:** Vierundzwanzig Rückmeldungen zu Einkaufserfassung,
+**Auftrag:** Fünfundzwanzig Rückmeldungen zu Einkaufserfassung,
 Einkaufsübersicht, Einkaufsdetail, Artikelstamm, Verkäuferverwaltung,
 Beta-Einstieg und globalem Header vollständig aufnehmen und vor der Umsetzung
 fachlich klären.
@@ -15,8 +15,15 @@ korrigierbare Belege, datenschutzfreundliche Beta-Duplikatantwort und den
 vereinheitlichten Kopfbereich fest. Der technische Prüfbeleg verschwindet aus
 dem Einkauf, bleibt aber zentral unter „Daten & Protokolle“ erhalten.
 
+Als letzter Punkt ist eine geschützte Discord-Verknüpfung für freigeschaltete
+Beta-Nutzer vorgesehen. Nach einer ausdrücklichen Discord-Autorisierung soll ein
+Bot den Nutzer zum Server hinzufügen und automatisch die Rolle „Beta-Tester“
+vergeben. Erst nach Abschluss der übrigen Arbeiten wird entschieden, ob diese
+größere Integration noch in denselben Pull Request passt oder einen eigenen
+Folge-Pull-Request erhält.
+
 **Prüfung:** Reine Planungsrunde ohne Produktivcode. Alle sechs fachlichen
-Abschnitte wurden einzeln bestätigt und die Spezifikation ordnet jeden der 24
+Abschnitte wurden einzeln bestätigt und die Spezifikation ordnet jeden der 25
 gemeldeten Punkte ausdrücklich einer Lösung zu. Der Branch basiert auf dem
 aktuellen `origin/master` einschließlich des zuletzt ergänzten
 Beta-Ablehnungsablaufs.

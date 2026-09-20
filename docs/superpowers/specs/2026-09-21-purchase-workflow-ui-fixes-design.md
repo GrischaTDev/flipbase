@@ -1,7 +1,7 @@
 # Einkauf, Beta-Einstieg und Admin-Oberfläche – Designspezifikation
 
 **Datum:** 2026-09-21  
-**Status:** Fachlich freigegeben  
+**Status:** Fachlich freigegeben; Discord-Umsetzung bleibt bis zum Abschluss offen<br>
 **Ziel:** Die gemeldeten Bedienungsfehler und Inkonsistenzen in Einkaufserfassung,
 Einkaufsübersicht, Einkaufsdetail, Artikelstamm, Verkäuferverwaltung,
 Beta-Einstieg und globalem Header in einem zusammenhängenden Update beheben.
@@ -333,6 +333,42 @@ Aktionen verdecken.
 Das vollständige Flipbase-Logo in der Sidebar bleibt ein Link auf
 `/dashboard`. Ein Regressionstest sichert das Verhalten.
 
+## 8. Discord-Zugang für Beta-Tester
+
+Die Discord-Anbindung ist der letzte Punkt des Vorhabens. Sie wird erst nach
+Abschluss und Prüfung der Punkte 1 bis 24 eingeplant. Dann wird anhand des
+tatsächlichen Restumfangs entschieden, ob sie noch Bestandteil dieses Pull
+Requests wird oder als eigener Folge-Pull-Request umgesetzt wird. Diese offene
+Umfangsentscheidung darf die Fertigstellung der vorherigen Punkte nicht
+verzögern.
+
+Ein frei zugänglicher oder direkt per E-Mail versendeter Discord-Link ist nicht
+die bevorzugte Lösung. Auch ein eindeutiger, einmal verwendbarer Link ist nicht
+an eine bestimmte Person gebunden und könnte weitergegeben werden.
+
+Die vorgesehene Lösung verbindet deshalb das Discord-Konto mit einem
+angemeldeten und für die Beta freigeschalteten Flipbase-Nutzer:
+
+1. Nach erfolgreicher Kontoeinrichtung bietet Flipbase „Discord verbinden“ an.
+2. Der Nutzer bestätigt die Verbindung über Discord OAuth.
+3. Das Backend prüft die aktive Beta-Freigabe und bindet die Discord-ID an den
+   Flipbase-Nutzer.
+4. Ein Flipbase-Discord-Bot fügt das Konto dem Server hinzu und weist
+   automatisch die Rolle „Beta-Tester“ zu.
+5. Wird die Beta-Freigabe später entzogen, kann die Rolle automatisiert wieder
+   entfernt werden.
+
+Die Willkommensmail darf auf diesen geschützten Flipbase-Ablauf verweisen, aber
+nicht unmittelbar auf einen allgemein nutzbaren Discord-Einladungslink. Bot-
+Token, Discord-Client-Secret, Server-ID und Rollen-ID bleiben ausschließlich in
+serverseitigen Secrets. Der OAuth-Zustand wird an die angemeldete Sitzung
+gebunden, damit keine fremden Konten miteinander verknüpft werden.
+
+Falls Punkt 25 in diesem Pull Request umgesetzt wird, gehören Tests für
+Autorisierung, Beta-Berechtigung, Rollenvergabe, wiederholte Verknüpfung,
+Fehlerfälle und den Entzug der Rolle dazu. Andernfalls endet dieser Pull Request
+mit einer klar abgegrenzten Folgespezifikation für die Discord-Anbindung.
+
 ## Zustands- und Datenfluss
 
 ### Preise
@@ -401,6 +437,7 @@ Entfernung:
 - Einladungsbetreff, E-Mail-Inhalt und sichere Kopfzeilen
 - deutsche Passworttexte und gelbe AGB-Checkbox
 - identische Headerhöhen und Logo-Ziel
+- falls Punkt 25 enthalten ist: geschützte Discord-Verknüpfung und Rollenvergabe
 
 ### Integrations- und Bauprüfungen
 
@@ -443,6 +480,7 @@ Entfernung:
 | 22    | Verkäuferzeile anklickbar und farbige Aktionen                                  |
 | 23    | Header-Trennlinien auf gleicher Höhe                                            |
 | 24    | Einheitliche Form und Größe der Kopfaktionen                                    |
+| 25    | Discord-Verknüpfung und Beta-Rolle; PR-Umfang zuletzt entscheiden               |
 
 ## Nicht Bestandteil
 
@@ -451,3 +489,4 @@ Entfernung:
 - Modell als zusätzliche Standardspalte der Artikelübersicht
 - Eine neue globale Navigationsstruktur
 - Eine echte prozentuale Fortschrittsmessung der Beta-Anfrage
+- Eine öffentliche Discord-Einladung ohne Prüfung der Beta-Freigabe
