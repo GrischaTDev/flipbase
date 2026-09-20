@@ -22,6 +22,23 @@ export default async function globalSetup(): Promise<void> {
       `Testkonto konnte nicht angelegt werden: ${createError?.message ?? 'kein Nutzer'}`,
     );
   }
+  const { data: membership, error: membershipError } = await admin
+    .from('workspace_members')
+    .select('workspace_id')
+    .eq('user_id', created.user.id)
+    .single();
+  if (membershipError || !membership) {
+    throw new Error(
+      `Initialer Test-Workspace fehlt: ${membershipError?.message ?? 'keine Zuordnung'}`,
+    );
+  }
+  const { error: setupError } = await admin
+    .from('workspaces')
+    .update({ setup_completed_at: new Date().toISOString() })
+    .eq('id', membership.workspace_id);
+  if (setupError) {
+    throw new Error(`Test-Workspace konnte nicht vorbereitet werden: ${setupError.message}`);
+  }
   const { data, error } = await admin.auth.signInWithPassword({
     email,
     password,
