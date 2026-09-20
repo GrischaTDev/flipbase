@@ -25,6 +25,22 @@ describe('ListingExtensionService', () => {
     expect(postMessage).toHaveBeenCalledTimes(2);
   });
 
+  it('finishes an unsuccessful extension check so it can be retried', () => {
+    vi.useFakeTimers();
+    vi.spyOn(window, 'postMessage').mockImplementation(() => undefined);
+    const service = setup();
+
+    service.start();
+    expect(service.checking()).toBe(true);
+
+    vi.advanceTimersByTime(1_500);
+    expect(service.available()).toBe(false);
+    expect(service.checking()).toBe(false);
+
+    service.checkNow();
+    expect(service.checking()).toBe(true);
+  });
+
   it('accepts CustomEvent and same-window message responses', () => {
     const service = setup();
     service.start();
@@ -40,6 +56,18 @@ describe('ListingExtensionService', () => {
       }),
     );
     expect(service.available()).toBe(true);
+  });
+
+  it('finishes a manual recheck immediately when the extension is already available', () => {
+    vi.spyOn(window, 'postMessage').mockImplementation(() => undefined);
+    const service = setup();
+    service.start();
+    window.dispatchEvent(new Event('flipbase:extension-ready'));
+
+    service.checkNow();
+
+    expect(service.available()).toBe(true);
+    expect(service.checking()).toBe(false);
   });
 
   it('ignores messages from another source and publishes the unchanged payload', () => {

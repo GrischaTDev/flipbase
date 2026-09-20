@@ -182,7 +182,7 @@ export class ListingStudioService {
     price: number,
     options: KleinanzeigenGenerationOptions,
   ): GeneratedListing {
-    return this.generateListing(item, 'kleinanzeigen', price, {
+    const listing = this.generateListing(item, 'kleinanzeigen', price, {
       includeDisclaimer: options.includeDisclaimer,
       isCommercialSeller: true,
       includeNonSmoking: options.includeNonSmoking,
@@ -191,6 +191,7 @@ export class ListingStudioService {
       includeNegotiable: false,
       styleTone: options.styleTone,
     });
+    return { ...listing, title: listing.title.slice(0, 65) };
   }
 
   /**

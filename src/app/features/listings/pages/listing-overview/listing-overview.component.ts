@@ -22,7 +22,6 @@ import { DataTableComponent } from '../../../../shared/components/data-table/dat
 import { PageHeaderComponent } from '../../../../shared/components/page-header/page-header.component';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
-import type { InventoryItem } from '../../../../core/models/flipbase.models';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { ListingExtensionHelpComponent } from '../../components/listing-extension-help/listing-extension-help.component';
 import type { ListingFilter, ListingRow } from '../../models/listing.models';
@@ -107,7 +106,7 @@ export class ListingOverviewComponent {
     return (
       (row.listing.status === 'online' ||
         (row.listing.status === 'ended' && row.listing.endReason === 'manual')) &&
-      canPrepareListing(row.item as unknown as InventoryItem).allowed
+      canPrepareListing({ status: row.item.status, archived_at: row.item.archivedAt }).allowed
     );
   }
   isSoldCleanup(row: ListingRow): boolean {
@@ -196,10 +195,12 @@ export class ListingOverviewComponent {
     const result = await this.listingService.buildExtensionPayload(row);
     if (!this.isCurrentRow(row)) return;
     this.extension.publish(result.payload);
-    if (result.missingImages.length)
+    if (result.missingImages.length) {
+      const count = result.missingImages.length;
       this.toast.warning(
-        `${result.missingImages.length} Bild${result.missingImages.length === 1 ? '' : 'er'} konnten nicht übertragen werden.`,
+        `${count} ${count === 1 ? 'Bild konnte' : 'Bilder konnten'} nicht übertragen werden.`,
       );
+    }
     this.toast.success('Übergabe an Kleinanzeigen gestartet.');
   }
 

@@ -112,6 +112,21 @@ describe('Listing Studio & Multi-Platform Generator', () => {
       expect(text.description).not.toContain('§ 25a');
       expect(text.description).not.toContain('§ 19');
     });
+
+    it('begrenzt die Kleinanzeigen-Vorlage auf 65 Zeichen und nutzt den aktuellen Steuermodus', () => {
+      const listing = mitModus('kleinunternehmer_19').generateKleinanzeigenListing(
+        {
+          ...sampleItem,
+          title: 'Akku-Bohrschrauber mit sehr langem Produktnamen und umfangreichem Zubehörpaket',
+        },
+        75,
+        { includeDisclaimer: true, includeNonSmoking: false, styleTone: 'dealer' },
+      );
+
+      expect(listing.title.length).toBeLessThanOrEqual(65);
+      expect(listing.description).toContain('§ 19');
+      expect(listing.description).not.toContain('§ 25a');
+    });
   });
 
   it('gibt einen Inventarfehler beim Veröffentlichen zurück', async () => {

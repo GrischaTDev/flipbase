@@ -16,6 +16,7 @@ import {
 import { EntryPageLayoutComponent } from '../../../../shared/components/entry-page-layout/entry-page-layout.component';
 import { TwoColumnLayoutComponent } from '../../../../shared/components/two-column-layout/two-column-layout.component';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
+import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
 import {
   ListingStudioService,
   type ListingStyleTone,
@@ -25,10 +26,14 @@ import { ListingExtensionService } from '../../services/listing-extension.servic
 import { ListingService } from '../../services/listing.service';
 import type {
   ListingContent,
+  ListingEditorItem,
   ListingPriceType,
+  ListingRow,
   ListingShippingType,
 } from '../../models/listing.models';
+import { canPrepareListing } from '../../models/listing.rules';
 import { ListingExtensionHelpComponent } from '../../components/listing-extension-help/listing-extension-help.component';
+import type { InventoryItem } from '../../../../core/models/flipbase.models';
 
 @Component({
   selector: 'app-listing-editor',
@@ -49,6 +54,7 @@ export class ListingEditorComponent {
   readonly extension = inject(ListingExtensionService);
   private readonly studio = inject(ListingStudioService);
   private readonly workspaceService = inject(WorkspaceService);
+  private readonly confirmDialog = inject(ConfirmDialogService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
@@ -67,17 +73,26 @@ export class ListingEditorComponent {
     { value: 'shipping', label: 'Versand' },
     { value: 'both', label: 'Beides' },
   ];
+  readonly styleToneOptions: readonly SelectOption<ListingStyleTone>[] = [
+    { value: 'dealer', label: 'Sachlich' },
+    { value: 'collector', label: 'Für Sammler' },
+    { value: 'bargain', label: 'Schnäppchen' },
+  ];
   readonly itemOptions = computed<readonly SelectOption<string>[]>(() =>
-    this.listingService.items().map((item) => ({
-      value: item.id,
-      label: `${item.title} · ${item.status}`,
-    })),
+    this.listingService
+      .items()
+      .filter((item) => !item.archivedAt && item.status !== 'archived' && item.status !== 'sold')
+      .map((item) => ({
+        value: item.id,
+        label: item.title,
+        description: this.createIssueFor(item) ?? this.itemStatusLabel(item.status),
+      })),
   );
   readonly form = new FormGroup({
     inventoryItemId: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     title: new FormControl('', {
       nonNullable: true,
-      validators: [Validators.required, Validators.maxLength(65)],
+      validators: [Validators.required, Validators.pattern(/.*\S.*/), Validators.maxLength(65)],
     }),
     description: new FormControl('', {
       nonNullable: true,
@@ -87,10 +102,14 @@ export class ListingEditorComponent {
       Validators.required,
       Validators.min(0),
       Validators.max(99_999_999),
+      Validators.pattern(/^\d+(\.\d{1,2})?$/),
     ]),
     priceType: new FormControl<ListingPriceType>('FIXED', { nonNullable: true }),
     shippingType: new FormControl<ListingShippingType>('pickup', { nonNullable: true }),
-    shippingPrice: new FormControl<number | null>(null, [Validators.min(0)]),
+    shippingPrice: new FormControl<number | null>(null, [
+      Validators.min(0),
+      Validators.pattern(/^\d+(\.\d{1,2})?$/),
+    ]),
     postalCode: new FormControl('', [Validators.pattern(/^\d{5}$/)]),
     styleTone: new FormControl<ListingStyleTone>('dealer', { nonNullable: true }),
     includeNonSmoking: new FormControl(false, { nonNullable: true }),
@@ -99,6 +118,16 @@ export class ListingEditorComponent {
   readonly selectedItem = computed(
     () => this.listingService.items().find((item) => item.id === this.selectedItemId()) ?? null,
   );
+  readonly selectedOpenListing = computed(() => {
+    if (this.isEdit()) return null;
+    const item = this.selectedItem();
+    return item ? this.openListingFor(item.id) : null;
+  });
+  readonly selectedItemIssue = computed(() => {
+    if (this.isEdit()) return null;
+    const item = this.selectedItem();
+    return item ? this.createIssueFor(item) : null;
+  });
 
   constructor() {
     this.extension.start();
@@ -131,6 +160,7 @@ export class ListingEditorComponent {
     this.form.controls.shippingType.valueChanges.subscribe((type) => {
       if (type === 'pickup') this.form.controls.shippingPrice.setValue(null);
     });
+    this.storeBaseline();
   }
 
   hasUnsavedChanges(): boolean {
@@ -140,11 +170,21 @@ export class ListingEditorComponent {
     if (this.hasUnsavedChanges()) event.preventDefault();
   }
 
-  generate(): void {
+  async generate(): Promise<void> {
     const item = this.selectedItem();
     const price = this.form.controls.price.value;
     if (!item || price === null) return;
-    const generated = this.studio.generateKleinanzeigenListing(item as never, price, {
+    if (
+      (this.form.controls.title.dirty || this.form.controls.description.dirty) &&
+      !(await this.confirmDialog.frage({
+        titel: 'Manuell bearbeitete Texte ersetzen?',
+        text: 'Titel und Beschreibung werden durch die neu erzeugte Vorlage ersetzt.',
+        bestaetigenText: 'Texte ersetzen',
+      }))
+    ) {
+      return;
+    }
+    const generated = this.studio.generateKleinanzeigenListing(this.toInventoryItem(item), price, {
       includeDisclaimer: this.form.controls.includeDisclaimer.value,
       includeNonSmoking: this.form.controls.includeNonSmoking.value,
       styleTone: this.form.controls.styleTone.value,
@@ -155,7 +195,30 @@ export class ListingEditorComponent {
     });
   }
 
+  async copyTexts(): Promise<void> {
+    if (!navigator.clipboard) {
+      this.toast.error('Texte konnten nicht kopiert werden.');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(
+        `${this.form.controls.title.value}\n\n${this.form.controls.description.value}`,
+      );
+      this.toast.success('Titel und Beschreibung wurden kopiert.');
+    } catch (error: unknown) {
+      this.toast.error(
+        'Texte konnten nicht kopiert werden.',
+        error instanceof Error ? error.message : undefined,
+      );
+    }
+  }
+
   async save(): Promise<void> {
+    const selectedItemIssue = this.selectedItemIssue();
+    if (selectedItemIssue) {
+      this.toast.error('Dieser Artikel kann nicht vorbereitet werden.', selectedItemIssue);
+      return;
+    }
     if (this.form.invalid || this.isSaving()) {
       this.form.markAllAsTouched();
       return;
@@ -184,6 +247,12 @@ export class ListingEditorComponent {
       }
       const payload = await this.listingService.buildExtensionPayload(row);
       this.extension.publish(payload.payload);
+      if (payload.missingImages.length) {
+        const count = payload.missingImages.length;
+        this.toast.warning(
+          `${count} ${count === 1 ? 'Bild konnte' : 'Bilder konnten'} nicht übertragen werden.`,
+        );
+      }
       this.toast.success(
         'Kleinanzeigen wurde geöffnet.',
         'Setze das Inserat nach dem Aufgeben auf Online.',
@@ -210,5 +279,62 @@ export class ListingEditorComponent {
   }
   private storeBaseline(): void {
     this.baseline = JSON.stringify(this.form.getRawValue());
+  }
+
+  private createIssueFor(item: ListingEditorItem): string | null {
+    const openListing = this.openListingFor(item.id);
+    if (openListing) return 'Für diesen Artikel besteht bereits ein offenes Inserat.';
+    const eligibility = canPrepareListing({
+      status: item.status,
+      archived_at: item.archivedAt,
+    });
+    return eligibility.allowed ? null : eligibility.reason;
+  }
+
+  private openListingFor(itemId: string): ListingRow | null {
+    return (
+      this.listingService
+        .rows()
+        .find(
+          (row) =>
+            row.item.id === itemId &&
+            row.listing.status !== 'ended' &&
+            row.listing.id !== this.listingId(),
+        ) ?? null
+    );
+  }
+
+  private itemStatusLabel(status: ListingEditorItem['status']): string {
+    const labels: Record<ListingEditorItem['status'], string> = {
+      received: 'Auf Lager',
+      needs_review: 'Prüfung nötig',
+      researched: 'Recherchiert',
+      ready: 'Bereit',
+      listed: 'Gelistet',
+      reserved: 'Reserviert',
+      sold: 'Verkauft',
+      returned: 'Retourniert',
+      archived: 'Archiviert',
+      defective: 'Defekt / Ersatzteil',
+    };
+    return labels[status];
+  }
+
+  private toInventoryItem(item: ListingEditorItem): InventoryItem {
+    return {
+      id: item.id,
+      workspace_id: item.workspaceId,
+      title: item.title,
+      brand: item.brand,
+      category: item.category,
+      condition: item.condition,
+      condition_notes: item.conditionNotes,
+      description: item.description,
+      status: item.status,
+      allocated_purchase_cost: item.allocatedPurchaseCost,
+      expected_value: item.expectedValue,
+      archived_at: item.archivedAt,
+      media: [...item.media],
+    };
   }
 }

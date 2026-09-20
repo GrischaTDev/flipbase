@@ -21,7 +21,9 @@ const PREPARABLE_STATUSES = new Set<InventoryItem['status']>([
 export type ListingEligibility =
   { readonly allowed: true } | { readonly allowed: false; readonly reason: string };
 
-export function canPrepareListing(item: InventoryItem): ListingEligibility {
+export function canPrepareListing(
+  item: Pick<InventoryItem, 'status' | 'archived_at'>,
+): ListingEligibility {
   if (item.archived_at) {
     return { allowed: false, reason: 'Der Artikel ist archiviert.' };
   }

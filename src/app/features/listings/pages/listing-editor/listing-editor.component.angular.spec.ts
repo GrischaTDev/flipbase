@@ -1,21 +1,120 @@
+import '@angular/compiler';
 import { signal } from '@angular/core';
+import { ɵresolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { ActivatedRoute, Router } from '@angular/router';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ListingStudioService } from '../../../../core/services/listing-studio.service';
+import { ActivatedRoute, provideRouter } from '@angular/router';
+import { glob, readFile } from 'node:fs/promises';
+import axe from 'axe-core';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import type { InventoryItem } from '../../../../core/models/flipbase.models';
+import {
+  ListingStudioService,
+  type KleinanzeigenGenerationOptions,
+} from '../../../../core/services/listing-studio.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
+import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
+import { EntryPageLayoutComponent } from '../../../../shared/components/entry-page-layout/entry-page-layout.component';
+import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
+import { TwoColumnLayoutComponent } from '../../../../shared/components/two-column-layout/two-column-layout.component';
+import { ListingExtensionHelpComponent } from '../../components/listing-extension-help/listing-extension-help.component';
+import type {
+  ListingActionResult,
+  ListingContent,
+  ListingEditorItem,
+  ListingRow,
+} from '../../models/listing.models';
 import { ListingExtensionService } from '../../services/listing-extension.service';
 import { ListingService } from '../../services/listing.service';
 import { ListingEditorComponent } from './listing-editor.component';
+
+interface AngularInputMetadata {
+  inputs: Record<string, unknown>;
+  declaredInputs: Record<string, string>;
+}
+
+const inputMetadataSnapshots = new Map<unknown, AngularInputMetadata>();
+
+function registerSignalInputs(component: unknown, inputNames: readonly string[]): void {
+  const metadata = (component as { ɵcmp: AngularInputMetadata }).ɵcmp;
+  inputMetadataSnapshots.set(component, {
+    inputs: metadata.inputs,
+    declaredInputs: metadata.declaredInputs,
+  });
+  metadata.inputs = {
+    ...metadata.inputs,
+    ...Object.fromEntries(inputNames.map((name) => [name, [name, 1, null]])),
+  };
+  metadata.declaredInputs = {
+    ...metadata.declaredInputs,
+    ...Object.fromEntries(inputNames.map((name) => [name, name])),
+  };
+}
+
+beforeAll(async () => {
+  await ɵresolveComponentResources(async (url) => {
+    const fileName = url.replace(/^\.\//, '');
+    const matches: string[] = [];
+    for await (const match of glob(`src/app/**/${fileName}`)) matches.push(match);
+    if (matches.length !== 1) throw new Error(`Test-Ressource nicht eindeutig: ${url}`);
+    return readFile(matches[0], 'utf8');
+  });
+  registerSignalInputs(ButtonComponent, [
+    'variant',
+    'size',
+    'loading',
+    'disabled',
+    'icon',
+    'iconPosition',
+    'iconOnly',
+    'fullWidth',
+    'type',
+    'link',
+    'href',
+    'target',
+    'queryParams',
+    'ariaLabel',
+    'title',
+    'ariaExpanded',
+    'ariaPressed',
+    'ariaControls',
+    'ariaHaspopup',
+  ]);
+  registerSignalInputs(CustomSelectComponent, [
+    'options',
+    'value',
+    'placeholder',
+    'variant',
+    'size',
+    'disabled',
+    'widthClass',
+    'openDirection',
+    'ariaLabel',
+    'triggerId',
+  ]);
+  registerSignalInputs(EntryPageLayoutComponent, ['title', 'subtitle', 'backLabel']);
+  registerSignalInputs(ListingExtensionHelpComponent, ['open', 'checking']);
+  registerSignalInputs(ModalShellComponent, ['title', 'subtitle', 'size']);
+  registerSignalInputs(TwoColumnLayoutComponent, ['ratio']);
+});
+
+afterAll(() => {
+  for (const [component, snapshot] of inputMetadataSnapshots) {
+    const metadata = (component as { ɵcmp: AngularInputMetadata }).ɵcmp;
+    metadata.inputs = snapshot.inputs;
+    metadata.declaredInputs = snapshot.declaredInputs;
+  }
+});
 
 describe('ListingEditorComponent', () => {
   afterEach(() => {
     TestBed.resetTestingModule();
   });
 
-  function createEditor() {
-    const items = signal([
+  function createEditor(options: { readonly extensionAvailable?: boolean } = {}) {
+    const items = signal<ListingEditorItem[]>([
       {
         id: 'item-expected-value',
         workspaceId: 'workspace-a',
@@ -61,20 +160,98 @@ describe('ListingEditorComponent', () => {
         allocatedPurchaseCost: null,
         media: [],
       },
+      {
+        id: 'item-reserved',
+        workspaceId: 'workspace-a',
+        title: 'Reservierter Artikel',
+        brand: null,
+        category: null,
+        condition: 'used' as const,
+        conditionNotes: null,
+        description: null,
+        status: 'reserved' as const,
+        archivedAt: null,
+        expectedValue: null,
+        allocatedPurchaseCost: null,
+        media: [],
+      },
+      {
+        id: 'item-sold',
+        workspaceId: 'workspace-a',
+        title: 'Verkaufter Artikel',
+        brand: null,
+        category: null,
+        condition: 'used' as const,
+        conditionNotes: null,
+        description: null,
+        status: 'sold' as const,
+        archivedAt: null,
+        expectedValue: null,
+        allocatedPurchaseCost: null,
+        media: [],
+      },
+      {
+        id: 'item-archived',
+        workspaceId: 'workspace-a',
+        title: 'Archivierter Artikel',
+        brand: null,
+        category: null,
+        condition: 'used' as const,
+        conditionNotes: null,
+        description: null,
+        status: 'ready' as const,
+        archivedAt: '2026-09-20T10:00:00.000Z',
+        expectedValue: null,
+        allocatedPurchaseCost: null,
+        media: [],
+      },
     ]);
+    const rows = signal<readonly ListingRow[]>([]);
     const load = vi.fn(async () => undefined);
+    const prepare = vi.fn(
+      async (_itemId: string, _content: ListingContent): Promise<ListingActionResult> => ({
+        data: null,
+        error: null,
+      }),
+    );
+    const getById = vi.fn((): ListingRow | null => null);
+    const buildExtensionPayload = vi.fn(async () => ({
+      payload: {
+        itemId: 'item-expected-value',
+        title: 'Inserat',
+        description: '',
+        price: 79,
+        priceType: 'FIXED' as const,
+        shippingType: 'pickup' as const,
+        images: [],
+      },
+      missingImages: [] as string[],
+    }));
+    const confirmOverwrite = vi.fn(async () => false);
+    const generateKleinanzeigenListing = vi.fn(
+      (_item: InventoryItem, _price: number, _options: KleinanzeigenGenerationOptions) => ({
+        title: 'Erzeugter Titel',
+        description: 'Erzeugte Beschreibung',
+      }),
+    );
+    const publish = vi.fn();
+    const warning = vi.fn();
 
     TestBed.configureTestingModule({
+      imports: [ListingEditorComponent],
       providers: [
+        provideRouter([{ path: 'listings', component: ListingEditorComponent }]),
         {
           provide: ListingService,
           useValue: {
             items,
-            rows: signal([]),
+            rows,
             loadedWorkspaceId: signal<string | null>(null),
             load,
             clear: vi.fn(),
-            getById: vi.fn(() => null),
+            getById,
+            prepare,
+            buildExtensionPayload,
           },
         },
         {
@@ -83,18 +260,33 @@ describe('ListingEditorComponent', () => {
         },
         {
           provide: ListingExtensionService,
-          useValue: { start: vi.fn(), available: vi.fn(() => false) },
+          useValue: {
+            start: vi.fn(),
+            available: vi.fn(() => options.extensionAvailable ?? false),
+            checking: signal(false),
+            checkNow: vi.fn(),
+            publish,
+          },
         },
-        { provide: ListingStudioService, useValue: { generateKleinanzeigenListing: vi.fn() } },
+        { provide: ListingStudioService, useValue: { generateKleinanzeigenListing } },
+        { provide: ConfirmDialogService, useValue: { frage: confirmOverwrite } },
         { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => null } } } },
-        { provide: Router, useValue: { navigate: vi.fn() } },
-        { provide: ToastService, useValue: { error: vi.fn(), success: vi.fn() } },
+        { provide: ToastService, useValue: { error: vi.fn(), success: vi.fn(), warning } },
       ],
     });
 
     return {
       editor: TestBed.runInInjectionContext(() => new ListingEditorComponent()),
+      buildExtensionPayload,
+      confirmOverwrite,
+      generateKleinanzeigenListing,
+      getById,
+      items,
       load,
+      prepare,
+      publish,
+      rows,
+      warning,
     };
   }
 
@@ -104,6 +296,24 @@ describe('ListingEditorComponent', () => {
     TestBed.flushEffects();
 
     expect(load).toHaveBeenCalledWith('workspace-a');
+  });
+
+  it('does not report an untouched create form as unsaved', () => {
+    const { editor } = createEditor();
+
+    expect(editor.hasUnsavedChanges()).toBe(false);
+  });
+
+  it('rejects whitespace titles and monetary values with more than two decimals', () => {
+    const { editor } = createEditor();
+
+    editor.form.controls.title.setValue('   ');
+    editor.form.controls.price.setValue(12.345);
+    editor.form.controls.shippingPrice.setValue(4.999);
+
+    expect(editor.form.controls.title.invalid).toBe(true);
+    expect(editor.form.controls.price.invalid).toBe(true);
+    expect(editor.form.controls.shippingPrice.invalid).toBe(true);
   });
 
   it('prefills the expected value or available cost and preserves a manual price', () => {
@@ -124,5 +334,216 @@ describe('ListingEditorComponent', () => {
     editor.form.controls.inventoryItemId.setValue('item-cost-only');
 
     expect(editor.form.controls.price.value).toBe(65);
+  });
+
+  it('hides sold and archived items and explains why a reserved item is unavailable', () => {
+    const { editor } = createEditor();
+
+    expect(editor.itemOptions().map((option) => option.value)).not.toContain('item-sold');
+    expect(editor.itemOptions().map((option) => option.value)).not.toContain('item-archived');
+    expect(
+      editor.itemOptions().find((option) => option.value === 'item-reserved')?.description,
+    ).toBe('Der Artikel ist reserviert.');
+  });
+
+  it('does not prepare an item that already has an open listing', async () => {
+    const { editor, items, prepare, rows } = createEditor();
+    const selectedItem = items()[0]!;
+    rows.set([
+      {
+        listing: {
+          id: 'listing-open',
+          workspaceId: 'workspace-a',
+          inventoryItemId: selectedItem.id,
+          platform: 'kleinanzeigen',
+          status: 'online',
+          endReason: null,
+          content: {
+            title: 'Bestehendes Inserat',
+            description: '',
+            price: 79,
+            priceType: 'FIXED',
+            shippingType: 'pickup',
+            shippingPrice: null,
+            postalCode: null,
+          },
+          listedCount: 1,
+          lastListedAt: '2026-09-20T10:00:00.000Z',
+          onlineSince: '2026-09-20T10:01:00.000Z',
+          endedAt: null,
+          createdAt: '2026-09-20T10:00:00.000Z',
+          updatedAt: '2026-09-20T10:01:00.000Z',
+        },
+        item: selectedItem,
+        primaryImagePath: null,
+      },
+    ]);
+    editor.form.patchValue({
+      inventoryItemId: selectedItem.id,
+      title: 'Neues Inserat',
+      price: 79,
+    });
+
+    await editor.save();
+
+    expect(prepare).not.toHaveBeenCalled();
+    expect(editor.selectedOpenListing()?.listing.id).toBe('listing-open');
+  });
+
+  it('keeps manually edited text when template replacement is cancelled', async () => {
+    const { confirmOverwrite, editor } = createEditor();
+    editor.form.patchValue({ inventoryItemId: 'item-expected-value', price: 79 });
+    editor.form.controls.title.setValue('Manueller Titel');
+    editor.form.controls.title.markAsDirty();
+
+    await editor.generate();
+
+    expect(confirmOverwrite).toHaveBeenCalledOnce();
+    expect(editor.form.controls.title.value).toBe('Manueller Titel');
+  });
+
+  it('maps the selected editor item to the inventory model used by the text generator', async () => {
+    const { editor, generateKleinanzeigenListing } = createEditor();
+    editor.form.controls.inventoryItemId.setValue('item-expected-value');
+
+    await editor.generate();
+
+    expect(generateKleinanzeigenListing).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'item-expected-value',
+        workspace_id: 'workspace-a',
+        title: 'Kamera',
+        allocated_purchase_cost: 34,
+        expected_value: 79,
+      }),
+      79,
+      expect.any(Object),
+    );
+    expect(generateKleinanzeigenListing.mock.calls[0]?.[0]).not.toHaveProperty('workspaceId');
+  });
+
+  it('warns about unresolved images while publishing the remaining payload', async () => {
+    const { buildExtensionPayload, editor, getById, items, prepare, publish, warning } =
+      createEditor({ extensionAvailable: true });
+    const selectedItem = items()[0]!;
+    const row: ListingRow = {
+      listing: {
+        id: 'listing-new',
+        workspaceId: 'workspace-a',
+        inventoryItemId: selectedItem.id,
+        platform: 'kleinanzeigen',
+        status: 'prepared',
+        endReason: null,
+        content: {
+          title: 'Neues Inserat',
+          description: '',
+          price: 79,
+          priceType: 'FIXED',
+          shippingType: 'pickup',
+          shippingPrice: null,
+          postalCode: null,
+        },
+        listedCount: 1,
+        lastListedAt: '2026-09-20T10:00:00.000Z',
+        onlineSince: null,
+        endedAt: null,
+        createdAt: '2026-09-20T10:00:00.000Z',
+        updatedAt: '2026-09-20T10:00:00.000Z',
+      },
+      item: selectedItem,
+      primaryImagePath: null,
+    };
+    prepare.mockResolvedValueOnce({ data: row.listing, error: null });
+    getById.mockReturnValue(row);
+    buildExtensionPayload.mockResolvedValueOnce({
+      payload: {
+        itemId: selectedItem.id,
+        title: 'Neues Inserat',
+        description: '',
+        price: 79,
+        priceType: 'FIXED',
+        shippingType: 'pickup',
+        images: [],
+      },
+      missingImages: ['defekt.jpg'],
+    });
+    editor.form.patchValue({
+      inventoryItemId: selectedItem.id,
+      title: 'Neues Inserat',
+      price: 79,
+    });
+
+    await editor.save();
+
+    expect(publish).toHaveBeenCalledOnce();
+    expect(warning).toHaveBeenCalledWith('1 Bild konnte nicht übertragen werden.');
+  });
+
+  it('has accessible labels for the editor controls', async () => {
+    createEditor();
+    await TestBed.compileComponents();
+    const fixture = TestBed.createComponent(ListingEditorComponent);
+    fixture.detectChanges();
+
+    const result = await axe.run(fixture.nativeElement as HTMLElement, {
+      rules: { 'color-contrast': { enabled: false } },
+    });
+
+    expect(result.violations).toEqual([]);
+  });
+
+  it('renders the text template settings and copy action', async () => {
+    createEditor();
+    await TestBed.compileComponents();
+    const fixture = TestBed.createComponent(ListingEditorComponent);
+    fixture.componentInstance.form.patchValue({
+      title: 'Kamera',
+      description: 'Sehr guter Zustand',
+    });
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const writeText = vi.fn(async () => undefined);
+    const clipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
+
+    try {
+      expect(host.textContent).toContain('Textstil');
+      expect(host.textContent).toContain('Nichtraucherhinweis');
+      expect(host.textContent).toContain('Rechtlichen Hinweis einfügen');
+      const copyButton = Array.from(host.querySelectorAll('button')).find(
+        (button) => button.textContent?.trim() === 'Texte kopieren',
+      );
+      expect(copyButton).toBeDefined();
+      await fixture.componentInstance.copyTexts();
+      expect(writeText).toHaveBeenCalledWith('Kamera\n\nSehr guter Zustand');
+    } finally {
+      if (clipboardDescriptor) {
+        Object.defineProperty(navigator, 'clipboard', clipboardDescriptor);
+      } else {
+        Reflect.deleteProperty(navigator, 'clipboard');
+      }
+    }
+  });
+
+  it('shows understandable validation messages for invalid price and shipping fields', async () => {
+    createEditor();
+    await TestBed.compileComponents();
+    const fixture = TestBed.createComponent(ListingEditorComponent);
+    fixture.componentInstance.form.patchValue({
+      price: -1,
+      shippingType: 'shipping',
+      shippingPrice: -2,
+      postalCode: '12',
+    });
+    fixture.componentInstance.form.markAllAsTouched();
+    fixture.detectChanges();
+
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('Der Preis muss zwischen 0 und 99.999.999 € liegen.');
+    expect(text).toContain('Versandkosten dürfen nicht negativ sein.');
+    expect(text).toContain('Die Postleitzahl muss aus fünf Ziffern bestehen.');
   });
 });

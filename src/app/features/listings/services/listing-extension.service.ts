@@ -10,6 +10,7 @@ export class ListingExtensionService {
   private readonly destroyRef = inject(DestroyRef);
   private started = false;
   private retryTimers: number[] = [];
+  private checkTimer: number | null = null;
 
   readonly available = signal(false);
   readonly checking = signal(false);
@@ -33,6 +34,15 @@ export class ListingExtensionService {
     this.checking.set(true);
     this.updateAvailabilityFromDocument();
     this.postCheck();
+    if (this.available()) {
+      this.checking.set(false);
+      return;
+    }
+    if (this.checkTimer !== null) window.clearTimeout(this.checkTimer);
+    this.checkTimer = window.setTimeout(() => {
+      this.checking.set(false);
+      this.checkTimer = null;
+    }, 1_250);
   }
 
   publish(payload: KleinanzeigenListingPayload): void {
@@ -70,6 +80,8 @@ export class ListingExtensionService {
   }
 
   private markAvailable(): void {
+    if (this.checkTimer !== null) window.clearTimeout(this.checkTimer);
+    this.checkTimer = null;
     this.available.set(true);
     this.checking.set(false);
   }
@@ -78,6 +90,8 @@ export class ListingExtensionService {
     if (typeof window === 'undefined') return;
     for (const timer of this.retryTimers) window.clearTimeout(timer);
     this.retryTimers = [];
+    if (this.checkTimer !== null) window.clearTimeout(this.checkTimer);
+    this.checkTimer = null;
     window.removeEventListener('message', this.handleMessage);
     window.removeEventListener('flipbase:extension-ready', this.handleReady);
   }

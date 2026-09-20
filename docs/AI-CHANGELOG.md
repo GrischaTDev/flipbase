@@ -1,5 +1,34 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-20 – Codex (OpenAI) – Kontrollreview-Funde im Listing Studio behoben
+
+**Auftrag:** Die bestätigten Blocker aus dem Kontrollreview selbst beheben und den
+Branch erneut vollständig prüfen.
+
+**Änderung:** Der Editor verhindert doppelte offene Inserate, erklärt unzulässige
+Artikelzustände und verlinkt das bestehende Inserat. Manuelle Texte werden nur nach
+Bestätigung ersetzt; Textvorlagenoptionen, Kopieren, vollständige Validierung,
+Beschriftungen und Bildwarnungen sind ergänzt. Die mobile Übersicht blendet die
+Desktop-Tabelle aus und bietet alle Statusaktionen auf den Karten. Die
+Erweiterungsprüfung endet bei ausbleibender Antwort. Generator und Editor verwenden
+jetzt eine typisierte Artikelzuordnung und begrenzen Kleinanzeigen-Titel zentral.
+
+Die Datenbankfunktionen sperren Einkauf, Advisory Lock, Artikel und Inserat in einer
+einheitlichen Reihenfolge. Die praktisch reproduzierten Deadlocks zwischen
+Verkaufstrigger und manuellem Beenden sowie zwischen Einkaufsfinalisierung und
+Online-Setzen treten damit nicht mehr auf. Übersicht, Editor, Erweiterung und der
+vollständige mobile Inserats-Lebenszyklus sind durch neue Tests abgesichert; die
+verbindliche PR-Browsersuite enthält nun sieben Kernfälle. Der Abschlussbericht
+liegt unter `docs/audit/2026-09-20-listing-studio-control-fixes.md`.
+
+**Prüfung:** `npm run verify` erfolgreich mit 1.437 Node-, 240 DOM-, 936 Angular-
+und 13 Landing-Tests sowie Format, ESLint, Typprüfung und Produktionsbau. Alle 1.939
+Datenbankprüfungen und sieben PR-Chromium-Abläufe bestanden; die beiden fokussierten
+Listing-Studio-Browserabläufe waren ebenfalls grün. Die kontrollierten
+Paralleltests reproduzierten vor der Korrektur beide PostgreSQL-Deadlocks und liefen
+danach ohne Sperrkreis. Weiterhin nur die drei bekannten NG8113-Bauhinweise
+außerhalb des Inserate-Bereichs. Kein Push und kein Merge.
+
 ## 2026-09-20 – Codex (OpenAI) – Kontrollreview des gespeicherten Listing Studio
 
 **Auftrag:** Den mit Terra umgesetzten Branch vor einem Pull Request unabhängig
