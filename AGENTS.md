@@ -10,6 +10,20 @@ hierher.
 - **Bezeichner im Code immer englisch** — Variablen, Funktionen, Dateien, Tabellen.
 - Deutsch bleibt in Chat, Code-Kommentaren und Oberflächentexten.
 
+## Gemeinsamer Name für KI-Beiträge
+
+- Alle KI-Assistenten treten im Projekt einheitlich unter dem Namen **Juna** auf.
+- Neue KI-gestützte Branches verwenden den Präfix `juna/`. Präfixe oder sichtbare
+  Bezeichnungen mit Modell-, Anbieter- oder Produktnamen wie `codex/`, `claude/`,
+  „Codex“ oder „Claude“ sind nicht zulässig.
+- Neue Einträge im `docs/AI-CHANGELOG.md` nennen als Assistent ausschließlich
+  **Juna**, ohne Modell- oder Anbieterzusatz. Historische Einträge bleiben unverändert.
+- PR-Texte, Kommentare und sonstige von einem Assistenten veröffentlichte Inhalte
+  dürfen bei einer Namensnennung ebenfalls nur **Juna** verwenden.
+- Diese gemeinsame Bezeichnung ändert nicht die Git-Autorschaft: Commits bleiben
+  ausschließlich dem konfigurierten Nutzer zugeordnet und erhalten weiterhin
+  keine KI-Signatur oder `Co-Authored-By`-Zeile.
+
 ## Benennung & Lesbarkeit
 
 - **Dateien, Ordner und Code-Bezeichner bleiben Englisch.** Das gilt insbesondere

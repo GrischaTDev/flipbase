@@ -669,6 +669,9 @@ jobs:
           EXPECTED_COMMIT: ${{ github.sha }}
         run: node scripts/verify-public-deployment.mjs --base-url https://app.flipbase.de --expected-commit "$EXPECTED_COMMIT"
 
+      - name: Verify the public landing page
+        run: node scripts/verify-landing-deployment.mjs --base-url https://flipbase.de
+
   release:
     name: Create GitHub Release
     needs: [deploy, image]

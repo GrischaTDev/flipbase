@@ -117,33 +117,34 @@ Die beiden Zusatzdateien unter `/opt/supabase` sind in `COMPOSE_FILE` in der
 im Kopfbereich eine Cookie-Bedingung aus. Ohne einen `flipbase.de`-Block mit
 `templates` in der Ausrollung liefert Caddy diese Bedingung als rohen Text
 aus – sichtbar für jeden Besucher. Deshalb darf die Seite nur zusammen mit
-einem passenden Caddyfile ausgerollt werden. Beim Ausrollen zuerst das
-Caddyfile neu laden, danach erst die Seite kopieren – das gilt auch beim
-Rückfall auf eine ältere Caddyfile-Fassung.
+einem passenden Caddyfile ausgerollt werden. Das Release-Abbild enthält deshalb
+beides. `deploy.sh` prüft und lädt zuerst das Caddyfile und synchronisiert erst
+danach die Landingpage. Bei einer ungültigen Konfiguration stellt es den vorigen
+Caddy-Stand wieder her.
 
 _Hinweis zur Automatisierung:_ `deploy.sh` spiegelt die im Web-Container
 enthaltene Landingpage nach einem erfolgreichen Container-Start automatisch nach
-`/opt/flipbase-landing/`. Für eine sofortige manuelle Aktualisierung (oder solange
-das aktualisierte `deploy.sh` noch nicht auf dem Server liegt) genügt:
-`scp -r landing/* root@<server>:/opt/flipbase-landing/`.
+`/opt/flipbase-landing/`. Der eingeschränkte CI-Schlüssel darf das Deployskript
+nicht selbst ersetzen. Vor dem ersten Release mit dieser Kopplung muss daher
+einmalig die geprüfte Fassung von `deploy/deploy.sh` über den getrennten
+Betreiberzugang nach `/opt/flipbase/deploy.sh` installiert werden.
 
 ### Beta-Bewerbungsformular
 
-Die Landingpage enthält seit dem Bewerbungsweg **ein eingebettetes Skript**. Es
-ist das einzige der ganzen Seite, und die Content-Security-Policy im Caddyfile
-erlaubt es über seine **sha256-Prüfsumme**. Daraus folgen drei Dinge, die beim
-Ausrollen zusammengehören:
+Die Landingpage lädt für den Bewerbungsweg genau ein lokales Skript aus
+`landing/landing.js`. Die Content-Security-Policy erlaubt Skripte ausschließlich
+von derselben Herkunft und benötigt dadurch keinen bei jeder Änderung neu zu
+berechnenden Inline-Hash. Daraus folgen drei Dinge, die beim Ausrollen
+zusammengehören:
 
-1. **Zuerst das Caddyfile neu laden, dann die Seite.** Das gilt hier schärfer als
-   oben: Liefert Caddy noch die alte Richtlinie mit `script-src 'none'`, blockiert
-   der Browser das Skript. Das Formular tut dann **gar nichts** – kein natives
-   Absenden, weil `form-action 'none'` gesetzt ist – und es erscheint keine
-   Fehlermeldung. `deploy.sh` spiegelt die Seite automatisch, das Caddyfile nicht;
-   ohne diesen Schritt steht die neue Seite also live vor ihrer Richtlinie.
-2. **Wer das Skript ändert, muss die Prüfsumme neu berechnen.** Ein Test hält
-   beide zusammen (`src/app/core/services/landing-template.spec.ts`) und schlägt
-   fehl, wenn sie auseinanderlaufen – er repariert aber nichts. Dasselbe gilt für
-   die Adresse, die das Skript aufruft: Sie muss von `connect-src` gedeckt sein.
+1. **Caddyfile und Landingpage stammen aus demselben Release.** `deploy.sh` lädt
+   die passende CSP vor der Seite. Der öffentliche Nachtest prüft zusätzlich,
+   dass `landing.js` erreichbar ist und die ausgelieferte `script-src`-Richtlinie
+   lokale Skripte tatsächlich erlaubt. So kann ein veralteter Header nicht mehr
+   unbemerkt einen wirkungslosen Formularbutton hinterlassen.
+2. **Das Skript bleibt lokal und eingebetteter Code bleibt gesperrt.** Der Test
+   `src/app/core/services/landing-template.spec.ts` hält HTML, Skriptquelle,
+   `script-src` und `connect-src` zusammen.
 3. **Die Edge Functions rollt keine Pipeline aus.** Der gesamte Inhalt von
    `supabase/functions/` muss gemeinsam nach
    `/opt/supabase/volumes/functions/` gespiegelt werden. Das umfasst mindestens

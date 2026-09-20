@@ -1,5 +1,32 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-20 – Juna – Beta-Einstieg und CSP-Auslieferung repariert
+
+**Auftrag:** Den wirkungslosen Beta-Button auf der Landingpage reparieren, den
+Hero-Text allgemeiner formulieren, das Formular ans Seitenende verschieben und
+alle KI-Beiträge künftig einheitlich unter dem Namen Juna führen.
+
+**Änderung:** Der Hero verwendet den Einstieg „Dein Reselling. Klar organisiert.“
+und führt mit „Kostenlos für die Beta anmelden“ per normalem Seitensprung zum
+einzigen Bewerbungsformular am Seitenende. Die Formularlogik liegt nicht mehr als
+eingebettetes Skript mit änderungsabhängigem CSP-Hash vor, sondern in der lokalen
+Datei `landing/landing.js`; die CSP erlaubt weiterhin weder fremde Skripte noch
+`unsafe-inline`.
+
+Das Release-Abbild enthält nun auch das passende Caddyfile. Das Deployskript
+prüft und aktiviert diese Konfiguration vor der Landingpage und stellt bei einem
+Fehler den vorherigen Stand wieder her. Ein öffentlicher Nachtest prüft nach jedem
+Produktionsdeployment Seite, Skript und CSP gemeinsam. `AGENTS.md` legt für neue
+Branches, Changelog-Einträge und sonstige KI-Namensnennungen ausschließlich Juna
+fest; die Git-Autorschaft bleibt beim Nutzer.
+
+**Prüfung:** Die gezielten Landing-, CSP-, Deployment- und Workflow-Prüfungen
+wurden im Rot-Grün-Verfahren ergänzt. `npm run verify` war vollständig grün:
+2.653 Anwendungs- und DOM-Tests, 81 erfolgreiche Workflow-Tests (5 plattformbedingt
+übersprungen), 10 Edge-Function-Tests und 15 Landingpage-Tests sowie Lint,
+Typprüfung und Produktionsbau. Die manuelle Browserprüfung bestätigte den
+Seitensprung bis zum Formular ohne Konsolenfehler oder -warnungen.
+
 ## 2026-09-20 – Codex (OpenAI) – Einkaufserfassung auf Verkäufer und Artikel reduziert
 
 **Auftrag:** Die überladene Einkaufserfassung vereinfachen, die Kostenübersicht

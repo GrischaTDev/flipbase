@@ -51,6 +51,8 @@ COPY docker/security-headers.conf /etc/nginx/security-headers.conf
 COPY --from=build /app/dist/flipbase/browser /usr/share/nginx/html
 # Statische Landingpage mitführen, damit das Ausroll-Skript sie synchronisieren kann
 COPY --from=build /app/landing /usr/share/nginx/landing
+# Landingpage und Sicherheitsrichtlinie stammen immer aus demselben Release.
+COPY --from=build /app/deploy/Caddyfile /opt/flipbase/Caddyfile
 # Migrationsdateien gehören zum Release, sind aber niemals öffentlich erreichbar.
 COPY --from=build /app/release-migrations /opt/flipbase/migrations/
 

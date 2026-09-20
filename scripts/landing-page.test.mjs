@@ -8,7 +8,9 @@ import { JSDOM } from 'jsdom';
 const repositoryRoot = fileURLToPath(new URL('../', import.meta.url));
 const landingDirectory = path.join(repositoryRoot, 'landing');
 const landingPath = path.join(landingDirectory, 'index.html');
+const landingScriptPath = path.join(landingDirectory, 'landing.js');
 const html = await readFile(landingPath, 'utf8');
+const landingScript = await readFile(landingScriptPath, 'utf8');
 const normalizedHtml = html.replace(/\s+/gu, ' ');
 const packageJson = JSON.parse(await readFile(path.join(repositoryRoot, 'package.json'), 'utf8'));
 const css = extractElement(html, 'style');
@@ -27,9 +29,9 @@ async function submitBetaApplication(responseBody) {
       json: async () => responseBody,
     };
   };
-  dom.window.eval(extractElement(html, 'script'));
+  dom.window.eval(landingScript);
 
-  const form = dom.window.document.getElementById('hero-bewerbung-form');
+  const form = dom.window.document.getElementById('zweit-bewerbung-form');
   form.querySelector('[name="firstName"]').value = 'Anna';
   form.querySelector('[name="lastName"]').value = 'Beispiel';
   form.querySelector('[name="email"]').value = 'anna@example.test';
@@ -252,10 +254,6 @@ function findStaticPageThreats(source) {
   const threats = [];
   for (const [startTag] of source.matchAll(/<[a-z][^>]*>/giu)) {
     const { tagName, attributes } = parseAttributes(startTag);
-    // Ein eingebettetes Skript ohne fremde Quelle ist seit der Bewerbungs-
-    // anbindung erlaubt (siehe "allows exactly one inline script..."); nur ein
-    // extern geladenes Skript zaehlt als Bedrohung.
-    if (tagName === 'script' && attributes.has('src')) threats.push('script element with src');
     if (tagName === 'iframe' && attributes.has('srcdoc')) threats.push('iframe srcdoc');
 
     for (const [name, value] of attributes) {
@@ -394,27 +392,45 @@ test('runs the landing contract immediately before the production build', () => 
   assert.equal(verifySteps[landingStep + 1], 'npm run build');
 });
 
-test('keeps both application forms as real submissions with an accessible status line', () => {
+test('leads from the revised hero to one application form at the end of the page', () => {
+  assert.doesNotMatch(html, /Vom Wühltisch zum Profit/u);
+  assert.match(normalizedHtml, /Dein Reselling\. Klar organisiert\./u);
+  assert.doesNotMatch(html, /id=["']hero-bewerbung-form["']/u);
+
+  const heroCallToAction = extractStartTags(html, 'a').find((link) =>
+    attribute(link, 'class')?.split(/\s+/u).includes('hero-beta-cta'),
+  );
+  assert.ok(heroCallToAction, 'The hero must contain the beta call to action');
+  assert.equal(attribute(heroCallToAction, 'href'), '#beta-anmeldung');
+  assert.match(normalizedHtml, /Kostenlos für die Beta anmelden/u);
+  assert.match(html, /<section\b[^>]*\bid=["']beta-anmeldung["']/u);
+
+  const landingDocument = new JSDOM(html).window.document;
+  const betaApplicationSection = landingDocument.getElementById('beta-anmeldung');
+  assert.equal(
+    betaApplicationSection?.querySelector('form')?.id,
+    'zweit-bewerbung-form',
+    'The hero call to action must target the section that contains the beta application form',
+  );
+
   const forms = [...html.matchAll(/<form\b[^>]*>[\s\S]*?<\/form>/giu)].map(([form]) => form);
 
-  assert.equal(forms.length, 2);
-  for (const [index, form] of forms.entries()) {
-    const praefix = index === 0 ? 'hero' : 'zweit';
-    const startTag = extractStartTags(form, 'form')[0];
-    assert.equal(attribute(startTag, 'id'), `${praefix}-bewerbung-form`);
-    assert.equal(attribute(startTag, 'action'), undefined);
-    assert.equal(attribute(startTag, 'method'), undefined);
+  assert.equal(forms.length, 1);
+  const form = forms[0];
+  const startTag = extractStartTags(form, 'form')[0];
+  assert.equal(attribute(startTag, 'id'), 'zweit-bewerbung-form');
+  assert.equal(attribute(startTag, 'action'), undefined);
+  assert.equal(attribute(startTag, 'method'), undefined);
 
-    const emailInput = extractStartTags(form, 'input').find(
-      (tag) => attribute(tag, 'name') === 'email',
-    );
-    assert.ok(emailInput, 'Each application form must collect an email address');
-    assert.equal(attribute(emailInput, 'type'), 'email');
+  const emailInput = extractStartTags(form, 'input').find(
+    (tag) => attribute(tag, 'name') === 'email',
+  );
+  assert.ok(emailInput, 'The application form must collect an email address');
+  assert.equal(attribute(emailInput, 'type'), 'email');
 
-    const meldung = elementById(form, `${praefix}-bewerbung-meldung`);
-    assert.equal(attribute(meldung.startTag, 'role'), 'status');
-    assert.equal(attribute(meldung.startTag, 'aria-live'), 'polite');
-  }
+  const meldung = elementById(form, 'zweit-bewerbung-meldung');
+  assert.equal(attribute(meldung.startTag, 'role'), 'status');
+  assert.equal(attribute(meldung.startTag, 'aria-live'), 'polite');
 });
 
 test('confirms a stored beta application in a focused dialog', async () => {
@@ -465,14 +481,17 @@ test('explains a failed receipt email without losing the application', async () 
   dom.window.close();
 });
 
-test('allows exactly one inline script that keeps native toggles CSS-only', () => {
+test('loads exactly one local deferred script and keeps native toggles CSS-only', () => {
   // Das Formular muss die Bewerbung als JSON senden und die Antwort lesen -
-  // das kann ein natives HTML-Formular nicht. Deshalb ist genau ein
-  // eingebettetes Skript erlaubt (keine fremde Quelle, kein <script src>).
+  // das kann ein natives HTML-Formular nicht. Das Skript bleibt als lokale
+  // Datei getrennt vom Dokument, damit die CSP keinen fragilen Inline-Hash
+  // mit jeder Inhaltsänderung synchron halten muss.
   // Die Design- und Sprachumschaltung bleiben davon unberuehrt: sie laufen
   // weiterhin rein ueber CSS und native Checkboxen.
-  assert.ok(matches(html, /<script\b/giu) <= 1, 'At most one inline script is allowed');
-  assert.doesNotMatch(html, /<script\b[^>]*\bsrc\s*=/iu, 'No externally loaded script is allowed');
+  const scripts = extractStartTags(html, 'script');
+  assert.equal(scripts.length, 1);
+  assert.equal(attribute(scripts[0], 'src'), 'landing.js');
+  assert.match(scripts[0], /\bdefer\b/iu);
 
   const header = extractElement(html, 'header');
   for (const id of ['theme-toggle', 'lang-toggle']) {
@@ -549,7 +568,7 @@ test('declares English passages and gives localized controls static screen-reade
   const emailInputs = extractStartTags(html, 'input').filter(
     (input) => attribute(input, 'type') === 'email',
   );
-  assert.equal(emailInputs.length, 2);
+  assert.equal(emailInputs.length, 1);
   for (const input of emailInputs) {
     const id = attribute(input, 'id');
     assert.ok(id, 'Every email field must have an id for its accessible label');
@@ -561,8 +580,8 @@ test('declares English passages and gives localized controls static screen-reade
     );
   }
 
-  // Vor- und Nachname: je zwei Felder, damit der Betreiber eine Bewerbung
-  // einer Person zuordnen kann.
+  // Vor- und Nachname bleiben im einen Bewerbungsformular getrennt, damit der
+  // Betreiber eine Bewerbung einer Person zuordnen kann.
   for (const feld of [
     {
       teil: 'vorname',
@@ -578,7 +597,7 @@ test('declares English passages and gives localized controls static screen-reade
     const felder = extractStartTags(html, 'input').filter((input) =>
       (attribute(input, 'id') ?? '').includes(feld.teil),
     );
-    assert.equal(felder.length, 2, `Expected two ${feld.teil} fields`);
+    assert.equal(felder.length, 1, `Expected one ${feld.teil} field`);
     for (const input of felder) {
       const id = attribute(input, 'id');
       assert.equal(attribute(input, 'required'), '');
@@ -592,7 +611,7 @@ test('declares English passages and gives localized controls static screen-reade
       attribute(input, 'type') === 'checkbox' &&
       (attribute(input, 'id') ?? '').includes('einwilligung'),
   );
-  assert.equal(einwilligungen.length, 2);
+  assert.equal(einwilligungen.length, 1);
   for (const input of einwilligungen) {
     assert.equal(attribute(input, 'required'), '');
   }
@@ -767,8 +786,10 @@ test('keeps accent text and button text readable in every CSS-controlled theme',
 });
 
 test('describes the beta application review flow without open-registration or fixed-version wording', () => {
-  assert.equal(matches(normalizedHtml, />Für die Beta bewerben →</gu), 2);
-  assert.equal(matches(normalizedHtml, />Apply for the beta →</gu), 2);
+  assert.equal(matches(normalizedHtml, />Kostenlos für die Beta anmelden →</gu), 1);
+  assert.equal(matches(normalizedHtml, />Apply for the beta for free →</gu), 1);
+  assert.equal(matches(normalizedHtml, />Für die Beta bewerben →</gu), 1);
+  assert.equal(matches(normalizedHtml, />Apply for the beta →</gu), 1);
   assert.match(
     normalizedHtml,
     /Schick uns deine Bewerbung\. Wir sehen uns jede Bewerbung an und wer dabei ist, bekommt eine Einladung per E-Mail\./u,

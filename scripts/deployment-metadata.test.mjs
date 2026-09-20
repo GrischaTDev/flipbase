@@ -15,6 +15,10 @@ const writeMetadataScript = fileURLToPath(
 const verifyDeploymentScript = fileURLToPath(
   new URL('./verify-public-deployment.mjs', import.meta.url),
 );
+const verifyLandingScript = fileURLToPath(
+  new URL('./verify-landing-deployment.mjs', import.meta.url),
+);
+const workflowPath = fileURLToPath(new URL('../.github/workflows/ci.yml', import.meta.url));
 const commit = '0123456789abcdef0123456789abcdef01234567';
 
 async function withServer(handler, callback) {
@@ -195,5 +199,69 @@ test('stoppt, wenn der öffentliche Healthcheck nicht exakt ok liefert', async (
         /Healthcheck liefert "starting" statt "ok"/,
       );
     },
+  );
+});
+
+test('bestätigt Landingpage, lokale Formularlogik und passende CSP', async () => {
+  await withServer(
+    (request, response) => {
+      if (request.url === '/') {
+        response.writeHead(200, {
+          'content-type': 'text/html',
+          'content-security-policy': "default-src 'self'; script-src 'self'; object-src 'none'",
+        });
+        response.end('<!doctype html><script src="landing.js" defer></script>');
+        return;
+      }
+      if (request.url === '/landing.js') {
+        response.writeHead(200, { 'content-type': 'text/javascript' });
+        response.end("var ENDPOINT = 'https://api.flipbase.de/functions/v1/beta-application';");
+        return;
+      }
+      response.writeHead(404).end();
+    },
+    async (baseUrl) => {
+      const { stdout } = await execFileAsync(process.execPath, [
+        verifyLandingScript,
+        '--base-url',
+        baseUrl,
+        '--attempts',
+        '1',
+      ]);
+
+      assert.match(stdout, /Landingpage und Formularskript sind öffentlich nutzbar/u);
+    },
+  );
+});
+
+test('stoppt bei einer veralteten CSP ohne Freigabe für das lokale Formularskript', async () => {
+  await withServer(
+    (request, response) => {
+      response.writeHead(200, {
+        'content-type': 'text/html',
+        'content-security-policy': "default-src 'self'; script-src 'sha256-veraltet='",
+      });
+      response.end('<!doctype html><script src="landing.js" defer></script>');
+    },
+    async (baseUrl) => {
+      await assert.rejects(
+        execFileAsync(process.execPath, [
+          verifyLandingScript,
+          '--base-url',
+          baseUrl,
+          '--attempts',
+          '1',
+        ]),
+        /script-src muss lokale Skripte mit 'self' erlauben/u,
+      );
+    },
+  );
+});
+
+test('prüft die Landingpage nach jedem Produktionsdeployment', async () => {
+  const workflow = await readFile(workflowPath, 'utf8');
+  assert.match(
+    workflow,
+    /node scripts\/verify-landing-deployment\.mjs --base-url https:\/\/flipbase\.de/u,
   );
 });
