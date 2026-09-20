@@ -255,18 +255,6 @@ CREATE TABLE IF NOT EXISTS public.research_comparables (
 -- 6. LISTINGS & SALES
 -- ==============================================================================
 
-CREATE TABLE IF NOT EXISTS public.listing_drafts (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    inventory_item_id UUID NOT NULL REFERENCES public.inventory_items(id) ON DELETE CASCADE,
-    platform TEXT NOT NULL,
-    title TEXT NOT NULL,
-    description TEXT NOT NULL,
-    price NUMERIC NOT NULL,
-    status TEXT NOT NULL DEFAULT 'draft',
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
 CREATE TABLE IF NOT EXISTS public.sales (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     workspace_id UUID NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE,
@@ -1057,7 +1045,6 @@ ALTER TABLE public.item_costs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.item_media ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.market_research ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.research_comparables ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.listing_drafts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.sales ENABLE ROW LEVEL SECURITY;
 alter table public.sale_cost_entries enable row level security;
 revoke all on table public.sale_cost_entries from anon, public;
@@ -1829,49 +1816,6 @@ using (
   )
 );
 
--- listing_drafts
-create policy "Inseratsentwuerfe lesen"
-on public.listing_drafts for select to authenticated
-using (
-  exists (
-    select 1 from public.inventory_items i
-    where i.id = inventory_item_id and public.is_workspace_member(i.workspace_id)
-  )
-);
-
-create policy "Inseratsentwurf anlegen"
-on public.listing_drafts for insert to authenticated
-with check (
-  exists (
-    select 1 from public.inventory_items i
-    where i.id = inventory_item_id and public.is_workspace_member(i.workspace_id)
-  )
-);
-
-create policy "Inseratsentwurf aendern"
-on public.listing_drafts for update to authenticated
-using (
-  exists (
-    select 1 from public.inventory_items i
-    where i.id = inventory_item_id and public.is_workspace_member(i.workspace_id)
-  )
-)
-with check (
-  exists (
-    select 1 from public.inventory_items i
-    where i.id = inventory_item_id and public.is_workspace_member(i.workspace_id)
-  )
-);
-
-create policy "Inseratsentwurf loeschen"
-on public.listing_drafts for delete to authenticated
-using (
-  exists (
-    select 1 from public.inventory_items i
-    where i.id = inventory_item_id and public.is_workspace_member(i.workspace_id)
-  )
-);
-
 -- sales
 create policy "Verkaeufe lesen"
 on public.sales for select to authenticated
@@ -2122,8 +2066,6 @@ create index if not exists idx_market_research_workspace_id
   on public.market_research (workspace_id);
 create index if not exists idx_research_comparables_research_id
   on public.research_comparables (research_id);
-create index if not exists idx_listing_drafts_item_id
-  on public.listing_drafts (inventory_item_id);
 create index if not exists idx_sales_workspace_id
   on public.sales (workspace_id);
 create index if not exists idx_sales_item_id
