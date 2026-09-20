@@ -17,19 +17,17 @@ import { EntryPageLayoutComponent } from '../../../../shared/components/entry-pa
 import { TwoColumnLayoutComponent } from '../../../../shared/components/two-column-layout/two-column-layout.component';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
-import {
-  ListingStudioService,
-  type ListingStyleTone,
-} from '../../../../core/services/listing-studio.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { ListingExtensionService } from '../../services/listing-extension.service';
 import { ListingService } from '../../services/listing.service';
+import { ListingTemplateService } from '../../services/listing-template.service';
 import type {
   ListingContent,
   ListingEditorItem,
   ListingPriceType,
   ListingRow,
   ListingShippingType,
+  ListingStyleTone,
 } from '../../models/listing.models';
 import { canPrepareListing } from '../../models/listing.rules';
 import { ListingExtensionHelpComponent } from '../../components/listing-extension-help/listing-extension-help.component';
@@ -52,7 +50,7 @@ import type { InventoryItem } from '../../../../core/models/flipbase.models';
 export class ListingEditorComponent {
   readonly listingService = inject(ListingService);
   readonly extension = inject(ListingExtensionService);
-  private readonly studio = inject(ListingStudioService);
+  private readonly listingTemplate = inject(ListingTemplateService);
   private readonly workspaceService = inject(WorkspaceService);
   private readonly confirmDialog = inject(ConfirmDialogService);
   private readonly route = inject(ActivatedRoute);
@@ -184,11 +182,15 @@ export class ListingEditorComponent {
     ) {
       return;
     }
-    const generated = this.studio.generateKleinanzeigenListing(this.toInventoryItem(item), price, {
-      includeDisclaimer: this.form.controls.includeDisclaimer.value,
-      includeNonSmoking: this.form.controls.includeNonSmoking.value,
-      styleTone: this.form.controls.styleTone.value,
-    });
+    const generated = this.listingTemplate.generateKleinanzeigenListing(
+      this.toInventoryItem(item),
+      price,
+      {
+        includeDisclaimer: this.form.controls.includeDisclaimer.value,
+        includeNonSmoking: this.form.controls.includeNonSmoking.value,
+        styleTone: this.form.controls.styleTone.value,
+      },
+    );
     this.form.patchValue({
       title: generated.title.slice(0, 65),
       description: generated.description,

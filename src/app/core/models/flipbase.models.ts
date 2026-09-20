@@ -400,18 +400,6 @@ export interface ResearchResult {
   created_at?: string;
 }
 
-export interface ListingDraft {
-  id: string;
-  inventory_item_id: string;
-  platform: 'ebay' | 'kleinanzeigen' | 'vinted' | 'store' | string;
-  title: string;
-  description: string;
-  price: number;
-  status: 'draft' | 'published';
-  created_at?: string;
-  updated_at?: string;
-}
-
 export type ShippingMode = 'seller_arranged' | 'platform_prepaid' | 'pickup';
 
 export type SaleCostCategory = 'packaging' | 'payment_fee' | 'promotion' | 'other';
