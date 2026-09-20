@@ -1,5 +1,26 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-20 – Codex (OpenAI) – Listing-Studio-Entwurf auf aktuellen Stand gebracht
+
+**Auftrag:** Nach Abschluss der Einkaufsarbeiten klären, ob die Inserate-Seite
+bereits fertig ist, und die Weiterarbeit am gespeicherten Listing Studio
+vorbereiten.
+
+**Änderung:** Der alte Entwurf vom 17.09.2026 wurde gegen `master` bei
+`a845cf4d` geprüft. Die bestehende Kleinanzeigen-Übertragung bleibt Grundlage;
+gespeicherte Inserate, Übersicht und Statusablauf fehlen weiterhin. Eine neue
+Spezifikation übernimmt die bestätigten Fachentscheidungen, verwendet die
+aktuelle Schemareihenfolge mit `230_listings.sql` und entfernt alle inzwischen
+veralteten Demo-Annahmen. Die alte Tabelle `listing_drafts` bleibt in Schritt 1
+als Sicherheitsnetz bestehen und wird erst nach belegter Datenprüfung in einem
+zweiten PR migriert oder entfernt.
+
+**Prüfung:** Aktuelle Routen, Navigation, Listing-Service, deklaratives Schema,
+Schema-Registrierung, Demo-Entfernung und der reine Dokumentationszweig
+`feat/listing-studio-listings` wurden gelesen. Die Spezifikation wurde auf
+Platzhalter, widersprüchliche Statusregeln und den abgegrenzten Zwei-PR-Umfang
+geprüft. Noch keine Produktänderung und keine Anwendungstests.
+
 ## 2026-09-20 – Codex (OpenAI) – Einkaufsübersicht und offene Preise abgesichert
 
 **Auftrag:** Die vereinbarten Schutzregeln für Einkaufslisten und die
