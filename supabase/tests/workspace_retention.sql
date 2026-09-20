@@ -95,7 +95,6 @@ insert into public.market_research(id,workspace_id,query) values
  ('86000000-0000-4000-8000-000000000014','86000000-0000-4000-8000-000000000002','Artikel');
 insert into public.invoice_items(invoice_id,title) values ('86000000-0000-4000-8000-000000000012','Belegposition');
 insert into public.item_media(inventory_item_id,storage_path) values ('86000000-0000-4000-8000-000000000004','images/test.webp');
-insert into public.listing_drafts(inventory_item_id,platform,title,description,price) values ('86000000-0000-4000-8000-000000000004','ebay','Artikel','Beschreibung',20);
 insert into public.store_order_items(store_order_id,inventory_item_id,item_title) values ('86000000-0000-4000-8000-000000000013','86000000-0000-4000-8000-000000000004','Artikel');
 insert into public.research_comparables(research_id,platform,title,price) values ('86000000-0000-4000-8000-000000000014','ebay','Artikel',20);
 set local role authenticated;
@@ -136,7 +135,6 @@ select throws_ok(format('insert into public.%I(%I) values (%L)',table_name,paren
 from (values
  ('item_costs','inventory_item_id','86000000-0000-4000-8000-000000000004'),
  ('item_media','inventory_item_id','86000000-0000-4000-8000-000000000004'),
- ('listing_drafts','inventory_item_id','86000000-0000-4000-8000-000000000004'),
  ('invoice_items','invoice_id','86000000-0000-4000-8000-000000000012'),
  ('store_order_items','store_order_id','86000000-0000-4000-8000-000000000013'),
  ('research_comparables','research_id','86000000-0000-4000-8000-000000000014')
@@ -145,7 +143,6 @@ select throws_ok(format('update public.%I set %I=%I where %I=%L',table_name,pare
 from (values
  ('item_costs','inventory_item_id','86000000-0000-4000-8000-000000000004'),
  ('item_media','inventory_item_id','86000000-0000-4000-8000-000000000004'),
- ('listing_drafts','inventory_item_id','86000000-0000-4000-8000-000000000004'),
  ('invoice_items','invoice_id','86000000-0000-4000-8000-000000000012'),
  ('store_order_items','store_order_id','86000000-0000-4000-8000-000000000013'),
  ('research_comparables','research_id','86000000-0000-4000-8000-000000000014')
@@ -154,7 +151,6 @@ select throws_ok(format('delete from public.%I where %I=%L',table_name,parent_co
 from (values
  ('item_costs','inventory_item_id','86000000-0000-4000-8000-000000000004'),
  ('item_media','inventory_item_id','86000000-0000-4000-8000-000000000004'),
- ('listing_drafts','inventory_item_id','86000000-0000-4000-8000-000000000004'),
  ('invoice_items','invoice_id','86000000-0000-4000-8000-000000000012'),
  ('store_order_items','store_order_id','86000000-0000-4000-8000-000000000013'),
  ('research_comparables','research_id','86000000-0000-4000-8000-000000000014')

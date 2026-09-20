@@ -1319,57 +1319,6 @@ export type Database = {
           },
         ]
       }
-      listing_drafts: {
-        Row: {
-          created_at: string
-          description: string
-          id: string
-          inventory_item_id: string
-          platform: string
-          price: number
-          status: string
-          title: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          description: string
-          id?: string
-          inventory_item_id: string
-          platform: string
-          price: number
-          status?: string
-          title: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          description?: string
-          id?: string
-          inventory_item_id?: string
-          platform?: string
-          price?: number
-          status?: string
-          title?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "listing_drafts_inventory_item_id_fkey"
-            columns: ["inventory_item_id"]
-            isOneToOne: false
-            referencedRelation: "inventory_item_sale_states"
-            referencedColumns: ["inventory_item_id"]
-          },
-          {
-            foreignKeyName: "listing_drafts_inventory_item_id_fkey"
-            columns: ["inventory_item_id"]
-            isOneToOne: false
-            referencedRelation: "inventory_items"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       listings: {
         Row: {
           created_at: string
