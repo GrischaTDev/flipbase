@@ -72,6 +72,12 @@ export class PlatformUsersComponent implements OnInit {
     return { label: 'Kein Beta-Zugang', tone: 'neutral' };
   }
 
+  remainingBetaDays(user: PlatformUser): number | null {
+    if (user.licenseStatus !== 'active' || !user.betaEndsAt) return null;
+    const milliseconds = new Date(user.betaEndsAt).getTime() - Date.now();
+    return Math.max(0, Math.ceil(milliseconds / 86_400_000));
+  }
+
   private async load(): Promise<void> {
     this.loading.set(true);
     this.error.set(null);

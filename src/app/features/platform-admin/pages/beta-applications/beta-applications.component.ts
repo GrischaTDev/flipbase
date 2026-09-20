@@ -123,6 +123,7 @@ export class BetaApplicationsComponent implements OnInit {
    */
   readonly processingId = signal<string | null>(null);
   readonly selectedApplication = signal<BetaApplication | null>(null);
+  readonly approvalError = signal<string | null>(null);
 
   ngOnInit(): void {
     void this.load();
@@ -134,7 +135,21 @@ export class BetaApplicationsComponent implements OnInit {
 
   lifecycleStatus(application: BetaApplication): { label: string; tone: BadgeTone } {
     if (application.status === 'rejected') return { label: 'Abgelehnt', tone: 'neutral' };
-    if (application.registeredAt) return { label: 'Beta gestartet', tone: 'success' };
+    if (
+      application.licenseStatus === 'expired' ||
+      (application.betaEndsAt !== null && new Date(application.betaEndsAt).getTime() <= Date.now())
+    ) {
+      return { label: 'Beta abgelaufen', tone: 'neutral' };
+    }
+    if (application.licenseStatus === 'suspended') {
+      return { label: 'Beta gesperrt', tone: 'critical' };
+    }
+    if (application.licenseStatus === 'active') {
+      return { label: 'Beta aktiv', tone: 'success' };
+    }
+    if (application.registeredAt) {
+      return { label: 'Beta-Aktivierung ausstehend', tone: 'caution' };
+    }
     if (application.invitationStatus === 'failed') {
       return { label: 'Einladung fehlgeschlagen', tone: 'critical' };
     }
@@ -197,6 +212,7 @@ export class BetaApplicationsComponent implements OnInit {
   }
 
   openApproval(application: BetaApplication): void {
+    this.approvalError.set(null);
     this.selectedApplication.set(application);
   }
 
@@ -207,10 +223,14 @@ export class BetaApplicationsComponent implements OnInit {
   async approveSelected(grantedDays: number): Promise<void> {
     const application = this.selectedApplication();
     if (!application) return;
+    this.approvalError.set(null);
     const updated = await this.runAction(application, () =>
-      this.service.accept(application.id, grantedDays),
+      application.status === 'accepted' && application.invitationStatus === 'failed'
+        ? this.service.resendInvitation(application.id)
+        : this.service.accept(application.id, grantedDays),
     );
     if (updated) this.selectedApplication.set(null);
+    else await this.refreshFailedApproval(application.id);
   }
 
   async reject(application: BetaApplication): Promise<void> {
@@ -243,5 +263,20 @@ export class BetaApplicationsComponent implements OnInit {
     } finally {
       this.processingId.set(null);
     }
+  }
+
+  private async refreshFailedApproval(applicationId: string): Promise<void> {
+    const message = this.error() ?? 'Die Einladung konnte nicht versendet werden.';
+    try {
+      const applications = await this.service.list();
+      this.applications.set(applications);
+      this.selectedApplication.set(
+        applications.find((application) => application.id === applicationId) ?? null,
+      );
+    } catch {
+      // Die ursprüngliche Versandmeldung bleibt maßgeblich. Der nächste reguläre
+      // Ladevorgang gleicht den gespeicherten Zustand erneut ab.
+    }
+    this.approvalError.set(message);
   }
 }

@@ -3024,8 +3024,8 @@
           </span>
         </p>
         <button id="beta-success-confirm" type="button" class="btn-primary beta-dialog-aktion">
-          <span class="lang-de">Verstanden</span>
-          <span class="lang-en" lang="en">Got it</span>
+          <span class="lang-de">Schließen</span>
+          <span class="lang-en" lang="en">Close</span>
         </button>
       </div>
     </div>
@@ -3072,12 +3072,18 @@
         var receiptFailed = document.getElementById('beta-success-receipt-failed');
         var dialogCloseButton = document.getElementById('beta-success-close');
         var dialogConfirmButton = document.getElementById('beta-success-confirm');
+        var pageRegions = Array.prototype.slice.call(
+          document.querySelectorAll('body > header, body > main, body > footer'),
+        );
         var returnFocusTo = null;
 
         function closeSuccessDialog() {
           if (successDialog.hidden) return;
           successDialog.hidden = true;
           document.body.classList.remove('beta-dialog-open');
+          pageRegions.forEach(function (region) {
+            region.inert = false;
+          });
           if (returnFocusTo) returnFocusTo.focus();
         }
 
@@ -3088,6 +3094,9 @@
           receiptFailed.hidden = receiptEmailSent;
           successDialog.hidden = false;
           document.body.classList.add('beta-dialog-open');
+          pageRegions.forEach(function (region) {
+            region.inert = true;
+          });
           dialogCloseButton.focus();
         }
 

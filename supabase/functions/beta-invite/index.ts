@@ -20,9 +20,16 @@ export interface BetaInviteApplication {
   email: string;
   status: string;
   granted_days: number | null;
+  decision_note: string | null;
+  decided_at: string | null;
+  created_at: string;
   receipt_email_status: string;
+  receipt_email_sent_at: string | null;
+  receipt_email_last_error: string | null;
   auth_user_id: string | null;
   invitation_status: string;
+  invitation_sent_at: string | null;
+  invitation_last_error: string | null;
   registered_at: string | null;
 }
 
@@ -85,7 +92,7 @@ const ALLOWED_ORIGINS = new Set(
 );
 
 const APPLICATION_FIELDS =
-  'id, first_name, last_name, email, status, granted_days, receipt_email_status, auth_user_id, invitation_status, registered_at';
+  'id, first_name, last_name, email, status, granted_days, decision_note, decided_at, created_at, receipt_email_status, receipt_email_sent_at, receipt_email_last_error, auth_user_id, invitation_status, invitation_sent_at, invitation_last_error, registered_at';
 
 function corsHeaders(origin: string | null): Record<string, string> {
   const headers: Record<string, string> = {
@@ -115,6 +122,19 @@ function redirectUrl(siteUrl: string): string {
   return `${siteUrl.replace(/\/$/u, '')}/auth/set-password`;
 }
 
+function betaAppUrl(): string {
+  const configuredUrl = Deno.env.get('BETA_APP_URL')?.trim();
+  if (configuredUrl) return configuredUrl;
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  if (supabaseUrl) {
+    const hostname = new URL(supabaseUrl).hostname;
+    if (hostname === '127.0.0.1' || hostname === 'localhost' || hostname === 'kong') {
+      return 'http://127.0.0.1:4200';
+    }
+  }
+  return 'https://app.flipbase.de';
+}
+
 function isAction(value: unknown): value is BetaInviteAction {
   return ['accept', 'reject', 'resend', 'resend_receipt'].includes(String(value));
 }
@@ -123,8 +143,8 @@ async function storeInvitationFailure(
   dependencies: BetaInviteDependencies,
   applicationId: string,
   error: unknown,
-): Promise<void> {
-  await dependencies.updateApplication(applicationId, {
+): Promise<BetaInviteApplication> {
+  return dependencies.updateApplication(applicationId, {
     invitation_status: 'failed',
     invitation_last_error: boundedError(error),
   });
@@ -221,11 +241,12 @@ export function createBetaInviteHandler(
         });
         return respond({ ok: true, application }, 200, origin);
       } catch (error) {
-        await storeInvitationFailure(dependencies, application.id, error);
+        const failedApplication = await storeInvitationFailure(dependencies, application.id, error);
         return respond(
           {
             error: 'invite_failed',
             message: 'Die Einladung konnte nicht versendet werden.',
+            application: failedApplication,
           },
           502,
           origin,
@@ -296,11 +317,12 @@ export function createBetaInviteHandler(
       });
       return respond({ ok: true, application: updated }, 200, origin);
     } catch (error) {
-      await storeInvitationFailure(dependencies, application.id, error);
+      const failedApplication = await storeInvitationFailure(dependencies, application.id, error);
       return respond(
         {
           error: 'invite_failed',
           message: 'Die Einladung konnte nicht versendet werden.',
+          application: failedApplication,
         },
         502,
         origin,
@@ -403,7 +425,7 @@ function createProductionDependencies(): BetaInviteDependencies {
       return data as BetaInviteApplication;
     },
     now: () => new Date().toISOString(),
-    siteUrl: Deno.env.get('SITE_URL') ?? 'https://app.flipbase.de',
+    siteUrl: betaAppUrl(),
   };
 }
 

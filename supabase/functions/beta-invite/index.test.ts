@@ -18,9 +18,16 @@ function application(overrides: Partial<BetaInviteApplication> = {}): BetaInvite
     email: 'anna@example.test',
     status: 'open',
     granted_days: null,
+    decision_note: null,
+    decided_at: null,
+    created_at: '2026-09-20T17:00:00.000Z',
     receipt_email_status: 'failed',
+    receipt_email_sent_at: null,
+    receipt_email_last_error: null,
     auth_user_id: null,
     invitation_status: 'not_sent',
+    invitation_sent_at: null,
+    invitation_last_error: null,
     registered_at: null,
     ...overrides,
   };
@@ -170,6 +177,12 @@ Deno.test('speichert einen Einladungsfehler sichtbar', async () => {
   assertEquals(await json(response), {
     error: 'invite_failed',
     message: 'Die Einladung konnte nicht versendet werden.',
+    application: application({
+      status: 'accepted',
+      granted_days: 60,
+      invitation_status: 'failed',
+      invitation_last_error: 'SMTP nicht erreichbar',
+    }),
   });
 });
 

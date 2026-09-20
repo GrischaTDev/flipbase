@@ -27,6 +27,7 @@ function integerValidator(control: AbstractControl<number | null>): ValidationEr
 export class BetaApprovalDialogComponent {
   readonly application = input.required<BetaApplication>();
   readonly processing = input(false);
+  readonly errorMessage = input<string | null>(null);
   readonly approved = output<number>();
   readonly closed = output<void>();
 

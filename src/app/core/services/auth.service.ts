@@ -216,6 +216,7 @@ export class AuthService {
     ) {
       this.betaActivationAttempts.add(session.user.id);
       void this.activatePendingBetaAccess().catch((error: unknown) => {
+        this.betaActivationAttempts.delete(session.user.id);
         this.syncStatus?.melde('Starten des Beta-Zugangs', error);
       });
     }

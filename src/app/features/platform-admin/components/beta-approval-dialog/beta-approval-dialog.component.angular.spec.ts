@@ -49,6 +49,8 @@ const application = {
   invitationSentAt: null,
   invitationLastError: null,
   registeredAt: null,
+  licenseStatus: null,
+  betaEndsAt: null,
 };
 
 beforeAll(async () => {
@@ -59,7 +61,7 @@ beforeAll(async () => {
     if (matches.length !== 1) throw new Error(`Test-Ressource ${url} ist nicht eindeutig.`);
     return readFile(matches[0], 'utf8');
   });
-  registerSignalInputs(BetaApprovalDialogComponent, ['application', 'processing']);
+  registerSignalInputs(BetaApprovalDialogComponent, ['application', 'processing', 'errorMessage']);
   registerSignalInputs(ModalShellComponent, ['title', 'subtitle', 'icon', 'iconTone', 'size']);
   registerSignalInputs(NumberInputComponent, ['id', 'min', 'max', 'step', 'unit', 'ariaLabel']);
   registerSignalInputs(ButtonComponent, ['variant', 'loading', 'disabled']);
@@ -104,5 +106,21 @@ describe('BetaApprovalDialogComponent', () => {
     fixture.componentInstance.form.controls.grantedDays.setValue(90);
     fixture.componentInstance.approve();
     expect(approved).toHaveBeenCalledWith(90);
+  });
+
+  it('zeigt einen Versandfehler und bietet die Wiederholung im Dialog an', () => {
+    const fixture = TestBed.createComponent(BetaApprovalDialogComponent);
+    fixture.componentRef.setInput('application', {
+      ...application,
+      status: 'accepted',
+      invitationStatus: 'failed',
+    });
+    fixture.componentRef.setInput('errorMessage', 'Die Einladung konnte nicht versendet werden.');
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain(
+      'Die Einladung konnte nicht versendet werden.',
+    );
+    expect(fixture.nativeElement.textContent).toContain('Einladung erneut senden');
   });
 });

@@ -61,9 +61,14 @@
               </td>
               <td>
                 @if (user.betaEndsAt) {
-                  <time [attr.datetime]="user.betaEndsAt">{{
-                    user.betaEndsAt | date: 'dd.MM.yyyy'
-                  }}</time>
+                  <div>
+                    <time [attr.datetime]="user.betaEndsAt">{{
+                      user.betaEndsAt | date: 'dd.MM.yyyy'
+                    }}</time>
+                    @if (remainingBetaDays(user); as days) {
+                      <div class="mt-0.5 text-xs text-fb-text-muted">Noch {{ days }} Tage</div>
+                    }
+                  </div>
                 } @else {
                   —
                 }

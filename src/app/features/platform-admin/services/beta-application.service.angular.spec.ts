@@ -28,6 +28,7 @@ const row = {
   invitation_sent_at: null,
   invitation_last_error: null,
   registered_at: null,
+  workspace_licenses: { status: 'active', ends_at: '2026-11-19T08:00:00.000Z' },
 };
 
 function serviceWithList(response: { data: unknown; error: unknown }) {
@@ -67,6 +68,8 @@ describe('BetaApplicationService', () => {
         invitationSentAt: null,
         invitationLastError: null,
         registeredAt: null,
+        licenseStatus: 'active',
+        betaEndsAt: '2026-11-19T08:00:00.000Z',
       },
     ]);
   });

@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { SupabaseService } from '../../../core/services/supabase.service';
 import {
+  BetaAccessStatus,
   BetaApplication,
   BetaApplicationStatus,
   BetaEmailStatus,
@@ -25,6 +26,10 @@ interface BetaApplicationRow {
   invitation_sent_at: string | null;
   invitation_last_error: string | null;
   registered_at: string | null;
+  workspace_licenses:
+    | { status: string; ends_at: string | null }
+    | { status: string; ends_at: string | null }[]
+    | null;
 }
 
 type BetaInviteActionBody =
@@ -32,7 +37,7 @@ type BetaInviteActionBody =
   | { applicationId: string; action: 'reject' | 'resend' | 'resend_receipt' };
 
 const APPLICATION_FIELDS =
-  'id, first_name, last_name, email, status, granted_days, decision_note, decided_at, created_at, receipt_email_status, receipt_email_sent_at, receipt_email_last_error, auth_user_id, invitation_status, invitation_sent_at, invitation_last_error, registered_at';
+  'id, first_name, last_name, email, status, granted_days, decision_note, decided_at, created_at, receipt_email_status, receipt_email_sent_at, receipt_email_last_error, auth_user_id, invitation_status, invitation_sent_at, invitation_last_error, registered_at, workspace_licenses(status, ends_at)';
 
 /** Liest Bewerbungen und fuehrt Entscheidungen nur ueber die geschuetzte Edge Function aus. */
 @Injectable({ providedIn: 'root' })
@@ -79,6 +84,9 @@ export class BetaApplicationService {
   }
 
   private mapRow(row: BetaApplicationRow): BetaApplication {
+    const embeddedLicense = Array.isArray(row.workspace_licenses)
+      ? (row.workspace_licenses[0] ?? null)
+      : row.workspace_licenses;
     return {
       id: row.id,
       firstName: row.first_name,
@@ -97,6 +105,8 @@ export class BetaApplicationService {
       invitationSentAt: row.invitation_sent_at,
       invitationLastError: row.invitation_last_error,
       registeredAt: row.registered_at,
+      licenseStatus: (embeddedLicense?.status as BetaAccessStatus | undefined) ?? null,
+      betaEndsAt: embeddedLicense?.ends_at ?? null,
     };
   }
 }

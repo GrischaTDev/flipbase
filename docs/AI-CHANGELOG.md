@@ -1,5 +1,35 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-20 – Codex (OpenAI) – Beta-Produktionsgrenzen und Gesamtweg abgesichert
+
+**Auftrag:** Die fertige Beta-Anmeldung vor dem Pull Request unabhängig prüfen,
+Produktionsblocker beheben und den vollständigen Weg bis zum gestarteten Zugang
+nachweisen.
+
+**Änderung:** Die selbstgehostete Auth-Konfiguration sperrt öffentliche Signups
+jetzt auch im Produktions-Override und erlaubt den genauen Rücksprung zur
+Passwortvergabe. `beta-application`, `beta-invite` und `_shared` werden laut
+Ausrollanleitung gemeinsam veröffentlicht; die App-Zieladresse ist eine eigene
+Funktionsvariable. Lokale Browserkonten entstehen über die lokale Admin-Grenze,
+damit Tests die geschlossene Registrierung nicht umgehen.
+
+Ein fehlgeschlagener Einladungsversand bleibt im Annahmedialog sichtbar und lässt
+sich dort direkt wiederholen. Bewerbung und Nutzerübersicht unterscheiden aktive,
+abgelaufene und noch ausstehende Beta-Zugänge; bei aktiven Zugängen stehen die
+verbleibenden Tage dabei. Eine fehlgeschlagene automatische Aktivierung kann bei
+einem späteren Sitzungsereignis erneut laufen. Der Dankesdialog sperrt während der
+Anzeige den Seitenhintergrund tatsächlich und verwendet die eindeutige Aktion
+„Schließen“.
+
+**Prüfung:** `npm run verify` erfolgreich mit Format, ESLint, Typprüfung, 82
+Workflow-Prüfungen, 10 eingebundenen Deno-Tests, Suite-Audit, 1.441 Node-, 239
+DOM-, 973 Angular- und 15 Landing-Tests sowie Produktionsbau. Der isolierte
+Datenbank-Neuaufbau und alle 19 Betreiber-Datenbanktests bestanden. Zwei echte
+Chromium-Abläufe bestätigten, dass freie Registrierung scheitert, Betreiber weiter
+einladen können und Freigabe, Mail-Link, Passwortvergabe, Verknüpfung sowie der
+Start einer exakt 60 Tage langen Beta gemeinsam funktionieren. Weiterhin nur die
+drei bekannten NG8113-Bauhinweise in Dashboard, Einkäufen und Verkäufern.
+
 ## 2026-09-20 – Codex (OpenAI) – Inseratserstellung in den Übersichtsablauf eingeordnet
 
 **Auftrag:** Die Inseratserstellung wie beim Einkauf nur aus der Übersicht öffnen

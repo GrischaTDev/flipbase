@@ -424,6 +424,9 @@ test('confirms a stored beta application in a focused dialog', async () => {
   });
   const dialog = dom.window.document.getElementById('beta-success-dialog');
   const submitButton = form.querySelector('button[type="submit"]');
+  const pageRegions = [
+    ...dom.window.document.querySelectorAll('body > header, body > main, body > footer'),
+  ];
 
   assert.equal(dialog.getAttribute('role'), 'dialog');
   assert.equal(dialog.getAttribute('aria-modal'), 'true');
@@ -431,6 +434,11 @@ test('confirms a stored beta application in a focused dialog', async () => {
   assert.match(dialog.textContent, /Vielen Dank für Ihre Anmeldung zur Beta/u);
   assert.match(dialog.textContent, /anna@example\.test/u);
   assert.match(dialog.textContent, /Bestätigungs-E-Mail/u);
+  assert.match(
+    dom.window.document.getElementById('beta-success-confirm').textContent,
+    /Schließen/u,
+  );
+  assert.ok(pageRegions.every((region) => region.inert === true));
   assert.equal(dom.window.document.getElementById('beta-success-receipt-sent').hidden, false);
   assert.equal(dom.window.document.getElementById('beta-success-receipt-failed').hidden, true);
   assert.equal(submitButton.disabled, false);
@@ -440,6 +448,7 @@ test('confirms a stored beta application in a focused dialog', async () => {
     new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
   );
   assert.equal(dialog.hidden, true);
+  assert.ok(pageRegions.every((region) => region.inert === false));
   assert.equal(dom.window.document.activeElement, submitButton);
   dom.window.close();
 });

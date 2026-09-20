@@ -85,7 +85,7 @@ beforeAll(async () => {
     'ariaPressed',
   ]);
   registerSignalInputs(BadgeComponent, ['tone', 'mono']);
-  registerSignalInputs(BetaApprovalDialogComponent, ['application', 'processing']);
+  registerSignalInputs(BetaApprovalDialogComponent, ['application', 'processing', 'errorMessage']);
   registerSignalInputs(ModalShellComponent, ['title', 'subtitle', 'icon', 'iconTone', 'size']);
   registerSignalInputs(NumberInputComponent, ['id', 'min', 'max', 'step', 'unit', 'ariaLabel']);
 });
@@ -108,6 +108,8 @@ const application = {
   invitationSentAt: null,
   invitationLastError: null,
   registeredAt: null,
+  licenseStatus: null,
+  betaEndsAt: null,
 };
 
 describe('BetaApplicationsComponent', () => {
@@ -207,6 +209,72 @@ describe('BetaApplicationsComponent', () => {
     await fixture.whenStable();
 
     expect(resendInvitation).toHaveBeenCalledWith('a1');
+  });
+
+  it('haelt den Annahmedialog bei einem Versandfehler offen und wiederholt dort die Einladung', async () => {
+    const failedApplication = {
+      ...application,
+      status: 'accepted' as const,
+      grantedDays: 60,
+      authUserId: 'user-1',
+      invitationStatus: 'failed' as const,
+      invitationLastError: 'SMTP nicht erreichbar',
+    };
+    accept.mockRejectedValueOnce(new Error('Die Einladung konnte nicht versendet werden.'));
+    list.mockResolvedValueOnce([application]).mockResolvedValueOnce([failedApplication]);
+    resendInvitation.mockResolvedValueOnce({
+      ...failedApplication,
+      invitationStatus: 'sent' as const,
+      invitationLastError: null,
+    });
+
+    const fixture = TestBed.createComponent(BetaApplicationsComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const acceptButton = fixture.debugElement
+      .queryAll(By.directive(ButtonComponent))
+      .find((element) => element.nativeElement.textContent?.includes('Annehmen'));
+    acceptButton?.triggerEventHandler('clicked', new MouseEvent('click'));
+    fixture.detectChanges();
+
+    let dialog = fixture.debugElement.query(By.directive(BetaApprovalDialogComponent));
+    dialog.triggerEventHandler('approved', 60);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain(
+      'Die Einladung konnte nicht versendet werden.',
+    );
+    expect(fixture.nativeElement.textContent).toContain('Einladung erneut senden');
+    dialog = fixture.debugElement.query(By.directive(BetaApprovalDialogComponent));
+    dialog.triggerEventHandler('approved', 60);
+    await fixture.whenStable();
+
+    expect(accept).toHaveBeenCalledTimes(1);
+    expect(resendInvitation).toHaveBeenCalledWith('a1');
+  });
+
+  it('unterscheidet aktive und abgelaufene Beta-Zugaenge', () => {
+    const fixture = TestBed.createComponent(BetaApplicationsComponent);
+    expect(
+      fixture.componentInstance.lifecycleStatus({
+        ...application,
+        status: 'accepted',
+        registeredAt: '2026-09-20T10:00:00.000Z',
+        licenseStatus: 'active',
+        betaEndsAt: '2099-11-19T10:00:00.000Z',
+      }).label,
+    ).toBe('Beta aktiv');
+    expect(
+      fixture.componentInstance.lifecycleStatus({
+        ...application,
+        status: 'accepted',
+        registeredAt: '2026-09-20T10:00:00.000Z',
+        licenseStatus: 'expired',
+        betaEndsAt: '2026-09-21T10:00:00.000Z',
+      }).label,
+    ).toBe('Beta abgelaufen');
   });
 
   it('bietet bei fehlgeschlagener Eingangsbestaetigung einen Wiederholungsversand an', async () => {

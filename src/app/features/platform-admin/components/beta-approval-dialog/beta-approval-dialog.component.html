@@ -7,6 +7,15 @@
   (closed)="closed.emit()"
 >
   <div class="space-y-4" [formGroup]="form">
+    @if (errorMessage(); as message) {
+      <p
+        class="rounded-lg border border-fb-critical-border bg-fb-critical-surface p-3 text-sm text-fb-critical"
+        role="alert"
+      >
+        {{ message }}
+      </p>
+    }
+
     <dl class="rounded-xl border border-fb-line bg-fb-well p-4 text-[13px]">
       <div class="grid grid-cols-[6rem_1fr] gap-3">
         <dt class="text-fb-text-muted">Name</dt>
@@ -57,7 +66,11 @@
       [disabled]="form.invalid"
       (clicked)="approve()"
     >
-      Beta-Anmeldung genehmigen
+      {{
+        application().status === 'accepted' && application().invitationStatus === 'failed'
+          ? 'Einladung erneut senden'
+          : 'Beta-Anmeldung genehmigen'
+      }}
     </app-button>
   </div>
 </app-modal-shell>

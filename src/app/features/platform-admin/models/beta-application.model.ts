@@ -1,6 +1,7 @@
 export type BetaApplicationStatus = 'open' | 'accepted' | 'rejected';
 export type BetaEmailStatus = 'pending' | 'sent' | 'failed';
 export type BetaInvitationStatus = 'not_sent' | 'sending' | 'sent' | 'failed';
+export type BetaAccessStatus = 'pending' | 'active' | 'expired' | 'suspended';
 
 export interface BetaApplication {
   id: string;
@@ -20,6 +21,8 @@ export interface BetaApplication {
   invitationSentAt: string | null;
   invitationLastError: string | null;
   registeredAt: string | null;
+  licenseStatus: BetaAccessStatus | null;
+  betaEndsAt: string | null;
 }
 
 /** Vorgabe fuer neue Beta-Freigaben; im Annahmedialog anpassbar. */

@@ -108,6 +108,7 @@ describe('PlatformUsersComponent', () => {
     expect(text).toContain('Anna Handel');
     expect(text).toContain('Registriert');
     expect(text).toContain('Beta aktiv');
+    expect(text).toContain('Noch');
   });
 
   it('unterscheidet wartende Registrierung und abgelaufene Beta', async () => {

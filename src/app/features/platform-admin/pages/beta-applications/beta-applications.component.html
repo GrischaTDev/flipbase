@@ -214,6 +214,7 @@
     <app-beta-approval-dialog
       [application]="application"
       [processing]="processingId() === application.id"
+      [errorMessage]="approvalError()"
       (approved)="approveSelected($event)"
       (closed)="closeApproval()"
     />

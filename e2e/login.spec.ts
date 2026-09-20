@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { expect, test } from '@playwright/test';
-import { createAnonClient } from './support/local-supabase';
+import { createLocalAdminClient } from './support/local-supabase';
 
 // Ohne gespeicherte Sitzung: Dieser Test prüft die echte Anmeldung.
 test.use({ storageState: { cookies: [], origins: [] } });
@@ -8,7 +8,11 @@ test.use({ storageState: { cookies: [], origins: [] } });
 test('meldet sich mit einem echten Konto an', async ({ page }) => {
   const email = `e2e-login-${randomUUID()}@flipbase.local`;
   const password = randomUUID();
-  const { error } = await createAnonClient().auth.signUp({ email, password });
+  const { error } = await createLocalAdminClient().auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+  });
   expect(error).toBeNull();
 
   await page.goto('/auth/login');
