@@ -2,6 +2,7 @@ import '@angular/compiler';
 import { signal } from '@angular/core';
 import { ɵresolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { ActivatedRoute, provideRouter } from '@angular/router';
 import { glob, readFile } from 'node:fs/promises';
 import axe from 'axe-core';
@@ -490,7 +491,7 @@ describe('ListingEditorComponent', () => {
     expect(result.violations).toEqual([]);
   });
 
-  it('renders the text template settings and copy action', async () => {
+  it('explains the fixed text templates, offers a return path and renders the copy action', async () => {
     createEditor();
     await TestBed.compileComponents();
     const fixture = TestBed.createComponent(ListingEditorComponent);
@@ -508,7 +509,14 @@ describe('ListingEditorComponent', () => {
     });
 
     try {
-      expect(host.textContent).toContain('Textstil');
+      expect(host.textContent).toContain('Textvorlage');
+      expect(host.textContent).toContain(
+        'Verwendet feste Formulierungen mit den Artikeldaten. Es wird keine KI eingesetzt.',
+      );
+      expect(host.textContent).not.toContain('Textstil');
+      expect(fixture.componentInstance.styleToneOptions[0]?.label).toBe('Neutral');
+      const pageLayout = fixture.debugElement.query(By.directive(EntryPageLayoutComponent));
+      expect(pageLayout.componentInstance.backLabel()).toBe('Zurück zu Inseraten');
       expect(host.textContent).toContain('Nichtraucherhinweis');
       expect(host.textContent).toContain('Rechtlichen Hinweis einfügen');
       const copyButton = Array.from(host.querySelectorAll('button')).find(

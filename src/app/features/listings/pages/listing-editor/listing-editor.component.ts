@@ -72,7 +72,7 @@ export class ListingEditorComponent {
     { value: 'both', label: 'Beides' },
   ];
   readonly styleToneOptions: readonly SelectOption<ListingStyleTone>[] = [
-    { value: 'dealer', label: 'Sachlich' },
+    { value: 'dealer', label: 'Neutral' },
     { value: 'collector', label: 'Für Sammler' },
     { value: 'bargain', label: 'Schnäppchen' },
   ];
