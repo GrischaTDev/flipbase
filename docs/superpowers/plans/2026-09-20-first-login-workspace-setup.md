@@ -146,7 +146,7 @@ git commit -m "feat(auth): track workspace initial setup"
 - Produces: `completeInitialSetup(workspaceId: string, name: string): Promise<{ error: Error | null }>`
 - Produces: readonly signal `loadError`
 
-- [ ] **Step 1: Write failing service tests**
+- [x] **Step 1: Write failing service tests**
 
 Add tests proving:
 
@@ -174,13 +174,13 @@ expect(service.currentWorkspace()?.setup_completed_at).toEqual(expect.any(String
 
 For a returned database error, assert that name and completion timestamp remain unchanged locally.
 
-- [ ] **Step 2: Run the focused tests and verify failure**
+- [x] **Step 2: Run the focused tests and verify failure**
 
 Run: `npx vitest run --project=node src/app/core/services/workspace.service.spec.ts`
 
 Expected: FAIL because both methods and `loadError` are missing.
 
-- [ ] **Step 3: Make workspace loading idempotent**
+- [x] **Step 3: Make workspace loading idempotent**
 
 Add one stored pending promise and a loaded flag. `ensureLoaded()` returns the
 same promise while a request is active, returns immediately after a successful
@@ -195,7 +195,7 @@ private readonly workspaceLoadError = signal<Error | null>(null);
 readonly loadError = this.workspaceLoadError.asReadonly();
 ```
 
-- [ ] **Step 4: Add server-confirmed setup completion**
+- [x] **Step 4: Add server-confirmed setup completion**
 
 Implement a non-optimistic update:
 
@@ -231,13 +231,13 @@ async completeInitialSetup(
 
 Reject names outside 2–100 trimmed characters before making a request.
 
-- [ ] **Step 5: Run focused service tests**
+- [x] **Step 5: Run focused service tests**
 
 Run: `npx vitest run --project=node src/app/core/services/workspace.service.spec.ts`
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit the service boundary**
+- [x] **Step 6: Commit the service boundary**
 
 ```bash
 git add src/app/core/services/workspace.service.ts src/app/core/services/workspace.service.spec.ts
