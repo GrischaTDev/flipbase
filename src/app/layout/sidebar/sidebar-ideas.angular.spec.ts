@@ -205,7 +205,7 @@ describe('Arbeitsnavigation und Ideen in der Sidebar', () => {
     expect(names).toEqual(['Purchasing', 'Products', 'Selling', 'Finances']);
     expect(toggle.textContent?.trim()).toBe('Ideas');
     expect(article?.textContent?.trim()).toBe('Product overview');
-    expect(listings?.textContent?.trim()).toBe('Create listings');
+    expect(listings?.textContent?.trim()).toBe('Listings');
     expect(research?.textContent?.trim()).toBe('Price research');
     expect(element.textContent).not.toContain('NAV.');
   });

@@ -1,5 +1,25 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-20 – Codex (OpenAI) – Gespeicherte Kleinanzeigen-Inserate umgesetzt
+
+**Auftrag:** Den bestätigten ersten Schritt des Listing Studio umsetzen: gespeicherte
+Kleinanzeigen-Inserate mit Übersicht, Editor, Statusablauf und Browser-Erweiterung.
+
+**Änderung:** Inserate werden je Workspace mit vorbereiteten, online gestellten und
+beendeten Zuständen gespeichert. Datenbankfunktionen schützen Mitgliedschaft,
+archivierte Workspaces, nicht verkaufsfähigen Bestand, wieder geöffnete
+Paketeinkäufe und parallele Vorbereitungen. Die neue Übersicht und der gemeinsame
+Editor verwenden diese Funktionen, erzeugen Kleinanzeigen-Texte aus dem Bestand
+und übergeben nur frisch signierte Bilder an die Erweiterung. Die Navigation führt
+jetzt zu „Inserate“ mit Übersicht und Erstellen; der frühere Generator-Bildschirm
+wurde entfernt.
+
+**Prüfung:** Lokaler Datenbank-Reset, 61 fokussierte Inseratstests, 1.939
+Datenbanktests, zwei parallele psql-Aufrufe, gezielte Angular- und DOM-Tests,
+Typprüfung, Produktionsbau sowie die Shared-UI-Prüfung liefen erfolgreich. Der
+Bau meldet weiterhin die drei bekannten NG8113-Hinweise zu ungenutzten
+LucideDynamicIcon-Importen außerhalb dieses Bereichs. Kein Push/Merge.
+
 ## 2026-09-20 – Codex (OpenAI) – Listing-Studio-Entwurf auf aktuellen Stand gebracht
 
 **Auftrag:** Nach Abschluss der Einkaufsarbeiten klären, ob die Inserate-Seite
