@@ -438,7 +438,7 @@ git commit -m "feat(auth): add first-login workspace setup"
 
 - Verifies all interfaces produced by Tasks 1–4.
 
-- [ ] **Step 1: Run all focused tests together**
+- [x] **Step 1: Run all focused tests together**
 
 ```powershell
 npx vitest run --project=node src/app/core/services/workspace.service.spec.ts
@@ -449,7 +449,7 @@ node scripts/check-admin-shared-ui.mjs
 
 Expected: all focused checks PASS.
 
-- [ ] **Step 2: Run the complete project verification**
+- [x] **Step 2: Run the complete project verification**
 
 ```powershell
 npm run verify > workspace-setup-verify.log 2>&1
@@ -460,20 +460,20 @@ exit $verifyExitCode
 
 Expected: format, lint, type checks, workflow checks, all test suites, landing tests and production build PASS. Only already documented unrelated warnings may remain.
 
-- [ ] **Step 3: Update the AI changelog with actual evidence**
+- [x] **Step 3: Update the AI changelog with actual evidence**
 
 Record the one-field scope, explicit setup timestamp, existing-user backfill,
 guard behavior, error handling and the exact test counts from the fresh runs.
 Do not claim browser or production verification that was not executed.
 
-- [ ] **Step 4: Mark completed plan checkboxes and commit**
+- [x] **Step 4: Mark completed plan checkboxes and commit**
 
 ```bash
 git add docs/AI-CHANGELOG.md docs/superpowers/plans/2026-09-20-first-login-workspace-setup.md
 git commit -m "docs(auth): record workspace setup verification"
 ```
 
-- [ ] **Step 5: Confirm branch readiness without pushing**
+- [x] **Step 5: Confirm branch readiness without pushing**
 
 ```powershell
 git status --short

@@ -46,6 +46,38 @@ NG8113-Hinweise außerhalb des Inserate-Bereichs; der unveränderte
 Steuerjournal-Ablauf meldet weiterhin den bestehenden NG0956-Laufzeithinweis.
 Kein Push und kein Merge.
 
+## 2026-09-20 – Codex (OpenAI) – Verpflichtende Workspace-Ersteinrichtung ergänzt
+
+**Auftrag:** Nach der eingeladenen Beta-Registrierung beim ersten App-Aufruf nur
+die tatsächlich benötigte Initialangabe abfragen: den Namen des bereits
+angelegten Workspace. Keine Steuerart, Zielwerte, Firmen-, Rechnungs- oder
+Zahlungsdaten vorwegnehmen.
+
+**Änderung:** Workspaces besitzen nun einen ausdrücklichen Abschlusszeitpunkt
+für die Ersteinrichtung. Die Migration markiert alle bereits vorhandenen
+Workspaces als abgeschlossen; ein durch die Registrierung erzeugter
+Beta-Workspace bleibt offen. Manuell zusätzlich erstellte Workspaces sind
+sofort abgeschlossen. Die bestehende Beta-Laufzeit startet weiterhin bei der
+erfolgreichen Passwortvergabe und wird von der neuen Seite nicht verschoben.
+
+Ein unvollständiger Workspace wird vor Dashboard und Shop auf eine
+eigenständige, zugängliche Ein-Feld-Seite geleitet. Dort wird ausschließlich
+ein getrimmter Name mit 2 bis 100 Zeichen gespeichert. Der vorhandene
+Workspace wird serverbestätigt aktualisiert und nicht doppelt angelegt.
+Lade- und Speicherfehler bleiben sichtbar und wiederholbar; Abmelden verwendet
+die bestehende Sitzungsfunktion. Vorhandene Flipbase-Farben, Logo und
+Button-Komponenten wurden wiederverwendet. Nach erfolgreichem Abschluss führt
+der Ablauf ins Dashboard und lässt sich nicht erneut öffnen.
+
+**Prüfung:** `npm run verify` erfolgreich mit Format, ESLint, Typprüfung,
+Workflow- und Suite-Audit, 1.448 Node-, 240 DOM-, 960 Angular- und 15
+Landing-Tests sowie Produktionsbau. Die fokussierten 24 Workspace-Service-,
+6 Guard- und 7 Seiten-/AXE-Tests bestanden. Der isolierte Datenbanktest bestand
+mit 19 Prüfungen nach einem sauberen Neuaufbau; der gemeinsame Admin-UI-Check
+meldete bei 95 Dateien keine Abweichung. Weiterhin nur die drei bekannten
+NG8113-Hinweise in Dashboard, Einkäufen und Verkäufern. Kein Push, kein PR und
+kein Merge.
+
 ## 2026-09-20 – Codex (OpenAI) – Beta-Anmeldeweg und Betreiberfreigabe umgesetzt
 
 **Auftrag:** Die Beta-Anmeldung auf der Landingpage verlässlich abschließen, die
