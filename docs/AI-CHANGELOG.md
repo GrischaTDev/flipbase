@@ -1,5 +1,29 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-20 – Juna – Landing-Kopfzeile reduziert und Beta-Mailversand aktiviert
+
+**Auftrag:** Die Kopfzeile der Landingpage auf Logo, Design- und Sprachumschalter
+sowie den App-Link reduzieren und den fehlgeschlagenen Versand der
+Beta-Eingangsbestätigung in Produktion reparieren.
+
+**Änderung:** Die Landingpage zeigt oben keine Bereichsnavigation und keinen
+„Reselling OS“-Badge mehr. Der App-Link ist unabhängig von einem Merk-Cookie
+immer sichtbar; die dadurch überflüssige Caddy-Vorlagenverarbeitung und
+Cookie-Cachevariation wurden entfernt.
+
+Auf dem Produktionsserver wurden die bereits vorhandenen SMTP-Werte an die
+Beta-Funktionen durchgereicht und der aktuelle Stand von `beta-application`,
+`beta-invite` sowie den gemeinsamen Mailbausteinen eingespielt. Die betroffene
+Bewerbung wurde vom veralteten Status „ausstehend“ auf „fehlgeschlagen“ gesetzt,
+damit der vorgesehene Wiederholungsversand im Betreiberbereich verfügbar ist.
+Die Ausrollanleitung schützt künftig die Supabase-Systemordner `main` und `hello`,
+wenn Repository-Funktionen synchronisiert werden.
+
+**Prüfung:** Der Funktionsdienst ist nach der Korrektur gesund, enthält alle neun
+benötigten `BETA_*`-Variablen und beantwortet eine ungültige Testanfrage wie
+erwartet mit HTTP 400, ohne einen Datensatz anzulegen. Die gezielten Landingtests
+prüfen die reduzierte Kopfzeile und die weiterhin sichere Skriptauslieferung.
+
 ## 2026-09-20 – Juna – Beta-Einstieg und CSP-Auslieferung repariert
 
 **Auftrag:** Den wirkungslosen Beta-Button auf der Landingpage reparieren, den

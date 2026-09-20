@@ -66,7 +66,6 @@ flipbase.de {
 	# Datei passiert erst im file_server, nach den Matchern. Ein Matcher auf
 	# den exakten Pfad "/index.html" traf deshalb nie zu.
 	@seite path / /index.html
-	templates @seite
 	file_server
 	encode zstd gzip
 
@@ -88,9 +87,6 @@ flipbase.de {
 	}
 
 	header @seite {
-		# Die Antwort haengt vom Merk-Cookie ab. Ohne diesen Hinweis koennte ein
-		# Zwischenspeicher den falschen Knopftext ausliefern.
-		Vary Cookie
 		Cache-Control "no-cache"
 	}
 

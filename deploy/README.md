@@ -145,16 +145,22 @@ zusammengehören:
 2. **Das Skript bleibt lokal und eingebetteter Code bleibt gesperrt.** Der Test
    `src/app/core/services/landing-template.spec.ts` hält HTML, Skriptquelle,
    `script-src` und `connect-src` zusammen.
-3. **Die Edge Functions rollt keine Pipeline aus.** Der gesamte Inhalt von
-   `supabase/functions/` muss gemeinsam nach
-   `/opt/supabase/volumes/functions/` gespiegelt werden. Das umfasst mindestens
+3. **Die Edge Functions rollt keine Pipeline aus.** Alle vom Repository
+   verwalteten Ordner unter `supabase/functions/` müssen gemeinsam nach
+   `/opt/supabase/volumes/functions/` übertragen werden. Das umfasst mindestens
    `beta-application`, `beta-invite` und deren gemeinsames `_shared`-Verzeichnis.
    Einzelne Funktionsordner dürfen nicht getrennt ausgerollt werden, weil beide
-   Beta-Funktionen dieselben Mailbausteine importieren. Danach werden Funktions-
-   und Auth-Dienst gemeinsam neu erzeugt:
+   Beta-Funktionen dieselben Mailbausteine importieren. Die Ordner werden jeweils
+   einzeln gespiegelt: Ein `rsync --delete` auf dem übergeordneten Zielordner
+   würde die von der Supabase-Installation bereitgestellten Ordner `main` und
+   `hello` löschen und den Funktionsdienst unstartbar machen. Danach werden
+   Funktions- und Auth-Dienst gemeinsam neu erzeugt:
 
    ```sh
-   rsync -a --delete supabase/functions/ /opt/supabase/volumes/functions/
+   for function_directory in supabase/functions/*/; do
+     function_name="$(basename "$function_directory")"
+     rsync -a --delete "$function_directory" "/opt/supabase/volumes/functions/$function_name/"
+   done
    docker compose up -d --force-recreate functions auth
    ```
 
