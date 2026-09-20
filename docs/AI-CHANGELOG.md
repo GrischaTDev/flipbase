@@ -1,5 +1,37 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-20 – Codex (OpenAI) – Kontrollreview des gespeicherten Listing Studio
+
+**Auftrag:** Den mit Terra umgesetzten Branch vor einem Pull Request unabhängig
+gegen Spezifikation, Umsetzungsplan und Projektregeln prüfen.
+
+**Befund:** Datenmodell, RLS, Workspace-Zuordnung, Migrationen und die grundlegende
+Statuskopplung sind tragfähig. Der Branch ist trotzdem noch nicht bereit für einen
+Pull Request. Im Erstellen-Dialog können Artikel mit bereits offenem Inserat erneut
+ausgewählt werden; dadurch lässt sich der bestätigungspflichtige Ablauf zum erneuten
+Einstellen umgehen. Der Editor überschreibt manuell bearbeitete Texte ohne Nachfrage,
+zeigt mehrere vorhandene Vorlagenoptionen nicht an, warnt bei fehlenden Bildern nicht
+und behandelt ein unverändertes neues Formular bereits als ungespeichert. Titel und
+Beschreibung haben keine programmatisch zugeordneten Beschriftungen. Die mobile
+Übersicht zeigt zusätzlich zur Kartenansicht weiterhin die Desktop-Tabelle; die Karten
+selbst enthalten keine Aktionen. Eine fehlende Browser-Erweiterung lässt den
+Prüfknopf dauerhaft im Ladezustand. Die unterschiedliche Sperrreihenfolge zwischen
+Inseratsaktionen und Verkaufstrigger kann bei parallelen Aktionen außerdem einen
+Datenbank-Deadlock erzeugen.
+
+Die im Plan vorgesehenen Übersichts-, Editor-, AXE- und Browser-Abnahmen wurden nur
+zu einem kleinen Teil umgesetzt: Es gibt keinen Übersichts-Komponententest, zwei
+Editorfälle statt der geplanten Ablaufsmatrix, keinen `e2e/listing-studio.spec.ts`
+und keinen Abschlussbericht unter `docs/audit/`. Der bestehende Abschlussvermerk war
+damit zu weitgehend.
+
+**Prüfung:** Vollständiger Branch-Diff gegen den unveränderten Stand von
+`origin/master` (`a845cf4d`), Spezifikation, Umsetzungsplan, SQL-Sperrreihenfolge,
+Frontendzustände und vorhandene Tests geprüft. Die bestehende PR-Browsersuite bestand
+mit 6/6 Tests; sie enthält keinen Inserate-Fall. Die fokussierte Datenbanksuite bestand
+mit 61/61 Tests; sie enthält keinen konkurrierenden Verkauf-vs.-Beenden-Fall. Keine
+Produktkorrektur, kein Push und kein Merge.
+
 ## 2026-09-20 – Codex (OpenAI) – Gespeicherte Kleinanzeigen-Inserate umgesetzt
 
 **Auftrag:** Den bestätigten ersten Schritt des Listing Studio umsetzen: gespeicherte
