@@ -26,7 +26,7 @@ const einkauf: Purchase = {
   purchase_price: 50,
   shipping_cost: 0,
   source_id: null,
-  supplier_id: null,
+  supplier_id: 'supplier-nord',
   cost_allocation_mode: 'even',
   created_at: '2026-08-24T10:00:00.000Z',
 };
@@ -149,9 +149,8 @@ function erstelleKomponente(vorhandener: Purchase | null = null) {
     lineEditor: () => undefined,
     costOverviewDialog: () => undefined,
     isAddingSource: signal(true),
-    isAddingSupplier: signal(true),
     newSourceName: signal('Flohmarkt'),
-    newSupplierName: signal('Lieferant GmbH'),
+    newSourceControl: new FormControl('Flohmarkt', { nonNullable: true }),
     costDialogOpen: signal(false),
     costDrafts: signal<readonly PurchaseCostDraft[]>([]),
     initialCostDrafts: signal<readonly PurchaseCostDraft[]>([]),
@@ -172,7 +171,9 @@ function erstelleKomponente(vorhandener: Purchase | null = null) {
         validators: [Validators.required, Validators.minLength(2)],
       }),
       source_id: new FormControl<string | null>(null),
-      supplier_id: new FormControl<string | null>(null),
+      supplier_id: new FormControl<string | null>('supplier-nord', {
+        validators: [Validators.required],
+      }),
       purchase_date: new FormControl('2026-08-24', {
         nonNullable: true,
         validators: [Validators.required],
@@ -182,16 +183,6 @@ function erstelleKomponente(vorhandener: Purchase | null = null) {
       }),
       tracking_number: new FormControl('', { nonNullable: true }),
       tracking_carrier: new FormControl<'dhl' | null>(null),
-      original_url: new FormControl('', { nonNullable: true }),
-      external_order_id: new FormControl('', { nonNullable: true }),
-      seller_type: new FormControl<'private' | 'business' | null>(null),
-      seller_name: new FormControl('', { nonNullable: true }),
-      seller_marketplace_username: new FormControl('', { nonNullable: true }),
-      seller_street: new FormControl('', { nonNullable: true }),
-      seller_address_extra: new FormControl('', { nonNullable: true }),
-      seller_postal_code: new FormControl('', { nonNullable: true }),
-      seller_city: new FormControl('', { nonNullable: true }),
-      seller_country_code: new FormControl<string | null>(null),
       notes: new FormControl('', { nonNullable: true }),
       single_item_condition: new FormControl<'used'>('used', { nonNullable: true }),
       single_item_expected_value: new FormControl<number | null>(null),
@@ -244,7 +235,7 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
-  it('zeigt Quelle, Verkäuferangaben und Angebotslink ohne alte Mystery-Felder', () => {
+  it('zeigt den einfachen Einkaufskopf ohne Verkäuferdetails und Mystery-Aktionen', () => {
     const template = readFileSync(
       'src/app/features/purchases/components/purchase-entry-form/purchase-entry-form.component.html',
       'utf8',
@@ -253,67 +244,24 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
     expect(template).not.toContain('Plattform / Bezugsquelle');
     expect(template).not.toContain('Noch nicht vollständig bekannt');
     expect(template).not.toContain('Beleg / Angebotslink');
-    expect(template).toContain('formControlName="title"');
+    expect(template.indexOf('formControlName="supplier_id"')).toBeLessThan(
+      template.indexOf('formControlName="source_id"'),
+    );
     expect(template).toContain('formControlName="source_id"');
-    expect(template).toContain('formControlName="seller_marketplace_username"');
-    expect(template).toContain('formControlName="external_order_id"');
-    expect(template).toContain('label="Angebotslink (optional)"');
+    expect(template).toContain('actionLabel="Quelle erstellen"');
+    expect(template).not.toContain('formControlName="title"');
+    expect(template).not.toContain('formControlName="seller_marketplace_username"');
+    expect(template).not.toContain('formControlName="seller_type"');
+    expect(template).not.toContain('formControlName="seller_name"');
+    expect(template).not.toContain('data-seller-address');
+    expect(template).not.toContain('formControlName="external_order_id"');
+    expect(template).not.toContain('formControlName="original_url"');
     expect(template).not.toContain('Interne Notiz');
     expect(template).not.toContain('Referenz des Verkäufers');
     expect(template).toContain('actionLabel="Verkäufer erstellen"');
-    expect(template).toContain('Paketpreis verteilen');
+    expect(template).not.toContain('Paketpreis verteilen');
+    expect(template).not.toContain('(optional)');
     expect(template).toContain('formControlName="notes"');
-  });
-
-  it('übernimmt einen Paketpreis positionsgleich und merkt sich die bestätigte Struktur', () => {
-    const { komponente } = erstelleKomponente();
-    const lines = [
-      {
-        draftId: 'draft-a',
-        catalogProductId: 'product-a',
-        titleSnapshot: 'A',
-        lineKind: 'quantity' as const,
-        orderedQuantity: 1,
-        condition: 'used' as const,
-        priceMode: 'priced' as const,
-        unitPurchasePrice: null,
-        lineTotal: null,
-        estimatedMarketValue: null,
-      },
-      {
-        draftId: 'draft-b',
-        catalogProductId: 'product-b',
-        titleSnapshot: 'B',
-        lineKind: 'quantity' as const,
-        orderedQuantity: 5,
-        condition: 'used' as const,
-        priceMode: 'priced' as const,
-        unitPurchasePrice: null,
-        lineTotal: null,
-        estimatedMarketValue: null,
-      },
-    ];
-    komponente.purchaseLines.set(lines);
-    Object.assign(komponente, {
-      packagePriceDialogOpen: signal(true),
-      confirmedPackageFingerprint: signal<string | null>(null),
-      packagePriceStale: signal(false),
-      pricingMode: signal<'individual' | 'total'>('individual'),
-      lineEditor: () => ({
-        applyPackagePrice: () =>
-          komponente.onPurchaseLinesChanged([
-            { ...lines[0], unitPurchasePrice: 5, lineTotal: 5 },
-            { ...lines[1], unitPurchasePrice: 1, lineTotal: 5 },
-          ]),
-      }),
-    });
-
-    komponente.confirmPackagePrice(10);
-
-    expect(komponente.form.controls.purchase_price.value).toBe(10);
-    expect(komponente.purchaseLines().map((line) => line.lineTotal)).toEqual([5, 5]);
-    expect(komponente.confirmedPackageFingerprint()).not.toBeNull();
-    expect(komponente.packagePriceDialogOpen()).toBe(false);
   });
 
   it('oeffnet den gemeinsamen Kosteneditor mit dem aktuellen Entwurf', () => {
@@ -392,7 +340,6 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
     komponente.purchaseLines.set(linien);
     komponente.costDrafts.set(kosten);
     komponente.newSourceName.set('');
-    komponente.newSupplierName.set('');
     komponente.form.markAsPristine();
 
     expect(komponente.hasUnsavedChanges()).toBe(false);
@@ -409,44 +356,23 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
     expect(komponente.hasUnsavedChanges()).toBe(true);
   });
 
-  it('speichert einen leeren Einkauf ohne Titel oder Verkaeufer nur als Entwurf', async () => {
+  it('speichert ohne Verkäufer keinen Entwurf', async () => {
     const { komponente, purchaseService, purchaseCostingService } = erstelleKomponente();
-    komponente.form.controls.title.clearValidators();
     komponente.form.patchValue({
       title: '',
       supplier_id: null,
-      pricing_mode: 'total',
-      content_status: 'unknown',
-      purchase_price: 300,
     });
     await komponente.onSubmit();
-    expect(purchaseService.createPurchase).toHaveBeenCalledWith(
-      expect.objectContaining({
-        title: '',
-        supplier_id: null,
-        purchase_price: 300,
-        purchase_lines: [],
-        content_status: 'unknown',
-        pricing_mode: 'total',
-        request_id: 'test-request-id',
-      }),
-    );
+    expect(purchaseService.createPurchase).not.toHaveBeenCalled();
     expect(purchaseCostingService.finalizePurchase).not.toHaveBeenCalled();
   });
 
-  it('speichert Bezeichnung, Quelle und Verkäufer-Snapshot ohne gespeicherten Verkäufer', async () => {
+  it('speichert Beschreibung, Quelle und den Snapshot des gewählten Verkäufers', async () => {
     const { komponente, purchaseService } = erstelleKomponente();
     komponente.form.patchValue({
-      title: 'Vinted-Jacke',
+      notes: 'Vinted-Jacke',
       source_id: 'source-vinted',
-      supplier_id: null,
-      seller_marketplace_username: ' vintage_lea92 ',
-      seller_type: null,
-      seller_name: '',
-      seller_city: ' Köln ',
-      seller_country_code: 'DE',
-      external_order_id: ' 84739392 ',
-      original_url: ' https://www.vinted.de/items/1 ',
+      supplier_id: 'supplier-nord',
     });
 
     await komponente.onSubmit();
@@ -454,45 +380,15 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
     expect(purchaseService.createPurchase).toHaveBeenCalledWith(
       expect.objectContaining({
         title: 'Vinted-Jacke',
+        notes: 'Vinted-Jacke',
         source_id: 'source-vinted',
-        supplier_id: null,
-        seller_marketplace_username: 'vintage_lea92',
-        seller_type: null,
-        seller_name: null,
-        seller_city: 'Köln',
+        supplier_id: 'supplier-nord',
+        seller_type: 'business',
+        seller_name: 'Großhandel Nord',
+        seller_city: 'Hamburg',
         seller_country_code: 'DE',
-        external_order_id: '84739392',
-        original_url: 'https://www.vinted.de/items/1',
       }),
     );
-  });
-
-  it('übernimmt Art, Name und Anschrift eines gespeicherten Verkäufers bewusst in den Einkauf', () => {
-    const { komponente } = erstelleKomponente();
-    komponente.form.controls.seller_marketplace_username.setValue('grosshandel_nord');
-
-    komponente.onSupplierSelected('supplier-nord');
-
-    expect(komponente.form.getRawValue()).toMatchObject({
-      seller_type: 'business',
-      seller_name: 'Großhandel Nord',
-      seller_street: 'Hafenstraße 1',
-      seller_postal_code: '20457',
-      seller_city: 'Hamburg',
-      seller_country_code: 'DE',
-      seller_marketplace_username: 'grosshandel_nord',
-    });
-    expect(komponente.form.dirty).toBe(true);
-    expect(komponente.sellerAddressExpanded()).toBe(true);
-  });
-
-  it('lässt die Verkäuferangaben stehen, wenn kein gespeicherter Verkäufer gewählt wird', () => {
-    const { komponente } = erstelleKomponente();
-    komponente.form.controls.seller_name.setValue('Lea Mustermann');
-
-    komponente.onSupplierSelected(null);
-
-    expect(komponente.form.controls.seller_name.value).toBe('Lea Mustermann');
   });
 
   it('bewahrt technische Bestands- und Versandwerte beim Bearbeiten', async () => {
@@ -740,7 +636,7 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
 
     expect(komponente.purchaseLines()[0]?.draftId).toBe(persistedLine.id);
     expect(komponente.costDrafts()[0]?.targetPurchaseLineId).toBe(persistedLine.id);
-    komponente.form.controls.title.setValue('Konsole mit Zubehör');
+    komponente.form.controls.notes.setValue('Konsole mit Zubehör');
     komponente.onPurchaseLinesChanged([
       {
         draftId: persistedLine.id,
@@ -825,7 +721,7 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
     ]);
 
     await komponente.onFinalize();
-    komponente.form.controls.title.setValue('Konsole als gespeicherter Draft');
+    komponente.form.controls.notes.setValue('Konsole als gespeicherter Draft');
     await komponente.onSubmit();
 
     expect(purchaseService.createPurchase).toHaveBeenCalledOnce();
@@ -1255,7 +1151,6 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
   it('beruecksichtigt einen unfertigen Kostenentwurf beim Verlassen', () => {
     const { komponente } = erstelleKomponente();
     komponente.newSourceName.set('');
-    komponente.newSupplierName.set('');
     Object.assign(komponente, {
       costOverviewDialog: () => ({ hasUnsavedChanges: () => true }),
     });
@@ -1263,13 +1158,9 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
     expect(komponente.hasUnsavedChanges()).toBe(true);
   });
 
-  it('berücksichtigt ungespeicherte Quellen- und Lieferantennamen', () => {
+  it('berücksichtigt einen ungespeicherten Quellennamen', () => {
     const { komponente } = erstelleKomponente();
     komponente.newSourceName.set('Neue Quelle');
-    expect(komponente.hasUnsavedChanges()).toBe(true);
-
-    komponente.newSourceName.set('');
-    komponente.newSupplierName.set('Neuer Lieferant');
     expect(komponente.hasUnsavedChanges()).toBe(true);
   });
 
@@ -1412,18 +1303,12 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
     expect(toast.toasts()).toEqual([]);
   });
 
-  it('bestätigt das schnelle Anlegen einer Quelle und eines Lieferanten', async () => {
+  it('bestätigt das schnelle Anlegen einer Quelle', async () => {
     const quelle = erstelleKomponente();
     await quelle.komponente.saveNewSource();
     expect(quelle.komponente.form.controls.source_id.value).toBe('source-1');
     expect(quelle.komponente.isAddingSource()).toBe(false);
     expect(quelle.toast.toasts()[0].title).toBe('Quelle wurde angelegt.');
-
-    const lieferant = erstelleKomponente();
-    await lieferant.komponente.saveNewSupplier();
-    expect(lieferant.komponente.form.controls.supplier_id.value).toBe('supplier-1');
-    expect(lieferant.komponente.isAddingSupplier()).toBe(false);
-    expect(lieferant.toast.toasts()[0].title).toBe('Lieferant wurde angelegt.');
   });
 
   it('behält die Schnellerfassung einer Quelle bei einem Fehler geöffnet', async () => {

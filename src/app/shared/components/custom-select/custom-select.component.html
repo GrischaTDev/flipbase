@@ -16,6 +16,7 @@
       [attr.aria-controls]="isOpen() ? listboxId() : null"
       [attr.aria-activedescendant]="activeDescendantId()"
       [attr.aria-disabled]="effectiveDisabled()"
+      [attr.aria-required]="required()"
       class="inline-flex min-h-9 items-center justify-between gap-1.5 rounded-full border px-3 py-1 text-[13px] font-semibold transition cursor-pointer shadow-sm outline-none select-none max-w-full focus-visible:ring-2 focus-visible:ring-fb-primary/50 focus-visible:border-fb-primary"
       [class.opacity-50]="effectiveDisabled()"
       [class.cursor-not-allowed]="effectiveDisabled()"
@@ -46,6 +47,7 @@
       [attr.aria-expanded]="isOpen()"
       [attr.aria-controls]="isOpen() ? listboxId() : null"
       [attr.aria-activedescendant]="activeDescendantId()"
+      [attr.aria-required]="required()"
       class="inline-flex h-8 w-full max-w-full items-center justify-between gap-1 rounded-lg border border-fb-border-subtle bg-fb-subtle px-2 text-[13px] font-medium text-fb-text-primary transition-colors hover:border-fb-border hover:bg-fb-surface-hover focus-visible:border-fb-primary focus-visible:bg-fb-surface focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-fb-primary"
     >
       <span class="truncate">{{ selectedOption()?.label || placeholder() }}</span>
@@ -67,6 +69,7 @@
       [attr.aria-controls]="isOpen() ? listboxId() : null"
       [attr.aria-activedescendant]="activeDescendantId()"
       [attr.aria-disabled]="effectiveDisabled()"
+      [attr.aria-required]="required()"
       class="linear-input w-full flex min-h-9 items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-[13px] font-medium cursor-pointer transition-colors select-none text-fb-text-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/50 focus-visible:border-fb-primary"
       [class.opacity-50]="effectiveDisabled()"
       [class.cursor-not-allowed]="effectiveDisabled()"
@@ -96,6 +99,7 @@
       [attr.aria-controls]="isOpen() ? listboxId() : null"
       [attr.aria-activedescendant]="activeDescendantId()"
       [attr.aria-disabled]="effectiveDisabled()"
+      [attr.aria-required]="required()"
       class="linear-input w-full flex items-center justify-between gap-2 rounded-md font-medium cursor-pointer transition-colors select-none text-fb-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/50 focus-visible:border-fb-primary"
       [class]="groessenKlasse()"
       [class.opacity-50]="effectiveDisabled()"

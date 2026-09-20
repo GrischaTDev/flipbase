@@ -6,6 +6,9 @@
       [class.sr-only]="labelHidden()"
     >
       {{ label() }}
+      @if (required()) {
+        <span data-required-indicator aria-hidden="true" class="text-fb-primary">*</span>
+      }
     </label>
   }
 

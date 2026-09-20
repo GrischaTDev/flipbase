@@ -81,6 +81,7 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
   readonly ariaLabel = input.required<string>();
   readonly triggerId = input<string>('');
   readonly actionLabel = input<string | null>(null);
+  readonly required = input(false);
   readonly action = output<void>();
 
   /**

@@ -78,6 +78,7 @@ export class DatePickerComponent implements ControlValueAccessor {
   readonly placeholder = input<string>('');
   readonly disabled = input<boolean>(false);
   readonly ariaLabel = input<string>('');
+  readonly required = input(false);
 
   // Backward-compatible German Inputs
   readonly feldId = input<string>('');

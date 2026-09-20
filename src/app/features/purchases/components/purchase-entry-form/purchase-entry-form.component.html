@@ -6,10 +6,21 @@
   }
   <app-two-column-layout ratio="2-1" data-testid="purchase-entry-workspace">
     <div main class="space-y-4" data-testid="purchase-entry-main">
-      <app-card title="Verkäufer und Einkauf" padding="md" rounded="xl">
+      <app-card title="Einkauf" padding="md" rounded="xl">
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div class="min-w-0 md:col-span-2">
-            <app-text-field formControlName="title" label="Bezeichnung (optional)" />
+          <div class="min-w-0">
+            <span class="mb-1.5 block text-[13px] font-semibold">
+              Verkäufer <span aria-hidden="true" class="text-fb-primary">*</span>
+            </span>
+            <app-custom-select
+              formControlName="supplier_id"
+              [options]="lieferantenOptionen()"
+              ariaLabel="Verkäufer auswählen"
+              placeholder="Verkäufer auswählen"
+              actionLabel="Verkäufer erstellen"
+              [required]="true"
+              (action)="sellerDialogOpen.set(true)"
+            />
           </div>
           <div class="min-w-0">
             <span class="mb-1.5 block text-[13px] font-semibold">Quelle</span>
@@ -18,74 +29,46 @@
               [options]="quellenOptionen()"
               ariaLabel="Quelle auswählen"
               placeholder="Quelle auswählen"
+              actionLabel="Quelle erstellen"
+              (action)="isAddingSource.set(true)"
             />
+            @if (isAddingSource()) {
+              <div class="mt-3 rounded-lg border border-fb-line bg-fb-subtle p-3">
+                <app-text-field
+                  id="new-purchase-source"
+                  label="Neue Quelle"
+                  [required]="true"
+                  [formControl]="newSourceControl"
+                  (input)="onNewSourceInput($event)"
+                />
+                <div class="mt-3 flex justify-end gap-2">
+                  <app-button variant="plain" size="slim" (clicked)="cancelNewSource()">
+                    Abbrechen
+                  </app-button>
+                  <app-button
+                    variant="primary"
+                    size="slim"
+                    [disabled]="!newSourceName().trim()"
+                    (clicked)="saveNewSource()"
+                  >
+                    Quelle speichern
+                  </app-button>
+                </div>
+              </div>
+            }
           </div>
           <div class="min-w-0">
-            <span class="mb-1.5 block text-[13px] font-semibold"
-              >Gespeicherter Verkäufer (optional)</span
-            >
-            <app-custom-select
-              formControlName="supplier_id"
-              [options]="lieferantenOptionen()"
-              ariaLabel="Gespeicherten Verkäufer auswählen"
-              placeholder="Gespeicherten Verkäufer auswählen"
-              actionLabel="Verkäufer erstellen"
-              (action)="sellerDialogOpen.set(true)"
-              (valueChange)="onSupplierSelected($event)"
-            />
-          </div>
-          <div class="min-w-0">
-            <app-text-field
-              formControlName="seller_marketplace_username"
-              label="Plattform-Benutzername (optional)"
-            />
-          </div>
-          <div class="min-w-0">
-            <span class="mb-1.5 block text-[13px] font-semibold">Verkäuferart</span>
-            <app-custom-select
-              formControlName="seller_type"
-              [options]="sellerTypeOptions"
-              ariaLabel="Verkäuferart"
-            />
-          </div>
-          <div class="min-w-0">
-            <app-text-field formControlName="seller_name" label="Name (optional)" />
-          </div>
-          <div class="min-w-0">
-            <label for="purchase-date" class="mb-1.5 block text-[13px] font-semibold"
-              >Kaufdatum</label
-            >
+            <label for="purchase-date" class="mb-1.5 block text-[13px] font-semibold">
+              Kaufdatum <span aria-hidden="true" class="text-fb-primary">*</span>
+            </label>
             <app-date-picker
               id="purchase-date"
               ariaLabel="Kaufdatum"
               formControlName="purchase_date"
+              [required]="true"
             />
           </div>
         </div>
-        <details
-          data-seller-address
-          class="mt-4 border-t border-fb-line pt-4"
-          [open]="sellerAddressExpanded()"
-          (toggle)="onSellerAddressToggle($event)"
-        >
-          <summary class="cursor-pointer text-[13px] font-semibold text-fb-text-primary">
-            Anschrift des Verkäufers (optional)
-          </summary>
-          <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-            <app-text-field formControlName="seller_street" label="Straße und Hausnummer" />
-            <app-text-field formControlName="seller_address_extra" label="Adresszusatz" />
-            <app-text-field formControlName="seller_postal_code" label="PLZ" />
-            <app-text-field formControlName="seller_city" label="Ort" />
-            <div class="min-w-0">
-              <span class="mb-1.5 block text-[13px] font-semibold">Land</span>
-              <app-custom-select
-                formControlName="seller_country_code"
-                [options]="countryOptions"
-                ariaLabel="Land des Verkäufers"
-              />
-            </div>
-          </div>
-        </details>
       </app-card>
 
       <app-card padding="md" rounded="xl">
@@ -109,42 +92,17 @@
         role="region"
         aria-label="Kostenübersicht"
         [goodsAmount]="purchaseBasePrice()"
+        [itemCount]="orderedItemCount()"
         [discountAmount]="discountAmount()"
         [costs]="costDrafts()"
         [totalAmount]="totalCosts()"
         (editRequested)="openCostEditor()"
-      >
-        <div cost-summary-goods-editor>
-          @if (!hasPackages()) {
-            <app-button
-              variant="plain"
-              size="slim"
-              [disabled]="purchaseLines().length === 0"
-              (clicked)="packagePriceDialogOpen.set(true)"
-              >Paketpreis verteilen</app-button
-            >
-            @if (packagePriceStale()) {
-              <p role="alert" class="mt-2 text-xs text-fb-text-primary">
-                Positionen oder Mengen wurden geändert. Bitte den Paketpreis erneut verteilen.
-              </p>
-            }
-          }
-        </div>
-      </app-purchase-cost-summary>
+      />
 
       <app-card title="Einkaufsdetails" padding="md" rounded="xl">
         <div class="space-y-4">
-          <app-text-field
-            formControlName="original_url"
-            type="url"
-            label="Angebotslink (optional)"
-          />
-          <app-text-field
-            formControlName="external_order_id"
-            label="Bestellnummer der Plattform (optional)"
-          />
-          <app-text-field formControlName="supplier_reference" label="Referenznummer (optional)" />
-          <app-text-field formControlName="notes" label="Beschreibung (optional)" [multiline]="3" />
+          <app-text-field formControlName="supplier_reference" label="Referenznummer" />
+          <app-text-field formControlName="notes" label="Beschreibung" [multiline]="3" />
         </div>
       </app-card>
 
@@ -170,13 +128,5 @@
     [purchaseLineOptions]="purchaseLineOptions()"
     (saved)="onCostOverviewSaved($event)"
     (closed)="costDialogOpen.set(false)"
-  />
-}
-@if (packagePriceDialogOpen()) {
-  <app-package-price-dialog
-    [lineCount]="purchaseLines().length"
-    [initialTotal]="purchaseBasePrice()"
-    (closed)="packagePriceDialogOpen.set(false)"
-    (confirmed)="confirmPackagePrice($event)"
   />
 }

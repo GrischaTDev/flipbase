@@ -314,7 +314,7 @@ for (const theme of ['light', 'dark'] as const) {
     await page.getByRole('button', { name: 'Neuer Suchfilter', exact: true }).click();
     await expect(page.getByLabel('Name des Suchfilters')).toBeFocused();
     await page.getByLabel('Name des Suchfilters').fill('Meine Sneaker');
-    await page.getByLabel('Marke (optional)', { exact: true }).fill('Nike');
+    await page.getByLabel('Marke', { exact: true }).fill('Nike');
     await checkAxe(page);
     mock.failSave(true);
     await page.getByRole('button', { name: 'Suchfilter speichern', exact: true }).click();

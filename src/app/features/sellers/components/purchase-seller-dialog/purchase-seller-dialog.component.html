@@ -35,8 +35,9 @@
         [options]="sellerTypeOptions"
       />
       <label class="block text-sm"
-        >{{ form.controls.seller_type.value === 'business' ? 'Firmenname' : 'Vor- und Nachname'
-        }}<input
+        >{{ form.controls.seller_type.value === 'business' ? 'Firmenname' : 'Vor- und Nachname' }}
+        <span aria-hidden="true" class="text-fb-primary">*</span
+        ><input
           id="seller-name"
           formControlName="name"
           class="linear-input mt-1 w-full rounded-lg px-3 py-2"
@@ -53,12 +54,12 @@
       }
       @if (form.controls.seller_type.value === 'business') {
         <label class="block text-sm"
-          >Kontaktperson (optional)<input
+          >Kontaktperson<input
             formControlName="contact_person"
             class="linear-input mt-1 w-full rounded-lg px-3 py-2"
         /></label>
       }
-      <p class="text-xs text-fb-text-muted">Alle weiteren Angaben sind optional.</p>
+      <p class="text-xs text-fb-text-muted">Weitere Angaben können leer bleiben.</p>
       <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
         @for (field of contactFields; track field.key) {
           <label class="block text-sm"

@@ -29,6 +29,15 @@ export const test = base.extend<{ workspace: TestWorkspace }>({
       if (error || typeof data !== 'string') {
         throw new Error(`Test-Workspace fehlt: ${error?.message ?? 'keine Kennung zurückgegeben'}`);
       }
+      const { error: supplierError } = await client.from('suppliers').insert({
+        workspace_id: data,
+        name: 'E2E Verkäufer',
+        seller_type: 'private',
+        is_active: true,
+      });
+      if (supplierError) {
+        throw new Error(`Test-Verkäufer fehlt: ${supplierError.message}`);
+      }
       await page.addInitScript((id) => {
         localStorage.setItem('flipbase_active_workspace_id', id);
       }, data);
@@ -45,4 +54,9 @@ export async function openDashboard(page: Page): Promise<void> {
   await page.goto('/dashboard');
   await expect(page).toHaveURL(/\/dashboard$/);
   await expect(page.getByRole('heading', { name: 'Ertrag im Blick' })).toBeVisible();
+}
+
+export async function selectDefaultPurchaseSeller(page: Page): Promise<void> {
+  await page.getByRole('combobox', { name: 'Verkäufer auswählen' }).click();
+  await page.getByRole('option', { name: 'E2E Verkäufer', exact: true }).click();
 }

@@ -16,6 +16,15 @@
   </div>
 
   <dl class="divide-y divide-fb-line px-4 text-[13px]">
+    <div class="flex items-center justify-between gap-4 py-2.5">
+      <dt class="text-fb-text-secondary">
+        Bestellte Artikel
+        <span class="mt-0.5 block text-[12px] text-fb-text-muted">{{ itemCountLabel() }}</span>
+      </dt>
+      <dd class="font-medium tabular-nums text-fb-text-primary">
+        {{ formatCurrency(displayedGoodsAmount()) }}
+      </dd>
+    </div>
     @for (row of rows(); track $index) {
       <div class="flex items-center justify-between gap-4 py-2.5">
         <dt class="text-fb-text-secondary">
@@ -32,14 +41,19 @@
         </dd>
       </div>
     }
+    <div class="flex items-center justify-between gap-4 border-t border-fb-line py-2.5">
+      <dt class="text-fb-text-secondary">Anpassungen</dt>
+      <dd class="font-medium tabular-nums text-fb-text-primary">
+        @if (discountAmount() > 0) {
+          <span aria-hidden="true">−</span>
+        }
+        {{ formatCurrency(discountAmount()) }}
+      </dd>
+    </div>
     <div class="flex items-center justify-between gap-4 py-3">
       <dt class="font-semibold text-fb-text-primary">Gesamt</dt>
       <dd class="font-semibold tabular-nums text-fb-text-primary">
-        @if (displayedTotal() === null) {
-          <span data-purchase-cost-open>Kosten offen</span>
-        } @else {
-          {{ formatCurrency(displayedTotal()) }}
-        }
+        {{ formatCurrency(displayedTotal()) }}
       </dd>
     </div>
   </dl>

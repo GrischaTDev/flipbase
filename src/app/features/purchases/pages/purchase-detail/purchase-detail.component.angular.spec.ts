@@ -9,7 +9,7 @@ import { ToastService } from '../../../../shared/components/toast/toast.service'
 import { PurchaseDetailComponent } from './purchase-detail.component';
 
 describe('PurchaseDetailComponent', () => {
-  it('zeigt Verkäuferangaben, Angebotslink und Nachtrag ohne alte Lieferantenfelder', () => {
+  it('zeigt Verkäuferangaben, Beschreibung und Nachtrag ohne entfernte Einkaufsfelder', () => {
     const template = readFileSync(
       'src/app/features/purchases/pages/purchase-detail/purchase-detail.component.html',
       'utf8',
@@ -18,8 +18,9 @@ describe('PurchaseDetailComponent', () => {
     expect(template).toContain('>Verkäufer<');
     expect(template).toContain('Beschreibung');
     expect(template).toContain('purchaseSellerDetailRows(p)');
-    expect(template).toContain('>Angebotslink<');
-    expect(template).toContain('rel="noopener noreferrer"');
+    expect(template).toContain("p.notes || p.title || 'Nicht angegeben'");
+    expect(template).not.toContain('>Angebotslink<');
+    expect(template).not.toContain('original_url');
     expect(template).toContain('<app-purchase-seller-details-dialog');
     expect(template).toContain('<app-purchase-documents-card');
     expect(template).not.toContain('Original-Angebot');
