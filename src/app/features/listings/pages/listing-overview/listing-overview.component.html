@@ -1,0 +1,245 @@
+<app-page-header
+  title="Inserate"
+  subtitle="Gespeicherte Kleinanzeigen-Inserate und ihr aktueller Status."
+>
+  <app-button header-actions variant="primary" size="lg" [link]="'/listings/new'" [icon]="addIcon"
+    >Inserat erstellen</app-button
+  >
+</app-page-header>
+
+<app-data-table
+  class="mt-4"
+  ariaLabel="Gespeicherte Inserate"
+  [searchValue]="search()"
+  searchPlaceholder="Inserate durchsuchen"
+  [loading]="listingService.loading()"
+  [errorMessage]="listingService.error()"
+  [hasRows]="filteredRows().length > 0"
+  [emptyTitle]="listingService.rows().length ? 'Keine passenden Inserate' : 'Noch keine Inserate'"
+  [emptyText]="
+    listingService.rows().length
+      ? 'Passe Suche oder Filter an.'
+      : 'Erstelle aus einem Bestandsartikel dein erstes Inserat.'
+  "
+  (searchValueChange)="search.set($event)"
+>
+  <div table-view class="flex gap-1">
+    <app-button
+      size="slim"
+      [variant]="filter() === 'open' ? 'secondary' : 'ghost'"
+      (clicked)="filter.set('open')"
+      >Offen</app-button
+    >
+    <app-button
+      size="slim"
+      [variant]="filter() === 'online' ? 'secondary' : 'ghost'"
+      (clicked)="filter.set('online')"
+      >Online</app-button
+    >
+    <app-button
+      size="slim"
+      [variant]="filter() === 'ended' ? 'secondary' : 'ghost'"
+      (clicked)="filter.set('ended')"
+      >Beendet</app-button
+    >
+    <app-button
+      size="slim"
+      [variant]="filter() === 'all' ? 'secondary' : 'ghost'"
+      (clicked)="filter.set('all')"
+      >Alle</app-button
+    >
+  </div>
+  <app-button table-error-action class="mt-3" variant="secondary" (clicked)="retry()"
+    >Erneut versuchen</app-button
+  >
+  <app-button table-empty-action class="mt-3" variant="primary" [link]="'/listings/new'"
+    >Inserat erstellen</app-button
+  >
+  <div table-content class="hidden overflow-x-auto md:block">
+    <table class="min-w-full text-left text-[13px]">
+      <thead class="border-b border-fb-line text-fb-text-muted">
+        <tr>
+          <th class="px-4 py-3">Artikel</th>
+          <th class="px-4 py-3">Preis</th>
+          <th class="px-4 py-3">Status</th>
+          <th class="px-4 py-3">Eingestellt</th>
+          <th class="px-4 py-3">Online seit</th>
+          <th class="px-4 py-3"><span class="sr-only">Aktionen</span></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-fb-line">
+        @for (row of filteredRows(); track row.listing.id) {
+          <tr>
+            <td class="px-4 py-3">
+              <div class="flex items-center gap-3">
+                <app-product-thumbnail [src]="row.primaryImagePath" [alt]="row.item.title" />
+                <div>
+                  <p class="font-medium text-fb-text-primary">{{ row.listing.content.title }}</p>
+                  <a
+                    [routerLink]="['/inventory', row.item.id]"
+                    class="text-fb-text-muted hover:text-fb-text-primary"
+                    >{{ row.item.title }}</a
+                  >
+                </div>
+              </div>
+            </td>
+            <td class="px-4 py-3 text-fb-text-primary">
+              {{ row.listing.content.price | currency: 'EUR' }}
+            </td>
+            <td class="px-4 py-3">
+              <app-badge [tone]="statusTone(row)">{{ statusLabel(row) }}</app-badge>
+            </td>
+            <td class="px-4 py-3 text-fb-text-secondary">
+              {{ row.listing.listedCount }}×
+              @if (row.listing.lastListedAt) {
+                · {{ row.listing.lastListedAt | date: 'shortDate' }}
+              }
+            </td>
+            <td class="px-4 py-3 text-fb-text-secondary">
+              {{ row.listing.onlineSince ? (row.listing.onlineSince | date: 'shortDate') : '–' }}
+            </td>
+            <td class="px-4 py-3">
+              <div class="flex justify-end gap-1">
+                @if (row.listing.status === 'prepared') {
+                  <app-button
+                    ariaLabel="Inserat online setzen"
+                    [iconOnly]="true"
+                    [icon]="onlineIcon"
+                    (clicked)="setOnline(row)"
+                    [loading]="actionListingId() === row.listing.id"
+                  ></app-button>
+                }
+                @if (row.listing.status !== 'ended') {
+                  <app-button
+                    ariaLabel="Inserat bei Kleinanzeigen öffnen"
+                    [iconOnly]="true"
+                    [icon]="relistIcon"
+                    (clicked)="openAgain(row)"
+                  ></app-button>
+                }
+                @if (canRelist(row)) {
+                  <app-button
+                    ariaLabel="Inserat erneut einstellen"
+                    [iconOnly]="true"
+                    [icon]="relistIcon"
+                    (clicked)="relist(row)"
+                    [loading]="actionListingId() === row.listing.id"
+                  ></app-button>
+                }
+                @if (isSoldCleanup(row)) {
+                  <span class="text-xs text-fb-text-muted">Nach Verkauf beendet</span>
+                }
+                <app-button
+                  ariaLabel="Inserat bearbeiten"
+                  [iconOnly]="true"
+                  [icon]="editIcon"
+                  (clicked)="edit(row)"
+                ></app-button>
+                @if (row.listing.status !== 'ended') {
+                  <app-button
+                    ariaLabel="Inserat beenden"
+                    variant="destructive"
+                    [iconOnly]="true"
+                    [icon]="endIcon"
+                    (clicked)="end(row)"
+                    [loading]="actionListingId() === row.listing.id"
+                  ></app-button>
+                }
+              </div>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  <div table-mobile class="space-y-3 p-3 md:hidden">
+    @for (row of filteredRows(); track row.listing.id) {
+      <article class="rounded-lg border border-fb-line p-3">
+        <div class="flex gap-3">
+          <app-product-thumbnail [src]="row.primaryImagePath" [alt]="row.item.title" />
+          <div class="min-w-0 flex-1">
+            <p class="truncate font-medium text-fb-text-primary">{{ row.listing.content.title }}</p>
+            <p class="text-sm text-fb-text-secondary">
+              {{ row.listing.content.price | currency: 'EUR' }}
+            </p>
+            <app-badge [tone]="statusTone(row)">{{ statusLabel(row) }}</app-badge>
+          </div>
+        </div>
+        <dl class="mt-3 grid grid-cols-2 gap-2 border-t border-fb-line pt-3 text-xs">
+          <div>
+            <dt class="text-fb-text-muted">Artikel</dt>
+            <dd>
+              <a
+                [routerLink]="['/inventory', row.item.id]"
+                class="font-medium text-fb-text-secondary hover:text-fb-text-primary"
+                >{{ row.item.title }}</a
+              >
+            </dd>
+          </div>
+          <div>
+            <dt class="text-fb-text-muted">Eingestellt</dt>
+            <dd class="text-fb-text-secondary">
+              {{ row.listing.listedCount }}×
+              @if (row.listing.lastListedAt) {
+                · {{ row.listing.lastListedAt | date: 'shortDate' }}
+              }
+            </dd>
+          </div>
+        </dl>
+        <div class="mt-3 flex flex-wrap justify-end gap-1 border-t border-fb-line pt-3">
+          @if (row.listing.status === 'prepared') {
+            <app-button
+              ariaLabel="Inserat online setzen"
+              [iconOnly]="true"
+              [icon]="onlineIcon"
+              (clicked)="setOnline(row)"
+              [loading]="actionListingId() === row.listing.id"
+            ></app-button>
+          }
+          @if (row.listing.status !== 'ended') {
+            <app-button
+              ariaLabel="Inserat bei Kleinanzeigen öffnen"
+              [iconOnly]="true"
+              [icon]="relistIcon"
+              (clicked)="openAgain(row)"
+            ></app-button>
+          }
+          @if (canRelist(row)) {
+            <app-button
+              ariaLabel="Inserat erneut einstellen"
+              [iconOnly]="true"
+              [icon]="relistIcon"
+              (clicked)="relist(row)"
+              [loading]="actionListingId() === row.listing.id"
+            ></app-button>
+          }
+          @if (isSoldCleanup(row)) {
+            <span class="self-center text-xs text-fb-text-muted">Nach Verkauf beendet</span>
+          }
+          <app-button
+            ariaLabel="Inserat bearbeiten"
+            [iconOnly]="true"
+            [icon]="editIcon"
+            (clicked)="edit(row)"
+          ></app-button>
+          @if (row.listing.status !== 'ended') {
+            <app-button
+              ariaLabel="Inserat beenden"
+              variant="destructive"
+              [iconOnly]="true"
+              [icon]="endIcon"
+              (clicked)="end(row)"
+              [loading]="actionListingId() === row.listing.id"
+            ></app-button>
+          }
+        </div>
+      </article>
+    }
+  </div>
+</app-data-table>
+<app-listing-extension-help
+  [open]="helpOpen()"
+  [checking]="extension.checking()"
+  (closeRequested)="helpOpen.set(false)"
+  (checkRequested)="extension.checkNow()"
+/>

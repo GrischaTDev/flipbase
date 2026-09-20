@@ -3,7 +3,7 @@ import baseConfig from './playwright.config';
 
 export default defineConfig({
   ...baseConfig,
-  // Vier bewährte Daten-/Geldpfade plus zwei kleine Start-/Artikelprüfungen.
+  // Vier bewährte Daten-/Geldpfade, der Inserats-Lebenszyklus und zwei kleine Start-/Artikelprüfungen.
   // Das historische @pr-smoke allein macht einen Test nicht mehr zur Pflicht.
   grep: [
     /@core-smoke\b/,
@@ -11,6 +11,7 @@ export default defineConfig({
     /preserves purchase cost origin after reopening at 1440px @pr-smoke\b/,
     /keeps per-item tax visible in the tax journal @pr-smoke\b/,
     /verkauft ein Einzelstück genau einmal aus dem gemeinsamen Inventar @pr-smoke\b/,
+    /creates, publishes and completes the listing lifecycle on mobile @pr-smoke\b/,
   ],
   forbidOnly: true,
   retries: 0,

@@ -1,4 +1,5 @@
 import { ARTICLE_VIEWS, isArticleRoute } from './article-navigation';
+import { LISTINGS_NAVIGATION } from './listings-navigation';
 import { PLATFORM_ADMIN_NAVIGATION } from './platform-admin-navigation';
 import type { SubNavigationItem } from './platform-admin-navigation';
 import { VINTED_BOT_NAVIGATION } from './vinted-bot-navigation';
@@ -90,8 +91,9 @@ export const WORKSPACE_NAVIGATION_GROUPS: readonly WorkspaceNavigationGroup[] = 
       {
         path: '/listings',
         labelKey: 'NAV.CREATE_LISTING',
-        label: 'Inserate erstellen',
+        label: 'Inserate',
         icon: 'tag',
+        children: LISTINGS_NAVIGATION,
       },
       { path: '/sales', labelKey: 'NAV.SALES', label: 'Verkäufe', icon: 'trendingUp' },
     ],

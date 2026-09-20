@@ -51,6 +51,12 @@ export interface GeneratedListing {
   platformUrl?: string;
 }
 
+export interface KleinanzeigenGenerationOptions {
+  includeDisclaimer: boolean;
+  includeNonSmoking: boolean;
+  styleTone: ListingStyleTone;
+}
+
 export interface SeoOptimizationResult {
   score: number; // 0 - 100
   titleScore: number;
@@ -169,6 +175,23 @@ export class ListingStudioService {
       hashtags,
       platformUrl,
     };
+  }
+
+  generateKleinanzeigenListing(
+    item: InventoryItem,
+    price: number,
+    options: KleinanzeigenGenerationOptions,
+  ): GeneratedListing {
+    const listing = this.generateListing(item, 'kleinanzeigen', price, {
+      includeDisclaimer: options.includeDisclaimer,
+      isCommercialSeller: true,
+      includeNonSmoking: options.includeNonSmoking,
+      includeShipping: true,
+      includePickup: true,
+      includeNegotiable: false,
+      styleTone: options.styleTone,
+    });
+    return { ...listing, title: listing.title.slice(0, 65) };
   }
 
   /**

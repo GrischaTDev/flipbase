@@ -1,5 +1,122 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-20 – Codex (OpenAI) – Kontrollreview-Funde im Listing Studio behoben
+
+**Auftrag:** Die bestätigten Blocker aus dem Kontrollreview selbst beheben und den
+Branch erneut vollständig prüfen.
+
+**Änderung:** Der Editor verhindert doppelte offene Inserate, erklärt unzulässige
+Artikelzustände und verlinkt das bestehende Inserat. Manuelle Texte werden nur nach
+Bestätigung ersetzt; Textvorlagenoptionen, Kopieren, vollständige Validierung,
+Beschriftungen und Bildwarnungen sind ergänzt. Die mobile Übersicht blendet die
+Desktop-Tabelle aus und bietet alle Statusaktionen auf den Karten. Die
+Erweiterungsprüfung endet bei ausbleibender Antwort. Generator und Editor verwenden
+jetzt eine typisierte Artikelzuordnung und begrenzen Kleinanzeigen-Titel zentral.
+
+Die Datenbankfunktionen sperren Einkauf, Advisory Lock, Artikel und Inserat in einer
+einheitlichen Reihenfolge. Die praktisch reproduzierten Deadlocks zwischen
+Verkaufstrigger und manuellem Beenden sowie zwischen Einkaufsfinalisierung und
+Online-Setzen treten damit nicht mehr auf. Übersicht, Editor, Erweiterung und der
+vollständige mobile Inserats-Lebenszyklus sind durch neue Tests abgesichert; die
+verbindliche PR-Browsersuite enthält nun sieben Kernfälle. Der Abschlussbericht
+liegt unter `docs/audit/2026-09-20-listing-studio-control-fixes.md`.
+
+**Prüfung:** `npm run verify` erfolgreich mit 1.437 Node-, 240 DOM-, 936 Angular-
+und 13 Landing-Tests sowie Format, ESLint, Typprüfung und Produktionsbau. Alle 1.939
+Datenbankprüfungen und sieben PR-Chromium-Abläufe bestanden; die beiden fokussierten
+Listing-Studio-Browserabläufe waren ebenfalls grün. Die kontrollierten
+Paralleltests reproduzierten vor der Korrektur beide PostgreSQL-Deadlocks und liefen
+danach ohne Sperrkreis. Weiterhin nur die drei bekannten NG8113-Bauhinweise
+außerhalb des Inserate-Bereichs. Kein Push und kein Merge.
+
+## 2026-09-20 – Codex (OpenAI) – Kontrollreview des gespeicherten Listing Studio
+
+**Auftrag:** Den mit Terra umgesetzten Branch vor einem Pull Request unabhängig
+gegen Spezifikation, Umsetzungsplan und Projektregeln prüfen.
+
+**Befund:** Datenmodell, RLS, Workspace-Zuordnung, Migrationen und die grundlegende
+Statuskopplung sind tragfähig. Der Branch ist trotzdem noch nicht bereit für einen
+Pull Request. Im Erstellen-Dialog können Artikel mit bereits offenem Inserat erneut
+ausgewählt werden; dadurch lässt sich der bestätigungspflichtige Ablauf zum erneuten
+Einstellen umgehen. Der Editor überschreibt manuell bearbeitete Texte ohne Nachfrage,
+zeigt mehrere vorhandene Vorlagenoptionen nicht an, warnt bei fehlenden Bildern nicht
+und behandelt ein unverändertes neues Formular bereits als ungespeichert. Titel und
+Beschreibung haben keine programmatisch zugeordneten Beschriftungen. Die mobile
+Übersicht zeigt zusätzlich zur Kartenansicht weiterhin die Desktop-Tabelle; die Karten
+selbst enthalten keine Aktionen. Eine fehlende Browser-Erweiterung lässt den
+Prüfknopf dauerhaft im Ladezustand. Die unterschiedliche Sperrreihenfolge zwischen
+Inseratsaktionen und Verkaufstrigger kann bei parallelen Aktionen außerdem einen
+Datenbank-Deadlock erzeugen.
+
+Die im Plan vorgesehenen Übersichts-, Editor-, AXE- und Browser-Abnahmen wurden nur
+zu einem kleinen Teil umgesetzt: Es gibt keinen Übersichts-Komponententest, zwei
+Editorfälle statt der geplanten Ablaufsmatrix, keinen `e2e/listing-studio.spec.ts`
+und keinen Abschlussbericht unter `docs/audit/`. Der bestehende Abschlussvermerk war
+damit zu weitgehend.
+
+**Prüfung:** Vollständiger Branch-Diff gegen den unveränderten Stand von
+`origin/master` (`a845cf4d`), Spezifikation, Umsetzungsplan, SQL-Sperrreihenfolge,
+Frontendzustände und vorhandene Tests geprüft. Die bestehende PR-Browsersuite bestand
+mit 6/6 Tests; sie enthält keinen Inserate-Fall. Die fokussierte Datenbanksuite bestand
+mit 61/61 Tests; sie enthält keinen konkurrierenden Verkauf-vs.-Beenden-Fall. Keine
+Produktkorrektur, kein Push und kein Merge.
+
+## 2026-09-20 – Codex (OpenAI) – Gespeicherte Kleinanzeigen-Inserate umgesetzt
+
+**Auftrag:** Den bestätigten ersten Schritt des Listing Studio umsetzen: gespeicherte
+Kleinanzeigen-Inserate mit Übersicht, Editor, Statusablauf und Browser-Erweiterung.
+
+**Änderung:** Inserate werden je Workspace mit vorbereiteten, online gestellten und
+beendeten Zuständen gespeichert. Datenbankfunktionen schützen Mitgliedschaft,
+archivierte Workspaces, nicht verkaufsfähigen Bestand, wieder geöffnete
+Paketeinkäufe und parallele Vorbereitungen. Die neue Übersicht und der gemeinsame
+Editor verwenden diese Funktionen, erzeugen Kleinanzeigen-Texte aus dem Bestand
+und übergeben nur frisch signierte Bilder an die Erweiterung. Die Navigation führt
+jetzt zu „Inserate“ mit Übersicht und Erstellen; der frühere Generator-Bildschirm
+wurde entfernt.
+
+**Prüfung:** Lokaler Datenbank-Reset, 61 fokussierte Inseratstests, 1.939
+Datenbanktests, zwei parallele psql-Aufrufe, gezielte Angular- und DOM-Tests,
+Typprüfung, Produktionsbau sowie die Shared-UI-Prüfung liefen erfolgreich. Die
+abschließende vollständige Prüfung bestand mit 1.436 Node-, 238 DOM-, 922
+Angular- und 13 Landing-Tests, Formatierung, ESLint, Typprüfung und
+Produktionsbau. Der Bau meldet weiterhin die drei bekannten NG8113-Hinweise zu
+ungenutzten LucideDynamicIcon-Importen außerhalb dieses Bereichs. Kein
+Push/Merge.
+
+## 2026-09-20 – Codex (OpenAI) – Listing-Studio-Entwurf auf aktuellen Stand gebracht
+
+**Auftrag:** Nach Abschluss der Einkaufsarbeiten klären, ob die Inserate-Seite
+bereits fertig ist, und die Weiterarbeit am gespeicherten Listing Studio
+vorbereiten.
+
+**Änderung:** Der alte Entwurf vom 17.09.2026 wurde gegen `master` bei
+`a845cf4d` geprüft. Die bestehende Kleinanzeigen-Übertragung bleibt Grundlage;
+gespeicherte Inserate, Übersicht und Statusablauf fehlen weiterhin. Eine neue
+Spezifikation übernimmt die bestätigten Fachentscheidungen, verwendet die
+aktuelle Schemareihenfolge mit `230_listings.sql` und entfernt alle inzwischen
+veralteten Demo-Annahmen. Die alte Tabelle `listing_drafts` bleibt in Schritt 1
+als Sicherheitsnetz bestehen und wird erst nach belegter Datenprüfung in einem
+zweiten PR migriert oder entfernt.
+
+Darauf aufbauend beschreibt ein neuer Umsetzungsplan PR 1 in neun
+testgetriebenen Aufgaben: Fachmodelle, Datenbank und Rechte, transaktionale
+Statusfunktionen, workspace-sicherer Service, Erweiterungsbrücke, Übersicht,
+Editor, Routen/Navigation sowie Browser- und Abschlussprüfung. Der Plan nennt
+für jede Aufgabe konkrete Dateien, Schnittstellen, RED-/GREEN-Befehle und
+Commits.
+
+**Prüfung:** Aktuelle Routen, Navigation, Listing-Service, deklaratives Schema,
+Schema-Registrierung, Demo-Entfernung und der reine Dokumentationszweig
+`feat/listing-studio-listings` wurden gelesen. Die Spezifikation wurde auf
+Platzhalter, widersprüchliche Statusregeln und den abgegrenzten Zwei-PR-Umfang
+geprüft. Noch keine Produktänderung und keine Anwendungstests.
+Der Umsetzungsplan wurde zusätzlich gegen jede Spezifikationsrubrik, die
+Typnamen zwischen den Aufgaben, verbotene Platzhalter und fünf besonders
+riskante Fehlerklassen geprüft. Dabei wurde die Sperre für Paketartikel aus
+wieder geöffneten Einkäufen ausdrücklich in die neue Security-Definer-Funktion
+aufgenommen, weil der ältere Trigger den Datenbankbesitzer bewusst ausnimmt.
+
 ## 2026-09-20 – Codex (OpenAI) – Einkaufsübersicht und offene Preise abgesichert
 
 **Auftrag:** Die vereinbarten Schutzregeln für Einkaufslisten und die

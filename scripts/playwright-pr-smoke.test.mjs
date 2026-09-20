@@ -16,6 +16,10 @@ const coreTests = [
     'verkauft ein Einzelstück genau einmal aus dem gemeinsamen Inventar @pr-smoke',
   ],
   [
+    'listing-studio.spec.ts',
+    'creates, publishes and completes the listing lifecycle on mobile @pr-smoke',
+  ],
+  [
     'purchase-editable-draft.spec.ts',
     'keeps a saved draft editable through discard, save and reopening @pr-smoke',
   ],
@@ -105,7 +109,7 @@ async function listTests(config) {
 
 const keys = (entries) => entries.map((entry) => JSON.stringify(entry)).sort();
 
-test('PR-Auswahl: sechs Kernfälle, keine Wiederholungen, kein test.only', async () => {
+test('PR-Auswahl: sieben Kernfälle, keine Wiederholungen, kein test.only', async () => {
   const { report, selected } = await listTests('playwright.pr.config.ts');
   assert.deepEqual(keys(selected), keys(coreTests));
   assert.equal(report.config.forbidOnly, true);

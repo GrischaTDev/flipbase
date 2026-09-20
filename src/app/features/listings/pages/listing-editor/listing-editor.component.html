@@ -1,0 +1,167 @@
+<app-entry-page-layout
+  [title]="isEdit() ? 'Inserat bearbeiten' : 'Inserat erstellen'"
+  subtitle="Kleinanzeigen-Inserat vorbereiten und anschließend übertragen."
+  (cancelled)="cancel()"
+>
+  <form [formGroup]="form" class="space-y-5" (ngSubmit)="save()">
+    <app-two-column-layout>
+      <section main class="linear-surface space-y-4 rounded-xl p-5">
+        <div class="block text-sm font-medium text-fb-text-primary">
+          <span>Bestandsartikel</span>
+          <app-custom-select
+            formControlName="inventoryItemId"
+            class="mt-1"
+            ariaLabel="Bestandsartikel"
+            [options]="itemOptions()"
+            placeholder="Artikel wählen"
+          />
+        </div>
+        @if (selectedItem(); as item) {
+          <p class="text-sm text-fb-text-muted">
+            {{ item.brand ?? 'Ohne Marke' }} · {{ item.category ?? 'Ohne Kategorie' }} ·
+            Einkaufskosten {{ item.allocatedPurchaseCost ?? 0 }} €
+          </p>
+          @if (selectedItemIssue(); as issue) {
+            <p class="text-sm text-fb-critical" role="alert">{{ issue }}</p>
+            @if (selectedOpenListing(); as existingListing) {
+              <app-button
+                variant="secondary"
+                size="slim"
+                [link]="'/listings/' + existingListing.listing.id"
+                >Bestehendes Inserat öffnen</app-button
+              >
+            }
+          }
+        }
+        <div class="flex items-center justify-between">
+          <label for="listing-title" class="text-sm font-medium text-fb-text-primary">Titel</label
+          ><span class="text-xs text-fb-text-muted">{{ form.controls.title.value.length }}/65</span>
+        </div>
+        <input
+          id="listing-title"
+          formControlName="title"
+          maxlength="65"
+          class="linear-input w-full rounded-lg px-3 py-2"
+        />
+        @if (form.controls.title.touched && form.controls.title.invalid) {
+          <p class="text-xs text-fb-critical">Der Titel muss 1 bis 65 Zeichen enthalten.</p>
+        }
+        <div class="flex items-center justify-between">
+          <label for="listing-description" class="text-sm font-medium text-fb-text-primary"
+            >Beschreibung</label
+          ><span class="text-xs text-fb-text-muted"
+            >{{ form.controls.description.value.length }}/4000</span
+          >
+        </div>
+        <textarea
+          id="listing-description"
+          formControlName="description"
+          maxlength="4000"
+          rows="14"
+          class="linear-input w-full rounded-lg px-3 py-2"
+        ></textarea>
+        <div class="flex flex-wrap gap-2">
+          <app-button variant="secondary" (clicked)="generate()"
+            >Text aus Artikelinformationen erzeugen</app-button
+          >
+          <app-button variant="secondary" (clicked)="copyTexts()">Texte kopieren</app-button>
+        </div>
+      </section>
+      <aside sidebar class="linear-surface space-y-4 rounded-xl p-5">
+        <label class="block text-sm font-medium text-fb-text-primary"
+          >Preis<input
+            formControlName="price"
+            type="number"
+            min="0"
+            max="99999999"
+            step="0.01"
+            class="linear-input mt-1 w-full rounded-lg px-3 py-2"
+        /></label>
+        @if (form.controls.price.touched && form.controls.price.invalid) {
+          <p class="text-xs text-fb-critical">Der Preis muss zwischen 0 und 99.999.999 € liegen.</p>
+        }
+        <div class="block text-sm font-medium text-fb-text-primary">
+          <span>Preisart</span>
+          <app-custom-select
+            formControlName="priceType"
+            class="mt-1"
+            ariaLabel="Preisart"
+            [options]="priceTypeOptions"
+          />
+        </div>
+        <div class="block text-sm font-medium text-fb-text-primary">
+          <span>Versand</span>
+          <app-custom-select
+            formControlName="shippingType"
+            class="mt-1"
+            ariaLabel="Versandart"
+            [options]="shippingTypeOptions"
+          />
+        </div>
+        <div class="block text-sm font-medium text-fb-text-primary">
+          <span>Textstil</span>
+          <app-custom-select
+            formControlName="styleTone"
+            class="mt-1"
+            ariaLabel="Textstil"
+            [options]="styleToneOptions"
+          />
+        </div>
+        <label class="flex items-start gap-2 text-sm text-fb-text-secondary">
+          <input
+            formControlName="includeNonSmoking"
+            type="checkbox"
+            class="mt-0.5 h-4 w-4 rounded border-fb-border accent-fb-primary"
+          />
+          <span>Nichtraucherhinweis einfügen</span>
+        </label>
+        <label class="flex items-start gap-2 text-sm text-fb-text-secondary">
+          <input
+            formControlName="includeDisclaimer"
+            type="checkbox"
+            class="mt-0.5 h-4 w-4 rounded border-fb-border accent-fb-primary"
+          />
+          <span>Rechtlichen Hinweis einfügen</span>
+        </label>
+        @if (form.controls.shippingType.value !== 'pickup') {
+          <label class="block text-sm font-medium text-fb-text-primary"
+            >Versandkosten<input
+              formControlName="shippingPrice"
+              type="number"
+              min="0"
+              step="0.01"
+              class="linear-input mt-1 w-full rounded-lg px-3 py-2"
+          /></label>
+          @if (form.controls.shippingPrice.touched && form.controls.shippingPrice.invalid) {
+            <p class="text-xs text-fb-critical">Versandkosten dürfen nicht negativ sein.</p>
+          }
+        }
+        <label class="block text-sm font-medium text-fb-text-primary"
+          >Postleitzahl <span class="font-normal text-fb-text-muted">(optional)</span
+          ><input
+            formControlName="postalCode"
+            inputmode="numeric"
+            maxlength="5"
+            class="linear-input mt-1 w-full rounded-lg px-3 py-2"
+        /></label>
+        @if (form.controls.postalCode.touched && form.controls.postalCode.invalid) {
+          <p class="text-xs text-fb-critical">Die Postleitzahl muss aus fünf Ziffern bestehen.</p>
+        }
+        <app-button
+          variant="primary"
+          size="lg"
+          type="submit"
+          [disabled]="selectedItemIssue() !== null"
+          [loading]="isSaving()"
+          >{{ isEdit() ? 'Speichern' : 'Vorbereiten und öffnen' }}</app-button
+        >
+      </aside>
+    </app-two-column-layout>
+  </form>
+</app-entry-page-layout>
+<app-listing-extension-help
+  [open]="helpOpen()"
+  [checking]="extension.checking()"
+  (closeRequested)="helpOpen.set(false)"
+  (checkRequested)="extension.checkNow()"
+/>

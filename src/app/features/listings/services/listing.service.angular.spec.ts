@@ -1,0 +1,278 @@
+import { signal, type WritableSignal } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { MediaService } from '../../../core/services/media.service';
+import { SupabaseService } from '../../../core/services/supabase.service';
+import { WorkspaceService } from '../../../core/services/workspace.service';
+import type { ListingContent } from '../models/listing.models';
+import { ListingService } from './listing.service';
+
+interface QueryResult<T> {
+  readonly data: T | null;
+  readonly error: { readonly message: string } | null;
+}
+
+function resolvedQuery<T>(result: Promise<QueryResult<T>>) {
+  const query = {
+    select: vi.fn(() => query),
+    eq: vi.fn(() => query),
+    order: vi.fn(() => query),
+    then: result.then.bind(result),
+  };
+  return query;
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((next) => {
+    resolve = next;
+  });
+  return { promise, resolve };
+}
+
+const listing = {
+  id: 'listing-1',
+  workspace_id: 'workspace-a',
+  inventory_item_id: 'item-1',
+  platform: 'kleinanzeigen',
+  status: 'prepared',
+  end_reason: null,
+  title: 'Kamera',
+  description: 'Sehr gut erhalten',
+  price: 20,
+  price_type: 'FIXED',
+  shipping_type: 'pickup',
+  shipping_price: null,
+  postal_code: null,
+  listed_count: 1,
+  last_listed_at: '2026-09-20T10:00:00.000Z',
+  online_since: null,
+  ended_at: null,
+  created_at: '2026-09-20T10:00:00.000Z',
+  updated_at: '2026-09-20T10:00:00.000Z',
+};
+
+const item = {
+  id: 'item-1',
+  workspace_id: 'workspace-a',
+  title: 'Kamera',
+  brand: 'Canon',
+  category: 'Technik',
+  condition: 'used',
+  condition_notes: null,
+  status: 'ready',
+  archived_at: null,
+  expected_value: 25,
+  allocated_purchase_cost: 10,
+  media: [
+    {
+      id: 'media-2',
+      inventory_item_id: 'item-1',
+      storage_path: 'item-1/second.jpg',
+      is_primary: false,
+      file_name: 'second.jpg',
+      file_size: 5,
+      mime_type: 'image/jpeg',
+      sort_order: 2,
+      created_at: '2026-09-20T10:00:00.000Z',
+    },
+    {
+      id: 'media-1',
+      inventory_item_id: 'item-1',
+      storage_path: 'item-1/first.jpg',
+      is_primary: true,
+      file_name: 'first.jpg',
+      file_size: 5,
+      mime_type: 'image/jpeg',
+      sort_order: 1,
+      created_at: '2026-09-20T10:00:00.000Z',
+    },
+  ],
+};
+
+const content: ListingContent = {
+  title: 'Neue Kamera',
+  description: 'Neue Beschreibung',
+  price: 30,
+  priceType: 'NEGOTIABLE',
+  shippingType: 'shipping',
+  shippingPrice: 4.9,
+  postalCode: '12345',
+};
+
+describe('ListingService', () => {
+  afterEach(() => {
+    TestBed.resetTestingModule();
+  });
+
+  function setup(options?: {
+    readonly from?: ReturnType<typeof vi.fn>;
+    readonly rpc?: ReturnType<typeof vi.fn>;
+    readonly mediaUrls?: Record<string, string>;
+    readonly currentWorkspace?: WritableSignal<{ readonly id: string } | null>;
+  }) {
+    const currentWorkspace =
+      options?.currentWorkspace ?? signal<{ readonly id: string } | null>({ id: 'workspace-a' });
+    const from = options?.from ?? vi.fn();
+    const rpc = options?.rpc ?? vi.fn();
+    const resolveMediaUrls = vi.fn(async () => options?.mediaUrls ?? {});
+
+    TestBed.configureTestingModule({
+      providers: [
+        ListingService,
+        {
+          provide: SupabaseService,
+          useValue: { client: { from, rpc } },
+        },
+        { provide: WorkspaceService, useValue: { currentWorkspace } },
+        { provide: MediaService, useValue: { resolveMediaUrls } },
+      ],
+    });
+
+    return {
+      service: TestBed.inject(ListingService),
+      currentWorkspace,
+      from,
+      rpc,
+      resolveMediaUrls,
+    };
+  }
+
+  it('maps listings and inventory media into rows ordered newest first', async () => {
+    const listingQuery = resolvedQuery(Promise.resolve({ data: [listing], error: null }));
+    const itemQuery = resolvedQuery(Promise.resolve({ data: [item], error: null }));
+    const { service, from } = setup({
+      from: vi.fn((table: string) => (table === 'listings' ? listingQuery : itemQuery)),
+    });
+
+    await service.load('workspace-a');
+
+    expect(service.loadedWorkspaceId()).toBe('workspace-a');
+    expect(service.rows()).toHaveLength(1);
+    expect(service.rows()[0]?.primaryImagePath).toBe('item-1/first.jpg');
+    expect(from).toHaveBeenCalledWith('listings');
+    expect(from).toHaveBeenCalledWith('inventory_items');
+  });
+
+  it('ignores a workspace A response after workspace B became active', async () => {
+    const listingsA = deferred<QueryResult<readonly (typeof listing)[]>>();
+    const itemsA = deferred<QueryResult<readonly (typeof item)[]>>();
+    const listingB = {
+      ...listing,
+      id: 'listing-b',
+      workspace_id: 'workspace-b',
+      inventory_item_id: 'item-b',
+    };
+    const itemB = { ...item, id: 'item-b', workspace_id: 'workspace-b' };
+    const currentWorkspace = signal<{ readonly id: string } | null>({ id: 'workspace-a' });
+    const from = vi.fn((table: string) => {
+      const workspace = currentWorkspace();
+      if (workspace?.id === 'workspace-a') {
+        return resolvedQuery(
+          (table === 'listings' ? listingsA.promise : itemsA.promise) as Promise<
+            QueryResult<unknown>
+          >,
+        );
+      }
+      return resolvedQuery(
+        Promise.resolve({ data: table === 'listings' ? [listingB] : [itemB], error: null }),
+      );
+    });
+    const { service } = setup({ from, currentWorkspace });
+
+    const firstLoad = service.load('workspace-a');
+    currentWorkspace.set({ id: 'workspace-b' });
+    await service.load('workspace-b');
+    listingsA.resolve({ data: [listing], error: null });
+    itemsA.resolve({ data: [item], error: null });
+    await firstLoad;
+
+    expect(service.loadedWorkspaceId()).toBe('workspace-b');
+    expect(service.rows().map((row) => row.listing.workspaceId)).toEqual(['workspace-b']);
+  });
+
+  it('calls prepare_listing with camelCase content and retains the database error', async () => {
+    const response = deferred<QueryResult<typeof listing>>();
+    const { service, rpc, currentWorkspace } = setup({
+      rpc: vi.fn(() => response.promise),
+    });
+
+    const action = service.prepare('item-1', content);
+    currentWorkspace.set(null);
+    response.resolve({
+      data: null,
+      error: {
+        message:
+          'Bestand eines wieder geöffneten Einkaufs darf nicht verkaufsbereit gesetzt werden.',
+      },
+    });
+
+    await expect(action).resolves.toMatchObject({
+      data: null,
+      error: {
+        message:
+          'Bestand eines wieder geöffneten Einkaufs darf nicht verkaufsbereit gesetzt werden.',
+      },
+    });
+    expect(rpc).toHaveBeenCalledWith('prepare_listing', {
+      p_workspace_id: 'workspace-a',
+      p_inventory_item_id: 'item-1',
+      p_content: {
+        title: 'Neue Kamera',
+        description: 'Neue Beschreibung',
+        price: 30,
+        priceType: 'NEGOTIABLE',
+        shippingType: 'shipping',
+        shippingPrice: 4.9,
+        postalCode: '12345',
+      },
+    });
+  });
+
+  it('resolves available image URLs and returns unresolved file names separately', async () => {
+    const { service, resolveMediaUrls } = setup({
+      mediaUrls: { 'item-1/first.jpg': 'https://signed.test/first.jpg' },
+    });
+    const row = {
+      listing: {
+        id: 'listing-1',
+        workspaceId: 'workspace-a',
+        inventoryItemId: 'item-1',
+        platform: 'kleinanzeigen' as const,
+        status: 'prepared' as const,
+        endReason: null,
+        content,
+        listedCount: 1,
+        lastListedAt: null,
+        onlineSince: null,
+        endedAt: null,
+        createdAt: '2026-09-20T10:00:00.000Z',
+        updatedAt: '2026-09-20T10:00:00.000Z',
+      },
+      item: {
+        id: 'item-1',
+        workspaceId: 'workspace-a',
+        title: 'Kamera',
+        brand: null,
+        category: null,
+        condition: 'used' as const,
+        conditionNotes: null,
+        description: null,
+        status: 'ready' as const,
+        archivedAt: null,
+        expectedValue: null,
+        allocatedPurchaseCost: null,
+        media: item.media,
+      },
+      primaryImagePath: 'item-1/first.jpg',
+    };
+
+    const result = await service.buildExtensionPayload(row);
+
+    expect(resolveMediaUrls).toHaveBeenCalledWith(['item-1/first.jpg', 'item-1/second.jpg']);
+    expect(result.payload.images).toEqual([
+      { url: 'https://signed.test/first.jpg', name: 'first.jpg' },
+    ]);
+    expect(result.missingImages).toEqual(['second.jpg']);
+  });
+});

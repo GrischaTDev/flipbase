@@ -216,8 +216,8 @@ export const routes: Routes = [
       },
       {
         path: 'listings',
-        loadComponent: () =>
-          import('./features/listings/listings.component').then((m) => m.ListingsComponent),
+        loadChildren: () =>
+          import('./features/listings/listings.routes').then((routes) => routes.LISTINGS_ROUTES),
       },
       {
         path: 'image-optimizer',
