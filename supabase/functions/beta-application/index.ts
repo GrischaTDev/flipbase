@@ -5,7 +5,9 @@
 // hier, mit Dienstschluessel und erst nach Pruefung. Ein offen beschreibbarer
 // Endpunkt im Netz wird sonst zuverlaessig vollgemuellt.
 
-import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
+import { createClient } from 'npm:@supabase/supabase-js@2.112.3';
+import { sendBetaEmail } from '../_shared/beta-email-delivery.ts';
+import { renderApplicationReceipt } from '../_shared/beta-email-template.ts';
 
 /**
  * Herkuenfte, die diese Funktion aufrufen duerfen.
@@ -108,6 +110,11 @@ function isText(value: unknown, maxLength: number): value is string {
 }
 
 const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/u;
+
+function boundedErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : 'Unbekannter Versandfehler';
+  return message.slice(0, 500);
+}
 
 Deno.serve(async (request: Request) => {
   const origin = request.headers.get('origin');
@@ -216,19 +223,79 @@ Deno.serve(async (request: Request) => {
     return respond({ error: 'too_many_requests' }, 429, origin);
   }
 
-  const { error: insertError } = await serviceClient.from('beta_applications').insert({
-    first_name: firstName.trim(),
-    last_name: lastName.trim(),
-    email: email.trim(),
-    consent_at: new Date().toISOString(),
-  });
+  const normalizedEmail = email.trim().toLowerCase();
+  const inserted = await serviceClient
+    .from('beta_applications')
+    .insert({
+      first_name: firstName.trim(),
+      last_name: lastName.trim(),
+      email: normalizedEmail,
+      consent_at: new Date().toISOString(),
+    })
+    .select('id, first_name, email, receipt_email_status')
+    .single();
 
   // Eine bereits vorhandene Adresse wird wie ein Erfolg beantwortet. Sonst
   // liesse sich ueber das Formular herausfinden, wer sich beworben hat.
-  if (insertError && insertError.code !== '23505') {
-    console.error('beta-application: Schreiben fehlgeschlagen:', insertError.message);
+  if (inserted.error && inserted.error.code !== '23505') {
+    console.error('beta-application: Schreiben fehlgeschlagen:', inserted.error.message);
     return respond({ error: 'internal' }, 500, origin);
   }
 
-  return respond({ ok: true }, 200, origin);
+  let application = inserted.data;
+  if (!application) {
+    const existing = await serviceClient
+      .from('beta_applications')
+      .select('id, first_name, email, receipt_email_status')
+      .ilike('email', normalizedEmail)
+      .maybeSingle();
+
+    if (existing.error || !existing.data) {
+      console.error(
+        'beta-application: Vorhandene Bewerbung konnte nicht fuer die Bestaetigung geladen werden.',
+      );
+      return respond({ error: 'internal' }, 500, origin);
+    }
+    application = existing.data;
+  }
+
+  if (application.receipt_email_status === 'sent') {
+    return respond({ ok: true, receiptEmailSent: true }, 200, origin);
+  }
+
+  try {
+    const receipt = renderApplicationReceipt({
+      firstName: application.first_name,
+    });
+    await sendBetaEmail({ to: application.email, ...receipt });
+
+    const { error: updateError } = await serviceClient
+      .from('beta_applications')
+      .update({
+        receipt_email_status: 'sent',
+        receipt_email_sent_at: new Date().toISOString(),
+        receipt_email_last_error: null,
+      })
+      .eq('id', application.id);
+
+    if (updateError) {
+      console.error('beta-application: Versandstatus konnte nicht gespeichert werden.');
+      return respond({ ok: true, receiptEmailSent: false }, 200, origin);
+    }
+
+    return respond({ ok: true, receiptEmailSent: true }, 200, origin);
+  } catch (error) {
+    const errorMessage = boundedErrorMessage(error);
+    console.error('beta-application: Eingangsbestaetigung konnte nicht versendet werden.');
+    await serviceClient
+      .from('beta_applications')
+      .update({
+        receipt_email_status: 'failed',
+        receipt_email_sent_at: null,
+        receipt_email_last_error: errorMessage,
+      })
+      .eq('id', application.id);
+
+    return respond({ ok: true, receiptEmailSent: false }, 200, origin);
+  }
 });

@@ -25,6 +25,7 @@
     "test:orchestrator": "node --test scripts/run-test-suites.test.mjs",
     "test:workflow": "node --test scripts/check-admin-shared-ui.test.mjs scripts/check-migration-changes.test.mjs scripts/check-schema-registration.test.mjs scripts/db-test-fixture.test.mjs scripts/deploy-script.test.mjs scripts/deployment-metadata.test.mjs scripts/detect-supabase-changes.test.mjs scripts/import-shopify-taxonomy.test.mjs scripts/inventory-upgrade-harness.test.mjs scripts/migration-backup.test.mjs scripts/package-migrations.test.mjs scripts/playwright-pr-smoke.test.mjs scripts/purchase-supplier-validation.test.mjs scripts/release-migrations.test.mjs scripts/required-checks.test.mjs scripts/reuse-pr-checks.test.mjs scripts/run-node-stress.test.mjs scripts/seed-isolation.test.mjs && node scripts/check-admin-shared-ui.mjs",
     "test:landing": "node --test scripts/landing-page.test.mjs",
+    "test:edge": "deno test --allow-env supabase/functions/**/*.test.ts",
     "test:coverage": "vitest run --coverage",
     "test:coverage:critical": "vitest run --project=node --coverage --config vitest.coverage-critical.config.ts",
     "test:split": "vitest run --config vitest.split.config.ts",
@@ -71,6 +72,7 @@
     "jsbarcode": "^3.12.3",
     "jszip": "^3.10.1",
     "ngx-image-cropper": "^9.1.6",
+    "nodemailer": "10.0.10",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"
   },
@@ -82,6 +84,7 @@
     "@playwright/test": "1.62.1",
     "@tailwindcss/postcss": "^4.1.12",
     "@types/node": "^26.2.0",
+    "@types/nodemailer": "8.0.2",
     "@vitest/coverage-v8": "^4.1.11",
     "angular-eslint": "^22.1.0",
     "axe-core": "^4.13.0",

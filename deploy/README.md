@@ -148,12 +148,26 @@ Ausrollen zusammengehören:
    Hand nach `/opt/supabase/volumes/functions/beta-application/` kopiert werden,
    danach `docker compose up -d --force-recreate functions`.
 
-   Die beiden Variablen unten gehören in `/opt/supabase/.env` **und** müssen an
-   den Container durchgereicht werden: Der `environment:`-Block des Dienstes
+   Die beiden Beta-Variablen unten gehören in `/opt/supabase/.env` **und** müssen
+   an den Container durchgereicht werden: Der `environment:`-Block des Dienstes
    `functions` in der mitgelieferten `docker-compose.yml` zählt die Variablen
    einzeln auf, eine neue Zeile in der `.env` allein erreicht ihn also nicht.
    Dafür gibt es `deploy/docker-compose.beta-application.yml`; sie gehört nach
    `/opt/supabase/` und in die Liste `COMPOSE_FILE` in `/opt/supabase/.env`.
+
+   Dieselbe Zusatzdatei reicht die vorhandenen GoTrue-SMTP-Werte unter eigenen
+   `BETA_SMTP_*`-Namen an die Edge Functions weiter. Dadurch verwenden
+   Eingangsbestätigung und spätere Einladungswiederholung dasselbe
+   Mailbox.org-Konto, ohne Zugangsdaten im Repository zu speichern:
+
+   | Edge-Variable          | Vorhandener Serverwert |
+   | ---------------------- | ---------------------- |
+   | `BETA_SMTP_HOST`       | `SMTP_HOST`            |
+   | `BETA_SMTP_PORT`       | `SMTP_PORT`            |
+   | `BETA_SMTP_USER`       | `SMTP_USER`            |
+   | `BETA_SMTP_PASS`       | `SMTP_PASS`            |
+   | `BETA_SMTP_FROM_EMAIL` | `SMTP_ADMIN_EMAIL`     |
+   | `BETA_SMTP_FROM_NAME`  | `SMTP_SENDER_NAME`     |
 
    Ohne die Durchreichung antwortet die Funktion mit **500 statt 400** – der
    fehlende Pfeffer wird absichtlich laut, nicht still.
