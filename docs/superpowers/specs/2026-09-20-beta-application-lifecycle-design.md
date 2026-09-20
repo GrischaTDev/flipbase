@@ -1,6 +1,6 @@
 # Beta-Bewerbung, Einladung und Aktivierung
 
-**Stand:** 20.09.2026  
+**Stand:** 20.09.2026
 **Status:** Vom Nutzer bestätigter Entwurf für die Umsetzung
 
 ## Ziel

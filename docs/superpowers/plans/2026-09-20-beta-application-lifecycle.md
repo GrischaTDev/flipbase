@@ -63,7 +63,7 @@ end if;
 
 - [ ] **Step 2: Run the focused database test and verify RED**
 
-Run: `npx supabase test db supabase/tests/platform_admin.sql`  
+Run: `npx supabase test db supabase/tests/platform_admin.sql`
 Expected: FAIL because the new columns, table, and functions do not exist.
 
 - [ ] **Step 3: Add the declarative schema**
@@ -140,7 +140,7 @@ npx supabase gen types typescript --local > src/app/core/models/supabase.types.t
 
 - [ ] **Step 6: Run the focused database test and verify GREEN**
 
-Run: `npx supabase test db supabase/tests/platform_admin.sql`  
+Run: `npx supabase test db supabase/tests/platform_admin.sql`
 Expected: PASS with the updated pgTAP plan count and zero failures.
 
 - [ ] **Step 7: Commit**
@@ -310,7 +310,7 @@ focus returns to the submit button.
 
 - [ ] **Step 2: Run the landing test and verify RED**
 
-Run: `npm run test:landing`  
+Run: `npm run test:landing`
 Expected: FAIL because no dialog exists.
 
 - [ ] **Step 3: Implement the dialog**
@@ -486,7 +486,7 @@ Run the Step 2 command. Expected: PASS.
 
 - [ ] **Step 5: Run shared UI guard**
 
-Run: `node scripts/check-admin-shared-ui.mjs`  
+Run: `node scripts/check-admin-shared-ui.mjs`
 Expected: PASS with no new raw admin field, badge, or dialog variant.
 
 - [ ] **Step 6: Commit**
@@ -613,7 +613,7 @@ Bewerbungen.
 
 - [ ] **Step 5: Run focused tests and verify GREEN**
 
-Run the Step 2 commands and `node scripts/check-admin-shared-ui.mjs`.  
+Run the Step 2 commands and `node scripts/check-admin-shared-ui.mjs`.
 Expected: PASS.
 
 - [ ] **Step 6: Commit**
