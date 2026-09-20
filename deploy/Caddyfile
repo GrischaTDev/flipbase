@@ -86,7 +86,7 @@ flipbase.de {
 		# (das Skript sendet alles per fetch). 'none' ist strenger als eine feste
 		# Ziel-Adresse - liefe das Skript einmal nicht, wuerde ein natives Absenden
 		# sonst blind Richtung app.flipbase.de gehen und die Eingaben verlieren.
-		Content-Security-Policy "default-src 'self'; script-src 'sha256-B1qX78vSZpwuL7vYHc5+my0DcQEDv4+VzprZQHZ4FeQ='; connect-src 'self' https://api.flipbase.de; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'; object-src 'none'"
+		Content-Security-Policy "default-src 'self'; script-src 'sha256-leGdQOEZZzCrpm309CUZboXs+opNoRIbfJn1cYkuCTw='; connect-src 'self' https://api.flipbase.de; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'; object-src 'none'"
 	}
 
 	header @seite {
