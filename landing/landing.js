@@ -34,7 +34,10 @@
   }
 
   var successDialog = document.getElementById('beta-success-dialog');
+  var successContent = document.getElementById('beta-success-content');
+  var rejectedContent = document.getElementById('beta-rejected-content');
   var successEmail = document.getElementById('beta-success-email');
+  var rejectedEmail = document.getElementById('beta-rejected-email');
   var receiptSent = document.getElementById('beta-success-receipt-sent');
   var receiptFailed = document.getElementById('beta-success-receipt-failed');
   var dialogCloseButton = document.getElementById('beta-success-close');
@@ -56,9 +59,28 @@
 
   function showSuccessDialog(email, receiptEmailSent, submitButton) {
     returnFocusTo = submitButton;
+    successContent.hidden = false;
+    rejectedContent.hidden = true;
+    successDialog.setAttribute('aria-labelledby', 'beta-success-title');
+    successDialog.setAttribute('aria-describedby', 'beta-success-description beta-success-receipt');
     successEmail.textContent = email;
     receiptSent.hidden = !receiptEmailSent;
     receiptFailed.hidden = receiptEmailSent;
+    successDialog.hidden = false;
+    document.body.classList.add('beta-dialog-open');
+    pageRegions.forEach(function (region) {
+      region.inert = true;
+    });
+    dialogCloseButton.focus();
+  }
+
+  function showRejectedDialog(email, submitButton) {
+    returnFocusTo = submitButton;
+    successContent.hidden = true;
+    rejectedContent.hidden = false;
+    successDialog.setAttribute('aria-labelledby', 'beta-rejected-title');
+    successDialog.setAttribute('aria-describedby', 'beta-rejected-description');
+    rejectedEmail.textContent = email;
     successDialog.hidden = false;
     document.body.classList.add('beta-dialog-open');
     pageRegions.forEach(function (region) {
@@ -132,6 +154,15 @@
             message.textContent = '';
             showSuccessDialog(submittedEmail, payload.receiptEmailSent === true, button);
             form.reset();
+          });
+        } else if (response.status === 409) {
+          return response.json().then(function (payload) {
+            if (payload.error === 'application_rejected') {
+              message.textContent = '';
+              showRejectedDialog(submittedEmail, button);
+              return;
+            }
+            announce(message, 'error');
           });
         } else {
           announce(message, response.status === 429 ? 'throttled' : 'error');

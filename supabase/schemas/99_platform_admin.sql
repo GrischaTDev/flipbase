@@ -78,7 +78,11 @@ create table if not exists public.beta_applications (
         check (invitation_status in ('not_sent', 'sending', 'sent', 'failed')),
     invitation_sent_at timestamptz,
     invitation_last_error text,
-    registered_at timestamptz
+    registered_at timestamptz,
+    rejection_email_status text not null default 'not_sent'
+        check (rejection_email_status in ('not_sent', 'sending', 'sent', 'failed')),
+    rejection_email_sent_at timestamptz,
+    rejection_email_last_error text
 );
 
 comment on table public.beta_applications is
@@ -263,13 +267,66 @@ begin
       decided_by = (select auth.uid()),
       decided_at = now(),
       invitation_status = 'not_sent',
-      invitation_last_error = null
+      invitation_last_error = null,
+      rejection_email_status = 'sending',
+      rejection_email_sent_at = null,
+      rejection_email_last_error = null
   where id = p_application_id
   returning * into v_application;
 
   return v_application;
 end;
 $$;
+
+create or replace function public.delete_rejected_beta_application(
+    p_application_id uuid
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_application public.beta_applications;
+begin
+  if not public.is_platform_operator() then
+    raise exception 'Nur Betreiber duerfen abgelehnte Beta-Bewerbungen loeschen'
+      using errcode = '42501';
+  end if;
+
+  select application.*
+  into v_application
+  from public.beta_applications as application
+  where application.id = p_application_id
+  for update;
+
+  if not found then
+    raise exception 'Beta-Bewerbung nicht gefunden' using errcode = 'P0002';
+  end if;
+
+  if v_application.status <> 'rejected' then
+    raise exception 'Nur abgelehnte Beta-Bewerbungen koennen geloescht werden'
+      using errcode = '22023';
+  end if;
+
+  if v_application.auth_user_id is not null or exists (
+    select 1
+    from public.workspace_licenses as license
+    where license.beta_application_id = p_application_id
+  ) then
+    raise exception 'Eine bereits verknuepfte Beta-Bewerbung kann nicht geloescht werden'
+      using errcode = '22023';
+  end if;
+
+  delete from public.beta_applications
+  where id = p_application_id;
+
+  return p_application_id;
+end;
+$$;
+
+comment on function public.delete_rejected_beta_application(uuid) is
+    'Loescht ausschliesslich unverknuepfte, abgelehnte Bewerbungen, damit die E-Mail-Adresse wieder fuer eine neue Bewerbung frei wird.';
 
 -- Der Basistrigger legt fuer jeden Auth-Nutzer Profil, Workspace und
 -- Standardquellen an. Eine vom Betreiber erzeugte Beta-Einladung traegt
@@ -590,6 +647,11 @@ grant execute on function public.accept_beta_application(uuid, integer)
 revoke all on function public.reject_beta_application(uuid)
     from public, anon;
 grant execute on function public.reject_beta_application(uuid)
+    to authenticated;
+
+revoke all on function public.delete_rejected_beta_application(uuid)
+    from public, anon;
+grant execute on function public.delete_rejected_beta_application(uuid)
     to authenticated;
 
 revoke all on function public.activate_beta_access()

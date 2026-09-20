@@ -14,6 +14,7 @@ import { BadgeComponent } from '../../../../shared/components/badge/badge.compon
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
 import { BetaApprovalDialogComponent } from '../../components/beta-approval-dialog/beta-approval-dialog.component';
+import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
 
 interface AngularInputMetadata {
   inputs: Record<string, unknown>;
@@ -107,6 +108,9 @@ const application = {
   invitationStatus: 'not_sent' as const,
   invitationSentAt: null,
   invitationLastError: null,
+  rejectionEmailStatus: 'not_sent' as const,
+  rejectionEmailSentAt: null,
+  rejectionEmailLastError: null,
   registeredAt: null,
   licenseStatus: null,
   betaEndsAt: null,
@@ -118,6 +122,9 @@ describe('BetaApplicationsComponent', () => {
   let reject: ReturnType<typeof vi.fn>;
   let resendInvitation: ReturnType<typeof vi.fn>;
   let resendApplicationReceipt: ReturnType<typeof vi.fn>;
+  let resendRejection: ReturnType<typeof vi.fn>;
+  let deleteRejected: ReturnType<typeof vi.fn>;
+  let confirmDelete: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
     list = vi.fn().mockResolvedValue([application]);
@@ -125,6 +132,9 @@ describe('BetaApplicationsComponent', () => {
     reject = vi.fn().mockResolvedValue({ ...application, status: 'rejected' });
     resendInvitation = vi.fn().mockResolvedValue(application);
     resendApplicationReceipt = vi.fn().mockResolvedValue(application);
+    resendRejection = vi.fn().mockResolvedValue(application);
+    deleteRejected = vi.fn().mockResolvedValue(undefined);
+    confirmDelete = vi.fn().mockResolvedValue(true);
 
     await TestBed.configureTestingModule({
       imports: [
@@ -136,8 +146,17 @@ describe('BetaApplicationsComponent', () => {
       providers: [
         {
           provide: BetaApplicationService,
-          useValue: { list, accept, reject, resendInvitation, resendApplicationReceipt },
+          useValue: {
+            list,
+            accept,
+            reject,
+            resendInvitation,
+            resendApplicationReceipt,
+            resendRejection,
+            deleteRejected,
+          },
         },
+        { provide: ConfirmDialogService, useValue: { frage: confirmDelete } },
       ],
     }).compileComponents();
   });
@@ -277,6 +296,21 @@ describe('BetaApplicationsComponent', () => {
     ).toBe('Beta abgelaufen');
   });
 
+  it('kennzeichnet offene, angenommene und abgelehnte Bewerbungen eindeutig', () => {
+    const fixture = TestBed.createComponent(BetaApplicationsComponent);
+
+    expect(fixture.componentInstance.lifecycleStatus(application)).toEqual({
+      label: 'Offen',
+      tone: 'caution',
+    });
+    expect(
+      fixture.componentInstance.lifecycleStatus({ ...application, status: 'accepted' }),
+    ).toEqual({ label: 'Angenommen', tone: 'success' });
+    expect(
+      fixture.componentInstance.lifecycleStatus({ ...application, status: 'rejected' }),
+    ).toEqual({ label: 'Abgelehnt', tone: 'critical' });
+  });
+
   it('bietet bei fehlgeschlagener Eingangsbestaetigung einen Wiederholungsversand an', async () => {
     list.mockResolvedValueOnce([
       {
@@ -297,6 +331,78 @@ describe('BetaApplicationsComponent', () => {
     await fixture.whenStable();
 
     expect(resendApplicationReceipt).toHaveBeenCalledWith('a1');
+  });
+
+  it('bietet bei fehlgeschlagener Ablehnungs-E-Mail einen Wiederholungsversand an', async () => {
+    list.mockResolvedValueOnce([
+      {
+        ...application,
+        status: 'rejected',
+        rejectionEmailStatus: 'failed',
+        rejectionEmailLastError: 'SMTP nicht erreichbar',
+      },
+    ]);
+    const fixture = TestBed.createComponent(BetaApplicationsComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const retryButton = fixture.debugElement
+      .queryAll(By.directive(ButtonComponent))
+      .find((element) => element.nativeElement.textContent?.includes('Ablehnung erneut senden'));
+    retryButton?.triggerEventHandler('clicked', new MouseEvent('click'));
+    await fixture.whenStable();
+
+    expect(resendRejection).toHaveBeenCalledWith('a1');
+  });
+
+  it('loescht eine abgelehnte Bewerbung nach ausdruecklicher Bestaetigung', async () => {
+    list.mockResolvedValueOnce([{ ...application, status: 'rejected' }]);
+    const fixture = TestBed.createComponent(BetaApplicationsComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const deleteButton = fixture.debugElement
+      .queryAll(By.directive(ButtonComponent))
+      .find((element) => element.nativeElement.textContent?.trim() === 'Löschen');
+    deleteButton?.triggerEventHandler('clicked', new MouseEvent('click'));
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(confirmDelete).toHaveBeenCalledWith(
+      expect.objectContaining({ titel: 'Abgelehnte Bewerbung löschen?', gefahr: true }),
+    );
+    expect(deleteRejected).toHaveBeenCalledWith('a1');
+    expect(fixture.nativeElement.textContent).not.toContain('Anna Beispiel');
+  });
+
+  it('laedt nach einem fehlgeschlagenen Ablehnungsversand den gespeicherten Status nach', async () => {
+    const rejectedApplication = {
+      ...application,
+      status: 'rejected' as const,
+      rejectionEmailStatus: 'failed' as const,
+      rejectionEmailLastError: 'SMTP nicht erreichbar',
+    };
+    reject.mockRejectedValueOnce(new Error('Die Ablehnungs-E-Mail konnte nicht versendet werden.'));
+    list.mockResolvedValueOnce([application]).mockResolvedValueOnce([rejectedApplication]);
+    const fixture = TestBed.createComponent(BetaApplicationsComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const rejectButton = fixture.debugElement
+      .queryAll(By.directive(ButtonComponent))
+      .find((element) => element.nativeElement.textContent?.trim() === 'Ablehnen');
+    rejectButton?.triggerEventHandler('clicked', new MouseEvent('click'));
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(list).toHaveBeenCalledTimes(2);
+    expect(fixture.nativeElement.textContent).toContain('Ablehnung erneut senden');
+    expect(fixture.nativeElement.textContent).toContain(
+      'Die Ablehnungs-E-Mail konnte nicht versendet werden.',
+    );
   });
 
   it('zeigt einen Ladefehler an, statt eine leere Liste vorzutäuschen', async () => {

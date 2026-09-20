@@ -27,6 +27,9 @@ const row = {
   invitation_status: 'not_sent',
   invitation_sent_at: null,
   invitation_last_error: null,
+  rejection_email_status: 'not_sent',
+  rejection_email_sent_at: null,
+  rejection_email_last_error: null,
   registered_at: null,
   workspace_licenses: { status: 'active', ends_at: '2026-11-19T08:00:00.000Z' },
 };
@@ -67,6 +70,9 @@ describe('BetaApplicationService', () => {
         invitationStatus: 'not_sent',
         invitationSentAt: null,
         invitationLastError: null,
+        rejectionEmailStatus: 'not_sent',
+        rejectionEmailSentAt: null,
+        rejectionEmailLastError: null,
         registeredAt: null,
         licenseStatus: 'active',
         betaEndsAt: '2026-11-19T08:00:00.000Z',
@@ -116,6 +122,31 @@ describe('BetaApplicationService', () => {
     });
     expect(invoke).toHaveBeenNthCalledWith(2, 'beta-invite', {
       body: { applicationId: 'a1', action: 'resend_receipt' },
+    });
+  });
+
+  it('stellt eine fehlgeschlagene Ablehnungs-E-Mail gezielt erneut zu', async () => {
+    const invoke = vi.fn().mockResolvedValue({ data: { application: row }, error: null });
+    const service = serviceWith({ functions: { invoke } });
+
+    await service.resendRejection('a1');
+
+    expect(invoke).toHaveBeenCalledWith('beta-invite', {
+      body: { applicationId: 'a1', action: 'resend_rejection' },
+    });
+  });
+
+  it('loescht eine abgelehnte Bewerbung ueber die geschuetzte Servergrenze', async () => {
+    const invoke = vi.fn().mockResolvedValue({
+      data: { ok: true, deletedApplicationId: 'a1' },
+      error: null,
+    });
+    const service = serviceWith({ functions: { invoke } });
+
+    await service.deleteRejected('a1');
+
+    expect(invoke).toHaveBeenCalledWith('beta-invite', {
+      body: { applicationId: 'a1', action: 'delete_rejected' },
     });
   });
 

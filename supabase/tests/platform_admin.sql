@@ -2,7 +2,7 @@
 
 begin;
 
-select plan(19);
+select plan(20);
 
 -- Spalten von beta_applications
 do $$
@@ -12,7 +12,8 @@ declare
     'decision_note', 'decided_by', 'decided_at', 'created_at', 'consent_at',
     'receipt_email_status', 'receipt_email_sent_at', 'receipt_email_last_error',
     'auth_user_id', 'invitation_status', 'invitation_sent_at',
-    'invitation_last_error', 'registered_at'
+    'invitation_last_error', 'registered_at', 'rejection_email_status',
+    'rejection_email_sent_at', 'rejection_email_last_error'
   ];
   missing_columns text[];
 begin
@@ -277,6 +278,13 @@ begin
   exception
     when insufficient_privilege then null;
   end;
+
+  begin
+    perform public.delete_rejected_beta_application(application_id);
+    raise exception 'Ein Nicht-Betreiber haette keine Bewerbung loeschen duerfen';
+  exception
+    when insufficient_privilege then null;
+  end;
 end;
 $$;
 
@@ -472,6 +480,18 @@ begin
   end if;
 
   if not has_function_privilege(
+    'authenticated', 'public.delete_rejected_beta_application(uuid)', 'execute'
+  ) then
+    raise exception 'authenticated muss abgelehnte Bewerbungen loeschen duerfen';
+  end if;
+
+  if has_function_privilege(
+    'anon', 'public.delete_rejected_beta_application(uuid)', 'execute'
+  ) then
+    raise exception 'anon darf abgelehnte Bewerbungen nicht loeschen';
+  end if;
+
+  if not has_function_privilege(
     'authenticated', 'public.activate_beta_access()', 'execute'
   ) then
     raise exception 'authenticated muss activate_beta_access ausfuehren duerfen';
@@ -484,6 +504,54 @@ end;
 $$;
 
 select pass('Nur Angemeldete koennen die begrenzten Beta-Funktionen aufrufen');
+
+-- Nur ein Betreiber kann einen abgelehnten Eintrag entfernen. Offene oder
+-- bereits angenommene Bewerbungen bleiben als Teil des Zugangswegs erhalten.
+insert into public.beta_applications (id, first_name, last_name, email)
+values (
+  '85000000-0000-4000-8000-000000000020'::uuid,
+  'Dora', 'Offen', 'delete-open@example.test'
+);
+
+insert into public.beta_applications (id, first_name, last_name, email, status)
+values (
+  '85000000-0000-4000-8000-000000000021'::uuid,
+  'Rita', 'Abgelehnt', 'delete-rejected@example.test', 'rejected'
+);
+
+set local role authenticated;
+set local request.jwt.claim.sub = :'operator_a_id';
+
+do $$
+begin
+  perform public.delete_rejected_beta_application(
+    '85000000-0000-4000-8000-000000000021'::uuid
+  );
+
+  if exists (
+    select 1 from public.beta_applications
+    where id = '85000000-0000-4000-8000-000000000021'::uuid
+  ) then
+    raise exception 'Die abgelehnte Bewerbung wurde nicht geloescht';
+  end if;
+
+  begin
+    perform public.delete_rejected_beta_application(
+      '85000000-0000-4000-8000-000000000020'::uuid
+    );
+    raise exception 'Eine offene Bewerbung haette nicht geloescht werden duerfen';
+  exception
+    when invalid_parameter_value then null;
+  end;
+end;
+$$;
+
+reset role;
+
+insert into public.beta_applications (first_name, last_name, email)
+values ('Rita', 'Neu', 'delete-rejected@example.test');
+
+select pass('Nur abgelehnte Bewerbungen werden geloescht und geben die E-Mail wieder frei');
 
 -- Eine Beta-Einladung verknuepft Bewerbung, Nutzer, Workspace und Lizenz.
 \set beta_user_id '85000000-0000-4000-8000-000000000010'

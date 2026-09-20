@@ -224,6 +224,9 @@ export type Database = {
           receipt_email_sent_at: string | null
           receipt_email_status: string
           registered_at: string | null
+          rejection_email_last_error: string | null
+          rejection_email_sent_at: string | null
+          rejection_email_status: string
           status: string
         }
         Insert: {
@@ -245,6 +248,9 @@ export type Database = {
           receipt_email_sent_at?: string | null
           receipt_email_status?: string
           registered_at?: string | null
+          rejection_email_last_error?: string | null
+          rejection_email_sent_at?: string | null
+          rejection_email_status?: string
           status?: string
         }
         Update: {
@@ -266,6 +272,9 @@ export type Database = {
           receipt_email_sent_at?: string | null
           receipt_email_status?: string
           registered_at?: string | null
+          rejection_email_last_error?: string | null
+          rejection_email_sent_at?: string | null
+          rejection_email_status?: string
           status?: string
         }
         Relationships: []
@@ -4337,6 +4346,9 @@ export type Database = {
           receipt_email_sent_at: string | null
           receipt_email_status: string
           registered_at: string | null
+          rejection_email_last_error: string | null
+          rejection_email_sent_at: string | null
+          rejection_email_status: string
           status: string
         }
         SetofOptions: {
@@ -4541,6 +4553,10 @@ export type Database = {
         Returns: string
       }
       create_workspace: { Args: { p_name: string }; Returns: string }
+      delete_rejected_beta_application: {
+        Args: { p_application_id: string }
+        Returns: string
+      }
       delete_sniper_watchlist: {
         Args: { p_id: string; p_workspace_id: string }
         Returns: undefined
@@ -4950,6 +4966,9 @@ export type Database = {
           receipt_email_sent_at: string | null
           receipt_email_status: string
           registered_at: string | null
+          rejection_email_last_error: string | null
+          rejection_email_sent_at: string | null
+          rejection_email_status: string
           status: string
         }
         SetofOptions: {

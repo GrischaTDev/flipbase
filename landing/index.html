@@ -2847,41 +2847,64 @@
           <span class="lang-en" lang="en">Close dialog</span>
         </span>
 
-        <div class="beta-dialog-symbol" aria-hidden="true">✓</div>
-        <h2 id="beta-success-title">
-          <span class="lang-de">Vielen Dank für Ihre Anmeldung zur Beta!</span>
-          <span class="lang-en" lang="en">Thank you for applying for the beta!</span>
-        </h2>
-        <p id="beta-success-description">
-          <span class="lang-de"
-            >Ihre Bewerbung ist bei uns eingegangen. Wir melden uns schnellstmöglich bei
-            Ihnen.</span
-          >
-          <span class="lang-en" lang="en"
-            >We have received your application and will get back to you as soon as possible.</span
-          >
-        </p>
-        <p class="beta-dialog-email">
-          <strong id="beta-success-email"></strong>
-        </p>
-        <p id="beta-success-receipt" class="beta-dialog-hinweis">
-          <span id="beta-success-receipt-sent">
-            <span class="lang-de">Eine Bestätigungs-E-Mail wurde an diese Adresse gesendet.</span>
-            <span class="lang-en" lang="en"
-              >A confirmation email has been sent to this address.</span
-            >
-          </span>
-          <span id="beta-success-receipt-failed" hidden>
+        <div id="beta-success-content">
+          <div class="beta-dialog-symbol" aria-hidden="true">✓</div>
+          <h2 id="beta-success-title">
+            <span class="lang-de">Vielen Dank für deine Anmeldung zur Beta!</span>
+            <span class="lang-en" lang="en">Thank you for applying for the beta!</span>
+          </h2>
+          <p id="beta-success-description">
             <span class="lang-de"
-              >Die Bewerbung ist gespeichert, aber die Bestätigungs-E-Mail konnte nicht versendet
-              werden. Wir sehen den Fehler und können den Versand wiederholen.</span
+              >Deine Bewerbung ist bei uns eingegangen. Wir melden uns schnellstmöglich bei
+              dir.</span
             >
             <span class="lang-en" lang="en"
-              >Your application is saved, but the confirmation email could not be sent. We can see
-              the error and retry delivery.</span
+              >We have received your application and will get back to you as soon as possible.</span
             >
-          </span>
-        </p>
+          </p>
+          <p class="beta-dialog-email">
+            <strong id="beta-success-email"></strong>
+          </p>
+          <p id="beta-success-receipt" class="beta-dialog-hinweis">
+            <span id="beta-success-receipt-sent">
+              <span class="lang-de">Eine Bestätigungs-E-Mail wurde an diese Adresse gesendet.</span>
+              <span class="lang-en" lang="en"
+                >A confirmation email has been sent to this address.</span
+              >
+            </span>
+            <span id="beta-success-receipt-failed" hidden>
+              <span class="lang-de"
+                >Die Bewerbung ist gespeichert, aber die Bestätigungs-E-Mail konnte nicht versendet
+                werden. Wir sehen den Fehler und können den Versand wiederholen.</span
+              >
+              <span class="lang-en" lang="en"
+                >Your application is saved, but the confirmation email could not be sent. We can see
+                the error and retry delivery.</span
+              >
+            </span>
+          </p>
+        </div>
+
+        <div id="beta-rejected-content" hidden>
+          <div class="beta-dialog-symbol" aria-hidden="true">!</div>
+          <h2 id="beta-rejected-title">
+            <span class="lang-de">Eine erneute Bewerbung ist derzeit nicht möglich</span>
+            <span class="lang-en" lang="en">Another application is currently not possible</span>
+          </h2>
+          <p id="beta-rejected-description">
+            <span class="lang-de"
+              >Deine Bewerbung wurde bereits abgelehnt. Solange dieser Eintrag besteht, kannst du
+              dich mit dieser E-Mail-Adresse nicht erneut für die Beta bewerben.</span
+            >
+            <span class="lang-en" lang="en"
+              >Your application has already been declined. While this record remains, this email
+              address cannot be used for another beta application.</span
+            >
+          </p>
+          <p class="beta-dialog-email">
+            <strong id="beta-rejected-email"></strong>
+          </p>
+        </div>
         <button id="beta-success-confirm" type="button" class="btn-primary beta-dialog-aktion">
           <span class="lang-de">Schließen</span>
           <span class="lang-en" lang="en">Close</span>
