@@ -252,7 +252,6 @@ git commit -m "feat(auth): complete initial workspace setup"
 
 - Create: `src/app/core/guards/workspace-setup.guard.ts`
 - Create: `src/app/core/guards/workspace-setup.guard.angular.spec.ts`
-- Modify: `src/app/app.routes.ts`
 
 **Interfaces:**
 
@@ -261,7 +260,7 @@ git commit -m "feat(auth): complete initial workspace setup"
 - Produces: `workspaceSetupGuard: CanActivateFn`
 - Produces: `workspaceSetupPageGuard: CanActivateFn`
 
-- [ ] **Step 1: Write guard tests**
+- [x] **Step 1: Write guard tests**
 
 Cover these exact outcomes:
 
@@ -281,38 +280,20 @@ expect(await runGuard(workspaceSetupPageGuard, completedWorkspace)).toEqual(
 
 Also verify `ensureLoaded()` is awaited and an unauthenticated session returns a login URL instead of loading workspaces.
 
-- [ ] **Step 2: Run guard tests and verify failure**
+- [x] **Step 2: Run guard tests and verify failure**
 
 Run: `npx vitest run --project=angular src/app/core/guards/workspace-setup.guard.angular.spec.ts`
 
 Expected: FAIL because the guard file does not exist.
 
-- [ ] **Step 3: Implement both narrow guards**
+- [x] **Step 3: Implement both narrow guards**
 
 Use a shared private resolver in the guard file. An incomplete workspace is any
 accessible workspace with `setup_completed_at === null`. Loading failures and a
 missing workspace lead to `/onboarding/workspace`, where the user can retry or
 sign out. Avoid redirect loops by using the separate page guard.
 
-- [ ] **Step 4: Register the route boundaries**
-
-Add the setup route outside the shell:
-
-```ts
-{
-  path: 'onboarding/workspace',
-  canActivate: [authGuard, workspaceSetupPageGuard],
-  loadComponent: () =>
-    import('./features/onboarding/workspace-setup/workspace-setup.component').then(
-      (m) => m.WorkspaceSetupComponent,
-    ),
-},
-```
-
-Add `workspaceSetupGuard` after `authGuard` to both the protected `shop` route
-and the root shell route.
-
-- [ ] **Step 5: Run guard and route tests**
+- [x] **Step 4: Run the focused guard tests and type check**
 
 Run:
 
@@ -321,12 +302,13 @@ npx vitest run --project=angular src/app/core/guards/workspace-setup.guard.angul
 npm run typecheck
 ```
 
-The guard tests cover both route decisions; the type check verifies the route registry and lazy component import.
+The guard tests cover both route decisions. Route registration follows with the
+component in Task 4 so every intermediate commit remains buildable.
 
-- [ ] **Step 6: Commit routing enforcement**
+- [x] **Step 5: Commit the guards**
 
 ```bash
-git add src/app/core/guards/workspace-setup.guard.ts src/app/core/guards/workspace-setup.guard.angular.spec.ts src/app/app.routes.ts
+git add src/app/core/guards/workspace-setup.guard.ts src/app/core/guards/workspace-setup.guard.angular.spec.ts
 git commit -m "feat(auth): require workspace setup before app access"
 ```
 
@@ -339,6 +321,7 @@ git commit -m "feat(auth): require workspace setup before app access"
 - Create: `src/app/features/onboarding/workspace-setup/workspace-setup.component.ts`
 - Create: `src/app/features/onboarding/workspace-setup/workspace-setup.component.html`
 - Create: `src/app/features/onboarding/workspace-setup/workspace-setup.component.angular.spec.ts`
+- Modify: `src/app/app.routes.ts`
 - Modify: `src/app/core/i18n/translations.ts`
 
 **Interfaces:**
@@ -386,7 +369,25 @@ The component uses Signals for loading, saving and visible error state. It
 selects the first workspace with `setup_completed_at === null`; it never creates
 a workspace. After a confirmed update it navigates to `/dashboard`.
 
-- [ ] **Step 4: Build the external template from existing auth patterns**
+- [ ] **Step 4: Register the route boundaries**
+
+Add the setup route outside the shell:
+
+```ts
+{
+  path: 'onboarding/workspace',
+  canActivate: [authGuard, workspaceSetupPageGuard],
+  loadComponent: () =>
+    import('./features/onboarding/workspace-setup/workspace-setup.component').then(
+      (m) => m.WorkspaceSetupComponent,
+    ),
+},
+```
+
+Add `workspaceSetupGuard` after `authGuard` to both the protected `shop` route
+and the root shell route.
+
+- [ ] **Step 5: Build the external template from existing auth patterns**
 
 The page contains one `<main>`, one visible `<h1>`, one explicitly labelled
 text input with `autocomplete="organization"`, an inline validation message,
@@ -405,21 +406,22 @@ Abmelden
 
 Add equivalent English translation keys; do not add tax or profitability copy.
 
-- [ ] **Step 5: Run focused UI tests and the shared UI check**
+- [ ] **Step 6: Run focused UI tests, type check and the shared UI check**
 
 Run:
 
 ```powershell
 npx vitest run --project=angular src/app/features/onboarding/workspace-setup/workspace-setup.component.angular.spec.ts
+npm run typecheck
 node scripts/check-admin-shared-ui.mjs
 ```
 
 Expected: all tests PASS and zero shared UI findings.
 
-- [ ] **Step 6: Commit the onboarding page**
+- [ ] **Step 7: Commit the onboarding page**
 
 ```bash
-git add src/app/features/onboarding src/app/core/i18n/translations.ts
+git add src/app/features/onboarding src/app/app.routes.ts src/app/core/i18n/translations.ts
 git commit -m "feat(auth): add first-login workspace setup"
 ```
 
