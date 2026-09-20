@@ -230,13 +230,18 @@ export class SetPasswordComponent implements OnInit {
     const { password } = this.form.getRawValue();
 
     try {
-      const { error } = await this.supabase.client.auth.updateUser({ password });
+      const { error } = await this.supabase.client.auth.updateUser({
+        password,
+        data: { beta_registration_completed: true },
+      });
 
       if (error) {
         this.errorMessage.set(error.message);
         this.isLoading.set(false);
         return;
       }
+
+      await this.authService.activatePendingBetaAccess();
 
       this.successMessage.set(this.translate.instant('AUTH.SET_PASSWORD_SUCCESS'));
       setTimeout(() => {
