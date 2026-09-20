@@ -298,43 +298,6 @@
         }
       }
 
-      .marke-badge {
-        font-family: var(--mono);
-        font-size: 0.65rem;
-        font-weight: 600;
-        letter-spacing: 0.14em;
-        text-transform: uppercase;
-        color: var(--amber);
-        border: 1px solid var(--amber-border);
-        background: var(--amber-bg);
-        border-radius: 999px;
-        padding: 0.2rem 0.6rem;
-      }
-
-      .navigation {
-        display: flex;
-        align-items: center;
-        gap: 1.75rem;
-      }
-
-      @media (max-width: 992px) {
-        .navigation {
-          display: none;
-        }
-      }
-
-      .nav-link {
-        font-size: 0.88rem;
-        font-weight: 500;
-        color: var(--ink-muted);
-        transition: color 0.15s ease;
-      }
-
-      .nav-link:hover,
-      .nav-link:focus-visible {
-        color: var(--ink);
-      }
-
       .kopf-aktionen {
         display: flex;
         align-items: center;
@@ -1437,40 +1400,7 @@
       <div class="marke">
         <img src="images/logo-mark.png" alt="" class="marke-logo" width="32" height="32" />
         <span>Flipbase</span>
-        <span class="marke-badge" lang="en">Reselling OS</span>
       </div>
-
-      <nav class="navigation" aria-labelledby="main-navigation-label">
-        <div id="main-navigation-label" class="sr-only">
-          <span class="lang-de">Hauptnavigation</span>
-          <span class="lang-en" lang="en">Main navigation</span>
-        </div>
-        <a href="#features" class="nav-link">
-          <span class="lang-de">Funktionen</span>
-          <span class="lang-en" lang="en">Features</span>
-        </a>
-        <a href="#vinted-bot" class="nav-link">
-          <span class="lang-de">Vinted Bot (geplant)</span>
-          <span class="lang-en" lang="en">Vinted Bot (planned)</span>
-        </a>
-        <a href="#tracking" class="nav-link">
-          <span class="lang-de">Tracking</span>
-          <span class="lang-en" lang="en">Tracking</span>
-        </a>
-        <a href="#bildoptimierer" class="nav-link">
-          <span class="lang-de">Bildoptimierer</span>
-          <span class="lang-en" lang="en">Image Optimizer</span>
-        </a>
-        <a href="#buchhaltung" class="nav-link">
-          <span class="lang-de">§ 25a DATEV</span>
-          <span class="lang-en" lang="en">§ 25a Tax & DATEV</span>
-        </a>
-        <a href="#roadmap" class="nav-link">
-          <span class="lang-de">Roadmap</span>
-          <span class="lang-en" lang="en">Roadmap</span>
-        </a>
-        <a href="#faq" class="nav-link">FAQ</a>
-      </nav>
 
       <!-- Versteckte Kontroll-Checkboxen für Theme & Sprache (CSS-gesteuert, 0 JS) -->
       <input
@@ -1541,18 +1471,10 @@
           </label>
         </div>
 
-        <!-- Dynamischer Caddy-Link via Merk-Cookie -->
-        {{if .Cookie "flipbase_angemeldet"}}
         <a class="kopf-cta" href="https://app.flipbase.de">
           <span class="lang-de">Zur App →</span>
           <span class="lang-en" lang="en">Open App →</span>
         </a>
-        {{else}}
-        <a class="kopf-cta" href="https://app.flipbase.de">
-          <span class="lang-de">Anmelden →</span>
-          <span class="lang-en" lang="en">Sign in →</span>
-        </a>
-        {{ end }}
       </div>
     </header>
 

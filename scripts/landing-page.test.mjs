@@ -433,6 +433,33 @@ test('leads from the revised hero to one application form at the end of the page
   assert.equal(attribute(meldung.startTag, 'aria-live'), 'polite');
 });
 
+test('keeps the header focused on the Flipbase brand, preferences and one app link', () => {
+  const document = new JSDOM(html).window.document;
+  const header = document.querySelector('body > header');
+
+  assert.ok(header, 'The landing page must keep its header landmark');
+  assert.equal(
+    header.querySelector('nav'),
+    null,
+    'The landing header must not repeat page navigation',
+  );
+  assert.equal(
+    header.querySelector('.marke-badge'),
+    null,
+    'The Reselling OS badge must stay out of the header',
+  );
+  assert.equal(header.querySelector('.marke')?.textContent.trim(), 'Flipbase');
+  assert.ok(header.querySelector('img[src="images/logo-mark.png"]'));
+  assert.ok(header.querySelector('label[for="theme-toggle"]'));
+  assert.ok(header.querySelector('label[for="lang-toggle"]'));
+
+  const appLinks = [...header.querySelectorAll('a.kopf-cta')];
+  assert.equal(appLinks.length, 1, 'The header must contain exactly one app link');
+  assert.equal(appLinks[0].getAttribute('href'), 'https://app.flipbase.de');
+  assert.match(appLinks[0].textContent, /Zur App/u);
+  assert.match(appLinks[0].textContent, /Open App/u);
+});
+
 test('confirms a stored beta application in a focused dialog', async () => {
   const { dom, form, requests } = await submitBetaApplication({
     ok: true,
@@ -534,16 +561,6 @@ test('declares English passages and gives localized controls static screen-reade
   for (const passage of englishPassages) {
     assert.equal(attribute(passage, 'lang'), 'en', `${passage} must declare lang="en"`);
   }
-
-  const navigation = startTagsWithClass(html, 'navigation')[0];
-  assert.ok(navigation, 'Expected the main navigation landmark');
-  const navigationLabelId = attribute(navigation, 'aria-labelledby');
-  assert.ok(navigationLabelId, 'The main navigation must use a switchable accessible name');
-  assertLanguagePair(
-    elementById(html, navigationLabelId).content,
-    'Hauptnavigation',
-    'Main navigation',
-  );
 
   for (const control of [
     {
@@ -683,12 +700,8 @@ test('rejects active content and remote resource-loading variants', () => {
   );
 });
 
-test('keeps local landing assets and the Caddy login template intact', async () => {
+test('keeps local landing assets intact', async () => {
   assert.match(html, /<meta\s+name="robots"\s+content="noindex, nofollow"\s*\/?>/iu);
-  assert.match(
-    html,
-    /\{\{if \.Cookie "flipbase_angemeldet"\}\}[\s\S]*\{\{else\}\}[\s\S]*\{\{ end \}\}/u,
-  );
   assert.ok(
     matches(html, /<img\b[^>]*\bsrc="images\/logo-mark\.png"[^>]*>/giu) >= 2,
     'The header and footer must keep the Flipbase logo',
@@ -839,8 +852,8 @@ test('describes the beta application review flow without open-registration or fi
 
 test('marks Deal Sniper behavior as planned in German and English', () => {
   const expectedPlannedCopy = [
-    ['Vinted Bot (geplant)', 2],
-    ['Vinted Bot (planned)', 2],
+    ['Vinted Bot (geplant)', 1],
+    ['Vinted Bot (planned)', 1],
     ['Vinted Deal-Sniper (geplant)', 1],
     ['Vinted Deal Sniper (planned)', 1],
     ['Geplanter Vinted Deal-Sniper für gespeicherte Suchfilter', 1],
