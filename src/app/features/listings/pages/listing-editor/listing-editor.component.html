@@ -8,15 +8,13 @@
       <section main class="linear-surface space-y-4 rounded-xl p-5">
         <label class="block text-sm font-medium text-fb-text-primary"
           >Bestandsartikel
-          <select
+          <app-custom-select
             formControlName="inventoryItemId"
-            class="linear-input mt-1 w-full rounded-lg px-3 py-2"
-          >
-            <option value="">Artikel wählen</option>
-            @for (item of listingService.items(); track item.id) {
-              <option [value]="item.id">{{ item.title }} · {{ item.status }}</option>
-            }
-          </select>
+            class="mt-1"
+            ariaLabel="Bestandsartikel"
+            [options]="itemOptions()"
+            placeholder="Artikel wählen"
+          />
         </label>
         @if (selectedItem(); as item) {
           <p class="text-sm text-fb-text-muted">
@@ -62,24 +60,19 @@
             class="linear-input mt-1 w-full rounded-lg px-3 py-2"
         /></label>
         <label class="block text-sm font-medium text-fb-text-primary"
-          >Preisart<select
+          >Preisart<app-custom-select
             formControlName="priceType"
-            class="linear-input mt-1 w-full rounded-lg px-3 py-2"
-          >
-            <option value="FIXED">Festpreis</option>
-            <option value="NEGOTIABLE">Verhandlungsbasis</option>
-          </select></label
-        >
+            class="mt-1"
+            ariaLabel="Preisart"
+            [options]="priceTypeOptions"
+        /></label>
         <label class="block text-sm font-medium text-fb-text-primary"
-          >Versand<select
+          >Versand<app-custom-select
             formControlName="shippingType"
-            class="linear-input mt-1 w-full rounded-lg px-3 py-2"
-          >
-            <option value="pickup">Abholung</option>
-            <option value="shipping">Versand</option>
-            <option value="both">Beides</option>
-          </select></label
-        >
+            class="mt-1"
+            ariaLabel="Versandart"
+            [options]="shippingTypeOptions"
+        /></label>
         @if (form.controls.shippingType.value !== 'pickup') {
           <label class="block text-sm font-medium text-fb-text-primary"
             >Versandkosten<input

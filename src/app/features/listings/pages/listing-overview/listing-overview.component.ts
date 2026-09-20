@@ -185,7 +185,7 @@ export class ListingOverviewComponent {
   }
 
   edit(row: ListingRow): void {
-    void this.router.navigate(['/listings', row.listing.id, 'edit']);
+    void this.router.navigate(['/listings', row.listing.id]);
   }
   async retry(): Promise<void> {
     const workspaceId = this.workspaceService.currentWorkspace()?.id;

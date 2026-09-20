@@ -9,6 +9,10 @@ import {
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import {
+  CustomSelectComponent,
+  type SelectOption,
+} from '../../../../shared/components/custom-select/custom-select.component';
 import { EntryPageLayoutComponent } from '../../../../shared/components/entry-page-layout/entry-page-layout.component';
 import { TwoColumnLayoutComponent } from '../../../../shared/components/two-column-layout/two-column-layout.component';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
@@ -29,6 +33,7 @@ import { ListingExtensionHelpComponent } from '../../components/listing-extensio
   selector: 'app-listing-editor',
   imports: [
     ButtonComponent,
+    CustomSelectComponent,
     EntryPageLayoutComponent,
     ListingExtensionHelpComponent,
     ReactiveFormsModule,
@@ -50,6 +55,21 @@ export class ListingEditorComponent {
   readonly helpOpen = signal(false);
   readonly listingId = signal<string | null>(this.route.snapshot.paramMap.get('id'));
   readonly isEdit = computed(() => this.listingId() !== null);
+  readonly priceTypeOptions: readonly SelectOption<ListingPriceType>[] = [
+    { value: 'FIXED', label: 'Festpreis' },
+    { value: 'NEGOTIABLE', label: 'Verhandlungsbasis' },
+  ];
+  readonly shippingTypeOptions: readonly SelectOption<ListingShippingType>[] = [
+    { value: 'pickup', label: 'Abholung' },
+    { value: 'shipping', label: 'Versand' },
+    { value: 'both', label: 'Beides' },
+  ];
+  readonly itemOptions = computed<readonly SelectOption<string>[]>(() =>
+    this.listingService.items().map((item) => ({
+      value: item.id,
+      label: `${item.title} · ${item.status}`,
+    })),
+  );
   readonly form = new FormGroup({
     inventoryItemId: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     title: new FormControl('', {
