@@ -1,5 +1,26 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-21 – Juna – Updateplan für Einkaufsablauf und Admin-Oberfläche abgestimmt
+
+**Auftrag:** Vierundzwanzig Rückmeldungen zu Einkaufserfassung,
+Einkaufsübersicht, Einkaufsdetail, Artikelstamm, Verkäuferverwaltung,
+Beta-Einstieg und globalem Header vollständig aufnehmen und vor der Umsetzung
+fachlich klären.
+
+**Änderung:** Die bestehenden Oberflächen und Zustandswege wurden mit den
+Rückmeldungen abgeglichen. Die freigegebene Designspezifikation legt unter
+anderem die einheitliche artikelbasierte Einkaufserfassung, sofortige
+Kostenaktualisierung, stabile Einkaufstabellen, verständliche Chronik,
+korrigierbare Belege, datenschutzfreundliche Beta-Duplikatantwort und den
+vereinheitlichten Kopfbereich fest. Der technische Prüfbeleg verschwindet aus
+dem Einkauf, bleibt aber zentral unter „Daten & Protokolle“ erhalten.
+
+**Prüfung:** Reine Planungsrunde ohne Produktivcode. Alle sechs fachlichen
+Abschnitte wurden einzeln bestätigt und die Spezifikation ordnet jeden der 24
+gemeldeten Punkte ausdrücklich einer Lösung zu. Der Branch basiert auf dem
+aktuellen `origin/master` einschließlich des zuletzt ergänzten
+Beta-Ablehnungsablaufs.
+
 ## 2026-09-20 – Juna – Ablehnungen und erneute Beta-Bewerbungen vervollständigt
 
 **Auftrag:** Abgelehnte Beta-Bewerbungen per E-Mail mitteilen, eine erneute
