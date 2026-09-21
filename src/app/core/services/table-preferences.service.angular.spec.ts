@@ -7,6 +7,7 @@ import { AuthService } from './auth.service';
 import { SupabaseService } from './supabase.service';
 import { TablePreferencesService } from './table-preferences.service';
 import {
+  CATALOG_TABLE_CONFIG,
   EXPENSES_TABLE_CONFIG,
   INVENTORY_TABLE_CONFIG,
   PURCHASES_TABLE_CONFIG,
@@ -211,6 +212,40 @@ describe('TablePreferencesService – Polaris Table Preferences & Reordering', (
     expect(
       PURCHASES_TABLE_CONFIG.defaultColumns.find(({ id }) => id === 'description')?.label,
     ).toBe('Beschreibung');
+  });
+
+  it('ersetzt die frühere Webshop-Spalte im Artikelstamm durch Kategorie und Marke', () => {
+    expect(CATALOG_TABLE_CONFIG.defaultColumns.map(({ id }) => id)).toEqual([
+      'title',
+      'category',
+      'brand',
+      'ean',
+      'available',
+    ]);
+    localStorage.setItem(
+      `flipbase:table_prefs:${testWorkspaceId}:catalog`,
+      JSON.stringify({
+        version: 1,
+        columns: [
+          { id: 'title', visible: true, order: 0 },
+          { id: 'ean', visible: true, order: 1 },
+          { id: 'available', visible: true, order: 2 },
+          { id: 'store', visible: true, order: 3 },
+        ],
+        sort: { field: 'title', direction: 'asc' },
+      }),
+    );
+
+    const state = service.getTablePreferences('catalog', testWorkspaceId)();
+
+    expect(state.columns.map(({ id }) => id)).toEqual([
+      'title',
+      'category',
+      'brand',
+      'ean',
+      'available',
+    ]);
+    expect(state.columns.some(({ id }) => id === 'store')).toBe(false);
   });
 
   it('zieht die unveränderte alte Einkaufsansicht einmalig auf die neue Standardfolge nach', () => {

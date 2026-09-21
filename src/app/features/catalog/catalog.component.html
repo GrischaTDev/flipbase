@@ -131,6 +131,14 @@
                 @case ('ean') {
                   <th scope="col" class="border-b border-fb-line px-3 py-2.5 text-left">EAN</th>
                 }
+                @case ('category') {
+                  <th scope="col" class="border-b border-fb-line px-3 py-2.5 text-left">
+                    Kategorie
+                  </th>
+                }
+                @case ('brand') {
+                  <th scope="col" class="border-b border-fb-line px-3 py-2.5 text-left">Marke</th>
+                }
                 @case ('available') {
                   <th
                     scope="col"
@@ -144,11 +152,6 @@
                       (sortChanged)="onSortChanged($event)"
                       align="right"
                     />
-                  </th>
-                }
-                @case ('store') {
-                  <th scope="col" class="border-b border-fb-line px-4 py-2.5 text-right">
-                    Webshop
                   </th>
                 }
               }
@@ -174,11 +177,16 @@
                           >{{ product.title }}</a
                         >
                       </div>
-                      @if (product.brand || product.model) {
-                        <p class="mt-0.5 text-xs text-fb-text-muted">
-                          {{ product.brand }} {{ product.model }}
-                        </p>
-                      }
+                    </td>
+                  }
+                  @case ('category') {
+                    <td class="px-3 py-3 text-fb-text-secondary">
+                      {{ product.category || 'Unbekannt' }}
+                    </td>
+                  }
+                  @case ('brand') {
+                    <td class="px-3 py-3 text-fb-text-secondary">
+                      {{ product.brand || 'Unbekannt' }}
                     </td>
                   }
                   @case ('ean') {
@@ -193,16 +201,6 @@
                           ? 'Zu prüfen'
                           : availableStock(product) + ' Stück'
                       }}
-                    </td>
-                  }
-                  @case ('store') {
-                    <td class="px-4 py-3 text-right">
-                      <span
-                        class="text-xs font-semibold"
-                        [class.text-fb-text-primary]="product.is_public_store"
-                        [class.text-fb-text-muted]="!product.is_public_store"
-                        >{{ product.is_public_store ? 'Öffentlich' : 'Intern' }}</span
-                      >
                     </td>
                   }
                 }
@@ -236,6 +234,16 @@
                   EAN {{ product.ean || '—' }}
                 </p>
               }
+              @if (visibleColumns().includes('category')) {
+                <p class="mt-0.5 text-xs text-fb-text-muted">
+                  Kategorie: {{ product.category || 'Unbekannt' }}
+                </p>
+              }
+              @if (visibleColumns().includes('brand')) {
+                <p class="mt-0.5 text-xs text-fb-text-muted">
+                  Marke: {{ product.brand || 'Unbekannt' }}
+                </p>
+              }
             </div>
             @if (visibleColumns().includes('available')) {
               <span class="font-mono text-xs font-bold text-fb-text-primary">{{
@@ -243,13 +251,6 @@
               }}</span>
             }
           </div>
-          @if (visibleColumns().includes('store')) {
-            <p class="mt-2 text-xs text-fb-text-secondary">
-              @if (visibleColumns().includes('store')) {
-                <span>{{ product.is_public_store ? 'Im Webshop' : 'Nur intern' }}</span>
-              }
-            </p>
-          }
         </article>
       }
     </div>

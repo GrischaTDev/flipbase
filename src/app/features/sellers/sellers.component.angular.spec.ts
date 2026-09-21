@@ -219,6 +219,45 @@ describe('SellersComponent', () => {
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('Noch keine Verkäufer');
   });
 
+  it('öffnet einen Verkäufer über Zeilenklick, Enter und Leertaste', () => {
+    const { fixture } = render();
+    const component = fixture.componentInstance;
+    const row = fixture.nativeElement.querySelector('[data-seller-row]') as HTMLTableRowElement;
+
+    row.click();
+    expect(component.selectedSeller()?.id).toBe('company-1');
+
+    component.closeDialog();
+    row.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    expect(component.selectedSeller()?.id).toBe('company-1');
+
+    component.closeDialog();
+    row.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+    expect(component.selectedSeller()?.id).toBe('company-1');
+  });
+
+  it('löst beim Bearbeiten-Knopf nicht zusätzlich die Zeilenaktion aus', () => {
+    const { fixture } = render();
+    const component = fixture.componentInstance;
+    const openEditDialog = vi.spyOn(component, 'openEditDialog');
+    const button = fixture.debugElement.query(By.css('[data-seller-edit-action]'));
+
+    button.triggerEventHandler('clicked', new MouseEvent('click', { bubbles: true }));
+
+    expect(openEditDialog).toHaveBeenCalledOnce();
+  });
+
+  it('kennzeichnet Bearbeiten, Archivieren und Wiederherstellen mit ihren Aktionsfarben', () => {
+    const { fixture } = render([{ ...sellers[0] }, { ...sellers[1], is_active: false }]);
+    const host = fixture.nativeElement as HTMLElement;
+    const editAction = host.querySelector('[data-seller-edit-action]');
+    const archiveActions = [...host.querySelectorAll('[data-seller-archive-action]')];
+
+    expect(editAction?.className).toContain('emerald');
+    expect(archiveActions[0]?.className).toContain('orange');
+    expect(archiveActions[1]?.className).toContain('emerald');
+  });
+
   it('erfüllt die automatischen Barrierefreiheitsprüfungen', async () => {
     const { fixture } = render();
 

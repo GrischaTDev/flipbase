@@ -92,16 +92,17 @@ export const INVENTORY_TABLE_CONFIG: TableConfig<InventoryColumnId, InventorySor
 // ==========================================
 // 3. Artikelstamm (Catalog)
 // ==========================================
-export type CatalogColumnId = 'title' | 'ean' | 'available' | 'store';
+export type CatalogColumnId = 'title' | 'category' | 'brand' | 'ean' | 'available';
 
 export type CatalogSortField = 'title' | 'available';
 
 export const CATALOG_TABLE_CONFIG: TableConfig<CatalogColumnId, CatalogSortField> = {
   defaultColumns: [
     { id: 'title', label: 'Artikel', visible: true, order: 0, locked: true },
-    { id: 'ean', label: 'EAN', visible: true, order: 1 },
-    { id: 'available', label: 'Verfügbar', visible: true, order: 3 },
-    { id: 'store', label: 'Webshop', visible: true, order: 4 },
+    { id: 'category', label: 'Kategorie', visible: true, order: 1 },
+    { id: 'brand', label: 'Marke', visible: true, order: 2 },
+    { id: 'ean', label: 'EAN', visible: true, order: 3 },
+    { id: 'available', label: 'Verfügbar', visible: true, order: 4 },
   ],
   defaultSort: { field: 'title', direction: 'asc' },
   sortOptions: [

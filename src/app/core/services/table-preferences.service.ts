@@ -245,8 +245,9 @@ export class TablePreferencesService {
         return { columns: [...config.defaultColumns], sort: { ...config.defaultSort } };
       }
 
-      // Schema-drift merge: reconcile stored columns with defaults
-      const storedMap = new Map(parsed.columns.map((c) => [c.id, c]));
+      // Schema-drift merge: unbekannte Spalten entfernen, neue Standardspalten
+      // an ihrer fachlichen Stelle ergänzen und die persönliche Reihenfolge der
+      // weiterhin bekannten Spalten erhalten.
       const storedOrder = new Map(parsed.columns.map((column) => [column.id as string, column]));
       const removedPurchaseColumns = new Set([
         'type',
@@ -258,23 +259,45 @@ export class TablePreferencesService {
       const purchaseColumnsWithoutLegacy = parsed.columns.filter(
         (column) => !removedPurchaseColumns.has(column.id),
       );
-      const mergedColumns: ColumnDefinition<TColumnId>[] = [];
+      const defaultById = new Map(config.defaultColumns.map((column) => [column.id, column]));
+      const orderedIds = parsed.columns
+        .map((column, index) => ({ column, index }))
+        .sort(
+          (left, right) => (left.column.order ?? left.index) - (right.column.order ?? right.index),
+        )
+        .map(({ column }) => column.id)
+        .filter(
+          (id, index, ids) => defaultById.has(id) && ids.indexOf(id) === index,
+        ) as TColumnId[];
 
-      for (const defCol of config.defaultColumns) {
-        const stored = storedMap.get(defCol.id);
-        if (stored) {
-          mergedColumns.push({
-            ...defCol,
-            visible: defCol.locked ? true : stored.visible,
-            order: typeof stored.order === 'number' ? stored.order : defCol.order,
-          });
-          storedMap.delete(defCol.id);
-        } else {
-          mergedColumns.push({ ...defCol });
+      for (const [defaultIndex, defaultColumn] of config.defaultColumns.entries()) {
+        if (orderedIds.includes(defaultColumn.id)) continue;
+        const precedingId = [...config.defaultColumns.slice(0, defaultIndex)]
+          .reverse()
+          .find((column) => orderedIds.includes(column.id))?.id;
+        if (precedingId) {
+          orderedIds.splice(orderedIds.indexOf(precedingId) + 1, 0, defaultColumn.id);
+          continue;
         }
+        const followingId = config.defaultColumns
+          .slice(defaultIndex + 1)
+          .find((column) => orderedIds.includes(column.id))?.id;
+        orderedIds.splice(
+          followingId ? orderedIds.indexOf(followingId) : orderedIds.length,
+          0,
+          defaultColumn.id,
+        );
       }
 
-      mergedColumns.sort((a, b) => a.order - b.order);
+      const mergedColumns = orderedIds.map((id, order) => {
+        const defaultColumn = defaultById.get(id)!;
+        const stored = storedOrder.get(id);
+        return {
+          ...defaultColumn,
+          visible: defaultColumn.locked ? true : (stored?.visible ?? defaultColumn.visible),
+          order,
+        };
+      }) as ColumnDefinition<TColumnId>[];
 
       const isValidSortField = config.sortOptions.some((s) => s.value === parsed.sort?.field);
       const validSort: TableSortState<TSortField> = isValidSortField
@@ -356,6 +379,16 @@ export class TablePreferencesService {
         const migratedColumns = mergedColumns.map((column, order) => ({ ...column, order }));
         this.savePreferences(tableId, workspaceId, migratedColumns, validSort);
         return { columns: migratedColumns, sort: validSort };
+      }
+      const storedIds = parsed.columns
+        .map((column, index) => ({ id: column.id, order: column.order ?? index }))
+        .sort((left, right) => left.order - right.order)
+        .map(({ id }) => id);
+      if (
+        storedIds.length !== mergedColumns.length ||
+        storedIds.some((id, index) => id !== mergedColumns[index]?.id)
+      ) {
+        this.savePreferences(tableId, workspaceId, mergedColumns, validSort);
       }
       return { columns: mergedColumns, sort: validSort };
     } catch {
