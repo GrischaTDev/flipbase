@@ -1,5 +1,19 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-21 – Juna – Kartenrahmen beim ersten Rendern stabilisiert
+
+**Auftrag:** Den synchronen Klassenvertrag der gemeinsamen Card-Komponente beim
+ersten Rendern vollständig machen.
+
+**Änderung:** Die Varianten `surface` und `kpi` setzen ihren transparenten
+Rahmen jetzt synchron; `subtle` setzt den dezenten Rahmen synchron. Die lokale
+`transition-colors`-Klasse der Card wurde entfernt, damit der Rahmen nicht
+zwischen Browserfarbe und Themefarbe überblendet.
+
+**Prüfung:** Der neue Kartentest schlug zunächst rot aus und bestand nach der
+Korrektur. Karten- und Einkaufserfassungstests bestanden mit 49 Tests. Der
+Prüfbericht liegt unter `.superpowers/sdd/2026-09-21-ui-regression-cleanup/task-2-report.md`.
+
 ## 2026-09-21 – Juna – Beta-Formular und Ergebnisdialoge korrigiert
 
 **Auftrag:** Den Beta-Antrag an den produktiven Duplikatcode anpassen, den
