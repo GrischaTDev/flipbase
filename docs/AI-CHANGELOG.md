@@ -1,5 +1,20 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-21 – Juna – Telefonfehlerreferenz bedingt gesetzt
+
+**Auftrag:** Die ARIA-Referenz des Telefonfelds nur dann setzen, wenn das
+passende Fehlerziel tatsächlich gerendert wird.
+
+**Änderung:** Das Telefon-Control erzeugt seine Eingabeattribute bei jeder
+Änderungsprüfung neu. Leer und gültig bleiben ohne `aria-describedby`; nur ein
+berührter ungültiger Wert verweist auf `seller-phone-error` und zeigt die
+zugehörige Fehlermeldung.
+
+**Prüfung:** Der neue Normalzustandstest war zunächst rot, weil die Referenz
+immer vorhanden war. Nach der Korrektur bestanden die 15 fokussierten Tests
+einschließlich AXE, ESLint und Produktionsbau. Der Fixbericht ergänzt
+`.superpowers/sdd/2026-09-21-ui-regression-cleanup/task-4-report.md`.
+
 ## 2026-09-21 – Juna – Verkäuferdialog gegen Prüfhinweise abgesichert
 
 **Auftrag:** Zwei wichtige Review-Funde am Verkäuferdialog beheben: eine

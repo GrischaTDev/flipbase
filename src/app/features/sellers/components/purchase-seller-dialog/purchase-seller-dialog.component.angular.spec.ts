@@ -292,9 +292,18 @@ describe('PurchaseSellerDialogComponent', () => {
     expect(host.querySelector('#seller-email input')?.getAttribute('aria-invalid')).toBe('true');
   });
 
-  it('verknüpft einen berührten ungültigen Telefonfehler mit der Telefonnummer', () => {
+  it('verknüpft die Telefonnummer nur bei einem berührten ungültigen Wert mit dem Fehlerziel', () => {
     const { fixture } = render();
     const host = fixture.nativeElement as HTMLElement;
+
+    expect(host.querySelector('#seller-phone')?.getAttribute('aria-describedby')).toBeNull();
+    expect(host.querySelector('#seller-phone-error')).toBeNull();
+
+    fixture.componentInstance.form.controls.phone.setValue('+491701234567');
+    fixture.detectChanges();
+
+    expect(host.querySelector('#seller-phone')?.getAttribute('aria-describedby')).toBeNull();
+    expect(host.querySelector('#seller-phone-error')).toBeNull();
 
     fixture.componentInstance.form.controls.phone.setErrors({ invalidPhone: true });
     fixture.componentInstance.form.controls.phone.markAsTouched();

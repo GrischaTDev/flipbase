@@ -67,15 +67,6 @@ export class PurchaseSellerDialogComponent {
   }));
   readonly phoneTranslations = germanPhoneTranslations;
   readonly phoneDropdownParent = this.host.nativeElement;
-  readonly phoneInputAttributes = computed(() => ({
-    id: 'seller-phone',
-    class: 'linear-input w-full rounded-lg px-3 py-2',
-    'aria-label': 'Telefonnummer',
-    'aria-invalid': String(this.form.controls.phone.invalid && this.form.controls.phone.touched),
-    'aria-describedby': 'seller-phone-error',
-    autocomplete: 'tel',
-  }));
-
   readonly form = new FormGroup({
     seller_type: new FormControl<'private' | 'business'>('private', { nonNullable: true }),
     name: new FormControl('', {
@@ -130,6 +121,18 @@ export class PurchaseSellerDialogComponent {
 
   isSaving(): boolean {
     return this.saving();
+  }
+
+  phoneInputAttributes(): Record<string, string> {
+    const hasPhoneError = this.form.controls.phone.invalid && this.form.controls.phone.touched;
+    const attributes = {
+      id: 'seller-phone',
+      class: 'linear-input w-full rounded-lg px-3 py-2',
+      'aria-label': 'Telefonnummer',
+      'aria-invalid': String(hasPhoneError),
+      autocomplete: 'tel',
+    };
+    return hasPhoneError ? { ...attributes, 'aria-describedby': 'seller-phone-error' } : attributes;
   }
 
   closeIfNotSaving(): void {
