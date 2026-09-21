@@ -330,7 +330,8 @@ export class SalesService {
         ...sales.filter((sale) => sale.id !== result.sale.id),
       ]);
       await this.refreshAffectedState(workspaceId);
-      return { data: result, error: null, reportedBySyncStatus: false };
+      const refreshedResult = this.refreshRecordedSale(result);
+      return { data: refreshedResult, error: null, reportedBySyncStatus: false };
     } catch (error: unknown) {
       return this.mutationFailure('Verkauf buchen', error);
     }
@@ -391,7 +392,8 @@ export class SalesService {
         ...sales.filter((sale) => sale.id !== result.sale.id),
       ]);
       await this.refreshAffectedState(workspaceId);
-      return { data: result, error: null, reportedBySyncStatus: false };
+      const refreshedResult = this.refreshRecordedSale(result);
+      return { data: refreshedResult, error: null, reportedBySyncStatus: false };
     } catch (error: unknown) {
       return this.mutationFailure(operation, error);
     }
@@ -459,6 +461,14 @@ export class SalesService {
       stock_movements: movements,
     });
     return { sale, saleLines: lines, lotAllocations: allocations, stockMovements: movements };
+  }
+
+  private refreshRecordedSale(result: RecordSaleResult): RecordSaleResult {
+    const refreshedSale = this.enrichSaleMetrics(result.sale);
+    this.sales.update((sales) =>
+      sales.map((sale) => (sale.id === refreshedSale.id ? refreshedSale : sale)),
+    );
+    return { ...result, sale: refreshedSale };
   }
 
   private arrayValue<T>(value: unknown): T[] {

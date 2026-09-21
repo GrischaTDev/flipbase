@@ -20,10 +20,10 @@ describe('getPurchaseStatusPresentation', () => {
     [{ receiving_status: 'draft' }, { label: 'Entwurf', tone: 'caution' }],
     [{ receiving_status: 'ordered' }, { label: 'Bestellt', tone: 'info' }],
     [{ receiving_status: 'partially_received' }, { label: 'Teillieferung', tone: 'caution' }],
-    [{ receiving_status: 'received' }, { label: 'Angekommen', tone: 'success' }],
+    [{ receiving_status: 'received' }, { label: 'Angekommen', tone: 'brand' }],
     [
       { entry_status: 'finalized', receiving_status: 'received', shipment_status: 'arrived' },
-      { label: 'Abgeschlossen', tone: 'brand' },
+      { label: 'Abgeschlossen', tone: 'success' },
     ],
     [
       { entry_status: 'finalized', receiving_status: 'archived' },

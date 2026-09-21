@@ -1,0 +1,42 @@
+<app-modal-shell title="Marken verwalten" size="md" (closed)="closed.emit()">
+  <div class="space-y-4">
+    <p class="text-[13px] leading-relaxed text-fb-text-muted">
+      Wähle eine Marke und lege fest, was mit bestehenden Zuordnungen passieren soll. Ohne
+      Ersatzmarke werden die Zuordnungen entfernt.
+    </p>
+    @if (error()) {
+      <p role="alert" class="text-sm text-rose-700 dark:text-rose-400">{{ error() }}</p>
+    }
+    @if (resultMessage()) {
+      <p role="status" class="text-sm text-fb-success">{{ resultMessage() }}</p>
+    }
+    <div class="space-y-3">
+      <app-custom-select
+        triggerId="brand-management-source"
+        ariaLabel="Zu löschende Marke"
+        [options]="brandOptions()"
+        [value]="selectedBrandId()"
+        (valueChange)="selectBrand($event)"
+      />
+      <app-custom-select
+        triggerId="brand-management-replacement"
+        ariaLabel="Ersatzmarke"
+        [options]="replacementOptions()"
+        [value]="replacementBrandId()"
+        [disabled]="!selectedBrandId()"
+        (valueChange)="replacementBrandId.set($event)"
+      />
+    </div>
+  </div>
+  <div modal-footer class="flex flex-wrap justify-end gap-2">
+    <app-button [disabled]="saving()" (clicked)="closed.emit()">Schließen</app-button>
+    <app-button
+      variant="destructive"
+      [loading]="saving()"
+      [disabled]="!selectedBrandId()"
+      (clicked)="deleteSelectedBrand()"
+    >
+      Zuordnungen übernehmen und Marke löschen
+    </app-button>
+  </div>
+</app-modal-shell>

@@ -93,6 +93,7 @@
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <app-brand-picker label="Marke" id="product-brand" formControlName="brandId" />
               <app-text-field label="Modell" formControlName="model" />
+              <app-text-field label="SKU" formControlName="sku" />
               <app-text-field
                 label="EAN / GTIN"
                 formControlName="ean"
@@ -107,7 +108,17 @@
                 id="product-category"
                 formControlName="categoryId"
               />
+              <app-custom-select
+                label="Zustand"
+                ariaLabel="Zustand des Artikels"
+                [options]="conditionOptions"
+                formControlName="condition"
+              />
+              <app-text-field label="Größe" formControlName="size" />
+              <app-text-field label="Farbe" formControlName="color" />
+              <app-text-field label="Material" formControlName="material" />
             </div>
+            <app-text-field label="Notiz" [multiline]="3" formControlName="conditionNotes" />
           </div>
         </app-card>
         <app-card title="Bilder" subtitle="Allgemeine Bilder des Artikels" rounded="xl">

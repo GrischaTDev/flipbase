@@ -27,6 +27,10 @@ test('allows new beta accounts only through operator invitations', async () => {
   assert.match(productionOverride, /auth:\s+[\s\S]*?GOTRUE_DISABLE_SIGNUP:\s*["']true["']/u);
   assert.match(
     productionOverride,
+    /GOTRUE_MAILER_SUBJECTS_INVITE:\s*["']Deine Bewerbung zur Flipbase Beta wurde angenommen["']/u,
+  );
+  assert.match(
+    productionOverride,
     /BETA_APP_URL:\s*\$\{BETA_APP_URL:-https:\/\/app\.flipbase\.de\}/u,
   );
   assert.match(

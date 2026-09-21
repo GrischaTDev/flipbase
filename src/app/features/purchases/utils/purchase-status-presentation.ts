@@ -14,13 +14,13 @@ export function getPurchaseStatusPresentation(purchase: Purchase): PurchaseStatu
     return { label: 'Storniert', tone: 'critical' };
   }
   if (purchase.entry_status === 'finalized') {
-    return { label: 'Abgeschlossen', tone: 'brand' };
+    return { label: 'Abgeschlossen', tone: 'success' };
   }
   if (receivingStatus === 'partially_received') {
     return { label: 'Teillieferung', tone: 'caution' };
   }
   if (receivingStatus === 'received' || purchase.shipment_status === 'arrived') {
-    return { label: 'Angekommen', tone: 'success' };
+    return { label: 'Angekommen', tone: 'brand' };
   }
   if (receivingStatus === 'ordered') return { label: 'Bestellt', tone: 'info' };
   return { label: 'Entwurf', tone: 'caution' };

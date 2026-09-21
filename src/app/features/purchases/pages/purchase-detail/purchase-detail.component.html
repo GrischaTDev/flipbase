@@ -59,7 +59,7 @@
             (correctionRequested)="isCorrectionDialogOpen.set(true)"
             (saleHistoryReloadRequested)="reloadPurchaseSaleHistory()"
             (orderedRequested)="markAsOrdered()"
-            (arrivedRequested)="markAsArrived()"
+            (receiptRequested)="startReceivingLines()"
             (captureContentRequested)="captureContent()"
           />
         }
@@ -92,36 +92,6 @@
           >
             <ng-container [ngTemplateOutlet]="packageContents" />
           </div>
-          @if (
-            !hasOpenPurchasePrices() &&
-            (quantityPurchaseLines().length > 0 || individualPurchaseLines().length > 0)
-          ) {
-            <app-card
-              entry-main-extra
-              title="Wareneingang"
-              [attr.inert]="hasUnsavedChanges() || isSaving() ? '' : null"
-            >
-              @if (quantityPurchaseLines().length > 0) {
-                <app-button (clicked)="startReceivingLines()">Wareneingang buchen</app-button>
-                @if (isReceivingLines()) {
-                  <ng-container [ngTemplateOutlet]="receivingEditor" />
-                }
-              }
-              @for (line of individualPurchaseLines(); track line.id) {
-                <div class="flex items-center justify-between gap-2 py-2 text-[13px]">
-                  <span
-                    >{{ line.title_snapshot }} · Eingegangen: {{ line.received_quantity }} /
-                    {{ line.ordered_quantity }}</span
-                  >
-                  @if (line.received_quantity < line.ordered_quantity) {
-                    <app-button (clicked)="captureIndividualItem(line)"
-                      >Einzelartikel erfassen</app-button
-                    >
-                  }
-                </div>
-              }
-            </app-card>
-          }
           <div entry-sidebar-extra [attr.inert]="hasUnsavedChanges() || isSaving() ? '' : null">
             <ng-container [ngTemplateOutlet]="trackingCard" />
           </div>
@@ -176,7 +146,7 @@
                 @if (
                   p.entry_status !== 'finalized' &&
                   !hasOpenPurchasePrices() &&
-                  quantityPurchaseLines().length > 0
+                  (quantityPurchaseLines().length > 0 || individualPurchaseLines().length > 0)
                 ) {
                   <div class="flex items-center gap-2">
                     <app-button
@@ -185,7 +155,7 @@
                       [icon]="checkIcon"
                       (clicked)="startReceivingLines()"
                     >
-                      Wareneingang buchen
+                      Wareneingang erfassen
                     </app-button>
                   </div>
                 }
@@ -196,10 +166,6 @@
                   <app-button variant="plain" [icon]="editIcon" (clicked)="editPurchase(p.id)"
                     >Artikel bearbeiten</app-button
                   >
-                }
-
-                @if (p.entry_status !== 'finalized' && isReceivingLines()) {
-                  <ng-container [ngTemplateOutlet]="receivingEditor" />
                 }
 
                 <!-- Positionsdarstellung -->
@@ -287,56 +253,83 @@
           </div>
         </app-two-column-layout>
       }
-      <ng-template #receivingEditor>
-        <section class="space-y-3 border-t border-fb-border pt-4" aria-labelledby="receipt-title">
-          <div class="mb-2 flex items-center justify-between gap-2">
-            <h3 id="receipt-title" class="text-sm font-semibold text-fb-text-primary">
-              Wareneingang buchen
-            </h3>
-            <app-button variant="plain" (clicked)="isReceivingLines.set(false)">
-              Schließen
-            </app-button>
-          </div>
+      @if (isReceivingLines()) {
+        <app-modal-shell
+          title="Wareneingang erfassen"
+          subtitle="Prüfe die tatsächlich eingegangenen Mengen. Der Einkaufsstatus wird automatisch aktualisiert."
+          size="lg"
+          (closed)="isReceivingLines.set(false)"
+        >
           <div class="space-y-2">
             @for (line of quantityPurchaseLines(); track line.id) {
-              <div
-                class="grid grid-cols-1 items-end gap-2 rounded-lg border border-fb-line bg-fb-well p-2.5 sm:grid-cols-[minmax(0,1fr)_5rem_6rem_6rem_auto]"
-              >
-                <span class="text-xs font-semibold text-fb-text-primary">{{
-                  line.title_snapshot
-                }}</span>
-                <span class="text-[11px] text-fb-text-muted">
-                  Bestellt: {{ line.ordered_quantity }}
-                </span>
-                <span class="text-[11px] text-fb-text-muted">
-                  Eingegangen: {{ line.received_quantity }}
-                </span>
-                <label
-                  [attr.for]="'receive-' + line.id"
-                  class="text-xs font-medium text-fb-text-muted"
+              @if (line.received_quantity < line.ordered_quantity) {
+                <div
+                  class="grid grid-cols-1 items-end gap-3 rounded-lg border border-fb-line bg-fb-well p-3 sm:grid-cols-[minmax(0,1fr)_7rem]"
                 >
-                  Jetzt eingegangen
-                  <app-number-input
-                    [id]="'receive-' + line.id"
-                    [min]="0"
-                    [max]="line.ordered_quantity - line.received_quantity"
-                    [value]="receivingQuantities()[line.id]"
-                    [ariaLabel]="'Wareneingang für ' + line.title_snapshot"
-                    (valueChange)="updateReceivingQuantity(line.id, $event ?? 0)"
-                  />
-                </label>
-                <app-button
-                  variant="primary"
-                  (clicked)="receivePurchaseLine(line)"
-                  [disabled]="receivingQuantities()[line.id] < 1"
+                  <div>
+                    <p class="text-sm font-semibold text-fb-text-primary">
+                      {{ line.title_snapshot }}
+                    </p>
+                    <p class="mt-1 text-xs text-fb-text-muted">
+                      Bestellt: {{ line.ordered_quantity }} · Bereits eingegangen:
+                      {{ line.received_quantity }}
+                    </p>
+                  </div>
+                  <label [attr.for]="'receive-' + line.id" class="text-xs font-medium">
+                    Jetzt eingegangen
+                    <app-number-input
+                      [id]="'receive-' + line.id"
+                      [min]="0"
+                      [max]="line.ordered_quantity - line.received_quantity"
+                      [value]="receivingQuantities()[line.id]"
+                      [ariaLabel]="'Wareneingang für ' + line.title_snapshot"
+                      (valueChange)="updateReceivingQuantity(line.id, $event ?? 0)"
+                    />
+                  </label>
+                </div>
+              }
+            }
+            @for (line of individualPurchaseLines(); track line.id) {
+              @if (line.received_quantity < line.ordered_quantity) {
+                <div
+                  class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-fb-line bg-fb-well p-3"
                 >
-                  Buchen
-                </app-button>
-              </div>
+                  <div>
+                    <p class="text-sm font-semibold text-fb-text-primary">
+                      {{ line.title_snapshot }}
+                    </p>
+                    <p class="mt-1 text-xs text-fb-text-muted">
+                      Einzelartikel {{ line.received_quantity + 1 }} von
+                      {{ line.ordered_quantity }}
+                    </p>
+                  </div>
+                  <app-button (clicked)="captureIndividualItem(line)">
+                    Einzelartikel erfassen
+                  </app-button>
+                </div>
+              }
             }
           </div>
-        </section>
-      </ng-template>
+          <div modal-footer class="flex items-center gap-2">
+            <app-button
+              [disabled]="isLifecycleSubmitting()"
+              (clicked)="isReceivingLines.set(false)"
+            >
+              Abbrechen
+            </app-button>
+            @if (quantityPurchaseLines().length > 0) {
+              <app-button
+                variant="primary"
+                [loading]="isLifecycleSubmitting()"
+                [disabled]="selectedReceiptLines().length === 0"
+                (clicked)="receiveSelectedPurchaseLines()"
+              >
+                Eingang bestätigen
+              </app-button>
+            }
+          </div>
+        </app-modal-shell>
+      }
       <ng-template #trackingCard>
         <app-card>
           <div card-header class="flex items-center justify-between w-full">

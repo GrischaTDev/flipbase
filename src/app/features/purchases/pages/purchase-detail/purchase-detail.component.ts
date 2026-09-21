@@ -92,6 +92,7 @@ import { getPurchaseStatusPresentation } from '../../utils/purchase-status-prese
 import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { PurchaseCostSummaryComponent } from '../../components/purchase-cost-summary/purchase-cost-summary.component';
+import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 
 @Component({
   selector: 'app-purchase-detail',
@@ -119,6 +120,7 @@ import { PurchaseCostSummaryComponent } from '../../components/purchase-cost-sum
     NumberInputComponent,
     TextFieldComponent,
     PurchaseCostSummaryComponent,
+    ModalShellComponent,
   ],
   templateUrl: './purchase-detail.component.html',
   host: { class: 'block', '(window:beforeunload)': 'onBeforeUnload($event)' },
@@ -421,6 +423,15 @@ export class PurchaseDetailComponent {
 
   readonly quantityPurchaseLines = computed(() =>
     this.purchaseService.purchaseLines().filter((line) => line.line_kind === 'quantity'),
+  );
+  readonly selectedReceiptLines = computed(() =>
+    this.quantityPurchaseLines().flatMap((line) => {
+      const receivedQuantity = this.receivingQuantities()[line.id] ?? 0;
+      const remainingQuantity = line.ordered_quantity - line.received_quantity;
+      return receivedQuantity >= 1 && receivedQuantity <= remainingQuantity
+        ? [{ purchaseLineId: line.id, receivedQuantity }]
+        : [];
+    }),
   );
   readonly hasOpenPurchasePrices = computed(() => {
     const purchase = this.purchaseService.selectedPurchase();
@@ -781,6 +792,41 @@ export class PurchaseDetailComponent {
     this.toast.success('Wareneingang wurde gebucht.');
   }
 
+  async receiveSelectedPurchaseLines(): Promise<void> {
+    const purchase = this.purchaseService.selectedPurchase();
+    const lines = this.selectedReceiptLines();
+    if (
+      !purchase ||
+      purchase.entry_status === 'finalized' ||
+      this.hasOpenPricesForStock() ||
+      this.hasUnsavedChanges() ||
+      this.isSaving() ||
+      this.isLifecycleSubmitting() ||
+      lines.length === 0
+    )
+      return;
+
+    this.isLifecycleSubmitting.set(true);
+    const result = await this.purchaseService.receivePurchaseLines(purchase.id, lines);
+    if (result.error) {
+      this.isLifecycleSubmitting.set(false);
+      this.meldeFehlerWennNichtSynchronisiert(
+        'Wareneingang konnte nicht gebucht werden.',
+        result.error,
+      );
+      return;
+    }
+
+    await Promise.all([
+      this.purchaseService.getPurchaseById(purchase.id),
+      this.stockService.loadPositions(purchase.workspace_id),
+    ]);
+    this.isLifecycleSubmitting.set(false);
+    this.isReceivingLines.set(false);
+    this.historyRevision.update((revision) => revision + 1);
+    this.toast.success('Wareneingang wurde gebucht.');
+  }
+
   async captureIndividualItem(line: PurchaseLine): Promise<void> {
     const purchase = this.purchaseService.selectedPurchase();
     if (
@@ -916,9 +962,23 @@ export class PurchaseDetailComponent {
       return;
     }
 
-    await this.purchaseService.getPurchaseById(purchase.id);
+    if (!result.data) {
+      this.toast.error('Einkauf konnte nicht wieder geöffnet werden.');
+      return;
+    }
+    const refreshError = await this.purchaseService.refreshAfterCostingChange(
+      purchase.workspace_id,
+      purchase.id,
+      result.data,
+    );
     this.historyRevision.update((revision) => revision + 1);
     this.toast.success('Einkauf wurde wieder geöffnet.');
+    if (refreshError) {
+      this.toast.warning(
+        'Der Einkauf ist wieder geöffnet, aber noch nicht vollständig neu geladen.',
+        'Bitte lade die Seite erneut.',
+      );
+    }
   }
 
   async finalizePurchase(): Promise<void> {
@@ -961,7 +1021,7 @@ export class PurchaseDetailComponent {
       this.toast.error('Einkauf konnte nicht abgeschlossen werden.');
       return;
     }
-    const refreshError = await this.purchaseService.refreshAfterFinalization(
+    const refreshError = await this.purchaseService.refreshAfterCostingChange(
       purchase.workspace_id,
       purchase.id,
       result.data,

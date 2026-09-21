@@ -539,6 +539,7 @@ export type Database = {
           brand_id: string | null
           category: string | null
           category_id: string | null
+          color: string | null
           condition: string | null
           condition_notes: string | null
           created_at: string
@@ -547,9 +548,12 @@ export type Database = {
           id: string
           is_public_store: boolean
           listing_price: number | null
+          material: string | null
           model: string | null
           seo_description: string | null
           seo_title: string | null
+          size: string | null
+          sku: string | null
           title: string
           tracking_mode: string
           updated_at: string
@@ -561,6 +565,7 @@ export type Database = {
           brand_id?: string | null
           category?: string | null
           category_id?: string | null
+          color?: string | null
           condition?: string | null
           condition_notes?: string | null
           created_at?: string
@@ -569,9 +574,12 @@ export type Database = {
           id?: string
           is_public_store?: boolean
           listing_price?: number | null
+          material?: string | null
           model?: string | null
           seo_description?: string | null
           seo_title?: string | null
+          size?: string | null
+          sku?: string | null
           title: string
           tracking_mode?: string
           updated_at?: string
@@ -583,6 +591,7 @@ export type Database = {
           brand_id?: string | null
           category?: string | null
           category_id?: string | null
+          color?: string | null
           condition?: string | null
           condition_notes?: string | null
           created_at?: string
@@ -591,9 +600,12 @@ export type Database = {
           id?: string
           is_public_store?: boolean
           listing_price?: number | null
+          material?: string | null
           model?: string | null
           seo_description?: string | null
           seo_title?: string | null
+          size?: string | null
+          sku?: string | null
           title?: string
           tracking_mode?: string
           updated_at?: string
@@ -4980,6 +4992,14 @@ export type Database = {
       }
       reopen_purchase_costing: {
         Args: { p_purchase_id: string; p_workspace_id: string }
+        Returns: Json
+      }
+      replace_and_delete_brand: {
+        Args: {
+          p_brand_id: string
+          p_replacement_brand_id?: string
+          p_workspace_id: string
+        }
         Returns: Json
       }
       replace_bank_transactions: {

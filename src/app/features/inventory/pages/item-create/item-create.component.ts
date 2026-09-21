@@ -34,7 +34,7 @@ export class ItemCreateComponent {
     : null;
 
   hasUnsavedChanges(): boolean {
-    return !this.saved() && (!!this.entryForm()?.form.dirty || !!this.entryForm()?.image());
+    return !this.saved() && (!!this.entryForm()?.form.dirty || !!this.entryForm()?.images().length);
   }
   isSaving(): boolean {
     return this.entryForm()?.saving() ?? false;

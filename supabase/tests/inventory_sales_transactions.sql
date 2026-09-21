@@ -16,6 +16,7 @@ declare
   v_individual_line_id uuid := gen_random_uuid();
   v_individual_item_id uuid;
   v_receiving_status text;
+  v_shipment_status text;
   v_sale jsonb;
   v_sale_id uuid;
   v_received_quantity integer;
@@ -125,6 +126,11 @@ begin
   if v_remaining_quantity <> 5 then
     raise exception 'expected remaining quantity 5 after receipt, got %', v_remaining_quantity;
   end if;
+  select shipment_status into v_shipment_status
+  from public.purchases where id = v_purchase_id;
+  if v_shipment_status <> 'arrived' then
+    raise exception 'receipt must mark the shipment as arrived, got %', v_shipment_status;
+  end if;
 
   insert into public.purchase_lines (
     id, workspace_id, purchase_id, catalog_product_id, title_snapshot, line_kind,
@@ -185,6 +191,11 @@ begin
   from public.purchases where id = v_individual_purchase_id;
   if v_receiving_status <> 'received' then
     raise exception 'individual receipt did not complete purchase status, got %', v_receiving_status;
+  end if;
+  select shipment_status into v_shipment_status
+  from public.purchases where id = v_individual_purchase_id;
+  if v_shipment_status <> 'arrived' then
+    raise exception 'individual receipt must mark the shipment as arrived, got %', v_shipment_status;
   end if;
 
   v_sale := public.record_sale(

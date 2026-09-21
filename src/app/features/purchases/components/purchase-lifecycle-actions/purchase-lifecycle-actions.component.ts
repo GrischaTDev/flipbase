@@ -30,6 +30,6 @@ export class PurchaseLifecycleActionsComponent {
   readonly correctionRequested = output<void>();
   readonly saleHistoryReloadRequested = output<void>();
   readonly orderedRequested = output<void>();
-  readonly arrivedRequested = output<void>();
+  readonly receiptRequested = output<void>();
   readonly captureContentRequested = output<void>();
 }

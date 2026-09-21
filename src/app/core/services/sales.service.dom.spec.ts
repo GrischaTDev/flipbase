@@ -20,10 +20,16 @@ const sale: Sale = {
 
 function createService(response: { data: unknown; error: unknown }): {
   service: SalesService;
-  stockService: { loadPositions: ReturnType<typeof vi.fn> };
+  stockService: {
+    loadPositions: ReturnType<typeof vi.fn>;
+    lots: ReturnType<typeof signal>;
+  };
   rpc: ReturnType<typeof vi.fn>;
 } {
-  const stockService = { loadPositions: vi.fn(async () => undefined) };
+  const stockService = {
+    loadPositions: vi.fn(async () => undefined),
+    lots: signal([]),
+  };
   const rpc = vi.fn(async () => response);
   const service = Object.create(SalesService.prototype) as SalesService;
   Object.assign(service, {
@@ -185,6 +191,74 @@ describe('SalesService', () => {
         ],
       }),
     );
+  });
+
+  it('berechnet die Verkaufskosten nach dem Bestands-Refresh sofort neu', async () => {
+    const finalizedPurchase = {
+      id: 'purchase-1',
+      workspace_id: 'workspace-1',
+      type: 'single' as const,
+      title: 'LED-Einkauf',
+      purchase_date: '2026-08-20',
+      purchase_price: 9.98,
+      cost_allocation_mode: 'even' as const,
+      entry_status: 'finalized' as const,
+    };
+    const allocation = {
+      id: 'allocation-1',
+      workspace_id: 'workspace-1',
+      sale_line_id: 'sale-line-1',
+      stock_lot_id: 'stock-lot-1',
+      quantity: 1,
+      unit_cost: 9.98,
+    };
+    const { service, stockService } = createService({
+      data: {
+        sale,
+        sale_lines: [
+          {
+            id: 'sale-line-1',
+            sale_id: sale.id,
+            catalog_product_id: 'led-lamp-1',
+            title_snapshot: 'LED-Lampe',
+            quantity: 1,
+            unit_sale_price: 19.98,
+            line_total: 19.98,
+            cost_of_goods_sold: 9.98,
+            tax_mode: 'diff_25a',
+          },
+        ],
+        lot_allocations: [allocation],
+        stock_movements: [],
+      },
+      error: null,
+    });
+    stockService.loadPositions.mockImplementation(async () => {
+      stockService.lots.set([
+        {
+          id: 'stock-lot-1',
+          workspace_id: 'workspace-1',
+          purchase_id: finalizedPurchase.id,
+          purchase_line_id: 'purchase-line-1',
+          catalog_product_id: 'led-lamp-1',
+          received_quantity: 1,
+          remaining_quantity: 0,
+          unit_cost: 9.98,
+          received_at: '2026-08-21T10:00:00.000Z',
+          purchase: finalizedPurchase,
+        },
+      ]);
+    });
+
+    const result = await service.recordSale({
+      platform: 'vinted',
+      saleDate: sale.sale_date,
+      lines: [{ catalogProductId: 'led-lamp-1', quantity: 1, unitSalePrice: 19.98 }],
+    });
+
+    expect(result.data?.sale.cost_basis_status).toBe('known');
+    expect(result.data?.sale.net_profit).toBe(10);
+    expect(service.sales()[0].cost_basis_status).toBe('known');
   });
 
   it('übergibt Käufer-Versand und strukturierte Zusatzkosten getrennt an die Verkaufs-RPC', async () => {

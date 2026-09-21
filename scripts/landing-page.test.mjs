@@ -510,6 +510,17 @@ test('confirms a stored beta application in a focused dialog', async () => {
   dom.window.close();
 });
 
+test('zieht den Hinweis zur Bestätigungs-E-Mail über die gesamte Dialogbreite', async () => {
+  const { dom } = await submitBetaApplication({ ok: true, receiptEmailSent: true });
+  const receipt = dom.window.document.getElementById('beta-success-receipt');
+  const style = dom.window.getComputedStyle(receipt);
+
+  assert.equal(style.width, '100%');
+  assert.equal(style.maxWidth, 'none');
+  assert.equal(style.textAlign, 'center');
+  dom.window.close();
+});
+
 test('explains a failed receipt email without losing the application', async () => {
   const { dom } = await submitBetaApplication({ ok: true, receiptEmailSent: false });
   const dialog = dom.window.document.getElementById('beta-success-dialog');

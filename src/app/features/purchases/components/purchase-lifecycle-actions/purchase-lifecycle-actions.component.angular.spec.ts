@@ -216,7 +216,7 @@ describe('PurchaseLifecycleActionsComponent', () => {
     expect(retry).toHaveBeenCalledOnce();
   });
 
-  it('führt einen neuen Einkauf über bestellt und angekommen zur Inhaltserfassung', () => {
+  it('führt einen neuen Einkauf über bestellt und Wareneingang zur Inhaltserfassung', () => {
     const draft = render('draft', 'idle', null, {
       receiving: 'draft',
       shipment: 'not_shipped',
@@ -225,16 +225,17 @@ describe('PurchaseLifecycleActionsComponent', () => {
     expect(draft.nativeElement.querySelector('[data-mark-ordered]')).not.toBeNull();
     expect(draft.nativeElement.querySelector('[data-finalize-purchase]')).toBeNull();
 
-    const arrived = render('draft', 'idle', null, {
+    const receiving = render('draft', 'idle', null, {
       receiving: 'ordered',
-      shipment: 'arrived',
+      shipment: 'not_shipped',
       content: 'unknown',
     });
-    expect(arrived.nativeElement.querySelector('[data-capture-content]')).not.toBeNull();
-    expect(arrived.nativeElement.querySelector('[data-finalize-purchase]')).toBeNull();
+    expect(receiving.nativeElement.querySelector('[data-receive-purchase]')).not.toBeNull();
+    expect(receiving.nativeElement.querySelector('[data-mark-arrived]')).toBeNull();
+    expect(receiving.nativeElement.querySelector('[data-finalize-purchase]')).toBeNull();
   });
 
-  it('führt nach Bestellt direkt zu Angekommen und verlangt keine Sendungsverfolgung', () => {
+  it('führt nach Bestellt direkt zum Wareneingang und verlangt keine Sendungsverfolgung', () => {
     const fixture = render('draft', 'idle', null, {
       receiving: 'ordered',
       shipment: 'not_shipped',
@@ -243,11 +244,12 @@ describe('PurchaseLifecycleActionsComponent', () => {
     const host = fixture.nativeElement as HTMLElement;
 
     expect(host.querySelector('[data-mark-transit]')).toBeNull();
-    expect(host.querySelector('[data-mark-arrived]')).not.toBeNull();
+    expect(host.querySelector('[data-receive-purchase]')).not.toBeNull();
+    expect(host.querySelector('[data-mark-arrived]')).toBeNull();
     expect(host.textContent).not.toContain('Unterwegs');
   });
 
-  it('sperrt Ankunft, Inhaltserfassung und Abschluss ohne den Seitenhinweis zu duplizieren', () => {
+  it('sperrt Wareneingang, Inhaltserfassung und Abschluss ohne den Seitenhinweis zu duplizieren', () => {
     const fixture = render(
       'capturing',
       'idle',
@@ -260,7 +262,7 @@ describe('PurchaseLifecycleActionsComponent', () => {
     const host = fixture.nativeElement as HTMLElement;
 
     expect(host.querySelector('[data-mark-ordered]')).toBeNull();
-    expect(host.querySelector('[data-mark-arrived]')).toBeNull();
+    expect(host.querySelector('[data-receive-purchase]')).toBeNull();
     expect(host.querySelector('[data-capture-content]')).toBeNull();
     expect(host.querySelector('[data-finalize-purchase]')).toBeNull();
     expect(host.querySelector('[data-open-purchase-prices]')).toBeNull();

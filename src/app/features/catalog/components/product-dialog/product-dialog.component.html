@@ -25,6 +25,7 @@
           form.controls.ean.touched && form.controls.ean.invalid ? 'Ungültige EAN/GTIN.' : null
         "
       />
+      <app-text-field label="SKU" formControlName="sku" />
       <app-category-picker
         label="Kategorie"
         placeholder="Kategorie wählen"
@@ -39,8 +40,17 @@
         formControlName="brandId"
         [suggestion]="brandSuggestion()"
       />
+      <div class="sm:col-span-2 -mt-2">
+        <app-button variant="plain" (clicked)="brandManagerOpen.set(true)">
+          Marken verwalten
+        </app-button>
+      </div>
       <app-text-field label="Modell" formControlName="model" />
+      <app-text-field label="Größe" formControlName="size" />
+      <app-text-field label="Farbe" formControlName="color" />
+      <app-text-field label="Material" formControlName="material" />
     </div>
+    <app-text-field label="Beschreibung" formControlName="description" [multiline]="3" />
     <div>
       <label for="product-condition" class="mb-1.5 block text-[13px] font-semibold">Zustand</label
       ><app-custom-select
@@ -56,21 +66,22 @@
         variant="secondary"
         [disabled]="saving() || workspaceChanged()"
         (clicked)="imageInput.click()"
-        >Bild auswählen</app-button
+        >Bilder auswählen</app-button
       >
-      <span class="break-all text-[13px] text-fb-text-muted">{{
-        image()?.name || 'Kein Bild ausgewählt'
-      }}</span>
+      <span class="break-all text-[13px] text-fb-text-muted">
+        {{ images().length ? images().length + ' Bild(er) ausgewählt' : 'Keine Bilder ausgewählt' }}
+      </span>
       <!-- Der Browser-Dateidialog benötigt ein verborgenes natives Dateifeld. -->
       <input
         #imageInput
         type="file"
+        multiple
         accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
         class="sr-only"
         tabindex="-1"
         aria-hidden="true"
         data-shared-ui-exception="native-file-picker"
-        (change)="selectImage($event)"
+        (change)="selectImages($event)"
       />
     </div>
     <app-custom-checkbox label="Im öffentlichen Shop anzeigen" formControlName="isPublicStore" />
@@ -114,3 +125,9 @@
     >
   </div>
 </app-modal-shell>
+@if (brandManagerOpen()) {
+  <app-brand-management-dialog
+    (brandDeleted)="onBrandDeleted($event)"
+    (closed)="brandManagerOpen.set(false)"
+  />
+}

@@ -309,6 +309,31 @@ describe('PurchaseLineEditorComponent', () => {
     expect(editor.lineCount()).toBe(0);
   });
 
+  it('sperrt die Menge und das Entfernen nach bereits gebuchtem Wareneingang', () => {
+    const { editor } = erstelleEditor();
+    editor.resetToLines([
+      {
+        draftId: 'persisted-line',
+        catalogProductId: ledProduct.id,
+        titleSnapshot: ledProduct.title,
+        lineKind: 'quantity',
+        orderedQuantity: 2,
+        condition: 'used',
+        priceMode: 'priced',
+        unitPurchasePrice: 4.99,
+        lineTotal: 9.98,
+        estimatedMarketValue: null,
+        structuralLocked: true,
+      },
+    ]);
+
+    expect(editor.lineRows.at(0).controls.orderedQuantity.disabled).toBe(true);
+    editor.removeLine(0);
+    expect(editor.getDrafts()).toEqual([
+      expect.objectContaining({ draftId: 'persisted-line', orderedQuantity: 2 }),
+    ]);
+  });
+
   it('verarbeitet einen Scan nur einmal und erfindet keinen Nullpreis', () => {
     const { editor } = erstelleEditor();
     Object.assign(editor, {

@@ -1074,7 +1074,7 @@ describe('PurchaseService', () => {
       }
 
       /** Ein Supabase-Doppel, das mitschreibt, was tatsaechlich abgeschickt wird. */
-      function datenbankDoppel() {
+      function datenbankDoppel(returnStoredTotal = true) {
         const protokoll: Eintrag[] = [];
         const client = {
           rpc: (funktion: string, payload: Record<string, unknown>) => {
@@ -1089,7 +1089,7 @@ describe('PurchaseService', () => {
                   ...purchase,
                   id: purchaseId,
                   workspace_id: 'ws-1',
-                  total_purchase_cost: purchase['purchase_price'],
+                  total_purchase_cost: returnStoredTotal ? purchase['purchase_price'] : null,
                 },
                 purchase_lines: [],
                 purchase_costs: expenses.map((expense, index) => ({
@@ -1144,8 +1144,8 @@ describe('PurchaseService', () => {
         cost_allocation_mode: 'even',
       };
 
-      function dienstMit(liste: Purchase[]) {
-        const { protokoll, client } = datenbankDoppel();
+      function dienstMit(liste: Purchase[], returnStoredTotal = true) {
+        const { protokoll, client } = datenbankDoppel(returnStoredTotal);
         const purchasesRaw = signal<Purchase[]>(liste);
         const selectedPurchaseRaw = signal<Purchase | null>(liste[0] ?? null);
         return {
@@ -1195,6 +1195,34 @@ describe('PurchaseService', () => {
             total_purchase_cost: 250,
           });
           expect(selectedPurchaseRaw()?.total_purchase_cost).toBe(250);
+        });
+
+        it('berechnet die Gesamtkosten sofort neu, wenn die RPC noch keine Summe zurückgibt', async () => {
+          const existing: Purchase = {
+            ...einkauf,
+            total_purchase_cost: null,
+          };
+          const { dienst, purchasesRaw, selectedPurchaseRaw } = dienstMit([existing], false);
+          Object.assign(dienst, {
+            workspaceService: { currentWorkspace: () => ({ id: 'ws-1' }) },
+            persistPurchaseLineEans: vi.fn(async () => null),
+            purchaseLinesRaw: signal<PurchaseLine[]>([]),
+          });
+
+          const result = await dienst.updatePurchaseDraft(existing.id, {
+            type: 'lot',
+            title: '',
+            purchase_date: '2026-08-10',
+            purchase_price: 230,
+            discount_amount: 5,
+            notes: null,
+            purchase_lines: [],
+            initial_costs: [{ type: 'shipping', amount: 12.9 }],
+          });
+
+          expect(result.error).toBeNull();
+          expect(purchasesRaw()[0].total_purchase_cost).toBe(237.9);
+          expect(selectedPurchaseRaw()?.total_purchase_cost).toBe(237.9);
         });
 
         it('haengt eine neu gebuchte Kostenposition an die bestehende Liste an', async () => {
