@@ -117,7 +117,7 @@ describe('purchase presentation mapper', () => {
     );
     expect(row.reference).toBe('#2026-123');
     expect(row.supplierReference).toBe('Verkäufer-456');
-    expect(row.title).toBe(basePurchase.title);
+    expect(row.title).toBe(basePurchase.notes);
   });
 
   it('macht den gewählten Verkäufer durchsuchbar', () => {
@@ -144,6 +144,12 @@ describe('purchase presentation mapper', () => {
 
     expect(row.reference).toBe('—');
     expect(row.title).toBe(basePurchase.title);
+  });
+
+  it('laesst die Beschreibung leer statt einen technischen Titel einzusetzen', () => {
+    const row = mapPurchaseListRow({ ...basePurchase, notes: null, title: 'Einkauf' }, context());
+
+    expect(row.title).toBe('');
   });
 
   it('markiert einen ungeklärten normalen Altkauf zur Prüfung', () => {

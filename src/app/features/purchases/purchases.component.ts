@@ -107,6 +107,13 @@ export class PurchasesComponent {
     this.sellerOptions().find((seller) => seller.id === this.sellerId()),
   );
   readonly searchQuery = signal('');
+  readonly hasPurchases = computed(() => this.purchaseService.purchases().length > 0);
+  readonly emptyTitle = computed(() =>
+    this.hasPurchases() ? 'Keine passenden Einkäufe' : 'Noch keine Einkäufe',
+  );
+  readonly emptyText = computed(() =>
+    this.hasPurchases() ? 'Ändere die Suche oder die Filter.' : 'Erstelle deinen ersten Einkauf.',
+  );
   readonly workspaceId = computed(() => this.workspaceService.currentWorkspace()?.id ?? 'default');
   readonly purchasesTableConfig = this.tablePreferences.getTableConfig<
     PurchasesColumnId,

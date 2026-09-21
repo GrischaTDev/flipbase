@@ -31,5 +31,5 @@ export function getPurchaseStatusPresentation(purchase: Purchase): PurchaseStatu
   if (purchase.entry_status === 'finalized') {
     return { label: 'Abgeschlossen', tone: 'success' };
   }
-  return { label: 'Entwurf', tone: 'caution' };
+  return { label: 'Entwurf', tone: 'neutral' };
 }

@@ -121,11 +121,11 @@ export type PurchasesSortField = 'purchase_date' | 'total_cost' | 'title';
 export const PURCHASES_TABLE_CONFIG: TableConfig<PurchasesColumnId, PurchasesSortField> = {
   defaultColumns: [
     { id: 'title', label: 'Einkauf', visible: true, order: 0, locked: true },
-    { id: 'seller', label: 'Verkäufer', visible: true, order: 1 },
-    { id: 'description', label: 'Bezeichnung', visible: true, order: 2 },
-    { id: 'purchase_date', label: 'Kaufdatum', visible: true, order: 3 },
-    { id: 'status', label: 'Status', visible: true, order: 4 },
-    { id: 'receipt', label: 'Erhalten', visible: true, order: 5 },
+    { id: 'purchase_date', label: 'Kaufdatum', visible: true, order: 1 },
+    { id: 'seller', label: 'Verkäufer', visible: true, order: 2 },
+    { id: 'status', label: 'Status', visible: true, order: 3 },
+    { id: 'receipt', label: 'Erhalten', visible: true, order: 4 },
+    { id: 'description', label: 'Beschreibung', visible: true, order: 5 },
     { id: 'total_cost', label: 'Gesamt', visible: true, order: 6 },
   ],
   defaultSort: { field: 'purchase_date', direction: 'desc' },

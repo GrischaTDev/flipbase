@@ -79,6 +79,7 @@ describe('Webhook & Notification Service', () => {
       workspace_id: 'ws-1',
       type: 'single',
       title: 'Nintendo Switch OVP',
+      record_number: '2026-123',
       purchase_date: '2026-08-18',
       purchase_price: 120.0,
       total_purchase_cost: 120.0,
@@ -90,7 +91,21 @@ describe('Webhook & Notification Service', () => {
     await webhookService.sendPurchaseNotification(samplePurchase);
 
     expect(webhookService.notifications().length).toBe(initialCount + 1);
-    expect(webhookService.notifications()[0].title).toContain('Nintendo Switch OVP');
+    expect(webhookService.notifications()[0].title).toBe('Neuer Einkauf #2026-123');
+  });
+
+  it('verwendet bei Altdaten ohne Einkaufsnummer keinen erfundenen Ersatznamen', async () => {
+    await webhookService.sendPurchaseNotification({
+      id: 'legacy-purchase',
+      workspace_id: 'ws-1',
+      type: 'single',
+      title: 'Einkauf',
+      purchase_date: '2026-08-18',
+      purchase_price: 20,
+      cost_allocation_mode: 'even',
+    });
+
+    expect(webhookService.notifications()[0].title).toBe('Neuer Einkauf');
   });
 
   it('meldet einen unbekannten Draft-Preis nicht als kostenlosen Einkauf', async () => {

@@ -34,14 +34,9 @@ export interface TableState<TColumnId extends string = string, TSortField extend
   providedIn: 'root',
 })
 export class TablePreferencesService {
-  private static readonly formerPurchaseDefaultOrder = [
-    'title',
-    'description',
-    'seller',
-    'purchase_date',
-    'status',
-    'receipt',
-    'total_cost',
+  private static readonly formerPurchaseDefaultOrders = [
+    ['title', 'description', 'seller', 'purchase_date', 'status', 'receipt', 'total_cost'],
+    ['title', 'seller', 'description', 'purchase_date', 'status', 'receipt', 'total_cost'],
   ] as const;
 
   private readonly auth = inject(AuthService);
@@ -200,9 +195,10 @@ export class TablePreferencesService {
     const orderedIds = [...columns]
       .sort((left, right) => (left.order ?? 0) - (right.order ?? 0))
       .map((column) => column.id);
-    const former = TablePreferencesService.formerPurchaseDefaultOrder;
-    return (
-      orderedIds.length === former.length && orderedIds.every((id, index) => id === former[index])
+    return TablePreferencesService.formerPurchaseDefaultOrders.some(
+      (former) =>
+        orderedIds.length === former.length &&
+        orderedIds.every((id, index) => id === former[index]),
     );
   }
 

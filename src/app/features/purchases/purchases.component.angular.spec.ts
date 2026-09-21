@@ -139,6 +139,7 @@ const purchases: Purchase[] = [
     record_number: '#E1',
     type: 'single',
     title: 'Haushaltswaren',
+    notes: 'Haushaltswaren',
     purchase_date: '2026-08-20',
     purchase_price: 40,
     total_purchase_cost: 45,
@@ -244,14 +245,22 @@ beforeEach(() => {
 });
 
 describe('PurchasesComponent – responsive Einkaufsübersicht', () => {
-  it('zeigt Verkäufer vor der optionalen Bezeichnung', () => {
+  it('zeigt die freigegebene Spaltenfolge mit Beschreibung', () => {
     const fixture = TestBed.createComponent(PurchasesComponent);
     fixture.detectChanges();
 
     const headings = [...(fixture.nativeElement as HTMLElement).querySelectorAll('thead th')].map(
       (heading) => heading.textContent?.trim(),
     );
-    expect(headings.slice(0, 3)).toEqual(['Einkauf', 'Verkäufer', 'Bezeichnung']);
+    expect(headings).toEqual([
+      'Einkauf',
+      'Kaufdatum',
+      'Verkäufer',
+      'Status',
+      'Erhalten',
+      'Beschreibung',
+      'Gesamt',
+    ]);
   });
 
   it('trennt Einkaufsnummer und Bezeichnung und zeigt den Wareneingang statt Erfassungsbestand', () => {
@@ -264,7 +273,7 @@ describe('PurchasesComponent – responsive Einkaufsübersicht', () => {
     const normalRow = host.querySelector('[data-purchase-row="purchase-normal"]')?.closest('tr');
 
     expect(headers).toContain('Einkauf');
-    expect(headers).toContain('Bezeichnung');
+    expect(headers).toContain('Beschreibung');
     expect(headers).toContain('Erhalten');
     expect(headers).toContain('Gesamt');
     expect(headers).not.toContain('Erfassung');
@@ -351,6 +360,7 @@ describe('PurchasesComponent – responsive Einkaufsübersicht', () => {
     expect(search).not.toBeNull();
     expect(search?.value).toBe('zzznichtvorhanden');
     expect(host.textContent).toContain('Keine passenden Einkäufe');
+    expect(host.textContent).toContain('Ändere die Suche oder die Filter.');
     expect(reset).not.toBeNull();
 
     reset.triggerEventHandler('clicked', new MouseEvent('click'));
@@ -358,6 +368,18 @@ describe('PurchasesComponent – responsive Einkaufsübersicht', () => {
 
     expect(fixture.componentInstance.searchQuery()).toBe('');
     expect(host.querySelectorAll('[data-purchase-table-row]')).toHaveLength(2);
+  });
+
+  it('zeigt bei einem leeren Workspace den echten Leerzustand mit Anlegen-Aktion', () => {
+    purchaseState.set([]);
+    const fixture = TestBed.createComponent(PurchasesComponent);
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+
+    expect(host.textContent).toContain('Noch keine Einkäufe');
+    expect(host.textContent).toContain('Erstelle deinen ersten Einkauf.');
+    expect(host.querySelector('[data-create-first-purchase]')).not.toBeNull();
+    expect(host.querySelector('[data-reset-purchase-view]')).toBeNull();
   });
 
   it('kombiniert Nummernsuche, Status und Verkäufer-ID und trennt Filter- von Layout-Rücksetzung', () => {

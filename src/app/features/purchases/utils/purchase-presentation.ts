@@ -273,7 +273,7 @@ export function mapPurchaseListRow(
             ? 'Inhalt erfassen'
             : 'Erfassung offen',
     id: purchase.id,
-    title: purchase.notes || purchase.title || purchase.supplier?.name || 'Einkauf',
+    title: purchase.notes?.trim() ?? '',
     type: purchase.type,
     typeLabel: purchaseTypeLabels.transform(purchase.type),
     purchaseDate: purchase.purchase_date,

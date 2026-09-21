@@ -1046,14 +1046,21 @@ describe('PurchaseService', () => {
             protokoll.push({ tabelle: funktion, aktion: 'rpc', werte: payload });
             const purchase = payload['p_purchase'] as Record<string, unknown>;
             const expenses = (payload['p_expenses'] as Record<string, unknown>[]) ?? [];
+            const purchaseId =
+              funktion === 'update_purchase_draft' ? String(payload['p_purchase_id']) : 'db-neu';
             return Promise.resolve({
               data: {
-                purchase: { ...purchase, id: 'db-neu', workspace_id: 'ws-1' },
+                purchase: {
+                  ...purchase,
+                  id: purchaseId,
+                  workspace_id: 'ws-1',
+                  total_purchase_cost: purchase['purchase_price'],
+                },
                 purchase_lines: [],
                 purchase_costs: expenses.map((expense, index) => ({
                   ...expense,
                   id: `db-kosten-${index + 1}`,
-                  purchase_id: 'db-neu',
+                  purchase_id: purchaseId,
                 })),
               },
               error: null,
@@ -1123,6 +1130,38 @@ describe('PurchaseService', () => {
       }
 
       describe('Beim Bearbeiten', () => {
+        it('ersetzt einen gespeicherten Entwurf sofort mit den bestätigten Kosten in der Liste', async () => {
+          const existing: Purchase = {
+            ...einkauf,
+            record_number: '2026-123',
+            supplier: { id: 'supplier-1', workspace_id: 'ws-1', name: 'Händler' },
+            total_purchase_cost: 230,
+          };
+          const { dienst, purchasesRaw, selectedPurchaseRaw } = dienstMit([existing]);
+          Object.assign(dienst, {
+            workspaceService: { currentWorkspace: () => ({ id: 'ws-1' }) },
+            persistPurchaseLineEans: vi.fn(async () => null),
+            purchaseLinesRaw: signal<PurchaseLine[]>([]),
+          });
+
+          const result = await dienst.updatePurchaseDraft(existing.id, {
+            type: 'lot',
+            title: '',
+            purchase_date: '2026-08-10',
+            purchase_price: 250,
+            notes: null,
+            purchase_lines: [],
+          });
+
+          expect(result.error).toBeNull();
+          expect(purchasesRaw()[0]).toMatchObject({
+            id: existing.id,
+            record_number: '2026-123',
+            total_purchase_cost: 250,
+          });
+          expect(selectedPurchaseRaw()?.total_purchase_cost).toBe(250);
+        });
+
         it('haengt eine neu gebuchte Kostenposition an die bestehende Liste an', async () => {
           // Der Detaildialog zeigt seine Zeilen aus `selectedPurchase.costs`.
           // Nur die Gesamtsumme zu aktualisieren laesst dort weiterhin allein

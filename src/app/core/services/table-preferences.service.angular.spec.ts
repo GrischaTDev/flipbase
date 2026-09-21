@@ -9,6 +9,7 @@ import { TablePreferencesService } from './table-preferences.service';
 import {
   EXPENSES_TABLE_CONFIG,
   INVENTORY_TABLE_CONFIG,
+  PURCHASES_TABLE_CONFIG,
   SALES_TABLE_CONFIG,
 } from '../config/table-defaults.config';
 import { StoredTablePreferences } from '../models/table-preferences.models';
@@ -197,7 +198,22 @@ describe('TablePreferencesService – Polaris Table Preferences & Reordering', (
     ).toBe(false);
   });
 
-  it('zieht die unveränderte alte Einkaufsansicht einmalig auf Verkäufer vor Bezeichnung nach', () => {
+  it('verwendet die freigegebene Standardreihenfolge der Einkaufsübersicht', () => {
+    expect(PURCHASES_TABLE_CONFIG.defaultColumns.map(({ id }) => id)).toEqual([
+      'title',
+      'purchase_date',
+      'seller',
+      'status',
+      'receipt',
+      'description',
+      'total_cost',
+    ]);
+    expect(
+      PURCHASES_TABLE_CONFIG.defaultColumns.find(({ id }) => id === 'description')?.label,
+    ).toBe('Beschreibung');
+  });
+
+  it('zieht die unveränderte alte Einkaufsansicht einmalig auf die neue Standardfolge nach', () => {
     storePurchaseColumns([
       'title',
       'description',
@@ -212,11 +228,11 @@ describe('TablePreferencesService – Polaris Table Preferences & Reordering', (
 
     expect(state.columns.map((column) => column.id)).toEqual([
       'title',
-      'seller',
-      'description',
       'purchase_date',
+      'seller',
       'status',
       'receipt',
+      'description',
       'total_cost',
     ]);
     expect(state.sort).toEqual({ field: 'purchase_date', direction: 'desc' });
@@ -273,11 +289,11 @@ describe('TablePreferencesService – Polaris Table Preferences & Reordering', (
     ) as { columns?: { id: string }[] };
     expect(stored.columns?.map((column) => column.id)).toEqual([
       'title',
-      'seller',
-      'description',
       'purchase_date',
+      'seller',
       'status',
       'receipt',
+      'description',
       'total_cost',
     ]);
   });
