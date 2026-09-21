@@ -55,6 +55,7 @@ describe('ButtonComponent', () => {
       iconPosition: ['iconPosition', 1, null],
       iconOnly: ['iconOnly', 1, null],
       fullWidth: ['fullWidth', 1, null],
+      contentAlign: ['contentAlign', 1, null],
       type: ['type', 1, null],
       ariaLabel: ['ariaLabel', 1, null],
       ariaPressed: ['ariaPressed', 1, null],
@@ -74,6 +75,7 @@ describe('ButtonComponent', () => {
       iconPosition: 'iconPosition',
       iconOnly: 'iconOnly',
       fullWidth: 'fullWidth',
+      contentAlign: 'contentAlign',
       type: 'type',
       ariaLabel: 'ariaLabel',
       ariaPressed: 'ariaPressed',
@@ -114,6 +116,16 @@ describe('ButtonComponent', () => {
 
     const btn: HTMLButtonElement = fixture.nativeElement.querySelector('button');
     expect(btn.disabled).toBe(true);
+  });
+
+  it('richtet vollbreiten Text bei contentAlign start links aus', () => {
+    fixture.componentRef.setInput('fullWidth', true);
+    fixture.componentRef.setInput('contentAlign', 'start');
+    fixture.detectChanges();
+    const button = fixture.nativeElement.querySelector('button');
+    expect(button.classList).toContain('justify-start');
+    expect(button.classList).toContain('text-left');
+    expect(button.classList).not.toContain('justify-center');
   });
 
   it('should be disabled and show loading state when loading input is true', () => {

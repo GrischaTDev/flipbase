@@ -1,5 +1,21 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-21 – Juna – Artikelnamen in Einkaufspositionen linksbündig ausgerichtet
+
+**Auftrag:** Der Artikelnamen-Button in Einkaufspositionen sollte seinen Text
+auch in der tatsächlich gerenderten Buttonfläche links statt zentriert zeigen,
+ohne die Zentrierung anderer Shared-Buttons zu verändern.
+
+**Änderung:** `ButtonComponent` besitzt nun den Signal-Input `contentAlign` mit
+dem Standardwert `center`. Nur der Artikelnamen-Button setzt `contentAlign="start"`
+und erhält damit `justify-start text-left`; alle übrigen Aufrufer behalten die
+bisherige Zentrierung. Die Shared- und Featuretests prüfen den inneren nativen
+Button sowie die Angular-Test-Metadaten für den neuen Input.
+
+**Prüfung:** Die beiden fokussierten Angular-Tests waren vor der Umsetzung rot
+(2 Fehler) und bestanden danach mit 33 Tests. Prettier und ESLint für die
+betroffenen Dateien sowie der Produktionsbau wurden anschließend ausgeführt.
+
 ## 2026-09-21 – Juna – Bezugsquellen-Parent-Integration gerendert geprüft
 
 **Auftrag:** Den Bezugsquellenfluss nicht nur über Quelltext und einen direkten
