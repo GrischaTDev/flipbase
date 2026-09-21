@@ -1,162 +1,93 @@
-<div
-  class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-  appModalDialog
-  [dialogTitel]="dialogTitle()"
-  [schliesstMitEscape]="!saving()"
-  [attr.aria-label]="dialogTitle()"
-  (dialogClose)="closed.emit()"
->
-  <section
-    class="flex max-h-[85dvh] w-full max-w-xl flex-col rounded-xl border border-fb-line bg-fb-surface shadow-xl"
-  >
-    <header class="flex items-center justify-between border-b border-fb-line p-4">
-      <h2 class="text-base font-semibold">{{ dialogTitle() }}</h2>
-      <button
-        type="button"
-        class="linear-btn-secondary rounded-lg px-3 py-1.5 text-sm"
-        [disabled]="saving()"
-        (click)="closed.emit()"
-      >
-        Schließen
-      </button>
-    </header>
-    <form
-      id="seller-form"
-      data-seller-form
-      class="space-y-4 overflow-y-auto p-4"
-      [formGroup]="form"
-      (ngSubmit)="save()"
-    >
-      <label for="seller-type" class="block text-sm">Art</label>
-      <app-custom-select
-        triggerId="seller-type"
-        ariaLabel="Verkäuferart"
-        formControlName="seller_type"
-        [options]="sellerTypeOptions"
+<app-modal-shell [title]="dialogTitle()" size="xl" (closed)="closed.emit()">
+  <form id="seller-form" data-seller-form class="space-y-4" [formGroup]="form" (ngSubmit)="save()">
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div>
+        <span class="mb-1.5 block text-[13px] font-semibold">Art</span>
+        <app-custom-select
+          triggerId="seller-type"
+          ariaLabel="Verkäuferart"
+          formControlName="seller_type"
+          [options]="sellerTypeOptions"
+        />
+      </div>
+      <app-text-field
+        id="seller-name"
+        [label]="
+          form.controls.seller_type.value === 'business' ? 'Firmenname' : 'Vor- und Nachname'
+        "
+        formControlName="name"
+        [required]="true"
       />
-      <label class="block text-sm"
-        >{{ form.controls.seller_type.value === 'business' ? 'Firmenname' : 'Vor- und Nachname' }}
-        <span aria-hidden="true" class="text-fb-primary">*</span
-        ><input
-          id="seller-name"
-          formControlName="name"
-          class="linear-input mt-1 w-full rounded-lg px-3 py-2"
-          required
-          [attr.aria-invalid]="form.controls.name.invalid && form.controls.name.touched"
-          [attr.aria-describedby]="
-            form.controls.name.invalid && form.controls.name.touched ? 'seller-name-error' : null
-          "
-      /></label>
-      @if (form.controls.name.invalid && form.controls.name.touched) {
-        <p id="seller-name-error" class="mt-1 text-sm text-fb-text-primary">
-          Bitte einen Namen angeben.
-        </p>
-      }
       @if (form.controls.seller_type.value === 'business') {
-        <label class="block text-sm"
-          >Kontaktperson<input
-            formControlName="contact_person"
-            class="linear-input mt-1 w-full rounded-lg px-3 py-2"
-        /></label>
+        <app-text-field label="Kontaktperson" formControlName="contact_person" />
       }
-      <p class="text-xs text-fb-text-muted">Weitere Angaben können leer bleiben.</p>
-      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        @for (field of contactFields; track field.key) {
-          <label class="block text-sm"
-            >{{ field.label
-            }}<input
-              [formControlName]="field.key"
-              type="text"
-              class="linear-input mt-1 w-full rounded-lg px-3 py-2"
-          /></label>
-        }
-        <div>
-          <label for="seller-country" class="block text-sm">Land</label>
-          <app-custom-select
-            data-country-select
-            class="mt-1"
-            triggerId="seller-country"
-            ariaLabel="Land"
-            formControlName="country_code"
-            [options]="countryOptions"
-          />
-        </div>
-        <label class="block text-sm"
-          >E-Mail<input
-            id="seller-email"
-            formControlName="email"
-            type="email"
-            class="linear-input mt-1 w-full rounded-lg px-3 py-2"
-            [attr.aria-invalid]="form.controls.email.invalid && form.controls.email.touched"
-            [attr.aria-describedby]="
-              form.controls.email.invalid && form.controls.email.touched
-                ? 'seller-email-error'
-                : null
-            "
-        /></label>
-        @if (form.controls.email.invalid && form.controls.email.touched) {
-          <p id="seller-email-error" class="mt-1 text-sm text-fb-text-primary sm:col-span-2">
-            Bitte eine gültige E-Mail-Adresse angeben.
-          </p>
-        }
-        <div class="sm:col-span-2">
-          <label for="seller-phone" class="block text-sm">Telefon</label>
-          <intl-tel-input
-            data-phone-input
-            formControlName="phone"
-            class="mt-1 block w-full"
-            containerClass="w-full"
-            countryNameLocale="de"
-            initialCountry="de"
-            [dropdownParent]="phoneDropdownParent"
-            [inputAttributes]="phoneInputAttributes()"
-            [separateDialCode]="true"
-            [showFlags]="true"
-            [strictMode]="true"
-            [uiTranslations]="phoneTranslations"
-          />
-        </div>
-        @if (form.controls.phone.invalid && form.controls.phone.touched) {
-          <p id="seller-phone-error" class="mt-1 text-sm text-fb-text-primary sm:col-span-2">
-            Bitte eine gültige Telefonnummer angeben.
-          </p>
-        }
+      <div data-seller-street class="sm:col-span-2">
+        <app-text-field label="Straße und Hausnummer" formControlName="street" />
+      </div>
+      <div data-seller-address-extra class="sm:col-span-2">
+        <app-text-field label="Adresszusatz" formControlName="address_extra" />
+      </div>
+      <app-text-field label="Postleitzahl" formControlName="postal_code" />
+      <app-text-field label="Ort" formControlName="city" />
+      <div>
+        <span class="mb-1.5 block text-[13px] font-semibold">Land/Region</span>
+        <app-custom-select
+          triggerId="seller-country"
+          ariaLabel="Land/Region"
+          formControlName="country_code"
+          [options]="countryOptions"
+        />
+      </div>
+      <app-text-field
+        id="seller-email"
+        label="E-Mail"
+        type="email"
+        formControlName="email"
+        [error]="
+          form.controls.email.invalid && form.controls.email.touched
+            ? 'Bitte eine gültige E-Mail-Adresse angeben.'
+            : null
+        "
+      />
+      <div class="sm:col-span-2">
+        <label for="seller-phone" class="mb-1.5 block text-[13px] font-semibold">Telefon</label>
+        <intl-tel-input
+          data-phone-input
+          formControlName="phone"
+          class="block w-full"
+          containerClass="w-full"
+          countryNameLocale="de"
+          initialCountry="de"
+          [dropdownParent]="phoneDropdownParent"
+          [inputAttributes]="phoneInputAttributes()"
+          [separateDialCode]="true"
+          [showFlags]="true"
+          [strictMode]="true"
+          [uiTranslations]="phoneTranslations"
+        />
       </div>
       @if (form.controls.seller_type.value === 'business') {
-        <label class="block text-sm"
-          >Website<input
-            formControlName="website"
-            class="linear-input mt-1 w-full rounded-lg px-3 py-2"
-        /></label>
+        <app-text-field label="Website" type="url" formControlName="website" />
       }
-      <label class="block text-sm"
-        >Notiz<textarea
-          formControlName="notes"
-          rows="3"
-          class="linear-input mt-1 w-full rounded-lg px-3 py-2"
-        ></textarea>
-      </label>
-      @if (error()) {
-        <p role="alert" class="text-sm text-fb-text-primary">{{ error() }}</p>
-      }
-    </form>
-    <footer class="flex justify-end gap-2 border-t border-fb-line p-4">
-      <button
-        type="button"
-        data-cancel-seller
-        class="linear-btn-secondary rounded-lg px-3 py-2 text-sm"
-        [disabled]="saving()"
-        (click)="closed.emit()"
-      >
-        Abbrechen</button
-      ><button
-        type="submit"
-        form="seller-form"
-        class="linear-btn-primary rounded-lg px-3 py-2 text-sm disabled:opacity-50"
-        [disabled]="saving()"
-      >
-        {{ saving() ? 'Speichere…' : 'Speichern' }}
-      </button>
-    </footer>
-  </section>
-</div>
+      <div class="sm:col-span-2">
+        <app-text-field label="Notiz" formControlName="notes" [multiline]="3" />
+      </div>
+    </div>
+    @if (error()) {
+      <p role="alert" class="text-sm text-fb-critical">{{ error() }}</p>
+    }
+  </form>
+  <app-button modal-footer variant="secondary" [disabled]="saving()" (clicked)="closed.emit()">
+    Abbrechen
+  </app-button>
+  <app-button
+    modal-footer
+    data-save-seller
+    variant="primary"
+    [loading]="saving()"
+    [disabled]="saveDisabled()"
+    (clicked)="save()"
+  >
+    Speichern
+  </app-button>
+</app-modal-shell>

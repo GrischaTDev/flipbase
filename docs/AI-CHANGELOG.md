@@ -1,5 +1,26 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-21 – Juna – Verkäuferdialog vereinheitlicht
+
+**Auftrag:** Den Verkäuferdialog über die gemeinsame breite Dialoghülle
+abbilden und die Verfügbarkeit von „Speichern“ eindeutig an die Formularwerte
+koppeln.
+
+**Änderung:** Der Dialog verwendet nun `ModalShellComponent` in Größe `xl`
+sowie die gemeinsamen Textfelder und Aktionen. Straße und Adresszusatz nehmen
+über die komplette Dialogbreite ein; die Länderauswahl heißt sichtbar und für
+Hilfstechnologien „Land/Region“. Ein Name nur aus Leerzeichen ist ungültig.
+„Speichern“ bleibt bis zu einem gültigen Formular, einem getrimmten Namen und
+einem nicht laufenden Speichervorgang deaktiviert. Die bisherigen redundanten
+Hinweise entfallen; der konkrete E-Mail-Fehler erscheint weiterhin nur für
+berührte, ungültige Eingaben.
+
+**Prüfung:** Der neue DOM- und Zustandsvertrag war zunächst rot (fehlende
+gemeinsame Dialoghülle und Speicheraktion). Der fokussierte Angular-Test mit
+AXE bestand anschließend mit 13 Tests; ESLint für die betroffenen TS-Dateien
+und der Produktionsbau waren erfolgreich. Der Prüfbericht liegt unter
+`.superpowers/sdd/2026-09-21-ui-regression-cleanup/task-4-report.md`.
+
 ## 2026-09-21 – Juna – Belegkarte auf Auswahlfläche reduziert
 
 **Auftrag:** Die Belegkarte auf eine vollbreite Ablagefläche und zugängliche
