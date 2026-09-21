@@ -7,12 +7,15 @@ import {
   inject,
   input,
   output,
-  signal,
   untracked,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormArray, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { LucideCirclePlus as CirclePlus, LucideX as X } from '@lucide/angular';
+import {
+  LucideCirclePlus as CirclePlus,
+  LucideDynamicIcon,
+  LucideTrash2 as Trash2,
+} from '@lucide/angular';
 import { PurchaseType } from '../../../../core/models/flipbase.models';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import {
@@ -22,7 +25,6 @@ import {
 import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
 import {
   PURCHASE_COST_ADJUSTMENT_OPTIONS,
-  PURCHASE_COST_TAX_TREATMENT_OPTIONS,
   PurchaseCostTaxTreatment,
   PurchaseCostAdjustment,
   PurchaseCostAdjustmentRow,
@@ -44,7 +46,13 @@ type CostForm = FormGroup<{
 
 @Component({
   selector: 'app-purchase-cost-editor',
-  imports: [ReactiveFormsModule, ButtonComponent, CustomSelectComponent, NumberInputComponent],
+  imports: [
+    ReactiveFormsModule,
+    ButtonComponent,
+    CustomSelectComponent,
+    NumberInputComponent,
+    LucideDynamicIcon,
+  ],
   templateUrl: './purchase-cost-editor.component.html',
   host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -65,16 +73,9 @@ export class PurchaseCostEditorComponent {
   readonly costRows = new FormArray<CostForm>([]);
   readonly form = new FormGroup({ costRows: this.costRows });
   readonly isMysteryPurchase = computed(() => this.purchaseType() === 'mystery_pack');
-  readonly expandedAllocations = signal<ReadonlySet<number>>(new Set());
 
   readonly adjustmentOptions = PURCHASE_COST_ADJUSTMENT_OPTIONS;
-  readonly taxTreatmentOptions = PURCHASE_COST_TAX_TREATMENT_OPTIONS;
-  readonly allocationOptions: readonly SelectOption<PurchaseCostDraft['allocationMethod']>[] = [
-    { value: 'by_value', label: 'Nach Warenwert' },
-    { value: 'by_quantity', label: 'Nach Menge' },
-    { value: 'direct', label: 'Direkt einer Position zuordnen' },
-  ];
-  readonly removeIcon = X;
+  readonly removeIcon = Trash2;
   readonly addIcon = CirclePlus;
 
   constructor() {
@@ -114,39 +115,6 @@ export class PurchaseCostEditorComponent {
 
   removeCostRow(index: number): void {
     this.costRows.removeAt(index);
-    this.expandedAllocations.update((expanded) => {
-      const next = new Set<number>();
-      for (const entry of expanded) {
-        if (entry < index) next.add(entry);
-        if (entry > index) next.add(entry - 1);
-      }
-      return next;
-    });
-    this.emitState();
-  }
-
-  toggleAllocationDetails(index: number): void {
-    this.expandedAllocations.update((expanded) => {
-      const next = new Set(expanded);
-      if (next.has(index)) next.delete(index);
-      else next.add(index);
-      return next;
-    });
-  }
-
-  isAllocationExpanded(index: number): boolean {
-    return this.expandedAllocations().has(index);
-  }
-
-  onAllocationMethodChanged(
-    index: number,
-    allocationMethod: PurchaseCostDraft['allocationMethod'] | null,
-  ): void {
-    if (allocationMethod === null || this.isMysteryPurchase()) return;
-    const row = this.costRows.at(index);
-    row.controls.allocationMethod.setValue(allocationMethod);
-    if (allocationMethod !== 'direct') row.controls.targetPurchaseLineId.setValue(null);
-    this.configureTargetRequirement(row);
     this.emitState();
   }
 
@@ -156,7 +124,6 @@ export class PurchaseCostEditorComponent {
     for (const row of rows.length > 0 ? rows : [this.emptyRow()]) {
       this.costRows.push(this.createCostRow(this.normalizeRow(row)), { emitEvent: false });
     }
-    this.expandedAllocations.set(new Set());
     this.clearMissingDirectTargets();
     this.emitState();
   }

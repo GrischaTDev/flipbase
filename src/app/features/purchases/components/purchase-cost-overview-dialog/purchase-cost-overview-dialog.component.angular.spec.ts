@@ -132,6 +132,14 @@ describe('PurchaseCostOverviewDialogComponent', () => {
     }
   });
 
+  it('nennt den Dialog Zusatzausgaben verwalten', async () => {
+    const fixture = await createDialog();
+
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain(
+      'Zusatzausgaben verwalten',
+    );
+  });
+
   it('verwirft den lokalen Entwurf beim Abbrechen', async () => {
     const fixture = await createDialog();
     const saved = vi.fn();

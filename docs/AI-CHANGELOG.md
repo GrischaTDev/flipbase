@@ -1,5 +1,28 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-21 – Juna – Kosteneditor auf Zusatzausgaben reduziert
+
+**Auftrag:** Im Kosteneditor nur noch Zusatzausgabe und Betrag zeigen, ohne
+technische Steuer- und Zuordnungswerte bereits vorhandener Kosten beim Speichern
+zu verlieren.
+
+**Änderung:** Der Editor zeigt nur noch Auswahl, Betrag und eine zugängliche
+Papierkorb-Aktion. Steuerherkunft, Verteilung und Zielposition bleiben in den
+internen Formularwerten erhalten, werden jedoch nicht mehr dargestellt. Neue
+normale Zeilen behalten `taxTreatment: null` und die Verteilung nach Warenwert;
+Mystery-Pakete verwenden weiter die Verteilung nach Menge. Der Dialog heißt nun
+„Zusatzausgaben verwalten“; sein lokaler Speichern- und Abbrechen-Vertrag bleibt
+unverändert.
+
+**Prüfung:** Die neuen Editor- und Dialogtests waren zuerst rot (3 erwartete
+Fehler wegen der alten sichtbaren Begriffe und Dialogüberschrift) und bestanden
+nach der Umsetzung. Die Kostenlogik (8 Tests) sowie die drei Angular-
+Komponententests (18 Tests) sind grün; Prettier und der fokussierte ESLint-Lauf
+ebenfalls. Der Produktionsbau besteht mit drei bereits vorhandenen NG8113-
+Warnungen außerhalb des Scopes. Die globale Typprüfung ist aktuell wegen zehn
+fachfremder Testtypfehler in Beleg-, Einkaufsquellen- und Verkäuferdialogtests
+nicht grün.
+
 ## 2026-09-21 – Juna – Artikelnamen in Einkaufspositionen linksbündig ausgerichtet
 
 **Auftrag:** Der Artikelnamen-Button in Einkaufspositionen sollte seinen Text

@@ -3,7 +3,7 @@
     class="hidden grid-cols-[minmax(0,1fr)_minmax(9rem,1fr)_2.25rem] gap-3 px-0.5 pb-2 text-[13px] font-semibold text-fb-text-secondary sm:grid"
     aria-hidden="true"
   >
-    <span>Anpassung</span>
+    <span>Zusatzausgabe</span>
     <span>Betrag</span>
     <span></span>
   </div>
@@ -16,10 +16,10 @@
         >
           <div class="min-w-0">
             <span class="mb-1 block text-[12px] font-semibold text-fb-text-secondary sm:hidden">
-              Anpassung
+              Zusatzausgabe
             </span>
             <app-custom-select
-              [ariaLabel]="'Anpassung ' + (index + 1)"
+              [ariaLabel]="'Zusatzausgabe ' + (index + 1)"
               [options]="adjustmentOptions"
               formControlName="adjustment"
               placeholder="Auswählen"
@@ -43,92 +43,15 @@
             />
           </div>
 
-          <app-button
-            class="self-end sm:self-center"
-            variant="ghost"
-            size="md"
-            [icon]="removeIcon"
-            [iconOnly]="true"
-            [ariaLabel]="'Anpassung ' + (index + 1) + ' entfernen'"
-            (clicked)="removeCostRow(index)"
-          />
+          <button
+            type="button"
+            [attr.aria-label]="'Zusatzausgabe ' + (index + 1) + ' entfernen'"
+            class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-fb-text-muted hover:bg-fb-critical-surface hover:text-fb-critical focus-visible:outline-2 focus-visible:outline-fb-critical"
+            (click)="removeCostRow(index)"
+          >
+            <svg [lucideIcon]="removeIcon" class="h-4 w-4" aria-hidden="true"></svg>
+          </button>
         </div>
-
-        @if (
-          costRow.controls.adjustment.value !== null &&
-          costRow.controls.adjustment.value !== 'discount'
-        ) {
-          <div class="mt-3">
-            <span class="mb-1 block text-[12px] font-semibold text-fb-text-secondary">
-              Wer hat diese Kosten berechnet?
-            </span>
-            <app-custom-select
-              [ariaLabel]="'Kostenherkunft ' + (index + 1)"
-              [options]="taxTreatmentOptions"
-              formControlName="taxTreatment"
-              placeholder="Noch prüfen"
-              size="sm"
-            />
-            <p class="mt-1 text-[12px] text-fb-text-muted">
-              Nebenkosten auf dem Kaufbeleg des Verkäufers gehören zum Einkaufspreis. Separater
-              Transport und spätere Reparaturen zählen als weitere Ausgaben. Bei Unklarheit „Noch
-              prüfen“ wählen.
-            </p>
-          </div>
-          @if (isMysteryPurchase()) {
-            <p class="mt-2 text-[12px] text-fb-text-muted">
-              Verteilung:
-              <span class="font-medium text-fb-text-secondary">Gleichmäßig pro Stück</span>
-            </p>
-          } @else {
-            <app-button
-              class="mt-1"
-              variant="plain"
-              size="slim"
-              [ariaExpanded]="isAllocationExpanded(index)"
-              (clicked)="toggleAllocationDetails(index)"
-            >
-              Verteilung ändern
-            </app-button>
-
-            @if (isAllocationExpanded(index)) {
-              <div class="mt-2 grid grid-cols-1 gap-3 rounded-lg bg-fb-well p-3 sm:grid-cols-2">
-                <div>
-                  <span class="mb-1 block text-[12px] font-semibold text-fb-text-secondary">
-                    Verteilung
-                  </span>
-                  <app-custom-select
-                    ariaLabel="Verteilung der Zusatzkosten"
-                    [options]="allocationOptions"
-                    formControlName="allocationMethod"
-                    (valueChange)="onAllocationMethodChanged(index, $event)"
-                    size="sm"
-                  />
-                </div>
-
-                @if (costRow.controls.allocationMethod.value === 'direct') {
-                  <div>
-                    <span class="mb-1 block text-[12px] font-semibold text-fb-text-secondary">
-                      Zielposition
-                    </span>
-                    <app-custom-select
-                      ariaLabel="Zielposition der Zusatzkosten"
-                      [options]="purchaseLineOptions()"
-                      formControlName="targetPurchaseLineId"
-                      placeholder="Position wählen"
-                      size="sm"
-                    />
-                    @if (costRow.controls.targetPurchaseLineId.invalid) {
-                      <p class="mt-1 text-[12px] text-rose-600">
-                        Bitte wähle eine Zielposition aus.
-                      </p>
-                    }
-                  </div>
-                }
-              </div>
-            }
-          }
-        }
       </div>
     }
   </div>
@@ -141,6 +64,6 @@
     [disabled]="costRows.invalid"
     (clicked)="addCostRow()"
   >
-    Anpassung hinzufügen
+    Zusatzausgabe hinzufügen
   </app-button>
 </div>

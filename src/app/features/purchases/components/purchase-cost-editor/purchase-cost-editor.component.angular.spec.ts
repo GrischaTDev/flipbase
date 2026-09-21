@@ -125,15 +125,17 @@ describe('PurchaseCostEditorComponent', () => {
     }
   });
 
-  it('zeigt eine flache, zunächst unvollständige Anpassungszeile', async () => {
+  it('zeigt nur Zusatzausgabe, Betrag und Entfernen', async () => {
     const fixture = await createEditor();
     const host = fixture.nativeElement as HTMLElement;
 
-    expect(host.textContent).toContain('Anpassung');
+    expect(host.textContent).toContain('Zusatzausgabe');
     expect(host.textContent).toContain('Betrag');
-    expect(host.querySelector('[aria-label="Anpassung 1"]')).not.toBeNull();
-    expect(host.querySelector('input[aria-label="Betrag 1"]')).not.toBeNull();
-    expect(findButton(host, 'Anpassung hinzufügen').disabled).toBe(true);
+    expect(host.textContent).not.toContain('Wer hat diese Kosten berechnet?');
+    expect(host.textContent).not.toContain('Verteilung ändern');
+    expect(host.textContent).not.toContain('Zielposition');
+    expect(host.querySelector('[aria-label="Zusatzausgabe 1"]')).not.toBeNull();
+    expect(findButton(host, 'Zusatzausgabe hinzufügen').disabled).toBe(true);
   });
 
   it('gibt Rabatt getrennt von Zusatzkosten aus', async () => {
@@ -148,76 +150,51 @@ describe('PurchaseCostEditorComponent', () => {
 
     expect(discountsChanged).toHaveBeenLastCalledWith(12);
     expect(costsChanged).toHaveBeenLastCalledWith([]);
-    expect(findButton(fixture.nativeElement as HTMLElement, 'Anpassung hinzufügen').disabled).toBe(
-      false,
-    );
+    expect(
+      findButton(fixture.nativeElement as HTMLElement, 'Zusatzausgabe hinzufügen').disabled,
+    ).toBe(false);
   });
 
-  it('zeigt unbekannte Kostenherkunft und überträgt eine Auswahl ohne Kostenart-Automatik', async () => {
-    const fixture = await createEditor();
+  it('bewahrt unsichtbare Steuer- und Zuordnungswerte vorhandener Kosten', async () => {
+    const fixture = await createEditor('lot', [{ value: 'line-1', label: 'Kamera' }]);
+    fixture.componentRef.setInput('initialCosts', [
+      {
+        type: 'shipping',
+        amount: 8,
+        description: 'Versandkosten',
+        taxTreatment: 'expense',
+        allocationMethod: 'direct',
+        targetPurchaseLineId: 'line-1',
+      },
+    ]);
     const changed = vi.fn();
     fixture.componentInstance.costsChanged.subscribe(changed);
-    const row = fixture.componentInstance.costRows.at(0);
-    row.patchValue({ adjustment: 'shipping', amount: 8 });
     fixture.detectChanges();
-    expect(row.controls.taxTreatment.value).toBeNull();
-    const trigger = (fixture.nativeElement as HTMLElement).querySelector(
-      '[aria-label="Kostenherkunft 1"]',
-    );
-    expect(trigger?.textContent?.trim()).toBe('Noch prüfen');
-    expect(
-      (fixture.nativeElement as HTMLElement).querySelector('[aria-label="Kostenherkunft 1"]'),
-    ).not.toBeNull();
-    row.controls.taxTreatment.setValue('purchase_price');
+
+    fixture.componentInstance.costRows.at(0).controls.amount.setValue(9);
+
     expect(changed).toHaveBeenLastCalledWith([
-      expect.objectContaining({ taxTreatment: 'purchase_price' }),
+      expect.objectContaining({
+        amount: 9,
+        taxTreatment: 'expense',
+        allocationMethod: 'direct',
+        targetPurchaseLineId: 'line-1',
+      }),
     ]);
-    row.controls.adjustment.setValue('freight');
-    expect(row.controls.taxTreatment.value).toBe('purchase_price');
-    row.controls.taxTreatment.setValue(null);
-    expect(changed).toHaveBeenLastCalledWith([expect.objectContaining({ taxTreatment: null })]);
   });
 
-  it('bewahrt die direkte Verteilung auf eine Einkaufsposition', async () => {
-    const fixture = await createEditor('lot', [{ value: 'draft-camera', label: 'Kamera' }]);
+  it('setzt technische Standardwerte für neue normale Kosten', async () => {
+    const fixture = await createEditor();
     const row = fixture.componentInstance.costRows.at(0);
-    row.patchValue({
-      adjustment: 'shipping',
-      amount: 8,
-      allocationMethod: 'direct',
-      targetPurchaseLineId: 'draft-camera',
-    });
-    fixture.componentInstance.onAllocationMethodChanged(0, 'direct');
-    fixture.detectChanges();
 
-    expect(fixture.componentInstance.form.valid).toBe(true);
-    expect(row.controls.targetPurchaseLineId.value).toBe('draft-camera');
+    expect(row.controls.taxTreatment.value).toBeNull();
+    expect(row.controls.allocationMethod.value).toBe('by_value');
   });
 
-  it('entfernt eine unsichtbare Zielpflicht beim Wechsel zu Rabatt', async () => {
-    const fixture = await createEditor('lot');
-    const row = fixture.componentInstance.costRows.at(0);
-    row.patchValue({ adjustment: 'shipping', amount: 8, allocationMethod: 'direct' });
-    fixture.componentInstance.onAllocationMethodChanged(0, 'direct');
-    expect(fixture.componentInstance.form.valid).toBe(false);
-
-    row.controls.adjustment.setValue('discount');
-    fixture.detectChanges();
-
-    expect(fixture.componentInstance.form.valid).toBe(true);
-  });
-
-  it('erzwingt bei Mystery-Einkäufen weiterhin die Verteilung nach Menge', async () => {
+  it('setzt für neue Mystery-Kosten die Verteilung nach Menge', async () => {
     const fixture = await createEditor('mystery_pack');
     const row = fixture.componentInstance.costRows.at(0);
-    const costsChanged = vi.fn();
-    fixture.componentInstance.costsChanged.subscribe(costsChanged);
-    row.patchValue({ adjustment: 'shipping', amount: 8, allocationMethod: 'direct' });
-    fixture.detectChanges();
 
-    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Gleichmäßig pro Stück');
-    expect(costsChanged).toHaveBeenLastCalledWith([
-      expect.objectContaining({ allocationMethod: 'by_quantity', targetPurchaseLineId: null }),
-    ]);
+    expect(row.controls.allocationMethod.value).toBe('by_quantity');
   });
 });
