@@ -247,7 +247,7 @@ describe('PurchaseLifecycleActionsComponent', () => {
     expect(host.textContent).not.toContain('Unterwegs');
   });
 
-  it('sperrt Ankunft, Inhaltserfassung und Abschluss bei offenen Einkaufspreisen', () => {
+  it('sperrt Ankunft, Inhaltserfassung und Abschluss ohne den Seitenhinweis zu duplizieren', () => {
     const fixture = render(
       'capturing',
       'idle',
@@ -263,6 +263,7 @@ describe('PurchaseLifecycleActionsComponent', () => {
     expect(host.querySelector('[data-mark-arrived]')).toBeNull();
     expect(host.querySelector('[data-capture-content]')).toBeNull();
     expect(host.querySelector('[data-finalize-purchase]')).toBeNull();
-    expect(host.textContent).toContain('Einkaufspreise offen');
+    expect(host.querySelector('[data-open-purchase-prices]')).toBeNull();
+    expect(host.textContent).not.toContain('Einkaufspreise offen');
   });
 });

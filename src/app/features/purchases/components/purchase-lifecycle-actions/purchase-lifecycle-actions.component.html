@@ -1,9 +1,4 @@
 @if (entryStatus() !== 'finalized') {
-  @if (hasOpenPrices()) {
-    <span data-open-purchase-prices role="alert" class="text-xs text-amber-300"
-      >Einkaufspreise offen – vor Ankunft, Bestand und Abschluss ergänzen.</span
-    >
-  }
   @if (!editing()) {
     <app-button size="slim" (clicked)="editRequested.emit()">Bearbeiten</app-button>
   }

@@ -31,27 +31,17 @@
             >Änderungen speichern</app-button
           >
         } @else {
-          <app-button
-            data-purchase-print-link
-            [link]="'/purchases/' + p.id + '/print'"
-            size="slim"
-            [icon]="printIcon"
-            [ariaLabel]="purchaseDisplayTitle() + ' drucken oder als PDF speichern'"
-          >
-            Einkauf drucken
-          </app-button>
-          <app-button
-            data-purchase-audit-print-link
-            link="/settings/data/print"
-            size="slim"
-            [icon]="receiptIcon"
-            [queryParams]="{ entityType: 'purchase', entityId: p.id }"
-            [ariaLabel]="
-              'Prüfbeleg für ' + purchaseDisplayTitle() + ' drucken oder als PDF speichern'
-            "
-          >
-            Prüfbeleg
-          </app-button>
+          @if (p.receiving_status !== 'draft') {
+            <app-button
+              data-purchase-print-link
+              [link]="'/purchases/' + p.id + '/print'"
+              size="slim"
+              [icon]="printIcon"
+              [ariaLabel]="purchaseDisplayTitle() + ' drucken oder als PDF speichern'"
+            >
+              Einkauf drucken
+            </app-button>
+          }
           <app-purchase-lifecycle-actions
             [entryStatus]="p.entry_status ?? 'draft'"
             [receivingStatus]="p.receiving_status ?? 'draft'"
@@ -74,6 +64,15 @@
           />
         }
       </div>
+      @if (p.entry_status !== 'finalized' && hasOpenPurchasePrices()) {
+        <div
+          data-open-purchase-prices
+          role="alert"
+          class="mb-4 rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300"
+        >
+          Einkaufspreise offen – ergänze sie vor Ankunft, Bestand und Abschluss.
+        </div>
+      }
       @if (isEditing()) {
         <app-purchase-entry-form
           [purchase]="editingPurchase()"
@@ -206,16 +205,7 @@
 
                 <!-- Positionsdarstellung -->
                 @if (purchaseDetailRows().length > 0) {
-                  <div class="mb-3 flex justify-end">
-                    <app-table-column-picker
-                      [definitions]="tableColumns()"
-                      [selected]="visibleColumns()"
-                      [saveError]="tablePreferences.saveError()"
-                      (selectedChange)="setPurchaseVisibleColumns($event)"
-                    />
-                  </div>
                   <app-purchase-detail-table
-                    [visibleColumns]="visibleColumns()"
                     [purchaseId]="p.id"
                     [rows]="purchaseDetailRows()"
                     [canCaptureIndividual]="!hasOpenPurchasePrices()"

@@ -398,7 +398,7 @@ describe('purchase presentation mapper', () => {
     expect(row.quantityState).toBe('error');
   });
 
-  it('bildet normale Details mit Preis, Zusatzkosten und Gesamtkosten pro Stück ab', () => {
+  it('bildet normale Details mit bestellter und erhaltener Menge sowie Zeilensumme ab', () => {
     const available = item('available', 'ready', 'no_active_sale');
     const sold = item('sold', 'sold', 'sold');
     const rows = mapPurchaseDetailRows(
@@ -410,17 +410,17 @@ describe('purchase presentation mapper', () => {
       expect.objectContaining({
         kind: 'normal',
         title: 'Tasse',
-        quantity: 2,
+        orderedQuantity: 2,
+        receivedQuantity: 2,
         unitPurchasePrice: { kind: 'known', amount: 20 },
-        additionalCostPerUnit: { kind: 'known', amount: 2.5 },
-        totalCostPerUnit: { kind: 'known', amount: 22.5 },
+        lineTotal: { kind: 'known', amount: 40 },
         availableUnits: 1,
         soldUnits: 1,
       }),
     ]);
   });
 
-  it('bildet Mystery-Details ohne Einkaufspreis, aber mit Zustand und optionalem Marktwert ab', () => {
+  it('hält Mystery-Details in derselben einfachen Tabellenstruktur lesbar', () => {
     const mysteryLine: PurchaseLine = {
       ...normalLine,
       price_mode: 'unpriced_mystery',
@@ -438,12 +438,12 @@ describe('purchase presentation mapper', () => {
     expect(rows).toEqual([
       expect.objectContaining({
         kind: 'mystery',
-        condition: 'like_new',
-        estimatedMarketValue: 60,
-        allocatedCostPerUnit: { kind: 'known', amount: 22.5 },
+        orderedQuantity: 2,
+        receivedQuantity: 2,
+        unitPurchasePrice: { kind: 'known', amount: 22.5 },
+        lineTotal: { kind: 'known', amount: 45 },
       }),
     ]);
-    expect(rows[0]).not.toHaveProperty('unitPurchasePrice');
   });
 
   it('verliert einen vorhandenen Legacy-Artikel ohne Einkaufsposition nicht aus den Details', () => {
@@ -464,10 +464,10 @@ describe('purchase presentation mapper', () => {
         kind: 'mystery',
         id: 'legacy-item',
         inventoryItemId: 'legacy-item',
-        quantity: 1,
-        condition: 'very_good',
-        estimatedMarketValue: 30,
-        allocatedCostPerUnit: { kind: 'known', amount: 12 },
+        orderedQuantity: 1,
+        receivedQuantity: 1,
+        unitPurchasePrice: { kind: 'known', amount: 12 },
+        lineTotal: { kind: 'known', amount: 12 },
         availableUnits: 1,
         soldUnits: 0,
       }),

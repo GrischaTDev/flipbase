@@ -8,7 +8,6 @@ import type {
 } from '../../../core/models/flipbase.models';
 import { purchaseSellerLabel } from './purchase-seller';
 import type { CostState } from '../../../shared/components/cost-state/cost-state.component';
-import { ItemConditionLabelPipe } from '../../../shared/pipes/item-condition-label.pipe';
 import { PurchaseTypeLabelPipe } from '../../../shared/pipes/purchase-type-label.pipe';
 import type {
   PurchaseDetailRow,
@@ -30,7 +29,6 @@ export interface PurchasePresentationContext {
 }
 
 const purchaseTypeLabels = new PurchaseTypeLabelPipe();
-const conditionLabels = new ItemConditionLabelPipe();
 
 const availableIndividualStatuses = new Set<InventoryItem['status']>([
   'received',
@@ -332,23 +330,19 @@ export function mapPurchaseDetailRows(
         : 0;
 
     if (purchase.type === 'mystery_pack') {
-      const condition = line.condition_snapshot;
       return {
         kind: 'mystery',
         id: line.id,
         title: line.title_snapshot,
-        quantity: line.ordered_quantity,
+        orderedQuantity: line.ordered_quantity,
+        receivedQuantity: line.received_quantity,
+        unitPurchasePrice: safePerUnit(line.allocated_total_cost, line.ordered_quantity),
+        lineTotal: money(line.allocated_total_cost),
         inventoryItemId,
         inventoryItemLinks,
         recordedSales: sales,
         salesState: context.salesState,
         captureRemaining,
-        condition:
-          condition && conditionLabels.transform(condition as InventoryItem['condition'])
-            ? (condition as InventoryItem['condition'])
-            : null,
-        estimatedMarketValue: line.estimated_market_value ?? null,
-        allocatedCostPerUnit: safePerUnit(line.allocated_total_cost, line.ordered_quantity),
         ...quantities,
       };
     }
@@ -357,15 +351,15 @@ export function mapPurchaseDetailRows(
       kind: 'normal',
       id: line.id,
       title: line.title_snapshot,
-      quantity: line.ordered_quantity,
+      orderedQuantity: line.ordered_quantity,
+      receivedQuantity: line.received_quantity,
       inventoryItemId,
       inventoryItemLinks,
       recordedSales: sales,
       salesState: context.salesState,
       captureRemaining,
       unitPurchasePrice: money(line.unit_purchase_price),
-      additionalCostPerUnit: safePerUnit(line.allocated_additional_cost, line.ordered_quantity),
-      totalCostPerUnit: safePerUnit(line.allocated_total_cost, line.ordered_quantity),
+      lineTotal: money(line.line_total),
       ...quantities,
     };
   });
@@ -391,15 +385,15 @@ export function mapPurchaseDetailRows(
           kind: 'mystery',
           id: item.id,
           title: item.title,
-          quantity: 1,
+          orderedQuantity: 1,
+          receivedQuantity: 1,
+          unitPurchasePrice: allocatedCost,
+          lineTotal: allocatedCost,
           inventoryItemId: item.id,
           inventoryItemLinks: [{ id: item.id, label: 'Artikel 1' }],
           recordedSales: sales,
           salesState: context.salesState,
           captureRemaining: 0,
-          condition: item.condition,
-          estimatedMarketValue: item.expected_value ?? null,
-          allocatedCostPerUnit: allocatedCost,
           ...quantities,
         };
       }
@@ -407,15 +401,15 @@ export function mapPurchaseDetailRows(
         kind: 'normal',
         id: item.id,
         title: item.title,
-        quantity: 1,
+        orderedQuantity: 1,
+        receivedQuantity: 1,
         inventoryItemId: item.id,
         inventoryItemLinks: [{ id: item.id, label: 'Artikel 1' }],
         recordedSales: sales,
         salesState: context.salesState,
         captureRemaining: 0,
         unitPurchasePrice: { kind: 'open' },
-        additionalCostPerUnit: { kind: 'open' },
-        totalCostPerUnit: allocatedCost,
+        lineTotal: allocatedCost,
         ...quantities,
       };
     });

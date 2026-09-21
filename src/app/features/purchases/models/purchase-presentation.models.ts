@@ -1,5 +1,5 @@
 import type { CostState } from '../../../shared/components/cost-state/cost-state.component';
-import type { ItemCondition, PurchaseType } from '../../../core/models/flipbase.models';
+import type { PurchaseType } from '../../../core/models/flipbase.models';
 import type { BadgeTone } from '../../../shared/components/badge/badge.component';
 
 export type PurchaseStatusLabel =
@@ -74,7 +74,10 @@ export interface PurchaseListRow {
 interface PurchaseDetailRowBase {
   readonly id: string;
   readonly title: string;
-  readonly quantity: number;
+  readonly orderedQuantity: number;
+  readonly receivedQuantity: number;
+  readonly unitPurchasePrice: CostState;
+  readonly lineTotal: CostState;
   readonly inventoryItemId: string | null;
   readonly inventoryItemLinks: readonly InventoryItemLinkPresentation[];
   readonly availableUnits: number | null;
@@ -85,18 +88,6 @@ interface PurchaseDetailRowBase {
   readonly captureRemaining: number;
 }
 
-export interface NormalPurchaseDetailRow extends PurchaseDetailRowBase {
-  readonly kind: 'normal';
-  readonly unitPurchasePrice: CostState;
-  readonly additionalCostPerUnit: CostState;
-  readonly totalCostPerUnit: CostState;
+export interface PurchaseDetailRow extends PurchaseDetailRowBase {
+  readonly kind: 'normal' | 'mystery';
 }
-
-export interface MysteryPurchaseDetailRow extends PurchaseDetailRowBase {
-  readonly kind: 'mystery';
-  readonly condition: ItemCondition | null;
-  readonly estimatedMarketValue: number | null;
-  readonly allocatedCostPerUnit: CostState;
-}
-
-export type PurchaseDetailRow = NormalPurchaseDetailRow | MysteryPurchaseDetailRow;
