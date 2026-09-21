@@ -1,5 +1,21 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-21 – Juna – Beta-Formular und Ergebnisdialoge korrigiert
+
+**Auftrag:** Den Beta-Antrag an den produktiven Duplikatcode anpassen, den
+Sendezustand zuverlässig verstecken und die Ergebnisdialoge vollständig
+zweisprachig sowie lesbar halten.
+
+**Änderung:** Der Ladebereich respektiert den nativen `hidden`-Zustand. Der
+Erfolgs- und Duplikatdialog trennt Fließtext und E-Mail-Adresse sichtbar. Die
+Landingpage erkennt sowohl `application_existing` als auch den bisherigen
+Kompatibilitätswert `application_exists` und zeigt dafür denselben neutralen
+Dialog ohne internen Bewerbungsstatus.
+
+**Prüfung:** Neue Landing-Regressionen wurden zunächst rot ausgeführt und
+bestanden nach der Korrektur vollständig (22 Tests). Formatierung und
+Diff-Prüfung waren ebenfalls erfolgreich.
+
 ## 2026-09-21 – Juna – Folgekorrekturen nach manueller UI-Abnahme geplant
 
 **Auftrag:** Die nach dem Einkaufsumbau gefundenen Darstellungs- und

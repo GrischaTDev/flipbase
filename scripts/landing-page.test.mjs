@@ -460,6 +460,17 @@ test('keeps the header focused on the Flipbase brand, preferences and one app li
   assert.match(appLinks[0].textContent, /Open App/u);
 });
 
+test('verbirgt den Sendezustand bis zum tatsächlichen Absenden', () => {
+  const dom = new JSDOM(html, { url: 'https://flipbase.de/' });
+  const loading = dom.window.document.querySelector('[data-beta-submit-loading]');
+  const idle = dom.window.document.querySelector('[data-beta-submit-idle]');
+
+  assert.equal(loading.hidden, true);
+  assert.equal(dom.window.getComputedStyle(loading).display, 'none');
+  assert.equal(idle.hidden, false);
+  dom.window.close();
+});
+
 test('confirms a stored beta application in a focused dialog', async () => {
   const { dom, form, requests } = await submitBetaApplication({
     ok: true,
@@ -477,6 +488,9 @@ test('confirms a stored beta application in a focused dialog', async () => {
   assert.match(dialog.textContent, /Vielen Dank für deine Anmeldung zur Beta/u);
   assert.match(dialog.textContent, /anna@example\.test/u);
   assert.match(dialog.textContent, /Bestätigungs-E-Mail/u);
+  assert.ok(dialog.querySelector('#beta-success-description.beta-dialog-copy'));
+  assert.ok(dialog.querySelector('.beta-dialog-email strong'));
+  assert.match(dialog.textContent, /We have received your application/u);
   assert.match(
     dom.window.document.getElementById('beta-success-confirm').textContent,
     /Schließen/u,
@@ -508,6 +522,17 @@ test('explains a failed receipt email without losing the application', async () 
   dom.window.close();
 });
 
+test('behandelt den produktiven Duplikatcode als vorhandene Bewerbung', async () => {
+  const { dom } = await submitBetaApplication({ error: 'application_existing' }, 409);
+  const existingContent = dom.window.document.getElementById('beta-existing-content');
+
+  assert.equal(existingContent.hidden, false);
+  assert.match(existingContent.textContent, /Bewerbung bereits vorhanden/u);
+  assert.match(existingContent.textContent, /Application already received/u);
+  assert.doesNotMatch(existingContent.textContent, /abgelehnt|angenommen/iu);
+  dom.window.close();
+});
+
 test('meldet jede bereits vorhandene Bewerbung ohne ihren Status preiszugeben', async () => {
   const { dom, form } = await submitBetaApplication({ error: 'application_exists' }, 409);
   const dialog = dom.window.document.getElementById('beta-success-dialog');
@@ -522,6 +547,22 @@ test('meldet jede bereits vorhandene Bewerbung ohne ihren Status preiszugeben', 
   assert.ok(warning.querySelector('svg'));
   assert.equal(form.querySelector('[name="email"]').value, 'anna@example.test');
   assert.equal(form.querySelector('button[type="submit"]').disabled, false);
+  dom.window.close();
+});
+
+test('hält Beta-Formular und Ergebnisdialoge vollständig zweisprachig', () => {
+  const dom = new JSDOM(html);
+  const { document } = dom.window;
+  const betaSurface = document.querySelector('#zweit-bewerbung-form')?.parentElement;
+  const dialog = document.getElementById('beta-success-dialog');
+  const germanTexts = [...(betaSurface?.querySelectorAll('.lang-de') ?? [])];
+  const dialogGermanTexts = [...(dialog?.querySelectorAll('.lang-de') ?? [])];
+
+  assert.ok(germanTexts.length > 0);
+  assert.ok(dialogGermanTexts.length > 0);
+  for (const german of [...germanTexts, ...dialogGermanTexts]) {
+    assert.ok(german.parentElement.querySelector('.lang-en[lang="en"]'));
+  }
   dom.window.close();
 });
 
