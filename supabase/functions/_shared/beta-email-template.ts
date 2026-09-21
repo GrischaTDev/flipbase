@@ -82,8 +82,8 @@ export function renderRegistrationInvite(input: {
   const safeActionLink = escapeHtml(input.actionLink);
   const grantedDays = Math.trunc(input.grantedDays);
   const html = renderEmailCard(`
-    <h1 style="margin:0 0 16px;font-size:20px;line-height:1.3;text-align:center;color:#0f172a">Du bist bei der Beta dabei!</h1>
-    <p style="margin:0 0 16px;font-size:15px;line-height:24px;text-align:center;color:#475569">Hallo ${safeFirstName},<br />gute Neuigkeiten: Wir haben deine Bewerbung für die geschlossene Flipbase Beta angenommen.</p>
+    <h1 style="margin:0 0 16px;font-size:20px;line-height:1.3;text-align:center;color:#0f172a">Deine Bewerbung wurde angenommen</h1>
+    <p style="margin:0 0 16px;font-size:15px;line-height:24px;text-align:center;color:#475569">Hallo ${safeFirstName},<br />deine Bewerbung wurde angenommen. Du kannst jetzt deine Registrierung für die geschlossene Flipbase Beta abschließen.</p>
     <p style="margin:0 0 24px;font-size:14px;line-height:22px;text-align:center;color:#64748b">Deine Beta-Laufzeit von ${grantedDays} Tagen beginnt erst, nachdem du dein Passwort festgelegt hast.</p>
     <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:28px auto"><tr><td align="center" style="border-radius:12px;background:#fcc601">
       <a href="${safeActionLink}" target="_blank" style="display:inline-block;padding:14px 32px;border:1px solid #eab308;border-radius:12px;background:#fcc601;color:#111827;font-size:15px;font-weight:700;text-decoration:none">Registrierung abschließen</a>
@@ -92,8 +92,8 @@ export function renderRegistrationInvite(input: {
   `);
 
   return {
-    subject: 'Deine Einladung zur Flipbase Beta',
+    subject: 'Deine Bewerbung zur Flipbase Beta wurde angenommen',
     html,
-    text: `Hallo ${firstName},\n\ngute Neuigkeiten: Wir haben deine Bewerbung für die geschlossene Flipbase Beta angenommen. Deine Beta-Laufzeit von ${grantedDays} Tagen beginnt erst, nachdem du dein Passwort festgelegt hast.\n\nRegistrierung abschließen: ${input.actionLink}\n\nDein Flipbase-Team`,
+    text: `Hallo ${firstName},\n\nDeine Bewerbung wurde angenommen. Du kannst jetzt deine Registrierung für die geschlossene Flipbase Beta abschließen. Deine Beta-Laufzeit von ${grantedDays} Tagen beginnt erst, nachdem du dein Passwort festgelegt hast.\n\nRegistrierung abschließen: ${input.actionLink}\n\nDein Flipbase-Team`,
   };
 }

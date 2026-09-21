@@ -26,7 +26,7 @@ export interface BetaTransportOptions {
 }
 
 export interface BetaMailEnvelope extends BetaEmailMessage {
-  from: string;
+  from: { name: string; address: string };
 }
 
 export interface BetaMailTransport {
@@ -91,7 +91,7 @@ export async function sendBetaEmail(
   });
 
   await transport.sendMail({
-    from: `"${fromName.replaceAll('"', '\\"')}" <${fromEmail}>`,
+    from: { name: fromName, address: fromEmail },
     to: message.to,
     subject: message.subject,
     html: message.html,

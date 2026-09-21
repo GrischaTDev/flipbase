@@ -613,6 +613,17 @@
         font-weight: 800;
       }
 
+      .beta-dialog-symbol-warnung {
+        border-color: rgba(249, 115, 22, 0.45);
+        background: rgba(249, 115, 22, 0.12);
+        color: #f97316;
+      }
+
+      .beta-dialog-symbol-warnung svg {
+        width: 2rem;
+        height: 2rem;
+      }
+
       .beta-dialog-karte h2 {
         margin: 0 0 1rem;
         color: var(--ink);
@@ -687,6 +698,49 @@
         align-items: center;
         justify-content: center;
         gap: 0.4rem;
+      }
+
+      .hero-beta-submit-loading {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.35rem;
+      }
+
+      .hero-beta-progress {
+        position: relative;
+        display: block;
+        width: min(10rem, 65vw);
+        height: 0.22rem;
+        overflow: hidden;
+        border-radius: 999px;
+        background: rgba(17, 24, 39, 0.2);
+      }
+
+      .hero-beta-progress::after {
+        position: absolute;
+        inset: 0;
+        width: 45%;
+        border-radius: inherit;
+        background: var(--on-amber);
+        content: '';
+        animation: beta-submit-progress 1.15s ease-in-out infinite;
+      }
+
+      @keyframes beta-submit-progress {
+        from {
+          transform: translateX(-120%);
+        }
+        to {
+          transform: translateX(270%);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .hero-beta-progress::after {
+          left: 27.5%;
+          animation: none;
+        }
       }
 
       @media (max-width: 560px) {
@@ -2704,8 +2758,17 @@
               </label>
             </div>
             <button type="submit" class="btn-primary hero-beta-btn">
-              <span class="lang-de">Für die Beta bewerben →</span>
-              <span class="lang-en" lang="en">Apply for the beta →</span>
+              <span data-beta-submit-idle>
+                <span class="lang-de">Für die Beta bewerben →</span>
+                <span class="lang-en" lang="en">Apply for the beta →</span>
+              </span>
+              <span data-beta-submit-loading class="hero-beta-submit-loading" role="status" hidden>
+                <span>
+                  <span class="lang-de">Bewerbung wird gesendet …</span>
+                  <span class="lang-en" lang="en">Sending application …</span>
+                </span>
+                <span class="hero-beta-progress" aria-hidden="true"></span>
+              </span>
             </button>
             <p
               class="hero-beta-meldung"
@@ -2885,24 +2948,26 @@
           </p>
         </div>
 
-        <div id="beta-rejected-content" hidden>
-          <div class="beta-dialog-symbol" aria-hidden="true">!</div>
-          <h2 id="beta-rejected-title">
-            <span class="lang-de">Eine erneute Bewerbung ist derzeit nicht möglich</span>
-            <span class="lang-en" lang="en">Another application is currently not possible</span>
+        <div id="beta-existing-content" hidden>
+          <div class="beta-dialog-symbol beta-dialog-symbol-warnung" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path
+                d="M10.3 2.9 1.8 17a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 2.9a2 2 0 0 0-3.4 0Z"
+              ></path>
+              <path d="M12 9v4"></path>
+              <path d="M12 17h.01"></path>
+            </svg>
+          </div>
+          <h2 id="beta-existing-title">
+            <span class="lang-de">Bewerbung bereits vorhanden</span>
+            <span class="lang-en" lang="en">Application already received</span>
           </h2>
-          <p id="beta-rejected-description">
-            <span class="lang-de"
-              >Deine Bewerbung wurde bereits abgelehnt. Solange dieser Eintrag besteht, kannst du
-              dich mit dieser E-Mail-Adresse nicht erneut für die Beta bewerben.</span
-            >
-            <span class="lang-en" lang="en"
-              >Your application has already been declined. While this record remains, this email
-              address cannot be used for another beta application.</span
-            >
+          <p id="beta-existing-description">
+            <span class="lang-de">Für diese E-Mail liegt bereits eine Bewerbung vor.</span>
+            <span class="lang-en" lang="en">An application already exists for this email.</span>
           </p>
           <p class="beta-dialog-email">
-            <strong id="beta-rejected-email"></strong>
+            <strong id="beta-existing-email"></strong>
           </p>
         </div>
         <button id="beta-success-confirm" type="button" class="btn-primary beta-dialog-aktion">

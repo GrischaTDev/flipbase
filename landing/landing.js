@@ -35,9 +35,9 @@
 
   var successDialog = document.getElementById('beta-success-dialog');
   var successContent = document.getElementById('beta-success-content');
-  var rejectedContent = document.getElementById('beta-rejected-content');
+  var existingContent = document.getElementById('beta-existing-content');
   var successEmail = document.getElementById('beta-success-email');
-  var rejectedEmail = document.getElementById('beta-rejected-email');
+  var existingEmail = document.getElementById('beta-existing-email');
   var receiptSent = document.getElementById('beta-success-receipt-sent');
   var receiptFailed = document.getElementById('beta-success-receipt-failed');
   var dialogCloseButton = document.getElementById('beta-success-close');
@@ -60,7 +60,7 @@
   function showSuccessDialog(email, receiptEmailSent, submitButton) {
     returnFocusTo = submitButton;
     successContent.hidden = false;
-    rejectedContent.hidden = true;
+    existingContent.hidden = true;
     successDialog.setAttribute('aria-labelledby', 'beta-success-title');
     successDialog.setAttribute('aria-describedby', 'beta-success-description beta-success-receipt');
     successEmail.textContent = email;
@@ -74,13 +74,13 @@
     dialogCloseButton.focus();
   }
 
-  function showRejectedDialog(email, submitButton) {
+  function showExistingDialog(email, submitButton) {
     returnFocusTo = submitButton;
     successContent.hidden = true;
-    rejectedContent.hidden = false;
-    successDialog.setAttribute('aria-labelledby', 'beta-rejected-title');
-    successDialog.setAttribute('aria-describedby', 'beta-rejected-description');
-    rejectedEmail.textContent = email;
+    existingContent.hidden = false;
+    successDialog.setAttribute('aria-labelledby', 'beta-existing-title');
+    successDialog.setAttribute('aria-describedby', 'beta-existing-description');
+    existingEmail.textContent = email;
     successDialog.hidden = false;
     document.body.classList.add('beta-dialog-open');
     pageRegions.forEach(function (region) {
@@ -116,6 +116,14 @@
   var form = document.getElementById(prefix + '-bewerbung-form');
   var message = document.getElementById(prefix + '-bewerbung-meldung');
 
+  function setSubmitLoading(button, loading) {
+    button.disabled = loading;
+    if (loading) button.setAttribute('aria-busy', 'true');
+    else button.removeAttribute('aria-busy');
+    button.querySelector('[data-beta-submit-idle]').hidden = loading;
+    button.querySelector('[data-beta-submit-loading]').hidden = !loading;
+  }
+
   form.addEventListener('submit', function (event) {
     event.preventDefault();
     var button = form.querySelector('button[type="submit"]');
@@ -126,7 +134,7 @@
       form.reportValidity();
       return;
     }
-    button.disabled = true;
+    setSubmitLoading(button, true);
     var submittedEmail = document.getElementById(prefix + '-bewerbung-email').value.trim();
 
     // Ohne Zeitgrenze wuerde ein ausbleibender Server den Knopf fuer
@@ -157,9 +165,9 @@
           });
         } else if (response.status === 409) {
           return response.json().then(function (payload) {
-            if (payload.error === 'application_rejected') {
+            if (payload.error === 'application_exists') {
               message.textContent = '';
-              showRejectedDialog(submittedEmail, button);
+              showExistingDialog(submittedEmail, button);
               return;
             }
             announce(message, 'error');
@@ -173,7 +181,7 @@
       })
       .finally(function () {
         clearTimeout(timer);
-        button.disabled = false;
+        setSubmitLoading(button, false);
       });
   });
 })();

@@ -12,7 +12,7 @@ const testEnvironment: BetaEmailEnvironment = {
   BETA_SMTP_USER: 'account@example.test',
   BETA_SMTP_PASS: 'secret',
   BETA_SMTP_FROM_EMAIL: 'account@flipbase.de',
-  BETA_SMTP_FROM_NAME: 'Flipbase',
+  BETA_SMTP_FROM_NAME: 'Flipbase „Beta“',
 };
 
 Deno.test('der SMTP-Versand nutzt STARTTLS und ausschliesslich die Empfaengeradresse', async () => {
@@ -49,7 +49,7 @@ Deno.test('der SMTP-Versand nutzt STARTTLS und ausschliesslich die Empfaengeradr
   ]);
   assertEquals(sent, [
     {
-      from: '"Flipbase" <account@flipbase.de>',
+      from: { name: 'Flipbase „Beta“', address: 'account@flipbase.de' },
       to: 'anna@example.test',
       subject: 'Betreff',
       html: '<p>Text</p>',

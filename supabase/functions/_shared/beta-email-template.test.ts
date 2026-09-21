@@ -29,7 +29,12 @@ Deno.test('die Registrierungseinladung verwendet die bestehende Gestaltung siche
     grantedDays: 60,
   });
 
-  assert(message.subject === 'Deine Einladung zur Flipbase Beta', 'Unerwarteter Betreff');
+  assert(
+    message.subject === 'Deine Bewerbung zur Flipbase Beta wurde angenommen',
+    'Unerwarteter Betreff',
+  );
+  assert(message.html.includes('Deine Bewerbung wurde angenommen'), 'Die Annahme fehlt im HTML');
+  assert(message.text.includes('Deine Bewerbung wurde angenommen'), 'Die Annahme fehlt im Text');
   assert(message.html.includes('Berta &lt;Beta&gt;'), 'Der Name ist nicht maskiert');
   assert(message.html.includes('token=a&amp;next=b'), 'Der Link ist nicht fuer HTML maskiert');
   assert(message.text.includes('token=a&next=b'), 'Der Klartextlink fehlt');

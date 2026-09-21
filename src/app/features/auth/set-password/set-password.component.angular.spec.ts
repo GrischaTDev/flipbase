@@ -12,6 +12,9 @@ import { TranslateService } from '@ngx-translate/core';
 import { Router } from '@angular/router';
 import { signal } from '@angular/core';
 import { of } from 'rxjs';
+import { By } from '@angular/platform-browser';
+import { CustomCheckboxComponent } from '../../../shared/components/custom-checkbox/custom-checkbox.component';
+import { TRANSLATIONS_DE } from '../../../core/i18n/translations';
 
 beforeAll(async () => {
   const lookup: Record<string, string> = {
@@ -78,13 +81,21 @@ describe('SetPasswordComponent', () => {
       toggleTheme: vi.fn(),
     };
 
+    const translate = (key: string) => {
+      let value: unknown = TRANSLATIONS_DE;
+      for (const segment of key.split('.')) {
+        if (!value || typeof value !== 'object' || Array.isArray(value)) return key;
+        value = (value as Readonly<Record<string, unknown>>)[segment];
+      }
+      return typeof value === 'string' ? value : key;
+    };
     const fakeTranslate = {
       currentLang: () => 'de',
       use: vi.fn(),
-      instant: (k: string) => k,
-      get: (k: string) => of(k),
-      stream: (k: string) => of(k),
-      translate: (k: string) => signal(k),
+      instant: translate,
+      get: (key: string) => of(translate(key)),
+      stream: (key: string) => of(translate(key)),
+      translate: (key: string) => signal(translate(key)),
       onLangChange: of({ lang: 'de', translations: {} }),
       onTranslationChange: of({ lang: 'de', translations: {} }),
       onDefaultLangChange: of({ lang: 'de', translations: {} }),
@@ -185,5 +196,24 @@ describe('SetPasswordComponent', () => {
     await component.ngOnInit();
 
     expect(component.isTokenInvalid()).toBe(true);
+  });
+
+  it('zeigt übersetzte Passworttexte und die gelbe Marken-Checkbox', async () => {
+    const { fixture, component } = createComponent();
+    component.form.controls.password.setValue('kurz');
+    component.form.controls.password.markAsTouched();
+    component.form.controls.confirmPassword.setValue('anders');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const text = (fixture.nativeElement as HTMLElement).textContent?.replace(/\s+/gu, ' ') ?? '';
+    const termsCheckbox = fixture.debugElement.query(By.directive(CustomCheckboxComponent))
+      .componentInstance as CustomCheckboxComponent;
+
+    expect(text).toContain('Passwort wiederholen');
+    expect(text).toContain('Sicherheitsstufe:');
+    expect(text).not.toContain('AUTH.');
+    expect(termsCheckbox.color()).toBe('brand');
   });
 });
