@@ -4,7 +4,7 @@ import { addNewPurchaseProduct } from './support/products';
 import { createFinalizedPurchase, recordSale } from './support/sample-data';
 
 for (const width of [1440, 390]) {
-  test(`preserves purchase cost origin after reopening at ${width}px${width === 1440 ? ' @pr-smoke' : ''}`, async ({
+  test(`preserves additional purchase costs after reopening at ${width}px${width === 1440 ? ' @pr-smoke' : ''}`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 1000 });
@@ -18,14 +18,10 @@ for (const width of [1440, 390]) {
       .getByRole('spinbutton', { name: 'Stückpreis für Kostenprüfung', exact: true })
       .fill('100');
     await page.getByRole('button', { name: 'Kosten bearbeiten', exact: true }).click();
-    const dialog = page.getByRole('dialog', { name: 'Kostenübersicht verwalten' });
-    await dialog.getByRole('combobox', { name: 'Anpassung 1', exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: 'Zusatzausgaben verwalten' });
+    await dialog.getByRole('combobox', { name: 'Zusatzausgabe 1', exact: true }).click();
     await dialog.getByRole('option', { name: 'Versandkosten', exact: true }).click();
     await dialog.getByRole('spinbutton', { name: 'Betrag 1', exact: true }).fill('10');
-    const origin = dialog.getByRole('combobox', { name: 'Kostenherkunft 1', exact: true });
-    await expect(origin).toContainText('Noch prüfen');
-    await origin.click();
-    await dialog.getByRole('option', { name: 'Vom Verkäufer berechnet', exact: true }).click();
     await page.addScriptTag({ content: axe.source });
     const violations = await page.evaluate(
       async () =>
@@ -38,32 +34,46 @@ for (const width of [1440, 390]) {
     );
     expect(violations).toEqual([]);
     await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
-    await expect(page.getByRole('region', { name: 'Kostenübersicht' })).toContainText(
-      'Vom Verkäufer berechnet',
-    );
+    const summary = page.getByRole('region', { name: 'Kostenübersicht' });
+    await expect(summary).toContainText('Versandkosten');
+    await expect(summary).toContainText('110,00');
     await page.getByRole('button', { name: 'Entwurf speichern', exact: true }).click();
     await page.locator('[data-purchase-row]').first().click();
     await page.getByRole('button', { name: 'Kosten bearbeiten', exact: true }).click();
-    await expect(origin).toContainText('Vom Verkäufer berechnet');
-    await origin.click();
-    await dialog.getByRole('option', { name: 'Separat bezahlt', exact: true }).click();
-    await expect(dialog.getByRole('button', { name: 'Speichern', exact: true })).toBeEnabled();
+    const reopenedDialog = page.getByRole('dialog', { name: 'Zusatzausgaben verwalten' });
+    await expect(
+      reopenedDialog.getByRole('combobox', { name: 'Zusatzausgabe 1', exact: true }),
+    ).toContainText('Versandkosten');
+    const reopenedAmount = reopenedDialog.getByRole('spinbutton', {
+      name: 'Betrag 1',
+      exact: true,
+    });
+    await expect(reopenedAmount).toHaveValue('10');
+    await reopenedAmount.fill('12');
+    await expect(
+      reopenedDialog.getByRole('button', { name: 'Speichern', exact: true }),
+    ).toBeEnabled();
     if (process.env['TAX_QA_SCREENSHOTS'])
       await page.screenshot({
-        path: `${process.env['TAX_QA_SCREENSHOTS']}/cost-origin-${width}.png`,
+        path: `${process.env['TAX_QA_SCREENSHOTS']}/additional-costs-${width}.png`,
       });
-    await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
-    await expect(dialog).toBeHidden();
+    await reopenedDialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+    await expect(reopenedDialog).toBeHidden();
     const saveChanges = page.getByRole('button', { name: 'Änderungen speichern', exact: true });
     await expect(saveChanges).toBeEnabled();
     await saveChanges.click();
     await expect(saveChanges).toBeHidden();
     await page.reload();
-    await expect(page.getByRole('region', { name: 'Kostenübersicht' })).toContainText(
-      'Separat bezahlt',
-    );
+    await expect(summary).toContainText('Versandkosten');
+    await expect(summary).toContainText('112,00');
     await page.getByRole('button', { name: 'Kosten bearbeiten', exact: true }).click();
-    await expect(origin).toContainText('Separat bezahlt');
+    const reloadedDialog = page.getByRole('dialog', { name: 'Zusatzausgaben verwalten' });
+    await expect(
+      reloadedDialog.getByRole('combobox', { name: 'Zusatzausgabe 1', exact: true }),
+    ).toContainText('Versandkosten');
+    await expect(
+      reloadedDialog.getByRole('spinbutton', { name: 'Betrag 1', exact: true }),
+    ).toHaveValue('12');
     expect(errors).toEqual([]);
   });
 }

@@ -29,6 +29,7 @@ export type TextFieldType = 'text' | 'email' | 'password' | 'search' | 'url' | '
   ],
   host: {
     class: 'block w-full',
+    '[attr.id]': 'null',
   },
 })
 export class TextFieldComponent implements ControlValueAccessor {

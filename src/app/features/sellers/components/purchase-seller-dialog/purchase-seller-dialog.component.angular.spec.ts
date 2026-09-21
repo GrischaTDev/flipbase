@@ -189,6 +189,18 @@ describe('PurchaseSellerDialogComponent', () => {
     expect(host.querySelector('[data-phone-input]')).not.toBeNull();
   });
 
+  it('verknüpft die Verkäufer-ID ausschließlich mit dem benannten Eingabefeld', () => {
+    const { fixture } = render();
+    const host = fixture.nativeElement as HTMLElement;
+    const matchingElements = host.querySelectorAll('#seller-name');
+
+    expect(matchingElements).toHaveLength(1);
+    expect(matchingElements[0]?.tagName).toBe('INPUT');
+    expect(host.querySelector('label[for="seller-name"]')?.textContent).toContain(
+      'Vor- und Nachname',
+    );
+  });
+
   it('bindet Verkäuferart und Land über die Formularauswahl', () => {
     const { fixture } = render();
     const selects = fixture.debugElement
@@ -293,7 +305,7 @@ describe('PurchaseSellerDialogComponent', () => {
     fixture.detectChanges();
 
     expect(host.querySelector('#seller-email-error')?.textContent).toContain('E-Mail-Adresse');
-    expect(host.querySelector('#seller-email input')?.getAttribute('aria-invalid')).toBe('true');
+    expect(host.querySelector('input#seller-email')?.getAttribute('aria-invalid')).toBe('true');
   });
 
   it('verknüpft die Telefonnummer nur bei einem berührten ungültigen Wert mit dem Fehlerziel', () => {

@@ -34,7 +34,7 @@ const coreTests = [
   ['purchase-tax-costs.spec.ts', 'keeps per-item tax visible in the tax journal @pr-smoke'],
   [
     'purchase-tax-costs.spec.ts',
-    'preserves purchase cost origin after reopening at 1440px @pr-smoke',
+    'preserves additional purchase costs after reopening at 1440px @pr-smoke',
   ],
 ];
 
@@ -73,7 +73,7 @@ const regressionTests = [
   ['purchase-tax-costs.spec.ts', 'keeps per-item tax visible in the tax journal @pr-smoke'],
   [
     'purchase-tax-costs.spec.ts',
-    'preserves purchase cost origin after reopening at 1440px @pr-smoke',
+    'preserves additional purchase costs after reopening at 1440px @pr-smoke',
   ],
   [
     'sniper-administration.spec.ts',

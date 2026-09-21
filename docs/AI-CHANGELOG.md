@@ -1,5 +1,31 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-21 – Juna – PR-Browserprüfung an vereinfachte Zusatzausgaben angepasst
+
+**Auftrag:** Den bestätigten UI-Regression-PR nach erfolgreichen Pflichtprüfungen
+mergen und einen dabei gefundenen Browserfehler vor dem Merge beheben.
+
+**Änderung:** Die Browserfälle verwenden jetzt die sichtbaren Begriffe
+„Zusatzausgaben verwalten“ und „Zusatzausgabe“. Der bisherige Pflichtfall zur
+entfernten Kostenherkunft prüft stattdessen den aktuellen Nutzerablauf: zusätzliche
+Versandkosten erfassen, nach erneutem Öffnen ändern und nach einem Reload
+wiederfinden. Die PR-Auswahl und ihre Dokumentation wurden entsprechend
+aktualisiert. Das gemeinsame Textfeld entfernt eine explizite Feld-ID vom
+Komponenten-Host, damit Label und Fehlermeldung eindeutig mit dem inneren
+Eingabefeld verknüpft sind. Dadurch ist auch das Namensfeld beim Erstellen eines
+Verkäufers wieder zugänglich benannt.
+
+**Prüfung:** Der ursprüngliche Pflichtfall wurde in CI und lokal rot reproduziert.
+Der neue ID-Regressionsfall scheiterte zunächst erwartungsgemäß an zwei Elementen
+mit `seller-name`. Danach bestanden 23 fokussierte Angular-Tests, der gezielte
+Verkäufer-Browserfall, elf weitere Einkaufs-Browserfälle und der vollständige
+PR-Browserlauf mit 9/9 Fällen. Außerdem bestanden Formatprüfung, ESLint, strikte
+Typprüfung, die zwei Verträge der Playwright-Auswahl und der Produktionsbau.
+
+**Prüfhinweise:** Der Bau enthält weiterhin die zwei bekannten NG8113-Hinweise
+im Dashboard und in der Verkäuferliste. Keine Datenbank-, Migrations- oder
+Abhängigkeitsänderung.
+
 ## 2026-09-21 – Juna – Vier abschließende UI-Fehlerpfade korrigiert
 
 **Auftrag:** Die vier wichtigen Funde der Gesamtprüfung in einer begrenzten

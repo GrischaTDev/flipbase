@@ -30,8 +30,8 @@ test('edits a saved purchase in place and retains discounted totals after reload
 
   await page.getByRole('textbox', { name: 'Beschreibung' }).fill('Bearbeiteter Einkauf');
   await page.getByRole('button', { name: 'Kosten bearbeiten', exact: true }).click();
-  const dialog = page.getByRole('dialog', { name: 'Kostenübersicht verwalten' });
-  await dialog.getByRole('combobox', { name: 'Anpassung 1', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Zusatzausgaben verwalten' });
+  await dialog.getByRole('combobox', { name: 'Zusatzausgabe 1', exact: true }).click();
   await page.getByRole('option', { name: 'Rabatt', exact: true }).click();
   await dialog.getByRole('spinbutton', { name: 'Betrag 1', exact: true }).fill('10');
   await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
