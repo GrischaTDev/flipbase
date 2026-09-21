@@ -83,9 +83,9 @@ test('starts with an empty Shopify-style cost summary and no package controls', 
   const summary = page.getByRole('region', { name: 'Kostenübersicht' });
   await expect(summary).toContainText('Bestellte Artikel');
   await expect(summary).toContainText('0 Artikel');
-  await expect(summary).toContainText('Anpassungen');
+  await expect(summary).not.toContainText('Zusatzausgaben');
   await expect(summary).toContainText('Gesamt');
-  await expect(summary.getByText('0,00 €')).toHaveCount(3);
+  await expect(summary.getByText('0,00 €')).toHaveCount(2);
   await expect(page.getByRole('button', { name: 'Paketpreis verteilen' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Paket hinzufügen' })).toHaveCount(0);
 });
@@ -102,13 +102,13 @@ test('applies cost adjustments only when the management dialog is saved', async 
   const costSummary = page.getByRole('region', { name: 'Kostenübersicht' });
 
   await page.getByRole('button', { name: 'Kosten bearbeiten', exact: true }).click();
-  let dialog = page.getByRole('dialog', { name: 'Kostenübersicht verwalten' });
+  let dialog = page.getByRole('dialog', { name: 'Zusatzausgaben verwalten' });
   await expect(dialog).toBeVisible();
   await expect(
-    dialog.getByText('Anpassung', { exact: true }).filter({ visible: true }),
+    dialog.getByText('Zusatzausgabe', { exact: true }).filter({ visible: true }),
   ).toBeVisible();
   await expect(dialog.getByText('Betrag', { exact: true }).filter({ visible: true })).toBeVisible();
-  const adjustment = dialog.getByRole('combobox', { name: 'Anpassung 1', exact: true });
+  const adjustment = dialog.getByRole('combobox', { name: 'Zusatzausgabe 1', exact: true });
   await expect(adjustment).toContainText('Auswählen');
   await adjustment.click();
   await expect(dialog.getByRole('option')).toHaveCount(10);
@@ -122,8 +122,8 @@ test('applies cost adjustments only when the management dialog is saved', async 
   await expect(costSummary).not.toContainText('110,00');
 
   await page.getByRole('button', { name: 'Kosten bearbeiten', exact: true }).click();
-  dialog = page.getByRole('dialog', { name: 'Kostenübersicht verwalten' });
-  await dialog.getByRole('combobox', { name: 'Anpassung 1', exact: true }).click();
+  dialog = page.getByRole('dialog', { name: 'Zusatzausgaben verwalten' });
+  await dialog.getByRole('combobox', { name: 'Zusatzausgabe 1', exact: true }).click();
   await dialog.getByRole('option', { name: 'Versandkosten', exact: true }).click();
   await dialog.getByRole('spinbutton', { name: 'Betrag 1', exact: true }).fill('10');
   await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();

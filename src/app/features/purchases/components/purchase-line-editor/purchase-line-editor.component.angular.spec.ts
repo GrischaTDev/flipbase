@@ -86,6 +86,7 @@ beforeAll(async () => {
         'iconPosition',
         'iconOnly',
         'fullWidth',
+        'contentAlign',
         'type',
         'link',
         'queryParams',
@@ -371,6 +372,11 @@ describe('PurchaseLineEditorComponent', () => {
     const productName = host.querySelector<HTMLElement>('span.text-left');
     expect(productName?.classList).toContain('w-full');
     expect(productName?.classList).toContain('text-left');
+    const productButton = host.querySelector<HTMLButtonElement>(
+      '[data-purchase-line-title] button',
+    );
+    expect(productButton?.classList).toContain('justify-start');
+    expect(productButton?.classList).toContain('text-left');
     const addProducts = host.querySelector<HTMLElement>('[data-add-products]');
     expect(addProducts?.classList).toContain('w-full');
     expect(addProducts?.querySelector('button')?.classList).toContain('w-full');

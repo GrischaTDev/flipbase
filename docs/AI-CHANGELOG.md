@@ -1,5 +1,416 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-21 – Juna – PR-Browserprüfung an vereinfachte Zusatzausgaben angepasst
+
+**Auftrag:** Den bestätigten UI-Regression-PR nach erfolgreichen Pflichtprüfungen
+mergen und einen dabei gefundenen Browserfehler vor dem Merge beheben.
+
+**Änderung:** Die Browserfälle verwenden jetzt die sichtbaren Begriffe
+„Zusatzausgaben verwalten“ und „Zusatzausgabe“. Der bisherige Pflichtfall zur
+entfernten Kostenherkunft prüft stattdessen den aktuellen Nutzerablauf: zusätzliche
+Versandkosten erfassen, nach erneutem Öffnen ändern und nach einem Reload
+wiederfinden. Die PR-Auswahl und ihre Dokumentation wurden entsprechend
+aktualisiert. Das gemeinsame Textfeld entfernt eine explizite Feld-ID vom
+Komponenten-Host, damit Label und Fehlermeldung eindeutig mit dem inneren
+Eingabefeld verknüpft sind. Dadurch ist auch das Namensfeld beim Erstellen eines
+Verkäufers wieder zugänglich benannt.
+
+**Prüfung:** Der ursprüngliche Pflichtfall wurde in CI und lokal rot reproduziert.
+Der neue ID-Regressionsfall scheiterte zunächst erwartungsgemäß an zwei Elementen
+mit `seller-name`. Danach bestanden 23 fokussierte Angular-Tests, der gezielte
+Verkäufer-Browserfall, elf weitere Einkaufs-Browserfälle und der vollständige
+PR-Browserlauf mit 9/9 Fällen. Außerdem bestanden Formatprüfung, ESLint, strikte
+Typprüfung, die zwei Verträge der Playwright-Auswahl und der Produktionsbau.
+
+**Prüfhinweise:** Der Bau enthält weiterhin die zwei bekannten NG8113-Hinweise
+im Dashboard und in der Verkäuferliste. Keine Datenbank-, Migrations- oder
+Abhängigkeitsänderung.
+
+## 2026-09-21 – Juna – Vier abschließende UI-Fehlerpfade korrigiert
+
+**Auftrag:** Die vier wichtigen Funde der Gesamtprüfung in einer begrenzten
+Fix-Runde beheben und die bestehenden Karten-, Button- und Formularverträge
+bewahren.
+
+**Änderung:** Ein Ladefehler beendet jetzt den Ladezustand der Einkaufsliste und
+bietet einen zugänglichen erneuten Versuch für den aktiven Workspace an.
+Verwaiste direkte Zusatzausgaben werden mit sichtbarem Statushinweis auf die
+Standardverteilung des Einkaufs umgestellt. Steuerherkunft, Ursprungsdaten,
+Kostenart und Betrag bleiben unverändert; gültige direkte Zuordnungen bleiben
+auch bei Mystery-Einkäufen erhalten. Der Bezugsquellendialog blockiert alle
+Schließwege während des Speicherns. Der gemeinsame Button unterstützt eine
+optionale native Formularzuordnung; Verkäufer und Bezugsquelle speichern damit
+über genau einen Submit-Weg. Die standardmäßige Buttonzentrierung bleibt erhalten.
+
+**Prüfung:** Jeder Fund wurde vor der Korrektur mit roten Regressionstests
+reproduziert: zwei Listenfehler, drei Kostenfehler, drei ungeschützte Schließwege
+und vier fehlende Submit-Verknüpfungen. Danach bestanden gemeinsam 110 fokussierte
+Angular-Tests einschließlich Einkaufserfassung und vorhandener AXE-Prüfungen
+sowie acht Kostenlogiktests. Gezieltes ESLint, Prettier und die strikte Typprüfung
+bestanden. Der einmalige Gesamtaufruf `npm run verify` bestand mit direkt
+gesichertem **Exitcode 0**: Format, Lint, Typen, Workflow (81 bestanden, fünf
+Umgebungs-Skips), Edge (16), Suite-Audit, Anwendung (2.715 Tests in 293 Dateien),
+Landingpage (22) und Produktionsbau. Die darin enthaltenen Orchestratorprüfungen
+bestanden mit acht Tests und drei Windows-Skips.
+
+**Prüfhinweise:** Vitest meldete bei neun unveränderten Node-Testdateien ein
+verzögertes Beenden der Worker, obwohl alle Tests bestanden. jsdom meldete eine
+fehlende Canvas-Funktion und neun nicht lesbare CSS-Stylesheets. Der Bau enthält
+weiterhin die zwei bekannten NG8113-Hinweise in Dashboard und Verkäuferliste.
+Diese Hinweise wurden dokumentiert; die vier Fehlerpfade und der Gesamtaufruf
+sind grün.
+
+**Abgrenzung:** Keine Datenbank-, Migrations-, Snapshot-, Abhängigkeits-, Browser-
+oder Dockeränderung. Die zuvor dokumentierte visuelle Abnahme bleibt offen.
+
+## 2026-09-21 – Juna – UI-Regressionen integriert und Prüfgrenzen dokumentiert
+
+**Auftrag:** Die elf UI-Aufgaben gemeinsam prüfen, neue Integrationsfehler
+beheben und die manuelle Abnahme in der bereits laufenden Umgebung dokumentieren.
+
+**Änderung:** Die strikte Typprüfung der neuen DOM-Tests und des
+Bezugsquellen-Mocks korrigiert; historische Stornostatuswerte werden ausdrücklich
+als Altbestand geprüft. Einen ungenutzten Icon-Import in der Einkaufsliste
+entfernt. Die gemeinsame Architekturprüfung fand außerdem den neu eingeführten
+nativen Entfernen-Button im Kosteneditor. Er verwendet jetzt den vorhandenen
+roten Shared-Button; ein zunächst roter DOM-Test prüft Gestaltung und Entfernen
+der richtigen Zeile. Keine Datenbank-, Migrations- oder Snapshotänderung.
+
+**Prüfung:** Die Formatierung gemäß Task 12 sowie `npm run lint`,
+`npm run typecheck` und `npm run build` bestanden. Die Typprüfung war vor der
+Korrektur mit 13 Diagnosen rot. Fokussiert bestanden 92 Angular-Tests, 48
+Präsentationstests und nach der zweiten Korrektur elf Kosteneditor-/Dialogtests.
+`node scripts/check-admin-shared-ui.mjs` bestand anschließend mit 95 geprüften
+Dateien ohne Befund. Erfolgreich waren außerdem `npm run test:workflow` (81 Tests,
+fünf Windows-/Umgebungs-Skips), `npm run test:edge` (16 Tests), `npm run test:audit`,
+`npm test` (2.704 Anwendungstests in 293 Dateien) und `npm run test:landing`
+(22 Tests).
+
+**Gesamtaufruf:** Der erste `npm run verify` endete mit Exitcode 1 am nativen
+Kosteneditor-Button. Nach dessen Reparatur bestanden zunächst alle Prüfstufen
+einzeln. Der ausdrücklich angeforderte erneute Gesamtaufruf auf dem reparierten
+Endstand `5dff9b79` bestand anschließend vollständig mit **Exitcode 0**:
+Formatierung, Lint, Typen, Workflow, Edge, Suite-Audit, sämtliche Anwendungstests,
+Landingpage und Produktionsbau. Der Exitcode wurde unmittelbar aus
+`$LASTEXITCODE` gesichert, ohne Pipe.
+Der Produktionsbau enthält weiterhin zwei bekannte NG8113-Hinweise im
+unveränderten Dashboard und in der unveränderten Verkäuferliste.
+
+**Browserabnahme offen:** `browser-use` zeigte auf `http://localhost/`,
+`http://localhost/landing/` und `http://flipbase.localhost/` den älteren
+„ReFlip“-Build mit Loginseite. Das ausgelieferte Skript stimmt nicht mit dem
+aktuellen Branch-Bau überein. Deshalb sind sämtliche zehn visuellen Abnahmefälle
+einschließlich DE/EN, Themes und Druckvorschau noch ungeprüft. Keine Daten
+angelegt, keine Server oder Docker-Container gestartet oder gestoppt. Eine
+Veröffentlichung erfolgte nicht.
+
+## 2026-09-21 – Juna – Druck-CSS-Vertrag regelblockweise gekoppelt
+
+**Auftrag:** Der verbleibende Review-Fund sollte verhindern, dass ungebundene
+Druckdeklarationen und leere route-bezogene Selektoren den CSS-Test gemeinsam
+grün machen.
+
+**Änderung:** Der Test extrahiert jetzt den konkreten Regelblock für den
+Shell-Rahmen, Inhalts- und Hauptbereich, Empfang sowie Umbruchschutz. Jede
+geforderte Eigenschaft wird in ihrem eigenen, mit
+`body:has(app-purchase-print)` beginnenden Block erwartet. Die benannte
+`@page`-Regel bleibt ebenfalls separat und eng geprüft.
+
+**Prüfung:** Die fokussierten Druck- und Shelltests bestanden mit sieben Tests;
+Prettier und fokussiertes ESLint ebenfalls. Es wurden keine Produktdateien
+geändert.
+
+## 2026-09-21 – Juna – Drucktests auf gerenderte Shell und enge CSS-Verträge nachgeschärft
+
+**Auftrag:** Drei Review-Funde am Einkaufsdruck beheben: Die Shell-Haken über
+einen echten Angular-TestBed-Render prüfen, den CSS-Vertrag vollständig
+absichern und den Browserhinweis auf die sichtbare Aktionsleiste begrenzen.
+
+**Änderung:** Der Shelltest verwendet gezielte Kindkomponenten-Stubs und die
+echte Shell-Vorlage als TestBed-Template; alle fünf Haken werden dadurch im
+tatsächlich von Angular erzeugten DOM geprüft. Der CSS-Test liest nur die
+beiden relevanten Regeln aus und prüft Rahmen-Ausblendung, Inhalts-Resets,
+benannte Seite, Umbruchschutz und A4-Ränder. Der Hinweis wird direkt unterhalb
+der gefundenen `print:hidden`-Leiste geprüft.
+
+**Prüfung:** Fokussierte Shell- und Drucktests bestanden mit sieben Tests;
+Prettier und fokussiertes ESLint ebenfalls. Keine Produktlogik, Datenbank- oder
+Docker-Dateien geändert.
+
+## 2026-09-21 – Juna – Einkaufsdruck vom Admin-Rahmen getrennt
+
+**Auftrag:** Der Einkaufsdruck sollte innerhalb der Shell bleiben, beim
+Drucken aber weder Navigation noch Kopfzeile, Sprunglink oder Dialoghülle
+zeigen. Andere Druckansichten und normale Verwaltungsseiten durften sich nicht
+verändern.
+
+**Änderung:** Die Shell markiert Sidebar, Inhaltsbereich, Kopfzeile,
+Hauptinhalt und mobile Navigation mit eindeutigen Datenattributen. Der
+Einkaufsdruck zeigt einen Hinweis zu Browser-Kopf- und Fußzeilen. Neue
+Druckregeln greifen ausschließlich bei `app-purchase-print`, entfernen dort
+den Admin-Rahmen, verwenden eine benannte A4-Seite mit 12 mm Rand und vermeiden
+Umbrüche in zusammengehörenden Empfangsabschnitten.
+
+**Prüfung:** Die neuen Shell- und Drucktests waren zuerst rot und sind danach
+mit sieben fokussierten Angular-Tests grün. Prettier, fokussiertes ESLint und
+der Produktionsbau bestanden. Der Bau meldet weiterhin drei bekannte
+NG8113-Hinweise zu ungenutzten `LucideDynamicIcon`-Imports außerhalb dieses
+Scopes.
+
+## 2026-09-21 – Juna – Chronikzeit unabhängig vom Detailschalter ausgerichtet
+
+**Auftrag:** Zeitangaben in der Einkaufschronik sollten unabhängig davon an
+derselben rechten Stelle stehen, ob ein Ereignis Details anbietet.
+
+**Änderung:** Jede Ereigniszeile verwendet jetzt ein festes zweispaltiges Grid.
+Vorgang, Akteur, Grund und Detailschalter bleiben in der Inhaltsseite; die
+Zeitangabe liegt als eigene `time`-Zelle mit `data-record-history-time` in der
+zweiten Spalte.
+
+**Prüfung:** Der neue DOM-Test war vor der Umsetzung rot (keine markierten
+Chronikzeilen) und ist danach zusammen mit den bestehenden Chroniktests grün.
+Prettier, fokussiertes ESLint und der Produktionsbau bestanden; die vollständige
+Test-Suite blieb ebenfalls grün.
+
+## 2026-09-21 – Juna – Einkaufsstatus nach fachlichem Fortschritt priorisiert
+
+**Auftrag:** Die zentrale Einkaufsstatus-Präsentation sollte den fachlichen
+Fortschritt vor technischen Lieferzuständen abbilden und für jeden Status den
+vorgegebenen Ton verwenden.
+
+**Änderung:** Archivierte und stornierte Einkäufe überschreiben alle anderen
+Zustände. Danach überschreibt „Abgeschlossen“ bei finalisierten Einkäufen die
+Lieferzustände; Teillieferung, Ankunft, Bestellung und Entwurf folgen in der
+fachlich festgelegten Reihenfolge. Die Einkaufsliste selbst blieb unverändert.
+
+**Prüfung:** Die vollständige Statusmatrix war zunächst mit den erwarteten
+Fehlern rot und bestand nach der zentralen Korrektur mit 47 fokussierten
+Node-Tests. Prettier, ESLint und der Produktionsbau wurden anschließend
+ausgeführt.
+
+## 2026-09-21 – Juna – Einkaufsliste zeigt Laden und Leerstand korrekt
+
+**Auftrag:** Die Einkaufsliste zwischen bestätigtem Laden, echtem Leerstand und
+Filtertreffern unterscheiden sowie lange Beschreibungen in der Tabelle lesbar
+begrenzen.
+
+**Änderung:** Die Tabelle erhält ihren Ladezustand aus dem bestehenden
+Einkaufs- und Workspace-Vertrag. Solange der aktive Workspace nicht bestätigt
+geladen ist, zeigt sie ausschließlich „Einkäufe werden geladen …“ statt eines
+Leerzustands oder Daten des vorherigen Workspace. Der echte Leerzustand heißt
+nun „Keine Einkäufe vorhanden“; Filtertreffer behalten „Keine passenden
+Einkäufe“. Beschreibungen sind auf eine Tabellenzeile begrenzt, bleiben aber
+vollständig im DOM und über den Titelhinweis verfügbar.
+
+**Prüfung:** Die beiden neuen Regressionen waren zuerst rot (fehlender
+Ladezustand und fehlender Beschreibungscontainer) und bestanden anschließend
+mit 13 fokussierten Angular-Tests einschließlich AXE. Prettier und ESLint für
+die betroffenen Dateien sowie der Produktionsbau bestanden. Der Bau meldet
+weiterhin drei bekannte NG8113-Hinweise zu ungenutzten `LucideDynamicIcon`-
+Importen in Dashboard, Einkaufsliste und Verkäuferliste.
+
+## 2026-09-21 – Juna – Kosteneditor auf Zusatzausgaben reduziert
+
+**Auftrag:** Im Kosteneditor nur noch Zusatzausgabe und Betrag zeigen, ohne
+technische Steuer- und Zuordnungswerte bereits vorhandener Kosten beim Speichern
+zu verlieren.
+
+**Änderung:** Der Editor zeigt nur noch Auswahl, Betrag und eine zugängliche
+Papierkorb-Aktion. Steuerherkunft, Verteilung und Zielposition bleiben in den
+internen Formularwerten erhalten, werden jedoch nicht mehr dargestellt. Neue
+normale Zeilen behalten `taxTreatment: null` und die Verteilung nach Warenwert;
+Mystery-Pakete verwenden weiter die Verteilung nach Menge. Der Dialog heißt nun
+„Zusatzausgaben verwalten“; sein lokaler Speichern- und Abbrechen-Vertrag bleibt
+unverändert.
+
+**Prüfung:** Die neuen Editor- und Dialogtests waren zuerst rot (3 erwartete
+Fehler wegen der alten sichtbaren Begriffe und Dialogüberschrift) und bestanden
+nach der Umsetzung. Die Kostenlogik (8 Tests) sowie die drei Angular-
+Komponententests (18 Tests) sind grün; Prettier und der fokussierte ESLint-Lauf
+ebenfalls. Der Produktionsbau besteht mit drei bereits vorhandenen NG8113-
+Warnungen außerhalb des Scopes. Die globale Typprüfung ist aktuell wegen zehn
+fachfremder Testtypfehler in Beleg-, Einkaufsquellen- und Verkäuferdialogtests
+nicht grün.
+
+## 2026-09-21 – Juna – Artikelnamen in Einkaufspositionen linksbündig ausgerichtet
+
+**Auftrag:** Der Artikelnamen-Button in Einkaufspositionen sollte seinen Text
+auch in der tatsächlich gerenderten Buttonfläche links statt zentriert zeigen,
+ohne die Zentrierung anderer Shared-Buttons zu verändern.
+
+**Änderung:** `ButtonComponent` besitzt nun den Signal-Input `contentAlign` mit
+dem Standardwert `center`. Nur der Artikelnamen-Button setzt `contentAlign="start"`
+und erhält damit `justify-start text-left`; alle übrigen Aufrufer behalten die
+bisherige Zentrierung. Die Shared- und Featuretests prüfen den inneren nativen
+Button sowie die Angular-Test-Metadaten für den neuen Input.
+
+**Prüfung:** Die beiden fokussierten Angular-Tests waren vor der Umsetzung rot
+(2 Fehler) und bestanden danach mit 33 Tests. Prettier und ESLint für die
+betroffenen Dateien sowie der Produktionsbau wurden anschließend ausgeführt.
+
+## 2026-09-21 – Juna – Bezugsquellen-Parent-Integration gerendert geprüft
+
+**Auftrag:** Den Bezugsquellenfluss nicht nur über Quelltext und einen direkten
+Methodenaufruf absichern, sondern als gerenderte Parent-Interaktion testen.
+
+**Änderung:** Ein schmaler Test rendert die tatsächliche Einkaufserfassungs-
+Vorlage mit gezielten Form- und Dialog-Stubs. Er klickt „Bezugsquelle erstellen“
+prüft den gerenderten Dialog und löst dessen `created`-Ereignis aus. Dadurch ist
+belegt, dass die Template-Bindung die Quelle auswählt, das Formular als geändert
+markiert und den Dialog wieder schließt. Die für diesen Ablauf verwendeten
+Quelltext-Assertions und der direkte Übergabetest entfallen.
+
+**Prüfung:** Der neue DOM-Test war während des Stubaufbaus zunächst rot. Nach
+der vollständigen Input-/Output-Abbildung bestanden 48 fokussierte
+Angular-Tests sowie ESLint und Prettier. Der Fixabschnitt ist im Task-Bericht
+ergänzt.
+
+## 2026-09-21 – Juna – Bezugsquelle im eigenen Dialog angelegt
+
+**Auftrag:** Die eingebettete Schnellerfassung einer Bezugsquelle aus dem
+Einkaufsformular in einen eigenen, zugänglichen Dialog überführen.
+
+**Änderung:** Der neue Dialog verwendet die gemeinsame Dialoghülle, ein
+Pflichtfeld für den Namen sowie die zentralen Buttons. Er behält Eingabe und
+Fehlermeldung bei einem Speicherfehler und gibt eine erfolgreich gespeicherte
+Bezugsquelle an das Einkaufsformular zurück. Dieses wählt sie unmittelbar aus,
+markiert den Einkauf als geändert und schließt den Dialog. Ungespeicherte
+Dialogeingaben werden beim Verlassen berücksichtigt.
+
+**Prüfung:** Die neuen Dialog- und Parent-Vertragstests waren zuerst rot, weil
+die Komponente und der neue Parent-Vertrag fehlten. Danach bestanden 48
+fokussierte Angular-Tests einschließlich AXE, Prettier, ESLint und
+Produktionsbau. Der Prüfbericht liegt unter
+`.superpowers/sdd/2026-09-21-ui-regression-cleanup/task-5-report.md`.
+
+## 2026-09-21 – Juna – Telefonfehlerreferenz bedingt gesetzt
+
+**Auftrag:** Die ARIA-Referenz des Telefonfelds nur dann setzen, wenn das
+passende Fehlerziel tatsächlich gerendert wird.
+
+**Änderung:** Das Telefon-Control erzeugt seine Eingabeattribute bei jeder
+Änderungsprüfung neu. Leer und gültig bleiben ohne `aria-describedby`; nur ein
+berührter ungültiger Wert verweist auf `seller-phone-error` und zeigt die
+zugehörige Fehlermeldung.
+
+**Prüfung:** Der neue Normalzustandstest war zunächst rot, weil die Referenz
+immer vorhanden war. Nach der Korrektur bestanden die 15 fokussierten Tests
+einschließlich AXE, ESLint und Produktionsbau. Der Fixbericht ergänzt
+`.superpowers/sdd/2026-09-21-ui-regression-cleanup/task-4-report.md`.
+
+## 2026-09-21 – Juna – Verkäuferdialog gegen Prüfhinweise abgesichert
+
+**Auftrag:** Zwei wichtige Review-Funde am Verkäuferdialog beheben: eine
+fehlende Telefonnummer-Fehlermeldung und das Schließen während des Speicherns.
+
+**Änderung:** Ein berührtes ungültiges Telefonfeld zeigt wieder die passende
+Meldung mit der ID `seller-phone-error`, auf die das Eingabefeld verweist. Das
+Schließen über Escape oder die Dialog-Kopfaktion wird während eines laufenden
+Speicherns lokal abgefangen; die gemeinsame Dialogkomponente bleibt unverändert.
+
+**Prüfung:** Beide neuen DOM- und Verhaltenstests waren zuerst rot und
+bestanden nach der Korrektur mit insgesamt 15 fokussierten Tests einschließlich
+AXE. ESLint für die betroffenen TS-Dateien und der Produktionsbau waren
+erfolgreich. Der Fixbericht ergänzt den bestehenden Taskbericht unter
+`.superpowers/sdd/2026-09-21-ui-regression-cleanup/task-4-report.md`.
+
+## 2026-09-21 – Juna – Verkäuferdialog vereinheitlicht
+
+**Auftrag:** Den Verkäuferdialog über die gemeinsame breite Dialoghülle
+abbilden und die Verfügbarkeit von „Speichern“ eindeutig an die Formularwerte
+koppeln.
+
+**Änderung:** Der Dialog verwendet nun `ModalShellComponent` in Größe `xl`
+sowie die gemeinsamen Textfelder und Aktionen. Straße und Adresszusatz nehmen
+über die komplette Dialogbreite ein; die Länderauswahl heißt sichtbar und für
+Hilfstechnologien „Land/Region“. Ein Name nur aus Leerzeichen ist ungültig.
+„Speichern“ bleibt bis zu einem gültigen Formular, einem getrimmten Namen und
+einem nicht laufenden Speichervorgang deaktiviert. Die bisherigen redundanten
+Hinweise entfallen; der konkrete E-Mail-Fehler erscheint weiterhin nur für
+berührte, ungültige Eingaben.
+
+**Prüfung:** Der neue DOM- und Zustandsvertrag war zunächst rot (fehlende
+gemeinsame Dialoghülle und Speicheraktion). Der fokussierte Angular-Test mit
+AXE bestand anschließend mit 13 Tests; ESLint für die betroffenen TS-Dateien
+und der Produktionsbau waren erfolgreich. Der Prüfbericht liegt unter
+`.superpowers/sdd/2026-09-21-ui-regression-cleanup/task-4-report.md`.
+
+## 2026-09-21 – Juna – Belegkarte auf Auswahlfläche reduziert
+
+**Auftrag:** Die Belegkarte auf eine vollbreite Ablagefläche und zugängliche
+Icon-Aktionen reduzieren, ohne Upload, Vorschau oder Entfernen zu verändern.
+
+**Änderung:** Belegart, verstecktes Dateifeld und Ablagefläche liegen jetzt
+untereinander im Karteninhalt. Die Ablagefläche öffnet weiterhin den nativen
+Dateidialog und akzeptiert Dateien per Drag-and-drop. Gespeicherte und
+vorgemerkte Belege verwenden klare Vorschau- beziehungsweise Papierkorb-Icons
+mit zugänglichen Namen; der Wiederholungsversuch bei Uploadfehlern bleibt als
+Textaktion bestehen. Das technische Dateifeld hat einen zugänglichen Namen und
+ist nicht mehr mit der Tastatur erreichbar, weil die sichtbare Ablagefläche
+seinen vollständigen Bedienweg übernimmt.
+
+**Prüfung:** Der gerenderte DOM-Vertrag schlug zunächst wegen des alten
+Zusatzknopfs rot aus. Die AXE-Prüfung fand anschließend das unbeschriftete
+Dateifeld und bestand nach der Korrektur. Der fokussierte Angular-Test bestand
+mit 16 Tests, die betroffenen Dateien wurden gelintet und der Produktionsbau
+war erfolgreich. Der Prüfbericht liegt unter
+`.superpowers/sdd/2026-09-21-ui-regression-cleanup/task-3-report.md`.
+
+## 2026-09-21 – Juna – Kartenrahmen beim ersten Rendern stabilisiert
+
+**Auftrag:** Den synchronen Klassenvertrag der gemeinsamen Card-Komponente beim
+ersten Rendern vollständig machen.
+
+**Änderung:** Die Varianten `surface` und `kpi` setzen ihren transparenten
+Rahmen jetzt synchron; `subtle` setzt den dezenten Rahmen synchron. Die lokale
+`transition-colors`-Klasse der Card wurde entfernt, damit der Rahmen nicht
+zwischen Browserfarbe und Themefarbe überblendet.
+
+**Prüfung:** Der neue Kartentest schlug zunächst rot aus und bestand nach der
+Korrektur. Karten- und Einkaufserfassungstests bestanden mit 49 Tests. Der
+Prüfbericht liegt unter `.superpowers/sdd/2026-09-21-ui-regression-cleanup/task-2-report.md`.
+
+## 2026-09-21 – Juna – Beta-Formular und Ergebnisdialoge korrigiert
+
+**Auftrag:** Den Beta-Antrag an den produktiven Duplikatcode anpassen, den
+Sendezustand zuverlässig verstecken und die Ergebnisdialoge vollständig
+zweisprachig sowie lesbar halten.
+
+**Änderung:** Der Ladebereich respektiert den nativen `hidden`-Zustand. Der
+Erfolgs- und Duplikatdialog trennt Fließtext und E-Mail-Adresse sichtbar. Die
+Landingpage erkennt sowohl `application_existing` als auch den bisherigen
+Kompatibilitätswert `application_exists` und zeigt dafür denselben neutralen
+Dialog ohne internen Bewerbungsstatus.
+
+**Prüfung:** Neue Landing-Regressionen wurden zunächst rot ausgeführt und
+bestanden nach der Korrektur vollständig (22 Tests). Formatierung und
+Diff-Prüfung waren ebenfalls erfolgreich.
+
+## 2026-09-21 – Juna – Folgekorrekturen nach manueller UI-Abnahme geplant
+
+**Auftrag:** Die nach dem Einkaufsumbau gefundenen Darstellungs- und
+Bedienprobleme sammeln, Artikel und Bestand fachlich neu einordnen und die
+Umsetzung in kontrollierbare Folge-Pull-Requests teilen.
+
+**Änderung:** Die neuen Punkte wurden in drei eigenständig prüfbare Pakete
+geteilt. Der erste Entwurf umfasst akute Regressionen im Beta-Antrag, bei
+Einkaufsbelegen und Zusatzkosten, im Verkäufer- und Bezugsquellenablauf, in
+Einkaufsliste und Chronik sowie beim Drucken. Die spätere Zusammenführung von
+Artikel und Bestand samt neuer Navigation bleibt ein zweiter Pull-Request.
+Adresssuche und frei gestaltbare Dokumentvorlagen bleiben wegen externer
+Dienste, Datenschutz und eigenständiger Datenmodelle ein dritter Pull-Request.
+
+Die Spezifikation hält außerdem fest, dass ein bereits vorhandener Beta-Antrag
+öffentlich neutral beantwortet wird, dass „Angekommen“ und „Abgeschlossen“
+verschiedene fachliche Zustände bleiben und dass browserseitige Druck-Kopf- und
+Fußzeilen nicht durch die Anwendung erzwungen deaktiviert werden können.
+Nach der Freigabe wurde daraus ein testgetriebener Implementierungsplan mit
+einzeln prüf- und committierbaren Arbeitspaketen erstellt.
+
+**Prüfung:** Bestehende Komponenten, Tests, Navigations- und
+Gestaltungsverträge wurden gelesen. Produktcode wurde in diesem Planungsschritt
+nicht verändert.
+
 ## 2026-09-21 – Juna – Einkaufsablauf und zugehörige Oberflächen vereinheitlicht
 
 **Auftrag:** Die Einkaufserfassung wieder auf Verkäufer, Quelle, Artikel und

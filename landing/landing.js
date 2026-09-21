@@ -165,7 +165,9 @@
           });
         } else if (response.status === 409) {
           return response.json().then(function (payload) {
-            if (payload.error === 'application_exists') {
+            var existingApplication =
+              payload.error === 'application_existing' || payload.error === 'application_exists';
+            if (existingApplication) {
               message.textContent = '';
               showExistingDialog(submittedEmail, button);
               return;

@@ -10,6 +10,7 @@ import {
   signal,
 } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { LucideDynamicIcon, LucideEye, LucideTrash2 } from '@lucide/angular';
 import { Purchase } from '../../../../core/models/flipbase.models';
 import {
   PURCHASE_DOCUMENT_TYPE_LABELS,
@@ -44,6 +45,7 @@ interface PurchaseDocumentRow {
     CustomSelectComponent,
     ReactiveFormsModule,
     DatePipe,
+    LucideDynamicIcon,
     PurchaseDocumentPreviewDialogComponent,
   ],
   templateUrl: './purchase-documents-card.component.html',
@@ -68,6 +70,8 @@ export class PurchaseDocumentsCardComponent implements OnInit {
     nonNullable: true,
   });
   readonly documentTypeLabels = PURCHASE_DOCUMENT_TYPE_LABELS;
+  readonly previewIcon = LucideEye;
+  readonly removeIcon = LucideTrash2;
   readonly documentTypeOptions: readonly SelectOption<PurchaseDocumentType>[] = (
     Object.keys(PURCHASE_DOCUMENT_TYPE_LABELS) as PurchaseDocumentType[]
   ).map((value) => ({ value, label: PURCHASE_DOCUMENT_TYPE_LABELS[value] }));

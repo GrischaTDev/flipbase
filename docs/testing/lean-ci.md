@@ -15,7 +15,7 @@ Der allgemeine Chromium-Pflichtlauf prüft sechs Arbeitsabläufe:
 1. Anmelden und die zentralen Arbeitsbereiche über die Navigation öffnen.
 2. Artikel mit einem Bild speichern und nach Neuladen wieder öffnen.
 3. Einkaufsentwurf bearbeiten, Änderungen verwerfen und speichern.
-4. Kostenherkunft nach erneutem Öffnen erhalten.
+4. Zusatzausgaben nach erneutem Öffnen erhalten.
 5. Steuerwerte anzeigen und ungeprüfte Exporte sperren.
 6. Ein Einzelstück verkaufen und einen erneuten Verkauf im Frontend verhindern.
 

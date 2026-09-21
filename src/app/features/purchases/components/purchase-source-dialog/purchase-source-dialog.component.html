@@ -1,0 +1,27 @@
+<app-modal-shell title="Bezugsquelle erstellen" (closed)="closeIfNotSaving()">
+  <form id="purchase-source-form" [formGroup]="form" (ngSubmit)="save()">
+    <app-text-field
+      id="purchase-source-name"
+      label="Name"
+      [required]="true"
+      formControlName="name"
+    />
+    @if (error()) {
+      <p role="alert" class="mt-3 text-sm text-fb-critical">{{ error() }}</p>
+    }
+  </form>
+  <app-button modal-footer variant="secondary" [disabled]="saving()" (clicked)="closeIfNotSaving()">
+    Abbrechen
+  </app-button>
+  <app-button
+    modal-footer
+    data-save-source
+    variant="primary"
+    type="submit"
+    formId="purchase-source-form"
+    [loading]="saving()"
+    [disabled]="saving() || form.invalid"
+  >
+    Bezugsquelle speichern
+  </app-button>
+</app-modal-shell>

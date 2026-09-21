@@ -21,12 +21,21 @@ import {
   CustomSelectComponent,
   SelectOption,
 } from '../../../../shared/components/custom-select/custom-select.component';
-import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
+import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { buildGermanCountryOptions } from '../../../purchases/utils/country-options';
 
 @Component({
   selector: 'app-purchase-seller-dialog',
-  imports: [ReactiveFormsModule, CustomSelectComponent, ModalDialogDirective, IntlTelInput],
+  imports: [
+    ReactiveFormsModule,
+    ButtonComponent,
+    CustomSelectComponent,
+    IntlTelInput,
+    ModalShellComponent,
+    TextFieldComponent,
+  ],
   templateUrl: './purchase-seller-dialog.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -58,18 +67,12 @@ export class PurchaseSellerDialogComponent {
   }));
   readonly phoneTranslations = germanPhoneTranslations;
   readonly phoneDropdownParent = this.host.nativeElement;
-  readonly phoneInputAttributes = computed(() => ({
-    id: 'seller-phone',
-    class: 'linear-input w-full rounded-lg px-3 py-2',
-    'aria-label': 'Telefonnummer',
-    'aria-invalid': String(this.form.controls.phone.invalid && this.form.controls.phone.touched),
-    'aria-describedby': 'seller-phone-error',
-    autocomplete: 'tel',
-  }));
-
   readonly form = new FormGroup({
     seller_type: new FormControl<'private' | 'business'>('private', { nonNullable: true }),
-    name: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
+    name: new FormControl('', {
+      nonNullable: true,
+      validators: [Validators.required, Validators.pattern(/\S/u)],
+    }),
     contact_person: new FormControl('', { nonNullable: true }),
     country_code: new FormControl('DE', { nonNullable: true }),
     street: new FormControl('', { nonNullable: true }),
@@ -81,13 +84,6 @@ export class PurchaseSellerDialogComponent {
     website: new FormControl('', { nonNullable: true }),
     notes: new FormControl('', { nonNullable: true }),
   });
-
-  readonly contactFields = [
-    { key: 'street', label: 'Straße und Hausnummer' },
-    { key: 'address_extra', label: 'Adresszusatz' },
-    { key: 'postal_code', label: 'Postleitzahl' },
-    { key: 'city', label: 'Ort' },
-  ] as const;
 
   constructor() {
     this.destroyRef.onDestroy(this.releaseWorkspaceLock);
@@ -127,6 +123,26 @@ export class PurchaseSellerDialogComponent {
     return this.saving();
   }
 
+  phoneInputAttributes(): Record<string, string> {
+    const hasPhoneError = this.form.controls.phone.invalid && this.form.controls.phone.touched;
+    const attributes = {
+      id: 'seller-phone',
+      class: 'linear-input w-full rounded-lg px-3 py-2',
+      'aria-label': 'Telefonnummer',
+      'aria-invalid': String(hasPhoneError),
+      autocomplete: 'tel',
+    };
+    return hasPhoneError ? { ...attributes, 'aria-describedby': 'seller-phone-error' } : attributes;
+  }
+
+  closeIfNotSaving(): void {
+    if (!this.saving()) this.closed.emit();
+  }
+
+  saveDisabled(): boolean {
+    return this.saving() || this.form.invalid || this.form.controls.name.value.trim().length === 0;
+  }
+
   async save(): Promise<void> {
     if (this.saving()) return;
     if (this.form.invalid) {
@@ -135,10 +151,6 @@ export class PurchaseSellerDialogComponent {
     }
     const rawValue = this.form.getRawValue();
     const name = rawValue.name.trim();
-    if (!name.trim()) {
-      this.error.set('Bitte einen Anzeigenamen angeben.');
-      return;
-    }
 
     const value: SellerFormValue = {
       seller_type: rawValue.seller_type,

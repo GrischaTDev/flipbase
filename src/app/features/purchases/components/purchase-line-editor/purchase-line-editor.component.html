@@ -49,8 +49,10 @@
                 />
                 <div class="min-w-0 flex-1">
                   <app-button
+                    data-purchase-line-title
                     variant="plain"
                     [fullWidth]="true"
+                    contentAlign="start"
                     [title]="row.controls.titleSnapshot.value"
                     [ariaLabel]="row.controls.titleSnapshot.value + ' – Details'"
                     (clicked)="openDetails(id)"

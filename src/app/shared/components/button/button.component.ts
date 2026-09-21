@@ -28,7 +28,9 @@ export class ButtonComponent {
   readonly iconPosition = input<'start' | 'end'>('start');
   readonly iconOnly = input<boolean>(false);
   readonly fullWidth = input<boolean>(false);
+  readonly contentAlign = input<'center' | 'start'>('center');
   readonly type = input<'button' | 'submit' | 'reset'>('button');
+  readonly formId = input('');
   readonly link = input<string | null>(null);
   readonly href = input<string | null>(null);
   readonly target = input<'_self' | '_blank'>('_self');
@@ -48,11 +50,13 @@ export class ButtonComponent {
 
   protected readonly buttonClasses = computed(() => {
     const base =
-      'fb-button inline-flex items-center justify-center font-[550] leading-4 select-none cursor-pointer pointer-coarse:min-h-11 pointer-coarse:min-w-11 ' +
+      'fb-button inline-flex items-center font-[550] leading-4 select-none cursor-pointer pointer-coarse:min-h-11 pointer-coarse:min-w-11 ' +
       'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary ' +
       'disabled:cursor-not-allowed disabled:opacity-40';
 
     const width = this.fullWidth() ? 'w-full' : '';
+    const alignment =
+      this.contentAlign() === 'start' ? 'justify-start text-left' : 'justify-center';
 
     const variantStyles: Record<ButtonVariant, string> = {
       primary: 'linear-btn-primary font-semibold text-fb-on-accent shadow-sm',
@@ -80,7 +84,7 @@ export class ButtonComponent {
           search: 'h-9 px-2 text-[13px] rounded-lg gap-1.5',
         };
 
-    return [base, width, variantStyles[this.variant()], sizeStyles[this.size()]]
+    return [base, alignment, width, variantStyles[this.variant()], sizeStyles[this.size()]]
       .filter(Boolean)
       .join(' ');
   });

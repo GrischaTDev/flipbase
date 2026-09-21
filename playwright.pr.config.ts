@@ -8,7 +8,7 @@ export default defineConfig({
   grep: [
     /@core-smoke\b/,
     /keeps a saved draft editable through discard, save and reopening @pr-smoke\b/,
-    /preserves purchase cost origin after reopening at 1440px @pr-smoke\b/,
+    /preserves additional purchase costs after reopening at 1440px @pr-smoke\b/,
     /keeps per-item tax visible in the tax journal @pr-smoke\b/,
     /verkauft ein Einzelstück genau einmal aus dem gemeinsamen Inventar @pr-smoke\b/,
     /creates, publishes and completes the listing lifecycle on mobile @pr-smoke\b/,

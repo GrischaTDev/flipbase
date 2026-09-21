@@ -55,6 +55,7 @@ describe('ButtonComponent', () => {
       iconPosition: ['iconPosition', 1, null],
       iconOnly: ['iconOnly', 1, null],
       fullWidth: ['fullWidth', 1, null],
+      contentAlign: ['contentAlign', 1, null],
       type: ['type', 1, null],
       ariaLabel: ['ariaLabel', 1, null],
       ariaPressed: ['ariaPressed', 1, null],
@@ -74,6 +75,7 @@ describe('ButtonComponent', () => {
       iconPosition: 'iconPosition',
       iconOnly: 'iconOnly',
       fullWidth: 'fullWidth',
+      contentAlign: 'contentAlign',
       type: 'type',
       ariaLabel: 'ariaLabel',
       ariaPressed: 'ariaPressed',
@@ -103,8 +105,19 @@ describe('ButtonComponent', () => {
     metadata.declaredInputs = inputMetadataSnapshot.declaredInputs;
   });
 
-  it('should create successfully', () => {
-    expect(component).toBeTruthy();
+  it('behält zentrierten Inhalt und die umgebende native Formularzuordnung als Standard', () => {
+    const form = document.createElement('form');
+    const host = fixture.nativeElement as HTMLElement;
+    host.append(form);
+    const button = host.querySelector<HTMLButtonElement>('button');
+    if (!button) throw new Error('Nativer Button fehlt.');
+    form.append(button);
+
+    expect(button.classList).toContain('justify-center');
+    expect(button.classList).not.toContain('justify-start');
+    expect(button.type).toBe('button');
+    expect(button.getAttribute('form')).toBeNull();
+    expect(button.form).toBe(form);
   });
 
   it('should be disabled when disabled input is true', () => {
@@ -114,6 +127,16 @@ describe('ButtonComponent', () => {
 
     const btn: HTMLButtonElement = fixture.nativeElement.querySelector('button');
     expect(btn.disabled).toBe(true);
+  });
+
+  it('richtet vollbreiten Text bei contentAlign start links aus', () => {
+    fixture.componentRef.setInput('fullWidth', true);
+    fixture.componentRef.setInput('contentAlign', 'start');
+    fixture.detectChanges();
+    const button = fixture.nativeElement.querySelector('button');
+    expect(button.classList).toContain('justify-start');
+    expect(button.classList).toContain('text-left');
+    expect(button.classList).not.toContain('justify-center');
   });
 
   it('should be disabled and show loading state when loading input is true', () => {

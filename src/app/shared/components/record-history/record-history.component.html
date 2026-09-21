@@ -36,27 +36,35 @@
       @for (event of events(); track event.id) {
         @let expanded = expandedEventId() === event.id;
         <li class="py-3 first:pt-0 last:pb-0">
-          <div class="flex flex-wrap items-start justify-between gap-2">
-            <div>
+          <div
+            data-record-history-row
+            class="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-4 gap-y-2"
+          >
+            <div class="min-w-0">
               <p class="text-xs font-semibold text-fb-text-primary">{{ event.eventLabel }}</p>
-              <p class="mt-0.5 text-[11px] text-fb-text-muted">
-                {{ actorLabel(event) }} · {{ formatDate(event.createdAt) }}
-              </p>
+              <p class="mt-0.5 text-[11px] text-fb-text-muted">{{ actorLabel(event) }}</p>
               @if (event.reason) {
                 <p class="mt-1 text-[11px] text-fb-text-secondary">{{ event.reason }}</p>
               }
+              @if (detailsFor(event).length > 0) {
+                <button
+                  type="button"
+                  class="linear-btn-secondary mt-2 rounded-md px-2.5 py-1 text-xs font-semibold"
+                  (click)="toggleDetails(event.id)"
+                  [attr.aria-expanded]="expanded"
+                  [attr.aria-controls]="'record-history-details-' + event.id"
+                >
+                  {{ expanded ? 'Details ausblenden' : 'Details ansehen' }}
+                </button>
+              }
             </div>
-            @if (detailsFor(event).length > 0) {
-              <button
-                type="button"
-                (click)="toggleDetails(event.id)"
-                [attr.aria-expanded]="expanded"
-                [attr.aria-controls]="'record-history-details-' + event.id"
-                class="linear-btn-secondary px-2.5 py-1 rounded-md text-xs font-semibold"
-              >
-                {{ expanded ? 'Details ausblenden' : 'Details ansehen' }}
-              </button>
-            }
+            <time
+              data-record-history-time
+              class="whitespace-nowrap text-right text-[11px] text-fb-text-muted"
+              [attr.datetime]="event.createdAt"
+            >
+              {{ formatDate(event.createdAt) }}
+            </time>
           </div>
           @if (expanded) {
             <dl

@@ -12,7 +12,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormArray, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { LucideCirclePlus as CirclePlus, LucideX as X } from '@lucide/angular';
+import { LucideCirclePlus as CirclePlus, LucideTrash2 as Trash2 } from '@lucide/angular';
 import { PurchaseType } from '../../../../core/models/flipbase.models';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import {
@@ -22,7 +22,6 @@ import {
 import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
 import {
   PURCHASE_COST_ADJUSTMENT_OPTIONS,
-  PURCHASE_COST_TAX_TREATMENT_OPTIONS,
   PurchaseCostTaxTreatment,
   PurchaseCostAdjustment,
   PurchaseCostAdjustmentRow,
@@ -65,16 +64,10 @@ export class PurchaseCostEditorComponent {
   readonly costRows = new FormArray<CostForm>([]);
   readonly form = new FormGroup({ costRows: this.costRows });
   readonly isMysteryPurchase = computed(() => this.purchaseType() === 'mystery_pack');
-  readonly expandedAllocations = signal<ReadonlySet<number>>(new Set());
+  readonly releasedAssignmentRows = signal<readonly CostForm[]>([]);
 
   readonly adjustmentOptions = PURCHASE_COST_ADJUSTMENT_OPTIONS;
-  readonly taxTreatmentOptions = PURCHASE_COST_TAX_TREATMENT_OPTIONS;
-  readonly allocationOptions: readonly SelectOption<PurchaseCostDraft['allocationMethod']>[] = [
-    { value: 'by_value', label: 'Nach Warenwert' },
-    { value: 'by_quantity', label: 'Nach Menge' },
-    { value: 'direct', label: 'Direkt einer Position zuordnen' },
-  ];
-  readonly removeIcon = X;
+  readonly removeIcon = Trash2;
   readonly addIcon = CirclePlus;
 
   constructor() {
@@ -90,12 +83,13 @@ export class PurchaseCostEditorComponent {
     });
 
     effect(() => {
-      if (this.clearMissingDirectTargets()) this.emitState();
+      if (this.releaseMissingDirectAssignments()) this.emitState();
     });
 
     effect(() => {
       if (!this.isMysteryPurchase()) return;
       for (const row of this.costRows.controls) {
+        if (row.controls.allocationMethod.value === 'direct') continue;
         row.patchValue(
           { allocationMethod: 'by_quantity', targetPurchaseLineId: null },
           { emitEvent: false },
@@ -113,51 +107,20 @@ export class PurchaseCostEditorComponent {
   }
 
   removeCostRow(index: number): void {
+    const removedRow = this.costRows.at(index);
     this.costRows.removeAt(index);
-    this.expandedAllocations.update((expanded) => {
-      const next = new Set<number>();
-      for (const entry of expanded) {
-        if (entry < index) next.add(entry);
-        if (entry > index) next.add(entry - 1);
-      }
-      return next;
-    });
-    this.emitState();
-  }
-
-  toggleAllocationDetails(index: number): void {
-    this.expandedAllocations.update((expanded) => {
-      const next = new Set(expanded);
-      if (next.has(index)) next.delete(index);
-      else next.add(index);
-      return next;
-    });
-  }
-
-  isAllocationExpanded(index: number): boolean {
-    return this.expandedAllocations().has(index);
-  }
-
-  onAllocationMethodChanged(
-    index: number,
-    allocationMethod: PurchaseCostDraft['allocationMethod'] | null,
-  ): void {
-    if (allocationMethod === null || this.isMysteryPurchase()) return;
-    const row = this.costRows.at(index);
-    row.controls.allocationMethod.setValue(allocationMethod);
-    if (allocationMethod !== 'direct') row.controls.targetPurchaseLineId.setValue(null);
-    this.configureTargetRequirement(row);
+    this.releasedAssignmentRows.update((rows) => rows.filter((row) => row !== removedRow));
     this.emitState();
   }
 
   private setInitialValue(costs: readonly PurchaseCostDraft[], discountAmount: number): void {
     const rows = createPurchaseCostAdjustmentRows(costs, discountAmount);
+    this.releasedAssignmentRows.set([]);
     this.costRows.clear({ emitEvent: false });
     for (const row of rows.length > 0 ? rows : [this.emptyRow()]) {
       this.costRows.push(this.createCostRow(this.normalizeRow(row)), { emitEvent: false });
     }
-    this.expandedAllocations.set(new Set());
-    this.clearMissingDirectTargets();
+    this.releaseMissingDirectAssignments();
     this.emitState();
   }
 
@@ -199,14 +162,13 @@ export class PurchaseCostEditorComponent {
   }
 
   private normalizeRow(row: PurchaseCostAdjustmentRow): PurchaseCostAdjustmentRow {
-    if (!this.isMysteryPurchase()) return row;
+    if (!this.isMysteryPurchase() || row.allocationMethod === 'direct') return row;
     return { ...row, allocationMethod: 'by_quantity', targetPurchaseLineId: null };
   }
 
   private configureTargetRequirement(row: CostForm): void {
     const target = row.controls.targetPurchaseLineId;
     if (
-      !this.isMysteryPurchase() &&
       row.controls.adjustment.value !== 'discount' &&
       row.controls.allocationMethod.value === 'direct'
     ) {
@@ -217,22 +179,32 @@ export class PurchaseCostEditorComponent {
     target.updateValueAndValidity({ emitEvent: false });
   }
 
-  private clearMissingDirectTargets(): boolean {
+  private releaseMissingDirectAssignments(): boolean {
     const targetIds = new Set(this.purchaseLineOptions().map((option) => option.value));
-    let clearedTarget = false;
+    const releasedRows: CostForm[] = [];
     for (const row of this.costRows.controls) {
       const target = row.controls.targetPurchaseLineId;
       if (
+        row.controls.adjustment.value !== 'discount' &&
         row.controls.allocationMethod.value === 'direct' &&
         target.value !== null &&
         !targetIds.has(target.value)
       ) {
-        target.setValue(null, { emitEvent: false });
+        row.patchValue(
+          {
+            allocationMethod: this.isMysteryPurchase() ? 'by_quantity' : 'by_value',
+            targetPurchaseLineId: null,
+          },
+          { emitEvent: false },
+        );
         this.configureTargetRequirement(row);
-        clearedTarget = true;
+        releasedRows.push(row);
       }
     }
-    return clearedTarget;
+    if (releasedRows.length > 0) {
+      this.releasedAssignmentRows.update((rows) => [...rows, ...releasedRows]);
+    }
+    return releasedRows.length > 0;
   }
 
   private emitState(): void {
@@ -246,11 +218,11 @@ export class PurchaseCostEditorComponent {
     return this.costRows.getRawValue().map((row) => ({
       adjustment: row.adjustment,
       amount: row.amount,
-      allocationMethod: this.isMysteryPurchase() ? 'by_quantity' : row.allocationMethod,
-      targetPurchaseLineId:
-        this.isMysteryPurchase() || row.allocationMethod !== 'direct'
-          ? null
-          : row.targetPurchaseLineId,
+      allocationMethod:
+        this.isMysteryPurchase() && row.allocationMethod !== 'direct'
+          ? 'by_quantity'
+          : row.allocationMethod,
+      targetPurchaseLineId: row.allocationMethod !== 'direct' ? null : row.targetPurchaseLineId,
       sourceCost: row.sourceCost,
       taxTreatment: row.taxTreatment,
     }));

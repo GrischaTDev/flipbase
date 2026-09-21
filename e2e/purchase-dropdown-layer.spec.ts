@@ -7,12 +7,12 @@ test('can save a draft after dismissing an open cost selector and cancelling the
   await page.goto('/purchases/new');
   await selectDefaultPurchaseSeller(page);
   await page.getByRole('button', { name: 'Kosten bearbeiten', exact: true }).click();
-  const trigger = page.getByRole('combobox', { name: 'Anpassung 1', exact: true });
+  const trigger = page.getByRole('combobox', { name: 'Zusatzausgabe 1', exact: true });
   await trigger.click();
   await expect(page.getByRole('listbox')).toBeVisible();
   await trigger.press('Escape');
   await page.getByRole('button', { name: 'Abbrechen', exact: true }).click();
-  await expect(page.getByRole('dialog', { name: 'Kostenübersicht verwalten' })).toHaveCount(0);
+  await expect(page.getByRole('dialog', { name: 'Zusatzausgaben verwalten' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Kosten bearbeiten', exact: true })).toBeFocused();
   await page.getByRole('textbox', { name: 'Beschreibung' }).fill('Dropdown-Abbruch-Test');
   await page.getByRole('button', { name: 'Entwurf speichern', exact: true }).click();
@@ -29,8 +29,8 @@ test('keeps cost options above the modal footer and preserves keyboard dismissal
   await openDashboard(page);
   await page.goto('/purchases/new');
   await page.getByRole('button', { name: 'Kosten bearbeiten', exact: true }).click();
-  const dialog = page.getByRole('dialog', { name: 'Kostenübersicht verwalten' });
-  const trigger = dialog.getByRole('combobox', { name: 'Anpassung 1', exact: true });
+  const dialog = page.getByRole('dialog', { name: 'Zusatzausgaben verwalten' });
+  const trigger = dialog.getByRole('combobox', { name: 'Zusatzausgabe 1', exact: true });
   await trigger.click();
   const option = dialog.getByRole('option', { name: 'Auslandstransaktionsgebühr', exact: true });
   await expect(option).toBeVisible();
@@ -80,8 +80,8 @@ test('keeps the menu within a small viewport and closes it when the viewport cha
   await openDashboard(page);
   await page.goto('/purchases/new');
   await page.getByRole('button', { name: 'Kosten bearbeiten', exact: true }).click();
-  const dialog = page.getByRole('dialog', { name: 'Kostenübersicht verwalten' });
-  const trigger = dialog.getByRole('combobox', { name: 'Anpassung 1', exact: true });
+  const dialog = page.getByRole('dialog', { name: 'Zusatzausgaben verwalten' });
+  const trigger = dialog.getByRole('combobox', { name: 'Zusatzausgabe 1', exact: true });
   await trigger.click();
   const listbox = dialog.getByRole('listbox');
   await expect(listbox).toBeVisible();

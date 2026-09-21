@@ -3,7 +3,7 @@
     class="hidden grid-cols-[minmax(0,1fr)_minmax(9rem,1fr)_2.25rem] gap-3 px-0.5 pb-2 text-[13px] font-semibold text-fb-text-secondary sm:grid"
     aria-hidden="true"
   >
-    <span>Anpassung</span>
+    <span>Zusatzausgabe</span>
     <span>Betrag</span>
     <span></span>
   </div>
@@ -16,10 +16,10 @@
         >
           <div class="min-w-0">
             <span class="mb-1 block text-[12px] font-semibold text-fb-text-secondary sm:hidden">
-              Anpassung
+              Zusatzausgabe
             </span>
             <app-custom-select
-              [ariaLabel]="'Anpassung ' + (index + 1)"
+              [ariaLabel]="'Zusatzausgabe ' + (index + 1)"
               [options]="adjustmentOptions"
               formControlName="adjustment"
               placeholder="Auswählen"
@@ -44,90 +44,19 @@
           </div>
 
           <app-button
-            class="self-end sm:self-center"
-            variant="ghost"
+            variant="destructive"
             size="md"
             [icon]="removeIcon"
             [iconOnly]="true"
-            [ariaLabel]="'Anpassung ' + (index + 1) + ' entfernen'"
+            [ariaLabel]="'Zusatzausgabe ' + (index + 1) + ' entfernen'"
             (clicked)="removeCostRow(index)"
           />
         </div>
-
-        @if (
-          costRow.controls.adjustment.value !== null &&
-          costRow.controls.adjustment.value !== 'discount'
-        ) {
-          <div class="mt-3">
-            <span class="mb-1 block text-[12px] font-semibold text-fb-text-secondary">
-              Wer hat diese Kosten berechnet?
-            </span>
-            <app-custom-select
-              [ariaLabel]="'Kostenherkunft ' + (index + 1)"
-              [options]="taxTreatmentOptions"
-              formControlName="taxTreatment"
-              placeholder="Noch prüfen"
-              size="sm"
-            />
-            <p class="mt-1 text-[12px] text-fb-text-muted">
-              Nebenkosten auf dem Kaufbeleg des Verkäufers gehören zum Einkaufspreis. Separater
-              Transport und spätere Reparaturen zählen als weitere Ausgaben. Bei Unklarheit „Noch
-              prüfen“ wählen.
-            </p>
-          </div>
-          @if (isMysteryPurchase()) {
-            <p class="mt-2 text-[12px] text-fb-text-muted">
-              Verteilung:
-              <span class="font-medium text-fb-text-secondary">Gleichmäßig pro Stück</span>
-            </p>
-          } @else {
-            <app-button
-              class="mt-1"
-              variant="plain"
-              size="slim"
-              [ariaExpanded]="isAllocationExpanded(index)"
-              (clicked)="toggleAllocationDetails(index)"
-            >
-              Verteilung ändern
-            </app-button>
-
-            @if (isAllocationExpanded(index)) {
-              <div class="mt-2 grid grid-cols-1 gap-3 rounded-lg bg-fb-well p-3 sm:grid-cols-2">
-                <div>
-                  <span class="mb-1 block text-[12px] font-semibold text-fb-text-secondary">
-                    Verteilung
-                  </span>
-                  <app-custom-select
-                    ariaLabel="Verteilung der Zusatzkosten"
-                    [options]="allocationOptions"
-                    formControlName="allocationMethod"
-                    (valueChange)="onAllocationMethodChanged(index, $event)"
-                    size="sm"
-                  />
-                </div>
-
-                @if (costRow.controls.allocationMethod.value === 'direct') {
-                  <div>
-                    <span class="mb-1 block text-[12px] font-semibold text-fb-text-secondary">
-                      Zielposition
-                    </span>
-                    <app-custom-select
-                      ariaLabel="Zielposition der Zusatzkosten"
-                      [options]="purchaseLineOptions()"
-                      formControlName="targetPurchaseLineId"
-                      placeholder="Position wählen"
-                      size="sm"
-                    />
-                    @if (costRow.controls.targetPurchaseLineId.invalid) {
-                      <p class="mt-1 text-[12px] text-rose-600">
-                        Bitte wähle eine Zielposition aus.
-                      </p>
-                    }
-                  </div>
-                }
-              </div>
-            }
-          }
+        @if (releasedAssignmentRows().includes(costRow)) {
+          <p role="status" class="mt-2 text-[13px] text-fb-text-secondary">
+            Die Artikelzuordnung wurde aufgehoben, weil der Artikel entfernt wurde. Diese
+            Zusatzausgabe wird jetzt auf den gesamten Einkauf verteilt.
+          </p>
         }
       </div>
     }
@@ -141,6 +70,6 @@
     [disabled]="costRows.invalid"
     (clicked)="addCostRow()"
   >
-    Anpassung hinzufügen
+    Zusatzausgabe hinzufügen
   </app-button>
 </div>

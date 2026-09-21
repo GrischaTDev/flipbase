@@ -10,11 +10,7 @@ import {
 import { Router, RouterLink } from '@angular/router';
 import { DatePipe } from '@angular/common';
 import { TranslatePipe } from '@ngx-translate/core';
-import {
-  LucideDynamicIcon,
-  LucideShoppingBag as ShoppingBag,
-  LucidePlus as Plus,
-} from '@lucide/angular';
+import { LucideShoppingBag as ShoppingBag, LucidePlus as Plus } from '@lucide/angular';
 import { PurchaseService } from '../../core/services/purchase.service';
 import { LegacyPurchaseRecoveryService } from './services/legacy-purchase-recovery.service';
 import type { Purchase } from '../../core/models/flipbase.models';
@@ -49,7 +45,6 @@ import { DataTableComponent } from '../../shared/components/data-table/data-tabl
     RouterLink,
     DatePipe,
     TranslatePipe,
-    LucideDynamicIcon,
     CostStateComponent,
     PageHeaderComponent,
     BadgeComponent,
@@ -108,6 +103,15 @@ export class PurchasesComponent {
   );
   readonly searchQuery = signal('');
   readonly hasPurchases = computed(() => this.purchaseService.purchases().length > 0);
+  readonly isPurchaseListLoading = computed(() => {
+    const workspaceId = this.workspaceService.currentWorkspace()?.id ?? null;
+    if (workspaceId === null) return false;
+    return (
+      this.purchaseService.isLoading() ||
+      (!this.purchaseService.loadError() &&
+        this.purchaseService.loadedWorkspaceId() !== workspaceId)
+    );
+  });
   readonly hasOnlyArchivedPurchases = computed(
     () =>
       this.hasPurchases() &&
@@ -123,7 +127,7 @@ export class PurchasesComponent {
       this.searchQuery().trim() === '',
   );
   readonly emptyTitle = computed(() =>
-    this.hasPurchases() ? 'Keine passenden Einkäufe' : 'Noch keine Einkäufe',
+    this.hasPurchases() ? 'Keine passenden Einkäufe' : 'Keine Einkäufe vorhanden',
   );
   readonly emptyText = computed(() =>
     this.hasPurchases() ? 'Ändere die Suche oder die Filter.' : 'Erstelle deinen ersten Einkauf.',
@@ -159,6 +163,11 @@ export class PurchasesComponent {
     const sort = this.tablePrefs().sort;
     if (sort.field !== field) return null;
     return sort.direction === 'asc' ? 'ascending' : 'descending';
+  }
+
+  retryLoadPurchases(): void {
+    const workspaceId = this.workspaceService.currentWorkspace()?.id;
+    if (workspaceId) void this.purchaseService.loadPurchases(workspaceId);
   }
 
   readonly filteredPurchases = computed(() => {

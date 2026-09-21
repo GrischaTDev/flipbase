@@ -637,8 +637,18 @@
       }
 
       .beta-dialog-email {
+        display: block;
+        max-width: 100%;
+        margin-inline: auto;
+        line-height: 1.45;
         color: var(--ink-soft);
         overflow-wrap: anywhere;
+      }
+
+      .beta-dialog-copy {
+        max-width: 42ch;
+        margin-inline: auto;
+        line-height: 1.55;
       }
 
       .beta-dialog-hinweis {
@@ -705,6 +715,10 @@
         flex-direction: column;
         align-items: center;
         gap: 0.35rem;
+      }
+
+      .hero-beta-submit-loading[hidden] {
+        display: none !important;
       }
 
       .hero-beta-progress {
@@ -2916,7 +2930,7 @@
             <span class="lang-de">Vielen Dank für deine Anmeldung zur Beta!</span>
             <span class="lang-en" lang="en">Thank you for applying for the beta!</span>
           </h2>
-          <p id="beta-success-description">
+          <p id="beta-success-description" class="beta-dialog-copy">
             <span class="lang-de"
               >Deine Bewerbung ist bei uns eingegangen. Wir melden uns schnellstmöglich bei
               dir.</span
@@ -2928,7 +2942,7 @@
           <p class="beta-dialog-email">
             <strong id="beta-success-email"></strong>
           </p>
-          <p id="beta-success-receipt" class="beta-dialog-hinweis">
+          <p id="beta-success-receipt" class="beta-dialog-copy beta-dialog-hinweis">
             <span id="beta-success-receipt-sent">
               <span class="lang-de">Eine Bestätigungs-E-Mail wurde an diese Adresse gesendet.</span>
               <span class="lang-en" lang="en"
@@ -2962,7 +2976,7 @@
             <span class="lang-de">Bewerbung bereits vorhanden</span>
             <span class="lang-en" lang="en">Application already received</span>
           </h2>
-          <p id="beta-existing-description">
+          <p id="beta-existing-description" class="beta-dialog-copy">
             <span class="lang-de">Für diese E-Mail liegt bereits eine Bewerbung vor.</span>
             <span class="lang-en" lang="en">An application already exists for this email.</span>
           </p>

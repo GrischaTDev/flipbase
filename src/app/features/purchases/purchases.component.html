@@ -42,6 +42,9 @@
     [sortOptions]="purchasesTableConfig.sortOptions"
     [currentSort]="tablePrefs().sort"
     [viewModified]="viewModified()"
+    [loading]="isPurchaseListLoading()"
+    [errorMessage]="purchaseService.loadError()?.message ?? null"
+    loadingText="Einkäufe werden geladen …"
     [hasRows]="purchaseRows().length > 0"
     [emptyTitle]="emptyTitle()"
     [emptyText]="emptyText()"
@@ -51,6 +54,15 @@
     (sortChanged)="onSortChanged($event)"
     (viewResetRequested)="resetView()"
   >
+    <app-button
+      table-error-action
+      class="mt-3"
+      variant="secondary"
+      (clicked)="retryLoadPurchases()"
+    >
+      Erneut versuchen
+    </app-button>
+
     <app-custom-select
       table-view
       variant="toolbar"
@@ -167,7 +179,11 @@
                     </td>
                   }
                   @case ('description') {
-                    <td data-purchase-description>{{ row.title }}</td>
+                    <td data-purchase-description class="max-w-72">
+                      <span class="block max-w-72 truncate" [title]="row.title">{{
+                        row.title || '—'
+                      }}</span>
+                    </td>
                   }
                   @case ('seller') {
                     <td>{{ row.supplierLabel }}</td>
