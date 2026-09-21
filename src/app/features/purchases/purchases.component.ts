@@ -107,6 +107,27 @@ export class PurchasesComponent {
     this.sellerOptions().find((seller) => seller.id === this.sellerId()),
   );
   readonly searchQuery = signal('');
+  readonly hasPurchases = computed(() => this.purchaseService.purchases().length > 0);
+  readonly hasOnlyArchivedPurchases = computed(
+    () =>
+      this.hasPurchases() &&
+      this.purchaseService
+        .purchases()
+        .every((purchase) => purchase.receiving_status === 'archived'),
+  );
+  readonly canShowArchiveFromEmpty = computed(
+    () =>
+      this.hasOnlyArchivedPurchases() &&
+      this.activeStatus() !== 'archived' &&
+      this.sellerId() === '' &&
+      this.searchQuery().trim() === '',
+  );
+  readonly emptyTitle = computed(() =>
+    this.hasPurchases() ? 'Keine passenden Einkäufe' : 'Noch keine Einkäufe',
+  );
+  readonly emptyText = computed(() =>
+    this.hasPurchases() ? 'Ändere die Suche oder die Filter.' : 'Erstelle deinen ersten Einkauf.',
+  );
   readonly workspaceId = computed(() => this.workspaceService.currentWorkspace()?.id ?? 'default');
   readonly purchasesTableConfig = this.tablePreferences.getTableConfig<
     PurchasesColumnId,
@@ -237,6 +258,12 @@ export class PurchasesComponent {
 
   clearFilters(): void {
     this.activeStatus.set('all');
+    this.sellerId.set('');
+    this.searchQuery.set('');
+  }
+
+  showArchive(): void {
+    this.activeStatus.set('archived');
     this.sellerId.set('');
     this.searchQuery.set('');
   }

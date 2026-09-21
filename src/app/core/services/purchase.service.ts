@@ -23,6 +23,7 @@ import {
 } from '../models/flipbase.models';
 import {
   PurchaseCostAllocationMethod,
+  PurchaseCostingResult,
   PurchaseLinePriceMode,
 } from '../models/purchase-costing.models';
 import {
@@ -342,10 +343,13 @@ export class PurchaseService {
 
   async loadPurchases(workspaceId: string): Promise<void> {
     const requestId = ++this.loadRequestId;
+    const keepConfirmedList = this.loadedWorkspaceId() === workspaceId;
     this.isLoading.set(true);
     this.loadError.set(null);
-    this.loadedWorkspaceId.set(null);
-    this.purchasesRaw.set([]);
+    if (!keepConfirmedList) {
+      this.loadedWorkspaceId.set(null);
+      this.purchasesRaw.set([]);
+    }
     try {
       const { data, error } = await this.supabase.client
         .from('purchases')
@@ -820,10 +824,7 @@ export class PurchaseService {
         items_count: persistedLines.reduce((count, line) => count + line.ordered_quantity, 0),
         total_purchase_cost: dbPurchase.total_purchase_cost ?? newPurchase.total_purchase_cost,
       };
-      this.purchasesRaw.update((list) => [
-        finalPurchase,
-        ...list.filter((purchase) => purchase.id !== finalPurchase.id),
-      ]);
+      this.upsertPurchase(finalPurchase);
       if (this.selectedPurchase()?.id === finalPurchase.id)
         this.purchaseLinesRaw.set(persistedLines);
 
@@ -978,7 +979,7 @@ export class PurchaseService {
       const persistedCosts = Array.isArray(response['purchase_costs'])
         ? (response['purchase_costs'] as PurchaseCost[])
         : [];
-      const updatedPurchase: Purchase = {
+      const confirmedPurchase: Purchase = {
         ...dbPurchase,
         source,
         supplier,
@@ -986,11 +987,14 @@ export class PurchaseService {
         purchase_lines: persistedLines,
         items_count: persistedLines.reduce((count, line) => count + line.ordered_quantity, 0),
       };
-      this.purchasesRaw.update((current) =>
-        current.map((purchase) => (purchase.id === purchaseId ? updatedPurchase : purchase)),
-      );
+      const existingPurchase =
+        this.purchasesRaw().find((purchase) => purchase.id === purchaseId) ??
+        (this.selectedPurchase()?.id === purchaseId ? this.selectedPurchase() : null);
+      const updatedPurchase = existingPurchase
+        ? this.mergePurchaseMutation(existingPurchase, confirmedPurchase)
+        : confirmedPurchase;
+      this.upsertPurchase(updatedPurchase);
       if (this.selectedPurchase()?.id === purchaseId) {
-        this.selectedPurchaseRaw.set(updatedPurchase);
         this.purchaseLinesRaw.set(persistedLines);
       }
       return { data: updatedPurchase, error: null, reportedBySyncStatus: false };
@@ -1578,7 +1582,7 @@ export class PurchaseService {
           ),
         };
       }
-      this.uebernehmeEinkaufLokal(updated);
+      this.upsertPurchase(updated);
       return { error: null };
     } catch (error: unknown) {
       return { error: this.syncStatus.melde('Ändern des Einkaufsstatus', error) };
@@ -1728,7 +1732,7 @@ export class PurchaseService {
           ),
         };
       }
-      this.uebernehmeEinkaufLokal(updated);
+      this.upsertPurchase(updated);
       return { data: updated, error: null };
     } catch (error: unknown) {
       return {
@@ -1817,7 +1821,7 @@ export class PurchaseService {
       this.purchaseLinesRaw.update((lines) =>
         lines.map((line) => (line.id === purchaseLineId ? confirmed : line)),
       );
-      this.uebernehmeEinkaufLokal(purchase);
+      this.upsertPurchase(purchase);
       return {
         data: { purchaseLine: confirmed, inventoryItem, purchase },
         error: null,
@@ -1839,14 +1843,39 @@ export class PurchaseService {
    * gemeinsam auf denselben Datenbankstand. Komponenten rufen damit nicht
    * mehrere, leicht auseinanderlaufende Einzel-Refreshes auf.
    */
-  async refreshAfterFinalization(workspaceId: string, purchaseId: string): Promise<void> {
-    if (this.workspaceService.currentWorkspace()?.id !== workspaceId) return;
+  async refreshAfterFinalization(
+    workspaceId: string,
+    purchaseId: string,
+    confirmed?: PurchaseCostingResult,
+  ): Promise<Error | null> {
+    if (this.workspaceService.currentWorkspace()?.id !== workspaceId) return null;
+    if (confirmed?.purchaseId === purchaseId) {
+      const applyConfirmation = (purchase: Purchase): Purchase => ({
+        ...purchase,
+        entry_status: confirmed.entryStatus,
+        total_purchase_cost: confirmed.totalPurchaseCost,
+      });
+      this.purchasesRaw.update((purchases) =>
+        purchases.map((purchase) =>
+          purchase.id === purchaseId && purchase.workspace_id === workspaceId
+            ? applyConfirmation(purchase)
+            : purchase,
+        ),
+      );
+      const selected = this.selectedPurchaseRaw();
+      if (selected?.id === purchaseId && selected.workspace_id === workspaceId) {
+        this.selectedPurchaseRaw.set(applyConfirmation(selected));
+      }
+    }
     await Promise.all([
       this.loadPurchases(workspaceId),
       this.stockService.loadPositions(workspaceId),
       this.inventory.loadInventory(workspaceId),
     ]);
-    if (this.workspaceService.currentWorkspace()?.id !== workspaceId) return;
+    if (this.workspaceService.currentWorkspace()?.id !== workspaceId) return null;
+
+    const refreshError = this.loadError();
+    if (refreshError) return refreshError;
 
     const selected = this.selectedPurchaseRaw();
     const refreshed = this.purchasesRaw().find(
@@ -1857,6 +1886,7 @@ export class PurchaseService {
       this.purchaseItemsFallback.set([]);
       this.purchaseLinesRaw.set(refreshed.purchase_lines ?? []);
     }
+    return null;
   }
 
   async deletePurchase(purchaseId: string): Promise<{ error: Error | null }> {
@@ -2035,13 +2065,15 @@ export class PurchaseService {
     });
   }
 
-  private uebernehmeEinkaufLokal(purchase: Purchase): void {
+  private upsertPurchase(purchase: Purchase): void {
     const selectedPurchase = this.selectedPurchaseRaw();
-    this.purchasesRaw.update((list) =>
-      list.map((entry) =>
+    this.purchasesRaw.update((list) => {
+      const existing = list.find((entry) => entry.id === purchase.id);
+      if (!existing) return [purchase, ...list];
+      return list.map((entry) =>
         entry.id === purchase.id ? this.mergePurchaseMutation(entry, purchase) : entry,
-      ),
-    );
+      );
+    });
     if (selectedPurchase?.id === purchase.id) {
       this.selectedPurchaseRaw.set(this.mergePurchaseMutation(selectedPurchase, purchase));
     }

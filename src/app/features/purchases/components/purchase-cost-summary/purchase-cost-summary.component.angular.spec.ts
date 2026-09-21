@@ -115,7 +115,7 @@ describe('PurchaseCostSummaryComponent', () => {
     const text = (fixture.nativeElement as HTMLElement).textContent?.replace(/\s+/g, ' ');
 
     expect(text).toContain('Bestellte Artikel 3 Artikel 100,00 €');
-    expect(text).toContain('Anpassungen');
+    expect(text).toContain('Rabatt');
     expect(text).toContain('− 10,00 €');
     expect(text).toContain('Versandkosten Noch prüfen 15,00 €');
     expect(text).toContain('Gesamt 92,00 €');
@@ -169,7 +169,8 @@ describe('PurchaseCostSummaryComponent', () => {
 
     const text = (fixture.nativeElement as HTMLElement).textContent?.replace(/\s+/g, ' ');
     expect(text).toContain('Bestellte Artikel 0 Artikel 0,00 €');
-    expect(text).toContain('Anpassungen 0,00 €');
+    expect(text).not.toContain('Anpassungen');
+    expect(text).not.toContain('Rabatt');
     expect(text).toContain('Gesamt 0,00 €');
     expect(fixture.nativeElement.querySelector('[data-purchase-cost-open]')).toBeNull();
   });
@@ -197,5 +198,16 @@ describe('PurchaseCostSummaryComponent', () => {
     fixture.detectChanges();
 
     expect(fixture.componentInstance.displayedTotal()).toBe(100);
+  });
+
+  it('benennt unbeschriebene sonstige Kosten verstaendlich', async () => {
+    const fixture = await createSummary();
+    fixture.componentRef.setInput('costs', [{ type: 'other', amount: 3 }]);
+    fixture.componentRef.setInput('discountAmount', 0);
+    fixture.detectChanges();
+
+    const text = (fixture.nativeElement as HTMLElement).textContent?.replace(/\s+/g, ' ');
+    expect(text).toContain('Sonstiges');
+    expect(text).not.toContain('Anpassungen');
   });
 });

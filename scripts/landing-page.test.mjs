@@ -508,17 +508,89 @@ test('explains a failed receipt email without losing the application', async () 
   dom.window.close();
 });
 
-test('explains in the dialog that a rejected email address cannot apply again', async () => {
-  const { dom, form } = await submitBetaApplication({ error: 'application_rejected' }, 409);
+test('meldet jede bereits vorhandene Bewerbung ohne ihren Status preiszugeben', async () => {
+  const { dom, form } = await submitBetaApplication({ error: 'application_exists' }, 409);
   const dialog = dom.window.document.getElementById('beta-success-dialog');
+  const warning = dom.window.document.querySelector('#beta-existing-content .beta-dialog-symbol');
 
   assert.equal(dialog.hidden, false);
   assert.equal(dom.window.document.getElementById('beta-success-content').hidden, true);
-  assert.equal(dom.window.document.getElementById('beta-rejected-content').hidden, false);
-  assert.match(dialog.textContent, /Deine Bewerbung wurde bereits abgelehnt/u);
-  assert.match(dialog.textContent, /Eine erneute Bewerbung ist derzeit nicht möglich/u);
+  assert.equal(dom.window.document.getElementById('beta-existing-content').hidden, false);
+  assert.match(dialog.textContent, /Für diese E-Mail liegt bereits eine Bewerbung vor/u);
+  assert.doesNotMatch(dialog.textContent, /abgelehnt|angenommen/iu);
+  assert.ok(warning.classList.contains('beta-dialog-symbol-warnung'));
+  assert.ok(warning.querySelector('svg'));
   assert.equal(form.querySelector('[name="email"]').value, 'anna@example.test');
   assert.equal(form.querySelector('button[type="submit"]').disabled, false);
+  dom.window.close();
+});
+
+test('zeigt während des Sendens einen unbestimmten Ladebalken im Button', async () => {
+  const dom = new JSDOM(html, { runScripts: 'outside-only', url: 'https://flipbase.de/' });
+  let finishRequest;
+  dom.window.fetch = () =>
+    new Promise((resolve) => {
+      finishRequest = resolve;
+    });
+  dom.window.eval(landingScript);
+  const form = dom.window.document.getElementById('zweit-bewerbung-form');
+  form.querySelector('[name="firstName"]').value = 'Anna';
+  form.querySelector('[name="lastName"]').value = 'Beispiel';
+  form.querySelector('[name="email"]').value = 'anna@example.test';
+  form.querySelector('[name="consent"]').checked = true;
+  form.dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
+
+  const button = form.querySelector('button[type="submit"]');
+  const idle = button.querySelector('[data-beta-submit-idle]');
+  const loading = button.querySelector('[data-beta-submit-loading]');
+  assert.equal(button.getAttribute('aria-busy'), 'true');
+  assert.equal(idle.hidden, true);
+  assert.equal(loading.hidden, false);
+  assert.equal(loading.getAttribute('role'), 'status');
+  assert.match(loading.textContent, /Bewerbung wird gesendet …/u);
+  assert.ok(loading.querySelector('[aria-hidden="true"].hero-beta-progress'));
+  assert.doesNotMatch(loading.textContent, /\d+\s*%/u);
+
+  finishRequest({
+    ok: true,
+    status: 200,
+    json: async () => ({ ok: true, receiptEmailSent: true }),
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(button.getAttribute('aria-busy'), null);
+  assert.equal(idle.hidden, false);
+  assert.equal(loading.hidden, true);
+  dom.window.close();
+});
+
+test('stellt den normalen Bewerbungsbutton nach einem Timeout wieder her', async () => {
+  const dom = new JSDOM(html, { runScripts: 'outside-only', url: 'https://flipbase.de/' });
+  dom.window.setTimeout = (callback) => {
+    queueMicrotask(callback);
+    return 1;
+  };
+  dom.window.clearTimeout = () => undefined;
+  dom.window.fetch = (_url, init) =>
+    new Promise((_resolve, reject) => {
+      init.signal.addEventListener('abort', () => reject(new Error('timeout')));
+    });
+  dom.window.eval(landingScript);
+  const form = dom.window.document.getElementById('zweit-bewerbung-form');
+  form.querySelector('[name="firstName"]').value = 'Anna';
+  form.querySelector('[name="lastName"]').value = 'Beispiel';
+  form.querySelector('[name="email"]').value = 'anna@example.test';
+  form.querySelector('[name="consent"]').checked = true;
+  form.dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
+  await new Promise((resolve) => setImmediate(resolve));
+  await new Promise((resolve) => setImmediate(resolve));
+
+  const button = form.querySelector('button[type="submit"]');
+  assert.equal(button.disabled, false);
+  assert.equal(button.getAttribute('aria-busy'), null);
+  assert.equal(button.querySelector('[data-beta-submit-idle]').hidden, false);
+  assert.equal(button.querySelector('[data-beta-submit-loading]').hidden, true);
   dom.window.close();
 });
 

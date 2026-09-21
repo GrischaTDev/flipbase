@@ -77,11 +77,16 @@
         </thead>
         <tbody>
           @for (seller of filteredSellers(); track seller.id) {
-            <tr data-seller-row [class.opacity-60]="seller.is_active === false">
+            <tr
+              data-seller-row
+              tabindex="0"
+              class="cursor-pointer transition-colors hover:bg-fb-surface-hover focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-fb-primary"
+              [class.opacity-60]="seller.is_active === false"
+              (click)="openSellerFromRow($event, seller)"
+              (keydown)="openSellerFromKeyboard($event, seller)"
+            >
               <td>
-                <app-button variant="plain" size="slim" (clicked)="openEditDialog(seller)">
-                  {{ seller.name }}
-                </app-button>
+                <span class="font-semibold text-fb-text-primary">{{ seller.name }}</span>
               </td>
               <td>{{ typeLabel(seller) }}</td>
               <td>{{ seller.contact_person || '—' }}</td>
@@ -100,13 +105,21 @@
               <td class="text-right">
                 <div class="inline-flex items-center gap-1">
                   <app-button
+                    data-seller-edit-action
+                    class="[&_button]:hover:bg-emerald-500/10 [&_button]:hover:text-emerald-700 [&_button]:focus-visible:outline-emerald-600 dark:[&_button]:hover:text-emerald-300"
                     variant="ghost"
                     size="slim"
                     [icon]="pencilIcon"
                     [ariaLabel]="seller.name + ' bearbeiten'"
-                    (clicked)="openEditDialog(seller)"
+                    (clicked)="editSellerFromAction($event, seller)"
                   />
                   <app-button
+                    data-seller-archive-action
+                    [class]="
+                      seller.is_active === false
+                        ? '[&_button]:hover:bg-emerald-500/10 [&_button]:hover:text-emerald-700 [&_button]:focus-visible:outline-emerald-600 dark:[&_button]:hover:text-emerald-300'
+                        : '[&_button]:hover:bg-orange-500/10 [&_button]:hover:text-orange-700 [&_button]:focus-visible:outline-orange-600 dark:[&_button]:hover:text-orange-300'
+                    "
                     variant="ghost"
                     size="slim"
                     [icon]="seller.is_active === false ? restoreIcon : archiveIcon"
@@ -114,7 +127,7 @@
                       seller.name +
                       (seller.is_active === false ? ' wiederherstellen' : ' archivieren')
                     "
-                    (clicked)="setArchived(seller, seller.is_active !== false)"
+                    (clicked)="archiveSellerFromAction($event, seller)"
                   />
                 </div>
               </td>

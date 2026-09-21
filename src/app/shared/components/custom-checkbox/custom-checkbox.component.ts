@@ -34,7 +34,7 @@ export class CustomCheckboxComponent implements ControlValueAccessor {
   readonly label = input<string>('');
   readonly disabled = input<boolean>(false);
   readonly size = input<'sm' | 'md' | 'lg'>('md');
-  readonly color = input<'emerald' | 'indigo' | 'brand'>('emerald');
+  readonly color = input<'emerald' | 'indigo' | 'brand'>('brand');
   readonly ariaLabel = input<string>('');
   readonly id = input<string>('');
 

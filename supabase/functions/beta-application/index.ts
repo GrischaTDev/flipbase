@@ -244,6 +244,7 @@ Deno.serve(async (request: Request) => {
   }
 
   let application = inserted.data;
+  const applicationAlreadyExists = !application;
   if (!application) {
     const existing = await serviceClient
       .from('beta_applications')
@@ -260,15 +261,12 @@ Deno.serve(async (request: Request) => {
     application = existing.data;
   }
 
-  const disposition = classifyDuplicateApplication({
-    status: application.status,
-    receiptEmailStatus: application.receipt_email_status,
-  });
-  if (disposition === 'rejected') {
-    return respond({ error: 'application_rejected' }, 409, origin);
-  }
-  if (disposition === 'already_confirmed') {
-    return respond({ ok: true, receiptEmailSent: true }, 200, origin);
+  if (applicationAlreadyExists) {
+    const disposition = classifyDuplicateApplication({
+      status: application.status,
+      receiptEmailStatus: application.receipt_email_status,
+    });
+    return respond({ error: `application_${disposition}` }, 409, origin);
   }
 
   try {

@@ -43,8 +43,8 @@
     [currentSort]="tablePrefs().sort"
     [viewModified]="viewModified()"
     [hasRows]="purchaseRows().length > 0"
-    emptyTitle="Keine passenden Einkäufe"
-    emptyText="Ändere Suche oder Filter oder erfasse einen neuen Einkauf."
+    [emptyTitle]="emptyTitle()"
+    [emptyText]="emptyText()"
     (searchValueChange)="searchQuery.set($event)"
     (columnVisibilityToggled)="toggleColumnVisibility($event)"
     (columnsReordered)="onColumnsReordered($event)"
@@ -99,7 +99,7 @@
                 @case ('description') {
                   <th scope="col" class="min-w-56" [attr.aria-sort]="ariaSort('title')">
                     <app-table-sort-header
-                      label="Bezeichnung"
+                      label="Beschreibung"
                       sortField="title"
                       [currentSort]="tablePrefs().sort"
                       (sortChanged)="onSortChanged($event)"
@@ -204,7 +204,17 @@
       </table>
     </div>
 
-    @if (activeStatus() !== 'all' || sellerId() !== '' || searchQuery().trim() !== '') {
+    @if (canShowArchiveFromEmpty()) {
+      <app-button
+        data-show-purchase-archive
+        table-empty-action
+        class="mt-4"
+        variant="secondary"
+        (clicked)="showArchive()"
+      >
+        Archiv anzeigen
+      </app-button>
+    } @else if (hasPurchases()) {
       <app-button
         data-reset-purchase-view
         table-empty-action
@@ -216,6 +226,7 @@
       </app-button>
     } @else {
       <app-button
+        data-create-first-purchase
         table-empty-action
         class="mt-4"
         variant="primary"

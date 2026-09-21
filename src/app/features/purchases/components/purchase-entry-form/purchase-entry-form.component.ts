@@ -53,6 +53,9 @@ import { ButtonComponent } from '../../../../shared/components/button/button.com
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { TwoColumnLayoutComponent } from '../../../../shared/components/two-column-layout/two-column-layout.component';
+import type { PendingPurchaseDocument } from '../../../../core/models/purchase-document.models';
+import { PurchaseDocumentService } from '../../../../core/services/purchase-document.service';
+import { PurchaseDocumentsCardComponent } from '../purchase-documents-card/purchase-documents-card.component';
 
 const purchaseCostTypes = new Set<PurchaseCostType>([
   'shipping',
@@ -127,6 +130,7 @@ function purchaseCostsEqual(
     CardComponent,
     TextFieldComponent,
     TwoColumnLayoutComponent,
+    PurchaseDocumentsCardComponent,
   ],
   templateUrl: './purchase-entry-form.component.html',
   host: { class: 'contents' },
@@ -137,6 +141,7 @@ export class PurchaseEntryFormComponent {
   private readonly toast = inject(ToastService);
   private readonly syncStatus = inject(SyncStatusService);
   private readonly purchaseCostingService = inject(PurchaseCostingService);
+  private readonly documentService = inject(PurchaseDocumentService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly workspaceContext = inject(WorkspaceContextLockService);
   private readonly releaseWorkspaceLock = this.workspaceContext.acquire();
@@ -197,6 +202,7 @@ export class PurchaseEntryFormComponent {
   readonly isSubmitting = signal<boolean>(false);
   readonly errorMessage = signal<string | null>(null);
   readonly persistedDraft = signal<Purchase | null>(null);
+  readonly pendingDocuments = signal<readonly PendingPurchaseDocument[]>([]);
   private readonly completed = signal(false);
   private persistedLineIdsByDraftId = new Map<string, string>();
 
@@ -342,6 +348,7 @@ export class PurchaseEntryFormComponent {
     this.befuelltFuer = vorhandener.id;
     this.completed.set(false);
     this.persistedDraft.set(null);
+    this.pendingDocuments.set([]);
     this.errorMessage.set(null);
     this.lineIdMap().clear();
     this.sellerDialogOpen.set(false);
@@ -424,6 +431,7 @@ export class PurchaseEntryFormComponent {
       (this.costOverviewDialog()?.hasUnsavedChanges() ?? false) ||
       this.form.dirty ||
       this.newSourceName().trim().length > 0 ||
+      this.pendingDocuments().length > 0 ||
       (typeof this.lineEditor === 'function' &&
         (this.lineEditor()?.hasUnsavedChanges() ?? false)) ||
       !purchaseLinesEqual(this.purchaseLines(), this.baselinePurchaseLines()) ||
@@ -503,7 +511,7 @@ export class PurchaseEntryFormComponent {
       cost_allocation_mode: vorhandener?.cost_allocation_mode,
       supplier_reference: f.supplier_reference.trim() || null,
       discount_amount: f.discount_amount,
-      title: f.notes.trim() || 'Einkauf',
+      title: '',
       source_id: f.source_id,
       supplier_id: f.supplier_id,
       purchase_date: f.purchase_date,
@@ -522,7 +530,7 @@ export class PurchaseEntryFormComponent {
       seller_city: sellerSnapshot?.seller_city ?? vorhandener?.seller_city ?? null,
       seller_country_code:
         sellerSnapshot?.seller_country_code ?? vorhandener?.seller_country_code ?? null,
-      notes: f.notes || null,
+      notes: f.notes.trim() || null,
       initial_costs: this.costDrafts().filter((cost) => cost.amount > 0),
       single_item_condition: f.single_item_condition,
       single_item_expected_value: f.single_item_expected_value || undefined,
@@ -553,6 +561,7 @@ export class PurchaseEntryFormComponent {
       this.isSubmitting.set(false);
       this.persistedDraft.set(anlegeergebnis.data);
       this.adoptPersistedLineIds(anlegeergebnis.data);
+      if (!(await this.uploadPendingDocuments(anlegeergebnis.data.id))) return;
       const ungemeldeteProbleme = anlegeergebnis.problems.filter(
         (problem) => !problem.reportedBySyncStatus,
       );
@@ -591,6 +600,10 @@ export class PurchaseEntryFormComponent {
         this.persistedDraft.set(gespeicherterEntwurf);
         this.adoptPersistedLineIds(gespeicherterEntwurf);
         this.capturePersistedBaseline();
+        if (!(await this.uploadPendingDocuments(gespeicherterEntwurf.id))) {
+          this.isSubmitting.set(false);
+          return;
+        }
       }
       if (finalizeAfterSave && gespeicherterEntwurf) {
         await this.finalizePersistedDraft(gespeicherterEntwurf);
@@ -602,6 +615,45 @@ export class PurchaseEntryFormComponent {
       this.created.emit();
       this.closed.emit();
     }
+  }
+
+  private async uploadPendingDocuments(purchaseId: string): Promise<boolean> {
+    const pendingDocuments = this.pendingDocuments();
+    if (pendingDocuments.length === 0) return true;
+
+    const failed: PendingPurchaseDocument[] = [];
+    for (const pending of pendingDocuments) {
+      this.pendingDocuments.update((current) =>
+        current.map((document) =>
+          document.id === pending.id
+            ? { ...document, status: 'uploading' as const, error: null }
+            : document,
+        ),
+      );
+      let error: Error | null;
+      try {
+        ({ error } = await this.documentService.upload(
+          purchaseId,
+          pending.file,
+          pending.documentType,
+        ));
+      } catch (cause: unknown) {
+        error = this.alsError(cause);
+      }
+      if (error) failed.push({ ...pending, status: 'error', error: error.message });
+    }
+
+    this.pendingDocuments.set(failed);
+    if (failed.length === 0) return true;
+
+    this.errorMessage.set(
+      `Der Einkauf wurde gespeichert. ${failed.length === 1 ? 'Ein Beleg konnte' : `${failed.length} Belege konnten`} nicht hochgeladen werden.`,
+    );
+    this.toast.warning(
+      'Einkauf gespeichert, Beleg-Upload unvollständig.',
+      'Versuche die fehlgeschlagenen Belege erneut oder entferne sie.',
+    );
+    return false;
   }
 
   private async finalizePersistedDraft(purchase: Purchase): Promise<void> {
@@ -631,10 +683,24 @@ export class PurchaseEntryFormComponent {
       return;
     }
 
-    await this.purchaseService.refreshAfterFinalization(purchase.workspace_id, purchase.id);
+    if (!result.data) {
+      this.errorMessage.set('Die bestätigten Abschlussdaten fehlen. Bitte erneut versuchen.');
+      return;
+    }
+    const refreshError = await this.purchaseService.refreshAfterFinalization(
+      purchase.workspace_id,
+      purchase.id,
+      result.data,
+    );
     this.persistedDraft.set(null);
     this.completed?.set(true);
     this.toast.success('Erfassung wurde abgeschlossen.');
+    if (refreshError) {
+      this.toast.warning(
+        'Der Einkauf ist abgeschlossen, aber noch nicht vollständig neu geladen.',
+        'Bitte lade die Seite erneut.',
+      );
+    }
     this.created.emit();
     this.closed.emit();
   }
@@ -648,14 +714,17 @@ export class PurchaseEntryFormComponent {
     this.purchaseLines.set(persistedLines);
     this.updateAdditionalCostsValidity();
     this.updatePurchasePriceEditability();
-    if (this.form.controls.pricing_mode.value === 'total' || persistedLines.length === 0) return;
+    if (this.form.controls.pricing_mode.value === 'total') return;
 
-    if (persistedLines.some((line) => line.unitPurchasePrice === null || line.lineTotal === null)) {
-      this.form.controls.purchase_price.setValue(null);
-      return;
-    }
-    const lineTotal = persistedLines.reduce((total, line) => total + (line.lineTotal ?? 0), 0);
-    this.form.controls.purchase_price.setValue(Number(lineTotal.toFixed(2)));
+    const knownTotals = persistedLines
+      .map((line) => line.lineTotal)
+      .filter((value): value is number => value !== null);
+    const purchaseBasePrice =
+      knownTotals.length === persistedLines.length
+        ? Number(knownTotals.reduce((sum, value) => sum + value, 0).toFixed(2))
+        : null;
+    this.form.controls.purchase_price.setValue(purchaseBasePrice, { emitEvent: false });
+    this.purchaseBasePrice.set(purchaseBasePrice);
   }
 
   onCostsChanged(costs: readonly PurchaseCostDraft[]): void {

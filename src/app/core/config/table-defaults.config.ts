@@ -92,16 +92,17 @@ export const INVENTORY_TABLE_CONFIG: TableConfig<InventoryColumnId, InventorySor
 // ==========================================
 // 3. Artikelstamm (Catalog)
 // ==========================================
-export type CatalogColumnId = 'title' | 'ean' | 'available' | 'store';
+export type CatalogColumnId = 'title' | 'category' | 'brand' | 'ean' | 'available';
 
 export type CatalogSortField = 'title' | 'available';
 
 export const CATALOG_TABLE_CONFIG: TableConfig<CatalogColumnId, CatalogSortField> = {
   defaultColumns: [
     { id: 'title', label: 'Artikel', visible: true, order: 0, locked: true },
-    { id: 'ean', label: 'EAN', visible: true, order: 1 },
-    { id: 'available', label: 'Verfügbar', visible: true, order: 3 },
-    { id: 'store', label: 'Webshop', visible: true, order: 4 },
+    { id: 'category', label: 'Kategorie', visible: true, order: 1 },
+    { id: 'brand', label: 'Marke', visible: true, order: 2 },
+    { id: 'ean', label: 'EAN', visible: true, order: 3 },
+    { id: 'available', label: 'Verfügbar', visible: true, order: 4 },
   ],
   defaultSort: { field: 'title', direction: 'asc' },
   sortOptions: [
@@ -121,18 +122,18 @@ export type PurchasesSortField = 'purchase_date' | 'total_cost' | 'title';
 export const PURCHASES_TABLE_CONFIG: TableConfig<PurchasesColumnId, PurchasesSortField> = {
   defaultColumns: [
     { id: 'title', label: 'Einkauf', visible: true, order: 0, locked: true },
-    { id: 'seller', label: 'Verkäufer', visible: true, order: 1 },
-    { id: 'description', label: 'Bezeichnung', visible: true, order: 2 },
-    { id: 'purchase_date', label: 'Kaufdatum', visible: true, order: 3 },
-    { id: 'status', label: 'Status', visible: true, order: 4 },
-    { id: 'receipt', label: 'Erhalten', visible: true, order: 5 },
+    { id: 'purchase_date', label: 'Kaufdatum', visible: true, order: 1 },
+    { id: 'seller', label: 'Verkäufer', visible: true, order: 2 },
+    { id: 'status', label: 'Status', visible: true, order: 3 },
+    { id: 'receipt', label: 'Erhalten', visible: true, order: 4 },
+    { id: 'description', label: 'Beschreibung', visible: true, order: 5 },
     { id: 'total_cost', label: 'Gesamt', visible: true, order: 6 },
   ],
   defaultSort: { field: 'purchase_date', direction: 'desc' },
   sortOptions: [
     { value: 'purchase_date', label: 'Kaufdatum', kind: 'date' },
     { value: 'total_cost', label: 'Gesamt', kind: 'number' },
-    { value: 'title', label: 'Bezeichnung', kind: 'text' },
+    { value: 'title', label: 'Beschreibung', kind: 'text' },
   ],
 };
 

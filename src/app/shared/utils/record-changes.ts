@@ -13,6 +13,8 @@ export interface RecordChange {
 
 const FIELD_LABELS: Readonly<Record<string, string>> = {
   purchase_price: 'Einkaufspreis',
+  shipping_cost: 'Versandkosten',
+  other_costs: 'Sonstige Kosten',
   total_purchase_cost: 'Gesamte Einkaufskosten',
   allocated_total_cost: 'Zugeordnete Gesamtkosten',
   entry_status: 'Status',
@@ -46,7 +48,9 @@ const FIELD_LABELS: Readonly<Record<string, string>> = {
   supplier_id: 'Verkäufer',
   purchase_date: 'Einkaufsdatum',
   cost_allocation_mode: 'Kostenverteilung',
-  notes: 'Notizen',
+  notes: 'Beschreibung',
+  source_name: 'Bezugsquelle',
+  supplier_name: 'Verkäufer',
   tracking_number: 'Sendungsnummer',
   tracking_carrier: 'Versanddienstleister',
   tracking_status: 'Sendungsstatus',
@@ -73,6 +77,89 @@ const FIELD_LABELS: Readonly<Record<string, string>> = {
   direct_costs: 'Direkte Kosten',
   external_order_id: 'Bestellnummer',
 };
+
+const MONEY_KEYS: ReadonlySet<string> = new Set([
+  'purchase_price',
+  'shipping_cost',
+  'other_costs',
+  'total_purchase_cost',
+  'allocated_total_cost',
+  'refund_amount',
+  'unit_purchase_price',
+  'line_total',
+  'amount',
+  'discount_amount',
+  'allocated_additional_cost',
+  'estimated_market_value',
+]);
+
+const VALUE_LABELS: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+  receiving_status: {
+    draft: 'Entwurf',
+    ordered: 'Bestellt',
+    partially_received: 'Teillieferung',
+    received: 'Angekommen',
+    archived: 'Archiviert',
+    cancelled: 'Storniert',
+  },
+  shipment_status: {
+    not_shipped: 'Nicht versendet',
+    in_transit: 'Unterwegs',
+    arrived: 'Angekommen',
+  },
+  entry_status: {
+    draft: 'Entwurf',
+    capturing: 'In Erfassung',
+    finalized: 'Abgeschlossen',
+  },
+  tracking_status: {
+    pending: 'Noch nicht unterwegs',
+    in_transit: 'Unterwegs',
+    out_for_delivery: 'In Zustellung',
+    delivered: 'Zugestellt',
+    exception: 'Problem beim Versand',
+  },
+  content_status: { known: 'Bekannt', unknown: 'Unbekannt' },
+  pricing_mode: { individual: 'Einzelpreise', total: 'Gesamtpreis' },
+  price_mode: {
+    priced: 'Preis erfasst',
+    open: 'Preis offen',
+    unpriced_mystery: 'Preis wird verteilt',
+  },
+  condition_snapshot: {
+    new: 'Neu',
+    like_new: 'Wie neu',
+    very_good: 'Sehr gut',
+    used: 'Gebraucht',
+    heavily_used: 'Stark gebraucht',
+    defective: 'Defekt / Ersatzteil',
+  },
+  cost_allocation_mode: {
+    manual: 'Manuell',
+    even: 'Gleichmäßig',
+    value_weighted: 'Nach Artikelwert',
+  },
+  allocation_method: {
+    direct: 'Direkt zugeordnet',
+    quantity: 'Nach Stückzahl',
+    value_weighted: 'Nach Artikelwert',
+  },
+  tracking_carrier: {
+    dhl: 'DHL Paket',
+    dpd: 'DPD',
+    hermes: 'Hermes',
+    ups: 'UPS',
+    gls: 'GLS',
+    fedex: 'FedEx',
+    deutsche_post: 'Deutsche Post',
+    other: 'Anderer Dienstleister',
+  },
+};
+
+const CURRENCY_FORMATTER = new Intl.NumberFormat('de-DE', {
+  style: 'currency',
+  currency: 'EUR',
+});
 
 /** Einzahlform für Einträge einer Liste, damit „Position 2“ statt „Positionen · 2“ erscheint. */
 const LIST_ITEM_LABELS: Readonly<Record<string, string>> = {
@@ -137,8 +224,11 @@ export function formatRecordValue(value: unknown, key: string): string {
   if (isSensitiveKey(key)) return '[geschützt]';
   if (value === null || value === undefined) return '—';
   if (typeof value === 'boolean') return value ? 'Ja' : 'Nein';
-  if (typeof value === 'number') return new Intl.NumberFormat('de-DE').format(value);
-  if (typeof value === 'string') return formatIsoDate(value);
+  if (typeof value === 'number')
+    return MONEY_KEYS.has(key)
+      ? CURRENCY_FORMATTER.format(value)
+      : new Intl.NumberFormat('de-DE').format(value);
+  if (typeof value === 'string') return VALUE_LABELS[key]?.[value] ?? formatIsoDate(value);
   if (Array.isArray(value)) return `${value.length} Einträge`;
   return 'Mehrere Werte';
 }
@@ -198,6 +288,7 @@ export function mapRecordChanges(
   const compare = (before: unknown, after: unknown, path: readonly string[]): void => {
     if (equalValue(before, after) || (before == null && after == null)) return;
     const key = path.at(-1) ?? '';
+    if (path.length === 2 && path[0] === 'purchase' && key === 'title') return;
     if (hidden.has(key) || isTechnicalChange(key, before, after)) return;
     if (path.some(isSensitiveKey)) {
       result.push({ label: buildLabel(path), from: '[geschützt]', to: '[geschützt]' });

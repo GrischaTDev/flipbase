@@ -55,6 +55,41 @@ describe('PurchaseService', () => {
       });
     });
 
+    describe('PurchaseService – fehlgeschlagenes Neuladen', () => {
+      it('behält den letzten bestätigten Bestand desselben Workspaces sichtbar', async () => {
+        const purchasesRaw = signal<Purchase[]>([einkauf]);
+        const loadedWorkspaceId = signal<string | null>(einkauf.workspace_id);
+        let orderCalls = 0;
+        const query = {
+          select: () => query,
+          eq: () => query,
+          order: () => {
+            orderCalls += 1;
+            return orderCalls === 1
+              ? query
+              : Promise.resolve({ data: null, error: { message: 'offline' } });
+          },
+        };
+        const service = Object.create(PurchaseService.prototype) as PurchaseService;
+        Object.assign(service, {
+          loadRequestId: 0,
+          purchasesRaw,
+          loadedWorkspaceId,
+          isLoading: signal(false),
+          loadError: signal<Error | null>(null),
+          workspaceService: { currentWorkspace: signal({ id: einkauf.workspace_id }) },
+          syncStatus: new SyncStatusService(),
+          supabase: { client: { from: () => query } },
+        });
+
+        await service.loadPurchases(einkauf.workspace_id);
+
+        expect(purchasesRaw()).toEqual([einkauf]);
+        expect(loadedWorkspaceId()).toBe(einkauf.workspace_id);
+        expect(service.loadError()).toBeInstanceOf(Error);
+      });
+    });
+
     describe('PurchaseService – fehlgeschlagenes Bearbeiten', () => {
       it('behält das Signal bei einem Datenbankfehler unverändert', async () => {
         const purchasesRaw = signal<Purchase[]>([einkauf]);
@@ -1046,14 +1081,21 @@ describe('PurchaseService', () => {
             protokoll.push({ tabelle: funktion, aktion: 'rpc', werte: payload });
             const purchase = payload['p_purchase'] as Record<string, unknown>;
             const expenses = (payload['p_expenses'] as Record<string, unknown>[]) ?? [];
+            const purchaseId =
+              funktion === 'update_purchase_draft' ? String(payload['p_purchase_id']) : 'db-neu';
             return Promise.resolve({
               data: {
-                purchase: { ...purchase, id: 'db-neu', workspace_id: 'ws-1' },
+                purchase: {
+                  ...purchase,
+                  id: purchaseId,
+                  workspace_id: 'ws-1',
+                  total_purchase_cost: purchase['purchase_price'],
+                },
                 purchase_lines: [],
                 purchase_costs: expenses.map((expense, index) => ({
                   ...expense,
                   id: `db-kosten-${index + 1}`,
-                  purchase_id: 'db-neu',
+                  purchase_id: purchaseId,
                 })),
               },
               error: null,
@@ -1123,6 +1165,38 @@ describe('PurchaseService', () => {
       }
 
       describe('Beim Bearbeiten', () => {
+        it('ersetzt einen gespeicherten Entwurf sofort mit den bestätigten Kosten in der Liste', async () => {
+          const existing: Purchase = {
+            ...einkauf,
+            record_number: '2026-123',
+            supplier: { id: 'supplier-1', workspace_id: 'ws-1', name: 'Händler' },
+            total_purchase_cost: 230,
+          };
+          const { dienst, purchasesRaw, selectedPurchaseRaw } = dienstMit([existing]);
+          Object.assign(dienst, {
+            workspaceService: { currentWorkspace: () => ({ id: 'ws-1' }) },
+            persistPurchaseLineEans: vi.fn(async () => null),
+            purchaseLinesRaw: signal<PurchaseLine[]>([]),
+          });
+
+          const result = await dienst.updatePurchaseDraft(existing.id, {
+            type: 'lot',
+            title: '',
+            purchase_date: '2026-08-10',
+            purchase_price: 250,
+            notes: null,
+            purchase_lines: [],
+          });
+
+          expect(result.error).toBeNull();
+          expect(purchasesRaw()[0]).toMatchObject({
+            id: existing.id,
+            record_number: '2026-123',
+            total_purchase_cost: 250,
+          });
+          expect(selectedPurchaseRaw()?.total_purchase_cost).toBe(250);
+        });
+
         it('haengt eine neu gebuchte Kostenposition an die bestehende Liste an', async () => {
           // Der Detaildialog zeigt seine Zeilen aus `selectedPurchase.costs`.
           // Nur die Gesamtsumme zu aktualisieren laesst dort weiterhin allein

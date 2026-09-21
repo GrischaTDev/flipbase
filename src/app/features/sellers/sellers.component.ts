@@ -76,6 +76,31 @@ export class SellersComponent {
     this.dialogOpen.set(true);
   }
 
+  openSellerFromRow(event: MouseEvent, seller: Supplier): void {
+    const target = event.target;
+    if (target instanceof Element && target.closest('button, a, input, select, textarea')) return;
+    if (window.getSelection()?.toString()) return;
+    this.openEditDialog(seller);
+  }
+
+  openSellerFromKeyboard(event: KeyboardEvent, seller: Supplier): void {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    const target = event.target;
+    if (target instanceof Element && target.closest('button, a, input, select, textarea')) return;
+    event.preventDefault();
+    this.openEditDialog(seller);
+  }
+
+  editSellerFromAction(event: MouseEvent, seller: Supplier): void {
+    event.stopPropagation();
+    this.openEditDialog(seller);
+  }
+
+  archiveSellerFromAction(event: MouseEvent, seller: Supplier): void {
+    event.stopPropagation();
+    void this.setArchived(seller, seller.is_active !== false);
+  }
+
   closeDialog(): void {
     this.dialogOpen.set(false);
     this.selectedSeller.set(null);

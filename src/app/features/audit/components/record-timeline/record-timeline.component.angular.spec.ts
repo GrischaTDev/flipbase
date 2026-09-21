@@ -181,7 +181,7 @@ describe('RecordTimelineComponent', () => {
     const details = element.querySelector('dl');
     expect(details?.id).toBe('timeline-details-event');
     expect(details?.textContent).toContain('Einkaufspreis');
-    expect(details?.textContent?.replace(/\s+/gu, ' ')).toContain('10 → wird zu 12');
+    expect(details?.textContent?.replace(/\s+/gu, ' ')).toContain('10,00 € → wird zu 12,00 €');
   });
 
   it('kürzt Tagesüberschriften auf Tag und Monat und nennt das Jahr nur bei Bedarf', () => {

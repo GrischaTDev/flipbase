@@ -6369,19 +6369,33 @@ as $$
   )
   select pg_catalog.jsonb_build_object(
     'purchase', (
-      select pg_catalog.jsonb_object_agg(field.key, field.value)
-      from public.purchases as purchase,
-        lateral pg_catalog.jsonb_each(pg_catalog.to_jsonb(purchase)) as field
+      select coalesce((
+        select pg_catalog.jsonb_object_agg(field.key, field.value)
+        from pg_catalog.jsonb_each(pg_catalog.to_jsonb(purchase)) as field
+        where field.key = any(array[
+            'source_id', 'supplier_id', 'type', 'title', 'purchase_date',
+            'purchase_price', 'cost_allocation_mode', 'notes', 'tracking_number',
+            'tracking_carrier', 'tracking_status', 'content_status',
+            'pricing_mode', 'supplier_reference', 'discount_amount', 'seller_type',
+            'seller_name', 'seller_street',
+            'seller_address_extra', 'seller_postal_code', 'seller_city',
+            'seller_country_code'
+          ])
+      ), '{}'::jsonb) || pg_catalog.jsonb_build_object(
+        'source_name', (
+          select source.name
+          from public.sources as source
+          where source.workspace_id = purchase.workspace_id and source.id = purchase.source_id
+        ),
+        'supplier_name', (
+          select supplier.name
+          from public.suppliers as supplier
+          where supplier.workspace_id = purchase.workspace_id
+            and supplier.id = purchase.supplier_id
+        )
+      )
+      from public.purchases as purchase
       where purchase.workspace_id = p_workspace_id and purchase.id = p_purchase_id
-        and field.key = any(array[
-          'source_id', 'supplier_id', 'type', 'title', 'purchase_date',
-          'purchase_price', 'cost_allocation_mode', 'notes', 'tracking_number',
-          'tracking_carrier', 'tracking_status', 'content_status',
-          'pricing_mode', 'supplier_reference', 'discount_amount', 'seller_type',
-          'seller_name', 'seller_street',
-          'seller_address_extra', 'seller_postal_code', 'seller_city',
-          'seller_country_code'
-        ])
     ),
     'lines', coalesce((select pg_catalog.jsonb_agg(value order by value) from lines), '[]'::jsonb),
     'costs', coalesce((select pg_catalog.jsonb_agg(value order by value) from costs), '[]'::jsonb)

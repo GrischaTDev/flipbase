@@ -136,21 +136,30 @@ select throws_ok(
   'Belegmetadaten sind unveränderlich'
 );
 
--- Löschen: vor dem Abschluss erlaubt, danach nicht mehr.
+-- Löschen: als Korrektur auch nach dem Abschluss erlaubt.
 delete from public.purchase_documents where id = 'e1700000-0000-4000-8000-000000000022';
 delete from public.purchase_documents where id = 'e1700000-0000-4000-8000-000000000021';
 reset role;
 
 select is(
-  (select array_agg(id::text order by id::text) from public.purchase_documents),
-  array['e1700000-0000-4000-8000-000000000022'],
-  'nur der Beleg des offenen Einkaufs wurde entfernt'
+  (select count(*) from public.purchase_documents),
+  0::bigint,
+  'Belege offener und abgeschlossener Einkäufe wurden entfernt'
 );
 
 select is(
   (select count(*) from public.business_events where event_type = 'purchase_document_removed'),
-  1::bigint,
-  'das Entfernen steht als eigenes Ereignis in der Historie'
+  2::bigint,
+  'jedes Entfernen steht als eigenes Ereignis in der Historie'
+);
+
+select is(
+  (select array[event.event_type, event.changes ->> 'document_type', event.changes ->> 'original_file_name']
+   from public.business_events as event
+   where event.entity_id = (select id from document_test_results where name = 'finalized')
+     and event.event_type = 'purchase_document_removed'),
+  array['purchase_document_removed', 'payment_proof', 'Zahlung.png'],
+  'das Entfernen nach Abschluss protokolliert Belegart und Dateiname'
 );
 
 -- Fremder Workspace sieht und schreibt nichts.

@@ -365,6 +365,15 @@ describe('PurchaseLineEditorComponent', () => {
     expect(quantity).not.toBeNull();
     expect(price).not.toBeNull();
     if (!quantity || !price) throw new Error('Zahlenfelder fehlen');
+    expect(price.placeholder).toBe('');
+    expect(host.textContent).toContain('0,00');
+    expect(host.textContent).not.toContain('Offen');
+    const productName = host.querySelector<HTMLElement>('span.text-left');
+    expect(productName?.classList).toContain('w-full');
+    expect(productName?.classList).toContain('text-left');
+    const addProducts = host.querySelector<HTMLElement>('[data-add-products]');
+    expect(addProducts?.classList).toContain('w-full');
+    expect(addProducts?.querySelector('button')?.classList).toContain('w-full');
     quantity.value = '3';
     quantity.dispatchEvent(new Event('input', { bubbles: true }));
     price.value = '12';

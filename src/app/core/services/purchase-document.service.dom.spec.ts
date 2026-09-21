@@ -179,7 +179,7 @@ describe('PurchaseDocumentService.upload', () => {
 });
 
 describe('PurchaseDocumentService.remove', () => {
-  it('entfernt erst den Eintrag und danach die Datei', async () => {
+  it('entfernt erst die Datei und danach den Eintrag', async () => {
     const { service, removeFile, deleteRow } = createService();
     await service.upload(purchaseId, file(), 'invoice');
 
@@ -191,7 +191,19 @@ describe('PurchaseDocumentService.remove', () => {
     expect(service.documents()).toEqual([]);
   });
 
-  it('erklärt einen abgeschlossenen Einkauf, wenn kein Eintrag entfernt wurde', async () => {
+  it('behält Eintrag und Anzeige bei, wenn die Datei nicht entfernt werden kann', async () => {
+    const removeFile = vi.fn(async () => ({ error: { message: 'storage unavailable' } }));
+    const { service, deleteRow } = createService({ removeFile });
+    await service.upload(purchaseId, file(), 'invoice');
+
+    const result = await service.remove(storedDocument);
+
+    expect(result.error).not.toBeNull();
+    expect(deleteRow).not.toHaveBeenCalled();
+    expect(service.documents()).toEqual([storedDocument]);
+  });
+
+  it('meldet einen nicht sichtbaren oder bereits entfernten Beleg verständlich', async () => {
     const deleteRow = vi.fn(() => ({
       eq: () => ({ select: async () => ({ data: [], error: null }) }),
     }));
@@ -199,7 +211,7 @@ describe('PurchaseDocumentService.remove', () => {
 
     const result = await service.remove(storedDocument);
 
-    expect(result.error?.message).toContain('abgeschlossen');
+    expect(result.error?.message).toContain('nicht gefunden oder darf nicht entfernt werden');
     expect(removeFile).not.toHaveBeenCalled();
   });
 });

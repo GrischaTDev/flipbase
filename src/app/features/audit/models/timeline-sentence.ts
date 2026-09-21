@@ -43,6 +43,28 @@ const REDUNDANT_FIELDS: Readonly<Record<string, readonly string[]>> = {
 
 const SYSTEM_SUBJECT = 'Das System';
 
+const DOCUMENT_TYPE_LABELS: Readonly<Record<string, string>> = {
+  invoice: 'Rechnung',
+  purchase_proof: 'Kaufnachweis',
+  payment_proof: 'Zahlungsnachweis',
+  other: 'Sonstiges',
+};
+
+function purchaseDocumentChange(event: BusinessEvent): readonly RecordChange[] {
+  const changes = event.changes;
+  if (!changes || typeof changes !== 'object' || Array.isArray(changes)) return [];
+  const fileName = changes['original_file_name'];
+  const documentType = changes['document_type'];
+  if (typeof fileName !== 'string' || !fileName.trim()) return [];
+
+  const typeLabel =
+    typeof documentType === 'string' ? (DOCUMENT_TYPE_LABELS[documentType] ?? 'Beleg') : 'Beleg';
+  const value = `${fileName} · ${typeLabel}`;
+  return event.eventType === 'purchase_document_added'
+    ? [{ label: 'Beleg hinzugefügt', from: null, to: value }]
+    : [{ label: 'Beleg entfernt', from: value, to: null }];
+}
+
 export function timelineSentence(
   event: BusinessEvent,
   actorName: string,
@@ -61,6 +83,12 @@ export function timelineSentence(
 }
 
 export function timelineChanges(event: BusinessEvent): readonly RecordChange[] {
+  if (
+    event.eventType === 'purchase_document_added' ||
+    event.eventType === 'purchase_document_removed'
+  ) {
+    return purchaseDocumentChange(event);
+  }
   if (event.eventType === 'purchase_package_contents_captured') {
     const changes = event.changes;
     const items =

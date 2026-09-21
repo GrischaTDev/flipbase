@@ -1,9 +1,9 @@
-export type DuplicateApplicationDisposition = 'rejected' | 'already_confirmed' | 'retry_receipt';
+export type DuplicateApplicationDisposition = 'existing';
 
 export function classifyDuplicateApplication(input: {
   status: string;
   receiptEmailStatus: string;
 }): DuplicateApplicationDisposition {
-  if (input.status === 'rejected') return 'rejected';
-  return input.receiptEmailStatus === 'sent' ? 'already_confirmed' : 'retry_receipt';
+  void input;
+  return 'existing';
 }

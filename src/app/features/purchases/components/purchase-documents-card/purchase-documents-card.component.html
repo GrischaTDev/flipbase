@@ -13,6 +13,7 @@
       type="file"
       class="sr-only"
       data-document-input
+      multiple
       accept="application/pdf,image/jpeg,image/png,application/xml,text/xml"
       [disabled]="isUploading()"
       (change)="onFileSelected($event)"
@@ -29,12 +30,17 @@
   </div>
 
   <div class="space-y-3">
-    @if (!canRemove()) {
-      <p class="text-[13px] text-fb-text-muted">
-        Der Einkauf ist abgeschlossen. Belege lassen sich weiter hinzufügen, aber nicht mehr
-        entfernen.
-      </p>
-    }
+    <button
+      type="button"
+      data-document-drop-zone
+      class="w-full cursor-pointer rounded-lg border border-dashed border-fb-border bg-fb-subtle px-4 py-5 text-center text-[13px] text-fb-text-muted transition hover:border-fb-primary hover:bg-fb-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary"
+      [disabled]="isUploading()"
+      (click)="fileInput.click()"
+      (dragover)="onDragOver($event)"
+      (drop)="onDrop($event)"
+    >
+      Datei hier ablegen oder auswählen
+    </button>
 
     @if (errorMessage()) {
       <p role="alert" data-document-error class="text-[13px] text-fb-text-primary">
@@ -45,9 +51,44 @@
       <p role="alert" class="text-[13px] text-fb-text-primary">{{ loadError() }}</p>
     }
 
-    @if (isLoading()) {
+    @if (pendingDocuments().length > 0) {
+      <ul data-pending-documents class="divide-y divide-fb-line rounded-lg border border-fb-border">
+        @for (pending of pendingDocuments(); track pending.id) {
+          <li class="flex items-center justify-between gap-3 px-3 py-2 text-[13px]">
+            <div class="min-w-0">
+              <p class="truncate font-semibold text-fb-text-primary">{{ pending.file.name }}</p>
+              <p class="text-xs text-fb-text-muted">
+                {{ documentTypeLabels[pending.documentType] }}
+                @if (pending.status === 'uploading') {
+                  · Wird hochgeladen …
+                } @else if (pending.status === 'error') {
+                  · Upload fehlgeschlagen
+                } @else {
+                  · Wird beim Speichern hochgeladen
+                }
+              </p>
+              @if (pending.error) {
+                <p role="alert" class="mt-1 text-xs text-fb-text-primary">{{ pending.error }}</p>
+              }
+            </div>
+            <div class="flex shrink-0 gap-2">
+              @if (pending.status === 'error' && purchase()) {
+                <app-button size="slim" variant="plain" (clicked)="retryPendingDocument(pending)">
+                  Erneut versuchen
+                </app-button>
+              }
+              <app-button size="slim" variant="plain" (clicked)="removePendingDocument(pending.id)">
+                Entfernen
+              </app-button>
+            </div>
+          </li>
+        }
+      </ul>
+    }
+
+    @if (purchase() && isLoading()) {
       <p role="status" class="text-[13px] text-fb-text-muted">Belege werden geladen …</p>
-    } @else if (rows().length === 0) {
+    } @else if (rows().length === 0 && pendingDocuments().length === 0) {
       <p data-document-empty class="text-[13px] text-fb-text-muted">
         Noch kein Beleg hinterlegt. Erlaubt sind PDF, JPG, PNG und XML bis 20 MiB.
       </p>
@@ -76,16 +117,14 @@
               >
                 Ansehen
               </app-button>
-              @if (canRemove()) {
-                <app-button
-                  data-remove-document
-                  variant="plain"
-                  size="slim"
-                  (clicked)="removeDocument(row.document)"
-                >
-                  Entfernen
-                </app-button>
-              }
+              <app-button
+                data-remove-document
+                variant="plain"
+                size="slim"
+                (clicked)="removeDocument(row.document)"
+              >
+                Entfernen
+              </app-button>
             </div>
           </li>
         }

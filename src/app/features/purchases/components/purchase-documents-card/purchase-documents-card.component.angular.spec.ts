@@ -6,6 +6,7 @@ import { Purchase } from '../../../../core/models/flipbase.models';
 import { PurchaseDocument } from '../../../../core/models/purchase-document.models';
 import { PurchaseDocumentService } from '../../../../core/services/purchase-document.service';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
+import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
 import {
   formatFileSize,
   PurchaseDocumentsCardComponent,
@@ -43,8 +44,9 @@ const upload = vi.fn(async (): Promise<{ data: PurchaseDocument | null; error: E
 }));
 const remove = vi.fn(async () => ({ error: null as Error | null }));
 const toastSuccess = vi.fn();
+const confirmRemoval = vi.fn(async () => true);
 
-function createCard(purchase = openPurchase) {
+function createCard(purchase: Purchase | null = openPurchase) {
   const component = TestBed.runInInjectionContext(() => new PurchaseDocumentsCardComponent());
   Object.defineProperty(component, 'purchase', { value: () => purchase });
   return component;
@@ -56,6 +58,7 @@ beforeEach(() => {
   upload.mockClear().mockResolvedValue({ data: document, error: null });
   remove.mockClear().mockResolvedValue({ error: null });
   toastSuccess.mockClear();
+  confirmRemoval.mockClear().mockResolvedValue(true);
   TestBed.resetTestingModule();
   TestBed.configureTestingModule({
     providers: [
@@ -71,6 +74,7 @@ beforeEach(() => {
         },
       },
       { provide: ToastService, useValue: { success: toastSuccess } },
+      { provide: ConfirmDialogService, useValue: { frage: confirmRemoval } },
     ],
   });
 });
@@ -94,6 +98,35 @@ describe('formatFileSize', () => {
 });
 
 describe('PurchaseDocumentsCardComponent', () => {
+  it('merkt eine abgelegte Datei ohne Einkaufs-ID lokal vor', () => {
+    const card = createCard(null);
+    const file = new File(['pdf'], 'rechnung.pdf', { type: 'application/pdf' });
+    const preventDefault = vi.fn();
+
+    (
+      card as unknown as {
+        onDrop: (event: { preventDefault: () => void; dataTransfer: { files: File[] } }) => void;
+      }
+    ).onDrop({ preventDefault, dataTransfer: { files: [file] } });
+
+    expect(preventDefault).toHaveBeenCalledOnce();
+    expect(
+      (
+        card as unknown as {
+          pendingDocuments: () => readonly unknown[];
+        }
+      ).pendingDocuments(),
+    ).toEqual([
+      expect.objectContaining({
+        file,
+        documentType: 'invoice',
+        status: 'pending',
+        error: null,
+      }),
+    ]);
+    expect(upload).not.toHaveBeenCalled();
+  });
+
   it('zeigt Belegart, Größe und Datum je Beleg', () => {
     const card = createCard();
 
@@ -110,7 +143,9 @@ describe('PurchaseDocumentsCardComponent', () => {
     const card = createCard();
     card.documentTypeControl.setValue('invoice');
 
-    await card.onFileSelected(fileEvent({ name: 'Rechnung.pdf' } as File));
+    await card.onFileSelected(
+      fileEvent(new File(['pdf'], 'Rechnung.pdf', { type: 'application/pdf' })),
+    );
 
     expect(upload).toHaveBeenCalledWith('purchase-1', expect.anything(), 'invoice');
     expect(toastSuccess).toHaveBeenCalledOnce();
@@ -122,15 +157,23 @@ describe('PurchaseDocumentsCardComponent', () => {
     upload.mockResolvedValue({ data: null, error: new Error('Zu groß: 25 MiB.') });
     const card = createCard();
 
-    await card.onFileSelected(fileEvent({ name: 'gross.pdf' } as File));
+    await card.onFileSelected(
+      fileEvent(new File(['pdf'], 'gross.pdf', { type: 'application/pdf' })),
+    );
 
     expect(card.errorMessage()).toBe('Zu groß: 25 MiB.');
     expect(toastSuccess).not.toHaveBeenCalled();
   });
 
-  it('erlaubt das Entfernen nur bei einem offenen Einkauf', () => {
-    expect(createCard().canRemove()).toBe(true);
-    expect(createCard({ ...openPurchase, entry_status: 'finalized' }).canRemove()).toBe(false);
+  it('bietet Entfernen auch bei einem abgeschlossenen Einkauf nach Bestätigung an', async () => {
+    const card = createCard({ ...openPurchase, entry_status: 'finalized' });
+
+    await card.removeDocument(document);
+
+    expect(confirmRemoval).toHaveBeenCalledWith(
+      expect.objectContaining({ titel: 'Beleg entfernen?', gefahr: true }),
+    );
+    expect(remove).toHaveBeenCalledWith(document);
   });
 
   it('erklärt einen fehlgeschlagenen Entfernen-Versuch', async () => {

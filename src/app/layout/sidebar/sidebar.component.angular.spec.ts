@@ -129,6 +129,14 @@ describe('SidebarComponent', () => {
     expect(brandLink?.textContent).toContain('Flipbase');
   });
 
+  it('richtet die untere Trennlinie auf einer festen Kopfhoehe aus', async () => {
+    const { element } = await renderAt('/dashboard');
+    const brandHeader = element.querySelector('aside > div');
+
+    expect(brandHeader?.classList).toContain('h-14');
+    expect(brandHeader?.classList).not.toContain('h-12');
+  });
+
   it('klappt die Unterpunkte ausserhalb der Administration zu', async () => {
     const { adminLink, subLinks } = await renderAt('/dashboard');
 

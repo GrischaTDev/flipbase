@@ -183,6 +183,19 @@ async function settle(fixture: ComponentFixture<ProductDialogComponent>): Promis
 }
 
 describe('ProductDialogComponent picker integration', () => {
+  it('bezeichnet die freie Zustandsangabe schlicht als Notiz', async () => {
+    const template = await readFile(
+      resolve(
+        process.cwd(),
+        'src/app/features/catalog/components/product-dialog/product-dialog.component.html',
+      ),
+      'utf8',
+    );
+
+    expect(template).toContain('label="Notiz"');
+    expect(template).not.toContain('Mängelnotiz');
+  });
+
   it('bindet Testauswahlen an die ID-Controls und leert beide Picker als null', async () => {
     const fixture = TestBed.createComponent(ProductDialogComponent);
     await settle(fixture);

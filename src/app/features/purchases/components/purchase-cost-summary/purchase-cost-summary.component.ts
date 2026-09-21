@@ -60,7 +60,7 @@ export class PurchaseCostSummaryComponent {
     }
     if (this.legacyOtherCostsAmount() > 0) {
       rows.push({
-        label: 'Weitere Kosten',
+        label: 'Sonstiges',
         detail: 'Noch prüfen',
         amount: this.legacyOtherCostsAmount(),
         subtract: false,

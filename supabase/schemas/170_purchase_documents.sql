@@ -93,8 +93,9 @@ create policy "Belege anlegen" on public.purchase_documents
     )
   );
 
--- Nach dem Abschluss bleibt der Beleg erhalten; ergänzen ist weiterhin erlaubt.
-create policy "Belege offener Einkaeufe loeschen" on public.purchase_documents
+-- Falsch zugeordnete Belege dürfen auch nach dem Abschluss korrigiert werden;
+-- der bestehende Delete-Trigger hält den Vorgang in der Chronik fest.
+create policy "Belege entfernen" on public.purchase_documents
   for delete to authenticated
   using (
     (select public.is_workspace_member(workspace_id))
@@ -103,7 +104,6 @@ create policy "Belege offener Einkaeufe loeschen" on public.purchase_documents
       from public.purchases as purchase
       where purchase.workspace_id = purchase_documents.workspace_id
         and purchase.id = purchase_documents.purchase_id
-        and purchase.entry_status <> 'finalized'
     )
   );
 
@@ -137,7 +137,7 @@ create policy "Belege hochladen" on storage.objects
     )
   );
 
-create policy "Belege offener Einkaeufe entfernen" on storage.objects
+create policy "Belegdateien entfernen" on storage.objects
   for delete to authenticated
   using (
     bucket_id = 'purchase-documents'
@@ -147,7 +147,6 @@ create policy "Belege offener Einkaeufe entfernen" on storage.objects
       where purchase.workspace_id::text = (storage.foldername(name))[2]
         and purchase.id::text = (storage.foldername(name))[3]
         and public.is_purchase_document_path(name, purchase.workspace_id, purchase.id)
-        and purchase.entry_status <> 'finalized'
         and (select public.is_workspace_member(purchase.workspace_id))
     )
   );

@@ -1,56 +1,16 @@
 @if (rows().length > 0) {
   <div data-purchase-detail-table class="overflow-x-auto">
-    <table
-      data-shared-ui-exception="static-table"
-      [style.min-width.px]="260 + (visibleColumns().length - 1) * 105"
-      class="linear-table"
-    >
+    <table data-shared-ui-exception="static-table" class="linear-table min-w-[640px]">
       <caption class="sr-only">
         Artikel dieses Einkaufs
       </caption>
       <thead class="bg-fb-surface text-[13px] font-semibold text-fb-text-secondary">
         <tr>
           <th scope="col" class="border-b border-fb-border p-3">Artikel</th>
-          @if (visibleColumns().includes('quantity')) {
-            <th scope="col" class="border-b border-fb-border p-3 text-right">Menge</th>
-          }
-          @if (isMystery()) {
-            @if (visibleColumns().includes('condition')) {
-              <th scope="col" class="border-b border-fb-border p-3">Zustand</th>
-            }
-            @if (visibleColumns().includes('estimated')) {
-              <th scope="col" class="border-b border-fb-border p-3 text-right">
-                Geschätzter Marktwert
-              </th>
-            }
-            @if (visibleColumns().includes('allocated')) {
-              <th scope="col" class="border-b border-fb-border p-3 text-right">
-                Kostenanteil pro Stück
-              </th>
-            }
-          } @else {
-            @if (visibleColumns().includes('unit_price')) {
-              <th scope="col" class="border-b border-fb-border p-3 text-right">
-                Einkaufspreis pro Stück
-              </th>
-            }
-            @if (visibleColumns().includes('additional')) {
-              <th scope="col" class="border-b border-fb-border p-3 text-right">
-                Zusätzlicher Kostenanteil
-              </th>
-            }
-            @if (visibleColumns().includes('total_cost')) {
-              <th scope="col" class="border-b border-fb-border p-3 text-right">
-                Gesamtkosten pro Stück
-              </th>
-            }
-          }
-          @if (visibleColumns().includes('available')) {
-            <th scope="col" class="border-b border-fb-border p-3 text-right">Verfügbar</th>
-          }
-          @if (visibleColumns().includes('sold')) {
-            <th scope="col" class="border-b border-fb-border p-3 text-right">Verkauft</th>
-          }
+          <th scope="col" class="border-b border-fb-border p-3 text-right">Bestellt</th>
+          <th scope="col" class="border-b border-fb-border p-3 text-right">Erhalten</th>
+          <th scope="col" class="border-b border-fb-border p-3 text-right">Stückpreis</th>
+          <th scope="col" class="border-b border-fb-border p-3 text-right">Gesamt</th>
         </tr>
       </thead>
       <tbody class="divide-y divide-fb-border">
@@ -75,58 +35,6 @@
                   </div>
                 }
 
-                @if (row.salesState === 'error') {
-                  <p class="text-[11px] font-normal text-rose-300">
-                    Verkaufsdaten konnten nicht geladen werden
-                  </p>
-                } @else if (row.salesState === 'loading') {
-                  <p class="text-[11px] font-normal text-fb-text-muted">
-                    Verkaufsdaten werden geladen …
-                  </p>
-                } @else {
-                  @for (sale of row.recordedSales ?? []; track sale.id) {
-                    <div
-                      [attr.data-recorded-sale]="sale.status"
-                      class="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-normal"
-                    >
-                      @if (sale.status === 'returned') {
-                        <app-badge tone="caution">Retourniert</app-badge>
-                      } @else if (sale.status === 'voided') {
-                        <span
-                          class="rounded-full bg-slate-400/15 px-2 py-0.5 font-semibold text-slate-300"
-                        >
-                          Storniert
-                        </span>
-                      } @else {
-                        @if (sale.revenue !== null) {
-                          <span class="text-fb-text-muted">
-                            Verkaufserlös:
-                            {{ sale.revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-                          </span>
-                        }
-                        @if (sale.directResult !== null) {
-                          <span
-                            class="font-semibold"
-                            [class.text-emerald-400]="sale.directResult >= 0"
-                            [class.text-rose-400]="sale.directResult < 0"
-                          >
-                            Ergebnis:
-                            {{ sale.directResult | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-                          </span>
-                        }
-                      }
-                      <a
-                        data-purchase-sale-link
-                        [routerLink]="['/sales']"
-                        [queryParams]="{ saleId: sale.id }"
-                        class="cursor-pointer rounded text-indigo-300 transition hover:text-indigo-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
-                      >
-                        Zum Verkauf
-                      </a>
-                    </div>
-                  }
-                }
-
                 @if (row.captureRemaining > 0 && canCaptureIndividual()) {
                   <button
                     type="button"
@@ -139,68 +47,18 @@
                 }
               </div>
             </td>
-            @if (visibleColumns().includes('quantity')) {
-              <td class="p-3 text-right font-mono text-fb-text-primary">{{ row.quantity }}</td>
-            }
-            @if (row.kind === 'mystery') {
-              @if (visibleColumns().includes('condition')) {
-                <td class="p-3 text-fb-text-secondary">
-                  {{ row.condition | itemConditionLabel }}
-                </td>
-              }
-              @if (visibleColumns().includes('estimated')) {
-                <td class="p-3 text-right font-mono text-fb-text-secondary">
-                  @if (row.estimatedMarketValue === null) {
-                    Nicht angegeben
-                  } @else {
-                    {{ row.estimatedMarketValue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-                  }
-                </td>
-              }
-              @if (visibleColumns().includes('allocated')) {
-                <td class="p-3 text-right font-mono font-bold">
-                  <app-cost-state [state]="row.allocatedCostPerUnit" />
-                </td>
-              }
-            } @else {
-              @if (visibleColumns().includes('unit_price')) {
-                <td class="p-3 text-right font-mono font-bold">
-                  <app-cost-state [state]="row.unitPurchasePrice" />
-                </td>
-              }
-              @if (visibleColumns().includes('additional')) {
-                <td class="p-3 text-right font-mono font-bold">
-                  <app-cost-state [state]="row.additionalCostPerUnit" />
-                </td>
-              }
-              @if (visibleColumns().includes('total_cost')) {
-                <td class="p-3 text-right font-mono font-bold">
-                  <app-cost-state [state]="row.totalCostPerUnit" />
-                </td>
-              }
-            }
-            @if (visibleColumns().includes('available')) {
-              <td class="p-3 text-right font-mono font-bold text-fb-text-primary">
-                @if (row.quantityState === 'error') {
-                  Bestandsdaten konnten nicht geladen werden
-                } @else if (row.quantityState === 'loading') {
-                  Wird geladen …
-                } @else {
-                  {{ row.availableUnits }}
-                }
-              </td>
-            }
-            @if (visibleColumns().includes('sold')) {
-              <td class="p-3 text-right font-mono font-bold text-fb-text-primary">
-                @if (row.quantityState === 'error') {
-                  Bestandsdaten konnten nicht geladen werden
-                } @else if (row.quantityState === 'loading') {
-                  Wird geladen …
-                } @else {
-                  {{ row.soldUnits }}
-                }
-              </td>
-            }
+            <td class="p-3 text-right font-mono text-fb-text-primary">
+              {{ row.orderedQuantity }}
+            </td>
+            <td class="p-3 text-right font-mono text-fb-text-primary">
+              {{ row.receivedQuantity }}
+            </td>
+            <td class="p-3 text-right font-mono font-bold">
+              <app-cost-state [state]="row.unitPurchasePrice" />
+            </td>
+            <td class="p-3 text-right font-mono font-bold">
+              <app-cost-state [state]="row.lineTotal" />
+            </td>
           </tr>
         }
       </tbody>

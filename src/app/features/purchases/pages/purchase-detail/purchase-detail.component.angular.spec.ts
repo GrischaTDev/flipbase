@@ -9,6 +9,55 @@ import { ToastService } from '../../../../shared/components/toast/toast.service'
 import { PurchaseDetailComponent } from './purchase-detail.component';
 
 describe('PurchaseDetailComponent', () => {
+  it('zeigt Druckaktionen erst nach dem Entwurf und entfernt den Prüfbeleg', () => {
+    const template = readFileSync(
+      'src/app/features/purchases/pages/purchase-detail/purchase-detail.component.html',
+      'utf8',
+    );
+
+    expect(template).toContain("@if (p.receiving_status !== 'draft')");
+    expect(template).toContain('data-purchase-print-link');
+    expect(template).not.toContain('data-purchase-audit-print-link');
+    expect(template).not.toContain('Prüfbeleg');
+  });
+
+  it('zeigt offene Einkaufspreise als Hinweis zwischen Kopf und Inhalt', () => {
+    const template = readFileSync(
+      'src/app/features/purchases/pages/purchase-detail/purchase-detail.component.html',
+      'utf8',
+    );
+    const lifecycleEnd = template.indexOf('</app-purchase-lifecycle-actions>');
+    const notice = template.indexOf('data-open-purchase-prices');
+    const content = template.indexOf('@if (isEditing())');
+
+    expect(notice).toBeGreaterThan(lifecycleEnd);
+    expect(notice).toBeLessThan(content);
+    expect(template).toContain('Einkaufspreise offen');
+  });
+
+  it('verwendet in den Einkaufsartikeln keine persönliche Spaltenauswahl mehr', () => {
+    const template = readFileSync(
+      'src/app/features/purchases/pages/purchase-detail/purchase-detail.component.html',
+      'utf8',
+    );
+
+    expect(template).not.toContain('<app-table-column-picker');
+    expect(template).not.toContain('[visibleColumns]');
+  });
+
+  it('ordnet die Belege rechts direkt nach der Sendungsverfolgung ein', () => {
+    const template = readFileSync(
+      'src/app/features/purchases/pages/purchase-detail/purchase-detail.component.html',
+      'utf8',
+    );
+    const sidebar = template.indexOf('data-testid="purchase-entry-sidebar"');
+    const tracking = template.indexOf('[ngTemplateOutlet]="trackingCard"', sidebar);
+    const documents = template.indexOf('<app-purchase-documents-card', sidebar);
+
+    expect(tracking).toBeGreaterThan(sidebar);
+    expect(documents).toBeGreaterThan(tracking);
+  });
+
   it('zeigt Verkäuferangaben, Beschreibung und Nachtrag ohne entfernte Einkaufsfelder', () => {
     const template = readFileSync(
       'src/app/features/purchases/pages/purchase-detail/purchase-detail.component.html',

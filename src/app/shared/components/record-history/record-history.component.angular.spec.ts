@@ -53,7 +53,7 @@ describe('RecordHistoryComponent', () => {
       }),
     ).toEqual([
       { label: 'Position 1 · Menge', before: '2', after: '3' },
-      { label: 'Position 1 · Stückpreis', before: '10', after: '12' },
+      { label: 'Position 1 · Stückpreis', before: '10,00 €', after: '12,00 €' },
       { label: 'Kostenposition 1 hinzugefügt', before: '—', after: 'Versand' },
     ]);
   });
@@ -66,7 +66,6 @@ describe('RecordHistoryComponent', () => {
         authorization: { before: { value: 'secret-old' }, after: { value: 'secret-new' } },
       }),
     ).toEqual([
-      { label: 'Bezeichnung', before: '—', after: 'Neuer Einkauf' },
       { label: 'Position 1 entfernt', before: 'Entfernte Position', after: '—' },
       { label: 'Authorization', before: '[geschützt]', after: '[geschützt]' },
     ]);
@@ -89,7 +88,7 @@ describe('RecordHistoryComponent', () => {
       // B bleibt unverändert und fällt heraus. A wird an seiner Beschreibung
       // wiedererkannt, deshalb steht dort eine Betragsänderung statt einer
       // erfundenen Löschung samt Neuanlage.
-    ).toEqual([{ label: 'Kostenposition 2 · Betrag', before: '1', after: '3' }]);
+    ).toEqual([{ label: 'Kostenposition 2 · Betrag', before: '1,00 €', after: '3,00 €' }]);
   });
 
   it('zeigt bei eingefügten Positionen keine Änderung der nachfolgenden Positionen', () => {

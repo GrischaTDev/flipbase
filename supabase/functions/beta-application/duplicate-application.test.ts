@@ -6,20 +6,10 @@ function assertEquals(actual: unknown, expected: unknown): void {
   }
 }
 
-Deno.test('weist eine erneut eingereichte abgelehnte Bewerbung aus', () => {
-  assertEquals(
-    classifyDuplicateApplication({ status: 'rejected', receiptEmailStatus: 'sent' }),
-    'rejected',
-  );
-});
-
-Deno.test('unterscheidet bestaetigte und erneut zu versendende Bewerbungen', () => {
-  assertEquals(
-    classifyDuplicateApplication({ status: 'open', receiptEmailStatus: 'sent' }),
-    'already_confirmed',
-  );
-  assertEquals(
-    classifyDuplicateApplication({ status: 'open', receiptEmailStatus: 'failed' }),
-    'retry_receipt',
-  );
+Deno.test('verraet bei vorhandenen Bewerbungen keinen Status', () => {
+  for (const status of ['open', 'accepted', 'rejected']) {
+    for (const receiptEmailStatus of ['pending', 'sent', 'failed']) {
+      assertEquals(classifyDuplicateApplication({ status, receiptEmailStatus }), 'existing');
+    }
+  }
 });

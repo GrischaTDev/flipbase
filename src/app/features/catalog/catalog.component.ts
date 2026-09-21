@@ -121,7 +121,7 @@ export class CatalogComponent {
     const products = !query
       ? [...this.overview()]
       : this.overview().filter((product) =>
-          [product.title, product.ean, product.brand, product.model]
+          [product.title, product.ean, product.brand, product.model, product.category]
             .filter((value): value is string => Boolean(value))
             .some((value) => value.toLocaleLowerCase('de').includes(query)),
         );
