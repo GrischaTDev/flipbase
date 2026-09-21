@@ -1,4 +1,4 @@
-<app-modal-shell [title]="dialogTitle()" size="xl" (closed)="closed.emit()">
+<app-modal-shell [title]="dialogTitle()" size="xl" (closed)="closeIfNotSaving()">
   <form id="seller-form" data-seller-form class="space-y-4" [formGroup]="form" (ngSubmit)="save()">
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <div>
@@ -66,6 +66,11 @@
           [uiTranslations]="phoneTranslations"
         />
       </div>
+      @if (form.controls.phone.invalid && form.controls.phone.touched) {
+        <p id="seller-phone-error" class="text-sm text-fb-critical sm:col-span-2">
+          Bitte eine gültige Telefonnummer angeben.
+        </p>
+      }
       @if (form.controls.seller_type.value === 'business') {
         <app-text-field label="Website" type="url" formControlName="website" />
       }

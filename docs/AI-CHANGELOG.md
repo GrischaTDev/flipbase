@@ -1,5 +1,21 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-21 – Juna – Verkäuferdialog gegen Prüfhinweise abgesichert
+
+**Auftrag:** Zwei wichtige Review-Funde am Verkäuferdialog beheben: eine
+fehlende Telefonnummer-Fehlermeldung und das Schließen während des Speicherns.
+
+**Änderung:** Ein berührtes ungültiges Telefonfeld zeigt wieder die passende
+Meldung mit der ID `seller-phone-error`, auf die das Eingabefeld verweist. Das
+Schließen über Escape oder die Dialog-Kopfaktion wird während eines laufenden
+Speicherns lokal abgefangen; die gemeinsame Dialogkomponente bleibt unverändert.
+
+**Prüfung:** Beide neuen DOM- und Verhaltenstests waren zuerst rot und
+bestanden nach der Korrektur mit insgesamt 15 fokussierten Tests einschließlich
+AXE. ESLint für die betroffenen TS-Dateien und der Produktionsbau waren
+erfolgreich. Der Fixbericht ergänzt den bestehenden Taskbericht unter
+`.superpowers/sdd/2026-09-21-ui-regression-cleanup/task-4-report.md`.
+
 ## 2026-09-21 – Juna – Verkäuferdialog vereinheitlicht
 
 **Auftrag:** Den Verkäuferdialog über die gemeinsame breite Dialoghülle

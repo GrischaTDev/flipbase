@@ -132,6 +132,10 @@ export class PurchaseSellerDialogComponent {
     return this.saving();
   }
 
+  closeIfNotSaving(): void {
+    if (!this.saving()) this.closed.emit();
+  }
+
   saveDisabled(): boolean {
     return this.saving() || this.form.invalid || this.form.controls.name.value.trim().length === 0;
   }

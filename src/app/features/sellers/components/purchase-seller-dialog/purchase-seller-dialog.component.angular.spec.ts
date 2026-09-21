@@ -292,6 +292,36 @@ describe('PurchaseSellerDialogComponent', () => {
     expect(host.querySelector('#seller-email input')?.getAttribute('aria-invalid')).toBe('true');
   });
 
+  it('verknüpft einen berührten ungültigen Telefonfehler mit der Telefonnummer', () => {
+    const { fixture } = render();
+    const host = fixture.nativeElement as HTMLElement;
+
+    fixture.componentInstance.form.controls.phone.setErrors({ invalidPhone: true });
+    fixture.componentInstance.form.controls.phone.markAsTouched();
+    fixture.detectChanges();
+
+    const phoneError = host.querySelector('#seller-phone-error');
+    expect(phoneError).not.toBeNull();
+    expect(phoneError?.textContent).toContain('Bitte eine gültige Telefonnummer angeben.');
+    expect(host.querySelector('#seller-phone')?.getAttribute('aria-describedby')).toBe(
+      'seller-phone-error',
+    );
+  });
+
+  it('ignoriert das Schließen über die Dialoghülle während des Speicherns', () => {
+    const { fixture } = render();
+    const closed = vi.fn();
+    fixture.componentInstance.closed.subscribe(closed);
+    fixture.componentInstance.saving.set(true);
+    fixture.detectChanges();
+
+    (fixture.nativeElement as HTMLElement)
+      .querySelector<HTMLButtonElement>('app-modal-shell button[aria-label="Dialog schließen"]')
+      ?.click();
+
+    expect(closed).not.toHaveBeenCalled();
+  });
+
   it('speichert über ein echtes Formular', async () => {
     const { fixture, suppliersService } = render();
     fixture.componentInstance.form.controls.name.setValue('Ada Beispiel');
