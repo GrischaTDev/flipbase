@@ -1,5 +1,22 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-21 – Juna – Bezugsquellen-Parent-Integration gerendert geprüft
+
+**Auftrag:** Den Bezugsquellenfluss nicht nur über Quelltext und einen direkten
+Methodenaufruf absichern, sondern als gerenderte Parent-Interaktion testen.
+
+**Änderung:** Ein schmaler Test rendert die tatsächliche Einkaufserfassungs-
+Vorlage mit gezielten Form- und Dialog-Stubs. Er klickt „Bezugsquelle erstellen“
+prüft den gerenderten Dialog und löst dessen `created`-Ereignis aus. Dadurch ist
+belegt, dass die Template-Bindung die Quelle auswählt, das Formular als geändert
+markiert und den Dialog wieder schließt. Die für diesen Ablauf verwendeten
+Quelltext-Assertions und der direkte Übergabetest entfallen.
+
+**Prüfung:** Der neue DOM-Test war während des Stubaufbaus zunächst rot. Nach
+der vollständigen Input-/Output-Abbildung bestanden 48 fokussierte
+Angular-Tests sowie ESLint und Prettier. Der Fixabschnitt ist im Task-Bericht
+ergänzt.
+
 ## 2026-09-21 – Juna – Bezugsquelle im eigenen Dialog angelegt
 
 **Auftrag:** Die eingebettete Schnellerfassung einer Bezugsquelle aus dem

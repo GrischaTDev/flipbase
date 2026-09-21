@@ -1,7 +1,15 @@
 import '@angular/compiler';
-import { signal } from '@angular/core';
+import { Component, NO_ERRORS_SCHEMA, output, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { FormControl, FormGroup, Validators } from '@angular/forms';
+import {
+  ControlValueAccessor,
+  FormControl,
+  FormGroup,
+  NG_VALUE_ACCESSOR,
+  ReactiveFormsModule,
+  Validators,
+} from '@angular/forms';
+import { By } from '@angular/platform-browser';
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Purchase, PurchaseType, Source } from '../../../../core/models/flipbase.models';
@@ -12,9 +20,191 @@ import { InboundTrackingService } from '../../../../core/services/inbound-tracki
 import { PurchaseService } from '../../../../core/services/purchase.service';
 import { SourcesService } from '../../../../core/services/sources.service';
 import { SuppliersService } from '../../../../core/services/suppliers.service';
+import { PurchaseCostingService } from '../../../../core/services/purchase-costing.service';
+import { PurchaseDocumentService } from '../../../../core/services/purchase-document.service';
+import { WorkspaceContextLockService } from '../../../../core/services/workspace-context-lock.service';
 import { PurchaseCostDraft } from '../purchase-cost-editor/purchase-cost-editor.component';
 import { PurchaseCostOverviewValue } from '../purchase-cost-editor/purchase-cost-adjustments';
 import { PurchaseEntryFormComponent } from './purchase-entry-form.component';
+
+class PurchaseEntrySelectStubComponent implements ControlValueAccessor {
+  actionLabel = '';
+  readonly action = output<void>();
+
+  writeValue(_value: unknown): void {
+    return undefined;
+  }
+
+  registerOnChange(_onChange: (value: unknown) => void): void {
+    return undefined;
+  }
+
+  registerOnTouched(_onTouched: () => void): void {
+    return undefined;
+  }
+
+  setDisabledState(_disabled: boolean): void {
+    return undefined;
+  }
+}
+
+class PurchaseEntryDateStubComponent implements ControlValueAccessor {
+  writeValue(_value: unknown): void {
+    return undefined;
+  }
+
+  registerOnChange(_onChange: (value: unknown) => void): void {
+    return undefined;
+  }
+
+  registerOnTouched(_onTouched: () => void): void {
+    return undefined;
+  }
+
+  setDisabledState(_disabled: boolean): void {
+    return undefined;
+  }
+}
+
+class PurchaseEntryTextFieldStubComponent implements ControlValueAccessor {
+  writeValue(_value: unknown): void {
+    return undefined;
+  }
+
+  registerOnChange(_onChange: (value: unknown) => void): void {
+    return undefined;
+  }
+
+  registerOnTouched(_onTouched: () => void): void {
+    return undefined;
+  }
+
+  setDisabledState(_disabled: boolean): void {
+    return undefined;
+  }
+}
+
+class PurchaseSourceDialogStubComponent {
+  readonly closed = output<void>();
+  readonly created = output<Source>();
+
+  hasUnsavedChanges(): boolean {
+    return false;
+  }
+}
+
+Component({
+  selector: 'app-custom-select',
+  inputs: ['actionLabel'],
+  outputs: ['action'],
+  template:
+    '<button type="button" [attr.data-custom-select-action]="actionLabel" (click)="action.emit()">{{ actionLabel }}</button>',
+  providers: [
+    {
+      provide: NG_VALUE_ACCESSOR,
+      useExisting: PurchaseEntrySelectStubComponent,
+      multi: true,
+    },
+  ],
+})(PurchaseEntrySelectStubComponent);
+
+Component({
+  selector: 'app-date-picker',
+  template: '',
+  providers: [
+    {
+      provide: NG_VALUE_ACCESSOR,
+      useExisting: PurchaseEntryDateStubComponent,
+      multi: true,
+    },
+  ],
+})(PurchaseEntryDateStubComponent);
+
+Component({
+  selector: 'app-text-field',
+  template: '',
+  providers: [
+    {
+      provide: NG_VALUE_ACCESSOR,
+      useExisting: PurchaseEntryTextFieldStubComponent,
+      multi: true,
+    },
+  ],
+})(PurchaseEntryTextFieldStubComponent);
+
+Component({
+  selector: 'app-purchase-source-dialog',
+  outputs: ['closed', 'created'],
+  template: '',
+})(PurchaseSourceDialogStubComponent);
+
+class RenderedPurchaseEntryFormComponent {
+  readonly errorMessage = signal<string | null>(null);
+  readonly form = new FormGroup({
+    type: new FormControl<PurchaseType>('single', { nonNullable: true }),
+    source_id: new FormControl<string | null>(null),
+    supplier_id: new FormControl<string | null>(null),
+    purchase_date: new FormControl('2026-08-24', { nonNullable: true }),
+    supplier_reference: new FormControl('', { nonNullable: true }),
+    notes: new FormControl('', { nonNullable: true }),
+  });
+  readonly lieferantenOptionen = signal([]);
+  readonly quellenOptionen = signal([]);
+  readonly pricingMode = signal<'individual' | 'total'>('individual');
+  readonly purchaseLines = signal([]);
+  readonly purchaseBasePrice = signal<number | null>(null);
+  readonly orderedItemCount = signal(0);
+  readonly discountAmount = signal(0);
+  readonly costDrafts = signal([]);
+  readonly totalCosts = signal<number | null>(null);
+  readonly persistedDraft = signal<Purchase | null>(null);
+  readonly purchase = signal<Purchase | null>(null);
+  readonly pendingDocuments = signal<readonly PendingPurchaseDocument[]>([]);
+  readonly sellerDialogOpen = signal(false);
+  readonly sourceDialogOpen = signal(false);
+  readonly costDialogOpen = signal(false);
+  readonly initialCostDrafts = signal([]);
+  readonly purchaseLineOptions = signal([]);
+
+  onSellerCreated(): void {
+    return undefined;
+  }
+
+  onSourceCreated(source: Source): void {
+    PurchaseEntryFormComponent.prototype.onSourceCreated.call(
+      this as unknown as PurchaseEntryFormComponent,
+      source,
+    );
+  }
+
+  onPurchaseLinesChanged(): void {
+    return undefined;
+  }
+
+  openCostEditor(): void {
+    return undefined;
+  }
+
+  onCostOverviewSaved(): void {
+    return undefined;
+  }
+}
+
+Component({
+  selector: 'app-rendered-purchase-entry-form',
+  imports: [
+    ReactiveFormsModule,
+    PurchaseEntrySelectStubComponent,
+    PurchaseEntryDateStubComponent,
+    PurchaseEntryTextFieldStubComponent,
+    PurchaseSourceDialogStubComponent,
+  ],
+  schemas: [NO_ERRORS_SCHEMA],
+  template: readFileSync(
+    'src/app/features/purchases/components/purchase-entry-form/purchase-entry-form.component.html',
+    'utf8',
+  ),
+})(RenderedPurchaseEntryFormComponent);
 
 beforeAll(() => TestBed.resetTestingModule());
 
@@ -221,6 +411,26 @@ function pendingDocument(name: string): PendingPurchaseDocument {
   };
 }
 
+function renderPurchaseEntryForm() {
+  TestBed.configureTestingModule({
+    imports: [RenderedPurchaseEntryFormComponent],
+    providers: [
+      { provide: PurchaseService, useValue: {} },
+      { provide: SourcesService, useValue: { sources: signal([]) } },
+      { provide: SuppliersService, useValue: { suppliers: signal([]) } },
+      { provide: InboundTrackingService, useValue: { carrierOptions: [] } },
+      { provide: PurchaseCostingService, useValue: {} },
+      { provide: PurchaseDocumentService, useValue: {} },
+      { provide: WorkspaceContextLockService, useValue: { acquire: () => () => undefined } },
+      ToastService,
+      SyncStatusService,
+    ],
+  });
+  const fixture = TestBed.createComponent(RenderedPurchaseEntryFormComponent);
+  fixture.detectChanges();
+  return fixture;
+}
+
 describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
   it('zeigt die Belegkachel in der rechten Spalte nach ergänzenden Detailkarten', () => {
     const template = readFileSync(
@@ -316,10 +526,6 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
     expect(template).not.toContain('Plattform / Bezugsquelle');
     expect(template).not.toContain('Noch nicht vollständig bekannt');
     expect(template).not.toContain('Beleg / Angebotslink');
-    expect(template.indexOf('formControlName="supplier_id"')).toBeLessThan(
-      template.indexOf('formControlName="source_id"'),
-    );
-    expect(template).toContain('formControlName="source_id"');
     expect(template).not.toContain('formControlName="title"');
     expect(template).not.toContain('formControlName="seller_marketplace_username"');
     expect(template).not.toContain('formControlName="seller_type"');
@@ -339,6 +545,43 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
     expect(template.indexOf('formControlName="purchase_date"')).toBeLessThan(
       template.indexOf('formControlName="supplier_reference"'),
     );
+  });
+
+  it('öffnet den Bezugsquellendialog und übernimmt dessen Ereignis über die Template-Bindung', () => {
+    const fixture = renderPurchaseEntryForm();
+    const host = fixture.nativeElement as HTMLElement;
+    const sourceSelect = fixture.debugElement
+      .queryAll(By.directive(PurchaseEntrySelectStubComponent))
+      .find(
+        (debugElement) =>
+          (debugElement.componentInstance as PurchaseEntrySelectStubComponent).actionLabel ===
+          'Bezugsquelle erstellen',
+      );
+    const sourceAction = sourceSelect?.nativeElement.querySelector<HTMLButtonElement>('button');
+
+    expect(sourceSelect).toBeDefined();
+    expect(sourceAction).not.toBeNull();
+    expect(host.querySelector('app-purchase-source-dialog')).toBeNull();
+    expect(host.querySelector('#new-purchase-source')).toBeNull();
+
+    sourceAction?.click();
+    fixture.detectChanges();
+
+    const dialog = fixture.debugElement.query(By.directive(PurchaseSourceDialogStubComponent));
+    expect(dialog).not.toBeNull();
+
+    (dialog.componentInstance as PurchaseSourceDialogStubComponent).created.emit({
+      id: 'source-1',
+      workspace_id: 'workspace-1',
+      name: 'Flohmarkt Berlin',
+    });
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.form.controls.source_id.value).toBe('source-1');
+    expect(fixture.componentInstance.form.dirty).toBe(true);
+    expect(fixture.componentInstance.sourceDialogOpen()).toBe(false);
+    expect(host.querySelector('app-purchase-source-dialog')).toBeNull();
+    expect(host.querySelector('#new-purchase-source')).toBeNull();
   });
 
   it('aktualisiert den Warenwert unmittelbar aus den Positionen', () => {
@@ -1399,22 +1642,5 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
     expect(created.emit).toHaveBeenCalledOnce();
     expect(closed.emit).toHaveBeenCalledOnce();
     expect(toast.toasts()).toEqual([]);
-  });
-
-  it('übernimmt die gespeicherte Bezugsquelle und markiert den Einkauf als geändert', () => {
-    const { komponente } = erstelleKomponente();
-    komponente.form.markAsPristine();
-    komponente.sourceDialogOpen.set(true);
-    const source: Source = {
-      id: 'source-1',
-      workspace_id: 'workspace-1',
-      name: 'Flohmarkt',
-    };
-
-    komponente.onSourceCreated(source);
-
-    expect(komponente.form.controls.source_id.value).toBe('source-1');
-    expect(komponente.sourceDialogOpen()).toBe(false);
-    expect(komponente.form.dirty).toBe(true);
   });
 });
