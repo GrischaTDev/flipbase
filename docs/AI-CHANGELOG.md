@@ -1,5 +1,22 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-21 – Juna – Drucktests auf gerenderte Shell und enge CSS-Verträge nachgeschärft
+
+**Auftrag:** Drei Review-Funde am Einkaufsdruck beheben: Die Shell-Haken über
+einen echten Angular-TestBed-Render prüfen, den CSS-Vertrag vollständig
+absichern und den Browserhinweis auf die sichtbare Aktionsleiste begrenzen.
+
+**Änderung:** Der Shelltest verwendet gezielte Kindkomponenten-Stubs und die
+echte Shell-Vorlage als TestBed-Template; alle fünf Haken werden dadurch im
+tatsächlich von Angular erzeugten DOM geprüft. Der CSS-Test liest nur die
+beiden relevanten Regeln aus und prüft Rahmen-Ausblendung, Inhalts-Resets,
+benannte Seite, Umbruchschutz und A4-Ränder. Der Hinweis wird direkt unterhalb
+der gefundenen `print:hidden`-Leiste geprüft.
+
+**Prüfung:** Fokussierte Shell- und Drucktests bestanden mit sieben Tests;
+Prettier und fokussiertes ESLint ebenfalls. Keine Produktlogik, Datenbank- oder
+Docker-Dateien geändert.
+
 ## 2026-09-21 – Juna – Einkaufsdruck vom Admin-Rahmen getrennt
 
 **Auftrag:** Der Einkaufsdruck sollte innerhalb der Shell bleiben, beim
