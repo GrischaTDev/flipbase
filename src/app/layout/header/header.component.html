@@ -1,5 +1,5 @@
 <header
-  class="min-h-14 border-b border-fb-border-subtle bg-fb-header/95 backdrop-blur-md px-3 py-2 md:px-6 flex flex-wrap items-center justify-between gap-2 sticky top-0 z-30 select-none shadow-xs"
+  class="h-14 border-b border-fb-border-subtle bg-fb-header/95 backdrop-blur-md px-3 py-2 md:px-6 flex items-center justify-between gap-2 sticky top-0 z-30 select-none shadow-xs"
 >
   <!-- Left: Mobile Toggle & Workspace Switcher -->
   <div class="flex min-w-0 flex-1 items-center gap-2.5">
@@ -30,7 +30,7 @@
         [class.opacity-60]="workspaceActionsBlocked()"
         [class.cursor-not-allowed]="workspaceActionsBlocked()"
         [class.cursor-pointer]="!workspaceActionsBlocked()"
-        class="flex min-h-9 max-w-full items-center gap-2 px-2.5 py-1 rounded-md border border-fb-border bg-fb-surface text-[13px] font-medium text-fb-text-primary hover:bg-fb-surface-hover hover:border-fb-border-hover transition-colors shadow-xs"
+        class="flex h-9 max-w-full items-center gap-2 px-2.5 rounded-lg border border-fb-border bg-fb-surface text-[13px] font-medium text-fb-text-primary hover:bg-fb-surface-hover hover:border-fb-border-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/60 transition-colors shadow-xs"
       >
         <svg [lucideIcon]="LayersIcon" class="shrink-0 w-3.5 h-3.5 text-fb-brand"></svg>
         <span class="max-w-[120px] md:max-w-[180px] truncate font-semibold">
@@ -112,7 +112,7 @@
         (click)="toggleNotificationDropdown()"
         [attr.aria-expanded]="isNotificationDropdownOpen()"
         aria-controls="header-notification-menu"
-        class="relative p-1.5 rounded-lg border border-fb-border bg-fb-surface text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-surface-hover transition cursor-pointer"
+        class="relative inline-flex h-9 w-9 items-center justify-center rounded-lg border border-fb-border bg-fb-surface text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/60 transition cursor-pointer"
         title="Benachrichtigungen"
         aria-label="Benachrichtigungen"
       >
@@ -235,7 +235,8 @@
     <button
       type="button"
       (click)="themeService.toggleTheme()"
-      class="p-1.5 rounded-lg border border-fb-border bg-fb-surface text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-surface-hover transition cursor-pointer"
+      data-header-action="theme"
+      class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-fb-border bg-fb-surface text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/60 transition cursor-pointer"
       [attr.aria-label]="
         (themeService.isDark() ? 'COMMON.SWITCH_TO_LIGHT' : 'COMMON.SWITCH_TO_DARK') | translate
       "
@@ -245,11 +246,14 @@
     </button>
 
     <!-- Language Toggle -->
-    <div class="flex items-center border border-fb-border rounded-md p-0.5 bg-fb-surface text-xs">
+    <div
+      data-header-action="language"
+      class="flex h-9 items-center border border-fb-border rounded-lg p-0.5 bg-fb-surface text-xs"
+    >
       <button
         type="button"
         (click)="switchLanguage('de')"
-        class="px-2 py-0.5 rounded font-medium transition cursor-pointer"
+        class="h-7 px-2 rounded-md font-medium transition cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/60"
         [class.bg-fb-border]="currentLanguage() === 'de'"
         [class.shadow-xs]="currentLanguage() === 'de'"
         [class.text-fb-text-primary]="currentLanguage() === 'de'"
@@ -260,7 +264,7 @@
       <button
         type="button"
         (click)="switchLanguage('en')"
-        class="px-2 py-0.5 rounded font-medium transition cursor-pointer"
+        class="h-7 px-2 rounded-md font-medium transition cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/60"
         [class.bg-fb-border]="currentLanguage() === 'en'"
         [class.shadow-xs]="currentLanguage() === 'en'"
         [class.text-fb-text-primary]="currentLanguage() === 'en'"
@@ -278,7 +282,7 @@
         [attr.aria-expanded]="isUserDropdownOpen()"
         aria-controls="header-user-menu"
         aria-label="Benutzermenü öffnen"
-        class="flex items-center gap-2 p-1 rounded-md hover:bg-fb-surface-hover transition cursor-pointer"
+        class="flex h-9 items-center gap-2 rounded-lg border border-fb-border bg-fb-surface px-1.5 hover:bg-fb-surface-hover hover:border-fb-border-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/60 transition cursor-pointer"
       >
         <div
           class="w-7 h-7 rounded-md bg-fb-brand-surface border border-fb-brand-border text-fb-brand flex items-center justify-center font-bold text-xs shadow-xs"

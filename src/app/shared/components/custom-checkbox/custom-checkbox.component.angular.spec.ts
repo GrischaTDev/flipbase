@@ -63,6 +63,16 @@ function buttonOf(fixture: ReturnType<typeof createCheckbox>): HTMLButtonElement
 }
 
 describe('CustomCheckboxComponent', () => {
+  it('verwendet Markengelb als Standardfarbe', () => {
+    const fixture = createCheckbox();
+
+    fixture.componentRef.setInput('checked', true);
+    fixture.detectChanges();
+
+    const box = fixture.nativeElement.querySelector('[aria-hidden="true"]') as HTMLElement;
+    expect(box.classList).toContain('bg-[#fcc601]');
+  });
+
   it('deaktiviert den nativen Button bei einem disabled-Input und ignoriert Klicks', () => {
     const fixture = createCheckbox();
 
