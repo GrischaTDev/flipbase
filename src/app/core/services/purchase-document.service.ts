@@ -123,10 +123,7 @@ export class PurchaseDocumentService {
     }
   }
 
-  /**
-   * Zuerst der Eintrag: Die Regeln der Datenbank entscheiden, ob der Einkauf noch
-   * offen ist. Erst danach verschwindet die Datei.
-   */
+  /** Zuerst der Eintrag, danach die nicht mehr referenzierte private Datei. */
   async remove(document: PurchaseDocument): Promise<{ error: Error | null }> {
     try {
       const { data, error } = await this.supabase.client
@@ -137,9 +134,7 @@ export class PurchaseDocumentService {
       if (error) throw error;
       if (!data || data.length === 0) {
         return {
-          error: new Error(
-            'Der Einkauf ist abgeschlossen. Belege können dann nur noch ergänzt werden.',
-          ),
+          error: new Error('Der Beleg wurde nicht gefunden oder darf nicht entfernt werden.'),
         };
       }
 

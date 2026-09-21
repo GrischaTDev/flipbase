@@ -21,6 +21,14 @@ export interface PurchaseDocument {
   readonly created_by: string | null;
 }
 
+export interface PendingPurchaseDocument {
+  readonly id: string;
+  readonly file: File;
+  readonly documentType: PurchaseDocumentType;
+  readonly status: 'pending' | 'uploading' | 'error';
+  readonly error: string | null;
+}
+
 export const PURCHASE_DOCUMENT_MAX_BYTES = PRIVATE_DOCUMENT_MAX_BYTES;
 export const PURCHASE_DOCUMENT_EXTENSIONS = PRIVATE_DOCUMENT_EXTENSIONS;
 export type PurchaseDocumentFile = PrivateDocumentFile;

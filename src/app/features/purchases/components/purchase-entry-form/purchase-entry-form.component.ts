@@ -53,6 +53,9 @@ import { ButtonComponent } from '../../../../shared/components/button/button.com
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { TwoColumnLayoutComponent } from '../../../../shared/components/two-column-layout/two-column-layout.component';
+import type { PendingPurchaseDocument } from '../../../../core/models/purchase-document.models';
+import { PurchaseDocumentService } from '../../../../core/services/purchase-document.service';
+import { PurchaseDocumentsCardComponent } from '../purchase-documents-card/purchase-documents-card.component';
 
 const purchaseCostTypes = new Set<PurchaseCostType>([
   'shipping',
@@ -127,6 +130,7 @@ function purchaseCostsEqual(
     CardComponent,
     TextFieldComponent,
     TwoColumnLayoutComponent,
+    PurchaseDocumentsCardComponent,
   ],
   templateUrl: './purchase-entry-form.component.html',
   host: { class: 'contents' },
@@ -137,6 +141,7 @@ export class PurchaseEntryFormComponent {
   private readonly toast = inject(ToastService);
   private readonly syncStatus = inject(SyncStatusService);
   private readonly purchaseCostingService = inject(PurchaseCostingService);
+  private readonly documentService = inject(PurchaseDocumentService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly workspaceContext = inject(WorkspaceContextLockService);
   private readonly releaseWorkspaceLock = this.workspaceContext.acquire();
@@ -197,6 +202,7 @@ export class PurchaseEntryFormComponent {
   readonly isSubmitting = signal<boolean>(false);
   readonly errorMessage = signal<string | null>(null);
   readonly persistedDraft = signal<Purchase | null>(null);
+  readonly pendingDocuments = signal<readonly PendingPurchaseDocument[]>([]);
   private readonly completed = signal(false);
   private persistedLineIdsByDraftId = new Map<string, string>();
 
@@ -342,6 +348,7 @@ export class PurchaseEntryFormComponent {
     this.befuelltFuer = vorhandener.id;
     this.completed.set(false);
     this.persistedDraft.set(null);
+    this.pendingDocuments.set([]);
     this.errorMessage.set(null);
     this.lineIdMap().clear();
     this.sellerDialogOpen.set(false);
@@ -424,6 +431,7 @@ export class PurchaseEntryFormComponent {
       (this.costOverviewDialog()?.hasUnsavedChanges() ?? false) ||
       this.form.dirty ||
       this.newSourceName().trim().length > 0 ||
+      this.pendingDocuments().length > 0 ||
       (typeof this.lineEditor === 'function' &&
         (this.lineEditor()?.hasUnsavedChanges() ?? false)) ||
       !purchaseLinesEqual(this.purchaseLines(), this.baselinePurchaseLines()) ||
@@ -553,6 +561,7 @@ export class PurchaseEntryFormComponent {
       this.isSubmitting.set(false);
       this.persistedDraft.set(anlegeergebnis.data);
       this.adoptPersistedLineIds(anlegeergebnis.data);
+      if (!(await this.uploadPendingDocuments(anlegeergebnis.data.id))) return;
       const ungemeldeteProbleme = anlegeergebnis.problems.filter(
         (problem) => !problem.reportedBySyncStatus,
       );
@@ -591,6 +600,10 @@ export class PurchaseEntryFormComponent {
         this.persistedDraft.set(gespeicherterEntwurf);
         this.adoptPersistedLineIds(gespeicherterEntwurf);
         this.capturePersistedBaseline();
+        if (!(await this.uploadPendingDocuments(gespeicherterEntwurf.id))) {
+          this.isSubmitting.set(false);
+          return;
+        }
       }
       if (finalizeAfterSave && gespeicherterEntwurf) {
         await this.finalizePersistedDraft(gespeicherterEntwurf);
@@ -602,6 +615,45 @@ export class PurchaseEntryFormComponent {
       this.created.emit();
       this.closed.emit();
     }
+  }
+
+  private async uploadPendingDocuments(purchaseId: string): Promise<boolean> {
+    const pendingDocuments = this.pendingDocuments();
+    if (pendingDocuments.length === 0) return true;
+
+    const failed: PendingPurchaseDocument[] = [];
+    for (const pending of pendingDocuments) {
+      this.pendingDocuments.update((current) =>
+        current.map((document) =>
+          document.id === pending.id
+            ? { ...document, status: 'uploading' as const, error: null }
+            : document,
+        ),
+      );
+      let error: Error | null;
+      try {
+        ({ error } = await this.documentService.upload(
+          purchaseId,
+          pending.file,
+          pending.documentType,
+        ));
+      } catch (cause: unknown) {
+        error = this.alsError(cause);
+      }
+      if (error) failed.push({ ...pending, status: 'error', error: error.message });
+    }
+
+    this.pendingDocuments.set(failed);
+    if (failed.length === 0) return true;
+
+    this.errorMessage.set(
+      `Der Einkauf wurde gespeichert. ${failed.length === 1 ? 'Ein Beleg konnte' : `${failed.length} Belege konnten`} nicht hochgeladen werden.`,
+    );
+    this.toast.warning(
+      'Einkauf gespeichert, Beleg-Upload unvollständig.',
+      'Versuche die fehlgeschlagenen Belege erneut oder entferne sie.',
+    );
+    return false;
   }
 
   private async finalizePersistedDraft(purchase: Purchase): Promise<void> {

@@ -191,7 +191,7 @@ describe('PurchaseDocumentService.remove', () => {
     expect(service.documents()).toEqual([]);
   });
 
-  it('erklärt einen abgeschlossenen Einkauf, wenn kein Eintrag entfernt wurde', async () => {
+  it('meldet einen nicht sichtbaren oder bereits entfernten Beleg verständlich', async () => {
     const deleteRow = vi.fn(() => ({
       eq: () => ({ select: async () => ({ data: [], error: null }) }),
     }));
@@ -199,7 +199,7 @@ describe('PurchaseDocumentService.remove', () => {
 
     const result = await service.remove(storedDocument);
 
-    expect(result.error?.message).toContain('abgeschlossen');
+    expect(result.error?.message).toContain('nicht gefunden oder darf nicht entfernt werden');
     expect(removeFile).not.toHaveBeenCalled();
   });
 });

@@ -45,6 +45,19 @@ describe('PurchaseDetailComponent', () => {
     expect(template).not.toContain('[visibleColumns]');
   });
 
+  it('ordnet die Belege rechts direkt nach der Sendungsverfolgung ein', () => {
+    const template = readFileSync(
+      'src/app/features/purchases/pages/purchase-detail/purchase-detail.component.html',
+      'utf8',
+    );
+    const sidebar = template.indexOf('data-testid="purchase-entry-sidebar"');
+    const tracking = template.indexOf('[ngTemplateOutlet]="trackingCard"', sidebar);
+    const documents = template.indexOf('<app-purchase-documents-card', sidebar);
+
+    expect(tracking).toBeGreaterThan(sidebar);
+    expect(documents).toBeGreaterThan(tracking);
+  });
+
   it('zeigt Verkäuferangaben, Beschreibung und Nachtrag ohne entfernte Einkaufsfelder', () => {
     const template = readFileSync(
       'src/app/features/purchases/pages/purchase-detail/purchase-detail.component.html',

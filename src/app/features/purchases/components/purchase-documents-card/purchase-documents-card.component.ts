@@ -5,6 +5,7 @@ import {
   computed,
   inject,
   input,
+  model,
   OnInit,
   signal,
 } from '@angular/core';
@@ -12,8 +13,10 @@ import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { Purchase } from '../../../../core/models/flipbase.models';
 import {
   PURCHASE_DOCUMENT_TYPE_LABELS,
+  PendingPurchaseDocument,
   PurchaseDocument,
   PurchaseDocumentType,
+  validatePurchaseDocumentFile,
 } from '../../../../core/models/purchase-document.models';
 import { PurchaseDocumentService } from '../../../../core/services/purchase-document.service';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
@@ -23,6 +26,7 @@ import {
   SelectOption,
 } from '../../../../shared/components/custom-select/custom-select.component';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
+import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
 import { PurchaseDocumentPreviewDialogComponent } from '../purchase-document-preview-dialog/purchase-document-preview-dialog.component';
 
 interface PurchaseDocumentRow {
@@ -31,7 +35,7 @@ interface PurchaseDocumentRow {
   readonly sizeLabel: string;
 }
 
-/** Originalbelege eines Einkaufs: hinzufügen, ansehen und vor dem Abschluss entfernen. */
+/** Originalbelege eines Einkaufs vormerken, hinzufügen, ansehen und bei Fehlern korrigieren. */
 @Component({
   selector: 'app-purchase-documents-card',
   imports: [
@@ -49,8 +53,10 @@ interface PurchaseDocumentRow {
 export class PurchaseDocumentsCardComponent implements OnInit {
   private readonly documentService = inject(PurchaseDocumentService);
   private readonly toast = inject(ToastService);
+  private readonly dialog = inject(ConfirmDialogService);
 
-  readonly purchase = input.required<Purchase>();
+  readonly purchase = input<Purchase | null>(null);
+  readonly pendingDocuments = model<readonly PendingPurchaseDocument[]>([]);
 
   readonly isLoading = this.documentService.isLoading;
   readonly loadError = this.documentService.loadError;
@@ -58,55 +64,117 @@ export class PurchaseDocumentsCardComponent implements OnInit {
   readonly errorMessage = signal<string | null>(null);
   readonly previewDocument = signal<PurchaseDocument | null>(null);
 
-  readonly canRemove = computed(() => this.purchase().entry_status !== 'finalized');
-
   readonly documentTypeControl = new FormControl<PurchaseDocumentType>('invoice', {
     nonNullable: true,
   });
+  readonly documentTypeLabels = PURCHASE_DOCUMENT_TYPE_LABELS;
   readonly documentTypeOptions: readonly SelectOption<PurchaseDocumentType>[] = (
     Object.keys(PURCHASE_DOCUMENT_TYPE_LABELS) as PurchaseDocumentType[]
   ).map((value) => ({ value, label: PURCHASE_DOCUMENT_TYPE_LABELS[value] }));
 
   readonly rows = computed<readonly PurchaseDocumentRow[]>(() =>
-    this.documentService
-      .documents()
-      .filter((document) => document.purchase_id === this.purchase().id)
-      .map((document) => ({
-        document,
-        typeLabel: PURCHASE_DOCUMENT_TYPE_LABELS[document.document_type],
-        sizeLabel: formatFileSize(document.file_size),
-      })),
+    this.purchase()
+      ? this.documentService
+          .documents()
+          .filter((document) => document.purchase_id === this.purchase()?.id)
+          .map((document) => ({
+            document,
+            typeLabel: PURCHASE_DOCUMENT_TYPE_LABELS[document.document_type],
+            sizeLabel: formatFileSize(document.file_size),
+          }))
+      : [],
   );
 
   ngOnInit(): void {
-    void this.documentService.loadForPurchase(this.purchase().id);
+    const purchase = this.purchase();
+    if (purchase) void this.documentService.loadForPurchase(purchase.id);
   }
 
   async onFileSelected(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
+    const files = Array.from(input.files ?? []);
     input.value = '';
-    if (!file) return;
+    await this.addFiles(files);
+  }
 
+  onDragOver(event: DragEvent): void {
+    event.preventDefault();
+  }
+
+  onDrop(event: Pick<DragEvent, 'preventDefault' | 'dataTransfer'>): void {
+    event.preventDefault();
+    void this.addFiles(Array.from(event.dataTransfer?.files ?? []));
+  }
+
+  async addFiles(files: readonly File[]): Promise<void> {
+    for (const file of files) {
+      const invalid = validatePurchaseDocumentFile(file);
+      if (invalid) {
+        this.errorMessage.set(invalid.message);
+        continue;
+      }
+      const purchase = this.purchase();
+      if (!purchase) {
+        this.pendingDocuments.update((current) => [
+          ...current,
+          {
+            id: crypto.randomUUID(),
+            file,
+            documentType: this.documentTypeControl.value,
+            status: 'pending',
+            error: null,
+          },
+        ]);
+        continue;
+      }
+      await this.uploadFile(purchase.id, file, this.documentTypeControl.value);
+    }
+  }
+
+  private async uploadFile(
+    purchaseId: string,
+    file: File,
+    documentType: PurchaseDocumentType,
+  ): Promise<boolean> {
     this.errorMessage.set(null);
     this.isUploading.set(true);
     try {
-      const { error } = await this.documentService.upload(
-        this.purchase().id,
-        file,
-        this.documentTypeControl.value,
-      );
+      const { error } = await this.documentService.upload(purchaseId, file, documentType);
       if (error) {
         this.errorMessage.set(error.message);
-        return;
+        return false;
       }
       this.toast.success('Beleg wurde hinzugefügt.');
+      return true;
     } finally {
       this.isUploading.set(false);
     }
   }
 
+  removePendingDocument(id: string): void {
+    this.pendingDocuments.update((current) => current.filter((document) => document.id !== id));
+  }
+
+  async retryPendingDocument(pending: PendingPurchaseDocument): Promise<void> {
+    const purchase = this.purchase();
+    if (!purchase) return;
+    this.updatePending(pending.id, { status: 'uploading', error: null });
+    const uploaded = await this.uploadFile(purchase.id, pending.file, pending.documentType);
+    if (uploaded) {
+      this.removePendingDocument(pending.id);
+      return;
+    }
+    this.updatePending(pending.id, { status: 'error', error: this.errorMessage() });
+  }
+
   async removeDocument(document: PurchaseDocument): Promise<void> {
+    const confirmed = await this.dialog.frage({
+      titel: 'Beleg entfernen?',
+      text: `„${document.original_file_name}“ wird aus diesem Einkauf entfernt. Die Änderung bleibt in der Chronik nachvollziehbar.`,
+      bestaetigenText: 'Beleg entfernen',
+      gefahr: true,
+    });
+    if (!confirmed) return;
     this.errorMessage.set(null);
     const { error } = await this.documentService.remove(document);
     if (error) {
@@ -114,6 +182,15 @@ export class PurchaseDocumentsCardComponent implements OnInit {
       return;
     }
     this.toast.success('Beleg wurde entfernt.');
+  }
+
+  private updatePending(
+    id: string,
+    patch: Pick<PendingPurchaseDocument, 'status' | 'error'>,
+  ): void {
+    this.pendingDocuments.update((current) =>
+      current.map((document) => (document.id === id ? { ...document, ...patch } : document)),
+    );
   }
 }
 

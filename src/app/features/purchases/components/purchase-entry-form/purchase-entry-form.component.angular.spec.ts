@@ -5,6 +5,7 @@ import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Purchase, PurchaseType } from '../../../../core/models/flipbase.models';
+import type { PendingPurchaseDocument } from '../../../../core/models/purchase-document.models';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { SyncStatusService } from '../../../../core/services/sync-status.service';
 import { InboundTrackingService } from '../../../../core/services/inbound-tracking.service';
@@ -92,6 +93,12 @@ function erstelleKomponente(vorhandener: Purchase | null = null) {
       }),
     ),
   };
+  const documentService = {
+    upload: vi.fn(async (): Promise<{ data: null; error: Error | null }> => ({
+      data: null,
+      error: null,
+    })),
+  };
   const sourcesService = {
     createSource: vi.fn(
       async (): Promise<{ data: { id: string } | null; error: Error | null }> => ({
@@ -130,6 +137,7 @@ function erstelleKomponente(vorhandener: Purchase | null = null) {
     requestId: 'test-request-id',
     purchaseService,
     purchaseCostingService,
+    documentService,
     sourcesService,
     suppliersService,
     trackingService: { autoDetectCarrier: vi.fn(() => 'dhl') },
@@ -140,6 +148,7 @@ function erstelleKomponente(vorhandener: Purchase | null = null) {
     isSubmitting: signal(false),
     errorMessage: signal<string | null>(null),
     persistedDraft: signal<Purchase | null>(null),
+    pendingDocuments: signal<readonly PendingPurchaseDocument[]>([]),
     packagePriceDialogOpen: signal(false),
     confirmedPackageFingerprint: signal<string | null>(null),
     packagePriceStale: signal(false),
@@ -197,12 +206,76 @@ function erstelleKomponente(vorhandener: Purchase | null = null) {
     closed,
     purchaseService,
     purchaseCostingService,
+    documentService,
     sourcesService,
     suppliersService,
   };
 }
 
+function pendingDocument(name: string): PendingPurchaseDocument {
+  return {
+    id: `pending-${name}`,
+    file: new File(['pdf'], name, { type: 'application/pdf' }),
+    documentType: 'invoice',
+    status: 'pending',
+    error: null,
+  };
+}
+
 describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
+  it('zeigt die Belegkachel in der rechten Spalte nach ergänzenden Detailkarten', () => {
+    const template = readFileSync(
+      'src/app/features/purchases/components/purchase-entry-form/purchase-entry-form.component.html',
+      'utf8',
+    );
+    const sidebar = template.indexOf('data-testid="purchase-entry-sidebar"');
+    const extras = template.indexOf('data-testid="purchase-entry-sidebar-extra"', sidebar);
+    const documents = template.indexOf('<app-purchase-documents-card', sidebar);
+
+    expect(extras).toBeGreaterThan(sidebar);
+    expect(documents).toBeGreaterThan(extras);
+    expect(template).toContain('[(pendingDocuments)]="pendingDocuments"');
+  });
+
+  it('lädt vorgemerkte Belege erst nach erfolgreicher Einkaufserstellung hoch', async () => {
+    const { komponente, purchaseService, documentService } = erstelleKomponente();
+    komponente.pendingDocuments.set([pendingDocument('rechnung.pdf')]);
+
+    await komponente.onSubmit();
+
+    expect(purchaseService.createPurchase).toHaveBeenCalledBefore(documentService.upload);
+    expect(documentService.upload).toHaveBeenCalledWith(
+      einkauf.id,
+      expect.objectContaining({ name: 'rechnung.pdf' }),
+      'invoice',
+    );
+    expect(komponente.pendingDocuments()).toEqual([]);
+  });
+
+  it('behält nur fehlgeschlagene Belege für einen erneuten Versuch', async () => {
+    const { komponente, documentService, created, closed } = erstelleKomponente();
+    documentService.upload
+      .mockResolvedValueOnce({ data: null, error: null })
+      .mockResolvedValueOnce({ data: null, error: new Error('Upload fehlgeschlagen') });
+    komponente.pendingDocuments.set([
+      pendingDocument('rechnung.pdf'),
+      pendingDocument('quittung.pdf'),
+    ]);
+
+    await komponente.onSubmit();
+
+    expect(komponente.pendingDocuments()).toEqual([
+      expect.objectContaining({
+        file: expect.objectContaining({ name: 'quittung.pdf' }),
+        status: 'error',
+        error: 'Upload fehlgeschlagen',
+      }),
+    ]);
+    expect(komponente.persistedDraft()?.id).toBe(einkauf.id);
+    expect(created.emit).not.toHaveBeenCalled();
+    expect(closed.emit).not.toHaveBeenCalled();
+  });
+
   it('setzt nach dem Speichern dieselbe Maske zurück und erkennt neue Änderungen', async () => {
     const { komponente } = erstelleKomponente(einkauf);
     const resetToLines = vi.fn();
