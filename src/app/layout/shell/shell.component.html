@@ -2,12 +2,18 @@
 
 <div class="min-h-screen bg-fb-bg text-fb-text-primary flex flex-col md:flex-row antialiased">
   <!-- Desktop & Mobile Sidebar -->
-  <app-sidebar id="app-sidebar" [isOpen]="isSidebarOpen()" (closed)="closeSidebar()"></app-sidebar>
+  <app-sidebar
+    data-shell-sidebar
+    id="app-sidebar"
+    [isOpen]="isSidebarOpen()"
+    (closed)="closeSidebar()"
+  ></app-sidebar>
 
   <!-- Main Content Area -->
-  <div class="flex min-w-0 flex-1 flex-col bg-fb-bg pb-16 md:ml-56 md:pb-0">
+  <div data-shell-content class="flex min-w-0 flex-1 flex-col bg-fb-bg pb-16 md:ml-56 md:pb-0">
     <!-- Header -->
     <app-header
+      data-shell-header
       [isSidebarOpen]="isSidebarOpen()"
       [workspaceActionsBlocked]="workspaceActionsBlocked()"
       (toggleSidebar)="toggleSidebar()"
@@ -16,6 +22,7 @@
 
     <!-- Page Content Container -->
     <main
+      data-shell-main
       id="hauptinhalt"
       tabindex="-1"
       class="flex-1 min-w-0 w-full mx-auto p-4 md:p-5 animate-fade-in"
@@ -25,7 +32,11 @@
   </div>
 
   <!-- Mobile Bottom Navigation -->
-  <app-bottom-nav [isMenuOpen]="isSidebarOpen()" (toggleMenu)="toggleSidebar()"></app-bottom-nav>
+  <app-bottom-nav
+    data-shell-bottom-nav
+    [isMenuOpen]="isSidebarOpen()"
+    (toggleMenu)="toggleSidebar()"
+  ></app-bottom-nav>
 
   <!-- Rueckfragen und Hinweise der ganzen Anwendung. Steht genau einmal hier;
        jede Stelle, die etwas fragen will, ruft den ConfirmDialogService. -->

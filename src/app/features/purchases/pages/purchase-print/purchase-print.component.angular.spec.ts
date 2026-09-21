@@ -1,9 +1,10 @@
 import '@angular/compiler';
 import { Location } from '@angular/common';
-import { signal } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
+import { signal, ɵresolveComponentResources } from '@angular/core';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { readFileSync } from 'node:fs';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { glob, readFile } from 'node:fs/promises';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Purchase, PurchaseLine } from '../../../../core/models/flipbase.models';
 import { PurchaseDocument } from '../../../../core/models/purchase-document.models';
 import { PurchaseDocumentService } from '../../../../core/services/purchase-document.service';
@@ -32,10 +33,29 @@ const getPurchaseById = vi.fn(async (): Promise<Purchase | null> => purchase);
 const loadForPurchase = vi.fn(async () => undefined);
 const back = vi.fn();
 
+beforeAll(async () => {
+  await ɵresolveComponentResources(async (url) => {
+    const fileName = url.replace(/^\.\//, '');
+    const matches: string[] = [];
+    for await (const match of glob(`src/app/**/${fileName}`)) matches.push(match);
+    if (matches.length !== 1) {
+      throw new Error(`Test-Ressource ${url} ist nicht eindeutig: ${matches.join(', ')}`);
+    }
+    return readFile(matches[0], 'utf8');
+  });
+});
+
 function createPage(id = 'purchase-1') {
   const component = TestBed.runInInjectionContext(() => new PurchasePrintComponent());
   Object.defineProperty(component, 'id', { value: () => id });
   return component;
+}
+
+function renderPage(id = 'purchase-1'): ComponentFixture<PurchasePrintComponent> {
+  const fixture = TestBed.createComponent(PurchasePrintComponent);
+  Object.defineProperty(fixture.componentInstance, 'id', { value: () => id });
+  fixture.detectChanges();
+  return fixture;
 }
 
 async function settle(): Promise<void> {
@@ -101,20 +121,32 @@ describe('PurchasePrintComponent', () => {
 });
 
 describe('Einkauf-drucken-Vorlagen', () => {
-  const printTemplate = readFileSync(
-    'src/app/features/purchases/pages/purchase-print/purchase-print.component.html',
-    'utf8',
-  );
+  const globalStyles = readFileSync('src/styles.css', 'utf8');
   const detailTemplate = readFileSync(
     'src/app/features/purchases/pages/purchase-detail/purchase-detail.component.html',
     'utf8',
   );
 
-  it('blendet die Bedienleiste beim Drucken aus und zeigt alle Abschnitte', () => {
-    expect(printTemplate).toContain('print:hidden');
-    for (const heading of ['Verkäufer', 'Positionen', 'Kosten', 'Belege', 'Gesamtkosten']) {
-      expect(printTemplate).toContain(heading);
-    }
+  it('zeigt den Browserhinweis in der nicht druckbaren Bedienleiste an', async () => {
+    const fixture = renderPage();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const page = fixture.nativeElement as HTMLElement;
+
+    expect(page.querySelector('.print\\:hidden')).not.toBeNull();
+    expect(page.textContent).toContain(
+      'Falls dein Browser URL und Datum ergänzt, deaktiviere im Druckdialog Kopf- und Fußzeilen.',
+    );
+  });
+
+  it('begrenzt die globalen Druckregeln auf die Einkaufsdruckseite', () => {
+    expect(globalStyles).toContain('body:has(app-purchase-print) [data-shell-sidebar]');
+    expect(globalStyles).toContain('body:has(app-purchase-print) [data-shell-header]');
+    expect(globalStyles).toContain('body:has(app-purchase-print) [data-shell-bottom-nav]');
+    expect(globalStyles).toContain('body:has(app-purchase-print) app-confirm-dialog');
+    expect(globalStyles).toContain('body:has(app-purchase-print) .fb-skip-link');
+    expect(globalStyles).toContain('body:has(app-purchase-print) app-purchase-print');
+    expect(globalStyles).toContain('@page purchase-receipt');
   });
 
   it('verlinkt die Druckseite ohne den entfernten Prüfbeleg', () => {

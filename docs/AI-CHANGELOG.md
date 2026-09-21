@@ -1,5 +1,25 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-21 – Juna – Einkaufsdruck vom Admin-Rahmen getrennt
+
+**Auftrag:** Der Einkaufsdruck sollte innerhalb der Shell bleiben, beim
+Drucken aber weder Navigation noch Kopfzeile, Sprunglink oder Dialoghülle
+zeigen. Andere Druckansichten und normale Verwaltungsseiten durften sich nicht
+verändern.
+
+**Änderung:** Die Shell markiert Sidebar, Inhaltsbereich, Kopfzeile,
+Hauptinhalt und mobile Navigation mit eindeutigen Datenattributen. Der
+Einkaufsdruck zeigt einen Hinweis zu Browser-Kopf- und Fußzeilen. Neue
+Druckregeln greifen ausschließlich bei `app-purchase-print`, entfernen dort
+den Admin-Rahmen, verwenden eine benannte A4-Seite mit 12 mm Rand und vermeiden
+Umbrüche in zusammengehörenden Empfangsabschnitten.
+
+**Prüfung:** Die neuen Shell- und Drucktests waren zuerst rot und sind danach
+mit sieben fokussierten Angular-Tests grün. Prettier, fokussiertes ESLint und
+der Produktionsbau bestanden. Der Bau meldet weiterhin drei bekannte
+NG8113-Hinweise zu ungenutzten `LucideDynamicIcon`-Imports außerhalb dieses
+Scopes.
+
 ## 2026-09-21 – Juna – Chronikzeit unabhängig vom Detailschalter ausgerichtet
 
 **Auftrag:** Zeitangaben in der Einkaufschronik sollten unabhängig davon an

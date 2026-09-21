@@ -1255,3 +1255,44 @@ html:not(.dark) select.linear-input {
     animation: none;
   }
 }
+
+@media print {
+  body:has(app-purchase-print) [data-shell-sidebar],
+  body:has(app-purchase-print) [data-shell-header],
+  body:has(app-purchase-print) [data-shell-bottom-nav],
+  body:has(app-purchase-print) app-confirm-dialog,
+  body:has(app-purchase-print) .fb-skip-link {
+    display: none !important;
+  }
+
+  body:has(app-purchase-print) [data-shell-content] {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+
+  body:has(app-purchase-print) [data-shell-main] {
+    width: 100% !important;
+    max-width: none !important;
+    padding: 0 !important;
+    animation: none !important;
+  }
+
+  body:has(app-purchase-print) app-purchase-print {
+    display: block;
+    page: purchase-receipt;
+  }
+
+  body:has(app-purchase-print) app-purchase-print article > header,
+  body:has(app-purchase-print)
+    app-purchase-print
+    section:not([aria-labelledby='purchase-print-lines']),
+  body:has(app-purchase-print) app-purchase-print tr {
+    break-inside: avoid;
+  }
+}
+
+@page purchase-receipt {
+  size: A4;
+  margin: 12mm;
+}
