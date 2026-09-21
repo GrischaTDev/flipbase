@@ -108,6 +108,13 @@ export class PurchasesComponent {
   );
   readonly searchQuery = signal('');
   readonly hasPurchases = computed(() => this.purchaseService.purchases().length > 0);
+  readonly isPurchaseListLoading = computed(() => {
+    const workspaceId = this.workspaceService.currentWorkspace()?.id ?? null;
+    if (workspaceId === null) return false;
+    return (
+      this.purchaseService.isLoading() || this.purchaseService.loadedWorkspaceId() !== workspaceId
+    );
+  });
   readonly hasOnlyArchivedPurchases = computed(
     () =>
       this.hasPurchases() &&
@@ -123,7 +130,7 @@ export class PurchasesComponent {
       this.searchQuery().trim() === '',
   );
   readonly emptyTitle = computed(() =>
-    this.hasPurchases() ? 'Keine passenden Einkäufe' : 'Noch keine Einkäufe',
+    this.hasPurchases() ? 'Keine passenden Einkäufe' : 'Keine Einkäufe vorhanden',
   );
   readonly emptyText = computed(() =>
     this.hasPurchases() ? 'Ändere die Suche oder die Filter.' : 'Erstelle deinen ersten Einkauf.',

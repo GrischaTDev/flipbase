@@ -1,5 +1,26 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-21 – Juna – Einkaufsliste zeigt Laden und Leerstand korrekt
+
+**Auftrag:** Die Einkaufsliste zwischen bestätigtem Laden, echtem Leerstand und
+Filtertreffern unterscheiden sowie lange Beschreibungen in der Tabelle lesbar
+begrenzen.
+
+**Änderung:** Die Tabelle erhält ihren Ladezustand aus dem bestehenden
+Einkaufs- und Workspace-Vertrag. Solange der aktive Workspace nicht bestätigt
+geladen ist, zeigt sie ausschließlich „Einkäufe werden geladen …“ statt eines
+Leerzustands oder Daten des vorherigen Workspace. Der echte Leerzustand heißt
+nun „Keine Einkäufe vorhanden“; Filtertreffer behalten „Keine passenden
+Einkäufe“. Beschreibungen sind auf eine Tabellenzeile begrenzt, bleiben aber
+vollständig im DOM und über den Titelhinweis verfügbar.
+
+**Prüfung:** Die beiden neuen Regressionen waren zuerst rot (fehlender
+Ladezustand und fehlender Beschreibungscontainer) und bestanden anschließend
+mit 13 fokussierten Angular-Tests einschließlich AXE. Prettier und ESLint für
+die betroffenen Dateien sowie der Produktionsbau bestanden. Der Bau meldet
+weiterhin drei bekannte NG8113-Hinweise zu ungenutzten `LucideDynamicIcon`-
+Importen in Dashboard, Einkaufsliste und Verkäuferliste.
+
 ## 2026-09-21 – Juna – Kosteneditor auf Zusatzausgaben reduziert
 
 **Auftrag:** Im Kosteneditor nur noch Zusatzausgabe und Betrag zeigen, ohne

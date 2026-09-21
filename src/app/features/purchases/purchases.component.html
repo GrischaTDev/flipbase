@@ -42,6 +42,8 @@
     [sortOptions]="purchasesTableConfig.sortOptions"
     [currentSort]="tablePrefs().sort"
     [viewModified]="viewModified()"
+    [loading]="isPurchaseListLoading()"
+    loadingText="Einkäufe werden geladen …"
     [hasRows]="purchaseRows().length > 0"
     [emptyTitle]="emptyTitle()"
     [emptyText]="emptyText()"
@@ -167,7 +169,11 @@
                     </td>
                   }
                   @case ('description') {
-                    <td data-purchase-description>{{ row.title }}</td>
+                    <td data-purchase-description class="max-w-72">
+                      <span class="block max-w-72 truncate" [title]="row.title">{{
+                        row.title || '—'
+                      }}</span>
+                    </td>
                   }
                   @case ('seller') {
                     <td>{{ row.supplierLabel }}</td>

@@ -180,6 +180,9 @@ const purchases: Purchase[] = [
 ];
 
 const purchaseState = signal(purchases);
+const purchaseLoading = signal(false);
+const loadedPurchaseWorkspaceId = signal<string | null>(workspaceId);
+const currentWorkspace = signal({ id: workspaceId });
 
 const inventoryItem: InventoryItem = {
   id: 'item-1',
@@ -196,6 +199,9 @@ const inventoryItem: InventoryItem = {
 beforeEach(() => {
   localStorage.clear();
   purchaseState.set(purchases);
+  purchaseLoading.set(false);
+  loadedPurchaseWorkspaceId.set(workspaceId);
+  currentWorkspace.set({ id: workspaceId });
   TestBed.resetTestingModule();
   TestBed.configureTestingModule({
     imports: [
@@ -210,7 +216,11 @@ beforeEach(() => {
       provideTranslateService({ lang: 'de' }),
       {
         provide: PurchaseService,
-        useValue: { purchases: purchaseState },
+        useValue: {
+          purchases: purchaseState,
+          isLoading: purchaseLoading,
+          loadedWorkspaceId: loadedPurchaseWorkspaceId,
+        },
       },
       {
         provide: InventoryService,
@@ -234,7 +244,7 @@ beforeEach(() => {
       },
       {
         provide: WorkspaceService,
-        useValue: { currentWorkspace: signal({ id: workspaceId }) },
+        useValue: { currentWorkspace },
       },
       {
         provide: InboundTrackingService,
@@ -376,10 +386,51 @@ describe('PurchasesComponent – responsive Einkaufsübersicht', () => {
     fixture.detectChanges();
     const host = fixture.nativeElement as HTMLElement;
 
-    expect(host.textContent).toContain('Noch keine Einkäufe');
+    expect(host.textContent).toContain('Keine Einkäufe vorhanden');
     expect(host.textContent).toContain('Erstelle deinen ersten Einkauf.');
     expect(host.querySelector('[data-create-first-purchase]')).not.toBeNull();
     expect(host.querySelector('[data-reset-purchase-view]')).toBeNull();
+  });
+
+  it('zeigt beim ersten Laden und Workspacewechsel nur den Ladezustand', () => {
+    purchaseState.set([]);
+    purchaseLoading.set(true);
+    loadedPurchaseWorkspaceId.set(null);
+    const fixture = TestBed.createComponent(PurchasesComponent);
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+
+    expect(host.querySelector('[data-data-table-loading]')).not.toBeNull();
+    expect(host.textContent).not.toContain('Keine Einkäufe vorhanden');
+    expect(host.textContent).not.toContain('Keine passenden Einkäufe');
+    expect(host.querySelector('[data-create-first-purchase]')).toBeNull();
+
+    purchaseState.set(purchases);
+    purchaseLoading.set(false);
+    loadedPurchaseWorkspaceId.set(workspaceId);
+    currentWorkspace.set({ id: 'workspace-2' });
+    fixture.detectChanges();
+
+    expect(host.querySelector('[data-data-table-loading]')).not.toBeNull();
+    expect(host.textContent).not.toContain('Keine Einkäufe vorhanden');
+    expect(host.textContent).not.toContain('Keine passenden Einkäufe');
+    expect(host.querySelector('[data-create-first-purchase]')).toBeNull();
+    expect(host.querySelector('[data-purchase-table-row]')).toBeNull();
+  });
+
+  it('begrenzt lange Beschreibungen auf eine Zeile und hält den Volltext bereit', () => {
+    const longText = 'Sehr lange Beschreibung '.repeat(20).trim();
+    purchaseState.set([{ ...purchases[0], notes: longText, title: longText }]);
+    const fixture = TestBed.createComponent(PurchasesComponent);
+    fixture.detectChanges();
+    const description = fixture.nativeElement.querySelector<HTMLElement>(
+      '[data-purchase-description] span',
+    );
+
+    expect(description).not.toBeNull();
+    expect(description?.classList).toContain('truncate');
+    expect(description?.getAttribute('title')).toBe(longText);
+    expect(description?.textContent?.trim()).toBe(longText);
   });
 
   it('bietet bei ausschließlich archivierten Einkäufen direkt das Archiv an', () => {
