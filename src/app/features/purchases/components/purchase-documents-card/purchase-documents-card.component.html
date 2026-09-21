@@ -1,12 +1,5 @@
 <app-card title="Belege" subtitle="Originaldateien zu diesem Einkauf" rounded="xl">
-  <div card-header-actions class="flex items-center gap-2">
-    <app-custom-select
-      [formControl]="documentTypeControl"
-      [options]="documentTypeOptions"
-      ariaLabel="Belegart auswählen"
-      size="sm"
-      widthClass="w-48"
-    />
+  <div class="space-y-3">
     <!-- Verstecktes Dateifeld: Der Dateidialog lässt sich nur so aus einem Knopf öffnen. -->
     <input
       #fileInput
@@ -15,31 +8,36 @@
       data-document-input
       multiple
       accept="application/pdf,image/jpeg,image/png,application/xml,text/xml"
+      aria-label="Belegdateien auswählen"
+      tabindex="-1"
       [disabled]="isUploading()"
       (change)="onFileSelected($event)"
     />
-    <app-button
-      data-add-document
-      variant="secondary"
-      size="slim"
-      [loading]="isUploading()"
-      (clicked)="fileInput.click()"
-    >
-      Beleg hinzufügen
-    </app-button>
-  </div>
 
-  <div class="space-y-3">
+    <div data-document-type class="space-y-1.5">
+      <span class="block text-[13px] font-semibold text-fb-text-primary">Belegart</span>
+      <app-custom-select
+        [formControl]="documentTypeControl"
+        [options]="documentTypeOptions"
+        ariaLabel="Belegart auswählen"
+        widthClass="w-full"
+      />
+    </div>
+
     <button
       type="button"
       data-document-drop-zone
-      class="w-full cursor-pointer rounded-lg border border-dashed border-fb-border bg-fb-subtle px-4 py-5 text-center text-[13px] text-fb-text-muted transition hover:border-fb-primary hover:bg-fb-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary"
+      class="w-full cursor-pointer rounded-lg border border-dashed border-fb-border bg-fb-subtle px-4 py-5 text-center text-[13px] text-fb-text-muted hover:border-fb-primary hover:bg-fb-surface-hover focus-visible:outline-2 focus-visible:outline-fb-primary"
       [disabled]="isUploading()"
       (click)="fileInput.click()"
       (dragover)="onDragOver($event)"
       (drop)="onDrop($event)"
     >
-      Datei hier ablegen oder auswählen
+      {{
+        isUploading()
+          ? 'Beleg wird hochgeladen …'
+          : 'Hier klicken, um eine Datei auszuwählen, oder Datei hier ablegen'
+      }}
     </button>
 
     @if (errorMessage()) {
@@ -77,9 +75,14 @@
                   Erneut versuchen
                 </app-button>
               }
-              <app-button size="slim" variant="plain" (clicked)="removePendingDocument(pending.id)">
-                Entfernen
-              </app-button>
+              <button
+                type="button"
+                aria-label="Vorgemerkten Beleg entfernen"
+                class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-fb-text-muted hover:bg-fb-critical-surface hover:text-fb-critical focus-visible:outline-2 focus-visible:outline-fb-critical"
+                (click)="removePendingDocument(pending.id)"
+              >
+                <svg [lucideIcon]="removeIcon" class="h-4 w-4" aria-hidden="true"></svg>
+              </button>
             </div>
           </li>
         }
@@ -109,22 +112,24 @@
               </p>
             </div>
             <div class="flex shrink-0 items-center gap-2">
-              <app-button
+              <button
+                type="button"
                 data-preview-document
-                variant="plain"
-                size="slim"
-                (clicked)="previewDocument.set(row.document)"
+                aria-label="Beleg ansehen"
+                class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-fb-text-muted hover:bg-fb-success-surface hover:text-fb-success focus-visible:outline-2 focus-visible:outline-fb-primary"
+                (click)="previewDocument.set(row.document)"
               >
-                Ansehen
-              </app-button>
-              <app-button
+                <svg [lucideIcon]="previewIcon" class="h-4 w-4" aria-hidden="true"></svg>
+              </button>
+              <button
+                type="button"
                 data-remove-document
-                variant="plain"
-                size="slim"
-                (clicked)="removeDocument(row.document)"
+                aria-label="Beleg entfernen"
+                class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-fb-text-muted hover:bg-fb-critical-surface hover:text-fb-critical focus-visible:outline-2 focus-visible:outline-fb-critical"
+                (click)="removeDocument(row.document)"
               >
-                Entfernen
-              </app-button>
+                <svg [lucideIcon]="removeIcon" class="h-4 w-4" aria-hidden="true"></svg>
+              </button>
             </div>
           </li>
         }

@@ -1,5 +1,26 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-21 – Juna – Belegkarte auf Auswahlfläche reduziert
+
+**Auftrag:** Die Belegkarte auf eine vollbreite Ablagefläche und zugängliche
+Icon-Aktionen reduzieren, ohne Upload, Vorschau oder Entfernen zu verändern.
+
+**Änderung:** Belegart, verstecktes Dateifeld und Ablagefläche liegen jetzt
+untereinander im Karteninhalt. Die Ablagefläche öffnet weiterhin den nativen
+Dateidialog und akzeptiert Dateien per Drag-and-drop. Gespeicherte und
+vorgemerkte Belege verwenden klare Vorschau- beziehungsweise Papierkorb-Icons
+mit zugänglichen Namen; der Wiederholungsversuch bei Uploadfehlern bleibt als
+Textaktion bestehen. Das technische Dateifeld hat einen zugänglichen Namen und
+ist nicht mehr mit der Tastatur erreichbar, weil die sichtbare Ablagefläche
+seinen vollständigen Bedienweg übernimmt.
+
+**Prüfung:** Der gerenderte DOM-Vertrag schlug zunächst wegen des alten
+Zusatzknopfs rot aus. Die AXE-Prüfung fand anschließend das unbeschriftete
+Dateifeld und bestand nach der Korrektur. Der fokussierte Angular-Test bestand
+mit 16 Tests, die betroffenen Dateien wurden gelintet und der Produktionsbau
+war erfolgreich. Der Prüfbericht liegt unter
+`.superpowers/sdd/2026-09-21-ui-regression-cleanup/task-3-report.md`.
+
 ## 2026-09-21 – Juna – Kartenrahmen beim ersten Rendern stabilisiert
 
 **Auftrag:** Den synchronen Klassenvertrag der gemeinsamen Card-Komponente beim
