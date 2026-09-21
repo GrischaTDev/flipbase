@@ -18,6 +18,8 @@ Die Spezifikation hält außerdem fest, dass ein bereits vorhandener Beta-Antrag
 öffentlich neutral beantwortet wird, dass „Angekommen“ und „Abgeschlossen“
 verschiedene fachliche Zustände bleiben und dass browserseitige Druck-Kopf- und
 Fußzeilen nicht durch die Anwendung erzwungen deaktiviert werden können.
+Nach der Freigabe wurde daraus ein testgetriebener Implementierungsplan mit
+einzeln prüf- und committierbaren Arbeitspaketen erstellt.
 
 **Prüfung:** Bestehende Komponenten, Tests, Navigations- und
 Gestaltungsverträge wurden gelesen. Produktcode wurde in diesem Planungsschritt

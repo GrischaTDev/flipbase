@@ -1,6 +1,6 @@
 # UI regression cleanup – Design specification
 
-**Status:** Zur Nutzerprüfung
+**Status:** Freigegeben
 
 **Branch:** `juna/ui-regression-cleanup`
 
