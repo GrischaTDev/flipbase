@@ -23,10 +23,13 @@ fünf Windows-/Umgebungs-Skips), `npm run test:edge` (16 Tests), `npm run test:a
 `npm test` (2.704 Anwendungstests in 293 Dateien) und `npm run test:landing`
 (22 Tests).
 
-**Gesamtaufruf:** `npm run verify` wurde genau einmal ausgeführt und endete mit
-Exitcode 1 am nativen Kosteneditor-Button. Nach dessen Reparatur wurden die
-betroffene Stufe und alle übrigen Prüfstufen einzeln erfolgreich ausgeführt;
-der Gesamtaufruf selbst wird daher ausdrücklich nicht als grün bezeichnet.
+**Gesamtaufruf:** Der erste `npm run verify` endete mit Exitcode 1 am nativen
+Kosteneditor-Button. Nach dessen Reparatur bestanden zunächst alle Prüfstufen
+einzeln. Der ausdrücklich angeforderte erneute Gesamtaufruf auf dem reparierten
+Endstand `5dff9b79` bestand anschließend vollständig mit **Exitcode 0**:
+Formatierung, Lint, Typen, Workflow, Edge, Suite-Audit, sämtliche Anwendungstests,
+Landingpage und Produktionsbau. Der Exitcode wurde unmittelbar aus
+`$LASTEXITCODE` gesichert, ohne Pipe.
 Der Produktionsbau enthält weiterhin zwei bekannte NG8113-Hinweise im
 unveränderten Dashboard und in der unveränderten Verkäuferliste.
 

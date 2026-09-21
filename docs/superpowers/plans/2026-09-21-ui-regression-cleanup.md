@@ -1410,12 +1410,14 @@ git commit -m "fix(purchases): isolate purchase print layout"
 
 **Prüfstand vom 21.09.2026:** Formatierung, Lint, Typprüfung und Produktionsbau
 erfolgreich. Die Typkorrekturen der neuen Tests sind in `29631d43` enthalten.
-Der genau einmal ausgeführte `npm run verify` endete mit Exitcode 1, weil der
+Der erste `npm run verify` endete mit Exitcode 1, weil der
 native Entfernen-Button im Kosteneditor den Shared-UI-Vertrag verletzte.
 Korrektur mit rotem/grünem Bedienungstest: `9d4d5262`. Danach bestanden alle
 Prüfstufen einzeln: Workflow (81 bestanden, fünf übersprungen), Edge (16),
 Suite-Audit, Anwendungstests (2.704), Landingpage (22), Lint, Typprüfung und Bau.
-Der Gesamtaufruf wurde nicht wiederholt und gilt nicht als bestanden.
+Nach ausdrücklicher Anforderung wurde `npm run verify` auf dem reparierten
+Endstand `5dff9b79` erneut ausgeführt und bestand vollständig mit **Exitcode 0**.
+Dieser zweite Lauf ist der finale automatisierte Abschlussnachweis.
 
 **Manuelle Abnahme weiterhin offen:** Die vorhandene lokale Umgebung auf Port 80
 liefert einen älteren ReFlip-Build mit Loginseite, auch unter `/landing/` und
