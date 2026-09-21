@@ -97,7 +97,7 @@ describe('purchase presentation mapper', () => {
       'Angekommen',
       { type: 'mystery_pack', entry_status: 'capturing', receiving_status: 'received' },
     ],
-    ['Angekommen', { entry_status: 'finalized', receiving_status: 'received' }],
+    ['Abgeschlossen', { entry_status: 'finalized', receiving_status: 'received' }],
     ['Archiviert', { receiving_status: 'archived' }],
     ['Storniert', { receiving_status: 'cancelled' }],
   ] as const)('bildet den Einkaufsstatus %s unabhängig vom Artikelverkauf ab', (want, patch) => {
@@ -183,7 +183,7 @@ describe('purchase presentation mapper', () => {
       context({ inventoryItems: [available, sold, unclear] }),
     );
 
-    expect(row.purchaseStatus).toBe('Angekommen');
+    expect(row.purchaseStatus).toBe('Abgeschlossen');
     expect(row.captureStatus).toBe('Erfassung abgeschlossen');
     expect(row.totalUnits).toBe(2);
     expect(row.availableUnits).toBe(1);

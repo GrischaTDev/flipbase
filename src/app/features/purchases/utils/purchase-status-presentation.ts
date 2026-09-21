@@ -9,27 +9,19 @@ export interface PurchaseStatusPresentation {
 
 export function getPurchaseStatusPresentation(purchase: Purchase): PurchaseStatusPresentation {
   const receivingStatus = purchase.receiving_status as string | undefined;
-  switch (receivingStatus) {
-    case 'partially_received':
-      return { label: 'Teillieferung', tone: 'caution' };
-    case 'received':
-      return { label: 'Angekommen', tone: 'success' };
-    case 'archived':
-      return { label: 'Archiviert', tone: 'neutral' };
-    case 'cancelled':
-    case 'canceled':
-      return { label: 'Storniert', tone: 'critical' };
+  if (receivingStatus === 'archived') return { label: 'Archiviert', tone: 'neutral' };
+  if (receivingStatus === 'cancelled' || receivingStatus === 'canceled') {
+    return { label: 'Storniert', tone: 'critical' };
   }
-
-  if (purchase.shipment_status === 'arrived') {
+  if (purchase.entry_status === 'finalized') {
+    return { label: 'Abgeschlossen', tone: 'brand' };
+  }
+  if (receivingStatus === 'partially_received') {
+    return { label: 'Teillieferung', tone: 'caution' };
+  }
+  if (receivingStatus === 'received' || purchase.shipment_status === 'arrived') {
     return { label: 'Angekommen', tone: 'success' };
   }
-  if (receivingStatus === 'ordered') {
-    return { label: 'Bestellt', tone: 'info' };
-  }
-
-  if (purchase.entry_status === 'finalized') {
-    return { label: 'Abgeschlossen', tone: 'success' };
-  }
-  return { label: 'Entwurf', tone: 'neutral' };
+  if (receivingStatus === 'ordered') return { label: 'Bestellt', tone: 'info' };
+  return { label: 'Entwurf', tone: 'caution' };
 }

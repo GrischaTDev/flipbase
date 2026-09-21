@@ -1,5 +1,21 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-21 – Juna – Einkaufsstatus nach fachlichem Fortschritt priorisiert
+
+**Auftrag:** Die zentrale Einkaufsstatus-Präsentation sollte den fachlichen
+Fortschritt vor technischen Lieferzuständen abbilden und für jeden Status den
+vorgegebenen Ton verwenden.
+
+**Änderung:** Archivierte und stornierte Einkäufe überschreiben alle anderen
+Zustände. Danach überschreibt „Abgeschlossen“ bei finalisierten Einkäufen die
+Lieferzustände; Teillieferung, Ankunft, Bestellung und Entwurf folgen in der
+fachlich festgelegten Reihenfolge. Die Einkaufsliste selbst blieb unverändert.
+
+**Prüfung:** Die vollständige Statusmatrix war zunächst mit den erwarteten
+Fehlern rot und bestand nach der zentralen Korrektur mit 47 fokussierten
+Node-Tests. Prettier, ESLint und der Produktionsbau wurden anschließend
+ausgeführt.
+
 ## 2026-09-21 – Juna – Einkaufsliste zeigt Laden und Leerstand korrekt
 
 **Auftrag:** Die Einkaufsliste zwischen bestätigtem Laden, echtem Leerstand und
