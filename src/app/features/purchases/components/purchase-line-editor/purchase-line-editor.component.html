@@ -54,7 +54,7 @@
                     [title]="row.controls.titleSnapshot.value"
                     [ariaLabel]="row.controls.titleSnapshot.value + ' – Details'"
                     (clicked)="openDetails(id)"
-                    ><span class="break-words text-left">{{
+                    ><span class="w-full break-words text-left">{{
                       row.controls.titleSnapshot.value || 'Produkt zuordnen'
                     }}</span></app-button
                   >
@@ -95,13 +95,13 @@
                 >Stückpreis</label
               >
               @if (isMysteryPurchase()) {
-                <span class="text-fb-text-muted">Offen</span>
+                <span aria-label="Kein Stückpreis"></span>
               } @else {
                 <app-number-input
                   [id]="'purchase-line-unit-price-' + id"
                   formControlName="unitPurchasePrice"
                   [ariaLabel]="'Stückpreis für ' + row.controls.titleSnapshot.value"
-                  placeholder="Offen"
+                  placeholder=""
                   [min]="0"
                   [step]="0.01"
                   [showStepper]="false"
@@ -124,7 +124,7 @@
               <span class="mr-2 text-xs text-fb-text-muted md:hidden">Gesamt</span>
               {{
                 row.controls.lineTotal.value === null
-                  ? 'Offen'
+                  ? (0 | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
                   : (row.controls.lineTotal.value | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
               }}
             </td>
@@ -160,6 +160,7 @@
       class="min-w-0 flex-1"
       variant="ghost"
       size="search"
+      [fullWidth]="true"
       [icon]="searchIcon"
       [disabled]="catalogSelectionDisabled()"
       (clicked)="openPicker()"

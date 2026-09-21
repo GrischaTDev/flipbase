@@ -57,17 +57,6 @@
               </div>
             }
           </div>
-          <div class="min-w-0">
-            <label for="purchase-date" class="mb-1.5 block text-[13px] font-semibold">
-              Kaufdatum <span aria-hidden="true" class="text-fb-primary">*</span>
-            </label>
-            <app-date-picker
-              id="purchase-date"
-              ariaLabel="Kaufdatum"
-              formControlName="purchase_date"
-              [required]="true"
-            />
-          </div>
         </div>
       </app-card>
 
@@ -101,6 +90,17 @@
 
       <app-card title="Einkaufsdetails" padding="md" rounded="xl">
         <div class="space-y-4">
+          <div>
+            <label for="purchase-date" class="mb-1.5 block text-[13px] font-semibold">
+              Kaufdatum <span aria-hidden="true" class="text-fb-primary">*</span>
+            </label>
+            <app-date-picker
+              id="purchase-date"
+              ariaLabel="Kaufdatum"
+              formControlName="purchase_date"
+              [required]="true"
+            />
+          </div>
           <app-text-field formControlName="supplier_reference" label="Referenznummer" />
           <app-text-field formControlName="notes" label="Beschreibung" [multiline]="3" />
         </div>

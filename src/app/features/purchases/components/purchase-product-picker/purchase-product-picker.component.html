@@ -9,7 +9,16 @@
   }
   <div class="divide-y divide-fb-line">
     @for (product of filtered(); track product.id) {
-      <div class="flex items-center gap-3 py-3">
+      <div
+        role="option"
+        tabindex="0"
+        [attr.data-product-option]="product.id"
+        [attr.aria-selected]="selection().has(product.id)"
+        class="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-3 hover:bg-fb-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/60"
+        (click)="toggle(product.id)"
+        (keydown.enter)="toggle(product.id)"
+        (keydown.space)="$event.preventDefault(); toggle(product.id)"
+      >
         <app-custom-checkbox
           [checked]="selection().has(product.id)"
           [ariaLabel]="product.title + ' auswählen'"

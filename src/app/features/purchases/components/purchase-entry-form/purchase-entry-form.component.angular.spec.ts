@@ -262,6 +262,45 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
     expect(template).not.toContain('Paketpreis verteilen');
     expect(template).not.toContain('(optional)');
     expect(template).toContain('formControlName="notes"');
+    expect(template.indexOf('title="Einkaufsdetails"')).toBeLessThan(
+      template.indexOf('formControlName="purchase_date"'),
+    );
+    expect(template.indexOf('formControlName="purchase_date"')).toBeLessThan(
+      template.indexOf('formControlName="supplier_reference"'),
+    );
+  });
+
+  it('aktualisiert den Warenwert unmittelbar aus den Positionen', () => {
+    const { komponente } = erstelleKomponente();
+    komponente.purchaseBasePrice.set(null);
+
+    komponente.onPurchaseLinesChanged([
+      {
+        catalogProductId: 'product-1',
+        titleSnapshot: 'Schuhe',
+        lineKind: 'quantity',
+        orderedQuantity: 2,
+        condition: 'used',
+        priceMode: 'priced',
+        unitPurchasePrice: 12.5,
+        lineTotal: 25,
+        estimatedMarketValue: null,
+      },
+    ]);
+
+    expect(komponente.purchaseBasePrice()).toBe(25);
+    expect(komponente.form.controls.purchase_price.value).toBe(25);
+  });
+
+  it('laesst eine leere Beschreibung auch im Speicherpayload leer', async () => {
+    const { komponente, purchaseService } = erstelleKomponente();
+    komponente.form.controls.notes.setValue('');
+
+    await komponente.onSubmit();
+
+    expect(purchaseService.createPurchase).toHaveBeenCalledWith(
+      expect.objectContaining({ title: '', notes: null }),
+    );
   });
 
   it('oeffnet den gemeinsamen Kosteneditor mit dem aktuellen Entwurf', () => {

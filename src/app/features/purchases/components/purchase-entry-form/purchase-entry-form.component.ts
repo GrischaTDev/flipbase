@@ -503,7 +503,7 @@ export class PurchaseEntryFormComponent {
       cost_allocation_mode: vorhandener?.cost_allocation_mode,
       supplier_reference: f.supplier_reference.trim() || null,
       discount_amount: f.discount_amount,
-      title: f.notes.trim() || 'Einkauf',
+      title: f.notes.trim(),
       source_id: f.source_id,
       supplier_id: f.supplier_id,
       purchase_date: f.purchase_date,
@@ -522,7 +522,7 @@ export class PurchaseEntryFormComponent {
       seller_city: sellerSnapshot?.seller_city ?? vorhandener?.seller_city ?? null,
       seller_country_code:
         sellerSnapshot?.seller_country_code ?? vorhandener?.seller_country_code ?? null,
-      notes: f.notes || null,
+      notes: f.notes.trim() || null,
       initial_costs: this.costDrafts().filter((cost) => cost.amount > 0),
       single_item_condition: f.single_item_condition,
       single_item_expected_value: f.single_item_expected_value || undefined,
@@ -648,14 +648,17 @@ export class PurchaseEntryFormComponent {
     this.purchaseLines.set(persistedLines);
     this.updateAdditionalCostsValidity();
     this.updatePurchasePriceEditability();
-    if (this.form.controls.pricing_mode.value === 'total' || persistedLines.length === 0) return;
+    if (this.form.controls.pricing_mode.value === 'total') return;
 
-    if (persistedLines.some((line) => line.unitPurchasePrice === null || line.lineTotal === null)) {
-      this.form.controls.purchase_price.setValue(null);
-      return;
-    }
-    const lineTotal = persistedLines.reduce((total, line) => total + (line.lineTotal ?? 0), 0);
-    this.form.controls.purchase_price.setValue(Number(lineTotal.toFixed(2)));
+    const knownTotals = persistedLines
+      .map((line) => line.lineTotal)
+      .filter((value): value is number => value !== null);
+    const purchaseBasePrice =
+      knownTotals.length === persistedLines.length
+        ? Number(knownTotals.reduce((sum, value) => sum + value, 0).toFixed(2))
+        : null;
+    this.form.controls.purchase_price.setValue(purchaseBasePrice, { emitEvent: false });
+    this.purchaseBasePrice.set(purchaseBasePrice);
   }
 
   onCostsChanged(costs: readonly PurchaseCostDraft[]): void {
