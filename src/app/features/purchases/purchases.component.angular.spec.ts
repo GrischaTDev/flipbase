@@ -382,6 +382,23 @@ describe('PurchasesComponent – responsive Einkaufsübersicht', () => {
     expect(host.querySelector('[data-reset-purchase-view]')).toBeNull();
   });
 
+  it('bietet bei ausschließlich archivierten Einkäufen direkt das Archiv an', () => {
+    purchaseState.set(purchases.map((purchase) => ({ ...purchase, receiving_status: 'archived' })));
+    const fixture = TestBed.createComponent(PurchasesComponent);
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const showArchive = fixture.debugElement.query(By.css('[data-show-purchase-archive]'));
+
+    expect(host.querySelectorAll('[data-purchase-table-row]')).toHaveLength(0);
+    expect(showArchive).not.toBeNull();
+
+    showArchive.triggerEventHandler('clicked', new MouseEvent('click'));
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.activeStatus()).toBe('archived');
+    expect(host.querySelectorAll('[data-purchase-table-row]')).toHaveLength(2);
+  });
+
   it('kombiniert Nummernsuche, Status und Verkäufer-ID und trennt Filter- von Layout-Rücksetzung', () => {
     const list = purchaseState;
     list.set([

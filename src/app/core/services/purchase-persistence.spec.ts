@@ -505,6 +505,7 @@ describe('PurchaseService – konsistenter Stand nach der Finalisierung', () => 
       selectedPurchaseRaw,
       purchaseLinesRaw,
       purchaseItemsFallback,
+      loadError: signal<Error | null>(null),
       loadPurchases,
       stockService: { loadPositions },
       inventory: { items: inventoryItems, loadInventory },
@@ -548,6 +549,7 @@ describe('PurchaseService – konsistenter Stand nach der Finalisierung', () => 
       selectedPurchaseRaw,
       purchaseItemsFallback: signal<InventoryItem[]>([]),
       purchaseLinesRaw,
+      loadError: signal<Error | null>(null),
       loadPurchases: vi.fn(async () =>
         purchasesRaw.set([{ ...einkauf, entry_status: 'finalized' }]),
       ),
@@ -559,5 +561,44 @@ describe('PurchaseService – konsistenter Stand nach der Finalisierung', () => 
 
     expect(selectedPurchaseRaw()).toEqual(andererEinkauf);
     expect(purchaseLinesRaw()).toEqual([existingLine]);
+  });
+
+  it('übernimmt die bestätigte Finalisierung auch bei fehlgeschlagenem Neuladen sofort lokal', async () => {
+    const workspace = signal<{ id: string } | null>({ id: einkauf.workspace_id });
+    const draft = { ...einkauf, entry_status: 'draft' as const, total_purchase_cost: null };
+    const purchasesRaw = signal<Purchase[]>([draft]);
+    const selectedPurchaseRaw = signal<Purchase | null>(draft);
+    const loadError = signal<Error | null>(null);
+    const refreshFailure = new Error('Netzwerk unterbrochen');
+    const service = Object.create(PurchaseService.prototype) as PurchaseService;
+    Object.assign(service, {
+      workspaceService: { currentWorkspace: workspace },
+      purchasesRaw,
+      selectedPurchaseRaw,
+      purchaseLinesRaw: signal<PurchaseLine[]>([]),
+      purchaseItemsFallback: signal<InventoryItem[]>([]),
+      loadError,
+      loadPurchases: vi.fn(async () => loadError.set(refreshFailure)),
+      stockService: { loadPositions: vi.fn(async () => undefined) },
+      inventory: { loadInventory: vi.fn(async () => undefined) },
+    });
+
+    const error = await service.refreshAfterFinalization(einkauf.workspace_id, einkauf.id, {
+      purchaseId: einkauf.id,
+      totalPurchaseCost: 31.98,
+      allocatedTotalCost: 31.98,
+      entryStatus: 'finalized',
+      eventId: 'event-finalized',
+    });
+
+    expect(error).toBe(refreshFailure);
+    expect(purchasesRaw()).toMatchObject([
+      { id: einkauf.id, entry_status: 'finalized', total_purchase_cost: 31.98 },
+    ]);
+    expect(selectedPurchaseRaw()).toMatchObject({
+      id: einkauf.id,
+      entry_status: 'finalized',
+      total_purchase_cost: 31.98,
+    });
   });
 });

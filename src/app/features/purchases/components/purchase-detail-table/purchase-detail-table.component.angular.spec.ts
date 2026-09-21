@@ -131,7 +131,7 @@ describe('PurchaseDetailTableComponent', () => {
     expect(result.violations).toEqual([]);
   });
 
-  it('zeigt Verkauf und Ergebnis nur bei einer echten Verkaufsverknüpfung', () => {
+  it('mischt auch bei vorhandenen Verkaufsdaten keine Verkaufswerte in den Einkauf', () => {
     const fixture = render([
       row({
         id: 'line-sold',
@@ -143,15 +143,13 @@ describe('PurchaseDetailTableComponent', () => {
       row({ id: 'line-open', title: 'Offene Tasse' }),
     ]);
     const host = fixture.nativeElement as HTMLElement;
-    const saleLinks = host.querySelectorAll<HTMLAnchorElement>('[data-purchase-sale-link]');
-
-    expect(saleLinks).toHaveLength(2);
-    expect(saleLinks[0].getAttribute('href')).toBe('/sales?saleId=sale-1');
-    expect(host.textContent).toContain('Ergebnis: 13,00 €');
-    expect(host.textContent).toContain('Verkaufserlös: 33,00 €');
+    expect(host.querySelector('[data-purchase-sale-link]')).toBeNull();
+    expect(host.textContent).not.toContain('Ergebnis');
+    expect(host.textContent).not.toContain('Verkaufserlös');
+    expect(host.textContent).not.toContain('Verkaufsdaten');
   });
 
-  it('zeigt Verkaufsfehler und löst die Erfassung genau einmal aus', () => {
+  it('blendet Verkaufsfehler aus und löst die Erfassung genau einmal aus', () => {
     const fixture = render([
       row({
         id: 'line-capture',
@@ -169,7 +167,7 @@ describe('PurchaseDetailTableComponent', () => {
     capture?.click();
 
     expect(host.textContent?.match(/Noch nicht erfasste Tasse/g)).toHaveLength(1);
-    expect(host.textContent).toContain('Verkaufsdaten konnten nicht geladen werden');
+    expect(host.textContent).not.toContain('Verkaufsdaten');
     expect(emitted).toEqual(['line-capture']);
   });
 
@@ -197,7 +195,7 @@ describe('PurchaseDetailTableComponent', () => {
     ]);
   });
 
-  it('kennzeichnet historische Verkäufe ohne aktuelle Finanzbegriffe', () => {
+  it('blendet auch historische Retouren und Stornos aus', () => {
     const fixture = render([
       row({
         recordedSales: [
@@ -208,10 +206,9 @@ describe('PurchaseDetailTableComponent', () => {
     ]);
     const host = fixture.nativeElement as HTMLElement;
 
-    expect(host.querySelector('[data-recorded-sale="returned"]')?.textContent).toContain(
-      'Retourniert',
-    );
-    expect(host.querySelector('[data-recorded-sale="voided"]')?.textContent).toContain('Storniert');
+    expect(host.querySelector('[data-recorded-sale]')).toBeNull();
+    expect(host.textContent).not.toContain('Retourniert');
+    expect(host.textContent).not.toContain('Storniert');
     expect(host.textContent).not.toContain('Verkaufserlös');
     expect(host.textContent).not.toContain('Ergebnis');
   });

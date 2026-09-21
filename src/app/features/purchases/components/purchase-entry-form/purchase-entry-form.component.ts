@@ -511,7 +511,7 @@ export class PurchaseEntryFormComponent {
       cost_allocation_mode: vorhandener?.cost_allocation_mode,
       supplier_reference: f.supplier_reference.trim() || null,
       discount_amount: f.discount_amount,
-      title: f.notes.trim(),
+      title: '',
       source_id: f.source_id,
       supplier_id: f.supplier_id,
       purchase_date: f.purchase_date,
@@ -683,10 +683,24 @@ export class PurchaseEntryFormComponent {
       return;
     }
 
-    await this.purchaseService.refreshAfterFinalization(purchase.workspace_id, purchase.id);
+    if (!result.data) {
+      this.errorMessage.set('Die bestätigten Abschlussdaten fehlen. Bitte erneut versuchen.');
+      return;
+    }
+    const refreshError = await this.purchaseService.refreshAfterFinalization(
+      purchase.workspace_id,
+      purchase.id,
+      result.data,
+    );
     this.persistedDraft.set(null);
     this.completed?.set(true);
     this.toast.success('Erfassung wurde abgeschlossen.');
+    if (refreshError) {
+      this.toast.warning(
+        'Der Einkauf ist abgeschlossen, aber noch nicht vollständig neu geladen.',
+        'Bitte lade die Seite erneut.',
+      );
+    }
     this.created.emit();
     this.closed.emit();
   }

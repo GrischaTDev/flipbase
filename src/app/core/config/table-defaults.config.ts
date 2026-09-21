@@ -133,7 +133,7 @@ export const PURCHASES_TABLE_CONFIG: TableConfig<PurchasesColumnId, PurchasesSor
   sortOptions: [
     { value: 'purchase_date', label: 'Kaufdatum', kind: 'date' },
     { value: 'total_cost', label: 'Gesamt', kind: 'number' },
-    { value: 'title', label: 'Bezeichnung', kind: 'text' },
+    { value: 'title', label: 'Beschreibung', kind: 'text' },
   ],
 };
 

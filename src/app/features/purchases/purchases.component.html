@@ -204,7 +204,17 @@
       </table>
     </div>
 
-    @if (hasPurchases()) {
+    @if (canShowArchiveFromEmpty()) {
+      <app-button
+        data-show-purchase-archive
+        table-empty-action
+        class="mt-4"
+        variant="secondary"
+        (clicked)="showArchive()"
+      >
+        Archiv anzeigen
+      </app-button>
+    } @else if (hasPurchases()) {
       <app-button
         data-reset-purchase-view
         table-empty-action

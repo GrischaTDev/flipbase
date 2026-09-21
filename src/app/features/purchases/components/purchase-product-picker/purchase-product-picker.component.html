@@ -9,21 +9,26 @@
   }
   <div class="divide-y divide-fb-line">
     @for (product of filtered(); track product.id) {
-      <div
-        role="option"
-        tabindex="0"
+      <button
+        type="button"
         [attr.data-product-option]="product.id"
-        [attr.aria-selected]="selection().has(product.id)"
-        class="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-3 hover:bg-fb-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/60"
+        [attr.aria-pressed]="selection().has(product.id)"
+        class="flex w-full cursor-pointer items-center gap-3 rounded-lg px-2 py-3 text-left hover:bg-fb-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/60"
         (click)="toggle(product.id)"
-        (keydown.enter)="toggle(product.id)"
-        (keydown.space)="$event.preventDefault(); toggle(product.id)"
       >
-        <app-custom-checkbox
-          [checked]="selection().has(product.id)"
-          [ariaLabel]="product.title + ' auswählen'"
-          (checkedChange)="toggle(product.id)"
-        />
+        <span
+          aria-hidden="true"
+          class="flex h-4 w-4 shrink-0 items-center justify-center rounded border text-[10px] font-bold transition"
+          [class.border-[#fcc601]]="selection().has(product.id)"
+          [class.bg-[#fcc601]]="selection().has(product.id)"
+          [class.text-slate-950]="selection().has(product.id)"
+          [class.border-fb-border-hover]="!selection().has(product.id)"
+          [class.bg-fb-well]="!selection().has(product.id)"
+        >
+          @if (selection().has(product.id)) {
+            ✓
+          }
+        </span>
         <app-product-thumbnail
           [src]="imageUrls()[product.id] || null"
           (imageFailed)="imageFailed.emit(product.id)"
@@ -37,7 +42,7 @@
             }
           </p>
         </div>
-      </div>
+      </button>
     } @empty {
       <p class="py-6 text-center text-sm text-fb-text-muted">Keine passenden Artikel gefunden.</p>
     }

@@ -23,6 +23,7 @@ import {
 } from '../models/flipbase.models';
 import {
   PurchaseCostAllocationMethod,
+  PurchaseCostingResult,
   PurchaseLinePriceMode,
 } from '../models/purchase-costing.models';
 import {
@@ -342,10 +343,13 @@ export class PurchaseService {
 
   async loadPurchases(workspaceId: string): Promise<void> {
     const requestId = ++this.loadRequestId;
+    const keepConfirmedList = this.loadedWorkspaceId() === workspaceId;
     this.isLoading.set(true);
     this.loadError.set(null);
-    this.loadedWorkspaceId.set(null);
-    this.purchasesRaw.set([]);
+    if (!keepConfirmedList) {
+      this.loadedWorkspaceId.set(null);
+      this.purchasesRaw.set([]);
+    }
     try {
       const { data, error } = await this.supabase.client
         .from('purchases')
@@ -1839,14 +1843,39 @@ export class PurchaseService {
    * gemeinsam auf denselben Datenbankstand. Komponenten rufen damit nicht
    * mehrere, leicht auseinanderlaufende Einzel-Refreshes auf.
    */
-  async refreshAfterFinalization(workspaceId: string, purchaseId: string): Promise<void> {
-    if (this.workspaceService.currentWorkspace()?.id !== workspaceId) return;
+  async refreshAfterFinalization(
+    workspaceId: string,
+    purchaseId: string,
+    confirmed?: PurchaseCostingResult,
+  ): Promise<Error | null> {
+    if (this.workspaceService.currentWorkspace()?.id !== workspaceId) return null;
+    if (confirmed?.purchaseId === purchaseId) {
+      const applyConfirmation = (purchase: Purchase): Purchase => ({
+        ...purchase,
+        entry_status: confirmed.entryStatus,
+        total_purchase_cost: confirmed.totalPurchaseCost,
+      });
+      this.purchasesRaw.update((purchases) =>
+        purchases.map((purchase) =>
+          purchase.id === purchaseId && purchase.workspace_id === workspaceId
+            ? applyConfirmation(purchase)
+            : purchase,
+        ),
+      );
+      const selected = this.selectedPurchaseRaw();
+      if (selected?.id === purchaseId && selected.workspace_id === workspaceId) {
+        this.selectedPurchaseRaw.set(applyConfirmation(selected));
+      }
+    }
     await Promise.all([
       this.loadPurchases(workspaceId),
       this.stockService.loadPositions(workspaceId),
       this.inventory.loadInventory(workspaceId),
     ]);
-    if (this.workspaceService.currentWorkspace()?.id !== workspaceId) return;
+    if (this.workspaceService.currentWorkspace()?.id !== workspaceId) return null;
+
+    const refreshError = this.loadError();
+    if (refreshError) return refreshError;
 
     const selected = this.selectedPurchaseRaw();
     const refreshed = this.purchasesRaw().find(
@@ -1857,6 +1886,7 @@ export class PurchaseService {
       this.purchaseItemsFallback.set([]);
       this.purchaseLinesRaw.set(refreshed.purchase_lines ?? []);
     }
+    return null;
   }
 
   async deletePurchase(purchaseId: string): Promise<{ error: Error | null }> {

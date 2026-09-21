@@ -35,58 +35,6 @@
                   </div>
                 }
 
-                @if (row.salesState === 'error') {
-                  <p class="text-[11px] font-normal text-rose-300">
-                    Verkaufsdaten konnten nicht geladen werden
-                  </p>
-                } @else if (row.salesState === 'loading') {
-                  <p class="text-[11px] font-normal text-fb-text-muted">
-                    Verkaufsdaten werden geladen …
-                  </p>
-                } @else {
-                  @for (sale of row.recordedSales ?? []; track sale.id) {
-                    <div
-                      [attr.data-recorded-sale]="sale.status"
-                      class="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-normal"
-                    >
-                      @if (sale.status === 'returned') {
-                        <app-badge tone="caution">Retourniert</app-badge>
-                      } @else if (sale.status === 'voided') {
-                        <span
-                          class="rounded-full bg-slate-400/15 px-2 py-0.5 font-semibold text-slate-300"
-                        >
-                          Storniert
-                        </span>
-                      } @else {
-                        @if (sale.revenue !== null) {
-                          <span class="text-fb-text-muted">
-                            Verkaufserlös:
-                            {{ sale.revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-                          </span>
-                        }
-                        @if (sale.directResult !== null) {
-                          <span
-                            class="font-semibold"
-                            [class.text-emerald-400]="sale.directResult >= 0"
-                            [class.text-rose-400]="sale.directResult < 0"
-                          >
-                            Ergebnis:
-                            {{ sale.directResult | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-                          </span>
-                        }
-                      }
-                      <a
-                        data-purchase-sale-link
-                        [routerLink]="['/sales']"
-                        [queryParams]="{ saleId: sale.id }"
-                        class="cursor-pointer rounded text-indigo-300 transition hover:text-indigo-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
-                      >
-                        Zum Verkauf
-                      </a>
-                    </div>
-                  }
-                }
-
                 @if (row.captureRemaining > 0 && canCaptureIndividual()) {
                   <button
                     type="button"

@@ -55,6 +55,41 @@ describe('PurchaseService', () => {
       });
     });
 
+    describe('PurchaseService – fehlgeschlagenes Neuladen', () => {
+      it('behält den letzten bestätigten Bestand desselben Workspaces sichtbar', async () => {
+        const purchasesRaw = signal<Purchase[]>([einkauf]);
+        const loadedWorkspaceId = signal<string | null>(einkauf.workspace_id);
+        let orderCalls = 0;
+        const query = {
+          select: () => query,
+          eq: () => query,
+          order: () => {
+            orderCalls += 1;
+            return orderCalls === 1
+              ? query
+              : Promise.resolve({ data: null, error: { message: 'offline' } });
+          },
+        };
+        const service = Object.create(PurchaseService.prototype) as PurchaseService;
+        Object.assign(service, {
+          loadRequestId: 0,
+          purchasesRaw,
+          loadedWorkspaceId,
+          isLoading: signal(false),
+          loadError: signal<Error | null>(null),
+          workspaceService: { currentWorkspace: signal({ id: einkauf.workspace_id }) },
+          syncStatus: new SyncStatusService(),
+          supabase: { client: { from: () => query } },
+        });
+
+        await service.loadPurchases(einkauf.workspace_id);
+
+        expect(purchasesRaw()).toEqual([einkauf]);
+        expect(loadedWorkspaceId()).toBe(einkauf.workspace_id);
+        expect(service.loadError()).toBeInstanceOf(Error);
+      });
+    });
+
     describe('PurchaseService – fehlgeschlagenes Bearbeiten', () => {
       it('behält das Signal bei einem Datenbankfehler unverändert', async () => {
         const purchasesRaw = signal<Purchase[]>([einkauf]);

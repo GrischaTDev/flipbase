@@ -48,7 +48,9 @@ const FIELD_LABELS: Readonly<Record<string, string>> = {
   supplier_id: 'Verkäufer',
   purchase_date: 'Einkaufsdatum',
   cost_allocation_mode: 'Kostenverteilung',
-  notes: 'Notizen',
+  notes: 'Beschreibung',
+  source_name: 'Bezugsquelle',
+  supplier_name: 'Verkäufer',
   tracking_number: 'Sendungsnummer',
   tracking_carrier: 'Versanddienstleister',
   tracking_status: 'Sendungsstatus',
@@ -286,6 +288,7 @@ export function mapRecordChanges(
   const compare = (before: unknown, after: unknown, path: readonly string[]): void => {
     if (equalValue(before, after) || (before == null && after == null)) return;
     const key = path.at(-1) ?? '';
+    if (path.length === 2 && path[0] === 'purchase' && key === 'title') return;
     if (hidden.has(key) || isTechnicalChange(key, before, after)) return;
     if (path.some(isSensitiveKey)) {
       result.push({ label: buildLabel(path), from: '[geschützt]', to: '[geschützt]' });

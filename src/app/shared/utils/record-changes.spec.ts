@@ -95,7 +95,42 @@ describe('mapRecordChanges', () => {
 
   it('zeigt fehlende Werte als Gedankenstrich', () => {
     expect(mapRecordChanges({ notes: { before: null, after: 'neu' } })).toEqual([
-      { label: 'Notizen', from: '—', to: 'neu' },
+      { label: 'Beschreibung', from: '—', to: 'neu' },
+    ]);
+  });
+
+  it('zeigt eine sichtbare Beschreibung genau einmal und blendet den technischen Titel aus', () => {
+    expect(
+      mapRecordChanges({
+        purchase: {
+          before: { title: 'Alt', notes: 'Alt' },
+          after: { title: 'Neu', notes: 'Neu' },
+        },
+      }),
+    ).toEqual([{ label: 'Beschreibung', from: 'Alt', to: 'Neu' }]);
+  });
+
+  it('zeigt fachliche Namen für Quellen- und Verkäuferwechsel statt UUIDs', () => {
+    expect(
+      mapRecordChanges({
+        purchase: {
+          before: {
+            source_id: '11111111-1111-4111-8111-111111111111',
+            source_name: 'Flohmarkt',
+            supplier_id: '22222222-2222-4222-8222-222222222222',
+            supplier_name: 'Alex',
+          },
+          after: {
+            source_id: '33333333-3333-4333-8333-333333333333',
+            source_name: 'Vinted',
+            supplier_id: '44444444-4444-4444-8444-444444444444',
+            supplier_name: 'Sam',
+          },
+        },
+      }),
+    ).toEqual([
+      { label: 'Bezugsquelle', from: 'Flohmarkt', to: 'Vinted' },
+      { label: 'Verkäufer', from: 'Alex', to: 'Sam' },
     ]);
   });
 
@@ -111,7 +146,7 @@ describe('mapRecordChanges', () => {
 
   it('lässt Texte, die nur an ein Datum erinnern, unverändert', () => {
     expect(mapRecordChanges({ notes: { before: null, after: '2026-09' } })).toEqual([
-      { label: 'Notizen', from: '—', to: '2026-09' },
+      { label: 'Beschreibung', from: '—', to: '2026-09' },
     ]);
   });
 

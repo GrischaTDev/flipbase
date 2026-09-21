@@ -957,9 +957,23 @@ export class PurchaseDetailComponent {
       return;
     }
 
-    await this.purchaseService.refreshAfterFinalization(purchase.workspace_id, purchase.id);
+    if (!result.data) {
+      this.toast.error('Einkauf konnte nicht abgeschlossen werden.');
+      return;
+    }
+    const refreshError = await this.purchaseService.refreshAfterFinalization(
+      purchase.workspace_id,
+      purchase.id,
+      result.data,
+    );
     this.historyRevision.update((revision) => revision + 1);
     this.toast.success('Erfassung wurde abgeschlossen.');
+    if (refreshError) {
+      this.toast.warning(
+        'Der Einkauf ist abgeschlossen, aber noch nicht vollständig neu geladen.',
+        'Bitte lade die Seite erneut.',
+      );
+    }
   }
 
   async reloadPurchaseSaleHistory(): Promise<void> {

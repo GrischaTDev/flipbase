@@ -212,6 +212,9 @@ describe('TablePreferencesService – Polaris Table Preferences & Reordering', (
     expect(
       PURCHASES_TABLE_CONFIG.defaultColumns.find(({ id }) => id === 'description')?.label,
     ).toBe('Beschreibung');
+    expect(PURCHASES_TABLE_CONFIG.sortOptions.find(({ value }) => value === 'title')?.label).toBe(
+      'Beschreibung',
+    );
   });
 
   it('ersetzt die frühere Webshop-Spalte im Artikelstamm durch Kategorie und Marke', () => {

@@ -110,7 +110,7 @@ describe('timelineChanges', () => {
     });
     expect(timelineChanges(event)).toEqual([
       { label: 'Einkaufsdatum', from: '01.09.2026', to: '03.09.2026' },
-      { label: 'Notizen', from: '—', to: 'Versand am Montag' },
+      { label: 'Beschreibung', from: '—', to: 'Versand am Montag' },
     ]);
   });
 
@@ -131,7 +131,7 @@ describe('timelineChanges', () => {
         },
       },
     });
-    expect(timelineChanges(event)).toEqual([{ label: 'Notizen', from: 'alt', to: 'neu' }]);
+    expect(timelineChanges(event)).toEqual([{ label: 'Beschreibung', from: 'alt', to: 'neu' }]);
   });
 
   it('vermerkt sensible Änderungen, ohne den Wert zu zeigen', () => {
@@ -143,7 +143,7 @@ describe('timelineChanges', () => {
     });
     expect(timelineChanges(event)).toEqual([
       { label: 'Api token', from: '[geschützt]', to: '[geschützt]' },
-      { label: 'Notizen', from: 'alt', to: 'neu' },
+      { label: 'Beschreibung', from: 'alt', to: 'neu' },
     ]);
   });
 

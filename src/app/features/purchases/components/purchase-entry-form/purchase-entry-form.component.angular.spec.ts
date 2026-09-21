@@ -491,7 +491,7 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
 
     expect(purchaseService.createPurchase).toHaveBeenCalledWith(
       expect.objectContaining({
-        title: 'Vinted-Jacke',
+        title: '',
         notes: 'Vinted-Jacke',
         source_id: 'source-vinted',
         supplier_id: 'supplier-nord',
@@ -554,6 +554,11 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
     expect(purchaseService.refreshAfterFinalization).toHaveBeenCalledWith(
       einkauf.workspace_id,
       einkauf.id,
+      expect.objectContaining({
+        purchaseId: einkauf.id,
+        entryStatus: 'finalized',
+        totalPurchaseCost: 50,
+      }),
     );
     expect(created.emit).toHaveBeenCalledOnce();
     expect(closed.emit).toHaveBeenCalledOnce();
@@ -780,7 +785,7 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
     expect(purchaseService.updatePurchaseDraft).toHaveBeenCalledWith(
       einkauf.id,
       expect.objectContaining({
-        title: 'Konsole mit Zubehör',
+        title: '',
         purchase_lines: [
           expect.objectContaining({
             draftId: persistedLine.id,
@@ -840,7 +845,7 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
     expect(purchaseService.updatePurchaseDraft).toHaveBeenCalledOnce();
     expect(purchaseService.updatePurchaseDraft).toHaveBeenCalledWith(
       einkauf.id,
-      expect.objectContaining({ title: 'Konsole als gespeicherter Draft' }),
+      expect.objectContaining({ title: '', notes: 'Konsole als gespeicherter Draft' }),
     );
     expect(purchaseCostingService.finalizePurchase).toHaveBeenCalledOnce();
     expect(created.emit).toHaveBeenCalledOnce();

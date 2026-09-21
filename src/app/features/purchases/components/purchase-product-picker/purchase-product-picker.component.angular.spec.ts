@@ -4,6 +4,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import axe from 'axe-core';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { CatalogProduct } from '../../../../core/models/flipbase.models';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
@@ -129,21 +130,37 @@ describe('PurchaseProductPickerComponent', () => {
     const fixture = TestBed.createComponent(PurchaseProductPickerComponent);
     fixture.componentRef.setInput('products', [product]);
     fixture.detectChanges();
-    const row = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(
+    const row = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
       '[data-product-option="product-1"]',
     );
 
     expect(row).not.toBeNull();
+    expect(row?.tagName).toBe('BUTTON');
+    expect(row?.getAttribute('role')).toBeNull();
+    expect(row?.getAttribute('aria-pressed')).toBe('false');
+    expect(row?.querySelector('button[role="checkbox"]')).toBeNull();
     row?.click();
     fixture.detectChanges();
     expect(fixture.componentInstance.selection().has(product.id)).toBe(true);
-    expect(row?.getAttribute('aria-selected')).toBe('true');
-
-    row?.querySelector<HTMLButtonElement>('button[role="checkbox"]')?.click();
-    fixture.detectChanges();
-    expect(fixture.componentInstance.selection().has(product.id)).toBe(true);
+    expect(row?.getAttribute('aria-pressed')).toBe('true');
 
     fixture.componentInstance.toggle(product.id);
     expect(fixture.componentInstance.selection().has(product.id)).toBe(false);
+  });
+
+  it('besteht den strukturellen AXE-Check mit genau einem Auswahlsteuerelement je Zeile', async () => {
+    await TestBed.configureTestingModule({
+      imports: [PurchaseProductPickerComponent],
+      providers: [provideRouter([])],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(PurchaseProductPickerComponent);
+    fixture.componentRef.setInput('products', [product]);
+    fixture.detectChanges();
+
+    const result = await axe.run(fixture.nativeElement as HTMLElement, {
+      rules: { 'color-contrast': { enabled: false } },
+    });
+
+    expect(result.violations).toEqual([]);
   });
 });

@@ -31,6 +31,16 @@ vereinheitlicht. Der Beta-Einstieg zeigt bei einer vorhandenen Bewerbung keine
 internen Statusdetails mehr, verwendet einen sichtbaren Ladebalken und
 korrigierte Einladungstexte sowie Passwortübersetzungen.
 
+Der abschließende Code-Review ergänzte belastbare Fehlerpfade: Ein bestätigter
+Abschluss bleibt auch bei einem danach scheiternden Neuladen sichtbar, und die
+letzte bestätigte Einkaufsliste wird dabei nicht geleert. Belegdateien werden
+wiederholbar und ohne verwaiste Storage-Dateien entfernt. Der Artikelauswähler
+verwendet pro Zeile genau ein zugängliches Steuerelement. Abgeschlossene
+Einkäufe zeigen keine Verkaufswerte mehr in ihrer Artikeltabelle; Beschreibung,
+Quelle und Verkäufer erscheinen in der Chronik jeweils einmal und mit
+verständlichen Namen. Eine reine Archivansicht führt nicht mehr in einen leeren
+Filterzustand.
+
 Die Discord-Verknüpfung bleibt bewusst ein eigener Folge-Pull-Request. Sie
 benötigt eine Discord-App mit OAuth-Freigabe, serverseitig geschützte
 Zugangsdaten, die Zuordnung des Discord-Kontos zum angenommenen Beta-Nutzer und

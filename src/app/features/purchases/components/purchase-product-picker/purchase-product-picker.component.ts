@@ -4,7 +4,6 @@ import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
-import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
 import { ItemConditionLabelPipe } from '../../../../shared/pipes/item-condition-label.pipe';
@@ -14,7 +13,6 @@ import { ItemConditionLabelPipe } from '../../../../shared/pipes/item-condition-
     ReactiveFormsModule,
     ModalShellComponent,
     TextFieldComponent,
-    CustomCheckboxComponent,
     ButtonComponent,
     ProductThumbnailComponent,
     ItemConditionLabelPipe,

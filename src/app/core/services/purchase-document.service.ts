@@ -123,9 +123,24 @@ export class PurchaseDocumentService {
     }
   }
 
-  /** Zuerst der Eintrag, danach die nicht mehr referenzierte private Datei. */
+  /** Zuerst die private Datei, damit ein Storage-Fehler wiederholbar bleibt. */
   async remove(document: PurchaseDocument): Promise<{ error: Error | null }> {
     try {
+      const knownDocument = this.documentsRaw().find((entry) => entry.id === document.id);
+      if (!knownDocument || knownDocument.storage_path !== document.storage_path) {
+        return {
+          error: new Error('Der Beleg wurde nicht gefunden oder darf nicht entfernt werden.'),
+        };
+      }
+      const cleanup = await this.supabase.client.storage
+        .from(PURCHASE_DOCUMENT_BUCKET)
+        .remove([document.storage_path]);
+      if (cleanup.error) {
+        return {
+          error: this.syncStatus.melde('Entfernen der Belegdatei', cleanup.error),
+        };
+      }
+
       const { data, error } = await this.supabase.client
         .from('purchase_documents')
         .delete()
@@ -138,18 +153,7 @@ export class PurchaseDocumentService {
         };
       }
 
-      const cleanup = await this.supabase.client.storage
-        .from(PURCHASE_DOCUMENT_BUCKET)
-        .remove([document.storage_path]);
       this.documentsRaw.update((current) => current.filter((entry) => entry.id !== document.id));
-      if (cleanup.error) {
-        return {
-          error: this.syncStatus.melde(
-            'Entfernen der Belegdatei',
-            new Error(`Der Eintrag ist entfernt, die Datei nicht: ${document.storage_path}.`),
-          ),
-        };
-      }
       return { error: null };
     } catch (cause: unknown) {
       return { error: this.syncStatus.melde('Entfernen des Belegs', cause) };

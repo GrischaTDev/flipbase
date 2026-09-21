@@ -1,13 +1,11 @@
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
-import { CurrencyPipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { CostStateComponent } from '../../../../shared/components/cost-state/cost-state.component';
-import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import type { PurchaseDetailRow } from '../../models/purchase-presentation.models';
 
 @Component({
   selector: 'app-purchase-detail-table',
-  imports: [RouterLink, CurrencyPipe, CostStateComponent, BadgeComponent],
+  imports: [RouterLink, CostStateComponent],
   templateUrl: './purchase-detail-table.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
