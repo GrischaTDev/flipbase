@@ -1,5 +1,50 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-21 – Juna – Einkaufsablauf und zugehörige Oberflächen vereinheitlicht
+
+**Auftrag:** Die Einkaufserfassung wieder auf Verkäufer, Quelle, Artikel und
+nachvollziehbare Kosten reduzieren und die 25 abgestimmten Detailkorrekturen in
+Einkäufen, Artikelstamm, Verkäuferverwaltung, Beta-Einstieg und globalem
+Kopfbereich umsetzen.
+
+**Änderung:** Die Einkaufserfassung beginnt wieder mit dem gespeicherten
+Verkäufer und bietet dort direkt die Neuanlage an. Plattform-Benutzername,
+Verkäuferart, Anschrift, Angebotslink, Plattform-Bestellnummer, doppelte
+Bezeichnung und sichtbare „optional“-Hinweise wurden entfernt. Kaufdatum und
+Belege liegen in der rechten Detailspalte. Artikel lassen sich über die gesamte
+Auswahlzeile wählen; leere Preise und die Kostenübersicht reagieren unmittelbar
+und zeigen Nullwerte verständlich an. Sonstige Kosten erscheinen nur, wenn sie
+vorhanden sind.
+
+Die Einkaufsübersicht unterscheidet leere Bestände von erfolglosen Filtern,
+zeigt die vereinbarte Spaltenfolge und aktualisiert Status sowie Gesamtbetrag
+ohne Neuladen. Entwürfe bieten noch keine Druckaktion; der technische
+Prüfbeleg wurde aus dem Einkauf entfernt. Die Artikeltabelle bleibt nach dem
+Abschluss fachlich gleich, Belege können in jeder Phase ergänzt und fehlerhafte
+Dateien wieder entfernt werden. Die Chronik beschreibt ausschließlich konkrete,
+lesbare Einzeländerungen ohne interne Datenobjekte oder Kennungen.
+
+Artikelübersicht und Verkäuferliste wurden auf die gewünschten Spalten und
+vollständig anklickbare Zeilen umgestellt. Globale Checkboxen verwenden den
+gelben Markenakzent; Logo, Kopfzeilenhöhen und Kopfleisten-Aktionen sind
+vereinheitlicht. Der Beta-Einstieg zeigt bei einer vorhandenen Bewerbung keine
+internen Statusdetails mehr, verwendet einen sichtbaren Ladebalken und
+korrigierte Einladungstexte sowie Passwortübersetzungen.
+
+Die Discord-Verknüpfung bleibt bewusst ein eigener Folge-Pull-Request. Sie
+benötigt eine Discord-App mit OAuth-Freigabe, serverseitig geschützte
+Zugangsdaten, die Zuordnung des Discord-Kontos zum angenommenen Beta-Nutzer und
+eine zuverlässige Vergabe beziehungsweise Wiederholung der Rolle
+„Beta-Tester“. Ohne diese Infrastruktur wäre ein einfacher Einladungslink weder
+personalisiert noch ausreichend geschützt.
+
+**Prüfung:** Die gezielten Node-, DOM-, Angular-, Landing-, Edge-Function- und
+Datenbanktests sowie Lint, Typprüfung und Produktionsbau wurden ausgeführt. Eine
+lokale Browserprüfung bestätigte den Einkaufsablauf vom Entwurf bis zum Abschluss,
+die unmittelbare Kostenaktualisierung, die Artikelzeilenauswahl, Tabellen und
+Verkäuferaktionen sowie Hell- und Dunkelmodus an Desktop- und Mobilbreite. Der
+abschließende Gesamtcheck ist im zugehörigen Zweig dokumentiert.
+
 ## 2026-09-21 – Juna – Updateplan für Einkaufsablauf und Admin-Oberfläche abgestimmt
 
 **Auftrag:** Fünfundzwanzig Rückmeldungen zu Einkaufserfassung,
