@@ -1,5 +1,21 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-21 – Juna – Druck-CSS-Vertrag regelblockweise gekoppelt
+
+**Auftrag:** Der verbleibende Review-Fund sollte verhindern, dass ungebundene
+Druckdeklarationen und leere route-bezogene Selektoren den CSS-Test gemeinsam
+grün machen.
+
+**Änderung:** Der Test extrahiert jetzt den konkreten Regelblock für den
+Shell-Rahmen, Inhalts- und Hauptbereich, Empfang sowie Umbruchschutz. Jede
+geforderte Eigenschaft wird in ihrem eigenen, mit
+`body:has(app-purchase-print)` beginnenden Block erwartet. Die benannte
+`@page`-Regel bleibt ebenfalls separat und eng geprüft.
+
+**Prüfung:** Die fokussierten Druck- und Shelltests bestanden mit sieben Tests;
+Prettier und fokussiertes ESLint ebenfalls. Es wurden keine Produktdateien
+geändert.
+
 ## 2026-09-21 – Juna – Drucktests auf gerenderte Shell und enge CSS-Verträge nachgeschärft
 
 **Auftrag:** Drei Review-Funde am Einkaufsdruck beheben: Die Shell-Haken über

@@ -73,6 +73,10 @@ function readCssBlock(styles: string, opening: string): string {
   throw new Error(`CSS-Block ist nicht abgeschlossen: ${opening}`);
 }
 
+function readCssRuleBlock(styles: string, selectorStart: string): string {
+  return readCssBlock(styles, selectorStart);
+}
+
 async function settle(): Promise<void> {
   TestBed.tick();
   await Promise.resolve();
@@ -159,6 +163,23 @@ describe('Einkauf-drucken-Vorlagen', () => {
   it('begrenzt die globalen Druckregeln auf die Einkaufsdruckseite', () => {
     const printRules = readCssBlock(globalStyles, '@media print');
     const pageRules = readCssBlock(globalStyles, '@page purchase-receipt');
+    const frameRule = readCssRuleBlock(
+      printRules,
+      'body:has(app-purchase-print) [data-shell-sidebar],',
+    );
+    const contentRule = readCssRuleBlock(
+      printRules,
+      'body:has(app-purchase-print) [data-shell-content]',
+    );
+    const mainRule = readCssRuleBlock(printRules, 'body:has(app-purchase-print) [data-shell-main]');
+    const receiptRule = readCssRuleBlock(
+      printRules,
+      'body:has(app-purchase-print) app-purchase-print {',
+    );
+    const unbreakableRule = readCssRuleBlock(
+      printRules,
+      'body:has(app-purchase-print) app-purchase-print article > header,',
+    );
 
     for (const selector of [
       '[data-shell-sidebar]',
@@ -166,25 +187,21 @@ describe('Einkauf-drucken-Vorlagen', () => {
       '[data-shell-bottom-nav]',
       'app-confirm-dialog',
       '.fb-skip-link',
-      '[data-shell-content]',
-      '[data-shell-main]',
-      'app-purchase-print',
     ]) {
-      expect(printRules).toContain(`body:has(app-purchase-print) ${selector}`);
+      expect(frameRule).toContain(`body:has(app-purchase-print) ${selector}`);
     }
-    expect(printRules).toMatch(
-      /\[data-shell-sidebar\],[\s\S]*\[data-shell-header\],[\s\S]*\[data-shell-bottom-nav\],[\s\S]*app-confirm-dialog,[\s\S]*\.fb-skip-link\s*\{[\s\S]*display:\s*none\s*!important;/,
-    );
-    expect(printRules).toMatch(
-      /\[data-shell-content\]\s*\{[\s\S]*margin:\s*0\s*!important;[\s\S]*padding:\s*0\s*!important;[\s\S]*background:\s*#fff\s*!important;/,
-    );
-    expect(printRules).toMatch(
-      /\[data-shell-main\]\s*\{[\s\S]*width:\s*100%\s*!important;[\s\S]*max-width:\s*none\s*!important;[\s\S]*padding:\s*0\s*!important;[\s\S]*animation:\s*none\s*!important;/,
-    );
-    expect(printRules).toMatch(/app-purchase-print\s*\{[\s\S]*page:\s*purchase-receipt;/);
-    expect(printRules).toMatch(/break-inside:\s*avoid;/);
-    expect(pageRules).toMatch(/size:\s*A4;/);
-    expect(pageRules).toMatch(/margin:\s*12mm;/);
+    expect(frameRule).toContain('display: none !important;');
+    expect(contentRule).toContain('margin: 0 !important;');
+    expect(contentRule).toContain('padding: 0 !important;');
+    expect(contentRule).toContain('background: #fff !important;');
+    expect(mainRule).toContain('width: 100% !important;');
+    expect(mainRule).toContain('max-width: none !important;');
+    expect(mainRule).toContain('padding: 0 !important;');
+    expect(mainRule).toContain('animation: none !important;');
+    expect(receiptRule).toContain('page: purchase-receipt;');
+    expect(unbreakableRule).toContain('break-inside: avoid;');
+    expect(pageRules).toContain('size: A4;');
+    expect(pageRules).toContain('margin: 12mm;');
   });
 
   it('verlinkt die Druckseite ohne den entfernten Prüfbeleg', () => {
