@@ -1,5 +1,42 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-21 – Juna – Vier abschließende UI-Fehlerpfade korrigiert
+
+**Auftrag:** Die vier wichtigen Funde der Gesamtprüfung in einer begrenzten
+Fix-Runde beheben und die bestehenden Karten-, Button- und Formularverträge
+bewahren.
+
+**Änderung:** Ein Ladefehler beendet jetzt den Ladezustand der Einkaufsliste und
+bietet einen zugänglichen erneuten Versuch für den aktiven Workspace an.
+Verwaiste direkte Zusatzausgaben werden mit sichtbarem Statushinweis auf die
+Standardverteilung des Einkaufs umgestellt. Steuerherkunft, Ursprungsdaten,
+Kostenart und Betrag bleiben unverändert; gültige direkte Zuordnungen bleiben
+auch bei Mystery-Einkäufen erhalten. Der Bezugsquellendialog blockiert alle
+Schließwege während des Speicherns. Der gemeinsame Button unterstützt eine
+optionale native Formularzuordnung; Verkäufer und Bezugsquelle speichern damit
+über genau einen Submit-Weg. Die standardmäßige Buttonzentrierung bleibt erhalten.
+
+**Prüfung:** Jeder Fund wurde vor der Korrektur mit roten Regressionstests
+reproduziert: zwei Listenfehler, drei Kostenfehler, drei ungeschützte Schließwege
+und vier fehlende Submit-Verknüpfungen. Danach bestanden gemeinsam 110 fokussierte
+Angular-Tests einschließlich Einkaufserfassung und vorhandener AXE-Prüfungen
+sowie acht Kostenlogiktests. Gezieltes ESLint, Prettier und die strikte Typprüfung
+bestanden. Der einmalige Gesamtaufruf `npm run verify` bestand mit direkt
+gesichertem **Exitcode 0**: Format, Lint, Typen, Workflow (81 bestanden, fünf
+Umgebungs-Skips), Edge (16), Suite-Audit, Anwendung (2.715 Tests in 293 Dateien),
+Landingpage (22) und Produktionsbau. Die darin enthaltenen Orchestratorprüfungen
+bestanden mit acht Tests und drei Windows-Skips.
+
+**Prüfhinweise:** Vitest meldete bei neun unveränderten Node-Testdateien ein
+verzögertes Beenden der Worker, obwohl alle Tests bestanden. jsdom meldete eine
+fehlende Canvas-Funktion und neun nicht lesbare CSS-Stylesheets. Der Bau enthält
+weiterhin die zwei bekannten NG8113-Hinweise in Dashboard und Verkäuferliste.
+Diese Hinweise wurden dokumentiert; die vier Fehlerpfade und der Gesamtaufruf
+sind grün.
+
+**Abgrenzung:** Keine Datenbank-, Migrations-, Snapshot-, Abhängigkeits-, Browser-
+oder Dockeränderung. Die zuvor dokumentierte visuelle Abnahme bleibt offen.
+
 ## 2026-09-21 – Juna – UI-Regressionen integriert und Prüfgrenzen dokumentiert
 
 **Auftrag:** Die elf UI-Aufgaben gemeinsam prüfen, neue Integrationsfehler
