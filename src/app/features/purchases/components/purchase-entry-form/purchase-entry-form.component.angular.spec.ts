@@ -4,7 +4,7 @@ import { TestBed } from '@angular/core/testing';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { Purchase, PurchaseType } from '../../../../core/models/flipbase.models';
+import { Purchase, PurchaseType, Source } from '../../../../core/models/flipbase.models';
 import type { PendingPurchaseDocument } from '../../../../core/models/purchase-document.models';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { SyncStatusService } from '../../../../core/services/sync-status.service';
@@ -157,9 +157,8 @@ function erstelleKomponente(vorhandener: Purchase | null = null) {
     sellerAddressExpanded: signal(false),
     lineEditor: () => undefined,
     costOverviewDialog: () => undefined,
-    isAddingSource: signal(true),
-    newSourceName: signal('Flohmarkt'),
-    newSourceControl: new FormControl('Flohmarkt', { nonNullable: true }),
+    sourceDialogOpen: signal(false),
+    sourceDialog: () => undefined,
     costDialogOpen: signal(false),
     costDrafts: signal<readonly PurchaseCostDraft[]>([]),
     initialCostDrafts: signal<readonly PurchaseCostDraft[]>([]),
@@ -321,7 +320,6 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
       template.indexOf('formControlName="source_id"'),
     );
     expect(template).toContain('formControlName="source_id"');
-    expect(template).toContain('actionLabel="Quelle erstellen"');
     expect(template).not.toContain('formControlName="title"');
     expect(template).not.toContain('formControlName="seller_marketplace_username"');
     expect(template).not.toContain('formControlName="seller_type"');
@@ -451,7 +449,6 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
     });
     komponente.purchaseLines.set(linien);
     komponente.costDrafts.set(kosten);
-    komponente.newSourceName.set('');
     komponente.form.markAsPristine();
 
     expect(komponente.hasUnsavedChanges()).toBe(false);
@@ -1267,7 +1264,6 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
 
   it('beruecksichtigt einen unfertigen Kostenentwurf beim Verlassen', () => {
     const { komponente } = erstelleKomponente();
-    komponente.newSourceName.set('');
     Object.assign(komponente, {
       costOverviewDialog: () => ({ hasUnsavedChanges: () => true }),
     });
@@ -1275,9 +1271,12 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
     expect(komponente.hasUnsavedChanges()).toBe(true);
   });
 
-  it('berücksichtigt einen ungespeicherten Quellennamen', () => {
+  it('berücksichtigt einen ungespeicherten Bezugsquellendialog', () => {
     const { komponente } = erstelleKomponente();
-    komponente.newSourceName.set('Neue Quelle');
+    Object.assign(komponente, {
+      sourceDialog: () => ({ hasUnsavedChanges: () => true }),
+    });
+
     expect(komponente.hasUnsavedChanges()).toBe(true);
   });
 
@@ -1350,24 +1349,6 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
     expect(toast.toasts()).toEqual([]);
   });
 
-  it('meldet einen neuen lokalen Quellenfehler trotz gleichlautendem älteren Sync-Fehler', async () => {
-    const { komponente, toast, sourcesService } = erstelleKomponente();
-    const syncStatus = new SyncStatusService();
-    const alterFehler = syncStatus.melde('Speichern der Quelle', new Error('offline'));
-    sourcesService.createSource.mockResolvedValue({
-      data: null,
-      error: new Error(alterFehler.message),
-    });
-    Object.assign(komponente, { syncStatus });
-
-    await komponente.saveNewSource();
-
-    expect(toast.toasts()[0]).toMatchObject({
-      type: 'error',
-      title: 'Quelle konnte nicht angelegt werden.',
-    });
-  });
-
   it('schließt nach persistiertem Einkauf mit Teilproblem ohne grünen Vollerfolg', async () => {
     const { komponente, toast, created, closed, purchaseService } = erstelleKomponente();
     purchaseService.createPurchase.mockResolvedValue({
@@ -1420,29 +1401,20 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
     expect(toast.toasts()).toEqual([]);
   });
 
-  it('bestätigt das schnelle Anlegen einer Quelle', async () => {
-    const quelle = erstelleKomponente();
-    await quelle.komponente.saveNewSource();
-    expect(quelle.komponente.form.controls.source_id.value).toBe('source-1');
-    expect(quelle.komponente.isAddingSource()).toBe(false);
-    expect(quelle.toast.toasts()[0].title).toBe('Quelle wurde angelegt.');
-  });
+  it('übernimmt die gespeicherte Bezugsquelle und markiert den Einkauf als geändert', () => {
+    const { komponente } = erstelleKomponente();
+    komponente.form.markAsPristine();
+    komponente.sourceDialogOpen.set(true);
+    const source: Source = {
+      id: 'source-1',
+      workspace_id: 'workspace-1',
+      name: 'Flohmarkt',
+    };
 
-  it('behält die Schnellerfassung einer Quelle bei einem Fehler geöffnet', async () => {
-    const { komponente, toast, sourcesService } = erstelleKomponente();
-    sourcesService.createSource.mockResolvedValue({
-      data: null,
-      error: new Error('Kein aktiver Workspace ausgewählt'),
-    });
+    komponente.onSourceCreated(source);
 
-    await komponente.saveNewSource();
-
-    expect(komponente.newSourceName()).toBe('Flohmarkt');
-    expect(komponente.isAddingSource()).toBe(true);
-    expect(toast.toasts()[0]).toMatchObject({
-      type: 'error',
-      title: 'Quelle konnte nicht angelegt werden.',
-      persistent: true,
-    });
+    expect(komponente.form.controls.source_id.value).toBe('source-1');
+    expect(komponente.sourceDialogOpen()).toBe(false);
+    expect(komponente.form.dirty).toBe(true);
   });
 });

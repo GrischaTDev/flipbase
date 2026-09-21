@@ -1,5 +1,23 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-21 – Juna – Bezugsquelle im eigenen Dialog angelegt
+
+**Auftrag:** Die eingebettete Schnellerfassung einer Bezugsquelle aus dem
+Einkaufsformular in einen eigenen, zugänglichen Dialog überführen.
+
+**Änderung:** Der neue Dialog verwendet die gemeinsame Dialoghülle, ein
+Pflichtfeld für den Namen sowie die zentralen Buttons. Er behält Eingabe und
+Fehlermeldung bei einem Speicherfehler und gibt eine erfolgreich gespeicherte
+Bezugsquelle an das Einkaufsformular zurück. Dieses wählt sie unmittelbar aus,
+markiert den Einkauf als geändert und schließt den Dialog. Ungespeicherte
+Dialogeingaben werden beim Verlassen berücksichtigt.
+
+**Prüfung:** Die neuen Dialog- und Parent-Vertragstests waren zuerst rot, weil
+die Komponente und der neue Parent-Vertrag fehlten. Danach bestanden 48
+fokussierte Angular-Tests einschließlich AXE, Prettier, ESLint und
+Produktionsbau. Der Prüfbericht liegt unter
+`.superpowers/sdd/2026-09-21-ui-regression-cleanup/task-5-report.md`.
+
 ## 2026-09-21 – Juna – Telefonfehlerreferenz bedingt gesetzt
 
 **Auftrag:** Die ARIA-Referenz des Telefonfelds nur dann setzen, wenn das

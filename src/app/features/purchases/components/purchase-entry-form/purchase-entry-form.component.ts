@@ -32,7 +32,7 @@ import {
   CustomSelectComponent,
   SelectOption,
 } from '../../../../shared/components/custom-select/custom-select.component';
-import { Purchase, Supplier } from '../../../../core/models/flipbase.models';
+import { Purchase, Source, Supplier } from '../../../../core/models/flipbase.models';
 import { sellerSnapshotFromSupplier } from '../../utils/purchase-seller';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { SyncStatusService } from '../../../../core/services/sync-status.service';
@@ -42,6 +42,7 @@ import {
   PurchaseLineDraft,
   PurchaseLineEditorComponent,
 } from '../purchase-line-editor/purchase-line-editor.component';
+import { PurchaseSourceDialogComponent } from '../purchase-source-dialog/purchase-source-dialog.component';
 import {
   PurchaseCostDraft,
   PurchaseCostOverviewValue,
@@ -49,7 +50,6 @@ import {
 } from '../purchase-cost-editor/purchase-cost-adjustments';
 import { PurchaseCostOverviewDialogComponent } from '../purchase-cost-overview-dialog/purchase-cost-overview-dialog.component';
 import { PurchaseCostSummaryComponent } from '../purchase-cost-summary/purchase-cost-summary.component';
-import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { TwoColumnLayoutComponent } from '../../../../shared/components/two-column-layout/two-column-layout.component';
@@ -126,7 +126,7 @@ function purchaseCostsEqual(
     PurchaseCostOverviewDialogComponent,
     PurchaseCostSummaryComponent,
     PurchaseSellerDialogComponent,
-    ButtonComponent,
+    PurchaseSourceDialogComponent,
     CardComponent,
     TextFieldComponent,
     TwoColumnLayoutComponent,
@@ -150,6 +150,7 @@ export class PurchaseEntryFormComponent {
   readonly trackingService = inject(InboundTrackingService);
   readonly lineEditor = viewChild(PurchaseLineEditorComponent);
   readonly sellerDialog = viewChild(PurchaseSellerDialogComponent);
+  readonly sourceDialog = viewChild(PurchaseSourceDialogComponent);
   readonly costOverviewDialog = viewChild(PurchaseCostOverviewDialogComponent);
 
   readonly closed = output<void>();
@@ -194,6 +195,7 @@ export class PurchaseEntryFormComponent {
   ];
 
   readonly sellerDialogOpen = signal(false);
+  readonly sourceDialogOpen = signal(false);
   readonly costDialogOpen = signal(false);
   readonly requestId = crypto.randomUUID();
   readonly pricingMode = signal<'individual' | 'total'>('individual');
@@ -205,11 +207,6 @@ export class PurchaseEntryFormComponent {
   readonly pendingDocuments = signal<readonly PendingPurchaseDocument[]>([]);
   private readonly completed = signal(false);
   private persistedLineIdsByDraftId = new Map<string, string>();
-
-  // Quick add states
-  readonly isAddingSource = signal<boolean>(false);
-  readonly newSourceName = signal<string>('');
-  readonly newSourceControl = new FormControl('', { nonNullable: true });
 
   /** Die Eingaben selbst leben im Kosteneditor; das Modal hält nur dessen aktuellen Entwurf. */
   readonly costDrafts = signal<readonly PurchaseCostDraft[]>([]);
@@ -271,38 +268,10 @@ export class PurchaseEntryFormComponent {
     this.sellerDialogOpen.set(false);
   }
 
-  onNewSourceInput(event: Event): void {
-    this.newSourceName.set((event.target as HTMLInputElement).value);
-  }
-
-  cancelNewSource(): void {
-    this.newSourceName.set('');
-    this.newSourceControl.setValue('');
-    this.isAddingSource.set(false);
-  }
-
-  async saveNewSource(): Promise<void> {
-    const name = this.newSourceName().trim();
-    if (!name) return;
-    let ergebnis: Awaited<ReturnType<SourcesService['createSource']>>;
-    try {
-      ergebnis = await this.sourcesService.createSource(name);
-    } catch (ursache: unknown) {
-      ergebnis = { data: null, error: this.alsError(ursache) };
-    }
-    const { data, error } = ergebnis;
-    if (error || !data) {
-      const ursache = error ?? new Error('Die Quelle wurde nicht zurückgegeben.');
-      this.errorMessage.set(ursache.message);
-      this.meldeFehlerWennNichtSynchronisiert('Quelle konnte nicht angelegt werden.', ursache);
-      return;
-    }
-    this.form.patchValue({ source_id: data.id });
+  onSourceCreated(source: Source): void {
+    this.form.controls.source_id.setValue(source.id);
     this.form.markAsDirty();
-    this.newSourceName.set('');
-    this.newSourceControl.setValue('');
-    this.isAddingSource.set(false);
-    this.toast.success('Quelle wurde angelegt.');
+    this.sourceDialogOpen.set(false);
   }
 
   onTrackingNumberInput(event: Event): void {
@@ -352,10 +321,8 @@ export class PurchaseEntryFormComponent {
     this.errorMessage.set(null);
     this.lineIdMap().clear();
     this.sellerDialogOpen.set(false);
+    this.sourceDialogOpen.set(false);
     this.costDialogOpen.set(false);
-    this.isAddingSource.set(false);
-    this.newSourceName.set('');
-    this.newSourceControl.setValue('');
 
     this.form.reset({
       type: vorhandener.type,
@@ -428,9 +395,9 @@ export class PurchaseEntryFormComponent {
     return (
       this.isSubmitting() ||
       (typeof this.sellerDialog === 'function' && (this.sellerDialog()?.form.dirty ?? false)) ||
+      (this.sourceDialog()?.hasUnsavedChanges() ?? false) ||
       (this.costOverviewDialog()?.hasUnsavedChanges() ?? false) ||
       this.form.dirty ||
-      this.newSourceName().trim().length > 0 ||
       this.pendingDocuments().length > 0 ||
       (typeof this.lineEditor === 'function' &&
         (this.lineEditor()?.hasUnsavedChanges() ?? false)) ||

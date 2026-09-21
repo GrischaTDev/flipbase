@@ -23,39 +23,15 @@
             />
           </div>
           <div class="min-w-0">
-            <span class="mb-1.5 block text-[13px] font-semibold">Quelle</span>
+            <span class="mb-1.5 block text-[13px] font-semibold">Bezugsquelle</span>
             <app-custom-select
               formControlName="source_id"
               [options]="quellenOptionen()"
-              ariaLabel="Quelle auswählen"
-              placeholder="Quelle auswählen"
-              actionLabel="Quelle erstellen"
-              (action)="isAddingSource.set(true)"
+              ariaLabel="Bezugsquelle auswählen"
+              placeholder="Bezugsquelle auswählen"
+              actionLabel="Bezugsquelle erstellen"
+              (action)="sourceDialogOpen.set(true)"
             />
-            @if (isAddingSource()) {
-              <div class="mt-3 rounded-lg border border-fb-line bg-fb-subtle p-3">
-                <app-text-field
-                  id="new-purchase-source"
-                  label="Neue Quelle"
-                  [required]="true"
-                  [formControl]="newSourceControl"
-                  (input)="onNewSourceInput($event)"
-                />
-                <div class="mt-3 flex justify-end gap-2">
-                  <app-button variant="plain" size="slim" (clicked)="cancelNewSource()">
-                    Abbrechen
-                  </app-button>
-                  <app-button
-                    variant="primary"
-                    size="slim"
-                    [disabled]="!newSourceName().trim()"
-                    (clicked)="saveNewSource()"
-                  >
-                    Quelle speichern
-                  </app-button>
-                </div>
-              </div>
-            }
           </div>
         </div>
       </app-card>
@@ -122,6 +98,13 @@
   <app-purchase-seller-dialog
     (closed)="sellerDialogOpen.set(false)"
     (created)="onSellerCreated($event)"
+  />
+}
+
+@if (sourceDialogOpen()) {
+  <app-purchase-source-dialog
+    (closed)="sourceDialogOpen.set(false)"
+    (created)="onSourceCreated($event)"
   />
 }
 
