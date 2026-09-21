@@ -43,6 +43,7 @@
     [currentSort]="tablePrefs().sort"
     [viewModified]="viewModified()"
     [loading]="isPurchaseListLoading()"
+    [errorMessage]="purchaseService.loadError()?.message ?? null"
     loadingText="Einkäufe werden geladen …"
     [hasRows]="purchaseRows().length > 0"
     [emptyTitle]="emptyTitle()"
@@ -53,6 +54,15 @@
     (sortChanged)="onSortChanged($event)"
     (viewResetRequested)="resetView()"
   >
+    <app-button
+      table-error-action
+      class="mt-3"
+      variant="secondary"
+      (clicked)="retryLoadPurchases()"
+    >
+      Erneut versuchen
+    </app-button>
+
     <app-custom-select
       table-view
       variant="toolbar"

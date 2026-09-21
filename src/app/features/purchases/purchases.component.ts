@@ -107,7 +107,9 @@ export class PurchasesComponent {
     const workspaceId = this.workspaceService.currentWorkspace()?.id ?? null;
     if (workspaceId === null) return false;
     return (
-      this.purchaseService.isLoading() || this.purchaseService.loadedWorkspaceId() !== workspaceId
+      this.purchaseService.isLoading() ||
+      (!this.purchaseService.loadError() &&
+        this.purchaseService.loadedWorkspaceId() !== workspaceId)
     );
   });
   readonly hasOnlyArchivedPurchases = computed(
@@ -161,6 +163,11 @@ export class PurchasesComponent {
     const sort = this.tablePrefs().sort;
     if (sort.field !== field) return null;
     return sort.direction === 'asc' ? 'ascending' : 'descending';
+  }
+
+  retryLoadPurchases(): void {
+    const workspaceId = this.workspaceService.currentWorkspace()?.id;
+    if (workspaceId) void this.purchaseService.loadPurchases(workspaceId);
   }
 
   readonly filteredPurchases = computed(() => {

@@ -226,4 +226,33 @@ describe('PurchaseCostOverviewDialogComponent', () => {
     expect(fixture.componentInstance.hasUnsavedChanges()).toBe(true);
     expect(fixture.componentInstance.isDirty()).toBe(false);
   });
+
+  it('speichert eine freigegebene Artikelzuordnung erst nach sichtbarer Bestätigung', async () => {
+    const fixture = await createDialog();
+    const cost = {
+      type: 'shipping' as const,
+      amount: 8,
+      description: 'Versand',
+      allocationMethod: 'direct' as const,
+      targetPurchaseLineId: 'removed-line',
+      taxTreatment: 'expense' as const,
+    };
+    fixture.componentRef.setInput('initialCosts', [cost]);
+    fixture.detectChanges();
+    const saved = vi.fn();
+    fixture.componentInstance.saved.subscribe(saved);
+    const host = fixture.nativeElement as HTMLElement;
+
+    expect(host.querySelector('[role="status"]')?.textContent).toContain('Artikelzuordnung');
+    expect(saved).not.toHaveBeenCalled();
+    const save = findButton(host, 'Speichern');
+    expect(save.disabled).toBe(false);
+    save.click();
+
+    expect(saved).toHaveBeenCalledExactlyOnceWith({
+      discountAmount: 0,
+      costs: [{ ...cost, allocationMethod: 'by_value', targetPurchaseLineId: null }],
+    });
+    expect(cost.targetPurchaseLineId).toBe('removed-line');
+  });
 });

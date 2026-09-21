@@ -32,6 +32,7 @@
 } @else {
   <button
     [type]="type()"
+    [attr.form]="formId() || null"
     [disabled]="effectiveDisabled()"
     [class]="buttonClasses()"
     [attr.aria-label]="ariaLabel() || null"

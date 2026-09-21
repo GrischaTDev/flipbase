@@ -30,6 +30,7 @@ export class ButtonComponent {
   readonly fullWidth = input<boolean>(false);
   readonly contentAlign = input<'center' | 'start'>('center');
   readonly type = input<'button' | 'submit' | 'reset'>('button');
+  readonly formId = input('');
   readonly link = input<string | null>(null);
   readonly href = input<string | null>(null);
   readonly target = input<'_self' | '_blank'>('_self');

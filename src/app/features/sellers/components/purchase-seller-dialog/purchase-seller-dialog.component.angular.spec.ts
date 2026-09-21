@@ -67,7 +67,11 @@ beforeAll(async () => {
   bridgeBindings(ModalDialogDirective, ['dialogTitel', 'schliesstBeiKlickAussen'], ['dialogClose']);
   bridgeBindings(CustomSelectComponent, ['options', 'ariaLabel', 'triggerId']);
   bridgeBindings(TextFieldComponent, ['id', 'label', 'type', 'error', 'multiline', 'required']);
-  bridgeBindings(ButtonComponent, ['variant', 'disabled', 'loading'], ['clicked']);
+  bridgeBindings(
+    ButtonComponent,
+    ['variant', 'disabled', 'loading', 'type', 'formId'],
+    ['clicked'],
+  );
 });
 
 afterEach(() => TestBed.resetTestingModule());
@@ -331,19 +335,47 @@ describe('PurchaseSellerDialogComponent', () => {
     expect(closed).not.toHaveBeenCalled();
   });
 
-  it('speichert über ein echtes Formular', async () => {
-    const { fixture, suppliersService } = render();
-    fixture.componentInstance.form.controls.name.setValue('Ada Beispiel');
-    const form = (fixture.nativeElement as HTMLElement).querySelector<HTMLFormElement>(
-      '[data-seller-form]',
-    );
+  it.each(['Formular', 'Speichern-Button'] as const)(
+    'speichert den Verkäufer über %s genau einmal mit nativer Formularzuordnung',
+    async (submitPath) => {
+      const { fixture, suppliersService } = render();
+      let settleSave!: (result: Awaited<ReturnType<SuppliersService['createSupplier']>>) => void;
+      suppliersService.createSupplier.mockImplementationOnce(
+        () => new Promise((resolve) => (settleSave = resolve)),
+      );
+      fixture.componentInstance.form.controls.name.setValue('Ada Beispiel');
+      fixture.detectChanges();
+      const host = fixture.nativeElement as HTMLElement;
+      const form = host.querySelector<HTMLFormElement>('[data-seller-form]');
+      const save = host.querySelector<HTMLButtonElement>('[data-save-seller] button');
+      if (!form || !save) throw new Error('Verkäuferformular oder Speichern-Button fehlt.');
+      const saveCalls = vi.spyOn(fixture.componentInstance, 'save');
+      const created = vi.spyOn(fixture.componentInstance.created, 'emit');
 
-    form?.dispatchEvent(new SubmitEvent('submit'));
-    await fixture.whenStable();
+      expect(save.type).toBe('submit');
+      expect(save.getAttribute('form')).toBe('seller-form');
+      expect(save.form).toBe(form);
+      if (submitPath === 'Formular') form.requestSubmit();
+      else save.click();
+      fixture.detectChanges();
 
-    expect(form).not.toBeNull();
-    expect(suppliersService.createSupplier).toHaveBeenCalledOnce();
-  });
+      expect(saveCalls).toHaveBeenCalledOnce();
+      expect(suppliersService.createSupplier).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ name: 'Ada Beispiel' }),
+      );
+      expect(save.disabled).toBe(true);
+      expect(save.getAttribute('aria-busy')).toBe('true');
+      save.click();
+      expect(saveCalls).toHaveBeenCalledOnce();
+
+      settleSave({ data: createdSeller, error: null });
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(created).toHaveBeenCalledExactlyOnceWith(createdSeller);
+      expect(save.disabled).toBe(false);
+    },
+  );
 
   it('erfüllt die automatischen Barrierefreiheitsprüfungen', async () => {
     const { fixture } = render();

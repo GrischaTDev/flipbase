@@ -31,6 +31,10 @@ export class PurchaseSourceDialogComponent {
     return this.form.dirty && this.form.controls.name.value.trim().length > 0;
   }
 
+  closeIfNotSaving(): void {
+    if (!this.saving()) this.closed.emit();
+  }
+
   async save(): Promise<void> {
     if (this.saving() || this.form.invalid) return;
     this.saving.set(true);

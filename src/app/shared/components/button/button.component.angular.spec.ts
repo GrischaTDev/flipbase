@@ -105,8 +105,19 @@ describe('ButtonComponent', () => {
     metadata.declaredInputs = inputMetadataSnapshot.declaredInputs;
   });
 
-  it('should create successfully', () => {
-    expect(component).toBeTruthy();
+  it('behält zentrierten Inhalt und die umgebende native Formularzuordnung als Standard', () => {
+    const form = document.createElement('form');
+    const host = fixture.nativeElement as HTMLElement;
+    host.append(form);
+    const button = host.querySelector<HTMLButtonElement>('button');
+    if (!button) throw new Error('Nativer Button fehlt.');
+    form.append(button);
+
+    expect(button.classList).toContain('justify-center');
+    expect(button.classList).not.toContain('justify-start');
+    expect(button.type).toBe('button');
+    expect(button.getAttribute('form')).toBeNull();
+    expect(button.form).toBe(form);
   });
 
   it('should be disabled when disabled input is true', () => {

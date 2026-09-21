@@ -1,6 +1,7 @@
 import '@angular/compiler';
 import { ɵresolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { glob, readFile } from 'node:fs/promises';
 import axe from 'axe-core';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -65,7 +66,11 @@ beforeAll(async () => {
     true,
   );
   bridgeBindings(TextFieldComponent, ['id', 'label', 'required']);
-  bridgeBindings(ButtonComponent, ['variant', 'disabled', 'loading'], ['clicked']);
+  bridgeBindings(
+    ButtonComponent,
+    ['variant', 'disabled', 'loading', 'type', 'formId'],
+    ['clicked'],
+  );
 });
 
 afterEach(() => TestBed.resetTestingModule());
@@ -145,6 +150,53 @@ describe('PurchaseSourceDialogComponent', () => {
     expect(created).toHaveBeenCalledWith(expect.objectContaining({ id: 'source-1' }));
   });
 
+  it.each(['Schließsymbol', 'Escape', 'Abbrechen'] as const)(
+    'sperrt %s während einer laufenden Speicherung und gibt es danach wieder frei',
+    async (closePath) => {
+      let settleSave!: (result: Awaited<ReturnType<SourcesService['createSource']>>) => void;
+      createSource.mockImplementationOnce(() => new Promise((resolve) => (settleSave = resolve)));
+      const { fixture, closed, created } = renderSourceDialog();
+      const host = fixture.nativeElement as HTMLElement;
+      fixture.componentInstance.form.controls.name.setValue('Flohmarkt Berlin');
+      const saving = fixture.componentInstance.save();
+      fixture.detectChanges();
+      const requestClose = () => {
+        if (closePath === 'Schließsymbol') {
+          host.querySelector<HTMLButtonElement>('button[aria-label="Dialog schließen"]')?.click();
+        } else if (closePath === 'Escape') {
+          document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        } else {
+          fixture.debugElement
+            .query(By.css('[modal-footer]'))
+            .triggerEventHandler('clicked', new MouseEvent('click'));
+        }
+      };
+
+      expect(fixture.componentInstance.saving()).toBe(true);
+      expect(host.querySelector<HTMLButtonElement>('[data-save-source] button')?.disabled).toBe(
+        true,
+      );
+      expect(host.querySelector('[data-save-source] button')?.getAttribute('aria-busy')).toBe(
+        'true',
+      );
+      expect(host.querySelector<HTMLButtonElement>('[modal-footer] button')?.disabled).toBe(true);
+      requestClose();
+      expect(closed).not.toHaveBeenCalled();
+
+      settleSave({ data: null, error: new Error('Offline') });
+      await saving;
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.saving()).toBe(false);
+      expect(host.querySelector('[role="alert"]')?.textContent).toContain('Offline');
+      expect(fixture.componentInstance.form.controls.name.value).toBe('Flohmarkt Berlin');
+      expect(created).not.toHaveBeenCalled();
+      expect(closed).not.toHaveBeenCalled();
+      requestClose();
+      expect(closed).toHaveBeenCalledOnce();
+    },
+  );
+
   it('verwendet einen zugänglichen Dialog mit genau einem Pflichtfeld', () => {
     const { fixture } = renderSourceDialog();
     const host = fixture.nativeElement as HTMLElement;
@@ -154,6 +206,43 @@ describe('PurchaseSourceDialogComponent', () => {
     expect(host.textContent).toContain('Bezugsquelle erstellen');
     expect(host.textContent).toContain('Bezugsquelle speichern');
   });
+
+  it.each(['Formular', 'Speichern-Button'] as const)(
+    'speichert die Quelle über %s genau einmal mit nativer Formularzuordnung',
+    async (submitPath) => {
+      let settleSave!: (result: Awaited<ReturnType<SourcesService['createSource']>>) => void;
+      createSource.mockImplementationOnce(() => new Promise((resolve) => (settleSave = resolve)));
+      const { fixture, created } = renderSourceDialog();
+      const host = fixture.nativeElement as HTMLElement;
+      fixture.componentInstance.form.controls.name.setValue('Flohmarkt Berlin');
+      fixture.detectChanges();
+      const form = host.querySelector<HTMLFormElement>('#purchase-source-form');
+      const save = host.querySelector<HTMLButtonElement>('[data-save-source] button');
+      if (!form || !save) throw new Error('Bezugsquellenformular oder Speichern-Button fehlt.');
+      const saveCalls = vi.spyOn(fixture.componentInstance, 'save');
+
+      expect(save.type).toBe('submit');
+      expect(save.getAttribute('form')).toBe('purchase-source-form');
+      expect(save.form).toBe(form);
+      if (submitPath === 'Formular') form.requestSubmit();
+      else save.click();
+      fixture.detectChanges();
+
+      expect(saveCalls).toHaveBeenCalledOnce();
+      expect(createSource).toHaveBeenCalledExactlyOnceWith('Flohmarkt Berlin');
+      expect(save.disabled).toBe(true);
+      expect(save.getAttribute('aria-busy')).toBe('true');
+      save.click();
+      expect(saveCalls).toHaveBeenCalledOnce();
+
+      settleSave({ data: createdSource, error: null });
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(created).toHaveBeenCalledExactlyOnceWith(createdSource);
+      expect(save.disabled).toBe(false);
+    },
+  );
 
   it('erfüllt die automatischen Barrierefreiheitsprüfungen', async () => {
     const { fixture } = renderSourceDialog();

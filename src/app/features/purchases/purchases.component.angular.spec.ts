@@ -30,15 +30,21 @@ import { DataTableComponent } from '../../shared/components/data-table/data-tabl
 interface AngularInputMetadata {
   inputs: Record<string, unknown>;
   declaredInputs: Record<string, string>;
+  outputs: Record<string, string>;
 }
 
 const inputMetadataSnapshots = new Map<unknown, AngularInputMetadata>();
 
-function registerSignalInputs(component: unknown, inputNames: readonly string[]): void {
+function registerSignalInputs(
+  component: unknown,
+  inputNames: readonly string[],
+  outputNames: readonly string[] = [],
+): void {
   const metadata = (component as { ɵcmp: AngularInputMetadata }).ɵcmp;
   inputMetadataSnapshots.set(component, {
     inputs: metadata.inputs,
     declaredInputs: metadata.declaredInputs,
+    outputs: metadata.outputs,
   });
   metadata.inputs = {
     ...metadata.inputs,
@@ -48,6 +54,10 @@ function registerSignalInputs(component: unknown, inputNames: readonly string[])
     ...metadata.declaredInputs,
     ...Object.fromEntries(inputNames.map((name) => [name, name])),
   };
+  metadata.outputs = {
+    ...metadata.outputs,
+    ...Object.fromEntries(outputNames.map((name) => [name, name])),
+  };
 }
 
 afterAll(() => {
@@ -55,6 +65,7 @@ afterAll(() => {
     const metadata = (component as { ɵcmp: AngularInputMetadata }).ɵcmp;
     metadata.inputs = snapshot.inputs;
     metadata.declaredInputs = snapshot.declaredInputs;
+    metadata.outputs = snapshot.outputs;
   }
 });
 
@@ -101,17 +112,21 @@ beforeAll(async () => {
     'description',
   ]);
   registerSignalInputs(BadgeComponent, ['tone', 'marker', 'mono']);
-  registerSignalInputs(ButtonComponent, [
-    'icon',
-    'iconOnly',
-    'ariaExpanded',
-    'ariaControls',
-    'ariaHaspopup',
-    'ariaLabel',
-    'ariaPressed',
-    'variant',
-    'size',
-  ]);
+  registerSignalInputs(
+    ButtonComponent,
+    [
+      'icon',
+      'iconOnly',
+      'ariaExpanded',
+      'ariaControls',
+      'ariaHaspopup',
+      'ariaLabel',
+      'ariaPressed',
+      'variant',
+      'size',
+    ],
+    ['clicked'],
+  );
   registerSignalInputs(CostStateComponent, ['state']);
   registerSignalInputs(CustomSearchInputComponent, [
     'value',
@@ -181,8 +196,13 @@ const purchases: Purchase[] = [
 
 const purchaseState = signal(purchases);
 const purchaseLoading = signal(false);
+const purchaseLoadError = signal<Error | null>(null);
 const loadedPurchaseWorkspaceId = signal<string | null>(workspaceId);
 const currentWorkspace = signal({ id: workspaceId });
+const loadPurchases = vi.fn<PurchaseService['loadPurchases']>(async () => {
+  purchaseLoading.set(true);
+  purchaseLoadError.set(null);
+});
 
 const inventoryItem: InventoryItem = {
   id: 'item-1',
@@ -200,6 +220,8 @@ beforeEach(() => {
   localStorage.clear();
   purchaseState.set(purchases);
   purchaseLoading.set(false);
+  purchaseLoadError.set(null);
+  loadPurchases.mockClear();
   loadedPurchaseWorkspaceId.set(workspaceId);
   currentWorkspace.set({ id: workspaceId });
   TestBed.resetTestingModule();
@@ -219,6 +241,8 @@ beforeEach(() => {
         useValue: {
           purchases: purchaseState,
           isLoading: purchaseLoading,
+          loadError: purchaseLoadError,
+          loadPurchases,
           loadedWorkspaceId: loadedPurchaseWorkspaceId,
         },
       },
@@ -417,6 +441,54 @@ describe('PurchasesComponent – responsive Einkaufsübersicht', () => {
     expect(host.querySelector('[data-create-first-purchase]')).toBeNull();
     expect(host.querySelector('[data-purchase-table-row]')).toBeNull();
   });
+
+  it.each([
+    { context: 'beim ersten Laden', activeWorkspaceId: workspaceId },
+    { context: 'nach einem Workspacewechsel', activeWorkspaceId: 'workspace-2' },
+  ])(
+    'zeigt $context den Ladefehler und erlaubt einen erneuten Versuch',
+    ({ activeWorkspaceId }) => {
+      if (activeWorkspaceId === workspaceId) {
+        purchaseState.set([]);
+        loadedPurchaseWorkspaceId.set(null);
+        purchaseLoading.set(true);
+      }
+      const fixture = TestBed.createComponent(PurchasesComponent);
+      fixture.detectChanges();
+      currentWorkspace.set({ id: activeWorkspaceId });
+      purchaseState.set([]);
+      loadedPurchaseWorkspaceId.set(null);
+      purchaseLoading.set(true);
+      purchaseLoadError.set(new Error('Einkäufe konnten nicht geladen werden.'));
+      fixture.detectChanges();
+      const host = fixture.nativeElement as HTMLElement;
+
+      expect(host.querySelector('[data-data-table-loading]')).not.toBeNull();
+      expect(host.querySelector('[data-data-table-error]')).toBeNull();
+      expect(host.querySelector('[data-data-table-empty]')).toBeNull();
+
+      purchaseLoading.set(false);
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.isPurchaseListLoading()).toBe(false);
+      expect(host.querySelector('[data-data-table-loading]')).toBeNull();
+      expect(host.querySelector('[data-data-table-error][role="alert"]')?.textContent).toContain(
+        'Einkäufe konnten nicht geladen werden.',
+      );
+      expect(host.querySelector('[data-data-table-empty]')).toBeNull();
+      expect(host.querySelector('[data-purchase-table-row]')).toBeNull();
+      const retry = host.querySelector<HTMLButtonElement>('[table-error-action] button');
+      expect(retry?.textContent?.trim()).toBe('Erneut versuchen');
+
+      retry?.click();
+      fixture.detectChanges();
+
+      expect(loadPurchases).toHaveBeenCalledExactlyOnceWith(activeWorkspaceId);
+      expect(host.querySelector('[data-data-table-loading]')).not.toBeNull();
+      expect(host.querySelector('[data-data-table-error]')).toBeNull();
+      expect(host.querySelector('[data-data-table-empty]')).toBeNull();
+    },
+  );
 
   it('begrenzt lange Beschreibungen auf eine Zeile und hält den Volltext bereit', () => {
     const longText = 'Sehr lange Beschreibung '.repeat(20).trim();

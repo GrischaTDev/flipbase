@@ -89,9 +89,10 @@
     modal-footer
     data-save-seller
     variant="primary"
+    type="submit"
+    formId="seller-form"
     [loading]="saving()"
     [disabled]="saveDisabled()"
-    (clicked)="save()"
   >
     Speichern
   </app-button>

@@ -10,6 +10,7 @@ import {
 } from '../../../../shared/components/custom-select/custom-select.component';
 import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
 import { PurchaseCostEditorComponent } from './purchase-cost-editor.component';
+import type { PurchaseCostDraft } from './purchase-cost-adjustments';
 
 interface AngularBindingMetadata {
   inputs: Record<string, unknown>;
@@ -200,6 +201,76 @@ describe('PurchaseCostEditorComponent', () => {
       }),
     ]);
   });
+
+  it.each([
+    { purchaseType: 'lot' as const, defaultAllocation: 'by_value' },
+    { purchaseType: 'mystery_pack' as const, defaultAllocation: 'by_quantity' },
+  ])(
+    'löst bei $purchaseType nur entfernte Artikelzuordnungen sichtbar auf',
+    async ({ purchaseType, defaultAllocation }) => {
+      const costs: readonly PurchaseCostDraft[] = [
+        {
+          type: 'travel',
+          amount: 9.37,
+          description: 'Fahrt zur Abholung',
+          taxTreatment: 'expense',
+          allocationMethod: 'direct',
+          targetPurchaseLineId: 'line-1',
+        },
+        {
+          type: 'shipping',
+          amount: 8.25,
+          description: 'Versand der Kamera',
+          taxTreatment: 'purchase_price',
+          allocationMethod: 'direct',
+          targetPurchaseLineId: 'line-2',
+        },
+      ];
+      const fixture = await createEditor(purchaseType, [
+        { value: 'line-1', label: 'Objektiv' },
+        { value: 'line-2', label: 'Kamera' },
+      ]);
+      const changed = vi.fn();
+      const validityChanged = vi.fn();
+      fixture.componentInstance.costsChanged.subscribe(changed);
+      fixture.componentInstance.validityChanged.subscribe(validityChanged);
+      fixture.componentRef.setInput('initialCosts', costs);
+      fixture.detectChanges();
+      const host = fixture.nativeElement as HTMLElement;
+      const rows = fixture.componentInstance.costRows;
+
+      expect(changed).toHaveBeenLastCalledWith(costs);
+      expect(rows.valid).toBe(true);
+      expect(host.querySelector('[role="status"]')).toBeNull();
+      const retainedRow = rows.at(1).getRawValue();
+
+      fixture.componentRef.setInput('purchaseLineOptions', [{ value: 'line-2', label: 'Kamera' }]);
+      fixture.detectChanges();
+
+      expect(rows.at(0).getRawValue()).toEqual({
+        adjustment: 'other',
+        amount: 9.37,
+        allocationMethod: defaultAllocation,
+        targetPurchaseLineId: null,
+        sourceCost: costs[0],
+        taxTreatment: 'expense',
+      });
+      expect(rows.at(0).controls.sourceCost.value).toBe(costs[0]);
+      expect(rows.at(1).getRawValue()).toEqual(retainedRow);
+      expect(rows.valid).toBe(true);
+      expect(validityChanged).toHaveBeenLastCalledWith(true);
+      expect(changed).toHaveBeenLastCalledWith([
+        { ...costs[0], allocationMethod: defaultAllocation, targetPurchaseLineId: null },
+        costs[1],
+      ]);
+      const notices = host.querySelectorAll('[role="status"]');
+      expect(notices).toHaveLength(1);
+      expect(notices[0].textContent).toContain('Artikelzuordnung');
+      expect(notices[0].textContent).toContain('entfernt');
+      expect(notices[0].textContent).toContain('gesamten Einkauf');
+      expect(findButton(host, 'Zusatzausgabe hinzufügen').disabled).toBe(false);
+    },
+  );
 
   it('setzt technische Standardwerte für neue normale Kosten', async () => {
     const fixture = await createEditor();

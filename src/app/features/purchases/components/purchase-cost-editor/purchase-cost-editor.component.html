@@ -52,6 +52,12 @@
             (clicked)="removeCostRow(index)"
           />
         </div>
+        @if (releasedAssignmentRows().includes(costRow)) {
+          <p role="status" class="mt-2 text-[13px] text-fb-text-secondary">
+            Die Artikelzuordnung wurde aufgehoben, weil der Artikel entfernt wurde. Diese
+            Zusatzausgabe wird jetzt auf den gesamten Einkauf verteilt.
+          </p>
+        }
       </div>
     }
   </div>
