@@ -22,6 +22,12 @@ vergeben. Erst nach Abschluss der übrigen Arbeiten wird entschieden, ob diese
 größere Integration noch in denselben Pull Request passt oder einen eigenen
 Folge-Pull-Request erhält.
 
+Der ausführbare Implementierungsplan teilt die Umsetzung in neun prüfbare
+Arbeitspakete. Jedes Paket beginnt mit einem gezielt fehlschlagenden Test und
+endet mit einer eigenen Prüfung und einem Conventional Commit. Die
+Discord-Anbindung bleibt bis zur abschließenden Umfangsbewertung ausdrücklich
+außerhalb der Produktivänderungen.
+
 **Prüfung:** Reine Planungsrunde ohne Produktivcode. Alle sechs fachlichen
 Abschnitte wurden einzeln bestätigt und die Spezifikation ordnet jeden der 25
 gemeldeten Punkte ausdrücklich einer Lösung zu. Der Branch basiert auf dem
