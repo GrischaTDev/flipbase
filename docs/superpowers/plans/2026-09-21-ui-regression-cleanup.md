@@ -1408,6 +1408,22 @@ git commit -m "fix(purchases): isolate purchase print layout"
 
 ### Task 12: Gesamtprüfung, manuelle Abnahme und Änderungsprotokoll
 
+**Prüfstand vom 21.09.2026:** Formatierung, Lint, Typprüfung und Produktionsbau
+erfolgreich. Die Typkorrekturen der neuen Tests sind in `29631d43` enthalten.
+Der genau einmal ausgeführte `npm run verify` endete mit Exitcode 1, weil der
+native Entfernen-Button im Kosteneditor den Shared-UI-Vertrag verletzte.
+Korrektur mit rotem/grünem Bedienungstest: `9d4d5262`. Danach bestanden alle
+Prüfstufen einzeln: Workflow (81 bestanden, fünf übersprungen), Edge (16),
+Suite-Audit, Anwendungstests (2.704), Landingpage (22), Lint, Typprüfung und Bau.
+Der Gesamtaufruf wurde nicht wiederholt und gilt nicht als bestanden.
+
+**Manuelle Abnahme weiterhin offen:** Die vorhandene lokale Umgebung auf Port 80
+liefert einen älteren ReFlip-Build mit Loginseite, auch unter `/landing/` und
+`flipbase.localhost`. Keiner der zehn unten genannten Fälle wurde am aktuellen
+Branch visuell abgenommen. Keine Neustarts oder zusätzlichen Server; keine
+Testdaten geschrieben. Zwei bekannte NG8113-Hinweise in unverändertem Dashboard
+und unveränderter Verkäuferliste verbleiben. Schritt 6 liegt beim Controller.
+
 **Files:**
 
 - Modify: `docs/AI-CHANGELOG.md`

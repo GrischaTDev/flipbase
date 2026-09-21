@@ -1,5 +1,43 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-21 – Juna – UI-Regressionen integriert und Prüfgrenzen dokumentiert
+
+**Auftrag:** Die elf UI-Aufgaben gemeinsam prüfen, neue Integrationsfehler
+beheben und die manuelle Abnahme in der bereits laufenden Umgebung dokumentieren.
+
+**Änderung:** Die strikte Typprüfung der neuen DOM-Tests und des
+Bezugsquellen-Mocks korrigiert; historische Stornostatuswerte werden ausdrücklich
+als Altbestand geprüft. Einen ungenutzten Icon-Import in der Einkaufsliste
+entfernt. Die gemeinsame Architekturprüfung fand außerdem den neu eingeführten
+nativen Entfernen-Button im Kosteneditor. Er verwendet jetzt den vorhandenen
+roten Shared-Button; ein zunächst roter DOM-Test prüft Gestaltung und Entfernen
+der richtigen Zeile. Keine Datenbank-, Migrations- oder Snapshotänderung.
+
+**Prüfung:** Die Formatierung gemäß Task 12 sowie `npm run lint`,
+`npm run typecheck` und `npm run build` bestanden. Die Typprüfung war vor der
+Korrektur mit 13 Diagnosen rot. Fokussiert bestanden 92 Angular-Tests, 48
+Präsentationstests und nach der zweiten Korrektur elf Kosteneditor-/Dialogtests.
+`node scripts/check-admin-shared-ui.mjs` bestand anschließend mit 95 geprüften
+Dateien ohne Befund. Erfolgreich waren außerdem `npm run test:workflow` (81 Tests,
+fünf Windows-/Umgebungs-Skips), `npm run test:edge` (16 Tests), `npm run test:audit`,
+`npm test` (2.704 Anwendungstests in 293 Dateien) und `npm run test:landing`
+(22 Tests).
+
+**Gesamtaufruf:** `npm run verify` wurde genau einmal ausgeführt und endete mit
+Exitcode 1 am nativen Kosteneditor-Button. Nach dessen Reparatur wurden die
+betroffene Stufe und alle übrigen Prüfstufen einzeln erfolgreich ausgeführt;
+der Gesamtaufruf selbst wird daher ausdrücklich nicht als grün bezeichnet.
+Der Produktionsbau enthält weiterhin zwei bekannte NG8113-Hinweise im
+unveränderten Dashboard und in der unveränderten Verkäuferliste.
+
+**Browserabnahme offen:** `browser-use` zeigte auf `http://localhost/`,
+`http://localhost/landing/` und `http://flipbase.localhost/` den älteren
+„ReFlip“-Build mit Loginseite. Das ausgelieferte Skript stimmt nicht mit dem
+aktuellen Branch-Bau überein. Deshalb sind sämtliche zehn visuellen Abnahmefälle
+einschließlich DE/EN, Themes und Druckvorschau noch ungeprüft. Keine Daten
+angelegt, keine Server oder Docker-Container gestartet oder gestoppt. Eine
+Veröffentlichung erfolgte nicht.
+
 ## 2026-09-21 – Juna – Druck-CSS-Vertrag regelblockweise gekoppelt
 
 **Auftrag:** Der verbleibende Review-Fund sollte verhindern, dass ungebundene
