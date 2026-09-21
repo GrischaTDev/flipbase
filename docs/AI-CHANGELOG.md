@@ -1,5 +1,28 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-21 – Juna – Folgekorrekturen nach manueller UI-Abnahme geplant
+
+**Auftrag:** Die nach dem Einkaufsumbau gefundenen Darstellungs- und
+Bedienprobleme sammeln, Artikel und Bestand fachlich neu einordnen und die
+Umsetzung in kontrollierbare Folge-Pull-Requests teilen.
+
+**Änderung:** Die neuen Punkte wurden in drei eigenständig prüfbare Pakete
+geteilt. Der erste Entwurf umfasst akute Regressionen im Beta-Antrag, bei
+Einkaufsbelegen und Zusatzkosten, im Verkäufer- und Bezugsquellenablauf, in
+Einkaufsliste und Chronik sowie beim Drucken. Die spätere Zusammenführung von
+Artikel und Bestand samt neuer Navigation bleibt ein zweiter Pull-Request.
+Adresssuche und frei gestaltbare Dokumentvorlagen bleiben wegen externer
+Dienste, Datenschutz und eigenständiger Datenmodelle ein dritter Pull-Request.
+
+Die Spezifikation hält außerdem fest, dass ein bereits vorhandener Beta-Antrag
+öffentlich neutral beantwortet wird, dass „Angekommen“ und „Abgeschlossen“
+verschiedene fachliche Zustände bleiben und dass browserseitige Druck-Kopf- und
+Fußzeilen nicht durch die Anwendung erzwungen deaktiviert werden können.
+
+**Prüfung:** Bestehende Komponenten, Tests, Navigations- und
+Gestaltungsverträge wurden gelesen. Produktcode wurde in diesem Planungsschritt
+nicht verändert.
+
 ## 2026-09-21 – Juna – Einkaufsablauf und zugehörige Oberflächen vereinheitlicht
 
 **Auftrag:** Die Einkaufserfassung wieder auf Verkäufer, Quelle, Artikel und
