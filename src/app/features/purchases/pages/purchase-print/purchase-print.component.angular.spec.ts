@@ -117,12 +117,12 @@ describe('Einkauf-drucken-Vorlagen', () => {
     }
   });
 
-  it('verlinkt die Druckseite auf der Detailseite neben dem Prüfbeleg', () => {
+  it('verlinkt die Druckseite ohne den entfernten Prüfbeleg', () => {
     const printLink = detailTemplate.indexOf('data-purchase-print-link');
     const auditLink = detailTemplate.indexOf('data-purchase-audit-print-link');
 
     expect(printLink).toBeGreaterThan(-1);
-    expect(printLink).toBeLessThan(auditLink);
+    expect(auditLink).toBe(-1);
     expect(detailTemplate).toContain(`[link]="'/purchases/' + p.id + '/print'"`);
     expect(detailTemplate).toContain('Einkauf drucken');
   });
