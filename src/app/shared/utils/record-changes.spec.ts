@@ -4,8 +4,39 @@ import { mapRecordChanges } from './record-changes';
 describe('mapRecordChanges', () => {
   it('vergleicht einfache Felder', () => {
     expect(mapRecordChanges({ purchase_price: { before: 100, after: 120 } })).toEqual([
-      { label: 'Einkaufspreis', from: '100', to: '120' },
+      { label: 'Einkaufspreis', from: '100,00 €', to: '120,00 €' },
     ]);
+  });
+
+  it('übersetzt fachliche Werte statt ihrer technischen Codes', () => {
+    expect(
+      mapRecordChanges({
+        receiving_status: { before: 'ordered', after: 'received' },
+        condition_snapshot: { before: 'used', after: 'very_good' },
+        cost_allocation_mode: { before: 'even', after: 'value_weighted' },
+        tracking_carrier: { before: 'dhl', after: 'deutsche_post' },
+      }),
+    ).toEqual([
+      { label: 'Wareneingang', from: 'Bestellt', to: 'Angekommen' },
+      { label: 'Zustand', from: 'Gebraucht', to: 'Sehr gut' },
+      { label: 'Kostenverteilung', from: 'Gleichmäßig', to: 'Nach Artikelwert' },
+      { label: 'Versanddienstleister', from: 'DHL Paket', to: 'Deutsche Post' },
+    ]);
+  });
+
+  it('führt verschachtelte Werte einzeln statt als Sammelwert auf', () => {
+    const changes = mapRecordChanges({
+      purchase: {
+        before: { costs: { shipping_cost: 4.9, other_costs: 0 } },
+        after: { costs: { shipping_cost: 6.5, other_costs: 2 } },
+      },
+    });
+
+    expect(changes).toEqual([
+      { label: 'Kosten · Versandkosten', from: '4,90 €', to: '6,50 €' },
+      { label: 'Kosten · Sonstige Kosten', from: '0,00 €', to: '2,00 €' },
+    ]);
+    expect(changes.flatMap((change) => [change.from, change.to])).not.toContain('Mehrere Werte');
   });
 
   it('lässt unveränderte Felder weg', () => {

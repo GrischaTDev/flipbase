@@ -174,4 +174,28 @@ describe('timelineChanges', () => {
       { label: 'Position 2 entfernt', from: 'Hose', to: null },
     ]);
   });
+
+  it('zeigt einen hinzugefügten Beleg genau einmal und ohne technische Kennung', () => {
+    const event = createEvent('purchase_document_added', {
+      document_id: '11111111-1111-4111-8111-111111111111',
+      original_file_name: 'rechnung.pdf',
+      document_type: 'invoice',
+    });
+
+    expect(timelineChanges(event)).toEqual([
+      { label: 'Beleg hinzugefügt', from: null, to: 'rechnung.pdf · Rechnung' },
+    ]);
+  });
+
+  it('zeigt einen entfernten Beleg genau einmal und ohne technische Kennung', () => {
+    const event = createEvent('purchase_document_removed', {
+      document_id: '22222222-2222-4222-8222-222222222222',
+      original_file_name: 'quittung.jpg',
+      document_type: 'purchase_proof',
+    });
+
+    expect(timelineChanges(event)).toEqual([
+      { label: 'Beleg entfernt', from: 'quittung.jpg · Kaufnachweis', to: null },
+    ]);
+  });
 });
