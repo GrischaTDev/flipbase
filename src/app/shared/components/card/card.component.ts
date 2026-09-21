@@ -21,7 +21,7 @@ export class CardComponent {
   readonly rounded = input<CardRounded>('lg');
 
   protected readonly cardClasses = computed(() => {
-    const base = 'flex flex-col border transition-colors overflow-hidden';
+    const base = 'flex flex-col overflow-hidden border';
 
     const roundedClass =
       this.rounded() === 'xl'
@@ -31,9 +31,9 @@ export class CardComponent {
           : 'rounded-lg';
 
     const variantClasses: Record<CardVariant, string> = {
-      surface: 'linear-surface bg-fb-surface shadow-sm',
-      kpi: 'linear-kpi bg-fb-surface shadow-sm',
-      subtle: 'bg-fb-subtle border-fb-border-subtle',
+      surface: 'linear-surface border-transparent bg-fb-surface shadow-sm',
+      kpi: 'linear-kpi border-transparent bg-fb-surface shadow-sm',
+      subtle: 'border-fb-border-subtle bg-fb-subtle',
     };
 
     return [base, roundedClass, variantClasses[this.variant()]].join(' ');

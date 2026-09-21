@@ -78,4 +78,13 @@ describe('CardComponent', () => {
     const header = fixture.nativeElement.querySelector('[data-card-header]');
     expect(header).toBeNull();
   });
+
+  it('überblendet den Kartenrahmen beim ersten Rendern nicht', () => {
+    fixture.componentRef.setInput('variant', 'surface');
+    fixture.detectChanges();
+
+    const classes = (fixture.nativeElement as HTMLElement).classList;
+    expect(classes).toContain('border-transparent');
+    expect(classes).not.toContain('transition-colors');
+  });
 });
