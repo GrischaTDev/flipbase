@@ -1,5 +1,20 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-21 – Juna – Chronikzeit unabhängig vom Detailschalter ausgerichtet
+
+**Auftrag:** Zeitangaben in der Einkaufschronik sollten unabhängig davon an
+derselben rechten Stelle stehen, ob ein Ereignis Details anbietet.
+
+**Änderung:** Jede Ereigniszeile verwendet jetzt ein festes zweispaltiges Grid.
+Vorgang, Akteur, Grund und Detailschalter bleiben in der Inhaltsseite; die
+Zeitangabe liegt als eigene `time`-Zelle mit `data-record-history-time` in der
+zweiten Spalte.
+
+**Prüfung:** Der neue DOM-Test war vor der Umsetzung rot (keine markierten
+Chronikzeilen) und ist danach zusammen mit den bestehenden Chroniktests grün.
+Prettier, fokussiertes ESLint und der Produktionsbau bestanden; die vollständige
+Test-Suite blieb ebenfalls grün.
+
 ## 2026-09-21 – Juna – Einkaufsstatus nach fachlichem Fortschritt priorisiert
 
 **Auftrag:** Die zentrale Einkaufsstatus-Präsentation sollte den fachlichen

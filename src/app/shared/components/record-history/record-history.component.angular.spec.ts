@@ -160,6 +160,20 @@ describe('RecordHistoryComponent', () => {
     expect(text).not.toContain('"purchase_price"');
   });
 
+  it('hält Zeitangaben mit und ohne Details in derselben rechten Spalte', () => {
+    const plainEvent = { ...event, id: 'plain', changes: null };
+    const fixture = createHistory({ events: [event, plainEvent] });
+    const rows = [
+      ...(fixture.nativeElement as HTMLElement).querySelectorAll('[data-record-history-row]'),
+    ];
+
+    expect(rows).toHaveLength(2);
+    for (const row of rows) {
+      expect(row.classList).toContain('grid');
+      expect(row.querySelector('[data-record-history-time]')?.classList).toContain('text-right');
+    }
+  });
+
   it('zeigt Details erst auf Wunsch und schützt geheime Werte', () => {
     const fixture = createHistory({ events: [event] });
     const host = fixture.nativeElement as HTMLElement;
