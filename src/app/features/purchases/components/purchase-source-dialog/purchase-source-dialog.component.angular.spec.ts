@@ -86,7 +86,10 @@ const createdSource: Source = {
   workspace_id: 'workspace-1',
   name: 'Flohmarkt Berlin',
 };
-const createSource = vi.fn(async () => ({ data: createdSource, error: null }));
+const createSource = vi.fn<SourcesService['createSource']>(async () => ({
+  data: createdSource,
+  error: null,
+}));
 
 function renderSourceDialog() {
   TestBed.resetTestingModule();
@@ -105,7 +108,7 @@ describe('PurchaseSourceDialogComponent', () => {
 
   it('deaktiviert Speichern bis zu einem nichtleeren Namen', () => {
     const { fixture } = renderSourceDialog();
-    const save = fixture.nativeElement.querySelector<HTMLButtonElement>(
+    const save = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
       '[data-save-source] button',
     );
 

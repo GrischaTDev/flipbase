@@ -136,7 +136,7 @@ describe('PurchaseSellerDialogComponent', () => {
   it('aktiviert Speichern erst bei einem gültigen Namen und gültigen optionalen Feldern', () => {
     const { fixture } = render();
     const component = fixture.componentInstance;
-    const save = fixture.nativeElement.querySelector<HTMLButtonElement>(
+    const save = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
       '[data-save-seller] button',
     );
 
@@ -153,7 +153,7 @@ describe('PurchaseSellerDialogComponent', () => {
   it('hält Speichern bei einem Namen nur aus Leerzeichen deaktiviert', () => {
     const { fixture } = render();
     const component = fixture.componentInstance;
-    const save = fixture.nativeElement.querySelector<HTMLButtonElement>(
+    const save = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
       '[data-save-seller] button',
     );
 

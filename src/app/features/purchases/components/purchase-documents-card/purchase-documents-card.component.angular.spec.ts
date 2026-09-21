@@ -194,9 +194,10 @@ describe('PurchaseDocumentsCardComponent', () => {
     fixture.componentRef.setInput('purchase', openPurchase);
     fixture.detectChanges();
 
-    const fileInput =
-      fixture.nativeElement.querySelector<HTMLInputElement>('[data-document-input]');
-    const dropZone = fixture.nativeElement.querySelector<HTMLButtonElement>(
+    const fileInput = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
+      '[data-document-input]',
+    );
+    const dropZone = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
       '[data-document-drop-zone]',
     );
     if (!fileInput || !dropZone) throw new Error('Dateifeld oder Ablagefläche fehlt.');
@@ -213,7 +214,7 @@ describe('PurchaseDocumentsCardComponent', () => {
     fixture.componentRef.setInput('purchase', openPurchase);
     fixture.detectChanges();
 
-    const previewButton = fixture.nativeElement.querySelector<HTMLButtonElement>(
+    const previewButton = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
       '[aria-label="Beleg ansehen"]',
     );
     if (!previewButton) throw new Error('Vorschauaktion fehlt.');
@@ -229,7 +230,7 @@ describe('PurchaseDocumentsCardComponent', () => {
     fixture.componentRef.setInput('purchase', openPurchase);
     fixture.detectChanges();
 
-    const removeButton = fixture.nativeElement.querySelector<HTMLButtonElement>(
+    const removeButton = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
       '[aria-label="Beleg entfernen"]',
     );
     if (!removeButton) throw new Error('Entfernenaktion fehlt.');
@@ -257,7 +258,7 @@ describe('PurchaseDocumentsCardComponent', () => {
     fixture.componentRef.setInput('pendingDocuments', [pendingDocument]);
     fixture.detectChanges();
 
-    const removeButton = fixture.nativeElement.querySelector<HTMLButtonElement>(
+    const removeButton = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
       '[aria-label="Vorgemerkten Beleg entfernen"]',
     );
     if (!removeButton) throw new Error('Entfernenaktion für vorgemerkten Beleg fehlt.');

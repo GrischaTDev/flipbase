@@ -557,7 +557,9 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
           (debugElement.componentInstance as PurchaseEntrySelectStubComponent).actionLabel ===
           'Bezugsquelle erstellen',
       );
-    const sourceAction = sourceSelect?.nativeElement.querySelector<HTMLButtonElement>('button');
+    const sourceAction = (
+      sourceSelect?.nativeElement as HTMLElement | undefined
+    )?.querySelector<HTMLButtonElement>('button');
 
     expect(sourceSelect).toBeDefined();
     expect(sourceAction).not.toBeNull();

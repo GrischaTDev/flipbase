@@ -423,7 +423,7 @@ describe('PurchasesComponent – responsive Einkaufsübersicht', () => {
     purchaseState.set([{ ...purchases[0], notes: longText, title: longText }]);
     const fixture = TestBed.createComponent(PurchasesComponent);
     fixture.detectChanges();
-    const description = fixture.nativeElement.querySelector<HTMLElement>(
+    const description = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(
       '[data-purchase-description] span',
     );
 

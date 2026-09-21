@@ -10,11 +10,7 @@ import {
 import { Router, RouterLink } from '@angular/router';
 import { DatePipe } from '@angular/common';
 import { TranslatePipe } from '@ngx-translate/core';
-import {
-  LucideDynamicIcon,
-  LucideShoppingBag as ShoppingBag,
-  LucidePlus as Plus,
-} from '@lucide/angular';
+import { LucideShoppingBag as ShoppingBag, LucidePlus as Plus } from '@lucide/angular';
 import { PurchaseService } from '../../core/services/purchase.service';
 import { LegacyPurchaseRecoveryService } from './services/legacy-purchase-recovery.service';
 import type { Purchase } from '../../core/models/flipbase.models';
@@ -49,7 +45,6 @@ import { DataTableComponent } from '../../shared/components/data-table/data-tabl
     RouterLink,
     DatePipe,
     TranslatePipe,
-    LucideDynamicIcon,
     CostStateComponent,
     PageHeaderComponent,
     BadgeComponent,
