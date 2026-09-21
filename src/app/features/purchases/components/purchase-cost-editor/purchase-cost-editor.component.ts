@@ -11,11 +11,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormArray, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import {
-  LucideCirclePlus as CirclePlus,
-  LucideDynamicIcon,
-  LucideTrash2 as Trash2,
-} from '@lucide/angular';
+import { LucideCirclePlus as CirclePlus, LucideTrash2 as Trash2 } from '@lucide/angular';
 import { PurchaseType } from '../../../../core/models/flipbase.models';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import {
@@ -46,13 +42,7 @@ type CostForm = FormGroup<{
 
 @Component({
   selector: 'app-purchase-cost-editor',
-  imports: [
-    ReactiveFormsModule,
-    ButtonComponent,
-    CustomSelectComponent,
-    NumberInputComponent,
-    LucideDynamicIcon,
-  ],
+  imports: [ReactiveFormsModule, ButtonComponent, CustomSelectComponent, NumberInputComponent],
   templateUrl: './purchase-cost-editor.component.html',
   host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,

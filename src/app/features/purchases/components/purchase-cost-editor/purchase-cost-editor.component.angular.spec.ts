@@ -155,6 +155,24 @@ describe('PurchaseCostEditorComponent', () => {
     ).toBe(false);
   });
 
+  it('entfernt eine Zusatzausgabe über den gemeinsamen roten Icon-Button', async () => {
+    const fixture = await createEditor();
+    const host = fixture.nativeElement as HTMLElement;
+    const row = fixture.componentInstance.costRows.at(0);
+    row.patchValue({ adjustment: 'shipping', amount: 8 });
+    fixture.componentInstance.addCostRow();
+    fixture.detectChanges();
+    const remove = findButton(host, 'Zusatzausgabe 1 entfernen');
+
+    expect(remove.closest('app-button')).not.toBeNull();
+    expect(remove.classList).toContain('text-fb-critical');
+    remove.click();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.costRows.length).toBe(1);
+    expect(fixture.componentInstance.costRows.controls).not.toContain(row);
+  });
+
   it('bewahrt unsichtbare Steuer- und Zuordnungswerte vorhandener Kosten', async () => {
     const fixture = await createEditor('lot', [{ value: 'line-1', label: 'Kamera' }]);
     fixture.componentRef.setInput('initialCosts', [

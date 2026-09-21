@@ -43,14 +43,14 @@
             />
           </div>
 
-          <button
-            type="button"
-            [attr.aria-label]="'Zusatzausgabe ' + (index + 1) + ' entfernen'"
-            class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-fb-text-muted hover:bg-fb-critical-surface hover:text-fb-critical focus-visible:outline-2 focus-visible:outline-fb-critical"
-            (click)="removeCostRow(index)"
-          >
-            <svg [lucideIcon]="removeIcon" class="h-4 w-4" aria-hidden="true"></svg>
-          </button>
+          <app-button
+            variant="destructive"
+            size="md"
+            [icon]="removeIcon"
+            [iconOnly]="true"
+            [ariaLabel]="'Zusatzausgabe ' + (index + 1) + ' entfernen'"
+            (clicked)="removeCostRow(index)"
+          />
         </div>
       </div>
     }
