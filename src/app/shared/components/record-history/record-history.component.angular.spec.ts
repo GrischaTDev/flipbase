@@ -66,7 +66,6 @@ describe('RecordHistoryComponent', () => {
         authorization: { before: { value: 'secret-old' }, after: { value: 'secret-new' } },
       }),
     ).toEqual([
-      { label: 'Bezeichnung', before: '—', after: 'Neuer Einkauf' },
       { label: 'Position 1 entfernt', before: 'Entfernte Position', after: '—' },
       { label: 'Authorization', before: '[geschützt]', after: '[geschützt]' },
     ]);

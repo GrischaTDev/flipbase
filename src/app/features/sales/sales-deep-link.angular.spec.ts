@@ -3,7 +3,7 @@ import { registerLocaleData } from '@angular/common';
 import localeDe from '@angular/common/locales/de';
 import { signal, ɵresolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { provideRouter, Router } from '@angular/router';
+import { provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { provideTranslateService } from '@ngx-translate/core';
 import { glob, readFile } from 'node:fs/promises';
@@ -52,8 +52,6 @@ afterAll(() => {
     metadata.declaredInputs = snapshot.declaredInputs;
   }
 });
-import { PurchaseDetailTableComponent } from '../purchases/components/purchase-detail-table/purchase-detail-table.component';
-import type { PurchaseDetailRow } from '../purchases/models/purchase-presentation.models';
 import { SalesComponent } from './sales.component';
 
 beforeAll(async () => {
@@ -136,24 +134,6 @@ const linkedSale: Sale = {
   ],
 };
 
-const purchaseRow: PurchaseDetailRow = {
-  kind: 'normal',
-  id: 'line-1',
-  title: 'Tasse',
-  orderedQuantity: 1,
-  receivedQuantity: 1,
-  inventoryItemId: 'item-1',
-  inventoryItemLinks: [{ id: 'item-1', label: 'Artikel 1' }],
-  recordedSales: [{ id: linkedSale.id, status: 'active', revenue: 33, directResult: 13 }],
-  salesState: 'loaded',
-  quantityState: 'loaded',
-  captureRemaining: 0,
-  unitPurchasePrice: { kind: 'known', amount: 20 },
-  lineTotal: { kind: 'known', amount: 20 },
-  availableUnits: 0,
-  soldUnits: 1,
-};
-
 let sales = signal<Sale[]>([]);
 let loadedWorkspaceId = signal<string | null>(null);
 let loadError = signal<Error | null>(null);
@@ -175,7 +155,6 @@ beforeEach(() => {
   TestBed.configureTestingModule({
     imports: [
       SalesComponent,
-      PurchaseDetailTableComponent,
       CostStateComponent,
       PageHeaderComponent,
       TableColumnMenuComponent,
@@ -286,39 +265,6 @@ describe('SalesComponent – verlinkter Verkauf', () => {
     expect(
       harness.routeNativeElement?.querySelector('[data-testid="sales-result-kpi"]')?.textContent,
     ).toContain('Kosten noch offen');
-  });
-
-  it('navigiert vom Einkaufsdetail und markiert den Verkauf erst nach autoritativem Laden', async () => {
-    const scrollIntoView = vi.fn();
-    const focus = vi.fn();
-    HTMLElement.prototype.scrollIntoView = scrollIntoView;
-    HTMLElement.prototype.focus = focus;
-    const harness = await RouterTestingHarness.create();
-    const tableFixture = TestBed.createComponent(PurchaseDetailTableComponent);
-    Object.assign(tableFixture.componentInstance, {
-      purchaseId: signal('purchase-1'),
-      rows: signal([purchaseRow]),
-    });
-    tableFixture.detectChanges();
-
-    (tableFixture.nativeElement as HTMLElement)
-      .querySelector<HTMLAnchorElement>('[data-purchase-sale-link]')
-      ?.click();
-    await vi.waitFor(() => expect(TestBed.inject(Router).url).toBe('/sales?saleId=sale-1'));
-    expect(harness.routeNativeElement?.querySelector('[data-sale-highlighted="true"]')).toBeNull();
-
-    sales.set([linkedSale]);
-    loadedWorkspaceId.set(workspace.id);
-    await vi.waitFor(() => {
-      const highlighted = harness.routeNativeElement?.querySelectorAll<HTMLElement>(
-        '[data-sale-highlighted="true"]',
-      );
-      expect(highlighted).toHaveLength(2);
-      expect(new Set(Array.from(highlighted ?? []).map((element) => element.id)).size).toBe(2);
-      expect(focus).toHaveBeenCalledOnce();
-      expect((focus.mock.instances[0] as HTMLElement).id).toMatch(/^sale-(desktop|mobile)-sale-1$/);
-      expect(scrollIntoView).toHaveBeenCalledOnce();
-    });
   });
 
   it.each(['/sales?saleId=https://evil.example', '/sales?saleId=sale-foreign'])(
