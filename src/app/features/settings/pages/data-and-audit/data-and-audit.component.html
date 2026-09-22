@@ -93,11 +93,10 @@
                 >
                   Zeitraum von
                 </label>
-                <input
+                <app-date-picker
                   id="audit-from"
-                  type="date"
                   formControlName="from"
-                  class="linear-input min-h-9 w-full rounded-md px-3 text-[13px]"
+                  ariaLabel="Zeitraum von"
                 />
               </div>
               <div>
@@ -107,11 +106,10 @@
                 >
                   Zeitraum bis
                 </label>
-                <input
+                <app-date-picker
                   id="audit-to"
-                  type="date"
                   formControlName="to"
-                  class="linear-input min-h-9 w-full rounded-md px-3 text-[13px]"
+                  ariaLabel="Zeitraum bis"
                 />
               </div>
               <div>
@@ -121,12 +119,11 @@
                 >
                   Vorgangstyp
                 </label>
-                <input
+                <app-text-field
                   id="audit-event"
-                  type="text"
                   formControlName="eventType"
+                  ariaLabel="Vorgangstyp"
                   placeholder="z. B. sale_finalized"
-                  class="linear-input min-h-9 w-full rounded-md px-3 text-[13px]"
                 />
               </div>
               <div>
