@@ -90,8 +90,10 @@ const resourceFiles: Readonly<Record<string, string>> = {
   'badge.component.scss': '../../../shared/components/badge/badge.component.scss',
   'text-field.component.html': '../../../shared/components/text-field/text-field.component.html',
   'text-field.component.scss': '../../../shared/components/text-field/text-field.component.scss',
-  'number-input.component.html': '../../../shared/components/number-input/number-input.component.html',
-  'number-input.component.scss': '../../../shared/components/number-input/number-input.component.scss',
+  'number-input.component.html':
+    '../../../shared/components/number-input/number-input.component.html',
+  'number-input.component.scss':
+    '../../../shared/components/number-input/number-input.component.scss',
 };
 
 beforeAll(async () => {
@@ -227,7 +229,9 @@ beforeAll(async () => {
     maxLength: 'maxLength',
   };
 
-  const numberMetadata = (NumberInputComponent as unknown as { ɵcmp: AngularBindingMetadata }).ɵcmp;
+  const numberMetadata = (
+    NumberInputComponent as unknown as { ɵcmp: AngularBindingMetadata }
+  ).ɵcmp;
   numberInputMetadataSnapshot = {
     inputs: numberMetadata.inputs,
     declaredInputs: numberMetadata.declaredInputs,
@@ -302,7 +306,9 @@ afterAll(() => {
     textFieldMetadataSnapshot = null;
   }
   if (numberInputMetadataSnapshot) {
-    const metadata = (NumberInputComponent as unknown as { ɵcmp: AngularBindingMetadata }).ɵcmp;
+    const metadata = (
+      NumberInputComponent as unknown as { ɵcmp: AngularBindingMetadata }
+    ).ɵcmp;
     metadata.inputs = numberInputMetadataSnapshot.inputs;
     metadata.declaredInputs = numberInputMetadataSnapshot.declaredInputs;
     metadata.outputs = numberInputMetadataSnapshot.outputs;
