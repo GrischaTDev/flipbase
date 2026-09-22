@@ -6,14 +6,16 @@ import {
   output,
   signal,
 } from '@angular/core';
+import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { ExpenseCategoryService } from '../../../../core/services/expense-category.service';
 import { WorkspaceContextLockService } from '../../../../core/services/workspace-context-lock.service';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
+import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 
 @Component({
   selector: 'app-expense-category-dialog',
-  imports: [ModalShellComponent, ButtonComponent],
+  imports: [ModalShellComponent, ButtonComponent, ReactiveFormsModule, TextFieldComponent],
   templateUrl: './expense-category-dialog.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -25,9 +27,9 @@ export class ExpenseCategoryDialogComponent {
   readonly closed = output<void>();
   readonly changed = output<void>();
 
-  readonly newName = signal('');
+  readonly newNameControl = new FormControl('', { nonNullable: true });
   readonly editingId = signal<string | null>(null);
-  readonly editingName = signal('');
+  readonly editingNameControl = new FormControl('', { nonNullable: true });
   readonly errorMessage = signal<string | null>(null);
   readonly isSaving = signal(false);
 
@@ -36,7 +38,7 @@ export class ExpenseCategoryDialogComponent {
   }
 
   async createCategory(): Promise<void> {
-    const name = this.newName().trim();
+    const name = this.newNameControl.value.trim();
     if (!name || this.isSaving()) return;
     this.isSaving.set(true);
     this.errorMessage.set(null);
@@ -46,7 +48,7 @@ export class ExpenseCategoryDialogComponent {
         this.errorMessage.set(result.error.message);
         return;
       }
-      this.newName.set('');
+      this.newNameControl.reset('');
       this.changed.emit();
     } finally {
       this.isSaving.set(false);
@@ -55,19 +57,19 @@ export class ExpenseCategoryDialogComponent {
 
   startRename(id: string, name: string): void {
     this.editingId.set(id);
-    this.editingName.set(name);
+    this.editingNameControl.setValue(name);
   }
 
   async saveRename(): Promise<void> {
     const id = this.editingId();
     if (!id) return;
-    const result = await this.categoryService.rename(id, this.editingName());
+    const result = await this.categoryService.rename(id, this.editingNameControl.value);
     if (result.error) {
       this.errorMessage.set(result.error.message);
       return;
     }
     this.editingId.set(null);
-    this.editingName.set('');
+    this.editingNameControl.reset('');
     this.changed.emit();
   }
 
