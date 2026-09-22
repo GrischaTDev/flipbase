@@ -2,7 +2,6 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import {
   LucideArchive,
   LucideArchiveRestore,
-  LucideDynamicIcon,
   LucidePencil,
   LucidePlus,
   LucideUsers,
@@ -33,7 +32,6 @@ import {
     ButtonComponent,
     CustomSelectComponent,
     DataTableComponent,
-    LucideDynamicIcon,
     PageHeaderComponent,
     PurchaseSellerDialogComponent,
   ],

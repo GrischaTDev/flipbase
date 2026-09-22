@@ -3,7 +3,6 @@ import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/c
 import {
   LucideArrowUpRight as ArrowUpRight,
   LucideCoins as Coins,
-  LucideDynamicIcon,
   LucideTrendingUp as TrendingUp,
 } from '@lucide/angular';
 import { DashboardRange } from '../../core/models/flipbase.models';
@@ -38,7 +37,6 @@ interface RangeOption {
     DatePipe,
     ButtonComponent,
     CardComponent,
-    LucideDynamicIcon,
     CustomSelectComponent,
     RevenueChartComponent,
     DashboardKpiCardComponent,

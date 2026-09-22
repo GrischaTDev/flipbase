@@ -594,7 +594,7 @@
               </tr>
             </thead>
             <tbody class="divide-y divide-border/30">
-              @for (row of filteredTaxResults(); track row) {
+              @for (row of filteredTaxResults(); track row.sale_id + ':' + $index) {
                 <tr class="hover:bg-fb-subtle/40 transition">
                   <td class="py-3 px-4 font-mono text-fb-text-muted text-[11px] whitespace-nowrap">
                     {{ row.sale_date | date: 'dd.MM.yyyy' }}
