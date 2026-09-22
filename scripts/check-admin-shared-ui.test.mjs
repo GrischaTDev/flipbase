@@ -128,6 +128,31 @@ test('requires zero findings in admin feature templates', async () => {
   }
 });
 
+test('prevents native form controls in migrated expenses and settings areas', () => {
+  for (const path of [
+    'src/app/features/expenses/components/example/example.component.html',
+    'src/app/features/settings/pages/example/example.component.html',
+  ]) {
+    assert.deepEqual(
+      findAdminSharedUiViolations(path, '<input type="text" />\n<textarea></textarea>'),
+      [
+        { rule: 'native-form-control', line: 1 },
+        { rule: 'native-form-control', line: 2 },
+      ],
+    );
+    assert.deepEqual(
+      findAdminSharedUiViolations(
+        path,
+        '<input type="file" class="sr-only" data-shared-ui-exception="native-file-picker" />',
+      ),
+      [],
+    );
+    assert.deepEqual(findAdminSharedUiViolations(path, '<input type="file" />'), [
+      { rule: 'native-form-control', line: 1 },
+    ]);
+  }
+});
+
 test('prevents new native controls in the unified purchase workspace but allows hidden file transport', () => {
   const path =
     'src/app/features/purchases/components/purchase-line-editor/purchase-line-editor.component.html';
