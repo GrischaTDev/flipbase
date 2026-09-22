@@ -3,10 +3,7 @@ import { LucidePencil as Pencil } from '@lucide/angular';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 
-import {
-  PurchaseCostTaxTreatment,
-  purchaseCostTaxTreatmentLabel,
-} from '../purchase-cost-editor/purchase-cost-adjustments';
+import { PurchaseCostTaxTreatment } from '../purchase-cost-editor/purchase-cost-adjustments';
 import { purchaseCostTypeLabel } from '../../utils/purchase-cost-labels';
 
 export interface PurchaseCostSummaryCost {
@@ -20,8 +17,6 @@ export interface PurchaseCostSummaryCost {
 interface CostSummaryRow {
   readonly label: string;
   readonly amount: number;
-  readonly subtract: boolean;
-  readonly detail?: string;
 }
 
 @Component({
@@ -54,26 +49,18 @@ export class PurchaseCostSummaryComponent {
       rows.push({
         label: 'Versandkosten',
         amount: this.legacyShippingAmount(),
-        subtract: false,
-        detail: 'Noch prüfen',
       });
     }
     if (this.legacyOtherCostsAmount() > 0) {
       rows.push({
         label: 'Sonstiges',
-        detail: 'Noch prüfen',
         amount: this.legacyOtherCostsAmount(),
-        subtract: false,
       });
     }
     for (const cost of this.costs()) {
       rows.push({
         label: cost.description || purchaseCostTypeLabel(cost.type),
-        detail: purchaseCostTaxTreatmentLabel(
-          cost.tax_treatment !== undefined ? cost.tax_treatment : cost.taxTreatment,
-        ),
         amount: cost.amount,
-        subtract: false,
       });
     }
     return rows;

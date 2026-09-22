@@ -6,19 +6,78 @@ import {
 } from './purchase-cost-adjustments';
 
 describe('purchase cost adjustments', () => {
-  it('bietet die zehn Anpassungen aus der Einkaufsreferenz an', () => {
+  it('bietet die relevanten Zusatzausgaben in Prioritätsreihenfolge an', () => {
     expect(PURCHASE_COST_ADJUSTMENT_OPTIONS.map((option) => option.label)).toEqual([
       'Versandkosten',
+      'Käuferschutzgebühr',
       'Zollgebühren',
-      'Rabatt',
-      'Auslandstransaktionsgebühr',
-      'Frachtgebühr',
       'Versicherung',
-      'Eilgebühr',
-      'Zuschlag',
-      'Zölle',
+      'Rabatt',
       'Sonstiges',
     ]);
+  });
+
+  it('speichert die Käuferschutzgebühr als eigenständige Gebühr', () => {
+    expect(
+      serializePurchaseCostAdjustmentRows([
+        {
+          adjustment: 'buyer_protection_fee',
+          amount: 1.95,
+          allocationMethod: 'by_value',
+          targetPurchaseLineId: null,
+          sourceCost: null,
+        },
+      ]).costs,
+    ).toEqual([
+      {
+        type: 'fee',
+        amount: 1.95,
+        description: 'Käuferschutzgebühr',
+        taxTreatment: null,
+        allocationMethod: 'by_value',
+        targetPurchaseLineId: null,
+      },
+    ]);
+  });
+
+  it('bewahrt ältere Fracht- und Auslandsgebühren beim Bearbeiten unter Sonstiges', () => {
+    const legacyCosts = [
+      {
+        type: 'transport' as const,
+        amount: 7,
+        description: 'Frachtgebühr',
+        allocationMethod: 'by_value' as const,
+        targetPurchaseLineId: null,
+      },
+      {
+        type: 'fee' as const,
+        amount: 2,
+        description: 'Auslandstransaktionsgebühr',
+        allocationMethod: 'by_value' as const,
+        targetPurchaseLineId: null,
+      },
+    ];
+    const rows = createPurchaseCostAdjustmentRows(legacyCosts, 0);
+    expect(rows.map((row) => row.adjustment)).toEqual(['other', 'other']);
+    expect(serializePurchaseCostAdjustmentRows(rows).costs.map((cost) => cost.description)).toEqual(
+      ['Frachtgebühr', 'Auslandstransaktionsgebühr'],
+    );
+  });
+
+  it('fasst ältere Zölle unter Zollgebühren zusammen', () => {
+    const rows = createPurchaseCostAdjustmentRows(
+      [
+        {
+          type: 'customs',
+          amount: 5,
+          description: 'Zölle',
+          allocationMethod: 'by_value',
+          targetPurchaseLineId: null,
+        },
+      ],
+      0,
+    );
+    expect(rows[0].adjustment).toBe('customs_fee');
   });
 
   it('trennt Rabatt beim Speichern von positiven Zusatzkosten', () => {
@@ -100,7 +159,7 @@ describe('purchase cost adjustments', () => {
       0,
     );
     expect(
-      serializePurchaseCostAdjustmentRows([{ ...row, adjustment: 'freight' }]).costs[0]
+      serializePurchaseCostAdjustmentRows([{ ...row, adjustment: 'buyer_protection_fee' }]).costs[0]
         .taxTreatment,
     ).toBeNull();
   });

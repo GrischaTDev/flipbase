@@ -117,24 +117,33 @@ describe('PurchaseCostSummaryComponent', () => {
     expect(text).toContain('Bestellte Artikel 3 Artikel 100,00 €');
     expect(text).toContain('Rabatt');
     expect(text).toContain('− 10,00 €');
-    expect(text).toContain('Versandkosten Noch prüfen 15,00 €');
+    expect(text).toContain('Versandkosten 15,00 €');
+    expect(text).not.toContain('Noch prüfen');
     expect(text).toContain('Gesamt 92,00 €');
   });
 
-  it('zeigt gespeicherte und vorläufige Zuordnungen sowie unbekannte Altkosten', async () => {
+  it('zeigt Zusatzkosten direkt untereinander ohne Steuerhinweis oder Trennlinien', async () => {
     const fixture = await createSummary();
     fixture.componentRef.setInput('costs', [
       { type: 'shipping', amount: 5, tax_treatment: 'purchase_price' },
-      { type: 'transport', amount: 7, taxTreatment: 'expense' },
+      { type: 'customs', amount: 7, taxTreatment: 'expense' },
       { type: 'fee', amount: 2, tax_treatment: null },
     ]);
     fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const summary = host.querySelector('dl');
+    const text = summary?.textContent?.replace(/\s+/g, ' ');
+
+    expect(text).toContain('Versandkosten 5,00 € Zollgebühren 7,00 € Gebühr 2,00 € Rabatt');
+    expect(text).not.toContain('Noch prüfen');
+    expect(text).not.toContain('Vom Verkäufer berechnet');
+    expect(text).not.toContain('Separat bezahlt');
+    expect(summary?.classList.contains('divide-y')).toBe(false);
     expect(
-      fixture.componentInstance
-        .rows()
-        .filter((row) => row.detail)
-        .map((row) => row.detail),
-    ).toEqual(['Vom Verkäufer berechnet', 'Separat bezahlt', 'Noch prüfen']);
+      Array.from(summary?.children ?? [])
+        .slice(0, -1)
+        .every((row) => !row.className.includes('border-')),
+    ).toBe(true);
   });
 
   it('meldet die Bearbeitungsaktion an den Einkaufsfluss', async () => {

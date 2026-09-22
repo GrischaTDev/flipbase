@@ -135,6 +135,9 @@ describe('PurchaseCostEditorComponent', () => {
     expect(host.textContent).not.toContain('Wer hat diese Kosten berechnet?');
     expect(host.textContent).not.toContain('Verteilung ändern');
     expect(host.textContent).not.toContain('Zielposition');
+    expect(host.querySelector('[formarrayname="costRows"]')?.classList.contains('divide-y')).toBe(
+      false,
+    );
     expect(host.querySelector('[aria-label="Zusatzausgabe 1"]')).not.toBeNull();
     expect(findButton(host, 'Zusatzausgabe hinzufügen').disabled).toBe(true);
   });
@@ -200,6 +203,22 @@ describe('PurchaseCostEditorComponent', () => {
         targetPurchaseLineId: 'line-1',
       }),
     ]);
+  });
+
+  it('zeigt die bisherige Bezeichnung einer älteren Zusatzausgabe unter Sonstiges', async () => {
+    const fixture = await createEditor();
+    fixture.componentRef.setInput('initialCosts', [
+      {
+        type: 'transport',
+        amount: 7,
+        description: 'Frachtgebühr',
+        allocationMethod: 'by_value',
+        targetPurchaseLineId: null,
+      },
+    ]);
+    fixture.detectChanges();
+
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Bisher: Frachtgebühr');
   });
 
   it.each([

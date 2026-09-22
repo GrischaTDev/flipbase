@@ -14,8 +14,11 @@ Bezeichnungen bleiben beim Bearbeiten erhalten. Der Fallback für Zollkosten
 lautet einheitlich „Zollgebühren“.
 
 **Prüfung:** Fokussierte Angular- und Logiktests, Typprüfung, ESLint,
-Formatprüfung und Produktionsbau bestanden. Der Bau meldet nur die bereits
-bekannten Hinweise zu zwei ungenutzten Icons und zu `pako` aus `pdf-lib`.
+Formatprüfung und Produktionsbau bestanden. Auf dem aktuellen `origin/master`
+bestanden 143 fokussierte Anwendungstests, 84 Workflow-Tests, Typprüfung,
+ESLint und Produktionsbau. Vier passende Datenbanktestdateien mit 60
+Einzelprüfungen bestanden. Der Bau meldet den bekannten Hinweis zu `pako` aus
+`pdf-lib`.
 
 ## 2026-09-23 – Juna – Eigenbelege für Einkäufe eingeführt
 
