@@ -1,64 +1,28 @@
 @if (presentation() === 'dialog') {
-  <div
-    class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-3 animate-fade-in sm:p-6"
-    appModalDialog
-    [dialogTitel]="istBearbeitung() ? 'Artikel bearbeiten' : 'Neuen Artikel anlegen'"
-    (dialogClose)="closed.emit()"
+  <app-modal-shell
+    [title]="istBearbeitung() ? 'Artikel bearbeiten' : 'Neuen Inventar-Artikel anlegen'"
+    [subtitle]="
+      istBearbeitung()
+        ? 'Angaben ändern – Zustand, Marktwert und Beschreibung'
+        : 'Artikel erfassen mit Zustand & Kostenanteil'
+    "
+    [icon]="boxesIcon"
+    iconTone="brand"
+    size="lg"
+    [hasFooter]="false"
+    (closed)="closed.emit()"
   >
     <ng-container [ngTemplateOutlet]="itemForm" />
-  </div>
+  </app-modal-shell>
 } @else {
-  <ng-container [ngTemplateOutlet]="itemForm" />
+  <app-card class="mx-auto max-w-3xl" padding="lg" rounded="xl">
+    <ng-container [ngTemplateOutlet]="itemForm" />
+  </app-card>
 }
 
 <ng-template #itemForm>
-  <div
-    class="linear-surface flex w-full flex-col overflow-hidden rounded-2xl"
-    [class.max-w-xl]="presentation() === 'dialog'"
-    [class.max-w-3xl]="presentation() === 'page'"
-    [class.mx-auto]="presentation() === 'page'"
-    [class.max-h-[90vh]]="presentation() === 'dialog'"
-    [class.my-auto]="presentation() === 'dialog'"
-    [class.shadow-2xl]="presentation() === 'dialog'"
-    [class.animate-modal-card]="presentation() === 'dialog'"
-  >
-    @if (presentation() === 'dialog') {
-      <div
-        class="flex shrink-0 items-center justify-between border-b border-fb-border bg-fb-subtle p-5"
-      >
-        <div class="flex items-center gap-2.5">
-          <div
-            class="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center"
-          >
-            <svg [lucideIcon]="boxesIcon" class="w-4 h-4"></svg>
-          </div>
-          <div>
-            <h2 class="text-sm font-bold text-fb-text-primary">
-              {{ istBearbeitung() ? 'Artikel bearbeiten' : 'Neuen Inventar-Artikel anlegen' }}
-            </h2>
-            <p class="text-[11px] text-fb-text-muted">
-              {{
-                istBearbeitung()
-                  ? 'Angaben ändern – Zustand, Marktwert und Beschreibung'
-                  : 'Artikel erfassen mit Zustand & Kostenanteil'
-              }}
-            </p>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          (click)="closed.emit()"
-          aria-label="Dialog schließen"
-          class="p-1.5 rounded-lg text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-surface-hover transition cursor-pointer"
-        >
-          <svg [lucideIcon]="closeIcon" class="w-4 h-4"></svg>
-        </button>
-      </div>
-    }
-
-    <div class="p-5 overflow-y-auto flex-1 space-y-4">
-      @if (errorMessage()) {
+  <div class="space-y-4">
+    @if (errorMessage()) {
         <div class="p-3 rounded-lg bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs">
           {{ errorMessage() }}
         </div>
@@ -78,34 +42,36 @@
               <!-- Foto-Scan ausgeblendet: keine echte Bilderkennung dahinter. -->
 
               <!-- Barcode Scanner Button -->
-              <button
-                type="button"
-                (click)="isScanningBarcode.set(true)"
-                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 border border-blue-500/30 text-[10px] font-semibold transition cursor-pointer"
+              <app-button
+                size="slim"
+                variant="secondary"
+                [icon]="barcodeIcon"
                 title="Barcode / EAN scannen"
+                (clicked)="isScanningBarcode.set(true)"
               >
-                <svg [lucideIcon]="barcodeIcon" class="w-3 h-3 text-blue-400"></svg>
-                <span>Barcode</span>
-              </button>
+                Barcode
+              </app-button>
 
               <!-- KI Autofill Button -->
-              <button
-                type="button"
-                (click)="onAiAutofill()"
-                [disabled]="isAiLoading() || !form.get('title')?.value"
-                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 text-[10px] font-semibold transition disabled:opacity-40 cursor-pointer"
+              <app-button
+                size="slim"
+                variant="secondary"
+                [icon]="sparklesIcon"
+                [loading]="isAiLoading()"
+                [disabled]="!form.get('title')?.value"
+                (clicked)="onAiAutofill()"
               >
-                <svg [lucideIcon]="sparklesIcon" class="w-3 h-3 text-emerald-400"></svg>
-                <span>{{ isAiLoading() ? 'Lese Titel...' : 'Titel auswerten' }}</span>
-              </button>
+                Titel auswerten
+              </app-button>
             </div>
           </div>
-          <input
+          <app-text-field
             id="itemTitle"
-            type="text"
             formControlName="title"
+            label="Artikelname / Produkttitel"
+            [labelHidden]="true"
             placeholder="z.B. Bosch Akku-Bohrschrauber GSR 18V-55 wie neu"
-            class="linear-input w-full px-3 py-2 rounded-lg text-xs font-medium placeholder-fb-text-dimmed"
+            [required]="true"
           />
         </div>
 
@@ -119,16 +85,14 @@
               </span>
             </div>
 
-            <button
-              type="button"
-              (click)="isCropperOpen.set(true)"
-              class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 transition cursor-pointer"
+            <app-button
+              size="slim"
+              variant="secondary"
+              [icon]="cropIcon"
+              (clicked)="isCropperOpen.set(true)"
             >
-              <svg [lucideIcon]="cropIcon" class="w-3 h-3 text-emerald-400"></svg>
-              <span>{{
-                selectedImageDataUrl() ? 'Zuschnitt anpassen' : 'Foto zuschneiden & komprimieren'
-              }}</span>
-            </button>
+              {{ selectedImageDataUrl() ? 'Zuschnitt anpassen' : 'Foto zuschneiden & komprimieren' }}
+            </app-button>
           </div>
 
           @if (selectedImageDataUrl()) {
@@ -159,14 +123,15 @@
                 </p>
               </div>
 
-              <button
-                type="button"
-                (click)="removeSelectedImage()"
-                class="p-1.5 rounded-lg text-fb-text-muted hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer shrink-0"
+              <app-button
+                variant="ghost"
+                size="md"
+                [icon]="trashIcon"
+                [iconOnly]="true"
+                ariaLabel="Foto entfernen"
                 title="Foto entfernen"
-              >
-                <svg [lucideIcon]="trashIcon" class="w-4 h-4"></svg>
-              </button>
+                (clicked)="removeSelectedImage()"
+              />
             </div>
           } @else {
             <button
@@ -224,12 +189,12 @@
             >
               Modell
             </label>
-            <input
+            <app-text-field
               id="itemModel"
-              type="text"
               formControlName="model"
+              label="Modell"
+              [labelHidden]="true"
               placeholder="z.B. GSR 18V-55"
-              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs"
             />
           </div>
         </div>
@@ -270,17 +235,17 @@
             >
               EAN / Barcode
             </label>
-            <input
+            <app-text-field
               id="itemEan"
-              type="text"
               formControlName="ean"
-              (blur)="form.controls.ean.markAsTouched()"
+              label="EAN / Barcode"
+              [labelHidden]="true"
               placeholder="z.B. 4005317316719"
-              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono"
+              [monospaced]="true"
+              [error]="
+                form.controls.ean.invalid && form.controls.ean.touched ? 'Ungültige EAN/GTIN.' : null
+              "
             />
-            @if (form.controls.ean.invalid && form.controls.ean.touched) {
-              <p class="mt-1 text-xs text-rose-300" role="alert">Ungültige EAN/GTIN.</p>
-            }
           </div>
         </div>
 
@@ -292,12 +257,12 @@
             >
               Direkte Anschaffungskosten (€)
             </label>
-            <input
+            <app-number-input
               id="itemCost"
-              type="number"
               formControlName="allocated_purchase_cost"
+              ariaLabel="Direkte Anschaffungskosten"
               [placeholder]="istBearbeitung() ? 'Offen' : '0.00'"
-              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold"
+              [asCurrency]="true"
             />
           </div>
 
@@ -308,12 +273,13 @@
             >
               Erwarteter Marktwert (€)
             </label>
-            <input
+            <app-number-input
               id="itemExpectedValue"
-              type="number"
               formControlName="expected_value"
+              ariaLabel="Erwarteter Marktwert"
               placeholder="0.00"
-              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold text-emerald-400"
+              [min]="0"
+              [asCurrency]="true"
             />
           </div>
         </div>
@@ -328,13 +294,13 @@
             >
               Anzahl gleicher Stücke
             </label>
-            <input
+            <app-number-input
               id="itemAnzahl"
-              type="number"
-              min="1"
-              max="200"
               formControlName="anzahl"
-              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold"
+              ariaLabel="Anzahl gleicher Stücke"
+              [min]="1"
+              [max]="200"
+              [step]="1"
             />
             <p class="text-[10px] text-fb-text-muted mt-1 leading-relaxed">
               Jedes Stück wird ein eigener Artikel mit eigener Nummer – nötig, damit jedes seinen
@@ -366,30 +332,18 @@
           }
         </div>
 
-        <div class="flex items-center justify-end gap-2 pt-4 border-t border-fb-border">
-          <button
-            type="button"
-            (click)="closed.emit()"
-            class="linear-btn-secondary px-4 py-1.5 rounded-lg text-xs font-semibold cursor-pointer"
-          >
-            Abbrechen
-          </button>
-          <button
+        <div class="flex items-center justify-end gap-2 border-t border-fb-border pt-4">
+          <app-button variant="secondary" (clicked)="closed.emit()">Abbrechen</app-button>
+          <app-button
+            variant="primary"
             type="submit"
-            [disabled]="form.invalid || isSubmitting()"
-            class="linear-btn-primary px-4 py-1.5 rounded-lg font-semibold text-xs transition disabled:opacity-40 cursor-pointer"
+            [loading]="isSubmitting()"
+            [disabled]="form.invalid"
           >
-            <span>{{
-              isSubmitting()
-                ? 'Speichere...'
-                : istBearbeitung()
-                  ? 'Änderungen speichern'
-                  : 'Artikel anlegen'
-            }}</span>
-          </button>
+            {{ istBearbeitung() ? 'Änderungen speichern' : 'Artikel anlegen' }}
+          </app-button>
         </div>
-      </form>
-    </div>
+    </form>
   </div>
 
   <!-- Barcode Scanner Modal -->
