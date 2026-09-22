@@ -16,10 +16,10 @@ test('can save a draft after dismissing an open cost selector and cancelling the
   await expect(page.getByRole('button', { name: 'Kosten bearbeiten', exact: true })).toBeFocused();
   await page.getByRole('textbox', { name: 'Beschreibung' }).fill('Dropdown-Abbruch-Test');
   await page.getByRole('button', { name: 'Entwurf speichern', exact: true }).click();
-  await expect(page).toHaveURL(/\/purchases$/);
-  await expect(
-    page.locator('[data-purchase-description]').filter({ hasText: 'Dropdown-Abbruch-Test' }),
-  ).toBeVisible();
+  await expect(page).toHaveURL(/\/purchases\/(?!new$)[^/]+$/);
+  await expect(page.getByRole('textbox', { name: 'Beschreibung' })).toHaveValue(
+    'Dropdown-Abbruch-Test',
+  );
 });
 
 test('keeps cost options above the modal footer and preserves keyboard dismissal @pr-smoke', async ({

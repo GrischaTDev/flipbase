@@ -9,7 +9,7 @@ test('aligns purchase navigation and keeps compact actions with the primary acti
   await selectDefaultPurchaseSeller(page);
   await page.getByRole('textbox', { name: 'Beschreibung' }).fill('Kopfzeilen-Test');
   await page.getByRole('button', { name: 'Entwurf speichern', exact: true }).click();
-  await page.locator('[data-purchase-description]').filter({ hasText: 'Kopfzeilen-Test' }).click();
+  await expect(page).toHaveURL(/\/purchases\/(?!new$)[^/]+$/);
   const header = page.locator('app-entry-page-layout header');
   await expect(header.getByRole('heading', { level: 1 })).toBeVisible();
   await expect(header.locator('app-badge')).toHaveText('Entwurf');
