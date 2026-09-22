@@ -74,7 +74,7 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
   readonly value = model<T | null>(null);
   readonly placeholder = input<string>('Bitte wählen...');
   readonly variant = input<'default' | 'pill' | 'filter' | 'toolbar'>('default');
-  readonly size = input<'sm' | 'md'>('md');
+  readonly size = input<'sm' | 'md'>('sm');
   readonly disabled = input<boolean>(false);
   readonly widthClass = input<string>('w-full');
   readonly openDirection = input<'auto' | 'down' | 'up'>('auto');
@@ -85,15 +85,11 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
   readonly action = output<void>();
 
   /**
-   * Innenabstand je Groesse.
-   *
-   * `sm` traegt genau die Masse der uebrigen Eingabefelder
-   * (`px-2.5 py-1.5 text-xs`), damit in einer Formularzeile alle Felder
-   * gleich hoch sind. Die Eingabe `size` gab es schon, ausgewertet wurde sie
-   * nicht - die Auswahlfelder waren dadurch hoeher als ihre Nachbarn.
+   * Formularfelder folgen der gemessenen Admin-Referenz: 32 px im normalen
+   * Zustand. `md` bleibt als bewusst groessere 36-px-Variante verfuegbar.
    */
   readonly groessenKlasse = computed(() =>
-    this.size() === 'sm' ? 'min-h-9 px-2.5 py-1.5 text-[13px]' : 'min-h-10 px-3 py-2 text-[13px]',
+    this.size() === 'sm' ? 'min-h-8 px-2.5 py-1 text-[13px]' : 'min-h-9 px-3 py-1.5 text-[13px]',
   );
 
   readonly isOpen = signal<boolean>(false);
