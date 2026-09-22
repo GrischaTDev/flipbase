@@ -64,7 +64,11 @@
       </div>
     </div>
 
-    @if (form.controls.quantity.value && form.controls.quantity.value > 1 && unitPrice() !== null) {
+    @if (
+      form.controls.quantity.value &&
+      form.controls.quantity.value > 1 &&
+      unitPrice() !== null
+    ) {
       <p class="text-xs text-fb-text-muted">{{ unitPrice() }} € pro Stück</p>
     }
 
