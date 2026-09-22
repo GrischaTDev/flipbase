@@ -19,6 +19,39 @@ test('rejects native selects, local status pills and black primary variants in a
   ]);
 });
 
+test('rejects native standard form controls and custom modal shells outside the legacy allowlist', () => {
+  assert.deepEqual(
+    findAdminSharedUiViolations(
+      'src/app/features/example/example.html',
+      '<input type="number" />\n<textarea></textarea>',
+    ),
+    [
+      { rule: 'native-form-control', line: 1 },
+      { rule: 'native-form-control', line: 2 },
+    ],
+  );
+  assert.deepEqual(
+    findAdminSharedUiViolations(
+      'src/app/features/example/dialog.component.html',
+      '<div appModalDialog></div>',
+    ),
+    [{ rule: 'custom-modal-shell', line: 1 }],
+  );
+});
+
+test('keeps technical native inputs outside the standard-form rule', () => {
+  const source = `
+    <input type="file" class="sr-only" />
+    <input type="range" />
+    <input type="checkbox" />
+    <input type="radio" />
+  `;
+  assert.deepEqual(
+    findAdminSharedUiViolations('src/app/features/example/example.html', source),
+    [],
+  );
+});
+
 test('rejects local managed-table shells and native table search controls', () => {
   const source = `
     <app-table-column-menu />

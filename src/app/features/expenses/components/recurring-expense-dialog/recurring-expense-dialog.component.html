@@ -29,26 +29,33 @@
     </div>
 
     <div class="grid gap-4 sm:grid-cols-2">
-      <label class="block">
-        <span class="mb-1.5 block text-[13px] font-semibold">Menge</span>
-        <input
-          type="number"
-          min="1"
-          step="1"
+      <div>
+        <label for="recurring-expense-quantity" class="mb-1.5 block text-[13px] font-semibold">
+          Menge
+        </label>
+        <app-number-input
+          id="recurring-expense-quantity"
+          ariaLabel="Menge"
           formControlName="quantity"
-          class="linear-input min-h-9 w-full rounded-lg px-3 text-[13px]"
+          [min]="1"
+          [step]="1"
+          [showStepper]="false"
         />
-      </label>
-      <label class="block">
-        <span class="mb-1.5 block text-[13px] font-semibold">Gesamtbetrag</span>
-        <input
-          type="number"
-          min="0.01"
-          step="0.01"
+      </div>
+      <div>
+        <label for="recurring-expense-gross-amount" class="mb-1.5 block text-[13px] font-semibold">
+          Gesamtbetrag
+        </label>
+        <app-number-input
+          id="recurring-expense-gross-amount"
+          ariaLabel="Gesamtbetrag"
           formControlName="gross_amount"
-          class="linear-input min-h-9 w-full rounded-lg px-3 text-[13px]"
+          [min]="0.01"
+          [step]="0.01"
+          [asCurrency]="true"
+          [showStepper]="false"
         />
-      </label>
+      </div>
     </div>
 
     @if (form.controls.quantity.value && form.controls.quantity.value > 1 && unitPrice() !== null) {
@@ -112,10 +119,7 @@
     </div>
 
     @if (rule()) {
-      <label class="flex items-center gap-2 text-[13px]">
-        <input type="checkbox" formControlName="is_active" />
-        Regel aktiv
-      </label>
+      <app-custom-checkbox formControlName="is_active" label="Regel aktiv" />
     }
 
     <app-text-field formControlName="notes" label="Notizen" [multiline]="3" />

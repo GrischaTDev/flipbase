@@ -14,6 +14,57 @@ const nativeTableSearchPattern = /<input\b[^>]*\btype\s*=\s*["']search["'][^>]*>
 const purchaseWorkspacePath =
   /\/purchases\/(?:components|pages)\/(?:purchase-entry-form|purchase-line-editor|purchase-cost-editor|purchase-cost-summary|purchase-cost-overview-dialog|purchase-create|purchase-detail|purchase-edit)\//u;
 const nativeWorkspaceControlPattern = /<(?:button|input|textarea)\b[^>]*>/giu;
+const nativeFormControlTypes = new Set([
+  'text',
+  'email',
+  'password',
+  'url',
+  'tel',
+  'number',
+  'date',
+  'time',
+  'datetime-local',
+  'search',
+]);
+
+const legacyNativeFormControlPaths = new Set([
+  'src/app/features/accounting/accounting.component.html',
+  'src/app/features/audit/components/record-timeline/record-timeline.component.html',
+  'src/app/features/auth/login/login.component.html',
+  'src/app/features/auth/register/register.component.html',
+  'src/app/features/auth/set-password/set-password.component.html',
+  'src/app/features/deal-calculator/deal-calculator.component.html',
+  'src/app/features/fulfillment/fulfillment.component.html',
+  'src/app/features/image-optimizer/components/optimizer-header/optimizer-header.component.html',
+  'src/app/features/inventory/components/item-create-modal/item-create-modal.component.html',
+  'src/app/features/inventory/pages/item-detail/item-detail.component.html',
+  'src/app/features/listings/pages/listing-editor/listing-editor.component.html',
+  'src/app/features/onboarding/workspace-setup/workspace-setup.component.html',
+  'src/app/features/research/research.component.html',
+  'src/app/features/sales/components/sale-create-modal/sale-create-modal.component.html',
+  'src/app/features/sales/sales.component.html',
+  'src/app/features/settings/pages/account-settings/account-settings.component.html',
+  'src/app/features/settings/pages/app-settings/app-settings.component.html',
+  'src/app/features/settings/pages/data-and-audit/data-and-audit.component.html',
+  'src/app/features/settings/pages/notification-settings/notification-settings.component.html',
+  'src/app/features/settings/pages/numbering-settings/numbering-settings.component.html',
+  'src/app/features/settings/pages/shipping-settings/shipping-settings.component.html',
+  'src/app/features/settings/pages/store-settings/store-settings.component.html',
+  'src/app/features/settings/pages/team-settings/team-settings.component.html',
+  'src/app/features/settings/pages/workspace-settings/workspace-settings.component.html',
+]);
+
+const legacyCustomModalPaths = new Set([
+  'src/app/features/accounting/accounting.component.html',
+  'src/app/features/auth/components/privacy-modal/privacy-modal.component.html',
+  'src/app/features/auth/components/terms-modal/terms-modal.component.html',
+  'src/app/features/fulfillment/fulfillment.component.html',
+  'src/app/features/inventory/components/item-create-modal/item-create-modal.component.html',
+  'src/app/features/inventory/pages/item-detail/item-detail.component.html',
+  'src/app/features/research/research.component.html',
+  'src/app/features/sales/sales.component.html',
+  'src/app/features/settings/pages/team-settings/team-settings.component.html',
+]);
 
 const approvedTableExceptions = new Map([
   [
@@ -69,6 +120,10 @@ function templateElements(source, path) {
 
 export function findAdminSharedUiViolations(path, source) {
   const violations = [];
+  const normalizedPath = path.replaceAll('\\', '/');
+  const elements = templateElements(source, path);
+  const tables = elements.filter(({ node }) => node.name === 'table');
+
   for (const match of source.matchAll(nativeSelectPattern)) {
     violations.push({ rule: 'native-select', line: lineAt(source, match.index) });
   }
@@ -85,7 +140,32 @@ export function findAdminSharedUiViolations(path, source) {
     violations.push({ rule: 'legacy-table-toolbar', line: lineAt(source, match.index) });
   }
 
-  const tables = templateElements(source, path).filter(({ node }) => node.name === 'table');
+  if (
+    !purchaseWorkspacePath.test(normalizedPath) &&
+    !legacyNativeFormControlPaths.has(normalizedPath)
+  ) {
+    for (const { node } of elements) {
+      const isTextarea = node.name === 'textarea';
+      const inputType = node.name === 'input' ? attributeValue(node, 'type') || 'text' : null;
+      const isStandardInput = inputType !== null && nativeFormControlTypes.has(inputType);
+      const tableSearchHandledSeparately = inputType === 'search' && tables.length > 0;
+      if ((isTextarea || isStandardInput) && !tableSearchHandledSeparately) {
+        violations.push({ rule: 'native-form-control', line: node.sourceSpan.start.line + 1 });
+      }
+    }
+  }
+
+  if (
+    source.includes('appModalDialog') &&
+    !source.includes('<app-modal-shell') &&
+    !legacyCustomModalPaths.has(normalizedPath)
+  ) {
+    violations.push({
+      rule: 'custom-modal-shell',
+      line: lineAt(source, source.indexOf('appModalDialog')),
+    });
+  }
+
   if (tables.length > 0) {
     for (const match of source.matchAll(nativeTableSearchPattern)) {
       violations.push({ rule: 'native-table-search', line: lineAt(source, match.index) });
@@ -113,7 +193,7 @@ export function findAdminSharedUiViolations(path, source) {
     }
   }
 
-  if (purchaseWorkspacePath.test(path.replaceAll('\\', '/'))) {
+  if (purchaseWorkspacePath.test(normalizedPath)) {
     for (const match of source.matchAll(nativeWorkspaceControlPattern)) {
       const tag = match[0];
       const hiddenFileTransport =
@@ -125,6 +205,7 @@ export function findAdminSharedUiViolations(path, source) {
       }
     }
   }
+
   return violations.sort(
     (left, right) => left.line - right.line || left.rule.localeCompare(right.rule),
   );

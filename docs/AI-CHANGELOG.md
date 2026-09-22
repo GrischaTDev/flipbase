@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-22 – Juna – Shared-UI-Bereinigung: Test-Ressourcen und Form-Control-Anbindung in PR #149 gefixt
+
+**Auftrag:** CI-Fehler in PR #149 (refactor(ui): migrate forms to shared controls) analysieren und beheben.
+
+**Änderung:** In `expense-category-dialog.component.angular.spec.ts` wurde der Zugriff auf das neu eingeführte `newNameControl` anstelle des früheren Signals aktualisiert. In `purchase-correction-dialog.component.angular.spec.ts` wurde das Laden von Template-Ressourcen auf dynamisches `glob` für die neu verwendeten Shared Components (`ButtonComponent`, `ModalShellComponent`, `TextFieldComponent`) umgestellt, Binding-Bridges für Shared Controls ergänzt und der asynchrone Abschluss von `submit()` im Test mit Change Detection synchronisiert. Zudem wurden die Vorlagen `recurring-expense-dialog.component.html` und `purchase-correction-dialog.component.html` sowie die Spec Prettier-konform formatiert.
+
+**Prüfung:** `npm run format:check`, `npm run lint`, `npm run typecheck`, `npm run test:workflow` (83 bestanden, 0 Findings in check-admin-shared-ui), `npm run test:audit` sowie alle betroffenen Vitest-Specs in `expenses` und `purchases` lokal erfolgreich ausgeführt (Exitcode 0).
+
 ## 2026-09-22 – Juna – Beta-, Einkaufs- und Artikelflüsse nachgeschärft
 
 **Auftrag:** Die bei der manuellen Abnahme gefundenen Rückmeldungen zur

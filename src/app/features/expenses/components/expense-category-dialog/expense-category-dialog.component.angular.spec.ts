@@ -41,10 +41,10 @@ describe('ExpenseCategoryDialogComponent', () => {
 
     fixture.detectChanges();
     const component = fixture.componentInstance;
-    component.newName.set('Lager');
+    component.newNameControl.setValue('Lager');
     await component.createCategory();
 
     expect(create).toHaveBeenCalledWith('Lager');
-    expect(component.newName()).toBe('');
+    expect(component.newNameControl.value).toBe('');
   });
 });

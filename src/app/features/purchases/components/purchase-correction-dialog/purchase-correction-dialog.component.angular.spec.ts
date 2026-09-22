@@ -1,35 +1,60 @@
 import '@angular/compiler';
 import { ɵresolveComponentResources, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { readFile } from 'node:fs/promises';
+import { glob, readFile } from 'node:fs/promises';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { PurchaseCostingService } from '../../../../core/services/purchase-costing.service';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
+import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
+import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
+import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
+import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
 import { PurchaseCorrectionDialogComponent } from './purchase-correction-dialog.component';
 
-import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
-import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
-
-interface BindingMetadata {
+interface AngularBindingMetadata {
   inputs: Record<string, unknown>;
   declaredInputs: Record<string, string>;
+  outputs: Record<string, string>;
 }
-const snapshots = new Map<unknown, BindingMetadata>();
-function bridgeInputs(component: unknown, names: string[]): void {
+
+const metadataSnapshots = new Map<unknown, AngularBindingMetadata>();
+
+function bridgeBindings(
+  target: unknown,
+  inputs: readonly string[],
+  outputs: readonly string[] = [],
+  directive = false,
+): void {
   if (import.meta.url.includes('/out-tsc/')) return;
-  const metadata = (component as { ɵcmp: BindingMetadata }).ɵcmp;
-  snapshots.set(component, { inputs: metadata.inputs, declaredInputs: metadata.declaredInputs });
+  const definition = directive ? 'ɵdir' : 'ɵcmp';
+  const metadata = (target as Record<string, AngularBindingMetadata>)[definition];
+  metadataSnapshots.set(target, {
+    inputs: metadata.inputs,
+    declaredInputs: metadata.declaredInputs,
+    outputs: metadata.outputs,
+  });
   metadata.inputs = {
     ...metadata.inputs,
-    ...Object.fromEntries(names.map((name) => [name, [name, 1, null]])),
+    ...Object.fromEntries(inputs.map((name) => [name, [name, 1, null]])),
   };
   metadata.declaredInputs = {
     ...metadata.declaredInputs,
-    ...Object.fromEntries(names.map((name) => [name, name])),
+    ...Object.fromEntries(inputs.map((name) => [name, name])),
+  };
+  metadata.outputs = {
+    ...metadata.outputs,
+    ...Object.fromEntries(outputs.map((name) => [name, name])),
   };
 }
+
 afterAll(() => {
-  for (const [component, snapshot] of snapshots) {
-    Object.assign((component as { ɵcmp: BindingMetadata }).ɵcmp, snapshot);
+  for (const [target, snapshot] of metadataSnapshots) {
+    const component = target as Record<string, AngularBindingMetadata>;
+    const metadata = component['ɵcmp'] ?? component['ɵdir'];
+    metadata.inputs = snapshot.inputs;
+    metadata.declaredInputs = snapshot.declaredInputs;
+    metadata.outputs = snapshot.outputs;
   }
 });
 
@@ -37,18 +62,66 @@ beforeAll(async () => {
   TestBed.resetTestingModule();
   await ɵresolveComponentResources(async (url) => {
     const resourceUrl = String(url);
-    if (resourceUrl.includes('custom-select.component.')) {
-      const fileName = resourceUrl.split('/').at(-1);
-      return readFile(`src/app/shared/components/custom-select/${fileName}`, 'utf8');
+    if (!url || resourceUrl === 'undefined' || resourceUrl.endsWith('/undefined')) return '';
+    const fileName = resourceUrl.replace(/^\.\//, '');
+    const matches: string[] = [];
+    for await (const match of glob(`src/app/**/${fileName}`)) matches.push(match);
+    if (matches.length !== 1) {
+      throw new Error(`Test-Ressource ${resourceUrl} ist nicht eindeutig: ${matches.join(', ')}`);
     }
-    if (resourceUrl.includes('number-input.component.')) {
-      const fileName = resourceUrl.split('/').at(-1);
-      return readFile(`src/app/shared/components/number-input/${fileName}`, 'utf8');
-    }
-    return readFile(new URL(resourceUrl, import.meta.url), 'utf8');
+    return readFile(matches[0], 'utf8');
   });
-  bridgeInputs(CustomSelectComponent, ['ariaLabel', 'options', 'size', 'placeholder']);
-  bridgeInputs(NumberInputComponent, ['feldId', 'minimum', 'alsBetrag']);
+  bridgeBindings(
+    ButtonComponent,
+    [
+      'variant',
+      'size',
+      'icon',
+      'iconOnly',
+      'ariaLabel',
+      'ariaExpanded',
+      'disabled',
+      'loading',
+      'type',
+      'formId',
+    ],
+    ['clicked'],
+  );
+  bridgeBindings(
+    CustomSelectComponent,
+    ['id', 'ariaLabel', 'options', 'placeholder', 'size'],
+    ['valueChange'],
+  );
+  bridgeBindings(NumberInputComponent, [
+    'id',
+    'placeholder',
+    'ariaLabel',
+    'step',
+    'min',
+    'max',
+    'unit',
+    'asCurrency',
+    'showStepper',
+    'feldId',
+    'minimum',
+    'maximum',
+    'schritt',
+    'einheit',
+    'beschriftung',
+    'alsBetrag',
+  ]);
+  bridgeBindings(
+    TextFieldComponent,
+    ['id', 'label', 'labelHidden', 'placeholder', 'type', 'multiline', 'helpText', 'error'],
+    ['cleared'],
+  );
+  bridgeBindings(ModalShellComponent, ['title', 'subtitle', 'size'], ['closed']);
+  bridgeBindings(
+    ModalDialogDirective,
+    ['dialogTitel', 'schliesstBeiKlickAussen'],
+    ['dialogClose'],
+    true,
+  );
 });
 
 describe('PurchaseCorrectionDialogComponent', () => {
@@ -254,5 +327,6 @@ describe('PurchaseCorrectionDialogComponent', () => {
     expect(correctPurchase).toHaveBeenCalledOnce();
     resolveCorrection({ data: null, error: null, reportedBySyncStatus: false });
     await Promise.all([first, second]);
+    fixture.detectChanges();
   });
 });

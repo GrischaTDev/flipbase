@@ -14,13 +14,15 @@ import {
   CorrectPurchaseLineInput,
   PurchaseCostingService,
 } from '../../../../core/services/purchase-costing.service';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
+import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
 import {
   PURCHASE_COST_TAX_TREATMENT_OPTIONS,
   PurchaseCostTaxTreatment,
 } from '../purchase-cost-editor/purchase-cost-adjustments';
-import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
 import { PurchaseLinePriceMode } from '../../../../core/models/purchase-costing.models';
 
 type LineForm = FormGroup<{
@@ -48,7 +50,14 @@ type CostForm = FormGroup<{
 
 @Component({
   selector: 'app-purchase-correction-dialog',
-  imports: [ReactiveFormsModule, NumberInputComponent, CustomSelectComponent, ModalDialogDirective],
+  imports: [
+    ReactiveFormsModule,
+    ButtonComponent,
+    ModalShellComponent,
+    NumberInputComponent,
+    TextFieldComponent,
+    CustomSelectComponent,
+  ],
   templateUrl: './purchase-correction-dialog.component.html',
   host: { class: 'contents' },
   changeDetection: ChangeDetectionStrategy.OnPush,
