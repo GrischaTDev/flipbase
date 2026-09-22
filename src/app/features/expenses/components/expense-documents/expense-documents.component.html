@@ -30,6 +30,7 @@
         <input
           type="file"
           class="sr-only"
+          data-shared-ui-exception="native-file-picker"
           accept=".pdf,.jpg,.jpeg,.png,.xml,application/pdf,image/jpeg,image/png,application/xml,text/xml"
           [disabled]="isUploading()"
           (change)="onFileSelected($event)"
