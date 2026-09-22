@@ -30,10 +30,7 @@
 
     <div class="grid gap-4 sm:grid-cols-2">
       <div>
-        <label
-          for="recurring-expense-quantity"
-          class="mb-1.5 block text-[13px] font-semibold"
-        >
+        <label for="recurring-expense-quantity" class="mb-1.5 block text-[13px] font-semibold">
           Menge
         </label>
         <app-number-input
@@ -46,10 +43,7 @@
         />
       </div>
       <div>
-        <label
-          for="recurring-expense-gross-amount"
-          class="mb-1.5 block text-[13px] font-semibold"
-        >
+        <label for="recurring-expense-gross-amount" class="mb-1.5 block text-[13px] font-semibold">
           Gesamtbetrag
         </label>
         <app-number-input
@@ -64,11 +58,7 @@
       </div>
     </div>
 
-    @if (
-      form.controls.quantity.value &&
-      form.controls.quantity.value > 1 &&
-      unitPrice() !== null
-    ) {
+    @if (form.controls.quantity.value && form.controls.quantity.value > 1 && unitPrice() !== null) {
       <p class="text-xs text-fb-text-muted">{{ unitPrice() }} € pro Stück</p>
     }
 

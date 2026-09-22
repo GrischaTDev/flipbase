@@ -4,12 +4,7 @@
   size="lg"
   (closed)="closed.emit()"
 >
-  <form
-    id="purchase-correction-form"
-    [formGroup]="form"
-    (ngSubmit)="submit()"
-    class="space-y-4"
-  >
+  <form id="purchase-correction-form" [formGroup]="form" (ngSubmit)="submit()" class="space-y-4">
     @if (errorMessage()) {
       <p
         role="alert"
