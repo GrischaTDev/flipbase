@@ -11,18 +11,14 @@
   }
 
   <div class="flex gap-2">
-    <label class="min-w-0 flex-1">
-      <span class="sr-only">Neue Kategorie</span>
-      <input
-        type="text"
-        maxlength="80"
-        class="linear-input min-h-9 w-full rounded-lg px-3 text-[13px]"
+    <div class="min-w-0 flex-1" (keydown.enter)="$event.preventDefault(); createCategory()">
+      <app-text-field
+        [formControl]="newNameControl"
+        ariaLabel="Neue Kategorie"
         placeholder="Eigene Kategorie"
-        [value]="newName()"
-        (input)="newName.set($any($event.target).value)"
-        (keydown.enter)="$event.preventDefault(); createCategory()"
+        [maxLength]="80"
       />
-    </label>
+    </div>
     <app-button variant="primary" [loading]="isSaving()" (clicked)="createCategory()">
       Hinzufügen
     </app-button>
@@ -32,11 +28,10 @@
     @for (category of categoryService.allCategories(); track category.id) {
       <div class="flex items-center gap-2 px-3 py-2.5">
         @if (editingId() === category.id) {
-          <input
-            type="text"
-            class="linear-input min-h-8 min-w-0 flex-1 rounded-lg px-2.5 text-[13px]"
-            [value]="editingName()"
-            (input)="editingName.set($any($event.target).value)"
+          <app-text-field
+            class="min-w-0 flex-1"
+            [formControl]="editingNameControl"
+            [ariaLabel]="'Kategorie ' + category.name + ' umbenennen'"
           />
           <app-button size="slim" variant="primary" (clicked)="saveRename()">Speichern</app-button>
         } @else {
