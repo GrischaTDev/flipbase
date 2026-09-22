@@ -14,7 +14,6 @@ test('keeps a saved draft editable through discard, save and reopening @pr-smoke
     .getByRole('spinbutton', { name: 'Stückpreis für Entwurfsartikel', exact: true })
     .fill('100');
   await page.getByRole('button', { name: 'Entwurf speichern', exact: true }).click();
-  await page.locator('[data-purchase-row]').first().click();
   await expect(page).toHaveURL(/\/purchases\/[^/]+$/);
   const detailUrl = page.url();
   await expect(description).toHaveValue('Direkt bearbeitbarer Entwurf');
@@ -63,7 +62,7 @@ test('keeps receiving accessible for saved quantity drafts and blocks it while d
     .getByRole('spinbutton', { name: 'Stückpreis für Test-Mengenartikel', exact: true })
     .fill('10');
   await page.getByRole('button', { name: 'Entwurf speichern', exact: true }).click();
-  await page.locator('[data-purchase-row]').first().click();
+  await expect(page).toHaveURL(/\/purchases\/[^/]+$/);
   await expect(description).toHaveValue('Mengenentwurf');
   await page
     .getByRole('spinbutton', { name: 'Stückpreis für Test-Mengenartikel', exact: true })
