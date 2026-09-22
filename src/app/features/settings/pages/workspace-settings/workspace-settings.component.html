@@ -85,7 +85,8 @@
         (keyup.enter)="onCreateWorkspace()"
         ariaLabel="Neuer Workspace Name"
         placeholder="Neuer Workspace Name"
-      /><button
+      />
+      <button
         type="button"
         (click)="onCreateWorkspace()"
         [disabled]="newWorkspaceName.invalid || isCreatingWorkspace()"
