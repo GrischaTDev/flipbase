@@ -34,6 +34,7 @@ import { CustomCheckboxComponent } from '../../../shared/components/custom-check
 import { CustomSelectComponent } from '../../../shared/components/custom-select/custom-select.component';
 import { ToastService, ToastType } from '../../../shared/components/toast/toast.service';
 import { TextFieldComponent } from '../../../shared/components/text-field/text-field.component';
+import { NumberInputComponent } from '../../../shared/components/number-input/number-input.component';
 import { AccountSettingsComponent } from './account-settings/account-settings.component';
 import { AppSettingsComponent } from './app-settings/app-settings.component';
 import { NotificationSettingsComponent } from './notification-settings/notification-settings.component';
@@ -65,6 +66,7 @@ type AngularViewQuery = (renderFlags: number, context: unknown) => void;
 let selectMetadataSnapshot: AngularBindingMetadata | null = null;
 let checkboxMetadataSnapshot: AngularBindingMetadata | null = null;
 let textFieldMetadataSnapshot: AngularBindingMetadata | null = null;
+let numberInputMetadataSnapshot: AngularBindingMetadata | null = null;
 let selectViewQuerySnapshot: AngularViewQuery | null | undefined;
 
 const resourceFiles: Readonly<Record<string, string>> = {
@@ -88,6 +90,8 @@ const resourceFiles: Readonly<Record<string, string>> = {
   'badge.component.scss': '../../../shared/components/badge/badge.component.scss',
   'text-field.component.html': '../../../shared/components/text-field/text-field.component.html',
   'text-field.component.scss': '../../../shared/components/text-field/text-field.component.scss',
+  'number-input.component.html': '../../../shared/components/number-input/number-input.component.html',
+  'number-input.component.scss': '../../../shared/components/number-input/number-input.component.scss',
 };
 
 beforeAll(async () => {
@@ -190,13 +194,78 @@ beforeAll(async () => {
   };
   textFieldMetadata.inputs = {
     ...textFieldMetadata.inputs,
+    label: ['label', 1, null],
+    labelHidden: ['labelHidden', 1, null],
+    placeholder: ['placeholder', 1, null],
+    type: ['type', 1, null],
+    multiline: ['multiline', 1, null],
+    monospaced: ['monospaced', 1, null],
     error: ['error', 1, null],
+    helpText: ['helpText', 1, null],
+    disabled: ['disabled', 1, null],
+    id: ['id', 1, null],
+    ariaLabel: ['ariaLabel', 1, null],
+    autocomplete: ['autocomplete', 1, null],
     required: ['required', 1, null],
+    maxLength: ['maxLength', 1, null],
   };
   textFieldMetadata.declaredInputs = {
     ...textFieldMetadata.declaredInputs,
+    label: 'label',
+    labelHidden: 'labelHidden',
+    placeholder: 'placeholder',
+    type: 'type',
+    multiline: 'multiline',
+    monospaced: 'monospaced',
     error: 'error',
+    helpText: 'helpText',
+    disabled: 'disabled',
+    id: 'id',
+    ariaLabel: 'ariaLabel',
+    autocomplete: 'autocomplete',
     required: 'required',
+    maxLength: 'maxLength',
+  };
+
+  const numberMetadata = (NumberInputComponent as unknown as { ɵcmp: AngularBindingMetadata }).ɵcmp;
+  numberInputMetadataSnapshot = {
+    inputs: numberMetadata.inputs,
+    declaredInputs: numberMetadata.declaredInputs,
+    outputs: numberMetadata.outputs,
+  };
+  numberMetadata.inputs = {
+    ...numberMetadata.inputs,
+    value: ['value', 1, null],
+    placeholder: ['placeholder', 1, null],
+    step: ['step', 1, null],
+    min: ['min', 1, null],
+    max: ['max', 1, null],
+    unit: ['unit', 1, null],
+    id: ['id', 1, null],
+    ariaLabel: ['ariaLabel', 1, null],
+    ariaDescribedby: ['ariaDescribedby', 1, null],
+    asCurrency: ['asCurrency', 1, null],
+    disabled: ['disabled', 1, null],
+    showStepper: ['showStepper', 1, null],
+  };
+  numberMetadata.declaredInputs = {
+    ...numberMetadata.declaredInputs,
+    value: 'value',
+    placeholder: 'placeholder',
+    step: 'step',
+    min: 'min',
+    max: 'max',
+    unit: 'unit',
+    id: 'id',
+    ariaLabel: 'ariaLabel',
+    ariaDescribedby: 'ariaDescribedby',
+    asCurrency: 'asCurrency',
+    disabled: 'disabled',
+    showStepper: 'showStepper',
+  };
+  numberMetadata.outputs = {
+    ...numberMetadata.outputs,
+    valueChange: 'value',
   };
 });
 
@@ -231,6 +300,13 @@ afterAll(() => {
     metadata.declaredInputs = textFieldMetadataSnapshot.declaredInputs;
     metadata.outputs = textFieldMetadataSnapshot.outputs;
     textFieldMetadataSnapshot = null;
+  }
+  if (numberInputMetadataSnapshot) {
+    const metadata = (NumberInputComponent as unknown as { ɵcmp: AngularBindingMetadata }).ɵcmp;
+    metadata.inputs = numberInputMetadataSnapshot.inputs;
+    metadata.declaredInputs = numberInputMetadataSnapshot.declaredInputs;
+    metadata.outputs = numberInputMetadataSnapshot.outputs;
+    numberInputMetadataSnapshot = null;
   }
 });
 
@@ -337,7 +413,7 @@ function renderedSubmitButton<T>(
 
 function renderedInput<T>(fixture: ComponentFixture<T>, formControlName: string): HTMLInputElement {
   const input = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
-    `input[formcontrolname="${formControlName}"]`,
+    `input[formcontrolname="${formControlName}"], app-text-field[formcontrolname="${formControlName}"] input, app-number-input[formcontrolname="${formControlName}"] input`,
   );
   expect(input, `Gerendertes Feld „${formControlName}“ fehlt.`).not.toBeNull();
   return input as HTMLInputElement;
