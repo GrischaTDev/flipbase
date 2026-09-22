@@ -14,11 +14,7 @@ test('edits a saved purchase in place and retains discounted totals after reload
     .getByRole('spinbutton', { name: 'Stückpreis für Werkstattartikel', exact: true })
     .fill('100');
   await page.getByRole('button', { name: 'Entwurf speichern', exact: true }).click();
-  await page
-    .locator('[data-purchase-description]')
-    .filter({ hasText: 'Arbeitsbereich-Test' })
-    .click();
-  await expect(page).toHaveURL(/\/purchases\/[^/]+$/);
+  await expect(page).toHaveURL(/\/purchases\/(?!new$)[^/]+$/);
   const detailUrl = page.url();
 
   await expect(page.getByRole('textbox', { name: 'Beschreibung' })).toHaveValue(

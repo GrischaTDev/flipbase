@@ -39,6 +39,14 @@ select ok(not has_table_privilege('anon', 'public.brands', 'insert'), 'anon darf
 select ok(not has_table_privilege('anon', 'public.brands', 'update'), 'anon darf keine Marken ändern');
 select ok(not has_table_privilege('anon', 'public.brands', 'delete'), 'anon darf keine Marken löschen');
 select ok(not has_table_privilege('anon', 'public.brands', 'truncate'), 'anon darf Marken nicht leeren');
+select has_function(
+  'public',
+  'replace_and_delete_brand',
+  array['uuid', 'uuid', 'uuid'],
+  'Marken lassen sich kontrolliert ersetzen und löschen'
+);
+select ok(has_function_privilege('authenticated', 'public.replace_and_delete_brand(uuid,uuid,uuid)', 'execute'), 'Mitglieder dürfen Marken ersetzen und löschen');
+select ok(not has_function_privilege('anon', 'public.replace_and_delete_brand(uuid,uuid,uuid)', 'execute'), 'anon darf Marken nicht ersetzen oder löschen');
 
 -- Testdaten als postgres. Kennungen „zz“ kommen in der Shopify-Taxonomie nicht vor.
 -- Eigene Testversion „1999-01“, damit sie nicht mit der echten importierten Version
@@ -113,6 +121,15 @@ select is((select brand from public.catalog_products where id = 'c5100000-0000-4
 select lives_ok($$update public.brands set name = 'Sony Group' where workspace_id = 'c5100000-0000-4000-8000-000000000011' and name_key = 'sony'$$, 'Marke eines abgeschlossenen Einkaufs umbenennen');
 select is((select brand from public.inventory_items where id = 'c5100000-0000-4000-8000-000000000041'), 'Sony Group', 'Auch Artikel abgeschlossener Einkäufe erhalten den neuen Namen');
 select throws_ok($$delete from public.brands where workspace_id = 'c5100000-0000-4000-8000-000000000011' and name_key = 'robert bosch'$$, '23503', null, 'Benutzte Marke lässt sich nicht löschen');
+select lives_ok($$insert into public.brands (workspace_id, name) values ('c5100000-0000-4000-8000-000000000011', 'Bosch Ersatz')$$, 'Ersatzmarke anlegen');
+select lives_ok($$select public.replace_and_delete_brand(
+  'c5100000-0000-4000-8000-000000000011',
+  (select id from public.brands where workspace_id = 'c5100000-0000-4000-8000-000000000011' and name_key = 'robert bosch'),
+  (select id from public.brands where workspace_id = 'c5100000-0000-4000-8000-000000000011' and name_key = 'bosch ersatz')
+)$$, 'Benutzte Marke wird atomar ersetzt und gelöscht');
+select is((select brand from public.inventory_items where id = 'c5100000-0000-4000-8000-000000000042'), 'Bosch Ersatz', 'Artikel erhalten die Ersatzmarke');
+select is((select brand from public.catalog_products where id = 'c5100000-0000-4000-8000-000000000051'), 'Bosch Ersatz', 'Katalogprodukte erhalten die Ersatzmarke');
+select is((select count(*)::int from public.brands where workspace_id = 'c5100000-0000-4000-8000-000000000011' and name_key = 'robert bosch'), 0, 'Die alte Marke wurde gelöscht');
 select lives_ok($$update public.inventory_items set brand_id = null where id = 'c5100000-0000-4000-8000-000000000042'$$, 'Marke entfernen');
 select is((select brand from public.inventory_items where id = 'c5100000-0000-4000-8000-000000000042'), null::text, 'Ohne Marke kein Markentext');
 select throws_ok($$insert into public.brands (workspace_id, name) values ('c5100000-0000-4000-8000-000000000012', 'Fremd')$$, '42501', null, 'Keine Marke in fremdem Workspace');

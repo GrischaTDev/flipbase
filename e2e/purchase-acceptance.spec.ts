@@ -30,6 +30,9 @@ test('keeps a purchase identifiable by seller, source and description after reop
   await addNewPurchaseProduct(page, 'Vinted Artikel');
   await page.getByRole('spinbutton', { name: 'Stückpreis für Vinted Artikel' }).fill('100');
   await page.getByRole('button', { name: 'Entwurf speichern', exact: true }).click();
+  await expect(page).toHaveURL(/\/purchases\/(?!new$)[^/]+$/);
+  await page.getByRole('button', { name: 'Zurück zur Einkaufsübersicht', exact: true }).click();
+  await expect(page).toHaveURL(/\/purchases$/);
 
   await expect(
     page.locator('[data-purchase-description]').filter({ hasText: 'Vinted Überraschungspaket' }),
@@ -57,7 +60,7 @@ test('keeps open line prices separate from the 0,00 € summary and blocks recei
   await page.getByRole('textbox', { name: 'Beschreibung' }).fill('Preis noch offen');
   await addNewPurchaseProduct(page, 'Offener Einkaufsartikel');
   await page.getByRole('button', { name: 'Entwurf speichern', exact: true }).click();
-  await page.locator('[data-purchase-row]').first().click();
+  await expect(page).toHaveURL(/\/purchases\/(?!new$)[^/]+$/);
 
   await expect(page).toHaveURL(/\/purchases\/[^/]+$/);
   await expect(page.getByRole('region', { name: 'Kostenübersicht' })).toContainText('0,00');
@@ -86,7 +89,7 @@ test('keeps open line prices separate from the 0,00 € summary and blocks recei
     .getByRole('spinbutton', { name: 'Stückpreis für Kostenloser Einkaufsartikel', exact: true })
     .fill('0');
   await page.getByRole('button', { name: 'Entwurf speichern', exact: true }).click();
-  await page.locator('[data-purchase-row]').first().click();
+  await expect(page).toHaveURL(/\/purchases\/(?!new$)[^/]+$/);
 
   await expect(page.getByText(/0,00/).first()).toBeVisible();
   await expect(page.locator('[data-open-purchase-prices]')).toHaveCount(0);

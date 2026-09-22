@@ -42,4 +42,8 @@ export class PurchaseCreateComponent {
   returnToPurchases(): void {
     void this.router.navigate(['/purchases']);
   }
+
+  openPurchase(purchaseId: string): void {
+    void this.router.navigate(['/purchases', purchaseId]);
+  }
 }

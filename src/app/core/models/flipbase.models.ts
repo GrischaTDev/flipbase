@@ -474,6 +474,10 @@ export interface CatalogProduct {
   brand_id?: string | null;
   model?: string | null;
   ean?: string | null;
+  sku?: string | null;
+  size?: string | null;
+  color?: string | null;
+  material?: string | null;
   category?: string | null;
   /** Verweis auf public.product_categories; der Text in `category` folgt daraus. */
   category_id?: string | null;

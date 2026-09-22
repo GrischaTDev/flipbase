@@ -20,17 +20,17 @@
       (clicked)="orderedRequested.emit()"
       >Als bestellt markieren</app-button
     >
-  } @else if (shipmentStatus() !== 'arrived' && !hasOpenPrices()) {
+  } @else if (receivingStatus() !== 'received' && !hasOpenPrices()) {
     <app-button
       size="slim"
       variant="primary"
-      data-mark-arrived
+      data-receive-purchase
       [disabled]="submitting()"
-      (clicked)="arrivedRequested.emit()"
-      >Angekommen</app-button
+      (clicked)="receiptRequested.emit()"
+      >Wareneingang erfassen</app-button
     >
   }
-  @if (shipmentStatus() === 'arrived' && contentStatus() === 'unknown' && !hasOpenPrices()) {
+  @if (receivingStatus() === 'received' && contentStatus() === 'unknown' && !hasOpenPrices()) {
     <app-button
       size="slim"
       variant="primary"
@@ -40,7 +40,7 @@
       >Inhalt erfassen</app-button
     >
   }
-  @if (contentStatus() === 'known' && shipmentStatus() === 'arrived' && !hasOpenPrices()) {
+  @if (contentStatus() === 'known' && receivingStatus() === 'received' && !hasOpenPrices()) {
     <app-button
       size="slim"
       variant="primary"

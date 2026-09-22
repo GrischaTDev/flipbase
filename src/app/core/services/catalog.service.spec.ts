@@ -91,6 +91,41 @@ describe('CatalogService', () => {
     );
   });
 
+  it('speichert die erweiterten Produktmerkmale ohne Einkaufspreise', async () => {
+    let payload: Record<string, unknown> | undefined;
+    const insert = vi.fn((value: Record<string, unknown>) => {
+      payload = value;
+      return {
+        select: () => ({ single: async () => ({ data: product, error: null }) }),
+      };
+    });
+    const service = Object.create(CatalogService.prototype) as CatalogService;
+    Object.assign(service, {
+      products: signal<CatalogProduct[]>([]),
+      syncStatus: new SyncStatusService(),
+      supabase: { client: { from: () => ({ insert }) } },
+    });
+
+    await service.createProduct({
+      workspaceId: product.workspace_id,
+      title: product.title,
+      sku: ' FB-100 ',
+      size: ' 42 ',
+      color: ' Schwarz ',
+      material: ' Leder ',
+      description: ' Sneaker mit Karton ',
+    });
+
+    expect(payload).toMatchObject({
+      sku: 'FB-100',
+      size: '42',
+      color: 'Schwarz',
+      material: 'Leder',
+      description: 'Sneaker mit Karton',
+    });
+    expect(payload).not.toHaveProperty('purchase_price');
+  });
+
   it('sendet beim Anlegen Verweise und keinen abgeleiteten Kategorie- oder Markentext', async () => {
     let payload: Record<string, unknown> | undefined;
     const insert = vi.fn((value: Record<string, unknown>) => {

@@ -154,7 +154,7 @@ export class PurchaseEntryFormComponent {
   readonly costOverviewDialog = viewChild(PurchaseCostOverviewDialogComponent);
 
   readonly closed = output<void>();
-  readonly created = output<void>();
+  readonly created = output<string>();
 
   /** Der zu bearbeitende Einkauf - fehlt er, wird ein neuer angelegt. */
   readonly purchase = input<Purchase | null>(null);
@@ -373,6 +373,7 @@ export class PurchaseEntryFormComponent {
         unitPurchasePrice: line.unit_purchase_price,
         lineTotal: line.line_total,
         estimatedMarketValue: line.estimated_market_value ?? null,
+        structuralLocked: line.received_quantity > 0,
       }),
     );
     for (const line of existingLines) {
@@ -545,7 +546,7 @@ export class PurchaseEntryFormComponent {
         return;
       }
       this.completed?.set(true);
-      this.created.emit();
+      this.created.emit(anlegeergebnis.data.id);
       this.closed.emit();
       return;
     }
@@ -563,23 +564,26 @@ export class PurchaseEntryFormComponent {
       }
     } else {
       const gespeicherterEntwurf = aenderungsergebnis?.data ?? anlegeergebnis?.data ?? vorhandener;
-      if (gespeicherterEntwurf) {
-        this.persistedDraft.set(gespeicherterEntwurf);
-        this.adoptPersistedLineIds(gespeicherterEntwurf);
-        this.capturePersistedBaseline();
-        if (!(await this.uploadPendingDocuments(gespeicherterEntwurf.id))) {
-          this.isSubmitting.set(false);
-          return;
-        }
+      if (!gespeicherterEntwurf) {
+        this.isSubmitting.set(false);
+        this.errorMessage.set('Der gespeicherte Einkauf wurde nicht zurückgegeben.');
+        return;
       }
-      if (finalizeAfterSave && gespeicherterEntwurf) {
+      this.persistedDraft.set(gespeicherterEntwurf);
+      this.adoptPersistedLineIds(gespeicherterEntwurf);
+      this.capturePersistedBaseline();
+      if (!(await this.uploadPendingDocuments(gespeicherterEntwurf.id))) {
+        this.isSubmitting.set(false);
+        return;
+      }
+      if (finalizeAfterSave) {
         await this.finalizePersistedDraft(gespeicherterEntwurf);
         return;
       }
       this.isSubmitting.set(false);
       this.toast.success(vorhandener ? 'Einkauf wurde gespeichert.' : 'Einkauf wurde angelegt.');
       this.completed?.set(true);
-      this.created.emit();
+      this.created.emit(gespeicherterEntwurf.id);
       this.closed.emit();
     }
   }
@@ -654,7 +658,7 @@ export class PurchaseEntryFormComponent {
       this.errorMessage.set('Die bestätigten Abschlussdaten fehlen. Bitte erneut versuchen.');
       return;
     }
-    const refreshError = await this.purchaseService.refreshAfterFinalization(
+    const refreshError = await this.purchaseService.refreshAfterCostingChange(
       purchase.workspace_id,
       purchase.id,
       result.data,
@@ -668,7 +672,7 @@ export class PurchaseEntryFormComponent {
         'Bitte lade die Seite erneut.',
       );
     }
-    this.created.emit();
+    this.created.emit(purchase.id);
     this.closed.emit();
   }
 

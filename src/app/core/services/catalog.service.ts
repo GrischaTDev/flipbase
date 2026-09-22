@@ -26,6 +26,10 @@ export interface CreateCatalogProductInput {
   readonly brand?: string | null;
   readonly model?: string | null;
   readonly ean?: string | null;
+  readonly sku?: string | null;
+  readonly size?: string | null;
+  readonly color?: string | null;
+  readonly material?: string | null;
   /** Verweis auf eine Produktkategorie; den Anzeigetext setzt der Trigger. */
   readonly categoryId?: string | null;
   /** Legacy-Freitext für bestehende Importwege. */
@@ -172,6 +176,10 @@ export class CatalogService {
         brand_id: input.brandId ?? null,
         model: input.model?.trim() || null,
         ean: input.ean?.trim() || null,
+        sku: input.sku?.trim() || null,
+        size: input.size?.trim() || null,
+        color: input.color?.trim() || null,
+        material: input.material?.trim() || null,
         category_id: input.categoryId ?? null,
         description: input.description?.trim() || null,
         seo_title: input.seoTitle?.trim() || null,
@@ -218,6 +226,10 @@ export class CatalogService {
       else if (input.brand !== undefined) patch.brand = input.brand?.trim() || null;
       if (input.model !== undefined) patch.model = input.model?.trim() || null;
       if (input.ean !== undefined) patch.ean = input.ean?.trim() || null;
+      if (input.sku !== undefined) patch.sku = input.sku?.trim() || null;
+      if (input.size !== undefined) patch.size = input.size?.trim() || null;
+      if (input.color !== undefined) patch.color = input.color?.trim() || null;
+      if (input.material !== undefined) patch.material = input.material?.trim() || null;
       if (input.categoryId !== undefined) patch.category_id = input.categoryId;
       else if (input.category !== undefined) patch.category = input.category?.trim() || null;
       if (input.description !== undefined) patch.description = input.description?.trim() || null;

@@ -272,6 +272,7 @@ describe('PurchaseDetailComponent', () => {
       const deletePurchase = vi.fn(async () => ({ error: null as Error | null }));
       const dialog = { frage: vi.fn(async () => true) };
       const router = { navigate: vi.fn(async () => true) };
+      const receivingQuantities = signal<Record<string, number>>({ 'line-1': 5 });
       const purchaseService = {
         selectedPurchase: signal<Purchase | null>(einkauf),
         purchaseLines: signal<PurchaseLine[]>([mengenposition]),
@@ -286,6 +287,7 @@ describe('PurchaseDetailComponent', () => {
           reportedBySyncStatus: false,
         })),
         getPurchaseById: vi.fn(async () => einkauf),
+        refreshAfterCostingChange: vi.fn(async () => null),
         redistributeCosts: vi.fn(async () => ({ error: null as Error | null })),
         updateCostAllocationMode: vi.fn(async () => ({ error: null as Error | null })),
         updatePurchaseTracking: vi.fn(async () => ({
@@ -323,7 +325,15 @@ describe('PurchaseDetailComponent', () => {
         isAddingItem: signal(true),
         isSavingPurchaseLines: signal(false),
         isReceivingLines: signal(true),
-        receivingQuantities: signal<Record<string, number>>({ 'line-1': 5 }),
+        receivingQuantities,
+        selectedReceiptLines: () =>
+          purchaseService.purchaseLines().flatMap((line) => {
+            const receivedQuantity = receivingQuantities()[line.id] ?? 0;
+            const remainingQuantity = line.ordered_quantity - line.received_quantity;
+            return receivedQuantity >= 1 && receivedQuantity <= remainingQuantity
+              ? [{ purchaseLineId: line.id, receivedQuantity }]
+              : [];
+          }),
         purchaseLineDrafts: signal([]),
         isAllocatorOpen: signal(true),
         isApplyingAllocation: signal(false),
@@ -333,6 +343,21 @@ describe('PurchaseDetailComponent', () => {
         trackingNumberDraft: signal('00340434161094000001'),
         trackingCarrierDraft: signal<'dhl' | null>('dhl'),
         historyRevision: signal(0),
+        isLifecycleSubmitting: signal(false),
+        canReopenPurchase: signal(true),
+        purchaseCostingService: {
+          reopenPurchase: vi.fn(async () => ({
+            data: {
+              purchaseId: einkauf.id,
+              totalPurchaseCost: 31.98,
+              allocatedTotalCost: 31.98,
+              entryStatus: 'capturing' as const,
+              eventId: 'event-reopened',
+            },
+            error: null,
+            reportedBySyncStatus: false,
+          })),
+        },
         isMarkingDelivered: signal(false),
         mediaService: { uploadItemMedia: vi.fn() },
         logger: { warn: vi.fn() },
@@ -478,6 +503,26 @@ describe('PurchaseDetailComponent', () => {
         expect(komponente.stockService.loadPositions).toHaveBeenCalledWith(einkauf.workspace_id);
       });
 
+      it('bucht alle ausgewählten Mengenpositionen gemeinsam', async () => {
+        const { komponente, purchaseService, receivePurchaseLines } = erstelleKomponente();
+        const zweitePosition = {
+          ...mengenposition,
+          id: 'line-2',
+          title_snapshot: 'Kabel',
+          ordered_quantity: 3,
+        };
+        purchaseService.purchaseLines.set([mengenposition, zweitePosition]);
+        komponente.receivingQuantities.set({ 'line-1': 5, 'line-2': 2 });
+
+        await komponente.receiveSelectedPurchaseLines();
+
+        expect(receivePurchaseLines).toHaveBeenCalledWith(einkauf.id, [
+          { purchaseLineId: 'line-1', receivedQuantity: 5 },
+          { purchaseLineId: 'line-2', receivedQuantity: 2 },
+        ]);
+        expect(komponente.isReceivingLines()).toBe(false);
+      });
+
       it('bucht einen Einzelartikel atomar ohne nachgelagerte Inventar- oder Positionsmutation', async () => {
         const { komponente, addItemToPurchase, purchaseService, receiveIndividualPurchaseLine } =
           erstelleKomponente();
@@ -560,6 +605,21 @@ describe('PurchaseDetailComponent', () => {
         await komponente.onDeletePurchase();
 
         expect(deletePurchase).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('Einkauf wieder öffnen', () => {
+      it('übernimmt den bestätigten Status sofort in die zentralen Einkaufssignale', async () => {
+        const { komponente, purchaseService } = erstelleKomponente();
+        purchaseService.selectedPurchase.set({ ...einkauf, entry_status: 'finalized' });
+
+        await komponente.reopenPurchase();
+
+        expect(purchaseService.refreshAfterCostingChange).toHaveBeenCalledWith(
+          einkauf.workspace_id,
+          einkauf.id,
+          expect.objectContaining({ entryStatus: 'capturing' }),
+        );
       });
     });
   });

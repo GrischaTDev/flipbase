@@ -1,5 +1,38 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-22 – Juna – Beta-, Einkaufs- und Artikelflüsse nachgeschärft
+
+**Auftrag:** Die bei der manuellen Abnahme gefundenen Rückmeldungen zur
+Beta-Bewerbung, zu Einkäufen, Verkäufen, Marken und zur Artikelerfassung beheben.
+Abgeschlossene Einkäufe dürfen nach dem Wiederöffnen keine bereits eingegangenen
+Mengen still verändern; Status und Kosten sollen ohne Seitenneuladen aktuell sein.
+
+**Änderung:** Der Beta-Erfolgsdialog nutzt die volle Breite und die Einladungs-
+Betreffzeile ist ohne Schrägstriche konfiguriert. Vorhandene Bewerbungen behalten
+ihren eigenen Konfliktpfad. Einkaufsentwürfe öffnen nach dem Speichern ihre
+Detailseite. Statusfarben unterscheiden angekommen und abgeschlossen. Der
+Wareneingang wird über einen gemeinsamen Dialog gebucht und setzt den
+Ankunftsstatus automatisch. Bereits eingegangene Mengen sind bei einer späteren
+Bearbeitung strukturell gesperrt. Bestätigte Status- und Kostendaten werden sofort
+in die zentralen Einkaufs- und Verkaufssignale übernommen. Die Artikelerfassung
+unterstützt zusätzliche Stammdaten, mehrere Bilder sowie eine lokale
+Markenverwaltung mit sicherer Neuzuordnung vor dem Löschen. Die Artikeldetailseite
+stellt dieselben Stammdaten zur späteren Bearbeitung bereit.
+
+**Datenbank:** Die deklarativen Schemadateien ergänzen Artikelfelder, eine
+workspace-gebundene Marken-Ersetzungsfunktion und den automatisch abgeleiteten
+Wareneingangsstatus. Die zugehörige Migration wurde lokal erzeugt, auf den
+tatsächlich beabsichtigten Umfang geprüft und erfolgreich angewendet. Die lokalen
+Supabase-Typen wurden anschließend neu erzeugt.
+
+**Prüfung:** 239 fokussierte Angular-Tests, 24 Landingpage- und Beta-Vertragstests
+sowie alle 53 Datenbanktestdateien mit 1.959 Einzelprüfungen bestanden. Der
+vollständige Aufruf `npm run verify` bestand anschließend mit Exitcode 0:
+Formatprüfung, ESLint, strikte Typprüfung, Workflowtests (81 bestanden, fünf
+Umgebungs-Skips), Edge-Tests (16), Suite-Audit, 2.729 Anwendungstests,
+23 Landingpage-Tests und der Produktionsbau. Der Bau enthält weiterhin nur die
+zwei bekannten NG8113-Hinweise im Dashboard und in der Verkäuferliste.
+
 ## 2026-09-21 – Juna – PR-Browserprüfung an vereinfachte Zusatzausgaben angepasst
 
 **Auftrag:** Den bestätigten UI-Regression-PR nach erfolgreichen Pflichtprüfungen

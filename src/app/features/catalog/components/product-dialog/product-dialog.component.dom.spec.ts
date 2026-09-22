@@ -19,7 +19,7 @@ describe('ProductDialogComponent', () => {
       workspace: { currentWorkspace: workspace },
       workspaceChanged: () => false,
       savedProduct: signal(null),
-      image: signal(null),
+      images: signal<readonly File[]>([]),
       saving: signal(false),
       error: signal(null),
       created,
@@ -45,7 +45,7 @@ describe('ProductDialogComponent', () => {
       catalog: { createProduct, loadProducts: vi.fn() },
       media: { uploadProductMedia },
       savedProduct: signal(null),
-      image: signal(new File(['bild'], 'bild.png', { type: 'image/png' })),
+      images: signal<readonly File[]>([new File(['bild'], 'bild.png', { type: 'image/png' })]),
       workspaceChanged: () => false,
       workspace: { currentWorkspace: () => ({ id: 'workspace-1' }) },
       created,
@@ -75,13 +75,56 @@ describe('ProductDialogComponent', () => {
     expect(uploadProductMedia).toHaveBeenCalledTimes(2);
     expect(created.emit).toHaveBeenCalledExactlyOnceWith(product);
   });
+
+  it('lädt alle ausgewählten Bilder für denselben Artikel hoch', async () => {
+    const product = { id: 'product-1', workspace_id: 'workspace-1', title: 'Schuh' };
+    const uploadProductMedia = vi.fn(async (_id: string, file: File) => ({
+      data: { id: `image-${file.name}` },
+      error: null,
+    }));
+    const created = { emit: vi.fn() };
+    const files = [
+      new File(['eins'], 'vorne.png', { type: 'image/png' }),
+      new File(['zwei'], 'hinten.png', { type: 'image/png' }),
+    ];
+    const component = Object.create(ProductDialogComponent.prototype) as ProductDialogComponent;
+    Object.assign(component, {
+      catalog: {
+        createProduct: vi.fn().mockResolvedValue({ data: product, error: null }),
+        loadProducts: vi.fn(),
+      },
+      media: { uploadProductMedia },
+      savedProduct: signal(null),
+      images: signal<readonly File[]>(files),
+      workspaceChanged: () => false,
+      workspace: { currentWorkspace: () => ({ id: 'workspace-1' }) },
+      created,
+      saving: signal(false),
+      error: signal(null),
+      form: new FormGroup({
+        title: new FormControl('Schuh'),
+        ean: new FormControl(''),
+        condition: new FormControl(''),
+        isPublicStore: new FormControl(false),
+        listingPrice: new FormControl(null),
+      }),
+    });
+
+    await component.save();
+
+    expect(uploadProductMedia).toHaveBeenCalledTimes(2);
+    expect(uploadProductMedia).toHaveBeenNthCalledWith(1, product.id, files[0]);
+    expect(uploadProductMedia).toHaveBeenNthCalledWith(2, product.id, files[1]);
+    expect(component.images()).toEqual([]);
+    expect(created.emit).toHaveBeenCalledExactlyOnceWith(product);
+  });
   it('beendet den Speichervorgang und zeigt einen geworfenen Servicefehler an', async () => {
     const createProduct = vi.fn().mockRejectedValue(new Error('Speicher nicht verfügbar'));
     const component = Object.create(ProductDialogComponent.prototype) as ProductDialogComponent;
     Object.assign(component, {
       catalog: { createProduct, loadProducts: vi.fn() },
       savedProduct: signal(null),
-      image: signal(null),
+      images: signal<readonly File[]>([]),
       workspaceChanged: () => false,
       created: { emit: vi.fn() },
       workspace: { currentWorkspace: () => ({ id: 'workspace-1' }) },
@@ -140,7 +183,7 @@ describe('ProductDialogComponent', () => {
     Object.assign(component, {
       catalog: { createProduct, loadProducts: vi.fn() },
       savedProduct: signal(null),
-      image: signal(null),
+      images: signal<readonly File[]>([]),
       workspaceChanged: () => false,
       created: { emit: vi.fn() },
       workspace: { currentWorkspace: () => ({ id: 'workspace-1' }) },

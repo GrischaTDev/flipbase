@@ -22,7 +22,12 @@ import { DatePipe } from '@angular/common';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { CatalogProduct, CatalogProductMedia } from '../../../../core/models/flipbase.models';
+import {
+  CatalogProduct,
+  CatalogProductMedia,
+  ItemCondition,
+} from '../../../../core/models/flipbase.models';
+import { PRODUCT_CONDITIONS } from '../../../../core/config/product-conditions';
 import { CatalogProductEntry, CatalogService } from '../../../../core/services/catalog.service';
 import { MediaService } from '../../../../core/services/media.service';
 import { StockService } from '../../../../core/services/stock.service';
@@ -38,6 +43,10 @@ import { PageHeaderComponent } from '../../../../shared/components/page-header/p
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
 import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
+import {
+  CustomSelectComponent,
+  SelectOption,
+} from '../../../../shared/components/custom-select/custom-select.component';
 import { normalizeGtin } from '../../../../shared/utils/gtin';
 import { UnsavedEntryPage } from '../../../../shared/guards/unsaved-entry.guard';
 import { summarizeProductStock } from './product-detail-stock';
@@ -56,6 +65,7 @@ import { summarizeProductStock } from './product-detail-stock';
     TextFieldComponent,
     CustomCheckboxComponent,
     NumberInputComponent,
+    CustomSelectComponent,
     ProductMediaEditorComponent,
   ],
   templateUrl: './product-detail.component.html',
@@ -147,6 +157,10 @@ export class ProductDetailComponent implements UnsavedEntryPage {
       this.stock.movements(),
     ),
   );
+  readonly conditionOptions: readonly SelectOption<ItemCondition | ''>[] = [
+    { value: '', label: 'Nicht angegeben' },
+    ...PRODUCT_CONDITIONS,
+  ];
   readonly form = new FormGroup(
     {
       title: new FormControl('', {
@@ -158,6 +172,10 @@ export class ProductDetailComponent implements UnsavedEntryPage {
       }),
       brandId: new FormControl<string | null>(null),
       model: new FormControl('', { nonNullable: true }),
+      sku: new FormControl('', { nonNullable: true }),
+      size: new FormControl('', { nonNullable: true }),
+      color: new FormControl('', { nonNullable: true }),
+      material: new FormControl('', { nonNullable: true }),
       ean: new FormControl('', {
         nonNullable: true,
         validators: [
@@ -166,6 +184,8 @@ export class ProductDetailComponent implements UnsavedEntryPage {
         ],
       }),
       categoryId: new FormControl<string | null>(null),
+      condition: new FormControl<ItemCondition | ''>('', { nonNullable: true }),
+      conditionNotes: new FormControl('', { nonNullable: true }),
       description: new FormControl('', { nonNullable: true }),
       isPublicStore: new FormControl(false, { nonNullable: true }),
       listingPrice: new FormControl<number | null>(null),
@@ -434,7 +454,12 @@ export class ProductDetailComponent implements UnsavedEntryPage {
     try {
       if (!id || JSON.stringify(this.form.getRawValue()) !== this.savedValue) {
         const value = this.form.getRawValue();
-        const input = { ...value, workspaceId, ean: normalizeGtin(value.ean) };
+        const input = {
+          ...value,
+          workspaceId,
+          ean: normalizeGtin(value.ean),
+          condition: value.condition || null,
+        };
         const result = id
           ? await this.catalog.updateProduct(id, input)
           : await this.catalog.createProduct(input);
@@ -538,8 +563,14 @@ export class ProductDetailComponent implements UnsavedEntryPage {
         title: product.title,
         brandId: product.brand_id ?? null,
         model: product.model ?? '',
+        sku: product.sku ?? '',
+        size: product.size ?? '',
+        color: product.color ?? '',
+        material: product.material ?? '',
         ean: product.ean ?? '',
         categoryId: product.category_id ?? null,
+        condition: product.condition ?? '',
+        conditionNotes: product.condition_notes ?? '',
         description: product.description ?? '',
         isPublicStore: product.is_public_store,
         listingPrice: product.listing_price ?? null,

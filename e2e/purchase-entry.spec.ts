@@ -145,9 +145,7 @@ test('keeps create, detail and inline editing in the same centered workspace', a
     .getByRole('spinbutton', { name: 'Stückpreis für Testartikel', exact: true })
     .fill('100');
   await page.getByRole('button', { name: 'Entwurf speichern', exact: true }).click();
-  await page.locator('[data-purchase-row]').first().click();
-
-  await expect(page).toHaveURL(/\/purchases\/[^/]+$/);
+  await expect(page).toHaveURL(/\/purchases\/(?!new$)[^/]+$/);
   const detailUrl = page.url();
   const detailWorkspace = page.getByTestId('purchase-entry-workspace');
   const detailWorkspaceBox = await visibleBox(detailWorkspace);

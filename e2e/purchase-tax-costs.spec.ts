@@ -38,7 +38,7 @@ for (const width of [1440, 390]) {
     await expect(summary).toContainText('Versandkosten');
     await expect(summary).toContainText('110,00');
     await page.getByRole('button', { name: 'Entwurf speichern', exact: true }).click();
-    await page.locator('[data-purchase-row]').first().click();
+    await expect(page).toHaveURL(/\/purchases\/(?!new$)[^/]+$/);
     await page.getByRole('button', { name: 'Kosten bearbeiten', exact: true }).click();
     const reopenedDialog = page.getByRole('dialog', { name: 'Zusatzausgaben verwalten' });
     await expect(

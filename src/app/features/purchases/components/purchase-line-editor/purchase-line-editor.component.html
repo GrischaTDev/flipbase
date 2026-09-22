@@ -82,9 +82,15 @@
                   [ariaLabel]="'Menge für ' + row.controls.titleSnapshot.value"
                   [min]="1"
                   [max]="100000"
+                  [disabled]="row.controls.structuralLocked.value"
                   [showStepper]="false"
                   (valueChange)="updateQuantity($index)"
                 />
+                @if (row.controls.structuralLocked.value) {
+                  <p class="mt-1 text-xs text-fb-text-muted">
+                    Menge nur über eine Korrektur ändern.
+                  </p>
+                }
               }
               @if (row.controls.orderedQuantity.invalid) {
                 <p role="alert" class="mt-1 text-xs text-rose-700 dark:text-rose-400">
@@ -139,6 +145,7 @@
                   'Artikel ' + (row.controls.titleSnapshot.value || 'ohne Namen') + ' entfernen'
                 "
                 title="Artikel entfernen"
+                [disabled]="row.controls.structuralLocked.value"
                 (clicked)="removeLine($index)"
               />
             </td>

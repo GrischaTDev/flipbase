@@ -511,7 +511,7 @@ describe('PurchaseService – konsistenter Stand nach der Finalisierung', () => 
       inventory: { items: inventoryItems, loadInventory },
     });
 
-    await service.refreshAfterFinalization(einkauf.workspace_id, einkauf.id);
+    await service.refreshAfterCostingChange(einkauf.workspace_id, einkauf.id);
 
     expect(loadPurchases).toHaveBeenCalledWith(einkauf.workspace_id);
     expect(loadPositions).toHaveBeenCalledWith(einkauf.workspace_id);
@@ -557,7 +557,7 @@ describe('PurchaseService – konsistenter Stand nach der Finalisierung', () => 
       inventory: { loadInventory: vi.fn(async () => undefined) },
     });
 
-    await service.refreshAfterFinalization(einkauf.workspace_id, einkauf.id);
+    await service.refreshAfterCostingChange(einkauf.workspace_id, einkauf.id);
 
     expect(selectedPurchaseRaw()).toEqual(andererEinkauf);
     expect(purchaseLinesRaw()).toEqual([existingLine]);
@@ -583,7 +583,7 @@ describe('PurchaseService – konsistenter Stand nach der Finalisierung', () => 
       inventory: { loadInventory: vi.fn(async () => undefined) },
     });
 
-    const error = await service.refreshAfterFinalization(einkauf.workspace_id, einkauf.id, {
+    const error = await service.refreshAfterCostingChange(einkauf.workspace_id, einkauf.id, {
       purchaseId: einkauf.id,
       totalPurchaseCost: 31.98,
       allocatedTotalCost: 31.98,

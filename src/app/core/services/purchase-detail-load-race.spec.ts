@@ -73,6 +73,7 @@ function erstelleDienst() {
   const purchaseFilters = new Map<string, readonly (readonly [string, string])[]>();
   const currentWorkspace = signal<Workspace | null>(workspace);
   const selectedPurchaseRaw = signal<Purchase | null>(null);
+  const purchasesRaw = signal<Purchase[]>([]);
   const purchaseItemsFallback = signal<InventoryItem[]>([]);
   const purchaseLinesRaw = signal<PurchaseLine[]>([]);
   const syncStatus = { melde: vi.fn((_context: string, error: unknown) => error) };
@@ -130,7 +131,7 @@ function erstelleDienst() {
     workspaceService: { currentWorkspace },
     syncStatus,
     inventory: { items: signal<InventoryItem[]>([]), istGeladen: signal(false) },
-    purchasesRaw: signal<Purchase[]>([]),
+    purchasesRaw,
     selectedPurchaseRaw,
     purchaseItemsFallback,
     purchaseLinesRaw,
@@ -152,6 +153,7 @@ function erstelleDienst() {
     purchaseFilters,
     currentWorkspace,
     syncStatus,
+    purchasesRaw,
   };
 }
 
@@ -224,6 +226,30 @@ describe('PurchaseService – konkurrierende Detailabfragen', () => {
     await expect(load).resolves.toMatchObject({
       purchase_price: null,
       total_purchase_cost: null,
+    });
+  });
+
+  it('übernimmt einen neu geladenen Detailstatus sofort in die Einkaufsliste', async () => {
+    const { service, purchaseRequests, lineRequests, purchasesRaw } = erstelleDienst();
+    purchasesRaw.set([{ ...purchase('updated-status'), receiving_status: 'ordered' }]);
+
+    const load = service.getPurchaseById('updated-status');
+    purchaseRequests.get('updated-status')!.resolve({
+      data: {
+        ...purchase('updated-status'),
+        receiving_status: 'received',
+        shipment_status: 'arrived',
+      },
+      error: null,
+    });
+    await vi.waitFor(() => expect(lineRequests.has('updated-status')).toBe(true));
+    lineRequests.get('updated-status')!.resolve({ data: [], error: null });
+    await load;
+
+    expect(purchasesRaw()[0]).toMatchObject({
+      id: 'updated-status',
+      receiving_status: 'received',
+      shipment_status: 'arrived',
     });
   });
 

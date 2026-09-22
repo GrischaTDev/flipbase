@@ -77,6 +77,12 @@ beforeAll(async () => {
       ),
     ],
     [
+      './brand-management-dialog.component.html',
+      resourcePath(
+        'src/app/features/catalog/components/brand-management-dialog/brand-management-dialog.component.html',
+      ),
+    ],
+    [
       './brand-picker.component.html',
       resourcePath('src/app/shared/components/brand-picker/brand-picker.component.html'),
     ],
@@ -194,6 +200,19 @@ describe('ProductDialogComponent picker integration', () => {
 
     expect(template).toContain('label="Notiz"');
     expect(template).not.toContain('Mängelnotiz');
+  });
+
+  it('bietet direkt aus der Produkterstellung eine Markenverwaltung an', async () => {
+    const template = await readFile(
+      resolve(
+        process.cwd(),
+        'src/app/features/catalog/components/product-dialog/product-dialog.component.html',
+      ),
+      'utf8',
+    );
+
+    expect(template).toContain('Marken verwalten');
+    expect(template).toContain('<app-brand-management-dialog');
   });
 
   it('bindet Testauswahlen an die ID-Controls und leert beide Picker als null', async () => {

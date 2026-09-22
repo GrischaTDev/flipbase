@@ -20,6 +20,12 @@ const original: CatalogProduct = {
   brand_id: 'brand-1',
   category: 'Elektronik > Computer > Laptops',
   category_id: 'category-1',
+  condition: 'very_good',
+  condition_notes: 'Leichte Gebrauchsspuren',
+  sku: 'SKU-42',
+  size: '42',
+  color: 'Schwarz',
+  material: 'Leder',
   description: 'Alte Beschreibung',
   tracking_mode: 'quantity',
   is_public_store: false,
@@ -171,6 +177,12 @@ describe('ProductDetailComponent', () => {
     expect(component.form.controls.description.value).toBe('Alte Beschreibung');
     expect(component.form.get('brandId')?.value).toBe('brand-1');
     expect(component.form.get('categoryId')?.value).toBe('category-1');
+    expect(component.form.controls.condition.value).toBe('very_good');
+    expect(component.form.controls.conditionNotes.value).toBe('Leichte Gebrauchsspuren');
+    expect(component.form.controls.sku.value).toBe('SKU-42');
+    expect(component.form.controls.size.value).toBe('42');
+    expect(component.form.controls.color.value).toBe('Schwarz');
+    expect(component.form.controls.material.value).toBe('Leder');
     expect(component.stockView()).toBe(false);
     query.next(convertToParamMap({ view: 'stock' }));
     expect(component.stockView()).toBe(true);
@@ -186,6 +198,29 @@ describe('ProductDetailComponent', () => {
     expect(catalog.updateProduct).toHaveBeenCalledWith(
       original.id,
       expect.objectContaining({ brandId: null, categoryId: null }),
+    );
+  });
+
+  it('speichert die erweiterten Artikeldaten beim späteren Bearbeiten', async () => {
+    component.form.controls.condition.setValue('used');
+    component.form.controls.conditionNotes.setValue('Kleine Kerbe');
+    component.form.controls.sku.setValue('SKU-43');
+    component.form.controls.size.setValue('43');
+    component.form.controls.color.setValue('Braun');
+    component.form.controls.material.setValue('Wildleder');
+
+    await component.save();
+
+    expect(catalog.updateProduct).toHaveBeenCalledWith(
+      original.id,
+      expect.objectContaining({
+        condition: 'used',
+        conditionNotes: 'Kleine Kerbe',
+        sku: 'SKU-43',
+        size: '43',
+        color: 'Braun',
+        material: 'Wildleder',
+      }),
     );
   });
 

@@ -13,5 +13,5 @@
   >
     Entwurf speichern
   </app-button>
-  <app-purchase-entry-form (closed)="returnToPurchases()" />
+  <app-purchase-entry-form (created)="openPurchase($event)" />
 </app-entry-page-layout>

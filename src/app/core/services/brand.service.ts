@@ -11,6 +11,11 @@ interface LoadedBrands {
   readonly brands: readonly Brand[];
 }
 
+export interface BrandDeletionResult {
+  readonly deleted: true;
+  readonly reassigned: number;
+}
+
 function sortBrands(brands: readonly Brand[]): Brand[] {
   return [...brands].sort((left, right) => left.name.localeCompare(right.name, 'de-DE'));
 }
@@ -124,6 +129,43 @@ export class BrandService {
         data: null,
         error:
           error instanceof Error ? error : new Error('Die Marke konnte nicht angelegt werden.'),
+      };
+    }
+  }
+
+  async replaceAndDelete(
+    brandId: string,
+    replacementBrandId: string | null,
+  ): Promise<{ readonly data: BrandDeletionResult | null; readonly error: Error | null }> {
+    if (!brandId) return { data: null, error: new Error('Bitte eine Marke auswählen.') };
+    if (replacementBrandId === brandId)
+      return { data: null, error: new Error('Die Ersatzmarke muss eine andere Marke sein.') };
+    const workspaceId = this.workspace.currentWorkspace()?.id;
+    if (!workspaceId) return { data: null, error: new Error('Kein aktiver Workspace ausgewählt.') };
+
+    try {
+      const { data, error } = await this.supabase.client.rpc('replace_and_delete_brand', {
+        p_workspace_id: workspaceId,
+        p_brand_id: brandId,
+        ...(replacementBrandId ? { p_replacement_brand_id: replacementBrandId } : {}),
+      });
+      if (error) throw error;
+      if (!data || typeof data !== 'object' || Array.isArray(data))
+        throw new Error('Die Markenänderung wurde nicht vollständig bestätigt.');
+      const response = data as Record<string, unknown>;
+      if (response['deleted'] !== true || !Number.isInteger(response['reassigned']))
+        throw new Error('Die Markenänderung wurde nicht vollständig bestätigt.');
+      const result: BrandDeletionResult = {
+        deleted: true,
+        reassigned: Number(response['reassigned']),
+      };
+      await this.reload();
+      return { data: result, error: null };
+    } catch (error: unknown) {
+      return {
+        data: null,
+        error:
+          error instanceof Error ? error : new Error('Die Marke konnte nicht gelöscht werden.'),
       };
     }
   }

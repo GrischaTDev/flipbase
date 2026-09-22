@@ -37,15 +37,11 @@ import {
   SelectOption,
 } from '../../../../shared/components/custom-select/custom-select.component';
 import { normalizeGtin } from '../../../../shared/utils/gtin';
-
-export const PRODUCT_CONDITIONS: readonly SelectOption<ItemCondition>[] = [
-  { value: 'new', label: 'Neu' },
-  { value: 'like_new', label: 'Wie neu' },
-  { value: 'very_good', label: 'Sehr gut' },
-  { value: 'used', label: 'Gebraucht' },
-  { value: 'heavily_used', label: 'Stark gebraucht' },
-  { value: 'defective', label: 'Defekt / Ersatzteil' },
-];
+import { PRODUCT_CONDITIONS } from '../../../../core/config/product-conditions';
+import {
+  BrandManagementDialogComponent,
+  DeletedBrandAssignment,
+} from '../brand-management-dialog/brand-management-dialog.component';
 
 type ProductDialogInitialProduct = Partial<Omit<CreateCatalogProductInput, 'workspaceId'>> & {
   brandId?: string | null;
@@ -64,6 +60,7 @@ type ProductDialogInitialProduct = Partial<Omit<CreateCatalogProductInput, 'work
     NumberInputComponent,
     BrandPickerComponent,
     CategoryPickerComponent,
+    BrandManagementDialogComponent,
   ],
   templateUrl: './product-dialog.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -87,9 +84,10 @@ export class ProductDialogComponent {
   readonly saving = signal(false);
   readonly error = signal<string | null>(null);
   readonly savedProduct = signal<CatalogProduct | null>(null);
-  readonly image = signal<File | null>(null);
+  readonly images = signal<readonly File[]>([]);
   readonly categorySuggestion = signal<string | null>(null);
   readonly brandSuggestion = signal<string | null>(null);
+  readonly brandManagerOpen = signal(false);
   readonly conditionOptions: readonly SelectOption<string>[] = [
     { value: '', label: 'Nicht angegeben' },
     ...PRODUCT_CONDITIONS,
@@ -110,8 +108,13 @@ export class ProductDialogComponent {
             control.value.trim() && !normalizeGtin(control.value) ? { gtin: true } : null,
         ],
       }),
+      sku: new FormControl('', { nonNullable: true }),
       brandId: new FormControl<string | null>(null),
       model: new FormControl('', { nonNullable: true }),
+      size: new FormControl('', { nonNullable: true }),
+      color: new FormControl('', { nonNullable: true }),
+      material: new FormControl('', { nonNullable: true }),
+      description: new FormControl('', { nonNullable: true }),
       categoryId: new FormControl<string | null>(null),
       condition: new FormControl<ItemCondition | ''>('', { nonNullable: true }),
       conditionNotes: new FormControl('', { nonNullable: true }),
@@ -133,8 +136,13 @@ export class ProductDialogComponent {
       this.form.patchValue({
         title: value.title ?? '',
         ean: value.ean ?? '',
+        sku: value.sku ?? '',
         brandId: value.brandId ?? null,
         model: value.model ?? '',
+        size: value.size ?? '',
+        color: value.color ?? '',
+        material: value.material ?? '',
+        description: value.description ?? '',
         categoryId: value.categoryId ?? null,
         condition: value.condition ?? '',
         conditionNotes: value.conditionNotes ?? '',
@@ -146,13 +154,18 @@ export class ProductDialogComponent {
     });
   }
 
-  selectImage(event: Event): void {
+  selectImages(event: Event): void {
     const target = event.target;
-    if (target instanceof HTMLInputElement) this.image.set(target.files?.[0] ?? null);
+    if (target instanceof HTMLInputElement) this.images.set(Array.from(target.files ?? []));
   }
 
   close(): void {
     if (!this.saving()) this.closed.emit();
+  }
+
+  onBrandDeleted(change: DeletedBrandAssignment): void {
+    if (this.form.controls.brandId.value === change.brandId)
+      this.form.controls.brandId.setValue(change.replacementBrandId);
   }
 
   async save(): Promise<void> {
@@ -186,13 +199,16 @@ export class ProductDialogComponent {
         throw new Error(
           'Workspace wurde gewechselt. Das Produkt ist im ursprünglichen Workspace gespeichert.',
         );
-      const file = this.image();
-      if (file) {
+      const failedImages: File[] = [];
+      for (const file of this.images()) {
         const result = await this.media.uploadProductMedia(product.id, file);
-        if (result.error)
-          throw new Error(
-            'Produkt gespeichert. Bild konnte nicht gespeichert werden: ' + result.error.message,
-          );
+        if (result.error) failedImages.push(file);
+      }
+      this.images.set(failedImages);
+      if (failedImages.length > 0) {
+        throw new Error(
+          `Produkt gespeichert. ${failedImages.length === 1 ? 'Bild konnte' : `${failedImages.length} Bilder konnten`} nicht gespeichert werden.`,
+        );
       }
       if (workspaceId !== this.workspace.currentWorkspace()?.id) return;
       await this.catalog.loadProducts(workspaceId);

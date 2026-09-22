@@ -22,4 +22,14 @@ describe('PurchaseCreateComponent', () => {
 
     expect(onSubmit).toHaveBeenCalledOnce();
   });
+
+  it('öffnet nach dem Anlegen direkt den neuen Einkauf', () => {
+    const navigate = vi.fn();
+    const component = Object.create(PurchaseCreateComponent.prototype) as PurchaseCreateComponent;
+    Object.assign(component, { router: { navigate } });
+
+    component.openPurchase('purchase-42');
+
+    expect(navigate).toHaveBeenCalledWith(['/purchases', 'purchase-42']);
+  });
 });

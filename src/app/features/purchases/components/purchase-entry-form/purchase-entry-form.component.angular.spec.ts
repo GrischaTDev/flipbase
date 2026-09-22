@@ -256,7 +256,7 @@ function erstelleKomponente(vorhandener: Purchase | null = null) {
       error: null,
       reportedBySyncStatus: false,
     })),
-    refreshAfterFinalization: vi.fn(async () => undefined),
+    refreshAfterCostingChange: vi.fn(async () => undefined),
   };
   const purchaseCostingService = {
     finalizePurchase: vi.fn(
@@ -793,7 +793,7 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
       einkauf.workspace_id,
       einkauf.id,
     );
-    expect(purchaseService.refreshAfterFinalization).toHaveBeenCalledWith(
+    expect(purchaseService.refreshAfterCostingChange).toHaveBeenCalledWith(
       einkauf.workspace_id,
       einkauf.id,
       expect.objectContaining({
@@ -1259,7 +1259,7 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
 
     await komponente.onSubmit();
 
-    expect(created.emit).toHaveBeenCalledOnce();
+    expect(created.emit).toHaveBeenCalledWith(einkauf.id);
     expect(closed.emit).toHaveBeenCalledOnce();
     expect(toast.toasts()[0]).toMatchObject({
       type: 'success',

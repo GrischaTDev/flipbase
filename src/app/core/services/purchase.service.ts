@@ -496,6 +496,7 @@ export class PurchaseService {
 
       await Promise.all([this.loadPurchaseLines(id, requestId), saleHistoryLoad]);
       if (!this.isCurrentDetailLoad(requestId, workspaceId)) return null;
+      this.upsertPurchase(enriched);
       this.selectedPurchaseRaw.set(enriched);
       this.purchaseItemsFallback.set(purchaseItemsForWorkspace);
       return enriched;
@@ -979,6 +980,16 @@ export class PurchaseService {
       const persistedCosts = Array.isArray(response['purchase_costs'])
         ? (response['purchase_costs'] as PurchaseCost[])
         : [];
+      const confirmedTotal =
+        dbPurchase.purchase_price === null
+          ? null
+          : Number(
+              (
+                Number(dbPurchase.purchase_price) -
+                Number(dbPurchase.discount_amount ?? 0) +
+                persistedCosts.reduce((sum, cost) => sum + Number(cost.amount || 0), 0)
+              ).toFixed(2),
+            );
       const confirmedPurchase: Purchase = {
         ...dbPurchase,
         source,
@@ -986,6 +997,7 @@ export class PurchaseService {
         costs: persistedCosts,
         purchase_lines: persistedLines,
         items_count: persistedLines.reduce((count, line) => count + line.ordered_quantity, 0),
+        total_purchase_cost: confirmedTotal,
       };
       const existingPurchase =
         this.purchasesRaw().find((purchase) => purchase.id === purchaseId) ??
@@ -1839,11 +1851,11 @@ export class PurchaseService {
   }
 
   /**
-   * Stellt nach einer bestätigten Finalisierung alle drei Anzeigequellen
-   * gemeinsam auf denselben Datenbankstand. Komponenten rufen damit nicht
-   * mehrere, leicht auseinanderlaufende Einzel-Refreshes auf.
+   * Stellt nach einer bestätigten Kostenstatus-Änderung alle Anzeigequellen
+   * gemeinsam auf denselben Datenbankstand. Die RPC-Bestätigung wird vor dem
+   * Neuladen direkt in die Signals übernommen.
    */
-  async refreshAfterFinalization(
+  async refreshAfterCostingChange(
     workspaceId: string,
     purchaseId: string,
     confirmed?: PurchaseCostingResult,

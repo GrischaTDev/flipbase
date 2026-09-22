@@ -53,6 +53,8 @@ export interface PurchaseLineDraft {
   readonly unitPurchasePrice: number | null;
   readonly lineTotal: number | null;
   readonly estimatedMarketValue: number | null;
+  /** Strukturänderungen sind nach gebuchtem Wareneingang nur noch als Korrektur erlaubt. */
+  readonly structuralLocked?: boolean;
 }
 
 export interface PricedPurchaseLineDraft extends PurchaseLineDraft {
@@ -80,6 +82,7 @@ interface PurchaseLineControls {
   unitPurchasePrice: FormControl<number | null>;
   lineTotal: FormControl<number | null>;
   estimatedMarketValue: FormControl<number | null>;
+  structuralLocked: FormControl<boolean>;
 }
 
 type PriceField = 'unitPurchasePrice' | 'lineTotal';
@@ -461,10 +464,12 @@ export class PurchaseLineEditorComponent {
   }
 
   updateQuantity(index: number): void {
+    if (this.lineRows.at(index).controls.structuralLocked.value) return;
     this.recalculate(index, 'unitPurchasePrice');
   }
 
   removeLine(index: number): void {
+    if (this.lineRows.at(index).controls.structuralLocked.value) return;
     this.lineRows.removeAt(index);
     this.emitDrafts();
     const neighbor = this.lineRows.at(Math.min(index, this.lineRows.length - 1));
@@ -514,6 +519,7 @@ export class PurchaseLineEditorComponent {
     for (const line of lines) {
       const row = this.createLine(line.lineKind);
       row.patchValue({ ...line, ean: line.ean ?? null }, { emitEvent: false });
+      if (line.structuralLocked) row.controls.orderedQuantity.disable({ emitEvent: false });
       this.lineRows.push(row, { emitEvent: false });
     }
     this.lineRows.markAsPristine();
@@ -581,6 +587,7 @@ export class PurchaseLineEditorComponent {
       estimatedMarketValue: new FormControl<number | null>(null, {
         validators: isMysteryPurchase ? [Validators.min(0)] : [],
       }),
+      structuralLocked: new FormControl(false, { nonNullable: true }),
     });
     row.addValidators((control) => {
       const price: unknown = control.get('unitPurchasePrice')?.value;
