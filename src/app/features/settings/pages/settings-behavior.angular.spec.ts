@@ -229,9 +229,7 @@ beforeAll(async () => {
     maxLength: 'maxLength',
   };
 
-  const numberMetadata = (
-    NumberInputComponent as unknown as { ɵcmp: AngularBindingMetadata }
-  ).ɵcmp;
+  const numberMetadata = (NumberInputComponent as unknown as { ɵcmp: AngularBindingMetadata }).ɵcmp;
   numberInputMetadataSnapshot = {
     inputs: numberMetadata.inputs,
     declaredInputs: numberMetadata.declaredInputs,
@@ -306,9 +304,7 @@ afterAll(() => {
     textFieldMetadataSnapshot = null;
   }
   if (numberInputMetadataSnapshot) {
-    const metadata = (
-      NumberInputComponent as unknown as { ɵcmp: AngularBindingMetadata }
-    ).ɵcmp;
+    const metadata = (NumberInputComponent as unknown as { ɵcmp: AngularBindingMetadata }).ɵcmp;
     metadata.inputs = numberInputMetadataSnapshot.inputs;
     metadata.declaredInputs = numberInputMetadataSnapshot.declaredInputs;
     metadata.outputs = numberInputMetadataSnapshot.outputs;
