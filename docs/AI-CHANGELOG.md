@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-22 – Juna – Shared-UI-Bereinigung: Alle neun Einstellungsseiten auf Shared Controls migriert
+
+**Auftrag:** Alle 9 Seiten unter `src/app/features/settings/` (`account-settings`, `app-settings`, `data-and-audit`, `notification-settings`, `numbering-settings`, `shipping-settings`, `store-settings`, `team-settings`, `workspace-settings`) auf Shared Components (`TextFieldComponent`, `NumberInputComponent`, `CustomCheckboxComponent`, `DatePickerComponent`, `ModalShellComponent`, `ButtonComponent`) umstellen, alle 9 Pfade aus `legacyNativeFormControlPaths` und `team-settings.component.html` aus `legacyCustomModalPaths` entfernen sowie strikte 0-Native-Controls-Prüfung für `settings` in `scripts/check-admin-shared-ui.mjs` aktivieren.
+
+**Änderung:** In `TextFieldComponent` wurde das `maxLength`-Input ergänzt und an `[attr.maxlength]` angebunden. In `NumberInputComponent` wurde `ariaDescribedby` ergänzt. Alle 9 Einstellungsseiten wurden von nativen `<input>`- und Formularfeldern sowie dem individuellen Einladungsdialog auf die zentralen Shared Components umgestellt. In `expense-documents.component.html` wurde der native Datei-Upload mit dem Attribut `data-shared-ui-exception="native-file-picker"` markiert. `scripts/check-admin-shared-ui.mjs` erzwingt nun strikt 0 native Form-Controls im Settings- und Expenses-Bereich. Sämtliche Test-Dateien und -Metadatenbridges in `settings-behavior.angular.spec.ts` und `numbering-settings.component.angular.spec.ts` wurden aktualisiert.
+
+**Prüfung:** `npm run format:check`, `npm run lint`, `npm run typecheck`, `node --test scripts/check-admin-shared-ui.test.mjs` (14/14), `npm run test:workflow` (84/84 bestanden, 0 Findings in check-admin-shared-ui), alle 68 Angular- und 30 Node-Tests unter `src/app/features/settings` sowie der Angular-Produktionsbau (`ng build`) erfolgreich mit Exitcode 0 ausgeführt.
+
 ## 2026-09-22 – Juna – Richtlinie für Pull Requests auf Deutsch aktualisiert
 
 **Auftrag:** Die verbindlichen Projektrichtlinien in `AGENTS.md` anpassen, sodass Pull-Request-Titel und -Beschreibungen ab sofort immer auf Deutsch verfasst werden.

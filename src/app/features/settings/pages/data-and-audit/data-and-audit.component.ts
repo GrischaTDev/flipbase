@@ -34,6 +34,8 @@ import {
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { DataTableComponent } from '../../../../shared/components/data-table/data-table.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { DatePickerComponent } from '../../../../shared/components/date-picker/date-picker.component';
+import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 
 export interface AuditFilterValue {
   readonly from: string;
@@ -130,6 +132,8 @@ function localDayBoundaryAsUtc(value: string, endOfDay: boolean): string {
     CustomSelectComponent,
     DataTableComponent,
     ButtonComponent,
+    DatePickerComponent,
+    TextFieldComponent,
     DatePipe,
   ],
   templateUrl: './data-and-audit.component.html',

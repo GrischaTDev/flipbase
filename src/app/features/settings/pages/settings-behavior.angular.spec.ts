@@ -34,6 +34,10 @@ import { CustomCheckboxComponent } from '../../../shared/components/custom-check
 import { CustomSelectComponent } from '../../../shared/components/custom-select/custom-select.component';
 import { ToastService, ToastType } from '../../../shared/components/toast/toast.service';
 import { TextFieldComponent } from '../../../shared/components/text-field/text-field.component';
+import { NumberInputComponent } from '../../../shared/components/number-input/number-input.component';
+import { ButtonComponent } from '../../../shared/components/button/button.component';
+import { ModalShellComponent } from '../../../shared/components/modal-shell/modal-shell.component';
+import { ModalDialogDirective } from '../../../shared/directives/modal-dialog.directive';
 import { AccountSettingsComponent } from './account-settings/account-settings.component';
 import { AppSettingsComponent } from './app-settings/app-settings.component';
 import { NotificationSettingsComponent } from './notification-settings/notification-settings.component';
@@ -43,8 +47,8 @@ import { TeamSettingsComponent } from './team-settings/team-settings.component';
 import { WorkspaceSettingsComponent } from './workspace-settings/workspace-settings.component';
 
 interface MutationResult {
-  readonly data: object | null;
-  readonly error: Error | null;
+  readonly data: unknown;
+  readonly error: unknown;
   readonly reportedBySyncStatus: boolean;
 }
 
@@ -65,6 +69,10 @@ type AngularViewQuery = (renderFlags: number, context: unknown) => void;
 let selectMetadataSnapshot: AngularBindingMetadata | null = null;
 let checkboxMetadataSnapshot: AngularBindingMetadata | null = null;
 let textFieldMetadataSnapshot: AngularBindingMetadata | null = null;
+let numberInputMetadataSnapshot: AngularBindingMetadata | null = null;
+let buttonMetadataSnapshot: AngularBindingMetadata | null = null;
+let modalShellMetadataSnapshot: AngularBindingMetadata | null = null;
+let modalDialogMetadataSnapshot: AngularBindingMetadata | null = null;
 let selectViewQuerySnapshot: AngularViewQuery | null | undefined;
 
 const resourceFiles: Readonly<Record<string, string>> = {
@@ -88,6 +96,14 @@ const resourceFiles: Readonly<Record<string, string>> = {
   'badge.component.scss': '../../../shared/components/badge/badge.component.scss',
   'text-field.component.html': '../../../shared/components/text-field/text-field.component.html',
   'text-field.component.scss': '../../../shared/components/text-field/text-field.component.scss',
+  'number-input.component.html':
+    '../../../shared/components/number-input/number-input.component.html',
+  'number-input.component.scss':
+    '../../../shared/components/number-input/number-input.component.scss',
+  'button.component.html': '../../../shared/components/button/button.component.html',
+  'button.component.scss': '../../../shared/components/button/button.component.scss',
+  'modal-shell.component.html': '../../../shared/components/modal-shell/modal-shell.component.html',
+  'modal-shell.component.scss': '../../../shared/components/modal-shell/modal-shell.component.scss',
 };
 
 beforeAll(async () => {
@@ -190,14 +206,195 @@ beforeAll(async () => {
   };
   textFieldMetadata.inputs = {
     ...textFieldMetadata.inputs,
+    label: ['label', 1, null],
+    labelHidden: ['labelHidden', 1, null],
+    placeholder: ['placeholder', 1, null],
+    type: ['type', 1, null],
+    multiline: ['multiline', 1, null],
+    monospaced: ['monospaced', 1, null],
     error: ['error', 1, null],
+    helpText: ['helpText', 1, null],
+    disabled: ['disabled', 1, null],
+    id: ['id', 1, null],
+    ariaLabel: ['ariaLabel', 1, null],
+    autocomplete: ['autocomplete', 1, null],
     required: ['required', 1, null],
+    maxLength: ['maxLength', 1, null],
   };
   textFieldMetadata.declaredInputs = {
     ...textFieldMetadata.declaredInputs,
+    label: 'label',
+    labelHidden: 'labelHidden',
+    placeholder: 'placeholder',
+    type: 'type',
+    multiline: 'multiline',
+    monospaced: 'monospaced',
     error: 'error',
+    helpText: 'helpText',
+    disabled: 'disabled',
+    id: 'id',
+    ariaLabel: 'ariaLabel',
+    autocomplete: 'autocomplete',
     required: 'required',
+    maxLength: 'maxLength',
   };
+
+  const numberMetadata = (NumberInputComponent as unknown as { ɵcmp: AngularBindingMetadata }).ɵcmp;
+  numberInputMetadataSnapshot = {
+    inputs: numberMetadata.inputs,
+    declaredInputs: numberMetadata.declaredInputs,
+    outputs: numberMetadata.outputs,
+  };
+  numberMetadata.inputs = {
+    ...numberMetadata.inputs,
+    value: ['value', 1, null],
+    placeholder: ['placeholder', 1, null],
+    step: ['step', 1, null],
+    min: ['min', 1, null],
+    max: ['max', 1, null],
+    unit: ['unit', 1, null],
+    id: ['id', 1, null],
+    ariaLabel: ['ariaLabel', 1, null],
+    ariaDescribedby: ['ariaDescribedby', 1, null],
+    asCurrency: ['asCurrency', 1, null],
+    disabled: ['disabled', 1, null],
+    showStepper: ['showStepper', 1, null],
+  };
+  numberMetadata.declaredInputs = {
+    ...numberMetadata.declaredInputs,
+    value: 'value',
+    placeholder: 'placeholder',
+    step: 'step',
+    min: 'min',
+    max: 'max',
+    unit: 'unit',
+    id: 'id',
+    ariaLabel: 'ariaLabel',
+    ariaDescribedby: 'ariaDescribedby',
+    asCurrency: 'asCurrency',
+    disabled: 'disabled',
+    showStepper: 'showStepper',
+  };
+  numberMetadata.outputs = {
+    ...numberMetadata.outputs,
+    valueChange: 'value',
+  };
+
+  const buttonMeta = (ButtonComponent as unknown as { ɵcmp: AngularBindingMetadata }).ɵcmp;
+  buttonMetadataSnapshot = {
+    inputs: buttonMeta.inputs,
+    declaredInputs: buttonMeta.declaredInputs,
+    outputs: buttonMeta.outputs,
+  };
+  buttonMeta.inputs = {
+    ...buttonMeta.inputs,
+    variant: ['variant', 1, null],
+    size: ['size', 1, null],
+    loading: ['loading', 1, null],
+    disabled: ['disabled', 1, null],
+    icon: ['icon', 1, null],
+    iconPosition: ['iconPosition', 1, null],
+    iconOnly: ['iconOnly', 1, null],
+    fullWidth: ['fullWidth', 1, null],
+    contentAlign: ['contentAlign', 1, null],
+    type: ['type', 1, null],
+    formId: ['formId', 1, null],
+    link: ['link', 1, null],
+    href: ['href', 1, null],
+    target: ['target', 1, null],
+    queryParams: ['queryParams', 1, null],
+    ariaLabel: ['ariaLabel', 1, null],
+    title: ['title', 1, null],
+    ariaExpanded: ['ariaExpanded', 1, null],
+    ariaPressed: ['ariaPressed', 1, null],
+    ariaControls: ['ariaControls', 1, null],
+    ariaHaspopup: ['ariaHaspopup', 1, null],
+  };
+  buttonMeta.declaredInputs = {
+    ...buttonMeta.declaredInputs,
+    variant: 'variant',
+    size: 'size',
+    loading: 'loading',
+    disabled: 'disabled',
+    icon: 'icon',
+    iconPosition: 'iconPosition',
+    iconOnly: 'iconOnly',
+    fullWidth: 'fullWidth',
+    contentAlign: 'contentAlign',
+    type: 'type',
+    formId: 'formId',
+    link: 'link',
+    href: 'href',
+    target: 'target',
+    queryParams: 'queryParams',
+    ariaLabel: 'ariaLabel',
+    title: 'title',
+    ariaExpanded: 'ariaExpanded',
+    ariaPressed: 'ariaPressed',
+    ariaControls: 'ariaControls',
+    ariaHaspopup: 'ariaHaspopup',
+  };
+  buttonMeta.outputs = {
+    ...buttonMeta.outputs,
+    clicked: 'clicked',
+  };
+
+  const modalShellMeta = (ModalShellComponent as unknown as { ɵcmp: AngularBindingMetadata }).ɵcmp;
+  modalShellMetadataSnapshot = {
+    inputs: modalShellMeta.inputs,
+    declaredInputs: modalShellMeta.declaredInputs,
+    outputs: modalShellMeta.outputs,
+  };
+  modalShellMeta.inputs = {
+    ...modalShellMeta.inputs,
+    title: ['title', 1, null],
+    subtitle: ['subtitle', 1, null],
+    icon: ['icon', 1, null],
+    iconTone: ['iconTone', 1, null],
+    size: ['size', 1, null],
+    closeOnBackdrop: ['closeOnBackdrop', 1, null],
+    hasFooter: ['hasFooter', 1, null],
+  };
+  modalShellMeta.declaredInputs = {
+    ...modalShellMeta.declaredInputs,
+    title: 'title',
+    subtitle: 'subtitle',
+    icon: 'icon',
+    iconTone: 'iconTone',
+    size: 'size',
+    closeOnBackdrop: 'closeOnBackdrop',
+    hasFooter: 'hasFooter',
+  };
+  modalShellMeta.outputs = {
+    ...modalShellMeta.outputs,
+    closed: 'closed',
+  };
+
+  const modalDialogMeta = (ModalDialogDirective as unknown as { ɵdir: AngularBindingMetadata })
+    .ɵdir;
+  if (modalDialogMeta) {
+    modalDialogMetadataSnapshot = {
+      inputs: modalDialogMeta.inputs,
+      declaredInputs: modalDialogMeta.declaredInputs,
+      outputs: modalDialogMeta.outputs,
+    };
+    modalDialogMeta.inputs = {
+      ...modalDialogMeta.inputs,
+      dialogTitel: ['dialogTitel', 1, null],
+      schliesstMitEscape: ['schliesstMitEscape', 1, null],
+      schliesstBeiKlickAussen: ['schliesstBeiKlickAussen', 1, null],
+    };
+    modalDialogMeta.declaredInputs = {
+      ...modalDialogMeta.declaredInputs,
+      dialogTitel: 'dialogTitel',
+      schliesstMitEscape: 'schliesstMitEscape',
+      schliesstBeiKlickAussen: 'schliesstBeiKlickAussen',
+    };
+    modalDialogMeta.outputs = {
+      ...modalDialogMeta.outputs,
+      dialogClose: 'dialogClose',
+    };
+  }
 });
 
 afterAll(() => {
@@ -231,6 +428,34 @@ afterAll(() => {
     metadata.declaredInputs = textFieldMetadataSnapshot.declaredInputs;
     metadata.outputs = textFieldMetadataSnapshot.outputs;
     textFieldMetadataSnapshot = null;
+  }
+  if (numberInputMetadataSnapshot) {
+    const metadata = (NumberInputComponent as unknown as { ɵcmp: AngularBindingMetadata }).ɵcmp;
+    metadata.inputs = numberInputMetadataSnapshot.inputs;
+    metadata.declaredInputs = numberInputMetadataSnapshot.declaredInputs;
+    metadata.outputs = numberInputMetadataSnapshot.outputs;
+    numberInputMetadataSnapshot = null;
+  }
+  if (buttonMetadataSnapshot) {
+    const metadata = (ButtonComponent as unknown as { ɵcmp: AngularBindingMetadata }).ɵcmp;
+    metadata.inputs = buttonMetadataSnapshot.inputs;
+    metadata.declaredInputs = buttonMetadataSnapshot.declaredInputs;
+    metadata.outputs = buttonMetadataSnapshot.outputs;
+    buttonMetadataSnapshot = null;
+  }
+  if (modalShellMetadataSnapshot) {
+    const metadata = (ModalShellComponent as unknown as { ɵcmp: AngularBindingMetadata }).ɵcmp;
+    metadata.inputs = modalShellMetadataSnapshot.inputs;
+    metadata.declaredInputs = modalShellMetadataSnapshot.declaredInputs;
+    metadata.outputs = modalShellMetadataSnapshot.outputs;
+    modalShellMetadataSnapshot = null;
+  }
+  if (modalDialogMetadataSnapshot) {
+    const metadata = (ModalDialogDirective as unknown as { ɵdir: AngularBindingMetadata }).ɵdir;
+    metadata.inputs = modalDialogMetadataSnapshot.inputs;
+    metadata.declaredInputs = modalDialogMetadataSnapshot.declaredInputs;
+    metadata.outputs = modalDialogMetadataSnapshot.outputs;
+    modalDialogMetadataSnapshot = null;
   }
 });
 
@@ -337,7 +562,7 @@ function renderedSubmitButton<T>(
 
 function renderedInput<T>(fixture: ComponentFixture<T>, formControlName: string): HTMLInputElement {
   const input = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
-    `input[formcontrolname="${formControlName}"]`,
+    `input[formcontrolname="${formControlName}"], app-text-field[formcontrolname="${formControlName}"] input, app-number-input[formcontrolname="${formControlName}"] input`,
   );
   expect(input, `Gerendertes Feld „${formControlName}“ fehlt.`).not.toBeNull();
   return input as HTMLInputElement;

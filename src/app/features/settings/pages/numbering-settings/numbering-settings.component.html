@@ -49,78 +49,67 @@
     >
       <fieldset [disabled]="!canEdit() || isSaving()" class="grid gap-4 sm:grid-cols-2">
         <legend class="mb-3 text-sm font-semibold text-fb-text-primary">Format und Zählung</legend>
-        <label class="text-sm text-fb-text-primary"
-          >Bezeichnung
-          <input
-            formControlName="label"
-            maxlength="80"
-            required
-            class="linear-input mt-1 min-h-9 w-full rounded-lg px-3 text-sm"
-          />
-        </label>
-        <label class="text-sm text-fb-text-primary"
-          >Präfix
-          <input
-            formControlName="prefix"
-            maxlength="30"
-            class="linear-input mt-1 min-h-9 w-full rounded-lg px-3 text-sm"
-          />
-        </label>
+        <app-text-field
+          formControlName="label"
+          label="Bezeichnung"
+          ariaLabel="Bezeichnung"
+          [required]="true"
+          [maxLength]="80"
+        />
+        <app-text-field
+          formControlName="prefix"
+          label="Präfix"
+          ariaLabel="Präfix"
+          [maxLength]="30"
+        />
         <span class="text-sm text-fb-text-primary">Trennzeichen</span>
         <app-custom-select
           formControlName="separator"
           ariaLabel="Trennzeichen"
           [options]="separatorOptions"
         />
-        <label class="text-sm text-fb-text-primary"
-          >Mindestanzahl Ziffern
-          <input
-            type="number"
+        <div class="text-sm text-fb-text-primary">
+          <span class="mb-1.5 block text-[13px] font-semibold">Mindestanzahl Ziffern</span>
+          <app-number-input
             formControlName="minimum_digits"
-            min="1"
-            max="12"
-            step="1"
-            required
-            class="linear-input mt-1 min-h-9 w-full rounded-lg px-3 text-sm"
+            ariaLabel="Mindestanzahl Ziffern"
+            [min]="1"
+            [max]="12"
+            [step]="1"
           />
-        </label>
-        <label class="text-sm text-fb-text-primary"
-          >Anfangswert
-          <input
-            type="number"
+        </div>
+        <div class="text-sm text-fb-text-primary">
+          <span class="mb-1.5 block text-[13px] font-semibold">Anfangswert</span>
+          <app-number-input
             formControlName="start_value"
-            min="1"
-            max="999999999999"
-            step="1"
-            required
-            aria-describedby="start-value-hint"
-            class="linear-input mt-1 min-h-9 w-full rounded-lg px-3 text-sm"
+            ariaLabel="Anfangswert"
+            ariaDescribedby="start-value-hint"
+            [min]="1"
+            [max]="999999999999"
+            [step]="1"
           />
           <span id="start-value-hint" class="mt-1 block text-xs text-fb-text-secondary"
             >Bereits erreichte Zählstände werden nicht zurückgesetzt.</span
           >
-        </label>
-        <label class="text-sm text-fb-text-primary"
-          >Workspace-Zeitzone
-          <input
-            formControlName="timezone"
-            required
-            placeholder="Europe/Berlin"
-            aria-describedby="timezone-hint"
-            class="linear-input mt-1 min-h-9 w-full rounded-lg px-3 text-sm"
-          />
-          <span id="timezone-hint" class="mt-1 block text-xs text-fb-text-secondary"
-            >Gilt für beide Nummernkreise, z. B. Europe/Berlin oder UTC.</span
-          >
-        </label>
-        <label class="flex items-center gap-2 text-sm"
-          ><input type="checkbox" formControlName="include_year" />Vierstelliges Jahr
-          anzeigen</label
-        >
-        <label class="flex items-center gap-2 text-sm"
-          ><input type="checkbox" formControlName="reset_yearly" />Zähler jährlich neu
-          beginnen</label
-        >
+        </div>
+        <app-text-field
+          formControlName="timezone"
+          label="Workspace-Zeitzone"
+          ariaLabel="Workspace-Zeitzone"
+          placeholder="Europe/Berlin"
+          [required]="true"
+          helpText="Gilt für beide Nummernkreise, z. B. Europe/Berlin oder UTC."
+        />
+        <app-custom-checkbox
+          formControlName="include_year"
+          label="Vierstelliges Jahr anzeigen"
+          ariaLabel="Vierstelliges Jahr anzeigen"
+        />
+        <app-custom-checkbox
+          formControlName="reset_yearly"
+          label="Zähler jährlich neu beginnen"
+          ariaLabel="Zähler jährlich neu beginnen"
+        />
       </fieldset>
       @if (invalidReset()) {
         <p role="alert" class="text-sm text-red-700">

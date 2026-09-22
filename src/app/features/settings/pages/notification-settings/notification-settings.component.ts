@@ -7,10 +7,11 @@ import { WebhookService } from '../../../../core/services/webhook.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
+import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 
 @Component({
   selector: 'app-notification-settings',
-  imports: [ReactiveFormsModule, LucideDynamicIcon, CustomCheckboxComponent],
+  imports: [ReactiveFormsModule, LucideDynamicIcon, CustomCheckboxComponent, TextFieldComponent],
   templateUrl: './notification-settings.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
