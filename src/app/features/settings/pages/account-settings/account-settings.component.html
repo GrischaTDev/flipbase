@@ -12,12 +12,12 @@
     </h2>
   </div>
   <form [formGroup]="profileForm" (ngSubmit)="onSaveProfile()" class="space-y-3">
-    <label for="profile-name" class="block text-xs font-semibold text-fb-text-secondary"
-      >Angezeigter Name<input
-        id="profile-name"
-        formControlName="fullName"
-        class="linear-input mt-1 w-full rounded-xl px-3 py-2 text-xs"
-    /></label>
+    <app-text-field
+      id="profile-name"
+      formControlName="fullName"
+      label="Angezeigter Name"
+      [required]="true"
+    />
     <div>
       <span class="text-xs font-semibold text-fb-text-secondary">E-Mail-Adresse</span>
       <p class="font-mono text-xs text-fb-text-secondary">{{ auth.currentUser()?.email || '—' }}</p>
