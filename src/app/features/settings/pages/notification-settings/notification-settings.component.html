@@ -53,7 +53,10 @@
         class="flex items-center justify-between rounded-xl border border-fb-border bg-fb-subtle p-3 text-xs font-semibold text-fb-text-primary"
       >
         <span>Telegram Bot</span>
-        <app-custom-checkbox formControlName="telegramEnabled" ariaLabel="Telegram Bot aktivieren" />
+        <app-custom-checkbox
+          formControlName="telegramEnabled"
+          ariaLabel="Telegram Bot aktivieren"
+        />
       </div>
       @if (webhookForm.controls.telegramEnabled.value) {
         <app-text-field
@@ -61,7 +64,12 @@
           label="Telegram Bot Token"
           placeholder="Telegram Bot Token"
         />
-        <app-text-field formControlName="telegramChatId" label="Chat-ID" placeholder="Chat-ID" /><button
+        <app-text-field
+          formControlName="telegramChatId"
+          label="Chat-ID"
+          placeholder="Chat-ID"
+        />
+        <button
           type="button"
           (click)="testWebhook('telegram')"
           [disabled]="isTestingWebhook() || isLoadingWorkspaceConfig()"
@@ -100,11 +108,13 @@
         formControlName="notifyOnSale"
         label="Push bei jedem neuen Verkauf (mit Reingewinn & ROI)"
         size="sm"
-      /><app-custom-checkbox
+      />
+      <app-custom-checkbox
         formControlName="notifyOnPurchase"
         label="Push bei jedem neuen Einkauf / Palette"
         size="sm"
-      /><app-custom-checkbox
+      />
+      <app-custom-checkbox
         formControlName="soundEnabled"
         label="Kassen-Chime Sound bei Sales abspielen"
         size="sm"
