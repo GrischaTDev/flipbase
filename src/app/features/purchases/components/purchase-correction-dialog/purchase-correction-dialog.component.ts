@@ -20,8 +20,10 @@ import {
   PURCHASE_COST_TAX_TREATMENT_OPTIONS,
   PurchaseCostTaxTreatment,
 } from '../purchase-cost-editor/purchase-cost-adjustments';
-import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
 import { PurchaseLinePriceMode } from '../../../../core/models/purchase-costing.models';
+import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
+import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
 
 type LineForm = FormGroup<{
   id: FormControl<string>;
@@ -48,7 +50,14 @@ type CostForm = FormGroup<{
 
 @Component({
   selector: 'app-purchase-correction-dialog',
-  imports: [ReactiveFormsModule, NumberInputComponent, CustomSelectComponent, ModalDialogDirective],
+  imports: [
+    ReactiveFormsModule,
+    NumberInputComponent,
+    CustomSelectComponent,
+    ModalShellComponent,
+    TextFieldComponent,
+    ButtonComponent,
+  ],
   templateUrl: './purchase-correction-dialog.component.html',
   host: { class: 'contents' },
   changeDetection: ChangeDetectionStrategy.OnPush,
