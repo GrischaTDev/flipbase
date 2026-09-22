@@ -27,6 +27,7 @@ import {
   isInventoryItemMutationLocked,
   isSellableInventoryItem,
 } from '../../../../core/models/inventory-sellability';
+import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
 import {
   CustomSelectComponent,
   SelectOption,
@@ -58,6 +59,7 @@ import {
     LucideDynamicIcon,
     CustomSelectComponent,
     CostStateComponent,
+    CustomCheckboxComponent,
     ItemConditionLabelPipe,
     TableSortHeaderComponent,
   ],

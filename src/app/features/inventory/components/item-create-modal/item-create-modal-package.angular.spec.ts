@@ -18,9 +18,37 @@ import { SyncStatusService } from '../../../../core/services/sync-status.service
 import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
 import { CategoryPickerComponent } from '../../../../shared/components/category-picker/category-picker.component';
 import { BrandPickerComponent } from '../../../../shared/components/brand-picker/brand-picker.component';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
+import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
+import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { ItemCreateModalComponent } from './item-create-modal.component';
 
-let restoreInputs = (): void => undefined;
+interface AngularInputMetadata {
+  inputs: Record<string, unknown>;
+  declaredInputs: Record<string, string>;
+  outputs?: Record<string, string>;
+}
+
+const inputMetadataSnapshots = new Map<unknown, AngularInputMetadata>();
+
+function registerSignalInputs(component: unknown, inputNames: readonly string[]): void {
+  const metadata = (component as { ɵcmp: AngularInputMetadata }).ɵcmp;
+  inputMetadataSnapshots.set(component, {
+    inputs: metadata.inputs,
+    declaredInputs: metadata.declaredInputs,
+    outputs: metadata.outputs,
+  });
+  metadata.inputs = {
+    ...metadata.inputs,
+    ...Object.fromEntries(inputNames.map((name) => [name, [name, 1, null]])),
+  };
+  metadata.declaredInputs = {
+    ...metadata.declaredInputs,
+    ...Object.fromEntries(inputNames.map((name) => [name, name])),
+  };
+}
+
 beforeAll(async () => {
   await ɵresolveComponentResources(async (url) => {
     const matches: string[] = [];
@@ -28,51 +56,115 @@ beforeAll(async () => {
     if (matches.length !== 1) throw new Error(`Test-Ressource nicht eindeutig: ${url}`);
     return readFile(matches[0], 'utf8');
   });
-  const metadata = (
-    CustomSelectComponent as unknown as {
-      ɵcmp: { inputs: Record<string, unknown>; declaredInputs: Record<string, string> };
-    }
-  ).ɵcmp;
-  const originalInputs = metadata.inputs;
-  const originalDeclared = metadata.declaredInputs;
-  restoreInputs = () => {
-    metadata.inputs = originalInputs;
-    metadata.declaredInputs = originalDeclared;
-  };
-  metadata.inputs = { ...metadata.inputs };
-  metadata.declaredInputs = { ...metadata.declaredInputs };
-  for (const name of ['options', 'ariaLabel', 'triggerId', 'size']) {
-    metadata.inputs[name] = [name, 1, null];
-    metadata.declaredInputs[name] = name;
-  }
-  const pickerRestores: (() => void)[] = [];
-  for (const component of [CategoryPickerComponent, BrandPickerComponent]) {
-    const pickerMetadata = (
-      component as unknown as {
-        ɵcmp: { inputs: Record<string, unknown>; declaredInputs: Record<string, string> };
-      }
-    ).ɵcmp;
-    const inputs = pickerMetadata.inputs;
-    const declared = pickerMetadata.declaredInputs;
-    pickerMetadata.inputs = { ...inputs };
-    pickerMetadata.declaredInputs = { ...declared };
-    for (const name of ['label', 'labelHidden', 'placeholder', 'suggestion', 'helpText', 'id']) {
-      pickerMetadata.inputs[name] = [name, 1, null];
-      pickerMetadata.declaredInputs[name] = name;
-    }
-    pickerRestores.push(() => {
-      pickerMetadata.inputs = inputs;
-      pickerMetadata.declaredInputs = declared;
-    });
-  }
-  const restoreSelect = restoreInputs;
-  restoreInputs = () => {
-    restoreSelect();
-    pickerRestores.forEach((restore) => restore());
-  };
+
+  registerSignalInputs(ButtonComponent, [
+    'variant',
+    'size',
+    'loading',
+    'disabled',
+    'icon',
+    'iconPosition',
+    'iconOnly',
+    'fullWidth',
+    'contentAlign',
+    'type',
+    'formId',
+    'link',
+    'href',
+    'target',
+    'queryParams',
+    'ariaLabel',
+    'title',
+    'ariaExpanded',
+    'ariaPressed',
+    'ariaControls',
+    'ariaHaspopup',
+  ]);
+  const buttonMetadata = (ButtonComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp;
+  buttonMetadata.outputs = { ...buttonMetadata.outputs, clicked: 'clicked' };
+
+  registerSignalInputs(TextFieldComponent, [
+    'label',
+    'labelHidden',
+    'placeholder',
+    'type',
+    'multiline',
+    'prefix',
+    'suffix',
+    'prefixIcon',
+    'clearable',
+    'monospaced',
+    'error',
+    'helpText',
+    'disabled',
+    'id',
+    'ariaLabel',
+    'autocomplete',
+    'required',
+  ]);
+
+  registerSignalInputs(NumberInputComponent, [
+    'value',
+    'placeholder',
+    'step',
+    'min',
+    'max',
+    'unit',
+    'id',
+    'ariaLabel',
+    'asCurrency',
+    'disabled',
+    'showStepper',
+    'platzhalter',
+    'schritt',
+    'minimum',
+    'maximum',
+    'einheit',
+    'feldId',
+    'beschriftung',
+  ]);
+
+  registerSignalInputs(ModalShellComponent, [
+    'title',
+    'subtitle',
+    'icon',
+    'iconTone',
+    'size',
+    'closeOnBackdrop',
+    'hasFooter',
+  ]);
+  const modalMetadata = (ModalShellComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp;
+  modalMetadata.outputs = { ...modalMetadata.outputs, closed: 'closed' };
+
+  registerSignalInputs(CustomSelectComponent, ['options', 'ariaLabel', 'triggerId', 'size']);
+  registerSignalInputs(CategoryPickerComponent, [
+    'label',
+    'labelHidden',
+    'placeholder',
+    'suggestion',
+    'helpText',
+    'id',
+  ]);
+  registerSignalInputs(BrandPickerComponent, [
+    'label',
+    'labelHidden',
+    'placeholder',
+    'suggestion',
+    'helpText',
+    'id',
+  ]);
 });
 afterEach(() => TestBed.resetTestingModule());
-afterAll(() => restoreInputs());
+afterAll(() => {
+  for (const [component, snapshot] of inputMetadataSnapshots) {
+    const metadata = (component as { ɵcmp: AngularInputMetadata }).ɵcmp;
+    metadata.inputs = snapshot.inputs;
+    metadata.declaredInputs = snapshot.declaredInputs;
+    if (snapshot.outputs) {
+      metadata.outputs = snapshot.outputs;
+    }
+  }
+});
 
 describe('Gemeinsame Artikelbearbeitung für Paketinhalt', () => {
   it.each([null, 0, 12])('lädt und speichert Kosten %s über das echte Formular', async (cost) => {
