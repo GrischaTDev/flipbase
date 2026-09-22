@@ -102,12 +102,17 @@
               />
             </div>
             <div>
+              <label
+                [for]="'quantity-' + index"
+                class="mb-1 block text-[10px] font-semibold uppercase text-fb-text-muted"
+              >
+                Menge
+              </label>
               <app-number-input
                 [id]="'quantity-' + index"
                 [min]="1"
                 [max]="availableQuantity(line)"
                 formControlName="quantity"
-                label="Menge"
                 ariaLabel="Menge"
               />
               @if (availableQuantity(line); as available) {
@@ -115,14 +120,19 @@
               }
             </div>
             <div>
+              <label
+                [for]="'price-' + index"
+                class="mb-1 block text-[10px] font-semibold uppercase text-fb-text-muted"
+              >
+                Preis je Stück (€)
+              </label>
               <app-number-input
                 [id]="'price-' + index"
                 [min]="0.01"
                 [step]="0.01"
                 unit="€"
                 formControlName="unitSalePrice"
-                label="Preis je Stück (€)"
-                ariaLabel="Preis je Stück"
+                ariaLabel="Preis je Stück (€)"
               />
             </div>
             <button

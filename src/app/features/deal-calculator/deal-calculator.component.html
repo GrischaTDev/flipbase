@@ -55,27 +55,37 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <!-- Asking Price -->
           <div>
+            <label
+              for="askingPriceInput"
+              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
+            >
+              Verkaufspreis des Anbieters (EK in €)
+            </label>
             <app-number-input
               id="askingPriceInput"
               formControlName="askingPrice"
               (valueChange)="runCalculation()"
-              label="Verkaufspreis des Anbieters (EK in €)"
               unit="€"
               placeholder="0.00"
-              ariaLabel="Verkaufspreis des Anbieters"
+              ariaLabel="Verkaufspreis des Anbieters (EK in €)"
             />
           </div>
 
           <!-- Fair Market Value -->
           <div>
+            <label
+              for="marketValueInput"
+              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
+            >
+              Erwarteter Verkaufspreis (€)
+            </label>
             <app-number-input
               id="marketValueInput"
               formControlName="fairMarketValue"
               (valueChange)="runCalculation()"
-              label="Erwarteter Verkaufspreis (€)"
               unit="€"
               placeholder="0.00"
-              ariaLabel="Erwarteter Verkaufspreis"
+              ariaLabel="Erwarteter Verkaufspreis (€)"
             />
           </div>
         </div>
@@ -83,14 +93,19 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <!-- Estimated Costs -->
           <div>
+            <label
+              for="estimatedCostsInput"
+              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
+            >
+              Nebenkosten (Versand, Fahrt, Teile in €)
+            </label>
             <app-number-input
               id="estimatedCostsInput"
               formControlName="estimatedCosts"
               (valueChange)="runCalculation()"
-              label="Nebenkosten (Versand, Fahrt, Teile in €)"
               unit="€"
               placeholder="0.00"
-              ariaLabel="Nebenkosten"
+              ariaLabel="Nebenkosten (Versand, Fahrt, Teile in €)"
             />
           </div>
 
