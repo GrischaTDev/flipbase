@@ -12,6 +12,7 @@
     }
 
     <app-text-field formControlName="title" label="Bezeichnung" placeholder="z. B. Server" />
+
     <app-text-field
       formControlName="vendor_name"
       label="Händler / Anbieter"
@@ -20,12 +21,21 @@
 
     <div>
       <span class="mb-1.5 block text-[13px] font-semibold">Kategorie</span>
-      <app-custom-select formControlName="category_id" ariaLabel="Kategorie" [options]="categoryOptions()" />
+      <app-custom-select
+        formControlName="category_id"
+        ariaLabel="Kategorie"
+        [options]="categoryOptions()"
+      />
     </div>
 
     <div class="grid gap-4 sm:grid-cols-2">
       <div>
-        <label for="recurring-expense-quantity" class="mb-1.5 block text-[13px] font-semibold">Menge</label>
+        <label
+          for="recurring-expense-quantity"
+          class="mb-1.5 block text-[13px] font-semibold"
+        >
+          Menge
+        </label>
         <app-number-input
           id="recurring-expense-quantity"
           ariaLabel="Menge"
@@ -36,7 +46,10 @@
         />
       </div>
       <div>
-        <label for="recurring-expense-gross-amount" class="mb-1.5 block text-[13px] font-semibold">
+        <label
+          for="recurring-expense-gross-amount"
+          class="mb-1.5 block text-[13px] font-semibold"
+        >
           Gesamtbetrag
         </label>
         <app-number-input
@@ -69,7 +82,10 @@
         </app-button>
       </div>
       @if (taxDetailsExpanded()) {
-        <div id="recurring-expense-tax-details" class="mt-3 space-y-2 border-t border-fb-border pt-3">
+        <div
+          id="recurring-expense-tax-details"
+          class="mt-3 space-y-2 border-t border-fb-border pt-3"
+        >
           <app-custom-select
             formControlName="vat_rate"
             ariaLabel="Enthaltene Mehrwertsteuer"
@@ -116,5 +132,7 @@
   </form>
 
   <app-button modal-footer variant="secondary" (clicked)="closed.emit()">Abbrechen</app-button>
-  <app-button modal-footer variant="primary" [loading]="isSaving()" (clicked)="save()">Speichern</app-button>
+  <app-button modal-footer variant="primary" [loading]="isSaving()" (clicked)="save()">
+    Speichern
+  </app-button>
 </app-modal-shell>

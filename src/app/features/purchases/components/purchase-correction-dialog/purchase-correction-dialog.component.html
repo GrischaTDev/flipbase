@@ -4,7 +4,12 @@
   size="lg"
   (closed)="closed.emit()"
 >
-  <form id="purchase-correction-form" [formGroup]="form" (ngSubmit)="submit()" class="space-y-4">
+  <form
+    id="purchase-correction-form"
+    [formGroup]="form"
+    (ngSubmit)="submit()"
+    class="space-y-4"
+  >
     @if (errorMessage()) {
       <p
         role="alert"
@@ -24,7 +29,10 @@
 
     @if (purchase().type === 'mystery_pack') {
       <div>
-        <label for="correctedPurchasePrice" class="mb-1.5 block text-[13px] font-semibold text-fb-text-primary">
+        <label
+          for="correctedPurchasePrice"
+          class="mb-1.5 block text-[13px] font-semibold text-fb-text-primary"
+        >
           Kaufpreis der Mystery Box
         </label>
         <app-number-input
@@ -37,16 +45,25 @@
     }
 
     <section formArrayName="lines" aria-labelledby="correctionLinesTitle" class="space-y-3">
-      <h3 id="correctionLinesTitle" class="text-sm font-semibold text-fb-text-primary">Einkaufspositionen</h3>
+      <h3 id="correctionLinesTitle" class="text-sm font-semibold text-fb-text-primary">
+        Einkaufspositionen
+      </h3>
       @for (row of lineRows.controls; track row.controls.id.value; let index = $index) {
         <div
           [formGroupName]="index"
           class="grid grid-cols-1 gap-3 rounded-xl border border-fb-line bg-fb-well p-3 sm:grid-cols-2"
         >
-          <app-text-field [id]="'correctionLineTitle-' + index" formControlName="title" label="Artikel" />
+          <app-text-field
+            [id]="'correctionLineTitle-' + index"
+            formControlName="title"
+            label="Artikel"
+          />
           @if (row.controls.priceMode.value === 'priced') {
             <div>
-              <label [for]="'correctionLinePrice-' + index" class="mb-1.5 block text-[13px] font-semibold text-fb-text-primary">
+              <label
+                [for]="'correctionLinePrice-' + index"
+                class="mb-1.5 block text-[13px] font-semibold text-fb-text-primary"
+              >
                 Einkaufspreis pro Stück
               </label>
               <app-number-input
@@ -59,7 +76,10 @@
             </div>
           } @else {
             <div>
-              <label [for]="'correctionMarketValue-' + index" class="mb-1.5 block text-[13px] font-semibold text-fb-text-primary">
+              <label
+                [for]="'correctionMarketValue-' + index"
+                class="mb-1.5 block text-[13px] font-semibold text-fb-text-primary"
+              >
                 Geschätzter Marktwert
               </label>
               <app-number-input
@@ -75,7 +95,9 @@
     </section>
 
     <section formArrayName="costs" aria-labelledby="correctionCostsTitle" class="space-y-3">
-      <h3 id="correctionCostsTitle" class="text-sm font-semibold text-fb-text-primary">Zusätzliche Einkaufskosten</h3>
+      <h3 id="correctionCostsTitle" class="text-sm font-semibold text-fb-text-primary">
+        Zusätzliche Einkaufskosten
+      </h3>
       @for (row of costRows.controls; track row.controls.id.value; let index = $index) {
         <div
           [formGroupName]="index"
@@ -87,7 +109,10 @@
             label="Beschreibung"
           />
           <div>
-            <label [for]="'correctionCostAmount-' + index" class="mb-1.5 block text-[13px] font-semibold text-fb-text-primary">
+            <label
+              [for]="'correctionCostAmount-' + index"
+              class="mb-1.5 block text-[13px] font-semibold text-fb-text-primary"
+            >
               Betrag
             </label>
             <app-number-input
@@ -118,7 +143,12 @@
     </section>
   </form>
 
-  <app-button modal-footer variant="secondary" [disabled]="isSubmitting()" (clicked)="closed.emit()">
+  <app-button
+    modal-footer
+    variant="secondary"
+    [disabled]="isSubmitting()"
+    (clicked)="closed.emit()"
+  >
     Abbrechen
   </app-button>
   <app-button

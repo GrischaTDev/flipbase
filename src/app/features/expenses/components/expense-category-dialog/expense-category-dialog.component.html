@@ -14,7 +14,7 @@
     <app-text-field
       class="min-w-0 flex-1"
       label="Neue Kategorie"
-      labelHidden
+      [labelHidden]="true"
       placeholder="Eigene Kategorie"
       [formControl]="newNameControl"
     />
@@ -30,7 +30,7 @@
           <app-text-field
             class="min-w-0 flex-1"
             label="Kategoriename"
-            labelHidden
+            [labelHidden]="true"
             [formControl]="editingNameControl"
           />
           <app-button size="slim" variant="primary" (clicked)="saveRename()">Speichern</app-button>
@@ -44,7 +44,11 @@
               }
             </p>
           </div>
-          <app-button size="slim" variant="ghost" (clicked)="startRename(category.id, category.name)">
+          <app-button
+            size="slim"
+            variant="ghost"
+            (clicked)="startRename(category.id, category.name)"
+          >
             Umbenennen
           </app-button>
           <app-button

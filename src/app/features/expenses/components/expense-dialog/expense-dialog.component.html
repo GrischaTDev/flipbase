@@ -11,7 +11,12 @@
       </p>
     }
 
-    <app-text-field formControlName="title" label="Bezeichnung" placeholder="z. B. Versandkartons" />
+    <app-text-field
+      formControlName="title"
+      label="Bezeichnung"
+      placeholder="z. B. Versandkartons"
+    />
+
     <app-text-field
       formControlName="vendor_name"
       label="Händler / Anbieter"
@@ -59,7 +64,9 @@
       </div>
     </div>
 
-    @if (form.controls.gross_amount.value && form.controls.quantity.value > 1 && unitPrice() !== null) {
+    @if (
+      form.controls.gross_amount.value && form.controls.quantity.value > 1 && unitPrice() !== null
+    ) {
       <p class="text-xs text-fb-text-muted">
         {{ unitPrice() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }} pro Stück bei
         {{ form.controls.quantity.value }} Stück
@@ -79,6 +86,7 @@
           Steuerdetails ändern
         </app-button>
       </div>
+
       @if (taxDetailsExpanded()) {
         <div id="expense-tax-details" class="mt-3 space-y-2 border-t border-fb-border pt-3">
           <app-custom-select
@@ -89,7 +97,8 @@
           @if (form.controls.gross_amount.value) {
             <p class="text-xs text-fb-text-muted">
               @if (taxBreakdown().net !== null) {
-                Netto {{ taxBreakdown().net | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                Netto
+                {{ taxBreakdown().net | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                 · enthaltene MwSt.
                 {{ taxBreakdown().tax | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
               } @else {
@@ -140,13 +149,19 @@
         (drop)="onDocumentDrop($event)"
       >
         @if (pendingDocument(); as file) {
-          <strong class="max-w-full truncate text-[13px] text-fb-text-primary">{{ file.name }}</strong>
+          <strong class="max-w-full truncate text-[13px] text-fb-text-primary">
+            {{ file.name }}
+          </strong>
           <span class="mt-1 text-xs text-fb-text-muted">
             Klicken oder eine andere Datei hier ablegen, um den Beleg zu ersetzen.
           </span>
         } @else {
-          <strong class="text-[13px] text-fb-text-primary">Beleg hier ablegen oder auswählen</strong>
-          <span class="mt-1 text-xs text-fb-text-muted">PDF, JPG, PNG oder XML · maximal 20 MiB</span>
+          <strong class="text-[13px] text-fb-text-primary">
+            Beleg hier ablegen oder auswählen
+          </strong>
+          <span class="mt-1 text-xs text-fb-text-muted">
+            PDF, JPG, PNG oder XML · maximal 20 MiB
+          </span>
         }
         <input
           type="file"
@@ -169,5 +184,7 @@
   </form>
 
   <app-button modal-footer variant="secondary" (clicked)="closed.emit()">Abbrechen</app-button>
-  <app-button modal-footer variant="primary" [loading]="isSaving()" (clicked)="save()">Speichern</app-button>
+  <app-button modal-footer variant="primary" [loading]="isSaving()" (clicked)="save()">
+    Speichern
+  </app-button>
 </app-modal-shell>

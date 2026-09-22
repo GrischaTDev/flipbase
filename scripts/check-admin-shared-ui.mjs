@@ -15,7 +15,16 @@ const purchaseWorkspacePath =
   /\/purchases\/(?:components|pages)\/(?:purchase-entry-form|purchase-line-editor|purchase-cost-editor|purchase-cost-summary|purchase-cost-overview-dialog|purchase-create|purchase-detail|purchase-edit)\//u;
 const nativeWorkspaceControlPattern = /<(?:button|input|textarea)\b[^>]*>/giu;
 const nativeFormControlTypes = new Set([
-  'text', 'email', 'password', 'url', 'tel', 'number', 'date', 'time', 'datetime-local', 'search',
+  'text',
+  'email',
+  'password',
+  'url',
+  'tel',
+  'number',
+  'date',
+  'time',
+  'datetime-local',
+  'search',
 ]);
 
 const legacyNativeFormControlPaths = new Set([
@@ -58,15 +67,27 @@ const legacyCustomModalPaths = new Set([
 ]);
 
 const approvedTableExceptions = new Map([
-  ['src/app/features/purchases/pages/purchase-print/purchase-print.component.html', new Set(['static-table'])],
-  ['src/app/features/purchases/components/purchase-line-editor/purchase-line-editor.component.html', new Set(['embedded-table'])],
-  ['src/app/features/purchases/components/purchase-detail-table/purchase-detail-table.component.html', new Set(['static-table'])],
+  [
+    'src/app/features/purchases/pages/purchase-print/purchase-print.component.html',
+    new Set(['static-table']),
+  ],
+  [
+    'src/app/features/purchases/components/purchase-line-editor/purchase-line-editor.component.html',
+    new Set(['embedded-table']),
+  ],
+  [
+    'src/app/features/purchases/components/purchase-detail-table/purchase-detail-table.component.html',
+    new Set(['static-table']),
+  ],
   ['src/app/features/accounting/accounting.component.html', new Set(['static-table'])],
   ['src/app/features/analytics/analytics.component.html', new Set(['static-table'])],
   ['src/app/features/fulfillment/fulfillment.component.html', new Set(['static-table'])],
   ['src/app/features/dashboard/dashboard.component.html', new Set(['static-table'])],
   ['src/app/features/catalog/catalog.component.html', new Set(['static-table'])],
-  ['src/app/features/inventory/components/stock-position-list/stock-position-list.component.html', new Set(['data-table-content', 'static-table'])],
+  [
+    'src/app/features/inventory/components/stock-position-list/stock-position-list.component.html',
+    new Set(['data-table-content', 'static-table']),
+  ],
 ]);
 
 function lineAt(source, offset) {
@@ -82,7 +103,9 @@ function attributeValue(node, name) {
 
 function templateElements(source, path) {
   const parsed = parseTemplate(source, path, { preserveWhitespaces: false });
-  if (parsed.errors?.length) throw new Error(parsed.errors.map((error) => error.toString()).join('\n'));
+  if (parsed.errors?.length) {
+    throw new Error(parsed.errors.map((error) => error.toString()).join('\n'));
+  }
   const elements = [];
   const walk = (nodes, ancestors) => {
     for (const node of nodes ?? []) {
@@ -101,16 +124,29 @@ export function findAdminSharedUiViolations(path, source) {
   const elements = templateElements(source, path);
   const tables = elements.filter(({ node }) => node.name === 'table');
 
-  for (const match of source.matchAll(nativeSelectPattern)) violations.push({ rule: 'native-select', line: lineAt(source, match.index) });
-  for (const match of source.matchAll(localStatusPillPattern)) violations.push({ rule: 'local-status-pill', line: lineAt(source, match.index) });
-  for (const match of source.matchAll(blackPrimaryVariantPattern)) violations.push({ rule: 'black-primary-variant', line: lineAt(source, match.index) });
-  for (const match of source.matchAll(directTableColumnMenuPattern)) violations.push({ rule: 'direct-table-column-menu', line: lineAt(source, match.index) });
-  for (const match of source.matchAll(legacyTableToolbarPattern)) violations.push({ rule: 'legacy-table-toolbar', line: lineAt(source, match.index) });
+  for (const match of source.matchAll(nativeSelectPattern)) {
+    violations.push({ rule: 'native-select', line: lineAt(source, match.index) });
+  }
+  for (const match of source.matchAll(localStatusPillPattern)) {
+    violations.push({ rule: 'local-status-pill', line: lineAt(source, match.index) });
+  }
+  for (const match of source.matchAll(blackPrimaryVariantPattern)) {
+    violations.push({ rule: 'black-primary-variant', line: lineAt(source, match.index) });
+  }
+  for (const match of source.matchAll(directTableColumnMenuPattern)) {
+    violations.push({ rule: 'direct-table-column-menu', line: lineAt(source, match.index) });
+  }
+  for (const match of source.matchAll(legacyTableToolbarPattern)) {
+    violations.push({ rule: 'legacy-table-toolbar', line: lineAt(source, match.index) });
+  }
 
-  if (!purchaseWorkspacePath.test(normalizedPath) && !legacyNativeFormControlPaths.has(normalizedPath)) {
+  if (
+    !purchaseWorkspacePath.test(normalizedPath) &&
+    !legacyNativeFormControlPaths.has(normalizedPath)
+  ) {
     for (const { node } of elements) {
       const isTextarea = node.name === 'textarea';
-      const inputType = node.name === 'input' ? (attributeValue(node, 'type') || 'text') : null;
+      const inputType = node.name === 'input' ? attributeValue(node, 'type') || 'text' : null;
       const isStandardInput = inputType !== null && nativeFormControlTypes.has(inputType);
       const tableSearchHandledSeparately = inputType === 'search' && tables.length > 0;
       if ((isTextarea || isStandardInput) && !tableSearchHandledSeparately) {
@@ -119,23 +155,41 @@ export function findAdminSharedUiViolations(path, source) {
     }
   }
 
-  if (source.includes('appModalDialog') && !source.includes('<app-modal-shell') && !legacyCustomModalPaths.has(normalizedPath)) {
-    violations.push({ rule: 'custom-modal-shell', line: lineAt(source, source.indexOf('appModalDialog')) });
+  if (
+    source.includes('appModalDialog') &&
+    !source.includes('<app-modal-shell') &&
+    !legacyCustomModalPaths.has(normalizedPath)
+  ) {
+    violations.push({
+      rule: 'custom-modal-shell',
+      line: lineAt(source, source.indexOf('appModalDialog')),
+    });
   }
 
   if (tables.length > 0) {
-    for (const match of source.matchAll(nativeTableSearchPattern)) violations.push({ rule: 'native-table-search', line: lineAt(source, match.index) });
+    for (const match of source.matchAll(nativeTableSearchPattern)) {
+      violations.push({ rule: 'native-table-search', line: lineAt(source, match.index) });
+    }
+
     for (const { node, ancestors } of tables) {
       const line = node.sourceSpan.start.line + 1;
       const exception = attributeValue(node, 'data-shared-ui-exception');
       if (exception !== null) {
-        if (!approvedTableExceptions.get(path)?.has(exception)) violations.push({ rule: 'unapproved-table-exception', line });
+        if (!approvedTableExceptions.get(path)?.has(exception)) {
+          violations.push({ rule: 'unapproved-table-exception', line });
+        }
         continue;
       }
+
       const dataTableIndex = ancestors.findIndex((ancestor) => ancestor.name === 'app-data-table');
-      const inContentSlot = ancestors.slice(dataTableIndex + 1).some((ancestor) => attributeValue(ancestor, 'table-content') !== null);
-      if (dataTableIndex < 0) violations.push({ rule: 'managed-table-without-data-table', line });
-      else if (!inContentSlot) violations.push({ rule: 'table-outside-content-slot', line });
+      const inContentSlot = ancestors
+        .slice(dataTableIndex + 1)
+        .some((ancestor) => attributeValue(ancestor, 'table-content') !== null);
+      if (dataTableIndex < 0) {
+        violations.push({ rule: 'managed-table-without-data-table', line });
+      } else if (!inContentSlot) {
+        violations.push({ rule: 'table-outside-content-slot', line });
+      }
     }
   }
 
@@ -146,19 +200,25 @@ export function findAdminSharedUiViolations(path, source) {
         /\btype=["']file["']/u.test(tag) &&
         /\bclass=["'][^"']*\b(?:hidden|sr-only)\b/u.test(tag) &&
         /\bdata-shared-ui-exception=["']native-file-picker["']/u.test(tag);
-      if (!hiddenFileTransport) violations.push({ rule: 'native-workspace-control', line: lineAt(source, match.index) });
+      if (!hiddenFileTransport) {
+        violations.push({ rule: 'native-workspace-control', line: lineAt(source, match.index) });
+      }
     }
   }
 
-  return violations.sort((left, right) => left.line - right.line || left.rule.localeCompare(right.rule));
+  return violations.sort(
+    (left, right) => left.line - right.line || left.rule.localeCompare(right.rule),
+  );
 }
 
 async function collectHtmlFiles(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
-  const files = await Promise.all(entries.map((entry) => {
-    const path = resolve(directory, entry.name);
-    return entry.isDirectory() ? collectHtmlFiles(path) : [path];
-  }));
+  const files = await Promise.all(
+    entries.map((entry) => {
+      const path = resolve(directory, entry.name);
+      return entry.isDirectory() ? collectHtmlFiles(path) : [path];
+    }),
+  );
   return files.flat().filter((path) => path.endsWith('.html'));
 }
 
@@ -168,6 +228,7 @@ export async function checkAdminSharedUi(root = process.cwd()) {
     (path) => !relative(featuresRoot, path).replaceAll('\\', '/').startsWith('store/'),
   );
   const violations = [];
+
   for (const path of files) {
     const source = await readFile(path, 'utf8');
     const relativePath = relative(root, path).replaceAll('\\', '/');
@@ -175,7 +236,11 @@ export async function checkAdminSharedUi(root = process.cwd()) {
       violations.push(`${relativePath}:${violation.line} ${violation.rule}`);
     }
   }
-  if (violations.length > 0) throw new Error(`Abweichungen von Shared-UI-Komponenten:\n${violations.join('\n')}`);
+
+  if (violations.length > 0) {
+    throw new Error(`Abweichungen von Shared-UI-Komponenten:\n${violations.join('\n')}`);
+  }
+
   return { files: files.length, findings: 0 };
 }
 

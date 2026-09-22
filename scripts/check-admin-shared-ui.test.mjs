@@ -46,7 +46,10 @@ test('keeps technical native inputs outside the standard-form rule', () => {
     <input type="checkbox" />
     <input type="radio" />
   `;
-  assert.deepEqual(findAdminSharedUiViolations('src/app/features/example/example.html', source), []);
+  assert.deepEqual(
+    findAdminSharedUiViolations('src/app/features/example/example.html', source),
+    [],
+  );
 });
 
 test('rejects local managed-table shells and native table search controls', () => {
