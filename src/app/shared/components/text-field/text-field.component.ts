@@ -71,7 +71,7 @@ export class TextFieldComponent implements ControlValueAccessor {
 
   protected readonly inputClasses = computed(() => {
     const base =
-      'linear-input min-h-8 w-full rounded-lg px-3 py-1.5 text-[13px] transition-colors outline-none ' +
+      'linear-input min-h-8 w-full rounded-lg px-3 py-1 text-[13px] transition-colors outline-none ' +
       'disabled:cursor-not-allowed disabled:opacity-40';
 
     const mono = this.monospaced() ? 'font-mono' : '';

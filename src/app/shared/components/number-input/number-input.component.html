@@ -11,7 +11,7 @@
     [disabled]="effectiveDisabled()"
     (input)="handleInput($event)"
     (blur)="handleBlur()"
-    class="linear-input min-h-9 w-full rounded-md px-2.5 py-1.5 text-[13px] transition-colors"
+    class="linear-input min-h-8 w-full rounded-md px-2.5 py-1 text-[13px] transition-colors"
     [class.pr-20]="showStepper()"
     [class.pr-8]="!showStepper() && !!effectiveUnit()"
     [class.font-mono]="effectiveAsCurrency()"
