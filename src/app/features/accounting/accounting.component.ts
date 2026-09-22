@@ -43,6 +43,8 @@ import { BankTransaction } from '../../core/models/bank-reconciliation.models';
 import { SyncStatusService } from '../../core/services/sync-status.service';
 import { ToastService } from '../../shared/components/toast/toast.service';
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
+import { CardComponent } from '../../shared/components/card/card.component';
+import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 
 import { ModalShellComponent } from '../../shared/components/modal-shell/modal-shell.component';
 import { TextFieldComponent } from '../../shared/components/text-field/text-field.component';
@@ -66,6 +68,8 @@ export type BankTxFilter = 'all' | 'matched' | 'pending' | 'booked' | 'ignored';
 @Component({
   selector: 'app-accounting',
   imports: [
+    PageHeaderComponent,
+    CardComponent,
     ModalShellComponent,
     TextFieldComponent,
     ReactiveFormsModule,

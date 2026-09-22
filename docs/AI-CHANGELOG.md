@@ -1,5 +1,22 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-22 – Juna – Steuer- & DATEV-Designangleichung: Umstellung auf PageHeader, CardComponent und Polaris-Geometrie
+
+**Auftrag:** Die Buchhaltungsansicht (`src/app/features/accounting/`) an die einheitliche Shopify-Admin-Geometrie und Shared-UI-Komponenten angleichen. Veraltete `.card`- und `.kpi-card`-Container durch `CardComponent` ersetzen, den Kopfbereich auf `PageHeaderComponent` und segmentierte `ButtonComponent`-Tabs umstellen, Aktionsschaltflächen auf `ButtonComponent` migrieren und unzulässige Versalschrift entfernen.
+
+**Änderung:**
+
+- In `accounting.component.ts` wurden `PageHeaderComponent` und `CardComponent` importiert und in die Komponenten-Imports aufgenommen.
+- In `accounting.component.html` wurde der handgestylte Kopfbereich durch `PageHeaderComponent` mit segmentierter Button-Gruppe für die Ansichtsumschaltung (§ 25a Steuer & DATEV / Bankabgleich) ersetzt.
+- Der Datei-Upload-Auslöser und der Zurücksetzen-Button im Bankabgleich nutzen nun standardisierte `ButtonComponent`-Instanzen (`variant="primary"` bzw. `variant="ghost"`).
+- Die vier Kennzahlenkarten im Bankabgleich und die vier Kennzahlenkarten im Steuerjournal wurden durch `CardComponent` mit `rounded="xl"` und `padding="sm"` ersetzt; `.kpi-value` sowie semantische Erfolgs- und Verlustfarben bleiben zur Gewährleistung bestehender Testverträge erhalten.
+- Der Aktionsbereich und die Steuerhinweisbox im Steuerjournal wurden in `CardComponent` eingebettet; die Export-Buttons (`DATEV EXTF CSV`, `§ 25a Journal`, `Berichtspaket vorbereiten`) wurden auf `ButtonComponent` umgestellt.
+- Die statische Steuerjournal-Tabelle wurde in `<app-card padding="none" rounded="xl">` mit strukturierter `[card-header]`-Projektion (Titel, Untertitel und `BadgeComponent` für die Eintragszahl) gekapselt; die Rechnungsanzeige-Schaltfläche wurde auf `ButtonComponent` umgestellt.
+- Die Formularbeschriftung für den Kontenrahmen im Steuerberater-Modal wurde von dekorativer Versalschrift (`uppercase tracking-wider`) auf standardisiertes Label-Styling umgestellt.
+- In `accounting-tax-review.angular.spec.ts` wurden `PageHeaderComponent` und `CardComponent` registriert sowie `iconOnly` und `title` für `ButtonComponent` in den Test-Metadaten hinterlegt.
+
+**Prüfung:** `npm run format:check`, `npm run lint`, `npm run typecheck`, `npm run test:workflow` (84/84 bestanden, 0 Findings in `check-admin-shared-ui`), `node --test scripts/check-admin-shared-ui.test.mjs` (14/14 bestanden) sowie alle 20 Vitest-Tests in `src/app/features/accounting/` erfolgreich ausgeführt.
+
 ## 2026-09-22 – Juna – Repository-Hygiene: Dependabot-Upgrades und Bereinigung veralteter Tracking-Branches
 
 **Auftrag:** Veraltete Remote-Tracking-Branches aufräumen und freigegebene CI-Abhängigkeitsupdates von Dependabot mergen.

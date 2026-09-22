@@ -20,6 +20,8 @@ import { CustomSearchInputComponent } from '../../shared/components/custom-searc
 import { TableColumnMenuComponent } from '../../shared/components/table-column-menu/table-column-menu.component';
 import { TableSortHeaderComponent } from '../../shared/components/table-sort-header/table-sort-header.component';
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
+import { CardComponent } from '../../shared/components/card/card.component';
+import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { DataTableComponent } from '../../shared/components/data-table/data-table.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
 
@@ -49,6 +51,8 @@ beforeAll(async () => {
     if (matches.length !== 1) throw new Error(`Uneindeutige Ressource: ${url}`);
     return readFile(matches[0], 'utf8');
   });
+  registerInputs(PageHeaderComponent, ['title', 'subtitle', 'icon']);
+  registerInputs(CardComponent, ['padding', 'rounded', 'variant']);
   registerInputs(DataTableComponent, [
     'ariaLabel',
     'searchValue',
@@ -71,9 +75,11 @@ beforeAll(async () => {
     'variant',
     'size',
     'icon',
+    'iconOnly',
     'disabled',
     'ariaLabel',
     'ariaPressed',
+    'title',
   ]);
   registerInputs(CustomSelectComponent, [
     'options',

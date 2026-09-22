@@ -1,59 +1,43 @@
 <div class="space-y-6 animate-fade-in">
   <!-- Top Header & Primary Tabs Switcher -->
-  <div
-    class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-fb-border/40 pb-4"
+  <app-page-header
+    title="Finanzen, Steuern & Bankabgleich"
+    subtitle="Differenzbesteuerung gem. § 25a UStG, DATEV-Export und automatischer Kontoauszug-Zahlungsabgleich."
+    [icon]="receiptIcon"
   >
-    <div>
-      <h1
-        class="flex items-center gap-2 text-xl leading-7 font-[450] tracking-tight text-fb-text-primary"
+    <div
+      header-actions
+      class="inline-flex rounded-lg border border-fb-line bg-fb-well p-1"
+      role="group"
+      aria-label="Finanzansicht"
+    >
+      <app-button
+        size="slim"
+        [variant]="activeTab() === 'tax_journal' ? 'secondary' : 'ghost'"
+        [ariaPressed]="activeTab() === 'tax_journal'"
+        [icon]="spreadsheetIcon"
+        (clicked)="activeTab.set('tax_journal')"
       >
-        <svg [lucideIcon]="receiptIcon" class="h-5 w-5 shrink-0 text-fb-text-secondary"></svg>
-        <span>Finanzen, Steuern & Bankabgleich</span>
-      </h1>
-      <p class="text-xs text-fb-text-muted mt-0.5">
-        Differenzbesteuerung gem. § 25a UStG, DATEV-Export und automatischer
-        Kontoauszug-Zahlungsabgleich.
-      </p>
-    </div>
-
-    <!-- Navigation Tabs -->
-    <div class="flex items-center gap-1.5 p-1 rounded-xl bg-fb-subtle border border-fb-border/60">
-      <button
-        type="button"
-        (click)="activeTab.set('tax_journal')"
-        class="px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
-        [class.bg-fb-surface-alt]="activeTab() === 'tax_journal'"
-        [class.text-fb-text-primary]="activeTab() === 'tax_journal'"
-        [class.shadow-2xs]="activeTab() === 'tax_journal'"
-        [class.text-fb-text-muted]="activeTab() !== 'tax_journal'"
-        [class.hover:text-fb-text-primary]="activeTab() !== 'tax_journal'"
+        § 25a Steuer & DATEV
+      </app-button>
+      <app-button
+        size="slim"
+        [variant]="activeTab() === 'bank_reconciliation' ? 'secondary' : 'ghost'"
+        [ariaPressed]="activeTab() === 'bank_reconciliation'"
+        [icon]="cardIcon"
+        (clicked)="activeTab.set('bank_reconciliation')"
       >
-        <svg [lucideIcon]="spreadsheetIcon" class="w-3.5 h-3.5"></svg>
-        <span>§ 25a Steuer & DATEV</span>
-      </button>
-
-      <button
-        type="button"
-        (click)="activeTab.set('bank_reconciliation')"
-        class="px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer relative"
-        [class.bg-fb-surface-alt]="activeTab() === 'bank_reconciliation'"
-        [class.text-fb-text-primary]="activeTab() === 'bank_reconciliation'"
-        [class.shadow-2xs]="activeTab() === 'bank_reconciliation'"
-        [class.text-fb-text-muted]="activeTab() !== 'bank_reconciliation'"
-        [class.hover:text-fb-text-primary]="activeTab() !== 'bank_reconciliation'"
-      >
-        <svg [lucideIcon]="cardIcon" class="w-3.5 h-3.5 text-fb-profit"></svg>
-        <span>Bankabgleich</span>
+        Bankabgleich
         @if (bankService.summary().matchedCount > 0) {
           <span
-            class="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-fb-profit text-black font-mono"
+            class="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-fb-profit text-black font-mono"
           >
             {{ bankService.summary().matchedCount }}
           </span>
         }
-      </button>
+      </app-button>
     </div>
-  </div>
+  </app-page-header>
 
   <!-- ========================================================================= -->
   <!-- TAB 1: BANK RECONCILIATION ENGINE (MT940 / CAMT / CSV)                     -->
@@ -72,6 +56,7 @@
         (drop)="onFileDrop($event)"
       >
         <input
+          #bankFileInput
           type="file"
           id="bankFileInput"
           accept=".csv,.txt,.xml,.sta,.940"
@@ -98,24 +83,25 @@
           </div>
 
           <div class="flex flex-wrap items-center justify-center gap-2.5 pt-1">
-            <label
-              for="bankFileInput"
-              class="linear-btn-primary text-xs py-2 px-4 flex items-center gap-1.5 cursor-pointer shadow-xs rounded-lg"
+            <app-button
+              variant="primary"
+              size="sm"
+              [icon]="uploadIcon"
+              (clicked)="bankFileInput.click()"
             >
-              <svg [lucideIcon]="uploadIcon" class="w-3.5 h-3.5"></svg>
-              <span>Datei auswählen</span>
-            </label>
+              Datei auswählen
+            </app-button>
 
             @if (bankService.transactions().length > 0) {
-              <button
-                type="button"
-                (click)="onResetBankStatement()"
-                class="text-xs text-fb-text-muted hover:text-rose-400 p-2 transition cursor-pointer"
+              <app-button
+                variant="ghost"
+                size="sm"
+                [icon]="trashIcon"
+                [iconOnly]="true"
+                ariaLabel="Kontoauszug zurücksetzen"
                 title="Kontoauszug zurücksetzen"
-                aria-label="Kontoauszug zurücksetzen"
-              >
-                <svg [lucideIcon]="trashIcon" class="w-4 h-4"></svg>
-              </button>
+                (clicked)="onResetBankStatement()"
+              />
             }
           </div>
         </div>
@@ -126,54 +112,58 @@
         @let sum = bankService.summary();
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
           <!-- Total Count -->
-          <div class="kpi-card space-y-1">
-            <span class="kpi-label">Umsätze importiert</span>
-            <div class="kpi-value font-mono">{{ sum.totalCount }}</div>
-            <span class="text-[10px] text-fb-text-muted"
-              >{{ sum.bookedCount }} gebucht • {{ sum.openCount }} offen</span
-            >
-          </div>
+          <app-card rounded="xl" padding="sm">
+            <span class="text-xs font-medium text-fb-text-muted">Umsätze importiert</span>
+            <div class="kpi-value mt-1 font-mono text-lg font-semibold text-fb-text-primary">
+              {{ sum.totalCount }}
+            </div>
+            <span class="mt-0.5 text-[11px] text-fb-text-muted">
+              {{ sum.bookedCount }} gebucht • {{ sum.openCount }} offen
+            </span>
+          </app-card>
 
           <!-- Total Income -->
-          <div class="kpi-card space-y-1">
-            <span class="kpi-label flex items-center gap-1 text-fb-profit">
-              <svg [lucideIcon]="incomeIcon" class="w-3 h-3"></svg>
+          <app-card rounded="xl" padding="sm">
+            <span class="flex items-center gap-1 text-xs font-medium text-fb-profit">
+              <svg [lucideIcon]="incomeIcon" class="w-3.5 h-3.5"></svg>
               <span>Gutschriften</span>
             </span>
-            <div class="kpi-value font-mono text-fb-profit">
+            <div class="kpi-value mt-1 font-mono text-lg font-semibold text-fb-profit">
               {{ sum.totalIncome | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
             </div>
-            <span class="text-[10px] text-fb-text-muted">Zahlungseingänge</span>
-          </div>
+            <span class="mt-0.5 text-[11px] text-fb-text-muted">Zahlungseingänge</span>
+          </app-card>
 
           <!-- Total Expenses -->
-          <div class="kpi-card space-y-1">
-            <span class="kpi-label flex items-center gap-1 text-rose-400">
-              <svg [lucideIcon]="expenseIcon" class="w-3 h-3"></svg>
+          <app-card rounded="xl" padding="sm">
+            <span class="flex items-center gap-1 text-xs font-medium text-rose-400">
+              <svg [lucideIcon]="expenseIcon" class="w-3.5 h-3.5"></svg>
               <span>Lastschriften / Ausgaben</span>
             </span>
-            <div class="kpi-value font-mono text-rose-400">
+            <div class="kpi-value mt-1 font-mono text-lg font-semibold text-rose-400">
               -{{ sum.totalExpense | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
             </div>
-            <span class="text-[10px] text-fb-text-muted">Einkäufe & Gebühren</span>
-          </div>
+            <span class="mt-0.5 text-[11px] text-fb-text-muted">Einkäufe & Gebühren</span>
+          </app-card>
 
           <!-- Auto Match Rate -->
-          <div class="kpi-card space-y-1">
-            <span class="kpi-label">Auto-Match-Rate</span>
-            <div class="kpi-value font-mono text-fb-text-primary flex items-baseline gap-1">
+          <app-card rounded="xl" padding="sm">
+            <span class="text-xs font-medium text-fb-text-muted">Auto-Match-Rate</span>
+            <div
+              class="kpi-value mt-1 font-mono text-lg font-semibold text-fb-text-primary flex items-baseline gap-1"
+            >
               <span>{{ sum.autoMatchRate }}%</span>
-              <span class="text-[10px] text-fb-profit font-normal"
+              <span class="text-[11px] text-fb-profit font-normal"
                 >({{ sum.matchedCount }} bereit)</span
               >
             </div>
-            <div class="w-full h-1.5 rounded-full bg-fb-surface-alt overflow-hidden mt-1">
+            <div class="w-full h-1.5 rounded-full bg-fb-surface-alt overflow-hidden mt-1.5">
               <div
                 class="h-full bg-fb-profit transition-all duration-300"
                 [style.width.%]="sum.autoMatchRate"
               ></div>
             </div>
-          </div>
+          </app-card>
         </div>
 
         <app-data-table
@@ -432,7 +422,7 @@
   @if (activeTab() === 'tax_journal') {
     <div class="space-y-6 animate-fade-in">
       <!-- Filter Bar & Summary Cards -->
-      <div class="card p-4 space-y-4">
+      <app-card rounded="xl" padding="md">
         <div class="flex flex-wrap items-center justify-between gap-3">
           <!-- Year & Period Selector -->
           <div class="flex flex-wrap items-center gap-2 text-xs">
@@ -459,118 +449,120 @@
 
           <!-- Export Actions & Tax Advisor Integration -->
           <div class="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              (click)="onDownloadDatev()"
+            <app-button
+              variant="secondary"
+              size="sm"
+              [icon]="downloadIcon"
               [disabled]="reviewCount() > 0"
-              class="linear-btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5 cursor-pointer shadow-2xs rounded-lg"
+              (clicked)="onDownloadDatev()"
             >
-              <svg [lucideIcon]="downloadIcon" class="w-3.5 h-3.5 text-fb-profit"></svg>
-              <span>DATEV EXTF CSV</span>
-            </button>
+              DATEV EXTF CSV
+            </app-button>
 
-            <button
-              type="button"
-              (click)="onDownloadDiffTaxJournal()"
+            <app-button
+              variant="secondary"
+              size="sm"
+              [icon]="spreadsheetIcon"
               [disabled]="reviewCount() > 0"
-              class="linear-btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5 cursor-pointer shadow-2xs rounded-lg"
+              (clicked)="onDownloadDiffTaxJournal()"
             >
-              <svg [lucideIcon]="spreadsheetIcon" class="w-3.5 h-3.5"></svg>
-              <span>§ 25a Journal</span>
-            </button>
+              § 25a Journal
+            </app-button>
 
-            <button
-              type="button"
-              (click)="openTaxAdvisorModal()"
+            <app-button
+              variant="primary"
+              size="sm"
+              [icon]="mailIcon"
               [disabled]="reviewCount() > 0"
-              class="linear-btn-primary text-xs py-1.5 px-3.5 flex items-center gap-1.5 cursor-pointer shadow-xs rounded-lg"
+              (clicked)="openTaxAdvisorModal()"
             >
-              <svg [lucideIcon]="mailIcon" class="w-3.5 h-3.5"></svg>
-              <span>Berichtspaket vorbereiten</span>
-            </button>
+              Berichtspaket vorbereiten
+            </app-button>
           </div>
         </div>
-      </div>
+      </app-card>
 
-      <div class="card p-4 space-y-2 text-[13px]" role="status">
-        @if (reviewCount() > 0) {
-          <p>
-            <strong
-              >{{ reviewCount() }}
-              {{ reviewCount() === 1 ? 'Position' : 'Positionen' }} prüfen:</strong
-            >
-            Für diese Positionen sind Einkaufspreise oder Kosten noch nicht eindeutig zugeordnet.
-            Bitte die zugehörigen Einkäufe prüfen. Steuerbeträge und Exporte bleiben bis dahin
-            offen.
+      <app-card rounded="xl" padding="md">
+        <div class="space-y-2 text-[13px]" role="status">
+          @if (reviewCount() > 0) {
+            <p>
+              <strong
+                >{{ reviewCount() }}
+                {{ reviewCount() === 1 ? 'Position' : 'Positionen' }} prüfen:</strong
+              >
+              Für diese Positionen sind Einkaufspreise oder Kosten noch nicht eindeutig zugeordnet.
+              Bitte die zugehörigen Einkäufe prüfen. Steuerbeträge und Exporte bleiben bis dahin
+              offen.
+            </p>
+          }
+          <p class="text-fb-text-secondary">
+            Vorläufige Steuerübersicht. Vorsteuer wird noch nicht automatisch berücksichtigt.
           </p>
-        }
-        <p class="text-fb-text-secondary">
-          Vorläufige Steuerübersicht. Vorsteuer wird noch nicht automatisch berücksichtigt.
-        </p>
-      </div>
+        </div>
+      </app-card>
 
       <!-- Financial Metrics Summary Cards -->
       @let sum = periodSummary();
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-        <div class="kpi-card space-y-1">
-          <span class="kpi-label">Brutto-Umsatz</span>
-          <div class="kpi-value font-mono">
+        <app-card rounded="xl" padding="sm">
+          <span class="text-xs font-medium text-fb-text-muted">Brutto-Umsatz</span>
+          <div class="kpi-value mt-1 font-mono text-lg font-semibold text-fb-text-primary">
             {{ sum.gross_revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
           </div>
-          <span class="text-[10px] text-fb-text-muted">{{ salesCount() }} Verkäufe</span>
-        </div>
+          <span class="mt-0.5 text-[11px] text-fb-text-muted">{{ salesCount() }} Verkäufe</span>
+        </app-card>
 
-        <div class="kpi-card space-y-1">
-          <span class="kpi-label">Wareneinsatz (Ankauf)</span>
-          <div class="kpi-value font-mono text-fb-text-muted">
+        <app-card rounded="xl" padding="sm">
+          <span class="text-xs font-medium text-fb-text-muted">Wareneinsatz (Ankauf)</span>
+          <div class="kpi-value mt-1 font-mono text-lg font-semibold text-fb-text-muted">
             @if (reviewCount() > 0) {
               Prüfen
             } @else {
               {{ sum.total_cost_of_goods_sold | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
             }
           </div>
-          <span class="text-[10px] text-fb-text-muted"
+          <span class="mt-0.5 text-[11px] text-fb-text-muted"
             >Einkauf einschließlich zugeordneter Kosten</span
           >
-        </div>
+        </app-card>
 
-        <div class="kpi-card space-y-1">
-          <span class="kpi-label">Rohertrag (Marge)</span>
-          <div class="kpi-value font-mono text-fb-profit">
+        <app-card rounded="xl" padding="sm">
+          <span class="text-xs font-medium text-fb-text-muted">Rohertrag (Marge)</span>
+          <div class="kpi-value mt-1 font-mono text-lg font-semibold text-fb-profit">
             @if (reviewCount() > 0) {
               Prüfen
             } @else {
               {{ sum.total_gross_margin | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
             }
           </div>
-          <span class="text-[10px] text-fb-text-muted">Erlös abzüglich Wareneinsatz</span>
-        </div>
+          <span class="mt-0.5 text-[11px] text-fb-text-muted">Erlös abzüglich Wareneinsatz</span>
+        </app-card>
 
-        <div class="kpi-card space-y-1">
-          <span class="kpi-label">Berechnete Umsatzsteuer</span>
-          <div class="kpi-value font-mono text-fb-text-primary">
+        <app-card rounded="xl" padding="sm">
+          <span class="text-xs font-medium text-fb-text-muted">Berechnete Umsatzsteuer</span>
+          <div class="kpi-value mt-1 font-mono text-lg font-semibold text-fb-text-primary">
             @if (reviewCount() > 0) {
               Prüfen
             } @else {
               {{ sum.total_vat_due | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
             }
           </div>
-          <span class="text-[10px] text-fb-text-muted">Vorsteuer noch nicht berücksichtigt</span>
-        </div>
+          <span class="mt-0.5 text-[11px] text-fb-text-muted"
+            >Vorsteuer noch nicht berücksichtigt</span
+          >
+        </app-card>
       </div>
 
       <!-- Tax Calculations Table -->
-      <div class="card overflow-hidden">
-        <div class="p-4 border-b border-fb-border/40 flex items-center justify-between">
+      <app-card padding="none" rounded="xl">
+        <div card-header class="flex items-center justify-between gap-4">
           <div>
-            <h2 class="text-sm font-bold text-fb-text-primary">Steuerjournal</h2>
-            <span class="text-xs text-fb-text-muted">Berechnung je Verkaufsposition</span>
+            <h2 class="text-sm font-semibold text-fb-text-primary">Steuerjournal</h2>
+            <p class="text-xs text-fb-text-muted">Berechnung je Verkaufsposition</p>
           </div>
-          <span
-            class="px-2 py-0.5 rounded text-[10px] font-mono bg-fb-surface-alt text-fb-text-muted"
-          >
+          <app-badge tone="neutral" [mono]="true">
             {{ filteredTaxResults().length }} Einträge
-          </span>
+          </app-badge>
         </div>
 
         <div class="overflow-x-auto">
@@ -673,23 +665,23 @@
                     }
                   </td>
                   <td class="py-3 px-4 text-center">
-                    <button
-                      type="button"
-                      (click)="openInvoiceModal(row)"
+                    <app-button
+                      variant="ghost"
+                      size="slim"
+                      [icon]="fileIcon"
+                      [iconOnly]="true"
                       [disabled]="row.calculation_status !== 'complete'"
-                      class="text-fb-text-muted hover:text-fb-text-primary p-1 transition cursor-pointer"
+                      ariaLabel="Rechnung anzeigen"
                       title="Rechnung anzeigen"
-                      aria-label="Rechnung anzeigen"
-                    >
-                      <svg [lucideIcon]="fileIcon" class="w-4 h-4"></svg>
-                    </button>
+                      (clicked)="openInvoiceModal(row)"
+                    />
                   </td>
                 </tr>
               }
             </tbody>
           </table>
         </div>
-      </div>
+      </app-card>
     </div>
   }
 
@@ -742,10 +734,7 @@
             [monospaced]="true"
           />
           <div>
-            <span
-              class="block text-[10px] font-bold uppercase tracking-wider text-fb-text-muted mb-1"
-              >Kontenrahmen</span
-            >
+            <span class="mb-1 block text-xs font-medium text-fb-text-muted">Kontenrahmen</span>
             <app-custom-select
               ariaLabel="Kontenrahmen"
               [options]="kontenrahmenOptionen"
