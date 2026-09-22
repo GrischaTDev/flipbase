@@ -14,6 +14,8 @@ const nativeTableSearchPattern = /<input\b[^>]*\btype\s*=\s*["']search["'][^>]*>
 const purchaseWorkspacePath =
   /\/purchases\/(?:components|pages)\/(?:purchase-entry-form|purchase-line-editor|purchase-cost-editor|purchase-cost-summary|purchase-cost-overview-dialog|purchase-create|purchase-detail|purchase-edit)\//u;
 const nativeWorkspaceControlPattern = /<(?:button|input|textarea)\b[^>]*>/giu;
+const strictSharedFormPath = /^src\/app\/features\/(?:expenses|settings)\//u;
+const nativeFormControlPattern = /<(?:input|textarea)\b[^>]*>/giu;
 
 const approvedTableExceptions = new Map([
   [
@@ -109,6 +111,19 @@ export function findAdminSharedUiViolations(path, source) {
         violations.push({ rule: 'managed-table-without-data-table', line });
       } else if (!inContentSlot) {
         violations.push({ rule: 'table-outside-content-slot', line });
+      }
+    }
+  }
+
+  if (strictSharedFormPath.test(path.replaceAll('\\', '/'))) {
+    for (const match of source.matchAll(nativeFormControlPattern)) {
+      const tag = match[0];
+      const hiddenFileTransport =
+        /\btype=["']file["']/u.test(tag) &&
+        /\bclass=["'][^"']*\b(?:hidden|sr-only)\b/u.test(tag) &&
+        /\bdata-shared-ui-exception=["']native-file-picker["']/u.test(tag);
+      if (!hiddenFileTransport) {
+        violations.push({ rule: 'native-form-control', line: lineAt(source, match.index) });
       }
     }
   }
