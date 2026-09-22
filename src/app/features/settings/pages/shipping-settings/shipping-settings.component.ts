@@ -13,6 +13,7 @@ import { SyncStatusService } from '../../../../core/services/sync-status.service
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
+import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
 
 function trimmedRequired(control: AbstractControl<string>): ValidationErrors | null {
   return control.value.trim() ? null : { trimmedRequired: true };
@@ -20,7 +21,7 @@ function trimmedRequired(control: AbstractControl<string>): ValidationErrors | n
 
 @Component({
   selector: 'app-shipping-settings',
-  imports: [ReactiveFormsModule, LucideDynamicIcon, TextFieldComponent],
+  imports: [ReactiveFormsModule, LucideDynamicIcon, TextFieldComponent, CustomCheckboxComponent],
   templateUrl: './shipping-settings.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },

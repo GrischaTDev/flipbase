@@ -82,73 +82,51 @@
   }
 </section>
 @if (isInviteModalOpen()) {
-  <div
-    class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/80 p-3 backdrop-blur-md"
+  <app-modal-shell
+    title="Team-Mitglied einladen"
+    subtitle="Sende eine Einladung per E-Mail mit definierter Rolle."
+    size="sm"
+    (closed)="closeInviteModal()"
   >
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="invite-heading"
-      class="my-auto w-full max-w-md space-y-5 rounded-3xl border border-fb-border bg-fb-surface p-6 text-fb-text-secondary shadow-2xl"
-    >
-      <div class="flex items-start justify-between border-b border-fb-border pb-3">
-        <div>
-          <h3 id="invite-heading" class="text-base font-bold text-fb-text-primary">
-            Team-Mitglied einladen
-          </h3>
-          <p class="text-xs text-fb-text-muted">
-            Sende eine Einladung per E-Mail mit definierter Rolle.
-          </p>
-        </div>
-        <button
-          type="button"
-          (click)="closeInviteModal()"
-          class="min-h-11 px-2 text-fb-text-secondary"
-          aria-label="Dialog schließen"
-        >
-          <svg [lucideIcon]="closeIcon" class="h-5 w-5" aria-hidden="true"></svg>
-        </button>
+    @if (inviteError()) {
+      <p
+        role="alert"
+        class="rounded-xl border border-rose-500/30 bg-rose-500/15 p-3 text-xs text-rose-700"
+      >
+        {{ inviteError() }}
+      </p>
+    }
+    <form id="invite-form" [formGroup]="inviteForm" (ngSubmit)="onSendInvite()" class="space-y-4">
+      <app-text-field
+        type="email"
+        formControlName="email"
+        label="E-Mail-Adresse"
+        [required]="true"
+      />
+      <div class="block text-xs font-semibold text-fb-text-secondary">
+        <span>Rolle & Berechtigung *</span>
+        <app-custom-select
+          ariaLabel="Einladungsrolle"
+          [options]="inviteRoleOptions"
+          formControlName="role"
+          class="mt-1"
+        />
       </div>
-      @if (inviteError()) {
-        <p
-          role="alert"
-          class="rounded-xl border border-rose-500/30 bg-rose-500/15 p-3 text-xs text-rose-700"
-        >
-          {{ inviteError() }}
-        </p>
-      }
-      <form [formGroup]="inviteForm" (ngSubmit)="onSendInvite()" class="space-y-4">
-        <label class="block text-xs font-semibold text-fb-text-secondary"
-          >E-Mail-Adresse *<input
-            type="email"
-            formControlName="email"
-            class="linear-input mt-1 min-h-11 w-full rounded-xl px-3 text-xs"
-        /></label>
-        <div class="block text-xs font-semibold text-fb-text-secondary">
-          <span>Rolle & Berechtigung *</span
-          ><app-custom-select
-            ariaLabel="Einladungsrolle"
-            [options]="inviteRoleOptions"
-            formControlName="role"
-            class="mt-1"
-          />
-        </div>
-        <div class="flex justify-end gap-2 border-t border-fb-border pt-2">
-          <button
-            type="button"
-            (click)="closeInviteModal()"
-            class="linear-btn-secondary min-h-11 rounded-xl px-4 text-xs"
-          >
-            Abbrechen</button
-          ><button
-            type="submit"
-            [disabled]="inviteForm.invalid || isSendingInvite()"
-            class="linear-btn-primary min-h-11 rounded-xl px-4 text-xs font-bold disabled:opacity-40"
-          >
-            {{ isSendingInvite() ? 'Wird gesendet...' : 'Einladung senden' }}
-          </button>
-        </div>
-      </form>
+    </form>
+    <div modal-footer class="flex items-center gap-2">
+      <app-button type="button" variant="secondary" size="md" (clicked)="closeInviteModal()">
+        Abbrechen
+      </app-button>
+      <app-button
+        type="submit"
+        formId="invite-form"
+        variant="primary"
+        size="md"
+        [disabled]="inviteForm.invalid || isSendingInvite()"
+        [loading]="isSendingInvite()"
+      >
+        {{ isSendingInvite() ? 'Wird gesendet...' : 'Einladung senden' }}
+      </app-button>
     </div>
-  </div>
+  </app-modal-shell>
 }

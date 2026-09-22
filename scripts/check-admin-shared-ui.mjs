@@ -14,6 +14,8 @@ const nativeTableSearchPattern = /<input\b[^>]*\btype\s*=\s*["']search["'][^>]*>
 const purchaseWorkspacePath =
   /\/purchases\/(?:components|pages)\/(?:purchase-entry-form|purchase-line-editor|purchase-cost-editor|purchase-cost-summary|purchase-cost-overview-dialog|purchase-create|purchase-detail|purchase-edit)\//u;
 const nativeWorkspaceControlPattern = /<(?:button|input|textarea)\b[^>]*>/giu;
+const strictSharedFormPath = /^src\/app\/features\/(?:expenses|settings)\//u;
+const nativeFormControlPattern = /<(?:input|textarea)\b[^>]*>/giu;
 const nativeFormControlTypes = new Set([
   'text',
   'email',
@@ -41,15 +43,6 @@ const legacyNativeFormControlPaths = new Set([
   'src/app/features/research/research.component.html',
   'src/app/features/sales/components/sale-create-modal/sale-create-modal.component.html',
   'src/app/features/sales/sales.component.html',
-  'src/app/features/settings/pages/account-settings/account-settings.component.html',
-  'src/app/features/settings/pages/app-settings/app-settings.component.html',
-  'src/app/features/settings/pages/data-and-audit/data-and-audit.component.html',
-  'src/app/features/settings/pages/notification-settings/notification-settings.component.html',
-  'src/app/features/settings/pages/numbering-settings/numbering-settings.component.html',
-  'src/app/features/settings/pages/shipping-settings/shipping-settings.component.html',
-  'src/app/features/settings/pages/store-settings/store-settings.component.html',
-  'src/app/features/settings/pages/team-settings/team-settings.component.html',
-  'src/app/features/settings/pages/workspace-settings/workspace-settings.component.html',
 ]);
 
 const legacyCustomModalPaths = new Set([
@@ -59,7 +52,6 @@ const legacyCustomModalPaths = new Set([
   'src/app/features/fulfillment/fulfillment.component.html',
   'src/app/features/research/research.component.html',
   'src/app/features/sales/sales.component.html',
-  'src/app/features/settings/pages/team-settings/team-settings.component.html',
 ]);
 
 const approvedTableExceptions = new Map([
@@ -136,7 +128,18 @@ export function findAdminSharedUiViolations(path, source) {
     violations.push({ rule: 'legacy-table-toolbar', line: lineAt(source, match.index) });
   }
 
-  if (
+  if (strictSharedFormPath.test(normalizedPath)) {
+    for (const match of source.matchAll(nativeFormControlPattern)) {
+      const tag = match[0];
+      const hiddenFileTransport =
+        /\btype=["']file["']/u.test(tag) &&
+        /\bclass=["'][^"']*\b(?:hidden|sr-only)\b/u.test(tag) &&
+        /\bdata-shared-ui-exception=["']native-file-picker["']/u.test(tag);
+      if (!hiddenFileTransport) {
+        violations.push({ rule: 'native-form-control', line: lineAt(source, match.index) });
+      }
+    }
+  } else if (
     !purchaseWorkspacePath.test(normalizedPath) &&
     !legacyNativeFormControlPaths.has(normalizedPath)
   ) {

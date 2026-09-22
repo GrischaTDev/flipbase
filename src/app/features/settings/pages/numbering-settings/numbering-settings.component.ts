@@ -21,10 +21,19 @@ import {
   CustomSelectComponent,
   SelectOption,
 } from '../../../../shared/components/custom-select/custom-select.component';
+import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
+import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
+import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 
 @Component({
   selector: 'app-numbering-settings',
-  imports: [ReactiveFormsModule, CustomSelectComponent],
+  imports: [
+    ReactiveFormsModule,
+    CustomSelectComponent,
+    CustomCheckboxComponent,
+    NumberInputComponent,
+    TextFieldComponent,
+  ],
   templateUrl: './numbering-settings.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block', '(window:beforeunload)': 'beforeUnload($event)' },

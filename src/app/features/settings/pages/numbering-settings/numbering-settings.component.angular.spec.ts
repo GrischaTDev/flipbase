@@ -8,13 +8,20 @@ import { NumberingService } from '../../services/numbering.service';
 import { defaultNumberSeries } from '../../models/numbering.models';
 import { NumberingSettingsComponent } from './numbering-settings.component';
 import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
+import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
+import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
+import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
 
 interface AngularInputMetadata {
   inputs: Record<string, unknown>;
   declaredInputs: Record<string, string>;
+  outputs?: Record<string, string>;
 }
 
 let customSelectMetadata: AngularInputMetadata | null = null;
+let textFieldMetadata: AngularInputMetadata | null = null;
+let numberInputMetadata: AngularInputMetadata | null = null;
+let checkboxMetadataSnapshot: AngularInputMetadata | null = null;
 
 describe('NumberingSettingsComponent', () => {
   beforeAll(async () => {
@@ -37,12 +44,128 @@ describe('NumberingSettingsComponent', () => {
       options: 'options',
       ariaLabel: 'ariaLabel',
     };
+
+    const textMetadata = (TextFieldComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp;
+    textFieldMetadata = {
+      inputs: textMetadata.inputs,
+      declaredInputs: textMetadata.declaredInputs,
+    };
+    textMetadata.inputs = {
+      ...textMetadata.inputs,
+      label: ['label', 1, null],
+      placeholder: ['placeholder', 1, null],
+      helpText: ['helpText', 1, null],
+      required: ['required', 1, null],
+      maxLength: ['maxLength', 1, null],
+      ariaLabel: ['ariaLabel', 1, null],
+    };
+    textMetadata.declaredInputs = {
+      ...textMetadata.declaredInputs,
+      label: 'label',
+      placeholder: 'placeholder',
+      helpText: 'helpText',
+      required: 'required',
+      maxLength: 'maxLength',
+      ariaLabel: 'ariaLabel',
+    };
+
+    const numberMeta = (NumberInputComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp;
+    numberInputMetadata = {
+      inputs: numberMeta.inputs,
+      declaredInputs: numberMeta.declaredInputs,
+      outputs: numberMeta.outputs,
+    };
+    numberMeta.inputs = {
+      ...numberMeta.inputs,
+      value: ['value', 1, null],
+      placeholder: ['placeholder', 1, null],
+      step: ['step', 1, null],
+      min: ['min', 1, null],
+      max: ['max', 1, null],
+      unit: ['unit', 1, null],
+      id: ['id', 1, null],
+      ariaLabel: ['ariaLabel', 1, null],
+      ariaDescribedby: ['ariaDescribedby', 1, null],
+      asCurrency: ['asCurrency', 1, null],
+      disabled: ['disabled', 1, null],
+      showStepper: ['showStepper', 1, null],
+    };
+    numberMeta.declaredInputs = {
+      ...numberMeta.declaredInputs,
+      value: 'value',
+      placeholder: 'placeholder',
+      step: 'step',
+      min: 'min',
+      max: 'max',
+      unit: 'unit',
+      id: 'id',
+      ariaLabel: 'ariaLabel',
+      ariaDescribedby: 'ariaDescribedby',
+      asCurrency: 'asCurrency',
+      disabled: 'disabled',
+      showStepper: 'showStepper',
+    };
+    numberMeta.outputs = {
+      ...numberMeta.outputs,
+      valueChange: 'value',
+    };
+
+    const checkMeta = (CustomCheckboxComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp;
+    checkboxMetadataSnapshot = {
+      inputs: checkMeta.inputs,
+      declaredInputs: checkMeta.declaredInputs,
+      outputs: checkMeta.outputs,
+    };
+    checkMeta.inputs = {
+      ...checkMeta.inputs,
+      checked: ['checked', 1, null],
+      indeterminate: ['indeterminate', 1, null],
+      label: ['label', 1, null],
+      disabled: ['disabled', 1, null],
+      size: ['size', 1, null],
+      color: ['color', 1, null],
+      ariaLabel: ['ariaLabel', 1, null],
+      id: ['id', 1, null],
+    };
+    checkMeta.declaredInputs = {
+      ...checkMeta.declaredInputs,
+      checked: 'checked',
+      indeterminate: 'indeterminate',
+      label: 'label',
+      disabled: 'disabled',
+      size: 'size',
+      color: 'color',
+      ariaLabel: 'ariaLabel',
+      id: 'id',
+    };
+    checkMeta.outputs = {
+      ...checkMeta.outputs,
+      checkedChange: 'checked',
+    };
   });
   afterAll(() => {
-    if (!customSelectMetadata) return;
-    const metadata = (CustomSelectComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp;
-    metadata.inputs = customSelectMetadata.inputs;
-    metadata.declaredInputs = customSelectMetadata.declaredInputs;
+    if (customSelectMetadata) {
+      const metadata = (CustomSelectComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp;
+      metadata.inputs = customSelectMetadata.inputs;
+      metadata.declaredInputs = customSelectMetadata.declaredInputs;
+    }
+    if (textFieldMetadata) {
+      const metadata = (TextFieldComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp;
+      metadata.inputs = textFieldMetadata.inputs;
+      metadata.declaredInputs = textFieldMetadata.declaredInputs;
+    }
+    if (numberInputMetadata) {
+      const metadata = (NumberInputComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp;
+      metadata.inputs = numberInputMetadata.inputs;
+      metadata.declaredInputs = numberInputMetadata.declaredInputs;
+      if (numberInputMetadata.outputs) metadata.outputs = numberInputMetadata.outputs;
+    }
+    if (checkboxMetadataSnapshot) {
+      const metadata = (CustomCheckboxComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp;
+      metadata.inputs = checkboxMetadataSnapshot.inputs;
+      metadata.declaredInputs = checkboxMetadataSnapshot.declaredInputs;
+      if (checkboxMetadataSnapshot.outputs) metadata.outputs = checkboxMetadataSnapshot.outputs;
+    }
   });
   afterEach(() => TestBed.resetTestingModule());
   const load = vi.fn();

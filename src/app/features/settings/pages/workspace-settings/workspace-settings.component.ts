@@ -15,10 +15,19 @@ import {
   SelectOption,
 } from '../../../../shared/components/custom-select/custom-select.component';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
+import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
+import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
 
 @Component({
   selector: 'app-workspace-settings',
-  imports: [ReactiveFormsModule, LucideDynamicIcon, CustomSelectComponent, BadgeComponent],
+  imports: [
+    ReactiveFormsModule,
+    LucideDynamicIcon,
+    CustomSelectComponent,
+    BadgeComponent,
+    TextFieldComponent,
+    NumberInputComponent,
+  ],
   templateUrl: './workspace-settings.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
