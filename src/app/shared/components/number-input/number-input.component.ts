@@ -25,7 +25,10 @@ let nextUniqueId = 0;
   imports: [LucideDynamicIcon],
   templateUrl: './number-input.component.html',
   styleUrl: './number-input.component.scss',
-  host: { class: 'block' },
+  host: {
+    class: 'block',
+    '[attr.id]': 'null',
+  },
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [
     {

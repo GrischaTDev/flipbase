@@ -652,27 +652,32 @@
                   size="sm"
                 />
 
-                <input
-                  type="number"
+                <app-number-input
                   formControlName="amount"
                   placeholder="Betrag (€)"
-                  class="linear-input w-24 px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold"
+                  [asCurrency]="true"
+                  [showStepper]="false"
+                  [min]="0"
+                  [step]="0.01"
+                  ariaLabel="Betrag in Euro"
+                  class="w-32"
                 />
 
-                <input
-                  type="text"
+                <app-text-field
                   formControlName="description"
                   placeholder="z.B. Neuer Akku..."
-                  class="linear-input flex-1 min-w-[150px] px-2.5 py-1.5 rounded-lg text-xs"
+                  ariaLabel="Beschreibung"
+                  class="flex-1 min-w-[150px]"
                 />
 
-                <button
+                <app-button
                   type="submit"
+                  variant="primary"
+                  size="slim"
                   [disabled]="costForm.invalid"
-                  class="linear-btn-primary px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-40 cursor-pointer"
                 >
                   Hinzufügen
-                </button>
+                </app-button>
               </form>
             }
 
@@ -760,28 +765,21 @@
 
   <!-- Fullscreen Image Preview Modal -->
   @if (previewModalUrl(); as pUrl) {
-    <div
-      class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fade-in"
-      appModalDialog
-      schliesstBeiKlickAussen
-      dialogTitel="Bildvorschau"
-      (dialogClose)="previewModalUrl.set(null)"
+    <app-modal-shell
+      title="Bildvorschau"
+      size="xl"
+      [closeOnBackdrop]="true"
+      [hasFooter]="false"
+      (closed)="previewModalUrl.set(null)"
     >
-      <div class="relative max-w-4xl max-h-[90vh] flex flex-col items-center">
-        <button
-          type="button"
-          (click)="previewModalUrl.set(null)"
-          class="absolute -top-10 right-0 p-1.5 rounded-full bg-white/10 text-fb-text-primary hover:bg-white/20 transition cursor-pointer"
-        >
-          <svg [lucideIcon]="closeIcon" class="w-5 h-5"></svg>
-        </button>
+      <div class="flex flex-col items-center justify-center">
         <img
           [src]="pUrl"
           alt="Vollbild Vorschau"
-          class="max-w-full max-h-[85vh] rounded-xl object-contain shadow-2xl border border-white/10"
+          class="max-w-full max-h-[75vh] rounded-xl object-contain shadow-2xl border border-white/10"
         />
       </div>
-    </div>
+    </app-modal-shell>
   }
 
   <!-- Inventory Single Label Modal -->

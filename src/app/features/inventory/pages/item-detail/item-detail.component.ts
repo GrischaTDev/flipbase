@@ -47,7 +47,10 @@ import {
   CustomSelectComponent,
   SelectOption,
 } from '../../../../shared/components/custom-select/custom-select.component';
-import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
+import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
+import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
 import { ItemCreateModalComponent } from '../../components/item-create-modal/item-create-modal.component';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
@@ -84,7 +87,6 @@ export function validatePurchaseReturnTo(value: string | null | undefined): stri
   selector: 'app-item-detail',
   imports: [
     ItemCreateModalComponent,
-    ModalDialogDirective,
     RouterLink,
     ReactiveFormsModule,
     CurrencyPipe,
@@ -99,6 +101,10 @@ export function validatePurchaseReturnTo(value: string | null | undefined): stri
     TwoColumnLayoutComponent,
     CardComponent,
     BadgeComponent,
+    ButtonComponent,
+    TextFieldComponent,
+    NumberInputComponent,
+    ModalShellComponent,
   ],
   templateUrl: './item-detail.component.html',
   host: { class: 'block' },

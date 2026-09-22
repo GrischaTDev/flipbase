@@ -1,418 +1,382 @@
 @if (presentation() === 'dialog') {
-  <div
-    class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-3 animate-fade-in sm:p-6"
-    appModalDialog
-    [dialogTitel]="istBearbeitung() ? 'Artikel bearbeiten' : 'Neuen Artikel anlegen'"
-    (dialogClose)="closed.emit()"
+  <app-modal-shell
+    [title]="istBearbeitung() ? 'Artikel bearbeiten' : 'Neuen Inventar-Artikel anlegen'"
+    [subtitle]="
+      istBearbeitung()
+        ? 'Angaben ändern – Zustand, Marktwert und Beschreibung'
+        : 'Artikel erfassen mit Zustand & Kostenanteil'
+    "
+    [icon]="boxesIcon"
+    iconTone="info"
+    size="md"
+    (closed)="closed.emit()"
   >
-    <ng-container [ngTemplateOutlet]="itemForm" />
-  </div>
+    <ng-container [ngTemplateOutlet]="formContent" />
+    <div modal-footer class="flex items-center justify-end gap-2">
+      <ng-container [ngTemplateOutlet]="formActions" />
+    </div>
+  </app-modal-shell>
 } @else {
-  <ng-container [ngTemplateOutlet]="itemForm" />
+  <div class="linear-surface flex w-full flex-col overflow-hidden rounded-2xl max-w-3xl mx-auto">
+    <div class="p-5 overflow-y-auto flex-1 space-y-4">
+      <ng-container [ngTemplateOutlet]="formContent" />
+      <div class="flex items-center justify-end gap-2 pt-4 border-t border-fb-border">
+        <ng-container [ngTemplateOutlet]="formActions" />
+      </div>
+    </div>
+  </div>
 }
 
-<ng-template #itemForm>
-  <div
-    class="linear-surface flex w-full flex-col overflow-hidden rounded-2xl"
-    [class.max-w-xl]="presentation() === 'dialog'"
-    [class.max-w-3xl]="presentation() === 'page'"
-    [class.mx-auto]="presentation() === 'page'"
-    [class.max-h-[90vh]]="presentation() === 'dialog'"
-    [class.my-auto]="presentation() === 'dialog'"
-    [class.shadow-2xl]="presentation() === 'dialog'"
-    [class.animate-modal-card]="presentation() === 'dialog'"
-  >
-    @if (presentation() === 'dialog') {
-      <div
-        class="flex shrink-0 items-center justify-between border-b border-fb-border bg-fb-subtle p-5"
-      >
-        <div class="flex items-center gap-2.5">
-          <div
-            class="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center"
+<ng-template #formContent>
+  @if (errorMessage()) {
+    <div class="p-3 rounded-lg bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs">
+      {{ errorMessage() }}
+    </div>
+  }
+
+  <form id="itemCreateForm" [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-3.5">
+    <div>
+      <div class="flex items-center justify-between mb-1">
+        <label
+          for="itemTitle"
+          class="block text-[11px] font-semibold uppercase tracking-wider text-fb-text-muted"
+        >
+          Artikelname / Produkttitel
+        </label>
+
+        <div class="flex items-center gap-1.5">
+          <!-- Barcode Scanner Button -->
+          <app-button
+            size="slim"
+            variant="secondary"
+            [icon]="barcodeIcon"
+            (clicked)="isScanningBarcode.set(true)"
+            title="Barcode / EAN scannen"
           >
-            <svg [lucideIcon]="boxesIcon" class="w-4 h-4"></svg>
-          </div>
-          <div>
-            <h2 class="text-sm font-bold text-fb-text-primary">
-              {{ istBearbeitung() ? 'Artikel bearbeiten' : 'Neuen Inventar-Artikel anlegen' }}
-            </h2>
-            <p class="text-[11px] text-fb-text-muted">
-              {{
-                istBearbeitung()
-                  ? 'Angaben ändern – Zustand, Marktwert und Beschreibung'
-                  : 'Artikel erfassen mit Zustand & Kostenanteil'
-              }}
-            </p>
-          </div>
+            Barcode
+          </app-button>
+
+          <!-- KI Autofill Button -->
+          <app-button
+            size="slim"
+            variant="secondary"
+            [icon]="sparklesIcon"
+            [disabled]="isAiLoading() || !form.get('title')?.value"
+            [loading]="isAiLoading()"
+            (clicked)="onAiAutofill()"
+          >
+            {{ isAiLoading() ? 'Lese Titel...' : 'Titel auswerten' }}
+          </app-button>
+        </div>
+      </div>
+      <app-text-field
+        id="itemTitle"
+        formControlName="title"
+        placeholder="z.B. Bosch Akku-Bohrschrauber GSR 18V-55 wie neu"
+        [labelHidden]="true"
+        label="Artikelname / Produkttitel"
+      />
+    </div>
+
+    <!-- 1:1 Image Cropper & Upload Preview Section -->
+    <div class="p-3 rounded-xl bg-fb-subtle border border-fb-border">
+      <div class="flex items-center justify-between mb-2">
+        <div class="flex items-center gap-1.5">
+          <svg [lucideIcon]="imageIcon" class="w-3.5 h-3.5 text-emerald-400"></svg>
+          <span class="text-[11px] font-bold uppercase tracking-wider text-fb-text-primary">
+            Produktfoto (1:1 Quadrat)
+          </span>
         </div>
 
+        <app-button
+          size="slim"
+          variant="secondary"
+          [icon]="cropIcon"
+          (clicked)="isCropperOpen.set(true)"
+        >
+          {{ selectedImageDataUrl() ? 'Zuschnitt anpassen' : 'Foto zuschneiden & komprimieren' }}
+        </app-button>
+      </div>
+
+      @if (selectedImageDataUrl()) {
+        <div class="flex items-center gap-3 p-2 rounded-lg bg-fb-surface border border-fb-border">
+          <div
+            class="w-16 h-16 rounded-lg overflow-hidden bg-black/40 border border-emerald-500/40 shrink-0 relative aspect-square"
+          >
+            <img
+              [src]="selectedImageDataUrl()"
+              alt="Produktfoto Vorschau"
+              class="w-full h-full object-cover"
+            />
+            <span
+              class="absolute bottom-0 inset-x-0 bg-emerald-600/90 text-[10px] font-mono font-bold text-center text-fb-text-primary py-0.5"
+            >
+              1:1 FIX
+            </span>
+          </div>
+
+          <div class="grow min-w-0">
+            <p class="text-xs font-semibold text-fb-text-primary truncate">
+              {{ selectedImageFile()?.name || 'Zugeordnetes Produktfoto' }}
+            </p>
+            <p class="text-[10px] text-emerald-400 font-mono mt-0.5">
+              Automatisch auf 1:1 optimiert & komprimiert
+            </p>
+          </div>
+
+          <button
+            type="button"
+            (click)="removeSelectedImage()"
+            class="p-1.5 rounded-lg text-fb-text-muted hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer shrink-0"
+            title="Foto entfernen"
+          >
+            <svg [lucideIcon]="trashIcon" class="w-4 h-4"></svg>
+          </button>
+        </div>
+      } @else {
         <button
           type="button"
-          (click)="closed.emit()"
-          aria-label="Dialog schließen"
-          class="p-1.5 rounded-lg text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-surface-hover transition cursor-pointer"
+          (click)="isCropperOpen.set(true)"
+          class="p-3 border border-dashed border-fb-border hover:border-emerald-500/40 rounded-lg text-center bg-fb-surface/50 hover:bg-emerald-500/5 transition cursor-pointer w-full"
         >
-          <svg [lucideIcon]="closeIcon" class="w-4 h-4"></svg>
+          <p
+            class="text-[11px] text-fb-text-secondary font-medium flex items-center justify-center gap-1.5"
+          >
+            <svg [lucideIcon]="cameraIcon" class="w-3.5 h-3.5 text-emerald-400"></svg>
+            <span>Klicke hier, um ein Foto hochzuladen & im festen 1:1-Format zuzuschneiden</span>
+          </p>
         </button>
+      }
+    </div>
+
+    <div>
+      <span
+        class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
+        aria-hidden="true"
+        >Kategorie</span
+      >
+      <app-category-picker
+        id="itemCategory"
+        label="Kategorie"
+        [labelHidden]="true"
+        formControlName="category_id"
+        [suggestion]="categorySuggestion()"
+      />
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+      <div>
+        <span
+          class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
+          aria-hidden="true"
+          >Marke</span
+        >
+        <app-brand-picker
+          id="itemBrand"
+          label="Marke"
+          [labelHidden]="true"
+          formControlName="brand_id"
+          [suggestion]="brandSuggestion()"
+        />
+      </div>
+
+      <div>
+        <label
+          for="itemModel"
+          class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
+        >
+          Modell
+        </label>
+        <app-text-field
+          id="itemModel"
+          formControlName="model"
+          placeholder="z.B. GSR 18V-55"
+          [labelHidden]="true"
+          label="Modell"
+        />
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+      <div>
+        <span
+          class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
+        >
+          Zustand
+        </span>
+        <app-custom-select
+          ariaLabel="Zustand"
+          triggerId="itemCondition"
+          formControlName="condition"
+          [options]="conditionOptions"
+        ></app-custom-select>
+      </div>
+
+      <div>
+        <span
+          class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
+        >
+          Status
+        </span>
+        <app-custom-select
+          ariaLabel="Status"
+          triggerId="itemStatus"
+          formControlName="status"
+          [options]="statusOptions"
+        ></app-custom-select>
+      </div>
+
+      <div>
+        <label
+          for="itemEan"
+          class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
+        >
+          EAN / Barcode
+        </label>
+        <app-text-field
+          id="itemEan"
+          formControlName="ean"
+          [monospaced]="true"
+          placeholder="z.B. 4005317316719"
+          [labelHidden]="true"
+          label="EAN / Barcode"
+          [error]="
+            form.controls.ean.invalid && form.controls.ean.touched ? 'Ungültige EAN/GTIN.' : null
+          "
+        />
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+      <div>
+        <label
+          for="itemCost"
+          class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
+        >
+          Direkte Anschaffungskosten (€)
+        </label>
+        <app-number-input
+          id="itemCost"
+          formControlName="allocated_purchase_cost"
+          [asCurrency]="true"
+          [showStepper]="false"
+          [min]="0"
+          [step]="0.01"
+          [placeholder]="istBearbeitung() ? 'Offen' : '0.00'"
+          ariaLabel="Direkte Anschaffungskosten"
+        />
+      </div>
+
+      <div>
+        <label
+          for="itemExpectedValue"
+          class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
+        >
+          Erwarteter Marktwert (€)
+        </label>
+        <app-number-input
+          id="itemExpectedValue"
+          formControlName="expected_value"
+          [asCurrency]="true"
+          [showStepper]="false"
+          [min]="0"
+          [step]="0.01"
+          placeholder="0.00"
+          ariaLabel="Erwarteter Marktwert"
+        />
+      </div>
+    </div>
+
+    <!-- Anzahl nur beim Anlegen: Beim Bearbeiten geht es um diesen einen
+         Artikel, nicht um weitere Stuecke. -->
+    @if (!istBearbeitung()) {
+      <div>
+        <label
+          for="itemAnzahl"
+          class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
+        >
+          Anzahl gleicher Stücke
+        </label>
+        <app-number-input
+          id="itemAnzahl"
+          formControlName="anzahl"
+          [min]="1"
+          [max]="200"
+          [step]="1"
+          ariaLabel="Anzahl gleicher Stücke"
+        />
+        <p class="text-[10px] text-fb-text-muted mt-1 leading-relaxed">
+          Jedes Stück wird ein eigener Artikel mit eigener Nummer – nötig, damit jedes seinen
+          eigenen Zustand, Preis und Verkauf haben kann. Der angegebene Einkaufswert gilt
+          <strong class="text-fb-text-secondary">je Stück</strong>.
+        </p>
       </div>
     }
 
-    <div class="p-5 overflow-y-auto flex-1 space-y-4">
-      @if (errorMessage()) {
-        <div class="p-3 rounded-lg bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs">
-          {{ errorMessage() }}
-        </div>
+    <div>
+      <label
+        for="itemPurchaseSelect"
+        class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
+      >
+        Zugehöriger Einkauf
+      </label>
+      <app-custom-select
+        ariaLabel="Zugehöriger Einkauf"
+        triggerId="itemPurchaseSelect"
+        [options]="einkaufsOptionen()"
+        formControlName="purchase_id"
+        size="sm"
+      />
+      @if (item()?.source_package_line_id) {
+        <p class="mt-1 text-xs text-fb-text-muted">
+          Paketinhalt: Die Herkunft bleibt unverändert. Einzelkosten sind eine interne Bewertung,
+          kein Rechnungspreis.
+        </p>
       }
-
-      <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-3.5">
-        <div>
-          <div class="flex items-center justify-between mb-1">
-            <label
-              for="itemTitle"
-              class="block text-[11px] font-semibold uppercase tracking-wider text-fb-text-muted"
-            >
-              Artikelname / Produkttitel
-            </label>
-
-            <div class="flex items-center gap-1.5">
-              <!-- Foto-Scan ausgeblendet: keine echte Bilderkennung dahinter. -->
-
-              <!-- Barcode Scanner Button -->
-              <button
-                type="button"
-                (click)="isScanningBarcode.set(true)"
-                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 border border-blue-500/30 text-[10px] font-semibold transition cursor-pointer"
-                title="Barcode / EAN scannen"
-              >
-                <svg [lucideIcon]="barcodeIcon" class="w-3 h-3 text-blue-400"></svg>
-                <span>Barcode</span>
-              </button>
-
-              <!-- KI Autofill Button -->
-              <button
-                type="button"
-                (click)="onAiAutofill()"
-                [disabled]="isAiLoading() || !form.get('title')?.value"
-                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 text-[10px] font-semibold transition disabled:opacity-40 cursor-pointer"
-              >
-                <svg [lucideIcon]="sparklesIcon" class="w-3 h-3 text-emerald-400"></svg>
-                <span>{{ isAiLoading() ? 'Lese Titel...' : 'Titel auswerten' }}</span>
-              </button>
-            </div>
-          </div>
-          <input
-            id="itemTitle"
-            type="text"
-            formControlName="title"
-            placeholder="z.B. Bosch Akku-Bohrschrauber GSR 18V-55 wie neu"
-            class="linear-input w-full px-3 py-2 rounded-lg text-xs font-medium placeholder-fb-text-dimmed"
-          />
-        </div>
-
-        <!-- 1:1 Image Cropper & Upload Preview Section -->
-        <div class="p-3 rounded-xl bg-fb-subtle border border-fb-border">
-          <div class="flex items-center justify-between mb-2">
-            <div class="flex items-center gap-1.5">
-              <svg [lucideIcon]="imageIcon" class="w-3.5 h-3.5 text-emerald-400"></svg>
-              <span class="text-[11px] font-bold uppercase tracking-wider text-fb-text-primary">
-                Produktfoto (1:1 Quadrat)
-              </span>
-            </div>
-
-            <button
-              type="button"
-              (click)="isCropperOpen.set(true)"
-              class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 transition cursor-pointer"
-            >
-              <svg [lucideIcon]="cropIcon" class="w-3 h-3 text-emerald-400"></svg>
-              <span>{{
-                selectedImageDataUrl() ? 'Zuschnitt anpassen' : 'Foto zuschneiden & komprimieren'
-              }}</span>
-            </button>
-          </div>
-
-          @if (selectedImageDataUrl()) {
-            <div
-              class="flex items-center gap-3 p-2 rounded-lg bg-fb-surface border border-fb-border"
-            >
-              <div
-                class="w-16 h-16 rounded-lg overflow-hidden bg-black/40 border border-emerald-500/40 shrink-0 relative aspect-square"
-              >
-                <img
-                  [src]="selectedImageDataUrl()"
-                  alt="Produktfoto Vorschau"
-                  class="w-full h-full object-cover"
-                />
-                <span
-                  class="absolute bottom-0 inset-x-0 bg-emerald-600/90 text-[10px] font-mono font-bold text-center text-fb-text-primary py-0.5"
-                >
-                  1:1 FIX
-                </span>
-              </div>
-
-              <div class="grow min-w-0">
-                <p class="text-xs font-semibold text-fb-text-primary truncate">
-                  {{ selectedImageFile()?.name || 'Zugeordnetes Produktfoto' }}
-                </p>
-                <p class="text-[10px] text-emerald-400 font-mono mt-0.5">
-                  Automatisch auf 1:1 optimiert & komprimiert
-                </p>
-              </div>
-
-              <button
-                type="button"
-                (click)="removeSelectedImage()"
-                class="p-1.5 rounded-lg text-fb-text-muted hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer shrink-0"
-                title="Foto entfernen"
-              >
-                <svg [lucideIcon]="trashIcon" class="w-4 h-4"></svg>
-              </button>
-            </div>
-          } @else {
-            <button
-              type="button"
-              (click)="isCropperOpen.set(true)"
-              class="p-3 border border-dashed border-fb-border hover:border-emerald-500/40 rounded-lg text-center bg-fb-surface/50 hover:bg-emerald-500/5 transition cursor-pointer w-full"
-            >
-              <p
-                class="text-[11px] text-fb-text-secondary font-medium flex items-center justify-center gap-1.5"
-              >
-                <svg [lucideIcon]="cameraIcon" class="w-3.5 h-3.5 text-emerald-400"></svg>
-                <span
-                  >Klicke hier, um ein Foto hochzuladen & im festen 1:1-Format zuzuschneiden</span
-                >
-              </p>
-            </button>
-          }
-        </div>
-
-        <div>
-          <span
-            class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
-            aria-hidden="true"
-            >Kategorie</span
-          >
-          <app-category-picker
-            id="itemCategory"
-            label="Kategorie"
-            [labelHidden]="true"
-            formControlName="category_id"
-            [suggestion]="categorySuggestion()"
-          />
-        </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-          <div>
-            <span
-              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
-              aria-hidden="true"
-              >Marke</span
-            >
-            <app-brand-picker
-              id="itemBrand"
-              label="Marke"
-              [labelHidden]="true"
-              formControlName="brand_id"
-              [suggestion]="brandSuggestion()"
-            />
-          </div>
-
-          <div>
-            <label
-              for="itemModel"
-              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
-            >
-              Modell
-            </label>
-            <input
-              id="itemModel"
-              type="text"
-              formControlName="model"
-              placeholder="z.B. GSR 18V-55"
-              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs"
-            />
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-          <div>
-            <span
-              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
-            >
-              Zustand
-            </span>
-            <app-custom-select
-              ariaLabel="Zustand"
-              triggerId="itemCondition"
-              formControlName="condition"
-              [options]="conditionOptions"
-            ></app-custom-select>
-          </div>
-
-          <div>
-            <span
-              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
-            >
-              Status
-            </span>
-            <app-custom-select
-              ariaLabel="Status"
-              triggerId="itemStatus"
-              formControlName="status"
-              [options]="statusOptions"
-            ></app-custom-select>
-          </div>
-
-          <div>
-            <label
-              for="itemEan"
-              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
-            >
-              EAN / Barcode
-            </label>
-            <input
-              id="itemEan"
-              type="text"
-              formControlName="ean"
-              (blur)="form.controls.ean.markAsTouched()"
-              placeholder="z.B. 4005317316719"
-              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono"
-            />
-            @if (form.controls.ean.invalid && form.controls.ean.touched) {
-              <p class="mt-1 text-xs text-rose-300" role="alert">Ungültige EAN/GTIN.</p>
-            }
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-          <div>
-            <label
-              for="itemCost"
-              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
-            >
-              Direkte Anschaffungskosten (€)
-            </label>
-            <input
-              id="itemCost"
-              type="number"
-              formControlName="allocated_purchase_cost"
-              [placeholder]="istBearbeitung() ? 'Offen' : '0.00'"
-              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold"
-            />
-          </div>
-
-          <div>
-            <label
-              for="itemExpectedValue"
-              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
-            >
-              Erwarteter Marktwert (€)
-            </label>
-            <input
-              id="itemExpectedValue"
-              type="number"
-              formControlName="expected_value"
-              placeholder="0.00"
-              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold text-emerald-400"
-            />
-          </div>
-        </div>
-
-        <!-- Anzahl nur beim Anlegen: Beim Bearbeiten geht es um diesen einen
-             Artikel, nicht um weitere Stuecke. -->
-        @if (!istBearbeitung()) {
-          <div>
-            <label
-              for="itemAnzahl"
-              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
-            >
-              Anzahl gleicher Stücke
-            </label>
-            <input
-              id="itemAnzahl"
-              type="number"
-              min="1"
-              max="200"
-              formControlName="anzahl"
-              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold"
-            />
-            <p class="text-[10px] text-fb-text-muted mt-1 leading-relaxed">
-              Jedes Stück wird ein eigener Artikel mit eigener Nummer – nötig, damit jedes seinen
-              eigenen Zustand, Preis und Verkauf haben kann. Der angegebene Einkaufswert gilt
-              <strong class="text-fb-text-secondary">je Stück</strong>.
-            </p>
-          </div>
-        }
-
-        <div>
-          <label
-            for="itemPurchaseSelect"
-            class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
-          >
-            Zugehöriger Einkauf
-          </label>
-          <app-custom-select
-            ariaLabel="Zugehöriger Einkauf"
-            triggerId="itemPurchaseSelect"
-            [options]="einkaufsOptionen()"
-            formControlName="purchase_id"
-            size="sm"
-          />
-          @if (item()?.source_package_line_id) {
-            <p class="mt-1 text-xs text-fb-text-muted">
-              Paketinhalt: Die Herkunft bleibt unverändert. Einzelkosten sind eine interne
-              Bewertung, kein Rechnungspreis.
-            </p>
-          }
-        </div>
-
-        <div class="flex items-center justify-end gap-2 pt-4 border-t border-fb-border">
-          <button
-            type="button"
-            (click)="closed.emit()"
-            class="linear-btn-secondary px-4 py-1.5 rounded-lg text-xs font-semibold cursor-pointer"
-          >
-            Abbrechen
-          </button>
-          <button
-            type="submit"
-            [disabled]="form.invalid || isSubmitting()"
-            class="linear-btn-primary px-4 py-1.5 rounded-lg font-semibold text-xs transition disabled:opacity-40 cursor-pointer"
-          >
-            <span>{{
-              isSubmitting()
-                ? 'Speichere...'
-                : istBearbeitung()
-                  ? 'Änderungen speichern'
-                  : 'Artikel anlegen'
-            }}</span>
-          </button>
-        </div>
-      </form>
     </div>
-  </div>
-
-  <!-- Barcode Scanner Modal -->
-  @if (isScanningBarcode()) {
-    <app-barcode-scanner
-      (closed)="isScanningBarcode.set(false)"
-      (detected)="onBarcodeScanned($event)"
-    ></app-barcode-scanner>
-  }
-
-  <!-- AI Photo Scanner Modal -->
-  @if (isScanningPhoto()) {
-    <app-ai-photo-scanner-modal
-      (closed)="isScanningPhoto.set(false)"
-      (productDetected)="onPhotoScanned($event)"
-    ></app-ai-photo-scanner-modal>
-  }
-
-  <!-- Image Cropper & Resizer Studio Modal (Fixed 1:1) -->
-  @if (isCropperOpen()) {
-    <app-image-cropper-modal
-      (closed)="isCropperOpen.set(false)"
-      (imageReady)="onImageCropped($event)"
-    ></app-image-cropper-modal>
-  }
+  </form>
 </ng-template>
+
+<ng-template #formActions>
+  <app-button type="button" variant="secondary" (clicked)="closed.emit()"> Abbrechen </app-button>
+  <app-button
+    type="submit"
+    formId="itemCreateForm"
+    variant="primary"
+    [disabled]="form.invalid || isSubmitting()"
+    [loading]="isSubmitting()"
+    (clicked)="onSubmit()"
+  >
+    {{
+      isSubmitting()
+        ? 'Speichere...'
+        : istBearbeitung()
+          ? 'Änderungen speichern'
+          : 'Artikel anlegen'
+    }}
+  </app-button>
+</ng-template>
+
+<!-- Barcode Scanner Modal -->
+@if (isScanningBarcode()) {
+  <app-barcode-scanner
+    (closed)="isScanningBarcode.set(false)"
+    (detected)="onBarcodeScanned($event)"
+  ></app-barcode-scanner>
+}
+
+<!-- AI Photo Scanner Modal -->
+@if (isScanningPhoto()) {
+  <app-ai-photo-scanner-modal
+    (closed)="isScanningPhoto.set(false)"
+    (productDetected)="onPhotoScanned($event)"
+  ></app-ai-photo-scanner-modal>
+}
+
+<!-- Image Cropper & Resizer Studio Modal (Fixed 1:1) -->
+@if (isCropperOpen()) {
+  <app-image-cropper-modal
+    (closed)="isCropperOpen.set(false)"
+    (imageReady)="onImageCropped($event)"
+  ></app-image-cropper-modal>
+}

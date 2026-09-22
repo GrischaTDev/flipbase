@@ -45,7 +45,10 @@ import {
   CustomSelectComponent,
   SelectOption,
 } from '../../../../shared/components/custom-select/custom-select.component';
-import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
+import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
+import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { LoggerService } from '../../../../core/services/logger.service';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { SyncStatusService } from '../../../../core/services/sync-status.service';
@@ -69,7 +72,10 @@ type ItemCreatePayload = CreateItemPayload & {
 @Component({
   selector: 'app-item-create-modal',
   imports: [
-    ModalDialogDirective,
+    ModalShellComponent,
+    ButtonComponent,
+    TextFieldComponent,
+    NumberInputComponent,
     NgTemplateOutlet,
     ReactiveFormsModule,
     LucideDynamicIcon,

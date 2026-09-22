@@ -24,6 +24,7 @@ import { INVENTORY_TABLE_CONFIG } from '../../../../core/config/table-defaults.c
 import { StockPositionListComponent } from './stock-position-list.component';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
 import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
+import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
 import { CostStateComponent } from '../../../../shared/components/cost-state/cost-state.component';
 import { TableSortHeaderComponent } from '../../../../shared/components/table-sort-header/table-sort-header.component';
 
@@ -68,6 +69,10 @@ beforeAll(async () => {
       'src/app/shared/components/custom-select/custom-select.component.html',
     './custom-select.component.scss':
       'src/app/shared/components/custom-select/custom-select.component.scss',
+    './custom-checkbox.component.html':
+      'src/app/shared/components/custom-checkbox/custom-checkbox.component.html',
+    './custom-checkbox.component.scss':
+      'src/app/shared/components/custom-checkbox/custom-checkbox.component.scss',
     './table-sort-header.component.html':
       'src/app/shared/components/table-sort-header/table-sort-header.component.html',
   };
@@ -111,6 +116,16 @@ beforeAll(async () => {
     'ariaLabel',
     'triggerId',
   ]);
+  registerSignalInputs(CustomCheckboxComponent, [
+    'checked',
+    'indeterminate',
+    'label',
+    'disabled',
+    'size',
+    'color',
+    'ariaLabel',
+    'id',
+  ]);
   registerSignalInputs(CostStateComponent, ['state']);
   registerSignalInputs(TableSortHeaderComponent, [
     'label',
@@ -120,6 +135,9 @@ beforeAll(async () => {
   ]);
   const buttonMetadata = (ButtonComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp;
   buttonMetadata.outputs = { ...buttonMetadata.outputs, clicked: 'clicked' };
+  const checkboxMetadata = (CustomCheckboxComponent as unknown as { ɵcmp: AngularInputMetadata })
+    .ɵcmp;
+  checkboxMetadata.outputs = { ...checkboxMetadata.outputs, checkedChange: 'checked' };
 });
 afterAll(() => {
   for (const [component, snapshot] of inputMetadataSnapshots) {
@@ -653,7 +671,9 @@ describe('StockPositionListComponent', () => {
     fixture.componentInstance.statusChange.subscribe(statusChange);
     fixture.componentInstance.sellIndividual.subscribe(sellIndividual);
 
-    fixture.nativeElement.querySelector('[data-item-select] input')?.click();
+    (fixture.nativeElement as HTMLElement)
+      .querySelector<HTMLElement>('[data-item-select] [role="checkbox"]')
+      ?.click();
     fixture.nativeElement.querySelector('[data-item-store-toggle]')?.click();
     fixture.nativeElement.querySelector('[data-item-sell]')?.click();
     fixture.detectChanges();

@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-22 – Juna – Shared-UI-Bereinigung: Inventar-Formulare und Dialoge migriert
+
+**Auftrag:** Legacy-Formulare, native Eingabefelder und eigene Dialograhmen im Bereich Inventar auf die zentralen Shared Components (`ModalShellComponent`, `TextFieldComponent`, `NumberInputComponent`, `CustomCheckboxComponent`, `ButtonComponent`) umstellen und die Pfade aus den Ausnahmelisten in `scripts/check-admin-shared-ui.mjs` entfernen.
+
+**Änderung:** In `item-create-modal` wurde der eigene Modalrahmen durch `ModalShellComponent` ersetzt, die sechs nativen Form-Inputs auf `TextFieldComponent` und `NumberInputComponent` umgestellt und Aktions- sowie Footer-Buttons auf `ButtonComponent` migriert. In `item-detail` wurde das Erfassen von Zusatzkosten auf `NumberInputComponent`, `TextFieldComponent` und `ButtonComponent` umgestellt sowie der Vollbild-Vorschau-Dialog auf `ModalShellComponent` migriert. In `stock-position-list` wurde die Checkbox der Zeilenauswahl auf `CustomCheckboxComponent` umgestellt. `NumberInputComponent` unterdrückt nun `[attr.id]` auf dem Host-Element zur Vermeidung doppelter Element-IDs. In `scripts/check-admin-shared-ui.mjs` wurden die beiden Inventar-Vorlagen aus `legacyNativeFormControlPaths` und `legacyCustomModalPaths` entfernt.
+
+**Prüfung:** `npm run format:check`, `npm run lint`, `npm run typecheck`, `npm run test:workflow` (83 bestanden, 0 Findings in check-admin-shared-ui), alle 13 Test-Dateien mit 176 Tests unter `src/app/features/inventory/` sowie der Angular-Produktionsbau (`ng build`) erfolgreich mit Exitcode 0 ausgeführt.
+
 ## 2026-09-22 – Juna – Shared-UI-Bereinigung: Test-Ressourcen und Form-Control-Anbindung in PR #149 gefixt
 
 **Auftrag:** CI-Fehler in PR #149 (refactor(ui): migrate forms to shared controls) analysieren und beheben.
