@@ -118,12 +118,12 @@
         </p>
       }
       <form [formGroup]="inviteForm" (ngSubmit)="onSendInvite()" class="space-y-4">
-        <label class="block text-xs font-semibold text-fb-text-secondary"
-          >E-Mail-Adresse *<input
-            type="email"
-            formControlName="email"
-            class="linear-input mt-1 min-h-11 w-full rounded-xl px-3 text-xs"
-        /></label>
+        <app-text-field
+          type="email"
+          formControlName="email"
+          label="E-Mail-Adresse"
+          [required]="true"
+        />
         <div class="block text-xs font-semibold text-fb-text-secondary">
           <span>Rolle & Berechtigung *</span
           ><app-custom-select
