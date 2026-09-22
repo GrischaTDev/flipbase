@@ -40,6 +40,7 @@ import { editableItemStatusOptions } from '../../models/item-status-options';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
 import {
   buildInventoryPresentation,
   InventorySourceState,
@@ -52,6 +53,7 @@ import {
     NgTemplateOutlet,
     BadgeComponent,
     ButtonComponent,
+    CustomCheckboxComponent,
     ProductThumbnailComponent,
     CurrencyPipe,
     DatePipe,
