@@ -16,10 +16,11 @@ import {
   SelectOption,
 } from '../../../../shared/components/custom-select/custom-select.component';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
+import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 
 @Component({
   selector: 'app-team-settings',
-  imports: [ReactiveFormsModule, LucideDynamicIcon, CustomSelectComponent],
+  imports: [ReactiveFormsModule, LucideDynamicIcon, CustomSelectComponent, TextFieldComponent],
   templateUrl: './team-settings.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
