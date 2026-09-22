@@ -39,8 +39,7 @@
           formControlName="discordWebhookUrl"
           label="Discord Webhook-URL"
           placeholder="https://discord.com/api/webhooks/..."
-        />
-        <button
+        /><button
           type="button"
           (click)="testWebhook('discord')"
           [disabled]="isTestingWebhook() || isLoadingWorkspaceConfig()"
@@ -63,13 +62,11 @@
           formControlName="telegramBotToken"
           label="Telegram Bot Token"
           placeholder="Telegram Bot Token"
-        />
-        <app-text-field
+        /><app-text-field
           formControlName="telegramChatId"
           label="Chat-ID"
           placeholder="Chat-ID"
-        />
-        <button
+        /><button
           type="button"
           (click)="testWebhook('telegram')"
           [disabled]="isTestingWebhook() || isLoadingWorkspaceConfig()"
@@ -92,8 +89,7 @@
           formControlName="customWebhookUrl"
           label="Webhook-URL"
           placeholder="Webhook-URL"
-        />
-        <button
+        /><button
           type="button"
           (click)="testWebhook('custom')"
           [disabled]="isTestingWebhook() || isLoadingWorkspaceConfig()"
@@ -108,13 +104,11 @@
         formControlName="notifyOnSale"
         label="Push bei jedem neuen Verkauf (mit Reingewinn & ROI)"
         size="sm"
-      />
-      <app-custom-checkbox
+      /><app-custom-checkbox
         formControlName="notifyOnPurchase"
         label="Push bei jedem neuen Einkauf / Palette"
         size="sm"
-      />
-      <app-custom-checkbox
+      /><app-custom-checkbox
         formControlName="soundEnabled"
         label="Kassen-Chime Sound bei Sales abspielen"
         size="sm"
