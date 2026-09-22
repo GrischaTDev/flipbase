@@ -3,7 +3,7 @@ const PURCHASE_COST_TYPE_LABELS: Readonly<Record<string, string>> = {
   travel: 'Fahrtkosten',
   packaging: 'Verpackung',
   transport: 'Frachtgebühr',
-  customs: 'Zölle',
+  customs: 'Zollgebühren',
   import: 'Importabgaben',
   fee: 'Gebühr',
   other: 'Sonstiges',

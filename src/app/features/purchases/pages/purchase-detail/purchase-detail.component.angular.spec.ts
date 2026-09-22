@@ -58,6 +58,35 @@ describe('PurchaseDetailComponent', () => {
     expect(documents).toBeGreaterThan(tracking);
   });
 
+  it('bietet den fehlenden Eigenbeleg nach einem Speicherfehler erneut an', async () => {
+    const component = Object.create(PurchaseDetailComponent.prototype) as PurchaseDetailComponent;
+    const ensureForFinalizedPurchase = vi
+      .fn()
+      .mockResolvedValueOnce({ error: new Error('Belegspeicher nicht erreichbar') })
+      .mockResolvedValueOnce({ error: null });
+    const success = vi.fn();
+    const selfReceiptError = signal<string | null>(null);
+    const historyRevision = signal(0);
+    Object.assign(component, {
+      purchase: () => ({ id: 'purchase-1' }),
+      selfReceiptMissing: () => true,
+      isCreatingSelfReceipt: signal(false),
+      selfReceiptError,
+      selfReceipts: { ensureForFinalizedPurchase },
+      historyRevision,
+      toast: { success },
+    });
+
+    await component.retrySelfReceipt();
+    expect(selfReceiptError()).toBe('Belegspeicher nicht erreichbar');
+    expect(success).not.toHaveBeenCalled();
+
+    await component.retrySelfReceipt();
+    expect(selfReceiptError()).toBeNull();
+    expect(historyRevision()).toBe(1);
+    expect(success).toHaveBeenCalledWith('Eigenbeleg wurde erstellt.');
+  });
+
   it('zeigt Verkäuferangaben, Beschreibung und Nachtrag ohne entfernte Einkaufsfelder', () => {
     const template = readFileSync(
       'src/app/features/purchases/pages/purchase-detail/purchase-detail.component.html',

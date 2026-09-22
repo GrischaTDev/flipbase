@@ -199,6 +199,7 @@ export interface InboundTrackingInfo {
 }
 
 export interface Purchase {
+  receipt_mode?: 'external' | 'self';
   record_number?: string | null;
   numbering_series_id?: number | null;
   numbering_version?: number | null;

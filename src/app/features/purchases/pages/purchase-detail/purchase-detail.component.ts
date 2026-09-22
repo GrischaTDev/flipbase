@@ -76,6 +76,8 @@ import { PurchaseCorrectionDialogComponent } from '../../components/purchase-cor
 import { PurchaseLifecycleActionsComponent } from '../../components/purchase-lifecycle-actions/purchase-lifecycle-actions.component';
 import { PurchaseSellerDetailsDialogComponent } from '../../components/purchase-seller-details-dialog/purchase-seller-details-dialog.component';
 import { PurchaseDocumentsCardComponent } from '../../components/purchase-documents-card/purchase-documents-card.component';
+import { PurchaseDocumentService } from '../../../../core/services/purchase-document.service';
+import { PurchaseSelfReceiptService } from '../../services/purchase-self-receipt.service';
 import { purchaseSellerDetailRows, purchaseSellerLabel } from '../../utils/purchase-seller';
 import { PurchaseDetailTableComponent } from '../../components/purchase-detail-table/purchase-detail-table.component';
 import { getPurchaseDisplayTitle, mapPurchaseDetailRows } from '../../utils/purchase-presentation';
@@ -203,6 +205,44 @@ export class PurchaseDetailComponent {
   private readonly syncStatus = inject(SyncStatusService);
   private readonly workspaceService = inject(WorkspaceService);
   private readonly purchaseCostingService = inject(PurchaseCostingService);
+  private readonly documentService = inject(PurchaseDocumentService);
+  private readonly selfReceipts = inject(PurchaseSelfReceiptService);
+  readonly isCreatingSelfReceipt = signal(false);
+  readonly selfReceiptError = signal<string | null>(null);
+  readonly selfReceiptMissing = computed(() => {
+    const purchase = this.purchase();
+    return Boolean(
+      purchase?.receipt_mode === 'self' &&
+      purchase.entry_status === 'finalized' &&
+      purchase.finalized_at &&
+      !this.documentService.isLoading() &&
+      (this.documentService.loadedPurchaseId() === purchase.id ||
+        this.documentService.loadError() !== null) &&
+      !this.documentService
+        .documents()
+        .some(
+          (document) =>
+            document.purchase_id === purchase.id &&
+            document.document_type === 'self_receipt' &&
+            document.source_finalized_at === purchase.finalized_at,
+        ),
+    );
+  });
+
+  async retrySelfReceipt(): Promise<void> {
+    const purchase = this.purchase();
+    if (!purchase || !this.selfReceiptMissing() || this.isCreatingSelfReceipt()) return;
+    this.isCreatingSelfReceipt.set(true);
+    this.selfReceiptError.set(null);
+    const result = await this.selfReceipts.ensureForFinalizedPurchase(purchase.id);
+    this.isCreatingSelfReceipt.set(false);
+    if (result.error) {
+      this.selfReceiptError.set(result.error.message);
+      return;
+    }
+    this.historyRevision.update((revision) => revision + 1);
+    this.toast.success('Eigenbeleg wurde erstellt.');
+  }
 
   /** Fortschrittsstufen der Sendungsverfolgung – typisiert, damit der Zugriff auf statusConfig im Template typsicher bleibt. */
   readonly trackingSteps: readonly InboundTrackingStatus[] = [
@@ -1026,8 +1066,16 @@ export class PurchaseDetailComponent {
       purchase.id,
       result.data,
     );
+    const selfReceiptResult =
+      purchase.receipt_mode === 'self'
+        ? await this.selfReceipts.ensureForFinalizedPurchase(purchase.id)
+        : { error: null };
     this.historyRevision.update((revision) => revision + 1);
     this.toast.success('Erfassung wurde abgeschlossen.');
+    if (selfReceiptResult.error) {
+      this.selfReceiptError.set(selfReceiptResult.error.message);
+      this.toast.warning('Einkauf abgeschlossen, Eigenbeleg fehlt.');
+    }
     if (refreshError) {
       this.toast.warning(
         'Der Einkauf ist abgeschlossen, aber noch nicht vollständig neu geladen.',

@@ -1,4 +1,4 @@
-<app-card title="Belege" subtitle="Originaldateien zu diesem Einkauf" rounded="xl">
+<app-card title="Belege" rounded="xl">
   <div class="space-y-3">
     <!-- Verstecktes Dateifeld: Der Dateidialog lässt sich nur so aus einem Knopf öffnen. -->
     <input
@@ -121,15 +121,17 @@
               >
                 <svg [lucideIcon]="previewIcon" class="h-4 w-4" aria-hidden="true"></svg>
               </button>
-              <button
-                type="button"
-                data-remove-document
-                aria-label="Beleg entfernen"
-                class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-fb-text-muted hover:bg-fb-critical-surface hover:text-fb-critical focus-visible:outline-2 focus-visible:outline-fb-critical"
-                (click)="removeDocument(row.document)"
-              >
-                <svg [lucideIcon]="removeIcon" class="h-4 w-4" aria-hidden="true"></svg>
-              </button>
+              @if (row.document.document_type !== 'self_receipt') {
+                <button
+                  type="button"
+                  data-remove-document
+                  aria-label="Beleg entfernen"
+                  class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-fb-text-muted hover:bg-fb-critical-surface hover:text-fb-critical focus-visible:outline-2 focus-visible:outline-fb-critical"
+                  (click)="removeDocument(row.document)"
+                >
+                  <svg [lucideIcon]="removeIcon" class="h-4 w-4" aria-hidden="true"></svg>
+                </button>
+              }
             </div>
           </li>
         }

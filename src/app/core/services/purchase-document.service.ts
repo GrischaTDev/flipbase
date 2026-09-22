@@ -27,8 +27,10 @@ export class PurchaseDocumentService {
   readonly documents = this.documentsRaw.asReadonly();
   readonly isLoading = signal(false);
   readonly loadError = signal<string | null>(null);
+  readonly loadedPurchaseId = signal<string | null>(null);
 
   async loadForPurchase(purchaseId: string): Promise<void> {
+    this.loadedPurchaseId.set(null);
     this.loadError.set(null);
     this.isLoading.set(true);
     try {
@@ -42,6 +44,7 @@ export class PurchaseDocumentService {
         return;
       }
       this.documentsRaw.set((data ?? []) as PurchaseDocument[]);
+      this.loadedPurchaseId.set(purchaseId);
     } catch (cause: unknown) {
       this.loadError.set(this.syncStatus.melde('Laden der Belege', cause).message);
     } finally {
@@ -53,7 +56,11 @@ export class PurchaseDocumentService {
     purchaseId: string,
     file: File,
     documentType: PurchaseDocumentType,
+    sourceFinalizedAt: string | null = null,
   ): Promise<{ data: PurchaseDocument | null; error: Error | null }> {
+    if ((documentType === 'self_receipt') !== (sourceFinalizedAt !== null)) {
+      return { data: null, error: new Error('Die Abschlussfassung des Eigenbelegs fehlt.') };
+    }
     const invalid = validatePurchaseDocumentFile(file);
     if (invalid) return { data: null, error: invalid };
 
@@ -79,6 +86,7 @@ export class PurchaseDocumentService {
           workspace_id: workspace.id,
           purchase_id: purchaseId,
           document_type: documentType,
+          source_finalized_at: sourceFinalizedAt,
           original_file_name: file.name,
           storage_path: path,
           mime_type: file.type,
@@ -125,6 +133,9 @@ export class PurchaseDocumentService {
 
   /** Zuerst die private Datei, damit ein Storage-Fehler wiederholbar bleibt. */
   async remove(document: PurchaseDocument): Promise<{ error: Error | null }> {
+    if (document.document_type === 'self_receipt') {
+      return { error: new Error('Ein erzeugter Eigenbeleg kann nicht entfernt werden.') };
+    }
     try {
       const knownDocument = this.documentsRaw().find((entry) => entry.id === document.id);
       if (!knownDocument || knownDocument.storage_path !== document.storage_path) {

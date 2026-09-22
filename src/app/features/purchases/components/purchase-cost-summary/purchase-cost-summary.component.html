@@ -15,7 +15,7 @@
     <ng-content select="[cost-summary-goods-editor]" />
   </div>
 
-  <dl class="divide-y divide-fb-line px-4 text-[13px]">
+  <dl class="px-4 text-[13px]">
     <div class="flex items-center justify-between gap-4 py-2.5">
       <dt class="text-fb-text-secondary">
         Bestellte Artikel
@@ -29,20 +29,14 @@
       <div class="flex items-center justify-between gap-4 py-2.5">
         <dt class="text-fb-text-secondary">
           {{ row.label }}
-          @if (row.detail) {
-            <span class="mt-0.5 block text-[12px] text-fb-text-muted">{{ row.detail }}</span>
-          }
         </dt>
         <dd class="font-medium tabular-nums text-fb-text-primary">
-          @if (row.subtract) {
-            <span aria-hidden="true">−</span>
-          }
           {{ formatCurrency(row.amount) }}
         </dd>
       </div>
     }
     @if (discountAmount() > 0) {
-      <div class="flex items-center justify-between gap-4 border-t border-fb-line py-2.5">
+      <div class="flex items-center justify-between gap-4 py-2.5">
         <dt class="text-fb-text-secondary">Rabatt</dt>
         <dd class="font-medium tabular-nums text-fb-text-primary">
           <span aria-hidden="true">−</span>
@@ -50,7 +44,7 @@
         </dd>
       </div>
     }
-    <div class="flex items-center justify-between gap-4 py-3">
+    <div class="flex items-center justify-between gap-4 border-t border-fb-line py-3">
       <dt class="font-semibold text-fb-text-primary">Gesamt</dt>
       <dd class="font-semibold tabular-nums text-fb-text-primary">
         {{ formatCurrency(displayedTotal()) }}

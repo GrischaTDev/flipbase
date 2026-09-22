@@ -2005,6 +2005,7 @@ export type Database = {
           mime_type: string
           original_file_name: string
           purchase_id: string
+          source_finalized_at: string | null
           storage_path: string
           workspace_id: string
         }
@@ -2017,6 +2018,7 @@ export type Database = {
           mime_type: string
           original_file_name: string
           purchase_id: string
+          source_finalized_at?: string | null
           storage_path: string
           workspace_id: string
         }
@@ -2029,6 +2031,7 @@ export type Database = {
           mime_type?: string
           original_file_name?: string
           purchase_id?: string
+          source_finalized_at?: string | null
           storage_path?: string
           workspace_id?: string
         }
@@ -2260,6 +2263,7 @@ export type Database = {
           pricing_mode: string | null
           purchase_date: string
           purchase_price: number | null
+          receipt_mode: string
           receiving_status: string
           record_number: string | null
           request_id: string | null
@@ -2302,6 +2306,7 @@ export type Database = {
           pricing_mode?: string | null
           purchase_date?: string
           purchase_price?: number | null
+          receipt_mode?: string
           receiving_status?: string
           record_number?: string | null
           request_id?: string | null
@@ -2344,6 +2349,7 @@ export type Database = {
           pricing_mode?: string | null
           purchase_date?: string
           purchase_price?: number | null
+          receipt_mode?: string
           receiving_status?: string
           record_number?: string | null
           request_id?: string | null
@@ -4926,6 +4932,7 @@ export type Database = {
           pricing_mode: string | null
           purchase_date: string
           purchase_price: number | null
+          receipt_mode: string
           receiving_status: string
           record_number: string | null
           request_id: string | null

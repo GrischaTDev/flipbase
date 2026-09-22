@@ -249,6 +249,19 @@
             </app-card>
 
             <ng-container [ngTemplateOutlet]="trackingCard" />
+            @if (selfReceiptMissing()) {
+              <app-card title="Eigenbeleg">
+                <div class="space-y-3 text-[13px]">
+                  <p>Für diesen Abschluss fehlt noch der Eigenbeleg.</p>
+                  @if (selfReceiptError()) {
+                    <p role="alert">{{ selfReceiptError() }}</p>
+                  }
+                  <app-button [loading]="isCreatingSelfReceipt()" (clicked)="retrySelfReceipt()">
+                    Eigenbeleg erneut erstellen
+                  </app-button>
+                </div>
+              </app-card>
+            }
             <app-purchase-documents-card [purchase]="p" />
           </div>
         </app-two-column-layout>

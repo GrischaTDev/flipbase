@@ -8,9 +8,9 @@
     <span></span>
   </div>
 
-  <div formArrayName="costRows" class="divide-y divide-fb-line border-y border-fb-line">
+  <div formArrayName="costRows" class="space-y-3">
     @for (costRow of costRows.controls; track costRow; let index = $index) {
-      <div [formGroupName]="index" class="py-3">
+      <div [formGroupName]="index">
         <div
           class="grid grid-cols-[minmax(0,1fr)_2.25rem] gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(9rem,1fr)_2.25rem] sm:items-center"
         >
@@ -25,6 +25,15 @@
               placeholder="Auswählen"
               size="sm"
             />
+            @if (costRow.controls.sourceCost.value; as sourceCost) {
+              @if (
+                costRow.controls.adjustment.value === 'other' &&
+                sourceCost.description &&
+                sourceCost.description !== 'Sonstiges'
+              ) {
+                <p class="mt-1 text-xs text-fb-text-muted">Bisher: {{ sourceCost.description }}</p>
+              }
+            }
           </div>
 
           <div class="min-w-0 max-sm:col-start-1">
