@@ -25,15 +25,17 @@
     </p>
     <fieldset class="space-y-3">
       <legend class="sr-only">Webhook-Kanäle</legend>
-      <label
+      <div
         class="flex items-center justify-between rounded-xl border border-fb-border bg-fb-subtle p-3 text-xs font-semibold text-fb-text-primary"
-        >Discord Webhook<input type="checkbox" formControlName="discordEnabled" class="h-5 w-5"
-      /></label>
+      >
+        <span>Discord Webhook</span>
+        <app-custom-checkbox formControlName="discordEnabled" ariaLabel="Discord Webhook aktivieren" />
+      </div>
       @if (webhookForm.controls.discordEnabled.value) {
-        <input
+        <app-text-field
           formControlName="discordWebhookUrl"
+          label="Discord Webhook-URL"
           placeholder="https://discord.com/api/webhooks/..."
-          class="linear-input min-h-11 w-full rounded-xl px-3 text-xs"
         /><button
           type="button"
           (click)="testWebhook('discord')"
@@ -43,20 +45,19 @@
           Discord-Test senden
         </button>
       }
-      <label
+      <div
         class="flex items-center justify-between rounded-xl border border-fb-border bg-fb-subtle p-3 text-xs font-semibold text-fb-text-primary"
-        >Telegram Bot<input type="checkbox" formControlName="telegramEnabled" class="h-5 w-5"
-      /></label>
+      >
+        <span>Telegram Bot</span>
+        <app-custom-checkbox formControlName="telegramEnabled" ariaLabel="Telegram Bot aktivieren" />
+      </div>
       @if (webhookForm.controls.telegramEnabled.value) {
-        <input
+        <app-text-field
           formControlName="telegramBotToken"
+          label="Telegram Bot Token"
           placeholder="Telegram Bot Token"
-          class="linear-input min-h-11 w-full rounded-xl px-3 text-xs"
-        /><input
-          formControlName="telegramChatId"
-          placeholder="Chat-ID"
-          class="linear-input min-h-11 w-full rounded-xl px-3 text-xs"
-        /><button
+        />
+        <app-text-field formControlName="telegramChatId" label="Chat-ID" placeholder="Chat-ID" /><button
           type="button"
           (click)="testWebhook('telegram')"
           [disabled]="isTestingWebhook() || isLoadingWorkspaceConfig()"
@@ -65,18 +66,20 @@
           Telegram-Test senden
         </button>
       }
-      <label
+      <div
         class="flex items-center justify-between rounded-xl border border-fb-border bg-fb-subtle p-3 text-xs font-semibold text-fb-text-primary"
-        >Eigener Webhook<input
-          type="checkbox"
+      >
+        <span>Eigener Webhook</span>
+        <app-custom-checkbox
           formControlName="customWebhookEnabled"
-          class="h-5 w-5"
-      /></label>
+          ariaLabel="Eigenen Webhook aktivieren"
+        />
+      </div>
       @if (webhookForm.controls.customWebhookEnabled.value) {
-        <input
+        <app-text-field
           formControlName="customWebhookUrl"
+          label="Webhook-URL"
           placeholder="Webhook-URL"
-          class="linear-input min-h-11 w-full rounded-xl px-3 text-xs"
         /><button
           type="button"
           (click)="testWebhook('custom')"
