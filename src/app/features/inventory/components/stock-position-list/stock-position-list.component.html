@@ -121,12 +121,10 @@
                   <td class="px-3 py-3 text-center">
                     @if (row.inventoryItem; as item) {
                       <div data-item-select class="flex justify-center">
-                        <input
-                          type="checkbox"
+                        <app-custom-checkbox
                           [checked]="isItemSelected(item.id)"
-                          (change)="selectionChanged.emit(item.id)"
-                          [attr.aria-label]="'Artikel ' + item.title + ' auswählen'"
-                          class="h-4 w-4 cursor-pointer rounded border-fb-border bg-fb-well text-emerald-600 focus:ring-2 focus:ring-emerald-400"
+                          [ariaLabel]="'Artikel ' + item.title + ' auswählen'"
+                          (checkedChange)="selectionChanged.emit(item.id)"
                         />
                       </div>
                     } @else {
