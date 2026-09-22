@@ -67,6 +67,12 @@ export class ListingEditorComponent {
   readonly helpOpen = signal(false);
   readonly listingId = signal<string | null>(this.route.snapshot.paramMap.get('id'));
   readonly isEdit = computed(() => this.listingId() !== null);
+  readonly isLoading = computed(() =>
+    typeof this.listingService?.loading === 'function' ? this.listingService.loading() : false,
+  );
+  readonly loadError = computed(() =>
+    typeof this.listingService?.error === 'function' ? this.listingService.error() : null,
+  );
   private readonly selectedItemId = signal('');
   readonly priceTypeOptions: readonly SelectOption<ListingPriceType>[] = [
     { value: 'FIXED', label: 'Festpreis' },
@@ -85,11 +91,24 @@ export class ListingEditorComponent {
   readonly itemOptions = computed<readonly SelectOption<string>[]>(() =>
     this.listingService
       .items()
-      .filter((item) => !item.archivedAt && item.status !== 'archived' && item.status !== 'sold')
+      .filter((item) => {
+        if (item.archivedAt || item.status === 'archived' || item.status === 'sold') {
+          return false;
+        }
+        if (item.targetKind === 'catalog_product') {
+          return (item.availableQuantity ?? 0) > 0;
+        }
+        return true;
+      })
       .map((item) => ({
         value: item.id,
-        label: item.title,
-        description: this.createIssueFor(item) ?? this.itemStatusLabel(item.status),
+        label:
+          item.targetKind === 'catalog_product'
+            ? `${item.title} · Mengenbestand: ${item.availableQuantity ?? 0}`
+            : `${item.title} · Einzelstück`,
+        description:
+          this.createIssueFor(item) ??
+          (item.targetKind === 'catalog_product' ? undefined : this.itemStatusLabel(item.status)),
       })),
   );
   readonly form = new FormGroup({
@@ -234,9 +253,14 @@ export class ListingEditorComponent {
     this.isSaving.set(true);
     try {
       const content = this.content();
+      const selectedItem = this.selectedItem();
       const result = this.isEdit()
         ? await this.listingService.updateContent(this.listingId()!, content)
-        : await this.listingService.prepare(this.form.controls.inventoryItemId.value, content);
+        : await this.listingService.prepare(
+            this.form.controls.inventoryItemId.value,
+            content,
+            selectedItem?.targetKind,
+          );
       if (result.error) {
         this.toast.error('Inserat konnte nicht gespeichert werden.', result.error.message);
         return;
@@ -293,8 +317,10 @@ export class ListingEditorComponent {
     const openListing = this.openListingFor(item.id);
     if (openListing) return 'Für diesen Artikel besteht bereits ein offenes Inserat.';
     const eligibility = canPrepareListing({
+      targetKind: item.targetKind,
+      availableQuantity: item.availableQuantity,
       status: item.status,
-      archived_at: item.archivedAt,
+      archivedAt: item.archivedAt,
     });
     return eligibility.allowed ? null : eligibility.reason;
   }
@@ -335,7 +361,7 @@ export class ListingEditorComponent {
       title: item.title,
       brand: item.brand,
       category: item.category,
-      condition: item.condition,
+      condition: item.condition ?? 'like_new',
       condition_notes: item.conditionNotes,
       description: item.description,
       status: item.status,

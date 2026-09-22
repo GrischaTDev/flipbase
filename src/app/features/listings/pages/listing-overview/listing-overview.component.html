@@ -76,7 +76,7 @@
                 <div>
                   <p class="font-medium text-fb-text-primary">{{ row.listing.content.title }}</p>
                   <a
-                    [routerLink]="['/inventory', row.item.id]"
+                    [routerLink]="itemRoute(row.item)"
                     class="text-fb-text-muted hover:text-fb-text-primary"
                     >{{ row.item.title }}</a
                   >
@@ -170,7 +170,7 @@
             <dt class="text-fb-text-muted">Artikel</dt>
             <dd>
               <a
-                [routerLink]="['/inventory', row.item.id]"
+                [routerLink]="itemRoute(row.item)"
                 class="font-medium text-fb-text-secondary hover:text-fb-text-primary"
                 >{{ row.item.title }}</a
               >

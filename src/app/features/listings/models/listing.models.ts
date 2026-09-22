@@ -46,10 +46,13 @@ export interface ListingContent {
   readonly postalCode: string | null;
 }
 
+export type ListingTargetKind = 'inventory_item' | 'catalog_product';
+
 export interface Listing {
   readonly id: string;
   readonly workspaceId: string;
-  readonly inventoryItemId: string;
+  readonly inventoryItemId?: string | null;
+  readonly catalogProductId?: string | null;
   readonly platform: ListingPlatform;
   readonly status: ListingStatus;
   readonly endReason: ListingEndReason;
@@ -65,10 +68,12 @@ export interface Listing {
 export interface ListingEditorItem {
   readonly id: string;
   readonly workspaceId: string;
+  readonly targetKind?: ListingTargetKind;
+  readonly availableQuantity?: number;
   readonly title: string;
   readonly brand: string | null;
   readonly category: string | null;
-  readonly condition: InventoryItem['condition'];
+  readonly condition: InventoryItem['condition'] | null;
   readonly conditionNotes: string | null;
   readonly description: string | null;
   readonly status: ItemStatus;

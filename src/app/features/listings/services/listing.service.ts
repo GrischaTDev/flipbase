@@ -14,12 +14,55 @@ import type {
   ListingRow,
 } from '../models/listing.models';
 
-type ListingDatabaseRow = Tables<'listings'>;
+interface ListingDatabaseRow {
+  readonly id: string;
+  readonly workspace_id: string;
+  readonly inventory_item_id: string | null;
+  readonly catalog_product_id: string | null;
+  readonly platform: string;
+  readonly status: string;
+  readonly end_reason: string | null;
+  readonly title: string;
+  readonly description: string;
+  readonly price: number;
+  readonly price_type: string;
+  readonly shipping_type: string;
+  readonly shipping_price: number | null;
+  readonly postal_code: string | null;
+  readonly listed_count: number;
+  readonly last_listed_at: string | null;
+  readonly online_since: string | null;
+  readonly ended_at: string | null;
+  readonly created_at: string;
+  readonly updated_at: string;
+}
 type InventoryDatabaseRow = Tables<'inventory_items'> & {
   readonly condition_notes?: string | null;
   readonly media?: readonly ItemMediaDatabaseRow[] | null;
 };
 type ItemMediaDatabaseRow = Tables<'item_media'> & { readonly sort_order?: number | null };
+
+type CatalogProductDatabaseRow = Tables<'catalog_products'> & {
+  readonly media?: readonly CatalogProductMediaDatabaseRow[] | null;
+  readonly catalog_product_media?: readonly CatalogProductMediaDatabaseRow[] | null;
+};
+interface CatalogProductMediaDatabaseRow {
+  readonly id: string;
+  readonly workspace_id: string;
+  readonly catalog_product_id: string;
+  readonly storage_path: string;
+  readonly is_primary: boolean | null;
+  readonly file_name?: string | null;
+  readonly file_size?: number | null;
+  readonly mime_type?: string | null;
+  readonly sort_order?: number | null;
+  readonly created_at: string;
+}
+interface StockLotDatabaseRow {
+  readonly catalog_product_id: string;
+  readonly remaining_quantity: number;
+  readonly unit_cost: number | null;
+}
 
 interface QueryError {
   readonly message: string;
@@ -50,11 +93,18 @@ interface ListingDatabaseClient {
   from(table: 'inventory_items'): {
     select(columns: string): CollectionQuery<readonly InventoryDatabaseRow[]>;
   };
+  from(table: 'catalog_products'): {
+    select(columns: string): CollectionQuery<readonly CatalogProductDatabaseRow[]>;
+  };
+  from(table: 'stock_lots'): {
+    select(columns: string): CollectionQuery<readonly StockLotDatabaseRow[]>;
+  };
   rpc(
     name: 'prepare_listing',
     parameters: {
       readonly p_workspace_id: string;
-      readonly p_inventory_item_id: string;
+      readonly p_inventory_item_id: string | null;
+      readonly p_catalog_product_id: string | null;
       readonly p_content: unknown;
     },
   ): Promise<QueryResult<ListingDatabaseRow>>;
@@ -104,7 +154,7 @@ export class ListingService {
     this.loadedWorkspaceId.set(null);
 
     try {
-      const [listingsResult, itemsResult] = await Promise.all([
+      const [listingsResult, itemsResult, productsResult, stockLotsResult] = await Promise.all([
         this.client
           .from('listings')
           .select('*')
@@ -115,25 +165,66 @@ export class ListingService {
           .select('*, media:item_media(*)')
           .eq('workspace_id', workspaceId)
           .order('created_at', { ascending: false }),
+        this.client
+          .from('catalog_products')
+          .select('*, media:catalog_product_media(*)')
+          .eq('workspace_id', workspaceId)
+          .order('title', { ascending: true }),
+        this.client
+          .from('stock_lots')
+          .select('catalog_product_id, remaining_quantity, unit_cost')
+          .eq('workspace_id', workspaceId),
       ]);
 
       if (!this.isCurrentLoad(generation, workspaceId)) return;
 
-      if (listingsResult.error || itemsResult.error) {
+      if (
+        listingsResult.error ||
+        itemsResult.error ||
+        productsResult.error ||
+        stockLotsResult.error
+      ) {
         this.error.set(
-          (listingsResult.error ?? itemsResult.error)?.message ??
-            'Inserate konnten nicht geladen werden.',
+          (
+            listingsResult.error ??
+            itemsResult.error ??
+            productsResult.error ??
+            stockLotsResult.error
+          )?.message ?? 'Inserate konnten nicht geladen werden.',
         );
         return;
       }
 
-      const editorItems = (itemsResult.data ?? []).map((item) => this.mapEditorItem(item));
+      const stockByProductId = new Map<
+        string,
+        { totalQuantity: number; oldestUnitCost: number | null }
+      >();
+      for (const lot of stockLotsResult.data ?? []) {
+        if (!lot.catalog_product_id || lot.remaining_quantity <= 0) continue;
+        const current = stockByProductId.get(lot.catalog_product_id) ?? {
+          totalQuantity: 0,
+          oldestUnitCost: null,
+        };
+        stockByProductId.set(lot.catalog_product_id, {
+          totalQuantity: current.totalQuantity + Number(lot.remaining_quantity || 0),
+          oldestUnitCost:
+            current.oldestUnitCost ??
+            (lot.unit_cost !== null && lot.unit_cost !== undefined ? Number(lot.unit_cost) : null),
+        });
+      }
+
+      const inventoryEditorItems = (itemsResult.data ?? []).map((item) => this.mapEditorItem(item));
+      const catalogEditorItems = (productsResult.data ?? []).map((product) =>
+        this.mapCatalogEditorItem(product, stockByProductId.get(product.id)),
+      );
+      const editorItems = [...inventoryEditorItems, ...catalogEditorItems];
       const itemsById = new Map(editorItems.map((item) => [item.id, item]));
       this.items.set(editorItems);
       this.rows.set(
         (listingsResult.data ?? [])
           .map((listing) => {
-            const item = itemsById.get(listing.inventory_item_id);
+            const targetId = listing.inventory_item_id ?? listing.catalog_product_id;
+            const item = targetId ? itemsById.get(targetId) : null;
             return item ? this.mapRow(listing, item) : null;
           })
           .filter((row): row is ListingRow => row !== null),
@@ -148,14 +239,22 @@ export class ListingService {
     }
   }
 
-  async prepare(itemId: string, content: ListingContent): Promise<ListingActionResult> {
+  async prepare(
+    itemId: string,
+    content: ListingContent,
+    targetKind?: 'inventory_item' | 'catalog_product',
+  ): Promise<ListingActionResult> {
     const workspaceId = this.activeWorkspaceId();
     if (!workspaceId) return this.noWorkspaceResult();
+
+    const resolvedKind =
+      targetKind ?? this.items().find((item) => item.id === itemId)?.targetKind ?? 'inventory_item';
 
     try {
       const { data, error } = await this.client.rpc('prepare_listing', {
         p_workspace_id: workspaceId,
-        p_inventory_item_id: itemId,
+        p_inventory_item_id: resolvedKind === 'inventory_item' ? itemId : null,
+        p_catalog_product_id: resolvedKind === 'catalog_product' ? itemId : null,
         p_content: this.toRpcContent(content),
       });
       return await this.finishMutation(workspaceId, data, error);
@@ -314,7 +413,8 @@ export class ListingService {
     return {
       id: row.id,
       workspaceId: row.workspace_id,
-      inventoryItemId: row.inventory_item_id,
+      inventoryItemId: row.inventory_item_id ?? null,
+      catalogProductId: row.catalog_product_id ?? null,
       platform: 'kleinanzeigen',
       status: row.status as Listing['status'],
       endReason: row.end_reason as Listing['endReason'],
@@ -340,6 +440,7 @@ export class ListingService {
     return {
       id: row.id,
       workspaceId: row.workspace_id,
+      targetKind: 'inventory_item',
       title: row.title,
       brand: row.brand,
       category: row.category,
@@ -351,6 +452,44 @@ export class ListingService {
       expectedValue: row.expected_value,
       allocatedPurchaseCost: row.allocated_purchase_cost,
       media: (row.media ?? []).map((medium) => this.mapMedia(medium)),
+    };
+  }
+
+  private mapCatalogEditorItem(
+    row: CatalogProductDatabaseRow,
+    stock?: { totalQuantity: number; oldestUnitCost: number | null },
+  ): ListingEditorItem {
+    const rawMedia = row.media ?? row.catalog_product_media ?? [];
+    return {
+      id: row.id,
+      workspaceId: row.workspace_id,
+      targetKind: 'catalog_product',
+      availableQuantity: stock?.totalQuantity ?? 0,
+      title: row.title,
+      brand: row.brand ?? null,
+      category: row.category ?? null,
+      condition: (row.condition as ListingEditorItem['condition']) ?? 'like_new',
+      conditionNotes: row.condition_notes ?? null,
+      description: row.description ?? null,
+      status: (stock?.totalQuantity ?? 0) > 0 ? 'ready' : 'sold',
+      archivedAt: null,
+      expectedValue: row.listing_price ?? null,
+      allocatedPurchaseCost: stock?.oldestUnitCost ?? null,
+      media: rawMedia.map((medium) => this.mapCatalogMedia(medium, row.id)),
+    };
+  }
+
+  private mapCatalogMedia(row: CatalogProductMediaDatabaseRow, productId: string): ItemMedia {
+    return {
+      id: row.id,
+      inventory_item_id: productId,
+      storage_path: row.storage_path,
+      is_primary: Boolean(row.is_primary),
+      file_name: row.file_name ?? null,
+      file_size: row.file_size ?? null,
+      mime_type: row.mime_type ?? null,
+      sort_order: row.sort_order ?? undefined,
+      created_at: row.created_at,
     };
   }
 

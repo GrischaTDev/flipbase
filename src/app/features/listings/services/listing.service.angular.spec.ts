@@ -217,6 +217,7 @@ describe('ListingService', () => {
     expect(rpc).toHaveBeenCalledWith('prepare_listing', {
       p_workspace_id: 'workspace-a',
       p_inventory_item_id: 'item-1',
+      p_catalog_product_id: null,
       p_content: {
         title: 'Neue Kamera',
         description: 'Neue Beschreibung',
@@ -274,5 +275,109 @@ describe('ListingService', () => {
       { url: 'https://signed.test/first.jpg', name: 'first.jpg' },
     ]);
     expect(result.missingImages).toEqual(['second.jpg']);
+  });
+
+  it('maps catalog products with stock into rows and editor items', async () => {
+    const catalogProduct = {
+      id: 'prod-1',
+      workspace_id: 'workspace-a',
+      title: 'Mengenartikel X',
+      brand: 'TestBrand',
+      category: 'Gadgets',
+      condition: 'new',
+      condition_notes: null,
+      description: 'Tolles Produkt',
+      listing_price: 49.99,
+      media: [
+        {
+          id: 'cp-media-1',
+          workspace_id: 'workspace-a',
+          catalog_product_id: 'prod-1',
+          storage_path: 'catalog-products/workspace-a/prod-1/img.jpg',
+          is_primary: true,
+          file_name: 'img.jpg',
+          file_size: 10,
+          mime_type: 'image/jpeg',
+          sort_order: 1,
+          created_at: '2026-09-20T10:00:00.000Z',
+        },
+      ],
+    };
+    const stockLot = {
+      catalog_product_id: 'prod-1',
+      remaining_quantity: 7,
+      unit_cost: 15.5,
+    };
+    const productListing = {
+      ...listing,
+      id: 'listing-prod-1',
+      inventory_item_id: null,
+      catalog_product_id: 'prod-1',
+      title: 'Mengenartikel Inserat',
+    };
+
+    const from = vi.fn((table: string) => {
+      if (table === 'listings')
+        return resolvedQuery(Promise.resolve({ data: [productListing], error: null }));
+      if (table === 'inventory_items')
+        return resolvedQuery(Promise.resolve({ data: [], error: null }));
+      if (table === 'catalog_products')
+        return resolvedQuery(Promise.resolve({ data: [catalogProduct], error: null }));
+      if (table === 'stock_lots')
+        return resolvedQuery(Promise.resolve({ data: [stockLot], error: null }));
+      return resolvedQuery(Promise.resolve({ data: [], error: null }));
+    });
+
+    const { service } = setup({ from });
+
+    await service.load('workspace-a');
+
+    expect(service.items()).toHaveLength(1);
+    const editorItem = service.items()[0];
+    expect(editorItem?.id).toBe('prod-1');
+    expect(editorItem?.targetKind).toBe('catalog_product');
+    expect(editorItem?.availableQuantity).toBe(7);
+    expect(editorItem?.allocatedPurchaseCost).toBe(15.5);
+    expect(editorItem?.expectedValue).toBe(49.99);
+
+    expect(service.rows()).toHaveLength(1);
+    expect(service.rows()[0]?.listing.catalogProductId).toBe('prod-1');
+    expect(service.rows()[0]?.listing.inventoryItemId).toBeNull();
+    expect(service.rows()[0]?.primaryImagePath).toBe('catalog-products/workspace-a/prod-1/img.jpg');
+  });
+
+  it('calls prepare_listing with p_catalog_product_id when target is a catalog product', async () => {
+    const response = deferred<QueryResult<unknown>>();
+    const { service, rpc } = setup({
+      rpc: vi.fn(() => response.promise),
+    });
+
+    const action = service.prepare('prod-1', content, 'catalog_product');
+    response.resolve({
+      data: {
+        ...listing,
+        inventory_item_id: null,
+        catalog_product_id: 'prod-1',
+      },
+      error: null,
+    });
+
+    await expect(action).resolves.toMatchObject({
+      error: null,
+    });
+    expect(rpc).toHaveBeenCalledWith('prepare_listing', {
+      p_workspace_id: 'workspace-a',
+      p_inventory_item_id: null,
+      p_catalog_product_id: 'prod-1',
+      p_content: {
+        title: 'Neue Kamera',
+        description: 'Neue Beschreibung',
+        price: 30,
+        priceType: 'NEGOTIABLE',
+        shippingType: 'shipping',
+        shippingPrice: 4.9,
+        postalCode: '12345',
+      },
+    });
   });
 });

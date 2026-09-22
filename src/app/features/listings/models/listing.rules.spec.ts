@@ -37,6 +37,27 @@ describe('listing rules', () => {
     });
   });
 
+  it('allows catalog products with available quantity', () => {
+    expect(
+      canPrepareListing({
+        targetKind: 'catalog_product',
+        availableQuantity: 5,
+      }),
+    ).toEqual({ allowed: true });
+  });
+
+  it('rejects catalog products with zero or negative available quantity', () => {
+    expect(
+      canPrepareListing({
+        targetKind: 'catalog_product',
+        availableQuantity: 0,
+      }),
+    ).toEqual({
+      allowed: false,
+      reason: 'Kein verfügbarer Bestand für dieses Produkt vorhanden.',
+    });
+  });
+
   it('accepts exact Kleinanzeigen boundaries', () => {
     expect(
       validateListingContent({

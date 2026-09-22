@@ -102,11 +102,19 @@ export class ListingOverviewComponent {
   statusTone(row: ListingRow) {
     return listingStatusTone(row.listing.status);
   }
+  itemRoute(item: ListingRow['item']): readonly string[] {
+    return item.targetKind === 'catalog_product' ? ['/catalog', item.id] : ['/inventory', item.id];
+  }
   canRelist(row: ListingRow): boolean {
     return (
       (row.listing.status === 'online' ||
         (row.listing.status === 'ended' && row.listing.endReason === 'manual')) &&
-      canPrepareListing({ status: row.item.status, archived_at: row.item.archivedAt }).allowed
+      canPrepareListing({
+        targetKind: row.item.targetKind,
+        availableQuantity: row.item.availableQuantity,
+        status: row.item.status,
+        archivedAt: row.item.archivedAt,
+      }).allowed
     );
   }
   isSoldCleanup(row: ListingRow): boolean {

@@ -1,5 +1,37 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-22 – Juna – Inserate: Unterstützung von Bestandsprodukten und Mengenartikeln im Listing Studio
+
+**Auftrag:** Im Inserate-Modul (`/listings/new`) neben Einzelstücken (`inventory_items`) auch Bestandsprodukte und Mengenartikel (`catalog_products` mit verfügbarem Bestand in `stock_lots`) zur Auswahl und zum Inserieren bereitstellen.
+
+**Änderung:**
+
+- In `supabase/schemas/230_listings.sql` und der Migration `20260922201500_listings_catalog_products.sql`:
+  - `inventory_item_id` in `public.listings` als optional definiert und `catalog_product_id` hinzugefügt (`REFERENCES public.catalog_products(workspace_id, id) ON DELETE CASCADE`).
+  - Constraint `listings_target_check` hinzugefügt: genau eines von `inventory_item_id` oder `catalog_product_id` muss gesetzt sein.
+  - Eindeutige Indizes `listings_one_open_per_item` und `listings_one_open_per_product` sowie `listings_catalog_product_id_idx` definiert.
+  - RPCs `prepare_listing`, `set_listing_online` und `end_listing` aktualisiert, um sowohl Einzelstücke als auch Katalogprodukte (mit Advisory Lock und Bestandsprüfung) zu unterstützen.
+- In `src/app/features/listings/models/listing.models.ts`:
+  - Typ `ListingTargetKind = 'inventory_item' | 'catalog_product'` definiert.
+  - `Listing`: `inventoryItemId?: string | null` und `catalogProductId?: string | null`.
+  - `ListingEditorItem`: `targetKind?: ListingTargetKind`, `availableQuantity?: number`, `condition: InventoryItem['condition'] | null`.
+- In `src/app/features/listings/models/listing.rules.ts`:
+  - `canPrepareListing` erweitert, um für Katalogprodukte anhand von `availableQuantity > 0` die Inserierbarkeit zu prüfen.
+- In `src/app/features/listings/services/listing.service.ts`:
+  - `load(workspaceId)` lädt neben Inseraten und Einzelstücken auch `catalog_products` (inklusive Medien) sowie `stock_lots` (zur Bestandsberechnung).
+  - Beide Zieltypen werden in `items` und `rows` gemappt.
+  - `prepare` übergibt je nach Zieltyp `p_inventory_item_id` oder `p_catalog_product_id` an die RPC.
+- In `src/app/features/listings/pages/listing-editor/listing-editor.component.ts` & `.html`:
+  - Dropdown zeigt Mengenprodukte mit `${title} · Mengenbestand: ${availableQuantity}` und Einzelstücke mit `${title} · Einzelstück` an (analog zum Verkaufsdialog).
+  - Produkte ohne verfügbaren Bestand werden ausgefiltert.
+  - Zustand bei leerem Bestand, Ladezustand (`Lade Bestände…`) und Fehleranzeige integriert.
+  - Beim Auswählen eines Produkts werden Preis und Artikeldetails passend vorbelegt und angezeigt.
+- In `src/app/features/listings/pages/listing-overview/listing-overview.component.ts` & `.html`:
+  - Verlinkung von Artikeln dynamisch: `/catalog/:id` für Katalogprodukte und `/inventory/:id` für Einzelstücke.
+- Tests in `listing.rules.spec.ts`, `listing.service.angular.spec.ts`, `listing-editor.component.angular.spec.ts` und `listing-overview.component.angular.spec.ts` ergänzt und aktualisiert.
+
+**Prüfung:** `npm run test:workflow` (84/84 bestanden, 0 Findings), `npm run lint` (0 Fehler), `npm run typecheck` (0 Fehler), `npm run test:angular -- src/app/features/listings` (35/35 bestanden), `npm run test:node -- src/app/features/listings` (16/16 bestanden), `npm run test:dom -- src/app/features/listings` (18/18 bestanden).
+
 ## 2026-09-22 – Juna – Steuer- & DATEV-Designangleichung: Umstellung auf PageHeader, CardComponent und Polaris-Geometrie
 
 **Auftrag:** Die Buchhaltungsansicht (`src/app/features/accounting/`) an die einheitliche Shopify-Admin-Geometrie und Shared-UI-Komponenten angleichen. Veraltete `.card`- und `.kpi-card`-Container durch `CardComponent` ersetzen, den Kopfbereich auf `PageHeaderComponent` und segmentierte `ButtonComponent`-Tabs umstellen, Aktionsschaltflächen auf `ButtonComponent` migrieren und unzulässige Versalschrift entfernen.
