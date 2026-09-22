@@ -8,6 +8,7 @@ import { NumberingService } from '../../services/numbering.service';
 import { defaultNumberSeries } from '../../models/numbering.models';
 import { NumberingSettingsComponent } from './numbering-settings.component';
 import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
+import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 
 interface AngularInputMetadata {
   inputs: Record<string, unknown>;
@@ -15,6 +16,7 @@ interface AngularInputMetadata {
 }
 
 let customSelectMetadata: AngularInputMetadata | null = null;
+let textFieldMetadata: AngularInputMetadata | null = null;
 
 describe('NumberingSettingsComponent', () => {
   beforeAll(async () => {
@@ -37,12 +39,42 @@ describe('NumberingSettingsComponent', () => {
       options: 'options',
       ariaLabel: 'ariaLabel',
     };
+
+    const textMetadata = (TextFieldComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp;
+    textFieldMetadata = {
+      inputs: textMetadata.inputs,
+      declaredInputs: textMetadata.declaredInputs,
+    };
+    textMetadata.inputs = {
+      ...textMetadata.inputs,
+      label: ['label', 1, null],
+      placeholder: ['placeholder', 1, null],
+      helpText: ['helpText', 1, null],
+      required: ['required', 1, null],
+      maxLength: ['maxLength', 1, null],
+      ariaLabel: ['ariaLabel', 1, null],
+    };
+    textMetadata.declaredInputs = {
+      ...textMetadata.declaredInputs,
+      label: 'label',
+      placeholder: 'placeholder',
+      helpText: 'helpText',
+      required: 'required',
+      maxLength: 'maxLength',
+      ariaLabel: 'ariaLabel',
+    };
   });
   afterAll(() => {
-    if (!customSelectMetadata) return;
-    const metadata = (CustomSelectComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp;
-    metadata.inputs = customSelectMetadata.inputs;
-    metadata.declaredInputs = customSelectMetadata.declaredInputs;
+    if (customSelectMetadata) {
+      const metadata = (CustomSelectComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp;
+      metadata.inputs = customSelectMetadata.inputs;
+      metadata.declaredInputs = customSelectMetadata.declaredInputs;
+    }
+    if (textFieldMetadata) {
+      const metadata = (TextFieldComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp;
+      metadata.inputs = textFieldMetadata.inputs;
+      metadata.declaredInputs = textFieldMetadata.declaredInputs;
+    }
   });
   afterEach(() => TestBed.resetTestingModule());
   const load = vi.fn();
