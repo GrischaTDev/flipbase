@@ -35,12 +35,7 @@
     <div class="grid gap-4 sm:grid-cols-[8rem_1fr]">
       <label class="block">
         <span class="mb-1.5 block text-[13px] font-semibold">Menge</span>
-        <app-number-input
-          formControlName="quantity"
-          ariaLabel="Menge"
-          [min]="1"
-          [step]="1"
-        />
+        <app-number-input formControlName="quantity" ariaLabel="Menge" [min]="1" [step]="1" />
       </label>
       <label class="block">
         <span class="mb-1.5 block text-[13px] font-semibold">Gesamtbetrag</span>
