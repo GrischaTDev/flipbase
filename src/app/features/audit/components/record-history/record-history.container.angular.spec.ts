@@ -13,6 +13,8 @@ import { AuthService } from '../../../../core/services/auth.service';
 import { BusinessEventService } from '../../../../core/services/business-event.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { RecordHistoryComponent } from '../../../../shared/components/record-history/record-history.component';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { RecordTimelineComponent } from '../record-timeline/record-timeline.component';
 import { RecordTimelineService } from '../../services/record-timeline.service';
 
@@ -68,6 +70,53 @@ beforeEach(() => {
     ['heading', 'events', 'loading', 'error', 'hasMore'],
     ['retryRequested', 'loadMoreRequested'],
   );
+  registerBindings(ButtonComponent, [
+    'variant',
+    'size',
+    'loading',
+    'disabled',
+    'icon',
+    'iconPosition',
+    'iconOnly',
+    'fullWidth',
+    'contentAlign',
+    'type',
+    'formId',
+    'link',
+    'href',
+    'target',
+    'queryParams',
+    'ariaLabel',
+    'title',
+    'ariaExpanded',
+    'ariaPressed',
+    'ariaControls',
+    'ariaHaspopup',
+  ]);
+  registerBindings(TextFieldComponent, [
+    'label',
+    'labelHidden',
+    'placeholder',
+    'type',
+    'multiline',
+    'prefix',
+    'suffix',
+    'prefixIcon',
+    'clearable',
+    'monospaced',
+    'error',
+    'helpText',
+    'disabled',
+    'id',
+    'ariaLabel',
+    'ariaRequired',
+    'ariaDescribedby',
+    'ariaInvalid',
+    'autocomplete',
+    'required',
+    'maxLength',
+    'value',
+  ]);
 });
 
 afterEach(() => {

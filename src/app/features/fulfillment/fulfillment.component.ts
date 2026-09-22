@@ -31,7 +31,9 @@ import {
   LucideBoxes as Boxes,
 } from '@lucide/angular';
 import { FulfillmentService } from '../../core/services/fulfillment.service';
-import { ModalDialogDirective } from '../../shared/directives/modal-dialog.directive';
+import { ButtonComponent } from '../../shared/components/button/button.component';
+import { ModalShellComponent } from '../../shared/components/modal-shell/modal-shell.component';
+import { TextFieldComponent } from '../../shared/components/text-field/text-field.component';
 import { LoggerService } from '../../core/services/logger.service';
 import {
   BundleCandidate,
@@ -51,7 +53,9 @@ import { WorkspaceService } from '../../core/services/workspace.service';
 @Component({
   selector: 'app-fulfillment',
   imports: [
-    ModalDialogDirective,
+    ButtonComponent,
+    ModalShellComponent,
+    TextFieldComponent,
     ReactiveFormsModule,
     CurrencyPipe,
     DatePipe,

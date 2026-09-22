@@ -43,36 +43,21 @@
 
     <form [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
       <div>
-        <label for="workspace-name" class="block text-sm font-semibold text-fb-text-primary">
-          {{ 'WORKSPACE.SETUP_QUESTION' | translate }}
-        </label>
-        <p id="workspace-name-help" class="mt-1 text-xs leading-5 text-fb-text-muted">
-          {{ 'WORKSPACE.SETUP_HELP' | translate }}
-        </p>
-        <input
+        <app-text-field
           id="workspace-name"
           type="text"
           formControlName="workspaceName"
           autocomplete="organization"
-          maxlength="100"
+          [maxLength]="100"
+          [label]="'WORKSPACE.SETUP_QUESTION' | translate"
+          [helpText]="'WORKSPACE.SETUP_HELP' | translate"
           [placeholder]="'WORKSPACE.SETUP_NAME_PLACEHOLDER' | translate"
-          [attr.aria-invalid]="
+          [error]="
             form.controls.workspaceName.invalid && form.controls.workspaceName.touched
-              ? 'true'
+              ? ('WORKSPACE.SETUP_NAME_ERROR' | translate)
               : null
           "
-          [attr.aria-describedby]="
-            form.controls.workspaceName.invalid && form.controls.workspaceName.touched
-              ? 'workspace-name-help workspace-name-error'
-              : 'workspace-name-help'
-          "
-          class="mt-2.5 w-full rounded-xl border border-fb-border bg-fb-surface px-3.5 py-2.5 text-sm text-fb-text-primary shadow-xs outline-hidden transition placeholder:text-fb-text-dimmed focus:border-fb-primary focus:ring-2 focus:ring-fb-primary/30"
         />
-        @if (form.controls.workspaceName.invalid && form.controls.workspaceName.touched) {
-          <p id="workspace-name-error" class="mt-1.5 text-xs text-fb-critical">
-            {{ 'WORKSPACE.SETUP_NAME_ERROR' | translate }}
-          </p>
-        }
       </div>
 
       <app-button

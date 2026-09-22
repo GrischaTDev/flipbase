@@ -9,6 +9,7 @@ import { RecordTimelineService } from '../../services/record-timeline.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 
 interface AngularInputMetadata {
   inputs: Record<string, unknown>;
@@ -16,6 +17,7 @@ interface AngularInputMetadata {
 }
 
 let buttonInputMetadata: AngularInputMetadata | null = null;
+let textFieldInputMetadata: AngularInputMetadata | null = null;
 
 beforeAll(async () => {
   await ɵresolveComponentResources((url) => {
@@ -26,6 +28,14 @@ beforeAll(async () => {
       ],
       ['./button.component.html', '../../../../shared/components/button/button.component.html'],
       ['./button.component.scss', '../../../../shared/components/button/button.component.scss'],
+      [
+        './text-field.component.html',
+        '../../../../shared/components/text-field/text-field.component.html',
+      ],
+      [
+        './text-field.component.scss',
+        '../../../../shared/components/text-field/text-field.component.scss',
+      ],
     ]).get(url);
     return readFile(new URL(sharedResource ?? url, import.meta.url), 'utf8');
   });
@@ -51,12 +61,56 @@ beforeAll(async () => {
     ...metadata.declaredInputs,
     ...Object.fromEntries(inputNames.map((name) => [name, name])),
   };
+
+  const textMetadata = (TextFieldComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp;
+  textFieldInputMetadata = {
+    inputs: textMetadata.inputs,
+    declaredInputs: textMetadata.declaredInputs,
+  };
+  const textInputNames = [
+    'label',
+    'labelHidden',
+    'placeholder',
+    'type',
+    'multiline',
+    'prefix',
+    'suffix',
+    'prefixIcon',
+    'clearable',
+    'monospaced',
+    'error',
+    'helpText',
+    'disabled',
+    'id',
+    'ariaLabel',
+    'ariaRequired',
+    'ariaDescribedby',
+    'ariaInvalid',
+    'autocomplete',
+    'required',
+    'maxLength',
+    'value',
+  ];
+  textMetadata.inputs = {
+    ...textMetadata.inputs,
+    ...Object.fromEntries(textInputNames.map((name) => [name, [name, 1, null]])),
+  };
+  textMetadata.declaredInputs = {
+    ...textMetadata.declaredInputs,
+    ...Object.fromEntries(textInputNames.map((name) => [name, name])),
+  };
 });
 afterAll(() => {
-  if (!buttonInputMetadata) return;
-  const metadata = (ButtonComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp;
-  metadata.inputs = buttonInputMetadata.inputs;
-  metadata.declaredInputs = buttonInputMetadata.declaredInputs;
+  if (buttonInputMetadata) {
+    const metadata = (ButtonComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp;
+    metadata.inputs = buttonInputMetadata.inputs;
+    metadata.declaredInputs = buttonInputMetadata.declaredInputs;
+  }
+  if (textFieldInputMetadata) {
+    const textMetadata = (TextFieldComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp;
+    textMetadata.inputs = textFieldInputMetadata.inputs;
+    textMetadata.declaredInputs = textFieldInputMetadata.declaredInputs;
+  }
 });
 afterEach(() => TestBed.resetTestingModule());
 

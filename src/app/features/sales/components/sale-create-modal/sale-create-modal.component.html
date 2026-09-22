@@ -102,34 +102,27 @@
               />
             </div>
             <div>
-              <label
-                [for]="'quantity-' + index"
-                class="mb-1 block text-[10px] font-semibold uppercase text-fb-text-muted"
-                >Menge</label
-              ><input
+              <app-number-input
                 [id]="'quantity-' + index"
-                type="number"
-                min="1"
-                [attr.max]="availableQuantity(line)"
+                [min]="1"
+                [max]="availableQuantity(line)"
                 formControlName="quantity"
-                class="linear-input w-full rounded-lg px-2.5 py-1.5 text-xs font-mono"
+                label="Menge"
+                ariaLabel="Menge"
               />
               @if (availableQuantity(line); as available) {
                 <p class="mt-1 text-[10px] text-fb-text-muted">Verfügbar: {{ available }}</p>
               }
             </div>
             <div>
-              <label
-                [for]="'price-' + index"
-                class="mb-1 block text-[10px] font-semibold uppercase text-fb-text-muted"
-                >Preis je Stück (€)</label
-              ><input
+              <app-number-input
                 [id]="'price-' + index"
-                type="number"
-                min="0.01"
-                step="0.01"
+                [min]="0.01"
+                [step]="0.01"
+                unit="€"
                 formControlName="unitSalePrice"
-                class="linear-input w-full rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold text-emerald-400"
+                label="Preis je Stück (€)"
+                ariaLabel="Preis je Stück"
               />
             </div>
             <button
@@ -200,24 +193,22 @@
         >
           Versand vom Käufer erhalten (€)
         </label>
-        <input
+        <app-number-input
           id="shipping-revenue"
-          type="number"
-          min="0"
-          step="0.01"
+          [min]="0"
+          [step]="0.01"
+          unit="€"
           formControlName="shippingRevenue"
-          [attr.aria-invalid]="
+          ariaLabel="Versand vom Käufer erhalten"
+          [ariaInvalid]="
             form.controls.shippingRevenue.touched && form.controls.shippingRevenue.invalid
-              ? 'true'
-              : null
           "
-          [attr.aria-describedby]="
+          [ariaDescribedby]="
             'shipping-revenue-help' +
             (form.controls.shippingRevenue.touched && form.controls.shippingRevenue.hasError('min')
               ? ' shipping-revenue-error'
               : '')
           "
-          class="linear-input w-full rounded-lg px-2.5 py-1.5 text-xs font-mono disabled:cursor-not-allowed disabled:opacity-50"
         />
         <p id="shipping-revenue-help" class="mt-1 text-[10px] text-fb-text-muted">
           Erhöht den Verkaufserlös.
@@ -256,21 +247,19 @@
         >
           Plattformgebühr (€)
         </label>
-        <input
+        <app-number-input
           id="platform-fee"
-          type="number"
-          min="0"
-          step="0.01"
+          [min]="0"
+          [step]="0.01"
+          unit="€"
           formControlName="platformFee"
-          [attr.aria-invalid]="
-            form.controls.platformFee.touched && form.controls.platformFee.invalid ? 'true' : null
-          "
-          [attr.aria-describedby]="
+          ariaLabel="Plattformgebühr"
+          [ariaInvalid]="form.controls.platformFee.touched && form.controls.platformFee.invalid"
+          [ariaDescribedby]="
             form.controls.platformFee.touched && form.controls.platformFee.hasError('min')
               ? 'platform-fee-error'
-              : null
+              : ''
           "
-          class="linear-input w-full rounded-lg px-2.5 py-1.5 text-xs font-mono"
         />
         @if (form.controls.platformFee.touched && form.controls.platformFee.hasError('min')) {
           <p id="platform-fee-error" role="alert" class="mt-1 text-[10px] text-rose-300">
@@ -285,22 +274,20 @@
         >
           Tatsächliche Versandkosten (€)
         </label>
-        <input
+        <app-number-input
           id="shipping-cost"
-          type="number"
-          min="0"
-          step="0.01"
+          [min]="0"
+          [step]="0.01"
+          unit="€"
           formControlName="shippingCost"
-          [attr.aria-invalid]="
-            form.controls.shippingCost.touched && form.controls.shippingCost.invalid ? 'true' : null
-          "
-          [attr.aria-describedby]="
+          ariaLabel="Tatsächliche Versandkosten"
+          [ariaInvalid]="form.controls.shippingCost.touched && form.controls.shippingCost.invalid"
+          [ariaDescribedby]="
             'shipping-cost-help' +
             (form.controls.shippingCost.touched && form.controls.shippingCost.hasError('min')
               ? ' shipping-cost-error'
               : '')
           "
-          class="linear-input w-full rounded-lg px-2.5 py-1.5 text-xs font-mono disabled:cursor-not-allowed disabled:opacity-50"
         />
         <p id="shipping-cost-help" class="mt-1 text-[10px] text-fb-text-muted">
           Aufwand für Porto oder Versandetikett.
@@ -353,21 +340,20 @@
             <label
               [for]="'cost-description-' + index"
               class="mb-1 block text-[10px] font-semibold uppercase text-fb-text-muted"
-              >{{
-                cost.controls.category.value === 'other' ? 'Beschreibung' : 'Beschreibung'
-              }}</label
             >
-            <input
+              Beschreibung
+            </label>
+            <app-text-field
               [id]="'cost-description-' + index"
-              type="text"
               formControlName="description"
-              [attr.aria-required]="cost.controls.category.value === 'other'"
-              [attr.aria-invalid]="
+              ariaLabel="Beschreibung der Kosten"
+              [ariaRequired]="cost.controls.category.value === 'other'"
+              [ariaInvalid]="
                 cost.controls.category.value === 'other' &&
                 cost.controls.description.touched &&
                 cost.hasError('otherCostDescriptionRequired')
               "
-              [attr.aria-describedby]="
+              [ariaDescribedby]="
                 cost.controls.category.value === 'other'
                   ? 'cost-description-help-' +
                     index +
@@ -375,9 +361,8 @@
                     cost.hasError('otherCostDescriptionRequired')
                       ? ' cost-description-error-' + index
                       : '')
-                  : null
+                  : ''
               "
-              class="linear-input w-full rounded-lg px-2.5 py-1.5 text-xs"
             />
             @if (cost.controls.category.value === 'other') {
               <p
@@ -403,23 +388,22 @@
             <label
               [for]="'cost-amount-' + index"
               class="mb-1 block text-[10px] font-semibold uppercase text-fb-text-muted"
-              >Betrag (€)</label
             >
-            <input
+              Betrag (€)
+            </label>
+            <app-number-input
               [id]="'cost-amount-' + index"
-              type="number"
-              min="0"
-              step="0.01"
+              [min]="0"
+              [step]="0.01"
+              unit="€"
               formControlName="amount"
-              [attr.aria-invalid]="
-                cost.controls.amount.touched && cost.controls.amount.invalid ? 'true' : null
-              "
-              [attr.aria-describedby]="
+              ariaLabel="Betrag in Euro"
+              [ariaInvalid]="cost.controls.amount.touched && cost.controls.amount.invalid"
+              [ariaDescribedby]="
                 cost.controls.amount.touched && cost.controls.amount.hasError('min')
                   ? 'cost-amount-error-' + index
-                  : null
+                  : ''
               "
-              class="linear-input w-full rounded-lg px-2.5 py-1.5 text-xs font-mono"
             />
             @if (cost.controls.amount.touched && cost.controls.amount.hasError('min')) {
               <p
@@ -450,31 +434,19 @@
     <h3 id="notiz-heading" class="text-xs font-bold uppercase tracking-wide text-fb-text-secondary">
       Notiz
     </h3>
-    <label
-      for="buyer-notes"
-      class="mt-3 block text-[10px] font-semibold uppercase text-fb-text-muted"
-      >Notiz zum Verkauf</label
-    >
-    <input
-      id="buyer-notes"
-      type="text"
-      formControlName="buyerNotes"
-      class="linear-input mt-1 w-full rounded-lg px-2.5 py-1.5 text-xs"
-    />
+    <div class="mt-3">
+      <app-text-field
+        id="buyer-notes"
+        formControlName="buyerNotes"
+        label="Notiz zum Verkauf"
+        ariaLabel="Notiz zum Verkauf"
+      />
+    </div>
   </section>
   <footer class="linear-surface flex justify-end gap-2 rounded-xl p-4 lg:col-span-2 lg:col-start-1">
-    <button
-      type="button"
-      (click)="closed.emit()"
-      class="linear-btn-secondary cursor-pointer rounded-lg px-4 py-1.5 text-xs font-semibold"
-    >
-      Abbrechen</button
-    ><button
-      type="submit"
-      [disabled]="isSubmitting() || isPersisted()"
-      class="linear-btn-primary inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-4 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40"
-    >
-      <svg [lucideIcon]="trendingIcon" class="h-3.5 w-3.5"></svg>{{ absendeBeschriftung() }}
-    </button>
+    <app-button type="button" variant="secondary" (clicked)="closed.emit()"> Abbrechen </app-button>
+    <app-button type="submit" variant="primary" [disabled]="isSubmitting() || isPersisted()">
+      <svg [lucideIcon]="trendingIcon" class="h-3.5 w-3.5 mr-1.5"></svg>{{ absendeBeschriftung() }}
+    </app-button>
   </footer>
 </form>

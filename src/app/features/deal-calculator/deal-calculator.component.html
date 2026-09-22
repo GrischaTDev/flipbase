@@ -42,56 +42,40 @@
         </div>
 
         <div>
-          <label
-            for="productTitle"
-            class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
-          >
-            Artikel / Titel
-          </label>
-          <input
+          <app-text-field
             id="productTitle"
-            type="text"
             formControlName="productTitle"
-            (input)="runCalculation()"
+            (valueChange)="runCalculation()"
+            label="Artikel / Titel"
             placeholder="z.B. Cube Acid Mountainbike"
-            class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-medium"
+            ariaLabel="Artikel / Titel"
           />
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <!-- Asking Price -->
           <div>
-            <label
-              for="askingPriceInput"
-              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
-            >
-              Verkaufspreis des Anbieters (EK in €)
-            </label>
-            <input
+            <app-number-input
               id="askingPriceInput"
-              type="number"
               formControlName="askingPrice"
-              (input)="runCalculation()"
+              (valueChange)="runCalculation()"
+              label="Verkaufspreis des Anbieters (EK in €)"
+              unit="€"
               placeholder="0.00"
-              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold"
+              ariaLabel="Verkaufspreis des Anbieters"
             />
           </div>
 
           <!-- Fair Market Value -->
           <div>
-            <label
-              for="marketValueInput"
-              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
-            >
-              Erwarteter Verkaufspreis (€)
-            </label>
-            <input
+            <app-number-input
               id="marketValueInput"
-              type="number"
               formControlName="fairMarketValue"
-              (input)="runCalculation()"
+              (valueChange)="runCalculation()"
+              label="Erwarteter Verkaufspreis (€)"
+              unit="€"
               placeholder="0.00"
-              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold text-emerald-400"
+              ariaLabel="Erwarteter Verkaufspreis"
             />
           </div>
         </div>
@@ -99,19 +83,14 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <!-- Estimated Costs -->
           <div>
-            <label
-              for="estimatedCostsInput"
-              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
-            >
-              Nebenkosten (Versand, Fahrt, Teile in €)
-            </label>
-            <input
+            <app-number-input
               id="estimatedCostsInput"
-              type="number"
               formControlName="estimatedCosts"
-              (input)="runCalculation()"
+              (valueChange)="runCalculation()"
+              label="Nebenkosten (Versand, Fahrt, Teile in €)"
+              unit="€"
               placeholder="0.00"
-              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono font-semibold text-amber-400"
+              ariaLabel="Nebenkosten"
             />
           </div>
 

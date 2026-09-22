@@ -29,30 +29,9 @@ const nativeFormControlTypes = new Set([
   'search',
 ]);
 
-const legacyNativeFormControlPaths = new Set([
-  'src/app/features/accounting/accounting.component.html',
-  'src/app/features/audit/components/record-timeline/record-timeline.component.html',
-  'src/app/features/auth/login/login.component.html',
-  'src/app/features/auth/register/register.component.html',
-  'src/app/features/auth/set-password/set-password.component.html',
-  'src/app/features/deal-calculator/deal-calculator.component.html',
-  'src/app/features/fulfillment/fulfillment.component.html',
-  'src/app/features/image-optimizer/components/optimizer-header/optimizer-header.component.html',
-  'src/app/features/listings/pages/listing-editor/listing-editor.component.html',
-  'src/app/features/onboarding/workspace-setup/workspace-setup.component.html',
-  'src/app/features/research/research.component.html',
-  'src/app/features/sales/components/sale-create-modal/sale-create-modal.component.html',
-  'src/app/features/sales/sales.component.html',
-]);
+const legacyNativeFormControlPaths = new Set();
 
-const legacyCustomModalPaths = new Set([
-  'src/app/features/accounting/accounting.component.html',
-  'src/app/features/auth/components/privacy-modal/privacy-modal.component.html',
-  'src/app/features/auth/components/terms-modal/terms-modal.component.html',
-  'src/app/features/fulfillment/fulfillment.component.html',
-  'src/app/features/research/research.component.html',
-  'src/app/features/sales/sales.component.html',
-]);
+const legacyCustomModalPaths = new Set();
 
 const approvedTableExceptions = new Map([
   [

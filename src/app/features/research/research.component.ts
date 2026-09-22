@@ -41,7 +41,9 @@ import {
 import { BarcodeLookupService } from '../../core/services/barcode-lookup.service';
 import { PriceTrackerService } from '../../core/services/price-tracker.service';
 import { BarcodeScannerComponent } from '../../shared/components/barcode-scanner/barcode-scanner.component';
-import { ModalDialogDirective } from '../../shared/directives/modal-dialog.directive';
+import { ModalShellComponent } from '../../shared/components/modal-shell/modal-shell.component';
+import { NumberInputComponent } from '../../shared/components/number-input/number-input.component';
+import { TextFieldComponent } from '../../shared/components/text-field/text-field.component';
 import {
   CustomSelectComponent,
   SelectOption,
@@ -52,7 +54,9 @@ import { ToastService } from '../../shared/components/toast/toast.service';
 @Component({
   selector: 'app-research',
   imports: [
-    ModalDialogDirective,
+    ModalShellComponent,
+    NumberInputComponent,
+    TextFieldComponent,
     ReactiveFormsModule,
     CurrencyPipe,
     DatePipe,

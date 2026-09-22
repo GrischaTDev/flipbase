@@ -17,6 +17,7 @@ import { ThemeService } from '../../../core/services/theme.service';
 import { NgOptimizedImage } from '@angular/common';
 import { environment } from '../../../../environments/environment';
 import { ButtonComponent } from '../../../shared/components/button/button.component';
+import { TextFieldComponent } from '../../../shared/components/text-field/text-field.component';
 
 @Component({
   selector: 'app-login',
@@ -26,6 +27,7 @@ import { ButtonComponent } from '../../../shared/components/button/button.compon
     LucideDynamicIcon,
     NgOptimizedImage,
     ButtonComponent,
+    TextFieldComponent,
   ],
   templateUrl: './login.component.html',
   host: { class: 'block fb-admin' },

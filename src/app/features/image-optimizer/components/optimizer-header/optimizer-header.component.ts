@@ -1,10 +1,11 @@
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 
 /** Titel, Grundname fuer die Exportdateien und der Knopf zum Hinzufuegen. */
 @Component({
   selector: 'app-optimizer-header',
-  imports: [ButtonComponent],
+  imports: [ButtonComponent, TextFieldComponent],
   templateUrl: './optimizer-header.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

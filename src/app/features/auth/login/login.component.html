@@ -87,43 +87,27 @@
     <!-- Form -->
     <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-4">
       <div>
-        <label for="email" class="block text-xs font-semibold text-fb-text-secondary mb-1.5">
-          {{ 'AUTH.EMAIL' | translate }}
-        </label>
-        <div class="relative flex items-center">
-          <div
-            class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-fb-text-muted"
-          >
-            <svg [lucideIcon]="mailIcon" class="w-4 h-4"></svg>
-          </div>
-          <input
-            id="email"
-            type="email"
-            formControlName="email"
-            [placeholder]="'AUTH.EMAIL_PLACEHOLDER' | translate"
-            class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-fb-border bg-fb-well text-fb-text-primary placeholder-fb-text-dimmed text-sm focus:outline-hidden focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500"
-          />
-        </div>
+        <app-text-field
+          id="email"
+          type="email"
+          formControlName="email"
+          [label]="'AUTH.EMAIL' | translate"
+          [placeholder]="'AUTH.EMAIL_PLACEHOLDER' | translate"
+          [prefixIcon]="mailIcon"
+          autocomplete="email"
+        />
       </div>
 
       <div>
-        <label for="password" class="block text-xs font-semibold text-fb-text-secondary mb-1.5">
-          {{ 'AUTH.PASSWORD' | translate }}
-        </label>
-        <div class="relative flex items-center">
-          <div
-            class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-fb-text-muted"
-          >
-            <svg [lucideIcon]="lockIcon" class="w-4 h-4"></svg>
-          </div>
-          <input
-            id="password"
-            type="password"
-            formControlName="password"
-            placeholder="••••••••"
-            class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-fb-border bg-fb-well text-fb-text-primary placeholder-fb-text-dimmed text-sm focus:outline-hidden focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500"
-          />
-        </div>
+        <app-text-field
+          id="password"
+          type="password"
+          formControlName="password"
+          [label]="'AUTH.PASSWORD' | translate"
+          placeholder="••••••••"
+          [prefixIcon]="lockIcon"
+          autocomplete="current-password"
+        />
       </div>
 
       <app-button

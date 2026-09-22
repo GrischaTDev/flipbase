@@ -12,9 +12,12 @@ import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
 import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
 import { EntryPageLayoutComponent } from '../../../../shared/components/entry-page-layout/entry-page-layout.component';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
+import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
+import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { TwoColumnLayoutComponent } from '../../../../shared/components/two-column-layout/two-column-layout.component';
 import { ListingExtensionHelpComponent } from '../../components/listing-extension-help/listing-extension-help.component';
 import type {
@@ -97,6 +100,59 @@ beforeAll(async () => {
   registerSignalInputs(ListingExtensionHelpComponent, ['open', 'checking']);
   registerSignalInputs(ModalShellComponent, ['title', 'subtitle', 'size']);
   registerSignalInputs(TwoColumnLayoutComponent, ['ratio']);
+  registerSignalInputs(TextFieldComponent, [
+    'label',
+    'labelHidden',
+    'placeholder',
+    'type',
+    'multiline',
+    'prefix',
+    'suffix',
+    'prefixIcon',
+    'clearable',
+    'monospaced',
+    'error',
+    'helpText',
+    'disabled',
+    'id',
+    'ariaLabel',
+    'autocomplete',
+    'required',
+    'maxLength',
+    'value',
+  ]);
+  registerSignalInputs(NumberInputComponent, [
+    'value',
+    'placeholder',
+    'step',
+    'min',
+    'max',
+    'unit',
+    'id',
+    'ariaLabel',
+    'ariaDescribedby',
+    'asCurrency',
+    'disabled',
+    'showStepper',
+    'platzhalter',
+    'schritt',
+    'minimum',
+    'maximum',
+    'einheit',
+    'feldId',
+    'beschriftung',
+    'alsBetrag',
+  ]);
+  registerSignalInputs(CustomCheckboxComponent, [
+    'checked',
+    'indeterminate',
+    'label',
+    'disabled',
+    'size',
+    'color',
+    'ariaLabel',
+    'id',
+  ]);
 });
 
 afterAll(() => {

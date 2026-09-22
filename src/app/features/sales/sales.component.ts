@@ -47,7 +47,9 @@ import {
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { SaleMetrics } from '../../core/models/sale-metrics.models';
 import { calculateStoredSaleMetrics } from '../../core/utils/sale-metrics';
-import { ModalDialogDirective } from '../../shared/directives/modal-dialog.directive';
+import { ModalShellComponent } from '../../shared/components/modal-shell/modal-shell.component';
+import { NumberInputComponent } from '../../shared/components/number-input/number-input.component';
+import { TextFieldComponent } from '../../shared/components/text-field/text-field.component';
 import { RecordHistoryContainer } from '../audit/components/record-history/record-history.container';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
@@ -79,7 +81,9 @@ function validatedSaleTargetId(value: string | null): string | null {
     LucideDynamicIcon,
     InvoiceModalComponent,
     CustomSelectComponent,
-    ModalDialogDirective,
+    ModalShellComponent,
+    NumberInputComponent,
+    TextFieldComponent,
     RecordHistoryContainer,
     PageHeaderComponent,
     ButtonComponent,

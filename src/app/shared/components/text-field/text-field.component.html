@@ -34,9 +34,11 @@
         [attr.maxlength]="maxLength()"
         [class]="inputClasses()"
         [attr.aria-label]="ariaLabel() || null"
-        [attr.aria-invalid]="error() ? 'true' : null"
+        [attr.aria-required]="ariaRequired() ?? (required() ? 'true' : null)"
+        [attr.aria-invalid]="(ariaInvalid() ? 'true' : null) ?? (error() ? 'true' : null)"
         [attr.aria-describedby]="
-          error() ? fieldId() + '-error' : helpText() ? fieldId() + '-help' : null
+          ariaDescribedby() ||
+          (error() ? fieldId() + '-error' : helpText() ? fieldId() + '-help' : null)
         "
         (input)="handleInput($event)"
         (blur)="handleBlur()"
@@ -53,9 +55,11 @@
         [attr.maxlength]="maxLength()"
         [class]="inputClasses()"
         [attr.aria-label]="ariaLabel() || null"
-        [attr.aria-invalid]="error() ? 'true' : null"
+        [attr.aria-required]="ariaRequired() ?? (required() ? 'true' : null)"
+        [attr.aria-invalid]="(ariaInvalid() ? 'true' : null) ?? (error() ? 'true' : null)"
         [attr.aria-describedby]="
-          error() ? fieldId() + '-error' : helpText() ? fieldId() + '-help' : null
+          ariaDescribedby() ||
+          (error() ? fieldId() + '-error' : helpText() ? fieldId() + '-help' : null)
         "
         (input)="handleInput($event)"
         (blur)="handleBlur()"
