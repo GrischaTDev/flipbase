@@ -70,6 +70,9 @@ import { PageHeaderComponent } from '../../../../shared/components/page-header/p
 import { TwoColumnLayoutComponent } from '../../../../shared/components/two-column-layout/two-column-layout.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
+import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 
 const purchaseReturnPath = /^\/purchases\/([A-Za-z0-9_-]+)$/;
 
@@ -99,6 +102,9 @@ export function validatePurchaseReturnTo(value: string | null | undefined): stri
     TwoColumnLayoutComponent,
     CardComponent,
     BadgeComponent,
+    ButtonComponent,
+    NumberInputComponent,
+    TextFieldComponent,
   ],
   templateUrl: './item-detail.component.html',
   host: { class: 'block' },
