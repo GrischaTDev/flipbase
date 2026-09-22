@@ -50,6 +50,7 @@ export class TextFieldComponent implements ControlValueAccessor {
   readonly ariaLabel = input<string>('');
   readonly autocomplete = input<string>('off');
   readonly required = input<boolean>(false);
+  readonly maxLength = input<number | null>(null);
 
   readonly cleared = output<void>();
 
