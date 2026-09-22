@@ -12,9 +12,9 @@ const directTableColumnMenuPattern = /<app-table-column-menu\b/giu;
 const legacyTableToolbarPattern = /<app-table-toolbar\b/giu;
 const nativeTableSearchPattern = /<input\b[^>]*\btype\s*=\s*["']search["'][^>]*>/giu;
 const purchaseWorkspacePath =
-  /\/purchases\/(?:components|pages)\/(?:purchase-entry-form|purchase-line-editor|purchase-cost-editor|purchase-cost-summary|purchase-cost-overview-dialog|purchase-create|purchase-detail|purchase-edit)\//u;
+  /\/purchases\/(?:components|pages)\/(?:purchase-entry-form|purchase-line-editor|purchase-cost-editor|purchase-cost-summary|purchase-cost-overview-dialog|purchase-correction-dialog|purchase-create|purchase-detail|purchase-edit)\//u;
 const nativeWorkspaceControlPattern = /<(?:button|input|textarea)\b[^>]*>/giu;
-const strictSharedFormPath = /^src\/app\/features\/(?:expenses|settings)\//u;
+const strictSharedFormPath = /^src\/app\/features\/(?:expenses|inventory|settings)\//u;
 const nativeFormControlPattern = /<(?:input|textarea)\b[^>]*>/giu;
 
 const approvedTableExceptions = new Map([
