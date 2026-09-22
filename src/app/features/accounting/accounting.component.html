@@ -76,6 +76,7 @@
           id="bankFileInput"
           accept=".csv,.txt,.xml,.sta,.940"
           (change)="onFileUpload($event)"
+          data-shared-ui-exception="native-file-picker"
           class="hidden"
         />
 
@@ -696,150 +697,101 @@
   <!-- MODAL: STEUERBERATER EXPORT & E-MAIL VERSAND                             -->
   <!-- ========================================================================= -->
   @if (isTaxAdvisorModalOpen()) {
-    <div
-      class="fixed inset-0 bg-black/70 backdrop-blur-xs z-50 flex items-center justify-center p-4"
-      appModalDialog
-      dialogTitel="Monatspaket an die Steuerkanzlei senden"
-      (dialogClose)="closeTaxAdvisorModal()"
+    <app-modal-shell
+      title="Monatsabschluss für die Steuerberatung vorbereiten"
+      subtitle="Monatspaket an die Steuerkanzlei senden"
+      size="md"
+      [icon]="mailIcon"
+      (closed)="closeTaxAdvisorModal()"
     >
-      <div class="card w-full max-w-lg p-6 space-y-5 animate-modal-card">
-        <div class="flex items-center justify-between border-b border-fb-border/40 pb-3">
-          <div class="flex items-center gap-2">
-            <div
-              class="w-7 h-7 rounded-lg bg-fb-profit/15 text-fb-profit flex items-center justify-center"
+      <form
+        id="tax-advisor-form"
+        [formGroup]="advisorForm"
+        (ngSubmit)="onPrepareReportForAdvisor()"
+        class="space-y-3.5 text-xs"
+      >
+        <app-text-field
+          id="accoun-steuerkanzlei-name"
+          formControlName="firmName"
+          label="Steuerkanzlei / Name"
+          placeholder="Kanzlei Müller & Partner"
+        />
+
+        <app-text-field
+          id="accoun-e-mail-adresse-der"
+          type="email"
+          formControlName="advisorEmail"
+          label="Vorgesehene E-Mail-Adresse der Kanzlei"
+          [required]="true"
+          placeholder="mandanten@kanzlei-mueller.de"
+        />
+
+        <div class="grid grid-cols-3 gap-2.5">
+          <app-text-field
+            id="accoun-mandantennr"
+            formControlName="clientNumber"
+            label="Mandantennr."
+            placeholder="10420"
+            [monospaced]="true"
+          />
+          <app-text-field
+            id="accoun-beraternr"
+            formControlName="consultantNumber"
+            label="Beraternr."
+            placeholder="9812"
+            [monospaced]="true"
+          />
+          <div>
+            <span
+              class="block text-[10px] font-bold uppercase tracking-wider text-fb-text-muted mb-1"
+              >Kontenrahmen</span
             >
-              <svg [lucideIcon]="mailIcon" class="w-4 h-4"></svg>
-            </div>
-            <h3 class="text-sm font-bold text-fb-text-primary">
-              Monatsabschluss für die Steuerberatung vorbereiten
-            </h3>
+            <app-custom-select
+              ariaLabel="Kontenrahmen"
+              [options]="kontenrahmenOptionen"
+              formControlName="skrStandard"
+              size="sm"
+            />
           </div>
-          <button
-            type="button"
-            (click)="closeTaxAdvisorModal()"
-            class="text-fb-text-muted hover:text-fb-text-primary cursor-pointer"
-          >
-            <svg [lucideIcon]="closeIcon" class="w-4 h-4"></svg>
-          </button>
         </div>
 
-        <form
-          [formGroup]="advisorForm"
-          (ngSubmit)="onPrepareReportForAdvisor()"
-          class="space-y-3.5 text-xs"
+        <div
+          class="p-3 rounded-xl bg-fb-subtle border border-fb-border/40 text-[11px] text-fb-text-muted space-y-1"
         >
-          <div>
-            <label
-              for="accoun-steuerkanzlei-name"
-              class="block text-[10px] font-bold uppercase tracking-wider text-fb-text-muted mb-1"
-              >Steuerkanzlei / Name</label
-            >
-            <input
-              id="accoun-steuerkanzlei-name"
-              type="text"
-              formControlName="firmName"
-              placeholder="Kanzlei Müller & Partner"
-              class="input-field w-full text-xs"
-            />
-          </div>
-
-          <div>
-            <label
-              for="accoun-e-mail-adresse-der"
-              class="block text-[10px] font-bold uppercase tracking-wider text-fb-text-muted mb-1"
-              >Vorgesehene E-Mail-Adresse der Kanzlei *</label
-            >
-            <input
-              id="accoun-e-mail-adresse-der"
-              type="email"
-              formControlName="advisorEmail"
-              placeholder="mandanten@kanzlei-mueller.de"
-              class="input-field w-full text-xs"
-            />
-          </div>
-
-          <div class="grid grid-cols-3 gap-2.5">
-            <div>
-              <label
-                for="accoun-mandantennr"
-                class="block text-[10px] font-bold uppercase tracking-wider text-fb-text-muted mb-1"
-                >Mandantennr.</label
-              >
-              <input
-                id="accoun-mandantennr"
-                type="text"
-                formControlName="clientNumber"
-                placeholder="10420"
-                class="input-field w-full text-xs font-mono"
-              />
-            </div>
-            <div>
-              <label
-                for="accoun-beraternr"
-                class="block text-[10px] font-bold uppercase tracking-wider text-fb-text-muted mb-1"
-                >Beraternr.</label
-              >
-              <input
-                id="accoun-beraternr"
-                type="text"
-                formControlName="consultantNumber"
-                placeholder="9812"
-                class="input-field w-full text-xs font-mono"
-              />
-            </div>
-            <div>
-              <label
-                for="accoun-kontenrahmen"
-                class="block text-[10px] font-bold uppercase tracking-wider text-fb-text-muted mb-1"
-                >Kontenrahmen</label
-              >
-              <app-custom-select
-                ariaLabel="Kontenrahmen"
-                [options]="kontenrahmenOptionen"
-                formControlName="skrStandard"
-                size="sm"
-              />
-            </div>
-          </div>
-
-          <div
-            class="p-3 rounded-xl bg-fb-subtle border border-fb-border/40 text-[11px] text-fb-text-muted space-y-1"
+          <span class="font-bold text-fb-text-primary block"
+            >Für das Exportpaket vorgesehene Anlagen:</span
           >
-            <span class="font-bold text-fb-text-primary block"
-              >Für das Exportpaket vorgesehene Anlagen:</span
-            >
-            <ul class="list-disc list-inside space-y-0.5">
-              <li>DATEV EXTF Buchungsstapel CSV (SKR03/SKR04 Konten 8200/8400)</li>
-              <li>
-                § 25a UStG Differenzbesteuerungs-Journal (Monat {{ selectedPeriod() }}/{{
-                  selectedYear()
-                }})
-              </li>
-              <li>Vorläufige EÜR-Monatsübersicht (Vorsteuer noch nicht berücksichtigt)</li>
-            </ul>
-          </div>
+          <ul class="list-disc list-inside space-y-0.5">
+            <li>DATEV EXTF Buchungsstapel CSV (SKR03/SKR04 Konten 8200/8400)</li>
+            <li>
+              § 25a UStG Differenzbesteuerungs-Journal (Monat {{ selectedPeriod() }}/{{
+                selectedYear()
+              }})
+            </li>
+            <li>Vorläufige EÜR-Monatsübersicht (Vorsteuer noch nicht berücksichtigt)</li>
+          </ul>
+        </div>
+      </form>
 
-          <div class="pt-2 flex items-center justify-end gap-2">
-            <button
-              type="button"
-              (click)="closeTaxAdvisorModal()"
-              class="linear-btn-secondary text-xs py-2 px-4 cursor-pointer rounded-lg"
-            >
-              Abbrechen
-            </button>
-            <button
-              type="submit"
-              [disabled]="
-                advisorForm.invalid || reviewCount() > 0 || taxAdvisorService.isPreparingReport()
-              "
-              class="linear-btn-primary text-xs py-2 px-4 flex items-center gap-1.5 cursor-pointer rounded-lg"
-            >
-              <svg [lucideIcon]="sendIcon" class="w-3.5 h-3.5"></svg>
-              <span>Exportpaket vorbereiten</span>
-            </button>
-          </div>
-        </form>
+      <div modal-footer class="flex items-center justify-end gap-2">
+        <app-button type="button" variant="secondary" size="md" (clicked)="closeTaxAdvisorModal()">
+          Abbrechen
+        </app-button>
+        <app-button
+          type="submit"
+          formId="tax-advisor-form"
+          variant="primary"
+          size="md"
+          [icon]="sendIcon"
+          [disabled]="
+            advisorForm.invalid || reviewCount() > 0 || taxAdvisorService.isPreparingReport()
+          "
+          [loading]="taxAdvisorService.isPreparingReport()"
+          (clicked)="onPrepareReportForAdvisor()"
+        >
+          Exportpaket vorbereiten
+        </app-button>
       </div>
-    </div>
+    </app-modal-shell>
   }
 </div>

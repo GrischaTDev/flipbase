@@ -4,6 +4,7 @@ import {
   computed,
   forwardRef,
   input,
+  model,
   output,
   signal,
 } from '@angular/core';
@@ -48,13 +49,16 @@ export class TextFieldComponent implements ControlValueAccessor {
   readonly disabled = input<boolean>(false);
   readonly id = input<string>('');
   readonly ariaLabel = input<string>('');
+  readonly ariaRequired = input<boolean | null>(null);
+  readonly ariaDescribedby = input<string>('');
+  readonly ariaInvalid = input<boolean | string | null>(null);
   readonly autocomplete = input<string>('off');
   readonly required = input<boolean>(false);
   readonly maxLength = input<number | null>(null);
 
   readonly cleared = output<void>();
 
-  readonly value = signal<string>('');
+  readonly value = model<string>('');
   readonly isAccessorDisabled = signal<boolean>(false);
 
   protected readonly clearIcon = LucideX;

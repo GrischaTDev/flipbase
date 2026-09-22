@@ -74,14 +74,13 @@
     >
       <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
         <div class="relative flex-1">
-          <input
-            type="text"
+          <app-text-field
             formControlName="query"
             placeholder="Produktname, Modell, EAN oder Suchbegriff (z.B. AirPods Pro 2, Lego 75192, PS5)..."
-            class="linear-input w-full pl-3 pr-24 py-2 rounded-lg text-xs font-medium"
+            ariaLabel="Suchbegriff"
           />
 
-          <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+          <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 z-10">
             <button
               type="button"
               (click)="isScanningBarcode.set(true)"
@@ -101,12 +100,12 @@
         />
 
         <div class="flex items-center gap-1.5 w-auto sm:w-36">
-          <input
-            type="number"
+          <app-number-input
             formControlName="estimatedCost"
-            placeholder="Eigener EK (€)"
-            class="linear-input w-full px-3 py-2 rounded-lg text-xs font-mono font-bold text-amber-400"
+            placeholder="Eigener EK"
+            unit="€"
             title="Deine kalkulierten Kosten / EK"
+            ariaLabel="Eigener EK"
           />
         </div>
 
@@ -655,27 +654,20 @@
 
   <!-- Fullscreen Image Preview Lightbox -->
   @if (previewImageUrl(); as pUrl) {
-    <div
-      class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fade-in"
-      appModalDialog
-      schliesstBeiKlickAussen
-      dialogTitel="Bildvorschau"
-      (dialogClose)="previewImageUrl.set(null)"
+    <app-modal-shell
+      title="Bildvorschau"
+      size="xl"
+      [closeOnBackdrop]="true"
+      [hasFooter]="false"
+      (closed)="previewImageUrl.set(null)"
     >
-      <div class="relative max-w-3xl max-h-[85vh] flex flex-col items-center">
-        <button
-          type="button"
-          (click)="previewImageUrl.set(null)"
-          class="absolute -top-10 right-0 p-1.5 rounded-full bg-white/10 text-fb-text-primary hover:bg-white/20 transition cursor-pointer"
-        >
-          <svg [lucideIcon]="closeIcon" class="w-5 h-5"></svg>
-        </button>
+      <div class="flex justify-center p-2">
         <img
           [src]="pUrl"
           alt="Vollbild Vorschau"
-          class="max-w-full max-h-[80vh] rounded-xl object-contain shadow-2xl border border-white/10"
+          class="max-w-full max-h-[75vh] rounded-xl object-contain shadow-2xl"
         />
       </div>
-    </div>
+    </app-modal-shell>
   }
 </div>

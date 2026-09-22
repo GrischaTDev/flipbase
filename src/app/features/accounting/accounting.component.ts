@@ -44,7 +44,8 @@ import { SyncStatusService } from '../../core/services/sync-status.service';
 import { ToastService } from '../../shared/components/toast/toast.service';
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
 
-import { ModalDialogDirective } from '../../shared/directives/modal-dialog.directive';
+import { ModalShellComponent } from '../../shared/components/modal-shell/modal-shell.component';
+import { TextFieldComponent } from '../../shared/components/text-field/text-field.component';
 import {
   CustomSelectComponent,
   SelectOption,
@@ -65,7 +66,8 @@ export type BankTxFilter = 'all' | 'matched' | 'pending' | 'booked' | 'ignored';
 @Component({
   selector: 'app-accounting',
   imports: [
-    ModalDialogDirective,
+    ModalShellComponent,
+    TextFieldComponent,
     ReactiveFormsModule,
     CurrencyPipe,
     DatePipe,

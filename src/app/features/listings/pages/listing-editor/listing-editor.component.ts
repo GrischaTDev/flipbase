@@ -9,6 +9,9 @@ import {
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
+import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
+import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import {
   CustomSelectComponent,
   type SelectOption,
@@ -37,10 +40,13 @@ import type { InventoryItem } from '../../../../core/models/flipbase.models';
   selector: 'app-listing-editor',
   imports: [
     ButtonComponent,
+    CustomCheckboxComponent,
     CustomSelectComponent,
     EntryPageLayoutComponent,
     ListingExtensionHelpComponent,
+    NumberInputComponent,
     ReactiveFormsModule,
+    TextFieldComponent,
     TwoColumnLayoutComponent,
   ],
   templateUrl: './listing-editor.component.html',

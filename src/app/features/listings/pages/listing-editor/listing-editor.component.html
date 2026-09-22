@@ -35,32 +35,33 @@
           }
         }
         <div class="flex items-center justify-between">
-          <label for="listing-title" class="text-sm font-medium text-fb-text-primary">Titel</label
-          ><span class="text-xs text-fb-text-muted">{{ form.controls.title.value.length }}/65</span>
+          <label for="listing-title" class="text-sm font-medium text-fb-text-primary">Titel</label>
+          <span class="text-xs text-fb-text-muted">{{ form.controls.title.value.length }}/65</span>
         </div>
-        <input
+        <app-text-field
           id="listing-title"
           formControlName="title"
-          maxlength="65"
-          class="linear-input w-full rounded-lg px-3 py-2"
+          [maxLength]="65"
+          ariaLabel="Titel"
         />
         @if (form.controls.title.touched && form.controls.title.invalid) {
           <p class="text-xs text-fb-critical">Der Titel muss 1 bis 65 Zeichen enthalten.</p>
         }
         <div class="flex items-center justify-between">
-          <label for="listing-description" class="text-sm font-medium text-fb-text-primary"
-            >Beschreibung</label
-          ><span class="text-xs text-fb-text-muted"
-            >{{ form.controls.description.value.length }}/4000</span
-          >
+          <label for="listing-description" class="text-sm font-medium text-fb-text-primary">
+            Beschreibung
+          </label>
+          <span class="text-xs text-fb-text-muted">
+            {{ form.controls.description.value.length }}/4000
+          </span>
         </div>
-        <textarea
+        <app-text-field
           id="listing-description"
           formControlName="description"
-          maxlength="4000"
-          rows="14"
-          class="linear-input w-full rounded-lg px-3 py-2"
-        ></textarea>
+          [maxLength]="4000"
+          [multiline]="14"
+          ariaLabel="Beschreibung"
+        />
         <div class="flex flex-wrap gap-2">
           <app-button variant="secondary" (clicked)="generate()"
             >Text aus Artikelinformationen erzeugen</app-button
@@ -69,18 +70,25 @@
         </div>
       </section>
       <aside sidebar class="linear-surface space-y-4 rounded-xl p-5">
-        <label class="block text-sm font-medium text-fb-text-primary"
-          >Preis<input
+        <div>
+          <label for="listing-price" class="block text-sm font-medium text-fb-text-primary">
+            Preis
+          </label>
+          <app-number-input
+            id="listing-price"
             formControlName="price"
-            type="number"
-            min="0"
-            max="99999999"
-            step="0.01"
-            class="linear-input mt-1 w-full rounded-lg px-3 py-2"
-        /></label>
-        @if (form.controls.price.touched && form.controls.price.invalid) {
-          <p class="text-xs text-fb-critical">Der Preis muss zwischen 0 und 99.999.999 € liegen.</p>
-        }
+            [min]="0"
+            [max]="99999999"
+            [step]="0.01"
+            unit="€"
+            ariaLabel="Preis"
+          />
+          @if (form.controls.price.touched && form.controls.price.invalid) {
+            <p class="mt-1 text-xs text-fb-critical">
+              Der Preis muss zwischen 0 und 99.999.999 € liegen.
+            </p>
+          }
+        </div>
         <div class="block text-sm font-medium text-fb-text-primary">
           <span>Preisart</span>
           <app-custom-select
@@ -111,45 +119,48 @@
             Verwendet feste Formulierungen mit den Artikeldaten. Es wird keine KI eingesetzt.
           </p>
         </div>
-        <label class="flex items-start gap-2 text-sm text-fb-text-secondary">
-          <input
-            formControlName="includeNonSmoking"
-            type="checkbox"
-            class="mt-0.5 h-4 w-4 rounded border-fb-border accent-fb-primary"
-          />
-          <span>Nichtraucherhinweis einfügen</span>
-        </label>
-        <label class="flex items-start gap-2 text-sm text-fb-text-secondary">
-          <input
-            formControlName="includeDisclaimer"
-            type="checkbox"
-            class="mt-0.5 h-4 w-4 rounded border-fb-border accent-fb-primary"
-          />
-          <span>Rechtlichen Hinweis einfügen</span>
-        </label>
+        <app-custom-checkbox
+          formControlName="includeNonSmoking"
+          label="Nichtraucherhinweis einfügen"
+        />
+        <app-custom-checkbox
+          formControlName="includeDisclaimer"
+          label="Rechtlichen Hinweis einfügen"
+        />
         @if (form.controls.shippingType.value !== 'pickup') {
-          <label class="block text-sm font-medium text-fb-text-primary"
-            >Versandkosten<input
+          <div>
+            <label
+              for="listing-shipping-price"
+              class="block text-sm font-medium text-fb-text-primary"
+            >
+              Versandkosten
+            </label>
+            <app-number-input
+              id="listing-shipping-price"
               formControlName="shippingPrice"
-              type="number"
-              min="0"
-              step="0.01"
-              class="linear-input mt-1 w-full rounded-lg px-3 py-2"
-          /></label>
-          @if (form.controls.shippingPrice.touched && form.controls.shippingPrice.invalid) {
-            <p class="text-xs text-fb-critical">Versandkosten dürfen nicht negativ sein.</p>
-          }
+              [min]="0"
+              [step]="0.01"
+              unit="€"
+              ariaLabel="Versandkosten"
+            />
+            @if (form.controls.shippingPrice.touched && form.controls.shippingPrice.invalid) {
+              <p class="mt-1 text-xs text-fb-critical">Versandkosten dürfen nicht negativ sein.</p>
+            }
+          </div>
         }
-        <label class="block text-sm font-medium text-fb-text-primary"
-          >Postleitzahl ><input
+        <div>
+          <app-text-field
             formControlName="postalCode"
-            inputmode="numeric"
-            maxlength="5"
-            class="linear-input mt-1 w-full rounded-lg px-3 py-2"
-        /></label>
-        @if (form.controls.postalCode.touched && form.controls.postalCode.invalid) {
-          <p class="text-xs text-fb-critical">Die Postleitzahl muss aus fünf Ziffern bestehen.</p>
-        }
+            label="Postleitzahl"
+            [maxLength]="5"
+            ariaLabel="Postleitzahl"
+          />
+          @if (form.controls.postalCode.touched && form.controls.postalCode.invalid) {
+            <p class="mt-1 text-xs text-fb-critical">
+              Die Postleitzahl muss aus fünf Ziffern bestehen.
+            </p>
+          }
+        </div>
         <app-button
           variant="primary"
           size="lg"

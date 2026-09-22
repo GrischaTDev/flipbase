@@ -21,17 +21,14 @@
     </div>
 
     <!-- Search Input -->
-    <div class="relative w-full md:w-64">
-      <svg
-        [lucideIcon]="searchIcon"
-        class="w-3.5 h-3.5 absolute left-3 top-2.5 text-fb-text-dimmed"
-      ></svg>
-      <input
-        type="text"
+    <div class="w-full md:w-64">
+      <app-text-field
+        type="search"
         placeholder="Bestell-Nr., Name, PLZ..."
         [value]="searchQuery()"
-        (input)="searchQuery.set($any($event.target).value)"
-        class="linear-input w-full pl-8 pr-3 py-1.5 rounded-xl text-xs"
+        (valueChange)="searchQuery.set($event)"
+        [prefixIcon]="searchIcon"
+        ariaLabel="Bestellungen durchsuchen"
       />
     </div>
   </div>
@@ -448,374 +445,240 @@
 
   <!-- Printable Shipping Label Modal (DIN-A6 Format) -->
   @if (isLabelModalOpen() && fulfillmentService.selectedOrderForLabel(); as labelOrder) {
-    <div
-      class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-6 animate-fade-in no-print overflow-y-auto"
-      appModalDialog
-      schliesstBeiKlickAussen
-      dialogTitel="Versandetikett"
-      (dialogClose)="closeLabelModal()"
+    <app-modal-shell
+      title="Versandetikett Vorschau (DIN-A6)"
+      size="xl"
+      [closeOnBackdrop]="true"
+      (closed)="closeLabelModal()"
     >
+      <!-- Printable Label Area (Clean White & Black high contrast for thermal printer) -->
       <div
-        class="bg-fb-surface text-fb-text-secondary border border-fb-border rounded-3xl w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-2xl p-6 space-y-6 my-auto"
+        class="printable-area bg-white text-black p-6 rounded-2xl border-2 border-black font-sans space-y-4 shadow-lg"
       >
-        <!-- Modal Top Bar -->
-        <div class="flex items-center justify-between border-b border-fb-border pb-3">
-          <div class="flex items-center gap-2">
-            <svg [lucideIcon]="printIcon" class="w-5 h-5 text-indigo-400"></svg>
-            <h3 class="text-base font-bold text-fb-text-primary">
-              Versandetikett Vorschau (DIN-A6)
-            </h3>
+        <!-- Header Bar with Carrier & Service -->
+        <div class="flex items-center justify-between border-b-2 border-black pb-3">
+          <div>
+            <h2 class="text-xl font-black tracking-tight uppercase">
+              {{ labelOrder.carrier === 'hermes' ? 'Hermes Logistik' : 'DHL Paket' }}
+            </h2>
+            <span class="text-xs font-mono font-bold">{{ labelOrder.package_type }}</span>
           </div>
-
-          <button
-            type="button"
-            (click)="closeLabelModal()"
-            class="p-1 rounded-lg text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-surface-hover cursor-pointer"
-          >
-            <svg [lucideIcon]="closeIcon" class="w-5 h-5"></svg>
-          </button>
+          <div class="text-right">
+            <span class="text-[10px] uppercase font-bold block">Bestellung:</span>
+            <span class="text-xs font-mono font-black">{{ labelOrder.order_number }}</span>
+          </div>
         </div>
 
-        <!-- Printable Label Area (Clean White & Black high contrast for thermal printer) -->
-        <div
-          class="printable-area bg-white text-black p-6 rounded-2xl border-2 border-black font-sans space-y-4 shadow-lg"
-        >
-          <!-- Header Bar with Carrier & Service -->
-          <div class="flex items-center justify-between border-b-2 border-black pb-3">
-            <div>
-              <h2 class="text-xl font-black tracking-tight uppercase">
-                {{ labelOrder.carrier === 'hermes' ? 'Hermes Logistik' : 'DHL Paket' }}
-              </h2>
-              <span class="text-xs font-mono font-bold">{{ labelOrder.package_type }}</span>
-            </div>
-            <div class="text-right">
-              <span class="text-[10px] uppercase font-bold block">Bestellung:</span>
-              <span class="text-xs font-mono font-black">{{ labelOrder.order_number }}</span>
-            </div>
-          </div>
-
-          <!-- Sender & Recipient Grid -->
-          <div class="grid grid-cols-2 gap-4 py-2 border-b-2 border-black">
-            <!-- Sender -->
-            <div class="text-[11px] space-y-0.5 border-r border-dashed border-fb-border pr-2">
-              <span class="text-[10px] uppercase font-bold text-fb-text-muted block"
-                >Absender:</span
-              >
-              @if (fulfillmentService.getSenderAddress(); as sender) {
-                <strong class="block text-xs font-bold">{{ sender.name }}</strong>
-                @if (sender.company) {
-                  <div>{{ sender.company }}</div>
-                }
-                <div>{{ sender.street }} {{ sender.house_number }}</div>
-                <div>{{ sender.postal_code }} {{ sender.city }}</div>
-                <div class="text-fb-text-secondary">{{ sender.country }}</div>
+        <!-- Sender & Recipient Grid -->
+        <div class="grid grid-cols-2 gap-4 py-2 border-b-2 border-black">
+          <!-- Sender -->
+          <div class="text-[11px] space-y-0.5 border-r border-dashed border-fb-border pr-2">
+            <span class="text-[10px] uppercase font-bold text-fb-text-muted block">Absender:</span>
+            @if (fulfillmentService.getSenderAddress(); as sender) {
+              <strong class="block text-xs font-bold">{{ sender.name }}</strong>
+              @if (sender.company) {
+                <div>{{ sender.company }}</div>
               }
-            </div>
-
-            <!-- Recipient -->
-            <div class="text-xs space-y-0.5 pl-2">
-              <span class="text-[10px] uppercase font-bold text-fb-text-muted block"
-                >Empfänger:</span
-              >
-              <strong class="block text-sm font-black">{{ labelOrder.customer.name }}</strong>
-              @if (labelOrder.customer.company) {
-                <div>{{ labelOrder.customer.company }}</div>
-              }
-              <div class="font-semibold">
-                {{ labelOrder.customer.street }} {{ labelOrder.customer.house_number }}
-              </div>
-              <div class="font-black text-sm">
-                {{ labelOrder.customer.postal_code }} {{ labelOrder.customer.city }}
-              </div>
-              <div class="text-fb-text-secondary font-bold uppercase text-[10px]">
-                {{ labelOrder.customer.country }}
-              </div>
-            </div>
+              <div>{{ sender.street }} {{ sender.house_number }}</div>
+              <div>{{ sender.postal_code }} {{ sender.city }}</div>
+              <div class="text-fb-text-secondary">{{ sender.country }}</div>
+            }
           </div>
 
-          <!-- Simulated Barcode & Security Warnings -->
-          <div class="space-y-2 pt-2">
-            <div
-              class="h-14 bg-neutral-900 flex items-center justify-center text-fb-text-primary font-mono tracking-widest text-xs rounded-sm"
-            >
-              ||| | ||||| || |||||| | |||| ||| ||||||| | ||
+          <!-- Recipient -->
+          <div class="text-xs space-y-0.5 pl-2">
+            <span class="text-[10px] uppercase font-bold text-fb-text-muted block">Empfänger:</span>
+            <strong class="block text-sm font-black">{{ labelOrder.customer.name }}</strong>
+            @if (labelOrder.customer.company) {
+              <div>{{ labelOrder.customer.company }}</div>
+            }
+            <div class="font-semibold">
+              {{ labelOrder.customer.street }} {{ labelOrder.customer.house_number }}
             </div>
-            <div
-              class="flex items-center justify-between text-[10px] text-fb-text-secondary font-mono"
-            >
-              <span>Sendungs-Ref: {{ labelOrder.order_number }}</span>
-              <span>Premium Priority Tracked</span>
+            <div class="font-black text-sm">
+              {{ labelOrder.customer.postal_code }} {{ labelOrder.customer.city }}
+            </div>
+            <div class="text-fb-text-secondary font-bold uppercase text-[10px]">
+              {{ labelOrder.customer.country }}
             </div>
           </div>
+        </div>
 
-          <!-- Fragile / Safety Badge -->
+        <!-- Simulated Barcode & Security Warnings -->
+        <div class="space-y-2 pt-2">
           <div
-            class="p-2 bg-fb-subtle border border-black text-center text-[10px] font-black uppercase tracking-wider"
+            class="h-14 bg-neutral-900 flex items-center justify-center text-fb-text-primary font-mono tracking-widest text-xs rounded-sm"
           >
-            Vorsicht Zerbrechlich &bull; Elektronik &bull; Vor Nässe Schützen
+            ||| | ||||| || |||||| | |||| ||| ||||||| | ||
+          </div>
+          <div
+            class="flex items-center justify-between text-[10px] text-fb-text-secondary font-mono"
+          >
+            <span>Sendungs-Ref: {{ labelOrder.order_number }}</span>
+            <span>Premium Priority Tracked</span>
           </div>
         </div>
 
-        <!-- Modal Actions -->
-        <div class="flex items-center justify-between pt-2 border-t border-fb-border no-print">
-          <button
-            type="button"
-            (click)="closeLabelModal()"
-            class="linear-btn-secondary px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer"
-          >
-            Schließen
-          </button>
-
-          <button
-            type="button"
-            (click)="printDocument()"
-            class="linear-btn-primary px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer shadow-lg shadow-indigo-500/25"
-          >
-            <svg [lucideIcon]="printIcon" class="w-4 h-4"></svg>
-            <span>Jetzt drucken (DIN-A6)</span>
-          </button>
+        <!-- Fragile / Safety Badge -->
+        <div
+          class="p-2 bg-fb-subtle border border-black text-center text-[10px] font-black uppercase tracking-wider"
+        >
+          Vorsicht Zerbrechlich &bull; Elektronik &bull; Vor Nässe Schützen
         </div>
       </div>
-    </div>
+
+      <div modal-footer class="flex items-center justify-between w-full no-print">
+        <app-button variant="secondary" (clicked)="closeLabelModal()"> Schließen </app-button>
+        <app-button variant="primary" (clicked)="printDocument()">
+          <svg [lucideIcon]="printIcon" class="w-4 h-4 mr-1.5"></svg>
+          <span>Jetzt drucken (DIN-A6)</span>
+        </app-button>
+      </div>
+    </app-modal-shell>
   }
 
   <!-- Printable Packing Slip Modal (DIN-A4) -->
   @if (isSlipModalOpen() && fulfillmentService.selectedOrderForSlip(); as slipOrder) {
-    <div
-      class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-6 animate-fade-in no-print overflow-y-auto"
-      appModalDialog
-      schliesstBeiKlickAussen
-      dialogTitel="Lieferschein"
-      (dialogClose)="closeSlipModal()"
+    <app-modal-shell
+      title="Lieferschein & Packzettel Vorschau"
+      size="xl"
+      [closeOnBackdrop]="true"
+      (closed)="closeSlipModal()"
     >
+      <!-- Printable Packing Slip Area -->
       <div
-        class="bg-fb-surface text-fb-text-secondary border border-fb-border rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl p-6 space-y-6 my-auto"
+        class="printable-area bg-white text-black p-8 rounded-2xl border border-fb-border font-sans space-y-6 shadow-lg"
       >
-        <!-- Modal Header -->
-        <div class="flex items-center justify-between border-b border-fb-border pb-3">
-          <div class="flex items-center gap-2">
-            <svg [lucideIcon]="fileIcon" class="w-5 h-5 text-indigo-400"></svg>
-            <h3 class="text-base font-bold text-fb-text-primary">
-              Lieferschein & Packzettel Vorschau
-            </h3>
-          </div>
-
-          <button
-            type="button"
-            (click)="closeSlipModal()"
-            class="p-1 rounded-lg text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-surface-hover cursor-pointer"
-          >
-            <svg [lucideIcon]="closeIcon" class="w-5 h-5"></svg>
-          </button>
-        </div>
-
-        <!-- Printable Packing Slip Area -->
-        <div
-          class="printable-area bg-white text-black p-8 rounded-2xl border border-fb-border font-sans space-y-6 shadow-lg"
-        >
-          <div class="flex justify-between items-start border-b border-fb-border pb-4">
-            <div>
-              <h1 class="text-xl font-black">LIEFERSCHEIN</h1>
-              <p class="text-xs text-fb-text-muted font-mono">
-                Bestell-Nr.: {{ slipOrder.order_number }}
-              </p>
-            </div>
-            <div class="text-right text-xs">
-              <strong class="block font-bold">Flipbase Reselling</strong>
-              <span class="text-fb-text-muted"
-                >Datum: {{ slipOrder.order_date | date: 'dd.MM.yyyy' }}</span
-              >
-            </div>
-          </div>
-
-          <!-- Customer info -->
-          <div class="text-xs space-y-1">
-            <span class="text-[10px] uppercase font-bold text-fb-text-dimmed block"
-              >Lieferadresse:</span
-            >
-            <strong class="text-sm block">{{ slipOrder.customer.name }}</strong>
-            <div>{{ slipOrder.customer.street }} {{ slipOrder.customer.house_number }}</div>
-            <div>{{ slipOrder.customer.postal_code }} {{ slipOrder.customer.city }}</div>
-          </div>
-
-          <!-- Items Table -->
-          <table
-            data-shared-ui-exception="static-table"
-            class="w-full text-left text-xs border-collapse border border-fb-border"
-          >
-            <thead class="bg-fb-subtle uppercase text-[10px] font-bold border-b border-fb-border">
-              <tr>
-                <th class="p-2.5">Position</th>
-                <th class="p-2.5">Artikel</th>
-                <th class="p-2.5">Zustand</th>
-                <th class="p-2.5 text-right">Menge</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td class="p-2.5 font-mono">01</td>
-                <td class="p-2.5 font-bold">{{ slipOrder.item_title }}</td>
-                <td class="p-2.5">{{ slipOrder.item_condition || 'Geprüft' }}</td>
-                <td class="p-2.5 text-right font-mono font-bold">1x</td>
-              </tr>
-            </tbody>
-          </table>
-
-          <!-- Thank you message -->
-          <div
-            class="p-4 bg-fb-subtle border border-fb-border-subtle rounded-xl text-xs text-fb-text-secondary leading-relaxed"
-          >
-            <p class="font-bold">Vielen Dank für deinen Einkauf!</p>
-            <p class="text-[11px] mt-1 text-fb-text-secondary">
-              Wir wünschen dir viel Freude mit deinem Artikel. Bei Fragen oder Anliegen stehen wir
-              dir jederzeit gerne zur Verfügung!
+        <div class="flex justify-between items-start border-b border-fb-border pb-4">
+          <div>
+            <h1 class="text-xl font-black">LIEFERSCHEIN</h1>
+            <p class="text-xs text-fb-text-muted font-mono">
+              Bestell-Nr.: {{ slipOrder.order_number }}
             </p>
           </div>
+          <div class="text-right text-xs">
+            <strong class="block font-bold">Flipbase Reselling</strong>
+            <span class="text-fb-text-muted"
+              >Datum: {{ slipOrder.order_date | date: 'dd.MM.yyyy' }}</span
+            >
+          </div>
         </div>
 
-        <!-- Modal Actions -->
-        <div class="flex items-center justify-between pt-2 border-t border-fb-border no-print">
-          <button
-            type="button"
-            (click)="closeSlipModal()"
-            class="linear-btn-secondary px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer"
+        <!-- Customer info -->
+        <div class="text-xs space-y-1">
+          <span class="text-[10px] uppercase font-bold text-fb-text-dimmed block"
+            >Lieferadresse:</span
           >
-            Schließen
-          </button>
+          <strong class="text-sm block">{{ slipOrder.customer.name }}</strong>
+          <div>{{ slipOrder.customer.street }} {{ slipOrder.customer.house_number }}</div>
+          <div>{{ slipOrder.customer.postal_code }} {{ slipOrder.customer.city }}</div>
+        </div>
 
-          <button
-            type="button"
-            (click)="printDocument()"
-            class="linear-btn-primary px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer shadow-lg shadow-indigo-500/25"
-          >
-            <svg [lucideIcon]="printIcon" class="w-4 h-4"></svg>
-            <span>Lieferschein drucken</span>
-          </button>
+        <!-- Items Table -->
+        <table
+          data-shared-ui-exception="static-table"
+          class="w-full text-left text-xs border-collapse border border-fb-border"
+        >
+          <thead class="bg-fb-subtle uppercase text-[10px] font-bold border-b border-fb-border">
+            <tr>
+              <th class="p-2.5">Position</th>
+              <th class="p-2.5">Artikel</th>
+              <th class="p-2.5">Zustand</th>
+              <th class="p-2.5 text-right">Menge</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="p-2.5 font-mono">01</td>
+              <td class="p-2.5 font-bold">{{ slipOrder.item_title }}</td>
+              <td class="p-2.5">{{ slipOrder.item_condition || 'Geprüft' }}</td>
+              <td class="p-2.5 text-right font-mono font-bold">1x</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Thank you message -->
+        <div
+          class="p-4 bg-fb-subtle border border-fb-border-subtle rounded-xl text-xs text-fb-text-secondary leading-relaxed"
+        >
+          <p class="font-bold">Vielen Dank für deinen Einkauf!</p>
+          <p class="text-[11px] mt-1 text-fb-text-secondary">
+            Wir wünschen dir viel Freude mit deinem Artikel. Bei Fragen oder Anliegen stehen wir dir
+            jederzeit gerne zur Verfügung!
+          </p>
         </div>
       </div>
-    </div>
+
+      <div modal-footer class="flex items-center justify-between w-full no-print">
+        <app-button variant="secondary" (clicked)="closeSlipModal()"> Schließen </app-button>
+        <app-button variant="primary" (clicked)="printDocument()">
+          <svg [lucideIcon]="printIcon" class="w-4 h-4 mr-1.5"></svg>
+          <span>Lieferschein drucken</span>
+        </app-button>
+      </div>
+    </app-modal-shell>
   }
 
   <!-- Tracking Input Modal -->
   @if (isTrackingModalOpen()) {
-    <div
-      class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-6 animate-fade-in overflow-y-auto"
-      appModalDialog
-      schliesstBeiKlickAussen
-      dialogTitel="Sendungsverfolgung"
-      (dialogClose)="closeTrackingModal()"
+    <app-modal-shell
+      title="Sendungsnummer erfassen"
+      size="md"
+      [closeOnBackdrop]="true"
+      [hasFooter]="false"
+      (closed)="closeTrackingModal()"
     >
-      <div
-        class="bg-fb-surface text-fb-text-secondary border border-fb-border rounded-3xl w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl p-6 space-y-5 my-auto"
-      >
-        <div class="flex items-center justify-between border-b border-fb-border pb-3">
-          <div class="flex items-center gap-2">
-            <svg [lucideIcon]="truckIcon" class="w-5 h-5 text-indigo-400"></svg>
-            <h3 class="text-base font-bold text-fb-text-primary">Sendungsnummer erfassen</h3>
-          </div>
-
-          <button
-            type="button"
-            (click)="closeTrackingModal()"
-            class="p-1 rounded-lg text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-surface-hover cursor-pointer"
+      <form [formGroup]="trackingForm" (ngSubmit)="onSaveTracking()" class="space-y-4">
+        <div>
+          <label
+            for="carrierSelect"
+            class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
           >
-            <svg [lucideIcon]="closeIcon" class="w-5 h-5"></svg>
-          </button>
+            Versanddienstleister
+          </label>
+          <app-custom-select
+            ariaLabel="Versanddienstleister"
+            [options]="versanddienstOptionen"
+            formControlName="carrier"
+          />
         </div>
 
-        <form [formGroup]="trackingForm" (ngSubmit)="onSaveTracking()" class="space-y-4">
-          <div>
-            <label
-              for="carrierSelect"
-              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
-            >
-              Versanddienstleister
-            </label>
-            <app-custom-select
-              ariaLabel="Versanddienstleister"
-              [options]="versanddienstOptionen"
-              formControlName="carrier"
-            />
-          </div>
+        <div>
+          <app-text-field
+            id="trackingNumberInput"
+            label="Sendungsnummer / Tracking-ID *"
+            placeholder="z.B. 00340434289012345678"
+            formControlName="trackingNumber"
+          />
+        </div>
 
-          <div>
-            <label
-              for="trackingNumberInput"
-              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
-            >
-              Sendungsnummer / Tracking-ID *
-            </label>
-            <input
-              id="trackingNumberInput"
-              type="text"
-              formControlName="trackingNumber"
-              placeholder="z.B. 00340434289012345678"
-              class="linear-input w-full px-3 py-2 rounded-xl text-xs font-mono font-bold"
-            />
-          </div>
-
-          <div class="flex justify-end gap-2 pt-2 border-t border-fb-border">
-            <button
-              type="button"
-              (click)="closeTrackingModal()"
-              class="linear-btn-secondary px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer"
-            >
-              Abbrechen
-            </button>
-
-            <button
-              type="submit"
-              [disabled]="trackingForm.invalid"
-              class="linear-btn-primary px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-500/20 disabled:opacity-40"
-            >
-              <svg [lucideIcon]="checkIcon" class="w-3.5 h-3.5"></svg>
-              <span>Speichern & Versenden</span>
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <div class="flex justify-end gap-2 pt-2 border-t border-fb-border">
+          <app-button variant="secondary" (clicked)="closeTrackingModal()"> Abbrechen </app-button>
+          <app-button type="submit" variant="primary" [disabled]="trackingForm.invalid">
+            <svg [lucideIcon]="checkIcon" class="w-3.5 h-3.5 mr-1.5"></svg>
+            <span>Speichern & Versenden</span>
+          </app-button>
+        </div>
+      </form>
+    </app-modal-shell>
   }
 
   <!-- Live Carrier Label Purchase Modal (DHL / Hermes) -->
   @if (isPurchaseModalOpen(); as order) {
     @let targetOrder = selectedOrderForPurchase();
     @if (targetOrder) {
-      <div
-        class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-6 animate-fade-in overflow-y-auto"
-        appModalDialog
-        schliesstBeiKlickAussen
-        dialogTitel="Einkauf erfassen"
-        (dialogClose)="closePurchaseModal()"
+      <app-modal-shell
+        title="Versandmarkenkauf nicht verfügbar"
+        size="lg"
+        [closeOnBackdrop]="true"
+        (closed)="closePurchaseModal()"
       >
-        <div
-          class="bg-fb-surface text-fb-text-secondary border border-fb-border rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl p-6 space-y-5 my-auto"
-        >
-          <!-- Header -->
-          <div class="flex items-start justify-between border-b border-fb-border pb-3">
-            <div class="flex items-center gap-2">
-              <div
-                class="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center"
-              >
-                <svg [lucideIcon]="zapIcon" class="w-4 h-4"></svg>
-              </div>
-              <div>
-                <h3 class="text-base font-bold text-fb-text-primary">
-                  Versandmarkenkauf nicht verfügbar
-                </h3>
-                <p class="text-xs text-fb-text-muted mt-0.5">
-                  Es ist keine Zusteller-Schnittstelle angebunden.
-                </p>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              (click)="closePurchaseModal()"
-              class="p-1 rounded-lg text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-surface-hover cursor-pointer"
-            >
-              <svg [lucideIcon]="closeIcon" class="w-5 h-5"></svg>
-            </button>
+        <div class="space-y-5">
+          <div
+            class="flex items-center gap-3 p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs"
+          >
+            <svg [lucideIcon]="zapIcon" class="w-5 h-5 shrink-0"></svg>
+            <span>Es ist keine Zusteller-Schnittstelle angebunden.</span>
           </div>
 
           <!-- Order Summary Pill -->
@@ -887,23 +750,15 @@
               }
             </div>
           </div>
-
-          <!-- Der Kauf ist bewusst deaktiviert, solange keine echte Zusteller-Schnittstelle existiert. -->
-          <div class="flex justify-end gap-2 pt-3 border-t border-fb-border">
-            <button
-              type="button"
-              (click)="closePurchaseModal()"
-              class="linear-btn-secondary px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer"
-            >
-              Abbrechen
-            </button>
-
-            <span class="self-center text-xs text-fb-text-muted">
-              Bitte kaufe die Marke beim Zusteller und erfasse die echte Sendungsnummer.
-            </span>
-          </div>
         </div>
-      </div>
+
+        <div modal-footer class="flex items-center justify-between w-full">
+          <span class="text-xs text-fb-text-muted">
+            Bitte kaufe die Marke beim Zusteller und erfasse die echte Sendungsnummer.
+          </span>
+          <app-button variant="secondary" (clicked)="closePurchaseModal()"> Schließen </app-button>
+        </div>
+      </app-modal-shell>
     }
   }
 </div>

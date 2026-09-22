@@ -42,19 +42,13 @@
         </div>
 
         <div>
-          <label
-            for="productTitle"
-            class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
-          >
-            Artikel / Titel
-          </label>
-          <input
+          <app-text-field
             id="productTitle"
-            type="text"
             formControlName="productTitle"
-            (input)="runCalculation()"
+            (valueChange)="runCalculation()"
+            label="Artikel / Titel"
             placeholder="z.B. Cube Acid Mountainbike"
-            class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-medium"
+            ariaLabel="Artikel / Titel"
           />
         </div>
 
@@ -67,13 +61,13 @@
             >
               Verkaufspreis des Anbieters (EK in €)
             </label>
-            <input
+            <app-number-input
               id="askingPriceInput"
-              type="number"
               formControlName="askingPrice"
-              (input)="runCalculation()"
+              (valueChange)="runCalculation()"
+              unit="€"
               placeholder="0.00"
-              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold"
+              ariaLabel="Verkaufspreis des Anbieters (EK in €)"
             />
           </div>
 
@@ -85,13 +79,13 @@
             >
               Erwarteter Verkaufspreis (€)
             </label>
-            <input
+            <app-number-input
               id="marketValueInput"
-              type="number"
               formControlName="fairMarketValue"
-              (input)="runCalculation()"
+              (valueChange)="runCalculation()"
+              unit="€"
               placeholder="0.00"
-              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold text-emerald-400"
+              ariaLabel="Erwarteter Verkaufspreis (€)"
             />
           </div>
         </div>
@@ -105,13 +99,13 @@
             >
               Nebenkosten (Versand, Fahrt, Teile in €)
             </label>
-            <input
+            <app-number-input
               id="estimatedCostsInput"
-              type="number"
               formControlName="estimatedCosts"
-              (input)="runCalculation()"
+              (valueChange)="runCalculation()"
+              unit="€"
               placeholder="0.00"
-              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono font-semibold text-amber-400"
+              ariaLabel="Nebenkosten (Versand, Fahrt, Teile in €)"
             />
           </div>
 

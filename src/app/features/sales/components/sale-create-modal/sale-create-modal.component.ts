@@ -44,6 +44,9 @@ import {
   SelectOption,
 } from '../../../../shared/components/custom-select/custom-select.component';
 import { DatePickerComponent } from '../../../../shared/components/date-picker/date-picker.component';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
+import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { SyncStatusService } from '../../../../core/services/sync-status.service';
 import { WorkspaceContextLockService } from '../../../../core/services/workspace-context-lock.service';
@@ -70,6 +73,9 @@ type ShippingFormMode = ShippingMode | 'unknown';
     LucideDynamicIcon,
     CustomSelectComponent,
     DatePickerComponent,
+    ButtonComponent,
+    NumberInputComponent,
+    TextFieldComponent,
   ],
   templateUrl: './sale-create-modal.component.html',
   host: { class: 'contents' },

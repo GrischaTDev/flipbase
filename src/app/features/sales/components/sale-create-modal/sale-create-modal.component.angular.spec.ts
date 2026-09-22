@@ -19,8 +19,11 @@ import { ProfitEngineService } from '../../../../core/services/profit-engine.ser
 import { RecordSaleInput, SalesService } from '../../../../core/services/sales.service';
 import { StockService } from '../../../../core/services/stock.service';
 import { SyncStatusService } from '../../../../core/services/sync-status.service';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
 import { DatePickerComponent } from '../../../../shared/components/date-picker/date-picker.component';
+import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
+import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
 import { SaleCreateModalComponent } from './sale-create-modal.component';
@@ -660,6 +663,79 @@ describe('SaleCreateModalComponent', () => {
         (ModalDialogDirective as unknown as { ɵdir: AngularInputMetadata }).ɵdir,
         ['dialogTitel'],
       );
+      bridgeInputMetadata((ButtonComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp, [
+        'variant',
+        'size',
+        'loading',
+        'disabled',
+        'icon',
+        'iconPosition',
+        'iconOnly',
+        'fullWidth',
+        'contentAlign',
+        'type',
+        'formId',
+        'link',
+        'href',
+        'target',
+        'queryParams',
+        'ariaLabel',
+        'title',
+        'ariaExpanded',
+        'ariaPressed',
+        'ariaControls',
+        'ariaHaspopup',
+      ]);
+      bridgeInputMetadata(
+        (NumberInputComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp,
+        [
+          'value',
+          'placeholder',
+          'step',
+          'min',
+          'max',
+          'unit',
+          'id',
+          'ariaLabel',
+          'ariaDescribedby',
+          'ariaInvalid',
+          'asCurrency',
+          'disabled',
+          'showStepper',
+          'platzhalter',
+          'schritt',
+          'minimum',
+          'maximum',
+          'einheit',
+          'feldId',
+          'beschriftung',
+          'alsBetrag',
+        ],
+      );
+      bridgeInputMetadata((TextFieldComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp, [
+        'label',
+        'labelHidden',
+        'placeholder',
+        'type',
+        'multiline',
+        'prefix',
+        'suffix',
+        'prefixIcon',
+        'clearable',
+        'monospaced',
+        'error',
+        'helpText',
+        'disabled',
+        'id',
+        'ariaLabel',
+        'ariaRequired',
+        'ariaDescribedby',
+        'ariaInvalid',
+        'autocomplete',
+        'required',
+        'maxLength',
+        'value',
+      ]);
     }
 
     function restoreInputMetadata(): void {

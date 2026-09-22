@@ -1,5 +1,19 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-22 – Juna – Shared-UI-Bereinigung: Vollständige Migration aller verbleibenden Vorlagen und Leerung der Ausnahmelisten
+
+**Auftrag:** Alle verbleibenden Legacy-Formularfelder und modalen Dialoge in den verbleibenden 15 Vorlagen (Accounting, Audit-Timeline, Auth-Login, Privacy/Terms-Modals, Deal-Calculator, Fulfillment, Image-Optimizer, Listing-Editor, Onboarding-Workspace-Setup, Research, Sales, Sale-Create-Modal) auf die standardisierten Shared Components (`TextFieldComponent`, `NumberInputComponent`, `CustomCheckboxComponent`, `ModalShellComponent`, `ButtonComponent`) umstellen. Die Ausnahmelisten `legacyNativeFormControlPaths` und `legacyCustomModalPaths` in `scripts/check-admin-shared-ui.mjs` vollständig auf leere Sets leeren und alle Tests sowie den Produktionsbau grünstellen.
+
+**Änderung:**
+
+- In `TextFieldComponent` wurde das `value`-Property auf `model<string>('')` erweitert, um Zwei-Wege-Bindung `[(value)]` und `(valueChange)` zu unterstützen; zusätzliche ARIA-Inputs (`ariaRequired`, `ariaDescribedby`, `ariaInvalid`) wurden ergänzt.
+- In `NumberInputComponent` wurde das Input `ariaInvalid` ergänzt und an `[attr.aria-invalid]` angebunden.
+- In `scripts/check-admin-shared-ui.mjs` wurden `legacyNativeFormControlPaths` und `legacyCustomModalPaths` vollständig geleert (`new Set()`).
+- Alle 15 betroffenen Feature-Templates wurden vollständig auf die Shared Controls migriert: native `<input>`- und `<textarea>`-Felder durch `app-text-field` und `app-number-input`, native `<input type="checkbox">` durch `app-custom-checkbox`, native Custom-Dialoge durch `app-modal-shell` und Aktionsschaltflächen durch `app-button`. Für Zahlenfelder (`app-number-input`) in Sales und Deal-Calculator wurden explizite Labels und ARIA-Labels für Barrierefreiheit und End-to-End-Selektoren beibehalten.
+- In Vitest-Komponententests (`workspace-setup.component.angular.spec.ts`, `listing-editor.component.angular.spec.ts`, `sale-create-modal.component.angular.spec.ts`, `record-timeline.component.angular.spec.ts`, `record-history.container.angular.spec.ts`) wurden die Signal-Input- und Binding-Metadaten für die Shared Components registriert und Template-Ressourcen aufgelöst.
+
+**Prüfung:** `npm run format:check`, `npm run lint`, `npm run typecheck`, `node --test scripts/check-admin-shared-ui.test.mjs` (14/14 bestanden), `node scripts/check-admin-shared-ui.mjs` (0 Findings bei 96 Dateien), `npm run test:workflow` (84/84 bestanden), gesamte Vitest-Suite (`npx vitest run`: 294 Test-Dateien, 2729 Tests alle bestanden), E2E-Smoke-Lokalisierung sowie Angular-Produktionsbau (`ng build`) fehlerfrei ausgeführt.
+
 ## 2026-09-22 – Juna – Shared-UI-Bereinigung: Alle neun Einstellungsseiten auf Shared Controls migriert
 
 **Auftrag:** Alle 9 Seiten unter `src/app/features/settings/` (`account-settings`, `app-settings`, `data-and-audit`, `notification-settings`, `numbering-settings`, `shipping-settings`, `store-settings`, `team-settings`, `workspace-settings`) auf Shared Components (`TextFieldComponent`, `NumberInputComponent`, `CustomCheckboxComponent`, `DatePickerComponent`, `ModalShellComponent`, `ButtonComponent`) umstellen, alle 9 Pfade aus `legacyNativeFormControlPaths` und `team-settings.component.html` aus `legacyCustomModalPaths` entfernen sowie strikte 0-Native-Controls-Prüfung für `settings` in `scripts/check-admin-shared-ui.mjs` aktivieren.

@@ -9,6 +9,7 @@
     [placeholder]="effectivePlaceholder()"
     [attr.aria-label]="effectiveAriaLabel() || null"
     [attr.aria-describedby]="ariaDescribedby() || null"
+    [attr.aria-invalid]="ariaInvalid() ? 'true' : null"
     [disabled]="effectiveDisabled()"
     (input)="handleInput($event)"
     (blur)="handleBlur()"

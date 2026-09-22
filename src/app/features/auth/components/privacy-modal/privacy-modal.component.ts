@@ -1,15 +1,14 @@
 import { ChangeDetectionStrategy, Component, output } from '@angular/core';
 import { TranslatePipe } from '@ngx-translate/core';
-import { LucideDynamicIcon, LucideX as X } from '@lucide/angular';
-import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
+import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
 
 @Component({
   selector: 'app-privacy-modal',
-  imports: [TranslatePipe, LucideDynamicIcon, ModalDialogDirective],
+  imports: [TranslatePipe, ModalShellComponent, ButtonComponent],
   templateUrl: './privacy-modal.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PrivacyModalComponent {
   readonly closed = output<void>();
-  readonly closeIcon = X;
 }

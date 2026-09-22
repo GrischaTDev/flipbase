@@ -9,16 +9,15 @@
   </div>
 
   <div class="flex flex-col gap-3 sm:flex-row sm:items-end">
-    <div class="flex flex-col gap-1">
-      <label for="export-base-name" class="text-xs font-medium text-fb-text-muted">Dateiname</label>
-      <input
+    <div class="w-56">
+      <app-text-field
         id="export-base-name"
-        type="text"
+        label="Dateiname"
         [value]="baseName()"
         [disabled]="disabled()"
-        (input)="baseNameChanged.emit($any($event.target).value)"
+        (valueChange)="baseNameChanged.emit($event)"
         placeholder="z. B. nike-air-max-42"
-        class="w-56 rounded-xl border border-fb-border bg-fb-surface px-3 py-2 text-xs text-fb-text-primary placeholder:text-fb-text-muted focus:border-fb-primary focus:outline-none focus:ring-2 focus:ring-fb-brand-border disabled:opacity-40"
+        ariaLabel="Dateiname"
       />
     </div>
 
@@ -29,6 +28,7 @@
       multiple
       [disabled]="disabled()"
       class="sr-only"
+      data-shared-ui-exception="native-file-picker"
       (change)="onFileInput($event.target)"
     />
     <app-button variant="primary" size="lg" [disabled]="disabled()" (clicked)="fileInput.click()">

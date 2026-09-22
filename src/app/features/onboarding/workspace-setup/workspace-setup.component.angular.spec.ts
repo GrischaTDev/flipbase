@@ -12,7 +12,26 @@ import { Workspace } from '../../../core/models/flipbase.models';
 import { AuthService } from '../../../core/services/auth.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
 import { ButtonComponent } from '../../../shared/components/button/button.component';
+import { TextFieldComponent } from '../../../shared/components/text-field/text-field.component';
 import { WorkspaceSetupComponent } from './workspace-setup.component';
+
+interface InputMetadata {
+  inputs: Record<string, unknown>;
+  declaredInputs: Record<string, string>;
+}
+const snapshots = new Map<unknown, InputMetadata>();
+function registerInputs(component: unknown, names: string[]) {
+  const metadata = (component as { ɵcmp: InputMetadata }).ɵcmp;
+  snapshots.set(component, { inputs: metadata.inputs, declaredInputs: metadata.declaredInputs });
+  metadata.inputs = {
+    ...metadata.inputs,
+    ...Object.fromEntries(names.map((name) => [name, [name, 1, null]])),
+  };
+  metadata.declaredInputs = {
+    ...metadata.declaredInputs,
+    ...Object.fromEntries(names.map((name) => [name, name])),
+  };
+}
 
 const incompleteWorkspace: Workspace = {
   id: '11111111-1111-4111-8111-111111111111',
@@ -41,6 +60,8 @@ beforeAll(async () => {
       'src/app/features/onboarding/workspace-setup/workspace-setup.component.html',
     'button.component.html': 'src/app/shared/components/button/button.component.html',
     'button.component.scss': 'src/app/shared/components/button/button.component.scss',
+    'text-field.component.html': 'src/app/shared/components/text-field/text-field.component.html',
+    'text-field.component.scss': 'src/app/shared/components/text-field/text-field.component.scss',
   };
 
   await ɵresolveComponentResources(async (url) => {
@@ -48,6 +69,52 @@ beforeAll(async () => {
     const mapped = lookup[filename];
     return mapped ? readFile(resolve(mapped), 'utf8') : '';
   });
+
+  registerInputs(ButtonComponent, [
+    'variant',
+    'size',
+    'loading',
+    'disabled',
+    'icon',
+    'iconPosition',
+    'iconOnly',
+    'fullWidth',
+    'contentAlign',
+    'type',
+    'formId',
+    'link',
+    'href',
+    'target',
+    'queryParams',
+    'ariaLabel',
+    'title',
+    'ariaExpanded',
+    'ariaPressed',
+    'ariaControls',
+    'ariaHaspopup',
+  ]);
+
+  registerInputs(TextFieldComponent, [
+    'label',
+    'labelHidden',
+    'placeholder',
+    'type',
+    'multiline',
+    'prefix',
+    'suffix',
+    'prefixIcon',
+    'clearable',
+    'monospaced',
+    'error',
+    'helpText',
+    'disabled',
+    'id',
+    'ariaLabel',
+    'autocomplete',
+    'required',
+    'maxLength',
+    'value',
+  ]);
 });
 
 describe('WorkspaceSetupComponent', () => {

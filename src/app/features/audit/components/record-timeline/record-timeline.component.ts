@@ -20,13 +20,14 @@ import {
 } from '../../models/record-timeline.models';
 import { RecordTimelineService } from '../../services/record-timeline.service';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 
 /** Ab dieser Anzahl wird die Änderungsliste gekürzt angezeigt. */
 const CHANGE_PREVIEW_LIMIT = 12;
 
 @Component({
   selector: 'app-record-timeline',
-  imports: [ButtonComponent],
+  imports: [ButtonComponent, TextFieldComponent],
   templateUrl: './record-timeline.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -105,7 +106,11 @@ export class RecordTimelineComponent {
       untracked(() => void this.load(undefined));
     });
   }
-  updateDraft(event: Event): void {
+  updateDraft(event: Event | string): void {
+    if (typeof event === 'string') {
+      this.draft.set(event);
+      return;
+    }
     this.draft.set((event.target as HTMLTextAreaElement).value);
   }
   reload(): void {

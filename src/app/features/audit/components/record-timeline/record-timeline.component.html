@@ -16,19 +16,18 @@
         >
           {{ currentUserInitial() }}
         </span>
-        <label [for]="'record-comment-' + entityId()" class="sr-only">Kommentar schreiben</label>
-        <textarea
-          [id]="'record-comment-' + entityId()"
-          [value]="draft()"
-          (input)="updateDraft($event)"
-          [disabled]="posting()"
-          rows="1"
-          maxlength="5000"
-          placeholder="Hinterlasse einen Kommentar …"
-          [attr.aria-describedby]="'record-comment-count-' + entityId()"
-          [attr.aria-invalid]="characterCount() > 5000"
-          class="h-8 min-h-8 w-full resize-y border-0 bg-transparent py-1.5 text-[13px] leading-5 text-fb-text-primary outline-none placeholder:text-fb-text-muted disabled:opacity-60"
-        ></textarea>
+        <div class="flex-1 min-w-0">
+          <app-text-field
+            [id]="'record-comment-' + entityId()"
+            [value]="draft()"
+            (valueChange)="updateDraft($event)"
+            [disabled]="posting()"
+            [multiline]="2"
+            [maxLength]="5000"
+            placeholder="Hinterlasse einen Kommentar …"
+            [ariaLabel]="'Kommentar schreiben'"
+          />
+        </div>
       </div>
       <div class="flex items-center justify-between gap-3 bg-fb-subtle px-4 py-2">
         <p [id]="'record-comment-count-' + entityId()" class="text-xs text-fb-text-muted">

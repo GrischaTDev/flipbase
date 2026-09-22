@@ -21,6 +21,7 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { AuthService } from '../../../core/services/auth.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
 import { ButtonComponent } from '../../../shared/components/button/button.component';
+import { TextFieldComponent } from '../../../shared/components/text-field/text-field.component';
 
 const workspaceNameLengthValidator: ValidatorFn = (
   control: AbstractControl,
@@ -31,7 +32,13 @@ const workspaceNameLengthValidator: ValidatorFn = (
 
 @Component({
   selector: 'app-workspace-setup',
-  imports: [NgOptimizedImage, ReactiveFormsModule, TranslatePipe, ButtonComponent],
+  imports: [
+    NgOptimizedImage,
+    ReactiveFormsModule,
+    TranslatePipe,
+    ButtonComponent,
+    TextFieldComponent,
+  ],
   templateUrl: './workspace-setup.component.html',
   host: { class: 'block fb-admin' },
   changeDetection: ChangeDetectionStrategy.OnPush,

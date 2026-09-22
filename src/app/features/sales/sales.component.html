@@ -574,306 +574,240 @@
   <!-- ↩️ Retouren- & Gutschriften-Modal -->
   @if (isReturnModalOpen()) {
     @let sale = selectedSaleForReturn();
-    <div
-      class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-md animate-fade-in overflow-y-auto"
-      appModalDialog
-      dialogTitel="Retoure & Gutschrift erfassen"
-      (dialogClose)="closeReturnModal()"
+    <app-modal-shell
+      title="Retoure & Gutschrift erfassen"
+      size="xl"
+      [closeOnBackdrop]="true"
+      [hasFooter]="false"
+      (closed)="closeReturnModal()"
     >
-      <div
-        class="linear-surface rounded-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-2xl border border-fb-border my-auto animate-modal-card"
-      >
-        <!-- Header -->
-        <div class="p-5 border-b border-fb-border flex items-center justify-between bg-fb-subtle">
-          <div class="flex items-center gap-2.5">
-            <div
-              class="w-9 h-9 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-300 flex items-center justify-center"
-            >
-              <svg [lucideIcon]="returnIcon" class="w-4 h-4"></svg>
-            </div>
-            <div>
-              <h3 class="text-sm font-bold text-fb-text-primary">Retoure & Gutschrift erfassen</h3>
-              <p class="text-[11px] text-fb-text-muted mt-0.5">
-                {{ sale?.inventory_item?.title || 'Artikel' }} (Verkauf:
-                {{ sale?.sale_price | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }})
-              </p>
-            </div>
-          </div>
+      <p class="text-[11px] text-fb-text-muted mb-4">
+        {{ sale?.inventory_item?.title || 'Artikel' }} (Verkauf:
+        {{ sale?.sale_price | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }})
+      </p>
 
-          <button
-            type="button"
-            (click)="closeReturnModal()"
-            class="p-1.5 rounded-xl text-fb-text-muted hover:text-fb-text-primary transition cursor-pointer"
+      <!-- Form -->
+      <form [formGroup]="returnForm" (ngSubmit)="onSubmitReturn()" class="space-y-4 text-xs">
+        <!-- 1. Reason -->
+        <div>
+          <label
+            for="sales-grund-der-ruckabwicklung"
+            class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
           >
-            <svg [lucideIcon]="closeIcon" class="w-5 h-5"></svg>
-          </button>
+            Grund der Rückabwicklung
+          </label>
+          <app-custom-select
+            ariaLabel="Grund der Rückabwicklung"
+            triggerId="sales-return-reason"
+            [options]="retourengrundOptionen"
+            formControlName="reason"
+          />
         </div>
 
-        <!-- Form -->
-        <form [formGroup]="returnForm" (ngSubmit)="onSubmitReturn()" class="p-6 space-y-4 text-xs">
-          <!-- 1. Reason -->
-          <div>
-            <label
-              for="sales-grund-der-ruckabwicklung"
-              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
+        <!-- 2. Refund Amount (Full vs Partial) -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <span id="sales-refund-mode-label" class="text-xs font-semibold text-fb-text-muted">
+              Erstattungsbetrag (€)
+            </span>
+            <div
+              class="flex items-center gap-2"
+              role="radiogroup"
+              aria-labelledby="sales-refund-mode-label"
             >
-              Grund der Rückabwicklung
-            </label>
-            <app-custom-select
-              ariaLabel="Grund der Rückabwicklung"
-              triggerId="sales-return-reason"
-              [options]="retourengrundOptionen"
-              formControlName="reason"
+              <button
+                type="button"
+                role="radio"
+                [attr.aria-checked]="returnForm.get('isFullRefund')?.value"
+                (click)="onRefundModeChange(true)"
+                class="px-2 py-1 rounded text-xs font-bold border transition cursor-pointer"
+                [class.bg-indigo-600]="returnForm.get('isFullRefund')?.value"
+                [class.text-fb-text-primary]="returnForm.get('isFullRefund')?.value"
+                [class.border-indigo-500]="returnForm.get('isFullRefund')?.value"
+                [class.bg-fb-subtle]="!returnForm.get('isFullRefund')?.value"
+                [class.text-fb-text-muted]="!returnForm.get('isFullRefund')?.value"
+                [class.border-fb-border]="!returnForm.get('isFullRefund')?.value"
+              >
+                Vollerstattung ({{
+                  sale?.sale_price | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+                }})
+              </button>
+
+              <button
+                type="button"
+                role="radio"
+                [attr.aria-checked]="!returnForm.get('isFullRefund')?.value"
+                (click)="onRefundModeChange(false)"
+                class="px-2 py-1 rounded text-xs font-bold border transition cursor-pointer"
+                [class.bg-indigo-600]="!returnForm.get('isFullRefund')?.value"
+                [class.text-fb-text-primary]="!returnForm.get('isFullRefund')?.value"
+                [class.border-indigo-500]="!returnForm.get('isFullRefund')?.value"
+                [class.bg-fb-subtle]="returnForm.get('isFullRefund')?.value"
+                [class.text-fb-text-muted]="returnForm.get('isFullRefund')?.value"
+                [class.border-fb-border]="returnForm.get('isFullRefund')?.value"
+              >
+                Teilerstattung
+              </button>
+            </div>
+          </div>
+
+          <div class="relative">
+            <label for="sales-refund-amount" class="sr-only">Erstattungsbetrag in Euro</label>
+            <app-number-input
+              id="sales-refund-amount"
+              [step]="0.5"
+              [min]="0"
+              formControlName="refundAmount"
+              unit="EUR"
+              ariaLabel="Erstattungsbetrag in Euro"
             />
           </div>
+        </div>
 
-          <!-- 2. Refund Amount (Full vs Partial) -->
-          <div class="space-y-2">
-            <div class="flex items-center justify-between">
-              <span id="sales-refund-mode-label" class="text-xs font-semibold text-fb-text-muted">
-                Erstattungsbetrag (€)
-              </span>
-              <div
-                class="flex items-center gap-2"
-                role="radiogroup"
-                aria-labelledby="sales-refund-mode-label"
-              >
-                <button
-                  type="button"
-                  role="radio"
-                  [attr.aria-checked]="returnForm.get('isFullRefund')?.value"
-                  (click)="onRefundModeChange(true)"
-                  class="px-2 py-1 rounded text-xs font-bold border transition cursor-pointer"
-                  [class.bg-indigo-600]="returnForm.get('isFullRefund')?.value"
-                  [class.text-fb-text-primary]="returnForm.get('isFullRefund')?.value"
-                  [class.border-indigo-500]="returnForm.get('isFullRefund')?.value"
-                  [class.bg-fb-subtle]="!returnForm.get('isFullRefund')?.value"
-                  [class.text-fb-text-muted]="!returnForm.get('isFullRefund')?.value"
-                  [class.border-fb-border]="!returnForm.get('isFullRefund')?.value"
-                >
-                  Vollerstattung ({{
-                    sale?.sale_price | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
-                  }})
-                </button>
-
-                <button
-                  type="button"
-                  role="radio"
-                  [attr.aria-checked]="!returnForm.get('isFullRefund')?.value"
-                  (click)="onRefundModeChange(false)"
-                  class="px-2 py-1 rounded text-xs font-bold border transition cursor-pointer"
-                  [class.bg-indigo-600]="!returnForm.get('isFullRefund')?.value"
-                  [class.text-fb-text-primary]="!returnForm.get('isFullRefund')?.value"
-                  [class.border-indigo-500]="!returnForm.get('isFullRefund')?.value"
-                  [class.bg-fb-subtle]="returnForm.get('isFullRefund')?.value"
-                  [class.text-fb-text-muted]="returnForm.get('isFullRefund')?.value"
-                  [class.border-fb-border]="returnForm.get('isFullRefund')?.value"
-                >
-                  Teilerstattung
-                </button>
-              </div>
-            </div>
-
-            <div class="relative">
-              <label for="sales-refund-amount" class="sr-only">Erstattungsbetrag in Euro</label>
-              <input
-                id="sales-refund-amount"
-                type="number"
-                step="0.5"
-                formControlName="refundAmount"
-                class="linear-input w-full px-3 py-2 rounded-xl text-xs font-mono font-bold"
-              />
-              <span class="absolute right-3 top-2 text-xs text-fb-text-muted">EUR</span>
-            </div>
-          </div>
-
-          <!-- 3. Restock Decision -->
-          <div class="space-y-1.5">
-            <span
-              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
-            >
-              Wiedereinlagerung in den Warenbestand
-            </span>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <label
-                class="p-2.5 rounded-xl border flex items-start gap-2 cursor-pointer transition"
-                [class.bg-emerald-500/15]="
-                  returnForm.get('restockAction')?.value === 'restock_ready'
-                "
-                [class.border-emerald-500/40]="
-                  returnForm.get('restockAction')?.value === 'restock_ready'
-                "
-                [class.bg-fb-subtle]="returnForm.get('restockAction')?.value !== 'restock_ready'"
-                [class.border-fb-border]="
-                  returnForm.get('restockAction')?.value !== 'restock_ready'
-                "
-              >
-                <input
-                  type="radio"
-                  formControlName="restockAction"
-                  value="restock_ready"
-                  class="mt-0.5 cursor-pointer text-indigo-600"
-                />
-                <div>
-                  <strong class="block text-xs text-fb-text-primary">Wieder verkaufsbereit</strong>
-                  <span class="text-[10px] text-fb-text-muted"
-                    >Artikel zurück in Bestand (ready)</span
-                  >
-                </div>
-              </label>
-
-              <label
-                class="p-2.5 rounded-xl border flex items-start gap-2 cursor-pointer transition"
-                [class.bg-amber-500/15]="
-                  returnForm.get('restockAction')?.value === 'restock_repair'
-                "
-                [class.border-amber-500/40]="
-                  returnForm.get('restockAction')?.value === 'restock_repair'
-                "
-                [class.bg-fb-subtle]="returnForm.get('restockAction')?.value !== 'restock_repair'"
-                [class.border-fb-border]="
-                  returnForm.get('restockAction')?.value !== 'restock_repair'
-                "
-              >
-                <input
-                  type="radio"
-                  formControlName="restockAction"
-                  value="restock_repair"
-                  class="mt-0.5 cursor-pointer text-indigo-600"
-                />
-                <div>
-                  <strong class="block text-xs text-fb-text-primary"
-                    >Reparatur / Aufbereitung</strong
-                  >
-                  <span class="text-[10px] text-fb-text-muted"
-                    >In Werkstatt übergeben (repair)</span
-                  >
-                </div>
-              </label>
-
-              <label
-                class="p-2.5 rounded-xl border flex items-start gap-2 cursor-pointer transition"
-                [class.bg-rose-500/15]="returnForm.get('restockAction')?.value === 'write_off'"
-                [class.border-rose-500/40]="returnForm.get('restockAction')?.value === 'write_off'"
-                [class.bg-fb-subtle]="returnForm.get('restockAction')?.value !== 'write_off'"
-                [class.border-fb-border]="returnForm.get('restockAction')?.value !== 'write_off'"
-              >
-                <input
-                  type="radio"
-                  formControlName="restockAction"
-                  value="write_off"
-                  class="mt-0.5 cursor-pointer text-indigo-600"
-                />
-                <div>
-                  <strong class="block text-xs text-fb-text-primary">Als Defekt abschreiben</strong>
-                  <span class="text-[10px] text-fb-text-muted">Totalverlust / Bruchschaden</span>
-                </div>
-              </label>
-
-              <label
-                class="p-2.5 rounded-xl border flex items-start gap-2 cursor-pointer transition"
-                [class.bg-indigo-500/15]="
-                  returnForm.get('restockAction')?.value === 'keep_with_buyer'
-                "
-                [class.border-indigo-500/40]="
-                  returnForm.get('restockAction')?.value === 'keep_with_buyer'
-                "
-                [class.bg-fb-subtle]="returnForm.get('restockAction')?.value !== 'keep_with_buyer'"
-                [class.border-fb-border]="
-                  returnForm.get('restockAction')?.value !== 'keep_with_buyer'
-                "
-              >
-                <input
-                  type="radio"
-                  formControlName="restockAction"
-                  value="keep_with_buyer"
-                  class="mt-0.5 cursor-pointer text-indigo-600"
-                />
-                <div>
-                  <strong class="block text-xs text-fb-text-primary">Bleibt beim Käufer</strong>
-                  <span class="text-[10px] text-fb-text-muted">Preisnachlass / Kulanz</span>
-                </div>
-              </label>
-            </div>
-          </div>
-
-          <!-- 4. Notes -->
-          <div>
+        <!-- 3. Restock Decision -->
+        <div class="space-y-1.5">
+          <span
+            class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
+          >
+            Wiedereinlagerung in den Warenbestand
+          </span>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <label
-              for="sales-interne-notizen-zur-ruckabwicklung"
-              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
+              class="p-2.5 rounded-xl border flex items-start gap-2 cursor-pointer transition"
+              [class.bg-emerald-500/15]="returnForm.get('restockAction')?.value === 'restock_ready'"
+              [class.border-emerald-500/40]="
+                returnForm.get('restockAction')?.value === 'restock_ready'
+              "
+              [class.bg-fb-subtle]="returnForm.get('restockAction')?.value !== 'restock_ready'"
+              [class.border-fb-border]="returnForm.get('restockAction')?.value !== 'restock_ready'"
             >
-              Interne Notizen zur Rückabwicklung
+              <input
+                type="radio"
+                formControlName="restockAction"
+                value="restock_ready"
+                class="mt-0.5 cursor-pointer text-indigo-600"
+              />
+              <div>
+                <strong class="block text-xs text-fb-text-primary">Wieder verkaufsbereit</strong>
+                <span class="text-[10px] text-fb-text-muted"
+                  >Artikel zurück in Bestand (ready)</span
+                >
+              </div>
             </label>
-            <textarea
-              id="sales-interne-notizen-zur-ruckabwicklung"
-              rows="2"
-              formControlName="notes"
-              placeholder="z. B. DHL Sendungsverlust Ticket #88432 oder Minderung akzeptiert."
-              class="linear-input w-full p-2.5 rounded-xl text-xs resize-none"
-            ></textarea>
-          </div>
 
-          <!-- Actions -->
-          <div class="pt-3 border-t border-fb-border flex justify-end gap-2">
-            <button
-              type="button"
-              (click)="closeReturnModal()"
-              class="linear-btn-secondary px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer"
+            <label
+              class="p-2.5 rounded-xl border flex items-start gap-2 cursor-pointer transition"
+              [class.bg-amber-500/15]="returnForm.get('restockAction')?.value === 'restock_repair'"
+              [class.border-amber-500/40]="
+                returnForm.get('restockAction')?.value === 'restock_repair'
+              "
+              [class.bg-fb-subtle]="returnForm.get('restockAction')?.value !== 'restock_repair'"
+              [class.border-fb-border]="returnForm.get('restockAction')?.value !== 'restock_repair'"
             >
-              Abbrechen
-            </button>
+              <input
+                type="radio"
+                formControlName="restockAction"
+                value="restock_repair"
+                class="mt-0.5 cursor-pointer text-indigo-600"
+              />
+              <div>
+                <strong class="block text-xs text-fb-text-primary">Reparatur / Aufbereitung</strong>
+                <span class="text-[10px] text-fb-text-muted">In Werkstatt übergeben (repair)</span>
+              </div>
+            </label>
 
-            <button
-              type="submit"
-              [disabled]="returnForm.invalid || isProcessingReturn()"
-              class="linear-btn-primary px-5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-lg shadow-rose-500/25 bg-rose-600 hover:bg-rose-500 border-rose-500 disabled:opacity-40"
+            <label
+              class="p-2.5 rounded-xl border flex items-start gap-2 cursor-pointer transition"
+              [class.bg-rose-500/15]="returnForm.get('restockAction')?.value === 'write_off'"
+              [class.border-rose-500/40]="returnForm.get('restockAction')?.value === 'write_off'"
+              [class.bg-fb-subtle]="returnForm.get('restockAction')?.value !== 'write_off'"
+              [class.border-fb-border]="returnForm.get('restockAction')?.value !== 'write_off'"
             >
-              <svg
-                [lucideIcon]="isProcessingReturn() ? sparklesIcon : receiptIcon"
-                class="w-4 h-4"
-              ></svg>
-              <span>{{
-                isProcessingReturn()
-                  ? 'Wird gebucht...'
-                  : 'Gutschrift erstellen & Erstattung buchen'
-              }}</span>
-            </button>
+              <input
+                type="radio"
+                formControlName="restockAction"
+                value="write_off"
+                class="mt-0.5 cursor-pointer text-indigo-600"
+              />
+              <div>
+                <strong class="block text-xs text-fb-text-primary">Als Defekt abschreiben</strong>
+                <span class="text-[10px] text-fb-text-muted">Totalverlust / Bruchschaden</span>
+              </div>
+            </label>
+
+            <label
+              class="p-2.5 rounded-xl border flex items-start gap-2 cursor-pointer transition"
+              [class.bg-indigo-500/15]="
+                returnForm.get('restockAction')?.value === 'keep_with_buyer'
+              "
+              [class.border-indigo-500/40]="
+                returnForm.get('restockAction')?.value === 'keep_with_buyer'
+              "
+              [class.bg-fb-subtle]="returnForm.get('restockAction')?.value !== 'keep_with_buyer'"
+              [class.border-fb-border]="
+                returnForm.get('restockAction')?.value !== 'keep_with_buyer'
+              "
+            >
+              <input
+                type="radio"
+                formControlName="restockAction"
+                value="keep_with_buyer"
+                class="mt-0.5 cursor-pointer text-indigo-600"
+              />
+              <div>
+                <strong class="block text-xs text-fb-text-primary">Bleibt beim Käufer</strong>
+                <span class="text-[10px] text-fb-text-muted">Preisnachlass / Kulanz</span>
+              </div>
+            </label>
           </div>
-        </form>
-      </div>
-    </div>
+        </div>
+
+        <!-- 4. Notes -->
+        <div>
+          <app-text-field
+            id="sales-interne-notizen-zur-ruckabwicklung"
+            [multiline]="2"
+            formControlName="notes"
+            label="Interne Notizen zur Rückabwicklung"
+            placeholder="z. B. DHL Sendungsverlust Ticket #88432 oder Minderung akzeptiert."
+          />
+        </div>
+
+        <!-- Actions -->
+        <div class="pt-3 border-t border-fb-border flex justify-end gap-2">
+          <app-button variant="secondary" (clicked)="closeReturnModal()"> Abbrechen </app-button>
+
+          <app-button
+            type="submit"
+            variant="primary"
+            [disabled]="returnForm.invalid || isProcessingReturn()"
+          >
+            <svg
+              [lucideIcon]="isProcessingReturn() ? sparklesIcon : receiptIcon"
+              class="w-4 h-4 mr-1.5"
+            ></svg>
+            <span>{{
+              isProcessingReturn() ? 'Wird gebucht...' : 'Gutschrift erstellen & Erstattung buchen'
+            }}</span>
+          </app-button>
+        </div>
+      </form>
+    </app-modal-shell>
   }
 
   @if (selectedSaleForHistory(); as sale) {
-    <div
-      class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/80 p-3 backdrop-blur-md sm:p-6"
-      appModalDialog
-      dialogTitel="Chronik ansehen"
-      (dialogClose)="closeRecordHistory()"
+    <app-modal-shell
+      title="Chronik ansehen"
+      size="xl"
+      [closeOnBackdrop]="true"
+      [hasFooter]="false"
+      (closed)="closeRecordHistory()"
     >
-      <div
-        class="linear-surface my-auto w-full max-w-2xl rounded-2xl border border-fb-border shadow-2xl"
-      >
-        <div class="flex items-start justify-between gap-3 border-b border-fb-border p-5">
-          <div>
-            <h2 class="text-sm font-bold text-fb-text-primary">Chronik ansehen</h2>
-            <p class="mt-0.5 text-[11px] text-fb-text-muted">{{ saleTitle(sale) }}</p>
-          </div>
-          <button
-            type="button"
-            (click)="closeRecordHistory()"
-            aria-label="Chronik schließen"
-            class="rounded-xl p-1.5 text-fb-text-muted transition hover:text-fb-text-primary"
-          >
-            <svg [lucideIcon]="closeIcon" class="h-5 w-5"></svg>
-          </button>
-        </div>
-        <div class="max-h-[70vh] overflow-y-auto p-5">
-          <app-record-history-container [entityType]="'sale'" [entityId]="sale.id" />
-        </div>
+      <p class="mb-4 text-[11px] text-fb-text-muted">{{ saleTitle(sale) }}</p>
+      <div class="max-h-[70vh] overflow-y-auto">
+        <app-record-history-container [entityType]="'sale'" [entityId]="sale.id" />
       </div>
-    </div>
+    </app-modal-shell>
   }
 
   <!-- § 25a Invoice / Credit Note Modal -->

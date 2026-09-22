@@ -24,6 +24,8 @@ import {
   CustomSelectComponent,
   SelectOption,
 } from '../../shared/components/custom-select/custom-select.component';
+import { NumberInputComponent } from '../../shared/components/number-input/number-input.component';
+import { TextFieldComponent } from '../../shared/components/text-field/text-field.component';
 
 @Component({
   selector: 'app-deal-calculator',
@@ -34,6 +36,8 @@ import {
     LucideDynamicIcon,
     BarcodeScannerComponent,
     CustomSelectComponent,
+    NumberInputComponent,
+    TextFieldComponent,
   ],
   templateUrl: './deal-calculator.component.html',
   host: { class: 'block' },
