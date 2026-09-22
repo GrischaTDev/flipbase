@@ -13,7 +13,6 @@ import { NgTemplateOutlet } from '@angular/common';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
   LucideDynamicIcon,
-  LucideX as X,
   LucidePlus as Plus,
   LucideBoxes as Boxes,
   LucideSparkles as Sparkles,
@@ -45,7 +44,6 @@ import {
   CustomSelectComponent,
   SelectOption,
 } from '../../../../shared/components/custom-select/custom-select.component';
-import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
 import { LoggerService } from '../../../../core/services/logger.service';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { SyncStatusService } from '../../../../core/services/sync-status.service';
@@ -53,6 +51,11 @@ import { CatalogService } from '../../../../core/services/catalog.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { WorkspaceContextLockService } from '../../../../core/services/workspace-context-lock.service';
 import { normalizeGtin } from '../../../../shared/utils/gtin';
+import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
+import { CardComponent } from '../../../../shared/components/card/card.component';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
+import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
 
 interface MehrfachAnlageErgebnis {
   readonly status: 'success' | 'partial' | 'failed';
@@ -69,7 +72,6 @@ type ItemCreatePayload = CreateItemPayload & {
 @Component({
   selector: 'app-item-create-modal',
   imports: [
-    ModalDialogDirective,
     NgTemplateOutlet,
     ReactiveFormsModule,
     LucideDynamicIcon,
@@ -79,6 +81,11 @@ type ItemCreatePayload = CreateItemPayload & {
     CustomSelectComponent,
     CategoryPickerComponent,
     BrandPickerComponent,
+    ModalShellComponent,
+    CardComponent,
+    ButtonComponent,
+    TextFieldComponent,
+    NumberInputComponent,
   ],
   templateUrl: './item-create-modal.component.html',
   host: { class: 'contents' },
@@ -149,7 +156,6 @@ export class ItemCreateModalComponent {
 
   readonly istBearbeitung = computed(() => this.item() !== null);
 
-  readonly closeIcon = X;
   readonly plusIcon = Plus;
   readonly boxesIcon = Boxes;
   readonly sparklesIcon = Sparkles;
