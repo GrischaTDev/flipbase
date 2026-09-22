@@ -29,14 +29,18 @@
         class="flex items-center justify-between rounded-xl border border-fb-border bg-fb-subtle p-3 text-xs font-semibold text-fb-text-primary"
       >
         <span>Discord Webhook</span>
-        <app-custom-checkbox formControlName="discordEnabled" ariaLabel="Discord Webhook aktivieren" />
+        <app-custom-checkbox
+          formControlName="discordEnabled"
+          ariaLabel="Discord Webhook aktivieren"
+        />
       </div>
       @if (webhookForm.controls.discordEnabled.value) {
         <app-text-field
           formControlName="discordWebhookUrl"
           label="Discord Webhook-URL"
           placeholder="https://discord.com/api/webhooks/..."
-        /><button
+        />
+        <button
           type="button"
           (click)="testWebhook('discord')"
           [disabled]="isTestingWebhook() || isLoadingWorkspaceConfig()"
@@ -80,7 +84,8 @@
           formControlName="customWebhookUrl"
           label="Webhook-URL"
           placeholder="Webhook-URL"
-        /><button
+        />
+        <button
           type="button"
           (click)="testWebhook('custom')"
           [disabled]="isTestingWebhook() || isLoadingWorkspaceConfig()"
