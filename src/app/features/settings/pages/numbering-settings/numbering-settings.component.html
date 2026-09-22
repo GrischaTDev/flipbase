@@ -68,7 +68,7 @@
           ariaLabel="Trennzeichen"
           [options]="separatorOptions"
         />
-        <label class="text-sm text-fb-text-primary">
+        <div class="text-sm text-fb-text-primary">
           <span class="mb-1.5 block text-[13px] font-semibold">Mindestanzahl Ziffern</span>
           <app-number-input
             formControlName="minimum_digits"
@@ -77,8 +77,8 @@
             [max]="12"
             [step]="1"
           />
-        </label>
-        <label class="text-sm text-fb-text-primary">
+        </div>
+        <div class="text-sm text-fb-text-primary">
           <span class="mb-1.5 block text-[13px] font-semibold">Anfangswert</span>
           <app-number-input
             formControlName="start_value"
@@ -91,7 +91,7 @@
           <span id="start-value-hint" class="mt-1 block text-xs text-fb-text-secondary"
             >Bereits erreichte Zählstände werden nicht zurückgesetzt.</span
           >
-        </label>
+        </div>
         <app-text-field
           formControlName="timezone"
           label="Workspace-Zeitzone"

@@ -33,7 +33,7 @@
     </div>
 
     <div class="grid gap-4 sm:grid-cols-[8rem_1fr]">
-      <label class="block">
+      <div class="block">
         <span class="mb-1.5 block text-[13px] font-semibold">Menge</span>
         <app-number-input formControlName="quantity" ariaLabel="Menge" [min]="1" [step]="1" />
       </label>
@@ -50,7 +50,7 @@
         <span class="mt-1 block text-xs text-fb-text-muted">
           Betrag, den du laut Beleg insgesamt bezahlt hast.
         </span>
-      </label>
+      </div>
     </div>
 
     @if (

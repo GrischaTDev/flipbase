@@ -29,7 +29,7 @@
     </div>
 
     <div class="grid gap-4 sm:grid-cols-2">
-      <label class="block">
+      <div class="block">
         <span class="mb-1.5 block text-[13px] font-semibold">Menge</span>
         <app-number-input formControlName="quantity" ariaLabel="Menge" [min]="1" [step]="1" />
       </label>
@@ -42,7 +42,7 @@
           [step]="0.01"
           [asCurrency]="true"
         />
-      </label>
+      </div>
     </div>
 
     @if (form.controls.quantity.value && form.controls.quantity.value > 1 && unitPrice() !== null) {

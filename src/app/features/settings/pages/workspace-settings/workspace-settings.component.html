@@ -119,7 +119,7 @@
           class="mt-1"
         />
       </div>
-      <label class="text-xs font-semibold text-fb-text-secondary">
+      <div class="text-xs font-semibold text-fb-text-secondary">
         <span class="mb-1.5 block text-[13px] font-semibold">Standard Mindest-ROI (%)</span>
         <app-number-input
           formControlName="minRoiPercent"
@@ -127,8 +127,8 @@
           [min]="0"
           unit="%"
         />
-      </label>
-      <label class="text-xs font-semibold text-fb-text-secondary">
+      </div>
+      <div class="text-xs font-semibold text-fb-text-secondary">
         <span class="mb-1.5 block text-[13px] font-semibold">Mindest-Reingewinn (€)</span>
         <app-number-input
           formControlName="minProfitAmount"
@@ -137,7 +137,7 @@
           unit="€"
           [asCurrency]="true"
         />
-      </label>
+      </div>
     </div>
     <div class="flex justify-end">
       <button
