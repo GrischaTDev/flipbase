@@ -46,6 +46,7 @@ export class NumberInputComponent implements ControlValueAccessor {
   readonly unit = input<string>('');
   readonly id = input<string>('');
   readonly ariaLabel = input<string>('');
+  readonly ariaDescribedby = input<string>('');
   readonly asCurrency = input<boolean>(false);
   readonly disabled = input<boolean>(false);
   readonly showStepper = input(true);
