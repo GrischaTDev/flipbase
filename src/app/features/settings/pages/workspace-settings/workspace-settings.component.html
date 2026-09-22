@@ -79,11 +79,12 @@
       }
     </div>
     <div class="flex flex-wrap gap-2 border-t border-fb-border pt-3">
-      <input
+      <app-text-field
+        class="min-w-0 flex-1"
         [formControl]="newWorkspaceName"
         (keyup.enter)="onCreateWorkspace()"
+        ariaLabel="Neuer Workspace Name"
         placeholder="Neuer Workspace Name"
-        class="linear-input min-h-11 min-w-0 flex-1 rounded-xl px-3 text-xs"
       /><button
         type="button"
         (click)="onCreateWorkspace()"
@@ -107,11 +108,11 @@
       Workspace & Deal-Kriterien
     </h2>
     <div class="grid gap-3 sm:grid-cols-2">
-      <label class="text-xs font-semibold text-fb-text-secondary"
-        >Workspace-Name<input
-          formControlName="workspaceName"
-          class="linear-input mt-1 min-h-11 w-full rounded-xl px-3 text-xs"
-      /></label>
+      <app-text-field
+        formControlName="workspaceName"
+        label="Workspace-Name"
+        [required]="true"
+      />
       <div class="text-xs font-semibold text-fb-text-secondary">
         <span>Steuer-Modus</span
         ><app-custom-select
@@ -121,17 +122,25 @@
           class="mt-1"
         />
       </div>
-      <label class="text-xs font-semibold text-fb-text-secondary"
-        >Standard Mindest-ROI (%)<input
-          type="number"
+      <label class="text-xs font-semibold text-fb-text-secondary">
+        <span class="mb-1.5 block text-[13px] font-semibold">Standard Mindest-ROI (%)</span>
+        <app-number-input
           formControlName="minRoiPercent"
-          class="linear-input mt-1 min-h-11 w-full rounded-xl px-3 text-xs" /></label
-      ><label class="text-xs font-semibold text-fb-text-secondary"
-        >Mindest-Reingewinn (€)<input
-          type="number"
+          ariaLabel="Standard Mindest-ROI"
+          [min]="0"
+          unit="%"
+        />
+      </label>
+      <label class="text-xs font-semibold text-fb-text-secondary">
+        <span class="mb-1.5 block text-[13px] font-semibold">Mindest-Reingewinn (€)</span>
+        <app-number-input
           formControlName="minProfitAmount"
-          class="linear-input mt-1 min-h-11 w-full rounded-xl px-3 text-xs"
-      /></label>
+          ariaLabel="Mindest-Reingewinn"
+          [min]="0"
+          unit="€"
+          [asCurrency]="true"
+        />
+      </label>
     </div>
     <div class="flex justify-end">
       <button
