@@ -131,6 +131,7 @@ test('requires zero findings in admin feature templates', async () => {
 test('prevents native form controls in migrated expenses and settings areas', () => {
   for (const path of [
     'src/app/features/expenses/components/example/example.component.html',
+    'src/app/features/inventory/components/example/example.component.html',
     'src/app/features/settings/pages/example/example.component.html',
   ]) {
     assert.deepEqual(
