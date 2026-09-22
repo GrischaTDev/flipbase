@@ -1,5 +1,16 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-22 – Juna – Bereinigung von Compiler-Warnungen: Ungenutzte LucideDynamicIcon-Importe und stabile @for-Identität im Steuerjournal
+
+**Auftrag:** Die bekannten Angular-Compiler-Warnungen NG8113 (ungenutzte `LucideDynamicIcon`-Importe) in `DashboardComponent` und `SellersComponent` entfernen sowie die NG0956-Laufzeitwarnung für die identitätsbasierte `@for`-Schleife im Steuerjournal der Buchhaltungsansicht (`accounting.component.html`) durch stabiles Tracking nach Verkaufs-ID und Index beheben.
+
+**Änderung:**
+
+- In `src/app/features/dashboard/dashboard.component.ts` und `src/app/features/sellers/sellers.component.ts` wurde der ungenutzte Import `LucideDynamicIcon` aus `@lucide/angular` und aus den `imports`-Arrays der Komponenten entfernt (behebt NG8113).
+- In `src/app/features/accounting/accounting.component.html` wurde `@for (row of filteredTaxResults(); track row)` auf `@for (row of filteredTaxResults(); track row.sale_id + ':' + $index)` umgestellt, um instabiles Objekt-Identitäts-Tracking zu vermeiden (behebt NG0956).
+
+**Prüfung:** `npm run format:check`, `npm run lint`, `npm run typecheck`, lokaler Angular-Produktionsbau ohne Warnungen (`Application bundle generation complete`), `npm run test:workflow` (84/84 bestanden, 0 Findings in check-admin-shared-ui) sowie alle 88 Vitest-Tests in Dashboard, Sellers und Accounting erfolgreich ausgeführt.
+
 ## 2026-09-22 – Juna – Shared-UI-Bereinigung: Vollständige Migration aller verbleibenden Vorlagen und Leerung der Ausnahmelisten
 
 **Auftrag:** Alle verbleibenden Legacy-Formularfelder und modalen Dialoge in den verbleibenden 15 Vorlagen (Accounting, Audit-Timeline, Auth-Login, Privacy/Terms-Modals, Deal-Calculator, Fulfillment, Image-Optimizer, Listing-Editor, Onboarding-Workspace-Setup, Research, Sales, Sale-Create-Modal) auf die standardisierten Shared Components (`TextFieldComponent`, `NumberInputComponent`, `CustomCheckboxComponent`, `ModalShellComponent`, `ButtonComponent`) umstellen. Die Ausnahmelisten `legacyNativeFormControlPaths` und `legacyCustomModalPaths` in `scripts/check-admin-shared-ui.mjs` vollständig auf leere Sets leeren und alle Tests sowie den Produktionsbau grünstellen.
