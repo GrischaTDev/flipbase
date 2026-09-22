@@ -52,10 +52,16 @@
         <app-text-field
           formControlName="label"
           label="Bezeichnung"
+          ariaLabel="Bezeichnung"
           [required]="true"
           [maxLength]="80"
         />
-        <app-text-field formControlName="prefix" label="Präfix" [maxLength]="30" />
+        <app-text-field
+          formControlName="prefix"
+          label="Präfix"
+          ariaLabel="Präfix"
+          [maxLength]="30"
+        />
         <span class="text-sm text-fb-text-primary">Trennzeichen</span>
         <app-custom-select
           formControlName="separator"
@@ -89,6 +95,7 @@
         <app-text-field
           formControlName="timezone"
           label="Workspace-Zeitzone"
+          ariaLabel="Workspace-Zeitzone"
           placeholder="Europe/Berlin"
           [required]="true"
           helpText="Gilt für beide Nummernkreise, z. B. Europe/Berlin oder UTC."
