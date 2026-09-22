@@ -85,7 +85,7 @@
           <div class="flex flex-wrap items-center justify-center gap-2.5 pt-1">
             <app-button
               variant="primary"
-              size="sm"
+              size="slim"
               [icon]="uploadIcon"
               (clicked)="bankFileInput.click()"
             >
@@ -95,7 +95,7 @@
             @if (bankService.transactions().length > 0) {
               <app-button
                 variant="ghost"
-                size="sm"
+                size="slim"
                 [icon]="trashIcon"
                 [iconOnly]="true"
                 ariaLabel="Kontoauszug zurücksetzen"
@@ -451,7 +451,7 @@
           <div class="flex flex-wrap items-center gap-2">
             <app-button
               variant="secondary"
-              size="sm"
+              size="slim"
               [icon]="downloadIcon"
               [disabled]="reviewCount() > 0"
               (clicked)="onDownloadDatev()"
@@ -461,7 +461,7 @@
 
             <app-button
               variant="secondary"
-              size="sm"
+              size="slim"
               [icon]="spreadsheetIcon"
               [disabled]="reviewCount() > 0"
               (clicked)="onDownloadDiffTaxJournal()"
@@ -471,7 +471,7 @@
 
             <app-button
               variant="primary"
-              size="sm"
+              size="slim"
               [icon]="mailIcon"
               [disabled]="reviewCount() > 0"
               (clicked)="openTaxAdvisorModal()"
