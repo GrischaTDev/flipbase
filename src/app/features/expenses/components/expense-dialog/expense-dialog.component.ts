@@ -31,6 +31,7 @@ import {
 } from '../../../../shared/components/custom-select/custom-select.component';
 import { DatePickerComponent } from '../../../../shared/components/date-picker/date-picker.component';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
+import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 
@@ -49,6 +50,7 @@ function localDateKey(date = new Date()): string {
     ReactiveFormsModule,
     ModalShellComponent,
     ButtonComponent,
+    NumberInputComponent,
     CustomSelectComponent,
     DatePickerComponent,
     TextFieldComponent,

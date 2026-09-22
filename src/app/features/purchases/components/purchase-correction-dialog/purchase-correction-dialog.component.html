@@ -1,199 +1,134 @@
-<div
-  class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/80 p-3 backdrop-blur-md sm:p-6"
-  appModalDialog
-  dialogTitel="Einkauf korrigieren"
-  (dialogClose)="closed.emit()"
+<app-modal-shell
+  title="Einkauf korrigieren"
+  subtitle="Die Änderung wird protokolliert und betroffene Verkaufsergebnisse werden neu berechnet."
+  size="lg"
+  (closed)="closed.emit()"
 >
-  <section
-    class="linear-surface my-auto flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-fb-line shadow-xl"
-  >
-    <header class="flex items-center justify-between border-b border-fb-line bg-fb-well p-5">
-      <div>
-        <h2 class="text-sm font-bold text-fb-text-primary">Einkauf korrigieren</h2>
-        <p class="mt-1 text-xs text-fb-text-muted">
-          Die Änderung wird protokolliert und betroffene Verkaufsergebnisse werden neu berechnet.
-        </p>
-      </div>
-      <button
-        type="button"
-        (click)="closed.emit()"
-        class="cursor-pointer rounded-lg px-2 py-1 text-fb-text-muted hover:bg-fb-line hover:text-fb-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60"
-        aria-label="Dialog schließen"
+  <form id="purchase-correction-form" [formGroup]="form" (ngSubmit)="submit()" class="space-y-4">
+    @if (errorMessage()) {
+      <p
+        role="alert"
+        class="rounded-lg border border-fb-critical-border bg-fb-critical-surface p-3 text-[13px] text-fb-critical"
       >
-        ×
-      </button>
-    </header>
+        {{ errorMessage() }}
+      </p>
+    }
 
-    <form [formGroup]="form" (ngSubmit)="submit()" class="flex-1 space-y-4 overflow-y-auto p-5">
-      @if (errorMessage()) {
-        <p
-          role="alert"
-          class="rounded-lg border border-rose-500/30 bg-rose-500/15 p-3 text-xs text-rose-300"
-        >
-          {{ errorMessage() }}
-        </p>
-      }
+    <app-text-field
+      id="correctionReason"
+      formControlName="reason"
+      label="Grund der Korrektur"
+      [multiline]="3"
+      helpText="Beschreibe kurz und verständlich, was berichtigt wird."
+    />
 
+    @if (purchase().type === 'mystery_pack') {
       <div>
-        <label
-          for="correctionReason"
-          class="mb-1 block text-xs font-semibold text-fb-text-secondary"
-          >Grund der Korrektur</label
-        >
-        <textarea
-          id="correctionReason"
-          formControlName="reason"
-          rows="3"
-          class="linear-input w-full rounded-lg px-3 py-2 text-sm"
-          aria-describedby="correctionReasonHint"
-        ></textarea>
-        <p id="correctionReasonHint" class="mt-1 text-[11px] text-fb-text-muted">
-          Beschreibe kurz und verständlich, was berichtigt wird.
-        </p>
+        <label for="correctedPurchasePrice" class="mb-1.5 block text-[13px] font-semibold text-fb-text-primary">
+          Kaufpreis der Mystery Box
+        </label>
+        <app-number-input
+          id="correctedPurchasePrice"
+          formControlName="purchasePrice"
+          [min]="0"
+          [asCurrency]="true"
+        />
       </div>
+    }
 
-      @if (purchase().type === 'mystery_pack') {
-        <div>
-          <label
-            for="correctedPurchasePrice"
-            class="mb-1 block text-xs font-semibold text-fb-text-secondary"
-            >Kaufpreis der Mystery Box</label
-          >
-          <app-number-input
-            feldId="correctedPurchasePrice"
-            formControlName="purchasePrice"
-            [minimum]="0"
-            [alsBetrag]="true"
-          />
+    <section formArrayName="lines" aria-labelledby="correctionLinesTitle" class="space-y-3">
+      <h3 id="correctionLinesTitle" class="text-sm font-semibold text-fb-text-primary">Einkaufspositionen</h3>
+      @for (row of lineRows.controls; track row.controls.id.value; let index = $index) {
+        <div
+          [formGroupName]="index"
+          class="grid grid-cols-1 gap-3 rounded-xl border border-fb-line bg-fb-well p-3 sm:grid-cols-2"
+        >
+          <app-text-field [id]="'correctionLineTitle-' + index" formControlName="title" label="Artikel" />
+          @if (row.controls.priceMode.value === 'priced') {
+            <div>
+              <label [for]="'correctionLinePrice-' + index" class="mb-1.5 block text-[13px] font-semibold text-fb-text-primary">
+                Einkaufspreis pro Stück
+              </label>
+              <app-number-input
+                [id]="'correctionLinePrice-' + index"
+                formControlName="unitPrice"
+                [min]="0"
+                [asCurrency]="true"
+                (input)="recalculateLine(index)"
+              />
+            </div>
+          } @else {
+            <div>
+              <label [for]="'correctionMarketValue-' + index" class="mb-1.5 block text-[13px] font-semibold text-fb-text-primary">
+                Geschätzter Marktwert
+              </label>
+              <app-number-input
+                [id]="'correctionMarketValue-' + index"
+                formControlName="marketValue"
+                [min]="0"
+                [asCurrency]="true"
+              />
+            </div>
+          }
         </div>
       }
+    </section>
 
-      <section formArrayName="lines" aria-labelledby="correctionLinesTitle" class="space-y-3">
-        <h3 id="correctionLinesTitle" class="text-sm font-semibold text-fb-text-primary">
-          Einkaufspositionen
-        </h3>
-        @for (row of lineRows.controls; track row.controls.id.value; let index = $index) {
-          <div
-            [formGroupName]="index"
-            class="grid grid-cols-1 gap-3 rounded-xl border border-fb-line bg-fb-well p-3 sm:grid-cols-2"
-          >
-            <div>
-              <label
-                [for]="'correctionLineTitle-' + index"
-                class="mb-1 block text-xs text-fb-text-muted"
-                >Artikel</label
-              >
-              <input
-                [id]="'correctionLineTitle-' + index"
-                formControlName="title"
-                class="linear-input w-full rounded-lg px-3 py-2 text-sm"
-              />
-            </div>
-            @if (row.controls.priceMode.value === 'priced') {
-              <div>
-                <label
-                  [for]="'correctionLinePrice-' + index"
-                  class="mb-1 block text-xs text-fb-text-muted"
-                  >Einkaufspreis pro Stück</label
-                >
-                <app-number-input
-                  [feldId]="'correctionLinePrice-' + index"
-                  formControlName="unitPrice"
-                  [minimum]="0"
-                  [alsBetrag]="true"
-                  (input)="recalculateLine(index)"
-                />
-              </div>
-            } @else {
-              <div>
-                <label
-                  [for]="'correctionMarketValue-' + index"
-                  class="mb-1 block text-xs text-fb-text-muted"
-                  >Geschätzter Marktwert</label
-                >
-                <app-number-input
-                  [feldId]="'correctionMarketValue-' + index"
-                  formControlName="marketValue"
-                  [minimum]="0"
-                  [alsBetrag]="true"
-                />
-              </div>
-            }
-          </div>
-        }
-      </section>
-
-      <section formArrayName="costs" aria-labelledby="correctionCostsTitle" class="space-y-3">
-        <h3 id="correctionCostsTitle" class="text-sm font-semibold text-fb-text-primary">
-          Zusätzliche Einkaufskosten
-        </h3>
-        @for (row of costRows.controls; track row.controls.id.value; let index = $index) {
-          <div
-            [formGroupName]="index"
-            class="grid grid-cols-1 gap-3 rounded-xl border border-fb-line bg-fb-well p-3 sm:grid-cols-2"
-          >
-            <div>
-              <label
-                [for]="'correctionCostDescription-' + index"
-                class="mb-1 block text-xs text-fb-text-muted"
-                >Beschreibung</label
-              >
-              <input
-                [id]="'correctionCostDescription-' + index"
-                formControlName="description"
-                class="linear-input w-full rounded-lg px-3 py-2 text-sm"
-              />
-            </div>
-            <div>
-              <label
-                [for]="'correctionCostAmount-' + index"
-                class="mb-1 block text-xs text-fb-text-muted"
-                >Betrag</label
-              >
-              <app-number-input
-                [feldId]="'correctionCostAmount-' + index"
-                formControlName="amount"
-                [minimum]="0"
-                [alsBetrag]="true"
-              />
-            </div>
-            <div class="sm:col-span-2">
-              <span class="mb-1 block text-[12px] font-semibold text-fb-text-secondary">
-                Wer hat diese Kosten berechnet?
-              </span>
-              <app-custom-select
-                [ariaLabel]="'Kostenherkunft ' + (index + 1)"
-                [options]="taxTreatmentOptions"
-                formControlName="taxTreatment"
-                placeholder="Noch prüfen"
-                size="sm"
-              />
-              <p class="mt-1 text-[12px] text-fb-text-muted">
-                Nebenkosten auf dem Kaufbeleg des Verkäufers gehören zum Einkaufspreis. Separater
-                Transport und spätere Reparaturen zählen als weitere Ausgaben. Bei Unklarheit „Noch
-                prüfen“ wählen.
-              </p>
-            </div>
-          </div>
-        }
-      </section>
-
-      <footer class="flex justify-end gap-2 border-t border-fb-line pt-4">
-        <button
-          type="button"
-          (click)="closed.emit()"
-          class="linear-btn-secondary cursor-pointer rounded-lg px-4 py-2 text-xs font-semibold"
+    <section formArrayName="costs" aria-labelledby="correctionCostsTitle" class="space-y-3">
+      <h3 id="correctionCostsTitle" class="text-sm font-semibold text-fb-text-primary">Zusätzliche Einkaufskosten</h3>
+      @for (row of costRows.controls; track row.controls.id.value; let index = $index) {
+        <div
+          [formGroupName]="index"
+          class="grid grid-cols-1 gap-3 rounded-xl border border-fb-line bg-fb-well p-3 sm:grid-cols-2"
         >
-          Abbrechen
-        </button>
-        <button
-          type="submit"
-          [disabled]="form.invalid || isSubmitting()"
-          class="linear-btn-primary cursor-pointer rounded-lg px-4 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          {{ isSubmitting() ? 'Korrigiere...' : 'Korrektur speichern' }}
-        </button>
-      </footer>
-    </form>
-  </section>
-</div>
+          <app-text-field
+            [id]="'correctionCostDescription-' + index"
+            formControlName="description"
+            label="Beschreibung"
+          />
+          <div>
+            <label [for]="'correctionCostAmount-' + index" class="mb-1.5 block text-[13px] font-semibold text-fb-text-primary">
+              Betrag
+            </label>
+            <app-number-input
+              [id]="'correctionCostAmount-' + index"
+              formControlName="amount"
+              [min]="0"
+              [asCurrency]="true"
+            />
+          </div>
+          <div class="sm:col-span-2">
+            <span class="mb-1.5 block text-[13px] font-semibold text-fb-text-primary">
+              Wer hat diese Kosten berechnet?
+            </span>
+            <app-custom-select
+              [ariaLabel]="'Kostenherkunft ' + (index + 1)"
+              [options]="taxTreatmentOptions"
+              formControlName="taxTreatment"
+              placeholder="Noch prüfen"
+            />
+            <p class="mt-1 text-xs text-fb-text-muted">
+              Nebenkosten auf dem Kaufbeleg des Verkäufers gehören zum Einkaufspreis. Separater
+              Transport und spätere Reparaturen zählen als weitere Ausgaben. Bei Unklarheit „Noch
+              prüfen“ wählen.
+            </p>
+          </div>
+        </div>
+      }
+    </section>
+  </form>
+
+  <app-button modal-footer variant="secondary" [disabled]="isSubmitting()" (clicked)="closed.emit()">
+    Abbrechen
+  </app-button>
+  <app-button
+    modal-footer
+    variant="primary"
+    type="submit"
+    formId="purchase-correction-form"
+    [loading]="isSubmitting()"
+    [disabled]="form.invalid"
+  >
+    Korrektur speichern
+  </app-button>
+</app-modal-shell>

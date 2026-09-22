@@ -11,12 +11,7 @@
       </p>
     }
 
-    <app-text-field
-      formControlName="title"
-      label="Bezeichnung"
-      placeholder="z. B. Versandkartons"
-    />
-
+    <app-text-field formControlName="title" label="Bezeichnung" placeholder="z. B. Versandkartons" />
     <app-text-field
       formControlName="vendor_name"
       label="Händler / Anbieter"
@@ -33,35 +28,38 @@
     </div>
 
     <div class="grid gap-4 sm:grid-cols-[8rem_1fr]">
-      <label class="block">
-        <span class="mb-1.5 block text-[13px] font-semibold">Menge</span>
-        <input
-          type="number"
-          min="1"
-          step="1"
+      <div>
+        <label for="expense-quantity" class="mb-1.5 block text-[13px] font-semibold">Menge</label>
+        <app-number-input
+          id="expense-quantity"
+          ariaLabel="Menge"
           formControlName="quantity"
-          class="linear-input min-h-9 w-full rounded-lg px-3 text-[13px]"
+          [min]="1"
+          [step]="1"
+          [showStepper]="false"
         />
-      </label>
-      <label class="block">
-        <span class="mb-1.5 block text-[13px] font-semibold">Gesamtbetrag</span>
-        <input
+      </div>
+      <div>
+        <label for="expense-gross-amount" class="mb-1.5 block text-[13px] font-semibold">
+          Gesamtbetrag
+        </label>
+        <app-number-input
+          id="expense-gross-amount"
           data-gross-amount
-          type="number"
-          min="0.01"
-          step="0.01"
+          ariaLabel="Gesamtbetrag"
           formControlName="gross_amount"
-          class="linear-input min-h-9 w-full rounded-lg px-3 text-[13px]"
+          [min]="0.01"
+          [step]="0.01"
+          [asCurrency]="true"
+          [showStepper]="false"
         />
         <span class="mt-1 block text-xs text-fb-text-muted">
           Betrag, den du laut Beleg insgesamt bezahlt hast.
         </span>
-      </label>
+      </div>
     </div>
 
-    @if (
-      form.controls.gross_amount.value && form.controls.quantity.value > 1 && unitPrice() !== null
-    ) {
+    @if (form.controls.gross_amount.value && form.controls.quantity.value > 1 && unitPrice() !== null) {
       <p class="text-xs text-fb-text-muted">
         {{ unitPrice() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }} pro Stück bei
         {{ form.controls.quantity.value }} Stück
@@ -81,7 +79,6 @@
           Steuerdetails ändern
         </app-button>
       </div>
-
       @if (taxDetailsExpanded()) {
         <div id="expense-tax-details" class="mt-3 space-y-2 border-t border-fb-border pt-3">
           <app-custom-select
@@ -92,8 +89,7 @@
           @if (form.controls.gross_amount.value) {
             <p class="text-xs text-fb-text-muted">
               @if (taxBreakdown().net !== null) {
-                Netto
-                {{ taxBreakdown().net | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                Netto {{ taxBreakdown().net | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                 · enthaltene MwSt.
                 {{ taxBreakdown().tax | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
               } @else {
@@ -144,23 +140,18 @@
         (drop)="onDocumentDrop($event)"
       >
         @if (pendingDocument(); as file) {
-          <strong class="max-w-full truncate text-[13px] text-fb-text-primary">
-            {{ file.name }}
-          </strong>
+          <strong class="max-w-full truncate text-[13px] text-fb-text-primary">{{ file.name }}</strong>
           <span class="mt-1 text-xs text-fb-text-muted">
             Klicken oder eine andere Datei hier ablegen, um den Beleg zu ersetzen.
           </span>
         } @else {
-          <strong class="text-[13px] text-fb-text-primary">
-            Beleg hier ablegen oder auswählen
-          </strong>
-          <span class="mt-1 text-xs text-fb-text-muted">
-            PDF, JPG, PNG oder XML · maximal 20 MiB
-          </span>
+          <strong class="text-[13px] text-fb-text-primary">Beleg hier ablegen oder auswählen</strong>
+          <span class="mt-1 text-xs text-fb-text-muted">PDF, JPG, PNG oder XML · maximal 20 MiB</span>
         }
         <input
           type="file"
           class="sr-only"
+          data-shared-ui-exception="native-file-picker"
           accept=".pdf,.jpg,.jpeg,.png,.xml,application/pdf,image/jpeg,image/png,application/xml,text/xml"
           (change)="onFileSelected($event)"
         />
@@ -178,7 +169,5 @@
   </form>
 
   <app-button modal-footer variant="secondary" (clicked)="closed.emit()">Abbrechen</app-button>
-  <app-button modal-footer variant="primary" [loading]="isSaving()" (clicked)="save()">
-    Speichern
-  </app-button>
+  <app-button modal-footer variant="primary" [loading]="isSaving()" (clicked)="save()">Speichern</app-button>
 </app-modal-shell>
