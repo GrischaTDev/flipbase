@@ -93,6 +93,7 @@ export interface ReceiveIndividualPurchaseResult {
 }
 
 export interface CreatePurchasePayload {
+  receipt_mode?: 'external' | 'self';
   request_id?: string;
   source_id?: string | null;
   supplier_id?: string | null;
@@ -688,6 +689,7 @@ export class PurchaseService {
       workspace_id: ws.id,
       source_id: payload.source_id || null,
       supplier_id: payload.supplier_id || null,
+      receipt_mode: payload.receipt_mode ?? 'external',
       source,
       supplier,
       type: payload.type,
@@ -727,6 +729,7 @@ export class PurchaseService {
           request_id: payload.request_id ?? null,
           source_id: payload.source_id || null,
           supplier_id: payload.supplier_id || null,
+          receipt_mode: payload.receipt_mode ?? 'external',
           type: payload.type,
           title: payload.title.trim(),
           purchase_date: payload.purchase_date,
@@ -912,6 +915,7 @@ export class PurchaseService {
         p_purchase: {
           source_id: payload.source_id || null,
           supplier_id: payload.supplier_id || null,
+          receipt_mode: payload.receipt_mode ?? 'external',
           type: payload.type,
           title: payload.title.trim(),
           purchase_date: payload.purchase_date,

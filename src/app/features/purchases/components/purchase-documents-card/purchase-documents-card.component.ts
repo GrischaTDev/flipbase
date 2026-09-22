@@ -74,7 +74,9 @@ export class PurchaseDocumentsCardComponent implements OnInit {
   readonly removeIcon = LucideTrash2;
   readonly documentTypeOptions: readonly SelectOption<PurchaseDocumentType>[] = (
     Object.keys(PURCHASE_DOCUMENT_TYPE_LABELS) as PurchaseDocumentType[]
-  ).map((value) => ({ value, label: PURCHASE_DOCUMENT_TYPE_LABELS[value] }));
+  )
+    .filter((value) => value !== 'self_receipt')
+    .map((value) => ({ value, label: PURCHASE_DOCUMENT_TYPE_LABELS[value] }));
 
   readonly rows = computed<readonly PurchaseDocumentRow[]>(() =>
     this.purchase()

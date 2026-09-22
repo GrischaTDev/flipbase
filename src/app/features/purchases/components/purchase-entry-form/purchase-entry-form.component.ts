@@ -53,6 +53,8 @@ import { PurchaseCostSummaryComponent } from '../purchase-cost-summary/purchase-
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { TwoColumnLayoutComponent } from '../../../../shared/components/two-column-layout/two-column-layout.component';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { PurchaseSelfReceiptService } from '../../services/purchase-self-receipt.service';
 import type { PendingPurchaseDocument } from '../../../../core/models/purchase-document.models';
 import { PurchaseDocumentService } from '../../../../core/services/purchase-document.service';
 import { PurchaseDocumentsCardComponent } from '../purchase-documents-card/purchase-documents-card.component';
@@ -130,6 +132,7 @@ function purchaseCostsEqual(
     CardComponent,
     TextFieldComponent,
     TwoColumnLayoutComponent,
+    ButtonComponent,
     PurchaseDocumentsCardComponent,
   ],
   templateUrl: './purchase-entry-form.component.html',
@@ -142,6 +145,7 @@ export class PurchaseEntryFormComponent {
   private readonly syncStatus = inject(SyncStatusService);
   private readonly purchaseCostingService = inject(PurchaseCostingService);
   private readonly documentService = inject(PurchaseDocumentService);
+  private readonly selfReceipts = inject(PurchaseSelfReceiptService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly workspaceContext = inject(WorkspaceContextLockService);
   private readonly releaseWorkspaceLock = this.workspaceContext.acquire();
@@ -237,6 +241,8 @@ export class PurchaseEntryFormComponent {
   });
 
   readonly form = new FormGroup({
+    receipt_mode: new FormControl<'external' | 'self'>('external', { nonNullable: true }),
+    seller_name: new FormControl('', { nonNullable: true }),
     type: new FormControl<PurchaseType>('single', { nonNullable: true }),
     // Technischer Kompatibilitätswert für ältere Einkaufsdatensätze. Neue Eingaben
     // verwenden ausschließlich `notes` als sichtbare Beschreibung.
@@ -266,6 +272,20 @@ export class PurchaseEntryFormComponent {
     this.form.controls.supplier_id.setValue(supplier.id);
     this.form.markAsDirty();
     this.sellerDialogOpen.set(false);
+  }
+
+  setReceiptMode(mode: 'external' | 'self'): void {
+    if (this.form.controls.receipt_mode.value === mode) return;
+    this.form.controls.receipt_mode.setValue(mode);
+    this.form.controls.receipt_mode.markAsDirty();
+    this.form.controls.supplier_id.setValue(null);
+    this.form.controls.seller_name.setValue('');
+    this.updateSellerRequirement(mode);
+  }
+
+  private updateSellerRequirement(mode: 'external' | 'self'): void {
+    this.form.controls.supplier_id.setValidators(mode === 'external' ? [Validators.required] : []);
+    this.form.controls.supplier_id.updateValueAndValidity({ emitEvent: false });
   }
 
   onSourceCreated(source: Source): void {
@@ -325,6 +345,8 @@ export class PurchaseEntryFormComponent {
     this.costDialogOpen.set(false);
 
     this.form.reset({
+      receipt_mode: vorhandener.receipt_mode ?? 'external',
+      seller_name: vorhandener.receipt_mode === 'self' ? (vorhandener.seller_name ?? '') : '',
       type: vorhandener.type,
       content_status: vorhandener.content_status ?? 'known',
       pricing_mode:
@@ -340,6 +362,7 @@ export class PurchaseEntryFormComponent {
       tracking_number: vorhandener.tracking_number ?? '',
       tracking_carrier: vorhandener.tracking_carrier ?? null,
     });
+    this.updateSellerRequirement(vorhandener.receipt_mode ?? 'external');
 
     // Ohne die vorhandenen Zeilen waere das Speichern ein Loeschen: Der
     // Dialog schickt immer die vollstaendige Liste.
@@ -469,7 +492,16 @@ export class PurchaseEntryFormComponent {
       ? this.suppliersService.suppliers().find((entry) => entry.id === f.supplier_id)
       : undefined;
     const sellerSnapshot = supplier ? sellerSnapshotFromSupplier(supplier) : null;
+    const isSelfReceipt = f.receipt_mode === 'self';
+    const existingSeller =
+      !isSelfReceipt &&
+      f.supplier_id &&
+      f.supplier_id === vorhandener?.supplier_id &&
+      vorhandener.receipt_mode !== 'self'
+        ? vorhandener
+        : null;
     const payload: CreatePurchasePayload = {
+      receipt_mode: f.receipt_mode,
       type: f.type,
       request_id: this.requestId,
       content_status: f.content_status,
@@ -488,16 +520,27 @@ export class PurchaseEntryFormComponent {
       tracking_carrier:
         f.tracking_carrier ||
         (f.tracking_number ? this.trackingService.autoDetectCarrier(f.tracking_number) : null),
-      seller_type: sellerSnapshot?.seller_type ?? vorhandener?.seller_type ?? null,
-      seller_name: sellerSnapshot?.seller_name ?? vorhandener?.seller_name ?? null,
-      seller_street: sellerSnapshot?.seller_street ?? vorhandener?.seller_street ?? null,
-      seller_address_extra:
-        sellerSnapshot?.seller_address_extra ?? vorhandener?.seller_address_extra ?? null,
-      seller_postal_code:
-        sellerSnapshot?.seller_postal_code ?? vorhandener?.seller_postal_code ?? null,
-      seller_city: sellerSnapshot?.seller_city ?? vorhandener?.seller_city ?? null,
-      seller_country_code:
-        sellerSnapshot?.seller_country_code ?? vorhandener?.seller_country_code ?? null,
+      seller_type: isSelfReceipt
+        ? null
+        : (sellerSnapshot?.seller_type ?? existingSeller?.seller_type ?? null),
+      seller_name: isSelfReceipt
+        ? f.seller_name.trim() || null
+        : (sellerSnapshot?.seller_name ?? existingSeller?.seller_name ?? null),
+      seller_street: isSelfReceipt
+        ? null
+        : (sellerSnapshot?.seller_street ?? existingSeller?.seller_street ?? null),
+      seller_address_extra: isSelfReceipt
+        ? null
+        : (sellerSnapshot?.seller_address_extra ?? existingSeller?.seller_address_extra ?? null),
+      seller_postal_code: isSelfReceipt
+        ? null
+        : (sellerSnapshot?.seller_postal_code ?? existingSeller?.seller_postal_code ?? null),
+      seller_city: isSelfReceipt
+        ? null
+        : (sellerSnapshot?.seller_city ?? existingSeller?.seller_city ?? null),
+      seller_country_code: isSelfReceipt
+        ? null
+        : (sellerSnapshot?.seller_country_code ?? existingSeller?.seller_country_code ?? null),
       notes: f.notes.trim() || null,
       initial_costs: this.costDrafts().filter((cost) => cost.amount > 0),
       single_item_condition: f.single_item_condition,
@@ -663,9 +706,19 @@ export class PurchaseEntryFormComponent {
       purchase.id,
       result.data,
     );
+    const selfReceiptResult =
+      purchase.receipt_mode === 'self'
+        ? await this.selfReceipts.ensureForFinalizedPurchase(purchase.id)
+        : { error: null };
     this.persistedDraft.set(null);
     this.completed?.set(true);
     this.toast.success('Erfassung wurde abgeschlossen.');
+    if (selfReceiptResult.error) {
+      this.toast.warning(
+        'Einkauf abgeschlossen, Eigenbeleg fehlt.',
+        'Öffne den Einkauf und erstelle den Eigenbeleg dort erneut.',
+      );
+    }
     if (refreshError) {
       this.toast.warning(
         'Der Einkauf ist abgeschlossen, aber noch nicht vollständig neu geladen.',

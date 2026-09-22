@@ -141,6 +141,8 @@ Component({
 class RenderedPurchaseEntryFormComponent {
   readonly errorMessage = signal<string | null>(null);
   readonly form = new FormGroup({
+    receipt_mode: new FormControl<'external' | 'self'>('external', { nonNullable: true }),
+    seller_name: new FormControl('', { nonNullable: true }),
     type: new FormControl<PurchaseType>('single', { nonNullable: true }),
     source_id: new FormControl<string | null>(null),
     supplier_id: new FormControl<string | null>(null),
@@ -168,6 +170,10 @@ class RenderedPurchaseEntryFormComponent {
 
   onSellerCreated(): void {
     return undefined;
+  }
+
+  setReceiptMode(mode: 'external' | 'self'): void {
+    this.form.controls.receipt_mode.setValue(mode);
   }
 
   onSourceCreated(source: Source): void {
@@ -289,6 +295,11 @@ function erstelleKomponente(vorhandener: Purchase | null = null) {
       error: null,
     })),
   };
+  const selfReceipts = {
+    ensureForFinalizedPurchase: vi.fn(async (): Promise<{ error: Error | null }> => ({
+      error: null,
+    })),
+  };
   const sourcesService = {
     createSource: vi.fn(
       async (): Promise<{ data: { id: string } | null; error: Error | null }> => ({
@@ -328,6 +339,7 @@ function erstelleKomponente(vorhandener: Purchase | null = null) {
     purchaseService,
     purchaseCostingService,
     documentService,
+    selfReceipts,
     sourcesService,
     suppliersService,
     trackingService: { autoDetectCarrier: vi.fn(() => 'dhl') },
@@ -359,6 +371,8 @@ function erstelleKomponente(vorhandener: Purchase | null = null) {
     baselinePurchaseLines: signal([]),
     baselineCostDrafts: signal([]),
     form: new FormGroup({
+      receipt_mode: new FormControl<'external' | 'self'>('external', { nonNullable: true }),
+      seller_name: new FormControl('', { nonNullable: true }),
       type: new FormControl<PurchaseType>('single', { nonNullable: true }),
       content_status: new FormControl('known', { nonNullable: true }),
       pricing_mode: new FormControl('individual', { nonNullable: true }),
@@ -396,6 +410,7 @@ function erstelleKomponente(vorhandener: Purchase | null = null) {
     purchaseService,
     purchaseCostingService,
     documentService,
+    selfReceipts,
     sourcesService,
     suppliersService,
   };
@@ -432,6 +447,60 @@ function renderPurchaseEntryForm() {
 }
 
 describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
+  it('wechselt ohne Pflichtverkäufer zum Eigenbeleg und stellt die Verkäuferpflicht wieder her', () => {
+    const { komponente } = erstelleKomponente();
+
+    komponente.setReceiptMode('self');
+    expect(komponente.form.controls.supplier_id.value).toBeNull();
+    expect(komponente.form.controls.supplier_id.hasError('required')).toBe(false);
+    expect(komponente.form.valid).toBe(true);
+
+    komponente.form.controls.seller_name.setValue('@vintage_user');
+    komponente.setReceiptMode('external');
+    expect(komponente.form.controls.seller_name.value).toBe('');
+    expect(komponente.form.controls.supplier_id.hasError('required')).toBe(true);
+  });
+
+  it('speichert einen Eigenbeleg-Einkauf ohne Verkäuferstammsatz', async () => {
+    const { komponente, purchaseService } = erstelleKomponente();
+    komponente.setReceiptMode('self');
+    komponente.form.controls.seller_name.setValue('@vintage_user');
+
+    await komponente.onSubmit();
+
+    expect(purchaseService.createPurchase).toHaveBeenCalledWith(
+      expect.objectContaining({
+        receipt_mode: 'self',
+        supplier_id: null,
+        seller_name: '@vintage_user',
+        seller_street: null,
+      }),
+    );
+  });
+
+  it('bewahrt den Verkäufer-Snapshot eines bestehenden Entwurfs bei archiviertem Verkäufer', async () => {
+    const vorhandener: Purchase = {
+      ...einkauf,
+      supplier_id: 'archived-supplier',
+      seller_type: 'private',
+      seller_name: 'Bekannte Verkäuferin',
+      seller_city: 'Berlin',
+    };
+    const { komponente, purchaseService } = erstelleKomponente(vorhandener);
+    komponente.form.controls.supplier_id.setValue('archived-supplier');
+
+    await komponente.onSubmit();
+
+    expect(purchaseService.updatePurchaseDraft).toHaveBeenCalledWith(
+      vorhandener.id,
+      expect.objectContaining({
+        seller_type: 'private',
+        seller_name: 'Bekannte Verkäuferin',
+        seller_city: 'Berlin',
+      }),
+    );
+  });
+
   it('zeigt die Belegkachel in der rechten Spalte nach ergänzenden Detailkarten', () => {
     const template = readFileSync(
       'src/app/features/purchases/components/purchase-entry-form/purchase-entry-form.component.html',
@@ -529,7 +598,8 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
     expect(template).not.toContain('formControlName="title"');
     expect(template).not.toContain('formControlName="seller_marketplace_username"');
     expect(template).not.toContain('formControlName="seller_type"');
-    expect(template).not.toContain('formControlName="seller_name"');
+    expect(template).toContain('formControlName="seller_name"');
+    expect(template).toContain('Eigenbeleg');
     expect(template).not.toContain('data-seller-address');
     expect(template).not.toContain('formControlName="external_order_id"');
     expect(template).not.toContain('formControlName="original_url"');
@@ -804,6 +874,47 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
     );
     expect(created.emit).toHaveBeenCalledOnce();
     expect(closed.emit).toHaveBeenCalledOnce();
+  });
+
+  it('meldet einen fehlenden Eigenbeleg nach erfolgreichem Abschluss mit Wiederholungsweg', async () => {
+    const { komponente, purchaseService, purchaseCostingService, selfReceipts, toast, closed } =
+      erstelleKomponente();
+    purchaseService.createPurchase.mockResolvedValue({
+      status: 'success',
+      data: { ...einkauf, receipt_mode: 'self', supplier_id: null },
+      error: null,
+      reportedBySyncStatus: false,
+      problems: [],
+    });
+    selfReceipts.ensureForFinalizedPurchase.mockResolvedValue({
+      error: new Error('Belegspeicher nicht erreichbar'),
+    });
+    komponente.setReceiptMode('self');
+    komponente.onPurchaseLinesChanged([
+      {
+        draftId: 'draft-console',
+        catalogProductId: null,
+        titleSnapshot: 'Konsole',
+        lineKind: 'individual',
+        orderedQuantity: 1,
+        condition: 'used',
+        priceMode: 'priced',
+        unitPurchasePrice: 50,
+        lineTotal: 50,
+        estimatedMarketValue: null,
+      },
+    ]);
+
+    await komponente.onFinalize();
+
+    expect(purchaseCostingService.finalizePurchase).toHaveBeenCalledOnce();
+    expect(selfReceipts.ensureForFinalizedPurchase).toHaveBeenCalledWith(einkauf.id);
+    expect(closed.emit).toHaveBeenCalledOnce();
+    expect(toast.toasts()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ title: 'Einkauf abgeschlossen, Eigenbeleg fehlt.' }),
+      ]),
+    );
   });
 
   it('legt beim Abschließen keinen positionslosen Einkauf an', async () => {

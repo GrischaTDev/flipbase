@@ -6373,7 +6373,7 @@ as $$
         select pg_catalog.jsonb_object_agg(field.key, field.value)
         from pg_catalog.jsonb_each(pg_catalog.to_jsonb(purchase)) as field
         where field.key = any(array[
-            'source_id', 'supplier_id', 'type', 'title', 'purchase_date',
+            'source_id', 'supplier_id', 'receipt_mode', 'type', 'title', 'purchase_date',
             'purchase_price', 'cost_allocation_mode', 'notes', 'tracking_number',
             'tracking_carrier', 'tracking_status', 'content_status',
             'pricing_mode', 'supplier_reference', 'discount_amount', 'seller_type',

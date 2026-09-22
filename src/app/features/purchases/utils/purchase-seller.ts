@@ -32,8 +32,14 @@ export const SELLER_TYPE_LABELS: Readonly<Record<PurchaseSellerType, string>> = 
   business: 'Unternehmen',
 };
 
-export function purchaseSellerLabel(purchase: Pick<Purchase, 'seller_name' | 'supplier'>): string {
-  return purchase.seller_name || purchase.supplier?.name || 'Nicht angegeben';
+export function purchaseSellerLabel(
+  purchase: Pick<Purchase, 'seller_name' | 'supplier' | 'receipt_mode'>,
+): string {
+  return (
+    purchase.seller_name ||
+    purchase.supplier?.name ||
+    (purchase.receipt_mode === 'self' ? 'Nicht bekannt' : 'Nicht angegeben')
+  );
 }
 
 export function hasPurchaseSellerSnapshot(purchase: Partial<Purchase>): boolean {

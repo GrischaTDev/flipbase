@@ -46,7 +46,10 @@ create table if not exists public.purchase_documents (
   workspace_id uuid not null references public.workspaces(id) on delete restrict,
   purchase_id uuid not null,
   document_type text not null
-    check (document_type in ('invoice', 'purchase_proof', 'payment_proof', 'other')),
+    check (document_type in ('invoice', 'purchase_proof', 'payment_proof', 'other', 'self_receipt')),
+  source_finalized_at timestamptz,
+  constraint purchase_documents_self_receipt_version_check
+    check ((document_type = 'self_receipt') = (source_finalized_at is not null)),
   original_file_name text not null
     check (pg_catalog.char_length(original_file_name) between 1 and 255),
   storage_path text not null unique,
@@ -65,12 +68,17 @@ create table if not exists public.purchase_documents (
 comment on table public.purchase_documents is
   'Private Originalbelege eines Einkaufs: Metadaten und dauerhafter Storage-Pfad, niemals öffentliche Adressen.';
 comment on column public.purchase_documents.document_type is
-  'Belegart: invoice, purchase_proof, payment_proof oder other.';
+  'Belegart: invoice, purchase_proof, payment_proof, other oder self_receipt.';
+comment on column public.purchase_documents.source_finalized_at is
+  'Abschlussfassung, aus der ein Eigenbeleg erzeugt wurde.';
 comment on column public.purchase_documents.storage_path is
   'Kanonischer Pfad im privaten Bucket purchase-documents.';
 
 create index if not exists purchase_documents_purchase_idx
   on public.purchase_documents (workspace_id, purchase_id, created_at, id);
+create unique index purchase_documents_self_receipt_version_idx
+  on public.purchase_documents (workspace_id, purchase_id, source_finalized_at)
+  where document_type = 'self_receipt';
 
 alter table public.purchase_documents enable row level security;
 revoke all on table public.purchase_documents from public, anon, authenticated, service_role;
@@ -90,6 +98,14 @@ create policy "Belege anlegen" on public.purchase_documents
       from public.purchases as purchase
       where purchase.workspace_id = purchase_documents.workspace_id
         and purchase.id = purchase_documents.purchase_id
+        and (
+          purchase_documents.document_type <> 'self_receipt'
+          or (
+            purchase.receipt_mode = 'self'
+            and purchase.entry_status = 'finalized'
+            and purchase.finalized_at = purchase_documents.source_finalized_at
+          )
+        )
     )
   );
 
@@ -98,6 +114,8 @@ create policy "Belege anlegen" on public.purchase_documents
 create policy "Belege entfernen" on public.purchase_documents
   for delete to authenticated
   using (
+    document_type <> 'self_receipt'
+    and
     (select public.is_workspace_member(workspace_id))
     and exists (
       select 1
@@ -148,6 +166,11 @@ create policy "Belegdateien entfernen" on storage.objects
         and purchase.id::text = (storage.foldername(name))[3]
         and public.is_purchase_document_path(name, purchase.workspace_id, purchase.id)
         and (select public.is_workspace_member(purchase.workspace_id))
+        and not exists (
+          select 1 from public.purchase_documents as document
+          where document.storage_path = storage.objects.name
+            and document.document_type = 'self_receipt'
+        )
     )
   );
 

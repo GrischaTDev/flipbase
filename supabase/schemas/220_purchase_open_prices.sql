@@ -1690,7 +1690,7 @@ begin
     tracking_carrier, tracking_status, receiving_status,
     content_status, pricing_mode, supplier_reference, request_id, discount_amount,
     seller_type, seller_name, seller_street, seller_address_extra,
-    seller_postal_code, seller_city, seller_country_code
+    seller_postal_code, seller_city, seller_country_code, receipt_mode
   ) values (
     p_workspace_id,
     v_source_id,
@@ -1716,7 +1716,8 @@ begin
     v_seller_details ->> 'seller_address_extra',
     v_seller_details ->> 'seller_postal_code',
     v_seller_details ->> 'seller_city',
-    v_seller_details ->> 'seller_country_code'
+    v_seller_details ->> 'seller_country_code',
+    coalesce(nullif(p_purchase ->> 'receipt_mode', ''), 'external')
   ) returning * into v_purchase;
 
   for v_line in select value from jsonb_array_elements(p_lines) loop
@@ -2480,6 +2481,7 @@ begin
       seller_postal_code = v_seller_details ->> 'seller_postal_code',
       seller_city = v_seller_details ->> 'seller_city',
       seller_country_code = v_seller_details ->> 'seller_country_code',
+      receipt_mode = coalesce(nullif(p_purchase ->> 'receipt_mode', ''), 'external'),
       updated_at = pg_catalog.clock_timestamp()
   where workspace_id = p_workspace_id
     and id = p_purchase_id

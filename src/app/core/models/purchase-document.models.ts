@@ -6,13 +6,15 @@ import {
   validatePrivateDocumentFile,
 } from './private-document.models';
 
-export type PurchaseDocumentType = 'invoice' | 'purchase_proof' | 'payment_proof' | 'other';
+export type PurchaseDocumentType =
+  'invoice' | 'purchase_proof' | 'payment_proof' | 'other' | 'self_receipt';
 
 export interface PurchaseDocument {
   readonly id: string;
   readonly workspace_id: string;
   readonly purchase_id: string;
   readonly document_type: PurchaseDocumentType;
+  readonly source_finalized_at?: string | null;
   readonly original_file_name: string;
   readonly storage_path: string;
   readonly mime_type: string;
@@ -52,4 +54,5 @@ export const PURCHASE_DOCUMENT_TYPE_LABELS: Readonly<Record<PurchaseDocumentType
   purchase_proof: 'Kaufnachweis',
   payment_proof: 'Zahlungsnachweis',
   other: 'Sonstiges',
+  self_receipt: 'Eigenbeleg',
 };

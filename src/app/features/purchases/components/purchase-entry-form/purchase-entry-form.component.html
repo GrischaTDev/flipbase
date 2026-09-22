@@ -7,20 +7,46 @@
   <app-two-column-layout ratio="2-1" data-testid="purchase-entry-workspace">
     <div main class="space-y-4" data-testid="purchase-entry-main">
       <app-card padding="md" rounded="xl">
+        <div role="group" aria-label="Verkäufer und Beleg" class="mb-4 flex flex-wrap gap-2">
+          <app-button
+            size="slim"
+            [variant]="form.controls.receipt_mode.value === 'external' ? 'primary' : 'secondary'"
+            [ariaPressed]="form.controls.receipt_mode.value === 'external'"
+            (clicked)="setReceiptMode('external')"
+          >
+            Verkäufer wählen
+          </app-button>
+          <app-button
+            size="slim"
+            [variant]="form.controls.receipt_mode.value === 'self' ? 'primary' : 'secondary'"
+            [ariaPressed]="form.controls.receipt_mode.value === 'self'"
+            (clicked)="setReceiptMode('self')"
+          >
+            Eigenbeleg
+          </app-button>
+        </div>
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div class="min-w-0">
-            <span class="mb-1.5 block text-[13px] font-semibold">
-              Verkäufer <span aria-hidden="true" class="text-fb-primary">*</span>
-            </span>
-            <app-custom-select
-              formControlName="supplier_id"
-              [options]="lieferantenOptionen()"
-              ariaLabel="Verkäufer auswählen"
-              placeholder="Verkäufer auswählen"
-              actionLabel="Verkäufer erstellen"
-              [required]="true"
-              (action)="sellerDialogOpen.set(true)"
-            />
+            @if (form.controls.receipt_mode.value === 'self') {
+              <app-text-field
+                formControlName="seller_name"
+                label="Verkäuferangabe, falls bekannt"
+                placeholder="Name oder Benutzername"
+              />
+            } @else {
+              <span class="mb-1.5 block text-[13px] font-semibold">
+                Verkäufer <span aria-hidden="true" class="text-fb-primary">*</span>
+              </span>
+              <app-custom-select
+                formControlName="supplier_id"
+                [options]="lieferantenOptionen()"
+                ariaLabel="Verkäufer auswählen"
+                placeholder="Verkäufer auswählen"
+                actionLabel="Verkäufer erstellen"
+                [required]="true"
+                (action)="sellerDialogOpen.set(true)"
+              />
+            }
           </div>
           <div class="min-w-0">
             <span class="mb-1.5 block text-[13px] font-semibold">Bezugsquelle</span>

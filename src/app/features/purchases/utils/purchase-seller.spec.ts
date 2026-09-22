@@ -32,6 +32,7 @@ describe('purchaseSellerLabel', () => {
     [{ seller_name: 'Lea Mustermann', supplier }, 'Lea Mustermann'],
     [{ seller_name: null, supplier }, 'Großhandel Nord'],
     [{ seller_name: null, supplier: undefined }, 'Nicht angegeben'],
+    [{ seller_name: null, supplier: undefined, receipt_mode: 'self' }, 'Nicht bekannt'],
   ] as const)('zeigt für %j den Verkäufer %s', (purchase, expected) => {
     expect(purchaseSellerLabel(purchase)).toBe(expected);
   });

@@ -1,5 +1,49 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-23 – Juna – Einkaufs-Kostenübersicht vereinfacht
+
+**Auftrag:** Zusatzausgaben ohne Trennlinien und ohne „Noch prüfen“ in der
+Kostenübersicht anzeigen. Die Auswahlliste im Kostendialog um die
+Käuferschutzgebühr ergänzen und seltene oder doppelte Einträge entfernen.
+
+**Änderung:** Die Kostenübersicht und der Kostendialog zeigen die Zeilen direkt
+untereinander; nur die Gesamtsumme bleibt optisch abgesetzt. Die Auswahlliste
+enthält nun Versandkosten, Käuferschutzgebühr, Zollgebühren, Versicherung,
+Rabatt und Sonstiges in dieser Reihenfolge. Ältere Kosten mit entfernten
+Bezeichnungen bleiben beim Bearbeiten erhalten. Der Fallback für Zollkosten
+lautet einheitlich „Zollgebühren“.
+
+**Prüfung:** Fokussierte Angular- und Logiktests, Typprüfung, ESLint,
+Formatprüfung und Produktionsbau bestanden. Der Bau meldet nur die bereits
+bekannten Hinweise zu zwei ungenutzten Icons und zu `pako` aus `pdf-lib`.
+
+## 2026-09-23 – Juna – Eigenbelege für Einkäufe eingeführt
+
+**Auftrag:** Einkäufe ohne eindeutig identifizierbaren Verkäufer einfach erfassen,
+auch außerhalb von Vinted. Den überflüssigen Untertitel in der Belegkarte entfernen.
+
+**Änderung:** Das Einkaufsformular bietet einen einfachen Wechsel zwischen
+Verkäuferauswahl und Eigenbeleg. Im Eigenbelegmodus ist ein Verkäuferstammsatz
+entbehrlich; eine bekannte Verkäuferangabe kann als Freitext erfasst werden.
+Kaufdatum, Positionen, Preis, Bezugsquelle, Referenznummer und hochgeladene
+Nachweise bleiben im bestehenden Ablauf. Beim Abschluss wird ein PDF-Eigenbeleg
+erstellt und im privaten Belegspeicher abgelegt. Ein fehlgeschlagener Upload kann
+auf der Einkaufsdetailseite erneut angestoßen werden. Erzeugte Eigenbelege sind
+vor dem Löschen geschützt. Der Untertitel „Originaldateien zu diesem Einkauf“
+wurde aus der Belegkarte entfernt.
+
+**Datenbank:** Deklaratives Schema, erzeugte Migrationen und Supabase-Typen
+erweitern Einkäufe und Belege um den Eigenbelegmodus und die eindeutige
+Zuordnung zum jeweiligen Abschluss. Zugriffsregeln schützen den erzeugten Beleg.
+
+**Prüfung:** Beigefügten Text, bisherigen Ablauf und amtliche GoBD-Quellen
+geprüft. `npm run verify` bestand mit Formatprüfung, ESLint, Typprüfung,
+81 Workflow-Tests, 16 Edge-Tests, Suite-Audit, 2.744 Anwendungstests,
+23 Landingpage-Tests und Produktionsbau. Danach ergänzte Regressionstests für
+Abschlussfehler, erneuten Belegversuch und Verkäuferanzeige bestanden gezielt.
+Alle 54 Datenbanktestdateien mit 1.967 Einzelprüfungen bestanden. Die erzeugte Migration wurde am lokalen
+Migrationsstand geprüft; der öffentliche Schemaabgleich war anschließend leer.
+
 ## 2026-09-22 – Juna – Inserate: Unterstützung von Bestandsprodukten und Mengenartikeln im Listing Studio
 
 **Auftrag:** Im Inserate-Modul (`/listings/new`) neben Einzelstücken (`inventory_items`) auch Bestandsprodukte und Mengenartikel (`catalog_products` mit verfügbarem Bestand in `stock_lots`) zur Auswahl und zum Inserieren bereitstellen.
