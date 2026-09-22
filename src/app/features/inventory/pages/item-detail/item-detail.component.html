@@ -441,6 +441,7 @@
             <span>{{ isUploading() ? 'Wird hochgeladen...' : 'Fotos hochladen' }}</span>
             <input
               type="file"
+              data-shared-ui-exception="native-file-picker"
               multiple
               accept="image/*,application/pdf"
               (change)="onFilesSelected($event)"
@@ -652,27 +653,25 @@
                   size="sm"
                 />
 
-                <input
-                  type="number"
+                <app-number-input
+                  class="w-28"
                   formControlName="amount"
+                  ariaLabel="Betrag"
                   placeholder="Betrag (€)"
-                  class="linear-input w-24 px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold"
+                  [min]="0"
+                  [asCurrency]="true"
                 />
 
-                <input
-                  type="text"
+                <app-text-field
+                  class="min-w-[150px] flex-1"
                   formControlName="description"
+                  ariaLabel="Beschreibung"
                   placeholder="z.B. Neuer Akku..."
-                  class="linear-input flex-1 min-w-[150px] px-2.5 py-1.5 rounded-lg text-xs"
                 />
 
-                <button
-                  type="submit"
-                  [disabled]="costForm.invalid"
-                  class="linear-btn-primary px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-40 cursor-pointer"
-                >
+                <app-button type="submit" variant="primary" [disabled]="costForm.invalid">
                   Hinzufügen
-                </button>
+                </app-button>
               </form>
             }
 
