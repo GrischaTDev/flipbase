@@ -1,5 +1,16 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-22 – Juna – Repository-Hygiene: Dependabot-Upgrades und Bereinigung veralteter Tracking-Branches
+
+**Auftrag:** Veraltete Remote-Tracking-Branches aufräumen und freigegebene CI-Abhängigkeitsupdates von Dependabot mergen.
+
+**Änderung:**
+
+- Die beiden erfolgreich getesteten Dependabot-Pull-Requests [#142](https://github.com/GrischaTDev/flipbase/pull/142) (`docker/build-push-action` 7.3.0 → 7.4.0) und [#143](https://github.com/GrischaTDev/flipbase/pull/143) (`docker/setup-buildx-action` 4.3.0 → 4.4.1) per Merge-Commit in `master` übernommen.
+- Veraltete Remote-Tracking-Referenzen (`origin/juna/shared-ui-cleanup-core`, `origin/juna/shared-ui-cleanup-forms`) über `git remote prune origin` entfernt.
+
+**Prüfung:** PR-Checks auf GitHub Actions erfolgreich; Master-Zweig synchronisiert und auf aktuellem Stand.
+
 ## 2026-09-22 – Juna – Bereinigung von Compiler-Warnungen: Ungenutzte LucideDynamicIcon-Importe und stabile @for-Identität im Steuerjournal
 
 **Auftrag:** Die bekannten Angular-Compiler-Warnungen NG8113 (ungenutzte `LucideDynamicIcon`-Importe) in `DashboardComponent` und `SellersComponent` entfernen sowie die NG0956-Laufzeitwarnung für die identitätsbasierte `@for`-Schleife im Steuerjournal der Buchhaltungsansicht (`accounting.component.html`) durch stabiles Tracking nach Verkaufs-ID und Index beheben.
