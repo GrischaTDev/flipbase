@@ -8,19 +8,33 @@
     <app-two-column-layout>
       <section main class="linear-surface space-y-4 rounded-xl p-5">
         <div class="block text-sm font-medium text-fb-text-primary">
-          <span>Bestandsartikel</span>
+          <span>Bestandsartikel oder Produkt</span>
           <app-custom-select
             formControlName="inventoryItemId"
             class="mt-1"
-            ariaLabel="Bestandsartikel"
+            ariaLabel="Bestandsartikel oder Produkt"
             [options]="itemOptions()"
-            placeholder="Artikel wählen"
+            placeholder="Artikel oder Produkt wählen"
           />
+          @if (isLoading()) {
+            <p class="mt-2 text-xs text-fb-text-muted">Lade Bestände…</p>
+          } @else if (itemOptions().length === 0) {
+            <p class="mt-2 text-xs text-fb-text-muted">
+              Keine verfügbaren Bestandsartikel oder Produkte im aktuellen Workspace vorhanden.
+            </p>
+          }
+          @if (loadError(); as errorMsg) {
+            <p class="mt-2 text-xs text-fb-critical" role="alert">{{ errorMsg }}</p>
+          }
         </div>
         @if (selectedItem(); as item) {
           <p class="text-sm text-fb-text-muted">
             {{ item.brand ?? 'Ohne Marke' }} · {{ item.category ?? 'Ohne Kategorie' }} ·
-            Einkaufskosten {{ item.allocatedPurchaseCost ?? 0 }} €
+            @if (item.targetKind === 'catalog_product') {
+              Mengenbestand {{ item.availableQuantity ?? 0 }} Stk.
+            } @else {
+              Einkaufskosten {{ item.allocatedPurchaseCost ?? 0 }} €
+            }
           </p>
           @if (selectedItemIssue(); as issue) {
             <p class="text-sm text-fb-critical" role="alert">{{ issue }}</p>

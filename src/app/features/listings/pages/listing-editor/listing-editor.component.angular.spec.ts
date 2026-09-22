@@ -260,11 +260,49 @@ describe('ListingEditorComponent', () => {
         allocatedPurchaseCost: null,
         media: [],
       },
+      {
+        id: 'product-in-stock',
+        workspaceId: 'workspace-a',
+        targetKind: 'catalog_product',
+        availableQuantity: 4,
+        title: 'USB-C Hub',
+        brand: 'Anker',
+        category: 'Elektronik',
+        condition: 'new' as const,
+        conditionNotes: null,
+        description: '7-in-1 Hub',
+        status: 'ready' as const,
+        archivedAt: null,
+        expectedValue: 39,
+        allocatedPurchaseCost: 15,
+        media: [],
+      },
+      {
+        id: 'product-out-of-stock',
+        workspaceId: 'workspace-a',
+        targetKind: 'catalog_product',
+        availableQuantity: 0,
+        title: 'HDMI Kabel',
+        brand: 'Anker',
+        category: 'Elektronik',
+        condition: 'new' as const,
+        conditionNotes: null,
+        description: '2m',
+        status: 'sold' as const,
+        archivedAt: null,
+        expectedValue: 12,
+        allocatedPurchaseCost: 5,
+        media: [],
+      },
     ]);
     const rows = signal<readonly ListingRow[]>([]);
     const load = vi.fn(async () => undefined);
     const prepare = vi.fn(
-      async (_itemId: string, _content: ListingContent): Promise<ListingActionResult> => ({
+      async (
+        _itemId: string,
+        _content: ListingContent,
+        _targetKind?: 'inventory_item' | 'catalog_product',
+      ): Promise<ListingActionResult> => ({
         data: null,
         error: null,
       }),
@@ -301,6 +339,8 @@ describe('ListingEditorComponent', () => {
           useValue: {
             items,
             rows,
+            loading: signal(false),
+            error: signal<string | null>(null),
             loadedWorkspaceId: signal<string | null>(null),
             load,
             clear: vi.fn(),
@@ -607,5 +647,35 @@ describe('ListingEditorComponent', () => {
     expect(text).toContain('Der Preis muss zwischen 0 und 99.999.999 € liegen.');
     expect(text).toContain('Versandkosten dürfen nicht negativ sein.');
     expect(text).toContain('Die Postleitzahl muss aus fünf Ziffern bestehen.');
+  });
+
+  it('includes catalog products with stock and excludes products without stock in itemOptions', () => {
+    const { editor } = createEditor();
+
+    const options = editor.itemOptions();
+    const productOption = options.find((option) => option.value === 'product-in-stock');
+    expect(productOption).toBeDefined();
+    expect(productOption?.label).toBe('USB-C Hub · Mengenbestand: 4');
+
+    const outOfStockOption = options.find((option) => option.value === 'product-out-of-stock');
+    expect(outOfStockOption).toBeUndefined();
+  });
+
+  it('prepares a catalog product passing its targetKind upon save', async () => {
+    const { editor, prepare } = createEditor();
+
+    editor.form.controls.inventoryItemId.setValue('product-in-stock');
+    editor.form.controls.title.setValue('Anker USB-C Hub 7-in-1');
+
+    await editor.save();
+
+    expect(prepare).toHaveBeenCalledWith(
+      'product-in-stock',
+      expect.objectContaining({
+        title: 'Anker USB-C Hub 7-in-1',
+        price: 39,
+      }),
+      'catalog_product',
+    );
   });
 });

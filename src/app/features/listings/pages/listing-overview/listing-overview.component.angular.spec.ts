@@ -276,4 +276,47 @@ describe('ListingOverviewComponent', () => {
 
     expect(result.violations).toEqual([]);
   });
+
+  it('routes to inventory for individual items and to catalog for catalog products', () => {
+    configure();
+    const component = TestBed.runInInjectionContext(() => new ListingOverviewComponent());
+
+    expect(
+      component.itemRoute({
+        id: 'item-1',
+        workspaceId: 'workspace-a',
+        targetKind: 'inventory_item',
+        title: 'Einzelstück',
+        brand: null,
+        category: null,
+        condition: 'used',
+        conditionNotes: null,
+        description: null,
+        status: 'ready',
+        archivedAt: null,
+        expectedValue: null,
+        allocatedPurchaseCost: null,
+        media: [],
+      }),
+    ).toEqual(['/inventory', 'item-1']);
+
+    expect(
+      component.itemRoute({
+        id: 'prod-1',
+        workspaceId: 'workspace-a',
+        targetKind: 'catalog_product',
+        title: 'Mengenprodukt',
+        brand: null,
+        category: null,
+        condition: 'new',
+        conditionNotes: null,
+        description: null,
+        status: 'ready',
+        archivedAt: null,
+        expectedValue: null,
+        allocatedPurchaseCost: null,
+        media: [],
+      }),
+    ).toEqual(['/catalog', 'prod-1']);
+  });
 });

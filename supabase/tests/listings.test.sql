@@ -184,15 +184,15 @@ select is(
 );
 reset role;
 
-select has_function('public', 'prepare_listing', array['uuid', 'uuid', 'jsonb']);
+select has_function('public', 'prepare_listing', array['uuid', 'uuid', 'jsonb', 'uuid']);
 select has_function('public', 'set_listing_online', array['uuid', 'uuid']);
 select has_function('public', 'end_listing', array['uuid', 'uuid']);
 select function_privs_are(
-  'public', 'prepare_listing', array['uuid', 'uuid', 'jsonb'],
+  'public', 'prepare_listing', array['uuid', 'uuid', 'jsonb', 'uuid'],
   'authenticated', array['EXECUTE'], 'authenticated can prepare listings'
 );
 select function_privs_are(
-  'public', 'prepare_listing', array['uuid', 'uuid', 'jsonb'],
+  'public', 'prepare_listing', array['uuid', 'uuid', 'jsonb', 'uuid'],
   'anon', array[]::text[], 'anon cannot prepare listings'
 );
 

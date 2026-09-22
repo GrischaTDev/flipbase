@@ -1,6 +1,11 @@
 import type { InventoryItem } from '../../../core/models/flipbase.models';
 import type { BadgeTone } from '../../../shared/components/badge/badge.component';
-import type { ListingContent, ListingStatus, ListingValidationError } from './listing.models';
+import type {
+  ListingContent,
+  ListingStatus,
+  ListingTargetKind,
+  ListingValidationError,
+} from './listing.models';
 
 export const LISTING_LIMITS = {
   title: 65,
@@ -22,13 +27,30 @@ export type ListingEligibility =
   { readonly allowed: true } | { readonly allowed: false; readonly reason: string };
 
 export function canPrepareListing(
-  item: Pick<InventoryItem, 'status' | 'archived_at'>,
+  item:
+    | Pick<InventoryItem, 'status' | 'archived_at'>
+    | {
+        readonly targetKind?: ListingTargetKind;
+        readonly status?: InventoryItem['status'];
+        readonly archived_at?: string | null;
+        readonly archivedAt?: string | null;
+        readonly availableQuantity?: number;
+      },
 ): ListingEligibility {
-  if (item.archived_at) {
+  if ('targetKind' in item && item.targetKind === 'catalog_product') {
+    if (item.availableQuantity !== undefined && item.availableQuantity <= 0) {
+      return { allowed: false, reason: 'Kein verfügbarer Bestand für dieses Produkt vorhanden.' };
+    }
+    return { allowed: true };
+  }
+
+  const archived = 'archivedAt' in item ? item.archivedAt : item.archived_at;
+  if (archived) {
     return { allowed: false, reason: 'Der Artikel ist archiviert.' };
   }
 
-  if (PREPARABLE_STATUSES.has(item.status)) {
+  const status = item.status;
+  if (status && PREPARABLE_STATUSES.has(status)) {
     return { allowed: true };
   }
 
@@ -41,7 +63,7 @@ export function canPrepareListing(
 
   return {
     allowed: false,
-    reason: reasons[item.status] ?? 'Dieser Artikel kann nicht inseriert werden.',
+    reason: (status && reasons[status]) ?? 'Dieser Artikel kann nicht inseriert werden.',
   };
 }
 
