@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-22 – Juna – Richtlinie für Pull Requests auf Deutsch aktualisiert
+
+**Auftrag:** Die verbindlichen Projektrichtlinien in `AGENTS.md` anpassen, sodass Pull-Request-Titel und -Beschreibungen ab sofort immer auf Deutsch verfasst werden.
+
+**Änderung:** In `AGENTS.md` wurden die Abschnitte „Sprache“ und „Pull Requests“ aktualisiert. Pull Requests sind nun ausdrücklich auf Deutsch gefordert; Commit-Nachrichten verbleiben im Conventional-Commit-Format auf Englisch.
+
+**Prüfung:** `npm run format:check` erfolgreich ausgeführt.
+
 ## 2026-09-22 – Juna – Shared-UI-Bereinigung: Inventar-Formulare und Dialoge migriert
 
 **Auftrag:** Legacy-Formulare, native Eingabefelder und eigene Dialograhmen im Bereich Inventar auf die zentralen Shared Components (`ModalShellComponent`, `TextFieldComponent`, `NumberInputComponent`, `CustomCheckboxComponent`, `ButtonComponent`) umstellen und die Pfade aus den Ausnahmelisten in `scripts/check-admin-shared-ui.mjs` entfernen.
