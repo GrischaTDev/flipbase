@@ -5,10 +5,12 @@ import { StoreService } from '../../../../core/services/store.service';
 import { SyncStatusService } from '../../../../core/services/sync-status.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
+import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
+import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 
 @Component({
   selector: 'app-store-settings',
-  imports: [ReactiveFormsModule, LucideDynamicIcon],
+  imports: [ReactiveFormsModule, LucideDynamicIcon, CustomCheckboxComponent, TextFieldComponent],
   templateUrl: './store-settings.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
