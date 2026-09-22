@@ -1,30 +1,10 @@
-<div
-  class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/80 p-3 backdrop-blur-md sm:p-6"
-  appModalDialog
-  dialogTitel="Einkauf korrigieren"
-  (dialogClose)="closed.emit()"
+<app-modal-shell
+  title="Einkauf korrigieren"
+  subtitle="Die Änderung wird protokolliert und betroffene Verkaufsergebnisse werden neu berechnet."
+  size="lg"
+  (closed)="closed.emit()"
 >
-  <section
-    class="linear-surface my-auto flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-fb-line shadow-xl"
-  >
-    <header class="flex items-center justify-between border-b border-fb-line bg-fb-well p-5">
-      <div>
-        <h2 class="text-sm font-bold text-fb-text-primary">Einkauf korrigieren</h2>
-        <p class="mt-1 text-xs text-fb-text-muted">
-          Die Änderung wird protokolliert und betroffene Verkaufsergebnisse werden neu berechnet.
-        </p>
-      </div>
-      <button
-        type="button"
-        (click)="closed.emit()"
-        class="cursor-pointer rounded-lg px-2 py-1 text-fb-text-muted hover:bg-fb-line hover:text-fb-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60"
-        aria-label="Dialog schließen"
-      >
-        ×
-      </button>
-    </header>
-
-    <form [formGroup]="form" (ngSubmit)="submit()" class="flex-1 space-y-4 overflow-y-auto p-5">
+  <form id="purchase-correction-form" [formGroup]="form" (ngSubmit)="submit()" class="space-y-4">
       @if (errorMessage()) {
         <p
           role="alert"
@@ -34,23 +14,15 @@
         </p>
       }
 
-      <div>
-        <label
-          for="correctionReason"
-          class="mb-1 block text-xs font-semibold text-fb-text-secondary"
-          >Grund der Korrektur</label
-        >
-        <textarea
-          id="correctionReason"
-          formControlName="reason"
-          rows="3"
-          class="linear-input w-full rounded-lg px-3 py-2 text-sm"
-          aria-describedby="correctionReasonHint"
-        ></textarea>
-        <p id="correctionReasonHint" class="mt-1 text-[11px] text-fb-text-muted">
-          Beschreibe kurz und verständlich, was berichtigt wird.
-        </p>
-      </div>
+      <app-text-field
+        id="correctionReason"
+        formControlName="reason"
+        label="Grund der Korrektur"
+        [multiline]="3"
+        [required]="true"
+        [maxLength]="1000"
+        helpText="Beschreibe kurz und verständlich, was berichtigt wird."
+      />
 
       @if (purchase().type === 'mystery_pack') {
         <div>
@@ -83,10 +55,11 @@
                 class="mb-1 block text-xs text-fb-text-muted"
                 >Artikel</label
               >
-              <input
+              <app-text-field
                 [id]="'correctionLineTitle-' + index"
                 formControlName="title"
-                class="linear-input w-full rounded-lg px-3 py-2 text-sm"
+                ariaLabel="Artikel"
+                [required]="true"
               />
             </div>
             @if (row.controls.priceMode.value === 'priced') {
@@ -138,10 +111,10 @@
                 class="mb-1 block text-xs text-fb-text-muted"
                 >Beschreibung</label
               >
-              <input
+              <app-text-field
                 [id]="'correctionCostDescription-' + index"
                 formControlName="description"
-                class="linear-input w-full rounded-lg px-3 py-2 text-sm"
+                ariaLabel="Beschreibung"
               />
             </div>
             <div>
@@ -178,22 +151,17 @@
         }
       </section>
 
-      <footer class="flex justify-end gap-2 border-t border-fb-line pt-4">
-        <button
-          type="button"
-          (click)="closed.emit()"
-          class="linear-btn-secondary cursor-pointer rounded-lg px-4 py-2 text-xs font-semibold"
-        >
-          Abbrechen
-        </button>
-        <button
-          type="submit"
-          [disabled]="form.invalid || isSubmitting()"
-          class="linear-btn-primary cursor-pointer rounded-lg px-4 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          {{ isSubmitting() ? 'Korrigiere...' : 'Korrektur speichern' }}
-        </button>
-      </footer>
-    </form>
-  </section>
-</div>
+  </form>
+
+  <app-button modal-footer variant="secondary" (clicked)="closed.emit()">Abbrechen</app-button>
+  <app-button
+    modal-footer
+    variant="primary"
+    type="submit"
+    formId="purchase-correction-form"
+    [loading]="isSubmitting()"
+    [disabled]="form.invalid"
+  >
+    Korrektur speichern
+  </app-button>
+</app-modal-shell>
