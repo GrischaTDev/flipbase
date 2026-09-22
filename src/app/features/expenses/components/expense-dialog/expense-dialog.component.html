@@ -35,23 +35,22 @@
     <div class="grid gap-4 sm:grid-cols-[8rem_1fr]">
       <label class="block">
         <span class="mb-1.5 block text-[13px] font-semibold">Menge</span>
-        <input
-          type="number"
-          min="1"
-          step="1"
+        <app-number-input
           formControlName="quantity"
-          class="linear-input min-h-9 w-full rounded-lg px-3 text-[13px]"
+          ariaLabel="Menge"
+          [min]="1"
+          [step]="1"
         />
       </label>
       <label class="block">
         <span class="mb-1.5 block text-[13px] font-semibold">Gesamtbetrag</span>
-        <input
+        <app-number-input
           data-gross-amount
-          type="number"
-          min="0.01"
-          step="0.01"
           formControlName="gross_amount"
-          class="linear-input min-h-9 w-full rounded-lg px-3 text-[13px]"
+          ariaLabel="Gesamtbetrag"
+          [min]="0.01"
+          [step]="0.01"
+          [asCurrency]="true"
         />
         <span class="mt-1 block text-xs text-fb-text-muted">
           Betrag, den du laut Beleg insgesamt bezahlt hast.
@@ -161,6 +160,7 @@
         <input
           type="file"
           class="sr-only"
+          data-shared-ui-exception="native-file-picker"
           accept=".pdf,.jpg,.jpeg,.png,.xml,application/pdf,image/jpeg,image/png,application/xml,text/xml"
           (change)="onFileSelected($event)"
         />
