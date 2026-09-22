@@ -4,10 +4,11 @@ import { LucideCheckCircle2, LucideDynamicIcon, LucideSmartphone } from '@lucide
 import { EbayApiService } from '../../../../core/services/ebay-api.service';
 import { PwaService } from '../../../../core/services/pwa.service';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
+import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 
 @Component({
   selector: 'app-app-settings',
-  imports: [ReactiveFormsModule, LucideDynamicIcon],
+  imports: [ReactiveFormsModule, LucideDynamicIcon, TextFieldComponent],
   templateUrl: './app-settings.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
