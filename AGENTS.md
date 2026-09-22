@@ -11,7 +11,7 @@ hierher.
   verwenden durchgängig die persönliche Du-Ansprache. Innerhalb eines Textes
   nicht zwischen Du und Sie wechseln.
 - **Bezeichner im Code immer englisch** — Variablen, Funktionen, Dateien, Tabellen.
-- Deutsch bleibt in Chat, Code-Kommentaren und Oberflächentexten.
+- Deutsch bleibt in Chat, Code-Kommentaren, Oberflächentexten und Pull Requests.
 
 ## Gemeinsamer Name für KI-Beiträge
 
@@ -99,9 +99,9 @@ An diesem Projekt arbeiten mehrere KI-Assistenten, teils gleichzeitig.
 
 ## Pull Requests
 
-- **PR-Titel und PR-Beschreibungen immer auf Englisch.**
+- **PR-Titel und PR-Beschreibungen immer auf Deutsch.**
 - PR-Titel kurz und eindeutig formulieren, bevorzugt im Conventional-Commit-Stil
-  passend zur Hauptänderung, z. B. `feat(ui): introduce central Flipbase theme`.
+  passend zur Hauptänderung, z. B. `feat(ui): zentrales Flipbase-Design einführen`.
 - Auch im PR-Text konkrete, lesbare Begriffe verwenden. Keine unnötig abstrakten
   Formulierungen oder Schlagwörter, wenn ein einfacher Projekt- oder Fachbegriff
   denselben Sachverhalt klarer beschreibt.
