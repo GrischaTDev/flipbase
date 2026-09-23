@@ -17,26 +17,23 @@ import type { DashboardTimePoint } from '../../../core/models/flipbase.models';
 import type { AppTheme } from '../../../core/services/theme.service';
 
 export const REVENUE_CHART_SERIES = [
-  { key: 'revenue', label: 'Verkaufserlös' },
-  { key: 'costOfGoodsSold', label: 'Wareneinsatz' },
-  { key: 'sellingCosts', label: 'Verkaufskosten' },
-  { key: 'resultAfterDirectCosts', label: 'Ergebnis nach direkten Kosten' },
+  { key: 'revenue', label: 'Umsatz' },
+  { key: 'totalExpenses', label: 'Ausgaben gesamt' },
+  { key: 'cashflow', label: 'Cashflow' },
 ] as const;
 
 const palettes = {
   light: {
     revenue: '#1d4ed8',
-    costOfGoodsSold: '#b45309',
-    sellingCosts: '#7c3aed',
-    resultAfterDirectCosts: '#047857',
+    totalExpenses: '#b45309',
+    cashflow: '#047857',
     ticks: '#596273',
     grid: '#e2e6ec',
   },
   dark: {
     revenue: '#c4c4c4',
-    costOfGoodsSold: '#f89d13',
-    sellingCosts: '#a78bfa',
-    resultAfterDirectCosts: '#57c776',
+    totalExpenses: '#f89d13',
+    cashflow: '#57c776',
     ticks: '#a8a8a8',
     grid: '#373737',
   },

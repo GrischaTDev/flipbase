@@ -2,10 +2,10 @@
   <div class="flex flex-wrap items-center justify-between gap-3">
     <div>
       <h2 id="revenue-chart-heading" class="text-sm font-semibold text-fb-text-primary">
-        Verkaufsergebnis im Zeitraum
+        Umsatz und Ausgaben im Zeitraum
       </h2>
       <p class="mt-1 text-xs text-fb-text-muted">
-        Verkaufserlös, Wareneinsatz und direkte Verkaufskosten folgen bestätigten Verkäufen.
+        Ausgaben: Einkäufe, Gebühren/Versand und bezahlte Betriebsausgaben.
       </p>
     </div>
     <ul
@@ -39,7 +39,7 @@
       #chart
       class="h-[260px] w-full"
       role="img"
-      aria-label="Verkaufserlös, Wareneinsatz, Verkaufskosten und Ergebnis im gewählten Zeitraum"
+      aria-label="Umsatz, Ausgaben gesamt und Cashflow im gewählten Zeitraum"
       aria-describedby="revenue-chart-summary"
       [attr.aria-busy]="chartStatus() === 'loading'"
       (pointermove)="handlePointer($event)"
@@ -117,10 +117,9 @@
       <thead>
         <tr>
           <th scope="col">Zeitraum</th>
-          <th scope="col">Verkaufserlös</th>
-          <th scope="col">Wareneinsatz</th>
-          <th scope="col">Verkaufskosten</th>
-          <th scope="col">Ergebnis nach direkten Kosten</th>
+          <th scope="col">Umsatz</th>
+          <th scope="col">Ausgaben gesamt</th>
+          <th scope="col">Cashflow</th>
         </tr>
       </thead>
       <tbody>
@@ -129,18 +128,17 @@
             <th scope="row">{{ point.label }}</th>
             <td>{{ point.revenue | number: '1.2-2' }} €</td>
             <td>
-              @if (point.costOfGoodsSold === null) {
+              @if (point.totalExpenses === null) {
                 unbekannt
               } @else {
-                {{ point.costOfGoodsSold | number: '1.2-2' }} €
+                {{ point.totalExpenses | number: '1.2-2' }} €
               }
             </td>
-            <td>{{ point.sellingCosts | number: '1.2-2' }} €</td>
             <td>
-              @if (point.resultAfterDirectCosts === null) {
+              @if (point.cashflow === null) {
                 unbekannt
               } @else {
-                {{ point.resultAfterDirectCosts | number: '1.2-2' }} €
+                {{ point.cashflow | number: '1.2-2' }} €
               }
             </td>
           </tr>

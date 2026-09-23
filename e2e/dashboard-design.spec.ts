@@ -43,7 +43,7 @@ for (const theme of ['light', 'dark'] as const) {
     const visibleSeries = page.locator(
       'app-revenue-chart .apexcharts-series:has(.apexcharts-bar-area[d]:not([d=""]))',
     );
-    await expect(visibleSeries).toHaveCount(4);
+    await expect(visibleSeries).toHaveCount(3);
     for (const heading of await page.locator('app-dashboard h2, app-dashboard thead th').all()) {
       await expect(heading).toHaveCSS('text-transform', 'none');
       const typography = await heading.evaluate((element) => ({
@@ -53,7 +53,7 @@ for (const theme of ['light', 'dark'] as const) {
       expect(typography.font).toBeGreaterThanOrEqual(13);
       expect(['normal', '0px']).toContain(typography.spacing);
     }
-    const legend = page.getByRole('button', { name: 'Wareneinsatz', exact: true });
+    const legend = page.getByRole('button', { name: 'Ausgaben gesamt', exact: true });
     await legend.click();
     await expect(legend).toHaveAttribute('aria-pressed', 'false');
     await expect(page.locator('app-revenue-chart [role="img"]')).toHaveAttribute(
@@ -61,9 +61,9 @@ for (const theme of ['light', 'dark'] as const) {
       'false',
     );
     expect(errors).toEqual([]);
-    await expect(visibleSeries).toHaveCount(3);
+    await expect(visibleSeries).toHaveCount(2);
     await legend.click();
-    await expect(visibleSeries).toHaveCount(4);
+    await expect(visibleSeries).toHaveCount(3);
     await checkAxe(page);
     await page.screenshot({
       path: testInfo.outputPath(`dashboard-${theme}-desktop.png`),

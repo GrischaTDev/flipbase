@@ -204,6 +204,16 @@ describe('DashboardReportService', () => {
 
     expect(result.operatingExpenseSpend).toBe(15);
     expect(result.totalExpenses).toBe(40.95);
+    expect(result.points.find((point) => point.date === '2026-08-26')).toMatchObject({
+      revenue: 0,
+      totalExpenses: 24.95,
+      cashflow: -24.95,
+    });
+    expect(result.points.find((point) => point.date === '2026-08-27')).toMatchObject({
+      revenue: 19.98,
+      totalExpenses: 16,
+      cashflow: 3.98,
+    });
     expect(result.grossProfit).toBe(withoutOperating.grossProfit);
     expect(result.averageMarginPercent).toBe(withoutOperating.averageMarginPercent);
   });
@@ -274,6 +284,11 @@ describe('DashboardReportService', () => {
     expect(result.purchaseSpend).toBe(0);
     expect(result.sellingCosts).toBe(2);
     expect(result.totalExpenses).toBe(2);
+    expect(result.points.find((point) => point.date === '2026-08-27')).toMatchObject({
+      revenue: 19.98,
+      totalExpenses: null,
+      cashflow: null,
+    });
     expect(result.openCosts).toEqual([]);
   });
 

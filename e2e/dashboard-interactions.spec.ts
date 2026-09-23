@@ -12,20 +12,20 @@ test('erkundet die Diagrammdaten vollstaendig mit der Tastatur @pr-smoke', async
   const navigator = page.getByRole('slider', {
     name: 'Datenpunkt im Zahlungsstrom-Diagramm auswählen',
   });
-  const tooltip = page.getByRole('status').filter({ hasText: 'Verkaufserlös:' });
+  const tooltip = page.getByRole('status').filter({ hasText: 'Umsatz:' });
   await navigator.focus();
   await expect(navigator).toBeFocused();
   await expect(navigator).toHaveAttribute('aria-valuenow', '1');
   await expect(navigator).toHaveAttribute(
     'aria-valuetext',
-    /01\.08\.: Verkaufserlös 0,00\s€, Wareneinsatz 0,00\s€, Verkaufskosten 0,00\s€, Ergebnis nach direkten Kosten 0,00\s€/,
+    /01\.08\.: Umsatz 0,00\s€, Ausgaben gesamt 0,00\s€, Cashflow 0,00\s€/,
   );
 
   await navigator.press('End');
   await expect(navigator).toHaveAttribute('aria-valuenow', '30');
   await expect(navigator).toHaveAttribute(
     'aria-valuetext',
-    /30\.08\.: Verkaufserlös 0,00\s€, Wareneinsatz 0,00\s€, Verkaufskosten 0,00\s€, Ergebnis nach direkten Kosten 0,00\s€/,
+    /30\.08\.: Umsatz 0,00\s€, Ausgaben gesamt 0,00\s€, Cashflow 0,00\s€/,
   );
   await expect(tooltip).toContainText('30.08.');
 

@@ -50,13 +50,34 @@
   </header>
 
   <section aria-label="Kennzahlen">
-    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
       <app-dashboard-kpi-card
         data-kpi="revenue"
         size="large"
         label="Umsatz"
         [icon]="coinsIcon"
         [value]="kpis().revenue.value"
+      />
+      <app-dashboard-kpi-card
+        data-kpi="purchases"
+        size="large"
+        label="Einkäufe"
+        [icon]="purchasesIcon"
+        [value]="kpis().purchases.value"
+      />
+      <app-dashboard-kpi-card
+        data-kpi="operating-expenses"
+        size="large"
+        label="Betriebsausgaben"
+        [icon]="coinsIcon"
+        [value]="kpis().operatingExpenses.value"
+      />
+      <app-dashboard-kpi-card
+        data-kpi="total-expenses"
+        size="large"
+        label="Ausgaben gesamt"
+        [icon]="coinsIcon"
+        [value]="kpis().totalExpenses.value"
       />
       <app-dashboard-kpi-card
         data-kpi="gross-profit"
@@ -80,14 +101,6 @@
         [icon]="coinsIcon"
         [value]="kpis().cashflow.value"
         [valueTone]="kpis().cashflow.tone"
-        hint="Nach Einkäufen, Gebühren, Versand und bezahlten Betriebsausgaben"
-      />
-      <app-dashboard-kpi-card
-        data-kpi="purchases"
-        size="large"
-        label="Einkäufe"
-        [icon]="purchasesIcon"
-        [value]="kpis().purchases.value"
       />
     </div>
   </section>

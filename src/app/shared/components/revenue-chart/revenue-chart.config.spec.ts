@@ -15,6 +15,8 @@ const points: readonly DashboardTimePoint[] = [
     sellingCosts: 1,
     resultAfterDirectCosts: -16.02,
     expenses: 24.95,
+    totalExpenses: 25.95,
+    cashflow: -5.97,
     realizedProfit: -16.02,
   },
   {
@@ -25,17 +27,18 @@ const points: readonly DashboardTimePoint[] = [
     sellingCosts: 5,
     resultAfterDirectCosts: null,
     expenses: 0,
+    totalExpenses: null,
+    cashflow: null,
     realizedProfit: null,
   },
 ];
 
 describe('Revenue-Chart-Konfiguration', () => {
-  it('übergibt alle vier Reihen ohne Sortieren, Verrechnen oder Ersetzen offener Werte', () => {
+  it('zeigt Umsatz, alle Ausgaben und Cashflow ohne unbekannte Werte als null zu tarnen', () => {
     expect(buildRevenueSeries(points)).toEqual([
-      { name: 'Verkaufserlös', data: [19.98, 0] },
-      { name: 'Wareneinsatz', data: [35, null] },
-      { name: 'Verkaufskosten', data: [1, 5] },
-      { name: 'Ergebnis nach direkten Kosten', data: [-16.02, null] },
+      { name: 'Umsatz', data: [19.98, 0] },
+      { name: 'Ausgaben gesamt', data: [25.95, null] },
+      { name: 'Cashflow', data: [-5.97, null] },
     ]);
     expect(createRevenueChartConfiguration(points, 'light', false).xaxis.categories).toEqual([
       '27.08.',
@@ -61,7 +64,7 @@ describe('Revenue-Chart-Konfiguration', () => {
     });
     expect(options.stroke.width).toBe(0);
     expect(options.dataLabels.enabled).toBe(false);
-    expect(options.series[1].data).toEqual([35, null]);
+    expect(options.series[1].data).toEqual([25.95, null]);
     expect(options.tooltip.enabled).toBe(false);
     expect(options.yaxis.labels?.formatter?.(-25)).toBe('-25,00 €');
   });

@@ -642,6 +642,10 @@ export interface DashboardTimePoint {
   resultAfterDirectCosts: number | null;
   /** Einkaufszahlungen bleiben vorübergehend für ältere Berichtsansichten verfügbar. */
   expenses: number;
+  /** Einkäufe, direkte Verkaufskosten und bezahlte Betriebsausgaben im Zeitraum. */
+  totalExpenses: number | null;
+  /** Umsatz minus Gesamtausgaben; bei Plattformfiltern nicht zuordenbar. */
+  cashflow: number | null;
   /** @deprecated Verwende resultAfterDirectCosts. */
   realizedProfit: number | null;
 }
