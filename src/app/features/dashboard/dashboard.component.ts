@@ -78,7 +78,6 @@ export class DashboardComponent {
 
   readonly kpis = computed(() => {
     const report = this.report();
-    const cashflow = report.purchasesIncluded ? report.revenue - report.totalExpenses : null;
 
     return {
       grossProfit: {
@@ -98,15 +97,6 @@ export class DashboardComponent {
           report.averageMarginPercent === null
             ? '–'
             : `${percent.format(report.averageMarginPercent)} %`,
-      },
-      cashflow: {
-        value: cashflow === null ? '–' : euro.format(cashflow),
-        tone:
-          cashflow === null || cashflow === 0
-            ? ('default' as const)
-            : cashflow > 0
-              ? ('positive' as const)
-              : ('negative' as const),
       },
       purchases: {
         value: report.purchasesIncluded ? euro.format(report.purchaseSpend) : '–',

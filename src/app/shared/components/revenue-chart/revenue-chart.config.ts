@@ -19,27 +19,32 @@ import type { AppTheme } from '../../../core/services/theme.service';
 export const REVENUE_CHART_SERIES = [
   { key: 'revenue', label: 'Umsatz' },
   { key: 'totalExpenses', label: 'Ausgaben gesamt' },
-  { key: 'cashflow', label: 'Cashflow' },
+  { key: 'resultAfterDirectCosts', label: 'Gewinn' },
 ] as const;
 
 const palettes = {
   light: {
-    revenue: '#1d4ed8',
-    totalExpenses: '#b45309',
-    cashflow: '#047857',
+    revenue: '#3d697a',
+    totalExpenses: '#777b7b',
+    resultAfterDirectCosts: '#448469',
     ticks: '#596273',
     grid: '#e2e6ec',
   },
   dark: {
-    revenue: '#c4c4c4',
-    totalExpenses: '#f89d13',
-    cashflow: '#57c776',
+    revenue: '#8cbac9',
+    totalExpenses: '#b6b6ae',
+    resultAfterDirectCosts: '#86c7a1',
     ticks: '#a8a8a8',
     grid: '#373737',
   },
 };
 
 const euroFormatter = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' });
+const chartValueFormatter = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 2 });
+const compactChartValueFormatter = new Intl.NumberFormat('de-DE', {
+  notation: 'compact',
+  maximumFractionDigits: 1,
+});
 
 export function formatChartAmount(value: number | null): string {
   return value === null ? 'unbekannt' : euroFormatter.format(value);
@@ -108,10 +113,21 @@ export function createRevenueChartConfiguration(
         columnWidth: '64%',
         borderRadius: 4,
         borderRadiusApplication: 'end',
+        dataLabels: { position: 'top', hideOverflowingLabels: true },
       },
     },
     markers: { size: points.length === 1 ? 4 : 0, hover: { size: 5 } },
-    dataLabels: { enabled: false },
+    dataLabels: {
+      enabled: true,
+      offsetY: -4,
+      style: { fontSize: '12px', fontWeight: 600, colors: [palette.ticks] },
+      formatter: (value) => {
+        if (typeof value !== 'number' || !Number.isFinite(value) || value === 0) return '';
+        return (Math.abs(value) >= 1000 ? compactChartValueFormatter : chartValueFormatter).format(
+          value,
+        );
+      },
+    },
     legend: { show: false },
     tooltip: { enabled: false },
     xaxis: {
@@ -138,7 +154,7 @@ export function createRevenueChartConfiguration(
       borderColor: palette.grid,
       strokeDashArray: 3,
       xaxis: { lines: { show: false } },
-      padding: { left: 8, right: 12, top: 8, bottom: 0 },
+      padding: { left: 8, right: 12, top: 16, bottom: 0 },
     },
     theme: { mode: theme },
     responsive: [

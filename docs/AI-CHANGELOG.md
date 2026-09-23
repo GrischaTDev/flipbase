@@ -1,5 +1,29 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-23 – Juna – Dashboard ohne Cashflow und mit Gewinn im Diagramm
+
+**Auftrag:** Cashflow aus dem Dashboard entfernen, Gewinn in das Diagramm aufnehmen,
+die Kennzahlen kompakter anordnen und die Darstellung von Filtern und Säulen prüfen.
+
+**Änderung:** Cashflow entfällt aus Kacheln, Diagrammlegende, Diagrammtext,
+zugänglicher Datentabelle und dem ungenutzten Feld im Berichtsmodell. Der
+verkaufsbezogene Gewinn nutzt stattdessen die
+dritte Säulenreihe. Sechs Kacheln ordnen sich bei ausreichender Breite in einer
+Zeile an; die überflüssige „Übersicht“-Zeile ist entfernt und Zeitraumwahl und
+Plattformauswahl haben dieselbe Desktophöhe. Die Diagrammfarben sind ruhiger;
+Nicht-Null-Werte erscheinen direkt an den Säulen, während echte Nullen und
+unbekannte Werte fachlich unverändert bleiben. Die gemeldeten Nullwerte konnten
+ohne befüllte Browseransicht nicht vollständig nachgestellt werden.
+
+**Prüfung:** Drei Node- und sechs Angular-Erwartungen schlugen vor der Änderung
+gezielt fehl. Danach bestanden 34 fokussierte Node- und 20 fokussierte
+Angular-Tests. Lint, Typprüfung und der Produktionsbau mit Node 24 bestanden.
+Die Gesamtsuite bestand mit 1.458 Node- und 245 DOM-Tests; vier fachfremde
+Angular-AXE-Tests liefen unter unbeschränkter Parallelität in das
+5-Sekunden-Timeout. Dieselben vier Tests bestanden gezielt (34/34), danach die
+gesamte Angular-Suite mit vier Workern (1.053/1.053). Browser-Tests konnten
+ohne lokale Supabase nicht laufen; ihre CLI stürzte bereits bei `status` ab.
+
 ## 2026-09-23 – Juna – Dashboard-Ausgaben und Diagrammbegriffe getrennt
 
 **Auftrag:** Einkäufe als alle im Zeitraum gekauften Waren zeigen, Betriebsausgaben
