@@ -52,10 +52,16 @@ interface DatedSale {
   readonly row: DashboardSaleRow;
 }
 
+interface DatedOperatingExpense {
+  readonly date: Date;
+  readonly amount: number;
+}
+
 /** Kennzahlen eines beliebigen Fensters; Grundlage für Zeitraum und Vergleich. */
 interface PeriodFigures {
   readonly purchases: readonly DatedPurchase[];
   readonly sales: readonly DatedSale[];
+  readonly operatingExpenses: readonly DatedOperatingExpense[];
   readonly grossProfit: number;
   readonly revenue: number;
   readonly revenueWithoutCost: number;
@@ -157,7 +163,7 @@ export class DashboardReportService {
       comparison: this.comparison(range, previousWindow, previous),
       openCosts: this.sortedOpenCosts(openCosts),
       salesWithoutPurchase,
-      points: this.points(window, current),
+      points: this.points(window, current, platform === 'all'),
       rows: current.sales.map(({ row }) => row).sort((a, b) => b.date.localeCompare(a.date)),
     };
   }
@@ -179,8 +185,11 @@ export class DashboardReportService {
       }
     }
 
-    const operatingExpenseSpend =
-      platform === 'all' ? this.paidOperatingExpenseSpend(window, records.expenses ?? []) : 0;
+    const operatingExpenses =
+      platform === 'all' ? this.paidOperatingExpenses(window, records.expenses ?? []) : [];
+    const operatingExpenseSpend = this.money(
+      operatingExpenses.reduce((sum, expense) => sum + expense.amount, 0),
+    );
 
     const sales: DatedSale[] = [];
     let grossProfit = 0;
@@ -214,6 +223,7 @@ export class DashboardReportService {
     return {
       purchases,
       sales,
+      operatingExpenses,
       grossProfit: this.money(grossProfit),
       revenue: this.money(revenue),
       revenueWithoutCost: this.money(revenueWithoutCost),
@@ -242,12 +252,19 @@ export class DashboardReportService {
     };
   }
 
-  private points(window: DateWindow, figures: PeriodFigures): DashboardTimePoint[] {
+  private points(
+    window: DateWindow,
+    figures: PeriodFigures,
+    purchasesIncluded: boolean,
+  ): DashboardTimePoint[] {
     const points = this.createPoints(window);
     const pointByDate = new Map(points.map((point) => [point.date, point]));
     for (const { date, amount } of figures.purchases) {
       if (amount !== null) {
-        this.addToPoint(pointByDate, this.bucketKey(date, window), { expenses: amount });
+        this.addToPoint(pointByDate, this.bucketKey(date, window), {
+          expenses: amount,
+          totalExpenses: amount,
+        });
       }
     }
     for (const { date, row } of figures.sales) {
@@ -255,8 +272,12 @@ export class DashboardReportService {
         revenue: row.revenue,
         costOfGoodsSold: row.costOfGoodsSold,
         sellingCosts: row.sellingCosts,
+        totalExpenses: row.sellingCosts,
         resultAfterDirectCosts: row.resultAfterDirectCosts,
       });
+    }
+    for (const { date, amount } of figures.operatingExpenses) {
+      this.addToPoint(pointByDate, this.bucketKey(date, window), { totalExpenses: amount });
     }
     return points.map((point) => ({
       ...point,
@@ -266,6 +287,8 @@ export class DashboardReportService {
       resultAfterDirectCosts:
         point.resultAfterDirectCosts === null ? null : this.money(point.resultAfterDirectCosts),
       expenses: this.money(point.expenses),
+      totalExpenses: purchasesIncluded ? this.money(point.totalExpenses ?? 0) : null,
+      cashflow: purchasesIncluded ? this.money(point.revenue - (point.totalExpenses ?? 0)) : null,
       realizedProfit:
         point.resultAfterDirectCosts === null ? null : this.money(point.resultAfterDirectCosts),
     }));
@@ -447,21 +470,17 @@ export class DashboardReportService {
     return this.number(sale.sale_price_total ?? sale.sale_price);
   }
 
-  private paidOperatingExpenseSpend(window: DateWindow, expenses: readonly Expense[]): number {
-    return this.money(
-      expenses
-        .filter(
-          (expense) =>
-            expense.deleted_at === null &&
-            expense.status === 'paid' &&
-            expense.payment_date !== null,
-        )
-        .filter((expense) => {
-          const paymentDate = this.calendarDate(expense.payment_date);
-          return paymentDate !== null && this.isInWindow(paymentDate, window);
-        })
-        .reduce((sum, expense) => sum + this.number(expense.gross_amount), 0),
-    );
+  private paidOperatingExpenses(
+    window: DateWindow,
+    expenses: readonly Expense[],
+  ): DatedOperatingExpense[] {
+    return expenses.flatMap((expense) => {
+      if (expense.deleted_at !== null || expense.status !== 'paid') return [];
+      const date = this.calendarDate(expense.payment_date);
+      return date && this.isInWindow(date, window)
+        ? [{ date, amount: this.number(expense.gross_amount) }]
+        : [];
+    });
   }
 
   private purchaseAmount(purchase: Purchase): number | null {
@@ -545,6 +564,8 @@ export class DashboardReportService {
         sellingCosts: 0,
         resultAfterDirectCosts: 0,
         expenses: 0,
+        totalExpenses: 0,
+        cashflow: 0,
         realizedProfit: 0,
       });
       if (window.bucket === 'month') cursor.setMonth(cursor.getMonth() + 1, 1);
@@ -559,7 +580,12 @@ export class DashboardReportService {
     amount: Partial<
       Pick<
         DashboardTimePoint,
-        'revenue' | 'costOfGoodsSold' | 'sellingCosts' | 'resultAfterDirectCosts' | 'expenses'
+        | 'revenue'
+        | 'costOfGoodsSold'
+        | 'sellingCosts'
+        | 'resultAfterDirectCosts'
+        | 'expenses'
+        | 'totalExpenses'
       >
     >,
   ): void {
@@ -576,6 +602,7 @@ export class DashboardReportService {
         ? null
         : point.resultAfterDirectCosts + (amount.resultAfterDirectCosts ?? 0);
     point.expenses += amount.expenses ?? 0;
+    point.totalExpenses = (point.totalExpenses ?? 0) + (amount.totalExpenses ?? 0);
     point.realizedProfit = point.resultAfterDirectCosts;
   }
 

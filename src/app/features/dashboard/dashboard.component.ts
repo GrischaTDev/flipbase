@@ -111,6 +111,12 @@ export class DashboardComponent {
       purchases: {
         value: report.purchasesIncluded ? euro.format(report.purchaseSpend) : '–',
       },
+      operatingExpenses: {
+        value: report.purchasesIncluded ? euro.format(report.operatingExpenseSpend) : '–',
+      },
+      totalExpenses: {
+        value: report.purchasesIncluded ? euro.format(report.totalExpenses) : '–',
+      },
     };
   });
 

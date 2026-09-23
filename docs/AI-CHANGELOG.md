@@ -1,5 +1,27 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-23 – Juna – Dashboard-Ausgaben und Diagrammbegriffe getrennt
+
+**Auftrag:** Einkäufe als alle im Zeitraum gekauften Waren zeigen, Betriebsausgaben
+für Fix- und Materialkosten getrennt halten und zusätzlich die Gesamtausgaben
+einschließlich Gebühren und Versand sichtbar machen. Die Diagrammbegriffe und
+den störenden Cashflow-Hinweis korrigieren.
+
+**Änderung:** Sieben Kennzahlen zeigen Umsatz, Einkäufe, Betriebsausgaben,
+Ausgaben gesamt, verkaufsbezogenen Gewinn, Marge und Cashflow. Das
+Säulendiagramm nutzt dieselben Werte für Umsatz, Ausgaben gesamt und Cashflow;
+seine Tages- und Monatswerte berücksichtigen Einkäufe nach Kaufdatum,
+Verkaufsgebühren und Versand sowie bezahlte Betriebsausgaben nach Zahlungsdatum.
+Bei Plattformfiltern bleiben nicht zurechenbare Ausgaben und Cashflow unbekannt.
+Die lange Erläuterung unter der Cashflow-Kachel entfällt.
+
+**Prüfung:** Die neuen Berichts-, Karten- und Diagrammtests schlugen vor der
+Umsetzung gezielt fehl. Danach bestanden 34 fokussierte Node- und 20 fokussierte
+Angular-Tests sowie die vollständige Anwendungssuite mit 1.458 Node-, 245 DOM-
+und 1.053 Angular-Tests. ESLint, Typprüfung und Produktionsbau bestanden; der
+Bau meldete nur den bekannten `pako`-Hinweis aus `pdf-lib`. Die Browsertests
+erfordern eine lokale Supabase und wurden hier nicht ausgeführt.
+
 ## 2026-09-23 – Juna – Dashboard-Kennzahlen und Säulendiagramm vereinfacht
 
 **Auftrag:** Das bisherige Liniendiagramm durch ein ruhiges Apex-Säulendiagramm

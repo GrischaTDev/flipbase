@@ -334,7 +334,7 @@ describe('DashboardComponent', () => {
     }
   });
 
-  it('zeigt Einkäufe als fünfte Kennzahl und erklärt den vollständigen Cashflow', () => {
+  it('zeigt Einkäufe und alle Ausgaben getrennt in fachlicher Reihenfolge', () => {
     createReport.mockReturnValueOnce({
       ...emptyReport,
       grossProfit: 20.09,
@@ -384,10 +384,19 @@ describe('DashboardComponent', () => {
       header.textContent?.replace(/\s+/g, ' ').trim(),
     );
 
-    expect(kpiSection.querySelectorAll('app-dashboard-kpi-card')).toHaveLength(5);
-    for (const label of ['Umsatz', 'Gewinn', 'Marge', 'Cashflow', 'Einkäufe']) {
-      expect(kpiSection.textContent).toContain(label);
-    }
+    expect(
+      [...kpiSection.querySelectorAll('app-dashboard-kpi-card')].map((card) =>
+        card.querySelector('span')?.textContent?.trim(),
+      ),
+    ).toEqual([
+      'Umsatz',
+      'Einkäufe',
+      'Betriebsausgaben',
+      'Ausgaben gesamt',
+      'Gewinn',
+      'Marge',
+      'Cashflow',
+    ]);
     expect(kpiSection.textContent).not.toContain('Verkaufte Artikel');
     expect(kpiSection.textContent).not.toContain('Bestandswert');
 
@@ -397,14 +406,13 @@ describe('DashboardComponent', () => {
     expect(kpi('gross-profit')).toContain('20,09 €');
     expect(kpi('margin')).toContain('46,74 %');
     expect(kpi('cashflow')).toContain('-1,86 €');
-    expect(kpi('cashflow')).toContain(
-      'Nach Einkäufen, Gebühren, Versand und bezahlten Betriebsausgaben',
-    );
     expect(kpi('purchases')).toContain('24,95 €');
+    expect(kpi('operating-expenses')).toContain('7,00 €');
+    expect(kpi('total-expenses')).toContain('44,84 €');
     expect(host.querySelector('[data-dashboard-expenses]')).toBeNull();
 
     expect(kpiSection.querySelector('[data-kpi-change]')).toBeNull();
-    expect(kpiSection.querySelectorAll('[data-kpi-hint]')).toHaveLength(1);
+    expect(kpiSection.querySelector('[data-kpi-hint]')).toBeNull();
     expect(kpiSection.textContent).not.toContain('ggü.');
     expect(kpiSection.textContent).not.toContain('neu');
     expect(kpiSection.textContent).not.toContain('Artikel ohne Kosten');
@@ -484,6 +492,8 @@ describe('DashboardComponent', () => {
     const host = fixture.nativeElement as HTMLElement;
     const cashflow = host.querySelector('[data-kpi="cashflow"]');
     const purchases = host.querySelector('[data-kpi="purchases"]');
+    const operatingExpenses = host.querySelector('[data-kpi="operating-expenses"]');
+    const totalExpenses = host.querySelector('[data-kpi="total-expenses"]');
 
     const cashflowText = cashflow?.textContent?.replace(/\s+/g, ' ') ?? '';
     const purchasesText = purchases?.textContent?.replace(/\s+/g, ' ') ?? '';
@@ -491,6 +501,8 @@ describe('DashboardComponent', () => {
     expect(cashflowText).not.toContain('90,00 €');
     expect(purchasesText).toContain('Einkäufe');
     expect(purchasesText).toContain('–');
+    expect(operatingExpenses?.textContent).toContain('–');
+    expect(totalExpenses?.textContent).toContain('–');
     expect(host.querySelector('[data-dashboard-expenses]')).toBeNull();
   });
 
