@@ -330,8 +330,18 @@
                   @case ('profit') {
                     <td
                       class="px-3 py-3 text-right font-mono font-bold"
-                      [class.text-emerald-400]="(metrics.resultAfterDirectCosts ?? 0) >= 0"
-                      [class.text-rose-400]="(metrics.resultAfterDirectCosts ?? 0) < 0"
+                      [class.text-fb-finance-positive]="
+                        metrics.resultAfterDirectCosts !== null &&
+                        metrics.resultAfterDirectCosts > 0
+                      "
+                      [class.text-fb-finance-negative]="
+                        metrics.resultAfterDirectCosts !== null &&
+                        metrics.resultAfterDirectCosts < 0
+                      "
+                      [class.text-fb-text-primary]="
+                        metrics.resultAfterDirectCosts === null ||
+                        metrics.resultAfterDirectCosts === 0
+                      "
                     >
                       @if (metrics.resultAfterDirectCosts === null) {
                         <span class="font-sans text-[11px] text-amber-300">Kosten noch offen</span>
@@ -472,8 +482,9 @@
                 <strong class="font-sans text-amber-300">Kosten noch offen</strong>
               } @else {
                 <strong
-                  [class.text-emerald-400]="metrics.resultAfterDirectCosts >= 0"
-                  [class.text-rose-400]="metrics.resultAfterDirectCosts < 0"
+                  [class.text-fb-finance-positive]="metrics.resultAfterDirectCosts > 0"
+                  [class.text-fb-finance-negative]="metrics.resultAfterDirectCosts < 0"
+                  [class.text-fb-text-primary]="metrics.resultAfterDirectCosts === 0"
                 >
                   {{ metrics.resultAfterDirectCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                 </strong>

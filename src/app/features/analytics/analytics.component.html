@@ -372,7 +372,7 @@
                 <td class="p-3 text-right font-bold text-fb-text-primary">
                   {{ p.grossRevenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                 </td>
-                <td class="p-3 text-right text-rose-400">
+                <td class="p-3 text-right text-fb-text-secondary">
                   -{{ p.platformFees | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                 </td>
                 <td
@@ -382,7 +382,12 @@
                 >
                   {{ p.effectiveFeePercent }}%
                 </td>
-                <td class="p-3 text-right font-bold text-emerald-400">
+                <td
+                  class="p-3 text-right font-bold"
+                  [class.text-fb-finance-positive]="p.netProfit !== null && p.netProfit > 0"
+                  [class.text-fb-finance-negative]="p.netProfit !== null && p.netProfit < 0"
+                  [class.text-fb-text-primary]="p.netProfit === null || p.netProfit === 0"
+                >
                   {{
                     p.netProfit === null
                       ? 'Offen'
@@ -632,7 +637,12 @@
                 <td class="p-3 text-right font-bold text-fb-text-primary">
                   {{ cat.revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                 </td>
-                <td class="p-3 text-right font-bold text-emerald-400">
+                <td
+                  class="p-3 text-right font-bold"
+                  [class.text-fb-finance-positive]="cat.profit !== null && cat.profit > 0"
+                  [class.text-fb-finance-negative]="cat.profit !== null && cat.profit < 0"
+                  [class.text-fb-text-primary]="cat.profit === null || cat.profit === 0"
+                >
                   {{
                     cat.profit === null
                       ? 'Offen'
@@ -825,7 +835,18 @@
                     >
                   </td>
 
-                  <td class="p-3 text-right font-bold text-emerald-400">
+                  <td
+                    class="p-3 text-right font-bold"
+                    [class.text-fb-finance-positive]="
+                      wsSummary.totalProfit !== null && wsSummary.totalProfit > 0
+                    "
+                    [class.text-fb-finance-negative]="
+                      wsSummary.totalProfit !== null && wsSummary.totalProfit < 0
+                    "
+                    [class.text-fb-text-primary]="
+                      wsSummary.totalProfit === null || wsSummary.totalProfit === 0
+                    "
+                  >
                     {{
                       wsSummary.totalProfit === null
                         ? 'Offen'

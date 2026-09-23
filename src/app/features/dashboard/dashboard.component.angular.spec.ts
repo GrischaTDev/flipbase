@@ -428,7 +428,7 @@ describe('DashboardComponent', () => {
     ]);
 
     const desktopProfit = journal?.querySelector('tbody tr td:nth-child(8)');
-    expect(desktopProfit?.className).toContain('text-fb-success');
+    expect(desktopProfit?.className).toContain('text-fb-finance-positive');
 
     const mobileLabels = [...(journal?.querySelectorAll('article dt') ?? [])].map((label) =>
       label.textContent?.replace(/\s+/g, ' ').trim(),
@@ -443,7 +443,7 @@ describe('DashboardComponent', () => {
     const mobileProfitLabel = [...(journal?.querySelectorAll('article dt') ?? [])].find(
       (label) => label.textContent?.trim() === 'Gewinn',
     );
-    expect(mobileProfitLabel?.nextElementSibling?.className).toContain('text-fb-success');
+    expect(mobileProfitLabel?.nextElementSibling?.className).toContain('text-fb-finance-positive');
     expect(text).not.toContain('COGS');
     expect(text).not.toContain('Realisierter Gewinn');
   });
@@ -517,14 +517,14 @@ describe('DashboardComponent', () => {
       ?.closest('section');
     const cells = journal?.querySelectorAll('tbody tr td');
 
-    expect(cells?.[5]?.className).not.toContain('text-fb-critical');
-    expect(cells?.[6]?.className).not.toContain('text-fb-critical');
-    expect(cells?.[7]?.className).toContain('text-fb-critical');
+    expect(cells?.[5]?.className).not.toContain('text-fb-finance-negative');
+    expect(cells?.[6]?.className).not.toContain('text-fb-finance-negative');
+    expect(cells?.[7]?.className).toContain('text-fb-finance-negative');
 
     const mobileProfitLabel = [...(journal?.querySelectorAll('article dt') ?? [])].find(
       (label) => label.textContent?.trim() === 'Gewinn',
     );
-    expect(mobileProfitLabel?.nextElementSibling?.className).toContain('text-fb-critical');
+    expect(mobileProfitLabel?.nextElementSibling?.className).toContain('text-fb-finance-negative');
   });
 
   it('isoliert den Chart-Lifecycle im Dashboard-Header-Test ohne Angular-Laufzeitfehler', async () => {

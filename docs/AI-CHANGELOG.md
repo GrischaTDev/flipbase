@@ -1,5 +1,39 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-23 – Juna – Auslieferungsstatus der Dashboard-Säulen geprüft
+
+**Auftrag:** Unveränderte Säulenfarben in der angezeigten Dashboard-Ansicht einordnen.
+
+**Ergebnis:** Die neue Gelb-Rot-Grün-Palette ist im lokalen Commit `713dbb84`
+auf `juna/dashboard-chart-colors` enthalten. `master` steht noch auf
+`64233f0b`; für den Farbzweig existiert auf GitHub kein PR. Eine Änderung auf
+der veröffentlichten Seite ist damit noch nicht zu erwarten. Ob die gemeldete
+Ansicht die öffentliche Seite oder eine lokale Vorschau ist, bleibt offen.
+
+**Prüfung:** Lokalen Branch, Chart-Konfiguration, Commit-Abstand zu `master`
+und GitHub-PR-Liste lesend geprüft; keine Anwendungsdateien geändert.
+
+## 2026-09-23 – Juna – Dashboard-Diagramm mit Marken- und Finanzfarben
+
+**Auftrag:** Die Betragszahlen an den Säulen entfernen, Umsatz in Flipbase-Gelb,
+Ausgaben in kräftigem Rot und Gewinn in kräftigem Grün darstellen. Admin-Badge
+und hervorgehobene Finanzwerte in Tabellen an diese Farben angleichen.
+
+**Änderung:** Die drei Säulenreihen verwenden Gelb `#fcc601`, Rot `#dc2626` und
+Grün `#16a34a` in beiden Themes. Apex-Datenbeschriftungen sind deaktiviert;
+Detailwerte bleiben über die vorhandene Tastatur-/Touchansicht und Datentabelle
+zugänglich. Im hellen Theme macht eine schmale dunkle Kontur die gelbe Säule auf
+weißem Hintergrund besser erkennbar. Das Admin-Badge nutzt dasselbe Rot wie die
+Ausgaben-Säule. Finanzwerte in Dashboard-, Verkaufs-, Buchhaltungs- und
+Analysetabellen nutzen kontrastgerechte Rot- und Grüntöne; Nullwerte, unbekannte
+Ergebnisse und normale Kosten bleiben neutral.
+
+**Prüfung:** Chart- und Tabellen-Erwartungen schlugen vor den jeweiligen
+Änderungen gezielt fehl. Gezielte Tests für Farben, Vorzeichen und neutrale
+Werte bestanden anschließend (56/56). Die Gesamtsuite bestand mit 297 Dateien
+und 2.771 Tests. Prettier, ESLint, Typprüfung und Angular-Produktionsbau mit
+Node 24 bestanden. Der Bau meldete nur die bestehende `pako`-CommonJS-Warnung.
+
 ## 2026-09-23 – Juna – Dashboard ohne Cashflow und mit Gewinn im Diagramm
 
 **Auftrag:** Cashflow aus dem Dashboard entfernen, Gewinn in das Diagramm aufnehmen,

@@ -22,9 +22,13 @@
   --fb-color-brand-badge-border: #e5b201;
 
   /* Admin ist eine Rollenkennzeichnung, kein Fehlerstatus. Bewusst eigenes Rot. */
-  --fb-color-admin-surface: #d92d20;
+  --fb-color-admin-surface: #dc2626;
   --fb-color-admin-text: #ffffff;
-  --fb-color-admin-border: #b42318;
+  --fb-color-admin-border: #b91c1c;
+
+  /* Ergebniszahlen bleiben auf hellen Tabellenflaechen lesbar. */
+  --fb-color-finance-positive-text: #15803d;
+  --fb-color-finance-negative-text: #b91c1c;
 
   /* Erfolg / positiver Zustand – bewusst warmes, weiches Gruen. */
   --fb-color-success: #86c98c;
@@ -81,9 +85,12 @@ html.dark {
   --fb-color-brand-badge-text: #fcc601;
   --fb-color-brand-badge-border: rgb(252 198 1 / 30%);
 
-  --fb-color-admin-surface: #d92d20;
+  --fb-color-admin-surface: #dc2626;
   --fb-color-admin-text: #ffffff;
   --fb-color-admin-border: #f97066;
+
+  --fb-color-finance-positive-text: #4ade80;
+  --fb-color-finance-negative-text: #f87171;
 
   --fb-color-success: #8fcb78;
   --fb-color-success-text: #a9dda0;
