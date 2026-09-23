@@ -159,7 +159,7 @@ describe('DashboardReportService', () => {
     expect(result.rows[0]).toMatchObject({ quantity: 2, costOfGoodsSold: 9.98, profit: 9 });
   });
 
-  it('zählt nur bezahlte Betriebsausgaben nach Zahlungsdatum zum Cashflow, ohne Gewinn oder Marge zu ändern', () => {
+  it('zählt nur bezahlte Betriebsausgaben nach Zahlungsdatum, ohne Gewinn oder Marge zu ändern', () => {
     const paid: Expense = {
       id: 'expense-paid',
       workspace_id: 'workspace-1',
@@ -207,18 +207,17 @@ describe('DashboardReportService', () => {
     expect(result.points.find((point) => point.date === '2026-08-26')).toMatchObject({
       revenue: 0,
       totalExpenses: 24.95,
-      cashflow: -24.95,
     });
     expect(result.points.find((point) => point.date === '2026-08-27')).toMatchObject({
       revenue: 19.98,
       totalExpenses: 16,
-      cashflow: 3.98,
     });
+    expect(result.points[0]).not.toHaveProperty('cashflow');
     expect(result.grossProfit).toBe(withoutOperating.grossProfit);
     expect(result.averageMarginPercent).toBe(withoutOperating.averageMarginPercent);
   });
 
-  it('zählt eine August-Rechnung erst mit ihrer September-Zahlung zum September-Cashflow', () => {
+  it('zählt eine August-Rechnung erst mit ihrer September-Zahlung zu den Betriebsausgaben', () => {
     const paidInSeptember: Expense = {
       id: 'expense-paid-september',
       workspace_id: 'workspace-1',
@@ -287,7 +286,6 @@ describe('DashboardReportService', () => {
     expect(result.points.find((point) => point.date === '2026-08-27')).toMatchObject({
       revenue: 19.98,
       totalExpenses: null,
-      cashflow: null,
     });
     expect(result.openCosts).toEqual([]);
   });

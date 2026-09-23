@@ -10,7 +10,7 @@ test('erkundet die Diagrammdaten vollstaendig mit der Tastatur @pr-smoke', async
   await expect(page.locator('app-revenue-chart .apexcharts-svg')).toBeVisible();
 
   const navigator = page.getByRole('slider', {
-    name: 'Datenpunkt im Zahlungsstrom-Diagramm auswählen',
+    name: 'Datenpunkt im Ergebnisdiagramm auswählen',
   });
   const tooltip = page.getByRole('status').filter({ hasText: 'Umsatz:' });
   await navigator.focus();
@@ -18,14 +18,14 @@ test('erkundet die Diagrammdaten vollstaendig mit der Tastatur @pr-smoke', async
   await expect(navigator).toHaveAttribute('aria-valuenow', '1');
   await expect(navigator).toHaveAttribute(
     'aria-valuetext',
-    /01\.08\.: Umsatz 0,00\s€, Ausgaben gesamt 0,00\s€, Cashflow 0,00\s€/,
+    /01\.08\.: Umsatz 0,00\s€, Ausgaben gesamt 0,00\s€, Gewinn 0,00\s€/,
   );
 
   await navigator.press('End');
   await expect(navigator).toHaveAttribute('aria-valuenow', '30');
   await expect(navigator).toHaveAttribute(
     'aria-valuetext',
-    /30\.08\.: Umsatz 0,00\s€, Ausgaben gesamt 0,00\s€, Cashflow 0,00\s€/,
+    /30\.08\.: Umsatz 0,00\s€, Ausgaben gesamt 0,00\s€, Gewinn 0,00\s€/,
   );
   await expect(tooltip).toContainText('30.08.');
 

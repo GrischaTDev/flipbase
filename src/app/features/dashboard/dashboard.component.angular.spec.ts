@@ -388,15 +388,7 @@ describe('DashboardComponent', () => {
       [...kpiSection.querySelectorAll('app-dashboard-kpi-card')].map((card) =>
         card.querySelector('span')?.textContent?.trim(),
       ),
-    ).toEqual([
-      'Umsatz',
-      'Einkäufe',
-      'Betriebsausgaben',
-      'Ausgaben gesamt',
-      'Gewinn',
-      'Marge',
-      'Cashflow',
-    ]);
+    ).toEqual(['Umsatz', 'Einkäufe', 'Betriebsausgaben', 'Ausgaben gesamt', 'Gewinn', 'Marge']);
     expect(kpiSection.textContent).not.toContain('Verkaufte Artikel');
     expect(kpiSection.textContent).not.toContain('Bestandswert');
 
@@ -405,7 +397,7 @@ describe('DashboardComponent', () => {
     expect(kpi('revenue')).toContain('42,98 €');
     expect(kpi('gross-profit')).toContain('20,09 €');
     expect(kpi('margin')).toContain('46,74 %');
-    expect(kpi('cashflow')).toContain('-1,86 €');
+    expect(kpi('cashflow')).toBeUndefined();
     expect(kpi('purchases')).toContain('24,95 €');
     expect(kpi('operating-expenses')).toContain('7,00 €');
     expect(kpi('total-expenses')).toContain('44,84 €');
@@ -456,7 +448,7 @@ describe('DashboardComponent', () => {
     expect(text).not.toContain('Realisierter Gewinn');
   });
 
-  it('markiert einen negativen Cashflow rot, ohne ihn mit dem Verkaufsgewinn zu vermischen', () => {
+  it('zeigt keinen Cashflow mehr zwischen den Kennzahlen', () => {
     createReport.mockReturnValueOnce({
       ...emptyReport,
       revenue: 100,
@@ -469,15 +461,11 @@ describe('DashboardComponent', () => {
 
     const fixture = createDashboard();
     const host = fixture.nativeElement as HTMLElement;
-    const cashflow = host.querySelector('[data-kpi="cashflow"]');
-
-    const cashflowText = cashflow?.textContent?.replace(/\s+/g, ' ') ?? '';
-    expect(cashflowText).toContain('-50,00 €');
-    expect(cashflow?.querySelector('p')?.className ?? '').toContain('text-fb-critical');
-    expect(cashflowText).not.toContain('30,00 €');
+    expect(host.querySelector('[data-kpi="cashflow"]')).toBeNull();
+    expect(host.querySelector('[data-kpi="gross-profit"]')?.textContent).toMatch(/30,00\s€/);
   });
 
-  it('zeigt bei einem Plattformfilter keinen unvollständigen Cashflow als echte Kennzahl', () => {
+  it('zeigt bei einem Plattformfilter unvollständige Ausgaben weiterhin als unbekannt', () => {
     preferences.set({ range: 'year', platform: 'ebay' });
     createReport.mockReturnValueOnce({
       ...emptyReport,
@@ -490,15 +478,12 @@ describe('DashboardComponent', () => {
 
     const fixture = createDashboard();
     const host = fixture.nativeElement as HTMLElement;
-    const cashflow = host.querySelector('[data-kpi="cashflow"]');
     const purchases = host.querySelector('[data-kpi="purchases"]');
     const operatingExpenses = host.querySelector('[data-kpi="operating-expenses"]');
     const totalExpenses = host.querySelector('[data-kpi="total-expenses"]');
 
-    const cashflowText = cashflow?.textContent?.replace(/\s+/g, ' ') ?? '';
     const purchasesText = purchases?.textContent?.replace(/\s+/g, ' ') ?? '';
-    expect(cashflowText).toContain('–');
-    expect(cashflowText).not.toContain('90,00 €');
+    expect(host.querySelector('[data-kpi="cashflow"]')).toBeNull();
     expect(purchasesText).toContain('Einkäufe');
     expect(purchasesText).toContain('–');
     expect(operatingExpenses?.textContent).toContain('–');
@@ -629,6 +614,7 @@ describe('DashboardComponent', () => {
     const periodGroup = host.querySelector('[aria-label="Zeitraum wählen"]') as HTMLElement;
 
     expect(periodGroup.getAttribute('role')).toBe('group');
+    expect(host.querySelector('header')?.textContent).not.toContain('Übersicht');
     expect(
       Array.from(periodGroup.querySelectorAll('button')).every((button) =>
         button.hasAttribute('aria-pressed'),

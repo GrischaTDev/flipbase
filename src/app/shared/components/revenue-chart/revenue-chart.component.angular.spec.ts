@@ -47,7 +47,6 @@ const points: readonly DashboardTimePoint[] = [
     resultAfterDirectCosts: -16.02,
     expenses: 24.95,
     totalExpenses: 25.95,
-    cashflow: -5.97,
     realizedProfit: -16.02,
   },
   {
@@ -59,7 +58,6 @@ const points: readonly DashboardTimePoint[] = [
     resultAfterDirectCosts: null,
     expenses: 0,
     totalExpenses: null,
-    cashflow: null,
     realizedProfit: null,
   },
 ];
@@ -104,7 +102,7 @@ afterEach(() => {
 });
 
 describe('RevenueChartComponent', () => {
-  it('behält Umsatz, Gesamtausgaben, unbekannte Werte und negativen Cashflow in der Tabelle', async () => {
+  it('behält Umsatz, Gesamtausgaben, unbekannte Werte und negativen Gewinn in der Tabelle', async () => {
     const { fixture, host, component } = setup();
     await fixture.whenStable();
     expect(
@@ -112,10 +110,13 @@ describe('RevenueChartComponent', () => {
         [...row.querySelectorAll('th, td')].map((cell) => cell.textContent?.trim()),
       ),
     ).toEqual([
-      ['27.08.', '19,98 €', '25,95 €', '-5,97 €'],
+      ['27.08.', '19,98 €', '25,95 €', '-16,02 €'],
       ['28.08.', '0,00 €', 'unbekannt', 'unbekannt'],
     ]);
     expect(component.configuration().series[1].data).toEqual([25.95, null]);
+    expect(component.configuration().series[2].data).toEqual([-16.02, null]);
+    expect(host.querySelector('[role="img"]')?.getAttribute('aria-label')).toContain('Gewinn');
+    expect(host.textContent).not.toContain('Cashflow');
     expect(host.querySelector('h2')?.className).not.toMatch(/uppercase|tracking-/);
     expect(host.querySelector('canvas')).toBeNull();
   });
@@ -166,7 +167,7 @@ describe('RevenueChartComponent', () => {
     navigator?.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
     fixture.detectChanges();
     expect(navigator?.getAttribute('aria-valuenow')).toBe('1');
-    expect(host.querySelector('[role="status"]')?.textContent).toContain('-5,97');
+    expect(host.querySelector('[role="status"]')?.textContent).toContain('-16,02');
     navigator?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     fixture.detectChanges();
     expect(host.querySelector('[role="status"]')).toBeNull();

@@ -16,7 +16,6 @@ const points: readonly DashboardTimePoint[] = [
     resultAfterDirectCosts: -16.02,
     expenses: 24.95,
     totalExpenses: 25.95,
-    cashflow: -5.97,
     realizedProfit: -16.02,
   },
   {
@@ -28,17 +27,16 @@ const points: readonly DashboardTimePoint[] = [
     resultAfterDirectCosts: null,
     expenses: 0,
     totalExpenses: null,
-    cashflow: null,
     realizedProfit: null,
   },
 ];
 
 describe('Revenue-Chart-Konfiguration', () => {
-  it('zeigt Umsatz, alle Ausgaben und Cashflow ohne unbekannte Werte als null zu tarnen', () => {
+  it('zeigt Umsatz, Gesamtausgaben und verkaufsbezogenen Gewinn ohne unbekannte Werte als null zu tarnen', () => {
     expect(buildRevenueSeries(points)).toEqual([
       { name: 'Umsatz', data: [19.98, 0] },
       { name: 'Ausgaben gesamt', data: [25.95, null] },
-      { name: 'Cashflow', data: [-5.97, null] },
+      { name: 'Gewinn', data: [-16.02, null] },
     ]);
     expect(createRevenueChartConfiguration(points, 'light', false).xaxis.categories).toEqual([
       '27.08.',
@@ -53,7 +51,7 @@ describe('Revenue-Chart-Konfiguration', () => {
     expect(buildRevenueSeries(immutable)[0].data).toEqual([0, 19.98]);
     expect(immutable).toEqual(before);
   });
-  it('zeigt gruppierte, gerundete Säulen ohne Labels oder eine falsche Null-Linie für unbekannte Werte', () => {
+  it('beschriftet nur gebuchte Säulen und erhält negative sowie unbekannte Werte', () => {
     const options = createRevenueChartConfiguration(points, 'light', false);
     expect(options.chart.type).toBe('bar');
     expect(options.plotOptions.bar).toMatchObject({
@@ -63,8 +61,12 @@ describe('Revenue-Chart-Konfiguration', () => {
       horizontal: false,
     });
     expect(options.stroke.width).toBe(0);
-    expect(options.dataLabels.enabled).toBe(false);
+    expect(options.dataLabels.enabled).toBe(true);
+    expect(options.dataLabels.formatter?.(19.98)).toBe('19,98');
+    expect(options.dataLabels.formatter?.(-16.02)).toBe('-16,02');
+    expect(options.dataLabels.formatter?.(0)).toBe('');
     expect(options.series[1].data).toEqual([25.95, null]);
+    expect(options.series[2].data).toEqual([-16.02, null]);
     expect(options.tooltip.enabled).toBe(false);
     expect(options.yaxis.labels?.formatter?.(-25)).toBe('-25,00 €');
   });

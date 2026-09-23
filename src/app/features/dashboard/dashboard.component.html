@@ -2,17 +2,14 @@
   <header class="linear-surface rounded-xl border border-fb-line px-5 py-4">
     <div class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
       <div>
-        <p class="text-xs font-medium text-fb-text-muted">Übersicht</p>
-        <h1 class="mt-1 text-lg font-semibold tracking-tight text-fb-text-primary">
-          Ertrag im Blick
-        </h1>
+        <h1 class="text-lg font-semibold tracking-tight text-fb-text-primary">Ertrag im Blick</h1>
         <p class="mt-1 max-w-2xl text-xs text-fb-text-muted">
           Die wichtigsten Kennzahlen im gewählten Zeitraum.
         </p>
       </div>
       <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
         <div
-          class="inline-flex flex-wrap rounded-lg border border-fb-line bg-fb-well p-1"
+          class="inline-flex flex-wrap rounded-lg bg-fb-well p-0.5 ring-1 ring-inset ring-fb-line"
           role="group"
           aria-label="Zeitraum wählen"
         >
@@ -50,7 +47,7 @@
   </header>
 
   <section aria-label="Kennzahlen">
-    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <div class="grid grid-cols-[repeat(auto-fit,minmax(min(100%,10.5rem),1fr))] gap-3">
       <app-dashboard-kpi-card
         data-kpi="revenue"
         size="large"
@@ -93,14 +90,6 @@
         label="Marge"
         [icon]="trendingIcon"
         [value]="kpis().margin.value"
-      />
-      <app-dashboard-kpi-card
-        data-kpi="cashflow"
-        size="large"
-        label="Cashflow"
-        [icon]="coinsIcon"
-        [value]="kpis().cashflow.value"
-        [valueTone]="kpis().cashflow.tone"
       />
     </div>
   </section>

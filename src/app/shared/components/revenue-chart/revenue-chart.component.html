@@ -2,10 +2,10 @@
   <div class="flex flex-wrap items-center justify-between gap-3">
     <div>
       <h2 id="revenue-chart-heading" class="text-sm font-semibold text-fb-text-primary">
-        Umsatz und Ausgaben im Zeitraum
+        Umsatz, Ausgaben und Gewinn
       </h2>
       <p class="mt-1 text-xs text-fb-text-muted">
-        Ausgaben: Einkäufe, Gebühren/Versand und bezahlte Betriebsausgaben.
+        Gewinn aus Verkäufen; Ausgaben gesamt inklusive Einkäufe und Betriebsausgaben.
       </p>
     </div>
     <ul
@@ -39,7 +39,7 @@
       #chart
       class="h-[260px] w-full"
       role="img"
-      aria-label="Umsatz, Ausgaben gesamt und Cashflow im gewählten Zeitraum"
+      aria-label="Umsatz, Ausgaben gesamt und Gewinn im gewählten Zeitraum"
       aria-describedby="revenue-chart-summary"
       [attr.aria-busy]="chartStatus() === 'loading'"
       (pointermove)="handlePointer($event)"
@@ -63,7 +63,7 @@
     }
     <div
       role="slider"
-      aria-label="Datenpunkt im Zahlungsstrom-Diagramm auswählen"
+      aria-label="Datenpunkt im Ergebnisdiagramm auswählen"
       aria-orientation="horizontal"
       aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Home End Escape"
       aria-describedby="revenue-chart-keyboard-help revenue-chart-summary"
@@ -119,7 +119,7 @@
           <th scope="col">Zeitraum</th>
           <th scope="col">Umsatz</th>
           <th scope="col">Ausgaben gesamt</th>
-          <th scope="col">Cashflow</th>
+          <th scope="col">Gewinn</th>
         </tr>
       </thead>
       <tbody>
@@ -135,10 +135,10 @@
               }
             </td>
             <td>
-              @if (point.cashflow === null) {
+              @if (point.resultAfterDirectCosts === null) {
                 unbekannt
               } @else {
-                {{ point.cashflow | number: '1.2-2' }} €
+                {{ point.resultAfterDirectCosts | number: '1.2-2' }} €
               }
             </td>
           </tr>

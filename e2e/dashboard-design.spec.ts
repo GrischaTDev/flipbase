@@ -40,6 +40,19 @@ for (const theme of ['light', 'dark'] as const) {
     await startDashboard(page);
     if (theme === 'dark')
       await page.getByRole('button', { name: 'Zu dunklem Design wechseln' }).click();
+    const cards = page.locator('[aria-label="Kennzahlen"] app-dashboard-kpi-card');
+    await expect(cards).toHaveCount(6);
+    const cardTops = await cards.evaluateAll((elements) =>
+      elements.map((element) => Math.round(element.getBoundingClientRect().top)),
+    );
+    expect(new Set(cardTops).size).toBe(1);
+    const periodHeight = await page
+      .getByRole('group', { name: 'Zeitraum wählen' })
+      .evaluate((element) => element.getBoundingClientRect().height);
+    const platformHeight = await page
+      .getByRole('combobox', { name: 'Plattform filtern' })
+      .evaluate((element) => element.getBoundingClientRect().height);
+    expect(Math.abs(periodHeight - platformHeight)).toBeLessThanOrEqual(1);
     const visibleSeries = page.locator(
       'app-revenue-chart .apexcharts-series:has(.apexcharts-bar-area[d]:not([d=""]))',
     );

@@ -43,7 +43,7 @@ interface VisibleRevenueTooltip {
   readonly width: number;
 }
 
-/** Zahlungsstrom-Diagramm mit vollständiger tabellarischer Alternative. */
+/** Ergebnisdiagramm mit vollständiger tabellarischer Alternative. */
 @Component({
   selector: 'app-revenue-chart',
   imports: [DecimalPipe, ButtonComponent],

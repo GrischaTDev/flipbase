@@ -288,7 +288,6 @@ export class DashboardReportService {
         point.resultAfterDirectCosts === null ? null : this.money(point.resultAfterDirectCosts),
       expenses: this.money(point.expenses),
       totalExpenses: purchasesIncluded ? this.money(point.totalExpenses ?? 0) : null,
-      cashflow: purchasesIncluded ? this.money(point.revenue - (point.totalExpenses ?? 0)) : null,
       realizedProfit:
         point.resultAfterDirectCosts === null ? null : this.money(point.resultAfterDirectCosts),
     }));
@@ -565,7 +564,6 @@ export class DashboardReportService {
         resultAfterDirectCosts: 0,
         expenses: 0,
         totalExpenses: 0,
-        cashflow: 0,
         realizedProfit: 0,
       });
       if (window.bucket === 'month') cursor.setMonth(cursor.getMonth() + 1, 1);
