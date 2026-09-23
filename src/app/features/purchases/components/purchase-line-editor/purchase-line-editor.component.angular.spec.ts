@@ -334,6 +334,53 @@ describe('PurchaseLineEditorComponent', () => {
     ]);
   });
 
+  it('zeigt eine gesperrte Menge ohne zusätzlichen Korrekturhinweis', async () => {
+    TestBed.resetTestingModule();
+    const fixture = TestBed.configureTestingModule({
+      imports: [PurchaseLineEditorComponent],
+      providers: [
+        {
+          provide: CatalogService,
+          useValue: {
+            imageUrls: () => ({}),
+            products: signal([ledProduct]),
+            isLoading: signal(false),
+            loadError: signal(null),
+            loadedWorkspaceId: signal(workspaceOne.id),
+            loadProducts: vi.fn(),
+          },
+        },
+        { provide: WorkspaceService, useValue: { currentWorkspace: signal(workspaceOne) } },
+      ],
+    }).createComponent(PurchaseLineEditorComponent);
+    Object.assign(fixture.componentInstance, { purchaseType: signal<PurchaseType>('single') });
+    fixture.detectChanges();
+    fixture.componentInstance.resetToLines([
+      {
+        draftId: 'received-line',
+        catalogProductId: ledProduct.id,
+        titleSnapshot: ledProduct.title,
+        lineKind: 'quantity',
+        orderedQuantity: 2,
+        condition: 'used',
+        priceMode: 'priced',
+        unitPurchasePrice: 4.99,
+        lineTotal: 9.98,
+        estimatedMarketValue: null,
+        structuralLocked: true,
+      },
+    ]);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const host = fixture.nativeElement as HTMLElement;
+    const quantity = host.querySelector<HTMLInputElement>(
+      'input[aria-label="Menge für LED-Lampe"]',
+    );
+    expect(quantity?.disabled).toBe(true);
+    expect(host.textContent).not.toContain('Menge nur über eine Korrektur ändern.');
+  });
+
   it('verarbeitet einen Scan nur einmal und erfindet keinen Nullpreis', () => {
     const { editor } = erstelleEditor();
     Object.assign(editor, {

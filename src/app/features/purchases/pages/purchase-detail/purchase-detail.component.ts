@@ -494,6 +494,11 @@ export class PurchaseDetailComponent {
       .purchaseLines()
       .filter((line) => line.line_kind === 'individual' && !line.is_package),
   );
+  readonly hasOutstandingReceiptLines = computed(() =>
+    [...this.quantityPurchaseLines(), ...this.individualPurchaseLines()].some(
+      (line) => line.received_quantity < line.ordered_quantity,
+    ),
+  );
   readonly packageContentDialog = viewChild(PackageContentDialogComponent);
   readonly capturingPackage = signal<PurchaseLine | null>(null);
   readonly packageLines = computed(() =>
@@ -777,6 +782,7 @@ export class PurchaseDetailComponent {
     if (
       this.purchaseService.selectedPurchase()?.entry_status === 'finalized' ||
       this.hasOpenPricesForStock() ||
+      !this.hasOutstandingReceiptLines() ||
       this.hasUnsavedChanges() ||
       this.isSaving()
     )
@@ -1011,6 +1017,7 @@ export class PurchaseDetailComponent {
       purchase.id,
       result.data,
     );
+    if (!refreshError) this.editPurchase(purchase.id);
     this.historyRevision.update((revision) => revision + 1);
     this.toast.success('Einkauf wurde wieder geöffnet.');
     if (refreshError) {

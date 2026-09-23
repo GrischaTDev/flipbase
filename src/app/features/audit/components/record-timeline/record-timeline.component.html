@@ -148,41 +148,47 @@
                 <div class="min-w-0">
                   @if (isExpandable(entry)) {
                     <button
+                      data-timeline-event-content
                       type="button"
                       (click)="toggleDetails(entry.id)"
                       [attr.aria-expanded]="expandedId() === entry.id"
                       [attr.aria-controls]="'timeline-details-' + entry.id"
-                      class="-mx-2 flex w-full items-baseline gap-2 rounded-md px-2 py-2 text-left hover:bg-fb-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-accent"
+                      class="grid w-full grid-cols-[minmax(0,1fr)_auto] items-baseline gap-2 rounded-md py-2 text-left hover:bg-fb-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-accent"
                     >
-                      <span class="min-w-0 text-sm text-fb-text-primary">
-                        {{ sentence(entry) }}
+                      <span class="flex min-w-0 items-baseline gap-2">
+                        <span class="min-w-0 text-sm text-fb-text-primary">
+                          {{ sentence(entry) }}
+                        </span>
+                        <svg
+                          viewBox="0 0 12 12"
+                          class="mt-1 h-3 w-3 shrink-0 text-fb-text-muted transition-transform"
+                          [class.rotate-180]="expandedId() === entry.id"
+                          aria-hidden="true"
+                        >
+                          <path
+                            d="M2.5 4.5 6 8l3.5-3.5"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.5"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          />
+                        </svg>
                       </span>
-                      <svg
-                        viewBox="0 0 12 12"
-                        class="mt-1 h-3 w-3 shrink-0 text-fb-text-muted transition-transform"
-                        [class.rotate-180]="expandedId() === entry.id"
-                        aria-hidden="true"
-                      >
-                        <path
-                          d="M2.5 4.5 6 8l3.5-3.5"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="1.5"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                        />
-                      </svg>
                       <time
                         [attr.datetime]="entry.createdAt"
                         [title]="exactTime(entry.createdAt)"
                         [attr.aria-label]="exactTime(entry.createdAt)"
-                        class="ml-auto shrink-0 pl-3 text-xs text-fb-text-secondary"
+                        class="shrink-0 justify-self-end pl-3 text-xs text-fb-text-secondary"
                       >
                         {{ clockTime(entry.createdAt) }}
                       </time>
                     </button>
                   } @else {
-                    <div class="flex items-baseline gap-2 py-2">
+                    <div
+                      data-timeline-event-content
+                      class="grid w-full grid-cols-[minmax(0,1fr)_auto] items-baseline gap-2 py-2"
+                    >
                       <p class="min-w-0 text-sm text-fb-text-primary">
                         {{ sentence(entry) }}
                       </p>
@@ -190,7 +196,7 @@
                         [attr.datetime]="entry.createdAt"
                         [title]="exactTime(entry.createdAt)"
                         [attr.aria-label]="exactTime(entry.createdAt)"
-                        class="ml-auto shrink-0 pl-3 text-xs text-fb-text-secondary"
+                        class="shrink-0 justify-self-end pl-3 text-xs text-fb-text-secondary"
                       >
                         {{ clockTime(entry.createdAt) }}
                       </time>

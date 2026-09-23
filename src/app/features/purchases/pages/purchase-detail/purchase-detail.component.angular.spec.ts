@@ -45,6 +45,16 @@ describe('PurchaseDetailComponent', () => {
     expect(template).not.toContain('[visibleColumns]');
   });
 
+  it('zeigt in der reinen Ansicht keine redundante Artikelbearbeitung und nur offene Wareneingänge', () => {
+    const template = readFileSync(
+      'src/app/features/purchases/pages/purchase-detail/purchase-detail.component.html',
+      'utf8',
+    );
+
+    expect(template).not.toContain('>Artikel bearbeiten</app-button');
+    expect(template).toContain('hasOutstandingReceiptLines()');
+  });
+
   it('ordnet die Belege rechts direkt nach der Sendungsverfolgung ein', () => {
     const template = readFileSync(
       'src/app/features/purchases/pages/purchase-detail/purchase-detail.component.html',
@@ -363,6 +373,16 @@ describe('PurchaseDetailComponent', () => {
               ? [{ purchaseLineId: line.id, receivedQuantity }]
               : [];
           }),
+        quantityPurchaseLines: () =>
+          purchaseService.purchaseLines().filter((line) => line.line_kind === 'quantity'),
+        individualPurchaseLines: () =>
+          purchaseService
+            .purchaseLines()
+            .filter((line) => line.line_kind === 'individual' && !line.is_package),
+        hasOutstandingReceiptLines: () =>
+          purchaseService
+            .purchaseLines()
+            .some((line) => line.received_quantity < line.ordered_quantity),
         purchaseLineDrafts: signal([]),
         isAllocatorOpen: signal(true),
         isApplyingAllocation: signal(false),
@@ -373,6 +393,8 @@ describe('PurchaseDetailComponent', () => {
         trackingCarrierDraft: signal<'dhl' | null>('dhl'),
         historyRevision: signal(0),
         isLifecycleSubmitting: signal(false),
+        isEditing: signal(false),
+        editingPurchase: signal<Purchase | null>(null),
         canReopenPurchase: signal(true),
         purchaseCostingService: {
           reopenPurchase: vi.fn(async () => ({
@@ -552,6 +574,18 @@ describe('PurchaseDetailComponent', () => {
         expect(komponente.isReceivingLines()).toBe(false);
       });
 
+      it('öffnet keinen leeren Wareneingang, wenn alle Positionen vollständig erfasst sind', () => {
+        const { komponente, purchaseService } = erstelleKomponente();
+        purchaseService.purchaseLines.set([
+          { ...mengenposition, received_quantity: mengenposition.ordered_quantity },
+        ]);
+        komponente.isReceivingLines.set(false);
+
+        komponente.startReceivingLines();
+
+        expect(komponente.isReceivingLines()).toBe(false);
+      });
+
       it('bucht einen Einzelartikel atomar ohne nachgelagerte Inventar- oder Positionsmutation', async () => {
         const { komponente, addItemToPurchase, purchaseService, receiveIndividualPurchaseLine } =
           erstelleKomponente();
@@ -638,9 +672,17 @@ describe('PurchaseDetailComponent', () => {
     });
 
     describe('Einkauf wieder öffnen', () => {
-      it('übernimmt den bestätigten Status sofort in die zentralen Einkaufssignale', async () => {
+      it('übernimmt den bestätigten Status und wechselt direkt in die Erfassungsmaske', async () => {
         const { komponente, purchaseService } = erstelleKomponente();
         purchaseService.selectedPurchase.set({ ...einkauf, entry_status: 'finalized' });
+        purchaseService.refreshAfterCostingChange.mockImplementation(async () => {
+          purchaseService.selectedPurchase.set({
+            ...einkauf,
+            entry_status: 'capturing',
+            purchase_price: null,
+          });
+          return null;
+        });
 
         await komponente.reopenPurchase();
 
@@ -648,6 +690,10 @@ describe('PurchaseDetailComponent', () => {
           einkauf.workspace_id,
           einkauf.id,
           expect.objectContaining({ entryStatus: 'capturing' }),
+        );
+        expect(komponente.isEditing()).toBe(true);
+        expect(komponente.editingPurchase()).toEqual(
+          expect.objectContaining({ id: einkauf.id, entry_status: 'capturing' }),
         );
       });
     });

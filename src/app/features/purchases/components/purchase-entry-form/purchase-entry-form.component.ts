@@ -406,6 +406,7 @@ export class PurchaseEntryFormComponent {
     this.baselinePurchaseLines.set(existingLines);
     this.lineEditor()?.resetToLines(existingLines);
     this.updateAdditionalCostsValidity();
+    if (existingLines.length > 0) this.updatePurchaseBasePriceFromLines(existingLines);
     this.updatePurchasePriceEditability();
   }
 
@@ -738,17 +739,7 @@ export class PurchaseEntryFormComponent {
     this.purchaseLines.set(persistedLines);
     this.updateAdditionalCostsValidity();
     this.updatePurchasePriceEditability();
-    if (this.form.controls.pricing_mode.value === 'total') return;
-
-    const knownTotals = persistedLines
-      .map((line) => line.lineTotal)
-      .filter((value): value is number => value !== null);
-    const purchaseBasePrice =
-      knownTotals.length === persistedLines.length
-        ? Number(knownTotals.reduce((sum, value) => sum + value, 0).toFixed(2))
-        : null;
-    this.form.controls.purchase_price.setValue(purchaseBasePrice, { emitEvent: false });
-    this.purchaseBasePrice.set(purchaseBasePrice);
+    this.updatePurchaseBasePriceFromLines(persistedLines);
   }
 
   onCostsChanged(costs: readonly PurchaseCostDraft[]): void {
@@ -767,6 +758,20 @@ export class PurchaseEntryFormComponent {
           (cost.targetPurchaseLineId !== null && availableLineIds.has(cost.targetPurchaseLineId)),
       ),
     );
+  }
+
+  private updatePurchaseBasePriceFromLines(lines: readonly PurchaseLineDraft[]): void {
+    if (this.form.controls.pricing_mode.value === 'total') return;
+
+    const knownTotals = lines
+      .map((line) => line.lineTotal)
+      .filter((value): value is number => value !== null);
+    const purchaseBasePrice =
+      knownTotals.length === lines.length
+        ? Number(knownTotals.reduce((sum, value) => sum + value, 0).toFixed(2))
+        : null;
+    this.form.controls.purchase_price.setValue(purchaseBasePrice, { emitEvent: false });
+    this.purchaseBasePrice.set(purchaseBasePrice);
   }
 
   private capturePersistedBaseline(): void {
