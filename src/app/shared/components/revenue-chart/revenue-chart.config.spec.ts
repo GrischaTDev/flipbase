@@ -50,11 +50,16 @@ describe('Revenue-Chart-Konfiguration', () => {
     expect(buildRevenueSeries(immutable)[0].data).toEqual([0, 19.98]);
     expect(immutable).toEqual(before);
   });
-  it('zeigt Linien ohne Glättung, Labels oder eine falsche Null-Linie für unbekannte Werte', () => {
+  it('zeigt gruppierte, gerundete Säulen ohne Labels oder eine falsche Null-Linie für unbekannte Werte', () => {
     const options = createRevenueChartConfiguration(points, 'light', false);
-    expect(options.chart.type).toBe('line');
-    expect(options.stroke.curve).toBe('straight');
-    expect(options.stroke.dashArray).toEqual([0, 8, 5, 2]);
+    expect(options.chart.type).toBe('bar');
+    expect(options.plotOptions.bar).toMatchObject({
+      borderRadius: 4,
+      borderRadiusApplication: 'end',
+      columnWidth: '64%',
+      horizontal: false,
+    });
+    expect(options.stroke.width).toBe(0);
     expect(options.dataLabels.enabled).toBe(false);
     expect(options.series[1].data).toEqual([35, null]);
     expect(options.tooltip.enabled).toBe(false);

@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/c
 import {
   LucideArrowUpRight as ArrowUpRight,
   LucideCoins as Coins,
+  LucideShoppingBag as ShoppingBag,
   LucideTrendingUp as TrendingUp,
 } from '@lucide/angular';
 import { DashboardRange } from '../../core/models/flipbase.models';
@@ -107,17 +108,15 @@ export class DashboardComponent {
               ? ('positive' as const)
               : ('negative' as const),
       },
-      expenses: {
-        total: report.purchasesIncluded ? euro.format(report.totalExpenses) : '–',
-        purchases: report.purchasesIncluded ? euro.format(report.purchaseSpend) : '–',
-        selling: euro.format(report.sellingCosts),
-        operating: report.purchasesIncluded ? euro.format(report.operatingExpenseSpend) : '–',
+      purchases: {
+        value: report.purchasesIncluded ? euro.format(report.purchaseSpend) : '–',
       },
     };
   });
 
   readonly trendingIcon = TrendingUp;
   readonly coinsIcon = Coins;
+  readonly purchasesIcon = ShoppingBag;
   readonly arrowIcon = ArrowUpRight;
 
   setRange(range: DashboardRange): void {

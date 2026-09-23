@@ -12,7 +12,7 @@ export type RevenueChartStatus = 'loading' | 'ready' | 'error';
 export const loadRevenueChart: RevenueChartLoader = async () => {
   const [{ default: ApexCharts }] = await Promise.all([
     import('apexcharts/core'),
-    import('apexcharts/line'),
+    import('apexcharts/bar'),
     import('apexcharts/features/legend'),
   ]);
   return (element, options) => new ApexCharts(element, options);

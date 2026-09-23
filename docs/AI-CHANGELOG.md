@@ -1,5 +1,31 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-23 – Juna – Dashboard-Kennzahlen und Säulendiagramm vereinfacht
+
+**Auftrag:** Das bisherige Liniendiagramm durch ein ruhiges Apex-Säulendiagramm
+ersetzen und die Ausgaben im Dashboard klarer darstellen. Die separate
+Ausgabenkarte soll entfallen, weil Gebühren, Versand und bezahlte
+Betriebsausgaben bereits in den Cashflow einfließen; Einkäufe sollen stattdessen
+als eigene Kennzahl erscheinen.
+
+**Änderung:** Der gemeinsame Verkaufsbericht zeigt die vier unveränderten
+Kennzahlen nun als gruppierte, gerundete Säulen mit quadratischen
+Legendenmarkern. Die bestehende Tastatursteuerung, Fehlerdarstellung,
+Datentabelle und Reihenfilterung bleiben erhalten. Im Kennzahlenbereich ersetzt
+die neue Kachel „Einkäufe“ die bisherige Ausgabenkarte; der Cashflow erklärt
+knapp, dass Einkäufe, Gebühren, Versand und bezahlte Betriebsausgaben enthalten
+sind. Bei einem einzelnen Plattformfilter bleiben Cashflow und Einkäufe wie
+bisher unbekannt, weil diese Ausgaben nicht verlässlich einer Plattform
+zugeordnet sind.
+
+**Prüfung:** Die neuen Erwartungen schlugen vor der Umsetzung gezielt für das
+Linienchart und die fehlende fünfte Kachel fehl. Danach bestanden 35 fokussierte
+Chart- und Dashboardtests sowie die vollständige Anwendungssuite mit 1.458
+Node-, 245 DOM- und 1.053 Angular-Tests. ESLint, Typprüfung und Produktionsbau
+bestanden; der Bau meldete nur den bekannten `pako`-Hinweis aus `pdf-lib`. Die
+zwei Dashboard-Browsertests konnten nicht starten, weil die dafür erforderliche
+lokale Supabase unter `127.0.0.1:54351` nicht lief.
+
 ## 2026-09-23 – Juna – Wieder geöffnete Einkäufe und Chronik bereinigt
 
 **Auftrag:** Nach gebuchtem Wareneingang den redundanten Hinweis unter der

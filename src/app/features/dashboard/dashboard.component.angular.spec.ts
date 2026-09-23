@@ -334,7 +334,7 @@ describe('DashboardComponent', () => {
     }
   });
 
-  it('zeigt Umsatz, Gewinn, Marge und Cashflow sowie eine kompakte Ausgabenübersicht', () => {
+  it('zeigt Einkäufe als fünfte Kennzahl und erklärt den vollständigen Cashflow', () => {
     createReport.mockReturnValueOnce({
       ...emptyReport,
       grossProfit: 20.09,
@@ -384,8 +384,8 @@ describe('DashboardComponent', () => {
       header.textContent?.replace(/\s+/g, ' ').trim(),
     );
 
-    expect(kpiSection.querySelectorAll('app-dashboard-kpi-card')).toHaveLength(4);
-    for (const label of ['Umsatz', 'Gewinn', 'Marge', 'Cashflow']) {
+    expect(kpiSection.querySelectorAll('app-dashboard-kpi-card')).toHaveLength(5);
+    for (const label of ['Umsatz', 'Gewinn', 'Marge', 'Cashflow', 'Einkäufe']) {
       expect(kpiSection.textContent).toContain(label);
     }
     expect(kpiSection.textContent).not.toContain('Verkaufte Artikel');
@@ -397,20 +397,14 @@ describe('DashboardComponent', () => {
     expect(kpi('gross-profit')).toContain('20,09 €');
     expect(kpi('margin')).toContain('46,74 %');
     expect(kpi('cashflow')).toContain('-1,86 €');
-
-    const expenses = host.querySelector('[data-dashboard-expenses]');
-    const expensesText = expenses?.textContent?.replace(/\s+/g, ' ') ?? '';
-    expect(expensesText).toContain('Ausgaben');
-    expect(expensesText).toContain('44,84 €');
-    expect(expensesText).toContain('Einkäufe');
-    expect(expensesText).toContain('24,95 €');
-    expect(expensesText).toContain('Gebühren & Versand');
-    expect(expensesText).toContain('12,89 €');
-    expect(expensesText).toContain('Betriebsausgaben');
-    expect(expensesText).toContain('7,00 €');
+    expect(kpi('cashflow')).toContain(
+      'Nach Einkäufen, Gebühren, Versand und bezahlten Betriebsausgaben',
+    );
+    expect(kpi('purchases')).toContain('24,95 €');
+    expect(host.querySelector('[data-dashboard-expenses]')).toBeNull();
 
     expect(kpiSection.querySelector('[data-kpi-change]')).toBeNull();
-    expect(kpiSection.querySelector('[data-kpi-hint]')).toBeNull();
+    expect(kpiSection.querySelectorAll('[data-kpi-hint]')).toHaveLength(1);
     expect(kpiSection.textContent).not.toContain('ggü.');
     expect(kpiSection.textContent).not.toContain('neu');
     expect(kpiSection.textContent).not.toContain('Artikel ohne Kosten');
@@ -489,16 +483,15 @@ describe('DashboardComponent', () => {
     const fixture = createDashboard();
     const host = fixture.nativeElement as HTMLElement;
     const cashflow = host.querySelector('[data-kpi="cashflow"]');
-    const expenses = host.querySelector('[data-dashboard-expenses]');
+    const purchases = host.querySelector('[data-kpi="purchases"]');
 
     const cashflowText = cashflow?.textContent?.replace(/\s+/g, ' ') ?? '';
-    const expensesText = expenses?.textContent?.replace(/\s+/g, ' ') ?? '';
+    const purchasesText = purchases?.textContent?.replace(/\s+/g, ' ') ?? '';
     expect(cashflowText).toContain('–');
     expect(cashflowText).not.toContain('90,00 €');
-    expect(expensesText).toContain('Einkäufe');
-    expect(expensesText).toContain('–');
-    expect(expensesText).toContain('Gebühren & Versand');
-    expect(expensesText).toContain('10,00 €');
+    expect(purchasesText).toContain('Einkäufe');
+    expect(purchasesText).toContain('–');
+    expect(host.querySelector('[data-dashboard-expenses]')).toBeNull();
   });
 
   it('markiert einen negativen Verkaufsgewinn rot, ohne normale Kosten als Fehler zu färben', () => {

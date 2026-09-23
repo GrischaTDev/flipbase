@@ -50,7 +50,7 @@
   </header>
 
   <section aria-label="Kennzahlen">
-    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
       <app-dashboard-kpi-card
         data-kpi="revenue"
         size="large"
@@ -80,41 +80,16 @@
         [icon]="coinsIcon"
         [value]="kpis().cashflow.value"
         [valueTone]="kpis().cashflow.tone"
+        hint="Nach Einkäufen, Gebühren, Versand und bezahlten Betriebsausgaben"
+      />
+      <app-dashboard-kpi-card
+        data-kpi="purchases"
+        size="large"
+        label="Einkäufe"
+        [icon]="purchasesIcon"
+        [value]="kpis().purchases.value"
       />
     </div>
-  </section>
-
-  <section data-dashboard-expenses aria-labelledby="dashboard-expenses-heading">
-    <app-card rounded="xl">
-      <div card-header class="flex items-center justify-between gap-4">
-        <h2 id="dashboard-expenses-heading" class="text-sm font-semibold text-fb-text-primary">
-          Ausgaben
-        </h2>
-        <p class="font-mono text-sm font-semibold text-fb-text-primary">
-          {{ kpis().expenses.total }}
-        </p>
-      </div>
-      <dl class="grid gap-3 text-[13px] sm:grid-cols-3">
-        <div class="flex items-center justify-between gap-3">
-          <dt class="text-fb-text-secondary">Einkäufe</dt>
-          <dd class="font-mono font-medium text-fb-text-primary">
-            {{ kpis().expenses.purchases }}
-          </dd>
-        </div>
-        <div class="flex items-center justify-between gap-3">
-          <dt class="text-fb-text-secondary">Gebühren & Versand</dt>
-          <dd class="font-mono font-medium text-fb-text-primary">
-            {{ kpis().expenses.selling }}
-          </dd>
-        </div>
-        <div class="flex items-center justify-between gap-3">
-          <dt class="text-fb-text-secondary">Betriebsausgaben</dt>
-          <dd class="font-mono font-medium text-fb-text-primary">
-            {{ kpis().expenses.operating }}
-          </dd>
-        </div>
-      </dl>
-    </app-card>
   </section>
 
   <app-dashboard-open-costs
