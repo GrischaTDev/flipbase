@@ -1,5 +1,18 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-23 – Juna – Auslieferungsstatus der Dashboard-Säulen geprüft
+
+**Auftrag:** Unveränderte Säulenfarben in der angezeigten Dashboard-Ansicht einordnen.
+
+**Ergebnis:** Die neue Gelb-Rot-Grün-Palette ist im lokalen Commit `713dbb84`
+auf `juna/dashboard-chart-colors` enthalten. `master` steht noch auf
+`64233f0b`; für den Farbzweig existiert auf GitHub kein PR. Eine Änderung auf
+der veröffentlichten Seite ist damit noch nicht zu erwarten. Ob die gemeldete
+Ansicht die öffentliche Seite oder eine lokale Vorschau ist, bleibt offen.
+
+**Prüfung:** Lokalen Branch, Chart-Konfiguration, Commit-Abstand zu `master`
+und GitHub-PR-Liste lesend geprüft; keine Anwendungsdateien geändert.
+
 ## 2026-09-23 – Juna – Dashboard-Diagramm mit Marken- und Finanzfarben
 
 **Auftrag:** Die Betragszahlen an den Säulen entfernen, Umsatz in Flipbase-Gelb,
