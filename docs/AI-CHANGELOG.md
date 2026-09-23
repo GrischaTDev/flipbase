@@ -1,5 +1,24 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-23 – Juna – Gewinn-Kachel farblich ans Verkaufsjournal angeglichen
+
+**Auftrag:** Den grünen Gewinnwert oben im Dashboard an die Gewinne im
+Diagramm und in der Tabelle angleichen.
+
+**Änderung:** Die Dashboard-Gewinnkachel verwendete bisher die weiche allgemeine
+Erfolgsfarbe. Positive und negative Werte nutzen jetzt dieselben
+kontrastgerechten Finanztextfarben wie das Verkaufsjournal; die Diagrammsäule
+behält ihre kräftige, für Flächen geeignete Grünfarbe. Vergleichshinweise in
+der Kachel bleiben bei ihren bisherigen Statusfarben.
+
+**Prüfung:** Zwei gezielte Erwartungen scheiterten vor der Änderung an den
+alten Farben und bestanden danach. Der unveränderte Analytics-Test bestand
+isoliert (11/11). `npm test` erreichte bei hoher Parallelität in dessen
+`beforeAll` einen 10-Sekunden-Timeout; die übrigen 119 Angular-Dateien
+bestanden. Die vollständige Vitest-Suite bestand anschließend mit vier Workern
+(297 Dateien, 2.772 Tests). Prettier, ESLint, Typprüfung und Angular-Produktionsbau
+bestanden; der Bau meldete nur die bestehende `pako`-CommonJS-Warnung.
+
 ## 2026-09-23 – Juna – Auslieferungsstatus der Dashboard-Säulen geprüft
 
 **Auftrag:** Unveränderte Säulenfarben in der angezeigten Dashboard-Ansicht einordnen.

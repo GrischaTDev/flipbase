@@ -26,8 +26,8 @@ export class DashboardKpiCardComponent {
     const size = this.size() === 'large' ? 'text-2xl' : 'text-xl';
     const tone = {
       default: 'text-fb-text-primary',
-      positive: 'text-fb-success',
-      negative: 'text-fb-critical',
+      positive: 'text-fb-finance-positive',
+      negative: 'text-fb-finance-negative',
     }[this.valueTone()];
     return `mt-2 font-mono font-semibold tracking-tight ${size} ${tone}`;
   });

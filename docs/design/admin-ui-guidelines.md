@@ -93,7 +93,9 @@ Nutzerentscheidung vom 23.09.2026: Das Admin-Badge verwendet dasselbe kräftige
 Rot wie die Ausgaben-Säule im Dashboard. Hervorgehobene Finanzwerte in Tabellen
 sind bei positivem Ergebnis grün und bei negativem Ergebnis rot; die Textfarben
 sind für helle und dunkle Tabellenflächen kontrastgerecht abgestuft. Gewöhnliche
-Kosten, Nullwerte und noch nicht berechenbare Ergebnisse bleiben neutral.
+Kosten, Nullwerte und noch nicht berechenbare Ergebnisse bleiben neutral. Die
+Gewinn-Kachel im Dashboard verwendet dieselben Finanztextfarben wie das
+Verkaufsjournal; die Säule behält ihr kräftigeres Diagrammgrün.
 
 Einkaufserfassung und -details folgen der sichtbaren Shopify-Referenz in Anordnung und Proportionen: zentrierter Seitenbereich, breite Positionskarte links, schmalere Kosten-/Detailkarten rechts, Chronik unter dem Arbeitsbereich. Eigene Verkäufer-, Paket- und Kostenfunktionen in diese Struktur integrieren. Visuelle Abnahme bei vergleichbarer Fenstergröße gegen Referenz einschließlich Feldern, Dialogen, Tabellen, Leerzuständen, Radien, Schatten und Bewegung; gemessene Abweichungen dokumentieren.
 
