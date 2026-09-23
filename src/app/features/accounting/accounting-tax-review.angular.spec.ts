@@ -15,6 +15,7 @@ import { SalesService } from '../../core/services/sales.service';
 import { BankReconciliationService } from '../../core/services/bank-reconciliation.service';
 import { TablePreferencesService } from '../../core/services/table-preferences.service';
 import { ACCOUNTING_TABLE_CONFIG } from '../../core/config/table-defaults.config';
+import type { BankTransaction } from '../../core/models/bank-reconciliation.models';
 import { CustomSelectComponent } from '../../shared/components/custom-select/custom-select.component';
 import { CustomSearchInputComponent } from '../../shared/components/custom-search-input/custom-search-input.component';
 import { TableColumnMenuComponent } from '../../shared/components/table-column-menu/table-column-menu.component';
@@ -137,9 +138,11 @@ const complete: TaxCalculationResult = {
 
 describe('Steuerjournal – ungeklärte Kosten', () => {
   const results = signal<TaxCalculationResult[]>([]);
+  const transactions = signal<BankTransaction[]>([]);
   beforeEach(() => {
     TestBed.resetTestingModule();
     results.set([]);
+    transactions.set([]);
     TestBed.configureTestingModule({
       imports: [AccountingComponent],
       providers: [
@@ -174,10 +177,31 @@ describe('Steuerjournal – ungeklärte Kosten', () => {
         },
         { provide: PurchaseService, useValue: { purchases: signal([]) } },
         { provide: SalesService, useValue: { sales: signal([]) } },
-        { provide: BankReconciliationService, useValue: { summary: () => ({ matchedCount: 0 }) } },
+        {
+          provide: BankReconciliationService,
+          useValue: {
+            transactions,
+            summary: () => ({
+              totalCount: transactions().length,
+              totalIncome: 0,
+              totalExpense: 0,
+              matchedCount: 0,
+              bookedCount: 0,
+              openCount: transactions().length,
+              autoMatchRate: 0,
+            }),
+          },
+        },
         {
           provide: TablePreferencesService,
-          useValue: { getTableConfig: () => ACCOUNTING_TABLE_CONFIG },
+          useValue: {
+            getTableConfig: () => ACCOUNTING_TABLE_CONFIG,
+            getTablePreferences: () =>
+              signal({
+                columns: ACCOUNTING_TABLE_CONFIG.defaultColumns,
+                sort: ACCOUNTING_TABLE_CONFIG.defaultSort,
+              }),
+          },
         },
       ],
     });
@@ -207,7 +231,7 @@ describe('Steuerjournal – ungeklärte Kosten', () => {
     expect(cells.slice(4, 8)).toEqual(['Prüfen', 'Prüfen', 'Prüfen', 'Prüfen']);
     const marginCell = element.querySelectorAll('tbody td')[5];
     expect(marginCell.classList.contains('text-fb-text-secondary')).toBe(true);
-    expect(marginCell.classList.contains('text-fb-profit')).toBe(false);
+    expect(marginCell.classList.contains('text-fb-finance-positive')).toBe(false);
     expect(element.querySelectorAll('tbody td')[7].classList.contains('text-fb-text-primary')).toBe(
       true,
     );
@@ -253,9 +277,15 @@ describe('Steuerjournal – ungeklärte Kosten', () => {
     expect(cells[6]).toContain('16,81');
     expect(cells[7]).toContain('3,19');
     const rows = element.querySelectorAll('tbody tr');
-    expect(rows[0].querySelectorAll('td')[5].classList.contains('text-fb-profit')).toBe(true);
-    expect(rows[1].querySelectorAll('td')[5].classList.contains('text-fb-loss')).toBe(true);
-    expect(rows[1].querySelectorAll('td')[5].classList.contains('text-fb-profit')).toBe(false);
+    expect(rows[0].querySelectorAll('td')[5].classList.contains('text-fb-finance-positive')).toBe(
+      true,
+    );
+    expect(rows[1].querySelectorAll('td')[5].classList.contains('text-fb-finance-negative')).toBe(
+      true,
+    );
+    expect(rows[1].querySelectorAll('td')[5].classList.contains('text-fb-finance-positive')).toBe(
+      false,
+    );
     expect(element.querySelector('[role="status"]')?.textContent).not.toContain(
       'Positionen prüfen',
     );
@@ -264,6 +294,37 @@ describe('Steuerjournal – ungeklärte Kosten', () => {
         button.textContent?.includes('DATEV EXTF CSV'),
       )?.disabled,
     ).toBe(false);
+  });
+
+  it('zeigt Ein- und Ausgänge im Bankjournal mit lesbaren Finanzfarben und Null neutral', () => {
+    transactions.set(
+      [5, -7, 0].map((amount, index) => ({
+        id: `bank-${index}`,
+        bookingDate: '2026-08-20',
+        counterpartyName: 'Testkonto',
+        purpose: 'Testbuchung',
+        amount,
+        currency: 'EUR',
+        status: 'pending' as const,
+      })),
+    );
+    const fixture = TestBed.createComponent(AccountingComponent);
+    fixture.componentInstance.activeTab.set('bank_reconciliation');
+    fixture.detectChanges();
+    const element: HTMLElement = fixture.nativeElement;
+    const table = [...element.querySelectorAll('table')].find(
+      (candidate) =>
+        candidate.querySelector('caption')?.textContent?.trim() === 'Banktransaktionen',
+    );
+    const amounts = [...(table?.querySelectorAll('tbody tr') ?? [])].map((row) =>
+      row.querySelector('td:nth-child(4) span'),
+    );
+
+    expect(amounts).toHaveLength(3);
+    expect(amounts[0]?.className).toContain('text-fb-finance-positive');
+    expect(amounts[1]?.className).toContain('text-fb-finance-negative');
+    expect(amounts[2]?.className).toContain('text-fb-text-primary');
+    expect(amounts[2]?.className).not.toMatch(/text-fb-finance-(positive|negative)/);
   });
   it('vertraut Datensätzen ohne Berechnungsstatus nicht', () => {
     const legacyResult = { ...complete };

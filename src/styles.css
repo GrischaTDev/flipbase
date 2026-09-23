@@ -438,6 +438,9 @@ html.dark {
   --color-fb-admin-surface: var(--fb-color-admin-surface);
   --color-fb-admin-border: var(--fb-color-admin-border);
 
+  --color-fb-finance-positive: var(--fb-color-finance-positive-text);
+  --color-fb-finance-negative: var(--fb-color-finance-negative-text);
+
   --color-fb-success: var(--fb-color-success-text);
   --color-fb-success-strong: var(--fb-color-success);
   --color-fb-success-surface: var(--fb-color-success-surface);

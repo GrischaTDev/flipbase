@@ -51,7 +51,7 @@ describe('Revenue-Chart-Konfiguration', () => {
     expect(buildRevenueSeries(immutable)[0].data).toEqual([0, 19.98]);
     expect(immutable).toEqual(before);
   });
-  it('beschriftet nur gebuchte Säulen und erhält negative sowie unbekannte Werte', () => {
+  it('zeigt keine Zahlen an den Säulen und erhält negative sowie unbekannte Werte', () => {
     const options = createRevenueChartConfiguration(points, 'light', false);
     expect(options.chart.type).toBe('bar');
     expect(options.plotOptions.bar).toMatchObject({
@@ -60,20 +60,29 @@ describe('Revenue-Chart-Konfiguration', () => {
       columnWidth: '64%',
       horizontal: false,
     });
-    expect(options.stroke.width).toBe(0);
-    expect(options.dataLabels.enabled).toBe(true);
-    expect(options.dataLabels.formatter?.(19.98)).toBe('19,98');
-    expect(options.dataLabels.formatter?.(-16.02)).toBe('-16,02');
-    expect(options.dataLabels.formatter?.(0)).toBe('');
+    expect(options.stroke).toMatchObject({
+      width: 1,
+      colors: ['#8a6d00', '#dc2626', '#16a34a'],
+    });
+    expect(options.dataLabels.enabled).toBe(false);
+    expect(options.dataLabels.formatter).toBeUndefined();
     expect(options.series[1].data).toEqual([25.95, null]);
     expect(options.series[2].data).toEqual([-16.02, null]);
     expect(options.tooltip.enabled).toBe(false);
     expect(options.yaxis.labels?.formatter?.(-25)).toBe('-25,00 €');
   });
+  it.each(['light', 'dark'] as const)(
+    'verwendet im %s-Theme Markengelb, klares Rot und Grün für die drei Reihen',
+    (theme) => {
+      const options = createRevenueChartConfiguration(points, theme, false);
+      expect(options.colors).toEqual(['#fcc601', '#dc2626', '#16a34a']);
+    },
+  );
   it('deaktiviert Animationen bei reduzierter Bewegung und passt das Theme an', () => {
     const options = createRevenueChartConfiguration(points, 'dark', true);
     expect(options.chart.animations?.enabled).toBe(false);
     expect(options.theme.mode).toBe('dark');
+    expect(options.stroke.width).toBe(0);
     expect(createRevenueChartConfiguration(points, 'light', false).chart.animations?.enabled).toBe(
       true,
     );

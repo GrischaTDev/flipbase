@@ -161,4 +161,33 @@ describe('Analytics: offene Kosten bis zur sichtbaren Auswertung', () => {
     expect(fixture.componentInstance.totalRevenue()).toBe(0);
     expect(fixture.componentInstance.totalNetProfit()).toBe(0);
   });
+
+  it.each([
+    { profit: 30, color: 'text-fb-finance-positive' },
+    { profit: -10, color: 'text-fb-finance-negative' },
+    { profit: 0, color: 'text-fb-text-primary' },
+    { profit: null, color: 'text-fb-text-primary' },
+  ])('färbt Gewinn $profit in Analysetabellen passend', ({ profit, color }) => {
+    for (const [section, column] of [
+      ['platforms', 6],
+      ['categories', 5],
+      ['holding', 6],
+    ] as const) {
+      const { fixture, host } = setup([{ ...known, net_profit: profit }], []);
+      fixture.componentInstance.setSection(section);
+      fixture.detectChanges();
+      const row = [...host.querySelectorAll('tbody tr')].find((entry) =>
+        section === 'holding' ? entry.textContent?.includes('Bekannter Workspace') : true,
+      );
+      const cell = row?.querySelector(`td:nth-child(${column})`);
+      expect(cell, `${section}: Gewinnspalte fehlt`).not.toBeNull();
+      expect(cell?.classList.contains(color), `${section}: ${profit}`).toBe(true);
+      if (section === 'platforms') {
+        expect(
+          row?.querySelector('td:nth-child(4)')?.classList.contains('text-fb-text-secondary'),
+        ).toBe(true);
+      }
+      TestBed.resetTestingModule();
+    }
+  });
 });

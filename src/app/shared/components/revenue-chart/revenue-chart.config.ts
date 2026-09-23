@@ -24,27 +24,22 @@ export const REVENUE_CHART_SERIES = [
 
 const palettes = {
   light: {
-    revenue: '#3d697a',
-    totalExpenses: '#777b7b',
-    resultAfterDirectCosts: '#448469',
+    revenue: '#fcc601',
+    totalExpenses: '#dc2626',
+    resultAfterDirectCosts: '#16a34a',
     ticks: '#596273',
     grid: '#e2e6ec',
   },
   dark: {
-    revenue: '#8cbac9',
-    totalExpenses: '#b6b6ae',
-    resultAfterDirectCosts: '#86c7a1',
+    revenue: '#fcc601',
+    totalExpenses: '#dc2626',
+    resultAfterDirectCosts: '#16a34a',
     ticks: '#a8a8a8',
     grid: '#373737',
   },
 };
 
 const euroFormatter = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' });
-const chartValueFormatter = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 2 });
-const compactChartValueFormatter = new Intl.NumberFormat('de-DE', {
-  notation: 'compact',
-  maximumFractionDigits: 1,
-});
 
 export function formatChartAmount(value: number | null): string {
   return value === null ? 'unbekannt' : euroFormatter.format(value);
@@ -104,30 +99,20 @@ export function createRevenueChartConfiguration(
     },
     series: buildRevenueSeries(points),
     colors: REVENUE_CHART_SERIES.map((series) => palette[series.key]),
-    stroke: {
-      width: 0,
-    },
+    stroke:
+      theme === 'light'
+        ? { width: 1, colors: ['#8a6d00', palette.totalExpenses, palette.resultAfterDirectCosts] }
+        : { width: 0 },
     plotOptions: {
       bar: {
         horizontal: false,
         columnWidth: '64%',
         borderRadius: 4,
         borderRadiusApplication: 'end',
-        dataLabels: { position: 'top', hideOverflowingLabels: true },
       },
     },
     markers: { size: points.length === 1 ? 4 : 0, hover: { size: 5 } },
-    dataLabels: {
-      enabled: true,
-      offsetY: -4,
-      style: { fontSize: '12px', fontWeight: 600, colors: [palette.ticks] },
-      formatter: (value) => {
-        if (typeof value !== 'number' || !Number.isFinite(value) || value === 0) return '';
-        return (Math.abs(value) >= 1000 ? compactChartValueFormatter : chartValueFormatter).format(
-          value,
-        );
-      },
-    },
+    dataLabels: { enabled: false },
     legend: { show: false },
     tooltip: { enabled: false },
     xaxis: {

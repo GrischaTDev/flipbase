@@ -248,6 +248,62 @@ describe('SalesComponent – verlinkter Verkauf', () => {
     expect(links.every((link) => link.getAttribute('aria-label')?.includes('Tasse'))).toBe(true);
   });
 
+  it.each([
+    { revenue: 33, amount: '5,00', tone: 'text-fb-finance-positive' },
+    { revenue: 10, amount: '-18,00', tone: 'text-fb-finance-negative' },
+    { revenue: 28, amount: '0,00', tone: 'text-fb-text-primary' },
+  ])(
+    'markiert ein Verkaufsergebnis mit $revenue € in beiden Tabellenansichten korrekt',
+    async ({ revenue, amount, tone }) => {
+      sales.set([
+        {
+          ...linkedSale,
+          sale_price: revenue,
+          lines: linkedSale.lines?.map((line) => ({
+            ...line,
+            unit_sale_price: revenue,
+            line_total: revenue,
+            inventory_item: {
+              id: 'item-1',
+              workspace_id: workspace.id,
+              title: 'Tasse',
+              condition: 'used' as const,
+              status: 'sold' as const,
+              allocated_purchase_cost: 20,
+              purchase: {
+                id: 'purchase-1',
+                workspace_id: workspace.id,
+                type: 'single' as const,
+                title: 'Tasse',
+                purchase_date: '2026-08-01',
+                purchase_price: 20,
+                cost_allocation_mode: 'manual' as const,
+                entry_status: 'finalized' as const,
+              },
+            },
+          })),
+        },
+      ]);
+      loadedWorkspaceId.set(workspace.id);
+
+      const harness = await RouterTestingHarness.create('/sales');
+      const host = harness.routeNativeElement as HTMLElement;
+      const desktopProfit = host.querySelector('#sale-desktop-sale-1 td:nth-child(8)');
+      const mobileResultLabel = [...host.querySelectorAll('#sale-mobile-sale-1 span')].find(
+        (label) => label.textContent?.trim() === 'Ergebnis',
+      );
+      const mobileProfit = mobileResultLabel?.nextElementSibling;
+
+      expect(desktopProfit?.textContent).toContain(amount);
+      expect(desktopProfit?.className).toContain(tone);
+      expect(mobileProfit?.className).toContain(tone);
+      if (revenue === 28) {
+        expect(desktopProfit?.className).not.toMatch(/text-fb-finance-(positive|negative)/);
+        expect(mobileProfit?.className).not.toMatch(/text-fb-finance-(positive|negative)/);
+      }
+    },
+  );
+
   it('kennzeichnet einen Altverkauf ohne belegbaren Wareneinsatz als offen', async () => {
     sales.set([
       {
@@ -265,6 +321,9 @@ describe('SalesComponent – verlinkter Verkauf', () => {
     expect(
       harness.routeNativeElement?.querySelector('[data-testid="sales-result-kpi"]')?.textContent,
     ).toContain('Kosten noch offen');
+    expect(
+      harness.routeNativeElement?.querySelector('tbody tr td:nth-child(8)')?.className,
+    ).not.toMatch(/text-fb-finance-(positive|negative)/);
   });
 
   it.each(['/sales?saleId=https://evil.example', '/sales?saleId=sale-foreign'])(

@@ -329,8 +329,9 @@
                           <td class="whitespace-nowrap text-right">
                             <span
                               class="font-mono text-xs font-bold"
-                              [class.text-fb-profit]="tx.amount > 0"
-                              [class.text-rose-400]="tx.amount < 0"
+                              [class.text-fb-finance-positive]="tx.amount > 0"
+                              [class.text-fb-finance-negative]="tx.amount < 0"
+                              [class.text-fb-text-primary]="tx.amount === 0"
                             >
                               {{ tx.amount > 0 ? '+' : ''
                               }}{{ tx.amount | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
@@ -631,12 +632,12 @@
                       row.tax_mode !== 'diff_25a' ||
                       !row.tax_margin
                     "
-                    [class.text-fb-profit]="
+                    [class.text-fb-finance-positive]="
                       row.calculation_status === 'complete' &&
                       row.tax_mode === 'diff_25a' &&
                       (row.tax_margin ?? 0) > 0
                     "
-                    [class.text-fb-loss]="
+                    [class.text-fb-finance-negative]="
                       row.calculation_status === 'complete' &&
                       row.tax_mode === 'diff_25a' &&
                       (row.tax_margin ?? 0) < 0

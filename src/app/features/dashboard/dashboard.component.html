@@ -187,10 +187,10 @@
                   </td>
                   <td
                     class="px-4 py-3 text-right font-mono font-semibold"
-                    [class.text-fb-success]="
+                    [class.text-fb-finance-positive]="
                       row.resultAfterDirectCosts !== null && row.resultAfterDirectCosts > 0
                     "
-                    [class.text-fb-critical]="
+                    [class.text-fb-finance-negative]="
                       row.resultAfterDirectCosts !== null && row.resultAfterDirectCosts < 0
                     "
                     [class.text-fb-text-primary]="
@@ -255,10 +255,10 @@
                 <dt class="font-semibold text-fb-text-primary">Gewinn</dt>
                 <dd
                   class="text-right font-semibold tabular-nums"
-                  [class.text-fb-success]="
+                  [class.text-fb-finance-positive]="
                     row.resultAfterDirectCosts !== null && row.resultAfterDirectCosts > 0
                   "
-                  [class.text-fb-critical]="
+                  [class.text-fb-finance-negative]="
                     row.resultAfterDirectCosts !== null && row.resultAfterDirectCosts < 0
                   "
                   [class.text-fb-text-primary]="
