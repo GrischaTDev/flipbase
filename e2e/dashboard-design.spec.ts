@@ -40,7 +40,10 @@ for (const theme of ['light', 'dark'] as const) {
     await startDashboard(page);
     if (theme === 'dark')
       await page.getByRole('button', { name: 'Zu dunklem Design wechseln' }).click();
-    await expect(page.locator('app-revenue-chart .apexcharts-line')).toHaveCount(4);
+    const visibleSeries = page.locator(
+      'app-revenue-chart .apexcharts-series:has(.apexcharts-bar-area[d]:not([d=""]))',
+    );
+    await expect(visibleSeries).toHaveCount(4);
     for (const heading of await page.locator('app-dashboard h2, app-dashboard thead th').all()) {
       await expect(heading).toHaveCSS('text-transform', 'none');
       const typography = await heading.evaluate((element) => ({
@@ -58,9 +61,9 @@ for (const theme of ['light', 'dark'] as const) {
       'false',
     );
     expect(errors).toEqual([]);
-    await expect(page.locator('app-revenue-chart .apexcharts-line[d]:not([d=""])')).toHaveCount(3);
+    await expect(visibleSeries).toHaveCount(3);
     await legend.click();
-    await expect(page.locator('app-revenue-chart .apexcharts-line[d]:not([d=""])')).toHaveCount(4);
+    await expect(visibleSeries).toHaveCount(4);
     await checkAxe(page);
     await page.screenshot({
       path: testInfo.outputPath(`dashboard-${theme}-desktop.png`),

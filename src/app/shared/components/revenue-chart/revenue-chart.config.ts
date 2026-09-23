@@ -5,6 +5,7 @@ import type {
   ApexGrid,
   ApexLegend,
   ApexMarkers,
+  ApexPlotOptions,
   ApexResponsive,
   ApexStroke,
   ApexTheme,
@@ -16,10 +17,10 @@ import type { DashboardTimePoint } from '../../../core/models/flipbase.models';
 import type { AppTheme } from '../../../core/services/theme.service';
 
 export const REVENUE_CHART_SERIES = [
-  { key: 'revenue', label: 'Verkaufserlös', dash: 0 },
-  { key: 'costOfGoodsSold', label: 'Wareneinsatz', dash: 8 },
-  { key: 'sellingCosts', label: 'Verkaufskosten', dash: 5 },
-  { key: 'resultAfterDirectCosts', label: 'Ergebnis nach direkten Kosten', dash: 2 },
+  { key: 'revenue', label: 'Verkaufserlös' },
+  { key: 'costOfGoodsSold', label: 'Wareneinsatz' },
+  { key: 'sellingCosts', label: 'Verkaufskosten' },
+  { key: 'resultAfterDirectCosts', label: 'Ergebnis nach direkten Kosten' },
 ] as const;
 
 const palettes = {
@@ -65,6 +66,7 @@ export interface RevenueChartConfiguration {
   dataLabels: ApexDataLabels;
   stroke: ApexStroke;
   markers: ApexMarkers;
+  plotOptions: ApexPlotOptions;
   legend: ApexLegend;
   tooltip: ApexTooltip;
   xaxis: ApexXAxis;
@@ -82,7 +84,7 @@ export function createRevenueChartConfiguration(
   const palette = revenueChartPalette(theme);
   return {
     chart: {
-      type: 'line',
+      type: 'bar',
       height: 260,
       width: '100%',
       fontFamily: 'Inter, system-ui, sans-serif',
@@ -101,9 +103,15 @@ export function createRevenueChartConfiguration(
     series: buildRevenueSeries(points),
     colors: REVENUE_CHART_SERIES.map((series) => palette[series.key]),
     stroke: {
-      width: 2,
-      curve: 'straight',
-      dashArray: REVENUE_CHART_SERIES.map((series) => series.dash),
+      width: 0,
+    },
+    plotOptions: {
+      bar: {
+        horizontal: false,
+        columnWidth: '64%',
+        borderRadius: 4,
+        borderRadiusApplication: 'end',
+      },
     },
     markers: { size: points.length === 1 ? 4 : 0, hover: { size: 5 } },
     dataLabels: { enabled: false },
@@ -132,6 +140,7 @@ export function createRevenueChartConfiguration(
     grid: {
       borderColor: palette.grid,
       strokeDashArray: 3,
+      xaxis: { lines: { show: false } },
       padding: { left: 8, right: 12, top: 8, bottom: 0 },
     },
     theme: { mode: theme },
