@@ -81,13 +81,22 @@ describe('DashboardKpiCardComponent', () => {
     expect(host.querySelector('[data-kpi-hint]')?.textContent).toBe('2 Artikel ohne Kosten');
   });
 
-  it('kennzeichnet einen Verlust am Wert selbst', () => {
+  it('verwendet für den Gewinnwert dieselbe Finanztextfarbe wie das Verkaufsjournal', () => {
+    const host = render({ value: '5,00 €', valueTone: 'positive', size: 'large' });
+    const value = host.querySelector('.linear-kpi > p');
+
+    expect(value?.classList.contains('text-fb-finance-positive')).toBe(true);
+    expect(value?.classList.contains('text-fb-success')).toBe(false);
+  });
+
+  it('kennzeichnet einen Verlust mit der Finanztextfarbe', () => {
     const host = render({ value: '-5,00 €', valueTone: 'negative', size: 'large' });
     const value = [...host.querySelectorAll('p')].find((element) =>
       element.textContent?.includes('-5,00 €'),
     );
 
-    expect(value?.className).toContain('text-fb-critical');
+    expect(value?.className).toContain('text-fb-finance-negative');
+    expect(value?.className).not.toContain('text-fb-critical');
     expect(value?.className).toContain('text-2xl');
   });
 });
