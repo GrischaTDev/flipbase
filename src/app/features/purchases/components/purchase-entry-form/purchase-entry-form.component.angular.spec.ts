@@ -583,6 +583,46 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
     expect(komponente.hasUnsavedChanges()).toBe(true);
   });
 
+  it('stellt beim Wiederöffnen den Warenwert aus allen vorhandenen Positionen wieder her', () => {
+    const vorhandener: Purchase = {
+      ...einkauf,
+      entry_status: 'capturing',
+      pricing_mode: 'individual',
+      purchase_price: null,
+      purchase_lines: [
+        {
+          id: 'line-received',
+          workspace_id: einkauf.workspace_id,
+          purchase_id: einkauf.id,
+          catalog_product_id: 'product-1',
+          title_snapshot: 'Bereits erfasster Artikel',
+          line_kind: 'quantity',
+          ordered_quantity: 2,
+          received_quantity: 2,
+          price_mode: 'priced',
+          unit_purchase_price: 25,
+          line_total: 50,
+          condition_snapshot: 'used',
+          estimated_market_value: null,
+        },
+      ],
+    };
+    const { komponente } = erstelleKomponente(vorhandener);
+
+    komponente.resetToPurchase(vorhandener);
+
+    expect(komponente.form.controls.purchase_price.value).toBe(50);
+    expect(komponente.purchaseBasePrice()).toBe(50);
+    expect(komponente.purchaseLines()).toEqual([
+      expect.objectContaining({
+        titleSnapshot: 'Bereits erfasster Artikel',
+        lineTotal: 50,
+        structuralLocked: true,
+      }),
+    ]);
+    expect(komponente.form.controls.purchase_price.disabled).toBe(true);
+  });
+
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 

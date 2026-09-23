@@ -1,5 +1,34 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-23 – Juna – Wieder geöffnete Einkäufe und Chronik bereinigt
+
+**Auftrag:** Nach gebuchtem Wareneingang den redundanten Hinweis unter der
+gesperrten Menge entfernen und die Uhrzeiten aller Systemereignisse in der
+Einkaufschronik an derselben rechten Kante ausrichten. Außerdem die unerwartet
+erscheinende Eigenbeleg-PDF nach dem Abschluss untersuchen. Beim erneuten Öffnen
+einer Erfassung sollen der Warenwert und die vorhandenen Positionen vollständig
+erhalten bleiben; nicht nutzbare Artikel- und Wareneingangsaktionen sollen
+verschwinden.
+
+**Änderung:** Bereits eingegangene Mengen bleiben als deaktivierte Felder
+geschützt, werden aber nicht mehr durch den Text „Menge nur über eine Korrektur
+ändern“ ergänzt. Aufklappbare und einfache Chronikereignisse verwenden nun
+dieselbe vollbreite Zweispaltenanordnung; ihre Uhrzeiten stehen dadurch gemeinsam
+am rechten Rand. Nach dem Wiederöffnen wechselt die Detailseite direkt in die
+Erfassungsmaske und bildet den Warenwert wieder aus sämtlichen gespeicherten
+Positionssummen, einschließlich bereits erfasster und daher gesperrter Artikel.
+Vollständig erfasste Positionen bieten keinen leeren Wareneingang mehr an; der
+zusätzliche Link „Artikel bearbeiten“ wurde aus der reinen Ansicht entfernt. Die
+Eigenbeleg-Erzeugung wurde nicht geändert: Sie läuft nur für Einkäufe, die
+ausdrücklich mit dem Modus `self` gespeichert wurden, und nicht allein durch den
+Abschluss oder einen vorhandenen Upload.
+
+**Prüfung:** Sechs neue Regressionstests schlugen vor den Änderungen an den
+gemeldeten Stellen fehl. Danach bestanden 110 fokussierte Tests der betroffenen
+Einkaufs- und Chronikkomponenten. Formatprüfung, ESLint, Typprüfung und 84
+Workflow-Tests bestanden. Der Produktionsbau bestand mit Node 22.22.3 und
+meldete nur den bekannten Hinweis zu `pako` aus `pdf-lib`.
+
 ## 2026-09-23 – Juna – Einkaufs-Kostenübersicht vereinfacht
 
 **Auftrag:** Zusatzausgaben ohne Trennlinien und ohne „Noch prüfen“ in der

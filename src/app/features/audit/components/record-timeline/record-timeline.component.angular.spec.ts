@@ -321,6 +321,81 @@ describe('RecordTimelineComponent', () => {
     expect(row.querySelector('button')).toBeNull();
     expect(row.querySelector('dl')).toBeNull();
   });
+
+  it('richtet Uhrzeiten aufklappbarer und einfacher Ereignisse an derselben rechten Kante aus', () => {
+    const timeline = TestBed.configureTestingModule({
+      imports: [RecordTimelineComponent],
+      providers: [
+        {
+          provide: RecordTimelineService,
+          useValue: { list: vi.fn(async () => ({ entries: [], nextCursor: null })) },
+        },
+        { provide: WorkspaceService, useValue: { currentWorkspace: signal({ id: 'w1' }) } },
+        { provide: AuthService, useValue: { currentUser: signal({ id: 'u1' }) } },
+      ],
+    }).createComponent(RecordTimelineComponent);
+    Object.assign(timeline.componentInstance, {
+      entityType: signal('purchase'),
+      entityId: signal('p1'),
+      refreshKey: signal(0),
+    });
+    timeline.detectChanges();
+    timeline.componentInstance.entries.set([
+      {
+        ...comment,
+        id: 'corrected',
+        kind: 'event',
+        event: {
+          id: 'corrected',
+          workspaceId: 'w1',
+          entityId: 'p1',
+          entityType: 'purchase',
+          eventType: 'purchase_corrected',
+          eventLabel: 'Einkauf korrigiert',
+          actorId: 'u1',
+          reason: null,
+          changes: { purchase_price: { before: 10, after: 12 } },
+          correlationId: 'correlation-corrected',
+          createdAt: comment.createdAt,
+        },
+      },
+      {
+        ...comment,
+        id: 'ordered',
+        kind: 'event',
+        event: {
+          id: 'ordered',
+          workspaceId: 'w1',
+          entityId: 'p1',
+          entityType: 'purchase',
+          eventType: 'purchase_ordered',
+          eventLabel: 'Einkauf als bestellt markiert',
+          actorId: 'u1',
+          reason: null,
+          changes: {
+            receiving_status: { before: 'draft', after: 'ordered' },
+            arrived_at: { before: null, after: null },
+          },
+          correlationId: 'correlation-ordered',
+          createdAt: comment.createdAt,
+        },
+      },
+    ]);
+    timeline.detectChanges();
+
+    const rows = [
+      ...(timeline.nativeElement as HTMLElement).querySelectorAll<HTMLElement>(
+        '[data-timeline-event-content]',
+      ),
+    ];
+    expect(rows).toHaveLength(2);
+    for (const row of rows) {
+      expect(row.classList).toContain('grid');
+      expect(row.classList).toContain('w-full');
+      expect(row.querySelector('time')?.classList).toContain('justify-self-end');
+    }
+  });
+
   it('lädt die Chronik nach einem externen Fachereignis neu', async () => {
     const list = vi.fn(async () => ({ entries: [], nextCursor: null }));
     const timeline = TestBed.configureTestingModule({
