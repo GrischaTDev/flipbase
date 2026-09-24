@@ -127,14 +127,10 @@
                   <dt class="text-fb-text-muted">Verkäufer</dt>
                   <dd class="mt-1">{{ purchaseSellerLabel(p) }}</dd>
                 </div>
-                <div>
-                  <dt class="text-fb-text-muted">Einkaufsdatum</dt>
-                  <dd class="mt-1">{{ p.purchase_date | date: 'dd.MM.yyyy' }}</dd>
-                </div>
-                @for (row of purchaseSellerDetailRows(p); track row.label) {
-                  <div data-seller-detail-row>
-                    <dt class="text-fb-text-muted">{{ row.label }}</dt>
-                    <dd class="mt-1 break-words">{{ row.value }}</dd>
+                @if (p.source?.name; as sourceName) {
+                  <div>
+                    <dt class="text-fb-text-muted">Bezugsquelle</dt>
+                    <dd class="mt-1 break-words">{{ sourceName }}</dd>
                   </div>
                 }
               </dl>
@@ -220,25 +216,18 @@
               <div class="space-y-3">
                 <dl class="space-y-2.5 text-[13px]">
                   <div>
-                    <dt class="text-fb-text-muted">Beschreibung</dt>
-                    <dd class="mt-1">{{ p.notes || p.title || 'Nicht angegeben' }}</dd>
+                    <dt class="text-fb-text-muted">Kaufdatum</dt>
+                    <dd class="mt-1">{{ p.purchase_date | date: 'dd.MM.yyyy' }}</dd>
                   </div>
                   <div>
                     <dt class="text-fb-text-muted">Referenznummer</dt>
                     <dd class="mt-1">{{ p.supplier_reference || 'Nicht angegeben' }}</dd>
                   </div>
-                </dl>
-
-                @if (p.notes) {
-                  <div class="pt-2 border-t border-fb-border">
-                    <span class="mb-1 block text-xs font-medium text-fb-text-muted"> Notizen </span>
-                    <p
-                      class="text-xs text-fb-text-secondary leading-relaxed bg-fb-subtle p-2.5 rounded-lg border border-fb-border"
-                    >
-                      {{ p.notes }}
-                    </p>
+                  <div>
+                    <dt class="text-fb-text-muted">Beschreibung</dt>
+                    <dd class="mt-1">{{ p.notes || p.title || 'Nicht angegeben' }}</dd>
                   </div>
-                }
+                </dl>
               </div>
             </app-card>
 

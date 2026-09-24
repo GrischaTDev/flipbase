@@ -99,10 +99,7 @@ export function createRevenueChartConfiguration(
     },
     series: buildRevenueSeries(points),
     colors: REVENUE_CHART_SERIES.map((series) => palette[series.key]),
-    stroke:
-      theme === 'light'
-        ? { width: 1, colors: ['#8a6d00', palette.totalExpenses, palette.resultAfterDirectCosts] }
-        : { width: 0 },
+    stroke: { width: 0 },
     plotOptions: {
       bar: {
         horizontal: false,

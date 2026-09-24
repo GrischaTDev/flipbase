@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
 import { LucideDynamicIcon, LucideIconInput } from '@lucide/angular';
 import { KpiChange } from '../../models/kpi-change';
 
-export type KpiValueTone = 'default' | 'positive' | 'negative';
+export type KpiValueTone = 'default' | 'positive' | 'negative' | 'expense';
 
 @Component({
   selector: 'app-dashboard-kpi-card',
@@ -28,6 +28,7 @@ export class DashboardKpiCardComponent {
       default: 'text-fb-text-primary',
       positive: 'text-fb-finance-positive',
       negative: 'text-fb-finance-negative',
+      expense: 'text-fb-finance-negative',
     }[this.valueTone()];
     return `mt-2 font-mono font-semibold tracking-tight ${size} ${tone}`;
   });

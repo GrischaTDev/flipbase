@@ -1,7 +1,7 @@
 import axe from 'axe-core';
 import { expect, openDashboard, test } from './support/fixtures';
 
-test('hält die Sidebar kompakt und hebt den aktiven Bereich in Logo-Gelb hervor', async ({
+test('hält die Sidebar kompakt und hebt den aktiven Bereich in Logo-Gelb hervor @pr-smoke', async ({
   page,
 }) => {
   await openDashboard(page);
@@ -13,14 +13,15 @@ test('hält die Sidebar kompakt und hebt den aktiven Bereich in Logo-Gelb hervor
 
   await expect(sidebar).toBeVisible();
   await expect(activeLink).toHaveText(/Verkäufe/);
-  await expect(activeLink).toHaveCSS('background-color', 'rgba(252, 198, 1, 0.14)');
-  await expect(activeIcon).toHaveCSS('color', 'rgb(161, 98, 7)');
+  await expect(activeLink).toHaveCSS('background-color', 'rgb(252, 198, 1)');
+  await expect(activeLink).toHaveCSS('color', 'rgb(26, 26, 26)');
+  await expect(activeIcon).toHaveCSS('color', 'rgb(26, 26, 26)');
 
   const demoBadge = sidebar.locator('span', { hasText: 'Demo' });
   await expect(demoBadge).toHaveCount(1);
   for (const badge of await demoBadge.all()) {
-    await expect(badge).toHaveCSS('background-color', 'rgba(252, 198, 1, 0.14)');
-    await expect(badge).toHaveCSS('color', 'rgb(113, 63, 18)');
+    await expect(badge).toHaveCSS('background-color', 'rgb(252, 198, 1)');
+    await expect(badge).toHaveCSS('color', 'rgb(26, 26, 26)');
   }
 
   const sidebarWidth = await sidebar.evaluate((element) => element.getBoundingClientRect().width);
@@ -63,14 +64,17 @@ test('verwendet im dunklen Design das helle Logo-Gelb für den aktiven Menüpunk
   await page.evaluate(() => localStorage.setItem('flipbase_theme', 'dark'));
   await page.goto('/sales');
 
-  const activeIcon = page.locator('app-sidebar a[aria-current="page"] svg').first();
-  await expect(activeIcon).toHaveCSS('color', 'rgb(252, 198, 1)');
+  const activeLink = page.locator('app-sidebar a[aria-current="page"]');
+  const activeIcon = activeLink.locator('svg').first();
+  await expect(activeLink).toHaveCSS('background-color', 'rgb(252, 198, 1)');
+  await expect(activeLink).toHaveCSS('color', 'rgb(26, 26, 26)');
+  await expect(activeIcon).toHaveCSS('color', 'rgb(26, 26, 26)');
 
   const demoBadge = page.locator('app-sidebar span', { hasText: 'Demo' });
   await expect(demoBadge).toHaveCount(1);
   for (const badge of await demoBadge.all()) {
-    await expect(badge).toHaveCSS('background-color', 'rgba(252, 198, 1, 0.14)');
-    await expect(badge).toHaveCSS('color', 'rgb(252, 198, 1)');
+    await expect(badge).toHaveCSS('background-color', 'rgb(252, 198, 1)');
+    await expect(badge).toHaveCSS('color', 'rgb(26, 26, 26)');
   }
 });
 
@@ -81,7 +85,8 @@ test('übernimmt den gelben aktiven Zustand auch in der mobilen Navigation', asy
 
   const activeLink = page.locator('app-bottom-nav a[aria-current="page"]');
   await expect(activeLink).toHaveText('Verkauf');
-  await expect(activeLink).toHaveCSS('color', 'rgb(161, 98, 7)');
+  await expect(activeLink).toHaveCSS('background-color', 'rgb(252, 198, 1)');
+  await expect(activeLink).toHaveCSS('color', 'rgb(26, 26, 26)');
 
   const sidebar = page.locator('app-sidebar > aside[aria-label="Hauptnavigation"]');
   const sidebarLinkHeight = await sidebar

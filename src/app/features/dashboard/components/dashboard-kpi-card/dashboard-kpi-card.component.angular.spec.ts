@@ -99,4 +99,11 @@ describe('DashboardKpiCardComponent', () => {
     expect(value?.className).not.toContain('text-fb-critical');
     expect(value?.className).toContain('text-2xl');
   });
+
+  it('kennzeichnet einen positiven Ausgabenbetrag als Ausgaben statt als Verlust', () => {
+    const host = render({ value: '44,84 €', valueTone: 'expense', size: 'large' });
+    const value = host.querySelector('.linear-kpi > p');
+
+    expect(value?.classList.contains('text-fb-finance-negative')).toBe(true);
+  });
 });

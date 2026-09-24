@@ -105,7 +105,7 @@ describe('PurchaseDetailComponent', () => {
 
     expect(template).toContain('>Verkäufer<');
     expect(template).toContain('Beschreibung');
-    expect(template).toContain('purchaseSellerDetailRows(p)');
+    expect(template).toContain('>Bezugsquelle<');
     expect(template).toContain("p.notes || p.title || 'Nicht angegeben'");
     expect(template).not.toContain('>Angebotslink<');
     expect(template).not.toContain('original_url');

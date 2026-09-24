@@ -60,10 +60,7 @@ describe('Revenue-Chart-Konfiguration', () => {
       columnWidth: '64%',
       horizontal: false,
     });
-    expect(options.stroke).toMatchObject({
-      width: 1,
-      colors: ['#8a6d00', '#dc2626', '#16a34a'],
-    });
+    expect(options.stroke.width).toBe(0);
     expect(options.dataLabels.enabled).toBe(false);
     expect(options.dataLabels.formatter).toBeUndefined();
     expect(options.series[1].data).toEqual([25.95, null]);

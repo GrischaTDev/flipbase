@@ -31,10 +31,18 @@ const coreTests = [
     'purchase-editable-draft.spec.ts',
     'keeps a saved draft editable through discard, save and reopening @pr-smoke',
   ],
+  [
+    'purchase-detail-layout.spec.ts',
+    'keeps purchase details in the right card after completion @pr-smoke',
+  ],
   ['purchase-tax-costs.spec.ts', 'keeps per-item tax visible in the tax journal @pr-smoke'],
   [
     'purchase-tax-costs.spec.ts',
     'preserves additional purchase costs after reopening at 1440px @pr-smoke',
+  ],
+  [
+    'sidebar-navigation.spec.ts',
+    'hält die Sidebar kompakt und hebt den aktiven Bereich in Logo-Gelb hervor @pr-smoke',
   ],
 ];
 
@@ -117,7 +125,7 @@ async function listTests(config) {
 
 const keys = (entries) => entries.map((entry) => JSON.stringify(entry)).sort();
 
-test('PR-Auswahl: neun Kernfälle, keine Wiederholungen, kein test.only', async () => {
+test('PR-Auswahl: elf Kernfälle, keine Wiederholungen, kein test.only', async () => {
   const { report, selected } = await listTests('playwright.pr.config.ts');
   assert.deepEqual(keys(selected), keys(coreTests));
   assert.equal(report.config.forbidOnly, true);

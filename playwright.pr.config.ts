@@ -3,11 +3,13 @@ import baseConfig from './playwright.config';
 
 export default defineConfig({
   ...baseConfig,
-  // Vier bewährte Daten-/Geldpfade, Inserats- und Beta-Lebenszyklus sowie drei kleine Grenzprüfungen.
+  // Kernpfade für Daten, Geld, Einkaufslayout, Navigation, Inserate und Beta.
   // Das historische @pr-smoke allein macht einen Test nicht mehr zur Pflicht.
   grep: [
     /@core-smoke\b/,
     /keeps a saved draft editable through discard, save and reopening @pr-smoke\b/,
+    /keeps purchase details in the right card after completion @pr-smoke\b/,
+    /hält die Sidebar kompakt und hebt den aktiven Bereich in Logo-Gelb hervor @pr-smoke\b/,
     /preserves additional purchase costs after reopening at 1440px @pr-smoke\b/,
     /keeps per-item tax visible in the tax journal @pr-smoke\b/,
     /verkauft ein Einzelstück genau einmal aus dem gemeinsamen Inventar @pr-smoke\b/,

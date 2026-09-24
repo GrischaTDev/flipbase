@@ -23,6 +23,30 @@ ESLint der geänderten TypeScript-Dateien, Typprüfung, Angular-Produktionsbau
 und `git diff --check` bestanden. Echte Kamera und Online-Datenquelle wurden
 in dieser Sitzung nicht live geprüft.
 
+## 2026-09-24 – Juna – Dashboard-, Einkaufs- und Statusfarben vereinheitlicht
+
+**Auftrag:** Die dunkle Kontur der gelben Dashboard-Säule entfernen,
+Gesamtausgaben oben rot darstellen, Einkaufsdetails auch nach Abschluss rechts
+belassen und Statusbadges sowie aktive Navigation mit klaren Farben zeigen.
+
+**Änderung:** Alle Diagrammsäulen haben keine Kontur mehr. Bekannte positive
+Gesamtausgaben nutzen die kontrastgerechte rote Finanztextfarbe; unbekannte und
+Nullwerte bleiben neutral. In der schreibgeschützten Einkaufsansicht stehen
+Kaufdatum, Referenznummer und Beschreibung rechts, Verkäufer und Bezugsquelle
+links; doppelte Angaben entfallen. Statusbadges verwenden zentral volle
+Gelb-, Grün-, Orange-, Rot- und Grautöne mit WCAG-AA-kontrastreicher Schrift.
+Aktive Navigation ist in beiden Themes vollflächig gelb mit dunkler Schrift.
+
+**Prüfung:** Die gezielten Komponenten-Tests scheiterten vor den Änderungen und
+bestanden danach; die vollständige Vitest-Suite bestand auf dem letzten
+Code-Stand (297 Dateien, 2.776 Tests). ESLint, Typprüfung, Produktionsbau,
+Workflow-Tests und die Auswahl der elf PR-Browserfälle bestanden. Das gebaute
+CSS lieferte in beiden Themes gelbe Navigation mit dunkler Schrift und den
+kräftigen grünen Status-Badge. Der Bau meldete nur die bestehende
+`pako`-CommonJS-Warnung. Der lokale Browserlauf blieb vor dem Test an der nicht
+laufenden Supabase-Testinstanz hängen; die zugehörigen Browserfälle sind deshalb
+als Pflichtprüfungen für den PR eingetragen.
+
 ## 2026-09-23 – Juna – Gewinn-Kachel farblich ans Verkaufsjournal angeglichen
 
 **Auftrag:** Den grünen Gewinnwert oben im Dashboard an die Gewinne im

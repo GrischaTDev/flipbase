@@ -30,6 +30,19 @@
   --fb-color-finance-positive-text: #15803d;
   --fb-color-finance-negative-text: #b91c1c;
 
+  /* Status-Badges nutzen volle Signalfarben; Hinweise und Dialoge behalten
+     ihre ruhigeren, transparenten Oberflaechen. */
+  --fb-badge-brand: #fcc601;
+  --fb-badge-on-brand: #1a1a1a;
+  --fb-badge-success: #16a34a;
+  --fb-badge-on-success: #101810;
+  --fb-badge-warning: #f89d13;
+  --fb-badge-on-warning: #1a1a1a;
+  --fb-badge-critical: #dc2626;
+  --fb-badge-on-critical: #ffffff;
+  --fb-badge-neutral: #6b7280;
+  --fb-badge-on-neutral: #ffffff;
+
   /* Erfolg / positiver Zustand – bewusst warmes, weiches Gruen. */
   --fb-color-success: #86c98c;
   --fb-color-success-text: #3f6f49;
