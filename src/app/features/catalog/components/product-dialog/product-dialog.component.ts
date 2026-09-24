@@ -42,6 +42,12 @@ import {
   BarcodeLookupService,
   BarcodeProductInfo,
 } from '../../../../core/services/barcode-lookup.service';
+import {
+  BarcodeAiCandidate,
+  BarcodeAiLookupService,
+  BarcodeAiResult,
+} from '../../../../core/services/barcode-ai-lookup.service';
+import { PlatformOperatorService } from '../../../../core/services/platform-operator.service';
 import { BarcodeScannerComponent } from '../../../../shared/components/barcode-scanner/barcode-scanner.component';
 import { LucideScanBarcode } from '@lucide/angular';
 import { PRODUCT_CONDITIONS } from '../../../../core/config/product-conditions';
@@ -82,6 +88,9 @@ export class ProductDialogComponent {
   }
   private readonly catalog = inject(CatalogService);
   private readonly barcodeLookup = inject(BarcodeLookupService);
+  private readonly barcodeAiLookup = inject(BarcodeAiLookupService);
+  readonly aiSessionUsage = this.barcodeAiLookup.sessionUsage;
+  readonly platformOperator = inject(PlatformOperatorService);
   private readonly media = inject(MediaService);
   private readonly workspace = inject(WorkspaceService);
   private readonly destroyRef = inject(DestroyRef);
@@ -102,6 +111,11 @@ export class ProductDialogComponent {
   readonly barcodeMessage = signal<string | null>(null);
   readonly barcodeSuggestion = signal<BarcodeProductInfo | null>(null);
   readonly existingProduct = signal<CatalogProduct | null>(null);
+  readonly aiSearchEan = signal<string | null>(null);
+  readonly labelPhoto = signal<File | null>(null);
+  readonly aiLoading = signal(false);
+  readonly aiResult = signal<BarcodeAiResult | null>(null);
+  readonly aiError = signal<string | null>(null);
   readonly barcodeIcon = LucideScanBarcode;
   private barcodeRequestId = 0;
   readonly conditionOptions: readonly SelectOption<string>[] = [
@@ -146,6 +160,7 @@ export class ProductDialogComponent {
 
   constructor() {
     this.destroyRef.onDestroy(this.releaseWorkspaceLock);
+    void this.platformOperator.isOperator();
     effect(() => {
       const value = this.initialProduct();
       if (!value || this.form.dirty) return;
@@ -177,6 +192,11 @@ export class ProductDialogComponent {
     const requestId = ++this.barcodeRequestId;
     this.barcodeSuggestion.set(null);
     this.existingProduct.set(null);
+    this.aiSearchEan.set(null);
+    this.labelPhoto.set(null);
+    this.aiLoading.set(false);
+    this.aiResult.set(null);
+    this.aiError.set(null);
     if (!ean) {
       this.barcodeMessage.set('Bitte eine gültige EAN/GTIN mit 8, 12, 13 oder 14 Ziffern scannen.');
       return;
@@ -184,6 +204,7 @@ export class ProductDialogComponent {
     this.form.controls.ean.setValue(ean);
     this.barcodeLoading.set(true);
     this.barcodeMessage.set('Suche im Artikelstamm…');
+    let externalLookupStarted = false;
     try {
       const workspaceId = this.workspace.currentWorkspace()?.id;
       if (!workspaceId) throw new Error('Kein aktiver Workspace ausgewählt.');
@@ -226,6 +247,7 @@ export class ProductDialogComponent {
         return;
       }
       this.barcodeMessage.set('Artikel nicht im Inventar vorhanden. Suche online…');
+      externalLookupStarted = true;
       const product = await this.barcodeLookup.lookupExternalByEan(ean);
       if (
         requestId !== this.barcodeRequestId ||
@@ -233,6 +255,7 @@ export class ProductDialogComponent {
       )
         return;
       this.barcodeSuggestion.set(product);
+      if (!product) this.aiSearchEan.set(ean);
       this.barcodeMessage.set(
         product
           ? 'Produktdaten gefunden. Bitte prüfe sie vor der Übernahme.'
@@ -240,12 +263,80 @@ export class ProductDialogComponent {
       );
     } catch {
       if (requestId !== this.barcodeRequestId) return;
+      if (externalLookupStarted) this.aiSearchEan.set(ean);
       this.barcodeMessage.set(
         'Die Online-Suche ist gerade nicht erreichbar. Du kannst den Artikel selbst ausfüllen.',
       );
     } finally {
       if (requestId === this.barcodeRequestId) this.barcodeLoading.set(false);
     }
+  }
+
+  selectLabelPhoto(event: Event): void {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) return;
+    this.labelPhoto.set(target.files?.[0] ?? null);
+    this.aiResult.set(null);
+    this.aiError.set(null);
+  }
+
+  async searchWithAi(): Promise<void> {
+    const ean = this.aiSearchEan();
+    if (!ean || this.form.controls.ean.value !== ean || this.aiLoading()) return;
+    const requestId = this.barcodeRequestId;
+    const workspaceId = this.workspace.currentWorkspace()?.id;
+    this.aiLoading.set(true);
+    this.aiResult.set(null);
+    this.aiError.set(null);
+    try {
+      if (!(await this.platformOperator.isOperator())) return;
+      const result = await this.barcodeAiLookup.search(ean, this.labelPhoto());
+      if (
+        requestId !== this.barcodeRequestId ||
+        workspaceId !== this.workspace.currentWorkspace()?.id
+      )
+        return;
+      this.aiResult.set(result);
+      this.barcodeMessage.set(
+        result.candidates.length
+          ? 'Mögliche Produkte gefunden. Prüfe Modell, Variante und Quelle vor der Übernahme.'
+          : 'Auch die KI-Suche hat keinen belegten Produktvorschlag gefunden. Versuche ein Etikettfoto.',
+      );
+    } catch (error: unknown) {
+      if (requestId !== this.barcodeRequestId) return;
+      this.aiError.set(
+        error instanceof Error ? error.message : 'Die KI-Suche ist gerade nicht verfügbar.',
+      );
+    } finally {
+      if (requestId === this.barcodeRequestId) this.aiLoading.set(false);
+    }
+  }
+
+  useAiSuggestion(candidate: BarcodeAiCandidate): void {
+    const ean = this.aiSearchEan();
+    if (
+      !ean ||
+      this.form.controls.ean.value !== ean ||
+      !this.aiResult()?.candidates.includes(candidate)
+    )
+      return;
+    this.form.patchValue({
+      title: candidate.title,
+      model: candidate.model,
+      size: candidate.size,
+      color: candidate.color,
+    });
+    this.brandSuggestion.set(candidate.brand || null);
+    this.categorySuggestion.set(candidate.category || null);
+    this.aiResult.set(null);
+    this.barcodeMessage.set('Vorschlag übernommen. Bitte prüfe und ergänze die Angaben.');
+  }
+
+  formatCents(amountUsd: number): string {
+    return (amountUsd * 100).toLocaleString('de-DE', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
   }
 
   useBarcodeSuggestion(): void {

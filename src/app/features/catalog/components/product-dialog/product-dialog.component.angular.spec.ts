@@ -10,7 +10,9 @@ import { Brand } from '../../../../core/models/product-category.models';
 import { ProductCategory } from '../../../../core/models/product-category.models';
 import { BrandService } from '../../../../core/services/brand.service';
 import { CatalogService } from '../../../../core/services/catalog.service';
+import { BarcodeAiLookupService } from '../../../../core/services/barcode-ai-lookup.service';
 import { MediaService } from '../../../../core/services/media.service';
+import { PlatformOperatorService } from '../../../../core/services/platform-operator.service';
 import { ProductCategoryService } from '../../../../core/services/product-category.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { BrandPickerComponent } from '../../../../shared/components/brand-picker/brand-picker.component';
@@ -169,7 +171,12 @@ beforeEach(() => {
     imports: [ProductDialogComponent],
     providers: [
       { provide: CatalogService, useValue: catalog },
+      {
+        provide: BarcodeAiLookupService,
+        useValue: { search: vi.fn(), sessionUsage: signal({ searches: 0, estimatedCostUsd: 0 }) },
+      },
       { provide: MediaService, useValue: { uploadProductMedia: vi.fn() } },
+      { provide: PlatformOperatorService, useValue: { isOperator: vi.fn(async () => false) } },
       { provide: WorkspaceService, useValue: { currentWorkspace: activeWorkspace } },
       { provide: BrandService, useValue: brandService },
       { provide: ProductCategoryService, useValue: categoryService },

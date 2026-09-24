@@ -71,6 +71,27 @@ erreichten mindestens 5,82:1 Textkontrast. Der Bau meldete nur die bekannte
 wurden nicht ausgeführt. Die angepasste Browser-Testdatei bestand Prettier und
 ESLint; Playwright erkannte alle elf PR-Smoke-Tests.
 
+## 2026-09-24 – Juna – KI-Produktsuche für Barcode-Fälle ohne Treffer vorbereitet
+
+**Auftrag:** Unbekannte EANs optional mit einem Etikettfoto im Web suchen,
+Produktvarianten zur geprüften Übernahme anbieten und die Kosten für einen
+Betreiber-Testlauf sichtbar machen.
+
+**Änderung:** Die Produkterstellung bietet Betreibern nach erfolgloser EAN-Suche
+eine KI-Websuche mit optionalem Etikettfoto. Vorschläge zeigen Variante und
+anklickbare Quelle; die EAN bleibt beim Übernehmen erhalten. Eine neue Supabase
+Edge Function prüft die Betreiberrolle serverseitig, hält den OpenAI-Schlüssel
+aus dem Browser heraus und begrenzt die Websuche auf zwei Aufrufe. Angezeigter
+Tokenverbrauch, geschätzte Kosten und Sitzungsdurchschnitt helfen bei der
+Pilotkalkulation. Ohne konfigurierten Schlüssel bleibt die Funktion gesperrt.
+
+**Prüfung:** Gezielte Angular- und Servicetests (14) sowie vier gebündelt unter
+Node ausgeführte Edge-Handler-Tests bestanden. ESLint, TypeScript-Prüfung,
+Prettier und Angular-Produktionsbau bestanden. Ein nativer Deno-Lauf und ein
+echter kostenpflichtiger OpenAI-Aufruf waren lokal nicht möglich: Deno ist
+nicht installiert, die Supabase-CLI stürzt bereits bei `--help` ab und ein
+API-Schlüssel wurde nicht hinterlegt.
+
 ## 2026-09-24 – Juna – Aktive Einkaufsfilter kenntlich gemacht
 
 **Auftrag:** Den redundanten, wegklickbaren Verkäuferchip unter der
