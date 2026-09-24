@@ -114,6 +114,18 @@ export class ItemDetailComponent {
   isMutationLocked(item: InventoryItem): boolean {
     return isInventoryItemMutationLocked(item);
   }
+
+  canOfferDelete(item: InventoryItem): boolean {
+    return (
+      !this.isMutationLocked(item) &&
+      !item.purchase_id &&
+      !item.purchase_line_id &&
+      !item.source_package_line_id &&
+      !item.costs?.length &&
+      !item.is_public_store &&
+      item.status !== 'reserved'
+    );
+  }
   /**
    * Vorgaben fuer das eigene Auswahlfeld.
    *
@@ -260,6 +272,14 @@ export class ItemDetailComponent {
         this.inventoryService.getItemById(itemId);
         this.loadMedia(itemId);
       }
+    });
+    effect(() => {
+      if (
+        this.queryParams().get('edit') === 'true' &&
+        this.currentItem() &&
+        !this.isMutationLocked(this.currentItem()!)
+      )
+        this.isEditModalOpen.set(true);
     });
   }
 
@@ -515,7 +535,7 @@ export class ItemDetailComponent {
 
   async onDeleteItem(): Promise<void> {
     const item = this.currentItem();
-    if (!item || this.isMutationLocked(item)) return;
+    if (!item || !this.canOfferDelete(item)) return;
     const bestaetigt = await this.dialog.frage({
       titel: 'Artikel löschen?',
       text: `„${item.title}“ wird endgültig gelöscht. Das lässt sich nicht rückgängig machen.`,

@@ -46,6 +46,16 @@ describe('listing rules', () => {
     ).toEqual({ allowed: true });
   });
 
+  it('rejects archived catalog products despite available quantity', () => {
+    expect(
+      canPrepareListing({
+        targetKind: 'catalog_product',
+        availableQuantity: 5,
+        archivedAt: '2026-09-24T00:00:00Z',
+      }),
+    ).toEqual({ allowed: false, reason: 'Der Artikel ist archiviert.' });
+  });
+
   it('rejects catalog products with zero or negative available quantity', () => {
     expect(
       canPrepareListing({

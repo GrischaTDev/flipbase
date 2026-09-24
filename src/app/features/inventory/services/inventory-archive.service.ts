@@ -6,7 +6,7 @@ import { WorkspaceService } from '../../../core/services/workspace.service';
 import { AuthService } from '../../../core/services/auth.service';
 
 export function isArchivedInventoryItem(item: InventoryItem): boolean {
-  return item.status === 'archived' || (!!item.archived_at && item.sale_state === 'sold');
+  return item.status === 'archived' || !!item.archived_at;
 }
 @Injectable({ providedIn: 'root' })
 export class InventoryArchiveService {

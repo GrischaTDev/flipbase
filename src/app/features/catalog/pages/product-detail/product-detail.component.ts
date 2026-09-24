@@ -33,8 +33,6 @@ import { MediaService } from '../../../../core/services/media.service';
 import { StockService } from '../../../../core/services/stock.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { WorkspaceContextLockService } from '../../../../core/services/workspace-context-lock.service';
-import { ARTICLE_VIEWS } from '../../../../core/config/article-navigation';
-import { SectionNavigationComponent } from '../../../../shared/components/section-navigation/section-navigation.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { BrandPickerComponent } from '../../../../shared/components/brand-picker/brand-picker.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
@@ -70,7 +68,6 @@ import { summarizeProductStock } from './product-detail-stock';
   imports: [
     DatePipe,
     ReactiveFormsModule,
-    SectionNavigationComponent,
     ButtonComponent,
     BrandPickerComponent,
     CardComponent,
@@ -120,7 +117,6 @@ export class ProductDetailComponent implements UnsavedEntryPage {
   readonly categorySuggestion = signal<string | null>(null);
   readonly brandSuggestion = signal<string | null>(null);
   private barcodeRequestId = 0;
-  readonly articleViews = ARTICLE_VIEWS;
   private readonly params = toSignal(this.route.paramMap, {
     initialValue: this.route.snapshot.paramMap,
   });

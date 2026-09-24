@@ -147,17 +147,8 @@ export const routes: Routes = [
           ),
       },
       {
-        path: 'inventory',
-        loadComponent: () =>
-          import('./features/inventory/inventory.component').then((m) => m.InventoryComponent),
-      },
-      {
         path: 'inventory/new',
-        canDeactivate: [unsavedEntryGuard],
-        loadComponent: () =>
-          import('./features/inventory/pages/item-create/item-create.component').then(
-            (m) => m.ItemCreateComponent,
-          ),
+        redirectTo: '/catalog/new',
       },
       {
         path: 'inventory/:id',
@@ -166,6 +157,7 @@ export const routes: Routes = [
             (m) => m.ItemDetailComponent,
           ),
       },
+      { path: 'inventory', pathMatch: 'full', redirectTo: '/catalog?view=stock' },
       {
         path: 'catalog',
         loadComponent: () =>

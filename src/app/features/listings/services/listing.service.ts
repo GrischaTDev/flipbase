@@ -39,6 +39,7 @@ interface ListingDatabaseRow {
 type InventoryDatabaseRow = Tables<'inventory_items'> & {
   readonly condition_notes?: string | null;
   readonly media?: readonly ItemMediaDatabaseRow[] | null;
+  readonly purchase_line?: { readonly catalog_product_id: string | null } | null;
 };
 type ItemMediaDatabaseRow = Tables<'item_media'> & { readonly sort_order?: number | null };
 
@@ -162,7 +163,9 @@ export class ListingService {
           .order('updated_at', { ascending: false }),
         this.client
           .from('inventory_items')
-          .select('*, media:item_media(*)')
+          .select(
+            '*, media:item_media(*), purchase_line:purchase_lines!inventory_items_workspace_purchase_line_fkey(catalog_product_id)',
+          )
           .eq('workspace_id', workspaceId)
           .order('created_at', { ascending: false }),
         this.client
@@ -213,7 +216,12 @@ export class ListingService {
         });
       }
 
-      const inventoryEditorItems = (itemsResult.data ?? []).map((item) => this.mapEditorItem(item));
+      const productsById = new Map(
+        (productsResult.data ?? []).map((product) => [product.id, product]),
+      );
+      const inventoryEditorItems = (itemsResult.data ?? []).map((item) =>
+        this.mapEditorItem(item, productsById),
+      );
       const catalogEditorItems = (productsResult.data ?? []).map((product) =>
         this.mapCatalogEditorItem(product, stockByProductId.get(product.id)),
       );
@@ -436,7 +444,16 @@ export class ListingService {
     };
   }
 
-  private mapEditorItem(row: InventoryDatabaseRow): ListingEditorItem {
+  private mapEditorItem(
+    row: InventoryDatabaseRow,
+    productsById: ReadonlyMap<string, CatalogProductDatabaseRow>,
+  ): ListingEditorItem {
+    const productId = row.purchase_line?.catalog_product_id;
+    const parentArchivedAt = row.purchase_line_id
+      ? productId === null
+        ? null
+        : (productId && productsById.get(productId)?.archived_at) || 'unbekannter-stammartikel'
+      : null;
     return {
       id: row.id,
       workspaceId: row.workspace_id,
@@ -448,7 +465,7 @@ export class ListingService {
       conditionNotes: row.condition_notes ?? null,
       description: row.description,
       status: row.status as ListingEditorItem['status'],
-      archivedAt: row.archived_at,
+      archivedAt: row.archived_at ?? parentArchivedAt,
       expectedValue: row.expected_value,
       allocatedPurchaseCost: row.allocated_purchase_cost,
       media: (row.media ?? []).map((medium) => this.mapMedia(medium)),
@@ -472,7 +489,7 @@ export class ListingService {
       conditionNotes: row.condition_notes ?? null,
       description: row.description ?? null,
       status: (stock?.totalQuantity ?? 0) > 0 ? 'ready' : 'sold',
-      archivedAt: null,
+      archivedAt: row.archived_at ?? null,
       expectedValue: row.listing_price ?? null,
       allocatedPurchaseCost: stock?.oldestUnitCost ?? null,
       media: rawMedia.map((medium) => this.mapCatalogMedia(medium, row.id)),

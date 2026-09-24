@@ -126,10 +126,18 @@ export class PurchaseLineEditorComponent {
     this.importPreview().some((row) => row.errors.length > 0 || !row.productId),
   );
   readonly productOptions = computed<SelectOption<string>[]>(() =>
-    this.availableProducts().map((product) => ({
-      value: product.id,
-      label: product.title + (product.condition ? ' · ' + product.condition : ''),
-    })),
+    this.availableProducts()
+      .filter(
+        (product) =>
+          !product.archived_at ||
+          this.lineRows.controls.some(
+            (line) => line.controls.catalogProductId.value === product.id,
+          ),
+      )
+      .map((product) => ({
+        value: product.id,
+        label: product.title + (product.condition ? ' · ' + product.condition : ''),
+      })),
   );
   private readonly workspaceService = inject(WorkspaceService);
 
@@ -155,6 +163,9 @@ export class PurchaseLineEditorComponent {
     this.catalogService
       .products()
       .filter((product) => product.workspace_id === this.activeWorkspaceId()),
+  );
+  readonly selectableProducts = computed(() =>
+    this.availableProducts().filter((product) => !product.archived_at),
   );
   readonly lineCount = signal(0);
   readonly lineRows = new FormArray<FormGroup<PurchaseLineControls>>([]);

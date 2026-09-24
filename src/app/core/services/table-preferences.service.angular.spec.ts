@@ -217,13 +217,18 @@ describe('TablePreferencesService – Polaris Table Preferences & Reordering', (
     );
   });
 
-  it('ersetzt die frühere Webshop-Spalte im Artikelstamm durch Kategorie und Marke', () => {
+  it('ergänzt die neue Artikeltabelle und entfernt die frühere Webshop-Spalte', () => {
     expect(CATALOG_TABLE_CONFIG.defaultColumns.map(({ id }) => id)).toEqual([
       'title',
+      'on_hand',
+      'available',
+      'status',
+      'actions',
+      'reserved',
+      'inventory_value',
       'category',
       'brand',
       'ean',
-      'available',
     ]);
     localStorage.setItem(
       `flipbase:table_prefs:${testWorkspaceId}:catalog`,
@@ -243,10 +248,15 @@ describe('TablePreferencesService – Polaris Table Preferences & Reordering', (
 
     expect(state.columns.map(({ id }) => id)).toEqual([
       'title',
-      'category',
-      'brand',
+      'on_hand',
       'ean',
       'available',
+      'status',
+      'actions',
+      'reserved',
+      'inventory_value',
+      'category',
+      'brand',
     ]);
     expect(state.columns.some(({ id }) => id === 'store')).toBe(false);
   });

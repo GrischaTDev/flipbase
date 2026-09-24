@@ -1,5 +1,4 @@
 <div class="mx-auto max-w-6xl space-y-4">
-  <app-section-navigation [links]="articleViews" label="Artikelansichten" />
   <app-page-header
     [title]="creating() ? 'Artikel erstellen' : product()?.title || 'Artikel'"
     [backLink]="stockView() ? '/inventory' : '/catalog'"
