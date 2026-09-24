@@ -31,21 +31,22 @@
 
 ## Dateigrenzen und Schnittstellen
 
-| Einheit | Dateien | Verantwortung |
-| --- | --- | --- |
-| Archivregeln | `supabase/schemas/database.sql`, `97_inventory_archive.sql`, neue `235_article_lifecycle.sql` | Metadaten, gesicherte Archivaktionen und Löschprüfung |
-| Medienaufträge | neue Tabelle in `235_article_lifecycle.sql`, neue `supabase/functions/article-media-cleanup/` | Persistente Dateipfade und wiederholbare Storage-Bereinigung |
-| Mengen | `src/app/features/catalog/utils/catalog-overview.ts`, `src/app/features/inventory/utils/inventory-presentation.ts`, `src/app/core/models/inventory-sellability.ts` | Physisch vorhanden, reserviert und verkaufbar getrennt berechnen |
-| Artikeltabelle | `src/app/features/catalog/catalog.component.ts/.html`, neue `features/catalog/models/article-row.ts` | Eine Zeile je Identität, Filter, Spalten, Aktionen |
-| Aktionen | neue `features/catalog/services/article-lifecycle.service.ts`, bestehende Archiv-/Katalogservices | RPC-Aufruf, Pending-Zustand und Reload ohne Cross-Workspace-Leak |
-| Schreibwege | `230_listings.sql`, Verkaufs-/Shopfunktionen in `database.sql`, betroffene Auswahlkomponenten | Archivierte Artikel serverseitig abweisen und in neuen Auswahlen verbergen |
-| Navigation | `article-navigation.ts`, `workspace-navigation.ts`, `app.routes.ts`, `table-defaults.config.ts` | Ein Sidebar-Eintrag, alte Links und gespeicherte Tabellenansicht |
+| Einheit        | Dateien                                                                                                                                                            | Verantwortung                                                              |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------- |
+| Archivregeln   | `supabase/schemas/database.sql`, `97_inventory_archive.sql`, neue `235_article_lifecycle.sql`                                                                      | Metadaten, gesicherte Archivaktionen und Löschprüfung                      |
+| Medienaufträge | neue Tabelle in `235_article_lifecycle.sql`, neue `supabase/functions/article-media-cleanup/`                                                                      | Persistente Dateipfade und wiederholbare Storage-Bereinigung               |
+| Mengen         | `src/app/features/catalog/utils/catalog-overview.ts`, `src/app/features/inventory/utils/inventory-presentation.ts`, `src/app/core/models/inventory-sellability.ts` | Physisch vorhanden, reserviert und verkaufbar getrennt berechnen           |
+| Artikeltabelle | `src/app/features/catalog/catalog.component.ts/.html`, neue `features/catalog/models/article-row.ts`                                                               | Eine Zeile je Identität, Filter, Spalten, Aktionen                         |
+| Aktionen       | neue `features/catalog/services/article-lifecycle.service.ts`, bestehende Archiv-/Katalogservices                                                                  | RPC-Aufruf, Pending-Zustand und Reload ohne Cross-Workspace-Leak           |
+| Schreibwege    | `230_listings.sql`, Verkaufs-/Shopfunktionen in `database.sql`, betroffene Auswahlkomponenten                                                                      | Archivierte Artikel serverseitig abweisen und in neuen Auswahlen verbergen |
+| Navigation     | `article-navigation.ts`, `workspace-navigation.ts`, `app.routes.ts`, `table-defaults.config.ts`                                                                    | Ein Sidebar-Eintrag, alte Links und gespeicherte Tabellenansicht           |
 
 Die `article-row.ts` definiert `ArticleKind = 'catalog' | 'item'` und `ArticleRow` mit `key`, `id`, `kind`, `title`, `detailLink`, `onHand`, `available`, `reserved`, `quantityState`, `inventoryValue`, `archivedAt` und `canOfferDelete`. `null` bei Mengen bedeutet ungeklärt, niemals null Stück. Die Lifecycle-Service-Schnittstellen sind `setArchived(workspaceId, kind, id, archived): Promise<void>` und `deleteUnused(workspaceId, kind, id): Promise<void>`.
 
 ### Task 1: Transaktionale Archivierung für beide Artikelarten
 
 **Files:**
+
 - Modify: `supabase/schemas/database.sql` (neue Spalten am Ende der `catalog_products`-Definition)
 - Modify: `supabase/schemas/97_inventory_archive.sql`
 - Create: `supabase/schemas/235_article_lifecycle.sql`
@@ -86,6 +87,7 @@ end if;
 ### Task 2: Physische Menge und Artikelzeilen korrekt ableiten
 
 **Files:**
+
 - Create: `src/app/features/catalog/models/article-row.ts`
 - Modify: `src/app/features/catalog/utils/catalog-overview.ts`
 - Modify: `src/app/features/catalog/utils/catalog-overview.spec.ts`
@@ -117,6 +119,7 @@ const available = item.archived_at ? 0 : isSellableInventoryItem(item) ? 1 : 0;
 ### Task 3: Unbenutzte Artikel transaktional löschen und Bilder vormerken
 
 **Files:**
+
 - Modify: `supabase/schemas/235_article_lifecycle.sql`
 - Modify: `supabase/tests/article_lifecycle.test.sql`
 - Modify: `supabase/tests/catalog_product_media.test.sql`
@@ -150,6 +153,7 @@ end if;
 ### Task 4: Private Bilddateien bereinigen und Fehler sichtbar machen
 
 **Files:**
+
 - Create: `supabase/functions/article-media-cleanup/index.ts`
 - Create: `supabase/functions/article-media-cleanup/index.test.ts`
 - Create: `src/app/features/catalog/services/article-media-cleanup.service.ts`
@@ -180,6 +184,7 @@ const { error } = await admin.storage.from('item-media').remove([job.storage_pat
 ### Task 5: Neue Vorgänge mit archivierten Artikeln sperren
 
 **Files:**
+
 - Modify: `supabase/schemas/database.sql` (`record_sale`, `record_legacy_inventory_sale`, `place_store_order`)
 - Modify: `supabase/schemas/230_listings.sql` (`prepare_listing`, `set_listing_online`)
 - Modify: `supabase/tests/inventory_sales_transactions.sql`
@@ -213,6 +218,7 @@ const selectableProducts = computed(() => products().filter((product) => !produc
 ### Task 6: Aktionen und eine Tabelle im Artikel-Feature
 
 **Files:**
+
 - Create: `src/app/features/catalog/services/article-lifecycle.service.ts`
 - Create: `src/app/features/catalog/services/article-lifecycle.service.angular.spec.ts`
 - Modify: `src/app/features/catalog/catalog.component.ts/.html`
@@ -250,6 +256,7 @@ const rpcName = kind === 'catalog' ? 'set_catalog_product_archived' : 'set_inven
 ### Task 7: Navigation, alte Links und Gesamtabnahme
 
 **Files:**
+
 - Modify: `src/app/core/config/article-navigation.ts`
 - Modify: `src/app/core/config/workspace-navigation.ts`
 - Modify: `src/app/app.routes.ts`
