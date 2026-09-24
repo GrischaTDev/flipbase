@@ -38,6 +38,8 @@ Angekommen in Gelb.
 **Änderung:** Die zentralen Badge-Farbpaare sind für helles und dunkles Design
 abgestimmt. Die Einkaufsstatus verwenden die neue Zuordnung. Admin-Rot,
 Marken-Gelb und die vollflächig gelbe aktive Navigation bleiben eigenständig.
+Der Browser-Smoke-Test prüft die Statusfarben über ihre Badge-Klassen statt
+veralteter RGB-Werte.
 
 **Prüfung:** Die geänderten Badge- und Einkaufsstatus-Tests scheiterten vor der
 Umsetzung und bestanden danach. Die vollständige Suite bestand nach Integration
@@ -49,7 +51,8 @@ temporäre Kopie des isolierten Worktrees auf `D:` genutzt. Das erzeugte CSS
 lieferte in beiden Themes die erwarteten Badge-Farben; alle Badge-Farbpaare
 erreichten mindestens 5,82:1 Textkontrast. Der Bau meldete nur die bekannte
 `pako`-CommonJS-Warnung. Lokale Browser-End-to-End-Tests gegen die Anwendung
-wurden nicht ausgeführt.
+wurden nicht ausgeführt. Die angepasste Browser-Testdatei bestand Prettier und
+ESLint; Playwright erkannte alle elf PR-Smoke-Tests.
 
 ## 2026-09-24 – Juna – Aktive Einkaufsfilter kenntlich gemacht
 

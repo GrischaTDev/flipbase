@@ -13,7 +13,7 @@ test('keeps purchase details in the right card after completion @pr-smoke', asyn
   await expect(page).toHaveURL(/\/purchases\/(?!new$)[^/]+$/);
 
   const draftBadge = page.locator('app-entry-page-layout header app-badge > span');
-  await expect(draftBadge).toHaveCSS('background-color', 'rgb(248, 157, 19)');
+  await expect(draftBadge).toHaveClass(/bg-fb-badge-info/);
   await page.getByRole('button', { name: 'Als bestellt markieren', exact: true }).click();
   await page
     .locator('app-purchase-lifecycle-actions')
@@ -28,9 +28,8 @@ test('keeps purchase details in the right card after completion @pr-smoke', asyn
     .click();
   await page.getByRole('button', { name: 'Erfassung abschließen', exact: true }).click();
   await expect(page.locator('app-entry-page-layout header app-badge')).toHaveText('Abgeschlossen');
-  await expect(page.locator('app-entry-page-layout header app-badge > span')).toHaveCSS(
-    'background-color',
-    'rgb(22, 163, 74)',
+  await expect(page.locator('app-entry-page-layout header app-badge > span')).toHaveClass(
+    /bg-fb-badge-success/,
   );
 
   const main = page.getByTestId('purchase-entry-main');
