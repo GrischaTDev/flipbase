@@ -5,6 +5,165 @@ import { describe, expect, it, vi } from 'vitest';
 import { ProductDialogComponent } from './product-dialog.component';
 
 describe('ProductDialogComponent', () => {
+  it('öffnet die KI-Suche ohne EAN und übernimmt einen Fotovorschlag', async () => {
+    const photo = new File(['photo'], 'jako-label.jpg', { type: 'image/jpeg' });
+    const candidate = {
+      title: 'JAKO J-SFG Twist',
+      brand: 'JAKO',
+      model: 'J-SFG Twist',
+      size: '40',
+      color: 'Skydiver',
+      category: 'Fußballschuhe',
+      sourceUrl: 'https://shop.example.test/jako-twist',
+      confidence: 'likely' as const,
+      evidence: 'Modell und Farbe genannt',
+    };
+    const search = vi.fn(async () => ({
+      candidates: [candidate],
+      usage: { inputTokens: 1000, outputTokens: 200, webSearchCalls: 1, estimatedCostUsd: 0.0102 },
+    }));
+    const component = Object.create(ProductDialogComponent.prototype) as ProductDialogComponent;
+    Object.assign(component, {
+      platformOperator: { isOperator: vi.fn(async () => true) },
+      barcodeAiLookup: { search },
+      workspace: { currentWorkspace: () => ({ id: 'workspace-1' }) },
+      barcodeRequestId: 0,
+      barcodeLoading: signal(false),
+      aiSearchEan: signal<string | null>(null),
+      labelPhoto: signal<File | null>(null),
+      aiLoading: signal(false),
+      aiResult: signal(null),
+      aiError: signal(null),
+      barcodeMessage: signal(null),
+      brandSuggestion: signal(null),
+      categorySuggestion: signal(null),
+      form: new FormGroup({
+        ean: new FormControl('', { nonNullable: true }),
+        title: new FormControl('', { nonNullable: true }),
+        model: new FormControl('', { nonNullable: true }),
+        size: new FormControl('', { nonNullable: true }),
+        color: new FormControl('', { nonNullable: true }),
+      }),
+    });
+
+    component.openAiSearch();
+    expect(component.aiSearchEan()).toBe('');
+    const input = document.createElement('input');
+    input.type = 'file';
+    Object.defineProperty(input, 'files', { value: [photo] });
+    component.selectLabelPhoto({ target: input } as unknown as Event);
+    await component.searchWithAi();
+
+    expect(search).toHaveBeenCalledWith('', photo);
+    component.useAiSuggestion(candidate);
+    expect(component.form.getRawValue()).toMatchObject({
+      ean: '',
+      title: 'JAKO J-SFG Twist',
+      model: 'J-SFG Twist',
+    });
+  });
+
+  it('ersetzt nach Fotoauswahl eine veraltete Fehlmeldung durch die Aufforderung zur erneuten Suche', () => {
+    const component = Object.create(ProductDialogComponent.prototype) as ProductDialogComponent;
+    const photo = new File(['photo'], 'jako-label.jpg', { type: 'image/jpeg' });
+    Object.assign(component, {
+      labelPhoto: signal<File | null>(null),
+      aiResult: signal(null),
+      aiError: signal(null),
+      barcodeMessage: signal('Auch die KI-Suche hat keinen belegten Produktvorschlag gefunden.'),
+    });
+    const input = document.createElement('input');
+    input.type = 'file';
+    Object.defineProperty(input, 'files', { value: [photo] });
+
+    component.selectLabelPhoto({ target: input } as unknown as Event);
+
+    expect(component.labelPhoto()).toBe(photo);
+    expect(component.barcodeMessage()).toContain('Starte die KI-Suche erneut');
+  });
+
+  it('unterscheidet einen erfolglosen Suchlauf mit Foto von einer Suche ohne Foto', async () => {
+    const photo = new File(['photo'], 'jako-label.jpg', { type: 'image/jpeg' });
+    const search = vi.fn(async () => ({
+      candidates: [],
+      usage: { inputTokens: 1000, outputTokens: 200, webSearchCalls: 1, estimatedCostUsd: 0.0102 },
+    }));
+    const component = Object.create(ProductDialogComponent.prototype) as ProductDialogComponent;
+    Object.assign(component, {
+      platformOperator: { isOperator: vi.fn(async () => true) },
+      barcodeAiLookup: { search },
+      workspace: { currentWorkspace: () => ({ id: 'workspace-1' }) },
+      barcodeRequestId: 1,
+      aiSearchEan: signal('4099758601276'),
+      labelPhoto: signal<File | null>(photo),
+      aiLoading: signal(false),
+      aiResult: signal(null),
+      aiError: signal(null),
+      barcodeMessage: signal(null),
+      form: new FormGroup({
+        ean: new FormControl('4099758601276', { nonNullable: true }),
+      }),
+    });
+
+    await component.searchWithAi();
+
+    expect(search).toHaveBeenCalledWith('4099758601276', photo);
+    expect(component.barcodeMessage()).toContain('mit diesem Foto');
+  });
+
+  it('übernimmt erkennbare Etikettangaben ohne Webbeleg in die bearbeitbare Artikelform', async () => {
+    const photo = new File(['photo'], 'jako-label.jpg', { type: 'image/jpeg' });
+    const labelSuggestion = {
+      title: 'JAKO J-SFG TWIST',
+      brand: 'JAKO',
+      model: 'J-SFG TWIST',
+      size: '40',
+      color: 'SKYDIVER/SULPHUR SPRING',
+      category: '',
+      articleNumber: '310127 002 443',
+    };
+    const result = {
+      candidates: [],
+      labelSuggestion,
+      usage: { inputTokens: 1000, outputTokens: 200, webSearchCalls: 1, estimatedCostUsd: 0.0102 },
+    };
+    const component = Object.create(ProductDialogComponent.prototype) as ProductDialogComponent;
+    Object.assign(component, {
+      platformOperator: { isOperator: vi.fn(async () => true) },
+      barcodeAiLookup: { search: vi.fn(async () => result) },
+      workspace: { currentWorkspace: () => ({ id: 'workspace-1' }) },
+      barcodeRequestId: 1,
+      aiSearchEan: signal('4099758601276'),
+      labelPhoto: signal<File | null>(photo),
+      aiLoading: signal(false),
+      aiResult: signal(null),
+      aiError: signal(null),
+      barcodeMessage: signal(null),
+      brandSuggestion: signal(null),
+      categorySuggestion: signal(null),
+      form: new FormGroup({
+        ean: new FormControl('4099758601276', { nonNullable: true }),
+        title: new FormControl('', { nonNullable: true }),
+        model: new FormControl('', { nonNullable: true }),
+        size: new FormControl('', { nonNullable: true }),
+        color: new FormControl('', { nonNullable: true }),
+      }),
+    });
+
+    await component.searchWithAi();
+    expect(component.barcodeMessage()).toContain('Etikett wurde gelesen');
+    component.useAiLabelSuggestion(labelSuggestion);
+    expect(component.form.getRawValue()).toMatchObject({
+      ean: '4099758601276',
+      title: 'JAKO J-SFG TWIST',
+      model: 'J-SFG TWIST',
+      size: '40',
+      color: 'SKYDIVER/SULPHUR SPRING',
+    });
+    expect(component.brandSuggestion()).toBe('JAKO');
+    expect(component.aiResult()).toBeNull();
+  });
+
   it('zeigt KI-Vorschlaege nur nach Betreiberfreigabe und uebernimmt die gewaehlte Variante', async () => {
     const candidate = {
       title: 'JAKO J-SFG Twist',

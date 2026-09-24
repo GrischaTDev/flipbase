@@ -14,8 +14,19 @@ export interface BarcodeAiCandidate {
   evidence: string;
 }
 
+export interface BarcodeAiLabelSuggestion {
+  title: string;
+  brand: string;
+  model: string;
+  size: string;
+  color: string;
+  category: string;
+  articleNumber: string;
+}
+
 export interface BarcodeAiResult {
   candidates: BarcodeAiCandidate[];
+  labelSuggestion?: BarcodeAiLabelSuggestion | null;
   usage: {
     inputTokens: number;
     outputTokens: number;
@@ -30,8 +41,11 @@ export class BarcodeAiLookupService {
   readonly sessionUsage = signal({ searches: 0, estimatedCostUsd: 0 });
 
   async search(eanValue: string, labelPhoto: File | null): Promise<BarcodeAiResult> {
-    const ean = normalizeGtin(eanValue);
-    if (!ean) throw new Error('Bitte zuerst eine gültige EAN scannen oder eingeben.');
+    const enteredEan = eanValue.trim();
+    const ean = enteredEan ? normalizeGtin(enteredEan) : '';
+    if (ean === null) throw new Error('Bitte eine gültige EAN eingeben oder die EAN entfernen.');
+    if (!ean && !labelPhoto)
+      throw new Error('Bitte eine EAN eingeben oder ein Etikettfoto auswählen.');
     let imageDataUrl: string | null = null;
     if (labelPhoto) {
       if (

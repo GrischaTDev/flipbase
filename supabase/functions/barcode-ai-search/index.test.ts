@@ -3,6 +3,7 @@ import {
   createBarcodeAiHandler,
   estimateCostUsd,
   parseCandidates,
+  parseLabelSuggestion,
 } from './index.ts';
 
 function assertEquals(actual: unknown, expected: unknown): void {
@@ -26,6 +27,7 @@ function dependencies(overrides: Partial<BarcodeAiDependencies> = {}): BarcodeAi
     isConfigured: () => true,
     search: async () => ({
       candidates: [],
+      labelSuggestion: null,
       usage: { inputTokens: 1000, outputTokens: 200, webSearchCalls: 1, estimatedCostUsd: 0.0102 },
     }),
     ...overrides,
@@ -53,6 +55,34 @@ Deno.test('liefert ohne Secret keinen bezahlten Aufruf aus', async () => {
   const response = await handler(request({ ean: '4099758601276' }));
   assertEquals(response.status, 503);
   assertEquals(await response.json(), { error: 'not_configured' });
+});
+
+Deno.test('erlaubt eine Fotosuche ohne EAN fuer Betreiber', async () => {
+  let searchedEan: string | null = null;
+  const handler = createBarcodeAiHandler(
+    dependencies({
+      search: async (ean) => {
+        searchedEan = ean;
+        return {
+          candidates: [],
+          labelSuggestion: null,
+          usage: { inputTokens: 0, outputTokens: 0, webSearchCalls: 0, estimatedCostUsd: 0 },
+        };
+      },
+    }),
+  );
+  const response = await handler(
+    request({ ean: '', imageDataUrl: 'data:image/jpeg;base64,dGVzdA==' }),
+  );
+  assertEquals(response.status, 200);
+  assertEquals(searchedEan, '');
+});
+
+Deno.test('verweigert eine Suche ohne EAN und Foto', async () => {
+  const handler = createBarcodeAiHandler(dependencies());
+  const response = await handler(request({ ean: '', imageDataUrl: null }));
+  assertEquals(response.status, 400);
+  assertEquals(await response.json(), { error: 'invalid_input' });
 });
 
 Deno.test('schliesst erfundene Quellen aus den Produktvorschlaegen aus', () => {
@@ -107,4 +137,41 @@ Deno.test('schaetzt Suchaufrufe und Tokens getrennt', () => {
     ),
     0.02132,
   );
+});
+
+Deno.test('bietet gelesene Etikettangaben ohne Webbeleg getrennt an', () => {
+  const response = {
+    output: [
+      {
+        type: 'message',
+        content: [
+          {
+            type: 'output_text',
+            text: JSON.stringify({
+              candidates: [],
+              labelSuggestion: {
+                title: '',
+                brand: 'JAKO',
+                model: 'J-SFG TWIST',
+                size: '40',
+                color: 'SKYDIVER/SULPHUR SPRING',
+                category: '',
+                articleNumber: '310127 002 443',
+              },
+            }),
+          },
+        ],
+      },
+    ],
+  };
+  assertEquals(parseCandidates(response), []);
+  assertEquals(parseLabelSuggestion(response), {
+    title: 'JAKO J-SFG TWIST',
+    brand: 'JAKO',
+    model: 'J-SFG TWIST',
+    size: '40',
+    color: 'SKYDIVER/SULPHUR SPRING',
+    category: '',
+    articleNumber: '310127 002 443',
+  });
 });

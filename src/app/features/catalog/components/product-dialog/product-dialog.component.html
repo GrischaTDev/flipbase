@@ -42,6 +42,9 @@
         (clicked)="onBarcodeScanned(form.controls.ean.value)"
         >EAN online suchen</app-button
       >
+      @if (platformOperator.operator()) {
+        <app-button variant="secondary" (clicked)="openAiSearch()">KI-Produktsuche</app-button>
+      }
       @if (barcodeMessage()) {
         <p class="self-end text-[13px]" role="status">{{ barcodeMessage() }}</p>
       }
@@ -49,14 +52,14 @@
         <div class="sm:col-span-2 rounded-lg border border-fb-border bg-fb-subtle p-3 text-[13px]">
           <p class="font-semibold">KI-Produktsuche testen</p>
           <p class="mt-1 text-fb-text-muted">
-            Suche mit der EAN im Web. Ein Etikettfoto hilft bei Modell, Farbe und Größe.
+            Suche mit EAN oder direkt mit einem Etikettfoto, auch ohne EAN.
           </p>
           <div class="mt-3 flex flex-wrap items-center gap-2">
             <app-button
               variant="secondary"
               [disabled]="aiLoading()"
               (clicked)="labelPhotoInput.click()"
-              >Etikett fotografieren</app-button
+              >Etikettfoto auswählen oder aufnehmen</app-button
             >
             <span class="text-fb-text-muted">{{
               labelPhoto()?.name || 'Kein Foto ausgewählt'
@@ -74,7 +77,10 @@
             />
           </div>
           <div class="mt-3">
-            <app-button [loading]="aiLoading()" [disabled]="aiLoading()" (clicked)="searchWithAi()"
+            <app-button
+              [loading]="aiLoading()"
+              [disabled]="aiLoading() || (!aiSearchEan() && !labelPhoto())"
+              (clicked)="searchWithAi()"
               >Mit KI im Web suchen</app-button
             >
           </div>
@@ -136,6 +142,28 @@
                   </tbody>
                 </table>
               </div>
+            } @else {
+              @if (result.labelSuggestion; as label) {
+                <div class="mt-3 border-t border-fb-border pt-3">
+                  <p class="font-semibold">Vom Etikett gelesen</p>
+                  <p class="text-fb-text-muted">
+                    Kein belegter Webtreffer. Diese Angaben stammen nur vom Foto und müssen geprüft
+                    werden.
+                  </p>
+                  <p class="mt-2 font-medium">{{ label.title }}</p>
+                  <p class="text-fb-text-muted">{{ label.color }} · Größe {{ label.size }}</p>
+                  @if (label.articleNumber) {
+                    <p class="text-fb-text-muted">
+                      Herstellerartikelnummer: {{ label.articleNumber }} (bitte prüfen)
+                    </p>
+                  }
+                  <div class="mt-3">
+                    <app-button variant="secondary" (clicked)="useAiLabelSuggestion(label)"
+                      >Angaben übernehmen</app-button
+                    >
+                  </div>
+                </div>
+              }
             }
           }
         </div>
