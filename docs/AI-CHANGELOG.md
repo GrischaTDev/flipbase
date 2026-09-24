@@ -17,6 +17,26 @@ geänderten Dateien, beide TypeScript-Prüfungen, `git diff --check` und der
 Angular-Produktionsbau bestanden. Der Bau meldete die bekannte
 CommonJS-Warnung zu `pako`.
 
+## 2026-09-24 – Juna – Barcode-KI für den Server vorbereitet
+
+**Auftrag:** Die vorbereitete Barcode-KI-Suche veröffentlichen und den
+Supabase-Studio-Projektnamen auf Flipbase setzen.
+
+**Änderung:** Der Barcode-KI-Zweig wurde auf den aktuellen Masterstand
+übernommen. Eine eigene Docker-Compose-Ergänzung reicht `OPENAI_API_KEY` nur an
+Edge Functions weiter; der Schlüssel bleibt außerhalb des Repositorys und des
+Browser-Baus. Der Anzeigename des produktiven Supabase Studios wurde in der
+Serverumgebung auf Flipbase gesetzt.
+
+**Prüfung:** 14 gezielte Frontend-Tests, vier Edge-Handler-Tests, das
+Testsuite-Audit, ESLint, beide TypeScript-Prüfungen, Prettier und
+Angular-Produktionsbau bestanden. Der Studio-Container ist nach
+der Umbenennung gesund; der gültige Projektschlüssel wurde per Modellabfrage
+geprüft. Zwei begrenzte Websuchen mit der JAKO-EAN kosteten geschätzt jeweils
+etwa 0,011 US-Dollar: ohne Foto kein belegter Vorschlag, mit Etikettfoto ein
+als wahrscheinlich markierter Treffer. Die Funktionsbereitstellung folgt nach
+dem PR-Merge.
+
 ## 2026-09-24 – Juna – Authelia-Bestätigungscodes per E-Mail vorbereitet
 
 **Auftrag:** Die Registrierung einer Authenticator-App für das Supabase Studio
@@ -70,6 +90,27 @@ erreichten mindestens 5,82:1 Textkontrast. Der Bau meldete nur die bekannte
 `pako`-CommonJS-Warnung. Lokale Browser-End-to-End-Tests gegen die Anwendung
 wurden nicht ausgeführt. Die angepasste Browser-Testdatei bestand Prettier und
 ESLint; Playwright erkannte alle elf PR-Smoke-Tests.
+
+## 2026-09-24 – Juna – KI-Produktsuche für Barcode-Fälle ohne Treffer vorbereitet
+
+**Auftrag:** Unbekannte EANs optional mit einem Etikettfoto im Web suchen,
+Produktvarianten zur geprüften Übernahme anbieten und die Kosten für einen
+Betreiber-Testlauf sichtbar machen.
+
+**Änderung:** Die Produkterstellung bietet Betreibern nach erfolgloser EAN-Suche
+eine KI-Websuche mit optionalem Etikettfoto. Vorschläge zeigen Variante und
+anklickbare Quelle; die EAN bleibt beim Übernehmen erhalten. Eine neue Supabase
+Edge Function prüft die Betreiberrolle serverseitig, hält den OpenAI-Schlüssel
+aus dem Browser heraus und begrenzt die Websuche auf zwei Aufrufe. Angezeigter
+Tokenverbrauch, geschätzte Kosten und Sitzungsdurchschnitt helfen bei der
+Pilotkalkulation. Ohne konfigurierten Schlüssel bleibt die Funktion gesperrt.
+
+**Prüfung:** Gezielte Angular- und Servicetests (14) sowie vier gebündelt unter
+Node ausgeführte Edge-Handler-Tests bestanden. ESLint, TypeScript-Prüfung,
+Prettier und Angular-Produktionsbau bestanden. Ein nativer Deno-Lauf und ein
+echter kostenpflichtiger OpenAI-Aufruf waren lokal nicht möglich: Deno ist
+nicht installiert, die Supabase-CLI stürzt bereits bei `--help` ab und ein
+API-Schlüssel wurde nicht hinterlegt.
 
 ## 2026-09-24 – Juna – Aktive Einkaufsfilter kenntlich gemacht
 

@@ -5,6 +5,60 @@ import { describe, expect, it, vi } from 'vitest';
 import { ProductDialogComponent } from './product-dialog.component';
 
 describe('ProductDialogComponent', () => {
+  it('zeigt KI-Vorschlaege nur nach Betreiberfreigabe und uebernimmt die gewaehlte Variante', async () => {
+    const candidate = {
+      title: 'JAKO J-SFG Twist',
+      brand: 'JAKO',
+      model: 'J-SFG Twist',
+      size: '40',
+      color: 'Skydiver',
+      category: 'Fußballschuhe',
+      sourceUrl: 'https://shop.example.test/schuh',
+      confidence: 'likely' as const,
+      evidence: 'Modell und Farbe genannt',
+    };
+    const result = {
+      candidates: [candidate],
+      usage: { inputTokens: 1000, outputTokens: 200, webSearchCalls: 1, estimatedCostUsd: 0.0102 },
+    };
+    const search = vi.fn(async () => result);
+    const component = Object.create(ProductDialogComponent.prototype) as ProductDialogComponent;
+    Object.assign(component, {
+      platformOperator: { isOperator: vi.fn(async () => true) },
+      barcodeAiLookup: { search },
+      workspace: { currentWorkspace: () => ({ id: 'workspace-1' }) },
+      barcodeRequestId: 1,
+      aiSearchEan: signal('4099758601276'),
+      labelPhoto: signal(null),
+      aiLoading: signal(false),
+      aiResult: signal(null),
+      aiError: signal(null),
+      barcodeMessage: signal(null),
+      brandSuggestion: signal(null),
+      categorySuggestion: signal(null),
+      form: new FormGroup({
+        ean: new FormControl('4099758601276', { nonNullable: true }),
+        title: new FormControl('', { nonNullable: true }),
+        model: new FormControl('', { nonNullable: true }),
+        size: new FormControl('', { nonNullable: true }),
+        color: new FormControl('', { nonNullable: true }),
+      }),
+    });
+
+    await component.searchWithAi();
+    expect(search).toHaveBeenCalledWith('4099758601276', null);
+    expect(component.aiResult()?.candidates).toEqual([candidate]);
+    component.useAiSuggestion(candidate);
+    expect(component.form.getRawValue()).toMatchObject({
+      ean: '4099758601276',
+      title: 'JAKO J-SFG Twist',
+      model: 'J-SFG Twist',
+      size: '40',
+      color: 'Skydiver',
+    });
+    expect(component.brandSuggestion()).toBe('JAKO');
+  });
+
   it('sendet nach Workspacewechsel während des Listenladens kein fremdes Produkt an den Einkauf', async () => {
     const workspace = signal({ id: 'workspace-1' });
     const created = { emit: vi.fn() };

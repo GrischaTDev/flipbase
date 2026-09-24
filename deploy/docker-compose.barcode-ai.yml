@@ -1,0 +1,6 @@
+# Reicht den serverseitigen OpenAI-Schluessel an die Barcode-KI-Funktion durch.
+# Der Wert bleibt in /opt/supabase/.env, nie in dieser Datei oder im Browser-Bau.
+services:
+  functions:
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY}

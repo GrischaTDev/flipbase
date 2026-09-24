@@ -45,6 +45,101 @@
       @if (barcodeMessage()) {
         <p class="self-end text-[13px]" role="status">{{ barcodeMessage() }}</p>
       }
+      @if (platformOperator.operator() && aiSearchEan() === form.controls.ean.value) {
+        <div class="sm:col-span-2 rounded-lg border border-fb-border bg-fb-subtle p-3 text-[13px]">
+          <p class="font-semibold">KI-Produktsuche testen</p>
+          <p class="mt-1 text-fb-text-muted">
+            Suche mit der EAN im Web. Ein Etikettfoto hilft bei Modell, Farbe und Größe.
+          </p>
+          <div class="mt-3 flex flex-wrap items-center gap-2">
+            <app-button
+              variant="secondary"
+              [disabled]="aiLoading()"
+              (clicked)="labelPhotoInput.click()"
+              >Etikett fotografieren</app-button
+            >
+            <span class="text-fb-text-muted">{{
+              labelPhoto()?.name || 'Kein Foto ausgewählt'
+            }}</span>
+            <input
+              #labelPhotoInput
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              capture="environment"
+              class="sr-only"
+              tabindex="-1"
+              aria-hidden="true"
+              data-shared-ui-exception="native-file-picker"
+              (change)="selectLabelPhoto($event)"
+            />
+          </div>
+          <div class="mt-3">
+            <app-button [loading]="aiLoading()" [disabled]="aiLoading()" (clicked)="searchWithAi()"
+              >Mit KI im Web suchen</app-button
+            >
+          </div>
+          @if (aiError()) {
+            <p class="mt-2 text-fb-critical" role="alert">{{ aiError() }}</p>
+          }
+          @if (aiSessionUsage().searches) {
+            <p class="mt-3 text-fb-text-muted" role="status">
+              Durchschnitt dieser Sitzung:
+              {{ formatCents(aiSessionUsage().estimatedCostUsd / aiSessionUsage().searches) }}
+              US-Cent pro Suche ({{ aiSessionUsage().searches }} Suchen)
+            </p>
+          }
+          @if (aiResult(); as result) {
+            <p class="mt-1 text-fb-text-muted">
+              Diese Suche: ca. {{ formatCents(result.usage.estimatedCostUsd) }} US-Cent ·
+              {{ result.usage.webSearchCalls }} Websuchen
+            </p>
+            @if (result.candidates.length) {
+              <div class="mt-3 overflow-x-auto">
+                <table class="w-full min-w-[580px] text-left">
+                  <thead class="border-b border-fb-border text-fb-text-muted">
+                    <tr>
+                      <th scope="col" class="py-2 pr-3">Produkt</th>
+                      <th scope="col" class="py-2 pr-3">Variante</th>
+                      <th scope="col" class="py-2 pr-3">Quelle</th>
+                      <th scope="col" class="py-2">Aktion</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-fb-border">
+                    @for (candidate of result.candidates; track $index) {
+                      <tr>
+                        <td class="py-3 pr-3 align-top">
+                          <span class="font-medium">{{ candidate.title }}</span>
+                          <span class="block text-fb-text-muted"
+                            >{{ candidate.brand }} {{ candidate.model }}</span
+                          >
+                        </td>
+                        <td class="py-3 pr-3 align-top">
+                          {{ candidate.color }} · {{ candidate.size }}
+                        </td>
+                        <td class="py-3 pr-3 align-top">
+                          <a
+                            [href]="candidate.sourceUrl"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="underline"
+                            >Quelle öffnen</a
+                          >
+                          <span class="block text-fb-text-muted">{{ candidate.evidence }}</span>
+                        </td>
+                        <td class="py-3 align-top">
+                          <app-button variant="secondary" (clicked)="useAiSuggestion(candidate)"
+                            >Übernehmen</app-button
+                          >
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+          }
+        </div>
+      }
       @if (barcodeSuggestion(); as suggestion) {
         <div class="sm:col-span-2 rounded-lg border border-fb-border bg-fb-subtle p-3 text-[13px]">
           <p class="font-semibold">{{ suggestion.title }}</p>
