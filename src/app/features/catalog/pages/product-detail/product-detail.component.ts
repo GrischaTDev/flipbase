@@ -532,13 +532,15 @@ export class ProductDetailComponent implements UnsavedEntryPage {
         return;
       this.aiResult.set(result);
       this.aiMessage.set(
-        result.candidates.length
-          ? 'Mögliche Produkte gefunden. Prüfe Modell, Variante und Quelle vor der Übernahme.'
-          : result.labelSuggestion
-            ? 'Kein belegter Webtreffer. Das Etikett wurde gelesen; prüfe die Angaben vor der Übernahme.'
-            : photos.length
-              ? 'Mit diesem Foto wurde kein belegter Produktvorschlag gefunden. Prüfe, ob Modell und Artikelnummer lesbar sind.'
-              : 'Kein belegter Produktvorschlag gefunden. Versuche ein Etikettfoto.',
+        (result.processedPhotoCount ?? photos.length) < photos.length
+          ? 'Der Server hat nur das erste Foto verarbeitet. Die Suche mit allen Fotos ist erst nach dem Update der Serverfunktion verfügbar. Prüfe diesen Vorschlag besonders sorgfältig.'
+          : result.candidates.length
+            ? 'Mögliche Produkte gefunden. Prüfe Modell, Variante und Quelle vor der Übernahme.'
+            : result.labelSuggestion
+              ? 'Kein belegter Webtreffer. Das Etikett wurde gelesen; prüfe die Angaben vor der Übernahme.'
+              : photos.length
+                ? 'Mit diesem Foto wurde kein belegter Produktvorschlag gefunden. Prüfe, ob Modell und Artikelnummer lesbar sind.'
+                : 'Kein belegter Produktvorschlag gefunden. Versuche ein Etikettfoto.',
       );
     } catch (error: unknown) {
       if (requestId !== this.aiRequestId || workspaceId !== this.workspace.currentWorkspace()?.id)

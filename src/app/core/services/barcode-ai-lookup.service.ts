@@ -27,6 +27,7 @@ export interface BarcodeAiLabelSuggestion {
 export interface BarcodeAiResult {
   candidates: BarcodeAiCandidate[];
   labelSuggestion?: BarcodeAiLabelSuggestion | null;
+  processedPhotoCount?: number;
   usage: {
     inputTokens: number;
     outputTokens: number;
@@ -69,7 +70,16 @@ export class BarcodeAiLookupService {
     const imageDataUrls = await Promise.all(photos.map((photo) => this.readImage(photo)));
     const { data, error } = await this.supabase.client.functions.invoke<BarcodeAiResult>(
       'barcode-ai-search',
-      { body: { ean, imageDataUrls } },
+      // Die bereits ausgerollte Funktion liest nur imageDataUrl. Die aktuelle
+      // Funktion fuegt additionalImageDataUrls hinzu, ohne das erste Foto
+      // doppelt in der Anfrage zu uebertragen.
+      {
+        body: {
+          ean,
+          imageDataUrl: imageDataUrls[0] ?? null,
+          additionalImageDataUrls: imageDataUrls.slice(1),
+        },
+      },
     );
     if (error) {
       if (error.context instanceof Response) {
@@ -77,23 +87,34 @@ export class BarcodeAiLookupService {
           .clone()
           .json()
           .catch(() => null);
-        if (
-          typeof body === 'object' &&
-          body !== null &&
-          'error' in body &&
-          body.error === 'not_configured'
-        ) {
+        const errorCode =
+          typeof body === 'object' && body !== null && 'error' in body ? body.error : null;
+        if (errorCode === 'not_configured') {
           throw new Error('Der OpenAI-Zugang ist in Supabase noch nicht eingerichtet.');
         }
+        if (errorCode === 'invalid_input')
+          throw new Error(
+            'Die Serverfunktion hat die Fotos abgelehnt. Bitte prüfe Format und Größe.',
+          );
+        if (error.context.status === 413)
+          throw new Error(
+            'Die Fotos sind für die Übertragung zu groß. Bitte wähle kleinere Bilder.',
+          );
       }
       throw new Error('Die KI-Suche ist gerade nicht verfügbar.');
     }
     if (!data) throw new Error('Die KI-Suche hat keine Antwort geliefert.');
+    // Eine ältere Serverfassung liefert keine Anzahl und verarbeitet nur
+    // imageDataUrl. Der Dialog kann dann sichtbar auf die Einschränkung hinweisen.
+    const result = {
+      ...data,
+      processedPhotoCount: data.processedPhotoCount ?? Math.min(photos.length, 1),
+    };
     this.sessionUsage.update((current) => ({
       searches: current.searches + 1,
-      estimatedCostUsd: current.estimatedCostUsd + data.usage.estimatedCostUsd,
+      estimatedCostUsd: current.estimatedCostUsd + result.usage.estimatedCostUsd,
     }));
-    return data;
+    return result;
   }
 
   private readImage(file: File): Promise<string> {

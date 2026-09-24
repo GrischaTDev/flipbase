@@ -18,6 +18,7 @@ interface SearchRequest {
   ean?: unknown;
   imageDataUrl?: unknown;
   imageDataUrls?: unknown;
+  additionalImageDataUrls?: unknown;
 }
 
 interface Candidate {
@@ -45,6 +46,7 @@ interface LabelSuggestion {
 interface SearchResult {
   candidates: Candidate[];
   labelSuggestion: LabelSuggestion | null;
+  processedPhotoCount?: number;
   usage: {
     inputTokens: number;
     outputTokens: number;
@@ -300,11 +302,18 @@ export function createBarcodeAiHandler(dependencies: BarcodeAiDependencies) {
       return respond({ error: 'invalid_body' }, 400, origin);
     }
     const ean = text(body?.ean);
-    const imageDataUrls = Array.isArray(body?.imageDataUrls)
-      ? body.imageDataUrls
-      : body?.imageDataUrl == null
-        ? []
-        : [body.imageDataUrl];
+    if (body?.additionalImageDataUrls !== undefined && !Array.isArray(body.additionalImageDataUrls))
+      return respond({ error: 'invalid_input' }, 400, origin);
+    const imageDataUrls = Array.isArray(body?.additionalImageDataUrls)
+      ? [
+          ...(body?.imageDataUrl == null ? [] : [body.imageDataUrl]),
+          ...body.additionalImageDataUrls,
+        ]
+      : Array.isArray(body?.imageDataUrls)
+        ? body.imageDataUrls
+        : body?.imageDataUrl == null
+          ? []
+          : [body.imageDataUrl];
     if (
       (!ean && imageDataUrls.length === 0) ||
       (ean !== '' && !/^\d{8,14}$/u.test(ean)) ||
@@ -323,7 +332,7 @@ export function createBarcodeAiHandler(dependencies: BarcodeAiDependencies) {
     if (!dependencies.isConfigured()) return respond({ error: 'not_configured' }, 503, origin);
     try {
       const result = await dependencies.search(ean, imageDataUrls as string[]);
-      return respond(result, 200, origin);
+      return respond({ ...result, processedPhotoCount: imageDataUrls.length }, 200, origin);
     } catch (error) {
       console.error('barcode-ai-search: OpenAI-Abfrage fehlgeschlagen.', error);
       return respond({ error: 'search_failed' }, 502, origin);

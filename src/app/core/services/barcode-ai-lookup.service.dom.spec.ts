@@ -26,7 +26,7 @@ describe('BarcodeAiLookupService', () => {
     await service.search('4099758601276', null);
 
     expect(invoke).toHaveBeenCalledWith('barcode-ai-search', {
-      body: { ean: '4099758601276', imageDataUrls: [] },
+      body: { ean: '4099758601276', imageDataUrl: null, additionalImageDataUrls: [] },
     });
     expect(service.sessionUsage()).toEqual({ searches: 2, estimatedCostUsd: 0.0203 });
   });
@@ -72,7 +72,11 @@ describe('BarcodeAiLookupService', () => {
     await createService(invoke).search(ean, photo);
 
     expect(invoke).toHaveBeenCalledWith('barcode-ai-search', {
-      body: { ean: expectedEan, imageDataUrls: ['data:image/jpeg;base64,dGVzdA=='] },
+      body: {
+        ean: expectedEan,
+        imageDataUrl: 'data:image/jpeg;base64,dGVzdA==',
+        additionalImageDataUrls: [],
+      },
     });
   });
 
@@ -97,18 +101,31 @@ describe('BarcodeAiLookupService', () => {
       new File(['box'], 'karton.jpg', { type: 'image/jpeg' }),
       new File(['label'], 'etikett.jpg', { type: 'image/jpeg' }),
     ];
-    await createService(invoke).search('', photos);
+    const result = await createService(invoke).search('', photos);
     expect(invoke).toHaveBeenCalledWith('barcode-ai-search', {
       body: {
         ean: '',
-        imageDataUrls: ['data:image/jpeg;base64,karton.jpg', 'data:image/jpeg;base64,etikett.jpg'],
+        imageDataUrl: 'data:image/jpeg;base64,karton.jpg',
+        additionalImageDataUrls: ['data:image/jpeg;base64,etikett.jpg'],
       },
     });
+    expect(result.processedPhotoCount).toBe(1);
   });
 
   it('verlangt eine EAN oder ein Etikettfoto', async () => {
     const invoke = vi.fn();
     await expect(createService(invoke).search('', null)).rejects.toThrow('Produktfoto');
     expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it('meldet zu grosse Serveranfragen mit einer konkreten Handlungsanweisung', async () => {
+    const invoke = vi.fn(async () => ({
+      data: null,
+      error: { context: new Response(null, { status: 413 }) },
+    }));
+
+    await expect(createService(invoke).search('4099758601276', null)).rejects.toThrow(
+      'Bitte wähle kleinere Bilder',
+    );
   });
 });
