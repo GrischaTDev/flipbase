@@ -1,5 +1,24 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-24 – Juna – Aktive Einkaufsfilter kenntlich gemacht
+
+**Auftrag:** Den redundanten, wegklickbaren Verkäuferchip unter der
+Einkaufsleiste durch einen allgemeinen Hinweis auf aktive Filter ersetzen.
+
+**Änderung:** Ein mittig über der Tabelle platzierter, nicht klickbarer
+orangefarbener Badge „Filter aktiv“ erscheint bei Such-, Status- oder
+Verkäuferfilterung. Änderungen an Sortierung und Spalten allein lösen ihn
+nicht aus. Die vorhandene Rücksetzung bleibt unverändert.
+
+**Prüfung:** Die angepassten und ergänzten Komponententests scheiterten vor
+der Umsetzung und bestanden danach. Die vollständige Vitest-Suite bestand
+mit 297 Dateien und 2.779 Tests; Prettier, ESLint, beide TypeScript-Prüfungen
+und der Angular-Produktionsbau bestanden. Für den Bau wurde wegen des
+laufwerksübergreifenden Abhängigkeitspfads ein temporärer Worktree auf `D:`
+verwendet und anschließend entfernt. Es blieb nur die bekannte
+`pako`-CommonJS-Warnung. Lokale Browser-End-to-End-Tests wurden in dieser
+Sitzung nicht ausgeführt.
+
 ## 2026-09-24 – Juna – Suchfeld und Verkäuferfilter bei Einkäufen bereinigt
 
 **Auftrag:** Das zusätzliche blaue Browser-X im Suchfeld entfernen, den

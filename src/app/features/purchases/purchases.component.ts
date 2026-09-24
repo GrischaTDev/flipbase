@@ -98,10 +98,11 @@ export class PurchasesComponent {
       label: seller.name,
     })),
   ]);
-  readonly selectedSeller = computed(() =>
-    this.sellerOptions().find((seller) => seller.id === this.sellerId()),
-  );
   readonly searchQuery = signal('');
+  readonly filtersActive = computed(
+    () =>
+      this.activeStatus() !== 'all' || this.sellerId() !== '' || this.searchQuery().trim() !== '',
+  );
   readonly hasPurchases = computed(() => this.purchaseService.purchases().length > 0);
   readonly isPurchaseListLoading = computed(() => {
     const workspaceId = this.workspaceService.currentWorkspace()?.id ?? null;
@@ -153,9 +154,7 @@ export class PurchasesComponent {
   );
   readonly viewModified = computed(
     () =>
-      this.activeStatus() !== 'all' ||
-      this.sellerId() !== '' ||
-      this.searchQuery().trim() !== '' ||
+      this.filtersActive() ||
       tableStateDiffersFromDefaults(this.tablePrefs(), this.purchasesTableConfig),
   );
 

@@ -47,7 +47,13 @@ Zustand nur, statt ihn erstmals sichtbar zu machen.
 Nutzerpräzisierung vom 24.09.2026: Das gemeinsame Suchfeld zeigt nur seine
 eigene Zurücksetzen-Aktion, kein zusätzliches Browser-X. Fachliche Filter
 tragen handlungsorientierte Beschriftungen; interne IDs bleiben bei der Auswahl
-und in aktiven Filterchips unsichtbar.
+und in sichtbaren Filterelementen unsichtbar.
+
+Für die Einkaufsliste zeigt ein zentrierter, nicht klickbarer orangefarbener
+Badge „Filter aktiv“ oberhalb der Tabelle eine aktive Suche, Status- oder
+Verkäuferfilterung an. Ein zusätzlicher wegklickbarer Verkäuferchip entfällt.
+Reine Sortier- und Spaltenänderungen lösen diesen Hinweis nicht aus; die
+bestehende Rücksetzung bleibt unverändert.
 
 Feature-Templates verwenden `TableColumnMenuComponent` und die frühere
 `TableToolbarComponent` nicht direkt. `DataTableComponent` kapselt

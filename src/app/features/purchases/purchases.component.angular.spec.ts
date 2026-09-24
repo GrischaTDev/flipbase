@@ -612,11 +612,44 @@ describe('PurchasesComponent – responsive Einkaufsübersicht', () => {
 
     expect(trigger?.textContent).toContain('Mein Verkäufer');
     expect(trigger?.textContent).not.toContain('12CEAF');
-    expect(host.querySelector('[table-filter-panel]')?.textContent).toContain(
-      'Verkäufer: Mein Verkäufer',
+    const activeFilter = host.querySelector<HTMLElement>('[table-filter-panel]');
+    expect(activeFilter?.textContent?.trim()).toBe('Filter aktiv');
+    expect(activeFilter?.querySelector('button')).toBeNull();
+    expect(activeFilter?.querySelector('app-badge > span')?.classList).toContain(
+      'bg-fb-badge-warning',
     );
-    expect(host.querySelector('[table-filter-panel]')?.textContent).not.toContain('12CEAF');
     expect(component.purchaseRows()).toHaveLength(1);
+
+    component.sellerId.set('');
+    fixture.detectChanges();
+    expect(host.querySelector('[table-filter-panel]')).toBeNull();
+  });
+
+  it('zeigt den Filterhinweis für Status und Suche, aber nicht für reine Tabellenanpassungen', () => {
+    const fixture = TestBed.createComponent(PurchasesComponent);
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+    const host = fixture.nativeElement as HTMLElement;
+
+    expect(host.querySelector('[table-filter-panel]')).toBeNull();
+
+    component.activeStatus.set('draft');
+    fixture.detectChanges();
+    expect(host.querySelector('[table-filter-panel]')?.textContent?.trim()).toBe('Filter aktiv');
+
+    component.activeStatus.set('all');
+    fixture.detectChanges();
+    expect(host.querySelector('[table-filter-panel]')).toBeNull();
+
+    component.searchQuery.set('Tasse');
+    fixture.detectChanges();
+    expect(host.querySelector('[table-filter-panel]')?.textContent?.trim()).toBe('Filter aktiv');
+
+    component.searchQuery.set('  ');
+    component.onSortChanged({ field: 'title', direction: 'asc' });
+    fixture.detectChanges();
+    expect(component.viewModified()).toBe(true);
+    expect(host.querySelector('[table-filter-panel]')).toBeNull();
   });
 
   it('stellt gespeicherte Suchfilter wieder her und speichert deren Rücksetzung', () => {
