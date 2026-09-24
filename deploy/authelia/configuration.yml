@@ -56,8 +56,5 @@ storage:
     path: '/config/db.sqlite3'
 
 notifier:
-  # Kein Mailversand eingerichtet. Meldungen - etwa der Link zum Einrichten
-  # des zweiten Faktors - landen in dieser Datei.
-  disable_startup_check: true
-  filesystem:
-    filename: '/config/notification.txt'
+  smtp:
+    subject: '[Flipbase] {title}'

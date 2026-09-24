@@ -9,10 +9,18 @@ services:
     volumes:
       - /opt/authelia/config:/config
       - /opt/authelia/secrets:/secrets:ro
+    secrets:
+      - authelia_smtp_password
     environment:
       AUTHELIA_IDENTITY_VALIDATION_RESET_PASSWORD_JWT_SECRET_FILE: /secrets/jwt
       AUTHELIA_SESSION_SECRET_FILE: /secrets/session
       AUTHELIA_STORAGE_ENCRYPTION_KEY_FILE: /secrets/storage_encryption
+      AUTHELIA_NOTIFIER_SMTP_ADDRESS: submission://${SMTP_HOST:?SMTP_HOST fehlt}:${SMTP_PORT:?SMTP_PORT fehlt}
+      AUTHELIA_NOTIFIER_SMTP_USERNAME: ${SMTP_USER:?SMTP_USER fehlt}
+      AUTHELIA_NOTIFIER_SMTP_PASSWORD_FILE: /run/secrets/authelia_smtp_password
+      AUTHELIA_NOTIFIER_SMTP_SENDER: ${SMTP_ADMIN_EMAIL:?SMTP_ADMIN_EMAIL fehlt}
+      AUTHELIA_NOTIFIER_SMTP_IDENTIFIER: flipbase.de
+      AUTHELIA_NOTIFIER_SMTP_STARTUP_CHECK_ADDRESS: ${SMTP_ADMIN_EMAIL:?SMTP_ADMIN_EMAIL fehlt}
       TZ: Europe/Berlin
     healthcheck:
       # Den Unterbefehl "authelia health" gibt es seit 4.39 nicht mehr;
@@ -30,3 +38,7 @@ services:
     depends_on:
       authelia:
         condition: service_started
+
+secrets:
+  authelia_smtp_password:
+    environment: SMTP_PASS
