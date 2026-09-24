@@ -44,6 +44,7 @@ import {
 } from '../../../../core/services/barcode-lookup.service';
 import {
   BarcodeAiCandidate,
+  BarcodeAiLabelSuggestion,
   BarcodeAiLookupService,
   BarcodeAiResult,
 } from '../../../../core/services/barcode-ai-lookup.service';
@@ -275,9 +276,15 @@ export class ProductDialogComponent {
   selectLabelPhoto(event: Event): void {
     const target = event.target;
     if (!(target instanceof HTMLInputElement)) return;
-    this.labelPhoto.set(target.files?.[0] ?? null);
+    const photo = target.files?.[0] ?? null;
+    this.labelPhoto.set(photo);
     this.aiResult.set(null);
     this.aiError.set(null);
+    if (photo) {
+      this.barcodeMessage.set(
+        'Etikettfoto ausgewählt. Starte die KI-Suche erneut, damit das Foto berücksichtigt wird.',
+      );
+    }
   }
 
   async searchWithAi(): Promise<void> {
@@ -285,12 +292,13 @@ export class ProductDialogComponent {
     if (!ean || this.form.controls.ean.value !== ean || this.aiLoading()) return;
     const requestId = this.barcodeRequestId;
     const workspaceId = this.workspace.currentWorkspace()?.id;
+    const labelPhoto = this.labelPhoto();
     this.aiLoading.set(true);
     this.aiResult.set(null);
     this.aiError.set(null);
     try {
       if (!(await this.platformOperator.isOperator())) return;
-      const result = await this.barcodeAiLookup.search(ean, this.labelPhoto());
+      const result = await this.barcodeAiLookup.search(ean, labelPhoto);
       if (
         requestId !== this.barcodeRequestId ||
         workspaceId !== this.workspace.currentWorkspace()?.id
@@ -300,7 +308,11 @@ export class ProductDialogComponent {
       this.barcodeMessage.set(
         result.candidates.length
           ? 'Mögliche Produkte gefunden. Prüfe Modell, Variante und Quelle vor der Übernahme.'
-          : 'Auch die KI-Suche hat keinen belegten Produktvorschlag gefunden. Versuche ein Etikettfoto.',
+          : result.labelSuggestion
+            ? 'Kein belegter Webtreffer. Das Etikett wurde gelesen; prüfe die Angaben vor der Übernahme.'
+            : labelPhoto
+              ? 'Die KI-Suche hat mit diesem Foto keinen belegten Produktvorschlag gefunden. Prüfe, ob Modell und Artikelnummer auf dem Bild lesbar sind.'
+              : 'Auch die KI-Suche hat keinen belegten Produktvorschlag gefunden. Versuche ein Etikettfoto.',
       );
     } catch (error: unknown) {
       if (requestId !== this.barcodeRequestId) return;
@@ -330,6 +342,26 @@ export class ProductDialogComponent {
     this.categorySuggestion.set(candidate.category || null);
     this.aiResult.set(null);
     this.barcodeMessage.set('Vorschlag übernommen. Bitte prüfe und ergänze die Angaben.');
+  }
+
+  useAiLabelSuggestion(suggestion: BarcodeAiLabelSuggestion): void {
+    const ean = this.aiSearchEan();
+    if (
+      !ean ||
+      this.form.controls.ean.value !== ean ||
+      this.aiResult()?.labelSuggestion !== suggestion
+    )
+      return;
+    this.form.patchValue({
+      title: suggestion.title,
+      model: suggestion.model,
+      size: suggestion.size,
+      color: suggestion.color,
+    });
+    this.brandSuggestion.set(suggestion.brand || null);
+    this.categorySuggestion.set(suggestion.category || null);
+    this.aiResult.set(null);
+    this.barcodeMessage.set('Etikettangaben übernommen. Bitte prüfe und ergänze sie.');
   }
 
   formatCents(amountUsd: number): string {

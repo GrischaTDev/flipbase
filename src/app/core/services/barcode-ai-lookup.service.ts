@@ -14,8 +14,19 @@ export interface BarcodeAiCandidate {
   evidence: string;
 }
 
+export interface BarcodeAiLabelSuggestion {
+  title: string;
+  brand: string;
+  model: string;
+  size: string;
+  color: string;
+  category: string;
+  articleNumber: string;
+}
+
 export interface BarcodeAiResult {
   candidates: BarcodeAiCandidate[];
+  labelSuggestion?: BarcodeAiLabelSuggestion | null;
   usage: {
     inputTokens: number;
     outputTokens: number;

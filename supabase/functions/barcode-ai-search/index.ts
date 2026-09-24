@@ -29,8 +29,19 @@ interface Candidate {
   evidence: string;
 }
 
+interface LabelSuggestion {
+  title: string;
+  brand: string;
+  model: string;
+  size: string;
+  color: string;
+  category: string;
+  articleNumber: string;
+}
+
 interface SearchResult {
   candidates: Candidate[];
+  labelSuggestion: LabelSuggestion | null;
   usage: {
     inputTokens: number;
     outputTokens: number;
@@ -84,10 +95,28 @@ function sourceKey(url: string): string {
   return `${parsed.host.toLowerCase().replace(/^www\./u, '')}${parsed.pathname.replace(/\/$/u, '')}`;
 }
 
+function parseModelContent(response: Record<string, unknown>): Record<string, unknown> | null {
+  const output = Array.isArray(response['output']) ? response['output'] : [];
+  let resultText = '';
+  for (const itemValue of output) {
+    const item = record(itemValue);
+    if (item?.['type'] !== 'message') continue;
+    for (const contentValue of Array.isArray(item['content']) ? item['content'] : []) {
+      const content = record(contentValue);
+      if (content?.['type'] === 'output_text') resultText += text(content['text']);
+    }
+  }
+  if (!resultText) return null;
+  try {
+    return record(JSON.parse(resultText));
+  } catch {
+    return null;
+  }
+}
+
 export function parseCandidates(response: Record<string, unknown>): Candidate[] {
   const output = Array.isArray(response['output']) ? response['output'] : [];
   const sourceUrls = new Set<string>();
-  let resultText = '';
   for (const itemValue of output) {
     const item = record(itemValue);
     if (!item) continue;
@@ -98,20 +127,9 @@ export function parseCandidates(response: Record<string, unknown>): Candidate[] 
         if (url) sourceUrls.add(sourceKey(url));
       }
     }
-    if (item['type'] === 'message') {
-      for (const contentValue of Array.isArray(item['content']) ? item['content'] : []) {
-        const content = record(contentValue);
-        if (content?.['type'] === 'output_text') resultText += text(content['text']);
-      }
-    }
   }
-  if (!resultText || sourceUrls.size === 0) return [];
-  let parsed: Record<string, unknown> | null;
-  try {
-    parsed = record(JSON.parse(resultText));
-  } catch {
-    return [];
-  }
+  if (sourceUrls.size === 0) return [];
+  const parsed = parseModelContent(response);
   const candidates = Array.isArray(parsed?.['candidates']) ? parsed['candidates'] : [];
   return candidates
     .flatMap((value): Candidate[] => {
@@ -135,6 +153,27 @@ export function parseCandidates(response: Record<string, unknown>): Candidate[] 
       ];
     })
     .slice(0, 5);
+}
+
+export function parseLabelSuggestion(response: Record<string, unknown>): LabelSuggestion | null {
+  const suggestion = record(parseModelContent(response)?.['labelSuggestion']);
+  if (!suggestion) return null;
+  const brand = text(suggestion['brand']).slice(0, 100);
+  const model = text(suggestion['model']).slice(0, 100);
+  const title = (text(suggestion['title']) || [brand, model].filter(Boolean).join(' ')).slice(
+    0,
+    200,
+  );
+  if (!title) return null;
+  return {
+    title,
+    brand,
+    model,
+    size: text(suggestion['size']).slice(0, 50),
+    color: text(suggestion['color']).slice(0, 100),
+    category: text(suggestion['category']).slice(0, 100),
+    articleNumber: text(suggestion['articleNumber']).slice(0, 100),
+  };
 }
 
 export function estimateCostUsd(usage: Record<string, unknown>, webSearchCalls: number): number {
@@ -181,8 +220,22 @@ const SEARCH_SCHEMA = {
         additionalProperties: false,
       },
     },
+    labelSuggestion: {
+      type: ['object', 'null'],
+      properties: {
+        title: { type: 'string' },
+        brand: { type: 'string' },
+        model: { type: 'string' },
+        size: { type: 'string' },
+        color: { type: 'string' },
+        category: { type: 'string' },
+        articleNumber: { type: 'string' },
+      },
+      required: ['title', 'brand', 'model', 'size', 'color', 'category', 'articleNumber'],
+      additionalProperties: false,
+    },
   },
-  required: ['candidates'],
+  required: ['candidates', 'labelSuggestion'],
   additionalProperties: false,
 };
 
@@ -264,14 +317,19 @@ function createProductionDependencies(): BarcodeAiDependencies {
     async search(ean, imageDataUrl) {
       const apiKey = Deno.env.get('OPENAI_API_KEY');
       if (!apiKey) throw new Error('OpenAI-Zugang fehlt.');
+      const searchInstructions = imageDataUrl
+        ? `Gescannte EAN/GTIN: ${ean}. Lies zuerst das Etikettfoto. ` +
+          'Trage nur sichtbar lesbare Marke, Modell, Herstellerartikelnummer, Farbe und Größe in labelSuggestion ein; fehlende Angaben bleiben leer. ' +
+          'Wenn nichts lesbar ist, gib labelSuggestion als null zurück. ' +
+          'Suche danach im Web gezielt nach Marke, Modell und Herstellerartikelnummer; die EAN allein liefert oft keine Treffer. '
+        : `Gescannte EAN/GTIN: ${ean}. Suche nach genau diesem Produkt im Web. ` +
+          'Gib labelSuggestion als null zurück. ';
       const content: Record<string, unknown>[] = [
         {
           type: 'input_text',
           text:
-            `Gescannte EAN/GTIN: ${ean}. Suche nach genau diesem Produkt. ` +
-            'Falls ein Etikettfoto vorliegt, lies Marke, Modell, Artikelnummer, Farbe und Größe daraus. ' +
-            'Suche damit im Web. Nenne höchstens fünf konkrete Produktvarianten. ' +
-            'Nutze nur echte gefundene Produktseiten als Quelle. ' +
+            searchInstructions +
+            'Gib höchstens fünf konkrete Produktvarianten als candidates zurück, aber nur mit tatsächlich gefundenen Produktseiten als Quelle. ' +
             'Behaupte eine exakte EAN-Zuordnung nur, wenn die Quelle diese EAN sichtbar nennt. ' +
             'Bei unsicherer Variante markiere likely oder weak. Keine erfundenen Daten oder URLs.',
         },
@@ -312,6 +370,7 @@ function createProductionDependencies(): BarcodeAiDependencies {
       const usage = record(result['usage']) ?? {};
       return {
         candidates: parseCandidates(result),
+        labelSuggestion: imageDataUrl ? parseLabelSuggestion(result) : null,
         usage: {
           inputTokens: Number(usage['input_tokens']) || 0,
           outputTokens: Number(usage['output_tokens']) || 0,

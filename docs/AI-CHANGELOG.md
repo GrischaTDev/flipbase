@@ -1,5 +1,22 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-24 – Juna – Fotoergebnisse der Barcode-KI verbessert
+
+**Auftrag:** Eine KI-Suche mit Etikettfoto zeigte trotz lesbarem JAKO-Aufkleber
+keinen Produktvorschlag.
+
+**Änderung:** Nach der Fotoauswahl ersetzt ein Hinweis die veraltete Meldung
+des vorherigen Suchlaufs. Die KI sucht mit Modell und Herstellerartikelnummer
+vom Etikett. Wenn keine Produktseite sicher belegt werden kann, bietet die
+Maske die aus dem Foto gelesenen Angaben getrennt als prüfbaren Vorschlag an.
+Die Herstellerartikelnummer wird angezeigt, aber nicht als eigene SKU
+übernommen.
+
+**Prüfung:** Ein echter, begrenzter OpenAI-Test mit dem JAKO-Foto lieferte
+belegte Webtreffer und gesonderte Etikettangaben. 13 gezielte DOM-Tests, vier
+Angular-Tests, fünf Edge-Tests, beide TypeScript-Prüfungen, Testsuite-Audit,
+ESLint, Prettier und Angular-Produktionsbau bestanden.
+
 ## 2026-09-24 – Juna – Artikelauswahl im Einkauf korrigiert
 
 **Auftrag:** Die irreführende Hover-Beschriftung im Artikeldialog entfernen,

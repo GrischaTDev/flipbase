@@ -3,6 +3,7 @@ import {
   createBarcodeAiHandler,
   estimateCostUsd,
   parseCandidates,
+  parseLabelSuggestion,
 } from './index.ts';
 
 function assertEquals(actual: unknown, expected: unknown): void {
@@ -26,6 +27,7 @@ function dependencies(overrides: Partial<BarcodeAiDependencies> = {}): BarcodeAi
     isConfigured: () => true,
     search: async () => ({
       candidates: [],
+      labelSuggestion: null,
       usage: { inputTokens: 1000, outputTokens: 200, webSearchCalls: 1, estimatedCostUsd: 0.0102 },
     }),
     ...overrides,
@@ -107,4 +109,41 @@ Deno.test('schaetzt Suchaufrufe und Tokens getrennt', () => {
     ),
     0.02132,
   );
+});
+
+Deno.test('bietet gelesene Etikettangaben ohne Webbeleg getrennt an', () => {
+  const response = {
+    output: [
+      {
+        type: 'message',
+        content: [
+          {
+            type: 'output_text',
+            text: JSON.stringify({
+              candidates: [],
+              labelSuggestion: {
+                title: '',
+                brand: 'JAKO',
+                model: 'J-SFG TWIST',
+                size: '40',
+                color: 'SKYDIVER/SULPHUR SPRING',
+                category: '',
+                articleNumber: '310127 002 443',
+              },
+            }),
+          },
+        ],
+      },
+    ],
+  };
+  assertEquals(parseCandidates(response), []);
+  assertEquals(parseLabelSuggestion(response), {
+    title: 'JAKO J-SFG TWIST',
+    brand: 'JAKO',
+    model: 'J-SFG TWIST',
+    size: '40',
+    color: 'SKYDIVER/SULPHUR SPRING',
+    category: '',
+    articleNumber: '310127 002 443',
+  });
 });
