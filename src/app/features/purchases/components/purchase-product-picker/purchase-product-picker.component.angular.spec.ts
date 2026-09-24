@@ -9,6 +9,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { CatalogProduct } from '../../../../core/models/flipbase.models';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
+import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
@@ -57,6 +58,8 @@ const product: CatalogProduct = {
   id: 'product-1',
   workspace_id: 'workspace-1',
   title: 'Nike Air Max',
+  brand: 'Nike',
+  category: 'Sneaker',
   tracking_mode: 'quantity',
   is_public_store: false,
 };
@@ -78,6 +81,10 @@ describe('PurchaseProductPickerComponent', () => {
         'src/app/shared/components/custom-checkbox/custom-checkbox.component.html',
       './custom-checkbox.component.scss':
         'src/app/shared/components/custom-checkbox/custom-checkbox.component.scss',
+      './custom-select.component.html':
+        'src/app/shared/components/custom-select/custom-select.component.html',
+      './custom-select.component.scss':
+        'src/app/shared/components/custom-select/custom-select.component.scss',
       './button.component.html': 'src/app/shared/components/button/button.component.html',
       './button.component.scss': 'src/app/shared/components/button/button.component.scss',
       './product-thumbnail.component.html':
@@ -97,6 +104,18 @@ describe('PurchaseProductPickerComponent', () => {
     bridgeBindings(ModalShellComponent, ['title', 'size'], ['closed']);
     bridgeBindings(ModalDialogDirective, ['dialogTitel', 'schliesstBeiKlickAussen']);
     bridgeBindings(TextFieldComponent, ['label', 'placeholder']);
+    bridgeBindings(CustomSelectComponent, [
+      'options',
+      'variant',
+      'widthClass',
+      'ariaLabel',
+      'placeholder',
+      'value',
+    ]);
+    (CustomSelectComponent as unknown as { ɵcmp: AngularBindingMetadata }).ɵcmp.outputs = {
+      ...(CustomSelectComponent as unknown as { ɵcmp: AngularBindingMetadata }).ɵcmp.outputs,
+      value: 'valueChange',
+    };
     bridgeBindings(CustomCheckboxComponent, ['checked', 'ariaLabel']);
     (CustomCheckboxComponent as unknown as { ɵcmp: AngularBindingMetadata }).ɵcmp.outputs = {
       ...(CustomCheckboxComponent as unknown as { ɵcmp: AngularBindingMetadata }).ɵcmp.outputs,
@@ -146,6 +165,53 @@ describe('PurchaseProductPickerComponent', () => {
 
     fixture.componentInstance.toggle(product.id);
     expect(fixture.componentInstance.selection().has(product.id)).toBe(false);
+  });
+
+  it('filtert nach vorhandener Kategorie und Marke und setzt beide Filter zurück', async () => {
+    await TestBed.configureTestingModule({
+      imports: [PurchaseProductPickerComponent],
+      providers: [provideRouter([])],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(PurchaseProductPickerComponent);
+    fixture.componentRef.setInput('products', [
+      product,
+      { ...product, id: 'product-2', title: 'Adidas Campus', brand: 'Adidas' },
+      {
+        ...product,
+        id: 'product-3',
+        title: 'Apple iPhone',
+        brand: 'Apple',
+        category: 'Smartphones',
+      },
+    ]);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.categoryOptions().map((option) => option.label)).toEqual([
+      'Alle Kategorien',
+      'Smartphones',
+      'Sneaker',
+    ]);
+    expect(fixture.componentInstance.brandOptions().map((option) => option.label)).toEqual([
+      'Alle Marken',
+      'Adidas',
+      'Apple',
+      'Nike',
+    ]);
+
+    fixture.componentInstance.categoryFilter.set('Sneaker');
+    fixture.componentInstance.brandFilter.set('Nike');
+    fixture.detectChanges();
+    expect(
+      [...(fixture.nativeElement as HTMLElement).querySelectorAll('[data-product-option]')].map(
+        (row) => row.getAttribute('data-product-option'),
+      ),
+    ).toEqual(['product-1']);
+
+    fixture.componentInstance.resetFilters();
+    fixture.detectChanges();
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelectorAll('[data-product-option]').length,
+    ).toBe(3);
   });
 
   it('besteht den strukturellen AXE-Check mit genau einem Auswahlsteuerelement je Zeile', async () => {

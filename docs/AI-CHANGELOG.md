@@ -1,5 +1,19 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-24 – Juna – Artikelauswahl im Einkauf filtern und Erstellen platzieren
+
+**Auftrag:** Den Button zum Erstellen eines Artikels im Einkaufsdialog dauerhaft
+sichtbar machen und kompakte Filter für vorhandene Kategorien und Marken ergänzen.
+
+**Änderung:** „Artikel erstellen“ steht links im Dialog-Footer. Neben der Suche
+filtern Dropdowns nach den Kategorien und Marken, die im geladenen Artikelstamm
+vorkommen. Die Filter lassen sich gemeinsam zurücksetzen.
+
+**Prüfung:** Drei fokussierte Angular-Tests sowie ESLint, Prettier,
+`git diff --check` und der Angular-Produktionsbau mit Node 24.19 bestanden.
+Die vollständige Vitest-Suite lief nicht. Der Bau zeigt weiterhin die bekannte
+CommonJS-Warnung zu `pako`.
+
 ## 2026-09-24 – Juna – Aktive Einkaufsfilter kenntlich gemacht
 
 **Auftrag:** Den redundanten, wegklickbaren Verkäuferchip unter der

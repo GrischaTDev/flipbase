@@ -1,9 +1,40 @@
 <app-modal-shell title="Artikel auswählen" size="lg" (closed)="closed.emit()">
-  <app-text-field
-    label="Artikel suchen"
-    placeholder="Nach Bezeichnung oder Barcode suchen"
-    [formControl]="searchControl"
-  />
+  <div class="grid grid-cols-1 items-end gap-2 sm:grid-cols-[minmax(0,1fr)_10rem_10rem]">
+    <app-text-field
+      label="Artikel suchen"
+      placeholder="Nach Bezeichnung oder Barcode suchen"
+      [formControl]="searchControl"
+    />
+    @if (categoryOptions().length > 1) {
+      <app-custom-select
+        variant="toolbar"
+        widthClass="w-full"
+        ariaLabel="Nach Kategorie filtern"
+        placeholder="Kategorie filtern"
+        [options]="categoryOptions()"
+        [value]="categoryFilter()"
+        (valueChange)="categoryFilter.set($event || null)"
+      />
+    }
+    @if (brandOptions().length > 1) {
+      <app-custom-select
+        variant="toolbar"
+        widthClass="w-full"
+        ariaLabel="Nach Marke filtern"
+        placeholder="Marke filtern"
+        [options]="brandOptions()"
+        [value]="brandFilter()"
+        (valueChange)="brandFilter.set($event || null)"
+      />
+    }
+  </div>
+  @if (hasActiveFilters()) {
+    <div class="flex justify-end">
+      <app-button variant="plain" size="slim" (clicked)="resetFilters()">
+        Filter zurücksetzen
+      </app-button>
+    </div>
+  }
   @if (initialSearch() && query() === undefined) {
     <p class="text-[13px] text-fb-text-muted">Suche: {{ initialSearch() }}</p>
   }
@@ -47,11 +78,13 @@
       <p class="py-6 text-center text-sm text-fb-text-muted">Keine passenden Artikel gefunden.</p>
     }
   </div>
-  <app-button variant="plain" (clicked)="createRequested.emit()">Produkt erstellen</app-button>
-  <div modal-footer class="flex gap-2">
-    <app-button variant="secondary" (clicked)="closed.emit()">Abbrechen</app-button>
-    <app-button variant="primary" [disabled]="selection().size === 0" (clicked)="confirm()"
-      >Hinzufügen ({{ selection().size }})</app-button
-    >
+  <div modal-footer class="flex w-full flex-wrap items-center justify-between gap-2">
+    <app-button variant="plain" (clicked)="createRequested.emit()">Artikel erstellen</app-button>
+    <div class="ml-auto flex gap-2">
+      <app-button variant="secondary" (clicked)="closed.emit()">Abbrechen</app-button>
+      <app-button variant="primary" [disabled]="selection().size === 0" (clicked)="confirm()"
+        >Hinzufügen ({{ selection().size }})</app-button
+      >
+    </div>
   </div>
 </app-modal-shell>
