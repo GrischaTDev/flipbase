@@ -8,10 +8,12 @@ import {
 } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { Location } from '@angular/common';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
 import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
+import { CustomSearchInputComponent } from '../../../../shared/components/custom-search-input/custom-search-input.component';
 import {
   CustomSelectComponent,
   type SelectOption,
@@ -34,6 +36,9 @@ import type {
 } from '../../models/listing.models';
 import { canPrepareListing } from '../../models/listing.rules';
 import { ListingExtensionHelpComponent } from '../../components/listing-extension-help/listing-extension-help.component';
+import { ListingImageEditorComponent } from '../../components/listing-image-editor/listing-image-editor.component';
+import { ListingImagesService } from '../../services/listing-images.service';
+import type { ListingImageDraft } from '../../models/listing.models';
 import type { InventoryItem } from '../../../../core/models/flipbase.models';
 
 @Component({
@@ -42,8 +47,10 @@ import type { InventoryItem } from '../../../../core/models/flipbase.models';
     ButtonComponent,
     CustomCheckboxComponent,
     CustomSelectComponent,
+    CustomSearchInputComponent,
     EntryPageLayoutComponent,
     ListingExtensionHelpComponent,
+    ListingImageEditorComponent,
     NumberInputComponent,
     ReactiveFormsModule,
     TextFieldComponent,
@@ -57,14 +64,25 @@ export class ListingEditorComponent {
   readonly listingService = inject(ListingService);
   readonly extension = inject(ListingExtensionService);
   private readonly listingTemplate = inject(ListingTemplateService);
+  private readonly listingImages = inject(ListingImagesService);
+  private readonly location = inject(Location);
   private readonly workspaceService = inject(WorkspaceService);
   private readonly confirmDialog = inject(ConfirmDialogService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
   private baseline = '';
+  private imageBaseline = '[]';
+  private imageLoadRequest = 0;
+  private loadedImageKey = '';
+  readonly imageDrafts = signal<readonly ListingImageDraft[]>([]);
+  readonly imagesLoading = signal(false);
+  readonly imagesLoadError = signal<string | null>(null);
   readonly isSaving = signal(false);
   readonly helpOpen = signal(false);
+  readonly connectionAttempted = signal(false);
+  readonly preparedListingId = signal<string | null>(null);
+  readonly itemSearch = signal('');
   readonly listingId = signal<string | null>(this.route.snapshot.paramMap.get('id'));
   readonly isEdit = computed(() => this.listingId() !== null);
   readonly isLoading = computed(() =>
@@ -92,6 +110,17 @@ export class ListingEditorComponent {
     this.listingService
       .items()
       .filter((item) => {
+        const term = this.itemSearch().trim().toLocaleLowerCase('de');
+        if (
+          term &&
+          ![item.title, item.brand, item.category]
+            .filter((value): value is string => Boolean(value))
+            .join(' ')
+            .toLocaleLowerCase('de')
+            .includes(term) &&
+          item.id !== this.selectedItemId()
+        )
+          return false;
         if (item.archivedAt || item.status === 'archived' || item.status === 'sold') {
           return false;
         }
@@ -155,6 +184,11 @@ export class ListingEditorComponent {
   constructor() {
     this.extension.start();
     effect(() => {
+      if (this.helpOpen() && this.extension.available() && this.preparedListingId()) {
+        void this.publishPreparedListing();
+      }
+    });
+    effect(() => {
       const workspaceId = this.workspaceService.currentWorkspace()?.id;
       if (!workspaceId) {
         this.listingService.clear();
@@ -174,7 +208,62 @@ export class ListingEditorComponent {
       this.form.controls.inventoryItemId.disable({ emitEvent: false });
       this.storeBaseline();
     });
+    effect(() => {
+      const item = this.selectedItem();
+      if (!item) return;
+      const id = this.listingId();
+      const key = `${id ?? 'new'}:${item.id}`;
+      if (key === this.loadedImageKey) return;
+      this.loadedImageKey = key;
+      const request = ++this.imageLoadRequest;
+      this.imagesLoading.set(Boolean(id));
+      this.imagesLoadError.set(null);
+      void (
+        id
+          ? this.listingImages.load(
+              id,
+              item,
+              this.listingService.getById(id)?.listing.imageSelectionSaved === true,
+            )
+          : this.listingImages.defaults(item)
+      )
+        .then((images) => {
+          if (request !== this.imageLoadRequest) return;
+          if (id) {
+            this.imageDrafts.set(images);
+            this.imageBaseline = this.imageSnapshot();
+          } else {
+            this.imageDrafts.update((current) =>
+              current.map((image) => images.find((loaded) => loaded.key === image.key) ?? image),
+            );
+          }
+          this.imagesLoading.set(false);
+        })
+        .catch((error: unknown) => {
+          if (request === this.imageLoadRequest) {
+            this.imagesLoading.set(false);
+            this.imagesLoadError.set(
+              error instanceof Error ? error.message : 'Bilder konnten nicht geladen werden.',
+            );
+          }
+        });
+    });
     this.form.controls.inventoryItemId.valueChanges.subscribe((itemId) => {
+      if (!this.isEdit()) {
+        const item = this.listingService.items().find((candidate) => candidate.id === itemId);
+        this.imageDrafts.set(
+          [...(item?.media ?? [])]
+            .sort((left, right) => (left.sort_order ?? 0) - (right.sort_order ?? 0))
+            .map((image) => ({
+              key: image.storage_path,
+              storagePath: image.storage_path,
+              file: null,
+              fileName: image.file_name ?? image.storage_path.split('/').at(-1) ?? 'Bild',
+              previewUrl: '',
+            })),
+        );
+        this.imageBaseline = this.imageSnapshot();
+      }
       this.selectedItemId.set(itemId);
       if (this.isEdit() || this.form.controls.price.dirty) return;
       const item = this.listingService.items().find((candidate) => candidate.id === itemId);
@@ -187,7 +276,10 @@ export class ListingEditorComponent {
   }
 
   hasUnsavedChanges(): boolean {
-    return this.baseline !== JSON.stringify(this.form.getRawValue());
+    return (
+      this.baseline !== JSON.stringify(this.form.getRawValue()) ||
+      this.imageBaseline !== this.imageSnapshot()
+    );
   }
   beforeUnload(event: BeforeUnloadEvent): void {
     if (this.hasUnsavedChanges()) event.preventDefault();
@@ -246,7 +338,7 @@ export class ListingEditorComponent {
       this.toast.error('Dieser Artikel kann nicht vorbereitet werden.', selectedItemIssue);
       return;
     }
-    if (this.form.invalid || this.isSaving()) {
+    if (this.form.invalid || this.isSaving() || this.imagesLoading() || this.imagesLoadError()) {
       this.form.markAllAsTouched();
       return;
     }
@@ -265,37 +357,99 @@ export class ListingEditorComponent {
         this.toast.error('Inserat konnte nicht gespeichert werden.', result.error.message);
         return;
       }
+      if (!this.isEdit() && result.data) {
+        this.loadedImageKey = `${result.data.id}:${this.selectedItemId()}`;
+        this.imageLoadRequest += 1;
+        this.listingId.set(result.data.id);
+        this.form.controls.inventoryItemId.disable({ emitEvent: false });
+        this.location.replaceState(`/listings/${result.data.id}`);
+      }
+      if (!result.data) {
+        this.toast.error('Inserat wurde gespeichert, konnte aber nicht neu geladen werden.');
+        return;
+      }
+      try {
+        const savedImages = await this.listingImages.save(
+          result.data.id,
+          result.data.workspaceId,
+          this.imageDrafts(),
+        );
+        this.imageDrafts.set(savedImages);
+      } catch (error: unknown) {
+        this.toast.error(
+          'Inserat gespeichert, Bilder konnten nicht gespeichert werden.',
+          error instanceof Error ? error.message : undefined,
+        );
+        return;
+      }
       this.storeBaseline();
-      if (this.isEdit()) {
+      if (this.route.snapshot.paramMap.get('id')) {
         this.toast.success('Inserat gespeichert.');
         void this.router.navigate(['/listings']);
         return;
       }
       const row = result.data ? this.listingService.getById(result.data.id) : null;
-      if (!this.extension.available() || !row) {
-        this.helpOpen.set(true);
-        this.toast.success('Inserat wurde vorbereitet.');
+      if (!row) {
+        this.toast.error('Inserat gespeichert, aber die Daten konnten nicht neu geladen werden.');
+        void this.router.navigate(['/listings']);
         return;
       }
-      const payload = await this.listingService.buildExtensionPayload(row);
-      this.extension.publish(payload.payload);
-      if (payload.missingImages.length) {
-        const count = payload.missingImages.length;
-        this.toast.warning(
-          `${count} ${count === 1 ? 'Bild konnte' : 'Bilder konnten'} nicht übertragen werden.`,
+      if (!this.extension.available()) {
+        this.preparedListingId.set(row.listing.id);
+        this.helpOpen.set(true);
+        this.toast.success(
+          'Inserat wurde vorbereitet.',
+          'Verbinde die Erweiterung, um es zu öffnen.',
         );
+        return;
       }
-      this.toast.success(
-        'Kleinanzeigen wurde geöffnet.',
-        'Setze das Inserat nach dem Aufgeben auf Online.',
-      );
-      void this.router.navigate(['/listings']);
+      await this.publishListing({ ...row, listing: { ...row.listing, imageSelectionSaved: true } });
     } finally {
       this.isSaving.set(false);
     }
   }
 
   cancel(): void {
+    void this.router.navigate(['/listings']);
+  }
+  closeHelp(): void {
+    this.helpOpen.set(false);
+    if (this.preparedListingId()) void this.router.navigate(['/listings']);
+  }
+  checkConnection(): void {
+    this.connectionAttempted.set(true);
+    this.extension.checkNow();
+  }
+  categoryLabel(category: string | null): string {
+    return category?.split(' > ').at(-1)?.trim() || 'Ohne Kategorie';
+  }
+  private async publishPreparedListing(): Promise<void> {
+    const id = this.preparedListingId();
+    if (!id) return;
+    this.preparedListingId.set(null);
+    this.helpOpen.set(false);
+    const row = this.listingService.getById(id);
+    if (row)
+      await this.publishListing({ ...row, listing: { ...row.listing, imageSelectionSaved: true } });
+    else void this.router.navigate(['/listings']);
+  }
+  private async publishListing(row: ListingRow): Promise<void> {
+    const payload = await this.listingService.buildExtensionPayload(row);
+    const published = await this.extension.publish(payload.payload);
+    if (!published?.success) {
+      this.toast.error('Kleinanzeigen konnte nicht geöffnet werden.', published?.error);
+      return;
+    }
+    if (payload.missingImages.length) {
+      const count = payload.missingImages.length;
+      this.toast.warning(
+        `${count} ${count === 1 ? 'Bild konnte' : 'Bilder konnten'} nicht übertragen werden.`,
+      );
+    }
+    this.toast.success(
+      'Übergabe an Kleinanzeigen gestartet.',
+      'Prüfe dort die Kategorie und alle Angaben.',
+    );
     void this.router.navigate(['/listings']);
   }
   private content(): ListingContent {
@@ -311,6 +465,12 @@ export class ListingEditorComponent {
   }
   private storeBaseline(): void {
     this.baseline = JSON.stringify(this.form.getRawValue());
+    this.imageBaseline = this.imageSnapshot();
+  }
+  private imageSnapshot(): string {
+    return JSON.stringify(
+      this.imageDrafts().map((image) => [image.key, image.storagePath, image.file?.name]),
+    );
   }
 
   private createIssueFor(item: ListingEditorItem): string | null {

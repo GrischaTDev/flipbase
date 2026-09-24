@@ -1,5 +1,26 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-25 – Juna – Inserate und Erweiterungsverbindung überarbeitet
+
+**Auftrag:** Inserateliste an den Admin-Stil angleichen und den Ablauf für Artikelsuche,
+Erweiterungsverbindung, Bilder und Kategorieauswahl verbessern.
+
+**Änderung:** Die Liste hat nun den gemeinsamen Seitenkopf mit Symbol, ein Ansichtsmenü,
+einen einheitlich großen Erstellen-Button und klar beschriftete Zeilenaktionen. Im Editor
+lassen sich Artikel frei suchen. Die Kategorie erscheint mit ihrem letzten Pfadteil;
+die Auswahl auf Kleinanzeigen wird ausdrücklich als manueller Schritt angezeigt.
+Inserate speichern eine eigene Bildauswahl mit Titelbild und Reihenfolge. Bilder können
+hinzugefügt, abgelegt, gezogen oder per Button sortiert werden. Die Erweiterungsprüfung
+setzt ein vorbereitetes Inserat nach erfolgreicher Verbindung fort und wartet beim
+Öffnen auf eine Rückmeldung der Erweiterung. Ein fehlgeschlagener Versuch wird gemeldet.
+
+**Prüfung:** `npm run verify` vollständig bestanden, einschließlich Format, Lint,
+Typen, Workflow-, Edge-, Node-, DOM- und Angular-Tests sowie Produktionsbau.
+Die Migration wurde lokal transaktional angewendet; acht Datenbankprüfungen für
+Bildauswahl, Rechte und Speicherung bestanden.
+Die Produktivoberfläche und die echte Kleinanzeigen-Seite wurden nicht manuell
+durchgeklickt; dieser Schritt bleibt vor Veröffentlichung erforderlich.
+
 ## 2026-09-24 – Juna – Artikel und Bestand in einer Ansicht verwaltet
 
 **Auftrag:** Die beiden Artikel-Unterpunkte zu einer Tabelle zusammenführen und

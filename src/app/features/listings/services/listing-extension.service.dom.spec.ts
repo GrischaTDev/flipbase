@@ -58,7 +58,7 @@ describe('ListingExtensionService', () => {
     expect(service.available()).toBe(true);
   });
 
-  it('finishes a manual recheck immediately when the extension is already available', () => {
+  it('requires a fresh response on a manual recheck', () => {
     vi.spyOn(window, 'postMessage').mockImplementation(() => undefined);
     const service = setup();
     service.start();
@@ -66,6 +66,8 @@ describe('ListingExtensionService', () => {
 
     service.checkNow();
 
+    expect(service.available()).toBe(false);
+    window.dispatchEvent(new Event('flipbase:extension-ready'));
     expect(service.available()).toBe(true);
     expect(service.checking()).toBe(false);
   });
@@ -90,11 +92,44 @@ describe('ListingExtensionService', () => {
       shippingType: 'pickup' as const,
       images: [],
     };
-    service.publish(payload);
+    service.available.set(true);
+    void service.publish(payload);
 
     expect(postMessage).toHaveBeenLastCalledWith(
-      { type: 'FLIPBASE_PUBLISH_KLEINANZEIGEN', payload },
+      expect.objectContaining({ type: 'FLIPBASE_PUBLISH_KLEINANZEIGEN', payload }),
       '*',
     );
+  });
+
+  it('waits for the matching extension response before reporting success', async () => {
+    const postMessage = vi.spyOn(window, 'postMessage').mockImplementation(() => undefined);
+    const service = setup();
+    service.start();
+    service.available.set(true);
+    const pending = service.publish({
+      itemId: 'item-1',
+      title: 'Titel',
+      description: '',
+      price: 10,
+      priceType: 'FIXED',
+      shippingType: 'pickup',
+      images: [],
+    });
+    const request = postMessage.mock.lastCall?.[0] as { requestId: string };
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        source: window,
+        data: {
+          type: 'FLIPBASE_PUBLISH_KLEINANZEIGEN_RESULT',
+          requestId: request.requestId,
+          success: false,
+          error: 'Tab konnte nicht geöffnet werden.',
+        },
+      }),
+    );
+    await expect(pending).resolves.toEqual({
+      success: false,
+      error: 'Tab konnte nicht geöffnet werden.',
+    });
   });
 });

@@ -14,6 +14,8 @@ import { ModalShellComponent } from '../../../../shared/components/modal-shell/m
 export class ListingExtensionHelpComponent {
   readonly open = input(false);
   readonly checking = input(false);
+  readonly available = input(false);
+  readonly attempted = input(false);
   readonly closeRequested = output<void>();
   readonly checkRequested = output<void>();
 

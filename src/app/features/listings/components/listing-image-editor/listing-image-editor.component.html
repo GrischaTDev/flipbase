@@ -1,0 +1,103 @@
+<section aria-label="Inseratbilder" class="space-y-3">
+  <div class="flex items-center justify-between gap-3">
+    <h2 class="text-sm font-semibold text-fb-text-primary">Bilder</h2>
+    <span class="text-xs text-fb-text-muted">{{ drafts().length }} ausgewählt</span>
+  </div>
+  <p class="text-xs text-fb-text-secondary">
+    Das erste Bild wird das Titelbild. Ziehe Bilder in die gewünschte Reihenfolge oder nutze die
+    Buttons.
+  </p>
+  @if (errors().length) {
+    <ul role="alert" class="text-xs text-fb-critical">
+      @for (error of errors(); track error) {
+        <li>{{ error }}</li>
+      }
+    </ul>
+  }
+  <div
+    class="rounded-lg border border-dashed border-fb-border bg-fb-subtle p-4 text-center"
+    [class.border-fb-primary]="dragActive()"
+    (drop)="onDrop($event)"
+    (dragover)="onDragOver($event)"
+    (dragleave)="onDragLeave($event)"
+  >
+    <input
+      #files
+      type="file"
+      multiple
+      class="hidden"
+      aria-label="Inseratbilder auswählen"
+      [accept]="accept"
+      [disabled]="disabled()"
+      (change)="onFileSelected($event)"
+    />
+    <app-button variant="secondary" [disabled]="disabled()" (clicked)="files.click()"
+      >Bilder hinzufügen</app-button
+    >
+    <p class="mt-2 text-xs text-fb-text-muted">oder Bilder hier ablegen</p>
+  </div>
+  @if (drafts().length) {
+    <ol class="space-y-2">
+      @for (image of drafts(); track image.key; let index = $index) {
+        <li
+          class="flex flex-wrap items-center gap-3 rounded-lg border border-fb-border p-2"
+          [draggable]="!disabled()"
+          (dragstart)="startReorder(image.key, $event)"
+          (dragend)="draggedKey.set(null)"
+          (dragover)="dragOverImage($event)"
+          (drop)="dropOnImage(image.key, $event)"
+        >
+          <div
+            class="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-md bg-fb-subtle"
+          >
+            @if (image.previewUrl) {
+              <img
+                [src]="image.previewUrl"
+                [alt]="image.fileName"
+                class="size-full object-contain"
+              />
+            } @else {
+              <span class="text-xs text-fb-text-muted">Keine Vorschau</span>
+            }
+          </div>
+          <div class="min-w-0 flex-1">
+            <p class="truncate text-xs font-medium text-fb-text-primary">{{ image.fileName }}</p>
+            <p class="text-xs text-fb-text-muted">
+              {{ index === 0 ? 'Titelbild' : 'Bild ' + (index + 1) }}
+            </p>
+          </div>
+          <div class="flex flex-wrap gap-1">
+            @if (index > 0) {
+              <app-button size="slim" [disabled]="disabled()" (clicked)="setPrimary(image.key)"
+                >Als Titelbild</app-button
+              >
+            }
+            <app-button
+              size="slim"
+              [disabled]="disabled() || index === 0"
+              [ariaLabel]="image.fileName + ' nach vorne'"
+              (clicked)="move(image.key, -1)"
+              >←</app-button
+            >
+            <app-button
+              size="slim"
+              [disabled]="disabled() || index === drafts().length - 1"
+              [ariaLabel]="image.fileName + ' nach hinten'"
+              (clicked)="move(image.key, 1)"
+              >→</app-button
+            >
+            <app-button
+              size="slim"
+              variant="plain"
+              [disabled]="disabled()"
+              [ariaLabel]="image.fileName + ' entfernen'"
+              (clicked)="remove(image.key)"
+              >Entfernen</app-button
+            >
+          </div>
+        </li>
+      }
+    </ol>
+  }
+  <p aria-live="polite" class="sr-only">{{ announcement() }}</p>
+</section>

@@ -1420,6 +1420,44 @@ export type Database = {
           },
         ]
       }
+      listing_images: {
+        Row: {
+          created_at: string
+          file_name: string | null
+          id: string
+          listing_id: string
+          sort_order: number
+          storage_path: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          file_name?: string | null
+          id?: string
+          listing_id: string
+          sort_order: number
+          storage_path: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string | null
+          id?: string
+          listing_id?: string
+          sort_order?: number
+          storage_path?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "listing_images_listing_fkey"
+            columns: ["workspace_id", "listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["workspace_id", "id"]
+          },
+        ]
+      }
       listings: {
         Row: {
           catalog_product_id: string | null
@@ -1428,6 +1466,7 @@ export type Database = {
           end_reason: string | null
           ended_at: string | null
           id: string
+          image_selection_saved: boolean
           inventory_item_id: string | null
           last_listed_at: string | null
           listed_count: number
@@ -1450,6 +1489,7 @@ export type Database = {
           end_reason?: string | null
           ended_at?: string | null
           id?: string
+          image_selection_saved?: boolean
           inventory_item_id?: string | null
           last_listed_at?: string | null
           listed_count?: number
@@ -1472,6 +1512,7 @@ export type Database = {
           end_reason?: string | null
           ended_at?: string | null
           id?: string
+          image_selection_saved?: boolean
           inventory_item_id?: string | null
           last_listed_at?: string | null
           listed_count?: number

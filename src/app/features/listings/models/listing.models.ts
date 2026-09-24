@@ -24,6 +24,14 @@ export interface ListingImageItem {
   readonly name: string;
 }
 
+export interface ListingImageDraft {
+  readonly key: string;
+  readonly storagePath: string | null;
+  readonly file: File | null;
+  readonly fileName: string;
+  readonly previewUrl: string;
+}
+
 export interface KleinanzeigenListingPayload {
   readonly itemId: string;
   readonly title: string;
@@ -31,6 +39,7 @@ export interface KleinanzeigenListingPayload {
   readonly price: number;
   readonly priceType: ListingPriceType;
   readonly postalCode?: string;
+  readonly categoryHint?: string;
   readonly shippingType: ListingShippingType;
   readonly shippingPrice?: number;
   readonly images: readonly ListingImageItem[];
@@ -63,6 +72,7 @@ export interface Listing {
   readonly endedAt: string | null;
   readonly createdAt: string;
   readonly updatedAt: string;
+  readonly imageSelectionSaved?: boolean;
 }
 
 export interface ListingEditorItem {

@@ -9,7 +9,9 @@ import {
 } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import {
+  LucideList,
   LucideListPlus,
+  LucideExternalLink,
   LucidePencil,
   LucidePlay,
   LucideRotateCcw,
@@ -19,6 +21,10 @@ import { BadgeComponent } from '../../../../shared/components/badge/badge.compon
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
 import { DataTableComponent } from '../../../../shared/components/data-table/data-table.component';
+import {
+  CustomSelectComponent,
+  type SelectOption,
+} from '../../../../shared/components/custom-select/custom-select.component';
 import { PageHeaderComponent } from '../../../../shared/components/page-header/page-header.component';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
@@ -39,6 +45,7 @@ import { ListingService } from '../../services/listing.service';
     BadgeComponent,
     ButtonComponent,
     CurrencyPipe,
+    CustomSelectComponent,
     DataTableComponent,
     DatePipe,
     ListingExtensionHelpComponent,
@@ -57,7 +64,13 @@ export class ListingOverviewComponent {
   private readonly confirmDialog = inject(ConfirmDialogService);
   private readonly router = inject(Router);
 
-  readonly filter = signal<ListingFilter>('open');
+  readonly filter = signal<ListingFilter>('all');
+  readonly filterOptions: readonly SelectOption<ListingFilter>[] = [
+    { value: 'all', label: 'Alle' },
+    { value: 'open', label: 'Offen' },
+    { value: 'online', label: 'Online' },
+    { value: 'ended', label: 'Beendet' },
+  ];
   readonly search = signal('');
   readonly actionListingId = signal<string | null>(null);
   readonly confirmAction = signal<{
@@ -65,10 +78,14 @@ export class ListingOverviewComponent {
     readonly row: ListingRow;
   } | null>(null);
   readonly helpOpen = signal(false);
+  readonly pendingOpenListingId = signal<string | null>(null);
+  readonly connectionAttempted = signal(false);
   readonly addIcon = LucideListPlus;
+  readonly pageIcon = LucideList;
   readonly editIcon = LucidePencil;
   readonly onlineIcon = LucidePlay;
   readonly relistIcon = LucideRotateCcw;
+  readonly openIcon = LucideExternalLink;
   readonly endIcon = LucideSquareX;
   readonly filteredRows = computed(() => {
     const term = this.search().trim().toLocaleLowerCase('de');
@@ -89,6 +106,14 @@ export class ListingOverviewComponent {
 
   constructor() {
     this.extension.start();
+    effect(() => {
+      const id = this.pendingOpenListingId();
+      if (!id || !this.extension.available()) return;
+      this.pendingOpenListingId.set(null);
+      this.helpOpen.set(false);
+      const row = this.listingService.getById(id);
+      if (row) void this.publishRow(row);
+    });
     effect(() => {
       const workspaceId = this.workspaceService.currentWorkspace()?.id;
       if (workspaceId) void this.listingService.load(workspaceId);
@@ -160,6 +185,7 @@ export class ListingOverviewComponent {
   async openAgain(row: ListingRow): Promise<void> {
     if (!this.isCurrentRow(row)) return;
     if (!this.extension.available()) {
+      this.pendingOpenListingId.set(row.listing.id);
       this.helpOpen.set(true);
       return;
     }
@@ -198,11 +224,23 @@ export class ListingOverviewComponent {
     const workspaceId = this.workspaceService.currentWorkspace()?.id;
     if (workspaceId) await this.listingService.load(workspaceId);
   }
+  checkConnection(): void {
+    this.connectionAttempted.set(true);
+    this.extension.checkNow();
+  }
+  closeHelp(): void {
+    this.pendingOpenListingId.set(null);
+    this.helpOpen.set(false);
+  }
 
   private async publishRow(row: ListingRow): Promise<void> {
     const result = await this.listingService.buildExtensionPayload(row);
     if (!this.isCurrentRow(row)) return;
-    this.extension.publish(result.payload);
+    const published = await this.extension.publish(result.payload);
+    if (!published?.success) {
+      this.toast.error('Kleinanzeigen konnte nicht geöffnet werden.', published?.error);
+      return;
+    }
     if (result.missingImages.length) {
       const count = result.missingImages.length;
       this.toast.warning(

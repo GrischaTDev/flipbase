@@ -29,6 +29,7 @@
       <li id="step-title" class="flipbase-hud-step pending"></li>
       <li id="step-price" class="flipbase-hud-step pending"></li>
       <li id="step-description" class="flipbase-hud-step pending"></li>
+      <li id="step-category" class="flipbase-hud-step manual"></li>
       <li id="step-location" class="flipbase-hud-step pending"></li>
       <li id="step-shipping" class="flipbase-hud-step pending"></li>
       <li id="step-images" class="flipbase-hud-step pending"></li>
@@ -58,6 +59,12 @@
   setStep('step-title', { status: 'pending', text: 'Warte auf das Formular …' });
   setStep('step-price', { status: 'pending', text: 'Preis & Preistyp' });
   setStep('step-description', { status: 'pending', text: 'Beschreibung' });
+  setStep('step-category', {
+    status: 'manual',
+    text: listing.categoryHint
+      ? `Kategorie selbst wählen (Artikelkategorie: ${listing.categoryHint})`
+      : 'Kategorie selbst wählen',
+  });
   setStep('step-location', { status: 'pending', text: 'Standort' });
   setStep('step-shipping', { status: 'pending', text: 'Versand' });
   setStep('step-images', { status: 'pending', text: 'Bilder' });

@@ -22,13 +22,13 @@
       {
         type: 'FLIPBASE_EXTENSION_STATUS',
         installed: true,
-        version: '1.0.2',
+        version: '1.0.3',
       },
       '*',
     );
     window.dispatchEvent(
       new CustomEvent('flipbase:extension-ready', {
-        detail: { version: '1.0.2', ready: true },
+        detail: { version: '1.0.3', ready: true },
       }),
     );
   }
@@ -59,18 +59,21 @@
     // Inserat auf Kleinanzeigen starten
     if (data.type === 'FLIPBASE_PUBLISH_KLEINANZEIGEN') {
       const payload = data.payload;
+      const requestId = data.requestId;
       chrome.runtime.sendMessage(
         {
           type: 'START_KLEINANZEIGEN_LISTING',
           payload: payload,
         },
         (response) => {
+          const runtimeError = chrome.runtime.lastError;
           window.postMessage(
             {
               type: 'FLIPBASE_PUBLISH_KLEINANZEIGEN_RESULT',
-              success: Boolean(response?.success),
+              requestId,
+              success: !runtimeError && Boolean(response?.success),
               tabId: response?.tabId,
-              error: response?.error,
+              error: runtimeError?.message || response?.error,
             },
             '*',
           );

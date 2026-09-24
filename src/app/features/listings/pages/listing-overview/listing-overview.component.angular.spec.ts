@@ -10,6 +10,7 @@ import { BadgeComponent } from '../../../../shared/components/badge/badge.compon
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
 import { CustomSearchInputComponent } from '../../../../shared/components/custom-search-input/custom-search-input.component';
+import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
 import { DataTableComponent } from '../../../../shared/components/data-table/data-table.component';
 import { PageHeaderComponent } from '../../../../shared/components/page-header/page-header.component';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
@@ -102,7 +103,13 @@ beforeAll(async () => {
     'id',
     'ariaLabel',
   ]);
-  registerSignalInputs(ListingExtensionHelpComponent, ['open', 'checking']);
+  registerSignalInputs(CustomSelectComponent, ['options', 'value', 'variant', 'ariaLabel']);
+  registerSignalInputs(ListingExtensionHelpComponent, [
+    'open',
+    'checking',
+    'available',
+    'attempted',
+  ]);
   registerSignalInputs(PageHeaderComponent, ['title', 'subtitle', 'icon', 'backLink', 'backLabel']);
   registerSignalInputs(ProductThumbnailComponent, ['src', 'alt', 'size']);
   registerSignalInputs(TableColumnMenuComponent, [
@@ -214,7 +221,7 @@ describe('ListingOverviewComponent', () => {
             available: vi.fn(() => true),
             checking: signal(false),
             checkNow: vi.fn(),
-            publish: vi.fn(),
+            publish: vi.fn(async () => ({ success: true })),
           },
         },
         { provide: ConfirmDialogService, useValue: { frage: vi.fn(async () => true) } },
@@ -229,6 +236,8 @@ describe('ListingOverviewComponent', () => {
     configure([createRow('prepared'), createRow('online'), createRow('ended')]);
     const component = TestBed.runInInjectionContext(() => new ListingOverviewComponent());
 
+    expect(component.filteredRows()).toHaveLength(3);
+    component.filter.set('open');
     expect(component.filteredRows()).toHaveLength(2);
     component.filter.set('online');
     expect(component.filteredRows().map((row) => row.listing.status)).toEqual(['online']);
