@@ -158,7 +158,9 @@ describe('PurchaseProductPickerComponent', () => {
     expect(row?.getAttribute('role')).toBeNull();
     expect(row?.getAttribute('aria-pressed')).toBe('false');
     expect(row?.querySelector('button[role="checkbox"]')).toBeNull();
-    expect((fixture.nativeElement as HTMLElement).querySelector('app-modal-shell')?.title).toBe('');
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('app-modal-shell')?.title,
+    ).toBe('');
     const createButton = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(
       'footer app-button',
     );

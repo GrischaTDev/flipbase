@@ -13,8 +13,9 @@ der letzte Teil des Kategoriepfads; gefiltert wird weiterhin nach dem ganzen
 Pfad.
 
 **Prüfung:** Die drei gezielten Angular-Tests, Prettier und ESLint für die
-geänderten Dateien, `git diff --check` und der Angular-Produktionsbau
-bestanden. Der Bau meldete die bekannte CommonJS-Warnung zu `pako`.
+geänderten Dateien, beide TypeScript-Prüfungen, `git diff --check` und der
+Angular-Produktionsbau bestanden. Der Bau meldete die bekannte
+CommonJS-Warnung zu `pako`.
 
 ## 2026-09-24 – Juna – Authelia-Bestätigungscodes per E-Mail vorbereitet
 
