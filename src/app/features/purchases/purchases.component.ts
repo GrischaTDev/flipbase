@@ -92,10 +92,10 @@ export class PurchasesComponent {
       .sort((a, b) => a.name.localeCompare(b.name, 'de'));
   });
   readonly sellerSelectOptions = computed<readonly SelectOption<string>[]>(() => [
-    { value: '', label: 'Verkäufer ist …' },
+    { value: '', label: 'Nach Verkäufer filtern' },
     ...this.sellerOptions().map((seller) => ({
       value: seller.id,
-      label: `${seller.name} · ${seller.id.slice(-6)}`,
+      label: seller.name,
     })),
   ]);
   readonly selectedSeller = computed(() =>

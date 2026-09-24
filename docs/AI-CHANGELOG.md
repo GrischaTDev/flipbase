@@ -1,5 +1,25 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-24 – Juna – Suchfeld und Verkäuferfilter bei Einkäufen bereinigt
+
+**Auftrag:** Das zusätzliche blaue Browser-X im Suchfeld entfernen, den
+Verkäuferfilter verständlicher benennen und technische Verkäufer-IDs aus der
+Auswahl sowie dem aktiven Filter entfernen.
+
+**Änderung:** Das gemeinsame Suchfeld behält seine eigene Zurücksetzen-Aktion
+und Suchfeld-Semantik, ohne den nativen Browser-Löschknopf zu erzeugen. Der
+Einkaufsfilter heißt „Nach Verkäufer filtern“ und zeigt nur Verkäufernamen;
+die ID bleibt für die eindeutige interne Filterung erhalten.
+
+**Prüfung:** Beide neuen Einkaufslisten-Tests scheiterten vor der Änderung und
+bestanden danach. Die vollständige Vitest-Suite bestand mit 297 Dateien und
+2.778 Tests. Prettier, ESLint, beide TypeScript-Prüfungen und der
+Angular-Produktionsbau bestanden. Für den Bau war wegen laufwerksübergreifender
+Pfade der wiederverwendeten Abhängigkeiten ein temporärer Worktree auf demselben
+Laufwerk nötig; er wurde danach entfernt. Es blieb nur die bekannte
+`pako`-CommonJS-Warnung. Browser-End-to-End-Tests liefen lokal nicht, da die
+Supabase-Testinstanz nicht verfügbar ist.
+
 ## 2026-09-24 – Juna – Barcode-Erfassung mit Artikelabgleich und Produktvorschlägen
 
 **Auftrag:** Barcode-Scans beim Einkauf und beim Erstellen eines Artikels mit

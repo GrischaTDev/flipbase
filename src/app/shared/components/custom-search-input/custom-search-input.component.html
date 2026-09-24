@@ -20,7 +20,9 @@
   <!-- Input Field -->
   <input
     #searchInput
-    type="search"
+    type="text"
+    inputmode="search"
+    role="searchbox"
     [value]="value()"
     [placeholder]="placeholder()"
     [disabled]="effectiveDisabled()"

@@ -77,7 +77,7 @@
       table-filters
       variant="toolbar"
       widthClass="min-w-60 max-w-80"
-      ariaLabel="Verkäufer ist"
+      ariaLabel="Nach Verkäufer filtern"
       [options]="sellerSelectOptions()"
       [value]="sellerId()"
       (valueChange)="sellerId.set($event ?? '')"
@@ -89,9 +89,9 @@
           variant="secondary"
           size="slim"
           (clicked)="sellerId.set('')"
-          [ariaLabel]="'Filter Verkäufer ist ' + seller.name + ' entfernen'"
+          [ariaLabel]="'Verkäuferfilter für ' + seller.name + ' entfernen'"
         >
-          Verkäufer ist {{ seller.name }} · {{ seller.id.slice(-6) }} ×
+          Verkäufer: {{ seller.name }} ×
         </app-button>
       </div>
     }
