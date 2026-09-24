@@ -13,19 +13,16 @@ test('verkauft ein Einzelstück genau einmal aus dem gemeinsamen Inventar @pr-sm
     items: [{ title: saleItem, price: 20 }],
   });
   await openDashboard(page);
-  await page.goto('/inventory');
+  await page.goto('/catalog?view=stock');
 
   const inventory = page.getByRole('table', {
-    name: 'Bestand mit Artikel, auf Lager, verfügbar und reserviert',
+    name: 'Alle Artikel',
   });
   const sellButton = page.getByRole('button', { name: `${saleItem} verkaufen` });
   await expect(sellButton).toBeVisible({ timeout: 10_000 });
   const inventoryRow = inventory.getByRole('row').filter({ hasText: saleItem });
-  await expect(
-    inventoryRow.getByRole('checkbox', { name: `Artikel ${saleItem} auswählen` }),
-  ).toBeVisible();
-  await expect(inventoryRow.getByRole('cell').nth(2)).toHaveText('1');
-  await expect(inventoryRow.getByRole('cell').nth(3)).toHaveText('1');
+  await expect(inventoryRow.getByRole('cell').nth(1)).toHaveText('1 Stück');
+  await expect(inventoryRow.getByRole('cell').nth(2)).toHaveText('1 Stück');
 
   await sellButton.click();
   await expect(page.getByRole('heading', { name: 'Verkauf erfassen' })).toBeVisible();
@@ -33,7 +30,7 @@ test('verkauft ein Einzelstück genau einmal aus dem gemeinsamen Inventar @pr-sm
   await page.getByRole('button', { name: 'Verkauf abschließen' }).click();
 
   await expect(page.getByRole('heading', { name: 'Verkauf erfassen' })).toBeHidden();
-  await expect(page).toHaveURL(/\/inventory$/);
+  await expect(page).toHaveURL(/\/catalog\?view=stock$/);
   await page.goto('/sales');
   await expect(page).toHaveURL(/\/sales$/);
   await expect(page.getByRole('heading', { name: 'Verkäufe & Retouren' })).toBeVisible({
@@ -43,14 +40,14 @@ test('verkauft ein Einzelstück genau einmal aus dem gemeinsamen Inventar @pr-sm
   await expect(recordedSales).toHaveCount(1);
   await expect(recordedSales).toContainText('35,00 €');
 
-  await page.goto('/inventory');
+  await page.goto('/catalog?view=stock');
   const soldRow = page.getByRole('row').filter({ hasText: saleItem });
   await expect(soldRow).toHaveCount(0);
   await page
-    .getByRole('group', { name: 'Bestandsansicht', exact: true })
-    .getByRole('button', { name: 'Verkauft', exact: true })
+    .getByRole('group', { name: 'Artikelansicht' })
+    .getByRole('button', { name: 'Ohne Bestand' })
     .click();
   await expect(soldRow).toBeVisible();
-  await expect(soldRow.getByRole('cell').nth(2)).toHaveText('0');
+  await expect(soldRow.getByRole('cell').nth(1)).toHaveText('0 Stück');
   await expect(page.getByRole('button', { name: `${saleItem} verkaufen` })).toHaveCount(0);
 });

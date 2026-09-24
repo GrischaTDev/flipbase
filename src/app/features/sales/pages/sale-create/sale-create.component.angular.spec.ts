@@ -25,6 +25,29 @@ describe('SaleCreateComponent', () => {
     expect(navigateByUrl).toHaveBeenCalledWith('/inventory');
   });
 
+  it('kehrt nach einem Artikelverkauf zur Bestandsansicht zurück', () => {
+    const navigateByUrl = vi.fn();
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        {
+          provide: Router,
+          useValue: {
+            getCurrentNavigation: () => ({
+              extras: { state: { returnUrl: '/catalog?view=stock' } },
+            }),
+            navigateByUrl,
+          },
+        },
+      ],
+    });
+
+    const component = TestBed.runInInjectionContext(() => new SaleCreateComponent());
+    component.returnToSales();
+
+    expect(navigateByUrl).toHaveBeenCalledWith('/catalog?view=stock');
+  });
+
   it('ignoriert fremde Rücksprungziele und kehrt zur Verkaufsliste zurück', () => {
     const navigateByUrl = vi.fn();
     TestBed.resetTestingModule();

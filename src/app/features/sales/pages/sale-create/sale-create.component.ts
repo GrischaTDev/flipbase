@@ -36,6 +36,10 @@ export class SaleCreateComponent {
 
   returnToSales(): void {
     const returnUrl = this.routeState.returnUrl;
-    void this.router.navigateByUrl(returnUrl?.startsWith('/inventory') ? returnUrl : '/sales');
+    const isInventoryRoute = returnUrl === '/inventory' || returnUrl?.startsWith('/inventory/');
+    const isCatalogRoute = returnUrl === '/catalog' || returnUrl?.startsWith('/catalog?');
+    void this.router.navigateByUrl(
+      returnUrl && (isInventoryRoute || isCatalogRoute) ? returnUrl : '/sales',
+    );
   }
 }

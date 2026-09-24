@@ -18,6 +18,8 @@ import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { InventoryService } from '../../core/services/inventory.service';
+import { isSellableInventoryItem } from '../../core/models/inventory-sellability';
+import type { SaleTarget, SaleTargetRouteState } from '../../core/models/sale-target.models';
 import { PurchaseService } from '../../core/services/purchase.service';
 import { MediaService } from '../../core/services/media.service';
 import { buildCatalogOverview, CatalogOverviewRow } from './utils/catalog-overview';
@@ -214,6 +216,38 @@ export class CatalogComponent {
     return value === null
       ? 'Zu prüfen'
       : new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(value);
+  }
+
+  private saleTargetFor(row: CatalogOverviewRow): SaleTarget | null {
+    if (row.archivedAt) return null;
+    if (row.kind === 'item') {
+      const item = this.inventoryService.items().find((entry) => entry.id === row.id);
+      return item && isSellableInventoryItem(item) && row.available === 1
+        ? { kind: 'inventory_item', inventoryItemId: item.id, title: item.title }
+        : null;
+    }
+    const position = this.stockService
+      .positions()
+      .find((entry) => entry.catalog_product_id === row.id && entry.available_quantity > 0);
+    return position
+      ? {
+          kind: 'catalog_product',
+          catalogProductId: row.id,
+          title: row.title,
+          availableQuantity: position.available_quantity,
+        }
+      : null;
+  }
+
+  canSell(row: CatalogOverviewRow): boolean {
+    return this.saleTargetFor(row) !== null;
+  }
+
+  openSale(row: CatalogOverviewRow): void {
+    const saleTarget = this.saleTargetFor(row);
+    if (!saleTarget) return;
+    const state: SaleTargetRouteState = { saleTarget, returnUrl: '/catalog?view=stock' };
+    void this.router.navigate(['/sales/new'], { state });
   }
 
   async setArchived(row: CatalogOverviewRow): Promise<void> {

@@ -5,6 +5,7 @@ import { convertToParamMap, ActivatedRoute, Router } from '@angular/router';
 import { of } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CatalogService } from '../../core/services/catalog.service';
+import type { InventoryItem, StockPosition } from '../../core/models/flipbase.models';
 import { InventoryService } from '../../core/services/inventory.service';
 import { MediaService } from '../../core/services/media.service';
 import { PurchaseService } from '../../core/services/purchase.service';
@@ -42,6 +43,9 @@ function setup() {
   const reload = vi.fn().mockResolvedValue(undefined);
   const cleanup = vi.fn().mockResolvedValue({ completed: 0, pending: 0, failed: 0 });
   const empty = signal([]);
+  const items = signal<InventoryItem[]>([]);
+  const positions = signal<StockPosition[]>([]);
+  const navigate = vi.fn().mockResolvedValue(true);
   const routeParams = convertToParamMap({});
   TestBed.configureTestingModule({
     providers: [
@@ -50,7 +54,7 @@ function setup() {
         provide: ActivatedRoute,
         useValue: { snapshot: { queryParamMap: routeParams }, queryParamMap: of(routeParams) },
       },
-      { provide: Router, useValue: { navigate: vi.fn().mockResolvedValue(true) } },
+      { provide: Router, useValue: { navigate } },
       {
         provide: CatalogViewStateService,
         useValue: { searchFor: () => '', rememberSearch: vi.fn() },
@@ -75,7 +79,7 @@ function setup() {
       {
         provide: InventoryService,
         useValue: {
-          items: empty,
+          items,
           loadInventory: reload,
           isLoading: signal(false),
           loadError: signal(null),
@@ -84,7 +88,7 @@ function setup() {
       {
         provide: StockService,
         useValue: {
-          positions: empty,
+          positions,
           lots: empty,
           movements: empty,
           loadedWorkspaceId: signal('own'),
@@ -119,7 +123,18 @@ function setup() {
     ],
   });
   const component = TestBed.runInInjectionContext(() => new CatalogComponent());
-  return { component, workspace, confirm, archive, remove, reload, cleanup };
+  return {
+    component,
+    workspace,
+    confirm,
+    archive,
+    remove,
+    reload,
+    cleanup,
+    items,
+    positions,
+    navigate,
+  };
 }
 
 describe('Artikelaktionen', () => {
@@ -171,5 +186,38 @@ describe('Artikelaktionen', () => {
     await component.deleteUnused({ ...row, canOfferDelete: true });
     expect(remove).toHaveBeenCalledWith('own', 'catalog', 'product');
     expect(cleanup).toHaveBeenCalledWith('own');
+  });
+
+  it('führt verkaufbare Einzelstücke zum vorbelegten Verkaufsformular', () => {
+    const { component, items, navigate } = setup();
+    items.set([
+      {
+        id: 'item-1',
+        workspace_id: 'own',
+        title: 'Controller',
+        condition: 'used',
+        status: 'ready',
+        allocated_purchase_cost: 20,
+        sale_state: 'no_active_sale',
+      },
+    ]);
+    const itemRow = {
+      ...row,
+      key: 'item:item-1',
+      id: 'item-1',
+      kind: 'item' as const,
+      title: 'Controller',
+      available: 1,
+    };
+
+    expect(component.canSell(itemRow)).toBe(true);
+    component.openSale(itemRow);
+    expect(navigate).toHaveBeenCalledWith(['/sales/new'], {
+      state: {
+        saleTarget: { kind: 'inventory_item', inventoryItemId: 'item-1', title: 'Controller' },
+        returnUrl: '/catalog?view=stock',
+      },
+    });
+    expect(component.canSell({ ...itemRow, archivedAt: '2026-09-24T00:00:00Z' })).toBe(false);
   });
 });

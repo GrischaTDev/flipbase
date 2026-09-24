@@ -21,6 +21,8 @@ eine wiederholbare Warteschlange bereinigt. Alte Bestandslinks führen zum
 Bestandsfilter, während Einzelstück-Detailseiten erreichbar bleiben.
 Verknüpfte Einzelstücke beachten den Archivstatus ihres Stammartikels; ein
 fehlgeschlagener Einzelstück-Upload räumt die bereits hochgeladene Datei auf.
+Der direkte Verkauf bleibt in der gemeinsamen Artikeltabelle erreichbar und
+führt nach Abschluss zur Bestandsansicht zurück.
 
 **Prüfung:** Lokale Datenbank aus den beiden neuen Migrationen frisch
 aufgebaut; 198 gezielte SQL-Tests, 6 Edge-Tests, die betroffenen Angular- und
