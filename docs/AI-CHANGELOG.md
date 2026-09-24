@@ -6,7 +6,7 @@
 
 **Änderung:** Den Branch auf den aktuellen `origin/master` mit der neuen gemeinsamen Artikelansicht gesetzt. Die alte Inventar-Neuanlage behält deren Weiterleitung zur Katalogseite; der Foto-Dialog verwendet für das Entfernen eines Bildes den gemeinsamen Button-Baustein. Die Einkauf-Rückkehr und die Mehrfoto-Suche bleiben erhalten.
 
-**Prüfung:** Betroffene Angular-, DOM- und Deno-Tests, Angular-Bau, Lint, Formatierung und Shared-UI-Prüfung nach dem Abgleich erneut ausgeführt. Die PR-Pflichtprüfungen folgen nach dem Push.
+**Prüfung:** Betroffene Angular-, DOM- und Deno-Tests, Angular-Bau, Lint, Formatierung und Shared-UI-Prüfung nach dem Abgleich erneut ausgeführt. Der erste PR-Lauf zeigte einen veralteten Browser-Testhelfer, der noch den entfernten Produktdialog erwartete. Die betroffenen Browser-Tests wurden auf die vollständige Artikelseite mit Rückkehr zum Einkauf angepasst. Lokal ist der Browserlauf zurzeit durch nicht veröffentlichte Ports der geteilten Supabase-Container blockiert; der erneute PR-Lauf prüft den tatsächlichen Browserablauf.
 
 ## 2026-09-24 – Juna – Artikelerstellung und KI-Fotosuche aus dem Einkauf verbunden
 

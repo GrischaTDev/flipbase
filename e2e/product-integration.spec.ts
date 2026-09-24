@@ -7,17 +7,19 @@ test.beforeEach(async ({ page }) => {
 });
 
 async function createProduct(page: Page, title: string, image = false) {
+  const returnPath = new URL(page.url()).pathname;
   await page.getByRole('button', { name: 'Artikel suchen oder hinzufügen', exact: true }).click();
   const picker = page.getByRole('dialog', { name: 'Artikel auswählen' });
   await expect(picker.getByRole('button', { name: 'Produkt erstellen', exact: true })).toHaveCount(
     1,
   );
   await picker.getByRole('button', { name: 'Produkt erstellen', exact: true }).click();
-  const dialog = page.getByRole('dialog', { name: 'Produkt erstellen', exact: true });
-  await dialog.getByRole('textbox', { name: 'Name', exact: true }).fill(title);
-  await checkAxe(page, 'app-product-dialog');
+  await expect(page).toHaveURL(/\/catalog\/new\?purchaseReturn=/);
+  const editor = page.locator('app-product-detail');
+  await editor.getByRole('textbox', { name: 'Name', exact: true }).fill(title);
+  await checkAxe(page, 'app-product-detail');
   if (image)
-    await dialog.locator('input[type=file]').setInputFiles({
+    await editor.locator('app-product-media-editor input[type=file]').setInputFiles({
       name: 'bild.png',
       mimeType: 'image/png',
       buffer: Buffer.from(
@@ -25,9 +27,15 @@ async function createProduct(page: Page, title: string, image = false) {
         'base64',
       ),
     });
-  await dialog.getByRole('button', { name: 'Produkt erstellen', exact: true }).click();
-  await expect(dialog).toHaveCount(0);
+  await editor.getByRole('button', { name: 'Artikel erstellen', exact: true }).click();
+  await expect.poll(() => new URL(page.url()).pathname).toBe(returnPath);
   await expect(picker).toHaveCount(0);
+  await expect(
+    page.locator('app-purchase-line-editor').getByRole('spinbutton', {
+      name: `Menge für ${title}`,
+      exact: true,
+    }),
+  ).toBeVisible();
 }
 
 async function checkAxe(page: Page, selector: string) {
