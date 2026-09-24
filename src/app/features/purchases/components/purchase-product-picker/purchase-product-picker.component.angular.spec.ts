@@ -59,7 +59,7 @@ const product: CatalogProduct = {
   workspace_id: 'workspace-1',
   title: 'Nike Air Max',
   brand: 'Nike',
-  category: 'Sneaker',
+  category: 'Schuhe > Sneaker',
   tracking_mode: 'quantity',
   is_public_store: false,
 };
@@ -121,7 +121,7 @@ describe('PurchaseProductPickerComponent', () => {
       ...(CustomCheckboxComponent as unknown as { ɵcmp: AngularBindingMetadata }).ɵcmp.outputs,
       checked: 'checkedChange',
     };
-    bridgeBindings(ButtonComponent, ['variant', 'disabled'], ['clicked']);
+    bridgeBindings(ButtonComponent, ['variant', 'disabled', 'icon'], ['clicked']);
     bridgeBindings(ProductThumbnailComponent, ['src'], ['imageFailed']);
   });
 
@@ -158,6 +158,12 @@ describe('PurchaseProductPickerComponent', () => {
     expect(row?.getAttribute('role')).toBeNull();
     expect(row?.getAttribute('aria-pressed')).toBe('false');
     expect(row?.querySelector('button[role="checkbox"]')).toBeNull();
+    expect((fixture.nativeElement as HTMLElement).querySelector('app-modal-shell')?.title).toBe('');
+    const createButton = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(
+      'footer app-button',
+    );
+    expect(createButton?.textContent).toContain('Produkt erstellen');
+    expect(createButton?.querySelector('button svg')).not.toBeNull();
     row?.click();
     fixture.detectChanges();
     expect(fixture.componentInstance.selection().has(product.id)).toBe(true);
@@ -198,7 +204,8 @@ describe('PurchaseProductPickerComponent', () => {
       'Nike',
     ]);
 
-    fixture.componentInstance.categoryFilter.set('Sneaker');
+    expect(fixture.componentInstance.categoryOptions()[2]?.value).toBe('Schuhe > Sneaker');
+    fixture.componentInstance.categoryFilter.set('Schuhe > Sneaker');
     fixture.componentInstance.brandFilter.set('Nike');
     fixture.detectChanges();
     expect(

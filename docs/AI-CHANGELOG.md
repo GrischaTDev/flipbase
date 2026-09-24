@@ -1,5 +1,21 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-24 – Juna – Artikelauswahl im Einkauf korrigiert
+
+**Auftrag:** Die irreführende Hover-Beschriftung im Artikeldialog entfernen,
+„Produkt erstellen“ als erkennbaren Button darstellen und Kategorien kompakt
+benennen.
+
+**Änderung:** Der Dialogtitel wird als Komponenten-Eingang gebunden, sodass er
+kein Browser-Tooltip auf dem Dialogelement mehr ist. Die Erstellen-Aktion steht
+als sekundärer Button mit Plus-Symbol im Footer. Im Kategoriefilter erscheint
+der letzte Teil des Kategoriepfads; gefiltert wird weiterhin nach dem ganzen
+Pfad.
+
+**Prüfung:** Die drei gezielten Angular-Tests, Prettier und ESLint für die
+geänderten Dateien, `git diff --check` und der Angular-Produktionsbau
+bestanden. Der Bau meldete die bekannte CommonJS-Warnung zu `pako`.
+
 ## 2026-09-24 – Juna – Authelia-Bestätigungscodes per E-Mail vorbereitet
 
 **Auftrag:** Die Registrierung einer Authenticator-App für das Supabase Studio
