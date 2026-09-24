@@ -1,5 +1,77 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-24 – Juna – Alten PR geschlossen und Artikelansicht eingeordnet
+
+**Auftrag:** Den überholten PR `#58` schließen und prüfen, ob „Alle Artikel“ und
+„Bestand“ zu einer gemeinsamen Artikelseite werden sollten. Vergleich mit
+Shopify und WooCommerce sowie Einordnung der deutschen Aufzeichnungspflichten.
+
+**Ergebnis:** PR `#58` wurde ohne Änderung seines Zweigs geschlossen. Der
+Artikelstamm zeigt bereits eine abgeleitete verfügbare Menge und auch
+eigenständige ältere Inventarartikel. Die Bestandsseite ergänzt physische,
+verfügbare und reservierte Mengen sowie Herkunft, Kosten und Aktionen. Eine
+gemeinsame Tabelle unter „Artikel“ erscheint sinnvoll; Bestandsansichten
+können als Filter und Spalten weiterbestehen. Ein Produkt ohne Wareneingang
+bleibt ohne Bestand. Alte Einzelstücke werden nicht allein wegen gleichem
+Titel oder Barcode zusammengelegt. Buchungen, Belege, Kosten und
+Bestandsbewegungen bleiben getrennt nachvollziehbar. Die frühere
+Zwei-Unterpunkte-Regel in der Gestaltungsgrundlage wird bei der Umsetzung an
+die bestätigte Ein-Seiten-Lösung angepasst. Es wurde noch keine UI- oder
+Datenmodelländerung vorgenommen.
+
+**Folgegespräch:** Der Nutzer bestätigte eine Zeile je Artikel, auch ohne
+Bestand, und getrennte Artikel für individuell unterschiedliche gebrauchte
+Stücke. In der gemeinsamen Ansicht sollen Bearbeiten, Archivieren und Löschen
+erkennbar werden. Löschen wurde auf noch unbenutzte Artikel ohne Einkaufs-,
+Bestands-, Verkaufs- oder Inseratsbezug begrenzt. Der vorhandene Katalogeditor
+speichert bereits Änderungen, besitzt aber keinen deutlichen Bearbeiten-Einstieg
+in der Liste. Katalogartikel haben derzeit keinen Archivstatus; die bisherige
+Archivaktion für alte Einzelstücke gilt nur für eindeutig verkaufte Artikel.
+Die Archivierung bei vorhandenem Bestand wurde bestätigt; Menge und Wert
+bleiben dabei erhalten. Der Nutzer bestätigte den Entwurf für eine gemeinsame
+Artikeltabelle mit gesperrter Archivierung bei offenen Reservierungen und
+Inseraten sowie ohne neue Verkäufe oder Inserate aus dem Archiv.
+
+**Entwurf:** Die abgestimmte Lösung wurde in
+`docs/superpowers/specs/2026-09-24-unified-articles-management-design.md`
+festgehalten. Sie beschreibt Navigation, Tabellenfelder und Filter, sichtbare
+Bearbeitung, reversible Archivierung mit erhaltenem Bestand und Wert,
+serverseitig gesichertes Löschen ausschließlich unbenutzter Artikel sowie die
+Bereinigung privater Bilddateien. Vor der Umsetzung wird die schriftliche
+Spezifikation nochmals zur Durchsicht vorgelegt.
+
+**Prüfung:** PR-Status nach dem Schließen bestätigt, Katalog-, Bestands- und
+Navigationscode sowie frühere Produktplanung gelesen. Aktuelle offizielle
+Shopify- und WooCommerce-Dokumentation sowie §§ 238, 240, 257 HGB und § 146 AO
+geprüft. Spezifikation auf Platzhalter, Widersprüche und Geltungsbereich sowie
+den Git-Unterschied auf Leerraumfehler geprüft. Keine Anwendungstests, da nur
+Analyse, PR-Schließung und Dokumentation erfolgten.
+
+## 2026-09-24 – Juna – Projektstand und offene Punkte gesichtet
+
+**Auftrag:** Nach den heutigen Änderungen den aktuellen Projektstand abrufen und
+die Grundlage für ein Gespräch über offene Punkte schaffen.
+
+**Ergebnis:** `master` war beim Abruf mit `origin/master` identisch. Der letzte
+Merge (`#172`) steht auf `99137dfb` und ist als `v0.204.1` veröffentlicht. Die
+Produktionsbereitstellung und der öffentliche Check im zugehörigen CI-Lauf
+waren erfolgreich. Die heutigen Änderungen an Barcode- und KI-Fotosuche,
+Artikelerstellung, Einkauf und Statusfarben wurden anhand der Git-Historie und
+dieses Protokolls eingeordnet. Als mögliche Gesprächsthemen bleiben die
+Live-Prüfung des Authelia-E-Mail-Versands, die praktische Prüfung der neuen
+Suchwege und die Einordnung des älteren offenen PR `#58`. Die nähere Prüfung
+von `#58` zeigte: Der heutige Artikelwähler hat bereits klickbare Zeilen und
+eine sichtbare Auswahlmarkierung. Die vergrößerte Vorschau im gemeinsamen
+Artikelbild-Baustein fehlt weiterhin. Der PR ist mit `master` in Konflikt;
+sein eigener Vorschau-Button würde in der heutigen Button-Zeile ein
+verschachteltes Bedienelement erzeugen. Eine Übernahme braucht daher ein neues
+UI-Konzept und aktuelle Prüfungen.
+
+**Prüfung:** `git fetch`, `git pull --ff-only`, `git status`, Git-Historie,
+GitHub-Release und CI-Lauf geprüft. PR-Inhalt, heutigen UI-Code und einen
+virtuellen Git-Merge verglichen. Keine Anwendungstests ausgeführt, da kein
+Anwendungscode geändert wurde.
+
 ## 2026-09-24 – Juna – KI-Fotosuche bei Artikelerstellung ergänzt
 
 **Auftrag:** Auf „Artikelübersicht → Artikel erstellen“ war nach dem Release nur
