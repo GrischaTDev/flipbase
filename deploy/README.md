@@ -349,12 +349,32 @@ wird.
 ### Zweiter Faktor
 
 Nach der ersten Anmeldung unter `auth.flipbase.de` im Bereich _Settings_ eine
-Authenticator-App hinterlegen. Es ist kein Mailversand eingerichtet – der Link
-zur Einrichtung landet deshalb in einer Datei:
+Authenticator-App unter _Einmal-Passwort_ hinterlegen. Authelia versendet den
+Bestätigungscode an die E-Mail-Adresse des Benutzers in
+`/opt/authelia/config/users.yml`. _WebAuthn Zugangsdaten_ sind für Passkeys und
+Sicherheitsschlüssel, nicht für Authenticator-Apps.
+
+Der Authelia-Dienst verwendet die vorhandenen Mailbox.org-Werte aus
+`/opt/supabase/.env`: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER` und
+`SMTP_ADMIN_EMAIL`. Docker Compose reicht `SMTP_PASS` als Secret-Datei weiter;
+das Passwort steht weder in `configuration.yml` noch in der Container-Umgebung.
+Vor dem Neustart müssen `deploy/docker-compose.authelia.yml` und
+`deploy/authelia/configuration.yml` an die oben genannten Serverorte kopiert
+werden. Die bestehende `COMPOSE_FILE`-Liste bindet die Authelia-Zusatzdatei
+bereits ein. Danach auf dem Server:
 
 ```bash
-docker exec authelia cat /config/notification.txt | tail -20
+cd /opt/supabase
+docker compose config --quiet
+docker compose up -d --force-recreate authelia
+docker compose ps authelia
 ```
+
+Der SMTP-Starttest muss erfolgreich sein. Anschließend _Einmal-Passwort →
+Hinzufügen_ öffnen und prüfen, dass der neue Bestätigungscode per E-Mail
+ankommt. Einen bereits offenen Code-Dialog zuerst abbrechen und neu öffnen.
+Nach der Eingabe des E-Mail-Codes erscheint der QR-Code für die
+Authenticator-App; deren aktuellen Code zur Registrierung bestätigen.
 
 ## Sicherung
 

@@ -1,5 +1,20 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-24 – Juna – Authelia-Bestätigungscodes per E-Mail vorbereitet
+
+**Auftrag:** Die Registrierung einer Authenticator-App für das Supabase Studio
+so ändern, dass der Bestätigungscode tatsächlich per E-Mail ankommt.
+
+**Änderung:** Authelia verwendet statt der Serverdatei den vorhandenen
+Mailbox.org-SMTP-Zugang. Docker Compose liest die bestehenden Mailwerte aus der
+Serverumgebung und stellt das Passwort Authelia als Secret-Datei bereit. Die
+Serveranleitung beschreibt das Ausrollen und den Test des E-Mail-Versands.
+
+**Prüfung:** Docker Compose 2.40.3 löste die Zusatzdatei mit synthetischen
+SMTP-Werten fehlerfrei auf; Prettier prüfte die geänderten YAML- und
+Markdown-Dateien. Ein echter E-Mail-Versand und der Serverneustart stehen noch
+aus, weil die Serverkonfiguration nicht automatisch ausgerollt wird.
+
 ## 2026-09-24 – Juna – Artikelauswahl im Einkauf filtern und Erstellen platzieren
 
 **Auftrag:** Den Button zum Erstellen eines Artikels im Einkaufsdialog dauerhaft
