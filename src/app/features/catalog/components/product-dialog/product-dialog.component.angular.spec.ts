@@ -87,6 +87,14 @@ beforeAll(async () => {
       resourcePath('src/app/shared/components/brand-picker/brand-picker.component.html'),
     ],
     [
+      './barcode-scanner.component.html',
+      resourcePath('src/app/shared/components/barcode-scanner/barcode-scanner.component.html'),
+    ],
+    [
+      './barcode-scanner.component.scss',
+      resourcePath('src/app/shared/components/barcode-scanner/barcode-scanner.component.scss'),
+    ],
+    [
       './brand-picker.component.scss',
       resourcePath('src/app/shared/components/brand-picker/brand-picker.component.scss'),
     ],

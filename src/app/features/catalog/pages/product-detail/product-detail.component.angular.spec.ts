@@ -6,6 +6,7 @@ import { BehaviorSubject } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CatalogProduct, CatalogProductMedia } from '../../../../core/models/flipbase.models';
 import { CatalogService } from '../../../../core/services/catalog.service';
+import { BarcodeLookupService } from '../../../../core/services/barcode-lookup.service';
 import { MediaService } from '../../../../core/services/media.service';
 import { StockService } from '../../../../core/services/stock.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
@@ -56,6 +57,7 @@ describe('ProductDetailComponent', () => {
     products: signal<CatalogProduct[]>([]),
     updateProductPrimaryMedia: vi.fn(),
     loadError: signal<Error | null>(null),
+    loadProducts: vi.fn(async () => undefined),
     loadProduct: vi.fn(
       async (
         id: string,
@@ -133,6 +135,15 @@ describe('ProductDetailComponent', () => {
     loadError: signal<Error | null>(null),
     loadPositions: vi.fn(async () => undefined),
   };
+  const barcodeLookup = {
+    lookupInventoryByEan: vi.fn(async () => null),
+    lookupExternalByEan: vi.fn(async () => ({
+      ean: '4006381333931',
+      title: 'Externe Kamera',
+      brand: 'Beispielmarke',
+      category: 'Elektronik',
+    })),
+  };
 
   function queueFiles(files: File[]): void {
     component.imageDrafts.set(
@@ -161,6 +172,7 @@ describe('ProductDetailComponent', () => {
         { provide: Router, useValue: { navigate: vi.fn(async () => true) } },
         { provide: WorkspaceService, useValue: { currentWorkspace: activeWorkspace } },
         { provide: CatalogService, useValue: catalog },
+        { provide: BarcodeLookupService, useValue: barcodeLookup },
         { provide: StockService, useValue: stock },
         { provide: MediaService, useValue: media },
       ],
@@ -439,6 +451,7 @@ describe('ProductDetailComponent', () => {
         { provide: Router, useValue: { navigate: vi.fn(async () => true) } },
         { provide: WorkspaceService, useValue: { currentWorkspace: activeWorkspace } },
         { provide: CatalogService, useValue: catalog },
+        { provide: BarcodeLookupService, useValue: barcodeLookup },
         { provide: StockService, useValue: stock },
         { provide: MediaService, useValue: media },
       ],
@@ -472,6 +485,20 @@ describe('ProductDetailComponent', () => {
     expect(TestBed.inject(Router).navigate).toHaveBeenCalledWith(['/catalog', 'created-product'], {
       replaceUrl: true,
     });
+  });
+
+  it('schlägt externe Produktdaten erst nach erfolgloser lokaler EAN-Suche vor', async () => {
+    await openNew();
+    catalog.products.set([]);
+
+    await component.searchBarcode('4006381333931');
+
+    expect(barcodeLookup.lookupExternalByEan).toHaveBeenCalledWith('4006381333931');
+    expect(component.barcodeSuggestion()?.title).toBe('Externe Kamera');
+    expect(component.form.controls.title.value).toBe('');
+    component.useBarcodeSuggestion();
+    expect(component.form.controls.title.value).toBe('Externe Kamera');
+    expect(component.brandSuggestion()).toBe('Beispielmarke');
   });
 
   it('legt bei einem Bildfehler und erneutem Speichern keinen zweiten Artikel an', async () => {

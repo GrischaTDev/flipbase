@@ -216,6 +216,18 @@ function erstelleEditor(purchaseType: PurchaseType = 'single') {
     pickerSearch: signal(''),
     scanControl: new FormControl('', { nonNullable: true }),
     scannerMessage: signal(null),
+    barcodeLookupLoading: signal(false),
+    externalProduct: signal(null),
+    inventoryProduct: signal(null),
+    productDraft: signal(null),
+    lastBarcode: signal(''),
+    barcodeNotFound: signal(false),
+    barcodeRequestId: 0,
+    lastScan: { value: '', at: 0 },
+    barcodeLookup: {
+      lookupInventoryByEan: vi.fn(async () => null),
+      lookupExternalByEan: vi.fn(async () => null),
+    },
     isCreatingProduct: signal(false),
     importError: signal(null),
     detailId: signal(null),
@@ -401,6 +413,47 @@ describe('PurchaseLineEditorComponent', () => {
       lineTotal: null,
       priceMode: 'open',
     });
+  });
+
+  it('sucht einen unbekannten Barcode online und bietet die Artikelerstellung an', async () => {
+    const { editor } = erstelleEditor();
+    const product = { ean: '4006381333931', title: 'Externes Produkt', brand: 'Marke' };
+    const lookupExternalByEan = vi.fn(async () => product);
+    Object.assign(editor, {
+      catalogSelectionDisabled: () => false,
+      availableProducts: () => [],
+      barcodeLookup: { lookupInventoryByEan: vi.fn(async () => null), lookupExternalByEan },
+    });
+
+    await editor.scanBarcode(product.ean);
+
+    expect(lookupExternalByEan).toHaveBeenCalledWith(product.ean);
+    expect(editor.scannerMessage()).toContain('Artikel nicht im Inventar vorhanden');
+    expect(editor.getDrafts()).toHaveLength(0);
+    editor.createProductFromBarcode();
+    expect(editor.productDraft()).toEqual(product);
+    expect(editor.isCreatingProduct()).toBe(true);
+  });
+
+  it('übernimmt bei einem Inventartreffer dessen Daten vor der Online-Suche', async () => {
+    const { editor } = erstelleEditor();
+    const inventoryProduct = { ean: '4006381333931', title: 'Inventar-Kamera' };
+    const lookupExternalByEan = vi.fn();
+    Object.assign(editor, {
+      catalogSelectionDisabled: () => false,
+      availableProducts: () => [],
+      barcodeLookup: {
+        lookupInventoryByEan: vi.fn(async () => inventoryProduct),
+        lookupExternalByEan,
+      },
+    });
+
+    await editor.scanBarcode(inventoryProduct.ean);
+
+    expect(editor.inventoryProduct()).toEqual(inventoryProduct);
+    expect(lookupExternalByEan).not.toHaveBeenCalled();
+    editor.createProductFromBarcode();
+    expect(editor.productDraft()).toEqual(inventoryProduct);
   });
 
   it('rendert eine kompakte Tabelle und berechnet Eingaben unmittelbar vor Blur', async () => {

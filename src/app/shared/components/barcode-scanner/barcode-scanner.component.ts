@@ -225,8 +225,12 @@ export class BarcodeScannerComponent implements OnInit, OnDestroy {
     }
   }
 
-  private handleSuccessfulScan(code: string, generation = this.scanGeneration): void {
-    if (generation !== this.scanGeneration || !this.isScanning()) return;
+  private handleSuccessfulScan(
+    code: string,
+    generation = this.scanGeneration,
+    requireCamera = true,
+  ): void {
+    if (generation !== this.scanGeneration || (requireCamera && !this.isScanning())) return;
     this.scannedResult.set(code);
     if ('vibrate' in navigator) {
       navigator.vibrate([40, 30, 40]);
@@ -245,7 +249,7 @@ export class BarcodeScannerComponent implements OnInit, OnDestroy {
   onManualSubmit(): void {
     const val = this.manualEanControl.value?.trim();
     if (val) {
-      this.handleSuccessfulScan(val);
+      this.handleSuccessfulScan(val, this.scanGeneration, false);
     }
   }
 

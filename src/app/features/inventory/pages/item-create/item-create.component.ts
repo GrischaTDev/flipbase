@@ -6,6 +6,7 @@ import { CreateCatalogProductInput } from '../../../../core/services/catalog.ser
 
 interface ItemCreateRouteState {
   readonly aiResult?: AiVisualScanResult;
+  readonly barcode?: string;
 }
 
 @Component({
@@ -31,7 +32,9 @@ export class ItemCreateComponent {
         conditionNotes: this.routeState.aiResult.conditionNotes,
         ean: this.routeState.aiResult.suggestedEan,
       }
-    : null;
+    : this.routeState.barcode
+      ? { ean: this.routeState.barcode }
+      : null;
 
   hasUnsavedChanges(): boolean {
     return !this.saved() && (!!this.entryForm()?.form.dirty || !!this.entryForm()?.images().length);

@@ -13,6 +13,10 @@ import {
 } from '@angular/core';
 import { FormArray, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { CatalogService } from '../../../../core/services/catalog.service';
+import {
+  BarcodeLookupService,
+  BarcodeProductInfo,
+} from '../../../../core/services/barcode-lookup.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import {
   CatalogProduct,
@@ -109,6 +113,7 @@ type PriceField = 'unitPurchasePrice' | 'lineTotal';
 })
 export class PurchaseLineEditorComponent {
   readonly catalogService = inject(CatalogService);
+  private readonly barcodeLookup = inject(BarcodeLookupService);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   readonly searchIcon = LucideSearch;
   readonly importIcon = LucideUpload;
@@ -135,9 +140,17 @@ export class PurchaseLineEditorComponent {
   readonly cameraOpen = signal(false);
   readonly scannerOpen = signal(false);
   readonly scannerMessage = signal<string | null>(null);
+  readonly barcodeLookupLoading = signal(false);
+  readonly externalProduct = signal<BarcodeProductInfo | null>(null);
+  readonly inventoryProduct = signal<BarcodeProductInfo | null>(null);
+  readonly productDraft = signal<BarcodeProductInfo | null>(null);
+  readonly lastBarcode = signal('');
+  readonly validLastBarcode = computed(() => normalizeGtin(this.lastBarcode()) !== null);
+  readonly barcodeNotFound = signal(false);
   readonly scanControl = new FormControl('', { nonNullable: true });
   readonly pickerSearch = signal('');
   private lastScan = { value: '', at: 0 };
+  private barcodeRequestId = 0;
   readonly availableProducts = computed(() =>
     this.catalogService
       .products()
@@ -226,7 +239,7 @@ export class PurchaseLineEditorComponent {
     this.emitDrafts();
   }
 
-  scanBarcode(value = this.scanControl.value): void {
+  async scanBarcode(value = this.scanControl.value): Promise<void> {
     this.cameraOpen.set(false);
     const barcode = value.trim();
     if (!barcode) return;
@@ -237,23 +250,75 @@ export class PurchaseLineEditorComponent {
     const now = Date.now();
     if (barcode === this.lastScan.value && now - this.lastScan.at < 1000) return;
     this.lastScan = { value: barcode, at: now };
-    const normalized = canonicalGtin(barcode) ?? barcode;
+    const requestId = ++this.barcodeRequestId;
+    const workspaceId = this.activeWorkspaceId();
+    this.lastBarcode.set(barcode);
+    this.barcodeNotFound.set(false);
+    this.externalProduct.set(null);
+    this.inventoryProduct.set(null);
+    this.productDraft.set(null);
+    const normalized = canonicalGtin(barcode) ?? barcode.toUpperCase();
     const matches = this.availableProducts().filter(
-      (product) => (canonicalGtin(product.ean) ?? product.ean) === normalized,
+      (product) =>
+        (canonicalGtin(product.ean) ?? product.ean) === normalized ||
+        product.sku?.toUpperCase() === normalized,
     );
     if (matches.length === 1) {
       this.addProducts(matches);
       this.scannerMessage.set(matches[0].title + ' als neue Position hinzugefügt.');
-    } else {
+    } else if (matches.length > 1) {
       this.scannerMessage.set(
-        matches.length
-          ? 'Mehrere Treffer: Bitte wähle den passenden Artikel.'
-          : 'Kein Treffer. Bitte wähle ein Produkt oder erstelle ein neues.',
+        'Mehrere Treffer im Artikelstamm: Bitte wähle den passenden Artikel.',
       );
       this.pickerSearch.set(barcode);
       this.pickerOpen.set(true);
+    } else {
+      this.barcodeNotFound.set(true);
+      if (!normalizeGtin(barcode)) {
+        this.scannerMessage.set(
+          'Artikel nicht im Inventar vorhanden. Für die Online-Suche ist eine gültige EAN/GTIN nötig.',
+        );
+        return;
+      }
+      this.scannerMessage.set('Suche im Inventar…');
+      this.barcodeLookupLoading.set(true);
+      try {
+        const inventoryProduct = await this.barcodeLookup.lookupInventoryByEan(barcode);
+        if (requestId !== this.barcodeRequestId || workspaceId !== this.activeWorkspaceId()) return;
+        if (inventoryProduct) {
+          this.inventoryProduct.set(inventoryProduct);
+          this.scannerMessage.set(
+            'Artikel im Inventar gefunden. Übernimm die Daten in den Artikelstamm, um ihn im Einkauf zu verwenden.',
+          );
+          return;
+        }
+        this.scannerMessage.set('Artikel nicht im Inventar vorhanden. Suche online…');
+        const product = await this.barcodeLookup.lookupExternalByEan(barcode);
+        if (requestId !== this.barcodeRequestId || workspaceId !== this.activeWorkspaceId()) return;
+        this.externalProduct.set(product);
+        this.scannerMessage.set(
+          product
+            ? 'Artikel nicht im Inventar vorhanden. Produktdaten online gefunden.'
+            : 'Artikel nicht im Inventar vorhanden. Auch online wurden keine Produktdaten gefunden.',
+        );
+      } catch {
+        if (requestId !== this.barcodeRequestId) return;
+        this.scannerMessage.set(
+          'Die Artikelsuche ist gerade nicht erreichbar. Du kannst den Artikel selbst erstellen.',
+        );
+      } finally {
+        if (requestId === this.barcodeRequestId) this.barcodeLookupLoading.set(false);
+      }
     }
-    this.scanControl.setValue('');
+    if (matches.length) this.scanControl.setValue('');
+  }
+
+  createProductFromBarcode(): void {
+    const product = this.inventoryProduct() ?? this.externalProduct();
+    const ean = normalizeGtin(this.lastBarcode());
+    if (!product && !ean) return;
+    this.productDraft.set(product ?? { ean: ean ?? '', title: '' });
+    this.isCreatingProduct.set(true);
   }
 
   async loadCatalogProducts(force = false): Promise<void> {
@@ -531,6 +596,13 @@ export class PurchaseLineEditorComponent {
     this.pickerSearch.set('');
     this.scanControl.reset('');
     this.scannerMessage.set(null);
+    this.externalProduct.set(null);
+    this.inventoryProduct.set(null);
+    this.productDraft.set(null);
+    this.lastBarcode.set('');
+    this.barcodeNotFound.set(false);
+    this.barcodeLookupLoading.set(false);
+    this.barcodeRequestId += 1;
     this.lastScan = { value: '', at: 0 };
     this.isCreatingProduct.set(false);
     this.detailId.set(null);

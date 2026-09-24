@@ -7,6 +7,14 @@
   >
     @if (product() || creating()) {
       <div header-actions class="flex flex-wrap items-center gap-2">
+        @if (creating()) {
+          <app-button
+            variant="secondary"
+            [icon]="barcodeIcon"
+            (clicked)="barcodeScannerOpen.set(true)"
+            >EAN scannen</app-button
+          >
+        }
         @if (hasUnsavedChanges()) {
           <span class="text-[13px] text-fb-text-muted">Nicht gespeicherte Änderungen</span>
           <app-button [disabled]="isSaving()" (clicked)="discard()">Verwerfen</app-button>
@@ -48,6 +56,35 @@
     }
     @if (savedMessage(); as message) {
       <p role="status" class="text-sm text-fb-text-secondary">{{ message }}</p>
+    }
+    @if (barcodeMessage(); as message) {
+      <p role="status" class="text-[13px]">{{ message }}</p>
+    }
+    @if (barcodeSuggestion(); as suggestion) {
+      <app-card rounded="xl">
+        <div class="space-y-2 text-[13px]">
+          <p class="font-semibold">{{ suggestion.title }}</p>
+          <p class="text-fb-text-muted">
+            {{ suggestion.brand || 'Marke unbekannt' }} · {{ suggestion.ean }}
+          </p>
+          <a
+            [href]="suggestion.sourceUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-fb-text-secondary underline"
+            >Produktdaten: {{ suggestion.sourceName }}</a
+          >
+          <div><app-button (clicked)="useBarcodeSuggestion()">Daten übernehmen</app-button></div>
+        </div>
+      </app-card>
+    }
+    @if (existingBarcodeProduct(); as existing) {
+      <app-card rounded="xl">
+        <p class="text-[13px] font-semibold">{{ existing.title }} · {{ existing.ean }}</p>
+        <app-button variant="secondary" [link]="'/catalog/' + existing.id"
+          >Vorhandenen Artikel öffnen</app-button
+        >
+      </app-card>
     }
     @if (!creating()) {
       <div class="flex gap-2" role="group" aria-label="Artikelbereich">
@@ -91,9 +128,18 @@
               helpText="Allgemeine Beschreibung dieses Artikels."
             />
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <app-brand-picker label="Marke" id="product-brand" formControlName="brandId" />
+              <app-brand-picker
+                label="Marke"
+                id="product-brand"
+                formControlName="brandId"
+                [suggestion]="brandSuggestion()"
+              />
               <app-text-field label="Modell" formControlName="model" />
-              <app-text-field label="SKU" formControlName="sku" />
+              <app-text-field
+                label="SKU"
+                formControlName="sku"
+                helpText="Deine eigene Artikelnummer."
+              />
               <app-text-field
                 label="EAN / GTIN"
                 formControlName="ean"
@@ -103,10 +149,19 @@
                     : null
                 "
               />
+              @if (creating()) {
+                <app-button
+                  variant="secondary"
+                  [disabled]="barcodeLoading() || !form.controls.ean.value"
+                  (clicked)="searchBarcode(form.controls.ean.value)"
+                  >EAN online suchen</app-button
+                >
+              }
               <app-category-picker
                 label="Kategorie"
                 id="product-category"
                 formControlName="categoryId"
+                [suggestion]="categorySuggestion()"
               />
               <app-custom-select
                 label="Zustand"
@@ -330,3 +385,9 @@
     </section>
   }
 </div>
+@if (barcodeScannerOpen()) {
+  <app-barcode-scanner
+    (closed)="barcodeScannerOpen.set(false)"
+    (detected)="searchBarcode($event)"
+  />
+}

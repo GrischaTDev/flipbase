@@ -8,6 +8,7 @@ import {
   input,
   output,
   signal,
+  untracked,
 } from '@angular/core';
 import {
   AbstractControl,
@@ -36,7 +37,13 @@ import {
   CustomSelectComponent,
   SelectOption,
 } from '../../../../shared/components/custom-select/custom-select.component';
-import { normalizeGtin } from '../../../../shared/utils/gtin';
+import { canonicalGtin, normalizeGtin } from '../../../../shared/utils/gtin';
+import {
+  BarcodeLookupService,
+  BarcodeProductInfo,
+} from '../../../../core/services/barcode-lookup.service';
+import { BarcodeScannerComponent } from '../../../../shared/components/barcode-scanner/barcode-scanner.component';
+import { LucideScanBarcode } from '@lucide/angular';
 import { PRODUCT_CONDITIONS } from '../../../../core/config/product-conditions';
 import {
   BrandManagementDialogComponent,
@@ -61,6 +68,7 @@ type ProductDialogInitialProduct = Partial<Omit<CreateCatalogProductInput, 'work
     BrandPickerComponent,
     CategoryPickerComponent,
     BrandManagementDialogComponent,
+    BarcodeScannerComponent,
   ],
   templateUrl: './product-dialog.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -73,6 +81,7 @@ export class ProductDialogComponent {
       : null;
   }
   private readonly catalog = inject(CatalogService);
+  private readonly barcodeLookup = inject(BarcodeLookupService);
   private readonly media = inject(MediaService);
   private readonly workspace = inject(WorkspaceService);
   private readonly destroyRef = inject(DestroyRef);
@@ -88,6 +97,13 @@ export class ProductDialogComponent {
   readonly categorySuggestion = signal<string | null>(null);
   readonly brandSuggestion = signal<string | null>(null);
   readonly brandManagerOpen = signal(false);
+  readonly scannerOpen = signal(false);
+  readonly barcodeLoading = signal(false);
+  readonly barcodeMessage = signal<string | null>(null);
+  readonly barcodeSuggestion = signal<BarcodeProductInfo | null>(null);
+  readonly existingProduct = signal<CatalogProduct | null>(null);
+  readonly barcodeIcon = LucideScanBarcode;
+  private barcodeRequestId = 0;
   readonly conditionOptions: readonly SelectOption<string>[] = [
     { value: '', label: 'Nicht angegeben' },
     ...PRODUCT_CONDITIONS,
@@ -151,7 +167,95 @@ export class ProductDialogComponent {
       });
       this.brandSuggestion.set(value.brandId ? null : value.brand?.trim() || null);
       this.categorySuggestion.set(value.categoryId ? null : value.category?.trim() || null);
+      if (value.ean && !value.title) untracked(() => void this.onBarcodeScanned(value.ean ?? ''));
     });
+  }
+
+  async onBarcodeScanned(code: string): Promise<void> {
+    this.scannerOpen.set(false);
+    const ean = normalizeGtin(code);
+    const requestId = ++this.barcodeRequestId;
+    this.barcodeSuggestion.set(null);
+    this.existingProduct.set(null);
+    if (!ean) {
+      this.barcodeMessage.set('Bitte eine gültige EAN/GTIN mit 8, 12, 13 oder 14 Ziffern scannen.');
+      return;
+    }
+    this.form.controls.ean.setValue(ean);
+    this.barcodeLoading.set(true);
+    this.barcodeMessage.set('Suche im Artikelstamm…');
+    try {
+      const workspaceId = this.workspace.currentWorkspace()?.id;
+      if (!workspaceId) throw new Error('Kein aktiver Workspace ausgewählt.');
+      await this.catalog.loadProducts(workspaceId);
+      if (
+        requestId !== this.barcodeRequestId ||
+        workspaceId !== this.workspace.currentWorkspace()?.id
+      )
+        return;
+      if (this.catalog.loadError()) {
+        this.barcodeMessage.set(
+          'Artikelstamm konnte nicht geladen werden. Bitte versuche es erneut.',
+        );
+        return;
+      }
+      const existing = this.catalog
+        .products()
+        .find(
+          (product) =>
+            product.workspace_id === workspaceId &&
+            canonicalGtin(product.ean) === canonicalGtin(ean),
+        );
+      if (existing) {
+        this.existingProduct.set(existing);
+        this.barcodeMessage.set('Artikel ist bereits im Artikelstamm vorhanden.');
+        return;
+      }
+      this.barcodeMessage.set('Suche im Inventar…');
+      const inventoryProduct = await this.barcodeLookup.lookupInventoryByEan(ean);
+      if (
+        requestId !== this.barcodeRequestId ||
+        workspaceId !== this.workspace.currentWorkspace()?.id
+      )
+        return;
+      if (inventoryProduct) {
+        this.barcodeSuggestion.set(inventoryProduct);
+        this.barcodeMessage.set(
+          'Artikel im Inventar gefunden. Bitte prüfe die Daten vor der Übernahme.',
+        );
+        return;
+      }
+      this.barcodeMessage.set('Artikel nicht im Inventar vorhanden. Suche online…');
+      const product = await this.barcodeLookup.lookupExternalByEan(ean);
+      if (
+        requestId !== this.barcodeRequestId ||
+        workspaceId !== this.workspace.currentWorkspace()?.id
+      )
+        return;
+      this.barcodeSuggestion.set(product);
+      this.barcodeMessage.set(
+        product
+          ? 'Produktdaten gefunden. Bitte prüfe sie vor der Übernahme.'
+          : 'Keine Produktdaten online gefunden. Du kannst den Artikel selbst ausfüllen.',
+      );
+    } catch {
+      if (requestId !== this.barcodeRequestId) return;
+      this.barcodeMessage.set(
+        'Die Online-Suche ist gerade nicht erreichbar. Du kannst den Artikel selbst ausfüllen.',
+      );
+    } finally {
+      if (requestId === this.barcodeRequestId) this.barcodeLoading.set(false);
+    }
+  }
+
+  useBarcodeSuggestion(): void {
+    const product = this.barcodeSuggestion();
+    if (!product || this.form.controls.ean.value !== product.ean) return;
+    this.form.patchValue({ title: product.title, ean: product.ean });
+    this.brandSuggestion.set(product.brand ?? null);
+    this.categorySuggestion.set(product.category ?? null);
+    this.barcodeSuggestion.set(null);
+    this.barcodeMessage.set('Produktdaten übernommen. Ergänze oder korrigiere die Angaben.');
   }
 
   selectImages(event: Event): void {

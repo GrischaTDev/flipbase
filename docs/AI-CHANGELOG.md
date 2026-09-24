@@ -1,5 +1,28 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-24 – Juna – Barcode-Erfassung mit Artikelabgleich und Produktvorschlägen
+
+**Auftrag:** Barcode-Scans beim Einkauf und beim Erstellen eines Artikels mit
+einem nutzbaren Such- und Übernahmeablauf verbinden; den Scanrahmen auf das
+gesamte Kamerabild ausdehnen.
+
+**Änderung:** Der Scan gleicht EAN/GTIN zuerst mit vorhandenen Artikeln ab. Beim
+Einkauf werden eindeutige Treffer unmittelbar als Position übernommen. Fehlt
+der Stammartikel, können Daten eines vorhandenen Inventarstücks für dessen
+Anlage übernommen werden. Fehlt auch ein Inventartreffer, fragt Flipbase über
+die universelle Open-Facts-API Produktdaten ab und zeigt sie mit Quelle zur
+Prüfung an. Ein Treffer kann in
+die bearbeitbare Artikelerstellung übernommen werden; ohne Online-Treffer bleibt
+die manuelle Anlage möglich. Die direkte Artikelerstellung besitzt Scan und
+EAN-Suche. Manuelle Eingaben funktionieren auch bei fehlendem Kamerazugriff;
+der grüne Scanrahmen umfasst das gesamte Kamerabild. Die CSP erlaubt die
+Weiterleitung zu den vier Open-Facts-Datenbanken.
+
+**Prüfung:** Gezielte Barcode-, Einkaufs-, Artikel- und Scanner-Tests bestanden.
+ESLint der geänderten TypeScript-Dateien, Typprüfung, Angular-Produktionsbau
+und `git diff --check` bestanden. Echte Kamera und Online-Datenquelle wurden
+in dieser Sitzung nicht live geprüft.
+
 ## 2026-09-23 – Juna – Gewinn-Kachel farblich ans Verkaufsjournal angeglichen
 
 **Auftrag:** Den grünen Gewinnwert oben im Dashboard an die Gewinne im

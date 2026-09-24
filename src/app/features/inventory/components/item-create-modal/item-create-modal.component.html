@@ -33,6 +33,29 @@
       {{ errorMessage() }}
     </div>
   }
+  @if (barcodeMessage()) {
+    <p class="text-[13px]" role="status">{{ barcodeMessage() }}</p>
+  }
+  @if (barcodeSuggestion(); as suggestion) {
+    <div class="rounded-lg border border-fb-border bg-fb-subtle p-3 text-[13px]">
+      <p class="font-semibold">{{ suggestion.title }}</p>
+      <p class="text-fb-text-muted">
+        {{ suggestion.brand || 'Marke unbekannt' }} · {{ suggestion.ean }}
+      </p>
+      <a
+        [href]="suggestion.sourceUrl"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="text-fb-text-secondary underline"
+        >Produktdaten: {{ suggestion.sourceName }}</a
+      >
+      <div class="mt-3">
+        <app-button variant="secondary" (clicked)="useBarcodeSuggestion()"
+          >Daten übernehmen</app-button
+        >
+      </div>
+    </div>
+  }
 
   <form id="itemCreateForm" [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-3.5">
     <div>
