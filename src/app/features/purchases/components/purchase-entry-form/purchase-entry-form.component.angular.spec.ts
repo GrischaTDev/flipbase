@@ -447,6 +447,65 @@ function renderPurchaseEntryForm() {
 }
 
 describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
+  it('öffnet die volle Artikelseite mit gesichertem Einkaufsentwurf', () => {
+    const { komponente } = erstelleKomponente();
+    const navigate = vi.fn();
+    const begin = vi.fn(() => 'return-token');
+    const lines = [{ titleSnapshot: 'Bestehender Artikel', draftId: 'line-1' }];
+    Object.assign(komponente, {
+      router: { url: '/purchases/new', navigate },
+      workspace: { currentWorkspace: () => ({ id: 'workspace-1' }) },
+      productReturn: { begin },
+      lineEditor: () => ({ getDrafts: () => lines }),
+    });
+    komponente.form.controls.notes.setValue('Bitte Lieferung prüfen');
+
+    komponente.openProductCreation(null);
+
+    expect(begin).toHaveBeenCalledWith(
+      '/purchases/new',
+      'workspace-1',
+      expect.objectContaining({
+        form: expect.objectContaining({ notes: 'Bitte Lieferung prüfen' }),
+        lines,
+      }),
+    );
+    expect(navigate).toHaveBeenCalledWith(['/catalog/new'], {
+      queryParams: { purchaseReturn: 'return-token' },
+      state: { initialProduct: null },
+    });
+  });
+
+  it('stellt den Entwurf wieder her und fügt den erstellten Artikel einmal hinzu', async () => {
+    const { komponente } = erstelleKomponente();
+    const draft = {
+      form: { ...komponente.form.getRawValue(), notes: 'Entwurf mit Karton' },
+      lines: [],
+      costs: [],
+      formDirty: true,
+    };
+    const product = { id: 'product-1', workspace_id: 'workspace-1', title: 'Neuer Schuh' };
+    const consume = vi.fn().mockReturnValueOnce({ draft, createdProductId: product.id });
+    const editor = { resetToLines: vi.fn(), productCreated: vi.fn() };
+    Object.assign(komponente, {
+      router: { url: '/purchases/new' },
+      productReturn: { consume },
+      catalog: { loadProducts: vi.fn(async () => undefined), products: () => [product] },
+    });
+
+    await (
+      komponente as unknown as {
+        restoreProductReturn(editor: unknown, workspaceId: string): Promise<void>;
+      }
+    ).restoreProductReturn(editor, 'workspace-1');
+
+    expect(komponente.form.controls.notes.value).toBe('Entwurf mit Karton');
+    expect(komponente.form.dirty).toBe(true);
+    expect(editor.resetToLines).toHaveBeenCalledWith([]);
+    expect(editor.productCreated).toHaveBeenCalledExactlyOnceWith(product);
+    expect(consume).toHaveBeenCalledWith('/purchases/new', 'workspace-1');
+  });
+
   it('wechselt ohne Pflichtverkäufer zum Eigenbeleg und stellt die Verkäuferpflicht wieder her', () => {
     const { komponente } = erstelleKomponente();
 

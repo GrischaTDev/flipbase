@@ -261,15 +261,8 @@
     [initialSearch]="pickerSearch()"
     (closed)="pickerOpen.set(false)"
     (selected)="addProducts($event)"
-    (createRequested)="productDraft.set(null); isCreatingProduct.set(true)"
+    (createRequested)="createProductRequested.emit(null)"
     (imageFailed)="catalogService.invalidateProductImage($event)"
-  />
-}
-@if (isCreatingProduct()) {
-  <app-product-dialog
-    [initialProduct]="productDraft()"
-    (closed)="isCreatingProduct.set(false)"
-    (created)="productCreated($event)"
   />
 }
 @if (cameraOpen()) {

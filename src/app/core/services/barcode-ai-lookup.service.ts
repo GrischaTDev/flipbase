@@ -40,25 +40,36 @@ export class BarcodeAiLookupService {
   private readonly supabase = inject(SupabaseService);
   readonly sessionUsage = signal({ searches: 0, estimatedCostUsd: 0 });
 
-  async search(eanValue: string, labelPhoto: File | null): Promise<BarcodeAiResult> {
+  async search(
+    eanValue: string,
+    selectedPhotos: File | readonly File[] | null,
+  ): Promise<BarcodeAiResult> {
     const enteredEan = eanValue.trim();
     const ean = enteredEan ? normalizeGtin(enteredEan) : '';
+    const photos =
+      selectedPhotos === null
+        ? []
+        : Array.isArray(selectedPhotos)
+          ? selectedPhotos
+          : [selectedPhotos];
     if (ean === null) throw new Error('Bitte eine gültige EAN eingeben oder die EAN entfernen.');
-    if (!ean && !labelPhoto)
-      throw new Error('Bitte eine EAN eingeben oder ein Etikettfoto auswählen.');
-    let imageDataUrl: string | null = null;
-    if (labelPhoto) {
+    if (!ean && photos.length === 0)
+      throw new Error('Bitte eine EAN eingeben oder mindestens ein Produktfoto auswählen.');
+    if (photos.length > 5) throw new Error('Bitte höchstens fünf Fotos auswählen.');
+    if (photos.reduce((total, photo) => total + photo.size, 0) > 15_000_000)
+      throw new Error('Alle Fotos zusammen dürfen höchstens 15 MB groß sein.');
+    for (const photo of photos) {
       if (
-        !['image/jpeg', 'image/png', 'image/webp'].includes(labelPhoto.type) ||
-        labelPhoto.size > 5_000_000
+        !['image/jpeg', 'image/png', 'image/webp'].includes(photo.type) ||
+        photo.size > 5_000_000
       ) {
-        throw new Error('Bitte ein JPG-, PNG- oder WebP-Foto unter 5 MB auswählen.');
+        throw new Error('Bitte JPG-, PNG- oder WebP-Fotos unter je 5 MB auswählen.');
       }
-      imageDataUrl = await this.readImage(labelPhoto);
     }
+    const imageDataUrls = await Promise.all(photos.map((photo) => this.readImage(photo)));
     const { data, error } = await this.supabase.client.functions.invoke<BarcodeAiResult>(
       'barcode-ai-search',
-      { body: { ean, imageDataUrl } },
+      { body: { ean, imageDataUrls } },
     );
     if (error) {
       if (error.context instanceof Response) {

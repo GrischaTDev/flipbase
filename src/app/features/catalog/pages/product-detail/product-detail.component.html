@@ -1,8 +1,8 @@
 <div class="mx-auto max-w-6xl space-y-4">
   <app-page-header
     [title]="creating() ? 'Artikel erstellen' : product()?.title || 'Artikel'"
-    [backLink]="stockView() ? '/inventory' : '/catalog'"
-    backLabel="Zur Artikelliste"
+    [backLink]="backLink()"
+    [backLabel]="backLabel()"
   >
     @if (product() || creating()) {
       <div header-actions class="flex flex-wrap items-center gap-2">
@@ -14,11 +14,7 @@
             >EAN scannen</app-button
           >
           @if (platformOperator.operator()) {
-            <app-button
-              variant="secondary"
-              ariaControls="catalog-ai-search"
-              [ariaExpanded]="aiSearchOpen()"
-              (clicked)="toggleAiSearch()"
+            <app-button variant="secondary" (clicked)="toggleAiSearch()"
               >KI-Produktsuche mit Foto</app-button
             >
           }
@@ -69,23 +65,46 @@
       <p role="status" class="text-[13px]">{{ message }}</p>
     }
     @if (creating() && platformOperator.operator() && aiSearchOpen()) {
-      <app-card title="KI-Produktsuche" rounded="xl">
-        <div id="catalog-ai-search" class="space-y-3 text-[13px]">
-          <p class="text-fb-text-muted">
-            Suche mit einer EAN oder direkt mit einem Etikettfoto, auch ohne EAN.
-          </p>
-          <div class="flex flex-wrap items-center gap-2">
-            <app-button
-              variant="secondary"
-              [disabled]="aiLoading()"
-              (clicked)="labelPhotoInput.click()"
-              >Etikettfoto auswählen oder aufnehmen</app-button
-            >
-            <span class="text-fb-text-muted">{{
-              labelPhoto()?.name || 'Kein Foto ausgewählt'
-            }}</span>
+      <app-modal-shell
+        title="KI-Produktsuche mit Foto"
+        subtitle="Zeige Karton, Etikett und Artikel aus mehreren Blickwinkeln."
+        size="xl"
+        (closed)="toggleAiSearch()"
+      >
+        <div class="space-y-4 text-[13px]">
+          <div
+            class="rounded-xl border-2 border-dashed border-fb-border bg-fb-subtle p-5 text-center sm:p-8"
+          >
+            <p class="mb-4 text-sm text-fb-text-secondary">
+              Bis zu fünf Fotos hinzufügen · JPG, PNG oder WebP · je höchstens 5 MB
+            </p>
+            <div class="flex flex-wrap justify-center gap-2">
+              <app-button
+                variant="secondary"
+                [disabled]="aiLoading() || labelPhotos().length >= 5"
+                (clicked)="labelPhotoInput.click()"
+                >Fotos auswählen</app-button
+              >
+              <app-button
+                variant="secondary"
+                [disabled]="aiLoading() || labelPhotos().length >= 5"
+                (clicked)="cameraPhotoInput.click()"
+                >Foto aufnehmen</app-button
+              >
+            </div>
             <input
               #labelPhotoInput
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              multiple
+              class="sr-only"
+              tabindex="-1"
+              aria-hidden="true"
+              data-shared-ui-exception="native-file-picker"
+              (change)="selectLabelPhoto($event)"
+            />
+            <input
+              #cameraPhotoInput
               type="file"
               accept="image/jpeg,image/png,image/webp"
               capture="environment"
@@ -96,12 +115,38 @@
               (change)="selectLabelPhoto($event)"
             />
           </div>
-          <app-button
-            [loading]="aiLoading()"
-            [disabled]="aiLoading() || (!form.controls.ean.value && !labelPhoto())"
-            (clicked)="searchWithAi()"
-            >Mit KI im Web suchen</app-button
-          >
+          @if (labelPhotos().length) {
+            <div
+              class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5"
+              aria-label="Ausgewählte Fotos"
+            >
+              @for (photo of labelPhotos(); track photo.file; let index = $index) {
+                <div class="min-w-0 rounded-lg border border-fb-border p-2">
+                  @if (photo.previewUrl) {
+                    <img
+                      [src]="photo.previewUrl"
+                      [alt]="'Vorschau: ' + photo.file.name"
+                      class="aspect-square w-full rounded-md object-contain"
+                    />
+                  }
+                  <p class="mt-1 truncate text-fb-text-muted" [title]="photo.file.name">
+                    {{ photo.file.name }}
+                  </p>
+                  <app-button
+                    variant="plain"
+                    size="slim"
+                    [ariaLabel]="'Foto ' + photo.file.name + ' entfernen'"
+                    (clicked)="removeLabelPhoto(index)"
+                    >Entfernen</app-button
+                  >
+                </div>
+              }
+            </div>
+          }
+          <p class="text-fb-text-muted">
+            Eine EAN im Formular kann die Suche zusätzlich eingrenzen. Prüfe Vorschläge vor dem
+            Speichern.
+          </p>
           @if (aiError(); as error) {
             <p class="text-fb-critical" role="alert">{{ error }}</p>
           }
@@ -161,7 +206,16 @@
             }
           }
         </div>
-      </app-card>
+        <div modal-footer class="flex flex-wrap justify-end gap-2">
+          <app-button variant="secondary" (clicked)="toggleAiSearch()">Schließen</app-button>
+          <app-button
+            [loading]="aiLoading()"
+            [disabled]="aiLoading() || (!form.controls.ean.value && !labelPhotos().length)"
+            (clicked)="searchWithAi()"
+            >Mit KI im Web suchen</app-button
+          >
+        </div>
+      </app-modal-shell>
     }
     @if (barcodeSuggestion(); as suggestion) {
       <app-card rounded="xl">

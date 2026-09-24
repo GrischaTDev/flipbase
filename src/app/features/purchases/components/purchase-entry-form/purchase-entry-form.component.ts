@@ -58,6 +58,19 @@ import { PurchaseSelfReceiptService } from '../../services/purchase-self-receipt
 import type { PendingPurchaseDocument } from '../../../../core/models/purchase-document.models';
 import { PurchaseDocumentService } from '../../../../core/services/purchase-document.service';
 import { PurchaseDocumentsCardComponent } from '../purchase-documents-card/purchase-documents-card.component';
+import { NavigationEnd, Router } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { WorkspaceService } from '../../../../core/services/workspace.service';
+import { CatalogService } from '../../../../core/services/catalog.service';
+import { BarcodeProductInfo } from '../../../../core/services/barcode-lookup.service';
+import { PurchaseProductReturnService } from '../../services/purchase-product-return.service';
+
+interface PurchaseNavigationDraft {
+  form: ReturnType<PurchaseEntryFormComponent['form']['getRawValue']>;
+  lines: readonly PurchaseLineDraft[];
+  costs: readonly PurchaseCostDraft[];
+  formDirty: boolean;
+}
 
 const purchaseCostTypes = new Set<PurchaseCostType>([
   'shipping',
@@ -141,6 +154,10 @@ function purchaseCostsEqual(
 })
 export class PurchaseEntryFormComponent {
   private readonly purchaseService = inject(PurchaseService);
+  private readonly router = inject(Router);
+  private readonly workspace = inject(WorkspaceService);
+  private readonly catalog = inject(CatalogService);
+  private readonly productReturn = inject(PurchaseProductReturnService);
   private readonly toast = inject(ToastService);
   private readonly syncStatus = inject(SyncStatusService);
   private readonly purchaseCostingService = inject(PurchaseCostingService);
@@ -314,6 +331,13 @@ export class PurchaseEntryFormComponent {
 
   constructor() {
     this.destroyRef.onDestroy(this.releaseWorkspaceLock);
+    this.router.events.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((event) => {
+      if (!(event instanceof NavigationEnd)) return;
+      const editor = this.lineEditor();
+      const workspaceId = this.workspace.currentWorkspace()?.id;
+      if (editor && workspaceId && (this.router.url === '/purchases/new' || this.purchase()))
+        void this.restoreProductReturn(editor, workspaceId);
+    });
     this.form.controls.pricing_mode.valueChanges.subscribe((mode) => {
       this.pricingMode.set(mode);
       this.updatePurchasePriceEditability();
@@ -331,6 +355,62 @@ export class PurchaseEntryFormComponent {
       if (!vorhandener || this.befuelltFuer === vorhandener.id) return;
       untracked(() => this.resetToPurchase(vorhandener));
     });
+    effect(() => {
+      const editor = this.lineEditor();
+      const purchase = this.purchase();
+      const workspaceId = this.workspace.currentWorkspace()?.id;
+      if (!editor || !workspaceId || (this.router.url !== '/purchases/new' && !purchase)) return;
+      untracked(() => void this.restoreProductReturn(editor, workspaceId));
+    });
+  }
+
+  openProductCreation(initialProduct: BarcodeProductInfo | null): void {
+    const workspaceId = this.workspace.currentWorkspace()?.id;
+    const editor = this.lineEditor();
+    if (!workspaceId || !editor) return;
+    if (this.pendingDocuments().length) {
+      this.errorMessage.set(
+        'Bitte speichere den Einkauf vor dem Wechsel, damit angehängte Belege erhalten bleiben.',
+      );
+      return;
+    }
+    const draft: PurchaseNavigationDraft = {
+      form: this.form.getRawValue(),
+      lines: editor.getDrafts(),
+      costs: this.costDrafts(),
+      formDirty: this.form.dirty,
+    };
+    const token = this.productReturn.begin(this.router.url.split('?')[0], workspaceId, draft);
+    void this.router.navigate(['/catalog/new'], {
+      queryParams: { purchaseReturn: token },
+      state: { initialProduct },
+    });
+  }
+
+  private async restoreProductReturn(
+    editor: PurchaseLineEditorComponent,
+    workspaceId: string,
+  ): Promise<void> {
+    const context = this.productReturn.consume(this.router.url.split('?')[0], workspaceId);
+    if (!context) return;
+    const draft = context.draft as PurchaseNavigationDraft;
+    this.form.reset(draft.form);
+    if (draft.formDirty) this.form.markAsDirty();
+    this.costDrafts.set(draft.costs);
+    this.initialCostDrafts.set(draft.costs);
+    this.purchaseLines.set(draft.lines);
+    editor.resetToLines(draft.lines);
+    this.updateAdditionalCostsValidity();
+    if (!context.createdProductId) return;
+    await this.catalog.loadProducts(workspaceId);
+    const product = this.catalog
+      .products()
+      .find((item) => item.id === context.createdProductId && item.workspace_id === workspaceId);
+    if (product) editor.productCreated(product);
+    else
+      this.errorMessage.set(
+        'Artikel wurde erstellt, konnte aber nicht geladen werden. Bitte füge ihn über die Artikelsuche hinzu.',
+      );
   }
 
   resetToPurchase(vorhandener: Purchase): void {

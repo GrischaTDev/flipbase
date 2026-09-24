@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 import { EntryPageLayoutComponent } from '../../../../shared/components/entry-page-layout/entry-page-layout.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { PurchaseEntryFormComponent } from '../../components/purchase-entry-form/purchase-entry-form.component';
+import { PurchaseProductReturnService } from '../../services/purchase-product-return.service';
 
 @Component({
   selector: 'app-purchase-create',
@@ -16,6 +17,7 @@ import { PurchaseEntryFormComponent } from '../../components/purchase-entry-form
 })
 export class PurchaseCreateComponent {
   private readonly router = inject(Router);
+  private readonly productReturn = inject(PurchaseProductReturnService);
   readonly entryForm = viewChild.required(PurchaseEntryFormComponent);
 
   hasUnsavedChanges(): boolean {
@@ -24,6 +26,10 @@ export class PurchaseCreateComponent {
 
   isSaving(): boolean {
     return this.entryForm()?.isSaving() ?? false;
+  }
+
+  canNavigateTo(url: string): boolean {
+    return this.productReturn.isCatalogHandoff(url);
   }
 
   canSaveDraft(): boolean {
