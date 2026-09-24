@@ -268,7 +268,8 @@ export function createBarcodeAiHandler(dependencies: BarcodeAiDependencies) {
     const ean = text(body?.ean);
     const imageDataUrl = body?.imageDataUrl == null ? null : text(body.imageDataUrl);
     if (
-      !/^\d{8,14}$/u.test(ean) ||
+      (!ean && !imageDataUrl) ||
+      (ean !== '' && !/^\d{8,14}$/u.test(ean)) ||
       (imageDataUrl &&
         (imageDataUrl.length > MAX_IMAGE_DATA_LENGTH ||
           !/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/u.test(imageDataUrl)))
@@ -318,7 +319,7 @@ function createProductionDependencies(): BarcodeAiDependencies {
       const apiKey = Deno.env.get('OPENAI_API_KEY');
       if (!apiKey) throw new Error('OpenAI-Zugang fehlt.');
       const searchInstructions = imageDataUrl
-        ? `Gescannte EAN/GTIN: ${ean}. Lies zuerst das Etikettfoto. ` +
+        ? `${ean ? `Gescannte EAN/GTIN: ${ean}. ` : 'Es wurde keine EAN angegeben. '}Lies zuerst das Etikettfoto. ` +
           'Trage nur sichtbar lesbare Marke, Modell, Herstellerartikelnummer, Farbe und Größe in labelSuggestion ein; fehlende Angaben bleiben leer. ' +
           'Wenn nichts lesbar ist, gib labelSuggestion als null zurück. ' +
           'Suche danach im Web gezielt nach Marke, Modell und Herstellerartikelnummer; die EAN allein liefert oft keine Treffer. '

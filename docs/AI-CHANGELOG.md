@@ -1,9 +1,10 @@
 # 🤖 KI-Änderungsprotokoll
 
-## 2026-09-24 – Juna – Fotoergebnisse der Barcode-KI verbessert
+## 2026-09-24 – Juna – Foto- und Direktsuche der Barcode-KI verbessert
 
 **Auftrag:** Eine KI-Suche mit Etikettfoto zeigte trotz lesbarem JAKO-Aufkleber
-keinen Produktvorschlag.
+keinen Produktvorschlag. Im Web fehlte außerdem ein direkter Einstieg zur
+Fotosuche ohne EAN.
 
 **Änderung:** Nach der Fotoauswahl ersetzt ein Hinweis die veraltete Meldung
 des vorherigen Suchlaufs. Die KI sucht mit Modell und Herstellerartikelnummer
@@ -11,12 +12,17 @@ vom Etikett. Wenn keine Produktseite sicher belegt werden kann, bietet die
 Maske die aus dem Foto gelesenen Angaben getrennt als prüfbaren Vorschlag an.
 Die Herstellerartikelnummer wird angezeigt, aber nicht als eigene SKU
 übernommen. Unvollständige OpenAI-Antworten werden als Fehler gemeldet statt
-als scheinbar erfolglose Produktsuche.
+als scheinbar erfolglose Produktsuche. Ein sichtbarer Betreiber-Button öffnet
+die KI-Produktsuche direkt bei der Artikelerstellung. Fotoauswahl und Suche
+funktionieren auch ohne EAN; die Serverfunktion weist Aufrufe ohne EAN und Foto
+ab.
 
-**Prüfung:** Ein echter, begrenzter OpenAI-Test mit dem JAKO-Foto lieferte
-belegte Webtreffer und gesonderte Etikettangaben. 13 gezielte DOM-Tests, vier
-Angular-Tests, fünf Edge-Tests, beide TypeScript-Prüfungen, Testsuite-Audit,
-ESLint, Prettier und Angular-Produktionsbau bestanden.
+**Prüfung:** Echte, begrenzte OpenAI-Tests mit dem JAKO-Foto lieferten mit und
+ohne EAN belegte Webtreffer und gesonderte Etikettangaben. 16 gezielte
+DOM-Tests, vier Angular-Tests und sieben Edge-Tests bestanden. Die aktuelle
+Auswertungslogik übernahm den Fototreffer ohne EAN. Beide TypeScript-Prüfungen,
+Testsuite-Audit, ESLint, Prettier und Angular-Produktionsbau bestanden; der Bau
+meldete die bekannte CommonJS-Warnung zu `pako`.
 
 ## 2026-09-24 – Juna – Artikelauswahl im Einkauf korrigiert
 

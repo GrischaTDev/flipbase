@@ -287,9 +287,32 @@ export class ProductDialogComponent {
     }
   }
 
+  openAiSearch(): void {
+    const enteredEan = this.form.controls.ean.value.trim();
+    const ean = enteredEan ? normalizeGtin(enteredEan) : '';
+    if (ean === null) {
+      this.form.controls.ean.markAsTouched();
+      this.barcodeMessage.set('Bitte die ungültige EAN korrigieren oder entfernen.');
+      return;
+    }
+    ++this.barcodeRequestId;
+    this.barcodeLoading.set(false);
+    this.form.controls.ean.setValue(ean);
+    this.aiSearchEan.set(ean);
+    this.aiResult.set(null);
+    this.aiError.set(null);
+    this.barcodeMessage.set(null);
+  }
+
   async searchWithAi(): Promise<void> {
     const ean = this.aiSearchEan();
-    if (!ean || this.form.controls.ean.value !== ean || this.aiLoading()) return;
+    if (
+      ean === null ||
+      this.form.controls.ean.value !== ean ||
+      (!ean && !this.labelPhoto()) ||
+      this.aiLoading()
+    )
+      return;
     const requestId = this.barcodeRequestId;
     const workspaceId = this.workspace.currentWorkspace()?.id;
     const labelPhoto = this.labelPhoto();
@@ -327,7 +350,7 @@ export class ProductDialogComponent {
   useAiSuggestion(candidate: BarcodeAiCandidate): void {
     const ean = this.aiSearchEan();
     if (
-      !ean ||
+      ean === null ||
       this.form.controls.ean.value !== ean ||
       !this.aiResult()?.candidates.includes(candidate)
     )
@@ -347,7 +370,7 @@ export class ProductDialogComponent {
   useAiLabelSuggestion(suggestion: BarcodeAiLabelSuggestion): void {
     const ean = this.aiSearchEan();
     if (
-      !ean ||
+      ean === null ||
       this.form.controls.ean.value !== ean ||
       this.aiResult()?.labelSuggestion !== suggestion
     )

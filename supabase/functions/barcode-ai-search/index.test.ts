@@ -57,6 +57,34 @@ Deno.test('liefert ohne Secret keinen bezahlten Aufruf aus', async () => {
   assertEquals(await response.json(), { error: 'not_configured' });
 });
 
+Deno.test('erlaubt eine Fotosuche ohne EAN fuer Betreiber', async () => {
+  let searchedEan: string | null = null;
+  const handler = createBarcodeAiHandler(
+    dependencies({
+      search: async (ean) => {
+        searchedEan = ean;
+        return {
+          candidates: [],
+          labelSuggestion: null,
+          usage: { inputTokens: 0, outputTokens: 0, webSearchCalls: 0, estimatedCostUsd: 0 },
+        };
+      },
+    }),
+  );
+  const response = await handler(
+    request({ ean: '', imageDataUrl: 'data:image/jpeg;base64,dGVzdA==' }),
+  );
+  assertEquals(response.status, 200);
+  assertEquals(searchedEan, '');
+});
+
+Deno.test('verweigert eine Suche ohne EAN und Foto', async () => {
+  const handler = createBarcodeAiHandler(dependencies());
+  const response = await handler(request({ ean: '', imageDataUrl: null }));
+  assertEquals(response.status, 400);
+  assertEquals(await response.json(), { error: 'invalid_input' });
+});
+
 Deno.test('schliesst erfundene Quellen aus den Produktvorschlaegen aus', () => {
   const candidate = (sourceUrl: string) => ({
     title: 'JAKO J-SFG Twist',
