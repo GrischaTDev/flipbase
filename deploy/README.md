@@ -164,6 +164,13 @@ zusammengehören:
    docker compose up -d --force-recreate functions auth
    ```
 
+   Für `barcode-ai-search` muss `OPENAI_API_KEY` in `/opt/supabase/.env`
+   stehen. `deploy/docker-compose.barcode-ai.yml` reicht den Schlüssel nur an
+   den Funktionsdienst durch. Die Datei gehört nach `/opt/supabase/` und als
+   letzter Eintrag in `COMPOSE_FILE`; ein Eintrag in `.env` allein reicht nicht.
+   Die Funktion wird mit den anderen Funktionsordnern im obigen Schritt
+   übertragen. Der Schlüssel darf nicht in den Angular-Bau gelangen.
+
    Die beiden Beta-Variablen unten gehören in `/opt/supabase/.env` **und** müssen
    an den Container durchgereicht werden: Der `environment:`-Block des Dienstes
    `functions` in der mitgelieferten `docker-compose.yml` zählt die Variablen

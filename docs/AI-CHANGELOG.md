@@ -17,6 +17,22 @@ geänderten Dateien, beide TypeScript-Prüfungen, `git diff --check` und der
 Angular-Produktionsbau bestanden. Der Bau meldete die bekannte
 CommonJS-Warnung zu `pako`.
 
+## 2026-09-24 – Juna – Barcode-KI für den Server vorbereitet
+
+**Auftrag:** Die vorbereitete Barcode-KI-Suche veröffentlichen und den
+Supabase-Studio-Projektnamen auf Flipbase setzen.
+
+**Änderung:** Der Barcode-KI-Zweig wurde auf den aktuellen Masterstand
+übernommen. Eine eigene Docker-Compose-Ergänzung reicht `OPENAI_API_KEY` nur an
+Edge Functions weiter; der Schlüssel bleibt außerhalb des Repositorys und des
+Browser-Baus. Der Anzeigename des produktiven Supabase Studios wurde in der
+Serverumgebung auf Flipbase gesetzt.
+
+**Prüfung:** 14 gezielte Frontend-Tests, ESLint, beide TypeScript-Prüfungen,
+Prettier und Angular-Produktionsbau bestanden. Der Studio-Container ist nach
+der Umbenennung gesund. Die Funktionsbereitstellung und ein echter OpenAI-Test
+folgen nach der Einrichtung eines gültigen Projektschlüssels.
+
 ## 2026-09-24 – Juna – Authelia-Bestätigungscodes per E-Mail vorbereitet
 
 **Auftrag:** Die Registrierung einer Authenticator-App für das Supabase Studio
