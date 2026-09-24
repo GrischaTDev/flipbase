@@ -7,7 +7,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CatalogProduct, CatalogProductMedia } from '../../../../core/models/flipbase.models';
 import { CatalogService } from '../../../../core/services/catalog.service';
 import { BarcodeLookupService } from '../../../../core/services/barcode-lookup.service';
+import { BarcodeAiLookupService } from '../../../../core/services/barcode-ai-lookup.service';
 import { MediaService } from '../../../../core/services/media.service';
+import { PlatformOperatorService } from '../../../../core/services/platform-operator.service';
 import { StockService } from '../../../../core/services/stock.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { canLeaveUnsavedEntry } from '../../../../shared/guards/unsaved-entry.guard';
@@ -144,6 +146,14 @@ describe('ProductDetailComponent', () => {
       category: 'Elektronik',
     })),
   };
+  const barcodeAiLookup = {
+    search: vi.fn(),
+    sessionUsage: signal({ searches: 0, estimatedCostUsd: 0 }),
+  };
+  const platformOperator = {
+    operator: signal(true),
+    isOperator: vi.fn(async () => true),
+  };
 
   function queueFiles(files: File[]): void {
     component.imageDrafts.set(
@@ -173,6 +183,8 @@ describe('ProductDetailComponent', () => {
         { provide: WorkspaceService, useValue: { currentWorkspace: activeWorkspace } },
         { provide: CatalogService, useValue: catalog },
         { provide: BarcodeLookupService, useValue: barcodeLookup },
+        { provide: BarcodeAiLookupService, useValue: barcodeAiLookup },
+        { provide: PlatformOperatorService, useValue: platformOperator },
         { provide: StockService, useValue: stock },
         { provide: MediaService, useValue: media },
       ],
@@ -452,6 +464,8 @@ describe('ProductDetailComponent', () => {
         { provide: WorkspaceService, useValue: { currentWorkspace: activeWorkspace } },
         { provide: CatalogService, useValue: catalog },
         { provide: BarcodeLookupService, useValue: barcodeLookup },
+        { provide: BarcodeAiLookupService, useValue: barcodeAiLookup },
+        { provide: PlatformOperatorService, useValue: platformOperator },
         { provide: StockService, useValue: stock },
         { provide: MediaService, useValue: media },
       ],
@@ -499,6 +513,91 @@ describe('ProductDetailComponent', () => {
     component.useBarcodeSuggestion();
     expect(component.form.controls.title.value).toBe('Externe Kamera');
     expect(component.brandSuggestion()).toBe('Beispielmarke');
+  });
+
+  it('sucht beim Erstellen aus der Artikelübersicht mit einem Foto ohne EAN', async () => {
+    await openNew();
+    const photo = new File(['label'], 'jako-label.jpg', { type: 'image/jpeg' });
+    const candidate = {
+      title: 'JAKO J-SFG Twist',
+      brand: 'JAKO',
+      model: 'J-SFG Twist',
+      size: '40',
+      color: 'Skydiver',
+      category: 'Fußballschuhe',
+      sourceUrl: 'https://shop.example.test/jako-twist',
+      confidence: 'likely' as const,
+      evidence: 'Modell und Farbe genannt',
+    };
+    barcodeAiLookup.search.mockResolvedValueOnce({
+      candidates: [candidate],
+      labelSuggestion: null,
+      usage: { inputTokens: 1000, outputTokens: 200, webSearchCalls: 1, estimatedCostUsd: 0.0102 },
+    });
+
+    component.toggleAiSearch();
+    const input = document.createElement('input');
+    input.type = 'file';
+    Object.defineProperty(input, 'files', { value: [photo] });
+    component.selectLabelPhoto({ target: input } as unknown as Event);
+    await component.searchWithAi();
+
+    expect(component.aiSearchOpen()).toBe(true);
+    expect(barcodeAiLookup.search).toHaveBeenCalledWith('', photo);
+    component.useAiSuggestion(candidate);
+    expect(component.form.getRawValue()).toMatchObject({
+      ean: '',
+      title: 'JAKO J-SFG Twist',
+      model: 'J-SFG Twist',
+      size: '40',
+      color: 'Skydiver',
+      sku: '',
+    });
+    expect(component.brandSuggestion()).toBe('JAKO');
+    await component.save();
+    expect(catalog.createProduct).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'JAKO J-SFG Twist',
+        model: 'J-SFG Twist',
+        ean: null,
+        sku: '',
+      }),
+    );
+  });
+
+  it('übernimmt beim Erstellen gelesene Etikettangaben ohne Webtreffer getrennt', async () => {
+    await openNew();
+    const photo = new File(['label'], 'jako-label.jpg', { type: 'image/jpeg' });
+    const labelSuggestion = {
+      title: 'JAKO J-SFG TWIST',
+      brand: 'JAKO',
+      model: 'J-SFG TWIST',
+      size: '40',
+      color: 'SKYDIVER/SULPHUR SPRING',
+      category: 'Fußballschuhe',
+      articleNumber: '310127 002 443',
+    };
+    barcodeAiLookup.search.mockResolvedValueOnce({
+      candidates: [],
+      labelSuggestion,
+      usage: { inputTokens: 1000, outputTokens: 200, webSearchCalls: 1, estimatedCostUsd: 0.0102 },
+    });
+
+    component.toggleAiSearch();
+    const input = document.createElement('input');
+    input.type = 'file';
+    Object.defineProperty(input, 'files', { value: [photo] });
+    component.selectLabelPhoto({ target: input } as unknown as Event);
+    await component.searchWithAi();
+    expect(component.aiMessage()).toContain('Etikett wurde gelesen');
+    component.useAiLabelSuggestion(labelSuggestion);
+
+    expect(component.form.getRawValue()).toMatchObject({
+      ean: '',
+      title: 'JAKO J-SFG TWIST',
+      sku: '',
+    });
+    expect(component.aiMessage()).toContain('Etikettangaben übernommen');
   });
 
   it('legt bei einem Bildfehler und erneutem Speichern keinen zweiten Artikel an', async () => {

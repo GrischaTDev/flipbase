@@ -1,5 +1,23 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-24 – Juna – KI-Fotosuche bei Artikelerstellung ergänzt
+
+**Auftrag:** Auf „Artikelübersicht → Artikel erstellen“ war nach dem Release nur
+„EAN scannen“ sichtbar; die neue KI-Fotosuche war dort nicht erreichbar.
+
+**Änderung:** Die Artikelübersicht öffnet `/catalog/new` mit einer eigenen
+Artikelseite. Dort ist für Plattformbetreiber nun „KI-Produktsuche mit Foto“
+direkt neben „EAN scannen“ verfügbar. Ein Etikettfoto kann ohne EAN gesucht
+werden. Belegte Webtreffer oder getrennt gekennzeichnete Etikettangaben können
+in das bearbeitbare Artikelformular übernommen werden. Eine unsicher gelesene
+Herstellerartikelnummer wird nicht als SKU gespeichert.
+
+**Prüfung:** 26 gezielte Angular-Tests, beide TypeScript-Prüfungen und der
+Angular-Produktionsbau bestanden. Die Tests decken Foto ohne EAN, die
+Übernahme eines belegten Treffers bis zur Artikelspeicherung und den getrennten
+Etikettvorschlag ab. ESLint, Prettier, Testsuite-Audit und die Prüfung der
+gemeinsamen Admin-Bausteine bestanden ebenfalls.
+
 ## 2026-09-24 – Juna – Foto- und Direktsuche der Barcode-KI verbessert
 
 **Auftrag:** Eine KI-Suche mit Etikettfoto zeigte trotz lesbarem JAKO-Aufkleber

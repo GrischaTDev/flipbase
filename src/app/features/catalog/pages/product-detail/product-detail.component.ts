@@ -53,6 +53,13 @@ import {
   BarcodeLookupService,
   BarcodeProductInfo,
 } from '../../../../core/services/barcode-lookup.service';
+import {
+  BarcodeAiCandidate,
+  BarcodeAiLabelSuggestion,
+  BarcodeAiLookupService,
+  BarcodeAiResult,
+} from '../../../../core/services/barcode-ai-lookup.service';
+import { PlatformOperatorService } from '../../../../core/services/platform-operator.service';
 import { BarcodeScannerComponent } from '../../../../shared/components/barcode-scanner/barcode-scanner.component';
 import { LucideScanBarcode } from '@lucide/angular';
 import { UnsavedEntryPage } from '../../../../shared/guards/unsaved-entry.guard';
@@ -93,12 +100,23 @@ export class ProductDetailComponent implements UnsavedEntryPage {
   readonly stock = inject(StockService);
   readonly media = inject(MediaService);
   private readonly barcodeLookup = inject(BarcodeLookupService);
+  private readonly barcodeAiLookup = inject(BarcodeAiLookupService);
+  readonly aiSessionUsage = this.barcodeAiLookup.sessionUsage;
+  readonly platformOperator = inject(PlatformOperatorService);
   readonly barcodeIcon = LucideScanBarcode;
   readonly barcodeScannerOpen = signal(false);
   readonly barcodeLoading = signal(false);
   readonly barcodeMessage = signal<string | null>(null);
   readonly barcodeSuggestion = signal<BarcodeProductInfo | null>(null);
   readonly existingBarcodeProduct = signal<CatalogProduct | null>(null);
+  readonly aiSearchOpen = signal(false);
+  readonly aiSearchEan = signal<string | null>(null);
+  readonly labelPhoto = signal<File | null>(null);
+  readonly aiLoading = signal(false);
+  readonly aiResult = signal<BarcodeAiResult | null>(null);
+  readonly aiError = signal<string | null>(null);
+  readonly aiMessage = signal<string | null>(null);
+  private aiRequestId = 0;
   readonly categorySuggestion = signal<string | null>(null);
   readonly brandSuggestion = signal<string | null>(null);
   private barcodeRequestId = 0;
@@ -230,6 +248,7 @@ export class ProductDetailComponent implements UnsavedEntryPage {
 
   constructor() {
     this.destroyRef.onDestroy(this.releaseWorkspaceLock);
+    void this.platformOperator.isOperator();
     effect(() => {
       const routeId = this.routeId();
       const workspaceId = this.workspace.currentWorkspace()?.id;
@@ -255,6 +274,13 @@ export class ProductDetailComponent implements UnsavedEntryPage {
     if (!this.creating()) return;
     const ean = normalizeGtin(code);
     const requestId = ++this.barcodeRequestId;
+    this.aiRequestId++;
+    this.aiLoading.set(false);
+    this.aiResult.set(null);
+    this.aiError.set(null);
+    this.aiMessage.set(null);
+    this.aiSearchEan.set(null);
+    this.labelPhoto.set(null);
     this.barcodeSuggestion.set(null);
     this.existingBarcodeProduct.set(null);
     if (!ean) {
@@ -338,6 +364,127 @@ export class ProductDetailComponent implements UnsavedEntryPage {
     this.categorySuggestion.set(product.category ?? null);
     this.barcodeSuggestion.set(null);
     this.barcodeMessage.set('Produktdaten übernommen. Ergänze oder korrigiere die Angaben.');
+  }
+
+  toggleAiSearch(): void {
+    if (!this.creating()) return;
+    if (this.aiSearchOpen()) {
+      this.aiSearchOpen.set(false);
+      this.aiRequestId++;
+      this.aiLoading.set(false);
+      return;
+    }
+    ++this.barcodeRequestId;
+    this.barcodeLoading.set(false);
+    this.barcodeScannerOpen.set(false);
+    this.aiSearchOpen.set(true);
+    this.aiResult.set(null);
+    this.aiError.set(null);
+    this.aiMessage.set(null);
+  }
+
+  selectLabelPhoto(event: Event): void {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) return;
+    const photo = target.files?.[0] ?? null;
+    this.labelPhoto.set(photo);
+    this.aiResult.set(null);
+    this.aiError.set(null);
+    this.aiMessage.set(
+      photo ? 'Etikettfoto ausgewählt. Starte die KI-Suche mit diesem Foto.' : null,
+    );
+  }
+
+  async searchWithAi(): Promise<void> {
+    if (!this.creating() || !this.aiSearchOpen() || this.aiLoading()) return;
+    const enteredEan = this.form.controls.ean.value.trim();
+    const ean = enteredEan ? normalizeGtin(enteredEan) : '';
+    const photo = this.labelPhoto();
+    if (ean === null) {
+      this.form.controls.ean.markAsTouched();
+      this.aiError.set('Bitte die ungültige EAN korrigieren oder entfernen.');
+      return;
+    }
+    if (!ean && !photo) return;
+    const requestId = ++this.aiRequestId;
+    const workspaceId = this.workspace.currentWorkspace()?.id;
+    this.form.controls.ean.setValue(ean);
+    this.aiSearchEan.set(ean);
+    this.aiLoading.set(true);
+    this.aiResult.set(null);
+    this.aiError.set(null);
+    this.aiMessage.set(null);
+    try {
+      if (!(await this.platformOperator.isOperator())) return;
+      const result = await this.barcodeAiLookup.search(ean, photo);
+      if (
+        requestId !== this.aiRequestId ||
+        workspaceId !== this.workspace.currentWorkspace()?.id ||
+        this.form.controls.ean.value !== ean
+      )
+        return;
+      this.aiResult.set(result);
+      this.aiMessage.set(
+        result.candidates.length
+          ? 'Mögliche Produkte gefunden. Prüfe Modell, Variante und Quelle vor der Übernahme.'
+          : result.labelSuggestion
+            ? 'Kein belegter Webtreffer. Das Etikett wurde gelesen; prüfe die Angaben vor der Übernahme.'
+            : photo
+              ? 'Mit diesem Foto wurde kein belegter Produktvorschlag gefunden. Prüfe, ob Modell und Artikelnummer lesbar sind.'
+              : 'Kein belegter Produktvorschlag gefunden. Versuche ein Etikettfoto.',
+      );
+    } catch (error: unknown) {
+      if (requestId !== this.aiRequestId || workspaceId !== this.workspace.currentWorkspace()?.id)
+        return;
+      this.aiError.set(
+        error instanceof Error ? error.message : 'Die KI-Suche ist gerade nicht verfügbar.',
+      );
+    } finally {
+      if (requestId === this.aiRequestId) this.aiLoading.set(false);
+    }
+  }
+
+  useAiSuggestion(candidate: BarcodeAiCandidate): void {
+    if (
+      this.form.controls.ean.value !== this.aiSearchEan() ||
+      !this.aiResult()?.candidates.includes(candidate)
+    )
+      return;
+    this.form.patchValue({
+      title: candidate.title,
+      model: candidate.model,
+      size: candidate.size,
+      color: candidate.color,
+    });
+    this.brandSuggestion.set(candidate.brand || null);
+    this.categorySuggestion.set(candidate.category || null);
+    this.aiResult.set(null);
+    this.aiMessage.set('Vorschlag übernommen. Bitte prüfe und ergänze die Angaben.');
+  }
+
+  useAiLabelSuggestion(suggestion: BarcodeAiLabelSuggestion): void {
+    if (
+      this.form.controls.ean.value !== this.aiSearchEan() ||
+      this.aiResult()?.labelSuggestion !== suggestion
+    )
+      return;
+    this.form.patchValue({
+      title: suggestion.title,
+      model: suggestion.model,
+      size: suggestion.size,
+      color: suggestion.color,
+    });
+    this.brandSuggestion.set(suggestion.brand || null);
+    this.categorySuggestion.set(suggestion.category || null);
+    this.aiResult.set(null);
+    this.aiMessage.set('Etikettangaben übernommen. Bitte prüfe und ergänze sie.');
+  }
+
+  formatCents(amountUsd: number): string {
+    return (amountUsd * 100).toLocaleString('de-DE', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
   }
 
   hasUnsavedChanges(): boolean {
@@ -523,6 +670,14 @@ export class ProductDetailComponent implements UnsavedEntryPage {
     this.barcodeMessage.set(null);
     this.barcodeSuggestion.set(null);
     this.existingBarcodeProduct.set(null);
+    this.aiRequestId++;
+    this.aiSearchOpen.set(false);
+    this.aiSearchEan.set(null);
+    this.labelPhoto.set(null);
+    this.aiLoading.set(false);
+    this.aiResult.set(null);
+    this.aiError.set(null);
+    this.aiMessage.set(null);
     this.brandSuggestion.set(null);
     this.categorySuggestion.set(null);
     const product = this.product();
