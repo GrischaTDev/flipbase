@@ -79,6 +79,16 @@ describe('BadgeComponent', () => {
     expect(span.className).toContain('text-fb-admin');
   });
 
+  it('uses a distinct informational palette instead of the neutral palette', () => {
+    fixture.componentRef.setInput('tone', 'info');
+    fixture.detectChanges();
+
+    const badge: HTMLElement = fixture.nativeElement.querySelector('span');
+    expect(badge.classList).toContain('bg-fb-badge-info');
+    expect(badge.classList).toContain('text-fb-badge-on-info');
+    expect(badge.classList).not.toContain('bg-fb-badge-neutral');
+  });
+
   it.each([
     ['brand', 'brand'],
     ['caution', 'warning'],

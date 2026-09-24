@@ -110,10 +110,13 @@ Verkaufsjournal; die Säule behält ihr kräftigeres Diagrammgrün.
 
 Nutzerentscheidung vom 24.09.2026: Aktive Menüeinträge verwenden in beiden
 Themes eine vollflächige gelbe Markierung mit dunkler Schrift und ohne sichtbare
-Kontur. Statusbadges nutzen klare, volle Farben statt transparenter Tönungen:
-Grün für Erfolg, Orange für Entwurf/Warnung, Rot für kritische Zustände und
-Gelb für markierte Ankunft. Informations- und Neutralzustände bleiben grau;
-alle Badge-Schriftfarben erfüllen auch bei kleiner Schrift WCAG AA. Ruhige
+Kontur. Statusbadges nutzen ruhige Farbflächen mit kräftiger, kontrastreicher
+Schrift: Jadegrün für Erfolg, Orange für Bestellt/Warnung, Rot für kritische
+Zustände, Gelb für Angekommen, kühles Info-Blau für Entwurf und Grau für
+neutrale Zustände. Die Farbpaare sind für helles und dunkles Theme getrennt;
+alle Badge-Schriftfarben erfüllen auch bei kleiner Schrift WCAG AA. Das
+Flipbase-Gelb `#fcc601` bleibt für Marke, primäre Aktionen und aktive
+Navigation unverändert. Der Admin-Rollenbadge bleibt kräftig rot. Ruhige
 Hinweis- und Dialogflächen behalten ihre bisherigen Statusvariablen. In der
 schreibgeschützten Einkaufsansicht stehen Kaufdatum, Referenznummer und
 Beschreibung wie in der Erfassung gesammelt rechts unter „Einkaufsdetails“;

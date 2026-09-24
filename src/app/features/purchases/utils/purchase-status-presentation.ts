@@ -22,6 +22,6 @@ export function getPurchaseStatusPresentation(purchase: Purchase): PurchaseStatu
   if (receivingStatus === 'received' || purchase.shipment_status === 'arrived') {
     return { label: 'Angekommen', tone: 'brand' };
   }
-  if (receivingStatus === 'ordered') return { label: 'Bestellt', tone: 'info' };
-  return { label: 'Entwurf', tone: 'caution' };
+  if (receivingStatus === 'ordered') return { label: 'Bestellt', tone: 'caution' };
+  return { label: 'Entwurf', tone: 'info' };
 }
