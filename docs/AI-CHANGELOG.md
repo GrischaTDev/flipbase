@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-25 – Juna – Mehrfoto-Suche mit älterer Serverfunktion abgeglichen
+
+**Auftrag:** Den Fehler „Die KI-Suche ist gerade nicht verfügbar“ nach einer Suche mit drei Fotos untersuchen und beheben.
+
+**Änderung:** Einen eigenen Branch vom aktuellen `origin/master` angelegt. Der Web-Release verteilt laut Deployment-Dokumentation keine Edge Functions; die vorherige Serverfassung liest nur `imageDataUrl`, während die neue Oberfläche `imageDataUrls` sendet. Der Client überträgt das erste Foto im bisherigen Feld und weitere Fotos ohne doppelte Bilddaten im neuen Feld `additionalImageDataUrls`. Er kennzeichnet ein Ergebnis, das nur auf dem ersten Foto beruht. Die aktuelle Serverfunktion meldet die tatsächlich verarbeitete Fotoanzahl. Die Betriebsanleitung nennt den erforderlichen separaten Funktions-Rollout. Serverantworten zu abgelehnten Eingaben und zu großen Anfragen erhalten verständlichere Meldungen.
+
+**Prüfung:** Den alten und neuen Anfragevertrag im Repository verglichen; der öffentlich erreichbare Funktionsendpunkt beantwortet die Voranfrage. Gezielte Client-, Dialog- und Edge-Tests sowie Angular-Bau, Formatierung und gezieltes Lint waren erfolgreich. Ein erfolgreicher Test mit drei echten Fotos ist erst nach dem separaten Rollout der Serverfunktion möglich.
+
 ## 2026-09-25 – Juna – KI-Artikelerstellung mit aktueller Artikelansicht abgeglichen
 
 **Auftrag:** Den freigegebenen Branch als Pull Request veröffentlichen und nach erfolgreichen Pflichtprüfungen zusammenführen.

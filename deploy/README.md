@@ -171,6 +171,15 @@ zusammengehören:
    Die Funktion wird mit den anderen Funktionsordnern im obigen Schritt
    übertragen. Der Schlüssel darf nicht in den Angular-Bau gelangen.
 
+   **Mehrfoto-Suche:** Die App-Version ab 25.09.2026 sendet zusätzlich zur alten
+   `imageDataUrl` eine Liste `additionalImageDataUrls`. Die alte Serverfunktion verwendet
+   davon nur das erste Foto; die App kennzeichnet solche Ergebnisse. Damit alle
+   Fotos ausgewertet werden, muss die aktuelle Funktion aus demselben geprüften
+   Commit mit dem obigen Verfahren auf den Server übertragen und der
+   Funktionsdienst neu gestartet werden. Ein grüner Web-Deployment-Lauf belegt
+   diesen Schritt nicht. Nach dem Rollout die Suche mit mehreren echten Fotos
+   in der App prüfen; der Hinweis auf das erste Foto darf nicht mehr erscheinen.
+
    Die beiden Beta-Variablen unten gehören in `/opt/supabase/.env` **und** müssen
    an den Container durchgereicht werden: Der `environment:`-Block des Dienstes
    `functions` in der mitgelieferten `docker-compose.yml` zählt die Variablen
