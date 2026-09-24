@@ -30,18 +30,19 @@
   --fb-color-finance-positive-text: #15803d;
   --fb-color-finance-negative-text: #b91c1c;
 
-  /* Status-Badges nutzen volle Signalfarben; Hinweise und Dialoge behalten
-     ihre ruhigeren, transparenten Oberflaechen. */
-  --fb-badge-brand: #fcc601;
-  --fb-badge-on-brand: #1a1a1a;
-  --fb-badge-success: #16a34a;
-  --fb-badge-on-success: #101810;
-  --fb-badge-warning: #f89d13;
-  --fb-badge-on-warning: #1a1a1a;
-  --fb-badge-critical: #dc2626;
-  --fb-badge-on-critical: #ffffff;
-  --fb-badge-neutral: #6b7280;
-  --fb-badge-on-neutral: #ffffff;
+  /* Status-Badges nutzen ruhige Flaechen mit klarer Schriftfarbe. */
+  --fb-badge-brand: #fff0a8;
+  --fb-badge-on-brand: #614900;
+  --fb-badge-success: #d8f2e8;
+  --fb-badge-on-success: #08674d;
+  --fb-badge-warning: #ffe1c9;
+  --fb-badge-on-warning: #8e3d0a;
+  --fb-badge-critical: #ffe2e4;
+  --fb-badge-on-critical: #a51f28;
+  --fb-badge-neutral: #e8ebef;
+  --fb-badge-on-neutral: #47515d;
+  --fb-badge-info: #dbf1fa;
+  --fb-badge-on-info: #075f78;
 
   /* Erfolg / positiver Zustand – bewusst warmes, weiches Gruen. */
   --fb-color-success: #86c98c;
@@ -104,6 +105,19 @@ html.dark {
 
   --fb-color-finance-positive-text: #4ade80;
   --fb-color-finance-negative-text: #f87171;
+
+  --fb-badge-brand: #51440e;
+  --fb-badge-on-brand: #ffe56a;
+  --fb-badge-success: #204837;
+  --fb-badge-on-success: #86dfbb;
+  --fb-badge-warning: #4a2d1e;
+  --fb-badge-on-warning: #ffba8a;
+  --fb-badge-critical: #4c242c;
+  --fb-badge-on-critical: #ffadb3;
+  --fb-badge-neutral: #353c46;
+  --fb-badge-on-neutral: #cdd5df;
+  --fb-badge-info: #16404d;
+  --fb-badge-on-info: #9bdef0;
 
   --fb-color-success: #8fcb78;
   --fb-color-success-text: #a9dda0;

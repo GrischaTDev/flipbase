@@ -30,7 +30,7 @@ export class BadgeComponent {
       neutral: 'bg-fb-badge-neutral text-fb-badge-on-neutral',
       brand: 'bg-fb-badge-brand text-fb-badge-on-brand',
       admin: 'bg-fb-admin-surface text-fb-admin',
-      info: 'bg-fb-badge-neutral text-fb-badge-on-neutral',
+      info: 'bg-fb-badge-info text-fb-badge-on-info',
       success: 'bg-fb-badge-success text-fb-badge-on-success',
       caution: 'bg-fb-badge-warning text-fb-badge-on-warning',
       critical: 'bg-fb-badge-critical text-fb-badge-on-critical',

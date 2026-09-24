@@ -17,8 +17,8 @@ const purchase: Purchase = {
 
 describe('getPurchaseStatusPresentation', () => {
   it.each([
-    [{ receiving_status: 'draft' }, { label: 'Entwurf', tone: 'caution' }],
-    [{ receiving_status: 'ordered' }, { label: 'Bestellt', tone: 'info' }],
+    [{ receiving_status: 'draft' }, { label: 'Entwurf', tone: 'info' }],
+    [{ receiving_status: 'ordered' }, { label: 'Bestellt', tone: 'caution' }],
     [{ receiving_status: 'partially_received' }, { label: 'Teillieferung', tone: 'caution' }],
     [{ receiving_status: 'received' }, { label: 'Angekommen', tone: 'brand' }],
     [
@@ -50,6 +50,6 @@ describe('getPurchaseStatusPresentation', () => {
         receiving_status: 'ordered',
         shipment_status: 'in_transit',
       }),
-    ).toEqual({ label: 'Bestellt', tone: 'info' });
+    ).toEqual({ label: 'Bestellt', tone: 'caution' });
   });
 });

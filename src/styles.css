@@ -58,7 +58,7 @@
   --fb-brand-yellow-rgb: 252 198 1;
   --fb-nav-accent: var(--fb-color-brand-text);
   --fb-nav-accent-rgb: 48 48 48;
-  --fb-nav-badge-text: var(--fb-badge-on-brand);
+  --fb-nav-badge-text: #1a1a1a;
   --fb-nav-accent-surface: var(--fb-color-brand);
   --fb-nav-accent-border: var(--fb-color-brand);
 
@@ -238,7 +238,7 @@ html.dark {
   /* Im dunklen Design kann das helle Logo-Gelb direkt als Iconfarbe dienen. */
   --fb-nav-accent: var(--fb-color-brand-text);
   --fb-nav-accent-rgb: var(--fb-brand-yellow-rgb);
-  --fb-nav-badge-text: var(--fb-badge-on-brand);
+  --fb-nav-badge-text: #1a1a1a;
   --fb-nav-accent-surface: var(--fb-color-brand);
   --fb-nav-accent-border: var(--fb-color-brand);
 
@@ -451,6 +451,8 @@ html.dark {
   --color-fb-badge-on-critical: var(--fb-badge-on-critical);
   --color-fb-badge-neutral: var(--fb-badge-neutral);
   --color-fb-badge-on-neutral: var(--fb-badge-on-neutral);
+  --color-fb-badge-info: var(--fb-badge-info);
+  --color-fb-badge-on-info: var(--fb-badge-on-info);
 
   --color-fb-success: var(--fb-color-success-text);
   --color-fb-success-strong: var(--fb-color-success);
@@ -706,17 +708,17 @@ html:not(.dark) .fb-admin .bg-indigo-600.text-white {
 .fb-admin app-sidebar nav a[aria-current='page'] {
   background-color: var(--fb-nav-accent-surface);
   border-color: transparent;
-  color: var(--fb-badge-on-brand);
+  color: var(--fb-nav-badge-text);
 }
 
 .fb-admin app-sidebar nav a[aria-current='page'] > svg {
-  color: var(--fb-badge-on-brand);
+  color: var(--fb-nav-badge-text);
 }
 
 .fb-admin app-bottom-nav a[aria-current='page'] {
   border-radius: 0.375rem;
   background-color: var(--fb-color-brand);
-  color: var(--fb-badge-on-brand);
+  color: var(--fb-nav-badge-text);
 }
 
 /* Navigation: schmal, ruhig und auf dem 4-Pixel-Raster des Shopify-Admins. */
