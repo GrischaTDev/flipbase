@@ -28,10 +28,12 @@ Edge Functions weiter; der Schlüssel bleibt außerhalb des Repositorys und des
 Browser-Baus. Der Anzeigename des produktiven Supabase Studios wurde in der
 Serverumgebung auf Flipbase gesetzt.
 
-**Prüfung:** 14 gezielte Frontend-Tests, ESLint, beide TypeScript-Prüfungen,
-Prettier und Angular-Produktionsbau bestanden. Der Studio-Container ist nach
-der Umbenennung gesund. Die Funktionsbereitstellung und ein echter OpenAI-Test
-folgen nach der Einrichtung eines gültigen Projektschlüssels.
+**Prüfung:** 14 gezielte Frontend-Tests, vier Edge-Handler-Tests, das
+Testsuite-Audit, ESLint, beide TypeScript-Prüfungen, Prettier und
+Angular-Produktionsbau bestanden. Der Studio-Container ist nach
+der Umbenennung gesund; der gültige Projektschlüssel wurde per kostenfreier
+Modellabfrage geprüft. Die Funktionsbereitstellung und ein echter Suchlauf
+folgen nach dem PR-Merge.
 
 ## 2026-09-24 – Juna – Authelia-Bestätigungscodes per E-Mail vorbereitet
 
