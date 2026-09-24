@@ -207,7 +207,10 @@ export class InventoryComponent {
     } else {
       const ean = normalizeGtin(code);
       if (ean) {
-        void this.router.navigate(['/inventory/new'], { state: { barcode: ean } });
+        void this.router.navigate(['/catalog/new'], {
+          queryParams: { returnTo: 'inventory' },
+          state: { barcode: ean },
+        });
       } else {
         this.scanMeldung.set(`Artikel nicht im Inventar vorhanden: ${code}.`);
         setTimeout(() => this.scanMeldung.set(null), 5000);
@@ -675,7 +678,10 @@ export class InventoryComponent {
 
   onAiProductDetected(res: AiVisualScanResult): void {
     this.isAiScannerOpen.set(false);
-    void this.router.navigate(['/inventory/new'], { state: { aiResult: res } });
+    void this.router.navigate(['/catalog/new'], {
+      queryParams: { returnTo: 'inventory' },
+      state: { aiResult: res },
+    });
   }
 
   setPreset(preset: string): void {

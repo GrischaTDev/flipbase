@@ -3,17 +3,10 @@ import axe from 'axe-core';
 import { expect, openDashboard, test } from './support/fixtures';
 
 async function expectEntrySurface(page: Page, path: string): Promise<void> {
-  await expect(page).toHaveURL(new RegExp(path + '$'));
-  if (path === '/inventory/new') {
-    const dialog = page.getByRole('dialog', { name: 'Produkt erstellen', exact: true });
-    await expect(dialog).toBeVisible();
-    await expect(dialog.getByRole('textbox', { name: 'Name', exact: true })).toBeVisible();
-    await expect(
-      dialog.getByRole('button', { name: 'Produkt erstellen', exact: true }),
-    ).toBeVisible();
-  } else {
-    await expect(page.locator('main h1')).toBeVisible();
-  }
+  await expect(page).toHaveURL(
+    new RegExp((path === '/inventory/new' ? '/catalog/new' : path) + '$'),
+  );
+  await expect(page.locator('main h1')).toBeVisible();
 }
 
 test('opens sales and catalog creation as pages while preserving the inventory shortcut', async ({
@@ -30,7 +23,8 @@ test('opens sales and catalog creation as pages while preserving the inventory s
   await expect(page.getByRole('region', { name: 'Kennzahlen zum Verkauf' })).toBeVisible();
 
   await page.goto('/inventory');
-  await expect(page.getByRole('link', { name: 'Einkauf erfassen', exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/catalog\?view=stock$/);
+  await expect(page.getByRole('link', { name: 'Artikel erstellen', exact: true })).toBeVisible();
   await page.goto('/catalog');
   await page.getByRole('link', { name: 'Artikel erstellen', exact: true }).click();
   await expect(page).toHaveURL(/\/catalog\/new$/);
@@ -41,8 +35,8 @@ test('opens sales and catalog creation as pages while preserving the inventory s
 
   await page.goto('/inventory/new');
   await expectEntrySurface(page, '/inventory/new');
-  await page.keyboard.press('Escape');
-  await expect(page).toHaveURL(/\/inventory$/);
+  await page.getByRole('link', { name: 'Zur Artikelliste', exact: true }).click();
+  await expect(page).toHaveURL(/\/catalog$/);
 });
 
 test('stacks entry cards without horizontal page overflow on mobile', async ({ page }) => {

@@ -68,6 +68,7 @@
           [pricingMode]="pricingMode()"
           [initialLines]="purchaseLines()"
           (linesChanged)="onPurchaseLinesChanged($event)"
+          (createProductRequested)="openProductCreation($event)"
         />
       </app-card>
 

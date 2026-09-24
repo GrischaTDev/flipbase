@@ -543,7 +543,7 @@ describe('ProductDetailComponent', () => {
     await component.searchWithAi();
 
     expect(component.aiSearchOpen()).toBe(true);
-    expect(barcodeAiLookup.search).toHaveBeenCalledWith('', photo);
+    expect(barcodeAiLookup.search).toHaveBeenCalledWith('', [photo]);
     component.useAiSuggestion(candidate);
     expect(component.form.getRawValue()).toMatchObject({
       ean: '',

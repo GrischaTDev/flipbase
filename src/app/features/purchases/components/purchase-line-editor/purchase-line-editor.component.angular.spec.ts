@@ -233,6 +233,7 @@ function erstelleEditor(purchaseType: PurchaseType = 'single') {
     detailId: signal(null),
     importPreview: signal([]),
     linesChanged,
+    createProductRequested: { emit: vi.fn() },
     purchaseType: signal(purchaseType),
     isMysteryPurchase: computed(() => purchaseType === 'mystery_pack'),
   });
@@ -432,7 +433,7 @@ describe('PurchaseLineEditorComponent', () => {
     expect(editor.getDrafts()).toHaveLength(0);
     editor.createProductFromBarcode();
     expect(editor.productDraft()).toEqual(product);
-    expect(editor.isCreatingProduct()).toBe(true);
+    expect(editor.createProductRequested.emit).toHaveBeenCalledWith(product);
   });
 
   it('übernimmt bei einem Inventartreffer dessen Daten vor der Online-Suche', async () => {
@@ -454,6 +455,7 @@ describe('PurchaseLineEditorComponent', () => {
     expect(lookupExternalByEan).not.toHaveBeenCalled();
     editor.createProductFromBarcode();
     expect(editor.productDraft()).toEqual(inventoryProduct);
+    expect(editor.createProductRequested.emit).toHaveBeenCalledWith(inventoryProduct);
   });
 
   it('rendert eine kompakte Tabelle und berechnet Eingaben unmittelbar vor Blur', async () => {

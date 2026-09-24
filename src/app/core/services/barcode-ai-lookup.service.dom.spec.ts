@@ -26,7 +26,7 @@ describe('BarcodeAiLookupService', () => {
     await service.search('4099758601276', null);
 
     expect(invoke).toHaveBeenCalledWith('barcode-ai-search', {
-      body: { ean: '4099758601276', imageDataUrl: null },
+      body: { ean: '4099758601276', imageDataUrls: [] },
     });
     expect(service.sessionUsage()).toEqual({ searches: 2, estimatedCostUsd: 0.0203 });
   });
@@ -36,7 +36,7 @@ describe('BarcodeAiLookupService', () => {
     const service = createService(invoke);
     const file = new File([new Uint8Array(5_000_001)], 'etikett.jpg', { type: 'image/jpeg' });
 
-    await expect(service.search('4099758601276', file)).rejects.toThrow('unter 5 MB');
+    await expect(service.search('4099758601276', file)).rejects.toThrow('unter je 5 MB');
     expect(invoke).not.toHaveBeenCalled();
   });
 
@@ -72,13 +72,43 @@ describe('BarcodeAiLookupService', () => {
     await createService(invoke).search(ean, photo);
 
     expect(invoke).toHaveBeenCalledWith('barcode-ai-search', {
-      body: { ean: expectedEan, imageDataUrl: 'data:image/jpeg;base64,dGVzdA==' },
+      body: { ean: expectedEan, imageDataUrls: ['data:image/jpeg;base64,dGVzdA=='] },
+    });
+  });
+
+  it('sendet Karton- und Etikettfoto gemeinsam in der gewählten Reihenfolge', async () => {
+    class TestFileReader {
+      result: string | null = null;
+      onload: (() => void) | null = null;
+      readAsDataURL(file: File): void {
+        this.result = `data:image/jpeg;base64,${file.name}`;
+        this.onload?.();
+      }
+    }
+    vi.stubGlobal('FileReader', TestFileReader);
+    const invoke = vi.fn(async () => ({
+      data: {
+        candidates: [],
+        usage: { inputTokens: 0, outputTokens: 0, webSearchCalls: 0, estimatedCostUsd: 0 },
+      },
+      error: null,
+    }));
+    const photos = [
+      new File(['box'], 'karton.jpg', { type: 'image/jpeg' }),
+      new File(['label'], 'etikett.jpg', { type: 'image/jpeg' }),
+    ];
+    await createService(invoke).search('', photos);
+    expect(invoke).toHaveBeenCalledWith('barcode-ai-search', {
+      body: {
+        ean: '',
+        imageDataUrls: ['data:image/jpeg;base64,karton.jpg', 'data:image/jpeg;base64,etikett.jpg'],
+      },
     });
   });
 
   it('verlangt eine EAN oder ein Etikettfoto', async () => {
     const invoke = vi.fn();
-    await expect(createService(invoke).search('', null)).rejects.toThrow('Etikettfoto');
+    await expect(createService(invoke).search('', null)).rejects.toThrow('Produktfoto');
     expect(invoke).not.toHaveBeenCalled();
   });
 });
