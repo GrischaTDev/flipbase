@@ -1,7 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
-import { CatalogProduct } from '../../../../core/models/flipbase.models';
-import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { LucidePlus } from '@lucide/angular';
+import { CatalogProduct } from '../../../../core/models/flipbase.models';
+import { categoryPathParts } from '../../../../core/models/product-category.models';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
@@ -26,6 +28,7 @@ import { ItemConditionLabelPipe } from '../../../../shared/pipes/item-condition-
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PurchaseProductPickerComponent {
+  readonly plusIcon = LucidePlus;
   readonly products = input.required<readonly CatalogProduct[]>();
   readonly initialSearch = input('');
   readonly imageUrls = input<Readonly<Record<string, string>>>({});
@@ -49,8 +52,15 @@ export class PurchaseProductPickerComponent {
     return [
       { value: '', label: 'Alle Kategorien' },
       ...[...categories]
-        .sort((left, right) => left.localeCompare(right, 'de'))
-        .map((category) => ({ value: category, label: category })),
+        .map((category) => ({
+          value: category,
+          label: categoryPathParts(category).at(-1) ?? category,
+        }))
+        .sort(
+          (left, right) =>
+            left.label.localeCompare(right.label, 'de') ||
+            left.value.localeCompare(right.value, 'de'),
+        ),
     ];
   });
   readonly brandOptions = computed<readonly SelectOption<string>[]>(() => {
