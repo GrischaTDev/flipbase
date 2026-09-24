@@ -63,6 +63,62 @@ const release: StockMovement = {
 };
 
 describe('Artikelliste aus Stammartikeln und eigenständigen Stücken', () => {
+  it('zeigt auch einen Artikel ohne Wareneingang mit Nullbestand', () => {
+    const row = buildCatalogOverview('workspace', [product], [], [], [])[0];
+    expect(row.onHand).toBe(0);
+    expect(row.available).toBe(0);
+    expect(row.quantityState).toBe('known');
+  });
+
+  it('bietet Löschen nicht für öffentlich angebotene oder reservierte Artikel an', () => {
+    const rows = buildCatalogOverview(
+      'workspace',
+      [{ ...product, is_public_store: true }],
+      [{ ...item, status: 'reserved' }],
+      [],
+      [],
+    );
+    expect(rows.map((row) => row.canOfferDelete)).toEqual([false, false]);
+  });
+
+  it('erhält beim Archivieren den physischen Losbestand und seinen Wert', () => {
+    const row = buildCatalogOverview(
+      'workspace',
+      [{ ...product, archived_at: '2026-09-24T10:00:00Z' }],
+      [],
+      [],
+      [{ ...quantityPosition, on_hand_quantity: 3, available_quantity: 3 }],
+      [{ ...quantityLot, received_quantity: 3, remaining_quantity: 3 }],
+    )[0];
+    expect(row.onHand).toBe(3);
+    expect(row.available).toBe(0);
+    expect(row.inventoryValue).toBe(15);
+  });
+
+  it('hält ein archiviertes Einzelstück im physischen Bestand', () => {
+    const row = buildCatalogOverview(
+      'workspace',
+      [],
+      [{ ...item, archived_at: '2026-09-24T10:00:00Z' }],
+      [],
+      [],
+    )[0];
+    expect(row.onHand).toBe(1);
+    expect(row.available).toBe(0);
+    expect(row.inventoryValue).toBe(10);
+  });
+
+  it('markiert einen widersprüchlich retournierten Einzelartikel als ungeklärt', () => {
+    const row = buildCatalogOverview(
+      'workspace',
+      [],
+      [{ ...item, status: 'sold', sale_state: 'no_active_sale' }],
+      [],
+      [],
+    )[0];
+    expect(row.onHand).toBeNull();
+    expect(row.quantityState).toBe('review_required');
+  });
   it.each([5, 6])(
     'berücksichtigt Reservierung und Freigabe bei %i vorhandenen Einheiten',
     (onHand) => {

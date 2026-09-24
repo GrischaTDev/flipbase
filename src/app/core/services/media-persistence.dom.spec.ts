@@ -201,9 +201,10 @@ describe('MediaService – bestätigte lokale Zustandsänderungen', () => {
     const insert = vi.fn(() => ({
       select: () => ({ single: async () => ({ data: gespeichertesMedium, error: null }) }),
     }));
+    const remove = vi.fn(async () => ({ error: null }));
     const client = {
       storage: {
-        from: () => ({ upload: async () => ({ data: null, error: null }) }),
+        from: () => ({ upload: async () => ({ data: null, error: null }), remove }),
       },
       from: () => ({
         update: () => ({
@@ -222,7 +223,32 @@ describe('MediaService – bestätigte lokale Zustandsänderungen', () => {
 
     expect(ergebnis.error).toBeInstanceOf(Error);
     expect(insert).not.toHaveBeenCalled();
+    expect(remove).toHaveBeenCalledWith([expect.stringMatching(/^artikel-1\/.*bild\.jpg$/)]);
     expect(syncStatus.fehler()).toHaveLength(1);
+  });
+
+  it('entfernt einen Upload, wenn der Bildeintrag wegen einer gleichzeitigen Löschung scheitert', async () => {
+    const remove = vi.fn(async () => ({ error: null }));
+    const client = {
+      storage: { from: () => ({ upload: async () => ({ error: null }), remove }) },
+      from: () => ({
+        insert: () => ({
+          select: () => ({
+            single: async () => ({
+              data: null,
+              error: { code: '23503', message: 'Artikel gelöscht' },
+            }),
+          }),
+        }),
+      }),
+    };
+    const { dienst } = injiziereDienst(client);
+    const ergebnis = await dienst.uploadItemMedia(
+      'artikel-1',
+      new File(['bild'], 'bild.jpg', { type: 'image/jpeg' }),
+    );
+    expect(ergebnis.error?.message).toContain('verknüpfter Datensatz');
+    expect(remove).toHaveBeenCalledWith([expect.stringMatching(/^artikel-1\/.*bild\.jpg$/)]);
   });
 });
 

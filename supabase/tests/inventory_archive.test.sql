@@ -19,7 +19,16 @@ insert into public.purchases(id,workspace_id,type,title,entry_status,finalized_a
 insert into public.inventory_items(id,workspace_id,title,status,allocated_purchase_cost) values
 ('97000000-0000-4000-8000-000000000020','97000000-0000-4000-8000-000000000010','Verkauft','sold',12),
 ('97000000-0000-4000-8000-000000000021','97000000-0000-4000-8000-000000000010','Bestand','ready',5),
-('97000000-0000-4000-8000-000000000022','97000000-0000-4000-8000-000000000010','Ungeklärt','sold',5);
+('97000000-0000-4000-8000-000000000022','97000000-0000-4000-8000-000000000010','Ungeklärt','sold',5),
+('97000000-0000-4000-8000-000000000023','97000000-0000-4000-8000-000000000010','Reserviert','reserved',5),
+('97000000-0000-4000-8000-000000000024','97000000-0000-4000-8000-000000000010','Inseriert','ready',5),
+('97000000-0000-4000-8000-000000000026','97000000-0000-4000-8000-000000000010','Shopauftrag','ready',5);
+insert into public.listings(workspace_id, inventory_item_id, title, description, price, price_type, shipping_type) values
+('97000000-0000-4000-8000-000000000010','97000000-0000-4000-8000-000000000024','Inseriert','Vorbereitet',10,'FIXED','pickup');
+insert into public.store_orders(id,workspace_id,order_number) values
+('97000000-0000-4000-8000-000000000050','97000000-0000-4000-8000-000000000010','ITEM-ARCHIVE');
+insert into public.store_order_items(store_order_id,inventory_item_id,item_title,price) values
+('97000000-0000-4000-8000-000000000050','97000000-0000-4000-8000-000000000026','Shopauftrag',10);
 update public.inventory_items set purchase_id='97000000-0000-4000-8000-000000000025' where id='97000000-0000-4000-8000-000000000020';
 insert into public.sales(id,workspace_id,inventory_item_id,platform,sale_price) values
 ('97000000-0000-4000-8000-000000000030','97000000-0000-4000-8000-000000000010','97000000-0000-4000-8000-000000000020','ebay',25);
@@ -38,8 +47,12 @@ select throws_ok($$select pg_temp.archive('97000000-0000-4000-8000-000000000099'
 select throws_ok($$select pg_temp.archive(p_value=>null)$$,'22023',null,'Fehlende Aktion gesperrt');
 select throws_ok($$update public.inventory_items set archived_at=now(),archived_by='97000000-0000-4000-8000-000000000001' where id='97000000-0000-4000-8000-000000000021'$$,'42501',null,'Direkte Archivfälschung gesperrt');
 select throws_ok($$insert into public.inventory_items(workspace_id,title,archived_at) values('97000000-0000-4000-8000-000000000010','Fälschung',now())$$,'42501',null,'Auch Insert-Fälschung gesperrt');
-select throws_ok($$select pg_temp.archive('97000000-0000-4000-8000-000000000021')$$,'22023',null,'Aktiver Bestand wird nicht archiviert');
+select lives_ok($$select pg_temp.archive('97000000-0000-4000-8000-000000000021')$$,'Aktiver Bestand darf archiviert werden');
+select is((select allocated_purchase_cost from public.inventory_items where id='97000000-0000-4000-8000-000000000021'),5::numeric,'Bestandskosten bleiben beim Archivieren erhalten');
 select throws_ok($$select pg_temp.archive('97000000-0000-4000-8000-000000000022')$$,'22023',null,'Ungeklärter Verkauf wird nicht archiviert');
+select throws_ok($$select pg_temp.archive('97000000-0000-4000-8000-000000000023')$$,'22023','Bitte die Reservierung zuerst klären.','Reserviertes Stück wird nicht archiviert');
+select throws_ok($$select pg_temp.archive('97000000-0000-4000-8000-000000000024')$$,'22023','Bitte das Inserat zuerst beenden.','Vorbereitetes Inserat sperrt Einzelstück');
+select throws_ok($$select pg_temp.archive('97000000-0000-4000-8000-000000000026')$$,'22023','Bitte den offenen Shopauftrag zuerst klären.','Shopauftrag sperrt Einzelstück');
 select lives_ok($$select pg_temp.archive()$$,'Mitglied archiviert bestätigten Einzelverkauf');
 select is((select status from public.inventory_items where id='97000000-0000-4000-8000-000000000020'),'sold','Verkaufsstatus bleibt sold');
 select is((select archived_by from public.inventory_items where id='97000000-0000-4000-8000-000000000020'),'97000000-0000-4000-8000-000000000002'::uuid,'Server verwendet angemeldeten Autor');

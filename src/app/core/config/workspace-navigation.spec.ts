@@ -45,7 +45,8 @@ describe('Arbeitsnavigation', () => {
 
   it('benennt die arbeitsbezogenen Eintraege verstaendlich', () => {
     const items = WORKSPACE_NAVIGATION_GROUPS.flatMap((group) => group.items);
-    assert.equal(items.find((item) => item.path === '/catalog')?.label, 'Artikelübersicht');
+    assert.equal(items.find((item) => item.path === '/catalog')?.label, 'Artikel');
+    assert.equal(items.find((item) => item.path === '/catalog')?.children, undefined);
     assert.equal(items.find((item) => item.path === '/listings')?.label, 'Inserate');
     assert.equal(items.find((item) => item.path === '/expenses')?.label, 'Ausgaben');
     assert.equal(items.find((item) => item.path === '/analytics')?.label, 'Auswertungen');

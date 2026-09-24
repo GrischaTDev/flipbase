@@ -141,6 +141,23 @@ describe('PurchaseProductPickerComponent', () => {
 
   afterEach(() => TestBed.resetTestingModule());
 
+  it('bietet archivierte Artikel für neue Einkaufspositionen nicht an', async () => {
+    await TestBed.configureTestingModule({
+      imports: [PurchaseProductPickerComponent],
+      providers: [provideRouter([])],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(PurchaseProductPickerComponent);
+    fixture.componentRef.setInput('products', [
+      product,
+      { ...product, id: 'archived', title: 'Altartikel', archived_at: '2026-09-24' },
+    ]);
+    fixture.detectChanges();
+    expect(fixture.componentInstance.filtered().map((entry) => entry.id)).toEqual(['product-1']);
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('[data-product-option="archived"]'),
+    ).toBeNull();
+  });
+
   it('waehlt eine Ergebniszeile und einen Checkbox-Klick jeweils genau einmal aus', async () => {
     await TestBed.configureTestingModule({
       imports: [PurchaseProductPickerComponent],

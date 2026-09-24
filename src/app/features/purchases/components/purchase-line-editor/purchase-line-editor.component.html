@@ -256,7 +256,7 @@
 
 @if (pickerOpen()) {
   <app-purchase-product-picker
-    [products]="availableProducts()"
+    [products]="selectableProducts()"
     [imageUrls]="productImages"
     [initialSearch]="pickerSearch()"
     (closed)="pickerOpen.set(false)"

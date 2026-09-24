@@ -38,6 +38,9 @@ import {
 } from '../../../../core/services/sales.service';
 import { InventoryService } from '../../../../core/services/inventory.service';
 import { StockService } from '../../../../core/services/stock.service';
+import { CatalogService } from '../../../../core/services/catalog.service';
+import { PurchaseService } from '../../../../core/services/purchase.service';
+import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { calculateSaleMetrics } from '../../../../core/utils/sale-metrics';
 import {
   CustomSelectComponent,
@@ -100,6 +103,9 @@ export class SaleCreateModalComponent {
   private readonly salesService = inject(SalesService);
   readonly inventoryService = inject(InventoryService);
   readonly stockService = inject(StockService);
+  private readonly catalogService = inject(CatalogService, { optional: true });
+  private readonly purchaseService = inject(PurchaseService, { optional: true });
+  private readonly workspaceService = inject(WorkspaceService, { optional: true });
   private readonly toast = inject(ToastService);
   private readonly syncStatus = inject(SyncStatusService);
   private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef, { optional: true });
@@ -155,7 +161,7 @@ export class SaleCreateModalComponent {
       { value: '', label: '-- Artikel auswählen --' },
       ...this.stockService
         .positions()
-        .filter((position) => position.available_quantity > 0)
+        .filter((position) => position.available_quantity > 0 && !position.archived_at)
         .map((position) => ({
           value: this.targetValue({
             kind: 'catalog_product',
@@ -198,9 +204,28 @@ export class SaleCreateModalComponent {
   });
   readonly lines = this.form.controls.lines;
   readonly additionalCosts = this.form.controls.additionalCosts;
-  readonly availableItems = computed(() =>
-    this.inventoryService.items().filter(isSellableInventoryItem),
-  );
+  readonly availableItems = computed(() => {
+    const linesById = new Map(
+      (this.purchaseService?.purchaseLines() ?? []).map((line) => [line.id, line]),
+    );
+    const productsById = new Map(
+      (this.catalogService?.products() ?? []).map((product) => [product.id, product]),
+    );
+    return this.inventoryService.items().filter((item) => {
+      if (!isSellableInventoryItem(item)) return false;
+      if (!item.purchase_line_id) return true;
+      if (
+        this.purchaseService?.loadedWorkspaceId() !== item.workspace_id ||
+        this.catalogService?.loadedWorkspaceId() !== item.workspace_id
+      )
+        return false;
+      const line = linesById.get(item.purchase_line_id);
+      if (!line) return false;
+      if (!line.catalog_product_id) return true;
+      const product = productsById.get(line.catalog_product_id);
+      return !!product && !product.archived_at;
+    });
+  });
   private readonly formValue = toSignal(this.form.valueChanges, {
     initialValue: this.form.getRawValue(),
   });
@@ -255,6 +280,16 @@ export class SaleCreateModalComponent {
 
   constructor() {
     this.destroyRef.onDestroy(this.releaseWorkspaceLock);
+    effect(() => {
+      const workspaceId = this.workspaceService?.currentWorkspace()?.id;
+      if (!workspaceId) return;
+      if (this.purchaseService?.loadedWorkspaceId() !== workspaceId) {
+        void this.purchaseService?.loadPurchases(workspaceId);
+      }
+      if (this.catalogService?.loadedWorkspaceId() !== workspaceId) {
+        void this.catalogService?.loadProducts(workspaceId);
+      }
+    });
     this.form.controls.platform.valueChanges.subscribe((platform) =>
       this.applyShippingDefault(platform),
     );

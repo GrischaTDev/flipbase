@@ -20,6 +20,7 @@ import {
 } from '../models/store.models';
 import { CatalogService } from './catalog.service';
 import { StockService } from './stock.service';
+import { PurchaseService } from './purchase.service';
 import { summarizeStockQuantities } from '../utils/stock-quantity';
 import { RecordSaleInput, RecordSaleLineInput, SalesService } from './sales.service';
 
@@ -92,6 +93,7 @@ export class StoreService {
   private readonly inventoryService = inject(InventoryService, { optional: true });
   private readonly catalogService = inject(CatalogService, { optional: true });
   private readonly stockService = inject(StockService, { optional: true });
+  private readonly purchaseService = inject(PurchaseService, { optional: true });
   private readonly salesService = inject(SalesService, { optional: true });
   private readonly workspaceService = inject(WorkspaceService, { optional: true });
   private readonly webPushService = inject(WebPushService, { optional: true });
@@ -115,6 +117,17 @@ export class StoreService {
         this.stockService?.loadedWorkspaceId() === workspaceId &&
         !this.stockService?.loadError() &&
         !this.catalogService?.loadError());
+    const linkedProductIds = new Map(
+      (this.purchaseService?.purchases() ?? [])
+        .flatMap((purchase) => purchase.purchase_lines ?? [])
+        .filter((line) => line.catalog_product_id)
+        .map((line) => [line.id, line.catalog_product_id!]),
+    );
+    const activeCatalogProductIds = new Set(
+      (this.catalogService?.products() ?? [])
+        .filter((product) => !product.archived_at)
+        .map((product) => product.id),
+    );
     const quantityProducts = (this.catalogService?.products() ?? []).flatMap((product) => {
       if (!catalogReady || (workspaceId && product.workspace_id !== workspaceId)) return [];
       const positions = (this.stockService?.positions() ?? []).filter(
@@ -131,6 +144,7 @@ export class StoreService {
       const availableQuantity = quantities.available;
       if (
         quantities.state !== 'known' ||
+        !!product.archived_at ||
         !product.is_public_store ||
         availableQuantity <= 0 ||
         !product.listing_price ||
@@ -172,6 +186,10 @@ export class StoreService {
               !this.inventoryService?.loadError())) &&
           item.is_public_store &&
           isSellableInventoryItem(item) &&
+          (!item.purchase_line_id ||
+            (catalogReady &&
+              this.purchaseService?.loadedWorkspaceId() === workspaceId &&
+              activeCatalogProductIds.has(linkedProductIds.get(item.purchase_line_id) ?? ''))) &&
           Number.isFinite(item.expected_value) &&
           (item.expected_value ?? 0) > 0,
       )

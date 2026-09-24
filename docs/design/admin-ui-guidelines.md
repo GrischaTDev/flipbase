@@ -67,9 +67,11 @@ Such-/Filterleiste. Solche Tabellen werden in der automatisierten Shared-UI-
 Prüfung ausdrücklich und eng als statisch klassifiziert. Eine pauschale
 Ausnahme für ganze Features oder Verzeichnisse ist unzulässig.
 
-Artikelübersicht und Bestand verwenden keine zweite Navigation im Seiteninhalt.
-Beide Ansichten liegen unter dem aufklappbaren Sidebar-Punkt
-„Artikelübersicht“ mit den Unterpunkten „Alle Artikel“ und „Bestand“.
+Die Sidebar führt mit einem Eintrag „Artikel“ zu einer gemeinsamen Tabelle.
+Aktive, archivierte und bestandsbezogene Ansichten sind Filter dieser Tabelle.
+Artikel ohne Bestand bleiben sichtbar; Mengen, Verfügbarkeit und Bestandswert
+werden als getrennte Angaben gezeigt. Bearbeiten, Archivieren und das nur für
+unbenutzte Artikel erlaubte Löschen sind direkt an der Zeile erreichbar.
 
 Die Architekturprüfung `scripts/check-admin-shared-ui.mjs` schützt diesen
 Vertrag: direkte Spaltenmenüs, die alte Tabellen-Toolbar, native Suchfelder an

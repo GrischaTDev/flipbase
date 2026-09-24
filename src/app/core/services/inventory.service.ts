@@ -893,27 +893,39 @@ export class InventoryService {
 
   async deleteItem(itemId: string): Promise<{ error: Error | null }> {
     if (this.isMutationLocked(itemId)) return this.lockedMutationResult();
+    const workspaceId = this.workspaceService.currentWorkspace()?.id;
+    if (!workspaceId) return { error: new Error('Kein aktiver Workspace.') };
     try {
-      const { error, count } = await this.supabase.client
-        .from('inventory_items')
-        .delete({ count: 'exact' })
-        .eq('id', itemId);
+      const { data, error } = await this.supabase.client.rpc('delete_unused_article', {
+        p_workspace_id: workspaceId,
+        p_article_kind: 'item',
+        p_article_id: itemId,
+      });
       if (error) {
         return { error: this.syncStatus.melde('Löschen des Artikels', error) };
       }
-      if (count === 0) {
+      if (
+        typeof data !== 'object' ||
+        data === null ||
+        Array.isArray(data) ||
+        data['deleted'] !== true
+      ) {
         return {
           error: this.syncStatus.melde('Löschen des Artikels', {
             code: 'PGRST116',
-            message: 'Der Artikel wurde nicht gefunden.',
+            message: 'Die Löschaktion wurde nicht bestätigt.',
           }),
         };
       }
+      if (this.workspaceService.currentWorkspace()?.id !== workspaceId)
+        return { error: new Error('Der Workspace hat sich geändert. Bitte neu laden.') };
     } catch (e: unknown) {
       return { error: this.syncStatus.melde('Löschen des Artikels', e) };
     }
 
-    this.items.update((list) => list.filter((i) => i.id !== itemId));
+    this.items.update((list) =>
+      list.filter((i) => i.workspace_id !== workspaceId || i.id !== itemId),
+    );
     if (this.selectedItem()?.id === itemId) {
       this.selectedItem.set(null);
     }

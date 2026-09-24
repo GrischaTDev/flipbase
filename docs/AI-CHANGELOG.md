@@ -1,5 +1,32 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-24 – Juna – Artikel und Bestand in einer Ansicht verwaltet
+
+**Auftrag:** Die beiden Artikel-Unterpunkte zu einer Tabelle zusammenführen und
+Bearbeiten, Archivieren sowie sicheres Löschen ergänzen. Löschen ist nur für
+unbenutzte Artikel vorgesehen; beim Archivieren bleiben Bestand, Wert und
+Belege erhalten.
+
+**Ergebnis:** Die Sidebar führt jetzt zu „Artikel“. Filter zeigen aktive,
+archivierte und bestandsbezogene Artikel in derselben Tabelle. Sie enthält
+physische, verfügbare und reservierte Mengen sowie einen getrennten
+Bestandswert. Bestehende Katalogartikel und ältere Einzelstücke behalten ihre
+Identität und ihre jeweiligen Editoren. Archivierung und Wiederherstellung
+laufen über geschützte Datenbankfunktionen; offene Reservierungen, Inserate und
+Shopaufträge sperren die Archivierung. Archivierte Artikel werden aus neuen
+Verkäufen, Einkäufen, Inseraten und dem Shopangebot ausgeschlossen. Löschen
+prüft serverseitig alle bekannten Einkaufs-, Bestands-, Verkaufs- und
+Inseratsbezüge. Private Bilder werden erst nach erfolgreichem Löschen über
+eine wiederholbare Warteschlange bereinigt. Alte Bestandslinks führen zum
+Bestandsfilter, während Einzelstück-Detailseiten erreichbar bleiben.
+Verknüpfte Einzelstücke beachten den Archivstatus ihres Stammartikels; ein
+fehlgeschlagener Einzelstück-Upload räumt die bereits hochgeladene Datei auf.
+
+**Prüfung:** Lokale Datenbank aus den beiden neuen Migrationen frisch
+aufgebaut; 198 gezielte SQL-Tests, 6 Edge-Tests, die betroffenen Angular- und
+Node-Tests, Typprüfung, Angular-Bau, gezieltes ESLint und die Shared-UI-Prüfung
+waren erfolgreich. Die vollständigen PR-Pflichtprüfungen stehen noch aus.
+
 ## 2026-09-24 – Juna – Alten PR geschlossen und Artikelansicht eingeordnet
 
 **Auftrag:** Den überholten PR `#58` schließen und prüfen, ob „Alle Artikel“ und

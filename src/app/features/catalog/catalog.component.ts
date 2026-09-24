@@ -16,7 +16,7 @@ import {
 } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { InventoryService } from '../../core/services/inventory.service';
 import { PurchaseService } from '../../core/services/purchase.service';
 import { MediaService } from '../../core/services/media.service';
@@ -32,6 +32,15 @@ import { ButtonComponent } from '../../shared/components/button/button.component
 import { parseCsv } from '../../shared/utils/csv';
 import { normalizeGtin } from '../../shared/utils/gtin';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
+import { ConfirmDialogService } from '../../shared/components/confirm-dialog/confirm-dialog.service';
+import { ArticleLifecycleService } from './services/article-lifecycle.service';
+import { ArticleMediaCleanupService } from './services/article-media-cleanup.service';
+import {
+  articleViews,
+  matchesArticleView,
+  parseArticleView,
+  type ArticleView,
+} from './models/article-view';
 
 interface CatalogImportRow {
   readonly title: string;
@@ -64,6 +73,18 @@ export class CatalogComponent {
   private readonly mediaService = inject(MediaService);
   private readonly viewState = inject(CatalogViewStateService);
   private readonly workspaceService = inject(WorkspaceService);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+  private readonly confirmation = inject(ConfirmDialogService);
+  readonly lifecycle = inject(ArticleLifecycleService);
+  readonly cleanup = inject(ArticleMediaCleanupService);
+  readonly articleViews = articleViews;
+  private readonly queryParams = toSignal(this.route.queryParamMap, {
+    initialValue: this.route.snapshot.queryParamMap,
+  });
+  readonly view = computed(() => parseArticleView(this.queryParams().get('view')));
+  readonly actionError = signal<string | null>(null);
+  readonly actionMessage = signal<string | null>(null);
   readonly workspaceId = computed(() => this.workspaceService.currentWorkspace()?.id ?? 'default');
   readonly catalogTableConfig = this.tablePreferences.getTableConfig<
     CatalogColumnId,
@@ -118,19 +139,34 @@ export class CatalogComponent {
   );
   readonly filteredProducts = computed(() => {
     const query = this.searchQuery().trim().toLocaleLowerCase('de');
+    const visible = this.overview().filter((product) => matchesArticleView(product, this.view()));
     const products = !query
-      ? [...this.overview()]
-      : this.overview().filter((product) =>
+      ? [...visible]
+      : visible.filter((product) =>
           [product.title, product.ean, product.brand, product.model, product.category]
             .filter((value): value is string => Boolean(value))
             .some((value) => value.toLocaleLowerCase('de').includes(query)),
         );
     const sort = this.tablePrefs().sort;
     return products.sort((left, right) => {
-      const comparison =
-        sort.field === 'available'
-          ? (this.availableStock(left) ?? -1) - (this.availableStock(right) ?? -1)
-          : left.title.localeCompare(right.title, 'de', { sensitivity: 'base' });
+      if (sort.field !== 'title') {
+        const first =
+          sort.field === 'available'
+            ? left.available
+            : sort.field === 'on_hand'
+              ? left.onHand
+              : left.inventoryValue;
+        const second =
+          sort.field === 'available'
+            ? right.available
+            : sort.field === 'on_hand'
+              ? right.onHand
+              : right.inventoryValue;
+        if (first === null || second === null)
+          return first === second ? 0 : first === null ? 1 : -1;
+        return sort.direction === 'asc' ? first - second : second - first;
+      }
+      const comparison = left.title.localeCompare(right.title, 'de', { sensitivity: 'base' });
       return sort.direction === 'asc' ? comparison : -comparison;
     });
   });
@@ -159,6 +195,92 @@ export class CatalogComponent {
   resetView(): void {
     this.searchControl.setValue('');
     this.resetTablePreferences();
+    void this.setView('active');
+  }
+
+  async setView(view: ArticleView): Promise<void> {
+    await this.router.navigate(['/catalog'], { queryParams: view === 'active' ? {} : { view } });
+  }
+
+  statusLabel(row: CatalogOverviewRow): string {
+    if (row.archivedAt) return 'Archiviert';
+    if (row.quantityState === 'review_required') return 'Zu prüfen';
+    if (row.reserved && row.reserved > 0) return 'Reserviert';
+    if (row.onHand === 0) return 'Ohne Bestand';
+    return row.available && row.available > 0 ? 'Verfügbar' : 'Nicht verfügbar';
+  }
+
+  formatCurrency(value: number | null): string {
+    return value === null
+      ? 'Zu prüfen'
+      : new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(value);
+  }
+
+  async setArchived(row: CatalogOverviewRow): Promise<void> {
+    const workspaceId = this.workspaceService.currentWorkspace()?.id;
+    if (!workspaceId || this.lifecycle.pendingIds().has(row.key)) return;
+    const archived = row.archivedAt === null;
+    const stock = row.onHand === null ? 'ungeklärtem Bestand' : `${row.onHand} Stück Bestand`;
+    const value = this.formatCurrency(row.inventoryValue);
+    const confirmed = await this.confirmation.frage({
+      titel: archived ? 'Artikel archivieren?' : 'Artikel wiederherstellen?',
+      text: archived
+        ? `„${row.title}“ hat ${stock} und einen Bestandswert von ${value}. Menge, Wert und Belege bleiben erhalten. Neue Verkäufe und Inserate sind bis zur Wiederherstellung gesperrt.`
+        : `„${row.title}“ wird wieder in den aktiven Artikeln angezeigt.`,
+      bestaetigenText: archived ? 'Archivieren' : 'Wiederherstellen',
+    });
+    if (!confirmed || this.workspaceService.currentWorkspace()?.id !== workspaceId) return;
+    this.actionError.set(null);
+    try {
+      await this.lifecycle.setArchived(workspaceId, row.kind, row.id, archived);
+      if (this.workspaceService.currentWorkspace()?.id !== workspaceId) return;
+      await this.reload();
+      this.actionMessage.set(archived ? 'Artikel archiviert.' : 'Artikel wiederhergestellt.');
+    } catch (error: unknown) {
+      if (this.workspaceService.currentWorkspace()?.id === workspaceId)
+        this.actionError.set(
+          error instanceof Error ? error.message : 'Archivaktion fehlgeschlagen.',
+        );
+    }
+  }
+
+  async deleteUnused(row: CatalogOverviewRow): Promise<void> {
+    const workspaceId = this.workspaceService.currentWorkspace()?.id;
+    if (!workspaceId || !row.canOfferDelete || this.lifecycle.pendingIds().has(row.key)) return;
+    const confirmed = await this.confirmation.frage({
+      titel: 'Unbenutzten Artikel löschen?',
+      text: `„${row.title}“ wird endgültig gelöscht. Die Datenbank lässt das nur zu, wenn keine Einkäufe, Bestände, Verkäufe, Aufträge oder Inserate dazu gehören.`,
+      bestaetigenText: 'Endgültig löschen',
+      gefahr: true,
+    });
+    if (!confirmed || this.workspaceService.currentWorkspace()?.id !== workspaceId) return;
+    this.actionError.set(null);
+    try {
+      await this.lifecycle.deleteUnused(workspaceId, row.kind, row.id);
+      if (this.workspaceService.currentWorkspace()?.id !== workspaceId) return;
+      await this.reload();
+      this.actionMessage.set('Artikel gelöscht.');
+      try {
+        await this.cleanup.retry(workspaceId);
+      } catch {
+        // Der Artikel ist bereits gelöscht; der Bildauftrag bleibt für einen erneuten Versuch erhalten.
+      }
+    } catch (error: unknown) {
+      if (this.workspaceService.currentWorkspace()?.id === workspaceId)
+        this.actionError.set(
+          error instanceof Error ? error.message : 'Artikel konnte nicht gelöscht werden.',
+        );
+    }
+  }
+
+  async retryCleanup(): Promise<void> {
+    const workspaceId = this.workspaceService.currentWorkspace()?.id;
+    if (!workspaceId) return;
+    try {
+      await this.cleanup.retry(workspaceId, true);
+    } catch {
+      // Die Warteschlange bleibt erhalten und der sichtbare Hinweis bleibt stehen.
+    }
   }
 
   ariaSort(field: string): 'ascending' | 'descending' | null {
@@ -190,8 +312,13 @@ export class CatalogComponent {
       const workspaceId = this.workspaceService.currentWorkspace()?.id;
       if (!workspaceId) return;
       untracked(() => {
+        this.actionError.set(null);
+        this.actionMessage.set(null);
+        this.cleanup.status.set(null);
+        this.cleanup.error.set(null);
         this.searchControl.setValue(this.viewState.searchFor(workspaceId));
         void this.reload();
+        void this.cleanup.retry(workspaceId).catch(() => undefined);
       });
     });
   }

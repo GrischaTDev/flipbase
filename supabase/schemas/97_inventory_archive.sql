@@ -28,6 +28,7 @@ declare
   v_item public.inventory_items;
   v_before timestamptz;
   v_workspace_archived_at timestamptz;
+  v_sale_state text;
 begin
   if v_actor is null or p_workspace_id is null or p_item_id is null then
     raise exception using errcode = '42501', message = 'Kein Zugriff auf diesen Artikel.';
@@ -47,11 +48,27 @@ begin
   if not found then
     raise exception using errcode = '42501', message = 'Kein Zugriff auf diesen Artikel.';
   end if;
-  if p_archived and not exists (
-    select 1 from public.inventory_item_sale_states where workspace_id = p_workspace_id and inventory_item_id = p_item_id
-      and sale_state = 'sold' and active_sale_count = 1 and active_sale_id is not null
-  ) then
-    raise exception using errcode = '22023', message = 'Nur eindeutig verkaufte Einzelartikel können archiviert werden.';
+  if p_archived then
+    select sale_state into v_sale_state from public.inventory_item_sale_states
+      where workspace_id = p_workspace_id and inventory_item_id = p_item_id;
+    if v_sale_state is null or v_sale_state not in ('sold', 'no_active_sale')
+       or (v_sale_state = 'sold' and v_item.status <> 'sold')
+       or (v_sale_state = 'no_active_sale' and v_item.status = 'sold') then
+      raise exception using errcode = '22023', message = 'Bitte den Verkaufszustand dieses Artikels zuerst klären.';
+    end if;
+    if v_item.status = 'reserved' then
+      raise exception using errcode = '22023', message = 'Bitte die Reservierung zuerst klären.';
+    end if;
+    if exists (select 1 from public.listings where workspace_id = p_workspace_id
+      and inventory_item_id = p_item_id and status <> 'ended') then
+      raise exception using errcode = '22023', message = 'Bitte das Inserat zuerst beenden.';
+    end if;
+    if exists (select 1 from public.store_order_items oi
+      join public.store_orders o on o.id = oi.store_order_id
+      where o.workspace_id = p_workspace_id and oi.inventory_item_id = p_item_id
+        and o.status not in ('completed', 'cancelled')) then
+      raise exception using errcode = '22023', message = 'Bitte den offenen Shopauftrag zuerst klären.';
+    end if;
   end if;
   if (v_item.archived_at is not null) = p_archived then return v_item; end if;
   v_before := v_item.archived_at;
@@ -66,6 +83,6 @@ begin
 end;
 $$;
 alter function public.set_inventory_item_archived(uuid,uuid,boolean) owner to postgres;
-comment on function public.set_inventory_item_archived(uuid,uuid,boolean) is 'Reversible Archivmetadaten für bestätigte Einzelverkäufe ohne Änderung von Bestand, Verkauf oder Buchungen.';
+comment on function public.set_inventory_item_archived(uuid,uuid,boolean) is 'Reversible Archivmetadaten für eindeutig geklärte Einzelartikel ohne Änderung von Bestand, Verkauf oder Buchungen.';
 revoke execute on function public.set_inventory_item_archived(uuid,uuid,boolean) from public, anon, authenticated, service_role;
 grant execute on function public.set_inventory_item_archived(uuid,uuid,boolean) to authenticated;

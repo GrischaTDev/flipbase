@@ -18,6 +18,8 @@ import { InventoryService } from '../../../../core/services/inventory.service';
 import { ProfitEngineService } from '../../../../core/services/profit-engine.service';
 import { RecordSaleInput, SalesService } from '../../../../core/services/sales.service';
 import { StockService } from '../../../../core/services/stock.service';
+import { CatalogService } from '../../../../core/services/catalog.service';
+import { PurchaseService } from '../../../../core/services/purchase.service';
 import { SyncStatusService } from '../../../../core/services/sync-status.service';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
@@ -205,6 +207,50 @@ describe('SaleCreateModalComponent', () => {
             'ready-no_active_sale',
             'listed-no_active_sale',
           ]);
+        } finally {
+          TestBed.resetTestingModule();
+        }
+      });
+
+      it('bietet kein Einzelstück eines archivierten Stammartikels zum Verkauf an', () => {
+        TestBed.resetTestingModule();
+        const linkedItem = {
+          ...artikel,
+          id: 'linked-item',
+          purchase_line_id: 'line-1',
+          sale_state: 'no_active_sale' as const,
+        };
+        const products = signal<{ id: string; archived_at: string | null }[]>([
+          { id: 'product-1', archived_at: '2026-09-24T00:00:00Z' },
+        ]);
+        TestBed.configureTestingModule({
+          providers: [
+            { provide: SalesService, useValue: { recordSale: vi.fn(), updateSale: vi.fn() } },
+            { provide: InventoryService, useValue: { items: signal([linkedItem]) } },
+            { provide: StockService, useValue: { positions: signal([]) } },
+            {
+              provide: PurchaseService,
+              useValue: {
+                loadedWorkspaceId: signal('workspace-1'),
+                purchaseLines: signal([{ id: 'line-1', catalog_product_id: 'product-1' }]),
+              },
+            },
+            {
+              provide: CatalogService,
+              useValue: {
+                loadedWorkspaceId: signal('workspace-1'),
+                products,
+              },
+            },
+            { provide: ToastService, useValue: new ToastService() },
+            { provide: SyncStatusService, useValue: new SyncStatusService() },
+          ],
+        });
+        const component = TestBed.runInInjectionContext(() => new SaleCreateModalComponent());
+        try {
+          expect(component.availableItems()).toEqual([]);
+          products.set([{ id: 'product-1', archived_at: null }]);
+          expect(component.availableItems().map(({ id }) => id)).toEqual(['linked-item']);
         } finally {
           TestBed.resetTestingModule();
         }
@@ -801,6 +847,39 @@ describe('SaleCreateModalComponent', () => {
       fixture.detectChanges();
       return { fixture, salesService, items, positions };
     }
+
+    it('blendet archivierte Mengenartikel aus der neuen Verkaufsauswahl aus', async () => {
+      const { fixture, positions } = await erstelleGerendertenDialog();
+      positions.set([
+        {
+          catalog_product_id: 'active',
+          title: 'Aktiv',
+          available_quantity: 2,
+          reserved_quantity: 0,
+          on_hand_quantity: 2,
+          oldest_available_unit_cost: 4,
+          is_public_store: false,
+          archived_at: null,
+        },
+        {
+          catalog_product_id: 'archived',
+          title: 'Archiviert',
+          available_quantity: 2,
+          reserved_quantity: 0,
+          on_hand_quantity: 2,
+          oldest_available_unit_cost: 4,
+          is_public_store: false,
+          archived_at: '2026-09-24',
+        },
+      ]);
+      fixture.detectChanges();
+      expect(fixture.componentInstance.targetOptions().map((option) => option.value)).toContain(
+        'catalog:active',
+      );
+      expect(fixture.componentInstance.targetOptions().map((option) => option.value)).not.toContain(
+        'catalog:archived',
+      );
+    });
 
     describe('SaleCreateModalComponent – historische Verkaufskorrektur', () => {
       it('zeigt den automatischen Protokollhinweis ohne manuelles Grundfeld', async () => {

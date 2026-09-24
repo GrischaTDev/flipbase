@@ -92,22 +92,39 @@ export const INVENTORY_TABLE_CONFIG: TableConfig<InventoryColumnId, InventorySor
 // ==========================================
 // 3. Artikelstamm (Catalog)
 // ==========================================
-export type CatalogColumnId = 'title' | 'category' | 'brand' | 'ean' | 'available';
+export type CatalogColumnId =
+  | 'title'
+  | 'on_hand'
+  | 'available'
+  | 'reserved'
+  | 'status'
+  | 'inventory_value'
+  | 'category'
+  | 'brand'
+  | 'ean'
+  | 'actions';
 
-export type CatalogSortField = 'title' | 'available';
+export type CatalogSortField = 'title' | 'on_hand' | 'available' | 'inventory_value';
 
 export const CATALOG_TABLE_CONFIG: TableConfig<CatalogColumnId, CatalogSortField> = {
   defaultColumns: [
     { id: 'title', label: 'Artikel', visible: true, order: 0, locked: true },
-    { id: 'category', label: 'Kategorie', visible: true, order: 1 },
-    { id: 'brand', label: 'Marke', visible: true, order: 2 },
-    { id: 'ean', label: 'EAN', visible: true, order: 3 },
-    { id: 'available', label: 'Verfügbar', visible: true, order: 4 },
+    { id: 'on_hand', label: 'Auf Lager', visible: true, order: 1 },
+    { id: 'available', label: 'Verfügbar', visible: true, order: 2 },
+    { id: 'status', label: 'Status', visible: true, order: 3 },
+    { id: 'actions', label: 'Aktionen', visible: true, order: 4, locked: true },
+    { id: 'reserved', label: 'Reserviert', visible: false, order: 5 },
+    { id: 'inventory_value', label: 'Bestandswert', visible: false, order: 6 },
+    { id: 'category', label: 'Kategorie', visible: false, order: 7 },
+    { id: 'brand', label: 'Marke', visible: false, order: 8 },
+    { id: 'ean', label: 'EAN', visible: false, order: 9 },
   ],
   defaultSort: { field: 'title', direction: 'asc' },
   sortOptions: [
     { value: 'title', label: 'Titel', kind: 'text' },
+    { value: 'on_hand', label: 'Auf Lager', kind: 'number' },
     { value: 'available', label: 'Verfügbarer Bestand', kind: 'number' },
+    { value: 'inventory_value', label: 'Bestandswert', kind: 'number' },
   ],
 };
 

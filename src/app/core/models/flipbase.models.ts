@@ -494,6 +494,8 @@ export interface CatalogProduct {
   seo_description?: string | null;
   url_handle?: string | null;
   description?: string | null;
+  readonly archived_at?: string | null;
+  readonly archived_by?: string | null;
 }
 
 export interface CatalogProductMedia {
@@ -608,6 +610,7 @@ export interface StockPosition {
   on_hand_quantity: number;
   oldest_available_unit_cost: number | null;
   is_public_store: boolean;
+  archived_at?: string | null;
 }
 
 export interface ActivityLog {
