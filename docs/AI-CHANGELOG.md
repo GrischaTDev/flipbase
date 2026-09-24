@@ -38,14 +38,17 @@ festgehalten. Sie beschreibt Navigation, Tabellenfelder und Filter, sichtbare
 Bearbeitung, reversible Archivierung mit erhaltenem Bestand und Wert,
 serverseitig gesichertes Löschen ausschließlich unbenutzter Artikel sowie die
 Bereinigung privater Bilddateien. Vor der Umsetzung wird die schriftliche
-Spezifikation nochmals zur Durchsicht vorgelegt.
+Spezifikation nochmals zur Durchsicht vorgelegt. Nach Freigabe dieser
+Spezifikation entstand der schrittweise Umsetzungsplan unter
+`docs/superpowers/plans/2026-09-24-unified-articles-management.md`.
 
 **Prüfung:** PR-Status nach dem Schließen bestätigt, Katalog-, Bestands- und
 Navigationscode sowie frühere Produktplanung gelesen. Aktuelle offizielle
 Shopify- und WooCommerce-Dokumentation sowie §§ 238, 240, 257 HGB und § 146 AO
-geprüft. Spezifikation auf Platzhalter, Widersprüche und Geltungsbereich sowie
-den Git-Unterschied auf Leerraumfehler geprüft. Keine Anwendungstests, da nur
-Analyse, PR-Schließung und Dokumentation erfolgten.
+geprüft. Spezifikation und Umsetzungsplan auf Platzhalter, Widersprüche,
+Geltungsbereich und Testabdeckung sowie die Git-Unterschiede auf
+Leerraumfehler geprüft. Keine Anwendungstests, da nur Analyse, PR-Schließung
+und Dokumentation erfolgten.
 
 ## 2026-09-24 – Juna – Projektstand und offene Punkte gesichtet
 
