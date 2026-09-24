@@ -5,7 +5,7 @@
 **Auftrag:** Den Button zum Erstellen eines Artikels im Einkaufsdialog dauerhaft
 sichtbar machen und kompakte Filter für vorhandene Kategorien und Marken ergänzen.
 
-**Änderung:** „Artikel erstellen“ steht links im Dialog-Footer. Neben der Suche
+**Änderung:** „Produkt erstellen“ steht links im Dialog-Footer. Neben der Suche
 filtern Dropdowns nach den Kategorien und Marken, die im geladenen Artikelstamm
 vorkommen. Die Filter lassen sich gemeinsam zurücksetzen.
 

@@ -79,7 +79,7 @@
     }
   </div>
   <div modal-footer class="flex w-full flex-wrap items-center justify-between gap-2">
-    <app-button variant="plain" (clicked)="createRequested.emit()">Artikel erstellen</app-button>
+    <app-button variant="plain" (clicked)="createRequested.emit()">Produkt erstellen</app-button>
     <div class="ml-auto flex gap-2">
       <app-button variant="secondary" (clicked)="closed.emit()">Abbrechen</app-button>
       <app-button variant="primary" [disabled]="selection().size === 0" (clicked)="confirm()"
