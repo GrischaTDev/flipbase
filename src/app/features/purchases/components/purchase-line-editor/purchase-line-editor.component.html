@@ -208,11 +208,47 @@
           [formControl]="scanControl"
           (keydown.enter)="$event.preventDefault(); scanBarcode()"
         />
-        <app-button (clicked)="scanBarcode()">Hinzufügen</app-button>
+        <app-button [disabled]="barcodeLookupLoading()" (clicked)="scanBarcode()"
+          >Suchen</app-button
+        >
         <app-button (clicked)="cameraOpen.set(true)">Kamera</app-button>
       </div>
       @if (scannerMessage()) {
         <p class="text-[13px]" role="status">{{ scannerMessage() }}</p>
+      }
+      @if (inventoryProduct(); as product) {
+        <div class="rounded-lg border border-fb-border bg-fb-subtle p-3 text-[13px]">
+          <p class="font-semibold">{{ product.title }}</p>
+          <p class="text-fb-text-muted">
+            {{ product.brand || 'Marke unbekannt' }} · {{ product.ean }}
+          </p>
+          <div class="mt-3">
+            <app-button (clicked)="createProductFromBarcode()"
+              >Daten aus Inventar übernehmen</app-button
+            >
+          </div>
+        </div>
+      } @else if (externalProduct(); as product) {
+        <div class="rounded-lg border border-fb-border bg-fb-subtle p-3 text-[13px]">
+          <p class="font-semibold">{{ product.title }}</p>
+          <p class="text-fb-text-muted">
+            {{ product.brand || 'Marke unbekannt' }} · {{ product.ean }}
+          </p>
+          <a
+            [href]="product.sourceUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-fb-text-secondary underline"
+            >Produktdaten: {{ product.sourceName }}</a
+          >
+          <div class="mt-3">
+            <app-button (clicked)="createProductFromBarcode()">Daraus Artikel erstellen</app-button>
+          </div>
+        </div>
+      } @else if (barcodeNotFound() && !barcodeLookupLoading() && validLastBarcode()) {
+        <app-button variant="secondary" (clicked)="createProductFromBarcode()"
+          >Artikel mit EAN selbst erstellen</app-button
+        >
       }
     </div>
   }
@@ -225,12 +261,16 @@
     [initialSearch]="pickerSearch()"
     (closed)="pickerOpen.set(false)"
     (selected)="addProducts($event)"
-    (createRequested)="isCreatingProduct.set(true)"
+    (createRequested)="productDraft.set(null); isCreatingProduct.set(true)"
     (imageFailed)="catalogService.invalidateProductImage($event)"
   />
 }
 @if (isCreatingProduct()) {
-  <app-product-dialog (closed)="isCreatingProduct.set(false)" (created)="productCreated($event)" />
+  <app-product-dialog
+    [initialProduct]="productDraft()"
+    (closed)="isCreatingProduct.set(false)"
+    (created)="productCreated($event)"
+  />
 }
 @if (cameraOpen()) {
   <app-barcode-scanner (closed)="cameraOpen.set(false)" (detected)="scanBarcode($event)" />

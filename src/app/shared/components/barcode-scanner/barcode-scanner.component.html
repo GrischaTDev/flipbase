@@ -18,7 +18,7 @@
         </div>
         <div>
           <h2 class="text-sm font-bold text-fb-text-primary">Barcode & EAN scannen</h2>
-          <p class="text-[11px] text-fb-text-muted">Kamera auf Barcode halten</p>
+          <p class="text-[11px] text-fb-text-muted">Barcode im Kamerabild sichtbar halten</p>
         </div>
       </div>
 
@@ -49,8 +49,8 @@
 
       <!-- Viewfinder Overlay Elements -->
       @if (isScanning()) {
-        <div class="absolute inset-0 pointer-events-none flex items-center justify-center p-6">
-          <div class="relative w-48 h-32 border-2 border-emerald-400/70 rounded-lg shadow-lg">
+        <div class="absolute inset-0 pointer-events-none p-2">
+          <div class="relative h-full w-full rounded-lg border-2 border-emerald-400/70 shadow-lg">
             <!-- Animated Laser Scan line -->
             <div
               class="scan-laser absolute left-0 right-0 h-0.5 bg-emerald-400 shadow-md shadow-emerald-400"

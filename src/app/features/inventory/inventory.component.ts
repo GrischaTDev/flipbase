@@ -52,6 +52,7 @@ import { PurchaseService } from '../../core/services/purchase.service';
 import { SalesService } from '../../core/services/sales.service';
 import { buildInventoryPresentation, InventorySourceState } from './utils/inventory-presentation';
 import { CostState } from '../../shared/components/cost-state/cost-state.component';
+import { canonicalGtin, normalizeGtin } from '../../shared/utils/gtin';
 
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
@@ -190,16 +191,27 @@ export class InventoryComponent {
   onEtikettGescannt(code: string): void {
     this.isScanningLabel.set(false);
     const gesucht = code.trim().toUpperCase();
+    const gtin = canonicalGtin(code);
 
     const treffer = this.inventoryService
       .items()
-      .find((i) => i.sku?.toUpperCase() === gesucht || i.ean?.toUpperCase() === gesucht);
+      .find(
+        (i) =>
+          i.sku?.toUpperCase() === gesucht ||
+          i.ean?.toUpperCase() === gesucht ||
+          (!!gtin && canonicalGtin(i.ean) === gtin),
+      );
 
     if (treffer) {
       this.router.navigate(['/inventory', treffer.id]);
     } else {
-      this.scanMeldung.set(`Kein Artikel mit der Nummer ${code} gefunden.`);
-      setTimeout(() => this.scanMeldung.set(null), 5000);
+      const ean = normalizeGtin(code);
+      if (ean) {
+        void this.router.navigate(['/inventory/new'], { state: { barcode: ean } });
+      } else {
+        this.scanMeldung.set(`Artikel nicht im Inventar vorhanden: ${code}.`);
+        setTimeout(() => this.scanMeldung.set(null), 5000);
+      }
     }
   }
 

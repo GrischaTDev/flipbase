@@ -30,7 +30,10 @@ import {
   AiAssistantService,
   AiVisualScanResult,
 } from '../../../../core/services/ai-assistant.service';
-import { BarcodeLookupService } from '../../../../core/services/barcode-lookup.service';
+import {
+  BarcodeLookupService,
+  BarcodeProductInfo,
+} from '../../../../core/services/barcode-lookup.service';
 import { BarcodeScannerComponent } from '../../../../shared/components/barcode-scanner/barcode-scanner.component';
 import { AiPhotoScannerModalComponent } from '../../../../shared/components/ai-photo-scanner-modal/ai-photo-scanner-modal.component';
 import {
@@ -55,7 +58,7 @@ import { SyncStatusService } from '../../../../core/services/sync-status.service
 import { CatalogService } from '../../../../core/services/catalog.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { WorkspaceContextLockService } from '../../../../core/services/workspace-context-lock.service';
-import { normalizeGtin } from '../../../../shared/utils/gtin';
+import { canonicalGtin, normalizeGtin } from '../../../../shared/utils/gtin';
 
 interface MehrfachAnlageErgebnis {
   readonly status: 'success' | 'partial' | 'failed';
@@ -115,6 +118,10 @@ export class ItemCreateModalComponent {
   readonly purchaseService = inject(PurchaseService);
   readonly aiService = inject(AiAssistantService);
   readonly barcodeLookup = inject(BarcodeLookupService);
+  readonly barcodeSuggestion = signal<BarcodeProductInfo | null>(null);
+  readonly barcodeMessage = signal<string | null>(null);
+  readonly barcodeLoading = signal(false);
+  private barcodeRequestId = 0;
   readonly catalogService = inject(CatalogService);
   private readonly workspaceService = inject(WorkspaceService);
   private readonly destroyRef = inject(DestroyRef);
@@ -262,39 +269,96 @@ export class ItemCreateModalComponent {
 
   async onBarcodeScanned(ean: string): Promise<void> {
     this.isScanningBarcode.set(false);
+    const requestId = ++this.barcodeRequestId;
+    this.barcodeSuggestion.set(null);
     const normalized = normalizeGtin(ean);
     if (!normalized) {
-      this.errorMessage.set(
+      this.barcodeMessage.set(
         'Keine gültige EAN/GTIN erkannt. Bitte 8, 12, 13 oder 14 Ziffern eingeben.',
       );
       return;
     }
-    this.errorMessage.set(null);
+    this.barcodeMessage.set('Suche im Artikelstamm…');
+    this.barcodeLoading.set(true);
     this.form.patchValue({ ean: normalized });
 
-    const workspaceId = this.workspaceService.currentWorkspace()?.id;
-    if (workspaceId) await this.catalogService.loadProducts(workspaceId);
-    const matches = this.catalogService.products().filter((product) => product.ean === normalized);
-    if (matches.length === 1) {
-      const product = matches[0];
-      const current = this.form.getRawValue();
-      this.form.patchValue({
-        title: current.title.trim() ? current.title : product.title,
-        model: current.model?.trim() ? current.model : (product.model ?? ''),
-        brand_id: current.brand_id ?? product.brand_id ?? null,
-        category_id: current.category_id ?? product.category_id ?? null,
-      });
-      return;
+    try {
+      const workspaceId = this.workspaceService.currentWorkspace()?.id;
+      if (!workspaceId) throw new Error('Kein aktiver Workspace ausgewählt.');
+      await this.catalogService.loadProducts(workspaceId);
+      if (
+        requestId !== this.barcodeRequestId ||
+        workspaceId !== this.workspaceService.currentWorkspace()?.id
+      )
+        return;
+      if (this.catalogService.loadError()) {
+        this.barcodeMessage.set(
+          'Artikelstamm konnte nicht geladen werden. Bitte versuche es erneut.',
+        );
+        return;
+      }
+      const product = this.catalogService
+        .products()
+        .find(
+          (entry) =>
+            entry.workspace_id === workspaceId &&
+            canonicalGtin(entry.ean) === canonicalGtin(normalized),
+        );
+      if (product) {
+        const current = this.form.getRawValue();
+        this.form.patchValue({
+          title: current.title.trim() ? current.title : product.title,
+          model: current.model?.trim() ? current.model : (product.model ?? ''),
+          brand_id: current.brand_id ?? product.brand_id ?? null,
+          category_id: current.category_id ?? product.category_id ?? null,
+        });
+        this.barcodeMessage.set('Vorhandene Artikeldaten übernommen.');
+        return;
+      }
+      this.barcodeMessage.set('Suche im Inventar…');
+      const inventoryProduct = await this.barcodeLookup.lookupInventoryByEan(normalized);
+      if (
+        requestId !== this.barcodeRequestId ||
+        workspaceId !== this.workspaceService.currentWorkspace()?.id
+      )
+        return;
+      if (inventoryProduct) {
+        this.barcodeSuggestion.set(inventoryProduct);
+        this.barcodeMessage.set(
+          'Artikel im Inventar gefunden. Bitte prüfe die Daten vor der Übernahme.',
+        );
+        return;
+      }
+      this.barcodeMessage.set('Artikel nicht im Inventar vorhanden. Suche online…');
+      const info = await this.barcodeLookup.lookupExternalByEan(normalized);
+      if (
+        requestId !== this.barcodeRequestId ||
+        workspaceId !== this.workspaceService.currentWorkspace()?.id
+      )
+        return;
+      this.barcodeSuggestion.set(info);
+      this.barcodeMessage.set(
+        info
+          ? 'Produktdaten gefunden. Bitte prüfe sie vor der Übernahme.'
+          : 'Auch online wurden keine Produktdaten gefunden. Du kannst den Artikel selbst ausfüllen.',
+      );
+    } catch {
+      if (requestId === this.barcodeRequestId)
+        this.barcodeMessage.set(
+          'Die Online-Suche ist gerade nicht erreichbar. Du kannst den Artikel selbst ausfüllen.',
+        );
+    } finally {
+      if (requestId === this.barcodeRequestId) this.barcodeLoading.set(false);
     }
+  }
 
-    const info = await this.barcodeLookup.lookupByEan(normalized);
-    if (info) {
-      this.form.patchValue({
-        title: info.title || this.form.get('title')?.value,
-        expected_value: info.estimatedPrice || this.form.get('expected_value')?.value,
-      });
-      this.schlageKategorieUndMarkeVor(info.category, info.brand);
-    }
+  useBarcodeSuggestion(): void {
+    const product = this.barcodeSuggestion();
+    if (!product || this.form.controls.ean.value !== product.ean) return;
+    this.form.patchValue({ title: product.title, ean: product.ean, model: product.model ?? '' });
+    this.schlageKategorieUndMarkeVor(product.category, product.brand);
+    this.barcodeSuggestion.set(null);
+    this.barcodeMessage.set('Produktdaten übernommen. Ergänze oder korrigiere die Angaben.');
   }
 
   prefillWithAiResult(res: AiVisualScanResult): void {

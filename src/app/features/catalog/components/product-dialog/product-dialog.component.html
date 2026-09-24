@@ -18,14 +18,61 @@
       "
     />
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-      <app-text-field
-        label="EAN / GTIN"
-        formControlName="ean"
-        [error]="
-          form.controls.ean.touched && form.controls.ean.invalid ? 'Ungültige EAN/GTIN.' : null
-        "
-      />
-      <app-text-field label="SKU" formControlName="sku" />
+      <div class="flex items-end gap-2">
+        <app-text-field
+          class="min-w-0 flex-1"
+          label="EAN / GTIN"
+          formControlName="ean"
+          [error]="
+            form.controls.ean.touched && form.controls.ean.invalid ? 'Ungültige EAN/GTIN.' : null
+          "
+        />
+        <app-button
+          variant="secondary"
+          [icon]="barcodeIcon"
+          ariaLabel="EAN scannen"
+          title="EAN scannen"
+          (clicked)="scannerOpen.set(true)"
+          >Scannen</app-button
+        >
+      </div>
+      <app-button
+        variant="secondary"
+        [disabled]="barcodeLoading() || !form.controls.ean.value"
+        (clicked)="onBarcodeScanned(form.controls.ean.value)"
+        >EAN online suchen</app-button
+      >
+      @if (barcodeMessage()) {
+        <p class="self-end text-[13px]" role="status">{{ barcodeMessage() }}</p>
+      }
+      @if (barcodeSuggestion(); as suggestion) {
+        <div class="sm:col-span-2 rounded-lg border border-fb-border bg-fb-subtle p-3 text-[13px]">
+          <p class="font-semibold">{{ suggestion.title }}</p>
+          <p class="text-fb-text-muted">
+            {{ suggestion.brand || 'Marke unbekannt' }} · {{ suggestion.ean }}
+          </p>
+          <a
+            [href]="suggestion.sourceUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-fb-text-secondary underline"
+            >Produktdaten: {{ suggestion.sourceName }}</a
+          >
+          <div class="mt-3">
+            <app-button (clicked)="useBarcodeSuggestion()">Daten übernehmen</app-button>
+          </div>
+        </div>
+      }
+      @if (existingProduct(); as existing) {
+        <div class="sm:col-span-2 rounded-lg border border-fb-border bg-fb-subtle p-3 text-[13px]">
+          <p class="font-semibold">{{ existing.title }}</p>
+          <p class="text-fb-text-muted">{{ existing.ean }}</p>
+          <app-button variant="secondary" [link]="'/catalog/' + existing.id"
+            >Vorhandenen Artikel öffnen</app-button
+          >
+        </div>
+      }
+      <app-text-field label="SKU" formControlName="sku" helpText="Deine eigene Artikelnummer." />
       <app-category-picker
         label="Kategorie"
         placeholder="Kategorie wählen"
@@ -125,6 +172,9 @@
     >
   </div>
 </app-modal-shell>
+@if (scannerOpen()) {
+  <app-barcode-scanner (closed)="scannerOpen.set(false)" (detected)="onBarcodeScanned($event)" />
+}
 @if (brandManagerOpen()) {
   <app-brand-management-dialog
     (brandDeleted)="onBrandDeleted($event)"
