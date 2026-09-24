@@ -362,7 +362,9 @@ function createProductionDependencies(): BarcodeAiDependencies {
       });
       if (!response.ok) throw new Error(`OpenAI HTTP ${response.status}`);
       const result = record(await response.json());
-      if (!result) throw new Error('OpenAI-Antwort fehlt.');
+      if (!result || result['status'] !== 'completed' || !parseModelContent(result)) {
+        throw new Error('OpenAI-Antwort unvollständig.');
+      }
       const output = Array.isArray(result['output']) ? result['output'] : [];
       const webSearchCalls = output.filter(
         (item) => record(item)?.['type'] === 'web_search_call',

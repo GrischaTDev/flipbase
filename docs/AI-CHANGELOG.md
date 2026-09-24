@@ -10,7 +10,8 @@ des vorherigen Suchlaufs. Die KI sucht mit Modell und Herstellerartikelnummer
 vom Etikett. Wenn keine Produktseite sicher belegt werden kann, bietet die
 Maske die aus dem Foto gelesenen Angaben getrennt als prüfbaren Vorschlag an.
 Die Herstellerartikelnummer wird angezeigt, aber nicht als eigene SKU
-übernommen.
+übernommen. Unvollständige OpenAI-Antworten werden als Fehler gemeldet statt
+als scheinbar erfolglose Produktsuche.
 
 **Prüfung:** Ein echter, begrenzter OpenAI-Test mit dem JAKO-Foto lieferte
 belegte Webtreffer und gesonderte Etikettangaben. 13 gezielte DOM-Tests, vier
