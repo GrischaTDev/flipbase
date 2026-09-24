@@ -82,11 +82,20 @@ test('keeps receiving accessible for saved quantity drafts and blocks it while d
   ).toHaveValue('12');
   await expect(page.locator('app-purchase-line-editor tbody tr')).toContainText('36,00');
   await page.getByRole('button', { name: 'Als bestellt markieren', exact: true }).click();
-  await page.getByRole('button', { name: 'Angekommen', exact: true }).click();
-  await page.getByRole('button', { name: 'Wareneingang buchen', exact: true }).click();
+  await page
+    .locator('app-purchase-lifecycle-actions')
+    .getByRole('button', { name: 'Wareneingang erfassen', exact: true })
+    .click();
   await expect(
     page.getByRole('spinbutton', { name: 'Wareneingang für Test-Mengenartikel' }),
   ).toHaveValue('3');
+  await page
+    .getByRole('dialog', { name: 'Wareneingang erfassen' })
+    .getByRole('button', {
+      name: 'Eingang bestätigen',
+      exact: true,
+    })
+    .click();
   await description.fill('Ungespeicherte Menge');
   await expect(
     page.getByRole('button', { name: 'Erfassung abschließen', exact: true }),

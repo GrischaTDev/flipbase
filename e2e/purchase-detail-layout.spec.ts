@@ -15,8 +15,17 @@ test('keeps purchase details in the right card after completion @pr-smoke', asyn
   const draftBadge = page.locator('app-entry-page-layout header app-badge > span');
   await expect(draftBadge).toHaveCSS('background-color', 'rgb(248, 157, 19)');
   await page.getByRole('button', { name: 'Als bestellt markieren', exact: true }).click();
-  await page.getByRole('button', { name: 'Angekommen', exact: true }).click();
-  await page.getByRole('button', { name: 'Wareneingang buchen', exact: true }).click();
+  await page
+    .locator('app-purchase-lifecycle-actions')
+    .getByRole('button', { name: 'Wareneingang erfassen', exact: true })
+    .click();
+  await page
+    .getByRole('dialog', { name: 'Wareneingang erfassen' })
+    .getByRole('button', {
+      name: 'Eingang bestätigen',
+      exact: true,
+    })
+    .click();
   await page.getByRole('button', { name: 'Erfassung abschließen', exact: true }).click();
   await expect(page.locator('app-entry-page-layout header app-badge')).toHaveText('Abgeschlossen');
   await expect(page.locator('app-entry-page-layout header app-badge > span')).toHaveCSS(

@@ -17,7 +17,9 @@ und der Angular-Produktionsbau bestanden. Für den Bau wurde wegen des
 laufwerksübergreifenden Abhängigkeitspfads ein temporärer Worktree auf `D:`
 verwendet und anschließend entfernt. Es blieb nur die bekannte
 `pako`-CommonJS-Warnung. Lokale Browser-End-to-End-Tests wurden in dieser
-Sitzung nicht ausgeführt.
+Sitzung nicht ausgeführt. Beim ersten PR-Browserlauf fiel ein veralteter
+Wareneingangs-Ablauf in zwei Browserfällen auf; sie wurden an die vorhandene
+Oberfläche mit „Wareneingang erfassen“ und „Eingang bestätigen“ angepasst.
 
 ## 2026-09-24 – Juna – Suchfeld und Verkäuferfilter bei Einkäufen bereinigt
 
