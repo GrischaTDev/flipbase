@@ -78,7 +78,7 @@ import { PurchaseSellerDetailsDialogComponent } from '../../components/purchase-
 import { PurchaseDocumentsCardComponent } from '../../components/purchase-documents-card/purchase-documents-card.component';
 import { PurchaseDocumentService } from '../../../../core/services/purchase-document.service';
 import { PurchaseSelfReceiptService } from '../../services/purchase-self-receipt.service';
-import { purchaseSellerDetailRows, purchaseSellerLabel } from '../../utils/purchase-seller';
+import { purchaseSellerLabel } from '../../utils/purchase-seller';
 import { PurchaseDetailTableComponent } from '../../components/purchase-detail-table/purchase-detail-table.component';
 import { getPurchaseDisplayTitle, mapPurchaseDetailRows } from '../../utils/purchase-presentation';
 import { InventoryService } from '../../../../core/services/inventory.service';
@@ -333,7 +333,6 @@ export class PurchaseDetailComponent {
   readonly isCorrectionDialogOpen = signal(false);
   readonly isSellerDetailsDialogOpen = signal(false);
   readonly purchaseSellerLabel = purchaseSellerLabel;
-  readonly purchaseSellerDetailRows = purchaseSellerDetailRows;
 
   editPurchase(purchaseId: string): void {
     const purchase = this.purchaseService.selectedPurchase();

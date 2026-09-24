@@ -19,7 +19,7 @@ export class BadgeComponent {
 
   protected readonly badgeClasses = computed(() => {
     const base =
-      'inline-flex items-center justify-center font-semibold rounded-lg border transition-colors select-none';
+      'inline-flex items-center justify-center font-semibold rounded-lg transition-colors select-none';
 
     const sizeClass =
       this.size() === 'md'
@@ -27,14 +27,13 @@ export class BadgeComponent {
         : 'h-5 px-2 text-xs gap-1 leading-4';
 
     const toneClasses: Record<BadgeTone, string> = {
-      neutral:
-        'bg-fb-status-neutral-surface text-fb-status-neutral border-fb-status-neutral-border',
-      brand: 'bg-fb-brand-badge-surface text-fb-brand-badge border-fb-brand-badge-border',
-      admin: 'bg-fb-admin-surface text-fb-admin border-fb-admin-border',
-      info: 'bg-fb-info-surface text-fb-info border-fb-info-border',
-      success: 'bg-fb-success-surface text-fb-success border-fb-success-border',
-      caution: 'bg-fb-warning-surface text-fb-warning border-fb-warning-border',
-      critical: 'bg-fb-critical-surface text-fb-critical border-fb-critical-border',
+      neutral: 'bg-fb-badge-neutral text-fb-badge-on-neutral',
+      brand: 'bg-fb-badge-brand text-fb-badge-on-brand',
+      admin: 'bg-fb-admin-surface text-fb-admin',
+      info: 'bg-fb-badge-neutral text-fb-badge-on-neutral',
+      success: 'bg-fb-badge-success text-fb-badge-on-success',
+      caution: 'bg-fb-badge-warning text-fb-badge-on-warning',
+      critical: 'bg-fb-badge-critical text-fb-badge-on-critical',
     };
 
     const monoClass = this.mono() ? 'font-mono' : '';

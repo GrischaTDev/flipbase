@@ -106,6 +106,10 @@ export class DashboardComponent {
       },
       totalExpenses: {
         value: report.purchasesIncluded ? euro.format(report.totalExpenses) : '–',
+        tone:
+          report.purchasesIncluded && report.totalExpenses > 0
+            ? ('expense' as const)
+            : ('default' as const),
       },
     };
   });

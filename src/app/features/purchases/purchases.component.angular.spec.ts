@@ -404,6 +404,23 @@ describe('PurchasesComponent – responsive Einkaufsübersicht', () => {
     expect(host.querySelectorAll('[data-purchase-table-row]')).toHaveLength(2);
   });
 
+  it('zeigt im Suchfeld nur die eigene Zurücksetzen-Aktion', () => {
+    const fixture = TestBed.createComponent(PurchasesComponent);
+    fixture.detectChanges();
+    fixture.componentInstance.searchQuery.set('Tasse');
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const search = host.querySelector<HTMLInputElement>('app-custom-search-input input');
+    const clear = host.querySelector<HTMLButtonElement>(
+      'app-custom-search-input button[title="Suche zurücksetzen"]',
+    );
+
+    expect(search?.type).toBe('text');
+    expect(search?.getAttribute('role')).toBe('searchbox');
+    expect(search?.getAttribute('inputmode')).toBe('search');
+    expect(clear).not.toBeNull();
+  });
+
   it('zeigt bei einem leeren Workspace den echten Leerzustand mit Anlegen-Aktion', () => {
     purchaseState.set([]);
     const fixture = TestBed.createComponent(PurchasesComponent);
@@ -562,6 +579,77 @@ describe('PurchasesComponent – responsive Einkaufsübersicht', () => {
     component.activeStatus.set('archived');
     expect(component.purchaseRows().map((row) => row.id)).toEqual(['archive']);
     list.set(purchases);
+  });
+
+  it('zeigt Verkäuferfilter ohne technische ID und behält die ID intern für die Auswahl', () => {
+    purchaseState.set([
+      {
+        ...purchases[0],
+        supplier_id: 'seller-12CEAF',
+        supplier: {
+          id: 'seller-12CEAF',
+          workspace_id: workspaceId,
+          name: 'Mein Verkäufer',
+        },
+      },
+    ]);
+    const fixture = TestBed.createComponent(PurchasesComponent);
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+    const host = fixture.nativeElement as HTMLElement;
+    const sellerSelect = host.querySelector<HTMLElement>('app-custom-select[table-filters]');
+    const trigger = sellerSelect?.querySelector<HTMLButtonElement>('button[role="combobox"]');
+
+    expect(component.sellerSelectOptions()).toEqual([
+      { value: '', label: 'Nach Verkäufer filtern' },
+      { value: 'seller-12CEAF', label: 'Mein Verkäufer' },
+    ]);
+    expect(trigger?.getAttribute('aria-label')).toBe('Nach Verkäufer filtern');
+    expect(trigger?.textContent).toContain('Nach Verkäufer filtern');
+
+    component.sellerId.set('seller-12CEAF');
+    fixture.detectChanges();
+
+    expect(trigger?.textContent).toContain('Mein Verkäufer');
+    expect(trigger?.textContent).not.toContain('12CEAF');
+    const activeFilter = host.querySelector<HTMLElement>('[table-filter-panel]');
+    expect(activeFilter?.textContent?.trim()).toBe('Filter aktiv');
+    expect(activeFilter?.querySelector('button')).toBeNull();
+    expect(activeFilter?.querySelector('app-badge > span')?.classList).toContain(
+      'bg-fb-badge-warning',
+    );
+    expect(component.purchaseRows()).toHaveLength(1);
+
+    component.sellerId.set('');
+    fixture.detectChanges();
+    expect(host.querySelector('[table-filter-panel]')).toBeNull();
+  });
+
+  it('zeigt den Filterhinweis für Status und Suche, aber nicht für reine Tabellenanpassungen', () => {
+    const fixture = TestBed.createComponent(PurchasesComponent);
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+    const host = fixture.nativeElement as HTMLElement;
+
+    expect(host.querySelector('[table-filter-panel]')).toBeNull();
+
+    component.activeStatus.set('draft');
+    fixture.detectChanges();
+    expect(host.querySelector('[table-filter-panel]')?.textContent?.trim()).toBe('Filter aktiv');
+
+    component.activeStatus.set('all');
+    fixture.detectChanges();
+    expect(host.querySelector('[table-filter-panel]')).toBeNull();
+
+    component.searchQuery.set('Tasse');
+    fixture.detectChanges();
+    expect(host.querySelector('[table-filter-panel]')?.textContent?.trim()).toBe('Filter aktiv');
+
+    component.searchQuery.set('  ');
+    component.onSortChanged({ field: 'title', direction: 'asc' });
+    fixture.detectChanges();
+    expect(component.viewModified()).toBe(true);
+    expect(host.querySelector('[table-filter-panel]')).toBeNull();
   });
 
   it('stellt gespeicherte Suchfilter wieder her und speichert deren Rücksetzung', () => {

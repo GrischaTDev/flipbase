@@ -66,7 +66,8 @@ describe('BadgeComponent', () => {
     fixture.detectChanges();
 
     const span: HTMLElement = fixture.nativeElement.querySelector('span');
-    expect(span.className).toContain('text-fb-success');
+    expect(span.className).toContain('bg-fb-badge-success');
+    expect(span.className).toContain('text-fb-badge-on-success');
   });
 
   it('renders the admin role with its dedicated red tone', () => {
@@ -76,6 +77,19 @@ describe('BadgeComponent', () => {
     const span: HTMLElement = fixture.nativeElement.querySelector('span');
     expect(span.className).toContain('bg-fb-admin-surface');
     expect(span.className).toContain('text-fb-admin');
+  });
+
+  it.each([
+    ['brand', 'brand'],
+    ['caution', 'warning'],
+    ['critical', 'critical'],
+  ] as const)('uses the solid %s status palette', (tone, color) => {
+    fixture.componentRef.setInput('tone', tone);
+    fixture.detectChanges();
+
+    const badge: HTMLElement = fixture.nativeElement.querySelector('span');
+    expect(badge.className).toContain(`bg-fb-badge-${color}`);
+    expect(badge.className).toContain(`text-fb-badge-on-${color}`);
   });
 
   it('does not expose decorative marker, icon or uppercase variants', () => {

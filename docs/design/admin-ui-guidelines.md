@@ -44,6 +44,17 @@ sind bereits im Ruhezustand durch eine sehr dezente neutrale Fläche und einen
 leichten Rahmen als bedienbare Elemente erkennbar. Hover verstärkt diesen
 Zustand nur, statt ihn erstmals sichtbar zu machen.
 
+Nutzerpräzisierung vom 24.09.2026: Das gemeinsame Suchfeld zeigt nur seine
+eigene Zurücksetzen-Aktion, kein zusätzliches Browser-X. Fachliche Filter
+tragen handlungsorientierte Beschriftungen; interne IDs bleiben bei der Auswahl
+und in sichtbaren Filterelementen unsichtbar.
+
+Für die Einkaufsliste zeigt ein zentrierter, nicht klickbarer orangefarbener
+Badge „Filter aktiv“ oberhalb der Tabelle eine aktive Suche, Status- oder
+Verkäuferfilterung an. Ein zusätzlicher wegklickbarer Verkäuferchip entfällt.
+Reine Sortier- und Spaltenänderungen lösen diesen Hinweis nicht aus; die
+bestehende Rücksetzung bleibt unverändert.
+
 Feature-Templates verwenden `TableColumnMenuComponent` und die frühere
 `TableToolbarComponent` nicht direkt. `DataTableComponent` kapselt
 Tabellenfläche, Toolbar, Suche, optionales Spalten-/Sortiermenü sowie Lade-,
@@ -96,6 +107,18 @@ sind für helle und dunkle Tabellenflächen kontrastgerecht abgestuft. Gewöhnli
 Kosten, Nullwerte und noch nicht berechenbare Ergebnisse bleiben neutral. Die
 Gewinn-Kachel im Dashboard verwendet dieselben Finanztextfarben wie das
 Verkaufsjournal; die Säule behält ihr kräftigeres Diagrammgrün.
+
+Nutzerentscheidung vom 24.09.2026: Aktive Menüeinträge verwenden in beiden
+Themes eine vollflächige gelbe Markierung mit dunkler Schrift und ohne sichtbare
+Kontur. Statusbadges nutzen klare, volle Farben statt transparenter Tönungen:
+Grün für Erfolg, Orange für Entwurf/Warnung, Rot für kritische Zustände und
+Gelb für markierte Ankunft. Informations- und Neutralzustände bleiben grau;
+alle Badge-Schriftfarben erfüllen auch bei kleiner Schrift WCAG AA. Ruhige
+Hinweis- und Dialogflächen behalten ihre bisherigen Statusvariablen. In der
+schreibgeschützten Einkaufsansicht stehen Kaufdatum, Referenznummer und
+Beschreibung wie in der Erfassung gesammelt rechts unter „Einkaufsdetails“;
+Verkäufer und Bezugsquelle bleiben links. Doppelte Referenz- und Notizangaben
+entfallen.
 
 Einkaufserfassung und -details folgen der sichtbaren Shopify-Referenz in Anordnung und Proportionen: zentrierter Seitenbereich, breite Positionskarte links, schmalere Kosten-/Detailkarten rechts, Chronik unter dem Arbeitsbereich. Eigene Verkäufer-, Paket- und Kostenfunktionen in diese Struktur integrieren. Visuelle Abnahme bei vergleichbarer Fenstergröße gegen Referenz einschließlich Feldern, Dialogen, Tabellen, Leerzuständen, Radien, Schatten und Bewegung; gemessene Abweichungen dokumentieren.
 
@@ -207,7 +230,7 @@ Für Flipbase: Dashboard auf Handlungsbedarf und verlässliche Kennzahlen konzen
 
 Nutzerentscheidung vom 08.09.2026: ApexCharts für den eigenen Betrieb, keine Händlerplattform für Dritte. Jahresumsatz einschließlich verbundener Unternehmen unter 2 Mio. USD bestätigt. Verwendet wird ApexCharts 7.1.0 unter den geprüften [Community-Bedingungen](https://apexcharts.com/license/community/); Lizenzhinweise bleiben im generierten `3rdpartylicenses.txt`. Bei geänderter Nutzung/Umsatzgrenze Lizenz erneut prüfen, keine automatische kommerzielle Lizenz erwerben.
 
-Aktualisierte Nutzerentscheidung vom 23.09.2026: Die sechs Dashboard-Kacheln zeigen Umsatz, Einkäufe, Betriebsausgaben, Ausgaben gesamt, Gewinn und Marge; bei ausreichender Breite stehen sie in einer Reihe. Cashflow erscheint nicht mehr im Dashboard. Der Shared-RevenueChart zeigt Umsatz, Ausgaben gesamt und denselben verkaufsbezogenen Gewinn wie die Kachel. Einkäufe umfassen im Zeitraum gekaufte Ware unabhängig vom Verkauf, Betriebsausgaben nur bezahlte allgemeine Kosten; die Gesamtausgaben enthalten zusätzlich direkte Verkaufsgebühren und Versand. Gewinn und Marge bleiben verkaufsbezogen. Bei einzelnen Plattformen bleiben nicht zurechenbare Ausgaben unbekannt. Nicht bestimmbare Werte bleiben unbekannt, echte Nullwerte null und negative Ergebnisse negativ. Auf den Säulen erscheinen keine Betragszahlen; Detailwerte bleiben per Tastatur und Berührung erreichbar. Umsatz nutzt das Flipbase-Gelb, Ausgaben ein kräftiges Rot und Gewinn ein kräftiges Grün. Im hellen Theme erhält die gelbe Säule eine kontrastierende Kontur. Darstellung, Legende, Tastatur-/Touchdetails und zugängliche Datentabelle bilden eine gemeinsame Komponente; das Verkaufsjournal bleibt eine semantische Berichtstabelle ohne zusätzliche Grid-Bibliothek. Abschnittsüberschriften verwenden normale Schreibweise, normale Texte mindestens 13 px und ergänzende Angaben mindestens 12 px.
+Aktualisierte Nutzerentscheidung vom 23./24.09.2026: Die sechs Dashboard-Kacheln zeigen Umsatz, Einkäufe, Betriebsausgaben, Ausgaben gesamt, Gewinn und Marge; bei ausreichender Breite stehen sie in einer Reihe. Cashflow erscheint nicht mehr im Dashboard. Der Shared-RevenueChart zeigt Umsatz, Ausgaben gesamt und denselben verkaufsbezogenen Gewinn wie die Kachel. Einkäufe umfassen im Zeitraum gekaufte Ware unabhängig vom Verkauf, Betriebsausgaben nur bezahlte allgemeine Kosten; die Gesamtausgaben enthalten zusätzlich direkte Verkaufsgebühren und Versand. Gewinn und Marge bleiben verkaufsbezogen. Bei einzelnen Plattformen bleiben nicht zurechenbare Ausgaben unbekannt. Nicht bestimmbare Werte bleiben unbekannt, echte Nullwerte null und negative Ergebnisse negativ. Auf den Säulen erscheinen keine Betragszahlen und keine Kontur; Detailwerte bleiben per Tastatur, Berührung und zugängliche Datentabelle erreichbar. Umsatz nutzt das Flipbase-Gelb, Ausgaben ein kräftiges Rot und Gewinn ein kräftiges Grün. Die Kachel „Ausgaben gesamt“ zeigt einen bekannten positiven Ausgabenbetrag in kontrastgerechtem Rot; Einkäufe, Betriebsausgaben, Null und unbekannte Werte bleiben neutral. Darstellung, Legende, Tastatur-/Touchdetails und Datentabelle bilden eine gemeinsame Komponente; das Verkaufsjournal bleibt eine semantische Berichtstabelle ohne zusätzliche Grid-Bibliothek. Abschnittsüberschriften verwenden normale Schreibweise, normale Texte mindestens 13 px und ergänzende Angaben mindestens 12 px.
 
 Technische Präzisierung gegenüber dem ursprünglichen Plan: Der geprüfte Angular-Wrapper 3.1.0 bietet keinen vollständigen Fehlervertrag für Import/Konstruktion/Rendern. Daher bindet ein kleiner typisierter Adapter die offizielle ApexCharts-API direkt ein, mit dynamisch geladenem Core-/Säulenmodul (`apexcharts/bar`), Fehleranzeige, Wiederholen und geregeltem Abbau. Keine privaten Wrapper-Hooks, globalen Scripts oder parallele Chart.js-Installation. Diese Abweichung betrifft die technische Einbindung, nicht den vereinbarten sichtbaren oder fachlichen Vertrag. [Offizielle Angular-/Moduldokumentation](https://apexcharts.com/docs/angular-charts/).
 

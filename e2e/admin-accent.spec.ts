@@ -45,17 +45,15 @@ test('zeigt Verkauf erfassen im dunklen Admin in Logo-Gelb', async ({ page }) =>
   await expect(button).toHaveCSS('color', 'rgb(26, 26, 26)');
 });
 
-test('behält im dunklen Admin die aktive Sidebarfläche mit Hintergrund und Rahmen', async ({
-  page,
-}) => {
+test('behält im dunklen Admin die aktive Sidebarfläche in vollem Logo-Gelb', async ({ page }) => {
   await openDashboard(page);
   await page.evaluate(() => localStorage.setItem('flipbase_theme', 'dark'));
   await page.goto('/purchases');
 
   const activeLink = page.locator('app-sidebar a[aria-current="page"]');
   await expect(activeLink).toBeVisible();
-  await expect(activeLink).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
-  await expect(activeLink).not.toHaveCSS('border-color', 'rgba(0, 0, 0, 0)');
+  await expect(activeLink).toHaveCSS('background-color', 'rgb(252, 198, 1)');
+  await expect(activeLink).toHaveCSS('color', 'rgb(26, 26, 26)');
 });
 
 test('hält umgebogene Indigo-Aktionsflächen im hellen Admin gelb und kontrastreich', async ({

@@ -401,6 +401,12 @@ describe('DashboardComponent', () => {
     expect(kpi('purchases')).toContain('24,95 €');
     expect(kpi('operating-expenses')).toContain('7,00 €');
     expect(kpi('total-expenses')).toContain('44,84 €');
+    expect(host.querySelector('[data-kpi="total-expenses"] .linear-kpi > p')?.classList).toContain(
+      'text-fb-finance-negative',
+    );
+    expect(
+      host.querySelector('[data-kpi="operating-expenses"] .linear-kpi > p')?.classList,
+    ).not.toContain('text-fb-finance-negative');
     expect(host.querySelector('[data-dashboard-expenses]')).toBeNull();
 
     expect(kpiSection.querySelector('[data-kpi-change]')).toBeNull();
@@ -488,6 +494,9 @@ describe('DashboardComponent', () => {
     expect(purchasesText).toContain('–');
     expect(operatingExpenses?.textContent).toContain('–');
     expect(totalExpenses?.textContent).toContain('–');
+    expect(totalExpenses?.querySelector('.linear-kpi > p')?.classList).not.toContain(
+      'text-fb-finance-negative',
+    );
     expect(host.querySelector('[data-dashboard-expenses]')).toBeNull();
   });
 

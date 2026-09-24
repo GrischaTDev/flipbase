@@ -77,22 +77,19 @@
       table-filters
       variant="toolbar"
       widthClass="min-w-60 max-w-80"
-      ariaLabel="Verkäufer ist"
+      ariaLabel="Nach Verkäufer filtern"
       [options]="sellerSelectOptions()"
       [value]="sellerId()"
       (valueChange)="sellerId.set($event ?? '')"
     />
 
-    @if (selectedSeller(); as seller) {
-      <div table-filter-panel class="border-b border-fb-line px-3 py-2">
-        <app-button
-          variant="secondary"
-          size="slim"
-          (clicked)="sellerId.set('')"
-          [ariaLabel]="'Filter Verkäufer ist ' + seller.name + ' entfernen'"
-        >
-          Verkäufer ist {{ seller.name }} · {{ seller.id.slice(-6) }} ×
-        </app-button>
+    @if (filtersActive()) {
+      <div
+        table-filter-panel
+        role="status"
+        class="flex justify-center border-b border-fb-line px-3 py-2"
+      >
+        <app-badge tone="caution">Filter aktiv</app-badge>
       </div>
     }
 

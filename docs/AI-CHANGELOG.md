@@ -1,5 +1,46 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-24 – Juna – Aktive Einkaufsfilter kenntlich gemacht
+
+**Auftrag:** Den redundanten, wegklickbaren Verkäuferchip unter der
+Einkaufsleiste durch einen allgemeinen Hinweis auf aktive Filter ersetzen.
+
+**Änderung:** Ein mittig über der Tabelle platzierter, nicht klickbarer
+orangefarbener Badge „Filter aktiv“ erscheint bei Such-, Status- oder
+Verkäuferfilterung. Änderungen an Sortierung und Spalten allein lösen ihn
+nicht aus. Die vorhandene Rücksetzung bleibt unverändert.
+
+**Prüfung:** Die angepassten und ergänzten Komponententests scheiterten vor
+der Umsetzung und bestanden danach. Die vollständige Vitest-Suite bestand
+mit 297 Dateien und 2.779 Tests; Prettier, ESLint, beide TypeScript-Prüfungen
+und der Angular-Produktionsbau bestanden. Für den Bau wurde wegen des
+laufwerksübergreifenden Abhängigkeitspfads ein temporärer Worktree auf `D:`
+verwendet und anschließend entfernt. Es blieb nur die bekannte
+`pako`-CommonJS-Warnung. Lokale Browser-End-to-End-Tests wurden in dieser
+Sitzung nicht ausgeführt. Beim ersten PR-Browserlauf fiel ein veralteter
+Wareneingangs-Ablauf in zwei Browserfällen auf; sie wurden an die vorhandene
+Oberfläche mit „Wareneingang erfassen“ und „Eingang bestätigen“ angepasst.
+
+## 2026-09-24 – Juna – Suchfeld und Verkäuferfilter bei Einkäufen bereinigt
+
+**Auftrag:** Das zusätzliche blaue Browser-X im Suchfeld entfernen, den
+Verkäuferfilter verständlicher benennen und technische Verkäufer-IDs aus der
+Auswahl sowie dem aktiven Filter entfernen.
+
+**Änderung:** Das gemeinsame Suchfeld behält seine eigene Zurücksetzen-Aktion
+und Suchfeld-Semantik, ohne den nativen Browser-Löschknopf zu erzeugen. Der
+Einkaufsfilter heißt „Nach Verkäufer filtern“ und zeigt nur Verkäufernamen;
+die ID bleibt für die eindeutige interne Filterung erhalten.
+
+**Prüfung:** Beide neuen Einkaufslisten-Tests scheiterten vor der Änderung und
+bestanden danach. Die vollständige Vitest-Suite bestand mit 297 Dateien und
+2.778 Tests. Prettier, ESLint, beide TypeScript-Prüfungen und der
+Angular-Produktionsbau bestanden. Für den Bau war wegen laufwerksübergreifender
+Pfade der wiederverwendeten Abhängigkeiten ein temporärer Worktree auf demselben
+Laufwerk nötig; er wurde danach entfernt. Es blieb nur die bekannte
+`pako`-CommonJS-Warnung. Browser-End-to-End-Tests liefen lokal nicht, da die
+Supabase-Testinstanz nicht verfügbar ist.
+
 ## 2026-09-24 – Juna – Barcode-Erfassung mit Artikelabgleich und Produktvorschlägen
 
 **Auftrag:** Barcode-Scans beim Einkauf und beim Erstellen eines Artikels mit
@@ -22,6 +63,30 @@ Weiterleitung zu den vier Open-Facts-Datenbanken.
 ESLint der geänderten TypeScript-Dateien, Typprüfung, Angular-Produktionsbau
 und `git diff --check` bestanden. Echte Kamera und Online-Datenquelle wurden
 in dieser Sitzung nicht live geprüft.
+
+## 2026-09-24 – Juna – Dashboard-, Einkaufs- und Statusfarben vereinheitlicht
+
+**Auftrag:** Die dunkle Kontur der gelben Dashboard-Säule entfernen,
+Gesamtausgaben oben rot darstellen, Einkaufsdetails auch nach Abschluss rechts
+belassen und Statusbadges sowie aktive Navigation mit klaren Farben zeigen.
+
+**Änderung:** Alle Diagrammsäulen haben keine Kontur mehr. Bekannte positive
+Gesamtausgaben nutzen die kontrastgerechte rote Finanztextfarbe; unbekannte und
+Nullwerte bleiben neutral. In der schreibgeschützten Einkaufsansicht stehen
+Kaufdatum, Referenznummer und Beschreibung rechts, Verkäufer und Bezugsquelle
+links; doppelte Angaben entfallen. Statusbadges verwenden zentral volle
+Gelb-, Grün-, Orange-, Rot- und Grautöne mit WCAG-AA-kontrastreicher Schrift.
+Aktive Navigation ist in beiden Themes vollflächig gelb mit dunkler Schrift.
+
+**Prüfung:** Die gezielten Komponenten-Tests scheiterten vor den Änderungen und
+bestanden danach; die vollständige Vitest-Suite bestand auf dem letzten
+Code-Stand (297 Dateien, 2.776 Tests). ESLint, Typprüfung, Produktionsbau,
+Workflow-Tests und die Auswahl der elf PR-Browserfälle bestanden. Das gebaute
+CSS lieferte in beiden Themes gelbe Navigation mit dunkler Schrift und den
+kräftigen grünen Status-Badge. Der Bau meldete nur die bestehende
+`pako`-CommonJS-Warnung. Der lokale Browserlauf blieb vor dem Test an der nicht
+laufenden Supabase-Testinstanz hängen; die zugehörigen Browserfälle sind deshalb
+als Pflichtprüfungen für den PR eingetragen.
 
 ## 2026-09-23 – Juna – Gewinn-Kachel farblich ans Verkaufsjournal angeglichen
 
