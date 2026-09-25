@@ -43,7 +43,9 @@ export class AttributePickerComponent implements ControlValueAccessor {
   private readonly injector = inject(Injector);
   private readonly destroyRef = inject(DestroyRef);
   private readonly field = viewChild<ElementRef<HTMLInputElement>>('field');
+  private readonly fieldContainer = viewChild<ElementRef<HTMLElement>>('fieldContainer');
   private readonly panel = viewChild<ElementRef<HTMLElement>>('panel');
+  private readonly list = viewChild<ElementRef<HTMLElement>>('list');
   private readonly instanceId = ++nextAttributePickerId;
   protected readonly supportsPopover = typeof HTMLElement.prototype.showPopover === 'function';
   protected readonly panelPosition = signal({ left: 0, top: 0, width: 240 });
@@ -88,15 +90,15 @@ export class AttributePickerComponent implements ControlValueAccessor {
   private onTouched: () => void = () => undefined;
 
   constructor() {
-    const closeOnViewportChange = (event: Event) => {
+    const updateOnViewportChange = (event: Event) => {
       if (this.panel()?.nativeElement.contains(event.target as Node)) return;
-      if (this.isOpen()) this.close(false);
+      if (this.isOpen()) this.positionPanel();
     };
-    document.addEventListener('scroll', closeOnViewportChange, true);
-    window.addEventListener('resize', closeOnViewportChange);
+    document.addEventListener('scroll', updateOnViewportChange, true);
+    window.addEventListener('resize', updateOnViewportChange);
     this.destroyRef.onDestroy(() => {
-      document.removeEventListener('scroll', closeOnViewportChange, true);
-      window.removeEventListener('resize', closeOnViewportChange);
+      document.removeEventListener('scroll', updateOnViewportChange, true);
+      window.removeEventListener('resize', updateOnViewportChange);
     });
   }
 
@@ -120,6 +122,7 @@ export class AttributePickerComponent implements ControlValueAccessor {
 
   open(): void {
     if (this.isDisabled() || this.isOpen()) return;
+    if (!this.multiple()) this.query.set('');
     this.isOpen.set(true);
     this.activeIndex.set(0);
     afterNextRender(() => this.positionPanel(), { injector: this.injector });
@@ -135,9 +138,9 @@ export class AttributePickerComponent implements ControlValueAccessor {
   }
 
   onInput(event: Event): void {
+    this.open();
     this.query.set((event.target as HTMLInputElement).value);
     this.activeIndex.set(0);
-    this.open();
   }
 
   choose(option: string): void {
@@ -191,6 +194,18 @@ export class AttributePickerComponent implements ControlValueAccessor {
       this.close(false);
   }
 
+  onPanelWheel(event: WheelEvent): void {
+    const list = this.list()?.nativeElement;
+    if (!list || !list.contains(event.target as Node)) {
+      event.preventDefault();
+      return;
+    }
+    const atTop = list.scrollTop <= 0 && event.deltaY < 0;
+    const atBottom =
+      list.scrollTop + list.clientHeight >= list.scrollHeight - 1 && event.deltaY > 0;
+    if (atTop || atBottom) event.preventDefault();
+  }
+
   private setValue(value: string): void {
     this.value.set(value);
     this.onChange(value);
@@ -199,9 +214,9 @@ export class AttributePickerComponent implements ControlValueAccessor {
 
   private positionPanel(): void {
     const panel = this.panel()?.nativeElement;
-    const field = this.field()?.nativeElement;
+    const field = this.fieldContainer()?.nativeElement;
     if (!this.isOpen() || !panel || !field || !this.supportsPopover) return;
-    panel.showPopover();
+    if (!panel.matches(':popover-open')) panel.showPopover();
     const rect = field.getBoundingClientRect();
     const width = Math.min(Math.max(rect.width, 240), window.innerWidth - VIEWPORT_MARGIN * 2);
     const height = panel.offsetHeight;

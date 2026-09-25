@@ -56,8 +56,27 @@ describe('AttributePickerComponent', () => {
 
     expect(values).toEqual(['Hersteller-Mix, Leder · Baumwolle']);
     expect(fixture.nativeElement.textContent).toContain('Hersteller-Mix, Leder');
+    expect(
+      (fixture.nativeElement as HTMLElement)
+        .querySelector('[aria-label="Hersteller-Mix, Leder entfernen"]')
+        ?.closest('.linear-input'),
+    ).not.toBeNull();
     fixture.componentInstance.remove('Hersteller-Mix, Leder');
     expect(values.at(-1)).toBe('Baumwolle');
+  });
+
+  it('zeigt nach einer Farbauswahl beim erneuten Öffnen wieder alle Vorschläge', () => {
+    const { fixture } = create();
+    fixture.componentInstance.open();
+    fixture.componentInstance.choose('Leder');
+    fixture.detectChanges();
+
+    fixture.componentInstance.open();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.query()).toBe('');
+    expect(fixture.componentInstance.matches()).toEqual(['Leder', 'Textil', 'Baumwolle']);
+    expect(fixture.nativeElement.querySelectorAll('[role="option"]')).toHaveLength(3);
   });
 
   it('zeigt bei geöffneter Suche keine AXE-Verstöße', async () => {

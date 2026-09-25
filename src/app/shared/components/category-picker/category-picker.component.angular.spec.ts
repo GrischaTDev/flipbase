@@ -198,6 +198,24 @@ describe('CategoryPickerComponent', () => {
     expect(element(fixture).querySelector('[role="dialog"]')).toBeNull();
   });
 
+  it('bleibt beim Seitenscrollen offen und zeigt bei Blattkategorien den Auswahlhaken', async () => {
+    const { fixture } = create();
+    trigger(fixture).click();
+    await settle(fixture);
+    options(fixture)[0].click();
+    await settle(fixture);
+    options(fixture)[0].click();
+    await settle(fixture);
+
+    const leaf = options(fixture)[0];
+    expect(leaf.querySelector('svg')?.classList.contains('group-hover:opacity-100')).toBe(true);
+    document.dispatchEvent(new Event('scroll', { bubbles: true }));
+    await settle(fixture);
+
+    expect(element(fixture).querySelector('[role="dialog"]')).not.toBeNull();
+    expect(options(fixture)).toHaveLength(1);
+  });
+
   it('wählt ein Blatt per Tastatur und zeigt den vollen Pfad', async () => {
     const { fixture, changes } = create();
     trigger(fixture).click();

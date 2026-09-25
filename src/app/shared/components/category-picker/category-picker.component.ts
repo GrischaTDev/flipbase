@@ -17,6 +17,7 @@ import {
   LucideChevronDown,
   LucideChevronLeft,
   LucideChevronRight,
+  LucideCheck,
   LucideDynamicIcon,
   LucideX,
 } from '@lucide/angular';
@@ -29,7 +30,6 @@ const SEARCH_DEBOUNCE_MS = 200;
 const MIN_SEARCH_LENGTH = 2;
 const PANEL_MIN_WIDTH = 320;
 const VIEWPORT_MARGIN = 8;
-const PANEL_GAP = 6;
 
 let nextCategoryPickerId = 0;
 
@@ -61,6 +61,7 @@ export class CategoryPickerComponent implements ControlValueAccessor {
   private readonly trigger = viewChild<ElementRef<HTMLButtonElement>>('trigger');
   private readonly searchInput = viewChild<ElementRef<HTMLInputElement>>('searchInput');
   private readonly panel = viewChild<ElementRef<HTMLElement>>('panel');
+  private readonly list = viewChild<ElementRef<HTMLElement>>('list');
   private readonly instanceId = ++nextCategoryPickerId;
   protected readonly supportsPopover = typeof HTMLElement.prototype.showPopover === 'function';
   protected readonly panelPosition = signal({ left: 0, top: 0, width: PANEL_MIN_WIDTH });
@@ -108,6 +109,7 @@ export class CategoryPickerComponent implements ControlValueAccessor {
   protected readonly chevronDownIcon = LucideChevronDown;
   protected readonly chevronLeftIcon = LucideChevronLeft;
   protected readonly chevronRightIcon = LucideChevronRight;
+  protected readonly checkIcon = LucideCheck;
   protected readonly clearIcon = LucideX;
 
   private onChange: (value: string | null) => void = () => undefined;
@@ -117,15 +119,15 @@ export class CategoryPickerComponent implements ControlValueAccessor {
   private searchTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
-    const closeOnViewportChange = (event: Event) => {
+    const updateOnViewportChange = (event: Event) => {
       if (this.panel()?.nativeElement.contains(event.target as Node)) return;
-      if (this.isOpen()) this.close(false);
+      if (this.isOpen()) this.positionPanel(false);
     };
-    document.addEventListener('scroll', closeOnViewportChange, true);
-    window.addEventListener('resize', closeOnViewportChange);
+    document.addEventListener('scroll', updateOnViewportChange, true);
+    window.addEventListener('resize', updateOnViewportChange);
     this.destroyRef.onDestroy(() => {
-      document.removeEventListener('scroll', closeOnViewportChange, true);
-      window.removeEventListener('resize', closeOnViewportChange);
+      document.removeEventListener('scroll', updateOnViewportChange, true);
+      window.removeEventListener('resize', updateOnViewportChange);
       this.clearSearchTimer();
     });
   }
@@ -290,6 +292,18 @@ export class CategoryPickerComponent implements ControlValueAccessor {
       this.close(false);
   }
 
+  onPanelWheel(event: WheelEvent): void {
+    const list = this.list()?.nativeElement;
+    if (!list || !list.contains(event.target as Node)) {
+      event.preventDefault();
+      return;
+    }
+    const atTop = list.scrollTop <= 0 && event.deltaY < 0;
+    const atBottom =
+      list.scrollTop + list.clientHeight >= list.scrollHeight - 1 && event.deltaY > 0;
+    if (atTop || atBottom) event.preventDefault();
+  }
+
   optionId(index: number): string {
     return `${this.listboxId()}-option-${index}`;
   }
@@ -347,25 +361,23 @@ export class CategoryPickerComponent implements ControlValueAccessor {
     }
   }
 
-  private positionPanel(): void {
+  private positionPanel(focusSearch = true): void {
     const panel = this.panel()?.nativeElement;
     const trigger = this.trigger()?.nativeElement;
     if (!this.isOpen() || !panel || !trigger) return;
     if (this.supportsPopover) {
       // Die oberste Ebene entkommt dem Überlauf von Dialogen und Karten.
-      panel.showPopover();
+      if (!panel.matches(':popover-open')) panel.showPopover();
       const rect = trigger.getBoundingClientRect();
       const width = Math.min(
         Math.max(rect.width, PANEL_MIN_WIDTH),
         window.innerWidth - VIEWPORT_MARGIN * 2,
       );
       const height = panel.offsetHeight;
-      const below = rect.bottom + PANEL_GAP;
-      const above = rect.top - PANEL_GAP - height;
-      const top =
-        below + height > window.innerHeight - VIEWPORT_MARGIN && above >= VIEWPORT_MARGIN
-          ? above
-          : below;
+      const top = Math.max(
+        VIEWPORT_MARGIN,
+        Math.min(rect.top, window.innerHeight - height - VIEWPORT_MARGIN),
+      );
       this.panelPosition.set({
         left: Math.max(
           VIEWPORT_MARGIN,
@@ -375,7 +387,7 @@ export class CategoryPickerComponent implements ControlValueAccessor {
         width,
       });
     }
-    this.searchInput()?.nativeElement.focus();
+    if (focusSearch) this.searchInput()?.nativeElement.focus();
   }
 
   private clearSearchTimer(): void {

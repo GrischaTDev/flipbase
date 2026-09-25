@@ -408,6 +408,15 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
     }
   }
 
+  onPanelWheel(event: WheelEvent): void {
+    const panel = this.panel()?.nativeElement;
+    if (!panel) return;
+    const atTop = panel.scrollTop <= 0 && event.deltaY < 0;
+    const atBottom =
+      panel.scrollTop + panel.clientHeight >= panel.scrollHeight - 1 && event.deltaY > 0;
+    if (atTop || atBottom) event.preventDefault();
+  }
+
   private scrollActiveOptionIntoViewAfterRender(): void {
     afterNextRender(
       {
