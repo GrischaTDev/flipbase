@@ -15,6 +15,8 @@ angemeldete App wird weiterhin nicht gemessen.
 `git diff --check` und der Angular-Produktionsbau bestanden. Der Bau meldete die
 bekannte CommonJS-Warnung zu `pako`. Eine echte Übertragung an GA4 ist erst nach
 Deployment und einer Einwilligung auf der öffentlichen Seite prüfbar.
+Nach der Integration in den aktuellen Master-Stand wurde der ältere Node-Test
+für die nun zwei lokalen Skripte angepasst und gezielt mit neun Tests geprüft.
 
 ## 2026-09-25 – Juna – Landingpage für Google-Suche und Einwilligung vorbereitet
 

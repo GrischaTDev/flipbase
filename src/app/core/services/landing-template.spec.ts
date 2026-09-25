@@ -18,14 +18,15 @@ describe('Auslieferung der Landingpage', () => {
     expect(header).toContain('Open App');
   });
 
-  it('die Seite bindet genau ein lokales Skript statt eingebettetem Code ein', () => {
-    const scriptTags = [...seite.matchAll(/<script\b([^>]*)>/giu)];
-    expect(scriptTags).toHaveLength(1);
-    for (const [, attributes] of scriptTags) {
-      expect(attributes).toMatch(/\bsrc=["']landing\.js["']/iu);
+  it('die Seite bindet nur die beiden lokalen Skripte statt eingebettetem Code ein', () => {
+    const scriptTags = [...seite.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/giu)];
+    expect(
+      scriptTags.map(([, attributes]) => attributes.match(/\bsrc=["']([^"']+)["']/iu)?.[1]),
+    ).toEqual(['landing.js', 'analytics-consent.js']);
+    for (const [, attributes, content] of scriptTags) {
       expect(attributes).toMatch(/\bdefer\b/iu);
+      expect(content.trim()).toBe('');
     }
-    expect(seite).not.toMatch(/<script\b[^>]*>[\s\S]*?\S[\s\S]*?<\/script>/iu);
   });
 
   it('die Content-Security-Policy erlaubt kein unsafe-inline in script-src', () => {
