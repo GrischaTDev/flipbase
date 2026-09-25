@@ -1492,28 +1492,32 @@
         position: fixed;
         inset: 0;
         z-index: 1000;
-        display: grid;
-        place-items: center;
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
         padding: 1rem;
-        background: rgba(17, 19, 23, 0.76);
-        backdrop-filter: blur(5px);
+        padding-bottom: max(1rem, env(safe-area-inset-bottom));
+        background: rgba(17, 19, 23, 0.48);
+        backdrop-filter: blur(3px);
+        animation: consent-backdrop-in 0.3s ease-out both;
       }
 
       .analytics-consent-panel {
-        width: min(100%, 620px);
+        width: min(100%, 580px);
         max-height: calc(100dvh - 2rem);
         overflow-y: auto;
-        padding: clamp(1.25rem, 4vw, 2rem);
+        padding: clamp(1rem, 3vw, 1.5rem);
         border: 1px solid var(--line-strong);
-        border-radius: 20px;
+        border-radius: 16px;
         background: var(--surface);
         color: var(--ink);
         box-shadow: 0 24px 64px rgba(0, 0, 0, 0.35);
+        animation: consent-panel-in 0.42s cubic-bezier(0.22, 1, 0.36, 1) 0.08s both;
       }
 
       .analytics-consent-panel h2 {
-        margin: 0 0 0.75rem;
-        font-size: clamp(1.4rem, 4vw, 1.8rem);
+        margin: 0;
+        font-size: clamp(1.25rem, 3vw, 1.5rem);
       }
 
       .analytics-consent-heading {
@@ -1525,15 +1529,32 @@
 
       .analytics-consent-language {
         flex: none;
-        min-height: 44px;
-        padding: 0.35rem 0.7rem;
+        display: grid;
+        place-items: center;
+        width: 44px;
+        height: 44px;
+        padding: 0;
         border: 1px solid var(--line-strong);
         border-radius: 8px;
         background: var(--surface-alt);
         color: var(--ink);
         font: inherit;
-        font-size: 0.85rem;
         cursor: pointer;
+      }
+
+      .analytics-consent-language img {
+        width: 28px;
+        height: 18px;
+        border-radius: 2px;
+        box-shadow: 0 0 0 1px var(--line-strong);
+      }
+
+      .analytics-language-german {
+        display: none;
+      }
+
+      body:has(#lang-toggle:checked) .analytics-language-german {
+        display: inline;
       }
 
       .analytics-consent-panel p {
@@ -1554,16 +1575,17 @@
       }
 
       .analytics-consent-tabs {
-        display: flex;
-        gap: 0.5rem;
-        margin: 1.25rem 0;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        margin: 0.9rem 0;
+        border: 1px solid var(--line-strong);
+        border-radius: 8px;
       }
 
       .analytics-consent-tabs button {
         min-height: 44px;
-        padding: 0.6rem 1rem;
-        border: 1px solid var(--line-strong);
-        border-radius: 0.65rem;
+        padding: 0.5rem 0.8rem;
+        border: 0;
         background: var(--surface-alt);
         color: var(--ink);
         font: inherit;
@@ -1571,10 +1593,25 @@
         cursor: pointer;
       }
 
+      .analytics-consent-tabs button:first-child {
+        border-radius: 7px 0 0 7px;
+      }
+
+      .analytics-consent-tabs button:last-child {
+        border-radius: 0 7px 7px 0;
+      }
+
+      .analytics-consent-tabs button + button {
+        border-left: 1px solid var(--line-strong);
+      }
+
       .analytics-consent-tabs button[aria-selected='true'] {
-        border-color: var(--brand);
         background: var(--brand);
         color: var(--on-brand);
+      }
+
+      .analytics-consent-tabs button:focus-visible {
+        outline-offset: -3px;
       }
 
       .analytics-consent-details {
@@ -1587,7 +1624,7 @@
         align-items: flex-start;
         justify-content: space-between;
         gap: 1rem;
-        padding: 1rem;
+        padding: 0.85rem;
         border: 1px solid var(--line-strong);
         border-radius: 12px;
         background: var(--surface-alt);
@@ -1602,38 +1639,79 @@
         font-size: 0.88rem;
       }
 
-      .analytics-consent-purpose input {
-        width: 1.4rem;
-        height: 1.4rem;
+      .analytics-consent-switch {
+        appearance: none;
+        width: 2.75rem;
+        height: 1.5rem;
         margin: 0;
         flex: none;
-        accent-color: var(--brand);
+        position: relative;
+        border: 1px solid var(--line-strong);
+        border-radius: 999px;
+        background: var(--line-strong);
         cursor: pointer;
+      }
+
+      .analytics-consent-switch::before {
+        content: '';
+        position: absolute;
+        top: 0.19rem;
+        left: 0.2rem;
+        width: 1rem;
+        height: 1rem;
+        border-radius: 50%;
+        background: var(--surface);
+        transition: transform 0.2s ease;
+      }
+
+      .analytics-consent-switch:checked,
+      .analytics-consent-switch-on {
+        border-color: var(--brand);
+        background: var(--brand);
+      }
+
+      .analytics-consent-switch-on {
+        cursor: default;
+      }
+
+      .analytics-consent-switch:checked::before,
+      .analytics-consent-switch-on::before {
+        transform: translateX(1.2rem);
+        background: var(--on-brand);
+      }
+
+      .analytics-consent-purpose-state {
+        display: grid;
+        justify-items: end;
+        gap: 0.25rem;
+        flex: none;
       }
 
       .analytics-consent-purpose-status {
         flex: none;
         color: var(--ink-soft);
-        font-size: 0.85rem;
-        font-weight: 700;
+        font-size: 0.75rem;
+        font-weight: 600;
       }
 
       .analytics-consent-actions {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 0.75rem;
-        margin-top: 1.5rem;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 0.5rem;
+        margin-top: 1.25rem;
       }
 
       .analytics-consent-actions button {
-        min-height: 48px;
-        padding: 0.75rem 1rem;
-        border: 2px solid var(--brand);
-        border-radius: 10px;
+        min-height: 44px;
+        padding: 0.55rem 0.9rem;
+        border: 1px solid var(--brand);
+        border-radius: 8px;
         background: var(--brand);
         color: var(--on-brand);
         font: inherit;
-        font-weight: 700;
+        font-size: 0.9rem;
+        font-weight: 650;
         cursor: pointer;
       }
 
@@ -1642,8 +1720,16 @@
         border-color: var(--brand-hover);
       }
 
-      #analytics-save {
-        grid-column: 1 / -1;
+      #analytics-reject {
+        border-color: var(--line-strong);
+        background: var(--surface-hover);
+        color: var(--ink);
+        font-weight: 500;
+      }
+
+      #analytics-reject:hover {
+        border-color: var(--line-strong);
+        background: var(--line-strong);
       }
 
       .analytics-consent-panel :focus-visible {
@@ -1651,9 +1737,54 @@
         outline-offset: 3px;
       }
 
-      @media (max-width: 480px) {
+      .analytics-consent-panel:focus-visible {
+        outline: none;
+      }
+
+      @keyframes consent-backdrop-in {
+        from {
+          background: rgba(17, 19, 23, 0);
+          backdrop-filter: blur(0);
+        }
+        to {
+          background: rgba(17, 19, 23, 0.48);
+          backdrop-filter: blur(3px);
+        }
+      }
+
+      @keyframes consent-panel-in {
+        from {
+          transform: translateY(24px);
+        }
+        to {
+          transform: translateY(0);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .analytics-consent,
+        .analytics-consent-panel {
+          animation: none;
+        }
+
+        .analytics-consent-switch::before {
+          transition: none;
+        }
+      }
+
+      @media (max-width: 420px) {
         .analytics-consent-actions {
-          grid-template-columns: 1fr;
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .analytics-consent-actions button {
+          padding-inline: 0.35rem;
+          font-size: 0.82rem;
+        }
+
+        #analytics-save {
+          grid-column: 1 / -1;
         }
       }
 
@@ -3203,10 +3334,12 @@
 
     <div id="analytics-consent" class="analytics-consent" hidden>
       <section
+        id="analytics-consent-panel"
         class="analytics-consent-panel"
         role="dialog"
         aria-modal="true"
         aria-labelledby="analytics-consent-title"
+        tabindex="-1"
       >
         <div class="analytics-consent-heading">
           <h2 id="analytics-consent-title">
@@ -3214,8 +3347,16 @@
             <span class="lang-en" lang="en">Your privacy at Flipbase</span>
           </h2>
           <button id="analytics-language" class="analytics-consent-language" type="button">
-            <span class="lang-de">English</span>
-            <span class="lang-en" lang="en">Deutsch</span>
+            <img class="lang-de" src="images/flag-gb.svg" alt="" width="28" height="18" />
+            <img
+              class="analytics-language-german"
+              src="images/flag-de.svg"
+              alt=""
+              width="28"
+              height="18"
+            />
+            <span class="sr-only lang-de" lang="en">Switch to English</span>
+            <span class="sr-only analytics-language-german" lang="de">Zu Deutsch wechseln</span>
           </button>
         </div>
         <div class="analytics-consent-tabs" role="tablist" aria-label="Analytics">
@@ -3227,8 +3368,8 @@
             aria-selected="true"
             tabindex="0"
           >
-            <span class="lang-de">Übersicht</span>
-            <span class="lang-en" lang="en">Overview</span>
+            <span class="lang-de">Zustimmung</span>
+            <span class="lang-en" lang="en">Consent</span>
           </button>
           <button
             id="analytics-tab-details"
@@ -3282,14 +3423,20 @@
                 >
               </p>
             </div>
-            <span class="analytics-consent-purpose-status">
-              <span class="lang-de">Immer aktiv</span>
-              <span class="lang-en" lang="en">Always on</span>
+            <span class="analytics-consent-purpose-state">
+              <span
+                class="analytics-consent-switch analytics-consent-switch-on"
+                aria-hidden="true"
+              ></span>
+              <span class="analytics-consent-purpose-status">
+                <span class="lang-de">Immer aktiv</span>
+                <span class="lang-en" lang="en">Always on</span>
+              </span>
             </span>
           </div>
           <label class="analytics-consent-purpose" for="analytics-optional">
             <span>
-              <strong>
+              <strong id="analytics-optional-name">
                 <span class="lang-de">Analyse – Google Analytics 4</span>
                 <span class="lang-en" lang="en">Analytics – Google Analytics 4</span>
               </strong>
@@ -3306,7 +3453,13 @@
                 >
               </p>
             </span>
-            <input id="analytics-optional" type="checkbox" />
+            <input
+              id="analytics-optional"
+              class="analytics-consent-switch"
+              type="checkbox"
+              role="switch"
+              aria-labelledby="analytics-optional-name"
+            />
           </label>
         </div>
         <div class="analytics-consent-actions">

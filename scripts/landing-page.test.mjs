@@ -925,7 +925,8 @@ test('loads Google Analytics only after an explicit choice and supports withdraw
   assert.equal(document.getElementById('analytics-panel-details').hidden, false);
   const analyticsOptional = document.getElementById('analytics-optional');
   assert.equal(analyticsOptional.checked, false);
-  analyticsOptional.checked = true;
+  analyticsOptional.click();
+  assert.equal(analyticsOptional.checked, true);
   document.getElementById('analytics-save').click();
   assert.equal(banner.hidden, true);
   assert.equal(
@@ -947,7 +948,8 @@ test('loads Google Analytics only after an explicit choice and supports withdraw
   document.cookie = '_ga=test; Path=/';
   document.getElementById('analytics-settings').click();
   assert.equal(analyticsOptional.checked, true);
-  analyticsOptional.checked = false;
+  analyticsOptional.click();
+  assert.equal(analyticsOptional.checked, false);
   document.getElementById('analytics-save').click();
   assert.equal(dom.window['ga-disable-G-8ZMSVBRJPK'], true);
   assert.equal(document.cookie.includes('_ga='), false);
@@ -965,11 +967,14 @@ test('shows accessible consent details in a modal without preselecting analytics
   const pageRegions = document.querySelectorAll('body > header, body > main, body > footer');
   assert.equal(banner.hidden, false);
   assert.equal(dom.window.getComputedStyle(banner).position, 'fixed');
+  assert.equal(dom.window.getComputedStyle(banner).alignItems, 'flex-end');
   assert.equal(dialog.getAttribute('aria-modal'), 'true');
   assert.ok([...pageRegions].every((region) => region.inert === true));
-  assert.equal(document.activeElement.id, 'analytics-reject');
+  assert.equal(document.activeElement.id, 'analytics-consent-panel');
   assert.equal(document.getElementById('analytics-panel-details').hidden, true);
   assert.equal(document.getElementById('analytics-optional').checked, false);
+  assert.equal(document.getElementById('analytics-optional').getAttribute('role'), 'switch');
+  assert.equal(document.querySelectorAll('#analytics-panel-details input').length, 1);
   assert.equal(dom.window.dataLayer, undefined);
 
   const overviewTab = document.getElementById('analytics-tab-overview');
