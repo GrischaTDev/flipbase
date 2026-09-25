@@ -36,17 +36,11 @@ describe('PurchaseService', () => {
           inventory: { entferneArtikelZuEinkauf: artikelEntfernen },
           syncStatus: new SyncStatusService(),
           supabase: {
-            client: {
-              from: () => ({
-                delete: () => ({
-                  eq: async () => ({ error: { code: '42501', message: 'denied' } }),
-                }),
-              }),
-            },
+            client: { rpc: async () => ({ error: { code: '42501', message: 'denied' } }) },
           },
         });
 
-        const ergebnis = await service.deletePurchase(einkauf.id);
+        const ergebnis = await service.deletePurchase(einkauf.id, einkauf.workspace_id);
 
         expect(ergebnis.error).toBeInstanceOf(Error);
         expect(purchasesRaw()).toEqual([einkauf]);

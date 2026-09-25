@@ -506,6 +506,32 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
     expect(consume).toHaveBeenCalledWith('/purchases/new', 'workspace-1');
   });
 
+  it('kann einen wiederhergestellten Eigenbeleg ohne Verkäufer speichern', async () => {
+    const { komponente } = erstelleKomponente();
+    const draft = {
+      form: { ...komponente.form.getRawValue(), receipt_mode: 'self', supplier_id: null },
+      lines: [],
+      costs: [],
+      formDirty: true,
+    };
+    const editor = { resetToLines: vi.fn() };
+    Object.assign(komponente, {
+      router: { url: '/purchases/new' },
+      productReturn: {
+        consume: vi.fn().mockReturnValueOnce({ draft, createdProductId: null }),
+      },
+    });
+
+    await (
+      komponente as unknown as {
+        restoreProductReturn(editor: unknown, workspaceId: string): Promise<void>;
+      }
+    ).restoreProductReturn(editor, 'workspace-1');
+
+    expect(komponente.form.controls.supplier_id.hasError('required')).toBe(false);
+    expect(komponente.canSaveDraft()).toBe(true);
+  });
+
   it('wechselt ohne Pflichtverkäufer zum Eigenbeleg und stellt die Verkäuferpflicht wieder her', () => {
     const { komponente } = erstelleKomponente();
 

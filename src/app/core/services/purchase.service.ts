@@ -1905,9 +1905,12 @@ export class PurchaseService {
     return null;
   }
 
-  async deletePurchase(purchaseId: string): Promise<{ error: Error | null }> {
+  async deletePurchase(purchaseId: string, workspaceId: string): Promise<{ error: Error | null }> {
     try {
-      const { error } = await this.supabase.client.from('purchases').delete().eq('id', purchaseId);
+      const { error } = await this.supabase.client.rpc('delete_purchase_draft', {
+        p_workspace_id: workspaceId,
+        p_purchase_id: purchaseId,
+      });
       if (error) {
         return { error: this.syncStatus.melde('Löschen des Einkaufs', error) };
       }
@@ -1916,8 +1919,6 @@ export class PurchaseService {
     }
 
     this.purchasesRaw.update((list) => list.filter((p) => p.id !== purchaseId));
-    // Die Datenbank raeumt die Artikel per Fremdschluessel mit ab; die Anzeige
-    // muss nach dem bestaetigten Loeschen im selben Moment nachziehen.
     this.inventory.entferneArtikelZuEinkauf(purchaseId);
     if (this.selectedPurchase()?.id === purchaseId) {
       this.selectedPurchaseRaw.set(null);

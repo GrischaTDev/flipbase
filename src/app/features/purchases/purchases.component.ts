@@ -329,7 +329,15 @@ export class PurchasesComponent {
 
   openPurchase(event: MouseEvent, id: string): void {
     if (event.target instanceof Element && event.target.closest('a, button, input, select')) return;
-    if (window.getSelection()?.toString()) return;
+    const selection = window.getSelection();
+    const row = event.currentTarget;
+    if (
+      selection?.toString() &&
+      row instanceof Node &&
+      ((selection.anchorNode && row.contains(selection.anchorNode)) ||
+        (selection.focusNode && row.contains(selection.focusNode)))
+    )
+      return;
     if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey)
       return;
     void this.router.navigate(['/purchases', id]);

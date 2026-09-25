@@ -4,7 +4,7 @@ import localeDe from '@angular/common/locales/de';
 import { signal, ɵresolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { provideTranslateService } from '@ngx-translate/core';
 import { glob, readFile } from 'node:fs/promises';
 import axe from 'axe-core';
@@ -364,6 +364,40 @@ describe('PurchasesComponent – responsive Einkaufsübersicht', () => {
     expect(normalRow?.textContent).toContain('1 von 1');
     expect(mysteryRow?.textContent).toContain('Inhalt offen');
     expect(mysteryRow?.textContent).toContain('Kosten noch offen');
+  });
+
+  it('öffnet eine Zeile auch bei einer Textauswahl außerhalb der Tabelle', () => {
+    const fixture = TestBed.createComponent(PurchasesComponent);
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const row = host.querySelector('[data-purchase-row="purchase-normal"]')?.closest('tr');
+    const target = row?.querySelector('td');
+    if (!row || !target) throw new Error('Einkaufszeile fehlt');
+    const outside = document.createTextNode('Ausgewählter Text');
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const getSelection = vi.spyOn(window, 'getSelection').mockReturnValue({
+      toString: () => 'Ausgewählter Text',
+      anchorNode: outside,
+      focusNode: outside,
+    } as unknown as Selection);
+    try {
+      fixture.componentInstance.openPurchase(
+        {
+          target,
+          currentTarget: row,
+          button: 0,
+          ctrlKey: false,
+          metaKey: false,
+          shiftKey: false,
+          altKey: false,
+        } as unknown as MouseEvent,
+        'purchase-normal',
+      );
+      expect(navigate).toHaveBeenCalledWith(['/purchases', 'purchase-normal']);
+    } finally {
+      getSelection.mockRestore();
+      navigate.mockRestore();
+    }
   });
 
   it('zeigt weder Kostenstatus- noch Aktionsspalte und nutzt gemeinsame Status-Badges', () => {
