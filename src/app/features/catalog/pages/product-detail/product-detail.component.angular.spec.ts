@@ -543,7 +543,7 @@ describe('ProductDetailComponent', () => {
     await component.searchWithAi();
 
     expect(component.aiSearchOpen()).toBe(true);
-    expect(barcodeAiLookup.search).toHaveBeenCalledWith('', photo);
+    expect(barcodeAiLookup.search).toHaveBeenCalledWith('', [photo]);
     component.useAiSuggestion(candidate);
     expect(component.form.getRawValue()).toMatchObject({
       ean: '',
@@ -598,6 +598,30 @@ describe('ProductDetailComponent', () => {
       sku: '',
     });
     expect(component.aiMessage()).toContain('Etikettangaben übernommen');
+  });
+
+  it('kennzeichnet eine ältere Serverfunktion, die von mehreren Fotos nur eines verarbeitet', async () => {
+    await openNew();
+    const photos = [
+      new File(['box'], 'karton.jpg', { type: 'image/jpeg' }),
+      new File(['label'], 'etikett.jpg', { type: 'image/jpeg' }),
+    ];
+    barcodeAiLookup.search.mockResolvedValueOnce({
+      candidates: [],
+      labelSuggestion: null,
+      processedPhotoCount: 1,
+      usage: { inputTokens: 1000, outputTokens: 200, webSearchCalls: 1, estimatedCostUsd: 0.0102 },
+    });
+    component.toggleAiSearch();
+    const input = document.createElement('input');
+    input.type = 'file';
+    Object.defineProperty(input, 'files', { value: photos });
+    component.selectLabelPhoto({ target: input } as unknown as Event);
+
+    await component.searchWithAi();
+
+    expect(barcodeAiLookup.search).toHaveBeenCalledWith('', photos);
+    expect(component.aiMessage()).toContain('nur das erste Foto verarbeitet');
   });
 
   it('legt bei einem Bildfehler und erneutem Speichern keinen zweiten Artikel an', async () => {

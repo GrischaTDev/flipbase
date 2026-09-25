@@ -95,6 +95,7 @@ import { NumberInputComponent } from '../../../../shared/components/number-input
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { PurchaseCostSummaryComponent } from '../../components/purchase-cost-summary/purchase-cost-summary.component';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
+import { PurchaseProductReturnService } from '../../services/purchase-product-return.service';
 
 @Component({
   selector: 'app-purchase-detail',
@@ -129,6 +130,7 @@ import { ModalShellComponent } from '../../../../shared/components/modal-shell/m
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PurchaseDetailComponent {
+  private readonly productReturn = inject(PurchaseProductReturnService);
   readonly getPurchaseStatusPresentation = getPurchaseStatusPresentation;
   /**
    * Vorgaben fuer die eigenen Auswahlfelder.
@@ -352,6 +354,10 @@ export class PurchaseDetailComponent {
       (this.entryForm()?.hasUnsavedChanges() ?? false) ||
       (this.packageContentDialog()?.hasUnsavedChanges() ?? false)
     );
+  }
+
+  canNavigateTo(url: string): boolean {
+    return this.productReturn.isCatalogHandoff(url);
   }
 
   private hasOpenPricesForStock(): boolean {

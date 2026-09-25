@@ -2,6 +2,8 @@ import { createClient } from 'npm:@supabase/supabase-js@2.112.3';
 
 const MODEL = 'gpt-6-luna';
 const MAX_IMAGE_DATA_LENGTH = 7_000_000;
+const MAX_IMAGES = 5;
+const MAX_TOTAL_IMAGE_DATA_LENGTH = 21_000_000;
 const ALLOWED_ORIGINS = new Set(
   (
     Deno.env.get('BARCODE_AI_ALLOWED_ORIGINS') ??
@@ -15,6 +17,8 @@ const ALLOWED_ORIGINS = new Set(
 interface SearchRequest {
   ean?: unknown;
   imageDataUrl?: unknown;
+  imageDataUrls?: unknown;
+  additionalImageDataUrls?: unknown;
 }
 
 interface Candidate {
@@ -42,6 +46,7 @@ interface LabelSuggestion {
 interface SearchResult {
   candidates: Candidate[];
   labelSuggestion: LabelSuggestion | null;
+  processedPhotoCount?: number;
   usage: {
     inputTokens: number;
     outputTokens: number;
@@ -54,7 +59,7 @@ export interface BarcodeAiDependencies {
   authenticate(token: string): Promise<{ id: string } | null>;
   isOperator(userId: string): Promise<boolean>;
   isConfigured(): boolean;
-  search(ean: string, imageDataUrl: string | null): Promise<SearchResult>;
+  search(ean: string, imageDataUrls: readonly string[]): Promise<SearchResult>;
 }
 
 function corsHeaders(origin: string | null): Record<string, string> {
@@ -79,6 +84,36 @@ function record(value: unknown): Record<string, unknown> | null {
 
 function text(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+export function normalizeDisplayText(value: string, brand = ''): string {
+  const trimmed = value.trim();
+  if (!/[\p{L}]/u.test(trimmed) || trimmed !== trimmed.toLocaleUpperCase('de-DE')) return trimmed;
+  return trimmed.replace(/[\p{L}\p{N}]+(?:[-/][\p{L}\p{N}]+)*/gu, (word) => {
+    if (brand && word.toLocaleLowerCase('de-DE') === brand.toLocaleLowerCase('de-DE')) return brand;
+    if (/\d/u.test(word) || /^(?:EAN|EU|US|UK|GTX|SKU)$/u.test(word)) return word;
+    if (/^[A-Z]{1,3}(?:-[A-Z]{1,4})+$/u.test(word)) return word;
+    return word
+      .toLocaleLowerCase('de-DE')
+      .replace(/(^|[-/])\p{L}/gu, (part) => part.toLocaleUpperCase('de-DE'));
+  });
+}
+
+export function normalizeEuSize(value: string, category = ''): string {
+  const size = value.trim();
+  const shoe = /schuh|sneaker|stiefel|boot/iu.test(category);
+  const explicitEu =
+    size.match(/\b(?:EU|EUR)\s*[:.-]?\s*(\d{2}(?:[.,]5)?)\b/iu) ??
+    size.match(/\b(\d{2}(?:[.,]5)?)\s*(?:EU|EUR)\b/iu);
+  const bare =
+    size.match(/^(\d{2}(?:[.,]5)?)$/u) ??
+    size.match(/^(\d{2}(?:[.,]5)?)\s*\/\s*(?:UK\s*)?\d(?:[.,]5)?$/iu);
+  const selected = explicitEu?.[1] ?? bare?.[1];
+  if (selected) {
+    const numeric = Number(selected.replace(',', '.'));
+    if (numeric >= 20 && numeric <= 55) return selected.replace(',', '.');
+  }
+  return shoe || /\b(?:US|UK|EU|EUR)\s*\d/iu.test(size) || /^\d/u.test(size) ? '' : size;
 }
 
 function validSourceUrl(value: unknown): string | null {
@@ -134,18 +169,19 @@ export function parseCandidates(response: Record<string, unknown>): Candidate[] 
   return candidates
     .flatMap((value): Candidate[] => {
       const candidate = record(value);
-      const title = text(candidate?.['title']);
+      const brand = text(candidate?.['brand']).slice(0, 100);
+      const title = normalizeDisplayText(text(candidate?.['title']), brand);
       const sourceUrl = validSourceUrl(candidate?.['sourceUrl']);
       if (!title || !sourceUrl || !sourceUrls.has(sourceKey(sourceUrl))) return [];
       const confidence = candidate?.['confidence'];
       return [
         {
           title: title.slice(0, 200),
-          brand: text(candidate?.['brand']).slice(0, 100),
-          model: text(candidate?.['model']).slice(0, 100),
-          size: text(candidate?.['size']).slice(0, 50),
-          color: text(candidate?.['color']).slice(0, 100),
-          category: text(candidate?.['category']).slice(0, 100),
+          brand,
+          model: normalizeDisplayText(text(candidate?.['model'])).slice(0, 100),
+          size: normalizeEuSize(text(candidate?.['size']), text(candidate?.['category'])),
+          color: normalizeDisplayText(text(candidate?.['color'])).slice(0, 100),
+          category: normalizeDisplayText(text(candidate?.['category'])).slice(0, 100),
           sourceUrl,
           confidence: confidence === 'exact' || confidence === 'likely' ? confidence : 'weak',
           evidence: text(candidate?.['evidence']).slice(0, 250),
@@ -160,18 +196,18 @@ export function parseLabelSuggestion(response: Record<string, unknown>): LabelSu
   if (!suggestion) return null;
   const brand = text(suggestion['brand']).slice(0, 100);
   const model = text(suggestion['model']).slice(0, 100);
-  const title = (text(suggestion['title']) || [brand, model].filter(Boolean).join(' ')).slice(
-    0,
-    200,
-  );
+  const title = normalizeDisplayText(
+    text(suggestion['title']) || [brand, model].filter(Boolean).join(' '),
+    brand,
+  ).slice(0, 200);
   if (!title) return null;
   return {
     title,
     brand,
-    model,
-    size: text(suggestion['size']).slice(0, 50),
-    color: text(suggestion['color']).slice(0, 100),
-    category: text(suggestion['category']).slice(0, 100),
+    model: normalizeDisplayText(model),
+    size: normalizeEuSize(text(suggestion['size']), text(suggestion['category'])),
+    color: normalizeDisplayText(text(suggestion['color'])).slice(0, 100),
+    category: normalizeDisplayText(text(suggestion['category'])).slice(0, 100),
     articleNumber: text(suggestion['articleNumber']).slice(0, 100),
   };
 }
@@ -266,20 +302,37 @@ export function createBarcodeAiHandler(dependencies: BarcodeAiDependencies) {
       return respond({ error: 'invalid_body' }, 400, origin);
     }
     const ean = text(body?.ean);
-    const imageDataUrl = body?.imageDataUrl == null ? null : text(body.imageDataUrl);
+    if (body?.additionalImageDataUrls !== undefined && !Array.isArray(body.additionalImageDataUrls))
+      return respond({ error: 'invalid_input' }, 400, origin);
+    const imageDataUrls = Array.isArray(body?.additionalImageDataUrls)
+      ? [
+          ...(body?.imageDataUrl == null ? [] : [body.imageDataUrl]),
+          ...body.additionalImageDataUrls,
+        ]
+      : Array.isArray(body?.imageDataUrls)
+        ? body.imageDataUrls
+        : body?.imageDataUrl == null
+          ? []
+          : [body.imageDataUrl];
     if (
-      (!ean && !imageDataUrl) ||
+      (!ean && imageDataUrls.length === 0) ||
       (ean !== '' && !/^\d{8,14}$/u.test(ean)) ||
-      (imageDataUrl &&
-        (imageDataUrl.length > MAX_IMAGE_DATA_LENGTH ||
-          !/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/u.test(imageDataUrl)))
+      imageDataUrls.length > MAX_IMAGES ||
+      imageDataUrls.some(
+        (image) =>
+          typeof image !== 'string' ||
+          image.length > MAX_IMAGE_DATA_LENGTH ||
+          !/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/u.test(image),
+      ) ||
+      imageDataUrls.reduce<number>((total, image) => total + String(image).length, 0) >
+        MAX_TOTAL_IMAGE_DATA_LENGTH
     ) {
       return respond({ error: 'invalid_input' }, 400, origin);
     }
     if (!dependencies.isConfigured()) return respond({ error: 'not_configured' }, 503, origin);
     try {
-      const result = await dependencies.search(ean, imageDataUrl);
-      return respond(result, 200, origin);
+      const result = await dependencies.search(ean, imageDataUrls as string[]);
+      return respond({ ...result, processedPhotoCount: imageDataUrls.length }, 200, origin);
     } catch (error) {
       console.error('barcode-ai-search: OpenAI-Abfrage fehlgeschlagen.', error);
       return respond({ error: 'search_failed' }, 502, origin);
@@ -315,14 +368,14 @@ function createProductionDependencies(): BarcodeAiDependencies {
       if (error) throw error;
       return data !== null;
     },
-    async search(ean, imageDataUrl) {
+    async search(ean, imageDataUrls) {
       const apiKey = Deno.env.get('OPENAI_API_KEY');
       if (!apiKey) throw new Error('OpenAI-Zugang fehlt.');
-      const searchInstructions = imageDataUrl
-        ? `${ean ? `Gescannte EAN/GTIN: ${ean}. ` : 'Es wurde keine EAN angegeben. '}Lies zuerst das Etikettfoto. ` +
-          'Trage nur sichtbar lesbare Marke, Modell, Herstellerartikelnummer, Farbe und Größe in labelSuggestion ein; fehlende Angaben bleiben leer. ' +
+      const searchInstructions = imageDataUrls.length
+        ? `${ean ? `Gescannte EAN/GTIN: ${ean}. ` : 'Es wurde keine EAN angegeben. '}Alle Fotos zeigen dasselbe Produkt aus verschiedenen Blickwinkeln. Lies zuerst Karton, Etikett und Produkt zusammen. ` +
+          'Trage nur sichtbar lesbare Marke, Modell, Herstellerartikelnummer, Farbe und Größe in labelSuggestion ein; fehlende Angaben bleiben leer. Leite die Kategorie aus der erkennbaren Produktart ab. ' +
           'Wenn nichts lesbar ist, gib labelSuggestion als null zurück. ' +
-          'Suche danach im Web gezielt nach Marke, Modell und Herstellerartikelnummer; die EAN allein liefert oft keine Treffer. '
+          'Suche danach im Web gezielt nach Marke, Modell und Herstellerartikelnummer; die EAN allein liefert oft keine Treffer. Bei Schuhen gib als Größe ausschließlich eine belegte EU-Größe aus; US/UK allein reicht nicht. '
         : `Gescannte EAN/GTIN: ${ean}. Suche nach genau diesem Produkt im Web. ` +
           'Gib labelSuggestion als null zurück. ';
       const content: Record<string, unknown>[] = [
@@ -335,7 +388,7 @@ function createProductionDependencies(): BarcodeAiDependencies {
             'Bei unsicherer Variante markiere likely oder weak. Keine erfundenen Daten oder URLs.',
         },
       ];
-      if (imageDataUrl)
+      for (const imageDataUrl of imageDataUrls)
         content.push({ type: 'input_image', image_url: imageDataUrl, detail: 'high' });
       const response = await fetch('https://api.openai.com/v1/responses', {
         method: 'POST',
@@ -373,7 +426,7 @@ function createProductionDependencies(): BarcodeAiDependencies {
       const usage = record(result['usage']) ?? {};
       return {
         candidates: parseCandidates(result),
-        labelSuggestion: imageDataUrl ? parseLabelSuggestion(result) : null,
+        labelSuggestion: imageDataUrls.length ? parseLabelSuggestion(result) : null,
         usage: {
           inputTokens: Number(usage['input_tokens']) || 0,
           outputTokens: Number(usage['output_tokens']) || 0,

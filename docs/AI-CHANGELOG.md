@@ -21,6 +21,38 @@ Bildauswahl, Rechte und Speicherung bestanden.
 Die Produktivoberfläche und die echte Kleinanzeigen-Seite wurden nicht manuell
 durchgeklickt; dieser Schritt bleibt vor Veröffentlichung erforderlich.
 
+## 2026-09-25 – Juna – Mehrfoto-Suche mit älterer Serverfunktion abgeglichen
+
+**Auftrag:** Den Fehler „Die KI-Suche ist gerade nicht verfügbar“ nach einer Suche mit drei Fotos untersuchen und beheben.
+
+**Änderung:** Einen eigenen Branch vom aktuellen `origin/master` angelegt. Der Web-Release verteilt laut Deployment-Dokumentation keine Edge Functions; die vorherige Serverfassung liest nur `imageDataUrl`, während die neue Oberfläche `imageDataUrls` sendet. Der Client überträgt das erste Foto im bisherigen Feld und weitere Fotos ohne doppelte Bilddaten im neuen Feld `additionalImageDataUrls`. Er kennzeichnet ein Ergebnis, das nur auf dem ersten Foto beruht. Die aktuelle Serverfunktion meldet die tatsächlich verarbeitete Fotoanzahl. Die Betriebsanleitung nennt den erforderlichen separaten Funktions-Rollout. Serverantworten zu abgelehnten Eingaben und zu großen Anfragen erhalten verständlichere Meldungen.
+
+**Prüfung:** Den alten und neuen Anfragevertrag im Repository verglichen; der öffentlich erreichbare Funktionsendpunkt beantwortet die Voranfrage. Gezielte Client-, Dialog- und Edge-Tests sowie Angular-Bau, Formatierung und gezieltes Lint waren erfolgreich. Ein erfolgreicher Test mit drei echten Fotos ist erst nach dem separaten Rollout der Serverfunktion möglich.
+
+## 2026-09-25 – Juna – KI-Artikelerstellung mit aktueller Artikelansicht abgeglichen
+
+**Auftrag:** Den freigegebenen Branch als Pull Request veröffentlichen und nach erfolgreichen Pflichtprüfungen zusammenführen.
+
+**Änderung:** Den Branch auf den aktuellen `origin/master` mit der neuen gemeinsamen Artikelansicht gesetzt. Die alte Inventar-Neuanlage behält deren Weiterleitung zur Katalogseite; der Foto-Dialog verwendet für das Entfernen eines Bildes den gemeinsamen Button-Baustein. Die Einkauf-Rückkehr und die Mehrfoto-Suche bleiben erhalten.
+
+**Prüfung:** Betroffene Angular-, DOM- und Deno-Tests, Angular-Bau, Lint, Formatierung und Shared-UI-Prüfung nach dem Abgleich erneut ausgeführt. Der erste PR-Lauf zeigte einen veralteten Browser-Testhelfer, der noch den entfernten Produktdialog erwartete. Die betroffenen Browser-Tests wurden auf die vollständige Artikelseite mit Rückkehr zum Einkauf angepasst. Lokal ist der Browserlauf zurzeit durch nicht veröffentlichte Ports der geteilten Supabase-Container blockiert; der erneute PR-Lauf prüft den tatsächlichen Browserablauf.
+
+## 2026-09-24 – Juna – Artikelerstellung und KI-Fotosuche aus dem Einkauf verbunden
+
+**Auftrag:** Die verstreute Artikelerstellung vereinheitlichen, einen laufenden Einkauf beim Wechsel zur Artikelseite erhalten und die KI-Suche auf mehrere Produktfotos und verlässliche Feldwerte ausrichten.
+
+**Änderung:** Die Artikelerstellung aus dem Einkauf öffnet jetzt die vollständige Katalogseite. Ein gesicherter Rückkehrkontext stellt Formular, Positionen und Kosten wieder her; nach dem Speichern wird der neue Artikel genau einmal als Einkaufsposition eingefügt. Auch der Einstieg aus dem Inventar führt zur Katalogseite. Die alte Produktanlage im Einkaufsdialog und ihre EAN-/KI-Schaltflächen entfallen aus diesem Ablauf. Die KI-Suche öffnet einen großen Dialog für bis zu fünf Fotos von Karton, Etikett und Artikel. Frontend und Server prüfen Dateianzahl und Größe. Die Serverantwort normalisiert durchgehende Großschreibung und Schuhgrößen auf eindeutige EU-Angaben; Kategorie-Vorschläge werden nur bei eindeutigem Treffer einer vorhandenen Kategorie zugeordnet. Die recherchierte Modellwahl und ein Messplan stehen unter `docs/superpowers/plans/2026-09-24-ai-product-entry.md`.
+
+**Prüfung:** Gezielte Angular- und DOM-Tests, Deno-Tests der Suchfunktion, ESLint, Prettier, Angular-Bau und `git diff --check` erfolgreich. Ein Vergleich mit echten Produktfotos steht noch aus; die Produktionskonfiguration bleibt bis dahin bei Luna `low`.
+
+## 2026-09-24 – Juna – Plan für einheitliche Artikelerstellung und KI-Fotosuche
+
+**Auftrag:** Die Produktanlage aus dem Einkauf auf die vollständige Artikelseite führen, den laufenden Einkauf beim Zurückkehren erhalten und die KI-Suche mit mehreren Fotos, Kategorien, lesbaren Texten und EU-Größen neu planen.
+
+**Änderung:** Eigenen Branch `juna/ai-product-flow` vom aktuellen `origin/master` in einem separaten Worktree angelegt. Bestehende Katalog-, Einkaufs- und KI-Abläufe untersucht und einen umsetzbaren Plan mit Rückkehrkontext, Fotodialog, Feldprüfung, Modellvergleich und Abnahme in `docs/superpowers/plans/2026-09-24-ai-product-entry.md` festgehalten. Auf Nachfrage den Modellvergleich um Luna-Denkstufen, unabhängige Bildtests und eine konkrete Empfehlung für Sol `low` als Foto-Suchkandidaten ergänzt. Noch kein Anwendungscode geändert.
+
+**Prüfung:** Codepfade, vorhandene Angular-/Supabase-Tests, Admin-Designrichtlinie, aktuelle OpenAI-Dokumentation zu Bildeingaben, Websuche, strukturierten Ausgaben, Denkstufen und Preisen sowie Roboflows veröffentlichte Bildtests gelesen. Prettier-Prüfung der beiden Dokumente und `git diff --check` bestanden; Anwendungstests waren mangels Codeänderung nicht nötig.
+
 ## 2026-09-24 – Juna – Artikel und Bestand in einer Ansicht verwaltet
 
 **Auftrag:** Die beiden Artikel-Unterpunkte zu einer Tabelle zusammenführen und

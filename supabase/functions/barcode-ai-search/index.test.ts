@@ -4,6 +4,7 @@ import {
   estimateCostUsd,
   parseCandidates,
   parseLabelSuggestion,
+  normalizeEuSize,
 } from './index.ts';
 
 function assertEquals(actual: unknown, expected: unknown): void {
@@ -76,6 +77,64 @@ Deno.test('erlaubt eine Fotosuche ohne EAN fuer Betreiber', async () => {
   );
   assertEquals(response.status, 200);
   assertEquals(searchedEan, '');
+});
+
+Deno.test('uebergibt mehrere Produktfotos in ihrer Reihenfolge', async () => {
+  let received: readonly string[] = [];
+  const handler = createBarcodeAiHandler(
+    dependencies({
+      search: async (_ean, images) => {
+        received = images;
+        return {
+          candidates: [],
+          labelSuggestion: null,
+          usage: { inputTokens: 0, outputTokens: 0, webSearchCalls: 0, estimatedCostUsd: 0 },
+        };
+      },
+    }),
+  );
+  const images = ['data:image/jpeg;base64,dGVzdA==', 'data:image/png;base64,dGVzdA=='];
+  const response = await handler(request({ imageDataUrls: images }));
+  assertEquals(response.status, 200);
+  assertEquals((await response.json()).processedPhotoCount, 2);
+  assertEquals(received, images);
+});
+
+Deno.test('kombiniert das erste Foto mit weiteren Fotos ohne doppelte Uebertragung', async () => {
+  let received: readonly string[] = [];
+  const handler = createBarcodeAiHandler(
+    dependencies({
+      search: async (_ean, images) => {
+        received = images;
+        return {
+          candidates: [],
+          labelSuggestion: null,
+          usage: { inputTokens: 0, outputTokens: 0, webSearchCalls: 0, estimatedCostUsd: 0 },
+        };
+      },
+    }),
+  );
+  const photos = Array(3).fill('data:image/jpeg;base64,dGVzdA==');
+  const response = await handler(
+    request({ imageDataUrl: photos[0], additionalImageDataUrls: photos.slice(1) }),
+  );
+  assertEquals(response.status, 200);
+  assertEquals((await response.json()).processedPhotoCount, 3);
+  assertEquals(received, photos);
+});
+
+Deno.test('lehnt mehr als fuenf Produktfotos ab', async () => {
+  const handler = createBarcodeAiHandler(dependencies());
+  const response = await handler(
+    request({ imageDataUrls: Array(6).fill('data:image/jpeg;base64,dGVzdA==') }),
+  );
+  assertEquals(response.status, 400);
+});
+
+Deno.test('uebernimmt bei Schuhen nur eine belegte EU-Groesse', () => {
+  assertEquals(normalizeEuSize('EU 37 / UK 3', 'Schuhe'), '37');
+  assertEquals(normalizeEuSize('US 5', 'Schuhe'), '');
+  assertEquals(normalizeEuSize('37 / 3', 'Schuhe'), '37');
 });
 
 Deno.test('verweigert eine Suche ohne EAN und Foto', async () => {
@@ -166,11 +225,11 @@ Deno.test('bietet gelesene Etikettangaben ohne Webbeleg getrennt an', () => {
   };
   assertEquals(parseCandidates(response), []);
   assertEquals(parseLabelSuggestion(response), {
-    title: 'JAKO J-SFG TWIST',
+    title: 'JAKO J-SFG Twist',
     brand: 'JAKO',
-    model: 'J-SFG TWIST',
+    model: 'J-SFG Twist',
     size: '40',
-    color: 'SKYDIVER/SULPHUR SPRING',
+    color: 'Skydiver/Sulphur Spring',
     category: '',
     articleNumber: '310127 002 443',
   });
