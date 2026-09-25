@@ -38,6 +38,211 @@ Dateien, `git diff --check` und der Angular-Produktionsbau bestanden. Der Bau
 meldete die bekannte CommonJS-Warnung zu `pako`. Eine echte GA4-Messung kann
 erst mit einer Mess-ID und nach Deployment geprüft werden.
 
+## 2026-09-25 – Juna – Fotodialog, Suchergebnisse und Bildauswahl verbessert
+
+**Auftrag:** Die KI-Produktsuche auf dem Tablet platzsparender und klarer darstellen: kleinere Fotos mit X zum Entfernen, weniger Hinweise, nur Kosten der aktuellen Suche, Quelle rechts am Treffer und kein Verschieben des Dialogs beim Scrollen. Auch große iPad-Fotos sollen beim Hinzufügen verkleinert und mit ihrer tatsächlichen Dateigröße angezeigt werden.
+
+**Änderung:** Eigenen Branch `juna/ai-product-search-dialog` vom aktuellen `origin/master` angelegt. Die Fotoauswahl verwendet kompakte Kacheln ohne sichtbare Dateinamen und mit roter Entfernen-Aktion direkt auf dem Bild. Ausgewählte Fotos werden vor der Größenprüfung lokal verkleinert; die Dateigröße der verwendeten Fassung erscheint auf der Kachel. Die Grenzen von 5 MB je Foto und 15 MB insgesamt bleiben bestehen. Während der Verarbeitung ist die Suche gesperrt. Doppelte Modellangaben, generische Begründungen, Sitzungskosten und der EAN-Hinweis entfallen aus dem Dialog. Pro Ergebnis stehen die geschätzten Kosten dieser Suche; der Quellenlink zeigt rechts den Domainnamen. Die gemeinsame Dialoghülle begrenzt ihre Höhe auf den sichtbaren Bildschirm und lässt nur den Inhalt scrollen.
+
+**Prüfung:** Gezielte Angular- und Bildverarbeitungstests, ESLint, Shared-UI-Prüfung und Angular-Bau erfolgreich. Ein Browsercheck bei 820 × 680 Pixeln bestätigte, dass die Dialogkarte beim Scrollen der inneren Ergebnisliste an derselben Position bleibt. Ein echtes WebKit-Browserbild wurde von 10,9 MB auf 1,6 MB verkleinert. Der Branch ist noch nicht veröffentlicht.
+
+## 2026-09-25 – Juna – Artikelauswahl in Inseraten als durchsuchbare Kombobox
+
+**Auftrag:** Die zusätzliche Suche oberhalb der Artikelauswahl entfernen und die Auswahl selbst
+direkt durchsuchbar machen. Den Vorlagen-Button verständlich benennen.
+
+**Änderung:** Die gemeinsame Auswahlkomponente unterstützt eine Texteingabe im Dropdown. In der
+Inseraterstellung filtert sie Artikel und Produkte nach Titel, Marke und Kategorie. Beim Ändern
+einer bestehenden Auswahl wird diese bis zur nächsten bewussten Auswahl aufgehoben. Die separate
+Suchbox entfällt. Der Button heißt „Vorlage aus Artikeldaten übernehmen“; die bestehende
+Erläuterung stellt klar, dass feste Formulierungen ohne KI verwendet werden.
+
+**Prüfung:** 49 gezielte Angular-Tests für Auswahl und Editor sowie alle 74 Inserate-Tests
+bestanden. ESLint, Formatprüfung, Shared-UI-Prüfung und Produktionsbau erfolgreich.
+
+## 2026-09-25 – Juna – Inserate und Erweiterungsverbindung überarbeitet
+
+**Auftrag:** Inserateliste an den Admin-Stil angleichen und den Ablauf für Artikelsuche,
+Erweiterungsverbindung, Bilder und Kategorieauswahl verbessern.
+
+**Änderung:** Die Liste hat nun den gemeinsamen Seitenkopf mit Symbol, ein Ansichtsmenü,
+einen einheitlich großen Erstellen-Button und klar beschriftete Zeilenaktionen. Im Editor
+lassen sich Artikel frei suchen. Die Kategorie erscheint mit ihrem letzten Pfadteil;
+die Auswahl auf Kleinanzeigen wird ausdrücklich als manueller Schritt angezeigt.
+Inserate speichern eine eigene Bildauswahl mit Titelbild und Reihenfolge. Bilder können
+hinzugefügt, abgelegt, gezogen oder per Button sortiert werden. Die Erweiterungsprüfung
+setzt ein vorbereitetes Inserat nach erfolgreicher Verbindung fort und wartet beim
+Öffnen auf eine Rückmeldung der Erweiterung. Ein fehlgeschlagener Versuch wird gemeldet.
+
+**Prüfung:** `npm run verify` vollständig bestanden, einschließlich Format, Lint,
+Typen, Workflow-, Edge-, Node-, DOM- und Angular-Tests sowie Produktionsbau.
+Die Migration wurde lokal transaktional angewendet; acht Datenbankprüfungen für
+Bildauswahl, Rechte und Speicherung bestanden.
+Die Produktivoberfläche und die echte Kleinanzeigen-Seite wurden nicht manuell
+durchgeklickt; dieser Schritt bleibt vor Veröffentlichung erforderlich.
+
+## 2026-09-25 – Juna – Mehrfoto-Produktsuche liefert auch visuelle Vorschläge
+
+**Auftrag:** Untersuchen, warum drei Schuhfotos in der Artikelerstellung keinen Treffer liefern, obwohl dieselben Fotos im Chat erkannt werden.
+
+**Änderung:** Eigenen Branch `juna/ai-product-search-results` vom aktuellen `origin/master` angelegt. Die bisherige Suche verwendet Luna mit knappem Ausgabe- und Zeitlimit; sie verwirft zudem Webkandidaten, deren Produktseite nicht in der engen Quellenliste steht, und bietet ohne lesbares Etikett keinen getrennten Bildvorschlag an. Für Fotofälle nutzt die Funktion nun Sol `low`, sucht zusätzlich nach Bildern, berücksichtigt belegte Bildtreffer und Quellenzitate und erlaubt mehr Suchschritte. Eine erkennbare Marke oder ein Modell kann auch ohne belegte Produktseite als deutlich gekennzeichneter Fotovorschlag übernommen werden. EAN-Suchen bleiben bei Luna; unbelegte Web-URLs und nicht belegte US-/UK-Schuhgrößen werden weiterhin verworfen. Die Oberfläche zeigt die Art des Vorschlags getrennt an. Anonyme Zähler in den Serverlogs machen künftig sichtbar, ob die KI Kandidaten lieferte, die Quellenprüfung sie aber ausschloss.
+
+**Prüfung:** Deno-Tests für Bildquellen, Zitate, Kostenschätzung, Fotovorschlag und EU-Größe; gezielte Angular-Tests für Artikelseite und alten Dialog, ESLint und Angular-Bau erfolgreich. Ein begrenzter Aufruf mit einem künstlichen Testbild bestätigte am echten API-Zugang Sol mit Bild-Websuche und Quellenfeldern (HTTP 200, vollständig). Ein Livevergleich mit genau den drei Nutzerfotos ist noch offen, da sie hier nicht vorliegen. Die Änderung ist noch nicht ausgerollt.
+
+## 2026-09-25 – Juna – Mehrfoto-Suche mit älterer Serverfunktion abgeglichen
+
+**Auftrag:** Den Fehler „Die KI-Suche ist gerade nicht verfügbar“ nach einer Suche mit drei Fotos untersuchen und beheben.
+
+**Änderung:** Einen eigenen Branch vom aktuellen `origin/master` angelegt. Der Web-Release verteilt laut Deployment-Dokumentation keine Edge Functions; die vorherige Serverfassung liest nur `imageDataUrl`, während die neue Oberfläche `imageDataUrls` sendet. Der Client überträgt das erste Foto im bisherigen Feld und weitere Fotos ohne doppelte Bilddaten im neuen Feld `additionalImageDataUrls`. Er kennzeichnet ein Ergebnis, das nur auf dem ersten Foto beruht. Die aktuelle Serverfunktion meldet die tatsächlich verarbeitete Fotoanzahl. Die Betriebsanleitung nennt den erforderlichen separaten Funktions-Rollout. Serverantworten zu abgelehnten Eingaben und zu großen Anfragen erhalten verständlichere Meldungen.
+
+**Prüfung:** Den alten und neuen Anfragevertrag im Repository verglichen; der öffentlich erreichbare Funktionsendpunkt beantwortet die Voranfrage. Gezielte Client-, Dialog- und Edge-Tests sowie Angular-Bau, Formatierung und gezieltes Lint waren erfolgreich. Ein erfolgreicher Test mit drei echten Fotos ist erst nach dem separaten Rollout der Serverfunktion möglich.
+
+## 2026-09-25 – Juna – KI-Artikelerstellung mit aktueller Artikelansicht abgeglichen
+
+**Auftrag:** Den freigegebenen Branch als Pull Request veröffentlichen und nach erfolgreichen Pflichtprüfungen zusammenführen.
+
+**Änderung:** Den Branch auf den aktuellen `origin/master` mit der neuen gemeinsamen Artikelansicht gesetzt. Die alte Inventar-Neuanlage behält deren Weiterleitung zur Katalogseite; der Foto-Dialog verwendet für das Entfernen eines Bildes den gemeinsamen Button-Baustein. Die Einkauf-Rückkehr und die Mehrfoto-Suche bleiben erhalten.
+
+**Prüfung:** Betroffene Angular-, DOM- und Deno-Tests, Angular-Bau, Lint, Formatierung und Shared-UI-Prüfung nach dem Abgleich erneut ausgeführt. Der erste PR-Lauf zeigte einen veralteten Browser-Testhelfer, der noch den entfernten Produktdialog erwartete. Die betroffenen Browser-Tests wurden auf die vollständige Artikelseite mit Rückkehr zum Einkauf angepasst. Lokal ist der Browserlauf zurzeit durch nicht veröffentlichte Ports der geteilten Supabase-Container blockiert; der erneute PR-Lauf prüft den tatsächlichen Browserablauf.
+
+## 2026-09-24 – Juna – Artikelerstellung und KI-Fotosuche aus dem Einkauf verbunden
+
+**Auftrag:** Die verstreute Artikelerstellung vereinheitlichen, einen laufenden Einkauf beim Wechsel zur Artikelseite erhalten und die KI-Suche auf mehrere Produktfotos und verlässliche Feldwerte ausrichten.
+
+**Änderung:** Die Artikelerstellung aus dem Einkauf öffnet jetzt die vollständige Katalogseite. Ein gesicherter Rückkehrkontext stellt Formular, Positionen und Kosten wieder her; nach dem Speichern wird der neue Artikel genau einmal als Einkaufsposition eingefügt. Auch der Einstieg aus dem Inventar führt zur Katalogseite. Die alte Produktanlage im Einkaufsdialog und ihre EAN-/KI-Schaltflächen entfallen aus diesem Ablauf. Die KI-Suche öffnet einen großen Dialog für bis zu fünf Fotos von Karton, Etikett und Artikel. Frontend und Server prüfen Dateianzahl und Größe. Die Serverantwort normalisiert durchgehende Großschreibung und Schuhgrößen auf eindeutige EU-Angaben; Kategorie-Vorschläge werden nur bei eindeutigem Treffer einer vorhandenen Kategorie zugeordnet. Die recherchierte Modellwahl und ein Messplan stehen unter `docs/superpowers/plans/2026-09-24-ai-product-entry.md`.
+
+**Prüfung:** Gezielte Angular- und DOM-Tests, Deno-Tests der Suchfunktion, ESLint, Prettier, Angular-Bau und `git diff --check` erfolgreich. Ein Vergleich mit echten Produktfotos steht noch aus; die Produktionskonfiguration bleibt bis dahin bei Luna `low`.
+
+## 2026-09-24 – Juna – Plan für einheitliche Artikelerstellung und KI-Fotosuche
+
+**Auftrag:** Die Produktanlage aus dem Einkauf auf die vollständige Artikelseite führen, den laufenden Einkauf beim Zurückkehren erhalten und die KI-Suche mit mehreren Fotos, Kategorien, lesbaren Texten und EU-Größen neu planen.
+
+**Änderung:** Eigenen Branch `juna/ai-product-flow` vom aktuellen `origin/master` in einem separaten Worktree angelegt. Bestehende Katalog-, Einkaufs- und KI-Abläufe untersucht und einen umsetzbaren Plan mit Rückkehrkontext, Fotodialog, Feldprüfung, Modellvergleich und Abnahme in `docs/superpowers/plans/2026-09-24-ai-product-entry.md` festgehalten. Auf Nachfrage den Modellvergleich um Luna-Denkstufen, unabhängige Bildtests und eine konkrete Empfehlung für Sol `low` als Foto-Suchkandidaten ergänzt. Noch kein Anwendungscode geändert.
+
+**Prüfung:** Codepfade, vorhandene Angular-/Supabase-Tests, Admin-Designrichtlinie, aktuelle OpenAI-Dokumentation zu Bildeingaben, Websuche, strukturierten Ausgaben, Denkstufen und Preisen sowie Roboflows veröffentlichte Bildtests gelesen. Prettier-Prüfung der beiden Dokumente und `git diff --check` bestanden; Anwendungstests waren mangels Codeänderung nicht nötig.
+
+## 2026-09-24 – Juna – Artikel und Bestand in einer Ansicht verwaltet
+
+**Auftrag:** Die beiden Artikel-Unterpunkte zu einer Tabelle zusammenführen und
+Bearbeiten, Archivieren sowie sicheres Löschen ergänzen. Löschen ist nur für
+unbenutzte Artikel vorgesehen; beim Archivieren bleiben Bestand, Wert und
+Belege erhalten.
+
+**Ergebnis:** Die Sidebar führt jetzt zu „Artikel“. Filter zeigen aktive,
+archivierte und bestandsbezogene Artikel in derselben Tabelle. Sie enthält
+physische, verfügbare und reservierte Mengen sowie einen getrennten
+Bestandswert. Bestehende Katalogartikel und ältere Einzelstücke behalten ihre
+Identität und ihre jeweiligen Editoren. Archivierung und Wiederherstellung
+laufen über geschützte Datenbankfunktionen; offene Reservierungen, Inserate und
+Shopaufträge sperren die Archivierung. Archivierte Artikel werden aus neuen
+Verkäufen, Einkäufen, Inseraten und dem Shopangebot ausgeschlossen. Löschen
+prüft serverseitig alle bekannten Einkaufs-, Bestands-, Verkaufs- und
+Inseratsbezüge. Private Bilder werden erst nach erfolgreichem Löschen über
+eine wiederholbare Warteschlange bereinigt. Alte Bestandslinks führen zum
+Bestandsfilter, während Einzelstück-Detailseiten erreichbar bleiben.
+Verknüpfte Einzelstücke beachten den Archivstatus ihres Stammartikels; ein
+fehlgeschlagener Einzelstück-Upload räumt die bereits hochgeladene Datei auf.
+Der direkte Verkauf bleibt in der gemeinsamen Artikeltabelle erreichbar und
+führt nach Abschluss zur Bestandsansicht zurück.
+
+**Prüfung:** Lokale Datenbank aus den beiden neuen Migrationen frisch
+aufgebaut; 198 gezielte SQL-Tests, 6 Edge-Tests, die betroffenen Angular- und
+Node-Tests, Typprüfung, Angular-Bau, gezieltes ESLint und die Shared-UI-Prüfung
+waren erfolgreich. Die vollständigen PR-Pflichtprüfungen stehen noch aus.
+
+## 2026-09-24 – Juna – Alten PR geschlossen und Artikelansicht eingeordnet
+
+**Auftrag:** Den überholten PR `#58` schließen und prüfen, ob „Alle Artikel“ und
+„Bestand“ zu einer gemeinsamen Artikelseite werden sollten. Vergleich mit
+Shopify und WooCommerce sowie Einordnung der deutschen Aufzeichnungspflichten.
+
+**Ergebnis:** PR `#58` wurde ohne Änderung seines Zweigs geschlossen. Der
+Artikelstamm zeigt bereits eine abgeleitete verfügbare Menge und auch
+eigenständige ältere Inventarartikel. Die Bestandsseite ergänzt physische,
+verfügbare und reservierte Mengen sowie Herkunft, Kosten und Aktionen. Eine
+gemeinsame Tabelle unter „Artikel“ erscheint sinnvoll; Bestandsansichten
+können als Filter und Spalten weiterbestehen. Ein Produkt ohne Wareneingang
+bleibt ohne Bestand. Alte Einzelstücke werden nicht allein wegen gleichem
+Titel oder Barcode zusammengelegt. Buchungen, Belege, Kosten und
+Bestandsbewegungen bleiben getrennt nachvollziehbar. Die frühere
+Zwei-Unterpunkte-Regel in der Gestaltungsgrundlage wird bei der Umsetzung an
+die bestätigte Ein-Seiten-Lösung angepasst. Es wurde noch keine UI- oder
+Datenmodelländerung vorgenommen.
+
+**Folgegespräch:** Der Nutzer bestätigte eine Zeile je Artikel, auch ohne
+Bestand, und getrennte Artikel für individuell unterschiedliche gebrauchte
+Stücke. In der gemeinsamen Ansicht sollen Bearbeiten, Archivieren und Löschen
+erkennbar werden. Löschen wurde auf noch unbenutzte Artikel ohne Einkaufs-,
+Bestands-, Verkaufs- oder Inseratsbezug begrenzt. Der vorhandene Katalogeditor
+speichert bereits Änderungen, besitzt aber keinen deutlichen Bearbeiten-Einstieg
+in der Liste. Katalogartikel haben derzeit keinen Archivstatus; die bisherige
+Archivaktion für alte Einzelstücke gilt nur für eindeutig verkaufte Artikel.
+Die Archivierung bei vorhandenem Bestand wurde bestätigt; Menge und Wert
+bleiben dabei erhalten. Der Nutzer bestätigte den Entwurf für eine gemeinsame
+Artikeltabelle mit gesperrter Archivierung bei offenen Reservierungen und
+Inseraten sowie ohne neue Verkäufe oder Inserate aus dem Archiv.
+
+**Entwurf:** Die abgestimmte Lösung wurde in
+`docs/superpowers/specs/2026-09-24-unified-articles-management-design.md`
+festgehalten. Sie beschreibt Navigation, Tabellenfelder und Filter, sichtbare
+Bearbeitung, reversible Archivierung mit erhaltenem Bestand und Wert,
+serverseitig gesichertes Löschen ausschließlich unbenutzter Artikel sowie die
+Bereinigung privater Bilddateien. Vor der Umsetzung wird die schriftliche
+Spezifikation nochmals zur Durchsicht vorgelegt. Nach Freigabe dieser
+Spezifikation entstand der schrittweise Umsetzungsplan unter
+`docs/superpowers/plans/2026-09-24-unified-articles-management.md`.
+
+**Prüfung:** PR-Status nach dem Schließen bestätigt, Katalog-, Bestands- und
+Navigationscode sowie frühere Produktplanung gelesen. Aktuelle offizielle
+Shopify- und WooCommerce-Dokumentation sowie §§ 238, 240, 257 HGB und § 146 AO
+geprüft. Spezifikation und Umsetzungsplan auf Platzhalter, Widersprüche,
+Geltungsbereich und Testabdeckung sowie die Git-Unterschiede auf
+Leerraumfehler geprüft. Keine Anwendungstests, da nur Analyse, PR-Schließung
+und Dokumentation erfolgten.
+
+## 2026-09-24 – Juna – Projektstand und offene Punkte gesichtet
+
+**Auftrag:** Nach den heutigen Änderungen den aktuellen Projektstand abrufen und
+die Grundlage für ein Gespräch über offene Punkte schaffen.
+
+**Ergebnis:** `master` war beim Abruf mit `origin/master` identisch. Der letzte
+Merge (`#172`) steht auf `99137dfb` und ist als `v0.204.1` veröffentlicht. Die
+Produktionsbereitstellung und der öffentliche Check im zugehörigen CI-Lauf
+waren erfolgreich. Die heutigen Änderungen an Barcode- und KI-Fotosuche,
+Artikelerstellung, Einkauf und Statusfarben wurden anhand der Git-Historie und
+dieses Protokolls eingeordnet. Als mögliche Gesprächsthemen bleiben die
+Live-Prüfung des Authelia-E-Mail-Versands, die praktische Prüfung der neuen
+Suchwege und die Einordnung des älteren offenen PR `#58`. Die nähere Prüfung
+von `#58` zeigte: Der heutige Artikelwähler hat bereits klickbare Zeilen und
+eine sichtbare Auswahlmarkierung. Die vergrößerte Vorschau im gemeinsamen
+Artikelbild-Baustein fehlt weiterhin. Der PR ist mit `master` in Konflikt;
+sein eigener Vorschau-Button würde in der heutigen Button-Zeile ein
+verschachteltes Bedienelement erzeugen. Eine Übernahme braucht daher ein neues
+UI-Konzept und aktuelle Prüfungen.
+
+**Prüfung:** `git fetch`, `git pull --ff-only`, `git status`, Git-Historie,
+GitHub-Release und CI-Lauf geprüft. PR-Inhalt, heutigen UI-Code und einen
+virtuellen Git-Merge verglichen. Keine Anwendungstests ausgeführt, da kein
+Anwendungscode geändert wurde.
+
+## 2026-09-24 – Juna – KI-Fotosuche bei Artikelerstellung ergänzt
+
+**Auftrag:** Auf „Artikelübersicht → Artikel erstellen“ war nach dem Release nur
+„EAN scannen“ sichtbar; die neue KI-Fotosuche war dort nicht erreichbar.
+
+**Änderung:** Die Artikelübersicht öffnet `/catalog/new` mit einer eigenen
+Artikelseite. Dort ist für Plattformbetreiber nun „KI-Produktsuche mit Foto“
+direkt neben „EAN scannen“ verfügbar. Ein Etikettfoto kann ohne EAN gesucht
+werden. Belegte Webtreffer oder getrennt gekennzeichnete Etikettangaben können
+in das bearbeitbare Artikelformular übernommen werden. Eine unsicher gelesene
+Herstellerartikelnummer wird nicht als SKU gespeichert.
+
+**Prüfung:** 26 gezielte Angular-Tests, beide TypeScript-Prüfungen und der
+Angular-Produktionsbau bestanden. Die Tests decken Foto ohne EAN, die
+Übernahme eines belegten Treffers bis zur Artikelspeicherung und den getrennten
+Etikettvorschlag ab. ESLint, Prettier, Testsuite-Audit und die Prüfung der
+gemeinsamen Admin-Bausteine bestanden ebenfalls.
+
 ## 2026-09-24 – Juna – Foto- und Direktsuche der Barcode-KI verbessert
 
 **Auftrag:** Eine KI-Suche mit Etikettfoto zeigte trotz lesbarem JAKO-Aufkleber

@@ -49,7 +49,7 @@ export class StockService {
         this.supabase.client
           .from('stock_lots')
           .select(
-            '*, purchase:purchases!stock_lots_purchase_id_fkey(*), catalog_product:catalog_products!stock_lots_catalog_product_id_fkey(id, title, is_public_store)',
+            '*, purchase:purchases!stock_lots_purchase_id_fkey(*), catalog_product:catalog_products!stock_lots_catalog_product_id_fkey(id, title, is_public_store, archived_at)',
           )
           .eq('workspace_id', workspaceId)
           .order('received_at', { ascending: true })
@@ -132,12 +132,22 @@ export class StockService {
 
   private aggregateLots(
     lots: readonly unknown[],
-    products: readonly { id: string; title: string; is_public_store: boolean }[] = [],
+    products: readonly {
+      id: string;
+      title: string;
+      is_public_store: boolean;
+      archived_at?: string | null;
+    }[] = [],
   ): StockPosition[] {
     const positions = new Map<string, StockPosition>();
     for (const rawLot of lots) {
       const lot = rawLot as StockLot & {
-        catalog_product?: { id: string; title: string; is_public_store: boolean } | null;
+        catalog_product?: {
+          id: string;
+          title: string;
+          is_public_store: boolean;
+          archived_at?: string | null;
+        } | null;
       };
       if (lot.remaining_quantity <= 0) continue;
       const product =
@@ -154,6 +164,7 @@ export class StockService {
         oldest_available_unit_cost:
           existing?.oldest_available_unit_cost ?? (sellable ? lot.unit_cost : null),
         is_public_store: product?.is_public_store ?? existing?.is_public_store ?? false,
+        archived_at: product?.archived_at ?? existing?.archived_at ?? null,
       });
     }
     return [...positions.values()];

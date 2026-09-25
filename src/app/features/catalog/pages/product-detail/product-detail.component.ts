@@ -33,12 +33,12 @@ import { MediaService } from '../../../../core/services/media.service';
 import { StockService } from '../../../../core/services/stock.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { WorkspaceContextLockService } from '../../../../core/services/workspace-context-lock.service';
-import { ARTICLE_VIEWS } from '../../../../core/config/article-navigation';
-import { SectionNavigationComponent } from '../../../../shared/components/section-navigation/section-navigation.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { BrandPickerComponent } from '../../../../shared/components/brand-picker/brand-picker.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { CategoryPickerComponent } from '../../../../shared/components/category-picker/category-picker.component';
+import { ProductCategoryService } from '../../../../core/services/product-category.service';
+import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { PageHeaderComponent } from '../../../../shared/components/page-header/page-header.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
@@ -53,21 +53,31 @@ import {
   BarcodeLookupService,
   BarcodeProductInfo,
 } from '../../../../core/services/barcode-lookup.service';
+import {
+  BarcodeAiCandidate,
+  BarcodeAiLabelSuggestion,
+  BarcodeAiVisualSuggestion,
+  BarcodeAiLookupService,
+  BarcodeAiResult,
+} from '../../../../core/services/barcode-ai-lookup.service';
+import { PlatformOperatorService } from '../../../../core/services/platform-operator.service';
 import { BarcodeScannerComponent } from '../../../../shared/components/barcode-scanner/barcode-scanner.component';
-import { LucideScanBarcode } from '@lucide/angular';
+import { LucideExternalLink, LucideScanBarcode, LucideX } from '@lucide/angular';
 import { UnsavedEntryPage } from '../../../../shared/guards/unsaved-entry.guard';
 import { summarizeProductStock } from './product-detail-stock';
+import { PurchaseProductReturnService } from '../../../purchases/services/purchase-product-return.service';
+import { ProductSearchPhotoService } from '../../services/product-search-photo.service';
 
 @Component({
   selector: 'app-product-detail',
   imports: [
     DatePipe,
     ReactiveFormsModule,
-    SectionNavigationComponent,
     ButtonComponent,
     BrandPickerComponent,
     CardComponent,
     CategoryPickerComponent,
+    ModalShellComponent,
     PageHeaderComponent,
     TextFieldComponent,
     CustomCheckboxComponent,
@@ -93,16 +103,33 @@ export class ProductDetailComponent implements UnsavedEntryPage {
   readonly stock = inject(StockService);
   readonly media = inject(MediaService);
   private readonly barcodeLookup = inject(BarcodeLookupService);
+  private readonly barcodeAiLookup = inject(BarcodeAiLookupService);
+  private readonly productSearchPhotos = inject(ProductSearchPhotoService);
+  private readonly productCategories = inject(ProductCategoryService);
+  private readonly productReturn = inject(PurchaseProductReturnService);
+  readonly platformOperator = inject(PlatformOperatorService);
   readonly barcodeIcon = LucideScanBarcode;
+  readonly removePhotoIcon = LucideX;
+  readonly sourceIcon = LucideExternalLink;
   readonly barcodeScannerOpen = signal(false);
   readonly barcodeLoading = signal(false);
   readonly barcodeMessage = signal<string | null>(null);
   readonly barcodeSuggestion = signal<BarcodeProductInfo | null>(null);
   readonly existingBarcodeProduct = signal<CatalogProduct | null>(null);
+  readonly aiSearchOpen = signal(false);
+  readonly aiSearchEan = signal<string | null>(null);
+  readonly labelPhoto = signal<File | null>(null);
+  readonly labelPhotos = signal<readonly { file: File; previewUrl: string }[]>([]);
+  readonly photoProcessing = signal(false);
+  readonly aiLoading = signal(false);
+  readonly aiResult = signal<BarcodeAiResult | null>(null);
+  readonly aiError = signal<string | null>(null);
+  readonly aiMessage = signal<string | null>(null);
+  private aiRequestId = 0;
+  private photoSelectionId = 0;
   readonly categorySuggestion = signal<string | null>(null);
   readonly brandSuggestion = signal<string | null>(null);
   private barcodeRequestId = 0;
-  readonly articleViews = ARTICLE_VIEWS;
   private readonly params = toSignal(this.route.paramMap, {
     initialValue: this.route.snapshot.paramMap,
   });
@@ -113,6 +140,25 @@ export class ProductDetailComponent implements UnsavedEntryPage {
   private readonly createdId = signal<string | null>(null);
   readonly id = computed(() => this.routeId() ?? this.createdId());
   readonly creating = computed(() => !this.id());
+  readonly purchaseReturn = computed(() =>
+    this.productReturn.forCatalog(
+      this.query().get('purchaseReturn'),
+      this.workspace.currentWorkspace()?.id ?? null,
+    ),
+  );
+  readonly inventoryReturn = computed(() => this.query().get('returnTo') === 'inventory');
+  readonly backLink = computed(
+    () =>
+      this.purchaseReturn()?.returnUrl ??
+      (this.inventoryReturn() || this.stockView() ? '/inventory' : '/catalog'),
+  );
+  readonly backLabel = computed(() =>
+    this.purchaseReturn()
+      ? 'Zurück zum Einkauf'
+      : this.inventoryReturn()
+        ? 'Zurück zum Inventar'
+        : 'Zur Artikelliste',
+  );
   private readonly draftWorkspaceId = signal<string | null>(null);
   readonly stockView = computed(() => !!this.id() && this.query().get('view') === 'stock');
   readonly product = signal<CatalogProduct | null>(null);
@@ -230,6 +276,46 @@ export class ProductDetailComponent implements UnsavedEntryPage {
 
   constructor() {
     this.destroyRef.onDestroy(this.releaseWorkspaceLock);
+    this.destroyRef.onDestroy(() => this.clearLabelPhotos());
+    const routeState = this.document.defaultView?.history.state as
+      | {
+          initialProduct?: BarcodeProductInfo;
+          barcode?: string;
+          aiResult?: {
+            title?: string;
+            brand?: string;
+            model?: string;
+            category?: string;
+            suggestedEan?: string;
+            condition?: ItemCondition | null;
+            conditionNotes?: string;
+          };
+        }
+      | undefined;
+    const initialProduct =
+      routeState?.initialProduct ??
+      (routeState?.aiResult
+        ? {
+            title: routeState.aiResult.title ?? '',
+            ean: routeState.aiResult.suggestedEan ?? '',
+            brand: routeState.aiResult.brand,
+            category: routeState.aiResult.category,
+          }
+        : routeState?.barcode
+          ? { title: '', ean: routeState.barcode }
+          : undefined);
+    if (initialProduct && this.creating()) {
+      this.form.patchValue({
+        title: initialProduct.title,
+        ean: initialProduct.ean,
+        model: routeState?.aiResult?.model ?? '',
+        condition: routeState?.aiResult?.condition ?? '',
+        conditionNotes: routeState?.aiResult?.conditionNotes ?? '',
+      });
+      this.brandSuggestion.set(initialProduct.brand ?? null);
+      this.categorySuggestion.set(initialProduct.category ?? null);
+    }
+    void this.platformOperator.isOperator();
     effect(() => {
       const routeId = this.routeId();
       const workspaceId = this.workspace.currentWorkspace()?.id;
@@ -255,6 +341,13 @@ export class ProductDetailComponent implements UnsavedEntryPage {
     if (!this.creating()) return;
     const ean = normalizeGtin(code);
     const requestId = ++this.barcodeRequestId;
+    this.aiRequestId++;
+    this.aiLoading.set(false);
+    this.aiResult.set(null);
+    this.aiError.set(null);
+    this.aiMessage.set(null);
+    this.aiSearchEan.set(null);
+    this.clearLabelPhotos();
     this.barcodeSuggestion.set(null);
     this.existingBarcodeProduct.set(null);
     if (!ean) {
@@ -338,6 +431,248 @@ export class ProductDetailComponent implements UnsavedEntryPage {
     this.categorySuggestion.set(product.category ?? null);
     this.barcodeSuggestion.set(null);
     this.barcodeMessage.set('Produktdaten übernommen. Ergänze oder korrigiere die Angaben.');
+  }
+
+  toggleAiSearch(): void {
+    if (!this.creating()) return;
+    if (this.aiSearchOpen()) {
+      this.aiSearchOpen.set(false);
+      this.aiRequestId++;
+      this.photoSelectionId++;
+      this.aiLoading.set(false);
+      this.photoProcessing.set(false);
+      this.clearLabelPhotos();
+      return;
+    }
+    ++this.barcodeRequestId;
+    this.barcodeLoading.set(false);
+    this.barcodeScannerOpen.set(false);
+    this.aiSearchOpen.set(true);
+    this.aiResult.set(null);
+    this.aiError.set(null);
+    this.aiMessage.set(null);
+  }
+
+  async selectLabelPhoto(event: Event): Promise<void> {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) return;
+    const photos = [...(target.files ?? [])];
+    target.value = '';
+    if (!photos.length || !this.aiSearchOpen() || this.aiLoading() || this.photoProcessing())
+      return;
+    if (photos.length + this.labelPhotos().length > 5) {
+      this.aiError.set('Bitte höchstens fünf Fotos hinzufügen.');
+      return;
+    }
+    const selectionId = ++this.photoSelectionId;
+    this.photoProcessing.set(true);
+    this.aiResult.set(null);
+    this.aiError.set(null);
+    this.aiMessage.set(null);
+    try {
+      const prepared: File[] = [];
+      for (const photo of photos) {
+        prepared.push(await this.productSearchPhotos.prepare(photo));
+        if (selectionId !== this.photoSelectionId || this.destroyRef.destroyed) return;
+      }
+      if (
+        [...this.labelPhotos().map((entry) => entry.file), ...prepared].reduce(
+          (total, photo) => total + photo.size,
+          0,
+        ) > 15_000_000
+      ) {
+        throw new Error('Alle Fotos zusammen dürfen höchstens 15 MB groß sein.');
+      }
+      const next = [
+        ...this.labelPhotos(),
+        ...prepared.map((file) => ({
+          file,
+          previewUrl: typeof URL.createObjectURL === 'function' ? URL.createObjectURL(file) : '',
+        })),
+      ];
+      this.labelPhotos.set(next);
+      this.labelPhoto.set(next[0]?.file ?? null);
+    } catch (error: unknown) {
+      if (selectionId !== this.photoSelectionId || this.destroyRef.destroyed) return;
+      this.aiError.set(
+        error instanceof Error
+          ? error.message
+          : 'Ein Foto konnte nicht verkleinert werden. Bitte versuche ein anderes Bild.',
+      );
+    } finally {
+      if (selectionId === this.photoSelectionId && !this.destroyRef.destroyed)
+        this.photoProcessing.set(false);
+    }
+  }
+
+  removeLabelPhoto(index: number): void {
+    if (this.aiLoading() || this.photoProcessing()) return;
+    const current = this.labelPhotos();
+    const removed = current[index];
+    if (removed?.previewUrl) URL.revokeObjectURL(removed.previewUrl);
+    const next = current.filter((_, photoIndex) => photoIndex !== index);
+    this.labelPhotos.set(next);
+    this.labelPhoto.set(next[0]?.file ?? null);
+    this.aiResult.set(null);
+    this.aiMessage.set(null);
+  }
+
+  private clearLabelPhotos(): void {
+    for (const photo of this.labelPhotos())
+      if (photo.previewUrl) URL.revokeObjectURL(photo.previewUrl);
+    this.labelPhotos.set([]);
+    this.labelPhoto.set(null);
+  }
+
+  async searchWithAi(): Promise<void> {
+    if (!this.creating() || !this.aiSearchOpen() || this.aiLoading() || this.photoProcessing())
+      return;
+    const enteredEan = this.form.controls.ean.value.trim();
+    const ean = enteredEan ? normalizeGtin(enteredEan) : '';
+    const photos = this.labelPhotos().map((entry) => entry.file);
+    if (ean === null) {
+      this.form.controls.ean.markAsTouched();
+      this.aiError.set('Bitte die ungültige EAN korrigieren oder entfernen.');
+      return;
+    }
+    if (!ean && photos.length === 0) return;
+    const requestId = ++this.aiRequestId;
+    const workspaceId = this.workspace.currentWorkspace()?.id;
+    this.form.controls.ean.setValue(ean);
+    this.aiSearchEan.set(ean);
+    this.aiLoading.set(true);
+    this.aiResult.set(null);
+    this.aiError.set(null);
+    this.aiMessage.set(null);
+    try {
+      if (!(await this.platformOperator.isOperator())) return;
+      const result = await this.barcodeAiLookup.search(ean, photos);
+      if (
+        requestId !== this.aiRequestId ||
+        workspaceId !== this.workspace.currentWorkspace()?.id ||
+        this.form.controls.ean.value !== ean
+      )
+        return;
+      this.aiResult.set(result);
+      this.aiMessage.set(
+        (result.processedPhotoCount ?? photos.length) < photos.length
+          ? 'Der Server hat nur das erste Foto verarbeitet. Die Suche mit allen Fotos ist erst nach dem Update der Serverfunktion verfügbar. Prüfe diesen Vorschlag besonders sorgfältig.'
+          : result.candidates.length
+            ? null
+            : result.labelSuggestion || result.visualSuggestion
+              ? null
+              : photos.length
+                ? 'Kein Treffer. Versuche ein Foto mit lesbarer Marke oder Modellnummer.'
+                : 'Kein Treffer. Versuche ein Produktfoto.',
+      );
+    } catch (error: unknown) {
+      if (requestId !== this.aiRequestId || workspaceId !== this.workspace.currentWorkspace()?.id)
+        return;
+      this.aiError.set(
+        error instanceof Error ? error.message : 'Die KI-Suche ist gerade nicht verfügbar.',
+      );
+    } finally {
+      if (requestId === this.aiRequestId) this.aiLoading.set(false);
+    }
+  }
+
+  useAiSuggestion(candidate: BarcodeAiCandidate): void {
+    if (
+      this.form.controls.ean.value !== this.aiSearchEan() ||
+      !this.aiResult()?.candidates.includes(candidate)
+    )
+      return;
+    this.form.patchValue({
+      title: candidate.title,
+      model: candidate.model,
+      size: candidate.size,
+      color: candidate.color,
+    });
+    this.brandSuggestion.set(candidate.brand || null);
+    this.categorySuggestion.set(candidate.category || null);
+    void this.matchCategory(candidate.category);
+    this.aiResult.set(null);
+    this.aiMessage.set('Vorschlag übernommen. Bitte prüfe und ergänze die Angaben.');
+    this.toggleAiSearch();
+  }
+
+  useAiLabelSuggestion(suggestion: BarcodeAiLabelSuggestion): void {
+    if (
+      this.form.controls.ean.value !== this.aiSearchEan() ||
+      this.aiResult()?.labelSuggestion !== suggestion
+    )
+      return;
+    this.form.patchValue({
+      title: suggestion.title,
+      model: suggestion.model,
+      size: suggestion.size,
+      color: suggestion.color,
+    });
+    this.brandSuggestion.set(suggestion.brand || null);
+    this.categorySuggestion.set(suggestion.category || null);
+    void this.matchCategory(suggestion.category);
+    this.aiResult.set(null);
+    this.aiMessage.set('Etikettangaben übernommen. Bitte prüfe und ergänze sie.');
+    this.toggleAiSearch();
+  }
+
+  useAiVisualSuggestion(suggestion: BarcodeAiVisualSuggestion): void {
+    if (
+      this.form.controls.ean.value !== this.aiSearchEan() ||
+      this.aiResult()?.visualSuggestion !== suggestion
+    )
+      return;
+    this.form.patchValue({
+      title: suggestion.title,
+      model: suggestion.model,
+      size: suggestion.size,
+      color: suggestion.color,
+    });
+    this.brandSuggestion.set(suggestion.brand || null);
+    this.categorySuggestion.set(suggestion.category || null);
+    void this.matchCategory(suggestion.category);
+    this.aiResult.set(null);
+    this.aiMessage.set(
+      'Fotovorschlag übernommen. Bitte prüfe die Erkennung und ergänze die Angaben.',
+    );
+    this.toggleAiSearch();
+  }
+
+  private async matchCategory(suggestedName: string): Promise<void> {
+    const name = suggestedName.trim();
+    if (!name) return;
+    try {
+      const matches = await this.productCategories.search(name);
+      const exact = matches.categories.filter(
+        (category) =>
+          category.fullName.localeCompare(name, 'de', { sensitivity: 'base' }) === 0 ||
+          category.name.localeCompare(name, 'de', { sensitivity: 'base' }) === 0,
+      );
+      if (exact.length === 1 && !this.form.controls.categoryId.value)
+        this.form.controls.categoryId.setValue(exact[0].id);
+    } catch {
+      // Der Vorschlag bleibt im vorhandenen Kategorie-Picker sichtbar.
+    }
+  }
+
+  formatCents(amountUsd: number): string {
+    return (amountUsd * 100).toLocaleString('de-DE', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  }
+
+  formatPhotoSize(sizeBytes: number): string {
+    if (sizeBytes < 1_000_000) return `${Math.max(1, Math.round(sizeBytes / 1000))} KB`;
+    return `${(sizeBytes / 1_000_000).toLocaleString('de-DE', { maximumFractionDigits: 1 })} MB`;
+  }
+
+  sourceName(sourceUrl: string): string {
+    try {
+      return new URL(sourceUrl).hostname.replace(/^www\./iu, '') || 'Produktseite';
+    } catch {
+      return 'Produktseite';
+    }
   }
 
   hasUnsavedChanges(): boolean {
@@ -523,6 +858,14 @@ export class ProductDetailComponent implements UnsavedEntryPage {
     this.barcodeMessage.set(null);
     this.barcodeSuggestion.set(null);
     this.existingBarcodeProduct.set(null);
+    this.aiRequestId++;
+    this.aiSearchOpen.set(false);
+    this.aiSearchEan.set(null);
+    this.clearLabelPhotos();
+    this.aiLoading.set(false);
+    this.aiResult.set(null);
+    this.aiError.set(null);
+    this.aiMessage.set(null);
     this.brandSuggestion.set(null);
     this.categorySuggestion.set(null);
     const product = this.product();
@@ -660,7 +1003,15 @@ export class ProductDetailComponent implements UnsavedEntryPage {
         !this.hasUnsavedChanges()
       ) {
         this.allowSavedNavigation = true;
-        await this.router.navigate(['/catalog', id], { replaceUrl: true });
+        const purchaseReturn = this.purchaseReturn();
+        if (purchaseReturn) {
+          this.productReturn.setCreatedProduct(purchaseReturn.token, id);
+          await this.router.navigateByUrl(purchaseReturn.returnUrl, { replaceUrl: true });
+        } else if (this.inventoryReturn()) {
+          await this.router.navigate(['/inventory'], { replaceUrl: true });
+        } else {
+          await this.router.navigate(['/catalog', id], { replaceUrl: true });
+        }
       }
     } catch (error: unknown) {
       if (request === this.requestId && this.draftWorkspaceId() === workspaceId)

@@ -28,6 +28,14 @@
       Die Erweiterung öffnet Kleinanzeigen. Sie veröffentlicht kein Inserat ohne deinen letzten
       Schritt auf der Plattform.
     </p>
+    @if (available()) {
+      <p role="status" class="text-sm text-fb-success">Erweiterung erkannt.</p>
+    } @else if (attempted() && !checking()) {
+      <p role="status" class="text-sm text-fb-critical">
+        Keine Verbindung erkannt. Prüfe, ob die Erweiterung aktiviert ist und diese Seite neu
+        geladen wurde.
+      </p>
+    }
 
     <app-button modal-footer variant="secondary" (clicked)="closeRequested.emit()">
       Schließen

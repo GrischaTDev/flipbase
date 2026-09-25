@@ -74,14 +74,9 @@
             <span>Bearbeiten</span>
           </button>
 
-          <button
-            type="button"
-            (click)="onDeleteItem()"
-            class="p-1.5 rounded-lg text-fb-text-muted hover:text-rose-400 hover:bg-rose-500/10 text-xs font-semibold transition cursor-pointer"
-            title="Artikel löschen"
-          >
-            <svg [lucideIcon]="trashIcon" aria-hidden="true" class="w-3.5 h-3.5"></svg>
-          </button>
+          @if (canOfferDelete(actionItem)) {
+            <app-button variant="ghost" size="slim" (clicked)="onDeleteItem()">Löschen</app-button>
+          }
         }
       }
     </div>

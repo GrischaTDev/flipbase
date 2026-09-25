@@ -434,6 +434,23 @@ export class MediaService {
   ): Promise<{ data: ItemMedia | null; error: Error | null }> {
     const cleanFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
     const storagePath = `${itemId}/${Date.now()}_${cleanFileName}`;
+    const removeFailedUpload = async (failure: Error): Promise<Error> => {
+      try {
+        const { error } = await this.supabase.client.storage
+          .from('item-media')
+          .remove([storagePath]);
+        if (error) throw error;
+        return failure;
+      } catch (error: unknown) {
+        return this.melde(
+          'Aufräumen des fehlgeschlagenen Bilduploads',
+          new Error(
+            `${failure.message} Nicht entfernt: ${storagePath}. ${error instanceof Error ? error.message : String(error)}`,
+          ),
+          fehlerAktion,
+        );
+      }
+    };
 
     return new Promise((resolve) => {
       const reader = new FileReader();
@@ -446,12 +463,13 @@ export class MediaService {
         // nichts auf, also war das Bild nach dem naechsten Laden weg, ohne dass
         // irgendwo ein Hinweis auftauchte. Bei Artikelfotos ist das verlorene
         // Arbeit.
+        let uploaded = false;
         try {
           const { error: uploadError } = await this.supabase.client.storage
             .from('item-media')
             .upload(storagePath, file, {
               contentType: file.type,
-              upsert: true,
+              upsert: false,
             });
 
           if (uploadError) {
@@ -461,6 +479,7 @@ export class MediaService {
             });
             return;
           }
+          uploaded = true;
 
           {
             if (isPrimary) {
@@ -469,13 +488,14 @@ export class MediaService {
                 .update({ is_primary: false })
                 .eq('inventory_item_id', itemId);
               if (hauptbildResetFehler) {
+                const failure = this.melde(
+                  'Zurücksetzen des bisherigen Hauptbilds',
+                  hauptbildResetFehler,
+                  fehlerAktion,
+                );
                 resolve({
                   data: null,
-                  error: this.melde(
-                    'Zurücksetzen des bisherigen Hauptbilds',
-                    hauptbildResetFehler,
-                    fehlerAktion,
-                  ),
+                  error: await removeFailedUpload(failure),
                 });
                 return;
               }
@@ -495,19 +515,22 @@ export class MediaService {
               .single();
 
             if (dbError || !inserted) {
+              const failure = this.melde('Speichern des Bildeintrags', dbError, fehlerAktion);
               resolve({
                 data: null,
-                error: this.melde('Speichern des Bildeintrags', dbError, fehlerAktion),
+                error: await removeFailedUpload(failure),
               });
               return;
             }
 
+            uploaded = false;
             const cloudMedia = inserted as ItemMedia;
             resolve({ data: cloudMedia, error: null });
             return;
           }
         } catch (e: unknown) {
-          resolve({ data: null, error: this.melde('Hochladen des Bildes', e, fehlerAktion) });
+          const failure = this.melde('Hochladen des Bildes', e, fehlerAktion);
+          resolve({ data: null, error: uploaded ? await removeFailedUpload(failure) : failure });
           return;
         }
       };

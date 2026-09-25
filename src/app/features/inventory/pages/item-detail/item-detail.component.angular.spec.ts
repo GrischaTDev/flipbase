@@ -561,6 +561,12 @@ describe('ItemDetailComponent', () => {
         });
       });
 
+      it('zeigt Löschen nicht für reservierte oder öffentlich angebotene Stücke an', () => {
+        const { komponente } = erstelleKomponente();
+        expect(komponente.canOfferDelete({ ...artikel, status: 'reserved' })).toBe(false);
+        expect(komponente.canOfferDelete({ ...artikel, is_public_store: true })).toBe(false);
+      });
+
       it('navigiert erst nach erfolgreichem Löschen und bestätigt die Aktion', async () => {
         const { komponente, toast, navigate } = erstelleKomponente();
 

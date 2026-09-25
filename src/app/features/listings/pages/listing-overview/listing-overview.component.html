@@ -1,8 +1,9 @@
 <app-page-header
   title="Inserate"
+  [icon]="pageIcon"
   subtitle="Gespeicherte Kleinanzeigen-Inserate und ihr aktueller Status."
 >
-  <app-button header-actions variant="primary" size="lg" [link]="'/listings/new'" [icon]="addIcon"
+  <app-button header-actions variant="primary" size="md" [link]="'/listings/new'" [icon]="addIcon"
     >Inserat erstellen</app-button
   >
 </app-page-header>
@@ -23,37 +24,17 @@
   "
   (searchValueChange)="search.set($event)"
 >
-  <div table-view class="flex gap-1">
-    <app-button
-      size="slim"
-      [variant]="filter() === 'open' ? 'secondary' : 'ghost'"
-      (clicked)="filter.set('open')"
-      >Offen</app-button
-    >
-    <app-button
-      size="slim"
-      [variant]="filter() === 'online' ? 'secondary' : 'ghost'"
-      (clicked)="filter.set('online')"
-      >Online</app-button
-    >
-    <app-button
-      size="slim"
-      [variant]="filter() === 'ended' ? 'secondary' : 'ghost'"
-      (clicked)="filter.set('ended')"
-      >Beendet</app-button
-    >
-    <app-button
-      size="slim"
-      [variant]="filter() === 'all' ? 'secondary' : 'ghost'"
-      (clicked)="filter.set('all')"
-      >Alle</app-button
-    >
+  <div table-view class="w-32">
+    <app-custom-select
+      variant="toolbar"
+      ariaLabel="Inseratsansicht"
+      [options]="filterOptions"
+      [value]="filter()"
+      (valueChange)="filter.set($event ?? 'all')"
+    />
   </div>
   <app-button table-error-action class="mt-3" variant="secondary" (clicked)="retry()"
     >Erneut versuchen</app-button
-  >
-  <app-button table-empty-action class="mt-3" variant="primary" [link]="'/listings/new'"
-    >Inserat erstellen</app-button
   >
   <div table-content class="hidden overflow-x-auto md:block">
     <table class="min-w-full text-left text-[13px]">
@@ -103,28 +84,31 @@
                 @if (row.listing.status === 'prepared') {
                   <app-button
                     ariaLabel="Inserat online setzen"
-                    [iconOnly]="true"
+                    size="slim"
                     [icon]="onlineIcon"
                     (clicked)="setOnline(row)"
                     [loading]="actionListingId() === row.listing.id"
-                  ></app-button>
+                    >Online setzen</app-button
+                  >
                 }
-                @if (row.listing.status !== 'ended') {
+                @if (row.listing.status === 'prepared') {
                   <app-button
                     ariaLabel="Inserat bei Kleinanzeigen öffnen"
-                    [iconOnly]="true"
-                    [icon]="relistIcon"
+                    size="slim"
+                    [icon]="openIcon"
                     (clicked)="openAgain(row)"
-                  ></app-button>
+                    >Öffnen</app-button
+                  >
                 }
                 @if (canRelist(row)) {
                   <app-button
                     ariaLabel="Inserat erneut einstellen"
-                    [iconOnly]="true"
+                    size="slim"
                     [icon]="relistIcon"
                     (clicked)="relist(row)"
                     [loading]="actionListingId() === row.listing.id"
-                  ></app-button>
+                    >Erneut inserieren</app-button
+                  >
                 }
                 @if (isSoldCleanup(row)) {
                   <span class="text-xs text-fb-text-muted">Nach Verkauf beendet</span>
@@ -190,28 +174,31 @@
           @if (row.listing.status === 'prepared') {
             <app-button
               ariaLabel="Inserat online setzen"
-              [iconOnly]="true"
+              size="slim"
               [icon]="onlineIcon"
               (clicked)="setOnline(row)"
               [loading]="actionListingId() === row.listing.id"
-            ></app-button>
+              >Online setzen</app-button
+            >
           }
-          @if (row.listing.status !== 'ended') {
+          @if (row.listing.status === 'prepared') {
             <app-button
               ariaLabel="Inserat bei Kleinanzeigen öffnen"
-              [iconOnly]="true"
-              [icon]="relistIcon"
+              size="slim"
+              [icon]="openIcon"
               (clicked)="openAgain(row)"
-            ></app-button>
+              >Öffnen</app-button
+            >
           }
           @if (canRelist(row)) {
             <app-button
               ariaLabel="Inserat erneut einstellen"
-              [iconOnly]="true"
+              size="slim"
               [icon]="relistIcon"
               (clicked)="relist(row)"
               [loading]="actionListingId() === row.listing.id"
-            ></app-button>
+              >Erneut inserieren</app-button
+            >
           }
           @if (isSoldCleanup(row)) {
             <span class="self-center text-xs text-fb-text-muted">Nach Verkauf beendet</span>
@@ -240,6 +227,8 @@
 <app-listing-extension-help
   [open]="helpOpen()"
   [checking]="extension.checking()"
-  (closeRequested)="helpOpen.set(false)"
-  (checkRequested)="extension.checkNow()"
+  [available]="extension.available()"
+  [attempted]="connectionAttempted()"
+  (closeRequested)="closeHelp()"
+  (checkRequested)="checkConnection()"
 />

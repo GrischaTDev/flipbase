@@ -124,6 +124,56 @@ export type Database = {
           },
         ]
       }
+      article_media_cleanup_jobs: {
+        Row: {
+          article_id: string
+          article_kind: string
+          attempt_count: number
+          bucket_id: string
+          completed_at: string | null
+          created_at: string
+          id: number
+          last_error: string | null
+          next_attempt_at: string
+          storage_path: string
+          workspace_id: string
+        }
+        Insert: {
+          article_id: string
+          article_kind: string
+          attempt_count?: number
+          bucket_id?: string
+          completed_at?: string | null
+          created_at?: string
+          id?: never
+          last_error?: string | null
+          next_attempt_at?: string
+          storage_path: string
+          workspace_id: string
+        }
+        Update: {
+          article_id?: string
+          article_kind?: string
+          attempt_count?: number
+          bucket_id?: string
+          completed_at?: string | null
+          created_at?: string
+          id?: never
+          last_error?: string | null
+          next_attempt_at?: string
+          storage_path?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "article_media_cleanup_jobs_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bank_transactions: {
         Row: {
           amount: number
@@ -535,6 +585,8 @@ export type Database = {
       }
       catalog_products: {
         Row: {
+          archived_at: string | null
+          archived_by: string | null
           brand: string | null
           brand_id: string | null
           category: string | null
@@ -561,6 +613,8 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          archived_at?: string | null
+          archived_by?: string | null
           brand?: string | null
           brand_id?: string | null
           category?: string | null
@@ -587,6 +641,8 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          archived_at?: string | null
+          archived_by?: string | null
           brand?: string | null
           brand_id?: string | null
           category?: string | null
@@ -1364,14 +1420,54 @@ export type Database = {
           },
         ]
       }
+      listing_images: {
+        Row: {
+          created_at: string
+          file_name: string | null
+          id: string
+          listing_id: string
+          sort_order: number
+          storage_path: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          file_name?: string | null
+          id?: string
+          listing_id: string
+          sort_order: number
+          storage_path: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string | null
+          id?: string
+          listing_id?: string
+          sort_order?: number
+          storage_path?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "listing_images_listing_fkey"
+            columns: ["workspace_id", "listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["workspace_id", "id"]
+          },
+        ]
+      }
       listings: {
         Row: {
+          catalog_product_id: string | null
           created_at: string
           description: string
           end_reason: string | null
           ended_at: string | null
           id: string
-          inventory_item_id: string
+          image_selection_saved: boolean
+          inventory_item_id: string | null
           last_listed_at: string | null
           listed_count: number
           online_since: string | null
@@ -1387,12 +1483,14 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          catalog_product_id?: string | null
           created_at?: string
           description: string
           end_reason?: string | null
           ended_at?: string | null
           id?: string
-          inventory_item_id: string
+          image_selection_saved?: boolean
+          inventory_item_id?: string | null
           last_listed_at?: string | null
           listed_count?: number
           online_since?: string | null
@@ -1408,12 +1506,14 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          catalog_product_id?: string | null
           created_at?: string
           description?: string
           end_reason?: string | null
           ended_at?: string | null
           id?: string
-          inventory_item_id?: string
+          image_selection_saved?: boolean
+          inventory_item_id?: string | null
           last_listed_at?: string | null
           listed_count?: number
           online_since?: string | null
@@ -1429,6 +1529,13 @@ export type Database = {
           workspace_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "listings_catalog_product_workspace_fkey"
+            columns: ["workspace_id", "catalog_product_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_products"
+            referencedColumns: ["workspace_id", "id"]
+          },
           {
             foreignKeyName: "listings_item_workspace_fkey"
             columns: ["workspace_id", "inventory_item_id"]
@@ -4579,15 +4686,24 @@ export type Database = {
         Args: { p_id: string; p_workspace_id: string }
         Returns: undefined
       }
+      delete_unused_article: {
+        Args: {
+          p_article_id: string
+          p_article_kind: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       end_listing: {
         Args: { p_listing_id: string; p_workspace_id: string }
         Returns: {
+          catalog_product_id: string | null
           created_at: string
           description: string
           end_reason: string | null
           ended_at: string | null
           id: string
-          inventory_item_id: string
+          inventory_item_id: string | null
           last_listed_at: string | null
           listed_count: number
           online_since: string | null
@@ -4802,17 +4918,19 @@ export type Database = {
       }
       prepare_listing: {
         Args: {
-          p_content: Json
-          p_inventory_item_id: string
+          p_catalog_product_id?: string
+          p_content?: Json
+          p_inventory_item_id?: string
           p_workspace_id: string
         }
         Returns: {
+          catalog_product_id: string | null
           created_at: string
           description: string
           end_reason: string | null
           ended_at: string | null
           id: string
-          inventory_item_id: string
+          inventory_item_id: string | null
           last_listed_at: string | null
           listed_count: number
           online_since: string | null
@@ -5093,6 +5211,47 @@ export type Database = {
         Args: { p_workspace_id: string }
         Returns: undefined
       }
+      set_catalog_product_archived: {
+        Args: {
+          p_archived: boolean
+          p_product_id: string
+          p_workspace_id: string
+        }
+        Returns: {
+          archived_at: string | null
+          archived_by: string | null
+          brand: string | null
+          brand_id: string | null
+          category: string | null
+          category_id: string | null
+          color: string | null
+          condition: string | null
+          condition_notes: string | null
+          created_at: string
+          description: string | null
+          ean: string | null
+          id: string
+          is_public_store: boolean
+          listing_price: number | null
+          material: string | null
+          model: string | null
+          seo_description: string | null
+          seo_title: string | null
+          size: string | null
+          sku: string | null
+          title: string
+          tracking_mode: string
+          updated_at: string
+          url_handle: string | null
+          workspace_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "catalog_products"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       set_inventory_item_archived: {
         Args: { p_archived: boolean; p_item_id: string; p_workspace_id: string }
         Returns: {
@@ -5136,12 +5295,13 @@ export type Database = {
       set_listing_online: {
         Args: { p_listing_id: string; p_workspace_id: string }
         Returns: {
+          catalog_product_id: string | null
           created_at: string
           description: string
           end_reason: string | null
           ended_at: string | null
           id: string
-          inventory_item_id: string
+          inventory_item_id: string | null
           last_listed_at: string | null
           listed_count: number
           online_since: string | null

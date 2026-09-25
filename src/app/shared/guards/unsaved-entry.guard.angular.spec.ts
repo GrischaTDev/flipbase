@@ -1,8 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { unsavedEntryGuard, type UnsavedEntryPage } from './unsaved-entry.guard';
 
-function invokeGuard(component: UnsavedEntryPage): boolean {
-  return unsavedEntryGuard(component, {} as never, {} as never, {} as never) as boolean;
+function invokeGuard(component: UnsavedEntryPage, nextUrl?: string): boolean {
+  return unsavedEntryGuard(
+    component,
+    {} as never,
+    {} as never,
+    { url: nextUrl } as never,
+  ) as boolean;
 }
 
 describe('unsavedEntryGuard', () => {
@@ -19,6 +24,18 @@ describe('unsavedEntryGuard', () => {
     const confirm = vi.spyOn(globalThis, 'confirm').mockReturnValue(false);
 
     expect(invokeGuard({ hasUnsavedChanges: () => true, isSaving: () => false })).toBe(false);
+    expect(confirm).toHaveBeenCalledOnce();
+  });
+
+  it('erlaubt nur den ausdrücklich gesicherten Wechsel zur Artikelerstellung', () => {
+    const confirm = vi.spyOn(globalThis, 'confirm').mockReturnValue(false);
+    const component: UnsavedEntryPage = {
+      hasUnsavedChanges: () => true,
+      isSaving: () => false,
+      canNavigateTo: (url) => url === '/catalog/new?purchaseReturn=abc',
+    };
+    expect(invokeGuard(component, '/catalog/new?purchaseReturn=abc')).toBe(true);
+    expect(invokeGuard(component, '/catalog/new')).toBe(false);
     expect(confirm).toHaveBeenCalledOnce();
   });
 

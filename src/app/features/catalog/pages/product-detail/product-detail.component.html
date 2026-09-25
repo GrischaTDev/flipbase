@@ -1,9 +1,8 @@
 <div class="mx-auto max-w-6xl space-y-4">
-  <app-section-navigation [links]="articleViews" label="Artikelansichten" />
   <app-page-header
     [title]="creating() ? 'Artikel erstellen' : product()?.title || 'Artikel'"
-    [backLink]="stockView() ? '/inventory' : '/catalog'"
-    backLabel="Zur Artikelliste"
+    [backLink]="backLink()"
+    [backLabel]="backLabel()"
   >
     @if (product() || creating()) {
       <div header-actions class="flex flex-wrap items-center gap-2">
@@ -14,6 +13,11 @@
             (clicked)="barcodeScannerOpen.set(true)"
             >EAN scannen</app-button
           >
+          @if (platformOperator.operator()) {
+            <app-button variant="secondary" (clicked)="toggleAiSearch()"
+              >KI-Produktsuche mit Foto</app-button
+            >
+          }
         }
         @if (hasUnsavedChanges()) {
           <span class="text-[13px] text-fb-text-muted">Nicht gespeicherte Änderungen</span>
@@ -59,6 +63,216 @@
     }
     @if (barcodeMessage(); as message) {
       <p role="status" class="text-[13px]">{{ message }}</p>
+    }
+    @if (creating() && platformOperator.operator() && aiSearchOpen()) {
+      <app-modal-shell
+        title="KI-Produktsuche mit Foto"
+        subtitle="Zeige Karton, Etikett und Artikel aus mehreren Blickwinkeln."
+        size="xl"
+        (closed)="toggleAiSearch()"
+      >
+        <div class="space-y-3 text-[13px]">
+          <div class="rounded-lg border border-dashed border-fb-border bg-fb-subtle p-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <p class="text-fb-text-muted">
+                Bis zu 5 Fotos · JPG, PNG oder WebP · max. 5 MB nach Verkleinerung
+              </p>
+              <div class="flex flex-wrap gap-2">
+                <app-button
+                  variant="secondary"
+                  [disabled]="aiLoading() || photoProcessing() || labelPhotos().length >= 5"
+                  (clicked)="labelPhotoInput.click()"
+                  >Fotos auswählen</app-button
+                >
+                <app-button
+                  variant="secondary"
+                  [disabled]="aiLoading() || photoProcessing() || labelPhotos().length >= 5"
+                  (clicked)="cameraPhotoInput.click()"
+                  >Foto aufnehmen</app-button
+                >
+              </div>
+            </div>
+            <input
+              #labelPhotoInput
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              multiple
+              class="sr-only"
+              tabindex="-1"
+              aria-hidden="true"
+              data-shared-ui-exception="native-file-picker"
+              (change)="selectLabelPhoto($event)"
+            />
+            <input
+              #cameraPhotoInput
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              capture="environment"
+              class="sr-only"
+              tabindex="-1"
+              aria-hidden="true"
+              data-shared-ui-exception="native-file-picker"
+              (change)="selectLabelPhoto($event)"
+            />
+            @if (labelPhotos().length) {
+              <div class="mt-3 flex flex-wrap gap-2" role="group" aria-label="Ausgewählte Fotos">
+                @for (photo of labelPhotos(); track photo.file; let index = $index) {
+                  <div class="relative shrink-0 p-1">
+                    @if (photo.previewUrl) {
+                      <img
+                        [src]="photo.previewUrl"
+                        [alt]="'Vorschau: ' + photo.file.name"
+                        class="size-20 rounded-lg border border-fb-border bg-fb-surface object-contain sm:size-24"
+                      />
+                    }
+                    <span
+                      class="absolute bottom-2 right-2 rounded bg-black/75 px-1.5 py-0.5 text-[11px] font-medium text-white"
+                    >
+                      {{ formatPhotoSize(photo.file.size) }}
+                    </span>
+                    <app-button
+                      class="absolute right-0 top-0"
+                      variant="destructive"
+                      size="slim"
+                      [icon]="removePhotoIcon"
+                      [iconOnly]="true"
+                      [disabled]="aiLoading() || photoProcessing()"
+                      [ariaLabel]="'Foto ' + photo.file.name + ' entfernen'"
+                      (clicked)="removeLabelPhoto(index)"
+                    />
+                  </div>
+                }
+              </div>
+            }
+          </div>
+          <p class="sr-only" role="status">{{ labelPhotos().length }} von 5 Fotos ausgewählt</p>
+          @if (photoProcessing()) {
+            <p class="text-fb-text-muted" role="status">Fotos werden verkleinert …</p>
+          }
+          @if (aiError(); as error) {
+            <p class="text-fb-critical" role="alert">{{ error }}</p>
+          }
+          @if (aiMessage(); as message) {
+            <p class="text-fb-text-muted" role="status">{{ message }}</p>
+          }
+          @if (aiResult(); as result) {
+            <div class="space-y-2 border-t border-fb-border pt-3">
+              <p class="text-right text-fb-text-muted">
+                Suchpreis: ca. {{ formatCents(result.usage.estimatedCostUsd) }} US-Cent
+              </p>
+              @for (candidate of result.candidates; track $index) {
+                <div class="rounded-lg border border-fb-border bg-fb-subtle p-3">
+                  <div class="flex flex-wrap items-start justify-between gap-2">
+                    <p class="font-semibold">{{ candidate.title }}</p>
+                    <app-button
+                      class="max-w-[12rem]"
+                      variant="secondary"
+                      size="slim"
+                      [href]="candidate.sourceUrl"
+                      target="_blank"
+                      [icon]="sourceIcon"
+                      iconPosition="end"
+                      [ariaLabel]="'Quelle ' + sourceName(candidate.sourceUrl) + ' öffnen'"
+                      [title]="sourceName(candidate.sourceUrl)"
+                      >{{ sourceName(candidate.sourceUrl) }}</app-button
+                    >
+                  </div>
+                  <div class="mt-2 flex flex-wrap items-center justify-between gap-2">
+                    <p class="flex flex-wrap gap-x-3 gap-y-1 text-fb-text-muted">
+                      @if (candidate.color) {
+                        <span>{{ candidate.color }}</span>
+                      }
+                      @if (candidate.size) {
+                        <span>EU {{ candidate.size }}</span>
+                      }
+                      @if (candidate.category) {
+                        <span>{{ candidate.category }}</span>
+                      }
+                    </p>
+                    <app-button
+                      variant="secondary"
+                      size="slim"
+                      (clicked)="useAiSuggestion(candidate)"
+                      >Übernehmen</app-button
+                    >
+                  </div>
+                </div>
+              } @empty {
+                @if (result.labelSuggestion; as label) {
+                  <div class="rounded-lg border border-fb-border bg-fb-subtle p-3">
+                    <div class="flex flex-wrap items-start justify-between gap-2">
+                      <p class="font-semibold">{{ label.title }}</p>
+                      <p class="text-fb-text-muted">Etikett · ohne Webbeleg</p>
+                    </div>
+                    <div class="mt-2 flex flex-wrap items-center justify-between gap-2">
+                      <p class="flex flex-wrap gap-x-3 gap-y-1 text-fb-text-muted">
+                        @if (label.color) {
+                          <span>{{ label.color }}</span>
+                        }
+                        @if (label.size) {
+                          <span>EU {{ label.size }}</span>
+                        }
+                        @if (label.articleNumber) {
+                          <span>Art.-Nr. {{ label.articleNumber }}</span>
+                        }
+                      </p>
+                      <app-button
+                        variant="secondary"
+                        size="slim"
+                        (clicked)="useAiLabelSuggestion(label)"
+                        >Übernehmen</app-button
+                      >
+                    </div>
+                  </div>
+                }
+                @if (result.visualSuggestion; as visual) {
+                  <div class="rounded-lg border border-fb-border bg-fb-subtle p-3">
+                    <div class="flex flex-wrap items-start justify-between gap-2">
+                      <p class="font-semibold">{{ visual.title }}</p>
+                      <p class="text-fb-text-muted">Fotovorschlag · ohne Webbeleg</p>
+                    </div>
+                    @if (visual.evidence) {
+                      <p class="mt-1 text-fb-text-muted">{{ visual.evidence }}</p>
+                    }
+                    <div class="mt-2 flex flex-wrap items-center justify-between gap-2">
+                      <p class="flex flex-wrap gap-x-3 gap-y-1 text-fb-text-muted">
+                        @if (visual.color) {
+                          <span>{{ visual.color }}</span>
+                        }
+                        @if (visual.size) {
+                          <span>EU {{ visual.size }}</span>
+                        }
+                        @if (visual.category) {
+                          <span>{{ visual.category }}</span>
+                        }
+                      </p>
+                      <app-button
+                        variant="secondary"
+                        size="slim"
+                        (clicked)="useAiVisualSuggestion(visual)"
+                        >Übernehmen</app-button
+                      >
+                    </div>
+                  </div>
+                }
+              }
+            </div>
+          }
+        </div>
+        <div modal-footer class="flex flex-wrap justify-end gap-2">
+          <app-button variant="secondary" (clicked)="toggleAiSearch()">Schließen</app-button>
+          <app-button
+            [loading]="aiLoading()"
+            [disabled]="
+              aiLoading() ||
+              photoProcessing() ||
+              (!form.controls.ean.value && !labelPhotos().length)
+            "
+            (clicked)="searchWithAi()"
+            >Mit KI im Web suchen</app-button
+          >
+        </div>
+      </app-modal-shell>
     }
     @if (barcodeSuggestion(); as suggestion) {
       <app-card rounded="xl">

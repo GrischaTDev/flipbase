@@ -7,12 +7,20 @@ async function installExtensionProtocolStub(page: import('@playwright/test').Pag
     Object.assign(window, { __flipbasePublishedPayloads: publishedPayloads });
     window.addEventListener('message', (event) => {
       if (!event.data || typeof event.data !== 'object') return;
-      const message = event.data as { type?: unknown; payload?: unknown };
+      const message = event.data as { type?: unknown; requestId?: unknown; payload?: unknown };
       if (message.type === 'FLIPBASE_CHECK_EXTENSION') {
         window.postMessage({ type: 'FLIPBASE_EXTENSION_READY' }, '*');
       }
       if (message.type === 'FLIPBASE_PUBLISH_KLEINANZEIGEN') {
         publishedPayloads.push(message.payload);
+        window.postMessage(
+          {
+            type: 'FLIPBASE_PUBLISH_KLEINANZEIGEN_RESULT',
+            requestId: message.requestId,
+            success: true,
+          },
+          '*',
+        );
       }
     });
   });
@@ -35,27 +43,20 @@ test('creates, publishes and completes the listing lifecycle on mobile @pr-smoke
   await page.goto('/listings/new');
   const itemSelect = page.getByRole('combobox', { name: 'Bestandsartikel' });
   await expect(itemSelect).toBeVisible();
+  await expect(itemSelect).toHaveAttribute('aria-autocomplete', 'list');
   await page.evaluate(() => {
     document.documentElement.dataset['flipbaseExtensionInstalled'] = 'true';
     window.dispatchEvent(new Event('flipbase:extension-ready'));
   });
-  await itemSelect.click();
+  await itemSelect.fill('E2E Kamera');
   await page.getByRole('option', { name: 'E2E Kamera' }).click();
   await page.getByRole('textbox', { name: 'Titel', exact: true }).fill('E2E Kamera Inserat');
   await page.getByRole('spinbutton', { name: 'Preis', exact: true }).fill('79.90');
   await page.getByRole('button', { name: 'Vorbereiten und öffnen', exact: true }).click();
 
-  const extensionHelp = page.getByRole('dialog', {
-    name: 'Kleinanzeigen-Erweiterung verbinden',
-  });
-  await expect(extensionHelp).toBeVisible();
-  await extensionHelp.getByRole('button', { name: 'Verbindung prüfen' }).click();
-  await extensionHelp.getByRole('button', { name: 'Schließen', exact: true }).click();
-  await page.getByRole('button', { name: 'Zurück' }).click();
   await expect(page).toHaveURL(/\/listings$/);
   await expect(page.getByText('E2E Kamera Inserat', { exact: true }).last()).toBeVisible();
   await expect(page.locator('table')).toBeHidden();
-  await page.getByRole('button', { name: 'Inserat bei Kleinanzeigen öffnen' }).click();
   await expect
     .poll(() =>
       page.evaluate(
@@ -65,6 +66,16 @@ test('creates, publishes and completes the listing lifecycle on mobile @pr-smoke
       ),
     )
     .toBe(1);
+  await page.getByRole('button', { name: 'Inserat bei Kleinanzeigen öffnen' }).click();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (window as Window & { __flipbasePublishedPayloads: unknown[] })
+            .__flipbasePublishedPayloads.length,
+      ),
+    )
+    .toBe(2);
   const firstPublishedPayload = await page.evaluate(() => {
     const payloads = (window as Window & { __flipbasePublishedPayloads: unknown[] })
       .__flipbasePublishedPayloads;
@@ -103,7 +114,8 @@ test('creates, publishes and completes the listing lifecycle on mobile @pr-smoke
     })
     .toBe('ended/manual');
 
-  await page.getByRole('button', { name: 'Beendet', exact: true }).click();
+  await page.getByRole('combobox', { name: 'Inseratsansicht' }).click();
+  await page.getByRole('option', { name: 'Beendet', exact: true }).click();
   await expect(page.getByText('E2E Kamera Inserat', { exact: true }).last()).toBeVisible();
   await page.getByRole('button', { name: 'Inserat erneut einstellen' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Erneut einstellen' }).click();
@@ -126,7 +138,7 @@ test('creates, publishes and completes the listing lifecycle on mobile @pr-smoke
             .__flipbasePublishedPayloads.length,
       ),
     )
-    .toBe(2);
+    .toBe(3);
 });
 
 test('keeps a prepared listing and explains setup when the extension is missing', async ({

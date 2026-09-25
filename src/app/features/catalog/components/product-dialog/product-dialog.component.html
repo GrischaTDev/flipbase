@@ -164,6 +164,20 @@
                   </div>
                 </div>
               }
+              @if (result.visualSuggestion; as visual) {
+                <div class="mt-3 border-t border-fb-border pt-3">
+                  <p class="font-semibold">Auf dem Foto erkannt: {{ visual.title }}</p>
+                  <p class="text-fb-text-muted">
+                    Ohne belegten Webtreffer. Bitte prüfe die Erkennung.
+                  </p>
+                  <p class="text-fb-text-muted">{{ visual.evidence }}</p>
+                  <div class="mt-3">
+                    <app-button variant="secondary" (clicked)="useAiVisualSuggestion(visual)"
+                      >Angaben übernehmen</app-button
+                    >
+                  </div>
+                </div>
+              }
             }
           }
         </div>

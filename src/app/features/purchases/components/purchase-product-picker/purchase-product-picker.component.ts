@@ -30,6 +30,9 @@ import { ItemConditionLabelPipe } from '../../../../shared/pipes/item-condition-
 export class PurchaseProductPickerComponent {
   readonly plusIcon = LucidePlus;
   readonly products = input.required<readonly CatalogProduct[]>();
+  readonly selectableProducts = computed(() =>
+    this.products().filter((product) => !product.archived_at),
+  );
   readonly initialSearch = input('');
   readonly imageUrls = input<Readonly<Record<string, string>>>({});
   readonly createRequested = output<void>();
@@ -43,7 +46,7 @@ export class PurchaseProductPickerComponent {
   readonly brandFilter = signal<string | null>(null);
   readonly categoryOptions = computed<readonly SelectOption<string>[]>(() => {
     const categories = new Set(
-      this.products().flatMap((product) => {
+      this.selectableProducts().flatMap((product) => {
         const category = product.category?.trim();
         return category ? [category] : [];
       }),
@@ -65,7 +68,7 @@ export class PurchaseProductPickerComponent {
   });
   readonly brandOptions = computed<readonly SelectOption<string>[]>(() => {
     const brands = new Set(
-      this.products().flatMap((product) => {
+      this.selectableProducts().flatMap((product) => {
         const brand = product.brand?.trim();
         return brand ? [brand] : [];
       }),
@@ -84,7 +87,7 @@ export class PurchaseProductPickerComponent {
     const category = this.categoryFilter();
     const brand = this.brandFilter();
 
-    return this.products().filter(
+    return this.selectableProducts().filter(
       (product) =>
         (!category || product.category?.trim() === category) &&
         (!brand || product.brand?.trim() === brand) &&
@@ -108,6 +111,8 @@ export class PurchaseProductPickerComponent {
     });
   }
   confirm(): void {
-    this.selected.emit(this.products().filter((product) => this.selection().has(product.id)));
+    this.selected.emit(
+      this.selectableProducts().filter((product) => this.selection().has(product.id)),
+    );
   }
 }

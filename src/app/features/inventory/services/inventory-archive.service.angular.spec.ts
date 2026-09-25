@@ -79,7 +79,7 @@ describe('InventoryArchiveService', () => {
     ).rejects.toThrow('gesperrt');
     expect(applyArchiveMetadata).not.toHaveBeenCalled();
   });
-  it('keeps returned stock active despite old archive metadata and keeps sold items without explicit archive active', () => {
+  it('behandelt jedes ausdrücklich archivierte Stück als archiviert', () => {
     expect(isArchivedInventoryItem({ ...item, archived_at: 'date' })).toBe(true);
     expect(isArchivedInventoryItem(item)).toBe(false);
     expect(
@@ -89,7 +89,7 @@ describe('InventoryArchiveService', () => {
         status: 'ready',
         sale_state: 'no_active_sale',
       }),
-    ).toBe(false);
+    ).toBe(true);
     expect(
       isArchivedInventoryItem({ ...item, status: 'archived', sale_state: 'no_active_sale' }),
     ).toBe(true);

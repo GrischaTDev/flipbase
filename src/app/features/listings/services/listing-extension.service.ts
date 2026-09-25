@@ -11,6 +11,10 @@ export class ListingExtensionService {
   private started = false;
   private retryTimers: number[] = [];
   private checkTimer: number | null = null;
+  private readonly pendingPublishes = new Map<
+    string,
+    { resolve: (result: { success: boolean; error?: string }) => void; timer: number }
+  >();
 
   readonly available = signal(false);
   readonly checking = signal(false);
@@ -32,12 +36,8 @@ export class ListingExtensionService {
 
   checkNow(): void {
     this.checking.set(true);
-    this.updateAvailabilityFromDocument();
+    this.available.set(false);
     this.postCheck();
-    if (this.available()) {
-      this.checking.set(false);
-      return;
-    }
     if (this.checkTimer !== null) window.clearTimeout(this.checkTimer);
     this.checkTimer = window.setTimeout(() => {
       this.checking.set(false);
@@ -45,14 +45,47 @@ export class ListingExtensionService {
     }, 1_250);
   }
 
-  publish(payload: KleinanzeigenListingPayload): void {
-    if (typeof window === 'undefined') return;
-    window.postMessage({ type: 'FLIPBASE_PUBLISH_KLEINANZEIGEN', payload }, '*');
+  publish(payload: KleinanzeigenListingPayload): Promise<{ success: boolean; error?: string }> {
+    if (typeof window === 'undefined' || !this.available()) {
+      return Promise.resolve({ success: false, error: 'Die Erweiterung ist nicht verbunden.' });
+    }
+    const requestId = crypto.randomUUID();
+    return new Promise((resolve) => {
+      const timer = window.setTimeout(() => {
+        this.pendingPublishes.delete(requestId);
+        resolve({ success: false, error: 'Die Erweiterung hat nicht geantwortet.' });
+      }, 10_000);
+      this.pendingPublishes.set(requestId, { resolve, timer });
+      window.postMessage({ type: 'FLIPBASE_PUBLISH_KLEINANZEIGEN', requestId, payload }, '*');
+    });
   }
 
   private readonly handleMessage = (event: MessageEvent): void => {
     if (event.source !== window || !event.data || typeof event.data !== 'object') return;
     const message = event.data as { readonly type?: unknown; readonly installed?: unknown };
+    if (message.type === 'FLIPBASE_PUBLISH_KLEINANZEIGEN_RESULT') {
+      const result = event.data as {
+        readonly requestId?: unknown;
+        readonly success?: unknown;
+        readonly error?: unknown;
+      };
+      const requestId =
+        typeof result.requestId === 'string'
+          ? result.requestId
+          : this.pendingPublishes.size === 1
+            ? this.pendingPublishes.keys().next().value
+            : undefined;
+      if (!requestId) return;
+      const pending = this.pendingPublishes.get(requestId);
+      if (!pending) return;
+      window.clearTimeout(pending.timer);
+      this.pendingPublishes.delete(requestId);
+      pending.resolve({
+        success: result.success === true,
+        error: typeof result.error === 'string' ? result.error : undefined,
+      });
+      return;
+    }
     if (
       message.type === 'FLIPBASE_EXTENSION_READY' ||
       (message.type === 'FLIPBASE_EXTENSION_STATUS' && message.installed === true)
@@ -70,15 +103,6 @@ export class ListingExtensionService {
     window.postMessage(EXTENSION_CHECK_MESSAGE, '*');
   }
 
-  private updateAvailabilityFromDocument(): void {
-    if (
-      typeof document !== 'undefined' &&
-      document.documentElement.dataset['flipbaseExtensionInstalled'] === 'true'
-    ) {
-      this.markAvailable();
-    }
-  }
-
   private markAvailable(): void {
     if (this.checkTimer !== null) window.clearTimeout(this.checkTimer);
     this.checkTimer = null;
@@ -92,6 +116,11 @@ export class ListingExtensionService {
     this.retryTimers = [];
     if (this.checkTimer !== null) window.clearTimeout(this.checkTimer);
     this.checkTimer = null;
+    for (const pending of this.pendingPublishes.values()) {
+      window.clearTimeout(pending.timer);
+      pending.resolve({ success: false, error: 'Die Verbindung wurde beendet.' });
+    }
+    this.pendingPublishes.clear();
     window.removeEventListener('message', this.handleMessage);
     window.removeEventListener('flipbase:extension-ready', this.handleReady);
   }

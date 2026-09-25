@@ -6,6 +6,7 @@ import { SupabaseService } from '../../../core/services/supabase.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
 import type { ListingContent } from '../models/listing.models';
 import { ListingService } from './listing.service';
+import { ListingImagesService } from './listing-images.service';
 
 interface QueryResult<T> {
   readonly data: T | null;
@@ -126,6 +127,26 @@ describe('ListingService', () => {
         },
         { provide: WorkspaceService, useValue: { currentWorkspace } },
         { provide: MediaService, useValue: { resolveMediaUrls } },
+        {
+          provide: ListingImagesService,
+          useValue: {
+            pathsForListing: vi.fn(
+              async (
+                _id: string,
+                item: {
+                  media: readonly {
+                    storage_path: string;
+                    file_name: string | null;
+                    sort_order?: number;
+                  }[];
+                },
+              ) =>
+                [...item.media]
+                  .sort((left, right) => (left.sort_order ?? 0) - (right.sort_order ?? 0))
+                  .map((medium) => ({ path: medium.storage_path, name: medium.file_name })),
+            ),
+          },
+        },
       ],
     });
 
@@ -344,6 +365,33 @@ describe('ListingService', () => {
     expect(service.rows()[0]?.listing.catalogProductId).toBe('prod-1');
     expect(service.rows()[0]?.listing.inventoryItemId).toBeNull();
     expect(service.rows()[0]?.primaryImagePath).toBe('catalog-products/workspace-a/prod-1/img.jpg');
+  });
+
+  it('marks an archived product and its linked item unavailable for new listings', async () => {
+    const archivedAt = '2026-09-24T00:00:00Z';
+    const product = {
+      id: 'prod-1',
+      workspace_id: 'workspace-a',
+      title: 'Archiviert',
+      archived_at: archivedAt,
+      media: [],
+    };
+    const linkedItem = {
+      ...item,
+      purchase_line_id: 'line-1',
+      purchase_line: { catalog_product_id: 'prod-1' },
+    };
+    const from = vi.fn((table: string) => {
+      const rows =
+        table === 'inventory_items' ? [linkedItem] : table === 'catalog_products' ? [product] : [];
+      return resolvedQuery(Promise.resolve({ data: rows, error: null }));
+    });
+    const { service } = setup({ from });
+
+    await service.load('workspace-a');
+
+    expect(service.items().find((entry) => entry.id === item.id)?.archivedAt).toBe(archivedAt);
+    expect(service.items().find((entry) => entry.id === product.id)?.archivedAt).toBe(archivedAt);
   });
 
   it('calls prepare_listing with p_catalog_product_id when target is a catalog product', async () => {

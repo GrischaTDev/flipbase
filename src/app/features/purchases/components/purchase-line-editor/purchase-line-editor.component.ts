@@ -9,7 +9,6 @@ import {
   output,
   signal,
   untracked,
-  viewChild,
 } from '@angular/core';
 import { FormArray, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { CatalogService } from '../../../../core/services/catalog.service';
@@ -38,7 +37,6 @@ import { CurrencyPipe } from '@angular/common';
 import { LucideSearch, LucideUpload, LucideScanBarcode, LucideTrash2 } from '@lucide/angular';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
-import { ProductDialogComponent } from '../../../catalog/components/product-dialog/product-dialog.component';
 import { previewPurchaseImport, PurchaseImportPreviewRow } from './purchase-import-preview';
 import { canonicalGtin, normalizeGtin } from '../../../../shared/utils/gtin';
 import { PurchaseLinePriceMode } from '../../../../core/models/purchase-costing.models';
@@ -97,7 +95,6 @@ type PriceField = 'unitPurchasePrice' | 'lineTotal';
     CurrencyPipe,
     ModalShellComponent,
     ProductThumbnailComponent,
-    ProductDialogComponent,
     ReactiveFormsModule,
     CustomSelectComponent,
     ItemConditionLabelPipe,
@@ -126,10 +123,18 @@ export class PurchaseLineEditorComponent {
     this.importPreview().some((row) => row.errors.length > 0 || !row.productId),
   );
   readonly productOptions = computed<SelectOption<string>[]>(() =>
-    this.availableProducts().map((product) => ({
-      value: product.id,
-      label: product.title + (product.condition ? ' · ' + product.condition : ''),
-    })),
+    this.availableProducts()
+      .filter(
+        (product) =>
+          !product.archived_at ||
+          this.lineRows.controls.some(
+            (line) => line.controls.catalogProductId.value === product.id,
+          ),
+      )
+      .map((product) => ({
+        value: product.id,
+        label: product.title + (product.condition ? ' · ' + product.condition : ''),
+      })),
   );
   private readonly workspaceService = inject(WorkspaceService);
 
@@ -156,12 +161,13 @@ export class PurchaseLineEditorComponent {
       .products()
       .filter((product) => product.workspace_id === this.activeWorkspaceId()),
   );
+  readonly selectableProducts = computed(() =>
+    this.availableProducts().filter((product) => !product.archived_at),
+  );
   readonly lineCount = signal(0);
   readonly lineRows = new FormArray<FormGroup<PurchaseLineControls>>([]);
   readonly linesChanged = output<readonly PurchaseLineDraft[]>();
-  readonly isCreatingProduct = signal(false);
-  private readonly productDialog = viewChild(ProductDialogComponent);
-  readonly isSavingProduct = computed(() => this.productDialog()?.saving() ?? false);
+  readonly createProductRequested = output<BarcodeProductInfo | null>();
   readonly catalogContextError = signal<string | null>(null);
   readonly importError = signal<string | null>(null);
   readonly catalogLoadError = computed(
@@ -318,7 +324,7 @@ export class PurchaseLineEditorComponent {
     const ean = normalizeGtin(this.lastBarcode());
     if (!product && !ean) return;
     this.productDraft.set(product ?? { ean: ean ?? '', title: '' });
-    this.isCreatingProduct.set(true);
+    this.createProductRequested.emit(this.productDraft());
   }
 
   async loadCatalogProducts(force = false): Promise<void> {
@@ -434,7 +440,6 @@ export class PurchaseLineEditorComponent {
 
   productCreated(product: CatalogProduct): void {
     if (product.workspace_id !== this.activeWorkspaceId()) return;
-    this.isCreatingProduct.set(false);
     this.addProducts([product]);
   }
 
@@ -571,7 +576,6 @@ export class PurchaseLineEditorComponent {
 
   hasUnsavedChanges(): boolean {
     return (
-      this.isCreatingProduct() ||
       this.pickerOpen() ||
       this.scanControl.value.trim().length > 0 ||
       this.importPreview().length > 0
@@ -604,7 +608,6 @@ export class PurchaseLineEditorComponent {
     this.barcodeLookupLoading.set(false);
     this.barcodeRequestId += 1;
     this.lastScan = { value: '', at: 0 };
-    this.isCreatingProduct.set(false);
     this.detailId.set(null);
     this.importPreview.set([]);
     this.importError.set(null);

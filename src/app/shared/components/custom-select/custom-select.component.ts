@@ -26,6 +26,7 @@ import {
 export interface SelectOption<T = string> {
   value: T;
   label: string;
+  searchText?: string;
   badgeClass?: string;
   colorClass?: string;
   icon?: LucideIconInput;
@@ -63,7 +64,7 @@ let nextCustomSelectId = 0;
 export class CustomSelectComponent<T = string> implements ControlValueAccessor {
   private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly injector = inject(Injector);
-  private readonly trigger = viewChild.required<ElementRef<HTMLButtonElement>>('trigger');
+  private readonly trigger = viewChild.required<ElementRef<HTMLElement>>('trigger');
   private readonly panel = viewChild<ElementRef<HTMLElement>>('panel');
   private readonly destroyRef = inject(DestroyRef);
   private readonly instanceId = ++nextCustomSelectId;
@@ -71,6 +72,7 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
   protected readonly panelPosition = signal({ left: 0, top: 0, width: 160, maxHeight: 240 });
 
   readonly options = input.required<readonly SelectOption<T>[]>();
+  readonly searchable = input(false);
   readonly value = model<T | null>(null);
   readonly placeholder = input<string>('Bitte wählen...');
   readonly variant = input<'default' | 'pill' | 'filter' | 'toolbar'>('default');
@@ -96,14 +98,25 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
   readonly isDisabled = signal<boolean>(false);
   readonly isDropUp = signal<boolean>(false);
   readonly activeIndex = signal(-1);
+  readonly query = signal('');
   private readonly activeOption = signal<SelectOption<T> | null>(null);
+  private suppressSearchFocus = false;
+
+  readonly visibleOptions = computed(() => {
+    if (!this.searchable()) return this.options();
+    const term = this.query().trim().toLocaleLowerCase('de');
+    if (!term) return this.options();
+    return this.options().filter((option) =>
+      `${option.label} ${option.searchText ?? ''}`.toLocaleLowerCase('de').includes(term),
+    );
+  });
 
   readonly resolvedTriggerId = computed(
     () => this.triggerId() || `custom-select-trigger-${this.instanceId}`,
   );
   readonly listboxId = computed(() => `${this.resolvedTriggerId()}-listbox`);
   readonly activeDescendantId = computed(() =>
-    this.isOpen() && this.activeIndex() >= 0 && this.activeIndex() < this.options().length
+    this.isOpen() && this.activeIndex() >= 0 && this.activeIndex() < this.visibleOptions().length
       ? this.optionId(this.activeIndex())
       : null,
   );
@@ -122,7 +135,7 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
 
   private readonly reconcileActiveIndex = effect(() => {
     if (!this.isOpen()) return;
-    const options = this.options();
+    const options = this.visibleOptions();
 
     const currentIndex = this.activeIndex();
     if (options.length === 0) {
@@ -197,6 +210,7 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
 
   openDropdown(initial: 'selected' | 'first' | 'last'): void {
     if (this.effectiveDisabled()) return;
+    if (this.searchable() && !this.isOpen()) this.query.set('');
 
     if (this.openDirection() === 'auto') {
       const rect = this.elementRef.nativeElement.getBoundingClientRect();
@@ -207,8 +221,10 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
       this.isDropUp.set(this.openDirection() === 'up');
     }
 
-    const selectedIndex = this.options().findIndex((option) => option.value === this.value());
-    const fallbackIndex = initial === 'last' ? this.options().length - 1 : 0;
+    const selectedIndex = this.visibleOptions().findIndex(
+      (option) => option.value === this.value(),
+    );
+    const fallbackIndex = initial === 'last' ? this.visibleOptions().length - 1 : 0;
     this.setActiveIndex(selectedIndex >= 0 ? selectedIndex : fallbackIndex);
     this.isOpen.set(true);
     this.onTouched();
@@ -249,11 +265,16 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
 
   closeDropdown(restoreFocus = true): void {
     this.isOpen.set(false);
+    this.query.set('');
     this.clearActiveOption();
     if (!restoreFocus) return;
 
     const trigger = this.trigger().nativeElement;
-    queueMicrotask(() => trigger.focus());
+    queueMicrotask(() => {
+      this.suppressSearchFocus = true;
+      trigger.focus();
+      queueMicrotask(() => (this.suppressSearchFocus = false));
+    });
   }
 
   selectOption(option: SelectOption<T>, event?: MouseEvent): void {
@@ -274,7 +295,7 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
   }
 
   setActiveIndex(index: number): void {
-    const lastIndex = this.options().length - 1;
+    const lastIndex = this.visibleOptions().length - 1;
     const nextIndex = lastIndex < 0 ? -1 : Math.min(Math.max(index, 0), lastIndex);
     if (nextIndex < 0) {
       this.clearActiveOption();
@@ -282,7 +303,7 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
     }
 
     this.activeIndex.set(nextIndex);
-    this.activeOption.set(this.options()[nextIndex] ?? null);
+    this.activeOption.set(this.visibleOptions()[nextIndex] ?? null);
     this.scrollActiveOptionIntoViewAfterRender();
   }
 
@@ -292,7 +313,7 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
 
   selectActiveOption(): void {
     if (this.effectiveDisabled()) return;
-    const option = this.options()[this.activeIndex()];
+    const option = this.visibleOptions()[this.activeIndex()];
     if (option) this.selectOption(option);
   }
 
@@ -338,6 +359,41 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
       event.preventDefault();
       this.setActiveIndex(this.options().length - 1);
     } else if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      this.closeDropdown();
+    }
+  }
+
+  onSearchFocus(): void {
+    if (!this.suppressSearchFocus && !this.isOpen()) this.openDropdown('selected');
+  }
+
+  onSearchInput(event: Event): void {
+    const term = (event.target as HTMLInputElement).value;
+    if (!this.isOpen()) this.openDropdown('first');
+    if (this.value() !== null) {
+      this.value.set(null);
+      this.onChange(null);
+    }
+    this.query.set(term);
+    this.setActiveIndex(0);
+  }
+
+  onSearchKeydown(event: KeyboardEvent): void {
+    if (this.effectiveDisabled()) return;
+    if (event.key === 'Tab') {
+      if (this.isOpen()) this.closeDropdown(false);
+    } else if (event.key === 'Enter') {
+      event.preventDefault();
+      if (this.isOpen()) this.selectActiveOption();
+      else this.openDropdown('selected');
+    } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      if (this.isOpen())
+        this.setActiveIndex(this.activeIndex() + (event.key === 'ArrowDown' ? 1 : -1));
+      else this.openDropdown(event.key === 'ArrowDown' ? 'first' : 'last');
+    } else if (event.key === 'Escape' && this.isOpen()) {
       event.preventDefault();
       event.stopPropagation();
       this.closeDropdown();

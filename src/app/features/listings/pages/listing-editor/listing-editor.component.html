@@ -14,7 +14,9 @@
             class="mt-1"
             ariaLabel="Bestandsartikel oder Produkt"
             [options]="itemOptions()"
-            placeholder="Artikel oder Produkt wählen"
+            [searchable]="true"
+            [required]="true"
+            placeholder="Artikel oder Produkt suchen und wählen"
           />
           @if (isLoading()) {
             <p class="mt-2 text-xs text-fb-text-muted">Lade Bestände…</p>
@@ -29,12 +31,16 @@
         </div>
         @if (selectedItem(); as item) {
           <p class="text-sm text-fb-text-muted">
-            {{ item.brand ?? 'Ohne Marke' }} · {{ item.category ?? 'Ohne Kategorie' }} ·
+            {{ item.brand ?? 'Ohne Marke' }} · {{ categoryLabel(item.category) }} ·
             @if (item.targetKind === 'catalog_product') {
               Mengenbestand {{ item.availableQuantity ?? 0 }} Stk.
             } @else {
               Einkaufskosten {{ item.allocatedPurchaseCost ?? 0 }} €
             }
+          </p>
+          <p class="text-xs text-fb-text-muted">
+            Die passende Kleinanzeigen-Kategorie wählst du nach der Übertragung auf Kleinanzeigen
+            aus.
           </p>
           @if (selectedItemIssue(); as issue) {
             <p class="text-sm text-fb-critical" role="alert">{{ issue }}</p>
@@ -78,10 +84,21 @@
         />
         <div class="flex flex-wrap gap-2">
           <app-button variant="secondary" (clicked)="generate()"
-            >Text aus Artikelinformationen erzeugen</app-button
+            >Vorlage aus Artikeldaten übernehmen</app-button
           >
           <app-button variant="secondary" (clicked)="copyTexts()">Texte kopieren</app-button>
         </div>
+        <app-listing-image-editor
+          [images]="imageDrafts()"
+          [disabled]="isSaving()"
+          (imagesChange)="imageDrafts.set($event)"
+        />
+        @if (imagesLoading()) {
+          <p class="text-xs text-fb-text-muted" role="status">Bilder werden geladen…</p>
+        }
+        @if (imagesLoadError(); as imageError) {
+          <p class="text-xs text-fb-critical" role="alert">{{ imageError }}</p>
+        }
       </section>
       <aside sidebar class="linear-surface space-y-4 rounded-xl p-5">
         <div>
@@ -179,7 +196,7 @@
           variant="primary"
           size="lg"
           type="submit"
-          [disabled]="selectedItemIssue() !== null"
+          [disabled]="selectedItemIssue() !== null || imagesLoading() || imagesLoadError() !== null"
           [loading]="isSaving()"
           >{{ isEdit() ? 'Speichern' : 'Vorbereiten und öffnen' }}</app-button
         >
@@ -190,6 +207,8 @@
 <app-listing-extension-help
   [open]="helpOpen()"
   [checking]="extension.checking()"
-  (closeRequested)="helpOpen.set(false)"
-  (checkRequested)="extension.checkNow()"
+  [available]="extension.available()"
+  [attempted]="connectionAttempted()"
+  (closeRequested)="closeHelp()"
+  (checkRequested)="checkConnection()"
 />

@@ -32,6 +32,7 @@ beforeEach(() => {
   metadata.inputs = {
     ...metadata.inputs,
     options: ['options', 1, null],
+    searchable: ['searchable', 1, null],
     value: ['value', 1, null],
     placeholder: ['placeholder', 1, null],
     variant: ['variant', 1, null],
@@ -47,6 +48,7 @@ beforeEach(() => {
   metadata.declaredInputs = {
     ...metadata.declaredInputs,
     options: 'options',
+    searchable: 'searchable',
     value: 'value',
     placeholder: 'placeholder',
     variant: 'variant',
@@ -85,6 +87,7 @@ function createSelect(
     options?: readonly SelectOption<string>[];
     actionLabel?: string;
     required?: boolean;
+    searchable?: boolean;
   } = {},
 ) {
   const fixture = TestBed.createComponent(CustomSelectComponent<string>);
@@ -95,11 +98,13 @@ function createSelect(
   if (config.triggerId) fixture.componentRef.setInput('triggerId', config.triggerId);
   if (config.actionLabel) fixture.componentRef.setInput('actionLabel', config.actionLabel);
   if (config.required !== undefined) fixture.componentRef.setInput('required', config.required);
+  if (config.searchable !== undefined)
+    fixture.componentRef.setInput('searchable', config.searchable);
   fixture.componentInstance.writeValue(config.value ?? null);
   fixture.detectChanges();
 
   const componentWithTriggerQuery = fixture.componentInstance as unknown as {
-    trigger: () => ElementRef<HTMLButtonElement>;
+    trigger: () => ElementRef<HTMLElement>;
   };
   try {
     componentWithTriggerQuery.trigger();
@@ -112,8 +117,9 @@ function createSelect(
   return fixture;
 }
 
-function triggerOf(fixture: ReturnType<typeof createSelect>): HTMLButtonElement {
-  return fixture.nativeElement.querySelector('[role="combobox"], button') as HTMLButtonElement;
+function triggerOf(fixture: ReturnType<typeof createSelect>): HTMLButtonElement | HTMLInputElement {
+  return fixture.nativeElement.querySelector('[role="combobox"], button') as
+    HTMLButtonElement | HTMLInputElement;
 }
 
 function optionElements(fixture: ReturnType<typeof createSelect>): HTMLButtonElement[] {
@@ -143,6 +149,44 @@ async function flushQueuedFocus(fixture: ReturnType<typeof createSelect>): Promi
 }
 
 describe('CustomSelectComponent', () => {
+  it('sucht im Auswahlfeld und übernimmt nur einen tatsächlich gewählten Eintrag', async () => {
+    const fixture = createSelect({
+      searchable: true,
+      required: true,
+      value: 'camera',
+      options: [
+        { value: 'camera', label: 'Kamera · Einzelstück', searchText: 'Canon Foto' },
+        { value: 'hub', label: 'USB-C Hub · Mengenbestand: 4', searchText: 'Anker Zubehör' },
+      ],
+    });
+    const onChange = vi.fn<(value: string | null) => void>();
+    fixture.componentInstance.registerOnChange(onChange);
+    const field = triggerOf(fixture) as HTMLInputElement;
+
+    expect(field.tagName).toBe('INPUT');
+    expect(field.getAttribute('aria-autocomplete')).toBe('list');
+    expect(field.getAttribute('aria-required')).toBe('true');
+    expect(field.value).toBe('Kamera · Einzelstück');
+    field.click();
+    field.value = 'Anker';
+    field.dispatchEvent(new Event('input', { bubbles: true }));
+    fixture.detectChanges();
+
+    expect(optionElements(fixture).map((option) => option.textContent?.trim())).toEqual([
+      'USB-C Hub · Mengenbestand: 4',
+    ]);
+    expect(onChange).toHaveBeenCalledExactlyOnceWith(null);
+    expect(fixture.componentInstance.value()).toBeNull();
+    keydown(fixture, 'Enter');
+    await flushQueuedFocus(fixture);
+
+    expect(onChange).toHaveBeenCalledTimes(2);
+    expect(onChange).toHaveBeenLastCalledWith('hub');
+    expect(fixture.componentInstance.value()).toBe('hub');
+    expect(field.value).toBe('USB-C Hub · Mengenbestand: 4');
+    expect(fixture.componentInstance.isOpen()).toBe(false);
+  });
+
   it('kennzeichnet eine verpflichtende Auswahl für Hilfstechnologien', () => {
     const fixture = createSelect({ required: true });
 

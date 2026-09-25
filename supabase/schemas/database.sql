@@ -328,6 +328,8 @@ create table public.catalog_products (
     seo_title text,
     seo_description text,
     url_handle text check (url_handle is null or (length(url_handle) <= 120 and url_handle ~ '^[a-z0-9]+(-[a-z0-9]+)*$')),
+    archived_at timestamptz,
+    archived_by uuid references auth.users(id) on delete restrict,
     unique (workspace_id, id)
 );
 
@@ -669,7 +671,7 @@ create table public.business_events (
     id uuid primary key default gen_random_uuid(),
     workspace_id uuid not null references public.workspaces(id) on delete restrict,
     entity_type text not null
-      check (entity_type in ('purchase', 'inventory_item', 'sale', 'return', 'expense', 'export', 'workspace')),
+      check (entity_type in ('purchase', 'inventory_item', 'catalog_product', 'sale', 'return', 'expense', 'export', 'workspace')),
     entity_id uuid not null,
     event_type text not null,
     actor_id uuid references auth.users(id) on delete restrict,
@@ -8479,6 +8481,10 @@ begin
     raise no_data_found using message = 'Der Inventarartikel wurde nicht gefunden.';
   end if;
 
+  if v_inventory_item.archived_at is not null then
+    raise exception using errcode = '22023', message = 'Dieser Artikel ist archiviert.';
+  end if;
+
   select sale_state
   into v_sale_state
   from public.inventory_item_sale_states
@@ -8782,6 +8788,26 @@ begin
     end loop;
   end if;
 
+  -- Nach den Einkäufen und vor den Losen sperren und Archivstatus prüfen.
+  for v_catalog_product_id in
+    select candidate.catalog_product_id
+    from (
+      select distinct (element.value ->> 'catalog_product_id')::uuid as catalog_product_id
+      from pg_catalog.jsonb_array_elements(p_lines) as element(value)
+      where nullif(pg_catalog.btrim(element.value ->> 'catalog_product_id'), '') is not null
+    ) as candidate
+    order by candidate.catalog_product_id
+  loop
+    select * into v_catalog_product from public.catalog_products
+      where workspace_id = p_workspace_id and id = v_catalog_product_id for update;
+    if not found then
+      raise exception using errcode = '22023', message = 'Der Mengenartikel ist ungültig.';
+    end if;
+    if v_catalog_product.archived_at is not null then
+      raise exception using errcode = '22023', message = 'Dieser Artikel ist archiviert.';
+    end if;
+  end loop;
+
   -- A draft lot can exist while goods are being received, but it must never
   -- close an availability gap for a sale. Keep finalized inventory sellable
   -- even when another draft of the same product exists.
@@ -8839,6 +8865,10 @@ begin
 
     if not found then
       raise exception using errcode = 'P0002', message = 'Der Einzelartikel wurde nicht gefunden.';
+    end if;
+
+    if v_inventory_item.archived_at is not null then
+      raise exception using errcode = '22023', message = 'Dieser Artikel ist archiviert.';
     end if;
 
     v_source_purchase_id := v_inventory_item.purchase_id;
@@ -10058,6 +10088,10 @@ begin
 
     if not found then
       raise exception using errcode = 'P0002', message = 'Der Einzelartikel wurde nicht gefunden.';
+    end if;
+
+    if v_inventory_item.archived_at is not null then
+      raise exception using errcode = '22023', message = 'Dieser Artikel ist archiviert.';
     end if;
 
     select sale_state into v_sale_state

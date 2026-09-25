@@ -14,12 +14,15 @@ import { ToastService } from '../../../../shared/components/toast/toast.service'
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
 import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
+import { CustomSearchInputComponent } from '../../../../shared/components/custom-search-input/custom-search-input.component';
 import { EntryPageLayoutComponent } from '../../../../shared/components/entry-page-layout/entry-page-layout.component';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { TwoColumnLayoutComponent } from '../../../../shared/components/two-column-layout/two-column-layout.component';
 import { ListingExtensionHelpComponent } from '../../components/listing-extension-help/listing-extension-help.component';
+import { ListingImageEditorComponent } from '../../components/listing-image-editor/listing-image-editor.component';
+import { ListingImagesService } from '../../services/listing-images.service';
 import type {
   ListingActionResult,
   ListingContent,
@@ -86,6 +89,8 @@ beforeAll(async () => {
   ]);
   registerSignalInputs(CustomSelectComponent, [
     'options',
+    'searchable',
+    'required',
     'value',
     'placeholder',
     'variant',
@@ -97,7 +102,14 @@ beforeAll(async () => {
     'triggerId',
   ]);
   registerSignalInputs(EntryPageLayoutComponent, ['title', 'subtitle', 'backLabel']);
-  registerSignalInputs(ListingExtensionHelpComponent, ['open', 'checking']);
+  registerSignalInputs(CustomSearchInputComponent, ['value', 'placeholder', 'ariaLabel']);
+  registerSignalInputs(ListingImageEditorComponent, ['images', 'disabled']);
+  registerSignalInputs(ListingExtensionHelpComponent, [
+    'open',
+    'checking',
+    'available',
+    'attempted',
+  ]);
   registerSignalInputs(ModalShellComponent, ['title', 'subtitle', 'size']);
   registerSignalInputs(TwoColumnLayoutComponent, ['ratio']);
   registerSignalInputs(TextFieldComponent, [
@@ -327,7 +339,7 @@ describe('ListingEditorComponent', () => {
         description: 'Erzeugte Beschreibung',
       }),
     );
-    const publish = vi.fn();
+    const publish = vi.fn(async () => ({ success: true }));
     const warning = vi.fn();
 
     TestBed.configureTestingModule({
@@ -364,6 +376,16 @@ describe('ListingEditorComponent', () => {
           },
         },
         { provide: ListingTemplateService, useValue: { generateKleinanzeigenListing } },
+        {
+          provide: ListingImagesService,
+          useValue: {
+            defaults: vi.fn(async () => []),
+            load: vi.fn(async () => []),
+            save: vi.fn(
+              async (_id: string, _workspaceId: string, images: readonly unknown[]) => images,
+            ),
+          },
+        },
         { provide: ConfirmDialogService, useValue: { frage: confirmOverwrite } },
         { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => null } } } },
         { provide: ToastService, useValue: { error: vi.fn(), success: vi.fn(), warning } },
@@ -606,6 +628,7 @@ describe('ListingEditorComponent', () => {
 
     try {
       expect(host.textContent).toContain('Textvorlage');
+      expect(host.textContent).toContain('Vorlage aus Artikeldaten übernehmen');
       expect(host.textContent).toContain(
         'Verwendet feste Formulierungen mit den Artikeldaten. Es wird keine KI eingesetzt.',
       );
@@ -615,6 +638,10 @@ describe('ListingEditorComponent', () => {
       expect(pageLayout.componentInstance.backLabel()).toBe('Zurück zu Inseraten');
       expect(host.textContent).toContain('Nichtraucherhinweis');
       expect(host.textContent).toContain('Rechtlichen Hinweis einfügen');
+      expect(
+        host.querySelectorAll('input[role="combobox"][aria-label="Bestandsartikel oder Produkt"]'),
+      ).toHaveLength(1);
+      expect(host.querySelector('app-custom-search-input')).toBeNull();
       const copyButton = Array.from(host.querySelectorAll('button')).find(
         (button) => button.textContent?.trim() === 'Texte kopieren',
       );

@@ -37,16 +37,15 @@ export function canPrepareListing(
         readonly availableQuantity?: number;
       },
 ): ListingEligibility {
+  const archived = 'archivedAt' in item ? item.archivedAt : item.archived_at;
+  if (archived) {
+    return { allowed: false, reason: 'Der Artikel ist archiviert.' };
+  }
   if ('targetKind' in item && item.targetKind === 'catalog_product') {
     if (item.availableQuantity !== undefined && item.availableQuantity <= 0) {
       return { allowed: false, reason: 'Kein verfügbarer Bestand für dieses Produkt vorhanden.' };
     }
     return { allowed: true };
-  }
-
-  const archived = 'archivedAt' in item ? item.archivedAt : item.archived_at;
-  if (archived) {
-    return { allowed: false, reason: 'Der Artikel ist archiviert.' };
   }
 
   const status = item.status;

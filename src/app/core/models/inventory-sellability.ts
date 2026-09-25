@@ -1,6 +1,6 @@
 import type { InventoryItem } from './flipbase.models';
 
-type InventoryItemSellability = Pick<InventoryItem, 'status' | 'sale_state'>;
+type InventoryItemSellability = Pick<InventoryItem, 'status' | 'sale_state' | 'archived_at'>;
 
 const lockedSaleStates = new Set<NonNullable<InventoryItemSellability['sale_state']>>([
   'sold',
@@ -12,7 +12,9 @@ const lockedSaleStates = new Set<NonNullable<InventoryItemSellability['sale_stat
 
 export function isSellableInventoryItem(item: InventoryItemSellability): boolean {
   return (
-    (item.status === 'ready' || item.status === 'listed') && item.sale_state === 'no_active_sale'
+    !item.archived_at &&
+    (item.status === 'ready' || item.status === 'listed') &&
+    item.sale_state === 'no_active_sale'
   );
 }
 

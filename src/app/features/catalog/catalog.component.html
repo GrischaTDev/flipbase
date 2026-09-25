@@ -30,6 +30,32 @@
       {{ error }}
     </div>
   }
+  @if (actionError(); as error) {
+    <p
+      role="alert"
+      class="rounded-lg border border-fb-critical-border bg-fb-critical-surface p-3 text-sm text-fb-critical"
+    >
+      {{ error }}
+    </p>
+  }
+  @if (actionMessage(); as message) {
+    <p role="status" class="text-sm text-fb-text-secondary">{{ message }}</p>
+  }
+  @if ((cleanup.status()?.pending ?? 0) > 0 || cleanup.error()) {
+    <div
+      role="status"
+      class="flex flex-wrap items-center gap-2 rounded-lg border border-fb-line bg-fb-surface p-3 text-sm text-fb-text-secondary"
+    >
+      <span
+        >Bildbereinigung ausstehend{{
+          cleanup.status()?.pending ? ': ' + cleanup.status()!.pending + ' Datei(en)' : '.'
+        }}</span
+      >
+      <app-button size="slim" variant="secondary" (clicked)="retryCleanup()"
+        >Erneut versuchen</app-button
+      >
+    </div>
+  }
   @if (csvRows().length) {
     <section
       class="linear-surface space-y-3 rounded-xl p-4"
@@ -101,6 +127,23 @@
     (sortChanged)="onSortChanged($event)"
     (viewResetRequested)="resetView()"
   >
+    <div
+      table-view
+      class="flex items-center gap-1 overflow-x-auto"
+      role="group"
+      aria-label="Artikelansicht"
+    >
+      @for (articleView of articleViews; track articleView.value) {
+        <app-button
+          size="slim"
+          [variant]="view() === articleView.value ? 'secondary' : 'ghost'"
+          [ariaPressed]="view() === articleView.value"
+          (clicked)="setView(articleView.value)"
+        >
+          {{ articleView.label }}
+        </app-button>
+      }
+    </div>
     <app-button table-error-action class="mt-4" variant="secondary" (clicked)="reload()">
       Erneut versuchen
     </app-button>
@@ -154,6 +197,39 @@
                     />
                   </th>
                 }
+                @case ('on_hand') {
+                  <th
+                    scope="col"
+                    [attr.aria-sort]="ariaSort('on_hand')"
+                    class="border-b border-fb-line px-3 py-2.5 text-right"
+                  >
+                    <app-table-sort-header
+                      label="Auf Lager"
+                      sortField="on_hand"
+                      [currentSort]="tablePrefs().sort"
+                      (sortChanged)="onSortChanged($event)"
+                      align="right"
+                    />
+                  </th>
+                }
+                @case ('reserved') {
+                  <th scope="col" class="border-b border-fb-line px-3 py-2.5 text-right">
+                    Reserviert
+                  </th>
+                }
+                @case ('inventory_value') {
+                  <th scope="col" class="border-b border-fb-line px-3 py-2.5 text-right">
+                    Bestandswert
+                  </th>
+                }
+                @case ('status') {
+                  <th scope="col" class="border-b border-fb-line px-3 py-2.5 text-left">Status</th>
+                }
+                @case ('actions') {
+                  <th scope="col" class="border-b border-fb-line px-3 py-2.5 text-left">
+                    Aktionen
+                  </th>
+                }
               }
             }
           </tr>
@@ -203,6 +279,75 @@
                       }}
                     </td>
                   }
+                  @case ('on_hand') {
+                    <td class="px-3 py-3 text-right font-mono text-fb-text-primary">
+                      {{ product.onHand === null ? 'Zu prüfen' : product.onHand + ' Stück' }}
+                    </td>
+                  }
+                  @case ('reserved') {
+                    <td class="px-3 py-3 text-right font-mono text-fb-text-secondary">
+                      {{ product.reserved === null ? 'Zu prüfen' : product.reserved + ' Stück' }}
+                    </td>
+                  }
+                  @case ('inventory_value') {
+                    <td class="px-3 py-3 text-right text-fb-text-secondary">
+                      {{ formatCurrency(product.inventoryValue) }}
+                    </td>
+                  }
+                  @case ('status') {
+                    <td class="px-3 py-3 text-fb-text-secondary">{{ statusLabel(product) }}</td>
+                  }
+                  @case ('actions') {
+                    <td class="px-3 py-3">
+                      <div class="flex flex-wrap items-center gap-1">
+                        @if (canSell(product)) {
+                          <app-button
+                            size="slim"
+                            variant="secondary"
+                            [ariaLabel]="product.title + ' verkaufen'"
+                            (clicked)="openSale(product)"
+                            >Verkaufen</app-button
+                          >
+                        }
+                        <app-button
+                          size="slim"
+                          variant="ghost"
+                          [link]="product.detailLink"
+                          [queryParams]="{
+                            returnTo: '/catalog',
+                            edit: product.kind === 'item' ? 'true' : null,
+                          }"
+                        >
+                          Bearbeiten
+                        </app-button>
+                        <app-button
+                          size="slim"
+                          variant="ghost"
+                          [attr.data-article-archive]="product.key"
+                          [disabled]="lifecycle.pendingIds().has(product.key)"
+                          (clicked)="setArchived(product)"
+                          [ariaLabel]="
+                            (product.archivedAt ? 'Wiederherstellen: ' : 'Archivieren: ') +
+                            product.title
+                          "
+                        >
+                          {{ product.archivedAt ? 'Wiederherstellen' : 'Archivieren' }}
+                        </app-button>
+                        @if (product.canOfferDelete) {
+                          <app-button
+                            size="slim"
+                            variant="ghost"
+                            [attr.data-article-delete]="product.key"
+                            [disabled]="lifecycle.pendingIds().has(product.key)"
+                            (clicked)="deleteUnused(product)"
+                            [ariaLabel]="'Löschen: ' + product.title"
+                          >
+                            Löschen
+                          </app-button>
+                        }
+                      </div>
+                    </td>
+                  }
                 }
               }
             </tr>
@@ -249,6 +394,61 @@
               <span class="font-mono text-xs font-bold text-fb-text-primary">{{
                 availableStock(product) === null ? 'Zu prüfen' : availableStock(product) + ' Stück'
               }}</span>
+            }
+          </div>
+          <div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-fb-text-secondary">
+            <span
+              >Auf Lager:
+              {{ product.onHand === null ? 'Zu prüfen' : product.onHand + ' Stück' }}</span
+            >
+            <span
+              >Verfügbar:
+              {{ product.available === null ? 'Zu prüfen' : product.available + ' Stück' }}</span
+            >
+            <span>{{ statusLabel(product) }}</span>
+          </div>
+          <div class="mt-2 flex flex-wrap gap-1">
+            @if (canSell(product)) {
+              <app-button
+                size="slim"
+                variant="secondary"
+                [ariaLabel]="product.title + ' verkaufen'"
+                (clicked)="openSale(product)"
+                >Verkaufen</app-button
+              >
+            }
+            <app-button
+              size="slim"
+              variant="ghost"
+              [link]="product.detailLink"
+              [ariaLabel]="'Bearbeiten: ' + product.title"
+              [queryParams]="{
+                returnTo: '/catalog',
+                edit: product.kind === 'item' ? 'true' : null,
+              }"
+              >Bearbeiten</app-button
+            >
+            <app-button
+              size="slim"
+              variant="ghost"
+              [attr.data-article-archive-mobile]="product.key"
+              [disabled]="lifecycle.pendingIds().has(product.key)"
+              [ariaLabel]="
+                (product.archivedAt ? 'Wiederherstellen: ' : 'Archivieren: ') + product.title
+              "
+              (clicked)="setArchived(product)"
+              >{{ product.archivedAt ? 'Wiederherstellen' : 'Archivieren' }}</app-button
+            >
+            @if (product.canOfferDelete) {
+              <app-button
+                size="slim"
+                variant="ghost"
+                [attr.data-article-delete-mobile]="product.key"
+                [disabled]="lifecycle.pendingIds().has(product.key)"
+                [ariaLabel]="'Löschen: ' + product.title"
+                (clicked)="deleteUnused(product)"
+                >Löschen</app-button
+              >
             }
           </div>
         </article>

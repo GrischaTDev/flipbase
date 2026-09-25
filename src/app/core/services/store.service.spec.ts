@@ -13,9 +13,68 @@ import {
 import { InventoryService } from './inventory.service';
 import { CatalogService } from './catalog.service';
 import { StockService } from './stock.service';
+import { PurchaseService } from './purchase.service';
 import { WorkspaceService } from './workspace.service';
 
 describe('Store & Live Checkout Service', () => {
+  it('blendet ein zugeordnetes Einzelstück aus, sobald der Stammartikel archiviert ist', () => {
+    const products = signal<CatalogProduct[]>([
+      {
+        id: 'parent',
+        workspace_id: 'ws-1',
+        title: 'Kamera',
+        tracking_mode: 'individual',
+        is_public_store: false,
+      },
+    ]);
+    const purchases = signal([{ purchase_lines: [{ id: 'line', catalog_product_id: 'parent' }] }]);
+    const injector = Injector.create({
+      providers: [
+        { provide: WorkspaceService, useValue: { currentWorkspace: signal({ id: 'ws-1' }) } },
+        {
+          provide: CatalogService,
+          useValue: { products, loadedWorkspaceId: signal('ws-1'), loadError: signal(null) },
+        },
+        {
+          provide: StockService,
+          useValue: {
+            positions: signal([]),
+            lots: signal([]),
+            movements: signal([]),
+            loadedWorkspaceId: signal('ws-1'),
+            loadError: signal(null),
+          },
+        },
+        { provide: PurchaseService, useValue: { purchases, loadedWorkspaceId: signal('ws-1') } },
+        {
+          provide: InventoryService,
+          useValue: {
+            items: signal<InventoryItem[]>([
+              {
+                id: 'piece',
+                workspace_id: 'ws-1',
+                title: 'Kamera Stück',
+                condition: 'used',
+                status: 'ready',
+                sale_state: 'no_active_sale',
+                purchase_line_id: 'line',
+                is_public_store: true,
+                expected_value: 50,
+                allocated_purchase_cost: 5,
+              },
+            ]),
+            loadedWorkspaceId: signal('ws-1'),
+            loadError: signal(null),
+          },
+        },
+      ],
+    });
+    const service = runInInjectionContext(injector, () => new StoreService());
+    expect(service.publicProducts().map((item) => item.id)).toEqual(['piece']);
+    products.set([{ ...products()[0], archived_at: '2026-09-24T12:00:00Z' }]);
+    expect(service.publicProducts()).toEqual([]);
+  });
+
   it('projiziert Shopdaten, zieht Reservierungen ab und verwirft fremde oder ungültige Bestände', () => {
     const workspace = signal<{ id: string } | null>({ id: 'ws-1' });
     const product: CatalogProduct = {
@@ -104,6 +163,8 @@ describe('Store & Live Checkout Service', () => {
       expect(service.publicProducts()).toEqual([]);
     }
     products.set([{ ...product, is_public_store: false }]);
+    expect(service.publicProducts()).toEqual([]);
+    products.set([{ ...product, archived_at: '2026-09-24T12:00:00Z' }]);
     expect(service.publicProducts()).toEqual([]);
     products.set([product]);
     movements.set([{ ...movements()[0], quantity: 5 }]);

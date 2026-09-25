@@ -45,6 +45,7 @@ import {
 import {
   BarcodeAiCandidate,
   BarcodeAiLabelSuggestion,
+  BarcodeAiVisualSuggestion,
   BarcodeAiLookupService,
   BarcodeAiResult,
 } from '../../../../core/services/barcode-ai-lookup.service';
@@ -332,10 +333,14 @@ export class ProductDialogComponent {
         result.candidates.length
           ? 'Mögliche Produkte gefunden. Prüfe Modell, Variante und Quelle vor der Übernahme.'
           : result.labelSuggestion
-            ? 'Kein belegter Webtreffer. Das Etikett wurde gelesen; prüfe die Angaben vor der Übernahme.'
-            : labelPhoto
-              ? 'Die KI-Suche hat mit diesem Foto keinen belegten Produktvorschlag gefunden. Prüfe, ob Modell und Artikelnummer auf dem Bild lesbar sind.'
-              : 'Auch die KI-Suche hat keinen belegten Produktvorschlag gefunden. Versuche ein Etikettfoto.',
+            ? result.visualSuggestion
+              ? 'Kein belegter Webtreffer. Prüfe die gelesenen Etikettangaben und die Erkennung aus dem Foto.'
+              : 'Kein belegter Webtreffer. Das Etikett wurde gelesen; prüfe die Angaben vor der Übernahme.'
+            : result.visualSuggestion
+              ? 'Kein belegter Webtreffer. Die KI hat einen möglichen Artikel auf dem Foto erkannt. Prüfe die Angaben sorgfältig.'
+              : labelPhoto
+                ? 'Die KI-Suche hat mit diesem Foto keinen belegten Produktvorschlag gefunden. Prüfe, ob Modell und Artikelnummer auf dem Bild lesbar sind.'
+                : 'Auch die KI-Suche hat keinen belegten Produktvorschlag gefunden. Versuche ein Etikettfoto.',
       );
     } catch (error: unknown) {
       if (requestId !== this.barcodeRequestId) return;
@@ -385,6 +390,26 @@ export class ProductDialogComponent {
     this.categorySuggestion.set(suggestion.category || null);
     this.aiResult.set(null);
     this.barcodeMessage.set('Etikettangaben übernommen. Bitte prüfe und ergänze sie.');
+  }
+
+  useAiVisualSuggestion(suggestion: BarcodeAiVisualSuggestion): void {
+    const ean = this.aiSearchEan();
+    if (
+      ean === null ||
+      this.form.controls.ean.value !== ean ||
+      this.aiResult()?.visualSuggestion !== suggestion
+    )
+      return;
+    this.form.patchValue({
+      title: suggestion.title,
+      model: suggestion.model,
+      size: suggestion.size,
+      color: suggestion.color,
+    });
+    this.brandSuggestion.set(suggestion.brand || null);
+    this.categorySuggestion.set(suggestion.category || null);
+    this.aiResult.set(null);
+    this.barcodeMessage.set('Fotovorschlag übernommen. Bitte prüfe und ergänze die Angaben.');
   }
 
   formatCents(amountUsd: number): string {
