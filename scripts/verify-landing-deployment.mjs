@@ -56,22 +56,29 @@ async function verify() {
   }
 
   const html = await pageResponse.text();
-  const scriptTags = [...html.matchAll(/<script\b([^>]*)>[\s\S]*?<\/script>/giu)];
-  if (scriptTags.length !== 1) {
-    throw new Error(`Landingpage enthält ${scriptTags.length} statt genau einem Skript.`);
+  if (/name=["']robots["'][^>]*noindex/iu.test(html)) {
+    throw new Error('Die Landingpage darf nicht mit noindex gesperrt sein.');
   }
-  const attributes = scriptTags[0][1];
-  const sourceMatch = attributes.match(/\bsrc\s*=\s*["']([^"']+)["']/iu);
-  if (!sourceMatch) throw new Error('Formularskript hat keine lokale src-Adresse.');
-  if (!/\bdefer\b/iu.test(attributes)) {
-    throw new Error('Formularskript muss mit defer geladen werden.');
+  if (!/<link\s+rel=["']canonical["']\s+href=["']https:\/\/flipbase\.de\/["']/iu.test(html)) {
+    throw new Error('Die Landingpage hat keine Canonical-URL.');
+  }
+  const scriptTags = [...html.matchAll(/<script\b([^>]*)>[\s\S]*?<\/script>/giu)];
+  if (scriptTags.length !== 2) {
+    throw new Error(`Landingpage enthält ${scriptTags.length} statt zwei lokalen Skripten.`);
+  }
+  const expectedScripts = ['landing.js', 'analytics-consent.js'];
+  for (const [index, scriptTag] of scriptTags.entries()) {
+    const attributes = scriptTag[1];
+    const sourceMatch = attributes.match(/\bsrc\s*=\s*["']([^"']+)["']/iu);
+    if (!sourceMatch || sourceMatch[1] !== expectedScripts[index]) {
+      throw new Error(`Das Skript ${index + 1} hat nicht die erwartete lokale Adresse.`);
+    }
+    if (!/\bdefer\b/iu.test(attributes)) {
+      throw new Error(`Das Skript ${index + 1} muss mit defer geladen werden.`);
+    }
   }
 
-  const scriptUrl = new URL(sourceMatch[1], baseUrl);
-  if (scriptUrl.origin !== baseUrl.origin) {
-    throw new Error('Formularskript muss von derselben Herkunft geladen werden.');
-  }
-  const scriptResponse = await requireOkResponse(scriptUrl, 'Formularskript');
+  const scriptResponse = await requireOkResponse(new URL('landing.js', baseUrl), 'Formularskript');
   const script = await scriptResponse.text();
   if (
     !/ENDPOINT\s*=\s*['"]https:\/\/api\.flipbase\.de\/functions\/v1\/beta-application['"]/u.test(
@@ -79,6 +86,19 @@ async function verify() {
     )
   ) {
     throw new Error('Formularskript enthält nicht den erwarteten Beta-Endpunkt.');
+  }
+  await requireOkResponse(new URL('analytics-consent.js', baseUrl), 'Einwilligungsskript');
+  const robots = await (
+    await requireOkResponse(new URL('robots.txt', baseUrl), 'robots.txt')
+  ).text();
+  const sitemap = await (
+    await requireOkResponse(new URL('sitemap.xml', baseUrl), 'Sitemap')
+  ).text();
+  if (!robots.includes('Sitemap: https://flipbase.de/sitemap.xml')) {
+    throw new Error('robots.txt verweist nicht auf die Sitemap.');
+  }
+  if (!sitemap.includes('<loc>https://flipbase.de/</loc>')) {
+    throw new Error('Die Sitemap enthält die Startseite nicht.');
   }
 }
 

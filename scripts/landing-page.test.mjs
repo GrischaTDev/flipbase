@@ -9,8 +9,10 @@ const repositoryRoot = fileURLToPath(new URL('../', import.meta.url));
 const landingDirectory = path.join(repositoryRoot, 'landing');
 const landingPath = path.join(landingDirectory, 'index.html');
 const landingScriptPath = path.join(landingDirectory, 'landing.js');
+const analyticsScriptPath = path.join(landingDirectory, 'analytics-consent.js');
 const html = await readFile(landingPath, 'utf8');
 const landingScript = await readFile(landingScriptPath, 'utf8');
+const analyticsScript = await readFile(analyticsScriptPath, 'utf8');
 const normalizedHtml = html.replace(/\s+/gu, ' ');
 const packageJson = JSON.parse(await readFile(path.join(repositoryRoot, 'package.json'), 'utf8'));
 const css = extractElement(html, 'style');
@@ -225,6 +227,7 @@ function htmlResourceReferences(source) {
   const references = [];
   for (const [startTag] of source.matchAll(/<[a-z][^>]*>/giu)) {
     const { tagName, attributes } = parseAttributes(startTag);
+    if (tagName === 'link' && attributes.get('rel') === 'canonical') continue;
     for (const name of resourceAttributesByElement.get(tagName) ?? []) {
       const value = attributes.get(name);
       if (value === undefined) continue;
@@ -646,7 +649,7 @@ test('stellt den normalen Bewerbungsbutton nach einem Timeout wieder her', async
   dom.window.close();
 });
 
-test('loads exactly one local deferred script and keeps native toggles CSS-only', () => {
+test('loads only local deferred scripts and keeps native toggles CSS-only', () => {
   // Das Formular muss die Bewerbung als JSON senden und die Antwort lesen -
   // das kann ein natives HTML-Formular nicht. Das Skript bleibt als lokale
   // Datei getrennt vom Dokument, damit die CSP keinen fragilen Inline-Hash
@@ -654,9 +657,11 @@ test('loads exactly one local deferred script and keeps native toggles CSS-only'
   // Die Design- und Sprachumschaltung bleiben davon unberuehrt: sie laufen
   // weiterhin rein ueber CSS und native Checkboxen.
   const scripts = extractStartTags(html, 'script');
-  assert.equal(scripts.length, 1);
-  assert.equal(attribute(scripts[0], 'src'), 'landing.js');
-  assert.match(scripts[0], /\bdefer\b/iu);
+  assert.deepEqual(
+    scripts.map((script) => attribute(script, 'src')),
+    ['landing.js', 'analytics-consent.js'],
+  );
+  for (const script of scripts) assert.match(script, /\bdefer\b/iu);
 
   const header = extractElement(html, 'header');
   for (const id of ['theme-toggle', 'lang-toggle']) {
@@ -839,7 +844,12 @@ test('rejects active content and remote resource-loading variants', () => {
 });
 
 test('keeps local landing assets intact', async () => {
-  assert.match(html, /<meta\s+name="robots"\s+content="noindex, nofollow"\s*\/?>/iu);
+  assert.doesNotMatch(html, /<meta\s+name="robots"\s+content="[^"]*noindex/iu);
+  assert.match(html, /<link\s+rel="canonical"\s+href="https:\/\/flipbase\.de\/"\s*\/?>/iu);
+  const robots = await readFile(path.join(landingDirectory, 'robots.txt'), 'utf8');
+  const sitemap = await readFile(path.join(landingDirectory, 'sitemap.xml'), 'utf8');
+  assert.match(robots, /Sitemap: https:\/\/flipbase\.de\/sitemap\.xml/u);
+  assert.match(sitemap, /<loc>https:\/\/flipbase\.de\/<\/loc>/u);
   assert.ok(
     matches(html, /<img\b[^>]*\bsrc="images\/logo-mark\.png"[^>]*>/giu) >= 2,
     'The header and footer must keep the Flipbase logo',
@@ -867,6 +877,98 @@ test('keeps local landing assets intact', async () => {
   for (const reference of assetReferences) {
     await assertLocalAsset(reference, landingDirectory);
   }
+});
+
+test('does not ask for consent or load Google without a GA4 measurement ID', () => {
+  const dom = new JSDOM(html, { runScripts: 'outside-only', url: 'https://flipbase.de/' });
+  const unconfiguredScript = analyticsScript.replace(
+    "var measurementId = 'G-8ZMSVBRJPK';",
+    "var measurementId = '';",
+  );
+  assert.notEqual(unconfiguredScript, analyticsScript);
+  dom.window.eval(unconfiguredScript);
+  assert.equal(dom.window.document.getElementById('analytics-consent').hidden, true);
+  assert.equal(dom.window.document.getElementById('analytics-settings').hidden, true);
+  assert.equal(dom.window.document.getElementById('google-analytics-script'), null);
+  dom.window.close();
+});
+
+test('loads Google Analytics only after an explicit choice and supports withdrawal', () => {
+  const dom = new JSDOM(html, {
+    runScripts: 'outside-only',
+    url: 'https://flipbase.de/?email=test@example.com',
+  });
+  const { document, localStorage } = dom.window;
+  dom.window.eval(analyticsScript);
+
+  const banner = document.getElementById('analytics-consent');
+  assert.equal(banner.hidden, false);
+  assert.equal(document.getElementById('google-analytics-script'), null);
+  assert.equal(dom.window.dataLayer, undefined);
+
+  document.getElementById('analytics-reject').click();
+  assert.equal(banner.hidden, true);
+  assert.equal(document.getElementById('google-analytics-script'), null);
+  assert.equal(JSON.parse(localStorage.getItem('flipbase_analytics_consent')).value, 'rejected');
+
+  document.getElementById('analytics-settings').click();
+  assert.equal(banner.hidden, false);
+  document.getElementById('analytics-accept').click();
+  assert.equal(banner.hidden, true);
+  assert.equal(
+    document.getElementById('google-analytics-script').src,
+    'https://www.googletagmanager.com/gtag/js?id=G-8ZMSVBRJPK',
+  );
+  assert.equal(JSON.parse(localStorage.getItem('flipbase_analytics_consent')).value, 'accepted');
+  const commands = Array.from(dom.window.dataLayer, (command) => Array.from(command));
+  assert.deepEqual(
+    commands.map(([command]) => command),
+    ['consent', 'consent', 'js', 'config'],
+  );
+  assert.equal(commands[0][2].analytics_storage, 'denied');
+  assert.equal(commands[1][2].analytics_storage, 'granted');
+  assert.equal(commands[3][2].allow_google_signals, false);
+  assert.equal(commands[3][2].page_location, 'https://flipbase.de/');
+  assert.equal(commands[3][2].page_referrer, '');
+
+  document.cookie = '_ga=test; Path=/';
+  document.getElementById('analytics-settings').click();
+  document.getElementById('analytics-reject').click();
+  assert.equal(dom.window['ga-disable-G-8ZMSVBRJPK'], true);
+  assert.equal(document.cookie.includes('_ga='), false);
+  assert.equal(JSON.parse(localStorage.getItem('flipbase_analytics_consent')).value, 'rejected');
+  dom.window.close();
+});
+
+test('restores a valid analytics choice and expires it after 180 days', () => {
+  for (const [choice, expectedTag] of [
+    ['accepted', true],
+    ['rejected', false],
+  ]) {
+    const dom = new JSDOM(html, { runScripts: 'outside-only', url: 'https://flipbase.de/' });
+    dom.window.localStorage.setItem(
+      'flipbase_analytics_consent',
+      JSON.stringify({ value: choice, expires: Date.now() + 1000 }),
+    );
+    dom.window.eval(analyticsScript);
+    assert.equal(
+      Boolean(dom.window.document.getElementById('google-analytics-script')),
+      expectedTag,
+    );
+    assert.equal(dom.window.document.getElementById('analytics-consent').hidden, true);
+    dom.window.close();
+  }
+
+  const expired = new JSDOM(html, { runScripts: 'outside-only', url: 'https://flipbase.de/' });
+  expired.window.localStorage.setItem(
+    'flipbase_analytics_consent',
+    JSON.stringify({ value: 'accepted', expires: Date.now() - 1000 }),
+  );
+  expired.window.eval(analyticsScript);
+  assert.equal(expired.window.document.getElementById('google-analytics-script'), null);
+  assert.equal(expired.window.document.getElementById('analytics-consent').hidden, false);
+  assert.equal(expired.window.localStorage.getItem('flipbase_analytics_consent'), null);
+  expired.window.close();
 });
 
 test('uses a valid heading hierarchy and the mobile header wrap contract', () => {

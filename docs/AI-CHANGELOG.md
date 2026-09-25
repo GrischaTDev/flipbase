@@ -1,5 +1,45 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-25 – Juna – GA4-Datenstream für die Landingpage aktiviert
+
+**Auftrag:** Die vorhandene zustimmungsgebundene Analytics-Einbindung mit der
+neuen GA4-Mess-ID des Web-Datenstreams vervollständigen.
+
+**Änderung:** Die Mess-ID `G-8ZMSVBRJPK` ist in der vorhandenen Einbindung
+hinterlegt. Der Banner erscheint nun bei Besuchern ohne gespeicherte Entscheidung.
+Die Tests prüfen Ablehnung ohne Google-Tag, Laden nach Zustimmung, Widerruf mit
+Cookie-Löschung sowie gespeicherte und abgelaufene Entscheidungen. Die
+angemeldete App wird weiterhin nicht gemessen.
+
+**Prüfung:** 26 Landingpage-Tests, ESLint für die geänderten Skripte, Prettier,
+`git diff --check` und der Angular-Produktionsbau bestanden. Der Bau meldete die
+bekannte CommonJS-Warnung zu `pako`. Eine echte Übertragung an GA4 ist erst nach
+Deployment und einer Einwilligung auf der öffentlichen Seite prüfbar.
+Nach der Integration in den aktuellen Master-Stand wurde der ältere Node-Test
+für die nun zwei lokalen Skripte angepasst und gezielt mit neun Tests geprüft.
+
+## 2026-09-25 – Juna – Landingpage für Google-Suche und Einwilligung vorbereitet
+
+**Auftrag:** Flipbase in der Google Search Console erfassen, die öffentliche
+Landingpage indexierbar machen und Google Analytics nur nach Einwilligung nutzen.
+
+**Änderung:** Die Startseite hat keine Indexsperre mehr und nennt ihre Canonical-URL.
+`robots.txt` und Sitemap führen Suchmaschinen zur öffentlichen Startseite. Für
+Analytics gibt es einen zweisprachigen Einwilligungsdialog mit gleichwertigem
+Ablehnen und Zustimmen, widerrufbarer Entscheidung und gesperrtem Google-Tag bis
+zur Zustimmung. Die Mess-ID fehlt noch; bis sie eingetragen ist, erscheint kein
+Banner und es wird nichts an Google gesendet. Die Datenschutzerklärung beschreibt
+die geplante Messung. Im Impressum und in der Datenschutzerklärung stehen nun die
+vom Betreiber genannten Angaben statt der unzutreffenden „GbR i.G.“. Der Link zur
+eingestellten EU-Streitbeilegungsplattform wurde entfernt. Die angemeldete App
+bleibt aus der Suchmaschinenindexierung und wird nicht mit Analytics erfasst.
+
+**Prüfung:** 25 Landingpage-Tests und neun Deployment-Metadaten-Tests bestanden.
+ESLint für die geänderten Skripte, Prettier für die geänderten unterstützten
+Dateien, `git diff --check` und der Angular-Produktionsbau bestanden. Der Bau
+meldete die bekannte CommonJS-Warnung zu `pako`. Eine echte GA4-Messung kann
+erst mit einer Mess-ID und nach Deployment geprüft werden.
+
 ## 2026-09-25 – Juna – Inserateingabe an gemeinsame Aktionen und Artikeldaten angepasst
 
 **Auftrag:** Entfernen-Aktionen, Artikelfelder, Bildanordnung und Hauptaktion der
