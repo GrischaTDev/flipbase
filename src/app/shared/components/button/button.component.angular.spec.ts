@@ -48,6 +48,7 @@ describe('ButtonComponent', () => {
     metadata.inputs = {
       ...metadata.inputs,
       variant: ['variant', 1, null],
+      tone: ['tone', 1, null],
       size: ['size', 1, null],
       loading: ['loading', 1, null],
       disabled: ['disabled', 1, null],
@@ -68,6 +69,7 @@ describe('ButtonComponent', () => {
     metadata.declaredInputs = {
       ...metadata.declaredInputs,
       variant: 'variant',
+      tone: 'tone',
       size: 'size',
       loading: 'loading',
       disabled: 'disabled',
@@ -171,6 +173,24 @@ describe('ButtonComponent', () => {
     expect(button.classList).toContain('w-7');
     expect(button.classList).toContain('px-0');
     expect(button.getAttribute('aria-label')).toBe('Kosten bearbeiten');
+  });
+
+  it('zeigt Tabellenaktionen einheitlich und färbt nur bedeutungsvolle Zustände', () => {
+    fixture.componentRef.setInput('variant', 'table-action');
+    fixture.componentRef.setInput('size', 'slim');
+    fixture.componentRef.setInput('iconOnly', true);
+    fixture.componentRef.setInput('tone', 'critical');
+    fixture.componentRef.setInput('ariaLabel', 'Verkauf retournieren');
+    fixture.detectChanges();
+
+    const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
+    expect(button.classList).toContain('h-7');
+    expect(button.classList).toContain('w-7');
+    expect(button.classList).toContain('rounded-lg');
+    expect(button.classList).toContain('justify-center');
+    expect(button.className).toContain('--fb-color-critical-surface');
+    expect(button.className).toContain('focus-visible:outline-fb-text-primary');
+    expect(button.getAttribute('aria-label')).toBe('Verkauf retournieren');
   });
 
   it('renders navigation as a native link with query parameters', () => {

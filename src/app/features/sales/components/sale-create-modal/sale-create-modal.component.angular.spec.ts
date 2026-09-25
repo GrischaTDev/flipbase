@@ -795,7 +795,7 @@ describe('SaleCreateModalComponent', () => {
     async function resolveTemplateResources(): Promise<void> {
       await ɵresolveComponentResources((url) =>
         readdir(resolve('src/app'), { recursive: true }).then((files) => {
-          const matches = files.filter((file) => file.endsWith(url.slice(2)));
+          const matches = files.filter((file) => file.split(/[\\/]/).at(-1) === url.slice(2));
           if (matches.length !== 1) throw new Error(`Unbekannte Test-Ressource: ${url}`);
           return readFile(resolve('src/app', matches[0]), 'utf8');
         }),

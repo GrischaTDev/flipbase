@@ -31,6 +31,7 @@ import { ItemConditionLabelPipe } from '../../../../shared/pipes/item-condition-
 import { PurchaseProductPickerComponent } from '../purchase-product-picker/purchase-product-picker.component';
 import { BarcodeScannerComponent } from '../../../../shared/components/barcode-scanner/barcode-scanner.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { TableActionButtonComponent } from '../../../../shared/components/table-action-button/table-action-button.component';
 import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { CurrencyPipe } from '@angular/common';
@@ -101,6 +102,7 @@ type PriceField = 'unitPurchasePrice' | 'lineTotal';
     PurchaseProductPickerComponent,
     BarcodeScannerComponent,
     ButtonComponent,
+    TableActionButtonComponent,
     NumberInputComponent,
     TextFieldComponent,
   ],

@@ -9,6 +9,7 @@ import type { Supplier } from '../../core/models/flipbase.models';
 import { SuppliersService } from '../../core/services/suppliers.service';
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
+import { TableActionButtonComponent } from '../../shared/components/table-action-button/table-action-button.component';
 import { CustomSelectComponent } from '../../shared/components/custom-select/custom-select.component';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { DataTableComponent } from '../../shared/components/data-table/data-table.component';
@@ -55,12 +56,35 @@ beforeAll(async () => {
   registerSignalInputs(PageHeaderComponent, ['title', 'subtitle', 'icon']);
   registerSignalInputs(ButtonComponent, [
     'variant',
+    'tone',
     'size',
     'icon',
     'ariaLabel',
     'ariaPressed',
     'disabled',
+    'iconOnly',
+    'title',
+    'loading',
+    'link',
+    'href',
+    'queryParams',
   ]);
+  registerSignalInputs(TableActionButtonComponent, [
+    'icon',
+    'label',
+    'tone',
+    'disabled',
+    'loading',
+    'link',
+    'href',
+    'queryParams',
+  ]);
+  const tableActionMetadata = (
+    TableActionButtonComponent as unknown as {
+      ɵcmp: { outputs: Record<string, string> };
+    }
+  ).ɵcmp;
+  tableActionMetadata.outputs = { ...tableActionMetadata.outputs, clicked: 'clicked' };
   registerSignalInputs(DataTableComponent, [
     'ariaLabel',
     'searchValue',
@@ -253,9 +277,13 @@ describe('SellersComponent', () => {
     const editAction = host.querySelector('[data-seller-edit-action]');
     const archiveActions = [...host.querySelectorAll('[data-seller-archive-action]')];
 
-    expect(editAction?.className).toContain('emerald');
-    expect(archiveActions[0]?.className).toContain('orange');
-    expect(archiveActions[1]?.className).toContain('emerald');
+    expect(editAction?.querySelector('button')?.className).toContain('hover:bg-fb-surface-hover');
+    expect(archiveActions[0]?.querySelector('button')?.className).toContain(
+      '--fb-color-warning-surface',
+    );
+    expect(archiveActions[1]?.querySelector('button')?.className).toContain(
+      '--fb-color-success-surface',
+    );
   });
 
   it('erfüllt die automatischen Barrierefreiheitsprüfungen', async () => {

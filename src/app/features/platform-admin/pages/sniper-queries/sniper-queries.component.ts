@@ -13,6 +13,7 @@ import {
 import { DatePipe } from '@angular/common';
 import { LucidePause, LucidePencil, LucidePlay } from '@lucide/angular';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { TableActionButtonComponent } from '../../../../shared/components/table-action-button/table-action-button.component';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { LoadingIndicatorComponent } from '../../../../shared/components/loading-indicator/loading-indicator.component';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
@@ -27,6 +28,7 @@ import { QueryDraft, SniperQuery, queryStatusLabel } from '../../models/sniper-q
   imports: [
     DatePipe,
     ButtonComponent,
+    TableActionButtonComponent,
     BadgeComponent,
     LoadingIndicatorComponent,
     ModalShellComponent,

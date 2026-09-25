@@ -30,6 +30,7 @@ import {
   LucideAlertTriangle as AlertTriangle,
   LucideTrash2 as Trash2,
   LucideCheck as Check,
+  LucideLink2 as Link2,
 } from '@lucide/angular';
 import { TaxEngineService } from '../../core/services/tax-engine.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
@@ -55,6 +56,7 @@ import {
 import { TableSortHeaderComponent } from '../../shared/components/table-sort-header/table-sort-header.component';
 import { DataTableComponent } from '../../shared/components/data-table/data-table.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
+import { TableActionButtonComponent } from '../../shared/components/table-action-button/table-action-button.component';
 import { TablePreferencesService } from '../../core/services/table-preferences.service';
 import { AccountingColumnId, AccountingSortField } from '../../core/config/table-defaults.config';
 import {
@@ -80,6 +82,7 @@ export type BankTxFilter = 'all' | 'matched' | 'pending' | 'booked' | 'ignored';
     TableSortHeaderComponent,
     DataTableComponent,
     ButtonComponent,
+    TableActionButtonComponent,
     BadgeComponent,
   ],
   templateUrl: './accounting.component.html',
@@ -146,6 +149,7 @@ export class AccountingComponent {
   readonly checkIcon = CheckCircle2;
   readonly checkCheckIcon = CheckCheck;
   readonly checkSingleIcon = Check;
+  readonly assignIcon = Link2;
   readonly alertIcon = AlertCircle;
   readonly helpIcon = HelpCircle;
   readonly receiptIcon = Receipt;

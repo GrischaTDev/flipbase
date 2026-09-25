@@ -65,6 +65,19 @@ Neue oder geänderte Admin-Oberflächen müssen eine automatisierte Architekturp
 
 ## Verbindlicher Tabellen- und Listenstandard
 
+Nutzerentscheidung vom 25.09.2026: Aktionsspalten in Admin-Tabellen verwenden
+dieselbe gemeinsame Icon-Kachel. Ihre Desktopfläche misst 28 × 28 px, der
+Eckenradius 8 px und das mittig ausgerichtete Icon 16 px. Auf Geräten mit grobem
+Zeiger beträgt die Trefferfläche mindestens 44 × 44 px. Ein normaler Zustand
+bleibt neutral; beim Hover und Tastaturfokus zeigt die Fläche die Bedeutung:
+neutral für gewöhnliche Aktionen, grün für Bestätigen/Wiederherstellen, warmes
+Orange für Archivieren/Pausieren und Rot für Löschen, Beenden sowie Retouren.
+Farben kommen aus den zentralen Theme-Variablen. Alle Iconaktionen brauchen
+einen eindeutigen zugänglichen Namen; Navigationsaktionen bleiben Links.
+Aktionsspalten haben sichtbar die Überschrift „Aktionen“ und stehen rechtsbündig.
+Diese Entscheidung folgt Variante A des
+[Aktionsbutton-Mockups](action-buttons-mockup.html).
+
 Nutzerfestlegung vom 19.09.2026: Verwaltbare Datenlisten im Admin verwenden
 `DataTableComponent` als gemeinsamen Rahmen. Feature-Seiten liefern Daten,
 Spalten, fachliche Filter, Zeileninhalte und Aktionen, definieren aber nicht mehr
