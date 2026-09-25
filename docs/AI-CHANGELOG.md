@@ -1,5 +1,23 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-25 – Juna – Einwilligungstext nach Recherche vereinfacht
+
+**Auftrag:** Einen üblichen, kurzen Bannertext recherchieren und die direkte
+Formulierung zur Datenübermittlung an Google im Einstieg ersetzen.
+
+**Änderung:** Der Einstieg beschreibt jetzt Analyse-Cookies, den Zweck, Google
+Analytics mit Anbieter und die mögliche Verarbeitung in den USA in ruhigerer
+Sprache. Einzelne gemessene Ereignisse bleiben aus dem Einstieg heraus; die
+ausführlichen Angaben stehen weiter unter „Details“ und in der
+Datenschutzerklärung. Die Orientierungshilfe der Datenschutzkonferenz für
+digitale Dienste (Version 1.2) und die Handreichung der Hamburger
+Datenschutzaufsicht waren Grundlage für die Abstufung der Informationen.
+
+**Prüfung:** 30 Landingpage-Tests, Prettier und Angular-Produktionsbau bestanden.
+Der Text passt auch bei 320 px Breite, beide Entscheidungen bleiben sichtbar.
+AXE meldete in den geprüften hellen und dunklen Ansichten keine WCAG-Verstöße.
+Der Bau meldete die bekannte CommonJS-Warnung zu `pako`.
+
 ## 2026-09-25 – Juna – Einwilligungsdialog klarer und sichtbarer gestaltet
 
 **Auftrag:** Die Entscheidungen unten so breit wie die Reiter anzeigen, die
