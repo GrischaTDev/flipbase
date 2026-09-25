@@ -28,6 +28,10 @@ import {
   LucidePlus as Plus,
   LucideBookOpen as BookOpen,
   LucideTrash2 as Trash2,
+  LucidePencil as Pencil,
+  LucideArchive as Archive,
+  LucideRotateCcw as RotateCcw,
+  LucideShoppingCart as ShoppingCart,
 } from '@lucide/angular';
 import { CatalogService } from '../../core/services/catalog.service';
 import { StockService } from '../../core/services/stock.service';
@@ -35,6 +39,7 @@ import { WorkspaceService } from '../../core/services/workspace.service';
 import { ProductThumbnailComponent } from '../../shared/components/product-thumbnail/product-thumbnail.component';
 import { DataTableComponent } from '../../shared/components/data-table/data-table.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
+import { TableActionButtonComponent } from '../../shared/components/table-action-button/table-action-button.component';
 import { parseCsv } from '../../shared/utils/csv';
 import { normalizeGtin } from '../../shared/utils/gtin';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
@@ -64,6 +69,7 @@ interface CatalogImportRow {
     ReactiveFormsModule,
     ProductThumbnailComponent,
     ButtonComponent,
+    TableActionButtonComponent,
     PageHeaderComponent,
   ],
   templateUrl: './catalog.component.html',
@@ -114,6 +120,10 @@ export class CatalogComponent {
   readonly plusIcon = Plus;
   readonly bookOpenIcon = BookOpen;
   readonly trashIcon = Trash2;
+  readonly editIcon = Pencil;
+  readonly archiveIcon = Archive;
+  readonly restoreIcon = RotateCcw;
+  readonly sellIcon = ShoppingCart;
   readonly searchControl = new FormControl(this.viewState.searchFor(this.workspaceId()), {
     nonNullable: true,
   });

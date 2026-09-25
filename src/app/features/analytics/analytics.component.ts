@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
+import { TableActionButtonComponent } from '../../shared/components/table-action-button/table-action-button.component';
 import {
   LucideDynamicIcon,
   LucideBarChart3 as BarChart3,
@@ -63,7 +64,7 @@ type AnalyticsSection =
 
 @Component({
   selector: 'app-analytics',
-  imports: [CurrencyPipe, LucideDynamicIcon],
+  imports: [CurrencyPipe, LucideDynamicIcon, TableActionButtonComponent],
   templateUrl: './analytics.component.html',
   host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,

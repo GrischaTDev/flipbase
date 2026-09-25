@@ -237,7 +237,7 @@
                 @case ('actions') {
                   <th
                     scope="col"
-                    class="w-28 border-b border-fb-line px-4 py-2.5 text-center font-[450]"
+                    class="w-28 border-b border-fb-line px-4 py-2.5 text-right font-[450]"
                   >
                     Aktionen
                   </th>
@@ -368,63 +368,42 @@
                     </td>
                   }
                   @case ('actions') {
-                    <td class="px-4 py-3 text-center">
-                      <div class="flex items-center justify-center gap-1.5">
-                        <a
+                    <td class="px-4 py-3 text-right">
+                      <div class="flex items-center justify-end gap-1">
+                        <app-table-action-button
                           data-sale-audit-print-link
-                          [routerLink]="['/settings/data/print']"
+                          link="/settings/data/print"
                           [queryParams]="{ entityType: 'sale', entityId: sale.id }"
-                          [attr.aria-label]="
+                          [label]="
                             'Prüfbeleg für ' + saleTitle(sale) + ' drucken oder als PDF speichern'
                           "
-                          class="rounded-lg p-1.5 text-fb-text-muted transition hover:bg-emerald-500/15 hover:text-emerald-300"
-                          title="Prüfbeleg drucken oder als PDF speichern"
-                        >
-                          <svg
-                            [lucideIcon]="receiptIcon"
-                            aria-hidden="true"
-                            class="h-3.5 w-3.5"
-                          ></svg>
-                          <span class="sr-only">Prüfbeleg drucken</span>
-                        </a>
-                        <button
-                          type="button"
-                          (click)="openRecordHistory(sale)"
-                          class="cursor-pointer rounded-lg p-1.5 text-fb-text-muted transition hover:bg-indigo-500/15 hover:text-indigo-300"
-                          title="Chronik ansehen"
-                          aria-label="Chronik ansehen"
-                        >
-                          <svg [lucideIcon]="historyIcon" class="h-3.5 w-3.5"></svg>
-                        </button>
-                        <button
-                          type="button"
-                          (click)="openInvoiceForSale(sale)"
+                          [icon]="receiptIcon"
+                        />
+                        <app-table-action-button
+                          (clicked)="openRecordHistory(sale)"
+                          label="Chronik ansehen"
+                          [icon]="historyIcon"
+                        />
+                        <app-table-action-button
+                          (clicked)="openInvoiceForSale(sale)"
                           [disabled]="isCreatingInvoice()"
-                          [attr.aria-busy]="isCreatingInvoice()"
-                          [attr.aria-disabled]="isCreatingInvoice()"
-                          class="cursor-pointer rounded-lg p-1.5 text-indigo-400 transition hover:bg-indigo-500/15 hover:text-indigo-300 disabled:cursor-not-allowed disabled:opacity-50"
-                          title="§ 25a Differenzbesteuerungs-Rechnung anzeigen"
-                        >
-                          <svg [lucideIcon]="fileIcon" class="h-3.5 w-3.5"></svg>
-                        </button>
+                          [loading]="isCreatingInvoice()"
+                          label="§ 25a Differenzbesteuerungs-Rechnung anzeigen"
+                          [icon]="fileIcon"
+                        />
                         @if (ret) {
-                          <button
-                            type="button"
-                            (click)="openCreditNoteForSale(sale)"
-                            class="cursor-pointer rounded-lg p-1.5 text-amber-400 transition hover:bg-amber-500/15 hover:text-amber-300"
-                            title="Gutschriftsbeleg anzeigen ({{ ret.credit_note_number }})"
-                          >
-                            <svg [lucideIcon]="receiptIcon" class="h-3.5 w-3.5"></svg>
-                          </button>
+                          <app-table-action-button
+                            (clicked)="openCreditNoteForSale(sale)"
+                            [label]="'Gutschriftsbeleg anzeigen (' + ret.credit_note_number + ')'"
+                            [icon]="receiptIcon"
+                          />
                         } @else if (!sale.returned_at) {
-                          <button
-                            type="button"
-                            (click)="openReturnModal(sale)"
-                            class="cursor-pointer rounded-lg p-1.5 text-rose-400 transition hover:bg-rose-500/15 hover:text-rose-300"
-                            title="Retoure / Gutschrift erfassen"
-                          >
-                            <svg [lucideIcon]="returnIcon" class="h-3.5 w-3.5"></svg>
-                          </button>
+                          <app-table-action-button
+                            (clicked)="openReturnModal(sale)"
+                            label="Retoure / Gutschrift erfassen"
+                            tone="critical"
+                            [icon]="returnIcon"
+                          />
                         }
                       </div>
                     </td>

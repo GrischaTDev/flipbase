@@ -8,6 +8,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { TableActionButtonComponent } from '../../../../shared/components/table-action-button/table-action-button.component';
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
 import { CustomSearchInputComponent } from '../../../../shared/components/custom-search-input/custom-search-input.component';
 import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
@@ -56,6 +57,7 @@ beforeAll(async () => {
   registerSignalInputs(BadgeComponent, ['tone', 'size', 'mono']);
   registerSignalInputs(ButtonComponent, [
     'variant',
+    'tone',
     'size',
     'loading',
     'disabled',
@@ -75,6 +77,22 @@ beforeAll(async () => {
     'ariaControls',
     'ariaHaspopup',
   ]);
+  registerSignalInputs(TableActionButtonComponent, [
+    'icon',
+    'label',
+    'tone',
+    'disabled',
+    'loading',
+    'link',
+    'href',
+    'queryParams',
+  ]);
+  const tableActionMetadata = (
+    TableActionButtonComponent as unknown as {
+      ɵcmp: { outputs: Record<string, string> };
+    }
+  ).ɵcmp;
+  tableActionMetadata.outputs = { ...tableActionMetadata.outputs, clicked: 'clicked' };
   registerSignalInputs(DataTableComponent, [
     'ariaLabel',
     'searchValue',

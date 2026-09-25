@@ -106,7 +106,7 @@
                   <th scope="col" class="min-w-56">Notiz</th>
                 }
                 @case ('actions') {
-                  <th scope="col" class="min-w-80 text-right">Aktionen</th>
+                  <th scope="col" class="min-w-32 text-right">Aktionen</th>
                 }
               }
             }
@@ -152,70 +152,55 @@
                   }
                   @case ('actions') {
                     <td class="text-right">
-                      <div class="flex flex-wrap items-center justify-end gap-2">
+                      <div class="flex flex-wrap items-center justify-end gap-1">
                         @if (application.receiptEmailStatus === 'failed') {
-                          <app-button
-                            variant="secondary"
-                            size="slim"
+                          <app-table-action-button
                             [disabled]="processingId() === application.id"
-                            [ariaLabel]="'Bestätigung an ' + application.email + ' erneut senden'"
+                            [icon]="resendIcon"
+                            [label]="'Bestätigung an ' + application.email + ' erneut senden'"
                             (clicked)="resendApplicationReceipt(application)"
-                          >
-                            Bestätigung erneut senden
-                          </app-button>
+                          />
                         }
                         @if (application.status === 'open') {
-                          <app-button
-                            variant="primary"
-                            size="slim"
+                          <app-table-action-button
+                            tone="positive"
+                            [icon]="approveIcon"
                             [disabled]="processingId() === application.id"
-                            [ariaLabel]="'Bewerbung von ' + bewerberName + ' annehmen'"
+                            [label]="'Bewerbung von ' + bewerberName + ' annehmen'"
                             (clicked)="openApproval(application)"
-                          >
-                            Annehmen
-                          </app-button>
-                          <app-button
-                            variant="secondary"
-                            size="slim"
+                          />
+                          <app-table-action-button
+                            tone="warning"
+                            [icon]="rejectIcon"
                             [disabled]="processingId() === application.id"
-                            [ariaLabel]="'Bewerbung von ' + bewerberName + ' ablehnen'"
+                            [label]="'Bewerbung von ' + bewerberName + ' ablehnen'"
                             (clicked)="reject(application)"
-                          >
-                            Ablehnen
-                          </app-button>
+                          />
                         } @else if (application.status === 'rejected') {
                           @if (application.rejectionEmailStatus === 'failed') {
-                            <app-button
-                              variant="secondary"
-                              size="slim"
+                            <app-table-action-button
+                              [icon]="resendIcon"
                               [disabled]="processingId() === application.id"
-                              [ariaLabel]="'Ablehnung an ' + application.email + ' erneut senden'"
+                              [label]="'Ablehnung an ' + application.email + ' erneut senden'"
                               (clicked)="resendRejection(application)"
-                            >
-                              Ablehnung erneut senden
-                            </app-button>
+                            />
                           }
-                          <app-button
-                            variant="destructive"
-                            size="slim"
+                          <app-table-action-button
+                            tone="critical"
+                            [icon]="deleteIcon"
                             [disabled]="processingId() === application.id"
-                            [ariaLabel]="'Abgelehnte Bewerbung von ' + bewerberName + ' löschen'"
+                            [label]="'Abgelehnte Bewerbung von ' + bewerberName + ' löschen'"
                             (clicked)="deleteRejected(application)"
-                          >
-                            Löschen
-                          </app-button>
+                          />
                         } @else if (
                           application.invitationStatus === 'failed' && !application.registeredAt
                         ) {
-                          <app-button
-                            variant="secondary"
-                            size="slim"
+                          <app-table-action-button
+                            [icon]="resendIcon"
                             [disabled]="processingId() === application.id"
-                            [ariaLabel]="'Einladung an ' + application.email + ' erneut senden'"
+                            [label]="'Einladung an ' + application.email + ' erneut senden'"
                             (clicked)="resendInvitation(application)"
-                          >
-                            Einladung erneut senden
-                          </app-button>
+                          />
                         } @else if (application.receiptEmailStatus !== 'failed') {
                           <span class="text-xs text-fb-text-muted">Keine Aktion erforderlich</span>
                         }

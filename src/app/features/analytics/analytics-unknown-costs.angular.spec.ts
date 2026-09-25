@@ -4,14 +4,39 @@ import localeDe from '@angular/common/locales/de';
 import { signal, ɵresolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { glob, readFile } from 'node:fs/promises';
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { InventoryItem, Purchase, Sale, Workspace } from '../../core/models/flipbase.models';
 import { AnalyticsService } from '../../core/services/analytics.service';
 import { InventoryService } from '../../core/services/inventory.service';
 import { PurchaseService } from '../../core/services/purchase.service';
 import { SalesService } from '../../core/services/sales.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
+import { ButtonComponent } from '../../shared/components/button/button.component';
+import { TableActionButtonComponent } from '../../shared/components/table-action-button/table-action-button.component';
 import { AnalyticsComponent } from './analytics.component';
+
+interface InputMetadata {
+  inputs: Record<string, unknown>;
+  declaredInputs: Record<string, string>;
+}
+
+const inputMetadataSnapshots = new Map<unknown, InputMetadata>();
+
+function registerSignalInputs(component: unknown, inputNames: readonly string[]): void {
+  const metadata = (component as { ɵcmp: InputMetadata }).ɵcmp;
+  inputMetadataSnapshots.set(component, {
+    inputs: metadata.inputs,
+    declaredInputs: metadata.declaredInputs,
+  });
+  metadata.inputs = {
+    ...metadata.inputs,
+    ...Object.fromEntries(inputNames.map((name) => [name, [name, 1, null]])),
+  };
+  metadata.declaredInputs = {
+    ...metadata.declaredInputs,
+    ...Object.fromEntries(inputNames.map((name) => [name, name])),
+  };
+}
 
 beforeAll(async () => {
   registerLocaleData(localeDe);
@@ -21,8 +46,26 @@ beforeAll(async () => {
     if (matches.length !== 1) throw new Error(`Test-Ressource nicht eindeutig: ${url}`);
     return readFile(matches[0], 'utf8');
   });
+  registerSignalInputs(ButtonComponent, ['tone']);
+  registerSignalInputs(TableActionButtonComponent, [
+    'icon',
+    'label',
+    'tone',
+    'disabled',
+    'loading',
+    'link',
+    'href',
+    'queryParams',
+  ]);
 });
 afterEach(() => TestBed.resetTestingModule());
+afterAll(() => {
+  for (const [component, snapshot] of inputMetadataSnapshots) {
+    const metadata = (component as { ɵcmp: InputMetadata }).ɵcmp;
+    metadata.inputs = snapshot.inputs;
+    metadata.declaredInputs = snapshot.declaredInputs;
+  }
+});
 
 const workspace: Workspace = {
   id: 'ws-1',

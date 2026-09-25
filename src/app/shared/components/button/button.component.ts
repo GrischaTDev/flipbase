@@ -3,7 +3,10 @@ import { LucideDynamicIcon, LucideIconInput, LucideLoader2 } from '@lucide/angul
 import { NgTemplateOutlet } from '@angular/common';
 import { Params, RouterLink } from '@angular/router';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'destructive' | 'ghost' | 'plain';
+export type ButtonVariant =
+  'primary' | 'secondary' | 'destructive' | 'ghost' | 'plain' | 'table-action';
+
+export type TableActionTone = 'neutral' | 'positive' | 'warning' | 'critical';
 
 export type ButtonSize = 'slim' | 'md' | 'lg' | 'search';
 
@@ -21,6 +24,7 @@ export type ButtonSize = 'slim' | 'md' | 'lg' | 'search';
 })
 export class ButtonComponent {
   readonly variant = input<ButtonVariant>('secondary');
+  readonly tone = input<TableActionTone>('neutral');
   readonly size = input<ButtonSize>('md');
   readonly loading = input<boolean>(false);
   readonly disabled = input<boolean>(false);
@@ -49,9 +53,13 @@ export class ButtonComponent {
   readonly effectiveDisabled = computed(() => this.disabled() || this.loading());
 
   protected readonly buttonClasses = computed(() => {
+    const focusColor =
+      this.variant() === 'table-action'
+        ? 'focus-visible:outline-fb-text-primary'
+        : 'focus-visible:outline-fb-primary';
     const base =
       'fb-button inline-flex items-center font-[550] leading-4 select-none cursor-pointer pointer-coarse:min-h-11 pointer-coarse:min-w-11 ' +
-      'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary ' +
+      'focus-visible:outline-2 focus-visible:outline-offset-2 ' +
       'disabled:cursor-not-allowed disabled:opacity-40';
 
     const width = this.fullWidth() ? 'w-full' : '';
@@ -68,6 +76,18 @@ export class ButtonComponent {
         'bg-transparent text-fb-text-secondary hover:text-fb-text-primary hover:bg-fb-surface-hover border border-transparent',
       plain:
         'bg-transparent text-fb-text-secondary hover:text-fb-text-primary p-0 border-0 underline-offset-4 hover:underline',
+      'table-action': 'border border-transparent bg-transparent text-fb-text-muted shadow-none',
+    };
+
+    const tableActionToneStyles: Record<TableActionTone, string> = {
+      neutral:
+        'hover:bg-fb-surface-hover hover:text-fb-text-primary focus-visible:bg-fb-surface-hover focus-visible:text-fb-text-primary',
+      positive:
+        'hover:bg-[var(--fb-color-success-surface)] hover:text-[var(--fb-color-success-text)] focus-visible:bg-[var(--fb-color-success-surface)] focus-visible:text-[var(--fb-color-success-text)]',
+      warning:
+        'hover:bg-[var(--fb-color-warning-surface)] hover:text-[var(--fb-color-warning-text)] focus-visible:bg-[var(--fb-color-warning-surface)] focus-visible:text-[var(--fb-color-warning-text)]',
+      critical:
+        'hover:bg-[var(--fb-color-critical-surface)] hover:text-[var(--fb-color-critical-text)] focus-visible:bg-[var(--fb-color-critical-surface)] focus-visible:text-[var(--fb-color-critical-text)]',
     };
 
     const sizeStyles: Record<ButtonSize, string> = this.iconOnly()
@@ -84,7 +104,15 @@ export class ButtonComponent {
           search: 'h-9 px-2 text-[13px] rounded-lg gap-1.5',
         };
 
-    return [base, alignment, width, variantStyles[this.variant()], sizeStyles[this.size()]]
+    return [
+      base,
+      focusColor,
+      alignment,
+      width,
+      variantStyles[this.variant()],
+      this.variant() === 'table-action' ? tableActionToneStyles[this.tone()] : '',
+      sizeStyles[this.size()],
+    ]
       .filter(Boolean)
       .join(' ');
   });
@@ -92,7 +120,7 @@ export class ButtonComponent {
   protected readonly iconClasses = computed(() => {
     switch (this.size()) {
       case 'slim':
-        return 'w-3.5 h-3.5 shrink-0';
+        return this.variant() === 'table-action' ? 'w-4 h-4 shrink-0' : 'w-3.5 h-3.5 shrink-0';
       case 'lg':
         return 'w-5 h-5 shrink-0';
       case 'md':

@@ -138,16 +138,12 @@
                 </span>
               </td>
               <td class="min-w-[110px] whitespace-nowrap">
-                <div class="flex justify-end gap-1.5">
+                <div class="flex justify-end gap-1">
                   @if (isBrandOnly(query)) {
-                    <app-button
-                      variant="ghost"
-                      size="md"
+                    <app-table-action-button
                       [icon]="editIcon"
-                      [iconOnly]="true"
                       [disabled]="editorOpen()"
-                      [title]="'Markenfilter bearbeiten: ' + queryTitle(query)"
-                      [ariaLabel]="'Markenfilter bearbeiten: ' + queryTitle(query)"
+                      [label]="'Markenfilter bearbeiten: ' + queryTitle(query)"
                       (clicked)="openEditor(query)"
                     />
                   } @else {
@@ -158,20 +154,14 @@
                       Altes Filterformat
                     </span>
                   }
-                  <app-button
-                    variant="ghost"
-                    size="md"
+                  <app-table-action-button
                     [icon]="query.is_active ? pauseIcon : activateIcon"
-                    [iconOnly]="true"
+                    [tone]="query.is_active ? 'warning' : 'positive'"
                     [disabled]="
                       busyId() !== null || editorOpen() || (!isBrandOnly(query) && !query.is_active)
                     "
                     [loading]="busyId() === query.id"
-                    [title]="
-                      (query.is_active ? 'Markenfilter pausieren: ' : 'Markenfilter aktivieren: ') +
-                      queryTitle(query)
-                    "
-                    [ariaLabel]="
+                    [label]="
                       (query.is_active ? 'Markenfilter pausieren: ' : 'Markenfilter aktivieren: ') +
                       queryTitle(query)
                     "

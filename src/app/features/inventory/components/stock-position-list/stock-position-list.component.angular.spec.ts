@@ -20,6 +20,7 @@ import {
 } from '../../../../core/models/flipbase.models';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { TableActionButtonComponent } from '../../../../shared/components/table-action-button/table-action-button.component';
 import { INVENTORY_TABLE_CONFIG } from '../../../../core/config/table-defaults.config';
 import { StockPositionListComponent } from './stock-position-list.component';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
@@ -60,6 +61,8 @@ beforeAll(async () => {
     './badge.component.scss': 'src/app/shared/components/badge/badge.component.scss',
     './button.component.html': 'src/app/shared/components/button/button.component.html',
     './button.component.scss': 'src/app/shared/components/button/button.component.scss',
+    './table-action-button.component.html':
+      'src/app/shared/components/table-action-button/table-action-button.component.html',
     './product-thumbnail.component.html':
       'src/app/shared/components/product-thumbnail/product-thumbnail.component.html',
     './stock-position-list.component.html':
@@ -84,6 +87,7 @@ beforeAll(async () => {
   registerSignalInputs(BadgeComponent, ['tone', 'size', 'mono']);
   registerSignalInputs(ButtonComponent, [
     'variant',
+    'tone',
     'size',
     'icon',
     'iconPosition',
@@ -103,6 +107,22 @@ beforeAll(async () => {
     'loading',
     'disabled',
   ]);
+  registerSignalInputs(TableActionButtonComponent, [
+    'icon',
+    'label',
+    'tone',
+    'disabled',
+    'loading',
+    'link',
+    'href',
+    'queryParams',
+  ]);
+  const tableActionMetadata = (
+    TableActionButtonComponent as unknown as {
+      ɵcmp: { outputs: Record<string, string> };
+    }
+  ).ɵcmp;
+  tableActionMetadata.outputs = { ...tableActionMetadata.outputs, clicked: 'clicked' };
   registerSignalInputs(ProductThumbnailComponent, ['src', 'alt', 'size']);
   registerSignalInputs(CustomSelectComponent, [
     'options',
@@ -674,8 +694,8 @@ describe('StockPositionListComponent', () => {
     (fixture.nativeElement as HTMLElement)
       .querySelector<HTMLElement>('[data-item-select] [role="checkbox"]')
       ?.click();
-    fixture.nativeElement.querySelector('[data-item-store-toggle]')?.click();
-    fixture.nativeElement.querySelector('[data-item-sell]')?.click();
+    fixture.nativeElement.querySelector('[data-item-store-toggle] button')?.click();
+    fixture.nativeElement.querySelector('[data-item-sell] button')?.click();
     fixture.detectChanges();
 
     expect(selectionChanged).toHaveBeenCalledWith(einzelstueck.id);

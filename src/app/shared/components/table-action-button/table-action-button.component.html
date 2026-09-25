@@ -1,0 +1,15 @@
+<app-button
+  variant="table-action"
+  size="slim"
+  [tone]="tone()"
+  [icon]="icon()"
+  [iconOnly]="true"
+  [ariaLabel]="label()"
+  [title]="label()"
+  [disabled]="disabled()"
+  [loading]="loading()"
+  [link]="link()"
+  [href]="href()"
+  [queryParams]="queryParams()"
+  (clicked)="clicked.emit($event)"
+/>

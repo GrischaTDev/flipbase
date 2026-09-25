@@ -25,6 +25,7 @@ import { CardComponent } from '../../shared/components/card/card.component';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { DataTableComponent } from '../../shared/components/data-table/data-table.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
+import { TableActionButtonComponent } from '../../shared/components/table-action-button/table-action-button.component';
 
 interface InputMetadata {
   inputs: Record<string, unknown>;
@@ -74,6 +75,7 @@ beforeAll(async () => {
   ]);
   registerInputs(ButtonComponent, [
     'variant',
+    'tone',
     'size',
     'icon',
     'iconOnly',
@@ -81,6 +83,16 @@ beforeAll(async () => {
     'ariaLabel',
     'ariaPressed',
     'title',
+  ]);
+  registerInputs(TableActionButtonComponent, [
+    'icon',
+    'label',
+    'tone',
+    'disabled',
+    'loading',
+    'link',
+    'href',
+    'queryParams',
   ]);
   registerInputs(CustomSelectComponent, [
     'options',

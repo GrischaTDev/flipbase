@@ -289,23 +289,15 @@
                     @case ('documents') {
                       <td>
                         @if (documentService.hasDocuments(expense.id)) {
-                          <app-button
-                            variant="ghost"
-                            size="slim"
+                          <app-table-action-button
                             [icon]="viewDocumentIcon"
-                            [iconOnly]="true"
-                            ariaLabel="Beleg ansehen"
-                            title="Beleg ansehen"
+                            label="Beleg ansehen"
                             (clicked)="documentExpense.set(expense)"
                           />
                         } @else {
-                          <app-button
-                            variant="ghost"
-                            size="slim"
+                          <app-table-action-button
                             [icon]="addDocumentIcon"
-                            [iconOnly]="true"
-                            ariaLabel="Beleg hinzufügen"
-                            title="Beleg hinzufügen"
+                            label="Beleg hinzufügen"
                             (clicked)="documentExpense.set(expense)"
                           />
                         }
@@ -315,32 +307,22 @@
                       <td class="text-right">
                         <div class="flex justify-end gap-1">
                           @if (expense.status === 'open') {
-                            <app-button
-                              variant="ghost"
-                              size="slim"
+                            <app-table-action-button
                               [icon]="paidIcon"
-                              [iconOnly]="true"
-                              ariaLabel="Als bezahlt markieren"
-                              title="Als bezahlt markieren"
+                              label="Als bezahlt markieren"
+                              tone="positive"
                               (clicked)="markPaid(expense)"
                             />
                           }
-                          <app-button
-                            variant="ghost"
-                            size="slim"
+                          <app-table-action-button
                             [icon]="editIcon"
-                            [iconOnly]="true"
-                            ariaLabel="Ausgabe bearbeiten"
-                            title="Ausgabe bearbeiten"
+                            label="Ausgabe bearbeiten"
                             (clicked)="editExpense(expense)"
                           />
-                          <app-button
-                            variant="ghost"
-                            size="slim"
+                          <app-table-action-button
                             [icon]="deleteIcon"
-                            [iconOnly]="true"
-                            ariaLabel="Ausgabe löschen"
-                            title="Ausgabe löschen"
+                            label="Ausgabe löschen"
+                            tone="critical"
                             (clicked)="removeExpense(expense)"
                           />
                         </div>
@@ -416,13 +398,9 @@
                     </app-badge>
                   </td>
                   <td class="text-right">
-                    <app-button
-                      size="slim"
-                      variant="ghost"
+                    <app-table-action-button
                       [icon]="editIcon"
-                      [iconOnly]="true"
-                      ariaLabel="Wiederkehrende Ausgabe bearbeiten"
-                      title="Wiederkehrende Ausgabe bearbeiten"
+                      label="Wiederkehrende Ausgabe bearbeiten"
                       (clicked)="editRecurring(rule)"
                     />
                   </td>

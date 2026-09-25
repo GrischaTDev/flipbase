@@ -8,7 +8,8 @@ import {
   LucideArrowRight as ArrowRight,
   LucidePrinter as Printer,
   LucideStore as Store,
-  LucideDynamicIcon,
+  LucideArchive as Archive,
+  LucideArchiveRestore as ArchiveRestore,
 } from '@lucide/angular';
 import {
   InventoryItem,
@@ -41,6 +42,7 @@ import { editableItemStatusOptions } from '../../models/item-status-options';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { TableActionButtonComponent } from '../../../../shared/components/table-action-button/table-action-button.component';
 import {
   buildInventoryPresentation,
   InventorySourceState,
@@ -53,10 +55,10 @@ import {
     NgTemplateOutlet,
     BadgeComponent,
     ButtonComponent,
+    TableActionButtonComponent,
     ProductThumbnailComponent,
     CurrencyPipe,
     DatePipe,
-    LucideDynamicIcon,
     CustomSelectComponent,
     CostStateComponent,
     CustomCheckboxComponent,
@@ -115,6 +117,8 @@ export class StockPositionListComponent {
   readonly arrowRightIcon = ArrowRight;
   readonly printerIcon = Printer;
   readonly storeIcon = Store;
+  readonly archiveIcon = Archive;
+  readonly restoreIcon = ArchiveRestore;
   readonly openPositionIds = signal<ReadonlySet<string>>(new Set());
   readonly showMovements = signal(false);
 

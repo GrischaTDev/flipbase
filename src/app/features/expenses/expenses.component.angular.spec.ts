@@ -17,6 +17,7 @@ import { WorkspaceService } from '../../core/services/workspace.service';
 import { ConfirmDialogService } from '../../shared/components/confirm-dialog/confirm-dialog.service';
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
+import { TableActionButtonComponent } from '../../shared/components/table-action-button/table-action-button.component';
 import { CardComponent } from '../../shared/components/card/card.component';
 import { CustomSelectComponent } from '../../shared/components/custom-select/custom-select.component';
 import { DataTableComponent } from '../../shared/components/data-table/data-table.component';
@@ -64,13 +65,35 @@ beforeAll(async () => {
   registerInputs(PageHeaderComponent, ['title', 'subtitle', 'icon']);
   registerInputs(ButtonComponent, [
     'variant',
+    'tone',
     'size',
     'icon',
     'iconOnly',
     'ariaPressed',
     'ariaLabel',
     'title',
+    'disabled',
+    'loading',
+    'link',
+    'href',
+    'queryParams',
   ]);
+  registerInputs(TableActionButtonComponent, [
+    'icon',
+    'label',
+    'tone',
+    'disabled',
+    'loading',
+    'link',
+    'href',
+    'queryParams',
+  ]);
+  const tableActionMetadata = (
+    TableActionButtonComponent as unknown as {
+      ɵcmp: { outputs: Record<string, string> };
+    }
+  ).ɵcmp;
+  tableActionMetadata.outputs = { ...tableActionMetadata.outputs, clicked: 'clicked' };
   registerInputs(CardComponent, ['padding', 'rounded']);
   registerInputs(BadgeComponent, ['tone', 'mono']);
   registerInputs(DataTableComponent, [

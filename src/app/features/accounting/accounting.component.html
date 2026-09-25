@@ -375,30 +375,25 @@
                           <td class="whitespace-nowrap text-right">
                             <div class="flex items-center justify-end gap-1.5">
                               @if (tx.status === 'matched') {
-                                <app-button
-                                  variant="primary"
-                                  size="slim"
+                                <app-table-action-button
+                                  label="Transaktion buchen"
+                                  tone="positive"
                                   [icon]="checkSingleIcon"
                                   (clicked)="onBookTransaction(tx.id)"
-                                >
-                                  Buchen
-                                </app-button>
+                                />
                               }
                               @if (tx.status === 'pending') {
-                                <app-button
-                                  variant="secondary"
-                                  size="slim"
+                                <app-table-action-button
+                                  label="Transaktion zuweisen"
+                                  [icon]="assignIcon"
                                   (clicked)="openManualAssign(tx)"
-                                >
-                                  Zuweisen
-                                </app-button>
+                                />
                               }
                               @if (tx.status !== 'booked') {
-                                <app-button
-                                  variant="ghost"
-                                  size="slim"
+                                <app-table-action-button
+                                  tone="warning"
                                   [icon]="closeIcon"
-                                  ariaLabel="Transaktion ignorieren"
+                                  label="Transaktion ignorieren"
                                   (clicked)="onIgnoreTransaction(tx.id)"
                                 />
                               }

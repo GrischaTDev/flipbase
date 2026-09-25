@@ -290,87 +290,58 @@
                 }
                 @case ('actions') {
                   <td class="px-3 py-3 text-right">
-                    <div class="flex items-center justify-end gap-1.5">
+                    <div class="flex items-center justify-end gap-1">
                       @if (row.inventoryItem; as item) {
                         @if (
                           item.archived_at ||
                           (item.sale_state === 'sold' && item.active_sale_count === 1)
                         ) {
-                          <button
-                            type="button"
+                          <app-table-action-button
                             data-item-archive
-                            (click)="archiveItem.emit(item)"
+                            (clicked)="archiveItem.emit(item)"
                             [disabled]="archivePendingIds().has(item.id)"
-                            class="linear-btn-secondary cursor-pointer rounded-lg px-2.5 py-1.5 text-xs font-semibold disabled:opacity-50"
-                          >
-                            {{ item.archived_at ? 'Aus Archiv holen' : 'Archivieren' }}
-                          </button>
+                            [icon]="item.archived_at ? restoreIcon : archiveIcon"
+                            [tone]="item.archived_at ? 'positive' : 'warning'"
+                            [label]="
+                              (item.archived_at ? 'Aus Archiv holen: ' : 'Archivieren: ') +
+                              row.title
+                            "
+                          />
                         }
-                        <button
+                        <app-table-action-button
                           data-item-label
-                          type="button"
-                          (click)="labelIndividual.emit(item)"
-                          class="cursor-pointer rounded-lg p-1.5 text-fb-text-muted transition hover:bg-fb-line hover:text-fb-text-primary"
-                          [attr.aria-label]="'Etikett für ' + row.title + ' drucken'"
-                        >
-                          <svg [lucideIcon]="printerIcon" class="h-4 w-4" aria-hidden="true"></svg>
-                        </button>
-                        <a
+                          (clicked)="labelIndividual.emit(item)"
+                          [icon]="printerIcon"
+                          [label]="'Etikett für ' + row.title + ' drucken'"
+                        />
+                        <app-table-action-button
                           data-item-details
-                          [routerLink]="['/inventory', item.id]"
-                          class="rounded-lg p-1.5 text-fb-text-muted transition hover:bg-fb-line hover:text-fb-text-primary"
-                          [attr.aria-label]="'Details für ' + row.title + ' öffnen'"
-                          ><svg
-                            [lucideIcon]="arrowRightIcon"
-                            class="h-4 w-4"
-                            aria-hidden="true"
-                          ></svg
-                        ></a>
+                          [link]="'/inventory/' + item.id"
+                          [icon]="arrowRightIcon"
+                          [label]="'Details für ' + row.title + ' öffnen'"
+                        />
                         @if (row.canMutate) {
-                          <button
+                          <app-table-action-button
                             data-item-store-toggle
-                            type="button"
-                            (click)="emitStoreToggle(item)"
-                            class="cursor-pointer rounded-lg p-1.5 transition hover:bg-fb-line"
-                            [attr.aria-label]="row.title + ' Webshop-Freigabe ändern'"
-                          >
-                            <svg
-                              [lucideIcon]="storeIcon"
-                              class="h-4 w-4 text-fb-text-muted"
-                              aria-hidden="true"
-                            ></svg>
-                          </button>
+                            (clicked)="emitStoreToggle(item)"
+                            [icon]="storeIcon"
+                            [label]="row.title + ' Webshop-Freigabe ändern'"
+                          />
                         }
                         @if (row.canSell) {
-                          <button
+                          <app-table-action-button
                             data-item-sell
-                            type="button"
-                            (click)="emitIndividualSale(item)"
-                            class="linear-btn-secondary inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold"
-                            [attr.aria-label]="row.title + ' verkaufen'"
-                          >
-                            <svg
-                              [lucideIcon]="shoppingCartIcon"
-                              class="h-3.5 w-3.5"
-                              aria-hidden="true"
-                            ></svg
-                            >Verkaufen
-                          </button>
+                            (clicked)="emitIndividualSale(item)"
+                            [icon]="shoppingCartIcon"
+                            [label]="row.title + ' verkaufen'"
+                          />
                         }
                       } @else if (row.canSell) {
-                        <button
-                          type="button"
-                          (click)="sell.emit(stockPosition(row))"
-                          class="linear-btn-secondary inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
-                          [attr.aria-label]="row.title + ' verkaufen'"
-                        >
-                          <svg
-                            [lucideIcon]="shoppingCartIcon"
-                            class="h-3.5 w-3.5"
-                            aria-hidden="true"
-                          ></svg
-                          >Verkaufen
-                        </button>
+                        <app-table-action-button
+                          (clicked)="sell.emit(stockPosition(row))"
+                          [icon]="shoppingCartIcon"
+                          [label]="row.title + ' verkaufen'"
+                        />
                       }
                     </div>
                   </td>

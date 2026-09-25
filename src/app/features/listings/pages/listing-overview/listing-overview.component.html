@@ -45,7 +45,7 @@
           <th class="px-4 py-3">Status</th>
           <th class="px-4 py-3">Eingestellt</th>
           <th class="px-4 py-3">Online seit</th>
-          <th class="px-4 py-3"><span class="sr-only">Aktionen</span></th>
+          <th scope="col" class="px-4 py-3 text-right">Aktionen</th>
         </tr>
       </thead>
       <tbody class="divide-y divide-fb-line">
@@ -82,52 +82,46 @@
             <td class="px-4 py-3">
               <div class="flex justify-end gap-1">
                 @if (row.listing.status === 'prepared') {
-                  <app-button
-                    ariaLabel="Inserat online setzen"
-                    size="slim"
+                  <app-table-action-button
+                    label="Inserat online setzen"
+                    tone="positive"
                     [icon]="onlineIcon"
                     (clicked)="setOnline(row)"
                     [loading]="actionListingId() === row.listing.id"
-                    >Online setzen</app-button
-                  >
+                  />
                 }
                 @if (row.listing.status === 'prepared') {
-                  <app-button
-                    ariaLabel="Inserat bei Kleinanzeigen öffnen"
-                    size="slim"
+                  <app-table-action-button
+                    label="Inserat bei Kleinanzeigen öffnen"
                     [icon]="openIcon"
                     (clicked)="openAgain(row)"
-                    >Öffnen</app-button
-                  >
+                  />
                 }
                 @if (canRelist(row)) {
-                  <app-button
-                    ariaLabel="Inserat erneut einstellen"
-                    size="slim"
+                  <app-table-action-button
+                    label="Inserat erneut einstellen"
+                    tone="positive"
                     [icon]="relistIcon"
                     (clicked)="relist(row)"
                     [loading]="actionListingId() === row.listing.id"
-                    >Erneut inserieren</app-button
-                  >
+                  />
                 }
                 @if (isSoldCleanup(row)) {
                   <span class="text-xs text-fb-text-muted">Nach Verkauf beendet</span>
                 }
-                <app-button
-                  ariaLabel="Inserat bearbeiten"
-                  [iconOnly]="true"
+                <app-table-action-button
+                  label="Inserat bearbeiten"
                   [icon]="editIcon"
                   (clicked)="edit(row)"
-                ></app-button>
+                />
                 @if (row.listing.status !== 'ended') {
-                  <app-button
-                    ariaLabel="Inserat beenden"
-                    variant="destructive"
-                    [iconOnly]="true"
+                  <app-table-action-button
+                    label="Inserat beenden"
+                    tone="critical"
                     [icon]="endIcon"
                     (clicked)="end(row)"
                     [loading]="actionListingId() === row.listing.id"
-                  ></app-button>
+                  />
                 }
               </div>
             </td>

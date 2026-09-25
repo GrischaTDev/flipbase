@@ -33,6 +33,7 @@ import { WorkspaceService } from '../../core/services/workspace.service';
 import { nextOccurrence as nextExpenseOccurrence } from '../../core/utils/expense-recurrence';
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
+import { TableActionButtonComponent } from '../../shared/components/table-action-button/table-action-button.component';
 import { CardComponent } from '../../shared/components/card/card.component';
 import { ConfirmDialogService } from '../../shared/components/confirm-dialog/confirm-dialog.service';
 import {
@@ -76,6 +77,7 @@ function shiftMonthKey(monthKey: string, offset: number): string {
     DatePipe,
     PageHeaderComponent,
     ButtonComponent,
+    TableActionButtonComponent,
     CardComponent,
     BadgeComponent,
     CustomSelectComponent,

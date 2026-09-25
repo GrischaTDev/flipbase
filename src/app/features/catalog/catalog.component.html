@@ -226,7 +226,7 @@
                   <th scope="col" class="border-b border-fb-line px-3 py-2.5 text-left">Status</th>
                 }
                 @case ('actions') {
-                  <th scope="col" class="border-b border-fb-line px-3 py-2.5 text-left">
+                  <th scope="col" class="border-b border-fb-line px-3 py-2.5 text-right">
                     Aktionen
                   </th>
                 }
@@ -298,52 +298,44 @@
                     <td class="px-3 py-3 text-fb-text-secondary">{{ statusLabel(product) }}</td>
                   }
                   @case ('actions') {
-                    <td class="px-3 py-3">
-                      <div class="flex flex-wrap items-center gap-1">
+                    <td class="px-3 py-3 text-right">
+                      <div class="flex flex-wrap items-center justify-end gap-1">
                         @if (canSell(product)) {
-                          <app-button
-                            size="slim"
-                            variant="secondary"
-                            [ariaLabel]="product.title + ' verkaufen'"
+                          <app-table-action-button
+                            [label]="product.title + ' verkaufen'"
+                            [icon]="sellIcon"
                             (clicked)="openSale(product)"
-                            >Verkaufen</app-button
-                          >
+                          />
                         }
-                        <app-button
-                          size="slim"
-                          variant="ghost"
+                        <app-table-action-button
                           [link]="product.detailLink"
+                          [icon]="editIcon"
+                          [label]="'Bearbeiten: ' + product.title"
                           [queryParams]="{
                             returnTo: '/catalog',
                             edit: product.kind === 'item' ? 'true' : null,
                           }"
-                        >
-                          Bearbeiten
-                        </app-button>
-                        <app-button
-                          size="slim"
-                          variant="ghost"
+                        />
+                        <app-table-action-button
                           [attr.data-article-archive]="product.key"
                           [disabled]="lifecycle.pendingIds().has(product.key)"
                           (clicked)="setArchived(product)"
-                          [ariaLabel]="
+                          [icon]="product.archivedAt ? restoreIcon : archiveIcon"
+                          [tone]="product.archivedAt ? 'positive' : 'warning'"
+                          [label]="
                             (product.archivedAt ? 'Wiederherstellen: ' : 'Archivieren: ') +
                             product.title
                           "
-                        >
-                          {{ product.archivedAt ? 'Wiederherstellen' : 'Archivieren' }}
-                        </app-button>
+                        />
                         @if (product.canOfferDelete) {
-                          <app-button
-                            size="slim"
-                            variant="ghost"
+                          <app-table-action-button
                             [attr.data-article-delete]="product.key"
                             [disabled]="lifecycle.pendingIds().has(product.key)"
                             (clicked)="deleteUnused(product)"
-                            [ariaLabel]="'Löschen: ' + product.title"
-                          >
-                            Löschen
-                          </app-button>
+                            [icon]="trashIcon"
+                            tone="critical"
+                            [label]="'Löschen: ' + product.title"
+                          />
                         }
                       </div>
                     </td>
