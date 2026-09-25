@@ -212,9 +212,11 @@ describe('SalesComponent – Aktionsmeldungen', () => {
     const root = new DOMParser().parseFromString(template, 'text/html');
 
     expect('onDeleteSale' in SalesComponent.prototype).toBe(false);
-    expect(root.querySelector('button[title="Retoure / Gutschrift erfassen"]')).not.toBeNull();
-    expect(root.querySelector('button[title="Verkauf bearbeiten"]')).toBeNull();
-    expect(root.querySelector('button[title="Verkauf stornieren"]')).toBeNull();
+    expect(
+      root.querySelector('app-table-action-button[label="Retoure / Gutschrift erfassen"]'),
+    ).not.toBeNull();
+    expect(root.querySelector('app-table-action-button[label="Verkauf bearbeiten"]')).toBeNull();
+    expect(root.querySelector('app-table-action-button[label="Verkauf stornieren"]')).toBeNull();
     expect(root.body.textContent).not.toContain('Gebuchte Verkäufe bleiben unverändert erhalten');
   });
 
