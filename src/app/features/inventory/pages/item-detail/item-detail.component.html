@@ -75,7 +75,9 @@
           </button>
 
           @if (canOfferDelete(actionItem)) {
-            <app-button variant="ghost" size="slim" (clicked)="onDeleteItem()">Löschen</app-button>
+            <app-button variant="ghost" size="slim" [icon]="trashIcon" (clicked)="onDeleteItem()"
+              >Löschen</app-button
+            >
           }
         }
       }

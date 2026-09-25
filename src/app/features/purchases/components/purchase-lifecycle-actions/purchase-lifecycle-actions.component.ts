@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, input, output } from '@angular/core
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { PurchaseEntryStatus } from '../../../../core/models/purchase-costing.models';
 import { PurchaseSaleHistoryState } from '../../../../core/services/purchase.service';
+import { LucideTrash2 } from '@lucide/angular';
 
 @Component({
   selector: 'app-purchase-lifecycle-actions',
@@ -11,6 +12,7 @@ import { PurchaseSaleHistoryState } from '../../../../core/services/purchase.ser
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PurchaseLifecycleActionsComponent {
+  readonly deleteIcon = LucideTrash2;
   readonly entryStatus = input.required<PurchaseEntryStatus>();
   readonly receivingStatus = input<
     'draft' | 'ordered' | 'partially_received' | 'received' | 'archived'

@@ -17,6 +17,7 @@ import {
   SelectOption,
 } from '../../../../shared/components/custom-select/custom-select.component';
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
+import { LucideTrash2 } from '@lucide/angular';
 import {
   PackageContentInput,
   PurchasePackageService,
@@ -53,6 +54,7 @@ function contentRow() {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PackageContentDialogComponent {
+  readonly removeIcon = LucideTrash2;
   readonly line = input.required<PurchaseLine>();
   readonly saved = output<void>();
   readonly closed = output<void>();

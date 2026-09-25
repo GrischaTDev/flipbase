@@ -360,11 +360,57 @@ describe('ListingService', () => {
     expect(editorItem?.availableQuantity).toBe(7);
     expect(editorItem?.allocatedPurchaseCost).toBe(15.5);
     expect(editorItem?.expectedValue).toBe(49.99);
+    expect(editorItem?.priceSource).toBe('product');
 
     expect(service.rows()).toHaveLength(1);
     expect(service.rows()[0]?.listing.catalogProductId).toBe('prod-1');
     expect(service.rows()[0]?.listing.inventoryItemId).toBeNull();
     expect(service.rows()[0]?.primaryImagePath).toBe('catalog-products/workspace-a/prod-1/img.jpg');
+  });
+
+  it('prefers the recorded product price for linked items and never uses purchase cost as a sale price', async () => {
+    const product = {
+      id: 'prod-1',
+      workspace_id: 'workspace-a',
+      title: 'Kamera',
+      listing_price: 89,
+      archived_at: null,
+      media: [],
+    };
+    const linkedItem = {
+      ...item,
+      expected_value: 72.45,
+      purchase_line_id: 'line-1',
+      purchase_line: { catalog_product_id: 'prod-1' },
+    };
+    const costOnlyItem = {
+      ...item,
+      id: 'item-without-sale-price',
+      expected_value: null,
+      allocated_purchase_cost: 17.35,
+    };
+    const from = vi.fn((table: string) => {
+      const rows =
+        table === 'inventory_items'
+          ? [linkedItem, costOnlyItem]
+          : table === 'catalog_products'
+            ? [product]
+            : [];
+      return resolvedQuery(Promise.resolve({ data: rows, error: null }));
+    });
+    const { service } = setup({ from });
+
+    await service.load('workspace-a');
+
+    expect(service.items().find((entry) => entry.id === linkedItem.id)).toMatchObject({
+      expectedValue: 89,
+      priceSource: 'product',
+    });
+    expect(service.items().find((entry) => entry.id === costOnlyItem.id)).toMatchObject({
+      expectedValue: null,
+      priceSource: null,
+      allocatedPurchaseCost: 17.35,
+    });
   });
 
   it('marks an archived product and its linked item unavailable for new listings', async () => {

@@ -4,7 +4,16 @@
   backLabel="Zurück zu Inseraten"
   (cancelled)="cancel()"
 >
-  <form [formGroup]="form" class="space-y-5" (ngSubmit)="save()">
+  <app-button
+    entry-header-actions
+    variant="primary"
+    type="submit"
+    formId="listing-editor-form"
+    [disabled]="selectedItemIssue() !== null || imagesLoading() || imagesLoadError() !== null"
+    [loading]="isSaving()"
+    >{{ isEdit() ? 'Änderungen speichern' : 'Inserat vorbereiten' }}</app-button
+  >
+  <form id="listing-editor-form" [formGroup]="form" class="space-y-5" (ngSubmit)="save()">
     <app-two-column-layout>
       <section main class="linear-surface space-y-4 rounded-xl p-5">
         <div class="block text-sm font-medium text-fb-text-primary">
@@ -30,18 +39,6 @@
           }
         </div>
         @if (selectedItem(); as item) {
-          <p class="text-sm text-fb-text-muted">
-            {{ item.brand ?? 'Ohne Marke' }} · {{ categoryLabel(item.category) }} ·
-            @if (item.targetKind === 'catalog_product') {
-              Mengenbestand {{ item.availableQuantity ?? 0 }} Stk.
-            } @else {
-              Einkaufskosten {{ item.allocatedPurchaseCost ?? 0 }} €
-            }
-          </p>
-          <p class="text-xs text-fb-text-muted">
-            Die passende Kleinanzeigen-Kategorie wählst du nach der Übertragung auf Kleinanzeigen
-            aus.
-          </p>
           @if (selectedItemIssue(); as issue) {
             <p class="text-sm text-fb-critical" role="alert">{{ issue }}</p>
             @if (selectedOpenListing(); as existingListing) {
@@ -101,6 +98,45 @@
         }
       </section>
       <aside sidebar class="linear-surface space-y-4 rounded-xl p-5">
+        <div class="border-b border-fb-border pb-4">
+          <h2 class="text-sm font-semibold text-fb-text-primary">Artikeldaten</h2>
+          <p class="mt-1 text-xs text-fb-text-muted">
+            Aus dem gewählten Artikel übernommen und für dieses Inserat anpassbar.
+          </p>
+          @if (selectedItem(); as item) {
+            @if (item.targetKind === 'catalog_product') {
+              <p class="mt-2 text-xs text-fb-text-muted">
+                Verfügbarer Bestand: {{ item.availableQuantity ?? 0 }} Stk.
+              </p>
+            }
+          }
+        </div>
+        <app-text-field formControlName="brand" label="Marke" [maxLength]="120" />
+        <app-text-field formControlName="category" label="Artikelkategorie" [maxLength]="240" />
+        <p class="-mt-3 text-xs text-fb-text-muted">
+          Die Kleinanzeigen-Kategorie wählst du nach der Übertragung dort selbst aus.
+        </p>
+        <app-text-field formControlName="model" label="Modell" [maxLength]="120" />
+        <app-text-field formControlName="size" label="Größe" [maxLength]="80" />
+        <app-text-field formControlName="color" label="Farbe" [maxLength]="80" />
+        <app-text-field formControlName="material" label="Material" [maxLength]="120" />
+        <div class="block text-sm font-medium text-fb-text-primary">
+          <span>Zustand</span>
+          <app-custom-select
+            formControlName="condition"
+            class="mt-1"
+            ariaLabel="Zustand"
+            [options]="conditionOptions"
+          />
+        </div>
+        <app-text-field
+          formControlName="conditionNotes"
+          label="Zustandsdetails"
+          [maxLength]="500"
+        />
+        <div class="border-t border-fb-border pt-4">
+          <h2 class="text-sm font-semibold text-fb-text-primary">Angebot</h2>
+        </div>
         <div>
           <label for="listing-price" class="block text-sm font-medium text-fb-text-primary">
             Preis
@@ -111,9 +147,23 @@
             [min]="0"
             [max]="99999999"
             [step]="0.01"
+            [showStepper]="false"
+            placeholder="Preis eingeben"
             unit="€"
             ariaLabel="Preis"
+            [ariaDescribedby]="selectedItem() ? 'listing-price-help' : ''"
           />
+          @if (selectedItem(); as item) {
+            <p id="listing-price-help" class="mt-1 text-xs text-fb-text-muted">
+              @if (item.priceSource === 'product') {
+                Vorschlag aus dem hinterlegten Shoppreis des Produkts. Du kannst ihn ändern.
+              } @else if (item.priceSource === 'article') {
+                Vorschlag aus dem hinterlegten Verkaufswert des Artikels. Du kannst ihn ändern.
+              } @else {
+                Kein Verkaufspreis hinterlegt. Bitte gib einen Inseratspreis ein.
+              }
+            </p>
+          }
           @if (form.controls.price.touched && form.controls.price.invalid) {
             <p class="mt-1 text-xs text-fb-critical">
               Der Preis muss zwischen 0 und 99.999.999 € liegen.
@@ -192,14 +242,6 @@
             </p>
           }
         </div>
-        <app-button
-          variant="primary"
-          size="lg"
-          type="submit"
-          [disabled]="selectedItemIssue() !== null || imagesLoading() || imagesLoadError() !== null"
-          [loading]="isSaving()"
-          >{{ isEdit() ? 'Speichern' : 'Vorbereiten und öffnen' }}</app-button
-        >
       </aside>
     </app-two-column-layout>
   </form>

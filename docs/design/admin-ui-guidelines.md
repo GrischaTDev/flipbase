@@ -17,6 +17,40 @@ Rangfolge bei Gestaltungsentscheidungen:
 
 Barrierefreiheit und korrekte Fachabläufe bleiben verbindlich. Ein Konflikt wird dokumentiert und gelöst, nicht durch unbemerkte Designänderung übergangen. Ohne gemessene Referenz darf niemand behaupten, eine Oberfläche sei pixelgenau abgeglichen.
 
+## Aktionen, Artikeldaten und Bilder in Erfassungsmasken
+
+Nutzerentscheidung vom 25.09.2026: Wiederkehrende Aktionen werden auf allen
+Admin-Seiten mit denselben Shared-Bausteinen dargestellt. Entfernen und Löschen
+dürfen in Bildkacheln, Zeilen und anderen kompakten Aktionsbereichen nicht als
+reine Textbuttons erscheinen. Dort wird `ButtonComponent` mit passendem Lucide-
+Symbol, `iconOnly` und einem konkreten `ariaLabel` verwendet; für eine
+destruktive Aktion ist die vorhandene `destructive`-Variante vorgesehen.
+Beschriftete Löschen-Aktionen an größeren Stellen erhalten ebenfalls ein Icon.
+Dialog-Footer dürfen ihre ausgeschriebenen Bestätigungs- und Schließen-Aktionen
+behalten. Die Shared-UI-Prüfung verhindert neue textreine „Entfernen“- und
+„Löschen“-Buttons.
+
+Die Hauptaktion einer Erfassungsseite steht im Aktionsbereich des gemeinsamen
+Seitenkopfs. Im Formular wird sie nicht als zweiter Button wiederholt. Ihr Text
+beschreibt den tatsächlich nächsten Schritt; Vorbereiten ist keine bestätigte
+Veröffentlichung auf dem Marktplatz.
+
+Beim Übernehmen eines Artikels werden relevante vorhandene Produktmerkmale in
+beschriftete, bearbeitbare Felder der Erfassungsmaske übernommen. Eine kompakte
+Zeile aus Marke und Kategorie ersetzt diese Felder nicht. Die interne
+Artikelkategorie ist nur ein Hinweis für Kleinanzeigen und darf nicht als dort
+bereits ausgewählte Kategorie ausgegeben werden.
+Ein Inseratspreis wird nur aus einem hinterlegten Shoppreis oder Verkaufswert vorgeschlagen.
+Einkaufskosten und Lagerkosten sind keine Verkaufspreise und dürfen nie
+automatisch in das Preisfeld geraten. Fehlt ein Verkaufspreis, bleibt das Feld
+leer. Die Oberfläche nennt die Quelle eines übernommenen Preises.
+
+Inseratbilder stehen in einem Raster. Die erste Position ist das Titelbild.
+Die Reihenfolge muss per Halten und Ziehen auch auf Touch-Geräten funktionieren;
+zugängliche Schaltflächen zum Verschieben bleiben als Alternative erhalten.
+Bildaktionen verwenden dieselben Icon-Buttons wie vergleichbare Aktionen auf
+anderen Seiten.
+
 ## Verbindliche Shared-Komponenten-Grenze
 
 Wiederkehrende sichtbare Grundelemente der Verwaltungsoberfläche werden zentral unter `src/app/shared/components/` umgesetzt. Feature-Templates setzen diese Bausteine zusammen und liefern Fachwerte, Labels, Form-Controls, Validierung und Ereignisse. Sie definieren keine eigenen Varianten für Geometrie, Radius, Rahmen, Schatten, Typografie, Fokus oder semantische Statusfarben, wenn dafür bereits eine Shared-Komponente existiert.

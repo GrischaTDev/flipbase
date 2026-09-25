@@ -19,6 +19,19 @@ test('rejects native selects, local status pills and black primary variants in a
   ]);
 });
 
+test('requires an icon for compact remove and delete actions', () => {
+  const source = `
+    <app-button size="slim">Entfernen</app-button>
+    <app-button size="slim">Löschen</app-button>
+    <app-button size="slim" [icon]="trashIcon" [iconOnly]="true" ariaLabel="Bild entfernen" />
+    <app-button modal-footer>Schließen</app-button>
+  `;
+  assert.deepEqual(findAdminSharedUiViolations('src/app/features/example/example.html', source), [
+    { rule: 'text-only-destructive-action', line: 2 },
+    { rule: 'text-only-destructive-action', line: 3 },
+  ]);
+});
+
 test('rejects native standard form controls and custom modal shells outside the legacy allowlist', () => {
   assert.deepEqual(
     findAdminSharedUiViolations(

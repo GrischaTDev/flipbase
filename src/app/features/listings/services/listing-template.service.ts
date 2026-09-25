@@ -4,6 +4,7 @@ import { WorkspaceService } from '../../../core/services/workspace.service';
 import type {
   GeneratedListingText,
   KleinanzeigenGenerationOptions,
+  ListingItemDetails,
   ListingStyleTone,
 } from '../models/listing.models';
 
@@ -15,10 +16,11 @@ export class ListingTemplateService {
     item: InventoryItem,
     price: number,
     options: KleinanzeigenGenerationOptions,
+    details?: ListingItemDetails,
   ): GeneratedListingText {
     return {
       title: this.buildTitle(item, options.styleTone).slice(0, 65),
-      description: this.buildDescription(item, price, options),
+      description: this.buildDescription(item, price, options, details),
     };
   }
 
@@ -34,6 +36,7 @@ export class ListingTemplateService {
     item: InventoryItem,
     price: number,
     options: KleinanzeigenGenerationOptions,
+    details?: ListingItemDetails,
   ): string {
     const lines: string[] = [];
 
@@ -55,6 +58,9 @@ export class ListingTemplateService {
     if (item.condition_notes) {
       lines.push(`• Zustandsdetails: ${item.condition_notes}`);
     }
+    if (details?.size) lines.push(`• Größe: ${details.size}`);
+    if (details?.color) lines.push(`• Farbe: ${details.color}`);
+    if (details?.material) lines.push(`• Material: ${details.material}`);
     lines.push('');
 
     if (item.description) {
