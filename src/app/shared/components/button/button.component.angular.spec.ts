@@ -175,15 +175,20 @@ describe('ButtonComponent', () => {
     expect(button.getAttribute('aria-label')).toBe('Kosten bearbeiten');
   });
 
-  it('zeigt Tabellenaktionen einheitlich und färbt nur bedeutungsvolle Zustände', () => {
+  it('färbt jede Tabellenaktion beim Hover und kritische Aktionen rot', () => {
     fixture.componentRef.setInput('variant', 'table-action');
     fixture.componentRef.setInput('size', 'slim');
     fixture.componentRef.setInput('iconOnly', true);
-    fixture.componentRef.setInput('tone', 'critical');
     fixture.componentRef.setInput('ariaLabel', 'Verkauf retournieren');
     fixture.detectChanges();
 
     const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
+    expect(button.className).toContain('hover:bg-[var(--fb-color-brand-surface)]');
+    expect(button.className).toContain('focus-visible:bg-[var(--fb-color-brand-surface)]');
+
+    fixture.componentRef.setInput('tone', 'critical');
+    fixture.detectChanges();
+
     expect(button.classList).toContain('h-7');
     expect(button.classList).toContain('w-7');
     expect(button.classList).toContain('rounded-lg');
