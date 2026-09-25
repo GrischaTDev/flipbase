@@ -1,7 +1,7 @@
 \set ON_ERROR_STOP on
 begin;
 set local search_path = public, extensions;
-select plan(62);
+select plan(65);
 
 insert into auth.users (id, aud, role, email, raw_app_meta_data, raw_user_meta_data) values
   ('23000000-0000-4000-8000-000000000001', 'authenticated', 'authenticated', 'listing-owner@example.test', '{}', '{}'),
@@ -67,6 +67,7 @@ select ok(
   'listings has rls'
 );
 select has_check('public', 'listings', 'listings validates domain values');
+select has_column('public', 'listings', 'item_details', 'listing details are stored separately');
 select has_index('public', 'listings', 'listings_one_open_per_item', 'one open listing index exists');
 select ok(not has_table_privilege('anon', 'public.listings', 'select'), 'anon cannot read listings');
 select ok(has_table_privilege('authenticated', 'public.listings', 'select'), 'members can read listings');
@@ -209,9 +210,19 @@ select lives_ok(
     select 'primary', id from public.prepare_listing(
       '23000000-0000-4000-8000-000000000011',
       '23000000-0000-4000-8000-000000000023',
-      '{"title":"Erstes Inserat","description":"Beschreibung","price":"20.50","priceType":"FIXED","shippingType":"shipping","shippingPrice":"4.90","postalCode":"12345"}'
+      '{"title":"Erstes Inserat","description":"Beschreibung","price":"20.50","priceType":"FIXED","shippingType":"shipping","shippingPrice":"4.90","postalCode":"12345","itemDetails":{"brand":"Acme","category":"Schuhe","size":"42","condition":"used"}}'
     )$$,
   'prepare creates the first listing'
+);
+select is(
+  (select item_details ->> 'size' from public.listings
+    where id = (select listing_id from listing_lifecycle_results where name = 'primary')),
+  '42',
+  'listing keeps the selected product size'
+);
+select throws_ok(
+  $$select public.validate_listing_item_details('{"condition":"unknown"}'::jsonb)$$,
+  '22023', 'Der Zustand ist ungültig.', 'invalid listing condition is rejected'
 );
 select is(
   (select status from public.listings where id = (select listing_id from listing_lifecycle_results where name = 'primary')),

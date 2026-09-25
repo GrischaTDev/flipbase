@@ -433,7 +433,7 @@ describe('ListingEditorComponent', () => {
     expect(editor.form.controls.shippingPrice.invalid).toBe(true);
   });
 
-  it('prefills the expected value or available cost and preserves a manual price', () => {
+  it('uses recorded sale prices and clears the previous price when changing items', () => {
     const { editor } = createEditor();
 
     editor.form.controls.inventoryItemId.setValue('item-expected-value');
@@ -441,16 +441,76 @@ describe('ListingEditorComponent', () => {
     expect(editor.form.controls.price.value).toBe(79);
 
     editor.form.controls.inventoryItemId.setValue('item-cost-only');
-    expect(editor.form.controls.price.value).toBe(22);
+    expect(editor.form.controls.price.value).toBeNull();
 
     editor.form.controls.inventoryItemId.setValue('item-without-value');
-    expect(editor.form.controls.price.value).toBe(0);
+    expect(editor.form.controls.price.value).toBeNull();
 
     editor.form.controls.price.setValue(65);
     editor.form.controls.price.markAsDirty();
     editor.form.controls.inventoryItemId.setValue('item-cost-only');
+    expect(editor.form.controls.price.value).toBeNull();
+    editor.form.controls.inventoryItemId.setValue('product-in-stock');
+    expect(editor.form.controls.price.value).toBe(39);
+  });
 
-    expect(editor.form.controls.price.value).toBe(65);
+  it('prefills product details and saves listing-specific changes', async () => {
+    const { editor, items, prepare } = createEditor();
+    items.update((current) =>
+      current.map((item) =>
+        item.id === 'item-expected-value'
+          ? {
+              ...item,
+              brand: 'Adidas',
+              category: 'Bekleidung > Schuhe',
+              model: 'Runner',
+              size: '42',
+              color: 'Blau',
+              material: 'Leder',
+            }
+          : item,
+      ),
+    );
+    editor.form.controls.inventoryItemId.setValue('item-expected-value');
+    expect(editor.form.getRawValue()).toMatchObject({
+      brand: 'Adidas',
+      category: 'Schuhe',
+      model: 'Runner',
+      size: '42',
+      color: 'Blau',
+      material: 'Leder',
+    });
+
+    editor.form.patchValue({ title: 'Laufschuhe', size: '43' });
+    await editor.save();
+
+    expect(prepare).toHaveBeenCalledWith(
+      'item-expected-value',
+      expect.objectContaining({
+        itemDetails: expect.objectContaining({
+          brand: 'Adidas',
+          category: 'Schuhe',
+          size: '43',
+        }),
+      }),
+      undefined,
+    );
+  });
+
+  it('uses product data for older listings without saved details and respects cleared fields', () => {
+    const { editor, items } = createEditor();
+    const item = { ...items()[0]!, brand: 'Adidas', category: 'Bekleidung > Schuhe', size: '42' };
+
+    expect(editor['itemDetailsFormValue']({}, item)).toMatchObject({
+      brand: 'Adidas',
+      category: 'Schuhe',
+      size: '42',
+    });
+    expect(editor['itemDetailsFormValue']({ brand: null }, item)).toMatchObject({
+      brand: '',
+      category: 'Schuhe',
+      size: '42',
+    });
   });
 
   it('hides sold and archived items and explains why a reserved item is unavailable', () => {
@@ -535,6 +595,7 @@ describe('ListingEditorComponent', () => {
       }),
       79,
       expect.any(Object),
+      expect.objectContaining({ condition: 'used' }),
     );
     expect(generateKleinanzeigenListing.mock.calls[0]?.[0]).not.toHaveProperty('workspaceId');
   });

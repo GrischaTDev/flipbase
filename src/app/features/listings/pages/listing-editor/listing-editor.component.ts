@@ -28,6 +28,7 @@ import { ListingTemplateService } from '../../services/listing-template.service'
 import type {
   ListingContent,
   ListingEditorItem,
+  ListingItemDetails,
   ListingPriceType,
   ListingRow,
   ListingShippingType,
@@ -103,6 +104,15 @@ export class ListingEditorComponent {
     { value: 'collector', label: 'Für Sammler' },
     { value: 'bargain', label: 'Schnäppchen' },
   ];
+  readonly conditionOptions: readonly SelectOption<InventoryItem['condition'] | null>[] = [
+    { value: null, label: 'Nicht angegeben' },
+    { value: 'new', label: 'Neu' },
+    { value: 'like_new', label: 'Wie neu' },
+    { value: 'very_good', label: 'Sehr gut' },
+    { value: 'used', label: 'Gebraucht' },
+    { value: 'heavily_used', label: 'Stark gebraucht' },
+    { value: 'defective', label: 'Defekt / Ersatzteil' },
+  ];
   readonly itemOptions = computed<readonly SelectOption<string>[]>(() =>
     this.listingService
       .items()
@@ -150,6 +160,17 @@ export class ListingEditorComponent {
       Validators.pattern(/^\d+(\.\d{1,2})?$/),
     ]),
     postalCode: new FormControl('', [Validators.pattern(/^\d{5}$/)]),
+    brand: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(120)] }),
+    category: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(240)] }),
+    model: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(120)] }),
+    size: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(80)] }),
+    color: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(80)] }),
+    material: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(120)] }),
+    condition: new FormControl<InventoryItem['condition'] | null>(null),
+    conditionNotes: new FormControl('', {
+      nonNullable: true,
+      validators: [Validators.maxLength(500)],
+    }),
     styleTone: new FormControl<ListingStyleTone>('dealer', { nonNullable: true }),
     includeNonSmoking: new FormControl(false, { nonNullable: true }),
     includeDisclaimer: new FormControl(true, { nonNullable: true }),
@@ -190,7 +211,11 @@ export class ListingEditorComponent {
       if (!id) return;
       const row = this.listingService.getById(id);
       if (!row) return;
-      this.form.patchValue({ inventoryItemId: row.item.id, ...row.listing.content });
+      this.form.patchValue({
+        inventoryItemId: row.item.id,
+        ...row.listing.content,
+        ...this.itemDetailsFormValue(row.listing.content.itemDetails, row.item),
+      });
       this.selectedItemId.set(row.item.id);
       this.form.controls.inventoryItemId.disable({ emitEvent: false });
       this.storeBaseline();
@@ -236,8 +261,8 @@ export class ListingEditorComponent {
         });
     });
     this.form.controls.inventoryItemId.valueChanges.subscribe((itemId) => {
+      const item = this.listingService.items().find((candidate) => candidate.id === itemId);
       if (!this.isEdit()) {
-        const item = this.listingService.items().find((candidate) => candidate.id === itemId);
         this.imageDrafts.set(
           [...(item?.media ?? [])]
             .sort((left, right) => (left.sort_order ?? 0) - (right.sort_order ?? 0))
@@ -252,9 +277,11 @@ export class ListingEditorComponent {
         this.imageBaseline = this.imageSnapshot();
       }
       this.selectedItemId.set(itemId);
-      if (this.isEdit() || this.form.controls.price.dirty) return;
-      const item = this.listingService.items().find((candidate) => candidate.id === itemId);
-      this.form.controls.price.setValue(item?.expectedValue ?? item?.allocatedPurchaseCost ?? 0);
+      if (!this.isEdit() && item) {
+        this.form.patchValue(this.itemDetailsFormValue(null, item), { emitEvent: false });
+      }
+      if (this.isEdit()) return;
+      this.form.controls.price.setValue(item?.expectedValue ?? null);
     });
     this.form.controls.shippingType.valueChanges.subscribe((type) => {
       if (type === 'pickup') this.form.controls.shippingPrice.setValue(null);
@@ -294,6 +321,7 @@ export class ListingEditorComponent {
         includeNonSmoking: this.form.controls.includeNonSmoking.value,
         styleTone: this.form.controls.styleTone.value,
       },
+      this.itemDetails(),
     );
     this.form.patchValue({
       title: generated.title.slice(0, 65),
@@ -448,6 +476,43 @@ export class ListingEditorComponent {
       shippingType: this.form.controls.shippingType.value,
       shippingPrice: this.form.controls.shippingPrice.value,
       postalCode: this.form.controls.postalCode.value?.trim() || null,
+      itemDetails: this.itemDetails(),
+    };
+  }
+  private itemDetails(): ListingItemDetails {
+    const fields = this.form.controls;
+    return {
+      brand: fields.brand.value.trim() || null,
+      category: fields.category.value.trim() || null,
+      model: fields.model.value.trim() || null,
+      size: fields.size.value.trim() || null,
+      color: fields.color.value.trim() || null,
+      material: fields.material.value.trim() || null,
+      condition: fields.condition.value,
+      conditionNotes: fields.conditionNotes.value.trim() || null,
+    };
+  }
+  private itemDetailsFormValue(
+    details: Partial<ListingItemDetails> | null | undefined,
+    item: ListingEditorItem,
+  ) {
+    return {
+      brand: details?.brand === undefined ? (item.brand ?? '') : (details.brand ?? ''),
+      category:
+        details?.category === undefined
+          ? item.category
+            ? this.categoryLabel(item.category)
+            : ''
+          : (details.category ?? ''),
+      model: details?.model === undefined ? (item.model ?? '') : (details.model ?? ''),
+      size: details?.size === undefined ? (item.size ?? '') : (details.size ?? ''),
+      color: details?.color === undefined ? (item.color ?? '') : (details.color ?? ''),
+      material: details?.material === undefined ? (item.material ?? '') : (details.material ?? ''),
+      condition: details?.condition === undefined ? item.condition : details.condition,
+      conditionNotes:
+        details?.conditionNotes === undefined
+          ? (item.conditionNotes ?? '')
+          : (details.conditionNotes ?? ''),
     };
   }
   private storeBaseline(): void {
@@ -506,10 +571,11 @@ export class ListingEditorComponent {
       id: item.id,
       workspace_id: item.workspaceId,
       title: item.title,
-      brand: item.brand,
-      category: item.category,
-      condition: item.condition ?? 'like_new',
-      condition_notes: item.conditionNotes,
+      brand: this.form.controls.brand.value.trim() || null,
+      category: this.form.controls.category.value.trim() || null,
+      model: this.form.controls.model.value.trim() || null,
+      condition: this.form.controls.condition.value ?? 'like_new',
+      condition_notes: this.form.controls.conditionNotes.value.trim() || null,
       description: item.description,
       status: item.status,
       allocated_purchase_cost: item.allocatedPurchaseCost,

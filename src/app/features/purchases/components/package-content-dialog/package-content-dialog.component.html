@@ -49,11 +49,13 @@
           />
           @if (rows.length > 1) {
             <app-button
-              variant="plain"
+              variant="destructive"
+              size="slim"
+              [icon]="removeIcon"
+              [iconOnly]="true"
               [ariaLabel]="'Artikel ' + (index + 1) + ' entfernen'"
               (clicked)="removeRow(index)"
-              >Entfernen</app-button
-            >
+            />
           }
         </fieldset>
       }

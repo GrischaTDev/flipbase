@@ -53,6 +53,18 @@ export interface ListingContent {
   readonly shippingType: ListingShippingType;
   readonly shippingPrice: number | null;
   readonly postalCode: string | null;
+  readonly itemDetails?: ListingItemDetails | null;
+}
+
+export interface ListingItemDetails {
+  readonly brand: string | null;
+  readonly category: string | null;
+  readonly model: string | null;
+  readonly size: string | null;
+  readonly color: string | null;
+  readonly material: string | null;
+  readonly condition: InventoryItem['condition'] | null;
+  readonly conditionNotes: string | null;
 }
 
 export type ListingTargetKind = 'inventory_item' | 'catalog_product';
@@ -83,12 +95,17 @@ export interface ListingEditorItem {
   readonly title: string;
   readonly brand: string | null;
   readonly category: string | null;
+  readonly model?: string | null;
+  readonly size?: string | null;
+  readonly color?: string | null;
+  readonly material?: string | null;
   readonly condition: InventoryItem['condition'] | null;
   readonly conditionNotes: string | null;
   readonly description: string | null;
   readonly status: ItemStatus;
   readonly archivedAt: string | null;
   readonly expectedValue: number | null;
+  readonly priceSource?: 'product' | 'article' | null;
   readonly allocatedPurchaseCost: number | null;
   readonly media: readonly ItemMedia[];
 }

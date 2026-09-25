@@ -1468,6 +1468,7 @@ export type Database = {
           id: string
           image_selection_saved: boolean
           inventory_item_id: string | null
+          item_details: Json
           last_listed_at: string | null
           listed_count: number
           online_since: string | null
@@ -1491,6 +1492,7 @@ export type Database = {
           id?: string
           image_selection_saved?: boolean
           inventory_item_id?: string | null
+          item_details?: Json
           last_listed_at?: string | null
           listed_count?: number
           online_since?: string | null
@@ -1514,6 +1516,7 @@ export type Database = {
           id?: string
           image_selection_saved?: boolean
           inventory_item_id?: string | null
+          item_details?: Json
           last_listed_at?: string | null
           listed_count?: number
           online_since?: string | null
@@ -4709,6 +4712,7 @@ export type Database = {
           id: string
           image_selection_saved: boolean
           inventory_item_id: string | null
+          item_details: Json
           last_listed_at: string | null
           listed_count: number
           online_since: string | null
@@ -4937,6 +4941,7 @@ export type Database = {
           id: string
           image_selection_saved: boolean
           inventory_item_id: string | null
+          item_details: Json
           last_listed_at: string | null
           listed_count: number
           online_since: string | null
@@ -5309,6 +5314,7 @@ export type Database = {
           id: string
           image_selection_saved: boolean
           inventory_item_id: string | null
+          item_details: Json
           last_listed_at: string | null
           listed_count: number
           online_since: string | null
@@ -5544,6 +5550,10 @@ export type Database = {
         Returns: undefined
       }
       validate_listing_content: { Args: { p_content: Json }; Returns: Json }
+      validate_listing_item_details: {
+        Args: { p_details: Json }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never

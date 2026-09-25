@@ -89,12 +89,14 @@
                 >
               }
               <app-button
-                variant="plain"
+                variant="destructive"
+                size="slim"
+                [icon]="removeIcon"
+                [iconOnly]="true"
                 [disabled]="disabled()"
                 [ariaLabel]="'Bild ' + (index + 1) + ' entfernen'"
                 (clicked)="remove(image.key, $event)"
-                >Entfernen</app-button
-              >
+              />
             </div>
           </div>
         </li>

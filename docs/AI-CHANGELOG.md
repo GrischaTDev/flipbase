@@ -1,5 +1,27 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-25 – Juna – Inserateingabe an gemeinsame Aktionen und Artikeldaten angepasst
+
+**Auftrag:** Entfernen-Aktionen, Artikelfelder, Bildanordnung und Hauptaktion der
+Inserateingabe an die übrige Verwaltungsoberfläche angleichen und als Richtlinie
+für künftige Seiten festhalten.
+
+**Änderung:** Kompakte Entfernungsaktionen verwenden Icon-Buttons mit zugänglicher
+Beschriftung; eine Shared-UI-Regel verhindert neue reine Textbuttons dafür. Der
+Seitenkopf enthält die Hauptaktion „Inserat vorbereiten“. Marke, Kategorie,
+Modell, Größe, Farbe, Material und Zustand werden aus dem gewählten Artikel
+übernommen, können je Inserat angepasst und gespeichert werden. Bestehende
+Inserate ohne diese Angaben übernehmen weiterhin die Produktwerte. Inseratbilder
+stehen in einem Raster und lassen sich auch per Halten und Ziehen auf Touch-Geräten
+sortieren. Der Preisvorschlag stammt nur aus einem hinterlegten Verkaufspreis;
+ohne diesen bleibt das Feld leer. Die Quelle wird angezeigt. Die UI-Richtlinie
+hält diese Entscheidungen fest.
+
+**Prüfung:** Gezielte Angular-Tests, ESLint, Typprüfung, Formatprüfung,
+Shared-UI-Prüfung, Workflow-Tests, Suite-Audit und Produktionsbau erfolgreich.
+Die neu erzeugte Migration wurde in einem isolierten lokalen Supabase-Projekt
+angewendet; 56 Datenbank-Testdateien mit 2033 Tests bestanden.
+
 ## 2026-09-25 – Juna – Eigenbeleg, Entwurfslöschung und Artikelauswahl korrigiert
 
 **Auftrag:** Den zeitweise gesperrten Speichern-Button beim Eigenbeleg, die
