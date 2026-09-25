@@ -1,5 +1,20 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-25 – Juna – Design und Sprache der Landingpage bleiben nach Neuladen erhalten
+
+**Auftrag:** Die Auswahl von hellem oder dunklem Design und Deutsch oder Englisch
+auf der Landingpage soll nach einem Neuladen bestehen bleiben.
+
+**Änderung:** Die Landingpage speichert beide Entscheidungen im Browser und stellt
+sie beim Laden wieder her. Das gewählte Design bleibt auch erhalten, wenn sich die
+Systemeinstellung für hell und dunkel ändert. Ohne eigene Auswahl folgt die Seite
+weiter der Systemeinstellung. Die Dokumentsprache und Browserfarbe entsprechen der
+sichtbaren Auswahl.
+
+**Prüfung:** Alle 33 Landingpage-Tests bestanden, darunter neue Tests für Neuladen,
+Systemwechsel und Rückwechsel der Sprache. Prettier, ESLint und `git diff --check`
+waren ohne Befund.
+
 ## 2026-09-25 – Juna – Footer verdichtet und Scrollsprung nach Cookie-Auswahl behoben
 
 **Auftrag:** Den Sprung ans Seitenende nach „Alle akzeptieren“ beheben und den

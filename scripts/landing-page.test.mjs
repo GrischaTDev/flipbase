@@ -658,13 +658,13 @@ test('stellt den normalen Bewerbungsbutton nach einem Timeout wieder her', async
   dom.window.close();
 });
 
-test('loads only local deferred scripts and keeps native toggles CSS-only', () => {
+test('loads only local deferred scripts and keeps native toggle controls', () => {
   // Das Formular muss die Bewerbung als JSON senden und die Antwort lesen -
   // das kann ein natives HTML-Formular nicht. Das Skript bleibt als lokale
   // Datei getrennt vom Dokument, damit die CSP keinen fragilen Inline-Hash
   // mit jeder Inhaltsänderung synchron halten muss.
-  // Die Design- und Sprachumschaltung bleiben davon unberuehrt: sie laufen
-  // weiterhin rein ueber CSS und native Checkboxen.
+  // Das CSS liest weiterhin die nativen Checkboxen; das Skript speichert
+  // und restauriert deren Auswahl.
   const scripts = extractStartTags(html, 'script');
   assert.deepEqual(
     scripts.map((script) => attribute(script, 'src')),
@@ -688,6 +688,74 @@ test('loads only local deferred scripts and keeps native toggles CSS-only', () =
     assert.equal(attribute(label, 'role'), undefined);
     assert.equal(attribute(label, 'tabindex'), undefined);
   }
+});
+
+test('restores theme and language after reload and keeps an explicit theme across system changes', () => {
+  function loadPage(systemUsesLight, preferences = {}) {
+    const dom = new JSDOM(html, { runScripts: 'outside-only', url: 'https://flipbase.de/' });
+    const mediaQuery = {
+      matches: systemUsesLight,
+      addEventListener(event, listener) {
+        if (event === 'change') this.onChange = listener;
+      },
+      setLight(value) {
+        this.matches = value;
+        this.onChange?.();
+      },
+    };
+    dom.window.matchMedia = () => mediaQuery;
+    for (const [key, value] of Object.entries(preferences)) {
+      dom.window.localStorage.setItem(key, value);
+    }
+    dom.window.eval(landingScript);
+    return { dom, document: dom.window.document, mediaQuery };
+  }
+
+  const themeKey = 'flipbase_landing_theme';
+  const languageKey = 'flipbase_landing_language';
+  const firstVisit = loadPage(false);
+  const themeToggle = firstVisit.document.getElementById('theme-toggle');
+  const languageToggle = firstVisit.document.getElementById('lang-toggle');
+  assert.equal(themeToggle.checked, false);
+  assert.equal(languageToggle.checked, false);
+  assert.equal(firstVisit.document.documentElement.lang, 'de');
+
+  themeToggle.checked = true;
+  themeToggle.dispatchEvent(new firstVisit.dom.window.Event('change'));
+  languageToggle.checked = true;
+  languageToggle.dispatchEvent(new firstVisit.dom.window.Event('change'));
+  assert.equal(firstVisit.dom.window.localStorage.getItem(themeKey), 'light');
+  assert.equal(firstVisit.dom.window.localStorage.getItem(languageKey), 'en');
+  assert.equal(firstVisit.document.querySelector('meta[name="theme-color"]').content, '#f4f5f7');
+  assert.equal(firstVisit.document.documentElement.lang, 'en');
+  firstVisit.mediaQuery.setLight(true);
+  assert.equal(themeToggle.checked, false);
+  firstVisit.dom.window.close();
+
+  const preferences = { [themeKey]: 'light', [languageKey]: 'en' };
+  const darkSystem = loadPage(false, preferences);
+  assert.equal(darkSystem.document.getElementById('theme-toggle').checked, true);
+  assert.equal(darkSystem.document.getElementById('lang-toggle').checked, true);
+  assert.equal(darkSystem.document.documentElement.lang, 'en');
+  darkSystem.mediaQuery.setLight(true);
+  assert.equal(darkSystem.document.getElementById('theme-toggle').checked, false);
+  assert.equal(darkSystem.document.querySelector('meta[name="theme-color"]').content, '#f4f5f7');
+  darkSystem.dom.window.close();
+
+  const lightSystem = loadPage(true, preferences);
+  assert.equal(lightSystem.document.getElementById('theme-toggle').checked, false);
+  lightSystem.document.getElementById('theme-toggle').checked = true;
+  lightSystem.document
+    .getElementById('theme-toggle')
+    .dispatchEvent(new lightSystem.dom.window.Event('change'));
+  assert.equal(lightSystem.dom.window.localStorage.getItem(themeKey), 'dark');
+  assert.equal(lightSystem.document.querySelector('meta[name="theme-color"]').content, '#16181d');
+  const restoredLanguageToggle = lightSystem.document.getElementById('lang-toggle');
+  restoredLanguageToggle.checked = false;
+  restoredLanguageToggle.dispatchEvent(new lightSystem.dom.window.Event('change'));
+  assert.equal(lightSystem.dom.window.localStorage.getItem(languageKey), 'de');
+  assert.equal(lightSystem.document.documentElement.lang, 'de');
+  lightSystem.dom.window.close();
 });
 
 test('declares English passages and gives localized controls static screen-reader names', () => {
