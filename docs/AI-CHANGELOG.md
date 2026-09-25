@@ -1,5 +1,60 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-25 – Juna – Landingpage-Farben an Flipbase angeglichen
+
+**Auftrag:** Die Landingpage und den Einwilligungsdialog vom bisherigen braunen
+Akzent auf die Farben der App umstellen.
+
+**Änderung:** Buttons, Hero-Hervorhebung, Funktionskarten, Kennzeichen und
+Interaktionselemente verwenden nun das Logo-Gelb `#fcc601` mit dunkler Schrift.
+Die Karten behalten neutrale Flächen und setzen Gelb gezielt für Icons,
+Kennzeichen und Rahmen ein. Der Einwilligungsdialog verwendet Gelb für beide
+gleichwertigen Entscheidungen und zeigt den aktiven Reiter als gelbe Fläche.
+Die Links der rechtlichen Seiten wurden farblich angeglichen und ihr Fußtext
+lesbar gemacht. Rot und Grün in der Beispielrechnung kennzeichnen weiterhin
+Verlust und Gewinn.
+
+**Prüfung:** 30 Landingpage-Tests, gezieltes ESLint, Prettier und Angular-
+Produktionsbau bestanden. Desktop und Mobilansicht wurden betrachtet; AXE
+meldete im hellen und dunklen Farbschema mit und ohne Dialog sowie auf beiden
+Rechtsseiten keine WCAG-Verstöße. Der Bau meldete die bekannte CommonJS-Warnung
+zu `pako`.
+
+## 2026-09-25 – Juna – Einwilligungsdialog der Landingpage überarbeitet
+
+**Auftrag:** Den Cookie-Dialog als abgedunkeltes Modal mit verständlicher Sprache,
+einer Detailansicht und einer Auswahl einzelner Zwecke gestalten.
+
+**Änderung:** Der Dialog zeigt eine Übersicht und einen Details-Reiter mit
+notwendiger Speicherung der Auswahl und separat schaltbarer Analyse. Die Analyse
+ist zunächst aus. „Nur Notwendige“ und „Alle akzeptieren“ stehen gleichwertig auf
+der ersten Ebene; beide Entscheidungen tragen das Flipbase-Gelb.
+Die Seite ist während der Entscheidung abgedunkelt und für die Tastatur gesperrt.
+Sprache, Fokus und Widerruf über den Footer funktionieren im Dialog. Die
+Beschriftung erklärt den Einsatz von Google Analytics ohne die bisherige Frage.
+
+**Prüfung:** 30 Landingpage-Tests, gezieltes ESLint, Prettier und Angular-
+Produktionsbau bestanden. Die Gestaltung wurde auf Desktop und Mobilgerät geprüft;
+AXE meldete im hellen und dunklen Farbschema keine WCAG-Verstöße. Der Bau meldete
+die bekannte CommonJS-Warnung zu `pako`.
+
+## 2026-09-25 – Juna – Landingpage-Conversions in GA4 messbar gemacht
+
+**Auftrag:** Nach der GA4-Einrichtung erkennen, ob Besucher die App öffnen oder sich
+erfolgreich um einen Beta-Zugang bewerben.
+
+**Änderung:** Nach einer Analytics-Einwilligung senden die Links zur App das Ereignis
+`app_link_click`. Eine neu gespeicherte Beta-Bewerbung sendet `generate_lead` erst
+nach erfolgreicher Serverantwort. Duplikate und fehlgeschlagene Anfragen zählen
+nicht. Beide Ereignisse enthalten weder Formulardaten noch URL-Parameter oder
+Referrer. Die Datenschutzerklärung nennt diese Messungen ausdrücklich. Die
+angemeldete App selbst wird damit weiterhin nicht erfasst.
+
+**Prüfung:** 28 Landingpage-Tests, gezieltes ESLint, Prettier und Angular-
+Produktionsbau bestanden. Der Bau meldete die bekannte CommonJS-Warnung zu `pako`.
+Die Ereignisse sind noch nicht veröffentlicht; ihr Empfang in GA4 ist daher noch
+nicht live geprüft.
+
 ## 2026-09-25 – Juna – GA4-Datenstream für die Landingpage aktiviert
 
 **Auftrag:** Die vorhandene zustimmungsgebundene Analytics-Einbindung mit der

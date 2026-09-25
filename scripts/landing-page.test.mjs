@@ -17,7 +17,7 @@ const normalizedHtml = html.replace(/\s+/gu, ' ');
 const packageJson = JSON.parse(await readFile(path.join(repositoryRoot, 'package.json'), 'utf8'));
 const css = extractElement(html, 'style');
 
-async function submitBetaApplication(responseBody, responseStatus = 200) {
+async function submitBetaApplication(responseBody, responseStatus = 200, analyticsChoice = null) {
   const dom = new JSDOM(html, {
     runScripts: 'outside-only',
     url: 'https://flipbase.de/',
@@ -31,6 +31,15 @@ async function submitBetaApplication(responseBody, responseStatus = 200) {
       json: async () => responseBody,
     };
   };
+  if (analyticsChoice !== null) {
+    if (analyticsChoice !== 'unset') {
+      dom.window.localStorage.setItem(
+        'flipbase_analytics_consent',
+        JSON.stringify({ value: analyticsChoice, expires: Date.now() + 1000 }),
+      );
+    }
+    dom.window.eval(analyticsScript);
+  }
   dom.window.eval(landingScript);
 
   const form = dom.window.document.getElementById('zweit-bewerbung-form');
@@ -913,7 +922,11 @@ test('loads Google Analytics only after an explicit choice and supports withdraw
 
   document.getElementById('analytics-settings').click();
   assert.equal(banner.hidden, false);
-  document.getElementById('analytics-accept').click();
+  assert.equal(document.getElementById('analytics-panel-details').hidden, false);
+  const analyticsOptional = document.getElementById('analytics-optional');
+  assert.equal(analyticsOptional.checked, false);
+  analyticsOptional.checked = true;
+  document.getElementById('analytics-save').click();
   assert.equal(banner.hidden, true);
   assert.equal(
     document.getElementById('google-analytics-script').src,
@@ -933,11 +946,144 @@ test('loads Google Analytics only after an explicit choice and supports withdraw
 
   document.cookie = '_ga=test; Path=/';
   document.getElementById('analytics-settings').click();
-  document.getElementById('analytics-reject').click();
+  assert.equal(analyticsOptional.checked, true);
+  analyticsOptional.checked = false;
+  document.getElementById('analytics-save').click();
   assert.equal(dom.window['ga-disable-G-8ZMSVBRJPK'], true);
   assert.equal(document.cookie.includes('_ga='), false);
   assert.equal(JSON.parse(localStorage.getItem('flipbase_analytics_consent')).value, 'rejected');
   dom.window.close();
+});
+
+test('shows accessible consent details in a modal without preselecting analytics', () => {
+  const dom = new JSDOM(html, { runScripts: 'outside-only', url: 'https://flipbase.de/' });
+  const { document } = dom.window;
+  dom.window.eval(analyticsScript);
+
+  const banner = document.getElementById('analytics-consent');
+  const dialog = banner.querySelector('[role="dialog"]');
+  const pageRegions = document.querySelectorAll('body > header, body > main, body > footer');
+  assert.equal(banner.hidden, false);
+  assert.equal(dom.window.getComputedStyle(banner).position, 'fixed');
+  assert.equal(dialog.getAttribute('aria-modal'), 'true');
+  assert.ok([...pageRegions].every((region) => region.inert === true));
+  assert.equal(document.activeElement.id, 'analytics-reject');
+  assert.equal(document.getElementById('analytics-panel-details').hidden, true);
+  assert.equal(document.getElementById('analytics-optional').checked, false);
+  assert.equal(dom.window.dataLayer, undefined);
+
+  const overviewTab = document.getElementById('analytics-tab-overview');
+  overviewTab.focus();
+  overviewTab.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'ArrowRight' }));
+  assert.equal(document.activeElement.id, 'analytics-tab-details');
+  assert.equal(document.getElementById('analytics-panel-details').hidden, false);
+  assert.equal(document.getElementById('analytics-accept').hidden, true);
+  assert.equal(document.getElementById('analytics-reject').hidden, true);
+  assert.equal(document.getElementById('analytics-save').hidden, false);
+
+  document.getElementById('analytics-language').click();
+  assert.equal(document.getElementById('lang-toggle').checked, true);
+  document.getElementById('analytics-save').click();
+  assert.equal(banner.hidden, true);
+  assert.ok([...pageRegions].every((region) => region.inert === false));
+  assert.equal(
+    JSON.parse(dom.window.localStorage.getItem('flipbase_analytics_consent')).value,
+    'rejected',
+  );
+  assert.equal(document.getElementById('google-analytics-script'), null);
+  dom.window.close();
+});
+
+test('keeps keyboard focus inside the consent modal', () => {
+  const dom = new JSDOM(html, { runScripts: 'outside-only', url: 'https://flipbase.de/' });
+  const { document } = dom.window;
+  dom.window.eval(analyticsScript);
+
+  const languageButton = document.getElementById('analytics-language');
+  const privacyLink = document.querySelector('.analytics-consent-privacy a');
+  languageButton.focus();
+  document.dispatchEvent(
+    new dom.window.KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true }),
+  );
+  assert.equal(document.activeElement, privacyLink);
+  document.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));
+  assert.equal(document.activeElement, languageButton);
+  document.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  assert.equal(document.getElementById('analytics-consent').hidden, true);
+  assert.equal(
+    JSON.parse(dom.window.localStorage.getItem('flipbase_analytics_consent')).value,
+    'rejected',
+  );
+  assert.equal(dom.window.dataLayer, undefined);
+  dom.window.close();
+});
+
+test('counts app links only with analytics consent and without URL parameters', () => {
+  const dom = new JSDOM(html, {
+    runScripts: 'outside-only',
+    url: 'https://flipbase.de/?email=anna@example.test',
+  });
+  const { document } = dom.window;
+  dom.window.eval(analyticsScript);
+
+  const appLinks = [...document.querySelectorAll('a[href="https://app.flipbase.de"]')];
+  assert.equal(appLinks.length, 2);
+  for (const link of appLinks) {
+    link.addEventListener('click', (event) => event.preventDefault());
+    link.click();
+  }
+  assert.equal(dom.window.dataLayer, undefined);
+
+  document.getElementById('analytics-accept').click();
+  for (const link of appLinks) link.click();
+  const events = Array.from(dom.window.dataLayer, (command) => Array.from(command)).filter(
+    ([command]) => command === 'event',
+  );
+  assert.equal(events.length, 2);
+  for (const event of events) {
+    assert.equal(event[1], 'app_link_click');
+    assert.deepEqual(Object.fromEntries(Object.entries(event[2])), {
+      send_to: 'G-8ZMSVBRJPK',
+      page_location: 'https://flipbase.de/',
+      page_referrer: '',
+    });
+  }
+
+  document.getElementById('analytics-reject').click();
+  for (const link of appLinks) link.click();
+  assert.equal(dom.window.dataLayer.length, 6);
+  dom.window.close();
+});
+
+test('sends one anonymous lead event only for a new beta application with consent', async () => {
+  const success = await submitBetaApplication({ receiptEmailSent: true }, 200, 'accepted');
+  const events = Array.from(success.dom.window.dataLayer, (command) => Array.from(command)).filter(
+    ([command]) => command === 'event',
+  );
+  assert.equal(events.length, 1);
+  assert.equal(events[0][1], 'generate_lead');
+  assert.deepEqual(Object.fromEntries(Object.entries(events[0][2])), {
+    send_to: 'G-8ZMSVBRJPK',
+    page_location: 'https://flipbase.de/',
+    page_referrer: '',
+  });
+  assert.doesNotMatch(JSON.stringify(events), /anna|example\.test/u);
+  success.dom.window.close();
+
+  for (const choice of ['rejected', 'unset']) {
+    const withoutConsent = await submitBetaApplication({ receiptEmailSent: true }, 200, choice);
+    assert.equal(withoutConsent.dom.window.dataLayer, undefined);
+    withoutConsent.dom.window.close();
+  }
+
+  for (const [body, status] of [
+    [{ error: 'application_existing' }, 409],
+    [{ error: 'server_error' }, 500],
+  ]) {
+    const failed = await submitBetaApplication(body, status, 'accepted');
+    assert.equal(failed.dom.window.dataLayer.length, 4);
+    failed.dom.window.close();
+  }
 });
 
 test('restores a valid analytics choice and expires it after 180 days', () => {
@@ -992,7 +1138,7 @@ test('shows keyboard focus on both visible toggle labels', () => {
     /#theme-toggle:focus-visible\s*~\s*\.kopf-aktionen\s+label\[for=['"]theme-toggle['"]\]\s*,\s*#lang-toggle:focus-visible\s*~\s*\.kopf-aktionen\s+label\[for=['"]lang-toggle['"]\]\s*\{([^{}]*)\}/iu,
   );
   assert.ok(focusRule, 'Expected one visible focus rule for both toggle labels');
-  assert.match(focusRule[1], /outline\s*:\s*2px\s+solid\s+var\(--amber\)\s*;/iu);
+  assert.match(focusRule[1], /outline\s*:\s*2px\s+solid\s+var\(--brand\)\s*;/iu);
   assert.match(focusRule[1], /outline-offset\s*:\s*3px\s*;/iu);
 });
 
@@ -1014,25 +1160,27 @@ test('keeps muted text readable in every CSS-controlled theme', () => {
   }
 });
 
-test('keeps accent text and button text readable in every CSS-controlled theme', () => {
+test('uses the Flipbase logo yellow with readable text in every CSS-controlled theme', () => {
   for (const [theme, tokens] of themeTokenSets) {
-    const amber = parseHexColor(tokens.amber, `${theme} --amber`);
-    const amberHover = parseHexColor(tokens['amber-hover'], `${theme} --amber-hover`);
-    const onAmber = parseHexColor(tokens['on-amber'], `${theme} --on-amber`);
-    const amberBackground = parseRgbaColor(tokens['amber-bg'], `${theme} --amber-bg`);
+    assert.equal(tokens.brand, '#fcc601', `${theme} must use the logo yellow`);
+    const brand = parseHexColor(tokens.brand, `${theme} --brand`);
+    const brandHover = parseHexColor(tokens['brand-hover'], `${theme} --brand-hover`);
+    const brandText = parseHexColor(tokens['brand-text'], `${theme} --brand-text`);
+    const onBrand = parseHexColor(tokens['on-brand'], `${theme} --on-brand`);
+    const brandBackground = parseRgbaColor(tokens['brand-bg'], `${theme} --brand-bg`);
 
-    assert.ok(contrastRatio(onAmber, amber) >= 4.5, `${theme} amber button must reach 4.5:1`);
+    assert.ok(contrastRatio(onBrand, brand) >= 4.5, `${theme} brand button must reach 4.5:1`);
     assert.ok(
-      contrastRatio(onAmber, amberHover) >= 4.5,
-      `${theme} hovered amber button must reach 4.5:1`,
+      contrastRatio(onBrand, brandHover) >= 4.5,
+      `${theme} hovered brand button must reach 4.5:1`,
     );
 
     for (const backgroundName of ['canvas', 'surface', 'surface-alt']) {
       const background = parseHexColor(tokens[backgroundName], `${theme} --${backgroundName}`);
-      const tintedBackground = composite(amberBackground.color, background, amberBackground.alpha);
+      const tintedBackground = composite(brandBackground.color, background, brandBackground.alpha);
       assert.ok(
-        contrastRatio(amber, tintedBackground) >= 4.5,
-        `${theme} amber text must reach 4.5:1 on tinted --${backgroundName}`,
+        contrastRatio(brandText, tintedBackground) >= 4.5,
+        `${theme} brand text must reach 4.5:1 on tinted --${backgroundName}`,
       );
     }
   }

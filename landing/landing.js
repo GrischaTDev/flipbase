@@ -162,6 +162,7 @@
             message.textContent = '';
             showSuccessDialog(submittedEmail, payload.receiptEmailSent === true, button);
             form.reset();
+            document.dispatchEvent(new Event('flipbase:beta-application-created'));
           });
         } else if (response.status === 409) {
           return response.json().then(function (payload) {

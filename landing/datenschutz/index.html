@@ -18,8 +18,8 @@
         --ink-muted: #8a919e;
         --ink-dim: #5a616e;
         --line: #222630;
-        --amber: #f59e0b;
-        --amber-hover: #d97706;
+        --brand: #fcc601;
+        --brand-text: #fcc601;
       }
       @media (prefers-color-scheme: light) {
         :root {
@@ -30,6 +30,7 @@
           --ink-muted: #475569;
           --ink-dim: #94a3b8;
           --line: #e2e8f0;
+          --brand-text: #303030;
         }
       }
       *,
@@ -68,8 +69,9 @@
       }
       .back-link {
         font-size: 0.88rem;
-        color: var(--amber);
-        text-decoration: none;
+        color: var(--brand-text);
+        text-decoration: underline;
+        text-decoration-color: var(--brand);
         font-weight: 600;
       }
       .back-link:hover {
@@ -112,7 +114,7 @@
         padding: 2rem 1.5rem;
         text-align: center;
         font-size: 0.82rem;
-        color: var(--ink-dim);
+        color: var(--ink-muted);
       }
     </style>
   </head>
@@ -156,7 +158,9 @@
           32289 Rödinghausen<br />
           Deutschland<br />
           E-Mail:
-          <a href="mailto:kontakt@flipbase.de" style="color: var(--amber)">kontakt@flipbase.de</a>
+          <a href="mailto:kontakt@flipbase.de" style="color: var(--brand-text)"
+            >kontakt@flipbase.de</a
+          >
         </p>
 
         <h2>4. Datenerfassung auf dieser Website</h2>
@@ -170,10 +174,12 @@
         <p>
           <strong>Google Analytics 4:</strong> Wenn du zustimmst, setzen wir Google Analytics 4 von
           Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Irland ein. Damit messen
-          wir, wie die öffentliche Website genutzt wird. Dabei werden unter anderem Seitenaufrufe,
-          Browser- und Geräteinformationen und eine ungefähre Standortangabe an Google übermittelt.
-          Google kann Daten auch in den USA verarbeiten. Wir laden das Google-Skript erst nach
-          deiner Einwilligung. Lehnst du ab, findet keine Übermittlung an Google Analytics statt.
+          wir, wie die öffentliche Website genutzt wird. Dazu zählen Seitenaufrufe, Klicks auf Links
+          zur App und erfolgreich gespeicherte Beta-Bewerbungen. Namen und E-Mail-Adressen werden
+          dabei nicht an Google Analytics gesendet. Außerdem werden Browser- und Geräteinformationen
+          und eine ungefähre Standortangabe an Google übermittelt. Google kann Daten auch in den USA
+          verarbeiten. Wir laden das Google-Skript erst nach deiner Einwilligung. Lehnst du ab,
+          findet keine Übermittlung an Google Analytics statt.
         </p>
         <p>
           Google Analytics speichert auf der Website Cookies mit Namen wie <code>_ga</code> und
@@ -185,7 +191,9 @@
         <p>
           Grundlage ist deine Einwilligung gemäß Art. 6 Abs. 1 lit. a DSGVO und § 25 Abs. 1 TDDDG.
           Deine Entscheidung speichern wir für 180 Tage lokal in deinem Browser. Über
-          <a href="/#analyse-einstellungen" style="color: var(--amber)">Analyse-Einstellungen</a>
+          <a href="/#analyse-einstellungen" style="color: var(--brand-text)"
+            >Analyse-Einstellungen</a
+          >
           kannst du sie jederzeit ändern oder widerrufen. Nach einem Widerruf werden die
           Analyse-Cookies in deinem Browser gelöscht und keine weiteren Daten an Analytics gesendet.
         </p>
@@ -206,8 +214,9 @@
           Grundlage der Verarbeitung ist deine Einwilligung (Art. 6 Abs. 1 lit. a DSGVO), die du
           beim Absenden des Formulars erteilst. Du kannst diese Einwilligung jederzeit mit Wirkung
           für die Zukunft widerrufen, etwa per E-Mail an
-          <a href="mailto:kontakt@flipbase.de" style="color: var(--amber)">kontakt@flipbase.de</a>.
-          Wir speichern deine Angaben, bis du widerrufst oder bis deine Bewerbung abschließend
+          <a href="mailto:kontakt@flipbase.de" style="color: var(--brand-text)"
+            >kontakt@flipbase.de</a
+          >. Wir speichern deine Angaben, bis du widerrufst oder bis deine Bewerbung abschließend
           bearbeitet ist.
         </p>
         <p>

@@ -18,8 +18,8 @@
         --ink-muted: #8a919e;
         --ink-dim: #5a616e;
         --line: #222630;
-        --amber: #f59e0b;
-        --amber-hover: #d97706;
+        --brand: #fcc601;
+        --brand-text: #fcc601;
       }
       @media (prefers-color-scheme: light) {
         :root {
@@ -30,6 +30,7 @@
           --ink-muted: #475569;
           --ink-dim: #94a3b8;
           --line: #e2e8f0;
+          --brand-text: #303030;
         }
       }
       *,
@@ -68,8 +69,9 @@
       }
       .back-link {
         font-size: 0.88rem;
-        color: var(--amber);
-        text-decoration: none;
+        color: var(--brand-text);
+        text-decoration: underline;
+        text-decoration-color: var(--brand);
         font-weight: 600;
       }
       .back-link:hover {
@@ -108,7 +110,7 @@
         padding: 2rem 1.5rem;
         text-align: center;
         font-size: 0.82rem;
-        color: var(--ink-dim);
+        color: var(--ink-muted);
       }
     </style>
   </head>
@@ -138,7 +140,9 @@
         <h2>Kontakt</h2>
         <p>
           E-Mail:
-          <a href="mailto:kontakt@flipbase.de" style="color: var(--amber)">kontakt@flipbase.de</a>
+          <a href="mailto:kontakt@flipbase.de" style="color: var(--brand-text)"
+            >kontakt@flipbase.de</a
+          >
         </p>
 
         <h2>Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV</h2>
