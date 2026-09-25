@@ -13,7 +13,7 @@ import { ButtonComponent, TableActionTone } from '../button/button.component';
 export class TableActionButtonComponent {
   readonly icon = input.required<LucideIconInput>();
   readonly label = input.required<string>();
-  readonly tone = input<TableActionTone>('neutral');
+  readonly tone = input<TableActionTone>('brand');
   readonly disabled = input(false);
   readonly loading = input(false);
   readonly link = input<string | null>(null);
