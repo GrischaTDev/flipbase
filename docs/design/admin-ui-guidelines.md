@@ -69,9 +69,10 @@ Nutzerentscheidung vom 25.09.2026: Aktionsspalten in Admin-Tabellen verwenden
 dieselbe gemeinsame Icon-Kachel. Ihre Desktopfläche misst 28 × 28 px, der
 Eckenradius 8 px und das mittig ausgerichtete Icon 16 px. Auf Geräten mit grobem
 Zeiger beträgt die Trefferfläche mindestens 44 × 44 px. Ein normaler Zustand
-bleibt neutral; beim Hover und Tastaturfokus zeigt die Fläche die Bedeutung:
-neutral für gewöhnliche Aktionen, grün für Bestätigen/Wiederherstellen, warmes
-Orange für Archivieren/Pausieren und Rot für Löschen, Beenden sowie Retouren.
+bleibt neutral; beim Hover und Tastaturfokus zeigt jede Aktion eine farbige Fläche:
+Flipbase-Gelb für gewöhnliche Aktionen wie Bearbeiten und Ansehen, Grün für
+Verkaufen/Bestätigen/Wiederherstellen, warmes Orange für Archivieren/Pausieren
+und Rot für Löschen, Beenden sowie Retouren.
 Farben kommen aus den zentralen Theme-Variablen. Alle Iconaktionen brauchen
 einen eindeutigen zugänglichen Namen; Navigationsaktionen bleiben Links.
 Aktionsspalten haben sichtbar die Überschrift „Aktionen“ und stehen rechtsbündig.

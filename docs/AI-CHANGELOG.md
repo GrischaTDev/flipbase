@@ -24,6 +24,14 @@ und reduzierte Bewegung geprüft. AXE meldete im hellen und dunklen Farbschema
 vor und nach der Animation sowie in den Details keine WCAG-Verstöße. Der Bau
 meldete die bekannte CommonJS-Warnung zu `pako`.
 
+## 2026-09-25 – Juna – Farbige Hover-Zustände für Tabellenaktionen ergänzt
+
+**Auftrag:** Die bisher grauen Hover-Zustände der Aktionsicons farblich angleichen, insbesondere bei Verkaufen und Bearbeiten. Über die Aktionen der Inserate wird später entschieden.
+
+**Änderung:** Gewöhnliche Tabellenaktionen verwenden beim Hover und Tastaturfokus eine gelbe Markenfläche. Verkaufen erhält wie andere positive Aktionen eine grüne Fläche; die vorhandenen Warn- und Kritisch-Farben bleiben. Das Aktionsbutton-Mockup und die Admin-Designrichtlinie bilden die neue Farbzuordnung ab. Die fachlichen Aktionen der Inserate wurden nicht geändert.
+
+**Prüfung:** 45 gezielte Angular-Tests, Typprüfung, ESLint, Prettier und Produktionsbau bestanden. Mit der gebauten CSS-Datei im Browser geprüft: Bearbeiten zeigt beim Hover eine gelbe, Verkaufen eine grüne Fläche.
+
 ## 2026-09-25 – Juna – Landingpage-Farben an Flipbase angeglichen
 
 **Auftrag:** Die Landingpage und den Einwilligungsdialog vom bisherigen braunen

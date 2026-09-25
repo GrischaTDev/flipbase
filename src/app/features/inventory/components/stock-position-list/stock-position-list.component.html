@@ -334,6 +334,7 @@
                             (clicked)="emitIndividualSale(item)"
                             [icon]="shoppingCartIcon"
                             [label]="row.title + ' verkaufen'"
+                            tone="positive"
                           />
                         }
                       } @else if (row.canSell) {
@@ -341,6 +342,7 @@
                           (clicked)="sell.emit(stockPosition(row))"
                           [icon]="shoppingCartIcon"
                           [label]="row.title + ' verkaufen'"
+                          tone="positive"
                         />
                       }
                     </div>

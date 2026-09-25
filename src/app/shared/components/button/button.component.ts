@@ -6,7 +6,7 @@ import { Params, RouterLink } from '@angular/router';
 export type ButtonVariant =
   'primary' | 'secondary' | 'destructive' | 'ghost' | 'plain' | 'table-action';
 
-export type TableActionTone = 'neutral' | 'positive' | 'warning' | 'critical';
+export type TableActionTone = 'brand' | 'positive' | 'warning' | 'critical';
 
 export type ButtonSize = 'slim' | 'md' | 'lg' | 'search';
 
@@ -24,7 +24,7 @@ export type ButtonSize = 'slim' | 'md' | 'lg' | 'search';
 })
 export class ButtonComponent {
   readonly variant = input<ButtonVariant>('secondary');
-  readonly tone = input<TableActionTone>('neutral');
+  readonly tone = input<TableActionTone>('brand');
   readonly size = input<ButtonSize>('md');
   readonly loading = input<boolean>(false);
   readonly disabled = input<boolean>(false);
@@ -80,8 +80,8 @@ export class ButtonComponent {
     };
 
     const tableActionToneStyles: Record<TableActionTone, string> = {
-      neutral:
-        'hover:bg-fb-surface-hover hover:text-fb-text-primary focus-visible:bg-fb-surface-hover focus-visible:text-fb-text-primary',
+      brand:
+        'hover:bg-[var(--fb-color-brand-surface)] hover:text-[var(--fb-color-brand-text)] focus-visible:bg-[var(--fb-color-brand-surface)] focus-visible:text-[var(--fb-color-brand-text)]',
       positive:
         'hover:bg-[var(--fb-color-success-surface)] hover:text-[var(--fb-color-success-text)] focus-visible:bg-[var(--fb-color-success-surface)] focus-visible:text-[var(--fb-color-success-text)]',
       warning:

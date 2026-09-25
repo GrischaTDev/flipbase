@@ -23,6 +23,7 @@
         --muted: #616161;
         --accent: #fcc601;
         --neutral-hover: #ededee;
+        --brand-hover: #fef2c7;
         --critical: #b42332;
         --critical-hover: #fce8eb;
         --positive: #167149;
@@ -306,7 +307,7 @@
       .tile:hover,
       .tile:focus-visible,
       .tile.preview {
-        background: var(--neutral-hover);
+        background: var(--brand-hover);
         color: var(--text);
       }
       .tile.critical:hover,
@@ -608,9 +609,10 @@
               <span class="badge">Gewählt</span>
             </div>
             <p>
-              Neutrale Aktionen bleiben grau. Bestätigen oder Wiederherstellen wird grün,
-              Archivieren warm und endgültige oder fachlich kritische Aktionen rot. Die
-              Retourenkachel aus Verkäufe bleibt als Vorbild erhalten.
+              Gewöhnliche Aktionen wie Bearbeiten erhalten beim Hover einen gelben Hintergrund.
+              Verkaufen, Bestätigen und Wiederherstellen werden grün, Archivieren warm und
+              endgültige oder fachlich kritische Aktionen rot. Die Retourenkachel aus Verkäufe
+              bleibt als Vorbild erhalten.
             </p>
             <div class="demo">
               <button class="tile" aria-label="Beleg">
@@ -629,8 +631,10 @@
             </div>
             <div class="demo-label">Weitere Rollen, dieselbe Form</div>
             <div class="demo">
-              <button class="tile" aria-label="Bearbeiten">
+              <button class="tile preview" aria-label="Bearbeiten">
                 <svg class="icon"><use href="#edit" /></svg></button
+              ><button class="tile positive preview" aria-label="Verkaufen">
+                <svg class="icon"><use href="#cart" /></svg></button
               ><button class="tile warning preview" aria-label="Archivieren">
                 <svg class="icon"><use href="#archive" /></svg></button
               ><button class="tile positive preview" aria-label="Wiederherstellen">
@@ -640,7 +644,7 @@
               </button>
             </div>
             <div class="caption">
-              <span>Artikel · im Hover</span><span>Neutral · Warnung · Erfolg · Kritisch</span>
+              <span>Artikel · im Hover</span><span>Marke · Erfolg · Warnung · Kritisch</span>
             </div>
           </article>
           <article class="panel option quiet">
