@@ -21,7 +21,7 @@ from unnest(array['id','workspace_id','catalog_product_id','storage_path','is_pr
 select ok(exists(select 1 from pg_tables where schemaname = 'public' and tablename = 'catalog_product_media' and rowsecurity), 'Produktmedien aktivieren RLS');
 select is((select count(*) from pg_policies where schemaname = 'public' and tablename = 'catalog_product_media' and roles = array['authenticated']::name[]), 4::bigint, 'Vier getrennte authentifizierte Tabellenpolicies');
 select is((select count(*) from pg_policies where schemaname = 'storage' and tablename = 'objects' and policyname like 'Produktmedien %' and roles = array['authenticated']::name[]), 4::bigint, 'Vier getrennte authentifizierte Produkt-Storagepolicies');
-select is((select count(*) from pg_policies where schemaname = 'storage' and tablename = 'objects' and position('item-media' in coalesce(qual,'') || coalesce(with_check,'')) > 0),8::bigint,'Nur vier Legacy- und vier Produktpolicies gewähren Bucketzugriff');
+select is((select count(*) from pg_policies where schemaname = 'storage' and tablename = 'objects' and position('item-media' in coalesce(qual,'') || coalesce(with_check,'')) > 0),11::bigint,'Vier Legacy-, vier Produkt- und drei Inseratpolicies gewähren Bucketzugriff');
 select ok(not exists(select 1 from pg_policies where schemaname = 'storage' and tablename = 'objects' and policyname like 'Artikelmedien %' and position('catalog-products' in coalesce(qual, '') || coalesce(with_check, '')) = 0), 'Keine Legacy-Policy öffnet den Produktpräfix');
 select has_function('storage', 'allow_only_operation', array['text'], 'Storage-Version unterstützt die eng begrenzte Rollback-Ausnahme');
 select to_regclass('public.catalog_product_media') is not null as media_contract_ready \gset
