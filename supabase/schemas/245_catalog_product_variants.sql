@@ -41,7 +41,8 @@ alter table public.catalog_products
   add constraint catalog_products_variant_group_fkey
   foreign key (workspace_id, variant_group_id)
   references public.catalog_product_groups(workspace_id, id)
-  on delete restrict;
+  on delete restrict
+  deferrable initially deferred;
 
 create index catalog_products_variant_group_idx
   on public.catalog_products(workspace_id, variant_group_id);

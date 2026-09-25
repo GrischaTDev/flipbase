@@ -1,10 +1,15 @@
 \set ON_ERROR_STOP on
 begin;
 set local search_path = public, extensions;
-select plan(15);
+select plan(16);
 
 select has_table('public', 'catalog_product_groups', 'Artikelgruppen sind vorhanden');
 select has_column('public', 'catalog_products', 'variant_group_id', 'Varianten können zugeordnet werden');
+select ok(
+  (select condeferrable and condeferred from pg_constraint
+    where conname = 'catalog_products_variant_group_fkey'),
+  'Gruppenprüfung lässt bestehenden Workspace-Schutz zuerst ausführen'
+);
 
 insert into auth.users (id, aud, role, email, raw_app_meta_data, raw_user_meta_data)
 values ('bf140000-0000-4000-8000-000000000001', 'authenticated', 'authenticated', 'variants@example.test', '{}', '{}');

@@ -61,7 +61,13 @@ und auf einer isolierten frischen Datenbank angewendet. Der gezielte Datenbankte
 bestand mit 15 Prüfungen einschließlich Altartikel, Archivierung, Eindeutigkeit,
 gemeinsamer Angaben und Workspace-Schutz. Gezielte Angular-, Service- und
 Medientests, ein AXE-Test des Auswahlfelds, TypeScript-Prüfung, Lint,
-Formatierung, Schema-Registrierung und Angular-Bau bestanden.
+Formatierung, Schema-Registrierung und Angular-Bau bestanden. Nach der PR-Prüfung
+wurde der Gruppen-Fremdschlüssel am Transaktionsende geprüft, damit die
+bestehende Workspace-Schutzprüfung für Store-Bestellungen ihre genaue
+Fehlermeldung behält. Der dazugehörige Bestandstest und die Variantentests
+bestanden zusammen; anschließend bestanden alle 2.062 Datenbankprüfungen.
+Der Browser-Smoke-Test wählt Bestandszellen über ihre Spaltenüberschrift und
+nutzt die neue Artikelansicht-Auswahlbox.
 
 ## 2026-09-25 – Juna – Design und Sprache der Landingpage bleiben nach Neuladen erhalten
 
