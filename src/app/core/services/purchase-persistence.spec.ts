@@ -33,23 +33,43 @@ describe('PurchaseService – fehlgeschlagenes Löschen', () => {
       selectedPurchase: () => selectedPurchaseRaw(),
       inventory: { entferneArtikelZuEinkauf: artikelEntfernen },
       syncStatus: new SyncStatusService(),
-      supabase: {
-        client: {
-          from: () => ({
-            delete: () => ({
-              eq: async () => ({ error: { code: '42501', message: 'denied' } }),
-            }),
-          }),
-        },
-      },
+      supabase: { client: { rpc: async () => ({ error: { code: '42501', message: 'denied' } }) } },
     });
 
-    const ergebnis = await service.deletePurchase(einkauf.id);
+    const ergebnis = await service.deletePurchase(einkauf.id, einkauf.workspace_id);
 
     expect(ergebnis.error).toBeInstanceOf(Error);
     expect(purchasesRaw()).toEqual([einkauf]);
     expect(selectedPurchaseRaw()).toEqual(einkauf);
     expect(artikelEntfernen).not.toHaveBeenCalled();
+  });
+
+  it('entfernt den bestätigten Entwurf nach dem atomaren Datenbankaufruf lokal', async () => {
+    const purchasesRaw = signal<Purchase[]>([einkauf]);
+    const selectedPurchaseRaw = signal<Purchase | null>(einkauf);
+    const artikelEntfernen = vi.fn();
+    const rpc = vi.fn(async () => ({ error: null }));
+    const service = Object.create(PurchaseService.prototype) as PurchaseService;
+
+    Object.assign(service, {
+      purchasesRaw,
+      selectedPurchaseRaw,
+      selectedPurchase: () => selectedPurchaseRaw(),
+      inventory: { entferneArtikelZuEinkauf: artikelEntfernen },
+      syncStatus: new SyncStatusService(),
+      supabase: { client: { rpc } },
+    });
+
+    const ergebnis = await service.deletePurchase(einkauf.id, einkauf.workspace_id);
+
+    expect(ergebnis.error).toBeNull();
+    expect(rpc).toHaveBeenCalledWith('delete_purchase_draft', {
+      p_workspace_id: einkauf.workspace_id,
+      p_purchase_id: einkauf.id,
+    });
+    expect(purchasesRaw()).toEqual([]);
+    expect(selectedPurchaseRaw()).toBeNull();
+    expect(artikelEntfernen).toHaveBeenCalledWith(einkauf.id);
   });
 });
 

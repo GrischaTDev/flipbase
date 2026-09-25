@@ -395,6 +395,7 @@ export class PurchaseEntryFormComponent {
     if (!context) return;
     const draft = context.draft as PurchaseNavigationDraft;
     this.form.reset(draft.form);
+    this.updateSellerRequirement(draft.form.receipt_mode);
     if (draft.formDirty) this.form.markAsDirty();
     this.costDrafts.set(draft.costs);
     this.initialCostDrafts.set(draft.costs);
