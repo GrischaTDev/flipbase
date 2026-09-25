@@ -29,4 +29,19 @@ describe('canLeavePurchaseEntry', () => {
     ).toBe(false);
     expect(confirm).not.toHaveBeenCalled();
   });
+
+  it('allows navigation while reloading an already saved purchase', () => {
+    const confirm = vi.fn();
+    expect(
+      canLeavePurchaseEntry(
+        {
+          hasUnsavedChanges: () => false,
+          isSaving: () => true,
+          isReloadingAfterSave: () => true,
+        },
+        confirm,
+      ),
+    ).toBe(true);
+    expect(confirm).not.toHaveBeenCalled();
+  });
 });

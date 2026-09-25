@@ -979,7 +979,10 @@ export class PurchaseDetailComponent {
       gefahr: true,
     });
     if (bestaetigt) {
-      const { error } = await this.purchaseService.deletePurchase(purchase.id);
+      const { error } = await this.purchaseService.deletePurchase(
+        purchase.id,
+        purchase.workspace_id,
+      );
       if (error) {
         this.meldeFehlerWennNichtSynchronisiert('Einkauf konnte nicht gelöscht werden.', error);
         return;

@@ -651,7 +651,7 @@ describe('PurchaseDetailComponent', () => {
 
         await komponente.onDeletePurchase();
 
-        expect(deletePurchase).toHaveBeenCalledWith(einkauf.id);
+        expect(deletePurchase).toHaveBeenCalledWith(einkauf.id, einkauf.workspace_id);
         expect(toast.toasts()[0].title).toBe('Einkauf wurde gelöscht.');
         expect(router.navigate).toHaveBeenCalledWith(['/purchases']);
       });

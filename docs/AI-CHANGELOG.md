@@ -1,23 +1,29 @@
 # 🤖 KI-Änderungsprotokoll
 
-## 2026-09-25 – Juna – Eigenbeleg-Rückweg und Artikelauswahl korrigiert
+## 2026-09-25 – Juna – Eigenbeleg, Entwurfslöschung und Artikelauswahl korrigiert
 
-**Auftrag:** Den zeitweise gesperrten Speichern-Button beim Eigenbeleg prüfen,
-die Artikelauswahl auf Tablets in der Höhe begrenzen und den blockierten
-Löschvorgang eines neuen Einkaufsentwurfs untersuchen.
+**Auftrag:** Den zeitweise gesperrten Speichern-Button beim Eigenbeleg, die
+Artikelauswahl auf Tablets und die zeitweise blockierte Navigation sowie
+Löschung eines neuen Einkaufsentwurfs korrigieren.
 
 **Änderung:** Nach der Rückkehr aus der Artikelerstellung stellt das Formular
 die Verkäuferpflicht passend zum gespeicherten Belegmodus wieder her. Die
-Artikelliste im Auswahlfenster scrollt innerhalb einer begrenzten Höhe. Für
-den Löschfehler wurde eine Backend-Issue-Datei erstellt: Der direkte Löschaufruf
-steht im Konflikt mit `ON DELETE RESTRICT` an Einkaufspositionen.
+Artikelliste im Auswahlfenster scrollt innerhalb einer begrenzten Höhe. Ein
+neuer Datenbankaufruf löscht ausschließlich unverarbeitete Entwürfe mit ihren
+Positionen und Nebenkosten in einer Transaktion und protokolliert den Vorgang.
+Erfasster Bestand, Belege und Kommentare bleiben geschützt. Nach erfolgreichem
+Speichern darf der Nutzer während des Nachladens navigieren; eine Textauswahl
+außerhalb der Einkaufstabelle blockiert deren Zeilen nicht mehr. Die direkte
+Tabellenlöschung ist für angemeldete Nutzer gesperrt.
 
 **Prüfung:** Der Eigenbeleg-Regressionstest scheiterte vor der Korrektur und
-bestand danach. 57 gezielte Angular-Tests, Prettier, ESLint, beide
-TypeScript-Prüfungen und der Angular-Produktionsbau bestanden. Die neue
-Höhenklasse ist im generierten CSS enthalten. Ein Live-Datenbanktest für den
-Löschfehler und eine Wiederholung der gemeldeten Navigationsstörung waren
-hier nicht möglich; die genaue Datenbank-Constraint muss noch geprüft werden.
+bestand danach. 110 gezielte Datenbanktests zu Löschung, Eigenbeleg und
+Paketbestand bestanden nach lokalem Neuaufbau. Der Rechte-Test deckte eine
+zu weit gefasste Service-Rollenfreigabe der generierten Migration auf; sie
+wurde eingeschränkt und erneut geprüft. Gezielte Frontendtests, ESLint,
+TypeScript-Prüfungen und Angular-Produktionsbau bestanden. Die neue Höhenklasse
+ist im generierten CSS enthalten. Die zeitweise blockierte Navigation wurde
+nicht mit einer echten Nutzersitzung reproduziert.
 
 ## 2026-09-25 – Juna – Inserate und Erweiterungsverbindung überarbeitet
 

@@ -4678,6 +4678,10 @@ export type Database = {
         Returns: string
       }
       create_workspace: { Args: { p_name: string }; Returns: string }
+      delete_purchase_draft: {
+        Args: { p_purchase_id: string; p_workspace_id: string }
+        Returns: undefined
+      }
       delete_rejected_beta_application: {
         Args: { p_application_id: string }
         Returns: string
@@ -4703,6 +4707,7 @@ export type Database = {
           end_reason: string | null
           ended_at: string | null
           id: string
+          image_selection_saved: boolean
           inventory_item_id: string | null
           last_listed_at: string | null
           listed_count: number
@@ -4930,6 +4935,7 @@ export type Database = {
           end_reason: string | null
           ended_at: string | null
           id: string
+          image_selection_saved: boolean
           inventory_item_id: string | null
           last_listed_at: string | null
           listed_count: number
@@ -5301,6 +5307,7 @@ export type Database = {
           end_reason: string | null
           ended_at: string | null
           id: string
+          image_selection_saved: boolean
           inventory_item_id: string | null
           last_listed_at: string | null
           listed_count: number
