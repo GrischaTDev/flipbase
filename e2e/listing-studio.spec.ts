@@ -43,11 +43,12 @@ test('creates, publishes and completes the listing lifecycle on mobile @pr-smoke
   await page.goto('/listings/new');
   const itemSelect = page.getByRole('combobox', { name: 'Bestandsartikel' });
   await expect(itemSelect).toBeVisible();
+  await expect(itemSelect).toHaveAttribute('aria-autocomplete', 'list');
   await page.evaluate(() => {
     document.documentElement.dataset['flipbaseExtensionInstalled'] = 'true';
     window.dispatchEvent(new Event('flipbase:extension-ready'));
   });
-  await itemSelect.click();
+  await itemSelect.fill('E2E Kamera');
   await page.getByRole('option', { name: 'E2E Kamera' }).click();
   await page.getByRole('textbox', { name: 'Titel', exact: true }).fill('E2E Kamera Inserat');
   await page.getByRole('spinbutton', { name: 'Preis', exact: true }).fill('79.90');

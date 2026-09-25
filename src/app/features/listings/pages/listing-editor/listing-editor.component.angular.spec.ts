@@ -89,6 +89,8 @@ beforeAll(async () => {
   ]);
   registerSignalInputs(CustomSelectComponent, [
     'options',
+    'searchable',
+    'required',
     'value',
     'placeholder',
     'variant',
@@ -626,6 +628,7 @@ describe('ListingEditorComponent', () => {
 
     try {
       expect(host.textContent).toContain('Textvorlage');
+      expect(host.textContent).toContain('Vorlage aus Artikeldaten übernehmen');
       expect(host.textContent).toContain(
         'Verwendet feste Formulierungen mit den Artikeldaten. Es wird keine KI eingesetzt.',
       );
@@ -635,6 +638,10 @@ describe('ListingEditorComponent', () => {
       expect(pageLayout.componentInstance.backLabel()).toBe('Zurück zu Inseraten');
       expect(host.textContent).toContain('Nichtraucherhinweis');
       expect(host.textContent).toContain('Rechtlichen Hinweis einfügen');
+      expect(
+        host.querySelectorAll('input[role="combobox"][aria-label="Bestandsartikel oder Produkt"]'),
+      ).toHaveLength(1);
+      expect(host.querySelector('app-custom-search-input')).toBeNull();
       const copyButton = Array.from(host.querySelectorAll('button')).find(
         (button) => button.textContent?.trim() === 'Texte kopieren',
       );

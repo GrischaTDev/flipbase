@@ -1,5 +1,19 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-25 – Juna – Artikelauswahl in Inseraten als durchsuchbare Kombobox
+
+**Auftrag:** Die zusätzliche Suche oberhalb der Artikelauswahl entfernen und die Auswahl selbst
+direkt durchsuchbar machen. Den Vorlagen-Button verständlich benennen.
+
+**Änderung:** Die gemeinsame Auswahlkomponente unterstützt eine Texteingabe im Dropdown. In der
+Inseraterstellung filtert sie Artikel und Produkte nach Titel, Marke und Kategorie. Beim Ändern
+einer bestehenden Auswahl wird diese bis zur nächsten bewussten Auswahl aufgehoben. Die separate
+Suchbox entfällt. Der Button heißt „Vorlage aus Artikeldaten übernehmen“; die bestehende
+Erläuterung stellt klar, dass feste Formulierungen ohne KI verwendet werden.
+
+**Prüfung:** 49 gezielte Angular-Tests für Auswahl und Editor sowie alle 74 Inserate-Tests
+bestanden. ESLint, Formatprüfung, Shared-UI-Prüfung und Produktionsbau erfolgreich.
+
 ## 2026-09-25 – Juna – Inserate und Erweiterungsverbindung überarbeitet
 
 **Auftrag:** Inserateliste an den Admin-Stil angleichen und den Ablauf für Artikelsuche,

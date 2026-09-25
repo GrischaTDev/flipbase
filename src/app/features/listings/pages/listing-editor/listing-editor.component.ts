@@ -13,7 +13,6 @@ import { ButtonComponent } from '../../../../shared/components/button/button.com
 import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
 import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
-import { CustomSearchInputComponent } from '../../../../shared/components/custom-search-input/custom-search-input.component';
 import {
   CustomSelectComponent,
   type SelectOption,
@@ -47,7 +46,6 @@ import type { InventoryItem } from '../../../../core/models/flipbase.models';
     ButtonComponent,
     CustomCheckboxComponent,
     CustomSelectComponent,
-    CustomSearchInputComponent,
     EntryPageLayoutComponent,
     ListingExtensionHelpComponent,
     ListingImageEditorComponent,
@@ -82,7 +80,6 @@ export class ListingEditorComponent {
   readonly helpOpen = signal(false);
   readonly connectionAttempted = signal(false);
   readonly preparedListingId = signal<string | null>(null);
-  readonly itemSearch = signal('');
   readonly listingId = signal<string | null>(this.route.snapshot.paramMap.get('id'));
   readonly isEdit = computed(() => this.listingId() !== null);
   readonly isLoading = computed(() =>
@@ -110,17 +107,6 @@ export class ListingEditorComponent {
     this.listingService
       .items()
       .filter((item) => {
-        const term = this.itemSearch().trim().toLocaleLowerCase('de');
-        if (
-          term &&
-          ![item.title, item.brand, item.category]
-            .filter((value): value is string => Boolean(value))
-            .join(' ')
-            .toLocaleLowerCase('de')
-            .includes(term) &&
-          item.id !== this.selectedItemId()
-        )
-          return false;
         if (item.archivedAt || item.status === 'archived' || item.status === 'sold') {
           return false;
         }
@@ -138,6 +124,7 @@ export class ListingEditorComponent {
         description:
           this.createIssueFor(item) ??
           (item.targetKind === 'catalog_product' ? undefined : this.itemStatusLabel(item.status)),
+        searchText: [item.title, item.brand, item.category].filter(Boolean).join(' '),
       })),
   );
   readonly form = new FormGroup({

@@ -9,19 +9,14 @@
       <section main class="linear-surface space-y-4 rounded-xl p-5">
         <div class="block text-sm font-medium text-fb-text-primary">
           <span>Bestandsartikel oder Produkt</span>
-          <app-custom-search-input
-            class="mt-1 block"
-            [value]="itemSearch()"
-            placeholder="Artikel oder Produkt suchen…"
-            ariaLabel="Artikel oder Produkt suchen"
-            (valueChange)="itemSearch.set($event)"
-          />
           <app-custom-select
             formControlName="inventoryItemId"
             class="mt-1"
             ariaLabel="Bestandsartikel oder Produkt"
             [options]="itemOptions()"
-            placeholder="Artikel oder Produkt wählen"
+            [searchable]="true"
+            [required]="true"
+            placeholder="Artikel oder Produkt suchen und wählen"
           />
           @if (isLoading()) {
             <p class="mt-2 text-xs text-fb-text-muted">Lade Bestände…</p>
@@ -89,7 +84,7 @@
         />
         <div class="flex flex-wrap gap-2">
           <app-button variant="secondary" (clicked)="generate()"
-            >Text aus Artikelinformationen erzeugen</app-button
+            >Vorlage aus Artikeldaten übernehmen</app-button
           >
           <app-button variant="secondary" (clicked)="copyTexts()">Texte kopieren</app-button>
         </div>
