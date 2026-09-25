@@ -469,6 +469,8 @@ export interface Sale {
 export interface CatalogProduct {
   id: string;
   workspace_id: string;
+  /** Verbindet Varianten; ältere Einzelartikel haben noch keine Gruppe. */
+  variant_group_id?: string | null;
   title: string;
   brand?: string | null;
   /** Verweis auf public.brands; der Text in `brand` folgt daraus. */

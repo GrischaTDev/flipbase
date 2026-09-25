@@ -20,9 +20,14 @@ test('verkauft ein Einzelstück genau einmal aus dem gemeinsamen Inventar @pr-sm
   });
   const sellButton = page.getByRole('button', { name: `${saleItem} verkaufen` });
   await expect(sellButton).toBeVisible({ timeout: 10_000 });
+  const headers = await inventory.getByRole('columnheader').allTextContents();
+  const onHandColumn = headers.findIndex((header) => header.includes('Auf Lager'));
+  const availableColumn = headers.findIndex((header) => header.includes('Verfügbar'));
+  expect(onHandColumn).toBeGreaterThanOrEqual(0);
+  expect(availableColumn).toBeGreaterThanOrEqual(0);
   const inventoryRow = inventory.getByRole('row').filter({ hasText: saleItem });
-  await expect(inventoryRow.getByRole('cell').nth(1)).toHaveText('1 Stück');
-  await expect(inventoryRow.getByRole('cell').nth(2)).toHaveText('1 Stück');
+  await expect(inventoryRow.getByRole('cell').nth(onHandColumn)).toHaveText('1 Stück');
+  await expect(inventoryRow.getByRole('cell').nth(availableColumn)).toHaveText('1 Stück');
 
   await sellButton.click();
   await expect(page.getByRole('heading', { name: 'Verkauf erfassen' })).toBeVisible();
@@ -43,11 +48,12 @@ test('verkauft ein Einzelstück genau einmal aus dem gemeinsamen Inventar @pr-sm
   await page.goto('/catalog?view=stock');
   const soldRow = page.getByRole('row').filter({ hasText: saleItem });
   await expect(soldRow).toHaveCount(0);
+  await page.getByRole('combobox', { name: 'Artikelansicht' }).click();
   await page
-    .getByRole('group', { name: 'Artikelansicht' })
-    .getByRole('button', { name: 'Ohne Bestand' })
+    .getByRole('listbox', { name: 'Artikelansicht' })
+    .getByRole('option', { name: 'Ohne Bestand' })
     .click();
   await expect(soldRow).toBeVisible();
-  await expect(soldRow.getByRole('cell').nth(1)).toHaveText('0 Stück');
+  await expect(soldRow.getByRole('cell').nth(onHandColumn)).toHaveText('0 Stück');
   await expect(page.getByRole('button', { name: `${saleItem} verkaufen` })).toHaveCount(0);
 });

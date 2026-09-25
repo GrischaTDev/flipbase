@@ -172,6 +172,13 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'catalog/brands',
+        loadComponent: () =>
+          import('./features/catalog/pages/brand-management/brand-management.component').then(
+            (m) => m.BrandManagementComponent,
+          ),
+      },
+      {
         path: 'catalog/:id',
         canDeactivate: [unsavedEntryGuard],
         loadComponent: () =>

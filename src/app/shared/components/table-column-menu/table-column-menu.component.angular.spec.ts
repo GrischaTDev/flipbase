@@ -168,9 +168,15 @@ describe('TableColumnMenuComponent', () => {
 
   it('should show and emit the adjacent view reset action only for a modified view', () => {
     expect(fixture.nativeElement.querySelector('[data-view-reset]')).toBeNull();
+    const trigger = fixture.nativeElement.querySelector(
+      '[aria-label="Spalten und Sortierung anpassen"]',
+    ) as HTMLButtonElement;
+    expect(trigger.classList.contains('bg-fb-primary')).toBe(false);
 
     fixture.componentRef.setInput('viewModified', true);
     fixture.detectChanges();
+    expect(trigger.classList.contains('bg-fb-primary')).toBe(true);
+    expect(trigger.getAttribute('aria-description')).toBe('Die Ansicht wurde angepasst');
     const reset = fixture.nativeElement.querySelector('[data-view-reset]') as HTMLButtonElement;
     expect(reset).toBeTruthy();
     expect(reset.getAttribute('aria-label')).toBe('Ansicht zurücksetzen');

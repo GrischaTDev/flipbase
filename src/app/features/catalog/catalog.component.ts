@@ -43,6 +43,7 @@ import { TableActionButtonComponent } from '../../shared/components/table-action
 import { parseCsv } from '../../shared/utils/csv';
 import { normalizeGtin } from '../../shared/utils/gtin';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
+import { CustomSelectComponent } from '../../shared/components/custom-select/custom-select.component';
 import { ConfirmDialogService } from '../../shared/components/confirm-dialog/confirm-dialog.service';
 import { ArticleLifecycleService } from './services/article-lifecycle.service';
 import { ArticleMediaCleanupService } from './services/article-media-cleanup.service';
@@ -71,6 +72,7 @@ interface CatalogImportRow {
     ButtonComponent,
     TableActionButtonComponent,
     PageHeaderComponent,
+    CustomSelectComponent,
   ],
   templateUrl: './catalog.component.html',
   host: { class: 'block' },
@@ -132,6 +134,7 @@ export class CatalogComponent {
   });
   readonly viewModified = computed(
     () =>
+      this.view() !== 'all' ||
       this.searchQuery().trim() !== '' ||
       tableStateDiffersFromDefaults(this.tablePrefs(), this.catalogTableConfig),
   );
@@ -212,11 +215,11 @@ export class CatalogComponent {
   resetView(): void {
     this.searchControl.setValue('');
     this.resetTablePreferences();
-    void this.setView('active');
+    void this.setView('all');
   }
 
   async setView(view: ArticleView): Promise<void> {
-    await this.router.navigate(['/catalog'], { queryParams: view === 'active' ? {} : { view } });
+    await this.router.navigate(['/catalog'], { queryParams: view === 'all' ? {} : { view } });
   }
 
   statusLabel(row: CatalogOverviewRow): string {

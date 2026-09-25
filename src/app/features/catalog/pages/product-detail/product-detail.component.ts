@@ -18,6 +18,7 @@ import {
   normalizeProductHandle,
 } from '../../../../core/utils/product-seo';
 import { ProductMediaEditorComponent } from '../../components/product-media-editor/product-media-editor.component';
+import { ProductVariantsComponent } from '../../components/product-variants/product-variants.component';
 import { DatePipe } from '@angular/common';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -41,6 +42,7 @@ import { ProductCategoryService } from '../../../../core/services/product-catego
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { PageHeaderComponent } from '../../../../shared/components/page-header/page-header.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
+import { AttributePickerComponent } from '../../../../shared/components/attribute-picker/attribute-picker.component';
 import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
 import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
 import {
@@ -67,6 +69,10 @@ import { UnsavedEntryPage } from '../../../../shared/guards/unsaved-entry.guard'
 import { summarizeProductStock } from './product-detail-stock';
 import { PurchaseProductReturnService } from '../../../purchases/services/purchase-product-return.service';
 import { ProductSearchPhotoService } from '../../services/product-search-photo.service';
+import {
+  PRODUCT_COLOR_OPTIONS,
+  PRODUCT_MATERIAL_OPTIONS,
+} from '../../models/product-attribute-options';
 
 @Component({
   selector: 'app-product-detail',
@@ -80,10 +86,12 @@ import { ProductSearchPhotoService } from '../../services/product-search-photo.s
     ModalShellComponent,
     PageHeaderComponent,
     TextFieldComponent,
+    AttributePickerComponent,
     CustomCheckboxComponent,
     NumberInputComponent,
     CustomSelectComponent,
     ProductMediaEditorComponent,
+    ProductVariantsComponent,
     BarcodeScannerComponent,
   ],
   templateUrl: './product-detail.component.html',
@@ -111,6 +119,8 @@ export class ProductDetailComponent implements UnsavedEntryPage {
   readonly barcodeIcon = LucideScanBarcode;
   readonly removePhotoIcon = LucideX;
   readonly sourceIcon = LucideExternalLink;
+  readonly colorOptions = PRODUCT_COLOR_OPTIONS;
+  readonly materialOptions = PRODUCT_MATERIAL_OPTIONS;
   readonly barcodeScannerOpen = signal(false);
   readonly barcodeLoading = signal(false);
   readonly barcodeMessage = signal<string | null>(null);
@@ -170,6 +180,8 @@ export class ProductDetailComponent implements UnsavedEntryPage {
   readonly mediaError = signal<string | null>(null);
   readonly savedMessage = signal<string | null>(null);
   readonly images = signal<CatalogProductMedia[]>([]);
+  readonly variants = signal<CatalogProduct[]>([]);
+  readonly variantsError = signal<string | null>(null);
   readonly imageDrafts = signal<readonly ProductImageDraft[]>([]);
   readonly pendingImages = computed(() =>
     this.imageDrafts().flatMap((image) => (image.file ? [image.file] : [])),
@@ -761,6 +773,7 @@ export class ProductDetailComponent implements UnsavedEntryPage {
       this.product.set(null);
       this.draftWorkspaceId.set(workspaceId);
       this.images.set([]);
+      this.variants.set([]);
       this.imageDrafts.set([]);
       this.expectedMediaIds = [];
       this.savedImageKeys = '';
@@ -792,6 +805,7 @@ export class ProductDetailComponent implements UnsavedEntryPage {
       await Promise.all([
         this.loadImages(request, id, workspaceId),
         this.loadStock(request, id, workspaceId),
+        this.loadVariants(product, request),
       ]);
     } catch (error: unknown) {
       if (this.isCurrent(request, id, workspaceId))
@@ -815,19 +829,40 @@ export class ProductDetailComponent implements UnsavedEntryPage {
     this.entries.set(result.data ?? []);
   }
 
+  async loadVariants(product = this.product(), request = this.requestId): Promise<void> {
+    if (!product) return;
+    this.variantsError.set(null);
+    const result = await this.catalog.loadVariants(product);
+    if (!this.isCurrent(request, product.id, product.workspace_id)) return;
+    this.variantsError.set(result.error?.message ?? null);
+    this.variants.set(result.data ?? []);
+  }
+
+  async onVariantCreated(variant: CatalogProduct): Promise<void> {
+    const product = this.product();
+    if (!product || variant.workspace_id !== product.workspace_id) return;
+    this.product.set({ ...product, variant_group_id: variant.variant_group_id });
+    await Promise.all([
+      this.loadVariants(this.product()),
+      this.stock.loadPositions(product.workspace_id),
+    ]);
+  }
+
   async loadImages(
     request = this.requestId,
     id = this.id(),
     workspaceId = this.workspace.currentWorkspace()?.id,
   ): Promise<void> {
     if (!id || !workspaceId) return;
+    const mediaOwnerId = this.product()?.variant_group_id ?? id;
     this.mediaError.set(null);
     try {
-      const images = await this.media.loadProductMedia(id);
+      const images = await this.media.loadProductMedia(mediaOwnerId);
       if (this.isCurrent(request, id, workspaceId) && !this.galleryChanged()) {
         this.acceptImages(
           images.filter(
-            (image) => image.workspace_id === workspaceId && image.catalog_product_id === id,
+            (image) =>
+              image.workspace_id === workspaceId && image.catalog_product_id === mediaOwnerId,
           ),
         );
       }
@@ -943,17 +978,18 @@ export class ProductDetailComponent implements UnsavedEntryPage {
         this.fillForm(result.data);
       }
       if (!id) return;
+      const mediaOwnerId = this.product()?.variant_group_id ?? id;
       for (const draft of [...this.imageDrafts()]) {
         if (!draft.file) continue;
         if (!this.isCurrent(request, id, workspaceId)) return;
-        const result = await this.media.uploadProductMedia(id, draft.file);
+        const result = await this.media.uploadProductMedia(mediaOwnerId, draft.file);
         if (result.error || !result.data)
           throw new Error(
             'Artikeldaten gespeichert. Bild konnte nicht gespeichert werden: ' +
               (result.error?.message ?? draft.file.name),
           );
         const uploaded = result.data;
-        if (uploaded.catalog_product_id !== id || uploaded.workspace_id !== workspaceId)
+        if (uploaded.catalog_product_id !== mediaOwnerId || uploaded.workspace_id !== workspaceId)
           throw new Error('Das gespeicherte Bild konnte diesem Artikel nicht zugeordnet werden.');
         if (
           request === this.requestId &&
@@ -975,7 +1011,7 @@ export class ProductDetailComponent implements UnsavedEntryPage {
       if (this.galleryChanged()) {
         const orderedIds = this.imageDrafts().map((image) => image.media!.id);
         const result = await this.media.updateProductMediaLayout(
-          id,
+          mediaOwnerId,
           orderedIds,
           this.expectedMediaIds,
           workspaceId,

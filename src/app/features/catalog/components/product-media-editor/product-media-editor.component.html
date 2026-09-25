@@ -108,9 +108,10 @@
 @if (!disabled()) {
   @if (cropImage(); as image) {
     <app-image-cropper-modal
+      title="Bild quadratisch zuschneiden"
       [initialImageFile]="image.file"
       [initialImageUrl]="image.file ? null : image.previewUrl"
-      [maintainAspectRatio]="false"
+      [maintainAspectRatio]="true"
       (imageReady)="applyCrop($event)"
       (closed)="cropKey.set(null)"
     />

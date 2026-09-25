@@ -173,7 +173,10 @@ export class StoreService {
           brand: product.brand,
           model: product.model,
           category: product.category,
-          sku: product.ean,
+          sku: product.sku,
+          variantGroupId: product.variant_group_id,
+          size: product.size,
+          color: product.color,
         },
       ];
     });

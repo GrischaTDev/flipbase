@@ -220,15 +220,15 @@ describe('TablePreferencesService – Polaris Table Preferences & Reordering', (
   it('ergänzt die neue Artikeltabelle und entfernt die frühere Webshop-Spalte', () => {
     expect(CATALOG_TABLE_CONFIG.defaultColumns.map(({ id }) => id)).toEqual([
       'title',
+      'brand',
+      'category',
+      'ean',
+      'reserved',
+      'inventory_value',
       'on_hand',
       'available',
       'status',
       'actions',
-      'reserved',
-      'inventory_value',
-      'category',
-      'brand',
-      'ean',
     ]);
     localStorage.setItem(
       `flipbase:table_prefs:${testWorkspaceId}:catalog`,
@@ -248,8 +248,23 @@ describe('TablePreferencesService – Polaris Table Preferences & Reordering', (
 
     expect(state.columns.map(({ id }) => id)).toEqual([
       'title',
-      'on_hand',
+      'brand',
+      'category',
       'ean',
+      'reserved',
+      'inventory_value',
+      'on_hand',
+      'available',
+      'status',
+      'actions',
+    ]);
+    expect(state.columns.some(({ id }) => id === 'store')).toBe(false);
+  });
+
+  it('ordnet die bisherige Standardansicht neu und zeigt Marke standardmäßig an', () => {
+    const oldOrder = [
+      'title',
+      'on_hand',
       'available',
       'status',
       'actions',
@@ -257,8 +272,24 @@ describe('TablePreferencesService – Polaris Table Preferences & Reordering', (
       'inventory_value',
       'category',
       'brand',
-    ]);
-    expect(state.columns.some(({ id }) => id === 'store')).toBe(false);
+      'ean',
+    ];
+    const oldVisible = new Set(['title', 'on_hand', 'available', 'status', 'actions']);
+    localStorage.setItem(
+      `flipbase:table_prefs:${testWorkspaceId}:catalog`,
+      JSON.stringify({
+        version: 1,
+        columns: oldOrder.map((id, order) => ({ id, order, visible: oldVisible.has(id) })),
+        sort: { field: 'title', direction: 'asc' },
+      }),
+    );
+
+    const state = service.getTablePreferences('catalog', testWorkspaceId)();
+
+    expect(state.columns.map(({ id }) => id)).toEqual(
+      CATALOG_TABLE_CONFIG.defaultColumns.map(({ id }) => id),
+    );
+    expect(state.columns.find(({ id }) => id === 'brand')?.visible).toBe(true);
   });
 
   it('zieht die unveränderte alte Einkaufsansicht einmalig auf die neue Standardfolge nach', () => {

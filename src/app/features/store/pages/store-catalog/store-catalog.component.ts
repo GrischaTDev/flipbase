@@ -34,6 +34,7 @@ import { SellableItemRef } from '../../../../core/models/store.models';
 import { MediaService } from '../../../../core/services/media.service';
 import { productStorePath } from '../../../../core/utils/product-seo';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { storeCatalogCards } from '../../utils/store-product-groups';
 
 interface FaqItem {
   question: string;
@@ -99,9 +100,11 @@ export class StoreCatalogComponent {
   readonly newsletterEmail = new FormControl('');
   readonly newsletterSubscribed = signal<boolean>(false);
 
+  readonly displayProducts = computed(() => storeCatalogCards(this.storeService.publicProducts()));
+
   // Dynamic Categories from available store products
   readonly categories = computed(() => {
-    const items = this.storeService.publicProducts();
+    const items = this.displayProducts();
     const cats = new Set<string>();
     for (const item of items) {
       if (item.category) cats.add(item.category);
@@ -111,13 +114,13 @@ export class StoreCatalogComponent {
 
   // Top Deals / Featured Products (First 4 items or like_new / new)
   readonly featuredDeals = computed(() => {
-    const items = this.storeService.publicProducts();
+    const items = this.displayProducts();
     return items.slice(0, 4);
   });
 
   // Filtered & Sorted Products
   readonly filteredProducts = computed(() => {
-    let items = [...this.storeService.publicProducts()];
+    let items = [...this.displayProducts()];
     const query = this.searchQuery()?.toLowerCase().trim() || '';
     const cat = this.selectedCategory();
     const cond = this.selectedCondition();

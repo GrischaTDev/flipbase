@@ -1,0 +1,83 @@
+<div class="space-y-4">
+  <app-page-header
+    title="Marken verwalten"
+    subtitle="Marken für deinen Workspace anlegen, suchen und bearbeiten."
+  >
+    <div header-actions><app-button link="/catalog">Zur Artikelliste</app-button></div>
+  </app-page-header>
+  @if (error(); as text) {
+    <p
+      role="alert"
+      class="rounded-lg border border-fb-critical-border bg-fb-critical-surface p-3 text-sm text-fb-critical"
+    >
+      {{ text }}
+    </p>
+  }
+  @if (message(); as text) {
+    <p role="status" class="text-sm text-fb-success">{{ text }}</p>
+  }
+  <app-card title="Neue Marke" rounded="xl">
+    <div class="flex flex-wrap items-end gap-3">
+      <div class="min-w-48 flex-1">
+        <app-text-field label="Markenname" [formControl]="newName" [maxLength]="120" />
+      </div>
+      <app-button variant="primary" [disabled]="!newName.value.trim() || saving()" (clicked)="add()"
+        >Anlegen</app-button
+      >
+    </div>
+  </app-card>
+  <app-card title="Vorhandene Marken" rounded="xl">
+    <div class="space-y-4">
+      <app-text-field label="Marken suchen" type="search" [formControl]="search" />
+      @if (brands.loadError(); as loadError) {
+        <p role="alert" class="text-sm text-fb-critical">{{ loadError.message }}</p>
+        <app-button (clicked)="brands.reload()">Erneut laden</app-button>
+      } @else if (brands.loading()) {
+        <p role="status" class="text-sm text-fb-text-muted">Marken werden geladen …</p>
+      } @else {
+        <ul class="divide-y divide-fb-line">
+          @for (brand of filtered(); track brand.id) {
+            <li class="flex flex-wrap items-center justify-between gap-3 py-2">
+              @if (editingId() === brand.id) {
+                <div class="min-w-48 flex-1">
+                  <app-text-field
+                    label="Marke umbenennen"
+                    [formControl]="editingName"
+                    [maxLength]="120"
+                  />
+                </div>
+                <div class="flex gap-2">
+                  <app-button variant="secondary" (clicked)="editingId.set(null)"
+                    >Abbrechen</app-button
+                  >
+                  <app-button
+                    variant="primary"
+                    [disabled]="saving() || !editingName.value.trim()"
+                    (clicked)="rename()"
+                    >Speichern</app-button
+                  >
+                </div>
+              } @else {
+                <span class="text-sm text-fb-text-primary">{{ brand.name }}</span>
+                <app-button variant="secondary" (clicked)="edit(brand.id, brand.name)"
+                  >Bearbeiten</app-button
+                >
+              }
+            </li>
+          } @empty {
+            <li class="py-3 text-sm text-fb-text-muted">Keine Marken gefunden.</li>
+          }
+        </ul>
+        <app-button variant="secondary" (clicked)="deleteOpen.set(true)"
+          >Marken zusammenführen oder löschen</app-button
+        >
+      }
+    </div>
+  </app-card>
+</div>
+@if (deleteOpen()) {
+  <app-brand-management-dialog
+    (closed)="deleteOpen.set(false)"
+    (brandDeleted)="message.set('Marke aktualisiert.')"
+  />
+}

@@ -16,6 +16,59 @@ den Bau wurde ein isolierter Prüf-Worktree auf demselben Laufwerk wie die
 verknüpften Abhängigkeiten verwendet, damit `intl-tel-input`-Bildpfade korrekt
 aufgelöst werden.
 
+## 2026-09-25 – Juna – Bildzuschnitt und Artikelübersicht angepasst
+
+**Auftrag:** Produktbilder ohne freie Ränder passend zuschneiden, die
+Speichermeldung neben der Aktion zeigen und die Artikelübersicht bei Ansichten,
+Spalten und aktiven Einstellungen verbessern.
+
+**Änderung:** Der Zuschnitt in der Artikelerfassung hält jetzt ein quadratisches
+Seitenverhältnis. Die Shop-Bildflächen verwenden ebenfalls quadratische
+Ausschnitte ohne Innenabstand. „Artikel gespeichert“ erscheint im Seitenkopf
+direkt vor „Speichern“. Die Artikelansicht hat eine Auswahlbox mit „Alle“ als
+Grundansicht. Marke steht standardmäßig sichtbar hinter Artikel; weitere
+optionale Artikelangaben folgen vor „Auf Lager“. Bisherige unveränderte
+Standardansichten werden einmalig umgeordnet, persönliche Spaltenauswahlen
+bleiben erhalten. Der gemeinsame Spalten- und Sortierknopf zeigt mit gelbem
+Hintergrund an, wenn Ansicht, Suche, Sortierung oder Spalten geändert wurden.
+
+**Prüfung:** Die gezielten Komponenten- und Einstellungs-Tests, TypeScript,
+ESLint und Angular-Bau bestanden.
+
+## 2026-09-25 – Juna – Artikelerfassung und Varianten überarbeitet
+
+**Auftrag:** Die Seite „Artikel erstellen“ anhand der Shopify-Admin-Referenz neu
+ordnen und Kategorie, Farben, Materialien, Marken, Kennungen sowie den
+Suchmaschineneintrag fachlich prüfen. Während der Planung kam die Anforderung
+hinzu, weitere Schuhgrößen und Farben als Varianten eines Artikels anzulegen.
+
+**Änderung:** Den Entwurf unter
+`docs/superpowers/specs/2026-09-25-article-create-admin-design.md` festgehalten
+und die Artikelseite mit Grunddaten, Bildern, Varianten, Suchmaschineneintrag,
+Eigenschaften und Kennungen neu geordnet. Größe und Farbe können als Varianten
+mit eigener Artikel-ID, Kennungen, Preis und Bestand angelegt werden; gemeinsame
+Angaben und Bilder werden über die Artikelgruppe genutzt. Historische Artikel
+erhalten ihre Gruppe erst bei der ersten zusätzlichen Variante und behalten ihre
+ID. Die Suche findet „High Heels“ und verwandte Begriffe in der vorhandenen
+Schuhkategorie. Farbe und Material haben suchbare Auswahlfelder; Material erlaubt
+mehrere Werte. Eine Marken-Unterseite bietet Anlegen, Umbenennen und die
+bisherige Ersetzen-/Löschen-Funktion. Der Shop zeigt Artikelgruppen nur einmal
+und bietet Größen und Farben auf der Produktseite an; die Einkaufs-Auswahl zeigt
+die unterscheidenden Variantenmerkmale.
+
+**Prüfung:** Die Variantenmigrationen wurden aus dem deklarativen Schema erzeugt
+und auf einer isolierten frischen Datenbank angewendet. Der gezielte Datenbanktest
+bestand mit 15 Prüfungen einschließlich Altartikel, Archivierung, Eindeutigkeit,
+gemeinsamer Angaben und Workspace-Schutz. Gezielte Angular-, Service- und
+Medientests, ein AXE-Test des Auswahlfelds, TypeScript-Prüfung, Lint,
+Formatierung, Schema-Registrierung und Angular-Bau bestanden. Nach der PR-Prüfung
+wurde der Gruppen-Fremdschlüssel am Transaktionsende geprüft, damit die
+bestehende Workspace-Schutzprüfung für Store-Bestellungen ihre genaue
+Fehlermeldung behält. Der dazugehörige Bestandstest und die Variantentests
+bestanden zusammen; anschließend bestanden alle 2.062 Datenbankprüfungen.
+Der Browser-Smoke-Test wählt Bestandszellen über ihre Spaltenüberschrift und
+nutzt die neue Artikelansicht-Auswahlbox.
+
 ## 2026-09-25 – Juna – Design und Sprache der Landingpage bleiben nach Neuladen erhalten
 
 **Auftrag:** Die Auswahl von hellem oder dunklem Design und Deutsch oder Englisch

@@ -51,6 +51,9 @@ export interface SellableItemRef {
   readonly model?: string | null;
   readonly category?: string | null;
   readonly sku?: string | null;
+  readonly variantGroupId?: string | null;
+  readonly size?: string | null;
+  readonly color?: string | null;
   readonly condition?: InventoryItem['condition'];
   readonly media?: InventoryItem['media'];
   readonly created_at?: string;

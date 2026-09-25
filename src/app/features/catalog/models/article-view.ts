@@ -3,16 +3,16 @@ import type { ArticleRow } from './article-row';
 export type ArticleView = 'active' | 'archive' | 'all' | 'stock' | 'empty' | 'review';
 
 export const articleViews: readonly { readonly value: ArticleView; readonly label: string }[] = [
+  { value: 'all', label: 'Alle' },
   { value: 'active', label: 'Aktiv' },
-  { value: 'stock', label: 'Bestand' },
+  { value: 'stock', label: 'Mit Bestand' },
   { value: 'empty', label: 'Ohne Bestand' },
   { value: 'archive', label: 'Archiv' },
   { value: 'review', label: 'Zu prüfen' },
-  { value: 'all', label: 'Alle' },
 ];
 
 export function parseArticleView(value: string | null): ArticleView {
-  return articleViews.find((view) => view.value === value)?.value ?? 'active';
+  return articleViews.find((view) => view.value === value)?.value ?? 'all';
 }
 
 export function matchesArticleView(row: ArticleRow, view: ArticleView): boolean {

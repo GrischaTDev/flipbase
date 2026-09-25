@@ -50,6 +50,16 @@ export interface CatalogProductEntry extends PurchaseLine {
   readonly purchase: Pick<Purchase, 'id' | 'title'> | null;
 }
 
+export interface CreateProductVariantInput {
+  readonly workspaceId: string;
+  readonly sourceProductId: string;
+  readonly size: string;
+  readonly color: string;
+  readonly ean: string;
+  readonly sku: string;
+  readonly listingPrice: number | null;
+}
+
 @Injectable({ providedIn: 'root' })
 export class CatalogService {
   private readonly supabase = inject(SupabaseService);
@@ -73,9 +83,11 @@ export class CatalogService {
     primaryMediaPath: string | null,
   ): void {
     if (this.workspace.currentWorkspace()?.id !== workspaceId) return;
+    const groupId =
+      this.products().find((product) => product.id === productId)?.variant_group_id ?? productId;
     this.products.update((products) =>
       products.map((product) =>
-        product.id === productId && product.workspace_id === workspaceId
+        (product.variant_group_id ?? product.id) === groupId && product.workspace_id === workspaceId
           ? { ...product, primary_media_path: primaryMediaPath }
           : product,
       ),
@@ -114,20 +126,28 @@ export class CatalogService {
         this.loadError.set(this.syncStatus.melde('Laden der Artikelstammdaten', error));
         return;
       }
+      const loadedProducts = (data ?? []).map((product) => {
+        const media = [...(product.catalog_product_media ?? [])].sort(
+          (left, right) =>
+            Number(right.is_primary) - Number(left.is_primary) ||
+            left.sort_order - right.sort_order ||
+            left.created_at.localeCompare(right.created_at) ||
+            left.id.localeCompare(right.id),
+        );
+        return {
+          ...this.mapProduct(product),
+          primary_media_path: media[0]?.storage_path ?? null,
+        };
+      });
+      const groupMedia = new Map(
+        loadedProducts.map((product) => [product.id, product.primary_media_path]),
+      );
       this.products.set(
-        (data ?? []).map((product) => {
-          const media = [...(product.catalog_product_media ?? [])].sort(
-            (left, right) =>
-              Number(right.is_primary) - Number(left.is_primary) ||
-              left.sort_order - right.sort_order ||
-              left.created_at.localeCompare(right.created_at) ||
-              left.id.localeCompare(right.id),
-          );
-          return {
-            ...this.mapProduct(product),
-            primary_media_path: media[0]?.storage_path ?? null,
-          };
-        }),
+        loadedProducts.map((product) => ({
+          ...product,
+          primary_media_path:
+            groupMedia.get(product.variant_group_id ?? product.id) ?? product.primary_media_path,
+        })),
       );
       this.loadedWorkspaceId.set(workspaceId);
     } catch (error: unknown) {
@@ -159,6 +179,66 @@ export class CatalogService {
       };
     } catch (error: unknown) {
       return this.failure('Laden des Artikels', error);
+    }
+  }
+
+  async loadVariants(product: CatalogProduct): Promise<MutationResult<CatalogProduct[]>> {
+    const workspaceId = product.workspace_id;
+    if (!product.variant_group_id)
+      return { data: [product], error: null, reportedBySyncStatus: false };
+    try {
+      if (this.workspace.currentWorkspace()?.id !== workspaceId)
+        throw new Error('Der Workspace wurde gewechselt.');
+      const { data, error } = await this.supabase.client
+        .from('catalog_products')
+        .select('*')
+        .eq('workspace_id', workspaceId)
+        .eq('variant_group_id', product.variant_group_id)
+        .order('size')
+        .order('color');
+      if (error) throw error;
+      return {
+        data: (data ?? []).map((row) => this.mapProduct(row)),
+        error: null,
+        reportedBySyncStatus: false,
+      };
+    } catch (error: unknown) {
+      return this.failure('Laden der Artikelvarianten', error);
+    }
+  }
+
+  async createVariant(input: CreateProductVariantInput): Promise<MutationResult<CatalogProduct>> {
+    try {
+      if (this.workspace.currentWorkspace()?.id !== input.workspaceId)
+        throw new Error('Der Workspace wurde gewechselt.');
+      if (!input.size.trim() && !input.color.trim())
+        throw new Error('Bitte Größe oder Farbe für die Variante angeben.');
+      const { data, error } = await this.supabase.client.rpc('create_catalog_product_variant', {
+        p_workspace_id: input.workspaceId,
+        p_product_id: input.sourceProductId,
+        p_size: input.size.trim(),
+        p_color: input.color.trim(),
+        p_ean: input.ean.trim(),
+        p_sku: input.sku.trim(),
+        // Die erzeugten RPC-Typen bilden nullable SQL-Parameter nicht ab.
+        p_listing_price: input.listingPrice as number,
+      });
+      if (error || !data) throw error ?? new Error('Die Variante wurde nicht zurückgegeben.');
+      const product = this.mapProduct(data);
+      product.primary_media_path =
+        this.products().find((entry) => entry.id === input.sourceProductId)?.primary_media_path ??
+        null;
+      this.products.update((products) =>
+        products.map((entry) =>
+          entry.id === input.sourceProductId && entry.workspace_id === input.workspaceId
+            ? { ...entry, variant_group_id: product.variant_group_id }
+            : entry,
+        ),
+      );
+      this.includeCreatedProduct(product);
+      return { data: product, error: null, reportedBySyncStatus: false };
+    } catch (error: unknown) {
+      return this.failure('Anlegen der Artikelvariante', error);
     }
   }
 
@@ -265,11 +345,26 @@ export class CatalogService {
         (!this.requestedWorkspaceId || this.requestedWorkspaceId === input.workspaceId)
       ) {
         this.products.update((products) =>
-          products.map((entry) =>
-            entry.id === productId && entry.workspace_id === input.workspaceId
-              ? { ...entry, ...product }
-              : entry,
-          ),
+          products.map((entry) => {
+            if (entry.workspace_id !== input.workspaceId) return entry;
+            if (entry.id === productId) return { ...entry, ...product };
+            if (!product.variant_group_id || entry.variant_group_id !== product.variant_group_id)
+              return entry;
+            return {
+              ...entry,
+              title: product.title,
+              brand_id: product.brand_id,
+              brand: product.brand,
+              model: product.model,
+              category_id: product.category_id,
+              category: product.category,
+              material: product.material,
+              description: product.description,
+              seo_title: product.seo_title,
+              seo_description: product.seo_description,
+              url_handle: product.url_handle,
+            };
+          }),
         );
       }
       return { data: product, error: null, reportedBySyncStatus: false };

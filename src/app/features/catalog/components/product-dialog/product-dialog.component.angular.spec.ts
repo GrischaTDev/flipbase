@@ -89,6 +89,10 @@ beforeAll(async () => {
       resourcePath('src/app/shared/components/brand-picker/brand-picker.component.html'),
     ],
     [
+      './attribute-picker.component.html',
+      resourcePath('src/app/shared/components/attribute-picker/attribute-picker.component.html'),
+    ],
+    [
       './barcode-scanner.component.html',
       resourcePath('src/app/shared/components/barcode-scanner/barcode-scanner.component.html'),
     ],
