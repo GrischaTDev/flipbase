@@ -1,5 +1,25 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-25 – Juna – Footer verdichtet und Scrollsprung nach Cookie-Auswahl behoben
+
+**Auftrag:** Den Sprung ans Seitenende nach „Alle akzeptieren“ beheben und den
+Footer deutlich kompakter gestalten.
+
+**Änderung:** Nach der ersten Cookie-Entscheidung erhält die Hauptüberschrift
+den Fokus, ohne die Scrollposition zu ändern. Bei später geöffneten Einstellungen
+kehrt der Fokus zum auslösenden Button zurück. Der Footer enthält nur noch Logo,
+Impressum, Datenschutz, Cookie-Einstellungen und Copyright; Beschreibung,
+Beta-Badge und wiederholte Produktnavigation wurden entfernt. Die bearbeiteten
+Footer-Klassen heißen nun entsprechend der Projektregel `footer-*`.
+
+**Prüfung:** 32 Landingpage-Tests und Angular-Produktionsbau bestanden.
+Im Browser blieb die Scrollposition nach Zustimmung oben und nach späterem
+Schließen der Einstellungen unverändert. Der Footer misst bei 1280 px Breite
+81 px statt zuvor 494 px, bei 390 px Breite 111 px statt zuvor 836 px.
+Bei 320 px Breite bleiben die Links sichtbar. AXE meldete in den geprüften
+Dialog- und Footer-Ansichten keine WCAG-Verstöße. Der Bau meldete die bekannte
+CommonJS-Warnung zu `pako`.
+
 ## 2026-09-25 – Juna – Einwilligungstext als klare Wahl formuliert
 
 **Auftrag:** Den Einstieg des Cookie-Dialogs im Stil des vorgeschlagenen Beispiels

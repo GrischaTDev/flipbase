@@ -792,7 +792,6 @@ test('declares English passages and gives localized controls static screen-reade
     ['✓ Der Flipbase-Schutz', '✓ Flipbase protection'],
     ['In Entwicklung', 'In development'],
     ['Geplant', 'Planned'],
-    ['© 2026 Flipbase. Alle Rechte vorbehalten.', '© 2026 Flipbase. All rights reserved.'],
   ]) {
     assertLanguagePair(html, expectedPair[0], expectedPair[1]);
   }
@@ -888,6 +887,19 @@ test('keeps local landing assets intact', async () => {
   }
 });
 
+test('keeps the footer compact and focused on legal links and consent settings', () => {
+  const dom = new JSDOM(html);
+  const footer = dom.window.document.querySelector('footer');
+  assert.deepEqual(
+    [...footer.querySelectorAll('a')].map((link) => link.getAttribute('href')),
+    ['/impressum', '/datenschutz'],
+  );
+  assert.ok(footer.querySelector('#analytics-settings'));
+  assert.match(footer.textContent, /© 2026 Flipbase/u);
+  assert.doesNotMatch(footer.textContent, /Beta aktiv|Deal-Sniper|Roadmap/u);
+  dom.window.close();
+});
+
 test('does not ask for consent or load Google without a GA4 measurement ID', () => {
   const dom = new JSDOM(html, { runScripts: 'outside-only', url: 'https://flipbase.de/' });
   const unconfiguredScript = analyticsScript.replace(
@@ -899,6 +911,18 @@ test('does not ask for consent or load Google without a GA4 measurement ID', () 
   assert.equal(dom.window.document.getElementById('analytics-consent').hidden, true);
   assert.equal(dom.window.document.getElementById('analytics-settings').hidden, true);
   assert.equal(dom.window.document.getElementById('google-analytics-script'), null);
+  dom.window.close();
+});
+
+test('returns focus to the landing heading after the initial consent decision', () => {
+  const dom = new JSDOM(html, { runScripts: 'outside-only', url: 'https://flipbase.de/' });
+  const { document } = dom.window;
+  dom.window.eval(analyticsScript);
+
+  document.getElementById('analytics-accept').click();
+  assert.equal(document.getElementById('analytics-consent').hidden, true);
+  assert.equal(document.activeElement, document.querySelector('main h1'));
+  assert.notEqual(document.activeElement, document.getElementById('analytics-settings'));
   dom.window.close();
 });
 
@@ -1032,7 +1056,7 @@ test('counts app links only with analytics consent and without URL parameters', 
   dom.window.eval(analyticsScript);
 
   const appLinks = [...document.querySelectorAll('a[href="https://app.flipbase.de"]')];
-  assert.equal(appLinks.length, 2);
+  assert.equal(appLinks.length, 1);
   for (const link of appLinks) {
     link.addEventListener('click', (event) => event.preventDefault());
     link.click();
@@ -1044,7 +1068,7 @@ test('counts app links only with analytics consent and without URL parameters', 
   const events = Array.from(dom.window.dataLayer, (command) => Array.from(command)).filter(
     ([command]) => command === 'event',
   );
-  assert.equal(events.length, 2);
+  assert.equal(events.length, 1);
   for (const event of events) {
     assert.equal(event[1], 'app_link_click');
     assert.deepEqual(Object.fromEntries(Object.entries(event[2])), {
@@ -1056,7 +1080,7 @@ test('counts app links only with analytics consent and without URL parameters', 
 
   document.getElementById('analytics-reject').click();
   for (const link of appLinks) link.click();
-  assert.equal(dom.window.dataLayer.length, 6);
+  assert.equal(dom.window.dataLayer.length, 4 + appLinks.length);
   dom.window.close();
 });
 
@@ -1125,7 +1149,6 @@ test('restores a valid analytics choice and expires it after 180 days', () => {
 test('uses a valid heading hierarchy and the mobile header wrap contract', () => {
   assert.doesNotMatch(html, /<h4\b/iu);
   assertDeclaration(css, '.tech-box h3', 'display', 'flex');
-  assertDeclaration(css, '.fuss-spalte h2', 'text-transform', 'uppercase');
 
   assertDeclaration(css, 'header', 'flex-wrap', 'wrap');
   assertDeclaration(css, '.kopf-aktionen', 'min-width', '0');
@@ -1245,8 +1268,6 @@ test('describes the beta application review flow without open-registration or fi
 
 test('marks Deal Sniper behavior as planned in German and English', () => {
   const expectedPlannedCopy = [
-    ['Vinted Bot (geplant)', 1],
-    ['Vinted Bot (planned)', 1],
     ['Vinted Deal-Sniper (geplant)', 1],
     ['Vinted Deal Sniper (planned)', 1],
     ['Geplanter Vinted Deal-Sniper für gespeicherte Suchfilter', 1],

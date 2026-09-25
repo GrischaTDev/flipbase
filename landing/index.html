@@ -1363,119 +1363,76 @@
         margin: 0 auto 2rem;
       }
 
-      /* ---------- Fusszeile (Footer) ---------- */
+      /* ---------- Footer ---------- */
 
       footer {
         border-top: 1px solid var(--line);
-        margin-top: 4rem;
+        margin-top: 3rem;
         background: var(--canvas-deep);
       }
 
-      .fuss-inhalt {
+      .footer-content {
         max-width: 1360px;
         margin: 0 auto;
-        padding: clamp(3rem, 6vw, 4.5rem) var(--rand) 2.5rem;
+        padding: 1.5rem var(--rand);
         display: grid;
-        grid-template-columns: 2.2fr 1fr 1fr;
-        gap: 3rem;
+        grid-template-columns: 1fr auto auto;
+        align-items: center;
+        gap: 1rem 2.5rem;
       }
 
-      @media (max-width: 768px) {
-        .fuss-inhalt {
+      .footer-links {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 0.75rem 1.5rem;
+      }
+
+      .footer-links a,
+      .footer-links button {
+        font-size: 0.85rem;
+        color: var(--ink-muted);
+      }
+
+      .footer-links a:hover,
+      .footer-links button:hover {
+        color: var(--brand-text);
+      }
+
+      .footer-copyright {
+        font-size: 0.8rem;
+        color: var(--ink-dim);
+        white-space: nowrap;
+      }
+
+      @media (max-width: 850px) {
+        .footer-content {
           grid-template-columns: 1fr 1fr;
-          gap: 2.5rem 1.5rem;
         }
 
-        .fuss-marke {
+        .footer-links {
           grid-column: 1 / -1;
+          grid-row: 2;
+        }
+
+        .footer-copyright {
+          text-align: right;
         }
       }
 
       @media (max-width: 480px) {
-        .fuss-inhalt {
-          grid-template-columns: 1fr;
-          gap: 2rem;
+        .footer-content {
+          padding: 1.25rem var(--rand);
+          gap: 1rem;
         }
-      }
-
-      .fuss-marke {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-      }
-
-      .fuss-marke p {
-        margin: 0;
-        font-size: 0.88rem;
-        color: var(--ink-muted);
-        max-width: 34ch;
-        line-height: 1.55;
-      }
-
-      .fuss-beta-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        background: var(--surface);
-        border: 1px solid var(--brand-border);
-        border-radius: 9999px;
-        padding: 0.3rem 0.75rem;
-        font-size: 0.76rem;
-        color: var(--brand-text);
-        font-family: var(--mono);
-        width: fit-content;
-      }
-
-      .fuss-spalte h2 {
-        font-family: var(--mono);
-        font-size: 0.7rem;
-        font-weight: 700;
-        letter-spacing: 0.16em;
-        text-transform: uppercase;
-        color: var(--ink-soft);
-        margin: 0 0 1.25rem;
-      }
-
-      .fuss-spalte ul {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-        display: grid;
-        gap: 0.65rem;
-      }
-
-      .fuss-spalte a {
-        font-size: 0.88rem;
-        color: var(--ink-muted);
-        transition: color 0.15s ease;
-      }
-
-      .fuss-spalte a:hover {
-        color: var(--brand-text);
-      }
-
-      .fuss-unten {
-        max-width: 1360px;
-        margin: 0 auto;
-        padding: 1.5rem var(--rand) 2.5rem;
-        border-top: 1px solid var(--line);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-        font-size: 0.8rem;
-        color: var(--ink-dim);
       }
 
       .analytics-settings {
         border: 0;
         padding: 0;
         background: none;
-        color: var(--ink-muted);
         font: inherit;
         cursor: pointer;
-        text-decoration: underline;
-        text-underline-offset: 0.2em;
       }
 
       .analytics-consent[hidden],
@@ -1889,7 +1846,7 @@
             <span class="lang-en" lang="en">Beta</span>
           </div>
 
-          <h1>
+          <h1 tabindex="-1">
             <span class="lang-de"
               >Dein Reselling. Klar organisiert.<br /><em>Alles an einem Ort.</em></span
             >
@@ -3130,113 +3087,28 @@
 
     <!-- Footer -->
     <footer>
-      <div class="fuss-inhalt">
-        <div class="fuss-marke">
-          <div class="marke">
-            <img src="images/logo-mark.png" alt="" class="marke-logo" width="32" height="32" />
-            <span>Flipbase</span>
-          </div>
-          <p>
-            <span class="lang-de"
-              >Das All-in-One Betriebssystem für Reseller. Einkauf, Bestand, geplanter Vinted
-              Deal-Sniper und rechnerische Unterstützung für § 25a.</span
-            >
-            <span class="lang-en" lang="en"
-              >The All-in-One Operating System for Resellers. Sourcing, inventory, planned Vinted
-              Deal Sniper, and calculation support for § 25a.</span
-            >
-          </p>
-          <div class="fuss-beta-badge">
-            <span class="hero-badge-punkt"></span>
-            <span class="lang-de">Beta aktiv</span>
-            <span class="lang-en" lang="en">Beta active</span>
-          </div>
+      <div class="footer-content">
+        <div class="marke">
+          <img src="images/logo-mark.png" alt="" class="marke-logo" width="32" height="32" />
+          <span>Flipbase</span>
         </div>
 
-        <div class="fuss-spalte">
-          <h2>
-            <span class="lang-de">Produkt</span>
-            <span class="lang-en" lang="en">Product</span>
-          </h2>
-          <ul>
-            <li>
-              <a href="#features">
-                <span class="lang-de">Funktionen</span>
-                <span class="lang-en" lang="en">Features</span>
-              </a>
-            </li>
-            <li>
-              <a href="#vinted-bot">
-                <span class="lang-de">Vinted Bot (geplant)</span>
-                <span class="lang-en" lang="en">Vinted Bot (planned)</span>
-              </a>
-            </li>
-            <li>
-              <a href="#bildoptimierer">
-                <span class="lang-de">Bildoptimierer</span>
-                <span class="lang-en" lang="en">Image Optimizer</span>
-              </a>
-            </li>
-            <li>
-              <a href="#buchhaltung">
-                <span class="lang-de">§ 25a DATEV</span>
-                <span class="lang-en" lang="en">Tax &amp; DATEV</span>
-              </a>
-            </li>
-            <li>
-              <a href="#roadmap">
-                <span class="lang-de">Roadmap</span>
-                <span class="lang-en" lang="en">Roadmap</span>
-              </a>
-            </li>
-            <li>
-              <a href="#faq">
-                <span class="lang-de">FAQ</span>
-                <span class="lang-en" lang="en">FAQ</span>
-              </a>
-            </li>
-            <li>
-              <a href="https://app.flipbase.de" target="_blank">
-                <span class="lang-de">Login →</span>
-                <span class="lang-en" lang="en">Login →</span>
-              </a>
-            </li>
-          </ul>
+        <div class="footer-links">
+          <a href="/impressum">
+            <span class="lang-de">Impressum</span>
+            <span class="lang-en" lang="en">Imprint</span>
+          </a>
+          <a href="/datenschutz">
+            <span class="lang-de">Datenschutz</span>
+            <span class="lang-en" lang="en">Privacy Policy</span>
+          </a>
+          <button id="analytics-settings" class="analytics-settings" type="button" hidden>
+            <span class="lang-de">Cookie-Einstellungen</span>
+            <span class="lang-en" lang="en">Cookie settings</span>
+          </button>
         </div>
 
-        <div class="fuss-spalte">
-          <h2>
-            <span class="lang-de">Rechtliches</span>
-            <span class="lang-en" lang="en">Legal</span>
-          </h2>
-          <ul>
-            <li>
-              <a href="/impressum">
-                <span class="lang-de">Impressum</span>
-                <span class="lang-en" lang="en">Imprint</span>
-              </a>
-            </li>
-            <li>
-              <a href="/datenschutz">
-                <span class="lang-de">Datenschutz</span>
-                <span class="lang-en" lang="en">Privacy Policy</span>
-              </a>
-            </li>
-            <li>
-              <button id="analytics-settings" class="analytics-settings" type="button" hidden>
-                <span class="lang-de">Cookie-Einstellungen</span>
-                <span class="lang-en" lang="en">Cookie settings</span>
-              </button>
-            </li>
-          </ul>
-        </div>
-      </div>
-
-      <div class="fuss-unten">
-        <div class="fuss-copyright">
-          <span class="lang-de">© 2026 Flipbase. Alle Rechte vorbehalten.</span>
-          <span class="lang-en" lang="en">© 2026 Flipbase. All rights reserved.</span>
-        </div>
+        <div class="footer-copyright">© 2026 Flipbase</div>
       </div>
     </footer>
 
