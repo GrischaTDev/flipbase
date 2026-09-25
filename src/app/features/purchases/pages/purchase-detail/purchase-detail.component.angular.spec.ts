@@ -33,6 +33,8 @@ describe('PurchaseDetailComponent', () => {
     expect(notice).toBeGreaterThan(lifecycleEnd);
     expect(notice).toBeLessThan(content);
     expect(template).toContain('Einkaufspreise offen');
+    expect(template).toContain('<app-notice-banner data-open-purchase-prices announcement="alert"');
+    expect(template).not.toContain('bg-amber-400/10');
   });
 
   it('verwendet in den Einkaufsartikeln keine persönliche Spaltenauswahl mehr', () => {

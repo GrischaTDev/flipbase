@@ -56,6 +56,7 @@ import { canonicalGtin, normalizeGtin } from '../../shared/utils/gtin';
 
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
+import { NoticeBannerComponent } from '../../shared/components/notice-banner/notice-banner.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
 import { CatalogService } from '../../core/services/catalog.service';
 import { InventoryViewStateService } from './services/inventory-view-state.service';
@@ -73,6 +74,7 @@ import { DataTableComponent } from '../../shared/components/data-table/data-tabl
     DataTableComponent,
     PageHeaderComponent,
     BadgeComponent,
+    NoticeBannerComponent,
     ButtonComponent,
   ],
   templateUrl: './inventory.component.html',

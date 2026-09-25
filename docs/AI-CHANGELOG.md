@@ -1,5 +1,21 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-25 – Juna – Gelbe Hinweisbanner in Einkauf und Bestand
+
+**Auftrag:** Den braunen Hinweis zu offenen Einkaufspreisen durch einen gelben
+Info-Banner mit Icon und Trennlinie ersetzen und vergleichbare Hinweise angleichen.
+
+**Änderung:** Ein gemeinsamer Hinweis-Baustein verwendet die vorhandenen gelben
+Markenfarben und zeigt links ein Info-Icon mit Trennlinie. Der Hinweis auf offene
+Einkaufspreise und die Meldung nach einer erfolglosen Bestandssuche nutzen diesen
+Baustein. Die Ansage als Warnung beziehungsweise Status bleibt erhalten.
+
+**Prüfung:** 29 gezielte Angular-Tests, Angular-Vorlagenprüfung, ESLint,
+Prettier, die Shared-UI-Prüfung und der Angular-Produktionsbau bestanden. Für
+den Bau wurde ein isolierter Prüf-Worktree auf demselben Laufwerk wie die
+verknüpften Abhängigkeiten verwendet, damit `intl-tel-input`-Bildpfade korrekt
+aufgelöst werden.
+
 ## 2026-09-25 – Juna – Design und Sprache der Landingpage bleiben nach Neuladen erhalten
 
 **Auftrag:** Die Auswahl von hellem oder dunklem Design und Deutsch oder Englisch

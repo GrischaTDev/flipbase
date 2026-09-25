@@ -87,6 +87,7 @@ import { RecordHistoryContainer } from '../../../audit/components/record-history
 import { EntryPageLayoutComponent } from '../../../../shared/components/entry-page-layout/entry-page-layout.component';
 import { PurchaseEntryFormComponent } from '../../components/purchase-entry-form/purchase-entry-form.component';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
+import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { TwoColumnLayoutComponent } from '../../../../shared/components/two-column-layout/two-column-layout.component';
@@ -117,6 +118,7 @@ import { PurchaseProductReturnService } from '../../services/purchase-product-re
     EntryPageLayoutComponent,
     PurchaseEntryFormComponent,
     BadgeComponent,
+    NoticeBannerComponent,
     ButtonComponent,
     CardComponent,
     TwoColumnLayoutComponent,

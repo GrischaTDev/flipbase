@@ -1,0 +1,8 @@
+<div
+  [attr.role]="announcement()"
+  class="flex items-center gap-3 rounded-lg border border-fb-brand-border bg-fb-brand-surface px-3 py-2 text-[13px] text-fb-text-primary"
+>
+  <svg [lucideIcon]="infoIcon" class="size-4 shrink-0" aria-hidden="true"></svg>
+  <span class="w-px shrink-0 self-stretch bg-fb-brand-border" aria-hidden="true"></span>
+  <div class="min-w-0 flex-1 leading-5"><ng-content /></div>
+</div>
