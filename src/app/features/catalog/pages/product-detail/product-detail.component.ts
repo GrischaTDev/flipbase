@@ -56,6 +56,7 @@ import {
 import {
   BarcodeAiCandidate,
   BarcodeAiLabelSuggestion,
+  BarcodeAiVisualSuggestion,
   BarcodeAiLookupService,
   BarcodeAiResult,
 } from '../../../../core/services/barcode-ai-lookup.service';
@@ -537,10 +538,14 @@ export class ProductDetailComponent implements UnsavedEntryPage {
           : result.candidates.length
             ? 'Mögliche Produkte gefunden. Prüfe Modell, Variante und Quelle vor der Übernahme.'
             : result.labelSuggestion
-              ? 'Kein belegter Webtreffer. Das Etikett wurde gelesen; prüfe die Angaben vor der Übernahme.'
-              : photos.length
-                ? 'Mit diesem Foto wurde kein belegter Produktvorschlag gefunden. Prüfe, ob Modell und Artikelnummer lesbar sind.'
-                : 'Kein belegter Produktvorschlag gefunden. Versuche ein Etikettfoto.',
+              ? result.visualSuggestion
+                ? 'Kein belegter Webtreffer. Prüfe die gelesenen Etikettangaben und die Erkennung aus den Fotos.'
+                : 'Kein belegter Webtreffer. Das Etikett wurde gelesen; prüfe die Angaben vor der Übernahme.'
+              : result.visualSuggestion
+                ? 'Kein belegter Webtreffer. Die KI hat anhand der Fotos einen möglichen Artikel erkannt. Prüfe die Angaben sorgfältig.'
+                : photos.length
+                  ? 'Mit diesen Fotos wurde kein belegter Produktvorschlag gefunden. Prüfe, ob Marke und Modell erkennbar sind.'
+                  : 'Kein belegter Produktvorschlag gefunden. Versuche ein Etikettfoto.',
       );
     } catch (error: unknown) {
       if (requestId !== this.aiRequestId || workspaceId !== this.workspace.currentWorkspace()?.id)
@@ -590,6 +595,28 @@ export class ProductDetailComponent implements UnsavedEntryPage {
     void this.matchCategory(suggestion.category);
     this.aiResult.set(null);
     this.aiMessage.set('Etikettangaben übernommen. Bitte prüfe und ergänze sie.');
+    this.toggleAiSearch();
+  }
+
+  useAiVisualSuggestion(suggestion: BarcodeAiVisualSuggestion): void {
+    if (
+      this.form.controls.ean.value !== this.aiSearchEan() ||
+      this.aiResult()?.visualSuggestion !== suggestion
+    )
+      return;
+    this.form.patchValue({
+      title: suggestion.title,
+      model: suggestion.model,
+      size: suggestion.size,
+      color: suggestion.color,
+    });
+    this.brandSuggestion.set(suggestion.brand || null);
+    this.categorySuggestion.set(suggestion.category || null);
+    void this.matchCategory(suggestion.category);
+    this.aiResult.set(null);
+    this.aiMessage.set(
+      'Fotovorschlag übernommen. Bitte prüfe die Erkennung und ergänze die Angaben.',
+    );
     this.toggleAiSearch();
   }
 

@@ -203,6 +203,25 @@
                   >
                 </div>
               }
+              @if (result.visualSuggestion; as visual) {
+                <div class="space-y-2 rounded-lg border border-fb-border bg-fb-subtle p-3">
+                  <p class="font-semibold">Auf Fotos erkannt: {{ visual.title }}</p>
+                  <p class="text-fb-text-muted">
+                    Ohne belegten Webtreffer. Die Erkennung kann falsch sein; prüfe das Produkt vor
+                    der Übernahme.
+                  </p>
+                  <p class="text-fb-text-muted">{{ visual.evidence }}</p>
+                  <p class="text-fb-text-muted">
+                    {{ visual.color }}
+                    @if (visual.size) {
+                      · EU {{ visual.size }}
+                    }
+                  </p>
+                  <app-button variant="secondary" (clicked)="useAiVisualSuggestion(visual)"
+                    >Angaben übernehmen</app-button
+                  >
+                </div>
+              }
             }
           }
         </div>

@@ -600,6 +600,50 @@ describe('ProductDetailComponent', () => {
     expect(component.aiMessage()).toContain('Etikettangaben übernommen');
   });
 
+  it('zeigt eine visuelle Erkennung ohne Webtreffer als prüfbaren Fotovorschlag', async () => {
+    await openNew();
+    const photos = [
+      new File(['box'], 'karton.jpg', { type: 'image/jpeg' }),
+      new File(['shoe'], 'schuh.jpg', { type: 'image/jpeg' }),
+    ];
+    const visualSuggestion = {
+      title: 'JAKO J-SFG Twist',
+      brand: 'JAKO',
+      model: 'J-SFG Twist',
+      size: '',
+      color: 'Skydiver',
+      category: 'Fußballschuhe',
+      articleNumber: '',
+      evidence: 'Logo, Sohle und Farbkombination passen',
+    };
+    barcodeAiLookup.search.mockResolvedValueOnce({
+      candidates: [],
+      labelSuggestion: null,
+      visualSuggestion,
+      processedPhotoCount: 2,
+      usage: { inputTokens: 1000, outputTokens: 200, webSearchCalls: 2, estimatedCostUsd: 0.03 },
+    });
+    component.toggleAiSearch();
+    const input = document.createElement('input');
+    input.type = 'file';
+    Object.defineProperty(input, 'files', { value: photos });
+    component.selectLabelPhoto({ target: input } as unknown as Event);
+
+    await component.searchWithAi();
+
+    expect(barcodeAiLookup.search).toHaveBeenCalledWith('', photos);
+    expect(component.aiMessage()).toContain('möglichen Artikel erkannt');
+    component.useAiVisualSuggestion(visualSuggestion);
+    expect(component.form.getRawValue()).toMatchObject({
+      title: 'JAKO J-SFG Twist',
+      model: 'J-SFG Twist',
+      size: '',
+      color: 'Skydiver',
+    });
+    expect(component.brandSuggestion()).toBe('JAKO');
+    expect(component.categorySuggestion()).toBe('Fußballschuhe');
+  });
+
   it('kennzeichnet eine ältere Serverfunktion, die von mehreren Fotos nur eines verarbeitet', async () => {
     await openNew();
     const photos = [

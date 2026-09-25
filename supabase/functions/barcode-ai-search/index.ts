@@ -1,6 +1,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.112.3';
 
-const MODEL = 'gpt-6-luna';
+const EAN_MODEL = 'gpt-6-luna';
+const PHOTO_MODEL = 'gpt-6-sol';
 const MAX_IMAGE_DATA_LENGTH = 7_000_000;
 const MAX_IMAGES = 5;
 const MAX_TOTAL_IMAGE_DATA_LENGTH = 21_000_000;
@@ -43,9 +44,14 @@ interface LabelSuggestion {
   articleNumber: string;
 }
 
+interface VisualSuggestion extends LabelSuggestion {
+  evidence: string;
+}
+
 interface SearchResult {
   candidates: Candidate[];
   labelSuggestion: LabelSuggestion | null;
+  visualSuggestion: VisualSuggestion | null;
   processedPhotoCount?: number;
   usage: {
     inputTokens: number;
@@ -161,6 +167,25 @@ export function parseCandidates(response: Record<string, unknown>): Candidate[] 
         const url = validSourceUrl(record(sourceValue)?.['url']);
         if (url) sourceUrls.add(sourceKey(url));
       }
+      for (const resultValue of Array.isArray(item['results']) ? item['results'] : []) {
+        const result = record(resultValue);
+        if (result?.['type'] !== 'image_result') continue;
+        const url = validSourceUrl(result['source_website_url']);
+        if (url) sourceUrls.add(sourceKey(url));
+      }
+    }
+    if (item['type'] === 'message') {
+      for (const contentValue of Array.isArray(item['content']) ? item['content'] : []) {
+        const content = record(contentValue);
+        for (const annotationValue of Array.isArray(content?.['annotations'])
+          ? content['annotations']
+          : []) {
+          const annotation = record(annotationValue);
+          if (annotation?.['type'] !== 'url_citation') continue;
+          const url = validSourceUrl(annotation['url']);
+          if (url) sourceUrls.add(sourceKey(url));
+        }
+      }
     }
   }
   if (sourceUrls.size === 0) return [];
@@ -212,13 +237,45 @@ export function parseLabelSuggestion(response: Record<string, unknown>): LabelSu
   };
 }
 
-export function estimateCostUsd(usage: Record<string, unknown>, webSearchCalls: number): number {
+export function parseVisualSuggestion(response: Record<string, unknown>): VisualSuggestion | null {
+  const suggestion = record(parseModelContent(response)?.['visualSuggestion']);
+  if (!suggestion) return null;
+  const brand = text(suggestion['brand']).slice(0, 100);
+  const model = text(suggestion['model']).slice(0, 100);
+  const title = normalizeDisplayText(
+    text(suggestion['title']) || [brand, model].filter(Boolean).join(' '),
+    brand,
+  ).slice(0, 200);
+  if (!title || (!brand && !model)) return null;
+  return {
+    title,
+    brand,
+    model: normalizeDisplayText(model),
+    size: normalizeEuSize(text(suggestion['size']), text(suggestion['category'])),
+    color: normalizeDisplayText(text(suggestion['color'])).slice(0, 100),
+    category: normalizeDisplayText(text(suggestion['category'])).slice(0, 100),
+    articleNumber: text(suggestion['articleNumber']).slice(0, 100),
+    evidence: text(suggestion['evidence']).slice(0, 250),
+  };
+}
+
+export function estimateCostUsd(
+  usage: Record<string, unknown>,
+  webSearchCalls: number,
+  model: string = EAN_MODEL,
+): number {
   const inputTokens = Number(usage['input_tokens']) || 0;
   const outputTokens = Number(usage['output_tokens']) || 0;
   const cachedTokens = Number(record(usage['input_tokens_details'])?.['cached_tokens']) || 0;
-  // Standardpreis fuer GPT-6 Luna am 24.09.2026. Angezeigter Wert ist eine Schaetzung.
+  // Standardpreise vom 25.09.2026. Angezeigter Wert ist eine Schaetzung.
+  const prices =
+    model === PHOTO_MODEL
+      ? { input: 2, cached: 0.2, output: 10 }
+      : { input: 0.1, cached: 0.01, output: 0.5 };
   const amount =
-    (Math.max(0, inputTokens - cachedTokens) * 0.1 + cachedTokens * 0.01 + outputTokens * 0.5) /
+    (Math.max(0, inputTokens - cachedTokens) * prices.input +
+      cachedTokens * prices.cached +
+      outputTokens * prices.output) /
       1_000_000 +
     webSearchCalls * 0.01;
   return Math.round(amount * 1_000_000) / 1_000_000;
@@ -270,8 +327,32 @@ const SEARCH_SCHEMA = {
       required: ['title', 'brand', 'model', 'size', 'color', 'category', 'articleNumber'],
       additionalProperties: false,
     },
+    visualSuggestion: {
+      type: ['object', 'null'],
+      properties: {
+        title: { type: 'string' },
+        brand: { type: 'string' },
+        model: { type: 'string' },
+        size: { type: 'string' },
+        color: { type: 'string' },
+        category: { type: 'string' },
+        articleNumber: { type: 'string' },
+        evidence: { type: 'string' },
+      },
+      required: [
+        'title',
+        'brand',
+        'model',
+        'size',
+        'color',
+        'category',
+        'articleNumber',
+        'evidence',
+      ],
+      additionalProperties: false,
+    },
   },
-  required: ['candidates', 'labelSuggestion'],
+  required: ['candidates', 'labelSuggestion', 'visualSuggestion'],
   additionalProperties: false,
 };
 
@@ -371,13 +452,17 @@ function createProductionDependencies(): BarcodeAiDependencies {
     async search(ean, imageDataUrls) {
       const apiKey = Deno.env.get('OPENAI_API_KEY');
       if (!apiKey) throw new Error('OpenAI-Zugang fehlt.');
-      const searchInstructions = imageDataUrls.length
+      const photoSearch = imageDataUrls.length > 0;
+      const model = photoSearch ? PHOTO_MODEL : EAN_MODEL;
+      const searchInstructions = photoSearch
         ? `${ean ? `Gescannte EAN/GTIN: ${ean}. ` : 'Es wurde keine EAN angegeben. '}Alle Fotos zeigen dasselbe Produkt aus verschiedenen Blickwinkeln. Lies zuerst Karton, Etikett und Produkt zusammen. ` +
           'Trage nur sichtbar lesbare Marke, Modell, Herstellerartikelnummer, Farbe und Größe in labelSuggestion ein; fehlende Angaben bleiben leer. Leite die Kategorie aus der erkennbaren Produktart ab. ' +
           'Wenn nichts lesbar ist, gib labelSuggestion als null zurück. ' +
-          'Suche danach im Web gezielt nach Marke, Modell und Herstellerartikelnummer; die EAN allein liefert oft keine Treffer. Bei Schuhen gib als Größe ausschließlich eine belegte EU-Größe aus; US/UK allein reicht nicht. '
+          'Erkenne für die Websuche zusätzlich sichtbare Logos, Form, Farbkombinationen und markante Details. Suche mit mehreren Varianten nach Marke, Modell, Artikelnummer und Beschreibung der sichtbaren Merkmale; die EAN allein liefert oft keine Treffer. ' +
+          'Wenn du das Produkt anhand der Fotos sinnvoll erkennen kannst, aber keine belegte Produktseite findest, gib eine getrennte visualSuggestion mit kurzer Begründung aus. Diese darf eine vorsichtige Modellvermutung enthalten, muss aber als unbelegt erkennbar bleiben. Ist selbst die Marke oder das Modell unklar, gib null zurück. ' +
+          'Bei Schuhen gib als Größe ausschließlich eine auf dem Foto oder der Produktseite belegte EU-Größe aus; rechne US/UK nicht um. Erfinde keine Artikelnummer. '
         : `Gescannte EAN/GTIN: ${ean}. Suche nach genau diesem Produkt im Web. ` +
-          'Gib labelSuggestion als null zurück. ';
+          'Gib labelSuggestion und visualSuggestion als null zurück. ';
       const content: Record<string, unknown>[] = [
         {
           type: 'input_text',
@@ -385,7 +470,7 @@ function createProductionDependencies(): BarcodeAiDependencies {
             searchInstructions +
             'Gib höchstens fünf konkrete Produktvarianten als candidates zurück, aber nur mit tatsächlich gefundenen Produktseiten als Quelle. ' +
             'Behaupte eine exakte EAN-Zuordnung nur, wenn die Quelle diese EAN sichtbar nennt. ' +
-            'Bei unsicherer Variante markiere likely oder weak. Keine erfundenen Daten oder URLs.',
+            'Bei unsicherer Variante markiere likely oder weak. Kandidaten brauchen eine konkrete gefundene Produktseite. Keine erfundenen Daten oder URLs.',
         },
       ];
       for (const imageDataUrl of imageDataUrls)
@@ -394,15 +479,26 @@ function createProductionDependencies(): BarcodeAiDependencies {
         method: 'POST',
         headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: MODEL,
+          model,
           store: false,
           reasoning: { effort: 'low' },
           input: [{ role: 'user', content }],
-          tools: [{ type: 'web_search', search_context_size: 'medium' }],
+          tools: [
+            photoSearch
+              ? {
+                  type: 'web_search',
+                  search_context_size: 'high',
+                  search_content_types: ['image', 'text'],
+                  image_settings: { max_results: 4, caption: true },
+                }
+              : { type: 'web_search', search_context_size: 'medium' },
+          ],
           tool_choice: 'required',
-          max_tool_calls: 2,
-          max_output_tokens: 1800,
-          include: ['web_search_call.action.sources'],
+          max_tool_calls: photoSearch ? 4 : 2,
+          max_output_tokens: photoSearch ? 5000 : 1800,
+          include: photoSearch
+            ? ['web_search_call.action.sources', 'web_search_call.results']
+            : ['web_search_call.action.sources'],
           text: {
             format: {
               type: 'json_schema',
@@ -412,7 +508,7 @@ function createProductionDependencies(): BarcodeAiDependencies {
             },
           },
         }),
-        signal: AbortSignal.timeout(45_000),
+        signal: AbortSignal.timeout(photoSearch ? 90_000 : 45_000),
       });
       if (!response.ok) throw new Error(`OpenAI HTTP ${response.status}`);
       const result = record(await response.json());
@@ -424,14 +520,27 @@ function createProductionDependencies(): BarcodeAiDependencies {
         (item) => record(item)?.['type'] === 'web_search_call',
       ).length;
       const usage = record(result['usage']) ?? {};
+      const candidates = parseCandidates(result);
+      const labelSuggestion = photoSearch ? parseLabelSuggestion(result) : null;
+      const visualSuggestion = photoSearch ? parseVisualSuggestion(result) : null;
+      const proposedCandidates = parseModelContent(result)?.['candidates'];
+      console.info('barcode-ai-search: Suche abgeschlossen.', {
+        photoCount: imageDataUrls.length,
+        webSearchCalls,
+        proposedCandidateCount: Array.isArray(proposedCandidates) ? proposedCandidates.length : 0,
+        candidateCount: candidates.length,
+        labelSuggestion: Boolean(labelSuggestion),
+        visualSuggestion: Boolean(visualSuggestion),
+      });
       return {
-        candidates: parseCandidates(result),
-        labelSuggestion: imageDataUrls.length ? parseLabelSuggestion(result) : null,
+        candidates,
+        labelSuggestion,
+        visualSuggestion,
         usage: {
           inputTokens: Number(usage['input_tokens']) || 0,
           outputTokens: Number(usage['output_tokens']) || 0,
           webSearchCalls,
-          estimatedCostUsd: estimateCostUsd(usage, webSearchCalls),
+          estimatedCostUsd: estimateCostUsd(usage, webSearchCalls, model),
         },
       };
     },
