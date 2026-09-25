@@ -304,6 +304,39 @@ export class TablePreferencesService {
         ? parsed.sort
         : { ...config.defaultSort };
 
+      const legacyCatalogOrder = [
+        'title',
+        'on_hand',
+        'available',
+        'status',
+        'actions',
+        'reserved',
+        'inventory_value',
+        'category',
+        'brand',
+        'ean',
+      ];
+      if (
+        tableId === 'catalog' &&
+        orderedIds.length === legacyCatalogOrder.length &&
+        orderedIds.every((id, index) => id === legacyCatalogOrder[index])
+      ) {
+        const legacyVisible = new Set(['title', 'on_hand', 'available', 'status', 'actions']);
+        const unchangedVisibility = parsed.columns.every(
+          (column) => column.visible === legacyVisible.has(column.id),
+        );
+        const columns = config.defaultColumns.map((column, order) => ({
+          ...column,
+          visible:
+            column.id === 'brand' && unchangedVisibility
+              ? true
+              : (storedOrder.get(column.id)?.visible ?? column.visible),
+          order,
+        })) as ColumnDefinition<TColumnId>[];
+        this.savePreferences(tableId, workspaceId, columns, validSort);
+        return { columns, sort: validSort };
+      }
+
       if (tableId === 'purchases' && this.hasFormerPurchaseDefault(purchaseColumnsWithoutLegacy)) {
         const reordered = config.defaultColumns.map((column, order) => ({
           ...column,

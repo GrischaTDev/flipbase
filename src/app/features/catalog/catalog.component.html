@@ -5,6 +5,7 @@
     subtitle="Artikelinformationen ansehen und bearbeiten."
   >
     <div header-actions class="flex flex-wrap gap-2">
+      <app-button link="/catalog/brands">Marken verwalten</app-button>
       <app-button (clicked)="csvInput.click()">CSV importieren</app-button>
       <!-- Der Browser-Dateidialog benötigt ein verborgenes natives Dateifeld. -->
       <input
@@ -127,23 +128,15 @@
     (sortChanged)="onSortChanged($event)"
     (viewResetRequested)="resetView()"
   >
-    <div
+    <app-custom-select
       table-view
-      class="flex items-center gap-1 overflow-x-auto"
-      role="group"
-      aria-label="Artikelansicht"
-    >
-      @for (articleView of articleViews; track articleView.value) {
-        <app-button
-          size="slim"
-          [variant]="view() === articleView.value ? 'secondary' : 'ghost'"
-          [ariaPressed]="view() === articleView.value"
-          (clicked)="setView(articleView.value)"
-        >
-          {{ articleView.label }}
-        </app-button>
-      }
-    </div>
+      variant="toolbar"
+      widthClass="w-auto"
+      ariaLabel="Artikelansicht"
+      [options]="articleViews"
+      [value]="view()"
+      (valueChange)="setView($event ?? 'all')"
+    />
     <app-button table-error-action class="mt-4" variant="secondary" (clicked)="reload()">
       Erneut versuchen
     </app-button>

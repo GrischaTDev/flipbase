@@ -67,6 +67,12 @@
         <div class="min-w-0 flex-1 text-[13px]">
           <p class="break-words font-medium">{{ product.title }}</p>
           <p class="text-fb-text-muted">
+            @if (product.size) {
+              Größe {{ product.size }} ·
+            }
+            @if (product.color) {
+              {{ product.color }} ·
+            }
             {{ product.ean || 'Kein Barcode' }}
             @if (product.condition) {
               · {{ product.condition | itemConditionLabel }}

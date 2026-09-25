@@ -30,6 +30,7 @@ import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { WorkspaceContextLockService } from '../../../../core/services/workspace-context-lock.service';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
+import { AttributePickerComponent } from '../../../../shared/components/attribute-picker/attribute-picker.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { BrandPickerComponent } from '../../../../shared/components/brand-picker/brand-picker.component';
 import { CategoryPickerComponent } from '../../../../shared/components/category-picker/category-picker.component';
@@ -57,6 +58,10 @@ import {
   BrandManagementDialogComponent,
   DeletedBrandAssignment,
 } from '../brand-management-dialog/brand-management-dialog.component';
+import {
+  PRODUCT_COLOR_OPTIONS,
+  PRODUCT_MATERIAL_OPTIONS,
+} from '../../models/product-attribute-options';
 
 type ProductDialogInitialProduct = Partial<Omit<CreateCatalogProductInput, 'workspaceId'>> & {
   brandId?: string | null;
@@ -69,6 +74,7 @@ type ProductDialogInitialProduct = Partial<Omit<CreateCatalogProductInput, 'work
     ReactiveFormsModule,
     ModalShellComponent,
     TextFieldComponent,
+    AttributePickerComponent,
     ButtonComponent,
     CustomSelectComponent,
     CustomCheckboxComponent,
@@ -108,6 +114,8 @@ export class ProductDialogComponent {
   readonly categorySuggestion = signal<string | null>(null);
   readonly brandSuggestion = signal<string | null>(null);
   readonly brandManagerOpen = signal(false);
+  readonly colorOptions = PRODUCT_COLOR_OPTIONS;
+  readonly materialOptions = PRODUCT_MATERIAL_OPTIONS;
   readonly scannerOpen = signal(false);
   readonly barcodeLoading = signal(false);
   readonly barcodeMessage = signal<string | null>(null);

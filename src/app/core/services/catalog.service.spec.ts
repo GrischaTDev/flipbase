@@ -14,6 +14,44 @@ const product: CatalogProduct = {
 };
 
 describe('CatalogService', () => {
+  it('fügt eine Größenvariante hinzu und ordnet den bisherigen Artikel derselben Gruppe zu', async () => {
+    const source = {
+      ...product,
+      size: '39',
+      variant_group_id: null,
+      primary_media_path: 'shoe.webp',
+    };
+    const variant = { ...product, id: 'product-2', size: '40', variant_group_id: product.id };
+    const rpc = vi.fn(async () => ({ data: variant, error: null }));
+    const service = Object.create(CatalogService.prototype) as CatalogService;
+    Object.assign(service, {
+      products: signal<CatalogProduct[]>([source]),
+      workspace: { currentWorkspace: () => ({ id: product.workspace_id }) },
+      syncStatus: new SyncStatusService(),
+      supabase: { client: { rpc } },
+    });
+
+    const result = await service.createVariant({
+      workspaceId: product.workspace_id,
+      sourceProductId: product.id,
+      size: '40',
+      color: '',
+      ean: '',
+      sku: '',
+      listingPrice: null,
+    });
+
+    expect(result.error).toBeNull();
+    expect(rpc).toHaveBeenCalledWith(
+      'create_catalog_product_variant',
+      expect.objectContaining({ p_size: '40' }),
+    );
+    expect(service.products().map((entry) => entry.variant_group_id)).toEqual([
+      product.id,
+      product.id,
+    ]);
+    expect(service.products()[0].primary_media_path).toBe('shoe.webp');
+  });
   it('fügt die verspätete Anlage aus A nicht in den geladenen Workspace B ein', async () => {
     let complete: ((value: { data: CatalogProduct; error: null }) => void) | undefined;
     const second = { ...product, id: 'product-2', workspace_id: 'workspace-2' };

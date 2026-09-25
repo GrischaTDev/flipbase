@@ -529,6 +529,32 @@ export type Database = {
           },
         ]
       }
+      catalog_product_groups: {
+        Row: {
+          created_at: string
+          id: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_product_groups_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       catalog_product_media: {
         Row: {
           catalog_product_id: string
@@ -610,6 +636,7 @@ export type Database = {
           tracking_mode: string
           updated_at: string
           url_handle: string | null
+          variant_group_id: string | null
           workspace_id: string
         }
         Insert: {
@@ -638,6 +665,7 @@ export type Database = {
           tracking_mode?: string
           updated_at?: string
           url_handle?: string | null
+          variant_group_id?: string | null
           workspace_id: string
         }
         Update: {
@@ -666,6 +694,7 @@ export type Database = {
           tracking_mode?: string
           updated_at?: string
           url_handle?: string | null
+          variant_group_id?: string | null
           workspace_id?: string
         }
         Relationships: [
@@ -675,6 +704,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "product_categories"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_products_variant_group_fkey"
+            columns: ["workspace_id", "variant_group_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_product_groups"
+            referencedColumns: ["workspace_id", "id"]
           },
           {
             foreignKeyName: "catalog_products_workspace_brand_fkey"
@@ -4650,6 +4686,52 @@ export type Database = {
         }
         Returns: Json
       }
+      create_catalog_product_variant: {
+        Args: {
+          p_color: string
+          p_ean: string
+          p_listing_price: number
+          p_product_id: string
+          p_size: string
+          p_sku: string
+          p_workspace_id: string
+        }
+        Returns: {
+          archived_at: string | null
+          archived_by: string | null
+          brand: string | null
+          brand_id: string | null
+          category: string | null
+          category_id: string | null
+          color: string | null
+          condition: string | null
+          condition_notes: string | null
+          created_at: string
+          description: string | null
+          ean: string | null
+          id: string
+          is_public_store: boolean
+          listing_price: number | null
+          material: string | null
+          model: string | null
+          seo_description: string | null
+          seo_title: string | null
+          size: string | null
+          sku: string | null
+          title: string
+          tracking_mode: string
+          updated_at: string
+          url_handle: string | null
+          variant_group_id: string | null
+          workspace_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "catalog_products"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       create_or_get_invoice: {
         Args: {
           p_invoice: Json
@@ -5254,6 +5336,7 @@ export type Database = {
           tracking_mode: string
           updated_at: string
           url_handle: string | null
+          variant_group_id: string | null
           workspace_id: string
         }
         SetofOptions: {

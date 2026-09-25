@@ -20,6 +20,12 @@ interface ProductCategoryRow {
 }
 
 const CATEGORY_COLUMNS = 'id, parent_id, name, full_name, level, is_leaf, is_deprecated';
+const CATEGORY_SEARCH_ALIASES = [
+  {
+    id: 'aa-8-10',
+    terms: ['high heels', 'heels', 'pumps', 'absatzschuhe', 'stöckelschuhe'],
+  },
+] as const;
 
 function mapRow(row: ProductCategoryRow): ProductCategory {
   return {
@@ -73,6 +79,11 @@ export class ProductCategoryService {
     const words = term.trim().split(/\s+/u).filter(Boolean);
     if (words.join(' ').length < 2) return { categories: [], hasMore: false };
 
+    const normalizedTerm = words.join(' ').toLocaleLowerCase('de');
+    const aliasIds = CATEGORY_SEARCH_ALIASES.filter(({ terms }) =>
+      terms.some((alias) => alias.startsWith(normalizedTerm)),
+    ).map(({ id }) => id);
+
     let query = this.supabase.client
       .from('product_categories')
       .select(CATEGORY_COLUMNS)
@@ -85,10 +96,21 @@ export class ProductCategoryService {
     if (error) throw new Error(error.message);
     const categories: ProductCategory[] = (data ?? []).map(mapRow);
 
-    for (const category of categories) this.categoriesById.set(category.id, category);
+    const aliases = await Promise.all(aliasIds.map((id) => this.getById(id)));
+    const matchingAliases = aliases.filter((category): category is ProductCategory =>
+      Boolean(category && !category.isDeprecated),
+    );
+    const ordered = [
+      ...matchingAliases,
+      ...categories.filter(
+        (category) => !matchingAliases.some((alias) => alias.id === category.id),
+      ),
+    ];
+
+    for (const category of ordered) this.categoriesById.set(category.id, category);
     return {
-      categories: categories.slice(0, CATEGORY_SEARCH_LIMIT),
-      hasMore: categories.length > CATEGORY_SEARCH_LIMIT,
+      categories: ordered.slice(0, CATEGORY_SEARCH_LIMIT),
+      hasMore: ordered.length > CATEGORY_SEARCH_LIMIT,
     };
   }
 

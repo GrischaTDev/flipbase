@@ -23,6 +23,8 @@ import { MediaService } from '../../../../core/services/media.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { SellableItemRef } from '../../../../core/models/store.models';
 import { ProductPageSeoService } from '../../services/product-page-seo.service';
+import { productStorePath } from '../../../../core/utils/product-seo';
+import { CatalogService } from '../../../../core/services/catalog.service';
 
 interface ProductPhoto {
   readonly id: string;
@@ -42,6 +44,7 @@ export class StoreItemDetailComponent {
   private readonly router = inject(Router);
   readonly storeService = inject(StoreService);
   readonly mediaService = inject(MediaService);
+  private readonly catalog = inject(CatalogService);
   private readonly workspace = inject(WorkspaceService);
   private readonly seo = inject(ProductPageSeoService);
   private readonly destroyRef = inject(DestroyRef);
@@ -73,6 +76,28 @@ export class StoreItemDetailComponent {
     if (!id) return null;
     return this.storeService.publicProducts().find((product) => product.id === id) ?? null;
   });
+  readonly variantChoices = computed(() => {
+    const current = this.item();
+    if (!current?.variantGroupId) return [];
+    const sellableIds = new Set(this.storeService.publicProducts().map((item) => item.id));
+    return this.catalog
+      .products()
+      .filter(
+        (product) =>
+          product.workspace_id === current.workspaceId &&
+          product.variant_group_id === current.variantGroupId &&
+          product.is_public_store &&
+          !product.archived_at,
+      )
+      .map((product) => ({
+        id: product.id,
+        size: product.size,
+        color: product.color,
+        urlHandle: product.url_handle,
+        available: sellableIds.has(product.id),
+      }));
+  });
+  readonly productStorePath = productStorePath;
 
   readonly images = computed(() => {
     const loaded = this.loadedPhotos();
@@ -128,7 +153,7 @@ export class StoreItemDetailComponent {
       }
       this.imagesLoading.set(true);
       void this.mediaService
-        .loadProductMedia(item.id)
+        .loadProductMedia(item.variantGroupId ?? item.id)
         .then((photos) => {
           if (!current || this.workspace.currentWorkspace()?.id !== workspaceId) return;
           this.loadedPhotos.set({
@@ -137,7 +162,8 @@ export class StoreItemDetailComponent {
             photos: photos
               .filter(
                 (photo) =>
-                  photo.workspace_id === workspaceId && photo.catalog_product_id === item.id,
+                  photo.workspace_id === workspaceId &&
+                  photo.catalog_product_id === (item.variantGroupId ?? item.id),
               )
               .sort(
                 (a, b) =>

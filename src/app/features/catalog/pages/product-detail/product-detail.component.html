@@ -23,6 +23,9 @@
           <span class="text-[13px] text-fb-text-muted">Nicht gespeicherte Änderungen</span>
           <app-button [disabled]="isSaving()" (clicked)="discard()">Verwerfen</app-button>
         }
+        @if (savedMessage(); as message) {
+          <span role="status" class="text-[13px] text-fb-text-secondary">{{ message }}</span>
+        }
         <app-button
           variant="primary"
           [loading]="isSaving()"
@@ -57,9 +60,6 @@
   @if ((product() || creating()) && !workspaceChanged()) {
     @if (saveError(); as error) {
       <p role="alert" class="text-sm text-rose-700 dark:text-rose-400">{{ error }}</p>
-    }
-    @if (savedMessage(); as message) {
-      <p role="status" class="text-sm text-fb-text-secondary">{{ message }}</p>
     }
     @if (barcodeMessage(); as message) {
       <p role="status" class="text-[13px]">{{ message }}</p>
@@ -326,7 +326,7 @@
       class="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(260px,1fr)]"
     >
       <div class="min-w-0 space-y-4">
-        <app-card title="Artikeldaten" rounded="xl">
+        <app-card title="Grunddaten" rounded="xl">
           <div class="space-y-4">
             <app-text-field
               label="Name"
@@ -343,50 +343,12 @@
               formControlName="description"
               helpText="Allgemeine Beschreibung dieses Artikels."
             />
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <app-brand-picker
-                label="Marke"
-                id="product-brand"
-                formControlName="brandId"
-                [suggestion]="brandSuggestion()"
-              />
-              <app-text-field label="Modell" formControlName="model" />
-              <app-text-field
-                label="SKU"
-                formControlName="sku"
-                helpText="Deine eigene Artikelnummer."
-              />
-              <app-text-field
-                label="EAN / GTIN"
-                formControlName="ean"
-                [error]="
-                  form.controls.ean.touched && form.controls.ean.invalid
-                    ? 'Bitte eine gültige EAN / GTIN eingeben.'
-                    : null
-                "
-              />
-              <app-category-picker
-                label="Kategorie"
-                id="product-category"
-                formControlName="categoryId"
-                [suggestion]="categorySuggestion()"
-              />
-              <div>
-                <label for="product-condition" class="mb-1.5 block text-[13px] font-semibold"
-                  >Zustand</label
-                >
-                <app-custom-select
-                  triggerId="product-condition"
-                  ariaLabel="Zustand des Artikels"
-                  [options]="conditionOptions"
-                  formControlName="condition"
-                />
-              </div>
-              <app-text-field label="Größe" formControlName="size" />
-              <app-text-field label="Farbe" formControlName="color" />
-              <app-text-field label="Material" formControlName="material" />
-            </div>
-            <app-text-field label="Notiz" [multiline]="3" formControlName="conditionNotes" />
+            <app-category-picker
+              label="Kategorie"
+              id="product-category"
+              formControlName="categoryId"
+              [suggestion]="categorySuggestion()"
+            />
           </div>
         </app-card>
         <app-card title="Bilder" subtitle="Allgemeine Bilder des Artikels" rounded="xl">
@@ -403,6 +365,22 @@
             />
           </div>
         </app-card>
+        @if (product(); as currentProduct) {
+          <app-card title="Varianten" rounded="xl">
+            @if (variantsError(); as error) {
+              <p role="alert" class="mb-3 text-sm text-rose-700 dark:text-rose-400">{{ error }}</p>
+              <app-button (clicked)="loadVariants()">Varianten erneut laden</app-button>
+            } @else {
+              <app-product-variants
+                [product]="currentProduct"
+                [variants]="variants()"
+                [positions]="stock.positions()"
+                [disabled]="hasUnsavedChanges() || saving() || loading() || workspaceChanged()"
+                (created)="onVariantCreated($event)"
+              />
+            }
+          </app-card>
+        }
         <app-card title="Suchmaschineneintrag" rounded="xl">
           <div class="space-y-4">
             <p class="text-[13px] text-fb-text-muted">
@@ -464,6 +442,59 @@
         </app-card>
       </div>
       <div class="min-w-0 space-y-4">
+        <app-card title="Eigenschaften" rounded="xl">
+          <div class="space-y-4">
+            <app-brand-picker
+              label="Marke"
+              id="product-brand"
+              formControlName="brandId"
+              [suggestion]="brandSuggestion()"
+            />
+            <app-text-field label="Modell" formControlName="model" />
+            <div>
+              <label for="product-condition" class="mb-1.5 block text-[13px] font-semibold"
+                >Zustand</label
+              >
+              <app-custom-select
+                triggerId="product-condition"
+                ariaLabel="Zustand des Artikels"
+                [options]="conditionOptions"
+                formControlName="condition"
+              />
+            </div>
+            <app-text-field label="Größe" formControlName="size" />
+            <app-attribute-picker label="Farbe" [options]="colorOptions" formControlName="color" />
+            <app-attribute-picker
+              label="Material"
+              [options]="materialOptions"
+              [multiple]="true"
+              formControlName="material"
+            />
+            <app-text-field
+              label="Notiz zum Zustand"
+              [multiline]="3"
+              formControlName="conditionNotes"
+            />
+          </div>
+        </app-card>
+        <app-card title="Kennungen" rounded="xl">
+          <div class="space-y-4">
+            <app-text-field
+              label="EAN / GTIN"
+              formControlName="ean"
+              [error]="
+                form.controls.ean.touched && form.controls.ean.invalid
+                  ? 'Bitte eine gültige EAN / GTIN eingeben.'
+                  : null
+              "
+            />
+            <app-text-field
+              label="Eigene Artikelnummer (SKU)"
+              formControlName="sku"
+              helpText="Optional für Etiketten und externe Abläufe."
+            />
+          </div>
+        </app-card>
         <app-card title="Shop" rounded="xl">
           <div class="space-y-4">
             <app-custom-checkbox label="Im Shop anzeigen" formControlName="isPublicStore" />

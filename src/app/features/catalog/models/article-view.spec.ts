@@ -18,9 +18,9 @@ const row: ArticleRow = {
 };
 
 describe('Artikelfilter', () => {
-  it('fällt bei unbekannten URL-Werten auf Aktiv zurück', () => {
-    expect(parseArticleView('other')).toBe('active');
-    expect(parseArticleView(null)).toBe('active');
+  it('fällt bei unbekannten URL-Werten auf Alle zurück', () => {
+    expect(parseArticleView('other')).toBe('all');
+    expect(parseArticleView(null)).toBe('all');
   });
 
   it('unterscheidet Nullbestand, Bestand und Archiv', () => {

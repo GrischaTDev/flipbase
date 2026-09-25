@@ -225,8 +225,13 @@
       </div>
       <app-text-field label="Modell" formControlName="model" />
       <app-text-field label="Größe" formControlName="size" />
-      <app-text-field label="Farbe" formControlName="color" />
-      <app-text-field label="Material" formControlName="material" />
+      <app-attribute-picker label="Farbe" [options]="colorOptions" formControlName="color" />
+      <app-attribute-picker
+        label="Material"
+        [options]="materialOptions"
+        [multiple]="true"
+        formControlName="material"
+      />
     </div>
     <app-text-field label="Beschreibung" formControlName="description" [multiline]="3" />
     <div>

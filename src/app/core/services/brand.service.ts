@@ -170,6 +170,54 @@ export class BrandService {
     }
   }
 
+  async rename(
+    brandId: string,
+    name: string,
+  ): Promise<{ readonly data: Brand | null; readonly error: Error | null }> {
+    const trimmed = name.trim();
+    if (!trimmed || trimmed.length > BRAND_NAME_MAX_LENGTH)
+      return {
+        data: null,
+        error: new Error('Bitte einen Markennamen mit höchstens 120 Zeichen eingeben.'),
+      };
+    const workspaceId = this.workspace.currentWorkspace()?.id;
+    const key = this.contextKey();
+    if (!workspaceId || !key)
+      return { data: null, error: new Error('Kein aktiver Workspace ausgewählt.') };
+    const duplicate = this.findByName(trimmed);
+    if (duplicate && duplicate.id !== brandId)
+      return {
+        data: null,
+        error: new Error('Diese Marke gibt es bereits. Bitte die Marken zusammenführen.'),
+      };
+    try {
+      const { data, error } = await this.supabase.client
+        .from('brands')
+        .update({ name: trimmed })
+        .eq('id', brandId)
+        .eq('workspace_id', workspaceId)
+        .select('id, workspace_id, name')
+        .single();
+      if (error || !data) throw new Error(error?.message ?? 'Die Marke wurde nicht gefunden.');
+      const brand: Brand = { id: data.id, workspaceId: data.workspace_id, name: data.name };
+      this.loaded.update((state) =>
+        state && state.key === key
+          ? {
+              key,
+              brands: sortBrands(state.brands.map((item) => (item.id === brandId ? brand : item))),
+            }
+          : state,
+      );
+      return { data: brand, error: null };
+    } catch (error: unknown) {
+      return {
+        data: null,
+        error:
+          error instanceof Error ? error : new Error('Die Marke konnte nicht umbenannt werden.'),
+      };
+    }
+  }
+
   private async load(key: string, workspaceId: string): Promise<void> {
     this.loading.set(true);
     this.loadError.set(null);

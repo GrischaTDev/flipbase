@@ -1,0 +1,32 @@
+export const PRODUCT_COLOR_OPTIONS = [
+  'Schwarz',
+  'Weiß',
+  'Grau',
+  'Braun',
+  'Beige',
+  'Blau',
+  'Grün',
+  'Rot',
+  'Rosa',
+  'Gelb',
+  'Orange',
+  'Lila',
+  'Mehrfarbig',
+] as const;
+
+export const PRODUCT_MATERIAL_OPTIONS = [
+  'Baumwolle',
+  'Leder',
+  'Kunstleder',
+  'Polyester',
+  'Wolle',
+  'Leinen',
+  'Denim',
+  'Seide',
+  'Kunststoff',
+  'Metall',
+  'Viskose',
+  'Nylon',
+  'Elasthan',
+  'Gummi',
+] as const;

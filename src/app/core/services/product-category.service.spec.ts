@@ -146,6 +146,29 @@ describe('ProductCategoryService', () => {
     expect(escapeLikePattern('a%b_c\\d')).toBe('a\\%b\\_c\\\\d');
   });
 
+  it('findet High Heels über den vorhandenen Shopify-Knoten Fersen', async () => {
+    const heelsRow = {
+      id: 'aa-8-10',
+      parent_id: 'aa-8',
+      name: 'Fersen',
+      full_name: 'Bekleidung & Accessoires > Schuhe > Fersen',
+      level: 3,
+      is_leaf: true,
+      is_deprecated: false,
+    };
+    const { service } = createService([
+      { data: [], error: null },
+      { data: heelsRow, error: null },
+    ]);
+
+    const result = await service.search('High Heels');
+
+    expect(result.categories).toEqual([
+      expect.objectContaining({ id: 'aa-8-10', fullName: heelsRow.full_name }),
+    ]);
+    expect(result.hasMore).toBe(false);
+  });
+
   it('liefert bekannte Kategorien aus dem Zwischenspeicher und lädt unbekannte einzeln', async () => {
     const { service, from } = createService([
       { data: [laptopRow], error: null },

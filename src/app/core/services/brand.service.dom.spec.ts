@@ -38,6 +38,10 @@ function createService(options: {
     data: BrandRow | null;
     error: { code?: string; message: string } | null;
   };
+  readonly updateResult?: {
+    data: BrandRow | null;
+    error: { message: string } | null;
+  };
 }) {
   const current = signal<Workspace | null>(workspace('ws-1'));
   const pages = options.pages ?? [];
@@ -47,11 +51,21 @@ function createService(options: {
         options.insertResult ?? { data: null, error: { message: 'kein Ergebnis' } },
     }),
   }));
+  const update = vi.fn(() => ({
+    eq: () => ({
+      eq: () => ({
+        select: () => ({
+          single: async () =>
+            options.updateResult ?? { data: null, error: { message: 'kein Ergebnis' } },
+        }),
+      }),
+    }),
+  }));
   const selects: ReturnType<typeof selectQuery>[] = [];
   const from = vi.fn(() => {
     const select = selectQuery(pages);
     selects.push(select);
-    return { ...select.query, insert };
+    return { ...select.query, insert, update };
   });
   const injector = Injector.create({
     providers: [
@@ -60,7 +74,7 @@ function createService(options: {
     ],
   });
   const service = runInInjectionContext(injector, () => new BrandService());
-  return { service, from, insert, current, selects };
+  return { service, from, insert, update, current, selects };
 }
 
 describe('BrandService', () => {
@@ -160,5 +174,22 @@ describe('BrandService', () => {
     await expect(service.create('   ')).resolves.toMatchObject({ data: null });
     await expect(service.create('x'.repeat(121))).resolves.toMatchObject({ data: null });
     expect(from).not.toHaveBeenCalled();
+  });
+
+  it('benennt eine Marke im aktuellen Workspace um und aktualisiert die Liste', async () => {
+    const { service, update } = createService({
+      pages: [[{ id: 'b1', workspace_id: 'ws-1', name: 'Bosch' }], []],
+      updateResult: {
+        data: { id: 'b1', workspace_id: 'ws-1', name: 'Bosch Professional' },
+        error: null,
+      },
+    });
+    await service.ensureLoaded();
+
+    const result = await service.rename('b1', ' Bosch Professional ');
+
+    expect(update).toHaveBeenCalledWith({ name: 'Bosch Professional' });
+    expect(result.data?.name).toBe('Bosch Professional');
+    expect(service.findByName('Bosch Professional')?.id).toBe('b1');
   });
 });

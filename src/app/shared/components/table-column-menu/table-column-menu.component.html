@@ -8,7 +8,13 @@
     aria-haspopup="dialog"
     aria-label="Spalten und Sortierung anpassen"
     title="Spalten und Sortierung anpassen"
-    class="inline-flex min-h-8 min-w-8 cursor-pointer items-center justify-center rounded-md bg-transparent px-1.5 text-fb-text-secondary transition-colors duration-150 hover:bg-fb-surface-hover hover:text-fb-text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
+    [attr.aria-description]="viewModified() ? 'Die Ansicht wurde angepasst' : null"
+    class="inline-flex min-h-8 min-w-8 cursor-pointer items-center justify-center rounded-md px-1.5 transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
+    [class]="
+      viewModified()
+        ? 'bg-fb-primary text-fb-on-accent hover:bg-fb-primary-hover'
+        : 'bg-transparent text-fb-text-secondary hover:bg-fb-surface-hover hover:text-fb-text-primary'
+    "
   >
     <svg [lucideIcon]="icons.columns" class="h-4 w-4" aria-hidden="true"></svg>
   </button>

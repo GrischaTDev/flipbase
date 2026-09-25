@@ -35,7 +35,7 @@
       <div class="lg:col-span-7 min-w-0 space-y-4">
         <!-- Main Photo Frame -->
         <div
-          class="relative aspect-4/3 w-full rounded-3xl bg-white border border-slate-200 overflow-hidden flex items-center justify-center shadow-sm"
+          class="relative aspect-square w-full rounded-3xl bg-white border border-slate-200 overflow-hidden flex items-center justify-center shadow-sm"
         >
           @if (activeImageUrl(); as imageUrl) {
             @let photo = activePhoto();
@@ -43,7 +43,7 @@
               [src]="imageUrl"
               (error)="photo && onImageError(photo.path, imageUrl)"
               [alt]="currentItem.title"
-              class="w-full h-full object-contain p-4"
+              class="w-full h-full object-cover"
             />
           } @else {
             <div
@@ -86,7 +86,7 @@
                 [attr.aria-label]="'Bild ' + (idx + 1) + ' von ' + images().length + ' anzeigen'"
                 [attr.aria-pressed]="activeImageIndex() === idx"
                 (click)="activeImageIndex.set(idx)"
-                class="w-20 h-20 rounded-2xl bg-white border overflow-hidden shrink-0 transition cursor-pointer shadow-2xs p-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+                class="w-20 h-20 rounded-2xl bg-white border overflow-hidden shrink-0 transition cursor-pointer shadow-2xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
                 [class.border-slate-900]="activeImageIndex() === idx"
                 [class.ring-2]="activeImageIndex() === idx"
                 [class.ring-slate-900/20]="activeImageIndex() === idx"
@@ -97,7 +97,7 @@
                     [src]="thumbnailUrl"
                     (error)="onImageError(m.path, thumbnailUrl)"
                     alt=""
-                    class="w-full h-full object-contain rounded-xl"
+                    class="w-full h-full object-cover"
                   />
                 } @else {
                   <svg
@@ -209,6 +209,33 @@
             </p>
           </div>
           <p class="text-sm text-slate-600">{{ currentItem.availableQuantity }} Stück verfügbar</p>
+          @if (variantChoices().length > 1) {
+            <div class="space-y-2" role="group" aria-label="Größe und Farbe wählen">
+              <p class="text-sm font-semibold text-slate-900">Größe und Farbe</p>
+              <div class="flex flex-wrap gap-2">
+                @for (variant of variantChoices(); track variant.id) {
+                  @if (variant.available) {
+                    <a
+                      [routerLink]="productStorePath(variant.id, variant.urlHandle)"
+                      [attr.aria-current]="variant.id === currentItem.id ? 'page' : null"
+                      class="rounded-lg border px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+                      [class.border-slate-900]="variant.id === currentItem.id"
+                      [class.border-slate-300]="variant.id !== currentItem.id"
+                      >{{ variant.size || 'Ohne Größe' }} · {{ variant.color || 'Ohne Farbe' }}</a
+                    >
+                  } @else {
+                    <span
+                      class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500"
+                      aria-disabled="true"
+                    >
+                      {{ variant.size || 'Ohne Größe' }} · {{ variant.color || 'Ohne Farbe' }} ·
+                      Nicht verfügbar
+                    </span>
+                  }
+                }
+              </div>
+            </div>
+          }
 
           <!-- Action Buttons (Midnight Black Primary) -->
           <div class="space-y-3 pt-1">

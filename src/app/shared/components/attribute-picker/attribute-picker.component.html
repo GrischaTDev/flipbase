@@ -1,0 +1,93 @@
+<div class="space-y-1.5">
+  <label [for]="fieldId()" class="block text-[13px] font-semibold text-fb-text-primary">
+    {{ label() }}
+  </label>
+  @if (multiple() && selected().length) {
+    <div class="flex flex-wrap gap-1.5">
+      @for (item of selected(); track item) {
+        <span
+          class="inline-flex items-center gap-1 rounded-md border border-fb-border bg-fb-subtle px-2 py-1 text-[13px] text-fb-text-primary"
+        >
+          {{ item }}
+          <button
+            type="button"
+            [attr.aria-label]="item + ' entfernen'"
+            [disabled]="isDisabled()"
+            (click)="remove(item)"
+            class="rounded-sm p-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/50"
+          >
+            <svg [lucideIcon]="removeIcon" class="size-3.5" aria-hidden="true"></svg>
+          </button>
+        </span>
+      }
+    </div>
+  }
+  <div class="relative">
+    <input
+      #field
+      [id]="fieldId()"
+      type="text"
+      role="combobox"
+      autocomplete="off"
+      aria-autocomplete="list"
+      [attr.aria-expanded]="isOpen()"
+      [attr.aria-controls]="listboxId()"
+      [attr.aria-activedescendant]="activeDescendantId()"
+      [placeholder]="placeholder()"
+      [value]="query()"
+      [disabled]="isDisabled()"
+      (focus)="open()"
+      (input)="onInput($event)"
+      (keydown)="onKeydown($event)"
+      class="linear-input min-h-8 w-full rounded-lg px-3 py-1.5 text-[13px] outline-none focus-visible:border-fb-primary focus-visible:ring-2 focus-visible:ring-fb-primary/50 disabled:cursor-not-allowed disabled:opacity-40"
+    />
+    @if (isOpen()) {
+      <div
+        #panel
+        [attr.popover]="supportsPopover ? 'manual' : null"
+        class="absolute left-0 top-full z-50 mt-1.5 w-full min-w-60 rounded-xl border border-fb-border bg-fb-surface p-1.5 shadow-lg"
+        [style.left.px]="supportsPopover ? panelPosition().left : null"
+        [style.top.px]="supportsPopover ? panelPosition().top : null"
+        [style.width.px]="supportsPopover ? panelPosition().width : null"
+      >
+        <div
+          [id]="listboxId()"
+          role="listbox"
+          [attr.aria-multiselectable]="multiple()"
+          class="max-h-64 overflow-y-auto"
+        >
+          @for (option of matches(); track option; let index = $index) {
+            <button
+              type="button"
+              role="option"
+              [id]="listboxId() + '-' + index"
+              [attr.aria-selected]="selected().includes(option)"
+              (click)="choose(option)"
+              class="flex min-h-8 w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-left text-[13px] text-fb-text-primary hover:bg-fb-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/50"
+              [class.bg-fb-surface-hover]="activeIndex() === index"
+            >
+              {{ option }}
+              @if (selected().includes(option)) {
+                <svg [lucideIcon]="checkIcon" class="size-4" aria-hidden="true"></svg>
+              }
+            </button>
+          }
+          @if (customValue(); as custom) {
+            <button
+              type="button"
+              role="option"
+              [id]="listboxId() + '-' + matches().length"
+              aria-selected="false"
+              (click)="choose(custom)"
+              class="min-h-8 w-full rounded-lg px-2.5 py-1.5 text-left text-[13px] text-fb-text-primary hover:bg-fb-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/50"
+            >
+              „{{ custom }}“ übernehmen
+            </button>
+          } @else if (matches().length === 0) {
+            <p class="px-2.5 py-2 text-[13px] text-fb-text-muted">Keine Vorschläge gefunden.</p>
+          }
+        </div>
+      </div>
+    }
+  </div>
+</div>

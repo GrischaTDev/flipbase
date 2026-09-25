@@ -381,7 +381,7 @@
         [class.border-slate-200]="selectedCategory() !== 'all'"
         [class.hover:bg-slate-50]="selectedCategory() !== 'all'"
       >
-        Alle Kategorien ({{ storeService.publicProducts().length }})
+        Alle Kategorien ({{ displayProducts().length }})
       </button>
 
       @for (cat of categories(); track cat) {

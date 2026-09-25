@@ -91,9 +91,14 @@ export class PurchaseProductPickerComponent {
       (product) =>
         (!category || product.category?.trim() === category) &&
         (!brand || product.brand?.trim() === brand) &&
-        [product.title, product.ean, product.brand, product.model].some((value) =>
-          value?.toLocaleLowerCase('de').includes(query),
-        ),
+        [
+          product.title,
+          product.ean,
+          product.brand,
+          product.model,
+          product.size,
+          product.color,
+        ].some((value) => value?.toLocaleLowerCase('de').includes(query)),
     );
   });
 
