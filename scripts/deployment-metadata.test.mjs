@@ -210,12 +210,31 @@ test('bestätigt Landingpage, lokale Formularlogik und passende CSP', async () =
           'content-type': 'text/html',
           'content-security-policy': "default-src 'self'; script-src 'self'; object-src 'none'",
         });
-        response.end('<!doctype html><script src="landing.js" defer></script>');
+        response.end(
+          '<!doctype html><link rel="canonical" href="https://flipbase.de/" />' +
+            '<script src="landing.js" defer></script>' +
+            '<script src="analytics-consent.js" defer></script>',
+        );
         return;
       }
       if (request.url === '/landing.js') {
         response.writeHead(200, { 'content-type': 'text/javascript' });
         response.end("var ENDPOINT = 'https://api.flipbase.de/functions/v1/beta-application';");
+        return;
+      }
+      if (request.url === '/analytics-consent.js') {
+        response.writeHead(200, { 'content-type': 'text/javascript' });
+        response.end('');
+        return;
+      }
+      if (request.url === '/robots.txt') {
+        response.writeHead(200, { 'content-type': 'text/plain' });
+        response.end('Sitemap: https://flipbase.de/sitemap.xml');
+        return;
+      }
+      if (request.url === '/sitemap.xml') {
+        response.writeHead(200, { 'content-type': 'application/xml' });
+        response.end('<loc>https://flipbase.de/</loc>');
         return;
       }
       response.writeHead(404).end();

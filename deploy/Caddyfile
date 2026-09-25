@@ -74,16 +74,14 @@ flipbase.de {
 		X-Content-Type-Options nosniff
 		X-Frame-Options DENY
 		Referrer-Policy strict-origin-when-cross-origin
-		# Die Seite laedt nichts von fremden Servern, bringt aber seit der
-		# Bewerbungsanbindung genau ein eingebettetes Skript mit (siehe
-		# landing/landing.js). Es wird ausschliesslich von derselben Herkunft
-		# geladen; eingebettete Skripte und fremde Skriptquellen bleiben gesperrt.
-		# connect-src erlaubt den fetch-Aufruf des Formulars zur Edge Function.
+		# Google Analytics wird erst nach Einwilligung durch ein lokales Skript
+		# geladen. Werbe-Funktionen bleiben aus; deshalb sind nur die fuer
+		# Analytics benoetigten Google-Endpunkte freigegeben.
 		# form-action 'none': kein Formular der Seite hat noch ein action-Attribut
 		# (das Skript sendet alles per fetch). 'none' ist strenger als eine feste
 		# Ziel-Adresse - liefe das Skript einmal nicht, wuerde ein natives Absenden
 		# sonst blind Richtung app.flipbase.de gehen und die Eingaben verlieren.
-		Content-Security-Policy "default-src 'self'; script-src 'self'; connect-src 'self' https://api.flipbase.de; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'; object-src 'none'"
+		Content-Security-Policy "default-src 'self'; script-src 'self' https://www.googletagmanager.com; connect-src 'self' https://api.flipbase.de https://www.googletagmanager.com https://*.google-analytics.com https://*.google.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://www.googletagmanager.com https://*.google-analytics.com; font-src 'self'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'; object-src 'none'"
 	}
 
 	header @seite {

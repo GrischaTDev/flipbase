@@ -8,8 +8,7 @@
       name="description"
       content="Flipbase bündelt Einkauf, Bestand, Multi-Channel-Verkauf, Bildoptimierung mit GPS-Schutz und rechnerische Unterstützung für § 25a an einer Stelle."
     />
-    <!-- Bleibt bis zum vollständigen Impressum aus dem Index. -->
-    <meta name="robots" content="noindex, nofollow" />
+    <link rel="canonical" href="https://flipbase.de/" />
     <meta name="theme-color" content="#16181d" />
     <link rel="icon" href="favicon.ico" />
     <link rel="stylesheet" href="fonts/fonts.css" />
@@ -1457,6 +1456,79 @@
         color: var(--ink-dim);
       }
 
+      .analytics-settings {
+        border: 0;
+        padding: 0;
+        background: none;
+        color: var(--ink-muted);
+        font: inherit;
+        cursor: pointer;
+        text-decoration: underline;
+        text-underline-offset: 0.2em;
+      }
+
+      .analytics-consent[hidden],
+      .analytics-settings[hidden] {
+        display: none;
+      }
+
+      .analytics-consent {
+        position: fixed;
+        z-index: 1000;
+        right: 1rem;
+        bottom: 1rem;
+        left: 1rem;
+        max-width: 760px;
+        margin: 0 auto;
+        padding: 1.25rem;
+        border: 1px solid var(--line-strong);
+        border-radius: 12px;
+        background: var(--surface);
+        color: var(--ink);
+        box-shadow: 0 16px 48px rgba(0, 0, 0, 0.28);
+      }
+
+      .analytics-consent h2 {
+        margin: 0 0 0.5rem;
+        font-size: 1.1rem;
+      }
+
+      .analytics-consent p {
+        margin: 0;
+        color: var(--ink-soft);
+        line-height: 1.55;
+      }
+
+      .analytics-consent a {
+        color: var(--ink);
+        text-decoration: underline;
+        text-underline-offset: 0.2em;
+      }
+
+      .analytics-consent-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin-top: 1rem;
+      }
+
+      .analytics-consent-actions button {
+        flex: 1 1 160px;
+        min-height: 44px;
+        border: 2px solid #fcc601;
+        border-radius: 8px;
+        background: #fcc601;
+        color: #111317;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .analytics-consent-actions button:hover {
+        background: #e4b300;
+        border-color: #e4b300;
+      }
+
       /* Animation & Focus */
       :focus-visible {
         outline: 2px solid var(--amber);
@@ -2893,6 +2965,12 @@
                 <span class="lang-en" lang="en">Privacy Policy</span>
               </a>
             </li>
+            <li>
+              <button id="analytics-settings" class="analytics-settings" type="button" hidden>
+                <span class="lang-de">Analyse-Einstellungen</span>
+                <span class="lang-en" lang="en">Analytics settings</span>
+              </button>
+            </li>
           </ul>
         </div>
       </div>
@@ -2995,6 +3073,43 @@
       </div>
     </div>
 
+    <section
+      id="analytics-consent"
+      class="analytics-consent"
+      aria-labelledby="analytics-consent-title"
+      hidden
+    >
+      <h2 id="analytics-consent-title">
+        <span class="lang-de">Dürfen wir die Nutzung dieser Seite messen?</span>
+        <span class="lang-en" lang="en">May we measure how this site is used?</span>
+      </h2>
+      <p>
+        <span class="lang-de"
+          >Mit deiner Einwilligung lädt Flipbase Google Analytics. Dabei werden Nutzungsdaten an
+          Google übermittelt und Analyse-Cookies gesetzt. Du kannst ablehnen und deine Wahl
+          jederzeit über „Analyse-Einstellungen“ im Footer ändern. Einzelheiten stehen in der
+          <a href="/datenschutz">Datenschutzerklärung</a>.</span
+        >
+        <span class="lang-en" lang="en"
+          >With your consent, Flipbase loads Google Analytics. Usage data is sent to Google and
+          analytics cookies are stored. You can decline and change your choice at any time through
+          “Analytics settings” in the footer. See our <a href="/datenschutz">privacy policy</a> for
+          details.</span
+        >
+      </p>
+      <div class="analytics-consent-actions">
+        <button id="analytics-reject" type="button">
+          <span class="lang-de">Ablehnen</span>
+          <span class="lang-en" lang="en">Decline</span>
+        </button>
+        <button id="analytics-accept" type="button">
+          <span class="lang-de">Zustimmen</span>
+          <span class="lang-en" lang="en">Accept</span>
+        </button>
+      </div>
+    </section>
+
     <script src="landing.js" defer></script>
+    <script src="analytics-consent.js" defer></script>
   </body>
 </html>
