@@ -1499,7 +1499,7 @@
         padding-bottom: max(1rem, env(safe-area-inset-bottom));
         background: rgba(17, 19, 23, 0.48);
         backdrop-filter: blur(3px);
-        animation: consent-backdrop-in 0.3s ease-out both;
+        animation: consent-backdrop-in 0.45s ease-out both;
       }
 
       .analytics-consent-panel {
@@ -1508,11 +1508,11 @@
         overflow-y: auto;
         padding: clamp(1rem, 3vw, 1.5rem);
         border: 1px solid var(--line-strong);
-        border-radius: 16px;
+        border-radius: 20px;
         background: var(--surface);
         color: var(--ink);
         box-shadow: 0 24px 64px rgba(0, 0, 0, 0.35);
-        animation: consent-panel-in 0.42s cubic-bezier(0.22, 1, 0.36, 1) 0.08s both;
+        animation: consent-panel-in 0.75s cubic-bezier(0.25, 0.8, 0.25, 1) 0.05s both;
       }
 
       .analytics-consent-panel h2 {
@@ -1695,14 +1695,14 @@
       }
 
       .analytics-consent-actions {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: flex-end;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 0.5rem;
         margin-top: 1.25rem;
       }
 
       .analytics-consent-actions button {
+        width: 100%;
         min-height: 44px;
         padding: 0.55rem 0.9rem;
         border: 1px solid var(--brand);
@@ -1732,6 +1732,10 @@
         background: var(--line-strong);
       }
 
+      #analytics-save {
+        grid-column: 1 / -1;
+      }
+
       .analytics-consent-panel :focus-visible {
         outline: 3px solid var(--brand);
         outline-offset: 3px;
@@ -1739,6 +1743,7 @@
 
       .analytics-consent-panel:focus-visible {
         outline: none;
+        border-radius: 20px;
       }
 
       @keyframes consent-backdrop-in {
@@ -1754,9 +1759,11 @@
 
       @keyframes consent-panel-in {
         from {
-          transform: translateY(24px);
+          opacity: 0;
+          transform: translateY(calc(100% + 2rem));
         }
         to {
+          opacity: 1;
           transform: translateY(0);
         }
       }
@@ -1773,18 +1780,9 @@
       }
 
       @media (max-width: 420px) {
-        .analytics-consent-actions {
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-
         .analytics-consent-actions button {
           padding-inline: 0.35rem;
           font-size: 0.82rem;
-        }
-
-        #analytics-save {
-          grid-column: 1 / -1;
         }
       }
 
@@ -3386,16 +3384,15 @@
         <div id="analytics-panel-overview" role="tabpanel" aria-labelledby="analytics-tab-overview">
           <p>
             <span class="lang-de"
-              >Die Website funktioniert ohne Analyse-Cookies. Wenn du zustimmst, nutzen wir Google
-              Analytics, um Seitenaufrufe, App-Klicks und Beta-Bewerbungen auszuwerten. Dabei werden
-              Daten an Google übermittelt. Deine Auswahl kannst du jederzeit über
-              „Analyse-Einstellungen“ im Footer ändern.</span
+              >Wenn du zustimmst, nutzt Flipbase Google Analytics (Google Ireland Limited), um die
+              Nutzung dieser Website auszuwerten. Dabei werden Analyse-Cookies gesetzt und
+              Nutzungsdaten an Google übermittelt. Deine Auswahl kannst du jederzeit im Footer
+              ändern.</span
             >
             <span class="lang-en" lang="en"
-              >The website works without analytics cookies. With your consent, we use Google
-              Analytics to measure page views, app clicks and beta applications. Data is sent to
-              Google. You can change your choice at any time through “Analytics settings” in the
-              footer.</span
+              >If you agree, Flipbase uses Google Analytics (Google Ireland Limited) to understand
+              how this website is used. Analytics cookies are then set and usage data is sent to
+              Google. You can change your choice at any time in the footer.</span
             >
           </p>
         </div>
@@ -3442,14 +3439,14 @@
               </strong>
               <p>
                 <span class="lang-de"
-                  >Google Ireland Limited misst Seitenaufrufe, App-Klicks und erfolgreich
-                  gespeicherte Beta-Bewerbungen. Dabei werden Analyse-Cookies bis zu 13 Monate
-                  gespeichert; Daten können auch in den USA verarbeitet werden.</span
+                  >Google Ireland Limited misst Seitenaufrufe und Interaktionen auf dieser Website.
+                  Analyse-Cookies werden bis zu 13 Monate gespeichert; Daten können auch in den USA
+                  verarbeitet werden.</span
                 >
                 <span class="lang-en" lang="en"
-                  >Google Ireland Limited measures page views, app clicks and successfully saved
-                  beta applications. Analytics cookies are stored for up to 13 months; data may also
-                  be processed in the USA.</span
+                  >Google Ireland Limited measures page views and interactions on this website.
+                  Analytics cookies are stored for up to 13 months; data may also be processed in
+                  the USA.</span
                 >
               </p>
             </span>

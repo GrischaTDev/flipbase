@@ -1,5 +1,26 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-25 – Juna – Einwilligungsdialog klarer und sichtbarer gestaltet
+
+**Auftrag:** Die Entscheidungen unten so breit wie die Reiter anzeigen, die
+Texte ohne einzelne Beta-Anwendungsfälle formulieren und den Dialog mit
+passenderen Ecken deutlich von unten einblenden.
+
+**Änderung:** Die beiden Entscheidungen teilen sich die Dialogbreite gleichmäßig.
+Der Einstieg nennt allgemein den Analysezweck, Google Ireland Limited, Cookies,
+die Datenübermittlung und den Weg zur späteren Änderung. Die Details beschreiben
+Seitenaufrufe und Interaktionen statt einzelner Ereignisse. Der Dialog verwendet
+den 20-Pixel-Radius der übrigen Karten und gleitet sichtbar von unten hinein;
+bei reduzierter Bewegung bleibt die Animation ausgeschaltet. Die allgemeine
+Fokusregel verkleinert den Radius des automatisch fokussierten Dialogs nicht mehr.
+
+**Prüfung:** 30 Landingpage-Tests, Prettier und Angular-Produktionsbau bestanden.
+Desktop und Mobilansichten bis 320 px sowie helles und dunkles Farbschema im
+Browser geprüft. Beide Reiter, die Aktionsbreiten, der 20-Pixel-Radius und die
+Einblendung wurden betrachtet. AXE meldete in Zustimmung und Details keine
+WCAG-Verstöße; reduzierte Bewegung schaltet die Animation aus. Der Bau meldete
+die bekannte CommonJS-Warnung zu `pako`.
+
 ## 2026-09-25 – Juna – Einwilligungsdialog kompakter und ruhiger gestaltet
 
 **Auftrag:** Den Dialog beim ersten Besuch unten zentriert und animiert zeigen,
