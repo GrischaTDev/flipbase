@@ -113,7 +113,8 @@ test('creates, publishes and completes the listing lifecycle on mobile @pr-smoke
     })
     .toBe('ended/manual');
 
-  await page.getByRole('button', { name: 'Beendet', exact: true }).click();
+  await page.getByRole('combobox', { name: 'Inseratsansicht' }).click();
+  await page.getByRole('option', { name: 'Beendet', exact: true }).click();
   await expect(page.getByText('E2E Kamera Inserat', { exact: true }).last()).toBeVisible();
   await page.getByRole('button', { name: 'Inserat erneut einstellen' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Erneut einstellen' }).click();
