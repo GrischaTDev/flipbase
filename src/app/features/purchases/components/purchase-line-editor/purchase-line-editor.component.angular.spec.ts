@@ -19,6 +19,7 @@ import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
 import { PurchaseLineEditorComponent } from './purchase-line-editor.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { TableActionButtonComponent } from '../../../../shared/components/table-action-button/table-action-button.component';
 import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
 
@@ -39,6 +40,11 @@ beforeAll(async () => {
   registerLocaleData(localeDe);
   await ɵresolveComponentResources(async (url) => {
     const resourceUrl = String(url);
+    if (resourceUrl.includes('table-action-button.component.'))
+      return readFile(
+        'src/app/shared/components/table-action-button/' + resourceUrl.split('/').at(-1),
+        'utf8',
+      );
     for (const component of [
       'barcode-scanner',
       'button',
@@ -79,6 +85,7 @@ beforeAll(async () => {
       ButtonComponent,
       [
         'variant',
+        'tone',
         'size',
         'loading',
         'disabled',
@@ -89,6 +96,7 @@ beforeAll(async () => {
         'contentAlign',
         'type',
         'link',
+        'href',
         'queryParams',
         'ariaLabel',
         'title',
@@ -97,6 +105,11 @@ beforeAll(async () => {
         'ariaControls',
         'ariaHaspopup',
       ],
+      { clicked: 'clicked' },
+    ],
+    [
+      TableActionButtonComponent,
+      ['icon', 'label', 'tone', 'disabled', 'loading', 'link', 'href', 'queryParams'],
       { clicked: 'clicked' },
     ],
     [

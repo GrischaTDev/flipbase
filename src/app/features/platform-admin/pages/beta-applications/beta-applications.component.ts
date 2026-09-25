@@ -22,8 +22,15 @@ import { TableSortHeaderComponent } from '../../../../shared/components/table-so
 import { PageHeaderComponent } from '../../../../shared/components/page-header/page-header.component';
 import { DataTableComponent } from '../../../../shared/components/data-table/data-table.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { TableActionButtonComponent } from '../../../../shared/components/table-action-button/table-action-button.component';
 import { BadgeComponent, BadgeTone } from '../../../../shared/components/badge/badge.component';
-import { LucideShieldCheck as ShieldCheck } from '@lucide/angular';
+import {
+  LucideShieldCheck as ShieldCheck,
+  LucideRefreshCw as RefreshCw,
+  LucideCheck as Check,
+  LucideX as X,
+  LucideTrash2 as Trash2,
+} from '@lucide/angular';
 import { BetaApprovalDialogComponent } from '../../components/beta-approval-dialog/beta-approval-dialog.component';
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
 
@@ -35,6 +42,7 @@ import { ConfirmDialogService } from '../../../../shared/components/confirm-dial
     PageHeaderComponent,
     DataTableComponent,
     ButtonComponent,
+    TableActionButtonComponent,
     BadgeComponent,
     BetaApprovalDialogComponent,
   ],
@@ -52,6 +60,10 @@ export class BetaApplicationsComponent implements OnInit {
   readonly searchQuery = signal('');
   readonly statusFilter = signal<'all' | BetaApplication['status']>('all');
   readonly adminIcon = ShieldCheck;
+  readonly resendIcon = RefreshCw;
+  readonly approveIcon = Check;
+  readonly rejectIcon = X;
+  readonly deleteIcon = Trash2;
   readonly betaStatusFilters = [
     { value: 'all' as const, label: 'Alle' },
     { value: 'open' as const, label: 'Offen' },

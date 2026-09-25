@@ -53,6 +53,7 @@ import { TextFieldComponent } from '../../shared/components/text-field/text-fiel
 import { RecordHistoryContainer } from '../audit/components/record-history/record-history.container';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
+import { TableActionButtonComponent } from '../../shared/components/table-action-button/table-action-button.component';
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
 import { TableSortHeaderComponent } from '../../shared/components/table-sort-header/table-sort-header.component';
 import { DataTableComponent } from '../../shared/components/data-table/data-table.component';
@@ -87,6 +88,7 @@ function validatedSaleTargetId(value: string | null): string | null {
     RecordHistoryContainer,
     PageHeaderComponent,
     ButtonComponent,
+    TableActionButtonComponent,
     BadgeComponent,
     TableSortHeaderComponent,
     DataTableComponent,

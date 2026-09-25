@@ -15,10 +15,11 @@ import {
   LucidePencil,
   LucidePlay,
   LucideRotateCcw,
-  LucideSquareX,
+  LucideX,
 } from '@lucide/angular';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { TableActionButtonComponent } from '../../../../shared/components/table-action-button/table-action-button.component';
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
 import { DataTableComponent } from '../../../../shared/components/data-table/data-table.component';
 import {
@@ -44,6 +45,7 @@ import { ListingService } from '../../services/listing.service';
   imports: [
     BadgeComponent,
     ButtonComponent,
+    TableActionButtonComponent,
     CurrencyPipe,
     CustomSelectComponent,
     DataTableComponent,
@@ -86,7 +88,7 @@ export class ListingOverviewComponent {
   readonly onlineIcon = LucidePlay;
   readonly relistIcon = LucideRotateCcw;
   readonly openIcon = LucideExternalLink;
-  readonly endIcon = LucideSquareX;
+  readonly endIcon = LucideX;
   readonly filteredRows = computed(() => {
     const term = this.search().trim().toLocaleLowerCase('de');
     return this.listingService.rows().filter((row) => {

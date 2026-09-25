@@ -1,0 +1,740 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Flipbase – Aktionsbuttons im Vergleich</title>
+    <style>
+      :root {
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          'Segoe UI',
+          sans-serif;
+        color: #303030;
+        background: #f6f6f7;
+        --surface: #fff;
+        --surface-hover: #f7f7f7;
+        --line: #e3e3e3;
+        --text: #303030;
+        --muted: #616161;
+        --accent: #fcc601;
+        --neutral-hover: #ededee;
+        --critical: #b42332;
+        --critical-hover: #fce8eb;
+        --positive: #167149;
+        --positive-hover: #e3f4e9;
+        --warning: #995600;
+        --warning-hover: #fff0d6;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+      }
+      button {
+        font: inherit;
+        cursor: pointer;
+      }
+      button:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+      .shell {
+        max-width: 1240px;
+        margin: 0 auto;
+        padding: 42px 28px 70px;
+      }
+      .eyebrow {
+        color: #6d5a00;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+      }
+      h1 {
+        margin: 8px 0 8px;
+        font-size: clamp(26px, 4vw, 38px);
+        letter-spacing: -0.035em;
+      }
+      .intro {
+        max-width: 760px;
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.55;
+      }
+      .meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 22px 0 34px;
+      }
+      .chip {
+        padding: 5px 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--surface);
+        color: var(--muted);
+        font-size: 12px;
+      }
+      h2 {
+        margin: 0 0 6px;
+        font-size: 20px;
+        letter-spacing: -0.02em;
+      }
+      .section-copy {
+        margin: 0 0 18px;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.5;
+      }
+      .section {
+        margin-top: 36px;
+      }
+      .panel {
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--surface);
+        box-shadow: 0 1px 2px #00000008;
+      }
+      .table-scroll {
+        overflow-x: auto;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 780px;
+        text-align: left;
+      }
+      th {
+        padding: 13px 18px;
+        border-bottom: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 600;
+      }
+      td {
+        height: 60px;
+        padding: 9px 18px;
+        border-bottom: 1px solid var(--line);
+        font-size: 13px;
+      }
+      tr:last-child td {
+        border-bottom: 0;
+      }
+      tbody tr:hover {
+        background: var(--surface-hover);
+      }
+      .row-title {
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .row-note {
+        display: block;
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 400;
+      }
+      .actions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 28px;
+      }
+      .action-cell {
+        min-width: 255px;
+      }
+      .action-cell.wide {
+        min-width: 370px;
+      }
+      .icon {
+        width: 16px;
+        height: 16px;
+        display: block;
+        flex: none;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .current-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 27px;
+        height: 27px;
+        padding: 0;
+        border: 0;
+        border-radius: 8px;
+        background: transparent;
+        color: #6b7280;
+      }
+      .current-icon:hover {
+        background: #e5e7eb;
+        color: #303030;
+      }
+      .current-icon.rose {
+        color: #fb7185;
+      }
+      .current-icon.rose:hover {
+        background: #fb718526;
+        color: #fda4af;
+      }
+      .current-icon.indigo {
+        color: #818cf8;
+      }
+      .current-icon.indigo:hover {
+        background: #6366f126;
+        color: #a5b4fc;
+      }
+      .current-icon.emerald:hover {
+        background: #10b98126;
+        color: #6ee7b7;
+      }
+      .current-icon.amber {
+        color: #fbbf24;
+      }
+      .current-icon.amber:hover {
+        background: #f59e0b26;
+        color: #fcd34d;
+      }
+      .current-text {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 28px;
+        padding: 0 8px;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        background: transparent;
+        color: #616161;
+        font-size: 13px;
+        font-weight: 550;
+        white-space: nowrap;
+      }
+      .current-text:hover {
+        background: #f1f1f1;
+        color: #303030;
+      }
+      .current-text.bordered {
+        border-color: #e3e3e3;
+        box-shadow: 0 1px 2px #00000010;
+      }
+      .current-text.danger {
+        border-color: #f3c8cf;
+        background: #fff2f4;
+        color: #b42332;
+      }
+      .current-text.danger:hover {
+        background: #f3c8cf;
+      }
+      .proposal-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+      .option {
+        padding: 24px;
+      }
+      .option.recommended {
+        border: 2px solid #d5b22e;
+      }
+      .option-head {
+        display: flex;
+        align-items: start;
+        justify-content: space-between;
+        gap: 16px;
+      }
+      .option h3 {
+        margin: 0 0 5px;
+        font-size: 17px;
+      }
+      .option p {
+        min-height: 44px;
+        margin: 0 0 20px;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.5;
+      }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        flex: none;
+        border-radius: 8px;
+        padding: 5px 8px;
+        background: #fff1b9;
+        color: #574300;
+        font-size: 11px;
+        font-weight: 700;
+      }
+      .demo {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding: 17px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: #fafafa;
+      }
+      .demo-label {
+        margin: 20px 0 8px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .tile {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        border: 0;
+        border-radius: 8px;
+        background: transparent;
+        color: var(--muted);
+        transition:
+          background-color 0.12s ease,
+          color 0.12s ease;
+      }
+      .tile:hover,
+      .tile:focus-visible,
+      .tile.preview {
+        background: var(--neutral-hover);
+        color: var(--text);
+      }
+      .tile.critical:hover,
+      .tile.critical:focus-visible,
+      .tile.critical.preview {
+        background: var(--critical-hover);
+        color: var(--critical);
+      }
+      .tile.positive:hover,
+      .tile.positive:focus-visible,
+      .tile.positive.preview {
+        background: var(--positive-hover);
+        color: var(--positive);
+      }
+      .tile.warning:hover,
+      .tile.warning:focus-visible,
+      .tile.warning.preview {
+        background: var(--warning-hover);
+        color: var(--warning);
+      }
+      .quiet .tile:not(.critical):hover,
+      .quiet .tile:not(.critical):focus-visible,
+      .quiet .tile:not(.critical).preview {
+        background: var(--neutral-hover);
+        color: var(--text);
+      }
+      .caption {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        margin-top: 10px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .preview-key {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+      }
+      .preview-key::before {
+        content: '';
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--accent);
+      }
+      .implementation {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+      }
+      .spec {
+        padding: 18px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--surface);
+      }
+      .spec strong {
+        display: block;
+        margin-bottom: 7px;
+        font-size: 13px;
+      }
+      .spec span {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.5;
+      }
+      .decision {
+        padding: 18px 20px;
+        border: 1px solid #ebd780;
+        border-radius: 10px;
+        background: #fffbeb;
+        font-size: 13px;
+        line-height: 1.55;
+      }
+      .decision strong {
+        display: block;
+        margin-bottom: 3px;
+      }
+      .decision ul {
+        margin: 8px 0 0;
+        padding-left: 19px;
+      }
+      @media (max-width: 780px) {
+        .shell {
+          padding: 28px 16px 50px;
+        }
+        .proposal-grid,
+        .implementation {
+          grid-template-columns: 1fr;
+        }
+        .option p {
+          min-height: 0;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .tile {
+          transition: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <svg aria-hidden="true" style="position: absolute; width: 0; height: 0; overflow: hidden">
+      <symbol id="edit" viewBox="0 0 24 24">
+        <path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L9 17l-4 1 1-4Z" />
+      </symbol>
+      <symbol id="archive" viewBox="0 0 24 24">
+        <rect x="3" y="4" width="18" height="4" rx="1" />
+        <path d="M5 8v12h14V8M10 12h4" />
+      </symbol>
+      <symbol id="trash" viewBox="0 0 24 24">
+        <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 10v7m4-7v7" />
+      </symbol>
+      <symbol id="return" viewBox="0 0 24 24">
+        <path d="M9 10 4 15l5 5M4 15h10a6 6 0 0 0 0-12h-2" />
+      </symbol>
+      <symbol id="receipt" viewBox="0 0 24 24">
+        <path d="M4 3h16v18l-4-2-4 2-4-2-4 2V3ZM8 8h8m-8 4h8" />
+      </symbol>
+      <symbol id="history" viewBox="0 0 24 24">
+        <path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5m4-1v5l4 2" />
+      </symbol>
+      <symbol id="file" viewBox="0 0 24 24">
+        <path d="M6 2h8l4 4v16H6V2Zm8 0v5h5M9 12h6m-6 4h6" />
+      </symbol>
+      <symbol id="check" viewBox="0 0 24 24"><path d="m4 12 5 5L20 6" /></symbol>
+      <symbol id="close" viewBox="0 0 24 24"><path d="M5 5 19 19M19 5 5 19" /></symbol>
+      <symbol id="external" viewBox="0 0 24 24">
+        <path d="M13 5h6v6M19 5l-9 9M19 13v6H5V5h6" />
+      </symbol>
+      <symbol id="repeat" viewBox="0 0 24 24">
+        <path d="M3 8h14l-3-3m3 3-3 3M21 16H7l3-3m-3 3 3 3" />
+      </symbol>
+      <symbol id="printer" viewBox="0 0 24 24">
+        <path d="M6 9V3h12v6M6 18H4V9h16v9h-2M6 15h12v6H6v-6Z" />
+      </symbol>
+      <symbol id="arrow" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6" /></symbol>
+      <symbol id="store" viewBox="0 0 24 24">
+        <path d="M3 9 5 3h14l2 6-2 3-3-2-4 2-4-2-3 2-2-3Zm2 3v9h14v-9" />
+      </symbol>
+      <symbol id="cart" viewBox="0 0 24 24">
+        <path d="M2 4h2l3 12h12l3-9H5m4 13h.01M18 20h.01" />
+      </symbol>
+    </svg>
+    <main class="shell">
+      <div class="eyebrow">FLIPBASE · ENTSCHEIDUNGSMOCKUP</div>
+      <h1>Eine Sprache für Tabellenaktionen</h1>
+      <p class="intro">
+        Die obere Tabelle rekonstruiert die heute im Code vorhandenen Varianten. Darunter stehen
+        zwei Vorschläge für eine gemeinsame Aktionskachel. Bewege die Maus über die Symbole oder
+        fokussiere sie mit der Tab-Taste.
+      </p>
+      <div class="meta">
+        <span class="chip">Stand: 25.09.2026</span
+        ><span class="chip">Desktop · helles Admin-Theme</span
+        ><span class="chip">Nur Mockup – keine App-Funktion geändert</span>
+      </div>
+
+      <section aria-labelledby="today-heading">
+        <h2 id="today-heading">Heute: sieben Bereiche, unterschiedliche Aktionsstile</h2>
+        <p class="section-copy">
+          Die Beispiele zeigen dieselben Bedienrollen mit unterschiedlichen Größen, Rahmen, Texten
+          und Hoverfarben. Die Darstellung ist aus den Templates abgeleitet, keine Aufnahme
+          produktiver Daten.
+        </p>
+        <div class="panel table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Bereich</th>
+                <th>Aktuelle Aktionen</th>
+                <th>Auffälligkeit</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="row-title">
+                  Verkäufe<span class="row-note">Vorgabe für die Kachelform</span>
+                </td>
+                <td class="action-cell">
+                  <div class="actions">
+                    <button class="current-icon emerald" title="Prüfbeleg">
+                      <svg class="icon"><use href="#receipt" /></svg></button
+                    ><button class="current-icon indigo" title="Chronik">
+                      <svg class="icon"><use href="#history" /></svg></button
+                    ><button class="current-icon indigo" title="Rechnung">
+                      <svg class="icon"><use href="#file" /></svg></button
+                    ><button class="current-icon rose" title="Retoure">
+                      <svg class="icon"><use href="#return" /></svg>
+                    </button>
+                  </div>
+                </td>
+                <td>Vier Einzelfarben; 14-px-Icons mit 6-px-Padding</td>
+              </tr>
+              <tr>
+                <td class="row-title">Artikelübersicht</td>
+                <td class="action-cell wide">
+                  <div class="actions">
+                    <button class="current-text bordered">Verkaufen</button
+                    ><button class="current-text">Bearbeiten</button
+                    ><button class="current-text">Archivieren</button
+                    ><button class="current-text">Löschen</button>
+                  </div>
+                </td>
+                <td>Textaktionen; „Verkaufen“ zusätzlich zur Verkaufsseite</td>
+              </tr>
+              <tr>
+                <td class="row-title">Inserate</td>
+                <td class="action-cell wide">
+                  <div class="actions">
+                    <button class="current-text bordered">Online setzen</button
+                    ><button class="current-text bordered">Öffnen</button
+                    ><button class="current-text bordered" aria-label="Inserat bearbeiten">
+                      <svg class="icon"><use href="#edit" /></svg></button
+                    ><button class="current-text danger" aria-label="Inserat beenden">
+                      <svg class="icon"><use href="#close" /></svg>
+                    </button>
+                  </div>
+                </td>
+                <td>Text, Rahmen und zwei Iconbuttons gemischt; Kopftext nur für Screenreader</td>
+              </tr>
+              <tr>
+                <td class="row-title">Ausgaben</td>
+                <td class="action-cell">
+                  <div class="actions">
+                    <button class="current-icon" aria-label="Als bezahlt markieren">
+                      <svg class="icon"><use href="#check" /></svg></button
+                    ><button class="current-icon" aria-label="Ausgabe bearbeiten">
+                      <svg class="icon"><use href="#edit" /></svg></button
+                    ><button class="current-icon" aria-label="Ausgabe löschen">
+                      <svg class="icon"><use href="#trash" /></svg>
+                    </button>
+                  </div>
+                </td>
+                <td>Ghost-Stil ohne semantische Warnfarbe beim Löschen</td>
+              </tr>
+              <tr>
+                <td class="row-title">Bestand</td>
+                <td class="action-cell wide">
+                  <div class="actions">
+                    <button class="current-text bordered">Archivieren</button
+                    ><button class="current-icon" aria-label="Etikett drucken">
+                      <svg class="icon"><use href="#printer" /></svg></button
+                    ><button class="current-icon" aria-label="Details öffnen">
+                      <svg class="icon"><use href="#arrow" /></svg></button
+                    ><button class="current-icon" aria-label="Webshop-Freigabe ändern">
+                      <svg class="icon"><use href="#store" /></svg></button
+                    ><button class="current-text bordered">
+                      <svg class="icon"><use href="#cart" /></svg> Verkaufen
+                    </button>
+                  </div>
+                </td>
+                <td>Eigene native Buttons und Link neben Textaktionen</td>
+              </tr>
+              <tr>
+                <td class="row-title">Verkäufer</td>
+                <td class="action-cell">
+                  <div class="actions">
+                    <button class="current-icon emerald" aria-label="Verkäufer bearbeiten">
+                      <svg class="icon"><use href="#edit" /></svg></button
+                    ><button class="current-icon amber" aria-label="Verkäufer archivieren">
+                      <svg class="icon"><use href="#archive" /></svg>
+                    </button>
+                  </div>
+                </td>
+                <td>Eigene Grün-/Orange-Hoverklassen am Shared-Button</td>
+              </tr>
+              <tr>
+                <td class="row-title">Buchhaltung</td>
+                <td class="action-cell wide">
+                  <div class="actions">
+                    <button class="current-text" style="background: #fcc601; color: #1a1a1a">
+                      Buchen</button
+                    ><button class="current-text bordered">Zuweisen</button
+                    ><button class="current-icon" aria-label="Transaktion ignorieren">
+                      <svg class="icon"><use href="#close" /></svg>
+                    </button>
+                  </div>
+                </td>
+                <td>Primär-, Sekundär- und Ghost-Variante in einer Zelle</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="proposal-heading">
+        <h2 id="proposal-heading">Vorschlag: dieselbe Kachel, zwei Farbstufen</h2>
+        <p class="section-copy">
+          Beide Varianten verwenden dieselbe 28 × 28-px-Fläche, 8-px-Ecken, ein mittig sitzendes
+          16-px-Icon und dieselben Abstände. Die Beispiele mit farbiger Fläche zeigen den
+          Hoverzustand bereits an.
+        </p>
+        <div class="proposal-grid">
+          <article class="panel option recommended">
+            <div class="option-head">
+              <h3>A · Bedeutung im Hover</h3>
+              <span class="badge">Gewählt</span>
+            </div>
+            <p>
+              Neutrale Aktionen bleiben grau. Bestätigen oder Wiederherstellen wird grün,
+              Archivieren warm und endgültige oder fachlich kritische Aktionen rot. Die
+              Retourenkachel aus Verkäufe bleibt als Vorbild erhalten.
+            </p>
+            <div class="demo">
+              <button class="tile" aria-label="Beleg">
+                <svg class="icon"><use href="#receipt" /></svg></button
+              ><button class="tile" aria-label="Chronik">
+                <svg class="icon"><use href="#history" /></svg></button
+              ><button class="tile" aria-label="Rechnung">
+                <svg class="icon"><use href="#file" /></svg></button
+              ><button class="tile critical preview" aria-label="Retoure">
+                <svg class="icon"><use href="#return" /></svg>
+              </button>
+            </div>
+            <div class="caption">
+              <span>Verkäufe · Retoure im Hover</span
+              ><span class="preview-key">Hover-Vorschau</span>
+            </div>
+            <div class="demo-label">Weitere Rollen, dieselbe Form</div>
+            <div class="demo">
+              <button class="tile" aria-label="Bearbeiten">
+                <svg class="icon"><use href="#edit" /></svg></button
+              ><button class="tile warning preview" aria-label="Archivieren">
+                <svg class="icon"><use href="#archive" /></svg></button
+              ><button class="tile positive preview" aria-label="Wiederherstellen">
+                <svg class="icon"><use href="#repeat" /></svg></button
+              ><button class="tile critical preview" aria-label="Löschen">
+                <svg class="icon"><use href="#trash" /></svg>
+              </button>
+            </div>
+            <div class="caption">
+              <span>Artikel · im Hover</span><span>Neutral · Warnung · Erfolg · Kritisch</span>
+            </div>
+          </article>
+          <article class="panel option quiet">
+            <div class="option-head"><h3>B · Ruhigere Tabelle</h3></div>
+            <p>
+              Alle normalen Aktionen erhalten denselben neutralen Hoverzustand. Nur Löschen, Beenden
+              und Retoure werden rot. Das reduziert Farbe in dichten Tabellen, unterscheidet
+              fachliche Aktionen aber weniger deutlich.
+            </p>
+            <div class="demo">
+              <button class="tile" aria-label="Beleg">
+                <svg class="icon"><use href="#receipt" /></svg></button
+              ><button class="tile" aria-label="Chronik">
+                <svg class="icon"><use href="#history" /></svg></button
+              ><button class="tile" aria-label="Rechnung">
+                <svg class="icon"><use href="#file" /></svg></button
+              ><button class="tile critical preview" aria-label="Retoure">
+                <svg class="icon"><use href="#return" /></svg>
+              </button>
+            </div>
+            <div class="caption">
+              <span>Verkäufe · Retoure im Hover</span
+              ><span class="preview-key">Hover-Vorschau</span>
+            </div>
+            <div class="demo-label">Weitere Rollen, dieselbe Form</div>
+            <div class="demo">
+              <button class="tile preview" aria-label="Bearbeiten">
+                <svg class="icon"><use href="#edit" /></svg></button
+              ><button class="tile preview" aria-label="Archivieren">
+                <svg class="icon"><use href="#archive" /></svg></button
+              ><button class="tile preview" aria-label="Wiederherstellen">
+                <svg class="icon"><use href="#repeat" /></svg></button
+              ><button class="tile critical preview" aria-label="Löschen">
+                <svg class="icon"><use href="#trash" /></svg>
+              </button>
+            </div>
+            <div class="caption">
+              <span>Artikel · im Hover</span><span>Neutral · Neutral · Neutral · Kritisch</span>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="details-heading">
+        <h2 id="details-heading">Gemeinsamer Vertrag</h2>
+        <p class="section-copy">
+          Diese Eigenschaften gelten in beiden Varianten und würden in einer Shared-Komponente statt
+          in den Feature-Templates liegen.
+        </p>
+        <div class="implementation">
+          <div class="spec">
+            <strong>Geometrie</strong
+            ><span
+              >28 × 28 px auf Desktop, 8 px Radius, 16 px Icon; mindestens 44 × 44 px bei grobem
+              Zeiger.</span
+            >
+          </div>
+          <div class="spec">
+            <strong>Zustände</strong
+            ><span
+              >Ruhe, Hover, Tastaturfokus, gedrückt, deaktiviert und Laden; Farbe kommt aus einer
+              benannten Bedeutung.</span
+            >
+          </div>
+          <div class="spec">
+            <strong>Bedienung</strong
+            ><span
+              >Jedes Symbol erhält einen eindeutigen zugänglichen Namen. Links bleiben Links,
+              Aktionen bleiben Buttons.</span
+            >
+          </div>
+          <div class="spec">
+            <strong>Tabellen</strong
+            ><span
+              >Eine sichtbare Überschrift „Aktionen“, gleichmäßige Abstände und identische Icongröße
+              in allen verwaltbaren Listen.</span
+            >
+          </div>
+        </div>
+      </section>
+      <section class="section decision" aria-label="Offene Entscheidungen">
+        <strong>Entscheidungsstand</strong>
+        <ul>
+          <li>Variante A für die Hoverfarben ist gewählt.</li>
+          <li>
+            „Verkaufen“ aus der Artikelübersicht und der Bestandsliste entfernen? Mein Vorschlag:
+            ja; der Verkauf bleibt über die Verkaufsseite erreichbar.
+          </li>
+          <li>
+            Für seltene lange Aktionen wie „Erneut inserieren“: Icon mit Beschriftung im Tooltip
+            oder eine beschriftete Ausnahme innerhalb derselben Komponente?
+          </li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>

@@ -10,6 +10,7 @@ import { TableSortHeaderComponent } from '../../../../shared/components/table-so
 import { PageHeaderComponent } from '../../../../shared/components/page-header/page-header.component';
 import { DataTableComponent } from '../../../../shared/components/data-table/data-table.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { TableActionButtonComponent } from '../../../../shared/components/table-action-button/table-action-button.component';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
@@ -79,12 +80,41 @@ beforeAll(async () => {
   ]);
   registerSignalInputs(ButtonComponent, [
     'variant',
+    'tone',
     'size',
     'icon',
     'disabled',
     'ariaLabel',
     'ariaPressed',
+    'iconOnly',
+    'title',
+    'loading',
+    'link',
+    'href',
+    'queryParams',
   ]);
+  registerSignalInputs(TableActionButtonComponent, [
+    'icon',
+    'label',
+    'tone',
+    'disabled',
+    'loading',
+    'link',
+    'href',
+    'queryParams',
+  ]);
+  const buttonMetadata = (
+    ButtonComponent as unknown as {
+      ɵcmp: { outputs: Record<string, string> };
+    }
+  ).ɵcmp;
+  buttonMetadata.outputs = { ...buttonMetadata.outputs, clicked: 'clicked' };
+  const tableActionMetadata = (
+    TableActionButtonComponent as unknown as {
+      ɵcmp: { outputs: Record<string, string> };
+    }
+  ).ɵcmp;
+  tableActionMetadata.outputs = { ...tableActionMetadata.outputs, clicked: 'clicked' };
   registerSignalInputs(BadgeComponent, ['tone', 'mono']);
   registerSignalInputs(BetaApprovalDialogComponent, ['application', 'processing', 'errorMessage']);
   registerSignalInputs(ModalShellComponent, ['title', 'subtitle', 'icon', 'iconTone', 'size']);
@@ -187,11 +217,11 @@ describe('BetaApplicationsComponent', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    const acceptButton = fixture.debugElement
-      .queryAll(By.directive(ButtonComponent))
-      .find((element) => element.nativeElement.textContent?.includes('Annehmen'));
-    expect(acceptButton).toBeDefined();
-    acceptButton?.triggerEventHandler('clicked', new MouseEvent('click'));
+    const acceptButton = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+      'button[aria-label="Bewerbung von Anna Beispiel annehmen"]',
+    );
+    expect(acceptButton).not.toBeNull();
+    acceptButton?.click();
     fixture.detectChanges();
 
     const dialog = fixture.debugElement.query(By.directive(BetaApprovalDialogComponent));
@@ -221,10 +251,10 @@ describe('BetaApplicationsComponent', () => {
     fixture.detectChanges();
 
     expect(fixture.nativeElement.textContent).toContain('Einladung fehlgeschlagen');
-    const retryButton = fixture.debugElement
-      .queryAll(By.directive(ButtonComponent))
-      .find((element) => element.nativeElement.textContent?.includes('Einladung erneut senden'));
-    retryButton?.triggerEventHandler('clicked', new MouseEvent('click'));
+    const retryButton = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+      'button[aria-label="Einladung an anna@example.test erneut senden"]',
+    );
+    retryButton?.click();
     await fixture.whenStable();
 
     expect(resendInvitation).toHaveBeenCalledWith('a1');
@@ -251,10 +281,10 @@ describe('BetaApplicationsComponent', () => {
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
-    const acceptButton = fixture.debugElement
-      .queryAll(By.directive(ButtonComponent))
-      .find((element) => element.nativeElement.textContent?.includes('Annehmen'));
-    acceptButton?.triggerEventHandler('clicked', new MouseEvent('click'));
+    const acceptButton = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+      'button[aria-label="Bewerbung von Anna Beispiel annehmen"]',
+    );
+    acceptButton?.click();
     fixture.detectChanges();
 
     let dialog = fixture.debugElement.query(By.directive(BetaApprovalDialogComponent));
@@ -324,10 +354,10 @@ describe('BetaApplicationsComponent', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    const retryButton = fixture.debugElement
-      .queryAll(By.directive(ButtonComponent))
-      .find((element) => element.nativeElement.textContent?.includes('Bestätigung erneut senden'));
-    retryButton?.triggerEventHandler('clicked', new MouseEvent('click'));
+    const retryButton = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+      'button[aria-label="Bestätigung an anna@example.test erneut senden"]',
+    );
+    retryButton?.click();
     await fixture.whenStable();
 
     expect(resendApplicationReceipt).toHaveBeenCalledWith('a1');
@@ -347,10 +377,10 @@ describe('BetaApplicationsComponent', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    const retryButton = fixture.debugElement
-      .queryAll(By.directive(ButtonComponent))
-      .find((element) => element.nativeElement.textContent?.includes('Ablehnung erneut senden'));
-    retryButton?.triggerEventHandler('clicked', new MouseEvent('click'));
+    const retryButton = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+      'button[aria-label="Ablehnung an anna@example.test erneut senden"]',
+    );
+    retryButton?.click();
     await fixture.whenStable();
 
     expect(resendRejection).toHaveBeenCalledWith('a1');
@@ -363,10 +393,10 @@ describe('BetaApplicationsComponent', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    const deleteButton = fixture.debugElement
-      .queryAll(By.directive(ButtonComponent))
-      .find((element) => element.nativeElement.textContent?.trim() === 'Löschen');
-    deleteButton?.triggerEventHandler('clicked', new MouseEvent('click'));
+    const deleteButton = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+      'button[aria-label="Abgelehnte Bewerbung von Anna Beispiel löschen"]',
+    );
+    deleteButton?.click();
     await fixture.whenStable();
     fixture.detectChanges();
 
@@ -391,15 +421,19 @@ describe('BetaApplicationsComponent', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    const rejectButton = fixture.debugElement
-      .queryAll(By.directive(ButtonComponent))
-      .find((element) => element.nativeElement.textContent?.trim() === 'Ablehnen');
-    rejectButton?.triggerEventHandler('clicked', new MouseEvent('click'));
+    const rejectButton = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+      'button[aria-label="Bewerbung von Anna Beispiel ablehnen"]',
+    );
+    rejectButton?.click();
     await fixture.whenStable();
     fixture.detectChanges();
 
     expect(list).toHaveBeenCalledTimes(2);
-    expect(fixture.nativeElement.textContent).toContain('Ablehnung erneut senden');
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector(
+        'button[aria-label="Ablehnung an anna@example.test erneut senden"]',
+      ),
+    ).not.toBeNull();
     expect(fixture.nativeElement.textContent).toContain(
       'Die Ablehnungs-E-Mail konnte nicht versendet werden.',
     );

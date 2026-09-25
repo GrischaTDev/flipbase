@@ -10,6 +10,7 @@ import type { Supplier } from '../../core/models/flipbase.models';
 import { SuppliersService } from '../../core/services/suppliers.service';
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
+import { TableActionButtonComponent } from '../../shared/components/table-action-button/table-action-button.component';
 import {
   CustomSelectComponent,
   SelectOption,
@@ -30,6 +31,7 @@ import {
   imports: [
     BadgeComponent,
     ButtonComponent,
+    TableActionButtonComponent,
     CustomSelectComponent,
     DataTableComponent,
     PageHeaderComponent,

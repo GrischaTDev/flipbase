@@ -104,26 +104,17 @@
               </td>
               <td class="text-right">
                 <div class="inline-flex items-center gap-1">
-                  <app-button
+                  <app-table-action-button
                     data-seller-edit-action
-                    class="[&_button]:hover:bg-emerald-500/10 [&_button]:hover:text-emerald-700 [&_button]:focus-visible:outline-emerald-600 dark:[&_button]:hover:text-emerald-300"
-                    variant="ghost"
-                    size="slim"
                     [icon]="pencilIcon"
-                    [ariaLabel]="seller.name + ' bearbeiten'"
+                    [label]="seller.name + ' bearbeiten'"
                     (clicked)="editSellerFromAction($event, seller)"
                   />
-                  <app-button
+                  <app-table-action-button
                     data-seller-archive-action
-                    [class]="
-                      seller.is_active === false
-                        ? '[&_button]:hover:bg-emerald-500/10 [&_button]:hover:text-emerald-700 [&_button]:focus-visible:outline-emerald-600 dark:[&_button]:hover:text-emerald-300'
-                        : '[&_button]:hover:bg-orange-500/10 [&_button]:hover:text-orange-700 [&_button]:focus-visible:outline-orange-600 dark:[&_button]:hover:text-orange-300'
-                    "
-                    variant="ghost"
-                    size="slim"
                     [icon]="seller.is_active === false ? restoreIcon : archiveIcon"
-                    [ariaLabel]="
+                    [tone]="seller.is_active === false ? 'positive' : 'warning'"
+                    [label]="
                       seller.name +
                       (seller.is_active === false ? ' wiederherstellen' : ' archivieren')
                     "

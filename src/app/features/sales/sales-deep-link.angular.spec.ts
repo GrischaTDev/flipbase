@@ -21,6 +21,8 @@ import { TableColumnMenuComponent } from '../../shared/components/table-column-m
 import { TableSortHeaderComponent } from '../../shared/components/table-sort-header/table-sort-header.component';
 import { DataTableComponent } from '../../shared/components/data-table/data-table.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
+import { BadgeComponent } from '../../shared/components/badge/badge.component';
+import { TableActionButtonComponent } from '../../shared/components/table-action-button/table-action-button.component';
 
 interface AngularInputMetadata {
   inputs: Record<string, unknown>;
@@ -64,6 +66,7 @@ beforeAll(async () => {
     return readFile(matches[0], 'utf8');
   });
   registerSignalInputs(PageHeaderComponent, ['icon']);
+  registerSignalInputs(BadgeComponent, ['tone', 'mono']);
   registerSignalInputs(DataTableComponent, [
     'ariaLabel',
     'searchValue',
@@ -84,12 +87,35 @@ beforeAll(async () => {
   ]);
   registerSignalInputs(ButtonComponent, [
     'variant',
+    'tone',
     'size',
     'icon',
     'disabled',
     'ariaLabel',
     'ariaPressed',
+    'iconOnly',
+    'title',
+    'loading',
+    'link',
+    'href',
+    'queryParams',
   ]);
+  registerSignalInputs(TableActionButtonComponent, [
+    'icon',
+    'label',
+    'tone',
+    'disabled',
+    'loading',
+    'link',
+    'href',
+    'queryParams',
+  ]);
+  const tableActionMetadata = (
+    TableActionButtonComponent as unknown as {
+      ɵcmp: { outputs: Record<string, string> };
+    }
+  ).ɵcmp;
+  tableActionMetadata.outputs = { ...tableActionMetadata.outputs, clicked: 'clicked' };
   registerSignalInputs(TableColumnMenuComponent, [
     'columns',
     'sortOptions',
@@ -233,12 +259,11 @@ describe('SalesComponent – verlinkter Verkauf', () => {
     const harness = await RouterTestingHarness.create('/sales');
     const links = Array.from(
       harness.routeNativeElement?.querySelectorAll<HTMLAnchorElement>(
-        '[data-sale-audit-print-link]',
+        '[data-sale-audit-print-link] a, a[data-sale-audit-print-link]',
       ) ?? [],
     );
 
     expect(links).toHaveLength(2);
-    expect(links.every((link) => link.textContent?.includes('Prüfbeleg'))).toBe(true);
     expect(
       links.every(
         (link) =>

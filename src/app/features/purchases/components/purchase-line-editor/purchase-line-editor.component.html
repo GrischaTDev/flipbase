@@ -27,9 +27,7 @@
           <th scope="col" class="w-28 border-b border-fb-line px-2 py-2 text-left">Menge</th>
           <th scope="col" class="w-32 border-b border-fb-line px-2 py-2 text-left">Stückpreis</th>
           <th scope="col" class="w-24 border-b border-fb-line px-2 py-2 text-right">Gesamt</th>
-          <th scope="col" class="w-16 border-b border-fb-line py-2">
-            <span class="sr-only">Entfernen</span>
-          </th>
+          <th scope="col" class="w-20 border-b border-fb-line py-2 text-right">Aktionen</th>
         </tr>
       </thead>
       <tbody class="block divide-y divide-fb-line md:table-row-group">
@@ -131,14 +129,12 @@
               }}
             </td>
             <td class="col-start-3 row-start-1 self-start text-right md:py-3">
-              <app-button
-                variant="ghost"
-                [iconOnly]="true"
+              <app-table-action-button
                 [icon]="removeIcon"
-                [ariaLabel]="
+                [label]="
                   'Artikel ' + (row.controls.titleSnapshot.value || 'ohne Namen') + ' entfernen'
                 "
-                title="Artikel entfernen"
+                tone="critical"
                 [disabled]="row.controls.structuralLocked.value"
                 (clicked)="removeLine($index)"
               />

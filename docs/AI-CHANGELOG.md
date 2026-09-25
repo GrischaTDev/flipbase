@@ -1,5 +1,30 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-25 – Juna – Aktionsbuttons in Admin-Tabellen vereinheitlicht
+
+**Auftrag:** Die unterschiedlichen Aktionsbuttons in Admin-Tabellen erfassen,
+vorab als Mockup vergleichen und die vom Nutzer gewählte Variante A einheitlich
+umsetzen.
+
+**Änderung:** Auf dem eigenen Branch `juna/action-buttons` die Aktionsspalten
+anhand der Templates verglichen und ein HTML-Mockup mit Bildvorschau erstellt.
+Die gewählte Variante A als `TableActionButtonComponent` auf dem gemeinsamen
+Button umgesetzt: 28 × 28 px auf Desktop, mittiges 16-px-Icon, 8-px-Ecken,
+44-px-Touchziel und Hover-/Fokusfarben nach Bedeutung. Verkäufe,
+Artikelübersicht, Inserate, Ausgaben, Bestand, Verkäufer, Buchhaltung,
+Mandantenübersicht, Plattform-Admin-Tabellen und die bearbeitbare
+Einkaufstabelle verwenden die gemeinsame Kachel. Der doppelte Rahmen am
+Inserat-Beenden-Symbol entfällt; die
+Aktionsspalte hat dort eine sichtbare Überschrift. Die Designentscheidung ist
+in den Admin-Richtlinien dokumentiert.
+
+**Prüfung:** 150 gezielte Angular-Tests, TypeScript-Typprüfung, ESLint für die
+geänderten TypeScript-Dateien, Prettier, gemeinsame Admin-Architekturprüfung,
+`git diff --check` und Angular-Produktionsbau bestanden. Mockup mit Axe ohne
+WCAG-AA-Verstoß geprüft; die gebaute CSS-Datei im Browser auf 28-px-Geometrie,
+Hover- und Fokusfarben kontrolliert. Der Bau meldete nur die bekannte
+CommonJS-Warnung zu `pako`.
+
 ## 2026-09-25 – Juna – GA4-Datenstream für die Landingpage aktiviert
 
 **Auftrag:** Die vorhandene zustimmungsgebundene Analytics-Einbindung mit der
