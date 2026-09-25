@@ -14,6 +14,7 @@ import { StockService } from '../../../../core/services/stock.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { canLeaveUnsavedEntry } from '../../../../shared/guards/unsaved-entry.guard';
 import { ProductDetailComponent } from './product-detail.component';
+import { ProductSearchPhotoService } from '../../services/product-search-photo.service';
 
 const original: CatalogProduct = {
   id: 'product-1',
@@ -150,6 +151,9 @@ describe('ProductDetailComponent', () => {
     search: vi.fn(),
     sessionUsage: signal({ searches: 0, estimatedCostUsd: 0 }),
   };
+  const productSearchPhotos = {
+    prepare: vi.fn(async (file: File) => file),
+  };
   const platformOperator = {
     operator: signal(true),
     isOperator: vi.fn(async () => true),
@@ -163,6 +167,7 @@ describe('ProductDetailComponent', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    productSearchPhotos.prepare.mockImplementation(async (file) => file);
     activeWorkspace.set({ id: original.workspace_id });
     catalog.products.set([{ ...original }]);
     catalog.loadError.set(null);
@@ -184,6 +189,7 @@ describe('ProductDetailComponent', () => {
         { provide: CatalogService, useValue: catalog },
         { provide: BarcodeLookupService, useValue: barcodeLookup },
         { provide: BarcodeAiLookupService, useValue: barcodeAiLookup },
+        { provide: ProductSearchPhotoService, useValue: productSearchPhotos },
         { provide: PlatformOperatorService, useValue: platformOperator },
         { provide: StockService, useValue: stock },
         { provide: MediaService, useValue: media },
@@ -465,6 +471,7 @@ describe('ProductDetailComponent', () => {
         { provide: CatalogService, useValue: catalog },
         { provide: BarcodeLookupService, useValue: barcodeLookup },
         { provide: BarcodeAiLookupService, useValue: barcodeAiLookup },
+        { provide: ProductSearchPhotoService, useValue: productSearchPhotos },
         { provide: PlatformOperatorService, useValue: platformOperator },
         { provide: StockService, useValue: stock },
         { provide: MediaService, useValue: media },
@@ -539,11 +546,13 @@ describe('ProductDetailComponent', () => {
     const input = document.createElement('input');
     input.type = 'file';
     Object.defineProperty(input, 'files', { value: [photo] });
-    component.selectLabelPhoto({ target: input } as unknown as Event);
+    await component.selectLabelPhoto({ target: input } as unknown as Event);
     await component.searchWithAi();
 
     expect(component.aiSearchOpen()).toBe(true);
     expect(barcodeAiLookup.search).toHaveBeenCalledWith('', [photo]);
+    expect(component.sourceName(candidate.sourceUrl)).toBe('shop.example.test');
+    expect(component.aiMessage()).toBeNull();
     component.useAiSuggestion(candidate);
     expect(component.form.getRawValue()).toMatchObject({
       ean: '',
@@ -563,6 +572,87 @@ describe('ProductDetailComponent', () => {
         sku: '',
       }),
     );
+  });
+
+  it('sucht erst nach der Verkleinerung und sendet nur die kleinere Datei', async () => {
+    await openNew();
+    const original = new File([new Uint8Array(7_000_000)], 'karton.jpg', {
+      type: 'image/jpeg',
+    });
+    const compressed = new File([new Uint8Array(1_400_000)], 'karton.jpg', {
+      type: 'image/jpeg',
+    });
+    const pending = deferred<File>();
+    productSearchPhotos.prepare.mockReturnValueOnce(pending.promise);
+    component.toggleAiSearch();
+    const input = document.createElement('input');
+    input.type = 'file';
+    Object.defineProperty(input, 'files', { value: [original] });
+
+    const selection = component.selectLabelPhoto({ target: input } as unknown as Event);
+    expect(component.photoProcessing()).toBe(true);
+    await component.searchWithAi();
+    expect(barcodeAiLookup.search).not.toHaveBeenCalled();
+
+    pending.resolve(compressed);
+    await selection;
+    expect(component.photoProcessing()).toBe(false);
+    expect(component.labelPhotos()[0].file).toBe(compressed);
+    expect(component.formatPhotoSize(compressed.size)).toBe('1,4 MB');
+    barcodeAiLookup.search.mockResolvedValueOnce({
+      candidates: [],
+      usage: { inputTokens: 0, outputTokens: 0, webSearchCalls: 0, estimatedCostUsd: 0 },
+    });
+    await component.searchWithAi();
+    expect(barcodeAiLookup.search).toHaveBeenCalledWith('', [compressed]);
+  });
+
+  it('verarbeitet mehrere ausgewählte Fotos vor der gemeinsamen Suche in ihrer Reihenfolge', async () => {
+    await openNew();
+    const originals = ['karton', 'etikett', 'schuh'].map(
+      (name) => new File([name], `${name}.jpg`, { type: 'image/jpeg' }),
+    );
+    const prepared = originals.map(
+      (file) => new File([`${file.name}-kleiner`], file.name, { type: 'image/jpeg' }),
+    );
+    productSearchPhotos.prepare.mockImplementation(
+      async (file) => prepared[originals.indexOf(file)],
+    );
+    component.toggleAiSearch();
+    const input = document.createElement('input');
+    input.type = 'file';
+    Object.defineProperty(input, 'files', { value: originals });
+
+    await component.selectLabelPhoto({ target: input } as unknown as Event);
+    expect(productSearchPhotos.prepare.mock.calls.map(([file]) => file)).toEqual(originals);
+    expect(component.labelPhotos().map((entry) => entry.file)).toEqual(prepared);
+    barcodeAiLookup.search.mockResolvedValueOnce({
+      candidates: [],
+      processedPhotoCount: 3,
+      usage: { inputTokens: 0, outputTokens: 0, webSearchCalls: 0, estimatedCostUsd: 0 },
+    });
+    await component.searchWithAi();
+    expect(barcodeAiLookup.search).toHaveBeenCalledWith('', prepared);
+  });
+
+  it('übernimmt kein Foto aus einer Verarbeitung nach dem Schließen des Dialogs', async () => {
+    await openNew();
+    const original = new File(['foto'], 'schuh.jpg', { type: 'image/jpeg' });
+    const pending = deferred<File>();
+    productSearchPhotos.prepare.mockReturnValueOnce(pending.promise);
+    component.toggleAiSearch();
+    const input = document.createElement('input');
+    input.type = 'file';
+    Object.defineProperty(input, 'files', { value: [original] });
+
+    const selection = component.selectLabelPhoto({ target: input } as unknown as Event);
+    component.toggleAiSearch();
+    component.toggleAiSearch();
+    pending.resolve(original);
+    await selection;
+
+    expect(component.labelPhotos()).toEqual([]);
+    expect(component.photoProcessing()).toBe(false);
   });
 
   it('übernimmt beim Erstellen gelesene Etikettangaben ohne Webtreffer getrennt', async () => {
@@ -587,9 +677,10 @@ describe('ProductDetailComponent', () => {
     const input = document.createElement('input');
     input.type = 'file';
     Object.defineProperty(input, 'files', { value: [photo] });
-    component.selectLabelPhoto({ target: input } as unknown as Event);
+    await component.selectLabelPhoto({ target: input } as unknown as Event);
     await component.searchWithAi();
-    expect(component.aiMessage()).toContain('Etikett wurde gelesen');
+    expect(component.aiMessage()).toBeNull();
+    expect(component.aiResult()?.labelSuggestion).toBe(labelSuggestion);
     component.useAiLabelSuggestion(labelSuggestion);
 
     expect(component.form.getRawValue()).toMatchObject({
@@ -627,12 +718,13 @@ describe('ProductDetailComponent', () => {
     const input = document.createElement('input');
     input.type = 'file';
     Object.defineProperty(input, 'files', { value: photos });
-    component.selectLabelPhoto({ target: input } as unknown as Event);
+    await component.selectLabelPhoto({ target: input } as unknown as Event);
 
     await component.searchWithAi();
 
     expect(barcodeAiLookup.search).toHaveBeenCalledWith('', photos);
-    expect(component.aiMessage()).toContain('möglichen Artikel erkannt');
+    expect(component.aiMessage()).toBeNull();
+    expect(component.aiResult()?.visualSuggestion).toBe(visualSuggestion);
     component.useAiVisualSuggestion(visualSuggestion);
     expect(component.form.getRawValue()).toMatchObject({
       title: 'JAKO J-SFG Twist',
@@ -660,7 +752,7 @@ describe('ProductDetailComponent', () => {
     const input = document.createElement('input');
     input.type = 'file';
     Object.defineProperty(input, 'files', { value: photos });
-    component.selectLabelPhoto({ target: input } as unknown as Event);
+    await component.selectLabelPhoto({ target: input } as unknown as Event);
 
     await component.searchWithAi();
 
