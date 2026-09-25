@@ -94,4 +94,15 @@ describe('ModalShellComponent', () => {
     closeBtn.click();
     expect(closed).toBe(true);
   });
+
+  it('keeps the dialog in the viewport while only its content scrolls', () => {
+    const overlay = fixture.nativeElement.querySelector('[role="dialog"]');
+    const card = overlay.querySelector('.linear-surface');
+    const content = card.querySelector('.overflow-y-auto');
+
+    expect(overlay.classList.contains('overflow-hidden')).toBe(true);
+    expect(overlay.classList.contains('overflow-y-auto')).toBe(false);
+    expect(card.className).toContain('max-h-[calc(100dvh-1.5rem)]');
+    expect(content.classList.contains('overscroll-contain')).toBe(true);
+  });
 });

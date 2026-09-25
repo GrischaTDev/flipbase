@@ -62,10 +62,11 @@ import {
 } from '../../../../core/services/barcode-ai-lookup.service';
 import { PlatformOperatorService } from '../../../../core/services/platform-operator.service';
 import { BarcodeScannerComponent } from '../../../../shared/components/barcode-scanner/barcode-scanner.component';
-import { LucideScanBarcode } from '@lucide/angular';
+import { LucideExternalLink, LucideScanBarcode, LucideX } from '@lucide/angular';
 import { UnsavedEntryPage } from '../../../../shared/guards/unsaved-entry.guard';
 import { summarizeProductStock } from './product-detail-stock';
 import { PurchaseProductReturnService } from '../../../purchases/services/purchase-product-return.service';
+import { ProductSearchPhotoService } from '../../services/product-search-photo.service';
 
 @Component({
   selector: 'app-product-detail',
@@ -103,11 +104,13 @@ export class ProductDetailComponent implements UnsavedEntryPage {
   readonly media = inject(MediaService);
   private readonly barcodeLookup = inject(BarcodeLookupService);
   private readonly barcodeAiLookup = inject(BarcodeAiLookupService);
+  private readonly productSearchPhotos = inject(ProductSearchPhotoService);
   private readonly productCategories = inject(ProductCategoryService);
   private readonly productReturn = inject(PurchaseProductReturnService);
-  readonly aiSessionUsage = this.barcodeAiLookup.sessionUsage;
   readonly platformOperator = inject(PlatformOperatorService);
   readonly barcodeIcon = LucideScanBarcode;
+  readonly removePhotoIcon = LucideX;
+  readonly sourceIcon = LucideExternalLink;
   readonly barcodeScannerOpen = signal(false);
   readonly barcodeLoading = signal(false);
   readonly barcodeMessage = signal<string | null>(null);
@@ -117,11 +120,13 @@ export class ProductDetailComponent implements UnsavedEntryPage {
   readonly aiSearchEan = signal<string | null>(null);
   readonly labelPhoto = signal<File | null>(null);
   readonly labelPhotos = signal<readonly { file: File; previewUrl: string }[]>([]);
+  readonly photoProcessing = signal(false);
   readonly aiLoading = signal(false);
   readonly aiResult = signal<BarcodeAiResult | null>(null);
   readonly aiError = signal<string | null>(null);
   readonly aiMessage = signal<string | null>(null);
   private aiRequestId = 0;
+  private photoSelectionId = 0;
   readonly categorySuggestion = signal<string | null>(null);
   readonly brandSuggestion = signal<string | null>(null);
   private barcodeRequestId = 0;
@@ -433,7 +438,9 @@ export class ProductDetailComponent implements UnsavedEntryPage {
     if (this.aiSearchOpen()) {
       this.aiSearchOpen.set(false);
       this.aiRequestId++;
+      this.photoSelectionId++;
       this.aiLoading.set(false);
+      this.photoProcessing.set(false);
       this.clearLabelPhotos();
       return;
     }
@@ -446,47 +453,60 @@ export class ProductDetailComponent implements UnsavedEntryPage {
     this.aiMessage.set(null);
   }
 
-  selectLabelPhoto(event: Event): void {
+  async selectLabelPhoto(event: Event): Promise<void> {
     const target = event.target;
     if (!(target instanceof HTMLInputElement)) return;
     const photos = [...(target.files ?? [])];
     target.value = '';
+    if (!photos.length || !this.aiSearchOpen() || this.aiLoading() || this.photoProcessing())
+      return;
     if (photos.length + this.labelPhotos().length > 5) {
       this.aiError.set('Bitte höchstens fünf Fotos hinzufügen.');
       return;
     }
-    if (
-      photos.some(
-        (photo) =>
-          !['image/jpeg', 'image/png', 'image/webp'].includes(photo.type) || photo.size > 5_000_000,
-      )
-    ) {
-      this.aiError.set('Bitte JPG-, PNG- oder WebP-Fotos unter je 5 MB auswählen.');
-      return;
-    }
-    const next = [
-      ...this.labelPhotos(),
-      ...photos.map((file) => ({
-        file,
-        previewUrl: typeof URL.createObjectURL === 'function' ? URL.createObjectURL(file) : '',
-      })),
-    ];
-    if (next.reduce((total, photo) => total + photo.file.size, 0) > 15_000_000) {
-      for (const photo of next.slice(this.labelPhotos().length))
-        if (photo.previewUrl) URL.revokeObjectURL(photo.previewUrl);
-      this.aiError.set('Alle Fotos zusammen dürfen höchstens 15 MB groß sein.');
-      return;
-    }
-    this.labelPhotos.set(next);
-    this.labelPhoto.set(next[0]?.file ?? null);
+    const selectionId = ++this.photoSelectionId;
+    this.photoProcessing.set(true);
     this.aiResult.set(null);
     this.aiError.set(null);
-    this.aiMessage.set(
-      next.length ? `${next.length} Foto${next.length === 1 ? '' : 's'} ausgewählt.` : null,
-    );
+    this.aiMessage.set(null);
+    try {
+      const prepared: File[] = [];
+      for (const photo of photos) {
+        prepared.push(await this.productSearchPhotos.prepare(photo));
+        if (selectionId !== this.photoSelectionId || this.destroyRef.destroyed) return;
+      }
+      if (
+        [...this.labelPhotos().map((entry) => entry.file), ...prepared].reduce(
+          (total, photo) => total + photo.size,
+          0,
+        ) > 15_000_000
+      ) {
+        throw new Error('Alle Fotos zusammen dürfen höchstens 15 MB groß sein.');
+      }
+      const next = [
+        ...this.labelPhotos(),
+        ...prepared.map((file) => ({
+          file,
+          previewUrl: typeof URL.createObjectURL === 'function' ? URL.createObjectURL(file) : '',
+        })),
+      ];
+      this.labelPhotos.set(next);
+      this.labelPhoto.set(next[0]?.file ?? null);
+    } catch (error: unknown) {
+      if (selectionId !== this.photoSelectionId || this.destroyRef.destroyed) return;
+      this.aiError.set(
+        error instanceof Error
+          ? error.message
+          : 'Ein Foto konnte nicht verkleinert werden. Bitte versuche ein anderes Bild.',
+      );
+    } finally {
+      if (selectionId === this.photoSelectionId && !this.destroyRef.destroyed)
+        this.photoProcessing.set(false);
+    }
   }
 
   removeLabelPhoto(index: number): void {
+    if (this.aiLoading() || this.photoProcessing()) return;
     const current = this.labelPhotos();
     const removed = current[index];
     if (removed?.previewUrl) URL.revokeObjectURL(removed.previewUrl);
@@ -494,6 +514,7 @@ export class ProductDetailComponent implements UnsavedEntryPage {
     this.labelPhotos.set(next);
     this.labelPhoto.set(next[0]?.file ?? null);
     this.aiResult.set(null);
+    this.aiMessage.set(null);
   }
 
   private clearLabelPhotos(): void {
@@ -504,7 +525,8 @@ export class ProductDetailComponent implements UnsavedEntryPage {
   }
 
   async searchWithAi(): Promise<void> {
-    if (!this.creating() || !this.aiSearchOpen() || this.aiLoading()) return;
+    if (!this.creating() || !this.aiSearchOpen() || this.aiLoading() || this.photoProcessing())
+      return;
     const enteredEan = this.form.controls.ean.value.trim();
     const ean = enteredEan ? normalizeGtin(enteredEan) : '';
     const photos = this.labelPhotos().map((entry) => entry.file);
@@ -536,16 +558,12 @@ export class ProductDetailComponent implements UnsavedEntryPage {
         (result.processedPhotoCount ?? photos.length) < photos.length
           ? 'Der Server hat nur das erste Foto verarbeitet. Die Suche mit allen Fotos ist erst nach dem Update der Serverfunktion verfügbar. Prüfe diesen Vorschlag besonders sorgfältig.'
           : result.candidates.length
-            ? 'Mögliche Produkte gefunden. Prüfe Modell, Variante und Quelle vor der Übernahme.'
-            : result.labelSuggestion
-              ? result.visualSuggestion
-                ? 'Kein belegter Webtreffer. Prüfe die gelesenen Etikettangaben und die Erkennung aus den Fotos.'
-                : 'Kein belegter Webtreffer. Das Etikett wurde gelesen; prüfe die Angaben vor der Übernahme.'
-              : result.visualSuggestion
-                ? 'Kein belegter Webtreffer. Die KI hat anhand der Fotos einen möglichen Artikel erkannt. Prüfe die Angaben sorgfältig.'
-                : photos.length
-                  ? 'Mit diesen Fotos wurde kein belegter Produktvorschlag gefunden. Prüfe, ob Marke und Modell erkennbar sind.'
-                  : 'Kein belegter Produktvorschlag gefunden. Versuche ein Etikettfoto.',
+            ? null
+            : result.labelSuggestion || result.visualSuggestion
+              ? null
+              : photos.length
+                ? 'Kein Treffer. Versuche ein Foto mit lesbarer Marke oder Modellnummer.'
+                : 'Kein Treffer. Versuche ein Produktfoto.',
       );
     } catch (error: unknown) {
       if (requestId !== this.aiRequestId || workspaceId !== this.workspace.currentWorkspace()?.id)
@@ -642,6 +660,19 @@ export class ProductDetailComponent implements UnsavedEntryPage {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     });
+  }
+
+  formatPhotoSize(sizeBytes: number): string {
+    if (sizeBytes < 1_000_000) return `${Math.max(1, Math.round(sizeBytes / 1000))} KB`;
+    return `${(sizeBytes / 1_000_000).toLocaleString('de-DE', { maximumFractionDigits: 1 })} MB`;
+  }
+
+  sourceName(sourceUrl: string): string {
+    try {
+      return new URL(sourceUrl).hostname.replace(/^www\./iu, '') || 'Produktseite';
+    } catch {
+      return 'Produktseite';
+    }
   }
 
   hasUnsavedChanges(): boolean {

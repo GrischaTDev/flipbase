@@ -25,6 +25,28 @@ TypeScript-Prüfungen und Angular-Produktionsbau bestanden. Die neue Höhenklass
 ist im generierten CSS enthalten. Die zeitweise blockierte Navigation wurde
 nicht mit einer echten Nutzersitzung reproduziert.
 
+## 2026-09-25 – Juna – Fotodialog, Suchergebnisse und Bildauswahl verbessert
+
+**Auftrag:** Die KI-Produktsuche auf dem Tablet platzsparender und klarer darstellen: kleinere Fotos mit X zum Entfernen, weniger Hinweise, nur Kosten der aktuellen Suche, Quelle rechts am Treffer und kein Verschieben des Dialogs beim Scrollen. Auch große iPad-Fotos sollen beim Hinzufügen verkleinert und mit ihrer tatsächlichen Dateigröße angezeigt werden.
+
+**Änderung:** Eigenen Branch `juna/ai-product-search-dialog` vom aktuellen `origin/master` angelegt. Die Fotoauswahl verwendet kompakte Kacheln ohne sichtbare Dateinamen und mit roter Entfernen-Aktion direkt auf dem Bild. Ausgewählte Fotos werden vor der Größenprüfung lokal verkleinert; die Dateigröße der verwendeten Fassung erscheint auf der Kachel. Die Grenzen von 5 MB je Foto und 15 MB insgesamt bleiben bestehen. Während der Verarbeitung ist die Suche gesperrt. Doppelte Modellangaben, generische Begründungen, Sitzungskosten und der EAN-Hinweis entfallen aus dem Dialog. Pro Ergebnis stehen die geschätzten Kosten dieser Suche; der Quellenlink zeigt rechts den Domainnamen. Die gemeinsame Dialoghülle begrenzt ihre Höhe auf den sichtbaren Bildschirm und lässt nur den Inhalt scrollen.
+
+**Prüfung:** Gezielte Angular- und Bildverarbeitungstests, ESLint, Shared-UI-Prüfung und Angular-Bau erfolgreich. Ein Browsercheck bei 820 × 680 Pixeln bestätigte, dass die Dialogkarte beim Scrollen der inneren Ergebnisliste an derselben Position bleibt. Ein echtes WebKit-Browserbild wurde von 10,9 MB auf 1,6 MB verkleinert. Der Branch ist noch nicht veröffentlicht.
+
+## 2026-09-25 – Juna – Artikelauswahl in Inseraten als durchsuchbare Kombobox
+
+**Auftrag:** Die zusätzliche Suche oberhalb der Artikelauswahl entfernen und die Auswahl selbst
+direkt durchsuchbar machen. Den Vorlagen-Button verständlich benennen.
+
+**Änderung:** Die gemeinsame Auswahlkomponente unterstützt eine Texteingabe im Dropdown. In der
+Inseraterstellung filtert sie Artikel und Produkte nach Titel, Marke und Kategorie. Beim Ändern
+einer bestehenden Auswahl wird diese bis zur nächsten bewussten Auswahl aufgehoben. Die separate
+Suchbox entfällt. Der Button heißt „Vorlage aus Artikeldaten übernehmen“; die bestehende
+Erläuterung stellt klar, dass feste Formulierungen ohne KI verwendet werden.
+
+**Prüfung:** 49 gezielte Angular-Tests für Auswahl und Editor sowie alle 74 Inserate-Tests
+bestanden. ESLint, Formatprüfung, Shared-UI-Prüfung und Produktionsbau erfolgreich.
+
 ## 2026-09-25 – Juna – Inserate und Erweiterungsverbindung überarbeitet
 
 **Auftrag:** Inserateliste an den Admin-Stil angleichen und den Ablauf für Artikelsuche,
