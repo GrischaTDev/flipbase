@@ -9,3 +9,18 @@
   margin: 0;
   max-width: none;
 }
+
+.category-picker-list {
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--fb-text-muted) transparent;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    border-radius: 3px;
+    background: var(--fb-text-muted);
+  }
+}

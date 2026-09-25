@@ -6,6 +6,9 @@
   >
     @if (product() || creating()) {
       <div header-actions class="flex flex-wrap items-center gap-2">
+        @if (hasUnsavedChanges()) {
+          <span class="text-[13px] text-fb-text-muted">Nicht gespeicherte Änderungen</span>
+        }
         @if (creating()) {
           <app-button
             variant="secondary"
@@ -20,7 +23,6 @@
           }
         }
         @if (hasUnsavedChanges()) {
-          <span class="text-[13px] text-fb-text-muted">Nicht gespeicherte Änderungen</span>
           <app-button [disabled]="isSaving()" (clicked)="discard()">Verwerfen</app-button>
         }
         @if (savedMessage(); as message) {

@@ -2,59 +2,69 @@
   <label [for]="fieldId()" class="block text-[13px] font-semibold text-fb-text-primary">
     {{ label() }}
   </label>
-  @if (multiple() && selected().length) {
-    <div class="flex flex-wrap gap-1.5">
-      @for (item of selected(); track item) {
-        <span
-          class="inline-flex items-center gap-1 rounded-md border border-fb-border bg-fb-subtle px-2 py-1 text-[13px] text-fb-text-primary"
-        >
-          {{ item }}
-          <button
-            type="button"
-            [attr.aria-label]="item + ' entfernen'"
-            [disabled]="isDisabled()"
-            (click)="remove(item)"
-            class="rounded-sm p-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/50"
-          >
-            <svg [lucideIcon]="removeIcon" class="size-3.5" aria-hidden="true"></svg>
-          </button>
-        </span>
-      }
-    </div>
-  }
   <div class="relative">
-    <input
-      #field
-      [id]="fieldId()"
-      type="text"
-      role="combobox"
-      autocomplete="off"
-      aria-autocomplete="list"
-      [attr.aria-expanded]="isOpen()"
-      [attr.aria-controls]="listboxId()"
-      [attr.aria-activedescendant]="activeDescendantId()"
-      [placeholder]="placeholder()"
-      [value]="query()"
-      [disabled]="isDisabled()"
-      (focus)="open()"
-      (input)="onInput($event)"
-      (keydown)="onKeydown($event)"
-      class="linear-input min-h-8 w-full rounded-lg px-3 py-1.5 text-[13px] outline-none focus-visible:border-fb-primary focus-visible:ring-2 focus-visible:ring-fb-primary/50 disabled:cursor-not-allowed disabled:opacity-40"
-    />
+    <div
+      #fieldContainer
+      class="linear-input flex min-h-8 w-full flex-wrap items-center gap-1 rounded-lg px-2 py-1 transition-colors focus-within:border-fb-primary focus-within:ring-2 focus-within:ring-fb-primary/50"
+      [class.opacity-40]="isDisabled()"
+    >
+      @if (multiple()) {
+        @for (item of selected(); track item) {
+          <span
+            class="inline-flex items-center gap-1 rounded-md border border-fb-border bg-fb-subtle px-1.5 py-0.5 text-[13px] text-fb-text-primary"
+          >
+            {{ item }}
+            <button
+              type="button"
+              [attr.aria-label]="item + ' entfernen'"
+              [disabled]="isDisabled()"
+              (click)="remove(item)"
+              class="rounded-sm p-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/50"
+            >
+              <svg [lucideIcon]="removeIcon" class="size-3.5" aria-hidden="true"></svg>
+            </button>
+          </span>
+        }
+      }
+      <input
+        #field
+        [id]="fieldId()"
+        type="text"
+        role="combobox"
+        autocomplete="off"
+        aria-autocomplete="list"
+        [attr.aria-expanded]="isOpen()"
+        [attr.aria-controls]="listboxId()"
+        [attr.aria-activedescendant]="activeDescendantId()"
+        [placeholder]="multiple() && selected().length ? '' : placeholder()"
+        [value]="query()"
+        [disabled]="isDisabled()"
+        (focus)="open()"
+        (input)="onInput($event)"
+        (keydown)="onKeydown($event)"
+        class="min-w-24 flex-1 bg-transparent px-1 py-0.5 text-[13px] text-fb-text-primary outline-none disabled:cursor-not-allowed"
+      />
+    </div>
     @if (isOpen()) {
       <div
         #panel
         [attr.popover]="supportsPopover ? 'manual' : null"
-        class="absolute left-0 top-full z-50 mt-1.5 w-full min-w-60 rounded-xl border border-fb-border bg-fb-surface p-1.5 shadow-lg"
+        (wheel)="onPanelWheel($event)"
+        class="left-0 top-full z-50 w-full min-w-60 rounded-xl border border-fb-border bg-fb-surface p-1.5 shadow-lg"
+        [class.fixed]="supportsPopover"
+        [class.inset-auto]="supportsPopover"
+        [class.absolute]="!supportsPopover"
+        [class.mt-1.5]="!supportsPopover"
         [style.left.px]="supportsPopover ? panelPosition().left : null"
         [style.top.px]="supportsPopover ? panelPosition().top : null"
         [style.width.px]="supportsPopover ? panelPosition().width : null"
       >
         <div
+          #list
           [id]="listboxId()"
           role="listbox"
           [attr.aria-multiselectable]="multiple()"
-          class="max-h-64 overflow-y-auto"
+          class="max-h-64 overflow-y-auto overscroll-contain"
         >
           @for (option of matches(); track option; let index = $index) {
             <button

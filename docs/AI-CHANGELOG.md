@@ -1,5 +1,24 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-25 – Juna – Auswahlfelder der Artikelerfassung korrigiert
+
+**Auftrag:** Kategorieauswahl, Farbe, Material und den Hinweis auf ungespeicherte
+Änderungen auf „Artikel erstellen“ nach dem Umbau bedienbar und einheitlich machen.
+
+**Änderung:** Die Kategorie-Suche liegt beim Öffnen über dem bisherigen Feld. Die
+Kategorienliste hat eine feste Höhe, einen sichtbaren Scrollbereich und hält ihre
+Karte beim Scrollen und Ebenenwechsel offen. Blattkategorien zeigen beim Hover
+und Tastaturfokus einen Haken. Bereits gewählte Farben filtern die Liste beim
+erneuten Öffnen nicht mehr. Material-Tags stehen im Eingabefeld und lassen sich
+einzeln entfernen. Die Scrollgrenzen der gemeinsamen Auswahlfelder verhindern,
+dass das Mausrad stattdessen die Seite bewegt. Der Hinweis auf ungespeicherte
+Änderungen steht links vor den Kopfaktionen.
+
+**Prüfung:** 83 gezielte Angular-Tests, zwei Browser-Tests auf Desktop und Mobil,
+ESLint, Formatierung und Angular-Produktionsbau bestanden. Der Browser-Test prüft
+Scrollen, Ebenenwechsel, Haken, erneute Farbauswahl, Material-Tags und die
+Position des Änderungshinweises.
+
 ## 2026-09-25 – Juna – Gelbe Hinweisbanner in Einkauf und Bestand
 
 **Auftrag:** Den braunen Hinweis zu offenen Einkaufspreisen durch einen gelben

@@ -54,7 +54,8 @@
         role="dialog"
         [attr.aria-label]="label() || 'Kategorie wählen'"
         [attr.popover]="supportsPopover ? 'manual' : null"
-        class="category-picker-panel fb-popover-enter absolute left-0 top-full z-50 mt-1.5 w-full min-w-[20rem] rounded-xl border border-fb-border bg-fb-surface p-2 shadow-lg"
+        (wheel)="onPanelWheel($event)"
+        class="category-picker-panel fb-popover-enter absolute left-0 top-0 z-50 flex h-96 max-h-[calc(100dvh-16px)] w-full min-w-[20rem] flex-col overflow-clip rounded-xl border border-fb-border bg-fb-surface shadow-lg"
         [style.left.px]="supportsPopover ? panelPosition().left : null"
         [style.top.px]="supportsPopover ? panelPosition().top : null"
         [style.width.px]="supportsPopover ? panelPosition().width : null"
@@ -73,11 +74,13 @@
           [value]="searchTerm()"
           (input)="onSearchInput($event)"
           (keydown)="onSearchKeydown($event)"
-          class="linear-input min-h-8 w-full rounded-lg px-3 py-1.5 text-[13px] outline-none focus-visible:border-fb-primary focus-visible:ring-2 focus-visible:ring-fb-primary/50"
+          class="m-1.5 min-h-8 shrink-0 rounded-lg border-0 bg-transparent px-2.5 py-1.5 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/50"
         />
 
         @if (!isSearching() && currentParent(); as parent) {
-          <div class="mt-2 flex items-center justify-between gap-2 border-b border-fb-line pb-2">
+          <div
+            class="mx-2 mt-1 flex shrink-0 items-center justify-between gap-2 border-b border-fb-line pb-2"
+          >
             <button
               type="button"
               (click)="back()"
@@ -94,10 +97,13 @@
               „{{ parent.name }}“ auswählen
             </button>
           </div>
-          <p class="mt-1 truncate px-2 text-xs text-fb-text-muted">{{ parentPath() }}</p>
+          <p class="mx-2 mt-1 shrink-0 truncate text-xs text-fb-text-muted">{{ parentPath() }}</p>
         }
 
-        <div class="category-picker-list mt-2 max-h-72 overflow-y-auto">
+        <div
+          #list
+          class="category-picker-list min-h-0 flex-1 overflow-y-scroll overscroll-contain border-t border-fb-line p-1.5"
+        >
           @switch (status()) {
             @case ('loading') {
               <p class="px-2 py-3 text-[13px] text-fb-text-muted" role="status">
@@ -143,12 +149,20 @@
                 [attr.aria-selected]="value() === category.id"
                 (click)="activate(category)"
                 (mousemove)="activeIndex.set(index)"
-                class="flex min-h-9 w-full items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-left text-[13px] text-fb-text-primary transition-colors"
+                class="group flex min-h-9 w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[13px] text-fb-text-primary transition-colors"
                 [class.bg-fb-surface-alt]="activeIndex() === index"
                 [class.text-fb-primary]="value() === category.id"
                 [class.font-semibold]="value() === category.id"
               >
-                <span class="min-w-0">
+                @if (category.isLeaf) {
+                  <svg
+                    [lucideIcon]="checkIcon"
+                    class="size-4 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
+                    [class.opacity-100]="value() === category.id"
+                    aria-hidden="true"
+                  ></svg>
+                }
+                <span class="min-w-0 flex-1">
                   <span class="block truncate">{{ category.name }}</span>
                   @if (isSearching()) {
                     <span class="block truncate text-xs text-fb-text-muted">{{
