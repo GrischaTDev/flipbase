@@ -881,7 +881,12 @@ test('keeps local landing assets intact', async () => {
 
 test('does not ask for consent or load Google without a GA4 measurement ID', () => {
   const dom = new JSDOM(html, { runScripts: 'outside-only', url: 'https://flipbase.de/' });
-  dom.window.eval(analyticsScript);
+  const unconfiguredScript = analyticsScript.replace(
+    "var measurementId = 'G-8ZMSVBRJPK';",
+    "var measurementId = '';",
+  );
+  assert.notEqual(unconfiguredScript, analyticsScript);
+  dom.window.eval(unconfiguredScript);
   assert.equal(dom.window.document.getElementById('analytics-consent').hidden, true);
   assert.equal(dom.window.document.getElementById('analytics-settings').hidden, true);
   assert.equal(dom.window.document.getElementById('google-analytics-script'), null);
@@ -894,11 +899,7 @@ test('loads Google Analytics only after an explicit choice and supports withdraw
     url: 'https://flipbase.de/?email=test@example.com',
   });
   const { document, localStorage } = dom.window;
-  const configuredScript = analyticsScript.replace(
-    "var measurementId = '';",
-    "var measurementId = 'G-TEST123';",
-  );
-  dom.window.eval(configuredScript);
+  dom.window.eval(analyticsScript);
 
   const banner = document.getElementById('analytics-consent');
   assert.equal(banner.hidden, false);
@@ -916,7 +917,7 @@ test('loads Google Analytics only after an explicit choice and supports withdraw
   assert.equal(banner.hidden, true);
   assert.equal(
     document.getElementById('google-analytics-script').src,
-    'https://www.googletagmanager.com/gtag/js?id=G-TEST123',
+    'https://www.googletagmanager.com/gtag/js?id=G-8ZMSVBRJPK',
   );
   assert.equal(JSON.parse(localStorage.getItem('flipbase_analytics_consent')).value, 'accepted');
   const commands = Array.from(dom.window.dataLayer, (command) => Array.from(command));
@@ -933,10 +934,41 @@ test('loads Google Analytics only after an explicit choice and supports withdraw
   document.cookie = '_ga=test; Path=/';
   document.getElementById('analytics-settings').click();
   document.getElementById('analytics-reject').click();
-  assert.equal(dom.window['ga-disable-G-TEST123'], true);
+  assert.equal(dom.window['ga-disable-G-8ZMSVBRJPK'], true);
   assert.equal(document.cookie.includes('_ga='), false);
   assert.equal(JSON.parse(localStorage.getItem('flipbase_analytics_consent')).value, 'rejected');
   dom.window.close();
+});
+
+test('restores a valid analytics choice and expires it after 180 days', () => {
+  for (const [choice, expectedTag] of [
+    ['accepted', true],
+    ['rejected', false],
+  ]) {
+    const dom = new JSDOM(html, { runScripts: 'outside-only', url: 'https://flipbase.de/' });
+    dom.window.localStorage.setItem(
+      'flipbase_analytics_consent',
+      JSON.stringify({ value: choice, expires: Date.now() + 1000 }),
+    );
+    dom.window.eval(analyticsScript);
+    assert.equal(
+      Boolean(dom.window.document.getElementById('google-analytics-script')),
+      expectedTag,
+    );
+    assert.equal(dom.window.document.getElementById('analytics-consent').hidden, true);
+    dom.window.close();
+  }
+
+  const expired = new JSDOM(html, { runScripts: 'outside-only', url: 'https://flipbase.de/' });
+  expired.window.localStorage.setItem(
+    'flipbase_analytics_consent',
+    JSON.stringify({ value: 'accepted', expires: Date.now() - 1000 }),
+  );
+  expired.window.eval(analyticsScript);
+  assert.equal(expired.window.document.getElementById('google-analytics-script'), null);
+  assert.equal(expired.window.document.getElementById('analytics-consent').hidden, false);
+  assert.equal(expired.window.localStorage.getItem('flipbase_analytics_consent'), null);
+  expired.window.close();
 });
 
 test('uses a valid heading hierarchy and the mobile header wrap contract', () => {

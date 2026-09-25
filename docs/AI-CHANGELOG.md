@@ -1,5 +1,21 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-25 – Juna – GA4-Datenstream für die Landingpage aktiviert
+
+**Auftrag:** Die vorhandene zustimmungsgebundene Analytics-Einbindung mit der
+neuen GA4-Mess-ID des Web-Datenstreams vervollständigen.
+
+**Änderung:** Die Mess-ID `G-8ZMSVBRJPK` ist in der vorhandenen Einbindung
+hinterlegt. Der Banner erscheint nun bei Besuchern ohne gespeicherte Entscheidung.
+Die Tests prüfen Ablehnung ohne Google-Tag, Laden nach Zustimmung, Widerruf mit
+Cookie-Löschung sowie gespeicherte und abgelaufene Entscheidungen. Die
+angemeldete App wird weiterhin nicht gemessen.
+
+**Prüfung:** 26 Landingpage-Tests, ESLint für die geänderten Skripte, Prettier,
+`git diff --check` und der Angular-Produktionsbau bestanden. Der Bau meldete die
+bekannte CommonJS-Warnung zu `pako`. Eine echte Übertragung an GA4 ist erst nach
+Deployment und einer Einwilligung auf der öffentlichen Seite prüfbar.
+
 ## 2026-09-25 – Juna – Landingpage für Google-Suche und Einwilligung vorbereitet
 
 **Auftrag:** Flipbase in der Google Search Console erfassen, die öffentliche

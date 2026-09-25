@@ -1,6 +1,5 @@
 (function () {
-  // Die GA4-Mess-ID wird erst nach Einrichtung des Web-Datenstreams gesetzt.
-  var measurementId = '';
+  var measurementId = 'G-8ZMSVBRJPK';
   var storageKey = 'flipbase_analytics_consent';
   var choiceLifetimeMs = 180 * 24 * 60 * 60 * 1000;
   var banner = document.getElementById('analytics-consent');
