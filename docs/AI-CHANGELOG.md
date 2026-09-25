@@ -1,5 +1,29 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-25 – Juna – Einwilligungsdialog kompakter und ruhiger gestaltet
+
+**Auftrag:** Den Dialog beim ersten Besuch unten zentriert und animiert zeigen,
+den Sprachwechsel über Flaggen anbieten, die vorgewählt wirkende Umrandung
+entfernen und die Detailauswahl als Schalter mit kleineren Aktionen darstellen.
+Die Entscheidungen sollen als grauer und gelber Button erscheinen; die Reiter
+„Zustimmung“ und „Details“ sollen sich die ganze Breite teilen.
+
+**Änderung:** Der weiterhin abgedunkelte Dialog erscheint am unteren Fensterrand.
+Hintergrund und Dialog bewegen sich getrennt, damit Text auch während der
+Animation lesbar bleibt; reduzierte Bewegung schaltet die Animation aus. Zwei
+lokale Flaggenbilder ersetzen die Sprachtexte am Dialogkopf. Der Fokus liegt
+beim Öffnen auf dem Dialog statt auf „Nur Notwendige“. In den Details ist die
+notwendige Speicherung sichtbar fest aktiv und Analyse per Schalter wählbar.
+Die Aktionsbuttons sind kompakter. „Nur Notwendige“ ist neutral grau,
+„Alle akzeptieren“ markengelb; beide bleiben gleich groß und sofort sichtbar.
+Die Reiter heißen „Zustimmung“ und „Details“ und teilen die Breite gleichmäßig.
+
+**Prüfung:** 30 Landingpage-Tests, gezieltes ESLint, Prettier und Angular-
+Produktionsbau bestanden. Desktop und Mobilansicht bis 320 px, Tastaturbedienung
+und reduzierte Bewegung geprüft. AXE meldete im hellen und dunklen Farbschema
+vor und nach der Animation sowie in den Details keine WCAG-Verstöße. Der Bau
+meldete die bekannte CommonJS-Warnung zu `pako`.
+
 ## 2026-09-25 – Juna – Farbige Hover-Zustände für Tabellenaktionen ergänzt
 
 **Auftrag:** Die bisher grauen Hover-Zustände der Aktionsicons farblich angleichen, insbesondere bei Verkaufen und Bearbeiten. Über die Aktionen der Inserate wird später entschieden.

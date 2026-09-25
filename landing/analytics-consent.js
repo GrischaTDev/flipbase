@@ -3,6 +3,7 @@
   var storageKey = 'flipbase_analytics_consent';
   var choiceLifetimeMs = 180 * 24 * 60 * 60 * 1000;
   var banner = document.getElementById('analytics-consent');
+  var consentPanel = document.getElementById('analytics-consent-panel');
   var settingsButton = document.getElementById('analytics-settings');
   var acceptButton = document.getElementById('analytics-accept');
   var rejectButton = document.getElementById('analytics-reject');
@@ -130,7 +131,7 @@
     pageRegions.forEach(function (region) {
       region.inert = true;
     });
-    (details ? detailsTab : rejectButton).focus();
+    consentPanel.focus({ preventScroll: true });
   }
 
   function closeConsent() {
