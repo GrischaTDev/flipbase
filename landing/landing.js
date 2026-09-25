@@ -1,4 +1,68 @@
 (function () {
+  var THEME_KEY = 'flipbase_landing_theme';
+  var LANGUAGE_KEY = 'flipbase_landing_language';
+  var themeToggle = document.getElementById('theme-toggle');
+  var languageToggle = document.getElementById('lang-toggle');
+  var systemLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)');
+
+  function readPreference(key) {
+    try {
+      return window.localStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  }
+
+  function savePreference(key, value) {
+    try {
+      window.localStorage.setItem(key, value);
+    } catch {
+      // Die Schalter funktionieren auch, wenn der Browser Speicher blockiert.
+    }
+  }
+
+  function systemUsesLight() {
+    return systemLight ? systemLight.matches : false;
+  }
+
+  function visibleTheme() {
+    return themeToggle.checked !== systemUsesLight() ? 'light' : 'dark';
+  }
+
+  function updateThemeColor() {
+    document.querySelector('meta[name="theme-color"]').content =
+      visibleTheme() === 'light' ? '#f4f5f7' : '#16181d';
+  }
+
+  var savedTheme = readPreference(THEME_KEY);
+  if (savedTheme === 'light' || savedTheme === 'dark') {
+    themeToggle.checked = (savedTheme === 'light') !== systemUsesLight();
+  } else {
+    savedTheme = null;
+  }
+  updateThemeColor();
+
+  themeToggle.addEventListener('change', function () {
+    savedTheme = visibleTheme();
+    savePreference(THEME_KEY, savedTheme);
+    updateThemeColor();
+  });
+
+  if (systemLight && systemLight.addEventListener) {
+    systemLight.addEventListener('change', function () {
+      if (savedTheme) themeToggle.checked = (savedTheme === 'light') !== systemUsesLight();
+      updateThemeColor();
+    });
+  }
+
+  languageToggle.checked = readPreference(LANGUAGE_KEY) === 'en';
+  document.documentElement.lang = languageToggle.checked ? 'en' : 'de';
+  languageToggle.addEventListener('change', function () {
+    var language = languageToggle.checked ? 'en' : 'de';
+    document.documentElement.lang = language;
+    savePreference(LANGUAGE_KEY, language);
+  });
+
   var ENDPOINT = 'https://api.flipbase.de/functions/v1/beta-application';
   var TEXTS = {
     error: {
@@ -12,12 +76,8 @@
   };
 
   function announce(field, kind) {
-    // <html lang> ist statisch "de" - die Sprachumschaltung laeuft rein
-    // ueber CSS (body:has(#lang-toggle:checked)), nicht ueber dieses
-    // Attribut. Ein Skript-seitiger Sprachentscheid wuerde deshalb immer
-    // "de" treffen, egal welche Sprache sichtbar ist. Darum wie der Rest
-    // der Seite: beide Fassungen ausgeben und das vorhandene CSS die
-    // passende anzeigen lassen.
+    // Wie der Rest der Seite beide Fassungen ausgeben und das CSS die
+    // zur gewaehlten Sprache passende anzeigen lassen.
     // Erst leeren, dann per createElement/textContent (kein innerHTML)
     // neu aufbauen - und komplett ersetzen statt nur den Text zu aendern,
     // damit die Live-Region (role="status", aria-live="polite") die
