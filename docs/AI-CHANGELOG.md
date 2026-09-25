@@ -1,5 +1,60 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-25 – Juna – Einwilligungstext als klare Wahl formuliert
+
+**Auftrag:** Den Einstieg des Cookie-Dialogs im Stil des vorgeschlagenen Beispiels
+verständlicher formulieren.
+
+**Änderung:** Der Dialog beginnt mit „Du hast die Wahl“ und beschreibt die
+optionale Analyse in allgemein verständlicher Sprache. Zweck, Google Analytics
+mit Anbieter, mögliche Verarbeitung in den USA und Widerruf bleiben genannt.
+Impressum und Datenschutzerklärung sind direkt verlinkt; die Einstellung heißt
+im Footer und im Datenschutzhinweis einheitlich „Cookie-Einstellungen“.
+Der Tastaturtest berücksichtigt jetzt beide Links im Dialog.
+
+**Prüfung:** 30 Landingpage-Tests, Prettier, Diff-Prüfung und Angular-Produktionsbau
+bestanden. Die mobile Ansicht wurde bei 320 px Breite und 568 bzw. 700 px Höhe
+im Browser geprüft. Der Bau meldete die bekannte CommonJS-Warnung zu `pako`.
+
+## 2026-09-25 – Juna – Einwilligungstext nach Recherche vereinfacht
+
+**Auftrag:** Einen üblichen, kurzen Bannertext recherchieren und die direkte
+Formulierung zur Datenübermittlung an Google im Einstieg ersetzen.
+
+**Änderung:** Der Einstieg beschreibt jetzt Analyse-Cookies, den Zweck, Google
+Analytics mit Anbieter und die mögliche Verarbeitung in den USA in ruhigerer
+Sprache. Einzelne gemessene Ereignisse bleiben aus dem Einstieg heraus; die
+ausführlichen Angaben stehen weiter unter „Details“ und in der
+Datenschutzerklärung. Die Orientierungshilfe der Datenschutzkonferenz für
+digitale Dienste (Version 1.2) und die Handreichung der Hamburger
+Datenschutzaufsicht waren Grundlage für die Abstufung der Informationen.
+
+**Prüfung:** 30 Landingpage-Tests, Prettier und Angular-Produktionsbau bestanden.
+Der Text passt auch bei 320 px Breite, beide Entscheidungen bleiben sichtbar.
+AXE meldete in den geprüften hellen und dunklen Ansichten keine WCAG-Verstöße.
+Der Bau meldete die bekannte CommonJS-Warnung zu `pako`.
+
+## 2026-09-25 – Juna – Einwilligungsdialog klarer und sichtbarer gestaltet
+
+**Auftrag:** Die Entscheidungen unten so breit wie die Reiter anzeigen, die
+Texte ohne einzelne Beta-Anwendungsfälle formulieren und den Dialog mit
+passenderen Ecken deutlich von unten einblenden.
+
+**Änderung:** Die beiden Entscheidungen teilen sich die Dialogbreite gleichmäßig.
+Der Einstieg nennt allgemein den Analysezweck, Google Ireland Limited, Cookies,
+die Datenübermittlung und den Weg zur späteren Änderung. Die Details beschreiben
+Seitenaufrufe und Interaktionen statt einzelner Ereignisse. Der Dialog verwendet
+den 20-Pixel-Radius der übrigen Karten und gleitet sichtbar von unten hinein;
+bei reduzierter Bewegung bleibt die Animation ausgeschaltet. Die allgemeine
+Fokusregel verkleinert den Radius des automatisch fokussierten Dialogs nicht mehr.
+
+**Prüfung:** 30 Landingpage-Tests, Prettier und Angular-Produktionsbau bestanden.
+Desktop und Mobilansichten bis 320 px sowie helles und dunkles Farbschema im
+Browser geprüft. Beide Reiter, die Aktionsbreiten, der 20-Pixel-Radius und die
+Einblendung wurden betrachtet. AXE meldete in Zustimmung und Details keine
+WCAG-Verstöße; reduzierte Bewegung schaltet die Animation aus. Der Bau meldete
+die bekannte CommonJS-Warnung zu `pako`.
+
 ## 2026-09-25 – Juna – Einwilligungsdialog kompakter und ruhiger gestaltet
 
 **Auftrag:** Den Dialog beim ersten Besuch unten zentriert und animiert zeigen,
