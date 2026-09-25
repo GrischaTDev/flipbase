@@ -4,6 +4,7 @@ import {
   estimateCostUsd,
   parseCandidates,
   parseLabelSuggestion,
+  parseVisualSuggestion,
   normalizeEuSize,
 } from './index.ts';
 
@@ -29,6 +30,7 @@ function dependencies(overrides: Partial<BarcodeAiDependencies> = {}): BarcodeAi
     search: async () => ({
       candidates: [],
       labelSuggestion: null,
+      visualSuggestion: null,
       usage: { inputTokens: 1000, outputTokens: 200, webSearchCalls: 1, estimatedCostUsd: 0.0102 },
     }),
     ...overrides,
@@ -67,6 +69,7 @@ Deno.test('erlaubt eine Fotosuche ohne EAN fuer Betreiber', async () => {
         return {
           candidates: [],
           labelSuggestion: null,
+          visualSuggestion: null,
           usage: { inputTokens: 0, outputTokens: 0, webSearchCalls: 0, estimatedCostUsd: 0 },
         };
       },
@@ -88,6 +91,7 @@ Deno.test('uebergibt mehrere Produktfotos in ihrer Reihenfolge', async () => {
         return {
           candidates: [],
           labelSuggestion: null,
+          visualSuggestion: null,
           usage: { inputTokens: 0, outputTokens: 0, webSearchCalls: 0, estimatedCostUsd: 0 },
         };
       },
@@ -109,6 +113,7 @@ Deno.test('kombiniert das erste Foto mit weiteren Fotos ohne doppelte Uebertragu
         return {
           candidates: [],
           labelSuggestion: null,
+          visualSuggestion: null,
           usage: { inputTokens: 0, outputTokens: 0, webSearchCalls: 0, estimatedCostUsd: 0 },
         };
       },
@@ -184,6 +189,53 @@ Deno.test('schliesst erfundene Quellen aus den Produktvorschlaegen aus', () => {
   );
 });
 
+Deno.test('akzeptiert belegte Produktseiten aus Bildsuche und Quellenzitaten', () => {
+  const candidate = (sourceUrl: string) => ({
+    title: 'JAKO J-SFG TWIST',
+    brand: 'JAKO',
+    model: 'J-SFG TWIST',
+    size: 'EU 40 / UK 6',
+    color: 'SKYDIVER',
+    category: 'Fußballschuhe',
+    sourceUrl,
+    confidence: 'likely',
+    evidence: 'Farbe und Modell stimmen überein',
+  });
+  const response = {
+    output: [
+      {
+        type: 'web_search_call',
+        results: [
+          { type: 'image_result', source_website_url: 'https://shop.example.test/jako-twist' },
+        ],
+      },
+      {
+        type: 'message',
+        content: [
+          {
+            type: 'output_text',
+            annotations: [{ type: 'url_citation', url: 'https://brand.example.test/twist' }],
+            text: JSON.stringify({
+              candidates: [
+                candidate('https://shop.example.test/jako-twist'),
+                candidate('https://brand.example.test/twist'),
+                candidate('https://erfunden.example.test/twist'),
+              ],
+            }),
+          },
+        ],
+      },
+    ],
+  };
+  assertEquals(
+    parseCandidates(response).map((entry) => [entry.sourceUrl, entry.size]),
+    [
+      ['https://shop.example.test/jako-twist', '40'],
+      ['https://brand.example.test/twist', '40'],
+    ],
+  );
+});
+
 Deno.test('schaetzt Suchaufrufe und Tokens getrennt', () => {
   assertEquals(
     estimateCostUsd(
@@ -195,6 +247,21 @@ Deno.test('schaetzt Suchaufrufe und Tokens getrennt', () => {
       2,
     ),
     0.02132,
+  );
+});
+
+Deno.test('berechnet den Preis der aufwendigeren Fotosuche passend zum Modell', () => {
+  assertEquals(
+    estimateCostUsd(
+      {
+        input_tokens: 10_000,
+        output_tokens: 1_000,
+        input_tokens_details: { cached_tokens: 2_000 },
+      },
+      2,
+      'gpt-6-sol',
+    ),
+    0.0464,
   );
 });
 
@@ -232,5 +299,42 @@ Deno.test('bietet gelesene Etikettangaben ohne Webbeleg getrennt an', () => {
     color: 'Skydiver/Sulphur Spring',
     category: '',
     articleNumber: '310127 002 443',
+  });
+});
+
+Deno.test('normalisiert eine visuelle Erkennung ohne US-Groesse', () => {
+  const response = {
+    output: [
+      {
+        type: 'message',
+        content: [
+          {
+            type: 'output_text',
+            text: JSON.stringify({
+              visualSuggestion: {
+                title: 'JAKO J-SFG TWIST',
+                brand: 'JAKO',
+                model: 'J-SFG TWIST',
+                size: 'US 8',
+                color: 'SKYDIVER',
+                category: 'Fußballschuhe',
+                articleNumber: '',
+                evidence: 'Logo und Sohle passen zum Modell',
+              },
+            }),
+          },
+        ],
+      },
+    ],
+  };
+  assertEquals(parseVisualSuggestion(response), {
+    title: 'JAKO J-SFG Twist',
+    brand: 'JAKO',
+    model: 'J-SFG Twist',
+    size: '',
+    color: 'Skydiver',
+    category: 'Fußballschuhe',
+    articleNumber: '',
+    evidence: 'Logo und Sohle passen zum Modell',
   });
 });

@@ -88,3 +88,11 @@ Die Arbeit erfolgt in der Reihenfolge Navigation/Entwurfsrückkehr → Fotodialo
 - Dialogtests: Mehrfachauswahl, Vorschau/Entfernen, Grenzen, EAN ohne Foto, Foto ohne EAN, Fehler, Fokus und AXE. Visuelle Abnahme auf Tablet und Desktop nach `docs/design/admin-ui-guidelines.md`.
 - Supabase-Funktionstests: mehrere Bilder, Eingabegrenzen, belegte Quellen, Widersprüche, Großschreibung, `EU 37 / UK 3`, nur `US 5`, mehrdeutige Kategorien und fehlende Webtreffer.
 - Vor dem Push: betroffene Tests, Formatierung/Lint und Angular-Bau. Der PR erhält anschließend die vollständigen Pflichtprüfungen.
+
+## Nachtrag vom 25.09.2026: Suche mit drei Fotos ohne Ergebnis
+
+Die erste produktive Mehrfoto-Suche gab keinen nutzbaren Treffer zurück. In der vorhandenen Implementierung kann das auch passieren, wenn die Bildanalyse eine Modellvermutung erkennt: Ohne lesbares Etikett und ohne Produktseite in der eng geprüften Webquellenliste bleibt die Antwort für Nutzer leer. Die genaue Ursache dieses Falls lässt sich ohne die drei Fotos und die zugehörige Suchantwort nicht sicher feststellen.
+
+Für den nächsten Versuch wird die Fotosuche auf Sol `low` umgestellt und um Bildsuchergebnisse erweitert. Tatsächlich gefundene Produktseiten bleiben als Webtreffer gekennzeichnet. Eine nur visuell begründete Erkennung erscheint separat mit ihrem sichtbaren Indiz und wird erst nach Auswahl in das Formular übernommen. Die EAN-Suche nutzt weiter Luna `low`. Die Funktion protokolliert nur Anzahlen zu Fotos, vorgeschlagenen und akzeptierten Webtreffern; Bildinhalt und Produkttext werden nicht gespeichert.
+
+**Nächste Abnahme:** Dieselben drei Fotos noch einmal durch die produktiv ausgerollte Suche schicken und mit dem Chat-Ergebnis vergleichen. Dabei prüfen: richtiges Modell, nachvollziehbare Quelle oder sichtbare Kennzeichnung als Vermutung, EU-Größe nur mit Beleg, Kategoriezuordnung, Antwortzeit und tatsächliche Kosten. Falls Sol `low` das Modell weiter verfehlt, mit denselben Bildern Sol `medium` und Luna `high` vergleichen. Die Bildsuche und die dafür verfügbaren Ergebnisfelder sind in der [OpenAI-Dokumentation zur Websuche](https://developers.openai.com/api/docs/guides/tools-web-search) beschrieben.

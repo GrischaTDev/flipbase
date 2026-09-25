@@ -21,6 +21,14 @@ Bildauswahl, Rechte und Speicherung bestanden.
 Die Produktivoberfläche und die echte Kleinanzeigen-Seite wurden nicht manuell
 durchgeklickt; dieser Schritt bleibt vor Veröffentlichung erforderlich.
 
+## 2026-09-25 – Juna – Mehrfoto-Produktsuche liefert auch visuelle Vorschläge
+
+**Auftrag:** Untersuchen, warum drei Schuhfotos in der Artikelerstellung keinen Treffer liefern, obwohl dieselben Fotos im Chat erkannt werden.
+
+**Änderung:** Eigenen Branch `juna/ai-product-search-results` vom aktuellen `origin/master` angelegt. Die bisherige Suche verwendet Luna mit knappem Ausgabe- und Zeitlimit; sie verwirft zudem Webkandidaten, deren Produktseite nicht in der engen Quellenliste steht, und bietet ohne lesbares Etikett keinen getrennten Bildvorschlag an. Für Fotofälle nutzt die Funktion nun Sol `low`, sucht zusätzlich nach Bildern, berücksichtigt belegte Bildtreffer und Quellenzitate und erlaubt mehr Suchschritte. Eine erkennbare Marke oder ein Modell kann auch ohne belegte Produktseite als deutlich gekennzeichneter Fotovorschlag übernommen werden. EAN-Suchen bleiben bei Luna; unbelegte Web-URLs und nicht belegte US-/UK-Schuhgrößen werden weiterhin verworfen. Die Oberfläche zeigt die Art des Vorschlags getrennt an. Anonyme Zähler in den Serverlogs machen künftig sichtbar, ob die KI Kandidaten lieferte, die Quellenprüfung sie aber ausschloss.
+
+**Prüfung:** Deno-Tests für Bildquellen, Zitate, Kostenschätzung, Fotovorschlag und EU-Größe; gezielte Angular-Tests für Artikelseite und alten Dialog, ESLint und Angular-Bau erfolgreich. Ein begrenzter Aufruf mit einem künstlichen Testbild bestätigte am echten API-Zugang Sol mit Bild-Websuche und Quellenfeldern (HTTP 200, vollständig). Ein Livevergleich mit genau den drei Nutzerfotos ist noch offen, da sie hier nicht vorliegen. Die Änderung ist noch nicht ausgerollt.
+
 ## 2026-09-25 – Juna – Mehrfoto-Suche mit älterer Serverfunktion abgeglichen
 
 **Auftrag:** Den Fehler „Die KI-Suche ist gerade nicht verfügbar“ nach einer Suche mit drei Fotos untersuchen und beheben.
