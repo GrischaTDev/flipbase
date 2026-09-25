@@ -38,7 +38,7 @@
   @if (initialSearch() && query() === undefined) {
     <p class="text-[13px] text-fb-text-muted">Suche: {{ initialSearch() }}</p>
   }
-  <div class="divide-y divide-fb-line">
+  <div class="max-h-[min(28rem,45dvh)] divide-y divide-fb-line overflow-y-auto overscroll-contain">
     @for (product of filtered(); track product.id) {
       <button
         type="button"

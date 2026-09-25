@@ -1,5 +1,24 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-25 – Juna – Eigenbeleg-Rückweg und Artikelauswahl korrigiert
+
+**Auftrag:** Den zeitweise gesperrten Speichern-Button beim Eigenbeleg prüfen,
+die Artikelauswahl auf Tablets in der Höhe begrenzen und den blockierten
+Löschvorgang eines neuen Einkaufsentwurfs untersuchen.
+
+**Änderung:** Nach der Rückkehr aus der Artikelerstellung stellt das Formular
+die Verkäuferpflicht passend zum gespeicherten Belegmodus wieder her. Die
+Artikelliste im Auswahlfenster scrollt innerhalb einer begrenzten Höhe. Für
+den Löschfehler wurde eine Backend-Issue-Datei erstellt: Der direkte Löschaufruf
+steht im Konflikt mit `ON DELETE RESTRICT` an Einkaufspositionen.
+
+**Prüfung:** Der Eigenbeleg-Regressionstest scheiterte vor der Korrektur und
+bestand danach. 57 gezielte Angular-Tests, Prettier, ESLint, beide
+TypeScript-Prüfungen und der Angular-Produktionsbau bestanden. Die neue
+Höhenklasse ist im generierten CSS enthalten. Ein Live-Datenbanktest für den
+Löschfehler und eine Wiederholung der gemeldeten Navigationsstörung waren
+hier nicht möglich; die genaue Datenbank-Constraint muss noch geprüft werden.
+
 ## 2026-09-25 – Juna – Inserate und Erweiterungsverbindung überarbeitet
 
 **Auftrag:** Inserateliste an den Admin-Stil angleichen und den Ablauf für Artikelsuche,
