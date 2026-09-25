@@ -1,5 +1,21 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-25 – Juna – Einwilligungstext als klare Wahl formuliert
+
+**Auftrag:** Den Einstieg des Cookie-Dialogs im Stil des vorgeschlagenen Beispiels
+verständlicher formulieren.
+
+**Änderung:** Der Dialog beginnt mit „Du hast die Wahl“ und beschreibt die
+optionale Analyse in allgemein verständlicher Sprache. Zweck, Google Analytics
+mit Anbieter, mögliche Verarbeitung in den USA und Widerruf bleiben genannt.
+Impressum und Datenschutzerklärung sind direkt verlinkt; die Einstellung heißt
+im Footer und im Datenschutzhinweis einheitlich „Cookie-Einstellungen“.
+Der Tastaturtest berücksichtigt jetzt beide Links im Dialog.
+
+**Prüfung:** 30 Landingpage-Tests, Prettier, Diff-Prüfung und Angular-Produktionsbau
+bestanden. Die mobile Ansicht wurde bei 320 px Breite und 568 bzw. 700 px Höhe
+im Browser geprüft. Der Bau meldete die bekannte CommonJS-Warnung zu `pako`.
+
 ## 2026-09-25 – Juna – Einwilligungstext nach Recherche vereinfacht
 
 **Auftrag:** Einen üblichen, kurzen Bannertext recherchieren und die direkte

@@ -1005,7 +1005,7 @@ test('keeps keyboard focus inside the consent modal', () => {
   dom.window.eval(analyticsScript);
 
   const languageButton = document.getElementById('analytics-language');
-  const privacyLink = document.querySelector('.analytics-consent-privacy a');
+  const privacyLink = document.querySelector('.analytics-consent-privacy a[href="/datenschutz"]');
   languageButton.focus();
   document.dispatchEvent(
     new dom.window.KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true }),
