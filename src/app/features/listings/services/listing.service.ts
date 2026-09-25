@@ -10,6 +10,7 @@ import type {
   ListingActionResult,
   ListingContent,
   ListingEditorItem,
+  ListingItemDetails,
   ListingPayloadResult,
   ListingRow,
 } from '../models/listing.models';
@@ -37,6 +38,7 @@ interface ListingDatabaseRow {
   readonly created_at: string;
   readonly updated_at: string;
   readonly image_selection_saved?: boolean;
+  readonly item_details?: ListingItemDetails | null;
 }
 type InventoryDatabaseRow = Tables<'inventory_items'> & {
   readonly condition_notes?: string | null;
@@ -129,6 +131,7 @@ interface ListingContentUpdate {
   readonly shipping_type: ListingContent['shippingType'];
   readonly shipping_price: number | null;
   readonly postal_code: string | null;
+  readonly item_details: ListingItemDetails | null;
 }
 
 @Injectable({
@@ -341,7 +344,11 @@ export class ListingService {
       price: row.listing.content.price,
       priceType: row.listing.content.priceType,
       postalCode: row.listing.content.postalCode ?? undefined,
-      categoryHint: row.item.category?.split(' > ').at(-1)?.trim() || undefined,
+      categoryHint:
+        (row.listing.content.itemDetails?.category ?? row.item.category)
+          ?.split(' > ')
+          .at(-1)
+          ?.trim() || undefined,
       shippingType: row.listing.content.shippingType,
       shippingPrice: row.listing.content.shippingPrice ?? undefined,
       images: orderedMedia.flatMap((medium) => {
@@ -404,7 +411,9 @@ export class ListingService {
     return { data: null, error: new Error('Es ist kein Workspace ausgewählt.') };
   }
 
-  private toRpcContent(content: ListingContent): Record<string, string | number | null> {
+  private toRpcContent(
+    content: ListingContent,
+  ): Record<string, string | number | ListingItemDetails | null> {
     return {
       title: content.title,
       description: content.description,
@@ -413,6 +422,7 @@ export class ListingService {
       shippingType: content.shippingType,
       shippingPrice: content.shippingPrice,
       postalCode: content.postalCode,
+      ...(content.itemDetails ? { itemDetails: content.itemDetails } : {}),
     };
   }
 
@@ -425,6 +435,7 @@ export class ListingService {
       shipping_type: content.shippingType,
       shipping_price: content.shippingPrice,
       postal_code: content.postalCode,
+      item_details: content.itemDetails ?? null,
     };
   }
 
@@ -461,6 +472,7 @@ export class ListingService {
         shippingType: row.shipping_type as ListingContent['shippingType'],
         shippingPrice: row.shipping_price,
         postalCode: row.postal_code,
+        itemDetails: row.item_details ?? null,
       },
       listedCount: row.listed_count,
       lastListedAt: row.last_listed_at,
@@ -477,6 +489,9 @@ export class ListingService {
     productsById: ReadonlyMap<string, CatalogProductDatabaseRow>,
   ): ListingEditorItem {
     const productId = row.purchase_line?.catalog_product_id;
+    const product = productId ? productsById.get(productId) : undefined;
+    const productPrice = this.usableSalePrice(product?.listing_price);
+    const articlePrice = this.usableSalePrice(row.expected_value);
     const parentArchivedAt = row.purchase_line_id
       ? productId === null
         ? null
@@ -487,14 +502,19 @@ export class ListingService {
       workspaceId: row.workspace_id,
       targetKind: 'inventory_item',
       title: row.title,
-      brand: row.brand,
-      category: row.category,
+      brand: row.brand ?? product?.brand ?? null,
+      category: row.category ?? product?.category ?? null,
+      model: row.model ?? product?.model ?? null,
+      size: product?.size ?? null,
+      color: product?.color ?? null,
+      material: product?.material ?? null,
       condition: row.condition as ListingEditorItem['condition'],
       conditionNotes: row.condition_notes ?? null,
       description: row.description,
       status: row.status as ListingEditorItem['status'],
       archivedAt: row.archived_at ?? parentArchivedAt,
-      expectedValue: row.expected_value,
+      expectedValue: productPrice ?? articlePrice,
+      priceSource: productPrice !== null ? 'product' : articlePrice !== null ? 'article' : null,
       allocatedPurchaseCost: row.allocated_purchase_cost,
       media: (row.media ?? []).map((medium) => this.mapMedia(medium)),
     };
@@ -513,15 +533,26 @@ export class ListingService {
       title: row.title,
       brand: row.brand ?? null,
       category: row.category ?? null,
+      model: row.model ?? null,
+      size: row.size ?? null,
+      color: row.color ?? null,
+      material: row.material ?? null,
       condition: (row.condition as ListingEditorItem['condition']) ?? 'like_new',
       conditionNotes: row.condition_notes ?? null,
       description: row.description ?? null,
       status: (stock?.totalQuantity ?? 0) > 0 ? 'ready' : 'sold',
       archivedAt: row.archived_at ?? null,
-      expectedValue: row.listing_price ?? null,
+      expectedValue: this.usableSalePrice(row.listing_price),
+      priceSource: this.usableSalePrice(row.listing_price) !== null ? 'product' : null,
       allocatedPurchaseCost: stock?.oldestUnitCost ?? null,
       media: rawMedia.map((medium) => this.mapCatalogMedia(medium, row.id)),
     };
+  }
+
+  private usableSalePrice(value: number | null | undefined): number | null {
+    return value !== null && value !== undefined && Number.isFinite(value) && value > 0
+      ? value
+      : null;
   }
 
   private mapCatalogMedia(row: CatalogProductMediaDatabaseRow, productId: string): ItemMedia {

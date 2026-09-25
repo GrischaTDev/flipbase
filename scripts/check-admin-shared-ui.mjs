@@ -91,6 +91,22 @@ export function findAdminSharedUiViolations(path, source) {
   const elements = templateElements(source, path);
   const tables = elements.filter(({ node }) => node.name === 'table');
 
+  for (const { node } of elements) {
+    if (node.name !== 'app-button') continue;
+    const text = (node.children ?? [])
+      .filter((child) => typeof child.value === 'string')
+      .map((child) => child.value)
+      .join('')
+      .trim();
+    const hasIcon = (node.inputs ?? []).some((input) => input.name === 'icon');
+    if (/^(?:Entfernen|Löschen)$/u.test(text) && !hasIcon) {
+      violations.push({
+        rule: 'text-only-destructive-action',
+        line: node.sourceSpan.start.line + 1,
+      });
+    }
+  }
+
   for (const match of source.matchAll(nativeSelectPattern)) {
     violations.push({ rule: 'native-select', line: lineAt(source, match.index) });
   }

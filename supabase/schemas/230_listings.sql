@@ -21,6 +21,7 @@ create table if not exists public.listings (
   ended_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
+  item_details jsonb not null default '{}'::jsonb check (jsonb_typeof(item_details) = 'object'),
   constraint listings_workspace_id_id_key unique (workspace_id, id),
   constraint listings_item_workspace_fkey foreign key (workspace_id, inventory_item_id)
     references public.inventory_items(workspace_id, id) on delete cascade,
@@ -85,7 +86,7 @@ for each row execute function public.protect_archived_workspace_data();
 
 revoke all on table public.listings from public, anon, authenticated, service_role;
 grant select on table public.listings to authenticated;
-grant update (title, description, price, price_type, shipping_type, shipping_price, postal_code)
+grant update (title, description, price, price_type, shipping_type, shipping_price, postal_code, item_details)
   on table public.listings to authenticated;
 
 drop policy if exists "Inserate lesen" on public.listings;
@@ -102,6 +103,43 @@ for update
 to authenticated
 using ((select public.is_workspace_member(workspace_id)))
 with check ((select public.is_workspace_member(workspace_id)));
+
+create or replace function public.validate_listing_item_details(p_details jsonb)
+returns jsonb
+language plpgsql
+immutable
+security invoker
+set search_path = ''
+as $$
+declare
+  v_details jsonb := coalesce(p_details, '{}'::jsonb);
+  v_result jsonb := '{}'::jsonb;
+  v_field text;
+  v_value text;
+begin
+  if jsonb_typeof(v_details) <> 'object' then
+    raise exception using errcode = '22023', message = 'Die Artikeldaten sind ungültig.';
+  end if;
+  foreach v_field in array array['brand', 'category', 'model', 'size', 'color', 'material', 'condition', 'conditionNotes'] loop
+    if v_details ? v_field and jsonb_typeof(v_details -> v_field) not in ('string', 'null') then
+      raise exception using errcode = '22023', message = 'Die Artikeldaten sind ungültig.';
+    end if;
+    v_value := nullif(btrim(v_details ->> v_field), '');
+    if char_length(v_value) > 120 and v_field not in ('category', 'conditionNotes')
+       or char_length(v_value) > 240 and v_field = 'category'
+       or char_length(v_value) > 500 and v_field = 'conditionNotes'
+       or char_length(v_value) > 80 and v_field in ('size', 'color') then
+      raise exception using errcode = '22023', message = 'Ein Artikelfeld ist zu lang.';
+    end if;
+    if v_field = 'condition' and v_value is not null
+       and v_value not in ('new', 'like_new', 'very_good', 'used', 'heavily_used', 'defective') then
+      raise exception using errcode = '22023', message = 'Der Zustand ist ungültig.';
+    end if;
+    v_result := v_result || pg_catalog.jsonb_build_object(v_field, v_value);
+  end loop;
+  return v_result;
+end;
+$$;
 
 create or replace function public.validate_listing_content(p_content jsonb)
 returns jsonb
@@ -156,7 +194,8 @@ begin
   end if;
   return jsonb_build_object('title', v_title, 'description', v_description, 'price', v_price,
     'priceType', v_price_type, 'shippingType', v_shipping_type, 'shippingPrice', v_shipping_price,
-    'postalCode', v_postal_code);
+    'postalCode', v_postal_code,
+    'itemDetails', public.validate_listing_item_details(p_content -> 'itemDetails'));
 end;
 $$;
 
@@ -203,10 +242,10 @@ begin
       order by updated_at desc, id desc limit 1 for update;
 
     if v_listing.id is null then
-      insert into public.listings(workspace_id, inventory_item_id, catalog_product_id, title, description, price, price_type, shipping_type, shipping_price, postal_code, listed_count, last_listed_at)
+      insert into public.listings(workspace_id, inventory_item_id, catalog_product_id, title, description, price, price_type, shipping_type, shipping_price, postal_code, listed_count, last_listed_at, item_details)
       values (p_workspace_id, p_inventory_item_id, null, v_content ->> 'title', v_content ->> 'description',
         (v_content ->> 'price')::numeric, v_content ->> 'priceType', v_content ->> 'shippingType',
-        nullif(v_content ->> 'shippingPrice', '')::numeric, nullif(v_content ->> 'postalCode', ''), 1, statement_timestamp())
+        nullif(v_content ->> 'shippingPrice', '')::numeric, nullif(v_content ->> 'postalCode', ''), 1, statement_timestamp(), v_content -> 'itemDetails')
       returning * into v_listing;
     elsif v_listing.status = 'ended' and v_listing.end_reason = 'sold' then
       raise exception using errcode = '22023', message = 'Ein nach Verkauf beendetes Inserat kann nicht erneut eingestellt werden.';
@@ -214,6 +253,7 @@ begin
       update public.listings set title = v_content ->> 'title', description = v_content ->> 'description',
         price = (v_content ->> 'price')::numeric, price_type = v_content ->> 'priceType', shipping_type = v_content ->> 'shippingType',
         shipping_price = nullif(v_content ->> 'shippingPrice', '')::numeric, postal_code = nullif(v_content ->> 'postalCode', ''),
+        item_details = v_content -> 'itemDetails',
         status = 'prepared', end_reason = null, ended_at = null, online_since = null,
         listed_count = listed_count + 1, last_listed_at = statement_timestamp()
       where id = v_listing.id returning * into v_listing;
@@ -238,15 +278,16 @@ begin
       order by updated_at desc, id desc limit 1 for update;
 
     if v_listing.id is null then
-      insert into public.listings(workspace_id, inventory_item_id, catalog_product_id, title, description, price, price_type, shipping_type, shipping_price, postal_code, listed_count, last_listed_at)
+      insert into public.listings(workspace_id, inventory_item_id, catalog_product_id, title, description, price, price_type, shipping_type, shipping_price, postal_code, listed_count, last_listed_at, item_details)
       values (p_workspace_id, null, p_catalog_product_id, v_content ->> 'title', v_content ->> 'description',
         (v_content ->> 'price')::numeric, v_content ->> 'priceType', v_content ->> 'shippingType',
-        nullif(v_content ->> 'shippingPrice', '')::numeric, nullif(v_content ->> 'postalCode', ''), 1, statement_timestamp())
+        nullif(v_content ->> 'shippingPrice', '')::numeric, nullif(v_content ->> 'postalCode', ''), 1, statement_timestamp(), v_content -> 'itemDetails')
       returning * into v_listing;
     else
       update public.listings set title = v_content ->> 'title', description = v_content ->> 'description',
         price = (v_content ->> 'price')::numeric, price_type = v_content ->> 'priceType', shipping_type = v_content ->> 'shippingType',
         shipping_price = nullif(v_content ->> 'shippingPrice', '')::numeric, postal_code = nullif(v_content ->> 'postalCode', ''),
+        item_details = v_content -> 'itemDetails',
         status = 'prepared', end_reason = null, ended_at = null, online_since = null,
         listed_count = listed_count + 1, last_listed_at = statement_timestamp()
       where id = v_listing.id returning * into v_listing;

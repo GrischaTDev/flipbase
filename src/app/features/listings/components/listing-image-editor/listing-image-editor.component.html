@@ -4,8 +4,8 @@
     <span class="text-xs text-fb-text-muted">{{ drafts().length }} ausgewählt</span>
   </div>
   <p class="text-xs text-fb-text-secondary">
-    Das erste Bild wird das Titelbild. Ziehe Bilder in die gewünschte Reihenfolge oder nutze die
-    Buttons.
+    Das erste Bild wird das Titelbild. Halte den Griff gedrückt und ziehe das Bild an die gewünschte
+    Stelle. Die Pfeile funktionieren auch mit der Tastatur.
   </p>
   @if (errors().length) {
     <ul role="alert" class="text-xs text-fb-critical">
@@ -37,63 +37,103 @@
     <p class="mt-2 text-xs text-fb-text-muted">oder Bilder hier ablegen</p>
   </div>
   @if (drafts().length) {
-    <ol class="space-y-2">
+    <ol
+      cdkDropList
+      cdkDropListOrientation="mixed"
+      [cdkDropListDisabled]="disabled()"
+      (cdkDropListDropped)="onReordered($event)"
+      class="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4"
+    >
       @for (image of drafts(); track image.key; let index = $index) {
         <li
-          class="flex flex-wrap items-center gap-3 rounded-lg border border-fb-border p-2"
-          [draggable]="!disabled()"
-          (dragstart)="startReorder(image.key, $event)"
-          (dragend)="draggedKey.set(null)"
-          (dragover)="dragOverImage($event)"
-          (drop)="dropOnImage(image.key, $event)"
+          cdkDrag
+          cdkDragPreviewContainer="parent"
+          [cdkDragStartDelay]="dragStartDelay"
+          class="relative min-w-0 overflow-hidden rounded-lg border border-fb-border bg-fb-surface"
         >
-          <div
-            class="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-md bg-fb-subtle"
-          >
+          <ng-template cdkDragPlaceholder>
+            <div
+              class="h-full min-h-44 rounded-lg border-2 border-dashed border-fb-border bg-fb-subtle"
+            ></div>
+          </ng-template>
+          <div class="relative aspect-square overflow-hidden bg-fb-subtle">
             @if (image.previewUrl) {
               <img
                 [src]="image.previewUrl"
-                [alt]="image.fileName"
+                [alt]="image.fileName + ', Bild ' + (index + 1)"
+                draggable="false"
                 class="size-full object-contain"
               />
             } @else {
-              <span class="text-xs text-fb-text-muted">Keine Vorschau</span>
-            }
-          </div>
-          <div class="min-w-0 flex-1">
-            <p class="truncate text-xs font-medium text-fb-text-primary">{{ image.fileName }}</p>
-            <p class="text-xs text-fb-text-muted">
-              {{ index === 0 ? 'Titelbild' : 'Bild ' + (index + 1) }}
-            </p>
-          </div>
-          <div class="flex flex-wrap gap-1">
-            @if (index > 0) {
-              <app-button size="slim" [disabled]="disabled()" (clicked)="setPrimary(image.key)"
-                >Als Titelbild</app-button
+              <span
+                class="flex size-full items-center justify-center p-3 text-center text-xs text-fb-text-muted"
+                >Keine Vorschau</span
               >
             }
+            @if (index === 0) {
+              <span
+                class="absolute bottom-2 left-2 rounded-md bg-fb-surface px-2 py-1 text-xs font-semibold text-fb-text-primary shadow-sm"
+                >Titelbild</span
+              >
+            }
+          </div>
+          <p
+            class="truncate px-2 pt-2 text-xs font-medium text-fb-text-primary"
+            [title]="image.fileName"
+          >
+            {{ image.fileName }}
+          </p>
+          <div class="flex flex-wrap items-center justify-between gap-1 p-1">
             <app-button
+              cdkDragHandle
+              class="touch-none"
+              variant="ghost"
               size="slim"
+              [icon]="dragIcon"
+              [iconOnly]="true"
+              [disabled]="disabled()"
+              [ariaLabel]="image.fileName + ' mit Berührung verschieben'"
+              title="Bild ziehen"
+            />
+            @if (index > 0) {
+              <app-button
+                variant="ghost"
+                size="slim"
+                [icon]="primaryIcon"
+                [iconOnly]="true"
+                [disabled]="disabled()"
+                [ariaLabel]="image.fileName + ' als Titelbild setzen'"
+                title="Als Titelbild setzen"
+                (clicked)="setPrimary(image.key)"
+              />
+            }
+            <app-button
+              variant="ghost"
+              size="slim"
+              [icon]="previousIcon"
+              [iconOnly]="true"
               [disabled]="disabled() || index === 0"
               [ariaLabel]="image.fileName + ' nach vorne'"
               (clicked)="move(image.key, -1)"
-              >←</app-button
-            >
+            />
             <app-button
+              variant="ghost"
               size="slim"
+              [icon]="nextIcon"
+              [iconOnly]="true"
               [disabled]="disabled() || index === drafts().length - 1"
               [ariaLabel]="image.fileName + ' nach hinten'"
               (clicked)="move(image.key, 1)"
-              >→</app-button
-            >
+            />
             <app-button
+              variant="destructive"
               size="slim"
-              variant="plain"
+              [icon]="removeIcon"
+              [iconOnly]="true"
               [disabled]="disabled()"
               [ariaLabel]="image.fileName + ' entfernen'"
               (clicked)="remove(image.key)"
-              >Entfernen</app-button
-            >
+            />
           </div>
         </li>
       }

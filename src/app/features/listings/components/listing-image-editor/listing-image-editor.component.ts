@@ -8,6 +8,20 @@ import {
   output,
   signal,
 } from '@angular/core';
+import {
+  CdkDrag,
+  CdkDragDrop,
+  CdkDragHandle,
+  CdkDragPlaceholder,
+  CdkDropList,
+} from '@angular/cdk/drag-drop';
+import {
+  LucideArrowLeft,
+  LucideArrowRight,
+  LucideGripVertical,
+  LucideStar,
+  LucideTrash2,
+} from '@lucide/angular';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import {
   IMAGE_FILE_ACCEPT,
@@ -17,7 +31,7 @@ import type { ListingImageDraft } from '../../models/listing.models';
 
 @Component({
   selector: 'app-listing-image-editor',
-  imports: [ButtonComponent],
+  imports: [ButtonComponent, CdkDrag, CdkDragHandle, CdkDragPlaceholder, CdkDropList],
   templateUrl: './listing-image-editor.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -29,7 +43,12 @@ export class ListingImageEditorComponent {
   readonly errors = signal<readonly string[]>([]);
   readonly announcement = signal('');
   readonly dragActive = signal(false);
-  readonly draggedKey = signal<string | null>(null);
+  readonly dragStartDelay = { touch: 200, mouse: 0 } as const;
+  readonly dragIcon = LucideGripVertical;
+  readonly primaryIcon = LucideStar;
+  readonly previousIcon = LucideArrowLeft;
+  readonly nextIcon = LucideArrowRight;
+  readonly removeIcon = LucideTrash2;
   readonly accept = IMAGE_FILE_ACCEPT;
   private readonly readers = new Set<FileReader>();
   private readonly destroyRef = inject(DestroyRef);
@@ -128,30 +147,13 @@ export class ListingImageEditorComponent {
     this.announcement.set('Bild entfernt.');
   }
 
-  startReorder(key: string, event: DragEvent): void {
-    if (this.disabled()) return;
-    this.draggedKey.set(key);
-    event.dataTransfer?.setData('text/plain', key);
-    if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
-  }
-
-  dragOverImage(event: DragEvent): void {
-    if (!this.disabled() && this.draggedKey()) event.preventDefault();
-  }
-
-  dropOnImage(targetKey: string, event: DragEvent): void {
-    event.preventDefault();
-    const sourceKey = this.draggedKey();
-    this.draggedKey.set(null);
-    if (this.disabled() || !sourceKey || sourceKey === targetKey) return;
+  onReordered(event: CdkDragDrop<unknown>): void {
+    if (this.disabled() || event.previousIndex === event.currentIndex) return;
     const images = [...this.drafts()];
-    const source = images.findIndex((image) => image.key === sourceKey);
-    const target = images.findIndex((image) => image.key === targetKey);
-    if (source < 0 || target < 0) return;
-    const [image] = images.splice(source, 1);
-    images.splice(target, 0, image);
+    const [image] = images.splice(event.previousIndex, 1);
+    images.splice(event.currentIndex, 0, image);
     this.change(images);
-    this.announcement.set(`Bild auf Position ${target + 1} verschoben.`);
+    this.announcement.set(`Bild auf Position ${event.currentIndex + 1} verschoben.`);
   }
 
   private change(images: readonly ListingImageDraft[]): void {

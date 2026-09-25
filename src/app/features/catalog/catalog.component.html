@@ -443,6 +443,7 @@
               <app-button
                 size="slim"
                 variant="ghost"
+                [icon]="trashIcon"
                 [attr.data-article-delete-mobile]="product.key"
                 [disabled]="lifecycle.pendingIds().has(product.key)"
                 [ariaLabel]="'Löschen: ' + product.title"

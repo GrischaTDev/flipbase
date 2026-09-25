@@ -6,6 +6,7 @@
     <app-button
       size="slim"
       data-delete-purchase
+      [icon]="deleteIcon"
       [disabled]="submitting()"
       (clicked)="deleteRequested.emit()"
       >Löschen</app-button

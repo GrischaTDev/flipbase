@@ -13,6 +13,7 @@ import {
   signal,
 } from '@angular/core';
 import { ProductImageDraft } from '../../../../core/models/product-media.models';
+import { LucideTrash2 } from '@lucide/angular';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import {
   CroppedImageResult,
@@ -30,6 +31,7 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ProductMediaEditorComponent {
+  readonly removeIcon = LucideTrash2;
   readonly images = input<readonly ProductImageDraft[]>([]);
   readonly disabled = input(false);
   readonly imagesChange = output<readonly ProductImageDraft[]>();

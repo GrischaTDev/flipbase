@@ -50,9 +50,15 @@ test('creates, publishes and completes the listing lifecycle on mobile @pr-smoke
   });
   await itemSelect.fill('E2E Kamera');
   await page.getByRole('option', { name: 'E2E Kamera' }).click();
+  await page.getByRole('textbox', { name: 'Marke' }).fill('Acme');
+  await page.getByRole('textbox', { name: 'Artikelkategorie' }).fill('Elektronik > Kameras');
+  await page.getByRole('textbox', { name: 'Größe' }).fill('Kompakt');
   await page.getByRole('textbox', { name: 'Titel', exact: true }).fill('E2E Kamera Inserat');
   await page.getByRole('spinbutton', { name: 'Preis', exact: true }).fill('79.90');
-  await page.getByRole('button', { name: 'Vorbereiten und öffnen', exact: true }).click();
+  await page
+    .locator('app-entry-page-layout header')
+    .getByRole('button', { name: 'Inserat vorbereiten', exact: true })
+    .click();
 
   await expect(page).toHaveURL(/\/listings$/);
   await expect(page.getByText('E2E Kamera Inserat', { exact: true }).last()).toBeVisible();
@@ -85,7 +91,15 @@ test('creates, publishes and completes the listing lifecycle on mobile @pr-smoke
     itemId: item.id,
     title: 'E2E Kamera Inserat',
     price: 79.9,
+    categoryHint: 'Kameras',
   });
+  const { data: savedListing } = await workspace.client
+    .from('listings')
+    .select('item_details')
+    .eq('workspace_id', workspace.id)
+    .eq('inventory_item_id', item.id)
+    .single();
+  expect(savedListing?.item_details).toMatchObject({ brand: 'Acme', size: 'Kompakt' });
 
   await page.getByRole('button', { name: 'Inserat online setzen' }).click();
   await expect
@@ -157,7 +171,7 @@ test('keeps a prepared listing and explains setup when the extension is missing'
   await page.getByRole('option', { name: 'E2E Radio' }).click();
   await page.getByRole('textbox', { name: 'Titel', exact: true }).fill('E2E Radio Inserat');
   await page.getByRole('spinbutton', { name: 'Preis', exact: true }).fill('39');
-  await page.getByRole('button', { name: 'Vorbereiten und öffnen', exact: true }).click();
+  await page.getByRole('button', { name: 'Inserat vorbereiten', exact: true }).click();
 
   await expect(
     page.getByRole('dialog', { name: 'Kleinanzeigen-Erweiterung verbinden' }),
