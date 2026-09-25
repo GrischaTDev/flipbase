@@ -140,8 +140,11 @@
     pageRegions.forEach(function (region) {
       region.inert = false;
     });
-    if (returnFocusTo && returnFocusTo !== document.body) returnFocusTo.focus();
-    else settingsButton.focus();
+    var focusTarget =
+      returnFocusTo && returnFocusTo !== document.body
+        ? returnFocusTo
+        : document.querySelector('main h1');
+    focusTarget.focus({ preventScroll: true });
   }
 
   function choose(value) {
