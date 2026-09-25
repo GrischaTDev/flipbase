@@ -9,6 +9,13 @@
       <section main class="linear-surface space-y-4 rounded-xl p-5">
         <div class="block text-sm font-medium text-fb-text-primary">
           <span>Bestandsartikel oder Produkt</span>
+          <app-custom-search-input
+            class="mt-1 block"
+            [value]="itemSearch()"
+            placeholder="Artikel oder Produkt suchen…"
+            ariaLabel="Artikel oder Produkt suchen"
+            (valueChange)="itemSearch.set($event)"
+          />
           <app-custom-select
             formControlName="inventoryItemId"
             class="mt-1"
@@ -29,12 +36,16 @@
         </div>
         @if (selectedItem(); as item) {
           <p class="text-sm text-fb-text-muted">
-            {{ item.brand ?? 'Ohne Marke' }} · {{ item.category ?? 'Ohne Kategorie' }} ·
+            {{ item.brand ?? 'Ohne Marke' }} · {{ categoryLabel(item.category) }} ·
             @if (item.targetKind === 'catalog_product') {
               Mengenbestand {{ item.availableQuantity ?? 0 }} Stk.
             } @else {
               Einkaufskosten {{ item.allocatedPurchaseCost ?? 0 }} €
             }
+          </p>
+          <p class="text-xs text-fb-text-muted">
+            Die passende Kleinanzeigen-Kategorie wählst du nach der Übertragung auf Kleinanzeigen
+            aus.
           </p>
           @if (selectedItemIssue(); as issue) {
             <p class="text-sm text-fb-critical" role="alert">{{ issue }}</p>
@@ -82,6 +93,17 @@
           >
           <app-button variant="secondary" (clicked)="copyTexts()">Texte kopieren</app-button>
         </div>
+        <app-listing-image-editor
+          [images]="imageDrafts()"
+          [disabled]="isSaving()"
+          (imagesChange)="imageDrafts.set($event)"
+        />
+        @if (imagesLoading()) {
+          <p class="text-xs text-fb-text-muted" role="status">Bilder werden geladen…</p>
+        }
+        @if (imagesLoadError(); as imageError) {
+          <p class="text-xs text-fb-critical" role="alert">{{ imageError }}</p>
+        }
       </section>
       <aside sidebar class="linear-surface space-y-4 rounded-xl p-5">
         <div>
@@ -179,7 +201,7 @@
           variant="primary"
           size="lg"
           type="submit"
-          [disabled]="selectedItemIssue() !== null"
+          [disabled]="selectedItemIssue() !== null || imagesLoading() || imagesLoadError() !== null"
           [loading]="isSaving()"
           >{{ isEdit() ? 'Speichern' : 'Vorbereiten und öffnen' }}</app-button
         >
@@ -190,6 +212,8 @@
 <app-listing-extension-help
   [open]="helpOpen()"
   [checking]="extension.checking()"
-  (closeRequested)="helpOpen.set(false)"
-  (checkRequested)="extension.checkNow()"
+  [available]="extension.available()"
+  [attempted]="connectionAttempted()"
+  (closeRequested)="closeHelp()"
+  (checkRequested)="checkConnection()"
 />

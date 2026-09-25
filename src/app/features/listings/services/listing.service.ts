@@ -13,6 +13,7 @@ import type {
   ListingPayloadResult,
   ListingRow,
 } from '../models/listing.models';
+import { ListingImagesService } from './listing-images.service';
 
 interface ListingDatabaseRow {
   readonly id: string;
@@ -35,6 +36,7 @@ interface ListingDatabaseRow {
   readonly ended_at: string | null;
   readonly created_at: string;
   readonly updated_at: string;
+  readonly image_selection_saved?: boolean;
 }
 type InventoryDatabaseRow = Tables<'inventory_items'> & {
   readonly condition_notes?: string | null;
@@ -64,6 +66,7 @@ interface StockLotDatabaseRow {
   readonly remaining_quantity: number;
   readonly unit_cost: number | null;
 }
+type ListingImageDatabaseRow = Tables<'listing_images'>;
 
 interface QueryError {
   readonly message: string;
@@ -100,6 +103,9 @@ interface ListingDatabaseClient {
   from(table: 'stock_lots'): {
     select(columns: string): CollectionQuery<readonly StockLotDatabaseRow[]>;
   };
+  from(table: 'listing_images'): {
+    select(columns: string): CollectionQuery<readonly ListingImageDatabaseRow[]>;
+  };
   rpc(
     name: 'prepare_listing',
     parameters: {
@@ -132,6 +138,7 @@ export class ListingService {
   private readonly supabase = inject(SupabaseService);
   private readonly workspaceService = inject(WorkspaceService);
   private readonly mediaService = inject(MediaService);
+  private readonly listingImages = inject(ListingImagesService);
   private loadGeneration = 0;
 
   readonly rows = signal<readonly ListingRow[]>([]);
@@ -155,29 +162,35 @@ export class ListingService {
     this.loadedWorkspaceId.set(null);
 
     try {
-      const [listingsResult, itemsResult, productsResult, stockLotsResult] = await Promise.all([
-        this.client
-          .from('listings')
-          .select('*')
-          .eq('workspace_id', workspaceId)
-          .order('updated_at', { ascending: false }),
-        this.client
-          .from('inventory_items')
-          .select(
-            '*, media:item_media(*), purchase_line:purchase_lines!inventory_items_workspace_purchase_line_fkey(catalog_product_id)',
-          )
-          .eq('workspace_id', workspaceId)
-          .order('created_at', { ascending: false }),
-        this.client
-          .from('catalog_products')
-          .select('*, media:catalog_product_media(*)')
-          .eq('workspace_id', workspaceId)
-          .order('title', { ascending: true }),
-        this.client
-          .from('stock_lots')
-          .select('catalog_product_id, remaining_quantity, unit_cost')
-          .eq('workspace_id', workspaceId),
-      ]);
+      const [listingsResult, itemsResult, productsResult, stockLotsResult, imagesResult] =
+        await Promise.all([
+          this.client
+            .from('listings')
+            .select('*')
+            .eq('workspace_id', workspaceId)
+            .order('updated_at', { ascending: false }),
+          this.client
+            .from('inventory_items')
+            .select(
+              '*, media:item_media(*), purchase_line:purchase_lines!inventory_items_workspace_purchase_line_fkey(catalog_product_id)',
+            )
+            .eq('workspace_id', workspaceId)
+            .order('created_at', { ascending: false }),
+          this.client
+            .from('catalog_products')
+            .select('*, media:catalog_product_media(*)')
+            .eq('workspace_id', workspaceId)
+            .order('title', { ascending: true }),
+          this.client
+            .from('stock_lots')
+            .select('catalog_product_id, remaining_quantity, unit_cost')
+            .eq('workspace_id', workspaceId),
+          this.client
+            .from('listing_images')
+            .select('listing_id, storage_path, sort_order')
+            .eq('workspace_id', workspaceId)
+            .order('sort_order', { ascending: true }),
+        ]);
 
       if (!this.isCurrentLoad(generation, workspaceId)) return;
 
@@ -185,14 +198,16 @@ export class ListingService {
         listingsResult.error ||
         itemsResult.error ||
         productsResult.error ||
-        stockLotsResult.error
+        stockLotsResult.error ||
+        imagesResult.error
       ) {
         this.error.set(
           (
             listingsResult.error ??
             itemsResult.error ??
             productsResult.error ??
-            stockLotsResult.error
+            stockLotsResult.error ??
+            imagesResult.error
           )?.message ?? 'Inserate konnten nicht geladen werden.',
         );
         return;
@@ -227,13 +242,19 @@ export class ListingService {
       );
       const editorItems = [...inventoryEditorItems, ...catalogEditorItems];
       const itemsById = new Map(editorItems.map((item) => [item.id, item]));
+      const firstImageByListingId = new Map<string, string>();
+      for (const image of imagesResult.data ?? []) {
+        if (!firstImageByListingId.has(image.listing_id)) {
+          firstImageByListingId.set(image.listing_id, image.storage_path);
+        }
+      }
       this.items.set(editorItems);
       this.rows.set(
         (listingsResult.data ?? [])
           .map((listing) => {
             const targetId = listing.inventory_item_id ?? listing.catalog_product_id;
             const item = targetId ? itemsById.get(targetId) : null;
-            return item ? this.mapRow(listing, item) : null;
+            return item ? this.mapRow(listing, item, firstImageByListingId.get(listing.id)) : null;
           })
           .filter((row): row is ListingRow => row !== null),
       );
@@ -302,15 +323,17 @@ export class ListingService {
   }
 
   async buildExtensionPayload(row: ListingRow): Promise<ListingPayloadResult> {
-    const orderedMedia = [...row.item.media].sort(
-      (left, right) => (left.sort_order ?? 0) - (right.sort_order ?? 0),
+    const orderedMedia = await this.listingImages.pathsForListing(
+      row.listing.id,
+      row.item,
+      row.listing.imageSelectionSaved === true,
     );
     const urls = await this.mediaService.resolveMediaUrls(
-      orderedMedia.map((medium) => medium.storage_path),
+      orderedMedia.map((medium) => medium.path),
     );
     const missingImages = orderedMedia
-      .filter((medium) => !urls[medium.storage_path])
-      .map((medium) => medium.file_name ?? this.fileNameFromPath(medium.storage_path));
+      .filter((medium) => !urls[medium.path])
+      .map((medium) => medium.name ?? this.fileNameFromPath(medium.path));
     const payload: KleinanzeigenListingPayload = {
       itemId: row.item.id,
       title: row.listing.content.title,
@@ -318,13 +341,12 @@ export class ListingService {
       price: row.listing.content.price,
       priceType: row.listing.content.priceType,
       postalCode: row.listing.content.postalCode ?? undefined,
+      categoryHint: row.item.category?.split(' > ').at(-1)?.trim() || undefined,
       shippingType: row.listing.content.shippingType,
       shippingPrice: row.listing.content.shippingPrice ?? undefined,
       images: orderedMedia.flatMap((medium) => {
-        const url = urls[medium.storage_path];
-        return url
-          ? [{ url, name: medium.file_name ?? this.fileNameFromPath(medium.storage_path) }]
-          : [];
+        const url = urls[medium.path];
+        return url ? [{ url, name: medium.name ?? this.fileNameFromPath(medium.path) }] : [];
       }),
     };
 
@@ -406,14 +428,19 @@ export class ListingService {
     };
   }
 
-  private mapRow(listing: ListingDatabaseRow, item: ListingEditorItem): ListingRow {
+  private mapRow(
+    listing: ListingDatabaseRow,
+    item: ListingEditorItem,
+    firstListingImagePath?: string,
+  ): ListingRow {
     return {
       listing: this.mapListing(listing),
       item,
-      primaryImagePath:
-        item.media.find((medium) => medium.is_primary)?.storage_path ??
-        item.media[0]?.storage_path ??
-        null,
+      primaryImagePath: listing.image_selection_saved
+        ? (firstListingImagePath ?? null)
+        : (item.media.find((medium) => medium.is_primary)?.storage_path ??
+          item.media[0]?.storage_path ??
+          null),
     };
   }
 
@@ -441,6 +468,7 @@ export class ListingService {
       endedAt: row.ended_at,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
+      imageSelectionSaved: row.image_selection_saved ?? false,
     };
   }
 

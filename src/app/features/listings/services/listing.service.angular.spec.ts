@@ -6,6 +6,7 @@ import { SupabaseService } from '../../../core/services/supabase.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
 import type { ListingContent } from '../models/listing.models';
 import { ListingService } from './listing.service';
+import { ListingImagesService } from './listing-images.service';
 
 interface QueryResult<T> {
   readonly data: T | null;
@@ -126,6 +127,26 @@ describe('ListingService', () => {
         },
         { provide: WorkspaceService, useValue: { currentWorkspace } },
         { provide: MediaService, useValue: { resolveMediaUrls } },
+        {
+          provide: ListingImagesService,
+          useValue: {
+            pathsForListing: vi.fn(
+              async (
+                _id: string,
+                item: {
+                  media: readonly {
+                    storage_path: string;
+                    file_name: string | null;
+                    sort_order?: number;
+                  }[];
+                },
+              ) =>
+                [...item.media]
+                  .sort((left, right) => (left.sort_order ?? 0) - (right.sort_order ?? 0))
+                  .map((medium) => ({ path: medium.storage_path, name: medium.file_name })),
+            ),
+          },
+        },
       ],
     });
 
