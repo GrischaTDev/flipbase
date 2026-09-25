@@ -36,12 +36,6 @@
           >Scannen</app-button
         >
       </div>
-      <app-button
-        variant="secondary"
-        [disabled]="barcodeLoading() || !form.controls.ean.value"
-        (clicked)="onBarcodeScanned(form.controls.ean.value)"
-        >EAN online suchen</app-button
-      >
       @if (platformOperator.operator()) {
         <app-button variant="secondary" (clicked)="openAiSearch()">KI-Produktsuche</app-button>
       }

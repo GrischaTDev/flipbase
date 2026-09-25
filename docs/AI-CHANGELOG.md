@@ -35,6 +35,24 @@ Bei 320 px Breite bleiben die Links sichtbar. AXE meldete in den geprüften
 Dialog- und Footer-Ansichten keine WCAG-Verstöße. Der Bau meldete die bekannte
 CommonJS-Warnung zu `pako`.
 
+## 2026-09-25 – Juna – Fotovorschau und Artikelformular korrigiert
+
+**Auftrag:** Tablet-Fotos in der KI-Produktsuche vollständig anzeigen, den großen
+roten Löschknopf verkleinern, „EAN online suchen“ aus der Artikelerstellung
+entfernen und die Beschriftung „Zustand“ wieder sichtbar machen.
+
+**Änderung:** Die Fotovorschau liegt mit unverändertem Seitenverhältnis in einer
+eigenen Kachel; die Dateigröße steht darunter. Ein kleiner, deckender
+schwarz-weißer X-Kreis entfernt das Foto. Die manuelle EAN-Onlinesuche wurde aus
+beiden Erstellen-Ansichten entfernt; der Scan-Ablauf bleibt verfügbar. Das
+Zustandsfeld hat wieder eine sichtbare, zugeordnete Beschriftung.
+
+**Prüfung:** 35 gezielte Angular-Tests, TypeScript-Typprüfung, ESLint, Prettier,
+Angular-Produktionsbau und ein Tablet-Browsertest bestanden. Der Browsertest
+prüfte ein hochkant aufgenommenes Foto, dessen vollständige Vorschau, die
+Größe und Deckkraft des Löschknopfs, das Entfernen des Fotos, das Formular und
+die Barrierefreiheit der geöffneten Suche mit Axe.
+
 ## 2026-09-25 – Juna – Einwilligungstext als klare Wahl formuliert
 
 **Auftrag:** Den Einstieg des Cookie-Dialogs im Stil des vorgeschlagenen Beispiels

@@ -4,7 +4,7 @@ import { NgTemplateOutlet } from '@angular/common';
 import { Params, RouterLink } from '@angular/router';
 
 export type ButtonVariant =
-  'primary' | 'secondary' | 'destructive' | 'ghost' | 'plain' | 'table-action';
+  'primary' | 'secondary' | 'destructive' | 'ghost' | 'plain' | 'table-action' | 'thumbnail-remove';
 
 export type TableActionTone = 'brand' | 'positive' | 'warning' | 'critical';
 
@@ -58,7 +58,10 @@ export class ButtonComponent {
         ? 'focus-visible:outline-fb-text-primary'
         : 'focus-visible:outline-fb-primary';
     const base =
-      'fb-button inline-flex items-center font-[550] leading-4 select-none cursor-pointer pointer-coarse:min-h-11 pointer-coarse:min-w-11 ' +
+      'fb-button inline-flex items-center font-[550] leading-4 select-none cursor-pointer ' +
+      (this.variant() === 'thumbnail-remove'
+        ? 'pointer-coarse:min-h-7 pointer-coarse:min-w-7 '
+        : 'pointer-coarse:min-h-11 pointer-coarse:min-w-11 ') +
       'focus-visible:outline-2 focus-visible:outline-offset-2 ' +
       'disabled:cursor-not-allowed disabled:opacity-40';
 
@@ -77,6 +80,8 @@ export class ButtonComponent {
       plain:
         'bg-transparent text-fb-text-secondary hover:text-fb-text-primary p-0 border-0 underline-offset-4 hover:underline',
       'table-action': 'border border-transparent bg-transparent text-fb-text-muted shadow-none',
+      'thumbnail-remove':
+        'rounded-full border border-zinc-300 bg-white text-zinc-900 shadow-sm hover:bg-zinc-100 focus-visible:outline-zinc-900',
     };
 
     const tableActionToneStyles: Record<TableActionTone, string> = {
@@ -92,7 +97,10 @@ export class ButtonComponent {
 
     const sizeStyles: Record<ButtonSize, string> = this.iconOnly()
       ? {
-          slim: 'h-7 w-7 px-0 text-[13px] rounded-lg gap-0',
+          slim:
+            this.variant() === 'thumbnail-remove'
+              ? 'h-7 w-7 px-0 text-[13px] rounded-full gap-0'
+              : 'h-7 w-7 px-0 text-[13px] rounded-lg gap-0',
           md: 'h-7 w-7 px-0 text-[13px] rounded-lg gap-0',
           lg: 'h-8 w-8 px-0 text-[13px] rounded-lg gap-0',
           search: 'h-9 w-9 px-0 text-[13px] rounded-lg gap-0',
