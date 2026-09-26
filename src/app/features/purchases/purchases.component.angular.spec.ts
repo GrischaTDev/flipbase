@@ -443,7 +443,8 @@ describe('PurchasesComponent – responsive Einkaufsübersicht', () => {
       expect(panel?.style.top).toBe('');
       expect(panel?.style.bottom).toBe('484px');
       expect(panel?.style.maxHeight).toBe('452px');
-      expect(panel?.querySelector<HTMLElement>('ul')?.style.maxHeight).toBe('348px');
+      expect(panel?.classList.contains('overflow-hidden')).toBe(true);
+      expect(panel?.querySelector<HTMLElement>('ul')?.classList.contains('min-h-0')).toBe(true);
     } finally {
       shellHeader.remove();
       if (originalHeight) Object.defineProperty(window, 'innerHeight', originalHeight);
@@ -470,8 +471,11 @@ describe('PurchasesComponent – responsive Einkaufsübersicht', () => {
     const list = panel?.querySelector<HTMLElement>('ul');
     expect(panel?.textContent).toContain('10 Positionen');
     expect(list?.querySelectorAll('li')).toHaveLength(10);
-    expect(list?.style.maxHeight).toBe('402px');
+    expect(list?.classList.contains('max-h-[402px]')).toBe(true);
     expect(list?.classList.contains('overflow-y-auto')).toBe(true);
+    expect(panel?.classList.contains('overflow-y-auto')).toBe(false);
+    expect(panel?.classList.contains('overflow-hidden')).toBe(true);
+    expect(panel?.querySelector('a')?.classList.contains('shrink-0')).toBe(true);
     expect(list?.tabIndex).toBe(0);
     expect(list?.querySelector('li')?.classList.contains('min-h-20')).toBe(true);
   });
