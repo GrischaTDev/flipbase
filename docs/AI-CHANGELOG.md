@@ -1,5 +1,18 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-26 – Juna – Variantendetails im Einkauf sichtbar gemacht
+
+**Auftrag:** Größe und Farbe einer Einkaufsposition direkt unter dem Artikelnamen
+und im Detaildialog anzeigen.
+
+**Änderung:** Die Einkaufstabelle zeigt den Artikelnamen und die Variantenangabe
+in getrennten, bündig ausgerichteten Zeilen. Der Detaildialog nennt Größe und
+Farbe ausdrücklich neben Marke, Modell und Kategorie. Der gespeicherte
+Bezeichnungsschnappschuss behält die Variantenangabe weiterhin bei.
+
+**Prüfung:** Der gezielte Angular-Test für die Einkaufspositionen, TypeScript-
+Prüfung, ESLint, Formatierung und Angular-Produktionsbau bestanden.
+
 ## 2026-09-26 – Juna – Auswahlfelder und Bilderablage der Artikelerfassung verbessert
 
 **Auftrag:** Kategorie und Farbe auf „Artikel erstellen“ besser lesbar und bedienbar
