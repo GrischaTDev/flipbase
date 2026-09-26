@@ -413,7 +413,7 @@ describe('PurchasesComponent – responsive Einkaufsübersicht', () => {
     expect(host.querySelectorAll('[data-purchase-receipt-preview]')).toHaveLength(0);
   });
 
-  it('öffnet die Vorschau in der unteren Bildschirmhälfte nach oben', () => {
+  it('öffnet die Vorschau nach oben und hält Abstand zum Seitenkopf', () => {
     const fixture = TestBed.createComponent(PurchasesComponent);
     fixture.detectChanges();
     const host = fixture.nativeElement as HTMLElement;
@@ -423,9 +423,15 @@ describe('PurchasesComponent – responsive Einkaufsübersicht', () => {
     if (!anchor) throw new Error('Anker der Vorschau fehlt');
     const originalHeight = Object.getOwnPropertyDescriptor(window, 'innerHeight');
     Object.defineProperty(window, 'innerHeight', { configurable: true, value: 1000 });
+    const shellHeader = document.createElement('app-header');
+    shellHeader.setAttribute('data-shell-header', '');
+    const header = document.createElement('header');
+    shellHeader.append(header);
+    document.body.append(shellHeader);
+    vi.spyOn(header, 'getBoundingClientRect').mockReturnValue({ bottom: 56 } as DOMRect);
     vi.spyOn(anchor, 'getBoundingClientRect').mockReturnValue({
-      top: 510,
-      bottom: 538,
+      top: 520,
+      bottom: 548,
       left: 700,
       right: 800,
     } as DOMRect);
@@ -435,11 +441,39 @@ describe('PurchasesComponent – responsive Einkaufsübersicht', () => {
       fixture.detectChanges();
       const panel = host.querySelector<HTMLElement>('[data-purchase-receipt-preview]');
       expect(panel?.style.top).toBe('');
-      expect(panel?.style.bottom).toBe('494px');
-      expect(panel?.style.maxHeight).toBe('498px');
+      expect(panel?.style.bottom).toBe('484px');
+      expect(panel?.style.maxHeight).toBe('452px');
+      expect(panel?.querySelector<HTMLElement>('ul')?.style.maxHeight).toBe('348px');
     } finally {
+      shellHeader.remove();
       if (originalHeight) Object.defineProperty(window, 'innerHeight', originalHeight);
     }
+  });
+
+  it('zeigt höchstens fünf normale Positionen und scrollt weitere innerhalb der Liste', () => {
+    purchaseState.set([
+      {
+        ...purchases[0],
+        purchase_lines: Array.from({ length: 10 }, (_, index) => ({
+          ...purchases[0].purchase_lines![0],
+          id: `line-${index}`,
+        })),
+      },
+    ]);
+    const fixture = TestBed.createComponent(PurchasesComponent);
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    host.querySelector<HTMLButtonElement>('app-purchase-receipt-preview button')?.click();
+    fixture.detectChanges();
+
+    const panel = host.querySelector<HTMLElement>('[data-purchase-receipt-preview]');
+    const list = panel?.querySelector<HTMLElement>('ul');
+    expect(panel?.textContent).toContain('10 Positionen');
+    expect(list?.querySelectorAll('li')).toHaveLength(10);
+    expect(list?.style.maxHeight).toBe('402px');
+    expect(list?.classList.contains('overflow-y-auto')).toBe(true);
+    expect(list?.tabIndex).toBe(0);
+    expect(list?.querySelector('li')?.classList.contains('min-h-20')).toBe(true);
   });
 
   it('lädt Artikelbilder beim Öffnen und zeigt lange Artikelnamen vollständig', () => {
