@@ -8,6 +8,9 @@ import axe from 'axe-core';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { CatalogProduct } from '../../../../core/models/flipbase.models';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { AttributePickerComponent } from '../../../../shared/components/attribute-picker/attribute-picker.component';
+import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
+import { ProductVariantCreateFormComponent } from '../../../catalog/components/product-variant-create-form/product-variant-create-form.component';
 import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
 import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
@@ -89,6 +92,16 @@ describe('PurchaseProductPickerComponent', () => {
       './button.component.scss': 'src/app/shared/components/button/button.component.scss',
       './product-thumbnail.component.html':
         'src/app/shared/components/product-thumbnail/product-thumbnail.component.html',
+      './attribute-picker.component.html':
+        'src/app/shared/components/attribute-picker/attribute-picker.component.html',
+      './attribute-picker.component.scss':
+        'src/app/shared/components/attribute-picker/attribute-picker.component.scss',
+      './number-input.component.html':
+        'src/app/shared/components/number-input/number-input.component.html',
+      './number-input.component.scss':
+        'src/app/shared/components/number-input/number-input.component.scss',
+      './product-variant-create-form.component.html':
+        'src/app/features/catalog/components/product-variant-create-form/product-variant-create-form.component.html',
     };
     await ɵresolveComponentResources((url) => {
       const resourcePath = resources[url];
@@ -123,6 +136,9 @@ describe('PurchaseProductPickerComponent', () => {
     };
     bridgeBindings(ButtonComponent, ['variant', 'disabled', 'icon'], ['clicked']);
     bridgeBindings(ProductThumbnailComponent, ['src'], ['imageFailed']);
+    bridgeBindings(ProductVariantCreateFormComponent, ['product'], ['created', 'cancelled']);
+    bridgeBindings(AttributePickerComponent, ['label', 'options']);
+    bridgeBindings(NumberInputComponent, ['id', 'ariaLabel', 'min', 'step', 'showStepper', 'unit']);
   });
 
   afterAll(() => {
@@ -152,9 +168,11 @@ describe('PurchaseProductPickerComponent', () => {
       { ...product, id: 'archived', title: 'Altartikel', archived_at: '2026-09-24' },
     ]);
     fixture.detectChanges();
-    expect(fixture.componentInstance.filtered().map((entry) => entry.id)).toEqual(['product-1']);
+    expect(fixture.componentInstance.filteredGroups().map((entry) => entry.id)).toEqual([
+      'product-1',
+    ]);
     expect(
-      (fixture.nativeElement as HTMLElement).querySelector('[data-product-option="archived"]'),
+      (fixture.nativeElement as HTMLElement).querySelector('[data-product-group="archived"]'),
     ).toBeNull();
   });
 
@@ -165,6 +183,16 @@ describe('PurchaseProductPickerComponent', () => {
     }).compileComponents();
     const fixture = TestBed.createComponent(PurchaseProductPickerComponent);
     fixture.componentRef.setInput('products', [product]);
+    fixture.detectChanges();
+    const createButton = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(
+      'footer app-button',
+    );
+    expect(createButton?.textContent).toContain('Produkt erstellen');
+    expect(createButton?.querySelector('button svg')).not.toBeNull();
+    const group = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+      '[data-product-group="product-1"]',
+    );
+    group?.click();
     fixture.detectChanges();
     const row = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
       '[data-product-option="product-1"]',
@@ -178,11 +206,6 @@ describe('PurchaseProductPickerComponent', () => {
     expect(
       (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('app-modal-shell')?.title,
     ).toBe('');
-    const createButton = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(
-      'footer app-button',
-    );
-    expect(createButton?.textContent).toContain('Produkt erstellen');
-    expect(createButton?.querySelector('button svg')).not.toBeNull();
     row?.click();
     fixture.detectChanges();
     expect(fixture.componentInstance.selection().has(product.id)).toBe(true);
@@ -190,6 +213,54 @@ describe('PurchaseProductPickerComponent', () => {
 
     fixture.componentInstance.toggle(product.id);
     expect(fixture.componentInstance.selection().has(product.id)).toBe(false);
+  });
+
+  it('fasst Varianten zusammen und übernimmt die gewählte Größe als konkrete Einkaufsvariante', async () => {
+    await TestBed.configureTestingModule({
+      imports: [PurchaseProductPickerComponent],
+      providers: [provideRouter([])],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(PurchaseProductPickerComponent);
+    const size39 = { ...product, id: 'product-39', variant_group_id: product.id, size: '39' };
+    const size40 = { ...product, id: 'product-40', variant_group_id: product.id, size: '40' };
+    fixture.componentRef.setInput('products', [size40, size39]);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.filteredGroups()).toHaveLength(1);
+    const group = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+      '[data-product-group="product-1"]',
+    );
+    expect(group?.textContent).toContain('2 Varianten');
+    group?.click();
+    fixture.detectChanges();
+    const variant = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+      '[data-product-option="product-39"]',
+    );
+    expect(variant?.textContent).toContain('Größe 39');
+    variant?.click();
+    fixture.detectChanges();
+    const selected: (readonly CatalogProduct[])[] = [];
+    fixture.componentInstance.selected.subscribe((products) => selected.push(products));
+    fixture.componentInstance.confirm();
+    expect(selected[0]?.map((entry) => entry.id)).toEqual(['product-39']);
+  });
+
+  it('übernimmt eine gerade angelegte Variante auch vor dem nächsten Katalog-Reload', async () => {
+    await TestBed.configureTestingModule({
+      imports: [PurchaseProductPickerComponent],
+      providers: [provideRouter([])],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(PurchaseProductPickerComponent);
+    fixture.componentRef.setInput('products', [product]);
+    fixture.detectChanges();
+    const created = { ...product, id: 'product-39', variant_group_id: product.id, size: '39' };
+    const selected: (readonly CatalogProduct[])[] = [];
+    fixture.componentInstance.selected.subscribe((products) => selected.push(products));
+
+    fixture.componentInstance.onVariantCreated(created);
+    fixture.componentInstance.confirm();
+
+    expect(selected[0]?.map((entry) => entry.id)).toEqual([created.id]);
   });
 
   it('filtert nach vorhandener Kategorie und Marke und setzt beide Filter zurück', async () => {
@@ -228,15 +299,15 @@ describe('PurchaseProductPickerComponent', () => {
     fixture.componentInstance.brandFilter.set('Nike');
     fixture.detectChanges();
     expect(
-      [...(fixture.nativeElement as HTMLElement).querySelectorAll('[data-product-option]')].map(
-        (row) => row.getAttribute('data-product-option'),
+      [...(fixture.nativeElement as HTMLElement).querySelectorAll('[data-product-group]')].map(
+        (row) => row.getAttribute('data-product-group'),
       ),
     ).toEqual(['product-1']);
 
     fixture.componentInstance.resetFilters();
     fixture.detectChanges();
     expect(
-      (fixture.nativeElement as HTMLElement).querySelectorAll('[data-product-option]').length,
+      (fixture.nativeElement as HTMLElement).querySelectorAll('[data-product-group]').length,
     ).toBe(3);
   });
 
@@ -254,5 +325,11 @@ describe('PurchaseProductPickerComponent', () => {
     });
 
     expect(result.violations).toEqual([]);
+    fixture.componentInstance.openGroup(product.id);
+    fixture.detectChanges();
+    const variantResult = await axe.run(fixture.nativeElement as HTMLElement, {
+      rules: { 'color-contrast': { enabled: false } },
+    });
+    expect(variantResult.violations).toEqual([]);
   });
 });

@@ -1,98 +1,165 @@
-<app-modal-shell [title]="'Artikel auswählen'" size="lg" (closed)="closed.emit()">
-  <div class="grid grid-cols-1 items-end gap-2 sm:grid-cols-[minmax(0,1fr)_10rem_10rem]">
-    <app-text-field
-      label="Artikel suchen"
-      placeholder="Nach Bezeichnung oder Barcode suchen"
-      [formControl]="searchControl"
-    />
-    @if (categoryOptions().length > 1) {
-      <app-custom-select
-        variant="toolbar"
-        widthClass="w-full"
-        ariaLabel="Nach Kategorie filtern"
-        placeholder="Kategorie filtern"
-        [options]="categoryOptions()"
-        [value]="categoryFilter()"
-        (valueChange)="categoryFilter.set($event || null)"
+<app-modal-shell
+  [title]="
+    creatingVariant()
+      ? 'Variante hinzufügen'
+      : activeGroup()
+        ? 'Variante auswählen'
+        : 'Artikel auswählen'
+  "
+  size="lg"
+  (closed)="closed.emit()"
+>
+  @if (activeGroup(); as group) {
+    @if (creatingVariant()) {
+      <p class="mb-4 text-sm font-semibold">{{ group.product.title }}</p>
+      <app-product-variant-create-form
+        data-variant-form
+        [product]="group.product"
+        (cancelled)="cancelVariantCreation()"
+        (created)="onVariantCreated($event)"
       />
-    }
-    @if (brandOptions().length > 1) {
-      <app-custom-select
-        variant="toolbar"
-        widthClass="w-full"
-        ariaLabel="Nach Marke filtern"
-        placeholder="Marke filtern"
-        [options]="brandOptions()"
-        [value]="brandFilter()"
-        (valueChange)="brandFilter.set($event || null)"
-      />
-    }
-  </div>
-  @if (hasActiveFilters()) {
-    <div class="flex justify-end">
-      <app-button variant="plain" size="slim" (clicked)="resetFilters()">
-        Filter zurücksetzen
-      </app-button>
-    </div>
-  }
-  @if (initialSearch() && query() === undefined) {
-    <p class="text-[13px] text-fb-text-muted">Suche: {{ initialSearch() }}</p>
-  }
-  <div class="max-h-[min(28rem,45dvh)] divide-y divide-fb-line overflow-y-auto overscroll-contain">
-    @for (product of filtered(); track product.id) {
-      <button
-        type="button"
-        [attr.data-product-option]="product.id"
-        [attr.aria-pressed]="selection().has(product.id)"
-        class="flex w-full cursor-pointer items-center gap-3 rounded-lg px-2 py-3 text-left hover:bg-fb-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/60"
-        (click)="toggle(product.id)"
-      >
-        <span
-          aria-hidden="true"
-          class="flex h-4 w-4 shrink-0 items-center justify-center rounded border text-[10px] font-bold transition"
-          [class.border-[#fcc601]]="selection().has(product.id)"
-          [class.bg-[#fcc601]]="selection().has(product.id)"
-          [class.text-slate-950]="selection().has(product.id)"
-          [class.border-fb-border-hover]="!selection().has(product.id)"
-          [class.bg-fb-well]="!selection().has(product.id)"
-        >
-          @if (selection().has(product.id)) {
-            ✓
-          }
-        </span>
-        <app-product-thumbnail
-          [src]="imageUrls()[product.id] || null"
-          (imageFailed)="imageFailed.emit(product.id)"
-        />
-        <div class="min-w-0 flex-1 text-[13px]">
-          <p class="break-words font-medium">{{ product.title }}</p>
-          <p class="text-fb-text-muted">
-            @if (product.size) {
-              Größe {{ product.size }} ·
-            }
-            @if (product.color) {
-              {{ product.color }} ·
-            }
-            {{ product.ean || 'Kein Barcode' }}
-            @if (product.condition) {
-              · {{ product.condition | itemConditionLabel }}
-            }
+    } @else {
+      <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <p data-variant-heading tabindex="-1" class="text-sm font-semibold">
+            {{ group.product.title }}
+          </p>
+          <p class="text-[13px] text-fb-text-muted">
+            Wähle die Größe und Farbe für diese Einkaufsposition.
           </p>
         </div>
-      </button>
-    } @empty {
-      <p class="py-6 text-center text-sm text-fb-text-muted">Keine passenden Artikel gefunden.</p>
-    }
-  </div>
-  <div modal-footer class="flex w-full flex-wrap items-center justify-between gap-2">
-    <app-button variant="secondary" [icon]="plusIcon" (clicked)="createRequested.emit()"
-      >Produkt erstellen</app-button
-    >
-    <div class="ml-auto flex gap-2">
-      <app-button variant="secondary" (clicked)="closed.emit()">Abbrechen</app-button>
-      <app-button variant="primary" [disabled]="selection().size === 0" (clicked)="confirm()"
-        >Hinzufügen ({{ selection().size }})</app-button
+        <app-button variant="secondary" [icon]="plusIcon" (clicked)="startVariantCreation()">
+          Neue Variante
+        </app-button>
+      </div>
+      <div
+        class="max-h-[min(28rem,45dvh)] divide-y divide-fb-line overflow-y-auto overscroll-contain"
       >
+        @for (product of group.variants; track product.id) {
+          <button
+            type="button"
+            [attr.data-product-option]="product.id"
+            [attr.aria-pressed]="selection().has(product.id)"
+            class="flex w-full cursor-pointer items-center gap-3 rounded-lg px-2 py-3 text-left hover:bg-fb-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/60"
+            (click)="toggle(product.id)"
+          >
+            <span
+              aria-hidden="true"
+              class="flex h-4 w-4 shrink-0 items-center justify-center rounded border text-[10px] font-bold transition"
+              [class.border-[#fcc601]]="selection().has(product.id)"
+              [class.bg-[#fcc601]]="selection().has(product.id)"
+              [class.text-slate-950]="selection().has(product.id)"
+              [class.border-fb-border-hover]="!selection().has(product.id)"
+              [class.bg-fb-well]="!selection().has(product.id)"
+            >
+              @if (selection().has(product.id)) {
+                ✓
+              }
+            </span>
+            <app-product-thumbnail
+              [src]="imageUrls()[product.id] || null"
+              (imageFailed)="imageFailed.emit(product.id)"
+            />
+            <span class="min-w-0 flex-1 text-[13px]">
+              <span class="block font-medium">
+                {{ product.size ? 'Größe ' + product.size : 'Ohne Größe' }} ·
+                {{ product.color || 'Ohne Farbe' }}
+              </span>
+              <span class="block text-fb-text-muted">
+                {{ product.ean || product.sku || 'Keine Kennung' }}
+                @if (product.condition) {
+                  · {{ product.condition | itemConditionLabel }}
+                }
+              </span>
+            </span>
+          </button>
+        }
+      </div>
+    }
+  } @else {
+    <div class="grid grid-cols-1 items-end gap-2 sm:grid-cols-[minmax(0,1fr)_10rem_10rem]">
+      <app-text-field
+        label="Artikel suchen"
+        placeholder="Nach Bezeichnung, Größe, Farbe oder Barcode suchen"
+        [formControl]="searchControl"
+      />
+      @if (categoryOptions().length > 1) {
+        <app-custom-select
+          variant="toolbar"
+          widthClass="w-full"
+          ariaLabel="Nach Kategorie filtern"
+          placeholder="Kategorie filtern"
+          [options]="categoryOptions()"
+          [value]="categoryFilter()"
+          (valueChange)="categoryFilter.set($event || null)"
+        />
+      }
+      @if (brandOptions().length > 1) {
+        <app-custom-select
+          variant="toolbar"
+          widthClass="w-full"
+          ariaLabel="Nach Marke filtern"
+          placeholder="Marke filtern"
+          [options]="brandOptions()"
+          [value]="brandFilter()"
+          (valueChange)="brandFilter.set($event || null)"
+        />
+      }
     </div>
-  </div>
+    @if (hasActiveFilters()) {
+      <div class="flex justify-end">
+        <app-button variant="plain" size="slim" (clicked)="resetFilters()">
+          Filter zurücksetzen
+        </app-button>
+      </div>
+    }
+    @if (initialSearch() && query() === undefined) {
+      <p class="text-[13px] text-fb-text-muted">Suche: {{ initialSearch() }}</p>
+    }
+    <div
+      class="max-h-[min(28rem,45dvh)] divide-y divide-fb-line overflow-y-auto overscroll-contain"
+    >
+      @for (group of filteredGroups(); track group.id) {
+        <button
+          type="button"
+          [attr.data-product-group]="group.id"
+          class="flex w-full cursor-pointer items-center gap-3 rounded-lg px-2 py-3 text-left hover:bg-fb-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/60"
+          (click)="openGroup(group.id)"
+        >
+          <app-product-thumbnail
+            [src]="imageUrls()[group.product.id] || null"
+            (imageFailed)="imageFailed.emit(group.product.id)"
+          />
+          <span class="min-w-0 flex-1 text-[13px]">
+            <span class="block break-words font-medium">{{ group.product.title }}</span>
+            <span class="block text-fb-text-muted">
+              {{ group.variants.length }}
+              {{ group.variants.length === 1 ? 'Variante' : 'Varianten' }} ·
+              {{ group.product.brand || 'Keine Marke' }}
+            </span>
+          </span>
+          <span class="text-[13px] text-fb-text-secondary">Auswählen</span>
+        </button>
+      } @empty {
+        <p class="py-6 text-center text-sm text-fb-text-muted">Keine passenden Artikel gefunden.</p>
+      }
+    </div>
+  }
+  @if (!creatingVariant()) {
+    <div modal-footer class="flex w-full flex-wrap items-center justify-between gap-2">
+      @if (activeGroup()) {
+        <app-button variant="secondary" (clicked)="backToGroups()">Zurück zu Artikeln</app-button>
+      } @else {
+        <app-button variant="secondary" [icon]="plusIcon" (clicked)="createRequested.emit()">
+          Produkt erstellen
+        </app-button>
+      }
+      <div class="ml-auto flex gap-2">
+        <app-button variant="secondary" (clicked)="closed.emit()">Abbrechen</app-button>
+        <app-button variant="primary" [disabled]="selection().size === 0" (clicked)="confirm()">
+          Hinzufügen ({{ selection().size }})
+        </app-button>
+      </div>
+    </div>
+  }
 </app-modal-shell>

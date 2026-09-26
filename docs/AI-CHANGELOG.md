@@ -19,6 +19,25 @@ Bilds kehrt die anfängliche Upload-Fläche zurück.
 TypeScript-Typprüfung, ESLint für die geänderten TypeScript-Dateien und
 Angular-Produktionsbau erfolgreich. Die geänderten Dateien wurden formatiert.
 
+## 2026-09-26 – Juna – Varianten beim Einkauf gezielt auswählen und anlegen
+
+**Auftrag:** Beim Erfassen eines Einkaufs soll nach der Artikelsuche klar sein,
+welche Größe und Farbe gekauft wurde. Fehlende Varianten sollen ohne Umweg über
+die Artikelseite angelegt werden können.
+
+**Änderung:** Die Einkaufssuche fasst Varianten unter ihrem Artikel zusammen und
+zeigt anschließend die konkreten Größen und Farben zur Auswahl. Neue Varianten
+können direkt in dieser Auswahl und im Detaildialog einer bereits hinzugefügten
+Einkaufsposition angelegt werden. Dort kann auch auf eine vorhandene Variante
+gewechselt werden. Die Einkaufsposition speichert weiterhin die konkrete
+Artikel-ID; ihr Bezeichnungsschnappschuss enthält nun Größe und Farbe, damit die
+Variante auch nach dem Speichern und beim Wareneingang erkennbar bleibt. Das
+Variantenformular wird von Artikelseite und Einkauf gemeinsam genutzt.
+
+**Prüfung:** Gezielte Angular-Tests für Auswahl, Variantenwechsel und
+Artikelseite, TypeScript-Prüfung, ESLint, Prettier und Angular-Produktionsbau
+bestanden. Der Bau meldete nur die bestehende `pako`-Warnung.
+
 ## 2026-09-25 – Juna – Auswahlfelder der Artikelerfassung korrigiert
 
 **Auftrag:** Kategorieauswahl, Farbe, Material und den Hinweis auf ungespeicherte

@@ -3,7 +3,7 @@
     <p class="text-[13px] text-fb-text-muted">
       Größen und Farben teilen die Artikeldaten. Der Bestand bleibt je Variante getrennt.
     </p>
-    <app-button variant="secondary" [disabled]="disabled()" (clicked)="open()"
+    <app-button variant="secondary" [disabled]="disabled()" (clicked)="dialogOpen.set(true)"
       >Variante hinzufügen</app-button
     >
   </div>
@@ -47,53 +47,11 @@
 </div>
 
 @if (dialogOpen()) {
-  <app-modal-shell title="Variante hinzufügen" size="md" (closed)="close()">
-    <div [formGroup]="form" class="space-y-4">
-      <p class="text-[13px] text-fb-text-muted">
-        Name, Beschreibung, Marke, Kategorie und Material werden vom Artikel übernommen.
-      </p>
-      @if (error(); as message) {
-        <p role="alert" class="text-[13px] text-fb-critical">{{ message }}</p>
-      }
-      <div class="grid gap-4 sm:grid-cols-2">
-        <app-text-field label="Größe" formControlName="size" />
-        <app-attribute-picker label="Farbe" [options]="colorOptions" formControlName="color" />
-        <app-text-field
-          label="EAN / GTIN"
-          formControlName="ean"
-          [error]="
-            form.controls.ean.touched && form.controls.ean.invalid
-              ? 'Bitte eine gültige EAN / GTIN eingeben.'
-              : null
-          "
-        />
-        <app-text-field label="Eigene Artikelnummer (SKU)" formControlName="sku" />
-      </div>
-      <div>
-        <label for="variant-price" class="mb-1.5 block text-[13px] font-semibold">Shoppreis</label>
-        <app-number-input
-          id="variant-price"
-          ariaLabel="Shoppreis der Variante"
-          formControlName="listingPrice"
-          [min]="0.01"
-          [step]="0.01"
-          [showStepper]="false"
-          unit="€"
-        />
-        @if (form.controls.listingPrice.touched && form.controls.listingPrice.invalid) {
-          <p role="alert" class="mt-1 text-xs text-fb-critical">
-            Bitte einen positiven Shoppreis eingeben.
-          </p>
-        }
-      </div>
-    </div>
-    <div modal-footer class="flex justify-end gap-2">
-      <app-button variant="secondary" [disabled]="saving()" (clicked)="close()"
-        >Abbrechen</app-button
-      >
-      <app-button variant="primary" [loading]="saving()" (clicked)="save()"
-        >Variante anlegen</app-button
-      >
-    </div>
+  <app-modal-shell title="Variante hinzufügen" size="md" (closed)="dialogOpen.set(false)">
+    <app-product-variant-create-form
+      [product]="product()"
+      (cancelled)="dialogOpen.set(false)"
+      (created)="onCreated($event)"
+    />
   </app-modal-shell>
 }
