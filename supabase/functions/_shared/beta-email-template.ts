@@ -4,6 +4,29 @@ export interface BetaRenderedEmail {
   text: string;
 }
 
+export function renderOperatorApplicationNotice(input: {
+  firstName: string;
+  lastName: string;
+  email: string;
+}): BetaRenderedEmail {
+  const name = `${input.firstName.trim()} ${input.lastName.trim()}`;
+  const safeName = escapeHtml(name);
+  const safeEmail = escapeHtml(input.email.trim());
+  return {
+    subject: 'Neue Bewerbung für die Flipbase Beta',
+    html: renderEmailCard(
+      `
+      <h1 style="margin:0 0 16px;font-size:20px;color:#0f172a">Neue Beta-Bewerbung</h1>
+      <p style="margin:0 0 12px;font-size:15px;line-height:24px">${safeName} hat sich für die Flipbase Beta beworben.</p>
+      <p style="margin:0 0 20px;font-size:14px;line-height:22px">E-Mail: ${safeEmail}</p>
+      <p style="margin:0;font-size:14px;line-height:22px">Prüfe die Bewerbung im Betreiberbereich und entscheide dort über die Einladung.</p>
+    `,
+      'Diese Nachricht wurde automatisch von Flipbase gesendet.',
+    ),
+    text: `Neue Beta-Bewerbung\n\n${name} (${input.email.trim()}) hat sich beworben. Prüfe die Bewerbung im Betreiberbereich.`,
+  };
+}
+
 function escapeHtml(value: string): string {
   return value
     .replaceAll('&', '&amp;')
@@ -13,7 +36,10 @@ function escapeHtml(value: string): string {
     .replaceAll("'", '&#039;');
 }
 
-function renderEmailCard(content: string): string {
+function renderEmailCard(
+  content: string,
+  footer = 'Falls du dich nicht für die Flipbase Beta beworben hast, kannst du diese Nachricht ignorieren.',
+): string {
   return `<!doctype html>
 <html lang="de">
   <head>
@@ -31,7 +57,7 @@ function renderEmailCard(content: string): string {
           </td></tr>
           <tr><td style="padding:32px 36px 28px">${content}</td></tr>
           <tr><td style="padding:20px 36px 28px;background:#f8fafc;border-top:1px solid #e2e8f0;text-align:center">
-            <p style="margin:0;font-size:12px;line-height:18px;color:#94a3b8">Falls du dich nicht für die Flipbase Beta beworben hast, kannst du diese Nachricht ignorieren.</p>
+            <p style="margin:0;font-size:12px;line-height:18px;color:#94a3b8">${footer}</p>
           </td></tr>
         </table>
       </td></tr>
@@ -84,7 +110,7 @@ export function renderRegistrationInvite(input: {
   const html = renderEmailCard(`
     <h1 style="margin:0 0 16px;font-size:20px;line-height:1.3;text-align:center;color:#0f172a">Deine Bewerbung wurde angenommen</h1>
     <p style="margin:0 0 16px;font-size:15px;line-height:24px;text-align:center;color:#475569">Hallo ${safeFirstName},<br />deine Bewerbung wurde angenommen. Du kannst jetzt deine Registrierung für die geschlossene Flipbase Beta abschließen.</p>
-    <p style="margin:0 0 24px;font-size:14px;line-height:22px;text-align:center;color:#64748b">Deine Beta-Laufzeit von ${grantedDays} Tagen beginnt erst, nachdem du dein Passwort festgelegt hast.</p>
+    <p style="margin:0 0 24px;font-size:14px;line-height:22px;text-align:center;color:#64748b">Deine Beta-Laufzeit von ${grantedDays} Tagen beginnt erst, nachdem du dein Passwort festgelegt hast. Danach kannst du im Dashboard dein Discord-Konto verbinden und erhältst automatisch die Rolle „Beta-Tester“.</p>
     <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:28px auto"><tr><td align="center" style="border-radius:12px;background:#fcc601">
       <a href="${safeActionLink}" target="_blank" style="display:inline-block;padding:14px 32px;border:1px solid #eab308;border-radius:12px;background:#fcc601;color:#111827;font-size:15px;font-weight:700;text-decoration:none">Registrierung abschließen</a>
     </td></tr></table>
@@ -94,6 +120,6 @@ export function renderRegistrationInvite(input: {
   return {
     subject: 'Deine Bewerbung zur Flipbase Beta wurde angenommen',
     html,
-    text: `Hallo ${firstName},\n\nDeine Bewerbung wurde angenommen. Du kannst jetzt deine Registrierung für die geschlossene Flipbase Beta abschließen. Deine Beta-Laufzeit von ${grantedDays} Tagen beginnt erst, nachdem du dein Passwort festgelegt hast.\n\nRegistrierung abschließen: ${input.actionLink}\n\nDein Flipbase-Team`,
+    text: `Hallo ${firstName},\n\nDeine Bewerbung wurde angenommen. Du kannst jetzt deine Registrierung für die geschlossene Flipbase Beta abschließen. Deine Beta-Laufzeit von ${grantedDays} Tagen beginnt erst, nachdem du dein Passwort festgelegt hast. Danach kannst du im Dashboard dein Discord-Konto verbinden und erhältst automatisch die Rolle „Beta-Tester“.\n\nRegistrierung abschließen: ${input.actionLink}\n\nDein Flipbase-Team`,
   };
 }

@@ -7,7 +7,10 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2.112.3';
 import { sendBetaEmail } from '../_shared/beta-email-delivery.ts';
-import { renderApplicationReceipt } from '../_shared/beta-email-template.ts';
+import {
+  renderApplicationReceipt,
+  renderOperatorApplicationNotice,
+} from '../_shared/beta-email-template.ts';
 import { classifyDuplicateApplication } from './duplicate-application.ts';
 
 /**
@@ -233,7 +236,7 @@ Deno.serve(async (request: Request) => {
       email: normalizedEmail,
       consent_at: new Date().toISOString(),
     })
-    .select('id, first_name, email, status, receipt_email_status')
+    .select('id, first_name, last_name, email, status, receipt_email_status')
     .single();
 
   // Eine bereits vorhandene Adresse wird wie ein Erfolg beantwortet. Sonst
@@ -248,7 +251,7 @@ Deno.serve(async (request: Request) => {
   if (!application) {
     const existing = await serviceClient
       .from('beta_applications')
-      .select('id, first_name, email, status, receipt_email_status')
+      .select('id, first_name, last_name, email, status, receipt_email_status')
       .ilike('email', normalizedEmail)
       .maybeSingle();
 
@@ -267,6 +270,39 @@ Deno.serve(async (request: Request) => {
       receiptEmailStatus: application.receipt_email_status,
     });
     return respond({ error: `application_${disposition}` }, 409, origin);
+  }
+
+  // Nur neue Bewerbungen melden. Ein erneuter Versuch mit derselben Adresse
+  // darf weder eine zweite Betreiber-Mail noch eine Statusauskunft ausloesen.
+  try {
+    await sendBetaEmail({
+      to: Deno.env.get('BETA_OPERATOR_EMAIL')?.trim() || 'beta@flipbase.de',
+      ...renderOperatorApplicationNotice({
+        firstName: application.first_name,
+        lastName: application.last_name,
+        email: application.email,
+      }),
+    });
+    const { error: noticeUpdateError } = await serviceClient
+      .from('beta_applications')
+      .update({
+        operator_email_status: 'sent',
+        operator_email_sent_at: new Date().toISOString(),
+        operator_email_last_error: null,
+      })
+      .eq('id', application.id);
+    if (noticeUpdateError) {
+      console.error('beta-application: Betreiber-Versandstatus konnte nicht gespeichert werden.');
+    }
+  } catch (error) {
+    console.error('beta-application: Betreiber-Benachrichtigung konnte nicht versendet werden.');
+    await serviceClient
+      .from('beta_applications')
+      .update({
+        operator_email_status: 'failed',
+        operator_email_last_error: boundedErrorMessage(error),
+      })
+      .eq('id', application.id);
   }
 
   try {

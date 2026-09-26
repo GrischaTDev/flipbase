@@ -270,6 +270,9 @@ export type Database = {
           invitation_sent_at: string | null
           invitation_status: string
           last_name: string
+          operator_email_last_error: string | null
+          operator_email_sent_at: string | null
+          operator_email_status: string
           receipt_email_last_error: string | null
           receipt_email_sent_at: string | null
           receipt_email_status: string
@@ -294,6 +297,9 @@ export type Database = {
           invitation_sent_at?: string | null
           invitation_status?: string
           last_name: string
+          operator_email_last_error?: string | null
+          operator_email_sent_at?: string | null
+          operator_email_status?: string
           receipt_email_last_error?: string | null
           receipt_email_sent_at?: string | null
           receipt_email_status?: string
@@ -318,6 +324,9 @@ export type Database = {
           invitation_sent_at?: string | null
           invitation_status?: string
           last_name?: string
+          operator_email_last_error?: string | null
+          operator_email_sent_at?: string | null
+          operator_email_status?: string
           receipt_email_last_error?: string | null
           receipt_email_sent_at?: string | null
           receipt_email_status?: string
@@ -326,6 +335,30 @@ export type Database = {
           rejection_email_sent_at?: string | null
           rejection_email_status?: string
           status?: string
+        }
+        Relationships: []
+      }
+      beta_discord_links: {
+        Row: {
+          auth_user_id: string
+          created_at: string
+          discord_user_id: string
+          id: number
+          role_assigned_at: string
+        }
+        Insert: {
+          auth_user_id: string
+          created_at?: string
+          discord_user_id: string
+          id?: never
+          role_assigned_at?: string
+        }
+        Update: {
+          auth_user_id?: string
+          created_at?: string
+          discord_user_id?: string
+          id?: never
+          role_assigned_at?: string
         }
         Relationships: []
       }
@@ -4509,6 +4542,9 @@ export type Database = {
           invitation_sent_at: string | null
           invitation_status: string
           last_name: string
+          operator_email_last_error: string | null
+          operator_email_sent_at: string | null
+          operator_email_status: string
           receipt_email_last_error: string | null
           receipt_email_sent_at: string | null
           receipt_email_status: string
@@ -5195,6 +5231,9 @@ export type Database = {
           invitation_sent_at: string | null
           invitation_status: string
           last_name: string
+          operator_email_last_error: string | null
+          operator_email_sent_at: string | null
+          operator_email_status: string
           receipt_email_last_error: string | null
           receipt_email_sent_at: string | null
           receipt_email_status: string

@@ -5,9 +5,11 @@ import { EventEmitter, signal, ɵresolveComponentResources } from '@angular/core
 import { TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { provideRouter } from '@angular/router';
+import { TranslateService } from '@ngx-translate/core';
 import axe from 'axe-core';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { of } from 'rxjs';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DashboardReport, Sale } from '../../core/models/flipbase.models';
 import { DashboardReportService } from '../../core/services/dashboard-report.service';
@@ -18,6 +20,7 @@ import { ButtonComponent } from '../../shared/components/button/button.component
 import { CardComponent } from '../../shared/components/card/card.component';
 import { DashboardKpiCardComponent } from './components/dashboard-kpi-card/dashboard-kpi-card.component';
 import { DashboardOpenCostsComponent } from './components/dashboard-open-costs/dashboard-open-costs.component';
+import { BetaDiscordService } from '../beta-discord/services/beta-discord.service';
 import { DashboardComponent } from './dashboard.component';
 import { DashboardPreferences } from './models/dashboard-preferences';
 import { DashboardPreferencesService } from './services/dashboard-preferences.service';
@@ -38,6 +41,8 @@ const componentResources: Readonly<Record<string, string>> = {
   './custom-select.component.scss':
     'src/app/shared/components/custom-select/custom-select.component.scss',
   './dashboard.component.html': 'src/app/features/dashboard/dashboard.component.html',
+  './beta-discord-banner.component.html':
+    'src/app/features/beta-discord/components/beta-discord-banner/beta-discord-banner.component.html',
   './dashboard-kpi-card.component.html':
     'src/app/features/dashboard/components/dashboard-kpi-card/dashboard-kpi-card.component.html',
   './dashboard-open-costs.component.html':
@@ -205,6 +210,20 @@ beforeEach(() => {
         useValue: { sales, isLoading: signal(false), loadError: signal(null) },
       },
       { provide: DashboardReportService, useValue: { createReport } },
+      {
+        provide: TranslateService,
+        useValue: {
+          get: (key: string) => of(key),
+          stream: (key: string) => of(key),
+          onLangChange: of({ lang: 'de', translations: {} }),
+          onTranslationChange: of({ lang: 'de', translations: {} }),
+          onDefaultLangChange: of({ lang: 'de', translations: {} }),
+        },
+      },
+      {
+        provide: BetaDiscordService,
+        useValue: { status: async () => ({ eligible: false, linked: false, configured: false }) },
+      },
       {
         provide: DashboardPreferencesService,
         useValue: { preferences, saveError, setRange, setPlatform },

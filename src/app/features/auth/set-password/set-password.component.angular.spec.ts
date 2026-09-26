@@ -15,6 +15,7 @@ import { of } from 'rxjs';
 import { By } from '@angular/platform-browser';
 import { CustomCheckboxComponent } from '../../../shared/components/custom-checkbox/custom-checkbox.component';
 import { TRANSLATIONS_DE } from '../../../core/i18n/translations';
+import { BetaRegistrationProgressComponent } from '../../onboarding/components/beta-registration-progress/beta-registration-progress.component';
 
 beforeAll(async () => {
   const lookup: Record<string, string> = {
@@ -29,6 +30,8 @@ beforeAll(async () => {
       'src/app/features/auth/components/terms-modal/terms-modal.component.html',
     'privacy-modal.component.html':
       'src/app/features/auth/components/privacy-modal/privacy-modal.component.html',
+    'beta-registration-progress.component.html':
+      'src/app/features/onboarding/components/beta-registration-progress/beta-registration-progress.component.html',
   };
 
   await ɵresolveComponentResources(async (url) => {
@@ -39,6 +42,14 @@ beforeAll(async () => {
     }
     return '';
   });
+
+  const progress = (
+    BetaRegistrationProgressComponent as unknown as {
+      ɵcmp: { inputs: Record<string, unknown>; declaredInputs: Record<string, string> };
+    }
+  ).ɵcmp;
+  progress.inputs = { ...progress.inputs, step: ['step', 1, null] };
+  progress.declaredInputs = { ...progress.declaredInputs, step: 'step' };
 });
 
 describe('SetPasswordComponent', () => {
@@ -158,7 +169,7 @@ describe('SetPasswordComponent', () => {
   });
 
   it('ruft updateUser beim Absenden auf', async () => {
-    const { component, updateUser, activatePendingBetaAccess } = createComponent();
+    const { component, updateUser, activatePendingBetaAccess, fakeRouter } = createComponent();
 
     component.form.controls.password.setValue('SicheresPasswort123!');
     component.form.controls.confirmPassword.setValue('SicheresPasswort123!');
@@ -171,6 +182,7 @@ describe('SetPasswordComponent', () => {
       data: { beta_registration_completed: true },
     });
     expect(activatePendingBetaAccess).toHaveBeenCalledOnce();
+    expect(fakeRouter.navigate).toHaveBeenCalledWith(['/onboarding/workspace']);
   });
 
   it('zeigt einen Aktivierungsfehler und meldet noch keinen Erfolg', async () => {
@@ -212,6 +224,8 @@ describe('SetPasswordComponent', () => {
       .componentInstance as CustomCheckboxComponent;
 
     expect(text).toContain('Passwort wiederholen');
+    expect(text).toContain('Workspace');
+    expect(text).toContain('Discord');
     expect(text).toContain('Sicherheitsstufe:');
     expect(text).not.toContain('AUTH.');
     expect(termsCheckbox.color()).toBe('brand');

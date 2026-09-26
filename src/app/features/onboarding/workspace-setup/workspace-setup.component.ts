@@ -22,6 +22,7 @@ import { AuthService } from '../../../core/services/auth.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
 import { ButtonComponent } from '../../../shared/components/button/button.component';
 import { TextFieldComponent } from '../../../shared/components/text-field/text-field.component';
+import { BetaRegistrationProgressComponent } from '../components/beta-registration-progress/beta-registration-progress.component';
 
 const workspaceNameLengthValidator: ValidatorFn = (
   control: AbstractControl,
@@ -38,6 +39,7 @@ const workspaceNameLengthValidator: ValidatorFn = (
     TranslatePipe,
     ButtonComponent,
     TextFieldComponent,
+    BetaRegistrationProgressComponent,
   ],
   templateUrl: './workspace-setup.component.html',
   host: { class: 'block fb-admin' },
@@ -142,7 +144,7 @@ export class WorkspaceSetupComponent implements OnInit {
         return;
       }
 
-      await this.router.navigate(['/dashboard']);
+      await this.router.navigate(['/onboarding/discord']);
     } catch (cause: unknown) {
       this.errorMessage.set(
         cause instanceof Error

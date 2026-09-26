@@ -82,6 +82,14 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'discord-callback',
+        canActivate: [authGuard],
+        loadComponent: () =>
+          import('./features/beta-discord/pages/discord-callback/discord-callback.component').then(
+            (m) => m.DiscordCallbackComponent,
+          ),
+      },
+      {
         path: '',
         redirectTo: 'login',
         pathMatch: 'full',
@@ -95,6 +103,14 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/onboarding/workspace-setup/workspace-setup.component').then(
         (m) => m.WorkspaceSetupComponent,
+      ),
+  },
+  {
+    path: 'onboarding/discord',
+    canActivate: [authGuard, workspaceSetupGuard],
+    loadComponent: () =>
+      import('./features/beta-discord/pages/discord-onboarding/discord-onboarding.component').then(
+        (m) => m.DiscordOnboardingComponent,
       ),
   },
 

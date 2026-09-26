@@ -2,6 +2,7 @@ import {
   renderApplicationReceipt,
   renderApplicationRejection,
   renderRegistrationInvite,
+  renderOperatorApplicationNotice,
 } from './beta-email-template.ts';
 
 function assert(condition: boolean, message: string): void {
@@ -20,6 +21,18 @@ Deno.test('die Eingangsbestaetigung enthaelt keinen Aktionslink und maskiert Nam
   assert(!message.text.includes('http'), 'Die Klartextbestaetigung darf keinen Link enthalten');
   assert(message.text.includes('Deine Bewerbung'), 'Die Bestaetigung verwendet nicht die Du-Form');
   assert(!/\b(?:Sie|Ihre|Ihnen|Ihr)\b/u.test(message.text), 'Die Sie-Form ist noch enthalten');
+});
+
+Deno.test('die Betreiber-Mail meldet eine neue Bewerbung ohne HTML-Einschleusung', () => {
+  const message = renderOperatorApplicationNotice({
+    firstName: '<Anna>',
+    lastName: 'Beispiel',
+    email: 'anna@example.test',
+  });
+  assert(message.subject === 'Neue Bewerbung für die Flipbase Beta', 'Unerwarteter Betreff');
+  assert(message.html.includes('&lt;Anna&gt; Beispiel'), 'Der Name ist nicht maskiert');
+  assert(!message.html.includes('<Anna>'), 'Rohes HTML in der Betreiber-Mail');
+  assert(message.text.includes('anna@example.test'), 'Die Adresse fehlt');
 });
 
 Deno.test('die Registrierungseinladung verwendet die bestehende Gestaltung sicher', () => {

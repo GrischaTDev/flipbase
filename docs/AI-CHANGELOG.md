@@ -1,5 +1,44 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-26 – Juna – Beta-Registrierung in drei Schritten gestaltet
+
+**Auftrag:** Passwortvergabe, Workspace-Name und Discord-Verbindung als
+zusammenhängende Registrierung mit sichtbaren Schritten darstellen. Nach der
+Discord-Freigabe soll auf Flipbase eine Willkommensbestätigung erscheinen.
+
+**Änderung:** Alle drei Seiten zeigen denselben Fortschritt. Der Workspace führt
+nach dem Speichern zum Discord-Schritt, der das offizielle Discord-Logo und eine
+Verbindungsaktion in Discord-Farben zeigt. Nach der Zustimmung bestätigt
+Flipbase die Rolle „Beta-Tester“ und bietet einen Link zum Server. Der Schritt
+kann übersprungen werden; das Dashboard erinnert dann weiterhin an Discord.
+
+**Prüfung:** Gezielte Angular-Tests für Registrierung und Discord-Ansicht,
+TypeScript-Prüfung und Produktionsbau bestanden. Ein echter Discord-Beitritt
+wird nach Veröffentlichung und Einrichtung der Serverwerte geprüft.
+
+## 2026-09-26 – Juna – Beta-Bewerbungen melden und Discord-Zugang verbinden
+
+**Auftrag:** Neue Beta-Bewerbungen per E-Mail an `beta@flipbase.de` melden und
+angenommenen Beta-Nutzern nach der Registrierung den Eintritt in den
+Flipbase-Discord mit der Rolle „Beta-Tester“ ermöglichen.
+
+**Änderung:** Die Bewerbungsfunktion sendet nach einer neuen Speicherung eine
+Betreiber-Mail und hält den Versandstatus fest. Ein Versandfehler wird in der
+Bewerbungsübersicht sichtbar und kann dort erneut gesendet werden. Die
+Einladung weist auf Discord hin. Workspace-Einrichtung und Dashboard zeigen
+einen Verbindungsbanner.
+Discord fragt den Nutzer nach Zustimmung; eine geschützte Edge Function prüft
+seinen aktiven Beta-Zugang, fügt sein Discord-Konto dem Server hinzu und vergibt
+die Rolle. Die Verknüpfung wird serverseitig gespeichert. Die Zugangsdaten
+bleiben auf dem Server; die Einrichtung der vorhandenen Discord-App mit Bot,
+Server- und Rollenkennung ist in der Deployment-Anleitung beschrieben.
+
+**Prüfung:** Gezielte Deno-, Angular-, Schema- und Registrierungsgrenztests,
+TypeScript-Prüfung, ESLint und Angular-Produktionsbau bestanden. Die Migration
+wurde aus dem deklarativen Schema erzeugt und auf einer getrennten lokalen
+Datenbank angewendet. Ein echter Discord-Beitritt und der E-Mail-Empfang werden
+nach Einrichtung der Serverwerte in Produktion geprüft.
+
 ## 2026-09-26 – Juna – Doppelte Scrollleiste in der Einkaufsvorschau entfernt
 
 **Auftrag:** Bei vielen Artikeln soll die Vorschau nur innerhalb der Artikelliste
