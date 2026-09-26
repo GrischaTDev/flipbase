@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/marketplace-database-preview.yml'
       - 'scripts/marketplace-review-commit.mjs'
+      - 'scripts/marketplace-database-preview.test.mjs'
       - 'scripts/marketplace-migration-permissions*.mjs'
       - 'supabase/schemas/250_marketplace_accounts.sql'
       - 'supabase/tests/marketplace-accounts.test.sql'
@@ -36,20 +37,25 @@ jobs:
       - name: Format review scripts and test migration permissions
         run: |
           npx prettier --write scripts/marketplace-migration-permissions*.mjs scripts/marketplace-review-commit.mjs
-          node --test scripts/marketplace-migration-permissions.test.mjs
+          node --test scripts/marketplace-migration-permissions.test.mjs scripts/marketplace-database-preview.test.mjs
       - name: Record revision and register schema
         run: |
           mkdir -p /tmp/marketplace-database
           git rev-parse HEAD > /tmp/marketplace-database/source-commit.txt
           node scripts/marketplace-review-commit.mjs register
-      - name: Generate migration from declarative schema
-        if: ${{ hashFiles('supabase/migrations/*marketplace_accounts*') == '' }}
-        run: |
-          npx supabase db diff -f marketplace_accounts --schema public
-          node scripts/marketplace-migration-permissions.mjs
-          find supabase/migrations -name '*marketplace_accounts*' -exec cp {} /tmp/marketplace-database/ \;
       - name: Start disposable database
         run: npx supabase start -x studio,imgproxy,logflare,vector,supavisor
+      # Nur die Historie und dieses Feature vergleichen. Der vollständige
+      # deklarative Stand kann unabhängige, noch nicht migrierte Änderungen enthalten.
+      - name: Generate isolated marketplace migration
+        if: ${{ hashFiles('supabase/migrations/*marketplace_accounts*') == '' }}
+        run: |
+          npx supabase db query --local --file supabase/schemas/250_marketplace_accounts.sql
+          npx supabase db diff --from migrations --to local -f marketplace_accounts --schema public
+          node scripts/marketplace-migration-permissions.mjs
+          find supabase/migrations -name '*marketplace_accounts*' -exec cp {} /tmp/marketplace-database/ \;
+      - name: Verify migration replay
+        run: npx supabase db reset --local
       - name: Marketplace database tests
         run: npx supabase test db supabase/tests/marketplace-accounts.test.sql
       - name: Database regression tests
