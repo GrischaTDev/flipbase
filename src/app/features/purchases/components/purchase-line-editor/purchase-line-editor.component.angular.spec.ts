@@ -22,6 +22,8 @@ import { ButtonComponent } from '../../../../shared/components/button/button.com
 import { TableActionButtonComponent } from '../../../../shared/components/table-action-button/table-action-button.component';
 import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
+import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
+import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 
 interface AngularBindingMetadata {
   inputs: Record<string, unknown>;
@@ -130,6 +132,8 @@ beforeAll(async () => {
       { valueChange: 'value' },
     ],
     [ProductThumbnailComponent, ['src', 'alt', 'size'], {}],
+    [ModalShellComponent, ['title', 'size'], { closed: 'closed' }],
+    [TextFieldComponent, ['id', 'label', 'placeholder', 'error'], {}],
   ] as const) {
     const metadata = (component as unknown as { ɵcmp: AngularBindingMetadata }).ɵcmp;
     sharedMetadataSnapshots.push({ metadata, snapshot: { ...metadata } });
@@ -558,6 +562,58 @@ describe('PurchaseLineEditorComponent', () => {
     price.dispatchEvent(new Event('input', { bubbles: true }));
     fixture.detectChanges();
     expect(fixture.componentInstance.getDrafts()[0].lineTotal).toBe(0.36);
+  });
+
+  it('zeigt Größe und Farbe unter dem Artikelnamen und im Positionsdialog', () => {
+    TestBed.resetTestingModule();
+    const shoe: CatalogProduct = {
+      ...ledProduct,
+      id: 'shoe-40',
+      title: 'Tamaris T-Stick Pumps Schwarz',
+      size: '40',
+      color: 'Schwarz',
+    };
+    const fixture = TestBed.configureTestingModule({
+      imports: [PurchaseLineEditorComponent],
+      providers: [
+        {
+          provide: CatalogService,
+          useValue: {
+            imageUrls: () => ({}),
+            products: signal([shoe]),
+            isLoading: signal(false),
+            loadError: signal(null),
+            loadedWorkspaceId: signal(workspaceOne.id),
+            loadProducts: vi.fn(),
+          },
+        },
+        { provide: WorkspaceService, useValue: { currentWorkspace: signal(workspaceOne) } },
+      ],
+    }).createComponent(PurchaseLineEditorComponent);
+    Object.assign(fixture.componentInstance, { purchaseType: signal<PurchaseType>('single') });
+    fixture.detectChanges();
+    fixture.componentInstance.addProducts([shoe]);
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    const title = host.querySelector<HTMLElement>('[data-purchase-line-title]');
+    const variant = host.querySelector<HTMLElement>('[data-purchase-line-variant]');
+    expect(title?.textContent?.trim()).toBe(shoe.title);
+    expect(variant?.textContent?.trim()).toBe('Größe 40 · Schwarz');
+    expect(title?.parentElement).toBe(variant?.parentElement);
+    expect(title?.parentElement?.parentElement?.classList).toContain(
+      'grid-cols-[2.5rem_minmax(0,1fr)]',
+    );
+    expect(fixture.componentInstance.getDrafts()[0]?.titleSnapshot).toBe(
+      'Tamaris T-Stick Pumps Schwarz · Größe 40 · Schwarz',
+    );
+
+    title?.querySelector('button')?.click();
+    fixture.detectChanges();
+    const details = host.querySelector('app-modal-shell dl');
+    const detailText = details?.textContent?.replace(/\s+/g, '');
+    expect(detailText).toContain('Größe40');
+    expect(detailText).toContain('FarbeSchwarz');
   });
 
   it('lädt nach verspätetem Workspace und bei Wechsel jeden aktuellen Artikelstamm genau einmal', async () => {

@@ -38,14 +38,14 @@
             class="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-x-3 gap-y-2 py-3 md:table-row md:py-0"
           >
             <td class="col-span-2 min-w-0 md:py-3 md:pr-3">
-              <div class="flex min-w-0 items-center gap-2">
+              <div class="grid min-w-0 grid-cols-[2.5rem_minmax(0,1fr)] items-center gap-x-2">
                 <app-product-thumbnail
                   (imageFailed)="
                     catalogService.invalidateProductImage(row.controls.catalogProductId.value || '')
                   "
                   [src]="productImages[row.controls.catalogProductId.value || ''] || null"
                 />
-                <div class="min-w-0 flex-1">
+                <div class="min-w-0">
                   <app-button
                     data-purchase-line-title
                     variant="plain"
@@ -55,14 +55,17 @@
                     [ariaLabel]="row.controls.titleSnapshot.value + ' – Details'"
                     (clicked)="openDetails(id)"
                     ><span class="w-full break-words text-left">{{
-                      row.controls.titleSnapshot.value || 'Produkt zuordnen'
+                      displayProductTitle(
+                        row.controls.titleSnapshot.value,
+                        productForId(row.controls.catalogProductId.value)
+                      ) || 'Produkt zuordnen'
                     }}</span></app-button
                   >
                   @if (productForId(row.controls.catalogProductId.value); as product) {
                     @if (variantLabel(product); as label) {
-                      @if (!row.controls.titleSnapshot.value.includes(label)) {
-                        <p class="mt-1 text-xs text-fb-text-muted">{{ label }}</p>
-                      }
+                      <p data-purchase-line-variant class="mt-1 text-xs text-fb-text-muted">
+                        {{ label }}
+                      </p>
                     }
                   }
                   @if (row.invalid) {
@@ -330,6 +333,10 @@
             </app-button>
           }
           <dl class="grid grid-cols-2 gap-2 text-[13px]">
+            <dt class="text-fb-text-muted">Größe</dt>
+            <dd class="break-words">{{ product.size || 'Nicht angegeben' }}</dd>
+            <dt class="text-fb-text-muted">Farbe</dt>
+            <dd class="break-words">{{ product.color || 'Nicht angegeben' }}</dd>
             <dt class="text-fb-text-muted">Marke</dt>
             <dd class="break-words">{{ product.brand || 'Nicht angegeben' }}</dd>
             <dt class="text-fb-text-muted">Modell</dt>

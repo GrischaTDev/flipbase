@@ -385,6 +385,14 @@ export class PurchaseLineEditorComponent {
     return variant ? `${product.title} · ${variant}` : product.title;
   }
 
+  displayProductTitle(titleSnapshot: string, product: CatalogProduct | undefined): string {
+    if (!product) return titleSnapshot;
+    const variant = this.variantLabel(product);
+    if (!variant) return titleSnapshot;
+    const suffix = ` · ${variant}`;
+    return titleSnapshot.endsWith(suffix) ? titleSnapshot.slice(0, -suffix.length) : titleSnapshot;
+  }
+
   productForId(id: string | null): CatalogProduct | undefined {
     return this.availableProducts().find((product) => product.id === id);
   }
