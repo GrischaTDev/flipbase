@@ -7,7 +7,6 @@
       iconPosition="end"
       [ariaExpanded]="isOpen()"
       [ariaControls]="panelId"
-      ariaHaspopup="dialog"
       ariaLabel="Erhaltene Artikel anzeigen"
       (click)="toggle($event)"
     >
@@ -24,33 +23,47 @@
   <div
     data-purchase-receipt-preview
     [id]="panelId"
-    role="dialog"
-    aria-label="Erhaltene Artikel"
+    role="region"
+    aria-label="Artikel im Einkauf"
     [style.top.px]="panelPosition().top"
+    [style.bottom.px]="panelPosition().bottom"
     [style.left.px]="panelPosition().left"
-    class="fb-popover-enter fixed z-[80] w-72 max-w-[calc(100vw-1rem)] rounded-xl border border-fb-border bg-fb-surface p-3 text-left text-fb-text-primary shadow-xl"
+    [style.max-height.px]="panelPosition().maxHeight"
+    class="fb-popover-enter fixed z-[80] w-[26rem] max-w-[calc(100vw-1rem)] overflow-y-auto rounded-xl border border-fb-border bg-fb-surface p-4 text-left text-fb-text-primary shadow-xl"
   >
-    <div class="mb-2 flex items-center justify-between gap-2">
-      <app-badge tone="info">Erhalten</app-badge>
+    <div class="mb-3 flex items-center justify-between gap-3">
+      <h2 class="text-sm font-semibold">Artikel im Einkauf</h2>
       <span class="text-[13px] text-fb-text-muted">
-        {{ summary.received }} von {{ summary.ordered }}
+        {{ summary.lines.length }} {{ summary.lines.length === 1 ? 'Position' : 'Positionen' }}
       </span>
     </div>
-    <ul class="m-0 max-h-52 list-none space-y-1 overflow-y-auto p-0">
+    <ul class="m-0 list-none divide-y divide-fb-line rounded-lg border border-fb-border p-0">
       @for (line of summary.lines; track line.id) {
-        <li
-          class="flex min-h-10 items-center justify-between gap-3 rounded-lg border border-fb-line px-2.5 py-2"
-        >
-          <span class="min-w-0 truncate text-[13px] font-medium">{{ line.title }}</span>
-          <span class="shrink-0 text-[13px] text-fb-text-muted">
-            {{ line.received }} von {{ line.ordered }}
+        <li class="flex items-center gap-3 p-3">
+          <app-product-thumbnail
+            [src]="imageUrls()[line.catalogProductId || ''] || null"
+            size="md"
+            (imageFailed)="onImageFailed(line.catalogProductId)"
+          />
+          <div class="min-w-0 flex-1">
+            <p class="break-words text-[13px] font-medium leading-5">{{ line.title }}</p>
+            @if (line.ean) {
+              <p class="mt-0.5 text-xs text-fb-text-muted">EAN {{ line.ean }}</p>
+            }
+          </div>
+          <span class="shrink-0 text-right tabular-nums">
+            <span class="sr-only">{{ line.received }} von {{ line.ordered }} erhalten</span>
+            <span class="block text-xs text-fb-text-muted" aria-hidden="true">Erhalten</span>
+            <span class="block text-[13px] font-semibold" aria-hidden="true">
+              {{ line.received }} / {{ line.ordered }}
+            </span>
           </span>
         </li>
       }
     </ul>
     <a
       [routerLink]="['/purchases', purchaseId()]"
-      class="mt-2 inline-flex text-[13px] font-medium text-fb-text-primary underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-fb-primary"
+      class="mt-3 inline-flex text-[13px] font-medium text-fb-text-primary underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-fb-primary"
     >
       Einkauf öffnen
     </a>

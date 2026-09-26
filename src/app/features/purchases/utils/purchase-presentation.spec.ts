@@ -305,7 +305,16 @@ describe('purchase presentation mapper', () => {
       kind: 'known',
       received: 0,
       ordered: 2,
-      lines: [{ id: 'line-receipt', title: 'Schuhe', received: 0, ordered: 2 }],
+      lines: [
+        {
+          id: 'line-receipt',
+          title: 'Schuhe',
+          catalogProductId: null,
+          ean: null,
+          received: 0,
+          ordered: 2,
+        },
+      ],
     });
   });
 

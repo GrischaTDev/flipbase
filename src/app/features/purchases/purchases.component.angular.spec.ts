@@ -13,6 +13,7 @@ import type { InventoryItem, Purchase } from '../../core/models/flipbase.models'
 import { InventoryService } from '../../core/services/inventory.service';
 import { InboundTrackingService } from '../../core/services/inbound-tracking.service';
 import { PurchaseService } from '../../core/services/purchase.service';
+import { CatalogService } from '../../core/services/catalog.service';
 import { StockService } from '../../core/services/stock.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { PurchasesComponent } from './purchases.component';
@@ -26,6 +27,7 @@ import { CustomSearchInputComponent } from '../../shared/components/custom-searc
 import { CustomSelectComponent } from '../../shared/components/custom-select/custom-select.component';
 import { PurchaseReceiptPreviewComponent } from './components/purchase-receipt-preview/purchase-receipt-preview.component';
 import { DataTableComponent } from '../../shared/components/data-table/data-table.component';
+import { ProductThumbnailComponent } from '../../shared/components/product-thumbnail/product-thumbnail.component';
 
 interface AngularInputMetadata {
   inputs: Record<string, unknown>;
@@ -143,6 +145,7 @@ beforeAll(async () => {
     'ariaLabel',
   ]);
   registerSignalInputs(PurchaseReceiptPreviewComponent, ['purchaseId', 'receipt']);
+  registerSignalInputs(ProductThumbnailComponent, ['src', 'alt', 'size']);
 });
 
 const workspaceId = 'workspace-1';
@@ -167,8 +170,9 @@ const purchases: Purchase[] = [
         id: 'line-1',
         workspace_id: workspaceId,
         purchase_id: 'purchase-normal',
-        catalog_product_id: null,
+        catalog_product_id: 'catalog-1',
         title_snapshot: 'Tasse',
+        ean_snapshot: '1234567890123',
         line_kind: 'individual',
         ordered_quantity: 1,
         received_quantity: 1,
@@ -199,6 +203,10 @@ const purchaseLoading = signal(false);
 const purchaseLoadError = signal<Error | null>(null);
 const loadedPurchaseWorkspaceId = signal<string | null>(workspaceId);
 const currentWorkspace = signal({ id: workspaceId });
+const loadedCatalogWorkspaceId = signal<string | null>(workspaceId);
+const loadCatalogProducts = vi.fn(async (requestedWorkspaceId: string) => {
+  loadedCatalogWorkspaceId.set(requestedWorkspaceId);
+});
 const loadPurchases = vi.fn<PurchaseService['loadPurchases']>(async () => {
   purchaseLoading.set(true);
   purchaseLoadError.set(null);
@@ -224,6 +232,8 @@ beforeEach(() => {
   loadPurchases.mockClear();
   loadedPurchaseWorkspaceId.set(workspaceId);
   currentWorkspace.set({ id: workspaceId });
+  loadedCatalogWorkspaceId.set(workspaceId);
+  loadCatalogProducts.mockClear();
   TestBed.resetTestingModule();
   TestBed.configureTestingModule({
     imports: [
@@ -244,6 +254,15 @@ beforeEach(() => {
           loadError: purchaseLoadError,
           loadPurchases,
           loadedWorkspaceId: loadedPurchaseWorkspaceId,
+        },
+      },
+      {
+        provide: CatalogService,
+        useValue: {
+          loadedWorkspaceId: loadedCatalogWorkspaceId,
+          imageUrls: () => ({ 'catalog-1': 'https://example.test/tasse.webp' }),
+          loadProducts: loadCatalogProducts,
+          invalidateProductImage: vi.fn(),
         },
       },
       {
@@ -325,6 +344,7 @@ describe('PurchasesComponent – responsive Einkaufsübersicht', () => {
   it('öffnet zur erhaltenen Menge eine Positionsvorschau', () => {
     const fixture = TestBed.createComponent(PurchasesComponent);
     fixture.detectChanges();
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate');
     const host = fixture.nativeElement as HTMLElement;
     const normalRow = host.querySelector('[data-purchase-row="purchase-normal"]')?.closest('tr');
     const trigger = normalRow?.querySelector<HTMLButtonElement>(
@@ -340,7 +360,50 @@ describe('PurchasesComponent – responsive Einkaufsübersicht', () => {
 
     const preview = normalRow?.querySelector('[data-purchase-receipt-preview]');
     expect(preview?.textContent).toContain('Tasse');
-    expect(preview?.textContent).toContain('1 von 1');
+    expect(preview?.textContent).toContain('1 / 1');
+    expect(preview?.textContent).toContain('EAN 1234567890123');
+    expect(preview?.querySelector('img')?.getAttribute('src')).toBe(
+      'https://example.test/tasse.webp',
+    );
+    expect(preview?.querySelector('h2')?.textContent).toBe('Artikel im Einkauf');
+    expect(preview?.querySelector('h2')?.textContent).not.toContain('1 von 1');
+    expect(loadCatalogProducts).not.toHaveBeenCalled();
+    preview?.querySelector('li')?.click();
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('lädt Artikelbilder beim Öffnen und zeigt lange Artikelnamen vollständig', () => {
+    purchaseState.set([
+      {
+        ...purchases[0],
+        purchase_lines: [
+          {
+            ...purchases[0].purchase_lines![0],
+            title_snapshot:
+              'Besonders lange Artikelbezeichnung für eine gut lesbare Positionsvorschau',
+          },
+        ],
+      },
+    ]);
+    loadedCatalogWorkspaceId.set(null);
+    const fixture = TestBed.createComponent(PurchasesComponent);
+    fixture.detectChanges();
+    expect(loadCatalogProducts).not.toHaveBeenCalled();
+
+    const trigger = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+      'app-purchase-receipt-preview button',
+    );
+    trigger?.click();
+    fixture.detectChanges();
+
+    const preview = (fixture.nativeElement as HTMLElement).querySelector(
+      '[data-purchase-receipt-preview]',
+    );
+    expect(loadCatalogProducts).toHaveBeenCalledWith(workspaceId);
+    expect(preview?.textContent).toContain(
+      'Besonders lange Artikelbezeichnung für eine gut lesbare Positionsvorschau',
+    );
+    expect(preview?.querySelector('p')?.classList.contains('break-words')).toBe(true);
   });
 
   it('rendert eine semantische Tabelle mit einem Eintrag pro Einkauf', () => {
@@ -709,7 +772,7 @@ describe('PurchasesComponent – responsive Einkaufsübersicht', () => {
     expect(fixture.componentInstance.purchaseRows()).toHaveLength(2);
   });
 
-  it('besteht für die neue Einkaufsliste den strukturellen AXE-Check', async () => {
+  it('besteht für die Einkaufsliste und die geöffnete Artikelvorschau den strukturellen AXE-Check', async () => {
     const fixture = TestBed.createComponent(PurchasesComponent);
     fixture.detectChanges();
     const list = (fixture.nativeElement as HTMLElement).querySelector(
@@ -718,5 +781,12 @@ describe('PurchasesComponent – responsive Einkaufsübersicht', () => {
 
     const result = await axe.run(list, { rules: { 'color-contrast': { enabled: false } } });
     expect(result.violations).toEqual([]);
+
+    list.querySelector<HTMLButtonElement>('app-purchase-receipt-preview button')?.click();
+    fixture.detectChanges();
+    const openedResult = await axe.run(list, {
+      rules: { 'color-contrast': { enabled: false } },
+    });
+    expect(openedResult.violations).toEqual([]);
   });
 });

@@ -1,5 +1,22 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-26 – Juna – Artikelvorschau beim Wareneingang vergrößert
+
+**Auftrag:** Die schmale Vorschau in der Spalte „Erhalten“ lesbarer machen,
+Artikelbilder zeigen und die doppelte Gesamtmenge im Vorschaufenster vermeiden.
+
+**Änderung:** Die Vorschau bietet mehr Breite und zeigt pro Position ein Bild oder
+einen Platzhalter, den vollständigen Artikelnamen, bei Bedarf die EAN und die
+erhaltene Menge. Der Kopf nennt die Anzahl der Positionen statt die bereits in
+der Tabelle sichtbare Gesamtmenge zu wiederholen. Artikelbilder werden erst
+beim Öffnen geladen. Das Fenster richtet sich am verfügbaren Platz ober- oder
+unterhalb der Tabellenzeile aus; Klicks in die Liste öffnen den Einkauf nicht
+versehentlich.
+
+**Prüfung:** 39 Fachtests und 20 Angular-Tests einschließlich strukturellem
+AXE-Check der geöffneten Vorschau bestanden. TypeScript-Prüfung, vollständiges
+ESLint, die Shared-UI-Prüfung und der Angular-Produktionsbau waren erfolgreich.
+
 ## 2026-09-26 – Juna – Variantenzeile im Einkauf exakt ausgerichtet
 
 **Auftrag:** Größe und Farbe in der Liste der Einkaufspositionen tatsächlich
