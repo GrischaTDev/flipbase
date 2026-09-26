@@ -22,6 +22,7 @@ import { AuthService } from '../../../core/services/auth.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
 import { ButtonComponent } from '../../../shared/components/button/button.component';
 import { TextFieldComponent } from '../../../shared/components/text-field/text-field.component';
+import { BetaDiscordBannerComponent } from '../../beta-discord/components/beta-discord-banner/beta-discord-banner.component';
 
 const workspaceNameLengthValidator: ValidatorFn = (
   control: AbstractControl,
@@ -38,6 +39,7 @@ const workspaceNameLengthValidator: ValidatorFn = (
     TranslatePipe,
     ButtonComponent,
     TextFieldComponent,
+    BetaDiscordBannerComponent,
   ],
   templateUrl: './workspace-setup.component.html',
   host: { class: 'block fb-admin' },

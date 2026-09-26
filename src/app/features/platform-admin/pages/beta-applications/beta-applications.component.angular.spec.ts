@@ -134,6 +134,9 @@ const application = {
   receiptEmailStatus: 'sent' as const,
   receiptEmailSentAt: '2026-09-05T08:01:00.000Z',
   receiptEmailLastError: null,
+  operatorEmailStatus: 'sent' as const,
+  operatorEmailSentAt: '2026-09-05T08:01:00.000Z',
+  operatorEmailLastError: null,
   authUserId: null,
   invitationStatus: 'not_sent' as const,
   invitationSentAt: null,
@@ -152,6 +155,7 @@ describe('BetaApplicationsComponent', () => {
   let reject: ReturnType<typeof vi.fn>;
   let resendInvitation: ReturnType<typeof vi.fn>;
   let resendApplicationReceipt: ReturnType<typeof vi.fn>;
+  let resendOperatorNotice: ReturnType<typeof vi.fn>;
   let resendRejection: ReturnType<typeof vi.fn>;
   let deleteRejected: ReturnType<typeof vi.fn>;
   let confirmDelete: ReturnType<typeof vi.fn>;
@@ -162,6 +166,7 @@ describe('BetaApplicationsComponent', () => {
     reject = vi.fn().mockResolvedValue({ ...application, status: 'rejected' });
     resendInvitation = vi.fn().mockResolvedValue(application);
     resendApplicationReceipt = vi.fn().mockResolvedValue(application);
+    resendOperatorNotice = vi.fn().mockResolvedValue(application);
     resendRejection = vi.fn().mockResolvedValue(application);
     deleteRejected = vi.fn().mockResolvedValue(undefined);
     confirmDelete = vi.fn().mockResolvedValue(true);
@@ -182,6 +187,7 @@ describe('BetaApplicationsComponent', () => {
             reject,
             resendInvitation,
             resendApplicationReceipt,
+            resendOperatorNotice,
             resendRejection,
             deleteRejected,
           },
@@ -384,6 +390,29 @@ describe('BetaApplicationsComponent', () => {
     await fixture.whenStable();
 
     expect(resendRejection).toHaveBeenCalledWith('a1');
+  });
+
+  it('zeigt eine fehlgeschlagene Betreiber-Mail und bietet erneuten Versand an', async () => {
+    list.mockResolvedValueOnce([
+      {
+        ...application,
+        operatorEmailStatus: 'failed',
+        operatorEmailLastError: 'SMTP nicht erreichbar',
+      },
+    ]);
+    const fixture = TestBed.createComponent(BetaApplicationsComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const page = fixture.nativeElement as HTMLElement;
+    expect(page.textContent).toContain('Betreiber-Mail fehlgeschlagen');
+    const retryButton = page.querySelector<HTMLButtonElement>(
+      'button[aria-label="Betreiber-Benachrichtigung erneut senden"]',
+    );
+    retryButton?.click();
+    await fixture.whenStable();
+    expect(resendOperatorNotice).toHaveBeenCalledWith('a1');
   });
 
   it('loescht eine abgelehnte Bewerbung nach ausdruecklicher Bestaetigung', async () => {

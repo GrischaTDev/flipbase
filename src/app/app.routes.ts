@@ -82,6 +82,14 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'discord-callback',
+        canActivate: [authGuard],
+        loadComponent: () =>
+          import('./features/beta-discord/pages/discord-callback/discord-callback.component').then(
+            (m) => m.DiscordCallbackComponent,
+          ),
+      },
+      {
         path: '',
         redirectTo: 'login',
         pathMatch: 'full',

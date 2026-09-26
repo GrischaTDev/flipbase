@@ -82,7 +82,11 @@ create table if not exists public.beta_applications (
     rejection_email_status text not null default 'not_sent'
         check (rejection_email_status in ('not_sent', 'sending', 'sent', 'failed')),
     rejection_email_sent_at timestamptz,
-    rejection_email_last_error text
+    rejection_email_last_error text,
+    operator_email_status text not null default 'pending'
+        check (operator_email_status in ('pending', 'sent', 'failed')),
+    operator_email_sent_at timestamptz,
+    operator_email_last_error text
 );
 
 comment on table public.beta_applications is

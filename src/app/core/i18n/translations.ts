@@ -139,6 +139,19 @@ export const TRANSLATIONS_DE = {
     SETUP_MISSING_ERROR: 'Dein Workspace ist noch nicht verfügbar.',
     SETUP_SAVE_ERROR: 'Der Workspace konnte nicht eingerichtet werden.',
   },
+  BETA_DISCORD: {
+    TITLE: 'Komm auf unseren Discord-Server',
+    DESCRIPTION:
+      'Verbinde dein Discord-Konto, um dem Flipbase-Server beizutreten. Deine Rolle „Beta-Tester“ erhältst du danach automatisch. Discord fragt dich zuvor nach deiner Zustimmung.',
+    CONNECT: 'Discord verbinden',
+    CONNECTED: 'Dein Discord-Konto ist verbunden. Die Rolle „Beta-Tester“ wurde vergeben.',
+    FAILED: 'Die Discord-Verbindung hat nicht geklappt. Du kannst es erneut versuchen.',
+    START_FAILED:
+      'Die Discord-Verbindung konnte nicht gestartet werden. Bitte versuche es später erneut.',
+    CONNECTING: 'Discord wird verbunden',
+    WAIT: 'Einen Moment bitte.',
+    BACK: 'Zum Dashboard',
+  },
   COMMON: {
     SAVE: 'Speichern',
     CANCEL: 'Abbrechen',
@@ -495,6 +508,18 @@ export const TRANSLATIONS_EN = {
     SETUP_LOAD_ERROR: 'The workspace could not be loaded.',
     SETUP_MISSING_ERROR: 'Your workspace is not available yet.',
     SETUP_SAVE_ERROR: 'The workspace could not be set up.',
+  },
+  BETA_DISCORD: {
+    TITLE: 'Join our Discord server',
+    DESCRIPTION:
+      'Connect your Discord account to join the Flipbase server. You will automatically receive the “Beta Tester” role. Discord will ask for your consent first.',
+    CONNECT: 'Connect Discord',
+    CONNECTED: 'Your Discord account is connected. The “Beta Tester” role has been assigned.',
+    FAILED: 'The Discord connection did not work. You can try again.',
+    START_FAILED: 'The Discord connection could not be started. Please try again later.',
+    CONNECTING: 'Connecting Discord',
+    WAIT: 'One moment, please.',
+    BACK: 'Go to dashboard',
   },
   COMMON: {
     SAVE: 'Save',

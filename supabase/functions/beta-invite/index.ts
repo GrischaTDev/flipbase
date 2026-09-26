@@ -10,10 +10,17 @@ import {
   renderApplicationReceipt,
   renderApplicationRejection,
   renderRegistrationInvite,
+  renderOperatorApplicationNotice,
 } from '../_shared/beta-email-template.ts';
 
 type BetaInviteAction =
-  'accept' | 'reject' | 'resend' | 'resend_receipt' | 'resend_rejection' | 'delete_rejected';
+  | 'accept'
+  | 'reject'
+  | 'resend'
+  | 'resend_receipt'
+  | 'resend_operator_notice'
+  | 'resend_rejection'
+  | 'delete_rejected';
 
 export interface BetaInviteApplication {
   id: string;
@@ -28,6 +35,9 @@ export interface BetaInviteApplication {
   receipt_email_status: string;
   receipt_email_sent_at: string | null;
   receipt_email_last_error: string | null;
+  operator_email_status: string;
+  operator_email_sent_at: string | null;
+  operator_email_last_error: string | null;
   auth_user_id: string | null;
   invitation_status: string;
   invitation_sent_at: string | null;
@@ -61,13 +71,19 @@ interface BetaRegistrationLinkInput {
 type BetaApplicationPatch = Partial<
   Pick<
     BetaInviteApplication,
-    'auth_user_id' | 'invitation_status' | 'receipt_email_status' | 'rejection_email_status'
+    | 'auth_user_id'
+    | 'invitation_status'
+    | 'receipt_email_status'
+    | 'operator_email_status'
+    | 'rejection_email_status'
   >
 > & {
   invitation_sent_at?: string | null;
   invitation_last_error?: string | null;
   receipt_email_sent_at?: string | null;
   receipt_email_last_error?: string | null;
+  operator_email_sent_at?: string | null;
+  operator_email_last_error?: string | null;
   rejection_email_sent_at?: string | null;
   rejection_email_last_error?: string | null;
 };
@@ -107,7 +123,7 @@ const ALLOWED_ORIGINS = new Set(
 );
 
 const APPLICATION_FIELDS =
-  'id, first_name, last_name, email, status, granted_days, decision_note, decided_at, created_at, receipt_email_status, receipt_email_sent_at, receipt_email_last_error, auth_user_id, invitation_status, invitation_sent_at, invitation_last_error, rejection_email_status, rejection_email_sent_at, rejection_email_last_error, registered_at, workspace_licenses(status, ends_at)';
+  'id, first_name, last_name, email, status, granted_days, decision_note, decided_at, created_at, receipt_email_status, receipt_email_sent_at, receipt_email_last_error, operator_email_status, operator_email_sent_at, operator_email_last_error, auth_user_id, invitation_status, invitation_sent_at, invitation_last_error, rejection_email_status, rejection_email_sent_at, rejection_email_last_error, registered_at, workspace_licenses(status, ends_at)';
 
 function corsHeaders(origin: string | null): Record<string, string> {
   const headers: Record<string, string> = {
@@ -156,6 +172,7 @@ function isAction(value: unknown): value is BetaInviteAction {
     'reject',
     'resend',
     'resend_receipt',
+    'resend_operator_notice',
     'resend_rejection',
     'delete_rejected',
   ].includes(String(value));
@@ -365,6 +382,42 @@ export function createBetaInviteHandler(
           {
             error: 'receipt_failed',
             message: 'Die Bestaetigung konnte nicht versendet werden.',
+            application: updated,
+          },
+          502,
+          origin,
+        );
+      }
+    }
+
+    if (body.action === 'resend_operator_notice') {
+      if (application.operator_email_status !== 'failed') {
+        return respond({ error: 'operator_notice_not_failed' }, 409, origin);
+      }
+      try {
+        await dependencies.sendEmail({
+          to: Deno.env.get('BETA_OPERATOR_EMAIL')?.trim() || 'beta@flipbase.de',
+          ...renderOperatorApplicationNotice({
+            firstName: application.first_name,
+            lastName: application.last_name,
+            email: application.email,
+          }),
+        });
+        const updated = await dependencies.updateApplication(application.id, {
+          operator_email_status: 'sent',
+          operator_email_sent_at: dependencies.now(),
+          operator_email_last_error: null,
+        });
+        return respond({ ok: true, application: updated }, 200, origin);
+      } catch (error) {
+        const updated = await dependencies.updateApplication(application.id, {
+          operator_email_status: 'failed',
+          operator_email_last_error: boundedError(error),
+        });
+        return respond(
+          {
+            error: 'operator_notice_failed',
+            message: 'Die Betreiber-Benachrichtigung konnte nicht versendet werden.',
             application: updated,
           },
           502,
