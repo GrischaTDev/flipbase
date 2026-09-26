@@ -1,5 +1,61 @@
 # Arbeitsstand: Vinted-Marktplatzverwaltung
 
+## Wiederaufnahme: Konten und Datenbankprüfung
+
+**Stand:** Die gespeicherten Arbeiten des unterbrochenen Laufs wurden ab
+`f40524aed0f80abb704fc4c7306c1fc76a0f639d` auf demselben Branch weitergeführt.
+Die folgenden älteren Abschnitte dokumentieren den ersten Implementierungsstart;
+sie sind keine Beschreibung des jetzigen Prüfumfangs.
+
+**Umgesetzt:** Zwei kontogebundene Datenbereiche für Verbindungen und Lesekopien,
+RPCs zum Erstellen, Auflisten, Umbenennen und Pausieren von Verbindungen sowie
+zum Lesen paginierter Kontodaten. Inhaber und Administratoren des zugehörigen,
+nicht archivierten Workspaces erhalten Zugriff. Direkte Schreibzugriffe normaler
+angemeldeter Nutzer bleiben gesperrt. Diese Datensätze erstellen kein Vinted-Konto
+und melden niemanden bei Vinted an.
+
+**Korrigiert:** Der Migrationsabgleich vergleicht ausschließlich die bestehende
+Migrationshistorie mit dem neuen Marktplatzschema in einer wegwerfbaren lokalen
+CI-Datenbank. Fremde Änderungen an Einkauf, Produktmedien und Suchfiltern werden
+nicht übernommen. Explizite Rechte werden aus dem Schema ergänzt, bevor die
+Migration auf einer neu aufgebauten Datenbank getestet wird. Versionierte
+Migrationen werden von der Ergänzung abgelehnt.
+
+**Prüfungen auf `c7192319dc118b420b397496ff35af6268a0a8a9`:**
+
+- 59 Vertragstests und 17 Tests zur Migrationserzeugung erfolgreich.
+- App- und Test-Typprüfung mit den tatsächlichen Projektabhängigkeiten erfolgreich.
+- GitHub-Codejob `108428234801`: Angular-Produktionsbau erfolgreich.
+- GitHub-Datenbankjob `108428234848`: Migration erzeugt und vollständig neu
+  eingespielt; 31 Marktplatz-Datenbanktests erfolgreich.
+- Gesamte Datenbank-Regressionssuite auf dem GitHub-Runner erfolgreich.
+- Generierte Datenbanktypen erneut lokal mit App- und Test-TypeScript geprüft.
+
+Der erzeugte Commit `986381c5cecccbf0c6f56234ecb8a9ad580d09fc` enthält die
+Migration `20260926150818_marketplace_accounts.sql`, die Schemaregistrierung,
+aktualisierte Typen und einen ergänzenden Haupt-Changelog-Eintrag. Der Review
+bestätigte ausschließlich Marktplatz-Schemaänderungen; bestehende Typen und
+historische Changelog-Einträge wurden nicht entfernt.
+
+Die Änderungen wurden testgetrieben geprüft. Die letzte Ergänzung reproduzierte
+zuerst zwei fehlgeschlagene Workflowtests; danach bestanden alle 17 Tests.
+Die jeweils geänderten Workflow-/Testdateien bestanden Prettier, ESLint und die
+Bash-Syntaxprüfung des Generierungsschritts.
+
+**Prüfumgebung:** Der vollständige Quellstand und die festgeschriebenen
+Projektpakete konnten über GitHub-Artefakte lokal gelesen werden. Ein normaler
+Git-Clone war weiterhin nicht möglich. Der lokale Angular-Bau wurde mit
+Exitcode 137 wegen der Speichergrenze beendet; der oben genannte erfolgreiche
+Bau lief deshalb auf GitHub. Die vollständige Angular-/Deno-Testgruppe und die
+regulären PR-Pflichtprüfungen sind damit nicht als abgeschlossen ausgewiesen.
+
+**Produktstand:** Noch keine neue Benutzeroberfläche, keine Browsersitzung,
+keine produktiven Kontozugriffe, kein Merge und kein Deployment. Als Nächstes
+folgen der anbieterunabhängige Sitzungstest und der native Kontobereich gemäß
+Plan. Ein erfolgreicher Datenbanktest ist kein Vinted-Livetest.
+
+---
+
 ## 2026-09-26 – Juna – Kontodaten und Auftragsprüfung begonnen
 
 Basis: `master` bei `6fc7bd6a8ef2d20f19fb6717347efb47bb524313`.
