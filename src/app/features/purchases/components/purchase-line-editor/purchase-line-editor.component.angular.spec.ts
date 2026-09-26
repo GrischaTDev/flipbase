@@ -604,11 +604,14 @@ describe('PurchaseLineEditorComponent', () => {
     expect(title?.parentElement?.parentElement?.classList).toContain(
       'grid-cols-[2.5rem_minmax(0,1fr)]',
     );
+    const titleButton = title?.querySelector('button');
+    expect(titleButton?.classList).toContain('px-0');
+    expect(titleButton?.classList).not.toContain('px-3');
     expect(fixture.componentInstance.getDrafts()[0]?.titleSnapshot).toBe(
       'Tamaris T-Stick Pumps Schwarz · Größe 40 · Schwarz',
     );
 
-    title?.querySelector('button')?.click();
+    titleButton?.click();
     fixture.detectChanges();
     const details = host.querySelector('app-modal-shell dl');
     const detailText = details?.textContent?.replace(/\s+/g, '');

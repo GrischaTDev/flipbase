@@ -106,11 +106,16 @@ export class ButtonComponent {
           search: 'h-9 w-9 px-0 text-[13px] rounded-lg gap-0',
         }
       : {
-          slim: 'h-7 px-2 text-[13px] rounded-lg gap-1.5',
-          md: 'h-7 px-3 text-[13px] rounded-lg gap-1.5',
-          lg: 'h-8 px-4 text-[13px] rounded-lg gap-2',
-          search: 'h-9 px-2 text-[13px] rounded-lg gap-1.5',
+          slim: 'h-7 text-[13px] rounded-lg gap-1.5',
+          md: 'h-7 text-[13px] rounded-lg gap-1.5',
+          lg: 'h-8 text-[13px] rounded-lg gap-2',
+          search: 'h-9 text-[13px] rounded-lg gap-1.5',
         };
+    const horizontalPadding = this.iconOnly()
+      ? ''
+      : this.variant() === 'plain'
+        ? 'px-0'
+        : { slim: 'px-2', md: 'px-3', lg: 'px-4', search: 'px-2' }[this.size()];
 
     return [
       base,
@@ -120,6 +125,7 @@ export class ButtonComponent {
       variantStyles[this.variant()],
       this.variant() === 'table-action' ? tableActionToneStyles[this.tone()] : '',
       sizeStyles[this.size()],
+      horizontalPadding,
     ]
       .filter(Boolean)
       .join(' ');
