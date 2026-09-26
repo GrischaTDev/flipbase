@@ -51,7 +51,13 @@ jobs:
         if: ${{ hashFiles('supabase/migrations/*marketplace_accounts*') == '' }}
         run: |
           docker exec -i supabase_db_flipbase-supabase psql -U postgres -d postgres -v ON_ERROR_STOP=1 --single-transaction < supabase/schemas/250_marketplace_accounts.sql
-          npx supabase db diff --from migrations --to local -f marketplace_accounts --schema public
+          npx supabase db diff --from migrations --to local --schema public > /tmp/marketplace-database/generated.sql
+          test -s /tmp/marketplace-database/generated.sql
+          npx supabase migration new marketplace_accounts
+          shopt -s nullglob
+          migrations=(supabase/migrations/*_marketplace_accounts.sql)
+          test "${#migrations[@]}" -eq 1
+          cp /tmp/marketplace-database/generated.sql "${migrations[0]}"
           node scripts/marketplace-migration-permissions.mjs
           find supabase/migrations -name '*marketplace_accounts*' -exec cp {} /tmp/marketplace-database/ \;
       - name: Verify migration replay

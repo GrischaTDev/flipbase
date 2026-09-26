@@ -11,7 +11,7 @@ test('Migration vergleicht den bisherigen Migrationsstand mit genau dem neuen Ma
   const apply =
     'docker exec -i supabase_db_flipbase-supabase psql -U postgres -d postgres -v ON_ERROR_STOP=1 --single-transaction < supabase/schemas/250_marketplace_accounts.sql';
   const diff =
-    'npx supabase db diff --from migrations --to local -f marketplace_accounts --schema public';
+    'npx supabase db diff --from migrations --to local --schema public > /tmp/marketplace-database/generated.sql';
   assert.ok(
     workflow.includes(apply),
     'Nur das neue Schema auf der wegwerfbaren Datenbank anwenden.',
@@ -41,4 +41,22 @@ test('Datenbankregressionen bleiben vor Typen und Review-Commit verpflichtend', 
       workflow.indexOf('marketplace-review-commit.mjs prepare'),
   );
   assert.doesNotMatch(workflow, /db query|continue-on-error|\|\|\s*true|--linked|--project-ref/);
+});
+
+test('Expliziter Diff wird vor der CLI-Migration gespeichert und erst danach übernommen', () => {
+  const diff =
+    'npx supabase db diff --from migrations --to local --schema public > /tmp/marketplace-database/generated.sql';
+  const nonempty = 'test -s /tmp/marketplace-database/generated.sql';
+  const create = 'npx supabase migration new marketplace_accounts';
+  const copy = 'cp /tmp/marketplace-database/generated.sql "${migrations[0]}"';
+  for (const command of [diff, nonempty, create, copy])
+    assert.ok(workflow.includes(command), command);
+  assert.ok(workflow.indexOf(diff) < workflow.indexOf(nonempty));
+  assert.ok(workflow.indexOf(nonempty) < workflow.indexOf(create));
+  assert.ok(workflow.indexOf(create) < workflow.indexOf(copy));
+  assert.ok(
+    workflow.indexOf(copy) < workflow.indexOf('node scripts/marketplace-migration-permissions.mjs'),
+  );
+  assert.ok(workflow.includes('test "${#migrations[@]}" -eq 1'));
+  assert.doesNotMatch(workflow, /db diff[^\n]*-f marketplace_accounts/);
 });
