@@ -50,7 +50,7 @@ jobs:
       - name: Generate isolated marketplace migration
         if: ${{ hashFiles('supabase/migrations/*marketplace_accounts*') == '' }}
         run: |
-          npx supabase db query --local --file supabase/schemas/250_marketplace_accounts.sql
+          docker exec -i supabase_db_flipbase-supabase psql -U postgres -d postgres -v ON_ERROR_STOP=1 --single-transaction < supabase/schemas/250_marketplace_accounts.sql
           npx supabase db diff --from migrations --to local -f marketplace_accounts --schema public
           node scripts/marketplace-migration-permissions.mjs
           find supabase/migrations -name '*marketplace_accounts*' -exec cp {} /tmp/marketplace-database/ \;

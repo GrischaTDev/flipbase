@@ -9,7 +9,7 @@ const workflow = await readFile(
 
 test('Migration vergleicht den bisherigen Migrationsstand mit genau dem neuen Marktplatzschema', () => {
   const apply =
-    'npx supabase db query --local --file supabase/schemas/250_marketplace_accounts.sql';
+    'docker exec -i supabase_db_flipbase-supabase psql -U postgres -d postgres -v ON_ERROR_STOP=1 --single-transaction < supabase/schemas/250_marketplace_accounts.sql';
   const diff =
     'npx supabase db diff --from migrations --to local -f marketplace_accounts --schema public';
   assert.ok(
@@ -40,5 +40,5 @@ test('Datenbankregressionen bleiben vor Typen und Review-Commit verpflichtend', 
     workflow.indexOf('npx supabase gen types') <
       workflow.indexOf('marketplace-review-commit.mjs prepare'),
   );
-  assert.doesNotMatch(workflow, /continue-on-error|\|\|\s*true|--linked|--project-ref/);
+  assert.doesNotMatch(workflow, /db query|continue-on-error|\|\|\s*true|--linked|--project-ref/);
 });
