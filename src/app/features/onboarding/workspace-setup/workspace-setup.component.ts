@@ -16,9 +16,8 @@ import {
   ValidatorFn,
   Validators,
 } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { AuthService } from '../../../core/services/auth.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
 import { ButtonComponent } from '../../../shared/components/button/button.component';
 import { TextFieldComponent } from '../../../shared/components/text-field/text-field.component';
@@ -47,19 +46,27 @@ const workspaceNameLengthValidator: ValidatorFn = (
 })
 export class WorkspaceSetupComponent implements OnInit {
   private readonly workspaceService = inject(WorkspaceService);
-  private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly translate = inject(TranslateService);
 
   readonly isLoading = signal(false);
   readonly isSaving = signal(false);
   readonly errorMessage = signal<string | null>(null);
+  readonly isReview = signal(false);
 
   readonly incompleteWorkspace = computed(
     () =>
       this.workspaceService
         .workspaces()
         .find((workspace) => workspace.setup_completed_at === null) ?? null,
+  );
+  readonly workspaceToEdit = computed(() =>
+    this.isReview()
+      ? (this.workspaceService
+          .workspaces()
+          .find((workspace) => workspace.setup_completed_at !== null) ?? null)
+      : this.incompleteWorkspace(),
   );
 
   readonly canRetryLoad = computed(
@@ -81,10 +88,7 @@ export class WorkspaceSetupComponent implements OnInit {
 
   submitDisabled(): boolean {
     return (
-      this.form.invalid ||
-      this.isLoading() ||
-      this.isSaving() ||
-      this.incompleteWorkspace() === null
+      this.form.invalid || this.isLoading() || this.isSaving() || this.workspaceToEdit() === null
     );
   }
 
@@ -98,13 +102,23 @@ export class WorkspaceSetupComponent implements OnInit {
 
     try {
       await this.workspaceService.ensureLoaded();
+      this.isReview.set(
+        this.route.snapshot.queryParamMap.get('review') === '1' &&
+          this.incompleteWorkspace() === null &&
+          this.workspaceService
+            .workspaces()
+            .some((workspace) => workspace.setup_completed_at !== null),
+      );
 
       if (this.workspaceService.loadError()) {
         this.errorMessage.set(this.translate.instant('WORKSPACE.SETUP_LOAD_ERROR'));
         return;
       }
 
-      if (!this.incompleteWorkspace()) {
+      const workspace = this.workspaceToEdit();
+      if (workspace) {
+        if (this.isReview()) this.form.controls.workspaceName.setValue(workspace.name);
+      } else {
         if (this.workspaceService.workspaces().length > 0) {
           await this.router.navigate(['/dashboard']);
         } else {
@@ -124,7 +138,7 @@ export class WorkspaceSetupComponent implements OnInit {
       return;
     }
 
-    const workspace = this.incompleteWorkspace();
+    const workspace = this.workspaceToEdit();
     if (!workspace) {
       this.errorMessage.set(this.translate.instant('WORKSPACE.SETUP_MISSING_ERROR'));
       return;
@@ -135,10 +149,15 @@ export class WorkspaceSetupComponent implements OnInit {
     const normalizedName = this.form.controls.workspaceName.value.trim();
 
     try {
-      const { error } = await this.workspaceService.completeInitialSetup(
-        workspace.id,
-        normalizedName,
-      );
+      if (this.isReview() && normalizedName === workspace.name) {
+        await this.router.navigate(['/onboarding/discord']);
+        return;
+      }
+      const { error } = this.isReview()
+        ? await this.workspaceService.updateWorkspaceSettings(workspace.id, {
+            name: normalizedName,
+          })
+        : await this.workspaceService.completeInitialSetup(workspace.id, normalizedName);
       if (error) {
         this.errorMessage.set(error.message);
         return;
@@ -154,9 +173,5 @@ export class WorkspaceSetupComponent implements OnInit {
     } finally {
       this.isSaving.set(false);
     }
-  }
-
-  async signOut(): Promise<void> {
-    await this.authService.signOut();
   }
 }

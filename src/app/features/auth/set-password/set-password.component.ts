@@ -15,25 +15,24 @@ import {
   ValidatorFn,
   Validators,
 } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
   LucideDynamicIcon,
   LucideSparkles as Sparkles,
   LucideLock as Lock,
-  LucideEye as Eye,
-  LucideEyeOff as EyeOff,
   LucideCheckCircle2 as CheckCircle2,
   LucideAlertCircle as AlertCircle,
   LucideArrowLeft as ArrowLeft,
   LucideSun as Sun,
   LucideMoon as Moon,
-  LucideKeyRound as KeyRound,
 } from '@lucide/angular';
 import { AuthService } from '../../../core/services/auth.service';
 import { SupabaseService } from '../../../core/services/supabase.service';
 import { ThemeService } from '../../../core/services/theme.service';
 import { CustomCheckboxComponent } from '../../../shared/components/custom-checkbox/custom-checkbox.component';
+import { ButtonComponent } from '../../../shared/components/button/button.component';
+import { TextFieldComponent } from '../../../shared/components/text-field/text-field.component';
 import { NgOptimizedImage } from '@angular/common';
 import { environment } from '../../../../environments/environment';
 import { TermsModalComponent } from '../components/terms-modal/terms-modal.component';
@@ -56,6 +55,8 @@ const passwordMatchValidator: ValidatorFn = (control: AbstractControl): Validati
     TranslatePipe,
     LucideDynamicIcon,
     CustomCheckboxComponent,
+    ButtonComponent,
+    TextFieldComponent,
     NgOptimizedImage,
     TermsModalComponent,
     PrivacyModalComponent,
@@ -69,14 +70,12 @@ export class SetPasswordComponent implements OnInit {
   private readonly authService = inject(AuthService);
   private readonly supabase = inject(SupabaseService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   readonly themeService = inject(ThemeService);
   private readonly translate = inject(TranslateService);
 
   readonly logoIcon = Sparkles;
   readonly lockIcon = Lock;
-  readonly keyIcon = KeyRound;
-  readonly eyeIcon = Eye;
-  readonly eyeOffIcon = EyeOff;
   readonly checkIcon = CheckCircle2;
   readonly alertIcon = AlertCircle;
   readonly arrowLeftIcon = ArrowLeft;
@@ -93,9 +92,7 @@ export class SetPasswordComponent implements OnInit {
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
   readonly isTokenInvalid = signal<boolean>(false);
-
-  readonly showPassword = signal<boolean>(false);
-  readonly showConfirmPassword = signal<boolean>(false);
+  readonly isReview = signal(false);
 
   readonly greetingName = computed<string>(() => {
     const user = this.authService.currentUser();
@@ -172,6 +169,12 @@ export class SetPasswordComponent implements OnInit {
 
   async ngOnInit(): Promise<void> {
     await this.authService.sessionReady;
+    const reviewingPassword = this.route.snapshot.queryParamMap.get('review') === '1';
+    if (reviewingPassword && this.authService.canAccessApp()) {
+      this.isReview.set(true);
+      this.form.controls.acceptTerms.setValue(true);
+      return;
+    }
 
     // Pruefe ob ein Fehler in der URL-Hash steht (z.B. token expired)
     const hash = typeof window !== 'undefined' ? window.location.hash : '';
@@ -195,14 +198,6 @@ export class SetPasswordComponent implements OnInit {
     this.translate.use(lang);
   }
 
-  toggleShowPassword(): void {
-    this.showPassword.update((v) => !v);
-  }
-
-  toggleShowConfirmPassword(): void {
-    this.showConfirmPassword.update((v) => !v);
-  }
-
   get isPasswordMismatch(): boolean {
     return (
       this.form.hasError('passwordMismatch') &&
@@ -220,6 +215,14 @@ export class SetPasswordComponent implements OnInit {
   }
 
   async onSubmit(): Promise<void> {
+    if (
+      this.isReview() &&
+      !this.form.controls.password.value &&
+      !this.form.controls.confirmPassword.value
+    ) {
+      await this.router.navigate(['/onboarding/workspace'], { queryParams: { review: '1' } });
+      return;
+    }
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;
@@ -243,10 +246,12 @@ export class SetPasswordComponent implements OnInit {
         return;
       }
 
-      await this.authService.activatePendingBetaAccess();
+      if (!this.isReview()) await this.authService.activatePendingBetaAccess();
 
       this.successMessage.set(this.translate.instant('AUTH.SET_PASSWORD_SUCCESS'));
-      await this.router.navigate(['/onboarding/workspace']);
+      await this.router.navigate(['/onboarding/workspace'], {
+        queryParams: this.isReview() ? { review: '1' } : undefined,
+      });
     } catch (err: unknown) {
       this.errorMessage.set(
         err instanceof Error ? err.message : 'Passwort konnte nicht gespeichert werden.',

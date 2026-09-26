@@ -1,9 +1,9 @@
 <main class="relative flex min-h-screen items-center justify-center bg-fb-well px-4 py-10 sm:px-6">
   <div
-    class="w-full max-w-md rounded-2xl border border-fb-border bg-fb-surface-alt p-6 shadow-sm sm:p-8"
+    class="w-full max-w-lg rounded-2xl border border-fb-border bg-fb-surface-alt p-6 shadow-sm sm:p-8"
   >
     <div class="mb-7 text-center">
-      <div class="mb-5 flex items-center justify-center gap-2.5">
+      <div class="mb-7 flex items-center justify-center gap-2.5">
         <img
           ngSrc="images/logo-mark.png"
           width="36"
@@ -15,7 +15,7 @@
         <span class="text-xl font-bold tracking-tight text-fb-text-primary">Flipbase</span>
       </div>
 
-      <app-beta-registration-progress [step]="2" class="mb-6 block" />
+      <app-beta-registration-progress [step]="2" class="mb-8 block" />
 
       <h1 class="text-2xl font-semibold tracking-tight text-fb-text-primary">
         {{ 'WORKSPACE.SETUP_WELCOME' | translate }}
@@ -48,6 +48,7 @@
         <app-text-field
           id="workspace-name"
           type="text"
+          size="comfortable"
           formControlName="workspaceName"
           autocomplete="organization"
           [maxLength]="100"
@@ -62,23 +63,26 @@
         />
       </div>
 
-      <app-button
-        type="submit"
-        variant="primary"
-        size="lg"
-        [fullWidth]="true"
-        [loading]="isSaving()"
-        [disabled]="submitDisabled()"
-        class="mt-6 block w-full"
-      >
-        {{ 'WORKSPACE.SETUP_SUBMIT' | translate }}
-      </app-button>
+      <div class="mt-8 flex items-center justify-between">
+        <app-button
+          type="button"
+          variant="plain"
+          size="lg"
+          link="/auth/set-password"
+          [queryParams]="{ review: '1' }"
+        >
+          {{ 'BETA_ONBOARDING.BACK' | translate }}
+        </app-button>
+        <app-button
+          type="submit"
+          variant="primary"
+          size="lg"
+          [loading]="isSaving()"
+          [disabled]="submitDisabled()"
+        >
+          {{ 'WORKSPACE.SETUP_SUBMIT' | translate }}
+        </app-button>
+      </div>
     </form>
-
-    <div class="mt-5 flex justify-center border-t border-fb-border pt-5">
-      <app-button type="button" variant="plain" size="slim" (clicked)="signOut()">
-        {{ 'AUTH.LOGOUT' | translate }}
-      </app-button>
-    </div>
   </div>
 </main>

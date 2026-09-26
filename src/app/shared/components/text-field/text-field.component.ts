@@ -9,7 +9,14 @@ import {
   signal,
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
-import { LucideCircleAlert, LucideDynamicIcon, LucideIconInput, LucideX } from '@lucide/angular';
+import {
+  LucideCircleAlert,
+  LucideDynamicIcon,
+  LucideEye,
+  LucideEyeOff,
+  LucideIconInput,
+  LucideX,
+} from '@lucide/angular';
 
 let nextUniqueId = 0;
 
@@ -38,6 +45,10 @@ export class TextFieldComponent implements ControlValueAccessor {
   readonly labelHidden = input<boolean>(false);
   readonly placeholder = input<string>('');
   readonly type = input<TextFieldType>('text');
+  readonly size = input<'default' | 'comfortable'>('default');
+  readonly revealable = input<boolean>(false);
+  readonly showPasswordLabel = input<string>('Passwort anzeigen');
+  readonly hidePasswordLabel = input<string>('Passwort verbergen');
   readonly multiline = input<boolean | number>(false);
   readonly prefix = input<string>('');
   readonly suffix = input<string>('');
@@ -60,9 +71,17 @@ export class TextFieldComponent implements ControlValueAccessor {
 
   readonly value = model<string>('');
   readonly isAccessorDisabled = signal<boolean>(false);
+  readonly passwordVisible = signal(false);
 
   protected readonly clearIcon = LucideX;
   protected readonly errorIcon = LucideCircleAlert;
+  protected readonly eyeIcon = LucideEye;
+  protected readonly eyeOffIcon = LucideEyeOff;
+  protected readonly effectiveInputType = computed(() =>
+    this.type() === 'password' && this.revealable() && this.passwordVisible()
+      ? 'text'
+      : this.type(),
+  );
 
   private readonly generatedId = `fb-field-${++nextUniqueId}`;
   readonly fieldId = computed(() => this.id() || this.generatedId);
@@ -85,9 +104,10 @@ export class TextFieldComponent implements ControlValueAccessor {
       : '';
 
     const pl = this.prefixIcon() ? 'pl-9' : this.prefix() ? 'pl-7' : '';
-    const pr = this.clearable() || this.suffix() ? 'pr-8' : '';
+    const pr = this.clearable() || this.suffix() || this.revealable() ? 'pr-10' : '';
+    const size = this.size() === 'comfortable' ? '!min-h-10' : '';
 
-    return [base, mono, err, pl, pr].filter(Boolean).join(' ');
+    return [base, mono, err, pl, pr, size].filter(Boolean).join(' ');
   });
 
   private onChange: (value: string) => void = () => undefined;
@@ -123,5 +143,9 @@ export class TextFieldComponent implements ControlValueAccessor {
     this.value.set('');
     this.onChange('');
     this.cleared.emit();
+  }
+
+  protected togglePasswordVisibility(): void {
+    this.passwordVisible.update((visible) => !visible);
   }
 }

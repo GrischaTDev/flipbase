@@ -1,5 +1,24 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-26 – Juna – Beta-Registrierung visuell und beim Zurückgehen verbessert
+
+**Auftrag:** Die drei Registrierungsschritte einheitlich gestalten, gelbe
+Markenfokusse verwenden, die Fortschrittslinien animieren und nach Passwort-
+oder Workspace-Vergabe zum vorherigen Schritt zurückgehen können.
+
+**Änderung:** Die drei Karten sind gleich breit. Passwortfelder, Checkbox,
+Rechtstextlinks und Aktionen folgen der Markenfarbe; die Weiter-Aktionen sind
+klein und rechtsbündig. Der Fortschritt hat Verbindungsstrecken mit einer
+reduzierten Animation. Im Discord-Schritt entfällt die große Farbfläche.
+Zurück-Navigation zeigt das bereits gesetzte Passwort als erledigt und den
+gespeicherten Workspace-Namen zur möglichen Änderung an. Die technische
+Sitzung bleibt für die geschützte Workspace-Einrichtung bestehen.
+
+**Prüfung:** 34 gezielte Angular-Tests, Typen, Lint, Shared-UI-Prüfung,
+Formatierung und Angular-Produktionsbau. Der vollständige Browser-Test konnte
+lokal nicht starten, da der Docker-Port der Supabase-Testdatenbank auf diesem
+Rechner gesperrt ist.
+
 ## 2026-09-26 – Juna – Sidebar vereinheitlicht und Nebennavigation nach unten gesetzt
 
 **Auftrag:** Die obere Trennlinie und den OS-Zusatz entfernen, das Flipbase-Logo

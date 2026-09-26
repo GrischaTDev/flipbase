@@ -16,16 +16,6 @@
 
     <app-beta-registration-progress [step]="3" />
 
-    <div class="mt-8 rounded-2xl bg-[#5865F2] px-6 py-8 text-center sm:px-8">
-      <img
-        ngSrc="/images/discord-logo.svg"
-        width="219"
-        height="32"
-        alt="Discord"
-        class="mx-auto h-9 w-auto max-w-full"
-      />
-    </div>
-
     @if (loading()) {
       <p role="status" class="mt-6 text-center text-sm text-fb-text-secondary">
         {{ 'BETA_ONBOARDING.DISCORD_LOADING' | translate }}
@@ -96,5 +86,15 @@
         </div>
       }
     }
+    <div class="mt-8 flex justify-start">
+      <app-button
+        variant="plain"
+        size="lg"
+        link="/onboarding/workspace"
+        [queryParams]="{ review: '1' }"
+      >
+        {{ 'BETA_ONBOARDING.BACK' | translate }}
+      </app-button>
+    </div>
   </div>
 </main>
