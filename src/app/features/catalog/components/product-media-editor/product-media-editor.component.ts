@@ -13,7 +13,7 @@ import {
   signal,
 } from '@angular/core';
 import { ProductImageDraft } from '../../../../core/models/product-media.models';
-import { LucideTrash2 } from '@lucide/angular';
+import { LucidePlus, LucideTrash2 } from '@lucide/angular';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import {
   CroppedImageResult,
@@ -32,6 +32,7 @@ import {
 })
 export class ProductMediaEditorComponent {
   readonly removeIcon = LucideTrash2;
+  readonly addIcon = LucidePlus;
   readonly images = input<readonly ProductImageDraft[]>([]);
   readonly disabled = input(false);
   readonly imagesChange = output<readonly ProductImageDraft[]>();
@@ -48,10 +49,15 @@ export class ProductMediaEditorComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly injector = inject(Injector);
   private readonly readers = new Set<FileReader>();
+  private dragDepth = 0;
 
   constructor() {
     effect(() => {
-      if (this.disabled()) this.cropKey.set(null);
+      if (this.disabled()) {
+        this.cropKey.set(null);
+        this.dragDepth = 0;
+        this.dragActive.set(false);
+      }
     });
     this.destroyRef.onDestroy(() => {
       for (const reader of this.readers) reader.abort();
@@ -69,21 +75,28 @@ export class ProductMediaEditorComponent {
   onDrop(event: DragEvent): void {
     event.preventDefault();
     event.stopPropagation();
+    this.dragDepth = 0;
     this.dragActive.set(false);
     this.addFiles(Array.from(event.dataTransfer?.files ?? []));
   }
 
-  onDragOver(event: DragEvent): void {
+  onDragEnter(event: DragEvent): void {
+    if (this.disabled() || !event.dataTransfer?.types.includes('Files')) return;
     event.preventDefault();
-    event.stopPropagation();
-    if (!this.disabled()) this.dragActive.set(true);
+    this.dragDepth++;
+    this.dragActive.set(true);
   }
 
-  onDragLeave(event: DragEvent): void {
-    const target = event.currentTarget as HTMLElement;
-    if (!(event.relatedTarget instanceof Node) || !target.contains(event.relatedTarget)) {
-      this.dragActive.set(false);
-    }
+  onDragOver(event: DragEvent): void {
+    if (this.disabled() || !event.dataTransfer?.types.includes('Files')) return;
+    event.preventDefault();
+    event.stopPropagation();
+    this.dragActive.set(true);
+  }
+
+  onDragLeave(): void {
+    this.dragDepth = Math.max(0, this.dragDepth - 1);
+    if (this.dragDepth === 0) this.dragActive.set(false);
   }
 
   addFiles(files: readonly File[]): void {
@@ -134,15 +147,23 @@ export class ProductMediaEditorComponent {
     const button = event?.target instanceof Element ? event.target.closest('button') : null;
     const row = button?.closest('li');
     const nextRow = row?.nextElementSibling ?? row?.previousElementSibling;
-    const focusTarget =
-      nextRow?.querySelector<HTMLButtonElement>('button') ??
-      row
-        ?.closest('app-product-media-editor')
-        ?.querySelector<HTMLButtonElement>('[data-add-media] button');
-    this.change(this.drafts().filter((image) => image.key !== key));
+    const host = row?.closest('app-product-media-editor');
+    const remaining = this.drafts().filter((image) => image.key !== key);
+    const focusTarget = remaining.length
+      ? nextRow?.querySelector<HTMLButtonElement>('button')
+      : null;
+    this.change(remaining);
     if (this.cropKey() === key) this.cropKey.set(null);
     this.announcement.set('Bild entfernt.');
-    if (focusTarget) afterNextRender(() => focusTarget.focus(), { injector: this.injector });
+    if (host)
+      afterNextRender(
+        () =>
+          (focusTarget?.isConnected
+            ? focusTarget
+            : host.querySelector<HTMLButtonElement>('[data-add-media] button')
+          )?.focus(),
+        { injector: this.injector },
+      );
   }
 
   startCrop(key: string): void {

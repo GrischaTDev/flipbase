@@ -61,6 +61,7 @@ export class AttributePickerComponent implements ControlValueAccessor {
   readonly listboxId = computed(() => `${this.fieldId()}-listbox`);
   readonly value = signal('');
   readonly query = signal('');
+  readonly isEditing = signal(false);
   readonly isOpen = signal(false);
   readonly isDisabled = signal(false);
   readonly activeIndex = signal(0);
@@ -72,10 +73,11 @@ export class AttributePickerComponent implements ControlValueAccessor {
     return value.split(' · ').filter(Boolean);
   });
   readonly matches = computed(() => {
-    const query = normalized(this.query());
+    const query = this.isEditing() ? normalized(this.query()) : '';
     return this.options().filter((option) => (query ? normalized(option).includes(query) : true));
   });
   readonly customValue = computed(() => {
+    if (!this.isEditing()) return null;
     const query = this.query().trim();
     if (!query || (this.multiple() && query.includes(' · '))) return null;
     return this.options().some((option) => normalized(option) === normalized(query)) ? null : query;
@@ -105,6 +107,7 @@ export class AttributePickerComponent implements ControlValueAccessor {
   writeValue(value: unknown): void {
     this.value.set(typeof value === 'string' ? value : '');
     if (!this.multiple()) this.query.set(this.value());
+    this.isEditing.set(false);
   }
 
   registerOnChange(fn: (value: string) => void): void {
@@ -122,7 +125,7 @@ export class AttributePickerComponent implements ControlValueAccessor {
 
   open(): void {
     if (this.isDisabled() || this.isOpen()) return;
-    if (!this.multiple()) this.query.set('');
+    this.isEditing.set(false);
     this.isOpen.set(true);
     this.activeIndex.set(0);
     afterNextRender(() => this.positionPanel(), { injector: this.injector });
@@ -134,12 +137,14 @@ export class AttributePickerComponent implements ControlValueAccessor {
     this.onTouched();
     if (!this.multiple()) this.query.set(this.value());
     else this.query.set('');
+    this.isEditing.set(false);
     if (restoreFocus) queueMicrotask(() => this.field()?.nativeElement.focus());
   }
 
   onInput(event: Event): void {
     this.open();
     this.query.set((event.target as HTMLInputElement).value);
+    this.isEditing.set(true);
     this.activeIndex.set(0);
   }
 
@@ -151,11 +156,14 @@ export class AttributePickerComponent implements ControlValueAccessor {
       if (!selected.some((item) => normalized(item) === normalized(value)))
         this.setValue([...selected, value].join(' · '));
       this.query.set('');
+      this.isEditing.set(false);
       this.open();
       this.field()?.nativeElement.focus();
     } else {
       this.setValue(value);
-      this.close();
+      this.query.set(value);
+      this.isEditing.set(false);
+      this.field()?.nativeElement.focus();
     }
   }
 

@@ -1,5 +1,24 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-26 – Juna – Auswahlfelder und Bilderablage der Artikelerfassung verbessert
+
+**Auftrag:** Kategorie und Farbe auf „Artikel erstellen“ besser lesbar und bedienbar
+machen. Beim Ziehen von Bildern eine klare Ablagefläche zeigen und nach dem ersten
+Bild die große Upload-Box durch eine Plus-Kachel ersetzen.
+
+**Änderung:** Das Kategorie- und Suchfeld heben sich jetzt sichtbar von der Karte
+ab und verwenden die Textfarbe des aktiven Designs. Die Farbauswahl lässt den
+gewählten Wert beim Öffnen und nach einer neuen Auswahl im Eingabefeld stehen,
+während alle Vorschläge erreichbar bleiben. Der Bilderbereich zeigt während eines
+Dateizugs eine überlagerte Ablagefläche. Nach dem ersten Bild stehen die Bilder
+in einem Raster mit einer Kachel zum Hinzufügen weiterer Bilder; Dateien lassen
+sich weiterhin über dem gesamten Bereich ablegen. Nach dem Entfernen des letzten
+Bilds kehrt die anfängliche Upload-Fläche zurück.
+
+**Prüfung:** 30 gezielte Angular-Tests für Kategorie, Farbe und Bilder bestanden.
+TypeScript-Typprüfung, ESLint für die geänderten TypeScript-Dateien und
+Angular-Produktionsbau erfolgreich. Die geänderten Dateien wurden formatiert.
+
 ## 2026-09-25 – Juna – Auswahlfelder der Artikelerfassung korrigiert
 
 **Auftrag:** Kategorieauswahl, Farbe, Material und den Hinweis auf ungespeicherte
