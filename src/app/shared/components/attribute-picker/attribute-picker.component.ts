@@ -54,6 +54,7 @@ export class AttributePickerComponent implements ControlValueAccessor {
 
   readonly label = input.required<string>();
   readonly options = input.required<readonly string[]>();
+  readonly swatches = input<Readonly<Record<string, string>>>({});
   readonly multiple = input(false);
   readonly placeholder = input('Suchen oder eingeben');
   readonly id = input('');
@@ -87,6 +88,11 @@ export class AttributePickerComponent implements ControlValueAccessor {
       ? `${this.listboxId()}-${this.activeIndex()}`
       : null,
   );
+
+  swatchStyle(name: string): string | null {
+    const color = this.swatches()[name];
+    return color ? `background: ${color};` : null;
+  }
 
   private onChange: (value: string) => void = () => undefined;
   private onTouched: () => void = () => undefined;

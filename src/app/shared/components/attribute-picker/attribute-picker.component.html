@@ -26,6 +26,13 @@
           </span>
         }
       }
+      @if (!multiple() && !isEditing() && swatches()[value()]) {
+        <span
+          class="ml-1 size-4 shrink-0 rounded-full border border-fb-border"
+          [style]="swatchStyle(value())"
+          aria-hidden="true"
+        ></span>
+      }
       <input
         #field
         [id]="fieldId()"
@@ -76,7 +83,16 @@
               class="flex min-h-8 w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-left text-[13px] text-fb-text-primary hover:bg-fb-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/50"
               [class.bg-fb-surface-hover]="activeIndex() === index"
             >
-              {{ option }}
+              <span class="flex min-w-0 items-center gap-2">
+                @if (swatches()[option]) {
+                  <span
+                    class="size-4 shrink-0 rounded-full border border-fb-border"
+                    [style]="swatchStyle(option)"
+                    aria-hidden="true"
+                  ></span>
+                }
+                <span class="truncate">{{ option }}</span>
+              </span>
               @if (selected().includes(option)) {
                 <svg [lucideIcon]="checkIcon" class="size-4" aria-hidden="true"></svg>
               }

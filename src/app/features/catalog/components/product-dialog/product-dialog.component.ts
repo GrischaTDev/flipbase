@@ -60,6 +60,7 @@ import {
 } from '../brand-management-dialog/brand-management-dialog.component';
 import {
   PRODUCT_COLOR_OPTIONS,
+  PRODUCT_COLOR_SWATCHES,
   PRODUCT_MATERIAL_OPTIONS,
 } from '../../models/product-attribute-options';
 
@@ -115,6 +116,7 @@ export class ProductDialogComponent {
   readonly brandSuggestion = signal<string | null>(null);
   readonly brandManagerOpen = signal(false);
   readonly colorOptions = PRODUCT_COLOR_OPTIONS;
+  readonly colorSwatches = PRODUCT_COLOR_SWATCHES;
   readonly materialOptions = PRODUCT_MATERIAL_OPTIONS;
   readonly scannerOpen = signal(false);
   readonly barcodeLoading = signal(false);

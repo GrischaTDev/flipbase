@@ -71,6 +71,7 @@ import { PurchaseProductReturnService } from '../../../purchases/services/purcha
 import { ProductSearchPhotoService } from '../../services/product-search-photo.service';
 import {
   PRODUCT_COLOR_OPTIONS,
+  PRODUCT_COLOR_SWATCHES,
   PRODUCT_MATERIAL_OPTIONS,
 } from '../../models/product-attribute-options';
 
@@ -120,6 +121,7 @@ export class ProductDetailComponent implements UnsavedEntryPage {
   readonly removePhotoIcon = LucideX;
   readonly sourceIcon = LucideExternalLink;
   readonly colorOptions = PRODUCT_COLOR_OPTIONS;
+  readonly colorSwatches = PRODUCT_COLOR_SWATCHES;
   readonly materialOptions = PRODUCT_MATERIAL_OPTIONS;
   readonly barcodeScannerOpen = signal(false);
   readonly barcodeLoading = signal(false);
@@ -695,11 +697,23 @@ export class ProductDetailComponent implements UnsavedEntryPage {
   }
 
   private galleryChanged(): boolean {
+    return this.layoutChanged() || this.imageDrafts().some((image) => this.detailsChanged(image));
+  }
+
+  private layoutChanged(): boolean {
     return (
       this.imageDrafts().some((image) => !!image.file) ||
       this.imageDrafts()
         .map((image) => image.media?.id ?? image.key)
         .join(',') !== this.savedImageKeys
+    );
+  }
+
+  private detailsChanged(image: ProductImageDraft): boolean {
+    return (
+      !!image.media &&
+      ((image.fileName ?? image.media.file_name ?? '').trim() !== (image.media.file_name ?? '') ||
+        (image.altText ?? image.media.alt_text ?? '').trim() !== (image.media.alt_text ?? ''))
     );
   }
 
@@ -982,7 +996,10 @@ export class ProductDetailComponent implements UnsavedEntryPage {
       for (const draft of [...this.imageDrafts()]) {
         if (!draft.file) continue;
         if (!this.isCurrent(request, id, workspaceId)) return;
-        const result = await this.media.uploadProductMedia(mediaOwnerId, draft.file);
+        const result = await this.media.uploadProductMedia(mediaOwnerId, draft.file, undefined, {
+          fileName: draft.fileName ?? draft.file.name,
+          altText: draft.altText ?? '',
+        });
         if (result.error || !result.data)
           throw new Error(
             'Artikeldaten gespeichert. Bild konnte nicht gespeichert werden: ' +
@@ -1008,7 +1025,32 @@ export class ProductDetailComponent implements UnsavedEntryPage {
         }
         if (!this.isCurrent(request, id, workspaceId)) return;
       }
-      if (this.galleryChanged()) {
+      const needsLayout = this.layoutChanged();
+      let detailsSaved = false;
+      for (const draft of [...this.imageDrafts()]) {
+        if (!draft.media || !this.detailsChanged(draft)) continue;
+        if (!this.isCurrent(request, id, workspaceId)) return;
+        const result = await this.media.updateProductMediaDetails(
+          mediaOwnerId,
+          draft.media.id,
+          workspaceId,
+          {
+            fileName: draft.fileName ?? draft.media.file_name ?? '',
+            altText: draft.altText ?? draft.media.alt_text ?? '',
+          },
+        );
+        if (result.error || !result.data)
+          throw result.error ?? new Error('Die Bildangaben konnten nicht gespeichert werden.');
+        const updated = result.data;
+        this.imageDrafts.update((images) =>
+          images.map((image) => (image.key === draft.key ? { ...image, media: updated } : image)),
+        );
+        this.images.update((images) =>
+          images.map((image) => (image.id === updated.id ? updated : image)),
+        );
+        detailsSaved = true;
+      }
+      if (needsLayout) {
         const orderedIds = this.imageDrafts().map((image) => image.media!.id);
         const result = await this.media.updateProductMediaLayout(
           mediaOwnerId,
@@ -1031,6 +1073,8 @@ export class ProductDetailComponent implements UnsavedEntryPage {
           );
         }
         if (!this.isCurrent(request, id, workspaceId)) return;
+      } else if (detailsSaved && this.isCurrent(request, id, workspaceId)) {
+        this.acceptImages(this.images());
       }
       if (this.isCurrent(request, id, workspaceId)) this.savedMessage.set('Artikel gespeichert.');
       if (

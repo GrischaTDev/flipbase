@@ -29,6 +29,27 @@ Bezeichnungsschnappschuss behält die Variantenangabe weiterhin bei.
 **Prüfung:** Der gezielte Angular-Test für die Einkaufspositionen, TypeScript-
 Prüfung, ESLint, Formatierung und Angular-Produktionsbau bestanden.
 
+## 2026-09-26 – Juna – Bildgalerie, Farben und Kategorien der Artikelerfassung verfeinert
+
+**Auftrag:** Produktbilder platzsparend wie Kacheln anordnen und durch Ziehen sortieren.
+Bildname, Alternativtext, Zuschnitt und Löschen sollen über die Bilddetails erreichbar
+sein. Die Farbauswahl soll mehr gängige Farben samt Farbpunkten zeigen; Kategorien
+sollen in einer geraden Linie stehen und über eine zurückhaltende Elternzeile
+auswählbar sein.
+
+**Änderung:** Das Hauptbild erscheint als große Kachel neben kleineren Bildern und
+einer Plus-Kachel. Bilder lassen sich per Maus oder Berührung ziehen; über den
+Bilddialog können auch Tastaturnutzer die Position ändern. Bildname und
+Alternativtext werden mit dem Artikel gespeichert, der Alternativtext wird im Shop
+verwendet. Die Farbpalette enthält nun auch neutrale, klassische und Neonfarben
+mit Farbvorschau. Im Kategorie-Picker haben alle Zeilen denselben Texteinzug;
+die aktuelle Oberkategorie steht als dezente auswählbare Zeile unter „Zurück“.
+
+**Prüfung:** Gezielte Angular- und Medienservice-Tests, ESLint, Typprüfung,
+Workflow-Tests, Angular-Bau und Browserabläufe bei 1440 und 390 Pixeln samt
+AXE-Prüfung bestanden. Die Migration wurde beim lokalen Neuaufbau angewendet;
+alle 2.062 Datenbanktests sowie der ergänzte Medientest bestanden.
+
 ## 2026-09-26 – Juna – Auswahlfelder und Bilderablage der Artikelerfassung verbessert
 
 **Auftrag:** Kategorie und Farbe auf „Artikel erstellen“ besser lesbar und bedienbar

@@ -111,6 +111,65 @@ describe('Produktmedien', () => {
     expect(backend.remove).not.toHaveBeenCalled();
   });
 
+  it('speichert einen bearbeiteten Bildnamen und Alternativtext beim Upload', async () => {
+    const backend = clientForUpload();
+    const { service } = setup(backend.client);
+    const result = await service.uploadProductMedia(
+      product.id,
+      new File(['bild'], 'original.png', { type: 'image/png' }),
+      undefined,
+      {
+        fileName: 'Vorderansicht',
+        altText: 'Schuh von vorn',
+      },
+    );
+    expect(result.error).toBeNull();
+    expect(backend.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        file_name: 'Vorderansicht',
+        alt_text: 'Schuh von vorn',
+      }),
+    );
+  });
+
+  it('aktualisiert Bildangaben nur innerhalb des zugehörigen Workspaces und Produkts', async () => {
+    const saved = {
+      id: 'media-1',
+      catalog_product_id: product.id,
+      workspace_id: product.workspace_id,
+      file_name: 'Seite',
+      alt_text: 'Ein Schuh',
+    };
+    const query = {
+      eq: vi.fn(),
+      select: vi.fn(),
+      single: vi.fn(async () => ({ data: saved, error: null })),
+    };
+    query.eq.mockReturnValue(query);
+    query.select.mockReturnValue(query);
+    const update = vi.fn(() => query);
+    const { service } = setup({ from: () => ({ update }) });
+    expect(
+      (
+        await service.updateProductMediaDetails(product.id, saved.id, 'other', {
+          fileName: 'Seite',
+          altText: 'Ein Schuh',
+        })
+      ).error,
+    ).not.toBeNull();
+    expect(update).not.toHaveBeenCalled();
+    const result = await service.updateProductMediaDetails(
+      product.id,
+      saved.id,
+      product.workspace_id,
+      { fileName: ' Seite ', altText: ' Ein Schuh ' },
+    );
+    expect(result.error).toBeNull();
+    expect(update).toHaveBeenCalledWith({ file_name: 'Seite', alt_text: 'Ein Schuh' });
+    expect(query.eq).toHaveBeenCalledWith('catalog_product_id', product.id);
+    expect(query.eq).toHaveBeenCalledWith('workspace_id', product.workspace_id);
+  });
+
   it('entfernt bei Metadatenfehler exakt die gerade hochgeladene Datei', async () => {
     const backend = clientForUpload(new Error('Metadaten gesperrt'));
     const { service } = setup(backend.client);

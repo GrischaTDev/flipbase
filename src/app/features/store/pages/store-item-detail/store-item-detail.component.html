@@ -42,7 +42,7 @@
             <img
               [src]="imageUrl"
               (error)="photo && onImageError(photo.path, imageUrl)"
-              [alt]="currentItem.title"
+              [alt]="photo?.altText || currentItem.title"
               class="w-full h-full object-cover"
             />
           } @else {

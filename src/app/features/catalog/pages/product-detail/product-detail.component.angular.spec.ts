@@ -103,6 +103,18 @@ describe('ProductDetailComponent', () => {
   };
   const media = {
     getMediaUrl: vi.fn((path: string) => path),
+    updateProductMediaDetails: vi.fn(
+      async (
+        _productId: string,
+        _mediaId: string,
+        _workspaceId: string,
+        details: { fileName: string; altText: string },
+      ) => ({
+        data: { ...image, file_name: details.fileName, alt_text: details.altText },
+        error: null as Error | null,
+        reportedBySyncStatus: false,
+      }),
+    ),
     updateProductMediaLayout: vi.fn(
       async (
         _id: string,
@@ -823,6 +835,27 @@ describe('ProductDetailComponent', () => {
       original.workspace_id,
     );
     await component.save();
+    expect(component.hasUnsavedChanges()).toBe(false);
+  });
+
+  it('speichert Bildname und Alternativtext ohne unnötige Änderung der Reihenfolge', async () => {
+    media.loadProductMedia.mockResolvedValueOnce([image]);
+    await component.loadImages();
+    component.changeImages([
+      { ...component.imageDrafts()[0], fileName: 'Seitenansicht', altText: 'Kamera von der Seite' },
+    ]);
+    expect(component.hasUnsavedChanges()).toBe(true);
+    await component.save();
+    expect(media.updateProductMediaDetails).toHaveBeenCalledWith(
+      original.id,
+      image.id,
+      original.workspace_id,
+      {
+        fileName: 'Seitenansicht',
+        altText: 'Kamera von der Seite',
+      },
+    );
+    expect(media.updateProductMediaLayout).not.toHaveBeenCalled();
     expect(component.hasUnsavedChanges()).toBe(false);
   });
 

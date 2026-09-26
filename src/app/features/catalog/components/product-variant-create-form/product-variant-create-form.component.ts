@@ -16,7 +16,10 @@ import { ButtonComponent } from '../../../../shared/components/button/button.com
 import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { normalizeGtin } from '../../../../shared/utils/gtin';
-import { PRODUCT_COLOR_OPTIONS } from '../../models/product-attribute-options';
+import {
+  PRODUCT_COLOR_OPTIONS,
+  PRODUCT_COLOR_SWATCHES,
+} from '../../models/product-attribute-options';
 
 @Component({
   selector: 'app-product-variant-create-form',
@@ -37,6 +40,7 @@ export class ProductVariantCreateFormComponent {
   readonly created = output<CatalogProduct>();
   readonly cancelled = output<void>();
   readonly colorOptions = PRODUCT_COLOR_OPTIONS;
+  readonly colorSwatches = PRODUCT_COLOR_SWATCHES;
   readonly saving = signal(false);
   readonly error = signal<string | null>(null);
   readonly form = new FormGroup({

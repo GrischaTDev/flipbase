@@ -557,6 +557,7 @@ export type Database = {
       }
       catalog_product_media: {
         Row: {
+          alt_text: string | null
           catalog_product_id: string
           created_at: string
           file_name: string | null
@@ -569,6 +570,7 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          alt_text?: string | null
           catalog_product_id: string
           created_at?: string
           file_name?: string | null
@@ -581,6 +583,7 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          alt_text?: string | null
           catalog_product_id?: string
           created_at?: string
           file_name?: string | null
@@ -5553,6 +5556,7 @@ export type Database = {
           p_workspace_id: string
         }
         Returns: {
+          alt_text: string | null
           catalog_product_id: string
           created_at: string
           file_name: string | null

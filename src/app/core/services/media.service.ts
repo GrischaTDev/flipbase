@@ -2,6 +2,7 @@ import { DestroyRef, EnvironmentInjector, Injectable, effect, inject, signal } f
 import { SupabaseService } from './supabase.service';
 import { SyncFehlerAktion, SyncStatusService } from './sync-status.service';
 import { CatalogProductMedia, ItemMedia } from '../models/flipbase.models';
+import { ProductMediaDetails } from '../models/product-media.models';
 import { WorkspaceService } from './workspace.service';
 import { MutationResult } from '../models/mutation-result.model';
 import { AuthService } from './auth.service';
@@ -259,6 +260,7 @@ export class MediaService {
     productId: string,
     file: File,
     action?: SyncFehlerAktion,
+    details?: ProductMediaDetails,
   ): Promise<{ data: CatalogProductMedia | null; error: Error | null }> {
     const generation = this.synchronizeContext();
     let uploadedPath: string | null = null;
@@ -273,6 +275,10 @@ export class MediaService {
       const extension = file.name.split('.').at(-1)?.toLowerCase() ?? '';
       if (!extensions[file.type]?.includes(extension) || file.size === 0)
         throw new Error('Bitte ein JPEG-, PNG-, WebP-, GIF- oder AVIF-Bild auswählen.');
+      const fileName = details?.fileName.trim() ?? file.name;
+      const altText = details?.altText.trim() ?? '';
+      if (!fileName || fileName.length > 255 || altText.length > 500)
+        throw new Error('Die Bildangaben sind ungültig.');
       const product = await this.readProductForUpload(productId);
       if (!product) throw new Error('Das Produkt wurde nicht gefunden oder ist nicht zugänglich.');
       if (generation !== this.synchronizeContext())
@@ -286,7 +292,8 @@ export class MediaService {
         catalog_product_id: productId,
         is_primary: isPrimary,
         sort_order: existing.length,
-        file_name: file.name,
+        file_name: fileName,
+        alt_text: altText,
         file_size: file.size,
         mime_type: file.type,
       };
@@ -326,6 +333,43 @@ export class MediaService {
         }
       }
       return { data: null, error: failure };
+    }
+  }
+
+  async updateProductMediaDetails(
+    productId: string,
+    mediaId: string,
+    workspaceId: string,
+    details: ProductMediaDetails,
+  ): Promise<MutationResult<CatalogProductMedia>> {
+    const generation = this.synchronizeContext();
+    try {
+      if (this.workspace?.currentWorkspace()?.id !== workspaceId)
+        throw new Error('Der Workspace wurde gewechselt.');
+      const fileName = details.fileName.trim();
+      const altText = details.altText.trim();
+      if (!fileName || fileName.length > 255 || altText.length > 500)
+        throw new Error('Die Bildangaben sind ungültig.');
+      const { data, error } = await this.supabase.client
+        .from('catalog_product_media')
+        .update({ file_name: fileName, alt_text: altText })
+        .eq('id', mediaId)
+        .eq('catalog_product_id', productId)
+        .eq('workspace_id', workspaceId)
+        .select()
+        .single();
+      if (generation !== this.synchronizeContext())
+        throw new Error('Workspace oder Sitzung wurde gewechselt.');
+      if (error || !data)
+        throw error ?? new Error('Die Bildangaben konnten nicht gespeichert werden.');
+      return { data, error: null, reportedBySyncStatus: false };
+    } catch (cause: unknown) {
+      const error = this.melde('Speichern der Bildangaben', cause);
+      return {
+        data: null,
+        error,
+        reportedBySyncStatus: this.syncStatus?.istZentralGemeldet(error) ?? false,
+      };
     }
   }
 

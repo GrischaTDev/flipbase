@@ -37,85 +37,84 @@
   }
   @if (drafts().length) {
     <p class="text-[13px] text-fb-text-secondary">
-      Das erste Bild ist das Hauptbild. Die Reihenfolge gilt auch im Shop.
+      Das erste Bild ist das Hauptbild. Ziehe Bilder an die gewünschte Stelle oder ändere ihre
+      Position über die Bilddetails.
     </p>
-    <ol class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3" aria-label="Produktbilder">
+    <ol
+      cdkDropList
+      cdkDropListOrientation="mixed"
+      [cdkDropListDisabled]="disabled()"
+      (cdkDropListDropped)="onReordered($event)"
+      class="grid grid-cols-2 gap-2 sm:grid-cols-4 [&_.cdk-drag-animating]:transition-transform [&_.cdk-drag-animating]:duration-200 [&_.cdk-drag-placeholder]:opacity-40"
+      aria-label="Produktbilder"
+    >
       @for (image of drafts(); track image.key; let index = $index) {
         <li
-          class="flex min-w-0 flex-col gap-3 rounded-xl border border-fb-border bg-fb-surface p-3"
+          cdkDrag
+          cdkDragPreviewContainer="parent"
+          [cdkDragStartDelay]="dragStartDelay"
+          class="group relative min-w-0 overflow-hidden rounded-xl border border-fb-border bg-fb-subtle shadow-sm transition-shadow hover:shadow-md"
+          [class.col-span-2]="index === 0"
+          [class.row-span-2]="index === 0"
         >
-          <div
-            class="flex aspect-square w-full items-center justify-center overflow-hidden rounded-lg border border-fb-border bg-fb-subtle"
+          <ng-template cdkDragPlaceholder>
+            <div
+              class="size-full min-h-24 rounded-xl border-2 border-dashed border-fb-border bg-fb-subtle"
+            ></div>
+          </ng-template>
+          <button
+            type="button"
+            [disabled]="disabled()"
+            (click)="openDetails(image.key)"
+            class="relative block aspect-square size-full cursor-grab overflow-hidden text-left focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-fb-primary active:cursor-grabbing"
+            [attr.aria-label]="
+              (index === 0 ? 'Hauptbild: ' : 'Bild ' + (index + 1) + ': ') +
+              imageName(image, index) +
+              ', Details öffnen'
+            "
           >
             @if (image.previewUrl) {
               <img
                 [src]="image.previewUrl"
-                [alt]="imageName(image, index)"
-                class="h-full w-full object-contain"
+                alt=""
+                draggable="false"
+                class="size-full object-cover"
                 (error)="previewFailed(image.key)"
               />
             } @else {
-              <span class="px-2 text-center text-xs text-fb-text-muted">Vorschau wird geladen</span>
+              <span
+                class="flex size-full items-center justify-center p-3 text-center text-xs text-fb-text-muted"
+                >Vorschau wird geladen</span
+              >
             }
-          </div>
-          <div class="min-w-0 flex-1 space-y-2">
-            <p class="break-words text-[13px] font-medium text-fb-text-primary">
-              {{ imageName(image, index) }}
-            </p>
-            <p class="text-xs text-fb-text-muted">
-              {{ index === 0 ? 'Hauptbild' : 'Bild ' + (index + 1) }}
-            </p>
-            <div class="flex flex-wrap gap-2">
-              <app-button
-                [disabled]="disabled()"
-                [ariaLabel]="'Bild ' + (index + 1) + ' zuschneiden'"
-                (clicked)="startCrop(image.key)"
-                >Zuschneiden</app-button
+            @if (index === 0) {
+              <span
+                class="absolute bottom-2 left-2 rounded-md bg-fb-surface/95 px-2 py-1 text-xs font-semibold text-fb-text-primary shadow-sm"
+                >Hauptbild</span
               >
-              <app-button
-                [disabled]="disabled() || index === 0"
-                [ariaLabel]="'Bild ' + (index + 1) + ' nach vorne verschieben'"
-                (clicked)="move(image.key, -1)"
-                >Nach vorne</app-button
-              >
-              <app-button
-                [disabled]="disabled() || index === drafts().length - 1"
-                [ariaLabel]="'Bild ' + (index + 1) + ' nach hinten verschieben'"
-                (clicked)="move(image.key, 1)"
-                >Nach hinten</app-button
-              >
-              @if (index !== 0) {
-                <app-button
-                  [disabled]="disabled()"
-                  [ariaLabel]="'Bild ' + (index + 1) + ' als Hauptbild'"
-                  (clicked)="setPrimary(image.key)"
-                  >Als Hauptbild</app-button
-                >
-              }
-              <app-button
-                variant="destructive"
-                size="slim"
-                [icon]="removeIcon"
-                [iconOnly]="true"
-                [disabled]="disabled()"
-                [ariaLabel]="'Bild ' + (index + 1) + ' entfernen'"
-                (clicked)="remove(image.key, $event)"
-              />
-            </div>
-          </div>
+            }
+            <span
+              class="absolute right-2 top-2 flex size-8 items-center justify-center rounded-md bg-fb-surface/95 text-fb-text-primary opacity-0 shadow-sm transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+              aria-hidden="true"
+            >
+              <svg [lucideIcon]="dragIcon" class="size-4"></svg>
+            </span>
+          </button>
         </li>
       }
       <li
-        role="presentation"
-        class="flex min-h-40 flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-fb-border bg-fb-subtle p-4 text-center"
+        class="aspect-square overflow-hidden rounded-xl border border-dashed border-fb-border bg-fb-subtle text-fb-text-secondary hover:border-fb-primary hover:bg-fb-surface-hover"
       >
-        <app-button
+        <button
+          type="button"
           data-add-media
-          [icon]="addIcon"
           [disabled]="disabled()"
-          (clicked)="fileInput.click()"
-          >Weitere Bilder hinzufügen</app-button
+          (click)="fileInput.click()"
+          aria-label="Weitere Bilder hinzufügen"
+          class="flex size-full cursor-pointer items-center justify-center focus-visible:outline-2 focus-visible:outline-fb-primary"
         >
+          <svg [lucideIcon]="addIcon" class="size-6" aria-hidden="true"></svg>
+        </button>
       </li>
     </ol>
   }
@@ -129,6 +128,62 @@
   }
   <p aria-live="polite" aria-atomic="true" class="sr-only">{{ announcement() }}</p>
 </div>
+@if (!disabled() && detailsImage(); as image) {
+  <app-modal-shell title="Bilddetails" size="md" (closed)="detailsKey.set(null)">
+    <form
+      id="product-media-details"
+      [formGroup]="detailsForm"
+      (ngSubmit)="saveDetails()"
+      class="space-y-4"
+    >
+      <div class="flex justify-center rounded-lg bg-fb-subtle p-3">
+        @if (image.previewUrl) {
+          <img
+            [src]="image.previewUrl"
+            alt="Vorschau des ausgewählten Bildes"
+            class="max-h-64 max-w-full rounded-lg object-contain"
+          />
+        }
+      </div>
+      <div class="space-y-1">
+        <app-text-field
+          label="Bildname"
+          formControlName="fileName"
+          [maxLength]="255"
+          [required]="true"
+        />
+        @if (detailsForm.controls.fileName.touched && detailsForm.controls.fileName.invalid) {
+          <p class="text-xs text-fb-critical">Bitte gib einen Bildnamen ein.</p>
+        }
+      </div>
+      <div class="space-y-1">
+        <app-text-field
+          label="Alternativtext"
+          formControlName="altText"
+          [maxLength]="500"
+          helpText="Beschreibe kurz, was auf dem Bild zu sehen ist."
+        />
+      </div>
+      <div class="space-y-1">
+        <span class="block text-[13px] font-medium text-fb-text-primary"
+          >Position in der Galerie</span
+        >
+        <app-custom-select
+          formControlName="position"
+          [options]="positionOptions()"
+          ariaLabel="Position in der Galerie"
+        />
+      </div>
+    </form>
+    <div modal-footer class="flex w-full flex-wrap items-center gap-2">
+      <app-button variant="destructive" (clicked)="removeFromDetails()">Bild löschen</app-button>
+      <app-button variant="secondary" (clicked)="cropFromDetails()">Zuschneiden</app-button>
+      <span class="flex-1"></span>
+      <app-button variant="secondary" (clicked)="detailsKey.set(null)">Abbrechen</app-button>
+      <app-button type="submit" formId="product-media-details">Übernehmen</app-button>
+    </div>
+  </app-modal-shell>
+}
 @if (!disabled()) {
   @if (cropImage(); as image) {
     <app-image-cropper-modal

@@ -21,7 +21,7 @@ beforeEach(() => {
   const declared = metadata.declaredInputs;
   metadata.inputs = { ...inputs };
   metadata.declaredInputs = { ...declared };
-  for (const name of ['label', 'options', 'multiple']) {
+  for (const name of ['label', 'options', 'multiple', 'swatches']) {
     metadata.inputs[name] = [name, 1, null];
     metadata.declaredInputs[name] = name;
   }
@@ -95,6 +95,26 @@ describe('AttributePickerComponent', () => {
     expect(fixture.componentInstance.query()).toBe('Leder');
     expect(fixture.componentInstance.matches()).toEqual(['Leder', 'Textil', 'Baumwolle']);
     expect(fixture.nativeElement.querySelectorAll('[role="option"]')).toHaveLength(3);
+  });
+
+  it('zeigt Farbpunkte am gewählten Wert und in der Vorschlagsliste', () => {
+    const { fixture } = create();
+    fixture.componentRef.setInput('options', ['Anthrazit', 'Beige']);
+    fixture.componentRef.setInput('swatches', { Anthrazit: '#383b40', Beige: '#d9c5a1' });
+    fixture.componentInstance.writeValue('Anthrazit');
+    fixture.detectChanges();
+    expect(
+      (fixture.nativeElement as HTMLElement)
+        .querySelector('.linear-input span[aria-hidden="true"]')
+        ?.getAttribute('style'),
+    ).toContain('background');
+    fixture.componentInstance.open();
+    fixture.detectChanges();
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelectorAll(
+        '[role="option"] span[aria-hidden="true"]',
+      ),
+    ).toHaveLength(2);
   });
 
   it('zeigt bei geöffneter Suche keine AXE-Verstöße', async () => {
