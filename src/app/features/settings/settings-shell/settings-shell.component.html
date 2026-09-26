@@ -1,4 +1,4 @@
-<div class="mx-auto max-w-6xl space-y-4 animate-fade-in">
+<div class="mx-auto flex min-h-[calc(100dvh-7rem)] max-w-6xl flex-col gap-4 animate-fade-in">
   <header class="space-y-1">
     <h1 class="text-xl font-bold tracking-tight text-fb-text-primary" tabindex="-1">
       {{ currentItem().label }}
@@ -45,4 +45,9 @@
       <router-outlet />
     </div>
   </div>
+  <footer class="mt-auto pt-8 text-right text-xs text-fb-text-muted">
+    <span [title]="'Stand ' + version.stand + ' · Commit ' + version.commit">
+      Flipbase v{{ version.nummer }}
+    </span>
+  </footer>
 </div>

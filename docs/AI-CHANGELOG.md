@@ -1,5 +1,20 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-26 – Juna – Sidebar vereinheitlicht und Nebennavigation nach unten gesetzt
+
+**Auftrag:** Die obere Trennlinie und den OS-Zusatz entfernen, das Flipbase-Logo
+vergrößern und Ideen, Einstellungen sowie Administration am unteren Rand der
+Sidebar neu anordnen. Die Versionsnummer soll dezent auf der Einstellungsseite
+stehen.
+
+**Änderung:** Der Logobereich geht ohne Trennlinie in die Arbeitsnavigation über.
+Ideen stehen oberhalb der unteren Trennlinie; Einstellungen und die nur für
+Plattform-Admins sichtbare Administration stehen darunter. Die Versionsnummer
+erscheint rechts unten auf der Einstellungsseite, mit Stand und Commit im Tooltip.
+
+**Prüfung:** Gezielte Angular-Tests für Sidebar und Einstellungen, Formatierung,
+ESLint und Angular-Produktionsbau.
+
 ## 2026-09-26 – Juna – Beta-Registrierung in drei Schritten gestaltet
 
 **Auftrag:** Passwortvergabe, Workspace-Name und Discord-Verbindung als
