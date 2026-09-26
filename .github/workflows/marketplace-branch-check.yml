@@ -15,6 +15,8 @@ jobs:
   check:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      NG_BUILD_MAX_WORKERS: '1'
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -67,6 +69,35 @@ jobs:
 
       - name: Angular production build
         run: npm run build
+
+      - name: Browser interactions on desktop and mobile
+        if: ${{ hashFiles('e2e/marketplace-accounts.spec.ts') != '' }}
+        env:
+          MARKETPLACE_SCREENSHOT_DIR: /tmp/marketplace-browser/screenshots
+          MARKETPLACE_TEST_OUTPUT: /tmp/marketplace-browser/test-results
+        run: |
+          npx playwright install --with-deps chromium
+          python3 - <<'PYTHON' &
+          from http.server import SimpleHTTPRequestHandler,ThreadingHTTPServer
+          import os
+          os.chdir('dist/flipbase/browser')
+          class Handler(SimpleHTTPRequestHandler):
+            def do_GET(self):
+              if not os.path.isfile(self.translate_path(self.path)): self.path='/index.html'
+              super().do_GET()
+          ThreadingHTTPServer(('127.0.0.1',4200),Handler).serve_forever()
+          PYTHON
+          server=$!
+          trap 'kill "$server"' EXIT
+          npx playwright test --config e2e/support/marketplace-preview.config.ts
+
+      - name: Upload browser evidence
+        if: ${{ always() && hashFiles('e2e/marketplace-accounts.spec.ts') != '' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: marketplace-browser-${{ github.sha }}
+          path: /tmp/marketplace-browser/
+          retention-days: 3
 
       - name: Upload review snapshot
         if: ${{ always() }}

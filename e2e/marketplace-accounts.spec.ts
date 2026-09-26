@@ -205,6 +205,12 @@ for (const width of [1440, 390]) {
     await expect(page.getByRole('log')).toContainText('Welche Maße hat der Schal?');
     await evidence(page, `vinted-messages-${width}`);
     await page.getByRole('link', { name: 'Konten verwalten', exact: true }).click();
+    const accountsHeading = page.getByRole('heading', { name: 'Vinted-Konten', exact: true });
+    await expect(accountsHeading).toBeVisible();
+    expect(
+      await accountsHeading.evaluate((element) => element.scrollWidth <= element.clientWidth),
+      'Die Kontenüberschrift darf auf kleinen Bildschirmen nicht von den Aktionen verdrängt werden.',
+    ).toBe(true);
     await page.getByRole('button', { name: 'Konto hinzufügen', exact: true }).click();
     await page
       .getByRole('textbox', { name: 'Kontoname in Flipbase', exact: true })

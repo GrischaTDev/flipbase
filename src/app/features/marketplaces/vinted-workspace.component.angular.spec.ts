@@ -243,6 +243,15 @@ describe('Vinted-Bereich in Flipbase', () => {
     expect(element.textContent).toContain('<img src=x onerror=alert(1)>');
     expect(element.querySelector('img[src="x"]')).toBeNull();
   });
+  it('hält die Kontenaktionen außerhalb des schmalen Kartenkopfs', async () => {
+    const { element } = await render('/settings/marketplaces');
+    const add = [...element.querySelectorAll<HTMLButtonElement>('button')].find((button) =>
+      button.textContent?.includes('Konto hinzufügen'),
+    );
+    expect(add).toBeDefined();
+    expect(element.querySelector('app-card h2')?.textContent).toContain('Vinted-Konten');
+    expect(add?.closest('[data-card-header]')).toBeNull();
+  });
   it('speichert eine vorbereitete Verbindung aus dem Einstellungsdialog', async () => {
     api.listConnections.mockResolvedValue({ canManage: true, connections: [] });
     const created = { ...fixtureConnections[0], displayName: 'Mein Konto', status: 'needs_login' };

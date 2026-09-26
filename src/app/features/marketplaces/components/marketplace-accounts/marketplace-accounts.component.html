@@ -2,7 +2,11 @@
   title="Vinted-Konten"
   subtitle="Kontoverbindungen für diesen Workspace vorbereiten und verwalten."
 >
-  <div card-header-actions class="flex flex-wrap gap-2">
+  <p class="text-sm text-fb-text-secondary">
+    Ein Eintrag verbindet später ein bestehendes Vinted-Konto. Er erstellt kein neues Konto bei
+    Vinted. Du benötigst hier weder Passwort noch Browser-Schlüssel.
+  </p>
+  <div class="mt-4 flex flex-wrap gap-2">
     <app-button link="/marketplaces/vinted">Zum Vinted-Bereich</app-button>
     <app-button
       variant="primary"
@@ -12,10 +16,6 @@
       >Konto hinzufügen</app-button
     >
   </div>
-  <p class="text-sm text-fb-text-secondary">
-    Ein Eintrag verbindet später ein bestehendes Vinted-Konto. Er erstellt kein neues Konto bei
-    Vinted. Du benötigst hier weder Passwort noch Browser-Schlüssel.
-  </p>
 </app-card>
 @if (store.mutationError(); as error) {
   @if (!dialog()) {
