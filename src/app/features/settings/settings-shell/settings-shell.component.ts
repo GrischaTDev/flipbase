@@ -50,6 +50,12 @@ export const SETTINGS_NAVIGATION: readonly SettingsNavigationItem[] = [
   },
   { path: 'team', label: 'Team & Rollen', description: 'Zugriffe verwalten', icon: LucideUsers },
   {
+    path: 'marketplaces',
+    label: 'Marktplatzkonten',
+    description: 'Vinted-Verbindungen verwalten',
+    icon: LucideStore,
+  },
+  {
     path: 'notifications',
     label: 'Benachrichtigungen',
     description: 'Webhooks und Browser-Push',

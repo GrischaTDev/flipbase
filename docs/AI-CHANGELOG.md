@@ -1,5 +1,24 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-26 – Juna – Vinted-Kontobereich sichtbar umgesetzt
+
+**Auftrag:** Auf dem bestehenden Marktplatz-Branch die integrierte Oberfläche
+bauen und die vorhandenen Kontofunktionen anschließen.
+
+**Änderung:** Eigener Menüpunkt Marktplätze → Vinted mit Kontowechsler,
+Übersicht, Inseraten, Gesprächsverlauf, Verkäufen, Profil und Kontoverlauf.
+Einstellungen bieten Anlegen, Umbenennen und Pausieren von Verbindungen über
+die vorhandenen autorisierten RPCs. Kontodaten werden zur Laufzeit geprüft;
+verspätete Antworten, Workspacewechsel und Abmeldung geben keine fremden
+Ansichtsdaten frei. Kein Demo-Konto in der normalen Ansicht, keine erfundene
+Browseranmeldung, keine Änderung am Bestand durch gelesene Plattformmeldungen.
+
+**Prüfung:** Testgetriebene Antwort-, API-, Guard-, Zustands- und Komponententests
+sowie Navigation und Übersetzungen. Desktop-/Mobil-Browserprüfung mit vollständig
+lokalen HTTP-Fixtures vorbereitet. Der genaue ausgeführte Prüfumfang steht in
+`docs/implementation/vinted-marketplace-progress.md`. Keine echte Vinted-Sitzung,
+kein Merge und kein produktives Deployment.
+
 ## 2026-09-26 – Juna – Integrierte Marktplatzkonten begonnen
 
 **Auftrag:** Auf dem bestehenden Vinted-Branch die native Kontoverwaltung fortsetzen.
@@ -13,7 +32,6 @@ Datenbankabgleich läuft ausschließlich auf einem wegwerfbaren CI-Runner.
 61 Aktivitäten bestanden vor Vorbereitung dieses Commits. Weitere Prüfungen
 und Frontend-Arbeitsstand stehen im featurebezogenen Prüfprotokoll. Kein
 Vinted-Konto verwendet, kein Merge und kein produktives Deployment.
-
 
 ## 2026-09-26 – Juna – Doppelte Scrollleiste in der Einkaufsvorschau entfernt
 

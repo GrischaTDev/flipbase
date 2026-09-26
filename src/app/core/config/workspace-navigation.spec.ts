@@ -17,7 +17,7 @@ describe('Arbeitsnavigation', () => {
   it('ordnet die Arbeitsbereiche nach Einkauf, Artikel, Verkauf und Finanzen', () => {
     assert.deepEqual(
       WORKSPACE_NAVIGATION_GROUPS.map((group) => group.label),
-      ['Einkauf', 'Artikel', 'Verkauf', 'Finanzen'],
+      ['Einkauf', 'Artikel', 'Verkauf', 'Marktplätze', 'Finanzen'],
     );
     assert.deepEqual(
       WORKSPACE_NAVIGATION_GROUPS.map((group) => group.items.map((item) => item.path)),
@@ -25,6 +25,7 @@ describe('Arbeitsnavigation', () => {
         ['/purchases', '/sellers', '/vinted-bot'],
         ['/catalog', '/image-optimizer'],
         ['/listings', '/sales'],
+        ['/marketplaces/vinted'],
         ['/expenses', '/accounting', '/analytics'],
       ],
     );
@@ -78,6 +79,7 @@ describe('Arbeitsnavigation', () => {
       '/fulfillment',
       '/image-optimizer',
       '/listings',
+      '/marketplaces/vinted',
       '/purchases',
       '/research',
       '/sales',

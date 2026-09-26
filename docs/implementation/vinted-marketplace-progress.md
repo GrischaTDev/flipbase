@@ -1,5 +1,54 @@
 # Arbeitsstand: Vinted-Marktplatzverwaltung
 
+## Native Oberfläche: Fortsetzung am 26. September 2026
+
+Basis: `611687a43d214f3532f2464a9e04dedd94082c2c` auf demselben Feature-Branch.
+
+Der Bereich `/marketplaces/vinted` ist jetzt im Quellcode an die bestehende
+Navigation angeschlossen. Fünf Inhaltsbereiche und die gesonderte Aktivitätsseite
+teilen sich eine kontogebundene Auswahl. Unter `/settings/marketplaces` werden
+Verbindungen über die bereits vorhandenen RPCs angelegt, umbenannt und pausiert.
+Das ist keine Vinted-Registrierung und keine Browseranmeldung.
+
+Die API prüft jede Serverantwort vor der Anzeige. Fehlende Kennzahlen bleiben
+unbekannt; ein echter Wert `0` bleibt sichtbar. Ein Benutzer-/Workspacewechsel
+verbirgt private Daten sofort. Antwortversionen verhindern alte Daten auch beim
+Wechsel A → B → A. Dasselbe gilt für Gesprächsverläufe und nachgeladene Seiten.
+Alle Anfragen verwenden den vorhandenen Supabase-Client ohne privilegierte Schlüssel.
+
+### Prüfnachweise dieser Fortsetzung
+
+- Antwortprüfung: zunächst fehlgeschlagene Tests, danach 12 erfolgreich.
+- API-Anbindung: zunächst 8 fehlgeschlagen, danach 8 erfolgreich.
+- Kontozustand: zunächst 13 fehlgeschlagen, danach 13 erfolgreich; ein zusätzlicher
+  Gesprächswechseltest reproduzierte eine alte Seitensperre und bestand nach der
+  Korrektur (14 Tests).
+- Sichtbare Oberfläche: zunächst 7 fehlgeschlagen, danach 8 erfolgreich,
+  einschließlich Kontowechsel, Formularspeicherung und strukturellem AXE-Check.
+- Guard: 4 Tests erfolgreich; Navigation und Übersetzungen zusammen 20 erfolgreich.
+- Typprüfung für App und Tests mit den tatsächlichen Projektpaketen: erfolgreich.
+- Der lokale Vollbau endete mit Exitcode 137 an der Speichergrenze. Ein weiterer
+  speicherbegrenzter Versuch wurde abgebrochen. Deshalb bleibt ein erfolgreicher
+  vollständiger Bau auf dem GitHub-Runner das Freigabekriterium.
+- Browser-Prüfung: `e2e/marketplace-accounts.spec.ts`, getrennte Konfiguration
+  `e2e/support/marketplace-preview.config.ts`; ausschließlich künstliche Sitzungen
+  und HTTP-Antworten. Der Lauf wird gegen den tatsächlichen Angular-Bau geprüft,
+  nicht gegen eine nachgebaute HTML-Seite. Bilder und Laufprotokolle bleiben Artefakte.
+
+Für den direkten Wiederholungslauf die Anwendung lokal starten und dann
+`npx playwright test --config e2e/support/marketplace-preview.config.ts` ausführen.
+Die Konfiguration hat kein globales Anmelde-Setup; kein Benutzerkonto wird benötigt.
+
+### Abgrenzung
+
+Konten und gespeicherte Ansichten sind angebunden. GoLogin-Anmeldung, Liveimport,
+Nachrichtenversand und globale Push-Ereignisse bleiben getrennte weitere Schritte.
+Es wurden keine Datenbanktabellen, Migrationen oder produktiven Konten geändert.
+Die sichtbare Seite ist erst nach separater Veröffentlichung in der laufenden
+Flipbase-Installation erreichbar.
+
+---
+
 ## Wiederaufnahme: Konten und Datenbankprüfung
 
 **Stand:** Die gespeicherten Arbeiten des unterbrochenen Laufs wurden ab

@@ -55,7 +55,7 @@ Der hier angelegte Validator führt selbst keine Aktion aus.
 
 ## Danach
 
-- [ ] AP02: Geschützte Feature-Routen, Shell, Tabs und Kontowechsler mit Testdaten.
+- [x] AP02: Geschützte Feature-Routen, Shell, Tabs und Kontowechsler an gespeicherte Konten angeschlossen. Künstliche Daten ausschließlich in Tests.
 - [ ] AP03: Persistente Konten, Veröffentlichungsscope, Rechte und lokale Datenbanktests.
 - [ ] AP04: Dauerhafte Aufträge, Worker, Besitzrechte und Session-Broker.
 - [ ] AP05: Nachgewiesener Leseumfang, Pagination und vorhandene Bestandszuordnung.

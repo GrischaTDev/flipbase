@@ -1,0 +1,129 @@
+<app-card
+  title="Vinted-Konten"
+  subtitle="Kontoverbindungen für diesen Workspace vorbereiten und verwalten."
+>
+  <div card-header-actions class="flex flex-wrap gap-2">
+    <app-button link="/marketplaces/vinted">Zum Vinted-Bereich</app-button>
+    <app-button
+      variant="primary"
+      [icon]="addIcon"
+      [disabled]="!store.canManage() || store.busy()"
+      (clicked)="openDialog()"
+      >Konto hinzufügen</app-button
+    >
+  </div>
+  <p class="text-sm text-fb-text-secondary">
+    Ein Eintrag verbindet später ein bestehendes Vinted-Konto. Er erstellt kein neues Konto bei
+    Vinted. Du benötigst hier weder Passwort noch Browser-Schlüssel.
+  </p>
+</app-card>
+@if (store.mutationError(); as error) {
+  @if (!dialog()) {
+    <app-notice-banner class="mt-4" announcement="alert">{{ error }}</app-notice-banner>
+  }
+}
+<app-data-table
+  class="mt-4"
+  ariaLabel="Vinted-Kontoverbindungen"
+  [searchEnabled]="false"
+  [loading]="store.loading()"
+  [errorMessage]="store.error()"
+  [hasRows]="store.connections().length > 0"
+  emptyTitle="Noch keine Kontoverbindungen"
+  emptyText="Füge dein erstes bestehendes Vinted-Konto als vorbereitete Verbindung hinzu."
+>
+  <p table-view class="text-sm font-medium">Kontoverbindungen ({{ store.connections().length }})</p>
+  <app-button table-error-action class="mt-3" (clicked)="store.reloadConnections()"
+    >Erneut versuchen</app-button
+  >
+  <div table-content class="overflow-x-auto">
+    <table class="min-w-full text-left text-[13px]">
+      <thead class="border-b border-fb-line text-fb-text-muted">
+        <tr>
+          <th scope="col" class="px-4 py-3">Konto</th>
+          <th scope="col" class="px-4 py-3">Status</th>
+          <th scope="col" class="px-4 py-3">Letzte Datenübernahme</th>
+          <th scope="col" class="px-4 py-3 text-right">Aktionen</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-fb-line">
+        @for (account of store.connections(); track account.connectionId) {
+          <tr>
+            <td class="px-4 py-3 font-medium text-fb-text-primary">{{ account.displayName }}</td>
+            <td class="whitespace-nowrap px-4 py-3">
+              <app-badge [tone]="tones[account.status]">{{ labels[account.status] }}</app-badge>
+            </td>
+            <td class="whitespace-nowrap px-4 py-3 text-fb-text-secondary">
+              {{
+                account.lastSyncedAt
+                  ? (account.lastSyncedAt | date: 'dd.MM.yyyy, HH:mm')
+                  : 'Noch keine'
+              }}
+            </td>
+            <td class="px-4 py-3">
+              <div class="flex justify-end gap-1">
+                <app-table-action-button
+                  [label]="account.displayName + ' umbenennen'"
+                  [icon]="editIcon"
+                  [disabled]="store.busy()"
+                  (clicked)="openDialog(account)"
+                />
+                <app-table-action-button
+                  [label]="
+                    account.displayName +
+                    (account.status === 'paused' ? ' fortsetzen' : ' pausieren')
+                  "
+                  [icon]="account.status === 'paused' ? resumeIcon : pauseIcon"
+                  [disabled]="store.busy() || account.status === 'blocked'"
+                  (clicked)="store.setPaused(account.connectionId, account.status !== 'paused')"
+                />
+              </div>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</app-data-table>
+@if (dialog(); as currentDialog) {
+  <app-modal-shell
+    [title]="
+      currentDialog.connectionId ? 'Kontoverbindung umbenennen' : 'Kontoverbindung vorbereiten'
+    "
+    size="sm"
+    (closed)="closeDialog()"
+  >
+    <form id="marketplace-account-form" [formGroup]="form" (ngSubmit)="save()">
+      <app-text-field
+        label="Kontoname in Flipbase"
+        placeholder="Zum Beispiel Wiehen Store"
+        [formControl]="name"
+        [required]="true"
+        [maxLength]="120"
+        [error]="
+          submitted() && name.invalid
+            ? 'Gib einen Namen mit 1 bis 120 Zeichen ohne Steuerzeichen ein.'
+            : null
+        "
+      />
+      @if (!currentDialog.connectionId) {
+        <p class="mt-3 text-sm text-fb-text-secondary">
+          Die Verbindung bleibt bis zur späteren Browseranmeldung auf „Anmeldung ausstehend“.
+        </p>
+      }
+      @if (store.mutationError(); as error) {
+        <app-notice-banner class="mt-3" announcement="alert">{{ error }}</app-notice-banner>
+      }
+    </form>
+    <div modal-footer class="flex justify-end gap-2">
+      <app-button [disabled]="store.busy()" (clicked)="closeDialog()">Abbrechen</app-button>
+      <app-button
+        type="submit"
+        formId="marketplace-account-form"
+        variant="primary"
+        [loading]="store.busy()"
+        >{{ currentDialog.connectionId ? 'Speichern' : 'Verbindung speichern' }}</app-button
+      >
+    </div>
+  </app-modal-shell>
+}

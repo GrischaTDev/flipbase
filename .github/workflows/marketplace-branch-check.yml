@@ -56,6 +56,12 @@ jobs:
       - name: Marketplace contracts
         run: node --experimental-strip-types --test supabase/functions/_shared/marketplace-*.test.ts
 
+      - name: Marketplace UI and navigation tests
+        if: ${{ hashFiles('src/app/features/marketplaces/vinted-workspace.component.ts') != '' }}
+        run: |
+          npx vitest run --project=node --maxWorkers=1 src/app/features/marketplaces src/app/core/config/workspace-navigation.spec.ts src/app/core/i18n/translations.spec.ts
+          npx vitest run --project=angular --maxWorkers=1 src/app/features/marketplaces src/app/layout/sidebar/sidebar-ideas.angular.spec.ts src/app/layout/sidebar/sidebar.component.angular.spec.ts src/app/features/settings/settings-shell/settings-shell.component.angular.spec.ts
+
       - name: Type check
         run: npm run typecheck
 
