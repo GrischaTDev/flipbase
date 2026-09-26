@@ -7,26 +7,47 @@ const mode = process.argv[2];
 if (mode === 'register') {
   const config = await readFile(configPath, 'utf8');
   if (!config.includes(schema)) {
-    if (!/^schema_paths = \[.*\]$/m.test(config)) throw new Error('Schemaregistrierung nicht eindeutig.');
-    await writeFile(configPath, config.replace(/^schema_paths = \[(.*)\]$/m, `schema_paths = [$1, "${schema}"]`));
+    if (!/^schema_paths = \[.*\]$/m.test(config))
+      throw new Error('Schemaregistrierung nicht eindeutig.');
+    await writeFile(
+      configPath,
+      config.replace(/^schema_paths = \[(.*)\]$/m, `schema_paths = [$1, "${schema}"]`),
+    );
   }
 } else if (mode === 'prepare') {
   const repo = process.env.GITHUB_REPOSITORY;
   const base = process.env.GITHUB_SHA;
   const token = process.env.GITHUB_TOKEN;
-  if (repo !== 'GrischaTDev/flipbase' || process.env.GITHUB_REF !== 'refs/heads/juna/vinted-marketplace-foundation' || !base || !token) throw new Error('Unzulässiger Vorbereitungskontext.');
+  if (
+    repo !== 'GrischaTDev/flipbase' ||
+    process.env.GITHUB_REF !== 'refs/heads/juna/vinted-marketplace-foundation' ||
+    !base ||
+    !token
+  )
+    throw new Error('Unzulässiger Vorbereitungskontext.');
   async function api(path, body) {
     const response = await fetch(`https://api.github.com/repos/${repo}/${path}`, {
       method: body ? 'POST' : 'GET',
-      headers: { authorization: `Bearer ${token}`, accept: 'application/vnd.github+json', 'content-type': 'application/json' },
+      headers: {
+        authorization: `Bearer ${token}`,
+        accept: 'application/vnd.github+json',
+        'content-type': 'application/json',
+      },
       ...(body ? { body: JSON.stringify(body) } : {}),
     });
     if (!response.ok) throw new Error(`GitHub ${response.status}`);
     return response.json();
   }
   const previous = await api(`git/commits/${base}`);
-  const files = ['supabase/config.toml', 'src/app/core/models/supabase.types.ts', 'scripts/marketplace-migration-permissions.mjs', 'scripts/marketplace-migration-permissions.test.mjs', 'scripts/marketplace-review-commit.mjs'];
-  for (const file of await readdir('supabase/migrations')) if (/^\d+_marketplace_accounts\.sql$/.test(file)) files.push(`supabase/migrations/${file}`);
+  const files = [
+    'supabase/config.toml',
+    'src/app/core/models/supabase.types.ts',
+    'scripts/marketplace-migration-permissions.mjs',
+    'scripts/marketplace-migration-permissions.test.mjs',
+    'scripts/marketplace-review-commit.mjs',
+  ];
+  for (const file of await readdir('supabase/migrations'))
+    if (/^\d+_marketplace_accounts\.sql$/.test(file)) files.push(`supabase/migrations/${file}`);
   const changelogPath = 'docs/AI-CHANGELOG.md';
   const changelog = await readFile(changelogPath, 'utf8');
   const heading = '## 2026-09-26 – Juna – Integrierte Marktplatzkonten begonnen';
@@ -45,8 +66,12 @@ if (mode === 'register') {
   const result = await api('git/trees', { base_tree: previous.tree.sha, tree });
   const author = { name: previous.author.name, email: previous.author.email };
   const commit = await api('git/commits', {
-    message: 'feat(core): prepare verified marketplace database migration\n\nGenerate migration and database types after passing disposable database tests.\nPrepare this commit for review without moving any branch or deploying.',
-    tree: result.sha, parents: [base], author, committer: author,
+    message:
+      'feat(core): prepare verified marketplace database migration\n\nGenerate migration and database types after passing disposable database tests.\nPrepare this commit for review without moving any branch or deploying.',
+    tree: result.sha,
+    parents: [base],
+    author,
+    committer: author,
   });
   const review = { base, sha: commit.sha, tree: result.sha, files };
   await writeFile('/tmp/marketplace-database/review-commit.json', JSON.stringify(review, null, 2));

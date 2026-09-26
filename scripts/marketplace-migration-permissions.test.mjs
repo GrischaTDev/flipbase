@@ -28,15 +28,25 @@ for (const table of ['marketplace_connections', 'marketplace_account_entries']) 
     const output = appendMarketplacePermissions(`${migration}${broadGrant}\n`, schema);
     const revoke = `revoke all on public.${table} from public, anon, authenticated;`;
     assert.ok(output.indexOf(revoke) > output.indexOf(broadGrant));
-    assert.ok(output.indexOf(`grant select on public.${table} to authenticated;`) > output.indexOf(revoke));
+    assert.ok(
+      output.indexOf(`grant select on public.${table} to authenticated;`) > output.indexOf(revoke),
+    );
     assert.ok(output.includes(`grant all on public.${table} to service_role;`));
   });
 }
 
 test('Funktionsrechte werden ebenfalls übernommen', () => {
   const output = appendMarketplacePermissions(migration, schema);
-  assert.ok(output.includes('revoke all on function public.marketplace_can_manage(uuid) from public, anon;'));
-  assert.ok(output.includes('grant execute on function public.marketplace_can_manage(uuid) to authenticated;'));
+  assert.ok(
+    output.includes(
+      'revoke all on function public.marketplace_can_manage(uuid) from public, anon;',
+    ),
+  );
+  assert.ok(
+    output.includes(
+      'grant execute on function public.marketplace_can_manage(uuid) to authenticated;',
+    ),
+  );
 });
 
 test('Bereits erzeugtes SQL bleibt unverändert vor dem Rechteblock erhalten', () => {
@@ -50,11 +60,22 @@ test('Wiederholung dupliziert den Rechteblock nicht', () => {
 });
 
 test('Unvollständiges Rechteschema wird abgelehnt', () => {
-  assert.throws(() => appendMarketplacePermissions(migration, schema.replace('grant select on public.marketplace_account_entries to authenticated;', '')), /Rechte/);
+  assert.throws(
+    () =>
+      appendMarketplacePermissions(
+        migration,
+        schema.replace('grant select on public.marketplace_account_entries to authenticated;', ''),
+      ),
+    /Rechte/,
+  );
 });
 
 test('Fremde Tabellen werden nicht beiläufig mitverändert', () => {
-  assert.throws(() => appendMarketplacePermissions(migration, `${schema}grant all on public.workspaces to anon;\n`), /Marktplatz/);
+  assert.throws(
+    () =>
+      appendMarketplacePermissions(migration, `${schema}grant all on public.workspaces to anon;\n`),
+    /Marktplatz/,
+  );
 });
 
 test('Ein geänderter vorhandener Rechteblock wird nicht still überschrieben', () => {
@@ -102,7 +123,10 @@ test('CLI bricht bei mehreren passenden Migrationen ohne Änderung ab', async (t
   const root = await fixture(t);
   const path = join(root, 'supabase/migrations', filename);
   await writeFile(path, migration);
-  await writeFile(join(root, 'supabase/migrations/20260926150001_marketplace_accounts.sql'), migration);
+  await writeFile(
+    join(root, 'supabase/migrations/20260926150001_marketplace_accounts.sql'),
+    migration,
+  );
   const result = spawnSync(process.execPath, [script], { cwd: root, encoding: 'utf8' });
   assert.notEqual(result.status, 0);
   assert.equal(await readFile(path, 'utf8'), migration);

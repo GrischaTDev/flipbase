@@ -1,5 +1,20 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-26 – Juna – Integrierte Marktplatzkonten begonnen
+
+**Auftrag:** Auf dem bestehenden Vinted-Branch die native Kontoverwaltung fortsetzen.
+
+**Änderung:** Kontobezogene Datenverträge und Servervalidierung, persistente
+Verbindungsmetadaten und geschützte Lesekopien. Inhaber/Admins verwalten die
+Verbindungen; einfache Mitglieder erhalten keine privaten Kontodaten. Der
+Datenbankabgleich läuft ausschließlich auf einem wegwerfbaren CI-Runner.
+
+**Prüfung:** Neue Datenbanktests einschließlich Fremdkonto, Pausenstatus und
+61 Aktivitäten bestanden vor Vorbereitung dieses Commits. Weitere Prüfungen
+und Frontend-Arbeitsstand stehen im featurebezogenen Prüfprotokoll. Kein
+Vinted-Konto verwendet, kein Merge und kein produktives Deployment.
+
+
 ## 2026-09-26 – Juna – Doppelte Scrollleiste in der Einkaufsvorschau entfernt
 
 **Auftrag:** Bei vielen Artikeln soll die Vorschau nur innerhalb der Artikelliste
