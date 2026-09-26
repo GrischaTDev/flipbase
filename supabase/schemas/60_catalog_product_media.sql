@@ -25,6 +25,7 @@ create table public.catalog_product_media (
   file_size integer check (file_size >= 0),
   mime_type text,
   created_at timestamptz not null default now(),
+  alt_text text check (pg_catalog.char_length(alt_text) <= 500),
   foreign key (workspace_id,catalog_product_id)
     references public.catalog_products(workspace_id,id) on delete restrict,
   unique (workspace_id,id),

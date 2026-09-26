@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  ElementRef,
   Injector,
   afterNextRender,
   computed,
@@ -13,8 +14,16 @@ import {
   signal,
 } from '@angular/core';
 import { ProductImageDraft } from '../../../../core/models/product-media.models';
-import { LucidePlus, LucideTrash2 } from '@lucide/angular';
+import { CdkDrag, CdkDragDrop, CdkDragPlaceholder, CdkDropList } from '@angular/cdk/drag-drop';
+import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { LucideDynamicIcon, LucideGrip, LucidePlus } from '@lucide/angular';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import {
+  CustomSelectComponent,
+  SelectOption,
+} from '../../../../shared/components/custom-select/custom-select.component';
+import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
+import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import {
   CroppedImageResult,
   ImageCropperModalComponent,
@@ -26,13 +35,25 @@ import {
 
 @Component({
   selector: 'app-product-media-editor',
-  imports: [ButtonComponent, ImageCropperModalComponent],
+  imports: [
+    ButtonComponent,
+    CustomSelectComponent,
+    CdkDrag,
+    CdkDragPlaceholder,
+    CdkDropList,
+    LucideDynamicIcon,
+    ModalShellComponent,
+    TextFieldComponent,
+    ReactiveFormsModule,
+    ImageCropperModalComponent,
+  ],
   templateUrl: './product-media-editor.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ProductMediaEditorComponent {
-  readonly removeIcon = LucideTrash2;
   readonly addIcon = LucidePlus;
+  readonly dragIcon = LucideGrip;
+  readonly dragStartDelay = { touch: 200, mouse: 0 } as const;
   readonly images = input<readonly ProductImageDraft[]>([]);
   readonly disabled = input(false);
   readonly imagesChange = output<readonly ProductImageDraft[]>();
@@ -42,11 +63,30 @@ export class ProductMediaEditorComponent {
   readonly announcement = signal('');
   readonly dragActive = signal(false);
   readonly cropKey = signal<string | null>(null);
+  readonly detailsKey = signal<string | null>(null);
+  readonly detailsImage = computed(
+    () => this.drafts().find((image) => image.key === this.detailsKey()) ?? null,
+  );
+  readonly positionOptions = computed<readonly SelectOption<number>[]>(() =>
+    this.drafts().map((_, index) => ({
+      value: index + 1,
+      label: index === 0 ? '1 · Hauptbild' : String(index + 1),
+    })),
+  );
+  readonly detailsForm = new FormGroup({
+    fileName: new FormControl('', {
+      nonNullable: true,
+      validators: [Validators.required, Validators.maxLength(255)],
+    }),
+    altText: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(500)] }),
+    position: new FormControl(1, { nonNullable: true }),
+  });
   readonly cropImage = computed(
     () => this.drafts().find((image) => image.key === this.cropKey()) ?? null,
   );
   readonly accept = IMAGE_FILE_ACCEPT;
   private readonly destroyRef = inject(DestroyRef);
+  private readonly hostElement = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly injector = inject(Injector);
   private readonly readers = new Set<FileReader>();
   private dragDepth = 0;
@@ -55,6 +95,7 @@ export class ProductMediaEditorComponent {
     effect(() => {
       if (this.disabled()) {
         this.cropKey.set(null);
+        this.detailsKey.set(null);
         this.dragDepth = 0;
         this.dragActive.set(false);
       }
@@ -142,12 +183,70 @@ export class ProductMediaEditorComponent {
     this.announcement.set('Hauptbild geändert.');
   }
 
+  onReordered(event: CdkDragDrop<unknown>): void {
+    if (this.disabled() || event.previousIndex === event.currentIndex) return;
+    this.moveTo(event.previousIndex, event.currentIndex);
+  }
+
+  openDetails(key: string): void {
+    if (this.disabled()) return;
+    const index = this.drafts().findIndex((image) => image.key === key);
+    if (index < 0) return;
+    const image = this.drafts()[index];
+    this.detailsForm.setValue({
+      fileName: this.imageName(image, index),
+      altText: image.altText ?? image.media?.alt_text ?? '',
+      position: index + 1,
+    });
+    this.detailsKey.set(key);
+  }
+
+  saveDetails(): void {
+    if (this.disabled() || this.detailsForm.invalid) {
+      this.detailsForm.markAllAsTouched();
+      return;
+    }
+    const key = this.detailsKey();
+    if (!key) return;
+    const { fileName, altText, position } = this.detailsForm.getRawValue();
+    if (!fileName.trim()) {
+      this.detailsForm.controls.fileName.setErrors({ required: true });
+      return;
+    }
+    const images = this.drafts().map((image) =>
+      image.key === key ? { ...image, fileName: fileName.trim(), altText: altText.trim() } : image,
+    );
+    const index = images.findIndex((image) => image.key === key);
+    const target = Math.min(Math.max(Number(position) - 1, 0), images.length - 1);
+    const [image] = images.splice(index, 1);
+    images.splice(target, 0, image);
+    this.change(images);
+    this.detailsKey.set(null);
+    this.announcement.set(`Bildangaben gespeichert. Bild auf Position ${target + 1}.`);
+  }
+
+  removeFromDetails(): void {
+    const key = this.detailsKey();
+    if (!key) return;
+    this.detailsKey.set(null);
+    this.remove(key);
+  }
+
+  cropFromDetails(): void {
+    const key = this.detailsKey();
+    if (!key) return;
+    this.detailsKey.set(null);
+    this.startCrop(key);
+  }
+
   remove(key: string, event?: MouseEvent): void {
     if (this.disabled()) return;
+    const removedIndex = this.drafts().findIndex((image) => image.key === key);
+    if (removedIndex < 0) return;
     const button = event?.target instanceof Element ? event.target.closest('button') : null;
     const row = button?.closest('li');
     const nextRow = row?.nextElementSibling ?? row?.previousElementSibling;
-    const host = row?.closest('app-product-media-editor');
+    const host = row?.closest('app-product-media-editor') ?? this.hostElement.nativeElement;
     const remaining = this.drafts().filter((image) => image.key !== key);
     const focusTarget = remaining.length
       ? nextRow?.querySelector<HTMLButtonElement>('button')
@@ -155,15 +254,19 @@ export class ProductMediaEditorComponent {
     this.change(remaining);
     if (this.cropKey() === key) this.cropKey.set(null);
     this.announcement.set('Bild entfernt.');
-    if (host)
-      afterNextRender(
-        () =>
-          (focusTarget?.isConnected
-            ? focusTarget
-            : host.querySelector<HTMLButtonElement>('[data-add-media] button')
-          )?.focus(),
-        { injector: this.injector },
-      );
+    afterNextRender(
+      () =>
+        (focusTarget?.isConnected
+          ? focusTarget
+          : (host.querySelectorAll<HTMLButtonElement>('ol li[cdkdrag] button')[
+              Math.min(removedIndex, remaining.length - 1)
+            ] ??
+            host.querySelector<HTMLButtonElement>(
+              '[data-add-media] button, button[data-add-media]',
+            ))
+        )?.focus(),
+      { injector: this.injector },
+    );
   }
 
   startCrop(key: string): void {
@@ -176,7 +279,7 @@ export class ProductMediaEditorComponent {
     this.change(
       this.drafts().map((image) =>
         image.key === key
-          ? { key: image.key, media: null, file: result.file, previewUrl: result.dataUrl }
+          ? { ...image, media: null, file: result.file, previewUrl: result.dataUrl }
           : image,
       ),
     );
@@ -198,7 +301,18 @@ export class ProductMediaEditorComponent {
   }
 
   imageName(image: ProductImageDraft, index: number): string {
-    return image.file?.name ?? image.media?.file_name ?? 'Bild ' + (index + 1);
+    return image.fileName ?? image.media?.file_name ?? image.file?.name ?? 'Bild ' + (index + 1);
+  }
+
+  private moveTo(index: number, target: number): void {
+    const images = [...this.drafts()];
+    if (index < 0 || target < 0 || target >= images.length) return;
+    const [image] = images.splice(index, 1);
+    images.splice(target, 0, image);
+    this.change(images);
+    this.announcement.set(
+      `Bild auf Position ${target + 1} verschoben.${target === 0 ? ' Es ist jetzt das Hauptbild.' : ''}`,
+    );
   }
 
   private change(images: readonly ProductImageDraft[]): void {

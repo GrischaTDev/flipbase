@@ -17,7 +17,8 @@ $$;
 -- Fehlende Tabelle liefert Vertragsfehler statt eines abgebrochenen SQL-Skripts.
 select has_table('public', 'catalog_product_media', 'Produktmedien haben eine eigene Tabelle');
 select has_column('public', 'catalog_product_media', column_name, column_name || ' gehört zum Medienvertrag')
-from unnest(array['id','workspace_id','catalog_product_id','storage_path','is_primary','sort_order','file_name','file_size','mime_type','created_at']) as column_name;
+from unnest(array['id','workspace_id','catalog_product_id','storage_path','is_primary','sort_order','file_name','alt_text','file_size','mime_type','created_at']) as column_name;
+select ok(exists(select 1 from pg_constraint where conrelid = 'public.catalog_product_media'::regclass and conname = 'catalog_product_media_alt_text_check' and convalidated), 'Alternativtext ist auf 500 Zeichen begrenzt');
 select ok(exists(select 1 from pg_tables where schemaname = 'public' and tablename = 'catalog_product_media' and rowsecurity), 'Produktmedien aktivieren RLS');
 select is((select count(*) from pg_policies where schemaname = 'public' and tablename = 'catalog_product_media' and roles = array['authenticated']::name[]), 4::bigint, 'Vier getrennte authentifizierte Tabellenpolicies');
 select is((select count(*) from pg_policies where schemaname = 'storage' and tablename = 'objects' and policyname like 'Produktmedien %' and roles = array['authenticated']::name[]), 4::bigint, 'Vier getrennte authentifizierte Produkt-Storagepolicies');

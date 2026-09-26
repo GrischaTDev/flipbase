@@ -29,6 +29,7 @@ import { CatalogService } from '../../../../core/services/catalog.service';
 interface ProductPhoto {
   readonly id: string;
   readonly path: string;
+  readonly altText?: string | null;
 }
 
 @Component({
@@ -169,7 +170,11 @@ export class StoreItemDetailComponent {
                 (a, b) =>
                   Number(b.is_primary) - Number(a.is_primary) || a.sort_order - b.sort_order,
               )
-              .map((photo) => ({ id: photo.id, path: photo.storage_path })),
+              .map((photo) => ({
+                id: photo.id,
+                path: photo.storage_path,
+                altText: photo.alt_text,
+              })),
           });
         })
         .catch(() => {

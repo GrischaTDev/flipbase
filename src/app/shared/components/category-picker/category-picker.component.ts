@@ -96,6 +96,10 @@ export class CategoryPickerComponent implements ControlValueAccessor {
     const parent = this.currentParent();
     return parent ? categoryPathParts(parent.fullName).join(' › ') : '';
   });
+  readonly backLabel = computed(() => {
+    const previous = this.trail().at(-2);
+    return previous ? `Zurück zu ${previous.name}` : 'Zurück zu allen';
+  });
   readonly activeDescendantId = computed(() => {
     const index = this.activeIndex();
     return this.isOpen() && this.status() === 'ready' && index >= 0 && index < this.entries().length

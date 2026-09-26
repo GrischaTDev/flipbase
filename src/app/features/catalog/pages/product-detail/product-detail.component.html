@@ -465,7 +465,12 @@
               />
             </div>
             <app-text-field label="Größe" formControlName="size" />
-            <app-attribute-picker label="Farbe" [options]="colorOptions" formControlName="color" />
+            <app-attribute-picker
+              label="Farbe"
+              [options]="colorOptions"
+              [swatches]="colorSwatches"
+              formControlName="color"
+            />
             <app-attribute-picker
               label="Material"
               [options]="materialOptions"

@@ -56,16 +56,16 @@ for (const width of [1440, 390]) {
       .getByRole('textbox', { name: 'Meta-Beschreibung', exact: true })
       .fill('Die Kamera im Detail: Tasche, Ladegerät und geprüfte Funktion.');
     const gallery = editor.locator('app-product-media-editor');
+    const imageTiles = gallery.locator('li[cdkdrag]');
     await gallery
       .locator('input[type=file]')
       .setInputFiles([
         await photo(page, 'front.png', '#2460b0'),
         await photo(page, 'back.png', '#a02650'),
       ]);
-    await expect(
-      gallery.getByRole('list', { name: 'Produktbilder' }).getByRole('listitem'),
-    ).toHaveCount(2);
-    await gallery.getByRole('button', { name: 'Bild 1 zuschneiden', exact: true }).click();
+    await expect(imageTiles).toHaveCount(2);
+    await gallery.getByRole('button', { name: /Hauptbild: front.png, Details öffnen/ }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Zuschneiden' }).click();
     const crop = page.getByRole('dialog');
     const frame = crop.locator('.ngx-ic-cropper');
     await expect(frame).toBeVisible();
@@ -81,23 +81,35 @@ for (const width of [1440, 390]) {
     await page.screenshot({ path: testInfo.outputPath(`crop-${width}.png`) });
     await crop.getByRole('button', { name: 'Bild übernehmen', exact: true }).click();
     await expect(crop).toHaveCount(0);
-    await expect(gallery.getByText('front.jpg', { exact: true })).toBeVisible();
-    await gallery.getByRole('button', { name: 'Bild 2 als Hauptbild', exact: true }).click();
-    await expect(gallery.getByRole('listitem').first()).toContainText('back.png');
+    await gallery.getByRole('button', { name: /Bild 2: back.png, Details öffnen/ }).click();
+    const details = page.getByRole('dialog');
+    await details.getByRole('textbox', { name: 'Bildname' }).fill('Rückseite');
+    await details.getByRole('textbox', { name: 'Alternativtext' }).fill('Rückseite der Kamera');
+    await details.getByRole('combobox', { name: 'Position in der Galerie' }).click();
+    await details.getByRole('option', { name: '1 · Hauptbild' }).click();
+    await details.getByRole('button', { name: 'Übernehmen' }).click();
+    await expect(imageTiles.first().getByRole('button')).toHaveAttribute(
+      'aria-label',
+      /Hauptbild: Rückseite/,
+    );
     await editor.getByRole('button', { name: 'Artikel erstellen', exact: true }).click();
     await expect(page).not.toHaveURL(/\/catalog\/new$/);
     await expect(editor.getByRole('button', { name: 'Speichern', exact: true })).toBeDisabled();
     const path = new URL(page.url()).pathname;
     await page.reload();
-    await expect(gallery.getByRole('listitem').first()).toContainText('back.png');
-    await expect(gallery.getByRole('listitem')).toHaveCount(2);
+    await expect(imageTiles.first().getByRole('button')).toHaveAttribute(
+      'aria-label',
+      /Hauptbild: Rückseite/,
+    );
+    await expect(imageTiles).toHaveCount(2);
     await expect(editor.getByText('Gebrauchte Kamera mit Zubehör', { exact: true })).toBeVisible();
     await expect(editor.getByText(/\/kamera-mit-zubehoer$/)).toBeVisible();
-    await gallery.getByRole('button', { name: 'Bild 2 entfernen', exact: true }).click();
+    await imageTiles.nth(1).getByRole('button').click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Bild löschen' }).click();
     await editor.getByRole('button', { name: 'Speichern', exact: true }).click();
     await expect(editor.getByRole('button', { name: 'Speichern', exact: true })).toBeDisabled();
     await page.reload();
-    await expect(gallery.getByRole('listitem')).toHaveCount(1);
+    await expect(imageTiles).toHaveCount(1);
     await expect(page).toHaveURL(new RegExp(path + '$'));
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,

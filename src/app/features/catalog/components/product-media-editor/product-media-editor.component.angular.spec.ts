@@ -1,5 +1,5 @@
 import '@angular/compiler';
-import { signal } from '@angular/core';
+import { ElementRef, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProductImageDraft } from '../../../../core/models/product-media.models';
@@ -52,7 +52,14 @@ describe('ProductMediaEditorComponent', () => {
     vi.stubGlobal('FileReader', PreviewReader);
     images.set([]);
     disabled.set(false);
-    TestBed.configureTestingModule({});
+    TestBed.configureTestingModule({
+      providers: [
+        {
+          provide: ElementRef,
+          useValue: new ElementRef(document.createElement('app-product-media-editor')),
+        },
+      ],
+    });
     component = TestBed.runInInjectionContext(() => new ProductMediaEditorComponent());
     Object.assign(component, { images, disabled });
     component.imagesChange.subscribe(output);
@@ -116,6 +123,25 @@ describe('ProductMediaEditorComponent', () => {
     expect(images().map((image) => image.key)).toEqual(['first', 'second', 'third']);
     component.move('second', -1);
     expect(component.drafts()[0].key).toBe('second');
+  });
+
+  it('ordnet per Ziehen um und übernimmt Bildname, Alternativtext und Position aus dem Dialog', () => {
+    images.set([saved('first'), saved('second'), saved('third')]);
+    component.onReordered({ previousIndex: 2, currentIndex: 1 } as never);
+    expect(component.drafts().map((image) => image.key)).toEqual(['first', 'third', 'second']);
+    component.openDetails('third');
+    component.detailsForm.setValue({
+      fileName: 'Rückansicht',
+      altText: 'Rückseite des Artikels',
+      position: 1,
+    });
+    component.saveDetails();
+    expect(component.drafts()[0]).toMatchObject({
+      key: 'third',
+      fileName: 'Rückansicht',
+      altText: 'Rückseite des Artikels',
+    });
+    expect(component.detailsKey()).toBeNull();
   });
 
   it('übernimmt einen neuen Elternstand statt frühere lokale Sortierung wiederherzustellen', () => {

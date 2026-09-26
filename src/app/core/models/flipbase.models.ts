@@ -508,6 +508,7 @@ export interface CatalogProductMedia {
   readonly is_primary: boolean;
   readonly sort_order: number;
   readonly file_name?: string | null;
+  readonly alt_text?: string | null;
   readonly file_size?: number | null;
   readonly mime_type?: string | null;
   readonly created_at?: string;

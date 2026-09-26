@@ -190,7 +190,9 @@ describe('CategoryPickerComponent', () => {
     options(fixture)[0].click();
     await settle(fixture);
     expect(service.loadChildren).toHaveBeenCalledWith('el');
-    buttonWithText(fixture, '„Elektronik“ auswählen')!.click();
+    element(fixture)
+      .querySelector<HTMLButtonElement>('[aria-label="Elektronik auswählen"]')!
+      .click();
     await settle(fixture);
 
     expect(changes).toEqual(['el']);
@@ -209,6 +211,7 @@ describe('CategoryPickerComponent', () => {
 
     const leaf = options(fixture)[0];
     expect(leaf.querySelector('svg')?.classList.contains('group-hover:opacity-100')).toBe(true);
+    expect(leaf.querySelector('span.flex.size-4')).not.toBeNull();
     document.dispatchEvent(new Event('scroll', { bubbles: true }));
     await settle(fixture);
 
@@ -240,11 +243,11 @@ describe('CategoryPickerComponent', () => {
     await settle(fixture);
     key(fixture, 'Enter');
     await settle(fixture);
-    expect(buttonWithText(fixture, '„Elektronik“ auswählen')).toBeDefined();
+    expect(element(fixture).querySelector('[aria-label="Elektronik auswählen"]')).not.toBeNull();
 
     key(fixture, 'ArrowLeft');
     await settle(fixture);
-    expect(buttonWithText(fixture, 'auswählen')).toBeUndefined();
+    expect(element(fixture).querySelector('[aria-label="Elektronik auswählen"]')).toBeNull();
 
     key(fixture, 'Escape');
     await settle(fixture);
@@ -273,7 +276,7 @@ describe('CategoryPickerComponent', () => {
 
     expect(event.defaultPrevented).toBe(false);
     expect(service.loadChildren).not.toHaveBeenCalledWith('el');
-    expect(buttonWithText(fixture, '„Elektronik“ auswählen')).toBeUndefined();
+    expect(element(fixture).querySelector('[aria-label="Elektronik auswählen"]')).toBeNull();
   });
 
   it('sucht nach kurzer Pause und zeigt Name und Pfad', async () => {

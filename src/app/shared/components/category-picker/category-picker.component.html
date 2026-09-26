@@ -78,26 +78,29 @@
         />
 
         @if (!isSearching() && currentParent(); as parent) {
-          <div
-            class="mx-2 mt-1 flex shrink-0 items-center justify-between gap-2 border-b border-fb-line pb-2"
-          >
+          <div class="shrink-0 border-t border-fb-line">
             <button
               type="button"
               (click)="back()"
-              class="inline-flex min-h-8 items-center gap-1 rounded-lg px-2 text-[13px] font-medium text-fb-text-secondary transition-colors hover:bg-fb-surface-alt hover:text-fb-text-primary"
+              class="flex min-h-9 w-full items-center gap-2 border-b border-fb-line px-3 text-left text-[13px] text-fb-text-secondary transition-colors hover:bg-fb-surface-alt hover:text-fb-text-primary focus-visible:outline-2 focus-visible:outline-fb-primary"
             >
               <svg [lucideIcon]="chevronLeftIcon" class="size-4" aria-hidden="true"></svg>
-              Zurück
+              {{ backLabel() }}
             </button>
             <button
               type="button"
               (click)="select(parent)"
-              class="min-h-8 truncate rounded-lg px-2 text-[13px] font-semibold text-fb-primary transition-colors hover:bg-fb-primary-subtle"
+              [attr.aria-label]="parentPath() + ' auswählen'"
+              class="flex min-h-10 w-full items-center gap-2 bg-fb-surface-alt px-4 text-left text-[13px] font-medium text-fb-text-primary transition-colors hover:bg-fb-surface-hover focus-visible:outline-2 focus-visible:outline-fb-primary"
             >
-              „{{ parent.name }}“ auswählen
+              <span class="flex size-4 shrink-0 items-center justify-center" aria-hidden="true">
+                @if (value() === parent.id) {
+                  <svg [lucideIcon]="checkIcon" class="size-4"></svg>
+                }
+              </span>
+              <span class="truncate">{{ parent.name }}</span>
             </button>
           </div>
-          <p class="mx-2 mt-1 shrink-0 truncate text-xs text-fb-text-muted">{{ parentPath() }}</p>
         }
 
         <div
@@ -154,14 +157,15 @@
                 [class.text-fb-primary]="value() === category.id"
                 [class.font-semibold]="value() === category.id"
               >
-                @if (category.isLeaf) {
-                  <svg
-                    [lucideIcon]="checkIcon"
-                    class="size-4 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
-                    [class.opacity-100]="value() === category.id"
-                    aria-hidden="true"
-                  ></svg>
-                }
+                <span class="flex size-4 shrink-0 items-center justify-center" aria-hidden="true">
+                  @if (category.isLeaf) {
+                    <svg
+                      [lucideIcon]="checkIcon"
+                      class="size-4 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
+                      [class.opacity-100]="value() === category.id"
+                    ></svg>
+                  }
+                </span>
                 <span class="min-w-0 flex-1">
                   <span class="block truncate">{{ category.name }}</span>
                   @if (isSearching()) {
