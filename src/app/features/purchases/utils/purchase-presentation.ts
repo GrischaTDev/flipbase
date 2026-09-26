@@ -72,6 +72,8 @@ function summarizeReceipt(purchase: Purchase): PurchaseReceiptSummary {
     lines: lines.map((line) => ({
       id: line.id,
       title: line.title_snapshot || 'Artikel',
+      catalogProductId: line.catalog_product_id ?? null,
+      ean: line.ean_snapshot ?? null,
       received: line.received_quantity,
       ordered: line.ordered_quantity,
     })),

@@ -9,15 +9,17 @@ import {
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { LucideChevronDown } from '@lucide/angular';
-import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
+import { CatalogService } from '../../../../core/services/catalog.service';
+import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
 import type { PurchaseReceiptSummary } from '../../models/purchase-presentation.models';
 
 let nextReceiptPreviewId = 0;
 
 @Component({
   selector: 'app-purchase-receipt-preview',
-  imports: [RouterLink, BadgeComponent, ButtonComponent],
+  imports: [RouterLink, ButtonComponent, ProductThumbnailComponent],
   templateUrl: './purchase-receipt-preview.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
@@ -28,6 +30,8 @@ let nextReceiptPreviewId = 0;
 })
 export class PurchaseReceiptPreviewComponent {
   private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly catalogService = inject(CatalogService);
+  private readonly workspaceService = inject(WorkspaceService);
   private readonly previewId = `purchase-receipt-preview-${++nextReceiptPreviewId}`;
 
   readonly purchaseId = input.required<string>();
@@ -37,7 +41,17 @@ export class PurchaseReceiptPreviewComponent {
     return receipt.kind === 'known' ? receipt : null;
   });
   readonly isOpen = signal(false);
-  readonly panelPosition = signal({ top: 0, left: 0 });
+  readonly panelPosition = signal({
+    top: null as number | null,
+    bottom: null as number | null,
+    left: 0,
+    maxHeight: 0,
+  });
+  readonly imageUrls = computed(() =>
+    this.catalogService.loadedWorkspaceId() === this.workspaceService.currentWorkspace()?.id
+      ? this.catalogService.imageUrls()
+      : {},
+  );
 
   readonly chevronIcon = LucideChevronDown;
   readonly panelId = this.previewId;
@@ -52,16 +66,30 @@ export class PurchaseReceiptPreviewComponent {
     const trigger = event.currentTarget;
     if (!(trigger instanceof HTMLElement)) return;
     const rect = trigger.getBoundingClientRect();
-    const panelWidth = 288;
     const viewportPadding = 8;
+    const panelWidth = Math.min(416, window.innerWidth - viewportPadding * 2);
     const left = Math.min(
       Math.max(viewportPadding, rect.right - panelWidth),
       window.innerWidth - panelWidth - viewportPadding,
     );
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const top = spaceBelow >= 220 ? rect.bottom + 4 : Math.max(viewportPadding, rect.top - 220);
-    this.panelPosition.set({ top, left });
+    const spaceBelow = window.innerHeight - rect.bottom - viewportPadding - 4;
+    const spaceAbove = rect.top - viewportPadding - 4;
+    const openBelow = spaceBelow >= 380 || spaceBelow >= spaceAbove;
+    this.panelPosition.set({
+      top: openBelow ? rect.bottom + 4 : null,
+      bottom: openBelow ? null : window.innerHeight - rect.top + 4,
+      left,
+      maxHeight: Math.max(0, openBelow ? spaceBelow : spaceAbove),
+    });
     this.isOpen.set(true);
+    const workspaceId = this.workspaceService.currentWorkspace()?.id;
+    if (workspaceId && this.catalogService.loadedWorkspaceId() !== workspaceId) {
+      void this.catalogService.loadProducts(workspaceId);
+    }
+  }
+
+  onImageFailed(productId: string | null): void {
+    if (productId) this.catalogService.invalidateProductImage(productId);
   }
 
   close(restoreFocus: boolean): void {

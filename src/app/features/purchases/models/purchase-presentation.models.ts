@@ -22,6 +22,8 @@ export type PurchaseStatusTone = 'neutral' | 'info' | 'success' | 'caution' | 'c
 export interface PurchaseReceiptLinePresentation {
   readonly id: string;
   readonly title: string;
+  readonly catalogProductId: string | null;
+  readonly ean: string | null;
   readonly received: number;
   readonly ordered: number;
 }
