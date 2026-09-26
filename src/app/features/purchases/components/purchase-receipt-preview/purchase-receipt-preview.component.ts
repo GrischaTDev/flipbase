@@ -14,6 +14,7 @@ import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
 import type { PurchaseReceiptSummary } from '../../models/purchase-presentation.models';
+import { PurchaseReceiptPreviewStateService } from '../../services/purchase-receipt-preview-state.service';
 
 let nextReceiptPreviewId = 0;
 
@@ -32,6 +33,7 @@ export class PurchaseReceiptPreviewComponent {
   private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly catalogService = inject(CatalogService);
   private readonly workspaceService = inject(WorkspaceService);
+  private readonly previewState = inject(PurchaseReceiptPreviewStateService);
   private readonly previewId = `purchase-receipt-preview-${++nextReceiptPreviewId}`;
 
   readonly purchaseId = input.required<string>();
@@ -40,7 +42,7 @@ export class PurchaseReceiptPreviewComponent {
     const receipt = this.receipt();
     return receipt.kind === 'known' ? receipt : null;
   });
-  readonly isOpen = signal(false);
+  readonly isOpen = computed(() => this.previewState.openPreviewId() === this.previewId);
   readonly panelPosition = signal({
     top: null as number | null,
     bottom: null as number | null,
@@ -74,14 +76,14 @@ export class PurchaseReceiptPreviewComponent {
     );
     const spaceBelow = window.innerHeight - rect.bottom - viewportPadding - 4;
     const spaceAbove = rect.top - viewportPadding - 4;
-    const openBelow = spaceBelow >= 380 || spaceBelow >= spaceAbove;
+    const openBelow = spaceBelow >= spaceAbove;
     this.panelPosition.set({
       top: openBelow ? rect.bottom + 4 : null,
       bottom: openBelow ? null : window.innerHeight - rect.top + 4,
       left,
       maxHeight: Math.max(0, openBelow ? spaceBelow : spaceAbove),
     });
-    this.isOpen.set(true);
+    this.previewState.open(this.previewId);
     const workspaceId = this.workspaceService.currentWorkspace()?.id;
     if (workspaceId && this.catalogService.loadedWorkspaceId() !== workspaceId) {
       void this.catalogService.loadProducts(workspaceId);
@@ -94,7 +96,7 @@ export class PurchaseReceiptPreviewComponent {
 
   close(restoreFocus: boolean): void {
     if (!this.isOpen()) return;
-    this.isOpen.set(false);
+    this.previewState.close(this.previewId);
     if (!restoreFocus) return;
     queueMicrotask(() => this.elementRef.nativeElement.querySelector('button')?.focus());
   }
