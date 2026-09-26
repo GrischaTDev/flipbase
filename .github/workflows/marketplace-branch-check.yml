@@ -37,6 +37,22 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
 
+      # Nur öffentliche, festgeschriebene npm-Pakete und die Prüflaufzeit.
+      # Kein .git, keine npm-Konfiguration und keine Umgebungsvariablen.
+      - name: Archive isolated verification tools
+        run: |
+          mkdir -p /tmp/marketplace-tools
+          cp "$(command -v node)" /tmp/marketplace-tools/node
+          tar -czf /tmp/marketplace-tools/runtime.tar.gz node_modules
+
+      - name: Upload verification tools
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: marketplace-tools-${{ github.sha }}
+          path: /tmp/marketplace-tools/
+          if-no-files-found: error
+          retention-days: 1
+
       - name: Marketplace contracts
         run: node --experimental-strip-types --test supabase/functions/_shared/marketplace-*.test.ts
 
