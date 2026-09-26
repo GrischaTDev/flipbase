@@ -328,7 +328,11 @@ export class PurchasesComponent {
   }
 
   openPurchase(event: MouseEvent, id: string): void {
-    if (event.target instanceof Element && event.target.closest('a, button, input, select')) return;
+    if (
+      event.target instanceof Element &&
+      event.target.closest('a, button, input, select, [data-purchase-receipt-preview]')
+    )
+      return;
     const selection = window.getSelection();
     const row = event.currentTarget;
     if (

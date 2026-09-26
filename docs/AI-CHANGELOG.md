@@ -14,7 +14,7 @@ unterhalb der Tabellenzeile aus; Klicks in die Liste öffnen den Einkauf nicht
 versehentlich.
 
 **Prüfung:** 39 Fachtests und 20 Angular-Tests einschließlich strukturellem
-AXE-Check der geöffneten Vorschau bestanden. TypeScript-Prüfung, gezieltes
+AXE-Check der geöffneten Vorschau bestanden. TypeScript-Prüfung, vollständiges
 ESLint, die Shared-UI-Prüfung und der Angular-Produktionsbau waren erfolgreich.
 
 ## 2026-09-26 – Juna – Variantenzeile im Einkauf exakt ausgerichtet
