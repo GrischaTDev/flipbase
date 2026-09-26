@@ -25,7 +25,7 @@ if (mode === 'register') {
     return response.json();
   }
   const previous = await api(`git/commits/${base}`);
-  const files = ['supabase/config.toml', 'src/app/core/models/supabase.types.ts'];
+  const files = ['supabase/config.toml', 'src/app/core/models/supabase.types.ts', 'scripts/marketplace-migration-permissions.mjs', 'scripts/marketplace-migration-permissions.test.mjs', 'scripts/marketplace-review-commit.mjs'];
   for (const file of await readdir('supabase/migrations')) if (/^\d+_marketplace_accounts\.sql$/.test(file)) files.push(`supabase/migrations/${file}`);
   const changelogPath = 'docs/AI-CHANGELOG.md';
   const changelog = await readFile(changelogPath, 'utf8');
@@ -48,5 +48,8 @@ if (mode === 'register') {
     message: 'feat(core): prepare verified marketplace database migration\n\nGenerate migration and database types after passing disposable database tests.\nPrepare this commit for review without moving any branch or deploying.',
     tree: result.sha, parents: [base], author, committer: author,
   });
-  await writeFile('/tmp/marketplace-database/review-commit.json', JSON.stringify({ base, sha: commit.sha, tree: result.sha, files }, null, 2));
+  const review = { base, sha: commit.sha, tree: result.sha, files };
+  await writeFile('/tmp/marketplace-database/review-commit.json', JSON.stringify(review, null, 2));
+  // Nur Commit-Metadaten, keine Schlüssel oder Sitzungsausgaben.
+  console.info('MARKETPLACE_REVIEW_COMMIT', JSON.stringify(review));
 } else throw new Error('Unbekannter Modus.');

@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/marketplace-database-preview.yml'
       - 'scripts/marketplace-review-commit.mjs'
+      - 'scripts/marketplace-migration-permissions*.mjs'
       - 'supabase/schemas/250_marketplace_accounts.sql'
       - 'supabase/tests/marketplace-accounts.test.sql'
       - 'supabase/migrations/*marketplace_accounts*'
@@ -32,6 +33,10 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - name: Format review scripts and test migration permissions
+        run: |
+          npx prettier --write scripts/marketplace-migration-permissions*.mjs scripts/marketplace-review-commit.mjs
+          node --test scripts/marketplace-migration-permissions.test.mjs
       - name: Record revision and register schema
         run: |
           mkdir -p /tmp/marketplace-database
@@ -41,6 +46,7 @@ jobs:
         if: ${{ hashFiles('supabase/migrations/*marketplace_accounts*') == '' }}
         run: |
           npx supabase db diff -f marketplace_accounts --schema public
+          node scripts/marketplace-migration-permissions.mjs
           find supabase/migrations -name '*marketplace_accounts*' -exec cp {} /tmp/marketplace-database/ \;
       - name: Start disposable database
         run: npx supabase start -x studio,imgproxy,logflare,vector,supavisor
