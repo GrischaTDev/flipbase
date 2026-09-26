@@ -1,5 +1,20 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-26 – Juna – Doppelte Scrollleiste in der Einkaufsvorschau entfernt
+
+**Auftrag:** Bei vielen Artikeln soll die Vorschau nur innerhalb der Artikelliste
+scrollen. Der zusätzliche Scrollbalken am äußeren Rand des Pop-ups stört.
+
+**Änderung:** Der äußere Rahmen begrenzt nun die Höhe ohne eigenen Scrollbereich.
+Ein flexibles Layout lässt nur die Artikelliste schrumpfen und scrollen; Kopf
+und Link zum Einkauf bleiben sichtbar. Die Liste bleibt auf höchstens fünf
+normale Positionen begrenzt.
+
+**Prüfung:** 23 Angular-Tests bestanden; ESLint und Prettier für die geänderten
+Dateien sowie der Angular-Produktionsbau waren erfolgreich. Eine Messung im
+Browser mit dem gebauten Stylesheet bestätigte bei 452 und 280 px Pop-up-Höhe:
+Der Rahmen scrollt nicht, die Artikelliste scrollt und der Link bleibt sichtbar.
+
 ## 2026-09-26 – Juna – Artikelvorschau auf fünf Positionen begrenzt
 
 **Auftrag:** Die Vorschau in „Erhalten“ soll bei vielen Artikeln kompakt bleiben,

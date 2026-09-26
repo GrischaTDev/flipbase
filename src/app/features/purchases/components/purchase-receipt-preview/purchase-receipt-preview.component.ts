@@ -49,9 +49,6 @@ export class PurchaseReceiptPreviewComponent {
     left: 0,
     maxHeight: 0,
   });
-  readonly listMaxHeight = computed(() =>
-    Math.max(80, Math.min(402, this.panelPosition().maxHeight - 104)),
-  );
   readonly imageUrls = computed(() =>
     this.catalogService.loadedWorkspaceId() === this.workspaceService.currentWorkspace()?.id
       ? this.catalogService.imageUrls()
