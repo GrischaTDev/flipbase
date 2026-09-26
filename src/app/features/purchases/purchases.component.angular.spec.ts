@@ -372,6 +372,76 @@ describe('PurchasesComponent – responsive Einkaufsübersicht', () => {
     expect(navigate).not.toHaveBeenCalled();
   });
 
+  it('schließt die bisherige Vorschau beim Öffnen einer anderen Einkaufszeile', () => {
+    const secondPurchase: Purchase = {
+      ...purchases[0],
+      id: 'purchase-second',
+      record_number: '#E2',
+      purchase_lines: purchases[0].purchase_lines?.map((line) => ({
+        ...line,
+        id: 'line-second',
+        purchase_id: 'purchase-second',
+      })),
+    };
+    purchaseState.set([...purchases, secondPurchase]);
+    const fixture = TestBed.createComponent(PurchasesComponent);
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const triggers = [
+      ...host.querySelectorAll<HTMLButtonElement>('app-purchase-receipt-preview button'),
+    ];
+    expect(triggers).toHaveLength(2);
+
+    triggers[0].click();
+    fixture.detectChanges();
+    expect(triggers.map((trigger) => trigger.getAttribute('aria-expanded'))).toEqual([
+      'true',
+      'false',
+    ]);
+    expect(host.querySelectorAll('[data-purchase-receipt-preview]')).toHaveLength(1);
+
+    triggers[1].click();
+    fixture.detectChanges();
+    expect(triggers.map((trigger) => trigger.getAttribute('aria-expanded'))).toEqual([
+      'false',
+      'true',
+    ]);
+    expect(host.querySelectorAll('[data-purchase-receipt-preview]')).toHaveLength(1);
+
+    triggers[1].click();
+    fixture.detectChanges();
+    expect(host.querySelectorAll('[data-purchase-receipt-preview]')).toHaveLength(0);
+  });
+
+  it('öffnet die Vorschau in der unteren Bildschirmhälfte nach oben', () => {
+    const fixture = TestBed.createComponent(PurchasesComponent);
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const trigger = host.querySelector<HTMLButtonElement>('app-purchase-receipt-preview button');
+    if (!trigger) throw new Error('Erhalten-Trigger fehlt');
+    const anchor = trigger.closest('app-button');
+    if (!anchor) throw new Error('Anker der Vorschau fehlt');
+    const originalHeight = Object.getOwnPropertyDescriptor(window, 'innerHeight');
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 1000 });
+    vi.spyOn(anchor, 'getBoundingClientRect').mockReturnValue({
+      top: 510,
+      bottom: 538,
+      left: 700,
+      right: 800,
+    } as DOMRect);
+
+    try {
+      trigger.click();
+      fixture.detectChanges();
+      const panel = host.querySelector<HTMLElement>('[data-purchase-receipt-preview]');
+      expect(panel?.style.top).toBe('');
+      expect(panel?.style.bottom).toBe('494px');
+      expect(panel?.style.maxHeight).toBe('498px');
+    } finally {
+      if (originalHeight) Object.defineProperty(window, 'innerHeight', originalHeight);
+    }
+  });
+
   it('lädt Artikelbilder beim Öffnen und zeigt lange Artikelnamen vollständig', () => {
     purchaseState.set([
       {

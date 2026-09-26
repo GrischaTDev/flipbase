@@ -1,5 +1,21 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-26 – Juna – Einkaufs-Vorschauen einzeln und passend zum Bildschirm öffnen
+
+**Auftrag:** Beim Wechsel zwischen „Erhalten“-Zellen darf nur eine
+Artikelvorschau offen bleiben. In der unteren Bildschirmhälfte soll sie nach
+oben statt in den knappen Platz nach unten öffnen.
+
+**Änderung:** Alle Vorschauen der Einkaufstabelle teilen sich einen
+seitenbezogenen offenen Zustand. Das Öffnen einer Zeile schließt die bisherige
+Vorschau sofort; ein erneuter Klick schließt sie wieder. Die Öffnungsrichtung
+richtet sich nach dem größeren freien Bereich ober- oder unterhalb der Zelle.
+
+**Prüfung:** 22 Angular-Tests bestanden, darunter der Wechsel zwischen zwei
+Zeilen und eine Zelle in der unteren Bildschirmhälfte. Vollständiges ESLint,
+TypeScript-Prüfung, Prettier, Shared-UI-Prüfung und Angular-Produktionsbau waren
+erfolgreich.
+
 ## 2026-09-26 – Juna – Artikelvorschau beim Wareneingang vergrößert
 
 **Auftrag:** Die schmale Vorschau in der Spalte „Erhalten“ lesbarer machen,

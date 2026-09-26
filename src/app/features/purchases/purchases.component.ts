@@ -38,6 +38,7 @@ import {
 } from '../../shared/components/custom-select/custom-select.component';
 import { PurchaseReceiptPreviewComponent } from './components/purchase-receipt-preview/purchase-receipt-preview.component';
 import { DataTableComponent } from '../../shared/components/data-table/data-table.component';
+import { PurchaseReceiptPreviewStateService } from './services/purchase-receipt-preview-state.service';
 
 @Component({
   selector: 'app-purchases',
@@ -55,6 +56,7 @@ import { DataTableComponent } from '../../shared/components/data-table/data-tabl
     PurchaseReceiptPreviewComponent,
   ],
   templateUrl: './purchases.component.html',
+  providers: [PurchaseReceiptPreviewStateService],
   host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
