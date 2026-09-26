@@ -1,0 +1,56 @@
+name: Marketplace database preview
+
+on:
+  push:
+    branches: ['juna/vinted-marketplace-foundation']
+    paths:
+      - '.github/workflows/marketplace-database-preview.yml'
+      - 'supabase/schemas/250_marketplace_accounts.sql'
+      - 'supabase/tests/marketplace-accounts.test.sql'
+      - 'supabase/migrations/*marketplace_accounts*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: marketplace-database-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Record revision
+        run: |
+          mkdir -p /tmp/marketplace-database
+          git rev-parse HEAD > /tmp/marketplace-database/source-commit.txt
+      - name: Generate migration from declarative schema
+        if: ${{ hashFiles('supabase/schemas/250_marketplace_accounts.sql') != '' && hashFiles('supabase/migrations/*marketplace_accounts*') == '' }}
+        run: |
+          npx supabase db diff -f marketplace_accounts --schema public
+          find supabase/migrations -name '*marketplace_accounts*' -exec cp {} /tmp/marketplace-database/ \;
+      - name: Start disposable database
+        run: npx supabase start -x studio,imgproxy,logflare,vector,supavisor
+      - name: Marketplace database tests
+        run: npx supabase test db supabase/tests/marketplace-accounts.test.sql
+      - name: Generate database types
+        run: npx supabase gen types typescript --local > /tmp/marketplace-database/supabase.types.ts
+      - name: Stop disposable database
+        if: ${{ always() }}
+        run: npx supabase stop --no-backup
+      - name: Upload reviewed migration and types
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: marketplace-database-${{ github.sha }}
+          path: /tmp/marketplace-database/
+          retention-days: 3
