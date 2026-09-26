@@ -35,20 +35,24 @@ test('speichert einen Artikel mit Bild und lädt ihn erneut @core-smoke', async 
     return data;
   });
   const gallery = editor.locator('app-product-media-editor');
+  const imageTiles = gallery.locator('li[cdkdrag]');
   await gallery.locator('input[type=file]').setInputFiles({
     name: 'smoke.png',
     mimeType: 'image/png',
     buffer: Buffer.from(image, 'base64'),
   });
-  await expect(gallery.getByRole('listitem')).toHaveCount(1);
+  await expect(imageTiles).toHaveCount(1);
   await editor.getByRole('button', { name: 'Artikel erstellen', exact: true }).click();
   await expect(page).toHaveURL(/\/catalog\/(?!new$)[^/]+$/);
   await expect(editor.getByRole('button', { name: 'Speichern', exact: true })).toBeDisabled();
 
   await page.reload();
   await expect(title).toHaveValue('Smoke-Test Artikel');
-  await expect(gallery.getByRole('listitem')).toHaveCount(1);
-  await expect(gallery.getByText('smoke.png', { exact: true })).toBeVisible();
+  await expect(imageTiles).toHaveCount(1);
+  await expect(imageTiles.first().getByRole('button')).toHaveAttribute(
+    'aria-label',
+    /Hauptbild: smoke.png/,
+  );
   await expect
     .poll(() =>
       gallery.locator('img').evaluateAll((images) =>
