@@ -5,6 +5,7 @@ on:
     branches: ['juna/vinted-marketplace-foundation']
     paths:
       - '.github/workflows/marketplace-database-preview.yml'
+      - 'scripts/marketplace-review-commit.mjs'
       - 'supabase/schemas/250_marketplace_accounts.sql'
       - 'supabase/tests/marketplace-accounts.test.sql'
       - 'supabase/migrations/*marketplace_accounts*'
@@ -20,6 +21,8 @@ jobs:
   database:
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -29,12 +32,13 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - name: Record revision
+      - name: Record revision and register schema
         run: |
           mkdir -p /tmp/marketplace-database
           git rev-parse HEAD > /tmp/marketplace-database/source-commit.txt
+          node scripts/marketplace-review-commit.mjs register
       - name: Generate migration from declarative schema
-        if: ${{ hashFiles('supabase/schemas/250_marketplace_accounts.sql') != '' && hashFiles('supabase/migrations/*marketplace_accounts*') == '' }}
+        if: ${{ hashFiles('supabase/migrations/*marketplace_accounts*') == '' }}
         run: |
           npx supabase db diff -f marketplace_accounts --schema public
           find supabase/migrations -name '*marketplace_accounts*' -exec cp {} /tmp/marketplace-database/ \;
@@ -42,8 +46,16 @@ jobs:
         run: npx supabase start -x studio,imgproxy,logflare,vector,supavisor
       - name: Marketplace database tests
         run: npx supabase test db supabase/tests/marketplace-accounts.test.sql
+      - name: Database regression tests
+        run: npm run test:db
       - name: Generate database types
-        run: npx supabase gen types typescript --local > /tmp/marketplace-database/supabase.types.ts
+        run: |
+          npx supabase gen types typescript --local > src/app/core/models/supabase.types.ts
+          cp src/app/core/models/supabase.types.ts /tmp/marketplace-database/supabase.types.ts
+      - name: Prepare unattached review commit
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/marketplace-review-commit.mjs prepare
       - name: Stop disposable database
         if: ${{ always() }}
         run: npx supabase stop --no-backup
