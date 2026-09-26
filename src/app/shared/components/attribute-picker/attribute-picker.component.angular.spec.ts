@@ -48,6 +48,24 @@ function create(multiple = false) {
 }
 
 describe('AttributePickerComponent', () => {
+  it('zeigt den gewählten Farbwert beim Öffnen und unmittelbar nach der Auswahl im Eingabefeld', () => {
+    const { fixture, values } = create();
+    fixture.componentRef.setInput('options', ['Rot', 'Blau']);
+    fixture.componentInstance.writeValue('Rot');
+    fixture.detectChanges();
+
+    const field = fixture.nativeElement.querySelector('input') as HTMLInputElement;
+    field.dispatchEvent(new FocusEvent('focus'));
+    fixture.detectChanges();
+    expect(field.value).toBe('Rot');
+
+    fixture.componentInstance.choose('Blau');
+    fixture.detectChanges();
+    expect(values).toEqual(['Blau']);
+    expect(fixture.componentInstance.isOpen()).toBe(true);
+    expect(field.value).toBe('Blau');
+  });
+
   it('wählt mehrere Materialien und erhält vorhandene freie Bezeichnungen', () => {
     const { fixture, values } = create(true);
     fixture.componentInstance.writeValue('Hersteller-Mix, Leder');
@@ -65,7 +83,7 @@ describe('AttributePickerComponent', () => {
     expect(values.at(-1)).toBe('Baumwolle');
   });
 
-  it('zeigt nach einer Farbauswahl beim erneuten Öffnen wieder alle Vorschläge', () => {
+  it('zeigt bei ausgewählter Farbe weiterhin alle Vorschläge', () => {
     const { fixture } = create();
     fixture.componentInstance.open();
     fixture.componentInstance.choose('Leder');
@@ -74,7 +92,7 @@ describe('AttributePickerComponent', () => {
     fixture.componentInstance.open();
     fixture.detectChanges();
 
-    expect(fixture.componentInstance.query()).toBe('');
+    expect(fixture.componentInstance.query()).toBe('Leder');
     expect(fixture.componentInstance.matches()).toEqual(['Leder', 'Textil', 'Baumwolle']);
     expect(fixture.nativeElement.querySelectorAll('[role="option"]')).toHaveLength(3);
   });

@@ -20,7 +20,7 @@
       [disabled]="isDisabled()"
       (click)="toggle()"
       (keydown)="onTriggerKeydown($event)"
-      class="linear-input flex min-h-8 w-full items-center gap-2 rounded-lg py-1.5 pl-3 pr-16 text-left text-[13px] outline-none transition-colors focus-visible:border-fb-primary focus-visible:ring-2 focus-visible:ring-fb-primary/50 disabled:cursor-not-allowed disabled:opacity-40"
+      class="linear-input flex min-h-8 w-full items-center gap-2 rounded-lg py-1.5 pl-3 pr-16 text-left text-[13px] !bg-fb-bg !text-fb-text-primary outline-none transition-colors focus-visible:border-fb-primary focus-visible:ring-2 focus-visible:ring-fb-primary/50 disabled:cursor-not-allowed disabled:opacity-40"
       [class.border-fb-primary]="isOpen()"
     >
       <span [id]="fieldId() + '-value'" class="min-w-0 flex-1 truncate">
@@ -55,7 +55,7 @@
         [attr.aria-label]="label() || 'Kategorie wählen'"
         [attr.popover]="supportsPopover ? 'manual' : null"
         (wheel)="onPanelWheel($event)"
-        class="category-picker-panel fb-popover-enter absolute left-0 top-0 z-50 flex h-96 max-h-[calc(100dvh-16px)] w-full min-w-[20rem] flex-col overflow-clip rounded-xl border border-fb-border bg-fb-surface shadow-lg"
+        class="category-picker-panel fb-popover-enter absolute left-0 top-0 z-50 flex h-96 max-h-[calc(100dvh-16px)] w-full min-w-[20rem] flex-col overflow-clip rounded-xl border border-fb-border bg-fb-surface text-fb-text-primary shadow-lg"
         [style.left.px]="supportsPopover ? panelPosition().left : null"
         [style.top.px]="supportsPopover ? panelPosition().top : null"
         [style.width.px]="supportsPopover ? panelPosition().width : null"
@@ -74,7 +74,7 @@
           [value]="searchTerm()"
           (input)="onSearchInput($event)"
           (keydown)="onSearchKeydown($event)"
-          class="m-1.5 min-h-8 shrink-0 rounded-lg border-0 bg-transparent px-2.5 py-1.5 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/50"
+          class="m-1.5 min-h-8 shrink-0 rounded-lg border border-fb-border bg-fb-bg px-2.5 py-1.5 text-[13px] text-fb-text-primary placeholder:text-fb-text-muted outline-none focus-visible:border-fb-primary focus-visible:ring-2 focus-visible:ring-fb-primary/50"
         />
 
         @if (!isSearching() && currentParent(); as parent) {

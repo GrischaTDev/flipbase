@@ -86,6 +86,27 @@ describe('ProductMediaEditorComponent', () => {
     expect(PreviewReader.instances).toHaveLength(1);
   });
 
+  it('zeigt die Ablagefläche über vorhandenen Bildern und nimmt weitere Bilder an', () => {
+    images.set([saved('first')]);
+    const preventDefault = vi.fn();
+    const stopPropagation = vi.fn();
+    const transfer = { types: ['Files'], files: [file] } as unknown as DataTransfer;
+    const event = {
+      dataTransfer: transfer,
+      preventDefault,
+      stopPropagation,
+    } as unknown as DragEvent;
+
+    component.onDragEnter(event);
+    component.onDragOver(event);
+    expect(component.dragActive()).toBe(true);
+    component.onDrop(event);
+    expect(component.dragActive()).toBe(false);
+    expect(component.drafts()).toHaveLength(2);
+    expect(component.drafts()[1].file).toBe(file);
+    expect(preventDefault).toHaveBeenCalled();
+  });
+
   it('verschiebt Bilder und bestimmt das Hauptbild ausschließlich über die Reihenfolge', () => {
     images.set([saved('first'), saved('second'), saved('third')]);
     component.move('third', -1);

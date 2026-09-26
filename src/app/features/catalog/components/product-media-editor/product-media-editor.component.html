@@ -1,4 +1,10 @@
-<div class="space-y-4">
+<div
+  class="relative space-y-4"
+  (dragenter)="onDragEnter($event)"
+  (dragover)="onDragOver($event)"
+  (dragleave)="onDragLeave()"
+  (drop)="onDrop($event)"
+>
   @if (errors().length) {
     <ul role="alert" class="space-y-1 text-[13px] text-rose-400">
       @for (error of errors(); track $index) {
@@ -6,42 +12,40 @@
       }
     </ul>
   }
-  <div
-    (drop)="onDrop($event)"
-    (dragover)="onDragOver($event)"
-    (dragleave)="onDragLeave($event)"
-    class="flex flex-col items-center gap-2 rounded-xl border border-dashed border-fb-border bg-fb-subtle p-5 text-center"
-    [class.border-fb-primary]="dragActive() && !disabled()"
-  >
-    <!-- Technischer Dateieingang; Shared-Button übernimmt die sichtbare Bedienung. -->
-    <input
-      #fileInput
-      type="file"
-      multiple
-      [accept]="accept"
-      [disabled]="disabled()"
-      class="hidden"
-      (change)="onFileSelected($event)"
-    />
-    <app-button data-add-media [disabled]="disabled()" (clicked)="fileInput.click()"
-      >Bilder hinzufügen</app-button
+  <!-- Technischer Dateieingang; Shared-Button übernimmt die sichtbare Bedienung. -->
+  <input
+    #fileInput
+    type="file"
+    multiple
+    [accept]="accept"
+    [disabled]="disabled()"
+    class="hidden"
+    (change)="onFileSelected($event)"
+  />
+  @if (!drafts().length) {
+    <div
+      class="flex min-h-32 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-fb-border bg-fb-subtle p-5 text-center"
     >
-    <p class="text-[13px] text-fb-text-secondary">oder mehrere Bilder hier ablegen</p>
-    <p class="text-xs text-fb-text-muted">
-      JPG, PNG, WebP, GIF oder AVIF · höchstens 50 MB pro Bild
-    </p>
-  </div>
+      <app-button data-add-media [disabled]="disabled()" (clicked)="fileInput.click()"
+        >Bilder hinzufügen</app-button
+      >
+      <p class="text-[13px] text-fb-text-secondary">oder mehrere Bilder hier ablegen</p>
+      <p class="text-xs text-fb-text-muted">
+        JPG, PNG, WebP, GIF oder AVIF · höchstens 50 MB pro Bild
+      </p>
+    </div>
+  }
   @if (drafts().length) {
     <p class="text-[13px] text-fb-text-secondary">
       Das erste Bild ist das Hauptbild. Die Reihenfolge gilt auch im Shop.
     </p>
-    <ol class="space-y-3" aria-label="Produktbilder">
+    <ol class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3" aria-label="Produktbilder">
       @for (image of drafts(); track image.key; let index = $index) {
         <li
-          class="flex min-w-0 flex-col gap-3 border-b border-fb-border pb-3 last:border-b-0 last:pb-0 sm:flex-row"
+          class="flex min-w-0 flex-col gap-3 rounded-xl border border-fb-border bg-fb-surface p-3"
         >
           <div
-            class="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-fb-border bg-fb-subtle"
+            class="flex aspect-square w-full items-center justify-center overflow-hidden rounded-lg border border-fb-border bg-fb-subtle"
           >
             @if (image.previewUrl) {
               <img
@@ -101,7 +105,26 @@
           </div>
         </li>
       }
+      <li
+        class="flex min-h-40 flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-fb-border bg-fb-subtle p-4 text-center"
+      >
+        <app-button
+          data-add-media
+          [icon]="addIcon"
+          [disabled]="disabled()"
+          (clicked)="fileInput.click()"
+          >Weitere Bilder hinzufügen</app-button
+        >
+      </li>
     </ol>
+  }
+  @if (dragActive() && !disabled()) {
+    <div
+      class="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-xl border-2 border-dashed border-fb-primary bg-fb-surface/95 p-5 text-center text-sm font-semibold text-fb-text-primary backdrop-blur-sm"
+      aria-hidden="true"
+    >
+      Bilder hier ablegen
+    </div>
   }
   <p aria-live="polite" aria-atomic="true" class="sr-only">{{ announcement() }}</p>
 </div>
