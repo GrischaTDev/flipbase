@@ -1,5 +1,21 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-26 – Juna – Beta-Registrierung in drei Schritten gestaltet
+
+**Auftrag:** Passwortvergabe, Workspace-Name und Discord-Verbindung als
+zusammenhängende Registrierung mit sichtbaren Schritten darstellen. Nach der
+Discord-Freigabe soll auf Flipbase eine Willkommensbestätigung erscheinen.
+
+**Änderung:** Alle drei Seiten zeigen denselben Fortschritt. Der Workspace führt
+nach dem Speichern zum Discord-Schritt, der das offizielle Discord-Logo und eine
+Verbindungsaktion in Discord-Farben zeigt. Nach der Zustimmung bestätigt
+Flipbase die Rolle „Beta-Tester“ und bietet einen Link zum Server. Der Schritt
+kann übersprungen werden; das Dashboard erinnert dann weiterhin an Discord.
+
+**Prüfung:** Gezielte Angular-Tests für Registrierung und Discord-Ansicht,
+TypeScript-Prüfung und Produktionsbau bestanden. Ein echter Discord-Beitritt
+wird nach Veröffentlichung und Einrichtung der Serverwerte geprüft.
+
 ## 2026-09-26 – Juna – Beta-Bewerbungen melden und Discord-Zugang verbinden
 
 **Auftrag:** Neue Beta-Bewerbungen per E-Mail an `beta@flipbase.de` melden und

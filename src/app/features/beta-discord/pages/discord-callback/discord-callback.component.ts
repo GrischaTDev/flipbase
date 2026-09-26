@@ -22,7 +22,7 @@ export class DiscordCallbackComponent implements OnInit {
     const denied = query.get('error');
     window.history.replaceState(null, '', '/auth/discord-callback');
     if (!code || !state || denied) {
-      await this.router.navigate(['/dashboard'], {
+      await this.router.navigate(['/onboarding/discord'], {
         queryParams: { discord: 'failed' },
         replaceUrl: true,
       });
@@ -30,13 +30,13 @@ export class DiscordCallbackComponent implements OnInit {
     }
     try {
       await this.discord.complete(code, state);
-      await this.router.navigate(['/dashboard'], {
+      await this.router.navigate(['/onboarding/discord'], {
         queryParams: { discord: 'connected' },
         replaceUrl: true,
       });
     } catch {
       this.failed.set(true);
-      await this.router.navigate(['/dashboard'], {
+      await this.router.navigate(['/onboarding/discord'], {
         queryParams: { discord: 'failed' },
         replaceUrl: true,
       });

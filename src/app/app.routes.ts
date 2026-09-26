@@ -105,6 +105,14 @@ export const routes: Routes = [
         (m) => m.WorkspaceSetupComponent,
       ),
   },
+  {
+    path: 'onboarding/discord',
+    canActivate: [authGuard, workspaceSetupGuard],
+    loadComponent: () =>
+      import('./features/beta-discord/pages/discord-onboarding/discord-onboarding.component').then(
+        (m) => m.DiscordOnboardingComponent,
+      ),
+  },
 
   // Protected Admin OS Dashboard & Workspace
   {

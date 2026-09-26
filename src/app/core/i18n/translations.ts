@@ -81,7 +81,7 @@ export const TRANSLATIONS_DE = {
     SET_PASSWORD_TITLE: 'Passwort festlegen',
     SET_PASSWORD_SUBTITLE:
       'Willkommen bei Flipbase! Bitte wähle dein persönliches Passwort, um deinen Beta-Zugang zu starten.',
-    SUBMIT_SET_PASSWORD: 'Passwort speichern & Loslegen',
+    SUBMIT_SET_PASSWORD: 'Weiter zum Workspace',
     SET_PASSWORD_SUCCESS: 'Dein Passwort wurde festgelegt! Du wirst weitergeleitet...',
     SET_PASSWORD_INVALID_TITLE: 'Ungültiger Einladungslink',
     SET_PASSWORD_INVALID_TEXT:
@@ -133,11 +133,31 @@ export const TRANSLATIONS_DE = {
     SETUP_HELP: 'Du kannst den Namen später jederzeit in den Einstellungen ändern.',
     SETUP_NAME_PLACEHOLDER: 'Zum Beispiel Kamera Handel',
     SETUP_NAME_ERROR: 'Bitte gib einen Namen mit 2 bis 100 Zeichen ein.',
-    SETUP_SUBMIT: 'Workspace einrichten',
+    SETUP_SUBMIT: 'Weiter zu Discord',
     SETUP_RETRY: 'Erneut versuchen',
     SETUP_LOAD_ERROR: 'Der Workspace konnte nicht geladen werden.',
     SETUP_MISSING_ERROR: 'Dein Workspace ist noch nicht verfügbar.',
     SETUP_SAVE_ERROR: 'Der Workspace konnte nicht eingerichtet werden.',
+  },
+  BETA_ONBOARDING: {
+    PROGRESS_LABEL: 'Deine Beta-Registrierung',
+    PASSWORD: 'Passwort',
+    WORKSPACE: 'Workspace',
+    DISCORD: 'Discord',
+    DISCORD_TITLE: 'Werde Teil unserer Beta-Community',
+    DISCORD_DESCRIPTION:
+      'Teile deine Erfahrungen mit uns und tausche dich mit anderen aus der Flipbase-Community aus. Nach deiner Zustimmung erhältst du auf unserem Server automatisch die Rolle „Beta-Tester“.',
+    DISCORD_CONNECT: 'Mit Discord verbinden',
+    DISCORD_SKIP: 'Jetzt nicht, zu Flipbase',
+    DISCORD_LOADING: 'Discord-Verbindung wird geprüft …',
+    DISCORD_UNAVAILABLE: 'Discord ist gerade nicht verfügbar. Du kannst Flipbase trotzdem nutzen.',
+    DISCORD_NOT_ELIGIBLE: 'Für diesen Beta-Zugang ist die Discord-Verbindung nicht verfügbar.',
+    DISCORD_RETRY: 'Erneut prüfen',
+    DISCORD_WELCOME_TITLE: 'Willkommen in der Flipbase-Community!',
+    DISCORD_WELCOME_TEXT:
+      'Du bist auf unserem Discord-Server und hast die Rolle „Beta-Tester“ erhalten. Teile dort deine Erfahrungen, stelle Fragen und tausche dich mit anderen aus.',
+    DISCORD_OPEN_SERVER: 'Discord-Server öffnen',
+    DISCORD_TO_DASHBOARD: 'Flipbase öffnen',
   },
   BETA_DISCORD: {
     TITLE: 'Komm auf unseren Discord-Server',
@@ -453,7 +473,7 @@ export const TRANSLATIONS_EN = {
     SET_PASSWORD_TITLE: 'Set Password',
     SET_PASSWORD_SUBTITLE:
       'Welcome to Flipbase! Please choose your personal password to start your beta access.',
-    SUBMIT_SET_PASSWORD: 'Save Password & Get Started',
+    SUBMIT_SET_PASSWORD: 'Continue to workspace',
     SET_PASSWORD_SUCCESS: 'Your password has been set! Redirecting...',
     SET_PASSWORD_INVALID_TITLE: 'Invalid Invitation Link',
     SET_PASSWORD_INVALID_TEXT:
@@ -503,11 +523,31 @@ export const TRANSLATIONS_EN = {
     SETUP_HELP: 'You can change the name later at any time in settings.',
     SETUP_NAME_PLACEHOLDER: 'For example Camera Trading',
     SETUP_NAME_ERROR: 'Please enter a name between 2 and 100 characters.',
-    SETUP_SUBMIT: 'Set up workspace',
+    SETUP_SUBMIT: 'Continue to Discord',
     SETUP_RETRY: 'Try again',
     SETUP_LOAD_ERROR: 'The workspace could not be loaded.',
     SETUP_MISSING_ERROR: 'Your workspace is not available yet.',
     SETUP_SAVE_ERROR: 'The workspace could not be set up.',
+  },
+  BETA_ONBOARDING: {
+    PROGRESS_LABEL: 'Your beta registration',
+    PASSWORD: 'Password',
+    WORKSPACE: 'Workspace',
+    DISCORD: 'Discord',
+    DISCORD_TITLE: 'Join our beta community',
+    DISCORD_DESCRIPTION:
+      'Share your experience with us and connect with other Flipbase community members. After you approve the connection, you will automatically receive the “Beta Tester” role on our server.',
+    DISCORD_CONNECT: 'Connect with Discord',
+    DISCORD_SKIP: 'Not now, go to Flipbase',
+    DISCORD_LOADING: 'Checking your Discord connection …',
+    DISCORD_UNAVAILABLE: 'Discord is currently unavailable. You can still use Flipbase.',
+    DISCORD_NOT_ELIGIBLE: 'Discord is not available for this beta account.',
+    DISCORD_RETRY: 'Check again',
+    DISCORD_WELCOME_TITLE: 'Welcome to the Flipbase community!',
+    DISCORD_WELCOME_TEXT:
+      'You are on our Discord server and have received the “Beta Tester” role. Share your experience, ask questions, and connect with others there.',
+    DISCORD_OPEN_SERVER: 'Open Discord server',
+    DISCORD_TO_DASHBOARD: 'Open Flipbase',
   },
   BETA_DISCORD: {
     TITLE: 'Join our Discord server',

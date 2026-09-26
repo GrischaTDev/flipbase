@@ -1,0 +1,100 @@
+<main class="flex min-h-screen items-center justify-center bg-fb-well px-4 py-10 sm:px-6">
+  <div
+    class="w-full max-w-lg rounded-2xl border border-fb-border bg-fb-surface-alt p-6 shadow-sm sm:p-8"
+  >
+    <div class="mb-7 flex items-center justify-center gap-2.5">
+      <img
+        ngSrc="/images/logo-mark.png"
+        width="36"
+        height="36"
+        alt=""
+        class="h-9 w-9 shrink-0"
+        priority
+      />
+      <span class="text-xl font-bold tracking-tight text-fb-text-primary">Flipbase</span>
+    </div>
+
+    <app-beta-registration-progress [step]="3" />
+
+    <div class="mt-8 rounded-2xl bg-[#5865F2] px-6 py-8 text-center sm:px-8">
+      <img
+        ngSrc="/images/discord-logo.svg"
+        width="219"
+        height="32"
+        alt="Discord"
+        class="mx-auto h-9 w-auto max-w-full"
+      />
+    </div>
+
+    @if (loading()) {
+      <p role="status" class="mt-6 text-center text-sm text-fb-text-secondary">
+        {{ 'BETA_ONBOARDING.DISCORD_LOADING' | translate }}
+      </p>
+    } @else {
+      @if (status()?.linked) {
+        <div class="mt-7 text-center" role="status">
+          <h1 class="text-2xl font-semibold text-fb-text-primary">
+            {{ 'BETA_ONBOARDING.DISCORD_WELCOME_TITLE' | translate }}
+          </h1>
+          <p class="mt-3 text-sm leading-6 text-fb-text-secondary">
+            {{ 'BETA_ONBOARDING.DISCORD_WELCOME_TEXT' | translate }}
+          </p>
+        </div>
+        <div class="mt-7 flex flex-col items-center gap-3">
+          @if (serverUrl(); as url) {
+            <app-button variant="discord" size="lg" [href]="url" target="_blank">
+              <span class="inline-flex items-center gap-2">
+                <img ngSrc="/images/discord-symbol.svg" width="20" height="15" alt="" />
+                {{ 'BETA_ONBOARDING.DISCORD_OPEN_SERVER' | translate }}
+              </span>
+            </app-button>
+          }
+          <app-button variant="plain" link="/dashboard">
+            {{ 'BETA_ONBOARDING.DISCORD_TO_DASHBOARD' | translate }}
+          </app-button>
+        </div>
+      } @else {
+        <div class="mt-7 text-center">
+          <h1 class="text-2xl font-semibold text-fb-text-primary">
+            {{ 'BETA_ONBOARDING.DISCORD_TITLE' | translate }}
+          </h1>
+          <p class="mt-3 text-sm leading-6 text-fb-text-secondary">
+            {{ 'BETA_ONBOARDING.DISCORD_DESCRIPTION' | translate }}
+          </p>
+        </div>
+
+        @if (message()) {
+          <p role="alert" class="mt-5 text-center text-sm text-fb-critical">
+            {{ message() | translate }}
+          </p>
+        }
+
+        <div class="mt-7 flex flex-col items-center gap-3">
+          @if (status()?.eligible && status()?.configured) {
+            <app-button variant="discord" size="lg" [loading]="connecting()" (clicked)="connect()">
+              <span class="inline-flex items-center gap-2">
+                <img ngSrc="/images/discord-symbol.svg" width="20" height="15" alt="" />
+                {{ 'BETA_ONBOARDING.DISCORD_CONNECT' | translate }}
+              </span>
+            </app-button>
+          } @else if (status()?.eligible && !status()?.configured) {
+            <p class="text-center text-sm text-fb-text-secondary">
+              {{ 'BETA_ONBOARDING.DISCORD_UNAVAILABLE' | translate }}
+            </p>
+          } @else if (status() && !status()?.eligible) {
+            <p class="text-center text-sm text-fb-text-secondary">
+              {{ 'BETA_ONBOARDING.DISCORD_NOT_ELIGIBLE' | translate }}
+            </p>
+          } @else {
+            <app-button variant="secondary" (clicked)="loadStatus()">
+              {{ 'BETA_ONBOARDING.DISCORD_RETRY' | translate }}
+            </app-button>
+          }
+          <app-button variant="plain" link="/dashboard">
+            {{ 'BETA_ONBOARDING.DISCORD_SKIP' | translate }}
+          </app-button>
+        </div>
+      }
+    }
+  </div>
+</main>

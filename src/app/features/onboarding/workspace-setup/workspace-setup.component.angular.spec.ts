@@ -15,6 +15,7 @@ import { ButtonComponent } from '../../../shared/components/button/button.compon
 import { TextFieldComponent } from '../../../shared/components/text-field/text-field.component';
 import { WorkspaceSetupComponent } from './workspace-setup.component';
 import { BetaDiscordService } from '../../beta-discord/services/beta-discord.service';
+import { BetaRegistrationProgressComponent } from '../components/beta-registration-progress/beta-registration-progress.component';
 
 interface InputMetadata {
   inputs: Record<string, unknown>;
@@ -53,14 +54,18 @@ const translations: Record<string, string> = {
   'WORKSPACE.SETUP_LOAD_ERROR': 'Der Workspace konnte nicht geladen werden.',
   'WORKSPACE.SETUP_MISSING_ERROR': 'Dein Workspace ist noch nicht verfügbar.',
   'AUTH.LOGOUT': 'Abmelden',
+  'BETA_ONBOARDING.PROGRESS_LABEL': 'Deine Beta-Registrierung',
+  'BETA_ONBOARDING.PASSWORD': 'Passwort',
+  'BETA_ONBOARDING.WORKSPACE': 'Workspace',
+  'BETA_ONBOARDING.DISCORD': 'Discord',
 };
 
 beforeAll(async () => {
   const lookup: Record<string, string> = {
     'workspace-setup.component.html':
       'src/app/features/onboarding/workspace-setup/workspace-setup.component.html',
-    'beta-discord-banner.component.html':
-      'src/app/features/beta-discord/components/beta-discord-banner/beta-discord-banner.component.html',
+    'beta-registration-progress.component.html':
+      'src/app/features/onboarding/components/beta-registration-progress/beta-registration-progress.component.html',
     'button.component.html': 'src/app/shared/components/button/button.component.html',
     'button.component.scss': 'src/app/shared/components/button/button.component.scss',
     'text-field.component.html': 'src/app/shared/components/text-field/text-field.component.html',
@@ -118,6 +123,7 @@ beforeAll(async () => {
     'maxLength',
     'value',
   ]);
+  registerInputs(BetaRegistrationProgressComponent, ['step']);
 });
 
 describe('WorkspaceSetupComponent', () => {
@@ -211,7 +217,7 @@ describe('WorkspaceSetupComponent', () => {
     await component.onSubmit();
 
     expect(completeInitialSetup).toHaveBeenCalledWith(incompleteWorkspace.id, 'Kamera Handel');
-    expect(navigate).toHaveBeenCalledWith(['/dashboard']);
+    expect(navigate).toHaveBeenCalledWith(['/onboarding/discord']);
   });
 
   it('zeigt einen Speicherfehler, behält die Eingabe und navigiert nicht', async () => {
@@ -281,6 +287,7 @@ describe('WorkspaceSetupComponent', () => {
     expect(element.querySelectorAll('h1')).toHaveLength(1);
     expect(element.textContent).toContain('Willkommen bei Flipbase');
     expect(element.textContent).toContain('Wie soll dein Workspace heißen?');
+    expect(element.textContent).toContain('Discord');
     expect(element.querySelector('input[autocomplete="organization"]')).not.toBeNull();
 
     const result = await axe.run(element, { rules: { 'color-contrast': { enabled: false } } });

@@ -5,6 +5,7 @@ export interface BetaDiscordStatus {
   eligible: boolean;
   linked: boolean;
   configured: boolean;
+  guildId: string | null;
 }
 
 @Injectable({ providedIn: 'root' })

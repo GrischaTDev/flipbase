@@ -201,7 +201,12 @@ Deno.serve(async (request: Request) => {
 
   if (input.action === 'status') {
     return respond(
-      { eligible, linked: Boolean(linked.data), configured: Boolean(config) },
+      {
+        eligible,
+        linked: Boolean(linked.data),
+        configured: Boolean(config),
+        guildId: config?.guildId ?? null,
+      },
       200,
       cors,
     );

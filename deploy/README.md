@@ -239,6 +239,13 @@ zusammengehören:
    vergibt. Bei aktivierter Discord-Mitgliedschaftsprüfung muss der Nutzer
    diese zusätzlich abschließen.
 
+   Die Registrierung zeigt Passwort, Workspace und Discord als drei Schritte.
+   Nach der Discord-Freigabe kehrt der Nutzer zum dritten Schritt zurück und
+   sieht dort eine Willkommensbestätigung mit einem Link direkt zum Server.
+   Der Discord-Schritt kann übersprungen werden; solange die Verbindung fehlt,
+   erinnert das Dashboard später daran. Eine Kanalnachricht versendet der Bot
+   nicht, daher benötigt er keine Nachrichtenberechtigung.
+
    Folgende Werte gehören ausschließlich in `/opt/supabase/.env` und werden
    über `deploy/docker-compose.beta-application.yml` an den Funktionsdienst
    durchgereicht:

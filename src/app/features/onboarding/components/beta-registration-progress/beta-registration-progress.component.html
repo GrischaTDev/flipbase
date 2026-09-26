@@ -1,0 +1,25 @@
+<nav [attr.aria-label]="'BETA_ONBOARDING.PROGRESS_LABEL' | translate">
+  <ol class="grid grid-cols-3 gap-2">
+    @for (item of steps; track item.number) {
+      <li class="flex min-w-0 flex-col items-center gap-2 text-center">
+        <span
+          class="flex h-8 w-8 items-center justify-center rounded-full border text-sm font-semibold"
+          [class.border-fb-primary]="step() >= item.number"
+          [class.bg-fb-primary]="step() >= item.number"
+          [class.text-fb-on-accent]="step() >= item.number"
+          [class.border-fb-border]="step() < item.number"
+          [class.text-fb-text-muted]="step() < item.number"
+          [attr.aria-current]="step() === item.number ? 'step' : null"
+          >{{ item.number }}</span
+        >
+        <span
+          class="text-xs leading-snug"
+          [class.font-semibold]="step() === item.number"
+          [class.text-fb-text-primary]="step() === item.number"
+          [class.text-fb-text-muted]="step() !== item.number"
+          >{{ item.label | translate }}</span
+        >
+      </li>
+    }
+  </ol>
+</nav>

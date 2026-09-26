@@ -38,6 +38,7 @@ import { NgOptimizedImage } from '@angular/common';
 import { environment } from '../../../../environments/environment';
 import { TermsModalComponent } from '../components/terms-modal/terms-modal.component';
 import { PrivacyModalComponent } from '../components/privacy-modal/privacy-modal.component';
+import { BetaRegistrationProgressComponent } from '../../onboarding/components/beta-registration-progress/beta-registration-progress.component';
 
 /** Validator to ensure password and confirmPassword match */
 const passwordMatchValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
@@ -58,6 +59,7 @@ const passwordMatchValidator: ValidatorFn = (control: AbstractControl): Validati
     NgOptimizedImage,
     TermsModalComponent,
     PrivacyModalComponent,
+    BetaRegistrationProgressComponent,
   ],
   templateUrl: './set-password.component.html',
   host: { class: 'block fb-admin' },
@@ -244,9 +246,7 @@ export class SetPasswordComponent implements OnInit {
       await this.authService.activatePendingBetaAccess();
 
       this.successMessage.set(this.translate.instant('AUTH.SET_PASSWORD_SUCCESS'));
-      setTimeout(() => {
-        void this.router.navigate(['/dashboard']);
-      }, 1200);
+      await this.router.navigate(['/onboarding/workspace']);
     } catch (err: unknown) {
       this.errorMessage.set(
         err instanceof Error ? err.message : 'Passwort konnte nicht gespeichert werden.',
