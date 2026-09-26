@@ -141,6 +141,17 @@ describe('ButtonComponent', () => {
     expect(button.classList).not.toContain('justify-center');
   });
 
+  it('setzt bei einem plain-Button keinen horizontalen Abstand vor den Text', () => {
+    fixture.componentRef.setInput('variant', 'plain');
+    fixture.componentRef.setInput('fullWidth', true);
+    fixture.componentRef.setInput('contentAlign', 'start');
+    fixture.detectChanges();
+
+    const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
+    expect(button.classList).toContain('px-0');
+    expect(button.classList).not.toContain('px-3');
+  });
+
   it('should be disabled and show loading state when loading input is true', () => {
     fixture.componentRef.setInput('loading', true);
     fixture.detectChanges();

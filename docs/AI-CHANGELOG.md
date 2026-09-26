@@ -1,5 +1,21 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-26 – Juna – Variantenzeile im Einkauf exakt ausgerichtet
+
+**Auftrag:** Größe und Farbe in der Liste der Einkaufspositionen tatsächlich
+bündig unter dem sichtbaren Artikeltitel platzieren.
+
+**Änderung:** Die Größenklasse des gemeinsamen einfachen Buttons fügte trotz
+`p-0` seitlichen Innenabstand hinzu. Einfache Buttons erhalten nun ausdrücklich
+keinen horizontalen Innenabstand; andere Button-Varianten behalten ihre
+bisherigen Abstände. Die Variantenzeile beginnt dadurch an derselben Stelle wie
+der Artikeltitel.
+
+**Prüfung:** 41 gezielte Angular-Tests für Button und Einkaufsposition, ESLint,
+TypeScript-Typprüfung, Formatierung und Angular-Produktionsbau bestanden. Eine
+Browser-Messung mit dem gebauten Stylesheet ergab denselben linken Startpunkt
+für Titeltext und Variantenzeile.
+
 ## 2026-09-26 – Juna – Variantendetails im Einkauf sichtbar gemacht
 
 **Auftrag:** Größe und Farbe einer Einkaufsposition direkt unter dem Artikelnamen
