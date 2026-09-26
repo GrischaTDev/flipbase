@@ -22,6 +22,7 @@ import {
 } from '@lucide/angular';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
+import { VERSION } from '../../../core/version';
 import {
   CustomSelectComponent,
   SelectOption,
@@ -88,6 +89,7 @@ export class SettingsShellComponent {
   private readonly destroyRef = inject(DestroyRef);
 
   readonly navigation = SETTINGS_NAVIGATION;
+  readonly version = VERSION;
   readonly mobileOptions: readonly SelectOption<string>[] = this.navigation.map((item) => ({
     value: item.path,
     label: item.label,
