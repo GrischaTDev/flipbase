@@ -81,7 +81,9 @@ export const TRANSLATIONS_DE = {
     SET_PASSWORD_TITLE: 'Passwort festlegen',
     SET_PASSWORD_SUBTITLE:
       'Willkommen bei Flipbase! Bitte wähle dein persönliches Passwort, um deinen Beta-Zugang zu starten.',
-    SUBMIT_SET_PASSWORD: 'Weiter zum Workspace',
+    SUBMIT_SET_PASSWORD: 'Weiter',
+    PASSWORD_ALREADY_SET:
+      'Dein Passwort ist bereits festgelegt. Du kannst direkt weitergehen oder ein neues eingeben.',
     SET_PASSWORD_SUCCESS: 'Dein Passwort wurde festgelegt! Du wirst weitergeleitet...',
     SET_PASSWORD_INVALID_TITLE: 'Ungültiger Einladungslink',
     SET_PASSWORD_INVALID_TEXT:
@@ -133,13 +135,14 @@ export const TRANSLATIONS_DE = {
     SETUP_HELP: 'Du kannst den Namen später jederzeit in den Einstellungen ändern.',
     SETUP_NAME_PLACEHOLDER: 'Zum Beispiel Kamera Handel',
     SETUP_NAME_ERROR: 'Bitte gib einen Namen mit 2 bis 100 Zeichen ein.',
-    SETUP_SUBMIT: 'Weiter zu Discord',
+    SETUP_SUBMIT: 'Weiter',
     SETUP_RETRY: 'Erneut versuchen',
     SETUP_LOAD_ERROR: 'Der Workspace konnte nicht geladen werden.',
     SETUP_MISSING_ERROR: 'Dein Workspace ist noch nicht verfügbar.',
     SETUP_SAVE_ERROR: 'Der Workspace konnte nicht eingerichtet werden.',
   },
   BETA_ONBOARDING: {
+    BACK: 'Zurück',
     PROGRESS_LABEL: 'Deine Beta-Registrierung',
     PASSWORD: 'Passwort',
     WORKSPACE: 'Workspace',
@@ -473,7 +476,8 @@ export const TRANSLATIONS_EN = {
     SET_PASSWORD_TITLE: 'Set Password',
     SET_PASSWORD_SUBTITLE:
       'Welcome to Flipbase! Please choose your personal password to start your beta access.',
-    SUBMIT_SET_PASSWORD: 'Continue to workspace',
+    SUBMIT_SET_PASSWORD: 'Continue',
+    PASSWORD_ALREADY_SET: 'Your password is already set. Continue or enter a new one.',
     SET_PASSWORD_SUCCESS: 'Your password has been set! Redirecting...',
     SET_PASSWORD_INVALID_TITLE: 'Invalid Invitation Link',
     SET_PASSWORD_INVALID_TEXT:
@@ -523,13 +527,14 @@ export const TRANSLATIONS_EN = {
     SETUP_HELP: 'You can change the name later at any time in settings.',
     SETUP_NAME_PLACEHOLDER: 'For example Camera Trading',
     SETUP_NAME_ERROR: 'Please enter a name between 2 and 100 characters.',
-    SETUP_SUBMIT: 'Continue to Discord',
+    SETUP_SUBMIT: 'Continue',
     SETUP_RETRY: 'Try again',
     SETUP_LOAD_ERROR: 'The workspace could not be loaded.',
     SETUP_MISSING_ERROR: 'Your workspace is not available yet.',
     SETUP_SAVE_ERROR: 'The workspace could not be set up.',
   },
   BETA_ONBOARDING: {
+    BACK: 'Back',
     PROGRESS_LABEL: 'Your beta registration',
     PASSWORD: 'Password',
     WORKSPACE: 'Workspace',

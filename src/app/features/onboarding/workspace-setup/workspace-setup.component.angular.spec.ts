@@ -89,6 +89,7 @@ beforeAll(async () => {
     'fullWidth',
     'contentAlign',
     'type',
+    'size',
     'formId',
     'link',
     'href',
@@ -134,6 +135,7 @@ describe('WorkspaceSetupComponent', () => {
       workspaces?: Workspace[];
       loadError?: Error | null;
       completeError?: Error | null;
+      review?: boolean;
     } = {},
   ) {
     const workspaces = signal(options.workspaces ?? [incompleteWorkspace]);
@@ -142,6 +144,7 @@ describe('WorkspaceSetupComponent', () => {
     const completeInitialSetup = vi.fn().mockResolvedValue({
       error: options.completeError ?? null,
     });
+    const updateWorkspaceSettings = vi.fn().mockResolvedValue({ error: null });
     const signOut = vi.fn().mockResolvedValue(undefined);
     const navigate = vi.fn().mockResolvedValue(true);
     const translate = (key: string) => translations[key] ?? key;
@@ -151,7 +154,13 @@ describe('WorkspaceSetupComponent', () => {
       providers: [
         {
           provide: WorkspaceService,
-          useValue: { workspaces, loadError, ensureLoaded, completeInitialSetup },
+          useValue: {
+            workspaces,
+            loadError,
+            ensureLoaded,
+            completeInitialSetup,
+            updateWorkspaceSettings,
+          },
         },
         {
           provide: AuthService,
@@ -167,7 +176,9 @@ describe('WorkspaceSetupComponent', () => {
         { provide: Router, useValue: { navigate } },
         {
           provide: ActivatedRoute,
-          useValue: { snapshot: { queryParamMap: convertToParamMap({}) } },
+          useValue: {
+            snapshot: { queryParamMap: convertToParamMap(options.review ? { review: '1' } : {}) },
+          },
         },
         {
           provide: BetaDiscordService,
@@ -193,6 +204,7 @@ describe('WorkspaceSetupComponent', () => {
       component: fixture.componentInstance,
       ensureLoaded,
       completeInitialSetup,
+      updateWorkspaceSettings,
       signOut,
       navigate,
     };
@@ -268,12 +280,47 @@ describe('WorkspaceSetupComponent', () => {
     expect(component.errorMessage()).toBe('Dein Workspace ist noch nicht verfügbar.');
   });
 
-  it('meldet den Nutzer über die bestehende Sitzungsfunktion ab', async () => {
-    const { component, signOut } = createComponent();
+  it('zeigt beim Zurueckgehen den gespeicherten Workspace und geht ohne erneutes Speichern weiter', async () => {
+    const completed = {
+      ...incompleteWorkspace,
+      name: 'Kamera Handel',
+      setup_completed_at: '2026-09-26T10:00:00Z',
+    };
+    const { component, completeInitialSetup, updateWorkspaceSettings, navigate } = createComponent({
+      workspaces: [completed],
+      review: true,
+    });
+    await component.ngOnInit();
+    expect(component.form.controls.workspaceName.value).toBe('Kamera Handel');
+    await component.onSubmit();
+    expect(completeInitialSetup).not.toHaveBeenCalled();
+    expect(updateWorkspaceSettings).not.toHaveBeenCalled();
+    expect(navigate).toHaveBeenCalledWith(['/onboarding/discord']);
+  });
 
-    await component.signOut();
+  it('laesst einen noch unvollstaendigen Workspace nach dem Passwort-Rueckweg einrichten', async () => {
+    const { component, completeInitialSetup } = createComponent({ review: true });
+    await component.ngOnInit();
+    expect(component.isReview()).toBe(false);
+    component.form.controls.workspaceName.setValue('Anna Handel');
+    await component.onSubmit();
+    expect(completeInitialSetup).toHaveBeenCalledWith(incompleteWorkspace.id, 'Anna Handel');
+  });
 
-    expect(signOut).toHaveBeenCalledOnce();
+  it('speichert einen im Rueckweg geaenderten Workspace-Namen', async () => {
+    const completed = {
+      ...incompleteWorkspace,
+      name: 'Alter Name',
+      setup_completed_at: '2026-09-26T10:00:00Z',
+    };
+    const { component, updateWorkspaceSettings } = createComponent({
+      workspaces: [completed],
+      review: true,
+    });
+    await component.ngOnInit();
+    component.form.controls.workspaceName.setValue('Neuer Name');
+    await component.onSubmit();
+    expect(updateWorkspaceSettings).toHaveBeenCalledWith(completed.id, { name: 'Neuer Name' });
   });
 
   it('zeigt die beschlossene Ein-Feld-Seite ohne schwerwiegende Barrieren', async () => {

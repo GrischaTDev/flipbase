@@ -1,7 +1,26 @@
 <nav [attr.aria-label]="'BETA_ONBOARDING.PROGRESS_LABEL' | translate">
-  <ol class="grid grid-cols-3 gap-2">
+  <ol class="relative grid grid-cols-3 gap-2">
+    <li
+      aria-hidden="true"
+      class="pointer-events-none absolute inset-x-[16.667%] top-4 flex h-0.5 -translate-y-1/2"
+    >
+      <span class="h-full w-1/2 bg-fb-border">
+        @if (step() >= 2) {
+          <span
+            class="block h-full w-full origin-left bg-fb-primary motion-safe:animate-[beta-progress-fill_450ms_ease-out_both]"
+          ></span>
+        }
+      </span>
+      <span class="h-full w-1/2 bg-fb-border">
+        @if (step() >= 3) {
+          <span
+            class="block h-full w-full origin-left bg-fb-primary motion-safe:animate-[beta-progress-fill_450ms_ease-out_both] motion-safe:[animation-delay:100ms]"
+          ></span>
+        }
+      </span>
+    </li>
     @for (item of steps; track item.number) {
-      <li class="flex min-w-0 flex-col items-center gap-2 text-center">
+      <li class="relative flex min-w-0 flex-col items-center gap-2 text-center">
         <span
           class="flex h-8 w-8 items-center justify-center rounded-full border text-sm font-semibold"
           [class.border-fb-primary]="step() >= item.number"

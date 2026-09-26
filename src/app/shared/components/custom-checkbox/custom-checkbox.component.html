@@ -6,7 +6,7 @@
   [attr.aria-disabled]="effectiveDisabled()"
   [attr.aria-label]="ariaLabel() || label() || 'Checkbox'"
   [id]="id() || null"
-  class="relative inline-flex items-center gap-2 select-none group"
+  class="relative inline-flex items-center gap-2 select-none group rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
   (click)="toggle($event)"
   (blur)="onBlur()"
 >

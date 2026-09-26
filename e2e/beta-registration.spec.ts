@@ -108,8 +108,20 @@ test('genehmigt eine Bewerbung und startet nach der Passwortvergabe 60 Beta-Tage
   await page.locator('button[type="submit"]').click();
   await expect(page).toHaveURL(/\/onboarding\/workspace$/u, { timeout: 15_000 });
   await expect(page.getByText('Workspace', { exact: true })).toBeVisible();
+  await page.getByRole('link', { name: 'Zurück' }).click();
+  await expect(page).toHaveURL(/\/auth\/set-password\?review=1/u);
+  await expect(page.getByText('Dein Passwort ist bereits festgelegt.')).toBeVisible();
+  await page.getByRole('button', { name: 'Weiter' }).click();
+  await expect(page).toHaveURL(/\/onboarding\/workspace\?review=1/u);
   await page.getByRole('textbox', { name: 'Wie soll dein Workspace heißen?' }).fill('Anna Handel');
-  await page.getByRole('button', { name: 'Weiter zu Discord' }).click();
+  await page.getByRole('button', { name: 'Weiter' }).click();
+  await expect(page).toHaveURL(/\/onboarding\/discord$/u);
+  await page.getByRole('link', { name: 'Zurück' }).click();
+  await expect(page).toHaveURL(/\/onboarding\/workspace\?review=1/u);
+  await expect(page.getByRole('textbox', { name: 'Wie soll dein Workspace heißen?' })).toHaveValue(
+    'Anna Handel',
+  );
+  await page.getByRole('button', { name: 'Weiter' }).click();
   await expect(page).toHaveURL(/\/onboarding\/discord$/u);
   await expect(
     page.getByRole('heading', { name: 'Werde Teil unserer Beta-Community' }),
