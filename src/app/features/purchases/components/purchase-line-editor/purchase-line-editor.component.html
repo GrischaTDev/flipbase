@@ -58,6 +58,13 @@
                       row.controls.titleSnapshot.value || 'Produkt zuordnen'
                     }}</span></app-button
                   >
+                  @if (productForId(row.controls.catalogProductId.value); as product) {
+                    @if (variantLabel(product); as label) {
+                      @if (!row.controls.titleSnapshot.value.includes(label)) {
+                        <p class="mt-1 text-xs text-fb-text-muted">{{ label }}</p>
+                      }
+                    }
+                  }
                   @if (row.invalid) {
                     <p class="mt-1 text-xs text-rose-700 dark:text-rose-400">Angaben prüfen</p>
                   }
@@ -270,73 +277,111 @@
     size="md"
     (closed)="detailId.set(null)"
   >
-    <div [formGroup]="row" class="space-y-4">
-      @if (!row.controls.catalogProductId.value) {
-        @if (row.controls.lineKind.value === 'quantity') {
+    @if (detailCreatingVariant()) {
+      @if (detailProduct(); as product) {
+        <app-product-variant-create-form
+          data-line-variant-form
+          [product]="product"
+          (cancelled)="cancelDetailVariantCreation()"
+          (created)="onDetailVariantCreated($event)"
+        />
+      }
+    } @else {
+      <div [formGroup]="row" class="space-y-4">
+        @if (!row.controls.catalogProductId.value) {
+          @if (row.controls.lineKind.value === 'quantity') {
+            <div>
+              <label class="mb-1.5 block text-[13px] font-semibold" for="line-product"
+                >Produkt zuordnen</label
+              ><app-custom-select
+                triggerId="line-product"
+                ariaLabel="Produkt zuordnen"
+                [options]="productOptions()"
+                [value]="row.controls.catalogProductId.value"
+                (valueChange)="selectCatalogProduct(lineRows.controls.indexOf(row), $event ?? '')"
+              />
+            </div>
+          }
+          <app-text-field label="Bezeichnung" formControlName="titleSnapshot" />
+        }
+        @if (detailProduct(); as product) {
+          @if (variantsFor(product).length > 1 && !row.controls.structuralLocked.value) {
+            <div>
+              <label for="line-variant" class="mb-1.5 block text-[13px] font-semibold">
+                Variante für diesen Einkauf
+              </label>
+              <app-custom-select
+                triggerId="line-variant"
+                ariaLabel="Variante für diesen Einkauf"
+                [options]="variantOptionsFor(product)"
+                [value]="row.controls.catalogProductId.value"
+                (valueChange)="selectCatalogProduct(lineRows.controls.indexOf(row), $event ?? '')"
+              />
+            </div>
+          }
+          @if (!row.controls.structuralLocked.value && row.controls.lineKind.value === 'quantity') {
+            <app-button
+              data-add-line-variant
+              variant="secondary"
+              [icon]="plusIcon"
+              (clicked)="startDetailVariantCreation()"
+            >
+              Neue Variante anlegen
+            </app-button>
+          }
+          <dl class="grid grid-cols-2 gap-2 text-[13px]">
+            <dt class="text-fb-text-muted">Marke</dt>
+            <dd class="break-words">{{ product.brand || 'Nicht angegeben' }}</dd>
+            <dt class="text-fb-text-muted">Modell</dt>
+            <dd class="break-words">{{ product.model || 'Nicht angegeben' }}</dd>
+            <dt class="text-fb-text-muted">Kategorie</dt>
+            <dd class="break-words">{{ product.category || 'Nicht angegeben' }}</dd>
+            <dt class="text-fb-text-muted">Notiz</dt>
+            <dd class="break-words">{{ product.condition_notes || 'Nicht angegeben' }}</dd>
+          </dl>
+        }
+        @if (row.controls.isPackage.value) {
+          <p class="text-[13px] text-fb-text-muted">
+            Ein Paket mit einem Gesamtpreis. Den Inhalt erfasst du nach der Ankunft direkt im
+            Einkauf. Hinweise zum erwarteten Inhalt kannst du in den Einkaufsnotizen festhalten.
+          </p>
+        } @else {
+          <app-text-field
+            label="EAN / GTIN"
+            formControlName="ean"
+            [error]="row.controls.ean.invalid ? 'Ungültige EAN/GTIN.' : null"
+          />
           <div>
-            <label class="mb-1.5 block text-[13px] font-semibold" for="line-product"
-              >Produkt zuordnen</label
+            <label for="line-condition" class="mb-1.5 block text-[13px] font-semibold"
+              >Zustand</label
             ><app-custom-select
-              triggerId="line-product"
-              ariaLabel="Produkt zuordnen"
-              [options]="productOptions()"
-              [value]="row.controls.catalogProductId.value"
-              (valueChange)="selectCatalogProduct(lineRows.controls.indexOf(row), $event ?? '')"
+              triggerId="line-condition"
+              ariaLabel="Zustand"
+              formControlName="condition"
+              [options]="conditionOptions"
             />
           </div>
         }
-        <app-text-field label="Bezeichnung" formControlName="titleSnapshot" />
-      }
-      @if (detailProduct(); as product) {
-        <dl class="grid grid-cols-2 gap-2 text-[13px]">
-          <dt class="text-fb-text-muted">Marke</dt>
-          <dd class="break-words">{{ product.brand || 'Nicht angegeben' }}</dd>
-          <dt class="text-fb-text-muted">Modell</dt>
-          <dd class="break-words">{{ product.model || 'Nicht angegeben' }}</dd>
-          <dt class="text-fb-text-muted">Kategorie</dt>
-          <dd class="break-words">{{ product.category || 'Nicht angegeben' }}</dd>
-          <dt class="text-fb-text-muted">Notiz</dt>
-          <dd class="break-words">{{ product.condition_notes || 'Nicht angegeben' }}</dd>
-        </dl>
-      }
-      @if (row.controls.isPackage.value) {
-        <p class="text-[13px] text-fb-text-muted">
-          Ein Paket mit einem Gesamtpreis. Den Inhalt erfasst du nach der Ankunft direkt im Einkauf.
-          Hinweise zum erwarteten Inhalt kannst du in den Einkaufsnotizen festhalten.
-        </p>
-      } @else {
-        <app-text-field
-          label="EAN / GTIN"
-          formControlName="ean"
-          [error]="row.controls.ean.invalid ? 'Ungültige EAN/GTIN.' : null"
-        />
-        <div>
-          <label for="line-condition" class="mb-1.5 block text-[13px] font-semibold">Zustand</label
-          ><app-custom-select
-            triggerId="line-condition"
-            ariaLabel="Zustand"
-            formControlName="condition"
-            [options]="conditionOptions"
-          />
-        </div>
-      }
-      @if (isMysteryPurchase()) {
-        <div>
-          <label for="line-market-value" class="mb-1.5 block text-[13px] font-semibold"
-            >Geschätzter Marktwert</label
-          ><app-number-input
-            id="line-market-value"
-            ariaLabel="Geschätzter Marktwert"
-            formControlName="estimatedMarketValue"
-            [min]="0"
-            [step]="0.01"
-            [showStepper]="false"
-            unit="€"
-          />
-        </div>
-      }
-    </div>
-    <app-button modal-footer variant="primary" (clicked)="detailId.set(null)">Fertig</app-button>
+        @if (isMysteryPurchase()) {
+          <div>
+            <label for="line-market-value" class="mb-1.5 block text-[13px] font-semibold"
+              >Geschätzter Marktwert</label
+            ><app-number-input
+              id="line-market-value"
+              ariaLabel="Geschätzter Marktwert"
+              formControlName="estimatedMarketValue"
+              [min]="0"
+              [step]="0.01"
+              [showStepper]="false"
+              unit="€"
+            />
+          </div>
+        }
+      </div>
+    }
+    @if (!detailCreatingVariant()) {
+      <app-button modal-footer variant="primary" (clicked)="detailId.set(null)">Fertig</app-button>
+    }
   </app-modal-shell>
 }
 @if (importPreview().length) {

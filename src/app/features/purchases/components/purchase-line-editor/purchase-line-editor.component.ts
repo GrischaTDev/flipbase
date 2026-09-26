@@ -2,6 +2,8 @@ import {
   ChangeDetectionStrategy,
   Component,
   ElementRef,
+  Injector,
+  afterNextRender,
   computed,
   effect,
   inject,
@@ -35,12 +37,19 @@ import { TableActionButtonComponent } from '../../../../shared/components/table-
 import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { CurrencyPipe } from '@angular/common';
-import { LucideSearch, LucideUpload, LucideScanBarcode, LucideTrash2 } from '@lucide/angular';
+import {
+  LucideSearch,
+  LucideUpload,
+  LucideScanBarcode,
+  LucideTrash2,
+  LucidePlus,
+} from '@lucide/angular';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
 import { previewPurchaseImport, PurchaseImportPreviewRow } from './purchase-import-preview';
 import { canonicalGtin, normalizeGtin } from '../../../../shared/utils/gtin';
 import { PurchaseLinePriceMode } from '../../../../core/models/purchase-costing.models';
+import { ProductVariantCreateFormComponent } from '../../../catalog/components/product-variant-create-form/product-variant-create-form.component';
 
 export interface PurchaseLineDraft {
   readonly isPackage?: boolean;
@@ -105,6 +114,7 @@ type PriceField = 'unitPurchasePrice' | 'lineTotal';
     TableActionButtonComponent,
     NumberInputComponent,
     TextFieldComponent,
+    ProductVariantCreateFormComponent,
   ],
   templateUrl: './purchase-line-editor.component.html',
   host: { class: 'block min-w-0' },
@@ -114,11 +124,14 @@ export class PurchaseLineEditorComponent {
   readonly catalogService = inject(CatalogService);
   private readonly barcodeLookup = inject(BarcodeLookupService);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly injector = inject(Injector);
   readonly searchIcon = LucideSearch;
+  readonly plusIcon = LucidePlus;
   readonly importIcon = LucideUpload;
   readonly scannerIcon = LucideScanBarcode;
   readonly removeIcon = LucideTrash2;
   readonly detailId = signal<string | null>(null);
+  readonly detailCreatingVariant = signal(false);
   readonly importPreview = signal<readonly PurchaseImportPreviewRow[]>([]);
   private importWorkspaceId: string | null = null;
   readonly importBlocked = computed(() =>
@@ -135,7 +148,9 @@ export class PurchaseLineEditorComponent {
       )
       .map((product) => ({
         value: product.id,
-        label: product.title + (product.condition ? ' · ' + product.condition : ''),
+        label: [product.title, this.variantLabel(product), product.ean || product.sku]
+          .filter(Boolean)
+          .join(' · '),
       })),
   );
   private readonly workspaceService = inject(WorkspaceService);
@@ -235,7 +250,7 @@ export class PurchaseLineEditorComponent {
       row.patchValue(
         {
           catalogProductId: product.id,
-          titleSnapshot: product.title,
+          titleSnapshot: this.purchaseProductTitle(product),
           ean: product.ean ?? null,
           condition: product.condition ?? 'used',
         },
@@ -349,11 +364,44 @@ export class PurchaseLineEditorComponent {
 
   selectCatalogProduct(index: number, catalogProductId: string): void {
     const row = this.lineRows.at(index);
-    if (row.controls.lineKind.value === 'individual') return;
+    if (row.controls.lineKind.value === 'individual' || row.controls.structuralLocked.value) return;
     const product = this.availableProducts().find((entry) => entry.id === catalogProductId);
     row.controls.catalogProductId.setValue(product?.id ?? null);
-    if (product) row.controls.titleSnapshot.setValue(product.title);
+    if (product) {
+      row.controls.titleSnapshot.setValue(this.purchaseProductTitle(product));
+      row.controls.ean.setValue(product.ean ?? null);
+    }
     this.emitDrafts();
+  }
+
+  variantLabel(product: CatalogProduct): string {
+    return [product.size ? `Größe ${product.size}` : '', product.color ?? '']
+      .filter(Boolean)
+      .join(' · ');
+  }
+
+  purchaseProductTitle(product: CatalogProduct): string {
+    const variant = this.variantLabel(product);
+    return variant ? `${product.title} · ${variant}` : product.title;
+  }
+
+  productForId(id: string | null): CatalogProduct | undefined {
+    return this.availableProducts().find((product) => product.id === id);
+  }
+
+  variantsFor(product: CatalogProduct): readonly CatalogProduct[] {
+    const groupId = product.variant_group_id ?? product.id;
+    return this.availableProducts().filter(
+      (candidate) =>
+        !candidate.archived_at && (candidate.variant_group_id ?? candidate.id) === groupId,
+    );
+  }
+
+  variantOptionsFor(product: CatalogProduct): SelectOption<string>[] {
+    return this.variantsFor(product).map((variant) => ({
+      value: variant.id,
+      label: this.variantLabel(variant) || 'Ohne Größe und Farbe',
+    }));
   }
 
   updateTitleSnapshot(index: number, titleSnapshot: string): void {
@@ -446,7 +494,33 @@ export class PurchaseLineEditorComponent {
   }
 
   openDetails(draftId: string): void {
+    this.detailCreatingVariant.set(false);
     this.detailId.set(draftId);
+  }
+
+  onDetailVariantCreated(product: CatalogProduct): void {
+    const row = this.detailRow();
+    if (!row) return;
+    this.selectCatalogProduct(this.lineRows.controls.indexOf(row), product.id);
+    this.detailCreatingVariant.set(false);
+    this.focusDetailAfterRender('[data-add-line-variant] button');
+  }
+
+  startDetailVariantCreation(): void {
+    this.detailCreatingVariant.set(true);
+    this.focusDetailAfterRender('[data-line-variant-form] input');
+  }
+
+  cancelDetailVariantCreation(): void {
+    this.detailCreatingVariant.set(false);
+    this.focusDetailAfterRender('[data-add-line-variant] button');
+  }
+
+  private focusDetailAfterRender(selector: string): void {
+    if (!this.injector || !this.host) return;
+    afterNextRender(() => this.host.nativeElement.querySelector<HTMLElement>(selector)?.focus(), {
+      injector: this.injector,
+    });
   }
 
   detailRow(): FormGroup<PurchaseLineControls> | undefined {

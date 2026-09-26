@@ -244,6 +244,7 @@ function erstelleEditor(purchaseType: PurchaseType = 'single') {
     isCreatingProduct: signal(false),
     importError: signal(null),
     detailId: signal(null),
+    detailCreatingVariant: signal(false),
     importPreview: signal([]),
     linesChanged,
     createProductRequested: { emit: vi.fn() },
@@ -282,6 +283,33 @@ describe('PurchaseLineEditorComponent', () => {
     const { editor } = erstelleEditor();
     editor.addProducts([{ ...ledProduct, title: 'X' }]);
     expect(editor.lineRows.valid).toBe(true);
+  });
+  it('speichert die Größe in der Einkaufsposition und erlaubt den Wechsel der Variante', () => {
+    const { editor } = erstelleEditor();
+    const size39 = { ...ledProduct, id: 'size-39', variant_group_id: ledProduct.id, size: '39' };
+    const size40 = { ...ledProduct, id: 'size-40', variant_group_id: ledProduct.id, size: '40' };
+    Object.assign(editor, { availableProducts: () => [size39, size40] });
+
+    editor.addProducts([size39]);
+    expect(editor.getDrafts()[0]).toMatchObject({
+      catalogProductId: size39.id,
+      titleSnapshot: 'LED-Lampe · Größe 39',
+    });
+    expect(editor.variantOptionsFor(size39).map((option) => option.label)).toEqual([
+      'Größe 39',
+      'Größe 40',
+    ]);
+
+    editor.selectCatalogProduct(0, size40.id);
+    expect(editor.getDrafts()[0]).toMatchObject({
+      catalogProductId: size40.id,
+      titleSnapshot: 'LED-Lampe · Größe 40',
+    });
+    editor.openDetails(editor.lineRows.at(0).controls.draftId.value);
+    editor.detailCreatingVariant.set(true);
+    editor.onDetailVariantCreated(size39);
+    expect(editor.getDrafts()[0]?.catalogProductId).toBe(size39.id);
+    expect(editor.detailCreatingVariant()).toBe(false);
   });
   it('ordnet historische Einzelstückzeilen nicht unbemerkt einem Mengenprodukt zu', () => {
     const { editor } = erstelleEditor();
