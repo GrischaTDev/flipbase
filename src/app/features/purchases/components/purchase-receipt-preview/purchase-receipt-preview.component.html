@@ -37,9 +37,14 @@
         {{ summary.lines.length }} {{ summary.lines.length === 1 ? 'Position' : 'Positionen' }}
       </span>
     </div>
-    <ul class="m-0 list-none divide-y divide-fb-line rounded-lg border border-fb-border p-0">
+    <ul
+      aria-label="Artikelpositionen"
+      tabindex="0"
+      [style.max-height.px]="listMaxHeight()"
+      class="m-0 list-none divide-y divide-fb-line overflow-y-auto overscroll-contain rounded-lg border border-fb-border p-0 focus-visible:outline-2 focus-visible:outline-fb-primary"
+    >
       @for (line of summary.lines; track line.id) {
-        <li class="flex items-center gap-3 p-3">
+        <li class="flex min-h-20 items-center gap-3 p-3">
           <app-product-thumbnail
             [src]="imageUrls()[line.catalogProductId || ''] || null"
             size="md"

@@ -1,5 +1,21 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-26 – Juna – Artikelvorschau auf fünf Positionen begrenzt
+
+**Auftrag:** Die Vorschau in „Erhalten“ soll bei vielen Artikeln kompakt bleiben,
+innerhalb der Artikelliste scrollen und beim Öffnen nach oben nicht hinter dem
+Seitenkopf verschwinden.
+
+**Änderung:** Die Liste zeigt höchstens fünf normal hohe Positionen auf einmal;
+weitere bleiben innerhalb der Liste scrollbar. Titel und Link zum Einkauf
+bleiben außerhalb dieser Scrollfläche. Bei nach oben geöffneten Vorschauen
+begrenzt die sichtbare Unterkante des Seitenkopfs den verfügbaren Platz.
+
+**Prüfung:** 23 Angular-Tests bestanden, darunter neue Fälle für den Abstand zum
+Seitenkopf und zehn scrollbar dargestellte Positionen. Vollständiges ESLint,
+TypeScript-Prüfung, Prettier, Shared-UI-Prüfung und Angular-Produktionsbau waren
+erfolgreich.
+
 ## 2026-09-26 – Juna – Einkaufs-Vorschauen einzeln und passend zum Bildschirm öffnen
 
 **Auftrag:** Beim Wechsel zwischen „Erhalten“-Zellen darf nur eine

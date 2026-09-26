@@ -49,6 +49,9 @@ export class PurchaseReceiptPreviewComponent {
     left: 0,
     maxHeight: 0,
   });
+  readonly listMaxHeight = computed(() =>
+    Math.max(80, Math.min(402, this.panelPosition().maxHeight - 104)),
+  );
   readonly imageUrls = computed(() =>
     this.catalogService.loadedWorkspaceId() === this.workspaceService.currentWorkspace()?.id
       ? this.catalogService.imageUrls()
@@ -75,7 +78,11 @@ export class PurchaseReceiptPreviewComponent {
       window.innerWidth - panelWidth - viewportPadding,
     );
     const spaceBelow = window.innerHeight - rect.bottom - viewportPadding - 4;
-    const spaceAbove = rect.top - viewportPadding - 4;
+    const headerBottom =
+      document.querySelector<HTMLElement>('[data-shell-header] header')?.getBoundingClientRect()
+        .bottom ?? 0;
+    const upperBoundary = Math.max(viewportPadding, headerBottom + viewportPadding);
+    const spaceAbove = rect.top - upperBoundary - 4;
     const openBelow = spaceBelow >= spaceAbove;
     this.panelPosition.set({
       top: openBelow ? rect.bottom + 4 : null,
