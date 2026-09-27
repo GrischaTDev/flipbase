@@ -3,189 +3,96 @@
   subtitle="Melde Dich mit Deinem Vinted-Konto an."
 >
   @if (!store.availabilityChecked()) {
-    <p role="status" class="text-sm text-fb-text-secondary">
-      Verbindung zum Browserdienst wird geprüft …
-    </p>
+    <p role="status" class="text-sm text-fb-text-secondary">Anmeldung wird vorbereitet …</p>
   } @else if (!store.available()) {
     <app-notice-banner>
-      Die Vinted-Anmeldung ist noch nicht verfügbar: Der Browserdienst ist auf dem Server nicht
-      erreichbar. Du kannst die Verbindung in Flipbase vorbereiten, aber derzeit kein Vinted-Konto
-      anmelden oder Daten abrufen.
+      Die Vinted-Anmeldung ist derzeit nicht verfügbar: Der Browserdienst ist auf dem Server nicht
+      erreichbar. Bitte versuche es später erneut.
     </app-notice-banner>
   } @else if (store.connection(); as connection) {
     <p class="text-sm text-fb-text-secondary">
       Ausgewähltes Konto: <strong class="text-fb-text-primary">{{ connection.displayName }}</strong>
     </p>
-    <app-notice-banner class="mt-4">
-      @if (store.readOnly()) {
-        Dieser Test öffnet eine öffentliche Profilseite im lokalen Browser. Du kannst nur das Bild
-        ansehen und den Browser beenden. Es werden keine Eingaben gesendet.
-      } @else {
-        Dieses Konto erhält ein eigenes, dauerhaftes GoLogin-Browserprofil. Melde Dich mit Deinem
-        Vinted-Konto an. Falls Vinted einen Code oder eine weitere Prüfung verlangt, erledigst Du
-        das in der Browseransicht unten. Die Bedienung endet nach zehn Minuten; die gespeicherte
-        Anmeldung im zugeordneten Profil bleibt erhalten.
-      }
-    </app-notice-banner>
     @if (store.error(); as error) {
       <app-notice-banner class="mt-4" announcement="alert">{{ error }}</app-notice-banner>
     }
-    @if (!store.readOnly() && !store.awaitingLogin()) {
-      @if (connection.status === 'connected') {
+    @if (store.readOnly()) {
+      <app-notice-banner class="mt-4">
+        Dieser Test zeigt nur eine öffentliche Seite. Es werden keine Eingaben gesendet.
+      </app-notice-banner>
+      @if (!store.session()) {
+        <app-button
+          class="mt-4"
+          [disabled]="!store.canStart()"
+          [loading]="store.busy()"
+          (clicked)="store.start()"
+        >
+          Öffentlichen Testbrowser starten
+        </app-button>
+      } @else {
+        <div class="mt-4 flex flex-wrap gap-2">
+          <app-button [disabled]="!store.canAct()" (clicked)="store.refresh()"
+            >Bild aktualisieren</app-button
+          >
+          <app-button variant="destructive" (clicked)="store.close()">Test beenden</app-button>
+        </div>
+        @if (store.session()?.frameUrl; as frameUrl) {
+          <img
+            [src]="frameUrl"
+            alt="Öffentliche Profilseite im lokalen Testbrowser"
+            class="mt-4 block max-w-full"
+          />
+        }
+      }
+    } @else {
+      @if (connection.status === 'connected' && !store.session()) {
         <p role="status" class="mt-4 text-sm font-medium">Dein Vinted-Konto ist verbunden.</p>
         <app-button class="mt-3" link="/marketplaces/vinted/profile"
           >Verbundenes Profil ansehen</app-button
         >
-      }
-      @if (connection.status !== 'connected') {
-        <form class="mt-4 max-w-md space-y-4" [formGroup]="loginForm" (ngSubmit)="login()">
-          <app-text-field
-            label="Vinted-Mitgliedsname oder E-Mail"
-            autocomplete="off"
-            [formControl]="loginForm.controls.username"
-            [required]="true"
-            [maxLength]="256"
-          />
-          <app-text-field
-            label="Vinted-Passwort"
-            type="password"
-            autocomplete="off"
-            [formControl]="loginForm.controls.password"
-            [required]="true"
-            [maxLength]="256"
-          />
-          <p class="text-xs text-fb-text-secondary">
-            Deine Eingaben werden einmalig über den Flipbase-Browserdienst an Vinted übergeben.
-            Flipbase speichert Dein Passwort nicht.
-          </p>
-          <app-button
-            type="submit"
-            variant="primary"
-            [loading]="store.busy()"
-            [disabled]="(!store.canStart() && !store.canAct()) || loginForm.invalid"
-            >Anmelden und Konto verbinden</app-button
-          >
-        </form>
-      }
-    }
-    @if (store.awaitingLogin()) {
-      <p role="status" class="mt-4 text-sm text-fb-text-secondary">
-        Anmeldung wird geprüft. Falls Vinted weitere Angaben verlangt, nutze die Browseransicht.
-        Nach erfolgreicher Prüfung wird Dein Konto automatisch verbunden.
-      </p>
-    }
-    @if (!store.session()) {
-      <details class="mt-4">
-        <summary class="cursor-pointer text-sm text-fb-text-secondary">
-          Andere Anmeldemöglichkeit
-        </summary>
-        <app-button
-          class="mt-3"
-          [disabled]="!store.canStart()"
-          [loading]="store.busy()"
-          (clicked)="store.start()"
-          >{{
-            store.readOnly()
-              ? 'Öffentlichen Testbrowser starten'
-              : 'Browser für manuelle Anmeldung öffnen'
-          }}</app-button
-        >
-      </details>
-    }
-    @if (store.session()) {
-      <div class="mt-4 flex flex-wrap gap-2">
-        <app-button [disabled]="!store.canAct()" (clicked)="store.refresh()"
-          >Bild aktualisieren</app-button
-        >
-        <app-button variant="destructive" [disabled]="!store.session()" (clicked)="store.close()"
-          >Browser beenden</app-button
-        >
-      </div>
-    }
-    @if (!store.readOnly() && store.session()) {
-      <app-button class="mt-4" [disabled]="!store.canAct()" (clicked)="store.confirmAccount()"
-        >Verbindung erneut prüfen</app-button
-      >
-    }
-    @if (store.session(); as session) {
-      <details class="mt-4" [open]="store.awaitingLogin() || store.readOnly() || !store.error()">
-        <summary class="cursor-pointer text-sm font-medium">
-          Vinted-Browser für zusätzliche Prüfungen
-        </summary>
-        @if (session.frameUrl) {
-          <div class="mt-4 max-w-full overflow-auto">
-            @if (store.readOnly()) {
-              <img
-                [src]="session.frameUrl"
-                alt="Öffentliche Profilseite im lokalen Testbrowser"
-                class="block max-w-full"
-              />
-            } @else {
-              <button
-                type="button"
-                class="block max-w-full rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary disabled:opacity-50"
-                aria-label="Browserbild anklicken; mit Enter die Bildmitte anklicken"
-                [disabled]="!store.canAct()"
-                (click)="clickFrame($event)"
-              >
-                <img
-                  [src]="session.frameUrl"
-                  alt="Aktuelles Browserbild des ausgewählten Vinted-Kontos"
-                  class="block max-w-full"
-                />
-              </button>
-            }
-          </div>
-        }
-        @if (!store.readOnly()) {
-          <div class="mt-4 max-w-md space-y-2">
+      } @else {
+        @if (!store.awaitingLogin()) {
+          <form class="mt-4 max-w-md space-y-4" [formGroup]="loginForm" (ngSubmit)="login()">
             <app-text-field
-              label="Text oder Passwort für das aktive Browserfeld"
-              type="password"
+              label="Vinted-Mitgliedsname oder E-Mail"
               autocomplete="off"
-              [formControl]="text"
+              [formControl]="loginForm.controls.username"
+              [required]="true"
               [maxLength]="256"
             />
-            <app-button
-              [disabled]="!store.canAct() || !text.value || text.value.length > 256"
-              (clicked)="sendText()"
-              >Text einmal eingeben</app-button
-            >
-            <p class="text-xs text-fb-text-muted">
-              Die Eingabe wird nach dem Senden aus diesem Feld entfernt. Prüfe vor dem Senden,
-              welches Feld im Browser aktiv ist.
+            <app-text-field
+              label="Vinted-Passwort"
+              type="password"
+              autocomplete="off"
+              [formControl]="loginForm.controls.password"
+              [required]="true"
+              [maxLength]="256"
+            />
+            <p class="text-xs text-fb-text-secondary">
+              Die Anmeldung läuft im Hintergrund in Deinem eigenen Kontoprofil. Cookiehinweise
+              werden auf notwendige Cookies beschränkt. Flipbase speichert Dein Passwort nicht.
             </p>
-          </div>
-          <div
-            class="mt-4 flex flex-wrap gap-2"
-            role="group"
-            aria-label="Einzeltasten für den Testbrowser"
-          >
             <app-button
-              [disabled]="!store.canAct()"
-              (clicked)="store.input({ kind: 'press', key: 'Tab' })"
-              >Tab</app-button
+              type="submit"
+              variant="primary"
+              [loading]="store.busy()"
+              [disabled]="!store.canLogin() || loginForm.invalid"
             >
-            <app-button
-              [disabled]="!store.canAct()"
-              (clicked)="store.input({ kind: 'press', key: 'Enter' })"
-              >Enter</app-button
-            >
-            <app-button
-              [disabled]="!store.canAct()"
-              (clicked)="store.input({ kind: 'press', key: 'Escape' })"
-              >Escape</app-button
-            >
-            <app-button
-              [disabled]="!store.canAct()"
-              (clicked)="store.input({ kind: 'press', key: 'Backspace' })"
-              >Rücktaste</app-button
-            >
-          </div>
+              Anmelden und Konto verbinden
+            </app-button>
+          </form>
         }
-      </details>
+        @if (store.progress(); as progress) {
+          <p role="status" class="mt-4 text-sm text-fb-text-secondary">{{ progress }}</p>
+        }
+        @if (store.session()) {
+          <app-button class="mt-4" variant="destructive" (clicked)="store.close()"
+            >Anmeldung beenden</app-button
+          >
+        }
+      }
     }
   } @else {
-    <p class="text-sm text-fb-text-secondary">Wähle oben ein Konto für den Browser-Test aus.</p>
+    <p class="text-sm text-fb-text-secondary">Wähle oben ein Konto aus.</p>
   }
 </app-card>

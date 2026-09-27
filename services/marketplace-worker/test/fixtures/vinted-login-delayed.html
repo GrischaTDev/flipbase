@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <title>Eigene verzögerte Anmeldetestseite</title>
+  </head>
+  <body>
+    <h1>Eigene Testseite – kein Vinted-Zugriff</h1>
+    <template id="form-template">
+      <form action="/synthetic-session" method="post">
+        <input type="hidden" name="cookie_choice" value="unset" />
+        <label>Testmitglied <input name="username" /></label>
+        <label>Testpasswort <input name="password" type="password" /></label>
+        <button type="submit">Weiter</button>
+      </form>
+    </template>
+    <script>
+      setTimeout(() => {
+        document.body.append(document.querySelector('template').content.cloneNode(true));
+        document.querySelector('input[name="username"]').addEventListener(
+          'input',
+          () => {
+            const banner = document.createElement('section');
+            banner.setAttribute('style', 'position:fixed;inset:0;background:white;z-index:999');
+            banner.innerHTML =
+              '<p>Eigener Cookie-Testdialog</p><button id="onetrust-reject-all-handler">Notwendige auswählen</button>';
+            document.body.append(banner);
+            banner.querySelector('button').addEventListener('click', () => {
+              document.querySelector('input[name="cookie_choice"]').value = 'necessary';
+              banner.remove();
+            });
+          },
+          { once: true },
+        );
+      }, 300);
+    </script>
+  </body>
+</html>

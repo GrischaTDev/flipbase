@@ -21,6 +21,9 @@ export interface VintedLoginCredentials {
   password: string;
 }
 
+export type VintedLoginResult =
+  'submitted' | 'form_unavailable' | 'submission_unconfirmed' | 'interaction_required'; // Vorheriger Worker während eines gestaffelten Updates.
+
 export class BrowserTestSessionEndedError extends Error {
   constructor() {
     super('Browsersitzung wurde beendet');
@@ -125,7 +128,7 @@ export class MarketplaceBrowserTestApiService {
     sessionId: string,
     credentials: VintedLoginCredentials,
     accessToken: string,
-  ): Promise<'submitted' | 'interaction_required'> {
+  ): Promise<VintedLoginResult> {
     const response = await this.post(
       `${basePath}/${sessionId}/login`,
       { ...scope, credentials },
@@ -138,7 +141,10 @@ export class MarketplaceBrowserTestApiService {
       typeof body !== 'object' ||
       body === null ||
       !('status' in body) ||
-      (body.status !== 'submitted' && body.status !== 'interaction_required')
+      (body.status !== 'submitted' &&
+        body.status !== 'interaction_required' &&
+        body.status !== 'form_unavailable' &&
+        body.status !== 'submission_unconfirmed')
     )
       throw new Error('Ungültige Anmeldeantwort');
     return body.status;
@@ -189,6 +195,7 @@ export class MarketplaceBrowserTestApiService {
       body: JSON.stringify(body),
       cache: 'no-store',
       credentials: 'same-origin',
+      signal: AbortSignal.timeout(90_000),
     });
   }
 }

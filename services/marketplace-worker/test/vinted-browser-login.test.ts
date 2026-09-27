@@ -10,9 +10,14 @@ function pageFixture(origin = 'https://www.vinted.de', missingForm = false) {
     goto: async (url: string) => {
       actions.push(url);
     },
+    addLocatorHandler: async () => undefined,
+    removeLocatorHandler: async () => undefined,
     locator: (selector: string) => ({
       count: async () => (missingForm ? 0 : 1),
-      isVisible: async () => !missingForm,
+      isVisible: async () => !missingForm && selector !== '#onetrust-reject-all-handler',
+      waitFor: async () => {
+        if (missingForm) throw new Error('timeout');
+      },
       fill: async (value: string) => {
         actions.push(`${selector}:${value}`);
       },
@@ -20,6 +25,9 @@ function pageFixture(origin = 'https://www.vinted.de', missingForm = false) {
     getByRole: () => ({
       count: async () => (missingForm ? 0 : 1),
       isVisible: async () => !missingForm,
+      waitFor: async () => {
+        if (missingForm) throw new Error('timeout');
+      },
       click: async () => {
         actions.push('submit');
       },
@@ -46,7 +54,7 @@ test('never enters credentials after a redirect to another origin', async () => 
   const { page, actions } = pageFixture('https://untrusted.example');
   assert.equal(
     await submitVintedLogin(page, { username: 'own-test', password: 'synthetic' }),
-    'interaction_required',
+    'form_unavailable',
   );
   assert.equal(actions.length, 1);
 });
@@ -55,7 +63,7 @@ test('leaves an unexpected form or challenge for the user without entering crede
   const { page, actions } = pageFixture(undefined, true);
   assert.equal(
     await submitVintedLogin(page, { username: 'own-test', password: 'synthetic' }),
-    'interaction_required',
+    'form_unavailable',
   );
   assert.equal(actions.length, 1);
 });
@@ -66,6 +74,7 @@ test('does not repeat submission or expose credentials on an ambiguous error', a
   page.getByRole = (() => ({
     count: async () => 1,
     isVisible: async () => true,
+    waitFor: async () => undefined,
     click: async () => {
       submissions++;
       throw new Error('synthetic-secret');
@@ -73,7 +82,7 @@ test('does not repeat submission or expose credentials on an ambiguous error', a
   })) as unknown as Page['getByRole'];
   assert.equal(
     await submitVintedLogin(page, { username: 'own-test', password: 'synthetic-secret' }),
-    'interaction_required',
+    'submission_unconfirmed',
   );
   assert.equal(submissions, 1);
 });
@@ -88,6 +97,6 @@ test('rechecks permission after navigation before sending credentials', async ()
       if (++checks > 1) throw new Error('expired');
     },
   );
-  assert.equal(result, 'interaction_required');
+  assert.equal(result, 'form_unavailable');
   assert.equal(actions.length, 1);
 });

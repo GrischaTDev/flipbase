@@ -35,6 +35,17 @@ export class MarketplaceBrowserTestStore {
   private revision = 0;
   private destroyed = false;
   private readonly loginKey = signal<string | null>(null);
+  private readonly loginNeedsClose = signal<string | null>(null);
+  private loginDeadline = 0;
+  private readonly progressState = signal<{ key: string; message: string } | null>(null);
+  readonly progress = computed(() => {
+    const state = this.progressState();
+    return state?.key === this.contextKey() &&
+      !this.error() &&
+      (this.busy() || this.awaitingLogin())
+      ? state.message
+      : null;
+  });
   readonly awaitingLogin = computed(
     () => this.session() !== null && this.loginKey() === this.contextKey(),
   );
@@ -88,6 +99,13 @@ export class MarketplaceBrowserTestStore {
     );
   });
   readonly canAct = computed(() => this.session() !== null && !this.busy());
+  readonly canLogin = computed(
+    () =>
+      !this.readOnly() &&
+      !this.awaitingLogin() &&
+      this.loginNeedsClose() !== this.contextKey() &&
+      (this.canStart() || this.canAct()),
+  );
 
   constructor() {
     effect(() => {
@@ -127,7 +145,7 @@ export class MarketplaceBrowserTestStore {
     }
   }
 
-  async start(): Promise<void> {
+  async start(loadPreview = true): Promise<void> {
     const connection = this.connection();
     const key = this.contextKey();
     const token = this.auth.session()?.access_token;
@@ -144,7 +162,7 @@ export class MarketplaceBrowserTestStore {
         return;
       }
       this.state.set({ key, userId, scope, accessToken: token, id, frameUrl: null });
-      await this.loadFrame(key, revision, scope, id, token);
+      if (loadPreview) await this.loadFrame(key, revision, scope, id, token);
     } catch (error) {
       if (this.isCurrent(key, revision) && !this.handleConfirmedEnd(error, key)) this.setError(key);
     } finally {
@@ -206,23 +224,47 @@ export class MarketplaceBrowserTestStore {
       !credentials.password
     )
       return;
-    if (!this.session()) await this.start();
+    if (!this.canLogin()) return;
+    this.progressState.set({ key, message: 'Deine Kontoverbindung wird vorbereitet …' });
+    if (!this.session()) await this.start(false);
     const active = this.session();
     if (!active || active.key !== key || this.busy()) return;
     const revision = ++this.revision;
     this.busyState.set(key);
     this.errorState.set(null);
     this.loginKey.set(key);
+    this.progressState.set({ key, message: 'Die Anmeldung bei Vinted läuft im Hintergrund …' });
     try {
-      await this.api.login(active.scope, active.id, credentials, this.currentToken());
+      const result = await this.api.login(
+        active.scope,
+        active.id,
+        credentials,
+        this.currentToken(),
+      );
       if (!this.isCurrent(key, revision)) return;
-      await this.loadFrame(key, revision, active.scope, active.id, this.currentToken());
-    } catch (error) {
-      if (this.isCurrent(key, revision) && !this.handleConfirmedEnd(error, key)) {
+      if (result === 'form_unavailable' || result === 'interaction_required') {
+        this.loginKey.set(null);
         this.errorState.set({
           key,
           message:
-            'Die Anmeldung ist nicht bestätigt. Prüfe die Browseransicht. Deine Eingaben werden nicht automatisch erneut gesendet.',
+            'Das Vinted-Anmeldeformular konnte nicht automatisch bedient werden. Möglicherweise verlangt Vinted eine zusätzliche Prüfung. Dein Konto ist noch nicht verbunden.',
+        });
+        return;
+      }
+      this.loginDeadline = Date.now() + 60_000;
+      this.progressState.set({
+        key,
+        message:
+          'Anmeldung wird geprüft. Dein Konto wird nach bestätigter Anmeldung automatisch verbunden …',
+      });
+    } catch (error) {
+      if (this.isCurrent(key, revision)) this.loginKey.set(null);
+      if (this.isCurrent(key, revision) && !this.handleConfirmedEnd(error, key)) {
+        this.loginNeedsClose.set(key);
+        this.errorState.set({
+          key,
+          message:
+            'Die Anmeldung ist nicht bestätigt. Deine Eingaben werden nicht automatisch erneut gesendet. Beende den Versuch, bevor Du Dich erneut anmeldest.',
         });
       }
     } finally {
@@ -232,6 +274,18 @@ export class MarketplaceBrowserTestStore {
 
   async checkLogin(): Promise<void> {
     if (!this.awaitingLogin() || this.busy() || this.error()) return;
+    if (Date.now() >= this.loginDeadline) {
+      const key = this.contextKey();
+      this.loginKey.set(null);
+      this.loginNeedsClose.set(key);
+      if (key)
+        this.errorState.set({
+          key,
+          message:
+            'Die Anmeldung wurde innerhalb einer Minute nicht bestätigt. Vinted kann eine zusätzliche Bestätigung verlangen; auch der Kontodatenabruf kann fehlgeschlagen sein. Dein Konto wurde nicht als verbunden markiert. Beende den Versuch und melde Dich später erneut an.',
+        });
+      return;
+    }
     await this.confirmAccount(true);
   }
 
@@ -247,7 +301,6 @@ export class MarketplaceBrowserTestStore {
         ? await this.api.identify(active.scope, active.id, token, true)
         : await this.api.identify(active.scope, active.id, token);
       if (!identity) {
-        await this.loadFrame(active.key, revision, active.scope, active.id, token);
         return;
       }
       if (!this.isCurrent(active.key, revision)) return;
@@ -255,19 +308,24 @@ export class MarketplaceBrowserTestStore {
       if (!this.isCurrent(active.key, revision)) return;
       this.releaseFrame(active.frameUrl);
       this.state.set(null);
+      this.loginKey.set(null);
+      this.progressState.set(null);
       await this.accounts.reloadConnections(active.scope.connectionId);
     } catch (error) {
+      if (this.isCurrent(active.key, revision)) this.loginKey.set(null);
       if (this.isCurrent(active.key, revision) && error instanceof VintedLoginRejectedError) {
         this.loginKey.set(null);
         this.errorState.set({ key: active.key, message: error.message });
         return;
       }
-      if (this.isCurrent(active.key, revision) && !this.handleConfirmedEnd(error, active.key))
+      if (this.isCurrent(active.key, revision) && !this.handleConfirmedEnd(error, active.key)) {
+        this.loginNeedsClose.set(active.key);
         this.errorState.set({
           key: active.key,
           message:
-            'Die Vinted-Anmeldung konnte nicht sicher bestätigt oder beendet werden. Prüfe das Browserbild und versuche es erneut.',
+            'Die Vinted-Anmeldung konnte nicht sicher bestätigt oder beendet werden. Beende den Versuch und melde Dich anschließend erneut an.',
         });
+      }
     } finally {
       if (this.isCurrent(active.key, revision)) this.busyState.set(null);
     }
@@ -277,6 +335,8 @@ export class MarketplaceBrowserTestStore {
     const active = this.session();
     if (!active) return;
     const revision = ++this.revision;
+    this.loginKey.set(null);
+    this.progressState.set(null);
     this.busyState.set(active.key);
     this.errorState.set(null);
     try {
@@ -284,13 +344,16 @@ export class MarketplaceBrowserTestStore {
       if (this.isCurrent(active.key, revision)) {
         this.releaseFrame(active.frameUrl);
         this.state.set(null);
+        this.loginNeedsClose.set(null);
       }
     } catch {
-      if (this.isCurrent(active.key, revision))
+      if (this.isCurrent(active.key, revision)) {
+        this.loginNeedsClose.set(active.key);
         this.errorState.set({
           key: active.key,
-          message: 'Der Browser-Stopp ist nicht bestätigt. Versuche das Beenden erneut.',
+          message: 'Das Beenden der Anmeldung ist nicht bestätigt. Versuche das Beenden erneut.',
         });
+      }
     } finally {
       if (this.isCurrent(active.key, revision)) this.busyState.set(null);
     }
@@ -337,6 +400,7 @@ export class MarketplaceBrowserTestStore {
     const active = this.session();
     if (active) this.releaseFrame(active.frameUrl);
     this.state.set(null);
+    this.loginNeedsClose.set(null);
     this.errorState.set({
       key,
       message: 'Die Browsersitzung wurde beendet. Du kannst die Anmeldung erneut öffnen.',

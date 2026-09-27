@@ -1,5 +1,32 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-28 – Juna – Vinted-Anmeldung im Hintergrund korrigieren
+
+**Auftrag:** Anbieterabläufe recherchieren, Cookiehinweise automatisch behandeln
+und die manuelle Browserbedienung aus der normalen Anmeldung entfernen.
+Fortsetzung auf `juna/vinted-background-login`, Basis `537ce883` (PR #225).
+Der fremde Hauptcheckout und die dortigen Arbeiten bleiben unberührt.
+
+**Befund und Änderung:** Sofortige Formularabfragen übersahen verspätete Felder;
+fehlende Browserbilder blockierten den Login. Die eigene Regression bestätigte
+beides. Der öffentlich beobachtete OneTrust-Button wird auf notwendige Cookies
+beschränkt; ein Handler behandelt später eingeblendete Banner. Rechte werden
+vor Eingaben und Cookieaktionen erneut geprüft. Ein weiterer Test fand einen
+Doppelaufruf beim anfänglich sichtbaren Banner; die Reihenfolge wurde korrigiert.
+Login, Fortschritt, Abbruch und Ergebnisprüfung laufen ohne Browserbilder und
+ohne manuelle Browserfelder. Unklare Versuche werden nicht automatisch erneut
+abgesendet. Nach Transportfehler/Timeout ist zuerst bestätigtes Beenden nötig.
+
+**Prüfung:** 67 Worker-, 5 echte Chromium-Tests auf eigenen HTML-Seiten,
+88 Angular-Tests und 7 Desktop-/Mobilabläufe bestanden. Angular-Produktionsbau,
+Worker-Bau/Typprüfung, ESLint, Prettier und Shared-UI-Prüfung bestanden.
+AXE und Überlaufprüfungen sind in den UI-Abläufen enthalten.
+
+**Grenze:** Keine echten Zugangsdaten ausgelesen oder erneut gesendet. Eine
+erfolgreiche echte Vinted-Anmeldung, die private Identitätsroute und Liveimport
+bleiben unbestätigt. Wettbewerberdokumentation belegt weiterhin mögliche
+persönliche Verifizierung. Kein Push, Merge oder Deployment in dieser Sitzung.
+
 ## 2026-09-27 – Juna – Login-Korrektur zur Veröffentlichung freigegeben
 
 **Auftrag:** Nutzerfreigabe für PR und Merge nach erfolgreichen Pflichtprüfungen.

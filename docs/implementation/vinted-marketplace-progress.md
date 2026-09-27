@@ -601,3 +601,37 @@ ungültigen Mitgliedsnamen oder Passwort. Das belegt keine erfolgreiche Anmeldun
 Die Korrektur auf `juna/vinted-login-fix` beendet bei dieser Meldung das Polling
 und erlaubt eine neue ausdrückliche Eingabe im bestehenden Profil. Die
 unbestätigte Identitäts-API und Liveimport bleiben offene Integrationspunkte.
+
+## 28.09.2026 – Hintergrundanmeldung, aktueller lokaler Stand
+
+PR #225 ist in `master` enthalten (`537ce883`). Die weitere Korrektur liegt auf
+`juna/vinted-background-login`. Die historischen Abschnitte oben sind keine
+vollständige Beschreibung des aktuell ausgelieferten Funktionsumfangs.
+
+Der normale Login zeigt ausschließlich das Flipbase-Formular, Fortschritt,
+Fehler und „Anmeldung beenden“. Manuelle Browserfelder, Bildschirmbilder und
+„Verbindung erneut prüfen“ entfallen. Der öffentliche lesende Testmodus bleibt
+eine getrennte Ansicht. Das Hintergrundprofil bleibt kontogebunden bei GoLogin.
+
+Playwright wartet auf das feste deutsche Formular und bedient den am 28.09.
+öffentlich beobachteten Cookiebutton „Notwendige auswählen“, einschließlich
+späterer Einblendungen. Fehlendes Formular und unklarer Absendeausgang werden
+unterschieden. Die Prüfung sendet keine Zugangsdaten erneut, endet nach einer
+Minute ohne Bestätigung und übernimmt keine Antwort nach Konto-/Workspacewechsel
+oder Abbruch. Nach unklarem Transport oder Beenden ist ein neuer Versuch gesperrt,
+bis das Beenden bestätigt ist. HTTP-Anfragen sind auf 90 Sekunden begrenzt.
+
+67 Worker-Tests, 5 Chromium-Abläufe auf vollständig abgefangenen eigenen Seiten,
+88 Angular-Tests und 7 lokale Oberflächenabläufe bestanden. Bau und statische
+Prüfungen siehe `vinted-ui-verification.md`. Keine neue Migration/Abhängigkeit.
+
+**Offen:** `/api/v2/users/current` wurde weiterhin nicht mit einem erfolgreich
+angemeldeten eigenen Konto bestätigt. Öffentliche Recherche liefert keinen
+belastbaren Nachweis für diesen privaten Vertrag. Weder eine öffentliche
+Profiladresse noch ein abgeschicktes Formular genügt als Anmeldebeweis.
+Nach Veröffentlichung ist dieser konkrete End-to-End-Nachweis erforderlich;
+bei abweichender Antwort muss der Identitätsleser anhand des beobachteten
+angemeldeten Ablaufs angepasst werden. Persönliche Verifizierung und der
+vollständige Liveimport sind damit ebenfalls nicht als fertig abgenommen.
+In dieser Sitzung wurden keine echten Zugangsdaten erneut gesendet und keine
+Serveränderungen veröffentlicht.
