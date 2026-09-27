@@ -102,6 +102,9 @@ export class DashboardComponent {
       },
       purchases: {
         value: report.purchasesIncluded ? euro.format(report.purchaseSpend) : '–',
+        hint: report.purchasesIncluded
+          ? `${report.purchaseCount} ${report.purchaseCount === 1 ? 'Einkauf' : 'Einkäufe'} im gewählten Zeitraum`
+          : null,
       },
       operatingExpenses: {
         value: report.purchasesIncluded ? euro.format(report.operatingExpenseSpend) : '–',
