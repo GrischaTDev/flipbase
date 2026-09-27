@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-27 – Juna – Landingpage auf Vintage-Reselling ausgerichtet
+
+**Auftrag:** Die Startseite von veralteten Einkaufstypen lösen und Flipbase als Arbeitsanwendung für Vintage-Reseller mit Vinted, Kleinanzeigen, eBay, Buchhaltung und Workspaces verständlich vorstellen.
+
+**Änderung:** Der Einstieg zeigt jetzt den Ablauf vom Vinted-Fund bis zu Verkauf und Finanzen. Vergleich, Funktionskacheln, Beta-Stand und FAQ beschreiben Einkäufe, Bestand, Bildoptimierung, Kleinanzeigen-Inserate, Verkäufe, Betriebsausgaben, Fixkosten und Steuerdaten. Der Vinted Bot wird nicht mehr als bloß geplant dargestellt; die Kleinanzeigen-Übergabe nennt den notwendigen letzten Veröffentlichungsschritt. Seitentitel, Beschreibung und Vorschautexte betonen Vintage-Reselling und passende Suchbegriffe. Die englische Sprachumschaltung aktualisiert auch Titel und Beschreibung. Karten und Abstände wurden an die ruhige Flipbase-Oberfläche mit dem Marken-Gelb `#fcc601` angepasst.
+
+**Prüfung:** 33 Landingpage-Tests, gezieltes ESLint und Prettier bestanden. Browserprüfung auf Desktop und Mobilgerät in hellem und dunklem Design: kein horizontaler Überlauf; AXE meldete keine WCAG-A/AA-Verstöße. Der Angular-Produktionsbau wurde ebenfalls geprüft.
+
 ## 2026-09-27 – Juna – Zwei Beta-Testregistrierungen entfernt
 
 **Auftrag:** Zwei Testregistrierungen samt zugehörigen Nutzerkonten aus der produktiven Datenbank entfernen.

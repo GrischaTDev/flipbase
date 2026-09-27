@@ -3,12 +3,19 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Flipbase</title>
+    <title>Flipbase: Reselling-Software für Vintage &amp; Vinted</title>
     <meta
       name="description"
-      content="Flipbase bündelt Einkauf, Bestand, Multi-Channel-Verkauf, Bildoptimierung mit GPS-Schutz und rechnerische Unterstützung für § 25a an einer Stelle."
+      content="Vintage-Reselling ohne Excel: Flipbase verbindet Vinted Bot, Einkauf, Bestand, Kleinanzeigen-Inserate, eBay-Verkäufe, Ausgaben und Steuerdaten."
     />
     <link rel="canonical" href="https://flipbase.de/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://flipbase.de/" />
+    <meta property="og:title" content="Flipbase: Reselling-Software für Vintage &amp; Vinted" />
+    <meta
+      property="og:description"
+      content="Von Vinted-Funden bis zu Einkauf, Inseraten und Buchhaltung: Flipbase organisiert deinen Vintage-Reselling-Alltag."
+    />
     <meta name="theme-color" content="#16181d" />
     <link rel="icon" href="favicon.ico" />
     <link rel="stylesheet" href="fonts/fonts.css" />
@@ -494,6 +501,24 @@
         max-width: 44ch;
       }
 
+      .hero-secondary-link {
+        display: inline-flex;
+        align-items: center;
+        min-height: 44px;
+        padding: 0.5rem 0.25rem;
+        color: var(--ink-soft);
+        font-weight: 600;
+        text-decoration: underline;
+        text-decoration-color: var(--brand);
+        text-underline-offset: 0.3rem;
+      }
+
+      .hero-secondary-link:hover,
+      .hero-secondary-link:focus-visible {
+        color: var(--ink);
+        text-decoration-thickness: 2px;
+      }
+
       .hero-beta-form {
         margin: 0 0 1.5rem;
         max-width: 520px;
@@ -843,111 +868,106 @@
         border-color: var(--line-strong);
       }
 
-      /* ---------- Kassenzettel / Beleg ---------- */
-
-      .beleg-kasten {
-        background: linear-gradient(180deg, var(--surface) 0%, var(--surface-alt) 100%);
-        border: 1px solid var(--line-strong);
-        border-radius: 20px;
-        padding: 1.75rem;
-        box-shadow:
-          0 25px 50px -12px rgba(0, 0, 0, 0.35),
-          0 1px 0 0 rgba(255, 255, 255, 0.05) inset;
-        font-family: var(--mono);
-        font-size: 0.82rem;
+      /* ---------- Reselling-Ablauf im Aufmacher ---------- */
+      .workflow-board {
         width: 100%;
-        max-width: 470px;
+        max-width: 490px;
         justify-self: end;
+        padding: clamp(1.25rem, 3vw, 1.75rem);
+        background: var(--surface);
+        border: 1px solid var(--line-strong);
+        border-radius: 14px;
+        box-shadow: 0 20px 45px -24px rgba(0, 0, 0, 0.5);
       }
 
       @media (max-width: 960px) {
-        .beleg-kasten {
+        .workflow-board {
           justify-self: stretch;
           max-width: 100%;
         }
       }
 
-      .beleg-kopf {
+      .workflow-header {
         display: flex;
-        justify-content: space-between;
+        flex-wrap: wrap;
         align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
         padding-bottom: 1rem;
         border-bottom: 1px solid var(--line);
+        color: var(--ink);
+        font-weight: 700;
       }
 
-      .beleg-kopf-titel {
+      .workflow-status {
+        padding: 0.2rem 0.55rem;
+        border: 1px solid var(--brand-border);
+        border-radius: 6px;
+        background: var(--brand-bg);
+        color: var(--ink-soft);
         font-size: 0.72rem;
         font-weight: 600;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        color: var(--ink-soft);
       }
 
-      .beleg-steuer-badge {
-        font-size: 0.65rem;
-        font-weight: 700;
-        padding: 0.15rem 0.5rem;
-        border-radius: 6px;
+      .workflow-steps {
+        list-style: none;
+        display: grid;
+        gap: 0.65rem;
+        margin: 1rem 0;
+        padding: 0;
+      }
+
+      .workflow-steps li {
+        display: grid;
+        grid-template-columns: 2rem minmax(0, 1fr);
+        gap: 0.85rem;
+        align-items: start;
+        padding: 0.8rem;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--surface-alt);
+      }
+
+      .workflow-number {
+        display: grid;
+        place-items: center;
+        width: 2rem;
+        height: 2rem;
+        border-radius: 7px;
         background: var(--brand);
         color: var(--on-brand);
-        border: 1px solid var(--brand);
-      }
-
-      .beleg-zeile {
-        display: grid;
-        grid-template-columns: 1fr auto;
-        gap: 1rem;
-        padding: 0.55rem 0;
-        border-bottom: 1px dashed var(--line);
-        color: var(--ink-muted);
-      }
-
-      .beleg-zeile b {
-        font-weight: 600;
-        color: var(--ink-soft);
-        font-variant-numeric: tabular-nums;
-      }
-
-      .beleg-zeile.unter {
-        padding-left: 1.25rem;
-        position: relative;
-        color: var(--ink-dim);
         font-size: 0.75rem;
+        font-weight: 800;
       }
 
-      .beleg-zeile.unter::before {
-        content: '└';
-        position: absolute;
-        left: 0.25rem;
-        color: var(--line-strong);
+      .workflow-steps b,
+      .workflow-steps small {
+        display: block;
       }
 
-      .beleg-zeile.abzug b {
-        color: var(--loss);
-      }
-
-      .beleg-zeile.summe {
-        border-bottom: none;
-        border-top: 1px solid var(--line-strong);
-        margin-top: 0.6rem;
-        padding-top: 1rem;
+      .workflow-steps b {
         color: var(--ink);
-        font-size: 1rem;
-        font-weight: 700;
+        font-size: 0.88rem;
+        line-height: 1.35;
       }
 
-      .beleg-zeile.summe b {
-        color: var(--profit);
-        font-size: 1.25rem;
+      .workflow-steps small {
+        margin-top: 0.2rem;
+        color: var(--ink-muted);
+        font-size: 0.75rem;
+        line-height: 1.45;
       }
 
-      .beleg-notiz {
-        margin-top: 1rem;
-        padding-top: 0.85rem;
-        border-top: 1px solid var(--line);
-        font-size: 0.7rem;
-        color: var(--ink-dim);
-        line-height: 1.5;
+      body:has(#lang-toggle:checked) .workflow-steps b.lang-en,
+      body:has(#lang-toggle:checked) .workflow-steps small.lang-en {
+        display: block !important;
+      }
+
+      .workflow-note {
+        margin: 0;
+        color: var(--ink-muted);
+        font-size: 0.76rem;
+        line-height: 1.45;
       }
 
       /* ---------- Abschnitte ---------- */
@@ -1057,14 +1077,14 @@
       .feature-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
-        gap: 1.5rem;
+        gap: 1rem;
       }
 
       .feature-karte {
         background: var(--surface);
         border: 1px solid var(--line);
-        border-radius: 18px;
-        padding: 2rem;
+        border-radius: 12px;
+        padding: 1.5rem;
         position: relative;
         overflow: hidden;
         transition:
@@ -1086,30 +1106,36 @@
       .feature-icon-box {
         width: 44px;
         height: 44px;
-        border-radius: 12px;
-        background: var(--brand);
-        border: 1px solid var(--brand);
-        color: var(--on-brand);
+        border-radius: 8px;
+        background: var(--surface-alt);
+        border: 1px solid var(--line);
+        color: var(--ink);
         display: flex;
         align-items: center;
         justify-content: center;
         margin-bottom: 1.25rem;
+        font-size: 0.85rem;
+        font-weight: 700;
+      }
+
+      .feature-karte.hervorgehoben .feature-icon-box {
+        background: var(--brand);
+        border-color: var(--brand);
+        color: var(--on-brand);
       }
 
       .feature-badge {
         font-family: var(--mono);
-        font-size: 0.65rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.1em;
-        color: var(--on-brand);
-        border: 1px solid var(--brand);
-        background: var(--brand);
-        padding: 0.15rem 0.5rem;
+        font-size: 0.72rem;
+        font-weight: 600;
+        color: var(--ink-soft);
+        border: 1px solid var(--line);
+        background: var(--surface-alt);
+        padding: 0.2rem 0.55rem;
         border-radius: 6px;
         position: absolute;
-        top: 2rem;
-        right: 2rem;
+        top: 1.5rem;
+        right: 1.5rem;
       }
 
       .feature-karte h3 {
@@ -1848,24 +1874,21 @@
 
           <h1 tabindex="-1">
             <span class="lang-de"
-              >Dein Reselling. Klar organisiert.<br /><em>Alles an einem Ort.</em></span
+              >Dein Vintage-Reselling.<br /><em>Von Einkauf bis Steuern organisiert.</em></span
             >
             <span class="lang-en" lang="en"
-              >Your reselling business. Clearly organized.<br /><em
-                >Everything in one place.</em
-              ></span
+              >Your vintage reselling business.<br /><em>From sourcing to accounting.</em></span
             >
           </h1>
 
           <p class="unterzeile">
             <span class="lang-de">
-              Flipbase führt geplante Deal-Recherche, Multi-Channel-Verkauf, Bildoptimierung mit
-              GPS-Schutz und rechnerische Unterstützung bei der Differenzbesteuerung (§ 25a) an
-              einem Ort zusammen.
+              Weg von Excel: Flipbase verbindet Vinted-Funde, Einkäufe, Bestand, Produktbilder,
+              Inserate, Verkäufe und Betriebsausgaben. Mit Steuerdaten für deinen Reselling-Alltag.
             </span>
             <span class="lang-en" lang="en">
-              Flipbase combines planned deal discovery, multi-channel sales, privacy-safe image
-              optimization, and calculation support for margin taxation (§ 25a) in one workspace.
+              Move beyond spreadsheets: Flipbase brings Vinted finds, purchases, inventory, product
+              photos, listings, sales, and business expenses together with accounting data.
             </span>
           </p>
 
@@ -1874,81 +1897,69 @@
               <span class="lang-de">Kostenlos für die Beta anmelden →</span>
               <span class="lang-en" lang="en">Apply for the beta for free →</span>
             </a>
+            <a class="hero-secondary-link" href="#features">
+              <span class="lang-de">Funktionen entdecken</span>
+              <span class="lang-en" lang="en">Explore features</span>
+            </a>
           </div>
         </div>
 
-        <!-- Rechter Beleg / Kassenzettel -->
-        <div class="beleg-kasten" aria-labelledby="beleg-titel">
-          <div class="beleg-kopf">
-            <span id="beleg-titel" class="beleg-kopf-titel">
-              <span class="lang-de">Mystery-Paket · 3 Artikel</span>
-              <span class="lang-en" lang="en">Mystery Box · 3 Items</span>
+        <!-- Schematischer Arbeitsablauf, keine Produktaufnahme -->
+        <div class="workflow-board" aria-labelledby="workflow-title">
+          <div class="workflow-header">
+            <span id="workflow-title">
+              <span class="lang-de">Dein Reselling-Ablauf</span>
+              <span class="lang-en" lang="en">Your reselling workflow</span>
             </span>
-            <span class="beleg-steuer-badge">§ 25a UStG</span>
-          </div>
-
-          <div class="beleg-zeile">
-            <span class="lang-de">Einkaufspreis</span>
-            <span class="lang-en" lang="en">Sourcing cost</span>
-            <b>100,00 €</b>
-          </div>
-          <div class="beleg-zeile unter">
-            <span class="lang-de">Artikel 1 (Beispiel)</span>
-            <span class="lang-en" lang="en">Item 1 (example)</span>
-            <b>33,34 €</b>
-          </div>
-          <div class="beleg-zeile unter">
-            <span class="lang-de">Artikel 2</span>
-            <span class="lang-en" lang="en">Item 2</span>
-            <b>33,33 €</b>
-          </div>
-          <div class="beleg-zeile unter">
-            <span class="lang-de">Artikel 3</span>
-            <span class="lang-en" lang="en">Item 3</span>
-            <b>33,33 €</b>
-          </div>
-
-          <div class="beleg-zeile">
-            <span class="lang-de">Verkaufspreis Artikel 1</span>
-            <span class="lang-en" lang="en">Sold price Item 1</span>
-            <b>129,00 €</b>
-          </div>
-          <div class="beleg-zeile abzug">
-            <span class="lang-de">Wareneinsatz (Einstand)</span>
-            <span class="lang-en" lang="en">Cost of goods sold</span>
-            <b>−33,34 €</b>
-          </div>
-          <div class="beleg-zeile abzug">
-            <span class="lang-de">Plattformgebühr (eBay / Vinted)</span>
-            <span class="lang-en" lang="en">Platform fees</span>
-            <b>−12,90 €</b>
-          </div>
-          <div class="beleg-zeile abzug">
-            <span class="lang-de">Versand &amp; Verpackung</span>
-            <span class="lang-en" lang="en">Postage &amp; packing</span>
-            <b>−5,49 €</b>
-          </div>
-          <div class="beleg-zeile abzug">
-            <span class="lang-de">Differenzsteuer (§ 25a, 19/119)</span>
-            <span class="lang-en" lang="en">Margin tax (§ 25a, 19/119)</span>
-            <b>−15,27 €</b>
-          </div>
-
-          <div class="beleg-zeile summe">
-            <span class="lang-de">Echter Nettogewinn</span>
-            <span class="lang-en" lang="en">Net Profit</span>
-            <b>62,00 €</b>
-          </div>
-
-          <p class="beleg-notiz">
-            <span class="lang-de">
-              Beispielrechnung aus erfassten Werten: Einkaufspreis, Nebenkosten, Gebühren und eine
-              rechnerische 19/119-Aufteilung der Beispielmarge werden nachvollziehbar dargestellt.
+            <span class="workflow-status">
+              <span class="lang-de">Ein Arbeitsbereich</span>
+              <span class="lang-en" lang="en">One workspace</span>
             </span>
-            <span class="lang-en" lang="en">
-              Example calculation from recorded values: purchase price, ancillary costs, fees, and a
-              calculated 19/119 split of the example margin are shown transparently.
-            </span>
+          </div>
+          <ol class="workflow-steps">
+            <li>
+              <span class="workflow-number">01</span>
+              <span
+                ><b>Vinted Bot</b
+                ><small class="lang-de">Passende Funde aus Suchfiltern prüfen</small
+                ><small class="lang-en" lang="en">Review finds from your saved filters</small></span
+              >
+            </li>
+            <li>
+              <span class="workflow-number">02</span>
+              <span
+                ><b class="lang-de">Einkauf &amp; Bestand</b
+                ><b class="lang-en" lang="en">Purchases &amp; inventory</b
+                ><small class="lang-de">Artikel und Kosten nachvollziehbar erfassen</small
+                ><small class="lang-en" lang="en">Track items and costs clearly</small></span
+              >
+            </li>
+            <li>
+              <span class="workflow-number">03</span>
+              <span
+                ><b class="lang-de">Bilder &amp; Inserate</b
+                ><b class="lang-en" lang="en">Photos &amp; listings</b
+                ><small class="lang-de">Optimieren und für Kleinanzeigen vorbereiten</small
+                ><small class="lang-en" lang="en"
+                  >Optimize and prepare for Kleinanzeigen</small
+                ></span
+              >
+            </li>
+            <li>
+              <span class="workflow-number">04</span>
+              <span
+                ><b class="lang-de">Verkauf &amp; Finanzen</b
+                ><b class="lang-en" lang="en">Sales &amp; finances</b
+                ><small class="lang-de">Marge, Ausgaben und Steuerdaten im Blick</small
+                ><small class="lang-en" lang="en">Track margins, expenses and tax data</small></span
+              >
+            </li>
+          </ol>
+          <p class="workflow-note">
+            <span class="lang-de">Vom Fund bis zur Auswertung – ohne verteilte Tabellen.</span>
+            <span class="lang-en" lang="en"
+              >From a find to your figures, without scattered sheets.</span
+            >
           </p>
         </div>
       </div>
@@ -1957,21 +1968,21 @@
       <section>
         <div class="sektion-header">
           <span class="sektion-kicker">
-            <span class="lang-de">Schluss mit Chaos</span>
-            <span class="lang-en" lang="en">No more spreadsheets</span>
+            <span class="lang-de">Raus aus Excel</span>
+            <span class="lang-en" lang="en">Beyond spreadsheets</span>
           </span>
           <h2 class="sektion-titel">
-            <span class="lang-de">Warum Excel und Notizzettel Reseller Geld kosten.</span>
-            <span class="lang-en" lang="en">Why spreadsheets cost resellers hard cash.</span>
+            <span class="lang-de">Ein klarer Ablauf statt vieler Tabellen.</span>
+            <span class="lang-en" lang="en">One clear workflow instead of scattered sheets.</span>
           </h2>
           <p class="sektion-text">
             <span class="lang-de">
-              Gebrauchtwarenhandel hat ganz eigene Spielregeln: Mischankäufe, Plattformgebühren,
-              Portokosten und steuerliche Sonderregeln.
+              Wer Vintage verkauft, braucht den Überblick über Artikel, Einkaufskosten, Plattformen,
+              Ausgaben und steuerliche Angaben – vom ersten Fund an.
             </span>
             <span class="lang-en" lang="en">
-              Reselling second-hand goods is unique: mixed lots, platform fees, buyer postage vs.
-              real shipping, and strict margin tax regulations.
+              Vintage resellers need a clear view of items, purchase costs, marketplaces, expenses,
+              and tax data from the first find onward.
             </span>
           </p>
         </div>
@@ -1983,17 +1994,17 @@
               <span class="lang-en" lang="en">✕ The old way</span>
             </div>
             <h3>
-              <span class="lang-de">Unübersichtliche Mischkäufe</span>
-              <span class="lang-en" lang="en">Messy bundle sourcing</span>
+              <span class="lang-de">Daten an vielen Orten</span>
+              <span class="lang-en" lang="en">Data in too many places</span>
             </h3>
             <p>
               <span class="lang-de">
-                Bei Konvoluten, Paletten oder Flohmarkttüten werden Kosten geschätzt oder pauschal
-                gerundet. Man weiß nie, was ein Einzelstück wirklich eingebracht hat.
+                Einkauf in Excel, Bilder auf dem Handy, Inserate im Browser: Informationen zu einem
+                Artikel sind verteilt und müssen immer wieder gesucht werden.
               </span>
               <span class="lang-en" lang="en">
-                When buying lots or mystery bundles, costs are roughly estimated. You never know the
-                exact profit margin of an individual sold item.
+                Purchases in a spreadsheet, photos on your phone, listings in a browser: the details
+                of one item are scattered across several places.
               </span>
             </p>
           </div>
@@ -2004,59 +2015,59 @@
               <span class="lang-en" lang="en">✓ The Flipbase solution</span>
             </div>
             <h3>
-              <span class="lang-de">Automatische Kostenverteilung</span>
-              <span class="lang-en" lang="en">Smart cost distribution</span>
+              <span class="lang-de">Artikel mit Einkauf und Verkauf verbinden</span>
+              <span class="lang-en" lang="en">Connect each item to its purchase and sale</span>
             </h3>
             <p>
               <span class="lang-de">
-                Egal ob Mystery-Paket oder Palette: Nebenkosten und Einkaufspreis werden
-                gleichmäßig, wertgewichtet oder von Hand centgenau auf die Artikel aufgeteilt.
+                Flipbase verknüpft Einkäufe, Bestand, Inserate und Verkäufe. Kosten und Erlöse
+                bleiben am jeweiligen Artikel nachvollziehbar.
               </span>
               <span class="lang-en" lang="en">
-                Whether mystery boxes or pallets: sourcing costs and transport are split evenly,
-                value-weighted, or manually across all items to the cent.
+                Flipbase connects purchases, inventory, listings, and sales. You can trace costs and
+                proceeds back to each item.
               </span>
             </p>
           </div>
 
           <div class="vergleich-karte">
             <div class="vergleich-schlecht">
-              <span class="lang-de">✕ Das Sicherheitsrisiko</span>
-              <span class="lang-en" lang="en">✕ The security risk</span>
+              <span class="lang-de">✕ Zahlen ohne Zusammenhang</span>
+              <span class="lang-en" lang="en">✕ Figures without context</span>
             </div>
             <h3>
-              <span class="lang-de">GPS-Daten in Produktfotos</span>
-              <span class="lang-en" lang="en">GPS coordinates in photos</span>
+              <span class="lang-de">Betriebsausgaben neben der Tabelle</span>
+              <span class="lang-en" lang="en">Business expenses outside the sheet</span>
             </h3>
             <p>
               <span class="lang-de">
-                Mit dem Smartphone aufgenommene Fotos enthalten GPS-Standortdaten. Beim Hochladen
-                auf Kleinanzeigen oder eBay wird unbemerkt die Privatadresse geteilt.
+                Gebühren, Porto und laufende Fixkosten fehlen schnell in der Rechnung. Dann ist die
+                tatsächliche Marge schwer zu erkennen.
               </span>
               <span class="lang-en" lang="en">
-                Phone photos store precise GPS location tags. Uploading them to marketplaces
-                accidentally reveals your private home address to strangers.
+                Fees, postage, and recurring expenses are easily missed. That makes the real margin
+                harder to understand.
               </span>
             </p>
           </div>
 
           <div class="vergleich-karte">
             <div class="vergleich-gut">
-              <span class="lang-de">✓ Der Flipbase-Schutz</span>
-              <span class="lang-en" lang="en">✓ Flipbase protection</span>
+              <span class="lang-de">✓ Die Flipbase-Übersicht</span>
+              <span class="lang-en" lang="en">✓ The Flipbase overview</span>
             </div>
             <h3>
-              <span class="lang-de">Automatischer GPS-Schutz</span>
-              <span class="lang-en" lang="en">Automatic GPS shield</span>
+              <span class="lang-de">Kosten und Steuerdaten im Blick</span>
+              <span class="lang-en" lang="en">Expenses and tax data in view</span>
             </h3>
             <p>
               <span class="lang-de">
-                Unser Bildoptimierer bereinigt private GPS-Tags, optimiert Belichtung und Schärfe
-                und schneidet Bilder passend für eBay, Vinted und Kleinanzeigen zu.
+                Erfasse Verkäufe, Betriebsausgaben und wiederkehrende Kosten am selben Ort. Für
+                deine Steuerberatung stehen strukturierte Daten bereit.
               </span>
               <span class="lang-en" lang="en">
-                Our image optimizer strips GPS &amp; EXIF data, optimizes exposure and sharpness,
-                and crops directly for eBay, Vinted, and Kleinanzeigen.
+                Record sales, business expenses, and recurring costs together. Structured data
+                supports the review with your tax adviser.
               </span>
             </p>
           </div>
@@ -2066,325 +2077,241 @@
       <!-- Großer Feature-Showcase -->
       <section id="features">
         <div class="sektion-header">
-          <span class="sektion-kicker">
-            <span class="lang-de">Funktionsumfang</span>
-            <span class="lang-en" lang="en">Features</span>
-          </span>
+          <span class="sektion-kicker"
+            ><span class="lang-de">Funktionen</span
+            ><span class="lang-en" lang="en">Features</span></span
+          >
           <h2 class="sektion-titel">
-            <span class="lang-de">Alles, was du fürs professionelle Reselling brauchst.</span>
-            <span class="lang-en" lang="en">Everything you need for serious reselling.</span>
+            <span class="lang-de">Werkzeuge für deinen Vintage-Reselling-Alltag.</span>
+            <span class="lang-en" lang="en">Tools for your vintage reselling workflow.</span>
           </h2>
           <p class="sektion-text">
-            <span class="lang-de">
-              Von der geplanten Deal-Suche über die Bestandsverwaltung bis zu DATEV-kompatiblen
-              Buchungsdaten.
-            </span>
-            <span class="lang-en" lang="en">
-              From planned deal discovery to inventory management and DATEV-compatible accounting
-              exports.
-            </span>
+            <span class="lang-de"
+              >Vom Vinted-Fund über die Warenwirtschaft bis zu Ausgaben und Steuerdaten: Jeder
+              Schritt baut auf deinen Artikeln auf.</span
+            >
+            <span class="lang-en" lang="en"
+              >From Vinted finds and inventory to expenses and accounting data: every step builds on
+              your items.</span
+            >
           </p>
         </div>
-
         <div class="feature-grid">
-          <!-- 01 Vinted Bot & Deal-Sniper -->
-          <div class="feature-karte hervorgehoben" id="vinted-bot">
-            <span class="feature-badge" lang="en">Automation</span>
-            <div class="feature-icon-box">
-              <svg
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="22" y1="12" x2="18" y2="12"></line>
-                <line x1="6" y1="12" x2="2" y2="12"></line>
-                <line x1="12" y1="6" x2="12" y2="2"></line>
-                <line x1="12" y1="22" x2="12" y2="18"></line>
-              </svg>
-            </div>
+          <article class="feature-karte hervorgehoben" id="vinted-bot">
+            <span class="feature-badge localized-badge"
+              ><span class="lang-de">Vinted</span
+              ><span class="lang-en" lang="en">Vinted</span></span
+            >
+            <div class="feature-icon-box" aria-hidden="true">01</div>
             <h3>
-              <span class="lang-de">Vinted Deal-Sniper (geplant)</span>
-              <span class="lang-en" lang="en">Vinted Deal Sniper (planned)</span>
+              <span class="lang-de">Vinted Bot: passende Funde prüfen</span
+              ><span class="lang-en" lang="en">Vinted Bot: review relevant finds</span>
             </h3>
             <p>
-              <span class="lang-de">
-                Geplant ist, gespeicherte Suchfilter im Hintergrund zu prüfen und passende Treffer
-                für den späteren Import anzuzeigen.
-              </span>
-              <span class="lang-en" lang="en">
-                The planned flow checks saved searches in the background and surfaces matching
-                listings for later import.
-              </span>
-            </p>
-          </div>
-
-          <!-- 02 Einkäufe & Bestände tracken -->
-          <div class="feature-karte" id="tracking">
-            <span class="feature-badge" lang="en">Sourcing</span>
-            <div class="feature-icon-box">
-              <svg
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
+              <span class="lang-de"
+                >Suchfilter führen zu passenden Funden im Feed. Vergleiche Angebote, merke Favoriten
+                und öffne interessante Artikel auf Vinted.</span
+              ><span class="lang-en" lang="en"
+                >Saved filters bring relevant finds into your feed. Compare offers, save favorites,
+                and open interesting items on Vinted.</span
               >
-                <path d="m7.5 4.27 9 5.15"></path>
-                <path
-                  d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"
-                ></path>
-                <path d="m3.3 7 8.7 5 8.7-5"></path>
-                <path d="M12 22V12"></path>
-              </svg>
-            </div>
-            <h3>
-              <span class="lang-de">Einkäufe lückenlos erfassen</span>
-              <span class="lang-en" lang="en">Purchase &amp; Lot Tracking</span>
-            </h3>
-            <p>
-              <span class="lang-de">
-                Egal ob Einzelstück, Mystery-Box, Flohmarktfund oder Palette: Jeder Artikel erhält
-                seine echten Einstandskosten inklusive anteiligem Porto und Sprit.
-              </span>
-              <span class="lang-en" lang="en">
-                Single finds, flea market lots, or mystery boxes: every item receives true cost of
-                goods including freight and driving expenses.
-              </span>
             </p>
             <ul class="feature-punkte">
               <li>
-                <span class="lang-de">Nebenkostenverteilung (wertgewichtet / gleich)</span>
-                <span class="lang-en" lang="en">Expense allocation (weighted or equal)</span>
+                <span class="lang-de">Suchfilter nach Marke, Kategorie und Preis</span
+                ><span class="lang-en" lang="en">Filters for brands, categories, and prices</span>
               </li>
               <li>
-                <span class="lang-de">Quellen-Erfassung (Flohmarkt, Vinted, B2B)</span>
-                <span class="lang-en" lang="en">Source tagging (flea market, online, retail)</span>
-              </li>
-              <li>
-                <span class="lang-de">Status: Gekauft, Aufbereiten, Bereit zum Inserieren</span>
-                <span class="lang-en" lang="en">Workflow: Sourced, Cleaning, Ready to list</span>
+                <span class="lang-de">Funde und Favoriten an einem Ort</span
+                ><span class="lang-en" lang="en">Finds and favorites in one place</span>
               </li>
             </ul>
-          </div>
-
-          <!-- 03 Verkäufe & Versand tracken -->
-          <div class="feature-karte">
-            <span class="feature-badge" lang="en">Sales</span>
-            <div class="feature-icon-box">
-              <svg
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <line x1="12" y1="1" x2="12" y2="23"></line>
-                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-              </svg>
-            </div>
+          </article>
+          <article class="feature-karte" id="tracking">
+            <span class="feature-badge localized-badge"
+              ><span class="lang-de">Einkauf</span
+              ><span class="lang-en" lang="en">Purchases</span></span
+            >
+            <div class="feature-icon-box" aria-hidden="true">02</div>
             <h3>
-              <span class="lang-de">Verkäufe plattformweit tracken</span>
-              <span class="lang-en" lang="en">Multi-Platform Sales Tracking</span>
+              <span class="lang-de">Einkäufe und Bestand statt Excel</span
+              ><span class="lang-en" lang="en">Purchases and inventory beyond spreadsheets</span>
             </h3>
             <p>
-              <span class="lang-de">
-                Verkäufe auf Vinted, eBay und Kleinanzeigen an einem Ort buchen. Strikte Trennung
-                von Käufer-Versand und echtem Porto für ehrliche Margen.
-              </span>
-              <span class="lang-en" lang="en">
-                Track sales across Vinted, eBay, and local marketplaces. Strict separation between
-                buyer postage and actual shipping costs.
-              </span>
+              <span class="lang-de"
+                >Erfasse Vintage-Einkäufe, Artikel und ihre Einstandskosten. So bleiben Warenbestand
+                und Verkaufsvorbereitung miteinander verbunden.</span
+              ><span class="lang-en" lang="en"
+                >Record vintage purchases, items, and their costs. Keep inventory connected to your
+                sales preparation.</span
+              >
             </p>
             <ul class="feature-punkte">
               <li>
-                <span class="lang-de">Automatische Plattform- &amp; Zahlungsgebühren</span>
-                <span class="lang-en" lang="en">Automatic marketplace &amp; payment fee cuts</span>
+                <span class="lang-de">Einkaufskosten und Nebenkosten zuordnen</span
+                ><span class="lang-en" lang="en">Assign purchase costs and related expenses</span>
               </li>
               <li>
-                <span class="lang-de">Echte Netto-Margen statt Brutto-Träumereien</span>
-                <span class="lang-en" lang="en">True net profit calculation</span>
-              </li>
-              <li>
-                <span class="lang-de">Liegezeit-Radar: Ladenhüter rechtzeitig erkennen</span>
-                <span class="lang-en" lang="en">Holding time alerts for slow movers</span>
+                <span class="lang-de">Artikelstatus und Bestand verfolgen</span
+                ><span class="lang-en" lang="en">Track item status and inventory</span>
               </li>
             </ul>
-          </div>
-
-          <!-- 04 Bildoptimierer & Privatsphäre-Schutz -->
-          <div class="feature-karte hervorgehoben" id="bildoptimierer">
-            <span class="feature-badge" lang="en">Privacy</span>
-            <div class="feature-icon-box">
-              <svg
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect>
-                <circle cx="9" cy="9" r="2"></circle>
-                <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path>
-              </svg>
-            </div>
+          </article>
+          <article class="feature-karte" id="image-optimization">
+            <span class="feature-badge localized-badge"
+              ><span class="lang-de">Bilder</span
+              ><span class="lang-en" lang="en">Photos</span></span
+            >
+            <div class="feature-icon-box" aria-hidden="true">03</div>
             <h3>
-              <span class="lang-de">Bildoptimierer &amp; GPS-Schutz</span>
-              <span class="lang-en" lang="en">Image Optimizer &amp; GPS Shield</span>
+              <span class="lang-de">Produktbilder optimieren und zuschneiden</span
+              ><span class="lang-en" lang="en">Optimize and crop product photos</span>
             </h3>
             <p>
-              <span class="lang-de">
-                Entfernt private Standortdaten aus Handyfotos, optimiert Schärfe und Kontrast auf
-                reiner Pixelebene und exportiert passende Zuschnitte für alle Marktplätze.
-              </span>
-              <span class="lang-en" lang="en">
-                Strips private home coordinates from smartphone photos, optimizes sharpness on raw
-                pixels, and exports cropped assets for all platforms.
-              </span>
+              <span class="lang-de"
+                >Bereite Fotos für deine Inserate auf: Zuschnitt, Bildanpassungen und Export laufen
+                in einem Werkzeug. Beim Export werden Standort- und andere Metadaten entfernt.</span
+              ><span class="lang-en" lang="en"
+                >Prepare listing photos with cropping, adjustments, and export in one tool. Location
+                and other metadata are removed on export.</span
+              >
             </p>
             <ul class="feature-punkte">
               <li>
-                <span class="lang-de">Entfernt GPS &amp; EXIF-Metadaten vollständig</span>
-                <span class="lang-en" lang="en">Full GPS &amp; EXIF metadata wipe</span>
+                <span class="lang-de">Zuschnitte für Marktplätze vorbereiten</span
+                ><span class="lang-en" lang="en">Prepare crops for marketplaces</span>
               </li>
               <li>
-                <span class="lang-de">Formate für eBay (1:1), Vinted (2:3) &amp; Kleinanz.</span>
-                <span class="lang-en" lang="en"
-                  >Aspect ratios for eBay, Vinted &amp; local ads</span
-                >
-              </li>
-              <li>
-                <span class="lang-de">Weißabgleich, Unsharp Mask &amp; ZIP-Export</span>
-                <span class="lang-en" lang="en">White balance, unsharp mask &amp; ZIP export</span>
+                <span class="lang-de">Bilder gesammelt als ZIP exportieren</span
+                ><span class="lang-en" lang="en">Export photos together as a ZIP</span>
               </li>
             </ul>
-          </div>
-
-          <!-- 05 Listing Studio -->
-          <div class="feature-karte">
-            <span class="feature-badge" lang="en">Workflow</span>
-            <div class="feature-icon-box">
-              <svg
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path
-                  d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"
-                ></path>
-                <polyline points="14 2 14 8 20 8"></polyline>
-                <line x1="16" y1="13" x2="8" y2="13"></line>
-                <line x1="16" y1="17" x2="8" y2="17"></line>
-              </svg>
-            </div>
+          </article>
+          <article class="feature-karte" id="listings">
+            <span class="feature-badge localized-badge"
+              ><span class="lang-de">Inserate</span
+              ><span class="lang-en" lang="en">Listings</span></span
+            >
+            <div class="feature-icon-box" aria-hidden="true">04</div>
             <h3>
-              <span class="lang-de">Multi-Channel Listing Studio</span>
-              <span class="lang-en" lang="en">Multi-Channel Listing Studio</span>
+              <span class="lang-de">Kleinanzeigen-Inserate vorbereiten</span
+              ><span class="lang-en" lang="en">Prepare Kleinanzeigen listings</span>
             </h3>
             <p>
-              <span class="lang-de">
-                Inserate für Vinted, eBay und Kleinanzeigen vorformulieren. Zeichenzähler verhindern
-                abgeschnittene Titel auf mobilen Geräten.
-              </span>
-              <span class="lang-en" lang="en">
-                Pre-craft marketplace listings with platform-specific character counters so mobile
-                titles never get cut off.
-              </span>
+              <span class="lang-de"
+                >Übernimm Artikeldaten und Bilder in einen Inseratsentwurf. Mit einem Klick
+                überträgt die Browser-Erweiterung ihn in einen Kleinanzeigen-Tab; dort schließt du
+                die Veröffentlichung ab.</span
+              ><span class="lang-en" lang="en"
+                >Use item details and photos in a listing draft. With one click, the browser
+                extension transfers it to a Kleinanzeigen tab, where you finish publishing.</span
+              >
             </p>
             <ul class="feature-punkte">
               <li>
-                <span class="lang-de">Zeichenzähler für jede Zielplattform</span>
-                <span class="lang-en" lang="en">Exact character limits per platform</span>
+                <span class="lang-de">Titel, Beschreibung und Preis bearbeiten</span
+                ><span class="lang-en" lang="en">Edit title, description, and price</span>
               </li>
               <li>
-                <span class="lang-de">Wiederverwendbare Textbausteine &amp; Zustände</span>
-                <span class="lang-en" lang="en">Reusable text snippets &amp; condition tags</span>
-              </li>
-              <li>
-                <span class="lang-de">Direkte Verknüpfung mit dem Artikelbestand</span>
-                <span class="lang-en" lang="en">Direct connection to inventory items</span>
+                <span class="lang-de">Vorbereitete Inserate mit dem Bestand verknüpfen</span
+                ><span class="lang-en" lang="en">Link prepared listings to inventory</span>
               </li>
             </ul>
-          </div>
-
-          <!-- 06 § 25a Differenzbesteuerung & DATEV -->
-          <div class="feature-karte hervorgehoben" id="buchhaltung">
-            <span class="feature-badge localized-badge">
-              <span class="lang-de">Buchhaltungsdaten</span>
-              <span class="lang-en" lang="en">Accounting data</span>
-            </span>
-            <div class="feature-icon-box">
-              <svg
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path
-                  d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"
-                ></path>
-                <path d="M18 14h-8"></path>
-                <path d="M15 18h-5"></path>
-                <path d="M10 6h8v4h-8V6Z"></path>
-              </svg>
-            </div>
+          </article>
+          <article class="feature-karte" id="sales">
+            <span class="feature-badge localized-badge"
+              ><span class="lang-de">Verkäufe</span
+              ><span class="lang-en" lang="en">Sales</span></span
+            >
+            <div class="feature-icon-box" aria-hidden="true">05</div>
             <h3>
-              <span class="lang-de">§ 25a Differenzsteuer &amp; DATEV</span>
-              <span class="lang-en" lang="en">§ 25a Margin Tax &amp; DATEV</span>
+              <span class="lang-de">Verkäufe über Plattformen erfassen</span
+              ><span class="lang-en" lang="en">Record sales across marketplaces</span>
             </h3>
             <p>
-              <span class="lang-de">
-                Flipbase berechnet Margen aus den erfassten Einkaufs-, Verkaufs- und Versandwerten
+              <span class="lang-de"
+                >Halte Verkäufe auf Vinted, Kleinanzeigen und eBay fest. Verkaufspreis, Gebühren und
+                Versandkosten fließen in die Auswertung ein.</span
+              ><span class="lang-en" lang="en"
+                >Record sales from Vinted, Kleinanzeigen, and eBay. Prices, fees, and shipping costs
+                feed into your reports.</span
+              >
+            </p>
+            <ul class="feature-punkte">
+              <li>
+                <span class="lang-de">Plattformen und Gebühren zuordnen</span
+                ><span class="lang-en" lang="en">Assign marketplaces and fees</span>
+              </li>
+              <li>
+                <span class="lang-de">Marge je Artikel nachvollziehen</span
+                ><span class="lang-en" lang="en">Trace the margin for each item</span>
+              </li>
+            </ul>
+          </article>
+          <article class="feature-karte" id="expenses">
+            <span class="feature-badge localized-badge"
+              ><span class="lang-de">Ausgaben</span
+              ><span class="lang-en" lang="en">Expenses</span></span
+            >
+            <div class="feature-icon-box" aria-hidden="true">06</div>
+            <h3>
+              <span class="lang-de">Betriebsausgaben und Fixkosten erfassen</span
+              ><span class="lang-en" lang="en">Track business and recurring expenses</span>
+            </h3>
+            <p>
+              <span class="lang-de"
+                >Erfasse Belege und laufende Kosten wie Software, Lager oder Verpackung.
+                Wiederkehrende Ausgaben bleiben im Blick.</span
+              ><span class="lang-en" lang="en"
+                >Record receipts and ongoing costs such as software, storage, or packaging. Keep
+                recurring expenses visible.</span
+              >
+            </p>
+            <ul class="feature-punkte">
+              <li>
+                <span class="lang-de">Monatliche, quartalsweise und jährliche Kosten</span
+                ><span class="lang-en" lang="en">Monthly, quarterly, and annual costs</span>
+              </li>
+              <li>
+                <span class="lang-de">Belege mit Ausgaben verbinden</span
+                ><span class="lang-en" lang="en">Link receipts to expenses</span>
+              </li>
+            </ul>
+          </article>
+          <article class="feature-karte" id="accounting">
+            <span class="feature-badge localized-badge"
+              ><span class="lang-de">Steuern</span
+              ><span class="lang-en" lang="en">Taxes</span></span
+            >
+            <div class="feature-icon-box" aria-hidden="true">07</div>
+            <h3>
+              <span class="lang-de">Steuerdaten für Reseller aufbereiten</span
+              ><span class="lang-en" lang="en">Prepare accounting data for resellers</span>
+            </h3>
+            <p>
+              <span class="lang-de"
+                >Flipbase berechnet Margen aus den erfassten Einkaufs-, Verkaufs- und Versandwerten
                 und stellt strukturierte Buchungsdaten sowie DATEV-kompatible Exporte bereit.
-                Steuerliche Einordnung und Vollständigkeit sind vor der Nutzung zu prüfen.
-              </span>
-              <span class="lang-en" lang="en">
-                Flipbase calculates margins from recorded purchase, sale, and shipping values and
+                Steuerliche Einordnung und Vollständigkeit sind vor der Nutzung zu prüfen.</span
+              ><span class="lang-en" lang="en"
+                >Flipbase calculates margins from recorded purchase, sale, and shipping values and
                 provides structured booking data plus DATEV-compatible exports. Tax treatment and
-                completeness must be reviewed before use.
-              </span>
+                completeness must be reviewed before use.</span
+              >
             </p>
             <ul class="feature-punkte">
               <li>
-                <span class="lang-de">Rechnerische 19/119-Aufteilung erfasster Margen</span>
-                <span class="lang-en" lang="en">Calculated 19/119 split of recorded margins</span>
+                <span class="lang-de">Rechnerische 19/119-Aufteilung erfasster Margen</span
+                ><span class="lang-en" lang="en">Calculated 19/119 split of recorded margins</span>
               </li>
               <li>
-                <span class="lang-de">DATEV-kompatibler Buchungsdatenexport (SKR03 / SKR04)</span>
-                <span class="lang-en" lang="en"
-                  >DATEV-compatible booking-data export (SKR03 / SKR04)</span
+                <span class="lang-de">DATEV-kompatibler Buchungsdatenexport (SKR03 / SKR04)</span
+                ><span class="lang-en" lang="en"
+                  >DATEV-compatible accounting export (SKR03 / SKR04)</span
                 >
               </li>
-              <li>
-                <span class="lang-de">Verknüpfung von Belegen und Buchungsvorgängen</span>
-                <span class="lang-en" lang="en">Links between receipts and booking records</span>
-              </li>
             </ul>
-          </div>
+          </article>
         </div>
       </section>
 
@@ -2392,19 +2319,21 @@
       <section>
         <div class="sektion-header">
           <span class="sektion-kicker">
-            <span class="lang-de">Sicherheit &amp; Vertrauen</span>
-            <span class="lang-en" lang="en">Security &amp; Privacy</span>
+            <span class="lang-de">Arbeitsbereiche</span>
+            <span class="lang-en" lang="en">Workspaces</span>
           </span>
           <h2 class="sektion-titel">
-            <span class="lang-de">Datenzugriff mit klaren Grenzen.</span>
-            <span class="lang-en" lang="en">Data access with clear boundaries.</span>
+            <span class="lang-de">Mehrere Betriebsbereiche sauber trennen.</span>
+            <span class="lang-en" lang="en">Keep business areas separate.</span>
           </h2>
           <p class="sektion-text">
             <span class="lang-de">
-              Flipbase begrenzt den Zugriff auf Workspace-Daten mit serverseitigen Regeln.
+              Verwalte verschiedene Gewerbe oder Betriebsteile in eigenen Workspaces. So bleiben
+              Artikel, Kosten und Auswertungen im passenden Bereich.
             </span>
             <span class="lang-en" lang="en">
-              Flipbase limits access to workspace data with server-side rules.
+              Use separate workspaces for different businesses or business areas. Keep items, costs,
+              and reports in the right place.
             </span>
           </p>
         </div>
@@ -2426,8 +2355,8 @@
                 <line x1="6" x2="6.01" y1="6" y2="6"></line>
                 <line x1="6" x2="6.01" y1="18" y2="18"></line>
               </svg>
-              <span class="lang-de">Workspace-getrennter Datenzugriff</span>
-              <span class="lang-en" lang="en">Workspace-scoped data access</span>
+              <span class="lang-de">Getrennte Workspaces und Datenzugriff</span>
+              <span class="lang-en" lang="en">Separate workspaces and data access</span>
             </h3>
             <p>
               <span class="lang-de">
@@ -2457,126 +2386,86 @@
                 <rect width="14" height="20" x="5" y="2" rx="2" ry="2"></rect>
                 <path d="M12 18h.01"></path>
               </svg>
-              <span lang="en">Progressive Web App (PWA)</span>
+              <span class="lang-de">Auch unterwegs im Browser</span>
+              <span class="lang-en" lang="en">In your browser on the go</span>
             </h3>
             <p>
               <span class="lang-de">
-                Läuft flüssig im Browser am Desktop, Tablet und unterwegs auf dem Smartphone beim
-                Sourcing auf dem Flohmarkt.
+                Prüfe Artikel und Kennzahlen am Desktop, Tablet oder Smartphone – auch unterwegs bei
+                der Produktsuche.
               </span>
               <span class="lang-en" lang="en">
-                Works seamlessly on desktop, tablet, and mobile browsers while hunting deals at flea
-                markets.
+                Check items and figures from a desktop, tablet, or smartphone while sourcing.
               </span>
             </p>
           </div>
         </div>
       </section>
 
-      <!-- Roadmap -->
+      <!-- Funktionsstand der Beta -->
       <section id="roadmap">
         <div class="sektion-header">
-          <span class="sektion-kicker">
-            <span class="lang-de">Roadmap</span>
-            <span class="lang-en" lang="en">Roadmap</span>
-          </span>
+          <span class="sektion-kicker"
+            ><span class="lang-de">In der Beta</span
+            ><span class="lang-en" lang="en">In beta</span></span
+          >
           <h2 class="sektion-titel">
-            <span class="lang-de">Unsere Produkt-Roadmap.</span>
-            <span class="lang-en" lang="en">Product Roadmap.</span>
+            <span class="lang-de">Das kannst du in Flipbase nutzen.</span
+            ><span class="lang-en" lang="en">What you can use in Flipbase.</span>
           </h2>
           <p class="sektion-text">
-            <span class="lang-de">
-              Wir entwickeln Flipbase praxisnah für die Reseller-Community. Hier siehst du, welche
-              Funktionen bereits live nutzbar sind und woran wir aktuell mit Hochdruck arbeiten:
-            </span>
-            <span class="lang-en" lang="en">
-              We build Flipbase directly alongside the reselling community. Here is what is
-              currently live and what we are actively working on next:
-            </span>
+            <span class="lang-de"
+              >Diese Bereiche sind Teil der Anwendung. Verfügbarkeit und Funktionsumfang können sich
+              während der Beta ändern.</span
+            ><span class="lang-en" lang="en"
+              >These areas are part of the app. Availability and feature scope may change during the
+              beta.</span
+            >
           </p>
         </div>
-
         <div class="status-box">
           <ul class="status-liste">
             <li class="status-item">
-              <span class="status-tag fertig">
-                <span class="lang-de">Live</span>
-                <span class="lang-en" lang="en">Live</span>
-              </span>
-              <span class="lang-de"
-                >Einkaufsbuchung, Mischkäufe, Nebenkostenverteilung &amp; Liegezeiten</span
+              <span class="status-tag fertig"
+                ><span class="lang-de">Beta</span><span class="lang-en" lang="en">Beta</span></span
               >
-              <span class="lang-en" lang="en"
-                >Purchase tracking, lots, expense splitting &amp; holding age</span
+              <span class="lang-de">Vinted Bot mit Suchfiltern, Feed und Favoriten</span
+              ><span class="lang-en" lang="en"
+                >Vinted Bot with saved filters, a feed, and favorites</span
               >
             </li>
             <li class="status-item">
-              <span class="status-tag fertig">
-                <span class="lang-de">Live</span>
-                <span class="lang-en" lang="en">Live</span>
-              </span>
-              <span class="lang-de"
-                >Bildoptimierer mit automatischem GPS-Schutz, Zuschnitten &amp; ZIP-Export</span
+              <span class="status-tag fertig"
+                ><span class="lang-de">Beta</span><span class="lang-en" lang="en">Beta</span></span
               >
-              <span class="lang-en" lang="en"
-                >Image Optimizer with automatic GPS wipe, cropping &amp; ZIP export</span
+              <span class="lang-de">Einkäufe, Artikelbestand und Verkäufe erfassen</span
+              ><span class="lang-en" lang="en">Record purchases, inventory, and sales</span>
+            </li>
+            <li class="status-item">
+              <span class="status-tag fertig"
+                ><span class="lang-de">Beta</span><span class="lang-en" lang="en">Beta</span></span
+              >
+              <span class="lang-de">Bilder optimieren, zuschneiden und exportieren</span
+              ><span class="lang-en" lang="en">Optimize, crop, and export photos</span>
+            </li>
+            <li class="status-item">
+              <span class="status-tag fertig"
+                ><span class="lang-de">Beta</span><span class="lang-en" lang="en">Beta</span></span
+              >
+              <span class="lang-de"
+                >Kleinanzeigen-Inserate vorbereiten und per Erweiterung übertragen</span
+              ><span class="lang-en" lang="en"
+                >Prepare Kleinanzeigen listings and transfer them with the extension</span
               >
             </li>
             <li class="status-item">
-              <span class="status-tag fertig">
-                <span class="lang-de">Live</span>
-                <span class="lang-en" lang="en">Live</span>
-              </span>
+              <span class="status-tag fertig"
+                ><span class="lang-de">Beta</span><span class="lang-en" lang="en">Beta</span></span
+              >
               <span class="lang-de"
-                >Multi-Channel Listing Studio für Vinted, eBay und Kleinanzeigen</span
-              >
-              <span class="lang-en" lang="en"
-                >Multi-Channel Listing Studio for Vinted, eBay, and Kleinanzeigen</span
-              >
-            </li>
-            <li class="status-item">
-              <span class="status-tag fertig">
-                <span class="lang-de">Live</span>
-                <span class="lang-en" lang="en">Live</span>
-              </span>
-              <span class="lang-de"
-                >Verkaufsabrechnung mit Portotrennung, § 25a Differenzsteuer &amp;
-                DATEV-Export</span
-              >
-              <span class="lang-en" lang="en"
-                >Sales booking with postage split, § 25a margin tax &amp; DATEV export</span
-              >
-            </li>
-            <li class="status-item">
-              <span class="status-tag in-arbeit">
-                <span class="lang-de">In Entwicklung</span>
-                <span class="lang-en" lang="en">In development</span>
-              </span>
-              <span class="lang-de">Geplanter Vinted Deal-Sniper für gespeicherte Suchfilter</span>
-              <span class="lang-en" lang="en">Planned Vinted Deal Sniper for saved searches</span>
-            </li>
-            <li class="status-item">
-              <span class="status-tag in-arbeit">
-                <span class="lang-de">In Entwicklung</span>
-                <span class="lang-en" lang="en">In development</span>
-              </span>
-              <span class="lang-de"
-                >Direkte Versandlabel-Erzeugung (DHL &amp; Hermes Anbindung)</span
-              >
-              <span class="lang-en" lang="en"
-                >Direct shipping label generation (DHL &amp; Hermes carrier integration)</span
-              >
-            </li>
-            <li class="status-item">
-              <span class="status-tag geplant">
-                <span class="lang-de">Geplant</span>
-                <span class="lang-en" lang="en">Planned</span>
-              </span>
-              <span class="lang-de"
-                >Eigener provisionsfreier Onlineshop mit direkter Zahlungsabwicklung</span
-              >
-              <span class="lang-en" lang="en"
-                >Custom zero-fee online storefront with integrated checkout</span
+                >Betriebsausgaben, Fixkosten, Workspaces und Steuerdaten verwalten</span
+              ><span class="lang-en" lang="en"
+                >Manage expenses, recurring costs, workspaces, and accounting data</span
               >
             </li>
           </ul>
@@ -2758,8 +2647,8 @@
           <details class="faq-item">
             <summary class="faq-summary">
               <span>
-                <span class="lang-de">Was ist für den Vinted Deal-Sniper geplant?</span>
-                <span class="lang-en" lang="en">What is planned for the Vinted Deal Sniper?</span>
+                <span class="lang-de">Wie hilft mir der Vinted Bot bei der Produktsuche?</span>
+                <span class="lang-en" lang="en">How does the Vinted Bot help me find items?</span>
               </span>
               <svg
                 class="faq-chevron"
@@ -2776,12 +2665,12 @@
             <div class="faq-body">
               <p>
                 <span class="lang-de">
-                  Geplant ist, gespeicherte Suchfilter im Hintergrund zu prüfen und passende Treffer
-                  für den späteren Import anzuzeigen.
+                  Lege Suchfilter für passende Vinted-Angebote an. Im Bot siehst du gesammelte
+                  Funde, kannst sie vergleichen, als Favorit merken und auf Vinted öffnen.
                 </span>
                 <span class="lang-en" lang="en">
-                  The planned flow checks saved searches in the background and surfaces matching
-                  listings for later import.
+                  Set up filters for relevant Vinted offers. The bot shows collected finds that you
+                  can compare, save as favorites, and open on Vinted.
                 </span>
               </p>
             </div>
@@ -2813,14 +2702,15 @@
             <div class="faq-body">
               <p>
                 <span class="lang-de">
-                  Flipbase ist auf die wichtigsten Reselling-Kanäle fokussiert: Vinted, eBay und
-                  Kleinanzeigen. Du erstellst Titel, Beschreibung und Bilder im Multi-Channel
-                  Listing Studio einmalig und bereitest sie passgenau für jeden Marktplatz vor.
+                  Verkäufe kannst du für Vinted, Kleinanzeigen und eBay erfassen. Der Vinted Bot
+                  unterstützt die Produktsuche. Inserate bereitest du derzeit für Kleinanzeigen vor;
+                  die Browser-Erweiterung überträgt den Entwurf in einen neuen Tab. Die
+                  Veröffentlichung schließt du auf Kleinanzeigen selbst ab.
                 </span>
                 <span class="lang-en" lang="en">
-                  Flipbase focuses on key reselling channels: Vinted, eBay, and Kleinanzeigen. You
-                  craft titles, descriptions, and photos once in the Multi-Channel Listing Studio
-                  and tailor them for each marketplace.
+                  You can record sales from Vinted, Kleinanzeigen, and eBay. The Vinted Bot helps
+                  with sourcing. You currently prepare listings for Kleinanzeigen; the browser
+                  extension transfers the draft into a new tab. You finish publishing there.
                 </span>
               </p>
             </div>
@@ -2848,15 +2738,14 @@
             <div class="faq-body">
               <p>
                 <span class="lang-de">
-                  Der Bildoptimierer entfernt beim Upload automatisch alle sensiblen EXIF-Metadaten
-                  (wie GPS-Standortdaten und Kamerainformationen) zum Schutz deiner Privatsphäre,
-                  schneidet Fotos auf das optimale 3:4-Format zu und komprimiert sie für
-                  ultraschnelle Ladezeiten auf Marktplätzen.
+                  Du kannst Produktbilder zuschneiden, anpassen und gesammelt exportieren. Beim
+                  Export werden Standort- und andere Metadaten entfernt. Wähle den passenden
+                  Zuschnitt für dein Ziel, statt ein festes Format für alle Plattformen anzunehmen.
                 </span>
                 <span class="lang-en" lang="en">
-                  The optimizer automatically strips all sensitive EXIF metadata (like GPS location
-                  and device data) to safeguard your privacy, crops images to the optimal 3:4 ratio,
-                  and compresses them for fast loading on marketplaces.
+                  You can crop, adjust, and export product photos together. Location and other
+                  metadata are removed on export. Choose a crop for your destination instead of
+                  assuming one format fits every marketplace.
                 </span>
               </p>
             </div>
@@ -2964,14 +2853,12 @@
             <div class="faq-body">
               <p>
                 <span class="lang-de">
-                  Ja. Flipbase ist als vollwertige Progressive Web App (PWA) gebaut. Du kannst die
-                  Anwendung direkt im Smartphone-Browser öffnen oder zum Startbildschirm hinzufügen
-                  – ideal, um beim Sourcing auf dem Flohmarkt Preise und Margen direkt zu prüfen.
+                  Ja. Du kannst Flipbase im Browser auf dem Smartphone öffnen und unterwegs Artikel,
+                  Bestand und Kennzahlen prüfen.
                 </span>
                 <span class="lang-en" lang="en">
-                  Yes. Flipbase is built as a Progressive Web App (PWA) running smoothly on phones,
-                  tablets, and desktops. You can add it directly to your home screen to check
-                  margins and inventory on the go at flea markets.
+                  Yes. Open Flipbase in your phone browser to check items, inventory, and key
+                  figures while you are out sourcing.
                 </span>
               </p>
             </div>

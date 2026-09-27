@@ -406,7 +406,7 @@ test('runs the landing contract immediately before the production build', () => 
 
 test('leads from the revised hero to one application form at the end of the page', () => {
   assert.doesNotMatch(html, /Vom Wühltisch zum Profit/u);
-  assert.match(normalizedHtml, /Dein Reselling\. Klar organisiert\./u);
+  assert.match(normalizedHtml, /Dein Vintage-Reselling\./u);
   assert.doesNotMatch(html, /id=["']hero-bewerbung-form["']/u);
 
   const heroCallToAction = extractStartTags(html, 'a').find((link) =>
@@ -719,6 +719,7 @@ test('restores theme and language after reload and keeps an explicit theme acros
   assert.equal(themeToggle.checked, false);
   assert.equal(languageToggle.checked, false);
   assert.equal(firstVisit.document.documentElement.lang, 'de');
+  assert.match(firstVisit.document.title, /Reselling-Software für Vintage/u);
 
   themeToggle.checked = true;
   themeToggle.dispatchEvent(new firstVisit.dom.window.Event('change'));
@@ -728,6 +729,11 @@ test('restores theme and language after reload and keeps an explicit theme acros
   assert.equal(firstVisit.dom.window.localStorage.getItem(languageKey), 'en');
   assert.equal(firstVisit.document.querySelector('meta[name="theme-color"]').content, '#f4f5f7');
   assert.equal(firstVisit.document.documentElement.lang, 'en');
+  assert.match(firstVisit.document.title, /Reselling software for vintage sellers/u);
+  assert.match(
+    firstVisit.document.querySelector('meta[name="description"]').content,
+    /Vintage reselling beyond spreadsheets/u,
+  );
   firstVisit.mediaQuery.setLight(true);
   assert.equal(themeToggle.checked, false);
   firstVisit.dom.window.close();
@@ -755,6 +761,7 @@ test('restores theme and language after reload and keeps an explicit theme acros
   restoredLanguageToggle.dispatchEvent(new lightSystem.dom.window.Event('change'));
   assert.equal(lightSystem.dom.window.localStorage.getItem(languageKey), 'de');
   assert.equal(lightSystem.document.documentElement.lang, 'de');
+  assert.match(lightSystem.document.title, /Reselling-Software für Vintage/u);
   lightSystem.dom.window.close();
 });
 
@@ -762,7 +769,9 @@ test('declares English passages and gives localized controls static screen-reade
   assert.match(html, /<html\s+lang="de">/iu);
 
   const unswitchedDocumentText = [];
-  if (extractElement(html, 'title').trim() !== 'Flipbase') {
+  if (
+    extractElement(html, 'title').trim() !== 'Flipbase: Reselling-Software für Vintage &amp; Vinted'
+  ) {
     unswitchedDocumentText.push('document title');
   }
   for (const logo of extractStartTags(html, 'img').filter(
@@ -773,7 +782,7 @@ test('declares English passages and gives localized controls static screen-reade
   assert.deepEqual(
     unswitchedDocumentText,
     [],
-    'Unswitched browser and assistive text must remain language-neutral',
+    'The default German document title and decorative logos must stay correct',
   );
 
   const englishPassages = startTagsWithClass(html, 'lang-en');
@@ -856,22 +865,19 @@ test('declares English passages and gives localized controls static screen-reade
   for (const expectedPair of [
     ['✕ Der alte Weg', '✕ The old way'],
     ['✓ Die Flipbase-Lösung', '✓ The Flipbase solution'],
-    ['✕ Das Sicherheitsrisiko', '✕ The security risk'],
-    ['✓ Der Flipbase-Schutz', '✓ Flipbase protection'],
-    ['In Entwicklung', 'In development'],
-    ['Geplant', 'Planned'],
+    ['✕ Zahlen ohne Zusammenhang', '✕ Figures without context'],
+    ['✓ Die Flipbase-Übersicht', '✓ The Flipbase overview'],
   ]) {
     assertLanguagePair(html, expectedPair[0], expectedPair[1]);
   }
 
-  assert.equal(
-    matches(html, /<span\b[^>]*class="status-tag [^"]+"[^>]*>/giu),
-    matches(
-      normalizedHtml,
-      /<span\b[^>]*class="status-tag [^"]+"[^>]*> <span class="lang-de">[^<]+<\/span> <span class="lang-en" lang="en">[^<]+<\/span> <\/span>/giu,
-    ),
-    'Every roadmap status must switch languages, including repeated values',
-  );
+  const roadmapDocument = new JSDOM(html).window.document;
+  const roadmapStatuses = [...roadmapDocument.querySelectorAll('.status-tag')];
+  assert.ok(roadmapStatuses.length > 0, 'Expected beta status labels');
+  for (const status of roadmapStatuses) {
+    assert.ok(status.querySelector('.lang-de'), 'Every status needs German text');
+    assert.ok(status.querySelector('.lang-en[lang="en"]'), 'Every status needs English text');
+  }
 
   for (const className of ['marke-badge', 'feature-badge']) {
     for (const badge of startTagsWithClass(html, className)) {
@@ -939,7 +945,7 @@ test('keeps local landing assets intact', async () => {
   const faqItems = [
     ...html.matchAll(/<details\b[^>]*class="faq-item"[^>]*>[\s\S]*?<\/details>/giu),
   ];
-  assert.ok(faqItems.length >= 10, 'The complete FAQ accordion must remain available');
+  assert.ok(faqItems.length >= 10, 'The core FAQ accordion must remain available');
   for (const [faqItem] of faqItems) {
     assert.match(faqItem, /<summary\b[^>]*class="faq-summary"[^>]*>/iu);
     assert.match(faqItem, /<div\b[^>]*class="faq-body"[^>]*>/iu);
@@ -1334,105 +1340,39 @@ test('describes the beta application review flow without open-registration or fi
   }
 });
 
-test('marks Deal Sniper behavior as planned in German and English', () => {
-  const expectedPlannedCopy = [
-    ['Vinted Deal-Sniper (geplant)', 1],
-    ['Vinted Deal Sniper (planned)', 1],
-    ['Geplanter Vinted Deal-Sniper für gespeicherte Suchfilter', 1],
-    ['Planned Vinted Deal Sniper for saved searches', 1],
-    ['Was ist für den Vinted Deal-Sniper geplant?', 1],
-    ['What is planned for the Vinted Deal Sniper?', 1],
-  ];
-  for (const [phrase, count] of expectedPlannedCopy) {
-    assert.equal(matches(normalizedHtml, new RegExp(escapeRegExp(phrase), 'gu')), count, phrase);
-  }
-
+test('explains the vintage workflow and the real marketplace scope', () => {
   const descriptionTag = extractStartTags(html, 'meta').find(
     (tag) => attribute(tag, 'name') === 'description',
   );
   assert.ok(descriptionTag, 'Expected a meta description');
-  assert.doesNotMatch(
-    attribute(descriptionTag, 'content'),
-    /(?:Vinted Bot|Deal[- ]Sniper|deal sniping)/iu,
-    'The static German meta description must omit the unreleased feature',
-  );
-
-  const localizedPassages = [
-    ...html.matchAll(/<span\b[^>]*class="lang-(?:de|en)"[^>]*>([\s\S]*?)<\/span>/giu),
-  ].map(([, content]) =>
-    content
-      .replace(/<[^>]+>/gu, '')
-      .replace(/\s+/gu, ' ')
-      .trim(),
-  );
-  for (const passage of localizedPassages.filter((text) =>
-    /(?:Vinted (?:Bot|Deal[- ]Sniper|sniper)|Deal-(?:Suche|Recherche)|deal discovery)/iu.test(text),
-  )) {
-    assert.match(
-      passage,
-      /(?:geplant\p{L}*|planned|in Entwicklung|in development)/iu,
-      `Unreleased Deal Sniper mention must carry its status: ${passage}`,
-    );
-  }
-
+  assert.match(attribute(descriptionTag, 'content'), /Vintage-Reselling ohne Excel/u);
+  assert.match(attribute(descriptionTag, 'content'), /Vinted Bot/u);
+  assert.match(normalizedHtml, /Dein Vintage-Reselling/u);
+  assert.match(normalizedHtml, /Vinted Bot: passende Funde prüfen/u);
+  assert.match(normalizedHtml, /Betriebsausgaben und Fixkosten erfassen/u);
+  assert.match(normalizedHtml, /Mehrere Betriebsbereiche sauber trennen/u);
   assert.match(
     normalizedHtml,
-    /Von der geplanten Deal-Suche über die Bestandsverwaltung bis zu DATEV-kompatiblen Buchungsdaten\./u,
+    /Mit einem Klick überträgt die Browser-Erweiterung ihn in einen Kleinanzeigen-Tab; dort schließt du die Veröffentlichung ab\./u,
   );
-  assert.match(
-    normalizedHtml,
-    /From planned deal discovery to inventory management and DATEV-compatible accounting exports\./u,
-  );
-  assert.equal(
-    matches(
-      normalizedHtml,
-      /Geplant ist, gespeicherte Suchfilter im Hintergrund zu prüfen und passende Treffer für den späteren Import anzuzeigen\./gu,
-    ),
-    2,
-  );
-  assert.equal(
-    matches(
-      normalizedHtml,
-      /The planned flow checks saved searches in the background and surfaces matching listings for later import\./gu,
-    ),
-    2,
-  );
-  assert.match(normalizedHtml, />In Entwicklung</u);
-  assert.match(normalizedHtml, />In development</u);
+  assert.match(normalizedHtml, /Verkäufe auf Vinted, Kleinanzeigen und eBay fest/u);
 
-  for (const phrase of [
-    'automatisierte Schnäppchenjagd',
-    'automated deal hunting',
-    'automatisierte Deal-Recherche',
-    'automated deal sniping',
-    'Echtzeit-Scans',
-    'Real-time scans',
-    'Sofortige Benachrichtigung',
-    'Instant alerts',
-    '1-Klick-Übernahme',
-    '1-click transfer',
-    'erhältst du sofort eine Benachrichtigung',
-    'receive instant alerts',
-    'import them with one click',
-    'Flipbase führt Vinted Bot,',
-    '>Vinted Bot<',
-    'Artikel 1 (Vinted Sniped)',
-    '>Vinted Bot &amp; Deal-Sniper<',
-    '>Vinted Bot &amp; Deal Sniper<',
-    'Vinted Deal-Sniper Dienst zur automatisierten Schnäppchen-Erkennung',
-    'Vinted Deal Sniper service for automated underpriced deal alerts',
-    'Wie funktioniert der Vinted Deal-Sniper?',
-    'How does the Vinted Deal Sniper work?',
-    'Bestand, Vinted Bot und Differenzbesteuerung',
-    'inventory, Vinted sniper, and margin tax',
+  for (const outdatedPhrase of [
+    'Mystery-Paket',
+    'Mystery-Box',
+    'Konvoluten',
+    'Flohmarkttüten',
+    'Vinted Deal-Sniper (geplant)',
+    'Multi-Channel Listing Studio für Vinted, eBay und Kleinanzeigen',
   ]) {
-    assert.doesNotMatch(normalizedHtml, new RegExp(escapeRegExp(phrase), 'iu'));
+    assert.doesNotMatch(normalizedHtml, new RegExp(escapeRegExp(outdatedPhrase), 'iu'));
   }
+  assert.doesNotMatch(normalizedHtml, /automatische Veröffentlichung|automatic publishing/iu);
 });
 
 test('limits privacy, infrastructure and accounting copy to technically bounded claims', () => {
-  assert.match(normalizedHtml, /Workspace-getrennter Datenzugriff/u);
-  assert.match(normalizedHtml, /Workspace-scoped data access/u);
+  assert.match(normalizedHtml, /Getrennte Workspaces und Datenzugriff/u);
+  assert.match(normalizedHtml, /Separate workspaces and data access/u);
   assert.equal(
     matches(
       normalizedHtml,
@@ -1451,14 +1391,8 @@ test('limits privacy, infrastructure and accounting copy to technically bounded 
   for (const phrase of [
     'Steuerliche Einordnung und Vollständigkeit sind vor der Nutzung zu prüfen.',
     'Tax treatment and completeness must be reviewed before use.',
-    'rechnerische Unterstützung bei der Differenzbesteuerung (§ 25a)',
-    'calculation support for margin taxation (§ 25a)',
-    'Beispielrechnung aus erfassten Werten: Einkaufspreis, Nebenkosten, Gebühren und eine rechnerische 19/119-Aufteilung der Beispielmarge werden nachvollziehbar dargestellt.',
-    'Example calculation from recorded values: purchase price, ancillary costs, fees, and a calculated 19/119 split of the example margin are shown transparently.',
     'Rechnerische 19/119-Aufteilung erfasster Margen',
     'Calculated 19/119 split of recorded margins',
-    'Verknüpfung von Belegen und Buchungsvorgängen',
-    'Links between receipts and booking records',
     'Welche Einstellung im Einzelfall passt, muss fachlich geprüft werden.',
     'The appropriate setting for each case must be reviewed by a qualified adviser.',
     'Ob § 25a anwendbar ist und welche Rechnungsangaben erforderlich sind, muss im Einzelfall geprüft werden.',
