@@ -19,9 +19,10 @@ export class CardComponent {
   readonly variant = input<CardVariant>('surface');
   readonly padding = input<CardPadding>('md');
   readonly rounded = input<CardRounded>('lg');
+  readonly overflowVisible = input(false);
 
   protected readonly cardClasses = computed(() => {
-    const base = 'flex flex-col overflow-hidden border';
+    const base = `flex flex-col ${this.overflowVisible() ? 'overflow-visible' : 'overflow-hidden'} border`;
 
     const roundedClass =
       this.rounded() === 'xl'

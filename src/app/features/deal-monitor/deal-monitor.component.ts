@@ -9,7 +9,7 @@ import {
   signal,
   untracked,
 } from '@angular/core';
-import { LucideBot } from '@lucide/angular';
+import { LucideBot, LucideRefreshCcw } from '@lucide/angular';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
@@ -64,6 +64,7 @@ export class DealMonitorComponent {
   readonly brandError = signal<string | null>(null);
   readonly now = signal(Date.now());
   readonly pageIcon = LucideBot;
+  readonly resetIcon = LucideRefreshCcw;
   readonly options = computed(() => [
     { value: null as string | null, label: 'Alle Suchfilter' },
     ...this.watchlists().map((row) => ({ value: row.id, label: row.title })),
@@ -76,6 +77,14 @@ export class DealMonitorComponent {
     this.watchlists().find((row) => row.id === this.selected()),
   );
   readonly feedItems = this.state.items;
+  readonly filtersActive = computed(
+    () =>
+      this.selected() !== null ||
+      this.selectedBrand() !== null ||
+      this.selectedSize() !== null ||
+      this.minPrice() !== null ||
+      this.maxPrice() !== null,
+  );
   readonly priceError = computed(() => {
     const min = this.minPrice();
     const max = this.maxPrice();
@@ -176,5 +185,13 @@ export class DealMonitorComponent {
         );
       }
     }
+  }
+
+  resetFilters(): void {
+    this.selected.set(null);
+    this.selectedBrand.set(null);
+    this.selectedSize.set(null);
+    this.minPrice.set(null);
+    this.maxPrice.set(null);
   }
 }
