@@ -221,7 +221,7 @@ describe('Vinted-Bereich in Flipbase', () => {
   it('zeigt einen ehrlichen Leerzustand statt eingebauter Beispielkonten', async () => {
     api.listConnections.mockResolvedValue({ canManage: true, connections: [] });
     const { element } = await render('/marketplaces/vinted/overview');
-    expect(element.textContent).toContain('Noch keine Vinted-Verbindung vorbereitet');
+    expect(element.textContent).toContain('Noch kein Vinted-Konto hinzugefügt');
     expect(element.textContent).not.toContain('Testkonto');
     expect(api.readSnapshot).not.toHaveBeenCalled();
   });
@@ -249,7 +249,7 @@ describe('Vinted-Bereich in Flipbase', () => {
     api.listConnections.mockRejectedValue(new MarketplaceApiError('unavailable'));
     const { element } = await render('/marketplaces/vinted/overview');
     expect(element.textContent).toContain('noch nicht verfügbar');
-    expect(element.textContent).not.toContain('Noch keine Vinted-Verbindung vorbereitet');
+    expect(element.textContent).not.toContain('Noch kein Vinted-Konto hinzugefügt');
   });
   it('zeigt Nachrichten als Text, nicht als fremdes HTML', async () => {
     api.readPage.mockResolvedValue({
@@ -281,13 +281,13 @@ describe('Vinted-Bereich in Flipbase', () => {
   it('hält die Kontenaktionen außerhalb des schmalen Kartenkopfs', async () => {
     const { element } = await render('/settings/marketplaces');
     const add = [...element.querySelectorAll<HTMLButtonElement>('button')].find((button) =>
-      button.textContent?.includes('Verbindung vorbereiten'),
+      button.textContent?.includes('Account hinzufügen'),
     );
     expect(add).toBeDefined();
     expect(element.querySelector('app-card h2')?.textContent).toContain('Vinted-Konten');
     expect(add?.closest('[data-card-header]')).toBeNull();
   });
-  it('speichert eine vorbereitete Verbindung aus dem Einstellungsdialog', async () => {
+  it('führt nach dem Kontodialog direkt zur zugehörigen Anmeldung', async () => {
     api.listConnections.mockResolvedValue({ canManage: true, connections: [] });
     const created = { ...fixtureConnections[0], displayName: 'Mein Konto', status: 'needs_login' };
     api.createConnection.mockImplementation(async () => {
@@ -296,7 +296,7 @@ describe('Vinted-Bereich in Flipbase', () => {
     });
     const { element, harness } = await render('/settings/marketplaces');
     const button = [...element.querySelectorAll<HTMLButtonElement>('button')].find((node) =>
-      node.textContent?.includes('Verbindung vorbereiten'),
+      node.textContent?.includes('Account hinzufügen'),
     );
     expect(button).toBeDefined();
     button?.click();
@@ -315,8 +315,8 @@ describe('Vinted-Bereich in Flipbase', () => {
       fixtureConnections[0].workspaceId,
       'Mein Konto',
     );
-    expect(element.textContent).toContain('Mein Konto');
-    expect(element.textContent).toContain('Anmeldung ausstehend');
+    expect(harness.routeNativeElement?.textContent).toContain('Mein Konto');
+    expect(harness.routeNativeElement?.querySelector('app-marketplace-connect')).not.toBeNull();
   });
   it('öffnet nur die zum Link gehörende Kontoverbindung', async () => {
     const { element } = await render(

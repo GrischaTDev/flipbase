@@ -1,4 +1,5 @@
 import type { BrowserSessionScope } from './marketplace-browser-session-broker.ts';
+import { GoLoginProfileNetwork } from './gologin-profile-network.ts';
 
 interface GoLoginProfileProvisionerOptions {
   supabaseUrl: string;
@@ -22,6 +23,7 @@ export class GoLoginProfileProvisioner {
   private readonly goLoginToken: string;
   private readonly request: typeof fetch;
   private readonly inFlight = new Map<string, Promise<void>>();
+  private readonly network: GoLoginProfileNetwork;
 
   constructor(options: GoLoginProfileProvisionerOptions) {
     this.baseUrl = options.supabaseUrl.replace(/\/$/, '');
@@ -29,6 +31,7 @@ export class GoLoginProfileProvisioner {
     this.serviceRoleKey = options.serviceRoleKey;
     this.goLoginToken = options.goLoginToken;
     this.request = options.fetch ?? fetch;
+    this.network = new GoLoginProfileNetwork(this.goLoginToken, this.request);
   }
 
   async prepare(scope: BrowserSessionScope): Promise<void> {
@@ -73,7 +76,11 @@ export class GoLoginProfileProvisioner {
   }
 
   private async prepareNew(scope: BrowserSessionScope): Promise<void> {
-    if (await this.savedProfile(scope)) return;
+    const savedProfile = await this.savedProfile(scope);
+    if (savedProfile) {
+      await this.network.assertConfigured(savedProfile);
+      return;
+    }
     const response = await this.request('https://api.gologin.com/browser/quick', {
       method: 'POST',
       headers: {
@@ -95,6 +102,8 @@ export class GoLoginProfileProvisioner {
     try {
       // Wird die Berechtigung während des Anbieteraufrufs entzogen, darf keine
       // neue Zuordnung entstehen.
+      await this.assertConnection(scope);
+      await this.network.configureNew(profileId);
       await this.assertConnection(scope);
       const saved = await this.request(`${this.baseUrl}/rest/v1/marketplace_browser_profiles`, {
         method: 'POST',

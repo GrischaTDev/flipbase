@@ -1,5 +1,5 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { ChangeDetectionStrategy, Component, DestroyRef, effect, inject } from '@angular/core';
+import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
@@ -21,11 +21,49 @@ import { MarketplaceBrowserTestStore } from '../../services/marketplace-browser-
   host: { class: 'block min-w-0' },
 })
 export class MarketplaceBrowserTestComponent {
+  private credentialsConnectionId: string | undefined;
   readonly store = inject(MarketplaceBrowserTestStore);
   readonly text = new FormControl('', { nonNullable: true });
+  readonly loginForm = new FormGroup({
+    username: new FormControl('', {
+      nonNullable: true,
+      validators: [Validators.required, Validators.maxLength(256)],
+    }),
+    password: new FormControl('', {
+      nonNullable: true,
+      validators: [Validators.required, Validators.maxLength(256)],
+    }),
+  });
 
   constructor() {
     void this.store.checkAvailability();
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') void this.store.checkLogin();
+    }, 3000);
+    inject(DestroyRef).onDestroy(() => {
+      clearInterval(interval);
+      this.loginForm.reset();
+      this.text.reset();
+    });
+    effect(() => {
+      const connectionId = this.store.connection()?.connectionId;
+      if (connectionId === this.credentialsConnectionId) return;
+      this.credentialsConnectionId = connectionId;
+      this.loginForm.reset();
+      this.text.reset();
+    });
+  }
+
+  async login(): Promise<void> {
+    if (this.loginForm.invalid || this.store.busy()) return;
+    const credentials = this.loginForm.getRawValue();
+    this.loginForm.reset();
+    try {
+      await this.store.login(credentials);
+    } finally {
+      credentials.username = '';
+      credentials.password = '';
+    }
   }
 
   clickFrame(event: MouseEvent): void {

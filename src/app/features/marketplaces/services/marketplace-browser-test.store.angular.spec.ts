@@ -24,6 +24,7 @@ let api: {
   frame: ReturnType<typeof vi.fn>;
   input: ReturnType<typeof vi.fn>;
   identify: ReturnType<typeof vi.fn>;
+  login: ReturnType<typeof vi.fn>;
   close: ReturnType<typeof vi.fn>;
 };
 let reloadConnections: ReturnType<typeof vi.fn>;
@@ -45,6 +46,7 @@ beforeEach(async () => {
     frame: vi.fn().mockResolvedValue(jpeg),
     input: vi.fn().mockResolvedValue(undefined),
     identify: vi.fn().mockResolvedValue({ externalAccountId: '12345', username: 'my-vinted' }),
+    login: vi.fn().mockResolvedValue('submitted'),
     close: vi.fn().mockResolvedValue(undefined),
   };
   reloadConnections = vi.fn().mockResolvedValue(undefined);
@@ -177,4 +179,94 @@ describe('Kontogebundener Browser-Testbereich', () => {
     workspace.set({ id: 'other-workspace' });
     expect(store.session()).toBeNull();
   });
+});
+
+it('startet die Anmeldung einmalig im ausgewählten Konto und wartet auf Bestätigung', async () => {
+  api.login = vi.fn().mockResolvedValue('submitted');
+  await store.login({ username: 'test-user', password: 'synthetic' });
+  expect(api.open).toHaveBeenCalledOnce();
+  expect(api.login).toHaveBeenCalledWith(
+    { workspaceId: accountA.workspaceId, connectionId: accountA.connectionId },
+    id,
+    { username: 'test-user', password: 'synthetic' },
+    'token-a',
+  );
+  expect(store.awaitingLogin()).toBe(true);
+  await store.checkLogin();
+  expect(reloadConnections).toHaveBeenCalledWith(accountA.connectionId);
+  expect(store.session()).toBeNull();
+});
+
+it('sendet Zugangsdaten nach einem Kontowechsel während des Starts nicht weiter', async () => {
+  api.login = vi.fn();
+  let resolveOpen!: (value: string) => void;
+  api.open.mockReturnValue(
+    new Promise<string>((resolve) => {
+      resolveOpen = resolve;
+    }),
+  );
+  const pending = store.login({ username: 'test-user', password: 'synthetic' });
+  selectedId.set(accountB.connectionId);
+  selectionVersion.update((value) => value + 1);
+  resolveOpen(id);
+  await pending;
+  expect(api.login).not.toHaveBeenCalled();
+});
+
+it('lässt zusätzliche Prüfungen offen und wiederholt das Passwort nicht automatisch', async () => {
+  api.login = vi.fn().mockResolvedValue('interaction_required');
+  api.identify.mockResolvedValue(null);
+  await store.login({ username: 'test-user', password: 'synthetic' });
+  await store.checkLogin();
+  await store.checkLogin();
+  expect(api.login).toHaveBeenCalledOnce();
+  expect(api.close).not.toHaveBeenCalled();
+  expect(store.session()?.id).toBe(id);
+  expect(store.awaitingLogin()).toBe(true);
+});
+
+it('verwirft eine verspätete Anmeldebestätigung nach Workspacewechsel', async () => {
+  await store.login({ username: 'synthetic', password: 'synthetic' });
+  let resolveIdentity!: (value: unknown) => void;
+  api.identify.mockReturnValue(
+    new Promise((resolve) => {
+      resolveIdentity = resolve;
+    }),
+  );
+  const checking = store.checkLogin();
+  workspace.set({ id: 'other-workspace' });
+  resolveIdentity({ externalAccountId: '12345', username: 'synthetic' });
+  await checking;
+  expect(reloadConnections).not.toHaveBeenCalled();
+  expect(store.session()).toBeNull();
+});
+
+it('beendet die automatische Anmeldung nach Ablauf und behält unklare Stopps sichtbar', async () => {
+  api.login.mockRejectedValueOnce(new BrowserTestSessionEndedError());
+  await store.login({ username: 'synthetic', password: 'synthetic' });
+  expect(store.session()).toBeNull();
+  expect(store.awaitingLogin()).toBe(false);
+  await store.login({ username: 'synthetic', password: 'synthetic' });
+  api.close.mockRejectedValueOnce(new Error('unconfirmed-stop'));
+  await store.checkLogin();
+  expect(store.session()?.id).toBe(id);
+  expect(store.error()).toContain('nicht sicher bestätigt');
+  expect(reloadConnections).not.toHaveBeenCalled();
+});
+
+it('erlaubt Beenden während einer laufenden Anmeldung und verwirft deren späte Antwort', async () => {
+  await store.start();
+  let finishLogin!: (value: string) => void;
+  api.login.mockReturnValue(
+    new Promise<string>((resolve) => {
+      finishLogin = resolve;
+    }),
+  );
+  const pending = store.login({ username: 'synthetic', password: 'synthetic' });
+  await store.close();
+  finishLogin('submitted');
+  await pending;
+  expect(api.close).toHaveBeenCalledOnce();
+  expect(store.session()).toBeNull();
+  expect(api.frame).toHaveBeenCalledTimes(1);
 });

@@ -19,13 +19,11 @@
 } @else if (!selected()) {
   <p role="status" class="text-sm text-fb-text-secondary">Konto wird ausgewählt …</p>
 } @else {
+  <p class="mb-4 text-sm text-fb-text-secondary">
+    Vinted-Anmeldung für <strong>{{ requestedConnection()?.displayName }}</strong>
+  </p>
   @if (accounts.error(); as error) {
     <app-notice-banner class="mb-4" announcement="alert">{{ error }}</app-notice-banner>
   }
-  <app-notice-banner class="mb-4">
-    Du bereitest die Anmeldung für <strong>{{ requestedConnection()?.displayName }}</strong> vor.
-    Der Name in Flipbase bestätigt noch keine Verbindung zu Vinted. Nach einer Anmeldung werden
-    Kontodaten derzeit nicht automatisch übernommen.
-  </app-notice-banner>
   <app-marketplace-browser-test />
 }

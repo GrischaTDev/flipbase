@@ -1,5 +1,43 @@
 # Arbeitsstand: Vinted-Marktplatzverwaltung
 
+## 27. September 2026 – Direkte Account-Anmeldung und GoLogin-Proxy
+
+Aktuell ist PR #220 bereits in master enthalten (`c46d225`). Die Fortsetzung
+liegt auf `juna/vinted-account-connection`; der ursprüngliche Foundation-Branch
+ist kein ungemergter Ausgangspunkt mehr. Neuere Arbeiten wurden erhalten.
+
+Umgesetzt: Account-Verwaltung mit direkter Weiterleitung vom Kontodialog zur
+Anmeldung; einmalige Übergabe von Mitgliedsname/E-Mail und Passwort an das feste
+Vinted-Webformular; erneute Berechtigungsprüfung vor den Eingaben; automatische
+Identitätsprüfung und Verbindung; manuelle Browserbedienung für Zusatzprüfungen.
+Neue Profile erhalten einen deutschen GoLogin-Residential-Proxy aus vorhandenem
+Kontingent. Bestehende Profile werden wiederverwendet und nur auf vorhandene
+Proxykonfiguration geprüft, ohne automatische Änderung oder Rotation.
+
+Die unabhängige Prüfung fand einen blockierten Stopp während laufender Anmeldung.
+Der neue Regressionstest reproduzierte zunächst HTTP 429. Nach der Korrektur
+kann `/close` die Anmeldung unterbrechen; Folgeeingaben werden vom Broker
+verweigert. Auch der sichtbare Beenden-Knopf funktioniert während der Anmeldung.
+
+Nachweise: 65 Worker-Tests einschließlich HTTP-Konto-/Workspace-/Benutzertrennung,
+Ablauf und Abbruch; echte Formularprüfung auf ausschließlich eigener abgefangener
+HTML-Testseite mit zwei getrennten Browserkontexten; 84 Angular-Tests und
+14 Navigationstests; fünf Playwright-Abläufe auf Desktop und Mobilgröße. Die
+Anbieterprobe prüfte Profilanlage, deutschen Proxy und erneutes Lesen mit dem
+tatsächlichen Adapter, anschließend wurden die temporären Profile gelöscht.
+Keine Vinted-Zugangsdaten und kein Vinted-Konto wurden verwendet.
+
+Offen bleibt die produktive Aktivierung: Caddy-Ziel vorhanden, Workercontainer
+fehlt. [Konkreter Veröffentlichungsablauf](vinted-worker-rollout.md). Der letzte
+öffentliche Befund ist HTTP 502. Kein Merge oder Deployment dieses Branches.
+Die private Vinted-Identitätsroute bleibt ohne eigenen Live-Login unbestätigt;
+ein solcher Login kann außerdem eine Sicherheitsprüfung erfordern. Die getrennten
+Profile und Proxyzuordnungen garantieren keine Erkennung als unabhängige Geräte,
+keine exklusive IP und keine Sperrfreiheit. Liveimport und Nachrichtenversand
+bleiben eigene Folgepakete.
+
+Die folgenden Abschnitte dokumentieren frühere Zwischenstände.
+
 ## 27. September 2026 – Kontobestätigung für normales Vinted-Konto
 
 Die vorhandene Admin-Anmeldeseite kann nach der interaktiven Anmeldung eine

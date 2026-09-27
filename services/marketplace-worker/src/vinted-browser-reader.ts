@@ -48,6 +48,7 @@ export async function readVintedAccountIdentity(
         credentials: 'include',
         headers: { Accept: 'application/json' },
         cache: 'no-store',
+        signal: AbortSignal.timeout(8_000),
       });
       if (
         new URL(result.url).origin !== 'https://www.vinted.de' ||

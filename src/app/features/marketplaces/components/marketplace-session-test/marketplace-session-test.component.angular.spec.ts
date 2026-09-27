@@ -1,5 +1,6 @@
 import { computed, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import axe from 'axe-core';
 import { prepareMarketplaceRendering } from '../../../../../../e2e/support/marketplace-rendering';
@@ -72,6 +73,7 @@ beforeEach(() => {
   TestBed.configureTestingModule({
     imports: [MarketplaceSessionTestComponent],
     providers: [
+      provideRouter([]),
       {
         provide: MarketplaceAccountStore,
         useValue: {
@@ -145,7 +147,8 @@ describe('Eigene Marktplatz-Testseite', () => {
     await fixture.whenStable();
     fixture.detectChanges();
     const button = [...fixture.nativeElement.querySelectorAll('button')].find(
-      (node: HTMLButtonElement) => node.textContent?.includes('Vinted-Browser starten'),
+      (node: HTMLButtonElement) =>
+        node.textContent?.includes('Browser für manuelle Anmeldung öffnen'),
     ) as HTMLButtonElement | undefined;
     expect(button).toBeDefined();
     button?.click();
@@ -157,7 +160,7 @@ describe('Eigene Marktplatz-Testseite', () => {
     );
     expect(
       fixture.nativeElement.querySelector(
-        'img[alt="Aktuelles Browserbild des ausgewählten Testkontos"]',
+        'img[alt="Aktuelles Browserbild des ausgewählten Vinted-Kontos"]',
       ),
     ).not.toBeNull();
     const result = await axe.run(fixture.nativeElement, {

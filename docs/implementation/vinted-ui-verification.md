@@ -1,5 +1,39 @@
 # Vinted-Oberfläche: geprüfter Stand vom 26. September 2026
 
+## Aktueller Nachtrag 27.09.2026: zusammenhängende Anmeldung
+
+Branch `juna/vinted-account-connection`, Basis `c46d225` (PR #220 bereits gemergt).
+Die Sidebar und Einstellungen heißen „Account-Verwaltung“. Der Vinted-Link bleibt
+mit Admin-Badge geschützt. „Account hinzufügen“ bietet Vinted als Plattform und
+führt nach dem internen Kontonamen direkt zur zugeordneten Anmeldeseite.
+
+Die Seite hat Felder für Mitgliedsname/E-Mail und Passwort. Nach dem Absenden
+werden diese geleert. Die Verbindung wird erst nach dem Identitätsnachweis
+bestätigt. Zusätzliche Prüfungen oder ein unbekannter Vinted-Seitenzustand bleiben
+im Browserbild bedienbar. Der Login wird niemals automatisch wiederholt.
+
+Geprüft: Kontodialog, direkte Weiterleitung, Passwortübermittlung nur an den
+gebundenen Endpunkt, ausstehende Zusatzprüfung, automatische Bestätigung und
+leere Eingabefelder danach. Desktop 1440 px und Mobilansicht 390 px; AXE-Prüfung
+der Anmeldung ohne Verstöße, kein horizontaler Überlauf. Die Tests verwenden
+ausschließlich künstliche Daten und abgefangene Antworten. Keine echte
+Vinted-Anmeldung; die private Identitätsroute bleibt live unbestätigt.
+
+Reproduktion: `npm run test:angular -- src/app/features/marketplaces
+src/app/features/settings/settings-shell/settings-shell.component.angular.spec.ts`
+(84 Tests). Bei laufender Vorschau `PLAYWRIGHT_BASE_URL=http://127.0.0.1:4217`
+und `npx playwright test --config e2e/support/marketplace-preview.config.ts`.
+
+Abschlussprüfung: alle fünf Playwright-Abläufe bestanden, dazu 65 Worker-Tests,
+die eigene Browser-Testseite, 84 Angular-Tests und 14 Navigationstests.
+Angular-/Worker-Typprüfung und beide Builds, ESLint/Prettier der geänderten
+Dateien sowie Shared-UI-Prüfung bestanden. Keine neue Schemaänderung; die
+historischen Datenbanktestzahlen unten wurden in diesem Schritt nicht erneut
+als neue Prüfung gezählt. Die unabhängige Codeprüfung fand einen Abbruchfehler;
+Korrektur und gezielte Nachprüfung sind im Arbeitsprotokoll dokumentiert.
+
+Die folgenden Abschnitte sind historische Prüfschritte.
+
 ## Ergänzung vom 27. September 2026: Konto nach Anmeldung bestätigen
 
 Die bestehende Anmeldeseite bietet jetzt „Anmeldung prüfen und Konto verbinden“.

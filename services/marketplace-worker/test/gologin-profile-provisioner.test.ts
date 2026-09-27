@@ -27,6 +27,14 @@ function fixture(
   let deleted = 0;
   const request: typeof fetch = async (input, init) => {
     const url = String(input);
+    if (url.endsWith('/users-proxies/geolocation/traffic'))
+      return json({ residentTrafficData: { trafficLimitBytes: 500, trafficUsedBytes: 0 } });
+    if (url.endsWith('/users-proxies/mobile-proxy')) return json({});
+    if (url.endsWith(`/browser/${profileId}`))
+      return json({
+        proxyEnabled: true,
+        proxy: { mode: 'geolocation', host: 'synthetic.example', port: 1234 },
+      });
     if (url.endsWith('/rest/v1/rpc/marketplace_list_connections')) {
       checks++;
       if (options.deny || (options.revokeAfterCreate && checks > 1)) return json({}, 403);
@@ -74,7 +82,7 @@ test('creates one persistent profile and reuses it for the same connection', asy
   const f = fixture();
   await f.provisioner.prepare(scope);
   await f.provisioner.prepare(scope);
-  assert.deepEqual(f.counts(), { checks: 3, created: 1, deleted: 0, stored: profileId });
+  assert.deepEqual(f.counts(), { checks: 4, created: 1, deleted: 0, stored: profileId });
 });
 
 test('rejects a non-operator before calling the provider', async () => {
@@ -101,5 +109,5 @@ test('deletes a new provider profile when permission is revoked during creation'
 test('keeps a committed profile after a lost database acknowledgement', async () => {
   const f = fixture({ loseInsertAck: true });
   await f.provisioner.prepare(scope);
-  assert.deepEqual(f.counts(), { checks: 2, created: 1, deleted: 0, stored: profileId });
+  assert.deepEqual(f.counts(), { checks: 3, created: 1, deleted: 0, stored: profileId });
 });

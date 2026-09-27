@@ -25,6 +25,7 @@ async function setup(
   prepare?: (scope: BrowserSessionScope) => Promise<void>,
   identity?: { id: string; username: string } | null,
   confirm?: (scope: BrowserSessionScope, id: string) => Promise<void>,
+  loginGate?: Promise<void>,
 ) {
   const inputs: string[] = [];
   let owner: BrowserSessionScope | undefined;
@@ -45,6 +46,12 @@ async function setup(
       inputs.push(`press:${key}`);
     },
     identify: async () => identity ?? null,
+    login: async (credentials, authorize) => {
+      await loginGate;
+      await authorize();
+      inputs.push(`login:${credentials.username}`);
+      return 'submitted';
+    },
   };
   const broker = {
     open: async (scope: BrowserSessionScope) => {
@@ -387,6 +394,105 @@ test('allows only one operation at a time for an authenticated session', async (
     assert.equal((await first).status, 200);
   } finally {
     releaseCapture();
+    await api.close();
+  }
+});
+
+test('binds one login submission to its user, workspace and account without returning secrets', async () => {
+  const api = await setup();
+  try {
+    const scope = { workspaceId: workspaceA, connectionId: accountA };
+    await api.request('/marketplace-browser/sessions', scope);
+    const path = `/marketplace-browser/sessions/${sessionId}/login`;
+    const credentials = { username: 'synthetic-user', password: 'synthetic-password' };
+    const response = await api.request(path, { ...scope, credentials });
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { status: 'submitted' });
+    assert.deepEqual(api.inputs, ['login:synthetic-user']);
+    for (const other of [
+      { ...scope, workspaceId: workspaceB },
+      { ...scope, connectionId: accountB },
+    ])
+      assert.equal((await api.request(path, { ...other, credentials })).status, 409);
+    assert.equal((await api.request(path, { ...scope, credentials }, 'token-b')).status, 409);
+    assert.equal((await api.request(path, { ...scope, credentials }, 'expired')).status, 401);
+    assert.equal(api.inputs.length, 1);
+    assert.equal(
+      (await api.request(path, { ...scope, credentials: { ...credentials, password: '' } })).status,
+      400,
+    );
+    assert.equal(
+      (
+        await api.request(path, {
+          ...scope,
+          credentials: { ...credentials, url: 'https://other.example' },
+        })
+      ).status,
+      400,
+    );
+  } finally {
+    await api.close();
+  }
+});
+
+test('rejects login in read-only mode and for ended sessions', async () => {
+  for (const readOnly of [true, false]) {
+    const api = await setup(
+      undefined,
+      undefined,
+      readOnly,
+      new MarketplaceBrowserSessionEndedError(),
+    );
+    try {
+      const scope = { workspaceId: workspaceA, connectionId: accountA };
+      await api.request('/marketplace-browser/sessions', scope);
+      const response = await api.request(`/marketplace-browser/sessions/${sessionId}/login`, {
+        ...scope,
+        credentials: { username: 'synthetic', password: 'synthetic' },
+      });
+      assert.equal(response.status, readOnly ? 403 : 410);
+      assert.equal(api.inputs.length, 0);
+    } finally {
+      await api.close();
+    }
+  }
+});
+
+test('close interrupts an in-flight login before any later credential submission', async () => {
+  let resumeLogin!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    resumeLogin = resolve;
+  });
+  const api = await setup(
+    undefined,
+    undefined,
+    false,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    gate,
+  );
+  try {
+    const scope = { workspaceId: workspaceA, connectionId: accountA };
+    await api.request('/marketplace-browser/sessions', scope);
+    const path = `/marketplace-browser/sessions/${sessionId}`;
+    const pending = api.request(`${path}/login`, {
+      ...scope,
+      credentials: { username: 'synthetic', password: 'synthetic' },
+    });
+    for (let attempt = 0; attempt < 50 && api.runs() === 0; attempt++)
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    assert.equal(api.runs(), 1);
+    try {
+      assert.equal((await api.request(`${path}/close`, scope)).status, 204);
+    } finally {
+      resumeLogin();
+    }
+    await pending;
+    assert.deepEqual(api.inputs, []);
+  } finally {
+    resumeLogin();
     await api.close();
   }
 });

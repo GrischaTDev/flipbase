@@ -1,6 +1,6 @@
 <app-page-header
   title="Vinted"
-  subtitle="Vorbereitete Verbindungen und in Flipbase gespeicherte Marktplatzdaten."
+  subtitle="Deine Vinted-Konten verbinden und verwalten."
   [icon]="pageIcon"
 >
   <div header-actions class="flex flex-wrap items-center gap-2">
@@ -44,16 +44,14 @@
   }
   @if (!store.loading() && !store.error() && store.connections().length === 0) {
     <app-card
-      title="Noch keine Vinted-Verbindung vorbereitet"
-      subtitle="Bereite in den Einstellungen deine erste Kontoverbindung vor."
+      title="Noch kein Vinted-Konto hinzugefügt"
+      subtitle="Füge Dein erstes Konto hinzu und melde Dich bei Vinted an."
     >
       <p class="mb-4 text-sm text-fb-text-secondary">
-        Ein interner Name meldet dich noch nicht bei Vinted an. Bereite zuerst eine Verbindung vor;
-        danach kannst du die kontogebundene Anmeldung öffnen, sobald der Browserdienst läuft.
+        Jedes Konto erhält ein eigenes Browserprofil. Flipbase zeigt es nach bestätigter Anmeldung
+        als verbunden an.
       </p>
-      <app-button variant="primary" link="/settings/marketplaces"
-        >Verbindung vorbereiten</app-button
-      >
+      <app-button variant="primary" link="/settings/marketplaces">Account hinzufügen</app-button>
     </app-card>
   }
   @if (store.selectedConnection(); as account) {
@@ -85,19 +83,10 @@
         } @else {
           Noch keine Datenübernahme.
         }
-        Die Ansicht zeigt gespeicherte Daten, keinen Live-Browser.
+        Übersicht, Inserate und Nachrichten zeigen die zuletzt gespeicherten Daten.
       </p>
     </app-card>
-    @if (account.status === 'needs_login' || account.status === 'disconnected') {
-      <app-notice-banner>
-        Dieser Eintrag ist nur in Flipbase vorbereitet. Du kannst die Anmeldung für dieses Konto
-        öffnen, sobald der Browserdienst läuft. Zugangsdaten werden nicht als Flipbase-Kontodaten
-        gespeichert; ein automatischer Datenabruf ist noch nicht eingerichtet.
-        <app-button class="mt-3" [link]="'/marketplaces/vinted/connect/' + account.connectionId"
-          >Vinted-Anmeldung öffnen</app-button
-        >
-      </app-notice-banner>
-    } @else if (account.status === 'paused') {
+    @if (account.status === 'paused') {
       <app-notice-banner
         >Diese Verbindung ist pausiert. Bereits gespeicherte Daten bleiben
         lesbar.</app-notice-banner

@@ -7,6 +7,7 @@ import {
   BrowserTestSessionEndedError,
   MarketplaceBrowserTestApiService,
   type BrowserTestInput,
+  type VintedLoginCredentials,
 } from './marketplace-browser-test-api.service';
 
 interface BrowserTestSession {
@@ -32,6 +33,10 @@ export class MarketplaceBrowserTestStore {
   private readonly readOnlyState = signal(true);
   private revision = 0;
   private destroyed = false;
+  private readonly loginKey = signal<string | null>(null);
+  readonly awaitingLogin = computed(
+    () => this.session() !== null && this.loginKey() === this.contextKey(),
+  );
 
   private readonly contextKey = computed(() => {
     const userId = this.auth.currentUser()?.id;
@@ -190,7 +195,46 @@ export class MarketplaceBrowserTestStore {
     }
   }
 
-  async confirmAccount(): Promise<void> {
+  async login(credentials: VintedLoginCredentials): Promise<void> {
+    const key = this.contextKey();
+    if (
+      !key ||
+      this.readOnly() ||
+      this.busy() ||
+      !credentials.username.trim() ||
+      !credentials.password
+    )
+      return;
+    if (!this.session()) await this.start();
+    const active = this.session();
+    if (!active || active.key !== key || this.busy()) return;
+    const revision = ++this.revision;
+    this.busyState.set(key);
+    this.errorState.set(null);
+    this.loginKey.set(key);
+    try {
+      await this.api.login(active.scope, active.id, credentials, this.currentToken());
+      if (!this.isCurrent(key, revision)) return;
+      await this.loadFrame(key, revision, active.scope, active.id, this.currentToken());
+    } catch (error) {
+      if (this.isCurrent(key, revision) && !this.handleConfirmedEnd(error, key)) {
+        this.errorState.set({
+          key,
+          message:
+            'Die Anmeldung ist nicht bestätigt. Prüfe die Browseransicht. Deine Eingaben werden nicht automatisch erneut gesendet.',
+        });
+      }
+    } finally {
+      if (this.isCurrent(key, revision)) this.busyState.set(null);
+    }
+  }
+
+  async checkLogin(): Promise<void> {
+    if (!this.awaitingLogin() || this.busy() || this.error()) return;
+    await this.confirmAccount(true);
+  }
+
+  async confirmAccount(allowPending = false): Promise<void> {
     const active = this.session();
     if (!active || this.busy() || this.readOnly()) return;
     const revision = ++this.revision;
@@ -198,7 +242,13 @@ export class MarketplaceBrowserTestStore {
     this.errorState.set(null);
     try {
       const token = this.currentToken();
-      await this.api.identify(active.scope, active.id, token);
+      const identity = allowPending
+        ? await this.api.identify(active.scope, active.id, token, true)
+        : await this.api.identify(active.scope, active.id, token);
+      if (!identity) {
+        await this.loadFrame(active.key, revision, active.scope, active.id, token);
+        return;
+      }
       if (!this.isCurrent(active.key, revision)) return;
       await this.api.close(active.scope, active.id, token);
       if (!this.isCurrent(active.key, revision)) return;
@@ -219,7 +269,7 @@ export class MarketplaceBrowserTestStore {
 
   async close(): Promise<void> {
     const active = this.session();
-    if (!active || this.busy()) return;
+    if (!active) return;
     const revision = ++this.revision;
     this.busyState.set(active.key);
     this.errorState.set(null);
@@ -283,7 +333,7 @@ export class MarketplaceBrowserTestStore {
     this.state.set(null);
     this.errorState.set({
       key,
-      message: 'Die Browsersitzung wurde beendet. Du kannst einen neuen Test starten.',
+      message: 'Die Browsersitzung wurde beendet. Du kannst die Anmeldung erneut öffnen.',
     });
     return true;
   }
