@@ -589,3 +589,15 @@ Deno-Lauf bleibt vor einem PR erforderlich.
 
 Die nächsten Änderungen setzen diesen Branch fort. Vor einem Merge sind die
 Projektprüfungen auszuführen und die offenen Freigaben sichtbar zu halten.
+
+## 27.09.2026 – Login-Fehlerrückmeldung nach Veröffentlichung
+
+PR #224 ist gemergt; Weboberfläche und GoLogin-Worker wurden mit Commit
+3c3ee4d960eaa344fbe060c4c7c8fa276262a587 aktiviert. Öffentliche Versionsprüfung,
+Healthcheck und Ablehnung anonymer Sitzungsstarts (401) bestanden.
+
+Der erste beobachtete Nutzerlogin erreicht das Vinted-Formular; Vinted meldet
+ungültigen Mitgliedsnamen oder Passwort. Das belegt keine erfolgreiche Anmeldung.
+Die Korrektur auf `juna/vinted-login-fix` beendet bei dieser Meldung das Polling
+und erlaubt eine neue ausdrückliche Eingabe im bestehenden Profil. Die
+unbestätigte Identitäts-API und Liveimport bleiben offene Integrationspunkte.

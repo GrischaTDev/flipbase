@@ -27,6 +27,14 @@ export class BrowserTestSessionEndedError extends Error {
   }
 }
 
+export class VintedLoginRejectedError extends Error {
+  constructor() {
+    super(
+      'Vinted hat die Zugangsdaten abgelehnt. Prüfe Mitgliedsname oder E-Mail und Passwort und melde Dich erneut an.',
+    );
+  }
+}
+
 const basePath = '/marketplace-browser/sessions';
 const frameLimit = 512 * 1024;
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -80,7 +88,17 @@ export class MarketplaceBrowserTestApiService {
   ): Promise<ConfirmedVintedAccount | null> {
     const response = await this.post(`${basePath}/${sessionId}/identify`, scope, accessToken);
     if (response.status === 410) throw new BrowserTestSessionEndedError();
-    if (response.status === 422 && allowPending) return null;
+    if (response.status === 422) {
+      const body: unknown = await response.json().catch(() => null);
+      if (
+        typeof body === 'object' &&
+        body !== null &&
+        'code' in body &&
+        body.code === 'vinted_login_rejected'
+      )
+        throw new VintedLoginRejectedError();
+      if (allowPending) return null;
+    }
     if (!response.ok) throw new Error('Vinted-Anmeldung konnte nicht bestätigt werden');
     const body: unknown = await response.json();
     if (

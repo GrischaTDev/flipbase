@@ -423,3 +423,18 @@ juna/vinted-account-connection, ohne den fremden Hauptcheckout zu ändern.
 „Einloggen“ → „E-Mail“ nach https://www.vinted.de/member/login/email?ref_url=%2F.
 Am 27.09.2026 wurden die Felder username/password und „Weiter“ ohne Anmeldung
 beobachtet. Dies ist ein veränderlicher Webablauf und keine offizielle Integrations-API.
+
+## Nachtrag 27.09.2026: Abgelehnte Anmeldung verständlich behandeln
+
+- [x] Live-Rückmeldung lesend prüfen: Vinted zeigt im laufenden Browser
+      „Ungültiger Mitgliedsname oder Passwort“. Keine Zugangsdaten erneut senden.
+- [x] Diese konkrete sichtbare Ablehnung kontogebunden als festen Fehlercode
+      zurückgeben, ohne Seitentext oder Zugangsdaten zu übertragen.
+- [x] Automatische Prüfung bei Ablehnung beenden; leeres Flipbase-Formular für
+      ausdrücklichen Korrekturversuch im bestehenden Browserprofil anzeigen.
+- [x] Manuellen Start nachrangig anbieten und in aktiver Sitzung ausblenden.
+- [x] Regression gegen eigene HTML-Seite sowie Konto-/Workspace-Grenzen prüfen.
+
+Ein früherer Fehler beim Öffnen des Browsers ist ohne konkrete Meldung noch
+nicht zugeordnet. Die beobachtete laufende Sitzung belegt den erfolgreichen
+Browserstart, aber keine erfolgreiche Vinted-Anmeldung.

@@ -9,7 +9,7 @@ const accountIds = ['25000000-0000-4000-8000-000000000021', '25000000-0000-4000-
 const emptyPage = () => ({ items: [], total: 0, nextCursor: null });
 
 /** Nur lokale HTTP-Antworten. Weder echte Anmeldung noch Vinted-Zugriff. */
-async function mockMarketplace(page: Page, browserLogin = false) {
+async function mockMarketplace(page: Page, browserLogin = false, rejectFirstLogin = false) {
   await page.route('**/marketplace-browser/healthz', (route) =>
     browserLogin
       ? route.fulfill({ json: { ok: true, readOnly: false } })
@@ -76,6 +76,8 @@ async function mockMarketplace(page: Page, browserLogin = false) {
       }
       if (path.endsWith('/frame')) return route.fulfill({ contentType: 'image/jpeg', body: frame });
       if (path.endsWith('/identify')) {
+        if (rejectFirstLogin && calls.filter((call) => call.name === 'browser_login').length === 1)
+          return route.fulfill({ status: 422, json: { code: 'vinted_login_rejected' } });
         if (!loginSubmitted || ++identityChecks === 1) return route.fulfill({ status: 422 });
         accounts.find((account) => account.connectionId === connectionId)!.status = 'connected';
         return route.fulfill({
@@ -431,7 +433,7 @@ for (const width of [1440, 390]) {
       connectionId: '25000000-0000-4000-8000-000000000024',
       credentials: { username: 'synthetic-user', password: 'synthetic-password' },
     });
-    await expect(page.getByLabel('Vinted-Passwort')).toHaveValue('');
+    await expect(page.getByLabel('Vinted-Passwort')).toHaveCount(0);
     expect(await page.evaluate(() => JSON.stringify(localStorage))).not.toContain(
       'synthetic-password',
     );
@@ -439,5 +441,47 @@ for (const width of [1440, 390]) {
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
     ).toBe(true);
     await evidence(page, `vinted-connected-${width}`);
+  });
+}
+
+for (const width of [1440, 390]) {
+  test(`Abgelehnte Zugangsdaten direkt korrigieren bei ${width}px @marketplace-preview`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    const calls = await mockMarketplace(page, true, true);
+    await page.goto(`/marketplaces/vinted/connect/${accountIds[0]}`);
+    await expect(
+      page.getByRole('button', { name: 'Browser für manuelle Anmeldung öffnen', exact: true }),
+    ).not.toBeVisible();
+    await page
+      .getByRole('textbox', { name: 'Vinted-Mitgliedsname oder E-Mail', exact: true })
+      .fill('synthetic-user');
+    await page.getByLabel('Vinted-Passwort').fill('synthetic-invalid');
+    await page.getByRole('button', { name: 'Anmelden und Konto verbinden', exact: true }).click();
+    await expect(page.getByText(/Vinted hat die Zugangsdaten abgelehnt/)).toBeVisible();
+    await expect(page.getByText(/Anmeldung wird geprüft/)).toHaveCount(0);
+    await expect(page.getByLabel('Vinted-Passwort')).toHaveValue('');
+    await page.addScriptTag({ content: axe.source });
+    const violations = await page.evaluate(
+      async () =>
+        (
+          await (window as unknown as { axe: typeof axe }).axe.run(
+            document.querySelector('app-marketplace-connect') as HTMLElement,
+          )
+        ).violations,
+    );
+    expect(violations).toEqual([]);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+    ).toBe(true);
+    await evidence(page, `vinted-login-rejected-${width}`);
+    await page
+      .getByRole('textbox', { name: 'Vinted-Mitgliedsname oder E-Mail', exact: true })
+      .fill('synthetic-user');
+    await page.getByLabel('Vinted-Passwort').fill('synthetic-corrected');
+    await page.getByRole('button', { name: 'Anmelden und Konto verbinden', exact: true }).click();
+    await expect(page.getByText('Dein Vinted-Konto ist verbunden.', { exact: true })).toBeVisible();
+    expect(calls.filter((call) => call.name === 'browser_login')).toHaveLength(2);
   });
 }

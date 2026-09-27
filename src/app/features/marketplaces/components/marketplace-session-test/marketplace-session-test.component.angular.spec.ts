@@ -171,3 +171,43 @@ describe('Eigene Marktplatz-Testseite', () => {
     ).toEqual([]);
   });
 });
+
+it('bietet nach abgelehntem Login wieder das leere Formular an und stoppt den Prüfstatus', async () => {
+  const { VintedLoginRejectedError } =
+    await import('../../services/marketplace-browser-test-api.service');
+  TestBed.overrideProvider(MarketplaceAccountStore, {
+    useValue: {
+      selectedConnection: signal({ ...account, status: 'pending' }),
+      selectionVersion: signal(0),
+      canManage: signal(true),
+    },
+  });
+  Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: () => 'blob:test' });
+  Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: () => undefined });
+  liveApi.available.mockResolvedValue({ available: true, readOnly: false });
+  const login = vi.fn().mockResolvedValue('submitted');
+  Object.assign(liveApi, {
+    login,
+    identify: vi.fn().mockRejectedValue(new VintedLoginRejectedError()),
+  });
+  const fixture = TestBed.createComponent(MarketplaceBrowserTestComponent);
+  fixture.detectChanges();
+  await fixture.whenStable();
+  fixture.componentInstance.loginForm.setValue({ username: 'synthetic', password: 'synthetic' });
+  await fixture.componentInstance.login();
+  await fixture.componentInstance.store.checkLogin();
+  fixture.detectChanges();
+  expect(fixture.nativeElement.textContent).toContain('Zugangsdaten abgelehnt');
+  expect(fixture.nativeElement.textContent).not.toContain('Anmeldung wird geprüft');
+  expect(fixture.nativeElement.querySelector('form')).not.toBeNull();
+  expect(fixture.componentInstance.loginForm.getRawValue()).toEqual({ username: '', password: '' });
+  fixture.componentInstance.loginForm.setValue({ username: 'corrected', password: 'corrected' });
+  fixture.detectChanges();
+  const submit = fixture.nativeElement.querySelector('button[type="submit"]') as HTMLButtonElement;
+  expect(submit.disabled).toBe(false);
+  submit.click();
+  await fixture.whenStable();
+  expect(login).toHaveBeenCalledTimes(2);
+  expect(liveApi.open).toHaveBeenCalledOnce();
+  fixture.destroy();
+});

@@ -4,7 +4,7 @@ import {
   MarketplaceBrowserSessionEndedError,
   type BrowserSessionScope,
 } from './marketplace-browser-session-broker.ts';
-import type { VintedAccountIdentity } from './vinted-browser-reader.ts';
+import { VintedLoginRejectedError, type VintedAccountIdentity } from './vinted-browser-reader.ts';
 
 interface BrowserBroker {
   open(scope: BrowserSessionScope): Promise<string>;
@@ -285,8 +285,16 @@ export class MarketplaceBrowserHttpApi {
           if (!this.accounts) throw new RequestError(503);
           const identity = await this.broker.run(scope, sessionId, async (browser) => {
             if (!browser.identify) return null;
-            return browser.identify();
+            try {
+              return await browser.identify();
+            } catch (error) {
+              // Eine fachliche Ablehnung ist kein Browserabbruch. Die Sitzung
+              // bleibt für einen ausdrücklichen Korrekturversuch bestehen.
+              if (error instanceof VintedLoginRejectedError) return 'login_rejected' as const;
+              throw error;
+            }
           });
+          if (identity === 'login_rejected') throw new VintedLoginRejectedError();
           if (!identity) throw new RequestError(422);
           await this.accounts.confirm(scope, sessionId, identity);
           json(response, 200, {
@@ -303,6 +311,13 @@ export class MarketplaceBrowserHttpApi {
     } catch (error) {
       if (response.headersSent) {
         response.destroy();
+        return;
+      }
+      if (error instanceof VintedLoginRejectedError) {
+        json(response, 422, {
+          code: 'vinted_login_rejected',
+          error: 'Vinted hat die Zugangsdaten abgelehnt',
+        });
         return;
       }
       const status =
