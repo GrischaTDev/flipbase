@@ -1698,6 +1698,154 @@ export type Database = {
           },
         ]
       }
+      marketplace_account_entries: {
+        Row: {
+          body: Json
+          connection_id: string
+          external_id: string
+          id: string
+          kind: string
+          observed_at: string
+          parent_id: string | null
+          sort_at: string
+          workspace_id: string
+        }
+        Insert: {
+          body: Json
+          connection_id: string
+          external_id: string
+          id?: string
+          kind: string
+          observed_at?: string
+          parent_id?: string | null
+          sort_at?: string
+          workspace_id: string
+        }
+        Update: {
+          body?: Json
+          connection_id?: string
+          external_id?: string
+          id?: string
+          kind?: string
+          observed_at?: string
+          parent_id?: string | null
+          sort_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_account_entries_workspace_id_connection_id_fkey"
+            columns: ["workspace_id", "connection_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_connections"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "marketplace_account_entries_workspace_id_connection_id_par_fkey"
+            columns: ["workspace_id", "connection_id", "parent_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_account_entries"
+            referencedColumns: ["workspace_id", "connection_id", "id"]
+          },
+        ]
+      }
+      marketplace_browser_test_sessions: {
+        Row: {
+          connection_id: string
+          created_at: string
+          ended_at: string | null
+          expires_at: string
+          id: string
+          interaction_count: number
+          last_seen_at: string | null
+          started_by: string
+          state: string
+          workspace_id: string
+        }
+        Insert: {
+          connection_id: string
+          created_at?: string
+          ended_at?: string | null
+          expires_at: string
+          id?: string
+          interaction_count?: number
+          last_seen_at?: string | null
+          started_by: string
+          state?: string
+          workspace_id: string
+        }
+        Update: {
+          connection_id?: string
+          created_at?: string
+          ended_at?: string | null
+          expires_at?: string
+          id?: string
+          interaction_count?: number
+          last_seen_at?: string | null
+          started_by?: string
+          state?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_browser_test_sessio_workspace_id_connection_id_fkey"
+            columns: ["workspace_id", "connection_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_connections"
+            referencedColumns: ["workspace_id", "id"]
+          },
+        ]
+      }
+      marketplace_connections: {
+        Row: {
+          capabilities: Json
+          created_at: string
+          display_name: string
+          external_account_id: string | null
+          id: string
+          last_synced_at: string | null
+          marketplace: string
+          resume_status: string | null
+          status: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          capabilities?: Json
+          created_at?: string
+          display_name: string
+          external_account_id?: string | null
+          id?: string
+          last_synced_at?: string | null
+          marketplace?: string
+          resume_status?: string | null
+          status?: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          capabilities?: Json
+          created_at?: string
+          display_name?: string
+          external_account_id?: string | null
+          id?: string
+          last_synced_at?: string | null
+          marketplace?: string
+          resume_status?: string | null
+          status?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_connections_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       number_assignments: {
         Row: {
           assigned_at: string
@@ -4994,6 +5142,69 @@ export type Database = {
           reason: string
         }[]
       }
+      marketplace_can_manage: {
+        Args: { p_workspace_id: string }
+        Returns: boolean
+      }
+      marketplace_create_connection: {
+        Args: { p_display_name: string; p_workspace_id: string }
+        Returns: Json
+      }
+      marketplace_list_connections: {
+        Args: { p_workspace_id: string }
+        Returns: Json
+      }
+      marketplace_read_page: {
+        Args: {
+          p_connection_id: string
+          p_cursor?: string
+          p_kind: string
+          p_parent_id?: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_read_snapshot: {
+        Args: { p_connection_id: string; p_workspace_id: string }
+        Returns: Json
+      }
+      marketplace_rename_connection: {
+        Args: {
+          p_connection_id: string
+          p_display_name: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_set_paused: {
+        Args: {
+          p_connection_id: string
+          p_paused: boolean
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_test_session_action: {
+        Args: {
+          p_action: string
+          p_connection_id: string
+          p_session_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_test_session_start: {
+        Args: { p_connection_id: string; p_workspace_id: string }
+        Returns: Json
+      }
+      marketplace_test_session_status: {
+        Args: {
+          p_connection_id: string
+          p_session_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       migrate_legacy_category_brand_texts: { Args: never; Returns: undefined }
       migrate_purchase_costing_legacy: {
         Args: {
@@ -5815,3 +6026,4 @@ export const Constants = {
     Enums: {},
   },
 } as const
+

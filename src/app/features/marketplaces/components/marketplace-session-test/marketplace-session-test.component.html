@@ -1,0 +1,64 @@
+<app-card
+  title="Kontogebundene Testsitzung"
+  subtitle="Prüfe die Sitzungssperre für das oben ausgewählte Vinted-Konto."
+>
+  <app-notice-banner>
+    Simulation: Hier wird kein Vinted-Browser geöffnet und keine Anmeldung ausgeführt. Die Aktionen
+    prüfen ausschließlich die kontogebundene Sperre auf dem Flipbase-Server.
+  </app-notice-banner>
+
+  @if (store.connection(); as connection) {
+    <p class="mt-4 text-sm text-fb-text-secondary">
+      Ausgewähltes Konto: <strong class="text-fb-text-primary">{{ connection.displayName }}</strong>
+    </p>
+    @if (store.session(); as session) {
+      <div class="mt-4 flex flex-wrap items-center gap-3" role="status" aria-live="polite">
+        <app-badge [tone]="tones[session.state]">{{ labels[session.state] }}</app-badge>
+        <span class="text-sm text-fb-text-secondary">
+          Gültig bis {{ session.expiresAt | date: 'dd.MM.yyyy, HH:mm:ss' }} · Testaktionen:
+          {{ session.interactionCount }}
+        </span>
+      </div>
+      @if (session.state === 'interrupted') {
+        <p class="mt-3 text-sm text-fb-text-secondary">
+          Der simulierte Browserabbruch hat diese Sitzung beendet. Weitere Aktionen sind gesperrt.
+        </p>
+      } @else if (session.state === 'expired') {
+        <p class="mt-3 text-sm text-fb-text-secondary">
+          Die Frist ist abgelaufen. Starte für weitere Tests eine neue Sitzung.
+        </p>
+      }
+    }
+    @if (store.error(); as error) {
+      <app-notice-banner class="mt-4" announcement="alert">{{ error }}</app-notice-banner>
+    }
+    <div class="mt-5 flex flex-wrap gap-2">
+      <app-button
+        variant="primary"
+        [disabled]="!store.canStart()"
+        [loading]="store.busy()"
+        (clicked)="store.start()"
+        >Testsitzung starten</app-button
+      >
+      <app-button [disabled]="!store.session() || store.busy()" (clicked)="store.refresh()"
+        >Status prüfen</app-button
+      >
+      <app-button [disabled]="!store.canAct()" (clicked)="store.action('ping')"
+        >Testaktion ausführen</app-button
+      >
+      <app-button [disabled]="!store.canAct()" (clicked)="store.action('interrupt')"
+        >Browserabbruch simulieren</app-button
+      >
+      <app-button
+        variant="destructive"
+        [disabled]="!store.canAct()"
+        (clicked)="store.action('revoke')"
+        >Zugriff widerrufen</app-button
+      >
+    </div>
+  } @else {
+    <p class="mt-4 text-sm text-fb-text-secondary">
+      Wähle oben eine verfügbare Kontoverbindung aus, um den Sitzungstest zu starten.
+    </p>
+  }
+</app-card>

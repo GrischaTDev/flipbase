@@ -1,5 +1,37 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-27 – Juna – Vinted-Foundation für Pull Request abgeglichen
+
+**Auftrag:** Den geprüften Vinted-Foundation-Branch als Pull Request vorbereiten
+und nach erfolgreichen Pflichtprüfungen integrieren.
+
+**Änderung:** Den aktuellen Stand von `origin/master` in den bestehenden Branch
+übernommen. Die Schema-Registrierungen für Discord und Marktplatz sowie alle
+Änderungsprotokolleinträge bleiben erhalten. Drei ältere Marktplatz-Vertragsdateien
+wurden für die verbindliche Formatprüfung angepasst.
+
+**Prüfung:** `npm run verify`, frischer Datenbankaufbau mit beiden neuen
+Migrationen, 2127 Datenbanktests und drei Marktplatz-Browserabläufe bestanden.
+Die PR-Pflichtprüfungen stehen noch aus.
+
+## 2026-09-27 – Juna – Kontogebundene Vinted-Testsitzung vorbereitet
+
+**Auftrag:** Den bestehenden Marktplatz-Branch mit sicherer Sitzungstechnik
+und einer eigenen Testseite fortsetzen, ohne echte Vinted-Konten zu verwenden.
+
+**Änderung:** Anbieter-Schnittstellen geprüft, künstliche Sitzungssperre je
+Workspace und Konto mit Ablauf und Widerruf ergänzt und eine Testseite an die
+vorhandene Vinted-Oberfläche angeschlossen. Anbieterzugänge werden weder
+gespeichert noch an den Browser ausgegeben. Plan und Prüfprotokoll wurden
+aktualisiert; echte GoLogin-/Playwright-Anmeldung bleibt gesondert freizugeben.
+
+**Prüfung:** Neuaufbau der lokalen Datenbank und 2127 Datenbanktests bestanden.
+Gezielte Angular-/Modelltests, TypeScript, ESLint, Produktionsbau sowie drei
+Browserabläufe mit künstlichen Antworten bestanden. Kein Merge und kein
+produktives Deployment. Die vollständige Anwendungstestsuite bestand nach
+Aktualisierung zweier veralteter Einstellungs-Routenerwartungen ebenfalls.
+Das SQL-Lint für `public` bestand ohne neue Warnungen.
+
 ## 2026-09-27 – Juna – Eigene Variantenbilder und kleinere neue Artikelfotos
 
 **Auftrag:** Beim Anlegen neuer Farbvarianten eigene Bilder hinzufügen und die Ladezeit von Produktbildern in Artikel-, Einkaufs- und Shopansichten verbessern; zudem SSR und Bild-Caching prüfen.
@@ -7,6 +39,39 @@
 **Änderung:** Der Variantendialog nimmt eigene Bilder an. Auf der Variantenseite wird die eigene Galerie bearbeitet; ohne eigene Bilder verwendet die Darstellung weiterhin die Bilder des Hauptartikels. Katalog und Shop bevorzugen vorhandene Variantenbilder. Neue große Produkt- und Einzelstückfotos werden vor dem Upload auf maximal 1600 Pixel Kantenlänge und ungefähr 0,8 MB als WebP vorbereitet. Kleine Bilder, AVIF und animierbare GIFs bleiben unverändert. Shopkarten laden Bilder bei Bedarf. Bereits gespeicherte Dateien werden dadurch nicht rückwirkend verkleinert. Das Projekt verwendet derzeit clientseitiges Angular-Rendering ohne SSR; für die angemeldeten Listen ist die Bildmenge der direktere Ansatzpunkt.
 
 **Prüfung:** Gezielte Tests für Variantenbilder, Galerie-Fallback, Upload-Wiederholung und Bildverarbeitung sowie TypeScript, ESLint und Angular-Bau bestanden.
+
+## 2026-09-26 – Juna – Vinted-Kontobereich sichtbar umgesetzt
+
+**Auftrag:** Auf dem bestehenden Marktplatz-Branch die integrierte Oberfläche
+bauen und die vorhandenen Kontofunktionen anschließen.
+
+**Änderung:** Eigener Menüpunkt Marktplätze → Vinted mit Kontowechsler,
+Übersicht, Inseraten, Gesprächsverlauf, Verkäufen, Profil und Kontoverlauf.
+Einstellungen bieten Anlegen, Umbenennen und Pausieren von Verbindungen über
+die vorhandenen autorisierten RPCs. Kontodaten werden zur Laufzeit geprüft;
+verspätete Antworten, Workspacewechsel und Abmeldung geben keine fremden
+Ansichtsdaten frei. Kein Demo-Konto in der normalen Ansicht, keine erfundene
+Browseranmeldung, keine Änderung am Bestand durch gelesene Plattformmeldungen.
+
+**Prüfung:** Testgetriebene Antwort-, API-, Guard-, Zustands- und Komponententests
+sowie Navigation und Übersetzungen. Desktop-/Mobil-Browserprüfung mit vollständig
+lokalen HTTP-Fixtures vorbereitet. Der genaue ausgeführte Prüfumfang steht in
+`docs/implementation/vinted-marketplace-progress.md`. Keine echte Vinted-Sitzung,
+kein Merge und kein produktives Deployment.
+
+## 2026-09-26 – Juna – Integrierte Marktplatzkonten begonnen
+
+**Auftrag:** Auf dem bestehenden Vinted-Branch die native Kontoverwaltung fortsetzen.
+
+**Änderung:** Kontobezogene Datenverträge und Servervalidierung, persistente
+Verbindungsmetadaten und geschützte Lesekopien. Inhaber/Admins verwalten die
+Verbindungen; einfache Mitglieder erhalten keine privaten Kontodaten. Der
+Datenbankabgleich läuft ausschließlich auf einem wegwerfbaren CI-Runner.
+
+**Prüfung:** Neue Datenbanktests einschließlich Fremdkonto, Pausenstatus und
+61 Aktivitäten bestanden vor Vorbereitung dieses Commits. Weitere Prüfungen
+und Frontend-Arbeitsstand stehen im featurebezogenen Prüfprotokoll. Kein
+Vinted-Konto verwendet, kein Merge und kein produktives Deployment.
 
 ## 2026-09-26 – Juna – Beta-Registrierung visuell und beim Zurückgehen verbessert
 
