@@ -4,6 +4,24 @@
   var themeToggle = document.getElementById('theme-toggle');
   var languageToggle = document.getElementById('lang-toggle');
   var systemLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)');
+  var pageMetadata = {
+    de: {
+      title: 'Flipbase: Reselling-Software für Vinted, eBay & Kleinanzeigen',
+      description:
+        'Reselling ohne Excel: Flipbase verbindet Vinted Bot, Einkauf, Bestand, Kleinanzeigen-Inserate, eBay-Verkäufe, Ausgaben und Steuerdaten.',
+    },
+    en: {
+      title: 'Flipbase: Reselling software for Vinted, eBay & Kleinanzeigen',
+      description:
+        'Reselling beyond spreadsheets: Flipbase brings together Vinted finds, inventory, photos, listings, sales, expenses, and accounting data.',
+    },
+  };
+
+  function updatePageLanguage(language) {
+    document.documentElement.lang = language;
+    document.title = pageMetadata[language].title;
+    document.querySelector('meta[name="description"]').content = pageMetadata[language].description;
+  }
 
   function readPreference(key) {
     try {
@@ -56,10 +74,10 @@
   }
 
   languageToggle.checked = readPreference(LANGUAGE_KEY) === 'en';
-  document.documentElement.lang = languageToggle.checked ? 'en' : 'de';
+  updatePageLanguage(languageToggle.checked ? 'en' : 'de');
   languageToggle.addEventListener('change', function () {
     var language = languageToggle.checked ? 'en' : 'de';
-    document.documentElement.lang = language;
+    updatePageLanguage(language);
     savePreference(LANGUAGE_KEY, language);
   });
 

@@ -1,5 +1,45 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-27 – Juna – Suchbegriffe anhand von Google Trends bewertet
+
+**Auftrag:** Die Keywords der Startseite über die eigene Search Console hinaus allgemein recherchieren und ihre Suchabsicht beurteilen.
+
+**Änderung:** Google-Trends-Vergleiche für Deutschland zu Reselling, Vinted, Vintage, Software, Bot und Steuerfragen ausgewertet und in `docs/landing/keyword-research.md` mit Quellen und Grenzen dokumentiert. Der Seitentitel bleibt bei der zutreffenden allgemeinen Reselling-Ausrichtung; Vintage Reselling bleibt ein ergänzendes Beispiel.
+
+**Prüfung:** Die Google-Trends-Werte direkt im Browser verglichen, Suchergebnisse auf die erwartete Produktabsicht geprüft und den Zugang zu Search Console und Keyword Planner geprüft. Für absolute Suchvolumen steht im vorhandenen Google-Ads-Verwaltungskonto kein aktives Werbekonto zur Verfügung.
+
+## 2026-09-27 – Juna – Vintage Reselling als ergänzenden Suchbegriff aufgenommen
+
+**Auftrag:** Vintage Reselling als passenden ergänzenden Suchbegriff berücksichtigen, ohne Vinted als Plattform oder die allgemeine Reselling-Ausrichtung zu verwechseln.
+
+**Änderung:** Die Antwort auf „Für wen ist Flipbase?“ nennt Vintage Reselling einmal als Beispiel neben anderen Produkten. Seitentitel und Hauptüberschrift bleiben auf Reselling allgemein ausgerichtet. Die englische FAQ-Antwort und der Landingpage-Test wurden angepasst.
+
+**Prüfung:** Gezielte Landingpage-Tests, ESLint, Prettier und Angular-Produktionsbau nach dem Abgleich mit `origin/master` erneut geprüft.
+
+## 2026-09-27 – Juna – Bild- und Inseratschritt plattformneutral formuliert
+
+**Auftrag:** Den dritten Schritt des Reselling-Ablaufs nicht allein auf Kleinanzeigen beziehen und die Suchmaschinen-Ausrichtung der Landingpage prüfen.
+
+**Änderung:** Schritt 3 beschreibt nun in beiden Sprachen das Optimieren von Bildern und Vorbereiten von Inseraten. Die ausführliche Funktionsbeschreibung nennt weiterhin die tatsächlich verfügbare Übergabe an Kleinanzeigen. Ein gezielter Test schützt die neue Formulierung.
+
+**Prüfung:** Seitentitel, Beschreibung, Überschriften, interne Suchbegriffe, Canonical, Robots und Sitemap sowie die Search-Console-Leistungsdaten geprüft. 33 Landingpage-Tests, ESLint, Prettier und der Angular-Produktionsbau bestanden.
+
+## 2026-09-27 – Juna – Landingpage auf Vinted statt Vintage ausgerichtet
+
+**Auftrag:** Die missverstandene Ausrichtung auf Vintage-Kleidung korrigieren. Flipbase richtet sich an Reseller allgemein; Vinted ist die vorrangige Plattform, eBay und Kleinanzeigen sind ebenfalls wichtig.
+
+**Änderung:** Der Aufmacher heißt wieder „Dein Reselling.“ Titel, Suchbeschreibung, Vorschautexte, Vergleich, Funktionskacheln und FAQ sprechen nicht mehr von Vintage-Reselling oder Vintage-Einkäufen. Vinted steht als Plattform und Bot vorn; eBay und Kleinanzeigen folgen. Die englische Fassung und die beim Sprachwechsel gesetzten Metadaten wurden entsprechend korrigiert.
+
+**Prüfung:** Landingpage-Tests, ESLint, Prettier, Angular-Produktionsbau und die gerenderte Desktop-/Mobilansicht geprüft. AXE meldete keine Verstöße.
+
+## 2026-09-27 – Juna – Landingpage auf Vintage-Reselling ausgerichtet
+
+**Auftrag:** Die Startseite von veralteten Einkaufstypen lösen und Flipbase als Arbeitsanwendung für Vintage-Reseller mit Vinted, Kleinanzeigen, eBay, Buchhaltung und Workspaces verständlich vorstellen.
+
+**Änderung:** Der Einstieg zeigt jetzt den Ablauf vom Vinted-Fund bis zu Verkauf und Finanzen. Vergleich, Funktionskacheln, Beta-Stand und FAQ beschreiben Einkäufe, Bestand, Bildoptimierung, Kleinanzeigen-Inserate, Verkäufe, Betriebsausgaben, Fixkosten und Steuerdaten. Der Vinted Bot wird nicht mehr als bloß geplant dargestellt; die Kleinanzeigen-Übergabe nennt den notwendigen letzten Veröffentlichungsschritt. Seitentitel, Beschreibung und Vorschautexte betonen Vintage-Reselling und passende Suchbegriffe. Die englische Sprachumschaltung aktualisiert auch Titel und Beschreibung. Karten und Abstände wurden an die ruhige Flipbase-Oberfläche mit dem Marken-Gelb `#fcc601` angepasst.
+
+**Prüfung:** 33 Landingpage-Tests, gezieltes ESLint und Prettier bestanden. Browserprüfung auf Desktop und Mobilgerät in hellem und dunklem Design: kein horizontaler Überlauf; AXE meldete keine WCAG-A/AA-Verstöße. Der Angular-Produktionsbau wurde ebenfalls geprüft.
+
 ## 2026-09-27 – Juna – Artikelbilder nachträglich vollständig geprüft und verkleinert
 
 **Auftrag:** Die erste Nachbearbeitung erfasste nur drei Shop-Angebotsbilder. Prüfen, warum die rund 25 Bilder unter „Artikel“ ausblieben, und auch diese Bilder sinnvoll komprimieren. Außerdem die Meldung zu nicht entfernbaren lokalen Arbeitskopien erklären.
