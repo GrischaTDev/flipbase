@@ -33,7 +33,14 @@ const page = (items: FeedItem[]): FeedPage => ({
   covered: true,
   reported_at: '2026-09-12T12:00:00Z',
 });
-const context: FeedRequest = { workspace: 'a', watchlist: null, brand: null };
+const context: FeedRequest = {
+  workspace: 'a',
+  watchlist: null,
+  brand: null,
+  size: null,
+  minPrice: null,
+  maxPrice: null,
+};
 const settle = async () => {
   await Promise.resolve();
   await Promise.resolve();
@@ -146,6 +153,18 @@ describe('DealFeedState', () => {
     finish(page([item('old')]));
     await older;
     expect(state.items().map((row) => row.id)).toEqual(['newest']);
+  });
+  it('allows loading older saved finds beyond the former 300-item cap', async () => {
+    let pageIndex = 0;
+    const fetch = vi.fn(async () =>
+      page(Array.from({ length: 60 }, (_, index) => item(String(pageIndex * 60 + index)))),
+    );
+    const state = new DealFeedState(fetch);
+    state.setContext(context);
+    await settle();
+    for (pageIndex = 1; pageIndex <= 5; pageIndex++) await state.refresh(true);
+    expect(state.items()).toHaveLength(360);
+    expect(state.hasMore()).toBe(true);
   });
 });
 

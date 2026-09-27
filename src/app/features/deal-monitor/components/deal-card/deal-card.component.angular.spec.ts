@@ -102,8 +102,16 @@ describe('DealCardComponent', () => {
     expect(photos).toHaveLength(3);
     expect(photos[0]?.classList.contains('row-span-2')).toBe(true);
     expect(card.textContent).toContain('Adidas Spezial');
-    expect(card.textContent).toContain('Größe: 42');
-    expect(card.textContent).toContain('Zustand: Sehr gut');
+    expect([...card.querySelectorAll('dl dt')].map((label) => label.textContent?.trim())).toEqual([
+      'Marke:',
+      'Größe:',
+      'Zustand:',
+    ]);
+    expect([...card.querySelectorAll('dl dd')].map((value) => value.textContent?.trim())).toEqual([
+      'Adidas',
+      '42',
+      'Sehr gut',
+    ]);
     expect(card.querySelectorAll('app-button')).toHaveLength(3);
     expect(card.querySelector('a[href="https://www.vinted.de/items/123"]')).not.toBeNull();
     expect(card.textContent).not.toContain('Kategorie noch unbekannt');
@@ -119,17 +127,18 @@ describe('DealCardComponent', () => {
     expect(image?.classList.contains('col-span-2')).toBe(true);
   });
 
-  it('keeps metadata icons beside their labels and uses compact card actions', () => {
+  it('stacks compact metadata rows and gives card actions their distinct states', () => {
     const fixture = TestBed.createComponent(DealCardComponent);
     fixture.componentRef.setInput('item', item);
     fixture.detectChanges();
 
     const card = fixture.nativeElement as HTMLElement;
+    expect(card.querySelector('dl')?.classList).toContain('flex-col');
+    expect(card.querySelector('h3')?.classList).not.toContain('min-h-10');
     const badges = [...card.querySelectorAll('dl app-badge')];
     expect(badges).toHaveLength(3);
     for (const badge of badges) {
       const content = badge.querySelector('span');
-      expect(content?.querySelector('svg')?.parentElement).toBe(content);
       expect(content?.classList).toContain('h-5');
     }
     expect(badges.map((badge) => badge.querySelector('span')?.className)).toEqual([
@@ -141,5 +150,8 @@ describe('DealCardComponent', () => {
     const actions = card.querySelectorAll('app-button > button, app-button > a');
     expect(actions).toHaveLength(3);
     for (const action of actions) expect(action.classList).toContain('h-7');
+    expect(actions[0].classList).toContain('text-fb-critical');
+    expect(actions[2].classList).toContain('hover:bg-fb-brand-strong');
+    expect(actions[2].classList).toContain('bg-fb-surface');
   });
 });

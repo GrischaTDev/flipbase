@@ -5877,6 +5877,24 @@ export type Database = {
         }
         Returns: Json
       }
+      sniper_feed_filtered: {
+        Args: {
+          p_before_id: string
+          p_before_time: string
+          p_brand: string
+          p_limit: number
+          p_max_price: number
+          p_min_price: number
+          p_size: string
+          p_watchlist_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      sniper_feed_matches_size: {
+        Args: { p_filter_size: string; p_listing_size: string }
+        Returns: boolean
+      }
       sniper_purge_expired_listings: {
         Args: { p_batch_size?: number }
         Returns: number

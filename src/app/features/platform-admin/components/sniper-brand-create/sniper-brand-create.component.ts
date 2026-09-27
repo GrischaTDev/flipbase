@@ -11,9 +11,13 @@ import {
   signal,
 } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { LucideX } from '@lucide/angular';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
+import {
+  SearchMultiSelectComponent,
+  SearchMultiSelectOption,
+} from '../../../../shared/components/search-multi-select/search-multi-select.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { QueryDraft, queryDraftError } from '../../models/sniper-query.model';
 import { VintedBrand } from '../../models/vinted-brand.model';
@@ -21,7 +25,13 @@ import { VintedBrandSearchService } from '../../services/vinted-brand-search.ser
 
 @Component({
   selector: 'app-sniper-brand-create',
-  imports: [ReactiveFormsModule, ButtonComponent, NumberInputComponent, TextFieldComponent],
+  imports: [
+    ReactiveFormsModule,
+    ButtonComponent,
+    NumberInputComponent,
+    SearchMultiSelectComponent,
+    TextFieldComponent,
+  ],
   templateUrl: './sniper-brand-create.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -50,24 +60,28 @@ export class SniperBrandCreateComponent {
     ]);
     return this.results().filter((brand) => !taken.has(brand.id));
   });
+  readonly availableOptions = computed<SearchMultiSelectOption[]>(() =>
+    this.available().map((brand) => ({ value: brand.id, label: brand.name })),
+  );
+  readonly removeIcon = LucideX;
   readonly form = new FormGroup({
-    keyword: new FormControl('', { nonNullable: true }),
     intervalSeconds: new FormControl(20, { nonNullable: true }),
     notes: new FormControl('', { nonNullable: true }),
   });
 
   constructor() {
-    this.form.controls.keyword.valueChanges
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((value) => this.searchChanged(value));
     afterNextRender(() => {
-      this.element.nativeElement.querySelector<HTMLInputElement>('#vinted-brand-search')?.focus();
+      this.element.nativeElement.querySelector<HTMLButtonElement>('#vinted-brand-picker')?.focus();
     });
     this.destroyRef.onDestroy(() => {
       clearTimeout(this.searchTimer);
       this.searchRequest += 1;
     });
-    void this.searchBrands('');
+  }
+
+  pickerOpened(): void {
+    if (!this.loading() && !this.results().length && !this.searchError())
+      void this.searchBrands(this.keyword().trim());
   }
 
   hasUnsavedChanges(): boolean {
@@ -83,12 +97,13 @@ export class SniperBrandCreateComponent {
     this.searchError.set(null);
     clearTimeout(this.searchTimer);
     this.searchRequest += 1;
+    this.results.set([]);
     if (value.trim().length < 2) {
-      this.results.set([]);
-      this.loading.set(false);
+      this.loading.set(!value.trim());
       if (!value.trim()) this.searchTimer = setTimeout(() => void this.searchBrands(''), 250);
       return;
     }
+    this.loading.set(true);
     this.searchTimer = setTimeout(() => void this.searchBrands(value.trim()), 250);
   }
 
@@ -117,6 +132,11 @@ export class SniperBrandCreateComponent {
       return;
     this.selected.update((brands) => [...brands, brand]);
     this.error.set(null);
+  }
+
+  addOption(option: SearchMultiSelectOption): void {
+    const brand = this.results().find((entry) => entry.id === option.value);
+    if (brand) this.add(brand);
   }
 
   remove(id: number): void {

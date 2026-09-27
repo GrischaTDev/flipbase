@@ -39,8 +39,8 @@
       </div>
     </div>
 
-    <div class="flex flex-1 flex-col gap-3 p-4">
-      <h3 class="line-clamp-2 min-h-10 text-sm font-semibold text-fb-text-primary">
+    <div class="flex flex-1 flex-col gap-2.5 p-3">
+      <h3 class="line-clamp-2 text-sm font-semibold text-fb-text-primary">
         @if (link(); as href) {
           <a
             [href]="href"
@@ -54,49 +54,53 @@
         }
       </h3>
 
-      <dl class="flex flex-wrap items-center gap-1.5">
+      <dl class="flex flex-col gap-1.5">
         @if (item().brand) {
-          <div class="min-w-0 max-w-full">
-            <dt class="sr-only">Marke</dt>
-            <dd>
+          <div class="flex min-w-0 items-center gap-2">
+            <dt class="flex w-20 shrink-0 items-center gap-1.5 text-xs text-fb-text-secondary">
+              <svg [lucideIcon]="icons.brand" class="size-3.5 shrink-0" aria-hidden="true"></svg>
+              Marke:
+            </dt>
+            <dd class="min-w-0">
               <app-badge tone="brand" size="sm" class="max-w-full">
-                <svg [lucideIcon]="icons.brand" class="h-3 w-3 shrink-0" aria-hidden="true"></svg>
                 <span class="truncate" [title]="item().brand">{{ item().brand }}</span>
               </app-badge>
             </dd>
           </div>
         }
         @if (item().size) {
-          <div class="min-w-0 max-w-full">
-            <dt class="sr-only">Größe</dt>
-            <dd>
+          <div class="flex min-w-0 items-center gap-2">
+            <dt class="flex w-20 shrink-0 items-center gap-1.5 text-xs text-fb-text-secondary">
+              <svg [lucideIcon]="icons.size" class="size-3.5 shrink-0" aria-hidden="true"></svg>
+              Größe:
+            </dt>
+            <dd class="min-w-0">
               <app-badge tone="info" size="sm" class="max-w-full">
-                <svg [lucideIcon]="icons.size" class="h-3 w-3 shrink-0" aria-hidden="true"></svg>
-                <span class="truncate" [title]="item().size">Größe: {{ item().size }}</span>
+                <span class="truncate" [title]="item().size">{{ item().size }}</span>
               </app-badge>
             </dd>
           </div>
         }
         @if (item().condition) {
-          <div class="min-w-0 max-w-full">
-            <dt class="sr-only">Zustand</dt>
-            <dd>
+          <div class="flex min-w-0 items-center gap-2">
+            <dt class="flex w-20 shrink-0 items-center gap-1.5 text-xs text-fb-text-secondary">
+              <svg
+                [lucideIcon]="icons.condition"
+                class="size-3.5 shrink-0"
+                aria-hidden="true"
+              ></svg>
+              Zustand:
+            </dt>
+            <dd class="min-w-0">
               <app-badge tone="success" size="sm" class="max-w-full">
-                <svg
-                  [lucideIcon]="icons.condition"
-                  class="h-3 w-3 shrink-0"
-                  aria-hidden="true"
-                ></svg>
-                <span class="truncate" [title]="item().condition"
-                  >Zustand: {{ item().condition }}</span
-                >
+                <span class="truncate" [title]="item().condition">{{ item().condition }}</span>
               </app-badge>
             </dd>
           </div>
         }
       </dl>
 
-      <div class="mt-auto flex flex-wrap items-center justify-between gap-2">
+      <div class="flex flex-wrap items-center justify-between gap-2">
         <p class="text-xl font-semibold text-fb-text-primary">
           {{ item().item_price | currency: item().currency }}
         </p>
@@ -117,7 +121,7 @@
 
       <div class="flex items-center gap-1.5">
         <app-button
-          variant="secondary"
+          variant="favorite"
           size="md"
           [icon]="icons.heart"
           [iconOnly]="true"
@@ -138,7 +142,7 @@
         @if (link(); as href) {
           <app-button
             class="min-w-0 flex-1"
-            variant="primary"
+            variant="brand-hover"
             size="md"
             [href]="href"
             target="_blank"

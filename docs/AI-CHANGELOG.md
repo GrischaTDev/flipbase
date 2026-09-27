@@ -98,6 +98,45 @@ Serverzugriff und vorhandene Caddy-Weiterleitung wurden lesend geprüft; der
 Browserdienst ist noch nicht installiert. Kein Vinted-Konto angemeldet, kein
 Import, kein Merge und kein Produktivdeployment in diesem Schritt.
 
+## 2026-09-27 – Juna – Preisfilter und ältere Vinted-Funde zugänglich gemacht
+
+**Auftrag:** Im Vinted-Feed Mindest- und Höchstpreis anbieten und ältere Funde
+auch bei ausgewählter Größe erreichbar machen.
+
+**Befund:** Angebote werden bereits 30 Tage aufbewahrt. Der Größenfilter prüfte
+aber nur die zuletzt geladenen 60 Artikel; außerdem endete das manuelle
+Nachladen nach 300 Artikeln. So konnten ältere XXL-Funde unsichtbar bleiben.
+
+**Änderung:** Größe und Artikelpreis werden jetzt in der Datenbank vor der
+Seitenteilung gefiltert. Zwei gemeinsame Zahlenfelder setzen die Preisgrenzen
+im Feed. Ältere Seiten lassen sich ohne die bisherige 300er-Grenze nachladen;
+der Feed nennt die Aufbewahrung der letzten 30 Tage. Eine neue Migration und
+generierte Datenbanktypen halten die Abfrage fest. Die Migration enthält nur
+die neuen Feed-Funktionen; fremde Unterschiede aus dem automatisch erzeugten
+Entwurf wurden entfernt.
+
+**Prüfung:** 76 betroffene Datenbanktests in getrennter lokaler Datenbank,
+9 Feed-State-Tests, 6 Angular-Tests mit Barrierefreiheitsprüfung, Typprüfung
+und Produktionsbau bestanden.
+Der Supabase-Sicherheitsberater meldete keinen Befund.
+
+## 2026-09-27 – Juna – Vinted-Markenauswahl und Feed-Karten vereinheitlicht
+
+**Auftrag:** Die Markenauswahl im Admin-Dialog wie die Produktsuche aufbauen und
+die Vinted-Karten bei Abständen, Angaben und Aktionen überarbeiten.
+
+**Änderung:** Ein gemeinsamer Suchbaustein öffnet die Markensuche erst nach Klick
+auf das Auswahlfeld. Er unterstützt Tastaturbedienung und Mehrfachauswahl; die
+Suche nach seltenen Marken bleibt an Vinted angebunden. Der Admin-Dialog nutzt
+für die ausgewählten Marken gemeinsame Buttons. In den Feed-Karten stehen Marke,
+Größe und Zustand nun untereinander mit Textbezeichnung und eigenem Badge. Der
+Vinted-Link ist zunächst neutral und wird beim Hover gelb; das Favoritenherz
+ist rot. Unnötiger Abstand zwischen Titel, Angaben und Preis wurde entfernt.
+
+**Prüfung:** 22 gezielte Angular-Tests einschließlich Barrierefreiheitsprüfung,
+ESLint der betroffenen TypeScript-Dateien, Shared-UI-Prüfung, Typprüfung und
+Angular-Produktionsbau bestanden.
+
 ## 2026-09-27 – Juna – Vinted-Karten kompakter und klarer gestaltet
 
 **Auftrag:** Marken-, Größen- und Zustandsangaben in den Vinted-Karten nebeneinander

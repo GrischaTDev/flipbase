@@ -10,16 +10,26 @@ import { QueryDraft } from '../../models/sniper-query.model';
 import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { SearchMultiSelectComponent } from '../../../../shared/components/search-multi-select/search-multi-select.component';
 
 interface AngularInputMetadata {
   inputs: Record<string, unknown>;
   declaredInputs: Record<string, string>;
+  outputs: Record<string, string>;
 }
 
 const snapshots = new Map<unknown, AngularInputMetadata>();
-function registerSignalInputs(component: unknown, names: readonly string[]): void {
+function registerSignalInputs(
+  component: unknown,
+  names: readonly string[],
+  outputNames: readonly string[] = [],
+): void {
   const metadata = (component as { ɵcmp: AngularInputMetadata }).ɵcmp;
-  snapshots.set(component, { inputs: metadata.inputs, declaredInputs: metadata.declaredInputs });
+  snapshots.set(component, {
+    inputs: metadata.inputs,
+    declaredInputs: metadata.declaredInputs,
+    outputs: metadata.outputs,
+  });
   metadata.inputs = {
     ...metadata.inputs,
     ...Object.fromEntries(names.map((name) => [name, [name, 1, null]])),
@@ -27,6 +37,10 @@ function registerSignalInputs(component: unknown, names: readonly string[]): voi
   metadata.declaredInputs = {
     ...metadata.declaredInputs,
     ...Object.fromEntries(names.map((name) => [name, name])),
+  };
+  metadata.outputs = {
+    ...metadata.outputs,
+    ...Object.fromEntries(outputNames.map((name) => [name, name])),
   };
 }
 
@@ -49,7 +63,26 @@ beforeAll(async () => {
     'maxLength',
     'helpText',
   ]);
-  registerSignalInputs(ButtonComponent, ['disabled', 'loading']);
+  registerSignalInputs(ButtonComponent, ['disabled', 'loading'], ['clicked']);
+  registerSignalInputs(
+    SearchMultiSelectComponent,
+    [
+      'controlId',
+      'label',
+      'placeholder',
+      'searchPlaceholder',
+      'helpText',
+      'emptyText',
+      'singularLabel',
+      'pluralLabel',
+      'options',
+      'selectedCount',
+      'loading',
+      'error',
+      'disabled',
+    ],
+    ['opened', 'searchTermChange', 'optionSelected', 'retry'],
+  );
 });
 
 afterAll(() => {
@@ -57,6 +90,7 @@ afterAll(() => {
     const metadata = (component as { ɵcmp: AngularInputMetadata }).ɵcmp;
     metadata.inputs = snapshot.inputs;
     metadata.declaredInputs = snapshot.declaredInputs;
+    metadata.outputs = snapshot.outputs;
   }
 });
 
@@ -92,15 +126,31 @@ describe('SniperBrandCreateComponent', () => {
     const component = await build([53]);
     const emitted: QueryDraft[][] = [];
     component.saved.subscribe((drafts) => emitted.push(drafts));
-    const buttons = (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>(
-      '[aria-label$="auswählen"]',
+    const host = fixture.nativeElement as HTMLElement;
+    expect(search).not.toHaveBeenCalled();
+    expect(host.querySelector('[role="listbox"]')).toBeNull();
+    host.querySelector<HTMLButtonElement>('#vinted-brand-picker')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(search).toHaveBeenCalledWith('');
+    expect(component.results()).toHaveLength(3);
+    expect(host.querySelector('#vinted-brand-picker')?.getAttribute('aria-expanded')).toBe('true');
+    expect(
+      [...host.querySelectorAll('[role="option"]')].map((option) => option.textContent?.trim()),
+    ).toEqual(['Ralph Lauren', 'Polo Ralph Lauren']);
+    host.querySelector<HTMLButtonElement>('[role="option"]')!.click();
+    fixture.detectChanges();
+    expect(host.querySelector('[role="dialog"]')).not.toBeNull();
+    host.querySelector<HTMLButtonElement>('[role="option"]')!.click();
+    fixture.detectChanges();
+    expect(host.querySelector('#vinted-brand-picker')?.textContent).toContain(
+      '2 Marken ausgewählt',
     );
-    expect([...buttons].map((button) => button.textContent?.trim())).toEqual([
-      'Ralph Lauren＋',
-      'Polo Ralph Lauren＋',
-    ]);
-    buttons[0].click();
-    buttons[1].click();
+    host
+      .querySelector<HTMLInputElement>('[role="combobox"]')!
+      .dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    fixture.detectChanges();
+    expect(host.querySelector('#vinted-brand-picker')?.getAttribute('aria-expanded')).toBe('false');
     component.form.controls.intervalSeconds.setValue(30);
     component.submit();
     expect(emitted).toEqual([
@@ -133,23 +183,39 @@ describe('SniperBrandCreateComponent', () => {
 
   it('searches from the input after typing and does not call Vinted for one character', async () => {
     await build();
+    (fixture.nativeElement as HTMLElement)
+      .querySelector<HTMLButtonElement>('#vinted-brand-picker')!
+      .click();
+    await fixture.whenStable();
+    fixture.detectChanges();
     search.mockClear();
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     const input = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
-      '#vinted-brand-search',
+      '[role="combobox"]',
     )!;
+    const enter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+    input.dispatchEvent(enter);
+    expect(enter.defaultPrevented).toBe(true);
     input.value = 'R';
     input.dispatchEvent(new Event('input'));
+    expect(fixture.componentInstance.results()).toEqual([]);
     await vi.advanceTimersByTimeAsync(300);
     expect(search).not.toHaveBeenCalled();
     input.value = 'Rare';
     input.dispatchEvent(new Event('input'));
+    expect(fixture.componentInstance.keyword()).toBe('Rare');
+    expect(fixture.componentInstance.loading()).toBe(true);
     await vi.advanceTimersByTimeAsync(250);
     expect(search).toHaveBeenCalledWith('Rare');
   });
 
   it('has no accessibility violations in the brand selection form', async () => {
     await build();
+    (fixture.nativeElement as HTMLElement)
+      .querySelector<HTMLButtonElement>('#vinted-brand-picker')!
+      .click();
+    await fixture.whenStable();
+    fixture.detectChanges();
     const results = await axe.run(fixture.nativeElement as HTMLElement);
     expect(results.violations).toEqual([]);
   });

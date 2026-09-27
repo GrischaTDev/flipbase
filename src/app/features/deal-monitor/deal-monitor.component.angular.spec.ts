@@ -1,9 +1,10 @@
 import '@angular/compiler';
-import { ElementRef, signal, ɵresolveComponentResources } from '@angular/core';
+import { ElementRef, EventEmitter, signal, ɵresolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import axe from 'axe-core';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DealMonitorComponent } from './deal-monitor.component';
 import { DealMonitorService } from './services/deal-monitor.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
@@ -12,6 +13,7 @@ import { ButtonComponent } from '../../shared/components/button/button.component
 import { CardComponent } from '../../shared/components/card/card.component';
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
 import { CustomSelectComponent } from '../../shared/components/custom-select/custom-select.component';
+import { NumberInputComponent } from '../../shared/components/number-input/number-input.component';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { DealCardComponent } from './components/deal-card/deal-card.component';
 import { DealDetailModalComponent } from './components/deal-detail-modal/deal-detail-modal.component';
@@ -20,10 +22,24 @@ import { WatchlistEditorComponent } from './components/watchlist-editor/watchlis
 interface AngularInputMetadata {
   inputs: Record<string, unknown>;
   declaredInputs: Record<string, string>;
+  outputs: Record<string, string>;
 }
 
-function registerSignalInputs(component: unknown, inputNames: readonly string[]): void {
+const snapshots = new Map<unknown, AngularInputMetadata>();
+let selectValueChangeDescriptor: PropertyDescriptor | undefined;
+
+function registerSignalInputs(
+  component: unknown,
+  inputNames: readonly string[],
+  outputNames: readonly string[] = [],
+): void {
   const metadata = (component as { ɵcmp: AngularInputMetadata }).ɵcmp;
+  if (!snapshots.has(component))
+    snapshots.set(component, {
+      inputs: metadata.inputs,
+      declaredInputs: metadata.declaredInputs,
+      outputs: metadata.outputs,
+    });
   metadata.inputs = {
     ...metadata.inputs,
     ...Object.fromEntries(inputNames.map((name) => [name, [name, 1, null]])),
@@ -31,6 +47,10 @@ function registerSignalInputs(component: unknown, inputNames: readonly string[])
   metadata.declaredInputs = {
     ...metadata.declaredInputs,
     ...Object.fromEntries(inputNames.map((name) => [name, name])),
+  };
+  metadata.outputs = {
+    ...metadata.outputs,
+    ...Object.fromEntries(outputNames.map((name) => [name, name])),
   };
 }
 
@@ -102,25 +122,77 @@ describe('DealMonitorComponent', () => {
     });
 
     registerSignalInputs(PageHeaderComponent, ['title', 'subtitle', 'badge', 'icon']);
-    registerSignalInputs(ButtonComponent, [
-      'variant',
-      'size',
-      'disabled',
-      'loading',
-      'icon',
-      'fullWidth',
-    ]);
+    registerSignalInputs(
+      ButtonComponent,
+      [
+        'variant',
+        'size',
+        'disabled',
+        'loading',
+        'icon',
+        'fullWidth',
+        'iconOnly',
+        'href',
+        'ariaLabel',
+        'ariaPressed',
+        'title',
+        'target',
+      ],
+      ['clicked'],
+    );
     registerSignalInputs(CardComponent, ['variant', 'padding']);
     registerSignalInputs(BadgeComponent, ['tone']);
-    registerSignalInputs(CustomSelectComponent, [
-      'options',
-      'placeholder',
-      'triggerId',
-      'ariaLabel',
-    ]);
-    registerSignalInputs(DealCardComponent, ['item']);
-    registerSignalInputs(DealDetailModalComponent, ['item']);
+    registerSignalInputs(
+      CustomSelectComponent,
+      ['options', 'placeholder', 'triggerId', 'ariaLabel', 'searchable', 'value'],
+      ['valueChange'],
+    );
+    registerSignalInputs(
+      NumberInputComponent,
+      [
+        'id',
+        'ariaLabel',
+        'ariaDescribedby',
+        'ariaInvalid',
+        'showStepper',
+        'min',
+        'step',
+        'unit',
+        'value',
+      ],
+      ['valueChange'],
+    );
+    const numberMetadata = (NumberInputComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp;
+    numberMetadata.outputs = { ...numberMetadata.outputs, valueChange: 'value' };
+    selectValueChangeDescriptor = Object.getOwnPropertyDescriptor(
+      CustomSelectComponent.prototype,
+      'valueChange',
+    );
+    Object.defineProperty(CustomSelectComponent.prototype, 'valueChange', {
+      configurable: true,
+      value: new EventEmitter<string | null>(),
+    });
+    registerSignalInputs(DealCardComponent, ['item'], ['inspect']);
+    registerSignalInputs(DealDetailModalComponent, ['item'], ['closed']);
     registerSignalInputs(WatchlistEditorComponent, ['watchlist', 'categories', 'saving']);
+  });
+
+  afterAll(() => {
+    for (const [component, snapshot] of snapshots) {
+      const metadata = (component as { ɵcmp: AngularInputMetadata }).ɵcmp;
+      metadata.inputs = snapshot.inputs;
+      metadata.declaredInputs = snapshot.declaredInputs;
+      metadata.outputs = snapshot.outputs;
+    }
+    if (selectValueChangeDescriptor) {
+      Object.defineProperty(
+        CustomSelectComponent.prototype,
+        'valueChange',
+        selectValueChangeDescriptor,
+      );
+    } else {
+      Reflect.deleteProperty(CustomSelectComponent.prototype, 'valueChange');
+    }
   });
 
   let comp: DealMonitorComponent;
@@ -185,28 +257,55 @@ describe('DealMonitorComponent', () => {
     expect(comp.sizeOptions.some((opt) => opt.value === 'xl')).toBe(true);
   });
 
-  it('filters feed items reactively when size changes', async () => {
+  it('requests the selected size from the full saved feed', async () => {
     TestBed.flushEffects();
     await comp.state.refresh();
-
-    // No filter active: all 5 items
-    expect(comp.filteredItems().length).toBe(5);
-
-    // Select XL: only '1' matches
-    comp.selectedSize.set('xl');
-    expect(comp.filteredItems().map((i) => i.id)).toEqual(['1']);
-
-    // Select XXL: compound size 'XXL / 54' matches
+    expect(comp.feedItems().length).toBe(5);
     comp.selectedSize.set('xxl');
-    expect(comp.filteredItems().map((i) => i.id)).toEqual(['3']);
+    TestBed.flushEffects();
+    expect(mockApi.feed).toHaveBeenLastCalledWith(
+      expect.objectContaining({ workspace: 'ws-1', size: 'xxl' }),
+    );
+  });
 
-    // Select L: only '2' matches
-    comp.selectedSize.set('l');
-    expect(comp.filteredItems().map((i) => i.id)).toEqual(['2']);
+  it('passes price limits to the feed and rejects an inverted range', () => {
+    TestBed.flushEffects();
+    comp.minPrice.set(10);
+    comp.maxPrice.set(20);
+    TestBed.flushEffects();
+    expect(mockApi.feed).toHaveBeenLastCalledWith(
+      expect.objectContaining({ minPrice: 10, maxPrice: 20 }),
+    );
+    const calls = mockApi.feed.mock.calls.length;
+    comp.minPrice.set(30);
+    TestBed.flushEffects();
+    expect(comp.priceError()).toContain('Mindestpreis');
+    expect(mockApi.feed).toHaveBeenCalledTimes(calls);
+  });
 
-    // Reset filter
-    comp.selectedSize.set(null);
-    expect(comp.filteredItems().length).toBe(5);
+  it('shows labeled price inputs above the saved finds', async () => {
+    const fixture = TestBed.createComponent(DealMonitorComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelector('label[for="feed-min-price"]')?.textContent).toContain('Min. Preis');
+    expect(host.querySelector('label[for="feed-max-price"]')?.textContent).toContain('Max. Preis');
+    expect(host.querySelector<HTMLInputElement>('#feed-min-price')?.getAttribute('step')).toBe(
+      '0.01',
+    );
+    const minInput = host.querySelector<HTMLInputElement>('#feed-min-price')!;
+    minInput.value = '12';
+    minInput.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    TestBed.flushEffects();
+    expect(fixture.componentInstance.minPrice()).toBe(12);
+    expect(mockApi.feed).toHaveBeenLastCalledWith(expect.objectContaining({ minPrice: 12 }));
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(host.textContent).toContain('Letzte 30 Tage');
+    expect((await axe.run(host)).violations).toEqual([]);
+    fixture.destroy();
   });
 
   it('offers the brands supported by the feed', async () => {

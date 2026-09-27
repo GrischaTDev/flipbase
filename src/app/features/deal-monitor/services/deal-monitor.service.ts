@@ -59,10 +59,13 @@ export class DealMonitorService {
   }
 
   async feed(request: FeedRequest): Promise<FeedPage> {
-    const { data, error } = await this.client.rpc('sniper_feed_by_brand', {
+    const { data, error } = await this.client.rpc('sniper_feed_filtered', {
       p_workspace_id: request.workspace,
       p_watchlist_id: request.watchlist!,
       p_brand: request.brand!,
+      p_size: request.size!,
+      p_min_price: request.minPrice!,
+      p_max_price: request.maxPrice!,
       p_before_time: (request.cursor?.time ?? null)!,
       p_before_id: (request.cursor?.id ?? null)!,
       p_limit: 60,
