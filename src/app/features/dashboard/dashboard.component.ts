@@ -84,6 +84,7 @@ export class DashboardComponent {
     return {
       grossProfit: {
         value: euro.format(report.grossProfit),
+        hint: `${report.profitSaleCount} ${report.profitSaleCount === 1 ? 'Verkauf' : 'Verkäufe'} mit bekannten Kosten im gewählten Zeitraum`,
         tone:
           report.grossProfit > 0
             ? ('positive' as const)

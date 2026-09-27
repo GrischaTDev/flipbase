@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-27 – Juna – Entwürfe aus Dashboard-Ausgaben entfernt und Gewinnkachel eingeordnet
+
+**Auftrag:** Entwurfseinkäufe aus den Gesamtausgaben ausnehmen, die Zahl der im Gewinn berücksichtigten Verkäufe anzeigen und Gewinn direkt hinter Umsatz platzieren.
+
+**Änderung:** Nur abgeschlossene Einkäufe gehen in Einkaufssumme, Gesamtausgaben, Diagramm und Vorzeitraum ein. Die Einkaufskachel zählt nur diese Einkäufe. Die Gewinnkachel nennt die Verkäufe mit bekannten Kosten, deren Ergebnis in der Summe steckt, und folgt unmittelbar auf Umsatz. Die Entscheidung ist im Dashboard-Konzept ergänzt.
+
+**Prüfung:** Gezielte Berichts- und Dashboard-Tests sowie Typprüfung, ESLint, Formatprüfung und Angular-Produktionsbau.
+
 ## 2026-09-27 – Juna – Bestehende große Produktbilder einmalig verkleinert
 
 **Auftrag:** Bereits gespeicherte Bilder nachträglich komprimieren und erklären, wie der einmalige Lauf abläuft.

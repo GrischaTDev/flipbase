@@ -53,6 +53,7 @@ const componentResources: Readonly<Record<string, string>> = {
 
 const emptyReport: DashboardReport = {
   grossProfit: 0,
+  profitSaleCount: 0,
   revenue: 0,
   revenueWithoutCost: 0,
   salesWithoutCostCount: 0,
@@ -358,6 +359,7 @@ describe('DashboardComponent', () => {
     createReport.mockReturnValueOnce({
       ...emptyReport,
       grossProfit: 20.09,
+      profitSaleCount: 1,
       revenue: 42.98,
       purchaseSpend: 24.95,
       purchaseCount: 1,
@@ -409,7 +411,7 @@ describe('DashboardComponent', () => {
       [...kpiSection.querySelectorAll('app-dashboard-kpi-card')].map((card) =>
         card.querySelector('span')?.textContent?.trim(),
       ),
-    ).toEqual(['Umsatz', 'Einkäufe', 'Betriebsausgaben', 'Ausgaben gesamt', 'Gewinn', 'Marge']);
+    ).toEqual(['Umsatz', 'Gewinn', 'Einkäufe', 'Betriebsausgaben', 'Ausgaben gesamt', 'Marge']);
     expect(kpiSection.textContent).not.toContain('Verkaufte Artikel');
     expect(kpiSection.textContent).not.toContain('Bestandswert');
 
@@ -417,6 +419,7 @@ describe('DashboardComponent', () => {
       host.querySelector(`[data-kpi="${name}"]`)?.textContent?.replace(/\s+/g, ' ').trim();
     expect(kpi('revenue')).toContain('42,98 €');
     expect(kpi('gross-profit')).toContain('20,09 €');
+    expect(kpi('gross-profit')).toContain('1 Verkauf mit bekannten Kosten im gewählten Zeitraum');
     expect(kpi('margin')).toContain('46,74 %');
     expect(kpi('cashflow')).toBeUndefined();
     expect(kpi('purchases')).toContain('24,95 €');
@@ -432,7 +435,7 @@ describe('DashboardComponent', () => {
     expect(host.querySelector('[data-dashboard-expenses]')).toBeNull();
 
     expect(kpiSection.querySelector('[data-kpi-change]')).toBeNull();
-    expect(kpiSection.querySelectorAll('[data-kpi-hint]')).toHaveLength(1);
+    expect(kpiSection.querySelectorAll('[data-kpi-hint]')).toHaveLength(2);
     expect(kpiSection.textContent).not.toContain('ggü.');
     expect(kpiSection.textContent).not.toContain('neu');
     expect(kpiSection.textContent).not.toContain('Artikel ohne Kosten');
