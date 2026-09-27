@@ -1,5 +1,26 @@
 # Vinted-Oberfläche: geprüfter Stand vom 26. September 2026
 
+## Ergänzung vom 27. September 2026: Admin-Badge und Kontoeinstieg
+
+Die Sidebar zeigt für den Betreiber am Vinted-Link ein Admin-Badge. Die
+Kontoverwaltung unterscheidet jetzt zwischen einem internen Namen und einer
+echten Anmeldung. Ein sichtbarer Link je Tabellenzeile führt zur Anmeldung
+für genau dieses Konto; eine fremde oder unbekannte Verbindungs-ID erhält
+keinen Browserbereich. Bei nicht erreichbarem Worker zeigt die Seite eine
+Sperre mit verständlicher Erklärung.
+
+**Lokal geprüft:** Angular-Produktionsbau, gezielte Angular-Komponententests
+für Sidebar, Anmeldeweg und Testseite sowie der Playwright-Ablauf mit
+künstlichen Konten bei 1440 und 390 Pixeln. Der Playwright-Test bestätigt
+Badge, Anmeldelink, Dienstausfall und Kontoverwaltung. Keine echte Vinted-
+Anmeldung, kein Datenimport und kein Produktions-Worker wurden geprüft.
+
+**Live-Befund:** `https://app.flipbase.de/marketplace-browser/healthz`
+antwortete mit HTTP 502. Die Oberfläche kann deshalb aktuell nur
+Verbindungen vorbereiten und gespeicherte Marktplatzdaten anzeigen.
+
+---
+
 ## Ergänzung vom 27. September 2026: Admin-Pilot vorbereitet
 
 Die Navigation versteckt „Marktplätze“ und „Marktplatzkonten“ für normale

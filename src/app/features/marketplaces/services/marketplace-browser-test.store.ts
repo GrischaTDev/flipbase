@@ -28,6 +28,7 @@ export class MarketplaceBrowserTestStore {
   private readonly busyState = signal<string | null>(null);
   private readonly errorState = signal<{ key: string; message: string } | null>(null);
   private readonly availableState = signal(false);
+  private readonly availabilityCheckedState = signal(false);
   private readonly readOnlyState = signal(true);
   private revision = 0;
   private destroyed = false;
@@ -60,6 +61,7 @@ export class MarketplaceBrowserTestStore {
     return state?.key === this.contextKey() ? state : null;
   });
   readonly available = this.availableState.asReadonly();
+  readonly availabilityChecked = this.availabilityCheckedState.asReadonly();
   readonly readOnly = this.readOnlyState.asReadonly();
   readonly busy = computed(
     () => this.busyState() === this.contextKey() && this.busyState() !== null,
@@ -107,9 +109,16 @@ export class MarketplaceBrowserTestStore {
   }
 
   async checkAvailability(): Promise<void> {
-    const availability = await this.api.available();
-    this.availableState.set(availability.available);
-    this.readOnlyState.set(availability.readOnly);
+    try {
+      const availability = await this.api.available();
+      this.availableState.set(availability.available);
+      this.readOnlyState.set(availability.readOnly);
+    } catch {
+      this.availableState.set(false);
+      this.readOnlyState.set(true);
+    } finally {
+      this.availabilityCheckedState.set(true);
+    }
   }
 
   async start(): Promise<void> {

@@ -342,6 +342,33 @@ Aktionen, Token-Erneuerung, Fehler bei Eingaben und Browserunterbrechung.
 Produktive Weiterleitung, echter Anbieter-Lauf und Desktop-/iPad-Abnahme
 bleiben bis zur G0-Freigabe offen.
 
+### AP04e: Verständlicher Admin-Einstieg und echte Kontobindung
+
+Der Admin-Bereich zeigt die Betreiberkennzeichnung direkt in der Sidebar.
+„Verbindung vorbereiten“ legt ausdrücklich nur einen internen Flipbase-Eintrag
+an. Jede Tabellenzeile führt sichtbar zur Anmeldung für genau ihre eigene
+Verbindungs-ID. Eine unbekannte oder fremde ID öffnet keinen Browser. Der
+Browserdienst zeigt seinen Ausfall auf der Anmeldeseite und lässt dann keinen
+Start zu. Diese Oberflächenkorrektur ist lokal umgesetzt und mit künstlichen
+Konten geprüft.
+
+Für eine **tatsächliche** Verbindung bleiben folgende, getrennt abzunehmende
+Schritte nötig:
+
+1. Den bereits gebauten Worker mit Anbieter-Token und Proxy bewusst auf dem
+   Testserver aktivieren und `healthz` prüfen. Ohne diesen Schritt bleibt die
+   Browseranmeldung gesperrt; der öffentliche Endpunkt antwortete am 27.09.
+   mit HTTP 502.
+2. Nur mit einem ausdrücklich freigegebenen eigenen Testkonto anmelden. Nach
+   der Browseranmeldung die tatsächliche Vinted-Konto-ID serverseitig ermitteln,
+   mit der vorbereiteten Verbindung abgleichen und erst danach den Status
+   `connected` setzen. Abbruch, fremder Workspace und abgelaufener Zugriff
+   dürfen keinen verbundenen Status erzeugen.
+3. Für AP05 den lesenden Datenumfang und die Datenquelle auf dem Testkonto
+   nachweisen, bevor ein kontogebundener Import geschrieben wird. Erfolg,
+   Pagination, Löschungen und Teilfehler gesondert prüfen. Der jetzige
+   Kontodialog und Browserstart importieren noch keine Daten.
+
 ## Danach
 
 - [x] AP02: Geschützte Feature-Routen, Shell, Tabs und Kontowechsler an gespeicherte Konten angeschlossen. Künstliche Daten ausschließlich in Tests.

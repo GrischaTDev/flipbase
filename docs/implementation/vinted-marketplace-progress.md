@@ -1,5 +1,24 @@
 # Arbeitsstand: Vinted-Marktplatzverwaltung
 
+## 27. September 2026 – Admin-Einstieg und Anmeldeweg geklärt
+
+Die Sidebar kennzeichnet den nur für Plattformbetreiber sichtbaren
+Vinted-Bereich jetzt mit „Admin“. In der Kontoverwaltung heißt die erste
+Aktion „Verbindung vorbereiten“ und erklärt, dass ein frei gewählter Name
+noch kein Vinted-Konto anmeldet. Jede Verbindung hat eine sichtbare Aktion
+„Anmeldung öffnen“, die zur genau passenden Verbindung führt. Die Route
+öffnet für unbekannte IDs keinen Browser. Ist der Browserdienst nicht
+erreichbar, steht der Grund direkt auf der Anmeldeseite.
+
+Der öffentliche Browser-Endpunkt antwortete bei der Prüfung mit HTTP 502.
+Der separate Worker läuft noch nicht produktiv. Ein Login kann deshalb
+derzeit nicht über Flipbase ausgeführt werden. Auch nach einem Login gäbe es
+noch keine verifizierte Vinted-Kontokennung und keinen Liveimport. Dafür sind
+die getrennten Schritte in AP04e und AP05 des Plans festgehalten. Es wurde
+kein echtes Vinted-Konto verwendet und kein Worker gestartet.
+
+---
+
 ## 27. September 2026 – Admin-Pilot für interaktive Anmeldung vorbereitet
 
 Der bestehende Vinted-Bereich und seine Kontoverwaltung sind nun für den

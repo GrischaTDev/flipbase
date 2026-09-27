@@ -145,7 +145,7 @@ describe('Eigene Marktplatz-Testseite', () => {
     await fixture.whenStable();
     fixture.detectChanges();
     const button = [...fixture.nativeElement.querySelectorAll('button')].find(
-      (node: HTMLButtonElement) => node.textContent?.includes('Browser-Test starten'),
+      (node: HTMLButtonElement) => node.textContent?.includes('Vinted-Browser starten'),
     ) as HTMLButtonElement | undefined;
     expect(button).toBeDefined();
     button?.click();

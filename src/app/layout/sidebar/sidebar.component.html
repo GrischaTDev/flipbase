@@ -171,6 +171,9 @@
       <span class="min-w-0 break-words">{{
         itemLabel === item.labelKey ? item.label : itemLabel
       }}</span>
+      @if (item.path === '/marketplaces/vinted') {
+        <app-badge class="ml-auto shrink-0" tone="admin">Admin</app-badge>
+      }
       @if (item.demo) {
         <span
           class="ml-auto px-1.5 py-0.5 rounded text-[11px] font-bold bg-fb-nav-surface text-fb-nav-badge border border-fb-nav-border shrink-0"

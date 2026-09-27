@@ -1,5 +1,23 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-27 – Juna – Vinted-Admin-Einstieg verständlich gemacht
+
+**Auftrag:** Admin-Badge am Vinted-Menü ergänzen und den irreführenden
+Kontodialog so korrigieren, dass der Weg zu einer echten Anmeldung erkennbar
+ist.
+
+**Änderung:** Der Admin-Link ist gekennzeichnet. Die Kontoverwaltung benennt
+den internen Vorbereitungsschritt ehrlich und zeigt pro Verbindung einen
+direkten Anmeldelink. Die Route bindet den Browser an die angeforderte
+Verbindung und sperrt unbekannte IDs. Ein nicht erreichbarer Worker wird
+sichtbar erklärt. Plan und Prüfprotokoll halten ausstehende Anmeldung,
+Identitätsprüfung und Liveimport fest.
+
+**Prüfung:** Angular-Bau, gezielte Komponententests und der Playwright-Ablauf
+mit künstlichen Konten auf Desktop und Mobilgerätegröße bestanden. Der
+öffentliche Browser-Endpunkt antwortete mit HTTP 502; keine echten
+Vinted-Konten oder Zugangsdaten wurden verwendet.
+
 ## 2026-09-27 – Juna – Admin-Pilot für Vinted-Browser vorbereitet
 
 **Auftrag:** Den bestehenden Vinted-Bereich für den eigenen Admin-Zugang in
