@@ -54,17 +54,13 @@
         }
       </h3>
 
-      <dl class="flex flex-wrap gap-2">
+      <dl class="flex flex-wrap items-center gap-1.5">
         @if (item().brand) {
           <div class="min-w-0 max-w-full">
             <dt class="sr-only">Marke</dt>
             <dd>
-              <app-badge tone="brand" size="md" class="max-w-full">
-                <svg
-                  [lucideIcon]="icons.brand"
-                  class="h-3.5 w-3.5 shrink-0"
-                  aria-hidden="true"
-                ></svg>
+              <app-badge tone="brand" size="sm" class="max-w-full">
+                <svg [lucideIcon]="icons.brand" class="h-3 w-3 shrink-0" aria-hidden="true"></svg>
                 <span class="truncate" [title]="item().brand">{{ item().brand }}</span>
               </app-badge>
             </dd>
@@ -74,12 +70,8 @@
           <div class="min-w-0 max-w-full">
             <dt class="sr-only">Größe</dt>
             <dd>
-              <app-badge tone="neutral" size="md" class="max-w-full">
-                <svg
-                  [lucideIcon]="icons.size"
-                  class="h-3.5 w-3.5 shrink-0"
-                  aria-hidden="true"
-                ></svg>
+              <app-badge tone="info" size="sm" class="max-w-full">
+                <svg [lucideIcon]="icons.size" class="h-3 w-3 shrink-0" aria-hidden="true"></svg>
                 <span class="truncate" [title]="item().size">Größe: {{ item().size }}</span>
               </app-badge>
             </dd>
@@ -89,10 +81,10 @@
           <div class="min-w-0 max-w-full">
             <dt class="sr-only">Zustand</dt>
             <dd>
-              <app-badge tone="neutral" size="md" class="max-w-full">
+              <app-badge tone="success" size="sm" class="max-w-full">
                 <svg
                   [lucideIcon]="icons.condition"
-                  class="h-3.5 w-3.5 shrink-0"
+                  class="h-3 w-3 shrink-0"
                   aria-hidden="true"
                 ></svg>
                 <span class="truncate" [title]="item().condition"
@@ -123,10 +115,10 @@
         Entdeckt: {{ item().first_seen_at | date: 'dd.MM.yyyy · HH:mm' }}
       </p>
 
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-1.5">
         <app-button
           variant="secondary"
-          size="search"
+          size="md"
           [icon]="icons.heart"
           [iconOnly]="true"
           [ariaPressed]="isFavorite()"
@@ -136,7 +128,7 @@
         />
         <app-button
           variant="secondary"
-          size="search"
+          size="md"
           [icon]="icons.share"
           [iconOnly]="true"
           ariaLabel="Artikel teilen"
@@ -147,7 +139,7 @@
           <app-button
             class="min-w-0 flex-1"
             variant="primary"
-            size="search"
+            size="md"
             [href]="href"
             target="_blank"
             [fullWidth]="true"

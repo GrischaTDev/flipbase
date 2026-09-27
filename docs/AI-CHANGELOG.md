@@ -1,5 +1,19 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-27 – Juna – Vinted-Karten kompakter und klarer gestaltet
+
+**Auftrag:** Marken-, Größen- und Zustandsangaben in den Vinted-Karten nebeneinander
+ausrichten, farblich unterscheiden und die Aktionsknöpfe an die übrige Oberfläche
+angleichen.
+
+**Änderung:** Der gemeinsame Badge-Baustein richtet Symbole und Text direkt in
+einer Zeile aus. Die Karte verwendet kleinere Badges mit getrennten Farben für
+Marke, Größe und Zustand. Favorit, Teilen und Vinted-Link nutzen die vorhandene
+kompakte Größe des gemeinsamen Button-Bausteins.
+
+**Prüfung:** 18 gezielte Angular-Tests, ESLint für die betroffenen TypeScript-Dateien,
+die Shared-UI-Prüfung und der Angular-Produktionsbau bestanden.
+
 ## 2026-09-27 – Juna – Richtlinie für Discord-Beta-Updates auf Anfrage verfasst
 
 **Auftrag:** Festlegen, wann Juna auf Wunsch eine Discord-Update-Nachricht
