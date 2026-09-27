@@ -1,19 +1,20 @@
 # 🤖 KI-Änderungsprotokoll
 
-## 2026-09-27 – Juna – Richtlinie für öffentliche Beta-Updates verfasst
+## 2026-09-27 – Juna – Richtlinie für Discord-Beta-Updates auf Anfrage verfasst
 
-**Auftrag:** Festlegen, wann neue Versionen im Beta-Update-Kanal angekündigt
-werden und wie kurze, verständliche Texte für Nutzer aussehen sollen.
+**Auftrag:** Festlegen, wann Juna auf Wunsch eine Discord-Update-Nachricht
+verfasst, welche Änderungen seit der letzten Nachricht zählen und wie der Text
+für Beta-Nutzer aussehen soll.
 
-**Änderung:** Unter `docs/public-beta-updates.md` eine eigene Richtlinie für
-bewusst freigegebene, sichtbare Nutzeränderungen ergänzt und in `AGENTS.md`
-verlinkt. Interne Arbeiten bleiben ohne öffentliche Ankündigung; Beispiele
-zeigen die Formulierungen „Hinzugefügt“, „Geändert“, „Entfernt“ und „Behoben“.
-Die derzeit automatisch erzeugten GitHub-Release-Beschreibungen sind als
-offener technischer Punkt benannt.
+**Änderung:** Unter `docs/public-beta-updates.md` eine Richtlinie für Updates
+auf ausdrückliche Chat-Anfrage ergänzt und in `AGENTS.md` verlinkt. Eine
+kopierfertige Vorlage und ein Protokoll tatsächlich versendeter Nachrichten
+legen Format und Vergleichszeitraum fest. Interne Änderungen bleiben aus den
+Discord-Texten heraus. Der zuvor vorbereitete automatische Versand beim
+Release wurde aus dem ungemergten Zweig wieder entfernt.
 
-**Prüfung:** Dokumentationsdiff und Formatierung geprüft. Keine Anwendung, keinen
-Workflow und keinen Discord-Kanal verändert.
+**Prüfung:** Dokumentationsdiff und Formatierung geprüft. Kein Discord-Versand
+und kein Produktionsrelease ausgelöst.
 
 ## 2026-09-27 – Juna – Admin-Pilot für Vinted-Browser vorbereitet
 
