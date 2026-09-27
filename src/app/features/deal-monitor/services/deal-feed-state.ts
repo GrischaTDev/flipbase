@@ -48,7 +48,7 @@ export class DealFeedState {
   async refresh(more = false): Promise<void> {
     const generation = this.generation;
     if (!this.request || this.busyGeneration === generation) return;
-    if (more && (!this.hasMore() || this.items().length >= 300)) return;
+    if (more && !this.hasMore()) return;
     this.busyGeneration = generation;
     this.loading.set(true);
     if (more) this.pause();
@@ -64,10 +64,11 @@ export class DealFeedState {
       this.reportedAt.set(page.reported_at);
       if (more) {
         const known = new Set(this.items().map((item) => item.id));
-        this.items.update((items) =>
-          [...items, ...page.items.filter((item) => !known.has(item.id))].slice(0, 300),
-        );
-        this.hasMore.set(page.items.length === 60 && this.items().length < 300);
+        this.items.update((items) => [
+          ...items,
+          ...page.items.filter((item) => !known.has(item.id)),
+        ]);
+        this.hasMore.set(page.items.length === 60);
       } else if (this.paused() && this.loaded()) {
         this.pending.set(page.items);
       } else {

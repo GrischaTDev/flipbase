@@ -1,0 +1,122 @@
+<div class="w-full space-y-1.5">
+  <span [id]="fieldId() + '-label'" class="block text-[13px] font-semibold text-fb-text-primary">
+    {{ label() }}
+  </span>
+
+  <div class="relative">
+    <button
+      #trigger
+      type="button"
+      [id]="fieldId()"
+      aria-haspopup="dialog"
+      [attr.aria-expanded]="isOpen()"
+      [attr.aria-labelledby]="fieldId() + '-label ' + fieldId() + '-value'"
+      [attr.aria-describedby]="helpText() ? fieldId() + '-help' : null"
+      [disabled]="disabled()"
+      (click)="toggle()"
+      class="linear-input flex min-h-8 w-full items-center gap-2 rounded-lg bg-fb-bg py-1.5 pl-3 pr-10 text-left text-[13px] text-fb-text-primary outline-none transition-colors focus-visible:border-fb-primary focus-visible:ring-2 focus-visible:ring-fb-primary/50 disabled:cursor-not-allowed disabled:opacity-40"
+      [class.border-fb-primary]="isOpen()"
+    >
+      <span
+        [id]="fieldId() + '-value'"
+        class="min-w-0 flex-1 truncate"
+        [class.text-fb-text-muted]="selectedCount() === 0"
+      >
+        {{ valueLabel() }}
+      </span>
+      <svg
+        [lucideIcon]="chevronIcon"
+        class="size-4 shrink-0 text-fb-text-muted"
+        aria-hidden="true"
+      ></svg>
+    </button>
+
+    @if (isOpen()) {
+      <div
+        #panel
+        role="dialog"
+        [attr.aria-label]="label()"
+        [attr.popover]="supportsPopover ? 'manual' : null"
+        class="fb-popover-enter left-0 top-0 z-50 m-0 flex h-80 max-h-[calc(100dvh-16px)] w-full min-w-[20rem] flex-col overflow-clip rounded-xl border border-fb-border bg-fb-surface text-fb-text-primary shadow-lg"
+        [class.fixed]="supportsPopover"
+        [class.absolute]="!supportsPopover"
+        [class.inset-auto]="supportsPopover"
+        [style.left.px]="supportsPopover ? panelPosition().left : null"
+        [style.top.px]="supportsPopover ? panelPosition().top : null"
+        [style.width.px]="supportsPopover ? panelPosition().width : null"
+      >
+        <input
+          #searchInput
+          type="search"
+          role="combobox"
+          autocomplete="off"
+          [maxLength]="maxLength()"
+          aria-autocomplete="list"
+          aria-expanded="true"
+          [attr.aria-controls]="listboxId()"
+          [attr.aria-activedescendant]="activeDescendantId()"
+          [attr.aria-label]="searchPlaceholder()"
+          [placeholder]="searchPlaceholder()"
+          [value]="searchTerm()"
+          (input)="onSearchInput($event)"
+          (keydown)="onSearchKeydown($event)"
+          class="m-1.5 min-h-8 shrink-0 rounded-lg border border-fb-border bg-fb-bg px-2.5 py-1.5 text-[13px] text-fb-text-primary placeholder:text-fb-text-muted outline-none focus-visible:border-fb-primary focus-visible:ring-2 focus-visible:ring-fb-primary/50"
+        />
+
+        <div
+          class="min-h-0 flex-1 overflow-y-auto overscroll-contain border-t border-fb-line p-1.5"
+        >
+          @if (loading()) {
+            <p role="status" class="px-2 py-3 text-[13px] text-fb-text-muted">
+              Einträge werden geladen …
+            </p>
+          } @else if (error(); as message) {
+            <div role="alert" class="space-y-2 px-2 py-3">
+              <p class="text-[13px] text-fb-text-primary">{{ message }}</p>
+              <app-button size="slim" (clicked)="retry.emit()">Erneut versuchen</app-button>
+            </div>
+          } @else if (options().length === 0) {
+            <p role="status" class="px-2 py-3 text-[13px] text-fb-text-muted">{{ emptyText() }}</p>
+          }
+
+          <div
+            [id]="listboxId()"
+            role="listbox"
+            aria-multiselectable="true"
+            [attr.aria-label]="label()"
+            class="space-y-0.5"
+            [hidden]="loading() || error() || options().length === 0"
+          >
+            @for (option of options(); track option.value; let index = $index) {
+              <button
+                type="button"
+                role="option"
+                tabindex="-1"
+                [id]="listboxId() + '-option-' + index"
+                aria-selected="false"
+                (click)="select(option)"
+                (mousemove)="activeIndex.set(index)"
+                class="group flex min-h-9 w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[13px] text-fb-text-primary transition-colors hover:bg-fb-surface-alt focus-visible:outline-2 focus-visible:outline-fb-primary"
+                [class.bg-fb-surface-alt]="activeIndex() === index"
+              >
+                <svg
+                  [lucideIcon]="checkIcon"
+                  class="size-4 shrink-0 opacity-0 group-hover:opacity-100"
+                  [class.opacity-100]="activeIndex() === index"
+                  aria-hidden="true"
+                ></svg>
+                <span class="min-w-0 flex-1 truncate">{{ option.label }}</span>
+              </button>
+            }
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+
+  @if (helpText()) {
+    <p [id]="fieldId() + '-help'" class="text-xs leading-relaxed text-fb-text-muted">
+      {{ helpText() }}
+    </p>
+  }
+</div>

@@ -45,6 +45,9 @@ export interface FeedRequest {
   workspace: string;
   watchlist: string | null;
   brand: string | null;
+  size: string | null;
+  minPrice: number | null;
+  maxPrice: number | null;
   cursor?: { time: string; id: string };
 }
 export interface FeedCategory {

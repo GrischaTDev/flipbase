@@ -2,6 +2,7 @@ import '@angular/compiler';
 import { ɵresolveComponentResources } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { LucideHeart } from '@lucide/angular';
 import { readFile } from 'node:fs/promises';
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { ButtonComponent } from './button.component';
@@ -207,6 +208,22 @@ describe('ButtonComponent', () => {
     expect(button.className).toContain('--fb-color-critical-surface');
     expect(button.className).toContain('focus-visible:outline-fb-text-primary');
     expect(button.getAttribute('aria-label')).toBe('Verkauf retournieren');
+  });
+
+  it('shows a red heart and fills it when the favorite is selected', () => {
+    fixture.componentRef.setInput('variant', 'favorite');
+    fixture.componentRef.setInput('icon', LucideHeart);
+    fixture.componentRef.setInput('iconOnly', true);
+    fixture.componentRef.setInput('ariaPressed', false);
+    fixture.detectChanges();
+    const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
+    expect(button.classList).toContain('text-fb-critical');
+    expect(button.querySelector('svg')?.classList).not.toContain('fill-current');
+
+    fixture.componentRef.setInput('ariaPressed', true);
+    fixture.detectChanges();
+    expect(button.classList).toContain('bg-fb-critical-surface');
+    expect(button.querySelector('svg')?.classList).toContain('fill-current');
   });
 
   it('renders navigation as a native link with query parameters', () => {
