@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { GoLoginProfileProvisioner } from '../src/gologin-profile-provisioner.ts';
+import { GoLoginApiLimitError } from '../src/gologin-api-limit.ts';
 import type { BrowserSessionScope } from '../src/marketplace-browser-session-broker.ts';
 
 const scope: BrowserSessionScope = {
@@ -110,4 +111,38 @@ test('keeps a committed profile after a lost database acknowledgement', async ()
   const f = fixture({ loseInsertAck: true });
   await f.provisioner.prepare(scope);
   assert.deepEqual(f.counts(), { checks: 3, created: 1, deleted: 0, stored: profileId });
+});
+
+test('reports a provider API limit before saving a profile for the account', async () => {
+  const request: typeof fetch = async (input) => {
+    if (String(input).endsWith('/browser/quick'))
+      return new Response(
+        'You have reached your free API requests limit. Please subscribe to continue.',
+        {
+          status: 403,
+        },
+      );
+    // Use the same synthetic account authorization and empty profile mapping.
+    if (String(input).endsWith('/rest/v1/rpc/marketplace_list_connections'))
+      return json({
+        connections: [
+          {
+            workspaceId: scope.workspaceId,
+            connectionId: scope.connectionId,
+            marketplace: 'vinted',
+            status: 'needs_login',
+          },
+        ],
+      });
+    if (String(input).includes('/rest/v1/marketplace_browser_profiles')) return json([]);
+    throw new Error(`Unexpected endpoint: ${String(input)}`);
+  };
+  const provisioner = new GoLoginProfileProvisioner({
+    supabaseUrl: 'https://database.example.test',
+    publishableKey: 'public-key',
+    serviceRoleKey: 'server-key',
+    goLoginToken: 'provider-token',
+    fetch: request,
+  });
+  await assert.rejects(provisioner.prepare(scope), GoLoginApiLimitError);
 });

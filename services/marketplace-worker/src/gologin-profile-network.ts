@@ -1,3 +1,5 @@
+import { assertGoLoginApiAvailable } from './gologin-api-limit.ts';
+
 /** Verwendet vorhandenes GoLogin-Kontingent; kauft und rotiert keine Proxys. */
 export class GoLoginProfileNetwork {
   private readonly token: string;
@@ -30,6 +32,7 @@ export class GoLoginProfileNetwork {
       }),
       signal: AbortSignal.timeout(15_000),
     });
+    await assertGoLoginApiAvailable(response);
     if (!response.ok) throw new Error('GoLogin-Proxy konnte nicht zugeordnet werden');
     await this.assertConfigured(profileId);
   }
@@ -56,6 +59,7 @@ export class GoLoginProfileNetwork {
       headers: { Authorization: `Bearer ${this.token}` },
       signal: AbortSignal.timeout(10_000),
     });
+    await assertGoLoginApiAvailable(response);
     if (!response.ok) throw new Error('GoLogin-Netzwerkkonfiguration nicht verfügbar');
     const body: unknown = await response.json();
     if (!isRecord(body)) throw new Error('Ungültige GoLogin-Netzwerkkonfiguration');

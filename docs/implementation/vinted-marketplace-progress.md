@@ -1,5 +1,13 @@
 # Arbeitsstand: Vinted-Marktplatzverwaltung
 
+## 28. September 2026 – GoLogin-API-Limit beim echten Sitzungsstart
+
+Bei der vom Nutzer angestoßenen Anmeldung erschien „Die Browsersitzung konnte nicht bestätigt werden“. Die Fehlermeldung entsteht beim Öffnen der Browsersitzung, bevor der Worker die Vinted-Zugangsdaten erhält. Für die betroffene Verbindung gab es in der produktiven Datenbank weder ein gespeichertes Anbieterprofil noch eine gestartete Sitzung. Lesende Proben des produktiven GoLogin-Zugangs auf zwei API-Routen antworteten mit HTTP 403 und dem eindeutigen Hinweis auf das erreichte kostenlose API-Anfragelimit und ein erforderliches Abo. Der Vinted-Benutzername und das Passwort wurden bei diesem Versuch nicht geprüft.
+
+Der Worker erkennt diese konkrete Tarifantwort und gibt nur den festen Code `gologin_api_limit_reached` weiter. Die Flipbase-Oberfläche erklärt den Grund; unbekannte Anbieterfehler bleiben allgemein. Das behebt die irreführende Anzeige, hebt aber die Grenze des GoLogin-Kontos nicht auf. Laut [aktueller GoLogin-Preisauskunft](https://support.gologin.com/en/articles/14617029-pricing) enthält der dauerhaft kostenlose Tarif keinen Cloudstart; ein geeigneter Tarif ist für den hier eingesetzten Cloudbrowser nötig. Nach dessen Aktivierung muss der Nutzer die Anmeldung erneut selbst auslösen. Eine erfolgreiche Vinted-Anmeldung, die Identitätsroute und der Liveimport sind weiter unbestätigt.
+
+**Prüfung:** 70 Worker- und 33 gezielte Angular-Tests bestanden, ebenso Worker-Typprüfung/-Bau, Angular-Produktionsbau und gezieltes ESLint. Siehe `vinted-ui-verification.md`. Keine Zugangsdaten wurden ausgelesen oder erneut gesendet. Keine Datenbankmigration und keine neue Abhängigkeit.
+
 ## 27. September 2026 – Direkte Account-Anmeldung und GoLogin-Proxy
 
 Aktuell ist PR #220 bereits in master enthalten (`c46d225`). Die Fortsetzung

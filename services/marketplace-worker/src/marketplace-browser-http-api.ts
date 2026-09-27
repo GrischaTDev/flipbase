@@ -5,6 +5,7 @@ import {
   type BrowserSessionScope,
 } from './marketplace-browser-session-broker.ts';
 import { VintedLoginRejectedError, type VintedAccountIdentity } from './vinted-browser-reader.ts';
+import { GoLoginApiLimitError } from './gologin-api-limit.ts';
 
 interface BrowserBroker {
   open(scope: BrowserSessionScope): Promise<string>;
@@ -317,6 +318,13 @@ export class MarketplaceBrowserHttpApi {
         json(response, 422, {
           code: 'vinted_login_rejected',
           error: 'Vinted hat die Zugangsdaten abgelehnt',
+        });
+        return;
+      }
+      if (error instanceof GoLoginApiLimitError) {
+        json(response, 503, {
+          code: 'gologin_api_limit_reached',
+          error: 'GoLogin-API-Limit erreicht',
         });
         return;
       }

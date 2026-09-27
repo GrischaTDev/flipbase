@@ -7,6 +7,7 @@ import { createMarketplaceFixtures } from '../testing/marketplace-fixtures';
 import { MarketplaceAccountStore } from './marketplace-account.store';
 import {
   BrowserTestSessionEndedError,
+  GoLoginApiLimitError,
   MarketplaceBrowserTestApiService,
 } from './marketplace-browser-test-api.service';
 import { MarketplaceBrowserTestStore } from './marketplace-browser-test.store';
@@ -80,6 +81,12 @@ beforeEach(async () => {
 });
 
 describe('Kontogebundener Browser-Testbereich', () => {
+  it('zeigt das GoLogin-Limit vor dem Senden der Zugangsdaten an', async () => {
+    api.open.mockRejectedValueOnce(new GoLoginApiLimitError());
+    await store.login({ username: 'synthetic', password: 'synthetic' });
+    expect(store.error()).toContain('GoLogin-API-Limit');
+    expect(api.login).not.toHaveBeenCalled();
+  });
   it('behält die Sitzung nach Token-Erneuerung und prüft mit dem neuen Token', async () => {
     await store.start();
     session.set({ access_token: 'token-a-renewed' });

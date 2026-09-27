@@ -30,6 +30,14 @@ export class BrowserTestSessionEndedError extends Error {
   }
 }
 
+export class GoLoginApiLimitError extends Error {
+  constructor() {
+    super(
+      'Das kostenlose GoLogin-API-Limit ist erreicht. Für weitere Browseranmeldungen benötigt Dein GoLogin-Konto einen passenden Tarif.',
+    );
+  }
+}
+
 export class VintedLoginRejectedError extends Error {
   constructor() {
     super(
@@ -70,7 +78,19 @@ export class MarketplaceBrowserTestApiService {
 
   async open(scope: AccountScope, accessToken: string): Promise<string> {
     const response = await this.post(basePath, scope, accessToken);
-    if (response.status !== 201) throw new Error('Browsersitzung nicht verfügbar');
+    if (response.status !== 201) {
+      if (response.status === 503) {
+        const body: unknown = await response.json().catch(() => null);
+        if (
+          typeof body === 'object' &&
+          body !== null &&
+          'code' in body &&
+          body.code === 'gologin_api_limit_reached'
+        )
+          throw new GoLoginApiLimitError();
+      }
+      throw new Error('Browsersitzung nicht verfügbar');
+    }
     const body: unknown = await response.json();
     if (
       typeof body !== 'object' ||

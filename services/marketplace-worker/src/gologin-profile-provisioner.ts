@@ -1,4 +1,5 @@
 import type { BrowserSessionScope } from './marketplace-browser-session-broker.ts';
+import { assertGoLoginApiAvailable, GoLoginApiLimitError } from './gologin-api-limit.ts';
 import { GoLoginProfileNetwork } from './gologin-profile-network.ts';
 
 interface GoLoginProfileProvisionerOptions {
@@ -90,6 +91,7 @@ export class GoLoginProfileProvisioner {
       body: JSON.stringify({ name: `Flipbase Vinted ${scope.connectionId}`, os: 'lin' }),
       signal: AbortSignal.timeout(20_000),
     });
+    await assertGoLoginApiAvailable(response);
     if (response.status !== 201) throw new Error('Browserprofil konnte nicht erstellt werden');
     const created: unknown = await response.json();
     if (
@@ -121,7 +123,7 @@ export class GoLoginProfileProvisioner {
         signal: AbortSignal.timeout(5_000),
       });
       if (!saved.ok) throw new Error('Browserprofil konnte nicht zugeordnet werden');
-    } catch {
+    } catch (error) {
       // Ein verlorenes Datenbank-ACK kann bereits einen Eintrag geschrieben
       // haben. Vor dem Löschen muss deshalb die gespeicherte Zuordnung geprüft
       // werden; bei Datenbankausfall bleibt das Profil zur manuellen Klärung.
@@ -135,6 +137,9 @@ export class GoLoginProfileProvisioner {
       }
       if (stored === profileId) return;
       await this.deleteProfile(profileId).catch(() => undefined);
+      if (error instanceof GoLoginApiLimitError) throw error;
+      // Unbekannte Anbieterfehler können Token enthalten und bleiben privat.
+      // eslint-disable-next-line preserve-caught-error
       throw new Error('Browserprofil konnte nicht zugeordnet werden');
     }
   }

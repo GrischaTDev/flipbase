@@ -1,5 +1,7 @@
 # Vinted-Marktplatzverwaltung: Implementierungsplan
 
+> **Aktueller Blocker (28.09.2026):** Der produktive GoLogin-Zugang erhält für REST-API-Aufrufe HTTP 403 mit „free API requests limit“. Für die betroffene neue Verbindung wurde kein Anbieterprofil und keine Browsersitzung angelegt; Vinted-Zugangsdaten wurden dabei nicht geprüft. Die Fehlermeldung wird gezielt klassifiziert. Ein passender GoLogin-Tarif und danach ein erneuter, vom Nutzer ausgelöster Anmeldeversuch sind Voraussetzungen für die noch offene Liveprüfung. Erfolgreiche Vinted-Identität und Datenimport bleiben getrennte, offene Nachweise.
+
 > For agentic workers: Use superpowers:executing-plans for task-by-task execution.
 > Haken bezeichnen tatsächlich erledigte Schritte, keine angekündigten Arbeiten.
 

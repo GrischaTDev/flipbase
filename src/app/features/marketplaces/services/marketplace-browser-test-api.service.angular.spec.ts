@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   BrowserTestSessionEndedError,
+  GoLoginApiLimitError,
   MarketplaceBrowserTestApiService,
 } from './marketplace-browser-test-api.service';
 
@@ -41,6 +42,16 @@ describe('Browser-Test-API', () => {
     expect(options.method).toBe('POST');
     expect(new Headers(options.headers).get('Authorization')).toBe('Bearer user-test-token');
     expect(JSON.parse(String(options.body))).toEqual(scope);
+  });
+
+  it('erkennt den festen Code für das erreichte GoLogin-API-Limit', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(Response.json({ code: 'gologin_api_limit_reached' }, { status: 503 })),
+    );
+    await expect(api.open(scope, 'user-test-token')).rejects.toBeInstanceOf(GoLoginApiLimitError);
   });
 
   it('verwirft eine übergroße Bildantwort', async () => {

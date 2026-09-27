@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-28 – Juna – GoLogin-Sitzungsstart nach echtem Fehlversuch untersucht
+
+**Auftrag:** Die bei einer Vinted-Anmeldung angezeigte Meldung „Die Browsersitzung konnte nicht bestätigt werden“ untersuchen und beheben, ohne Zugangsdaten auszulesen oder erneut zu senden.
+
+**Befund und Änderung:** Für die betroffene neue Verbindung existieren weder ein gespeichertes GoLogin-Profil noch eine Browser-Sitzung. Der produktive GoLogin-Zugang antwortete bei lesenden API-Proben mit HTTP 403: Das kostenlose API-Anfragelimit ist erreicht und ein Abo wird verlangt. Der Fehler trat vor der Übergabe der Vinted-Daten auf. Der Worker erkennt nur diese konkrete Anbieterantwort und liefert einen festen Fehlercode; die Oberfläche erklärt den nötigen GoLogin-Tarif. Andere Anbieterantworten bleiben verborgen. Die Trennung nach Konto und Workspace sowie der Schutz von Zugangsdaten bleiben erhalten.
+
+**Prüfung und Grenze:** 70 Worker- und 33 gezielte Angular-Tests bestanden; Worker-Typprüfung/-Bau, Angular-Produktionsbau und gezieltes ESLint bestanden. Ein echter Login kann erst nach einem passenden GoLogin-Tarif erneut durch den Nutzer angestoßen werden; eine erfolgreiche Vinted-Verbindung ist nicht bestätigt. Kein erneuter Versand von Zugangsdaten, kein Push, Merge oder Deployment in dieser Sitzung.
+
 ## 2026-09-28 – Juna – Hintergrundanmeldung zur Veröffentlichung freigegeben
 
 **Auftrag:** Der Nutzer hat PR-Erstellung und Merge nach erfolgreichen

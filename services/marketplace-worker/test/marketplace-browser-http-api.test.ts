@@ -6,6 +6,7 @@ import {
   SupabaseBrowserUserVerifier,
 } from '../src/marketplace-browser-http-api.ts';
 import type { BrowserInfo } from '../src/gologin-cloud-browser.ts';
+import { GoLoginApiLimitError } from '../src/gologin-api-limit.ts';
 import {
   MarketplaceBrowserSessionEndedError,
   type BrowserSessionScope,
@@ -151,6 +152,25 @@ test('prepares the bound browser profile before opening and hides provider error
     assert.equal((await response.text()).includes('provider-token-must-stay-private'), false);
   } finally {
     await failed.close();
+  }
+});
+
+test('returns only a fixed code when the provider API limit is reached', async () => {
+  const api = await setup(undefined, undefined, false, undefined, async () => {
+    throw new GoLoginApiLimitError();
+  });
+  try {
+    const response = await api.request('/marketplace-browser/sessions', {
+      workspaceId: workspaceA,
+      connectionId: accountA,
+    });
+    assert.equal(response.status, 503);
+    assert.deepEqual(await response.json(), {
+      code: 'gologin_api_limit_reached',
+      error: 'GoLogin-API-Limit erreicht',
+    });
+  } finally {
+    await api.close();
   }
 });
 

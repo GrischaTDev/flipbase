@@ -5,6 +5,7 @@ import type { AccountScope } from '../models/marketplace.models';
 import { MarketplaceAccountStore } from './marketplace-account.store';
 import {
   BrowserTestSessionEndedError,
+  GoLoginApiLimitError,
   VintedLoginRejectedError,
   MarketplaceBrowserTestApiService,
   type BrowserTestInput,
@@ -164,7 +165,8 @@ export class MarketplaceBrowserTestStore {
       this.state.set({ key, userId, scope, accessToken: token, id, frameUrl: null });
       if (loadPreview) await this.loadFrame(key, revision, scope, id, token);
     } catch (error) {
-      if (this.isCurrent(key, revision) && !this.handleConfirmedEnd(error, key)) this.setError(key);
+      if (this.isCurrent(key, revision) && !this.handleConfirmedEnd(error, key))
+        this.setError(key, error);
     } finally {
       if (this.isCurrent(key, revision)) this.busyState.set(null);
     }
@@ -391,8 +393,14 @@ export class MarketplaceBrowserTestStore {
     return !this.destroyed && this.contextKey() === key && this.revision === revision;
   }
 
-  private setError(key: string): void {
-    this.errorState.set({ key, message: 'Die Browsersitzung konnte nicht bestätigt werden.' });
+  private setError(key: string, error?: unknown): void {
+    this.errorState.set({
+      key,
+      message:
+        error instanceof GoLoginApiLimitError
+          ? error.message
+          : 'Die Browsersitzung konnte nicht bestätigt werden.',
+    });
   }
 
   private handleConfirmedEnd(error: unknown, key: string): boolean {
