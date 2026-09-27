@@ -406,7 +406,7 @@ test('runs the landing contract immediately before the production build', () => 
 
 test('leads from the revised hero to one application form at the end of the page', () => {
   assert.doesNotMatch(html, /Vom Wühltisch zum Profit/u);
-  assert.match(normalizedHtml, /Dein Vintage-Reselling\./u);
+  assert.match(normalizedHtml, /Dein Reselling\./u);
   assert.doesNotMatch(html, /id=["']hero-bewerbung-form["']/u);
 
   const heroCallToAction = extractStartTags(html, 'a').find((link) =>
@@ -719,7 +719,7 @@ test('restores theme and language after reload and keeps an explicit theme acros
   assert.equal(themeToggle.checked, false);
   assert.equal(languageToggle.checked, false);
   assert.equal(firstVisit.document.documentElement.lang, 'de');
-  assert.match(firstVisit.document.title, /Reselling-Software für Vintage/u);
+  assert.match(firstVisit.document.title, /Reselling-Software für Vinted, eBay/u);
 
   themeToggle.checked = true;
   themeToggle.dispatchEvent(new firstVisit.dom.window.Event('change'));
@@ -729,10 +729,10 @@ test('restores theme and language after reload and keeps an explicit theme acros
   assert.equal(firstVisit.dom.window.localStorage.getItem(languageKey), 'en');
   assert.equal(firstVisit.document.querySelector('meta[name="theme-color"]').content, '#f4f5f7');
   assert.equal(firstVisit.document.documentElement.lang, 'en');
-  assert.match(firstVisit.document.title, /Reselling software for vintage sellers/u);
+  assert.match(firstVisit.document.title, /Reselling software for Vinted, eBay/u);
   assert.match(
     firstVisit.document.querySelector('meta[name="description"]').content,
-    /Vintage reselling beyond spreadsheets/u,
+    /Reselling beyond spreadsheets/u,
   );
   firstVisit.mediaQuery.setLight(true);
   assert.equal(themeToggle.checked, false);
@@ -761,7 +761,7 @@ test('restores theme and language after reload and keeps an explicit theme acros
   restoredLanguageToggle.dispatchEvent(new lightSystem.dom.window.Event('change'));
   assert.equal(lightSystem.dom.window.localStorage.getItem(languageKey), 'de');
   assert.equal(lightSystem.document.documentElement.lang, 'de');
-  assert.match(lightSystem.document.title, /Reselling-Software für Vintage/u);
+  assert.match(lightSystem.document.title, /Reselling-Software für Vinted, eBay/u);
   lightSystem.dom.window.close();
 });
 
@@ -770,7 +770,8 @@ test('declares English passages and gives localized controls static screen-reade
 
   const unswitchedDocumentText = [];
   if (
-    extractElement(html, 'title').trim() !== 'Flipbase: Reselling-Software für Vintage &amp; Vinted'
+    extractElement(html, 'title').trim() !==
+    'Flipbase: Reselling-Software für Vinted, eBay &amp; Kleinanzeigen'
   ) {
     unswitchedDocumentText.push('document title');
   }
@@ -1340,14 +1341,14 @@ test('describes the beta application review flow without open-registration or fi
   }
 });
 
-test('explains the vintage workflow and the real marketplace scope', () => {
+test('explains the reselling workflow and the real marketplace scope', () => {
   const descriptionTag = extractStartTags(html, 'meta').find(
     (tag) => attribute(tag, 'name') === 'description',
   );
   assert.ok(descriptionTag, 'Expected a meta description');
-  assert.match(attribute(descriptionTag, 'content'), /Vintage-Reselling ohne Excel/u);
+  assert.match(attribute(descriptionTag, 'content'), /Reselling ohne Excel/u);
   assert.match(attribute(descriptionTag, 'content'), /Vinted Bot/u);
-  assert.match(normalizedHtml, /Dein Vintage-Reselling/u);
+  assert.match(normalizedHtml, /Dein Reselling/u);
   assert.match(normalizedHtml, /Vinted Bot: passende Funde prüfen/u);
   assert.match(normalizedHtml, /Betriebsausgaben und Fixkosten erfassen/u);
   assert.match(normalizedHtml, /Mehrere Betriebsbereiche sauber trennen/u);
@@ -1355,7 +1356,8 @@ test('explains the vintage workflow and the real marketplace scope', () => {
     normalizedHtml,
     /Mit einem Klick überträgt die Browser-Erweiterung ihn in einen Kleinanzeigen-Tab; dort schließt du die Veröffentlichung ab\./u,
   );
-  assert.match(normalizedHtml, /Verkäufe auf Vinted, Kleinanzeigen und eBay fest/u);
+  assert.match(normalizedHtml, /Verkäufe auf Vinted, eBay und Kleinanzeigen fest/u);
+  assert.doesNotMatch(normalizedHtml, /Vintage-Reselling|Vintage-Einkäufe|vintage reselling/iu);
 
   for (const outdatedPhrase of [
     'Mystery-Paket',

@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-27 – Juna – Landingpage auf Vinted statt Vintage ausgerichtet
+
+**Auftrag:** Die missverstandene Ausrichtung auf Vintage-Kleidung korrigieren. Flipbase richtet sich an Reseller allgemein; Vinted ist die vorrangige Plattform, eBay und Kleinanzeigen sind ebenfalls wichtig.
+
+**Änderung:** Der Aufmacher heißt wieder „Dein Reselling.“ Titel, Suchbeschreibung, Vorschautexte, Vergleich, Funktionskacheln und FAQ sprechen nicht mehr von Vintage-Reselling oder Vintage-Einkäufen. Vinted steht als Plattform und Bot vorn; eBay und Kleinanzeigen folgen. Die englische Fassung und die beim Sprachwechsel gesetzten Metadaten wurden entsprechend korrigiert.
+
+**Prüfung:** Landingpage-Tests, ESLint, Prettier, Angular-Produktionsbau und die gerenderte Desktop-/Mobilansicht geprüft. AXE meldete keine Verstöße.
+
 ## 2026-09-27 – Juna – Landingpage auf Vintage-Reselling ausgerichtet
 
 **Auftrag:** Die Startseite von veralteten Einkaufstypen lösen und Flipbase als Arbeitsanwendung für Vintage-Reseller mit Vinted, Kleinanzeigen, eBay, Buchhaltung und Workspaces verständlich vorstellen.

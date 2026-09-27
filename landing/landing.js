@@ -6,14 +6,14 @@
   var systemLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)');
   var pageMetadata = {
     de: {
-      title: 'Flipbase: Reselling-Software für Vintage & Vinted',
+      title: 'Flipbase: Reselling-Software für Vinted, eBay & Kleinanzeigen',
       description:
-        'Vintage-Reselling ohne Excel: Flipbase verbindet Vinted Bot, Einkauf, Bestand, Kleinanzeigen-Inserate, eBay-Verkäufe, Ausgaben und Steuerdaten.',
+        'Reselling ohne Excel: Flipbase verbindet Vinted Bot, Einkauf, Bestand, Kleinanzeigen-Inserate, eBay-Verkäufe, Ausgaben und Steuerdaten.',
     },
     en: {
-      title: 'Flipbase: Reselling software for vintage sellers',
+      title: 'Flipbase: Reselling software for Vinted, eBay & Kleinanzeigen',
       description:
-        'Vintage reselling beyond spreadsheets: Flipbase brings together Vinted finds, inventory, photos, listings, sales, expenses, and accounting data.',
+        'Reselling beyond spreadsheets: Flipbase brings together Vinted finds, inventory, photos, listings, sales, expenses, and accounting data.',
     },
   };
 
