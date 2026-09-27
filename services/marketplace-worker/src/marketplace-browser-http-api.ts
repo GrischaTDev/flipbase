@@ -4,6 +4,7 @@ import {
   MarketplaceBrowserSessionEndedError,
   type BrowserSessionScope,
 } from './marketplace-browser-session-broker.ts';
+import type { VintedAccountIdentity } from './vinted-browser-reader.ts';
 
 interface BrowserBroker {
   open(scope: BrowserSessionScope): Promise<string>;
@@ -23,6 +24,13 @@ interface BrowserApiOptions {
   broker: BrowserBroker;
   users: BrowserUserVerifier;
   profiles?: { prepare(scope: BrowserSessionScope): Promise<void> };
+  accounts?: {
+    confirm(
+      scope: BrowserSessionScope,
+      sessionId: string,
+      identity: VintedAccountIdentity,
+    ): Promise<void>;
+  };
   readOnly?: boolean;
 }
 
@@ -139,6 +147,7 @@ export class MarketplaceBrowserHttpApi {
   private readonly broker: BrowserBroker;
   private readonly users: BrowserUserVerifier;
   private readonly profiles?: BrowserApiOptions['profiles'];
+  private readonly accounts?: BrowserApiOptions['accounts'];
   private readonly readOnly: boolean;
   private readonly inFlight = new Set<string>();
 
@@ -146,6 +155,7 @@ export class MarketplaceBrowserHttpApi {
     this.broker = options.broker;
     this.users = options.users;
     this.profiles = options.profiles;
+    this.accounts = options.accounts;
     this.readOnly = options.readOnly ?? false;
   }
 
@@ -184,7 +194,7 @@ export class MarketplaceBrowserHttpApi {
         return;
       }
       const match = path.match(
-        /^\/marketplace-browser\/sessions\/([0-9a-f-]{36})\/(frame|input|close)$/i,
+        /^\/marketplace-browser\/sessions\/([0-9a-f-]{36})\/(frame|input|identify|close)$/i,
       );
       if (!match || !uuidPattern.test(match[1] ?? '')) throw new RequestError(404);
       const sessionId = match[1]!;
@@ -227,6 +237,23 @@ export class MarketplaceBrowserHttpApi {
           json(response, 200, { accepted: true });
           return;
         }
+        if (match[2] === 'identify') {
+          if (this.readOnly) throw new RequestError(403);
+          if (!this.accounts) throw new RequestError(503);
+          const identity = await this.broker.run(scope, sessionId, async (browser) => {
+            if (!browser.identify) return null;
+            return browser.identify();
+          });
+          if (!identity) throw new RequestError(422);
+          await this.accounts.confirm(scope, sessionId, identity);
+          json(response, 200, {
+            workspaceId: scope.workspaceId,
+            connectionId: scope.connectionId,
+            externalAccountId: identity.id,
+            username: identity.username,
+          });
+          return;
+        }
         await this.broker.close(scope, sessionId);
         response.writeHead(204, responseHeaders);
         response.end();
@@ -254,11 +281,13 @@ export class MarketplaceBrowserHttpApi {
                 ? 'Anfrage zu groß'
                 : status === 429
                   ? 'Sitzung ist beschäftigt'
-                  : status === 410
-                    ? 'Browsersitzung wurde beendet'
-                    : status === 403
-                      ? 'Eingabe ist gesperrt'
-                      : 'Browsersitzung nicht verfügbar',
+                  : status === 422
+                    ? 'Vinted-Anmeldung konnte nicht bestätigt werden'
+                    : status === 410
+                      ? 'Browsersitzung wurde beendet'
+                      : status === 403
+                        ? 'Eingabe ist gesperrt'
+                        : 'Browsersitzung nicht verfügbar',
       });
     }
   }

@@ -11,6 +11,11 @@ export interface BrowserTestAvailability {
   readOnly: boolean;
 }
 
+export interface ConfirmedVintedAccount {
+  readonly externalAccountId: string;
+  readonly username: string;
+}
+
 export class BrowserTestSessionEndedError extends Error {
   constructor() {
     super('Browsersitzung wurde beendet');
@@ -60,6 +65,34 @@ export class MarketplaceBrowserTestApiService {
     )
       throw new Error('Ungültige Browsersitzung');
     return body.id;
+  }
+
+  async identify(
+    scope: AccountScope,
+    sessionId: string,
+    accessToken: string,
+  ): Promise<ConfirmedVintedAccount> {
+    const response = await this.post(`${basePath}/${sessionId}/identify`, scope, accessToken);
+    if (response.status === 410) throw new BrowserTestSessionEndedError();
+    if (!response.ok) throw new Error('Vinted-Anmeldung konnte nicht bestätigt werden');
+    const body: unknown = await response.json();
+    if (
+      typeof body !== 'object' ||
+      body === null ||
+      !('workspaceId' in body) ||
+      body.workspaceId !== scope.workspaceId ||
+      !('connectionId' in body) ||
+      body.connectionId !== scope.connectionId ||
+      !('externalAccountId' in body) ||
+      typeof body.externalAccountId !== 'string' ||
+      !/^[1-9][0-9]{0,31}$/.test(body.externalAccountId) ||
+      !('username' in body) ||
+      typeof body.username !== 'string' ||
+      !body.username.trim() ||
+      body.username.length > 120
+    )
+      throw new Error('Ungültige Vinted-Kontobestätigung');
+    return { externalAccountId: body.externalAccountId, username: body.username };
   }
 
   async frame(scope: AccountScope, sessionId: string, accessToken: string): Promise<Blob> {

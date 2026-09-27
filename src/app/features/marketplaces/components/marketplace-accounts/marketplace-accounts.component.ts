@@ -8,7 +8,7 @@ import {
   signal,
 } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { LucidePencil, LucidePause, LucidePlay, LucidePlus } from '@lucide/angular';
+import { LucideLogIn, LucidePencil, LucidePause, LucidePlay, LucidePlus } from '@lucide/angular';
 import { AuthService } from '../../../../core/services/auth.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
@@ -71,6 +71,7 @@ export class MarketplaceAccountsComponent {
   readonly labels = MARKETPLACE_CONNECTION_LABELS;
   readonly tones = MARKETPLACE_CONNECTION_TONES;
   readonly addIcon = LucidePlus;
+  readonly loginIcon = LucideLogIn;
   readonly editIcon = LucidePencil;
   readonly pauseIcon = LucidePause;
   readonly resumeIcon = LucidePlay;

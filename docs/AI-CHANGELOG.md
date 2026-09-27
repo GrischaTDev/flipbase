@@ -1,5 +1,50 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-27 – Juna – Vinted-Anmeldung an echte Kontokennung gebunden
+
+**Auftrag:** Für ein normales Vinted-Konto den Schritt vom vorbereiteten
+Flipbase-Eintrag zur echten, kontogebundenen Anmeldung umsetzen.
+
+**Änderung:** Der Worker liest nach der interaktiven Anmeldung ausschließlich
+die Kontokennung und den Nutzernamen von der festen Vinted-Domain. Eine
+serverseitige Datenbankfunktion bestätigt die Identität nur bei gültiger
+Sitzung, passendem Workspace, Konto und Bediener mit Betreiberrecht. Erst dann
+setzt Flipbase den Status auf „verbunden“ und speichert eine Profilkopie. Die
+Anmeldeseite hat dafür eine eigene Bestätigungsaktion. Das genutzte
+Vinted-Identitätsziel ist eine private, nicht vertraglich zugesicherte
+Schnittstelle und bleibt bis zum Test mit einem freigegebenen eigenen Konto
+unbestätigt. Inserate, Nachrichten und Verkäufe werden noch nicht importiert.
+
+**Prüfung:** 54 Worker-Tests, 16 gezielte Angular-Tests und 113
+Marktplatz-Datenbankprüfungen bestanden. Der Datenbanktest fand zunächst eine
+fehlende Rechteentziehung in der generierten Migration; diese wurde ergänzt
+und erneut geprüft. Worker-Typprüfung, Angular-Typprüfung und Bau bestanden.
+Kein echtes Konto, kein Produktions-Worker und kein Deployment wurden verwendet.
+
+**PR-Nachtrag:** Der zweite Angular-Teiltest von PR #220 fand einen alten
+Sidebar-Test, dessen Vorlagenauflösung nach dem neuen Admin-Badge den Pfad der
+geteilten Badge-Komponente nicht kannte. Der Test liest diese Vorlage nun wie
+der bereits angepasste Sidebar-Test aus ihrem tatsächlichen Ordner. Beide
+Sidebar-Testdateien bestanden danach lokal.
+
+## 2026-09-27 – Juna – Vinted-Admin-Einstieg verständlich gemacht
+
+**Auftrag:** Admin-Badge am Vinted-Menü ergänzen und den irreführenden
+Kontodialog so korrigieren, dass der Weg zu einer echten Anmeldung erkennbar
+ist.
+
+**Änderung:** Der Admin-Link ist gekennzeichnet. Die Kontoverwaltung benennt
+den internen Vorbereitungsschritt ehrlich und zeigt pro Verbindung einen
+direkten Anmeldelink. Die Route bindet den Browser an die angeforderte
+Verbindung und sperrt unbekannte IDs. Ein nicht erreichbarer Worker wird
+sichtbar erklärt. Plan und Prüfprotokoll halten ausstehende Anmeldung,
+Identitätsprüfung und Liveimport fest.
+
+**Prüfung:** Angular-Bau, gezielte Komponententests und der Playwright-Ablauf
+mit künstlichen Konten auf Desktop und Mobilgerätegröße bestanden. Der
+öffentliche Browser-Endpunkt antwortete mit HTTP 502; keine echten
+Vinted-Konten oder Zugangsdaten wurden verwendet.
+
 ## 2026-09-27 – Juna – Beta-Auswertung aus Datenschutzhinweisen entfernt
 
 **Auftrag:** Den nachträglich ergänzten Abschnitt zur namentlichen Beta-Nutzungsübersicht vorerst aus der Datenschutzerklärung entfernen.

@@ -1,5 +1,45 @@
 # Vinted-Oberfläche: geprüfter Stand vom 26. September 2026
 
+## Ergänzung vom 27. September 2026: Konto nach Anmeldung bestätigen
+
+Die bestehende Anmeldeseite bietet jetzt „Anmeldung prüfen und Konto verbinden“.
+Sie zeigt den verbundenen Status erst, nachdem der Worker eine Vinted-Kennung
+im kontogebundenen Browser gelesen und die Datenbank sie für die aktive
+Sitzung bestätigt hat. Bei fehlender Kennung, fremdem Konto oder abgelaufener
+Sitzung entsteht kein neuer Profilstand. Nach Erfolg wird der Browser beendet
+und die Kontoliste neu geladen.
+
+**Lokal geprüft:** 16 gezielte Angular-Tests, 54 Worker-Tests, 113
+Marktplatz-Datenbankprüfungen und Angular-Bau. Die Prüfung verwendete nur
+künstliche Konten und Antworten. Der öffentliche Worker war zuvor mit
+HTTP 502 nicht erreichbar; ein neuer Produktionscheck und eine echte
+Vinted-Anmeldung stehen aus. Die private Vinted-Identitätsroute kann sich
+ändern; ihre Antwort wurde bisher nicht live verifiziert. Inserate,
+Nachrichten und Verkäufe werden noch nicht importiert.
+
+---
+
+## Ergänzung vom 27. September 2026: Admin-Badge und Kontoeinstieg
+
+Die Sidebar zeigt für den Betreiber am Vinted-Link ein Admin-Badge. Die
+Kontoverwaltung unterscheidet jetzt zwischen einem internen Namen und einer
+echten Anmeldung. Ein sichtbarer Link je Tabellenzeile führt zur Anmeldung
+für genau dieses Konto; eine fremde oder unbekannte Verbindungs-ID erhält
+keinen Browserbereich. Bei nicht erreichbarem Worker zeigt die Seite eine
+Sperre mit verständlicher Erklärung.
+
+**Lokal geprüft:** Angular-Produktionsbau, gezielte Angular-Komponententests
+für Sidebar, Anmeldeweg und Testseite sowie der Playwright-Ablauf mit
+künstlichen Konten bei 1440 und 390 Pixeln. Der Playwright-Test bestätigt
+Badge, Anmeldelink, Dienstausfall und Kontoverwaltung. Keine echte Vinted-
+Anmeldung, kein Datenimport und kein Produktions-Worker wurden geprüft.
+
+**Live-Befund:** `https://app.flipbase.de/marketplace-browser/healthz`
+antwortete mit HTTP 502. Die Oberfläche kann deshalb aktuell nur
+Verbindungen vorbereiten und gespeicherte Marktplatzdaten anzeigen.
+
+---
+
 ## Ergänzung vom 27. September 2026: Admin-Pilot vorbereitet
 
 Die Navigation versteckt „Marktplätze“ und „Marktplatzkonten“ für normale

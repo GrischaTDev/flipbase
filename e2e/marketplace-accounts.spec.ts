@@ -10,6 +10,9 @@ const emptyPage = () => ({ items: [], total: 0, nextCursor: null });
 
 /** Nur lokale HTTP-Antworten. Weder echte Anmeldung noch Vinted-Zugriff. */
 async function mockMarketplace(page: Page) {
+  await page.route('**/marketplace-browser/healthz', (route) =>
+    route.fulfill({ status: 502, body: 'Browserdienst nicht verfügbar' }),
+  );
   const user = {
     id: '25000000-0000-4000-8000-000000000001',
     email: 'marketplace@example.test',
@@ -70,7 +73,7 @@ async function mockMarketplace(page: Page) {
     let json: unknown = [];
     if (name === 'user') json = user;
     if (name === 'profiles') json = { id: user.id, full_name: 'Marktplatz-Test' };
-    if (name === 'is_platform_operator') json = false;
+    if (name === 'is_platform_operator') json = true;
     if (name === 'workspaces')
       json = [
         {
@@ -203,7 +206,7 @@ async function mockMarketplace(page: Page) {
   return calls;
 }
 
-test('eigene Sitzungstestseite trennt Konten und sperrt einen Browserabbruch @marketplace-preview', async ({
+test('eigene Sitzungstestseite sperrt einen Browserabbruch @marketplace-preview', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 1000 });
@@ -219,17 +222,11 @@ test('eigene Sitzungstestseite trennt Konten und sperrt einen Browserabbruch @ma
   await expect(sessionStatus).toContainText('Browserabbruch');
   await expect(page.getByRole('button', { name: 'Testaktion ausführen' })).toBeDisabled();
 
-  const select = page.getByRole('combobox', { name: 'Vinted-Konto auswählen' });
-  await select.click();
-  await page.getByRole('option', { name: /Testkonto B/ }).click();
-  await expect(sessionStatus).toHaveCount(0);
-  await page.getByRole('button', { name: 'Testsitzung starten' }).click();
-  await expect(sessionStatus).toContainText('Testaktionen: 0');
   expect(
     calls
       .filter((call) => call.name === 'marketplace_test_session_start')
       .map((call) => call.body['p_connection_id']),
-  ).toEqual(accountIds);
+  ).toEqual([accountIds[0]]);
   expect(
     calls
       .filter((call) => call.name.startsWith('marketplace_test_session_'))
@@ -267,6 +264,7 @@ for (const width of [1440, 390]) {
     page.on('pageerror', (error) => errors.push(error.message));
     await page.goto('/marketplaces/vinted/overview');
     await expect(page.getByRole('heading', { name: 'Vinted', exact: true })).toBeVisible();
+    await expect(page.locator('a[href="/marketplaces/vinted"]')).toContainText('Admin');
     const select = page.getByRole('combobox', { name: 'Vinted-Konto auswählen', exact: true });
     await expect(select).toContainText('Testkonto A');
     await select.focus();
@@ -298,16 +296,22 @@ for (const width of [1440, 390]) {
       await accountsHeading.evaluate((element) => element.scrollWidth <= element.clientWidth),
       'Die Kontenüberschrift darf auf kleinen Bildschirmen nicht von den Aktionen verdrängt werden.',
     ).toBe(true);
-    await page.getByRole('button', { name: 'Konto hinzufügen', exact: true }).click();
+    await page.getByRole('button', { name: 'Verbindung vorbereiten', exact: true }).click();
     await page
-      .getByRole('textbox', { name: 'Kontoname in Flipbase', exact: true })
+      .getByRole('textbox', { name: 'Interner Name in Flipbase', exact: true })
       .fill('Neues Testkonto');
-    await page.getByRole('button', { name: 'Verbindung speichern', exact: true }).click();
+    await page.getByRole('button', { name: 'Vorbereitung speichern', exact: true }).click();
     const table = page.locator('app-marketplace-accounts');
     await expect(table.getByRole('cell', { name: 'Neues Testkonto', exact: true })).toBeVisible();
+    await page.getByRole('link', { name: 'Vinted-Anmeldung für Neues Testkonto öffnen' }).click();
+    await expect(page.locator('app-marketplace-connect')).toContainText('Neues Testkonto');
+    await expect(page.locator('app-marketplace-connect')).toContainText(
+      'Browserdienst ist auf dem Server nicht erreichbar',
+    );
+    await page.getByRole('link', { name: 'Konten verwalten', exact: true }).click();
     await page.getByRole('button', { name: 'Neues Testkonto umbenennen', exact: true }).click();
     await page
-      .getByRole('textbox', { name: 'Kontoname in Flipbase', exact: true })
+      .getByRole('textbox', { name: 'Interner Name in Flipbase', exact: true })
       .fill('Umbenanntes Testkonto');
     await page.getByRole('button', { name: 'Speichern', exact: true }).click();
     await expect(

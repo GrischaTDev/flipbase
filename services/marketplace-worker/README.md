@@ -32,6 +32,15 @@ Plattformbetreiberrolle und die Workspace-Berechtigung vor der Erstellung und
 erneut vor dem Speichern. Ein erneuter Start verwendet dasselbe Profil.
 Danach öffnet der Cloud-Browser die feste Vinted-Startseite. Der Nutzer führt
 die Anmeldung selbst aus; Flipbase speichert weder Passwort noch Cookies.
+Nach der Anmeldung kann der Worker über die feste Vinted-Domain ausschließlich
+die angemeldete Konto-ID und den Nutzernamen lesen. Die neue Bestätigungsaktion
+setzt eine Flipbase-Verbindung nur dann auf `connected`, wenn die aktive
+Browsersitzung weiterhin zu genau diesem Workspace, Konto und Bediener gehört.
+Als Datenstand entsteht zunächst nur eine Profilkopie. Die verwendete private
+Vinted-Identitätsroute `/api/v2/users/current` ist mit künstlichen Antworten
+geprüft und muss an einem ausdrücklich freigegebenen eigenen Konto live
+bestätigt werden. Bei fehlender Antwort bleibt die Verbindung unbestätigt;
+Inserate, Nachrichten und Verkäufe werden noch nicht importiert.
 Eine Bedienung gilt zehn Minuten. Ablauf, Pause oder Widerruf stoppen die
 Cloud-Sitzung ausdrücklich. Bei unklarer Datenbankantwort während der
 Profilerstellung bleibt ein mögliches Anbieterprofil zur manuellen Prüfung
@@ -73,7 +82,8 @@ npm run build
 Die automatischen Worker-Tests verwenden künstliche Anbieterantworten. Die dauerhafte
 Sperre, Profilzuordnung, Wiederanlauf-Bereinigung und authentisierte HTTP-API
 liegen vor. Die API bietet `GET /marketplace-browser/healthz` sowie Start, Bild,
-Einzeleingabe und Stopp unter `/marketplace-browser/sessions`. Jede Aktion wird
+Einzeleingabe, Kontobestätigung und Stopp unter `/marketplace-browser/sessions`.
+Jede Aktion wird
 mit dem Supabase-Benutzertoken und der Datenbanksperre geprüft. Bilder sind auf
 512 KiB begrenzt; Anbieter-Token, Profil-ID und CDP-Adresse verlassen den Worker
 nicht. Vor dem ersten HTTP-Zugriff werden ungeklärte Profile bereinigt. Der

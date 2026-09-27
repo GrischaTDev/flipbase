@@ -54,6 +54,7 @@ import type {
 } from '../../core/config/workspace-navigation';
 import { PlatformOperatorService } from '../../core/services/platform-operator.service';
 import { PwaService } from '../../core/services/pwa.service';
+import { BadgeComponent } from '../../shared/components/badge/badge.component';
 
 const NAVIGATION_ICONS: Record<WorkspaceNavigationIcon, LucideIconInput> = {
   dashboard: LayoutDashboard,
@@ -76,7 +77,14 @@ const NAVIGATION_ICONS: Record<WorkspaceNavigationIcon, LucideIconInput> = {
 
 @Component({
   selector: 'app-sidebar',
-  imports: [RouterLink, TranslatePipe, LucideDynamicIcon, NgOptimizedImage, NgTemplateOutlet],
+  imports: [
+    RouterLink,
+    TranslatePipe,
+    LucideDynamicIcon,
+    NgOptimizedImage,
+    NgTemplateOutlet,
+    BadgeComponent,
+  ],
   templateUrl: './sidebar.component.html',
   host: { class: 'contents' },
   changeDetection: ChangeDetectionStrategy.OnPush,

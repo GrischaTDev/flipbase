@@ -23,6 +23,8 @@ async function setup(
   readOnly = false,
   runError?: Error,
   prepare?: (scope: BrowserSessionScope) => Promise<void>,
+  identity?: { id: string; username: string } | null,
+  confirm?: (scope: BrowserSessionScope, id: string) => Promise<void>,
 ) {
   const inputs: string[] = [];
   let owner: BrowserSessionScope | undefined;
@@ -42,6 +44,7 @@ async function setup(
     press: async (key) => {
       inputs.push(`press:${key}`);
     },
+    identify: async () => identity ?? null,
   };
   const broker = {
     open: async (scope: BrowserSessionScope) => {
@@ -78,6 +81,7 @@ async function setup(
   const api = new MarketplaceBrowserHttpApi({
     broker,
     profiles: prepare ? { prepare } : undefined,
+    accounts: confirm ? { confirm: async (scope, id) => confirm(scope, id) } : undefined,
     readOnly,
     users: {
       userId: async (token) => {
@@ -159,6 +163,67 @@ test('read-only mode refuses all browser input before accessing the session', as
     assert.equal(api.runs(), 0);
   } finally {
     await api.close();
+  }
+});
+
+test('confirms only the active account and returns a bounded identity', async () => {
+  const confirmed: string[] = [];
+  const api = await setup(
+    undefined,
+    undefined,
+    false,
+    undefined,
+    undefined,
+    { id: '12345', username: 'my-vinted' },
+    async (scope, id) => {
+      confirmed.push(`${scope.workspaceId}:${scope.connectionId}:${scope.userId}:${id}`);
+    },
+  );
+  try {
+    const scope = { workspaceId: workspaceA, connectionId: accountA };
+    await api.request('/marketplace-browser/sessions', scope);
+    const path = `/marketplace-browser/sessions/${sessionId}/identify`;
+    assert.equal((await api.request(path, { ...scope, connectionId: accountB })).status, 409);
+    assert.equal((await api.request(path, { ...scope, workspaceId: workspaceB })).status, 409);
+    assert.equal((await api.request(path, scope, 'token-b')).status, 409);
+    assert.deepEqual(confirmed, []);
+    const response = await api.request(path, scope);
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), {
+      workspaceId: workspaceA,
+      connectionId: accountA,
+      externalAccountId: '12345',
+      username: 'my-vinted',
+    });
+    assert.deepEqual(confirmed, [
+      `${workspaceA}:${accountA}:25600000-0000-4000-8000-000000000001:${sessionId}`,
+    ]);
+  } finally {
+    await api.close();
+  }
+});
+
+test('does not confirm absent identity, read-only mode or interrupted session', async () => {
+  for (const [readOnly, error, expected] of [
+    [false, undefined, 422],
+    [true, undefined, 403],
+    [false, new MarketplaceBrowserSessionEndedError(), 410],
+  ] as const) {
+    let confirmations = 0;
+    const api = await setup(undefined, undefined, readOnly, error, undefined, null, async () => {
+      confirmations++;
+    });
+    try {
+      const scope = { workspaceId: workspaceA, connectionId: accountA };
+      await api.request('/marketplace-browser/sessions', scope);
+      assert.equal(
+        (await api.request(`/marketplace-browser/sessions/${sessionId}/identify`, scope)).status,
+        expected,
+      );
+      assert.equal(confirmations, 0);
+    } finally {
+      await api.close();
+    }
   }
 });
 

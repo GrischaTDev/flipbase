@@ -5,7 +5,7 @@ import {
   LucideBell,
   LucideRefreshCw,
   LucideSettings,
-  LucideShieldCheck,
+  LucideLogIn,
   LucideStore,
 } from '@lucide/angular';
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
@@ -55,6 +55,6 @@ export class VintedWorkspaceComponent {
   readonly pageIcon = LucideStore;
   readonly settingsIcon = LucideSettings;
   readonly activityIcon = LucideBell;
-  readonly sessionTestIcon = LucideShieldCheck;
+  readonly loginIcon = LucideLogIn;
   readonly refreshIcon = LucideRefreshCw;
 }
