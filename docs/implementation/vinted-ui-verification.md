@@ -330,3 +330,50 @@ Grenze: Erkannt wird die konkret beobachtete deutsche Vinted-Fehlermeldung auf
 dem festen Loginpfad. Andere Anbietertexte oder Herausforderungen bleiben
 unbestätigt und in der Browseransicht prüfbar. Erfolgreiche Anmeldung an einem
 echten Vinted-Konto, Liveimport und Nachrichtenversand werden nicht behauptet.
+
+## 28.09.2026 – Hintergrundanmeldung ohne Browserbedienung
+
+Basis: `537ce883`, lokaler Zweig `juna/vinted-background-login`.
+Das öffentliche Vinted-Formular wurde ohne Anmeldung geprüft. Cookiebutton:
+`#onetrust-reject-all-handler`, sichtbarer Text „Notwendige auswählen“.
+Der laufende Nutzerlogin wurde nicht verändert; keine Zugangsdaten ausgelesen.
+
+Reproduzierte Fehler: verzögertes Formular ergab sofort `interaction_required`;
+fehlende Bildschirmbilder verhinderten die Prüfung; fehlendes Formular führte
+zu Polling ohne eindeutigen Abschluss. Die zuerst fehlschlagenden Tests bestehen
+nach der Korrektur. Der zusätzliche Test für sofort sichtbare Cookies fand einen
+Doppelaufruf des Handlers; nach Umordnung besteht auch dieser Fall.
+
+Ausgeführt:
+
+- `npm run test --prefix services/marketplace-worker`: 67 bestanden.
+- `npm run test:browser --prefix services/marketplace-worker`: 5 bestanden.
+  Echtes Chromium, vollständig abgefangene eigene HTML-Seiten: sofortige/späte
+  Cookiebanner, verzögertes Formular, getrennte Kontokontexte, Rechteablauf vor
+  Passwortübermittlung und bekannte Ablehnung. Keine echten Vinted-Anfragen.
+- `npm run test:angular -- src/app/features/marketplaces`: 88 bestanden.
+  Einschließlich unbekanntem Absendeausgang, endlicher Ergebnisprüfung,
+  fehlenden Browserbildern, Konto-/Workspacewechsel, Ablauf, Abbruch und
+  Sperre nach unbestätigtem Stopp.
+- `npx playwright test --config e2e/support/marketplace-preview.config.ts`:
+  7 bestanden, Vorschau auf Port 4217. Desktop 1440 px und Mobil 390 px.
+  Das Mock verweigert Bildschirmbilder absichtlich mit HTTP 500; der direkte
+  Anmeldeablauf bestätigt die Testidentität ohne einen einzigen Bildabruf.
+  Kein manueller Browserbereich. Passwort nicht in localStorage gespeichert.
+  AXE der Formular-/Fehleransichten ohne Verstöße, kein horizontaler Überlauf.
+- Angular-Produktionsbau und Worker-Bau/Typprüfung bestanden. Bestehende
+  CommonJS-Warnung zu pdf-lib/pako. ESLint der geänderten Frontend-/Testdateien,
+  Prettier und Shared-UI-Prüfung (112 Dateien, 0 Befunde) bestanden.
+
+Screenshots liegen lokal unter
+`C:/Users/Grisc/.codex/visualizations/2026/09/27/01a0e1e5-0ddc-7683-8451-53b001e1e690/vinted-background-login/`.
+Der erste neue Browsertest blockierte sich durch eine DOM-Abfrage während
+einer abgefangenen Navigation selbst. Die Testbestätigung wird nun aus dem
+künstlichen Formularwert gelesen; sie enthält keine echten Kontodaten.
+
+**Abnahmegrenze:** Die Tests belegen Formularbedienung und Flipbase-Ablauf.
+Die vorhandene private Identitätsroute und ein erfolgreicher echter Datenabruf
+sind nicht verifiziert. Zusätzliche Vinted-Verifizierung wird nicht umgangen;
+ein unbekannter Ablauf endet mit einer Fehlermeldung statt einer falschen
+Erfolgsmeldung. Vollständiger Liveimport und Nachrichtenversand bleiben offen.
+Kein Merge oder Deployment; die neue Ansicht ist noch nicht öffentlich aktiv.

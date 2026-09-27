@@ -56,7 +56,6 @@ async function mockMarketplace(page: Page, browserLogin = false, rejectFirstLogi
   }));
   const calls: { name: string; body: Record<string, unknown> }[] = [];
   if (browserLogin) {
-    const frame = await page.screenshot({ type: 'jpeg' });
     let connectionId = '';
     let loginSubmitted = false;
     let identityChecks = 0;
@@ -74,7 +73,10 @@ async function mockMarketplace(page: Page, browserLogin = false, rejectFirstLogi
         loginSubmitted = true;
         return route.fulfill({ json: { status: 'submitted' } });
       }
-      if (path.endsWith('/frame')) return route.fulfill({ contentType: 'image/jpeg', body: frame });
+      if (path.endsWith('/frame')) {
+        calls.push({ name: 'unexpected_frame', body });
+        return route.fulfill({ status: 500 });
+      }
       if (path.endsWith('/identify')) {
         if (rejectFirstLogin && calls.filter((call) => call.name === 'browser_login').length === 1)
           return route.fulfill({ status: 422, json: { code: 'vinted_login_rejected' } });
@@ -425,7 +427,13 @@ for (const width of [1440, 390]) {
     );
     expect(violations).toEqual([]);
     await page.getByRole('button', { name: 'Anmelden und Konto verbinden', exact: true }).click();
+    await expect(page.getByText(/Anmeldung wird geprüft/)).toBeVisible();
+    await expect(page.locator('app-marketplace-browser-test img')).toHaveCount(0);
+    await expect(page.getByText('Andere Anmeldemöglichkeit')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Bild aktualisieren' })).toHaveCount(0);
+    await evidence(page, `vinted-background-login-${width}`);
     await expect(page.getByText('Dein Vinted-Konto ist verbunden.', { exact: true })).toBeVisible();
+    expect(calls.filter((call) => call.name === 'unexpected_frame')).toHaveLength(0);
     const logins = calls.filter((call) => call.name === 'browser_login');
     expect(logins).toHaveLength(1);
     expect(logins[0].body).toEqual({

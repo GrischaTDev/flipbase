@@ -23,7 +23,6 @@ import { MarketplaceBrowserTestStore } from '../../services/marketplace-browser-
 export class MarketplaceBrowserTestComponent {
   private credentialsConnectionId: string | undefined;
   readonly store = inject(MarketplaceBrowserTestStore);
-  readonly text = new FormControl('', { nonNullable: true });
   readonly loginForm = new FormGroup({
     username: new FormControl('', {
       nonNullable: true,
@@ -43,19 +42,17 @@ export class MarketplaceBrowserTestComponent {
     inject(DestroyRef).onDestroy(() => {
       clearInterval(interval);
       this.loginForm.reset();
-      this.text.reset();
     });
     effect(() => {
       const connectionId = this.store.connection()?.connectionId;
       if (connectionId === this.credentialsConnectionId) return;
       this.credentialsConnectionId = connectionId;
       this.loginForm.reset();
-      this.text.reset();
     });
   }
 
   async login(): Promise<void> {
-    if (this.loginForm.invalid || this.store.busy()) return;
+    if (this.loginForm.invalid || !this.store.canLogin()) return;
     const credentials = this.loginForm.getRawValue();
     this.loginForm.reset();
     try {
@@ -64,26 +61,5 @@ export class MarketplaceBrowserTestComponent {
       credentials.username = '';
       credentials.password = '';
     }
-  }
-
-  clickFrame(event: MouseEvent): void {
-    const target = event.currentTarget;
-    if (!(target instanceof HTMLElement) || !this.store.canAct()) return;
-    const rectangle = target.getBoundingClientRect();
-    if (rectangle.width <= 0 || rectangle.height <= 0) return;
-    const x = event.detail === 0 ? 0.5 : (event.clientX - rectangle.left) / rectangle.width;
-    const y = event.detail === 0 ? 0.5 : (event.clientY - rectangle.top) / rectangle.height;
-    void this.store.input({
-      kind: 'click',
-      x: Math.max(0, Math.min(0.999999, x)),
-      y: Math.max(0, Math.min(0.999999, y)),
-    });
-  }
-
-  sendText(): void {
-    const value = this.text.value;
-    if (!value || value.length > 256) return;
-    this.text.reset('');
-    void this.store.input({ kind: 'type', value });
   }
 }

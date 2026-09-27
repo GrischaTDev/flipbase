@@ -438,3 +438,36 @@ beobachtet. Dies ist ein veränderlicher Webablauf und keine offizielle Integrat
 Ein früherer Fehler beim Öffnen des Browsers ist ohne konkrete Meldung noch
 nicht zugeordnet. Die beobachtete laufende Sitzung belegt den erfolgreichen
 Browserstart, aber keine erfolgreiche Vinted-Anmeldung.
+
+## AP04g: Hintergrundanmeldung ohne Browserbedienung (28.09.2026)
+
+Nutzerkorrektur: Zugangsdaten in Flipbase eingeben, einmal anmelden, Ergebnis
+und bestätigte Kontodaten erhalten. Die manuelle Browsersteuerung entfällt
+im normalen Login. Basis ist der veröffentlichte Stand aus PR #225;
+Fortsetzung auf `juna/vinted-background-login`.
+
+- [x] Den am öffentlichen Formular beobachteten OneTrust-Button
+      `onetrust-reject-all-handler` („Notwendige auswählen“) automatisch bedienen,
+      auch wenn er verspätet eingeblendet wird. Vor jeder Aktion Rechte prüfen.
+- [x] Auf tatsächlich bedienbare Formularfelder warten. Fehlendes Formular und
+      unklaren Absendeausgang unterscheiden; niemals automatisch erneut absenden.
+- [x] Login und Identitätsprüfung von Bildschirmbildern entkoppeln. Fortschritt,
+      Abbruch und begrenzte Wartezeit direkt in Flipbase anzeigen.
+- [x] Eigene HTML-Testseite mit verspätetem Formular/Cookiebanner, Kontotrennung,
+      Widerruf und UI-Tests auf Desktop/Mobil prüfen.
+- [x] Ergebnis und verbleibende Grenze im Prüfprotokoll festhalten.
+
+Recherche: [Playwright Authentication](https://playwright.dev/docs/auth) verlangt
+eine bestätigte Anmeldung vor Wiederverwendung der Sitzung. Der
+[Overlay-Handler](https://playwright.dev/docs/api/class-page#page-add-locator-handler)
+ermöglicht gezielte Dialogbehandlung, trifft aber keine Cookieentscheidung.
+[Evriwhere](https://www.evriwhere.co.uk/help/connecting-vinted) und
+[FLUF](https://fluf.io/support/connect-vinted) verwenden Browseranmeldung mit
+Benutzerbestätigung beziehungsweise Erweiterung; deren Dokumentation belegt
+keinen garantierten Login ohne zusätzliche Verifizierung. GoLogin stellt das
+persistente Browserprofil, keinen fertigen Vinted-Loginadapter.
+
+Die private Identitätsroute `/api/v2/users/current` bleibt am eigenen Konto
+unbestätigt. Ein lokaler Test ersetzt diesen Nachweis nicht. CAPTCHA, E-Mail-
+oder SMS-Bestätigung dürfen nicht als erledigt ausgegeben werden. Ein vollständiger
+Liveimport bleibt AP05; eine vorbereitete Verbindung ist kein Datenimport.

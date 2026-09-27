@@ -197,6 +197,66 @@ it('startet die Anmeldung einmalig im ausgewählten Konto und wartet auf Bestät
   expect(store.session()).toBeNull();
 });
 
+it('meldet im Hintergrund an, auch wenn keine Browserbilder verfügbar sind', async () => {
+  api.frame.mockRejectedValue(new Error('frame unavailable'));
+  api.identify.mockResolvedValueOnce(null);
+  await store.login({ username: 'synthetic', password: 'synthetic' });
+  await store.checkLogin();
+  expect(store.awaitingLogin()).toBe(true);
+  expect(store.error()).toBeNull();
+  expect(api.frame).not.toHaveBeenCalled();
+  await store.checkLogin();
+  expect(reloadConnections).toHaveBeenCalledOnce();
+});
+
+it('prüft nach unklarem Absenden nur das Ergebnis und sendet keine Zugangsdaten erneut', async () => {
+  api.login.mockResolvedValue('submission_unconfirmed');
+  await store.login({ username: 'synthetic', password: 'synthetic' });
+  await store.login({ username: 'duplicate', password: 'duplicate' });
+  await store.checkLogin();
+  expect(api.login).toHaveBeenCalledOnce();
+  expect(reloadConnections).toHaveBeenCalledOnce();
+});
+
+it('sperrt einen neuen Versuch nach Transportfehler bis zum bestätigten Beenden', async () => {
+  api.login.mockRejectedValueOnce(new Error('network error'));
+  await store.login({ username: 'synthetic', password: 'synthetic' });
+  expect(store.awaitingLogin()).toBe(false);
+  expect(store.canLogin()).toBe(false);
+  await store.login({ username: 'duplicate', password: 'duplicate' });
+  expect(api.login).toHaveBeenCalledOnce();
+  api.close.mockRejectedValueOnce(new Error('uncertain close'));
+  await store.close();
+  expect(store.canLogin()).toBe(false);
+  await store.close();
+  expect(store.canLogin()).toBe(true);
+});
+
+it('stoppt bei einem nicht bedienbaren Formular ohne ein Passwort erneut zu senden', async () => {
+  api.login.mockResolvedValue('form_unavailable');
+  await store.login({ username: 'synthetic', password: 'synthetic' });
+  await store.checkLogin();
+  expect(store.awaitingLogin()).toBe(false);
+  expect(store.error()).toContain('Anmeldeformular');
+  expect(api.identify).not.toHaveBeenCalled();
+  expect(api.login).toHaveBeenCalledOnce();
+});
+
+it('begrenzt eine unbestätigte Anmeldung ohne automatischen Passwort-Neuversuch', async () => {
+  api.identify.mockResolvedValue(null);
+  await store.login({ username: 'synthetic', password: 'synthetic' });
+  const clock = vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 61_000);
+  try {
+    await store.checkLogin();
+    expect(store.awaitingLogin()).toBe(false);
+    expect(store.error()).toContain('nicht bestätigt');
+    expect(api.login).toHaveBeenCalledOnce();
+    expect(reloadConnections).not.toHaveBeenCalled();
+  } finally {
+    clock.mockRestore();
+  }
+});
+
 it('sendet Zugangsdaten nach einem Kontowechsel während des Starts nicht weiter', async () => {
   api.login = vi.fn();
   let resolveOpen!: (value: string) => void;
@@ -213,7 +273,7 @@ it('sendet Zugangsdaten nach einem Kontowechsel während des Starts nicht weiter
   expect(api.login).not.toHaveBeenCalled();
 });
 
-it('lässt zusätzliche Prüfungen offen und wiederholt das Passwort nicht automatisch', async () => {
+it('meldet eine nicht bedienbare Anmeldung des älteren Workers ohne Endlosschleife', async () => {
   api.login = vi.fn().mockResolvedValue('interaction_required');
   api.identify.mockResolvedValue(null);
   await store.login({ username: 'test-user', password: 'synthetic' });
@@ -222,7 +282,9 @@ it('lässt zusätzliche Prüfungen offen und wiederholt das Passwort nicht autom
   expect(api.login).toHaveBeenCalledOnce();
   expect(api.close).not.toHaveBeenCalled();
   expect(store.session()?.id).toBe(id);
-  expect(store.awaitingLogin()).toBe(true);
+  expect(store.awaitingLogin()).toBe(false);
+  expect(store.error()).toContain('zusätzliche Prüfung');
+  expect(api.identify).not.toHaveBeenCalled();
 });
 
 it('verwirft eine verspätete Anmeldebestätigung nach Workspacewechsel', async () => {

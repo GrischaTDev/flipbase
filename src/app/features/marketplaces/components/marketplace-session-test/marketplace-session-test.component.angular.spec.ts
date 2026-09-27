@@ -141,14 +141,13 @@ describe('Eigene Marktplatz-Testseite', () => {
       value: vi.fn(() => 'blob:test'),
     });
     Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() });
-    liveApi.available.mockResolvedValue({ available: true, readOnly: false });
+    liveApi.available.mockResolvedValue({ available: true, readOnly: true });
     const fixture = TestBed.createComponent(MarketplaceSessionTestComponent);
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
     const button = [...fixture.nativeElement.querySelectorAll('button')].find(
-      (node: HTMLButtonElement) =>
-        node.textContent?.includes('Browser für manuelle Anmeldung öffnen'),
+      (node: HTMLButtonElement) => node.textContent?.includes('Öffentlichen Testbrowser starten'),
     ) as HTMLButtonElement | undefined;
     expect(button).toBeDefined();
     button?.click();
@@ -160,7 +159,7 @@ describe('Eigene Marktplatz-Testseite', () => {
     );
     expect(
       fixture.nativeElement.querySelector(
-        'img[alt="Aktuelles Browserbild des ausgewählten Vinted-Kontos"]',
+        'img[alt="Öffentliche Profilseite im lokalen Testbrowser"]',
       ),
     ).not.toBeNull();
     const result = await axe.run(fixture.nativeElement, {
