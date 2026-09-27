@@ -80,10 +80,12 @@ export class DashboardComponent {
 
   readonly kpis = computed(() => {
     const report = this.report();
+    const saleCount = report.rows.length;
 
     return {
       grossProfit: {
         value: euro.format(report.grossProfit),
+        hint: `${saleCount} ${saleCount === 1 ? 'Verkauf' : 'Verkäufe'} im gewählten Zeitraum`,
         tone:
           report.grossProfit > 0
             ? ('positive' as const)
@@ -102,6 +104,9 @@ export class DashboardComponent {
       },
       purchases: {
         value: report.purchasesIncluded ? euro.format(report.purchaseSpend) : '–',
+        hint: report.purchasesIncluded
+          ? `${report.purchaseCount} ${report.purchaseCount === 1 ? 'Einkauf' : 'Einkäufe'} im gewählten Zeitraum`
+          : null,
       },
       operatingExpenses: {
         value: report.purchasesIncluded ? euro.format(report.operatingExpenseSpend) : '–',

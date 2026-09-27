@@ -24,6 +24,60 @@
 
 **Prüfung:** 33 Landingpage-Tests, gezieltes ESLint und Prettier bestanden. Browserprüfung auf Desktop und Mobilgerät in hellem und dunklem Design: kein horizontaler Überlauf; AXE meldete keine WCAG-A/AA-Verstöße. Der Angular-Produktionsbau wurde ebenfalls geprüft.
 
+## 2026-09-27 – Juna – Artikelbilder nachträglich vollständig geprüft und verkleinert
+
+**Auftrag:** Die erste Nachbearbeitung erfasste nur drei Shop-Angebotsbilder. Prüfen, warum die rund 25 Bilder unter „Artikel“ ausblieben, und auch diese Bilder sinnvoll komprimieren. Außerdem die Meldung zu nicht entfernbaren lokalen Arbeitskopien erklären.
+
+**Änderung:** Das Wartungsskript kann nun eine Bildquelle und eine Mindestgröße wählen. Für die Artikelfotos wurden alle 24 aktiven JPEG-Dateien auf dem Produktionsserver gesichert und mit mindestens zehn Prozent Ersparnis am selben Pfad ersetzt. Ihre Abmessungen waren bereits höchstens 1600 Pixel; die Neucodierung senkte die Gesamtgröße von 11.610.479 auf 8.768.994 Bytes. Ein bereits kleines WebP-Bild blieb unverändert. Zehn Bilder aus archivierten Arbeitsbereichen blieben durch die Archivierungssperre unangetastet. Die Originale liegen zugriffsbeschränkt unter `/opt/flipbase/catalog-image-backfill-20260927/`.
+
+**Prüfung:** Jedes ersetzte Bild wurde nach dem Speichern bytegenau zurückgelesen. Eine große JPEG-Datei wurde vor und nach der Komprimierung visuell verglichen. Alle 25 aktiven Artikelbilder haben passende Größenangaben in Datenbank und Speicher; es fehlen keine Bildverweise. Eine fehlerhafte Auswertung der Datenbankantwort wurde nach dem ersten Bild behoben, der unterbrochene Lauf erfolgreich fortgesetzt. Die automatische Ausführungsprüfung blockierte weiterhin das Löschen der lokalen Kopien des ersten Laufs unter `C:\Users\Grisc\AppData\Local\Temp\flipbase-image-backfill-20260927`; sie bleiben dort und enthalten keine neuen Kopien dieses zweiten Laufs.
+
+## 2026-09-27 – Juna – Gewinnhinweis zählt alle Verkäufe im Zeitraum
+
+**Auftrag:** Im Hinweis unter „Gewinn“ nur die Verkäufe im gewählten Zeitraum nennen, ohne den Zusatz zu bekannten Kosten.
+
+**Änderung:** Der Hinweis zählt alle angezeigten Verkäufe im Zeitraum und auf der gewählten Plattform. Die Gewinnberechnung bleibt auf Verkäufe mit belegbaren Kosten begrenzt. Die dafür nicht mehr benötigte gesonderte Zählung entfällt.
+
+**Prüfung:** Gezielte Dashboard- und Berichtstests, Lint, Formatprüfung und Angular-Produktionsbau.
+
+## 2026-09-27 – Juna – Entwürfe aus Dashboard-Ausgaben entfernt und Gewinnkachel eingeordnet
+
+**Auftrag:** Entwurfseinkäufe aus den Gesamtausgaben ausnehmen, die Zahl der im Gewinn berücksichtigten Verkäufe anzeigen und Gewinn direkt hinter Umsatz platzieren.
+
+**Änderung:** Nur abgeschlossene Einkäufe gehen in Einkaufssumme, Gesamtausgaben, Diagramm und Vorzeitraum ein. Die Einkaufskachel zählt nur diese Einkäufe. Die Gewinnkachel nennt die Verkäufe mit bekannten Kosten, deren Ergebnis in der Summe steckt, und folgt unmittelbar auf Umsatz. Die Entscheidung ist im Dashboard-Konzept ergänzt.
+
+**Prüfung:** Gezielte Berichts- und Dashboard-Tests sowie Typprüfung, ESLint, Formatprüfung und Angular-Produktionsbau.
+
+## 2026-09-27 – Juna – Bestehende große Produktbilder einmalig verkleinert
+
+**Auftrag:** Bereits gespeicherte Bilder nachträglich komprimieren und erklären, wie der einmalige Lauf abläuft.
+
+**Änderung:** Ein wiederaufnehmbares Wartungsskript sichert Originale, verkleinert JPEG-/PNG-Dateien über 0,8 MB auf höchstens 1600 Pixel Kantenlänge und ersetzt nur tatsächlich kleinere Fassungen am selben Speicherpfad. Es prüft vor jeder Änderung den aktuellen Dateistand und überspringt archivierte Arbeitsbereiche. Auf dem Produktionsserver wurden drei aktive Shop-Bilder von zusammen 7.061.706 auf 731.729 Bytes verkleinert. Ein großes Produktbild und ein Einzelstückfoto liegen in archivierten Arbeitsbereichen und blieben gemäß Archivierungssperre unverändert. Die Originale liegen für eine mögliche Wiederherstellung zugriffsbeschränkt unter `/opt/flipbase/image-backfill-20260927/`.
+
+**Prüfung:** Nach dem Upload stimmen die gelesenen Bilddateien bytegenau mit den optimierten Fassungen überein. Die Datenbank meldet drei Shop-Bilder mit zusammen 731.729 Bytes und keine fehlenden Bildverweise. Die 25 Produktbilder aktiver Arbeitsbereiche liegen bereits alle unter 0,8 MB. Das Skript wurde mit Python kompiliert und der Lauf nach einem vorübergehenden API-Fehler erfolgreich fortgesetzt.
+
+## 2026-09-27 – Juna – Dashboard-Einkäufe im gewählten Zeitraum erklärt
+
+**Auftrag:** Die Anzeige von 160,07 € bei 13 erfassten Einkäufen im Workspace Wiehen Store prüfen.
+
+**Änderung:** Die vier Einkäufe mit Kaufdatum im September ergeben zusammen genau 160,07 €. Die übrigen neun Einkäufe liegen im August; zwölf der 13 Einkäufe sind abgeschlossen. Die Dashboard-Kachel zeigt zusätzlich die Anzahl der Einkäufe mit bekanntem Preis, die in ihrer Summe und im gewählten Zeitraum enthalten sind. Die bestehende Berechnung und die Zeitraumauswahl bleiben erhalten.
+
+**Prüfung:** Die Summe mit der geöffneten Einkaufsliste abgeglichen. Gezielte Service- und Dashboard-Tests, Typprüfung und ESLint bestanden; der Angular-Produktionsbau wurde ebenfalls geprüft.
+
+## 2026-09-27 – Juna – Vinted-Typvertrag im Produktionsbau bereitstellen
+
+**Auftrag:** Den nach PR #207 fehlgeschlagenen Produktionsbau untersuchen und
+die Veröffentlichung des geprüften Vinted-Foundation-Stands abschließen.
+
+**Änderung:** `.dockerignore` nimmt den reinen Marktplatz-Typvertrag gezielt in
+den Docker-Baukontext auf. Andere Edge-Function-Dateien bleiben ausgeschlossen.
+Der lokale Angular-Bau hatte die Datei auf dem Rechner gefunden; im Container
+fehlte sie und der Produktionsbau brach deshalb ab.
+
+**Prüfung:** Ein Docker-Kontexttest und der vollständige Build der Docker-
+Baustufe bestanden. Im erzeugten Abbild liegt unter `supabase/functions/` nur
+der ausdrücklich freigegebene Typvertrag. Der erneute Produktionslauf steht aus.
+
 ## 2026-09-27 – Juna – Zwei Beta-Testregistrierungen entfernt
 
 **Auftrag:** Zwei Testregistrierungen samt zugehörigen Nutzerkonten aus der produktiven Datenbank entfernen.

@@ -57,6 +57,7 @@ const emptyReport: DashboardReport = {
   revenueWithoutCost: 0,
   salesWithoutCostCount: 0,
   purchaseSpend: 0,
+  purchaseCount: 0,
   sellingCosts: 0,
   operatingExpenseSpend: 0,
   totalExpenses: 0,
@@ -359,6 +360,7 @@ describe('DashboardComponent', () => {
       grossProfit: 20.09,
       revenue: 42.98,
       purchaseSpend: 24.95,
+      purchaseCount: 1,
       sellingCosts: 12.89,
       operatingExpenseSpend: 7,
       totalExpenses: 44.84,
@@ -407,7 +409,7 @@ describe('DashboardComponent', () => {
       [...kpiSection.querySelectorAll('app-dashboard-kpi-card')].map((card) =>
         card.querySelector('span')?.textContent?.trim(),
       ),
-    ).toEqual(['Umsatz', 'Einkäufe', 'Betriebsausgaben', 'Ausgaben gesamt', 'Gewinn', 'Marge']);
+    ).toEqual(['Umsatz', 'Gewinn', 'Einkäufe', 'Betriebsausgaben', 'Ausgaben gesamt', 'Marge']);
     expect(kpiSection.textContent).not.toContain('Verkaufte Artikel');
     expect(kpiSection.textContent).not.toContain('Bestandswert');
 
@@ -415,9 +417,11 @@ describe('DashboardComponent', () => {
       host.querySelector(`[data-kpi="${name}"]`)?.textContent?.replace(/\s+/g, ' ').trim();
     expect(kpi('revenue')).toContain('42,98 €');
     expect(kpi('gross-profit')).toContain('20,09 €');
+    expect(kpi('gross-profit')).toContain('1 Verkauf im gewählten Zeitraum');
     expect(kpi('margin')).toContain('46,74 %');
     expect(kpi('cashflow')).toBeUndefined();
     expect(kpi('purchases')).toContain('24,95 €');
+    expect(kpi('purchases')).toContain('1 Einkauf im gewählten Zeitraum');
     expect(kpi('operating-expenses')).toContain('7,00 €');
     expect(kpi('total-expenses')).toContain('44,84 €');
     expect(host.querySelector('[data-kpi="total-expenses"] .linear-kpi > p')?.classList).toContain(
@@ -429,7 +433,7 @@ describe('DashboardComponent', () => {
     expect(host.querySelector('[data-dashboard-expenses]')).toBeNull();
 
     expect(kpiSection.querySelector('[data-kpi-change]')).toBeNull();
-    expect(kpiSection.querySelector('[data-kpi-hint]')).toBeNull();
+    expect(kpiSection.querySelectorAll('[data-kpi-hint]')).toHaveLength(2);
     expect(kpiSection.textContent).not.toContain('ggü.');
     expect(kpiSection.textContent).not.toContain('neu');
     expect(kpiSection.textContent).not.toContain('Artikel ohne Kosten');
@@ -471,6 +475,47 @@ describe('DashboardComponent', () => {
     expect(mobileProfitLabel?.nextElementSibling?.className).toContain('text-fb-finance-positive');
     expect(text).not.toContain('COGS');
     expect(text).not.toContain('Realisierter Gewinn');
+  });
+
+  it('zählt im Gewinnhinweis auch Verkäufe ohne bekannte Kosten', () => {
+    createReport.mockReturnValueOnce({
+      ...emptyReport,
+      grossProfit: 9,
+      rows: [
+        {
+          saleId: 'sale-with-cost',
+          date: '2026-09-27',
+          articles: 'Artikel A',
+          quantity: 1,
+          platform: 'ebay',
+          revenue: 19.98,
+          costOfGoodsSold: 10,
+          sellingCosts: 0.98,
+          resultAfterDirectCosts: 9,
+          marginPercent: 45.05,
+          profit: 9,
+        },
+        {
+          saleId: 'sale-without-cost',
+          date: '2026-09-27',
+          articles: 'Artikel B',
+          quantity: 1,
+          platform: 'ebay',
+          revenue: 19.98,
+          costOfGoodsSold: null,
+          sellingCosts: 0,
+          resultAfterDirectCosts: null,
+          marginPercent: null,
+          profit: null,
+        },
+      ],
+    });
+
+    const fixture = createDashboard();
+    const hint = fixture.nativeElement.querySelector('[data-kpi="gross-profit"]')?.textContent;
+
+    expect(hint).toContain('2 Verkäufe im gewählten Zeitraum');
+    expect(hint).not.toContain('mit bekannten Kosten');
   });
 
   it('zeigt keinen Cashflow mehr zwischen den Kennzahlen', () => {

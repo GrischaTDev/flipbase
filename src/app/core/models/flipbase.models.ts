@@ -705,8 +705,10 @@ export interface DashboardReport {
   /** Anteil des Umsatzes, dessen Wareneinsatz noch nicht belegt ist. */
   revenueWithoutCost: number;
   salesWithoutCostCount: number;
-  /** Einkaufskosten nach Kaufdatum; 0, wenn ein Plattformfilter gesetzt ist. */
+  /** Abgeschlossene Einkaufskosten nach Kaufdatum; 0 bei Plattformfilter. */
   purchaseSpend: number;
+  /** Abgeschlossene Einkäufe, die in purchaseSpend enthalten sind. */
+  purchaseCount: number;
   /** Direkte Verkaufskosten der Verkäufe im Zeitraum. */
   sellingCosts: number;
   /** Bezahlte allgemeine Betriebsausgaben nach Zahlungsdatum. */

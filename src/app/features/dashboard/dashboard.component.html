@@ -57,11 +57,21 @@
         [value]="kpis().revenue.value"
       />
       <app-dashboard-kpi-card
+        data-kpi="gross-profit"
+        size="large"
+        label="Gewinn"
+        [icon]="trendingIcon"
+        [value]="kpis().grossProfit.value"
+        [valueTone]="kpis().grossProfit.tone"
+        [hint]="kpis().grossProfit.hint"
+      />
+      <app-dashboard-kpi-card
         data-kpi="purchases"
         size="large"
         label="Einkäufe"
         [icon]="purchasesIcon"
         [value]="kpis().purchases.value"
+        [hint]="kpis().purchases.hint"
       />
       <app-dashboard-kpi-card
         data-kpi="operating-expenses"
@@ -77,14 +87,6 @@
         [icon]="coinsIcon"
         [value]="kpis().totalExpenses.value"
         [valueTone]="kpis().totalExpenses.tone"
-      />
-      <app-dashboard-kpi-card
-        data-kpi="gross-profit"
-        size="large"
-        label="Gewinn"
-        [icon]="trendingIcon"
-        [value]="kpis().grossProfit.value"
-        [valueTone]="kpis().grossProfit.tone"
       />
       <app-dashboard-kpi-card
         data-kpi="margin"

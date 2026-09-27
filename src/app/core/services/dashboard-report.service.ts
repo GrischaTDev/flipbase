@@ -42,7 +42,7 @@ interface DateWindow {
 interface DatedPurchase {
   readonly purchase: Purchase;
   readonly date: Date;
-  /** `null`, solange der Einkaufspreis fehlt. */
+  /** `null` bei fehlendem Preis oder nicht abgeschlossenem Einkauf. */
   readonly amount: number | null;
 }
 
@@ -66,6 +66,7 @@ interface PeriodFigures {
   readonly revenue: number;
   readonly revenueWithoutCost: number;
   readonly purchaseSpend: number;
+  readonly purchaseCount: number;
   readonly sellingCosts: number;
   readonly operatingExpenseSpend: number;
   readonly soldItems: number;
@@ -138,8 +139,9 @@ export class DashboardReportService {
       for (const cause of causes) this.addOpenCost(openCosts, cause.purchase, cause.reason, 1, 0);
     }
     if (platform === 'all') {
-      for (const { purchase, amount } of current.purchases) {
-        if (amount === null) this.addOpenCost(openCosts, purchase, 'price_missing', 0, 0);
+      for (const { purchase } of current.purchases) {
+        if (purchase.purchase_price === null)
+          this.addOpenCost(openCosts, purchase, 'price_missing', 0, 0);
       }
     }
     const inventory = this.inventoryValue(records, openCosts);
@@ -150,6 +152,7 @@ export class DashboardReportService {
       revenueWithoutCost: current.revenueWithoutCost,
       salesWithoutCostCount: unknownSales.length,
       purchaseSpend: current.purchaseSpend,
+      purchaseCount: current.purchaseCount,
       sellingCosts: current.sellingCosts,
       operatingExpenseSpend: current.operatingExpenseSpend,
       totalExpenses: this.money(
@@ -175,13 +178,15 @@ export class DashboardReportService {
   ): PeriodFigures {
     const purchases: DatedPurchase[] = [];
     let purchaseSpend = 0;
+    let purchaseCount = 0;
     if (platform === 'all') {
       for (const purchase of records.purchases) {
         const date = this.calendarDate(purchase.purchase_date);
         if (!date || !this.isInWindow(date, window)) continue;
-        const amount = this.purchaseAmount(purchase);
+        const amount = purchaseIsFinalized(purchase) ? this.purchaseAmount(purchase) : null;
         purchases.push({ purchase, date, amount });
         purchaseSpend += amount ?? 0;
+        if (amount !== null) purchaseCount += 1;
       }
     }
 
@@ -228,6 +233,7 @@ export class DashboardReportService {
       revenue: this.money(revenue),
       revenueWithoutCost: this.money(revenueWithoutCost),
       purchaseSpend: this.money(purchaseSpend),
+      purchaseCount,
       sellingCosts: this.money(sellingCosts),
       operatingExpenseSpend,
       soldItems,
