@@ -1,5 +1,20 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-27 – Juna – Richtlinie für öffentliche Beta-Updates verfasst
+
+**Auftrag:** Festlegen, wann neue Versionen im Beta-Update-Kanal angekündigt
+werden und wie kurze, verständliche Texte für Nutzer aussehen sollen.
+
+**Änderung:** Unter `docs/public-beta-updates.md` eine eigene Richtlinie für
+bewusst freigegebene, sichtbare Nutzeränderungen ergänzt und in `AGENTS.md`
+verlinkt. Interne Arbeiten bleiben ohne öffentliche Ankündigung; Beispiele
+zeigen die Formulierungen „Hinzugefügt“, „Geändert“, „Entfernt“ und „Behoben“.
+Die derzeit automatisch erzeugten GitHub-Release-Beschreibungen sind als
+offener technischer Punkt benannt.
+
+**Prüfung:** Dokumentationsdiff und Formatierung geprüft. Keine Anwendung, keinen
+Workflow und keinen Discord-Kanal verändert.
+
 ## 2026-09-27 – Juna – Admin-Pilot für Vinted-Browser vorbereitet
 
 **Auftrag:** Den bestehenden Vinted-Bereich für den eigenen Admin-Zugang in

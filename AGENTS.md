@@ -100,6 +100,9 @@ An diesem Projekt arbeiten mehrere KI-Assistenten, teils gleichzeitig.
 ## Pull Requests
 
 - **PR-Titel und PR-Beschreibungen immer auf Deutsch.**
+- Für öffentliche Beta-Updates gilt die separate Richtlinie in
+  [`docs/public-beta-updates.md`](docs/public-beta-updates.md). Ein PR oder eine
+  neue Version allein löst keine öffentliche Ankündigung aus.
 - PR-Titel kurz und eindeutig formulieren, bevorzugt im Conventional-Commit-Stil
   passend zur Hauptänderung, z. B. `feat(ui): zentrales Flipbase-Design einführen`.
 - Auch im PR-Text konkrete, lesbare Begriffe verwenden. Keine unnötig abstrakten
