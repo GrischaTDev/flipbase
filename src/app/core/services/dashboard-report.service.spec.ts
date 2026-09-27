@@ -157,7 +157,6 @@ describe('DashboardReportService', () => {
     expect(result.revenue).toBe(19.98);
     // 19,98 € Umsatz - 9,98 € Wareneinsatz - 1,00 € Plattformgebühr.
     expect(result.grossProfit).toBe(9);
-    expect(result.profitSaleCount).toBe(1);
     expect(result.rows[0]).toMatchObject({ quantity: 2, costOfGoodsSold: 9.98, profit: 9 });
   });
 
@@ -381,7 +380,6 @@ describe('DashboardReportService', () => {
     });
     expect(result.revenue).toBe(39.96);
     expect(result.grossProfit).toBe(9);
-    expect(result.profitSaleCount).toBe(1);
     expect(result.revenueWithoutCost).toBe(19.98);
     expect(result.salesWithoutCostCount).toBe(1);
     expect(result.averageMarginPercent).toBe(45.05);
@@ -398,7 +396,6 @@ describe('DashboardReportService', () => {
     const result = report('last_7_days', { sales: [saleWithoutCostBasis] });
 
     expect(result.grossProfit).toBe(0);
-    expect(result.profitSaleCount).toBe(0);
     expect(result.averageMarginPercent).toBeNull();
   });
 

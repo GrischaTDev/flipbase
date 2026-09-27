@@ -8,6 +8,14 @@
 
 **Prüfung:** Jedes ersetzte Bild wurde nach dem Speichern bytegenau zurückgelesen. Eine große JPEG-Datei wurde vor und nach der Komprimierung visuell verglichen. Alle 25 aktiven Artikelbilder haben passende Größenangaben in Datenbank und Speicher; es fehlen keine Bildverweise. Eine fehlerhafte Auswertung der Datenbankantwort wurde nach dem ersten Bild behoben, der unterbrochene Lauf erfolgreich fortgesetzt. Die automatische Ausführungsprüfung blockierte weiterhin das Löschen der lokalen Kopien des ersten Laufs unter `C:\Users\Grisc\AppData\Local\Temp\flipbase-image-backfill-20260927`; sie bleiben dort und enthalten keine neuen Kopien dieses zweiten Laufs.
 
+## 2026-09-27 – Juna – Gewinnhinweis zählt alle Verkäufe im Zeitraum
+
+**Auftrag:** Im Hinweis unter „Gewinn“ nur die Verkäufe im gewählten Zeitraum nennen, ohne den Zusatz zu bekannten Kosten.
+
+**Änderung:** Der Hinweis zählt alle angezeigten Verkäufe im Zeitraum und auf der gewählten Plattform. Die Gewinnberechnung bleibt auf Verkäufe mit belegbaren Kosten begrenzt. Die dafür nicht mehr benötigte gesonderte Zählung entfällt.
+
+**Prüfung:** Gezielte Dashboard- und Berichtstests, Lint, Formatprüfung und Angular-Produktionsbau.
+
 ## 2026-09-27 – Juna – Entwürfe aus Dashboard-Ausgaben entfernt und Gewinnkachel eingeordnet
 
 **Auftrag:** Entwurfseinkäufe aus den Gesamtausgaben ausnehmen, die Zahl der im Gewinn berücksichtigten Verkäufe anzeigen und Gewinn direkt hinter Umsatz platzieren.

@@ -53,7 +53,6 @@ const componentResources: Readonly<Record<string, string>> = {
 
 const emptyReport: DashboardReport = {
   grossProfit: 0,
-  profitSaleCount: 0,
   revenue: 0,
   revenueWithoutCost: 0,
   salesWithoutCostCount: 0,
@@ -359,7 +358,6 @@ describe('DashboardComponent', () => {
     createReport.mockReturnValueOnce({
       ...emptyReport,
       grossProfit: 20.09,
-      profitSaleCount: 1,
       revenue: 42.98,
       purchaseSpend: 24.95,
       purchaseCount: 1,
@@ -419,7 +417,7 @@ describe('DashboardComponent', () => {
       host.querySelector(`[data-kpi="${name}"]`)?.textContent?.replace(/\s+/g, ' ').trim();
     expect(kpi('revenue')).toContain('42,98 €');
     expect(kpi('gross-profit')).toContain('20,09 €');
-    expect(kpi('gross-profit')).toContain('1 Verkauf mit bekannten Kosten im gewählten Zeitraum');
+    expect(kpi('gross-profit')).toContain('1 Verkauf im gewählten Zeitraum');
     expect(kpi('margin')).toContain('46,74 %');
     expect(kpi('cashflow')).toBeUndefined();
     expect(kpi('purchases')).toContain('24,95 €');
@@ -477,6 +475,47 @@ describe('DashboardComponent', () => {
     expect(mobileProfitLabel?.nextElementSibling?.className).toContain('text-fb-finance-positive');
     expect(text).not.toContain('COGS');
     expect(text).not.toContain('Realisierter Gewinn');
+  });
+
+  it('zählt im Gewinnhinweis auch Verkäufe ohne bekannte Kosten', () => {
+    createReport.mockReturnValueOnce({
+      ...emptyReport,
+      grossProfit: 9,
+      rows: [
+        {
+          saleId: 'sale-with-cost',
+          date: '2026-09-27',
+          articles: 'Artikel A',
+          quantity: 1,
+          platform: 'ebay',
+          revenue: 19.98,
+          costOfGoodsSold: 10,
+          sellingCosts: 0.98,
+          resultAfterDirectCosts: 9,
+          marginPercent: 45.05,
+          profit: 9,
+        },
+        {
+          saleId: 'sale-without-cost',
+          date: '2026-09-27',
+          articles: 'Artikel B',
+          quantity: 1,
+          platform: 'ebay',
+          revenue: 19.98,
+          costOfGoodsSold: null,
+          sellingCosts: 0,
+          resultAfterDirectCosts: null,
+          marginPercent: null,
+          profit: null,
+        },
+      ],
+    });
+
+    const fixture = createDashboard();
+    const hint = fixture.nativeElement.querySelector('[data-kpi="gross-profit"]')?.textContent;
+
+    expect(hint).toContain('2 Verkäufe im gewählten Zeitraum');
+    expect(hint).not.toContain('mit bekannten Kosten');
   });
 
   it('zeigt keinen Cashflow mehr zwischen den Kennzahlen', () => {

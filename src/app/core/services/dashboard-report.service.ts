@@ -63,7 +63,6 @@ interface PeriodFigures {
   readonly sales: readonly DatedSale[];
   readonly operatingExpenses: readonly DatedOperatingExpense[];
   readonly grossProfit: number;
-  readonly profitSaleCount: number;
   readonly revenue: number;
   readonly revenueWithoutCost: number;
   readonly purchaseSpend: number;
@@ -149,7 +148,6 @@ export class DashboardReportService {
 
     return {
       grossProfit: current.grossProfit,
-      profitSaleCount: current.profitSaleCount,
       revenue: current.revenue,
       revenueWithoutCost: current.revenueWithoutCost,
       salesWithoutCostCount: unknownSales.length,
@@ -200,7 +198,6 @@ export class DashboardReportService {
 
     const sales: DatedSale[] = [];
     let grossProfit = 0;
-    let profitSaleCount = 0;
     let revenue = 0;
     let revenueWithoutCost = 0;
     let sellingCosts = 0;
@@ -225,7 +222,6 @@ export class DashboardReportService {
         revenueWithoutCost += row.revenue;
       } else {
         grossProfit += row.resultAfterDirectCosts;
-        profitSaleCount += 1;
       }
     }
 
@@ -234,7 +230,6 @@ export class DashboardReportService {
       sales,
       operatingExpenses,
       grossProfit: this.money(grossProfit),
-      profitSaleCount,
       revenue: this.money(revenue),
       revenueWithoutCost: this.money(revenueWithoutCost),
       purchaseSpend: this.money(purchaseSpend),
