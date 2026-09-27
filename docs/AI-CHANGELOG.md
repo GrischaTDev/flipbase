@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-27 – Juna – Bild- und Inseratschritt plattformneutral formuliert
+
+**Auftrag:** Den dritten Schritt des Reselling-Ablaufs nicht allein auf Kleinanzeigen beziehen und die Suchmaschinen-Ausrichtung der Landingpage prüfen.
+
+**Änderung:** Schritt 3 beschreibt nun in beiden Sprachen das Optimieren von Bildern und Vorbereiten von Inseraten. Die ausführliche Funktionsbeschreibung nennt weiterhin die tatsächlich verfügbare Übergabe an Kleinanzeigen. Ein gezielter Test schützt die neue Formulierung.
+
+**Prüfung:** Seitentitel, Beschreibung, Überschriften, interne Suchbegriffe, Canonical, Robots und Sitemap sowie die Search-Console-Leistungsdaten geprüft. 33 Landingpage-Tests, ESLint, Prettier und der Angular-Produktionsbau bestanden.
+
 ## 2026-09-27 – Juna – Landingpage auf Vinted statt Vintage ausgerichtet
 
 **Auftrag:** Die missverstandene Ausrichtung auf Vintage-Kleidung korrigieren. Flipbase richtet sich an Reseller allgemein; Vinted ist die vorrangige Plattform, eBay und Kleinanzeigen sind ebenfalls wichtig.

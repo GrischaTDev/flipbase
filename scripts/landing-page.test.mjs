@@ -1342,6 +1342,17 @@ test('describes the beta application review flow without open-registration or fi
 });
 
 test('explains the reselling workflow and the real marketplace scope', () => {
+  const document = new JSDOM(html).window.document;
+  const thirdStep = document.querySelector('.workflow-steps li:nth-child(3)');
+  assert.equal(
+    thirdStep?.querySelector('small.lang-de')?.textContent,
+    'Bilder optimieren, Inserate vorbereiten',
+  );
+  assert.equal(
+    thirdStep?.querySelector('small.lang-en')?.textContent,
+    'Optimize photos, prepare listings',
+  );
+
   const descriptionTag = extractStartTags(html, 'meta').find(
     (tag) => attribute(tag, 'name') === 'description',
   );
