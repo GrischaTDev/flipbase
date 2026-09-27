@@ -1,0 +1,127 @@
+<form
+  [formGroup]="form"
+  (ngSubmit)="submit()"
+  class="flex flex-col gap-5"
+  aria-label="Vinted-Markenfilter anlegen"
+>
+  <fieldset [disabled]="saving()" class="flex min-w-0 flex-col gap-5">
+    <p class="text-sm text-fb-text-secondary">
+      Suche nach Marken bei Vinted und wähle mehrere aus. Für jede Marke wird ein eigener pausierter
+      Filter angelegt.
+    </p>
+
+    <div class="flex flex-col gap-2">
+      <label for="vinted-brand-search" class="text-sm font-medium text-fb-text-primary"
+        >Vinted-Marken suchen</label
+      >
+      <input
+        id="vinted-brand-search"
+        type="search"
+        autocomplete="off"
+        maxlength="100"
+        [value]="keyword()"
+        (input)="searchChanged($event)"
+        aria-describedby="vinted-brand-search-hint"
+        class="w-full rounded-lg border border-fb-line bg-fb-surface px-3 py-2 text-sm text-fb-text-primary outline-none placeholder:text-fb-text-muted focus-visible:border-fb-primary focus-visible:ring-2 focus-visible:ring-fb-primary"
+        placeholder="Markenname eingeben"
+      />
+      <p id="vinted-brand-search-hint" class="text-xs text-fb-text-muted">
+        Gib mindestens zwei Zeichen ein. Die Vorschläge kommen direkt von Vinted.
+      </p>
+      @if (loading()) {
+        <p role="status" class="text-sm text-fb-text-secondary">Marken werden gesucht …</p>
+      } @else if (searchError(); as message) {
+        <div class="flex items-center gap-2 text-sm" role="alert">
+          <span>{{ message }}</span>
+          <button
+            type="button"
+            class="font-medium text-fb-text-primary underline focus-visible:outline-2 focus-visible:outline-fb-primary"
+            (click)="searchBrands(keyword().trim())"
+          >
+            Erneut versuchen
+          </button>
+        </div>
+      } @else if (available().length) {
+        <div
+          class="max-h-48 overflow-y-auto rounded-lg border border-fb-line"
+          role="group"
+          aria-label="Gefundene Vinted-Marken"
+        >
+          @for (brand of available(); track brand.id) {
+            <button
+              type="button"
+              class="flex min-h-11 w-full items-center justify-between border-b border-fb-line px-3 py-2 text-left text-sm text-fb-text-primary last:border-b-0 hover:bg-fb-surface-hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-fb-primary"
+              [attr.aria-label]="brand.name + ' auswählen'"
+              (click)="add(brand)"
+            >
+              <span>{{ brand.name }}</span
+              ><span aria-hidden="true">＋</span>
+            </button>
+          }
+        </div>
+      } @else if (keyword().trim().length >= 2) {
+        <p role="status" class="text-sm text-fb-text-muted">Keine weiteren Marken gefunden.</p>
+      }
+    </div>
+
+    @if (selected().length) {
+      <div class="flex flex-col gap-2">
+        <p class="text-sm font-medium text-fb-text-primary">Ausgewählt ({{ selected().length }})</p>
+        <div class="flex flex-wrap gap-2">
+          @for (brand of selected(); track brand.id) {
+            <button
+              type="button"
+              class="inline-flex min-h-9 items-center gap-2 rounded-full border border-fb-line bg-fb-surface px-3 py-1 text-sm text-fb-text-primary hover:border-fb-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
+              [attr.aria-label]="brand.name + ' aus Auswahl entfernen'"
+              (click)="remove(brand.id)"
+            >
+              {{ brand.name }} <span aria-hidden="true">×</span>
+            </button>
+          }
+        </div>
+      </div>
+    }
+
+    <div class="flex flex-col gap-1">
+      <label for="sniper-create-interval" class="text-sm text-fb-text-primary"
+        >Abstand zwischen Abfragen in Sekunden</label
+      >
+      <app-number-input
+        id="sniper-create-interval"
+        ariaLabel="Abstand zwischen Abfragen in Sekunden"
+        formControlName="intervalSeconds"
+        [min]="10"
+        [max]="86400"
+      />
+      <p class="text-xs text-fb-text-muted">
+        Erlaubt sind 10 Sekunden bis 24 Stunden. Der Wert gilt für alle ausgewählten Marken.
+      </p>
+    </div>
+
+    <app-text-field
+      label="Notiz"
+      formControlName="notes"
+      [multiline]="3"
+      placeholder="Optional, für alle ausgewählten Marken"
+    />
+
+    @if (error(); as message) {
+      <p role="alert" class="text-sm text-fb-text-primary">{{ message }}</p>
+    }
+    @if (saveError(); as message) {
+      <p role="alert" class="text-sm text-fb-text-primary">{{ message }}</p>
+    }
+
+    <div class="flex flex-wrap justify-end gap-2">
+      <app-button [disabled]="saving()" (clicked)="cancelled.emit()">Abbrechen</app-button>
+      <app-button
+        type="submit"
+        variant="primary"
+        [disabled]="selected().length === 0"
+        [loading]="saving()"
+      >
+        Markenfilter anlegen
+      </app-button>
+    </div>
+  </fieldset>
+</form>

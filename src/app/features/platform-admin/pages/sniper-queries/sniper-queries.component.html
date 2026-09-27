@@ -19,19 +19,29 @@
       [hasFooter]="false"
       (closed)="modalClosed()"
     >
-      <app-sniper-query-editor
-        [query]="editing()"
-        [saving]="saving()"
-        (saved)="save($event)"
-        (cancelled)="modalClosed()"
-      />
+      @if (editing()) {
+        <app-sniper-query-editor
+          [query]="editing()"
+          [saving]="saving()"
+          (saved)="save($event)"
+          (cancelled)="modalClosed()"
+        />
+      } @else {
+        <app-sniper-brand-create
+          [existingBrandIds]="existingBrandIds()"
+          [saving]="saving()"
+          [saveError]="error()"
+          (saved)="saveMany($event)"
+          (cancelled)="modalClosed()"
+        />
+      }
     </app-modal-shell>
   }
 
   <app-data-table
     ariaLabel="Zentrale Vinted-Markenfilter"
     [searchValue]="search()"
-    searchPlaceholder="Nach Filtername, Notiz oder Markenkennung suchen"
+    searchPlaceholder="Nach Filtername oder Notiz suchen"
     searchAriaLabel="Zentrale Markenfilter durchsuchen"
     [loading]="!state.loaded() && !state.error()"
     [hasRows]="filtered().length > 0"
@@ -95,9 +105,6 @@
               <th scope="row" class="min-w-[300px] text-left font-normal">
                 <p class="break-words font-medium text-fb-text-primary">
                   {{ queryTitle(query) }}
-                </p>
-                <p class="mt-0.5 text-xs text-fb-text-muted">
-                  Vinted-Markenkennung {{ query.brand_id ?? 'unbekannt' }}
                 </p>
                 @if (query.notes) {
                   <p

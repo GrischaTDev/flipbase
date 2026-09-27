@@ -62,6 +62,26 @@ Vinted-Konten oder Zugangsdaten wurden verwendet.
 **Prüfung:** Sechs neue Datenbankprüfungen zu Rechten, Zeitraum und Zuordnung bestanden; die 20 vorhandenen Betreiberprüfungen ebenfalls. Gezielte Angular-Tests einschließlich AXE-Prüfung, Typprüfung, ESLint, Shared-UI-Prüfung und Angular-Produktionsbau bestanden. Die Migration wurde ohne fachfremde Schemaänderungen erzeugt und lokal angewendet.
 
 **Datenschutz:** Die Betreiberübersicht wird auf Art. 6 Abs. 1 lit. f DSGVO gestützt: Betreuung und Verbesserung der Beta-App bei beschränktem Betreiberzugriff und ohne zusätzliche Verhaltensaufzeichnung. Die rechtliche Interessenabwägung und die Information bereits aktiver Tester bleiben in der Verantwortung des Betreibers.
+## 2026-09-27 – Juna – Vinted-Marken direkt beim Anlegen suchen
+
+**Auftrag:** Zentrale Markenfilter ohne Kenntnis einer Vinted-Markenkennung
+anlegen. Mehrere Marken sollen gleichzeitig auswählbar sein, auch seltene
+Marken, mit einem eigenen Filter pro Marke.
+
+**Änderung:** Eine neue, auf Plattformbetreiber begrenzte Edge Function sucht
+Marken live bei Vinted und liefert Namen sowie Kennungen. Die Admin-Oberfläche
+bietet eine Suche mit auswählbaren Treffern, zeigt vorhandene Filter nicht
+erneut an und legt jede gewählte Marke als eigenen pausierten Filter an. Bei
+einem Teilfehler bleiben nur die fehlgeschlagenen Marken zur Wiederholung
+ausgewählt. Die Kennung muss nicht mehr eingegeben werden und wird in der
+Übersicht nicht mehr angezeigt. Die Funktion muss zusammen mit den anderen
+Edge Functions manuell ausgerollt werden.
+
+**Prüfung:** Die echte Vinted-Suche lieferte für „Ralph Lauren“ mehrere
+Markenvarianten. Edge- und Angular-Tests, Barrierefreiheitsprüfung, Typprüfung,
+Lint und Angular-Bau wurden ausgeführt.
+
+
 ## 2026-09-27 – Juna – Vinted-Sammler nach festgefahrener Sitzung wiederhergestellt
 
 **Auftrag:** Prüfen, warum der Vinted-Bot erneut keine Artikel sammelt, und den
