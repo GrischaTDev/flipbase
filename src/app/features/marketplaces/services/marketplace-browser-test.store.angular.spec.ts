@@ -85,7 +85,7 @@ describe('Kontogebundener Browser-Testbereich', () => {
     api.open.mockRejectedValueOnce(new GoLoginApiLimitError());
     await store.login({ username: 'synthetic', password: 'synthetic' });
     expect(store.error()).toContain('GoLogin meldet');
-    expect(store.error()).toContain('aktiven Testkonto');
+    expect(store.error()).toContain('API & MCP');
     expect(api.login).not.toHaveBeenCalled();
   });
   it('behält die Sitzung nach Token-Erneuerung und prüft mit dem neuen Token', async () => {
