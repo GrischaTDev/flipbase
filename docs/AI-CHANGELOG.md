@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-27 – Juna – Eigene Variantenbilder und kleinere neue Artikelfotos
+
+**Auftrag:** Beim Anlegen neuer Farbvarianten eigene Bilder hinzufügen und die Ladezeit von Produktbildern in Artikel-, Einkaufs- und Shopansichten verbessern; zudem SSR und Bild-Caching prüfen.
+
+**Änderung:** Der Variantendialog nimmt eigene Bilder an. Auf der Variantenseite wird die eigene Galerie bearbeitet; ohne eigene Bilder verwendet die Darstellung weiterhin die Bilder des Hauptartikels. Katalog und Shop bevorzugen vorhandene Variantenbilder. Neue große Produkt- und Einzelstückfotos werden vor dem Upload auf maximal 1600 Pixel Kantenlänge und ungefähr 0,8 MB als WebP vorbereitet. Kleine Bilder, AVIF und animierbare GIFs bleiben unverändert. Shopkarten laden Bilder bei Bedarf. Bereits gespeicherte Dateien werden dadurch nicht rückwirkend verkleinert. Das Projekt verwendet derzeit clientseitiges Angular-Rendering ohne SSR; für die angemeldeten Listen ist die Bildmenge der direktere Ansatzpunkt.
+
+**Prüfung:** Gezielte Tests für Variantenbilder, Galerie-Fallback, Upload-Wiederholung und Bildverarbeitung sowie TypeScript, ESLint und Angular-Bau bestanden.
+
 ## 2026-09-26 – Juna – Beta-Registrierung visuell und beim Zurückgehen verbessert
 
 **Auftrag:** Die drei Registrierungsschritte einheitlich gestalten, gelbe

@@ -85,10 +85,19 @@ export class CatalogService {
     if (this.workspace.currentWorkspace()?.id !== workspaceId) return;
     const groupId =
       this.products().find((product) => product.id === productId)?.variant_group_id ?? productId;
+    const previousGroupPath = this.products().find(
+      (product) => product.id === groupId,
+    )?.primary_media_path;
+    const displayedPath =
+      productId === groupId ? primaryMediaPath : (primaryMediaPath ?? previousGroupPath ?? null);
     this.products.update((products) =>
       products.map((product) =>
-        (product.variant_group_id ?? product.id) === groupId && product.workspace_id === workspaceId
-          ? { ...product, primary_media_path: primaryMediaPath }
+        product.workspace_id === workspaceId &&
+        (product.id === productId ||
+          (productId === groupId &&
+            product.variant_group_id === groupId &&
+            product.primary_media_path === previousGroupPath))
+          ? { ...product, primary_media_path: displayedPath }
           : product,
       ),
     );
@@ -146,7 +155,9 @@ export class CatalogService {
         loadedProducts.map((product) => ({
           ...product,
           primary_media_path:
-            groupMedia.get(product.variant_group_id ?? product.id) ?? product.primary_media_path,
+            product.primary_media_path ??
+            groupMedia.get(product.variant_group_id ?? product.id) ??
+            null,
         })),
       );
       this.loadedWorkspaceId.set(workspaceId);
@@ -225,9 +236,9 @@ export class CatalogService {
       });
       if (error || !data) throw error ?? new Error('Die Variante wurde nicht zurückgegeben.');
       const product = this.mapProduct(data);
+      const groupId = product.variant_group_id ?? input.sourceProductId;
       product.primary_media_path =
-        this.products().find((entry) => entry.id === input.sourceProductId)?.primary_media_path ??
-        null;
+        this.products().find((entry) => entry.id === groupId)?.primary_media_path ?? null;
       this.products.update((products) =>
         products.map((entry) =>
           entry.id === input.sourceProductId && entry.workspace_id === input.workspaceId
