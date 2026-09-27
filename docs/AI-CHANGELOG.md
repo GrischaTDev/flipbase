@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-27 – Juna – Kleine Artikelvorschaubilder statt vollständiger Fotos geladen
+
+**Auftrag:** Prüfen, ob die bestehenden Artikelbilder wirklich komprimiert wurden, und die sichtbare Verzögerung beim Laden der Artikelliste beheben.
+
+**Änderung:** Die 24 aktiven JPEG-Artikelbilder sind bereits komprimiert; das weitere aktive WebP war schon klein. Die Artikelliste und die Artikelauswahl beim Einkauf fordern nun aus dem privaten Speicher signierte 96-Pixel-Vorschaubilder an. Die ersten sichtbaren Artikelbilder werden ohne zusätzliche Lazy-Loading-Pause geladen. Die Detailansicht verwendet weiterhin die gespeicherten Originale. Der Vorschaulink wird innerhalb der Sitzung wiederverwendet und bei Workspace- oder Sitzungswechsel verworfen; bei einem Vorschaufehler fällt die Anzeige auf das Original zurück. Alle 25 aktiven Produktionsbilder ließen sich als Vorschau laden: zusammen 52.414 Bytes statt 8.811.304 Bytes für die gespeicherten Originale.
+
+**Prüfung:** Gezielte Medien- und Artikelservice-Tests, Typprüfung, ESLint, Formatprüfung und Angular-Produktionsbau.
+
 ## 2026-09-27 – Juna – Artikelbilder nachträglich vollständig geprüft und verkleinert
 
 **Auftrag:** Die erste Nachbearbeitung erfasste nur drei Shop-Angebotsbilder. Prüfen, warum die rund 25 Bilder unter „Artikel“ ausblieben, und auch diese Bilder sinnvoll komprimieren. Außerdem die Meldung zu nicht entfernbaren lokalen Arbeitskopien erklären.

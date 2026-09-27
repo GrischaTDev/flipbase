@@ -8,7 +8,7 @@
       [src]="source"
       [alt]="alt()"
       class="size-full object-contain"
-      loading="lazy"
+      [attr.loading]="priority() ? 'eager' : 'lazy'"
       decoding="async"
       (error)="failed.set(true); imageFailed.emit()"
     />

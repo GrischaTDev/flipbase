@@ -21,6 +21,8 @@ export class MediaService {
   private contextKey = '';
   private generation = 0;
   private readonly expirations = new Map<string, number>();
+  private readonly thumbnailExpirations = new Map<string, number>();
+  private readonly failedThumbnailPaths = new Set<string>();
   private readonly retryAfter = new Map<string, number>();
   private readonly retriedPaths = new Set<string>();
   private readonly refreshTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -46,12 +48,21 @@ export class MediaService {
     if (deferSignalWrite) {
       const generation = this.generation;
       queueMicrotask(() => {
-        if (generation === this.generation) this.signedUrls.set({});
+        if (generation === this.generation) {
+          this.signedUrls.set({});
+          this.signedThumbnailUrls.set({});
+        }
       });
-    } else this.signedUrls.set({});
+    } else {
+      this.signedUrls.set({});
+      this.signedThumbnailUrls.set({});
+    }
     this.pendingSignatures.clear();
+    this.pendingThumbnailSignatures.clear();
     this.queuedPaths.clear();
     this.expirations.clear();
+    this.thumbnailExpirations.clear();
+    this.failedThumbnailPaths.clear();
     this.retryAfter.clear();
     this.retriedPaths.clear();
     for (const timer of this.refreshTimers.values()) clearTimeout(timer);
@@ -60,8 +71,19 @@ export class MediaService {
 
   invalidateMediaUrl(storagePath: string): void {
     this.expirations.delete(storagePath);
+    this.failedThumbnailPaths.delete(storagePath);
     this.retryAfter.delete(storagePath);
     this.signedUrls.update((urls) => {
+      const next = { ...urls };
+      delete next[storagePath];
+      return next;
+    });
+    this.invalidateProductThumbnailUrl(storagePath);
+  }
+
+  private invalidateProductThumbnailUrl(storagePath: string): void {
+    this.thumbnailExpirations.delete(storagePath);
+    this.signedThumbnailUrls.update((urls) => {
       const next = { ...urls };
       delete next[storagePath];
       return next;
@@ -71,11 +93,29 @@ export class MediaService {
   reportMediaFailure(storagePath: string): void {
     this.scheduleRetry(storagePath);
     this.expirations.delete(storagePath);
+    this.thumbnailExpirations.delete(storagePath);
     this.signedUrls.update((urls) => {
       const next = { ...urls };
       delete next[storagePath];
       return next;
     });
+    this.signedThumbnailUrls.update((urls) => {
+      const next = { ...urls };
+      delete next[storagePath];
+      return next;
+    });
+  }
+
+  reportProductThumbnailFailure(storagePath: string): void {
+    if (
+      !storagePath.startsWith('catalog-products/') ||
+      this.failedThumbnailPaths.has(storagePath)
+    ) {
+      this.reportMediaFailure(storagePath);
+      return;
+    }
+    this.failedThumbnailPaths.add(storagePath);
+    this.invalidateProductThumbnailUrl(storagePath);
   }
 
   private scheduleRetry(storagePath: string): void {
@@ -107,6 +147,8 @@ export class MediaService {
 
   /** Pfade, deren Signierung gerade laeuft - verhindert Mehrfachanfragen. */
   private readonly pendingSignatures = new Set<string>();
+  private readonly pendingThumbnailSignatures = new Set<string>();
+  private readonly signedThumbnailUrls = signal<Record<string, string>>({});
 
   /** Gueltigkeit einer signierten URL in Sekunden. */
   private static readonly SIGNED_URL_TTL = 3600;
@@ -146,6 +188,56 @@ export class MediaService {
 
     this.requestSignedUrl(storagePath);
     return '';
+  }
+
+  /** Kleine Vorschau für Artikellisten; die Originaldatei bleibt für Detailansichten erhalten. */
+  getProductThumbnailUrl(storagePath: string): string {
+    this.synchronizeContext(true);
+    if (!storagePath.startsWith('catalog-products/') || this.failedThumbnailPaths.has(storagePath))
+      return this.getMediaUrl(storagePath);
+    if (this.workspace && storagePath.split('/')[1] !== this.workspace.currentWorkspace()?.id)
+      return '';
+
+    const cached = this.signedThumbnailUrls()[storagePath];
+    if (cached && (this.thumbnailExpirations.get(storagePath) ?? 0) > Date.now()) return cached;
+    if ((this.retryAfter.get(storagePath) ?? 0) > Date.now()) return '';
+    this.requestProductThumbnailUrl(storagePath);
+    return '';
+  }
+
+  private requestProductThumbnailUrl(storagePath: string): void {
+    if (this.pendingThumbnailSignatures.has(storagePath)) return;
+    this.pendingThumbnailSignatures.add(storagePath);
+    const generation = this.generation;
+    void (async () => {
+      try {
+        const { data, error } = await this.supabase.client.storage
+          .from('item-media')
+          .createSignedUrl(storagePath, MediaService.SIGNED_URL_TTL, {
+            transform: { width: 96, height: 96, resize: 'contain', quality: 75 },
+          });
+        if (generation !== this.synchronizeContext()) return;
+        if (error || !data?.signedUrl) throw error ?? new Error('Keine Bildadresse erhalten.');
+        const lifetime = (MediaService.SIGNED_URL_TTL - 120) * 1000;
+        this.thumbnailExpirations.set(storagePath, Date.now() + lifetime);
+        const timerKey = `thumbnail:${storagePath}`;
+        const previous = this.refreshTimers.get(timerKey);
+        if (previous) clearTimeout(previous);
+        this.refreshTimers.set(
+          timerKey,
+          setTimeout(() => this.invalidateProductThumbnailUrl(storagePath), lifetime),
+        );
+        this.signedThumbnailUrls.update((urls) => ({ ...urls, [storagePath]: data.signedUrl }));
+      } catch (error: unknown) {
+        if (generation !== this.synchronizeContext()) return;
+        this.failedThumbnailPaths.add(storagePath);
+        this.invalidateProductThumbnailUrl(storagePath);
+        this.melde('Laden der Bildvorschau', error);
+      } finally {
+        if (generation === this.synchronizeContext())
+          this.pendingThumbnailSignatures.delete(storagePath);
+      }
+    })();
   }
 
   /**
