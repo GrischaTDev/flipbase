@@ -1,5 +1,16 @@
 # Arbeitsstand: Vinted-Marktplatzverwaltung
 
+## 27. September 2026 – Korrektur für den Docker-Produktionsbau
+
+PR #207 wurde nach grünen Pflichtprüfungen als Merge-Commit `8386afb8` in
+`master` übernommen. Der automatische [Produktionslauf](https://github.com/GrischaTDev/flipbase/actions/runs/36310542011)
+brach beim Docker-Bau ab: `.dockerignore` schloss den reinen Typvertrag
+`supabase/functions/_shared/marketplace-contracts.ts` aus, den Angular beim
+Bauen benötigt. Die Datei ist nun einzeln für den Docker-Kontext freigegeben;
+andere Edge-Function-Dateien bleiben ausgeschlossen. Ein Docker-Kontexttest und
+der vollständige Build der Docker-Baustufe bestanden lokal. Die tatsächliche
+Veröffentlichung ist erst nach einem erfolgreichen neuen Produktionslauf belegt.
+
 ## 27. September 2026 – Kontogebundene Testsitzung
 
 Basis: `c004b0d4` auf `juna/vinted-marketplace-foundation`. Der bestehende
