@@ -62,6 +62,28 @@ Vinted-Konten oder Zugangsdaten wurden verwendet.
 **Prüfung:** Sechs neue Datenbankprüfungen zu Rechten, Zeitraum und Zuordnung bestanden; die 20 vorhandenen Betreiberprüfungen ebenfalls. Gezielte Angular-Tests einschließlich AXE-Prüfung, Typprüfung, ESLint, Shared-UI-Prüfung und Angular-Produktionsbau bestanden. Die Migration wurde ohne fachfremde Schemaänderungen erzeugt und lokal angewendet.
 
 **Datenschutz:** Die Betreiberübersicht wird auf Art. 6 Abs. 1 lit. f DSGVO gestützt: Betreuung und Verbesserung der Beta-App bei beschränktem Betreiberzugriff und ohne zusätzliche Verhaltensaufzeichnung. Die rechtliche Interessenabwägung und die Information bereits aktiver Tester bleiben in der Verantwortung des Betreibers.
+## 2026-09-27 – Juna – Vinted-Sammler nach festgefahrener Sitzung wiederhergestellt
+
+**Auftrag:** Prüfen, warum der Vinted-Bot erneut keine Artikel sammelt, und den
+Ausfall beheben.
+
+**Befund:** Der Produktionscontainer war gesund, doch alle drei Markenfilter
+meldeten bei HTTP 200 wiederholt `parser_error` und fanden keine Artikel. Ein
+frischer Sammler im selben Container konnte denselben Katalog lesen. Der seit
+dem 22.09. laufende Prozess behielt seine Cookies nach einem Parserfehler und
+verwendete sie bei jedem weiteren Versuch erneut. Ein automatischer Rollout
+startete den Dienst während der Analyse neu; danach kamen wieder Artikel an.
+Um 18:56 UTC standen Nike, adidas und Ralph Lauren wieder auf `ready` und
+hatten jeweils einen aktuellen erfolgreichen Abruf.
+
+**Änderung:** Wenn eine Katalogantwort nicht gelesen werden kann, verwirft der
+Sammler die gespeicherten Cookies. Der nächste reguläre Versuch beginnt mit
+einer frischen Sitzung. Ein Regressionstest bildet die Folge aus erfolgreichem
+Abruf, unbrauchbarer Katalogseite und erneutem Abruf nach.
+
+**Prüfung:** Der neue Test schlug vor der Korrektur fehl und bestand danach.
+Alle 187 Sniper-Unit-Tests, Typprüfung, Dienstbau, gezieltes ESLint und
+Prettier bestanden. Die Korrektur selbst ist noch nicht veröffentlicht.
 
 ## 2026-09-27 – Juna – Admin-Pilot für Vinted-Browser vorbereitet
 
