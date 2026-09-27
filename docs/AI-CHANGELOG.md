@@ -16,6 +16,153 @@ Release wurde aus dem ungemergten Zweig wieder entfernt.
 **Prüfung:** Dokumentationsdiff und Formatierung geprüft. Kein Discord-Versand
 und kein Produktionsrelease ausgelöst.
 
+## 2026-09-27 – Juna – Vinted-Anmeldung an echte Kontokennung gebunden
+
+**Auftrag:** Für ein normales Vinted-Konto den Schritt vom vorbereiteten
+Flipbase-Eintrag zur echten, kontogebundenen Anmeldung umsetzen.
+
+**Änderung:** Der Worker liest nach der interaktiven Anmeldung ausschließlich
+die Kontokennung und den Nutzernamen von der festen Vinted-Domain. Eine
+serverseitige Datenbankfunktion bestätigt die Identität nur bei gültiger
+Sitzung, passendem Workspace, Konto und Bediener mit Betreiberrecht. Erst dann
+setzt Flipbase den Status auf „verbunden“ und speichert eine Profilkopie. Die
+Anmeldeseite hat dafür eine eigene Bestätigungsaktion. Das genutzte
+Vinted-Identitätsziel ist eine private, nicht vertraglich zugesicherte
+Schnittstelle und bleibt bis zum Test mit einem freigegebenen eigenen Konto
+unbestätigt. Inserate, Nachrichten und Verkäufe werden noch nicht importiert.
+
+**Prüfung:** 54 Worker-Tests, 16 gezielte Angular-Tests und 113
+Marktplatz-Datenbankprüfungen bestanden. Der Datenbanktest fand zunächst eine
+fehlende Rechteentziehung in der generierten Migration; diese wurde ergänzt
+und erneut geprüft. Worker-Typprüfung, Angular-Typprüfung und Bau bestanden.
+Kein echtes Konto, kein Produktions-Worker und kein Deployment wurden verwendet.
+
+**PR-Nachtrag:** Der zweite Angular-Teiltest von PR #220 fand einen alten
+Sidebar-Test, dessen Vorlagenauflösung nach dem neuen Admin-Badge den Pfad der
+geteilten Badge-Komponente nicht kannte. Der Test liest diese Vorlage nun wie
+der bereits angepasste Sidebar-Test aus ihrem tatsächlichen Ordner. Beide
+Sidebar-Testdateien bestanden danach lokal.
+
+## 2026-09-27 – Juna – Vinted-Admin-Einstieg verständlich gemacht
+
+**Auftrag:** Admin-Badge am Vinted-Menü ergänzen und den irreführenden
+Kontodialog so korrigieren, dass der Weg zu einer echten Anmeldung erkennbar
+ist.
+
+**Änderung:** Der Admin-Link ist gekennzeichnet. Die Kontoverwaltung benennt
+den internen Vorbereitungsschritt ehrlich und zeigt pro Verbindung einen
+direkten Anmeldelink. Die Route bindet den Browser an die angeforderte
+Verbindung und sperrt unbekannte IDs. Ein nicht erreichbarer Worker wird
+sichtbar erklärt. Plan und Prüfprotokoll halten ausstehende Anmeldung,
+Identitätsprüfung und Liveimport fest.
+
+**Prüfung:** Angular-Bau, gezielte Komponententests und der Playwright-Ablauf
+mit künstlichen Konten auf Desktop und Mobilgerätegröße bestanden. Der
+öffentliche Browser-Endpunkt antwortete mit HTTP 502; keine echten
+Vinted-Konten oder Zugangsdaten wurden verwendet.
+
+## 2026-09-27 – Juna – Beta-Auswertung aus Datenschutzhinweisen entfernt
+
+**Auftrag:** Den nachträglich ergänzten Abschnitt zur namentlichen Beta-Nutzungsübersicht vorerst aus der Datenschutzerklärung entfernen.
+
+**Änderung:** Der Abschnitt auf der öffentlichen Datenschutzseite und der zugehörige Link im Datenschutzdialog der App wurden zurückgenommen. Andere Datenschutzhinweise, Cookie-Einstellungen und die Betreiberübersicht unter Administration → Nutzer bleiben unverändert.
+
+**Prüfung:** Gezielte Landingpage-Tests, Format- und Lintprüfung sowie Angular-Produktionsbau.
+
+## 2026-09-27 – Juna – Nutzungsübersicht für Beta-Tester ergänzt
+
+**Auftrag:** Nach der Prüfung der vorhandenen Analyse und Nutzerverwaltung eine erste, namentliche Nutzungsübersicht für Beta-Tester umsetzen.
+
+**Änderung:** Unter Administration → Nutzer erscheinen letzter Login und letzte dokumentierte Aktion. Eine eigene Nutzungsseite zeigt außerdem die in den letzten 30 Tagen angelegten Einkaufsentwürfe und erfassten Verkäufe sowie die letzten zehn Kernaktionen. Die Betreiberabfragen verwenden nur vorhandene Supabase-Auth-Daten und das fachliche Ereignisprotokoll; Rechteprüfung und Index liegen in einer neuen Schema-Datei und generierten Migration. Seitenaufrufe, Lesedauer und zusätzliche Nutzerereignisse werden nicht erfasst. Die Einordnung als nachweisbare Aktion verhindert, dass fehlende Ereignisse fälschlich als fehlende Nutzung ausgegeben werden. Der öffentliche Datenschutzhinweis beschreibt die Auswertung; im Datenschutzdialog der App ist der Abschnitt verlinkt.
+
+**Prüfung:** Sechs neue Datenbankprüfungen zu Rechten, Zeitraum und Zuordnung bestanden; die 20 vorhandenen Betreiberprüfungen ebenfalls. Gezielte Angular-Tests einschließlich AXE-Prüfung, Typprüfung, ESLint, Shared-UI-Prüfung und Angular-Produktionsbau bestanden. Die Migration wurde ohne fachfremde Schemaänderungen erzeugt und lokal angewendet.
+
+**Datenschutz:** Die Betreiberübersicht wird auf Art. 6 Abs. 1 lit. f DSGVO gestützt: Betreuung und Verbesserung der Beta-App bei beschränktem Betreiberzugriff und ohne zusätzliche Verhaltensaufzeichnung. Die rechtliche Interessenabwägung und die Information bereits aktiver Tester bleiben in der Verantwortung des Betreibers.
+
+## 2026-09-27 – Juna – Herkunft der Vinted-Artikelfotos geprüft
+
+**Auftrag:** Prüfen, weshalb der Feed früher drei Fotos je Anzeige zeigen konnte
+und heute oft nur eines zeigt.
+
+**Befund:** Die alte JSON-Katalogantwort enthielt mehrere Fotos pro Artikel;
+die gespeicherte Testantwort enthält Beispiele mit vier und fünf Fotos. Seit
+dem 14.09.2026 nutzt der Sammler wegen des abgeschalteten JSON-Katalogs die
+öffentliche Katalogseite. Deren Datenmodell und der Parser erlauben weiterhin
+mehrere Fotos, doch eine aktuelle Live-Stichprobe lieferte bei allen 96
+Artikeln nur je eines. Die Detailseite eines Artikels enthielt drei Fotos.
+Damit fehlen die weiteren Fotos bereits in der aktuellen Katalogantwort;
+die Karten kürzen keine vorhandenen Bilder weg. Auf zusätzliche Detailabrufe
+wurde für diese Prüfung verzichtet.
+
+**Prüfung:** Git-Historie der Bildverarbeitung und der Katalogumstellung,
+gespeicherte alte Katalogantwort sowie ein aktueller Abruf von Katalog und
+Artikeldetail wurden verglichen. Keine Codeänderung am Bot.
+
+## 2026-09-27 – Juna – Vinted Feed und Angebotskarten überarbeitet
+
+**Auftrag:** Den Vinted-Feed an die übrigen Seiten angleichen, die getrennte
+Deal-Ansicht entfernen, nach unterstützten Marken filtern und die
+Angebotskarten nach dem Referenzentwurf neu anordnen.
+
+**Änderung:** Der Menüpunkt heißt „Vinted Feed“. Die Seite zeigt ein Icon und
+eine kurze Beschreibung. Artikel und Deals werden nicht mehr getrennt
+angezeigt. Ein suchbarer Markenfilter verwendet nur Marken aus jüngsten
+Anzeigen aktiver Vinted-Sammelaufträge; die Filterung geschieht vor der
+Seitenteilung. Die Karten zeigen bei vorhandenen Bilddaten bis zu drei Fotos,
+Titel, Marken-, Größen- und Zustandsplaketten, Preis und Entdeckungszeit. Die
+Angaben zu unbekannter Kategorie, Käuferschutz und Versand wurden entfernt.
+Favoriten, Teilen und der Vinted-Link nutzen die gemeinsamen Schaltflächen.
+Auch die Vinted-Markensuche im Admin-Formular nutzt jetzt das gemeinsame
+Eingabefeld.
+Die normale Vinted-Katalogantwort enthält bei aktuellen Live-Stichproben nur
+ein Foto je Anzeige; für weitere Fotos wäre ein zusätzlicher Detailabruf nötig.
+
+**Prüfung:** Zwei gezielte Datenbanktests mit 49 Prüfungen, Sicherheitsprüfung
+der lokalen Datenbank und `npm run verify` bestanden. Die Änderung ist noch
+nicht veröffentlicht.
+
+## 2026-09-27 – Juna – Vinted-Marken direkt beim Anlegen suchen
+
+**Auftrag:** Zentrale Markenfilter ohne Kenntnis einer Vinted-Markenkennung
+anlegen. Mehrere Marken sollen gleichzeitig auswählbar sein, auch seltene
+Marken, mit einem eigenen Filter pro Marke.
+
+**Änderung:** Eine neue, auf Plattformbetreiber begrenzte Edge Function sucht
+Marken live bei Vinted und liefert Namen sowie Kennungen. Die Admin-Oberfläche
+bietet eine Suche mit auswählbaren Treffern, zeigt vorhandene Filter nicht
+erneut an und legt jede gewählte Marke als eigenen pausierten Filter an. Bei
+einem Teilfehler bleiben nur die fehlgeschlagenen Marken zur Wiederholung
+ausgewählt. Die Kennung muss nicht mehr eingegeben werden und wird in der
+Übersicht nicht mehr angezeigt. Die Funktion muss zusammen mit den anderen
+Edge Functions manuell ausgerollt werden.
+
+**Prüfung:** Die echte Vinted-Suche lieferte für „Ralph Lauren“ mehrere
+Markenvarianten. Edge- und Angular-Tests, Barrierefreiheitsprüfung, Typprüfung,
+Lint und Angular-Bau wurden ausgeführt.
+
+## 2026-09-27 – Juna – Vinted-Sammler nach festgefahrener Sitzung wiederhergestellt
+
+**Auftrag:** Prüfen, warum der Vinted-Bot erneut keine Artikel sammelt, und den
+Ausfall beheben.
+
+**Befund:** Der Produktionscontainer war gesund, doch alle drei Markenfilter
+meldeten bei HTTP 200 wiederholt `parser_error` und fanden keine Artikel. Ein
+frischer Sammler im selben Container konnte denselben Katalog lesen. Der seit
+dem 22.09. laufende Prozess behielt seine Cookies nach einem Parserfehler und
+verwendete sie bei jedem weiteren Versuch erneut. Ein automatischer Rollout
+startete den Dienst während der Analyse neu; danach kamen wieder Artikel an.
+Um 18:56 UTC standen Nike, adidas und Ralph Lauren wieder auf `ready` und
+hatten jeweils einen aktuellen erfolgreichen Abruf.
+
+**Änderung:** Wenn eine Katalogantwort nicht gelesen werden kann, verwirft der
+Sammler die gespeicherten Cookies. Der nächste reguläre Versuch beginnt mit
+einer frischen Sitzung. Ein Regressionstest bildet die Folge aus erfolgreichem
+Abruf, unbrauchbarer Katalogseite und erneutem Abruf nach.
+
+**Prüfung:** Der neue Test schlug vor der Korrektur fehl und bestand danach.
+Alle 187 Sniper-Unit-Tests, Typprüfung, Dienstbau, gezieltes ESLint und
+Prettier bestanden. Die Korrektur selbst ist noch nicht veröffentlicht.
+
 ## 2026-09-27 – Juna – Admin-Pilot für Vinted-Browser vorbereitet
 
 **Auftrag:** Den bestehenden Vinted-Bereich für den eigenen Admin-Zugang in

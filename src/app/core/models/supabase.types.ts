@@ -5185,6 +5185,34 @@ export type Database = {
           workspace_id: string
         }[]
       }
+      list_platform_user_recent_actions: {
+        Args: { p_user_id: string }
+        Returns: {
+          created_at: string
+          event_id: string
+          event_type: string
+        }[]
+      }
+      list_platform_user_usage: {
+        Args: never
+        Returns: {
+          application_status: string
+          beta_ends_at: string
+          beta_starts_at: string
+          email: string
+          full_name: string
+          invitation_status: string
+          last_action_at: string
+          last_sign_in_at: string
+          license_status: string
+          purchases_created_30_days: number
+          registered_at: string
+          sales_recorded_30_days: number
+          user_id: string
+          workspace_id: string
+          workspace_name: string
+        }[]
+      }
       list_platform_users: {
         Args: never
         Returns: {
@@ -5223,6 +5251,17 @@ export type Database = {
           kind: string
           reason: string
         }[]
+      }
+      marketplace_browser_confirm_account: {
+        Args: {
+          p_connection_id: string
+          p_external_account_id: string
+          p_session_id: string
+          p_user_id: string
+          p_username: string
+          p_workspace_id: string
+        }
+        Returns: Json
       }
       marketplace_browser_session_check: {
         Args: {
@@ -5827,6 +5866,17 @@ export type Database = {
         }
         Returns: Json
       }
+      sniper_feed_by_brand: {
+        Args: {
+          p_before_id: string
+          p_before_time: string
+          p_brand: string
+          p_limit: number
+          p_watchlist_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       sniper_purge_expired_listings: {
         Args: { p_batch_size?: number }
         Returns: number
@@ -5856,6 +5906,12 @@ export type Database = {
               unusable_reason: string
             }[]
           }
+      sniper_supported_brands: {
+        Args: { p_workspace_id: string }
+        Returns: {
+          brand: string
+        }[]
+      }
       sniper_watchlist_matches: {
         Args: {
           p_listing: Database["public"]["Tables"]["sniper_listings"]["Row"]

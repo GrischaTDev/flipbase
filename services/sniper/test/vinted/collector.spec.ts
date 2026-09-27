@@ -209,6 +209,37 @@ describe('VintedCollector', () => {
     expect(fourthHeaders['Cookie']).toBeUndefined();
   });
 
+  it('drops cached cookies after catalog data disappears so the next attempt starts fresh', async () => {
+    const responseWithCookie = new Response(catalogPage(), {
+      status: 200,
+      headers: { 'set-cookie': 'anon_id=old-session; Path=/' },
+    });
+    const pageWithoutItems = new Response('<html><title>Artikel | Vinted</title></html>', {
+      status: 200,
+    });
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce(responseWithCookie)
+      .mockResolvedValueOnce(pageWithoutItems)
+      .mockResolvedValueOnce(catalog());
+    const collector = build(fetchFn);
+
+    await collector.collect(query);
+    await expect(collector.collect(query)).rejects.toThrow('catalog item data');
+    await collector.collect(query);
+
+    const failedHeaders = (fetchFn.mock.calls[1]?.[1] as RequestInit).headers as Record<
+      string,
+      string
+    >;
+    const recoveryHeaders = (fetchFn.mock.calls[2]?.[1] as RequestInit).headers as Record<
+      string,
+      string
+    >;
+    expect(failedHeaders['Cookie']).toBe('anon_id=old-session');
+    expect(recoveryHeaders['Cookie']).toBeUndefined();
+  });
+
   it('extracts retryAfterSeconds on 429 when Retry-After header is present', async () => {
     const fetchFn = vi.fn().mockResolvedValueOnce(
       new Response('', {

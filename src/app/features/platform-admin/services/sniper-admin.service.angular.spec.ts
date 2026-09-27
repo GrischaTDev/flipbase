@@ -53,4 +53,23 @@ describe('SniperAdminService', () => {
       [2, 1001],
     ]);
   });
+
+  it('saves each selected brand independently and reports only failed brands for retry', async () => {
+    const rpc = vi
+      .fn()
+      .mockResolvedValueOnce({ error: null })
+      .mockResolvedValueOnce({ error: { message: 'Duplicate' } })
+      .mockResolvedValueOnce({ error: null });
+    TestBed.configureTestingModule({
+      providers: [{ provide: SupabaseService, useValue: { client: { rpc } } }],
+    });
+    const drafts = [
+      { id: null, title: 'Nike', brandId: 53, intervalSeconds: 20, notes: '' },
+      { id: null, title: 'Ralph Lauren', brandId: 88, intervalSeconds: 20, notes: '' },
+      { id: null, title: 'Polo Ralph Lauren', brandId: 4273, intervalSeconds: 20, notes: '' },
+    ] satisfies QueryDraft[];
+    const result = await TestBed.inject(SniperAdminService).saveMany(drafts);
+    expect(result).toEqual({ savedIds: [53, 4273], failedNames: ['Ralph Lauren'] });
+    expect(rpc).toHaveBeenCalledTimes(3);
+  });
 });

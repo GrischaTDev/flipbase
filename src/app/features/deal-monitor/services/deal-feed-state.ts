@@ -12,8 +12,6 @@ export class DealFeedState {
   readonly covered = signal(false);
   readonly reportedAt = signal<string | null>(null);
   readonly hasMore = signal(false);
-  readonly highlights = computed(() => this.items().slice(0, 3));
-  readonly grid = computed(() => this.items().slice(3));
   readonly newCount = computed(() => {
     const known = new Set(this.items().map((item) => item.id));
     return this.pending().filter((item) => !known.has(item.id)).length;

@@ -5,6 +5,7 @@ import { provideRouter, Router, Routes } from '@angular/router';
 import { provideTranslateService } from '@ngx-translate/core';
 import axe from 'axe-core';
 import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { PlatformOperatorService } from '../../core/services/platform-operator.service';
 import { PwaService } from '../../core/services/pwa.service';
@@ -40,7 +41,14 @@ const routes: Routes = [
 
 describe('SidebarComponent', () => {
   beforeAll(async () => {
-    await ɵresolveComponentResources((url) => readFile(new URL(url, import.meta.url), 'utf8'));
+    await ɵresolveComponentResources((url) =>
+      readFile(
+        url.includes('badge.component.')
+          ? resolve('src/app/shared/components/badge', url.split('/').at(-1) ?? '')
+          : new URL(url, import.meta.url),
+        'utf8',
+      ),
+    );
   });
 
   afterEach(() => TestBed.resetTestingModule());
@@ -168,7 +176,7 @@ describe('SidebarComponent', () => {
     const { element, subLinks } = await renderAt('/vinted-bot/filters', false);
 
     expect(subLinks.map((link) => link.textContent?.trim())).toEqual([
-      'Bot',
+      'Vinted Feed',
       'Suchfilter',
       'Favoriten',
     ]);
@@ -191,7 +199,8 @@ describe('SidebarComponent', () => {
 
   it('zeigt den Vinted-Pilotbereich Plattformbetreibern', async () => {
     const { element } = await renderAt('/dashboard');
-    expect(element.querySelector('a[href="/marketplaces/vinted"]')).not.toBeNull();
+    const vintedLink = element.querySelector('a[href="/marketplaces/vinted"]');
+    expect(vintedLink?.querySelector('app-badge')?.textContent?.trim()).toBe('Admin');
   });
 
   it('hat keine automatisch erkennbaren schwerwiegenden Barrieren', async () => {

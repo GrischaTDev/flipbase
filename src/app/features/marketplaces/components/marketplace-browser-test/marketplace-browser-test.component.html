@@ -1,10 +1,16 @@
 <app-card
-  title="Browser-Test"
-  subtitle="Die Testsitzung ist an das oben ausgewählte Flipbase-Konto gebunden."
+  [title]="store.readOnly() ? 'Öffentlicher Browser-Test' : 'Vinted-Anmeldung'"
+  subtitle="Die Browsersitzung ist an die ausgewählte Flipbase-Verbindung gebunden."
 >
-  @if (!store.available()) {
+  @if (!store.availabilityChecked()) {
+    <p role="status" class="text-sm text-fb-text-secondary">
+      Verbindung zum Browserdienst wird geprüft …
+    </p>
+  } @else if (!store.available()) {
     <app-notice-banner>
-      Der Browser-Testdienst ist nicht verbunden. Die Sitzungssimulation oben bleibt verfügbar.
+      Die Vinted-Anmeldung ist noch nicht verfügbar: Der Browserdienst ist auf dem Server nicht
+      erreichbar. Du kannst die Verbindung in Flipbase vorbereiten, aber derzeit kein Vinted-Konto
+      anmelden oder Daten abrufen.
     </app-notice-banner>
   } @else if (store.connection(); as connection) {
     <p class="text-sm text-fb-text-secondary">
@@ -18,8 +24,9 @@
         Beim ersten Start wird für diese Verbindung ein eigenes GoLogin-Profil vorbereitet. Melde
         Dich nur mit einem eigenen, dafür freigegebenen Vinted-Konto an. Die Bedienung endet nach
         spätestens zehn Minuten; Du kannst sie anschließend erneut starten. Das Browserbild bleibt
-        nur während dieser Sitzung auf dieser Seite. Flipbase bestätigt den Anmeldestatus und
-        übernimmt Kontodaten in diesem Pilot noch nicht automatisch.
+        nur während dieser Sitzung auf dieser Seite. Klicke nach der Anmeldung auf „Anmeldung
+        prüfen“. Flipbase verbindet das Konto nur, wenn die angemeldete Vinted-Identität sicher
+        gelesen werden kann.
       }
     </app-notice-banner>
     @if (store.error(); as error) {
@@ -31,7 +38,9 @@
         [disabled]="!store.canStart()"
         [loading]="store.busy()"
         (clicked)="store.start()"
-        >Browser-Test starten</app-button
+        >{{
+          store.readOnly() ? 'Öffentlichen Testbrowser starten' : 'Vinted-Browser starten'
+        }}</app-button
       >
       <app-button [disabled]="!store.canAct()" (clicked)="store.refresh()"
         >Bild aktualisieren</app-button
@@ -40,6 +49,15 @@
         >Browser beenden</app-button
       >
     </div>
+    @if (!store.readOnly() && store.session()) {
+      <app-button
+        class="mt-4"
+        variant="primary"
+        [disabled]="!store.canAct()"
+        (clicked)="store.confirmAccount()"
+        >Anmeldung prüfen und Konto verbinden</app-button
+      >
+    }
     @if (store.session(); as session) {
       @if (session.frameUrl) {
         <div class="mt-4 max-w-full overflow-auto">

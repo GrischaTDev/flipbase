@@ -6,6 +6,7 @@ import { provideTranslateService, TranslateService } from '@ngx-translate/core';
 import { firstValueFrom } from 'rxjs';
 import axe from 'axe-core';
 import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { TRANSLATIONS_DE, TRANSLATIONS_EN } from '../../core/i18n/translations';
 import { PlatformOperatorService } from '../../core/services/platform-operator.service';
@@ -30,7 +31,14 @@ const listSelector = '#sidebar-ideas';
 
 describe('Arbeitsnavigation und Ideen in der Sidebar', () => {
   beforeAll(async () => {
-    await ɵresolveComponentResources((url) => readFile(new URL(url, import.meta.url), 'utf8'));
+    await ɵresolveComponentResources((url) =>
+      readFile(
+        url.includes('badge.component.')
+          ? resolve('src/app/shared/components/badge', url.split('/').at(-1) ?? '')
+          : new URL(url, import.meta.url),
+        'utf8',
+      ),
+    );
   });
 
   afterEach(() => TestBed.resetTestingModule());

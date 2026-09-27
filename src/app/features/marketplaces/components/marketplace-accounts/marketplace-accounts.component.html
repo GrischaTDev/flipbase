@@ -1,11 +1,16 @@
 <app-card
   title="Vinted-Konten"
-  subtitle="Kontoverbindungen für diesen Workspace vorbereiten und verwalten."
+  subtitle="Verbindungen für diesen Workspace vorbereiten und verwalten."
 >
   <p class="text-sm text-fb-text-secondary">
-    Ein Eintrag verbindet später ein bestehendes Vinted-Konto. Er erstellt kein neues Konto bei
-    Vinted. Du benötigst hier weder Passwort noch Browser-Schlüssel.
+    Ein Name hier legt nur einen Eintrag in Flipbase an. Dein Vinted-Konto ist damit noch nicht
+    angemeldet und es werden keine Daten abgerufen.
   </p>
+  <ol class="mt-3 list-inside list-decimal space-y-1 text-sm text-fb-text-secondary">
+    <li>Bereite die Verbindung mit einem internen Namen vor.</li>
+    <li>Öffne danach bei diesem Eintrag die Vinted-Anmeldung.</li>
+    <li>Der Datenabruf folgt erst nach bestätigter Anmeldung und einem eigenen Import-Schritt.</li>
+  </ol>
   <div class="mt-4 flex flex-wrap gap-2">
     <app-button link="/marketplaces/vinted">Zum Vinted-Bereich</app-button>
     <app-button
@@ -13,7 +18,7 @@
       [icon]="addIcon"
       [disabled]="!store.canManage() || store.busy()"
       (clicked)="openDialog()"
-      >Konto hinzufügen</app-button
+      >Verbindung vorbereiten</app-button
     >
   </div>
 </app-card>
@@ -30,7 +35,7 @@
   [errorMessage]="store.error()"
   [hasRows]="store.connections().length > 0"
   emptyTitle="Noch keine Kontoverbindungen"
-  emptyText="Füge dein erstes bestehendes Vinted-Konto als vorbereitete Verbindung hinzu."
+  emptyText="Bereite eine Verbindung vor. Die Vinted-Anmeldung folgt separat."
 >
   <p table-view class="text-sm font-medium">Kontoverbindungen ({{ store.connections().length }})</p>
   <app-button table-error-action class="mt-3" (clicked)="store.reloadConnections()"
@@ -62,6 +67,15 @@
             </td>
             <td class="px-4 py-3">
               <div class="flex justify-end gap-1">
+                <app-button
+                  size="slim"
+                  variant="secondary"
+                  [icon]="loginIcon"
+                  [ariaLabel]="'Vinted-Anmeldung für ' + account.displayName + ' öffnen'"
+                  [link]="'/marketplaces/vinted/connect/' + account.connectionId"
+                  [disabled]="account.status === 'paused' || account.status === 'blocked'"
+                  >Anmeldung öffnen</app-button
+                >
                 <app-table-action-button
                   [label]="account.displayName + ' umbenennen'"
                   [icon]="editIcon"
@@ -95,7 +109,7 @@
   >
     <form id="marketplace-account-form" [formGroup]="form" (ngSubmit)="save()">
       <app-text-field
-        label="Kontoname in Flipbase"
+        label="Interner Name in Flipbase"
         placeholder="Zum Beispiel Wiehen Store"
         [formControl]="name"
         [required]="true"
@@ -108,8 +122,8 @@
       />
       @if (!currentDialog.connectionId) {
         <p class="mt-3 text-sm text-fb-text-secondary">
-          Nach dem Speichern kannst Du im Vinted-Bereich die kontogebundene Browseranmeldung
-          starten, sobald der Browserdienst verbunden ist.
+          Dieser Name verbindet noch kein Vinted-Konto. Nutze danach die Anmeldeaktion in der Liste.
+          Solange der Browserdienst nicht läuft, ist die Anmeldung nicht möglich.
         </p>
       }
       @if (store.mutationError(); as error) {
@@ -123,7 +137,7 @@
         formId="marketplace-account-form"
         variant="primary"
         [loading]="store.busy()"
-        >{{ currentDialog.connectionId ? 'Speichern' : 'Verbindung speichern' }}</app-button
+        >{{ currentDialog.connectionId ? 'Speichern' : 'Vorbereitung speichern' }}</app-button
       >
     </div>
   </app-modal-shell>

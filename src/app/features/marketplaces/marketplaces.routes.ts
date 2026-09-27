@@ -11,6 +11,13 @@ export const MARKETPLACES_ROUTES: Routes = [
     children: [
       { path: '', redirectTo: 'overview', pathMatch: 'full' },
       {
+        path: 'connect/:connectionId',
+        loadComponent: () =>
+          import('./components/marketplace-connect/marketplace-connect.component').then(
+            (m) => m.MarketplaceConnectComponent,
+          ),
+      },
+      {
         path: 'session-test',
         loadComponent: () =>
           import('./components/marketplace-session-test/marketplace-session-test.component').then(

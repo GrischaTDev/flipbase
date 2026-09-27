@@ -1,16 +1,18 @@
 <app-page-header
   title="Vinted"
-  subtitle="Deine Konten und die in Flipbase gespeicherten Marktplatzdaten."
+  subtitle="Vorbereitete Verbindungen und in Flipbase gespeicherte Marktplatzdaten."
   [icon]="pageIcon"
 >
   <div header-actions class="flex flex-wrap items-center gap-2">
     <app-button link="/settings/marketplaces" [icon]="settingsIcon">Konten verwalten</app-button>
-    <app-button
-      link="/marketplaces/vinted/session-test"
-      [icon]="sessionTestIcon"
-      [disabled]="!store.selectedConnection()"
-      >Sitzung testen</app-button
-    >
+    @if (store.selectedConnection(); as account) {
+      <app-button
+        [link]="'/marketplaces/vinted/connect/' + account.connectionId"
+        [icon]="loginIcon"
+        [disabled]="account.status === 'paused' || account.status === 'blocked'"
+        >Vinted-Anmeldung öffnen</app-button
+      >
+    }
     <app-button
       link="/marketplaces/vinted/activity"
       [icon]="activityIcon"
@@ -42,15 +44,15 @@
   }
   @if (!store.loading() && !store.error() && store.connections().length === 0) {
     <app-card
-      title="Noch kein Vinted-Konto hinterlegt"
+      title="Noch keine Vinted-Verbindung vorbereitet"
       subtitle="Bereite in den Einstellungen deine erste Kontoverbindung vor."
     >
       <p class="mb-4 text-sm text-fb-text-secondary">
-        Deine bestehenden Vinted-Konten bleiben unverändert. Die Anmeldung und Datenübernahme werden
-        separat eingerichtet.
+        Ein interner Name meldet dich noch nicht bei Vinted an. Bereite zuerst eine Verbindung vor;
+        danach kannst du die kontogebundene Anmeldung öffnen, sobald der Browserdienst läuft.
       </p>
       <app-button variant="primary" link="/settings/marketplaces"
-        >Kontoverbindung vorbereiten</app-button
+        >Verbindung vorbereiten</app-button
       >
     </app-card>
   }
@@ -87,11 +89,14 @@
       </p>
     </app-card>
     @if (account.status === 'needs_login' || account.status === 'disconnected') {
-      <app-notice-banner
-        >Die Kontoverbindung ist vorbereitet. Über „Sitzung testen“ kannst Du den eigenen
-        Browserbereich öffnen, sobald der Browserdienst verbunden ist. Deine Zugangsdaten werden
-        nicht als Flipbase-Kontodaten gespeichert.</app-notice-banner
-      >
+      <app-notice-banner>
+        Dieser Eintrag ist nur in Flipbase vorbereitet. Du kannst die Anmeldung für dieses Konto
+        öffnen, sobald der Browserdienst läuft. Zugangsdaten werden nicht als Flipbase-Kontodaten
+        gespeichert; ein automatischer Datenabruf ist noch nicht eingerichtet.
+        <app-button class="mt-3" [link]="'/marketplaces/vinted/connect/' + account.connectionId"
+          >Vinted-Anmeldung öffnen</app-button
+        >
+      </app-notice-banner>
     } @else if (account.status === 'paused') {
       <app-notice-banner
         >Diese Verbindung ist pausiert. Bereits gespeicherte Daten bleiben

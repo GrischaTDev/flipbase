@@ -15,6 +15,9 @@ import type { AccountScope } from './models/marketplace.models';
 import { VintedWorkspaceComponent } from './vinted-workspace.component';
 import { VintedAccountContentComponent } from './components/vinted-account-content/vinted-account-content.component';
 import { MarketplaceAccountsComponent } from './components/marketplace-accounts/marketplace-accounts.component';
+import { MarketplaceConnectComponent } from './components/marketplace-connect/marketplace-connect.component';
+import { MarketplaceBrowserTestComponent } from './components/marketplace-browser-test/marketplace-browser-test.component';
+import { MarketplaceBrowserTestApiService } from './services/marketplace-browser-test-api.service';
 import { ButtonComponent } from '../../shared/components/button/button.component';
 import { CardComponent } from '../../shared/components/card/card.component';
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
@@ -113,6 +116,14 @@ beforeAll(async () => {
       type: MarketplaceAccountsComponent,
       path: 'src/app/features/marketplaces/components/marketplace-accounts/marketplace-accounts.component.ts',
     },
+    {
+      type: MarketplaceConnectComponent,
+      path: 'src/app/features/marketplaces/components/marketplace-connect/marketplace-connect.component.ts',
+    },
+    {
+      type: MarketplaceBrowserTestComponent,
+      path: 'src/app/features/marketplaces/components/marketplace-browser-test/marketplace-browser-test.component.ts',
+    },
   ]);
 });
 afterAll(() => resetBindings?.());
@@ -134,13 +145,16 @@ beforeEach(() => {
         {
           path: 'marketplaces/vinted',
           component: VintedWorkspaceComponent,
-          children: ['overview', 'listings', 'messages', 'sales', 'profile', 'activity'].map(
-            (section) => ({
-              path: section,
-              component: VintedAccountContentComponent,
-              data: { section },
-            }),
-          ),
+          children: [
+            { path: 'connect/:connectionId', component: MarketplaceConnectComponent },
+            ...['overview', 'listings', 'messages', 'sales', 'profile', 'activity'].map(
+              (section) => ({
+                path: section,
+                component: VintedAccountContentComponent,
+                data: { section },
+              }),
+            ),
+          ],
         },
         { path: 'settings/marketplaces', component: MarketplaceAccountsComponent },
       ]),
@@ -149,7 +163,23 @@ beforeEach(() => {
         provide: WorkspaceService,
         useValue: { currentWorkspace: signal({ id: fixtureConnections[0].workspaceId }) },
       },
-      { provide: AuthService, useValue: { currentUser: signal({ id: 'user-a' }) } },
+      {
+        provide: AuthService,
+        useValue: {
+          currentUser: signal({ id: 'user-a' }),
+          session: signal({ access_token: 'synthetic-token' }),
+        },
+      },
+      {
+        provide: MarketplaceBrowserTestApiService,
+        useValue: {
+          available: vi.fn().mockResolvedValue({ available: false, readOnly: true }),
+          open: vi.fn(),
+          frame: vi.fn(),
+          input: vi.fn(),
+          close: vi.fn(),
+        },
+      },
     ],
   });
 });
@@ -182,12 +212,16 @@ describe('Vinted-Bereich in Flipbase', () => {
     ).toEqual(['Übersicht', 'Inserate', 'Nachrichten', 'Verkäufe', 'Profil']);
     expect(element.querySelector('a[href="/settings/marketplaces"]')).not.toBeNull();
     expect(element.querySelector('a[href="/marketplaces/vinted/activity"]')).not.toBeNull();
-    expect(element.querySelector('a[href="/marketplaces/vinted/session-test"]')).not.toBeNull();
+    expect(
+      element.querySelector(
+        `a[href="/marketplaces/vinted/connect/${fixtureConnections[0].connectionId}"]`,
+      ),
+    ).not.toBeNull();
   });
   it('zeigt einen ehrlichen Leerzustand statt eingebauter Beispielkonten', async () => {
     api.listConnections.mockResolvedValue({ canManage: true, connections: [] });
     const { element } = await render('/marketplaces/vinted/overview');
-    expect(element.textContent).toContain('Noch kein Vinted-Konto hinterlegt');
+    expect(element.textContent).toContain('Noch keine Vinted-Verbindung vorbereitet');
     expect(element.textContent).not.toContain('Testkonto');
     expect(api.readSnapshot).not.toHaveBeenCalled();
   });
@@ -215,7 +249,7 @@ describe('Vinted-Bereich in Flipbase', () => {
     api.listConnections.mockRejectedValue(new MarketplaceApiError('unavailable'));
     const { element } = await render('/marketplaces/vinted/overview');
     expect(element.textContent).toContain('noch nicht verfügbar');
-    expect(element.textContent).not.toContain('Noch kein Vinted-Konto hinterlegt');
+    expect(element.textContent).not.toContain('Noch keine Vinted-Verbindung vorbereitet');
   });
   it('zeigt Nachrichten als Text, nicht als fremdes HTML', async () => {
     api.readPage.mockResolvedValue({
@@ -247,7 +281,7 @@ describe('Vinted-Bereich in Flipbase', () => {
   it('hält die Kontenaktionen außerhalb des schmalen Kartenkopfs', async () => {
     const { element } = await render('/settings/marketplaces');
     const add = [...element.querySelectorAll<HTMLButtonElement>('button')].find((button) =>
-      button.textContent?.includes('Konto hinzufügen'),
+      button.textContent?.includes('Verbindung vorbereiten'),
     );
     expect(add).toBeDefined();
     expect(element.querySelector('app-card h2')?.textContent).toContain('Vinted-Konten');
@@ -262,7 +296,7 @@ describe('Vinted-Bereich in Flipbase', () => {
     });
     const { element, harness } = await render('/settings/marketplaces');
     const button = [...element.querySelectorAll<HTMLButtonElement>('button')].find((node) =>
-      node.textContent?.includes('Konto hinzufügen'),
+      node.textContent?.includes('Verbindung vorbereiten'),
     );
     expect(button).toBeDefined();
     button?.click();
@@ -283,6 +317,43 @@ describe('Vinted-Bereich in Flipbase', () => {
     );
     expect(element.textContent).toContain('Mein Konto');
     expect(element.textContent).toContain('Anmeldung ausstehend');
+  });
+  it('öffnet nur die zum Link gehörende Kontoverbindung', async () => {
+    const { element } = await render(
+      `/marketplaces/vinted/connect/${fixtureConnections[1].connectionId}`,
+    );
+    expect(element.querySelector('app-marketplace-connect')?.textContent).toContain('Testkonto B');
+    expect(element.querySelector('app-marketplace-connect')?.textContent).not.toContain(
+      'Testkonto A',
+    );
+    expect(element.querySelector('app-marketplace-browser-test')).not.toBeNull();
+    expect(element.textContent).toContain('Browserdienst ist auf dem Server nicht erreichbar');
+  });
+  it('öffnet bei einer fremden Konto-ID keinen Browser', async () => {
+    const { element } = await render(
+      '/marketplaces/vinted/connect/26000000-0000-4000-8000-000000000099',
+    );
+    expect(element.textContent).toContain('in diesem Workspace nicht verfügbar');
+    expect(element.querySelector('app-marketplace-browser-test')).toBeNull();
+  });
+  it('öffnet für eine pausierte Verbindung keinen Browser', async () => {
+    api.listConnections.mockResolvedValue({
+      canManage: true,
+      connections: [{ ...fixtureConnections[0], status: 'paused' }],
+    });
+    const { element } = await render(
+      `/marketplaces/vinted/connect/${fixtureConnections[0].connectionId}`,
+    );
+    expect(element.textContent).toContain('pausiert oder gesperrt');
+    expect(element.querySelector('app-marketplace-browser-test')).toBeNull();
+  });
+  it('erlaubt die Anmeldung auch dann, wenn gespeicherte Kontodaten nicht lesbar sind', async () => {
+    api.readSnapshot.mockRejectedValue(new MarketplaceApiError('unavailable'));
+    const { element } = await render(
+      `/marketplaces/vinted/connect/${fixtureConnections[0].connectionId}`,
+    );
+    expect(element.querySelector('app-marketplace-browser-test')).not.toBeNull();
+    expect(element.textContent).toContain('noch nicht verfügbar');
   });
   it('hat im Arbeitsbereich keine automatisch erkennbaren schweren Barrieren', async () => {
     const { element } = await render('/marketplaces/vinted/overview');

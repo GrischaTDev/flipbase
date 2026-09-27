@@ -14,4 +14,17 @@ export interface PlatformUser {
   readonly licenseStatus: WorkspaceLicenseStatus | null;
   readonly betaStartsAt: string | null;
   readonly betaEndsAt: string | null;
+  readonly lastSignInAt: string | null;
+  readonly lastActionAt: string | null;
+  readonly purchasesCreated30Days: number;
+  readonly salesRecorded30Days: number;
+}
+
+export type PlatformUserActionType =
+  'purchase_draft_created' | 'purchase_finalized' | 'sale_recorded';
+
+export interface PlatformUserRecentAction {
+  readonly eventId: string;
+  readonly eventType: PlatformUserActionType;
+  readonly createdAt: string;
 }

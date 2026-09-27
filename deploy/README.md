@@ -201,6 +201,12 @@ zusammengehören:
    docker compose up -d --force-recreate functions auth
    ```
 
+   Die zentrale Vinted-Markenauswahl benötigt die Edge Function
+   `vinted-brand-search`. Sie muss mit den übrigen Funktionsordnern vor der
+   Freischaltung der neuen Admin-Oberfläche auf den Server gelangen. Die
+   Funktion prüft die Anmeldung und das Plattformbetreiberrecht selbst; für
+   die Abfrage bei Vinted ist kein zusätzlicher Schlüssel nötig.
+
    Für `barcode-ai-search` muss `OPENAI_API_KEY` in `/opt/supabase/.env`
    stehen. `deploy/docker-compose.barcode-ai.yml` reicht den Schlüssel nur an
    den Funktionsdienst durch. Die Datei gehört nach `/opt/supabase/` und als

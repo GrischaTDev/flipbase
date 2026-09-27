@@ -63,6 +63,9 @@ export class VintedCollector {
       try {
         listings = parseVintedCatalogPage(body, this.options.baseUrl).map(normalizeVintedItem);
       } catch (error) {
+        // Eine zuvor akzeptierte Sitzung kann spaeter eine Katalogseite ohne
+        // Artikeldaten liefern. Beim naechsten Takt neu und ohne Cookies starten.
+        this.cookies.clear();
         if (error instanceof VintedCollectorError) throw error;
         throw new VintedParserError(error instanceof Error ? error.message : String(error), {
           phase: 'parse',

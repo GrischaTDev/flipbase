@@ -7,10 +7,14 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { LucideUsers as Users } from '@lucide/angular';
+import {
+  LucideChartNoAxesCombined as ChartNoAxesCombined,
+  LucideUsers as Users,
+} from '@lucide/angular';
 import { BadgeComponent, BadgeTone } from '../../../../shared/components/badge/badge.component';
 import { DataTableComponent } from '../../../../shared/components/data-table/data-table.component';
 import { PageHeaderComponent } from '../../../../shared/components/page-header/page-header.component';
+import { TableActionButtonComponent } from '../../../../shared/components/table-action-button/table-action-button.component';
 import { PlatformUser } from '../../models/platform-user.model';
 import { PlatformUserService } from '../../services/platform-user.service';
 
@@ -21,7 +25,13 @@ interface StatusDisplay {
 
 @Component({
   selector: 'app-platform-users',
-  imports: [DatePipe, BadgeComponent, DataTableComponent, PageHeaderComponent],
+  imports: [
+    DatePipe,
+    BadgeComponent,
+    DataTableComponent,
+    PageHeaderComponent,
+    TableActionButtonComponent,
+  ],
   templateUrl: './platform-users.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -29,6 +39,7 @@ export class PlatformUsersComponent implements OnInit {
   private readonly service = inject(PlatformUserService);
 
   readonly adminIcon = Users;
+  readonly usageIcon = ChartNoAxesCombined;
   readonly users = signal<readonly PlatformUser[]>([]);
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
