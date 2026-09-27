@@ -11,7 +11,7 @@
     "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
-    "playwright-core": "1.63.0"
+    "playwright": "1.63.0"
   },
   "devDependencies": {
     "@types/node": "26.6.3",

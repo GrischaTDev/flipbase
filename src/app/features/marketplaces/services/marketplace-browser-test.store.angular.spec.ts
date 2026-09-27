@@ -35,7 +35,7 @@ beforeEach(async () => {
   workspace = signal<{ id: string } | null>({ id: accountA.workspaceId });
   session = signal<{ access_token: string } | null>({ access_token: 'token-a' });
   api = {
-    available: vi.fn().mockResolvedValue(true),
+    available: vi.fn().mockResolvedValue({ available: true, readOnly: false }),
     open: vi.fn().mockResolvedValue(id),
     frame: vi.fn().mockResolvedValue(jpeg),
     input: vi.fn().mockResolvedValue(undefined),
@@ -102,6 +102,15 @@ describe('Kontogebundener Browser-Testbereich', () => {
     expect(api.input).toHaveBeenCalledTimes(1);
     expect(api.frame).toHaveBeenCalledTimes(1);
     expect(store.error()).toContain('nicht sicher bestätigt');
+  });
+
+  it('sperrt Eingaben im lesenden Testmodus auch bei direktem Store-Aufruf', async () => {
+    api.available.mockResolvedValue({ available: true, readOnly: true });
+    await store.checkAvailability();
+    await store.start();
+    await store.input({ kind: 'click', x: 0.5, y: 0.5 });
+    expect(api.input).not.toHaveBeenCalled();
+    expect(store.session()?.id).toBe(id);
   });
 
   it('verbirgt die Sitzung sofort bei Workspacewechsel', async () => {

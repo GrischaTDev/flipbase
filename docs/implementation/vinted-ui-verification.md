@@ -1,5 +1,21 @@
 # Vinted-Oberfläche: geprüfter Stand vom 26. September 2026
 
+## Ergänzung vom 27. September 2026: lesender lokaler Browser
+
+Die bestehende Testseite erkennt nun am Worker-Status den lesenden lokalen
+Modus. Sie zeigt dann nur das Browserbild sowie Aktualisierung und Stopp.
+Klick-, Text- und Tasteneingaben fehlen in dieser Ansicht und werden zusätzlich
+von der HTTP-API mit 403 abgewiesen. Ein direkter Store-Aufruf wird ebenfalls
+ignoriert. Der Zielaufruf ist serverseitig festgelegt und keine Kontofunktion.
+
+Neun gezielte Angular-Tests, App-Typprüfung und Angular-Produktionsbau
+bestanden. Der Browser-Provider wurde mit einer künstlichen Seite und einmalig
+mit der freigegebenen öffentlichen Profiladresse geprüft. Die komplette
+Flipbase-Testseite mit echter lokaler Supabase-Anmeldung wurde noch nicht
+ausgeführt; ein Desktop-/iPad-Nachweis und G1 bleiben offen.
+
+---
+
 ## Ergänzung vom 27. September 2026: Browser-Testbereich mit künstlichen Antworten
 
 Auf der bestehenden Seite `/marketplaces/vinted/session-test` gibt es jetzt

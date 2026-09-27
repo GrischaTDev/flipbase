@@ -7,13 +7,35 @@ const configured = {
   SUPABASE_URL: 'http://127.0.0.1:54351',
   SUPABASE_ANON_KEY: 'public-test-key',
   SUPABASE_SERVICE_ROLE_KEY: 'server-test-key',
-  GOLOGIN_API_TOKEN: 'provider-test-key',
+  MARKETPLACE_BROWSER_PUBLIC_TEST_URL: 'https://www.vinted.de/member/123-test',
 };
 
 test('requires deliberate activation and server-only keys before listening', () => {
   assert.throws(() => marketplaceBrowserServerConfig({}), /nicht freigegeben/);
   assert.throws(
-    () => marketplaceBrowserServerConfig({ ...configured, GOLOGIN_API_TOKEN: '' }),
+    () =>
+      marketplaceBrowserServerConfig({ ...configured, MARKETPLACE_BROWSER_PUBLIC_TEST_URL: '' }),
+    /unvollständig/,
+  );
+  assert.throws(
+    () =>
+      marketplaceBrowserServerConfig({
+        ...configured,
+        MARKETPLACE_BROWSER_PUBLIC_TEST_URL: 'https://evil.test/member/123-test',
+      }),
+    /ungültige öffentliche Testseite/,
+  );
+  assert.throws(
+    () =>
+      marketplaceBrowserServerConfig({
+        ...configured,
+        MARKETPLACE_BROWSER_PUBLIC_TEST_URL: 'https://www.vinted.de/member/123-test?follow=1',
+      }),
+    /ungültige öffentliche Testseite/,
+  );
+  assert.throws(
+    () =>
+      marketplaceBrowserServerConfig({ ...configured, MARKETPLACE_BROWSER_PROVIDER: 'gologin' }),
     /unvollständig/,
   );
   assert.throws(
@@ -24,7 +46,9 @@ test('requires deliberate activation and server-only keys before listening', () 
     supabaseUrl: 'http://127.0.0.1:54351',
     publishableKey: 'public-test-key',
     serviceRoleKey: 'server-test-key',
-    goLoginToken: 'provider-test-key',
+    provider: 'local',
+    goLoginToken: undefined,
+    publicTestUrl: 'https://www.vinted.de/member/123-test',
     host: '127.0.0.1',
     port: 4179,
   });

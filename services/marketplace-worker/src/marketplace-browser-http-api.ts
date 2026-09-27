@@ -19,6 +19,7 @@ interface BrowserUserVerifier {
 interface BrowserApiOptions {
   broker: BrowserBroker;
   users: BrowserUserVerifier;
+  readOnly?: boolean;
 }
 
 const pathPrefix = '/marketplace-browser/sessions';
@@ -133,11 +134,13 @@ function inputOf(
 export class MarketplaceBrowserHttpApi {
   private readonly broker: BrowserBroker;
   private readonly users: BrowserUserVerifier;
+  private readonly readOnly: boolean;
   private readonly inFlight = new Set<string>();
 
   constructor(options: BrowserApiOptions) {
     this.broker = options.broker;
     this.users = options.users;
+    this.readOnly = options.readOnly ?? false;
   }
 
   createServer(): Server {
@@ -153,7 +156,7 @@ export class MarketplaceBrowserHttpApi {
     try {
       const path = new URL(request.url ?? '/', 'http://localhost').pathname;
       if (request.method === 'GET' && path === '/marketplace-browser/healthz') {
-        json(response, 200, { ok: true });
+        json(response, 200, { ok: true, readOnly: this.readOnly });
         return;
       }
       if (request.method !== 'POST') throw new RequestError(404);
@@ -206,6 +209,7 @@ export class MarketplaceBrowserHttpApi {
           return;
         }
         if (match[2] === 'input') {
+          if (this.readOnly) throw new RequestError(403);
           const input = inputOf(body);
           await this.broker.run(scope, sessionId, async (browser) => {
             if (input.kind === 'click' && browser.click) return browser.click(input.x, input.y);
@@ -238,7 +242,9 @@ export class MarketplaceBrowserHttpApi {
                 ? 'Anfrage zu groß'
                 : status === 429
                   ? 'Sitzung ist beschäftigt'
-                  : 'Browsersitzung nicht verfügbar',
+                  : status === 403
+                    ? 'Eingabe ist gesperrt'
+                    : 'Browsersitzung nicht verfügbar',
       });
     }
   }

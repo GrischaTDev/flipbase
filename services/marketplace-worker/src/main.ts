@@ -1,4 +1,5 @@
 import { GoLoginCloudBrowser } from './gologin-cloud-browser.ts';
+import { LocalPlaywrightBrowser } from './local-playwright-browser.ts';
 import {
   MarketplaceBrowserRecovery,
   SupabaseBrowserRecoveryStore,
@@ -13,7 +14,10 @@ import { SupabaseBrowserSessionStore } from './supabase-browser-session-store.ts
 
 async function main(): Promise<void> {
   const config = marketplaceBrowserServerConfig(process.env);
-  const browser = new GoLoginCloudBrowser({ token: config.goLoginToken });
+  const browser =
+    config.provider === 'local'
+      ? new LocalPlaywrightBrowser(config.publicTestUrl!)
+      : new GoLoginCloudBrowser({ token: config.goLoginToken! });
   const leases = new SupabaseBrowserSessionStore({
     url: config.supabaseUrl,
     publishableKey: config.publishableKey,
@@ -36,6 +40,7 @@ async function main(): Promise<void> {
   const server = new MarketplaceBrowserHttpApi({
     broker,
     users: new SupabaseBrowserUserVerifier(config.supabaseUrl, config.publishableKey),
+    readOnly: config.provider === 'local',
   }).createServer();
   await new Promise<void>((resolve, reject) => {
     server.once('error', reject);

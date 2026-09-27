@@ -21,7 +21,12 @@ describe('Browser-Test-API', () => {
         }),
       ),
     );
-    expect(await api.available()).toBe(false);
+    expect(await api.available()).toEqual({ available: false, readOnly: true });
+  });
+
+  it('übernimmt den lesenden Modus nur aus einer gültigen Dienstantwort', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ ok: true, readOnly: true })));
+    expect(await api.available()).toEqual({ available: true, readOnly: true });
   });
 
   it('sendet nur den angemeldeten Token und den gewählten Kontobezug', async () => {

@@ -6,24 +6,38 @@ export type BrowserTestInput =
   | { kind: 'type'; value: string }
   | { kind: 'press'; key: 'Enter' | 'Tab' | 'Escape' | 'Backspace' };
 
+export interface BrowserTestAvailability {
+  available: boolean;
+  readOnly: boolean;
+}
+
 const basePath = '/marketplace-browser/sessions';
 const frameLimit = 512 * 1024;
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 @Injectable({ providedIn: 'root' })
 export class MarketplaceBrowserTestApiService {
-  async available(): Promise<boolean> {
+  async available(): Promise<BrowserTestAvailability> {
     try {
       const response = await fetch('/marketplace-browser/healthz', {
         cache: 'no-store',
         credentials: 'same-origin',
       });
       if (!response.ok || !response.headers.get('content-type')?.includes('application/json'))
-        return false;
+        return { available: false, readOnly: true };
       const body: unknown = await response.json();
-      return typeof body === 'object' && body !== null && 'ok' in body && body.ok === true;
+      if (
+        typeof body === 'object' &&
+        body !== null &&
+        'ok' in body &&
+        body.ok === true &&
+        'readOnly' in body &&
+        typeof body.readOnly === 'boolean'
+      )
+        return { available: true, readOnly: body.readOnly };
+      return { available: false, readOnly: true };
     } catch {
-      return false;
+      return { available: false, readOnly: true };
     }
   }
 

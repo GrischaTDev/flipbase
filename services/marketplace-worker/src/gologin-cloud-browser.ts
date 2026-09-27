@@ -1,4 +1,4 @@
-import { chromium, type Browser, type Page } from 'playwright-core';
+import { chromium, type Browser, type Page } from 'playwright';
 
 type BrowserConnection = Pick<Browser, 'close' | 'version'> & Partial<Pick<Browser, 'contexts'>>;
 export interface BrowserInfo extends Pick<Browser, 'version'> {

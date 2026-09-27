@@ -1,5 +1,20 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-27 – Juna – Lokalen lesenden Browser-Test ergänzt
+
+**Auftrag:** Die Vinted-Testseite ohne kostenpflichtigen GoLogin-Zugang mit
+einem eigenen Browser für einen öffentlichen, lesenden Seitenaufruf fortsetzen.
+
+**Änderung:** Lokaler, flüchtiger Chromium-Provider mit fester öffentlicher
+Zieladresse; Eingaben in Worker und Oberfläche gesperrt. Die bestehende
+Sitzungsbindung und Datenbanksperre bleiben erhalten. GoLogin ist optional.
+
+**Prüfung:** 39 Worker- und 9 Angular-Tests, Typprüfungen, Builds und gezieltes
+ESLint bestanden. Ein synthetischer Browserlauf und zwei lesende
+Aufrufe der freigegebenen öffentlichen Vinted-Seite lieferten JPEG-Bilder und
+beendeten den Browser. Keine Anmeldung und keine Profilaktion. Der vollständige
+Flipbase-Test mit echter Supabase-Testverbindung steht aus.
+
 ## 2026-09-27 – Juna – Browser-Testbereich an sicheren Worker angeschlossen
 
 **Auftrag:** Die kontogebundene Vinted-Sitzungstechnik auf dem bestehenden

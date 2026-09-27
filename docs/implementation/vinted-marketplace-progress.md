@@ -1,5 +1,33 @@
 # Arbeitsstand: Vinted-Marktplatzverwaltung
 
+## 27. September 2026 – Lokaler Browser für einen lesenden Test
+
+Auf `juna/vinted-browser-worker` kann der Worker jetzt ohne GoLogin einen
+flüchtigen Playwright-Chromium-Browser starten. Die Zieladresse kommt nur aus
+der Serverumgebung und muss eine öffentliche Vinted-Profilseite sein. Der
+Browserkontext speichert keine Anmeldung. Netzwerkziele außerhalb der Vinted-
+Domains, Schreibanfragen und WebSockets werden gesperrt. Eingaben sind im HTTP-Dienst und auf
+der Testseite gesperrt; nur Bild, Aktualisierung und Stopp bleiben. Der
+Sitzungsbroker bindet die Bedienung weiterhin an Nutzer, Workspace und
+Flipbase-Konto. Ein ungeklärter Stopp hält die Datenbanksperre aufrecht.
+
+**Tatsächlich geprüft:** 39 Worker-Tests, 9 gezielte Angular-Tests, beide
+Typprüfungen, Worker- und Angular-Bau sowie gezieltes ESLint bestanden. Ein
+lokaler Chromium-Test öffnete eine künstliche Seite, lieferte ein JPEG und
+beendete den Browser. Zwei lesende Aufrufe der ausdrücklich genannten
+öffentlichen Vinted-Profiladresse lieferten JPEG-Bilder, zuletzt nach der
+Netzwerksperre mit 21.814 Byte; der Browser wurde jeweils beendet. Es gab keine Anmeldung, keinen Klick und keinen
+Nachrichtenversand.
+
+**Grenze:** Der vollständige Weg über die Flipbase-Testseite und eine echte
+Supabase-Testverbindung wurde mangels lokaler Serverzugänge noch nicht
+durchlaufen. Das Bild belegt den Seitenaufruf, nicht den sichtbaren Profilinhalt
+oder G1. Nach einem ungeordneten Worker-Abbruch kann der lokale Browserprozess
+nicht sicher wiedergefunden werden; der Start bleibt dann bis zur geprüften
+manuellen Bereinigung gesperrt. Keine produktive Anbindung, kein Deployment.
+
+---
+
 ## 27. September 2026 – Begrenzte Browserweiterleitung an die Testseite
 
 Auf `juna/vinted-browser-worker` ergänzt die vorhandene Sitzungstestseite einen

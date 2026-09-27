@@ -27,6 +27,7 @@ export class MarketplaceBrowserTestStore {
   private readonly busyState = signal<string | null>(null);
   private readonly errorState = signal<{ key: string; message: string } | null>(null);
   private readonly availableState = signal(false);
+  private readonly readOnlyState = signal(true);
   private revision = 0;
   private destroyed = false;
 
@@ -58,6 +59,7 @@ export class MarketplaceBrowserTestStore {
     return state?.key === this.contextKey() ? state : null;
   });
   readonly available = this.availableState.asReadonly();
+  readonly readOnly = this.readOnlyState.asReadonly();
   readonly busy = computed(
     () => this.busyState() === this.contextKey() && this.busyState() !== null,
   );
@@ -104,7 +106,9 @@ export class MarketplaceBrowserTestStore {
   }
 
   async checkAvailability(): Promise<void> {
-    this.availableState.set(await this.api.available());
+    const availability = await this.api.available();
+    this.availableState.set(availability.available);
+    this.readOnlyState.set(availability.readOnly);
   }
 
   async start(): Promise<void> {
@@ -149,7 +153,7 @@ export class MarketplaceBrowserTestStore {
 
   async input(input: BrowserTestInput): Promise<void> {
     const active = this.session();
-    if (!active || this.busy()) return;
+    if (!active || this.busy() || this.readOnly()) return;
     const revision = ++this.revision;
     this.busyState.set(active.key);
     this.errorState.set(null);

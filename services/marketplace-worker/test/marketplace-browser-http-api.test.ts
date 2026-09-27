@@ -17,6 +17,7 @@ const sessionId = '25600000-0000-4000-8000-000000000031';
 async function setup(
   frame = Uint8Array.from([0xff, 0xd8, 0xff, 0xd9]),
   captureGate?: Promise<void>,
+  readOnly = false,
 ) {
   const inputs: string[] = [];
   let owner: BrowserSessionScope | undefined;
@@ -70,6 +71,7 @@ async function setup(
   };
   const api = new MarketplaceBrowserHttpApi({
     broker,
+    readOnly,
     users: {
       userId: async (token) => {
         if (token === 'token-a' || token === 'token-a-renewed')
@@ -101,7 +103,26 @@ test('reports availability at the same path used by the Angular test page', asyn
   try {
     const response = await fetch(`${api.url}/marketplace-browser/healthz`);
     assert.equal(response.status, 200);
-    assert.deepEqual(await response.json(), { ok: true });
+    assert.deepEqual(await response.json(), { ok: true, readOnly: false });
+  } finally {
+    await api.close();
+  }
+});
+
+test('read-only mode refuses all browser input before accessing the session', async () => {
+  const api = await setup(undefined, undefined, true);
+  try {
+    const response = await fetch(`${api.url}/marketplace-browser/healthz`);
+    assert.deepEqual(await response.json(), { ok: true, readOnly: true });
+    const scope = { workspaceId: workspaceA, connectionId: accountA };
+    await api.request('/marketplace-browser/sessions', scope);
+    const input = await api.request(`/marketplace-browser/sessions/${sessionId}/input`, {
+      ...scope,
+      input: { kind: 'click', x: 0.5, y: 0.5 },
+    });
+    assert.equal(input.status, 403);
+    assert.deepEqual(api.inputs, []);
+    assert.equal(api.runs(), 0);
   } finally {
     await api.close();
   }

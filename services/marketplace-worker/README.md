@@ -1,5 +1,32 @@
 # Marktplatz-Worker: Serverkern
 
+## Lokaler, lesender Testmodus
+
+Der Worker verwendet standardmäßig einen eigenen Playwright-Chromium-Browser.
+`MARKETPLACE_BROWSER_PROVIDER=local` ist optional. Der Start verlangt weiterhin
+`MARKETPLACE_BROWSER_TEST_ENABLED=1`, `SUPABASE_URL`, `SUPABASE_ANON_KEY` und
+`SUPABASE_SERVICE_ROLE_KEY`. Zusätzlich muss
+`MARKETPLACE_BROWSER_PUBLIC_TEST_URL` eine ausdrücklich freigegebene öffentliche
+Profiladresse unter `https://www.vinted.de/member/...` enthalten. Diese Adresse
+wird serverseitig geprüft; der Client kann sie nicht ändern. Im lesenden Modus
+werden nur GET/HEAD-Anfragen an Vinted-Domains zugelassen und WebSockets
+geschlossen. Weiterleitungen der Hauptseite werden verworfen. Die HTTP-API verweigert Klicks,
+Texte und Tasten; die Testseite zeigt nur Bild, Aktualisierung und Stopp.
+
+Chromium wird separat mit `npx playwright install chromium` im Worker-Paket
+installiert. Der Browserkontext ist flüchtig, ohne Anmeldung und ohne gespeicherte
+Cookies. Der lokale Modus erfordert weiterhin eine serverseitige Profilzuordnung
+für die ausgewählte Flipbase-Verbindung; diese ID dient hier nur als eindeutige
+Sitzungssperre. Es findet keine Zuordnung des öffentlichen Vinted-Profils zu
+dieser Verbindung statt. Nach einem ungeordneten Worker-Abbruch kann der neue
+Prozess einen alten lokalen Browser nicht sicher identifizieren. Die
+Datenbanksperre bleibt deshalb bestehen und verlangt eine geprüfte manuelle
+Bereinigung. Dieser Stand ist ausschließlich für lokale Tests gedacht.
+
+Für den vorhandenen GoLogin-Adapter kann weiterhin
+`MARKETPLACE_BROWSER_PROVIDER=gologin` zusammen mit `GOLOGIN_API_TOKEN` gesetzt
+werden. Das ist ein anderer Modus mit Eingaben und wurde nicht live geprüft.
+
 Dieses Paket enthält den noch nicht gestarteten Dienstkern für kontogebundene
 Cloud-Browser. `GoLoginCloudBrowser` verbindet Playwright über CDP mit einem
 serverseitig bekannten Profil. `MarketplaceBrowserSessionBroker` prüft die
@@ -36,16 +63,14 @@ nicht. Vor dem ersten HTTP-Zugriff werden ungeklärte Profile bereinigt. Der
 laufende Prozess prüft aktive Sitzungen alle 30 Sekunden und stoppt sie beim
 geordneten Herunterfahren.
 
-Der Dienst startet nur mit `MARKETPLACE_BROWSER_TEST_ENABLED=1` und den
-serverseitigen Werten `SUPABASE_URL`, `SUPABASE_ANON_KEY`,
-`SUPABASE_SERVICE_ROLE_KEY` und `GOLOGIN_API_TOKEN`. Er bindet standardmäßig
+Der Dienst bindet standardmäßig
 an `127.0.0.1:4179`. Die Angular-Entwicklungsumgebung leitet ausschließlich
 `/marketplace-browser/**` dorthin weiter. Die vorhandene Seite
 `/marketplaces/vinted/session-test` zeigt einen getrennten Browser-Testbereich;
 ohne erreichbaren Dienst bleibt sein Start gesperrt. Die bisherige Simulation
 bleibt bestehen.
 
-Der Dienst wurde nicht mit einem echten Profil gestartet. Eine produktive
+Der Dienst wurde nicht mit einer echten Anmeldung gestartet. Eine produktive
 Reverse-Proxy- oder Container-Anbindung ist nicht eingerichtet. Den Start mit
 einem isolierten Testprofil erst nach G0-Freigabe durchführen und die in AP04b
 beschriebenen Desktop-/iPad-Prüfungen danach protokollieren.

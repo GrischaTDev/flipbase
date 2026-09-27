@@ -105,12 +105,31 @@ prüfen. Erst dann kann G1 auf Desktop und iPad bewertet werden.
 
 ### AP04b: Serverkern für den Anbieteranschluss
 
+**Lokaler Testpfad vom 27.09.2026:** Für einen ersten technischen Nachweis
+ersetzt ein flüchtiger Playwright-Chromium-Browser den kostenpflichtigen
+GoLogin-Zugang. `playwright` 1.63.0 ist als stabile Version geprüft; die
+[Playwright-Browser-API](https://playwright.dev/docs/api/class-browsertype)
+dokumentiert den lokalen Chromium-Start. Der Worker öffnet nur eine serverseitig
+festgelegte öffentliche Vinted-Profiladresse und liefert ein begrenztes Bild.
+Fremde Netzwerkziele, Schreibanfragen und WebSockets werden gesperrt. Eingaben
+sind in HTTP-API und Angular-Bereich gesperrt. Es gibt keine Anmeldung,
+keinen Cookie-Speicher und keinen Liveimport. Die bestehende Datenbanksperre
+bleibt auch bei einem unklaren lokalen Prozessabbruch erhalten; eine manuelle
+Bereinigung ist dann nötig. Dies ist ein begrenzter AP04b-Nachweis, kein G1.
+
+- [x] Lokalen, lesenden Provider an den vorhandenen Sitzungsbroker anschließen.
+- [x] Öffentliche URL begrenzen; Eingaben server- und clientseitig sperren.
+- [x] Einen freigegebenen öffentlichen Profilaufruf mit Bild und bestätigtem
+      Browser-Stopp ausführen, ohne Anmeldung oder Profilaktion.
+- [ ] Komplette Testseite mit echter lokaler Supabase-Verbindung und
+      freigegebener eigener Testverbindung auf Desktop und iPad prüfen.
+
 **Abgleich vom 27.09.2026:** Die [GoLogin-CDP-Anleitung](https://gologin.com/blog/playwright-automation-tool-in-the-cloud/)
 verbindet Playwright direkt mit `wss://cloudbrowser.gologin.com/connect` und
 stoppt das Profil anschließend mit `DELETE /browser/{id}/web`. `POST` auf
 diesem Pfad erzeugt eine gesonderte Liveansicht-URL; der Worker braucht diese
 für CDP nicht. Die URL wird deshalb nicht angefordert. Die [Playwright-Dokumentation](https://playwright.dev/docs/api/class-browsertype)
-weist auf eingeschränkte CDP-Unterstützung hin. `playwright-core` 1.63.0 ist
+weist auf eingeschränkte CDP-Unterstützung hin. `playwright` 1.63.0 ist
 die am 27.09.2026 geprüfte stabile Version und unterstützt Node ab Version 20.
 
 - [x] Separates Node-Paket mit GoLogin-CDP-Verbindung und ausdrücklichem
