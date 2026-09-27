@@ -49,6 +49,77 @@ Der hier angelegte Validator führt selbst keine Aktion aus.
 
 ## Früher G1-Nachweis
 
+**Technischer Abgleich vom 27.09.2026:** Der bisherige lokale Chromium-Test
+belegt eine getrennte Flipbase-Sitzung und einen lesenden Seitenaufruf, aber
+keine eigenständige, von Vinted so wahrgenommene Geräteidentität. Playwright
+kann Cookies und lokale Browserdaten pro dauerhaftem Profil trennen. Daraus
+folgen weder eigene Netzadressen noch unterschiedliche, konsistente
+Browsermerkmale. GoLogin beschreibt seine Profile dagegen mit getrennten
+Sitzungsdaten, Browsermerkmalen und einer Netzadresse über einen Proxy. Das
+öffentlich verfügbare GoLogin-Repository enthält ein SDK zum Steuern solcher
+Profile; der Orbita-Browser selbst liegt dort nicht als Quellcode vor.
+AdsPower und Kameleo beschreiben denselben Grundaufbau. Camoufox zeigt als
+offenes Firefox-Projekt, dass Eingriffe in die Browser-Engine technisch möglich
+sind, kennzeichnet sich aber selbst als noch nicht stabil für den
+Produktivbetrieb.
+
+Für eine Web-App liegt der Browser hinter der Flipbase-Server-API: pro
+berechtigtem Konto ein dauerhaftes, sicher zugeordnetes Browserprofil; die
+Oberfläche erhält nur die begrenzte Ansicht und Bedienung. Mögliche
+Umsetzungen sind ein gewöhnliches Playwright-Profil (Sitzungstrennung), ein
+externer Profilanbieter oder eine selbst betriebene Browserumgebung. Die
+letzten beiden Wege brauchen eine eigene Anbieter- und Betriebsprüfung. Eine
+Prozentzahl für „von Vinted als unabhängig erkannt“ lässt sich aus
+Anbieterdokumentation oder öffentlichen Browserprüfseiten nicht ableiten.
+Ein echter G1-Test braucht ein ausdrücklich freigegebenes eigenes Konto und
+eine vorher geklärte zulässige Nutzung. Der bisherige öffentliche Profilaufruf
+leistet das nicht.
+
+Quellen: [Playwright: Browserkontexte](https://playwright.dev/docs/browser-contexts),
+[Playwright: persistentes Profil](https://playwright.dev/docs/api/class-browsertype#browser-type-launch-persistent-context),
+[GoLogin: Produktbeschreibung](https://gologin.com/docs/getting-started/introduction/what-is-gologin-and-who-its-for),
+[GoLogin: öffentliches SDK](https://github.com/gologinapp/gologin),
+[AdsPower: Profile](https://help.adspower.com/docs/creating_browser_profiles),
+[Kameleo: Playwright-Anbindung](https://developer.kameleo.io/integrations/playwright/),
+[Camoufox: Quellcode und Reifehinweis](https://github.com/daijro/camoufox).
+
+**Vorläufige Architekturentscheidung für 100 Nutzer:** Flipbase behält
+Autorisierung, Kontozuordnung, Sitzungssteuerung und Datenhaltung selbst. Für
+einen späteren G1-Piloten wird ein verwalteter Profilanbieter bevorzugt;
+GoLogin ist wegen des vorhandenen Adapters der erste zu prüfende Kandidat.
+Der eigene flüchtige Playwright-Browser bleibt auf öffentliche Lesetests
+begrenzt. Eine eigene Browser-Engine mit Merkmalmaskierung ist kein
+verantwortbarer erster Produktpfad. Der bestehende GoLogin-Adapter ist noch
+kein Nachweis für Anmeldung oder zuverlässigen Betrieb mit vielen Konten.
+
+100 Nutzer mit je zwei bis drei Verbindungen bedeuten 200–300 gespeicherte
+Profile, aber die nötige Zahl gleichzeitig laufender Browser hängt von
+Bedienung und Abrufintervallen ab. GoLogin nennt für Business 300 Profile und
+zwei gleichzeitige Cloud-Sitzungen; Enterprise nennt 1000 Profile und drei.
+Ein Produkt mit interaktiver Bedienung und Hintergrundabrufen benötigt daher
+eine ausdrücklich bestätigte Kapazitäts- und Kostenvereinbarung. Vor dem
+Pilot sind außerdem getrennte Kundenrechte beim Anbieter, Sperrverhalten,
+Wiederanlauf, Datenverarbeitung und die zulässige Plattformnutzung zu klären.
+Es gibt keine belastbare Prozentzahl für das Ausbleiben einer
+Kontoverknüpfung oder Sperre.
+
+Quellen: [GoLogin-Tarife](https://gologin.com/pricing/),
+[GoLogin: gleichzeitige Cloud-Sitzungen](https://gologin.com/docs/general/account-and-billing/active-sessions).
+
+**Lokaler Kapazitätsversuch vom 27.09.2026:** Auf einem Windows-Rechner mit
+64 GB RAM und 32 logischen Prozessoren wurden 1, 2, 4, 8 und 16 getrennte
+Playwright-Chromium-Browser mit einer künstlichen Produktliste und
+Bildplatzhaltern geöffnet und je einmal als JPEG aufgenommen. Bei 16 Browsern meldete Windows
+für die 64 zugehörigen Prozesse zusammen rund 4,6 GB Working Set und 1,36 GB
+private Speicherseiten. Das summierte Working Set kann gemeinsam genutzte
+Speicherseiten mehrfach enthalten. Nach dem Schließen waren keine
+Testbrowserprozesse mehr übrig. Die Seite nutzte kein Vinted, keine Anmeldung
+und keine dauerhaften Profile. Die Messung liefert einen lokalen Größenordnungswert;
+sie belegt weder Kapazität für 200–300 gleichzeitig aktive Konten noch Kosten
+oder Verknüpfungsrisiken beim Anbieter. Zu diesem Zeitpunkt fehlten
+API-Zugang und ein freigegebenes Testprofil; der spätere Anbieter-Test steht
+im folgenden Abschnitt.
+
 - [ ] GoLogin-Liveansicht auf einer eigenen Testseite sicher einbetten. Die
       veröffentlichte `remoteOrbitaUrl` ist bereits eine Zugangsberechtigung und
       darf nicht als direkter Link oder `iframe`-Quelle an den Client gehen.
@@ -56,6 +127,22 @@ Der hier angelegte Validator führt selbst keine Aktion aus.
       echten Anbieterprofil prüfen; dafür sind G0-Freigaben und ein isoliertes
       Testprofil nötig.
 - [ ] Kein echter Kontopilot ohne G0/G1-Freigaben.
+
+**GoLogin-Anbieterprobe vom 27.09.2026:** Ein neuer API-Zugang funktionierte.
+Zwei eigene Cloudprofile wurden für `example.com` gleichzeitig geöffnet.
+Playwright erhielt HTTP 200 und Browserbilder. Der vorhandene
+`GoLoginCloudBrowser`-Adapter öffnete und stoppte ein Profil erfolgreich.
+Künstliche lokale Browserdaten blieben zwischen den Profilen getrennt und
+über einen Stopp mit anschließendem Neustart je Profil erhalten. Alle
+Cloud-Sitzungen wurden ausdrücklich mit HTTP 204 gestoppt; beide angelegten
+Testprofile wurden mit HTTP 204 gelöscht. Der Anbieter-Test belegt die
+technische Nutzbarkeit des Adapters und zwei parallele Cloudprofile, aber
+weder die Flipbase-Ende-zu-Ende-Anbindung noch eine Vinted-Anmeldung oder
+eine von Vinted bestätigte Trennung als Geräte. Für die nächste Stufe sind
+ein freigegebenes eigenes Testkonto, die Zuordnung eines Anbieterprofils zu
+genau einem Flipbase-Konto und eine Prüfung von Abbruch, Ablauf und Widerruf
+im vollständigen UI-Worker-Ablauf nötig. Für 100 Nutzer bleiben Anbieterlimit,
+Kosten und notwendige Parallelität gesondert zu klären.
 
 ### AP04a: Kontogebundene Testsitzung vor Anbieteranschluss
 

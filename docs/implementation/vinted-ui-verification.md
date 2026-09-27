@@ -1,5 +1,40 @@
 # Vinted-Oberfläche: geprüfter Stand vom 26. September 2026
 
+## Ergänzung vom 27. September 2026: GoLogin-Anbieterprobe
+
+Zwei eigens angelegte GoLogin-Cloudprofile wurden parallel über Playwright
+auf `example.com` geöffnet. Künstliche Browserdaten blieben getrennt und nach
+einem Neustart im jeweiligen Profil erhalten. Der vorhandene
+`GoLoginCloudBrowser`-Adapter lieferte ein Bild; Cloud-Sitzungen wurden mit
+HTTP 204 gestoppt und die beiden Testprofile anschließend gelöscht.
+
+Das war eine Anbieter- und Adapterprüfung. Die Flipbase-Testseite wurde dabei
+nicht mit GoLogin durchlaufen; ihre frühere lokale Browserprüfung gilt weiter.
+Vinted-Anmeldung, echte Kontotrennung bei Vinted und Geräteerkennung sind
+weiter offen.
+
+---
+
+## Ergänzung vom 27. September 2026: lokaler Kapazitätsversuch
+
+Mit einer künstlichen Produktliste wurden bis zu 16 lokale Chromium-Browser
+parallel geöffnet und als Bild gelesen. Alle Browser stoppten ohne
+verbleibenden Testprozess. Bei 16 Browsern wurden etwa 4,6 GB Working Set
+gemessen. Dies ist kein UI-, Vinted- oder GoLogin-Nachweis; ein
+Anbieterzugang war nicht hinterlegt.
+
+---
+
+## Ergänzung vom 27. September 2026: Grenze des Browsernachweises
+
+Die Anbieterrecherche bestätigt: Der lokale, flüchtige Playwright-Test prüft
+Kontobindung, Seitenaufruf und Browser-Stopp. Er prüft weder dauerhafte
+Vinted-Anmeldung noch getrennte, für Vinted sichtbare Geräteidentitäten.
+Es wurde kein echter Kontotest ergänzt. Die technischen Alternativen und
+offenen Anbieterfragen stehen im Implementierungsplan.
+
+---
+
 ## Ergänzung vom 27. September 2026: lokaler End-to-End-Test
 
 Die vorhandene Testseite lief mit einer echten, isolierten lokalen

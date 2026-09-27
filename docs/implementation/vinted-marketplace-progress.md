@@ -1,5 +1,82 @@
 # Arbeitsstand: Vinted-Marktplatzverwaltung
 
+## 27. September 2026 – GoLogin-Cloudprofile live geprüft
+
+Ein neuer GoLogin-API-Token wurde außerhalb des Repositorys lokal verschlüsselt
+gespeichert. Die Anbieter-API bestätigte den Zugang. Zwei eigene Linux-Profile
+wurden nur für diesen Test angelegt. Über Playwright-CDP öffnete das erste
+Profil `https://example.com/` (HTTP 200) und lieferte ein JPEG. Anschließend
+funktionierte auch der vorhandene `GoLoginCloudBrowser`-Adapter: Öffnen,
+Browseraktion, Bildaufnahme und ausdrücklicher Provider-Stopp (HTTP 204).
+
+Beide Profile ließen sich gleichzeitig starten. Unterschiedliche künstliche
+Werte im lokalen Browserspeicher blieben zunächst voneinander getrennt und
+waren nach Stopp und erneutem Öffnen jeweils nur im richtigen Profil vorhanden.
+Nach Entfernen der Testwerte wurden beide Cloud-Sitzungen mit HTTP 204 gestoppt.
+Beide Testprofile wurden danach per Anbieter-API mit HTTP 204 gelöscht; die
+Profilzahl entsprach wieder dem Ausgangsstand.
+
+Damit sind Cloud-Verbindung, zwei parallele Profile, einfache Trennung und
+Beständigkeit der Sitzungsdaten im Anbieterbetrieb belegt. Es gab keinen
+Vinted-Zugriff, keine Anmeldung und keine Flipbase-Ende-zu-Ende-Prüfung mit
+diesem Anbieter. Der Versuch sagt nichts darüber aus, ob Vinted Profile als
+unabhängige Geräte einstuft, ob Konten gesperrt werden oder wie 200–300
+gespeicherte Profile unter echter Last betrieben werden können. Für G1 bleibt
+ein ausdrücklich freigegebenes eigenes Testkonto nötig.
+
+---
+
+## 27. September 2026 – Lokale Browserkapazität gemessen
+
+Ein künstlicher Produktkatalog ohne Netzzugriff wurde in getrennten
+Playwright-Chromium-Browsern geöffnet. Bei 1, 2, 4, 8 und 16 gleichzeitig
+laufenden Browsern stieg das gesamte Windows-Working-Set der Testprozesse
+auf rund 0,2 / 0,5 / 1,1 / 2,2 / 4,6 GB. Bei 16 Browsern betrug der
+private Speicher rund 1,36 GB. Alle 16 lieferten ein JPEG; nach dem
+Schließen blieben null Testbrowserprozesse übrig. Testrechner: 64 GB RAM,
+32 logische Prozessoren; vor dem Versuch etwa 24 GB freier RAM.
+Das Working Set ist die Summe der Prozesswerte und kann geteilte Seiten
+mehrfach zählen.
+
+Das ist ein lokaler Belastungsversuch mit flüchtigen Browsern und einer
+einfachen Testseite. Für Vinted, dauerhafte Profile und 200–300 gleichzeitige
+Sitzungen ist daraus keine verlässliche Kapazität abzuleiten. Ein GoLogin-
+API-Zugang war nicht eingerichtet; Anbieterprofil und echte Anmeldung wurden
+nicht getestet. Der kostenlose GoLogin-Testzugang sollte zuerst für einen
+kleinen Anbieter-Smoke-Test verwendet werden, bevor ein kostenpflichtiger
+Tarif gewählt wird.
+
+---
+
+## 27. September 2026 – Browserprofile und Geräteidentität recherchiert
+
+Die öffentliche Dokumentation von GoLogin, AdsPower und Kameleo beschreibt
+dauerhafte Kontoprofile mit eigenen Sitzungsdaten und Browsermerkmalen;
+Netzadressen werden über den jeweiligen Anbieter beziehungsweise Proxies
+zugeordnet. GoLogin veröffentlicht ein Steuerungs-SDK und einen Docker-Rahmen,
+aber keinen offenen Quellcode des Orbita-Browsers in diesen Repositories.
+Camoufox ist ein offenes Beispiel für Änderungen in Firefox selbst und warnt
+vor noch fehlender Produktivreife.
+
+Der jetzige lokale Playwright-Test ist weiterhin auf einen flüchtigen,
+lesenden Seitenaufruf begrenzt. Er belegt keine getrennte Geräteidentität und
+keine Vinted-Anmeldung. Für die Web-App bleibt die serverseitige Kontobindung
+verwendbar; vor einem echten G1-Schritt müssen Profilanbieter oder eigener
+Browserbetrieb anhand eines berechtigten Testkontos bewertet werden. Eine
+behauptete Erfolgsquote gegen Vinteds Kontozuordnung ist nicht belegt.
+Quellen und die drei Architekturwege stehen im Implementierungsplan.
+Für den nächsten G1-Piloten ist ein verwalteter Profilanbieter die vorläufige
+Empfehlung. Bei 200–300 Profilen sind vor allem gleichzeitig laufende
+Cloud-Sitzungen, Anbieterrechte und laufende Kosten offen; die regulären
+GoLogin-Tarife nennen nur zwei beziehungsweise drei parallele Cloud-Sitzungen
+bei 300 beziehungsweise 1000 gespeicherten Profilen.
+
+**Prüfung:** Nur offizielle Anbieter- und Playwright-Unterlagen sowie das
+öffentliche Camoufox-Repository ausgewertet; keine Anbieterintegration und
+kein Vinted-Kontozugriff ausgeführt.
+
+---
+
 ## 27. September 2026 – Echte lokale Testseite und Ablaufkorrektur
 
 Die bestehende Seite `/marketplaces/vinted/session-test` wurde mit einem

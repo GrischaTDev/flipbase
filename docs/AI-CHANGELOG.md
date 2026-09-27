@@ -1,5 +1,55 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-27 – Juna – GoLogin-Cloudprofile mit Testseite geprüft
+
+**Auftrag:** Den bereitgestellten GoLogin-Zugang sicher prüfen und entscheiden,
+ob getrennte Cloudprofile für den nächsten Flipbase-Test geeignet sind.
+
+**Änderung:** Zwei eigene, kurzlebige Linux-Testprofile wurden ausschließlich
+mit `example.com` geprüft und anschließend beim Anbieter gelöscht. Der neue
+API-Token liegt verschlüsselt außerhalb des Repositorys; keine Kennung wurde
+im Code oder in der Projektdokumentation gespeichert. Plan, Arbeitsstand und
+Prüfprotokoll enthalten die bestätigten Ergebnisse und offenen Grenzen.
+
+**Prüfung:** GoLogin-API und Cloud-CDP erreichbar; Playwright und der vorhandene
+Flipbase-Adapter lieferten Browserbilder und bestätigten den Provider-Stopp
+mit HTTP 204. Zwei gleichzeitig geöffnete Profile hielten unterschiedliche
+künstliche Browserdaten getrennt und behielten sie nach einem Neustart.
+Beide Testprofile wurden mit HTTP 204 gelöscht; Profilzahl danach wieder fünf.
+Keine Vinted-Anmeldung und keine Prüfung über die Flipbase-Oberfläche.
+
+## 2026-09-27 – Juna – Lokalen Browserbedarf für mehrere Konten gemessen
+
+**Auftrag:** Prüfen, wie viel Kapazität getrennte Browser lokal benötigen,
+und ob vor einem kostenpflichtigen GoLogin-Zugang ein Test sinnvoll ist.
+
+**Änderung:** Der Plan, Arbeitsstand und das Prüfprotokoll enthalten den
+lokalen Belastungsversuch und grenzen ihn von einem echten Anbieter- oder
+Vinted-Test ab. Ein kostenloser Anbieterzugang ist für den nächsten
+GoLogin-Smoke-Test vorgesehen; es wurde kein Tarif gekauft.
+
+**Prüfung:** 1, 2, 4, 8 und 16 getrennte Chromium-Browser mit künstlichem
+Produktkatalog geöffnet, Bilder aufgenommen und alle Prozesse geschlossen.
+Bei 16 Browsern rund 4,6 GB Working Set und 1,36 GB private Speicherseiten;
+nach dem Stopp null Testprozesse. Kein Vinted-Kontozugriff.
+
+## 2026-09-27 – Juna – Browserprofile und Geräteidentität eingeordnet
+
+**Auftrag:** Öffentliche GoLogin-Quellen, Vergleichsprodukte und offenen Code
+zur technischen Trennung mehrerer Browserkonten untersuchen.
+
+**Änderung:** Plan, Arbeitsstand und Prüfprotokoll unterscheiden jetzt die
+bereits geprüfte Konto- und Sitzungstrennung von einer für die Plattform
+getrennten Geräteidentität. GoLogin, AdsPower, Kameleo und Camoufox wurden
+als mögliche technische Ansätze eingeordnet. Für einen späteren G1-Piloten
+ist ein verwalteter Profilanbieter vorläufig empfohlen; die veröffentlichten
+Grenzen für parallele Cloud-Sitzungen bei 200–300 Profilen sind vermerkt.
+Eine Erfolgsquote wird nicht behauptet.
+
+**Prüfung:** Offizielle Anbieter- und Playwright-Unterlagen sowie öffentliche
+GitHub-Repositories gelesen. Kein Code, keine Vinted-Anmeldung und kein
+Anbieterprofil ausgeführt.
+
 ## 2026-09-27 – Juna – Lokale Browser-Testseite Ende zu Ende geprüft
 
 **Auftrag:** Den bestehenden lesenden Vinted-Browser-Test über die echte
