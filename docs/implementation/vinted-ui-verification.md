@@ -1,5 +1,13 @@
 # Vinted-Oberfläche: geprüfter Stand vom 26. September 2026
 
+## Ergänzung vom 27. September 2026: Serverkern ohne Oberflächenänderung
+
+Der begonnene GoLogin-/Playwright-Dienstkern ist noch nicht mit der Testseite
+verbunden. Die Seite zeigt weiterhin ausschließlich die künstliche Sitzung;
+ein erfolgreicher Test dort belegt weiterhin keinen Anbieterzugriff.
+
+---
+
 ## Ergänzung vom 27. September 2026: eigene Sitzungstestseite
 
 Auf dem bestehenden Branch ist `/marketplaces/vinted/session-test` als

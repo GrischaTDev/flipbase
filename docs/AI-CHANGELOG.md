@@ -1,5 +1,22 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-27 – Juna – Serverkern für kontogebundene GoLogin-Sitzungen vorbereitet
+
+**Auftrag:** Die Vinted-Sitzungstechnik nach dem veröffentlichten Foundation-
+Stand fortsetzen und die Anbieter-Schnittstellen vor der Umsetzung erneut prüfen.
+
+**Änderung:** Ein eigener Node-Dienstkern verbindet GoLogin über Playwright-CDP,
+stoppt Profile ausdrücklich und prüft Workspace, Verbindung, Bediener und
+Sperrstatus vor internen Aktionen. Die zusätzliche Liveansicht wird nicht
+angefordert. Der Plan nennt die noch fehlende dauerhafte Sperre, Profilzuordnung
+und sichere Weiterleitung zur Testseite ausdrücklich.
+
+**Prüfung:** 20 gezielte Tests mit künstlichen Anbieterantworten, Typprüfung
+und Build des neuen Pakets erfolgreich. Gezieltes ESLint, vollständige
+Anwendungstestsuite, App-Typprüfung und Angular-Produktionsbau erfolgreich.
+Kein echtes Anbieter- oder Vinted-Profil geöffnet; noch keine produktive
+Anbindung.
+
 ## 2026-09-27 – Juna – Artikelbilder nachträglich vollständig geprüft und verkleinert
 
 **Auftrag:** Die erste Nachbearbeitung erfasste nur drei Shop-Angebotsbilder. Prüfen, warum die rund 25 Bilder unter „Artikel“ ausblieben, und auch diese Bilder sinnvoll komprimieren. Außerdem die Meldung zu nicht entfernbaren lokalen Arbeitskopien erklären.

@@ -1,5 +1,43 @@
 # Arbeitsstand: Vinted-Marktplatzverwaltung
 
+## 27. September 2026 – GoLogin-/Playwright-Dienstkern begonnen
+
+Auf dem neuen Branch `juna/vinted-browser-worker` wurde aus dem aktuellen
+`master` ein getrenntes Node-Paket für den künftigen Marktplatz-Worker
+angelegt. Es verbindet `playwright-core` über den dokumentierten GoLogin-CDP-
+Endpunkt, hält Token und Profil-ID im Serverprozess und ruft beim Beenden den
+Anbieter-Stopp ausdrücklich auf. Die GoLogin-Anleitung zeigt, dass die
+CDP-Verbindung das Profil bereits startet; der gesonderte Aufruf für eine
+Liveansicht wird nicht benötigt und nicht ausgeführt.
+
+Der Dienstkern prüft bei jeder internen Aktion Workspace, Kontoverbindung,
+Bediener und den aktuellen Sperrstatus. Bei Ablauf, Widerruf oder Browserfehler
+wird gestoppt. Scheitert der Stopp, bleiben Sperre und Sitzung im Speicher zur
+erneuten Bereinigung erhalten; weitere Aktionen werden gesperrt. Ein
+fehlgeschlagener Browserstart gibt die Sperre nur nach dem vorgesehenen
+Bereinigungspfad frei. Fehlertexte enthalten keine Anbieter-URL und keinen
+Token.
+
+**Tatsächlich geprüft:** 20 Node-Tests mit künstlichem Anbieter und
+Sperrspeicher; die neuen Schutzfälle schlugen vor der jeweiligen Korrektur
+fehl und bestanden danach. Geprüft sind auch parallele Stopps, ablaufende
+Sperren und die erneute Bereinigung nach einem ungewissen Anbieter-Stopp.
+Paket-Typprüfung und Build, gezieltes ESLint sowie die vollständige
+Anwendungstestsuite (1507 Node-, 270 DOM- und 1199 Angular-Tests),
+App-Typprüfung und Angular-Produktionsbau erfolgreich. Die Paketprüfungen
+sind in den CI-Qualitätsjob aufgenommen; Workflowtests und Formatprüfung
+bestanden. Es wurde kein
+GoLogin-Profil und kein Vinted-Konto geöffnet. Die vorhandene Angular-
+Testseite bleibt eine Simulation.
+
+**Offen für AP04:** Die Sperrschnittstelle braucht eine dauerhafte, atomare
+Datenbankimplementierung mit Profilzuordnung und Wiederanlauf-Abgleich. Eine
+authentisierte Bild-/Eingabeweiterleitung zur Testseite fehlt. Besonders ein
+unklarer Anbieter-Stopp nach Prozessabbruch darf nicht als sichere Freigabe
+gelten. Ein echter G1-Test benötigt ein isoliertes Testprofil und G0-Freigaben.
+
+---
+
 ## 27. September 2026 – Korrektur für den Docker-Produktionsbau
 
 PR #207 wurde nach grünen Pflichtprüfungen als Merge-Commit `8386afb8` in

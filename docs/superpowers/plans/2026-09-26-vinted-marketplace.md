@@ -103,6 +103,36 @@ Sitzungssperre prüfen, bei Ablauf/Widerruf den Provider ausdrücklich stoppen u
 eine authentisierte Bild-/Eingabeweiterleitung ohne Anbieter-URL an den Client
 prüfen. Erst dann kann G1 auf Desktop und iPad bewertet werden.
 
+### AP04b: Serverkern für den Anbieteranschluss
+
+**Abgleich vom 27.09.2026:** Die [GoLogin-CDP-Anleitung](https://gologin.com/blog/playwright-automation-tool-in-the-cloud/)
+verbindet Playwright direkt mit `wss://cloudbrowser.gologin.com/connect` und
+stoppt das Profil anschließend mit `DELETE /browser/{id}/web`. `POST` auf
+diesem Pfad erzeugt eine gesonderte Liveansicht-URL; der Worker braucht diese
+für CDP nicht. Die URL wird deshalb nicht angefordert. Die [Playwright-Dokumentation](https://playwright.dev/docs/api/class-browsertype)
+weist auf eingeschränkte CDP-Unterstützung hin. `playwright-core` 1.63.0 ist
+die am 27.09.2026 geprüfte stabile Version und unterstützt Node ab Version 20.
+
+- [x] Separates Node-Paket mit GoLogin-CDP-Verbindung und ausdrücklichem
+      Anbieter-Stopp als austauschbaren Adapter anlegen.
+- [x] Kontobindung an Workspace, Verbindung und Bediener im Dienstkern prüfen;
+      Sperre vor jeder internen Aktion erneut prüfen.
+- [x] Ablauf, Widerruf, Unterbrechung und Stoppfehler mit künstlichen
+      Anbieter-/Sperrimplementierungen testen.
+- [ ] Dauerhafte, transaktional reservierte Sperre und serverseitige Zuordnung
+      der Profil-ID implementieren; ungewissen Anbieter-Stopp auch nach einem
+      Worker-Neustart abgleichen, bevor eine neue Bedienung möglich ist.
+- [ ] Authentisierte Flipbase-API sowie begrenzte Bild- und Eingabeweiterleitung
+      an die vorhandene Testseite anbinden. Anbieter-Token, CDP-URL und
+      Liveansicht-URL dürfen in keiner Antwort erscheinen.
+- [ ] Mit isoliertem GoLogin-Testprofil und eigener, freigegebener Testseite
+      tatsächlich verbinden; fremde Konten, Ablauf, Widerruf und Abbruch auf
+      Desktop und iPad prüfen. Vorher G0 klären.
+
+Der Serverkern ist noch nicht in die laufende Anwendung eingebunden. Insbesondere
+ist die abstrakte Sperrschnittstelle noch keine dauerhafte Datenbanksperre. Der
+Test mit künstlichen Implementierungen ist kein G1-Nachweis.
+
 ## Danach
 
 - [x] AP02: Geschützte Feature-Routen, Shell, Tabs und Kontowechsler an gespeicherte Konten angeschlossen. Künstliche Daten ausschließlich in Tests.
