@@ -63,6 +63,90 @@ Vinted-Konten oder Zugangsdaten wurden verwendet.
 
 **Datenschutz:** Die Betreiberübersicht wird auf Art. 6 Abs. 1 lit. f DSGVO gestützt: Betreuung und Verbesserung der Beta-App bei beschränktem Betreiberzugriff und ohne zusätzliche Verhaltensaufzeichnung. Die rechtliche Interessenabwägung und die Information bereits aktiver Tester bleiben in der Verantwortung des Betreibers.
 
+## 2026-09-27 – Juna – Herkunft der Vinted-Artikelfotos geprüft
+
+**Auftrag:** Prüfen, weshalb der Feed früher drei Fotos je Anzeige zeigen konnte
+und heute oft nur eines zeigt.
+
+**Befund:** Die alte JSON-Katalogantwort enthielt mehrere Fotos pro Artikel;
+die gespeicherte Testantwort enthält Beispiele mit vier und fünf Fotos. Seit
+dem 14.09.2026 nutzt der Sammler wegen des abgeschalteten JSON-Katalogs die
+öffentliche Katalogseite. Deren Datenmodell und der Parser erlauben weiterhin
+mehrere Fotos, doch eine aktuelle Live-Stichprobe lieferte bei allen 96
+Artikeln nur je eines. Die Detailseite eines Artikels enthielt drei Fotos.
+Damit fehlen die weiteren Fotos bereits in der aktuellen Katalogantwort;
+die Karten kürzen keine vorhandenen Bilder weg. Auf zusätzliche Detailabrufe
+wurde für diese Prüfung verzichtet.
+
+**Prüfung:** Git-Historie der Bildverarbeitung und der Katalogumstellung,
+gespeicherte alte Katalogantwort sowie ein aktueller Abruf von Katalog und
+Artikeldetail wurden verglichen. Keine Codeänderung am Bot.
+
+## 2026-09-27 – Juna – Vinted Feed und Angebotskarten überarbeitet
+
+**Auftrag:** Den Vinted-Feed an die übrigen Seiten angleichen, die getrennte
+Deal-Ansicht entfernen, nach unterstützten Marken filtern und die
+Angebotskarten nach dem Referenzentwurf neu anordnen.
+
+**Änderung:** Der Menüpunkt heißt „Vinted Feed“. Die Seite zeigt ein Icon und
+eine kurze Beschreibung. Artikel und Deals werden nicht mehr getrennt
+angezeigt. Ein suchbarer Markenfilter verwendet nur Marken aus jüngsten
+Anzeigen aktiver Vinted-Sammelaufträge; die Filterung geschieht vor der
+Seitenteilung. Die Karten zeigen bei vorhandenen Bilddaten bis zu drei Fotos,
+Titel, Marken-, Größen- und Zustandsplaketten, Preis und Entdeckungszeit. Die
+Angaben zu unbekannter Kategorie, Käuferschutz und Versand wurden entfernt.
+Favoriten, Teilen und der Vinted-Link nutzen die gemeinsamen Schaltflächen.
+Auch die Vinted-Markensuche im Admin-Formular nutzt jetzt das gemeinsame
+Eingabefeld.
+Die normale Vinted-Katalogantwort enthält bei aktuellen Live-Stichproben nur
+ein Foto je Anzeige; für weitere Fotos wäre ein zusätzlicher Detailabruf nötig.
+
+**Prüfung:** Zwei gezielte Datenbanktests mit 49 Prüfungen, Sicherheitsprüfung
+der lokalen Datenbank und `npm run verify` bestanden. Die Änderung ist noch
+nicht veröffentlicht.
+
+## 2026-09-27 – Juna – Vinted-Marken direkt beim Anlegen suchen
+
+**Auftrag:** Zentrale Markenfilter ohne Kenntnis einer Vinted-Markenkennung
+anlegen. Mehrere Marken sollen gleichzeitig auswählbar sein, auch seltene
+Marken, mit einem eigenen Filter pro Marke.
+
+**Änderung:** Eine neue, auf Plattformbetreiber begrenzte Edge Function sucht
+Marken live bei Vinted und liefert Namen sowie Kennungen. Die Admin-Oberfläche
+bietet eine Suche mit auswählbaren Treffern, zeigt vorhandene Filter nicht
+erneut an und legt jede gewählte Marke als eigenen pausierten Filter an. Bei
+einem Teilfehler bleiben nur die fehlgeschlagenen Marken zur Wiederholung
+ausgewählt. Die Kennung muss nicht mehr eingegeben werden und wird in der
+Übersicht nicht mehr angezeigt. Die Funktion muss zusammen mit den anderen
+Edge Functions manuell ausgerollt werden.
+
+**Prüfung:** Die echte Vinted-Suche lieferte für „Ralph Lauren“ mehrere
+Markenvarianten. Edge- und Angular-Tests, Barrierefreiheitsprüfung, Typprüfung,
+Lint und Angular-Bau wurden ausgeführt.
+
+## 2026-09-27 – Juna – Vinted-Sammler nach festgefahrener Sitzung wiederhergestellt
+
+**Auftrag:** Prüfen, warum der Vinted-Bot erneut keine Artikel sammelt, und den
+Ausfall beheben.
+
+**Befund:** Der Produktionscontainer war gesund, doch alle drei Markenfilter
+meldeten bei HTTP 200 wiederholt `parser_error` und fanden keine Artikel. Ein
+frischer Sammler im selben Container konnte denselben Katalog lesen. Der seit
+dem 22.09. laufende Prozess behielt seine Cookies nach einem Parserfehler und
+verwendete sie bei jedem weiteren Versuch erneut. Ein automatischer Rollout
+startete den Dienst während der Analyse neu; danach kamen wieder Artikel an.
+Um 18:56 UTC standen Nike, adidas und Ralph Lauren wieder auf `ready` und
+hatten jeweils einen aktuellen erfolgreichen Abruf.
+
+**Änderung:** Wenn eine Katalogantwort nicht gelesen werden kann, verwirft der
+Sammler die gespeicherten Cookies. Der nächste reguläre Versuch beginnt mit
+einer frischen Sitzung. Ein Regressionstest bildet die Folge aus erfolgreichem
+Abruf, unbrauchbarer Katalogseite und erneutem Abruf nach.
+
+**Prüfung:** Der neue Test schlug vor der Korrektur fehl und bestand danach.
+Alle 187 Sniper-Unit-Tests, Typprüfung, Dienstbau, gezieltes ESLint und
+Prettier bestanden. Die Korrektur selbst ist noch nicht veröffentlicht.
+
 ## 2026-09-27 – Juna – Admin-Pilot für Vinted-Browser vorbereitet
 
 **Auftrag:** Den bestehenden Vinted-Bereich für den eigenen Admin-Zugang in

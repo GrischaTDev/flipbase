@@ -28,7 +28,7 @@ export function queryDraftError(draft: QueryDraft): string | null {
     draft.brandId < 1 ||
     draft.brandId > 2147483647
   )
-    return 'Bitte eine gültige Markenkennung angeben.';
+    return 'Bitte eine gültige Vinted-Marke auswählen.';
   if (draft.notes.length > 2000) return 'Die Notiz darf höchstens 2.000 Zeichen lang sein.';
   if (
     !Number.isInteger(draft.intervalSeconds) ||

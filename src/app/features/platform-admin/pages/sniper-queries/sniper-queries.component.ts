@@ -19,6 +19,7 @@ import { LoadingIndicatorComponent } from '../../../../shared/components/loading
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { DataTableComponent } from '../../../../shared/components/data-table/data-table.component';
 import { SniperQueryEditorComponent } from '../../components/sniper-query-editor/sniper-query-editor.component';
+import { SniperBrandCreateComponent } from '../../components/sniper-brand-create/sniper-brand-create.component';
 import { SniperAdminService } from '../../services/sniper-admin.service';
 import { SniperAdminState } from '../../services/sniper-admin-state';
 import { QueryDraft, SniperQuery, queryStatusLabel } from '../../models/sniper-query.model';
@@ -34,6 +35,7 @@ import { QueryDraft, SniperQuery, queryStatusLabel } from '../../models/sniper-q
     ModalShellComponent,
     DataTableComponent,
     SniperQueryEditorComponent,
+    SniperBrandCreateComponent,
   ],
   templateUrl: './sniper-queries.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -43,6 +45,7 @@ export class SniperQueriesComponent {
   private readonly element = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly injector = inject(Injector);
   private readonly editor = viewChild(SniperQueryEditorComponent);
+  private readonly creator = viewChild(SniperBrandCreateComponent);
   readonly state = inject(SniperAdminState);
   private readonly api = inject(SniperAdminService);
   private readonly destroyRef = inject(DestroyRef);
@@ -58,12 +61,16 @@ export class SniperQueriesComponent {
     const term = this.search().toLocaleLowerCase('de');
     return this.state
       .queries()
-      .filter((q) =>
-        [q.title, q.notes, q.brand_id].join(' ').toLocaleLowerCase('de').includes(term),
-      );
+      .filter((q) => [q.title, q.notes].join(' ').toLocaleLowerCase('de').includes(term));
   });
   readonly activeCount = computed(
     () => this.state.queries().filter((query) => query.is_active).length,
+  );
+  readonly existingBrandIds = computed(() =>
+    this.state
+      .queries()
+      .filter((query) => this.isBrandOnly(query))
+      .flatMap((query) => (query.brand_id === null ? [] : [query.brand_id])),
   );
   readonly statusLabel = queryStatusLabel;
   readonly editIcon = LucidePencil;
@@ -71,7 +78,7 @@ export class SniperQueriesComponent {
   readonly activateIcon = LucidePlay;
 
   hasUnsavedChanges(): boolean {
-    return this.editor()?.form.dirty ?? false;
+    return this.editor()?.form.dirty || this.creator()?.hasUnsavedChanges() || false;
   }
   isSaving(): boolean {
     return this.saving() || this.busyId() !== null;
@@ -133,6 +140,32 @@ export class SniperQueriesComponent {
           : 'Markenfilter gespeichert. Du kannst ihn jetzt aktivieren.',
       );
       await this.state.refreshAfterMutation();
+    } catch (error) {
+      this.error.set(error instanceof Error ? error.message : 'Speichern fehlgeschlagen.');
+    } finally {
+      this.saving.set(false);
+    }
+  }
+
+  async saveMany(drafts: QueryDraft[]): Promise<void> {
+    if (this.saving() || !drafts.length) return;
+    this.saving.set(true);
+    this.error.set(null);
+    try {
+      const { savedIds, failedNames } = await this.api.saveMany(drafts);
+      if (this.destroyRef.destroyed) return;
+      this.creator()?.removeSaved(savedIds);
+      if (savedIds.length) await this.state.refreshAfterMutation();
+      if (failedNames.length) {
+        this.error.set(
+          `Diese Marken konnten nicht angelegt werden: ${failedNames.join(', ')}. Bitte erneut versuchen.`,
+        );
+      } else {
+        this.closeEditor();
+        this.message.set(
+          `${savedIds.length} ${savedIds.length === 1 ? 'Markenfilter wurde' : 'Markenfilter wurden'} pausiert angelegt. Du kannst sie jetzt aktivieren.`,
+        );
+      }
     } catch (error) {
       this.error.set(error instanceof Error ? error.message : 'Speichern fehlgeschlagen.');
     } finally {
