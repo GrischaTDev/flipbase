@@ -15,6 +15,43 @@ aus.
 
 ## Deployment der Anwendung
 
+### Marktplatz-Browser für den Admin-Pilot
+
+Die Vinted-Seite ist nur für Plattformbetreiber mit Adminrechten im eigenen
+Workspace erreichbar. Die Datenbank prüft diese Rechte auch bei direkten
+Anfragen. Für die interaktive Anmeldung braucht die App zusätzlich den
+separaten Marktplatz-Worker. Das [Worker-Abbild](../services/marketplace-worker/Dockerfile),
+die [Compose-Vorlage](docker-compose.marketplace-worker.yml) und die
+[Caddy-Route](Caddyfile) sind vorbereitet, werden aber nicht durch das
+Web-Deployment aktiviert.
+
+Nach geprüftem PR und ausdrücklicher Freigabe für die Servereinrichtung:
+
+1. Das Worker-Abbild über den manuellen GitHub-Workflow
+   `Publish Marketplace Worker Image` vom gemergten `master`-Commit
+   veröffentlichen. Die Compose-Variable `FLIPBASE_MARKETPLACE_IMAGE` auf den
+   vollständigen `sha-<40-stellige Commit-SHA>`-Tag setzen.
+2. Die Compose-Vorlage nach `/opt/flipbase-marketplace/` kopieren und dort eine
+   nur für den Serverbetreiber lesbare `marketplace-worker.env` nach
+   [dieser Vorlage](marketplace-worker.env.example) anlegen. Der GoLogin-Token,
+   Service-Role-Schlüssel und der Supabase-Anon-Schlüssel gehören nur dorthin.
+   Der lokal per Windows geschützte Testtoken kann nicht unverändert in einem
+   Linux-Container genutzt werden. Keine Werte in CI-Logs oder das Repository
+   schreiben.
+3. Die vorhandene produktive Caddy-Konfiguration mit der neuen
+   `/marketplace-browser/*`-Route abgleichen und den Worker im selben
+   `supabase_default`-Netz starten. Vor der Freigabe prüfen, dass
+   `/marketplace-browser/healthz`
+   intern erreichbar ist, die App-Navigation für Nichtbetreiber verborgen
+   bleibt und der direkte API-Zugriff ohne Berechtigung scheitert.
+4. Mit einer eigenen freigegebenen Kontoverbindung den Start, Browserbild,
+   Kontowechsel, Ablauf, Widerruf und Stopp zuerst ohne Anmeldung prüfen.
+   Erst danach die eigene Vinted-Anmeldung auf Desktop und iPad durchführen.
+
+Ohne die Servereinrichtung zeigt die Admin-Seite „Browser-Testdienst ist nicht
+verbunden“. Das Zusammenführen dieses Branches allein schaltet den
+Live-Browser nicht frei.
+
 Bei jedem Push auf `master` läuft [`.github/workflows/ci.yml`](../.github/workflows/ci.yml):
 
 1. **Required checks** – Format, Lint, Typen und alle ausgewählten Prüfungen.

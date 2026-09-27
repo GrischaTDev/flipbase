@@ -1749,6 +1749,88 @@ export type Database = {
           },
         ]
       }
+      marketplace_browser_profiles: {
+        Row: {
+          connection_id: string
+          created_at: string
+          id: number
+          provider_profile_id: string
+          workspace_id: string
+        }
+        Insert: {
+          connection_id: string
+          created_at?: string
+          id?: never
+          provider_profile_id: string
+          workspace_id: string
+        }
+        Update: {
+          connection_id?: string
+          created_at?: string
+          id?: never
+          provider_profile_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_browser_profiles_workspace_id_connection_id_fkey"
+            columns: ["workspace_id", "connection_id"]
+            isOneToOne: true
+            referencedRelation: "marketplace_connections"
+            referencedColumns: ["workspace_id", "id"]
+          },
+        ]
+      }
+      marketplace_browser_sessions: {
+        Row: {
+          connection_id: string
+          created_at: string
+          expires_at: string
+          id: number
+          provider_profile_id: string
+          provider_stopped_at: string | null
+          public_id: string
+          started_by: string
+          state: string
+          stop_reason: string | null
+          workspace_id: string
+        }
+        Insert: {
+          connection_id: string
+          created_at?: string
+          expires_at: string
+          id?: never
+          provider_profile_id: string
+          provider_stopped_at?: string | null
+          public_id?: string
+          started_by: string
+          state?: string
+          stop_reason?: string | null
+          workspace_id: string
+        }
+        Update: {
+          connection_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: never
+          provider_profile_id?: string
+          provider_stopped_at?: string | null
+          public_id?: string
+          started_by?: string
+          state?: string
+          stop_reason?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_browser_sessions_workspace_id_connection_id_fkey"
+            columns: ["workspace_id", "connection_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_connections"
+            referencedColumns: ["workspace_id", "id"]
+          },
+        ]
+      }
       marketplace_browser_test_sessions: {
         Row: {
           connection_id: string
@@ -5141,6 +5223,26 @@ export type Database = {
           kind: string
           reason: string
         }[]
+      }
+      marketplace_browser_session_check: {
+        Args: {
+          p_connection_id: string
+          p_session_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_browser_session_reserve: {
+        Args: { p_connection_id: string; p_workspace_id: string }
+        Returns: Json
+      }
+      marketplace_browser_session_revoke: {
+        Args: {
+          p_connection_id: string
+          p_session_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
       }
       marketplace_can_manage: {
         Args: { p_workspace_id: string }

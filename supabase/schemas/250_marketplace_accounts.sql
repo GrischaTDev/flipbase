@@ -1,6 +1,6 @@
 -- Marktplatzkonten sind Verbindungen innerhalb eines Workspaces, keine neuen Vinted-Konten.
--- Der erste Pilot ist ausdrücklich auf Inhaber/Admins begrenzt. Private Nachrichten
--- werden nicht automatisch für jedes bestehende Workspace-Mitglied freigegeben.
+-- Der erste Pilot ist auf Plattformbetreiber mit Adminrechten im eigenen
+-- Workspace begrenzt. Private Nachrichten sind für normale Nutzer gesperrt.
 create table public.marketplace_connections (
   id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null references public.workspaces(id) on delete cascade,
@@ -50,6 +50,7 @@ grant all on public.marketplace_account_entries to service_role;
 create or replace function public.marketplace_can_manage(p_workspace_id uuid)
 returns boolean language sql stable security invoker set search_path = '' as $$
   select (select auth.uid()) is not null
+    and (select public.is_platform_operator())
     and public.is_workspace_admin(p_workspace_id)
     and exists (select 1 from public.workspaces w where w.id = p_workspace_id and w.archived_at is null);
 $$;

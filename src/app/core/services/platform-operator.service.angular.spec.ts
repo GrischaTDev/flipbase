@@ -1,5 +1,7 @@
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { AuthService } from './auth.service';
 import { PlatformOperatorService } from './platform-operator.service';
 import { SupabaseService } from './supabase.service';
 
@@ -8,10 +10,14 @@ function serviceWith(response: { data: unknown; error: unknown }, userId: string
   const getSession = vi.fn().mockResolvedValue({
     data: { session: userId ? { user: { id: userId } } : null },
   });
+  const currentUser = signal(userId ? { id: userId } : null);
   TestBed.configureTestingModule({
-    providers: [{ provide: SupabaseService, useValue: { client: { rpc, auth: { getSession } } } }],
+    providers: [
+      { provide: AuthService, useValue: { currentUser } },
+      { provide: SupabaseService, useValue: { client: { rpc, auth: { getSession } } } },
+    ],
   });
-  return { service: TestBed.inject(PlatformOperatorService), rpc, getSession };
+  return { service: TestBed.inject(PlatformOperatorService), rpc, getSession, currentUser };
 }
 
 describe('PlatformOperatorService', () => {
@@ -57,14 +63,18 @@ describe('PlatformOperatorService', () => {
       .fn()
       .mockResolvedValueOnce({ data: { session: { user: { id: 'u1' } } } })
       .mockResolvedValueOnce({ data: { session: { user: { id: 'u2' } } } });
+    const currentUser = signal<{ id: string } | null>({ id: 'u1' });
     TestBed.configureTestingModule({
       providers: [
+        { provide: AuthService, useValue: { currentUser } },
         { provide: SupabaseService, useValue: { client: { rpc, auth: { getSession } } } },
       ],
     });
     const service = TestBed.inject(PlatformOperatorService);
 
     await expect(service.isOperator()).resolves.toBe(true);
+    currentUser.set({ id: 'u2' });
+    expect(service.operator()).toBe(false);
     await expect(service.isOperator()).resolves.toBe(true);
 
     expect(rpc).toHaveBeenCalledTimes(2);
@@ -85,8 +95,10 @@ describe('PlatformOperatorService', () => {
       .fn()
       .mockResolvedValueOnce({ data: { session: { user: { id: 'u1' } } } })
       .mockResolvedValueOnce({ data: { session: { user: { id: 'u2' } } } });
+    const currentUser = signal<{ id: string } | null>({ id: 'u1' });
     TestBed.configureTestingModule({
       providers: [
+        { provide: AuthService, useValue: { currentUser } },
         {
           provide: SupabaseService,
           useValue: { client: { rpc, auth: { getSession } } },
@@ -97,6 +109,7 @@ describe('PlatformOperatorService', () => {
 
     const firstCheck = service.isOperator();
     await Promise.resolve();
+    currentUser.set({ id: 'u2' });
     await expect(service.isOperator()).resolves.toBe(false);
     resolveFirst({ data: true, error: null });
 
@@ -111,6 +124,16 @@ describe('PlatformOperatorService', () => {
     expect(rpc).not.toHaveBeenCalled();
   });
 
+  it('verbirgt Betreiber-Navigation sofort beim Abmelden', async () => {
+    const { service, currentUser } = serviceWith({ data: true, error: null });
+
+    await service.isOperator();
+    expect(service.operator()).toBe(true);
+
+    currentUser.set(null);
+    expect(service.operator()).toBe(false);
+  });
+
   it('fragt nach einem Netzaussetzer erneut, statt die Sitzung dauerhaft zu sperren', async () => {
     // Wirft der rpc-Aufruf (statt ein error-Objekt zu liefern), durfte die
     // abgelehnte Promise vorher dauerhaft zwischengespeichert werden - jede
@@ -123,6 +146,7 @@ describe('PlatformOperatorService', () => {
     const getSession = vi.fn().mockResolvedValue({ data: { session: { user: { id: 'u1' } } } });
     TestBed.configureTestingModule({
       providers: [
+        { provide: AuthService, useValue: { currentUser: signal({ id: 'u1' }) } },
         { provide: SupabaseService, useValue: { client: { rpc, auth: { getSession } } } },
       ],
     });

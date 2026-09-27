@@ -1,5 +1,164 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-27 – Juna – Admin-Pilot für Vinted-Browser vorbereitet
+
+**Auftrag:** Den bestehenden Vinted-Bereich für den eigenen Admin-Zugang in
+Flipbase bereitstellen, damit ein eigenes Konto später interaktiv angemeldet
+und live geprüft werden kann.
+
+**Änderung:** Marktplatzzugriff auf Plattformbetreiber mit Workspace-Adminrecht
+begrenzt. Der bestehende Kontodialog bleibt erhalten. Der Worker erstellt
+beim ersten Start ein kontogebundenes GoLogin-Profil, öffnet eine feste
+Vinted-Startseite und hält Anbieterzugänge auf dem Server. Die Eingabe wird
+nach dem Senden aus dem UI-Feld entfernt. Container-, Proxy- und
+Veröffentlichungsvorlagen für die spätere Servereinrichtung ergänzt. Die
+Migration wurde aus dem Supabase-Diff auf die zwei betroffenen Funktionen
+begrenzt; Typen wurden neu generiert und blieben unverändert. Die Navigation
+verliert Betreiberrechte beim Abmelden und Kontowechsel unmittelbar.
+
+**Prüfung:** 48 Worker-Tests, 41 gezielte Angular-Tests und 99
+Marktplatz-Datenbankprüfungen bestanden. Angular-Bau, Worker-Containerbau,
+Typprüfung und gezieltes Lint bestanden. Produktionsanbindung und
+Vinted-Anmeldung stehen aus. `npm run verify` bestand vollständig; acht
+gezielte Betreiber-Dienst-Tests bestanden nach der letzten UI-Korrektur.
+
+**PR-Nachtrag:** Im ersten Lauf von PR #217 bestanden alle 2163 SQL-Prüfungen,
+doch der getrennte Test für parallele Browserstarts scheiterte: Sein
+künstlicher Nutzer hatte nach der Admin-Sperre keinen Betreibereintrag.
+Die Testdaten wurden ergänzt. Der Konkurrenztest bestand danach gegen eine
+isolierte lokale Datenbank: genau eine Reservierung, zweite Anfrage gesperrt.
+
+## 2026-09-27 – Juna – GoLogin-Cloudprofile mit Testseite geprüft
+
+**Auftrag:** Den bereitgestellten GoLogin-Zugang sicher prüfen und entscheiden,
+ob getrennte Cloudprofile für den nächsten Flipbase-Test geeignet sind.
+
+**Änderung:** Zwei eigene, kurzlebige Linux-Testprofile wurden ausschließlich
+mit `example.com` geprüft und anschließend beim Anbieter gelöscht. Der neue
+API-Token liegt verschlüsselt außerhalb des Repositorys; keine Kennung wurde
+im Code oder in der Projektdokumentation gespeichert. Plan, Arbeitsstand und
+Prüfprotokoll enthalten die bestätigten Ergebnisse und offenen Grenzen.
+
+**Prüfung:** GoLogin-API und Cloud-CDP erreichbar; Playwright und der vorhandene
+Flipbase-Adapter lieferten Browserbilder und bestätigten den Provider-Stopp
+mit HTTP 204. Zwei gleichzeitig geöffnete Profile hielten unterschiedliche
+künstliche Browserdaten getrennt und behielten sie nach einem Neustart.
+Beide Testprofile wurden mit HTTP 204 gelöscht; Profilzahl danach wieder fünf.
+Keine Vinted-Anmeldung und keine Prüfung über die Flipbase-Oberfläche.
+
+## 2026-09-27 – Juna – Lokalen Browserbedarf für mehrere Konten gemessen
+
+**Auftrag:** Prüfen, wie viel Kapazität getrennte Browser lokal benötigen,
+und ob vor einem kostenpflichtigen GoLogin-Zugang ein Test sinnvoll ist.
+
+**Änderung:** Der Plan, Arbeitsstand und das Prüfprotokoll enthalten den
+lokalen Belastungsversuch und grenzen ihn von einem echten Anbieter- oder
+Vinted-Test ab. Ein kostenloser Anbieterzugang ist für den nächsten
+GoLogin-Smoke-Test vorgesehen; es wurde kein Tarif gekauft.
+
+**Prüfung:** 1, 2, 4, 8 und 16 getrennte Chromium-Browser mit künstlichem
+Produktkatalog geöffnet, Bilder aufgenommen und alle Prozesse geschlossen.
+Bei 16 Browsern rund 4,6 GB Working Set und 1,36 GB private Speicherseiten;
+nach dem Stopp null Testprozesse. Kein Vinted-Kontozugriff.
+
+## 2026-09-27 – Juna – Browserprofile und Geräteidentität eingeordnet
+
+**Auftrag:** Öffentliche GoLogin-Quellen, Vergleichsprodukte und offenen Code
+zur technischen Trennung mehrerer Browserkonten untersuchen.
+
+**Änderung:** Plan, Arbeitsstand und Prüfprotokoll unterscheiden jetzt die
+bereits geprüfte Konto- und Sitzungstrennung von einer für die Plattform
+getrennten Geräteidentität. GoLogin, AdsPower, Kameleo und Camoufox wurden
+als mögliche technische Ansätze eingeordnet. Für einen späteren G1-Piloten
+ist ein verwalteter Profilanbieter vorläufig empfohlen; die veröffentlichten
+Grenzen für parallele Cloud-Sitzungen bei 200–300 Profilen sind vermerkt.
+Eine Erfolgsquote wird nicht behauptet.
+
+**Prüfung:** Offizielle Anbieter- und Playwright-Unterlagen sowie öffentliche
+GitHub-Repositories gelesen. Kein Code, keine Vinted-Anmeldung und kein
+Anbieterprofil ausgeführt.
+
+## 2026-09-27 – Juna – Lokale Browser-Testseite Ende zu Ende geprüft
+
+**Auftrag:** Den bestehenden lesenden Vinted-Browser-Test über die echte
+Flipbase-Testseite, eine eigene lokale Testverbindung und den Worker fortsetzen.
+
+**Änderung:** Eine getrennte Supabase-Vorschau mit künstlichem Nutzer und zwei
+Konten diente für Desktop-, iPad-, Ablauf- und Kontowechselprüfungen. Ein dabei
+gefundener Anzeigefehler wurde behoben: Nach fehlgeschlagener Bildaktualisierung
+bleibt kein altes Browserbild sichtbar. Ein bestätigter Ablauf gibt die
+Oberfläche für einen neuen Start frei; ein unklarer Stopp hält sie gesperrt.
+
+**Prüfung:** Vier erfolgreiche lokale UI-Durchläufe plus ein erneuter
+Ablauf-Durchlauf mit echter Auth-/REST-Anbindung, 40 Worker- und 13 gezielte
+Angular-Tests. Fremde Konto- und Workspacezugriffe sowie Eingaben wurden
+abgewiesen; Ablauf, Kontowechsel und Stopp schlossen den Browser. Keine
+Vinted-Anmeldung, kein Nachrichtenversand.
+
+## 2026-09-27 – Juna – Lokalen lesenden Browser-Test ergänzt
+
+**Auftrag:** Die Vinted-Testseite ohne kostenpflichtigen GoLogin-Zugang mit
+einem eigenen Browser für einen öffentlichen, lesenden Seitenaufruf fortsetzen.
+
+**Änderung:** Lokaler, flüchtiger Chromium-Provider mit fester öffentlicher
+Zieladresse; Eingaben in Worker und Oberfläche gesperrt. Die bestehende
+Sitzungsbindung und Datenbanksperre bleiben erhalten. GoLogin ist optional.
+
+**Prüfung:** 39 Worker- und 9 Angular-Tests, Typprüfungen, Builds und gezieltes
+ESLint bestanden. Ein synthetischer Browserlauf und zwei lesende
+Aufrufe der freigegebenen öffentlichen Vinted-Seite lieferten JPEG-Bilder und
+beendeten den Browser. Keine Anmeldung und keine Profilaktion. Der vollständige
+Flipbase-Test mit echter Supabase-Testverbindung steht aus.
+
+## 2026-09-27 – Juna – Browser-Testbereich an sicheren Worker angeschlossen
+
+**Auftrag:** Die kontogebundene Vinted-Sitzungstechnik auf dem bestehenden
+Worker-Branch fortsetzen und auf der eigenen Testseite prüfbar machen.
+
+**Änderung:** Authentisierte Worker-API mit begrenzten Bildern und einzelnen
+Eingaben, Start- und Stoppablauf sowie ein getrennter Browserbereich auf der
+vorhandenen Testseite. Die lokale Entwicklung leitet den API-Pfad nur an einen
+bewusst gestarteten Worker weiter. Der Bereich bleibt ohne ihn gesperrt.
+
+**Prüfung:** 37 Worker-Tests und 10 gezielte Angular-Tests mit künstlichen
+Antworten, Typprüfungen, Builds und gezieltes ESLint erfolgreich. Kein echtes
+GoLogin- oder Vinted-Profil verwendet. Produktive Anbindung und Anbieter-Test
+bleiben bis zur konkreten G0-Freigabe offen.
+
+## 2026-09-27 – Juna – Dauerhafte Sperre für Marktplatz-Browsersitzungen
+
+**Auftrag:** Die vorhandene Vinted-Arbeit auf dem Worker-Branch um eine sichere,
+kontogebundene Sitzung mit serverseitiger Profilzuordnung fortsetzen.
+
+**Änderung:** Neue Tabellen und geschützte Funktionen halten Live-Sitzungen bis
+zum bestätigten Anbieter-Stopp exklusiv. Der Worker kann die gespeicherte
+Profil-ID lesen, unterbrochene Sitzungen nach einem Neustart bereinigen und
+neue Starts bis dahin sperren. Die vorhandene Testseite bleibt eine Simulation;
+eine authentisierte Browserweiterleitung fehlt noch.
+
+**Prüfung:** Migration in getrennter Supabase-Instanz frisch aufgespielt,
+32 gezielte und 2159 gesamte Datenbanktests, ein Test mit zwei gleichzeitigen
+Reservierungen, ein lokaler REST-Versuch mit künstlichem Nutzer,
+Datenbank-Lint sowie 27 Worker-Tests, Typprüfung und Paketbau grün.
+Kein reales Anbieter- oder Vinted-Konto verwendet.
+
+## 2026-09-27 – Juna – Serverkern für kontogebundene GoLogin-Sitzungen vorbereitet
+
+**Auftrag:** Die Vinted-Sitzungstechnik nach dem veröffentlichten Foundation-
+Stand fortsetzen und die Anbieter-Schnittstellen vor der Umsetzung erneut prüfen.
+
+**Änderung:** Ein eigener Node-Dienstkern verbindet GoLogin über Playwright-CDP,
+stoppt Profile ausdrücklich und prüft Workspace, Verbindung, Bediener und
+Sperrstatus vor internen Aktionen. Die zusätzliche Liveansicht wird nicht
+angefordert. Der Plan nennt die noch fehlende dauerhafte Sperre, Profilzuordnung
+und sichere Weiterleitung zur Testseite ausdrücklich.
+
+**Prüfung:** 20 gezielte Tests mit künstlichen Anbieterantworten, Typprüfung
+und Build des neuen Pakets erfolgreich. Gezieltes ESLint, vollständige
+Anwendungstestsuite, App-Typprüfung und Angular-Produktionsbau erfolgreich.
+Kein echtes Anbieter- oder Vinted-Profil geöffnet; noch keine produktive
+Anbindung.
+
 ## 2026-09-27 – Juna – Kleine Artikelvorschaubilder statt vollständiger Fotos geladen
 
 **Auftrag:** Prüfen, ob die bestehenden Artikelbilder wirklich komprimiert wurden, und die sichtbare Verzögerung beim Laden der Artikelliste beheben.

@@ -1,5 +1,148 @@
 # Vinted-Oberfläche: geprüfter Stand vom 26. September 2026
 
+## Ergänzung vom 27. September 2026: Admin-Pilot vorbereitet
+
+Die Navigation versteckt „Marktplätze“ und „Marktplatzkonten“ für normale
+Nutzer. Beim Abmelden oder Wechsel zu einem anderen Nutzer verschwindet die
+Betreibernavigation unmittelbar. Der Route-Guard weist Nichtbetreiber ab;
+die Datenbank verweigert auch einem Workspace-Admin ohne
+Plattformbetreiberrolle Kontodaten und
+Kontoverwaltung. Ein Profil entsteht nur nach erfolgreicher Kontoprüfung
+auf dem Worker. Die vorhandene Testseite zeigt im Cloudmodus den festen
+Vinted-Start und verbirgt das Eingabefeld als Passwortfeld.
+
+**Lokal ausgeführt:** 48 Worker-Tests und 41 gezielte Angular-Tests bestanden;
+drei Marktplatz-Datenbankdateien mit 99 Prüfungen bestätigten auch den
+Rollenwiderruf während einer Sitzung. Angular-Typprüfung und Bau sowie
+Worker-Typprüfung, Tests und Containerbau waren erfolgreich. Die geänderten
+TypeScript-Dateien wurden ohne Lintfehler geprüft. Zusätzlich bestand
+`npm run verify` vollständig. Acht gezielte Betreiber-Dienst-Tests bestätigten
+nach der letzten UI-Korrektur den sofortigen Entzug der Navigation.
+
+Im ersten PR-Lauf bestanden alle 2163 SQL-Prüfungen. Der zusätzliche
+Konkurrenztest brauchte für seinen künstlichen Nutzer noch die neue
+Plattformbetreiberrolle. Nach der Korrektur bestand der Test gegen die
+isolierte lokale Datenbank: Eine Reservierung blieb aktiv, die parallele
+zweite Anfrage erhielt die vorgesehene Sperre.
+
+**Noch offen:** Die produktive Worker- und Proxy-Einrichtung sowie ein
+Ende-zu-Ende-Test des Cloudmodus über die Flipbase-Oberfläche. Kein echtes
+Vinted-Konto wurde angemeldet. Das Anlegen einer Flipbase-Kontoverbindung
+belegt noch keine Vinted-Anmeldung und startet keinen Liveimport.
+
+---
+
+## Ergänzung vom 27. September 2026: GoLogin-Anbieterprobe
+
+Zwei eigens angelegte GoLogin-Cloudprofile wurden parallel über Playwright
+auf `example.com` geöffnet. Künstliche Browserdaten blieben getrennt und nach
+einem Neustart im jeweiligen Profil erhalten. Der vorhandene
+`GoLoginCloudBrowser`-Adapter lieferte ein Bild; Cloud-Sitzungen wurden mit
+HTTP 204 gestoppt und die beiden Testprofile anschließend gelöscht.
+
+Das war eine Anbieter- und Adapterprüfung. Die Flipbase-Testseite wurde dabei
+nicht mit GoLogin durchlaufen; ihre frühere lokale Browserprüfung gilt weiter.
+Vinted-Anmeldung, echte Kontotrennung bei Vinted und Geräteerkennung sind
+weiter offen.
+
+---
+
+## Ergänzung vom 27. September 2026: lokaler Kapazitätsversuch
+
+Mit einer künstlichen Produktliste wurden bis zu 16 lokale Chromium-Browser
+parallel geöffnet und als Bild gelesen. Alle Browser stoppten ohne
+verbleibenden Testprozess. Bei 16 Browsern wurden etwa 4,6 GB Working Set
+gemessen. Dies ist kein UI-, Vinted- oder GoLogin-Nachweis; ein
+Anbieterzugang war nicht hinterlegt.
+
+---
+
+## Ergänzung vom 27. September 2026: Grenze des Browsernachweises
+
+Die Anbieterrecherche bestätigt: Der lokale, flüchtige Playwright-Test prüft
+Kontobindung, Seitenaufruf und Browser-Stopp. Er prüft weder dauerhafte
+Vinted-Anmeldung noch getrennte, für Vinted sichtbare Geräteidentitäten.
+Es wurde kein echter Kontotest ergänzt. Die technischen Alternativen und
+offenen Anbieterfragen stehen im Implementierungsplan.
+
+---
+
+## Ergänzung vom 27. September 2026: lokaler End-to-End-Test
+
+Die vorhandene Testseite lief mit einer echten, isolierten lokalen
+Supabase-Anmeldung, zwei künstlichen Flipbase-Konten und dem Playwright-Worker.
+Desktop (1280 × 900) und iPad-Größe (820 × 1180) zeigten das lesende
+Browserbild. Andere Konto-/Workspace-IDs erhielten 409, ein Eingabeversuch 403.
+
+Beim Kontowechsel verschwand das Bild und die alte Sitzung wurde serverseitig
+geschlossen. Nach künstlich abgelaufenem Zugriff zeigte ein
+weiteres Browserbild zunächst einen Fehler: Das alte Bild blieb stehen. Nach
+der Korrektur wird es freigegeben und ausgeblendet. Ein zweiter Befund betraf
+den gesperrten Neustart trotz bestätigtem Stopp. Der Worker meldet diese Fälle
+jetzt mit 410; die Ansicht gibt danach auch den Start wieder frei. Bei
+unklarem Stopp bleibt die Sperre erhalten. Ein echter Ablauf-Durchlauf und
+dreizehn gezielte Angular-Tests bestätigten das Verhalten.
+
+Der Test nutzt nur ein öffentliches fremdes Profil als lesendes Ziel und
+künstliche Flipbase-Konten. Er belegt keine interaktive Vinted-Anmeldung und
+keinen Inhalt des gezeigten Bildes. G1 bleibt offen.
+
+---
+
+## Ergänzung vom 27. September 2026: lesender lokaler Browser
+
+Die bestehende Testseite erkennt nun am Worker-Status den lesenden lokalen
+Modus. Sie zeigt dann nur das Browserbild sowie Aktualisierung und Stopp.
+Klick-, Text- und Tasteneingaben fehlen in dieser Ansicht und werden zusätzlich
+von der HTTP-API mit 403 abgewiesen. Ein direkter Store-Aufruf wird ebenfalls
+ignoriert. Der Zielaufruf ist serverseitig festgelegt und keine Kontofunktion.
+
+Neun gezielte Angular-Tests, App-Typprüfung und Angular-Produktionsbau
+bestanden. Der Browser-Provider wurde mit einer künstlichen Seite und einmalig
+mit der freigegebenen öffentlichen Profiladresse geprüft. Die komplette
+Flipbase-Testseite mit echter lokaler Supabase-Anmeldung wurde noch nicht
+ausgeführt; ein Desktop-/iPad-Nachweis und G1 bleiben offen.
+
+---
+
+## Ergänzung vom 27. September 2026: Browser-Testbereich mit künstlichen Antworten
+
+Auf der bestehenden Seite `/marketplaces/vinted/session-test` gibt es jetzt
+zusätzlich zur unveränderten Sitzungssimulation einen Browser-Testbereich.
+Er prüft, ob der lokal bewusst gestartete Worker erreichbar ist. Nur dann
+werden Start, Bild, einzelne Klicks, Texte, Tasten und Stopp angeboten. Beim
+Konto- oder Workspacewechsel verschwindet das vorherige Bild sofort und der
+Worker erhält einen Stoppversuch. Nach unklarer Eingabe wird nichts automatisch
+wiederholt. Bilder werden nur als kurzlebige Browser-Objekt-URLs gehalten.
+
+Der lokale Angular-Proxy leitet den API-Pfad an `127.0.0.1:4179` weiter.
+Es gibt keine produktive Weiterleitung und keinen gestarteten echten Worker.
+Die UI-Prüfung verwendete ausschließlich künstliche Antworten: 10 gezielte
+Angular-Tests einschließlich AXE-Strukturprüfung des angezeigten Bildbereichs,
+TypeScript-Prüfung und Produktionsbau waren erfolgreich. Der tatsächliche
+Anbieter-Lauf auf Desktop und iPad bleibt offen und benötigt zuerst G0.
+
+---
+
+## Ergänzung vom 27. September 2026: dauerhafte Sitzung ohne UI-Anbindung
+
+Die kontogebundene Live-Sperre und der Wiederanlauf-Abgleich sind serverseitig
+vorbereitet. Die vorhandene Sitzungstestseite wurde in diesem Schritt nicht
+verändert. Sie nutzt weiterhin die künstlichen Test-RPCs und belegt keine
+GoLogin- oder Vinted-Anmeldung. Ein echter UI-Nachweis folgt erst nach der
+authentisierten Browserweiterleitung und der Freigabe eines isolierten
+Testprofils.
+
+---
+
+## Ergänzung vom 27. September 2026: Serverkern ohne Oberflächenänderung
+
+Der begonnene GoLogin-/Playwright-Dienstkern ist noch nicht mit der Testseite
+verbunden. Die Seite zeigt weiterhin ausschließlich die künstliche Sitzung;
+ein erfolgreicher Test dort belegt weiterhin keinen Anbieterzugriff.
+
+---
+
 ## Ergänzung vom 27. September 2026: eigene Sitzungstestseite
 
 Auf dem bestehenden Branch ist `/marketplaces/vinted/session-test` als

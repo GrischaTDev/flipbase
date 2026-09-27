@@ -182,10 +182,16 @@ describe('SidebarComponent', () => {
   });
 
   it('zeigt Nicht-Betreibern weder Administration noch Unterpunkte', async () => {
-    const { adminLink, subLinks } = await renderAt('/admin/applications', false);
+    const { element, adminLink, subLinks } = await renderAt('/admin/applications', false);
 
     expect(adminLink).toBeNull();
     expect(subLinks).toEqual([]);
+    expect(element.querySelector('a[href="/marketplaces/vinted"]')).toBeNull();
+  });
+
+  it('zeigt den Vinted-Pilotbereich Plattformbetreibern', async () => {
+    const { element } = await renderAt('/dashboard');
+    expect(element.querySelector('a[href="/marketplaces/vinted"]')).not.toBeNull();
   });
 
   it('hat keine automatisch erkennbaren schwerwiegenden Barrieren', async () => {

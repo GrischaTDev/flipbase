@@ -44,7 +44,13 @@ auth.flipbase.de {
 # deshalb reicht Caddy die Antwort unveraendert durch.
 # ---------------------------------------------------------------------------
 app.flipbase.de {
-	reverse_proxy flipbase-web:80
+	@marketplace_browser path /marketplace-browser/*
+	handle @marketplace_browser {
+		reverse_proxy flipbase-marketplace-worker:4179
+	}
+	handle {
+		reverse_proxy flipbase-web:80
+	}
 
 	# Verwaltungsoberflaeche gehoert nicht in Suchmaschinen.
 	header X-Robots-Tag "noindex, nofollow"

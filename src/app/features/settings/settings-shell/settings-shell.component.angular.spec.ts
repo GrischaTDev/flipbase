@@ -1,17 +1,19 @@
 import '@angular/compiler';
-import { Component, ɵresolveComponentResources } from '@angular/core';
+import { Component, signal, ɵresolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router, Routes } from '@angular/router';
 import axe from 'axe-core';
 import { readFile } from 'node:fs/promises';
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { CustomSelectComponent } from '../../../shared/components/custom-select/custom-select.component';
+import { PlatformOperatorService } from '../../../core/services/platform-operator.service';
 import { SettingsShellComponent } from './settings-shell.component';
 
 class TestPageComponent {}
 Component({ selector: 'app-test-page', template: '<p>Testseite</p>' })(TestPageComponent);
 
 describe('SettingsShellComponent', () => {
+  const operator = signal(false);
   beforeAll(async () => {
     await ɵresolveComponentResources((url) => {
       const resource = url.includes('custom-select.component')
@@ -22,6 +24,7 @@ describe('SettingsShellComponent', () => {
   });
 
   beforeEach(async () => {
+    operator.set(false);
     const metadata = (
       CustomSelectComponent as unknown as {
         ɵcmp: { inputs: Record<string, unknown>; declaredInputs: Record<string, string> };
@@ -51,8 +54,23 @@ describe('SettingsShellComponent', () => {
     ];
     await TestBed.configureTestingModule({
       imports: [SettingsShellComponent],
-      providers: [provideRouter(routes)],
+      providers: [
+        provideRouter(routes),
+        {
+          provide: PlatformOperatorService,
+          useValue: { operator, isOperator: async () => operator() },
+        },
+      ],
     }).compileComponents();
+  });
+
+  it('zeigt Marktplatzkonten nur Plattformbetreibern', () => {
+    const fixture = TestBed.createComponent(SettingsShellComponent);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).not.toContain('Marktplatzkonten');
+    operator.set(true);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Marktplatzkonten');
   });
 
   afterEach(() => TestBed.resetTestingModule());

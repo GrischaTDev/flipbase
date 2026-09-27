@@ -1,5 +1,271 @@
 # Arbeitsstand: Vinted-Marktplatzverwaltung
 
+## 27. September 2026 – Admin-Pilot für interaktive Anmeldung vorbereitet
+
+Der bestehende Vinted-Bereich und seine Kontoverwaltung sind nun für den
+Pilot auf Plattformbetreiber mit Adminrechten im eigenen Workspace begrenzt.
+Das gilt in Navigation, Routen und den Datenbankfunktionen; ein normaler
+Workspace-Admin wird auch bei direktem Zugriff abgewiesen. Der Kontodialog
+bleibt bestehen. Beim ersten Browserstart einer freigegebenen Verbindung
+erstellt der Worker ein eigenes GoLogin-Linuxprofil und speichert dessen
+Kennung nur serverseitig. Weitere Starts verwenden dasselbe Profil. Die
+feste Startseite ist `https://www.vinted.de/`; die Bedienung ist auf zehn
+Minuten begrenzt. Die Eingabeoberfläche entfernt Text nach dem Senden aus
+dem Feld und verbirgt ihn während der Eingabe.
+
+Ein Worker-Abbild, Compose-Vorlage, Caddy-Route und ein manueller Workflow
+für die Abbildveröffentlichung sind vorbereitet. Der Produktionsserver hat
+den Worker, den GoLogin-Token und die neue Route noch nicht erhalten. Deshalb
+ist die Funktion nach einem bloßen Web-Release noch nicht live verfügbar.
+Eine echte Vinted-Anmeldung und der Anmeldestatus in Flipbase wurden nicht
+geprüft; importierte Daten entstehen dadurch noch nicht. Die laufenden
+Cloudkosten, Proxy-Zuordnung und sichere Nutzung mehrerer echter Konten sind
+weiter offen.
+
+**Prüfung:** Gezielte Worker-, Angular- und Datenbanktests bestanden;
+Angular-Bau und Worker-Containerbau waren erfolgreich. Die Einzelheiten
+stehen im UI-Prüfprotokoll.
+
+---
+
+## 27. September 2026 – GoLogin-Cloudprofile live geprüft
+
+Ein neuer GoLogin-API-Token wurde außerhalb des Repositorys lokal verschlüsselt
+gespeichert. Die Anbieter-API bestätigte den Zugang. Zwei eigene Linux-Profile
+wurden nur für diesen Test angelegt. Über Playwright-CDP öffnete das erste
+Profil `https://example.com/` (HTTP 200) und lieferte ein JPEG. Anschließend
+funktionierte auch der vorhandene `GoLoginCloudBrowser`-Adapter: Öffnen,
+Browseraktion, Bildaufnahme und ausdrücklicher Provider-Stopp (HTTP 204).
+
+Beide Profile ließen sich gleichzeitig starten. Unterschiedliche künstliche
+Werte im lokalen Browserspeicher blieben zunächst voneinander getrennt und
+waren nach Stopp und erneutem Öffnen jeweils nur im richtigen Profil vorhanden.
+Nach Entfernen der Testwerte wurden beide Cloud-Sitzungen mit HTTP 204 gestoppt.
+Beide Testprofile wurden danach per Anbieter-API mit HTTP 204 gelöscht; die
+Profilzahl entsprach wieder dem Ausgangsstand.
+
+Damit sind Cloud-Verbindung, zwei parallele Profile, einfache Trennung und
+Beständigkeit der Sitzungsdaten im Anbieterbetrieb belegt. Es gab keinen
+Vinted-Zugriff, keine Anmeldung und keine Flipbase-Ende-zu-Ende-Prüfung mit
+diesem Anbieter. Der Versuch sagt nichts darüber aus, ob Vinted Profile als
+unabhängige Geräte einstuft, ob Konten gesperrt werden oder wie 200–300
+gespeicherte Profile unter echter Last betrieben werden können. Für G1 bleibt
+ein ausdrücklich freigegebenes eigenes Testkonto nötig.
+
+---
+
+## 27. September 2026 – Lokale Browserkapazität gemessen
+
+Ein künstlicher Produktkatalog ohne Netzzugriff wurde in getrennten
+Playwright-Chromium-Browsern geöffnet. Bei 1, 2, 4, 8 und 16 gleichzeitig
+laufenden Browsern stieg das gesamte Windows-Working-Set der Testprozesse
+auf rund 0,2 / 0,5 / 1,1 / 2,2 / 4,6 GB. Bei 16 Browsern betrug der
+private Speicher rund 1,36 GB. Alle 16 lieferten ein JPEG; nach dem
+Schließen blieben null Testbrowserprozesse übrig. Testrechner: 64 GB RAM,
+32 logische Prozessoren; vor dem Versuch etwa 24 GB freier RAM.
+Das Working Set ist die Summe der Prozesswerte und kann geteilte Seiten
+mehrfach zählen.
+
+Das ist ein lokaler Belastungsversuch mit flüchtigen Browsern und einer
+einfachen Testseite. Für Vinted, dauerhafte Profile und 200–300 gleichzeitige
+Sitzungen ist daraus keine verlässliche Kapazität abzuleiten. Ein GoLogin-
+API-Zugang war nicht eingerichtet; Anbieterprofil und echte Anmeldung wurden
+nicht getestet. Der kostenlose GoLogin-Testzugang sollte zuerst für einen
+kleinen Anbieter-Smoke-Test verwendet werden, bevor ein kostenpflichtiger
+Tarif gewählt wird.
+
+---
+
+## 27. September 2026 – Browserprofile und Geräteidentität recherchiert
+
+Die öffentliche Dokumentation von GoLogin, AdsPower und Kameleo beschreibt
+dauerhafte Kontoprofile mit eigenen Sitzungsdaten und Browsermerkmalen;
+Netzadressen werden über den jeweiligen Anbieter beziehungsweise Proxies
+zugeordnet. GoLogin veröffentlicht ein Steuerungs-SDK und einen Docker-Rahmen,
+aber keinen offenen Quellcode des Orbita-Browsers in diesen Repositories.
+Camoufox ist ein offenes Beispiel für Änderungen in Firefox selbst und warnt
+vor noch fehlender Produktivreife.
+
+Der jetzige lokale Playwright-Test ist weiterhin auf einen flüchtigen,
+lesenden Seitenaufruf begrenzt. Er belegt keine getrennte Geräteidentität und
+keine Vinted-Anmeldung. Für die Web-App bleibt die serverseitige Kontobindung
+verwendbar; vor einem echten G1-Schritt müssen Profilanbieter oder eigener
+Browserbetrieb anhand eines berechtigten Testkontos bewertet werden. Eine
+behauptete Erfolgsquote gegen Vinteds Kontozuordnung ist nicht belegt.
+Quellen und die drei Architekturwege stehen im Implementierungsplan.
+Für den nächsten G1-Piloten ist ein verwalteter Profilanbieter die vorläufige
+Empfehlung. Bei 200–300 Profilen sind vor allem gleichzeitig laufende
+Cloud-Sitzungen, Anbieterrechte und laufende Kosten offen; die regulären
+GoLogin-Tarife nennen nur zwei beziehungsweise drei parallele Cloud-Sitzungen
+bei 300 beziehungsweise 1000 gespeicherten Profilen.
+
+**Prüfung:** Nur offizielle Anbieter- und Playwright-Unterlagen sowie das
+öffentliche Camoufox-Repository ausgewertet; keine Anbieterintegration und
+kein Vinted-Kontozugriff ausgeführt.
+
+---
+
+## 27. September 2026 – Echte lokale Testseite und Ablaufkorrektur
+
+Die bestehende Seite `/marketplaces/vinted/session-test` wurde mit einem
+künstlichen Nutzer und zwei eigenen Flipbase-Testverbindungen gegen eine
+getrennte lokale Supabase-Instanz und den laufenden Playwright-Worker geprüft.
+Der lesende Browser zeigte auf Desktop (1280 × 900) und iPad-Größe (820 × 1180)
+ein geladenes Bild mit 1100 × 720 Pixeln. Ein Abruf derselben Sitzung mit
+anderem Konto oder Workspace wurde mit 409 abgewiesen; ein Klickversuch mit 403.
+
+Expliziter Stopp und Kontowechsel beendeten den Browser und gaben die
+Datenbanksperre frei. Es wurden keine Vinted-Zugangsdaten verwendet.
+
+Beim ersten Ablauf-Test blieb ein altes Browserbild sichtbar, obwohl der Worker
+die abgelaufene Sitzung bereits geschlossen hatte. Die Angular-Ansicht gibt
+das Bild nach einer fehlgeschlagenen Aktualisierung jetzt frei und blendet es
+aus. Die Gegenprüfung zeigte danach, dass ein bestätigter Ablauf den neuen
+Start trotzdem blockierte. Der Worker antwortet nun nur nach erfolgreich
+bestätigtem Stopp mit 410. Dann verwirft die Ansicht auch die alte Sitzung
+und erlaubt einen neuen Test. Bei unklarem Stopp bleibt die Sperre erhalten.
+Gezielte Tests schlugen vor den Korrekturen fehl und bestanden danach; der
+erneute echte Ablauf-Durchlauf bestätigte Bildfreigabe, Datenbank-Stopp und
+erneut aktivierten Startknopf.
+
+**Prüfungen:** Vier erfolgreiche lokale UI-Durchläufe (Desktop-Stopp,
+iPad-Stopp, Ablauf, Kontowechsel) mit echten lokalen Auth-/REST-Antworten,
+40 Worker-Tests und 13 gezielte Angular-Tests. Alle Testnutzer und zugehörigen
+Verbindungen wurden nach bestätigtem Browser-Stopp entfernt. Der öffentliche
+Seitenaufruf belegt weiterhin keine Vinted-Anmeldung oder inhaltlich geprüfte
+Profilansicht. G1 sowie Liveimport und Nachrichtenversand bleiben offen.
+
+---
+
+## 27. September 2026 – Lokaler Browser für einen lesenden Test
+
+Auf `juna/vinted-browser-worker` kann der Worker jetzt ohne GoLogin einen
+flüchtigen Playwright-Chromium-Browser starten. Die Zieladresse kommt nur aus
+der Serverumgebung und muss eine öffentliche Vinted-Profilseite sein. Der
+Browserkontext speichert keine Anmeldung. Netzwerkziele außerhalb der Vinted-
+Domains, Schreibanfragen und WebSockets werden gesperrt. Eingaben sind im
+HTTP-Dienst und auf der Testseite gesperrt; nur Bild, Aktualisierung und Stopp
+bleiben.
+
+Der Sitzungsbroker bindet die Bedienung weiterhin an Nutzer, Workspace und
+Flipbase-Konto. Ein ungeklärter Stopp hält die Datenbanksperre aufrecht.
+
+**Tatsächlich geprüft:** 39 Worker-Tests, 9 gezielte Angular-Tests, beide
+Typprüfungen, Worker- und Angular-Bau sowie gezieltes ESLint bestanden. Ein
+lokaler Chromium-Test öffnete eine künstliche Seite, lieferte ein JPEG und
+beendete den Browser. Zwei lesende Aufrufe der ausdrücklich genannten
+öffentlichen Vinted-Profiladresse lieferten JPEG-Bilder, zuletzt nach der
+Netzwerksperre mit 21.814 Byte; der Browser wurde jeweils beendet. Es gab keine Anmeldung, keinen Klick und keinen
+Nachrichtenversand.
+
+**Grenze:** Der vollständige Weg über die Flipbase-Testseite und eine echte
+Supabase-Testverbindung wurde mangels lokaler Serverzugänge noch nicht
+durchlaufen. Das Bild belegt den Seitenaufruf, nicht den sichtbaren Profilinhalt
+oder G1. Nach einem ungeordneten Worker-Abbruch kann der lokale Browserprozess
+nicht sicher wiedergefunden werden; der Start bleibt dann bis zur geprüften
+manuellen Bereinigung gesperrt. Keine produktive Anbindung, kein Deployment.
+
+---
+
+## 27. September 2026 – Begrenzte Browserweiterleitung an die Testseite
+
+Auf `juna/vinted-browser-worker` ergänzt die vorhandene Sitzungstestseite einen
+getrennten Browserbereich. Der Worker authentisiert jede Anfrage über Supabase,
+prüft Workspace, Konto, Bediener und dauerhafte Sperre vor Aktionen und gibt nur
+begrenzte JPEG-Bilder sowie ausdrücklich einzelne Eingaben weiter. Nach
+Token-Erneuerung bleibt die Bindung an dieselbe Person und dasselbe Konto
+erhalten. Unklare Eingaben werden nicht wiederholt. Vor dem Serverstart wird
+offener Anbieterzustand bereinigt; aktive Sitzungen werden regelmäßig geprüft
+und bei geordnetem Stopp geschlossen.
+
+Der Browserbereich bleibt ohne lokal bewusst gestarteten Worker gesperrt.
+Weder GoLogin noch Vinted wurden mit einem echten Konto oder Profil geöffnet.
+Die produktive Weiterleitung und G1-Prüfung auf Desktop und iPad sind offen;
+dafür ist zuerst eine konkrete G0-Freigabe erforderlich.
+
+**Prüfungen:** 37 Worker-Tests mit künstlichen Antworten, Worker-Typprüfung und
+-Bau; 10 gezielte Angular-Tests mit synthetischem HTTP-/Bildpfad und AXE-
+Strukturprüfung; App-Typprüfung, Produktionsbau und gezieltes ESLint bestanden.
+
+---
+
+## 27. September 2026 – Dauerhafte Browsersperre und Wiederanlauf
+
+Auf `juna/vinted-browser-worker` sind die zuvor nur simulierten Sperrregeln für
+einen künftigen Live-Browser als eigene Tabellen und Benutzer-RPCs umgesetzt.
+Eine Reservierung bindet Workspace, Verbindung und Bediener transaktional.
+Profil-IDs sind nur für den Serverdienst lesbar und werden beim Start in der
+Sitzung festgehalten, damit eine spätere Änderung der Profilzuordnung keinen
+falschen Browser stoppen lässt. Abgelaufene, pausierte und widerrufene
+Sitzungen bleiben bis zum bestätigten Anbieter-Stopp gesperrt. Ungeklärte
+Sitzungen verhindern auch das Löschen der Verbindung. Wird ein Bediener
+gelöscht, bleibt seine ungeklärte Sitzung als Sperre für den Worker erhalten.
+
+Der Worker besitzt nun Datenbankadapter für Reservierung, erneute Prüfung,
+Profilauflösung und Freigabe. Vor dem ersten neuen Browserstart bereinigt er
+gespeicherte Sitzungen nach einem Neustart. Ein fehlgeschlagener Anbieter-Stopp
+hält die Sperre aufrecht und kann erneut versucht werden. Der Adapter prüft die
+Benutzeranmeldung beim Auth-Dienst und nutzt den Service-Role-Schlüssel nur
+serverseitig. Das Benutzerzugriffstoken liegt während der kurzen Sitzung im
+Worker-Speicher, nie in Tabellen oder Antworten.
+
+**Tatsächlich geprüft:** Die neue Migration wurde in einer getrennten lokalen
+Supabase-Instanz erzeugt, um die vom Generator ausgelassenen Rechteentzüge
+ergänzt und aus leerer Datenbank erneut aufgespielt. 32 neue gezielte
+Datenbankprüfungen und 61 Datenbankdateien mit 2159 Tests bestanden. Zwei
+gleichzeitige Transaktionen ergaben genau eine Reservierung; die zweite wurde
+gesperrt. Ein zusätzlicher lokaler REST-Versuch mit einem eigens erzeugten
+Testbenutzer bestätigte Reservierung, Profilauflösung, Statusprüfung und
+Freigabe gegen die echte Supabase-API. Datenbank-Lint meldete keine Fehler.
+27 Worker-Tests mit künstlichem Anbieter und Datenbankantworten sowie
+Worker-Typprüfung und Paketbau bestanden. Es wurde kein
+echtes GoLogin-Profil und kein Vinted-Konto geöffnet.
+
+**Weiter offen:** Eine authentisierte Flipbase-API und begrenzte Bild- und
+Eingabeweiterleitung zur vorhandenen Testseite. Erst danach ist ein G1-Test
+mit einem ausdrücklich freigegebenen isolierten Anbieterprofil möglich. Die
+Testseite bleibt bis dahin eine Simulation.
+
+---
+
+## 27. September 2026 – GoLogin-/Playwright-Dienstkern begonnen
+
+Auf dem neuen Branch `juna/vinted-browser-worker` wurde aus dem aktuellen
+`master` ein getrenntes Node-Paket für den künftigen Marktplatz-Worker
+angelegt. Es verbindet `playwright-core` über den dokumentierten GoLogin-CDP-
+Endpunkt, hält Token und Profil-ID im Serverprozess und ruft beim Beenden den
+Anbieter-Stopp ausdrücklich auf. Die GoLogin-Anleitung zeigt, dass die
+CDP-Verbindung das Profil bereits startet; der gesonderte Aufruf für eine
+Liveansicht wird nicht benötigt und nicht ausgeführt.
+
+Der Dienstkern prüft bei jeder internen Aktion Workspace, Kontoverbindung,
+Bediener und den aktuellen Sperrstatus. Bei Ablauf, Widerruf oder Browserfehler
+wird gestoppt. Scheitert der Stopp, bleiben Sperre und Sitzung im Speicher zur
+erneuten Bereinigung erhalten; weitere Aktionen werden gesperrt. Ein
+fehlgeschlagener Browserstart gibt die Sperre nur nach dem vorgesehenen
+Bereinigungspfad frei. Fehlertexte enthalten keine Anbieter-URL und keinen
+Token.
+
+**Tatsächlich geprüft:** 20 Node-Tests mit künstlichem Anbieter und
+Sperrspeicher; die neuen Schutzfälle schlugen vor der jeweiligen Korrektur
+fehl und bestanden danach. Geprüft sind auch parallele Stopps, ablaufende
+Sperren und die erneute Bereinigung nach einem ungewissen Anbieter-Stopp.
+Paket-Typprüfung und Build, gezieltes ESLint sowie die vollständige
+Anwendungstestsuite (1507 Node-, 270 DOM- und 1199 Angular-Tests),
+App-Typprüfung und Angular-Produktionsbau erfolgreich. Die Paketprüfungen
+sind in den CI-Qualitätsjob aufgenommen; Workflowtests und Formatprüfung
+bestanden. Es wurde kein
+GoLogin-Profil und kein Vinted-Konto geöffnet. Die vorhandene Angular-
+Testseite bleibt eine Simulation.
+
+**Offen für AP04:** Die Sperrschnittstelle braucht eine dauerhafte, atomare
+Datenbankimplementierung mit Profilzuordnung und Wiederanlauf-Abgleich. Eine
+authentisierte Bild-/Eingabeweiterleitung zur Testseite fehlt. Besonders ein
+unklarer Anbieter-Stopp nach Prozessabbruch darf nicht als sichere Freigabe
+gelten. Ein echter G1-Test benötigt ein isoliertes Testprofil und G0-Freigaben.
+
+---
+
 ## 27. September 2026 – Korrektur für den Docker-Produktionsbau
 
 PR #207 wurde nach grünen Pflichtprüfungen als Merge-Commit `8386afb8` in

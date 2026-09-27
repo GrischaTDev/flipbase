@@ -88,8 +88,9 @@
     </app-card>
     @if (account.status === 'needs_login' || account.status === 'disconnected') {
       <app-notice-banner
-        >Die Kontoverbindung ist vorbereitet. Die Browseranmeldung ist noch nicht angebunden; es
-        werden keine Vinted-Zugangsdaten abgefragt.</app-notice-banner
+        >Die Kontoverbindung ist vorbereitet. Über „Sitzung testen“ kannst Du den eigenen
+        Browserbereich öffnen, sobald der Browserdienst verbunden ist. Deine Zugangsdaten werden
+        nicht als Flipbase-Kontodaten gespeichert.</app-notice-banner
       >
     } @else if (account.status === 'paused') {
       <app-notice-banner

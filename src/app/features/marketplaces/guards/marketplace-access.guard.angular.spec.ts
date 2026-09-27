@@ -2,10 +2,11 @@ import { Injector, runInInjectionContext, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { describe, expect, it, vi } from 'vitest';
 import { AuthService } from '../../../core/services/auth.service';
+import { PlatformOperatorService } from '../../../core/services/platform-operator.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
 import { MarketplaceApiService } from '../services/marketplace-api.service';
 import { marketplaceAccessGuard } from './marketplace-access.guard';
-function setup(allowed = true) {
+function setup(allowed = true, isOperator = true) {
   const currentWorkspace = signal<{ id: string; archived_at?: string } | null>({ id: 'ws-a' });
   const currentUser = signal<{ id: string } | null>({ id: 'user-a' });
   const canManage = vi.fn().mockResolvedValue(allowed);
@@ -17,6 +18,7 @@ function setup(allowed = true) {
         useValue: { currentWorkspace, ensureLoaded: async () => undefined },
       },
       { provide: AuthService, useValue: { currentUser, sessionReady: Promise.resolve() } },
+      { provide: PlatformOperatorService, useValue: { isOperator: async () => isOperator } },
       { provide: MarketplaceApiService, useValue: { canManage } },
       { provide: Router, useValue: { createUrlTree: () => denied } },
     ],
@@ -39,6 +41,11 @@ describe('Marktplatzzugriff', () => {
   it('leitet bei fehlender Berechtigung zurück', async () => {
     const f = setup(false);
     expect(await f.invoke()).toBe(f.denied);
+  });
+  it('weist Nichtbetreiber vor dem Marktplatzaufruf ab', async () => {
+    const f = setup(true, false);
+    expect(await f.invoke()).toBe(f.denied);
+    expect(f.canManage).not.toHaveBeenCalled();
   });
   it('weist Fehler, fehlende Anmeldung und archivierte Workspaces ab', async () => {
     const f = setup();

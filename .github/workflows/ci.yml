@@ -112,6 +112,15 @@ jobs:
       - name: Check types
         run: npm run typecheck
 
+      - name: Install marketplace worker dependencies
+        run: npm ci --prefix services/marketplace-worker --ignore-scripts
+
+      - name: Check marketplace worker
+        run: |
+          npm --prefix services/marketplace-worker run typecheck
+          npm --prefix services/marketplace-worker test
+          npm --prefix services/marketplace-worker run build
+
       # Prueft die Workflow-Dateien selbst: Syntax, ungueltige Ausdruecke,
       # kaputte Matrizen, unsichere Shell-Interpolation. Ersetzt rund 1200
       # Zeilen selbstgeschriebener YAML-Zusicherungen, die dasselbe Ziel
@@ -248,6 +257,9 @@ jobs:
 
       - name: Test database
         run: npm run test:db
+
+      - name: Test parallel marketplace browser reservations
+        run: node scripts/marketplace-live-browser-concurrency.mjs
 
       - name: Stop local Supabase
         if: ${{ always() }}
