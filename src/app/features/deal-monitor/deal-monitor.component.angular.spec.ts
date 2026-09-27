@@ -101,7 +101,7 @@ describe('DealMonitorComponent', () => {
       return readFile(resolve(resourcePath), 'utf8');
     });
 
-    registerSignalInputs(PageHeaderComponent, ['title', 'subtitle', 'badge']);
+    registerSignalInputs(PageHeaderComponent, ['title', 'subtitle', 'badge', 'icon']);
     registerSignalInputs(ButtonComponent, [
       'variant',
       'size',
@@ -118,7 +118,7 @@ describe('DealMonitorComponent', () => {
       'triggerId',
       'ariaLabel',
     ]);
-    registerSignalInputs(DealCardComponent, ['item', 'featured']);
+    registerSignalInputs(DealCardComponent, ['item']);
     registerSignalInputs(DealDetailModalComponent, ['item']);
     registerSignalInputs(WatchlistEditorComponent, ['watchlist', 'categories', 'saving']);
   });
@@ -127,6 +127,7 @@ describe('DealMonitorComponent', () => {
   let currentWorkspace: ReturnType<typeof signal<{ id: string; name: string } | null>>;
 
   const mockApi = {
+    supportedBrands: vi.fn().mockResolvedValue(['Nike', 'Adidas']),
     watchlists: vi.fn().mockResolvedValue([
       {
         id: 'wl-1',
@@ -208,20 +209,21 @@ describe('DealMonitorComponent', () => {
     expect(comp.filteredItems().length).toBe(5);
   });
 
-  it('keeps the first three findings as one featured gallery', async () => {
+  it('offers the brands supported by the feed', async () => {
     TestBed.flushEffects();
+    await comp.loadBrands('ws-1');
     await comp.state.refresh();
 
-    expect(comp.highlights().length).toBe(3);
-    expect(comp.featuredLead()?.id).toBe('1');
-    expect(comp.featuredSupport().map((item) => item.id)).toEqual(['2', '3']);
-    expect(comp.grid().length).toBe(2);
-
-    comp.selectedSize.set('l');
-    expect(comp.highlights().length).toBe(1);
-    expect(comp.featuredLead()?.id).toBe('2');
-    expect(comp.featuredSupport()).toEqual([]);
-    expect(comp.grid().length).toBe(0);
+    expect(comp.brandOptions().map((option) => option.label)).toEqual([
+      'Alle Marken',
+      'Nike',
+      'Adidas',
+    ]);
+    comp.selectedBrand.set('Nike');
+    TestBed.flushEffects();
+    expect(mockApi.feed).toHaveBeenCalledWith(
+      expect.objectContaining({ workspace: 'ws-1', brand: 'Nike' }),
+    );
   });
 
   it('manages selected deal for detail modal inspection', () => {

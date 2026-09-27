@@ -1,7 +1,8 @@
 <section class="mx-auto flex w-full max-w-screen-2xl flex-col gap-5 p-4 sm:p-6">
   <app-page-header
     title="Vinted Bot"
-    subtitle="Neue Vinted-Funde aus deinen Bereichen. Entdecken, vergleichen und passende Deals merken."
+    subtitle="Neue Vinted-Artikel entdecken und für später merken."
+    [icon]="pageIcon"
   />
   @if (!workspace()) {
     <p role="status">Bitte einen Arbeitsbereich auswählen.</p>
@@ -12,38 +13,42 @@
     </p>
   }
 
-  <div class="flex flex-wrap items-end justify-between gap-4">
-    <div class="flex flex-wrap gap-2" role="group" aria-label="Ansicht wählen">
-      <app-button [ariaPressed]="view() === 'articles'" (clicked)="view.set('articles')"
-        >Artikel</app-button
-      >
-      <app-button [ariaPressed]="view() === 'deals'" (clicked)="view.set('deals')"
-        >Deals</app-button
-      >
+  <div class="flex flex-wrap items-end gap-3">
+    <div class="w-full min-w-0 sm:w-56">
+      <label for="feed-watchlist" class="mb-1 block text-sm">Suchfilter</label
+      ><app-custom-select
+        triggerId="feed-watchlist"
+        placeholder="Alle Suchfilter"
+        ariaLabel="Suchfilter"
+        [options]="options()"
+        [(value)]="selected"
+      />
     </div>
-    <div class="flex flex-wrap items-end gap-3">
-      <div class="w-full min-w-0 sm:w-56">
-        <label for="feed-watchlist" class="mb-1 block text-sm">Suchfilter</label
-        ><app-custom-select
-          triggerId="feed-watchlist"
-          placeholder="Alle Artikel"
-          ariaLabel="Suchfilter"
-          [options]="options()"
-          [(value)]="selected"
-        />
-      </div>
-      <div class="w-full min-w-0 sm:w-44">
-        <label for="feed-size" class="mb-1 block text-sm">Größe</label
-        ><app-custom-select
-          triggerId="feed-size"
-          placeholder="Alle Größen"
-          ariaLabel="Größe filtern"
-          [options]="sizeOptions"
-          [(value)]="selectedSize"
-        />
-      </div>
+    <div class="w-full min-w-0 sm:w-48">
+      <label for="feed-brand" class="mb-1 block text-sm">Marke</label>
+      <app-custom-select
+        triggerId="feed-brand"
+        placeholder="Alle Marken"
+        ariaLabel="Nach Marke filtern"
+        [searchable]="true"
+        [options]="brandOptions()"
+        [(value)]="selectedBrand"
+      />
+    </div>
+    <div class="w-full min-w-0 sm:w-44">
+      <label for="feed-size" class="mb-1 block text-sm">Größe</label
+      ><app-custom-select
+        triggerId="feed-size"
+        placeholder="Alle Größen"
+        ariaLabel="Größe filtern"
+        [options]="sizeOptions"
+        [(value)]="selectedSize"
+      />
     </div>
   </div>
+  @if (brandError(); as text) {
+    <p role="alert">{{ text }} <app-button (clicked)="loadBrands()">Erneut laden</app-button></p>
+  }
 
   @if (state.error(); as text) {
     <p role="alert">{{ text }} <app-button (clicked)="state.refresh()">Erneut laden</app-button></p>
@@ -86,19 +91,16 @@
           @if (selectedSize()) {
             Keine Artikel in Größe {{ selectedSize() | uppercase }} gefunden
           } @else {
-            {{ view() === 'deals' ? 'Noch keine passenden Deals' : 'Noch keine passenden Artikel' }}
+            Noch keine passenden Artikel
           }
         </h2>
         <p class="mt-2 text-sm text-fb-text-secondary">
           @if (selectedSize()) {
-            In der aktuellen Ansicht gibt es keine Angebote mit der ausgewählten Größe. Wähle eine
-            andere Größe oder setze den Filter auf „Alle Größen“ zurück.
-          } @else if (view() === 'deals') {
-            Deals brauchen einen aktiven Suchfilter und mindestens acht geeignete
-            Vergleichsangebote. Der erste Einlesebestand wird nicht als Deal gemeldet.
+            Es gibt keine Angebote mit der ausgewählten Größe. Wähle eine andere Größe oder setze
+            den Filter auf „Alle Größen“ zurück.
           } @else {
-            Hier erscheinen passende Funde, sobald der Bot Artikel gesammelt hat. Dein Suchfilter
-            startet keine eigene Vinted-Suche.
+            Hier erscheinen passende Funde, sobald der Bot Artikel gesammelt hat. Du kannst auch
+            einen anderen Suchfilter oder eine andere Marke wählen.
           }
         </p></app-card
       >
@@ -108,29 +110,15 @@
           <h2 id="feed-finds-title" class="text-base font-semibold">Neue Funde</h2>
         </div>
         <div role="region" aria-labelledby="feed-finds-title" class="space-y-4">
-          @if (highlights().length > 0) {
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              @for (item of highlights(); track item.id) {
-                <app-deal-card
-                  class="motion-safe:transition motion-safe:duration-200 motion-safe:starting:opacity-0 motion-safe:starting:-translate-x-3"
-                  [item]="item"
-                  [featured]="true"
-                  (inspect)="selectedDeal.set($event)"
-                />
-              }
-            </div>
-          }
-          @if (grid().length > 0) {
-            <div class="grid grid-cols-2 gap-3 xl:grid-cols-4">
-              @for (item of grid(); track item.id) {
-                <app-deal-card
-                  class="motion-safe:transition motion-safe:duration-200 motion-safe:starting:opacity-0 motion-safe:starting:-translate-x-3"
-                  [item]="item"
-                  (inspect)="selectedDeal.set($event)"
-                />
-              }
-            </div>
-          }
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            @for (item of filteredItems(); track item.id) {
+              <app-deal-card
+                class="motion-safe:transition motion-safe:duration-200 motion-safe:starting:opacity-0 motion-safe:starting:-translate-x-3"
+                [item]="item"
+                (inspect)="selectedDeal.set($event)"
+              />
+            }
+          </div>
         </div>
       </section>
       @if (state.hasMore()) {

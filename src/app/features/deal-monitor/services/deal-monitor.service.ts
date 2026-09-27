@@ -44,11 +44,25 @@ export class DealMonitorService {
     }
   }
 
+  async supportedBrands(workspace: string): Promise<string[]> {
+    const { data, error } = await this.client.rpc('sniper_supported_brands', {
+      p_workspace_id: workspace,
+    });
+    if (error || !data) throw new Error('Marken konnten nicht geladen werden.');
+    const uniqueBrands = new Map<string, string>();
+    for (const row of data) {
+      const brand = row.brand.trim();
+      const key = brand.toLocaleLowerCase('de');
+      if (brand && !uniqueBrands.has(key)) uniqueBrands.set(key, brand);
+    }
+    return [...uniqueBrands.values()].sort((left, right) => left.localeCompare(right, 'de'));
+  }
+
   async feed(request: FeedRequest): Promise<FeedPage> {
-    const { data, error } = await this.client.rpc('sniper_feed', {
+    const { data, error } = await this.client.rpc('sniper_feed_by_brand', {
       p_workspace_id: request.workspace,
       p_watchlist_id: request.watchlist!,
-      p_deals_only: request.dealsOnly,
+      p_brand: request.brand!,
       p_before_time: (request.cursor?.time ?? null)!,
       p_before_id: (request.cursor?.id ?? null)!,
       p_limit: 60,

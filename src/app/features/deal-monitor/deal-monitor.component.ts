@@ -10,6 +10,7 @@ import {
   untracked,
 } from '@angular/core';
 import { UpperCasePipe } from '@angular/common';
+import { LucideBot } from '@lucide/angular';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
@@ -43,7 +44,9 @@ export class DealMonitorComponent {
   private readonly document = inject(DOCUMENT);
   readonly state = new DealFeedState((request) => this.api.feed(request));
   readonly watchlists = signal<Watchlist[]>([]);
+  readonly brands = signal<string[]>([]);
   readonly selected = signal<string | null>(null);
+  readonly selectedBrand = signal<string | null>(null);
   readonly selectedSize = signal<string | null>(null);
   readonly selectedDeal = signal<FeedItem | null>(null);
   readonly sizeOptions = [
@@ -56,12 +59,17 @@ export class DealMonitorComponent {
     { value: 'xxl', label: 'XXL' },
     { value: '3xl', label: '3XL+' },
   ];
-  readonly view = signal<'articles' | 'deals'>('articles');
   readonly error = signal<string | null>(null);
+  readonly brandError = signal<string | null>(null);
   readonly now = signal(Date.now());
+  readonly pageIcon = LucideBot;
   readonly options = computed(() => [
-    { value: null as string | null, label: 'Alle Artikel' },
+    { value: null as string | null, label: 'Alle Suchfilter' },
     ...this.watchlists().map((row) => ({ value: row.id, label: row.title })),
+  ]);
+  readonly brandOptions = computed(() => [
+    { value: null as string | null, label: 'Alle Marken' },
+    ...this.brands().map((brand) => ({ value: brand, label: brand })),
   ]);
   readonly selectedWatchlist = computed(() =>
     this.watchlists().find((row) => row.id === this.selected()),
@@ -72,14 +80,11 @@ export class DealMonitorComponent {
     if (!size) return items;
     return items.filter((item) => matchesSize(item.size, size));
   });
-  readonly highlights = computed(() => this.filteredItems().slice(0, 3));
-  readonly featuredLead = computed(() => this.highlights()[0] ?? null);
-  readonly featuredSupport = computed(() => this.highlights().slice(1));
-  readonly grid = computed(() => this.filteredItems().slice(3));
   readonly stale = computed(
     () => !this.state.reportedAt() || this.now() - Date.parse(this.state.reportedAt()!) > 120_000,
   );
   private listGeneration = 0;
+  private brandGeneration = 0;
   private timer?: ReturnType<typeof setTimeout>;
 
   constructor() {
@@ -87,20 +92,25 @@ export class DealMonitorComponent {
       const workspace = this.workspace()?.id ?? null;
       untracked(() => {
         this.selected.set(null);
+        this.selectedBrand.set(null);
         this.selectedSize.set(null);
         this.watchlists.set([]);
+        this.brands.set([]);
         this.error.set(null);
+        this.brandError.set(null);
         this.listGeneration++;
-        if (workspace) void this.loadWatchlists(workspace);
+        this.brandGeneration++;
+        if (workspace) {
+          void this.loadWatchlists(workspace);
+          void this.loadBrands(workspace);
+        }
       });
     });
     effect(() => {
       const workspace = this.workspace()?.id;
       const watchlist = this.selected();
-      const dealsOnly = this.view() === 'deals';
-      untracked(() =>
-        this.state.setContext(workspace ? { workspace, watchlist, dealsOnly } : null),
-      );
+      const brand = this.selectedBrand();
+      untracked(() => this.state.setContext(workspace ? { workspace, watchlist, brand } : null));
     });
     const tick = async () => {
       this.now.set(Date.now());
@@ -112,6 +122,7 @@ export class DealMonitorComponent {
     this.destroyRef.onDestroy(() => {
       clearTimeout(this.timer);
       this.listGeneration++;
+      this.brandGeneration++;
       this.state.destroy();
     });
   }
@@ -127,6 +138,23 @@ export class DealMonitorComponent {
     } catch (error) {
       if (generation === this.listGeneration) {
         this.error.set(error instanceof Error ? error.message : 'Laden fehlgeschlagen.');
+      }
+    }
+  }
+
+  async loadBrands(workspace = this.workspace()?.id): Promise<void> {
+    if (!workspace) return;
+    const generation = ++this.brandGeneration;
+    try {
+      const brands = await this.api.supportedBrands(workspace);
+      if (generation !== this.brandGeneration || this.destroyRef.destroyed) return;
+      this.brands.set(brands);
+      this.brandError.set(null);
+    } catch (error) {
+      if (generation === this.brandGeneration && !this.destroyRef.destroyed) {
+        this.brandError.set(
+          error instanceof Error ? error.message : 'Marken konnten nicht geladen werden.',
+        );
       }
     }
   }

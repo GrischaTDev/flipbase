@@ -176,7 +176,7 @@ describe('SidebarComponent', () => {
     const { element, subLinks } = await renderAt('/vinted-bot/filters', false);
 
     expect(subLinks.map((link) => link.textContent?.trim())).toEqual([
-      'Bot',
+      'Vinted Feed',
       'Suchfilter',
       'Favoriten',
     ]);

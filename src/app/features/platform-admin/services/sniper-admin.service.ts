@@ -57,6 +57,23 @@ export class SniperAdminService {
     if (error) throw new Error(error.message);
   }
 
+  async saveMany(drafts: readonly QueryDraft[]): Promise<{
+    savedIds: number[];
+    failedNames: string[];
+  }> {
+    const savedIds: number[] = [];
+    const failedNames: string[] = [];
+    for (const draft of drafts) {
+      try {
+        await this.save(draft);
+        if (draft.brandId !== null) savedIds.push(draft.brandId);
+      } catch {
+        failedNames.push(draft.title);
+      }
+    }
+    return { savedIds, failedNames };
+  }
+
   async setActive(id: string, active: boolean): Promise<void> {
     const { error } = await this.client.rpc('set_sniper_query_active', {
       p_id: id,

@@ -26,7 +26,7 @@ describe('central Vinted brand filter validation', () => {
   });
 
   it.each([null, 0, -1, 1.5, 2147483648])('rejects an invalid Vinted brand id: %s', (brandId) => {
-    expect(queryDraftError(draft({ brandId }))).toContain('Markenkennung');
+    expect(queryDraftError(draft({ brandId }))).toContain('Vinted-Marke');
   });
 
   it('rejects an overlong note and an invalid interval', () => {

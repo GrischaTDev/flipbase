@@ -33,7 +33,7 @@ const page = (items: FeedItem[]): FeedPage => ({
   covered: true,
   reported_at: '2026-09-12T12:00:00Z',
 });
-const context: FeedRequest = { workspace: 'a', watchlist: null, dealsOnly: false };
+const context: FeedRequest = { workspace: 'a', watchlist: null, brand: null };
 const settle = async () => {
   await Promise.resolve();
   await Promise.resolve();
@@ -146,13 +146,6 @@ describe('DealFeedState', () => {
     finish(page([item('old')]));
     await older;
     expect(state.items().map((row) => row.id)).toEqual(['newest']);
-  });
-  it('separates highlights from the grid without duplicate cards', async () => {
-    const state = new DealFeedState(async () => page(['1', '2', '3', '4'].map(item)));
-    state.setContext(context);
-    await settle();
-    expect(state.highlights()).toHaveLength(3);
-    expect(state.grid().map((row) => row.id)).toEqual(['4']);
   });
 });
 
