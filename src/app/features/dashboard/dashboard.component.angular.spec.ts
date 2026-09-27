@@ -57,6 +57,7 @@ const emptyReport: DashboardReport = {
   revenueWithoutCost: 0,
   salesWithoutCostCount: 0,
   purchaseSpend: 0,
+  purchaseCount: 0,
   sellingCosts: 0,
   operatingExpenseSpend: 0,
   totalExpenses: 0,
@@ -359,6 +360,7 @@ describe('DashboardComponent', () => {
       grossProfit: 20.09,
       revenue: 42.98,
       purchaseSpend: 24.95,
+      purchaseCount: 1,
       sellingCosts: 12.89,
       operatingExpenseSpend: 7,
       totalExpenses: 44.84,
@@ -418,6 +420,7 @@ describe('DashboardComponent', () => {
     expect(kpi('margin')).toContain('46,74 %');
     expect(kpi('cashflow')).toBeUndefined();
     expect(kpi('purchases')).toContain('24,95 €');
+    expect(kpi('purchases')).toContain('1 Einkauf im gewählten Zeitraum');
     expect(kpi('operating-expenses')).toContain('7,00 €');
     expect(kpi('total-expenses')).toContain('44,84 €');
     expect(host.querySelector('[data-kpi="total-expenses"] .linear-kpi > p')?.classList).toContain(
@@ -429,7 +432,7 @@ describe('DashboardComponent', () => {
     expect(host.querySelector('[data-dashboard-expenses]')).toBeNull();
 
     expect(kpiSection.querySelector('[data-kpi-change]')).toBeNull();
-    expect(kpiSection.querySelector('[data-kpi-hint]')).toBeNull();
+    expect(kpiSection.querySelectorAll('[data-kpi-hint]')).toHaveLength(1);
     expect(kpiSection.textContent).not.toContain('ggü.');
     expect(kpiSection.textContent).not.toContain('neu');
     expect(kpiSection.textContent).not.toContain('Artikel ohne Kosten');

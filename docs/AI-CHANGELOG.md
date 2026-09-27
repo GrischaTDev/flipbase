@@ -8,6 +8,14 @@
 
 **Prüfung:** Nach dem Upload stimmen die gelesenen Bilddateien bytegenau mit den optimierten Fassungen überein. Die Datenbank meldet drei Shop-Bilder mit zusammen 731.729 Bytes und keine fehlenden Bildverweise. Die 25 Produktbilder aktiver Arbeitsbereiche liegen bereits alle unter 0,8 MB. Das Skript wurde mit Python kompiliert und der Lauf nach einem vorübergehenden API-Fehler erfolgreich fortgesetzt.
 
+## 2026-09-27 – Juna – Dashboard-Einkäufe im gewählten Zeitraum erklärt
+
+**Auftrag:** Die Anzeige von 160,07 € bei 13 erfassten Einkäufen im Workspace Wiehen Store prüfen.
+
+**Änderung:** Die vier Einkäufe mit Kaufdatum im September ergeben zusammen genau 160,07 €. Die übrigen neun Einkäufe liegen im August; zwölf der 13 Einkäufe sind abgeschlossen. Die Dashboard-Kachel zeigt zusätzlich die Anzahl der Einkäufe mit bekanntem Preis, die in ihrer Summe und im gewählten Zeitraum enthalten sind. Die bestehende Berechnung und die Zeitraumauswahl bleiben erhalten.
+
+**Prüfung:** Die Summe mit der geöffneten Einkaufsliste abgeglichen. Gezielte Service- und Dashboard-Tests, Typprüfung und ESLint bestanden; der Angular-Produktionsbau wurde ebenfalls geprüft.
+
 ## 2026-09-27 – Juna – Vinted-Typvertrag im Produktionsbau bereitstellen
 
 **Auftrag:** Den nach PR #207 fehlgeschlagenen Produktionsbau untersuchen und
