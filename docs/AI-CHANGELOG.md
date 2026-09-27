@@ -22,6 +22,12 @@ Typprüfung und gezieltes Lint bestanden. Produktionsanbindung und
 Vinted-Anmeldung stehen aus. `npm run verify` bestand vollständig; acht
 gezielte Betreiber-Dienst-Tests bestanden nach der letzten UI-Korrektur.
 
+**PR-Nachtrag:** Im ersten Lauf von PR #217 bestanden alle 2163 SQL-Prüfungen,
+doch der getrennte Test für parallele Browserstarts scheiterte: Sein
+künstlicher Nutzer hatte nach der Admin-Sperre keinen Betreibereintrag.
+Die Testdaten wurden ergänzt. Der Konkurrenztest bestand danach gegen eine
+isolierte lokale Datenbank: genau eine Reservierung, zweite Anfrage gesperrt.
+
 ## 2026-09-27 – Juna – GoLogin-Cloudprofile mit Testseite geprüft
 
 **Auftrag:** Den bereitgestellten GoLogin-Zugang sicher prüfen und entscheiden,

@@ -19,6 +19,12 @@ TypeScript-Dateien wurden ohne Lintfehler geprüft. Zusätzlich bestand
 `npm run verify` vollständig. Acht gezielte Betreiber-Dienst-Tests bestätigten
 nach der letzten UI-Korrektur den sofortigen Entzug der Navigation.
 
+Im ersten PR-Lauf bestanden alle 2163 SQL-Prüfungen. Der zusätzliche
+Konkurrenztest brauchte für seinen künstlichen Nutzer noch die neue
+Plattformbetreiberrolle. Nach der Korrektur bestand der Test gegen die
+isolierte lokale Datenbank: Eine Reservierung blieb aktiv, die parallele
+zweite Anfrage erhielt die vorgesehene Sperre.
+
 **Noch offen:** Die produktive Worker- und Proxy-Einrichtung sowie ein
 Ende-zu-Ende-Test des Cloudmodus über die Flipbase-Oberfläche. Kein echtes
 Vinted-Konto wurde angemeldet. Das Anlegen einer Flipbase-Kontoverbindung

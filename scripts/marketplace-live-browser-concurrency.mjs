@@ -78,6 +78,7 @@ let second;
 try {
   query(`insert into auth.users (id, aud, role, email, raw_app_meta_data, raw_user_meta_data)
     values ('${userId}', 'authenticated', 'authenticated', '${userId}@example.test', '{}', '{}');
+    insert into public.platform_operators (user_id) values ('${userId}');
     insert into public.workspaces (id, name) values ('${workspaceId}', 'Browser-Konkurrenztest');
     insert into public.workspace_members (workspace_id, user_id, role) values ('${workspaceId}', '${userId}', 'owner');
     insert into public.marketplace_connections (id, workspace_id, display_name) values ('${connectionId}', '${workspaceId}', 'Browser-Testkonto');
