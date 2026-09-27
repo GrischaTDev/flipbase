@@ -14,6 +14,19 @@ const product: CatalogProduct = {
 };
 
 describe('CatalogService', () => {
+  it('verwendet für Artikellisten die kleine Vorschau des Produktbilds', () => {
+    const path = 'catalog-products/workspace-1/product-1/a.jpg';
+    const getProductThumbnailUrl = vi.fn(() => 'https://images/thumbnail');
+    const service = Object.create(CatalogService.prototype) as CatalogService;
+    Object.assign(service, {
+      products: signal<CatalogProduct[]>([{ ...product, primary_media_path: path }]),
+      media: { getProductThumbnailUrl },
+    });
+
+    expect(service.imageUrls()).toEqual({ [product.id]: 'https://images/thumbnail' });
+    expect(getProductThumbnailUrl).toHaveBeenCalledExactlyOnceWith(path);
+  });
+
   it('lädt eigene Variantenbilder mit Vorrang vor den Bildern der Gruppe', async () => {
     const root = {
       ...product,

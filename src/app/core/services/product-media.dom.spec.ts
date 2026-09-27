@@ -228,6 +228,51 @@ describe('Produktmedien', () => {
     expect(service.getMediaUrl('a.png')).not.toBe(first);
   });
 
+  it('lädt kleine Produktvorschauen und verwirft deren URLs nach Workspacewechsel', async () => {
+    const path = 'catalog-products/workspace-1/product-1/a.jpg';
+    const createSignedUrl = vi.fn(async () => ({
+      data: { signedUrl: 'https://images/thumbnail' },
+      error: null,
+    }));
+    const { service, workspace } = setup({ storage: { from: () => ({ createSignedUrl }) } });
+
+    expect(service.getProductThumbnailUrl(path)).toBe('');
+    await Promise.resolve();
+    expect(createSignedUrl).toHaveBeenCalledExactlyOnceWith(path, 3600, {
+      transform: { width: 96, height: 96, resize: 'contain', quality: 75 },
+    });
+    expect(service.getProductThumbnailUrl(path)).toBe('https://images/thumbnail');
+    expect(service.getProductThumbnailUrl(path)).toBe('https://images/thumbnail');
+    expect(createSignedUrl).toHaveBeenCalledTimes(1);
+
+    workspace.set({ id: 'workspace-2' });
+    expect(service.getProductThumbnailUrl(path)).toBe('');
+  });
+
+  it('zeigt das Originalbild, wenn die kleine Vorschau fehlschlägt', async () => {
+    const path = 'catalog-products/workspace-1/product-1/a.jpg';
+    const createSignedUrl = vi.fn(async () => ({
+      data: null,
+      error: new Error('Vorschau nicht verfügbar'),
+    }));
+    const createSignedUrls = vi.fn(async (paths: string[]) => ({
+      data: paths.map((entry) => ({ path: entry, signedUrl: 'https://images/original' })),
+      error: null,
+    }));
+    const { service } = setup({
+      storage: { from: () => ({ createSignedUrl, createSignedUrls }) },
+    });
+
+    expect(service.getProductThumbnailUrl(path)).toBe('');
+    await Promise.resolve();
+    expect(service.getProductThumbnailUrl(path)).toBe('');
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(service.getProductThumbnailUrl(path)).toBe('https://images/original');
+    expect(createSignedUrl).toHaveBeenCalledTimes(1);
+    expect(createSignedUrls).toHaveBeenCalledTimes(1);
+  });
+
   it('verwirft verspätete Signaturen nach Workspacewechsel', async () => {
     let complete:
       ((value: { data: { path: string; signedUrl: string }[]; error: null }) => void) | undefined;

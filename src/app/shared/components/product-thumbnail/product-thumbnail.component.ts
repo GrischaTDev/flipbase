@@ -19,6 +19,7 @@ export class ProductThumbnailComponent {
   readonly src = input<string | null>(null);
   readonly alt = input('');
   readonly size = input<'sm' | 'md'>('sm');
+  readonly priority = input(false);
   readonly imageFailed = output<void>();
   readonly failed = linkedSignal({ source: this.src, computation: () => false });
   readonly imageSource = computed(() => (this.failed() ? null : this.src()?.trim() || null));
