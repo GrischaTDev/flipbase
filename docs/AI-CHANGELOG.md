@@ -1,5 +1,15 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-27 – Juna – Nutzungsübersicht für Beta-Tester ergänzt
+
+**Auftrag:** Nach der Prüfung der vorhandenen Analyse und Nutzerverwaltung eine erste, namentliche Nutzungsübersicht für Beta-Tester umsetzen.
+
+**Änderung:** Unter Administration → Nutzer erscheinen letzter Login und letzte dokumentierte Aktion. Eine eigene Nutzungsseite zeigt außerdem die in den letzten 30 Tagen angelegten Einkaufsentwürfe und erfassten Verkäufe sowie die letzten zehn Kernaktionen. Die Betreiberabfragen verwenden nur vorhandene Supabase-Auth-Daten und das fachliche Ereignisprotokoll; Rechteprüfung und Index liegen in einer neuen Schema-Datei und generierten Migration. Seitenaufrufe, Lesedauer und zusätzliche Nutzerereignisse werden nicht erfasst. Die Einordnung als nachweisbare Aktion verhindert, dass fehlende Ereignisse fälschlich als fehlende Nutzung ausgegeben werden.
+
+**Prüfung:** Sechs neue Datenbankprüfungen zu Rechten, Zeitraum und Zuordnung bestanden; die 20 vorhandenen Betreiberprüfungen ebenfalls. Gezielte Angular-Tests einschließlich AXE-Prüfung, Typprüfung, ESLint, Shared-UI-Prüfung und Angular-Produktionsbau bestanden. Die Migration wurde ohne fachfremde Schemaänderungen erzeugt und lokal angewendet.
+
+**Offen vor Veröffentlichung:** Die Datenschutzhinweise beschreiben die namentliche Betreiberübersicht noch nicht. Zweck, Rechtsgrundlage und Information der Beta-Tester müssen fachlich geprüft und ergänzt werden.
+
 ## 2026-09-27 – Juna – Admin-Pilot für Vinted-Browser vorbereitet
 
 **Auftrag:** Den bestehenden Vinted-Bereich für den eigenen Admin-Zugang in
