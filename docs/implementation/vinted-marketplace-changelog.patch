@@ -1,0 +1,19 @@
+--- a/docs/AI-CHANGELOG.md
++++ b/docs/AI-CHANGELOG.md
+@@ -3 +3,16 @@
++## 2026-09-26 – Juna – Vinted-Kontoverwaltung begonnen
++
++**Auftrag:** Einen eigenen Branch erstellen und mit der integrierten
++Marktplatzverwaltung beginnen, ohne echte Konten oder Produktion zu verändern.
++
++**Änderung:** Gemeinsame Kontodaten und aktionsbezogene Auftragsprüfung,
++Frontend-Typen und künstliche A/B-Konten. Fehlende Kontozuordnung, unzulässige
++Nutzdaten und unbestätigte Fähigkeiten werden nicht als gültig behandelt.
++Validierte Aufträge behalten ihren eigenen Konto- und Nutzdatenstand.
++
++**Prüfung:** 59 gezielte Tests unter Node 22.16.0 bestanden; isolierte strikte
++Typprüfung mit TypeScript 5.8.3 erfolgreich. Deno-Projektlauf, ESLint/Prettier,
++Angular-Bau und vollständige Regressionen bleiben offen. Details stehen in
++`docs/implementation/vinted-marketplace-progress.md`. Kein Vinted-Livetest.
++
+ ## 2026-09-26 – Juna – Doppelte Scrollleiste in der Einkaufsvorschau entfernt

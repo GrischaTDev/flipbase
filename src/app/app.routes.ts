@@ -239,6 +239,11 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'marketplaces',
+        loadChildren: () =>
+          import('./features/marketplaces/marketplaces.routes').then((m) => m.MARKETPLACES_ROUTES),
+      },
+      {
         path: 'listings',
         loadChildren: () =>
           import('./features/listings/listings.routes').then((routes) => routes.LISTINGS_ROUTES),

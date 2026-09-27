@@ -76,11 +76,12 @@ describe('Arbeitsnavigation und Ideen in der Sidebar', () => {
       return Array.from(group.querySelectorAll('a')).map((link) => link.getAttribute('href'));
     });
 
-    expect(names).toEqual(['Einkauf', 'Artikel', 'Verkauf', 'Finanzen']);
+    expect(names).toEqual(['Einkauf', 'Artikel', 'Verkauf', 'Marktplätze', 'Finanzen']);
     expect(links).toEqual([
       ['/purchases', '/sellers', '/vinted-bot'],
       ['/catalog', '/image-optimizer'],
       ['/listings', '/sales'],
+      ['/marketplaces/vinted'],
       ['/expenses', '/accounting', '/analytics'],
     ]);
     expect(element.textContent).not.toContain('Warenwirtschaft & Store');
@@ -201,7 +202,7 @@ describe('Arbeitsnavigation und Ideen in der Sidebar', () => {
     const listings = element.querySelector('a[href="/listings"]');
     const research = element.querySelector('a[href="/research"]');
 
-    expect(names).toEqual(['Purchasing', 'Products', 'Selling', 'Finances']);
+    expect(names).toEqual(['Purchasing', 'Products', 'Selling', 'Marketplaces', 'Finances']);
     expect(toggle.textContent?.trim()).toBe('Ideas');
     expect(article?.textContent?.trim()).toBe('Articles');
     expect(listings?.textContent?.trim()).toBe('Listings');

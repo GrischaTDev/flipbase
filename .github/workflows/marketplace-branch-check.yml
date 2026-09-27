@@ -1,0 +1,109 @@
+name: Marketplace branch checks
+
+on:
+  push:
+    branches: ['juna/vinted-marketplace-foundation']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: marketplace-branch-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NG_BUILD_MAX_WORKERS: '1'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      # Nur versionierte Dateien, keine Zugangsdaten oder lokalen Laufzeitdateien.
+      - name: Archive source for isolated review
+        run: |
+          mkdir -p /tmp/marketplace-review
+          git archive --format=tar.gz HEAD > /tmp/marketplace-review/source.tar.gz
+          git rev-parse HEAD > /tmp/marketplace-review/source-commit.txt
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      # Nur öffentliche, festgeschriebene npm-Pakete und die Prüflaufzeit.
+      # Kein .git, keine npm-Konfiguration und keine Umgebungsvariablen.
+      - name: Archive isolated verification tools
+        run: |
+          mkdir -p /tmp/marketplace-tools
+          cp "$(command -v node)" /tmp/marketplace-tools/node
+          tar -czf /tmp/marketplace-tools/runtime.tar.gz node_modules
+
+      - name: Upload verification tools
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: marketplace-tools-${{ github.sha }}
+          path: /tmp/marketplace-tools/
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Marketplace contracts
+        run: node --experimental-strip-types --test supabase/functions/_shared/marketplace-*.test.ts
+
+      - name: Marketplace UI and navigation tests
+        if: ${{ hashFiles('src/app/features/marketplaces/vinted-workspace.component.ts') != '' }}
+        run: |
+          npx vitest run --project=node --maxWorkers=1 src/app/features/marketplaces src/app/core/config/workspace-navigation.spec.ts src/app/core/i18n/translations.spec.ts
+          npx vitest run --project=angular --maxWorkers=1 src/app/features/marketplaces src/app/layout/sidebar/sidebar-ideas.angular.spec.ts src/app/layout/sidebar/sidebar.component.angular.spec.ts src/app/features/settings/settings-shell/settings-shell.component.angular.spec.ts
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Angular production build
+        run: npm run build
+
+      - name: Browser interactions on desktop and mobile
+        if: ${{ hashFiles('e2e/marketplace-accounts.spec.ts') != '' }}
+        env:
+          MARKETPLACE_SCREENSHOT_DIR: /tmp/marketplace-browser/screenshots
+          MARKETPLACE_TEST_OUTPUT: /tmp/marketplace-browser/test-results
+        run: |
+          npx playwright install --with-deps chromium
+          python3 - <<'PYTHON' &
+          from http.server import SimpleHTTPRequestHandler,ThreadingHTTPServer
+          import os
+          os.chdir('dist/flipbase/browser')
+          class Handler(SimpleHTTPRequestHandler):
+            def do_GET(self):
+              if not os.path.isfile(self.translate_path(self.path)): self.path='/index.html'
+              super().do_GET()
+          ThreadingHTTPServer(('127.0.0.1',4200),Handler).serve_forever()
+          PYTHON
+          server=$!
+          trap 'kill "$server"' EXIT
+          npx playwright test --config e2e/support/marketplace-preview.config.ts
+
+      - name: Upload browser evidence
+        if: ${{ always() && hashFiles('e2e/marketplace-accounts.spec.ts') != '' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: marketplace-browser-${{ github.sha }}
+          path: /tmp/marketplace-browser/
+          retention-days: 3
+
+      - name: Upload review snapshot
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: marketplace-review-${{ github.sha }}
+          path: /tmp/marketplace-review/
+          if-no-files-found: error
+          retention-days: 3
