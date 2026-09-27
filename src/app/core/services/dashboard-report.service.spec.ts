@@ -432,6 +432,7 @@ describe('DashboardReportService', () => {
     });
 
     expect(result.purchaseSpend).toBe(42.95);
+    expect(result.purchaseCount).toBe(3);
     expect(result.points.find((point) => point.date === '2026-08-26')?.expenses).toBe(42.95);
     expect(result.openCosts).toEqual([
       {

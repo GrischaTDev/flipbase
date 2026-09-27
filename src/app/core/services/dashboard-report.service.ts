@@ -66,6 +66,7 @@ interface PeriodFigures {
   readonly revenue: number;
   readonly revenueWithoutCost: number;
   readonly purchaseSpend: number;
+  readonly purchaseCount: number;
   readonly sellingCosts: number;
   readonly operatingExpenseSpend: number;
   readonly soldItems: number;
@@ -150,6 +151,7 @@ export class DashboardReportService {
       revenueWithoutCost: current.revenueWithoutCost,
       salesWithoutCostCount: unknownSales.length,
       purchaseSpend: current.purchaseSpend,
+      purchaseCount: current.purchaseCount,
       sellingCosts: current.sellingCosts,
       operatingExpenseSpend: current.operatingExpenseSpend,
       totalExpenses: this.money(
@@ -175,6 +177,7 @@ export class DashboardReportService {
   ): PeriodFigures {
     const purchases: DatedPurchase[] = [];
     let purchaseSpend = 0;
+    let purchaseCount = 0;
     if (platform === 'all') {
       for (const purchase of records.purchases) {
         const date = this.calendarDate(purchase.purchase_date);
@@ -182,6 +185,7 @@ export class DashboardReportService {
         const amount = this.purchaseAmount(purchase);
         purchases.push({ purchase, date, amount });
         purchaseSpend += amount ?? 0;
+        if (amount !== null) purchaseCount += 1;
       }
     }
 
@@ -228,6 +232,7 @@ export class DashboardReportService {
       revenue: this.money(revenue),
       revenueWithoutCost: this.money(revenueWithoutCost),
       purchaseSpend: this.money(purchaseSpend),
+      purchaseCount,
       sellingCosts: this.money(sellingCosts),
       operatingExpenseSpend,
       soldItems,

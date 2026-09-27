@@ -707,6 +707,8 @@ export interface DashboardReport {
   salesWithoutCostCount: number;
   /** Einkaufskosten nach Kaufdatum; 0, wenn ein Plattformfilter gesetzt ist. */
   purchaseSpend: number;
+  /** Einkäufe mit bekanntem Preis, die in purchaseSpend enthalten sind. */
+  purchaseCount: number;
   /** Direkte Verkaufskosten der Verkäufe im Zeitraum. */
   sellingCosts: number;
   /** Bezahlte allgemeine Betriebsausgaben nach Zahlungsdatum. */
