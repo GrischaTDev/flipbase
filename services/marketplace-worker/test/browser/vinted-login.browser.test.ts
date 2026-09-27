@@ -50,3 +50,28 @@ test('real browser submits only to our intercepted fixture and keeps account con
     await browser.close();
   }
 });
+
+test('reports a visible rejected login without polling identity or retrying credentials', async () => {
+  const { readVintedAccountIdentity } = await import('../../src/vinted-browser-reader.ts');
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const context = await browser.newContext();
+    let identityRequests = 0;
+    await context.route('**/*', async (route) => {
+      if (new URL(route.request().url()).pathname === '/api/v2/users/current') {
+        identityRequests++;
+        return route.fulfill({ status: 401, contentType: 'application/json', body: '{}' });
+      }
+      return route.fulfill({
+        contentType: 'text/html',
+        body: '<meta charset="utf-8"><main><h1>Log-in</h1><p>Ungültiger Mitgliedsname oder Passwort</p><input name="username"><input name="password" type="password"></main>',
+      });
+    });
+    const page = await context.newPage();
+    await page.goto('https://www.vinted.de/member/login/email');
+    await assert.rejects(readVintedAccountIdentity(page), /Zugangsdaten/);
+    assert.equal(identityRequests, 0);
+  } finally {
+    await browser.close();
+  }
+});

@@ -1,5 +1,25 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-27 – Juna – Abgelehnte Vinted-Anmeldung korrigieren
+
+**Auftrag:** Direkten Login und unverständliche manuelle Browserbedienung prüfen.
+
+**Befund:** Die laufende Nutzeransicht zeigt Vinteds Ablehnung der Zugangsdaten,
+während Flipbase weiter einen Prüfstatus anzeigt. Der Browserstart ist in dieser
+Sitzung erfolgt. Ein früherer Startfehler ist damit nicht erklärt.
+
+**Änderung:** Fester Fehlercode für die sichtbare Ablehnung, Ende der automatischen
+Prüfung und leeres Formular für einen ausdrücklichen neuen Versuch im selben
+Browserprofil. Manueller Start ist nachgeordnet; verbundene Konten zeigen kein
+neues Passwortformular. Vorhandene Konfliktmarker im Changelog entfernt, beide
+historischen Einträge bleiben erhalten.
+
+**Prüfung:** Regression auf eigener HTML-Testseite zuerst fehlgeschlagen, nach
+Korrektur bestanden. 83 Angular-Tests und 67 Worker-Tests bestanden; darunter
+Kontotrennung, Ablauf und Erhalt der Sitzung nach abgelehnten Zugangsdaten.
+Weitere Build-/Browserergebnisse stehen im Vinted-Prüfprotokoll. Kein echter
+Login ausgeführt, keine Zugangsdaten ausgelesen oder erneut gesendet.
+
 ## 2026-09-27 – Juna – Freigegebene Account-Verwaltung veröffentlichen
 
 **Auftrag:** Nutzerfreigabe für PR, Merge nach erfolgreichen Prüfungen und
@@ -12,8 +32,6 @@ nur für root lesbaren Zugangsdaten eingerichtet; der GoLogin-Token wurde über
 SSH übertragen und weder ausgegeben noch versioniert. Start erfolgt erst mit
 dem Abbild des nach grünen PR-Prüfungen gemergten Commits. Öffentliche
 Gesundheits-/Zugriffsprüfung und tatsächlicher erster Nutzerlogin folgen danach.
-
-<<<<<<< HEAD
 
 ## 2026-09-27 – Juna – Direkte Vinted-Anmeldung mit GoLogin-Profil und Proxy
 
@@ -44,7 +62,6 @@ Die gezielte unabhängige Nachprüfung bestätigte die Behebung.
 Serverzugriff und vorhandene Caddy-Weiterleitung wurden lesend geprüft; der
 Browserdienst ist noch nicht installiert. Kein Vinted-Konto angemeldet, kein
 Import, kein Merge und kein Produktivdeployment in diesem Schritt.
-=======
 
 ## 2026-09-27 – Juna – Vinted-Karten kompakter und klarer gestaltet
 

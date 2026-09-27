@@ -270,3 +270,20 @@ it('erlaubt Beenden während einer laufenden Anmeldung und verwirft deren späte
   expect(store.session()).toBeNull();
   expect(api.frame).toHaveBeenCalledTimes(1);
 });
+
+it('stoppt bei abgelehnten Zugangsdaten die Prüfung und erlaubt einen ausdrücklichen neuen Versuch', async () => {
+  const { VintedLoginRejectedError } = await import('./marketplace-browser-test-api.service');
+  api.identify.mockRejectedValue(new VintedLoginRejectedError());
+  await store.login({ username: 'synthetic', password: 'synthetic' });
+  await store.checkLogin();
+  expect(store.awaitingLogin()).toBe(false);
+  expect(store.error()).toContain('Zugangsdaten');
+  await store.checkLogin();
+  expect(api.identify).toHaveBeenCalledOnce();
+  expect(api.login).toHaveBeenCalledOnce();
+  await store.login({ username: 'corrected', password: 'synthetic-corrected' });
+  expect(api.open).toHaveBeenCalledOnce();
+  expect(api.login).toHaveBeenCalledTimes(2);
+  expect(store.awaitingLogin()).toBe(true);
+  expect(store.error()).toBeNull();
+});

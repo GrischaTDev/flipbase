@@ -295,3 +295,38 @@ Eine vorbereitete Verbindung stellt keine erfolgreiche Vinted-Anmeldung dar.
 
 Reproduzieren: Anwendung auf `http://127.0.0.1:4200` starten und
 `npx playwright test --config e2e/support/marketplace-preview.config.ts` ausführen.
+
+## 27.09.2026 – Verständliche Ablehnung und direkter Korrekturversuch
+
+Liveansicht ausschließlich lesend geprüft: Vinted zeigte im laufenden Profil
+„Ungültiger Mitgliedsname oder Passwort“. Flipbase zeigte weiter „Anmeldung wird
+geprüft“. Keine echten Zugangsdaten ausgelesen, verändert oder erneut gesendet.
+Der vorher berichtete Startfehler lässt sich daraus nicht erklären.
+
+Korrektur auf `juna/vinted-login-fix`: Die bekannte sichtbare Vinted-Meldung wird
+als fester, kontogebundener Fehlercode ausgegeben. Polling endet, das leere
+Flipbase-Formular erscheint wieder. Erst ein neuer Klick sendet neue Eingaben;
+das bestehende Profil und die Sitzung bleiben erhalten. Der manuelle Start
+steht unter „Andere Anmeldemöglichkeit“; bei aktiver Sitzung entfällt er.
+Browserbild und Spezialtasten stehen in einem aufklappbaren Hilfebereich.
+
+Prüfungen:
+
+- 67 Worker-Tests bestanden, einschließlich echtem Sitzungsbroker: Ablehnung
+  beendet die Sitzung nicht; fremde Workspace-Anfragen erhalten keinen Fehlercode.
+- Zwei Playwright-Tests auf vollständig abgefangenen eigenen HTML-Seiten bestanden.
+  Die Fehlerprüfung fragt bei sichtbarer Ablehnung die Identitäts-API nicht ab.
+- 83 Angular-Tests bestanden, einschließlich leerer Passwortfelder, ausdrücklichem
+  Neuversuch, Konto-/Workspacewechsel, Ablauf und unklarem Browserstopp.
+- Fünf vorhandene UI-Abläufe bestanden. Die zwei neuen Desktop-/Mobilabläufe
+  scheiterten zunächst am zu strikten Label-Selektor des Tests; nach Verwendung
+  des tatsächlichen zugänglichen Feldnamens bestanden beide.
+- Fehlerkorrektur bei 1440 und 390 px: kein horizontaler Überlauf, AXE ohne
+  Verstöße, nach erneutem ausdrücklichem Login simulierte Verbindung bestätigt.
+- Angular-Produktionsbau, Worker-Bau/Typprüfung, ESLint, Prettier und gemeinsame
+  UI-Prüfung bestanden. Bestehende CommonJS-Warnung zu pdf-lib/pako im Angular-Bau.
+
+Grenze: Erkannt wird die konkret beobachtete deutsche Vinted-Fehlermeldung auf
+dem festen Loginpfad. Andere Anbietertexte oder Herausforderungen bleiben
+unbestätigt und in der Browseransicht prüfbar. Erfolgreiche Anmeldung an einem
+echten Vinted-Konto, Liveimport und Nachrichtenversand werden nicht behauptet.

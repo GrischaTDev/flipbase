@@ -5,6 +5,12 @@ export interface VintedAccountIdentity {
   username: string;
 }
 
+export class VintedLoginRejectedError extends Error {
+  constructor() {
+    super('Vinted hat die Zugangsdaten abgelehnt');
+  }
+}
+
 const accountIdPattern = /^[1-9][0-9]{0,31}$/;
 const usernamePattern = /^[^\p{Cc}]{1,120}$/u;
 
@@ -43,6 +49,11 @@ export async function readVintedAccountIdentity(
   let response: unknown;
   try {
     response = await page.evaluate(async () => {
+      if (
+        location.pathname === '/member/login/email' &&
+        document.body.innerText.includes('Ungültiger Mitgliedsname oder Passwort')
+      )
+        return { loginRejected: true };
       const result = await fetch('/api/v2/users/current', {
         method: 'GET',
         credentials: 'include',
@@ -71,5 +82,7 @@ export async function readVintedAccountIdentity(
   } catch {
     return null;
   }
+  if (isRecord(response) && response['loginRejected'] === true)
+    throw new VintedLoginRejectedError();
   return parseVintedAccountIdentity(response);
 }

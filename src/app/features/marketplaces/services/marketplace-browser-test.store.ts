@@ -5,6 +5,7 @@ import type { AccountScope } from '../models/marketplace.models';
 import { MarketplaceAccountStore } from './marketplace-account.store';
 import {
   BrowserTestSessionEndedError,
+  VintedLoginRejectedError,
   MarketplaceBrowserTestApiService,
   type BrowserTestInput,
   type VintedLoginCredentials,
@@ -256,6 +257,11 @@ export class MarketplaceBrowserTestStore {
       this.state.set(null);
       await this.accounts.reloadConnections(active.scope.connectionId);
     } catch (error) {
+      if (this.isCurrent(active.key, revision) && error instanceof VintedLoginRejectedError) {
+        this.loginKey.set(null);
+        this.errorState.set({ key: active.key, message: error.message });
+        return;
+      }
       if (this.isCurrent(active.key, revision) && !this.handleConfirmedEnd(error, active.key))
         this.errorState.set({
           key: active.key,

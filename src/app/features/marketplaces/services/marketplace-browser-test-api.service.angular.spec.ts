@@ -116,3 +116,11 @@ it('unterscheidet eine noch offene Anmeldung von einer bestätigten Identität',
   await expect(api.identify(scope, id, 'token', true)).resolves.toBeNull();
   await expect(api.identify(scope, id, 'token')).rejects.toThrow();
 });
+
+it('zeigt abgelehnte Zugangsdaten statt eines endlosen Prüfstatus', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn().mockResolvedValue(Response.json({ code: 'vinted_login_rejected' }, { status: 422 })),
+  );
+  await expect(api.identify(scope, id, 'synthetic', true)).rejects.toThrow('Zugangsdaten');
+});
