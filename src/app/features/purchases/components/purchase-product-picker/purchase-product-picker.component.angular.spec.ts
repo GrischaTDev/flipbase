@@ -11,6 +11,8 @@ import { ButtonComponent } from '../../../../shared/components/button/button.com
 import { AttributePickerComponent } from '../../../../shared/components/attribute-picker/attribute-picker.component';
 import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
 import { ProductVariantCreateFormComponent } from '../../../catalog/components/product-variant-create-form/product-variant-create-form.component';
+import { ProductMediaEditorComponent } from '../../../catalog/components/product-media-editor/product-media-editor.component';
+import { ImageCropperModalComponent } from '../../../../shared/components/image-cropper-modal/image-cropper-modal.component';
 import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
 import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
@@ -102,6 +104,10 @@ describe('PurchaseProductPickerComponent', () => {
         'src/app/shared/components/number-input/number-input.component.scss',
       './product-variant-create-form.component.html':
         'src/app/features/catalog/components/product-variant-create-form/product-variant-create-form.component.html',
+      './product-media-editor.component.html':
+        'src/app/features/catalog/components/product-media-editor/product-media-editor.component.html',
+      './image-cropper-modal.component.html':
+        'src/app/shared/components/image-cropper-modal/image-cropper-modal.component.html',
     };
     await ɵresolveComponentResources((url) => {
       const resourcePath = resources[url];
@@ -116,7 +122,13 @@ describe('PurchaseProductPickerComponent', () => {
     );
     bridgeBindings(ModalShellComponent, ['title', 'size'], ['closed']);
     bridgeBindings(ModalDialogDirective, ['dialogTitel', 'schliesstBeiKlickAussen']);
-    bridgeBindings(TextFieldComponent, ['label', 'placeholder']);
+    bridgeBindings(TextFieldComponent, [
+      'label',
+      'placeholder',
+      'maxLength',
+      'required',
+      'helpText',
+    ]);
     bridgeBindings(CustomSelectComponent, [
       'options',
       'variant',
@@ -134,9 +146,19 @@ describe('PurchaseProductPickerComponent', () => {
       ...(CustomCheckboxComponent as unknown as { ɵcmp: AngularBindingMetadata }).ɵcmp.outputs,
       checked: 'checkedChange',
     };
-    bridgeBindings(ButtonComponent, ['variant', 'disabled', 'icon'], ['clicked']);
+    bridgeBindings(ButtonComponent, ['variant', 'disabled', 'icon', 'formId', 'type'], ['clicked']);
     bridgeBindings(ProductThumbnailComponent, ['src'], ['imageFailed']);
     bridgeBindings(ProductVariantCreateFormComponent, ['product'], ['created', 'cancelled']);
+    bridgeBindings(
+      ProductMediaEditorComponent,
+      ['images', 'disabled'],
+      ['imagesChange', 'imageFailed'],
+    );
+    bridgeBindings(
+      ImageCropperModalComponent,
+      ['title', 'initialImageFile', 'initialImageUrl', 'maintainAspectRatio'],
+      ['imageReady', 'closed'],
+    );
     bridgeBindings(AttributePickerComponent, ['label', 'options']);
     bridgeBindings(NumberInputComponent, ['id', 'ariaLabel', 'min', 'step', 'showStepper', 'unit']);
   });

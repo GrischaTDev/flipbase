@@ -6,6 +6,7 @@ import { ProductMediaDetails } from '../models/product-media.models';
 import { WorkspaceService } from './workspace.service';
 import { MutationResult } from '../models/mutation-result.model';
 import { AuthService } from './auth.service';
+import { prepareProductImage } from './product-image-preparation';
 
 @Injectable({
   providedIn: 'root',
@@ -272,8 +273,8 @@ export class MediaService {
         'image/gif': ['gif'],
         'image/avif': ['avif'],
       };
-      const extension = file.name.split('.').at(-1)?.toLowerCase() ?? '';
-      if (!extensions[file.type]?.includes(extension) || file.size === 0)
+      const originalExtension = file.name.split('.').at(-1)?.toLowerCase() ?? '';
+      if (!extensions[file.type]?.includes(originalExtension) || file.size === 0)
         throw new Error('Bitte ein JPEG-, PNG-, WebP-, GIF- oder AVIF-Bild auswählen.');
       const fileName = details?.fileName.trim() ?? file.name;
       const altText = details?.altText.trim() ?? '';
@@ -281,6 +282,8 @@ export class MediaService {
         throw new Error('Die Bildangaben sind ungültig.');
       const product = await this.readProductForUpload(productId);
       if (!product) throw new Error('Das Produkt wurde nicht gefunden oder ist nicht zugänglich.');
+      const preparedFile = await prepareProductImage(file);
+      const extension = preparedFile.name.split('.').at(-1)?.toLowerCase() ?? '';
       if (generation !== this.synchronizeContext())
         throw new Error('Workspace oder Sitzung wurde gewechselt. Bitte erneut versuchen.');
       const existing = await this.loadProductMedia(productId);
@@ -294,14 +297,14 @@ export class MediaService {
         sort_order: existing.length,
         file_name: fileName,
         alt_text: altText,
-        file_size: file.size,
-        mime_type: file.type,
+        file_size: preparedFile.size,
+        mime_type: preparedFile.type,
       };
       if (generation !== this.synchronizeContext())
         throw new Error('Workspace oder Sitzung wurde gewechselt.');
       const { error: uploadError } = await this.supabase.client.storage
         .from('item-media')
-        .upload(path, file, { contentType: file.type, upsert: false });
+        .upload(path, preparedFile, { contentType: preparedFile.type, upsert: false });
       if (uploadError) throw uploadError;
       uploadedPath = path;
       if (generation !== this.synchronizeContext())
@@ -476,7 +479,15 @@ export class MediaService {
     isPrimary = false,
     fehlerAktion?: SyncFehlerAktion,
   ): Promise<{ data: ItemMedia | null; error: Error | null }> {
-    const cleanFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    let preparedFile: File;
+    try {
+      preparedFile = ['image/jpeg', 'image/png', 'image/webp'].includes(file.type)
+        ? await prepareProductImage(file)
+        : file;
+    } catch (cause: unknown) {
+      return { data: null, error: this.melde('Verarbeiten des Bildes', cause, fehlerAktion) };
+    }
+    const cleanFileName = preparedFile.name.replace(/[^a-zA-Z0-9._-]/g, '_');
     const storagePath = `${itemId}/${Date.now()}_${cleanFileName}`;
     const removeFailedUpload = async (failure: Error): Promise<Error> => {
       try {
@@ -511,8 +522,8 @@ export class MediaService {
         try {
           const { error: uploadError } = await this.supabase.client.storage
             .from('item-media')
-            .upload(storagePath, file, {
-              contentType: file.type,
+            .upload(storagePath, preparedFile, {
+              contentType: preparedFile.type,
               upsert: false,
             });
 
@@ -552,8 +563,8 @@ export class MediaService {
                 storage_path: storagePath,
                 is_primary: isPrimary,
                 file_name: file.name,
-                file_size: file.size,
-                mime_type: file.type,
+                file_size: preparedFile.size,
+                mime_type: preparedFile.type,
               })
               .select()
               .single();
@@ -581,7 +592,7 @@ export class MediaService {
 
       reader.onerror = () =>
         resolve({ data: null, error: new Error('Datei konnte nicht gelesen werden.') });
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(preparedFile);
     });
   }
 

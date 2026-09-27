@@ -47,10 +47,11 @@
 </div>
 
 @if (dialogOpen()) {
-  <app-modal-shell title="Variante hinzufügen" size="md" (closed)="dialogOpen.set(false)">
+  <app-modal-shell title="Variante hinzufügen" size="lg" (closed)="closeDialog()">
     <app-product-variant-create-form
       [product]="product()"
-      (cancelled)="dialogOpen.set(false)"
+      (cancelled)="closeDialog()"
+      (variantSaved)="onVariantSaved($event)"
       (created)="onCreated($event)"
     />
   </app-modal-shell>

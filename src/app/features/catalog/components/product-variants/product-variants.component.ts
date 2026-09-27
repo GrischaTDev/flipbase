@@ -18,6 +18,7 @@ export class ProductVariantsComponent {
   readonly disabled = input(false);
   readonly created = output<CatalogProduct>();
   readonly dialogOpen = signal(false);
+  private readonly pendingVariant = signal<CatalogProduct | null>(null);
   readonly orderedVariants = computed(() =>
     [...this.variants()].sort(
       (left, right) =>
@@ -34,7 +35,18 @@ export class ProductVariantsComponent {
   }
 
   onCreated(variant: CatalogProduct): void {
+    this.pendingVariant.set(null);
     this.dialogOpen.set(false);
     this.created.emit(variant);
+  }
+
+  closeDialog(): void {
+    const variant = this.pendingVariant();
+    if (variant) this.onCreated(variant);
+    else this.dialogOpen.set(false);
+  }
+
+  onVariantSaved(variant: CatalogProduct): void {
+    this.pendingVariant.set(variant);
   }
 }

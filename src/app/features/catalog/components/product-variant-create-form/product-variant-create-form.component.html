@@ -42,6 +42,18 @@
       </p>
     }
   </div>
+  <div class="space-y-2">
+    <h3 class="text-[13px] font-semibold">Bilder dieser Variante</h3>
+    <p class="text-[13px] text-fb-text-muted">
+      Für eine andere Farbe kannst du eigene Bilder hinzufügen. Ohne eigene Bilder erscheinen die
+      Bilder des Hauptartikels.
+    </p>
+    <app-product-media-editor
+      [images]="images()"
+      [disabled]="saving()"
+      (imagesChange)="images.set($event)"
+    />
+  </div>
 </div>
 <div class="mt-5 flex justify-end gap-2">
   <app-button variant="secondary" [disabled]="saving()" (clicked)="cancelled.emit()">

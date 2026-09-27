@@ -32,7 +32,7 @@ describe('Shop-Produktdetail', () => {
   const products = signal<SellableItemRef[]>([]);
   const workspace = signal<{ id: string } | null>({ id: 'ws-1' });
   const media = {
-    loadProductMedia: vi.fn<() => Promise<CatalogProductMedia[]>>(),
+    loadProductMedia: vi.fn<(id: string) => Promise<CatalogProductMedia[]>>(),
     getMediaUrl: vi.fn((path: string) => `signed:${path}`),
     reportMediaFailure: vi.fn(),
   };
@@ -77,6 +77,7 @@ describe('Shop-Produktdetail', () => {
   it('lädt echte Katalogbilder, nutzt signierte URLs und übergibt den Verkaufspreis an den Warenkorb', async () => {
     TestBed.tick();
     await Promise.resolve();
+    await Promise.resolve();
     expect(media.loadProductMedia).toHaveBeenCalledWith(product.id);
     expect(component.item()).toEqual(product);
     expect(component.activeImageUrl()).toBe('signed:private/path.webp');
@@ -85,6 +86,31 @@ describe('Shop-Produktdetail', () => {
     component.onBuyNow(product);
     expect(navigate).toHaveBeenCalledWith(['/shop/checkout']);
     expect(component.getItemPrice(product)).toBe(95);
+  });
+
+  it('zeigt Variantenbilder und greift ohne eigene Bilder auf die Hauptartikelbilder zurück', async () => {
+    const variant = { ...product, id: 'variant-1', variantGroupId: product.id };
+    products.set([variant]);
+    params.next(convertToParamMap({ id: variant.id }));
+    media.loadProductMedia.mockImplementation(async (id: string) =>
+      id === variant.id ? [] : [photo],
+    );
+    TestBed.tick();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(media.loadProductMedia.mock.calls.map(([id]) => id)).toEqual([variant.id, product.id]);
+    expect(component.activeImageUrl()).toBe('signed:private/path.webp');
+
+    const variantPhoto = { ...photo, catalog_product_id: variant.id, storage_path: 'variant.webp' };
+    media.loadProductMedia.mockClear().mockResolvedValue([variantPhoto]);
+    products.set([{ ...variant, title: 'Andere Farbe' }]);
+    TestBed.tick();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(media.loadProductMedia).toHaveBeenCalledWith(variant.id);
+    expect(media.loadProductMedia).toHaveBeenCalledWith(product.id);
+    expect(component.activeImageUrl()).toBe('signed:variant.webp');
   });
 
   it('reagiert auf neue Route-IDs und zeigt Einzelstückbilder ohne Katalogabfrage', async () => {
@@ -143,6 +169,7 @@ describe('Shop-Produktdetail', () => {
     ]);
     TestBed.tick();
     await Promise.resolve();
+    await Promise.resolve();
     expect(component.images()).toHaveLength(1);
     media.loadProductMedia.mockRejectedValue(new Error('offline'));
     products.set([{ ...product, title: 'Geändert' }]);
@@ -150,7 +177,7 @@ describe('Shop-Produktdetail', () => {
     await Promise.resolve();
     await Promise.resolve();
     expect(component.images()).toEqual([]);
-    expect(component.imageError()).toBe(true);
+    await vi.waitFor(() => expect(component.imageError()).toBe(true));
   });
 
   it('entfernt einen zurückgezogenen Artikel auch bei direktem URL-Zugriff', () => {

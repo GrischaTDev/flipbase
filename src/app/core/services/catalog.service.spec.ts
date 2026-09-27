@@ -14,6 +14,101 @@ const product: CatalogProduct = {
 };
 
 describe('CatalogService', () => {
+  it('lädt eigene Variantenbilder mit Vorrang vor den Bildern der Gruppe', async () => {
+    const root = {
+      ...product,
+      variant_group_id: product.id,
+      catalog_product_media: [
+        {
+          storage_path: 'root.webp',
+          is_primary: true,
+          sort_order: 0,
+          created_at: '',
+          id: 'root-media',
+        },
+      ],
+    };
+    const own = {
+      ...product,
+      id: 'own',
+      variant_group_id: product.id,
+      catalog_product_media: [
+        {
+          storage_path: 'own.webp',
+          is_primary: true,
+          sort_order: 0,
+          created_at: '',
+          id: 'own-media',
+        },
+      ],
+    };
+    const inherited = {
+      ...product,
+      id: 'inherited',
+      variant_group_id: product.id,
+      catalog_product_media: [],
+    };
+    const service = Object.create(CatalogService.prototype) as CatalogService;
+    Object.assign(service, {
+      products: signal<CatalogProduct[]>([]),
+      isLoading: signal(false),
+      loadError: signal<Error | null>(null),
+      loadedWorkspaceId: signal<string | null>(null),
+      loadRequestId: 0,
+      supabase: {
+        client: {
+          from: () => ({
+            select: () => ({
+              eq: () => ({ order: async () => ({ data: [root, own, inherited], error: null }) }),
+            }),
+          }),
+        },
+      },
+    });
+
+    await service.loadProducts(product.workspace_id);
+
+    expect(service.products().map((entry) => entry.primary_media_path)).toEqual([
+      'root.webp',
+      'own.webp',
+      'root.webp',
+    ]);
+  });
+
+  it('ändert eigene Variantenbilder, ohne die Bilder anderer Varianten zu überschreiben', () => {
+    const root = { ...product, variant_group_id: product.id, primary_media_path: 'root.webp' };
+    const child = {
+      ...product,
+      id: 'child',
+      variant_group_id: product.id,
+      primary_media_path: 'root.webp',
+    };
+    const other = {
+      ...product,
+      id: 'other',
+      variant_group_id: product.id,
+      primary_media_path: 'own.webp',
+    };
+    const service = Object.create(CatalogService.prototype) as CatalogService;
+    Object.assign(service, {
+      products: signal<CatalogProduct[]>([root, child, other]),
+      workspace: { currentWorkspace: () => ({ id: product.workspace_id }) },
+    });
+
+    service.updateProductPrimaryMedia(child.id, product.workspace_id, 'child.webp');
+    expect(service.products().map((entry) => entry.primary_media_path)).toEqual([
+      'root.webp',
+      'child.webp',
+      'own.webp',
+    ]);
+
+    service.updateProductPrimaryMedia(root.id, product.workspace_id, 'new-root.webp');
+    expect(service.products().map((entry) => entry.primary_media_path)).toEqual([
+      'new-root.webp',
+      'child.webp',
+      'own.webp',
+    ]);
+  });
   it('fügt eine Größenvariante hinzu und ordnet den bisherigen Artikel derselben Gruppe zu', async () => {
     const source = {
       ...product,
@@ -51,6 +146,34 @@ describe('CatalogService', () => {
       product.id,
     ]);
     expect(service.products()[0].primary_media_path).toBe('shoe.webp');
+  });
+  it('übernimmt bei neuen Varianten die allgemeinen Bilder statt der Farbe der Ausgangsvariante', async () => {
+    const root = { ...product, variant_group_id: product.id, primary_media_path: 'root.webp' };
+    const source = {
+      ...product,
+      id: 'blue',
+      variant_group_id: product.id,
+      primary_media_path: 'blue.webp',
+    };
+    const variant = { ...product, id: 'red', variant_group_id: product.id };
+    const service = Object.create(CatalogService.prototype) as CatalogService;
+    Object.assign(service, {
+      products: signal<CatalogProduct[]>([root, source]),
+      workspace: { currentWorkspace: () => ({ id: product.workspace_id }) },
+      supabase: { client: { rpc: async () => ({ data: variant, error: null }) } },
+    });
+
+    const result = await service.createVariant({
+      workspaceId: product.workspace_id,
+      sourceProductId: source.id,
+      size: '',
+      color: 'Rot',
+      ean: '',
+      sku: '',
+      listingPrice: null,
+    });
+
+    expect(result.data?.primary_media_path).toBe('root.webp');
   });
   it('fügt die verspätete Anlage aus A nicht in den geladenen Workspace B ein', async () => {
     let complete: ((value: { data: CatalogProduct; error: null }) => void) | undefined;

@@ -353,8 +353,26 @@
             />
           </div>
         </app-card>
-        <app-card title="Bilder" subtitle="Allgemeine Bilder des Artikels" rounded="xl">
+        <app-card
+          title="Bilder"
+          [subtitle]="
+            product()?.variant_group_id && product()?.variant_group_id !== product()?.id
+              ? 'Bilder dieser Variante'
+              : 'Allgemeine Bilder des Artikels'
+          "
+          rounded="xl"
+        >
           <div class="space-y-3">
+            @if (
+              product()?.variant_group_id &&
+              product()?.variant_group_id !== product()?.id &&
+              !images().length
+            ) {
+              <p class="text-[13px] text-fb-text-secondary">
+                Diese Variante hat noch keine eigenen Bilder. Bis du welche hinzufügst, werden die
+                Bilder des Hauptartikels angezeigt.
+              </p>
+            }
             @if (mediaError(); as error) {
               <p role="alert" class="text-sm text-rose-700 dark:text-rose-400">{{ error }}</p>
               <app-button (clicked)="loadImages()">Bilder erneut laden</app-button>

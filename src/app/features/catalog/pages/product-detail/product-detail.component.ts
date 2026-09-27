@@ -868,7 +868,7 @@ export class ProductDetailComponent implements UnsavedEntryPage {
     workspaceId = this.workspace.currentWorkspace()?.id,
   ): Promise<void> {
     if (!id || !workspaceId) return;
-    const mediaOwnerId = this.product()?.variant_group_id ?? id;
+    const mediaOwnerId = id;
     this.mediaError.set(null);
     try {
       const images = await this.media.loadProductMedia(mediaOwnerId);
@@ -992,7 +992,7 @@ export class ProductDetailComponent implements UnsavedEntryPage {
         this.fillForm(result.data);
       }
       if (!id) return;
-      const mediaOwnerId = this.product()?.variant_group_id ?? id;
+      const mediaOwnerId = id;
       for (const draft of [...this.imageDrafts()]) {
         if (!draft.file) continue;
         if (!this.isCurrent(request, id, workspaceId)) return;
@@ -1068,8 +1068,16 @@ export class ProductDetailComponent implements UnsavedEntryPage {
           this.acceptImages(result.data);
           const primaryPath = result.data.find((image) => image.is_primary)?.storage_path ?? null;
           this.catalog.updateProductPrimaryMedia(id, workspaceId, primaryPath);
+          const displayedPath =
+            primaryPath ??
+            (this.product()?.variant_group_id !== id
+              ? (this.catalog
+                  .products()
+                  .find((entry) => entry.id === this.product()?.variant_group_id)
+                  ?.primary_media_path ?? null)
+              : null);
           this.product.update((product) =>
-            product ? { ...product, primary_media_path: primaryPath } : product,
+            product ? { ...product, primary_media_path: displayedPath } : product,
           );
         }
         if (!this.isCurrent(request, id, workspaceId)) return;
