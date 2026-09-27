@@ -13,6 +13,7 @@ const receipt: Purchase = {
   title: 'Fünf LED-Lampen',
   purchase_date: '2026-08-26',
   purchase_price: 24.95,
+  entry_status: 'finalized',
   cost_allocation_mode: 'even',
   total_purchase_cost: 24.95,
 };
@@ -156,6 +157,7 @@ describe('DashboardReportService', () => {
     expect(result.revenue).toBe(19.98);
     // 19,98 € Umsatz - 9,98 € Wareneinsatz - 1,00 € Plattformgebühr.
     expect(result.grossProfit).toBe(9);
+    expect(result.profitSaleCount).toBe(1);
     expect(result.rows[0]).toMatchObject({ quantity: 2, costOfGoodsSold: 9.98, profit: 9 });
   });
 
@@ -379,6 +381,7 @@ describe('DashboardReportService', () => {
     });
     expect(result.revenue).toBe(39.96);
     expect(result.grossProfit).toBe(9);
+    expect(result.profitSaleCount).toBe(1);
     expect(result.revenueWithoutCost).toBe(19.98);
     expect(result.salesWithoutCostCount).toBe(1);
     expect(result.averageMarginPercent).toBe(45.05);
@@ -395,10 +398,11 @@ describe('DashboardReportService', () => {
     const result = report('last_7_days', { sales: [saleWithoutCostBasis] });
 
     expect(result.grossProfit).toBe(0);
+    expect(result.profitSaleCount).toBe(0);
     expect(result.averageMarginPercent).toBeNull();
   });
 
-  it('schließt unbekannte Draftkosten aus den Ausgaben aus und meldet sie als offen', () => {
+  it('schließt auch bepreiste Entwürfe aus den Ausgaben aus und meldet fehlende Preise als offen', () => {
     const result = report('last_7_days', {
       purchases: [
         receipt,
@@ -422,6 +426,7 @@ describe('DashboardReportService', () => {
         {
           ...receipt,
           id: 'purchase-priced-draft',
+          entry_status: 'draft',
           purchase_price: 10,
           total_purchase_cost: null,
           shipping_cost: 1,
@@ -431,9 +436,10 @@ describe('DashboardReportService', () => {
       ],
     });
 
-    expect(result.purchaseSpend).toBe(42.95);
-    expect(result.purchaseCount).toBe(3);
-    expect(result.points.find((point) => point.date === '2026-08-26')?.expenses).toBe(42.95);
+    expect(result.purchaseSpend).toBe(26.95);
+    expect(result.purchaseCount).toBe(2);
+    expect(result.totalExpenses).toBe(26.95);
+    expect(result.points.find((point) => point.date === '2026-08-26')?.expenses).toBe(26.95);
     expect(result.openCosts).toEqual([
       {
         purchaseId: 'purchase-unknown',
@@ -445,6 +451,29 @@ describe('DashboardReportService', () => {
       },
     ]);
   });
+
+  it.each(['month', 'year'] as const)(
+    'lässt einen August-Entwurf in der %s-Ansicht aus der Einkaufssumme',
+    (range) => {
+      const result = report(range, {
+        purchases: [
+          receipt,
+          {
+            ...receipt,
+            id: 'purchase-draft',
+            entry_status: 'draft',
+            purchase_price: 92.98,
+            total_purchase_cost: 92.98,
+          },
+        ],
+      });
+
+      expect(result.purchaseSpend).toBe(24.95);
+      expect(result.purchaseCount).toBe(1);
+      expect(result.totalExpenses).toBe(24.95);
+      expect(result.points.reduce((sum, point) => sum + point.expenses, 0)).toBe(24.95);
+    },
+  );
 
   it.each([
     ['today', 1],
@@ -577,7 +606,17 @@ describe('Vergleich mit dem Zeitraum davor', () => {
     const result = report(
       'last_7_days',
       {
-        purchases: [{ ...receipt, purchase_date: '2026-09-05' }],
+        purchases: [
+          { ...receipt, purchase_date: '2026-09-05' },
+          {
+            ...receipt,
+            id: 'previous-draft',
+            entry_status: 'draft',
+            purchase_date: '2026-09-05',
+            purchase_price: 92.98,
+            total_purchase_cost: 92.98,
+          },
+        ],
         sales: [saleOn('previous', '2026-09-06', 19.98)],
       },
       september17,

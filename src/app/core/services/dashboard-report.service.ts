@@ -42,7 +42,7 @@ interface DateWindow {
 interface DatedPurchase {
   readonly purchase: Purchase;
   readonly date: Date;
-  /** `null`, solange der Einkaufspreis fehlt. */
+  /** `null` bei fehlendem Preis oder nicht abgeschlossenem Einkauf. */
   readonly amount: number | null;
 }
 
@@ -63,6 +63,7 @@ interface PeriodFigures {
   readonly sales: readonly DatedSale[];
   readonly operatingExpenses: readonly DatedOperatingExpense[];
   readonly grossProfit: number;
+  readonly profitSaleCount: number;
   readonly revenue: number;
   readonly revenueWithoutCost: number;
   readonly purchaseSpend: number;
@@ -139,14 +140,16 @@ export class DashboardReportService {
       for (const cause of causes) this.addOpenCost(openCosts, cause.purchase, cause.reason, 1, 0);
     }
     if (platform === 'all') {
-      for (const { purchase, amount } of current.purchases) {
-        if (amount === null) this.addOpenCost(openCosts, purchase, 'price_missing', 0, 0);
+      for (const { purchase } of current.purchases) {
+        if (purchase.purchase_price === null)
+          this.addOpenCost(openCosts, purchase, 'price_missing', 0, 0);
       }
     }
     const inventory = this.inventoryValue(records, openCosts);
 
     return {
       grossProfit: current.grossProfit,
+      profitSaleCount: current.profitSaleCount,
       revenue: current.revenue,
       revenueWithoutCost: current.revenueWithoutCost,
       salesWithoutCostCount: unknownSales.length,
@@ -182,7 +185,7 @@ export class DashboardReportService {
       for (const purchase of records.purchases) {
         const date = this.calendarDate(purchase.purchase_date);
         if (!date || !this.isInWindow(date, window)) continue;
-        const amount = this.purchaseAmount(purchase);
+        const amount = purchaseIsFinalized(purchase) ? this.purchaseAmount(purchase) : null;
         purchases.push({ purchase, date, amount });
         purchaseSpend += amount ?? 0;
         if (amount !== null) purchaseCount += 1;
@@ -197,6 +200,7 @@ export class DashboardReportService {
 
     const sales: DatedSale[] = [];
     let grossProfit = 0;
+    let profitSaleCount = 0;
     let revenue = 0;
     let revenueWithoutCost = 0;
     let sellingCosts = 0;
@@ -221,6 +225,7 @@ export class DashboardReportService {
         revenueWithoutCost += row.revenue;
       } else {
         grossProfit += row.resultAfterDirectCosts;
+        profitSaleCount += 1;
       }
     }
 
@@ -229,6 +234,7 @@ export class DashboardReportService {
       sales,
       operatingExpenses,
       grossProfit: this.money(grossProfit),
+      profitSaleCount,
       revenue: this.money(revenue),
       revenueWithoutCost: this.money(revenueWithoutCost),
       purchaseSpend: this.money(purchaseSpend),

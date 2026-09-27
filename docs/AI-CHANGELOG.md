@@ -8,6 +8,14 @@
 
 **Prüfung:** Jedes ersetzte Bild wurde nach dem Speichern bytegenau zurückgelesen. Eine große JPEG-Datei wurde vor und nach der Komprimierung visuell verglichen. Alle 25 aktiven Artikelbilder haben passende Größenangaben in Datenbank und Speicher; es fehlen keine Bildverweise. Eine fehlerhafte Auswertung der Datenbankantwort wurde nach dem ersten Bild behoben, der unterbrochene Lauf erfolgreich fortgesetzt. Die automatische Ausführungsprüfung blockierte weiterhin das Löschen der lokalen Kopien des ersten Laufs unter `C:\Users\Grisc\AppData\Local\Temp\flipbase-image-backfill-20260927`; sie bleiben dort und enthalten keine neuen Kopien dieses zweiten Laufs.
 
+## 2026-09-27 – Juna – Entwürfe aus Dashboard-Ausgaben entfernt und Gewinnkachel eingeordnet
+
+**Auftrag:** Entwurfseinkäufe aus den Gesamtausgaben ausnehmen, die Zahl der im Gewinn berücksichtigten Verkäufe anzeigen und Gewinn direkt hinter Umsatz platzieren.
+
+**Änderung:** Nur abgeschlossene Einkäufe gehen in Einkaufssumme, Gesamtausgaben, Diagramm und Vorzeitraum ein. Die Einkaufskachel zählt nur diese Einkäufe. Die Gewinnkachel nennt die Verkäufe mit bekannten Kosten, deren Ergebnis in der Summe steckt, und folgt unmittelbar auf Umsatz. Die Entscheidung ist im Dashboard-Konzept ergänzt.
+
+**Prüfung:** Gezielte Berichts- und Dashboard-Tests sowie Typprüfung, ESLint, Formatprüfung und Angular-Produktionsbau.
+
 ## 2026-09-27 – Juna – Bestehende große Produktbilder einmalig verkleinert
 
 **Auftrag:** Bereits gespeicherte Bilder nachträglich komprimieren und erklären, wie der einmalige Lauf abläuft.
