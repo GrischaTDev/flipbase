@@ -101,6 +101,8 @@ export const TRANSLATIONS_DE = {
       'Die verbindlichen Allgemeinen Geschäftsbedingungen (AGB) für Flipbase werden hier vor dem offiziellen Start hinterlegt.',
     PRIVACY_PLACEHOLDER:
       'Die verbindliche Datenschutzerklärung für Flipbase wird hier vor dem offiziellen Start hinterlegt.',
+    PRIVACY_USAGE_NOTICE: 'Informationen zur Nutzungsübersicht für Beta-Tester findest du in den',
+    PRIVACY_USAGE_LINK: 'Datenschutzhinweisen',
     TAGLINE: 'Das All-in-One Betriebssystem für Reseller',
     EMAIL_PLACEHOLDER: 'deine.email@beispiel.de',
     FULL_NAME_PLACEHOLDER: 'Max Mustermann',
@@ -496,6 +498,8 @@ export const TRANSLATIONS_EN = {
       'The binding Terms and Conditions for Flipbase will be published here prior to official release.',
     PRIVACY_PLACEHOLDER:
       'The binding Privacy Policy for Flipbase will be published here prior to official release.',
+    PRIVACY_USAGE_NOTICE: 'You can read about the beta user activity overview in our',
+    PRIVACY_USAGE_LINK: 'privacy information (German)',
     TAGLINE: 'The All-in-One Operating System for Resellers',
     EMAIL_PLACEHOLDER: 'your.email@example.com',
     FULL_NAME_PLACEHOLDER: 'John Doe',

@@ -1,11 +1,14 @@
 import '@angular/compiler';
 import { ɵresolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { glob, readFile } from 'node:fs/promises';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { DataTableComponent } from '../../../../shared/components/data-table/data-table.component';
 import { PageHeaderComponent } from '../../../../shared/components/page-header/page-header.component';
+import { TableActionButtonComponent } from '../../../../shared/components/table-action-button/table-action-button.component';
 import { PlatformUser } from '../../models/platform-user.model';
 import { PlatformUserService } from '../../services/platform-user.service';
 import { PlatformUsersComponent } from './platform-users.component';
@@ -59,6 +62,30 @@ beforeAll(async () => {
     'emptyText',
   ]);
   registerSignalInputs(BadgeComponent, ['tone', 'mono']);
+  registerSignalInputs(TableActionButtonComponent, [
+    'icon',
+    'label',
+    'link',
+    'tone',
+    'disabled',
+    'loading',
+    'href',
+    'queryParams',
+  ]);
+  registerSignalInputs(ButtonComponent, [
+    'variant',
+    'tone',
+    'size',
+    'icon',
+    'iconOnly',
+    'ariaLabel',
+    'title',
+    'disabled',
+    'loading',
+    'link',
+    'href',
+    'queryParams',
+  ]);
 });
 
 const activeUser: PlatformUser = {
@@ -73,6 +100,10 @@ const activeUser: PlatformUser = {
   licenseStatus: 'active' as const,
   betaStartsAt: '2026-09-20T10:00:00.000Z',
   betaEndsAt: '2099-11-19T10:00:00.000Z',
+  lastSignInAt: '2026-09-24T12:00:00.000Z',
+  lastActionAt: '2026-09-25T14:00:00.000Z',
+  purchasesCreated30Days: 2,
+  salesRecorded30Days: 1,
 };
 
 describe('PlatformUsersComponent', () => {
@@ -90,7 +121,7 @@ describe('PlatformUsersComponent', () => {
     const list = vi.fn().mockResolvedValue(users);
     await TestBed.configureTestingModule({
       imports: [PlatformUsersComponent],
-      providers: [{ provide: PlatformUserService, useValue: { list } }],
+      providers: [provideRouter([]), { provide: PlatformUserService, useValue: { list } }],
     }).compileComponents();
     const fixture = TestBed.createComponent(PlatformUsersComponent);
     fixture.detectChanges();
@@ -109,6 +140,11 @@ describe('PlatformUsersComponent', () => {
     expect(text).toContain('Registriert');
     expect(text).toContain('Beta aktiv');
     expect(text).toContain('Noch');
+    expect(text).toContain('24.09.2026');
+    expect(text).toContain('25.09.2026');
+    expect(
+      fixture.nativeElement.querySelector('a[aria-label="Nutzung von Anna Beispiel ansehen"]'),
+    ).not.toBeNull();
   });
 
   it('unterscheidet wartende Registrierung und abgelaufene Beta', async () => {

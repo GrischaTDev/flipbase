@@ -1,0 +1,84 @@
+<section class="mx-auto max-w-6xl space-y-4">
+  <app-page-header
+    [title]="user()?.fullName || 'Nutzung'"
+    subtitle="Anmeldung und nachweisbare Einkaufs- und Verkaufsaktionen"
+    [icon]="usageIcon"
+    backLink="/admin/users"
+    backLabel="Zur Nutzerübersicht"
+  />
+
+  @if (loading()) {
+    <p role="status" class="text-sm text-fb-text-muted">Nutzungsdaten werden geladen …</p>
+  } @else if (error(); as message) {
+    <p role="alert" class="text-sm text-fb-critical">{{ message }}</p>
+  } @else if (user(); as selectedUser) {
+    <p class="text-sm text-fb-text-secondary">
+      {{ selectedUser.email }}
+      @if (selectedUser.workspaceName) {
+        · {{ selectedUser.workspaceName }}
+      }
+    </p>
+
+    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <app-card title="Letzter Login" variant="kpi">
+        @if (selectedUser.lastSignInAt) {
+          <time
+            class="text-lg font-semibold text-fb-text-primary"
+            [attr.datetime]="selectedUser.lastSignInAt"
+            >{{ selectedUser.lastSignInAt | date: 'dd.MM.yyyy, HH:mm' }}</time
+          >
+        } @else {
+          <p class="text-lg font-semibold text-fb-text-primary">Noch keiner</p>
+        }
+      </app-card>
+      <app-card title="Letzte dokumentierte Aktion" variant="kpi">
+        @if (selectedUser.lastActionAt) {
+          <time
+            class="text-lg font-semibold text-fb-text-primary"
+            [attr.datetime]="selectedUser.lastActionAt"
+            >{{ selectedUser.lastActionAt | date: 'dd.MM.yyyy, HH:mm' }}</time
+          >
+        } @else {
+          <p class="text-lg font-semibold text-fb-text-primary">Keine vorhanden</p>
+        }
+      </app-card>
+      <app-card title="Einkaufsentwürfe angelegt" subtitle="Letzte 30 Tage" variant="kpi">
+        <p class="text-2xl font-semibold text-fb-text-primary">
+          {{ selectedUser.purchasesCreated30Days }}
+        </p>
+      </app-card>
+      <app-card title="Verkäufe erfasst" subtitle="Letzte 30 Tage" variant="kpi">
+        <p class="text-2xl font-semibold text-fb-text-primary">
+          {{ selectedUser.salesRecorded30Days }}
+        </p>
+      </app-card>
+    </div>
+
+    <app-card
+      title="Letzte Kernaktionen"
+      subtitle="Bis zu zehn protokollierte Einkaufs- und Verkaufsaktionen"
+    >
+      @if (actions().length) {
+        <ol class="divide-y divide-fb-line">
+          @for (action of actions(); track action.eventId) {
+            <li
+              class="flex flex-wrap items-center justify-between gap-2 py-2.5 first:pt-0 last:pb-0"
+            >
+              <span class="text-sm text-fb-text-primary">{{ actionLabel(action.eventType) }}</span>
+              <time class="text-sm text-fb-text-muted" [attr.datetime]="action.createdAt">{{
+                action.createdAt | date: 'dd.MM.yyyy, HH:mm'
+              }}</time>
+            </li>
+          }
+        </ol>
+      } @else {
+        <p class="text-sm text-fb-text-muted">Noch keine Kernaktionen dokumentiert.</p>
+      }
+    </app-card>
+
+    <p class="text-xs text-fb-text-muted">
+      Ein Login belegt nur die Anmeldung. „Letzte dokumentierte Aktion“ umfasst protokollierte
+      Geschäftsvorgänge; Seitenbesuche und reine Leseaktivität werden nicht erfasst.
+    </p>
+  }
+</section>
