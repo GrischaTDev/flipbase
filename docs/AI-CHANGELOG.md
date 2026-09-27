@@ -1,5 +1,19 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-27 – Juna – Vinted-Typvertrag im Produktionsbau bereitstellen
+
+**Auftrag:** Den nach PR #207 fehlgeschlagenen Produktionsbau untersuchen und
+die Veröffentlichung des geprüften Vinted-Foundation-Stands abschließen.
+
+**Änderung:** `.dockerignore` nimmt den reinen Marktplatz-Typvertrag gezielt in
+den Docker-Baukontext auf. Andere Edge-Function-Dateien bleiben ausgeschlossen.
+Der lokale Angular-Bau hatte die Datei auf dem Rechner gefunden; im Container
+fehlte sie und der Produktionsbau brach deshalb ab.
+
+**Prüfung:** Ein Docker-Kontexttest und der vollständige Build der Docker-
+Baustufe bestanden. Im erzeugten Abbild liegt unter `supabase/functions/` nur
+der ausdrücklich freigegebene Typvertrag. Der erneute Produktionslauf steht aus.
+
 ## 2026-09-27 – Juna – Vinted-Foundation für Pull Request abgeglichen
 
 **Auftrag:** Den geprüften Vinted-Foundation-Branch als Pull Request vorbereiten
