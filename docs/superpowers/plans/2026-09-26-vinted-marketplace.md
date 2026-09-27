@@ -119,7 +119,7 @@ die am 27.09.2026 geprüfte stabile Version und unterstützt Node ab Version 20.
       Sperre vor jeder internen Aktion erneut prüfen.
 - [x] Ablauf, Widerruf, Unterbrechung und Stoppfehler mit künstlichen
       Anbieter-/Sperrimplementierungen testen.
-- [ ] Dauerhafte, transaktional reservierte Sperre und serverseitige Zuordnung
+- [x] Dauerhafte, transaktional reservierte Sperre und serverseitige Zuordnung
       der Profil-ID implementieren; ungewissen Anbieter-Stopp auch nach einem
       Worker-Neustart abgleichen, bevor eine neue Bedienung möglich ist.
 - [ ] Authentisierte Flipbase-API sowie begrenzte Bild- und Eingabeweiterleitung
@@ -129,9 +129,41 @@ die am 27.09.2026 geprüfte stabile Version und unterstützt Node ab Version 20.
       tatsächlich verbinden; fremde Konten, Ablauf, Widerruf und Abbruch auf
       Desktop und iPad prüfen. Vorher G0 klären.
 
-Der Serverkern ist noch nicht in die laufende Anwendung eingebunden. Insbesondere
-ist die abstrakte Sperrschnittstelle noch keine dauerhafte Datenbanksperre. Der
-Test mit künstlichen Implementierungen ist kein G1-Nachweis.
+Der Serverkern ist noch nicht in die laufende Anwendung eingebunden. Die
+Datenbanksperre und die dazugehörigen Workerbausteine sind implementiert; die
+authentisierte API zur vorhandenen Testseite fehlt. Der Test mit künstlichen
+Implementierungen ist kein G1-Nachweis.
+
+### AP04c: Dauerhafte Browsersperre und Profilzuordnung
+
+Der nächste Schritt ergänzt zwei serverseitige Tabellen: eine eindeutige
+Zuordnung von Flipbase-Verbindung zu Anbieterprofil und eine zeitlich begrenzte
+Sitzung mit unveränderlichem Workspace, Konto und Bediener. Nur der Worker darf
+die Profil-ID lesen. Ein Benutzer-RPC reserviert die Sitzung nach erneuter
+Admin-/Workspaceprüfung; vor jeder Aktion prüft ein zweiter RPC dieselbe
+Bindung. Beide geben ausschließlich öffentliche Sitzungsdaten zurück.
+
+Aktive und zur Beendigung vorgemerkte Sitzungen blockieren einen neuen Start.
+Fristablauf, Pause und Widerruf merken den Anbieter-Stopp vor. Erst eine vom
+Worker bestätigte Beendigung gibt das Konto frei. Nach einem Neustart liest der
+Worker alle ungeklärten Sitzungen und stoppt deren gespeichertes Profil, bevor
+er neue Bedienungen zulässt. Ein fehlgeschlagener Anbieter-Stopp bleibt als
+ungeklärter Eintrag erhalten. Der Betrieb ist zunächst auf eine Worker-Instanz
+beschränkt; Mehrinstanzbetrieb braucht gesonderte Besitz-/Heartbeat-Regeln.
+
+Stand 27.09.: Schema, erzeugte Migration, Typen, Benutzer-RPCs, serverseitige
+Profilauflösung aus der reservierten Sitzung und Wiederanlauf-Bereinigung sind
+implementiert. Die Datenbankmigration musste um vom Diff-Generator ausgelassene
+Rechteentzüge ergänzt werden. Die Bereinigung sperrt neue Starts bei einem
+fehlgeschlagenen Anbieter-Stopp. Die Komponenten sind noch nicht über eine
+authentisierte HTTP-API mit der Testseite verbunden; ein echter Anbieter-Test
+bleibt bis zur G0-Freigabe aus.
+
+Abnahme: Datenbanktests für zwei Workspaces, zwei Konten, zweiten Admin,
+direkten Tabellenzugriff, Ablauf, Pause und Stoppfehler; zusätzlich einen Test
+mit wirklich konkurrierenden Reservierungen. Schema, generierte Migration und
+Typen werden zusammen geprüft. Keine Anbieterprofile oder Nutzertoken in
+Migration, Seed, Fixture oder Testausgabe.
 
 ## Danach
 

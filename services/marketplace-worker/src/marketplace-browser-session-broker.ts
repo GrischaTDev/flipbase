@@ -8,6 +8,7 @@ export interface BrowserSessionScope {
   workspaceId: string;
   connectionId: string;
   userId: string;
+  userAccessToken: string;
 }
 
 export interface BrowserLease {
@@ -24,7 +25,7 @@ interface BrowserLeaseStore {
 }
 
 interface BrowserProfileStore {
-  resolve(scope: BrowserSessionScope): Promise<string>;
+  resolve(lease: BrowserLease): Promise<string>;
 }
 
 interface CloudBrowserProvider {
@@ -36,6 +37,7 @@ interface BrowserSessionBrokerOptions {
   leases: BrowserLeaseStore;
   profiles: BrowserProfileStore;
   browsers: CloudBrowserProvider;
+  recovery: { recover(): Promise<void> };
 }
 
 interface ActiveBrowserSession {
@@ -50,25 +52,29 @@ function sameScope(left: BrowserSessionScope, right: BrowserSessionScope): boole
   return (
     left.workspaceId === right.workspaceId &&
     left.connectionId === right.connectionId &&
-    left.userId === right.userId
+    left.userId === right.userId &&
+    left.userAccessToken === right.userAccessToken
   );
 }
 
 export class MarketplaceBrowserSessionBroker {
   private readonly sessions = new Map<string, ActiveBrowserSession>();
   private readonly options: BrowserSessionBrokerOptions;
+  private recovered = false;
+  private recoveryPromise?: Promise<void>;
 
   constructor(options: BrowserSessionBrokerOptions) {
     this.options = options;
   }
 
   async open(scope: BrowserSessionScope): Promise<string> {
+    await this.ensureRecovered();
     const lease = await this.options.leases.acquire({ ...scope });
     if (!sameScope(scope, lease.scope)) throw new Error('Sitzungszugriff verweigert');
     let profileId: string | undefined;
     let browser: CloudBrowserHandle | undefined;
     try {
-      profileId = await this.options.profiles.resolve(lease.scope);
+      profileId = await this.options.profiles.resolve(lease);
       if (
         lease.expiresAt <= Date.now() ||
         !(await this.options.leases.assertActive(lease)) ||
@@ -105,6 +111,19 @@ export class MarketplaceBrowserSessionBroker {
       // Anbieterfehler können Token enthalten; die öffentliche Fehlermeldung bleibt neutral.
       // eslint-disable-next-line preserve-caught-error
       throw new Error('Browserstart fehlgeschlagen');
+    }
+  }
+
+  private async ensureRecovered(): Promise<void> {
+    if (this.recovered) return;
+    this.recoveryPromise ??= this.options.recovery.recover();
+    try {
+      await this.recoveryPromise;
+      this.recovered = true;
+    } catch {
+      throw new Error('Browser-Bereinigung fehlgeschlagen');
+    } finally {
+      this.recoveryPromise = undefined;
     }
   }
 

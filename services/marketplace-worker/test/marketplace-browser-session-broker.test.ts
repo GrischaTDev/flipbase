@@ -7,17 +7,29 @@ import {
 } from '../src/marketplace-browser-session-broker.ts';
 import { CloudBrowserStopUncertainError } from '../src/gologin-cloud-browser.ts';
 
+type BrokerOptions = ConstructorParameters<typeof MarketplaceBrowserSessionBroker>[0];
+
+function createTestBroker(
+  options: Omit<BrokerOptions, 'recovery'> & { recovery?: BrokerOptions['recovery'] },
+): MarketplaceBrowserSessionBroker {
+  return new MarketplaceBrowserSessionBroker({
+    ...options,
+    recovery: options.recovery ?? { recover: async () => undefined },
+  });
+}
+
 const scopeA: BrowserSessionScope = {
   workspaceId: 'workspace-a',
   connectionId: 'account-a',
   userId: 'user-a',
+  userAccessToken: 'test-token-a',
 };
 const scopeB = { ...scopeA, connectionId: 'account-b' };
 
 function setup() {
   const leases = new Map<string, BrowserLease>();
   const stopped: string[] = [];
-  const broker = new MarketplaceBrowserSessionBroker({
+  const broker = createTestBroker({
     leases: {
       acquire: async (scope) => {
         if (
@@ -41,7 +53,7 @@ function setup() {
         lease.active = false;
       },
     },
-    profiles: { resolve: async (scope) => `provider-${scope.connectionId}` },
+    profiles: { resolve: async (lease) => `provider-${lease.scope.connectionId}` },
     browsers: {
       open: async (profileId) => ({
         close: async () => {
@@ -72,11 +84,51 @@ test('binds access to workspace, account, and operator', async () => {
     broker.run({ ...scopeA, userId: 'user-b' }, id, async (browser) => browser.version()),
     /Sitzungszugriff verweigert/,
   );
+  await assert.rejects(
+    broker.run({ ...scopeA, userAccessToken: 'other-token' }, id, async (browser) =>
+      browser.version(),
+    ),
+    /Sitzungszugriff verweigert/,
+  );
   assert.equal(
     await broker.run(scopeA, id, async (browser) => browser.version()),
     'provider-account-a',
   );
   assert.deepEqual(stopped, []);
+});
+
+test('does not start a new browser before restart cleanup succeeds', async () => {
+  let recoveries = 0;
+  let acquisitions = 0;
+  const broker = createTestBroker({
+    recovery: {
+      recover: async () => {
+        recoveries += 1;
+        if (recoveries === 1) throw new Error('private provider error');
+      },
+    },
+    leases: {
+      acquire: async (scope) => {
+        acquisitions += 1;
+        return { id: 'lease-a', scope, expiresAt: Date.now() + 60_000, active: true };
+      },
+      assertActive: async () => true,
+      release: async () => undefined,
+    },
+    profiles: { resolve: async () => 'profile-a' },
+    browsers: {
+      open: async () => ({
+        close: async () => undefined,
+        run: async (operation) => operation({ version: () => 'test' }),
+      }),
+      stop: async () => undefined,
+    },
+  });
+  await assert.rejects(broker.open(scopeA), /Browser-Bereinigung fehlgeschlagen/);
+  assert.equal(acquisitions, 0);
+  await broker.open(scopeA);
+  assert.equal(recoveries, 2);
+  assert.equal(acquisitions, 1);
 });
 
 test('expires access and explicitly stops its provider profile', async () => {
@@ -121,7 +173,7 @@ test('stops and releases on browser interruption', async () => {
 
 test('releases a lease if the provider fails to start', async () => {
   const { broker, leases } = setup();
-  const broken = new MarketplaceBrowserSessionBroker({
+  const broken = createTestBroker({
     leases: {
       acquire: async (scope) => {
         const lease = { id: 'failed', scope, expiresAt: Date.now() + 60_000, active: true };
@@ -149,7 +201,7 @@ test('releases a lease if the provider fails to start', async () => {
 test('keeps the lease and retries cleanup when provider stop fails', async () => {
   let stops = 0;
   let active = true;
-  const broker = new MarketplaceBrowserSessionBroker({
+  const broker = createTestBroker({
     leases: {
       acquire: async (scope) => ({
         id: 'lease',
@@ -189,7 +241,7 @@ test('keeps the lease and retries cleanup when provider stop fails', async () =>
 test('keeps the lease when provider startup cleanup is uncertain', async () => {
   let released = false;
   let stopped = false;
-  const broker = new MarketplaceBrowserSessionBroker({
+  const broker = createTestBroker({
     leases: {
       acquire: async (scope) => ({
         id: 'uncertain',
@@ -222,7 +274,7 @@ test('keeps the lease when provider startup cleanup is uncertain', async () => {
 test('does not start an already expired lease at the provider', async () => {
   let opened = false;
   let released = false;
-  const broker = new MarketplaceBrowserSessionBroker({
+  const broker = createTestBroker({
     leases: {
       acquire: async (scope) => ({ id: 'expired', scope, expiresAt: Date.now() - 1, active: true }),
       assertActive: async () => true,
@@ -246,7 +298,7 @@ test('does not start an already expired lease at the provider', async () => {
 
 test('rejects a lease returned for a different workspace before provider access', async () => {
   let opened = false;
-  const broker = new MarketplaceBrowserSessionBroker({
+  const broker = createTestBroker({
     leases: {
       acquire: async () => ({
         id: 'wrong-scope',
@@ -274,7 +326,7 @@ test('reconcile checks the second account even if the first provider stop fails'
   let active = true;
   let firstStopFails = true;
   const released: string[] = [];
-  const broker = new MarketplaceBrowserSessionBroker({
+  const broker = createTestBroker({
     leases: {
       acquire: async (scope) => ({
         id: scope.connectionId,
@@ -287,7 +339,7 @@ test('reconcile checks the second account even if the first provider stop fails'
         released.push(lease.id);
       },
     },
-    profiles: { resolve: async (scope) => scope.connectionId },
+    profiles: { resolve: async (lease) => lease.scope.connectionId },
     browsers: {
       open: async (profileId) => ({
         run: async (operation) => operation({ version: () => profileId }),
@@ -317,7 +369,7 @@ test('blocks an operation when close begins during the lease check', async () =>
   const checkGate = new Promise<boolean>((resolve) => {
     continueCheck = resolve;
   });
-  const broker = new MarketplaceBrowserSessionBroker({
+  const broker = createTestBroker({
     leases: {
       acquire: async (scope) => ({
         id: 'lease',
@@ -357,7 +409,7 @@ test('parallel reconciliation never stops a profile twice after release', async 
   let checks = 0;
   let stops = 0;
   let releases = 0;
-  const broker = new MarketplaceBrowserSessionBroker({
+  const broker = createTestBroker({
     leases: {
       acquire: async (scope) => ({
         id: 'uncertain',
@@ -398,7 +450,7 @@ test('expires a lease that times out while authorization is pending', async () =
   let checks = 0;
   let lease!: BrowserLease;
   let stopped = false;
-  const broker = new MarketplaceBrowserSessionBroker({
+  const broker = createTestBroker({
     leases: {
       acquire: async (scope) => {
         lease = { id: 'lease', scope, expiresAt: Date.now() + 60_000, active: true };
@@ -429,7 +481,7 @@ test('expires a lease that times out while authorization is pending', async () =
 test('retries lease release without allowing actions after provider stop', async () => {
   let releaseAttempts = 0;
   let stops = 0;
-  const broker = new MarketplaceBrowserSessionBroker({
+  const broker = createTestBroker({
     leases: {
       acquire: async (scope) => ({
         id: 'lease',

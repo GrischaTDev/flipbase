@@ -258,6 +258,9 @@ jobs:
       - name: Test database
         run: npm run test:db
 
+      - name: Test parallel marketplace browser reservations
+        run: node scripts/marketplace-live-browser-concurrency.mjs
+
       - name: Stop local Supabase
         if: ${{ always() }}
         run: npx supabase stop --no-backup

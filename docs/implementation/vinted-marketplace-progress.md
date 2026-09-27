@@ -1,5 +1,44 @@
 # Arbeitsstand: Vinted-Marktplatzverwaltung
 
+## 27. September 2026 – Dauerhafte Browsersperre und Wiederanlauf
+
+Auf `juna/vinted-browser-worker` sind die zuvor nur simulierten Sperrregeln für
+einen künftigen Live-Browser als eigene Tabellen und Benutzer-RPCs umgesetzt.
+Eine Reservierung bindet Workspace, Verbindung und Bediener transaktional.
+Profil-IDs sind nur für den Serverdienst lesbar und werden beim Start in der
+Sitzung festgehalten, damit eine spätere Änderung der Profilzuordnung keinen
+falschen Browser stoppen lässt. Abgelaufene, pausierte und widerrufene
+Sitzungen bleiben bis zum bestätigten Anbieter-Stopp gesperrt. Ungeklärte
+Sitzungen verhindern auch das Löschen der Verbindung. Wird ein Bediener
+gelöscht, bleibt seine ungeklärte Sitzung als Sperre für den Worker erhalten.
+
+Der Worker besitzt nun Datenbankadapter für Reservierung, erneute Prüfung,
+Profilauflösung und Freigabe. Vor dem ersten neuen Browserstart bereinigt er
+gespeicherte Sitzungen nach einem Neustart. Ein fehlgeschlagener Anbieter-Stopp
+hält die Sperre aufrecht und kann erneut versucht werden. Der Adapter prüft die
+Benutzeranmeldung beim Auth-Dienst und nutzt den Service-Role-Schlüssel nur
+serverseitig. Das Benutzerzugriffstoken liegt während der kurzen Sitzung im
+Worker-Speicher, nie in Tabellen oder Antworten.
+
+**Tatsächlich geprüft:** Die neue Migration wurde in einer getrennten lokalen
+Supabase-Instanz erzeugt, um die vom Generator ausgelassenen Rechteentzüge
+ergänzt und aus leerer Datenbank erneut aufgespielt. 32 neue gezielte
+Datenbankprüfungen und 61 Datenbankdateien mit 2159 Tests bestanden. Zwei
+gleichzeitige Transaktionen ergaben genau eine Reservierung; die zweite wurde
+gesperrt. Ein zusätzlicher lokaler REST-Versuch mit einem eigens erzeugten
+Testbenutzer bestätigte Reservierung, Profilauflösung, Statusprüfung und
+Freigabe gegen die echte Supabase-API. Datenbank-Lint meldete keine Fehler.
+27 Worker-Tests mit künstlichem Anbieter und Datenbankantworten sowie
+Worker-Typprüfung und Paketbau bestanden. Es wurde kein
+echtes GoLogin-Profil und kein Vinted-Konto geöffnet.
+
+**Weiter offen:** Eine authentisierte Flipbase-API und begrenzte Bild- und
+Eingabeweiterleitung zur vorhandenen Testseite. Erst danach ist ein G1-Test
+mit einem ausdrücklich freigegebenen isolierten Anbieterprofil möglich. Die
+Testseite bleibt bis dahin eine Simulation.
+
+---
+
 ## 27. September 2026 – GoLogin-/Playwright-Dienstkern begonnen
 
 Auf dem neuen Branch `juna/vinted-browser-worker` wurde aus dem aktuellen

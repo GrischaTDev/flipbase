@@ -1,5 +1,22 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-27 – Juna – Dauerhafte Sperre für Marktplatz-Browsersitzungen
+
+**Auftrag:** Die vorhandene Vinted-Arbeit auf dem Worker-Branch um eine sichere,
+kontogebundene Sitzung mit serverseitiger Profilzuordnung fortsetzen.
+
+**Änderung:** Neue Tabellen und geschützte Funktionen halten Live-Sitzungen bis
+zum bestätigten Anbieter-Stopp exklusiv. Der Worker kann die gespeicherte
+Profil-ID lesen, unterbrochene Sitzungen nach einem Neustart bereinigen und
+neue Starts bis dahin sperren. Die vorhandene Testseite bleibt eine Simulation;
+eine authentisierte Browserweiterleitung fehlt noch.
+
+**Prüfung:** Migration in getrennter Supabase-Instanz frisch aufgespielt,
+32 gezielte und 2159 gesamte Datenbanktests, ein Test mit zwei gleichzeitigen
+Reservierungen, ein lokaler REST-Versuch mit künstlichem Nutzer,
+Datenbank-Lint sowie 27 Worker-Tests, Typprüfung und Paketbau grün.
+Kein reales Anbieter- oder Vinted-Konto verwendet.
+
 ## 2026-09-27 – Juna – Serverkern für kontogebundene GoLogin-Sitzungen vorbereitet
 
 **Auftrag:** Die Vinted-Sitzungstechnik nach dem veröffentlichten Foundation-
