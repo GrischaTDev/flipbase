@@ -1,5 +1,20 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-28 – Juna – Vinted-Feed-Filter in gemeinsamer Karte gebündelt
+
+**Auftrag:** Die Filter im Vinted-Feed wie bei den Admin-Tabellen in einer
+kompakten Karte anordnen und rechts ein Zurücksetzen-Symbol einblenden, sobald
+ein Filter aktiv ist.
+
+**Änderung:** Suchfilter, Marke, Größe sowie Mindest- und Höchstpreis stehen in
+einer gemeinsamen Filterkarte. Die Auswahllisten verwenden die vorhandene
+Toolbar-Darstellung. Der gemeinsame Symbol-Button setzt alle fünf Filter
+einschließlich einer ungültigen Preisspanne zurück. Die Karte lässt geöffnete
+Auswahllisten auch ohne Popover-Unterstützung sichtbar.
+
+**Prüfung:** Gezielte Angular-Tests einschließlich Barrierefreiheitsprüfung,
+Angular-Produktionsbau, ESLint, Prettier und Shared-UI-Prüfung bestanden.
+
 ## 2026-09-28 – Juna – Hintergrundanmeldung zur Veröffentlichung freigegeben
 
 **Auftrag:** Der Nutzer hat PR-Erstellung und Merge nach erfolgreichen
