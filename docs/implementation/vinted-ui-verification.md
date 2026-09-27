@@ -1,10 +1,10 @@
 # Vinted-Oberfläche: geprüfter Stand vom 26. September 2026
 
-## Nachtrag 28.09.2026: GoLogin-Tarifgrenze
+## Nachtrag 28.09.2026: GoLogin-API-Ablehnung bei aktivem Testzugang
 
 Die bisher allgemeine Fehlermeldung beim Start einer Browsersitzung verdeckte die konkrete Anbieterantwort. Bei der betroffenen neuen Verbindung war noch kein GoLogin-Profil und keine Browsersitzung gespeichert. Zwei lesende Anbieter-API-Aufrufe mit dem produktiven, nur serverseitig gespeicherten Token erhielten HTTP 403 mit dem Hinweis auf das ausgeschöpfte kostenlose API-Anfragelimit. Dadurch blieb die eigentliche Vinted-Anmeldung vor der Übertragung der Zugangsdaten stehen.
 
-Die Änderung zeigt für genau diese Anbieterantwort einen verständlichen Hinweis zum GoLogin-Tarif. Der HTTP-Endpunkt veröffentlicht nur einen festen Fehlercode; unbekannte Anbietertexte und Geheimnisse werden nicht an die Oberfläche durchgereicht. Künstliche Tests prüfen die Anbieterklassifikation, die sichere HTTP-Antwort und die Anzeige vor dem Loginauftrag. 70 Worker-Tests und 33 gezielte Angular-Tests bestanden, ebenso Worker-Typprüfung/-Bau, Angular-Produktionsbau und gezieltes ESLint. Ein erfolgreicher Login kann mit dem derzeitigen Anbieterstatus nicht geprüft werden.
+Die angemeldete GoLogin-Webseite zeigt zugleich einen aktiven Versuch mit sieben verbleibenden Tagen. Die UI-Meldung wurde deshalb auf die beobachtete API-Ablehnung und die zu prüfende Schlüsselzuordnung begrenzt. Sie empfiehlt keinen Kauf. Der HTTP-Endpunkt veröffentlicht weiter nur einen festen Fehlercode; unbekannte Anbietertexte und Geheimnisse werden nicht an die Oberfläche durchgereicht. Künstliche Tests prüfen die Anbieterklassifikation, die sichere HTTP-Antwort und die Anzeige vor dem Loginauftrag. 70 Worker-Tests und 33 gezielte Angular-Tests bestanden, ebenso Worker-Typprüfung/-Bau, Angular-Produktionsbau und gezieltes ESLint. Ein erfolgreicher Login kann mit dem derzeitigen Anbieterstatus nicht geprüft werden.
 
 ## Aktueller Nachtrag 27.09.2026: zusammenhängende Anmeldung
 

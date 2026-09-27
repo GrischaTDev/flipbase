@@ -33,7 +33,7 @@ export class BrowserTestSessionEndedError extends Error {
 export class GoLoginApiLimitError extends Error {
   constructor() {
     super(
-      'Das kostenlose GoLogin-API-Limit ist erreicht. Für weitere Browseranmeldungen benötigt Dein GoLogin-Konto einen passenden Tarif.',
+      'GoLogin meldet für den hinterlegten Schlüssel ein erreichtes kostenloses API-Limit. Prüfe, ob der Schlüssel zu Deinem aktiven Testkonto gehört. Die Vinted-Anmeldung wurde nicht gestartet.',
     );
   }
 }
