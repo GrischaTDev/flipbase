@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-27 – Juna – Suchbegriffe anhand von Google Trends bewertet
+
+**Auftrag:** Die Keywords der Startseite über die eigene Search Console hinaus allgemein recherchieren und ihre Suchabsicht beurteilen.
+
+**Änderung:** Google-Trends-Vergleiche für Deutschland zu Reselling, Vinted, Vintage, Software, Bot und Steuerfragen ausgewertet und in `docs/landing/keyword-research.md` mit Quellen und Grenzen dokumentiert. Der Seitentitel bleibt bei der zutreffenden allgemeinen Reselling-Ausrichtung; Vintage Reselling bleibt ein ergänzendes Beispiel.
+
+**Prüfung:** Die Google-Trends-Werte direkt im Browser verglichen, Suchergebnisse auf die erwartete Produktabsicht geprüft und den Zugang zu Search Console und Keyword Planner geprüft. Für absolute Suchvolumen steht im vorhandenen Google-Ads-Verwaltungskonto kein aktives Werbekonto zur Verfügung.
+
 ## 2026-09-27 – Juna – Vintage Reselling als ergänzenden Suchbegriff aufgenommen
 
 **Auftrag:** Vintage Reselling als passenden ergänzenden Suchbegriff berücksichtigen, ohne Vinted als Plattform oder die allgemeine Reselling-Ausrichtung zu verwechseln.
