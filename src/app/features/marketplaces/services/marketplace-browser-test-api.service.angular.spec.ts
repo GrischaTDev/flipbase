@@ -60,4 +60,31 @@ describe('Browser-Test-API', () => {
       BrowserTestSessionEndedError,
     );
   });
+
+  it('akzeptiert eine Identität nur für den angeforderten Workspace und das Konto', async () => {
+    const request = vi.fn().mockResolvedValue(
+      Response.json({
+        workspaceId: scope.workspaceId,
+        connectionId: scope.connectionId,
+        externalAccountId: '12345',
+        username: 'my-vinted',
+      }),
+    );
+    vi.stubGlobal('fetch', request);
+    await expect(api.identify(scope, id, 'user-test-token')).resolves.toEqual({
+      externalAccountId: '12345',
+      username: 'my-vinted',
+    });
+    const [path] = request.mock.calls[0] as [string];
+    expect(path).toBe(`/marketplace-browser/sessions/${id}/identify`);
+    request.mockResolvedValueOnce(
+      Response.json({
+        workspaceId: scope.workspaceId,
+        connectionId: '25600000-0000-4000-8000-000000000022',
+        externalAccountId: '12345',
+        username: 'my-vinted',
+      }),
+    );
+    await expect(api.identify(scope, id, 'user-test-token')).rejects.toThrow();
+  });
 });

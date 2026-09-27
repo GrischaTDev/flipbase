@@ -190,6 +190,33 @@ export class MarketplaceBrowserTestStore {
     }
   }
 
+  async confirmAccount(): Promise<void> {
+    const active = this.session();
+    if (!active || this.busy() || this.readOnly()) return;
+    const revision = ++this.revision;
+    this.busyState.set(active.key);
+    this.errorState.set(null);
+    try {
+      const token = this.currentToken();
+      await this.api.identify(active.scope, active.id, token);
+      if (!this.isCurrent(active.key, revision)) return;
+      await this.api.close(active.scope, active.id, token);
+      if (!this.isCurrent(active.key, revision)) return;
+      this.releaseFrame(active.frameUrl);
+      this.state.set(null);
+      await this.accounts.reloadConnections(active.scope.connectionId);
+    } catch (error) {
+      if (this.isCurrent(active.key, revision) && !this.handleConfirmedEnd(error, active.key))
+        this.errorState.set({
+          key: active.key,
+          message:
+            'Die Vinted-Anmeldung konnte nicht sicher bestätigt oder beendet werden. Prüfe das Browserbild und versuche es erneut.',
+        });
+    } finally {
+      if (this.isCurrent(active.key, revision)) this.busyState.set(null);
+    }
+  }
+
   async close(): Promise<void> {
     const active = this.session();
     if (!active || this.busy()) return;

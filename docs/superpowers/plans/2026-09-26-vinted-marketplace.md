@@ -369,6 +369,20 @@ Schritte nötig:
    Pagination, Löschungen und Teilfehler gesondert prüfen. Der jetzige
    Kontodialog und Browserstart importieren noch keine Daten.
 
+**Stand 27.09., Ergänzung zur Kontobestätigung:** Schritt 2 ist mit
+künstlichen Identitätsantworten und lokaler Datenbank technisch umgesetzt:
+Eine feste Vinted-Seite liefert höchstens ID und Nutzernamen an den Worker;
+der Worker schreibt erst nach erneuter Sitzung-, Workspace-, Konto- und
+Betreiberprüfung den Status `connected` und eine Profilkopie. Die verwendete
+private Vinted-Route `/api/v2/users/current` ist nicht als stabile
+Anbieterschnittstelle zugesichert und muss am freigegebenen eigenen Konto
+überprüft werden. Schritt 1 und die echte Abnahme von Schritt 2 bleiben offen;
+Schritt 3 bleibt vollständig offen. Für normale Vinted-Konten steht die
+offizielle Pro-API ohne Pro-Freigabe nicht zur Verfügung. Falls die private
+Identitätsroute nicht funktioniert, darf der Status nicht gesetzt werden;
+zunächst ist der beobachtete Loginablauf zu prüfen und das Arbeitspaket
+anzupassen. Kein stiller Rückfall auf Profil-URL oder manuell eingegebene ID.
+
 ## Danach
 
 - [x] AP02: Geschützte Feature-Routen, Shell, Tabs und Kontowechsler an gespeicherte Konten angeschlossen. Künstliche Daten ausschließlich in Tests.

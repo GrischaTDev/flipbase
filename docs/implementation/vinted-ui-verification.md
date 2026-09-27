@@ -1,5 +1,24 @@
 # Vinted-Oberfläche: geprüfter Stand vom 26. September 2026
 
+## Ergänzung vom 27. September 2026: Konto nach Anmeldung bestätigen
+
+Die bestehende Anmeldeseite bietet jetzt „Anmeldung prüfen und Konto verbinden“.
+Sie zeigt den verbundenen Status erst, nachdem der Worker eine Vinted-Kennung
+im kontogebundenen Browser gelesen und die Datenbank sie für die aktive
+Sitzung bestätigt hat. Bei fehlender Kennung, fremdem Konto oder abgelaufener
+Sitzung entsteht kein neuer Profilstand. Nach Erfolg wird der Browser beendet
+und die Kontoliste neu geladen.
+
+**Lokal geprüft:** 16 gezielte Angular-Tests, 54 Worker-Tests, 113
+Marktplatz-Datenbankprüfungen und Angular-Bau. Die Prüfung verwendete nur
+künstliche Konten und Antworten. Der öffentliche Worker war zuvor mit
+HTTP 502 nicht erreichbar; ein neuer Produktionscheck und eine echte
+Vinted-Anmeldung stehen aus. Die private Vinted-Identitätsroute kann sich
+ändern; ihre Antwort wurde bisher nicht live verifiziert. Inserate,
+Nachrichten und Verkäufe werden noch nicht importiert.
+
+---
+
 ## Ergänzung vom 27. September 2026: Admin-Badge und Kontoeinstieg
 
 Die Sidebar zeigt für den Betreiber am Vinted-Link ein Admin-Badge. Die

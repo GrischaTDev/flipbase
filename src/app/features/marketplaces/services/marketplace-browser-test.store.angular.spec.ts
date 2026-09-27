@@ -23,8 +23,10 @@ let api: {
   open: ReturnType<typeof vi.fn>;
   frame: ReturnType<typeof vi.fn>;
   input: ReturnType<typeof vi.fn>;
+  identify: ReturnType<typeof vi.fn>;
   close: ReturnType<typeof vi.fn>;
 };
+let reloadConnections: ReturnType<typeof vi.fn>;
 let store: MarketplaceBrowserTestStore;
 
 beforeEach(async () => {
@@ -42,8 +44,10 @@ beforeEach(async () => {
     open: vi.fn().mockResolvedValue(id),
     frame: vi.fn().mockResolvedValue(jpeg),
     input: vi.fn().mockResolvedValue(undefined),
+    identify: vi.fn().mockResolvedValue({ externalAccountId: '12345', username: 'my-vinted' }),
     close: vi.fn().mockResolvedValue(undefined),
   };
+  reloadConnections = vi.fn().mockResolvedValue(undefined);
   TestBed.resetTestingModule();
   TestBed.configureTestingModule({
     providers: [
@@ -57,6 +61,7 @@ beforeEach(async () => {
           ),
           selectionVersion,
           canManage: signal(true),
+          reloadConnections,
         },
       },
       { provide: WorkspaceService, useValue: { currentWorkspace: workspace } },
@@ -96,6 +101,29 @@ describe('Kontogebundener Browser-Testbereich', () => {
       id,
       'token-a',
     );
+  });
+
+  it('lädt das verbundene Konto nach bestätigter Anmeldung neu', async () => {
+    await store.start();
+    await store.confirmAccount();
+    expect(api.identify).toHaveBeenCalledWith(
+      { workspaceId: accountA.workspaceId, connectionId: accountA.connectionId },
+      id,
+      'token-a',
+    );
+    expect(api.close).toHaveBeenCalledOnce();
+    expect(reloadConnections).toHaveBeenCalledWith(accountA.connectionId);
+    expect(store.session()).toBeNull();
+  });
+
+  it('übernimmt einen fehlgeschlagenen Identitätsabruf nicht als Verbindung', async () => {
+    await store.start();
+    api.identify.mockRejectedValueOnce(new Error('private provider detail'));
+    await store.confirmAccount();
+    expect(api.close).not.toHaveBeenCalled();
+    expect(reloadConnections).not.toHaveBeenCalled();
+    expect(store.session()?.id).toBe(id);
+    expect(store.error()).toContain('nicht sicher bestätigt');
   });
 
   it('wiederholt unklare Eingaben nicht automatisch', async () => {

@@ -24,8 +24,9 @@
         Beim ersten Start wird für diese Verbindung ein eigenes GoLogin-Profil vorbereitet. Melde
         Dich nur mit einem eigenen, dafür freigegebenen Vinted-Konto an. Die Bedienung endet nach
         spätestens zehn Minuten; Du kannst sie anschließend erneut starten. Das Browserbild bleibt
-        nur während dieser Sitzung auf dieser Seite. Flipbase bestätigt den Anmeldestatus und
-        übernimmt Kontodaten in diesem Pilot noch nicht automatisch.
+        nur während dieser Sitzung auf dieser Seite. Klicke nach der Anmeldung auf „Anmeldung
+        prüfen“. Flipbase verbindet das Konto nur, wenn die angemeldete Vinted-Identität sicher
+        gelesen werden kann.
       }
     </app-notice-banner>
     @if (store.error(); as error) {
@@ -48,6 +49,15 @@
         >Browser beenden</app-button
       >
     </div>
+    @if (!store.readOnly() && store.session()) {
+      <app-button
+        class="mt-4"
+        variant="primary"
+        [disabled]="!store.canAct()"
+        (clicked)="store.confirmAccount()"
+        >Anmeldung prüfen und Konto verbinden</app-button
+      >
+    }
     @if (store.session(); as session) {
       @if (session.frameUrl) {
         <div class="mt-4 max-w-full overflow-auto">

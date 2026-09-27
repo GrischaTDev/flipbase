@@ -5224,6 +5224,17 @@ export type Database = {
           reason: string
         }[]
       }
+      marketplace_browser_confirm_account: {
+        Args: {
+          p_connection_id: string
+          p_external_account_id: string
+          p_session_id: string
+          p_user_id: string
+          p_username: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       marketplace_browser_session_check: {
         Args: {
           p_connection_id: string

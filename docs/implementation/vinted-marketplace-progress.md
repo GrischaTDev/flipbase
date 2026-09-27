@@ -1,5 +1,40 @@
 # Arbeitsstand: Vinted-Marktplatzverwaltung
 
+## 27. September 2026 – Kontobestätigung für normales Vinted-Konto
+
+Die vorhandene Admin-Anmeldeseite kann nach der interaktiven Anmeldung eine
+Kontoprüfung auslösen. Der Worker liest im zugeordneten GoLogin-Browser nur
+numerische Vinted-Konto-ID und Nutzernamen. Die Datenbank setzt eine Verbindung
+erst dann auf `connected`, wenn Browsersitzung, Workspace, Flipbase-Verbindung,
+Bediener und Betreiberrecht weiterhin übereinstimmen. Ein schon verbundenes
+Flipbase-Konto darf nicht auf eine andere Vinted-ID umgestellt werden; dieselbe
+Vinted-ID darf nicht zwei Verbindungen zugeordnet werden. Als erster Datenstand
+wird nur das Profil in der bestehenden kontogebundenen Lesekopie gespeichert.
+
+Die verwendete Vinted-Identitätsroute `/api/v2/users/current` ist eine private,
+nicht dokumentiert zugesicherte Schnittstelle. Sie wurde nur mit künstlichen
+Antworten getestet. Ein tatsächlicher Login mit eigenem, freigegebenem Konto
+ist nötig, um Erreichbarkeit, Antwortformat und die Bestätigung in Flipbase
+zu prüfen. Die offizielle Vinted-Pro-API setzt eine Pro-Freigabe voraus und
+passt nicht zum angegebenen normalen Konto. Ein erfolgreicher Status
+`connected` wäre noch kein Nachweis für einen Liveimport von Inseraten,
+Nachrichten oder Verkäufen.
+
+**Lokal geprüft:** 54 Worker-Tests, 16 gezielte Angular-Tests und 113
+Marktplatz-Datenbankprüfungen; Worker- und Angular-Typprüfung sowie Angular-Bau.
+Die neue SQL-Prüfung erfasst fremde Konten und Workspaces, anderen Bediener,
+abgelaufene Sitzung, entzogene Betreiberrolle und doppelte Vinted-ID. Die
+Migration wurde aus `supabase db diff` erzeugt, auf die neue Funktion begrenzt
+und nach einem zunächst roten Rechte-Test um den ausgelassenen Entzug für
+`authenticated` ergänzt. Typen wurden lokal neu erzeugt.
+
+**Noch offen:** Worker und Proxy kontrolliert bereitstellen, eigener
+Vinted-Livetest, tatsächliche Identitätsantwort, lesende Importwege und
+Fehlerverhalten bei Plattformänderungen. Keine Zugangsdaten im Repository,
+kein produktiver Login oder Deployment in dieser Sitzung.
+
+---
+
 ## 27. September 2026 – Admin-Einstieg und Anmeldeweg geklärt
 
 Die Sidebar kennzeichnet den nur für Plattformbetreiber sichtbaren
