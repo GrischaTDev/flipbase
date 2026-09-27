@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-27 – Juna – Artikelbilder nachträglich vollständig geprüft und verkleinert
+
+**Auftrag:** Die erste Nachbearbeitung erfasste nur drei Shop-Angebotsbilder. Prüfen, warum die rund 25 Bilder unter „Artikel“ ausblieben, und auch diese Bilder sinnvoll komprimieren. Außerdem die Meldung zu nicht entfernbaren lokalen Arbeitskopien erklären.
+
+**Änderung:** Das Wartungsskript kann nun eine Bildquelle und eine Mindestgröße wählen. Für die Artikelfotos wurden alle 24 aktiven JPEG-Dateien auf dem Produktionsserver gesichert und mit mindestens zehn Prozent Ersparnis am selben Pfad ersetzt. Ihre Abmessungen waren bereits höchstens 1600 Pixel; die Neucodierung senkte die Gesamtgröße von 11.610.479 auf 8.768.994 Bytes. Ein bereits kleines WebP-Bild blieb unverändert. Zehn Bilder aus archivierten Arbeitsbereichen blieben durch die Archivierungssperre unangetastet. Die Originale liegen zugriffsbeschränkt unter `/opt/flipbase/catalog-image-backfill-20260927/`.
+
+**Prüfung:** Jedes ersetzte Bild wurde nach dem Speichern bytegenau zurückgelesen. Eine große JPEG-Datei wurde vor und nach der Komprimierung visuell verglichen. Alle 25 aktiven Artikelbilder haben passende Größenangaben in Datenbank und Speicher; es fehlen keine Bildverweise. Eine fehlerhafte Auswertung der Datenbankantwort wurde nach dem ersten Bild behoben, der unterbrochene Lauf erfolgreich fortgesetzt. Die automatische Ausführungsprüfung blockierte weiterhin das Löschen der lokalen Kopien des ersten Laufs unter `C:\Users\Grisc\AppData\Local\Temp\flipbase-image-backfill-20260927`; sie bleiben dort und enthalten keine neuen Kopien dieses zweiten Laufs.
+
 ## 2026-09-27 – Juna – Entwürfe aus Dashboard-Ausgaben entfernt und Gewinnkachel eingeordnet
 
 **Auftrag:** Entwurfseinkäufe aus den Gesamtausgaben ausnehmen, die Zahl der im Gewinn berücksichtigten Verkäufe anzeigen und Gewinn direkt hinter Umsatz platzieren.

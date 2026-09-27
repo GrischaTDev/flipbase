@@ -1,7 +1,7 @@
 """Einmalige Komprimierung bestehender privater Produktbilder.
 
-backup und apply laufen auf dem Produktionsserver, optimize auf einer lokalen
-Kopie der Sicherung mit Pillow 12.3.0. Originale bleiben gesichert. apply kann
+backup und apply laufen auf dem Produktionsserver, optimize mit Pillow 12.3.0
+auf einer Kopie oder direkt auf dem Server. Originale bleiben gesichert. apply kann
 nach einer Unterbrechung erneut laufen und überspringt archivierte Bereiche.
 """
 
@@ -42,9 +42,10 @@ from (
 ) candidates
 join storage.objects objects
   on objects.bucket_id = 'item-media' and objects.name = candidates.storage_path
-where (objects.metadata->>'size')::bigint > 800000
+where (objects.metadata->>'size')::bigint > {min_bytes}
   and objects.metadata->>'mimetype' in ('image/jpeg', 'image/png')
   and candidates.archived_at is null
+  and ('{source}' = 'all' or candidates.source = '{source}')
 order by candidates.source, candidates.storage_path;
 """
 
@@ -90,10 +91,10 @@ def load_manifest(directory: Path) -> list[dict]:
     return json.loads((directory / "manifest.json").read_text())
 
 
-def backup(directory: Path) -> None:
+def backup(directory: Path, source: str, min_bytes: int) -> None:
     directory.mkdir(mode=0o700, parents=True, exist_ok=False)
     key = service_key()
-    entries = [json.loads(line) for line in query(SQL)]
+    entries = [json.loads(line) for line in query(SQL.format(source=source, min_bytes=min_bytes))]
     paths = [entry["path"] for entry in entries]
     if len(paths) != len(set(paths)):
         raise RuntimeError("Speicherpfad mehrfach referenziert")
@@ -127,9 +128,9 @@ def optimize(directory: Path) -> None:
             else:
                 image.save(result, format="PNG", optimize=True, icc_profile=original.info.get("icc_profile"))
             candidate = result.getvalue()
-            if len(candidate) < len(source):
+            if len(candidate) <= len(source) * 0.9:
                 (directory / f"{number:03d}.optimized").write_bytes(candidate)
-            print(f"Optimiert {number + 1}: {original.size} -> {image.size}, {len(source)} -> {len(candidate)} Bytes", flush=True)
+            print(f"Geprueft {number + 1}: {original.size} -> {image.size}, {len(source)} -> {len(candidate)} Bytes", flush=True)
 
 
 def sql_literal(value: str) -> str:
@@ -164,8 +165,12 @@ def apply(directory: Path) -> None:
             continue
         optimized = optimized_path.read_bytes()
         original = (directory / f"{number:03d}.original").read_bytes()
-        if digest(original) != entry["sha256"] or len(optimized) >= len(original):
+        if digest(original) != entry["sha256"] or len(optimized) > len(original) * 0.9:
             raise RuntimeError(f"Dateipruefung fehlgeschlagen: {number}")
+        if entry["mime"] == "image/jpeg" and not optimized.startswith(b"\xff\xd8\xff"):
+            raise RuntimeError(f"JPEG-Format ungueltig: {number}")
+        if entry["mime"] == "image/png" and not optimized.startswith(b"\x89PNG\r\n\x1a\n"):
+            raise RuntimeError(f"PNG-Format ungueltig: {number}")
         current = storage_request("GET", entry["path"], key)
         if digest(current) == digest(original):
             storage_request("PUT", entry["path"], key, optimized, entry["mime"])
@@ -174,8 +179,12 @@ def apply(directory: Path) -> None:
             raise RuntimeError(f"Speicherdatei veraendert oder Schreibpruefung fehlgeschlagen: {number}")
         if entry["source"] in ("catalog", "inventory"):
             table = "catalog_product_media" if entry["source"] == "catalog" else "item_media"
-            rows = query(f"update public.{table} set file_size = {len(optimized)} where storage_path = {sql_literal(entry['path'])} returning id;\n")
-            if len(rows) != 1:
+            rows = query(
+                f"with updated as (update public.{table} set file_size = {len(optimized)} "
+                f"where storage_path = {sql_literal(entry['path'])} returning id) "
+                "select count(*) from updated;\n"
+            )
+            if rows != ["1"]:
                 raise RuntimeError(f"Metadatenaktualisierung fehlgeschlagen: {number}")
         print(f"Ersetzt {number + 1}/{len(entries)}: {len(original)} -> {len(optimized)} Bytes", flush=True)
 
@@ -184,9 +193,16 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("action", choices=("backup", "optimize", "apply"))
     parser.add_argument("directory", type=Path)
+    parser.add_argument("--source", choices=("all", "catalog", "inventory", "listing"), default="all")
+    parser.add_argument("--min-bytes", type=int, default=800000)
     args = parser.parse_args()
     try:
-        {"backup": backup, "optimize": optimize, "apply": apply}[args.action](args.directory)
+        if args.min_bytes < 0:
+            raise ValueError("--min-bytes muss mindestens 0 sein")
+        if args.action == "backup":
+            backup(args.directory, args.source, args.min_bytes)
+        else:
+            {"optimize": optimize, "apply": apply}[args.action](args.directory)
     except Exception as exc:
         print(f"Abbruch: {exc}", file=sys.stderr)
         sys.exit(1)
