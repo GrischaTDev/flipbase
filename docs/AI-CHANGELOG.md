@@ -21,6 +21,12 @@ fehlende Rechteentziehung in der generierten Migration; diese wurde ergänzt
 und erneut geprüft. Worker-Typprüfung, Angular-Typprüfung und Bau bestanden.
 Kein echtes Konto, kein Produktions-Worker und kein Deployment wurden verwendet.
 
+**PR-Nachtrag:** Der zweite Angular-Teiltest von PR #220 fand einen alten
+Sidebar-Test, dessen Vorlagenauflösung nach dem neuen Admin-Badge den Pfad der
+geteilten Badge-Komponente nicht kannte. Der Test liest diese Vorlage nun wie
+der bereits angepasste Sidebar-Test aus ihrem tatsächlichen Ordner. Beide
+Sidebar-Testdateien bestanden danach lokal.
+
 ## 2026-09-27 – Juna – Vinted-Admin-Einstieg verständlich gemacht
 
 **Auftrag:** Admin-Badge am Vinted-Menü ergänzen und den irreführenden
