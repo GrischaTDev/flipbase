@@ -9,6 +9,7 @@ import {
   BrowserTestSessionEndedError,
   GoLoginApiLimitError,
   MarketplaceBrowserTestApiService,
+  VintedLoginPendingError,
 } from './marketplace-browser-test-api.service';
 import { MarketplaceBrowserTestStore } from './marketplace-browser-test.store';
 
@@ -258,6 +259,24 @@ it('begrenzt eine unbestätigte Anmeldung ohne automatischen Passwort-Neuversuch
     await store.checkLogin();
     expect(store.awaitingLogin()).toBe(false);
     expect(store.error()).toContain('nicht bestätigt');
+    expect(api.login).toHaveBeenCalledOnce();
+    expect(reloadConnections).not.toHaveBeenCalled();
+  } finally {
+    clock.mockRestore();
+  }
+});
+
+it('erklärt beim Zeitlimit ein weiterhin sichtbares Vinted-Anmeldeformular', async () => {
+  api.identify.mockRejectedValue(new VintedLoginPendingError());
+  await store.login({ username: 'synthetic', password: 'synthetic' });
+  await store.checkLogin();
+  expect(store.awaitingLogin()).toBe(true);
+  expect(store.error()).toBeNull();
+  const clock = vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 61_000);
+  try {
+    await store.checkLogin();
+    expect(store.awaitingLogin()).toBe(false);
+    expect(store.error()).toContain('Anmeldeformular');
     expect(api.login).toHaveBeenCalledOnce();
     expect(reloadConnections).not.toHaveBeenCalled();
   } finally {

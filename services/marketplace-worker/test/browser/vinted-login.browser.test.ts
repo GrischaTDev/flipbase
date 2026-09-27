@@ -169,3 +169,28 @@ test('reports a visible rejected login without polling identity or retrying cred
     await browser.close();
   }
 });
+
+test('reports a remaining login form without using the private identity route', async () => {
+  const { readVintedAccountIdentity } = await import('../../src/vinted-browser-reader.ts');
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const context = await browser.newContext();
+    let identityRequests = 0;
+    await context.route('**/*', async (route) => {
+      if (new URL(route.request().url()).pathname === '/api/v2/users/current') {
+        identityRequests++;
+        return route.fulfill({ status: 403 });
+      }
+      return route.fulfill({
+        contentType: 'text/html',
+        body: '<main><h1>Log-in</h1><input name="username"><input name="password" type="password"></main>',
+      });
+    });
+    const page = await context.newPage();
+    await page.goto('https://www.vinted.de/member/login/email');
+    await assert.rejects(readVintedAccountIdentity(page), /Anmeldeformular/);
+    assert.equal(identityRequests, 0);
+  } finally {
+    await browser.close();
+  }
+});

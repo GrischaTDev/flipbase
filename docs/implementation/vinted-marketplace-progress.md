@@ -1,5 +1,13 @@
 # Arbeitsstand: Vinted-Marktplatzverwaltung
 
+## 28. September 2026 – GoLogin-Zugang nach Abo freigeschaltet
+
+Nach Aktivierung eines Standard-Abos antwortete die produktive GoLogin-API bei der Proxy-Kontingentabfrage mit HTTP 200 statt HTTP 403; etwa 2 GB waren verfügbar. Ein leeres, nicht mit Vinted geöffnetes Anbieter-Testprofil wurde erfolgreich angelegt (HTTP 201) und wieder gelöscht (HTTP 204). Danach startete auf der vom Nutzer geöffneten Flipbase-Seite ein echter Anmeldeversuch. Die Datenbank bestätigte für diese Verbindung ein dauerhaftes GoLogin-Profil und eine aktive Browsersitzung. Ein Browserklick des Assistenten scheiterte an einem inzwischen veralteten Seitenknoten und löste keine zweite Eingabe aus.
+
+Der Nutzer erhielt nach einer Minute den Hinweis, dass die Anmeldung nicht bestätigt wurde; erst danach verließ er die Seite. Die Browsersitzung wurde geschlossen und die Verbindung blieb auf `needs_login`. Das gespeicherte GoLogin-Profil wurde anschließend zweimal lesend geöffnet und jedes Mal beim Anbieter bestätigt gestoppt (HTTP 204). Es zeigte `/member/login/email` mit leeren Feldern und ohne sichtbaren Fehler- oder Bestätigungshinweis. Die bisher unbestätigte private Identitätsroute antwortete dort mit HTTP 403 und `access_denied`. Damit sind Profilanlage und Browserstart live belegt, aber weder ein bestätigter Vinted-Login noch ein funktionierender Kontodatenabruf. Falsche Zugangsdaten oder eine zusätzliche Vinted-Prüfung lassen sich aus diesem späteren Zustand nicht ableiten. Zugangsdaten wurden nicht ausgelesen oder erneut gesendet.
+
+Für den nächsten Versuch wird ein weiterhin sichtbares Vinted-Anmeldeformular beim Identitätscheck als eigener Zustand an die Oberfläche gemeldet. Nach dem Zeitlimit nennt Flipbase diesen konkreten Befund, statt nur mehrere mögliche Ursachen aufzulisten. Die Zuordnung bleibt an Sitzung, Konto und Workspace gebunden; ohne bestätigte Identität bleibt der Verbindungsstatus ausstehend. Dieser lokale Code muss vor einem neuen Produktivtest über PR und Prüfungen veröffentlicht werden.
+
 ## 28. September 2026 – GoLogin-API-Limit beim echten Sitzungsstart
 
 Bei der vom Nutzer angestoßenen Anmeldung erschien „Die Browsersitzung konnte nicht bestätigt werden“. Die Fehlermeldung entsteht beim Öffnen der Browsersitzung, bevor der Worker die Vinted-Zugangsdaten erhält. Für die betroffene Verbindung gab es in der produktiven Datenbank weder ein gespeichertes Anbieterprofil noch eine gestartete Sitzung. Lesende Proben des produktiven GoLogin-Zugangs auf zwei API-Routen antworteten mit HTTP 403 und dem Text „You have reached your free API requests limit. Please subscribe to continue.“ Der Vinted-Benutzername und das Passwort wurden bei diesem Versuch nicht geprüft.

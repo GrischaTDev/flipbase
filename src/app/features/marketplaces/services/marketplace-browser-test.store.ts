@@ -6,6 +6,7 @@ import { MarketplaceAccountStore } from './marketplace-account.store';
 import {
   BrowserTestSessionEndedError,
   GoLoginApiLimitError,
+  VintedLoginPendingError,
   VintedLoginRejectedError,
   MarketplaceBrowserTestApiService,
   type BrowserTestInput,
@@ -37,6 +38,7 @@ export class MarketplaceBrowserTestStore {
   private destroyed = false;
   private readonly loginKey = signal<string | null>(null);
   private readonly loginNeedsClose = signal<string | null>(null);
+  private readonly loginPagePendingKey = signal<string | null>(null);
   private loginDeadline = 0;
   private readonly progressState = signal<{ key: string; message: string } | null>(null);
   readonly progress = computed(() => {
@@ -235,6 +237,7 @@ export class MarketplaceBrowserTestStore {
     this.busyState.set(key);
     this.errorState.set(null);
     this.loginKey.set(key);
+    this.loginPagePendingKey.set(null);
     this.progressState.set({ key, message: 'Die Anmeldung bei Vinted läuft im Hintergrund …' });
     try {
       const result = await this.api.login(
@@ -284,7 +287,9 @@ export class MarketplaceBrowserTestStore {
         this.errorState.set({
           key,
           message:
-            'Die Anmeldung wurde innerhalb einer Minute nicht bestätigt. Vinted kann eine zusätzliche Bestätigung verlangen; auch der Kontodatenabruf kann fehlgeschlagen sein. Dein Konto wurde nicht als verbunden markiert. Beende den Versuch und melde Dich später erneut an.',
+            this.loginPagePendingKey() === key
+              ? 'Vinted zeigt nach einer Minute weiterhin das Anmeldeformular. Die Anmeldung wurde dort nicht bestätigt. Dein Konto wurde nicht verbunden. Beende den Versuch, bevor Du Dich erneut anmeldest.'
+              : 'Die Anmeldung wurde innerhalb einer Minute nicht bestätigt. Vinted kann eine zusätzliche Bestätigung verlangen; auch der Kontodatenabruf kann fehlgeschlagen sein. Dein Konto wurde nicht als verbunden markiert. Beende den Versuch und melde Dich später erneut an.',
         });
       return;
     }
@@ -302,18 +307,30 @@ export class MarketplaceBrowserTestStore {
       const identity = allowPending
         ? await this.api.identify(active.scope, active.id, token, true)
         : await this.api.identify(active.scope, active.id, token);
+      if (!this.isCurrent(active.key, revision)) return;
       if (!identity) {
+        this.loginPagePendingKey.set(null);
         return;
       }
-      if (!this.isCurrent(active.key, revision)) return;
       await this.api.close(active.scope, active.id, token);
       if (!this.isCurrent(active.key, revision)) return;
       this.releaseFrame(active.frameUrl);
       this.state.set(null);
       this.loginKey.set(null);
+      this.loginPagePendingKey.set(null);
       this.progressState.set(null);
       await this.accounts.reloadConnections(active.scope.connectionId);
     } catch (error) {
+      if (this.isCurrent(active.key, revision) && error instanceof VintedLoginPendingError) {
+        if (allowPending) {
+          this.loginPagePendingKey.set(active.key);
+          return;
+        }
+        this.loginKey.set(null);
+        this.loginNeedsClose.set(active.key);
+        this.errorState.set({ key: active.key, message: error.message });
+        return;
+      }
       if (this.isCurrent(active.key, revision)) this.loginKey.set(null);
       if (this.isCurrent(active.key, revision) && error instanceof VintedLoginRejectedError) {
         this.loginKey.set(null);
@@ -338,6 +355,7 @@ export class MarketplaceBrowserTestStore {
     if (!active) return;
     const revision = ++this.revision;
     this.loginKey.set(null);
+    this.loginPagePendingKey.set(null);
     this.progressState.set(null);
     this.busyState.set(active.key);
     this.errorState.set(null);
@@ -409,6 +427,7 @@ export class MarketplaceBrowserTestStore {
     if (active) this.releaseFrame(active.frameUrl);
     this.state.set(null);
     this.loginNeedsClose.set(null);
+    this.loginPagePendingKey.set(null);
     this.errorState.set({
       key,
       message: 'Die Browsersitzung wurde beendet. Du kannst die Anmeldung erneut öffnen.',

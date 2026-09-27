@@ -46,6 +46,12 @@ export class VintedLoginRejectedError extends Error {
   }
 }
 
+export class VintedLoginPendingError extends Error {
+  constructor() {
+    super('Vinted zeigt weiterhin das Anmeldeformular.');
+  }
+}
+
 const basePath = '/marketplace-browser/sessions';
 const frameLimit = 512 * 1024;
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -113,6 +119,13 @@ export class MarketplaceBrowserTestApiService {
     if (response.status === 410) throw new BrowserTestSessionEndedError();
     if (response.status === 422) {
       const body: unknown = await response.json().catch(() => null);
+      if (
+        typeof body === 'object' &&
+        body !== null &&
+        'code' in body &&
+        body.code === 'vinted_login_pending'
+      )
+        throw new VintedLoginPendingError();
       if (
         typeof body === 'object' &&
         body !== null &&

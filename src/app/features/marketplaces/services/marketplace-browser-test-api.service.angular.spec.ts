@@ -128,6 +128,14 @@ it('unterscheidet eine noch offene Anmeldung von einer bestätigten Identität',
   await expect(api.identify(scope, id, 'token')).rejects.toThrow();
 });
 
+it('meldet ein weiterhin sichtbares Vinted-Anmeldeformular gesondert', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn().mockResolvedValue(Response.json({ code: 'vinted_login_pending' }, { status: 422 })),
+  );
+  await expect(api.identify(scope, id, 'synthetic', true)).rejects.toThrow('Anmeldeformular');
+});
+
 it('zeigt abgelehnte Zugangsdaten statt eines endlosen Prüfstatus', async () => {
   vi.stubGlobal(
     'fetch',

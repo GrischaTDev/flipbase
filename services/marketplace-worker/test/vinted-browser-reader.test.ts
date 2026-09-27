@@ -41,3 +41,13 @@ test('liest Identität nur auf der festen Vinted-Domain und gibt keine Rohdaten 
   );
   assert.equal(calls, 1);
 });
+
+test('meldet ein weiterhin sichtbares Vinted-Anmeldeformular als eigenen Prüfzustand', async () => {
+  const page = {
+    url: () => 'https://www.vinted.de/member/login/email',
+    evaluate: async () => ({ loginPending: true }),
+  } as unknown as Pick<Page, 'url' | 'evaluate'>;
+  await assert.rejects(readVintedAccountIdentity(page), {
+    name: 'VintedLoginPendingError',
+  });
+});
