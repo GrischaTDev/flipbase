@@ -194,14 +194,57 @@ export class MarketplaceBrowserHttpApi {
         return;
       }
       const match = path.match(
-        /^\/marketplace-browser\/sessions\/([0-9a-f-]{36})\/(frame|input|identify|close)$/i,
+        /^\/marketplace-browser\/sessions\/([0-9a-f-]{36})\/(frame|input|login|identify|close)$/i,
       );
       if (!match || !uuidPattern.test(match[1] ?? '')) throw new RequestError(404);
       const sessionId = match[1]!;
+      // Beenden muss auch eine laufende Anmeldung unterbrechen können. Der
+      // Broker setzt stopPending vor dem Anbieteraufruf und sperrt Folgeeingaben.
+      if (match[2] === 'close') {
+        await this.broker.close(scope, sessionId);
+        response.writeHead(204, responseHeaders);
+        response.end();
+        return;
+      }
       const inFlightKey = `${userId}:${sessionId}`;
       if (this.inFlight.has(inFlightKey)) throw new RequestError(429);
       this.inFlight.add(inFlightKey);
       try {
+        if (match[2] === 'login') {
+          if (this.readOnly) throw new RequestError(403);
+          const credentials = body['credentials'];
+          if (
+            !isRecord(credentials) ||
+            Object.keys(credentials).some((key) => key !== 'username' && key !== 'password') ||
+            typeof credentials['username'] !== 'string' ||
+            !credentials['username'].trim() ||
+            credentials['username'].length > 256 ||
+            typeof credentials['password'] !== 'string' ||
+            !credentials['password'] ||
+            credentials['password'].length > 256
+          )
+            throw new RequestError(400);
+          const login = {
+            username: credentials['username'].trim(),
+            password: credentials['password'],
+          };
+          delete body['credentials'];
+          credentials['username'] = '';
+          credentials['password'] = '';
+          try {
+            const status = await this.broker.run(scope, sessionId, async (browser) => {
+              if (!browser.login) throw new Error('Anmeldung nicht verfügbar');
+              return browser.login(login, () =>
+                this.broker.run(scope, sessionId, async () => undefined),
+              );
+            });
+            json(response, 200, { status });
+          } finally {
+            login.username = '';
+            login.password = '';
+          }
+          return;
+        }
         if (match[2] === 'frame') {
           const bytes = await this.broker.run(scope, sessionId, async (browser) => {
             if (!browser.capture) throw new Error('Bild nicht verfügbar');
@@ -254,9 +297,6 @@ export class MarketplaceBrowserHttpApi {
           });
           return;
         }
-        await this.broker.close(scope, sessionId);
-        response.writeHead(204, responseHeaders);
-        response.end();
       } finally {
         this.inFlight.delete(inFlightKey);
       }

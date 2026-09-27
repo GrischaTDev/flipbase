@@ -21,16 +21,56 @@
         Dieser Test öffnet eine öffentliche Profilseite im lokalen Browser. Du kannst nur das Bild
         ansehen und den Browser beenden. Es werden keine Eingaben gesendet.
       } @else {
-        Beim ersten Start wird für diese Verbindung ein eigenes GoLogin-Profil vorbereitet. Melde
-        Dich nur mit einem eigenen, dafür freigegebenen Vinted-Konto an. Die Bedienung endet nach
-        spätestens zehn Minuten; Du kannst sie anschließend erneut starten. Das Browserbild bleibt
-        nur während dieser Sitzung auf dieser Seite. Klicke nach der Anmeldung auf „Anmeldung
-        prüfen“. Flipbase verbindet das Konto nur, wenn die angemeldete Vinted-Identität sicher
-        gelesen werden kann.
+        Dieses Konto erhält ein eigenes, dauerhaftes GoLogin-Browserprofil. Melde Dich mit Deinem
+        Vinted-Konto an. Falls Vinted einen Code oder eine weitere Prüfung verlangt, erledigst Du
+        das in der Browseransicht unten. Die Bedienung endet nach zehn Minuten; die gespeicherte
+        Anmeldung im zugeordneten Profil bleibt erhalten.
       }
     </app-notice-banner>
     @if (store.error(); as error) {
       <app-notice-banner class="mt-4" announcement="alert">{{ error }}</app-notice-banner>
+    }
+    @if (!store.readOnly() && !store.session()) {
+      @if (connection.status === 'connected') {
+        <p role="status" class="mt-4 text-sm font-medium">Dein Vinted-Konto ist verbunden.</p>
+        <app-button class="mt-3" link="/marketplaces/vinted/profile"
+          >Verbundenes Profil ansehen</app-button
+        >
+      }
+      <form class="mt-4 max-w-md space-y-4" [formGroup]="loginForm" (ngSubmit)="login()">
+        <app-text-field
+          label="Vinted-Mitgliedsname oder E-Mail"
+          autocomplete="off"
+          [formControl]="loginForm.controls.username"
+          [required]="true"
+          [maxLength]="256"
+        />
+        <app-text-field
+          label="Vinted-Passwort"
+          type="password"
+          autocomplete="off"
+          [formControl]="loginForm.controls.password"
+          [required]="true"
+          [maxLength]="256"
+        />
+        <p class="text-xs text-fb-text-secondary">
+          Deine Eingaben werden einmalig über den Flipbase-Browserdienst an Vinted übergeben.
+          Flipbase speichert Dein Passwort nicht.
+        </p>
+        <app-button
+          type="submit"
+          variant="primary"
+          [loading]="store.busy()"
+          [disabled]="!store.canStart() || loginForm.invalid"
+          >Anmelden und Konto verbinden</app-button
+        >
+      </form>
+    }
+    @if (store.awaitingLogin()) {
+      <p role="status" class="mt-4 text-sm text-fb-text-secondary">
+        Anmeldung wird geprüft. Falls Vinted weitere Angaben verlangt, nutze die Browseransicht.
+        Nach erfolgreicher Prüfung wird Dein Konto automatisch verbunden.
+      </p>
     }
     <div class="mt-4 flex flex-wrap gap-2">
       <app-button
@@ -39,13 +79,15 @@
         [loading]="store.busy()"
         (clicked)="store.start()"
         >{{
-          store.readOnly() ? 'Öffentlichen Testbrowser starten' : 'Vinted-Browser starten'
+          store.readOnly()
+            ? 'Öffentlichen Testbrowser starten'
+            : 'Browser für manuelle Anmeldung öffnen'
         }}</app-button
       >
       <app-button [disabled]="!store.canAct()" (clicked)="store.refresh()"
         >Bild aktualisieren</app-button
       >
-      <app-button variant="destructive" [disabled]="!store.canAct()" (clicked)="store.close()"
+      <app-button variant="destructive" [disabled]="!store.session()" (clicked)="store.close()"
         >Browser beenden</app-button
       >
     </div>
@@ -77,7 +119,7 @@
             >
               <img
                 [src]="session.frameUrl"
-                alt="Aktuelles Browserbild des ausgewählten Testkontos"
+                alt="Aktuelles Browserbild des ausgewählten Vinted-Kontos"
                 class="block max-w-full"
               />
             </button>

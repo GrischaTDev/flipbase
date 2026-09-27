@@ -9,9 +9,11 @@ const accountIds = ['25000000-0000-4000-8000-000000000021', '25000000-0000-4000-
 const emptyPage = () => ({ items: [], total: 0, nextCursor: null });
 
 /** Nur lokale HTTP-Antworten. Weder echte Anmeldung noch Vinted-Zugriff. */
-async function mockMarketplace(page: Page) {
+async function mockMarketplace(page: Page, browserLogin = false) {
   await page.route('**/marketplace-browser/healthz', (route) =>
-    route.fulfill({ status: 502, body: 'Browserdienst nicht verfügbar' }),
+    browserLogin
+      ? route.fulfill({ json: { ok: true, readOnly: false } })
+      : route.fulfill({ status: 502, body: 'Browserdienst nicht verfügbar' }),
   );
   const user = {
     id: '25000000-0000-4000-8000-000000000001',
@@ -53,6 +55,42 @@ async function mockMarketplace(page: Page) {
     lastSyncedAt: null,
   }));
   const calls: { name: string; body: Record<string, unknown> }[] = [];
+  if (browserLogin) {
+    const frame = await page.screenshot({ type: 'jpeg' });
+    let connectionId = '';
+    let loginSubmitted = false;
+    let identityChecks = 0;
+    await page.route('**/marketplace-browser/sessions**', async (route) => {
+      const path = new URL(route.request().url()).pathname;
+      const body = route.request().postDataJSON() as Record<string, unknown>;
+      if (body['workspaceId'] !== workspaceId) return route.fulfill({ status: 403 });
+      if (path.endsWith('/sessions')) {
+        connectionId = String(body['connectionId']);
+        return route.fulfill({ status: 201, json: { id: '25000000-0000-4000-8000-000000000031' } });
+      }
+      if (body['connectionId'] !== connectionId) return route.fulfill({ status: 403 });
+      if (path.endsWith('/login')) {
+        calls.push({ name: 'browser_login', body });
+        loginSubmitted = true;
+        return route.fulfill({ json: { status: 'submitted' } });
+      }
+      if (path.endsWith('/frame')) return route.fulfill({ contentType: 'image/jpeg', body: frame });
+      if (path.endsWith('/identify')) {
+        if (!loginSubmitted || ++identityChecks === 1) return route.fulfill({ status: 422 });
+        accounts.find((account) => account.connectionId === connectionId)!.status = 'connected';
+        return route.fulfill({
+          json: {
+            workspaceId,
+            connectionId,
+            externalAccountId: '12345',
+            username: 'synthetic-user',
+          },
+        });
+      }
+      if (path.endsWith('/close')) return route.fulfill({ status: 204 });
+      return route.fulfill({ status: 404 });
+    });
+  }
   const testSessions = new Map<
     string,
     {
@@ -296,14 +334,12 @@ for (const width of [1440, 390]) {
       await accountsHeading.evaluate((element) => element.scrollWidth <= element.clientWidth),
       'Die Kontenüberschrift darf auf kleinen Bildschirmen nicht von den Aktionen verdrängt werden.',
     ).toBe(true);
-    await page.getByRole('button', { name: 'Verbindung vorbereiten', exact: true }).click();
+    await page.getByRole('button', { name: 'Account hinzufügen', exact: true }).click();
     await page
       .getByRole('textbox', { name: 'Interner Name in Flipbase', exact: true })
       .fill('Neues Testkonto');
-    await page.getByRole('button', { name: 'Vorbereitung speichern', exact: true }).click();
+    await page.getByRole('button', { name: 'Weiter zur Anmeldung', exact: true }).click();
     const table = page.locator('app-marketplace-accounts');
-    await expect(table.getByRole('cell', { name: 'Neues Testkonto', exact: true })).toBeVisible();
-    await page.getByRole('link', { name: 'Vinted-Anmeldung für Neues Testkonto öffnen' }).click();
     await expect(page.locator('app-marketplace-connect')).toContainText('Neues Testkonto');
     await expect(page.locator('app-marketplace-connect')).toContainText(
       'Browserdienst ist auf dem Server nicht erreichbar',
@@ -355,5 +391,53 @@ for (const width of [1440, 390]) {
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
     ).toBe(true);
+  });
+}
+
+for (const width of [1440, 390]) {
+  test(`Account hinzufügen führt automatisch zur bestätigten Anmeldung bei ${width}px @marketplace-preview`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    const calls = await mockMarketplace(page, true);
+    await page.goto('/settings/marketplaces');
+    await page.getByRole('button', { name: 'Account hinzufügen', exact: true }).click();
+    await page
+      .getByRole('textbox', { name: 'Interner Name in Flipbase', exact: true })
+      .fill('Mein Testkonto');
+    await page.getByRole('button', { name: 'Weiter zur Anmeldung', exact: true }).click();
+    await expect(page).toHaveURL(/\/connect\/25000000-0000-4000-8000-000000000024$/);
+    await page
+      .getByRole('textbox', { name: 'Vinted-Mitgliedsname oder E-Mail', exact: true })
+      .fill('synthetic-user');
+    await page.getByLabel('Vinted-Passwort').fill('synthetic-password');
+    await evidence(page, `vinted-login-form-${width}`);
+    await page.addScriptTag({ content: axe.source });
+    const violations = await page.evaluate(
+      async () =>
+        (
+          await (window as unknown as { axe: typeof axe }).axe.run(
+            document.querySelector('app-marketplace-connect') as HTMLElement,
+          )
+        ).violations,
+    );
+    expect(violations).toEqual([]);
+    await page.getByRole('button', { name: 'Anmelden und Konto verbinden', exact: true }).click();
+    await expect(page.getByText('Dein Vinted-Konto ist verbunden.', { exact: true })).toBeVisible();
+    const logins = calls.filter((call) => call.name === 'browser_login');
+    expect(logins).toHaveLength(1);
+    expect(logins[0].body).toEqual({
+      workspaceId,
+      connectionId: '25000000-0000-4000-8000-000000000024',
+      credentials: { username: 'synthetic-user', password: 'synthetic-password' },
+    });
+    await expect(page.getByLabel('Vinted-Passwort')).toHaveValue('');
+    expect(await page.evaluate(() => JSON.stringify(localStorage))).not.toContain(
+      'synthetic-password',
+    );
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+    ).toBe(true);
+    await evidence(page, `vinted-connected-${width}`);
   });
 }

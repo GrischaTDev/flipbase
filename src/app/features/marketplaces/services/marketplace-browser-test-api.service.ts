@@ -16,6 +16,11 @@ export interface ConfirmedVintedAccount {
   readonly username: string;
 }
 
+export interface VintedLoginCredentials {
+  username: string;
+  password: string;
+}
+
 export class BrowserTestSessionEndedError extends Error {
   constructor() {
     super('Browsersitzung wurde beendet');
@@ -71,9 +76,11 @@ export class MarketplaceBrowserTestApiService {
     scope: AccountScope,
     sessionId: string,
     accessToken: string,
-  ): Promise<ConfirmedVintedAccount> {
+    allowPending = false,
+  ): Promise<ConfirmedVintedAccount | null> {
     const response = await this.post(`${basePath}/${sessionId}/identify`, scope, accessToken);
     if (response.status === 410) throw new BrowserTestSessionEndedError();
+    if (response.status === 422 && allowPending) return null;
     if (!response.ok) throw new Error('Vinted-Anmeldung konnte nicht bestätigt werden');
     const body: unknown = await response.json();
     if (
@@ -93,6 +100,30 @@ export class MarketplaceBrowserTestApiService {
     )
       throw new Error('Ungültige Vinted-Kontobestätigung');
     return { externalAccountId: body.externalAccountId, username: body.username };
+  }
+
+  async login(
+    scope: AccountScope,
+    sessionId: string,
+    credentials: VintedLoginCredentials,
+    accessToken: string,
+  ): Promise<'submitted' | 'interaction_required'> {
+    const response = await this.post(
+      `${basePath}/${sessionId}/login`,
+      { ...scope, credentials },
+      accessToken,
+    );
+    if (response.status === 410) throw new BrowserTestSessionEndedError();
+    if (!response.ok) throw new Error('Anmeldung konnte nicht bestätigt werden');
+    const body: unknown = await response.json();
+    if (
+      typeof body !== 'object' ||
+      body === null ||
+      !('status' in body) ||
+      (body.status !== 'submitted' && body.status !== 'interaction_required')
+    )
+      throw new Error('Ungültige Anmeldeantwort');
+    return body.status;
   }
 
   async frame(scope: AccountScope, sessionId: string, accessToken: string): Promise<Blob> {

@@ -8,6 +8,8 @@ import {
   signal,
 } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Router } from '@angular/router';
+import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
 import { LucideLogIn, LucidePencil, LucidePause, LucidePlay, LucidePlus } from '@lucide/angular';
 import { AuthService } from '../../../../core/services/auth.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
@@ -39,6 +41,7 @@ import { MarketplaceAccountStore } from '../../services/marketplace-account.stor
     NoticeBannerComponent,
     TableActionButtonComponent,
     TextFieldComponent,
+    CustomSelectComponent,
   ],
   templateUrl: './marketplace-accounts.component.html',
   providers: [MarketplaceAccountStore],
@@ -49,6 +52,8 @@ export class MarketplaceAccountsComponent {
   readonly store = inject(MarketplaceAccountStore);
   private readonly workspace = inject(WorkspaceService);
   private readonly auth = inject(AuthService);
+  private readonly router = inject(Router);
+  readonly platforms = [{ value: 'vinted', label: 'Vinted' }];
   private readonly context = computed(() =>
     JSON.stringify([this.auth.currentUser()?.id, this.workspace.currentWorkspace()?.id]),
   );
@@ -108,6 +113,12 @@ export class MarketplaceAccountsComponent {
     const saved = dialog.connectionId
       ? await this.store.renameConnection(dialog.connectionId, this.name.value)
       : await this.store.createConnection(this.name.value);
-    if (saved && this.dialogState() === dialog) this.closeDialog();
+    if (saved && this.dialogState() === dialog) {
+      const connectionId = this.store.selectedConnection()?.connectionId;
+      this.closeDialog();
+      if (!dialog.connectionId && connectionId) {
+        await this.router.navigate(['/marketplaces/vinted/connect', connectionId]);
+      }
+    }
   }
 }

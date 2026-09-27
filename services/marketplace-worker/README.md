@@ -46,6 +46,35 @@ Cloud-Sitzung ausdrücklich. Bei unklarer Datenbankantwort während der
 Profilerstellung bleibt ein mögliches Anbieterprofil zur manuellen Prüfung
 erhalten, damit kein bereits zugeordnetes Profil versehentlich gelöscht wird.
 
+### Direkte Anmeldung und Proxyzuordnung
+
+`POST /marketplace-browser/sessions/:id/login` akzeptiert ausschließlich den
+Kontobezug und `credentials: { username, password }` (je höchstens 256 Zeichen).
+Es verwendet die vorhandene Benutzer-/Workspace-/Kontoprüfung. Vor jeder
+Formulareingabe und dem Absenden wird die Berechtigung erneut geprüft. Das
+beobachtete Vinted-Formular liegt auf `/member/login/email`; der Adapter gibt bei
+geändertem Formular, Weiterleitung oder Sicherheitsprüfung die Bedienung an den
+Nutzer zurück. Passwörter werden nicht gespeichert oder zurückgegeben. Ein
+gesendeter Login wird bei unklarem Ergebnis nicht automatisch wiederholt.
+
+Neue Profile erhalten über GoLogin `/users-proxies/mobile-proxy` einen deutschen
+Residential-Proxy aus vorhandenem Kontingent. Es werden keine Kontingente gekauft.
+Der Worker überprüft `proxyEnabled`, Modus, Host und Port vor der Nutzung; bei
+gespeicherten Profilen wird die vorhandene Konfiguration nur gelesen. Alte Profile
+ohne Proxy müssen vor dem Start bewusst beim Anbieter eingerichtet werden. Der
+Adapter ändert weder bestehende Proxys noch Browsermerkmale bei jedem Start.
+Diese Konfigurationsprüfung beweist keine exklusiven oder unveränderlichen
+Ausgangs-IP-Adressen und keine Sperrfreiheit bei Vinted.
+
+Anbieterprobe am 27.09.2026: vorhandenes Residential-Kontingent 524288000 Bytes,
+damals ungenutzt; temporäres Profil erstellt, Proxy zugeordnet, mit dem neuen
+Adapter erneut geprüft und gelöscht. Tatsächlicher Proxy-Modus: `geolocation`.
+Quelle: [offizielles GoLogin-SDK](https://github.com/gologinapp/gologin/blob/master/src/gologin-api.js).
+
+`npm run test:browser` prüft die echte Formulareingabe in zwei isolierten
+Browserkontexten gegen `test/fixtures/vinted-login.html`. Sämtliche URLs werden
+abgefangen; kein Netzwerkzugriff auf Vinted und keine echten Zugangsdaten.
+
 Die Anbieter-API, CDP-Verbindung, zwei gleichzeitige isolierte Testprofile und
 der ausdrückliche Stopp wurden am 27.09.2026 nur mit `example.com` geprüft.
 Die vollständige Admin-Oberfläche mit einem Vinted-Login ist damit noch nicht

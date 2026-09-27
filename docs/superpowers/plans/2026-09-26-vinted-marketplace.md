@@ -400,3 +400,26 @@ Umsetzung und die passenden Regressionstests. Schema und Migration werden gemein
 reviewt. Nicht automatisch mergen oder deployen.
 
 [Prüfprotokoll und offene Punkte](../../implementation/vinted-marketplace-progress.md)
+
+### AP04f: Account-Verwaltung mit direkter Vinted-Anmeldung
+
+Aktueller Auftrag vom 27.09.2026: GoLogin verbindlich als ersten Anbieter verwenden.
+Die bisherigen Zweige sind in master enthalten (PR #220, c46d225). Fortsetzung auf
+juna/vinted-account-connection, ohne den fremden Hauptcheckout zu ändern.
+
+- [x] Sichtbaren Bereich „Account-Verwaltung“ nennen, Adminschutz beibehalten.
+- [x] Plattform Vinted im Kontodialog anzeigen und nach Anlage direkt zur Anmeldung führen.
+- [x] Mitgliedsname/E-Mail und Passwort einmalig an den kontogebundenen Worker senden.
+      Der Worker bedient ausschließlich das geprüfte Formular auf www.vinted.de;
+      Geheimnisse werden weder gespeichert noch in Antworten oder Fehlern ausgegeben.
+- [x] Bei zusätzlichen Prüfungen interaktive Browseransicht anbieten; danach Identität
+      lesen und Verbindung bestätigen. Keine automatischen Wiederholungen von Logins.
+- [x] Konto-/Workspacewechsel, Ablauf, Widerruf, unklaren Stopp und fehlgeschlagene
+      Anmeldung testen. Eigene künstliche Seite für Formular- und Transporttests.
+- [x] Betriebsbereitschaft und Profil-/Proxygrenzen dokumentieren. Keine Zusicherung,
+      dass Vinted Profile als unabhängige Geräte bewertet oder keine Konten sperrt.
+
+Öffentliche Formularprüfung: Vinted führt über „Registrieren | Einloggen“ →
+„Einloggen“ → „E-Mail“ nach https://www.vinted.de/member/login/email?ref_url=%2F.
+Am 27.09.2026 wurden die Felder username/password und „Weiter“ ohne Anmeldung
+beobachtet. Dies ist ein veränderlicher Webablauf und keine offizielle Integrations-API.

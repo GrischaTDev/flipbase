@@ -98,7 +98,7 @@ export const WORKSPACE_NAVIGATION_GROUPS: readonly WorkspaceNavigationGroup[] = 
   {
     id: 'marketplaces',
     labelKey: 'NAV.GROUP_MARKETPLACES',
-    label: 'Marktplätze',
+    label: 'Account-Verwaltung',
     items: [
       {
         path: '/marketplaces/vinted',

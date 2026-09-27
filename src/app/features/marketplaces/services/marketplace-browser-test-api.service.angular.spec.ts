@@ -88,3 +88,31 @@ describe('Browser-Test-API', () => {
     await expect(api.identify(scope, id, 'user-test-token')).rejects.toThrow();
   });
 });
+
+it('sendet Zugangsdaten nur im begrenzten Loginauftrag und behandelt Ablauf getrennt', async () => {
+  const request = vi.fn().mockResolvedValue(Response.json({ status: 'submitted' }));
+  vi.stubGlobal('fetch', request);
+  await expect(
+    api.login(scope, id, { username: 'synthetic', password: 'synthetic' }, 'token'),
+  ).resolves.toBe('submitted');
+  expect(request.mock.calls[0][0]).toBe(`/marketplace-browser/sessions/${id}/login`);
+  expect(JSON.parse(request.mock.calls[0][1].body)).toEqual({
+    ...scope,
+    credentials: { username: 'synthetic', password: 'synthetic' },
+  });
+  request.mockResolvedValueOnce(new Response(null, { status: 410 }));
+  await expect(
+    api.login(scope, id, { username: 'synthetic', password: 'synthetic' }, 'token'),
+  ).rejects.toBeInstanceOf(BrowserTestSessionEndedError);
+  request.mockResolvedValueOnce(Response.json({ status: 'unknown' }));
+  await expect(
+    api.login(scope, id, { username: 'synthetic', password: 'synthetic' }, 'token'),
+  ).rejects.toThrow('Ungültige');
+});
+
+it('unterscheidet eine noch offene Anmeldung von einer bestätigten Identität', async () => {
+  const request = vi.fn().mockResolvedValue(new Response(null, { status: 422 }));
+  vi.stubGlobal('fetch', request);
+  await expect(api.identify(scope, id, 'token', true)).resolves.toBeNull();
+  await expect(api.identify(scope, id, 'token')).rejects.toThrow();
+});

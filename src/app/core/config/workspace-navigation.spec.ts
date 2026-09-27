@@ -17,7 +17,7 @@ describe('Arbeitsnavigation', () => {
   it('ordnet die Arbeitsbereiche nach Einkauf, Artikel, Verkauf und Finanzen', () => {
     assert.deepEqual(
       WORKSPACE_NAVIGATION_GROUPS.map((group) => group.label),
-      ['Einkauf', 'Artikel', 'Verkauf', 'Marktplätze', 'Finanzen'],
+      ['Einkauf', 'Artikel', 'Verkauf', 'Account-Verwaltung', 'Finanzen'],
     );
     assert.deepEqual(
       WORKSPACE_NAVIGATION_GROUPS.map((group) => group.items.map((item) => item.path)),

@@ -1,5 +1,35 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-27 – Juna – Direkte Vinted-Anmeldung mit GoLogin-Profil und Proxy
+
+**Auftrag:** Account hinzufügen, Zugangsdaten eingeben und eine eigenständige,
+kontogebundene GoLogin-Verbindung in Flipbase herstellen. Admin-Pilot beibehalten.
+
+**Änderung:** „Account-Verwaltung“ in Navigation und Einstellungen. Der Kontodialog
+führt direkt zur Anmeldung. Der Worker übergibt Zugangsdaten einmalig an das feste
+Vinted-Webformular und prüft die Sitzungsberechtigung erneut vor den Eingaben und
+dem Absenden. Die Oberfläche leert die Felder; zusätzliche Prüfungen bleiben
+interaktiv. Eine bestätigte Identität beendet die Bedienung und lädt das verbundene
+Konto neu. Neue Profile erhalten einen deutschen Residential-Proxy aus vorhandenem
+GoLogin-Kontingent. Bestehende Proxyzuordnungen bleiben erhalten; ohne bestätigte
+Konfiguration startet kein Profil. Keine Käufe oder eigene IP-Rotation.
+
+**Prüfung:** 65 Worker-Tests, eine echte Browserprüfung gegen ausschließlich eigene,
+abgefangene HTML-Testseiten, 84 Angular-Tests und 14 Navigationstests bestanden.
+Die GoLogin-API-Probe bestätigte Proxyzuordnung und erneute Konfigurationsprüfung
+mit dem tatsächlichen Adapter; temporäre Profile wurden gelöscht. Zugangsdaten
+wurden nicht ausgegeben oder versioniert. Fünf Playwright-Abläufe, beide Builds,
+Typprüfung, ESLint, Prettier und Shared-UI-Prüfung bestanden. Die unabhängige
+Codeprüfung fand einen blockierten Browserstopp während Anmeldung; HTTP- und
+Angular-Regressionstests reproduzierten ihn und bestanden nach der Korrektur.
+Die gezielte unabhängige Nachprüfung bestätigte die Behebung.
+
+**Betrieb:** Fortsetzung vom bereits gemergten PR #220 auf
+`juna/vinted-account-connection`. Der fremde Hauptcheckout blieb unverändert.
+Serverzugriff und vorhandene Caddy-Weiterleitung wurden lesend geprüft; der
+Browserdienst ist noch nicht installiert. Kein Vinted-Konto angemeldet, kein
+Import, kein Merge und kein Produktivdeployment in diesem Schritt.
+
 ## 2026-09-27 – Juna – Vinted-Anmeldung an echte Kontokennung gebunden
 
 **Auftrag:** Für ein normales Vinted-Konto den Schritt vom vorbereiteten
