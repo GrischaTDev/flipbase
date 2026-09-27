@@ -96,6 +96,19 @@ export const WORKSPACE_NAVIGATION_GROUPS: readonly WorkspaceNavigationGroup[] = 
     ],
   },
   {
+    id: 'marketplaces',
+    labelKey: 'NAV.GROUP_MARKETPLACES',
+    label: 'Marktplätze',
+    items: [
+      {
+        path: '/marketplaces/vinted',
+        labelKey: 'PLATFORMS.VINTED',
+        label: 'Vinted',
+        icon: 'store',
+      },
+    ],
+  },
+  {
     id: 'finances',
     labelKey: 'NAV.GROUP_FINANCES',
     label: 'Finanzen',

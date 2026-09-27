@@ -1,0 +1,275 @@
+@if (store.snapshot(); as snapshot) {
+  @switch (section()) {
+    @case ('overview') {
+      <div class="grid gap-4 sm:grid-cols-3">
+        <app-card title="Inserate" variant="kpi"
+          ><p class="text-2xl font-semibold text-fb-text-primary">
+            {{ snapshot.publications.total }}
+          </p>
+          <p class="mt-1 text-xs text-fb-text-muted">In Flipbase gespeichert</p>
+          <app-button class="mt-3" link="/marketplaces/vinted/listings"
+            >Inserate ansehen</app-button
+          ></app-card
+        >
+        <app-card title="Gespräche" variant="kpi"
+          ><p class="text-2xl font-semibold text-fb-text-primary">
+            {{ snapshot.conversations.total }}
+          </p>
+          <p class="mt-1 text-xs text-fb-text-muted">Keine Ungelesen-Zählung</p>
+          <app-button class="mt-3" link="/marketplaces/vinted/messages"
+            >Nachrichten ansehen</app-button
+          ></app-card
+        >
+        <app-card title="Verkäufe" variant="kpi"
+          ><p class="text-2xl font-semibold text-fb-text-primary">{{ snapshot.sales.total }}</p>
+          <p class="mt-1 text-xs text-fb-text-muted">Gespeicherte Plattformmeldungen</p>
+          <app-button class="mt-3" link="/marketplaces/vinted/sales"
+            >Verkäufe ansehen</app-button
+          ></app-card
+        >
+      </div>
+      <app-card class="mt-4" title="Ein Konto, eine Ansicht">
+        <p class="text-sm text-fb-text-secondary">
+          Der Kontowechsler steuert Inserate, Nachrichten, Profil und Aktivitäten gemeinsam.
+          Gespeicherte Marktplatzdaten erzeugen weder neue Lagerartikel noch automatisch gebuchte
+          Verkäufe.
+        </p>
+      </app-card>
+    }
+    @case ('profile') {
+      <app-card title="Profil">
+        @if (snapshot.profile; as profile) {
+          <dl class="grid gap-4 text-sm sm:grid-cols-2">
+            <div>
+              <dt class="text-fb-text-muted">Anzeigename</dt>
+              <dd class="mt-1 break-words text-fb-text-primary">
+                {{ profile.displayName ?? '—' }}
+              </dd>
+            </div>
+            <div>
+              <dt class="text-fb-text-muted">Benutzername</dt>
+              <dd class="mt-1 break-words text-fb-text-primary">{{ profile.username ?? '—' }}</dd>
+            </div>
+            <div>
+              <dt class="text-fb-text-muted">Ort</dt>
+              <dd class="mt-1 break-words text-fb-text-primary">{{ profile.location ?? '—' }}</dd>
+            </div>
+            <div class="sm:col-span-2">
+              <dt class="text-fb-text-muted">Über dieses Konto</dt>
+              <dd class="mt-1 whitespace-pre-wrap break-words text-fb-text-primary">
+                {{ profile.bio ?? '—' }}
+              </dd>
+            </div>
+          </dl>
+        } @else {
+          <p class="text-sm text-fb-text-secondary">Noch keine Profildaten übernommen.</p>
+        }
+      </app-card>
+    }
+    @case ('messages') {
+      <div class="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+        <app-data-table
+          ariaLabel="Gespeicherte Gespräche"
+          [searchEnabled]="false"
+          [hasRows]="snapshot.conversations.items.length > 0"
+          emptyTitle="Noch keine Gespräche"
+          emptyText="Gespräche erscheinen nach einer Datenübernahme."
+          [class.hidden]="store.selectedConversationId() !== null"
+          class="min-w-0 lg:block"
+        >
+          <p table-view class="text-sm font-medium">
+            Gespräche ({{ snapshot.conversations.total }})
+          </p>
+          <div table-content class="divide-y divide-fb-line p-2">
+            @for (entry of snapshot.conversations.items; track entry.id) {
+              <app-button
+                variant="ghost"
+                [fullWidth]="true"
+                contentAlign="start"
+                [ariaPressed]="store.selectedConversationId() === entry.id"
+                (clicked)="store.openConversation(entry.id)"
+              >
+                <span class="block truncate font-medium">{{ entry.title }}</span>
+                <span class="block truncate text-xs text-fb-text-muted">{{
+                  entry.text ?? 'Gespräch öffnen'
+                }}</span>
+              </app-button>
+            }
+            @if (snapshot.conversations.nextCursor) {
+              <app-button
+                class="mt-3"
+                [loading]="store.loadingPage() === 'conversation'"
+                (clicked)="store.loadMore('conversation')"
+                >Weitere Gespräche laden</app-button
+              >
+            }
+          </div>
+        </app-data-table>
+        <app-card
+          [title]="conversation()?.title ?? 'Nachrichten'"
+          class="min-w-0"
+          [class.hidden]="store.selectedConversationId() === null"
+          [class.lg:flex]="true"
+        >
+          @if (store.selectedConversationId()) {
+            <app-button
+              class="mb-3 lg:hidden"
+              [icon]="backIcon"
+              (clicked)="store.clearConversation()"
+              >Zur Gesprächsliste</app-button
+            >
+          }
+          @if (store.loadingMessages()) {
+            <p role="status" class="text-sm text-fb-text-secondary">Nachrichten werden geladen …</p>
+          } @else if (store.messages(); as messages) {
+            @if (messages.nextCursor) {
+              <app-button
+                class="mb-4"
+                [loading]="store.loadingPage() === 'message'"
+                (clicked)="store.loadMore('message')"
+                >Ältere Nachrichten laden</app-button
+              >
+            }
+            <div
+              role="log"
+              aria-label="Gespeicherter Gesprächsverlauf"
+              class="max-h-[32rem] space-y-4 overflow-y-auto"
+            >
+              @for (entry of transcript(); track entry.id) {
+                <article class="border-b border-fb-line pb-3">
+                  <p class="mb-1 text-xs text-fb-text-muted">
+                    {{
+                      entry.direction === 'outbound'
+                        ? 'Gesendet'
+                        : entry.direction === 'inbound'
+                          ? 'Empfangen'
+                          : 'Nachricht'
+                    }}
+                    @if (entry.occurredAt) {
+                      · {{ entry.occurredAt | date: 'dd.MM.yyyy, HH:mm' }}
+                    }
+                  </p>
+                  <p class="whitespace-pre-wrap break-words text-sm text-fb-text-primary">
+                    {{ entry.text ?? entry.title }}
+                  </p>
+                </article>
+              } @empty {
+                <p class="text-sm text-fb-text-secondary">
+                  Noch keine Nachrichten für dieses Gespräch gespeichert.
+                </p>
+              }
+            </div>
+          } @else {
+            <p class="text-sm text-fb-text-secondary">Wähle ein Gespräch aus.</p>
+          }
+          <p class="mt-4 border-t border-fb-line pt-3 text-xs text-fb-text-muted">
+            Diese Ansicht liest gespeicherte Nachrichten. Senden und der Vinted-Lesestatus sind noch
+            nicht angebunden.
+          </p>
+        </app-card>
+      </div>
+    }
+    @default {
+      @if (section() === 'sales') {
+        <app-notice-banner class="mb-4"
+          >Diese Plattformmeldungen sind keine automatisch gebuchten Flipbase-Verkäufe. Bestand und
+          Buchhaltung bleiben unverändert.</app-notice-banner
+        >
+      }
+      @if (section() === 'activity') {
+        <p class="mb-3 text-sm text-fb-text-secondary">
+          Aktivitäten des ausgewählten Kontos. Der Zähler umfasst alle gespeicherten Einträge, nicht
+          nur ungelesene Meldungen.
+        </p>
+      }
+      @if (page(); as entries) {
+        <app-data-table
+          [ariaLabel]="pageTitle()"
+          [searchEnabled]="false"
+          [hasRows]="entries.items.length > 0"
+          [emptyTitle]="'Noch keine ' + pageTitle()"
+          emptyText="Für dieses Konto wurden noch keine Daten übernommen."
+        >
+          <p table-view class="text-sm font-medium">{{ pageTitle() }} ({{ entries.total }})</p>
+          <div table-content class="overflow-x-auto">
+            <table class="min-w-full text-left text-[13px]">
+              <thead class="border-b border-fb-line text-fb-text-muted">
+                <tr>
+                  <th scope="col" class="px-4 py-3">
+                    {{ section() === 'activity' ? 'Ereignis' : 'Artikel' }}
+                  </th>
+                  @if (section() !== 'activity') {
+                    <th scope="col" class="px-4 py-3">Preis</th>
+                    <th scope="col" class="px-4 py-3">Status</th>
+                  }
+                  @if (section() === 'listings') {
+                    <th scope="col" class="px-4 py-3">Aufrufe</th>
+                    <th scope="col" class="px-4 py-3">Favoriten</th>
+                  }
+                  <th scope="col" class="px-4 py-3">
+                    {{ section() === 'listings' ? 'Kennzahlenstand' : 'Zeitpunkt' }}
+                  </th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-fb-line">
+                @for (entry of entries.items; track entry.id) {
+                  <tr>
+                    <td class="px-4 py-3">
+                      <div class="flex min-w-40 items-center gap-3">
+                        @if (section() !== 'activity') {
+                          <app-product-thumbnail [src]="entry.imageUrl" [alt]="entry.title" />
+                        }
+                        <div class="max-w-96">
+                          <p class="break-words font-medium text-fb-text-primary">
+                            {{ entry.title }}
+                          </p>
+                          @if (section() === 'activity' && entry.text) {
+                            <p class="mt-1 whitespace-pre-wrap break-words text-fb-text-secondary">
+                              {{ entry.text }}
+                            </p>
+                          }
+                        </div>
+                      </div>
+                    </td>
+                    @if (section() !== 'activity') {
+                      <td class="whitespace-nowrap px-4 py-3">
+                        {{ entry.price === null ? '—' : (entry.price | currency: entry.currency) }}
+                      </td>
+                      <td class="px-4 py-3">{{ entry.status ?? '—' }}</td>
+                    }
+                    @if (section() === 'listings') {
+                      <td data-views class="px-4 py-3 tabular-nums">
+                        {{ entry.metrics.views ?? '—' }}
+                      </td>
+                      <td data-favorites class="px-4 py-3 tabular-nums">
+                        {{ entry.metrics.favorites ?? '—' }}
+                      </td>
+                    }
+                    <td class="whitespace-nowrap px-4 py-3 text-fb-text-secondary">
+                      {{
+                        (section() === 'listings' ? entry.metrics.observedAt : entry.occurredAt)
+                          ? ((section() === 'listings'
+                              ? entry.metrics.observedAt
+                              : entry.occurredAt
+                            ) | date: 'dd.MM.yyyy, HH:mm')
+                          : '—'
+                      }}
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </app-data-table>
+        @if (entries.nextCursor) {
+          <app-button
+            class="mt-3"
+            [loading]="store.loadingPage() === pageKind()"
+            (clicked)="store.loadMore(pageKind())"
+            >Weitere Einträge laden</app-button
+          >
+        }
+      }
+    }
+  }
+}

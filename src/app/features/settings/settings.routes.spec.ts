@@ -15,6 +15,7 @@ describe('SETTINGS_ROUTES', () => {
       'workspace',
       'numbering',
       'team',
+      'marketplaces',
       'notifications',
       'store',
       'shipping',
@@ -31,8 +32,11 @@ describe('SETTINGS_ROUTES', () => {
     const children = SETTINGS_ROUTES[0].children ?? [];
     const contentRoutes = children.filter((route) => route.loadComponent);
 
-    expect(contentRoutes).toHaveLength(10);
+    expect(contentRoutes).toHaveLength(11);
     expect(contentRoutes.every((route) => typeof route.loadComponent === 'function')).toBe(true);
+    expect(contentRoutes.find((route) => route.path === 'marketplaces')?.canActivate).toHaveLength(
+      1,
+    );
     expect(contentRoutes.find((route) => route.path === 'data/print')).toBeDefined();
   });
 });
