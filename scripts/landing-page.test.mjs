@@ -1368,7 +1368,10 @@ test('explains the reselling workflow and the real marketplace scope', () => {
     /Mit einem Klick überträgt die Browser-Erweiterung ihn in einen Kleinanzeigen-Tab; dort schließt du die Veröffentlichung ab\./u,
   );
   assert.match(normalizedHtml, /Verkäufe auf Vinted, eBay und Kleinanzeigen fest/u);
-  assert.doesNotMatch(normalizedHtml, /Vintage-Reselling|Vintage-Einkäufe|vintage reselling/iu);
+  assert.match(normalizedHtml, /Ob Vintage Reselling oder andere Produkte/u);
+  assert.doesNotMatch(document.title, /Vintage/iu);
+  assert.doesNotMatch(document.querySelector('h1')?.textContent ?? '', /Vintage/iu);
+  assert.doesNotMatch(normalizedHtml, /Vintage-Einkäufe/iu);
 
   for (const outdatedPhrase of [
     'Mystery-Paket',

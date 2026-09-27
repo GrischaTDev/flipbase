@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-27 – Juna – Vintage Reselling als ergänzenden Suchbegriff aufgenommen
+
+**Auftrag:** Vintage Reselling als passenden ergänzenden Suchbegriff berücksichtigen, ohne Vinted als Plattform oder die allgemeine Reselling-Ausrichtung zu verwechseln.
+
+**Änderung:** Die Antwort auf „Für wen ist Flipbase?“ nennt Vintage Reselling einmal als Beispiel neben anderen Produkten. Seitentitel und Hauptüberschrift bleiben auf Reselling allgemein ausgerichtet. Die englische FAQ-Antwort und der Landingpage-Test wurden angepasst.
+
+**Prüfung:** Gezielte Landingpage-Tests, ESLint, Prettier und Angular-Produktionsbau nach dem Abgleich mit `origin/master` erneut geprüft.
+
 ## 2026-09-27 – Juna – Bild- und Inseratschritt plattformneutral formuliert
 
 **Auftrag:** Den dritten Schritt des Reselling-Ablaufs nicht allein auf Kleinanzeigen beziehen und die Suchmaschinen-Ausrichtung der Landingpage prüfen.
