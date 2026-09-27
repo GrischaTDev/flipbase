@@ -70,6 +70,22 @@ Die gezielte unabhängige Nachprüfung bestätigte die Behebung.
 Serverzugriff und vorhandene Caddy-Weiterleitung wurden lesend geprüft; der
 Browserdienst ist noch nicht installiert. Kein Vinted-Konto angemeldet, kein
 Import, kein Merge und kein Produktivdeployment in diesem Schritt.
+## 2026-09-27 – Juna – Vinted-Markenauswahl und Feed-Karten vereinheitlicht
+
+**Auftrag:** Die Markenauswahl im Admin-Dialog wie die Produktsuche aufbauen und
+die Vinted-Karten bei Abständen, Angaben und Aktionen überarbeiten.
+
+**Änderung:** Ein gemeinsamer Suchbaustein öffnet die Markensuche erst nach Klick
+auf das Auswahlfeld. Er unterstützt Tastaturbedienung und Mehrfachauswahl; die
+Suche nach seltenen Marken bleibt an Vinted angebunden. Der Admin-Dialog nutzt
+für die ausgewählten Marken gemeinsame Buttons. In den Feed-Karten stehen Marke,
+Größe und Zustand nun untereinander mit Textbezeichnung und eigenem Badge. Der
+Vinted-Link ist zunächst neutral und wird beim Hover gelb; das Favoritenherz
+ist rot. Unnötiger Abstand zwischen Titel, Angaben und Preis wurde entfernt.
+
+**Prüfung:** 22 gezielte Angular-Tests einschließlich Barrierefreiheitsprüfung,
+ESLint der betroffenen TypeScript-Dateien, Shared-UI-Prüfung, Typprüfung und
+Angular-Produktionsbau bestanden.
 
 ## 2026-09-27 – Juna – Vinted-Karten kompakter und klarer gestaltet
 

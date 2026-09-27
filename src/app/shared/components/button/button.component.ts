@@ -7,6 +7,8 @@ export type ButtonVariant =
   | 'primary'
   | 'discord'
   | 'secondary'
+  | 'brand-hover'
+  | 'favorite'
   | 'destructive'
   | 'ghost'
   | 'plain'
@@ -81,6 +83,11 @@ export class ButtonComponent {
       discord: 'bg-[#5865F2] hover:bg-[#4752C4] text-white shadow-sm font-semibold',
       secondary:
         'linear-btn-secondary text-fb-text-secondary border border-fb-border hover:text-fb-text-primary hover:bg-fb-surface-hover shadow-sm',
+      'brand-hover':
+        'bg-fb-surface text-fb-text-secondary border border-fb-border shadow-sm hover:bg-fb-brand-strong hover:border-fb-brand-strong hover:text-fb-on-accent focus-visible:bg-fb-brand-strong focus-visible:text-fb-on-accent',
+      favorite: this.ariaPressed()
+        ? 'bg-fb-critical-surface text-fb-critical border border-fb-critical-border shadow-sm hover:bg-fb-critical-border'
+        : 'bg-fb-surface text-fb-critical border border-fb-border shadow-sm hover:bg-fb-critical-surface hover:border-fb-critical-border',
       destructive:
         'bg-fb-critical-surface hover:bg-fb-critical-border text-fb-critical border border-fb-critical-border shadow-sm font-semibold focus-visible:outline-fb-critical',
       ghost:
@@ -140,14 +147,17 @@ export class ButtonComponent {
   });
 
   protected readonly iconClasses = computed(() => {
+    const filled = this.variant() === 'favorite' && this.ariaPressed() ? ' fill-current' : '';
     switch (this.size()) {
       case 'slim':
-        return this.variant() === 'table-action' ? 'w-4 h-4 shrink-0' : 'w-3.5 h-3.5 shrink-0';
+        return (
+          (this.variant() === 'table-action' ? 'w-4 h-4 shrink-0' : 'w-3.5 h-3.5 shrink-0') + filled
+        );
       case 'lg':
-        return 'w-5 h-5 shrink-0';
+        return 'w-5 h-5 shrink-0' + filled;
       case 'md':
       default:
-        return 'w-4 h-4 shrink-0';
+        return 'w-4 h-4 shrink-0' + filled;
     }
   });
 

@@ -10,65 +10,44 @@
       Filter angelegt.
     </p>
 
-    <div class="flex flex-col gap-2">
-      <app-text-field
-        id="vinted-brand-search"
-        label="Vinted-Marken suchen"
-        type="search"
-        formControlName="keyword"
-        [maxLength]="100"
-        placeholder="Markenname eingeben"
-        helpText="Gib mindestens zwei Zeichen ein. Die Vorschläge kommen direkt von Vinted."
-      />
-      @if (loading()) {
-        <p role="status" class="text-sm text-fb-text-secondary">Marken werden gesucht …</p>
-      } @else if (searchError(); as message) {
-        <div class="flex items-center gap-2 text-sm" role="alert">
-          <span>{{ message }}</span>
-          <button
-            type="button"
-            class="font-medium text-fb-text-primary underline focus-visible:outline-2 focus-visible:outline-fb-primary"
-            (click)="searchBrands(keyword().trim())"
-          >
-            Erneut versuchen
-          </button>
-        </div>
-      } @else if (available().length) {
-        <div
-          class="max-h-48 overflow-y-auto rounded-lg border border-fb-line"
-          role="group"
-          aria-label="Gefundene Vinted-Marken"
-        >
-          @for (brand of available(); track brand.id) {
-            <button
-              type="button"
-              class="flex min-h-11 w-full items-center justify-between border-b border-fb-line px-3 py-2 text-left text-sm text-fb-text-primary last:border-b-0 hover:bg-fb-surface-hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-fb-primary"
-              [attr.aria-label]="brand.name + ' auswählen'"
-              (click)="add(brand)"
-            >
-              <span>{{ brand.name }}</span
-              ><span aria-hidden="true">＋</span>
-            </button>
-          }
-        </div>
-      } @else if (keyword().trim().length >= 2) {
-        <p role="status" class="text-sm text-fb-text-muted">Keine weiteren Marken gefunden.</p>
-      }
-    </div>
+    <app-search-multi-select
+      controlId="vinted-brand-picker"
+      label="Vinted-Marken"
+      placeholder="Marken auswählen"
+      searchPlaceholder="Vinted-Marken suchen"
+      helpText="Suche auch seltene Marken direkt bei Vinted. Mehrfachauswahl ist möglich."
+      [emptyText]="
+        keyword().trim().length === 1
+          ? 'Gib mindestens zwei Zeichen ein.'
+          : 'Keine weiteren Marken gefunden.'
+      "
+      singularLabel="Marke"
+      pluralLabel="Marken"
+      [options]="availableOptions()"
+      [selectedCount]="selected().length"
+      [loading]="loading()"
+      [error]="searchError()"
+      [disabled]="saving()"
+      (opened)="pickerOpened()"
+      (searchTermChange)="searchChanged($event)"
+      (optionSelected)="addOption($event)"
+      (retry)="searchBrands(keyword().trim())"
+    />
 
     @if (selected().length) {
       <div class="flex flex-col gap-2">
         <p class="text-sm font-medium text-fb-text-primary">Ausgewählt ({{ selected().length }})</p>
         <div class="flex flex-wrap gap-2">
           @for (brand of selected(); track brand.id) {
-            <button
-              type="button"
-              class="inline-flex min-h-9 items-center gap-2 rounded-full border border-fb-line bg-fb-surface px-3 py-1 text-sm text-fb-text-primary hover:border-fb-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
-              [attr.aria-label]="brand.name + ' aus Auswahl entfernen'"
-              (click)="remove(brand.id)"
+            <app-button
+              variant="secondary"
+              size="slim"
+              [icon]="removeIcon"
+              iconPosition="end"
+              [ariaLabel]="brand.name + ' aus Auswahl entfernen'"
+              (clicked)="remove(brand.id)"
+              >{{ brand.name }}</app-button
             >
-              {{ brand.name }} <span aria-hidden="true">×</span>
-            </button>
           }
         </div>
       </div>
