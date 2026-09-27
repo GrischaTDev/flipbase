@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-27 – Juna – Zwei Beta-Testregistrierungen entfernt
+
+**Auftrag:** Zwei Testregistrierungen samt zugehörigen Nutzerkonten aus der produktiven Datenbank entfernen.
+
+**Änderung:** Die beiden eindeutig zugeordneten Beta-Bewerbungen, Nutzerkonten und ausschließlich von ihnen genutzten Test-Workspaces in einer Transaktion gelöscht. Mit den Workspaces wurden nur automatisch angelegte Grundeinträge entfernt. Am zweiten Konto stand in der Datenbank „Karl Jackson“ statt der im Auftrag genannten Schreibweise „Carl Jackson“.
+
+**Prüfung:** Vorher die Verknüpfungen, weitere Mitglieder, Geschäftsdaten und gespeicherte Dateien geprüft. Danach für beide Datensätze das Fehlen von Beta-Bewerbung, Auth-Konto, Profil, Workspace, Mitgliedschaft, Lizenz und Discord-Verknüpfung direkt in der Produktionsdatenbank bestätigt. Kein Anwendungscode oder Datenbankschema geändert.
+
 ## 2026-09-27 – Juna – Eigene Variantenbilder und kleinere neue Artikelfotos
 
 **Auftrag:** Beim Anlegen neuer Farbvarianten eigene Bilder hinzufügen und die Ladezeit von Produktbildern in Artikel-, Einkaufs- und Shopansichten verbessern; zudem SSR und Bild-Caching prüfen.
