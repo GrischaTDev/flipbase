@@ -1,5 +1,21 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-27 – Juna – Richtlinie für Discord-Beta-Updates auf Anfrage verfasst
+
+**Auftrag:** Festlegen, wann Juna auf Wunsch eine Discord-Update-Nachricht
+verfasst, welche Änderungen seit der letzten Nachricht zählen und wie der Text
+für Beta-Nutzer aussehen soll.
+
+**Änderung:** Unter `docs/public-beta-updates.md` eine Richtlinie für Updates
+auf ausdrückliche Chat-Anfrage ergänzt und in `AGENTS.md` verlinkt. Eine
+kopierfertige Vorlage und ein Protokoll tatsächlich versendeter Nachrichten
+legen Format und Vergleichszeitraum fest. Interne Änderungen bleiben aus den
+Discord-Texten heraus. Der zuvor vorbereitete automatische Versand beim
+Release wurde aus dem ungemergten Zweig wieder entfernt.
+
+**Prüfung:** Dokumentationsdiff und Formatierung geprüft. Kein Discord-Versand
+und kein Produktionsrelease ausgelöst.
+
 ## 2026-09-27 – Juna – Vinted-Anmeldung an echte Kontokennung gebunden
 
 **Auftrag:** Für ein normales Vinted-Konto den Schritt vom vorbereiteten
