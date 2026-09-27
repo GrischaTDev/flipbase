@@ -25,7 +25,24 @@ Bereinigung. Dieser Stand ist ausschließlich für lokale Tests gedacht.
 
 Für den vorhandenen GoLogin-Adapter kann weiterhin
 `MARKETPLACE_BROWSER_PROVIDER=gologin` zusammen mit `GOLOGIN_API_TOKEN` gesetzt
-werden. Das ist ein anderer Modus mit Eingaben und wurde nicht live geprüft.
+werden. Im Admin-Pilot erstellt der Worker beim ersten Browserstart für eine
+freigegebene Flipbase-Verbindung ein dauerhaftes Linux-Profil über die GoLogin-
+API und speichert nur dessen ID in der serverseitigen Zuordnung. Er prüft die
+Plattformbetreiberrolle und die Workspace-Berechtigung vor der Erstellung und
+erneut vor dem Speichern. Ein erneuter Start verwendet dasselbe Profil.
+Danach öffnet der Cloud-Browser die feste Vinted-Startseite. Der Nutzer führt
+die Anmeldung selbst aus; Flipbase speichert weder Passwort noch Cookies.
+Eine Bedienung gilt zehn Minuten. Ablauf, Pause oder Widerruf stoppen die
+Cloud-Sitzung ausdrücklich. Bei unklarer Datenbankantwort während der
+Profilerstellung bleibt ein mögliches Anbieterprofil zur manuellen Prüfung
+erhalten, damit kein bereits zugeordnetes Profil versehentlich gelöscht wird.
+
+Die Anbieter-API, CDP-Verbindung, zwei gleichzeitige isolierte Testprofile und
+der ausdrückliche Stopp wurden am 27.09.2026 nur mit `example.com` geprüft.
+Die vollständige Admin-Oberfläche mit einem Vinted-Login ist damit noch nicht
+live bestätigt. Ein GoLogin-Profil allein garantiert keine eigene IP-Adresse;
+vor mehreren echten Konten müssen Proxy und zulässige Kontonutzung pro Profil
+geprüft werden.
 
 Dieses Paket enthält den noch nicht gestarteten Dienstkern für kontogebundene
 Cloud-Browser. `GoLoginCloudBrowser` verbindet Playwright über CDP mit einem
@@ -78,10 +95,10 @@ Browser liefert der Worker 410 und die Testseite erlaubt einen neuen Start.
 Ein nicht bestätigter Stopp bleibt gesperrt. Der gezeigte Seiteninhalt wurde
 nicht inhaltlich ausgewertet.
 
-Der Dienst wurde nicht mit einer echten Vinted-Anmeldung gestartet. Eine produktive
-Reverse-Proxy- oder Container-Anbindung ist nicht eingerichtet. Den Start mit
-einem isolierten Testprofil erst nach G0-Freigabe durchführen und die in AP04b
-beschriebenen Desktop-/iPad-Prüfungen danach protokollieren.
+Der Dienst wurde nicht mit einer echten Vinted-Anmeldung gestartet. Ein
+Containerabbild und die Caddy-/Compose-Vorlagen für den Admin-Pilot liegen im
+Repository; auf dem Produktionsserver sind Worker, Token und Proxy noch nicht
+eingerichtet. Die Freigaben und Desktop-/iPad-Prüfungen aus AP04b bleiben offen.
 
 Vor einer Aktivierung müssen die offenen Schritte in AP04b des
 [Vinted-Plans](../../docs/superpowers/plans/2026-09-26-vinted-marketplace.md)

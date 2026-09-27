@@ -144,6 +144,45 @@ genau einem Flipbase-Konto und eine Prüfung von Abbruch, Ablauf und Widerruf
 im vollständigen UI-Worker-Ablauf nötig. Für 100 Nutzer bleiben Anbieterlimit,
 Kosten und notwendige Parallelität gesondert zu klären.
 
+### AP04d: Admin-Pilot in Flipbase vorbereiten
+
+**Entscheidung vom 27.09.2026:** Der vorhandene Vinted-Bereich bleibt zunächst
+ein Pilot nur für Plattformbetreiber, die im ausgewählten Workspace selbst
+Adminrechte haben. Ein normaler Workspace-Admin genügt nicht. Dieselbe Regel
+gilt für Kontoliste, Kontoverwaltung, gespeicherte Marktplatzdaten und die
+Browser-Sitzungsfunktionen; die sichtbare Navigation ist nur eine zusätzliche
+Hilfe. Der bestehende Kontodialog bleibt erhalten. Beim ersten Start einer
+Cloud-Sitzung legt der Worker ein dauerhaftes Linux-Profil für genau diese
+Flipbase-Verbindung an. Der Nutzer meldet sein eigenes Konto im Browserbild
+selbst an. Die Anmeldung wird noch nicht automatisch erkannt oder importiert.
+
+- [x] Plattformbetreiberrolle und Workspace-Adminrecht in der bestehenden
+      Datenbankberechtigung kombinieren; normalen Administratoren auch direkte
+      RPC-/RLS-Zugriffe verwehren.
+- [x] Marktplatznavigation und Einstellungen nur für Plattformbetreiber zeigen;
+      beide Routen bei direktem Aufruf schützen.
+- [x] GoLogin-Profil beim ersten Browserstart serverseitig erzeugen, nur
+      serverseitig zuordnen und beim nächsten Start wiederverwenden. Fehler
+      und unklare Anbieter-Stopps ohne Geheimnisse behandeln.
+- [x] Feste Vinted-Startseite, zeitlich begrenzte Browserbedienung und eine
+      Eingabeoberfläche mit geleertem Passwortfeld vorbereiten.
+- [x] Worker-Abbild, Compose- und Caddy-Vorlagen sowie manuellen Workflow zur
+      Abbildveröffentlichung anlegen.
+- [x] Gezielte Worker-, Angular- und Datenbankprüfungen sowie Angular- und
+      Worker-Bau ausführen. Die tatsächlich geprüften Zahlen stehen im
+      Prüfprotokoll.
+- [ ] Nach PR-Freigabe Worker-Geheimnisse und Proxy auf dem Produktionsserver
+      einrichten, Abbild veröffentlichen und die Admin-Route prüfen.
+- [ ] Erst danach mit einem eigenen, ausdrücklich freigegebenen Vinted-Konto
+      Anmeldung, Kontowechsel, Ablauf, Widerruf und Abbruch auf Desktop und
+      iPad live prüfen. GoLogin-Profil und Proxy vor weiterer Kontonutzung
+      getrennt beurteilen.
+
+**Betriebsgrenze:** Das Web-Deployment aktiviert den Worker nicht automatisch.
+Ohne Servereinrichtung meldet die Seite, dass der Browserdienst nicht
+verbunden ist. Weder ein Vinted-Login noch eine Datenübernahme oder ein
+produktiver Rollout wurde in diesem Arbeitspaket ausgeführt.
+
 ### AP04a: Kontogebundene Testsitzung vor Anbieteranschluss
 
 **Anbieterbefund vom 27.09.2026:** GoLogin dokumentiert Start und Stopp eines

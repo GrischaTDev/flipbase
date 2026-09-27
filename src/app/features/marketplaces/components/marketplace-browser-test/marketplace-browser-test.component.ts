@@ -45,6 +45,7 @@ export class MarketplaceBrowserTestComponent {
   sendText(): void {
     const value = this.text.value;
     if (!value || value.length > 256) return;
+    this.text.reset('');
     void this.store.input({ kind: 'type', value });
   }
 }

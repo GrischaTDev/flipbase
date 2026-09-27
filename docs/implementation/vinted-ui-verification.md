@@ -1,5 +1,31 @@
 # Vinted-Oberfläche: geprüfter Stand vom 26. September 2026
 
+## Ergänzung vom 27. September 2026: Admin-Pilot vorbereitet
+
+Die Navigation versteckt „Marktplätze“ und „Marktplatzkonten“ für normale
+Nutzer. Beim Abmelden oder Wechsel zu einem anderen Nutzer verschwindet die
+Betreibernavigation unmittelbar. Der Route-Guard weist Nichtbetreiber ab;
+die Datenbank verweigert auch einem Workspace-Admin ohne
+Plattformbetreiberrolle Kontodaten und
+Kontoverwaltung. Ein Profil entsteht nur nach erfolgreicher Kontoprüfung
+auf dem Worker. Die vorhandene Testseite zeigt im Cloudmodus den festen
+Vinted-Start und verbirgt das Eingabefeld als Passwortfeld.
+
+**Lokal ausgeführt:** 48 Worker-Tests und 41 gezielte Angular-Tests bestanden;
+drei Marktplatz-Datenbankdateien mit 99 Prüfungen bestätigten auch den
+Rollenwiderruf während einer Sitzung. Angular-Typprüfung und Bau sowie
+Worker-Typprüfung, Tests und Containerbau waren erfolgreich. Die geänderten
+TypeScript-Dateien wurden ohne Lintfehler geprüft. Zusätzlich bestand
+`npm run verify` vollständig. Acht gezielte Betreiber-Dienst-Tests bestätigten
+nach der letzten UI-Korrektur den sofortigen Entzug der Navigation.
+
+**Noch offen:** Die produktive Worker- und Proxy-Einrichtung sowie ein
+Ende-zu-Ende-Test des Cloudmodus über die Flipbase-Oberfläche. Kein echtes
+Vinted-Konto wurde angemeldet. Das Anlegen einer Flipbase-Kontoverbindung
+belegt noch keine Vinted-Anmeldung und startet keinen Liveimport.
+
+---
+
 ## Ergänzung vom 27. September 2026: GoLogin-Anbieterprobe
 
 Zwei eigens angelegte GoLogin-Cloudprofile wurden parallel über Playwright

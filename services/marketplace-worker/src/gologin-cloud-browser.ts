@@ -15,6 +15,7 @@ export interface CloudBrowserHandle {
 
 interface GoLoginCloudBrowserOptions {
   token: string;
+  startUrl?: 'https://www.vinted.de/';
   fetch?: typeof fetch;
   connect?: (url: string) => Promise<BrowserConnection>;
 }
@@ -33,12 +34,14 @@ export class GoLoginCloudBrowser {
   private readonly token: string;
   private readonly request: typeof fetch;
   private readonly connect: (url: string) => Promise<BrowserConnection>;
+  private readonly startUrl?: 'https://www.vinted.de/';
 
   constructor(options: GoLoginCloudBrowserOptions) {
     if (!options.token.trim()) throw new Error('GoLogin-Zugang fehlt');
     this.token = options.token;
     this.request = options.fetch ?? fetch;
     this.connect = options.connect ?? ((url) => chromium.connectOverCDP(url, { timeout: 30_000 }));
+    this.startUrl = options.startUrl;
   }
 
   async open(profileId: string): Promise<CloudBrowserHandle> {
@@ -88,7 +91,7 @@ export class GoLoginCloudBrowser {
       type: async (value) => currentPage().keyboard.insertText(value),
       press: async (key) => currentPage().keyboard.press(key),
     };
-    return {
+    const handle: CloudBrowserHandle = {
       run: (operation) => operation(browserInfo),
       close: async () => {
         if (providerStopped) return;
@@ -112,6 +115,19 @@ export class GoLoginCloudBrowser {
         }
       },
     };
+    if (this.startUrl) {
+      try {
+        await currentPage().goto(this.startUrl, { waitUntil: 'domcontentloaded', timeout: 20_000 });
+      } catch {
+        try {
+          await handle.close();
+        } catch {
+          throw new CloudBrowserStopUncertainError();
+        }
+        throw new Error('Vinted-Startseite konnte nicht geöffnet werden');
+      }
+    }
+    return handle;
   }
 
   async stop(profileId: string): Promise<void> {

@@ -62,7 +62,7 @@ beforeEach(() => {
     interactionCount: 0,
   });
   liveApi = {
-    available: vi.fn().mockResolvedValue(false),
+    available: vi.fn().mockResolvedValue({ available: false, readOnly: true }),
     open: vi.fn().mockResolvedValue('25600000-0000-4000-8000-000000000031'),
     frame: vi.fn().mockResolvedValue(new Blob([Uint8Array.from([0xff, 0xd8, 0xff, 0xd9])])),
     input: vi.fn().mockResolvedValue(undefined),
@@ -139,7 +139,7 @@ describe('Eigene Marktplatz-Testseite', () => {
       value: vi.fn(() => 'blob:test'),
     });
     Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() });
-    liveApi.available.mockResolvedValue(true);
+    liveApi.available.mockResolvedValue({ available: true, readOnly: false });
     const fixture = TestBed.createComponent(MarketplaceSessionTestComponent);
     fixture.detectChanges();
     await fixture.whenStable();

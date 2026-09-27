@@ -22,6 +22,7 @@ async function setup(
   captureGate?: Promise<void>,
   readOnly = false,
   runError?: Error,
+  prepare?: (scope: BrowserSessionScope) => Promise<void>,
 ) {
   const inputs: string[] = [];
   let owner: BrowserSessionScope | undefined;
@@ -76,6 +77,7 @@ async function setup(
   };
   const api = new MarketplaceBrowserHttpApi({
     broker,
+    profiles: prepare ? { prepare } : undefined,
     readOnly,
     users: {
       userId: async (token) => {
@@ -111,6 +113,33 @@ test('reports availability at the same path used by the Angular test page', asyn
     assert.deepEqual(await response.json(), { ok: true, readOnly: false });
   } finally {
     await api.close();
+  }
+});
+
+test('prepares the bound browser profile before opening and hides provider errors', async () => {
+  const prepared: string[] = [];
+  const api = await setup(undefined, undefined, false, undefined, async (scope) => {
+    prepared.push(`${scope.userId}:${scope.workspaceId}:${scope.connectionId}`);
+  });
+  try {
+    const scope = { workspaceId: workspaceA, connectionId: accountA };
+    assert.equal((await api.request('/marketplace-browser/sessions', scope)).status, 201);
+    assert.deepEqual(prepared, [`25600000-0000-4000-8000-000000000001:${workspaceA}:${accountA}`]);
+  } finally {
+    await api.close();
+  }
+  const failed = await setup(undefined, undefined, false, undefined, async () => {
+    throw new Error('provider-token-must-stay-private');
+  });
+  try {
+    const response = await failed.request('/marketplace-browser/sessions', {
+      workspaceId: workspaceA,
+      connectionId: accountA,
+    });
+    assert.equal(response.status, 409);
+    assert.equal((await response.text()).includes('provider-token-must-stay-private'), false);
+  } finally {
+    await failed.close();
   }
 });
 

@@ -81,7 +81,7 @@ begin
     where workspace_id = p_workspace_id and connection_id = p_connection_id and state in ('active', 'stopping'))
   then raise exception 'Konto wird bereits bedient oder bereinigt' using errcode = '55P03'; end if;
   insert into public.marketplace_browser_sessions (workspace_id, connection_id, started_by, provider_profile_id, expires_at)
-    values (p_workspace_id, p_connection_id, (select auth.uid()), v_profile_id, clock_timestamp() + interval '2 minutes')
+    values (p_workspace_id, p_connection_id, (select auth.uid()), v_profile_id, clock_timestamp() + interval '10 minutes')
     returning * into v_session;
   return jsonb_build_object('id', v_session.public_id, 'workspaceId', v_session.workspace_id,
     'connectionId', v_session.connection_id, 'state', v_session.state, 'expiresAt', v_session.expires_at);

@@ -23,6 +23,7 @@ import {
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
 import { VERSION } from '../../../core/version';
+import { PlatformOperatorService } from '../../../core/services/platform-operator.service';
 import {
   CustomSelectComponent,
   SelectOption,
@@ -93,21 +94,30 @@ export const SETTINGS_NAVIGATION: readonly SettingsNavigationItem[] = [
 export class SettingsShellComponent {
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly operator = inject(PlatformOperatorService);
 
-  readonly navigation = SETTINGS_NAVIGATION;
+  readonly navigation = computed(() =>
+    this.operator.operator()
+      ? SETTINGS_NAVIGATION
+      : SETTINGS_NAVIGATION.filter((item) => item.path !== 'marketplaces'),
+  );
   readonly version = VERSION;
-  readonly mobileOptions: readonly SelectOption<string>[] = this.navigation.map((item) => ({
-    value: item.path,
-    label: item.label,
-    description: item.description,
-    icon: item.icon,
-  }));
+  readonly mobileOptions = computed<readonly SelectOption<string>[]>(() =>
+    this.navigation().map((item) => ({
+      value: item.path,
+      label: item.label,
+      description: item.description,
+      icon: item.icon,
+    })),
+  );
   readonly currentPath = signal(this.pathFromUrl(this.router.url));
   readonly currentItem = computed(
-    () => this.navigation.find((item) => item.path === this.currentPath()) ?? this.navigation[0],
+    () =>
+      this.navigation().find((item) => item.path === this.currentPath()) ?? this.navigation()[0],
   );
 
   constructor() {
+    void this.operator.isOperator();
     this.router.events
       .pipe(
         filter((event): event is NavigationEnd => event instanceof NavigationEnd),
@@ -117,7 +127,7 @@ export class SettingsShellComponent {
   }
 
   async onMobileSectionChange(path: string | null): Promise<void> {
-    if (!path || !this.navigation.some((item) => item.path === path)) return;
+    if (!path || !this.navigation().some((item) => item.path === path)) return;
     await this.router.navigate(['/settings', path]);
   }
 

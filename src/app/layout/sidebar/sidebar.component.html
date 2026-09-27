@@ -60,29 +60,31 @@
       />
 
       @for (group of navigationGroups; track group.id) {
-        <div
-          role="group"
-          [attr.data-navigation-group]="group.id"
-          [attr.aria-labelledby]="'sidebar-group-' + group.id"
-        >
-          @let groupLabel = group.labelKey | translate;
+        @if (group.id !== 'marketplaces' || isOperator()) {
           <div
-            [id]="'sidebar-group-' + group.id"
-            class="px-2 pb-1 pt-3 text-xs font-semibold text-fb-text-muted"
+            role="group"
+            [attr.data-navigation-group]="group.id"
+            [attr.aria-labelledby]="'sidebar-group-' + group.id"
           >
-            {{ groupLabel === group.labelKey ? group.label : groupLabel }}
+            @let groupLabel = group.labelKey | translate;
+            <div
+              [id]="'sidebar-group-' + group.id"
+              class="px-2 pb-1 pt-3 text-xs font-semibold text-fb-text-muted"
+            >
+              {{ groupLabel === group.labelKey ? group.label : groupLabel }}
+            </div>
+            <ul class="space-y-0.5">
+              @for (item of group.items; track item.path) {
+                <li>
+                  <ng-container
+                    [ngTemplateOutlet]="navigationItem"
+                    [ngTemplateOutletContext]="{ $implicit: item, indented: false }"
+                  />
+                </li>
+              }
+            </ul>
           </div>
-          <ul class="space-y-0.5">
-            @for (item of group.items; track item.path) {
-              <li>
-                <ng-container
-                  [ngTemplateOutlet]="navigationItem"
-                  [ngTemplateOutletContext]="{ $implicit: item, indented: false }"
-                />
-              </li>
-            }
-          </ul>
-        </div>
+        }
       }
     </div>
 

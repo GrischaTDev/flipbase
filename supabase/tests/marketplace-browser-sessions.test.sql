@@ -7,6 +7,9 @@ insert into auth.users (id, aud, role, email, raw_app_meta_data, raw_user_meta_d
  ('25500000-0000-4000-8000-000000000001','authenticated','authenticated','session-owner@example.test','{}','{}'),
  ('25500000-0000-4000-8000-000000000002','authenticated','authenticated','session-other@example.test','{}','{}'),
  ('25500000-0000-4000-8000-000000000003','authenticated','authenticated','session-same-workspace@example.test','{}','{}');
+insert into public.platform_operators (user_id) values
+ ('25500000-0000-4000-8000-000000000001'),
+ ('25500000-0000-4000-8000-000000000002');
 insert into public.workspaces (id, name) values
  ('25500000-0000-4000-8000-000000000011','Sitzung A'),
  ('25500000-0000-4000-8000-000000000012','Sitzung B');
@@ -42,7 +45,7 @@ select throws_ok($$select public.marketplace_test_session_status('25500000-0000-
 select is((public.marketplace_test_session_action('25500000-0000-4000-8000-000000000011','25500000-0000-4000-8000-000000000021',(select value->>'id' from session_a)::uuid,'ping')->>'accepted')::boolean, true, 'Eigene Interaktion erlaubt');
 
 select set_config('request.jwt.claims','{"sub":"25500000-0000-4000-8000-000000000003","role":"authenticated"}',true);
-select ok(public.marketplace_can_manage('25500000-0000-4000-8000-000000000011'), 'Zweiter Admin darf dasselbe Workspace-Konto verwalten');
+select is(public.marketplace_can_manage('25500000-0000-4000-8000-000000000011'), false, 'Workspace-Admin ohne Betreiberrolle ist ausgeschlossen');
 select is((select count(*)::integer from public.marketplace_browser_test_sessions where workspace_id = '25500000-0000-4000-8000-000000000011'), 0, 'Zweiter Admin sieht fremde Testsitzung nicht direkt');
 select throws_ok($$select public.marketplace_test_session_status('25500000-0000-4000-8000-000000000011','25500000-0000-4000-8000-000000000021',(select value->>'id' from session_a)::uuid)$$, '42501', null, 'Zweiter Admin liest fremde Testsitzung nicht');
 select throws_ok($$select public.marketplace_test_session_action('25500000-0000-4000-8000-000000000011','25500000-0000-4000-8000-000000000021',(select value->>'id' from session_a)::uuid,'revoke')$$, '42501', null, 'Zweiter Admin widerruft fremde Testsitzung nicht');

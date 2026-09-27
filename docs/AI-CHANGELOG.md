@@ -1,5 +1,27 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-27 – Juna – Admin-Pilot für Vinted-Browser vorbereitet
+
+**Auftrag:** Den bestehenden Vinted-Bereich für den eigenen Admin-Zugang in
+Flipbase bereitstellen, damit ein eigenes Konto später interaktiv angemeldet
+und live geprüft werden kann.
+
+**Änderung:** Marktplatzzugriff auf Plattformbetreiber mit Workspace-Adminrecht
+begrenzt. Der bestehende Kontodialog bleibt erhalten. Der Worker erstellt
+beim ersten Start ein kontogebundenes GoLogin-Profil, öffnet eine feste
+Vinted-Startseite und hält Anbieterzugänge auf dem Server. Die Eingabe wird
+nach dem Senden aus dem UI-Feld entfernt. Container-, Proxy- und
+Veröffentlichungsvorlagen für die spätere Servereinrichtung ergänzt. Die
+Migration wurde aus dem Supabase-Diff auf die zwei betroffenen Funktionen
+begrenzt; Typen wurden neu generiert und blieben unverändert. Die Navigation
+verliert Betreiberrechte beim Abmelden und Kontowechsel unmittelbar.
+
+**Prüfung:** 48 Worker-Tests, 41 gezielte Angular-Tests und 99
+Marktplatz-Datenbankprüfungen bestanden. Angular-Bau, Worker-Containerbau,
+Typprüfung und gezieltes Lint bestanden. Produktionsanbindung und
+Vinted-Anmeldung stehen aus. `npm run verify` bestand vollständig; acht
+gezielte Betreiber-Dienst-Tests bestanden nach der letzten UI-Korrektur.
+
 ## 2026-09-27 – Juna – GoLogin-Cloudprofile mit Testseite geprüft
 
 **Auftrag:** Den bereitgestellten GoLogin-Zugang sicher prüfen und entscheiden,

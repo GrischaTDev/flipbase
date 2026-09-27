@@ -15,8 +15,11 @@
         Dieser Test öffnet eine öffentliche Profilseite im lokalen Browser. Du kannst nur das Bild
         ansehen und den Browser beenden. Es werden keine Eingaben gesendet.
       } @else {
-        Starte nur ein ausdrücklich freigegebenes, isoliertes Testprofil. Das Browserbild bleibt
-        ausschließlich während dieser Sitzung im Speicher dieser Seite.
+        Beim ersten Start wird für diese Verbindung ein eigenes GoLogin-Profil vorbereitet. Melde
+        Dich nur mit einem eigenen, dafür freigegebenen Vinted-Konto an. Die Bedienung endet nach
+        spätestens zehn Minuten; Du kannst sie anschließend erneut starten. Das Browserbild bleibt
+        nur während dieser Sitzung auf dieser Seite. Flipbase bestätigt den Anmeldestatus und
+        übernimmt Kontodaten in diesem Pilot noch nicht automatisch.
       }
     </app-notice-banner>
     @if (store.error(); as error) {
@@ -66,7 +69,9 @@
       @if (!store.readOnly()) {
         <div class="mt-4 max-w-md space-y-2">
           <app-text-field
-            label="Text für das aktive Browserfeld"
+            label="Text oder Passwort für das aktive Browserfeld"
+            type="password"
+            autocomplete="off"
             [formControl]="text"
             [maxLength]="256"
           />
@@ -75,6 +80,10 @@
             (clicked)="sendText()"
             >Text einmal eingeben</app-button
           >
+          <p class="text-xs text-fb-text-muted">
+            Die Eingabe wird nach dem Senden aus diesem Feld entfernt. Prüfe vor dem Senden, welches
+            Feld im Browser aktiv ist.
+          </p>
         </div>
         <div
           class="mt-4 flex flex-wrap gap-2"

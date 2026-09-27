@@ -1,4 +1,5 @@
 import { GoLoginCloudBrowser } from './gologin-cloud-browser.ts';
+import { GoLoginProfileProvisioner } from './gologin-profile-provisioner.ts';
 import { LocalPlaywrightBrowser } from './local-playwright-browser.ts';
 import {
   MarketplaceBrowserRecovery,
@@ -17,7 +18,10 @@ async function main(): Promise<void> {
   const browser =
     config.provider === 'local'
       ? new LocalPlaywrightBrowser(config.publicTestUrl!)
-      : new GoLoginCloudBrowser({ token: config.goLoginToken! });
+      : new GoLoginCloudBrowser({
+          token: config.goLoginToken!,
+          startUrl: 'https://www.vinted.de/',
+        });
   const leases = new SupabaseBrowserSessionStore({
     url: config.supabaseUrl,
     publishableKey: config.publishableKey,
@@ -40,6 +44,15 @@ async function main(): Promise<void> {
   const server = new MarketplaceBrowserHttpApi({
     broker,
     users: new SupabaseBrowserUserVerifier(config.supabaseUrl, config.publishableKey),
+    profiles:
+      config.provider === 'gologin'
+        ? new GoLoginProfileProvisioner({
+            supabaseUrl: config.supabaseUrl,
+            publishableKey: config.publishableKey,
+            serviceRoleKey: config.serviceRoleKey,
+            goLoginToken: config.goLoginToken!,
+          })
+        : undefined,
     readOnly: config.provider === 'local',
   }).createServer();
   await new Promise<void>((resolve, reject) => {

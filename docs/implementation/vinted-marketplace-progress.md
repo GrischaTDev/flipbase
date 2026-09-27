@@ -1,5 +1,33 @@
 # Arbeitsstand: Vinted-Marktplatzverwaltung
 
+## 27. September 2026 – Admin-Pilot für interaktive Anmeldung vorbereitet
+
+Der bestehende Vinted-Bereich und seine Kontoverwaltung sind nun für den
+Pilot auf Plattformbetreiber mit Adminrechten im eigenen Workspace begrenzt.
+Das gilt in Navigation, Routen und den Datenbankfunktionen; ein normaler
+Workspace-Admin wird auch bei direktem Zugriff abgewiesen. Der Kontodialog
+bleibt bestehen. Beim ersten Browserstart einer freigegebenen Verbindung
+erstellt der Worker ein eigenes GoLogin-Linuxprofil und speichert dessen
+Kennung nur serverseitig. Weitere Starts verwenden dasselbe Profil. Die
+feste Startseite ist `https://www.vinted.de/`; die Bedienung ist auf zehn
+Minuten begrenzt. Die Eingabeoberfläche entfernt Text nach dem Senden aus
+dem Feld und verbirgt ihn während der Eingabe.
+
+Ein Worker-Abbild, Compose-Vorlage, Caddy-Route und ein manueller Workflow
+für die Abbildveröffentlichung sind vorbereitet. Der Produktionsserver hat
+den Worker, den GoLogin-Token und die neue Route noch nicht erhalten. Deshalb
+ist die Funktion nach einem bloßen Web-Release noch nicht live verfügbar.
+Eine echte Vinted-Anmeldung und der Anmeldestatus in Flipbase wurden nicht
+geprüft; importierte Daten entstehen dadurch noch nicht. Die laufenden
+Cloudkosten, Proxy-Zuordnung und sichere Nutzung mehrerer echter Konten sind
+weiter offen.
+
+**Prüfung:** Gezielte Worker-, Angular- und Datenbanktests bestanden;
+Angular-Bau und Worker-Containerbau waren erfolgreich. Die Einzelheiten
+stehen im UI-Prüfprotokoll.
+
+---
+
 ## 27. September 2026 – GoLogin-Cloudprofile live geprüft
 
 Ein neuer GoLogin-API-Token wurde außerhalb des Repositorys lokal verschlüsselt

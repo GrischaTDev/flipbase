@@ -7,6 +7,9 @@ insert into auth.users (id, aud, role, email, raw_app_meta_data, raw_user_meta_d
  ('25600000-0000-4000-8000-000000000001','authenticated','authenticated','browser-owner@example.test','{}','{}'),
  ('25600000-0000-4000-8000-000000000002','authenticated','authenticated','browser-other@example.test','{}','{}'),
  ('25600000-0000-4000-8000-000000000003','authenticated','authenticated','browser-admin@example.test','{}','{}');
+insert into public.platform_operators (user_id) values
+ ('25600000-0000-4000-8000-000000000001'),
+ ('25600000-0000-4000-8000-000000000002');
 insert into public.workspaces (id, name) values
  ('25600000-0000-4000-8000-000000000011','Browser A'),
  ('25600000-0000-4000-8000-000000000012','Browser B');
@@ -50,7 +53,7 @@ select is((public.marketplace_browser_session_check('25600000-0000-4000-8000-000
 select throws_ok($$select public.marketplace_browser_session_check('25600000-0000-4000-8000-000000000011','25600000-0000-4000-8000-000000000022',(select value->>'id' from browser_a)::uuid)$$, '42501', null, 'Sitzung kann nicht zu anderem Konto wechseln');
 
 select set_config('request.jwt.claims','{"sub":"25600000-0000-4000-8000-000000000003","role":"authenticated"}',true);
-select ok(public.marketplace_can_manage('25600000-0000-4000-8000-000000000011'), 'Zweiter Admin darf Workspace verwalten');
+select is(public.marketplace_can_manage('25600000-0000-4000-8000-000000000011'), false, 'Workspace-Admin ohne Betreiberrolle ist ausgeschlossen');
 select throws_ok($$select public.marketplace_browser_session_check('25600000-0000-4000-8000-000000000011','25600000-0000-4000-8000-000000000021',(select value->>'id' from browser_a)::uuid)$$, '42501', null, 'Zweiter Admin darf fremde Browsersitzung nicht lesen');
 
 select set_config('request.jwt.claims','{"sub":"25600000-0000-4000-8000-000000000002","role":"authenticated"}',true);
@@ -79,6 +82,11 @@ select lives_ok($$select public.marketplace_set_paused('25600000-0000-4000-8000-
 select is((public.marketplace_browser_session_check('25600000-0000-4000-8000-000000000012','25600000-0000-4000-8000-000000000023',(select value->>'id' from browser_b2)::uuid)->>'active')::boolean, false, 'Pause sperrt Aktionen');
 reset role;
 select throws_ok($$delete from public.marketplace_connections where id = '25600000-0000-4000-8000-000000000021'$$, '23503', null, 'Konto mit ungeklärter Browsersitzung kann nicht gelöscht werden');
+delete from public.platform_operators where user_id = '25600000-0000-4000-8000-000000000001';
+set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"25600000-0000-4000-8000-000000000001","role":"authenticated"}',true);
+select throws_ok($$select public.marketplace_browser_session_check('25600000-0000-4000-8000-000000000011','25600000-0000-4000-8000-000000000021',(select value->>'id' from browser_a)::uuid)$$, '42501', null, 'Entzogene Betreiberrolle sperrt auch laufende Sitzungen');
+reset role;
 select lives_ok($$delete from auth.users where id = '25600000-0000-4000-8000-000000000001'$$, 'Bediener kann gelöscht werden');
 select is((select count(*)::integer from public.marketplace_browser_sessions where public_id = (select (value->>'id')::uuid from browser_a)), 1, 'Benutzerlöschung entfernt ungeklärte Browsersperre nicht');
 select is((select state from public.marketplace_browser_sessions where public_id = (select (value->>'id')::uuid from browser_b2)), 'stopping', 'Pause verlangt Anbieter-Stopp');

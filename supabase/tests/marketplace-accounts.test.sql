@@ -13,13 +13,18 @@ select ok(not has_table_privilege('authenticated', 'public.marketplace_account_e
 insert into auth.users (id, aud, role, email, raw_app_meta_data, raw_user_meta_data) values
  ('25000000-0000-4000-8000-000000000001','authenticated','authenticated','market-owner@example.test','{}','{}'),
  ('25000000-0000-4000-8000-000000000002','authenticated','authenticated','market-other@example.test','{}','{}'),
- ('25000000-0000-4000-8000-000000000003','authenticated','authenticated','market-member@example.test','{}','{}');
+ ('25000000-0000-4000-8000-000000000003','authenticated','authenticated','market-member@example.test','{}','{}'),
+ ('25000000-0000-4000-8000-000000000004','authenticated','authenticated','market-admin@example.test','{}','{}');
+insert into public.platform_operators (user_id) values
+ ('25000000-0000-4000-8000-000000000001'),
+ ('25000000-0000-4000-8000-000000000002');
 insert into public.workspaces (id,name) values
  ('25000000-0000-4000-8000-000000000011','Marktplatz A'),
  ('25000000-0000-4000-8000-000000000012','Marktplatz B');
 insert into public.workspace_members (workspace_id,user_id,role) values
  ('25000000-0000-4000-8000-000000000011','25000000-0000-4000-8000-000000000001','owner'),
  ('25000000-0000-4000-8000-000000000011','25000000-0000-4000-8000-000000000003','member'),
+ ('25000000-0000-4000-8000-000000000011','25000000-0000-4000-8000-000000000004','admin'),
  ('25000000-0000-4000-8000-000000000012','25000000-0000-4000-8000-000000000002','owner');
 insert into public.marketplace_connections (id,workspace_id,display_name) values
  ('25000000-0000-4000-8000-000000000021','25000000-0000-4000-8000-000000000011','Konto A'),
@@ -57,6 +62,11 @@ select is(jsonb_array_length(public.marketplace_read_page('25000000-0000-4000-80
 select throws_ok($$select public.marketplace_read_page('25000000-0000-4000-8000-000000000011','25000000-0000-4000-8000-000000000022','activity',(select value->>'nextCursor' from page_one),null)$$,'22023',null,'Cursor gehört fest zu einem Konto');
 select throws_ok($$select public.marketplace_read_snapshot('25000000-0000-4000-8000-000000000011','25000000-0000-4000-8000-000000000023')$$,'42501',null,'Fremder Snapshot gesperrt');
 select is((public.marketplace_read_snapshot('25000000-0000-4000-8000-000000000011','25000000-0000-4000-8000-000000000021')->'activity'->>'total')::int,61,'Snapshot enthält vollständigen Kontozähler');
+
+select set_config('request.jwt.claims','{"sub":"25000000-0000-4000-8000-000000000004","role":"authenticated"}',true);
+select is(public.marketplace_can_manage('25000000-0000-4000-8000-000000000011'),false,'Workspace-Admin ohne Betreiberrolle ist ausgeschlossen');
+select is((select count(*)::int from public.marketplace_connections),0,'Nichtbetreiber sieht keine Marktplatzkonten');
+select throws_ok($$select public.marketplace_create_connection('25000000-0000-4000-8000-000000000011','Nicht erlaubt')$$,'42501',null,'Nichtbetreiber kann keine Verbindung anlegen');
 
 select set_config('request.jwt.claims','{"sub":"25000000-0000-4000-8000-000000000003","role":"authenticated"}',true);
 select is((select count(*)::int from public.marketplace_connections),0,'Mitglied ohne Verwaltungsrecht sieht keine Konten');

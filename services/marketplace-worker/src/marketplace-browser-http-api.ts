@@ -22,6 +22,7 @@ interface BrowserUserVerifier {
 interface BrowserApiOptions {
   broker: BrowserBroker;
   users: BrowserUserVerifier;
+  profiles?: { prepare(scope: BrowserSessionScope): Promise<void> };
   readOnly?: boolean;
 }
 
@@ -137,12 +138,14 @@ function inputOf(
 export class MarketplaceBrowserHttpApi {
   private readonly broker: BrowserBroker;
   private readonly users: BrowserUserVerifier;
+  private readonly profiles?: BrowserApiOptions['profiles'];
   private readonly readOnly: boolean;
   private readonly inFlight = new Set<string>();
 
   constructor(options: BrowserApiOptions) {
     this.broker = options.broker;
     this.users = options.users;
+    this.profiles = options.profiles;
     this.readOnly = options.readOnly ?? false;
   }
 
@@ -175,6 +178,7 @@ export class MarketplaceBrowserHttpApi {
       const body = await readBody(request);
       const scope = scopeOf(body, userId, token);
       if (path === pathPrefix) {
+        await this.profiles?.prepare(scope);
         const id = await this.broker.open(scope);
         json(response, 201, { id });
         return;

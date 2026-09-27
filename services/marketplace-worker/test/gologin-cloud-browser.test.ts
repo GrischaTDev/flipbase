@@ -42,6 +42,49 @@ test('connects to a cloud profile without requesting a live-view URL', async () 
   );
 });
 
+test('opens the fixed Vinted start page before presenting a login session', async () => {
+  const visited: string[] = [];
+  const provider = new GoLoginCloudBrowser({
+    token: 'private-token',
+    startUrl: 'https://www.vinted.de/',
+    fetch: async () => new Response(null, { status: 204 }),
+    connect: async () =>
+      ({
+        close: async () => undefined,
+        version: () => 'test-browser',
+        contexts: () => [{ pages: () => [{ goto: async (url: string) => visited.push(url) }] }],
+      }) as never,
+  });
+  const browser = await provider.open(profileId);
+  assert.deepEqual(visited, ['https://www.vinted.de/']);
+  await browser.close();
+});
+
+test('keeps the browser lease unresolved if navigation fails and provider stop is uncertain', async () => {
+  const provider = new GoLoginCloudBrowser({
+    token: 'private-token',
+    startUrl: 'https://www.vinted.de/',
+    fetch: async () => new Response(null, { status: 503 }),
+    connect: async () =>
+      ({
+        close: async () => undefined,
+        version: () => 'test-browser',
+        contexts: () => [
+          {
+            pages: () => [
+              {
+                goto: async () => {
+                  throw new Error('offline');
+                },
+              },
+            ],
+          },
+        ],
+      }) as never,
+  });
+  await assert.rejects(provider.open(profileId), CloudBrowserStopUncertainError);
+});
+
 test('stops the provider explicitly if CDP connection fails without leaking secrets', async () => {
   const methods: string[] = [];
   const provider = new GoLoginCloudBrowser({
