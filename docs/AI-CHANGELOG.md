@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-27 – Juna – Bestehende große Produktbilder einmalig verkleinert
+
+**Auftrag:** Bereits gespeicherte Bilder nachträglich komprimieren und erklären, wie der einmalige Lauf abläuft.
+
+**Änderung:** Ein wiederaufnehmbares Wartungsskript sichert Originale, verkleinert JPEG-/PNG-Dateien über 0,8 MB auf höchstens 1600 Pixel Kantenlänge und ersetzt nur tatsächlich kleinere Fassungen am selben Speicherpfad. Es prüft vor jeder Änderung den aktuellen Dateistand und überspringt archivierte Arbeitsbereiche. Auf dem Produktionsserver wurden drei aktive Shop-Bilder von zusammen 7.061.706 auf 731.729 Bytes verkleinert. Ein großes Produktbild und ein Einzelstückfoto liegen in archivierten Arbeitsbereichen und blieben gemäß Archivierungssperre unverändert. Die Originale liegen für eine mögliche Wiederherstellung zugriffsbeschränkt unter `/opt/flipbase/image-backfill-20260927/`.
+
+**Prüfung:** Nach dem Upload stimmen die gelesenen Bilddateien bytegenau mit den optimierten Fassungen überein. Die Datenbank meldet drei Shop-Bilder mit zusammen 731.729 Bytes und keine fehlenden Bildverweise. Die 25 Produktbilder aktiver Arbeitsbereiche liegen bereits alle unter 0,8 MB. Das Skript wurde mit Python kompiliert und der Lauf nach einem vorübergehenden API-Fehler erfolgreich fortgesetzt.
+
 ## 2026-09-27 – Juna – Eigene Variantenbilder und kleinere neue Artikelfotos
 
 **Auftrag:** Beim Anlegen neuer Farbvarianten eigene Bilder hinzufügen und die Ladezeit von Produktbildern in Artikel-, Einkaufs- und Shopansichten verbessern; zudem SSR und Bild-Caching prüfen.
