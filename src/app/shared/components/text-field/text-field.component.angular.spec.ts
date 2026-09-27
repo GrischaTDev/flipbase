@@ -32,6 +32,10 @@ describe('TextFieldComponent', () => {
       labelHidden: ['labelHidden', 1, null],
       placeholder: ['placeholder', 1, null],
       type: ['type', 1, null],
+      size: ['size', 1, null],
+      revealable: ['revealable', 1, null],
+      showPasswordLabel: ['showPasswordLabel', 1, null],
+      hidePasswordLabel: ['hidePasswordLabel', 1, null],
       multiline: ['multiline', 1, null],
       prefix: ['prefix', 1, null],
       suffix: ['suffix', 1, null],
@@ -51,6 +55,10 @@ describe('TextFieldComponent', () => {
       labelHidden: 'labelHidden',
       placeholder: 'placeholder',
       type: 'type',
+      size: 'size',
+      revealable: 'revealable',
+      showPasswordLabel: 'showPasswordLabel',
+      hidePasswordLabel: 'hidePasswordLabel',
       multiline: 'multiline',
       prefix: 'prefix',
       suffix: 'suffix',
@@ -143,5 +151,20 @@ describe('TextFieldComponent', () => {
     clearBtn.click();
     fixture.detectChanges();
     expect(component.value()).toBe('');
+  });
+
+  it('zeigt und verbirgt ein Passwort mit beschrifteter Aktion', () => {
+    fixture.componentRef.setInput('type', 'password');
+    fixture.componentRef.setInput('revealable', true);
+    fixture.detectChanges();
+
+    const input = fixture.nativeElement.querySelector('input') as HTMLInputElement;
+    const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
+    expect(input.type).toBe('password');
+    expect(button.getAttribute('aria-label')).toBe('Passwort anzeigen');
+    button.click();
+    fixture.detectChanges();
+    expect(input.type).toBe('text');
+    expect(button.getAttribute('aria-label')).toBe('Passwort verbergen');
   });
 });

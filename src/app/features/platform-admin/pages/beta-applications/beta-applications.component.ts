@@ -263,6 +263,10 @@ export class BetaApplicationsComponent implements OnInit {
     await this.runAction(application, () => this.service.resendApplicationReceipt(application.id));
   }
 
+  async resendOperatorNotice(application: BetaApplication): Promise<void> {
+    await this.runAction(application, () => this.service.resendOperatorNotice(application.id));
+  }
+
   async resendRejection(application: BetaApplication): Promise<void> {
     await this.runAction(application, () => this.service.resendRejection(application.id));
   }

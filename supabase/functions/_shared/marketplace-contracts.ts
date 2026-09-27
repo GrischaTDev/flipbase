@@ -59,12 +59,7 @@ export type CommandRequest = {
 }[Capability];
 
 export type CommandStatus =
-  | 'queued'
-  | 'running'
-  | 'succeeded'
-  | 'failed'
-  | 'outcome_unknown'
-  | 'cancelled';
+  'queued' | 'running' | 'succeeded' | 'failed' | 'outcome_unknown' | 'cancelled';
 
 export interface MarketplaceMetrics {
   /** null bedeutet nicht verfügbar, nicht 0 Aufrufe. */

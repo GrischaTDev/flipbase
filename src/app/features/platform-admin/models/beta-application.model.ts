@@ -17,6 +17,9 @@ export interface BetaApplication {
   receiptEmailStatus: BetaEmailStatus;
   receiptEmailSentAt: string | null;
   receiptEmailLastError: string | null;
+  operatorEmailStatus: BetaEmailStatus;
+  operatorEmailSentAt: string | null;
+  operatorEmailLastError: string | null;
   authUserId: string | null;
   invitationStatus: BetaInvitationStatus;
   invitationSentAt: string | null;

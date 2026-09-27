@@ -107,8 +107,27 @@ test('genehmigt eine Bewerbung und startet nach der Passwortvergabe 60 Beta-Tage
   await page.getByRole('checkbox', { name: /AGB und Datenschutzerklärung/u }).click();
   await page.locator('button[type="submit"]').click();
   await expect(page).toHaveURL(/\/onboarding\/workspace$/u, { timeout: 15_000 });
+  await expect(page.getByText('Workspace', { exact: true })).toBeVisible();
+  await page.getByRole('link', { name: 'Zurück' }).click();
+  await expect(page).toHaveURL(/\/auth\/set-password\?review=1/u);
+  await expect(page.getByText('Dein Passwort ist bereits festgelegt.')).toBeVisible();
+  await page.getByRole('button', { name: 'Weiter' }).click();
+  await expect(page).toHaveURL(/\/onboarding\/workspace\?review=1/u);
   await page.getByRole('textbox', { name: 'Wie soll dein Workspace heißen?' }).fill('Anna Handel');
-  await page.getByRole('button', { name: 'Workspace einrichten' }).click();
+  await page.getByRole('button', { name: 'Weiter' }).click();
+  await expect(page).toHaveURL(/\/onboarding\/discord$/u);
+  await page.getByRole('link', { name: 'Zurück' }).click();
+  await expect(page).toHaveURL(/\/onboarding\/workspace\?review=1/u);
+  await expect(page.getByRole('textbox', { name: 'Wie soll dein Workspace heißen?' })).toHaveValue(
+    'Anna Handel',
+  );
+  await page.getByRole('button', { name: 'Weiter' }).click();
+  await expect(page).toHaveURL(/\/onboarding\/discord$/u);
+  await expect(
+    page.getByRole('heading', { name: 'Werde Teil unserer Beta-Community' }),
+  ).toBeVisible();
+  await expect(page.locator('[aria-current="step"]')).toHaveText('3');
+  await page.getByRole('link', { name: 'Jetzt nicht, zu Flipbase' }).click();
   await expect(page).toHaveURL(/\/dashboard$/u);
 
   await expect

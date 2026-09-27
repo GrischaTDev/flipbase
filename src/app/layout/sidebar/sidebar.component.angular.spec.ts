@@ -129,12 +129,31 @@ describe('SidebarComponent', () => {
     expect(brandLink?.textContent).toContain('Flipbase');
   });
 
-  it('richtet die untere Trennlinie auf einer festen Kopfhoehe aus', async () => {
+  it('zeigt das groessere Logo ohne Trennlinie und OS-Zusatz', async () => {
     const { element } = await renderAt('/dashboard');
     const brandHeader = element.querySelector('aside > div');
+    const logo = brandHeader?.querySelector('img');
 
-    expect(brandHeader?.classList).toContain('h-14');
-    expect(brandHeader?.classList).not.toContain('h-12');
+    expect(brandHeader?.classList).not.toContain('border-b');
+    expect(logo?.getAttribute('width')).toBe('36');
+    expect(brandHeader?.textContent).toContain('Flipbase');
+    expect(brandHeader?.textContent).not.toContain('OS');
+  });
+
+  it('ordnet Ideen und danach Einstellungen und Administration am unteren Rand an', async () => {
+    const { element } = await renderAt('/dashboard');
+    const navigation = element.querySelector('nav')!;
+    const lower = navigation.querySelector('[data-sidebar-lower]')!;
+    const divider = lower.querySelector('[data-sidebar-divider]')!;
+    const ideas = lower.querySelector('[aria-controls="sidebar-ideas"]')!;
+    const settings = divider.querySelector('a[href="/settings"]')!;
+    const admin = divider.querySelector('a[href="/admin"]')!;
+
+    expect(navigation.lastElementChild).toBe(lower);
+    expect(lower.classList).toContain('mt-auto');
+    expect(ideas.compareDocumentPosition(divider) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(settings.compareDocumentPosition(admin) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(element.textContent).not.toContain('Flipbase Core');
   });
 
   it('klappt die Unterpunkte ausserhalb der Administration zu', async () => {

@@ -22,6 +22,7 @@ import { CardComponent } from '../../shared/components/card/card.component';
 import { DashboardKpiCardComponent } from './components/dashboard-kpi-card/dashboard-kpi-card.component';
 import { DashboardOpenCostsComponent } from './components/dashboard-open-costs/dashboard-open-costs.component';
 import { DashboardPreferencesService } from './services/dashboard-preferences.service';
+import { BetaDiscordBannerComponent } from '../beta-discord/components/beta-discord-banner/beta-discord-banner.component';
 
 const euro = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' });
 const percent = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 2 });
@@ -42,6 +43,7 @@ interface RangeOption {
     RevenueChartComponent,
     DashboardKpiCardComponent,
     DashboardOpenCostsComponent,
+    BetaDiscordBannerComponent,
   ],
   templateUrl: './dashboard.component.html',
   host: { class: 'block' },

@@ -779,6 +779,15 @@ html:not(.dark) .fb-admin .bg-indigo-600.text-white {
   transition: none;
 }
 
+@keyframes beta-progress-fill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
 .fb-admin .linear-input {
   min-height: 2rem;
   border-radius: 0.5rem;

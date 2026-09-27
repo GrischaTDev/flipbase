@@ -153,9 +153,14 @@ export class StoreItemDetailComponent {
         return;
       }
       this.imagesLoading.set(true);
-      void this.mediaService
-        .loadProductMedia(item.variantGroupId ?? item.id)
-        .then((photos) => {
+      const groupId = item.variantGroupId ?? item.id;
+      void Promise.all([
+        this.mediaService.loadProductMedia(item.id),
+        groupId === item.id ? Promise.resolve([]) : this.mediaService.loadProductMedia(groupId),
+      ])
+        .then(([ownPhotos, groupPhotos]) => {
+          const ownerId = ownPhotos.length ? item.id : groupId;
+          const photos = ownPhotos.length ? ownPhotos : groupPhotos;
           if (!current || this.workspace.currentWorkspace()?.id !== workspaceId) return;
           this.loadedPhotos.set({
             item,
@@ -163,8 +168,7 @@ export class StoreItemDetailComponent {
             photos: photos
               .filter(
                 (photo) =>
-                  photo.workspace_id === workspaceId &&
-                  photo.catalog_product_id === (item.variantGroupId ?? item.id),
+                  photo.workspace_id === workspaceId && photo.catalog_product_id === ownerId,
               )
               .sort(
                 (a, b) =>

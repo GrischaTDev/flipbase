@@ -27,6 +27,7 @@ function setupGuard(
     ensureLoaded?: () => Promise<void>;
     loadError?: Error | null;
     url?: string;
+    review?: boolean;
   } = {},
 ) {
   const ensureLoaded = vi.fn(options.ensureLoaded ?? (() => Promise.resolve()));
@@ -55,7 +56,14 @@ function setupGuard(
   const invoke = (guard: CanActivateFn) =>
     Promise.resolve(
       runInInjectionContext(injector, () =>
-        guard({} as never, { url: options.url ?? '/dashboard' } as never),
+        guard(
+          {
+            queryParamMap: {
+              get: (key: string) => (key === 'review' && options.review ? '1' : null),
+            },
+          } as never,
+          { url: options.url ?? '/dashboard' } as never,
+        ),
       ),
     );
 
@@ -86,6 +94,12 @@ describe('workspace setup guards', () => {
     await expect(setupGuard([completedWorkspace]).invoke(workspaceSetupPageGuard)).resolves.toEqual(
       { commands: ['/dashboard'], extras: undefined },
     );
+  });
+
+  it('erlaubt die Rueckkehr zum bereits gespeicherten Workspace waehrend der Registrierung', async () => {
+    await expect(
+      setupGuard([completedWorkspace], { review: true }).invoke(workspaceSetupPageGuard),
+    ).resolves.toBe(true);
   });
 
   it('zeigt die Einrichtungsseite bei Ladefehler oder fehlendem Workspace für den Wiederholungsversuch', async () => {

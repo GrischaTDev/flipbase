@@ -136,6 +136,11 @@
                       <app-badge [tone]="lifecycleStatus(application).tone">
                         {{ lifecycleStatus(application).label }}
                       </app-badge>
+                      @if (application.operatorEmailStatus === 'failed') {
+                        <span class="mt-1 block text-xs text-fb-critical"
+                          >Betreiber-Mail fehlgeschlagen</span
+                        >
+                      }
                     </td>
                   }
                   @case ('granted_days') {
@@ -159,6 +164,14 @@
                             [icon]="resendIcon"
                             [label]="'Bestätigung an ' + application.email + ' erneut senden'"
                             (clicked)="resendApplicationReceipt(application)"
+                          />
+                        }
+                        @if (application.operatorEmailStatus === 'failed') {
+                          <app-table-action-button
+                            [disabled]="processingId() === application.id"
+                            [icon]="resendIcon"
+                            label="Betreiber-Benachrichtigung erneut senden"
+                            (clicked)="resendOperatorNotice(application)"
                           />
                         }
                         @if (application.status === 'open') {

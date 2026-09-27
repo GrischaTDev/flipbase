@@ -46,7 +46,7 @@
     } @else {
       <input
         [id]="fieldId()"
-        [type]="type()"
+        [type]="effectiveInputType()"
         [value]="value()"
         [placeholder]="placeholder()"
         [disabled]="effectiveDisabled()"
@@ -66,7 +66,22 @@
       />
     }
 
-    @if (clearable() && value() && !effectiveDisabled()) {
+    @if (revealable() && type() === 'password') {
+      <button
+        type="button"
+        [disabled]="effectiveDisabled()"
+        [attr.aria-label]="passwordVisible() ? hidePasswordLabel() : showPasswordLabel()"
+        [attr.aria-pressed]="passwordVisible()"
+        (click)="togglePasswordVisibility()"
+        class="absolute inset-y-0 right-0 flex min-w-10 items-center justify-center rounded-r-lg text-fb-text-muted hover:text-fb-text-primary focus-visible:outline-2 focus-visible:outline-fb-primary disabled:opacity-40"
+      >
+        <svg
+          [lucideIcon]="passwordVisible() ? eyeOffIcon : eyeIcon"
+          class="h-4 w-4"
+          aria-hidden="true"
+        ></svg>
+      </button>
+    } @else if (clearable() && value() && !effectiveDisabled()) {
       <button
         type="button"
         (click)="handleClear()"

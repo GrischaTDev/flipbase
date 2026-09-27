@@ -1,5 +1,19 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-27 – Juna – Vinted-Foundation für Pull Request abgeglichen
+
+**Auftrag:** Den geprüften Vinted-Foundation-Branch als Pull Request vorbereiten
+und nach erfolgreichen Pflichtprüfungen integrieren.
+
+**Änderung:** Den aktuellen Stand von `origin/master` in den bestehenden Branch
+übernommen. Die Schema-Registrierungen für Discord und Marktplatz sowie alle
+Änderungsprotokolleinträge bleiben erhalten. Drei ältere Marktplatz-Vertragsdateien
+wurden für die verbindliche Formatprüfung angepasst.
+
+**Prüfung:** `npm run verify`, frischer Datenbankaufbau mit beiden neuen
+Migrationen, 2127 Datenbanktests und drei Marktplatz-Browserabläufe bestanden.
+Die PR-Pflichtprüfungen stehen noch aus.
+
 ## 2026-09-27 – Juna – Kontogebundene Vinted-Testsitzung vorbereitet
 
 **Auftrag:** Den bestehenden Marktplatz-Branch mit sicherer Sitzungstechnik
@@ -17,6 +31,14 @@ Browserabläufe mit künstlichen Antworten bestanden. Kein Merge und kein
 produktives Deployment. Die vollständige Anwendungstestsuite bestand nach
 Aktualisierung zweier veralteter Einstellungs-Routenerwartungen ebenfalls.
 Das SQL-Lint für `public` bestand ohne neue Warnungen.
+
+## 2026-09-27 – Juna – Eigene Variantenbilder und kleinere neue Artikelfotos
+
+**Auftrag:** Beim Anlegen neuer Farbvarianten eigene Bilder hinzufügen und die Ladezeit von Produktbildern in Artikel-, Einkaufs- und Shopansichten verbessern; zudem SSR und Bild-Caching prüfen.
+
+**Änderung:** Der Variantendialog nimmt eigene Bilder an. Auf der Variantenseite wird die eigene Galerie bearbeitet; ohne eigene Bilder verwendet die Darstellung weiterhin die Bilder des Hauptartikels. Katalog und Shop bevorzugen vorhandene Variantenbilder. Neue große Produkt- und Einzelstückfotos werden vor dem Upload auf maximal 1600 Pixel Kantenlänge und ungefähr 0,8 MB als WebP vorbereitet. Kleine Bilder, AVIF und animierbare GIFs bleiben unverändert. Shopkarten laden Bilder bei Bedarf. Bereits gespeicherte Dateien werden dadurch nicht rückwirkend verkleinert. Das Projekt verwendet derzeit clientseitiges Angular-Rendering ohne SSR; für die angemeldeten Listen ist die Bildmenge der direktere Ansatzpunkt.
+
+**Prüfung:** Gezielte Tests für Variantenbilder, Galerie-Fallback, Upload-Wiederholung und Bildverarbeitung sowie TypeScript, ESLint und Angular-Bau bestanden.
 
 ## 2026-09-26 – Juna – Vinted-Kontobereich sichtbar umgesetzt
 
@@ -50,6 +72,79 @@ Datenbankabgleich läuft ausschließlich auf einem wegwerfbaren CI-Runner.
 61 Aktivitäten bestanden vor Vorbereitung dieses Commits. Weitere Prüfungen
 und Frontend-Arbeitsstand stehen im featurebezogenen Prüfprotokoll. Kein
 Vinted-Konto verwendet, kein Merge und kein produktives Deployment.
+
+## 2026-09-26 – Juna – Beta-Registrierung visuell und beim Zurückgehen verbessert
+
+**Auftrag:** Die drei Registrierungsschritte einheitlich gestalten, gelbe
+Markenfokusse verwenden, die Fortschrittslinien animieren und nach Passwort-
+oder Workspace-Vergabe zum vorherigen Schritt zurückgehen können.
+
+**Änderung:** Die drei Karten sind gleich breit. Passwortfelder, Checkbox,
+Rechtstextlinks und Aktionen folgen der Markenfarbe; die Weiter-Aktionen sind
+klein und rechtsbündig. Der Fortschritt hat Verbindungsstrecken mit einer
+reduzierten Animation. Im Discord-Schritt entfällt die große Farbfläche.
+Zurück-Navigation zeigt das bereits gesetzte Passwort als erledigt und den
+gespeicherten Workspace-Namen zur möglichen Änderung an. Die technische
+Sitzung bleibt für die geschützte Workspace-Einrichtung bestehen.
+
+**Prüfung:** 34 gezielte Angular-Tests, Typen, Lint, Shared-UI-Prüfung,
+Formatierung und Angular-Produktionsbau. Der vollständige Browser-Test konnte
+lokal nicht starten, da der Docker-Port der Supabase-Testdatenbank auf diesem
+Rechner gesperrt ist.
+
+## 2026-09-26 – Juna – Sidebar vereinheitlicht und Nebennavigation nach unten gesetzt
+
+**Auftrag:** Die obere Trennlinie und den OS-Zusatz entfernen, das Flipbase-Logo
+vergrößern und Ideen, Einstellungen sowie Administration am unteren Rand der
+Sidebar neu anordnen. Die Versionsnummer soll dezent auf der Einstellungsseite
+stehen.
+
+**Änderung:** Der Logobereich geht ohne Trennlinie in die Arbeitsnavigation über.
+Ideen stehen oberhalb der unteren Trennlinie; Einstellungen und die nur für
+Plattform-Admins sichtbare Administration stehen darunter. Die Versionsnummer
+erscheint rechts unten auf der Einstellungsseite, mit Stand und Commit im Tooltip.
+
+**Prüfung:** Gezielte Angular-Tests für Sidebar und Einstellungen, Formatierung,
+ESLint und Angular-Produktionsbau.
+
+## 2026-09-26 – Juna – Beta-Registrierung in drei Schritten gestaltet
+
+**Auftrag:** Passwortvergabe, Workspace-Name und Discord-Verbindung als
+zusammenhängende Registrierung mit sichtbaren Schritten darstellen. Nach der
+Discord-Freigabe soll auf Flipbase eine Willkommensbestätigung erscheinen.
+
+**Änderung:** Alle drei Seiten zeigen denselben Fortschritt. Der Workspace führt
+nach dem Speichern zum Discord-Schritt, der das offizielle Discord-Logo und eine
+Verbindungsaktion in Discord-Farben zeigt. Nach der Zustimmung bestätigt
+Flipbase die Rolle „Beta-Tester“ und bietet einen Link zum Server. Der Schritt
+kann übersprungen werden; das Dashboard erinnert dann weiterhin an Discord.
+
+**Prüfung:** Gezielte Angular-Tests für Registrierung und Discord-Ansicht,
+TypeScript-Prüfung und Produktionsbau bestanden. Ein echter Discord-Beitritt
+wird nach Veröffentlichung und Einrichtung der Serverwerte geprüft.
+
+## 2026-09-26 – Juna – Beta-Bewerbungen melden und Discord-Zugang verbinden
+
+**Auftrag:** Neue Beta-Bewerbungen per E-Mail an `beta@flipbase.de` melden und
+angenommenen Beta-Nutzern nach der Registrierung den Eintritt in den
+Flipbase-Discord mit der Rolle „Beta-Tester“ ermöglichen.
+
+**Änderung:** Die Bewerbungsfunktion sendet nach einer neuen Speicherung eine
+Betreiber-Mail und hält den Versandstatus fest. Ein Versandfehler wird in der
+Bewerbungsübersicht sichtbar und kann dort erneut gesendet werden. Die
+Einladung weist auf Discord hin. Workspace-Einrichtung und Dashboard zeigen
+einen Verbindungsbanner.
+Discord fragt den Nutzer nach Zustimmung; eine geschützte Edge Function prüft
+seinen aktiven Beta-Zugang, fügt sein Discord-Konto dem Server hinzu und vergibt
+die Rolle. Die Verknüpfung wird serverseitig gespeichert. Die Zugangsdaten
+bleiben auf dem Server; die Einrichtung der vorhandenen Discord-App mit Bot,
+Server- und Rollenkennung ist in der Deployment-Anleitung beschrieben.
+
+**Prüfung:** Gezielte Deno-, Angular-, Schema- und Registrierungsgrenztests,
+TypeScript-Prüfung, ESLint und Angular-Produktionsbau bestanden. Die Migration
+wurde aus dem deklarativen Schema erzeugt und auf einer getrennten lokalen
+Datenbank angewendet. Ein echter Discord-Beitritt und der E-Mail-Empfang werden
+nach Einrichtung der Serverwerte in Produktion geprüft.
 
 ## 2026-09-26 – Juna – Doppelte Scrollleiste in der Einkaufsvorschau entfernt
 

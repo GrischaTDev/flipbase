@@ -24,6 +24,9 @@ function application(overrides: Partial<BetaInviteApplication> = {}): BetaInvite
     receipt_email_status: 'failed',
     receipt_email_sent_at: null,
     receipt_email_last_error: null,
+    operator_email_status: 'failed',
+    operator_email_sent_at: null,
+    operator_email_last_error: 'SMTP nicht erreichbar',
     auth_user_id: null,
     invitation_status: 'not_sent',
     invitation_sent_at: null,
@@ -341,3 +344,20 @@ Deno.test(
     assertEquals((body.application as BetaInviteApplication).status, 'open');
   },
 );
+
+Deno.test('wiederholt nur fehlgeschlagene Betreiber-Benachrichtigungen', async () => {
+  const setup = dependencies();
+  const response = await createBetaInviteHandler(setup.value)(
+    request({ action: 'resend_operator_notice', applicationId: 'a1' }),
+  );
+
+  assertEquals(response.status, 200);
+  assertEquals((setup.calls.sent[0] as { to: string }).to, 'beta@flipbase.de');
+  assertEquals(setup.calls.updated, [
+    {
+      operator_email_status: 'sent',
+      operator_email_sent_at: '2026-09-20T18:00:00.000Z',
+      operator_email_last_error: null,
+    },
+  ]);
+});

@@ -1,7 +1,7 @@
 import '@angular/compiler';
 import { signal, ɵresolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import axe from 'axe-core';
 import { readFile } from 'node:fs/promises';
@@ -14,6 +14,8 @@ import { WorkspaceService } from '../../../core/services/workspace.service';
 import { ButtonComponent } from '../../../shared/components/button/button.component';
 import { TextFieldComponent } from '../../../shared/components/text-field/text-field.component';
 import { WorkspaceSetupComponent } from './workspace-setup.component';
+import { BetaDiscordService } from '../../beta-discord/services/beta-discord.service';
+import { BetaRegistrationProgressComponent } from '../components/beta-registration-progress/beta-registration-progress.component';
 
 interface InputMetadata {
   inputs: Record<string, unknown>;
@@ -52,12 +54,18 @@ const translations: Record<string, string> = {
   'WORKSPACE.SETUP_LOAD_ERROR': 'Der Workspace konnte nicht geladen werden.',
   'WORKSPACE.SETUP_MISSING_ERROR': 'Dein Workspace ist noch nicht verfügbar.',
   'AUTH.LOGOUT': 'Abmelden',
+  'BETA_ONBOARDING.PROGRESS_LABEL': 'Deine Beta-Registrierung',
+  'BETA_ONBOARDING.PASSWORD': 'Passwort',
+  'BETA_ONBOARDING.WORKSPACE': 'Workspace',
+  'BETA_ONBOARDING.DISCORD': 'Discord',
 };
 
 beforeAll(async () => {
   const lookup: Record<string, string> = {
     'workspace-setup.component.html':
       'src/app/features/onboarding/workspace-setup/workspace-setup.component.html',
+    'beta-registration-progress.component.html':
+      'src/app/features/onboarding/components/beta-registration-progress/beta-registration-progress.component.html',
     'button.component.html': 'src/app/shared/components/button/button.component.html',
     'button.component.scss': 'src/app/shared/components/button/button.component.scss',
     'text-field.component.html': 'src/app/shared/components/text-field/text-field.component.html',
@@ -81,6 +89,7 @@ beforeAll(async () => {
     'fullWidth',
     'contentAlign',
     'type',
+    'size',
     'formId',
     'link',
     'href',
@@ -115,6 +124,7 @@ beforeAll(async () => {
     'maxLength',
     'value',
   ]);
+  registerInputs(BetaRegistrationProgressComponent, ['step']);
 });
 
 describe('WorkspaceSetupComponent', () => {
@@ -125,6 +135,7 @@ describe('WorkspaceSetupComponent', () => {
       workspaces?: Workspace[];
       loadError?: Error | null;
       completeError?: Error | null;
+      review?: boolean;
     } = {},
   ) {
     const workspaces = signal(options.workspaces ?? [incompleteWorkspace]);
@@ -133,6 +144,7 @@ describe('WorkspaceSetupComponent', () => {
     const completeInitialSetup = vi.fn().mockResolvedValue({
       error: options.completeError ?? null,
     });
+    const updateWorkspaceSettings = vi.fn().mockResolvedValue({ error: null });
     const signOut = vi.fn().mockResolvedValue(undefined);
     const navigate = vi.fn().mockResolvedValue(true);
     const translate = (key: string) => translations[key] ?? key;
@@ -142,7 +154,13 @@ describe('WorkspaceSetupComponent', () => {
       providers: [
         {
           provide: WorkspaceService,
-          useValue: { workspaces, loadError, ensureLoaded, completeInitialSetup },
+          useValue: {
+            workspaces,
+            loadError,
+            ensureLoaded,
+            completeInitialSetup,
+            updateWorkspaceSettings,
+          },
         },
         {
           provide: AuthService,
@@ -156,6 +174,16 @@ describe('WorkspaceSetupComponent', () => {
           },
         },
         { provide: Router, useValue: { navigate } },
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            snapshot: { queryParamMap: convertToParamMap(options.review ? { review: '1' } : {}) },
+          },
+        },
+        {
+          provide: BetaDiscordService,
+          useValue: { status: async () => ({ eligible: false, linked: false, configured: false }) },
+        },
         {
           provide: TranslateService,
           useValue: {
@@ -176,6 +204,7 @@ describe('WorkspaceSetupComponent', () => {
       component: fixture.componentInstance,
       ensureLoaded,
       completeInitialSetup,
+      updateWorkspaceSettings,
       signOut,
       navigate,
     };
@@ -200,7 +229,7 @@ describe('WorkspaceSetupComponent', () => {
     await component.onSubmit();
 
     expect(completeInitialSetup).toHaveBeenCalledWith(incompleteWorkspace.id, 'Kamera Handel');
-    expect(navigate).toHaveBeenCalledWith(['/dashboard']);
+    expect(navigate).toHaveBeenCalledWith(['/onboarding/discord']);
   });
 
   it('zeigt einen Speicherfehler, behält die Eingabe und navigiert nicht', async () => {
@@ -251,12 +280,47 @@ describe('WorkspaceSetupComponent', () => {
     expect(component.errorMessage()).toBe('Dein Workspace ist noch nicht verfügbar.');
   });
 
-  it('meldet den Nutzer über die bestehende Sitzungsfunktion ab', async () => {
-    const { component, signOut } = createComponent();
+  it('zeigt beim Zurueckgehen den gespeicherten Workspace und geht ohne erneutes Speichern weiter', async () => {
+    const completed = {
+      ...incompleteWorkspace,
+      name: 'Kamera Handel',
+      setup_completed_at: '2026-09-26T10:00:00Z',
+    };
+    const { component, completeInitialSetup, updateWorkspaceSettings, navigate } = createComponent({
+      workspaces: [completed],
+      review: true,
+    });
+    await component.ngOnInit();
+    expect(component.form.controls.workspaceName.value).toBe('Kamera Handel');
+    await component.onSubmit();
+    expect(completeInitialSetup).not.toHaveBeenCalled();
+    expect(updateWorkspaceSettings).not.toHaveBeenCalled();
+    expect(navigate).toHaveBeenCalledWith(['/onboarding/discord']);
+  });
 
-    await component.signOut();
+  it('laesst einen noch unvollstaendigen Workspace nach dem Passwort-Rueckweg einrichten', async () => {
+    const { component, completeInitialSetup } = createComponent({ review: true });
+    await component.ngOnInit();
+    expect(component.isReview()).toBe(false);
+    component.form.controls.workspaceName.setValue('Anna Handel');
+    await component.onSubmit();
+    expect(completeInitialSetup).toHaveBeenCalledWith(incompleteWorkspace.id, 'Anna Handel');
+  });
 
-    expect(signOut).toHaveBeenCalledOnce();
+  it('speichert einen im Rueckweg geaenderten Workspace-Namen', async () => {
+    const completed = {
+      ...incompleteWorkspace,
+      name: 'Alter Name',
+      setup_completed_at: '2026-09-26T10:00:00Z',
+    };
+    const { component, updateWorkspaceSettings } = createComponent({
+      workspaces: [completed],
+      review: true,
+    });
+    await component.ngOnInit();
+    component.form.controls.workspaceName.setValue('Neuer Name');
+    await component.onSubmit();
+    expect(updateWorkspaceSettings).toHaveBeenCalledWith(completed.id, { name: 'Neuer Name' });
   });
 
   it('zeigt die beschlossene Ein-Feld-Seite ohne schwerwiegende Barrieren', async () => {
@@ -270,6 +334,7 @@ describe('WorkspaceSetupComponent', () => {
     expect(element.querySelectorAll('h1')).toHaveLength(1);
     expect(element.textContent).toContain('Willkommen bei Flipbase');
     expect(element.textContent).toContain('Wie soll dein Workspace heißen?');
+    expect(element.textContent).toContain('Discord');
     expect(element.querySelector('input[autocomplete="organization"]')).not.toBeNull();
 
     const result = await axe.run(element, { rules: { 'color-contrast': { enabled: false } } });

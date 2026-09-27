@@ -9,12 +9,15 @@ import { AuthService } from '../../../core/services/auth.service';
 import { SupabaseService } from '../../../core/services/supabase.service';
 import { ThemeService } from '../../../core/services/theme.service';
 import { TranslateService } from '@ngx-translate/core';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
 import { signal } from '@angular/core';
 import { of } from 'rxjs';
 import { By } from '@angular/platform-browser';
 import { CustomCheckboxComponent } from '../../../shared/components/custom-checkbox/custom-checkbox.component';
+import { TextFieldComponent } from '../../../shared/components/text-field/text-field.component';
+import { ButtonComponent } from '../../../shared/components/button/button.component';
 import { TRANSLATIONS_DE } from '../../../core/i18n/translations';
+import { BetaRegistrationProgressComponent } from '../../onboarding/components/beta-registration-progress/beta-registration-progress.component';
 
 beforeAll(async () => {
   const lookup: Record<string, string> = {
@@ -25,10 +28,14 @@ beforeAll(async () => {
       'src/app/shared/components/custom-checkbox/custom-checkbox.component.scss',
     'button.component.html': 'src/app/shared/components/button/button.component.html',
     'button.component.scss': 'src/app/shared/components/button/button.component.scss',
+    'text-field.component.html': 'src/app/shared/components/text-field/text-field.component.html',
+    'text-field.component.scss': 'src/app/shared/components/text-field/text-field.component.scss',
     'terms-modal.component.html':
       'src/app/features/auth/components/terms-modal/terms-modal.component.html',
     'privacy-modal.component.html':
       'src/app/features/auth/components/privacy-modal/privacy-modal.component.html',
+    'beta-registration-progress.component.html':
+      'src/app/features/onboarding/components/beta-registration-progress/beta-registration-progress.component.html',
   };
 
   await ɵresolveComponentResources(async (url) => {
@@ -39,6 +46,48 @@ beforeAll(async () => {
     }
     return '';
   });
+
+  const progress = (
+    BetaRegistrationProgressComponent as unknown as {
+      ɵcmp: { inputs: Record<string, unknown>; declaredInputs: Record<string, string> };
+    }
+  ).ɵcmp;
+  progress.inputs = { ...progress.inputs, step: ['step', 1, null] };
+  progress.declaredInputs = { ...progress.declaredInputs, step: 'step' };
+
+  for (const [component, names] of [
+    [
+      TextFieldComponent,
+      [
+        'id',
+        'type',
+        'size',
+        'label',
+        'prefixIcon',
+        'revealable',
+        'showPasswordLabel',
+        'hidePasswordLabel',
+        'placeholder',
+        'error',
+        'autocomplete',
+      ],
+    ],
+    [ButtonComponent, ['type', 'variant', 'size', 'loading']],
+  ] as const) {
+    const metadata = (
+      component as unknown as {
+        ɵcmp: { inputs: Record<string, unknown>; declaredInputs: Record<string, string> };
+      }
+    ).ɵcmp;
+    metadata.inputs = {
+      ...metadata.inputs,
+      ...Object.fromEntries(names.map((name) => [name, [name, 1, null]])),
+    };
+    metadata.declaredInputs = {
+      ...metadata.declaredInputs,
+      ...Object.fromEntries(names.map((name) => [name, name])),
+    };
+  }
 });
 
 describe('SetPasswordComponent', () => {
@@ -49,6 +98,7 @@ describe('SetPasswordComponent', () => {
       isAuthenticated?: boolean;
       updateUserError?: Error | null;
       activationError?: Error | null;
+      review?: boolean;
     } = {},
   ) {
     const updateUser = vi.fn().mockResolvedValue({
@@ -66,6 +116,7 @@ describe('SetPasswordComponent', () => {
     const fakeAuth = {
       sessionReady: Promise.resolve(),
       isAuthenticated: vi.fn().mockReturnValue(options.isAuthenticated ?? true),
+      canAccessApp: vi.fn().mockReturnValue(options.isAuthenticated ?? true),
       activatePendingBetaAccess: vi.fn().mockImplementation(async () => {
         if (options.activationError) throw options.activationError;
       }),
@@ -113,6 +164,12 @@ describe('SetPasswordComponent', () => {
         { provide: ThemeService, useValue: fakeTheme },
         { provide: TranslateService, useValue: fakeTranslate },
         { provide: Router, useValue: fakeRouter },
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            snapshot: { queryParamMap: convertToParamMap(options.review ? { review: '1' } : {}) },
+          },
+        },
       ],
     });
 
@@ -158,7 +215,7 @@ describe('SetPasswordComponent', () => {
   });
 
   it('ruft updateUser beim Absenden auf', async () => {
-    const { component, updateUser, activatePendingBetaAccess } = createComponent();
+    const { component, updateUser, activatePendingBetaAccess, fakeRouter } = createComponent();
 
     component.form.controls.password.setValue('SicheresPasswort123!');
     component.form.controls.confirmPassword.setValue('SicheresPasswort123!');
@@ -171,6 +228,24 @@ describe('SetPasswordComponent', () => {
       data: { beta_registration_completed: true },
     });
     expect(activatePendingBetaAccess).toHaveBeenCalledOnce();
+    expect(fakeRouter.navigate).toHaveBeenCalledWith(['/onboarding/workspace'], {
+      queryParams: undefined,
+    });
+  });
+
+  it('laesst nach der Passwortvergabe ohne erneute Eingabe zum Workspace zurueckkehren', async () => {
+    const { component, updateUser, activatePendingBetaAccess, fakeRouter } = createComponent({
+      review: true,
+    });
+    await component.ngOnInit();
+    await component.onSubmit();
+
+    expect(component.isReview()).toBe(true);
+    expect(updateUser).not.toHaveBeenCalled();
+    expect(activatePendingBetaAccess).not.toHaveBeenCalled();
+    expect(fakeRouter.navigate).toHaveBeenCalledWith(['/onboarding/workspace'], {
+      queryParams: { review: '1' },
+    });
   });
 
   it('zeigt einen Aktivierungsfehler und meldet noch keinen Erfolg', async () => {
@@ -212,6 +287,8 @@ describe('SetPasswordComponent', () => {
       .componentInstance as CustomCheckboxComponent;
 
     expect(text).toContain('Passwort wiederholen');
+    expect(text).toContain('Workspace');
+    expect(text).toContain('Discord');
     expect(text).toContain('Sicherheitsstufe:');
     expect(text).not.toContain('AUTH.');
     expect(termsCheckbox.color()).toBe('brand');

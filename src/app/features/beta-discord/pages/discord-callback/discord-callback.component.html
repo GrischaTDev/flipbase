@@ -1,0 +1,19 @@
+<main class="flex min-h-screen items-center justify-center bg-fb-well p-6">
+  <div class="max-w-md rounded-xl border border-fb-line bg-fb-surface p-6 text-center">
+    <h1 class="text-lg font-semibold text-fb-text-primary">
+      {{ 'BETA_DISCORD.CONNECTING' | translate }}
+    </h1>
+    <p role="status" class="mt-2 text-sm text-fb-text-secondary">
+      @if (failed()) {
+        {{ 'BETA_DISCORD.FAILED' | translate }}
+      } @else {
+        {{ 'BETA_DISCORD.WAIT' | translate }}
+      }
+    </p>
+    <a
+      routerLink="/onboarding/discord"
+      class="mt-4 inline-block text-sm font-semibold text-fb-text-primary underline underline-offset-2"
+      >{{ 'BETA_ONBOARDING.DISCORD_RETRY' | translate }}</a
+    >
+  </div>
+</main>

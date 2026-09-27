@@ -4,7 +4,14 @@ import { NgTemplateOutlet } from '@angular/common';
 import { Params, RouterLink } from '@angular/router';
 
 export type ButtonVariant =
-  'primary' | 'secondary' | 'destructive' | 'ghost' | 'plain' | 'table-action' | 'thumbnail-remove';
+  | 'primary'
+  | 'discord'
+  | 'secondary'
+  | 'destructive'
+  | 'ghost'
+  | 'plain'
+  | 'table-action'
+  | 'thumbnail-remove';
 
 export type TableActionTone = 'brand' | 'positive' | 'warning' | 'critical';
 
@@ -71,6 +78,7 @@ export class ButtonComponent {
 
     const variantStyles: Record<ButtonVariant, string> = {
       primary: 'linear-btn-primary font-semibold text-fb-on-accent shadow-sm',
+      discord: 'bg-[#5865F2] hover:bg-[#4752C4] text-white shadow-sm font-semibold',
       secondary:
         'linear-btn-secondary text-fb-text-secondary border border-fb-border hover:text-fb-text-primary hover:bg-fb-surface-hover shadow-sm',
       destructive:

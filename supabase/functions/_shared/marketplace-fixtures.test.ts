@@ -5,7 +5,9 @@ import { createMarketplaceFixtures } from '../../../src/app/features/marketplace
 test('fixtureRecordsCarryWorkspaceAndConnection', () => {
   const fixtures = createMarketplaceFixtures();
   for (const record of [...fixtures.publications, ...fixtures.conversations]) {
-    const connection = fixtures.connections.find((item) => item.connectionId === record.connectionId);
+    const connection = fixtures.connections.find(
+      (item) => item.connectionId === record.connectionId,
+    );
     assert.ok(connection);
     assert.equal(record.workspaceId, connection.workspaceId);
   }

@@ -77,6 +77,9 @@ describe('SettingsShellComponent', () => {
     ).toBe('page');
     expect(mobileSelect).not.toBeNull();
     expect(fixture.nativeElement.querySelector('router-outlet')).not.toBeNull();
+    const version = fixture.nativeElement.querySelector('footer span') as HTMLSpanElement;
+    expect(version.textContent).toContain(`Flipbase v${fixture.componentInstance.version.nummer}`);
+    expect(version.title).toContain('Commit ');
   });
 
   it('navigiert nach einer Auswahl und stellt den aktuellen Seitentitel bereit', async () => {

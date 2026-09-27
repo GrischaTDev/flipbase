@@ -54,7 +54,6 @@ import type {
 } from '../../core/config/workspace-navigation';
 import { PlatformOperatorService } from '../../core/services/platform-operator.service';
 import { PwaService } from '../../core/services/pwa.service';
-import { VERSION } from '../../core/version';
 
 const NAVIGATION_ICONS: Record<WorkspaceNavigationIcon, LucideIconInput> = {
   dashboard: LayoutDashboard,
@@ -110,9 +109,6 @@ export class SidebarComponent {
   readonly operatorItem = OPERATOR_NAVIGATION;
   readonly ideasExpanded = signal(isIdeasRoute(this.router.url));
   readonly ideasActive = computed(() => isIdeasRoute(this.currentUrl()));
-
-  /** Aus Git und package.json erzeugt, siehe scripts/generate-version.mjs. */
-  readonly version = VERSION;
 
   constructor() {
     void this.operatorService.isOperator();

@@ -152,7 +152,10 @@ test('rejectsPublishWithoutListing', () => {
 });
 
 test('rejectsArbitraryBrowserArguments', () => {
-  expectInvalid(request('listings.publish', { listingId: 'listing-1', selector: '#publish' }), 'payload');
+  expectInvalid(
+    request('listings.publish', { listingId: 'listing-1', selector: '#publish' }),
+    'payload',
+  );
 });
 
 test('doesNotIncludeInputSecretsInErrors', () => {
@@ -192,5 +195,8 @@ test('missingCapabilityIsNotVerified', () => {
 });
 
 test('onlyExplicitlyVerifiedCapabilityIsAvailable', () => {
-  assert.equal(hasVerifiedCapability({ 'messages.sendText': 'verified' }, 'messages.sendText'), true);
+  assert.equal(
+    hasVerifiedCapability({ 'messages.sendText': 'verified' }, 'messages.sendText'),
+    true,
+  );
 });

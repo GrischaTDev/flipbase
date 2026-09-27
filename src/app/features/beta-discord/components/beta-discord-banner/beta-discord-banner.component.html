@@ -1,0 +1,35 @@
+@if (message()) {
+  <p
+    role="status"
+    class="rounded-xl border border-fb-line bg-fb-surface px-5 py-3 text-sm text-fb-text-primary"
+  >
+    {{ message() | translate }}
+  </p>
+}
+@if (visible()) {
+  <section
+    aria-labelledby="beta-discord-title"
+    class="rounded-xl border border-fb-brand-border bg-fb-brand-surface px-5 py-4"
+  >
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div class="flex items-start gap-3">
+        <svg
+          [lucideIcon]="discordIcon"
+          class="mt-0.5 h-5 w-5 shrink-0 text-fb-text-primary"
+          aria-hidden="true"
+        ></svg>
+        <div>
+          <h2 id="beta-discord-title" class="text-sm font-semibold text-fb-text-primary">
+            {{ 'BETA_DISCORD.TITLE' | translate }}
+          </h2>
+          <p class="mt-1 max-w-2xl text-sm text-fb-text-secondary">
+            {{ 'BETA_DISCORD.DESCRIPTION' | translate }}
+          </p>
+        </div>
+      </div>
+      <app-button variant="primary" [loading]="busy()" [disabled]="busy()" (clicked)="connect()">{{
+        'BETA_DISCORD.CONNECT' | translate
+      }}</app-button>
+    </div>
+  </section>
+}

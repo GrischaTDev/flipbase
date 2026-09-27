@@ -219,6 +219,55 @@ zusammengehören:
    `BETA_APP_URL` ist die öffentliche App-Adresse für Registrierungslinks und
    wird in der Zusatzdatei standardmäßig auf `https://app.flipbase.de` gesetzt.
 
+   **Beta-Bewerbungen:** Jede neu gespeicherte Bewerbung löst zusätzlich zur
+   Eingangsbestätigung eine Betreiber-Mail aus. Empfänger ist standardmäßig
+   `beta@flipbase.de`; bei Bedarf setzt `BETA_OPERATOR_EMAIL` in
+   `/opt/supabase/.env` eine andere Adresse. Mehrfachbewerbungen senden keine
+   weitere Benachrichtigung. Der Versandstatus steht an der Bewerbung in der
+   Datenbank (`operator_email_status`); ein fehlgeschlagener Versand blockiert
+   weder die Bewerbung noch die Eingangsbestätigung. In der Bewerbungsübersicht
+   erscheint dann ein Hinweis mit einer Aktion zum erneuten Versand.
+
+   **Discord für freigeschaltete Beta-Nutzer:** In der vorhandenen Discord-App
+   einen Bot aktivieren und ihn auf den Flipbase-Server einladen. Der Bot braucht
+   `Manage Roles` (Berechtigungswert `268435456`); seine höchste Rolle muss in
+   der Server-Rollenliste oberhalb von „Beta-Tester“ stehen. Unter OAuth2 die
+   Weiterleitungsadresse
+   `https://app.flipbase.de/auth/discord-callback` exakt eintragen. Die
+   Anwendung fordert nur `identify` und `guilds.join` an. Der Nutzer stimmt
+   auf Discord ausdrücklich zu, bevor der Bot ihn hinzufügt und die Rolle
+   vergibt. Bei aktivierter Discord-Mitgliedschaftsprüfung muss der Nutzer
+   diese zusätzlich abschließen.
+
+   Die Registrierung zeigt Passwort, Workspace und Discord als drei Schritte.
+   Nach der Discord-Freigabe kehrt der Nutzer zum dritten Schritt zurück und
+   sieht dort eine Willkommensbestätigung mit einem Link direkt zum Server.
+   Der Discord-Schritt kann übersprungen werden; solange die Verbindung fehlt,
+   erinnert das Dashboard später daran. Eine Kanalnachricht versendet der Bot
+   nicht, daher benötigt er keine Nachrichtenberechtigung.
+
+   Folgende Werte gehören ausschließlich in `/opt/supabase/.env` und werden
+   über `deploy/docker-compose.beta-application.yml` an den Funktionsdienst
+   durchgereicht:
+
+   | Variable                     | Inhalt                                                   |
+   | ---------------------------- | -------------------------------------------------------- |
+   | `DISCORD_CLIENT_ID`          | Anwendungs-ID aus dem Discord Developer Portal           |
+   | `DISCORD_CLIENT_SECRET`      | OAuth2-Client-Secret                                     |
+   | `DISCORD_BOT_TOKEN`          | Token des Bots                                           |
+   | `DISCORD_GUILD_ID`           | ID des Flipbase-Servers                                  |
+   | `DISCORD_BETA_ROLE_ID`       | ID der Rolle „Beta-Tester“                               |
+   | `DISCORD_OAUTH_STATE_SECRET` | Zufälliger, langer Serverschlüssel für den OAuth-Zustand |
+
+   Den Zustandsschlüssel einmalig mit `openssl rand -hex 32` erzeugen. Solange
+   die Discord-Werte fehlen, zeigt das Dashboard keinen Verbindungsbanner.
+   Nach dem Eintragen den Funktionsdienst neu erzeugen. Die neue Edge Function
+   `beta-discord` muss zusammen mit den anderen Funktionsordnern ausgerollt
+   werden. Anschließend einen angenommenen Beta-Testnutzer durch Registrierung,
+   Discord-Freigabe und Rollenprüfung führen; mit einem nicht angenommenen
+   Konto muss die Verbindung abgewiesen werden. Geheimnisse weder in den
+   Angular-Bau noch in Git eintragen.
+
    Ohne die Durchreichung antwortet die Funktion mit **500 statt 400** – der
    fehlende Pfeffer wird absichtlich laut, nicht still.
 
