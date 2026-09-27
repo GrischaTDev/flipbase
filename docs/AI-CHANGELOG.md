@@ -1,5 +1,18 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-27 – Juna – Freigegebene Account-Verwaltung veröffentlichen
+
+**Auftrag:** Nutzerfreigabe für PR, Merge nach erfolgreichen Prüfungen und
+produktive Aktivierung des GoLogin-Browserdienstes.
+
+**Stand:** PR #224 erstellt. Aktuellen master integriert und beide Einträge im
+Changelog-Konflikt erhalten. Die 84 betroffenen Angular-Tests und der
+Produktionsbau bestanden erneut. Die Serverumgebung für den Worker wurde mit
+nur für root lesbaren Zugangsdaten eingerichtet; der GoLogin-Token wurde über
+SSH übertragen und weder ausgegeben noch versioniert. Start erfolgt erst mit
+dem Abbild des nach grünen PR-Prüfungen gemergten Commits. Öffentliche
+Gesundheits-/Zugriffsprüfung und tatsächlicher erster Nutzerlogin folgen danach.
+
 <<<<<<< HEAD
 
 ## 2026-09-27 – Juna – Direkte Vinted-Anmeldung mit GoLogin-Profil und Proxy
