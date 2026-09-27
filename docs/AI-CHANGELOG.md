@@ -62,6 +62,7 @@ Vinted-Konten oder Zugangsdaten wurden verwendet.
 **Prüfung:** Sechs neue Datenbankprüfungen zu Rechten, Zeitraum und Zuordnung bestanden; die 20 vorhandenen Betreiberprüfungen ebenfalls. Gezielte Angular-Tests einschließlich AXE-Prüfung, Typprüfung, ESLint, Shared-UI-Prüfung und Angular-Produktionsbau bestanden. Die Migration wurde ohne fachfremde Schemaänderungen erzeugt und lokal angewendet.
 
 **Datenschutz:** Die Betreiberübersicht wird auf Art. 6 Abs. 1 lit. f DSGVO gestützt: Betreuung und Verbesserung der Beta-App bei beschränktem Betreiberzugriff und ohne zusätzliche Verhaltensaufzeichnung. Die rechtliche Interessenabwägung und die Information bereits aktiver Tester bleiben in der Verantwortung des Betreibers.
+
 ## 2026-09-27 – Juna – Herkunft der Vinted-Artikelfotos geprüft
 
 **Auftrag:** Prüfen, weshalb der Feed früher drei Fotos je Anzeige zeigen konnte
@@ -80,7 +81,6 @@ wurde für diese Prüfung verzichtet.
 **Prüfung:** Git-Historie der Bildverarbeitung und der Katalogumstellung,
 gespeicherte alte Katalogantwort sowie ein aktueller Abruf von Katalog und
 Artikeldetail wurden verglichen. Keine Codeänderung am Bot.
-
 
 ## 2026-09-27 – Juna – Vinted Feed und Angebotskarten überarbeitet
 
@@ -105,7 +105,6 @@ ein Foto je Anzeige; für weitere Fotos wäre ein zusätzlicher Detailabruf nöt
 der lokalen Datenbank und `npm run verify` bestanden. Die Änderung ist noch
 nicht veröffentlicht.
 
-
 ## 2026-09-27 – Juna – Vinted-Marken direkt beim Anlegen suchen
 
 **Auftrag:** Zentrale Markenfilter ohne Kenntnis einer Vinted-Markenkennung
@@ -124,7 +123,6 @@ Edge Functions manuell ausgerollt werden.
 **Prüfung:** Die echte Vinted-Suche lieferte für „Ralph Lauren“ mehrere
 Markenvarianten. Edge- und Angular-Tests, Barrierefreiheitsprüfung, Typprüfung,
 Lint und Angular-Bau wurden ausgeführt.
-
 
 ## 2026-09-27 – Juna – Vinted-Sammler nach festgefahrener Sitzung wiederhergestellt
 
