@@ -45,7 +45,38 @@
         [(value)]="selectedSize"
       />
     </div>
+    <div class="w-full min-w-0 sm:w-32">
+      <label for="feed-min-price" class="mb-1 block text-sm">Min. Preis</label>
+      <app-number-input
+        id="feed-min-price"
+        ariaLabel="Mindestpreis in Euro"
+        [ariaDescribedby]="priceError() ? 'feed-price-error' : ''"
+        [ariaInvalid]="!!priceError()"
+        [showStepper]="false"
+        [min]="0"
+        [step]="0.01"
+        unit="€"
+        [(value)]="minPrice"
+      />
+    </div>
+    <div class="w-full min-w-0 sm:w-32">
+      <label for="feed-max-price" class="mb-1 block text-sm">Max. Preis</label>
+      <app-number-input
+        id="feed-max-price"
+        ariaLabel="Höchstpreis in Euro"
+        [ariaDescribedby]="priceError() ? 'feed-price-error' : ''"
+        [ariaInvalid]="!!priceError()"
+        [showStepper]="false"
+        [min]="0"
+        [step]="0.01"
+        unit="€"
+        [(value)]="maxPrice"
+      />
+    </div>
   </div>
+  @if (priceError(); as text) {
+    <p id="feed-price-error" role="alert" class="text-sm text-fb-critical">{{ text }}</p>
+  }
   @if (brandError(); as text) {
     <p role="alert">{{ text }} <app-button (clicked)="loadBrands()">Erneut laden</app-button></p>
   }
@@ -85,19 +116,19 @@
         </div></app-card
       >
     }
-    @if (filteredItems().length === 0) {
+    @if (feedItems().length === 0) {
       <app-card
         ><h2 class="text-base font-semibold">
-          @if (selectedSize()) {
-            Keine Artikel in Größe {{ selectedSize() | uppercase }} gefunden
+          @if (selectedSize() || minPrice() !== null || maxPrice() !== null) {
+            Keine Artikel für diese Filter gefunden
           } @else {
             Noch keine passenden Artikel
           }
         </h2>
         <p class="mt-2 text-sm text-fb-text-secondary">
-          @if (selectedSize()) {
-            Es gibt keine Angebote mit der ausgewählten Größe. Wähle eine andere Größe oder setze
-            den Filter auf „Alle Größen“ zurück.
+          @if (selectedSize() || minPrice() !== null || maxPrice() !== null) {
+            Passe Größe oder Preis an. Der Feed durchsucht die gespeicherten Funde der letzten 30
+            Tage.
           } @else {
             Hier erscheinen passende Funde, sobald der Bot Artikel gesammelt hat. Du kannst auch
             einen anderen Suchfilter oder eine andere Marke wählen.
@@ -107,11 +138,12 @@
     } @else {
       <section aria-labelledby="feed-finds-title" (focusin)="state.pause()">
         <div class="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-          <h2 id="feed-finds-title" class="text-base font-semibold">Neue Funde</h2>
+          <h2 id="feed-finds-title" class="text-base font-semibold">Gespeicherte Funde</h2>
+          <p class="text-xs text-fb-text-muted">Letzte 30 Tage</p>
         </div>
-        <div role="region" aria-labelledby="feed-finds-title" class="space-y-4">
+        <div class="space-y-4">
           <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            @for (item of filteredItems(); track item.id) {
+            @for (item of feedItems(); track item.id) {
               <app-deal-card
                 class="motion-safe:transition motion-safe:duration-200 motion-safe:starting:opacity-0 motion-safe:starting:-translate-x-3"
                 [item]="item"

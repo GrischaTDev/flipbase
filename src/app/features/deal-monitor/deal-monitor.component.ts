@@ -9,28 +9,27 @@ import {
   signal,
   untracked,
 } from '@angular/core';
-import { UpperCasePipe } from '@angular/common';
 import { LucideBot } from '@lucide/angular';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
 import { CardComponent } from '../../shared/components/card/card.component';
 import { CustomSelectComponent } from '../../shared/components/custom-select/custom-select.component';
+import { NumberInputComponent } from '../../shared/components/number-input/number-input.component';
 import { DealCardComponent } from './components/deal-card/deal-card.component';
 import { DealDetailModalComponent } from './components/deal-detail-modal/deal-detail-modal.component';
 import { DealMonitorService } from './services/deal-monitor.service';
 import { DealFeedState } from './services/deal-feed-state';
 import { FeedItem, Watchlist } from './models/deal-monitor.model';
-import { matchesSize } from './utils/size-matcher';
 
 @Component({
   selector: 'app-deal-monitor',
   imports: [
-    UpperCasePipe,
     PageHeaderComponent,
     ButtonComponent,
     CardComponent,
     CustomSelectComponent,
+    NumberInputComponent,
     DealCardComponent,
     DealDetailModalComponent,
   ],
@@ -48,6 +47,8 @@ export class DealMonitorComponent {
   readonly selected = signal<string | null>(null);
   readonly selectedBrand = signal<string | null>(null);
   readonly selectedSize = signal<string | null>(null);
+  readonly minPrice = signal<number | null>(null);
+  readonly maxPrice = signal<number | null>(null);
   readonly selectedDeal = signal<FeedItem | null>(null);
   readonly sizeOptions = [
     { value: null as string | null, label: 'Alle Größen' },
@@ -74,11 +75,18 @@ export class DealMonitorComponent {
   readonly selectedWatchlist = computed(() =>
     this.watchlists().find((row) => row.id === this.selected()),
   );
-  readonly filteredItems = computed(() => {
-    const size = this.selectedSize();
-    const items = this.state.items();
-    if (!size) return items;
-    return items.filter((item) => matchesSize(item.size, size));
+  readonly feedItems = this.state.items;
+  readonly priceError = computed(() => {
+    const min = this.minPrice();
+    const max = this.maxPrice();
+    if (
+      (min !== null && (!Number.isFinite(min) || min < 0)) ||
+      (max !== null && (!Number.isFinite(max) || max < 0))
+    )
+      return 'Bitte gültige, nicht negative Preise eingeben.';
+    if (min !== null && max !== null && min > max)
+      return 'Der Mindestpreis darf nicht über dem Höchstpreis liegen.';
+    return null;
   });
   readonly stale = computed(
     () => !this.state.reportedAt() || this.now() - Date.parse(this.state.reportedAt()!) > 120_000,
@@ -94,6 +102,8 @@ export class DealMonitorComponent {
         this.selected.set(null);
         this.selectedBrand.set(null);
         this.selectedSize.set(null);
+        this.minPrice.set(null);
+        this.maxPrice.set(null);
         this.watchlists.set([]);
         this.brands.set([]);
         this.error.set(null);
@@ -110,7 +120,16 @@ export class DealMonitorComponent {
       const workspace = this.workspace()?.id;
       const watchlist = this.selected();
       const brand = this.selectedBrand();
-      untracked(() => this.state.setContext(workspace ? { workspace, watchlist, brand } : null));
+      const size = this.selectedSize();
+      const minPrice = this.minPrice();
+      const maxPrice = this.maxPrice();
+      const priceError = this.priceError();
+      if (priceError) return;
+      untracked(() =>
+        this.state.setContext(
+          workspace ? { workspace, watchlist, brand, size, minPrice, maxPrice } : null,
+        ),
+      );
     });
     const tick = async () => {
       this.now.set(Date.now());
