@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-27 – Juna – Beta-Auswertung aus Datenschutzhinweisen entfernt
+
+**Auftrag:** Den nachträglich ergänzten Abschnitt zur namentlichen Beta-Nutzungsübersicht vorerst aus der Datenschutzerklärung entfernen.
+
+**Änderung:** Der Abschnitt auf der öffentlichen Datenschutzseite und der zugehörige Link im Datenschutzdialog der App wurden zurückgenommen. Andere Datenschutzhinweise, Cookie-Einstellungen und die Betreiberübersicht unter Administration → Nutzer bleiben unverändert.
+
+**Prüfung:** Gezielte Landingpage-Tests, Format- und Lintprüfung sowie Angular-Produktionsbau.
+
 ## 2026-09-27 – Juna – Nutzungsübersicht für Beta-Tester ergänzt
 
 **Auftrag:** Nach der Prüfung der vorhandenen Analyse und Nutzerverwaltung eine erste, namentliche Nutzungsübersicht für Beta-Tester umsetzen.
