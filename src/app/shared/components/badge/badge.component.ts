@@ -19,7 +19,7 @@ export class BadgeComponent {
 
   protected readonly badgeClasses = computed(() => {
     const base =
-      'inline-flex items-center justify-center font-semibold rounded-lg transition-colors select-none';
+      'inline-flex min-w-0 max-w-full items-center justify-center font-semibold rounded-lg transition-colors select-none';
 
     const sizeClass =
       this.size() === 'md'

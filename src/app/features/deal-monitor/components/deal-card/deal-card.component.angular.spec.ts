@@ -118,4 +118,28 @@ describe('DealCardComponent', () => {
     const image = (fixture.nativeElement as HTMLElement).querySelector('article img');
     expect(image?.classList.contains('col-span-2')).toBe(true);
   });
+
+  it('keeps metadata icons beside their labels and uses compact card actions', () => {
+    const fixture = TestBed.createComponent(DealCardComponent);
+    fixture.componentRef.setInput('item', item);
+    fixture.detectChanges();
+
+    const card = fixture.nativeElement as HTMLElement;
+    const badges = [...card.querySelectorAll('dl app-badge')];
+    expect(badges).toHaveLength(3);
+    for (const badge of badges) {
+      const content = badge.querySelector('span');
+      expect(content?.querySelector('svg')?.parentElement).toBe(content);
+      expect(content?.classList).toContain('h-5');
+    }
+    expect(badges.map((badge) => badge.querySelector('span')?.className)).toEqual([
+      expect.stringContaining('bg-fb-badge-brand'),
+      expect.stringContaining('bg-fb-badge-info'),
+      expect.stringContaining('bg-fb-badge-success'),
+    ]);
+
+    const actions = card.querySelectorAll('app-button > button, app-button > a');
+    expect(actions).toHaveLength(3);
+    for (const action of actions) expect(action.classList).toContain('h-7');
+  });
 });
