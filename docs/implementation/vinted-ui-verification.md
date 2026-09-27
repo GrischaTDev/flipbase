@@ -1,5 +1,24 @@
 # Vinted-Oberfläche: geprüfter Stand vom 26. September 2026
 
+## Ergänzung vom 27. September 2026: Browser-Testbereich mit künstlichen Antworten
+
+Auf der bestehenden Seite `/marketplaces/vinted/session-test` gibt es jetzt
+zusätzlich zur unveränderten Sitzungssimulation einen Browser-Testbereich.
+Er prüft, ob der lokal bewusst gestartete Worker erreichbar ist. Nur dann
+werden Start, Bild, einzelne Klicks, Texte, Tasten und Stopp angeboten. Beim
+Konto- oder Workspacewechsel verschwindet das vorherige Bild sofort und der
+Worker erhält einen Stoppversuch. Nach unklarer Eingabe wird nichts automatisch
+wiederholt. Bilder werden nur als kurzlebige Browser-Objekt-URLs gehalten.
+
+Der lokale Angular-Proxy leitet den API-Pfad an `127.0.0.1:4179` weiter.
+Es gibt keine produktive Weiterleitung und keinen gestarteten echten Worker.
+Die UI-Prüfung verwendete ausschließlich künstliche Antworten: 10 gezielte
+Angular-Tests einschließlich AXE-Strukturprüfung des angezeigten Bildbereichs,
+TypeScript-Prüfung und Produktionsbau waren erfolgreich. Der tatsächliche
+Anbieter-Lauf auf Desktop und iPad bleibt offen und benötigt zuerst G0.
+
+---
+
 ## Ergänzung vom 27. September 2026: dauerhafte Sitzung ohne UI-Anbindung
 
 Die kontogebundene Live-Sperre und der Wiederanlauf-Abgleich sind serverseitig

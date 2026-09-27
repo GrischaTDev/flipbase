@@ -9,14 +9,24 @@ import { BadgeComponent } from '../../../../shared/components/badge/badge.compon
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
+import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { createMarketplaceFixtures } from '../../testing/marketplace-fixtures';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import { MarketplaceTestSessionApiService } from '../../services/marketplace-test-session-api.service';
+import { MarketplaceBrowserTestApiService } from '../../services/marketplace-browser-test-api.service';
+import { MarketplaceBrowserTestComponent } from '../marketplace-browser-test/marketplace-browser-test.component';
 import { MarketplaceSessionTestComponent } from './marketplace-session-test.component';
 
 const account = createMarketplaceFixtures().connections[0];
 let resetBindings: (() => void) | undefined;
 let start: ReturnType<typeof vi.fn>;
+let liveApi: {
+  available: ReturnType<typeof vi.fn>;
+  open: ReturnType<typeof vi.fn>;
+  frame: ReturnType<typeof vi.fn>;
+  input: ReturnType<typeof vi.fn>;
+  close: ReturnType<typeof vi.fn>;
+};
 
 beforeAll(async () => {
   resetBindings = await prepareMarketplaceRendering([
@@ -24,8 +34,16 @@ beforeAll(async () => {
     { type: ButtonComponent, path: 'src/app/shared/components/button/button.component.ts' },
     { type: CardComponent, path: 'src/app/shared/components/card/card.component.ts' },
     {
+      type: TextFieldComponent,
+      path: 'src/app/shared/components/text-field/text-field.component.ts',
+    },
+    {
       type: NoticeBannerComponent,
       path: 'src/app/shared/components/notice-banner/notice-banner.component.ts',
+    },
+    {
+      type: MarketplaceBrowserTestComponent,
+      path: 'src/app/features/marketplaces/components/marketplace-browser-test/marketplace-browser-test.component.ts',
     },
     {
       type: MarketplaceSessionTestComponent,
@@ -43,6 +61,13 @@ beforeEach(() => {
     expiresAt: '2099-09-27T10:00:00Z',
     interactionCount: 0,
   });
+  liveApi = {
+    available: vi.fn().mockResolvedValue(false),
+    open: vi.fn().mockResolvedValue('25600000-0000-4000-8000-000000000031'),
+    frame: vi.fn().mockResolvedValue(new Blob([Uint8Array.from([0xff, 0xd8, 0xff, 0xd9])])),
+    input: vi.fn().mockResolvedValue(undefined),
+    close: vi.fn().mockResolvedValue(undefined),
+  };
   TestBed.resetTestingModule();
   TestBed.configureTestingModule({
     imports: [MarketplaceSessionTestComponent],
@@ -55,7 +80,13 @@ beforeEach(() => {
           canManage: signal(true),
         },
       },
-      { provide: AuthService, useValue: { currentUser: signal({ id: 'operator-a' }) } },
+      {
+        provide: AuthService,
+        useValue: {
+          currentUser: signal({ id: 'operator-a' }),
+          session: signal({ access_token: 'synthetic-token' }),
+        },
+      },
       {
         provide: WorkspaceService,
         useValue: { currentWorkspace: signal({ id: account.workspaceId }) },
@@ -63,6 +94,10 @@ beforeEach(() => {
       {
         provide: MarketplaceTestSessionApiService,
         useValue: { start, status: vi.fn(), action: vi.fn() },
+      },
+      {
+        provide: MarketplaceBrowserTestApiService,
+        useValue: liveApi,
       },
     ],
   });
@@ -90,6 +125,41 @@ describe('Eigene Marktplatz-Testseite', () => {
   it('hat in der Testseite keine schweren strukturellen Barrieren', async () => {
     const fixture = TestBed.createComponent(MarketplaceSessionTestComponent);
     fixture.detectChanges();
+    const result = await axe.run(fixture.nativeElement, {
+      rules: { 'color-contrast': { enabled: false } },
+    });
+    expect(
+      result.violations.filter((item) => item.impact === 'critical' || item.impact === 'serious'),
+    ).toEqual([]);
+  });
+
+  it('bindet den Browser-Testbereich an das ausgewählte Konto und die Anmeldung', async () => {
+    Object.defineProperty(URL, 'createObjectURL', {
+      configurable: true,
+      value: vi.fn(() => 'blob:test'),
+    });
+    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() });
+    liveApi.available.mockResolvedValue(true);
+    const fixture = TestBed.createComponent(MarketplaceSessionTestComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const button = [...fixture.nativeElement.querySelectorAll('button')].find(
+      (node: HTMLButtonElement) => node.textContent?.includes('Browser-Test starten'),
+    ) as HTMLButtonElement | undefined;
+    expect(button).toBeDefined();
+    button?.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(liveApi.open).toHaveBeenCalledWith(
+      { workspaceId: account.workspaceId, connectionId: account.connectionId },
+      'synthetic-token',
+    );
+    expect(
+      fixture.nativeElement.querySelector(
+        'img[alt="Aktuelles Browserbild des ausgewählten Testkontos"]',
+      ),
+    ).not.toBeNull();
     const result = await axe.run(fixture.nativeElement, {
       rules: { 'color-contrast': { enabled: false } },
     });

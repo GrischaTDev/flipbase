@@ -9,10 +9,18 @@ import { CardComponent } from '../../../../shared/components/card/card.component
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 import type { MarketplaceTestSessionState } from '../../models/marketplace-test-session';
 import { MarketplaceTestSessionStore } from '../../services/marketplace-test-session.store';
+import { MarketplaceBrowserTestComponent } from '../marketplace-browser-test/marketplace-browser-test.component';
 
 @Component({
   selector: 'app-marketplace-session-test',
-  imports: [DatePipe, BadgeComponent, ButtonComponent, CardComponent, NoticeBannerComponent],
+  imports: [
+    DatePipe,
+    BadgeComponent,
+    ButtonComponent,
+    CardComponent,
+    NoticeBannerComponent,
+    MarketplaceBrowserTestComponent,
+  ],
   providers: [MarketplaceTestSessionStore],
   templateUrl: './marketplace-session-test.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

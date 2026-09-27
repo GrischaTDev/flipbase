@@ -52,8 +52,7 @@ function sameScope(left: BrowserSessionScope, right: BrowserSessionScope): boole
   return (
     left.workspaceId === right.workspaceId &&
     left.connectionId === right.connectionId &&
-    left.userId === right.userId &&
-    left.userAccessToken === right.userAccessToken
+    left.userId === right.userId
   );
 }
 
@@ -134,6 +133,7 @@ export class MarketplaceBrowserSessionBroker {
   ): Promise<T> {
     const session = this.find(scope, sessionId);
     if (session.stopPending) throw new Error('Sitzung wird beendet');
+    session.lease.scope.userAccessToken = scope.userAccessToken;
     let active: boolean;
     try {
       active =
@@ -179,6 +179,22 @@ export class MarketplaceBrowserSessionBroker {
         } catch {
           cleanupFailed = true;
         }
+      }
+    }
+    if (cleanupFailed) throw new Error('Browser-Stopp fehlgeschlagen');
+  }
+
+  async ready(): Promise<void> {
+    await this.ensureRecovered();
+  }
+
+  async shutdown(): Promise<void> {
+    let cleanupFailed = false;
+    for (const [id, session] of this.sessions) {
+      try {
+        await this.terminate(id, session);
+      } catch {
+        cleanupFailed = true;
       }
     }
     if (cleanupFailed) throw new Error('Browser-Stopp fehlgeschlagen');

@@ -122,17 +122,18 @@ die am 27.09.2026 geprüfte stabile Version und unterstützt Node ab Version 20.
 - [x] Dauerhafte, transaktional reservierte Sperre und serverseitige Zuordnung
       der Profil-ID implementieren; ungewissen Anbieter-Stopp auch nach einem
       Worker-Neustart abgleichen, bevor eine neue Bedienung möglich ist.
-- [ ] Authentisierte Flipbase-API sowie begrenzte Bild- und Eingabeweiterleitung
+- [x] Authentisierte Flipbase-API sowie begrenzte Bild- und Eingabeweiterleitung
       an die vorhandene Testseite anbinden. Anbieter-Token, CDP-URL und
       Liveansicht-URL dürfen in keiner Antwort erscheinen.
 - [ ] Mit isoliertem GoLogin-Testprofil und eigener, freigegebener Testseite
       tatsächlich verbinden; fremde Konten, Ablauf, Widerruf und Abbruch auf
       Desktop und iPad prüfen. Vorher G0 klären.
 
-Der Serverkern ist noch nicht in die laufende Anwendung eingebunden. Die
-Datenbanksperre und die dazugehörigen Workerbausteine sind implementiert; die
-authentisierte API zur vorhandenen Testseite fehlt. Der Test mit künstlichen
-Implementierungen ist kein G1-Nachweis.
+Der Worker besitzt jetzt eine authentisierte HTTP-API und die vorhandene
+Testseite einen getrennten Browserbereich. In der lokalen Angular-Entwicklung
+wird der API-Pfad nur an einen bewusst gestarteten Worker weitergeleitet; ohne
+ihn bleibt die Bedienung gesperrt. Produktive Weiterleitung und Anbieter-Test
+stehen aus. Die künstlichen Tests sind kein G1-Nachweis.
 
 ### AP04c: Dauerhafte Browsersperre und Profilzuordnung
 
@@ -155,7 +156,7 @@ Stand 27.09.: Schema, erzeugte Migration, Typen, Benutzer-RPCs, serverseitige
 Profilauflösung aus der reservierten Sitzung und Wiederanlauf-Bereinigung sind
 implementiert. Die Datenbankmigration musste um vom Diff-Generator ausgelassene
 Rechteentzüge ergänzt werden. Die Bereinigung sperrt neue Starts bei einem
-fehlgeschlagenen Anbieter-Stopp. Die Komponenten sind noch nicht über eine
+fehlgeschlagenen Anbieter-Stopp. Die Komponenten sind jetzt über eine
 authentisierte HTTP-API mit der Testseite verbunden; ein echter Anbieter-Test
 bleibt bis zur G0-Freigabe aus.
 
@@ -164,6 +165,33 @@ direkten Tabellenzugriff, Ablauf, Pause und Stoppfehler; zusätzlich einen Test
 mit wirklich konkurrierenden Reservierungen. Schema, generierte Migration und
 Typen werden zusammen geprüft. Keine Anbieterprofile oder Nutzertoken in
 Migration, Seed, Fixture oder Testausgabe.
+
+### AP04d: Begrenzte Browserweiterleitung auf der Testseite
+
+Der Worker erhält eine einzige Serverinstanz mit vier Aktionen: Sitzung öffnen,
+ein begrenztes JPEG-Bild lesen, eine einzelne Eingabe senden und Sitzung
+beenden. Jede Anfrage trägt ein Supabase-Benutzertoken. Der Server ermittelt
+den Bediener beim Auth-Dienst, übernimmt keine Benutzer-ID aus dem Request und
+prüft vor jeder Browseraktion die dauerhafte Datenbanksperre. Das Bild bleibt
+auf 512 KiB begrenzt. Eingaben sind nur normierte Klickkoordinaten, kurze
+Texte und eine feste Liste einzelner Tasten. Es gibt keine freie Navigation,
+CDP-Adresse, Anbieter-URL, Profil-ID oder Cookies in Antworten. Unklare
+Eingabeergebnisse werden nicht automatisch wiederholt.
+
+Zunächst werden HTTP-Vertrag und Bild-/Eingabeweg mit künstlichem Browser
+geprüft: fremder Workspace, fremdes Konto, falscher Bediener, Ablauf, Pause,
+Browserabbruch, zu große Bilder und ungültige Eingaben. Danach kann die
+vorhandene Angular-Testseite den Weg hinter einer bewusst aktivierten
+Serveranbindung anzeigen. Der externe Anbieter bleibt bis G0 unangetastet;
+erst ein ausdrücklich freigegebenes isoliertes Profil ermöglicht G1.
+
+**Stand 27.09.:** Die HTTP-Aktionen, der ausdrücklich aktivierte Workerstart,
+periodische Fristprüfung, lokale Angular-Weiterleitung und der separate
+Browser-Testbereich auf der vorhandenen Testseite sind implementiert. Tests
+prüfen unter anderem fremde Konten und Workspaces, zu große Daten, parallele
+Aktionen, Token-Erneuerung, Fehler bei Eingaben und Browserunterbrechung.
+Produktive Weiterleitung, echter Anbieter-Lauf und Desktop-/iPad-Abnahme
+bleiben bis zur G0-Freigabe offen.
 
 ## Danach
 

@@ -70,7 +70,7 @@ function setup() {
 }
 
 test('binds access to workspace, account, and operator', async () => {
-  const { broker, stopped } = setup();
+  const { broker, leases, stopped } = setup();
   const id = await broker.open(scopeA);
   await assert.rejects(
     broker.run(scopeB, id, async (browser) => browser.version()),
@@ -84,17 +84,30 @@ test('binds access to workspace, account, and operator', async () => {
     broker.run({ ...scopeA, userId: 'user-b' }, id, async (browser) => browser.version()),
     /Sitzungszugriff verweigert/,
   );
-  await assert.rejects(
-    broker.run({ ...scopeA, userAccessToken: 'other-token' }, id, async (browser) =>
+  assert.equal(
+    await broker.run({ ...scopeA, userAccessToken: 'renewed-token' }, id, async (browser) =>
       browser.version(),
     ),
-    /Sitzungszugriff verweigert/,
+    'provider-account-a',
   );
+  assert.equal(leases.get(id)?.scope.userAccessToken, 'renewed-token');
   assert.equal(
     await broker.run(scopeA, id, async (browser) => browser.version()),
     'provider-account-a',
   );
   assert.deepEqual(stopped, []);
+});
+
+test('recovers before serving and stops every active profile on shutdown', async () => {
+  const { broker, leases, stopped } = setup();
+  await broker.ready();
+  const first = await broker.open(scopeA);
+  const second = await broker.open(scopeB);
+  await broker.shutdown();
+  assert.deepEqual(stopped, ['provider-account-a', 'provider-account-b']);
+  assert.equal(leases.get(first)?.active, false);
+  assert.equal(leases.get(second)?.active, false);
+  await assert.rejects(broker.run(scopeA, first, async (browser) => browser.version()));
 });
 
 test('does not start a new browser before restart cleanup succeeds', async () => {

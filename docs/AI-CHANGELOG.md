@@ -1,5 +1,20 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-27 – Juna – Browser-Testbereich an sicheren Worker angeschlossen
+
+**Auftrag:** Die kontogebundene Vinted-Sitzungstechnik auf dem bestehenden
+Worker-Branch fortsetzen und auf der eigenen Testseite prüfbar machen.
+
+**Änderung:** Authentisierte Worker-API mit begrenzten Bildern und einzelnen
+Eingaben, Start- und Stoppablauf sowie ein getrennter Browserbereich auf der
+vorhandenen Testseite. Die lokale Entwicklung leitet den API-Pfad nur an einen
+bewusst gestarteten Worker weiter. Der Bereich bleibt ohne ihn gesperrt.
+
+**Prüfung:** 37 Worker-Tests und 10 gezielte Angular-Tests mit künstlichen
+Antworten, Typprüfungen, Builds und gezieltes ESLint erfolgreich. Kein echtes
+GoLogin- oder Vinted-Profil verwendet. Produktive Anbindung und Anbieter-Test
+bleiben bis zur konkreten G0-Freigabe offen.
+
 ## 2026-09-27 – Juna – Dauerhafte Sperre für Marktplatz-Browsersitzungen
 
 **Auftrag:** Die vorhandene Vinted-Arbeit auf dem Worker-Branch um eine sichere,

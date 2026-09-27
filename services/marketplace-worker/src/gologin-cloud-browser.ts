@@ -1,7 +1,12 @@
-import { chromium, type Browser } from 'playwright-core';
+import { chromium, type Browser, type Page } from 'playwright-core';
 
-type BrowserConnection = Pick<Browser, 'close' | 'version'>;
-export type BrowserInfo = Pick<Browser, 'version'>;
+type BrowserConnection = Pick<Browser, 'close' | 'version'> & Partial<Pick<Browser, 'contexts'>>;
+export interface BrowserInfo extends Pick<Browser, 'version'> {
+  capture?(): Promise<Uint8Array>;
+  click?(xRatio: number, yRatio: number): Promise<void>;
+  type?(value: string): Promise<void>;
+  press?(key: 'Enter' | 'Tab' | 'Escape' | 'Backspace'): Promise<void>;
+}
 
 export interface CloudBrowserHandle {
   close(): Promise<void>;
@@ -56,8 +61,35 @@ export class GoLoginCloudBrowser {
     let connectionClosed = false;
     let providerStopped = false;
     let stopPromise: Promise<void> | undefined;
+    const currentPage = (): Page => {
+      const pages = connection.contexts?.().flatMap((context) => context.pages()) ?? [];
+      const page = pages.at(-1);
+      if (!page) throw new Error('Browserseite fehlt');
+      return page;
+    };
+    const browserInfo: BrowserInfo = {
+      version: () => connection.version(),
+      capture: () =>
+        currentPage().screenshot({
+          type: 'jpeg',
+          quality: 65,
+          scale: 'css',
+          animations: 'disabled',
+          timeout: 5_000,
+        }),
+      click: async (xRatio, yRatio) => {
+        const page = currentPage();
+        const size =
+          page.viewportSize() ??
+          (await page.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight })));
+        if (size.width <= 0 || size.height <= 0) throw new Error('Browserfenster fehlt');
+        await page.mouse.click(Math.floor(xRatio * size.width), Math.floor(yRatio * size.height));
+      },
+      type: async (value) => currentPage().keyboard.insertText(value),
+      press: async (key) => currentPage().keyboard.press(key),
+    };
     return {
-      run: (operation) => operation(connection),
+      run: (operation) => operation(browserInfo),
       close: async () => {
         if (providerStopped) return;
         if (stopPromise) return stopPromise;

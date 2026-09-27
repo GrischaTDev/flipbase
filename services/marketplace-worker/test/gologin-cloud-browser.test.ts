@@ -134,3 +134,40 @@ test('shares one provider stop across concurrent close calls', async () => {
   await Promise.all([first, second]);
   assert.equal(stops, 1);
 });
+
+test('captures and controls only the active browser page with bounded commands', async () => {
+  const calls: string[] = [];
+  const frame = Uint8Array.from([0xff, 0xd8, 0xff, 0xd9]);
+  const page = {
+    screenshot: async (options: Record<string, unknown>) => {
+      assert.equal(options['type'], 'jpeg');
+      assert.equal(options['quality'], 65);
+      assert.equal(options['scale'], 'css');
+      calls.push('capture');
+      return frame;
+    },
+    viewportSize: () => ({ width: 800, height: 600 }),
+    mouse: { click: async (x: number, y: number) => calls.push(`click:${x}:${y}`) },
+    keyboard: {
+      insertText: async (value: string) => calls.push(`type:${value}`),
+      press: async (key: string) => calls.push(`press:${key}`),
+    },
+  };
+  const provider = new GoLoginCloudBrowser({
+    token: 'private-token',
+    fetch: async () => new Response('{}', { status: 200 }),
+    connect: async () =>
+      ({
+        close: async () => undefined,
+        version: () => 'test-browser',
+        contexts: () => [{ pages: () => [page] }],
+      }) as never,
+  });
+  const browser = await provider.open(profileId);
+  assert.deepEqual(await browser.run(async (info) => info.capture?.()), frame);
+  await browser.run(async (info) => info.click?.(0.25, 0.75));
+  await browser.run(async (info) => info.type?.('synthetic input'));
+  await browser.run(async (info) => info.press?.('Tab'));
+  assert.deepEqual(calls, ['capture', 'click:200:450', 'type:synthetic input', 'press:Tab']);
+  await browser.close();
+});

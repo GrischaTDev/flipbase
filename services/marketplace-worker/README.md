@@ -27,10 +27,28 @@ npm run build
 ```
 
 Die Tests verwenden ausschließlich künstliche Anbieterantworten. Die dauerhafte
-Sperre, Profilzuordnung und Wiederanlauf-Bereinigung liegen als Datenbankschema
-und Serverbausteine vor. Es gibt noch keinen HTTP-Endpunkt und keine begrenzte
-Bild-/Eingabeweiterleitung. Das Paket wird daher nicht produktiv gestartet. Die
-vorhandene Seite `/marketplaces/vinted/session-test` bleibt eine Simulation.
+Sperre, Profilzuordnung, Wiederanlauf-Bereinigung und authentisierte HTTP-API
+liegen vor. Die API bietet `GET /marketplace-browser/healthz` sowie Start, Bild,
+Einzeleingabe und Stopp unter `/marketplace-browser/sessions`. Jede Aktion wird
+mit dem Supabase-Benutzertoken und der Datenbanksperre geprüft. Bilder sind auf
+512 KiB begrenzt; Anbieter-Token, Profil-ID und CDP-Adresse verlassen den Worker
+nicht. Vor dem ersten HTTP-Zugriff werden ungeklärte Profile bereinigt. Der
+laufende Prozess prüft aktive Sitzungen alle 30 Sekunden und stoppt sie beim
+geordneten Herunterfahren.
+
+Der Dienst startet nur mit `MARKETPLACE_BROWSER_TEST_ENABLED=1` und den
+serverseitigen Werten `SUPABASE_URL`, `SUPABASE_ANON_KEY`,
+`SUPABASE_SERVICE_ROLE_KEY` und `GOLOGIN_API_TOKEN`. Er bindet standardmäßig
+an `127.0.0.1:4179`. Die Angular-Entwicklungsumgebung leitet ausschließlich
+`/marketplace-browser/**` dorthin weiter. Die vorhandene Seite
+`/marketplaces/vinted/session-test` zeigt einen getrennten Browser-Testbereich;
+ohne erreichbaren Dienst bleibt sein Start gesperrt. Die bisherige Simulation
+bleibt bestehen.
+
+Der Dienst wurde nicht mit einem echten Profil gestartet. Eine produktive
+Reverse-Proxy- oder Container-Anbindung ist nicht eingerichtet. Den Start mit
+einem isolierten Testprofil erst nach G0-Freigabe durchführen und die in AP04b
+beschriebenen Desktop-/iPad-Prüfungen danach protokollieren.
 
 Vor einer Aktivierung müssen die offenen Schritte in AP04b des
 [Vinted-Plans](../../docs/superpowers/plans/2026-09-26-vinted-marketplace.md)

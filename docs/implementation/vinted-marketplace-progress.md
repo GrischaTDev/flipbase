@@ -1,5 +1,27 @@
 # Arbeitsstand: Vinted-Marktplatzverwaltung
 
+## 27. September 2026 – Begrenzte Browserweiterleitung an die Testseite
+
+Auf `juna/vinted-browser-worker` ergänzt die vorhandene Sitzungstestseite einen
+getrennten Browserbereich. Der Worker authentisiert jede Anfrage über Supabase,
+prüft Workspace, Konto, Bediener und dauerhafte Sperre vor Aktionen und gibt nur
+begrenzte JPEG-Bilder sowie ausdrücklich einzelne Eingaben weiter. Nach
+Token-Erneuerung bleibt die Bindung an dieselbe Person und dasselbe Konto
+erhalten. Unklare Eingaben werden nicht wiederholt. Vor dem Serverstart wird
+offener Anbieterzustand bereinigt; aktive Sitzungen werden regelmäßig geprüft
+und bei geordnetem Stopp geschlossen.
+
+Der Browserbereich bleibt ohne lokal bewusst gestarteten Worker gesperrt.
+Weder GoLogin noch Vinted wurden mit einem echten Konto oder Profil geöffnet.
+Die produktive Weiterleitung und G1-Prüfung auf Desktop und iPad sind offen;
+dafür ist zuerst eine konkrete G0-Freigabe erforderlich.
+
+**Prüfungen:** 37 Worker-Tests mit künstlichen Antworten, Worker-Typprüfung und
+-Bau; 10 gezielte Angular-Tests mit synthetischem HTTP-/Bildpfad und AXE-
+Strukturprüfung; App-Typprüfung, Produktionsbau und gezieltes ESLint bestanden.
+
+---
+
 ## 27. September 2026 – Dauerhafte Browsersperre und Wiederanlauf
 
 Auf `juna/vinted-browser-worker` sind die zuvor nur simulierten Sperrregeln für

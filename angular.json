@@ -95,6 +95,9 @@
         },
         "serve": {
           "builder": "@angular/build:dev-server",
+          "options": {
+            "proxyConfig": "services/marketplace-worker/angular-dev-proxy.json"
+          },
           "configurations": {
             "production": {
               "buildTarget": "flipbase:build:production"

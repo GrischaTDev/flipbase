@@ -1,0 +1,95 @@
+<app-card
+  title="Browser-Test mit eigenem Profil"
+  subtitle="Der Browser wird nur für das oben ausgewählte Konto geöffnet."
+>
+  @if (!store.available()) {
+    <app-notice-banner>
+      Der Browser-Testdienst ist nicht verbunden. Die Sitzungssimulation oben bleibt verfügbar.
+    </app-notice-banner>
+  } @else if (store.connection(); as connection) {
+    <p class="text-sm text-fb-text-secondary">
+      Ausgewähltes Konto: <strong class="text-fb-text-primary">{{ connection.displayName }}</strong>
+    </p>
+    <app-notice-banner class="mt-4">
+      Starte nur ein ausdrücklich freigegebenes, isoliertes Testprofil. Das Browserbild bleibt
+      ausschließlich während dieser Sitzung im Speicher dieser Seite.
+    </app-notice-banner>
+    @if (store.error(); as error) {
+      <app-notice-banner class="mt-4" announcement="alert">{{ error }}</app-notice-banner>
+    }
+    <div class="mt-4 flex flex-wrap gap-2">
+      <app-button
+        variant="primary"
+        [disabled]="!store.canStart()"
+        [loading]="store.busy()"
+        (clicked)="store.start()"
+        >Browser-Test starten</app-button
+      >
+      <app-button [disabled]="!store.canAct()" (clicked)="store.refresh()"
+        >Bild aktualisieren</app-button
+      >
+      <app-button variant="destructive" [disabled]="!store.canAct()" (clicked)="store.close()"
+        >Browser beenden</app-button
+      >
+    </div>
+    @if (store.session(); as session) {
+      @if (session.frameUrl) {
+        <div class="mt-4 max-w-full overflow-auto">
+          <button
+            type="button"
+            class="block max-w-full rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary disabled:opacity-50"
+            aria-label="Browserbild anklicken; mit Enter die Bildmitte anklicken"
+            [disabled]="!store.canAct()"
+            (click)="clickFrame($event)"
+          >
+            <img
+              [src]="session.frameUrl"
+              alt="Aktuelles Browserbild des ausgewählten Testkontos"
+              class="block max-w-full"
+            />
+          </button>
+        </div>
+      }
+      <div class="mt-4 max-w-md space-y-2">
+        <app-text-field
+          label="Text für das aktive Browserfeld"
+          [formControl]="text"
+          [maxLength]="256"
+        />
+        <app-button
+          [disabled]="!store.canAct() || !text.value || text.value.length > 256"
+          (clicked)="sendText()"
+          >Text einmal eingeben</app-button
+        >
+      </div>
+      <div
+        class="mt-4 flex flex-wrap gap-2"
+        role="group"
+        aria-label="Einzeltasten für den Testbrowser"
+      >
+        <app-button
+          [disabled]="!store.canAct()"
+          (clicked)="store.input({ kind: 'press', key: 'Tab' })"
+          >Tab</app-button
+        >
+        <app-button
+          [disabled]="!store.canAct()"
+          (clicked)="store.input({ kind: 'press', key: 'Enter' })"
+          >Enter</app-button
+        >
+        <app-button
+          [disabled]="!store.canAct()"
+          (clicked)="store.input({ kind: 'press', key: 'Escape' })"
+          >Escape</app-button
+        >
+        <app-button
+          [disabled]="!store.canAct()"
+          (clicked)="store.input({ kind: 'press', key: 'Backspace' })"
+          >Rücktaste</app-button
+        >
+      </div>
+    }
+  } @else {
+    <p class="text-sm text-fb-text-secondary">Wähle oben ein Konto für den Browser-Test aus.</p>
+  }
+</app-card>
