@@ -1,5 +1,55 @@
 # Arbeitsstand: Vinted-Marktplatzverwaltung
 
+## 27. September 2026 – Kontogebundene Testsitzung
+
+Basis: `c004b0d4` auf `juna/vinted-marketplace-foundation`. Der bestehende
+Kontobereich und die gespeicherten Ansichten wurden weiterverwendet.
+
+Der Anbieterabgleich ergab: GoLogin bietet Cloud-Start/-Stopp und eine
+`remoteOrbitaUrl`; diese Liveansicht-URL ist selbst ein Zugang. Playwright kann
+einen Chromium-Browser über CDP verbinden, die Unterstützung ist dabei
+eingeschränkt. Eine sichere, pro Flipbase-Nutzer widerrufbare Einbettung wurde
+aus den öffentlichen Anbieterunterlagen nicht nachgewiesen. Deshalb gibt die
+neue Testseite weder Anbieter-Token noch CDP- oder Liveansicht-URLs aus.
+Quellen und Umsetzungsschritte stehen im [Plan](../superpowers/plans/2026-09-26-vinted-marketplace.md#ap04a-kontogebundene-testsitzung-vor-anbieteranschluss).
+
+Die neue Seite `/marketplaces/vinted/session-test` prüft ausschließlich eine
+künstliche Sitzung. Die Datenbank bindet sie an Workspace, Verbindung und
+angemeldeten Benutzer. Ein zweiter Start desselben Kontos wird gesperrt;
+Fristablauf, Pause, Widerruf und simulierter Browserabbruch verhindern weitere
+Aktionen. Ein zweiter Admin desselben Workspace darf die fremde Sitzung nicht
+lesen oder widerrufen. Eine andere Kontoverbindung behält ihren eigenen Zustand. Auch eine
+verspätete Antwort nach A → B → A wird in Angular verworfen. Die neue
+Migration wurde aus dem isolierten Unterschied zwischen vorhandenen Migrationen
+und dem neuen Schema erzeugt. Der Generator ließ ausdrückliche `revoke`-Rechte
+aus; ein getesteter Nachbearbeitungsschritt ergänzte sie aus der Schemadatei.
+
+**Tatsächlich geprüft:** Neuer Test zunächst rot; nach Umsetzung 32 neue und
+31 bestehende Marktplatz-Datenbanktests grün. Frisch aufgebaute lokale Datenbank
+mit der erzeugten Migration; gesamte Datenbanktestsuite: 60 Dateien, 2127 Tests
+grün. Sechs neue Modelltests und 38 gezielte Angular-Tests grün. TypeScript,
+gezieltes ESLint und Angular-Produktionsbau erfolgreich. Drei Chromium-Abläufe
+mit künstlicher Anmeldung und abgefangenen RPC-Antworten grün; die neue Testseite
+wurde bei 390 px einschließlich AXE und Überlauf geprüft. Drei Tests für die
+Migration-Nachbearbeitung grün.
+Die vollständige Anwendungstestsuite ist nach Korrektur zweier veralteter
+Einstellungs-Routenerwartungen ebenfalls grün: 1502 Node-, 268 DOM- und
+1183 Angular-Tests. Die bestehende Route `settings/marketplaces` war in diesen
+alten Testlisten noch nicht enthalten. Die Shared-UI-Prüfung meldete null
+Abweichungen; Schema- und Migrations-Workflowtests bestanden.
+`supabase db lint --schema public --fail-on error` bestand nach dem erneuten
+Migrations-Neuaufbau; verbleibende Warnungen betreffen bestehende Funktionen.
+
+**Grenze:** Es wurde kein GoLogin-Profil geöffnet, kein Vinted-Konto benutzt,
+kein Liveimport und kein Nachrichtenversand eingerichtet. Die Simulation ist
+kein G1-Nachweis für eine echte interaktive Anmeldung. Der spätere Worker muss
+Providerprofile bei Ablauf und Widerruf ausdrücklich stoppen und die Liveansicht
+ohne Anbieter-URL auf Flipbase-Berechtigungen begrenzen. G0-Freigaben bleiben offen.
+Die Datenbanktests prüfen die zweite Anmeldung nacheinander; ein Test mit zwei
+tatsächlich gleichzeitigen Transaktionen steht für die Worker-Anbindung noch aus.
+
+---
+
 ## Native Oberfläche: Fortsetzung am 26. September 2026
 
 Basis: `611687a43d214f3532f2464a9e04dedd94082c2c` auf demselben Feature-Branch.

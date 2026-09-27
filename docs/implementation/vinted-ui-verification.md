@@ -1,5 +1,22 @@
 # Vinted-Oberfläche: geprüfter Stand vom 26. September 2026
 
+## Ergänzung vom 27. September 2026: eigene Sitzungstestseite
+
+Auf dem bestehenden Branch ist `/marketplaces/vinted/session-test` als
+kontogebundene Simulation hinzugekommen. Die Seite verwendet die vorhandenen
+Karten, Buttons, Badges und Hinweise. Start, Statusprüfung, Testaktion,
+simulierter Abbruch und Widerruf laufen über neue autorisierte Datenbank-RPCs.
+Ein Konto- oder Workspacewechsel verbirgt den vorherigen Sitzungszustand sofort.
+
+Geprüft wurden 38 gezielte Angular-Tests und drei Chromium-Abläufe. Der neue
+Ablauf wechselte bei 390 px von Konto A zu B, bestätigte die getrennten
+Sitzungsstände und sperrte Aktionen nach einem simulierten Browserabbruch.
+Der AXE-Lauf der Testseite fand keine Verstöße; horizontaler Überlauf trat
+nicht auf. TypeScript und Produktionsbau bestanden ebenfalls. Der Test verwendet
+ausnahmslos künstliche Serverantworten und stellt keine Vinted-Anmeldung dar.
+
+---
+
 Geprüfter Quellcode: `de2bfb82eda69448ab8ae9a711588f39f8f0aca6`.
 Branch: `juna/vinted-marketplace-foundation`.
 GitHub-Lauf: `36257352391`, Job `108446552896`, erfolgreich abgeschlossen.

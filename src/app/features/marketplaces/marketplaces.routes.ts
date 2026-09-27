@@ -10,6 +10,13 @@ export const MARKETPLACES_ROUTES: Routes = [
       import('./vinted-workspace.component').then((m) => m.VintedWorkspaceComponent),
     children: [
       { path: '', redirectTo: 'overview', pathMatch: 'full' },
+      {
+        path: 'session-test',
+        loadComponent: () =>
+          import('./components/marketplace-session-test/marketplace-session-test.component').then(
+            (m) => m.MarketplaceSessionTestComponent,
+          ),
+      },
       ...['overview', 'listings', 'messages', 'sales', 'profile', 'activity'].map((section) => ({
         path: section,
         data: { section },

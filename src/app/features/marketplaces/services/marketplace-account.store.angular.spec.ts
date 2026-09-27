@@ -114,6 +114,13 @@ describe('Kontogebundene Marktplatzansicht', () => {
     await old;
     expect(store.snapshot()?.profile?.displayName).toBe(accountA.connectionId);
   });
+  it('zählt jeden Kontowechsel auch bei A → B → A für nachgelagerte Sitzungen', async () => {
+    await settle();
+    const before = store.selectionVersion();
+    await store.selectConnection(accountB.connectionId);
+    await store.selectConnection(accountA.connectionId);
+    expect(store.selectionVersion()).toBe(before + 2);
+  });
   it('verbirgt private Daten beim Workspacewechsel sofort, noch vor dem nächsten Effekt', async () => {
     await settle();
     currentWorkspace.set({ id: 'foreign-workspace' });

@@ -6,6 +6,12 @@
   <div header-actions class="flex flex-wrap items-center gap-2">
     <app-button link="/settings/marketplaces" [icon]="settingsIcon">Konten verwalten</app-button>
     <app-button
+      link="/marketplaces/vinted/session-test"
+      [icon]="sessionTestIcon"
+      [disabled]="!store.selectedConnection()"
+      >Sitzung testen</app-button
+    >
+    <app-button
       link="/marketplaces/vinted/activity"
       [icon]="activityIcon"
       [disabled]="!store.selectedConnection()"

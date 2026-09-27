@@ -1716,6 +1716,53 @@ export type Database = {
           },
         ]
       }
+      marketplace_browser_test_sessions: {
+        Row: {
+          connection_id: string
+          created_at: string
+          ended_at: string | null
+          expires_at: string
+          id: string
+          interaction_count: number
+          last_seen_at: string | null
+          started_by: string
+          state: string
+          workspace_id: string
+        }
+        Insert: {
+          connection_id: string
+          created_at?: string
+          ended_at?: string | null
+          expires_at: string
+          id?: string
+          interaction_count?: number
+          last_seen_at?: string | null
+          started_by: string
+          state?: string
+          workspace_id: string
+        }
+        Update: {
+          connection_id?: string
+          created_at?: string
+          ended_at?: string | null
+          expires_at?: string
+          id?: string
+          interaction_count?: number
+          last_seen_at?: string | null
+          started_by?: string
+          state?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_browser_test_sessio_workspace_id_connection_id_fkey"
+            columns: ["workspace_id", "connection_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_connections"
+            referencedColumns: ["workspace_id", "id"]
+          },
+        ]
+      }
       marketplace_connections: {
         Row: {
           capabilities: Json
@@ -5097,6 +5144,27 @@ export type Database = {
         Args: {
           p_connection_id: string
           p_paused: boolean
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_test_session_action: {
+        Args: {
+          p_action: string
+          p_connection_id: string
+          p_session_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_test_session_start: {
+        Args: { p_connection_id: string; p_workspace_id: string }
+        Returns: Json
+      }
+      marketplace_test_session_status: {
+        Args: {
+          p_connection_id: string
+          p_session_id: string
           p_workspace_id: string
         }
         Returns: Json

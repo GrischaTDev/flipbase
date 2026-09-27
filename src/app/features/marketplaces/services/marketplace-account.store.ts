@@ -42,6 +42,7 @@ export class MarketplaceAccountStore {
   );
   private readonly accountList = signal<readonly MarketplaceConnection[]>([]);
   private readonly activeId = signal<string | null>(null);
+  private readonly selectionEpoch = signal(0);
   private readonly accountSnapshot = signal<MarketplaceSnapshot | null>(null);
   private readonly conversationId = signal<string | null>(null);
   private readonly messagePage = signal<MarketplacePage<MarketplaceEntry> | null>(null);
@@ -64,6 +65,7 @@ export class MarketplaceAccountStore {
   readonly selectedConnection = computed(
     () => this.connections().find((item) => item.connectionId === this.activeId()) ?? null,
   );
+  readonly selectionVersion = this.selectionEpoch.asReadonly();
   readonly snapshot = computed(() =>
     this.current() && this.canManage() ? this.accountSnapshot() : null,
   );
@@ -107,6 +109,7 @@ export class MarketplaceAccountStore {
     const previousId = preferredId ?? this.activeId();
     const revision = ++this.connectionsRevision;
     this.selectionRevision++;
+    this.selectionEpoch.update((value) => value + 1);
     this.conversationRevision++;
     this.accountList.set([]);
     this.activeId.set(null);
@@ -145,6 +148,7 @@ export class MarketplaceAccountStore {
     const key = this.contextKey();
     if (!connection || !key || !this.canManage()) return;
     const revision = ++this.selectionRevision;
+    this.selectionEpoch.update((value) => value + 1);
     this.conversationRevision++;
     this.activeId.set(connection.connectionId);
     this.accountSnapshot.set(null);
@@ -334,12 +338,14 @@ export class MarketplaceAccountStore {
     if (error instanceof MarketplaceApiError && error.code === 'forbidden') {
       this.connectionsRevision++;
       this.selectionRevision++;
+      this.selectionEpoch.update((value) => value + 1);
       this.conversationRevision++;
       this.reset();
     }
     this.loadError.set(errorMessage(error));
   }
   private reset(): void {
+    this.selectionEpoch.update((value) => value + 1);
     this.accountList.set([]);
     this.activeId.set(null);
     this.accountSnapshot.set(null);

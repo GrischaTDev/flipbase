@@ -49,14 +49,64 @@ Der hier angelegte Validator führt selbst keine Aktion aus.
 
 ## Früher G1-Nachweis
 
-- [ ] Vor breitem UI-Ausbau sichere Provider-Einbettung auf eigener Testseite prüfen.
-- [ ] Zugriff auf fremde Profile, abgelaufene Tickets und Widerruf testen.
+- [ ] GoLogin-Liveansicht auf einer eigenen Testseite sicher einbetten. Die
+      veröffentlichte `remoteOrbitaUrl` ist bereits eine Zugangsberechtigung und
+      darf nicht als direkter Link oder `iframe`-Quelle an den Client gehen.
+- [ ] Zugriff auf fremde Profile, abgelaufene Tickets und Widerruf mit einem
+      echten Anbieterprofil prüfen; dafür sind G0-Freigaben und ein isoliertes
+      Testprofil nötig.
 - [ ] Kein echter Kontopilot ohne G0/G1-Freigaben.
+
+### AP04a: Kontogebundene Testsitzung vor Anbieteranschluss
+
+**Anbieterbefund vom 27.09.2026:** GoLogin dokumentiert Start und Stopp eines
+Cloud-Profils (`POST`/`DELETE /browser/{id}/web`). Der Start liefert eine
+`remoteOrbitaUrl`, die ohne zusätzliche Anmeldung zugänglich ist. Playwright
+verbindet sich per `chromium.connectOverCDP()` mit einem Chromium-Profil; diese
+Verbindung hat gegenüber dem Playwright-Protokoll eingeschränkte Unterstützung.
+Das Schließen der CDP-Verbindung stoppt das Cloud-Profil nicht zuverlässig.
+In den geprüften öffentlichen GoLogin-Unterlagen ist eine auf einen
+Flipbase-Nutzer begrenzte Einbettung nicht nachgewiesen. Anbieter-Token, CDP-URL und
+`remoteOrbitaUrl` bleiben deshalb ausschließlich auf dem Server.
+
+Quellen: [GoLogin API](https://api.gologin.com/docs),
+[GoLogin Playwright-/Cloud-Test](https://gologin.com/blog/playwright-automation-tool-in-the-cloud/),
+[Playwright CDP](https://playwright.dev/docs/api/class-browsertype),
+[Playwright Authentifizierungszustand](https://playwright.dev/docs/auth).
+
+**Umfang dieses Pakets:** Ein ausschließlich künstlicher Sitzungsversuch auf
+`/marketplaces/vinted/session-test`. Eine Datenbanksperre bindet die Sitzung
+unveränderlich an Workspace, Verbindung und angemeldeten Benutzer. Jede
+Status-/Interaktionsanfrage prüft diese Bindung erneut. Pro Verbindung gibt es
+höchstens eine aktive Bedienung. Fristablauf, Pausieren, Widerruf und simulierter
+Browserabbruch sperren weitere Aktionen. Keine Browser- oder Vinted-Geheimnisse
+werden gespeichert oder an Angular ausgegeben.
+
+- [x] Anbieter-APIs anhand offizieller Unterlagen geprüft und die Trennlinie
+      zwischen Test und echtem Browser festgelegt.
+- [x] Servergespeicherte Kontosperre, Ablauf, Widerruf und simulierten Abbruch
+      mit autorisierten RPCs umgesetzt.
+- [x] Eigene Testseite mit vorhandenen Shared Components angebunden.
+- [x] Konto-/Workspace-Trennung, abgelaufene Zugriffe, Pause und Abbruch in
+      Datenbank-, Angular- und Browserprüfungen nachgewiesen.
+- [ ] Anbieterprofil und echte interaktive Einbettung nach G0-Freigaben prüfen.
+
+**Abnahme:** Datenbanktests für zwei Workspaces und zwei Konten, zweiten Benutzer,
+abgelaufene Sitzung, parallelen Start, Pause, Widerruf und Browserabbruch;
+Angular-Test für verspätete Antworten nach Konto-/Workspacewechsel; Bau und
+gezielte Format-/Lintprüfung. Die Testseite bezeichnet das Ergebnis sichtbar als
+Simulation. Sie beweist noch keine GoLogin-Einbettung und keinen Vinted-Zugriff.
+
+**Danach:** In einem separaten Worker ein ausdrücklich freigegebenes,
+serverseitig zugeordnetes Testprofil öffnen, vor jeder Provideraktion die
+Sitzungssperre prüfen, bei Ablauf/Widerruf den Provider ausdrücklich stoppen und
+eine authentisierte Bild-/Eingabeweiterleitung ohne Anbieter-URL an den Client
+prüfen. Erst dann kann G1 auf Desktop und iPad bewertet werden.
 
 ## Danach
 
 - [x] AP02: Geschützte Feature-Routen, Shell, Tabs und Kontowechsler an gespeicherte Konten angeschlossen. Künstliche Daten ausschließlich in Tests.
-- [ ] AP03: Persistente Konten, Veröffentlichungsscope, Rechte und lokale Datenbanktests.
+- [x] AP03: Persistente Konten, Veröffentlichungsscope, Rechte und lokale Datenbanktests.
 - [ ] AP04: Dauerhafte Aufträge, Worker, Besitzrechte und Session-Broker.
 - [ ] AP05: Nachgewiesener Leseumfang, Pagination und vorhandene Bestandszuordnung.
 - [ ] AP06: Bewusst gesendete Textantworten, Ergebnisabgleich und Wiederholschutz.

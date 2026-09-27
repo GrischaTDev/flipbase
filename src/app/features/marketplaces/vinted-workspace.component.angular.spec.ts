@@ -182,6 +182,7 @@ describe('Vinted-Bereich in Flipbase', () => {
     ).toEqual(['Übersicht', 'Inserate', 'Nachrichten', 'Verkäufe', 'Profil']);
     expect(element.querySelector('a[href="/settings/marketplaces"]')).not.toBeNull();
     expect(element.querySelector('a[href="/marketplaces/vinted/activity"]')).not.toBeNull();
+    expect(element.querySelector('a[href="/marketplaces/vinted/session-test"]')).not.toBeNull();
   });
   it('zeigt einen ehrlichen Leerzustand statt eingebauter Beispielkonten', async () => {
     api.listConnections.mockResolvedValue({ canManage: true, connections: [] });

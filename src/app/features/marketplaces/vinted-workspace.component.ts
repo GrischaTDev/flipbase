@@ -1,7 +1,13 @@
 import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
-import { LucideBell, LucideRefreshCw, LucideSettings, LucideStore } from '@lucide/angular';
+import {
+  LucideBell,
+  LucideRefreshCw,
+  LucideSettings,
+  LucideShieldCheck,
+  LucideStore,
+} from '@lucide/angular';
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
 import { CardComponent } from '../../shared/components/card/card.component';
@@ -49,5 +55,6 @@ export class VintedWorkspaceComponent {
   readonly pageIcon = LucideStore;
   readonly settingsIcon = LucideSettings;
   readonly activityIcon = LucideBell;
+  readonly sessionTestIcon = LucideShieldCheck;
   readonly refreshIcon = LucideRefreshCw;
 }

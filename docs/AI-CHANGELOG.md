@@ -1,5 +1,23 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-27 – Juna – Kontogebundene Vinted-Testsitzung vorbereitet
+
+**Auftrag:** Den bestehenden Marktplatz-Branch mit sicherer Sitzungstechnik
+und einer eigenen Testseite fortsetzen, ohne echte Vinted-Konten zu verwenden.
+
+**Änderung:** Anbieter-Schnittstellen geprüft, künstliche Sitzungssperre je
+Workspace und Konto mit Ablauf und Widerruf ergänzt und eine Testseite an die
+vorhandene Vinted-Oberfläche angeschlossen. Anbieterzugänge werden weder
+gespeichert noch an den Browser ausgegeben. Plan und Prüfprotokoll wurden
+aktualisiert; echte GoLogin-/Playwright-Anmeldung bleibt gesondert freizugeben.
+
+**Prüfung:** Neuaufbau der lokalen Datenbank und 2127 Datenbanktests bestanden.
+Gezielte Angular-/Modelltests, TypeScript, ESLint, Produktionsbau sowie drei
+Browserabläufe mit künstlichen Antworten bestanden. Kein Merge und kein
+produktives Deployment. Die vollständige Anwendungstestsuite bestand nach
+Aktualisierung zweier veralteter Einstellungs-Routenerwartungen ebenfalls.
+Das SQL-Lint für `public` bestand ohne neue Warnungen.
+
 ## 2026-09-26 – Juna – Vinted-Kontobereich sichtbar umgesetzt
 
 **Auftrag:** Auf dem bestehenden Marktplatz-Branch die integrierte Oberfläche

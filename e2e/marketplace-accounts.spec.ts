@@ -50,6 +50,17 @@ async function mockMarketplace(page: Page) {
     lastSyncedAt: null,
   }));
   const calls: { name: string; body: Record<string, unknown> }[] = [];
+  const testSessions = new Map<
+    string,
+    {
+      workspaceId: string;
+      connectionId: string;
+      id: string;
+      state: 'active' | 'expired' | 'revoked' | 'interrupted';
+      expiresAt: string;
+      interactionCount: number;
+    }
+  >();
   await page.route('http://127.0.0.1:54351/**', async (route) => {
     const name = new URL(route.request().url()).pathname.split('/').at(-1) ?? '';
     const body =
@@ -158,10 +169,86 @@ async function mockMarketplace(page: Page) {
         nextCursor: null,
       };
     }
+    if (name === 'marketplace_test_session_start') {
+      const connectionId = String(body['p_connection_id']);
+      const session = {
+        workspaceId,
+        connectionId,
+        id:
+          connectionId === accountIds[0]
+            ? '25000000-0000-4000-8000-000000000031'
+            : '25000000-0000-4000-8000-000000000032',
+        state: 'active' as const,
+        expiresAt: '2099-09-27T10:00:00Z',
+        interactionCount: 0,
+      };
+      testSessions.set(connectionId, session);
+      json = session;
+    }
+    if (name === 'marketplace_test_session_status') {
+      json = testSessions.get(String(body['p_connection_id'])) ?? null;
+    }
+    if (name === 'marketplace_test_session_action') {
+      const session = testSessions.get(String(body['p_connection_id']));
+      if (session) {
+        const action = body['p_action'];
+        if (session.state === 'active' && action === 'ping') session.interactionCount++;
+        if (session.state === 'active' && action === 'interrupt') session.state = 'interrupted';
+        if (session.state === 'active' && action === 'revoke') session.state = 'revoked';
+        json = { ...session, accepted: true };
+      }
+    }
     await route.fulfill({ json });
   });
   return calls;
 }
+
+test('eigene Sitzungstestseite trennt Konten und sperrt einen Browserabbruch @marketplace-preview', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 1000 });
+  const calls = await mockMarketplace(page);
+  await page.goto('/marketplaces/vinted/session-test');
+  await expect(page.getByText('Simulation:', { exact: false })).toBeVisible();
+  await page.getByRole('button', { name: 'Testsitzung starten' }).click();
+  const sessionStatus = page.getByRole('status').filter({ hasText: 'Testaktionen:' });
+  await expect(sessionStatus).toContainText('Aktiv');
+  await page.getByRole('button', { name: 'Testaktion ausführen' }).click();
+  await expect(sessionStatus).toContainText('Testaktionen: 1');
+  await page.getByRole('button', { name: 'Browserabbruch simulieren' }).click();
+  await expect(sessionStatus).toContainText('Browserabbruch');
+  await expect(page.getByRole('button', { name: 'Testaktion ausführen' })).toBeDisabled();
+
+  const select = page.getByRole('combobox', { name: 'Vinted-Konto auswählen' });
+  await select.click();
+  await page.getByRole('option', { name: /Testkonto B/ }).click();
+  await expect(sessionStatus).toHaveCount(0);
+  await page.getByRole('button', { name: 'Testsitzung starten' }).click();
+  await expect(sessionStatus).toContainText('Testaktionen: 0');
+  expect(
+    calls
+      .filter((call) => call.name === 'marketplace_test_session_start')
+      .map((call) => call.body['p_connection_id']),
+  ).toEqual(accountIds);
+  expect(
+    calls
+      .filter((call) => call.name.startsWith('marketplace_test_session_'))
+      .every((call) => call.body['p_workspace_id'] === workspaceId),
+  ).toBe(true);
+  await page.addScriptTag({ content: axe.source });
+  const violations = await page.evaluate(
+    async () =>
+      (
+        await (window as unknown as { axe: typeof axe }).axe.run(
+          document.querySelector('app-marketplace-session-test') as HTMLElement,
+        )
+      ).violations,
+  );
+  expect(violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
+});
 
 async function evidence(page: Page, name: string) {
   const directory = process.env['MARKETPLACE_SCREENSHOT_DIR'];
