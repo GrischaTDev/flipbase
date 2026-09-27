@@ -1,5 +1,27 @@
 # Vinted-Oberfläche: geprüfter Stand vom 26. September 2026
 
+## Ergänzung vom 27. September 2026: lokaler End-to-End-Test
+
+Die vorhandene Testseite lief mit einer echten, isolierten lokalen
+Supabase-Anmeldung, zwei künstlichen Flipbase-Konten und dem Playwright-Worker.
+Desktop (1280 × 900) und iPad-Größe (820 × 1180) zeigten das lesende
+Browserbild. Andere Konto-/Workspace-IDs erhielten 409, ein Eingabeversuch 403.
+
+Beim Kontowechsel verschwand das Bild und die alte Sitzung wurde serverseitig
+geschlossen. Nach künstlich abgelaufenem Zugriff zeigte ein
+weiteres Browserbild zunächst einen Fehler: Das alte Bild blieb stehen. Nach
+der Korrektur wird es freigegeben und ausgeblendet. Ein zweiter Befund betraf
+den gesperrten Neustart trotz bestätigtem Stopp. Der Worker meldet diese Fälle
+jetzt mit 410; die Ansicht gibt danach auch den Start wieder frei. Bei
+unklarem Stopp bleibt die Sperre erhalten. Ein echter Ablauf-Durchlauf und
+dreizehn gezielte Angular-Tests bestätigten das Verhalten.
+
+Der Test nutzt nur ein öffentliches fremdes Profil als lesendes Ziel und
+künstliche Flipbase-Konten. Er belegt keine interaktive Vinted-Anmeldung und
+keinen Inhalt des gezeigten Bildes. G1 bleibt offen.
+
+---
+
 ## Ergänzung vom 27. September 2026: lesender lokaler Browser
 
 Die bestehende Testseite erkennt nun am Worker-Status den lesenden lokalen

@@ -53,7 +53,7 @@ npm run typecheck
 npm run build
 ```
 
-Die Tests verwenden ausschließlich künstliche Anbieterantworten. Die dauerhafte
+Die automatischen Worker-Tests verwenden künstliche Anbieterantworten. Die dauerhafte
 Sperre, Profilzuordnung, Wiederanlauf-Bereinigung und authentisierte HTTP-API
 liegen vor. Die API bietet `GET /marketplace-browser/healthz` sowie Start, Bild,
 Einzeleingabe und Stopp unter `/marketplace-browser/sessions`. Jede Aktion wird
@@ -70,7 +70,15 @@ an `127.0.0.1:4179`. Die Angular-Entwicklungsumgebung leitet ausschließlich
 ohne erreichbaren Dienst bleibt sein Start gesperrt. Die bisherige Simulation
 bleibt bestehen.
 
-Der Dienst wurde nicht mit einer echten Anmeldung gestartet. Eine produktive
+Der lesende Modus wurde außerdem mit einer getrennten lokalen Supabase-Instanz,
+einem künstlichen Flipbase-Nutzer und zwei künstlichen Kontoverbindungen auf der
+vorhandenen Testseite geprüft. Desktop und iPad-Größe, Kontowechsel, Ablauf,
+Eingabesperre und bestätigter Stopp bestanden. Bei einem sicher beendeten
+Browser liefert der Worker 410 und die Testseite erlaubt einen neuen Start.
+Ein nicht bestätigter Stopp bleibt gesperrt. Der gezeigte Seiteninhalt wurde
+nicht inhaltlich ausgewertet.
+
+Der Dienst wurde nicht mit einer echten Vinted-Anmeldung gestartet. Eine produktive
 Reverse-Proxy- oder Container-Anbindung ist nicht eingerichtet. Den Start mit
 einem isolierten Testprofil erst nach G0-Freigabe durchführen und die in AP04b
 beschriebenen Desktop-/iPad-Prüfungen danach protokollieren.

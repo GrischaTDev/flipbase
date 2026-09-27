@@ -4,6 +4,7 @@ import { WorkspaceService } from '../../../core/services/workspace.service';
 import type { AccountScope } from '../models/marketplace.models';
 import { MarketplaceAccountStore } from './marketplace-account.store';
 import {
+  BrowserTestSessionEndedError,
   MarketplaceBrowserTestApiService,
   type BrowserTestInput,
 } from './marketplace-browser-test-api.service';
@@ -129,8 +130,8 @@ export class MarketplaceBrowserTestStore {
       }
       this.state.set({ key, userId, scope, accessToken: token, id, frameUrl: null });
       await this.loadFrame(key, revision, scope, id, token);
-    } catch {
-      if (this.isCurrent(key, revision)) this.setError(key);
+    } catch (error) {
+      if (this.isCurrent(key, revision) && !this.handleConfirmedEnd(error, key)) this.setError(key);
     } finally {
       if (this.isCurrent(key, revision)) this.busyState.set(null);
     }
@@ -144,8 +145,16 @@ export class MarketplaceBrowserTestStore {
     this.errorState.set(null);
     try {
       await this.loadFrame(active.key, revision, active.scope, active.id, this.currentToken());
-    } catch {
-      if (this.isCurrent(active.key, revision)) this.setError(active.key);
+    } catch (error) {
+      if (this.isCurrent(active.key, revision)) {
+        if (this.handleConfirmedEnd(error, active.key)) return;
+        const current = this.session();
+        if (current?.id === active.id) {
+          this.releaseFrame(current.frameUrl);
+          this.state.set({ ...current, frameUrl: null });
+        }
+        this.setError(active.key);
+      }
     } finally {
       if (this.isCurrent(active.key, revision)) this.busyState.set(null);
     }
@@ -161,8 +170,8 @@ export class MarketplaceBrowserTestStore {
       const token = this.currentToken();
       await this.api.input(active.scope, active.id, input, token);
       await this.loadFrame(active.key, revision, active.scope, active.id, token);
-    } catch {
-      if (this.isCurrent(active.key, revision))
+    } catch (error) {
+      if (this.isCurrent(active.key, revision) && !this.handleConfirmedEnd(error, active.key))
         this.errorState.set({
           key: active.key,
           message: 'Die Eingabe ist nicht sicher bestätigt. Prüfe zuerst das Browserbild.',
@@ -229,6 +238,18 @@ export class MarketplaceBrowserTestStore {
 
   private setError(key: string): void {
     this.errorState.set({ key, message: 'Die Browsersitzung konnte nicht bestätigt werden.' });
+  }
+
+  private handleConfirmedEnd(error: unknown, key: string): boolean {
+    if (!(error instanceof BrowserTestSessionEndedError)) return false;
+    const active = this.session();
+    if (active) this.releaseFrame(active.frameUrl);
+    this.state.set(null);
+    this.errorState.set({
+      key,
+      message: 'Die Browsersitzung wurde beendet. Du kannst einen neuen Test starten.',
+    });
+    return true;
   }
 
   private releaseFrame(url: string | null): void {

@@ -11,6 +11,12 @@ export interface BrowserSessionScope {
   userAccessToken: string;
 }
 
+export class MarketplaceBrowserSessionEndedError extends Error {
+  constructor(reason: 'expired' | 'interrupted' = 'expired') {
+    super(reason === 'expired' ? 'Sitzung abgelaufen' : 'Browsersitzung unterbrochen');
+  }
+}
+
 export interface BrowserLease {
   id: string;
   scope: BrowserSessionScope;
@@ -146,14 +152,14 @@ export class MarketplaceBrowserSessionBroker {
     if (session.lease.expiresAt <= Date.now()) active = false;
     if (!active) {
       await this.terminate(sessionId, session);
-      throw new Error('Sitzung abgelaufen');
+      throw new MarketplaceBrowserSessionEndedError('expired');
     }
     try {
       if (!session.browser) throw new Error('Browser fehlt');
       return await session.browser.run(operation);
     } catch {
       await this.terminate(sessionId, session);
-      throw new Error('Browsersitzung unterbrochen');
+      throw new MarketplaceBrowserSessionEndedError('interrupted');
     }
   }
 

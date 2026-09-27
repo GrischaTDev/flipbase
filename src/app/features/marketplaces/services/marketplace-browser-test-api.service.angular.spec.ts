@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { MarketplaceBrowserTestApiService } from './marketplace-browser-test-api.service';
+import {
+  BrowserTestSessionEndedError,
+  MarketplaceBrowserTestApiService,
+} from './marketplace-browser-test-api.service';
 
 const scope = {
   workspaceId: '25600000-0000-4000-8000-000000000011',
@@ -49,5 +52,12 @@ describe('Browser-Test-API', () => {
       vi.fn().mockResolvedValue(new Response(bytes, { headers: { 'Content-Type': 'image/jpeg' } })),
     );
     await expect(api.frame(scope, id, 'user-test-token')).rejects.toThrow('ungültig');
+  });
+
+  it('erkennt eine serverseitig bestätigte beendete Sitzung', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 410 })));
+    await expect(api.frame(scope, id, 'user-test-token')).rejects.toBeInstanceOf(
+      BrowserTestSessionEndedError,
+    );
   });
 });

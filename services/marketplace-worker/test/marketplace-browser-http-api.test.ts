@@ -6,7 +6,10 @@ import {
   SupabaseBrowserUserVerifier,
 } from '../src/marketplace-browser-http-api.ts';
 import type { BrowserInfo } from '../src/gologin-cloud-browser.ts';
-import type { BrowserSessionScope } from '../src/marketplace-browser-session-broker.ts';
+import {
+  MarketplaceBrowserSessionEndedError,
+  type BrowserSessionScope,
+} from '../src/marketplace-browser-session-broker.ts';
 
 const workspaceA = '25600000-0000-4000-8000-000000000011';
 const workspaceB = '25600000-0000-4000-8000-000000000012';
@@ -18,6 +21,7 @@ async function setup(
   frame = Uint8Array.from([0xff, 0xd8, 0xff, 0xd9]),
   captureGate?: Promise<void>,
   readOnly = false,
+  runError?: Error,
 ) {
   const inputs: string[] = [];
   let owner: BrowserSessionScope | undefined;
@@ -57,6 +61,7 @@ async function setup(
       )
         throw new Error('Sitzungszugriff verweigert');
       runs += 1;
+      if (runError) throw runError;
       return operation(browser);
     },
     close: async (scope: BrowserSessionScope, id: string) => {
@@ -123,6 +128,19 @@ test('read-only mode refuses all browser input before accessing the session', as
     assert.equal(input.status, 403);
     assert.deepEqual(api.inputs, []);
     assert.equal(api.runs(), 0);
+  } finally {
+    await api.close();
+  }
+});
+
+test('reports only confirmed session endings as gone for the bound account', async () => {
+  const api = await setup(undefined, undefined, true, new MarketplaceBrowserSessionEndedError());
+  try {
+    const scope = { workspaceId: workspaceA, connectionId: accountA };
+    await api.request('/marketplace-browser/sessions', scope);
+    const path = `/marketplace-browser/sessions/${sessionId}/frame`;
+    assert.equal((await api.request(path, scope)).status, 410);
+    assert.equal((await api.request(path, { ...scope, connectionId: accountB })).status, 409);
   } finally {
     await api.close();
   }

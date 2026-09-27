@@ -121,8 +121,12 @@ Bereinigung ist dann nötig. Dies ist ein begrenzter AP04b-Nachweis, kein G1.
 - [x] Öffentliche URL begrenzen; Eingaben server- und clientseitig sperren.
 - [x] Einen freigegebenen öffentlichen Profilaufruf mit Bild und bestätigtem
       Browser-Stopp ausführen, ohne Anmeldung oder Profilaktion.
-- [ ] Komplette Testseite mit echter lokaler Supabase-Verbindung und
-      freigegebener eigener Testverbindung auf Desktop und iPad prüfen.
+- [x] Komplette Testseite mit isolierter lokaler Supabase-Instanz und
+      künstlicher eigener Flipbase-Testverbindung auf Desktop und iPad prüfen:
+      Start, Browserbild, Kontowechsel, Ablauf, Eingabesperre und Stopp.
+      Bestätigte Ablauf-/Abbruchstopps geben die Ansicht für einen neuen Start
+      frei; ein unklarer Stopp bleibt gesperrt. Dies prüft den lesenden Modus,
+      keine Vinted-Anmeldung oder G1.
 
 **Abgleich vom 27.09.2026:** Die [GoLogin-CDP-Anleitung](https://gologin.com/blog/playwright-automation-tool-in-the-cloud/)
 verbindet Playwright direkt mit `wss://cloudbrowser.gologin.com/connect` und

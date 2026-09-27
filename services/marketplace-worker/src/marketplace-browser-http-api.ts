@@ -1,6 +1,9 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type { BrowserInfo } from './gologin-cloud-browser.ts';
-import type { BrowserSessionScope } from './marketplace-browser-session-broker.ts';
+import {
+  MarketplaceBrowserSessionEndedError,
+  type BrowserSessionScope,
+} from './marketplace-browser-session-broker.ts';
 
 interface BrowserBroker {
   open(scope: BrowserSessionScope): Promise<string>;
@@ -231,7 +234,12 @@ export class MarketplaceBrowserHttpApi {
         response.destroy();
         return;
       }
-      const status = error instanceof RequestError ? error.status : 409;
+      const status =
+        error instanceof RequestError
+          ? error.status
+          : error instanceof MarketplaceBrowserSessionEndedError
+            ? 410
+            : 409;
       json(response, status, {
         error:
           status === 401
@@ -242,9 +250,11 @@ export class MarketplaceBrowserHttpApi {
                 ? 'Anfrage zu groß'
                 : status === 429
                   ? 'Sitzung ist beschäftigt'
-                  : status === 403
-                    ? 'Eingabe ist gesperrt'
-                    : 'Browsersitzung nicht verfügbar',
+                  : status === 410
+                    ? 'Browsersitzung wurde beendet'
+                    : status === 403
+                      ? 'Eingabe ist gesperrt'
+                      : 'Browsersitzung nicht verfügbar',
       });
     }
   }

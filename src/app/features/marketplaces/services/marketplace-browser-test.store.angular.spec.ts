@@ -5,7 +5,10 @@ import { AuthService } from '../../../core/services/auth.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
 import { createMarketplaceFixtures } from '../testing/marketplace-fixtures';
 import { MarketplaceAccountStore } from './marketplace-account.store';
-import { MarketplaceBrowserTestApiService } from './marketplace-browser-test-api.service';
+import {
+  BrowserTestSessionEndedError,
+  MarketplaceBrowserTestApiService,
+} from './marketplace-browser-test-api.service';
 import { MarketplaceBrowserTestStore } from './marketplace-browser-test.store';
 
 const [accountA, accountB] = createMarketplaceFixtures().connections;
@@ -111,6 +114,34 @@ describe('Kontogebundener Browser-Testbereich', () => {
     await store.input({ kind: 'click', x: 0.5, y: 0.5 });
     expect(api.input).not.toHaveBeenCalled();
     expect(store.session()?.id).toBe(id);
+  });
+
+  it('blendet ein altes Browserbild nach fehlgeschlagener Aktualisierung aus', async () => {
+    await store.start();
+    expect(store.session()?.frameUrl).toBe('blob:test');
+    api.frame.mockRejectedValueOnce(new Error('session expired'));
+    await store.refresh();
+    expect(store.session()?.frameUrl).toBeNull();
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:test');
+    expect(store.canAct()).toBe(true);
+    expect(store.canStart()).toBe(false);
+    expect(store.error()).toContain('nicht bestätigt');
+  });
+
+  it('gibt einen bestätigten Ablauf für einen neuen Start frei', async () => {
+    await store.start();
+    api.frame.mockRejectedValueOnce(new BrowserTestSessionEndedError());
+    await store.refresh();
+    expect(store.session()).toBeNull();
+    expect(store.canStart()).toBe(true);
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:test');
+  });
+
+  it('lässt nach einem bestätigten Abbruch beim ersten Bild erneut starten', async () => {
+    api.frame.mockRejectedValueOnce(new BrowserTestSessionEndedError());
+    await store.start();
+    expect(store.session()).toBeNull();
+    expect(store.canStart()).toBe(true);
   });
 
   it('verbirgt die Sitzung sofort bei Workspacewechsel', async () => {

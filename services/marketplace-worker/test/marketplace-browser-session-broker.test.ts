@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
+  MarketplaceBrowserSessionEndedError,
   MarketplaceBrowserSessionBroker,
   type BrowserLease,
   type BrowserSessionScope,
@@ -150,7 +151,7 @@ test('expires access and explicitly stops its provider profile', async () => {
   leases.get(id)!.expiresAt = Date.now() - 1;
   await assert.rejects(
     broker.run(scopeA, id, async (browser) => browser.version()),
-    /Sitzung abgelaufen/,
+    MarketplaceBrowserSessionEndedError,
   );
   assert.deepEqual(stopped, ['provider-account-a']);
   assert.equal(leases.get(id)!.active, false);
@@ -174,7 +175,7 @@ test('stops and releases on browser interruption', async () => {
     broker.run(scopeA, id, async () => {
       throw new Error('private CDP URL');
     }),
-    /Browsersitzung unterbrochen/,
+    MarketplaceBrowserSessionEndedError,
   );
   assert.deepEqual(stopped, ['provider-account-a']);
   assert.equal(leases.get(id)!.active, false);

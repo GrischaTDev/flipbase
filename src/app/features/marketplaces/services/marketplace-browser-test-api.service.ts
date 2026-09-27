@@ -11,6 +11,12 @@ export interface BrowserTestAvailability {
   readOnly: boolean;
 }
 
+export class BrowserTestSessionEndedError extends Error {
+  constructor() {
+    super('Browsersitzung wurde beendet');
+  }
+}
+
 const basePath = '/marketplace-browser/sessions';
 const frameLimit = 512 * 1024;
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -58,6 +64,7 @@ export class MarketplaceBrowserTestApiService {
 
   async frame(scope: AccountScope, sessionId: string, accessToken: string): Promise<Blob> {
     const response = await this.post(`${basePath}/${sessionId}/frame`, scope, accessToken);
+    if (response.status === 410) throw new BrowserTestSessionEndedError();
     if (!response.ok || response.headers.get('content-type') !== 'image/jpeg')
       throw new Error('Browserbild nicht verfügbar');
     const blob = await response.blob();
@@ -84,6 +91,7 @@ export class MarketplaceBrowserTestApiService {
       { ...scope, input },
       accessToken,
     );
+    if (response.status === 410) throw new BrowserTestSessionEndedError();
     if (!response.ok) throw new Error('Eingabe konnte nicht bestätigt werden');
   }
 

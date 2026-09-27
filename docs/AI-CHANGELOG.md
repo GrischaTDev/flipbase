@@ -1,5 +1,22 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-27 – Juna – Lokale Browser-Testseite Ende zu Ende geprüft
+
+**Auftrag:** Den bestehenden lesenden Vinted-Browser-Test über die echte
+Flipbase-Testseite, eine eigene lokale Testverbindung und den Worker fortsetzen.
+
+**Änderung:** Eine getrennte Supabase-Vorschau mit künstlichem Nutzer und zwei
+Konten diente für Desktop-, iPad-, Ablauf- und Kontowechselprüfungen. Ein dabei
+gefundener Anzeigefehler wurde behoben: Nach fehlgeschlagener Bildaktualisierung
+bleibt kein altes Browserbild sichtbar. Ein bestätigter Ablauf gibt die
+Oberfläche für einen neuen Start frei; ein unklarer Stopp hält sie gesperrt.
+
+**Prüfung:** Vier erfolgreiche lokale UI-Durchläufe plus ein erneuter
+Ablauf-Durchlauf mit echter Auth-/REST-Anbindung, 40 Worker- und 13 gezielte
+Angular-Tests. Fremde Konto- und Workspacezugriffe sowie Eingaben wurden
+abgewiesen; Ablauf, Kontowechsel und Stopp schlossen den Browser. Keine
+Vinted-Anmeldung, kein Nachrichtenversand.
+
 ## 2026-09-27 – Juna – Lokalen lesenden Browser-Test ergänzt
 
 **Auftrag:** Die Vinted-Testseite ohne kostenpflichtigen GoLogin-Zugang mit

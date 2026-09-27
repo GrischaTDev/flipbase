@@ -1,14 +1,48 @@
 # Arbeitsstand: Vinted-Marktplatzverwaltung
 
+## 27. September 2026 – Echte lokale Testseite und Ablaufkorrektur
+
+Die bestehende Seite `/marketplaces/vinted/session-test` wurde mit einem
+künstlichen Nutzer und zwei eigenen Flipbase-Testverbindungen gegen eine
+getrennte lokale Supabase-Instanz und den laufenden Playwright-Worker geprüft.
+Der lesende Browser zeigte auf Desktop (1280 × 900) und iPad-Größe (820 × 1180)
+ein geladenes Bild mit 1100 × 720 Pixeln. Ein Abruf derselben Sitzung mit
+anderem Konto oder Workspace wurde mit 409 abgewiesen; ein Klickversuch mit 403.
+
+Expliziter Stopp und Kontowechsel beendeten den Browser und gaben die
+Datenbanksperre frei. Es wurden keine Vinted-Zugangsdaten verwendet.
+
+Beim ersten Ablauf-Test blieb ein altes Browserbild sichtbar, obwohl der Worker
+die abgelaufene Sitzung bereits geschlossen hatte. Die Angular-Ansicht gibt
+das Bild nach einer fehlgeschlagenen Aktualisierung jetzt frei und blendet es
+aus. Die Gegenprüfung zeigte danach, dass ein bestätigter Ablauf den neuen
+Start trotzdem blockierte. Der Worker antwortet nun nur nach erfolgreich
+bestätigtem Stopp mit 410. Dann verwirft die Ansicht auch die alte Sitzung
+und erlaubt einen neuen Test. Bei unklarem Stopp bleibt die Sperre erhalten.
+Gezielte Tests schlugen vor den Korrekturen fehl und bestanden danach; der
+erneute echte Ablauf-Durchlauf bestätigte Bildfreigabe, Datenbank-Stopp und
+erneut aktivierten Startknopf.
+
+**Prüfungen:** Vier erfolgreiche lokale UI-Durchläufe (Desktop-Stopp,
+iPad-Stopp, Ablauf, Kontowechsel) mit echten lokalen Auth-/REST-Antworten,
+40 Worker-Tests und 13 gezielte Angular-Tests. Alle Testnutzer und zugehörigen
+Verbindungen wurden nach bestätigtem Browser-Stopp entfernt. Der öffentliche
+Seitenaufruf belegt weiterhin keine Vinted-Anmeldung oder inhaltlich geprüfte
+Profilansicht. G1 sowie Liveimport und Nachrichtenversand bleiben offen.
+
+---
+
 ## 27. September 2026 – Lokaler Browser für einen lesenden Test
 
 Auf `juna/vinted-browser-worker` kann der Worker jetzt ohne GoLogin einen
 flüchtigen Playwright-Chromium-Browser starten. Die Zieladresse kommt nur aus
 der Serverumgebung und muss eine öffentliche Vinted-Profilseite sein. Der
 Browserkontext speichert keine Anmeldung. Netzwerkziele außerhalb der Vinted-
-Domains, Schreibanfragen und WebSockets werden gesperrt. Eingaben sind im HTTP-Dienst und auf
-der Testseite gesperrt; nur Bild, Aktualisierung und Stopp bleiben. Der
-Sitzungsbroker bindet die Bedienung weiterhin an Nutzer, Workspace und
+Domains, Schreibanfragen und WebSockets werden gesperrt. Eingaben sind im
+HTTP-Dienst und auf der Testseite gesperrt; nur Bild, Aktualisierung und Stopp
+bleiben.
+
+Der Sitzungsbroker bindet die Bedienung weiterhin an Nutzer, Workspace und
 Flipbase-Konto. Ein ungeklärter Stopp hält die Datenbanksperre aufrecht.
 
 **Tatsächlich geprüft:** 39 Worker-Tests, 9 gezielte Angular-Tests, beide
