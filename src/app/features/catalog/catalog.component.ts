@@ -381,13 +381,13 @@ export class CatalogComponent {
 
   imageUrl(product: CatalogOverviewRow): string | null {
     return product.primary_media_path
-      ? this.mediaService.getMediaUrl(product.primary_media_path)
+      ? this.mediaService.getProductThumbnailUrl(product.primary_media_path)
       : null;
   }
 
   imageFailed(product: CatalogOverviewRow): void {
     if (product.primary_media_path)
-      this.mediaService.reportMediaFailure(product.primary_media_path);
+      this.mediaService.reportProductThumbnailFailure(product.primary_media_path);
   }
 
   async reload(): Promise<void> {

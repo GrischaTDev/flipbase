@@ -21,8 +21,13 @@ describe('ProductThumbnailComponent', () => {
   beforeEach(() => {
     const metadata = (ProductThumbnailComponent as unknown as { ɵcmp: InputMetadata }).ɵcmp;
     saved = { inputs: metadata.inputs, declaredInputs: metadata.declaredInputs };
-    metadata.inputs = { src: ['src', 1, null], alt: ['alt', 1, null], size: ['size', 1, null] };
-    metadata.declaredInputs = { src: 'src', alt: 'alt', size: 'size' };
+    metadata.inputs = {
+      src: ['src', 1, null],
+      alt: ['alt', 1, null],
+      size: ['size', 1, null],
+      priority: ['priority', 1, null],
+    };
+    metadata.declaredInputs = { src: 'src', alt: 'alt', size: 'size', priority: 'priority' };
     TestBed.configureTestingModule({ imports: [ProductThumbnailComponent] });
     fixture = TestBed.createComponent(ProductThumbnailComponent);
     fixture.detectChanges();
@@ -50,6 +55,14 @@ describe('ProductThumbnailComponent', () => {
     fixture.detectChanges();
     expect(host().querySelector('img')?.getAttribute('src')).toBe('/images/product.webp');
     expect(host().querySelector('img')?.alt).toBe('Schuh links');
+    expect(host().querySelector('img')?.getAttribute('loading')).toBe('lazy');
+  });
+
+  it('lädt priorisierte Listenbilder ohne zusätzliche Lazy-Loading-Pause', () => {
+    fixture.componentRef.setInput('src', '/images/product.webp');
+    fixture.componentRef.setInput('priority', true);
+    fixture.detectChanges();
+    expect(host().querySelector('img')?.getAttribute('loading')).toBe('eager');
   });
 
   it('ersetzt ein fehlgeschlagenes Bild und versucht eine neue Quelle anschließend wieder', () => {

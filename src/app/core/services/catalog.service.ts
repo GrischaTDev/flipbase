@@ -71,7 +71,7 @@ export class CatalogService {
     return Object.fromEntries(
       this.products().flatMap((product) =>
         product.primary_media_path
-          ? [[product.id, this.media.getMediaUrl(product.primary_media_path)]]
+          ? [[product.id, this.media.getProductThumbnailUrl(product.primary_media_path)]]
           : [],
       ),
     );
@@ -105,7 +105,7 @@ export class CatalogService {
 
   invalidateProductImage(productId: string): void {
     const path = this.products().find((product) => product.id === productId)?.primary_media_path;
-    if (path) this.media.reportMediaFailure(path);
+    if (path) this.media.reportProductThumbnailFailure(path);
   }
 
   readonly products = signal<CatalogProduct[]>([]);
