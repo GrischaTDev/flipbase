@@ -49,7 +49,7 @@ Ergänzung vom 27.09.2026: Auch bepreiste Entwürfe bleiben außerhalb der
 Einkaufsausgaben, der Gesamtausgaben, des Diagramms und des Vergleichszeitraums.
 Nur abgeschlossene Einkäufe zählen. Die Einkaufskachel nennt die Anzahl der
 berücksichtigten Einkäufe. Die Gewinnkachel steht direkt nach Umsatz und nennt
-die Zahl der Verkäufe mit bekannten Kosten, die in den Gewinn eingehen.
+die Zahl aller Verkäufe im gewählten Zeitraum und auf der gewählten Plattform.
 
 ## Vergleichszeitraum
 

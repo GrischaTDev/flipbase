@@ -80,11 +80,12 @@ export class DashboardComponent {
 
   readonly kpis = computed(() => {
     const report = this.report();
+    const saleCount = report.rows.length;
 
     return {
       grossProfit: {
         value: euro.format(report.grossProfit),
-        hint: `${report.profitSaleCount} ${report.profitSaleCount === 1 ? 'Verkauf' : 'Verkäufe'} mit bekannten Kosten im gewählten Zeitraum`,
+        hint: `${saleCount} ${saleCount === 1 ? 'Verkauf' : 'Verkäufe'} im gewählten Zeitraum`,
         tone:
           report.grossProfit > 0
             ? ('positive' as const)

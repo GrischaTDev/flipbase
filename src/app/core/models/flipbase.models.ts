@@ -700,8 +700,6 @@ export interface DashboardReport {
    * Verkäufen mit bekannten Kosten (wie Shopifys Rohertrag).
    */
   grossProfit: number;
-  /** Verkäufe mit bekannten Kosten, die in grossProfit enthalten sind. */
-  profitSaleCount: number;
   /** Umsatz aus noch nicht retournierten, bestaetigten Verkaeufen. */
   revenue: number;
   /** Anteil des Umsatzes, dessen Wareneinsatz noch nicht belegt ist. */
