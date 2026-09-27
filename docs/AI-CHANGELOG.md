@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-27 – Juna – Login-Korrektur zur Veröffentlichung freigegeben
+
+**Auftrag:** Nutzerfreigabe für PR und Merge nach erfolgreichen Pflichtprüfungen.
+Die geprüfte Korrektur a85e60c3 wird veröffentlicht; danach wird der GoLogin-Worker
+auf das Abbild des Merge-Commits aktualisiert und der öffentliche Stand geprüft.
+Keine echten Zugangsdaten erneut senden. Lokale Prüfungen und die Grenze des
+beobachteten Vinted-Fehlers stehen im zugehörigen Prüfprotokoll.
+
 ## 2026-09-27 – Juna – Abgelehnte Vinted-Anmeldung korrigieren
 
 **Auftrag:** Direkten Login und unverständliche manuelle Browserbedienung prüfen.
