@@ -5866,6 +5866,17 @@ export type Database = {
         }
         Returns: Json
       }
+      sniper_feed_by_brand: {
+        Args: {
+          p_before_id: string
+          p_before_time: string
+          p_brand: string
+          p_limit: number
+          p_watchlist_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       sniper_purge_expired_listings: {
         Args: { p_batch_size?: number }
         Returns: number
@@ -5895,6 +5906,12 @@ export type Database = {
               unusable_reason: string
             }[]
           }
+      sniper_supported_brands: {
+        Args: { p_workspace_id: string }
+        Returns: {
+          brand: string
+        }[]
+      }
       sniper_watchlist_matches: {
         Args: {
           p_listing: Database["public"]["Tables"]["sniper_listings"]["Row"]

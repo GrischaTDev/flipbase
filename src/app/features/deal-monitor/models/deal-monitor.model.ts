@@ -44,7 +44,7 @@ export interface FeedPage {
 export interface FeedRequest {
   workspace: string;
   watchlist: string | null;
-  dealsOnly: boolean;
+  brand: string | null;
   cursor?: { time: string; id: string };
 }
 export interface FeedCategory {

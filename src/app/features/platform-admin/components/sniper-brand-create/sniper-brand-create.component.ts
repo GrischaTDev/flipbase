@@ -11,6 +11,7 @@ import {
   signal,
 } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
@@ -50,11 +51,15 @@ export class SniperBrandCreateComponent {
     return this.results().filter((brand) => !taken.has(brand.id));
   });
   readonly form = new FormGroup({
+    keyword: new FormControl('', { nonNullable: true }),
     intervalSeconds: new FormControl(20, { nonNullable: true }),
     notes: new FormControl('', { nonNullable: true }),
   });
 
   constructor() {
+    this.form.controls.keyword.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((value) => this.searchChanged(value));
     afterNextRender(() => {
       this.element.nativeElement.querySelector<HTMLInputElement>('#vinted-brand-search')?.focus();
     });
@@ -66,11 +71,14 @@ export class SniperBrandCreateComponent {
   }
 
   hasUnsavedChanges(): boolean {
-    return this.selected().length > 0 || this.form.dirty;
+    return (
+      this.selected().length > 0 ||
+      this.form.controls.intervalSeconds.dirty ||
+      this.form.controls.notes.dirty
+    );
   }
 
-  searchChanged(event: Event): void {
-    const value = (event.target as HTMLInputElement).value;
+  searchChanged(value: string): void {
     this.keyword.set(value);
     this.searchError.set(null);
     clearTimeout(this.searchTimer);

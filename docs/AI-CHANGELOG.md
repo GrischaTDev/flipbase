@@ -62,6 +62,30 @@ Vinted-Konten oder Zugangsdaten wurden verwendet.
 **Prüfung:** Sechs neue Datenbankprüfungen zu Rechten, Zeitraum und Zuordnung bestanden; die 20 vorhandenen Betreiberprüfungen ebenfalls. Gezielte Angular-Tests einschließlich AXE-Prüfung, Typprüfung, ESLint, Shared-UI-Prüfung und Angular-Produktionsbau bestanden. Die Migration wurde ohne fachfremde Schemaänderungen erzeugt und lokal angewendet.
 
 **Datenschutz:** Die Betreiberübersicht wird auf Art. 6 Abs. 1 lit. f DSGVO gestützt: Betreuung und Verbesserung der Beta-App bei beschränktem Betreiberzugriff und ohne zusätzliche Verhaltensaufzeichnung. Die rechtliche Interessenabwägung und die Information bereits aktiver Tester bleiben in der Verantwortung des Betreibers.
+## 2026-09-27 – Juna – Vinted Feed und Angebotskarten überarbeitet
+
+**Auftrag:** Den Vinted-Feed an die übrigen Seiten angleichen, die getrennte
+Deal-Ansicht entfernen, nach unterstützten Marken filtern und die
+Angebotskarten nach dem Referenzentwurf neu anordnen.
+
+**Änderung:** Der Menüpunkt heißt „Vinted Feed“. Die Seite zeigt ein Icon und
+eine kurze Beschreibung. Artikel und Deals werden nicht mehr getrennt
+angezeigt. Ein suchbarer Markenfilter verwendet nur Marken aus jüngsten
+Anzeigen aktiver Vinted-Sammelaufträge; die Filterung geschieht vor der
+Seitenteilung. Die Karten zeigen bei vorhandenen Bilddaten bis zu drei Fotos,
+Titel, Marken-, Größen- und Zustandsplaketten, Preis und Entdeckungszeit. Die
+Angaben zu unbekannter Kategorie, Käuferschutz und Versand wurden entfernt.
+Favoriten, Teilen und der Vinted-Link nutzen die gemeinsamen Schaltflächen.
+Auch die Vinted-Markensuche im Admin-Formular nutzt jetzt das gemeinsame
+Eingabefeld.
+Die normale Vinted-Katalogantwort enthält bei aktuellen Live-Stichproben nur
+ein Foto je Anzeige; für weitere Fotos wäre ein zusätzlicher Detailabruf nötig.
+
+**Prüfung:** Zwei gezielte Datenbanktests mit 49 Prüfungen, Sicherheitsprüfung
+der lokalen Datenbank und `npm run verify` bestanden. Die Änderung ist noch
+nicht veröffentlicht.
+
+
 ## 2026-09-27 – Juna – Vinted-Marken direkt beim Anlegen suchen
 
 **Auftrag:** Zentrale Markenfilter ohne Kenntnis einer Vinted-Markenkennung

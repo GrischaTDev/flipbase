@@ -15,7 +15,7 @@ import {
   LucideExternalLink,
   LucideHeart,
   LucideRuler,
-  LucideShieldCheck,
+  LucideShare2,
   LucideSparkles,
   LucideTag,
 } from '@lucide/angular';
@@ -24,6 +24,7 @@ import { BadgeComponent } from '../../../../shared/components/badge/badge.compon
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { FeedItem, safeVintedImage, safeVintedLink } from '../../models/deal-monitor.model';
 import { DealFavoritesService } from '../../services/deal-favorites.service';
+import { shareVintedListing } from '../../utils/share-vinted-listing';
 
 @Component({
   selector: 'app-deal-card',
@@ -42,11 +43,11 @@ import { DealFavoritesService } from '../../services/deal-favorites.service';
 })
 export class DealCardComponent {
   readonly item = input.required<FeedItem>();
-  readonly featured = input(false);
   readonly inspect = output<FeedItem>();
 
   private readonly favoritesService = inject(DealFavoritesService);
   private readonly failedImages = signal<ReadonlySet<string>>(new Set());
+  readonly shareMessage = signal<string | null>(null);
 
   readonly isFavorite = computed(() => this.favoritesService.isFavorite(this.item().id));
 
@@ -59,20 +60,13 @@ export class DealCardComponent {
     brand: LucideTag,
     condition: LucideSparkles,
     size: LucideRuler,
-    protection: LucideShieldCheck,
     discovered: LucideClock,
     external: LucideExternalLink,
     heart: LucideHeart,
+    share: LucideShare2,
     eye: LucideEye,
   };
   readonly link = computed(() => safeVintedLink(this.item().url));
-  readonly referenceLabel = computed(() =>
-    this.item().reference_scope === 'category_brand_condition'
-      ? 'Kategorie, Marke & Zustand'
-      : this.item().reference_scope === 'category_condition'
-        ? 'Kategorie & Zustand'
-        : 'Historischer Vergleich',
-  );
 
   imageFailed(url: string): void {
     this.failedImages.update((failed) => new Set([...failed, url]));
@@ -86,5 +80,16 @@ export class DealCardComponent {
   openDetail(event?: Event): void {
     event?.stopPropagation();
     this.inspect.emit(this.item());
+  }
+
+  async share(): Promise<void> {
+    const result = await shareVintedListing(this.item());
+    this.shareMessage.set(
+      result === 'copied'
+        ? 'Link kopiert.'
+        : result === 'unavailable'
+          ? 'Teilen ist hier nicht verfügbar.'
+          : null,
+    );
   }
 }

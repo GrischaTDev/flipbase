@@ -11,23 +11,15 @@
     </p>
 
     <div class="flex flex-col gap-2">
-      <label for="vinted-brand-search" class="text-sm font-medium text-fb-text-primary"
-        >Vinted-Marken suchen</label
-      >
-      <input
+      <app-text-field
         id="vinted-brand-search"
+        label="Vinted-Marken suchen"
         type="search"
-        autocomplete="off"
-        maxlength="100"
-        [value]="keyword()"
-        (input)="searchChanged($event)"
-        aria-describedby="vinted-brand-search-hint"
-        class="w-full rounded-lg border border-fb-line bg-fb-surface px-3 py-2 text-sm text-fb-text-primary outline-none placeholder:text-fb-text-muted focus-visible:border-fb-primary focus-visible:ring-2 focus-visible:ring-fb-primary"
+        formControlName="keyword"
+        [maxLength]="100"
         placeholder="Markenname eingeben"
+        helpText="Gib mindestens zwei Zeichen ein. Die Vorschläge kommen direkt von Vinted."
       />
-      <p id="vinted-brand-search-hint" class="text-xs text-fb-text-muted">
-        Gib mindestens zwei Zeichen ein. Die Vorschläge kommen direkt von Vinted.
-      </p>
       @if (loading()) {
         <p role="status" class="text-sm text-fb-text-secondary">Marken werden gesucht …</p>
       } @else if (searchError(); as message) {

@@ -1,6 +1,5 @@
 <app-modal-shell
   [title]="item().title"
-  [subtitle]="item().category_path || 'Kategorie noch unbekannt'"
   [icon]="icons.eye"
   size="xl"
   [closeOnBackdrop]="true"
@@ -97,18 +96,6 @@
           }
         </div>
 
-        <p class="flex items-center gap-1.5 text-xs text-fb-text-secondary">
-          <svg
-            [lucideIcon]="icons.protection"
-            class="h-4 w-4 shrink-0 text-indigo-500 dark:text-indigo-400"
-            aria-hidden="true"
-          ></svg>
-          <span
-            >{{ item().total_price | currency: item().currency }} inkl. Käuferschutz (zzgl.
-            Versand)</span
-          >
-        </p>
-
         @if (item().reference_price !== null) {
           <div class="border-t border-fb-line pt-2 text-xs text-fb-text-secondary">
             <p class="font-medium text-fb-text-primary">
@@ -189,34 +176,29 @@
       @if (item().is_hidden) {
         <app-badge tone="caution">Hinweis: Angebot aktuell noch nicht direkt kaufbar</app-badge>
       }
+      @if (shareMessage(); as message) {
+        <p role="status" class="text-sm text-fb-text-secondary">{{ message }}</p>
+      }
     </div>
   </div>
 
-  <div modal-footer class="flex w-full items-center justify-between gap-3">
-    <button
-      type="button"
-      (click)="toggleFavorite()"
-      [class]="
-        isFavorite()
-          ? 'border-rose-300 bg-rose-50 text-rose-600 hover:bg-rose-100 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-400 dark:hover:bg-rose-900/50'
-          : 'border-fb-border bg-fb-surface text-fb-text-secondary hover:bg-fb-surface-hover hover:text-fb-text-primary'
-      "
-      class="inline-flex h-9 items-center gap-2 rounded-lg border px-3 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-fb-primary"
-    >
-      <svg
-        [lucideIcon]="icons.heart"
-        class="h-4 w-4 transition-transform active:scale-125"
-        [class.fill-rose-500]="isFavorite()"
-        [class.text-rose-500]="isFavorite()"
-        aria-hidden="true"
-      ></svg>
-      <span>{{ isFavorite() ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen' }}</span>
-    </button>
+  <div modal-footer class="flex w-full flex-wrap items-center justify-between gap-3">
+    <div class="flex flex-wrap items-center gap-2">
+      <app-button
+        variant="secondary"
+        [icon]="icons.heart"
+        [ariaPressed]="isFavorite()"
+        (clicked)="toggleFavorite()"
+        >{{ isFavorite() ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen' }}</app-button
+      >
+      <app-button variant="secondary" [icon]="icons.share" (clicked)="share()">Teilen</app-button>
+    </div>
 
     <div class="flex items-center gap-2">
-      <app-button variant="secondary" (click)="closed.emit()">Schließen</app-button>
+      <app-button variant="secondary" (clicked)="closed.emit()">Schließen</app-button>
       @if (link(); as href) {
         <app-button
+          variant="primary"
           [href]="href"
           target="_blank"
           [icon]="icons.external"

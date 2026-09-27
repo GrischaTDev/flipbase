@@ -40,7 +40,15 @@ beforeAll(async () => {
   });
   registerSignalInputs(SniperBrandCreateComponent, ['existingBrandIds', 'saving', 'saveError']);
   registerSignalInputs(NumberInputComponent, ['min', 'max', 'ariaLabel']);
-  registerSignalInputs(TextFieldComponent, ['label', 'placeholder', 'multiline']);
+  registerSignalInputs(TextFieldComponent, [
+    'id',
+    'label',
+    'placeholder',
+    'multiline',
+    'type',
+    'maxLength',
+    'helpText',
+  ]);
   registerSignalInputs(ButtonComponent, ['disabled', 'loading']);
 });
 
