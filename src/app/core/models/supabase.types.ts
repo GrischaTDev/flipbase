@@ -5185,6 +5185,34 @@ export type Database = {
           workspace_id: string
         }[]
       }
+      list_platform_user_recent_actions: {
+        Args: { p_user_id: string }
+        Returns: {
+          created_at: string
+          event_id: string
+          event_type: string
+        }[]
+      }
+      list_platform_user_usage: {
+        Args: never
+        Returns: {
+          application_status: string
+          beta_ends_at: string
+          beta_starts_at: string
+          email: string
+          full_name: string
+          invitation_status: string
+          last_action_at: string
+          last_sign_in_at: string
+          license_status: string
+          purchases_created_30_days: number
+          registered_at: string
+          sales_recorded_30_days: number
+          user_id: string
+          workspace_id: string
+          workspace_name: string
+        }[]
+      }
       list_platform_users: {
         Args: never
         Returns: {

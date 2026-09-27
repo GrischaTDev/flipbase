@@ -19,9 +19,9 @@
     (searchValueChange)="searchQuery.set($event)"
   >
     <div table-content class="overflow-x-auto">
-      <table data-platform-users-table class="linear-table min-w-[960px]">
+      <table data-platform-users-table class="linear-table min-w-[1200px]">
         <caption class="sr-only">
-          Registrierte Plattformnutzer und ihre Beta-Zugänge
+          Registrierte Plattformnutzer, Beta-Zugänge und dokumentierte Nutzung
         </caption>
         <thead>
           <tr>
@@ -32,6 +32,9 @@
             <th scope="col">Zugang</th>
             <th scope="col">Beta-Start</th>
             <th scope="col">Beta-Ende</th>
+            <th scope="col">Letzter Login</th>
+            <th scope="col">Letzte Aktion</th>
+            <th scope="col" class="text-right">Aktionen</th>
           </tr>
         </thead>
         <tbody>
@@ -73,10 +76,39 @@
                   —
                 }
               </td>
+              <td>
+                @if (user.lastSignInAt) {
+                  <time [attr.datetime]="user.lastSignInAt">{{
+                    user.lastSignInAt | date: 'dd.MM.yyyy, HH:mm'
+                  }}</time>
+                } @else {
+                  —
+                }
+              </td>
+              <td>
+                @if (user.lastActionAt) {
+                  <time [attr.datetime]="user.lastActionAt">{{
+                    user.lastActionAt | date: 'dd.MM.yyyy, HH:mm'
+                  }}</time>
+                } @else {
+                  —
+                }
+              </td>
+              <td class="text-right">
+                <app-table-action-button
+                  [icon]="usageIcon"
+                  [label]="'Nutzung von ' + user.fullName + ' ansehen'"
+                  [link]="'/admin/users/' + user.userId"
+                />
+              </td>
             </tr>
           }
         </tbody>
       </table>
     </div>
   </app-data-table>
+  <p class="text-xs text-fb-text-muted">
+    „Letzte Aktion“ zeigt den jüngsten protokollierten Geschäftsvorgang. Ein fehlender Eintrag
+    bedeutet nicht, dass die App nicht genutzt wurde.
+  </p>
 </section>

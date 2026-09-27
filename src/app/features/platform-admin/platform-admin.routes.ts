@@ -21,6 +21,13 @@ export const platformAdminRoutes: Routes = [
       ),
   },
   {
+    path: 'users/:userId',
+    loadComponent: () =>
+      import('./pages/platform-user-usage/platform-user-usage.component').then(
+        (m) => m.PlatformUserUsageComponent,
+      ),
+  },
+  {
     path: 'vinted-bot',
     loadComponent: () =>
       import('./vinted-bot-shell/vinted-bot-shell.component').then(
