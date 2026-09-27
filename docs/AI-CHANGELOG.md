@@ -62,6 +62,26 @@ Vinted-Konten oder Zugangsdaten wurden verwendet.
 **Prüfung:** Sechs neue Datenbankprüfungen zu Rechten, Zeitraum und Zuordnung bestanden; die 20 vorhandenen Betreiberprüfungen ebenfalls. Gezielte Angular-Tests einschließlich AXE-Prüfung, Typprüfung, ESLint, Shared-UI-Prüfung und Angular-Produktionsbau bestanden. Die Migration wurde ohne fachfremde Schemaänderungen erzeugt und lokal angewendet.
 
 **Datenschutz:** Die Betreiberübersicht wird auf Art. 6 Abs. 1 lit. f DSGVO gestützt: Betreuung und Verbesserung der Beta-App bei beschränktem Betreiberzugriff und ohne zusätzliche Verhaltensaufzeichnung. Die rechtliche Interessenabwägung und die Information bereits aktiver Tester bleiben in der Verantwortung des Betreibers.
+## 2026-09-27 – Juna – Herkunft der Vinted-Artikelfotos geprüft
+
+**Auftrag:** Prüfen, weshalb der Feed früher drei Fotos je Anzeige zeigen konnte
+und heute oft nur eines zeigt.
+
+**Befund:** Die alte JSON-Katalogantwort enthielt mehrere Fotos pro Artikel;
+die gespeicherte Testantwort enthält Beispiele mit vier und fünf Fotos. Seit
+dem 14.09.2026 nutzt der Sammler wegen des abgeschalteten JSON-Katalogs die
+öffentliche Katalogseite. Deren Datenmodell und der Parser erlauben weiterhin
+mehrere Fotos, doch eine aktuelle Live-Stichprobe lieferte bei allen 96
+Artikeln nur je eines. Die Detailseite eines Artikels enthielt drei Fotos.
+Damit fehlen die weiteren Fotos bereits in der aktuellen Katalogantwort;
+die Karten kürzen keine vorhandenen Bilder weg. Auf zusätzliche Detailabrufe
+wurde für diese Prüfung verzichtet.
+
+**Prüfung:** Git-Historie der Bildverarbeitung und der Katalogumstellung,
+gespeicherte alte Katalogantwort sowie ein aktueller Abruf von Katalog und
+Artikeldetail wurden verglichen. Keine Codeänderung am Bot.
+
+
 ## 2026-09-27 – Juna – Vinted Feed und Angebotskarten überarbeitet
 
 **Auftrag:** Den Vinted-Feed an die übrigen Seiten angleichen, die getrennte
