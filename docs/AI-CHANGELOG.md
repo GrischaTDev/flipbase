@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-28 – Juna – Hintergrundanmeldung zur Veröffentlichung freigegeben
+
+**Auftrag:** Der Nutzer hat PR-Erstellung und Merge nach erfolgreichen
+Pflichtprüfungen für die geprüfte Vinted-Hintergrundanmeldung freigegeben.
+Nach dem Merge werden die ausgelieferte Version und der Browserdienst geprüft.
+Ein echter Kontologin und Liveimport bleiben gesonderte Nachweise; Zugangsdaten
+werden für die Veröffentlichung nicht erneut gesendet.
+
 ## 2026-09-28 – Juna – Vinted-Anmeldung im Hintergrund korrigieren
 
 **Auftrag:** Anbieterabläufe recherchieren, Cookiehinweise automatisch behandeln
