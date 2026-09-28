@@ -22,6 +22,20 @@ export interface VintedLoginCredentials {
   password: string;
 }
 
+export interface VintedListingEditFields {
+  title: string;
+  description: string;
+  price: string;
+}
+
+export class VintedEditUnconfirmedError extends Error {
+  constructor() {
+    super(
+      'Vinted hat die Änderung nicht eindeutig bestätigt. Prüfe den Artikel bei Vinted, bevor Du erneut speicherst.',
+    );
+  }
+}
+
 export type VintedLoginResult =
   | 'submitted'
   | 'form_unavailable'
@@ -87,9 +101,22 @@ export class MarketplaceWorkerOutdatedError extends Error {
 }
 
 export class MarketplaceImportError extends Error {
-  constructor() {
+  constructor(stage?: string) {
+    const stageNames = new Map([
+      ['navigation', 'beim Öffnen von Vinted'],
+      ['identity', 'bei der Prüfung der Anmeldung'],
+      ['profile', 'beim Lesen des Profils'],
+      ['publications', 'beim Lesen der Inserate'],
+      ['conversations', 'beim Lesen der Gesprächsliste'],
+      ['messages', 'beim Lesen eines Gesprächsverlaufs'],
+      ['transaction', 'beim Lesen einer Bestellung'],
+      ['parse', 'beim Verarbeiten der Vinted-Daten'],
+    ]);
+    const detail = stage ? stageNames.get(stage) : undefined;
     super(
-      'Die Vinted-Daten konnten nicht vollständig aktualisiert werden. Prüfe die Verbindung und versuche es später erneut.',
+      detail
+        ? `Die Aktualisierung ist ${detail} fehlgeschlagen. Bitte versuche es später erneut.`
+        : 'Die Vinted-Daten konnten nicht vollständig aktualisiert werden. Prüfe die Verbindung und versuche es später erneut.',
     );
   }
 }
@@ -328,6 +355,18 @@ export class MarketplaceBrowserTestApiService {
       throw new MarketplaceImportError();
     }
     if (response.status === 404) throw new MarketplaceWorkerOutdatedError();
+    if (response.status === 502) {
+      const errorBody: unknown = await response.json().catch(() => null);
+      if (
+        typeof errorBody === 'object' &&
+        errorBody !== null &&
+        'code' in errorBody &&
+        errorBody.code === 'vinted_import_failed' &&
+        'stage' in errorBody &&
+        typeof errorBody.stage === 'string'
+      )
+        throw new MarketplaceImportError(errorBody.stage);
+    }
     if (!response.ok) throw new MarketplaceImportError();
     const body: unknown = await response.json();
     if (
@@ -340,6 +379,106 @@ export class MarketplaceBrowserTestApiService {
       body.counts === null
     )
       throw new MarketplaceImportError();
+  }
+
+  async readListingEdit(
+    scope: AccountScope,
+    entryId: string,
+    accessToken: string,
+  ): Promise<VintedListingEditFields> {
+    const response = await this.post(
+      '/marketplace-browser/listings/edit/read',
+      { ...scope, entryId },
+      accessToken,
+    );
+    if (response.status === 404) throw new MarketplaceWorkerOutdatedError();
+    if (!response.ok) throw new Error('Das Vinted-Formular konnte nicht geladen werden.');
+    const body: unknown = await response.json();
+    if (
+      typeof body !== 'object' ||
+      body === null ||
+      !('fields' in body) ||
+      typeof body.fields !== 'object' ||
+      body.fields === null ||
+      !('title' in body.fields) ||
+      typeof body.fields.title !== 'string' ||
+      !('description' in body.fields) ||
+      typeof body.fields.description !== 'string' ||
+      !('price' in body.fields) ||
+      typeof body.fields.price !== 'string'
+    )
+      throw new Error('Das Vinted-Formular lieferte ungültige Daten.');
+    return {
+      title: body.fields.title,
+      description: body.fields.description,
+      price: body.fields.price,
+    };
+  }
+
+  async saveListingEdit(
+    scope: AccountScope,
+    entryId: string,
+    fields: VintedListingEditFields,
+    accessToken: string,
+  ): Promise<void> {
+    let response: Response;
+    try {
+      response = await this.post(
+        '/marketplace-browser/listings/edit/save',
+        { ...scope, entryId, fields },
+        accessToken,
+      );
+    } catch {
+      throw new VintedEditUnconfirmedError();
+    }
+    if (response.status === 404) throw new MarketplaceWorkerOutdatedError();
+    if (!response.ok) throw new VintedEditUnconfirmedError();
+    const body: unknown = await response.json();
+    if (
+      typeof body !== 'object' ||
+      body === null ||
+      !('status' in body) ||
+      body.status !== 'confirmed'
+    )
+      throw new VintedEditUnconfirmedError();
+  }
+
+  async readProfileAbout(scope: AccountScope, accessToken: string): Promise<string> {
+    const response = await this.post('/marketplace-browser/profile/edit/read', scope, accessToken);
+    if (response.status === 404) throw new MarketplaceWorkerOutdatedError();
+    if (!response.ok) throw new Error('Das Vinted-Profilformular konnte nicht geladen werden.');
+    const body: unknown = await response.json();
+    if (
+      typeof body !== 'object' ||
+      body === null ||
+      !('about' in body) ||
+      typeof body.about !== 'string'
+    )
+      throw new Error('Das Vinted-Profilformular lieferte ungültige Daten.');
+    return body.about;
+  }
+
+  async saveProfileAbout(scope: AccountScope, about: string, accessToken: string): Promise<void> {
+    let response: Response;
+    try {
+      response = await this.post(
+        '/marketplace-browser/profile/edit/save',
+        { ...scope, about },
+        accessToken,
+      );
+    } catch {
+      throw new VintedEditUnconfirmedError();
+    }
+    if (response.status === 404) throw new MarketplaceWorkerOutdatedError();
+    if (!response.ok) throw new VintedEditUnconfirmedError();
+    const body: unknown = await response.json();
+    if (
+      typeof body !== 'object' ||
+      body === null ||
+      !('status' in body) ||
+      body.status !== 'confirmed'
+    )
+      throw new VintedEditUnconfirmedError();
   }
 
   private post(

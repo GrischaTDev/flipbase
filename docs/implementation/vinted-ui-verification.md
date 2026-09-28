@@ -1,5 +1,39 @@
 # Vinted-Oberfläche: geprüfter Stand vom 26. September 2026
 
+## Nachtrag 28.09.2026: Inseratdetail und Editoren
+
+Die Inseratkarten sind als fokussierbare Links auf eine kontogebundene
+Detailroute ausgeführt. Sie zeigt gespeicherte Angaben sofort und lädt die
+Beschreibung bei Bedarf aus dem eigenen Vinted-Bearbeitungsformular. Der
+Inserateditor lädt Titel, Beschreibung und Preis vor dem Ändern neu; der
+Profileditor lädt den aktuellen „Über mich“-Text. Andere Vinted-Felder werden
+nicht angefasst. Bei unklarer Speicherbestätigung bleibt eine Warnung sichtbar.
+
+Die Formulare und Speicherknöpfe wurden nur lesend im bereits verbundenen
+eigenen Anbieterprofil geprüft. Alle Browserstopps waren bestätigt. Ein
+echter Speicherversuch und eine produktive Sichtprüfung stehen aus.
+Lokal bestanden 105 Worker-Tests, 18 Tests der Vinted-Oberfläche sowie
+gezielte Antworttests, Typprüfung, Angular- und Worker-Bau, ESLint und die
+Shared-UI-Prüfung (115 Dateien, 0 Befunde).
+
+## Nachtrag 28.09.2026: Verkaufsraster, Profil und 502-Rückmeldung
+
+Nach dem Nutzerbericht nutzen Verkäufe und Inserate dasselbe responsive
+Kartenraster mit zwei bis höchstens fünf Spalten. Der bisherige Hinweis über
+den Verkäufen entfällt. Das Profil ist auf eine mittlere Breite begrenzt;
+Kontodaten, Beschreibung und Kennzahlen sind klarer gegliedert. Die
+Gesprächsreihenfolge nach dem letzten Ereignis bleibt bestehen.
+
+Ein HTTP 502 des Imports zeigt künftig den betroffenen Abrufschritt, sofern
+der Worker ihn erkannt hat. 32 gezielte Worker-Tests prüfen auch, dass private
+Fehlertexte nicht in der Antwort erscheinen und die Sitzung beendet wird. 17
+Angular-Tests decken die neuen Verkaufs- und Profilzustände sowie die lesbare
+Fehlermeldung ab. Zwei lokale Browserabläufe mit künstlichen Daten bei 1440 und
+390 Pixeln bestanden einschließlich AXE-Prüfung der Profil- und Verkaufsansicht.
+Beide Builds, Typprüfung, betroffene Lint-Dateien und die Shared-UI-Prüfung
+bestanden. Ein produktiver Beleg für die Ursache des ersten 502 und die visuelle
+Abnahme nach Veröffentlichung stehen noch aus.
+
 ## Nachtrag 28.09.2026: Darstellung nach dem ersten manuellen Datenabruf
 
 Nach Rückmeldung des Nutzers lieferte der zweite Aktualisierungsklick Daten;

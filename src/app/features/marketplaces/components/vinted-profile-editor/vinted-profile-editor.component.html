@@ -1,0 +1,28 @@
+<div class="mt-5 border-t border-fb-line pt-5">
+  @if (error(); as message) {
+    <app-notice-banner announcement="alert" class="mb-3">{{ message }}</app-notice-banner>
+  }
+  @if (saved()) {
+    <p role="status" class="mb-3 text-sm text-fb-text-secondary">
+      Der Profiltext wurde bei Vinted gespeichert.
+    </p>
+  }
+  @if (editing()) {
+    <form [formGroup]="form" (ngSubmit)="save()" class="max-w-xl space-y-3">
+      <app-text-field
+        label="Über mich"
+        formControlName="about"
+        [multiline]="6"
+        [maxLength]="2000"
+      />
+      <div class="flex flex-wrap gap-2">
+        <app-button variant="primary" type="submit" [loading]="busy()" [disabled]="form.invalid"
+          >Profiltext speichern</app-button
+        >
+        <app-button [disabled]="busy()" (clicked)="editing.set(false)">Abbrechen</app-button>
+      </div>
+    </form>
+  } @else {
+    <app-button [loading]="busy()" (clicked)="open()">Profiltext bearbeiten</app-button>
+  }
+</div>

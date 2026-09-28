@@ -197,3 +197,20 @@ it('verweigert das Löschen über einen veralteten Worker vor einer Schreibanfra
   await expect(api.deleteConnection(scope, 'token')).rejects.toThrow('aktualisiert');
   expect(request).toHaveBeenCalledOnce();
 });
+
+it('behandelt nur nachgelesene Vinted-Änderungen als gespeichert', async () => {
+  const request = vi.fn().mockResolvedValue(Response.json({ status: 'unconfirmed' }));
+  vi.stubGlobal('fetch', request);
+  const fields = { title: 'Jacke', description: 'Beschreibung', price: '12,50' };
+  await expect(api.saveListingEdit(scope, id, fields, 'token')).rejects.toThrow(
+    'nicht eindeutig bestätigt',
+  );
+  expect(request.mock.calls[0][0]).toBe('/marketplace-browser/listings/edit/save');
+  expect(JSON.parse(request.mock.calls[0][1].body)).toEqual({ ...scope, entryId: id, fields });
+  request.mockResolvedValueOnce(Response.json({ status: 'confirmed' }));
+  await expect(api.saveListingEdit(scope, id, fields, 'token')).resolves.toBeUndefined();
+  request.mockResolvedValueOnce(Response.json({ status: 'unconfirmed' }));
+  await expect(api.saveProfileAbout(scope, 'Neuer Text', 'token')).rejects.toThrow(
+    'nicht eindeutig bestätigt',
+  );
+});

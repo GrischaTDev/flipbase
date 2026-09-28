@@ -1,0 +1,126 @@
+<div class="mb-4 flex items-center justify-between gap-3">
+  <app-button link="/marketplaces/vinted/listings">Zurück zu Inseraten</app-button>
+  @if (entry() && !editing() && store.selectedConnection()?.status === 'connected') {
+    <app-button
+      variant="primary"
+      [loading]="busy()"
+      [disabled]="loadingDescription()"
+      (clicked)="edit()"
+      >Bearbeiten</app-button
+    >
+  }
+</div>
+@if (error(); as message) {
+  <app-notice-banner announcement="alert" class="mb-4">{{ message }}</app-notice-banner>
+}
+@if (notice(); as message) {
+  <app-notice-banner class="mb-4">{{ message }}</app-notice-banner>
+}
+@if (loading()) {
+  <p role="status" class="text-sm text-fb-text-secondary">Inserat wird geladen …</p>
+} @else if (entry(); as item) {
+  <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(17rem,0.7fr)]">
+    <app-card class="min-w-0 overflow-hidden">
+      <app-product-thumbnail
+        class="block w-full"
+        [src]="selectedPhoto() ?? item.imageUrl"
+        [alt]="item.title"
+        size="listing"
+      />
+      @if (photos().length > 1) {
+        <div class="mt-3 flex flex-wrap gap-2" aria-label="Artikelfotos">
+          @for (photo of photos(); track photo; let index = $index) {
+            <button
+              type="button"
+              class="w-16 overflow-hidden rounded-lg border-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
+              [class.border-fb-primary]="selectedPhoto() === photo"
+              [class.border-transparent]="selectedPhoto() !== photo"
+              [attr.aria-label]="'Foto ' + (index + 1) + ' anzeigen'"
+              [attr.aria-pressed]="selectedPhoto() === photo"
+              (click)="selectedPhoto.set(photo)"
+            >
+              <app-product-thumbnail class="block w-full" [src]="photo" [alt]="''" size="listing" />
+            </button>
+          }
+        </div>
+      }
+    </app-card>
+    <app-card class="min-w-0">
+      @if (editing()) {
+        <form [formGroup]="form" (ngSubmit)="save()" class="space-y-4">
+          <h2 class="text-lg font-semibold text-fb-text-primary">Inserat bearbeiten</h2>
+          <app-text-field
+            label="Titel"
+            formControlName="title"
+            [maxLength]="120"
+            [required]="true"
+          />
+          <app-text-field
+            label="Beschreibung"
+            formControlName="description"
+            [multiline]="6"
+            [maxLength]="2000"
+          />
+          <app-text-field
+            label="Preis in Euro"
+            formControlName="price"
+            [required]="true"
+            helpText="Zum Beispiel 24,50"
+          />
+          <p class="text-xs text-fb-text-muted">
+            Bilder, Kategorie, Zustand und Versand bleiben bei Vinted erhalten.
+          </p>
+          <div class="flex flex-wrap gap-2">
+            <app-button variant="primary" type="submit" [disabled]="form.invalid" [loading]="busy()"
+              >Bei Vinted speichern</app-button
+            >
+            <app-button [disabled]="busy()" (clicked)="editing.set(false)">Abbrechen</app-button>
+          </div>
+        </form>
+      } @else {
+        <h2 class="break-words text-xl font-semibold text-fb-text-primary">{{ item.title }}</h2>
+        <p class="mt-3 text-2xl font-semibold text-fb-text-primary">
+          {{ item.price === null ? 'Preis unbekannt' : (item.price | currency: item.currency) }}
+        </p>
+        <dl class="mt-5 divide-y divide-fb-line text-sm">
+          <div class="flex justify-between gap-3 py-3">
+            <dt class="text-fb-text-muted">Marke</dt>
+            <dd class="text-right text-fb-text-primary">{{ item.brand ?? '—' }}</dd>
+          </div>
+          <div class="flex justify-between gap-3 py-3">
+            <dt class="text-fb-text-muted">Größe</dt>
+            <dd class="text-right text-fb-text-primary">{{ item.size ?? '—' }}</dd>
+          </div>
+          <div class="flex justify-between gap-3 py-3">
+            <dt class="text-fb-text-muted">Zustand</dt>
+            <dd class="text-right text-fb-text-primary">{{ item.status ?? '—' }}</dd>
+          </div>
+          <div class="flex justify-between gap-3 py-3">
+            <dt class="text-fb-text-muted">Aufrufe</dt>
+            <dd class="text-right text-fb-text-primary">{{ item.metrics.views ?? '—' }}</dd>
+          </div>
+          <div class="flex justify-between gap-3 py-3">
+            <dt class="text-fb-text-muted">Favoriten</dt>
+            <dd class="text-right text-fb-text-primary">{{ item.metrics.favorites ?? '—' }}</dd>
+          </div>
+        </dl>
+        @if (item.text) {
+          <h3 class="mt-5 text-sm font-semibold text-fb-text-primary">Beschreibung</h3>
+          <p class="mt-2 whitespace-pre-wrap break-words text-sm text-fb-text-secondary">
+            {{ item.text }}
+          </p>
+        } @else if (loadingDescription()) {
+          <p role="status" class="mt-5 text-sm text-fb-text-muted">
+            Beschreibung wird von Vinted geladen …
+          </p>
+        }
+      }
+    </app-card>
+  </div>
+} @else {
+  <app-card
+    ><p class="text-sm text-fb-text-secondary">
+      Dieses Inserat ist für das ausgewählte Konto nicht verfügbar.
+    </p></app-card
+  >
+}

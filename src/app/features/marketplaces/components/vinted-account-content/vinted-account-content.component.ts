@@ -1,15 +1,15 @@
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { LucideArrowLeft } from '@lucide/angular';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { DataTableComponent } from '../../../../shared/components/data-table/data-table.component';
-import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
 import { VintedRatingComponent } from '../vinted-rating/vinted-rating.component';
+import { VintedProfileEditorComponent } from '../vinted-profile-editor/vinted-profile-editor.component';
 import type { MarketplaceEntryKind } from '../../models/marketplace-read.models';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 
@@ -22,9 +22,10 @@ import { MarketplaceAccountStore } from '../../services/marketplace-account.stor
     BadgeComponent,
     CardComponent,
     DataTableComponent,
-    NoticeBannerComponent,
     ProductThumbnailComponent,
+    RouterLink,
     VintedRatingComponent,
+    VintedProfileEditorComponent,
   ],
   templateUrl: './vinted-account-content.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

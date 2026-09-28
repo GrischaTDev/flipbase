@@ -1,5 +1,47 @@
 # Arbeitsstand: Vinted-Marktplatzverwaltung
 
+## 28. September 2026 – Inseratdetails und begrenzte Bearbeitung vorbereitet
+
+Eigene Inserate öffnen in Flipbase nun eine Detailseite. Beim nächsten
+manuellen Datenabruf werden bis zu 20 Artikelfotos für die Detailgalerie
+gespeichert. Für das zuvor
+verbundene Konto kann der Browserdienst die vorhandenen Formularwerte von
+Vinted lesen und Titel, Beschreibung sowie Preis eines bestehenden Inserats
+speichern. Im Profil ist der „Über mich“-Text bearbeitbar. Vor Browserstart
+werden Nutzerzugriff, Workspace, Konto, Status und Eintrag über RLS geprüft;
+im Browser wird die Vinted-Kontoidentität erneut abgeglichen. Nach einem
+Speicherklick wird das Formular frisch geladen. Nur übereinstimmende Werte
+gelten als bestätigt; unklare Ergebnisse werden nicht automatisch wiederholt.
+
+Die lesende Anbieterprüfung bestätigte die konkreten Formularfelder und
+Speicherknöpfe; alle geöffneten Browser wurden gestoppt. **Es gab keinen
+echten Speicherversuch bei Vinted.** Die Anbieteraktionen sind bis zur
+Veröffentlichung des Worker- und Webstands und einem ausdrücklich
+ausgewählten Testartikel nur lokal vorbereitet. Die Lesekopie anderer
+Ansichten wird nach einer Bearbeitung erst durch „Kontodaten aktualisieren“
+erneuert. Erstellen neuer Artikel, weitere Profilfelder, Nachrichten und
+automatische Abrufe folgen getrennt.
+
+## 28. September 2026 – Manuellen Abruffehler eingegrenzt und Ansichten verdichtet
+
+Der Nutzer meldete HTTP 502 beim ersten Aktualisierungsklick und einen
+erfolgreichen zweiten Abruf. Beide Browserläufe endeten sauber; der Worker
+blieb gesund. Der bestehende Sync-Pfad wandelte jedoch jeden Lesefehler in
+dieselbe 502-Antwort um. Eine konkrete Ursache des ersten Fehlers ist damit
+noch nicht belegt. Der Worker liefert künftig nur eine feste Kennung des
+betroffenen Abrufschritts. Die Oberfläche zeigt diesen Schritt lesbar an;
+private Anbieterantworten und Kontoinhalte bleiben verborgen.
+
+Verkäufe verwenden dasselbe Raster mit höchstens fünf Spalten wie Inserate.
+Der Hinweis über der Verkaufsliste wurde entfernt. Die Profilansicht zeigt
+Kontodaten und Kennzahlen in einer begrenzten Kartenbreite. Gespräche bleiben
+nach dem letzten Ereignis sortiert. Der nächste echte 502 muss nach
+Veröffentlichung mit der dann angezeigten Stufe untersucht werden.
+
+Automatische Abrufe und Schreibaktionen sind noch nicht aktiv. Der Plan hält
+den Pilot für ein Konto, die Prüfung der Anbieterberechtigung, die begrenzte
+Warteschlange und die anschließenden Einzelaktionen fest.
+
 ## 28. September 2026 – Datenumfang des verbundenen Kontos lesend geprüft
 
 Eine eng begrenzte Strukturprobe nutzte ausschließlich das bereits verbundene

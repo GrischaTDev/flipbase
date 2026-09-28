@@ -107,6 +107,24 @@ export class MarketplaceApiService {
       scope,
     );
   }
+  async readPublication(scope: AccountScope, entryId: string): Promise<MarketplaceEntry | null> {
+    const { data, error } = await this.client
+      .from('marketplace_account_entries')
+      .select('id,body')
+      .eq('workspace_id', scope.workspaceId)
+      .eq('connection_id', scope.connectionId)
+      .eq('kind', 'publication')
+      .eq('id', entryId)
+      .maybeSingle();
+    if (error) throw new MarketplaceApiError('request_failed');
+    if (!data) return null;
+    if (!data.body || typeof data.body !== 'object' || Array.isArray(data.body))
+      throw new MarketplaceResponseError();
+    return parseMarketplacePage(
+      { items: [{ ...data.body, id: data.id, ...scope }], total: 1, nextCursor: null },
+      scope,
+    ).items[0];
+  }
   async readPage(
     scope: AccountScope,
     kind: MarketplaceEntryKind,

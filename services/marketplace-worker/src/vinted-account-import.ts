@@ -18,6 +18,33 @@ export interface VintedAccountImport {
   entries: VintedImportEntry[];
 }
 
+export type VintedImportStage =
+  | 'navigation'
+  | 'identity'
+  | 'profile'
+  | 'publications'
+  | 'conversations'
+  | 'messages'
+  | 'transaction'
+  | 'parse';
+
+export class VintedImportReadError extends Error {
+  readonly stage: VintedImportStage;
+
+  constructor(stage: VintedImportStage, cause?: unknown) {
+    super('Vinted-Datenabruf fehlgeschlagen', { cause });
+    this.stage = stage;
+  }
+}
+
+async function atImportStage<T>(stage: VintedImportStage, read: () => Promise<T>): Promise<T> {
+  try {
+    return await read();
+  } catch (error) {
+    throw new VintedImportReadError(stage, error);
+  }
+}
+
 function record(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -129,6 +156,10 @@ export function parseVintedAccountImport(
     const money = price(item?.['price']);
     const photos = Array.isArray(item?.['photos']) ? item['photos'] : [];
     const firstPhoto = record(photos[0]);
+    const imageUrls = photos
+      .slice(0, 20)
+      .map((photo) => image(record(photo)?.['url']))
+      .filter((url): url is string => url !== null);
     entries.push({
       kind: 'publication',
       externalId: id,
@@ -140,6 +171,7 @@ export function parseVintedAccountImport(
         currency: money.currency,
         status: string(item?.['status']),
         imageUrl: image(firstPhoto?.['url']),
+        imageUrls,
         promoted: typeof item?.['promoted'] === 'boolean' ? item['promoted'] : null,
         isClosed: typeof item?.['is_closed'] === 'boolean' ? item['is_closed'] : null,
         isReserved: typeof item?.['is_reserved'] === 'boolean' ? item['is_reserved'] : null,
@@ -312,54 +344,72 @@ export async function readVintedAccountImport(
   page: Page,
   authorize: () => Promise<void>,
 ): Promise<VintedAccountImport> {
-  await page.goto('https://www.vinted.de/', { waitUntil: 'domcontentloaded', timeout: 20_000 });
-  const identity = await readVintedAccountIdentity(page);
-  if (!identity) throw new Error('Vinted-Anmeldung nicht bestätigt');
-  await authorize();
-  const profile = await vintedJson(page, '/api/v2/users/current');
-  await authorize();
-  const items = await pages(
-    page,
-    (number) => `/api/v2/wardrobe/${identity.id}/items?page=${number}&per_page=20`,
-    'items',
-    authorize,
+  await atImportStage('navigation', () =>
+    page.goto('https://www.vinted.de/', { waitUntil: 'domcontentloaded', timeout: 20_000 }),
   );
-  await authorize();
-  const conversations = await pages(
-    page,
-    (number) => `/api/v2/inbox?page=${number}&per_page=20`,
-    'conversations',
-    authorize,
-  );
-  if (conversations.length > 100)
-    throw new Error('Vinted-Import überschreitet die Gesprächsgrenze');
+  const identity = await atImportStage('identity', async () => {
+    const account = await readVintedAccountIdentity(page);
+    if (!account) throw new Error('Vinted-Anmeldung nicht bestätigt');
+    return account;
+  });
+  const profile = await atImportStage('profile', async () => {
+    await authorize();
+    return vintedJson(page, '/api/v2/users/current');
+  });
+  const items = await atImportStage('publications', async () => {
+    await authorize();
+    return pages(
+      page,
+      (number) => `/api/v2/wardrobe/${identity.id}/items?page=${number}&per_page=20`,
+      'items',
+      authorize,
+    );
+  });
+  const conversations = await atImportStage('conversations', async () => {
+    await authorize();
+    return pages(
+      page,
+      (number) => `/api/v2/inbox?page=${number}&per_page=20`,
+      'conversations',
+      authorize,
+    );
+  });
+  if (conversations.length > 100) throw new VintedImportReadError('conversations');
   const details: unknown[] = [];
   for (const raw of conversations) {
     // Das Öffnen ungelesener Gespräche könnte bei Vinted den Lesestatus verändern.
     if (record(raw)?.['unread'] !== false) continue;
     const id = identifier(record(raw)?.['id']);
     if (!id) continue;
-    await authorize();
-    const conversation = await vintedJson(page, `/api/v2/conversations/${id}`);
+    const conversation = await atImportStage('messages', async () => {
+      await authorize();
+      const detail = await vintedJson(page, `/api/v2/conversations/${id}`);
+      const relation = record(record(detail)?.['conversation']);
+      if (identifier(relation?.['id']) !== id) throw new Error('Vinted-Gespräch geändert');
+      return detail;
+    });
     const relation = record(record(conversation)?.['conversation']);
-    if (identifier(relation?.['id']) !== id) throw new Error('Vinted-Gespräch geändert');
     const transactionId = identifier(record(relation?.['transaction'])?.['id']);
     let transaction: unknown = null;
     if (
       transactionId &&
       identifier(record(relation?.['transaction'])?.['seller_id']) === identity.id
     ) {
-      await authorize();
-      transaction = await vintedJson(page, `/api/v2/transactions/${transactionId}`);
+      transaction = await atImportStage('transaction', async () => {
+        await authorize();
+        return vintedJson(page, `/api/v2/transactions/${transactionId}`);
+      });
     }
     details.push({ ...record(conversation), transaction });
   }
-  return parseVintedAccountImport(
-    identity,
-    profile,
-    items,
-    conversations,
-    details,
-    new Date().toISOString(),
+  return atImportStage('parse', async () =>
+    parseVintedAccountImport(
+      identity,
+      profile,
+      items,
+      conversations,
+      details,
+      new Date().toISOString(),
+    ),
   );
 }

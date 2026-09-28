@@ -1,5 +1,29 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-28 – Juna – Vinted-Inseratdetails und Bearbeitung vorbereiten
+
+**Auftrag:** Klickbare Inseratdetails, Bearbeitung vorhandener Anzeigen und
+einfacher Profildaten auf dem bestehenden Vinted-Kontoweg ergänzen.
+
+**Änderung:** Eine kontogebundene Detailseite öffnet eigene Inserate. Titel,
+Beschreibung und Preis sowie der Profiltext „Über mich“ erhalten begrenzte
+Editoren über das bestehende GoLogin-Profil. Der Worker prüft Workspace,
+Konto, Eintrag und Vinted-Identität und bestätigt Speichern erst nach einem
+frischen Lesen des Formulars. Die übrigen Vinted-Felder bleiben erhalten.
+
+**Prüfung und Grenze:** Anbieterformulare wurden nur lesend geprüft und alle
+Browser gestoppt. Angular-Bau, Worker-Typprüfung und gezielte Worker-Tests
+bestanden. Ein echter Schreibversuch, neue Inserate, Nachrichten und
+automatische Abrufe sind noch offen. Kein Push, Merge oder Deployment.
+
+## 2026-09-28 – Juna – Vinted-Abruffehler eingrenzen und Ansichten verdichten
+
+**Auftrag:** Den ersten HTTP-502-Fehler beim manuellen Abruf untersuchen, Verkäufe dichter darstellen, den Verkaufshinweis entfernen und das Profil kompakter gestalten. Den nächsten Schritt für automatische Aktualisierung und Bearbeitungsaktionen festhalten.
+
+**Änderung:** Der Browserdienst kennzeichnet fehlgeschlagene Leseschritte mit einer festen, datensparsamen Stufe; Flipbase zeigt sie verständlich an. Das Verkaufsraster nutzt bis zu fünf Spalten, die Profilkarte eine begrenzte Breite mit gegliederten Angaben. Die Sortierung der Gespräche bleibt nach dem letzten Ereignis. Der Plan nennt einen begrenzten Pilotabruf und die Voraussetzungen für automatische Abrufe und spätere Schreibaktionen.
+
+**Prüfung und Grenze:** Der Worker blieb beim gemeldeten Fehler gesund; die beobachteten Sitzungen endeten sauber. 32 gezielte Worker- und 17 Angular-Tests, zwei lokale Browserabläufe mit künstlichen Daten und AXE-Prüfung bei 1440 und 390 Pixeln, beide Builds, Typprüfung, Lint der betroffenen Dateien und die Shared-UI-Prüfung bestanden. Die Ursache des ersten 502 ist noch offen und kann erst anhand der neuen Stufe bei einem weiteren Nutzerabruf eingegrenzt werden. Kein neuer Liveabruf, Nachrichtenversand, Push, Merge oder Deployment in dieser Sitzung.
+
 ## 2026-09-28 – Juna – Vinted-Datenansichten nach erstem Liveabruf korrigiert
 
 **Auftrag:** Die vom Nutzer beobachteten Lücken bei Profilbild, Bewertung, Inseraten und Nachrichten nach dem ersten erfolgreichen manuellen Abruf beheben.

@@ -14,6 +14,8 @@ import { parseMarketplaceSnapshot } from './models/marketplace-response';
 import type { AccountScope } from './models/marketplace.models';
 import { VintedWorkspaceComponent } from './vinted-workspace.component';
 import { VintedAccountContentComponent } from './components/vinted-account-content/vinted-account-content.component';
+import { VintedProfileEditorComponent } from './components/vinted-profile-editor/vinted-profile-editor.component';
+import { VintedListingDetailComponent } from './components/vinted-listing-detail/vinted-listing-detail.component';
 import { VintedRatingComponent } from './components/vinted-rating/vinted-rating.component';
 import { MarketplaceAccountsComponent } from './components/marketplace-accounts/marketplace-accounts.component';
 import { MarketplaceConnectComponent } from './components/marketplace-connect/marketplace-connect.component';
@@ -82,6 +84,7 @@ let resetBindings: (() => void) | undefined;
 let api: {
   listConnections: ReturnType<typeof vi.fn>;
   readSnapshot: ReturnType<typeof vi.fn>;
+  readPublication: ReturnType<typeof vi.fn>;
   readPage: ReturnType<typeof vi.fn>;
   createConnection: ReturnType<typeof vi.fn>;
   renameConnection: ReturnType<typeof vi.fn>;
@@ -120,6 +123,14 @@ beforeAll(async () => {
       path: 'src/app/features/marketplaces/components/vinted-account-content/vinted-account-content.component.ts',
     },
     {
+      type: VintedProfileEditorComponent,
+      path: 'src/app/features/marketplaces/components/vinted-profile-editor/vinted-profile-editor.component.ts',
+    },
+    {
+      type: VintedListingDetailComponent,
+      path: 'src/app/features/marketplaces/components/vinted-listing-detail/vinted-listing-detail.component.ts',
+    },
+    {
       type: VintedRatingComponent,
       path: 'src/app/features/marketplaces/components/vinted-rating/vinted-rating.component.ts',
     },
@@ -146,6 +157,9 @@ beforeEach(() => {
       .fn()
       .mockResolvedValue({ canManage: true, connections: fixtureConnections }),
     readSnapshot: vi.fn().mockImplementation(async (scope: AccountScope) => makeSnapshot(scope)),
+    readPublication: vi
+      .fn()
+      .mockImplementation(async (scope: AccountScope) => makeSnapshot(scope).publications.items[0]),
     readPage: vi.fn().mockResolvedValue(emptyPage()),
     createConnection: vi.fn(),
     renameConnection: vi.fn().mockResolvedValue(undefined),
@@ -159,6 +173,7 @@ beforeEach(() => {
           component: VintedWorkspaceComponent,
           children: [
             { path: 'connect/:connectionId', component: MarketplaceConnectComponent },
+            { path: 'listings/:connectionId/:entryId', component: VintedListingDetailComponent },
             ...['overview', 'listings', 'messages', 'sales', 'profile', 'activity'].map(
               (section) => ({
                 path: section,
@@ -191,6 +206,9 @@ beforeEach(() => {
           input: vi.fn(),
           close: vi.fn(),
           syncConnection: browserApi.syncConnection,
+          readListingEdit: vi
+            .fn()
+            .mockResolvedValue({ title: 'Testschal', description: 'Ein Schal', price: '12,50' }),
         },
       },
     ],
@@ -252,6 +270,7 @@ describe('Vinted-Bereich in Flipbase', () => {
   it('zeigt die normierte Vinted-Bewertung als fünf Sterne', async () => {
     const { element } = await render('/marketplaces/vinted/profile');
     expect(element.textContent).toContain('1 Bewertung');
+    expect(element.querySelector('app-vinted-account-content .max-w-3xl')).not.toBeNull();
     const rating = element.querySelector('[aria-label="5,0 von 5 Sternen"]');
     expect(rating).not.toBeNull();
     expect(rating?.querySelectorAll('svg.fill-current')).toHaveLength(5);
@@ -282,6 +301,71 @@ describe('Vinted-Bereich in Flipbase', () => {
     expect(element.textContent).toContain('Testschal');
     expect(element.querySelector('[data-views]')?.textContent?.trim()).toBe('0');
     expect(element.querySelector('[data-favorites]')?.textContent?.trim()).toBe('—');
+  });
+  it('öffnet ein Inserat nur innerhalb des ausgewählten Kontos', async () => {
+    const { element, harness } = await render('/marketplaces/vinted/listings');
+    const link = element.querySelector<HTMLAnchorElement>(
+      'a[aria-label="Inserat Testschal öffnen"]',
+    );
+    expect(link?.getAttribute('href')).toBe(
+      '/marketplaces/vinted/listings/fixture-account-a/publication-1',
+    );
+    link?.click();
+    await harness.fixture.whenStable();
+    harness.detectChanges();
+    expect(api.readPublication).toHaveBeenCalledWith(
+      { workspaceId: 'fixture-workspace', connectionId: 'fixture-account-a' },
+      'publication-1',
+    );
+    expect(element.textContent).toContain('Testschal');
+  });
+  it('zeigt Verkäufe im dichten Kartenraster ohne den bisherigen Hinweis', async () => {
+    api.readSnapshot.mockImplementation(async (scope: AccountScope) => ({
+      ...makeSnapshot(scope),
+      sales: {
+        items: [
+          {
+            ...scope,
+            id: 'sale-1',
+            title: 'Verkauftes Hemd',
+            price: 30,
+            currency: 'EUR',
+            status: 'Versendet',
+            imageUrl: null,
+            shipmentStatus: null,
+            occurredAt: null,
+          },
+        ],
+        total: 1,
+        nextCursor: null,
+      },
+    }));
+    const { element } = await render('/marketplaces/vinted/sales');
+    expect(element.textContent).toContain('Verkauftes Hemd');
+    expect(element.textContent).not.toContain('Hier erscheinen Bestellungen');
+    expect(
+      element.querySelector('app-vinted-account-content .grid.grid-cols-2')?.classList,
+    ).toContain('2xl:grid-cols-5');
+  });
+  it('zeigt beim HTTP-502-Abruffehler nur den betroffenen Importschritt', async () => {
+    const request = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ code: 'vinted_import_failed', stage: 'profile' }), {
+        status: 502,
+      }),
+    );
+    try {
+      await expect(
+        new MarketplaceBrowserTestApiService().syncConnection(
+          {
+            workspaceId: fixtureConnections[0].workspaceId,
+            connectionId: fixtureConnections[0].connectionId,
+          },
+          'synthetic-token',
+        ),
+      ).rejects.toThrow('beim Lesen des Profils');
+    } finally {
+      request.mockRestore();
+    }
   });
   it('zeigt Serverfehler statt eines scheinbar leeren Kontos', async () => {
     api.listConnections.mockRejectedValue(new MarketplaceApiError('unavailable'));

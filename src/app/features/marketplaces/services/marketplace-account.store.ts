@@ -15,6 +15,7 @@ import {
   MarketplaceConnectionRemovalError,
   MarketplaceWorkerOutdatedError,
   MarketplaceImportError,
+  type VintedListingEditFields,
 } from './marketplace-browser-test-api.service';
 
 const snapshotPages = {
@@ -326,6 +327,68 @@ export class MarketplaceAccountStore {
       await this.browserApi.syncConnection(scope, token);
       return this.selectedConnection()?.connectionId ?? connection.connectionId;
     });
+  }
+  async readPublication(connectionId: string, entryId: string): Promise<MarketplaceEntry | null> {
+    const connection = this.selectedConnection();
+    if (!this.canManage() || connection?.connectionId !== connectionId) return null;
+    return this.api.readPublication(this.scope(connection), entryId);
+  }
+  async readListingEdit(connectionId: string, entryId: string): Promise<VintedListingEditFields> {
+    const connection = this.selectedConnection();
+    const token = this.auth.session()?.access_token;
+    if (
+      !this.canManage() ||
+      connection?.connectionId !== connectionId ||
+      connection.status !== 'connected' ||
+      !token
+    )
+      throw new Error('Wähle zuerst das verbundene Vinted-Konto aus.');
+    return this.browserApi.readListingEdit(this.scope(connection), entryId, token);
+  }
+  async saveListingEdit(
+    connectionId: string,
+    entryId: string,
+    fields: VintedListingEditFields,
+  ): Promise<void> {
+    const connection = this.selectedConnection();
+    const token = this.auth.session()?.access_token;
+    if (
+      !this.canManage() ||
+      connection?.connectionId !== connectionId ||
+      connection.status !== 'connected' ||
+      !token
+    )
+      throw new Error('Wähle zuerst das verbundene Vinted-Konto aus.');
+    await this.browserApi.saveListingEdit(this.scope(connection), entryId, fields, token);
+  }
+  async readProfileAbout(connectionId: string): Promise<string> {
+    const connection = this.selectedConnection();
+    const token = this.auth.session()?.access_token;
+    if (
+      !this.canManage() ||
+      connection?.connectionId !== connectionId ||
+      connection.status !== 'connected' ||
+      !token
+    )
+      throw new Error('Wähle zuerst das verbundene Vinted-Konto aus.');
+    return this.browserApi.readProfileAbout(this.scope(connection), token);
+  }
+  async saveProfileAbout(connectionId: string, about: string): Promise<void> {
+    const connection = this.selectedConnection();
+    const token = this.auth.session()?.access_token;
+    if (
+      !this.canManage() ||
+      connection?.connectionId !== connectionId ||
+      connection.status !== 'connected' ||
+      !token
+    )
+      throw new Error('Wähle zuerst das verbundene Vinted-Konto aus.');
+    await this.browserApi.saveProfileAbout(this.scope(connection), about, token);
+    this.accountSnapshot.update((value) =>
+      value && value.connectionId === connectionId && value.profile
+        ? { ...value, profile: { ...value.profile, bio: about } }
+        : value,
+    );
   }
   private async mutate(operation: () => Promise<string | undefined>): Promise<boolean> {
     const key = this.contextKey();

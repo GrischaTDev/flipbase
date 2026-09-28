@@ -173,6 +173,14 @@ export function parseMarketplacePage(
           : 'EUR',
       status: text(item['status']),
       imageUrl: imageUrl(item['imageUrl']),
+      ...(Array.isArray(item['imageUrls'])
+        ? {
+            imageUrls: item['imageUrls']
+              .slice(0, 20)
+              .map(imageUrl)
+              .filter((url): url is string => url !== null),
+          }
+        : {}),
       metrics: {
         views: counter(metrics['views']),
         favorites: counter(metrics['favorites']),

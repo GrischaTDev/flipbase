@@ -650,3 +650,68 @@ beobachteten Felder und die Kapazitätsrechnung für einen Fünf-Minuten-Takt.
       der aktiven Liste nehmen, Nachrichten mit interner ID und Systemereignisse
       einlesen, Bewertung und Bildzuschnitt berichtigen. Lokal umgesetzt und
       geprüft; erneuter produktiver Abruf und visuelle Abnahme stehen aus.
+
+## AP05b: Ersten 502 beim manuellen Abruf eingrenzen (28.09.2026)
+
+Nach dem veröffentlichten Import meldete der Nutzer beim ersten Klick HTTP 502;
+der zweite Klick übernahm die Daten. Der Worker blieb gesund, und beide
+Browsersitzungen wurden beendet. Die Importfunktion fängt bisher jeden
+Lesefehler ab und gibt denselben 502 zurück. Die konkrete Ursache des ersten
+Fehlers ist daher noch nicht nachweisbar.
+
+- [x] Feste Fehlerstufen für Navigation, Identität, Profil, Inserate,
+      Gesprächsliste, Einzelverlauf, Transaktion und Verarbeitung ergänzen.
+      Antwort und Oberfläche enthalten nur die Stufe, keine Anbieterantwort,
+      Kontodaten oder Nachrichtentexte.
+- [x] Prüfen, dass nach einem Lesefehler nichts geschrieben und die gebundene
+      Sitzung beendet wird. Den zweiten Klick nicht als Beleg für eine
+      bestimmte Ursache oder als pauschale Wiederholstrategie behandeln.
+- [ ] Nach Veröffentlichung bei einem erneuten Fehler die angezeigte Stufe
+      notieren und genau diesen Abrufschritt untersuchen. Keine zusätzlichen
+      Liveabrufe nur für die Fehlersuche starten.
+
+## AP06: Automatische Aktualisierung und Schreibaktionen
+
+Der manuelle Leseimport ist der Ausgangspunkt. Für ein privates Vinted-Konto
+gibt es in der öffentlichen Pro-Integrations-API keinen freigeschalteten
+Zugang; die Anbieterberechtigung für regelmäßiges automatisches Lesen und
+Schreiben bleibt zu klären. Deshalb ist noch kein Hintergrundtakt aktiv.
+
+1. Nach Klärung der Berechtigung einen ausdrücklich aktivierten Pilot für ein
+   eigenes Konto vorsehen. Laufzeit, Fehlerquote, Proxyverbrauch und sichere
+   Browserstopps messen. Erst danach ein Intervall wählen; fünf Minuten sind
+   derzeit keine Zusage.
+2. Fällige Abrufe je Workspace und Konto in eine Warteschlange geben. Pro
+   Konto nur einen Lauf gleichzeitig, global höchstens so viele wie der
+   GoLogin-Tarif zulässt. Nach Fehlern begrenzt und mit Abstand erneut
+   versuchen; bei abgelaufener Anmeldung pausieren und sichtbar informieren.
+3. Neue Inserate, Bestellungen und Nachrichten anhand stabiler Fremd-IDs
+   gegen den letzten vollständigen Stand vergleichen. Den ersten Abruf als
+   Ausgangsstand behandeln, damit alte Daten keine neuen Meldungen auslösen.
+   Danach über die vorhandene Flipbase-Benachrichtigung zustellen.
+4. Inserate erstellen/bearbeiten, Nachrichten senden und Profil bearbeiten
+   getrennt als ausdrücklich ausgelöste Aktionen umsetzen. Jede Aktion braucht
+   Kontobindung, Eingabeprüfung und eine bestätigte Anbieterantwort. Bei
+   unklarem Ergebnis vor einem erneuten Senden den Anbieterstand lesen, um
+   doppelte Inserate oder Nachrichten zu vermeiden. Verfügbare Felder und
+   Berechtigung sind für jede Aktion erst nachzuweisen.
+
+**Teilstand 28.09.2026:** Die eigene Inserat-Bearbeitungsseite und die
+Profilseite wurden im zugeordneten Browserprofil nur lesend geprüft. Für
+vorhandene Inserate sind Titel, Beschreibung und Preis sowie „Speichern“
+sichtbar; im Profil sind „Über mich“ und „Profil aktualisieren“ vorhanden.
+Eine Flipbase-Detailseite und eng begrenzte, kontogebundene Lese- und
+Speicherwege für diese Felder sind implementiert. Eine Änderung gilt erst
+nach erneutem Laden des Anbieterformulars als bestätigt. Ein echter
+Schreibversuch wurde noch nicht ausgeführt. Bilder, Kategorie, Zustand,
+Versand, Anzeigename und Benutzername werden nicht verändert.
+
+- [x] Detailroute für eigene Inserate mit Workspace- und Kontobindung.
+- [x] Editor für Titel, Beschreibung und Preis sowie Profiltext im bestehenden
+      GoLogin-Profil technisch vorbereiten; bei unklarem Ergebnis nicht erneut
+      senden.
+- [ ] Mit einer ausdrücklich ausgewählten eigenen Testanzeige und einem
+      eigenen Profiltext je einen kontrollierten Schreibversuch abnehmen.
+- [ ] Neues Inserat mit Foto-Upload, Kategorie, Zustand, Versand und
+      bestätigter Veröffentlichung als eigenes Arbeitspaket umsetzen.
+- [ ] Nachrichtenversand und automatische Abrufe getrennt weiterführen.
