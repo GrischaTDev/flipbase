@@ -1,11 +1,11 @@
 # Vinted-Marktplatzverwaltung: Implementierungsplan
 
-> **Livebefund nach PR #230 (28.09.2026):** Die Web-App ist aktuell, der
-> produktive Worker nutzt noch ein älteres Image. GoLogin verweigert neue
-> Profile wegen erreichter Profilzahl. Die lokale Korrektur trennt ausstehende
-> von bestätigten Konten und benennt diese Grenze. Worker-Rollout und freier
-> Profilplatz sind vor einem erneuten Liveversuch erforderlich; ein bestätigter
-> Vinted-Login fehlt weiterhin.
+> **Livebefund nach PR #231 (28.09.2026):** Web-App und Browserdienst laufen
+> mit Merge-Commit `e912b17b`; der öffentliche Gesundheitscheck bestätigt
+> `apiVersion: 2`. GoLogin meldet weiterhin zehn Profile. Ein freier
+> Profilplatz und ein vom Nutzer gestarteter Versuch sind für einen neuen
+> Kontologin erforderlich; eine echte Kontolöschung und ein bestätigter
+> Vinted-Login fehlen weiterhin.
 
 > **Aktueller Stand (28.09.2026):** Nach Aktivierung eines Standard-Abos ist die GoLogin-API wieder erreichbar. Ein leeres Anbieterprofil ließ sich erstellen und löschen; für die echte Flipbase-Verbindung wurden ein dauerhaftes Profil und eine aktive Browsersitzung angelegt. Der Anmeldeversuch erreichte nach einer Minute das Zeitlimit; erst danach wurde die Seite verlassen und die Sitzung geschlossen. Die Verbindung bleibt `needs_login`. Das gespeicherte Profil zeigte beim späteren lesenden Öffnen erneut das Vinted-Anmeldeformular; der private Identitätsabruf antwortete dort HTTP 403 `access_denied`. Die neue lokale Prüfung unterscheidet dieses Formular vom unbekannten Wartezustand. Ein bestätigter Login und die private Leseroute bleiben offen; Datenimport ist ein getrenntes Folgepaket.
 
@@ -522,8 +522,10 @@ zu verifizieren. Keine neue Datenbankmigration oder Abhängigkeit.
       ohne Anbieterantwort oder Geheimnisse an Angular auszugeben.
 - [x] Worker-Version im Gesundheitscheck prüfen und bei altem Worker Anmeldung
       sowie Löschung mit verständlichem Hinweis sperren.
-- [ ] Geprüftes Worker-Image auf dem Server aktivieren und Löschung mit einer
-      ausdrücklich ausgewählten eigenen Verbindung testen.
+- [x] Geprüftes Worker-Image `e912b17b` als einzige Instanz auf dem Server
+      aktivieren; HTTP 200 mit `apiVersion: 2`, HTTP 401 ohne Anmeldung und
+      keine offene Sitzung beim Wechsel bestätigt.
+- [ ] Löschung mit einer ausdrücklich ausgewählten eigenen Verbindung testen.
 - [ ] Einen Profilplatz kontrolliert freimachen oder das GoLogin-Kontingent
       klären. Ein unzugeordnetes Profil darf ohne Prüfung seiner Herkunft und
       eines möglichen laufenden Anbieterbrowsers nicht pauschal entfernt werden.

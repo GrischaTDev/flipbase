@@ -1,5 +1,25 @@
 # Arbeitsstand: Vinted-Marktplatzverwaltung
 
+## 28. September 2026 – Browserdienst nach PR #231 aktiviert
+
+PR #231 wurde nach grünen Pflichtprüfungen als Merge-Commit `e912b17b` in
+`master` übernommen. Der automatische Produktionslauf lieferte die Web-App
+auf genau diesem Commit aus. Das separat veröffentlichte Worker-Image
+`sha-e912b17b3b7a6658f2eafb9af87acf62a783b7d0` wurde nach ausdrücklicher
+Freigabe als einzige Browserdienst-Instanz gestartet. Das vorherige Image
+`sha-1a93cbf6716b7ed4e828d25cfdba12c92e5f947a` bleibt für einen
+Rückweg verfügbar.
+
+Der Container ist gesund. Der öffentliche Gesundheitscheck antwortet mit
+HTTP 200, `apiVersion: 2` und `readOnly: false`; ein Sitzungsstart ohne
+Benutzeranmeldung wird mit HTTP 401 abgewiesen. Vor und nach dem Wechsel
+waren sechs Browsersitzungen geschlossen und keine offen. GoLogin antwortete
+lesend mit HTTP 200 und meldete weiterhin zehn Profile. Weder ein Konto
+noch ein Anbieterprofil wurde gelöscht oder ein Vinted-Login ausgelöst.
+Der nächste Live-Nachweis ist die Löschung einer ausdrücklich ausgewählten
+eigenen Verbindung beziehungsweise die Klärung des Profilkontingents;
+danach kann der Nutzer erneut eine Anmeldung starten.
+
 ## 28. September 2026 – Livefehler bei Kontoanlage, Löschung und Browserstart
 
 Nach PR #230 ist die Web-App mit Commit `8b020be5` öffentlich ausgeliefert. Der

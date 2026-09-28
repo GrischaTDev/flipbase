@@ -1,7 +1,23 @@
 # Vinted-Browserdienst: Veröffentlichung des Admin-Piloten
 
-Stand 27.09.2026. Noch nicht ausgeführt; die Veröffentlichung braucht die Freigabe
-des geprüften PRs und die Freigabe zur produktiven Aktivierung.
+## Aktueller Betriebsstand vom 28.09.2026
+
+Nach PR #231 und ausdrücklicher Freigabe läuft der Worker mit dem Image
+`ghcr.io/grischatdev/flipbase-marketplace-worker:sha-e912b17b3b7a6658f2eafb9af87acf62a783b7d0`.
+Die Web-App liefert denselben Merge-Commit aus. Der Container ist gesund,
+der öffentliche Gesundheitscheck meldet `apiVersion: 2` und
+`readOnly: false`, und ein Sitzungsstart ohne Anmeldung wird mit HTTP 401
+abgewiesen. Das vorherige Image und die vorherige Image-Zuordnung bleiben
+auf dem Server für einen Rückweg erhalten. Es gab keine offene Sitzung beim
+Wechsel. GoLogin meldet weiterhin zehn Profile; ein echter Login und die
+Löschung eines ausgewählten Kontos bleiben als Live-Nachweise offen.
+
+Die folgende Anleitung dokumentiert die ursprüngliche Einrichtung und den
+Rückweg. Ihre Bestandsaufnahme vom 27.09.2026 ist historisch.
+
+Historischer Stand vom 27.09.2026: Die Veröffentlichung war zu diesem
+Zeitpunkt noch nicht ausgeführt und brauchte die Freigabe des geprüften PRs
+sowie die Freigabe zur produktiven Aktivierung.
 
 ## Lesend bestätigter Serverstand
 
