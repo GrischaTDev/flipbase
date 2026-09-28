@@ -23,6 +23,8 @@ export interface MarketplaceEntry extends AccountScope {
   readonly brand: string | null;
   readonly size: string | null;
   readonly shipmentStatus: string | null;
+  readonly messageType: string | null;
+  readonly priceLabel: string | null;
 }
 export interface MarketplaceProfile extends AccountScope {
   readonly username: string | null;

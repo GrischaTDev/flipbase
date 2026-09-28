@@ -1,6 +1,25 @@
 # Vinted-Browserdienst: Veröffentlichung des Admin-Piloten
 
-## Aktueller Betriebsstand vom 28.09.2026
+## Aktueller Betriebsstand vom 28.09.2026 – manueller Datenimport
+
+Nach dem grünen PR #237 wurde der Merge-Commit
+`47a1529102bf16829cf448a84915d95fa0913543` automatisch als Web-App
+veröffentlicht und öffentlich geprüft. Nach gesonderter Nutzerfreigabe baute
+der Workflow „Publish Marketplace Worker Image“ aus genau diesem Commit das
+Image `ghcr.io/grischatdev/flipbase-marketplace-worker:sha-47a1529102bf16829cf448a84915d95fa0913543`.
+Nur die bestehende Worker-Instanz wurde auf dieses Image umgestellt. Die
+Compose-Datei stimmte mit dem geprüften Repository-Stand überein; eine Kopie
+mit Modus 0600 und das vorige Image `sha-db63bf194c99798f8de59d761ff59782f29ba438`
+bleiben für den Rückweg auf dem Server.
+
+Vor und nach der Umstellung gab es fünf geschlossene und keine aktiven oder
+ungeklärten Browsersitzungen. Der Container ist gesund. Der öffentliche
+Healthcheck meldet `ok: true`, `apiVersion: 2`, `readOnly: false`; ein
+anonymer Sitzungsstart liefert HTTP 401. Es wurde kein Vinted-Datenabruf und
+kein Nachrichtenversand durch den Rollout ausgelöst. Ein vom Nutzer gestarteter
+erster Import und der mögliche erneute HTTP-403-Fehler sind noch zu prüfen.
+
+## Vorheriger Betriebsstand vom 28.09.2026
 
 Nach PR #235 und gesonderter Freigabe läuft der Worker mit dem Image
 `ghcr.io/grischatdev/flipbase-marketplace-worker:sha-db63bf194c99798f8de59d761ff59782f29ba438`.

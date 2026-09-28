@@ -95,6 +95,7 @@ test('verwirft fremde Artikel und behandelt Angebote ohne Bestellung nicht als V
       { id: 41, user_id: 999, title: 'Fremder Artikel' },
       { id: 42, user_id: 123, title: 'Eigenes Inserat' },
       { id: 42, user_id: 123, title: 'Eigenes Inserat auf weiterer Seite' },
+      { id: 43, user_id: 123, title: 'Verkauftes Inserat', is_closed: true },
     ],
     [],
     [{ conversation: { id: 51, messages: [], transaction: { id: 71, seller_id: 123 } } }],
@@ -105,4 +106,53 @@ test('verwirft fremde Artikel und behandelt Angebote ohne Bestellung nicht als V
     result.entries.some((entry) => entry.kind === 'sale'),
     false,
   );
+});
+
+test('übernimmt echte Chatnachrichten mit Entity-ID und Systemereignisse ohne ID', () => {
+  const result = parseVintedAccountImport(
+    { id: '123', username: 'testkonto' },
+    { user: { id: 123, login: 'testkonto' } },
+    [],
+    [{ id: 51, unread: false }],
+    [
+      {
+        conversation: {
+          id: 51,
+          messages: [
+            {
+              entity_type: 'message',
+              created_at_ts: 1790589600,
+              entity: { id: 62, user_id: 123, body: 'Danke für Deinen Einkauf' },
+            },
+            {
+              entity_type: 'message',
+              created_at_ts: 1790589601,
+              entity: { id: 63, user_id: 456, body: 'Gerne' },
+            },
+            {
+              entity_type: 'status_message',
+              created_at_ts: 1790589602,
+              event_type: 'success',
+              entity: { title: 'Angebot angenommen', template: { style: 'notice' } },
+            },
+          ],
+        },
+      },
+    ],
+    '2026-09-28T10:00:00Z',
+  );
+  const messages = result.entries.filter((entry) => entry.kind === 'message');
+  assert.equal(messages.length, 3);
+  assert.deepEqual(
+    messages.map((entry) => entry.body['direction']),
+    ['outbound', 'inbound', 'unknown'],
+  );
+  const systemMessage = messages[2];
+  assert.ok(systemMessage);
+  assert.equal(systemMessage.body['text'], 'Angebot angenommen');
+  assert.match(systemMessage.externalId, /^event:[0-9a-f]{64}$/);
+  const conversation = result.entries.find((entry) => entry.kind === 'conversation');
+  assert.ok(conversation);
+  assert.equal(conversation.body['text'], 'Angebot angenommen');
+  assert.equal(conversation.body['occurredAt'], systemMessage.sortAt);
 });

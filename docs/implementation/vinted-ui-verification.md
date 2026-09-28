@@ -1,5 +1,27 @@
 # Vinted-Oberfläche: geprüfter Stand vom 26. September 2026
 
+## Nachtrag 28.09.2026: Darstellung nach dem ersten manuellen Datenabruf
+
+Nach Rückmeldung des Nutzers lieferte der zweite Aktualisierungsklick Daten;
+der erste zeigte keinen erkennbaren Fortschritt. Während eines laufenden
+Abrufs erscheint jetzt zusätzlich zum Button-Loader ein Statussatz. Die
+Profilbewertung 1,0 aus der Anbieterantwort bedeutet fünf Sterne und wird
+mit Bewertungsanzahl und 5,0 angezeigt. Profil- und Gesprächsbilder erhalten
+einen runden Zuschnitt. Die Inseratkarten sind auf Desktop dichter angeordnet,
+höchstens fünf nebeneinander; geschlossene Artikel werden beim nächsten
+vollständigen Abruf entfernt. „Gepusht“ liegt als farbiger Banner auf dem
+Bild. In der Gesprächsliste stehen Avatar, Vorschau und Zeitpunkt mit mehr
+Abstand; der Verlauf zeigt Nachrichten und Systemereignisse getrennt.
+
+Ein bereits gelesener echter Verlauf enthielt fünf statt der zuvor
+gespeicherten einen Nachricht. Der korrigierte Parser deckt die beobachteten
+ID-Formen mit einem gezielten Test ab. 109 Angular-Marktplatztests,
+Worker-Typprüfung, beide Builds, ESLint und Shared-UI-Prüfung bestanden. Zwei
+lokale Browserabläufe bei 1440 und 390 Pixeln bestanden ohne horizontales
+Überlaufen oder AXE-Befunde in der geprüften Kontoverwaltung.
+Visuelle Abnahme mit dem eigenen Konto und ein neuer produktiver Abruf sind
+noch offen; hier wurden keine Nachrichten versendet.
+
 ## Nachtrag 28.09.2026: Lesender Datenumfang nach bestätigter Anmeldung
 
 Die live verbundene Kontositzung lieferte Profil- und Bewertungsfelder,

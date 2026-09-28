@@ -63,7 +63,12 @@
   }
 
   @if (!iconOnly()) {
-    <span class="truncate">
+    <span
+      [class.truncate]="variant() !== 'list-row'"
+      [class.w-full]="variant() === 'list-row'"
+      [class.min-w-0]="variant() === 'list-row'"
+      [class.block]="variant() === 'list-row'"
+    >
       <ng-content />
     </span>
   }

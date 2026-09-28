@@ -646,3 +646,7 @@ beobachteten Felder und die Kapazitätsrechnung für einen Fünf-Minuten-Takt.
       Synchronisierungsstände von der bloßen Kontobestätigung unterscheiden.
       Ein manueller Aktualisierungsbutton startet den Import. Lokal geprüft;
       Nachrichtenversand, Veröffentlichungen und Push bleiben eigene Pakete.
+- [x] Den ersten Nutzerabruf auf Datenlücken prüfen: geschlossene Inserate aus
+      der aktiven Liste nehmen, Nachrichten mit interner ID und Systemereignisse
+      einlesen, Bewertung und Bildzuschnitt berichtigen. Lokal umgesetzt und
+      geprüft; erneuter produktiver Abruf und visuelle Abnahme stehen aus.

@@ -864,3 +864,39 @@ Desktop-/Mobilabläufe bestanden. Ein weiterer lesender Liveversuch erhielt
 nach bestätigter Identität HTTP 403 für die Profildaten; kein echter Import
 wurde als erfolgreich ausgegeben. Der Browserstopp wurde bestätigt. Kein Push,
 Merge oder Deployment in diesem Schritt.
+
+## 28.09.2026 – Manueller Import veröffentlicht, erster Abruf offen
+
+PR #237 wurde nach grünen Pflichtprüfungen gemergt. Die Web-App mit
+`47a15291` wurde öffentlich geprüft; nach gesonderter Nutzerfreigabe läuft
+auch der Marketplace-Worker mit dem Image desselben Merge-Commits. Vor und
+nach dem Wechsel gab es keine aktiven oder ungeklärten Browsersitzungen.
+Gesundheitscheck und anonyme Zugriffsablehnung bestanden. Der Rollout selbst
+startete keinen Vinted-Abruf. Der erste vom Nutzer ausgelöste Datenimport und
+die zuletzt beobachtete HTTP-403-Antwort sind noch zu prüfen.
+
+## 28.09.2026 – Erster Abruf und Korrektur der gespeicherten Ansichten
+
+Der Nutzer meldete einen erfolgreichen manuellen Abruf beim zweiten Klick.
+Eine rein aggregierte Prüfung fand danach ein Profil, sechs Inserate, sechs
+Gespräche, fünf gespeicherte Nachrichten und drei belegte Verkäufe. In einem
+bereits gelesenen Verlauf lieferte Vinted fünf Einträge, der bisherige Import
+hatte wegen fehlender äußerer IDs nur einen davon gespeichert. Zwei der sechs
+Inserate waren als geschlossen markiert. Drei kurze Strukturabfragen wurden
+jeweils mit bestätigtem Browserstopp beendet; keine privaten Inhalte wurden
+ausgegeben.
+
+Im aktuellen Branch übernimmt der Import nun auch Nachrichten-IDs aus dem
+Nachrichtenkörper und legt für Systemereignisse eine stabile Kennung an.
+Geschlossene Artikel werden aus der aktiven Inseratliste ausgeschlossen und
+beim nächsten vollständigen Abruf aus den gespeicherten Inseraten entfernt.
+Die Oberfläche zeigt passend zugeschnittene Profil- und Chatbilder, fünf
+Sterne bei normiertem Höchstwert, kleinere Inseratkarten mit höchstens fünf
+Spalten, ein farbiges Push-Banner und luftigere Gespräche mit Zeitpunkt rechts.
+Der Aktualisierungsklick zeigt während des Abrufs eine Statusmeldung.
+
+Lokal bestanden gezielte Importtests, 109 Angular-Marktplatztests, Worker-
+Typprüfung, beide Builds, gezieltes ESLint, die Shared-UI-Prüfung und zwei
+Desktop-/Mobilabläufe bei 1440 und 390 Pixeln. Der
+produktive erneute Abruf und die visuelle Abnahme stehen noch aus. Kein
+Nachrichtenversand, automatischer Abruf, Push, Merge oder Deployment.

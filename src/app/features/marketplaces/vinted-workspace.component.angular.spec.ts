@@ -14,6 +14,7 @@ import { parseMarketplaceSnapshot } from './models/marketplace-response';
 import type { AccountScope } from './models/marketplace.models';
 import { VintedWorkspaceComponent } from './vinted-workspace.component';
 import { VintedAccountContentComponent } from './components/vinted-account-content/vinted-account-content.component';
+import { VintedRatingComponent } from './components/vinted-rating/vinted-rating.component';
 import { MarketplaceAccountsComponent } from './components/marketplace-accounts/marketplace-accounts.component';
 import { MarketplaceConnectComponent } from './components/marketplace-connect/marketplace-connect.component';
 import { MarketplaceBrowserTestComponent } from './components/marketplace-browser-test/marketplace-browser-test.component';
@@ -42,7 +43,12 @@ const makeSnapshot = (scope: AccountScope) =>
   parseMarketplaceSnapshot(
     {
       ...scope,
-      profile: { ...scope, displayName: `Profil ${scope.connectionId}` },
+      profile: {
+        ...scope,
+        displayName: `Profil ${scope.connectionId}`,
+        feedbackCount: 1,
+        feedbackReputation: 1,
+      },
       publications: {
         items: [
           {
@@ -112,6 +118,10 @@ beforeAll(async () => {
     {
       type: VintedAccountContentComponent,
       path: 'src/app/features/marketplaces/components/vinted-account-content/vinted-account-content.component.ts',
+    },
+    {
+      type: VintedRatingComponent,
+      path: 'src/app/features/marketplaces/components/vinted-rating/vinted-rating.component.ts',
     },
     {
       type: MarketplaceAccountsComponent,
@@ -238,6 +248,13 @@ describe('Vinted-Bereich in Flipbase', () => {
         `a[href="/marketplaces/vinted/connect/${fixtureConnections[0].connectionId}"]`,
       ),
     ).not.toBeNull();
+  });
+  it('zeigt die normierte Vinted-Bewertung als fünf Sterne', async () => {
+    const { element } = await render('/marketplaces/vinted/profile');
+    expect(element.textContent).toContain('1 Bewertung');
+    const rating = element.querySelector('[aria-label="5,0 von 5 Sternen"]');
+    expect(rating).not.toBeNull();
+    expect(rating?.querySelectorAll('svg.fill-current')).toHaveLength(5);
   });
   it('zeigt einen ehrlichen Leerzustand statt eingebauter Beispielkonten', async () => {
     api.listConnections.mockResolvedValue({ canManage: true, connections: [] });

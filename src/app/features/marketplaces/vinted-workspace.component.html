@@ -95,6 +95,11 @@
         }
         Übersicht, Inserate und Nachrichten zeigen die zuletzt gespeicherten Daten.
       </p>
+      @if (store.busy()) {
+        <p role="status" class="mt-2 text-sm text-fb-text-secondary">
+          Kontodaten werden übernommen. Das kann einen Moment dauern …
+        </p>
+      }
     </app-card>
     @if (store.mutationError(); as error) {
       <app-notice-banner announcement="alert">{{ error }}</app-notice-banner>

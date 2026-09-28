@@ -1,4 +1,5 @@
 import type { Page } from 'playwright';
+import { createHash } from 'node:crypto';
 import { readVintedAccountIdentity, type VintedAccountIdentity } from './vinted-browser-reader.ts';
 
 export type VintedImportKind = 'profile' | 'publication' | 'conversation' | 'message' | 'sale';
@@ -123,6 +124,7 @@ export function parseVintedAccountImport(
     const item = record(raw);
     const id = identifier(item?.['id']);
     if (!id || publications.has(id) || identifier(item?.['user_id']) !== identity.id) continue;
+    if (item?.['is_closed'] === true) continue;
     publications.add(id);
     const money = price(item?.['price']);
     const photos = Array.isArray(item?.['photos']) ? item['photos'] : [];
@@ -178,30 +180,61 @@ export function parseVintedAccountImport(
     const conversation = record(detail?.['conversation']);
     const conversationId = identifier(conversation?.['id']);
     if (!conversationId || !conversations.has(conversationId)) continue;
+    const conversationEntry = entries.find(
+      (entry) => entry.kind === 'conversation' && entry.externalId === conversationId,
+    );
+    let latestMessageAt: string | null = null;
     const messages = Array.isArray(conversation?.['messages']) ? conversation['messages'] : [];
     for (const rawMessage of messages) {
       const message = record(rawMessage);
-      const id = identifier(message?.['id']);
+      const entity = record(message?.['entity']);
+      const id =
+        identifier(message?.['id']) ??
+        identifier(entity?.['id']) ??
+        (message
+          ? `event:${createHash('sha256')
+              .update(
+                JSON.stringify({
+                  conversationId,
+                  type: message['entity_type'],
+                  createdAt: message['created_at_ts'],
+                  eventGroup: message['event_group'],
+                  eventType: message['event_type'],
+                  entity,
+                }),
+              )
+              .digest('hex')}`
+          : null);
       if (!id || messageIds.has(id)) continue;
       messageIds.add(id);
-      const entity = record(message?.['entity']);
       const sentAt = date(message?.['created_at_ts'], observedAt);
-      entries.push({
+      const senderId = identifier(entity?.['user_id']) ?? identifier(entity?.['sender_id']);
+      const entry: VintedImportEntry = {
         kind: 'message',
         externalId: id,
         parentExternalId: conversationId,
         sortAt: sentAt,
         body: {
-          title: string(message?.['entity_type']) ?? 'Nachricht',
-          text: messageText(entity),
+          title: string(entity?.['title']) ?? string(message?.['entity_type']) ?? 'Nachricht',
+          text:
+            messageText(entity) ?? string(entity?.['title']) ?? string(entity?.['status_title']),
           occurredAt: sentAt,
-          direction:
-            identifier(entity?.['user_id']) === identity.id ||
-            identifier(entity?.['sender_id']) === identity.id
-              ? 'outbound'
-              : 'unknown',
+          direction: senderId ? (senderId === identity.id ? 'outbound' : 'inbound') : 'unknown',
+          messageType: string(message?.['entity_type']),
+          priceLabel: string(entity?.['price_label']),
         },
-      });
+      };
+      entries.push(entry);
+      if (
+        conversationEntry &&
+        typeof entry.body['text'] === 'string' &&
+        (latestMessageAt === null || sentAt >= latestMessageAt)
+      ) {
+        conversationEntry.body['text'] = entry.body['text'];
+        conversationEntry.body['occurredAt'] = sentAt;
+        conversationEntry.sortAt = sentAt;
+        latestMessageAt = sentAt;
+      }
     }
     const relation = record(conversation?.['transaction']);
     const transaction = record(record(detail?.['transaction'])?.['transaction']);
