@@ -41,6 +41,11 @@ Die vorhandene Search-Console-Property `flipbase.de` ist mit dem GA4-Webstream
 „Flipbase“ verknüpft. Suchanfragen und Indexierung stehen in der Search Console;
 für die Verknüpfung ist kein eigenes Google-Cloud-Projekt nötig. Die Sitemap
 `https://flipbase.de/sitemap.xml` wurde am 28.09.2026 eingereicht. Die Search
-Console meldete direkt danach „Konnte nicht abgerufen werden“, obwohl Sitemap
-und `robots.txt` öffentlich mit HTTP 200 antworten. Den Status nach der
-Verarbeitung erneut prüfen.
+Console meldet weiterhin „Konnte nicht abgerufen werden“. Ihr Live-Test hat
+dieselbe XML-Datei jedoch erfolgreich mit dem Google-Prüftool abgerufen;
+`robots.txt` und die Sitemap antworten öffentlich mit HTTP 200; ein IPv6-Abruf
+vom Webserver selbst war ebenfalls erfolgreich. Die Startseite ist laut
+URL-Prüfung bereits indexiert. Die Einreichung wurde nach
+diesem Befund entfernt und neu angelegt. Den Sitemap-Bericht nach Googles
+nächster Verarbeitung erneut prüfen; derzeit gibt es keinen belegten Fehler
+an der ausgelieferten Datei.

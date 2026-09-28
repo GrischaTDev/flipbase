@@ -61,6 +61,14 @@ Ablaufdaten ungeklärt. Kein Browserstart, keine Vinted-Änderung, keine Änderu
 am Anwendungscode, kein PR und kein Deployment. Plan unter
 `docs/superpowers/plans/2026-09-28-vinted-reliability.md`.
 
+## 2026-09-28 – Juna – Sitemap-Abruffehler in der Search Console geprüft
+
+**Auftrag:** Den gemeldeten Abruffehler für `https://flipbase.de/sitemap.xml` beheben.
+
+**Befund und Änderung:** Der Live-Test der Search Console konnte die gültige XML-Datei vollständig abrufen; Crawling und Seitenabruf waren erfolgreich. Die Startseite ist bereits bei Google indexiert. Sitemap und `robots.txt` antworteten öffentlich mit HTTP 200; ein IPv6-Abruf vom Webserver selbst war ebenfalls erfolgreich. Die fehlerhaft angezeigte Sitemap-Einreichung wurde entfernt und neu eingereicht. Der Bericht zeigte danach weiterhin „Konnte nicht abgerufen werden“. Die Diagnose wurde in `docs/analytics-tracking.md` ergänzt; es gibt keinen belegten Fehler im Website-Code.
+
+**Prüfung und Grenze:** Google-Live-Test, Search-Console-Bericht und öffentliche HTTP-Antworten geprüft. Die erneute Verarbeitung durch Google steht aus. Kein Code, Push oder Deployment geändert.
+
 ## 2026-09-28 – Juna – Vinted-Inseratdetails und Bearbeitung vorbereiten
 
 **Auftrag:** Klickbare Inseratdetails, Bearbeitung vorhandener Anzeigen und
