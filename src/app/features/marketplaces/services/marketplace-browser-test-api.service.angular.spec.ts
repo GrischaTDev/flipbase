@@ -143,3 +143,22 @@ it('zeigt abgelehnte Zugangsdaten statt eines endlosen Prüfstatus', async () =>
   );
   await expect(api.identify(scope, id, 'synthetic', true)).rejects.toThrow('Zugangsdaten');
 });
+
+it('meldet einen angeforderten Vinted-Code und sendet ihn an die gebundene Sitzung', async () => {
+  const request = vi
+    .fn()
+    .mockResolvedValue(Response.json({ code: 'vinted_verification_required' }, { status: 422 }));
+  vi.stubGlobal('fetch', request);
+  await expect(api.identify(scope, id, 'token', true)).rejects.toThrow('Bestätigungscode');
+  request.mockResolvedValueOnce(Response.json({ status: 'submitted' }));
+  await expect(api.verify(scope, id, '123456', 'token')).resolves.toBe('submitted');
+  expect(request.mock.calls[1][0]).toBe(`/marketplace-browser/sessions/${id}/verify`);
+  expect(JSON.parse(request.mock.calls[1][1].body)).toEqual({ ...scope, code: '123456' });
+});
+
+it('meldet eine unbestätigte Kontolöschung gesondert', async () => {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 409 })));
+  await expect(api.deleteConnection(scope, 'token')).rejects.toThrow(
+    'noch nicht vollständig gelöscht',
+  );
+});

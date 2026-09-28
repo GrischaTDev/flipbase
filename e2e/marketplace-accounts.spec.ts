@@ -9,7 +9,12 @@ const accountIds = ['25000000-0000-4000-8000-000000000021', '25000000-0000-4000-
 const emptyPage = () => ({ items: [], total: 0, nextCursor: null });
 
 /** Nur lokale HTTP-Antworten. Weder echte Anmeldung noch Vinted-Zugriff. */
-async function mockMarketplace(page: Page, browserLogin = false, rejectFirstLogin = false) {
+async function mockMarketplace(
+  page: Page,
+  browserLogin = false,
+  rejectFirstLogin = false,
+  verificationRequired = false,
+) {
   await page.route('**/marketplace-browser/healthz', (route) =>
     browserLogin
       ? route.fulfill({ json: { ok: true, readOnly: false } })
@@ -55,9 +60,22 @@ async function mockMarketplace(page: Page, browserLogin = false, rejectFirstLogi
     lastSyncedAt: null,
   }));
   const calls: { name: string; body: Record<string, unknown> }[] = [];
+  await page.route('**/marketplace-browser/connections/delete', (route) => {
+    const body = route.request().postDataJSON() as Record<string, unknown>;
+    calls.push({ name: 'browser_delete_connection', body });
+    const index = accounts.findIndex(
+      (account) =>
+        account.workspaceId === body['workspaceId'] &&
+        account.connectionId === body['connectionId'],
+    );
+    if (index < 0) return route.fulfill({ status: 403 });
+    accounts.splice(index, 1);
+    return route.fulfill({ status: 204 });
+  });
   if (browserLogin) {
     let connectionId = '';
     let loginSubmitted = false;
+    let codeSubmitted = false;
     let identityChecks = 0;
     await page.route('**/marketplace-browser/sessions**', async (route) => {
       const path = new URL(route.request().url()).pathname;
@@ -73,11 +91,18 @@ async function mockMarketplace(page: Page, browserLogin = false, rejectFirstLogi
         loginSubmitted = true;
         return route.fulfill({ json: { status: 'submitted' } });
       }
+      if (path.endsWith('/verify')) {
+        calls.push({ name: 'browser_verify', body });
+        codeSubmitted = true;
+        return route.fulfill({ json: { status: 'submitted' } });
+      }
       if (path.endsWith('/frame')) {
         calls.push({ name: 'unexpected_frame', body });
         return route.fulfill({ status: 500 });
       }
       if (path.endsWith('/identify')) {
+        if (verificationRequired && !codeSubmitted)
+          return route.fulfill({ status: 422, json: { code: 'vinted_verification_required' } });
         if (rejectFirstLogin && calls.filter((call) => call.name === 'browser_login').length === 1)
           return route.fulfill({ status: 422, json: { code: 'vinted_login_rejected' } });
         if (!loginSubmitted || ++identityChecks === 1) return route.fulfill({ status: 422 });
@@ -344,11 +369,11 @@ for (const width of [1440, 390]) {
       .fill('Neues Testkonto');
     await page.getByRole('button', { name: 'Weiter zur Anmeldung', exact: true }).click();
     const table = page.locator('app-marketplace-accounts');
-    await expect(page.locator('app-marketplace-connect')).toContainText('Neues Testkonto');
-    await expect(page.locator('app-marketplace-connect')).toContainText(
+    await expect(page.getByRole('dialog')).toContainText('Neues Testkonto');
+    await expect(page.getByRole('dialog')).toContainText(
       'Browserdienst ist auf dem Server nicht erreichbar',
     );
-    await page.getByRole('link', { name: 'Konten verwalten', exact: true }).click();
+    await page.getByRole('button', { name: 'Dialog schließen' }).click();
     await page.getByRole('button', { name: 'Neues Testkonto umbenennen', exact: true }).click();
     await page
       .getByRole('textbox', { name: 'Interner Name in Flipbase', exact: true })
@@ -369,6 +394,12 @@ for (const width of [1440, 390]) {
     await expect(table.getByRole('row').filter({ hasText: 'Umbenanntes Testkonto' })).toContainText(
       'Anmeldung ausstehend',
     );
+    await page.getByRole('button', { name: 'Umbenanntes Testkonto löschen' }).click();
+    await expect(page.getByRole('dialog')).toContainText('Gespeicherte Kontodaten');
+    await page.getByRole('button', { name: 'Konto löschen', exact: true }).click();
+    await expect(
+      table.getByRole('cell', { name: 'Umbenanntes Testkonto', exact: true }),
+    ).toHaveCount(0);
     await evidence(page, `vinted-accounts-${width}`);
     expect(
       calls
@@ -410,7 +441,8 @@ for (const width of [1440, 390]) {
       .getByRole('textbox', { name: 'Interner Name in Flipbase', exact: true })
       .fill('Mein Testkonto');
     await page.getByRole('button', { name: 'Weiter zur Anmeldung', exact: true }).click();
-    await expect(page).toHaveURL(/\/connect\/25000000-0000-4000-8000-000000000024$/);
+    await expect(page).toHaveURL(/\/settings\/marketplaces$/);
+    await expect(page.getByRole('dialog')).toContainText('Anmeldung');
     await page
       .getByRole('textbox', { name: 'Vinted-Mitgliedsname oder E-Mail', exact: true })
       .fill('synthetic-user');
@@ -421,7 +453,7 @@ for (const width of [1440, 390]) {
       async () =>
         (
           await (window as unknown as { axe: typeof axe }).axe.run(
-            document.querySelector('app-marketplace-connect') as HTMLElement,
+            document.querySelector('[role="dialog"]') as HTMLElement,
           )
         ).violations,
     );
@@ -493,3 +525,42 @@ for (const width of [1440, 390]) {
     expect(calls.filter((call) => call.name === 'browser_login')).toHaveLength(2);
   });
 }
+
+test('zeigt den SMS-Code im Kontodialog und bindet ihn an das gewählte Konto @marketplace-preview', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 1000 });
+  const calls = await mockMarketplace(page, true, false, true);
+  await page.goto('/settings/marketplaces');
+  await page.getByRole('button', { name: 'Vinted-Anmeldung für Testkonto A öffnen' }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toContainText('Testkonto A');
+  await dialog
+    .getByRole('textbox', { name: 'Vinted-Mitgliedsname oder E-Mail' })
+    .fill('synthetic-user');
+  await dialog.getByLabel('Vinted-Passwort').fill('synthetic-password');
+  await dialog.getByRole('button', { name: 'Anmelden und Konto verbinden' }).click();
+  await expect(dialog.getByRole('heading', { name: 'Bestätigungscode eingeben' })).toBeVisible();
+  await expect(dialog.getByLabel('Vinted-Bestätigungscode')).toBeVisible();
+  await evidence(page, 'vinted-code-390');
+  await dialog.getByLabel('Vinted-Bestätigungscode').fill('123456');
+  await dialog.getByRole('button', { name: 'Code bestätigen' }).click();
+  await expect(dialog.getByText('Dein Vinted-Konto ist verbunden.')).toBeVisible();
+  expect(calls.filter((call) => call.name === 'browser_verify')).toEqual([
+    {
+      name: 'browser_verify',
+      body: { workspaceId, connectionId: accountIds[0], code: '123456' },
+    },
+  ]);
+  expect(await page.evaluate(() => JSON.stringify(localStorage))).not.toContain('123456');
+  await page.addScriptTag({ content: axe.source });
+  const violations = await page.evaluate(
+    async () =>
+      (
+        await (window as unknown as { axe: typeof axe }).axe.run(
+          document.querySelector('[role="dialog"]') as HTMLElement,
+        )
+      ).violations,
+  );
+  expect(violations).toEqual([]);
+});

@@ -1,7 +1,14 @@
 <app-card
-  [title]="store.readOnly() ? 'Öffentlicher Browser-Test' : 'Vinted-Anmeldung'"
-  subtitle="Melde Dich mit Deinem Vinted-Konto an."
+  [title]="compact() ? '' : store.readOnly() ? 'Öffentlicher Browser-Test' : 'Vinted-Anmeldung'"
+  [subtitle]="compact() ? '' : 'Melde Dich mit Deinem Vinted-Konto an.'"
+  [variant]="compact() ? 'subtle' : 'surface'"
 >
+  @if (store.connection(); as selectedConnection) {
+    <p class="mb-3 text-sm text-fb-text-secondary">
+      Ausgewähltes Konto:
+      <strong class="text-fb-text-primary">{{ selectedConnection.displayName }}</strong>
+    </p>
+  }
   @if (!store.availabilityChecked()) {
     <p role="status" class="text-sm text-fb-text-secondary">Anmeldung wird vorbereitet …</p>
   } @else if (!store.available()) {
@@ -10,9 +17,6 @@
       erreichbar. Bitte versuche es später erneut.
     </app-notice-banner>
   } @else if (store.connection(); as connection) {
-    <p class="text-sm text-fb-text-secondary">
-      Ausgewähltes Konto: <strong class="text-fb-text-primary">{{ connection.displayName }}</strong>
-    </p>
     @if (store.error(); as error) {
       <app-notice-banner class="mt-4" announcement="alert">{{ error }}</app-notice-banner>
     }
@@ -51,7 +55,7 @@
           >Verbundenes Profil ansehen</app-button
         >
       } @else {
-        @if (!store.awaitingLogin()) {
+        @if (!showProgress() && !store.awaitingVerification()) {
           <form class="mt-4 max-w-md space-y-4" [formGroup]="loginForm" (ngSubmit)="login()">
             <app-text-field
               label="Vinted-Mitgliedsname oder E-Mail"
@@ -82,8 +86,53 @@
             </app-button>
           </form>
         }
+        @if (showProgress()) {
+          <div
+            class="flex min-h-40 flex-col items-center justify-center gap-4 text-center"
+            role="status"
+          >
+            <span
+              class="h-10 w-10 animate-spin rounded-full border-4 border-fb-primary/25 border-t-fb-primary"
+              aria-hidden="true"
+            ></span>
+            <p class="max-w-sm text-sm text-fb-text-secondary">
+              {{ store.progress() || 'Deine Anmeldung wird vorbereitet …' }}
+            </p>
+          </div>
+        }
+        @if (store.awaitingVerification()) {
+          <form
+            class="mx-auto max-w-sm space-y-4 py-5 text-center"
+            [formGroup]="codeForm"
+            (ngSubmit)="verifyCode()"
+          >
+            <h3 class="text-base font-semibold text-fb-text-primary">Bestätigungscode eingeben</h3>
+            <p class="text-sm text-fb-text-secondary">
+              Vinted hat eine zusätzliche Bestätigung angefordert. Gib den Code aus Deiner SMS hier
+              ein, solange er gültig ist.
+            </p>
+            <app-text-field
+              label="Vinted-Bestätigungscode"
+              type="tel"
+              autocomplete="one-time-code"
+              [formControl]="code"
+              [required]="true"
+              [maxLength]="8"
+            />
+            <app-button
+              type="submit"
+              variant="primary"
+              [loading]="store.busy()"
+              [disabled]="code.invalid || store.busy()"
+            >
+              Code bestätigen
+            </app-button>
+          </form>
+        }
         @if (store.progress(); as progress) {
-          <p role="status" class="mt-4 text-sm text-fb-text-secondary">{{ progress }}</p>
+          @if (!showProgress()) {
+            <p role="status" class="mt-4 text-sm text-fb-text-secondary">{{ progress }}</p>
+          }
         }
         @if (store.session()) {
           <app-button class="mt-4" variant="destructive" (clicked)="store.close()"

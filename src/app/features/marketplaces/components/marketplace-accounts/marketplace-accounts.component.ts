@@ -8,9 +8,15 @@ import {
   signal,
 } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
 import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
-import { LucideLogIn, LucidePencil, LucidePause, LucidePlay, LucidePlus } from '@lucide/angular';
+import {
+  LucideLogIn,
+  LucidePencil,
+  LucidePause,
+  LucidePlay,
+  LucidePlus,
+  LucideTrash2,
+} from '@lucide/angular';
 import { AuthService } from '../../../../core/services/auth.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
@@ -27,6 +33,7 @@ import {
   MARKETPLACE_CONNECTION_TONES,
 } from '../../models/marketplace-presentation';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
+import { MarketplaceBrowserTestComponent } from '../marketplace-browser-test/marketplace-browser-test.component';
 
 @Component({
   selector: 'app-marketplace-accounts',
@@ -42,6 +49,7 @@ import { MarketplaceAccountStore } from '../../services/marketplace-account.stor
     TableActionButtonComponent,
     TextFieldComponent,
     CustomSelectComponent,
+    MarketplaceBrowserTestComponent,
   ],
   templateUrl: './marketplace-accounts.component.html',
   providers: [MarketplaceAccountStore],
@@ -52,16 +60,23 @@ export class MarketplaceAccountsComponent {
   readonly store = inject(MarketplaceAccountStore);
   private readonly workspace = inject(WorkspaceService);
   private readonly auth = inject(AuthService);
-  private readonly router = inject(Router);
   readonly platforms = [{ value: 'vinted', label: 'Vinted' }];
   private readonly context = computed(() =>
     JSON.stringify([this.auth.currentUser()?.id, this.workspace.currentWorkspace()?.id]),
   );
-  private readonly dialogState = signal<{ context: string; connectionId: string | null } | null>(
-    null,
-  );
+  private readonly dialogState = signal<{
+    context: string;
+    connectionId: string | null;
+    mode: 'create' | 'rename' | 'login' | 'delete';
+    newAccount: boolean;
+  } | null>(null);
   readonly dialog = computed(() =>
     this.dialogState()?.context === this.context() ? this.dialogState() : null,
+  );
+  readonly dialogConnection = computed(
+    () =>
+      this.store.connections().find((item) => item.connectionId === this.dialog()?.connectionId) ??
+      null,
   );
   readonly name = new FormControl('', {
     nonNullable: true,
@@ -80,6 +95,7 @@ export class MarketplaceAccountsComponent {
   readonly editIcon = LucidePencil;
   readonly pauseIcon = LucidePause;
   readonly resumeIcon = LucidePlay;
+  readonly deleteIcon = LucideTrash2;
 
   constructor() {
     effect(() => {
@@ -99,7 +115,41 @@ export class MarketplaceAccountsComponent {
     this.dialogState.set({
       context: this.context(),
       connectionId: connection?.connectionId ?? null,
+      mode: connection ? 'rename' : 'create',
+      newAccount: !connection,
     });
+  }
+  async openLogin(connection: MarketplaceConnection): Promise<void> {
+    if (!this.store.canManage() || this.store.busy()) return;
+    this.store.clearMutationError();
+    await this.store.selectConnection(connection.connectionId);
+    if (
+      !this.store.canManage() ||
+      this.store.selectedConnection()?.connectionId !== connection.connectionId
+    )
+      return;
+    this.dialogState.set({
+      context: this.context(),
+      connectionId: connection.connectionId,
+      mode: 'login',
+      newAccount: false,
+    });
+  }
+  openDelete(connection: MarketplaceConnection): void {
+    if (!this.store.canManage() || this.store.busy()) return;
+    this.store.clearMutationError();
+    this.dialogState.set({
+      context: this.context(),
+      connectionId: connection.connectionId,
+      mode: 'delete',
+      newAccount: false,
+    });
+  }
+  async confirmDelete(): Promise<void> {
+    const dialog = this.dialog();
+    if (!dialog || dialog.mode !== 'delete' || !dialog.connectionId || this.store.busy()) return;
+    if ((await this.store.deleteConnection(dialog.connectionId)) && this.dialogState() === dialog)
+      this.closeDialog();
   }
   closeDialog(): void {
     this.dialogState.set(null);
@@ -109,16 +159,23 @@ export class MarketplaceAccountsComponent {
   async save(): Promise<void> {
     this.submitted.set(true);
     const dialog = this.dialog();
-    if (!dialog || this.name.invalid || this.store.busy()) return;
-    const saved = dialog.connectionId
-      ? await this.store.renameConnection(dialog.connectionId, this.name.value)
-      : await this.store.createConnection(this.name.value);
+    if (
+      !dialog ||
+      dialog.mode === 'login' ||
+      dialog.mode === 'delete' ||
+      this.name.invalid ||
+      this.store.busy()
+    )
+      return;
+    const saved =
+      dialog.mode === 'rename' && dialog.connectionId
+        ? await this.store.renameConnection(dialog.connectionId, this.name.value)
+        : await this.store.createConnection(this.name.value);
     if (saved && this.dialogState() === dialog) {
       const connectionId = this.store.selectedConnection()?.connectionId;
-      this.closeDialog();
-      if (!dialog.connectionId && connectionId) {
-        await this.router.navigate(['/marketplaces/vinted/connect', connectionId]);
-      }
+      if (dialog.mode === 'create' && connectionId)
+        this.dialogState.set({ ...dialog, connectionId, mode: 'login' });
+      else this.closeDialog();
     }
   }
 }

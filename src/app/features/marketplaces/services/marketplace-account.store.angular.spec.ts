@@ -9,6 +9,10 @@ import { createMarketplaceFixtures } from '../testing/marketplace-fixtures';
 import type { AccountScope } from '../models/marketplace.models';
 import type { MarketplaceSnapshot } from '../models/marketplace-read.models';
 import { parseMarketplaceSnapshot } from '../models/marketplace-response';
+import {
+  MarketplaceBrowserTestApiService,
+  MarketplaceConnectionRemovalError,
+} from './marketplace-browser-test-api.service';
 
 const fixtures = createMarketplaceFixtures();
 const [accountA, accountB] = fixtures.connections;
@@ -45,6 +49,8 @@ async function settle() {
 }
 let currentWorkspace: ReturnType<typeof signal<{ id: string; archived_at?: string } | null>>;
 let currentUser: ReturnType<typeof signal<{ id: string } | null>>;
+let accessSession: ReturnType<typeof signal<{ access_token: string } | null>>;
+let browserApi: { deleteConnection: ReturnType<typeof vi.fn> };
 let api: {
   listConnections: ReturnType<typeof vi.fn>;
   readSnapshot: ReturnType<typeof vi.fn>;
@@ -59,6 +65,8 @@ beforeEach(() => {
     id: accountA.workspaceId,
   });
   currentUser = signal<{ id: string } | null>({ id: 'user-a' });
+  accessSession = signal<{ access_token: string } | null>({ access_token: 'token-a' });
+  browserApi = { deleteConnection: vi.fn().mockResolvedValue(undefined) };
   api = {
     listConnections: vi
       .fn()
@@ -74,13 +82,41 @@ beforeEach(() => {
     providers: [
       MarketplaceAccountStore,
       { provide: MarketplaceApiService, useValue: api },
+      { provide: MarketplaceBrowserTestApiService, useValue: browserApi },
       { provide: WorkspaceService, useValue: { currentWorkspace } },
-      { provide: AuthService, useValue: { currentUser } },
+      { provide: AuthService, useValue: { currentUser, session: accessSession } },
     ],
   });
   store = TestBed.inject(MarketplaceAccountStore);
 });
 describe('Kontogebundene Marktplatzansicht', () => {
+  it('löscht nur die gewählte Verbindung im aktuellen Workspace', async () => {
+    await settle();
+    browserApi.deleteConnection.mockImplementation(async () => {
+      api.listConnections.mockResolvedValue({ canManage: true, connections: [accountB] });
+    });
+    expect(await store.deleteConnection(accountA.connectionId)).toBe(true);
+    expect(browserApi.deleteConnection).toHaveBeenCalledWith(
+      { workspaceId: accountA.workspaceId, connectionId: accountA.connectionId },
+      'token-a',
+    );
+    expect(store.connections()).toEqual([accountB]);
+    expect(store.selectedConnection()?.connectionId).toBe(accountB.connectionId);
+  });
+  it('lädt nach unklarer Löschung den pausierten Kontostand erneut', async () => {
+    await settle();
+    browserApi.deleteConnection.mockImplementation(async () => {
+      api.listConnections.mockResolvedValue({
+        canManage: true,
+        connections: [{ ...accountA, status: 'paused' }, accountB],
+      });
+      throw new MarketplaceConnectionRemovalError();
+    });
+    expect(await store.deleteConnection(accountA.connectionId)).toBe(false);
+    expect(store.connections()[0]?.status).toBe('paused');
+    expect(store.mutationError()).toContain('noch nicht vollständig gelöscht');
+    expect(store.connections()[1]?.connectionId).toBe(accountB.connectionId);
+  });
   it('lädt gespeicherte Konten und die Daten des ausgewählten Kontos', async () => {
     await settle();
     expect(store.connections()).toEqual(fixtures.connections);

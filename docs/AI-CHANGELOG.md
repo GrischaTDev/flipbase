@@ -1,5 +1,19 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-28 – Juna – Vinted-Codeeingabe und Kontodialog für PR freigegeben
+
+**Auftrag:** Nach ausdrücklicher Freigabe den geprüften Branch für die Vinted-SMS-Bestätigung, den gestuften Kontodialog und das sichere Löschen über einen PR veröffentlichen und nach erfolgreichen Pflichtprüfungen mergen.
+
+**Stand vor Veröffentlichung:** Der Branch basiert auf dem aktuellen `origin/master`; die fachlichen Änderungen wurden bereits gezielt geprüft. Der echte Vinted-Codeablauf bleibt bis zu einem vom Nutzer gestarteten Versuch unbestätigt. Diese Sitzung sendet weder Zugangsdaten noch einen SMS-Code erneut.
+
+## 2026-09-28 – Juna – Vinted-SMS-Code und Kontodialog ergänzt
+
+**Auftrag:** Den beim eigenen Login angeforderten SMS-Code innerhalb von Flipbase eingeben können, die Kontoanlage als gestuften Drawer darstellen und Konten samt Browserprofil sicher löschen.
+
+**Befund und Änderung:** Der beendete Browserversuch stand auf Vinteds `/member/login/2fa`. Der Worker erkennt diese Stufe ohne Sitzungsabbruch und nimmt einen ausdrücklich eingegebenen Code nur für die gebundene Vinted-Sitzung an. Ein unklarer Absendeausgang wird nicht wiederholt. Die Kontoverwaltung führt Plattform/Name und Anmeldung im selben Seitenfenster zusammen, zeigt einen gelben Ladezustand und bietet einen bestätigten Löschweg mit Anbieterbereinigung. Kein Passwort oder SMS-Code wurde ausgelesen, gespeichert oder erneut gesendet.
+
+**Prüfung und Grenze:** 84 Worker-Tests, sieben Tests mit abgefangener eigener Seite im echten Chromium, 104 Angular-Tests und acht Desktop-/Mobilabläufe bestanden; beide Builds, gezieltes ESLint und AXE ebenfalls. Das echte Vinted-Codeformular und die private Identitätsantwort bleiben bis zum nächsten ausdrücklich vom Nutzer gestarteten Liveversuch unbestätigt. Kein Push, Merge oder Deployment in dieser Sitzung.
+
 ## 2026-09-28 – Juna – Vinted-Sitzungsdiagnose für PR freigegeben
 
 **Auftrag:** Nach ausdrücklicher Freigabe den geprüften Vinted-Sitzungsbranch über PR #229 veröffentlichen, die Pflichtprüfungen abwarten und bei Erfolg mergen.

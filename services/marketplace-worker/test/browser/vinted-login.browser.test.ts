@@ -3,6 +3,8 @@ import { test } from 'node:test';
 import { readFile } from 'node:fs/promises';
 import { chromium } from 'playwright';
 import { submitVintedLogin } from '../../src/vinted-browser-login.ts';
+import { submitVintedVerificationCode } from '../../src/vinted-browser-verification.ts';
+import { readVintedAccountIdentity } from '../../src/vinted-browser-reader.ts';
 
 test('dismisses an initially visible cookie banner exactly once before filling the form', async () => {
   const browser = await chromium.launch({ headless: true });
@@ -190,6 +192,42 @@ test('reports a remaining login form without using the private identity route', 
     await page.goto('https://www.vinted.de/member/login/email');
     await assert.rejects(readVintedAccountIdentity(page), /Anmeldeformular/);
     assert.equal(identityRequests, 0);
+  } finally {
+    await browser.close();
+  }
+});
+
+test('erkennt und sendet einen SMS-Code nur auf der abgefangenen eigenen Testseite', async () => {
+  const browser = await chromium.launch({ headless: true });
+  const fixture = await readFile(
+    new URL('../fixtures/vinted-verification.html', import.meta.url),
+    'utf8',
+  );
+  try {
+    const page = await browser.newPage();
+    const sent: string[] = [];
+    await page.route('**/*', (route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+      if (url.origin !== 'https://www.vinted.de') return route.abort();
+      if (url.pathname === '/member/login/2fa')
+        return route.fulfill({ contentType: 'text/html', body: fixture });
+      if (url.pathname === '/synthetic-session') {
+        sent.push(request.postData() ?? '');
+        return route.fulfill({ contentType: 'text/html', body: '<h1>Künstlich bestätigt</h1>' });
+      }
+      return route.abort();
+    });
+    await page.goto('https://www.vinted.de/member/login/2fa');
+    await assert.rejects(readVintedAccountIdentity(page), {
+      name: 'VintedVerificationRequiredError',
+    });
+    assert.equal(
+      await submitVintedVerificationCode(page, '123456', async () => undefined),
+      'submitted',
+    );
+    await page.waitForURL('https://www.vinted.de/synthetic-session');
+    assert.deepEqual(sent, ['code=123456']);
   } finally {
     await browser.close();
   }

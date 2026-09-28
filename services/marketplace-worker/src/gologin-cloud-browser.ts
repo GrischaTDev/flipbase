@@ -5,6 +5,10 @@ import {
   type VintedLoginCredentials,
   type VintedLoginResult,
 } from './vinted-browser-login.ts';
+import {
+  submitVintedVerificationCode,
+  type VintedVerificationResult,
+} from './vinted-browser-verification.ts';
 
 type BrowserConnection = Pick<Browser, 'close' | 'version'> & Partial<Pick<Browser, 'contexts'>>;
 export interface BrowserInfo extends Pick<Browser, 'version'> {
@@ -17,6 +21,7 @@ export interface BrowserInfo extends Pick<Browser, 'version'> {
     credentials: VintedLoginCredentials,
     authorize: () => Promise<void>,
   ): Promise<VintedLoginResult>;
+  verify?(code: string, authorize: () => Promise<void>): Promise<VintedVerificationResult>;
 }
 
 export interface CloudBrowserHandle {
@@ -103,6 +108,7 @@ export class GoLoginCloudBrowser {
       press: async (key) => currentPage().keyboard.press(key),
       identify: () => readVintedAccountIdentity(currentPage()),
       login: (credentials, authorize) => submitVintedLogin(currentPage(), credentials, authorize),
+      verify: (code, authorize) => submitVintedVerificationCode(currentPage(), code, authorize),
     };
     const handle: CloudBrowserHandle = {
       run: (operation) => operation(browserInfo),

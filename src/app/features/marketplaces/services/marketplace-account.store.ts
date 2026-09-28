@@ -10,6 +10,10 @@ import type {
 } from '../models/marketplace-read.models';
 import { MarketplaceResponseError } from '../models/marketplace-response';
 import { MarketplaceApiError, MarketplaceApiService } from './marketplace-api.service';
+import {
+  MarketplaceBrowserTestApiService,
+  MarketplaceConnectionRemovalError,
+} from './marketplace-browser-test-api.service';
 
 const snapshotPages = {
   publication: 'publications',
@@ -18,7 +22,9 @@ const snapshotPages = {
   activity: 'activity',
 } as const;
 function errorMessage(error: unknown): string {
-  return error instanceof MarketplaceApiError || error instanceof MarketplaceResponseError
+  return error instanceof MarketplaceApiError ||
+    error instanceof MarketplaceResponseError ||
+    error instanceof MarketplaceConnectionRemovalError
     ? error.message
     : 'Die Kontodaten konnten nicht geladen werden. Bitte versuche es erneut.';
 }
@@ -27,6 +33,7 @@ function errorMessage(error: unknown): string {
 @Injectable()
 export class MarketplaceAccountStore {
   private readonly api = inject(MarketplaceApiService);
+  private readonly browserApi = inject(MarketplaceBrowserTestApiService);
   private readonly workspace = inject(WorkspaceService);
   private readonly auth = inject(AuthService);
   private readonly contextKey = computed(() => {
@@ -296,6 +303,16 @@ export class MarketplaceAccountStore {
       return undefined;
     });
   }
+  async deleteConnection(id: string): Promise<boolean> {
+    const connection = this.connections().find((item) => item.connectionId === id);
+    const token = this.auth.session()?.access_token;
+    if (!connection || !token) return false;
+    const scope = this.scope(connection);
+    return this.mutate(async () => {
+      await this.browserApi.deleteConnection(scope, token);
+      return undefined;
+    });
+  }
   private async mutate(operation: () => Promise<string | undefined>): Promise<boolean> {
     const key = this.contextKey();
     if (!key || !this.canManage() || this.busy()) return false;
@@ -311,7 +328,9 @@ export class MarketplaceAccountStore {
       if (this.isCurrent(key) && revision === this.mutationRevision) {
         if (error instanceof MarketplaceApiError && error.code === 'forbidden')
           this.handleError(error);
-        this.writeError.set(errorMessage(error));
+        if (error instanceof MarketplaceConnectionRemovalError) await this.reloadConnections();
+        if (this.isCurrent(key) && revision === this.mutationRevision)
+          this.writeError.set(errorMessage(error));
       }
       return false;
     } finally {

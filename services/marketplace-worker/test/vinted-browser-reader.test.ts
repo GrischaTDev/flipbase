@@ -51,3 +51,18 @@ test('meldet ein weiterhin sichtbares Vinted-Anmeldeformular als eigenen Prüfzu
     name: 'VintedLoginPendingError',
   });
 });
+
+test('meldet die zweite Vinted-Anmeldestufe ohne Identitätsabruf als Codeanforderung', async () => {
+  let fetched = false;
+  const page = {
+    url: () => 'https://www.vinted.de/member/login/2fa',
+    evaluate: async () => {
+      fetched = true;
+      return null;
+    },
+  } as unknown as Pick<Page, 'url' | 'evaluate'>;
+  await assert.rejects(readVintedAccountIdentity(page), {
+    name: 'VintedVerificationRequiredError',
+  });
+  assert.equal(fetched, false);
+});

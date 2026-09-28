@@ -1,5 +1,38 @@
 # Arbeitsstand: Vinted-Marktplatzverwaltung
 
+## 28. September 2026 – Zweite Vinted-Anmeldestufe und Kontoverwaltung
+
+Der Nutzer meldete bei einem selbst gestarteten Login einen per SMS gesendeten,
+zwei Minuten gültigen Code. Der letzte zugehörige Browserversuch war bereits
+geschlossen. Sein gespeichertes Profil stand beim rein lesenden Nachsehen auf
+`https://www.vinted.de/member/login/2fa`; die Sitzung wurde anschließend beim
+Anbieter bestätigt gestoppt. Es wurden weder Passwort noch SMS-Code gelesen,
+gespeichert oder erneut gesendet.
+
+Auf `juna/vinted-otp-onboarding` erkennt der Worker diese Zweitfaktor-Seite
+als eigenen Zustand. Flipbase zeigt im selben Konto- und Workspace-Kontext ein
+Codefeld. Der Code wird nur nach ausdrücklichem Klick, nur auf der festen
+Vinted-Seite und mit erneuter Sitzungsprüfung gesendet. Bei unklarem Ausgang
+erfolgt keine automatische Wiederholung. Der bisherige einminütige
+Ergebniszeitraum wird für den angeforderten Code erweitert. Eine bestätigte
+Identität bleibt die einzige Grundlage für den Status `connected`.
+
+„Account hinzufügen“ öffnet nun ein zweistufiges Seitenfenster: zuerst
+Plattform und Name, danach Anmeldung mit mittigem Ladezeichen und gegebenenfalls
+Codeeingabe. Die Tabellenaktion öffnet denselben Anmeldedialog. Konten können
+nach Bestätigung gelöscht werden. Der Server pausiert sie zuerst, stoppt
+ungeklärte Sitzungen und löscht das GoLogin-Profil vor den lokalen Kontodaten;
+bei unklarem Anbieterzustand bleibt das Konto zur Wiederholung erhalten.
+
+Die tatsächlichen Eingabefelder und der Absende-Knopf der Vinted-Code-Seite
+waren nach Ablauf der echten Herausforderung nicht mehr sichtbar. Die
+Selektoren sind mit künstlichen Browserobjekten und einer vollständig
+abgefangenen eigenen HTML-Seite im echten Chromium geprüft; ein echter
+SMS-Durchlauf nach Veröffentlichung bleibt nötig. Auch die private
+Identitätsroute `/api/v2/users/current` ist nach erfolgreicher Bestätigung
+noch nicht live nachgewiesen. Kein Liveimport, Nachrichtenversand oder
+produktives Deployment in dieser Sitzung.
+
 ## 28. September 2026 – GoLogin-Zugang nach Abo freigeschaltet
 
 Nach Aktivierung eines Standard-Abos antwortete die produktive GoLogin-API bei der Proxy-Kontingentabfrage mit HTTP 200 statt HTTP 403; etwa 2 GB waren verfügbar. Ein leeres, nicht mit Vinted geöffnetes Anbieter-Testprofil wurde erfolgreich angelegt (HTTP 201) und wieder gelöscht (HTTP 204). Danach startete auf der vom Nutzer geöffneten Flipbase-Seite ein echter Anmeldeversuch. Die Datenbank bestätigte für diese Verbindung ein dauerhaftes GoLogin-Profil und eine aktive Browsersitzung. Ein Browserklick des Assistenten scheiterte an einem inzwischen veralteten Seitenknoten und löste keine zweite Eingabe aus.

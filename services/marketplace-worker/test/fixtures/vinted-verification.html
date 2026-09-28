@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <title>Eigene Code-Testseite</title>
+  </head>
+  <body>
+    <main>
+      <h1>Bestätige Deine Anmeldung</h1>
+      <form action="/synthetic-session" method="post">
+        <label for="code">Code aus der SMS</label>
+        <input id="code" name="code" autocomplete="one-time-code" inputmode="numeric" />
+        <button type="submit">Bestätigen</button>
+      </form>
+    </main>
+  </body>
+</html>

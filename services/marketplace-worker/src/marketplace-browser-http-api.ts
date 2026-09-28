@@ -7,6 +7,7 @@ import {
 import {
   VintedLoginPendingError,
   VintedLoginRejectedError,
+  VintedVerificationRequiredError,
   type VintedAccountIdentity,
 } from './vinted-browser-reader.ts';
 import { GoLoginApiLimitError } from './gologin-api-limit.ts';
@@ -19,6 +20,7 @@ interface BrowserBroker {
     operation: (browser: BrowserInfo) => Promise<T>,
   ): Promise<T>;
   close(scope: BrowserSessionScope, sessionId: string): Promise<void>;
+  reconcile?(): Promise<void>;
 }
 
 interface BrowserUserVerifier {
@@ -28,7 +30,10 @@ interface BrowserUserVerifier {
 interface BrowserApiOptions {
   broker: BrowserBroker;
   users: BrowserUserVerifier;
-  profiles?: { prepare(scope: BrowserSessionScope): Promise<void> };
+  profiles?: {
+    prepare(scope: BrowserSessionScope): Promise<void>;
+    remove?(scope: BrowserSessionScope, stopSessions: () => Promise<void>): Promise<void>;
+  };
   accounts?: {
     confirm(
       scope: BrowserSessionScope,
@@ -192,6 +197,21 @@ export class MarketplaceBrowserHttpApi {
       if (!uuidPattern.test(userId)) throw new RequestError(401);
       const body = await readBody(request);
       const scope = scopeOf(body, userId, token);
+      if (path === '/marketplace-browser/connections/delete') {
+        if (this.readOnly) throw new RequestError(403);
+        if (!this.profiles?.remove || !this.broker.reconcile) throw new RequestError(503);
+        const key = `${scope.workspaceId}:${scope.connectionId}:delete`;
+        if (this.inFlight.has(key)) throw new RequestError(429);
+        this.inFlight.add(key);
+        try {
+          await this.profiles.remove(scope, () => this.broker.reconcile!());
+          response.writeHead(204, responseHeaders);
+          response.end();
+        } finally {
+          this.inFlight.delete(key);
+        }
+        return;
+      }
       if (path === pathPrefix) {
         await this.profiles?.prepare(scope);
         const id = await this.broker.open(scope);
@@ -199,7 +219,7 @@ export class MarketplaceBrowserHttpApi {
         return;
       }
       const match = path.match(
-        /^\/marketplace-browser\/sessions\/([0-9a-f-]{36})\/(frame|input|login|identify|close)$/i,
+        /^\/marketplace-browser\/sessions\/([0-9a-f-]{36})\/(frame|input|login|verify|identify|close)$/i,
       );
       if (!match || !uuidPattern.test(match[1] ?? '')) throw new RequestError(404);
       const sessionId = match[1]!;
@@ -250,6 +270,20 @@ export class MarketplaceBrowserHttpApi {
           }
           return;
         }
+        if (match[2] === 'verify') {
+          if (this.readOnly) throw new RequestError(403);
+          const code = body['code'];
+          if (typeof code !== 'string' || !/^[0-9]{4,8}$/.test(code)) throw new RequestError(400);
+          body['code'] = '';
+          const status = await this.broker.run(scope, sessionId, async (browser) => {
+            if (!browser.verify) throw new Error('Bestätigung nicht verfügbar');
+            return browser.verify(code, () =>
+              this.broker.run(scope, sessionId, async () => undefined),
+            );
+          });
+          json(response, 200, { status });
+          return;
+        }
         if (match[2] === 'frame') {
           const bytes = await this.broker.run(scope, sessionId, async (browser) => {
             if (!browser.capture) throw new Error('Bild nicht verfügbar');
@@ -297,11 +331,14 @@ export class MarketplaceBrowserHttpApi {
               // bleibt für einen ausdrücklichen Korrekturversuch bestehen.
               if (error instanceof VintedLoginRejectedError) return 'login_rejected' as const;
               if (error instanceof VintedLoginPendingError) return 'login_pending' as const;
+              if (error instanceof VintedVerificationRequiredError)
+                return 'verification_required' as const;
               throw error;
             }
           });
           if (identity === 'login_rejected') throw new VintedLoginRejectedError();
           if (identity === 'login_pending') throw new VintedLoginPendingError();
+          if (identity === 'verification_required') throw new VintedVerificationRequiredError();
           if (!identity) throw new RequestError(422);
           await this.accounts.confirm(scope, sessionId, identity);
           json(response, 200, {
@@ -329,6 +366,10 @@ export class MarketplaceBrowserHttpApi {
       }
       if (error instanceof VintedLoginPendingError) {
         json(response, 422, { code: 'vinted_login_pending' });
+        return;
+      }
+      if (error instanceof VintedVerificationRequiredError) {
+        json(response, 422, { code: 'vinted_verification_required' });
         return;
       }
       if (error instanceof GoLoginApiLimitError) {

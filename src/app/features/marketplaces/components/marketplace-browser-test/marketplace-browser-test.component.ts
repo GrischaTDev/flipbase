@@ -1,4 +1,13 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, effect, inject } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  computed,
+  effect,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
@@ -23,6 +32,16 @@ import { MarketplaceBrowserTestStore } from '../../services/marketplace-browser-
 export class MarketplaceBrowserTestComponent {
   private credentialsConnectionId: string | undefined;
   readonly store = inject(MarketplaceBrowserTestStore);
+  readonly compact = input(false);
+  readonly submitting = signal(false);
+  readonly showProgress = computed(
+    () => this.submitting() || (this.store.awaitingLogin() && !this.store.awaitingVerification()),
+  );
+  readonly code = new FormControl('', {
+    nonNullable: true,
+    validators: [Validators.required, Validators.pattern(/^[0-9]{4,8}$/)],
+  });
+  readonly codeForm = new FormGroup({ code: this.code });
   readonly loginForm = new FormGroup({
     username: new FormControl('', {
       nonNullable: true,
@@ -42,12 +61,14 @@ export class MarketplaceBrowserTestComponent {
     inject(DestroyRef).onDestroy(() => {
       clearInterval(interval);
       this.loginForm.reset();
+      this.code.reset();
     });
     effect(() => {
       const connectionId = this.store.connection()?.connectionId;
       if (connectionId === this.credentialsConnectionId) return;
       this.credentialsConnectionId = connectionId;
       this.loginForm.reset();
+      this.code.reset();
     });
   }
 
@@ -55,11 +76,20 @@ export class MarketplaceBrowserTestComponent {
     if (this.loginForm.invalid || !this.store.canLogin()) return;
     const credentials = this.loginForm.getRawValue();
     this.loginForm.reset();
+    this.submitting.set(true);
     try {
       await this.store.login(credentials);
     } finally {
+      this.submitting.set(false);
       credentials.username = '';
       credentials.password = '';
     }
+  }
+
+  async verifyCode(): Promise<void> {
+    if (this.code.invalid || !this.store.awaitingVerification()) return;
+    const code = this.code.value;
+    this.code.reset();
+    await this.store.verifyCode(code);
   }
 }

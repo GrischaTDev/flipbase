@@ -10,6 +10,7 @@ import {
   GoLoginApiLimitError,
   MarketplaceBrowserTestApiService,
   VintedLoginPendingError,
+  VintedVerificationRequiredError,
 } from './marketplace-browser-test-api.service';
 import { MarketplaceBrowserTestStore } from './marketplace-browser-test.store';
 
@@ -27,6 +28,7 @@ let api: {
   input: ReturnType<typeof vi.fn>;
   identify: ReturnType<typeof vi.fn>;
   login: ReturnType<typeof vi.fn>;
+  verify: ReturnType<typeof vi.fn>;
   close: ReturnType<typeof vi.fn>;
 };
 let reloadConnections: ReturnType<typeof vi.fn>;
@@ -49,6 +51,7 @@ beforeEach(async () => {
     input: vi.fn().mockResolvedValue(undefined),
     identify: vi.fn().mockResolvedValue({ externalAccountId: '12345', username: 'my-vinted' }),
     login: vi.fn().mockResolvedValue('submitted'),
+    verify: vi.fn().mockResolvedValue('submitted'),
     close: vi.fn().mockResolvedValue(undefined),
   };
   reloadConnections = vi.fn().mockResolvedValue(undefined);
@@ -82,6 +85,46 @@ beforeEach(async () => {
 });
 
 describe('Kontogebundener Browser-Testbereich', () => {
+  it('zeigt eine Vinted-Codeanforderung an und sendet den Code nur für die aktive Verbindung', async () => {
+    api.identify.mockRejectedValueOnce(new VintedVerificationRequiredError());
+    await store.login({ username: 'synthetic', password: 'synthetic' });
+    await store.checkLogin();
+    expect(store.awaitingVerification()).toBe(true);
+    expect(store.error()).toBeNull();
+    await store.verifyCode('123456');
+    expect(api.verify).toHaveBeenCalledOnce();
+    expect(api.verify).toHaveBeenCalledWith(
+      { workspaceId: accountA.workspaceId, connectionId: accountA.connectionId },
+      id,
+      '123456',
+      'token-a',
+    );
+    expect(store.awaitingVerification()).toBe(false);
+  });
+  it('schickt nach einem Kontowechsel keinen Code an die alte Sitzung', async () => {
+    api.identify.mockRejectedValueOnce(new VintedVerificationRequiredError());
+    await store.login({ username: 'synthetic', password: 'synthetic' });
+    await store.checkLogin();
+    selectedId.set(accountB.connectionId);
+    selectionVersion.update((value) => value + 1);
+    TestBed.tick();
+    await store.verifyCode('123456');
+    expect(api.verify).not.toHaveBeenCalled();
+  });
+  it('sendet keinen Code nach Ablauf der Bestätigungsfrist', async () => {
+    api.identify.mockRejectedValueOnce(new VintedVerificationRequiredError());
+    await store.login({ username: 'synthetic', password: 'synthetic' });
+    await store.checkLogin();
+    const now = Date.now();
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(now + 121_000);
+    try {
+      await store.verifyCode('123456');
+      expect(api.verify).not.toHaveBeenCalled();
+      expect(store.error()).toContain('nicht rechtzeitig');
+    } finally {
+      clock.mockRestore();
+    }
+  });
   it('zeigt das GoLogin-Limit vor dem Senden der Zugangsdaten an', async () => {
     api.open.mockRejectedValueOnce(new GoLoginApiLimitError());
     await store.login({ username: 'synthetic', password: 'synthetic' });
