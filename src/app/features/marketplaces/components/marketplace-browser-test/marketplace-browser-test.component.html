@@ -59,12 +59,25 @@
         }
       }
     } @else {
-      @if (selectedConnection?.status === 'connected' && !store.session()) {
+      @if (
+        selectedConnection?.status === 'connected' && !store.session() && !reconnectRequested()
+      ) {
         <p role="status" class="mt-4 text-sm font-medium">Dein Vinted-Konto ist verbunden.</p>
-        <app-button class="mt-3" link="/marketplaces/vinted/profile"
-          >Verbundenes Profil ansehen</app-button
-        >
+        <div class="mt-3 flex flex-wrap gap-2">
+          <app-button link="/marketplaces/vinted/profile">Verbundenes Profil ansehen</app-button>
+          <app-button variant="secondary" (clicked)="reconnectRequested.set(true)"
+            >Anmeldung erneuern</app-button
+          >
+        </div>
       } @else {
+        @if (
+          selectedConnection?.status === 'connected' && reconnectRequested() && !store.session()
+        ) {
+          <p class="mt-4 text-sm text-fb-text-secondary">
+            Melde Dich mit demselben Vinted-Konto erneut an. Flipbase prüft, dass die Konten
+            übereinstimmen.
+          </p>
+        }
         @if (!showProgress() && !store.awaitingVerification()) {
           <form
             class="mt-4 max-w-md space-y-4"

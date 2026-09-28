@@ -46,6 +46,25 @@ export class VintedImportReadError extends Error {
   }
 }
 
+export type VintedRequestFailure =
+  | 'unauthorized'
+  | 'forbidden'
+  | 'rate_limited'
+  | 'provider_unavailable'
+  | 'invalid_response'
+  | 'timeout'
+  | 'network'
+  | 'browser_context';
+
+export class VintedImportRequestError extends Error {
+  readonly reason: VintedRequestFailure;
+
+  constructor(reason: VintedRequestFailure) {
+    super('Vinted-Datenantwort nicht verfügbar');
+    this.reason = reason;
+  }
+}
+
 async function atImportStage<T>(stage: VintedImportStage, read: () => Promise<T>): Promise<T> {
   try {
     return await read();
@@ -333,22 +352,62 @@ export function parseVintedAccountImport(
 }
 
 async function vintedJson(page: Page, path: string): Promise<unknown> {
-  return page.evaluate(async (requestPath) => {
-    const response = await fetch(requestPath, {
-      method: 'GET',
-      credentials: 'include',
-      headers: { Accept: 'application/json' },
-      cache: 'no-store',
-      signal: AbortSignal.timeout(12_000),
-    });
-    if (
-      !response.ok ||
-      new URL(response.url).origin !== 'https://www.vinted.de' ||
-      !response.headers.get('content-type')?.includes('json')
-    )
-      throw new Error(`Vinted-Datenantwort HTTP ${response.status}`);
-    return response.json();
-  }, path);
+  let result: unknown;
+  try {
+    result = await page.evaluate(async (requestPath) => {
+      const failure = (reason: VintedRequestFailure) => ({ flipbaseRequestFailure: reason });
+      let response: Response;
+      try {
+        response = await fetch(requestPath, {
+          method: 'GET',
+          credentials: 'include',
+          headers: { Accept: 'application/json' },
+          cache: 'no-store',
+          signal: AbortSignal.timeout(12_000),
+        });
+      } catch (error) {
+        return failure(
+          error instanceof DOMException && error.name === 'TimeoutError' ? 'timeout' : 'network',
+        );
+      }
+      if (response.status === 401) return failure('unauthorized');
+      if (response.status === 403) return failure('forbidden');
+      if (response.status === 429) return failure('rate_limited');
+      if (response.status >= 500) return failure('provider_unavailable');
+      let origin: string;
+      try {
+        origin = new URL(response.url).origin;
+      } catch {
+        return failure('invalid_response');
+      }
+      if (
+        !response.ok ||
+        origin !== 'https://www.vinted.de' ||
+        !response.headers.get('content-type')?.includes('json')
+      )
+        return failure('invalid_response');
+      try {
+        return await response.json();
+      } catch {
+        return failure('invalid_response');
+      }
+    }, path);
+  } catch {
+    throw new VintedImportRequestError('browser_context');
+  }
+  const reason = record(result)?.['flipbaseRequestFailure'];
+  if (
+    reason === 'unauthorized' ||
+    reason === 'forbidden' ||
+    reason === 'rate_limited' ||
+    reason === 'provider_unavailable' ||
+    reason === 'invalid_response' ||
+    reason === 'timeout' ||
+    reason === 'network' ||
+    reason === 'browser_context'
+  )
+    throw new VintedImportRequestError(reason);
+  return result;
 }
 
 async function pages(

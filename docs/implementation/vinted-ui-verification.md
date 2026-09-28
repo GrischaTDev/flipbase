@@ -669,3 +669,24 @@ Die lokale Dialogkorrektur zeigt bei einem Startfehler keinen angenommenen
 Auftrag und keine laufenden Schritte. Ein gezielter Angular-Test mit einem
 simulierten Versionsfehler sowie der Produktionsbau bestanden. Der echte
 Import ist nach dem Worker-Wechsel noch nicht erneut geprüft.
+
+## 28.09.2026 – Profilabruf nach Worker-Wechsel: Anmeldung nicht mehr gültig
+
+Der erste vom Nutzer gestartete Auftrag mit dem neuen Worker wurde angenommen,
+scheiterte aber nach rund 20 Sekunden beim Profil. Seine Metadaten enthalten
+`stage=profile` und `error_code=profile`. Nach ausdrücklicher Freigabe wurde
+über das zugeordnete Browserprofil genau ein zusätzlicher lesender
+`users/current`-Aufruf ausgeführt. Ergebnis: HTTP 401, gleiche Vinted-Domain,
+JSON-Antwort. Der Antwortinhalt wurde weder gelesen noch gespeichert; der
+GoLogin-Browser wurde bestätigt beendet. Es gab danach keine offene Sitzung.
+
+Der Worker unterscheidet künftig feste Antwortkategorien, ohne Anbietertexte
+zu protokollieren. HTTP 401 wird als nicht bestätigte Anmeldung gemeldet;
+der Dialog öffnet die erneute Anmeldung für dasselbe Flipbase-Konto. Die
+serverseitige Identitätsprüfung lässt kein anderes Vinted-Konto unter dieser
+Verbindung bestätigen. Eine erneute Bestätigung bewahrt importierte
+Profilangaben und lässt den Zeitpunkt des letzten vollständigen Abrufs stehen.
+Lokal bestanden 129 Worker-Tests, 22 gezielte Angular-Tests, 19 Datenbanktests,
+Worker-Typprüfung und beide Builds; die Migration wurde lokal angewendet.
+Ein erfolgreicher Liveimport
+nach erneuter Anmeldung ist noch nicht nachgewiesen.

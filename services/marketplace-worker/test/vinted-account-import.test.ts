@@ -5,7 +5,39 @@ import {
   parseVintedAccountImport,
   readVintedAccountImport,
   VintedImportReadError,
+  VintedImportRequestError,
 } from '../src/vinted-account-import.ts';
+
+test('ordnet HTTP-Ablehnungen nur festen Diagnosekategorien zu', async () => {
+  const page = {
+    url: () => 'https://www.vinted.de/',
+    evaluate: async (callback: (path: string) => Promise<unknown>, path: string) => callback(path),
+  } as unknown as Page;
+  const originalFetch = globalThis.fetch;
+  try {
+    for (const [status, reason] of [
+      [401, 'unauthorized'],
+      [403, 'forbidden'],
+      [429, 'rate_limited'],
+      [503, 'provider_unavailable'],
+    ] as const) {
+      globalThis.fetch = async () => new Response(null, { status });
+      await assert.rejects(
+        readVintedAccountImport(page, async () => undefined),
+        (error: unknown) => {
+          assert.ok(error instanceof VintedImportReadError);
+          assert.equal(error.stage, 'profile');
+          assert.ok(error.cause instanceof VintedImportRequestError);
+          assert.equal(error.cause.reason, reason);
+          assert.equal(error.message.includes(String(status)), false);
+          return true;
+        },
+      );
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
 
 test('ordnet einen geheimen Anbieterfehler nur dem fehlgeschlagenen Profilschritt zu', async () => {
   let requests = 0;

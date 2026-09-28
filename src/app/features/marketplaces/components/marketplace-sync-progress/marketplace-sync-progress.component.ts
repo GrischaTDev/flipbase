@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import type { MarketplaceSyncProgress } from '../../services/marketplace-browser-test-api.service';
 
 const steps = [
@@ -14,13 +15,14 @@ const steps = [
 
 @Component({
   selector: 'app-marketplace-sync-progress',
-  imports: [ModalShellComponent],
+  imports: [ModalShellComponent, ButtonComponent],
   templateUrl: './marketplace-sync-progress.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MarketplaceSyncProgressComponent {
   readonly progress = input<MarketplaceSyncProgress | null>(null);
   readonly error = input<string | null>(null);
+  readonly reconnectLink = input<string | null>(null);
   readonly closed = output<void>();
   readonly steps = steps;
   readonly currentIndex = computed(() => {

@@ -1,19 +1,24 @@
--- Bestätigt nur die Identität einer aktiven, kontogebundenen Browsersitzung.
--- Betroffen: marketplace_connections, marketplace_account_entries und marketplace_browser_sessions.
-create or replace function public.marketplace_browser_confirm_account(
-  p_workspace_id uuid,
-  p_connection_id uuid,
-  p_session_id uuid,
-  p_user_id uuid,
+-- Zweck: Erneute Vinted-Anmeldung bewahrt importierte Profildaten und den letzten Datenabgleich.
+-- Betroffen: public.marketplace_browser_confirm_account; marketplace_connections und marketplace_account_entries.
+-- Migration unit 1: schema_changes
+-- Transaction mode: transactional
+-- Boundary reason: default
+
+SET check_function_bodies = false;
+
+CREATE OR REPLACE FUNCTION public.marketplace_browser_confirm_account (
+  p_workspace_id        uuid,
+  p_connection_id       uuid,
+  p_session_id          uuid,
+  p_user_id             uuid,
   p_external_account_id text,
-  p_username text
+  p_username            text
 )
-returns jsonb
-language plpgsql
-volatile
-security definer
-set search_path = ''
-as $$
+  RETURNS jsonb
+  LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path TO ''
+  AS $function$
 declare
   v_connection public.marketplace_connections;
   v_session public.marketplace_browser_sessions;
@@ -82,6 +87,4 @@ begin
     'connectionId', p_connection_id, 'externalAccountId', p_external_account_id,
     'username', btrim(p_username));
 end;
-$$;
-revoke all on function public.marketplace_browser_confirm_account(uuid, uuid, uuid, uuid, text, text) from public, anon, authenticated;
-grant execute on function public.marketplace_browser_confirm_account(uuid, uuid, uuid, uuid, text, text) to service_role;
+$function$;

@@ -125,9 +125,14 @@ export class MarketplaceWorkerOutdatedError extends Error {
 
 export class MarketplaceImportError extends Error {
   constructor(stage?: string) {
+    if (stage === 'identity') {
+      super(
+        'Vinted bestätigt Deine Anmeldung nicht mehr. Öffne die Vinted-Anmeldung und melde Dich für dieses Konto erneut an.',
+      );
+      return;
+    }
     const stageNames = new Map([
       ['navigation', 'beim Öffnen von Vinted'],
-      ['identity', 'bei der Prüfung der Anmeldung'],
       ['profile', 'beim Lesen des Profils'],
       ['publications', 'beim Lesen der Inserate'],
       ['conversations', 'beim Lesen der Gesprächsliste'],

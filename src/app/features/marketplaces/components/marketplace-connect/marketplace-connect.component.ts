@@ -21,6 +21,10 @@ export class MarketplaceConnectComponent {
     this.route.paramMap.pipe(map((params) => params.get('connectionId'))),
     { initialValue: this.route.snapshot.paramMap.get('connectionId') },
   );
+  readonly reconnectRequested = toSignal(
+    this.route.queryParamMap.pipe(map((params) => params.get('reauth') === '1')),
+    { initialValue: this.route.snapshot.queryParamMap.get('reauth') === '1' },
+  );
   readonly requestedConnection = computed(
     () =>
       this.accounts.connections().find((item) => item.connectionId === this.requestedId()) ?? null,
