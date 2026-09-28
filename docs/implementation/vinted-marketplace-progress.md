@@ -864,3 +864,13 @@ Desktop-/Mobilabläufe bestanden. Ein weiterer lesender Liveversuch erhielt
 nach bestätigter Identität HTTP 403 für die Profildaten; kein echter Import
 wurde als erfolgreich ausgegeben. Der Browserstopp wurde bestätigt. Kein Push,
 Merge oder Deployment in diesem Schritt.
+
+## 28.09.2026 – Manueller Import veröffentlicht, erster Abruf offen
+
+PR #237 wurde nach grünen Pflichtprüfungen gemergt. Die Web-App mit
+`47a15291` wurde öffentlich geprüft; nach gesonderter Nutzerfreigabe läuft
+auch der Marketplace-Worker mit dem Image desselben Merge-Commits. Vor und
+nach dem Wechsel gab es keine aktiven oder ungeklärten Browsersitzungen.
+Gesundheitscheck und anonyme Zugriffsablehnung bestanden. Der Rollout selbst
+startete keinen Vinted-Abruf. Der erste vom Nutzer ausgelöste Datenimport und
+die zuletzt beobachtete HTTP-403-Antwort sind noch zu prüfen.

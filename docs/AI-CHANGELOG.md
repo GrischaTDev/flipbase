@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-28 – Juna – Vinted-Import-Worker nach Freigabe aktiviert
+
+**Auftrag:** Den gemergten manuellen Vinted-Datenimport nach gesonderter Freigabe auf dem Browserdienst aktivieren.
+
+**Änderung:** PR #237 wurde nach allen grünen Pflichtprüfungen als `47a15291` gemergt; der reguläre Web-Deploy einschließlich öffentlichem Versionscheck war erfolgreich. Der getrennte Workflow veröffentlichte den Worker aus derselben vollständigen SHA. Nach Prüfung der Browser-Sitzungen wurde ausschließlich die bestehende Worker-Instanz auf dieses Image umgestellt. Das vorige Image und eine geschützte Kopie der Compose-Zuordnung bleiben für den Rückweg erhalten.
+
+**Prüfung und Grenze:** Vor und nach dem Wechsel gab es fünf geschlossene und keine offenen oder ungeklärten Sitzungen. Container und öffentlicher Healthcheck sind gesund; ein anonymer Sitzungsstart wird mit HTTP 401 abgewiesen. Der Rollout hat keinen Vinted-Abruf gestartet. Ein erfolgreicher erster Import und die zuletzt beobachtete HTTP-403-Antwort müssen mit einem ausdrücklichen Nutzertest geprüft werden.
+
 ## 2026-09-28 – Juna – Manuellen Import für Vinted-Kontodaten vorbereitet
 
 **Auftrag:** Profil, Inserate, Nachrichten und nachweisbare Verkäufe des verbundenen eigenen Vinted-Kontos per Knopfdruck abrufen und in den bestehenden Ansichten zeigen.
