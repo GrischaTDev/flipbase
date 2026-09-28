@@ -8,6 +8,7 @@ import {
   GoLoginApiLimitError,
   VintedLoginPendingError,
   VintedLoginRejectedError,
+  VintedVerificationRequiredError,
   MarketplaceBrowserTestApiService,
   type BrowserTestInput,
   type VintedLoginCredentials,
@@ -39,6 +40,7 @@ export class MarketplaceBrowserTestStore {
   private readonly loginKey = signal<string | null>(null);
   private readonly loginNeedsClose = signal<string | null>(null);
   private readonly loginPagePendingKey = signal<string | null>(null);
+  private readonly verificationKey = signal<string | null>(null);
   private loginDeadline = 0;
   private readonly progressState = signal<{ key: string; message: string } | null>(null);
   readonly progress = computed(() => {
@@ -51,6 +53,9 @@ export class MarketplaceBrowserTestStore {
   });
   readonly awaitingLogin = computed(
     () => this.session() !== null && this.loginKey() === this.contextKey(),
+  );
+  readonly awaitingVerification = computed(
+    () => this.awaitingLogin() && this.verificationKey() === this.contextKey(),
   );
 
   private readonly contextKey = computed(() => {
@@ -238,6 +243,7 @@ export class MarketplaceBrowserTestStore {
     this.errorState.set(null);
     this.loginKey.set(key);
     this.loginPagePendingKey.set(null);
+    this.verificationKey.set(null);
     this.progressState.set({ key, message: 'Die Anmeldung bei Vinted läuft im Hintergrund …' });
     try {
       const result = await this.api.login(
@@ -287,13 +293,69 @@ export class MarketplaceBrowserTestStore {
         this.errorState.set({
           key,
           message:
-            this.loginPagePendingKey() === key
-              ? 'Vinted zeigt nach einer Minute weiterhin das Anmeldeformular. Die Anmeldung wurde dort nicht bestätigt. Dein Konto wurde nicht verbunden. Beende den Versuch, bevor Du Dich erneut anmeldest.'
-              : 'Die Anmeldung wurde innerhalb einer Minute nicht bestätigt. Vinted kann eine zusätzliche Bestätigung verlangen; auch der Kontodatenabruf kann fehlgeschlagen sein. Dein Konto wurde nicht als verbunden markiert. Beende den Versuch und melde Dich später erneut an.',
+            this.verificationKey() === key
+              ? 'Der Bestätigungscode wurde nicht rechtzeitig eingegeben. Beende den Versuch und starte die Anmeldung erneut.'
+              : this.loginPagePendingKey() === key
+                ? 'Vinted zeigt nach einer Minute weiterhin das Anmeldeformular. Die Anmeldung wurde dort nicht bestätigt. Dein Konto wurde nicht verbunden. Beende den Versuch, bevor Du Dich erneut anmeldest.'
+                : 'Die Anmeldung wurde innerhalb einer Minute nicht bestätigt. Vinted kann eine zusätzliche Bestätigung verlangen; auch der Kontodatenabruf kann fehlgeschlagen sein. Dein Konto wurde nicht als verbunden markiert. Beende den Versuch und melde Dich später erneut an.',
         });
       return;
     }
+    if (this.awaitingVerification()) return;
     await this.confirmAccount(true);
+  }
+
+  async verifyCode(code: string): Promise<void> {
+    const active = this.session();
+    if (!active || !this.awaitingVerification() || this.busy() || !/^[0-9]{4,8}$/.test(code))
+      return;
+    if (Date.now() >= this.loginDeadline) {
+      await this.checkLogin();
+      return;
+    }
+    const revision = ++this.revision;
+    this.busyState.set(active.key);
+    this.errorState.set(null);
+    try {
+      const result = await this.api.verify(active.scope, active.id, code, this.currentToken());
+      if (!this.isCurrent(active.key, revision)) return;
+      if (result === 'form_unavailable') {
+        this.errorState.set({
+          key: active.key,
+          message:
+            'Das Codefeld ist bei Vinted nicht verfügbar. Prüfe, ob Dein Code noch gültig ist.',
+        });
+        return;
+      }
+      if (result === 'submission_unconfirmed') {
+        this.loginKey.set(null);
+        this.loginNeedsClose.set(active.key);
+        this.errorState.set({
+          key: active.key,
+          message:
+            'Ob Vinted den Code angenommen hat, ist unklar. Beende den Versuch und starte ihn bei Bedarf neu.',
+        });
+        return;
+      }
+      this.verificationKey.set(null);
+      this.loginDeadline = Date.now() + 60_000;
+      this.progressState.set({
+        key: active.key,
+        message: 'Code gesendet. Die Anmeldung wird geprüft …',
+      });
+    } catch (error) {
+      if (this.isCurrent(active.key, revision) && !this.handleConfirmedEnd(error, active.key)) {
+        this.loginKey.set(null);
+        this.loginNeedsClose.set(active.key);
+        this.errorState.set({
+          key: active.key,
+          message:
+            'Der Code konnte nicht sicher gesendet werden. Beende den Versuch und melde Dich erneut an.',
+        });
+      }
+    } finally {
+      if (this.isCurrent(active.key, revision)) this.busyState.set(null);
+    }
   }
 
   async confirmAccount(allowPending = false): Promise<void> {
@@ -318,6 +380,7 @@ export class MarketplaceBrowserTestStore {
       this.state.set(null);
       this.loginKey.set(null);
       this.loginPagePendingKey.set(null);
+      this.verificationKey.set(null);
       this.progressState.set(null);
       await this.accounts.reloadConnections(active.scope.connectionId);
     } catch (error) {
@@ -329,6 +392,15 @@ export class MarketplaceBrowserTestStore {
         this.loginKey.set(null);
         this.loginNeedsClose.set(active.key);
         this.errorState.set({ key: active.key, message: error.message });
+        return;
+      }
+      if (
+        this.isCurrent(active.key, revision) &&
+        error instanceof VintedVerificationRequiredError
+      ) {
+        if (this.verificationKey() !== active.key) this.loginDeadline = Date.now() + 120_000;
+        this.verificationKey.set(active.key);
+        this.progressState.set(null);
         return;
       }
       if (this.isCurrent(active.key, revision)) this.loginKey.set(null);
@@ -356,6 +428,7 @@ export class MarketplaceBrowserTestStore {
     const revision = ++this.revision;
     this.loginKey.set(null);
     this.loginPagePendingKey.set(null);
+    this.verificationKey.set(null);
     this.progressState.set(null);
     this.busyState.set(active.key);
     this.errorState.set(null);
@@ -428,6 +501,7 @@ export class MarketplaceBrowserTestStore {
     this.state.set(null);
     this.loginNeedsClose.set(null);
     this.loginPagePendingKey.set(null);
+    this.verificationKey.set(null);
     this.errorState.set({
       key,
       message: 'Die Browsersitzung wurde beendet. Du kannst die Anmeldung erneut öffnen.',

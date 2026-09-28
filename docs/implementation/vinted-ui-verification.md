@@ -1,5 +1,33 @@
 # Vinted-Oberfläche: geprüfter Stand vom 26. September 2026
 
+## Nachtrag 28.09.2026: SMS-Code und zweistufige Kontoeinrichtung
+
+Der letzte vom Nutzer gestartete Browserlauf war bereits geschlossen. Sein
+gespeichertes GoLogin-Profil zeigte beim rein lesenden Nachsehen den Pfad
+`/member/login/2fa`; es wurde danach bestätigt gestoppt. Zugangsdaten und
+SMS-Code wurden nicht ausgelesen oder erneut gesendet.
+
+Der lokale Branch `juna/vinted-otp-onboarding` zeigt bei diesem Zustand ein
+Codefeld im selben Konto-Dialog. Der zweistufige Drawer enthält zuerst
+Plattform/Name und anschließend die Anmeldung. Während der Prüfung ersetzt
+ein gelber Kreis die Eingabefelder. Ein Löschdialog entfernt die Verbindung
+erst nach bestätigtem Stopp offener Sitzungen und Bereinigung des GoLogin-Profils.
+
+**Prüfung:** Worker-Typprüfung, Worker-Bau und 84 Worker-Tests; sieben Tests
+im echten Chromium mit ausschließlich abgefangenen eigenen HTML-Seiten;
+104 gezielte Angular-Tests; Angular-Produktionsbau; acht Playwright-Abläufe
+mit 1440 und 390 Pixeln, ohne AXE-Verstöße oder horizontalen Überlauf;
+gezieltes ESLint. Ein erster Mobiltest deckte auf, dass das Codeformular ohne
+FormGroup zur normalen Navigation führte. Nach der Korrektur sendet es den
+Code einmalig an die gebundene Sitzung und bleibt im Drawer. Die Tests
+decken fremde Workspaces/Konten, ungültige Tokens, Sitzungsablauf,
+Abbruch, unklaren Codeversand und Profil-Löschung bei ungeklärtem Stopp ab.
+
+**Noch offen:** Das echte Vinted-Codefeld und die private Identitätsroute
+konnten nach Ablauf der SMS-Herausforderung nicht live bestätigt werden.
+Ein erfolgreicher eigener SMS-Durchlauf sowie die tatsächliche Verbindung
+stehen aus. Diese Änderung wurde weder gepusht noch produktiv ausgerollt.
+
 ## Nachtrag 28.09.2026: Livezugang nach GoLogin-Abo
 
 Der produktive API-Zugang ist wieder nutzbar: Proxy-Kontingent HTTP 200, leeres Anbieterprofil HTTP 201 angelegt und HTTP 204 gelöscht. Beim parallel vom Nutzer gestarteten Anmeldeversuch erschienen eine aktive kontogebundene Browsersitzung und „Anmeldung wird geprüft“. Nach einer Minute wurde die Anmeldung nicht bestätigt; die spätere Navigation schloss die Sitzung. Das Flipbase-Konto blieb bei „Anmeldung ausstehend“. Beim anschließenden lesenden Öffnen des gespeicherten Profils zeigte Vinted das Anmeldeformular ohne sichtbaren Hinweis; der private Kontodatenabruf antwortete HTTP 403 `access_denied`. Das Profil wurde jeweils bestätigt gestoppt. Kein zweiter Loginauftrag wurde gesendet; Zugangsdaten wurden nicht ausgelesen. Die neue zustandsspezifische Fehlermeldung ist lokal getestet, aber noch nicht produktiv geprüft.

@@ -21,6 +21,7 @@ export class ModalShellComponent {
   readonly icon = input<LucideIconInput | null>(null);
   readonly iconTone = input<ModalTone>('info');
   readonly size = input<ModalSize>('lg');
+  readonly presentation = input<'center' | 'drawer'>('center');
   readonly closeOnBackdrop = input<boolean>(false);
   readonly hasFooter = input<boolean>(true);
 
@@ -29,6 +30,8 @@ export class ModalShellComponent {
   protected readonly closeIcon = LucideX;
 
   protected readonly cardClasses = computed(() => {
+    if (this.presentation() === 'drawer')
+      return 'linear-surface flex h-dvh w-full max-w-lg flex-col overflow-hidden shadow-lg animate-modal-card';
     const base =
       'linear-surface flex min-h-0 max-h-[calc(100dvh-1.5rem)] w-full flex-col overflow-hidden rounded-2xl shadow-lg animate-modal-card sm:max-h-[calc(100dvh-3rem)]';
 
@@ -42,6 +45,12 @@ export class ModalShellComponent {
 
     return [base, sizeClasses[this.size()]].join(' ');
   });
+
+  protected readonly overlayClasses = computed(() =>
+    this.presentation() === 'drawer'
+      ? 'fixed inset-0 z-50 flex h-dvh items-stretch justify-end overflow-hidden bg-black/50 animate-fade-in'
+      : 'fixed inset-0 z-50 flex h-dvh items-center justify-center overflow-hidden bg-black/50 p-3 sm:p-6 animate-fade-in',
+  );
 
   protected readonly iconToneClasses = computed(() => {
     const tones: Record<ModalTone, string> = {

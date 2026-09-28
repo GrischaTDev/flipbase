@@ -20,9 +20,20 @@ function json(value: unknown, status = 200): Response {
 }
 
 function fixture(
-  options: { deny?: boolean; revokeAfterCreate?: boolean; loseInsertAck?: boolean } = {},
+  options: {
+    deny?: boolean;
+    revokeAfterCreate?: boolean;
+    loseInsertAck?: boolean;
+    stored?: boolean;
+    unresolved?: boolean;
+    missingProvider?: boolean;
+    uncertainDelete?: boolean;
+    blocked?: boolean;
+  } = {},
 ) {
-  let stored: string | null = null;
+  let stored: string | null = options.stored ? profileId : null;
+  let paused = false;
+  let removed = false;
   let checks = 0;
   let created = 0;
   let deleted = 0;
@@ -31,6 +42,8 @@ function fixture(
     if (url.endsWith('/users-proxies/geolocation/traffic'))
       return json({ residentTrafficData: { trafficLimitBytes: 500, trafficUsedBytes: 0 } });
     if (url.endsWith('/users-proxies/mobile-proxy')) return json({});
+    if (url.endsWith(`/browser/${profileId}`) && options.missingProvider)
+      return new Response(null, { status: 404 });
     if (url.endsWith(`/browser/${profileId}`))
       return json({
         proxyEnabled: true,
@@ -45,10 +58,21 @@ function fixture(
             workspaceId: scope.workspaceId,
             connectionId: scope.connectionId,
             marketplace: 'vinted',
-            status: 'needs_login',
+            status: options.blocked ? 'blocked' : 'needs_login',
           },
         ],
       });
+    }
+    if (url.endsWith('/rest/v1/rpc/marketplace_set_paused')) {
+      paused = true;
+      return json({ ok: true });
+    }
+    if (url.includes('/rest/v1/marketplace_browser_sessions'))
+      return json(options.unresolved ? [{ id: 1 }] : []);
+    if (url.includes('/rest/v1/marketplace_connections') && init?.method === 'DELETE') {
+      if (!paused && !options.blocked) throw new Error('delete before pause');
+      removed = true;
+      return json([{ id: scope.connectionId }]);
     }
     if (url.includes('/rest/v1/marketplace_browser_profiles')) {
       if (init?.method === 'POST') {
@@ -63,6 +87,8 @@ function fixture(
     }
     if (url.endsWith('/browser') && init?.method === 'DELETE') {
       deleted++;
+      if (options.missingProvider || options.uncertainDelete)
+        return new Response(null, { status: 404 });
       return new Response(null, { status: 204 });
     }
     throw new Error('Unexpected endpoint');
@@ -75,7 +101,7 @@ function fixture(
       goLoginToken: 'provider-token',
       fetch: request,
     }),
-    counts: () => ({ checks, created, deleted, stored }),
+    counts: () => ({ checks, created, deleted, stored, paused, removed }),
   };
 }
 
@@ -83,7 +109,14 @@ test('creates one persistent profile and reuses it for the same connection', asy
   const f = fixture();
   await f.provisioner.prepare(scope);
   await f.provisioner.prepare(scope);
-  assert.deepEqual(f.counts(), { checks: 4, created: 1, deleted: 0, stored: profileId });
+  assert.deepEqual(f.counts(), {
+    checks: 4,
+    created: 1,
+    deleted: 0,
+    stored: profileId,
+    paused: false,
+    removed: false,
+  });
 });
 
 test('rejects a non-operator before calling the provider', async () => {
@@ -104,13 +137,27 @@ test('rejects a foreign account before creating a provider profile', async () =>
 test('deletes a new provider profile when permission is revoked during creation', async () => {
   const f = fixture({ revokeAfterCreate: true });
   await assert.rejects(f.provisioner.prepare(scope), /nicht zugeordnet/);
-  assert.deepEqual(f.counts(), { checks: 2, created: 1, deleted: 1, stored: null });
+  assert.deepEqual(f.counts(), {
+    checks: 2,
+    created: 1,
+    deleted: 1,
+    stored: null,
+    paused: false,
+    removed: false,
+  });
 });
 
 test('keeps a committed profile after a lost database acknowledgement', async () => {
   const f = fixture({ loseInsertAck: true });
   await f.provisioner.prepare(scope);
-  assert.deepEqual(f.counts(), { checks: 3, created: 1, deleted: 0, stored: profileId });
+  assert.deepEqual(f.counts(), {
+    checks: 3,
+    created: 1,
+    deleted: 0,
+    stored: profileId,
+    paused: false,
+    removed: false,
+  });
 });
 
 test('reports a provider API limit before saving a profile for the account', async () => {
@@ -145,4 +192,59 @@ test('reports a provider API limit before saving a profile for the account', asy
     fetch: request,
   });
   await assert.rejects(provisioner.prepare(scope), GoLoginApiLimitError);
+});
+
+test('sperrt eine Verbindung vor dem Löschen und entfernt das gespeicherte Browserprofil', async () => {
+  const f = fixture({ stored: true });
+  let stopped = false;
+  await f.provisioner.remove(scope, async () => {
+    stopped = true;
+  });
+  assert.equal(stopped, true);
+  assert.equal(f.counts().paused, true);
+  assert.equal(f.counts().deleted, 1);
+  assert.equal(f.counts().removed, true);
+});
+
+test('löscht weder Profil noch Konto solange eine Browsersitzung ungeklärt ist', async () => {
+  const f = fixture({ stored: true, unresolved: true });
+  await assert.rejects(
+    f.provisioner.remove(scope, async () => undefined),
+    /Browsersitzung/,
+  );
+  assert.equal(f.counts().paused, true);
+  assert.equal(f.counts().deleted, 0);
+  assert.equal(f.counts().removed, false);
+});
+
+test('verweigert das Löschen für ein fremdes Konto vor Anbieterzugriff', async () => {
+  const f = fixture({ stored: true });
+  await assert.rejects(
+    f.provisioner.remove(
+      { ...scope, connectionId: '25600000-0000-4000-8000-000000000022' },
+      async () => undefined,
+    ),
+    /Kontozugriff verweigert/,
+  );
+  assert.equal(f.counts().deleted, 0);
+  assert.equal(f.counts().removed, false);
+});
+
+test('wiederholt eine Löschung nur wenn ein fehlendes Anbieterprofil bestätigt ist', async () => {
+  const missing = fixture({ stored: true, missingProvider: true });
+  await missing.provisioner.remove(scope, async () => undefined);
+  assert.equal(missing.counts().removed, true);
+  const uncertain = fixture({ stored: true, uncertainDelete: true });
+  await assert.rejects(
+    uncertain.provisioner.remove(scope, async () => undefined),
+    /Browserprofil/,
+  );
+  assert.equal(uncertain.counts().removed, false);
+});
+
+test('entfernt auch eine bereits gesperrte Verbindung ohne erneuten Pausenaufruf', async () => {
+  const f = fixture({ stored: true, blocked: true });
+  await f.provisioner.remove(scope, async () => undefined);
+  assert.equal(f.counts().paused, false);
+  assert.equal(f.counts().removed, true);
 });

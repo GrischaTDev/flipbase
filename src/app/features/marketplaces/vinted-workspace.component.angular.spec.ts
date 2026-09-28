@@ -287,7 +287,7 @@ describe('Vinted-Bereich in Flipbase', () => {
     expect(element.querySelector('app-card h2')?.textContent).toContain('Vinted-Konten');
     expect(add?.closest('[data-card-header]')).toBeNull();
   });
-  it('führt nach dem Kontodialog direkt zur zugehörigen Anmeldung', async () => {
+  it('wechselt im Kontodialog direkt zur zugehörigen Anmeldung', async () => {
     api.listConnections.mockResolvedValue({ canManage: true, connections: [] });
     const created = { ...fixtureConnections[0], displayName: 'Mein Konto', status: 'needs_login' };
     api.createConnection.mockImplementation(async () => {
@@ -316,7 +316,10 @@ describe('Vinted-Bereich in Flipbase', () => {
       'Mein Konto',
     );
     expect(harness.routeNativeElement?.textContent).toContain('Mein Konto');
-    expect(harness.routeNativeElement?.querySelector('app-marketplace-connect')).not.toBeNull();
+    expect(
+      harness.routeNativeElement?.querySelector('app-marketplace-browser-test'),
+    ).not.toBeNull();
+    expect(harness.routeNativeElement?.querySelector('[role="dialog"]')).not.toBeNull();
   });
   it('öffnet nur die zum Link gehörende Kontoverbindung', async () => {
     const { element } = await render(

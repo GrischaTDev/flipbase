@@ -52,6 +52,22 @@ export class VintedLoginPendingError extends Error {
   }
 }
 
+export class VintedVerificationRequiredError extends Error {
+  constructor() {
+    super('Vinted verlangt einen Bestätigungscode.');
+  }
+}
+
+export class MarketplaceConnectionRemovalError extends Error {
+  constructor() {
+    super(
+      'Das Konto konnte noch nicht vollständig gelöscht werden. Eine laufende Sitzung wird beendet oder das Browserprofil muss geprüft werden. Versuche es erneut.',
+    );
+  }
+}
+
+export type VintedVerificationResult = 'submitted' | 'form_unavailable' | 'submission_unconfirmed';
+
 const basePath = '/marketplace-browser/sessions';
 const frameLimit = 512 * 1024;
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -133,6 +149,13 @@ export class MarketplaceBrowserTestApiService {
         body.code === 'vinted_login_rejected'
       )
         throw new VintedLoginRejectedError();
+      if (
+        typeof body === 'object' &&
+        body !== null &&
+        'code' in body &&
+        body.code === 'vinted_verification_required'
+      )
+        throw new VintedVerificationRequiredError();
       if (allowPending) return null;
     }
     if (!response.ok) throw new Error('Vinted-Anmeldung konnte nicht bestätigt werden');
@@ -201,6 +224,32 @@ export class MarketplaceBrowserTestApiService {
     return blob;
   }
 
+  async verify(
+    scope: AccountScope,
+    sessionId: string,
+    code: string,
+    accessToken: string,
+  ): Promise<VintedVerificationResult> {
+    const response = await this.post(
+      `${basePath}/${sessionId}/verify`,
+      { ...scope, code },
+      accessToken,
+    );
+    if (response.status === 410) throw new BrowserTestSessionEndedError();
+    if (!response.ok) throw new Error('Bestätigungscode konnte nicht gesendet werden');
+    const body: unknown = await response.json();
+    if (
+      typeof body !== 'object' ||
+      body === null ||
+      !('status' in body) ||
+      (body.status !== 'submitted' &&
+        body.status !== 'form_unavailable' &&
+        body.status !== 'submission_unconfirmed')
+    )
+      throw new Error('Ungültige Bestätigungsantwort');
+    return body.status;
+  }
+
   async input(
     scope: AccountScope,
     sessionId: string,
@@ -219,6 +268,11 @@ export class MarketplaceBrowserTestApiService {
   async close(scope: AccountScope, sessionId: string, accessToken: string): Promise<void> {
     const response = await this.post(`${basePath}/${sessionId}/close`, scope, accessToken);
     if (response.status !== 204) throw new Error('Browser-Stopp konnte nicht bestätigt werden');
+  }
+
+  async deleteConnection(scope: AccountScope, accessToken: string): Promise<void> {
+    const response = await this.post('/marketplace-browser/connections/delete', scope, accessToken);
+    if (response.status !== 204) throw new MarketplaceConnectionRemovalError();
   }
 
   private post(path: string, body: unknown, accessToken: string): Promise<Response> {

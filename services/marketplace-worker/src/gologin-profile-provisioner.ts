@@ -47,7 +47,7 @@ export class GoLoginProfileProvisioner {
     return operation;
   }
 
-  private async assertConnection(scope: BrowserSessionScope): Promise<void> {
+  private async assertConnection(scope: BrowserSessionScope, allowPaused = false): Promise<string> {
     const response = await this.request(
       `${this.baseUrl}/rest/v1/rpc/marketplace_list_connections`,
       {
@@ -72,8 +72,68 @@ export class GoLoginProfileProvisioner {
         item['connectionId'] === scope.connectionId &&
         item['marketplace'] === 'vinted',
     );
-    if (!isRecord(account) || account['status'] === 'paused' || account['status'] === 'blocked')
+    if (
+      !isRecord(account) ||
+      (!allowPaused && (account['status'] === 'paused' || account['status'] === 'blocked'))
+    )
       throw new Error('Kontozugriff verweigert');
+    return String(account['status']);
+  }
+
+  async remove(scope: BrowserSessionScope, stopSessions: () => Promise<void>): Promise<void> {
+    const status = await this.assertConnection(scope, true);
+    if (status !== 'blocked') {
+      const pause = await this.request(`${this.baseUrl}/rest/v1/rpc/marketplace_set_paused`, {
+        method: 'POST',
+        headers: {
+          apikey: this.publishableKey,
+          Authorization: `Bearer ${scope.userAccessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          p_workspace_id: scope.workspaceId,
+          p_connection_id: scope.connectionId,
+          p_paused: true,
+        }),
+        signal: AbortSignal.timeout(5_000),
+      });
+      if (!pause.ok) throw new Error('Konto konnte nicht für das Löschen gesperrt werden');
+    }
+    await stopSessions();
+    await this.assertConnection(scope, true);
+    const unresolvedUrl = new URL(`${this.baseUrl}/rest/v1/marketplace_browser_sessions`);
+    unresolvedUrl.searchParams.set('select', 'id');
+    unresolvedUrl.searchParams.set('workspace_id', `eq.${scope.workspaceId}`);
+    unresolvedUrl.searchParams.set('connection_id', `eq.${scope.connectionId}`);
+    unresolvedUrl.searchParams.set('state', 'in.(active,stopping)');
+    const unresolved = await this.request(unresolvedUrl, {
+      headers: { apikey: this.serviceRoleKey, Authorization: `Bearer ${this.serviceRoleKey}` },
+      signal: AbortSignal.timeout(5_000),
+    });
+    if (!unresolved.ok) throw new Error('Browsersitzung konnte nicht geprüft werden');
+    const sessions: unknown = await unresolved.json();
+    if (!Array.isArray(sessions)) throw new Error('Browsersitzung konnte nicht geprüft werden');
+    if (sessions.length > 0) throw new Error('Browsersitzung wird noch beendet');
+    const profileId = await this.savedProfile(scope);
+    if (profileId) await this.deleteProfile(profileId);
+    await this.assertConnection(scope, true);
+    const deleteUrl = new URL(`${this.baseUrl}/rest/v1/marketplace_connections`);
+    deleteUrl.searchParams.set('workspace_id', `eq.${scope.workspaceId}`);
+    deleteUrl.searchParams.set('id', `eq.${scope.connectionId}`);
+    deleteUrl.searchParams.set('select', 'id');
+    const deleted = await this.request(deleteUrl, {
+      method: 'DELETE',
+      headers: {
+        apikey: this.serviceRoleKey,
+        Authorization: `Bearer ${this.serviceRoleKey}`,
+        Prefer: 'return=representation',
+      },
+      signal: AbortSignal.timeout(5_000),
+    });
+    if (!deleted.ok) throw new Error('Konto konnte nicht gelöscht werden');
+    const rows: unknown = await deleted.json();
+    if (!Array.isArray(rows) || rows.length !== 1)
+      throw new Error('Löschung konnte nicht bestätigt werden');
   }
 
   private async prepareNew(scope: BrowserSessionScope): Promise<void> {
@@ -173,6 +233,14 @@ export class GoLoginProfileProvisioner {
       body: JSON.stringify({ profilesToDelete: [profileId] }),
       signal: AbortSignal.timeout(15_000),
     });
-    if (response.status !== 204) throw new Error('Browserprofil konnte nicht bereinigt werden');
+    if (response.status === 204) return;
+    if (response.status === 404) {
+      const check = await this.request(`https://api.gologin.com/browser/${profileId}`, {
+        headers: { Authorization: `Bearer ${this.goLoginToken}` },
+        signal: AbortSignal.timeout(5_000),
+      });
+      if (check.status === 404) return;
+    }
+    throw new Error('Browserprofil konnte nicht bereinigt werden');
   }
 }

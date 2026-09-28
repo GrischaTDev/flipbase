@@ -18,6 +18,13 @@ export class VintedLoginPendingError extends Error {
   }
 }
 
+export class VintedVerificationRequiredError extends Error {
+  constructor() {
+    super('Vinted verlangt einen Bestätigungscode');
+    this.name = 'VintedVerificationRequiredError';
+  }
+}
+
 const accountIdPattern = /^[1-9][0-9]{0,31}$/;
 const usernamePattern = /^[^\p{Cc}]{1,120}$/u;
 
@@ -53,6 +60,8 @@ export async function readVintedAccountIdentity(
   } catch {
     return null;
   }
+  if (new URL(page.url()).pathname === '/member/login/2fa')
+    throw new VintedVerificationRequiredError();
   let response: unknown;
   try {
     response = await page.evaluate(async () => {

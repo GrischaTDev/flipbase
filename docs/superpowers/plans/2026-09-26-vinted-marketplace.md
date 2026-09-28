@@ -473,3 +473,31 @@ Die private Identitätsroute `/api/v2/users/current` bleibt am eigenen Konto
 unbestätigt. Ein lokaler Test ersetzt diesen Nachweis nicht. CAPTCHA, E-Mail-
 oder SMS-Bestätigung dürfen nicht als erledigt ausgegeben werden. Ein vollständiger
 Liveimport bleibt AP05; eine vorbereitete Verbindung ist kein Datenimport.
+
+## AP04h: SMS-Code, gestufte Einrichtung und Kontolöschung (28.09.2026)
+
+Der eigene Anmeldeversuch führte nach der Passwortabgabe zur Vinted-Seite
+`/member/login/2fa`; der Nutzer erhielt einen zwei Minuten gültigen SMS-Code.
+Die bisherige einminütige Ergebnisprüfung zeigte keinen Eingabeweg. Der bereits
+geschlossene Versuch wird nicht wiederholt; sein Code wird nicht übernommen.
+
+- [x] Zweite Vinted-Anmeldestufe als eigenen Prüfzustand erkennen, ohne die
+      kontogebundene Browsersitzung zu beenden oder die Verbindung voreilig zu bestätigen.
+- [x] Code ausdrücklich aus Flipbase an genau diese Sitzung senden. Vor Eingabe
+      und Versand Rechte erneut prüfen; bei unklarem Ausgang keine Wiederholung.
+- [x] Einrichtung in einem Seitenfenster mit Plattform/Name und Anmeldung als
+      zwei Schritten halten; mittiges gelbes Ladezeichen und Codeeingabe anzeigen.
+- [x] Kontolöschung mit Bestätigung anbieten. Verbindung zuerst pausieren,
+      ungeklärte Browsersitzungen stoppen, GoLogin-Profil entfernen und erst
+      danach die gespeicherten Kontodaten löschen. Bei Fehler bleibt das Konto
+      für einen erneuten Versuch erhalten.
+- [ ] Echte Codefeldstruktur, SMS-Versand, Vinted-Identitätsantwort und
+      Verbindung am eigenen Konto prüfen, sobald die Änderung veröffentlicht ist.
+
+Die GoLogin-API dokumentiert weiterhin das [Löschen von Profilen](https://api.gologin.com/docs)
+und den [Cloudbrowser-Stopp](https://gologin.com/blog/playwright-automation-tool-in-the-cloud/).
+Der Codepfad ist an die konkret beobachtete Vinted-Adresse gebunden; das
+Codefeld und sein Knopf wurden bisher nur mit einer vollständig abgefangenen
+eigenen HTML-Testseite geprüft.
+Die private Identitätsroute bleibt nach erfolgreicher SMS-Bestätigung gesondert
+zu verifizieren. Keine neue Datenbankmigration oder Abhängigkeit.

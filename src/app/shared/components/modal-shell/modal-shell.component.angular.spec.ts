@@ -34,6 +34,7 @@ describe('ModalShellComponent', () => {
       icon: ['icon', 1, null],
       iconTone: ['iconTone', 1, null],
       size: ['size', 1, null],
+      presentation: ['presentation', 1, null],
       closeOnBackdrop: ['closeOnBackdrop', 1, null],
       hasFooter: ['hasFooter', 1, null],
     };
@@ -44,6 +45,7 @@ describe('ModalShellComponent', () => {
       icon: 'icon',
       iconTone: 'iconTone',
       size: 'size',
+      presentation: 'presentation',
       closeOnBackdrop: 'closeOnBackdrop',
       hasFooter: 'hasFooter',
     };
@@ -104,5 +106,14 @@ describe('ModalShellComponent', () => {
     expect(overlay.classList.contains('overflow-y-auto')).toBe(false);
     expect(card.className).toContain('max-h-[calc(100dvh-1.5rem)]');
     expect(content.classList.contains('overscroll-contain')).toBe(true);
+  });
+
+  it('opens as a full-height side drawer when requested', () => {
+    fixture.componentRef.setInput('presentation', 'drawer');
+    fixture.detectChanges();
+    const overlay = fixture.nativeElement.querySelector('[role="dialog"]');
+    const card = overlay.querySelector('.linear-surface');
+    expect(overlay.className).toContain('justify-end');
+    expect(card.className).toContain('h-dvh');
   });
 });

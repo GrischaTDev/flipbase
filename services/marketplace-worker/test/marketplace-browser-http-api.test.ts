@@ -7,7 +7,11 @@ import {
 } from '../src/marketplace-browser-http-api.ts';
 import type { BrowserInfo } from '../src/gologin-cloud-browser.ts';
 import { GoLoginApiLimitError } from '../src/gologin-api-limit.ts';
-import { VintedLoginPendingError, VintedLoginRejectedError } from '../src/vinted-browser-reader.ts';
+import {
+  VintedLoginPendingError,
+  VintedLoginRejectedError,
+  VintedVerificationRequiredError,
+} from '../src/vinted-browser-reader.ts';
 import {
   MarketplaceBrowserSessionEndedError,
   type BrowserSessionScope,
@@ -28,6 +32,7 @@ async function setup(
   identity?: { id: string; username: string } | null,
   confirm?: (scope: BrowserSessionScope, id: string) => Promise<void>,
   loginGate?: Promise<void>,
+  remove?: (scope: BrowserSessionScope, stop: () => Promise<void>) => Promise<void>,
 ) {
   const inputs: string[] = [];
   let owner: BrowserSessionScope | undefined;
@@ -52,6 +57,11 @@ async function setup(
       await loginGate;
       await authorize();
       inputs.push(`login:${credentials.username}`);
+      return 'submitted';
+    },
+    verify: async (_code, authorize) => {
+      await authorize();
+      inputs.push('verification-submitted');
       return 'submitted';
     },
   };
@@ -86,10 +96,12 @@ async function setup(
         throw new Error('Sitzungszugriff verweigert');
       owner = undefined;
     },
+    reconcile: async () => undefined,
   };
   const api = new MarketplaceBrowserHttpApi({
     broker,
-    profiles: prepare ? { prepare } : undefined,
+    profiles:
+      prepare || remove ? { prepare: prepare ?? (async () => undefined), remove } : undefined,
     accounts: confirm ? { confirm: async (scope, id) => confirm(scope, id) } : undefined,
     readOnly,
     users: {
@@ -484,6 +496,63 @@ test('binds one login submission to its user, workspace and account without retu
   }
 });
 
+test('bindet die Codebestätigung an Nutzer, Workspace und Konto', async () => {
+  const api = await setup();
+  try {
+    const scope = { workspaceId: workspaceA, connectionId: accountA };
+    await api.request('/marketplace-browser/sessions', scope);
+    const path = `/marketplace-browser/sessions/${sessionId}/verify`;
+    assert.equal((await api.request(path, { ...scope, code: '123456' }, 'expired')).status, 401);
+    assert.equal(
+      (await api.request(path, { ...scope, connectionId: accountB, code: '123456' })).status,
+      409,
+    );
+    assert.equal(
+      (await api.request(path, { ...scope, workspaceId: workspaceB, code: '123456' })).status,
+      409,
+    );
+    assert.equal((await api.request(path, { ...scope, code: '123456' }, 'token-b')).status, 409);
+    assert.deepEqual(api.inputs, []);
+    const response = await api.request(path, { ...scope, code: '123456' });
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { status: 'submitted' });
+    assert.deepEqual(api.inputs, ['verification-submitted']);
+    assert.equal((await api.request(path, { ...scope, code: 'abc' })).status, 400);
+    assert.equal((await api.request(`${path.replace('/verify', '/close')}`, scope)).status, 204);
+    assert.equal((await api.request(path, { ...scope, code: '123456' })).status, 409);
+  } finally {
+    await api.close();
+  }
+});
+
+test('löscht Konten nur über den angemeldeten, kontogebundenen Workerpfad', async () => {
+  const removed: string[] = [];
+  const api = await setup(
+    undefined,
+    undefined,
+    false,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    async (scope, stop) => {
+      await stop();
+      removed.push(`${scope.userId}:${scope.workspaceId}:${scope.connectionId}`);
+    },
+  );
+  try {
+    const path = '/marketplace-browser/connections/delete';
+    const scope = { workspaceId: workspaceA, connectionId: accountA };
+    assert.equal((await api.request(path, scope, 'expired')).status, 401);
+    assert.deepEqual(removed, []);
+    assert.equal((await api.request(path, scope)).status, 204);
+    assert.deepEqual(removed, [`25600000-0000-4000-8000-000000000001:${workspaceA}:${accountA}`]);
+  } finally {
+    await api.close();
+  }
+});
+
 test('rejects login in read-only mode and for ended sessions', async () => {
   for (const readOnly of [true, false]) {
     const api = await setup(
@@ -588,6 +657,7 @@ test('keeps the real broker lease alive while login is rejected or still on the 
   for (const [loginError, expectedCode] of [
     [new VintedLoginRejectedError(), 'vinted_login_rejected'],
     [new VintedLoginPendingError(), 'vinted_login_pending'],
+    [new VintedVerificationRequiredError(), 'vinted_verification_required'],
   ] as const) {
     let active = true;
     let stopped = false;
