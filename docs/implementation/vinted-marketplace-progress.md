@@ -1,5 +1,37 @@
 # Arbeitsstand: Vinted-Marktplatzverwaltung
 
+## 28. September 2026 – Bestehende Sitzung auf Web-App und Browserdienst aktiviert
+
+PR #235 bestand die Pflichtprüfungen und wurde als Merge-Commit
+`db63bf194c99798f8de59d761ff59782f29ba438` in `master` übernommen.
+Der automatische Produktionslauf und ein eigener öffentlicher Check bestätigten
+genau diesen Web-Commit. Der getrennte Workflow `Publish Marketplace Worker
+Image` veröffentlichte das Image mit derselben SHA. Nach gesonderter Freigabe
+läuft eine Browserdienst-Instanz mit diesem Image; zuvor lief `sha-ece0676d`.
+Die vorige Image-Zuordnung und Compose-Datei sind auf dem Server für einen
+Rückweg gesichert.
+
+Vor und nach dem Wechsel meldete die Datenbank vier geschlossene und keine
+aktive oder ungeklärte Browsersitzung. Der Container ist gesund. Öffentlich
+antwortet `/marketplace-browser/healthz` mit HTTP 200, `ok: true`,
+`apiVersion: 2` und `readOnly: false`; ein Sitzungsstart ohne Anmeldung wird
+mit HTTP 401 abgewiesen. Der Rollout hat keine Vinted-Zugangsdaten oder Codes
+gesendet und keine Anbieterprofile verändert.
+
+Danach startete der Nutzer die Anmeldung am eigenen ausstehenden Konto erneut
+und meldete „Das Konto ist verbunden“. Eine lesende Datenbankprüfung bestätigte
+genau eine Verbindung mit Status `connected` sowie fünf geschlossene statt
+zuvor vier Browsersitzungen. Es blieb keine aktive oder ungeklärte Sitzung.
+Dabei wurden weder Nutzerkennung noch Anbieterprofil, Passwort oder SMS-Code
+ausgegeben. Der ursprüngliche SMS-Versand und weitere Marktplatzfunktionen
+bleiben eigenständige Live-Nachweise.
+
+Eine weitere rein aggregierte Bestandsprüfung fand genau einen gespeicherten
+Profileintrag aus der Identitätsbestätigung. Inserate, Gespräche, Nachrichten
+und Verkäufe sind noch nicht importiert. Der vorhandene Zeitstempel der
+Kontoverbindung belegt nur diese Profilbestätigung, keine vollständige
+Synchronisierung.
+
 ## 28. September 2026 – Lade-Kreis im Kontodialog vereinfacht
 
 Im vorhandenen Branch `juna/vinted-existing-session` wurde der zusätzliche

@@ -584,7 +584,37 @@ gestoppt (HTTP 204).
       Button-Loader und keinen Mauszeiger über der Kreisfläche.
 - [x] Fremde Workspace-/Kontoschlüssel, abgelaufene Sitzungen, fehlerhafte
       Kontobestätigung und unklaren Browserstopp mit gezielten Tests prüfen.
-- [ ] Änderung über PR und gesonderten Worker-Rollout veröffentlichen.
-- [ ] Danach mit dem eigenen Konto prüfen, ob Flipbase den Status `connected`
-      anzeigt und das gespeicherte Profil nach bestätigtem Browserstopp nutzt.
-      Die ursprüngliche SMS-Übermittlung bleibt als eigener Nachweis offen.
+- [x] Änderung über PR #235 und gesonderten Worker-Rollout mit derselben
+      Merge-SHA `db63bf19` veröffentlichen. Web-Version, Container-Health,
+      HTTP 200 auf `healthz` und HTTP 401 ohne Anmeldung sind geprüft.
+- [x] Das eigene ausstehende Konto erneut starten: Flipbase zeigt `connected`;
+      die Datenbank bestätigt eine verbundene Verbindung und eine weitere
+      geschlossene Browsersitzung ohne offene Sperre. Das gespeicherte Profil
+      wurde beim erneuten Versuch verwendet. Die ursprüngliche SMS-Übermittlung
+      bleibt als eigener Nachweis offen.
+
+## AP05: Marktplatzdaten des verbundenen Kontos lesen
+
+Der [GoLogin Cloud Browser](https://gologin.com/cloud-browser/) stellt das
+gespeicherte Browserprofil und die Steuerung per Playwright bereit, aber keine
+Vinted-Daten-API. Die aktuell gespeicherte Verbindung enthält
+einen Profileintrag aus der Identitätsbestätigung und keine Inserate,
+Gespräche, Nachrichten oder Verkäufe. Die [Vinted-Pro-Integrations-API](https://pro-docs.svc.vinted.com/)
+ist laut Anbieter nur für freigeschaltete Pro-Unternehmen zugänglich; dieses
+Konto ist ein Privatkonto. Der Browserzugriff allein bestätigt noch keine
+Plattformfreigabe und keinen stabilen Datenvertrag.
+
+- [ ] Vor automatisiertem Lesen die Berechtigung für die geplante Nutzung des
+      Privatkontos und die Anbieterregeln klären. Bei fehlender Freigabe keinen
+      stillen Import oder Nachrichtenversand einschalten.
+- [ ] Mit einem ausdrücklich ausgewählten eigenen Konto die sichtbaren Daten
+      für Profil/Bewertungen, Inserate, Verkäufe, Gespräche und Nachrichten
+      getrennt prüfen. Nur Struktur und Anzahl protokollieren; mögliche
+      Lesestatus-Änderungen bei Chats vorab klären.
+- [ ] Für nachweislich zugängliche Kategorien einen begrenzten, lesenden
+      Import je Workspace und Konto bauen: feste Seiten, Seitennavigation,
+      eindeutige Fremd-IDs, Beobachtungszeit, Dublettenschutz und sichere
+      Fortsetzung nach Abbruch.
+- [ ] Die importierten Daten in den vorhandenen Ansichten zeigen und echte
+      Synchronisierungsstände von der bloßen Kontobestätigung unterscheiden.
+      Nachrichtenversand, Veröffentlichungen und Push bleiben eigene Pakete.
