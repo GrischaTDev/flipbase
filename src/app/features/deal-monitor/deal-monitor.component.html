@@ -13,67 +13,86 @@
     </p>
   }
 
-  <div class="flex flex-wrap items-end gap-3">
-    <div class="w-full min-w-0 sm:w-56">
-      <label for="feed-watchlist" class="mb-1 block text-sm">Suchfilter</label
-      ><app-custom-select
-        triggerId="feed-watchlist"
-        placeholder="Alle Suchfilter"
-        ariaLabel="Suchfilter"
-        [options]="options()"
-        [(value)]="selected"
-      />
+  <app-card data-feed-filters padding="sm" [overflowVisible]="true" rounded="xl">
+    <div class="flex flex-wrap items-end gap-3">
+      <div class="w-full min-w-0 sm:w-56">
+        <label for="feed-watchlist" class="mb-1 block text-sm">Suchfilter</label
+        ><app-custom-select
+          triggerId="feed-watchlist"
+          variant="toolbar"
+          placeholder="Alle Suchfilter"
+          ariaLabel="Suchfilter"
+          [options]="options()"
+          [(value)]="selected"
+        />
+      </div>
+      <div class="w-full min-w-0 sm:w-48">
+        <label for="feed-brand" class="mb-1 block text-sm">Marke</label>
+        <app-custom-select
+          triggerId="feed-brand"
+          variant="toolbar"
+          placeholder="Alle Marken"
+          ariaLabel="Nach Marke filtern"
+          [searchable]="true"
+          [options]="brandOptions()"
+          [(value)]="selectedBrand"
+        />
+      </div>
+      <div class="w-full min-w-0 sm:w-44">
+        <label for="feed-size" class="mb-1 block text-sm">Größe</label
+        ><app-custom-select
+          triggerId="feed-size"
+          variant="toolbar"
+          placeholder="Alle Größen"
+          ariaLabel="Größe filtern"
+          [options]="sizeOptions"
+          [(value)]="selectedSize"
+        />
+      </div>
+      <div class="w-full min-w-0 sm:w-32">
+        <label for="feed-min-price" class="mb-1 block text-sm">Min. Preis</label>
+        <app-number-input
+          id="feed-min-price"
+          ariaLabel="Mindestpreis in Euro"
+          [ariaDescribedby]="priceError() ? 'feed-price-error' : ''"
+          [ariaInvalid]="!!priceError()"
+          [showStepper]="false"
+          [min]="0"
+          [step]="0.01"
+          unit="€"
+          [(value)]="minPrice"
+        />
+      </div>
+      <div class="w-full min-w-0 sm:w-32">
+        <label for="feed-max-price" class="mb-1 block text-sm">Max. Preis</label>
+        <app-number-input
+          id="feed-max-price"
+          ariaLabel="Höchstpreis in Euro"
+          [ariaDescribedby]="priceError() ? 'feed-price-error' : ''"
+          [ariaInvalid]="!!priceError()"
+          [showStepper]="false"
+          [min]="0"
+          [step]="0.01"
+          unit="€"
+          [(value)]="maxPrice"
+        />
+      </div>
+      @if (filtersActive()) {
+        <div class="ml-auto flex shrink-0 self-end border-l border-fb-line pl-2">
+          <app-button
+            data-feed-filter-reset
+            variant="ghost"
+            size="lg"
+            [icon]="resetIcon"
+            [iconOnly]="true"
+            ariaLabel="Filter zurücksetzen"
+            title="Filter zurücksetzen"
+            (clicked)="resetFilters()"
+          />
+        </div>
+      }
     </div>
-    <div class="w-full min-w-0 sm:w-48">
-      <label for="feed-brand" class="mb-1 block text-sm">Marke</label>
-      <app-custom-select
-        triggerId="feed-brand"
-        placeholder="Alle Marken"
-        ariaLabel="Nach Marke filtern"
-        [searchable]="true"
-        [options]="brandOptions()"
-        [(value)]="selectedBrand"
-      />
-    </div>
-    <div class="w-full min-w-0 sm:w-44">
-      <label for="feed-size" class="mb-1 block text-sm">Größe</label
-      ><app-custom-select
-        triggerId="feed-size"
-        placeholder="Alle Größen"
-        ariaLabel="Größe filtern"
-        [options]="sizeOptions"
-        [(value)]="selectedSize"
-      />
-    </div>
-    <div class="w-full min-w-0 sm:w-32">
-      <label for="feed-min-price" class="mb-1 block text-sm">Min. Preis</label>
-      <app-number-input
-        id="feed-min-price"
-        ariaLabel="Mindestpreis in Euro"
-        [ariaDescribedby]="priceError() ? 'feed-price-error' : ''"
-        [ariaInvalid]="!!priceError()"
-        [showStepper]="false"
-        [min]="0"
-        [step]="0.01"
-        unit="€"
-        [(value)]="minPrice"
-      />
-    </div>
-    <div class="w-full min-w-0 sm:w-32">
-      <label for="feed-max-price" class="mb-1 block text-sm">Max. Preis</label>
-      <app-number-input
-        id="feed-max-price"
-        ariaLabel="Höchstpreis in Euro"
-        [ariaDescribedby]="priceError() ? 'feed-price-error' : ''"
-        [ariaInvalid]="!!priceError()"
-        [showStepper]="false"
-        [min]="0"
-        [step]="0.01"
-        unit="€"
-        [(value)]="maxPrice"
-      />
-    </div>
-  </div>
+  </app-card>
   @if (priceError(); as text) {
     <p id="feed-price-error" role="alert" class="text-sm text-fb-critical">{{ text }}</p>
   }

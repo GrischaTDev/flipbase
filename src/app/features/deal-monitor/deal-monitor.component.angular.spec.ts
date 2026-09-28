@@ -140,11 +140,11 @@ describe('DealMonitorComponent', () => {
       ],
       ['clicked'],
     );
-    registerSignalInputs(CardComponent, ['variant', 'padding']);
+    registerSignalInputs(CardComponent, ['variant', 'padding', 'rounded', 'overflowVisible']);
     registerSignalInputs(BadgeComponent, ['tone']);
     registerSignalInputs(
       CustomSelectComponent,
-      ['options', 'placeholder', 'triggerId', 'ariaLabel', 'searchable', 'value'],
+      ['options', 'placeholder', 'triggerId', 'ariaLabel', 'searchable', 'variant', 'value'],
       ['valueChange'],
     );
     registerSignalInputs(
@@ -304,6 +304,56 @@ describe('DealMonitorComponent', () => {
     await fixture.whenStable();
     fixture.detectChanges();
     expect(host.textContent).toContain('Letzte 30 Tage');
+    expect((await axe.run(host)).violations).toEqual([]);
+    fixture.destroy();
+  });
+
+  it('groups feed filters and resets every active choice from the right edge', async () => {
+    const fixture = TestBed.createComponent(DealMonitorComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const filterCard = host.querySelector('app-card[data-feed-filters]');
+    expect(filterCard).not.toBeNull();
+    expect(filterCard?.classList.contains('overflow-visible')).toBe(true);
+    expect(host.querySelector('[data-feed-filter-reset]')).toBeNull();
+
+    const feed = fixture.componentInstance;
+    feed.selected.set('wl-1');
+    feed.selectedBrand.set('Nike');
+    feed.selectedSize.set('xxl');
+    feed.minPrice.set(30);
+    feed.maxPrice.set(20);
+    fixture.detectChanges();
+    expect(feed.filtersActive()).toBe(true);
+    expect(feed.priceError()).toContain('Mindestpreis');
+
+    const reset = host.querySelector<HTMLButtonElement>('[data-feed-filter-reset] button');
+    expect(reset?.getAttribute('aria-label')).toBe('Filter zurücksetzen');
+    expect(reset?.closest('.ml-auto')).not.toBeNull();
+    reset?.click();
+    TestBed.flushEffects();
+    fixture.detectChanges();
+
+    expect([feed.selected(), feed.selectedBrand(), feed.selectedSize()]).toEqual([
+      null,
+      null,
+      null,
+    ]);
+    expect([feed.minPrice(), feed.maxPrice()]).toEqual([null, null]);
+    expect(feed.priceError()).toBeNull();
+    expect(feed.filtersActive()).toBe(false);
+    expect(host.querySelector('[data-feed-filter-reset]')).toBeNull();
+    expect(mockApi.feed).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        watchlist: null,
+        brand: null,
+        size: null,
+        minPrice: null,
+        maxPrice: null,
+      }),
+    );
     expect((await axe.run(host)).violations).toEqual([]);
     fixture.destroy();
   });

@@ -1,12 +1,18 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-28 – Juna – Vinted-Sitzungsdiagnose für PR freigegeben
+
+**Auftrag:** Nach ausdrücklicher Freigabe den geprüften Vinted-Sitzungsbranch über PR #229 veröffentlichen, die Pflichtprüfungen abwarten und bei Erfolg mergen.
+
+**Integration:** Der inzwischen aktuelle `origin/master` enthielt PR #228 für die Vinted-Feed-Filter. Beim Zusammenführen wurden beide unabhängigen Einträge dieses Protokolls erhalten. Die Anmeldediagnose wurde dadurch nicht fachlich verändert. Der Merge und die Veröffentlichung bleiben von den PR-Prüfungen abhängig.
+
 ## 2026-09-28 – Juna – Bezahlten GoLogin-Zugang und ersten Liveversuch geprüft
 
 **Auftrag:** Nach Aktivierung eines Standard-Abos die GoLogin-Anbindung und den begonnenen Vinted-Anmeldeversuch prüfen, ohne Zugangsdaten zu lesen oder erneut zu senden.
 
 **Befund:** Die produktive GoLogin-API liefert für die Proxy-Kontingentabfrage nun HTTP 200 mit rund 2 GB Restvolumen. Ein leeres Testprofil wurde mit HTTP 201 angelegt und mit HTTP 204 wieder gelöscht. Auf der Flipbase-Anmeldeseite lief gleichzeitig bereits ein vom Nutzer ausgelöster Versuch; ein weiterer Klick traf nur einen veralteten Seitenknoten und löste keine zweite Anmeldung aus. Die produktive Datenbank bestätigte ein dauerhaftes Profil und eine aktive Browsersitzung für die betroffene Verbindung. Der Nutzer erhielt nach einer Minute den Zeitlimithinweis und verließ erst danach die Seite; dadurch wurde die Sitzung geschlossen. Der Verbindungsstatus blieb `needs_login`.
 
-**Diagnose und Änderung:** Das gespeicherte GoLogin-Profil wurde anschließend zweimal ohne erneute Passworteingabe lesend geöffnet und jeweils bestätigt gestoppt (HTTP 204). Der Browser stand auf `/member/login/email`; die Felder waren leer, es war kein sichtbarer Fehler- oder Bestätigungshinweis vorhanden. Die bisher vermutete private Identitätsroute antwortete dort mit HTTP 403 und `access_denied`. Das beweist weder falsche Zugangsdaten noch einen erfolgreichen Login. Die Prüfung meldet künftig ein noch sichtbares Anmeldeformular als eigenen Zustand und erklärt dies beim Zeitlimit konkret. Eine unabhängige Review fand und der Test mit echtem Sitzungsdienst bestätigte, dass der neue Zustand zunächst fälschlich die Browsersitzung beendet hätte; die Übergabe erfolgt jetzt ohne Sitzungsabbruch. Tests für Worker, echten Testbrowser und Angular wurden ergänzt. Es wurden keine Zugangsdaten angezeigt, gespeichert oder erneut gesendet. Branch weiterhin lokal; kein Merge oder Deployment.
+**Diagnose und Änderung:** Das gespeicherte GoLogin-Profil wurde anschließend zweimal ohne erneute Passworteingabe lesend geöffnet und jeweils bestätigt gestoppt (HTTP 204). Der Browser stand auf `/member/login/email`; die Felder waren leer, es war kein sichtbarer Fehler- oder Bestätigungshinweis vorhanden. Die bisher vermutete private Identitätsroute antwortete dort mit HTTP 403 und `access_denied`. Das beweist weder falsche Zugangsdaten noch einen erfolgreichen Login. Die Prüfung meldet künftig ein noch sichtbares Anmeldeformular als eigenen Zustand und erklärt dies beim Zeitlimit konkret. Eine unabhängige Review fand und der Test mit echtem Sitzungsdienst bestätigte, dass der neue Zustand zunächst fälschlich die Browsersitzung beendet hätte; die Übergabe erfolgt jetzt ohne Sitzungsabbruch. Tests für Worker, echten Testbrowser und Angular wurden ergänzt. Es wurden keine Zugangsdaten angezeigt, gespeichert oder erneut gesendet.
 
 ## 2026-09-28 – Juna – GoLogin-Sitzungsstart nach echtem Fehlversuch untersucht
 
@@ -17,6 +23,21 @@
 **Weitere Prüfung:** Die angemeldete GoLogin-Webseite zeigt „Versuch“ und „Noch 7 Tage“. Im selben Konto steht unter „API & MCP“, dass die volle API-Version nur in der bezahlten Version verfügbar ist. Die offizielle Hilfe bezeichnet den siebentägigen Test zugleich als Zugang mit vollem Funktionsumfang. Ein lokaler Vergleich anonymisierter Fingerabdrücke bestätigte, dass das angezeigte API-Token und das vom produktiven Worker verwendete Token identisch sind; die Tokenwerte wurden nicht ausgegeben oder gespeichert. Die konkrete kostenlose API-Anfragezahl und ihr Rücksetzzeitpunkt sind in den geprüften Quellen nicht angegeben. Der HTTP-403-Befund ist damit mit einem weiter laufenden Testzeitraum vereinbar. Kein Kauf wird allein aus dem Fehler empfohlen.
 
 **Prüfung und Grenze:** 70 Worker- und 33 gezielte Angular-Tests bestanden; Worker-Typprüfung/-Bau, Angular-Produktionsbau und gezieltes ESLint bestanden. Ein echter Login kann erst nach geklärtem API-Zugang erneut durch den Nutzer angestoßen werden; eine erfolgreiche Vinted-Verbindung ist nicht bestätigt. Kein erneuter Versand von Zugangsdaten, kein Push, Merge oder Deployment in dieser Sitzung.
+
+## 2026-09-28 – Juna – Vinted-Feed-Filter in gemeinsamer Karte gebündelt
+
+**Auftrag:** Die Filter im Vinted-Feed wie bei den Admin-Tabellen in einer
+kompakten Karte anordnen und rechts ein Zurücksetzen-Symbol einblenden, sobald
+ein Filter aktiv ist.
+
+**Änderung:** Suchfilter, Marke, Größe sowie Mindest- und Höchstpreis stehen in
+einer gemeinsamen Filterkarte. Die Auswahllisten verwenden die vorhandene
+Toolbar-Darstellung. Der gemeinsame Symbol-Button setzt alle fünf Filter
+einschließlich einer ungültigen Preisspanne zurück. Die Karte lässt geöffnete
+Auswahllisten auch ohne Popover-Unterstützung sichtbar.
+
+**Prüfung:** Gezielte Angular-Tests einschließlich Barrierefreiheitsprüfung,
+Angular-Produktionsbau, ESLint, Prettier und Shared-UI-Prüfung bestanden.
 
 ## 2026-09-28 – Juna – Hintergrundanmeldung zur Veröffentlichung freigegeben
 
