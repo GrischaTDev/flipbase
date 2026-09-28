@@ -549,6 +549,9 @@ angenommenen Namen. Der reale Code und alle Eingabewerte blieben unberührt.
 - [x] Einen weiterhin sichtbaren Vinted-Anmeldebildschirm schon während der
       Prüfung erklären und den unbestätigten Kontoeintrag fortsetzbar/löschbar
       lassen.
-- [ ] Nach Review, PR und getrennter Freigabe für die Worker-Aktivierung einen
-      neuen eigenen Versuch durchführen: Codeeingabe, bestätigte Vinted-ID,
-      Kontostatus und Bereinigung bei Sitzungsabbruch prüfen.
+- [x] PR #233 mit erfolgreichen Pflichtprüfungen als `ece0676d` mergen, das
+      Worker-Image desselben Commits veröffentlichen und nach gesonderter
+      Freigabe als einzige Instanz aktivieren. Web-Commit, Container-Health,
+      API-Version und HTTP 401 ohne Anmeldung sind öffentlich geprüft.
+- [ ] Einen neuen eigenen Versuch durchführen: Codeeingabe, bestätigte
+      Vinted-ID, Kontostatus und Bereinigung bei Sitzungsabbruch prüfen.
