@@ -1,5 +1,15 @@
 # Vinted-Marktplatzverwaltung: Implementierungsplan
 
+> **Lesender Livebefund (28.09.2026):** Das bereits verbundene eigene
+> Privatkonto lieferte über das zugeordnete Browserprofil Profilfelder
+> einschließlich Bewertungskennzahlen, paginierte eigene Inserate, eine
+> paginierte Gesprächsliste, Nachrichtenstruktur in einem bereits gelesenen
+> Gespräch und eine zugehörige Transaktion. Alle sechs Browserstarts wurden
+> bestätigt gestoppt. Es gab keinen Versand und keinen Import. Die genaue
+> [Feldmatrix und die Grenzen](../../implementation/vinted-data-discovery.md)
+> sind dokumentiert. Dauerabruf und Nachrichtenversand bleiben offen, bis
+> Berechtigung, Kosten, Kontoschutz und Ergebnisabgleich geklärt sind.
+
 > **Neuer Livebefund (28.09.2026):** Ein vom Nutzer gestarteter Versuch öffnete
 > die kontogebundene Browsersitzung. Vinted leitete den festen Loginpfad auf `/`
 > um; die Identitätsroute antwortete im gespeicherten Profil mit HTTP 200 und
@@ -604,6 +614,13 @@ ist laut Anbieter nur für freigeschaltete Pro-Unternehmen zugänglich; dieses
 Konto ist ein Privatkonto. Der Browserzugriff allein bestätigt noch keine
 Plattformfreigabe und keinen stabilen Datenvertrag.
 
+**Stand nach der einmaligen Strukturprobe:** Profil/Bewertungskennzahlen,
+Inseratliste, Gesprächsliste, Einzelverlauf und eine zugehörige Transaktion
+waren technisch lesbar. Eine vollständige Verkaufsliste, Ereigniserkennung,
+Benachrichtigungen und Nachrichtensenden sind nicht nachgewiesen. Der
+[Prüfbericht](../../implementation/vinted-data-discovery.md) enthält die
+beobachteten Felder und die Kapazitätsrechnung für einen Fünf-Minuten-Takt.
+
 - [ ] Vor automatisiertem Lesen die Berechtigung für die geplante Nutzung des
       Privatkontos und die Anbieterregeln klären. Bei fehlender Freigabe keinen
       stillen Import oder Nachrichtenversand einschalten.
@@ -611,10 +628,18 @@ Plattformfreigabe und keinen stabilen Datenvertrag.
       für Profil/Bewertungen, Inserate, Verkäufe, Gespräche und Nachrichten
       getrennt prüfen. Nur Struktur und Anzahl protokollieren; mögliche
       Lesestatus-Änderungen bei Chats vorab klären.
+- [x] Einzelne lesende Strukturprobe für Profil, Inserate, Gesprächsliste,
+      bereits gelesenen Verlauf und verknüpfte Transaktion ausführen; alle
+      Anbieterbrowser bestätigt stoppen und keine Inhalte protokollieren.
+- [ ] Vollständige Verkaufsliste, Einzelbewertungen, Benachrichtigungen und
+      Lesestatus-Wirkung bei ungelesenen Gesprächen gesondert nachweisen.
 - [ ] Für nachweislich zugängliche Kategorien einen begrenzten, lesenden
       Import je Workspace und Konto bauen: feste Seiten, Seitennavigation,
       eindeutige Fremd-IDs, Beobachtungszeit, Dublettenschutz und sichere
       Fortsetzung nach Abbruch.
+- [ ] Einen Pilotabruf mit einem Konto messen. Fünf Minuten nur nach Prüfung
+      der Plattformberechtigung, tatsächlichen Browserzeit, Cloud-Parallelität,
+      Proxy-Nutzung und Fehlerquote festlegen; keine globale Taktzusage.
 - [ ] Die importierten Daten in den vorhandenen Ansichten zeigen und echte
       Synchronisierungsstände von der bloßen Kontobestätigung unterscheiden.
       Nachrichtenversand, Veröffentlichungen und Push bleiben eigene Pakete.

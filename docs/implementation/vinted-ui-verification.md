@@ -1,5 +1,17 @@
 # Vinted-Oberfläche: geprüfter Stand vom 26. September 2026
 
+## Nachtrag 28.09.2026: Lesender Datenumfang nach bestätigter Anmeldung
+
+Die live verbundene Kontositzung lieferte Profil- und Bewertungsfelder,
+eigene Inserate, eine Gesprächsliste, einen bereits gelesenen Einzelverlauf
+und eine zugehörige Transaktion. Die vorhandene Oberfläche zeigt diese Daten
+noch nicht, weil kein Import gelaufen ist. Der technische Nachweis eines
+Text-Eingabefelds im Verlauf ist kein Nachweis für einen erfolgreichen
+Nachrichtenversand. Es wurde keine Nachricht versendet, keine Benachrichtigung
+geöffnet und kein Eintrag aus der Probe in Flipbase gespeichert. Alle sechs
+Anbieterbrowser wurden bestätigt gestoppt. Details und offene Punkte stehen
+im [Datenprüfbericht](vinted-data-discovery.md).
+
 ## Nachtrag 28.09.2026: PR #235 und Browserdienst veröffentlicht
 
 Die öffentliche Web-App liefert Merge-Commit `db63bf19` aus PR #235. Der

@@ -1,5 +1,24 @@
 # Arbeitsstand: Vinted-Marktplatzverwaltung
 
+## 28. September 2026 – Datenumfang des verbundenen Kontos lesend geprüft
+
+Eine eng begrenzte Strukturprobe nutzte ausschließlich das bereits verbundene
+eigene Konto und dessen zugeordnetes GoLogin-Profil. Profilfelder mit
+Bewertungskennzahlen, eine paginierte Inseratliste, eine paginierte
+Gesprächsliste, Nachrichtenstruktur eines bereits gelesenen Verlaufs und die
+verknüpfte Transaktion waren erreichbar. Die Einzelantworten des Posteingangs
+enthielten fünf beziehungsweise sechs Gespräche; die Inseratantwort sechs
+Artikel. Das sind Stichproben, keine vollständigen Bestandszahlen. Der
+[Prüfbericht](vinted-data-discovery.md) hält Routen, Feldgruppen und Grenzen
+ohne persönliche Werte fest.
+
+Alle sechs gestarteten Anbieterbrowser wurden bestätigt gestoppt. Kein
+Nachrichteninhalt, Name, Kontokennung, Preis oder Zugangswert wurde
+ausgegeben oder gespeichert; keine Nachricht gesendet. Eine vollständige
+Verkaufsliste, neue Ereignisse, Push und ein erfolgreicher Antwortversand
+sind nicht nachgewiesen. Die vorhandene Flipbase-Datenbank enthält weiterhin
+nur den Profileintrag; es wurde kein Import aktiviert.
+
 ## 28. September 2026 – Bestehende Sitzung auf Web-App und Browserdienst aktiviert
 
 PR #235 bestand die Pflichtprüfungen und wurde als Merge-Commit
