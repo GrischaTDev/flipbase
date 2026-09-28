@@ -1434,15 +1434,39 @@ test('describes the beta application review flow without open-registration or fi
 
 test('explains the reselling workflow and the real marketplace scope', () => {
   const document = new JSDOM(html).window.document;
-  const thirdStep = document.querySelector('.workflow-steps li:nth-child(3)');
-  assert.equal(
-    thirdStep?.querySelector('small.lang-de')?.textContent,
-    'Bilder optimieren, Inserate vorbereiten',
+  const workflowSteps = [...document.querySelectorAll('.workflow-steps li')];
+  assert.deepEqual(
+    workflowSteps.map((step) => step.querySelector('b.lang-de, b:not([class])')?.textContent),
+    ['Einkauf & Bestand', 'Verkauf & Finanzen', 'Vinted Bot', 'Bilder & Inserate'],
   );
   assert.equal(
-    thirdStep?.querySelector('small.lang-en')?.textContent,
+    workflowSteps[0]?.querySelector('small.lang-de')?.textContent,
+    'Artikel und Kosten nachvollziehbar erfassen',
+  );
+  assert.equal(
+    workflowSteps[3]?.querySelector('small.lang-en')?.textContent,
     'Optimize photos, prepare listings',
   );
+
+  const featureCards = [...document.querySelectorAll('#features .feature-karte')];
+  assert.deepEqual(
+    featureCards.map((card) => card.id),
+    [
+      'tracking',
+      'sales',
+      'expenses',
+      'accounting',
+      'vinted-bot',
+      'image-optimization',
+      'listings',
+      'multi-account',
+    ],
+  );
+  assert.ok(featureCards[0].classList.contains('hervorgehoben'));
+  assert.equal(featureCards[7].querySelector('.feature-badge .lang-de')?.textContent, 'Geplant');
+  assert.equal(featureCards[7].querySelector('.feature-badge .lang-en')?.textContent, 'Planned');
+  assert.match(featureCards[7].textContent, /noch nicht in der Beta verfügbar/u);
+  assert.doesNotMatch(document.querySelector('#roadmap')?.textContent ?? '', /Multi-Account/iu);
 
   const descriptionTag = extractStartTags(html, 'meta').find(
     (tag) => attribute(tag, 'name') === 'description',

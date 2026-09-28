@@ -23,6 +23,15 @@ automatische Abrufe sind noch offen. Kein Push, Merge oder Deployment.
 **Änderung:** Der Browserdienst kennzeichnet fehlgeschlagene Leseschritte mit einer festen, datensparsamen Stufe; Flipbase zeigt sie verständlich an. Das Verkaufsraster nutzt bis zu fünf Spalten, die Profilkarte eine begrenzte Breite mit gegliederten Angaben. Die Sortierung der Gespräche bleibt nach dem letzten Ereignis. Der Plan nennt einen begrenzten Pilotabruf und die Voraussetzungen für automatische Abrufe und spätere Schreibaktionen.
 
 **Prüfung und Grenze:** Der Worker blieb beim gemeldeten Fehler gesund; die beobachteten Sitzungen endeten sauber. 32 gezielte Worker- und 17 Angular-Tests, zwei lokale Browserabläufe mit künstlichen Daten und AXE-Prüfung bei 1440 und 390 Pixeln, beide Builds, Typprüfung, Lint der betroffenen Dateien und die Shared-UI-Prüfung bestanden. Die Ursache des ersten 502 ist noch offen und kann erst anhand der neuen Stufe bei einem weiteren Nutzerabruf eingegrenzt werden. Kein neuer Liveabruf, Nachrichtenversand, Push, Merge oder Deployment in dieser Sitzung.
+
+## 2026-09-28 – Juna – Landingpage-Funktionen nach Priorität geordnet
+
+**Auftrag:** Einkauf und Bestand sowie Verkauf und Finanzen vor dem Vinted Bot zeigen, danach Bilder und Inserate; Multi-Account als noch nicht verfügbare Funktion anteasern.
+
+**Änderung:** Der obere Funktionsüberblick, die Feature-Karten und die Beta-Liste beginnen jetzt mit Einkauf/Bestand und Verkauf/Finanzen. Der Vinted Bot folgt danach, anschließend Bilder und Inserate. Die neue achte Feature-Karte beschreibt Multi-Account ausdrücklich als „Geplant“ und „noch nicht in der Beta verfügbar“. Deutsche und englische Texte sowie die Seitenbeschreibungen folgen der neuen Gewichtung.
+
+**Prüfung und Grenze:** Die 37 Landing-Tests einschließlich Reihenfolge und geplanter Kennzeichnung bestanden. Die Karte beschreibt eine Absicht, keine bereits nutzbare Funktion. Kein Push oder Deployment in dieser Sitzung.
+
 ## 2026-09-28 – Juna – Analytics-Herkunft und Wege auf der Startseite verbessert
 
 **Auftrag:** Die ersten Analytics-Daten besser erklärbar machen, bestehende Google-Konten prüfen, passende Dienste verbinden und die Bewegung auf der öffentlichen Website nachvollziehen.
@@ -38,6 +47,7 @@ automatische Abrufe sind noch offen. Kein Push, Merge oder Deployment.
 **Befund:** Für die letzten sieben Tage zeigt GA4 neun aktive und neun neue Nutzer sowie 38 Seitenaufrufe. Die 35 Aufrufe mit dem Titel „Flipbase“ und drei mit dem längeren Titel betreffen denselben Pfad `/`; einer der drei langen Titel kam vom lokalen Host `127.0.0.1`. Die Live-Seite und `origin/master` tragen inzwischen den längeren Titel. Im Sitzungsbericht stehen 18 Sitzungen unter `(direct) / (none)` und zwei unter `(not set)` beziehungsweise „Unassigned“. Das Landing-Skript sendet nach Einwilligung die Seitenadresse ohne Abfrageparameter und setzt den Referrer ausdrücklich leer. Der Web-Datenstream ist aktiv, optimierte Analysen einschließlich Seitenaufrufen sind eingeschaltet, und eine Search-Console-Verknüpfung ist noch nicht eingerichtet.
 
 **Prüfung und Grenze:** Analytics-Berichte und Property-Einstellungen nur gelesen; Live-Titel und aktuellen `origin/master` abgeglichen. Die genaue Herkunft einzelner Besuche lässt sich aus den vorhandenen Daten nicht nachträglich ermitteln. Keine Tracking- oder Kontoeinstellungen geändert.
+
 ## 2026-09-28 – Juna – Vinted-Datenansichten nach erstem Liveabruf korrigiert
 
 **Auftrag:** Die vom Nutzer beobachteten Lücken bei Profilbild, Bewertung, Inseraten und Nachrichten nach dem ersten erfolgreichen manuellen Abruf beheben.
