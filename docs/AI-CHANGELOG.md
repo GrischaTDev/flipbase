@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-28 – Juna – Manuellen Import für Vinted-Kontodaten vorbereitet
+
+**Auftrag:** Profil, Inserate, Nachrichten und nachweisbare Verkäufe des verbundenen eigenen Vinted-Kontos per Knopfdruck abrufen und in den bestehenden Ansichten zeigen.
+
+**Änderung:** Ein kontogebundener Leseimport im bestehenden GoLogin-Profil übernimmt ausgewählte Felder aus den zuvor beobachteten Vinted-Antworten. Workspace, Konto, Sitzung und Vinted-Identität werden vor dem Schreiben geprüft. Die vorhandenen Ansichten zeigen Profil und Bewertungskennzahlen, Inseratkarten mit Kennzahlen, Gespräche, gelesene Verläufe und durch Bestellungen belegte Verkäufe. Ungelesene Einzelverläufe werden wegen des ungeklärten Lesestatus nicht geöffnet. Keine automatische Abfrage und kein Nachrichtenversand.
+
+**Prüfung und Grenze:** Gezielte Worker- und Angular-Tests, Typprüfung, Bau, statische Prüfungen und zwei lokale Desktop-/Mobilabläufe bestanden. Ein einzelner weiterer lesender Liveversuch erhielt nach bestätigter Identität HTTP 403 für die Profildaten; der Browser wurde bestätigt gestoppt. Ein erfolgreicher echter Import, eine vollständige Verkaufsliste und die Anbieterverträglichkeit bleiben offen. Kein Push, Merge oder Deployment in dieser Sitzung.
+
 ## 2026-09-28 – Juna – Datenumfang des verbundenen Vinted-Kontos geprüft
 
 **Auftrag:** Prüfen, welche Profil-, Inserat-, Gesprächs- und Verkaufsdaten das verbundene eigene Privatkonto tatsächlich liefert, und den Weg für Abgleich, Benachrichtigungen und Antworten konkretisieren.

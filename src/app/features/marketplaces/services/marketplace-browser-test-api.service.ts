@@ -86,6 +86,14 @@ export class MarketplaceWorkerOutdatedError extends Error {
   }
 }
 
+export class MarketplaceImportError extends Error {
+  constructor() {
+    super(
+      'Die Vinted-Daten konnten nicht vollständig aktualisiert werden. Prüfe die Verbindung und versuche es später erneut.',
+    );
+  }
+}
+
 export type VintedVerificationResult = 'submitted' | 'form_unavailable' | 'submission_unconfirmed';
 
 const basePath = '/marketplace-browser/sessions';
@@ -307,14 +315,46 @@ export class MarketplaceBrowserTestApiService {
     if (response.status !== 204) throw new MarketplaceConnectionRemovalError();
   }
 
-  private post(path: string, body: unknown, accessToken: string): Promise<Response> {
+  async syncConnection(scope: AccountScope, accessToken: string): Promise<void> {
+    let response: Response;
+    try {
+      response = await this.post(
+        '/marketplace-browser/connections/sync',
+        scope,
+        accessToken,
+        180_000,
+      );
+    } catch {
+      throw new MarketplaceImportError();
+    }
+    if (response.status === 404) throw new MarketplaceWorkerOutdatedError();
+    if (!response.ok) throw new MarketplaceImportError();
+    const body: unknown = await response.json();
+    if (
+      typeof body !== 'object' ||
+      body === null ||
+      !('observedAt' in body) ||
+      typeof body.observedAt !== 'string' ||
+      !('counts' in body) ||
+      typeof body.counts !== 'object' ||
+      body.counts === null
+    )
+      throw new MarketplaceImportError();
+  }
+
+  private post(
+    path: string,
+    body: unknown,
+    accessToken: string,
+    timeoutMs = 90_000,
+  ): Promise<Response> {
     return fetch(path, {
       method: 'POST',
       headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
       cache: 'no-store',
       credentials: 'same-origin',
-      signal: AbortSignal.timeout(90_000),
+      signal: AbortSignal.timeout(timeoutMs),
     });
   }
 }

@@ -633,13 +633,16 @@ beobachteten Felder und die Kapazitätsrechnung für einen Fünf-Minuten-Takt.
       Anbieterbrowser bestätigt stoppen und keine Inhalte protokollieren.
 - [ ] Vollständige Verkaufsliste, Einzelbewertungen, Benachrichtigungen und
       Lesestatus-Wirkung bei ungelesenen Gesprächen gesondert nachweisen.
-- [ ] Für nachweislich zugängliche Kategorien einen begrenzten, lesenden
+- [x] Für nachweislich zugängliche Kategorien einen begrenzten, lesenden
       Import je Workspace und Konto bauen: feste Seiten, Seitennavigation,
       eindeutige Fremd-IDs, Beobachtungszeit, Dublettenschutz und sichere
-      Fortsetzung nach Abbruch.
+      Fortsetzung nach Abbruch. Lokal implementiert; erster echter Import steht
+      nach Veröffentlichung aus. Ungelesene Gespräche werden nur als Liste
+      übernommen, ohne den Einzelverlauf zu öffnen.
 - [ ] Einen Pilotabruf mit einem Konto messen. Fünf Minuten nur nach Prüfung
       der Plattformberechtigung, tatsächlichen Browserzeit, Cloud-Parallelität,
       Proxy-Nutzung und Fehlerquote festlegen; keine globale Taktzusage.
-- [ ] Die importierten Daten in den vorhandenen Ansichten zeigen und echte
+- [x] Die importierten Daten in den vorhandenen Ansichten zeigen und echte
       Synchronisierungsstände von der bloßen Kontobestätigung unterscheiden.
+      Ein manueller Aktualisierungsbutton startet den Import. Lokal geprüft;
       Nachrichtenversand, Veröffentlichungen und Push bleiben eigene Pakete.

@@ -14,6 +14,7 @@ import {
   MarketplaceBrowserTestApiService,
   MarketplaceConnectionRemovalError,
   MarketplaceWorkerOutdatedError,
+  MarketplaceImportError,
 } from './marketplace-browser-test-api.service';
 
 const snapshotPages = {
@@ -26,7 +27,8 @@ function errorMessage(error: unknown): string {
   return error instanceof MarketplaceApiError ||
     error instanceof MarketplaceResponseError ||
     error instanceof MarketplaceConnectionRemovalError ||
-    error instanceof MarketplaceWorkerOutdatedError
+    error instanceof MarketplaceWorkerOutdatedError ||
+    error instanceof MarketplaceImportError
     ? error.message
     : 'Die Kontodaten konnten nicht geladen werden. Bitte versuche es erneut.';
 }
@@ -313,6 +315,16 @@ export class MarketplaceAccountStore {
     return this.mutate(async () => {
       await this.browserApi.deleteConnection(scope, token);
       return undefined;
+    });
+  }
+  async syncSelectedConnection(): Promise<boolean> {
+    const connection = this.selectedConnection();
+    const token = this.auth.session()?.access_token;
+    if (!connection || connection.status !== 'connected' || !token) return false;
+    const scope = this.scope(connection);
+    return this.mutate(async () => {
+      await this.browserApi.syncConnection(scope, token);
+      return this.selectedConnection()?.connectionId ?? connection.connectionId;
     });
   }
   private async mutate(operation: () => Promise<string | undefined>): Promise<boolean> {

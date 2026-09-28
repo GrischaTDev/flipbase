@@ -535,3 +535,22 @@ sind nicht verifiziert. Zusätzliche Vinted-Verifizierung wird nicht umgangen;
 ein unbekannter Ablauf endet mit einer Fehlermeldung statt einer falschen
 Erfolgsmeldung. Vollständiger Liveimport und Nachrichtenversand bleiben offen.
 Kein Merge oder Deployment; die neue Ansicht ist noch nicht öffentlich aktiv.
+
+## 28.09.2026 – Gespeicherte Vinted-Daten und manuelle Aktualisierung
+
+Der verbundene Kontobereich zeigt einen manuellen Aktualisierungsbutton.
+Übersicht und Profil verwenden die gespeicherten Bewertungskennzahlen;
+Inserate erscheinen als Karten mit Bild, Preis, Aufrufen, Favoriten und
+gegebenenfalls Push-Kennzeichen. Die Nachrichtenansicht zeigt eine
+Gesprächsliste und gespeicherte Verläufe. Verkäufe zeigen nur belegte
+Bestellungen aus importierten Gesprächen und weisen auf mögliche Lücken hin.
+Die bestehende Kontowahl und Workspace-Trennung bleiben maßgeblich.
+
+Lokal geprüft: Worker-Tests (97 erfolgreich), Angular-Marktplatztests (108
+erfolgreich) einschließlich Aktualisierungsdialog, Worker-Typprüfung,
+Angular-Produktionsbau, gezieltes ESLint und Shared-UI-Prüfung (112 Dateien,
+0 Befunde). Die zwei vorhandenen Playwright-Abläufe für Kontoansichten liefen
+mit 1440 und 390 Pixeln auf `127.0.0.1:4200` erfolgreich. Der erste Versuch
+ohne gestarteten lokalen Server scheiterte nur an `ERR_CONNECTION_REFUSED`;
+nach dem Serverstart bestanden beide Abläufe. Keine produktive Ansicht und
+kein echter Import wurden hier abgenommen.

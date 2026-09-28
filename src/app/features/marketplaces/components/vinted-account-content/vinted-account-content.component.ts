@@ -4,6 +4,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
 import { LucideArrowLeft } from '@lucide/angular';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { DataTableComponent } from '../../../../shared/components/data-table/data-table.component';
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
@@ -17,6 +18,7 @@ import { MarketplaceAccountStore } from '../../services/marketplace-account.stor
     CurrencyPipe,
     DatePipe,
     ButtonComponent,
+    BadgeComponent,
     CardComponent,
     DataTableComponent,
     NoticeBannerComponent,

@@ -68,3 +68,32 @@ Sperrverhalten und zulässige Abruffrequenz gemessen.
 Quellen: [Vinted-Pro-Integrations-API](https://pro-docs.svc.vinted.com/),
 [GoLogin Cloud Browser](https://gologin.com/cloud-browser/),
 [GoLogin: gleichzeitige Cloud-Sitzungen](https://gologin.com/docs/general/account-and-billing/active-sessions).
+
+## 28.09.2026 – Manueller Import im lokalen Branch
+
+Auf `juna/vinted-data-discovery` ist ein ausdrücklich gestarteter Leseimport
+eingebaut. Er verwendet das zugeordnete Browserprofil, prüft die verbundene
+Vinted-Identität und die Flipbase-Sitzungsfreigabe, liest paginierte Inserate und
+Gespräche und speichert nur ausgewählte Felder in den vorhandenen
+`marketplace_account_entries`. Maximal 20 Seiten je Liste und 100 Gespräche
+werden bearbeitet. Einzelverläufe werden nur für bereits gelesene Gespräche
+geöffnet, um den Lesestatus ungelesener Gespräche nicht unbeabsichtigt zu ändern.
+Verkäufe entstehen nur aus Transaktionen mit nachgewiesener Bestellung und
+Verkäuferidentität; dies ist keine vollständige Verkaufsliste.
+
+Die Speicherung ist je Workspace, Konto, Art und Vinted-ID wiederholbar.
+Nach einem vollständig geschriebenen Abruf werden veraltete Inserate und
+Gespräche dieses Kontos entfernt; historische Verkäufe bleiben erhalten.
+`last_synced_at` wird erst nach vollständig bestätigter Speicherung gesetzt.
+Nach einem Abbruch können bereits geschriebene Einträge vorhanden sein; der
+nächste Lauf aktualisiert sie ohne Duplikate. Die Oberfläche zeigt Profil,
+Inserate, Gespräche, Nachrichten aus gelesenen Verläufen und die belegten
+Verkäufe sowie einen manuellen Aktualisierungsbutton. Es gibt keinen geplanten
+Hintergrundabruf, Nachrichtensenden oder Push.
+
+Ein weiterer einmaliger lesender Liveversuch bestätigte die Kontoidentität,
+erhielt danach aber HTTP 403 auf `/api/v2/users/current`. Der Browser wurde
+bestätigt gestoppt. Deshalb ist die neue Importstrecke noch nicht mit echten
+Daten erfolgreich abgeschlossen; der erste produktive Versuch muss diese
+Anbieterantwort beobachten und bei Bedarf den Leser anpassen. Zugangsdaten,
+Nachrichtentexte und private Werte wurden bei dieser Prüfung nicht ausgegeben.

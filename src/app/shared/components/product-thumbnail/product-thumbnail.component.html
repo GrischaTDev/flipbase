@@ -1,13 +1,16 @@
 <span
-  class="inline-flex shrink-0 items-center justify-center overflow-hidden rounded-lg border border-fb-border bg-fb-well text-fb-text-muted"
+  class="inline-flex aspect-[3/4] shrink-0 items-center justify-center overflow-hidden rounded-lg border border-fb-border bg-fb-well text-fb-text-muted"
   [class.size-10]="size() === 'sm'"
   [class.size-14]="size() === 'md'"
+  [class.w-full]="size() === 'listing'"
 >
   @if (imageSource(); as source) {
     <img
       [src]="source"
       [alt]="alt()"
-      class="size-full object-contain"
+      class="size-full"
+      [class.object-contain]="size() !== 'listing'"
+      [class.object-cover]="size() === 'listing'"
       [attr.loading]="priority() ? 'eager' : 'lazy'"
       decoding="async"
       (error)="failed.set(true); imageFailed.emit()"

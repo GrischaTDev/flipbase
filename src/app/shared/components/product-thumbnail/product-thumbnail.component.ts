@@ -18,7 +18,7 @@ import { LucideImage } from '@lucide/angular';
 export class ProductThumbnailComponent {
   readonly src = input<string | null>(null);
   readonly alt = input('');
-  readonly size = input<'sm' | 'md'>('sm');
+  readonly size = input<'sm' | 'md' | 'listing'>('sm');
   readonly priority = input(false);
   readonly imageFailed = output<void>();
   readonly failed = linkedSignal({ source: this.src, computation: () => false });

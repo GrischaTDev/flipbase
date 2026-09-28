@@ -6,7 +6,7 @@
           ><p class="text-2xl font-semibold text-fb-text-primary">
             {{ snapshot.publications.total }}
           </p>
-          <p class="mt-1 text-xs text-fb-text-muted">In Flipbase gespeichert</p>
+          <p class="mt-1 text-xs text-fb-text-muted">Zuletzt mit Vinted abgeglichen</p>
           <app-button class="mt-3" link="/marketplaces/vinted/listings"
             >Inserate ansehen</app-button
           ></app-card
@@ -15,19 +15,44 @@
           ><p class="text-2xl font-semibold text-fb-text-primary">
             {{ snapshot.conversations.total }}
           </p>
-          <p class="mt-1 text-xs text-fb-text-muted">Keine Ungelesen-Zählung</p>
+          <p class="mt-1 text-xs text-fb-text-muted">Aus dem Vinted-Posteingang</p>
           <app-button class="mt-3" link="/marketplaces/vinted/messages"
             >Nachrichten ansehen</app-button
           ></app-card
         >
         <app-card title="Verkäufe" variant="kpi"
           ><p class="text-2xl font-semibold text-fb-text-primary">{{ snapshot.sales.total }}</p>
-          <p class="mt-1 text-xs text-fb-text-muted">Gespeicherte Plattformmeldungen</p>
+          <p class="mt-1 text-xs text-fb-text-muted">Bestätigte Bestellungen aus Gesprächen</p>
           <app-button class="mt-3" link="/marketplaces/vinted/sales"
             >Verkäufe ansehen</app-button
           ></app-card
         >
       </div>
+      @if (snapshot.profile; as profile) {
+        <app-card class="mt-4" title="Dein Vinted-Profil">
+          <div class="flex flex-wrap items-center gap-4">
+            <app-product-thumbnail
+              [src]="profile.imageUrl"
+              [alt]="profile.username ?? 'Profilbild'"
+              size="md"
+            />
+            <div class="min-w-0 flex-1">
+              <p class="truncate text-base font-semibold text-fb-text-primary">
+                {{ profile.displayName ?? profile.username ?? 'Vinted-Konto' }}
+              </p>
+              <p class="text-sm text-fb-text-muted">
+                &#64;{{ profile.username ?? '—' }} · {{ profile.location ?? 'Ort nicht angegeben' }}
+              </p>
+            </div>
+            @if (profile.feedbackReputation !== null) {
+              <app-badge tone="brand"
+                >★ {{ profile.feedbackReputation }} ·
+                {{ profile.feedbackCount ?? 0 }} Bewertungen</app-badge
+              >
+            }
+          </div>
+        </app-card>
+      }
       <app-card class="mt-4" title="Ein Konto, eine Ansicht">
         <p class="text-sm text-fb-text-secondary">
           Der Kontowechsler steuert Inserate, Nachrichten, Profil und Aktivitäten gemeinsam.
@@ -39,6 +64,22 @@
     @case ('profile') {
       <app-card title="Profil">
         @if (snapshot.profile; as profile) {
+          <div class="mb-6 flex flex-wrap items-center gap-4 border-b border-fb-line pb-5">
+            <app-product-thumbnail
+              [src]="profile.imageUrl"
+              [alt]="profile.username ?? 'Profilbild'"
+              size="md"
+            />
+            <div class="min-w-0 flex-1">
+              <p class="truncate text-lg font-semibold text-fb-text-primary">
+                {{ profile.displayName ?? profile.username ?? 'Vinted-Konto' }}
+              </p>
+              <p class="text-sm text-fb-text-muted">&#64;{{ profile.username ?? '—' }}</p>
+            </div>
+            @if (profile.feedbackReputation !== null) {
+              <app-badge tone="brand">Bewertungswert {{ profile.feedbackReputation }}</app-badge>
+            }
+          </div>
           <dl class="grid gap-4 text-sm sm:grid-cols-2">
             <div>
               <dt class="text-fb-text-muted">Anzeigename</dt>
@@ -59,6 +100,18 @@
               <dd class="mt-1 whitespace-pre-wrap break-words text-fb-text-primary">
                 {{ profile.bio ?? '—' }}
               </dd>
+            </div>
+            <div>
+              <dt class="text-fb-text-muted">Bewertungen</dt>
+              <dd class="mt-1 text-fb-text-primary">{{ profile.feedbackCount ?? '—' }}</dd>
+            </div>
+            <div>
+              <dt class="text-fb-text-muted">Davon positiv</dt>
+              <dd class="mt-1 text-fb-text-primary">{{ profile.positiveFeedbackCount ?? '—' }}</dd>
+            </div>
+            <div>
+              <dt class="text-fb-text-muted">Aktive Inserate laut Profil</dt>
+              <dd class="mt-1 text-fb-text-primary">{{ profile.itemCount ?? '—' }}</dd>
             </div>
           </dl>
         } @else {
@@ -89,10 +142,18 @@
                 [ariaPressed]="store.selectedConversationId() === entry.id"
                 (clicked)="store.openConversation(entry.id)"
               >
-                <span class="block truncate font-medium">{{ entry.title }}</span>
-                <span class="block truncate text-xs text-fb-text-muted">{{
-                  entry.text ?? 'Gespräch öffnen'
-                }}</span>
+                <span class="flex min-w-0 items-center gap-3 py-1">
+                  <app-product-thumbnail [src]="entry.imageUrl" [alt]="entry.title" />
+                  <span class="block min-w-0 flex-1">
+                    <span class="block truncate font-medium">{{ entry.title }}</span>
+                    <span class="block truncate text-xs text-fb-text-muted">{{
+                      entry.text ?? 'Gespräch öffnen'
+                    }}</span>
+                  </span>
+                  @if (entry.unread) {
+                    <app-badge tone="brand">Neu</app-badge>
+                  }
+                </span>
               </app-button>
             }
             @if (snapshot.conversations.nextCursor) {
@@ -136,7 +197,12 @@
               class="max-h-[32rem] space-y-4 overflow-y-auto"
             >
               @for (entry of transcript(); track entry.id) {
-                <article class="border-b border-fb-line pb-3">
+                <article
+                  class="max-w-[88%] rounded-2xl px-4 py-3"
+                  [class.ml-auto]="entry.direction === 'outbound'"
+                  [class.bg-fb-badge-brand]="entry.direction === 'outbound'"
+                  [class.bg-fb-well]="entry.direction !== 'outbound'"
+                >
                   <p class="mb-1 text-xs text-fb-text-muted">
                     {{
                       entry.direction === 'outbound'
@@ -163,8 +229,8 @@
             <p class="text-sm text-fb-text-secondary">Wähle ein Gespräch aus.</p>
           }
           <p class="mt-4 border-t border-fb-line pt-3 text-xs text-fb-text-muted">
-            Diese Ansicht liest gespeicherte Nachrichten. Senden und der Vinted-Lesestatus sind noch
-            nicht angebunden.
+            Nachrichten aus ungelesenen Gesprächen werden noch nicht importiert, damit ihr
+            Vinted-Lesestatus unverändert bleibt. Senden ist noch nicht angebunden.
           </p>
         </app-card>
       </div>
@@ -172,9 +238,84 @@
     @default {
       @if (section() === 'sales') {
         <app-notice-banner class="mb-4"
-          >Diese Plattformmeldungen sind keine automatisch gebuchten Flipbase-Verkäufe. Bestand und
-          Buchhaltung bleiben unverändert.</app-notice-banner
+          >Hier erscheinen Bestellungen aus importierten Gesprächen. Weitere Vinted-Verkäufe können
+          fehlen; Bestand und Buchhaltung bleiben unverändert.</app-notice-banner
         >
+      }
+      @if (section() !== 'activity') {
+        @if (page(); as entries) {
+          <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            @for (entry of entries.items; track entry.id) {
+              <app-card class="min-w-0 overflow-hidden">
+                <app-product-thumbnail
+                  class="mb-3 block w-full"
+                  [src]="entry.imageUrl"
+                  [alt]="entry.title"
+                  size="listing"
+                />
+                <div class="flex items-start justify-between gap-2">
+                  <div class="min-w-0">
+                    <p class="truncate text-sm font-semibold text-fb-text-primary">
+                      {{ entry.title }}
+                    </p>
+                    @if (entry.brand || entry.size) {
+                      <p class="mt-1 truncate text-xs text-fb-text-muted">
+                        {{ entry.brand ?? '' }} {{ entry.size ?? '' }}
+                      </p>
+                    }
+                  </div>
+                  @if (section() === 'listings' && entry.promoted) {
+                    <app-badge tone="brand">Gepusht</app-badge>
+                  }
+                </div>
+                <p class="mt-3 text-base font-semibold text-fb-text-primary">
+                  {{
+                    entry.price === null
+                      ? 'Preis unbekannt'
+                      : (entry.price | currency: entry.currency)
+                  }}
+                </p>
+                @if (entry.status) {
+                  <p class="mt-1 text-xs text-fb-text-secondary">{{ entry.status }}</p>
+                }
+                @if (section() === 'sales' && entry.shipmentStatus) {
+                  <p class="mt-1 text-xs text-fb-text-secondary">
+                    Versand: {{ entry.shipmentStatus }}
+                  </p>
+                }
+                @if (section() === 'listings') {
+                  <div
+                    class="mt-3 flex flex-wrap gap-3 border-t border-fb-line pt-3 text-xs text-fb-text-muted"
+                  >
+                    <span
+                      ><span data-views>{{ entry.metrics.views ?? '—' }}</span> Aufrufe</span
+                    >
+                    <span
+                      ><span data-favorites>{{ entry.metrics.favorites ?? '—' }}</span>
+                      Favoriten</span
+                    >
+                    @if (entry.promoted === false) {
+                      <span>Nicht gepusht</span>
+                    }
+                  </div>
+                }
+              </app-card>
+            } @empty {
+              <app-card
+                [title]="'Noch keine ' + pageTitle()"
+                subtitle="Klicke oben auf Kontodaten aktualisieren."
+              />
+            }
+          </div>
+          @if (entries.nextCursor) {
+            <app-button
+              class="mt-4"
+              [loading]="store.loadingPage() === pageKind()"
+              (clicked)="store.loadMore(pageKind())"
+              >Weitere Einträge laden</app-button
+            >
+          }
+        }
       }
       @if (section() === 'activity') {
         <p class="mb-3 text-sm text-fb-text-secondary">
@@ -182,7 +323,7 @@
           nur ungelesene Meldungen.
         </p>
       }
-      @if (page(); as entries) {
+      @if (section() === 'activity' && page(); as entries) {
         <app-data-table
           [ariaLabel]="pageTitle()"
           [searchEnabled]="false"

@@ -13,6 +13,7 @@ import { marketplaceBrowserServerConfig } from './marketplace-browser-server-con
 import { MarketplaceBrowserSessionBroker } from './marketplace-browser-session-broker.ts';
 import { SupabaseBrowserSessionStore } from './supabase-browser-session-store.ts';
 import { SupabaseVintedAccountWriter } from './supabase-vinted-account-writer.ts';
+import { SupabaseVintedImportWriter } from './supabase-vinted-import-writer.ts';
 
 async function main(): Promise<void> {
   const config = marketplaceBrowserServerConfig(process.env);
@@ -58,6 +59,14 @@ async function main(): Promise<void> {
       config.provider === 'gologin'
         ? new SupabaseVintedAccountWriter({
             url: config.supabaseUrl,
+            serviceRoleKey: config.serviceRoleKey,
+          })
+        : undefined,
+    imports:
+      config.provider === 'gologin'
+        ? new SupabaseVintedImportWriter({
+            url: config.supabaseUrl,
+            publishableKey: config.publishableKey,
             serviceRoleKey: config.serviceRoleKey,
           })
         : undefined,
