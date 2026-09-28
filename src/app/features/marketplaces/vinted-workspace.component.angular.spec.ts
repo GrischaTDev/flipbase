@@ -21,7 +21,10 @@ import { MarketplaceAccountsComponent } from './components/marketplace-accounts/
 import { MarketplaceConnectComponent } from './components/marketplace-connect/marketplace-connect.component';
 import { MarketplaceBrowserTestComponent } from './components/marketplace-browser-test/marketplace-browser-test.component';
 import { MarketplaceSyncProgressComponent } from './components/marketplace-sync-progress/marketplace-sync-progress.component';
-import { MarketplaceBrowserTestApiService } from './services/marketplace-browser-test-api.service';
+import {
+  MarketplaceBrowserTestApiService,
+  MarketplaceWorkerOutdatedError,
+} from './services/marketplace-browser-test-api.service';
 import { ButtonComponent } from '../../shared/components/button/button.component';
 import { CardComponent } from '../../shared/components/card/card.component';
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
@@ -257,6 +260,22 @@ describe('Vinted-Bereich in Flipbase', () => {
       expect.any(Function),
     );
     expect(api.readSnapshot).toHaveBeenCalledTimes(2);
+  });
+  it('meldet einen veralteten Browserdienst ohne einen angenommenen Auftrag vorzutäuschen', async () => {
+    browserApi.syncConnection.mockRejectedValue(new MarketplaceWorkerOutdatedError());
+    const { element, harness } = await render('/marketplaces/vinted/overview');
+    const button = [...element.querySelectorAll<HTMLButtonElement>('button')].find((node) =>
+      node.textContent?.includes('Kontodaten aktualisieren'),
+    );
+    button?.click();
+    await harness.fixture.whenStable();
+    harness.detectChanges();
+    const dialog = element.querySelector('app-marketplace-sync-progress');
+    expect(dialog?.textContent).toContain('Die Aktualisierung konnte nicht gestartet werden.');
+    expect(dialog?.textContent).toContain('Der Browserdienst muss aktualisiert werden.');
+    expect(dialog?.textContent).not.toContain('Der Auftrag wurde angenommen');
+    expect(dialog?.textContent).not.toContain('läuft im Hintergrund weiter');
+    expect(dialog?.querySelector('ol')).toBeNull();
   });
   it('zeigt echte Konten, Kontowechsler und die vorgesehenen Bereiche', async () => {
     const { element } = await render('/marketplaces/vinted/overview');

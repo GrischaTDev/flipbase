@@ -1,5 +1,23 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-28 – Juna – Vinted-Worker-Versionsfehler beim Datenabruf eingegrenzt
+
+**Auftrag:** Den beim produktiven Aktualisierungsversuch angezeigten
+Browserdienstfehler untersuchen und den irreführenden Dialog korrigieren.
+
+**Befund und Änderung:** Die Web-App läuft auf dem Merge-Commit `cdbe3f5f`,
+der separat veröffentlichte Worker noch auf `1c7b6575`. Der alte Dienst
+kennt den neuen Auftragsendpunkt nicht. Im Dialog erscheint ein Auftrag erst
+nach bestätigter Annahme; bei einem Startfehler entfallen Spinner und Hinweis
+auf einen angeblich weiterlaufenden Hintergrundauftrag.
+
+**Prüfung und Grenze:** Öffentlicher Healthcheck, Worker-Image und geschlossene
+Browsersitzungen lesend geprüft. Das Image für `cdbe3f5f` wurde mit dem
+manuellen Workflow gebaut und nach gesonderter Nutzerfreigabe auf die einzelne
+produktive Worker-Instanz umgestellt. Healthcheck und Zugangsschutz bestätigt;
+19 gezielte Angular-Tests und der Produktionsbau bestanden. Eine Live-Anmeldung
+oder Vinted-Datenänderung erfolgte nicht.
+
 ## 2026-09-28 – Juna – Vinted-Abruf und Bearbeitung zuverlässiger gemacht
 
 **Auftrag:** Den besprochenen Umbau für schnellere Kontodaten, korrekte

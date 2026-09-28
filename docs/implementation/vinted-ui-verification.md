@@ -652,3 +652,20 @@ bestimmter einzelner Profil-Schreibtest. Ein fehlgeschlagener Lesebereich führt
 derzeit noch zum Gesamtfehler des Auftrags; erfolgreiche Teilbereiche werden
 nicht separat übernommen. Der Auftrag wird nach Worker-Neustart als
 unterbrochen angezeigt und nicht automatisch erneut ausgeführt.
+
+## 28.09.2026 – Startfehler durch alten Browserdienst
+
+Der Nutzer zeigte einen Dialog, der einen angenommenen Auftrag meldete,
+obwohl zugleich „Der Browserdienst muss aktualisiert werden“ erschien.
+Lesend bestätigt: Die Web-App enthält den neuen Auftragsendpunkt aus
+`cdbe3f5f`, während der produktive Worker noch auf `1c7b6575` läuft.
+Der separate Worker wird durch die Web-Veröffentlichung nicht automatisch
+aktualisiert. Nach gesonderter Nutzerfreigabe wurde das Image für `cdbe3f5f`
+auf die einzelne produktive Worker-Instanz umgestellt. Container-Health und
+öffentlicher Healthcheck sind grün; ein nicht angemeldeter Auftragsstart
+liefert HTTP 401. Es gab vor und nach dem Wechsel keine offenen Sitzungen.
+
+Die lokale Dialogkorrektur zeigt bei einem Startfehler keinen angenommenen
+Auftrag und keine laufenden Schritte. Ein gezielter Angular-Test mit einem
+simulierten Versionsfehler sowie der Produktionsbau bestanden. Der echte
+Import ist nach dem Worker-Wechsel noch nicht erneut geprüft.

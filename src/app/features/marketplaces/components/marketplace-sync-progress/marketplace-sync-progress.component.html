@@ -6,61 +6,69 @@
   (closed)="closed.emit()"
 >
   <p role="status" aria-live="polite" class="mb-5 text-sm text-fb-text-secondary">
-    @switch (progress()?.state) {
-      @case ('queued') {
-        Der Auftrag wurde angenommen und wartet auf den Browser.
-      }
-      @case ('running') {
-        Die Daten werden aktualisiert.
-      }
-      @case ('succeeded') {
-        @if (progress()?.errorCode === 'cleanup') {
-          Die Kontodaten wurden aktualisiert. Die Browser-Verbindung wird noch beendet.
-        } @else {
-          Die Kontodaten wurden aktualisiert.
+    @if (error() && !progress()?.id) {
+      Die Aktualisierung konnte nicht gestartet werden.
+    } @else {
+      @switch (progress()?.state) {
+        @case ('queued') {
+          Der Auftrag wurde angenommen und wartet auf den Browser.
         }
-      }
-      @case ('failed') {
-        Die Aktualisierung wurde unterbrochen.
-      }
-      @default {
-        Der Auftrag wird vorbereitet.
+        @case ('running') {
+          Die Daten werden aktualisiert.
+        }
+        @case ('succeeded') {
+          @if (progress()?.errorCode === 'cleanup') {
+            Die Kontodaten wurden aktualisiert. Die Browser-Verbindung wird noch beendet.
+          } @else {
+            Die Kontodaten wurden aktualisiert.
+          }
+        }
+        @case ('failed') {
+          Die Aktualisierung wurde unterbrochen.
+        }
+        @default {
+          Der Auftrag wird vorbereitet.
+        }
       }
     }
   </p>
-  <ol class="space-y-3" aria-label="Schritte der Aktualisierung">
-    @for (step of steps; track step.id; let index = $index) {
-      <li class="flex items-center gap-3 rounded-xl border border-fb-line px-3 py-2.5">
-        <span
-          class="flex size-7 shrink-0 items-center justify-center rounded-full"
-          [class.bg-fb-success-surface]="completed(index)"
-          [class.text-fb-success]="completed(index)"
-          [class.bg-fb-brand-surface]="active(index)"
-          [class.bg-fb-critical-surface]="failed(index)"
-          [class.text-fb-critical]="failed(index)"
-          [class.bg-fb-surface-secondary]="!completed(index) && !active(index) && !failed(index)"
-        >
-          @if (completed(index)) {
-            <span aria-label="Abgeschlossen">✓</span>
-          } @else if (active(index)) {
-            <span
-              class="size-4 animate-spin rounded-full border-2 border-fb-primary border-t-transparent motion-reduce:animate-none"
-              aria-label="Läuft"
-            ></span>
-          } @else if (failed(index)) {
-            <span aria-label="Fehlgeschlagen">!</span>
-          } @else {
-            <span class="size-2 rounded-full bg-fb-text-muted" aria-hidden="true"></span>
-          }
-        </span>
-        <span class="text-sm text-fb-text-primary">{{ step.label }}</span>
-      </li>
-    }
-  </ol>
+  @if (!error() || progress()?.id) {
+    <ol class="space-y-3" aria-label="Schritte der Aktualisierung">
+      @for (step of steps; track step.id; let index = $index) {
+        <li class="flex items-center gap-3 rounded-xl border border-fb-line px-3 py-2.5">
+          <span
+            class="flex size-7 shrink-0 items-center justify-center rounded-full"
+            [class.bg-fb-success-surface]="completed(index)"
+            [class.text-fb-success]="completed(index)"
+            [class.bg-fb-brand-surface]="active(index)"
+            [class.bg-fb-critical-surface]="failed(index)"
+            [class.text-fb-critical]="failed(index)"
+            [class.bg-fb-surface-secondary]="!completed(index) && !active(index) && !failed(index)"
+          >
+            @if (completed(index)) {
+              <span aria-label="Abgeschlossen">✓</span>
+            } @else if (active(index)) {
+              <span
+                class="size-4 animate-spin rounded-full border-2 border-fb-primary border-t-transparent motion-reduce:animate-none"
+                aria-label="Läuft"
+              ></span>
+            } @else if (failed(index)) {
+              <span aria-label="Fehlgeschlagen">!</span>
+            } @else {
+              <span class="size-2 rounded-full bg-fb-text-muted" aria-hidden="true"></span>
+            }
+          </span>
+          <span class="text-sm text-fb-text-primary">{{ step.label }}</span>
+        </li>
+      }
+    </ol>
+  }
   @if (error(); as message) {
     <p role="alert" class="mt-5 text-sm text-fb-critical">{{ message }}</p>
   }
-  <p class="mt-5 text-xs text-fb-text-muted">
-    Du kannst dieses Fenster schließen. Der angenommene Auftrag läuft im Hintergrund weiter.
-  </p>
+  @if (progress()?.id && (progress()?.state === 'queued' || progress()?.state === 'running')) {
+    <p class="mt-5 text-xs text-fb-text-muted">
+      Du kannst dieses Fenster schließen. Der angenommene Auftrag läuft im Hintergrund weiter.
+    </p>
+  }
 </app-modal-shell>
