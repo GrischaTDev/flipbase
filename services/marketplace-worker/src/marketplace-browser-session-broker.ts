@@ -12,8 +12,11 @@ export interface BrowserSessionScope {
 }
 
 export class MarketplaceBrowserSessionEndedError extends Error {
+  readonly reason: 'expired' | 'interrupted';
+
   constructor(reason: 'expired' | 'interrupted' = 'expired') {
     super(reason === 'expired' ? 'Sitzung abgelaufen' : 'Browsersitzung unterbrochen');
+    this.reason = reason;
   }
 }
 

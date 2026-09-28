@@ -1,6 +1,6 @@
 import type { Page } from 'playwright';
 import { createHash } from 'node:crypto';
-import { readVintedAccountIdentity, type VintedAccountIdentity } from './vinted-browser-reader.ts';
+import { parseVintedAccountIdentity, type VintedAccountIdentity } from './vinted-browser-reader.ts';
 
 export type VintedImportKind = 'profile' | 'publication' | 'conversation' | 'message' | 'sale';
 
@@ -16,6 +16,15 @@ export interface VintedAccountImport {
   identity: VintedAccountIdentity;
   observedAt: string;
   entries: VintedImportEntry[];
+  rejectedSaleIds?: string[];
+}
+
+export interface VintedConversationVersion {
+  externalId: string;
+  sourceUpdatedAt: string;
+  detailCheckedAt: string;
+  text: string | null;
+  occurredAt: string | null;
 }
 
 export type VintedImportStage =
@@ -121,6 +130,7 @@ export function parseVintedAccountImport(
   conversationValues: unknown[],
   detailValues: unknown[],
   observedAt: string,
+  previousConversations: VintedConversationVersion[] = [],
 ): VintedAccountImport {
   const user = record(record(profileValue)?.['user']);
   if (identifier(user?.['id']) !== identity.id)
@@ -134,7 +144,11 @@ export function parseVintedAccountImport(
         username: identity.username,
         displayName: string(user?.['name']) ?? identity.username,
         location: string(user?.['city']),
-        bio: string(user?.['about']) ?? string(user?.['bio']),
+        bio:
+          typeof (user?.['about'] ?? user?.['bio']) === 'string'
+            ? (user?.['about'] ?? user?.['bio'])
+            : null,
+        bioState: typeof (user?.['about'] ?? user?.['bio']) === 'string' ? 'loaded' : 'not_loaded',
         imageUrl: image(record(user?.['photo'])?.['url']),
         feedbackCount: count(user?.['feedback_count']),
         feedbackReputation: decimal(user?.['feedback_reputation']),
@@ -166,7 +180,8 @@ export function parseVintedAccountImport(
       sortAt: observedAt,
       body: {
         title: string(item?.['title']) ?? 'Inserat',
-        text: null,
+        text: typeof item?.['description'] === 'string' ? item['description'] : null,
+        textState: typeof item?.['description'] === 'string' ? 'loaded' : 'not_loaded',
         price: money.amount,
         currency: money.currency,
         status: string(item?.['status']),
@@ -186,26 +201,35 @@ export function parseVintedAccountImport(
     });
   }
   const conversations = new Set<string>();
+  const previousById = new Map(previousConversations.map((entry) => [entry.externalId, entry]));
   for (const raw of conversationValues) {
     const conversation = record(raw);
     const id = identifier(conversation?.['id']);
     if (!id || conversations.has(id)) continue;
     conversations.add(id);
     const other = record(conversation?.['opposite_user']);
+    const sourceUpdatedAt = date(conversation?.['updated_at'], observedAt);
+    const previous = previousById.get(id);
+    const reusable =
+      previous?.sourceUpdatedAt === sourceUpdatedAt &&
+      Number.isFinite(Date.parse(previous.detailCheckedAt));
     entries.push({
       kind: 'conversation',
       externalId: id,
-      sortAt: date(conversation?.['updated_at'], observedAt),
+      sortAt: sourceUpdatedAt,
       body: {
         title: string(other?.['login']) ?? 'Gespräch',
-        text: string(conversation?.['description']),
-        occurredAt: date(conversation?.['updated_at'], observedAt),
+        text: reusable ? previous.text : string(conversation?.['description']),
+        occurredAt: reusable ? previous.occurredAt : sourceUpdatedAt,
+        sourceUpdatedAt,
+        detailCheckedAt: reusable ? previous.detailCheckedAt : null,
         unread: typeof conversation?.['unread'] === 'boolean' ? conversation['unread'] : null,
         imageUrl: image(record(other?.['photo'])?.['url']),
       },
     });
   }
   const sales = new Set<string>();
+  const rejectedSaleIds = new Set<string>();
   const messageIds = new Set<string>();
   for (const raw of detailValues) {
     const detail = record(raw);
@@ -215,6 +239,7 @@ export function parseVintedAccountImport(
     const conversationEntry = entries.find(
       (entry) => entry.kind === 'conversation' && entry.externalId === conversationId,
     );
+    if (conversationEntry) conversationEntry.body['detailCheckedAt'] = observedAt;
     let latestMessageAt: string | null = null;
     const messages = Array.isArray(conversation?.['messages']) ? conversation['messages'] : [];
     for (const rawMessage of messages) {
@@ -272,11 +297,19 @@ export function parseVintedAccountImport(
     const transaction = record(record(detail?.['transaction'])?.['transaction']);
     const saleId = identifier(transaction?.['id']);
     if (
+      saleId &&
+      identifier(relation?.['id']) === saleId &&
+      identifier(transaction?.['seller_id']) === identity.id &&
+      string(transaction?.['status_title']) === 'Angebot'
+    )
+      rejectedSaleIds.add(saleId);
+    if (
       !saleId ||
       sales.has(saleId) ||
       identifier(relation?.['id']) !== saleId ||
       identifier(transaction?.['seller_id']) !== identity.id ||
-      !record(transaction?.['order'])
+      !identifier(record(transaction?.['order'])?.['id']) ||
+      string(transaction?.['status_title']) !== 'Versendet'
     )
       continue;
     sales.add(saleId);
@@ -296,7 +329,7 @@ export function parseVintedAccountImport(
       },
     });
   }
-  return { identity, observedAt, entries };
+  return { identity, observedAt, entries, rejectedSaleIds: [...rejectedSaleIds] };
 }
 
 async function vintedJson(page: Page, path: string): Promise<unknown> {
@@ -343,20 +376,29 @@ async function pages(
 export async function readVintedAccountImport(
   page: Page,
   authorize: () => Promise<void>,
+  onStage?: (stage: 'profile' | 'publications' | 'conversations' | 'sales') => Promise<void>,
+  previousConversations: VintedConversationVersion[] = [],
 ): Promise<VintedAccountImport> {
-  await atImportStage('navigation', () =>
-    page.goto('https://www.vinted.de/', { waitUntil: 'domcontentloaded', timeout: 20_000 }),
-  );
-  const identity = await atImportStage('identity', async () => {
-    const account = await readVintedAccountIdentity(page);
-    if (!account) throw new Error('Vinted-Anmeldung nicht bestätigt');
-    return account;
+  await atImportStage('navigation', async () => {
+    try {
+      if (new URL(page.url()).origin === 'https://www.vinted.de') return;
+    } catch {
+      // Ein leerer Starttab benötigt zuerst die Vinted-Seite.
+    }
+    await page.goto('https://www.vinted.de/', { waitUntil: 'domcontentloaded', timeout: 20_000 });
   });
   const profile = await atImportStage('profile', async () => {
+    await onStage?.('profile');
     await authorize();
     return vintedJson(page, '/api/v2/users/current');
   });
+  const identity = await atImportStage('identity', async () => {
+    const account = parseVintedAccountIdentity(profile);
+    if (!account) throw new Error('Vinted-Anmeldung nicht bestätigt');
+    return account;
+  });
   const items = await atImportStage('publications', async () => {
+    await onStage?.('publications');
     await authorize();
     return pages(
       page,
@@ -366,6 +408,7 @@ export async function readVintedAccountImport(
     );
   });
   const conversations = await atImportStage('conversations', async () => {
+    await onStage?.('conversations');
     await authorize();
     return pages(
       page,
@@ -374,13 +417,25 @@ export async function readVintedAccountImport(
       authorize,
     );
   });
-  if (conversations.length > 100) throw new VintedImportReadError('conversations');
+  const previousById = new Map(previousConversations.map((entry) => [entry.externalId, entry]));
   const details: unknown[] = [];
   for (const raw of conversations) {
     // Das Öffnen ungelesener Gespräche könnte bei Vinted den Lesestatus verändern.
     if (record(raw)?.['unread'] !== false) continue;
     const id = identifier(record(raw)?.['id']);
     if (!id) continue;
+    const previous = previousById.get(id);
+    const sourceUpdatedAt = date(record(raw)?.['updated_at'], '');
+    const checkedAt = previous ? Date.parse(previous.detailCheckedAt) : NaN;
+    if (
+      previous &&
+      sourceUpdatedAt &&
+      previous.sourceUpdatedAt === sourceUpdatedAt &&
+      Number.isFinite(checkedAt) &&
+      checkedAt <= Date.now() &&
+      Date.now() - checkedAt < 24 * 60 * 60 * 1000
+    )
+      continue;
     const conversation = await atImportStage('messages', async () => {
       await authorize();
       const detail = await vintedJson(page, `/api/v2/conversations/${id}`);
@@ -402,14 +457,16 @@ export async function readVintedAccountImport(
     }
     details.push({ ...record(conversation), transaction });
   }
-  return atImportStage('parse', async () =>
-    parseVintedAccountImport(
+  return atImportStage('parse', async () => {
+    await onStage?.('sales');
+    return parseVintedAccountImport(
       identity,
       profile,
       items,
       conversations,
       details,
       new Date().toISOString(),
-    ),
-  );
+      previousConversations,
+    );
+  });
 }

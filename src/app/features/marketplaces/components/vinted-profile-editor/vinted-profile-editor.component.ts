@@ -28,6 +28,7 @@ export class VintedProfileEditorComponent {
   readonly busy = signal(false);
   readonly error = signal<string | null>(null);
   readonly saved = signal(false);
+  private readonly originalAbout = signal('');
 
   constructor() {
     effect(() => {
@@ -47,13 +48,18 @@ export class VintedProfileEditorComponent {
     this.saved.set(false);
     const connectionId = this.connectionId();
     try {
-      const about = await this.store.readProfileAbout(connectionId);
+      const profile = this.store.snapshot()?.profile;
+      const about =
+        profile?.connectionId === connectionId && profile.bioState === 'loaded'
+          ? (profile.bio ?? '')
+          : await this.store.readProfileAbout(connectionId);
       if (
         this.connectionId() !== connectionId ||
         this.store.selectedConnection()?.connectionId !== connectionId
       )
         return;
       this.form.setValue({ about });
+      this.originalAbout.set(about);
       this.editing.set(true);
     } catch (error) {
       if (this.connectionId() === connectionId)
@@ -73,7 +79,11 @@ export class VintedProfileEditorComponent {
     this.error.set(null);
     const connectionId = this.connectionId();
     try {
-      await this.store.saveProfileAbout(connectionId, this.form.controls.about.value);
+      await this.store.saveProfileAbout(
+        connectionId,
+        this.form.controls.about.value,
+        this.originalAbout(),
+      );
       if (this.connectionId() !== connectionId) return;
       this.editing.set(false);
       this.saved.set(true);

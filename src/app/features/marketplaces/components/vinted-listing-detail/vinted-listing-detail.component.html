@@ -109,6 +109,8 @@
           <p class="mt-2 whitespace-pre-wrap break-words text-sm text-fb-text-secondary">
             {{ item.text }}
           </p>
+        } @else if (item.textState === 'loaded') {
+          <p class="mt-5 text-sm text-fb-text-muted">Keine Beschreibung vorhanden.</p>
         } @else if (loadingDescription()) {
           <p role="status" class="mt-5 text-sm text-fb-text-muted">
             Beschreibung wird von Vinted geladen …

@@ -1,6 +1,7 @@
 import type { Page } from 'playwright';
 import { readVintedAccountIdentity } from './vinted-browser-reader.ts';
 import type { VintedEditResult } from './vinted-browser-listing-edit.ts';
+import { confirmVintedEdit } from './vinted-edit-confirmation.ts';
 
 const url = 'https://www.vinted.de/settings/profile';
 
@@ -26,21 +27,27 @@ export async function updateVintedProfileAbout(
   accountId: string,
   about: string,
   authorize: () => Promise<void>,
+  expectedAbout?: string,
 ): Promise<VintedEditResult> {
   await openProfile(page, accountId);
+  if (
+    expectedAbout !== undefined &&
+    (await page.locator('textarea[name="about"]').inputValue()) !== expectedAbout
+  )
+    return 'conflict';
   await page.locator('textarea[name="about"]').fill(about);
   const save = page.getByRole('button', { name: 'Profil aktualisieren', exact: true });
   if (!(await save.isVisible()) || !(await save.isEnabled()))
     throw new Error('Profilspeichern nicht verfügbar');
   await authorize();
-  await save.click({ timeout: 10_000 });
   try {
-    await page.waitForTimeout(1000);
-    await openProfile(page, accountId);
-    return (await page.locator('textarea[name="about"]').inputValue()) === about
-      ? 'confirmed'
-      : 'unconfirmed';
+    await save.click({ timeout: 10_000 });
   } catch {
+    // Auch bei Klick-Timeout kann die Änderung bereits gesendet worden sein.
     return 'unconfirmed';
   }
+  return confirmVintedEdit(
+    () => readVintedProfileAbout(page, accountId),
+    (saved) => saved === about,
+  );
 }

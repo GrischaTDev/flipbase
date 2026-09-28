@@ -20,6 +20,7 @@ import { VintedRatingComponent } from './components/vinted-rating/vinted-rating.
 import { MarketplaceAccountsComponent } from './components/marketplace-accounts/marketplace-accounts.component';
 import { MarketplaceConnectComponent } from './components/marketplace-connect/marketplace-connect.component';
 import { MarketplaceBrowserTestComponent } from './components/marketplace-browser-test/marketplace-browser-test.component';
+import { MarketplaceSyncProgressComponent } from './components/marketplace-sync-progress/marketplace-sync-progress.component';
 import { MarketplaceBrowserTestApiService } from './services/marketplace-browser-test-api.service';
 import { ButtonComponent } from '../../shared/components/button/button.component';
 import { CardComponent } from '../../shared/components/card/card.component';
@@ -146,6 +147,10 @@ beforeAll(async () => {
       type: MarketplaceBrowserTestComponent,
       path: 'src/app/features/marketplaces/components/marketplace-browser-test/marketplace-browser-test.component.ts',
     },
+    {
+      type: MarketplaceSyncProgressComponent,
+      path: 'src/app/features/marketplaces/components/marketplace-sync-progress/marketplace-sync-progress.component.ts',
+    },
   ]);
 });
 afterAll(() => resetBindings?.());
@@ -249,6 +254,7 @@ describe('Vinted-Bereich in Flipbase', () => {
         connectionId: fixtureConnections[0].connectionId,
       },
       'synthetic-token',
+      expect.any(Function),
     );
     expect(api.readSnapshot).toHaveBeenCalledTimes(2);
   });
@@ -347,23 +353,28 @@ describe('Vinted-Bereich in Flipbase', () => {
       element.querySelector('app-vinted-account-content .grid.grid-cols-2')?.classList,
     ).toContain('2xl:grid-cols-5');
   });
-  it('zeigt beim HTTP-502-Abruffehler nur den betroffenen Importschritt', async () => {
-    const request = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ code: 'vinted_import_failed', stage: 'profile' }), {
-        status: 502,
-      }),
-    );
+  it('zeigt den gespeicherten Fehlerschritt eines Hintergrundauftrags', async () => {
+    const operationId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+    const request = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(Response.json({ id: operationId }, { status: 202 }))
+      .mockResolvedValueOnce(
+        Response.json({ id: operationId, state: 'failed', stage: 'profile', errorCode: 'profile' }),
+      );
+    vi.useFakeTimers();
     try {
-      await expect(
-        new MarketplaceBrowserTestApiService().syncConnection(
-          {
-            workspaceId: fixtureConnections[0].workspaceId,
-            connectionId: fixtureConnections[0].connectionId,
-          },
-          'synthetic-token',
-        ),
-      ).rejects.toThrow('beim Lesen des Profils');
+      const result = new MarketplaceBrowserTestApiService().syncConnection(
+        {
+          workspaceId: fixtureConnections[0].workspaceId,
+          connectionId: fixtureConnections[0].connectionId,
+        },
+        'synthetic-token',
+      );
+      const assertion = expect(result).rejects.toThrow('beim Lesen des Profils');
+      await vi.runAllTimersAsync();
+      await assertion;
     } finally {
+      vi.useRealTimers();
       request.mockRestore();
     }
   });

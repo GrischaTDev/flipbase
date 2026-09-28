@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import {
   LucideBell,
@@ -21,6 +21,7 @@ import {
   VINTED_SECTIONS,
 } from './models/marketplace-presentation';
 import { MarketplaceAccountStore } from './services/marketplace-account.store';
+import { MarketplaceSyncProgressComponent } from './components/marketplace-sync-progress/marketplace-sync-progress.component';
 
 @Component({
   selector: 'app-vinted-workspace',
@@ -34,6 +35,7 @@ import { MarketplaceAccountStore } from './services/marketplace-account.store';
     NoticeBannerComponent,
     PageHeaderComponent,
     SectionNavigationComponent,
+    MarketplaceSyncProgressComponent,
   ],
   templateUrl: './vinted-workspace.component.html',
   providers: [MarketplaceAccountStore],
@@ -57,4 +59,19 @@ export class VintedWorkspaceComponent {
   readonly activityIcon = LucideBell;
   readonly loginIcon = LucideLogIn;
   readonly refreshIcon = LucideRefreshCw;
+  readonly syncModalOpen = signal(false);
+
+  async sync(): Promise<void> {
+    this.syncModalOpen.set(true);
+    const succeeded = await this.store.syncSelectedConnection();
+    if (
+      succeeded &&
+      this.store.syncProgress()?.state === 'succeeded' &&
+      this.store.syncProgress()?.errorCode !== 'cleanup'
+    ) {
+      setTimeout(() => {
+        if (this.store.syncProgress()?.state === 'succeeded') this.syncModalOpen.set(false);
+      }, 1_500);
+    }
+  }
 }

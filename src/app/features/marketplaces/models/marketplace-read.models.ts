@@ -10,6 +10,7 @@ export interface MarketplaceEntry extends AccountScope {
   readonly id: string;
   readonly title: string;
   readonly text: string | null;
+  readonly textState?: 'loaded' | 'not_loaded';
   readonly occurredAt: string | null;
   readonly price: number | null;
   readonly currency: string;
@@ -32,6 +33,7 @@ export interface MarketplaceProfile extends AccountScope {
   readonly displayName: string | null;
   readonly location: string | null;
   readonly bio: string | null;
+  readonly bioState?: 'loaded' | 'not_loaded';
   readonly imageUrl: string | null;
   readonly feedbackCount: number | null;
   readonly feedbackReputation: number | null;

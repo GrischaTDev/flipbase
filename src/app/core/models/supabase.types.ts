@@ -1928,6 +1928,65 @@ export type Database = {
           },
         ]
       }
+      marketplace_operations: {
+        Row: {
+          connection_id: string
+          counts: Json | null
+          created_at: string
+          error_code: string | null
+          finished_at: string | null
+          id: string
+          kind: string
+          observed_at: string | null
+          requested_by: string
+          runner_id: string | null
+          stage: string | null
+          started_at: string | null
+          state: string
+          workspace_id: string
+        }
+        Insert: {
+          connection_id: string
+          counts?: Json | null
+          created_at?: string
+          error_code?: string | null
+          finished_at?: string | null
+          id?: string
+          kind?: string
+          observed_at?: string | null
+          requested_by: string
+          runner_id?: string | null
+          stage?: string | null
+          started_at?: string | null
+          state?: string
+          workspace_id: string
+        }
+        Update: {
+          connection_id?: string
+          counts?: Json | null
+          created_at?: string
+          error_code?: string | null
+          finished_at?: string | null
+          id?: string
+          kind?: string
+          observed_at?: string | null
+          requested_by?: string
+          runner_id?: string | null
+          stage?: string | null
+          started_at?: string | null
+          state?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_operations_workspace_id_connection_id_fkey"
+            columns: ["workspace_id", "connection_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_connections"
+            referencedColumns: ["workspace_id", "id"]
+          },
+        ]
+      }
       number_assignments: {
         Row: {
           assigned_at: string
@@ -5283,6 +5342,28 @@ export type Database = {
         }
         Returns: Json
       }
+      marketplace_cache_listing_text: {
+        Args: {
+          p_confirmed?: boolean
+          p_connection_id: string
+          p_entry_id: string
+          p_external_id: string
+          p_price?: number
+          p_text: string
+          p_title?: string
+          p_workspace_id: string
+        }
+        Returns: boolean
+      }
+      marketplace_cache_profile_about: {
+        Args: {
+          p_about: string
+          p_account_id: string
+          p_connection_id: string
+          p_workspace_id: string
+        }
+        Returns: boolean
+      }
       marketplace_can_manage: {
         Args: { p_workspace_id: string }
         Returns: boolean
@@ -5323,6 +5404,10 @@ export type Database = {
           p_paused: boolean
           p_workspace_id: string
         }
+        Returns: Json
+      }
+      marketplace_sync_enqueue: {
+        Args: { p_connection_id: string; p_workspace_id: string }
         Returns: Json
       }
       marketplace_test_session_action: {

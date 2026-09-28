@@ -1,5 +1,9 @@
 import type { BrowserSessionScope } from './marketplace-browser-session-broker.ts';
-import type { VintedAccountImport, VintedImportEntry } from './vinted-account-import.ts';
+import type {
+  VintedAccountImport,
+  VintedConversationVersion,
+  VintedImportEntry,
+} from './vinted-account-import.ts';
 
 interface ImportWriterOptions {
   url: string;
@@ -26,6 +30,46 @@ export class SupabaseVintedImportWriter {
     this.publishableKey = options.publishableKey;
     this.serviceRoleKey = options.serviceRoleKey;
     this.request = options.fetch ?? fetch;
+  }
+
+  async conversationVersions(
+    scope: BrowserSessionScope,
+    sessionId: string,
+  ): Promise<VintedConversationVersion[]> {
+    await this.assertActive(scope, sessionId);
+    const url = new URL('/rest/v1/marketplace_account_entries', this.baseUrl);
+    url.searchParams.set('select', 'external_id,body');
+    url.searchParams.set('workspace_id', `eq.${scope.workspaceId}`);
+    url.searchParams.set('connection_id', `eq.${scope.connectionId}`);
+    url.searchParams.set('kind', 'eq.conversation');
+    url.searchParams.set('limit', '500');
+    const value: unknown = await this.json(
+      await this.request(url, {
+        headers: this.serverHeaders(),
+        signal: AbortSignal.timeout(10_000),
+      }),
+    );
+    if (!Array.isArray(value)) throw new Error('Gesprächscache nicht verfügbar');
+    return value.flatMap((raw): VintedConversationVersion[] => {
+      const row = record(raw);
+      const body = record(row?.['body']);
+      if (
+        typeof row?.['external_id'] !== 'string' ||
+        !/^[1-9][0-9]{0,31}$/.test(row['external_id']) ||
+        typeof body?.['sourceUpdatedAt'] !== 'string' ||
+        typeof body['detailCheckedAt'] !== 'string'
+      )
+        return [];
+      return [
+        {
+          externalId: row['external_id'],
+          sourceUpdatedAt: body['sourceUpdatedAt'],
+          detailCheckedAt: body['detailCheckedAt'],
+          text: typeof body['text'] === 'string' ? body['text'] : null,
+          occurredAt: typeof body['occurredAt'] === 'string' ? body['occurredAt'] : null,
+        },
+      ];
+    });
   }
 
   async write(
@@ -90,6 +134,16 @@ export class SupabaseVintedImportWriter {
     for (const kind of ['publication', 'conversation'] as const) {
       await this.removeMissing(scope, snapshot.observedAt, kind);
       await this.assertActive(scope, sessionId);
+    }
+    const confirmedSaleIds = new Set(
+      snapshot.entries.filter((entry) => entry.kind === 'sale').map((entry) => entry.externalId),
+    );
+    const invalidatedSaleIds = (snapshot.rejectedSaleIds ?? []).filter(
+      (id) => /^[1-9][0-9]{0,31}$/.test(id) && !confirmedSaleIds.has(id),
+    );
+    for (let offset = 0; offset < invalidatedSaleIds.length; offset += 100) {
+      await this.assertActive(scope, sessionId);
+      await this.removeInvalidatedSales(scope, invalidatedSaleIds.slice(offset, offset + 100));
     }
     const updateUrl = new URL('/rest/v1/marketplace_connections', this.baseUrl);
     updateUrl.searchParams.set('select', 'id');
@@ -206,6 +260,20 @@ export class SupabaseVintedImportWriter {
       signal: AbortSignal.timeout(20_000),
     });
     if (!response.ok) throw new Error('Vinted-Daten konnten nicht abgeglichen werden');
+  }
+
+  private async removeInvalidatedSales(scope: BrowserSessionScope, ids: string[]): Promise<void> {
+    const url = new URL('/rest/v1/marketplace_account_entries', this.baseUrl);
+    url.searchParams.set('workspace_id', `eq.${scope.workspaceId}`);
+    url.searchParams.set('connection_id', `eq.${scope.connectionId}`);
+    url.searchParams.set('kind', 'eq.sale');
+    url.searchParams.set('external_id', `in.(${ids.join(',')})`);
+    const response = await this.request(url, {
+      method: 'DELETE',
+      headers: this.serverHeaders(),
+      signal: AbortSignal.timeout(20_000),
+    });
+    if (!response.ok) throw new Error('Verkaufsabgleich fehlgeschlagen');
   }
 
   private async json(response: Response): Promise<unknown> {

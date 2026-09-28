@@ -6,6 +6,9 @@ import {
   SupabaseBrowserUserVerifier,
 } from '../src/marketplace-browser-http-api.ts';
 import type { BrowserInfo } from '../src/gologin-cloud-browser.ts';
+import type { MarketplaceSyncRunner } from '../src/marketplace-sync-runner.ts';
+import type { SupabaseVintedListingCache } from '../src/supabase-vinted-listing-cache.ts';
+import type { SupabaseVintedProfileCache } from '../src/supabase-vinted-profile-cache.ts';
 import type { VintedEditAccess } from '../src/vinted-edit-access.ts';
 import { VintedImportReadError, type VintedAccountImport } from '../src/vinted-account-import.ts';
 import { GoLoginApiLimitError, GoLoginProfileLimitError } from '../src/gologin-api-limit.ts';
@@ -43,6 +46,10 @@ async function setup(
   ) => Promise<Record<'profile' | 'publication' | 'conversation' | 'message' | 'sale', number>>,
   edits?: VintedEditAccess,
   editBrowser?: Partial<BrowserInfo>,
+  closeError?: Error,
+  operations?: Pick<MarketplaceSyncRunner, 'start' | 'read'>,
+  listingCache?: Pick<SupabaseVintedListingCache, 'save'>,
+  profileCache?: Pick<SupabaseVintedProfileCache, 'save'>,
 ) {
   const inputs: string[] = [];
   let owner: BrowserSessionScope | undefined;
@@ -115,6 +122,7 @@ async function setup(
         scope.connectionId !== owner.connectionId
       )
         throw new Error('Sitzungszugriff verweigert');
+      if (closeError) throw closeError;
       owner = undefined;
       closes += 1;
     },
@@ -127,6 +135,9 @@ async function setup(
     accounts: confirm ? { confirm: async (scope, id) => confirm(scope, id) } : undefined,
     imports: writeImport ? { write: writeImport } : undefined,
     edits,
+    operations,
+    listingCache,
+    profileCache,
     readOnly,
     users: {
       userId: async (token) => {
@@ -191,6 +202,113 @@ test('gleicht nur die gebundene Sitzung ab und stoppt den Browser nach dem Speic
   }
 });
 
+test('bestätigte Profiländerung bleibt bei fehlgeschlagenem Browserstopp bestätigt', async () => {
+  const edits = {
+    entry: async () => ({ externalId: '789', accountId: '789' }),
+  } as unknown as VintedEditAccess;
+  const api = await setup(
+    undefined,
+    undefined,
+    false,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    edits,
+    {
+      updateProfileAbout: async (_id, _about, authorize) => {
+        await authorize();
+        return 'confirmed';
+      },
+    },
+    new Error('Browser-Stopp fehlgeschlagen'),
+  );
+  try {
+    const response = await api.request('/marketplace-browser/profile/edit/save', {
+      workspaceId: workspaceA,
+      connectionId: accountA,
+      about: 'Neuer Text',
+    });
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { status: 'confirmed', cleanup: 'pending' });
+  } finally {
+    await api.close();
+  }
+});
+
+test('Hintergrundauftrag ist für fremde Nutzer und Konten nicht lesbar', async () => {
+  const id = '25600000-0000-4000-8000-000000000041';
+  const starts: BrowserSessionScope[] = [];
+  const operations = {
+    start: async (scope: BrowserSessionScope) => {
+      starts.push(scope);
+      return id;
+    },
+    read: async (scope: BrowserSessionScope, operationId: string) =>
+      operationId === id &&
+      scope.userId === starts[0]?.userId &&
+      scope.workspaceId === starts[0]?.workspaceId &&
+      scope.connectionId === starts[0]?.connectionId
+        ? {
+            id,
+            state: 'running' as const,
+            stage: 'profile' as const,
+            errorCode: null,
+            observedAt: null,
+            counts: null,
+          }
+        : null,
+  };
+  const api = await setup(
+    undefined,
+    undefined,
+    false,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    operations,
+  );
+  try {
+    const created = await api.request('/marketplace-browser/connections/sync/start', {
+      workspaceId: workspaceA,
+      connectionId: accountA,
+    });
+    assert.equal(created.status, 202);
+    assert.deepEqual(await created.json(), { id });
+    const body = { workspaceId: workspaceA, connectionId: accountA, operationId: id };
+    const own = await api.request('/marketplace-browser/connections/sync/status', body);
+    assert.equal(own.status, 200);
+    assert.equal((await own.json()).stage, 'profile');
+    assert.equal(
+      (await api.request('/marketplace-browser/connections/sync/status', body, 'token-b')).status,
+      404,
+    );
+    assert.equal(
+      (
+        await api.request('/marketplace-browser/connections/sync/status', {
+          ...body,
+          connectionId: accountB,
+        })
+      ).status,
+      404,
+    );
+  } finally {
+    await api.close();
+  }
+});
+
 test('bearbeitet ein Inserat nur nach gebundener Kontoprüfung und beendet den Browser', async () => {
   const entryId = '25600000-0000-4000-8000-000000000041';
   const seen: string[] = [];
@@ -247,6 +365,71 @@ test('bearbeitet ein Inserat nur nach gebundener Kontoprüfung und beendet den B
       `${workspaceA}:${accountA}:publication:${entryId}`,
       `${workspaceA}:${accountA}:publication:${entryId}`,
       '12345:789:Neue Jacke',
+    ]);
+  } finally {
+    await api.close();
+  }
+});
+
+test('gelesene und bestätigte Inseratwerte werden kontogebunden zwischengespeichert', async () => {
+  const entryId = '25600000-0000-4000-8000-000000000041';
+  const cached: string[] = [];
+  const edits = {
+    entry: async () => ({ externalId: '12345', accountId: '789' }),
+  } as unknown as VintedEditAccess;
+  const cache = {
+    save: async (
+      scope: BrowserSessionScope,
+      id: string,
+      externalId: string,
+      fields: { description: string },
+      confirmed: boolean,
+    ) => {
+      cached.push(
+        `${scope.workspaceId}:${scope.connectionId}:${id}:${externalId}:${fields.description}:${confirmed}`,
+      );
+      return true;
+    },
+  } as Pick<SupabaseVintedListingCache, 'save'>;
+  const api = await setup(
+    undefined,
+    undefined,
+    false,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    edits,
+    {
+      readListingEdit: async () => ({ title: 'Jacke', description: 'Gelesen', price: '12,50' }),
+      updateListing: async (_itemId, _accountId, _fields, authorize) => {
+        await authorize();
+        return 'confirmed';
+      },
+    },
+    undefined,
+    undefined,
+    cache,
+  );
+  try {
+    const body = { workspaceId: workspaceA, connectionId: accountA, entryId };
+    assert.equal((await api.request('/marketplace-browser/listings/edit/read', body)).status, 200);
+    assert.equal(
+      (
+        await api.request('/marketplace-browser/listings/edit/save', {
+          ...body,
+          fields: { title: 'Jacke', description: 'Gespeichert', price: '12,50' },
+        })
+      ).status,
+      200,
+    );
+    assert.deepEqual(cached, [
+      `${workspaceA}:${accountA}:${entryId}:12345:Gelesen:false`,
+      `${workspaceA}:${accountA}:${entryId}:12345:Gespeichert:true`,
     ]);
   } finally {
     await api.close();
@@ -349,6 +532,96 @@ test('speichert Profiltext nur für das zugeordnete Konto und stoppt die Sitzung
     assert.equal(save.status, 200);
     assert.equal((await save.json()).status, 'confirmed');
     assert.equal(api.closes(), 2);
+  } finally {
+    await api.close();
+  }
+});
+
+test('Profil-Leseroute mit Schreibfeld löst keine Änderung aus', async () => {
+  let writes = 0;
+  const edits = {
+    entry: async () => ({ externalId: '789', accountId: '789' }),
+  } as unknown as VintedEditAccess;
+  const api = await setup(
+    undefined,
+    undefined,
+    false,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    edits,
+    {
+      readProfileAbout: async () => 'Alter Text',
+      updateProfileAbout: async () => {
+        writes += 1;
+        return 'confirmed';
+      },
+    },
+  );
+  try {
+    const response = await api.request('/marketplace-browser/profile/edit/read', {
+      workspaceId: workspaceA,
+      connectionId: accountA,
+      about: 'Unerwarteter Text',
+    });
+    assert.equal(response.status, 400);
+    assert.equal(writes, 0);
+    assert.equal(api.closes(), 0);
+  } finally {
+    await api.close();
+  }
+});
+
+test('Profil speichert nur mit erwartetem Ausgangstext und übernimmt bestätigte Werte', async () => {
+  const seen: string[] = [];
+  const edits = {
+    entry: async () => ({ externalId: '789', accountId: '789' }),
+  } as unknown as VintedEditAccess;
+  const api = await setup(
+    undefined,
+    undefined,
+    false,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    edits,
+    {
+      updateProfileAbout: async (_id, about, authorize, expectedAbout) => {
+        seen.push(`browser:${about}:${expectedAbout}`);
+        await authorize();
+        return 'confirmed';
+      },
+    },
+    undefined,
+    undefined,
+    undefined,
+    {
+      save: async (scope, accountId, about) => {
+        seen.push(`cache:${scope.workspaceId}:${scope.connectionId}:${accountId}:${about}`);
+        return true;
+      },
+    },
+  );
+  try {
+    const response = await api.request('/marketplace-browser/profile/edit/save', {
+      workspaceId: workspaceA,
+      connectionId: accountA,
+      about: 'Neu',
+      expectedAbout: 'Alt',
+    });
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { status: 'confirmed' });
+    assert.deepEqual(seen, ['browser:Neu:Alt', `cache:${workspaceA}:${accountA}:789:Neu`]);
   } finally {
     await api.close();
   }

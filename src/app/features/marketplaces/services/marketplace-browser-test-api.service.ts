@@ -28,10 +28,33 @@ export interface VintedListingEditFields {
   price: string;
 }
 
+export interface MarketplaceSyncProgress {
+  id: string;
+  state: 'queued' | 'running' | 'succeeded' | 'failed';
+  stage:
+    | 'browser'
+    | 'profile'
+    | 'publications'
+    | 'conversations'
+    | 'sales'
+    | 'persist'
+    | 'cleanup'
+    | null;
+  errorCode: string | null;
+}
+
 export class VintedEditUnconfirmedError extends Error {
+  constructor(subject: 'Artikel' | 'Profil' = 'Artikel') {
+    super(
+      `Vinted hat die Änderung nicht eindeutig bestätigt. Prüfe ${subject === 'Profil' ? 'Dein Profil' : 'den Artikel'} bei Vinted, bevor Du erneut speicherst.`,
+    );
+  }
+}
+
+export class VintedProfileConflictError extends Error {
   constructor() {
     super(
-      'Vinted hat die Änderung nicht eindeutig bestätigt. Prüfe den Artikel bei Vinted, bevor Du erneut speicherst.',
+      'Dein Profiltext hat sich bei Vinted geändert. Lade die Kontodaten neu, bevor Du speicherst.',
     );
   }
 }
@@ -111,6 +134,12 @@ export class MarketplaceImportError extends Error {
       ['messages', 'beim Lesen eines Gesprächsverlaufs'],
       ['transaction', 'beim Lesen einer Bestellung'],
       ['parse', 'beim Verarbeiten der Vinted-Daten'],
+      ['browser', 'beim Start des Browsers'],
+      ['sales', 'beim Abgleich der Verkäufe'],
+      ['persist', 'beim Speichern der Kontodaten'],
+      ['cleanup', 'beim Beenden des Browsers'],
+      ['access', 'bei der erneuten Rechteprüfung'],
+      ['interrupted', 'durch eine Unterbrechung des Browserdienstes'],
     ]);
     const detail = stage ? stageNames.get(stage) : undefined;
     super(
@@ -342,43 +371,76 @@ export class MarketplaceBrowserTestApiService {
     if (response.status !== 204) throw new MarketplaceConnectionRemovalError();
   }
 
-  async syncConnection(scope: AccountScope, accessToken: string): Promise<void> {
+  async syncConnection(
+    scope: AccountScope,
+    accessToken: string,
+    onProgress?: (progress: MarketplaceSyncProgress) => void,
+  ): Promise<void> {
     let response: Response;
     try {
       response = await this.post(
-        '/marketplace-browser/connections/sync',
+        '/marketplace-browser/connections/sync/start',
         scope,
         accessToken,
-        180_000,
+        15_000,
       );
     } catch {
       throw new MarketplaceImportError();
     }
     if (response.status === 404) throw new MarketplaceWorkerOutdatedError();
-    if (response.status === 502) {
-      const errorBody: unknown = await response.json().catch(() => null);
-      if (
-        typeof errorBody === 'object' &&
-        errorBody !== null &&
-        'code' in errorBody &&
-        errorBody.code === 'vinted_import_failed' &&
-        'stage' in errorBody &&
-        typeof errorBody.stage === 'string'
-      )
-        throw new MarketplaceImportError(errorBody.stage);
-    }
-    if (!response.ok) throw new MarketplaceImportError();
-    const body: unknown = await response.json();
+    if (response.status !== 202) throw new MarketplaceImportError();
+    const started: unknown = await response.json();
     if (
-      typeof body !== 'object' ||
-      body === null ||
-      !('observedAt' in body) ||
-      typeof body.observedAt !== 'string' ||
-      !('counts' in body) ||
-      typeof body.counts !== 'object' ||
-      body.counts === null
+      typeof started !== 'object' ||
+      started === null ||
+      !('id' in started) ||
+      typeof started.id !== 'string' ||
+      !uuidPattern.test(started.id)
     )
       throw new MarketplaceImportError();
+    onProgress?.({ id: started.id, state: 'queued', stage: null, errorCode: null });
+    let failedPolls = 0;
+    for (let attempt = 0; attempt < 660; attempt++) {
+      await new Promise<void>((resolve) => setTimeout(resolve, 1_000));
+      try {
+        response = await this.post(
+          '/marketplace-browser/connections/sync/status',
+          { ...scope, operationId: started.id },
+          accessToken,
+          15_000,
+        );
+        if (!response.ok) throw new Error('Status nicht verfügbar');
+        const value: unknown = await response.json();
+        if (
+          typeof value !== 'object' ||
+          value === null ||
+          !('id' in value) ||
+          value.id !== started.id ||
+          !('state' in value) ||
+          !['queued', 'running', 'succeeded', 'failed'].includes(String(value.state))
+        )
+          throw new Error('Auftragsstatus ungültig');
+        const progress: MarketplaceSyncProgress = {
+          id: started.id,
+          state: value.state as MarketplaceSyncProgress['state'],
+          stage:
+            'stage' in value && typeof value.stage === 'string'
+              ? (value.stage as MarketplaceSyncProgress['stage'])
+              : null,
+          errorCode:
+            'errorCode' in value && typeof value.errorCode === 'string' ? value.errorCode : null,
+        };
+        onProgress?.(progress);
+        if (progress.state === 'succeeded') return;
+        if (progress.state === 'failed')
+          throw new MarketplaceImportError(progress.errorCode ?? undefined);
+        failedPolls = 0;
+      } catch (error) {
+        if (error instanceof MarketplaceImportError) throw error;
+        if (++failedPolls >= 3) throw new MarketplaceImportError();
+      }
+    }
+    throw new MarketplaceImportError('interrupted');
   }
 
   async readListingEdit(
@@ -458,27 +520,34 @@ export class MarketplaceBrowserTestApiService {
     return body.about;
   }
 
-  async saveProfileAbout(scope: AccountScope, about: string, accessToken: string): Promise<void> {
+  async saveProfileAbout(
+    scope: AccountScope,
+    about: string,
+    accessToken: string,
+    expectedAbout?: string,
+  ): Promise<void> {
     let response: Response;
     try {
       response = await this.post(
         '/marketplace-browser/profile/edit/save',
-        { ...scope, about },
+        { ...scope, about, ...(expectedAbout !== undefined ? { expectedAbout } : {}) },
         accessToken,
       );
     } catch {
-      throw new VintedEditUnconfirmedError();
+      throw new VintedEditUnconfirmedError('Profil');
     }
     if (response.status === 404) throw new MarketplaceWorkerOutdatedError();
-    if (!response.ok) throw new VintedEditUnconfirmedError();
+    if (!response.ok) throw new VintedEditUnconfirmedError('Profil');
     const body: unknown = await response.json();
+    if (typeof body === 'object' && body !== null && 'status' in body && body.status === 'conflict')
+      throw new VintedProfileConflictError();
     if (
       typeof body !== 'object' ||
       body === null ||
       !('status' in body) ||
       body.status !== 'confirmed'
     )
-      throw new VintedEditUnconfirmedError();
+      throw new VintedEditUnconfirmedError('Profil');
   }
 
   private post(

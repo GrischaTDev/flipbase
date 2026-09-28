@@ -1,0 +1,175 @@
+import { randomUUID } from 'node:crypto';
+import type { BrowserInfo } from './gologin-cloud-browser.ts';
+import {
+  MarketplaceBrowserSessionEndedError,
+  type BrowserSessionScope,
+} from './marketplace-browser-session-broker.ts';
+import {
+  VintedImportReadError,
+  type VintedAccountImport,
+  type VintedConversationVersion,
+  type VintedImportStage,
+} from './vinted-account-import.ts';
+import type {
+  MarketplaceSyncError,
+  MarketplaceSyncOperation,
+  MarketplaceSyncStage,
+  SupabaseMarketplaceOperationStore,
+} from './supabase-marketplace-operation-store.ts';
+import { MarketplaceOperationEvents } from './marketplace-operation-events.ts';
+
+interface SyncBroker {
+  open(scope: BrowserSessionScope): Promise<string>;
+  run<T>(
+    scope: BrowserSessionScope,
+    id: string,
+    operation: (browser: BrowserInfo) => Promise<T>,
+  ): Promise<T>;
+  close(scope: BrowserSessionScope, id: string): Promise<void>;
+}
+
+interface ImportWriter {
+  conversationVersions?(
+    scope: BrowserSessionScope,
+    sessionId: string,
+  ): Promise<VintedConversationVersion[]>;
+  write(
+    scope: BrowserSessionScope,
+    sessionId: string,
+    snapshot: VintedAccountImport,
+  ): Promise<Record<'profile' | 'publication' | 'conversation' | 'message' | 'sale', number>>;
+}
+
+export class MarketplaceSyncRunner {
+  private readonly broker: SyncBroker;
+  private readonly imports: ImportWriter;
+  private readonly operations: SupabaseMarketplaceOperationStore;
+  private readonly events: MarketplaceOperationEvents;
+
+  constructor(
+    broker: SyncBroker,
+    imports: ImportWriter,
+    operations: SupabaseMarketplaceOperationStore,
+    events: MarketplaceOperationEvents = new MarketplaceOperationEvents(),
+  ) {
+    this.broker = broker;
+    this.imports = imports;
+    this.operations = operations;
+    this.events = events;
+  }
+
+  async start(scope: BrowserSessionScope): Promise<string> {
+    const operation = await this.operations.enqueue(scope);
+    if (operation.requestedBy === scope.userId) {
+      void this.execute({ ...scope }, operation.id).catch(() => undefined);
+    }
+    return operation.id;
+  }
+
+  read(scope: BrowserSessionScope, id: string): Promise<MarketplaceSyncOperation | null> {
+    return this.operations.read(scope, id);
+  }
+
+  private async execute(scope: BrowserSessionScope, id: string): Promise<void> {
+    const runnerId = randomUUID();
+    if (!(await this.operations.claim(scope, id, runnerId))) return;
+    let sessionId: string | undefined;
+    let failedStage: MarketplaceSyncError = 'browser';
+    let currentStage: MarketplaceSyncStage = 'browser';
+    let stageStartedAt = Date.now();
+    const moveTo = async (nextStage: MarketplaceSyncStage): Promise<void> => {
+      await this.operations.stage(scope, id, runnerId, nextStage);
+      this.events.record({
+        operationId: id,
+        stage: currentStage,
+        outcome: 'completed',
+        elapsedMs: Date.now() - stageStartedAt,
+      });
+      currentStage = nextStage;
+      stageStartedAt = Date.now();
+    };
+    try {
+      sessionId = await this.broker.open(scope);
+      const currentSessionId = sessionId;
+      failedStage = 'access';
+      const previousConversations =
+        (await this.imports.conversationVersions?.(scope, currentSessionId)) ?? [];
+      const snapshot = await this.broker.run(scope, currentSessionId, async (browser) => {
+        if (!browser.importAccount) throw new Error('Vinted-Import fehlt');
+        try {
+          return await browser.importAccount(
+            () => this.broker.run(scope, currentSessionId, async () => undefined),
+            async (stage) => {
+              failedStage = stage;
+              await moveTo(stage);
+            },
+            previousConversations,
+          );
+        } catch (error) {
+          if (error instanceof MarketplaceBrowserSessionEndedError) throw error;
+          if (error instanceof VintedImportReadError)
+            failedStage =
+              error.cause instanceof MarketplaceBrowserSessionEndedError
+                ? 'access'
+                : this.importErrorCode(error.stage);
+          return null;
+        }
+      });
+      if (!snapshot) throw new Error('Vinted-Datenabruf fehlgeschlagen');
+      failedStage = 'access';
+      await this.broker.run(scope, currentSessionId, async () => undefined);
+      failedStage = 'persist';
+      await moveTo('persist');
+      const counts = await this.imports.write(scope, currentSessionId, snapshot);
+      failedStage = 'cleanup';
+      await moveTo('cleanup');
+      let cleanupPending = false;
+      try {
+        await this.broker.close(scope, currentSessionId);
+      } catch {
+        cleanupPending = true;
+      }
+      sessionId = undefined;
+      await this.operations.succeed(
+        scope,
+        id,
+        runnerId,
+        snapshot.observedAt,
+        counts,
+        cleanupPending,
+      );
+      this.events.record({
+        operationId: id,
+        stage: currentStage,
+        outcome: 'completed',
+        elapsedMs: Date.now() - stageStartedAt,
+      });
+    } catch (error) {
+      if (error instanceof MarketplaceBrowserSessionEndedError)
+        failedStage = error.reason === 'expired' ? 'access' : 'interrupted';
+      if (sessionId) {
+        try {
+          await this.broker.close(scope, sessionId);
+        } catch {
+          failedStage = 'cleanup';
+        }
+      }
+      this.events.record({
+        operationId: id,
+        stage: currentStage,
+        outcome: 'failed',
+        elapsedMs: Date.now() - stageStartedAt,
+        errorCode: failedStage,
+      });
+      try {
+        await this.operations.fail(scope, id, runnerId, failedStage);
+      } catch {
+        // Beim nächsten Start wird der ungeklärte Auftrag als unterbrochen markiert.
+      }
+    }
+  }
+
+  private importErrorCode(stage: VintedImportStage): MarketplaceSyncError {
+    return stage === 'navigation' ? 'browser' : stage;
+  }
+}
