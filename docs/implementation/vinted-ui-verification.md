@@ -1,5 +1,23 @@
 # Vinted-Oberfläche: geprüfter Stand vom 26. September 2026
 
+## Nachtrag 28.09.2026: PR #235 und Browserdienst veröffentlicht
+
+Die öffentliche Web-App liefert Merge-Commit `db63bf19` aus PR #235. Der
+getrennt veröffentlichte Browserdienst verwendet das Worker-Image mit derselben
+SHA. Vor und nach dem Wechsel waren keine aktiven oder ungeklärten
+Browsersitzungen vorhanden. Container und öffentlicher Gesundheitscheck sind
+grün (`ok: true`, `apiVersion: 2`, `readOnly: false`); ein Sitzungsstart ohne
+Anmeldung erhält HTTP 401. Die produktive Übernahme des eigenen Vinted-Kontos
+wurde anschließend vom Nutzer gestartet: Flipbase meldete „Das Konto ist
+verbunden“. Die Datenbank bestätigte einen `connected`-Eintrag und eine weitere
+sauber geschlossene Browsersitzung, ohne dass Kontowerte gelesen wurden. Ob
+die Ladeanzeige auf dem Gerät des Nutzers frei vom kurzzeitig sichtbaren
+Innenelement ist, wurde dabei noch nicht ausdrücklich bestätigt.
+Die gespeicherte Marktplatzansicht enthält bisher nur den bestätigten
+Profileintrag. Die Listen für Inserate, Gespräche und Verkäufe haben noch
+keinen Liveimport; ein leerer Zustand ist daher kein Beleg für ein leeres
+Vinted-Konto.
+
 ## Nachtrag 28.09.2026: Einfache Ladeanzeige beim Anmelden
 
 Der Login-Dialog zeigte nach Nutzerbeobachtung zeitweise ein zeigerartiges

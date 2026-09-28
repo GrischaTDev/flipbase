@@ -2,17 +2,20 @@
 
 ## Aktueller Betriebsstand vom 28.09.2026
 
-Nach PR #233 und gesonderter Freigabe läuft der Worker mit dem Image
-`ghcr.io/grischatdev/flipbase-marketplace-worker:sha-ece0676d1cf2e06ae01ff9dbe188857e7dfbb608`.
+Nach PR #235 und gesonderter Freigabe läuft der Worker mit dem Image
+`ghcr.io/grischatdev/flipbase-marketplace-worker:sha-db63bf194c99798f8de59d761ff59782f29ba438`.
 Die Web-App liefert denselben Merge-Commit aus. Der Container ist gesund,
-der öffentliche Gesundheitscheck meldet `apiVersion: 2` und
+der öffentliche Gesundheitscheck meldet `ok: true`, `apiVersion: 2` und
 `readOnly: false`, und ein Sitzungsstart ohne Anmeldung wird mit HTTP 401
 abgewiesen. Vor und nach dem Wechsel gab es null aktive und null ungeklärte
 Browsersitzungen. Das vorige Image
-`sha-e912b17b3b7a6658f2eafb9af87acf62a783b7d0` und die vorige
-Compose-Zuordnung bleiben auf dem Server für einen Rückweg erhalten. Ein
-echter Codeversand, die bestätigte Vinted-Identität und die Löschung eines
-ausgewählten Kontos bleiben als Live-Nachweise offen.
+`sha-ece0676d1cf2e06ae01ff9dbe188857e7dfbb608` und die vorige
+Compose-Zuordnung bleiben auf dem Server für einen Rückweg erhalten. Nach dem
+Rollout startete der Nutzer das eigene ausstehende Konto erneut; Flipbase
+meldete „Das Konto ist verbunden“. Eine lesende Datenbankprüfung bestätigte
+genau eine `connected`-Verbindung und fünf geschlossene statt zuvor vier
+Browsersitzungen, ohne offene Sitzung. Ein echter Codeversand und die Löschung
+eines ausgewählten Kontos bleiben als Live-Nachweise offen.
 
 Die folgende Anleitung dokumentiert die ursprüngliche Einrichtung und den
 Rückweg. Ihre Bestandsaufnahme vom 27.09.2026 ist historisch.

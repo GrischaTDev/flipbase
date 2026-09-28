@@ -1,5 +1,15 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-28 – Juna – Bestehende Vinted-Sitzung veröffentlicht und Browserdienst aktiviert
+
+**Auftrag:** Die bereits geprüfte Übernahme einer angemeldeten Vinted-Sitzung nach PR-Freigabe veröffentlichen und den Browserdienst nach gesonderter Freigabe aktualisieren.
+
+**Änderung:** PR #235 bestand alle Pflichtprüfungen und wurde als Merge-Commit `db63bf19` übernommen. Die Web-App liefert genau diesen Commit aus. Der getrennte Workflow veröffentlichte das Worker-Image mit derselben vollständigen SHA. Nach Prüfung auf offene Sitzungen wurde nur die einzelne Browserdienst-Instanz auf dieses Image umgestellt. Die vorige Image-Zuordnung und Compose-Datei liegen mit Modus 0600 auf dem Server für einen Rückweg bereit.
+
+**Prüfung und Grenze:** Die lokale Gesamtprüfung, 91 Worker-Tests und neun abgefangene Browser-Tests bestanden. Der Merge-Deploy und der öffentliche Versionscheck waren erfolgreich. Vor und nach dem Worker-Wechsel gab es null aktive oder ungeklärte Browsersitzungen. Der Container ist gesund; der öffentliche Endpunkt meldet `ok: true`, `apiVersion: 2` und `readOnly: false`; ein Sitzungsstart ohne Anmeldung antwortet mit HTTP 401. Danach startete der Nutzer das eigene ausstehende Konto erneut und meldete „Das Konto ist verbunden“. Eine lesende Datenbankprüfung bestätigte genau eine Verbindung mit Status `connected` und fünf geschlossene statt zuvor vier Browsersitzungen; keine Sitzung blieb offen. Der Rollout selbst löste keinen Vinted-Login und keinen SMS-Code aus. Die ursprüngliche Codebestätigung und weitere Marktplatzfunktionen bleiben gesondert zu prüfen.
+
+**Nächster Datenzugriff:** Eine weitere lesende Bestandsprüfung fand nur den Profileintrag aus der Identitätsbestätigung, aber keine gespeicherten Inserate, Gespräche, Nachrichten oder Verkäufe. GoLogin stellt das dauerhafte Browserprofil bereit, keine Vinted-Daten-API. Die öffentlich dokumentierte Vinted-Pro-Integrations-API ist auf freigeschaltete Pro-Konten begrenzt; das verbundene Privatkonto benötigt für weitere Daten einen gesondert geprüften Leseweg und geklärte Plattformberechtigung. Der Plan enthält dafür einen begrenzten, zunächst lesenden Schritt.
+
 ## 2026-09-28 – Juna – Lade-Kreis im Vinted-Anmeldedialog bereinigt
 
 **Auftrag:** Das kurz aufblinkende zeigerartige Element innerhalb der Ladeanzeige beim Anmelden entfernen.
