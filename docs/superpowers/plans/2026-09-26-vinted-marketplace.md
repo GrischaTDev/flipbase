@@ -1,5 +1,12 @@
 # Vinted-Marktplatzverwaltung: Implementierungsplan
 
+> **Livebefund nach PR #230 (28.09.2026):** Die Web-App ist aktuell, der
+> produktive Worker nutzt noch ein älteres Image. GoLogin verweigert neue
+> Profile wegen erreichter Profilzahl. Die lokale Korrektur trennt ausstehende
+> von bestätigten Konten und benennt diese Grenze. Worker-Rollout und freier
+> Profilplatz sind vor einem erneuten Liveversuch erforderlich; ein bestätigter
+> Vinted-Login fehlt weiterhin.
+
 > **Aktueller Stand (28.09.2026):** Nach Aktivierung eines Standard-Abos ist die GoLogin-API wieder erreichbar. Ein leeres Anbieterprofil ließ sich erstellen und löschen; für die echte Flipbase-Verbindung wurden ein dauerhaftes Profil und eine aktive Browsersitzung angelegt. Der Anmeldeversuch erreichte nach einer Minute das Zeitlimit; erst danach wurde die Seite verlassen und die Sitzung geschlossen. Die Verbindung bleibt `needs_login`. Das gespeicherte Profil zeigte beim späteren lesenden Öffnen erneut das Vinted-Anmeldeformular; der private Identitätsabruf antwortete dort HTTP 403 `access_denied`. Die neue lokale Prüfung unterscheidet dieses Formular vom unbekannten Wartezustand. Ein bestätigter Login und die private Leseroute bleiben offen; Datenimport ist ein getrenntes Folgepaket.
 
 > For agentic workers: Use superpowers:executing-plans for task-by-task execution.
@@ -501,3 +508,24 @@ Codefeld und sein Knopf wurden bisher nur mit einer vollständig abgefangenen
 eigenen HTML-Testseite geprüft.
 Die private Identitätsroute bleibt nach erfolgreicher SMS-Bestätigung gesondert
 zu verifizieren. Keine neue Datenbankmigration oder Abhängigkeit.
+
+## AP04i: Kontostart und Release-Abgleich nach Livefehler (28.09.2026)
+
+- [x] Web-Commit und tatsächlich laufendes Worker-Image lesend vergleichen.
+      `healthz` ist erreichbar, bestätigt aber keine passende Worker-Version.
+- [x] Gescheiterten Start bis zur Anbietergrenze zurückverfolgen: kein neues
+      Profil, keine Sitzung, HTTP 403 bei voller GoLogin-Profilliste.
+- [x] Datensatz erst beim Anmeldeklick anlegen und ausstehende Einträge außerhalb
+      der Tabelle bestätigter Konten anzeigen; Abbruch vor dem Klick schreibt
+      keine Verbindung.
+- [x] Nur die beobachtete Profilgrenze in einen festen Fehlercode übersetzen,
+      ohne Anbieterantwort oder Geheimnisse an Angular auszugeben.
+- [x] Worker-Version im Gesundheitscheck prüfen und bei altem Worker Anmeldung
+      sowie Löschung mit verständlichem Hinweis sperren.
+- [ ] Geprüftes Worker-Image auf dem Server aktivieren und Löschung mit einer
+      ausdrücklich ausgewählten eigenen Verbindung testen.
+- [ ] Einen Profilplatz kontrolliert freimachen oder das GoLogin-Kontingent
+      klären. Ein unzugeordnetes Profil darf ohne Prüfung seiner Herkunft und
+      eines möglichen laufenden Anbieterbrowsers nicht pauschal entfernt werden.
+- [ ] Erst dann einen neuen, vom Nutzer gestarteten Vinted-Versuch prüfen;
+      SMS-Code und Identitätsantwort bleiben getrennte Live-Nachweise.

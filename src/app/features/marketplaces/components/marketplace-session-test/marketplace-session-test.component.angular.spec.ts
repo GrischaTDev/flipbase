@@ -80,6 +80,7 @@ beforeEach(() => {
           selectedConnection: computed(() => account),
           selectionVersion: signal(0),
           canManage: signal(true),
+          mutationError: signal(null),
         },
       },
       {
@@ -179,6 +180,7 @@ it('bietet nach abgelehntem Login wieder das leere Formular an und stoppt den Pr
       selectedConnection: signal({ ...account, status: 'pending' }),
       selectionVersion: signal(0),
       canManage: signal(true),
+      mutationError: signal(null),
     },
   });
   Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: () => 'blob:test' });

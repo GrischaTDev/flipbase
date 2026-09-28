@@ -9,6 +9,7 @@ export type BrowserTestInput =
 export interface BrowserTestAvailability {
   available: boolean;
   readOnly: boolean;
+  outdated?: boolean;
 }
 
 export interface ConfirmedVintedAccount {
@@ -34,6 +35,14 @@ export class GoLoginApiLimitError extends Error {
   constructor() {
     super(
       'GoLogin meldet: Das kostenlose API-Anfragelimit dieses Schlüssels ist erreicht. Prüfe im GoLogin-Bereich „API & MCP“, welche API-Nutzung Dein Testzugang erlaubt. Die Vinted-Anmeldung wurde nicht gestartet.',
+    );
+  }
+}
+
+export class GoLoginProfileLimitError extends Error {
+  constructor() {
+    super(
+      'Die maximale Zahl Deiner GoLogin-Profile ist erreicht. Lösche zuerst ein nicht mehr benötigtes Konto oder prüfe Dein Profilkontingent bei GoLogin. Die Vinted-Anmeldung wurde nicht gestartet.',
     );
   }
 }
@@ -66,6 +75,12 @@ export class MarketplaceConnectionRemovalError extends Error {
   }
 }
 
+export class MarketplaceWorkerOutdatedError extends Error {
+  constructor() {
+    super('Der Browserdienst muss aktualisiert werden. Bitte versuche es danach erneut.');
+  }
+}
+
 export type VintedVerificationResult = 'submitted' | 'form_unavailable' | 'submission_unconfirmed';
 
 const basePath = '/marketplace-browser/sessions';
@@ -91,7 +106,9 @@ export class MarketplaceBrowserTestApiService {
         'readOnly' in body &&
         typeof body.readOnly === 'boolean'
       )
-        return { available: true, readOnly: body.readOnly };
+        return 'apiVersion' in body && body.apiVersion === 2
+          ? { available: true, readOnly: body.readOnly }
+          : { available: false, readOnly: true, outdated: true };
       return { available: false, readOnly: true };
     } catch {
       return { available: false, readOnly: true };
@@ -110,6 +127,13 @@ export class MarketplaceBrowserTestApiService {
           body.code === 'gologin_api_limit_reached'
         )
           throw new GoLoginApiLimitError();
+        if (
+          typeof body === 'object' &&
+          body !== null &&
+          'code' in body &&
+          body.code === 'gologin_profile_limit_reached'
+        )
+          throw new GoLoginProfileLimitError();
       }
       throw new Error('Browsersitzung nicht verfügbar');
     }
@@ -271,6 +295,7 @@ export class MarketplaceBrowserTestApiService {
   }
 
   async deleteConnection(scope: AccountScope, accessToken: string): Promise<void> {
+    if ((await this.available()).outdated) throw new MarketplaceWorkerOutdatedError();
     const response = await this.post('/marketplace-browser/connections/delete', scope, accessToken);
     if (response.status !== 204) throw new MarketplaceConnectionRemovalError();
   }

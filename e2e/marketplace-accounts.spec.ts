@@ -14,10 +14,11 @@ async function mockMarketplace(
   browserLogin = false,
   rejectFirstLogin = false,
   verificationRequired = false,
+  profileLimit = false,
 ) {
   await page.route('**/marketplace-browser/healthz', (route) =>
     browserLogin
-      ? route.fulfill({ json: { ok: true, readOnly: false } })
+      ? route.fulfill({ json: { ok: true, readOnly: false, apiVersion: 2 } })
       : route.fulfill({ status: 502, body: 'Browserdienst nicht verfügbar' }),
   );
   const user = {
@@ -82,6 +83,11 @@ async function mockMarketplace(
       const body = route.request().postDataJSON() as Record<string, unknown>;
       if (body['workspaceId'] !== workspaceId) return route.fulfill({ status: 403 });
       if (path.endsWith('/sessions')) {
+        if (profileLimit)
+          return route.fulfill({
+            status: 503,
+            json: { code: 'gologin_profile_limit_reached' },
+          });
         connectionId = String(body['connectionId']);
         return route.fulfill({ status: 201, json: { id: '25000000-0000-4000-8000-000000000031' } });
       }
@@ -106,7 +112,9 @@ async function mockMarketplace(
         if (rejectFirstLogin && calls.filter((call) => call.name === 'browser_login').length === 1)
           return route.fulfill({ status: 422, json: { code: 'vinted_login_rejected' } });
         if (!loginSubmitted || ++identityChecks === 1) return route.fulfill({ status: 422 });
-        accounts.find((account) => account.connectionId === connectionId)!.status = 'connected';
+        const connected = accounts.find((account) => account.connectionId === connectionId)!;
+        connected.status = 'connected';
+        connected.externalAccountId = '12345';
         return route.fulfill({
           json: {
             workspaceId,
@@ -273,6 +281,34 @@ async function mockMarketplace(
   return calls;
 }
 
+test('erklärt eine volle GoLogin-Profilliste ohne Vinted-Anmeldeversuch @marketplace-preview', async ({
+  page,
+}) => {
+  const calls = await mockMarketplace(page, true, false, false, true);
+  await page.goto('/settings/marketplaces');
+  await page.getByRole('button', { name: 'Account hinzufügen', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Interner Name in Flipbase' }).fill('Neuer Zugang');
+  await page.getByRole('button', { name: 'Weiter zur Anmeldung' }).click();
+  await page.getByRole('textbox', { name: 'Vinted-Mitgliedsname oder E-Mail' }).fill('synthetic');
+  await page.getByLabel('Vinted-Passwort').fill('synthetic');
+  await page.getByRole('button', { name: 'Anmelden und Konto verbinden' }).click();
+  await expect(page.getByText(/maximale Zahl Deiner GoLogin-Profile/)).toBeVisible();
+  expect(calls.filter((call) => call.name === 'browser_login')).toHaveLength(0);
+});
+
+test('sperrt die Anmeldung bei einem veralteten Browserdienst @marketplace-preview', async ({
+  page,
+}) => {
+  await mockMarketplace(page, true);
+  await page.route('**/marketplace-browser/healthz', (route) =>
+    route.fulfill({ json: { ok: true, readOnly: false } }),
+  );
+  await page.goto('/settings/marketplaces');
+  await page.getByRole('button', { name: 'Vinted-Anmeldung für Testkonto A öffnen' }).click();
+  await expect(page.getByText(/Browserdienst.*aktualisiert/)).toBeVisible();
+  await expect(page.getByLabel('Vinted-Passwort')).toHaveCount(0);
+});
+
 test('eigene Sitzungstestseite sperrt einen Browserabbruch @marketplace-preview', async ({
   page,
 }) => {
@@ -312,6 +348,16 @@ test('eigene Sitzungstestseite sperrt einen Browserabbruch @marketplace-preview'
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,
   );
+});
+
+test('zeigt unbestätigte Konten getrennt von verbundenen Konten @marketplace-preview', async ({
+  page,
+}) => {
+  await mockMarketplace(page);
+  await page.goto('/settings/marketplaces');
+  await expect(page.getByRole('heading', { name: 'Anmeldung ausstehend' })).toBeVisible();
+  await expect(page.locator('app-data-table').getByText('Testkonto A')).toHaveCount(0);
+  await expect(page.getByText('Testkonto A')).toBeVisible();
 });
 
 async function evidence(page: Page, name: string) {
@@ -368,38 +414,34 @@ for (const width of [1440, 390]) {
       .getByRole('textbox', { name: 'Interner Name in Flipbase', exact: true })
       .fill('Neues Testkonto');
     await page.getByRole('button', { name: 'Weiter zur Anmeldung', exact: true }).click();
-    const table = page.locator('app-marketplace-accounts');
+    const accounts = page.locator('app-marketplace-accounts');
     await expect(page.getByRole('dialog')).toContainText('Neues Testkonto');
     await expect(page.getByRole('dialog')).toContainText(
       'Browserdienst ist auf dem Server nicht erreichbar',
     );
     await page.getByRole('button', { name: 'Dialog schließen' }).click();
-    await page.getByRole('button', { name: 'Neues Testkonto umbenennen', exact: true }).click();
+    await expect(accounts.getByText('Neues Testkonto')).toHaveCount(0);
+    expect(calls.filter((call) => call.name === 'marketplace_create_connection')).toHaveLength(0);
+    await page.getByRole('button', { name: 'Testkonto A umbenennen', exact: true }).click();
     await page
       .getByRole('textbox', { name: 'Interner Name in Flipbase', exact: true })
       .fill('Umbenanntes Testkonto');
     await page.getByRole('button', { name: 'Speichern', exact: true }).click();
-    await expect(
-      table.getByRole('cell', { name: 'Umbenanntes Testkonto', exact: true }),
-    ).toBeVisible();
+    await expect(accounts.getByText('Umbenanntes Testkonto')).toBeVisible();
     await page
       .getByRole('button', { name: 'Umbenanntes Testkonto pausieren', exact: true })
       .click();
-    await expect(table.getByRole('row').filter({ hasText: 'Umbenanntes Testkonto' })).toContainText(
-      'Pausiert',
-    );
+    await expect(accounts.getByText('Pausiert', { exact: true })).toBeVisible();
     await page
       .getByRole('button', { name: 'Umbenanntes Testkonto fortsetzen', exact: true })
       .click();
-    await expect(table.getByRole('row').filter({ hasText: 'Umbenanntes Testkonto' })).toContainText(
-      'Anmeldung ausstehend',
-    );
+    await expect(
+      page.getByRole('button', { name: 'Umbenanntes Testkonto pausieren', exact: true }),
+    ).toBeVisible();
     await page.getByRole('button', { name: 'Umbenanntes Testkonto löschen' }).click();
     await expect(page.getByRole('dialog')).toContainText('Gespeicherte Kontodaten');
     await page.getByRole('button', { name: 'Konto löschen', exact: true }).click();
-    await expect(
-      table.getByRole('cell', { name: 'Umbenanntes Testkonto', exact: true }),
-    ).toHaveCount(0);
+    await expect(accounts.getByText('Umbenanntes Testkonto')).toHaveCount(0);
     await evidence(page, `vinted-accounts-${width}`);
     expect(
       calls
@@ -443,6 +485,8 @@ for (const width of [1440, 390]) {
     await page.getByRole('button', { name: 'Weiter zur Anmeldung', exact: true }).click();
     await expect(page).toHaveURL(/\/settings\/marketplaces$/);
     await expect(page.getByRole('dialog')).toContainText('Anmeldung');
+    expect(calls.filter((call) => call.name === 'marketplace_create_connection')).toHaveLength(0);
+    await expect(page.locator('app-data-table').getByText('Mein Testkonto')).toHaveCount(0);
     await page
       .getByRole('textbox', { name: 'Vinted-Mitgliedsname oder E-Mail', exact: true })
       .fill('synthetic-user');

@@ -6,6 +6,7 @@ import { MarketplaceAccountStore } from './marketplace-account.store';
 import {
   BrowserTestSessionEndedError,
   GoLoginApiLimitError,
+  GoLoginProfileLimitError,
   VintedLoginPendingError,
   VintedLoginRejectedError,
   VintedVerificationRequiredError,
@@ -33,6 +34,7 @@ export class MarketplaceBrowserTestStore {
   private readonly busyState = signal<string | null>(null);
   private readonly errorState = signal<{ key: string; message: string } | null>(null);
   private readonly availableState = signal(false);
+  private readonly outdatedState = signal(false);
   private readonly availabilityCheckedState = signal(false);
   private readonly readOnlyState = signal(true);
   private revision = 0;
@@ -86,6 +88,7 @@ export class MarketplaceBrowserTestStore {
     return state?.key === this.contextKey() ? state : null;
   });
   readonly available = this.availableState.asReadonly();
+  readonly outdated = this.outdatedState.asReadonly();
   readonly availabilityChecked = this.availabilityCheckedState.asReadonly();
   readonly readOnly = this.readOnlyState.asReadonly();
   readonly busy = computed(
@@ -144,9 +147,11 @@ export class MarketplaceBrowserTestStore {
     try {
       const availability = await this.api.available();
       this.availableState.set(availability.available);
+      this.outdatedState.set(availability.outdated === true);
       this.readOnlyState.set(availability.readOnly);
     } catch {
       this.availableState.set(false);
+      this.outdatedState.set(false);
       this.readOnlyState.set(true);
     } finally {
       this.availabilityCheckedState.set(true);
@@ -488,7 +493,7 @@ export class MarketplaceBrowserTestStore {
     this.errorState.set({
       key,
       message:
-        error instanceof GoLoginApiLimitError
+        error instanceof GoLoginApiLimitError || error instanceof GoLoginProfileLimitError
           ? error.message
           : 'Die Browsersitzung konnte nicht bestätigt werden.',
     });

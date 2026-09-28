@@ -29,8 +29,16 @@ describe('Browser-Test-API', () => {
   });
 
   it('übernimmt den lesenden Modus nur aus einer gültigen Dienstantwort', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ ok: true, readOnly: true })));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(Response.json({ ok: true, readOnly: true, apiVersion: 2 })),
+    );
     expect(await api.available()).toEqual({ available: true, readOnly: true });
+  });
+
+  it('erkennt einen laufenden Worker mit veralteter API-Version', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ ok: true, readOnly: false })));
+    expect(await api.available()).toEqual({ available: false, readOnly: true, outdated: true });
   });
 
   it('sendet nur den angemeldeten Token und den gewählten Kontobezug', async () => {
@@ -52,6 +60,18 @@ describe('Browser-Test-API', () => {
         .mockResolvedValue(Response.json({ code: 'gologin_api_limit_reached' }, { status: 503 })),
     );
     await expect(api.open(scope, 'user-test-token')).rejects.toBeInstanceOf(GoLoginApiLimitError);
+  });
+
+  it('nennt die erreichte GoLogin-Profilgrenze beim Browserstart', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          Response.json({ code: 'gologin_profile_limit_reached' }, { status: 503 }),
+        ),
+    );
+    await expect(api.open(scope, 'user-test-token')).rejects.toThrow('GoLogin-Profile');
   });
 
   it('verwirft eine übergroße Bildantwort', async () => {
@@ -161,4 +181,11 @@ it('meldet eine unbestätigte Kontolöschung gesondert', async () => {
   await expect(api.deleteConnection(scope, 'token')).rejects.toThrow(
     'noch nicht vollständig gelöscht',
   );
+});
+
+it('verweigert das Löschen über einen veralteten Worker vor einer Schreibanfrage', async () => {
+  const request = vi.fn().mockResolvedValue(Response.json({ ok: true, readOnly: false }));
+  vi.stubGlobal('fetch', request);
+  await expect(api.deleteConnection(scope, 'token')).rejects.toThrow('aktualisiert');
+  expect(request).toHaveBeenCalledOnce();
 });

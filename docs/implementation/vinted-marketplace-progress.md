@@ -1,5 +1,38 @@
 # Arbeitsstand: Vinted-Marktplatzverwaltung
 
+## 28. September 2026 – Livefehler bei Kontoanlage, Löschung und Browserstart
+
+Nach PR #230 ist die Web-App mit Commit `8b020be5` öffentlich ausgeliefert. Der
+produktive Browserdienst läuft dagegen noch mit dem älteren Image `1a93cbf6`.
+Dieses Image hat den neuen Löschpfad nicht; ein Löschversuch aus der Web-App
+endet deshalb ohne Datenänderung mit der allgemeinen Fehlermeldung. Das bereits
+gebaute Worker-Image für `8b020be5` ist noch nicht als laufender Container
+bestätigt. Der öffentliche Gesundheitscheck liefert HTTP 200, enthält aber
+keinen Versionsnachweis.
+
+Ein vom Nutzer neu angelegter Eintrag blieb auf `needs_login`; für ihn existieren
+weder ein GoLogin-Profil noch eine Browsersitzung. Eine begrenzte Anbieterprobe
+mit dem serverseitig vorhandenen Schlüssel erhielt bei der Profilerstellung
+HTTP 403 mit der Meldung, dass die maximale Profilzahl erreicht ist. Die
+GoLogin-Liste enthält zehn Profile, darunter ein Flipbase-benanntes Profil ohne
+gespeicherte Zuordnung und ohne Sitzung. Es passt namentlich zu einer noch
+vorhandenen Verbindung und wurde deshalb nicht eigenmächtig gelöscht. Das
+Residential-Kontingent ist nicht erschöpft: 40.253.215 von 2.147.483.648 Bytes
+waren zum Prüfzeitpunkt verbraucht. Ein Vinted-Login wurde für diese Diagnose
+nicht gesendet.
+
+Auf `juna/vinted-connection-repair` entsteht der interne Datensatz erst beim
+ausdrücklichen Anmeldeklick, nicht schon bei „Weiter zur Anmeldung“. Die
+Haupttabelle zeigt nur Konten mit bestätigter Vinted-ID; unbestätigte Einträge
+stehen getrennt zum Fortsetzen oder Löschen bereit. Der Worker erkennt genau
+die beobachtete GoLogin-Profilgrenze und gibt nur einen festen Fehlercode aus;
+die Oberfläche erklärt diesen statt eines allgemeinen Sitzungsfehlers.
+Der Worker nennt seine API-Version im Gesundheitscheck; die Web-App sperrt
+Anmeldung und Löschung bei einem veralteten Worker mit einer klaren Meldung.
+Produktiv nötig bleiben der geprüfte Worker-Rollout, ein freier beziehungsweise
+erweiterter GoLogin-Profilplatz und danach ein vom Nutzer gestarteter neuer
+Versuch. Bestehende Anbieterprofile und Konten wurden nicht gelöscht.
+
 ## 28. September 2026 – Zweite Vinted-Anmeldestufe und Kontoverwaltung
 
 Der Nutzer meldete bei einem selbst gestarteten Login einen per SMS gesendeten,

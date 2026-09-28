@@ -1,5 +1,28 @@
 # Vinted-Oberfläche: geprüfter Stand vom 26. September 2026
 
+## Nachtrag 28.09.2026: Livefehler nach getrenntem Web- und Worker-Release
+
+Die öffentliche Web-App trägt Merge-Commit `8b020be5` aus PR #230. Der
+Browserdienst antwortet zwar mit HTTP 200 auf `healthz`, verwendet aber noch
+Image `1a93cbf6`. Dessen HTTP-API enthält weder die neue Kontolöschung noch die
+SMS-Codeaktion. Der beobachtete Löschfehler ist damit für diesen Stand erklärt;
+der Gesundheitscheck allein reicht nicht als Versionsprüfung.
+
+Der neue Verbindungsversuch scheiterte vor Browserprofil und Sitzung. Eine
+begrenzte GoLogin-Probe ergab HTTP 403 wegen erreichter Profilzahl; zehn
+Profile sind vorhanden. Das Proxy-Datenkontingent ist noch verfügbar. Kein
+Vinted-Passwort oder SMS-Code wurde bei der Diagnose ausgelesen oder erneut
+gesendet; kein Anbieterprofil wurde gelöscht.
+
+Die lokale Korrektur verschiebt die Datenbankanlage vom ersten auf den zweiten
+Schritt und trennt unbestätigte Konten von der Haupttabelle. Der bestätigte
+Anbieterfehler erhält einen festen Servercode und einen verständlichen Hinweis
+in Flipbase. Der Versionscheck sperrt Anmeldung und Löschung bei einem alten
+Worker schon vor dem Senden von Zugangsdaten. 86 Worker-Tests, 102 Angular-Tests,
+elf Desktop-/Mobilabläufe,
+beide Typprüfungen und beide Builds bestanden. Ein erneuter echter Login und
+das Löschen über den neuen produktiven Worker bleiben offen.
+
 ## Nachtrag 28.09.2026: SMS-Code und zweistufige Kontoeinrichtung
 
 Der letzte vom Nutzer gestartete Browserlauf war bereits geschlossen. Sein
