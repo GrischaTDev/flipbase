@@ -1056,6 +1056,95 @@ test('loads Google Analytics only after an explicit choice and supports withdraw
   dom.window.close();
 });
 
+test('keeps campaign attribution and the referring domain without sending personal URL details', () => {
+  const dom = new JSDOM(html, {
+    runScripts: 'outside-only',
+    url: 'https://flipbase.de/?utm_source=newsletter&utm_medium=email&utm_campaign=beta_launch&email=anna@example.test',
+    referrer: 'https://www.google.com/search?q=anna@example.test',
+  });
+  dom.window.eval(analyticsScript);
+  dom.window.document.getElementById('analytics-accept').click();
+
+  const commands = Array.from(dom.window.dataLayer, (command) => Array.from(command));
+  const config = commands.find(([command]) => command === 'config')[2];
+  assert.equal(
+    config.page_location,
+    'https://flipbase.de/?utm_source=newsletter&utm_medium=email&utm_campaign=beta_launch',
+  );
+  assert.equal(config.page_referrer, 'https://www.google.com/');
+  assert.doesNotMatch(JSON.stringify(commands), /anna|example\.test|search\?q/u);
+  dom.window.close();
+});
+
+test('drops incomplete or unsafe campaign values and private referring sites', () => {
+  for (const [url, referrer] of [
+    [
+      'https://flipbase.de/?utm_source=newsletter&email=anna@example.test',
+      'https://app.flipbase.de/',
+    ],
+    [
+      'https://flipbase.de/?utm_source=anna@example.test&utm_medium=email',
+      'http://127.0.0.1:4200/private',
+    ],
+  ]) {
+    const dom = new JSDOM(html, { runScripts: 'outside-only', url, referrer });
+    dom.window.eval(analyticsScript);
+    dom.window.document.getElementById('analytics-accept').click();
+    const config = Array.from(dom.window.dataLayer, (command) => Array.from(command)).find(
+      ([command]) => command === 'config',
+    )[2];
+    assert.equal(config.page_location, 'https://flipbase.de/');
+    assert.equal(config.page_referrer, '');
+    dom.window.close();
+  }
+});
+
+test('does not load the production Analytics stream on a local preview', () => {
+  const dom = new JSDOM(html, { runScripts: 'outside-only', url: 'http://127.0.0.1:4173/' });
+  dom.window.eval(analyticsScript);
+  assert.equal(dom.window.document.getElementById('google-analytics-script'), null);
+  assert.equal(dom.window.dataLayer, undefined);
+  dom.window.close();
+});
+
+test('counts important landing sections and the beta CTA once after consent', () => {
+  const dom = new JSDOM(html, { runScripts: 'outside-only', url: 'https://flipbase.de/' });
+  const observed = new Set();
+  const unobserved = new Set();
+  let notifyIntersection;
+  dom.window.IntersectionObserver = class {
+    constructor(callback) {
+      notifyIntersection = callback;
+    }
+    observe(element) {
+      observed.add(element.id);
+    }
+    unobserve(element) {
+      unobserved.add(element.id);
+    }
+  };
+  dom.window.eval(analyticsScript);
+  assert.equal(notifyIntersection, undefined);
+  dom.window.document.getElementById('analytics-accept').click();
+  assert.deepEqual([...observed], ['features', 'roadmap', 'faq', 'beta-anmeldung']);
+
+  const features = dom.window.document.getElementById('features');
+  const betaForm = dom.window.document.getElementById('beta-anmeldung');
+  notifyIntersection([{ target: features, isIntersecting: false }]);
+  notifyIntersection([
+    { target: features, isIntersecting: true },
+    { target: betaForm, isIntersecting: true },
+  ]);
+  assert.deepEqual([...unobserved], ['features', 'beta-anmeldung']);
+  dom.window.document.querySelector('.hero-beta-cta').click();
+
+  const events = Array.from(dom.window.dataLayer, (command) => Array.from(command))
+    .filter(([command]) => command === 'event')
+    .map(([, name]) => name);
+  assert.deepEqual(events, ['features_view', 'beta_form_view', 'beta_cta_click']);
+  dom.window.close();
+});
+
 test('shows accessible consent details in a modal without preselecting analytics', () => {
   const dom = new JSDOM(html, { runScripts: 'outside-only', url: 'https://flipbase.de/' });
   const { document } = dom.window;
@@ -1150,6 +1239,7 @@ test('counts app links only with analytics consent and without URL parameters', 
       send_to: 'G-8ZMSVBRJPK',
       page_location: 'https://flipbase.de/',
       page_referrer: '',
+      page_title: document.title,
     });
   }
 
@@ -1170,6 +1260,7 @@ test('sends one anonymous lead event only for a new beta application with consen
     send_to: 'G-8ZMSVBRJPK',
     page_location: 'https://flipbase.de/',
     page_referrer: '',
+    page_title: success.dom.window.document.title,
   });
   assert.doesNotMatch(JSON.stringify(events), /anna|example\.test/u);
   success.dom.window.close();
@@ -1343,15 +1434,39 @@ test('describes the beta application review flow without open-registration or fi
 
 test('explains the reselling workflow and the real marketplace scope', () => {
   const document = new JSDOM(html).window.document;
-  const thirdStep = document.querySelector('.workflow-steps li:nth-child(3)');
-  assert.equal(
-    thirdStep?.querySelector('small.lang-de')?.textContent,
-    'Bilder optimieren, Inserate vorbereiten',
+  const workflowSteps = [...document.querySelectorAll('.workflow-steps li')];
+  assert.deepEqual(
+    workflowSteps.map((step) => step.querySelector('b.lang-de, b:not([class])')?.textContent),
+    ['Einkauf & Bestand', 'Verkauf & Finanzen', 'Vinted Bot', 'Bilder & Inserate'],
   );
   assert.equal(
-    thirdStep?.querySelector('small.lang-en')?.textContent,
+    workflowSteps[0]?.querySelector('small.lang-de')?.textContent,
+    'Artikel und Kosten nachvollziehbar erfassen',
+  );
+  assert.equal(
+    workflowSteps[3]?.querySelector('small.lang-en')?.textContent,
     'Optimize photos, prepare listings',
   );
+
+  const featureCards = [...document.querySelectorAll('#features .feature-karte')];
+  assert.deepEqual(
+    featureCards.map((card) => card.id),
+    [
+      'tracking',
+      'sales',
+      'expenses',
+      'accounting',
+      'vinted-bot',
+      'image-optimization',
+      'listings',
+      'multi-account',
+    ],
+  );
+  assert.ok(featureCards[0].classList.contains('hervorgehoben'));
+  assert.equal(featureCards[7].querySelector('.feature-badge .lang-de')?.textContent, 'Geplant');
+  assert.equal(featureCards[7].querySelector('.feature-badge .lang-en')?.textContent, 'Planned');
+  assert.match(featureCards[7].textContent, /noch nicht in der Beta verfügbar/u);
+  assert.doesNotMatch(document.querySelector('#roadmap')?.textContent ?? '', /Multi-Account/iu);
 
   const descriptionTag = extractStartTags(html, 'meta').find(
     (tag) => attribute(tag, 'name') === 'description',
