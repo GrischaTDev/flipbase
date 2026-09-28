@@ -1,5 +1,11 @@
 # Arbeitsstand: Vinted-Marktplatzverwaltung
 
+## 28. September 2026 – Codekorrektur auf Web-App und Browserdienst aktiviert
+
+PR #233 bestand alle Pflichtprüfungen und wurde als Merge-Commit `ece0676d1cf2e06ae01ff9dbe188857e7dfbb608` in `master` übernommen. Der automatische Produktionslauf und ein eigener öffentlicher Check bestätigten genau diesen Web-Commit. Der getrennte Workflow `Publish Marketplace Worker Image` baute und veröffentlichte das Worker-Image mit derselben vollständigen SHA. Nach ausdrücklicher Freigabe läuft genau eine Browserdienst-Instanz mit diesem Image. Das vorherige Image `sha-e912b17b3b7a6658f2eafb9af87acf62a783b7d0` und die vorherige Compose-Zuordnung bleiben für einen Rückweg vorhanden.
+
+Die Datenbank meldete vor und nach dem Wechsel null aktive und null ungeklärte Browsersitzungen. Der neue Container ist gesund; öffentlich antwortet `/marketplace-browser/healthz` mit HTTP 200, `apiVersion: 2` und `readOnly: false`. Ein Sitzungsstart ohne Benutzeranmeldung erhält HTTP 401. Weder Vinted-Zugangsdaten noch SMS-Code wurden dabei gelesen oder gesendet. Der echte Codeversand und eine bestätigte Kontoverbindung erfordern einen neuen Versuch des Nutzers mit einem eigenen Konto.
+
 ## 28. September 2026 – Vinted-Codeformular nach eigenem Liveversuch untersucht
 
 Bei einem vom Nutzer gestarteten Versuch blieb die Anmeldung zunächst auf dem Formular; beim erneuten Versuch erschien eine SMS-Bestätigung. Der bisherige Worker meldete für den eingegebenen Code `form_unavailable`. Eine ausdrücklich lesende Prüfung der noch offenen Sitzung ergab: Vinted stand auf `/member/login/2fa`, hatte drei Formulare und genau ein sichtbares Codefeld mit einem eindeutigen Submit-Button im selben Formular. Dessen Beschriftung passte nicht zur festen Namensliste des Workers. Es wurden keine Eingabewerte, Zugangsdaten oder Codes gelesen oder versendet.

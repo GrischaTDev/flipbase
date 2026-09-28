@@ -1,5 +1,9 @@
 # Vinted-Oberfläche: geprüfter Stand vom 26. September 2026
 
+## Nachtrag 28.09.2026: Codekorrektur veröffentlicht
+
+PR #233 wurde nach grünen Pflichtprüfungen gemergt. Die öffentliche Web-App liefert Commit `ece0676d`; der separat freigegebene Browserdienst verwendet das veröffentlichte Worker-Image desselben Commits. Nach dem Wechsel sind Container und öffentlicher Gesundheitscheck grün, die Worker-API meldet `apiVersion: 2` und `readOnly: false`, und ein Sitzungsstart ohne Anmeldung wird mit HTTP 401 abgewiesen. Vor und nach der Umstellung gab es keine aktive oder ungeklärte Browsersitzung. Die reale SMS-Eingabe und Kontobestätigung wurden durch diese Betriebsprüfung nicht ausgelöst und bleiben ein eigener Nutzer-Test.
+
 ## Nachtrag 28.09.2026: Codeformular und Passwortfeld nach Liveversuch
 
 Der produktive Vinted-Codebildschirm wurde nur anhand seiner Struktur geprüft: drei Formulare, ein sichtbares Codefeld und ein Submit-Button im selben Formular. Der Buttonname wich von der bisherigen festen Erkennung ab. Weder der SMS-Code noch Zugangsdaten oder Feldwerte wurden gelesen oder erneut gesendet. Der lokale Worker-Code wählt den zugehörigen eindeutigen Submit-Button; eine eigene abgefangene Chromium-Testseite bildet diese Formularstruktur nach. Ein zweiter Test verweigert den Versand, wenn nur ein fremdes Formular einen Submit-Button besitzt.

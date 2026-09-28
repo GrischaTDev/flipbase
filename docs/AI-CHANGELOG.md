@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-28 – Juna – Vinted-Codekorrektur veröffentlicht und Browserdienst aktiviert
+
+**Auftrag:** Den geprüften Fix für die Vinted-Codebestätigung nach Freigabe über PR #233 mergen und den passenden Browserdienst nach gesonderter Freigabe aktivieren.
+
+**Änderung:** Alle Pflichtprüfungen des PRs bestanden. Der Merge-Commit `ece0676d` wurde als Web-App öffentlich ausgeliefert. Der manuelle Workflow veröffentlichte das Worker-Image mit demselben Commit. Auf dem Flipbase-Server wurde nach Prüfung der Sitzungen nur die einzelne Worker-Instanz auf dieses Image umgestellt. Die vorherige Image-Zuordnung und das vorherige Image bleiben für einen Rückweg erhalten.
+
+**Prüfung und Grenze:** Die öffentliche Web-App liefert exakt `ece0676d`; der Worker-Container ist gesund und meldet `apiVersion: 2`, `readOnly: false`. Ein Sitzungsstart ohne Anmeldung antwortet mit HTTP 401. Vor und nach dem Wechsel waren keine aktiven oder ungeklärten Browsersitzungen vorhanden. Zugangsdaten, Codes, Konten und GoLogin-Profile wurden nicht verändert. Ein erfolgreicher echter Codeversand und die bestätigte Vinted-Identität bleiben bis zu einem neuen, vom Nutzer gestarteten Versuch offen.
+
 ## 2026-09-28 – Juna – Vinted-Codeformular und Anmeldedialog nach Liveversuch korrigiert
 
 **Auftrag:** Den gemeldeten Wartezustand, die fehlgeschlagene SMS-Codeeingabe und die falsche Passwortvorbelegung im Vinted-Dialog untersuchen.
