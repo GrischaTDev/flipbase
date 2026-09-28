@@ -10,7 +10,7 @@ import {
   VintedVerificationRequiredError,
   type VintedAccountIdentity,
 } from './vinted-browser-reader.ts';
-import { GoLoginApiLimitError } from './gologin-api-limit.ts';
+import { GoLoginApiLimitError, GoLoginProfileLimitError } from './gologin-api-limit.ts';
 
 interface BrowserBroker {
   open(scope: BrowserSessionScope): Promise<string>;
@@ -182,7 +182,7 @@ export class MarketplaceBrowserHttpApi {
     try {
       const path = new URL(request.url ?? '/', 'http://localhost').pathname;
       if (request.method === 'GET' && path === '/marketplace-browser/healthz') {
-        json(response, 200, { ok: true, readOnly: this.readOnly });
+        json(response, 200, { ok: true, readOnly: this.readOnly, apiVersion: 2 });
         return;
       }
       if (request.method !== 'POST') throw new RequestError(404);
@@ -377,6 +377,10 @@ export class MarketplaceBrowserHttpApi {
           code: 'gologin_api_limit_reached',
           error: 'GoLogin-API-Limit erreicht',
         });
+        return;
+      }
+      if (error instanceof GoLoginProfileLimitError) {
+        json(response, 503, { code: 'gologin_profile_limit_reached' });
         return;
       }
       const status =

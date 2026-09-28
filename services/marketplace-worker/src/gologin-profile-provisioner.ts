@@ -1,5 +1,9 @@
 import type { BrowserSessionScope } from './marketplace-browser-session-broker.ts';
-import { assertGoLoginApiAvailable, GoLoginApiLimitError } from './gologin-api-limit.ts';
+import {
+  assertGoLoginApiAvailable,
+  GoLoginApiLimitError,
+  GoLoginProfileLimitError,
+} from './gologin-api-limit.ts';
 import { GoLoginProfileNetwork } from './gologin-profile-network.ts';
 
 interface GoLoginProfileProvisionerOptions {
@@ -197,7 +201,8 @@ export class GoLoginProfileProvisioner {
       }
       if (stored === profileId) return;
       await this.deleteProfile(profileId).catch(() => undefined);
-      if (error instanceof GoLoginApiLimitError) throw error;
+      if (error instanceof GoLoginApiLimitError || error instanceof GoLoginProfileLimitError)
+        throw error;
       // Unbekannte Anbieterfehler können Token enthalten und bleiben privat.
       // eslint-disable-next-line preserve-caught-error
       throw new Error('Browserprofil konnte nicht zugeordnet werden');

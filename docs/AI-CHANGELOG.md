@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-28 – Juna – Vinted-Livefehler bei Kontostart und Löschung untersucht
+
+**Auftrag:** Die gemeldete fehlgeschlagene Kontolöschung, den zu frühen Tabelleneintrag und den unmittelbaren Sitzungsfehler prüfen und beheben.
+
+**Befund und Änderung:** Die Web-App läuft auf PR #230, der produktive Worker noch auf einem älteren Image ohne Lösch- und Codepfad. GoLogin verweigert ein neues Browserprofil bei zehn vorhandenen Profilen mit HTTP 403 wegen erreichter Profilzahl; der betroffene Eintrag erhielt daher weder Profil noch Sitzung. Die Kontoanlage wird lokal erst durch den Anmeldeklick ausgelöst; ausstehende Einträge stehen getrennt von bestätigten Konten. Ein fester Fehlercode erklärt die GoLogin-Profilgrenze, ohne Anbietertext oder Geheimnisse weiterzugeben. Ein neuer Versionscheck sperrt Anmeldung und Löschung bei einem älteren Worker mit eindeutiger Meldung.
+
+**Prüfung und Grenze:** 86 Worker-Tests, 102 Angular-Tests, elf Desktop-/Mobilabläufe sowie beide Typprüfungen und Builds, gezieltes ESLint und Shared-UI-Prüfung bestanden. Anbieterprofile, Konten und produktiver Worker wurden nicht verändert. Für einen erneuten Liveversuch werden der geprüfte Worker-Rollout und ein verfügbarer GoLogin-Profilplatz benötigt; ein erfolgreicher Vinted-Login bleibt unbestätigt.
+
 ## 2026-09-28 – Juna – Vinted-Codeeingabe und Kontodialog für PR freigegeben
 
 **Auftrag:** Nach ausdrücklicher Freigabe den geprüften Branch für die Vinted-SMS-Bestätigung, den gestuften Kontodialog und das sichere Löschen über einen PR veröffentlichen und nach erfolgreichen Pflichtprüfungen mergen.

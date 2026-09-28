@@ -6,6 +6,7 @@ import {
   effect,
   inject,
   input,
+  output,
   signal,
 } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -14,6 +15,7 @@ import { CardComponent } from '../../../../shared/components/card/card.component
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { MarketplaceBrowserTestStore } from '../../services/marketplace-browser-test.store';
+import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 
 @Component({
   selector: 'app-marketplace-browser-test',
@@ -32,8 +34,19 @@ import { MarketplaceBrowserTestStore } from '../../services/marketplace-browser-
 export class MarketplaceBrowserTestComponent {
   private credentialsConnectionId: string | undefined;
   readonly store = inject(MarketplaceBrowserTestStore);
+  readonly accounts = inject(MarketplaceAccountStore);
   readonly compact = input(false);
+  readonly pendingAccountName = input<string | null>(null);
+  readonly connectionCreated = output<string>();
   readonly submitting = signal(false);
+  readonly canSubmitLogin = computed(() =>
+    this.pendingAccountName()
+      ? this.store.available() &&
+        !this.store.readOnly() &&
+        this.accounts.canManage() &&
+        !this.submitting()
+      : this.store.canLogin(),
+  );
   readonly showProgress = computed(
     () => this.submitting() || (this.store.awaitingLogin() && !this.store.awaitingVerification()),
   );
@@ -73,11 +86,18 @@ export class MarketplaceBrowserTestComponent {
   }
 
   async login(): Promise<void> {
-    if (this.loginForm.invalid || !this.store.canLogin()) return;
+    if (this.loginForm.invalid || !this.canSubmitLogin()) return;
     const credentials = this.loginForm.getRawValue();
-    this.loginForm.reset();
     this.submitting.set(true);
     try {
+      const pendingName = this.pendingAccountName();
+      if (pendingName) {
+        if (!(await this.accounts.createConnection(pendingName))) return;
+        const connectionId = this.accounts.selectedConnection()?.connectionId;
+        if (!connectionId) return;
+        this.connectionCreated.emit(connectionId);
+      }
+      this.loginForm.reset();
       await this.store.login(credentials);
     } finally {
       this.submitting.set(false);

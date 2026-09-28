@@ -3,20 +3,30 @@
   [subtitle]="compact() ? '' : 'Melde Dich mit Deinem Vinted-Konto an.'"
   [variant]="compact() ? 'subtle' : 'surface'"
 >
-  @if (store.connection(); as selectedConnection) {
+  @let selectedConnection = pendingAccountName() ? null : store.connection();
+  @if (selectedConnection || pendingAccountName()) {
     <p class="mb-3 text-sm text-fb-text-secondary">
       Ausgewähltes Konto:
-      <strong class="text-fb-text-primary">{{ selectedConnection.displayName }}</strong>
+      <strong class="text-fb-text-primary">{{
+        selectedConnection?.displayName || pendingAccountName()
+      }}</strong>
     </p>
   }
   @if (!store.availabilityChecked()) {
     <p role="status" class="text-sm text-fb-text-secondary">Anmeldung wird vorbereitet …</p>
   } @else if (!store.available()) {
     <app-notice-banner>
-      Die Vinted-Anmeldung ist derzeit nicht verfügbar: Der Browserdienst ist auf dem Server nicht
-      erreichbar. Bitte versuche es später erneut.
+      @if (store.outdated()) {
+        Der Browserdienst muss aktualisiert werden. Die Vinted-Anmeldung ist bis dahin gesperrt.
+      } @else {
+        Die Vinted-Anmeldung ist derzeit nicht verfügbar: Der Browserdienst ist auf dem Server nicht
+        erreichbar. Bitte versuche es später erneut.
+      }
     </app-notice-banner>
-  } @else if (store.connection(); as connection) {
+  } @else if (selectedConnection || pendingAccountName()) {
+    @if (accounts.mutationError(); as error) {
+      <app-notice-banner class="mt-4" announcement="alert">{{ error }}</app-notice-banner>
+    }
     @if (store.error(); as error) {
       <app-notice-banner class="mt-4" announcement="alert">{{ error }}</app-notice-banner>
     }
@@ -49,7 +59,7 @@
         }
       }
     } @else {
-      @if (connection.status === 'connected' && !store.session()) {
+      @if (selectedConnection?.status === 'connected' && !store.session()) {
         <p role="status" class="mt-4 text-sm font-medium">Dein Vinted-Konto ist verbunden.</p>
         <app-button class="mt-3" link="/marketplaces/vinted/profile"
           >Verbundenes Profil ansehen</app-button
@@ -80,7 +90,7 @@
               type="submit"
               variant="primary"
               [loading]="store.busy()"
-              [disabled]="!store.canLogin() || loginForm.invalid"
+              [disabled]="!canSubmitLogin() || loginForm.invalid"
             >
               Anmelden und Konto verbinden
             </app-button>

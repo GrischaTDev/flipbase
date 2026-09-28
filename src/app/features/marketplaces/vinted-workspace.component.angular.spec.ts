@@ -289,11 +289,6 @@ describe('Vinted-Bereich in Flipbase', () => {
   });
   it('wechselt im Kontodialog direkt zur zugehörigen Anmeldung', async () => {
     api.listConnections.mockResolvedValue({ canManage: true, connections: [] });
-    const created = { ...fixtureConnections[0], displayName: 'Mein Konto', status: 'needs_login' };
-    api.createConnection.mockImplementation(async () => {
-      api.listConnections.mockResolvedValue({ canManage: true, connections: [created] });
-      return created;
-    });
     const { element, harness } = await render('/settings/marketplaces');
     const button = [...element.querySelectorAll<HTMLButtonElement>('button')].find((node) =>
       node.textContent?.includes('Account hinzufügen'),
@@ -311,10 +306,7 @@ describe('Vinted-Bereich in Flipbase', () => {
       ?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     await harness.fixture.whenStable();
     harness.detectChanges();
-    expect(api.createConnection).toHaveBeenCalledWith(
-      fixtureConnections[0].workspaceId,
-      'Mein Konto',
-    );
+    expect(api.createConnection).not.toHaveBeenCalled();
     expect(harness.routeNativeElement?.textContent).toContain('Mein Konto');
     expect(
       harness.routeNativeElement?.querySelector('app-marketplace-browser-test'),

@@ -6,7 +6,7 @@ import {
   SupabaseBrowserUserVerifier,
 } from '../src/marketplace-browser-http-api.ts';
 import type { BrowserInfo } from '../src/gologin-cloud-browser.ts';
-import { GoLoginApiLimitError } from '../src/gologin-api-limit.ts';
+import { GoLoginApiLimitError, GoLoginProfileLimitError } from '../src/gologin-api-limit.ts';
 import {
   VintedLoginPendingError,
   VintedLoginRejectedError,
@@ -135,7 +135,7 @@ test('reports availability at the same path used by the Angular test page', asyn
   try {
     const response = await fetch(`${api.url}/marketplace-browser/healthz`);
     assert.equal(response.status, 200);
-    assert.deepEqual(await response.json(), { ok: true, readOnly: false });
+    assert.deepEqual(await response.json(), { ok: true, readOnly: false, apiVersion: 2 });
   } finally {
     await api.close();
   }
@@ -187,11 +187,27 @@ test('returns only a fixed code when the provider API limit is reached', async (
   }
 });
 
+test('returns only a fixed code when the GoLogin profile quota is full', async () => {
+  const api = await setup(undefined, undefined, false, undefined, async () => {
+    throw new GoLoginProfileLimitError();
+  });
+  try {
+    const response = await api.request('/marketplace-browser/sessions', {
+      workspaceId: workspaceA,
+      connectionId: accountA,
+    });
+    assert.equal(response.status, 503);
+    assert.deepEqual(await response.json(), { code: 'gologin_profile_limit_reached' });
+  } finally {
+    await api.close();
+  }
+});
+
 test('read-only mode refuses all browser input before accessing the session', async () => {
   const api = await setup(undefined, undefined, true);
   try {
     const response = await fetch(`${api.url}/marketplace-browser/healthz`);
-    assert.deepEqual(await response.json(), { ok: true, readOnly: true });
+    assert.deepEqual(await response.json(), { ok: true, readOnly: true, apiVersion: 2 });
     const scope = { workspaceId: workspaceA, connectionId: accountA };
     await api.request('/marketplace-browser/sessions', scope);
     const input = await api.request(`/marketplace-browser/sessions/${sessionId}/input`, {

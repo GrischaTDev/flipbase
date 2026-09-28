@@ -13,6 +13,7 @@ import { MarketplaceApiError, MarketplaceApiService } from './marketplace-api.se
 import {
   MarketplaceBrowserTestApiService,
   MarketplaceConnectionRemovalError,
+  MarketplaceWorkerOutdatedError,
 } from './marketplace-browser-test-api.service';
 
 const snapshotPages = {
@@ -24,7 +25,8 @@ const snapshotPages = {
 function errorMessage(error: unknown): string {
   return error instanceof MarketplaceApiError ||
     error instanceof MarketplaceResponseError ||
-    error instanceof MarketplaceConnectionRemovalError
+    error instanceof MarketplaceConnectionRemovalError ||
+    error instanceof MarketplaceWorkerOutdatedError
     ? error.message
     : 'Die Kontodaten konnten nicht geladen werden. Bitte versuche es erneut.';
 }

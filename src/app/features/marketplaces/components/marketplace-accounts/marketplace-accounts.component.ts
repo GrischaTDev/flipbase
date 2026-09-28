@@ -90,6 +90,12 @@ export class MarketplaceAccountsComponent {
   readonly submitted = signal(false);
   readonly labels = MARKETPLACE_CONNECTION_LABELS;
   readonly tones = MARKETPLACE_CONNECTION_TONES;
+  readonly connectedAccounts = computed(() =>
+    this.store.connections().filter((account) => account.externalAccountId !== null),
+  );
+  readonly pendingAccounts = computed(() =>
+    this.store.connections().filter((account) => account.externalAccountId === null),
+  );
   readonly addIcon = LucidePlus;
   readonly loginIcon = LucideLogIn;
   readonly editIcon = LucidePencil;
@@ -167,15 +173,20 @@ export class MarketplaceAccountsComponent {
       this.store.busy()
     )
       return;
-    const saved =
-      dialog.mode === 'rename' && dialog.connectionId
-        ? await this.store.renameConnection(dialog.connectionId, this.name.value)
-        : await this.store.createConnection(this.name.value);
-    if (saved && this.dialogState() === dialog) {
-      const connectionId = this.store.selectedConnection()?.connectionId;
-      if (dialog.mode === 'create' && connectionId)
-        this.dialogState.set({ ...dialog, connectionId, mode: 'login' });
-      else this.closeDialog();
+    if (dialog.mode === 'create') {
+      this.dialogState.set({ ...dialog, mode: 'login' });
+      return;
     }
+    if (
+      dialog.connectionId &&
+      (await this.store.renameConnection(dialog.connectionId, this.name.value))
+    )
+      this.closeDialog();
+  }
+
+  connectionCreated(connectionId: string): void {
+    const dialog = this.dialog();
+    if (dialog?.mode === 'login' && dialog.newAccount && !dialog.connectionId)
+      this.dialogState.set({ ...dialog, connectionId });
   }
 }
