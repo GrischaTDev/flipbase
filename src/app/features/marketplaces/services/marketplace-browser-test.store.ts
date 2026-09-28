@@ -328,7 +328,7 @@ export class MarketplaceBrowserTestStore {
         this.errorState.set({
           key: active.key,
           message:
-            'Das Codefeld ist bei Vinted nicht verfügbar. Prüfe, ob Dein Code noch gültig ist.',
+            'Das Vinted-Codeformular konnte nicht sicher bedient werden. Dein Code wurde nicht gesendet. Prüfe die offene Anmeldung oder beende sie und starte neu.',
         });
         return;
       }
@@ -392,6 +392,11 @@ export class MarketplaceBrowserTestStore {
       if (this.isCurrent(active.key, revision) && error instanceof VintedLoginPendingError) {
         if (allowPending) {
           this.loginPagePendingKey.set(active.key);
+          this.progressState.set({
+            key: active.key,
+            message:
+              'Vinted zeigt noch das Anmeldeformular. Falls eine SMS-Bestätigung erscheint, kannst Du den Code gleich hier eingeben. Du kannst den Versuch jederzeit beenden.',
+          });
           return;
         }
         this.loginKey.set(null);

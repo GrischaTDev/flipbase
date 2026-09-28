@@ -487,10 +487,19 @@ for (const width of [1440, 390]) {
     await expect(page.getByRole('dialog')).toContainText('Anmeldung');
     expect(calls.filter((call) => call.name === 'marketplace_create_connection')).toHaveLength(0);
     await expect(page.locator('app-data-table').getByText('Mein Testkonto')).toHaveCount(0);
+    const loginForm = page.locator('app-marketplace-browser-test form').first();
+    const passwordInput = page.getByLabel('Vinted-Passwort');
+    await expect(loginForm).toHaveAttribute('autocomplete', 'off');
+    await expect(passwordInput).toHaveAttribute('autocomplete', 'new-password');
+    await expect(passwordInput).toHaveValue('');
     await page
       .getByRole('textbox', { name: 'Vinted-Mitgliedsname oder E-Mail', exact: true })
       .fill('synthetic-user');
-    await page.getByLabel('Vinted-Passwort').fill('synthetic-password');
+    await passwordInput.fill('synthetic-password');
+    await page.getByRole('button', { name: 'Passwort anzeigen' }).click();
+    await expect(passwordInput).toHaveAttribute('type', 'text');
+    await page.getByRole('button', { name: 'Passwort verbergen' }).click();
+    await expect(passwordInput).toHaveAttribute('type', 'password');
     await evidence(page, `vinted-login-form-${width}`);
     await page.addScriptTag({ content: axe.source });
     const violations = await page.evaluate(

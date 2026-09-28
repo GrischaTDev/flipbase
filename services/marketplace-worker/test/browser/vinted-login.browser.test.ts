@@ -232,3 +232,66 @@ test('erkennt und sendet einen SMS-Code nur auf der abgefangenen eigenen Testsei
     await browser.close();
   }
 });
+
+test('sendet einen vierstelligen Code über das zugehörige Formular ohne Buttonnamen-Annahme', async () => {
+  const browser = await chromium.launch({ headless: true });
+  const fixture = await readFile(
+    new URL('../fixtures/vinted-verification-multiple-forms.html', import.meta.url),
+    'utf8',
+  );
+  try {
+    const page = await browser.newPage();
+    const sent: string[] = [];
+    await page.route('**/*', (route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+      if (url.origin !== 'https://www.vinted.de') return route.abort();
+      if (url.pathname === '/member/login/2fa')
+        return route.fulfill({ contentType: 'text/html', body: fixture });
+      if (url.pathname === '/synthetic-session') {
+        sent.push(request.postData() ?? '');
+        return route.fulfill({ contentType: 'text/html', body: '<h1>Künstlich bestätigt</h1>' });
+      }
+      return route.abort();
+    });
+    await page.goto('https://www.vinted.de/member/login/2fa');
+    assert.equal(
+      await submitVintedVerificationCode(page, '1234', async () => undefined),
+      'submitted',
+    );
+    await page.waitForURL('https://www.vinted.de/synthetic-session');
+    assert.deepEqual(sent, ['code=1234']);
+  } finally {
+    await browser.close();
+  }
+});
+
+test('nutzt keinen Submit-Button aus einem fremden Formular', async () => {
+  const browser = await chromium.launch({ headless: true });
+  const fixture = await readFile(
+    new URL('../fixtures/vinted-verification-multiple-forms.html', import.meta.url),
+    'utf8',
+  );
+  try {
+    const page = await browser.newPage();
+    let submissions = 0;
+    await page.route('**/*', (route) => {
+      const path = new URL(route.request().url()).pathname;
+      if (path === '/member/login/2fa')
+        return route.fulfill({
+          contentType: 'text/html',
+          body: fixture.replace('<button type="submit">Anmelden</button>', ''),
+        });
+      submissions++;
+      return route.abort();
+    });
+    await page.goto('https://www.vinted.de/member/login/2fa');
+    assert.equal(
+      await submitVintedVerificationCode(page, '1234', async () => undefined),
+      'form_unavailable',
+    );
+    assert.equal(submissions, 0);
+  } finally {
+    await browser.close();
+  }
+});

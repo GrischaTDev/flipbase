@@ -21,11 +21,16 @@ export async function submitVintedVerificationCode(
   try {
     await authorize();
     if (!isVerificationPage()) return 'form_unavailable';
-    const candidates = page.locator(
-      'input[autocomplete="one-time-code"], input[name*="code" i], input[inputmode="numeric"]',
-    );
+    const codeSelector =
+      'input[autocomplete="one-time-code"], input[name*="code" i], input[inputmode="numeric"]';
+    const candidates = page.locator(codeSelector);
     const count = await candidates.count();
     if (count !== 1 && count !== code.length) return 'form_unavailable';
+    const form = candidates.first().locator('xpath=ancestor::form[1]');
+    if ((await form.count()) !== 1 || (await form.locator(codeSelector).count()) !== count)
+      return 'form_unavailable';
+    const submit = form.locator('button[type="submit"], input[type="submit"]');
+    if ((await submit.count()) !== 1 || !(await submit.isVisible())) return 'form_unavailable';
     for (let index = 0; index < count; index++) {
       const input = candidates.nth(index);
       if (!(await input.isVisible())) return 'form_unavailable';
@@ -33,8 +38,7 @@ export async function submitVintedVerificationCode(
       if (!isVerificationPage()) return 'form_unavailable';
       await input.fill(count === 1 ? code : code[index]!, { timeout: 5_000 });
     }
-    const submit = page.getByRole('button', { name: /^(bestätigen|weiter|code bestätigen)$/i });
-    if ((await submit.count()) !== 1 || !(await submit.isVisible())) return 'form_unavailable';
+    if (!(await submit.isEnabled())) return 'form_unavailable';
     await authorize();
     if (!isVerificationPage()) return 'form_unavailable';
     submissionStarted = true;

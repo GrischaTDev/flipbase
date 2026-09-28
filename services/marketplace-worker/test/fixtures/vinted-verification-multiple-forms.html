@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <title>Eigene mehrteilige Code-Testseite</title>
+  </head>
+  <body>
+    <form action="/synthetic-search" method="get">
+      <input name="search_text" autocomplete="off" />
+      <button type="button">Suche öffnen</button>
+    </form>
+    <main>
+      <form action="/synthetic-session" method="post">
+        <input name="code" type="text" autocomplete="off" inputmode="numeric" />
+        <label><input name="isTrustedDevice" type="checkbox" /> Gerät merken</label>
+        <button type="submit">Anmelden</button>
+      </form>
+    </main>
+    <form action="/synthetic-other" method="post">
+      <button type="submit">Andere Aktion</button>
+    </form>
+  </body>
+</html>

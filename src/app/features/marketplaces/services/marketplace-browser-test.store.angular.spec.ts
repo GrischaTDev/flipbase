@@ -101,6 +101,16 @@ describe('Kontogebundener Browser-Testbereich', () => {
     );
     expect(store.awaitingVerification()).toBe(false);
   });
+  it('behauptet bei fehlendem Codeformular nicht, der SMS-Code sei abgelaufen', async () => {
+    api.identify.mockRejectedValueOnce(new VintedVerificationRequiredError());
+    api.verify.mockResolvedValueOnce('form_unavailable');
+    await store.login({ username: 'synthetic', password: 'synthetic' });
+    await store.checkLogin();
+    await store.verifyCode('1234');
+    expect(store.error()).toContain('Codeformular');
+    expect(store.error()).not.toContain('gültig');
+    expect(store.awaitingVerification()).toBe(true);
+  });
   it('schickt nach einem Kontowechsel keinen Code an die alte Sitzung', async () => {
     api.identify.mockRejectedValueOnce(new VintedVerificationRequiredError());
     await store.login({ username: 'synthetic', password: 'synthetic' });
@@ -314,6 +324,7 @@ it('erklärt beim Zeitlimit ein weiterhin sichtbares Vinted-Anmeldeformular', as
   await store.login({ username: 'synthetic', password: 'synthetic' });
   await store.checkLogin();
   expect(store.awaitingLogin()).toBe(true);
+  expect(store.progress()).toContain('Vinted zeigt noch das Anmeldeformular');
   expect(store.error()).toBeNull();
   const clock = vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 61_000);
   try {
