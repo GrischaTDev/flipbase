@@ -156,6 +156,10 @@ export function parseVintedAccountImport(
     const money = price(item?.['price']);
     const photos = Array.isArray(item?.['photos']) ? item['photos'] : [];
     const firstPhoto = record(photos[0]);
+    const imageUrls = photos
+      .slice(0, 20)
+      .map((photo) => image(record(photo)?.['url']))
+      .filter((url): url is string => url !== null);
     entries.push({
       kind: 'publication',
       externalId: id,
@@ -167,6 +171,7 @@ export function parseVintedAccountImport(
         currency: money.currency,
         status: string(item?.['status']),
         imageUrl: image(firstPhoto?.['url']),
+        imageUrls,
         promoted: typeof item?.['promoted'] === 'boolean' ? item['promoted'] : null,
         isClosed: typeof item?.['is_closed'] === 'boolean' ? item['is_closed'] : null,
         isReserved: typeof item?.['is_reserved'] === 'boolean' ? item['is_reserved'] : null,

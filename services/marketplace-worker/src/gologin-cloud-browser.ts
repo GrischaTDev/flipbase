@@ -10,6 +10,13 @@ import {
   submitVintedVerificationCode,
   type VintedVerificationResult,
 } from './vinted-browser-verification.ts';
+import {
+  readVintedListingEdit,
+  updateVintedListing,
+  type VintedListingEditFields,
+  type VintedEditResult,
+} from './vinted-browser-listing-edit.ts';
+import { readVintedProfileAbout, updateVintedProfileAbout } from './vinted-browser-profile-edit.ts';
 
 type BrowserConnection = Pick<Browser, 'close' | 'version'> & Partial<Pick<Browser, 'contexts'>>;
 export interface BrowserInfo extends Pick<Browser, 'version'> {
@@ -24,6 +31,19 @@ export interface BrowserInfo extends Pick<Browser, 'version'> {
     authorize: () => Promise<void>,
   ): Promise<VintedLoginResult>;
   verify?(code: string, authorize: () => Promise<void>): Promise<VintedVerificationResult>;
+  readListingEdit?(itemId: string, accountId: string): Promise<VintedListingEditFields>;
+  updateListing?(
+    itemId: string,
+    accountId: string,
+    fields: VintedListingEditFields,
+    authorize: () => Promise<void>,
+  ): Promise<VintedEditResult>;
+  readProfileAbout?(accountId: string): Promise<string>;
+  updateProfileAbout?(
+    accountId: string,
+    about: string,
+    authorize: () => Promise<void>,
+  ): Promise<VintedEditResult>;
 }
 
 export interface CloudBrowserHandle {
@@ -112,6 +132,13 @@ export class GoLoginCloudBrowser {
       importAccount: (authorize) => readVintedAccountImport(currentPage(), authorize),
       login: (credentials, authorize) => submitVintedLogin(currentPage(), credentials, authorize),
       verify: (code, authorize) => submitVintedVerificationCode(currentPage(), code, authorize),
+      readListingEdit: (itemId, accountId) =>
+        readVintedListingEdit(currentPage(), itemId, accountId),
+      updateListing: (itemId, accountId, fields, authorize) =>
+        updateVintedListing(currentPage(), itemId, accountId, fields, authorize),
+      readProfileAbout: (accountId) => readVintedProfileAbout(currentPage(), accountId),
+      updateProfileAbout: (accountId, about, authorize) =>
+        updateVintedProfileAbout(currentPage(), accountId, about, authorize),
     };
     const handle: CloudBrowserHandle = {
       run: (operation) => operation(browserInfo),

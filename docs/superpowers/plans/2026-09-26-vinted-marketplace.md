@@ -695,3 +695,23 @@ Schreiben bleibt zu klären. Deshalb ist noch kein Hintergrundtakt aktiv.
    unklarem Ergebnis vor einem erneuten Senden den Anbieterstand lesen, um
    doppelte Inserate oder Nachrichten zu vermeiden. Verfügbare Felder und
    Berechtigung sind für jede Aktion erst nachzuweisen.
+
+**Teilstand 28.09.2026:** Die eigene Inserat-Bearbeitungsseite und die
+Profilseite wurden im zugeordneten Browserprofil nur lesend geprüft. Für
+vorhandene Inserate sind Titel, Beschreibung und Preis sowie „Speichern“
+sichtbar; im Profil sind „Über mich“ und „Profil aktualisieren“ vorhanden.
+Eine Flipbase-Detailseite und eng begrenzte, kontogebundene Lese- und
+Speicherwege für diese Felder sind implementiert. Eine Änderung gilt erst
+nach erneutem Laden des Anbieterformulars als bestätigt. Ein echter
+Schreibversuch wurde noch nicht ausgeführt. Bilder, Kategorie, Zustand,
+Versand, Anzeigename und Benutzername werden nicht verändert.
+
+- [x] Detailroute für eigene Inserate mit Workspace- und Kontobindung.
+- [x] Editor für Titel, Beschreibung und Preis sowie Profiltext im bestehenden
+      GoLogin-Profil technisch vorbereiten; bei unklarem Ergebnis nicht erneut
+      senden.
+- [ ] Mit einer ausdrücklich ausgewählten eigenen Testanzeige und einem
+      eigenen Profiltext je einen kontrollierten Schreibversuch abnehmen.
+- [ ] Neues Inserat mit Foto-Upload, Kategorie, Zustand, Versand und
+      bestätigter Veröffentlichung als eigenes Arbeitspaket umsetzen.
+- [ ] Nachrichtenversand und automatische Abrufe getrennt weiterführen.

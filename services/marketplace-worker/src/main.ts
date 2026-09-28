@@ -14,6 +14,7 @@ import { MarketplaceBrowserSessionBroker } from './marketplace-browser-session-b
 import { SupabaseBrowserSessionStore } from './supabase-browser-session-store.ts';
 import { SupabaseVintedAccountWriter } from './supabase-vinted-account-writer.ts';
 import { SupabaseVintedImportWriter } from './supabase-vinted-import-writer.ts';
+import { VintedEditAccess } from './vinted-edit-access.ts';
 
 async function main(): Promise<void> {
   const config = marketplaceBrowserServerConfig(process.env);
@@ -68,6 +69,13 @@ async function main(): Promise<void> {
             url: config.supabaseUrl,
             publishableKey: config.publishableKey,
             serviceRoleKey: config.serviceRoleKey,
+          })
+        : undefined,
+    edits:
+      config.provider === 'gologin'
+        ? new VintedEditAccess({
+            url: config.supabaseUrl,
+            publishableKey: config.publishableKey,
           })
         : undefined,
     readOnly: config.provider === 'local',

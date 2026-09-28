@@ -16,6 +16,8 @@ import {
   type VintedAccountIdentity,
 } from './vinted-browser-reader.ts';
 import { GoLoginApiLimitError, GoLoginProfileLimitError } from './gologin-api-limit.ts';
+import type { VintedEditAccess } from './vinted-edit-access.ts';
+import type { VintedListingEditFields } from './vinted-browser-listing-edit.ts';
 
 interface BrowserBroker {
   open(scope: BrowserSessionScope): Promise<string>;
@@ -53,13 +55,14 @@ interface BrowserApiOptions {
       snapshot: VintedAccountImport,
     ): Promise<Record<'profile' | 'publication' | 'conversation' | 'message' | 'sale', number>>;
   };
+  edits?: VintedEditAccess;
   readOnly?: boolean;
 }
 
 const pathPrefix = '/marketplace-browser/sessions';
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const frameLimit = 512 * 1024;
-const bodyLimit = 4 * 1024;
+const bodyLimit = 16 * 1024;
 const responseHeaders = {
   'Cache-Control': 'no-store',
   'X-Content-Type-Options': 'nosniff',
@@ -180,6 +183,7 @@ export class MarketplaceBrowserHttpApi {
   private readonly profiles?: BrowserApiOptions['profiles'];
   private readonly accounts?: BrowserApiOptions['accounts'];
   private readonly imports?: BrowserApiOptions['imports'];
+  private readonly edits?: VintedEditAccess;
   private readonly readOnly: boolean;
   private readonly inFlight = new Set<string>();
 
@@ -189,6 +193,7 @@ export class MarketplaceBrowserHttpApi {
     this.profiles = options.profiles;
     this.accounts = options.accounts;
     this.imports = options.imports;
+    this.edits = options.edits;
     this.readOnly = options.readOnly ?? false;
   }
 
@@ -220,6 +225,123 @@ export class MarketplaceBrowserHttpApi {
       if (!uuidPattern.test(userId)) throw new RequestError(401);
       const body = await readBody(request);
       const scope = scopeOf(body, userId, token);
+      if (
+        path === '/marketplace-browser/profile/edit/read' ||
+        path === '/marketplace-browser/profile/edit/save'
+      ) {
+        if (this.readOnly) throw new RequestError(403);
+        if (!this.edits) throw new RequestError(503);
+        const about = body['about'];
+        if (path.endsWith('/save') && (typeof about !== 'string' || about.length > 2000))
+          throw new RequestError(400);
+        const key = `${scope.workspaceId}:${scope.connectionId}:edit`;
+        if (this.inFlight.has(key)) throw new RequestError(429);
+        this.inFlight.add(key);
+        let sessionId: string | undefined;
+        try {
+          const entry = await this.edits.entry(scope, 'profile');
+          sessionId = await this.broker.open(scope);
+          const currentSessionId = sessionId;
+          const result = await this.broker.run(scope, currentSessionId, async (browser) => {
+            if (typeof about === 'string') {
+              if (!browser.updateProfileAbout) throw new RequestError(503);
+              return {
+                status: await browser.updateProfileAbout(entry.accountId, about, async () => {
+                  const current = await this.edits!.entry(scope, 'profile');
+                  if (current.accountId !== entry.accountId)
+                    throw new Error('Kontozuordnung geändert');
+                  await this.broker.run(scope, currentSessionId, async () => undefined);
+                }),
+              };
+            }
+            if (!browser.readProfileAbout) throw new RequestError(503);
+            return { about: await browser.readProfileAbout(entry.accountId) };
+          });
+          await this.broker.close(scope, currentSessionId);
+          sessionId = undefined;
+          json(response, 200, result);
+        } finally {
+          try {
+            if (sessionId) await this.broker.close(scope, sessionId);
+          } finally {
+            this.inFlight.delete(key);
+          }
+        }
+        return;
+      }
+      if (
+        path === '/marketplace-browser/listings/edit/read' ||
+        path === '/marketplace-browser/listings/edit/save'
+      ) {
+        if (this.readOnly) throw new RequestError(403);
+        if (!this.edits) throw new RequestError(503);
+        const entryId = body['entryId'];
+        if (typeof entryId !== 'string' || !uuidPattern.test(entryId)) throw new RequestError(400);
+        let fields: VintedListingEditFields | undefined;
+        if (path.endsWith('/save')) {
+          const value = body['fields'];
+          if (
+            !isRecord(value) ||
+            Object.keys(value).some((key) => !['title', 'description', 'price'].includes(key)) ||
+            typeof value['title'] !== 'string' ||
+            !value['title'].trim() ||
+            value['title'].length > 120 ||
+            typeof value['description'] !== 'string' ||
+            value['description'].length > 2000 ||
+            typeof value['price'] !== 'string' ||
+            !/^\d{1,6}(?:[,.]\d{1,2})?$/.test(value['price']) ||
+            Number(value['price'].replace(',', '.')) <= 0
+          )
+            throw new RequestError(400);
+          fields = {
+            title: value['title'].trim(),
+            description: value['description'],
+            price: value['price'],
+          };
+        }
+        const key = `${scope.workspaceId}:${scope.connectionId}:edit`;
+        if (this.inFlight.has(key)) throw new RequestError(429);
+        this.inFlight.add(key);
+        let sessionId: string | undefined;
+        try {
+          const entry = await this.edits.entry(scope, 'publication', entryId);
+          sessionId = await this.broker.open(scope);
+          const currentSessionId = sessionId;
+          const result = await this.broker.run(scope, currentSessionId, async (browser) => {
+            if (fields) {
+              if (!browser.updateListing) throw new RequestError(503);
+              return {
+                status: await browser.updateListing(
+                  entry.externalId,
+                  entry.accountId,
+                  fields,
+                  async () => {
+                    const current = await this.edits!.entry(scope, 'publication', entryId);
+                    if (
+                      current.accountId !== entry.accountId ||
+                      current.externalId !== entry.externalId
+                    )
+                      throw new Error('Kontozuordnung geändert');
+                    await this.broker.run(scope, currentSessionId, async () => undefined);
+                  },
+                ),
+              };
+            }
+            if (!browser.readListingEdit) throw new RequestError(503);
+            return { fields: await browser.readListingEdit(entry.externalId, entry.accountId) };
+          });
+          await this.broker.close(scope, currentSessionId);
+          sessionId = undefined;
+          json(response, 200, result);
+        } finally {
+          try {
+            if (sessionId) await this.broker.close(scope, sessionId);
+          } finally {
+            this.inFlight.delete(key);
+          }
+        }
+        return;
+      }
       if (path === '/marketplace-browser/connections/sync') {
         if (this.readOnly) throw new RequestError(403);
         if (!this.imports) throw new RequestError(503);

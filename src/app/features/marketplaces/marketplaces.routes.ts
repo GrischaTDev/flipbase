@@ -24,6 +24,13 @@ export const MARKETPLACES_ROUTES: Routes = [
             (m) => m.MarketplaceSessionTestComponent,
           ),
       },
+      {
+        path: 'listings/:connectionId/:entryId',
+        loadComponent: () =>
+          import('./components/vinted-listing-detail/vinted-listing-detail.component').then(
+            (m) => m.VintedListingDetailComponent,
+          ),
+      },
       ...['overview', 'listings', 'messages', 'sales', 'profile', 'activity'].map((section) => ({
         path: section,
         data: { section },

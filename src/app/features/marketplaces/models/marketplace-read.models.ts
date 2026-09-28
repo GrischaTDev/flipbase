@@ -15,6 +15,7 @@ export interface MarketplaceEntry extends AccountScope {
   readonly currency: string;
   readonly status: string | null;
   readonly imageUrl: string | null;
+  readonly imageUrls?: readonly string[];
   readonly metrics: MarketplaceMetrics;
   readonly conversationId: string | null;
   readonly direction: 'inbound' | 'outbound' | 'unknown';

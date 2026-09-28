@@ -1,5 +1,21 @@
 # Vinted-Oberfläche: geprüfter Stand vom 26. September 2026
 
+## Nachtrag 28.09.2026: Inseratdetail und Editoren
+
+Die Inseratkarten sind als fokussierbare Links auf eine kontogebundene
+Detailroute ausgeführt. Sie zeigt gespeicherte Angaben sofort und lädt die
+Beschreibung bei Bedarf aus dem eigenen Vinted-Bearbeitungsformular. Der
+Inserateditor lädt Titel, Beschreibung und Preis vor dem Ändern neu; der
+Profileditor lädt den aktuellen „Über mich“-Text. Andere Vinted-Felder werden
+nicht angefasst. Bei unklarer Speicherbestätigung bleibt eine Warnung sichtbar.
+
+Die Formulare und Speicherknöpfe wurden nur lesend im bereits verbundenen
+eigenen Anbieterprofil geprüft. Alle Browserstopps waren bestätigt. Ein
+echter Speicherversuch und eine produktive Sichtprüfung stehen aus.
+Lokal bestanden 105 Worker-Tests, 18 Tests der Vinted-Oberfläche sowie
+gezielte Antworttests, Typprüfung, Angular- und Worker-Bau, ESLint und die
+Shared-UI-Prüfung (115 Dateien, 0 Befunde).
+
 ## Nachtrag 28.09.2026: Verkaufsraster, Profil und 502-Rückmeldung
 
 Nach dem Nutzerbericht nutzen Verkäufe und Inserate dasselbe responsive

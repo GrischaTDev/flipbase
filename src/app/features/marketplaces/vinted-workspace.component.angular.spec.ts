@@ -14,6 +14,8 @@ import { parseMarketplaceSnapshot } from './models/marketplace-response';
 import type { AccountScope } from './models/marketplace.models';
 import { VintedWorkspaceComponent } from './vinted-workspace.component';
 import { VintedAccountContentComponent } from './components/vinted-account-content/vinted-account-content.component';
+import { VintedProfileEditorComponent } from './components/vinted-profile-editor/vinted-profile-editor.component';
+import { VintedListingDetailComponent } from './components/vinted-listing-detail/vinted-listing-detail.component';
 import { VintedRatingComponent } from './components/vinted-rating/vinted-rating.component';
 import { MarketplaceAccountsComponent } from './components/marketplace-accounts/marketplace-accounts.component';
 import { MarketplaceConnectComponent } from './components/marketplace-connect/marketplace-connect.component';
@@ -82,6 +84,7 @@ let resetBindings: (() => void) | undefined;
 let api: {
   listConnections: ReturnType<typeof vi.fn>;
   readSnapshot: ReturnType<typeof vi.fn>;
+  readPublication: ReturnType<typeof vi.fn>;
   readPage: ReturnType<typeof vi.fn>;
   createConnection: ReturnType<typeof vi.fn>;
   renameConnection: ReturnType<typeof vi.fn>;
@@ -120,6 +123,14 @@ beforeAll(async () => {
       path: 'src/app/features/marketplaces/components/vinted-account-content/vinted-account-content.component.ts',
     },
     {
+      type: VintedProfileEditorComponent,
+      path: 'src/app/features/marketplaces/components/vinted-profile-editor/vinted-profile-editor.component.ts',
+    },
+    {
+      type: VintedListingDetailComponent,
+      path: 'src/app/features/marketplaces/components/vinted-listing-detail/vinted-listing-detail.component.ts',
+    },
+    {
       type: VintedRatingComponent,
       path: 'src/app/features/marketplaces/components/vinted-rating/vinted-rating.component.ts',
     },
@@ -146,6 +157,9 @@ beforeEach(() => {
       .fn()
       .mockResolvedValue({ canManage: true, connections: fixtureConnections }),
     readSnapshot: vi.fn().mockImplementation(async (scope: AccountScope) => makeSnapshot(scope)),
+    readPublication: vi
+      .fn()
+      .mockImplementation(async (scope: AccountScope) => makeSnapshot(scope).publications.items[0]),
     readPage: vi.fn().mockResolvedValue(emptyPage()),
     createConnection: vi.fn(),
     renameConnection: vi.fn().mockResolvedValue(undefined),
@@ -159,6 +173,7 @@ beforeEach(() => {
           component: VintedWorkspaceComponent,
           children: [
             { path: 'connect/:connectionId', component: MarketplaceConnectComponent },
+            { path: 'listings/:connectionId/:entryId', component: VintedListingDetailComponent },
             ...['overview', 'listings', 'messages', 'sales', 'profile', 'activity'].map(
               (section) => ({
                 path: section,
@@ -191,6 +206,9 @@ beforeEach(() => {
           input: vi.fn(),
           close: vi.fn(),
           syncConnection: browserApi.syncConnection,
+          readListingEdit: vi
+            .fn()
+            .mockResolvedValue({ title: 'Testschal', description: 'Ein Schal', price: '12,50' }),
         },
       },
     ],
@@ -283,6 +301,23 @@ describe('Vinted-Bereich in Flipbase', () => {
     expect(element.textContent).toContain('Testschal');
     expect(element.querySelector('[data-views]')?.textContent?.trim()).toBe('0');
     expect(element.querySelector('[data-favorites]')?.textContent?.trim()).toBe('—');
+  });
+  it('öffnet ein Inserat nur innerhalb des ausgewählten Kontos', async () => {
+    const { element, harness } = await render('/marketplaces/vinted/listings');
+    const link = element.querySelector<HTMLAnchorElement>(
+      'a[aria-label="Inserat Testschal öffnen"]',
+    );
+    expect(link?.getAttribute('href')).toBe(
+      '/marketplaces/vinted/listings/fixture-account-a/publication-1',
+    );
+    link?.click();
+    await harness.fixture.whenStable();
+    harness.detectChanges();
+    expect(api.readPublication).toHaveBeenCalledWith(
+      { workspaceId: 'fixture-workspace', connectionId: 'fixture-account-a' },
+      'publication-1',
+    );
+    expect(element.textContent).toContain('Testschal');
   });
   it('zeigt Verkäufe im dichten Kartenraster ohne den bisherigen Hinweis', async () => {
     api.readSnapshot.mockImplementation(async (scope: AccountScope) => ({
