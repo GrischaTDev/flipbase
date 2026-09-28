@@ -580,6 +580,8 @@ gestoppt (HTTP 204).
       Identität prüfen und bei Erfolg über die vorhandene Server-RPC bestätigen.
 - [x] Bei bereits angemeldetem Profil keine Zugangsdaten an Vinted senden;
       bei offener Codeanforderung keinen neuen Login starten.
+- [x] Im Login-Dialog nur den großen Lade-Kreis zeigen: keinen zusätzlichen
+      Button-Loader und keinen Mauszeiger über der Kreisfläche.
 - [x] Fremde Workspace-/Kontoschlüssel, abgelaufene Sitzungen, fehlerhafte
       Kontobestätigung und unklaren Browserstopp mit gezielten Tests prüfen.
 - [ ] Änderung über PR und gesonderten Worker-Rollout veröffentlichen.

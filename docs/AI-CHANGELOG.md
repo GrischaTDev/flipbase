@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-28 – Juna – Lade-Kreis im Vinted-Anmeldedialog bereinigt
+
+**Auftrag:** Das kurz aufblinkende zeigerartige Element innerhalb der Ladeanzeige beim Anmelden entfernen.
+
+**Änderung:** Der Dialog zeigt beim Anmelden nur seinen großen Kreis. Der zusätzliche Icon-Loader des Anmeldebuttons entfällt; der Mauszeiger wird über dem Kreis während des Ladens verborgen. Die bestehende Sperre gegen mehrfaches Absenden bleibt erhalten.
+
+**Prüfung und Grenze:** Angular-Produktionsbau sowie zwei lokale Anmeldeabläufe bei 390 und 1440 Pixeln mit künstlichen Konten bestanden. Ein Screenshot bei 390 Pixeln zeigt den Kreis ohne Innensymbol. Das kurzzeitige Verhalten auf dem Gerät des Nutzers kann erst nach Veröffentlichung erneut geprüft werden. Kein Push, Merge oder produktiver Rollout in dieser Sitzung.
+
 ## 2026-09-28 – Juna – Bereits angemeldetes Vinted-Profil sicher verbinden
 
 **Auftrag:** Die erneut angezeigte Fehlermeldung beim Verbinden untersuchen und die Verbindung des eigenen Vinted-Kontos zuverlässig fortsetzen.

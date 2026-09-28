@@ -1,5 +1,13 @@
 # Arbeitsstand: Vinted-Marktplatzverwaltung
 
+## 28. September 2026 – Lade-Kreis im Kontodialog vereinfacht
+
+Im vorhandenen Branch `juna/vinted-existing-session` wurde der zusätzliche
+Button-Loader beim Anmelden entfernt. Der große Lade-Kreis bleibt ohne
+Innensymbol; der Mauszeiger wird nur über dieser Kreisfläche verborgen. Der
+Angular-Bau und die beiden lokalen Anmeldeabläufe mit künstlichen Konten bei
+390 und 1440 Pixeln bestanden. Die produktive Ansicht ist noch unverändert.
+
 ## 28. September 2026 – Bereits angemeldetes Profil erkannt
 
 Nach der Meldung „Die Browsersitzung konnte nicht bestätigt werden“ waren die

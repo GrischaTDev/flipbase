@@ -1,5 +1,19 @@
 # Vinted-Oberfläche: geprüfter Stand vom 26. September 2026
 
+## Nachtrag 28.09.2026: Einfache Ladeanzeige beim Anmelden
+
+Der Login-Dialog zeigte nach Nutzerbeobachtung zeitweise ein zeigerartiges
+Element im großen Lade-Kreis. Der Kreis im Template enthält selbst kein Icon.
+Für den Übergang wurde der zusätzliche Loader des Anmeldebuttons entfernt;
+über der Kreisfläche bleibt der Mauszeiger während des Ladens ausgeblendet.
+Die Anmeldung bleibt währenddessen gegen einen zweiten Klick gesperrt.
+
+Der Angular-Produktionsbau und die beiden bestehenden Anmeldeabläufe mit
+künstlichen Konten bei 390 und 1440 Pixeln bestanden. Ein neuer Screenshot
+bei 390 Pixeln zeigt den leeren Ring ohne Innensymbol. Die Prüfung verwendet
+keine echten Vinted-Daten. Das kurzzeitige Verhalten auf dem Gerät des Nutzers
+ist erst nach Veröffentlichung erneut zu prüfen.
+
 ## Nachtrag 28.09.2026: Bereits angemeldetes Kontoprofil
 
 Beim vom Nutzer gestarteten erneuten Versuch funktionierte der Browserstart;
