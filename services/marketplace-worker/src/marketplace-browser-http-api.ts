@@ -1,5 +1,6 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type { BrowserInfo } from './gologin-cloud-browser.ts';
+import type { VintedAccountImport } from './vinted-account-import.ts';
 import {
   MarketplaceBrowserSessionEndedError,
   type BrowserSessionScope,
@@ -40,6 +41,13 @@ interface BrowserApiOptions {
       sessionId: string,
       identity: VintedAccountIdentity,
     ): Promise<void>;
+  };
+  imports?: {
+    write(
+      scope: BrowserSessionScope,
+      sessionId: string,
+      snapshot: VintedAccountImport,
+    ): Promise<Record<'profile' | 'publication' | 'conversation' | 'message' | 'sale', number>>;
   };
   readOnly?: boolean;
 }
@@ -158,6 +166,7 @@ export class MarketplaceBrowserHttpApi {
   private readonly users: BrowserUserVerifier;
   private readonly profiles?: BrowserApiOptions['profiles'];
   private readonly accounts?: BrowserApiOptions['accounts'];
+  private readonly imports?: BrowserApiOptions['imports'];
   private readonly readOnly: boolean;
   private readonly inFlight = new Set<string>();
 
@@ -166,6 +175,7 @@ export class MarketplaceBrowserHttpApi {
     this.users = options.users;
     this.profiles = options.profiles;
     this.accounts = options.accounts;
+    this.imports = options.imports;
     this.readOnly = options.readOnly ?? false;
   }
 
@@ -197,6 +207,41 @@ export class MarketplaceBrowserHttpApi {
       if (!uuidPattern.test(userId)) throw new RequestError(401);
       const body = await readBody(request);
       const scope = scopeOf(body, userId, token);
+      if (path === '/marketplace-browser/connections/sync') {
+        if (this.readOnly) throw new RequestError(403);
+        if (!this.imports) throw new RequestError(503);
+        const key = `${scope.workspaceId}:${scope.connectionId}:sync`;
+        if (this.inFlight.has(key)) throw new RequestError(429);
+        this.inFlight.add(key);
+        let sessionId: string | undefined;
+        try {
+          sessionId = await this.broker.open(scope);
+          const currentSessionId = sessionId;
+          const result = await this.broker.run(scope, currentSessionId, async (browser) => {
+            if (!browser.importAccount) return null;
+            try {
+              return await browser.importAccount(() =>
+                this.broker.run(scope, currentSessionId, async () => undefined),
+              );
+            } catch {
+              return null;
+            }
+          });
+          if (!result) throw new RequestError(502);
+          await this.broker.run(scope, currentSessionId, async () => undefined);
+          const counts = await this.imports.write(scope, currentSessionId, result);
+          await this.broker.close(scope, currentSessionId);
+          sessionId = undefined;
+          json(response, 200, { observedAt: result.observedAt, counts });
+        } finally {
+          try {
+            if (sessionId) await this.broker.close(scope, sessionId);
+          } finally {
+            this.inFlight.delete(key);
+          }
+        }
+        return;
+      }
       if (path === '/marketplace-browser/connections/delete') {
         if (this.readOnly) throw new RequestError(403);
         if (!this.profiles?.remove || !this.broker.reconcile) throw new RequestError(503);
@@ -425,7 +470,9 @@ export class MarketplaceBrowserHttpApi {
                       ? 'Browsersitzung wurde beendet'
                       : status === 403
                         ? 'Eingabe ist gesperrt'
-                        : 'Browsersitzung nicht verfügbar',
+                        : status === 502
+                          ? 'Vinted-Daten konnten nicht gelesen werden'
+                          : 'Browsersitzung nicht verfügbar',
       });
     }
   }

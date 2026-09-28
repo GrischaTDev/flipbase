@@ -81,6 +81,7 @@ let api: {
   renameConnection: ReturnType<typeof vi.fn>;
   setPaused: ReturnType<typeof vi.fn>;
 };
+let browserApi: { syncConnection: ReturnType<typeof vi.fn> };
 
 beforeAll(async () => {
   const shared: [unknown, string][] = [
@@ -129,6 +130,7 @@ beforeAll(async () => {
 afterAll(() => resetBindings?.());
 afterEach(() => TestBed.resetTestingModule());
 beforeEach(() => {
+  browserApi = { syncConnection: vi.fn().mockResolvedValue(undefined) };
   api = {
     listConnections: vi
       .fn()
@@ -178,6 +180,7 @@ beforeEach(() => {
           frame: vi.fn(),
           input: vi.fn(),
           close: vi.fn(),
+          syncConnection: browserApi.syncConnection,
         },
       },
     ],
@@ -203,6 +206,24 @@ async function render(url: string) {
   return { harness, element: harness.routeNativeElement as HTMLElement };
 }
 describe('Vinted-Bereich in Flipbase', () => {
+  it('aktualisiert das ausgewählte Konto erst nach ausdrücklichem Klick', async () => {
+    const { element, harness } = await render('/marketplaces/vinted/overview');
+    expect(browserApi.syncConnection).not.toHaveBeenCalled();
+    const button = [...element.querySelectorAll<HTMLButtonElement>('button')].find((node) =>
+      node.textContent?.includes('Kontodaten aktualisieren'),
+    );
+    expect(button).toBeDefined();
+    button?.click();
+    await harness.fixture.whenStable();
+    expect(browserApi.syncConnection).toHaveBeenCalledWith(
+      {
+        workspaceId: fixtureConnections[0].workspaceId,
+        connectionId: fixtureConnections[0].connectionId,
+      },
+      'synthetic-token',
+    );
+    expect(api.readSnapshot).toHaveBeenCalledTimes(2);
+  });
   it('zeigt echte Konten, Kontowechsler und die vorgesehenen Bereiche', async () => {
     const { element } = await render('/marketplaces/vinted/overview');
     expect(element.querySelector('h1')?.textContent).toContain('Vinted');

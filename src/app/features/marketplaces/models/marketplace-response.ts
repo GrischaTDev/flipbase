@@ -183,6 +183,11 @@ export function parseMarketplacePage(
         item['direction'] === 'inbound' || item['direction'] === 'outbound'
           ? item['direction']
           : 'unknown',
+      promoted: typeof item['promoted'] === 'boolean' ? item['promoted'] : null,
+      unread: typeof item['unread'] === 'boolean' ? item['unread'] : null,
+      brand: text(item['brand']),
+      size: text(item['size']),
+      shipmentStatus: text(item['shipmentStatus']),
     };
   });
   return { items, total, nextCursor };
@@ -199,6 +204,13 @@ export function parseMarketplaceSnapshot(value: unknown, scope: AccountScope): M
       displayName: text(item['displayName']),
       location: text(item['location']),
       bio: text(item['bio']),
+      imageUrl: imageUrl(item['imageUrl']),
+      feedbackCount: counter(item['feedbackCount']),
+      feedbackReputation: nonnegative(item['feedbackReputation']),
+      positiveFeedbackCount: counter(item['positiveFeedbackCount']),
+      neutralFeedbackCount: counter(item['neutralFeedbackCount']),
+      negativeFeedbackCount: counter(item['negativeFeedbackCount']),
+      itemCount: counter(item['itemCount']),
     };
   }
   return {

@@ -1,4 +1,5 @@
 import { chromium, type Browser, type Page } from 'playwright';
+import { readVintedAccountImport, type VintedAccountImport } from './vinted-account-import.ts';
 import { readVintedAccountIdentity, type VintedAccountIdentity } from './vinted-browser-reader.ts';
 import {
   submitVintedLogin,
@@ -17,6 +18,7 @@ export interface BrowserInfo extends Pick<Browser, 'version'> {
   type?(value: string): Promise<void>;
   press?(key: 'Enter' | 'Tab' | 'Escape' | 'Backspace'): Promise<void>;
   identify?(): Promise<VintedAccountIdentity | null>;
+  importAccount?(authorize: () => Promise<void>): Promise<VintedAccountImport>;
   login?(
     credentials: VintedLoginCredentials,
     authorize: () => Promise<void>,
@@ -107,6 +109,7 @@ export class GoLoginCloudBrowser {
       type: async (value) => currentPage().keyboard.insertText(value),
       press: async (key) => currentPage().keyboard.press(key),
       identify: () => readVintedAccountIdentity(currentPage()),
+      importAccount: (authorize) => readVintedAccountImport(currentPage(), authorize),
       login: (credentials, authorize) => submitVintedLogin(currentPage(), credentials, authorize),
       verify: (code, authorize) => submitVintedVerificationCode(currentPage(), code, authorize),
     };

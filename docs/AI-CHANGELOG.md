@@ -1,5 +1,21 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-28 – Juna – Manuellen Import für Vinted-Kontodaten vorbereitet
+
+**Auftrag:** Profil, Inserate, Nachrichten und nachweisbare Verkäufe des verbundenen eigenen Vinted-Kontos per Knopfdruck abrufen und in den bestehenden Ansichten zeigen.
+
+**Änderung:** Ein kontogebundener Leseimport im bestehenden GoLogin-Profil übernimmt ausgewählte Felder aus den zuvor beobachteten Vinted-Antworten. Workspace, Konto, Sitzung und Vinted-Identität werden vor dem Schreiben geprüft. Die vorhandenen Ansichten zeigen Profil und Bewertungskennzahlen, Inseratkarten mit Kennzahlen, Gespräche, gelesene Verläufe und durch Bestellungen belegte Verkäufe. Ungelesene Einzelverläufe werden wegen des ungeklärten Lesestatus nicht geöffnet. Keine automatische Abfrage und kein Nachrichtenversand.
+
+**Prüfung und Grenze:** Gezielte Worker- und Angular-Tests, Typprüfung, Bau, statische Prüfungen und zwei lokale Desktop-/Mobilabläufe bestanden. Ein einzelner weiterer lesender Liveversuch erhielt nach bestätigter Identität HTTP 403 für die Profildaten; der Browser wurde bestätigt gestoppt. Ein erfolgreicher echter Import, eine vollständige Verkaufsliste und die Anbieterverträglichkeit bleiben offen. Kein Push, Merge oder Deployment in dieser Sitzung.
+
+## 2026-09-28 – Juna – Datenumfang des verbundenen Vinted-Kontos geprüft
+
+**Auftrag:** Prüfen, welche Profil-, Inserat-, Gesprächs- und Verkaufsdaten das verbundene eigene Privatkonto tatsächlich liefert, und den Weg für Abgleich, Benachrichtigungen und Antworten konkretisieren.
+
+**Befund:** Eine einmalige lesende Strukturprobe im zugeordneten GoLogin-Profil fand Bewertungskennzahlen, eine paginierte Inseratliste, eine paginierte Gesprächsliste, Nachrichtenstruktur in einem bereits gelesenen Verlauf und eine verknüpfte Transaktion. Die genauen Feldgruppen, Grenzen und eine Kapazitätsrechnung für fünfminütige Abrufe stehen in `docs/implementation/vinted-data-discovery.md`. Plan, Arbeitsstand und UI-Prüfprotokoll wurden entsprechend aktualisiert.
+
+**Prüfung und Grenze:** Die bestehende Vinted-Identität wurde vor jedem Blick mit der verbundenen Flipbase-Kontokennung verglichen. Alle sechs Anbieterbrowser wurden bestätigt gestoppt. Weder private Werte noch Zugangsdaten wurden ausgegeben oder gespeichert; kein Import, kein Versand, kein Deployment. Vollständige Verkäufe, neue Ereignisse, Push, Kosten und Plattformberechtigung für automatischen Dauerzugriff sind offen. Die Dokumentänderungen wurden lokal formatiert und geprüft.
+
 ## 2026-09-28 – Juna – Bestehende Vinted-Sitzung veröffentlicht und Browserdienst aktiviert
 
 **Auftrag:** Die bereits geprüfte Übernahme einer angemeldeten Vinted-Sitzung nach PR-Freigabe veröffentlichen und den Browserdienst nach gesonderter Freigabe aktualisieren.

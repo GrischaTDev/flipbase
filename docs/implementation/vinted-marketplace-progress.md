@@ -1,5 +1,24 @@
 # Arbeitsstand: Vinted-Marktplatzverwaltung
 
+## 28. September 2026 – Datenumfang des verbundenen Kontos lesend geprüft
+
+Eine eng begrenzte Strukturprobe nutzte ausschließlich das bereits verbundene
+eigene Konto und dessen zugeordnetes GoLogin-Profil. Profilfelder mit
+Bewertungskennzahlen, eine paginierte Inseratliste, eine paginierte
+Gesprächsliste, Nachrichtenstruktur eines bereits gelesenen Verlaufs und die
+verknüpfte Transaktion waren erreichbar. Die Einzelantworten des Posteingangs
+enthielten fünf beziehungsweise sechs Gespräche; die Inseratantwort sechs
+Artikel. Das sind Stichproben, keine vollständigen Bestandszahlen. Der
+[Prüfbericht](vinted-data-discovery.md) hält Routen, Feldgruppen und Grenzen
+ohne persönliche Werte fest.
+
+Alle sechs gestarteten Anbieterbrowser wurden bestätigt gestoppt. Kein
+Nachrichteninhalt, Name, Kontokennung, Preis oder Zugangswert wurde
+ausgegeben oder gespeichert; keine Nachricht gesendet. Eine vollständige
+Verkaufsliste, neue Ereignisse, Push und ein erfolgreicher Antwortversand
+sind nicht nachgewiesen. Die vorhandene Flipbase-Datenbank enthält weiterhin
+nur den Profileintrag; es wurde kein Import aktiviert.
+
 ## 28. September 2026 – Bestehende Sitzung auf Web-App und Browserdienst aktiviert
 
 PR #235 bestand die Pflichtprüfungen und wurde als Merge-Commit
@@ -826,3 +845,22 @@ angemeldeten Ablaufs angepasst werden. Persönliche Verifizierung und der
 vollständige Liveimport sind damit ebenfalls nicht als fertig abgenommen.
 In dieser Sitzung wurden keine echten Zugangsdaten erneut gesendet und keine
 Serveränderungen veröffentlicht.
+
+## 28.09.2026 – Manueller Vinted-Datenimport im Branch vorbereitet
+
+Auf `juna/vinted-data-discovery` kann ein verbundenes Admin-Konto die
+Kontodaten ausdrücklich über „Kontodaten aktualisieren“ abrufen. Der Worker
+öffnet das zugeordnete GoLogin-Profil, prüft Konto und Sitzung, liest die
+beobachteten Vinted-Datenfelder und schreibt sie kontogebunden in die
+vorhandene Tabelle. Die Ansicht zeigt Profil und Bewertungskennzahlen,
+Inserate mit Preis, Aufrufen, Favoriten und gegebenenfalls Push-Status,
+Gespräche und Nachrichten aus gelesenen Verläufen sowie belegte Verkäufe.
+Ungelesene Verläufe werden wegen möglicher Lesestatus-Wirkung nicht geöffnet.
+Eine vollständige Verkaufsliste und einzelne Bewertungen sind nicht belegt.
+
+Lokale gezielte Prüfungen: 97 Worker-Tests, 108 Angular-Marktplatztests,
+Worker-Typprüfung, Angular-Bau, ESLint, Shared-UI-Prüfung und zwei
+Desktop-/Mobilabläufe bestanden. Ein weiterer lesender Liveversuch erhielt
+nach bestätigter Identität HTTP 403 für die Profildaten; kein echter Import
+wurde als erfolgreich ausgegeben. Der Browserstopp wurde bestätigt. Kein Push,
+Merge oder Deployment in diesem Schritt.

@@ -1,5 +1,17 @@
 # Vinted-Oberfläche: geprüfter Stand vom 26. September 2026
 
+## Nachtrag 28.09.2026: Lesender Datenumfang nach bestätigter Anmeldung
+
+Die live verbundene Kontositzung lieferte Profil- und Bewertungsfelder,
+eigene Inserate, eine Gesprächsliste, einen bereits gelesenen Einzelverlauf
+und eine zugehörige Transaktion. Die vorhandene Oberfläche zeigt diese Daten
+noch nicht, weil kein Import gelaufen ist. Der technische Nachweis eines
+Text-Eingabefelds im Verlauf ist kein Nachweis für einen erfolgreichen
+Nachrichtenversand. Es wurde keine Nachricht versendet, keine Benachrichtigung
+geöffnet und kein Eintrag aus der Probe in Flipbase gespeichert. Alle sechs
+Anbieterbrowser wurden bestätigt gestoppt. Details und offene Punkte stehen
+im [Datenprüfbericht](vinted-data-discovery.md).
+
 ## Nachtrag 28.09.2026: PR #235 und Browserdienst veröffentlicht
 
 Die öffentliche Web-App liefert Merge-Commit `db63bf19` aus PR #235. Der
@@ -523,3 +535,22 @@ sind nicht verifiziert. Zusätzliche Vinted-Verifizierung wird nicht umgangen;
 ein unbekannter Ablauf endet mit einer Fehlermeldung statt einer falschen
 Erfolgsmeldung. Vollständiger Liveimport und Nachrichtenversand bleiben offen.
 Kein Merge oder Deployment; die neue Ansicht ist noch nicht öffentlich aktiv.
+
+## 28.09.2026 – Gespeicherte Vinted-Daten und manuelle Aktualisierung
+
+Der verbundene Kontobereich zeigt einen manuellen Aktualisierungsbutton.
+Übersicht und Profil verwenden die gespeicherten Bewertungskennzahlen;
+Inserate erscheinen als Karten mit Bild, Preis, Aufrufen, Favoriten und
+gegebenenfalls Push-Kennzeichen. Die Nachrichtenansicht zeigt eine
+Gesprächsliste und gespeicherte Verläufe. Verkäufe zeigen nur belegte
+Bestellungen aus importierten Gesprächen und weisen auf mögliche Lücken hin.
+Die bestehende Kontowahl und Workspace-Trennung bleiben maßgeblich.
+
+Lokal geprüft: Worker-Tests (97 erfolgreich), Angular-Marktplatztests (108
+erfolgreich) einschließlich Aktualisierungsdialog, Worker-Typprüfung,
+Angular-Produktionsbau, gezieltes ESLint und Shared-UI-Prüfung (112 Dateien,
+0 Befunde). Die zwei vorhandenen Playwright-Abläufe für Kontoansichten liefen
+mit 1440 und 390 Pixeln auf `127.0.0.1:4200` erfolgreich. Der erste Versuch
+ohne gestarteten lokalen Server scheiterte nur an `ERR_CONNECTION_REFUSED`;
+nach dem Serverstart bestanden beide Abläufe. Keine produktive Ansicht und
+kein echter Import wurden hier abgenommen.

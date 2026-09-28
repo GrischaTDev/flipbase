@@ -18,12 +18,24 @@ export interface MarketplaceEntry extends AccountScope {
   readonly metrics: MarketplaceMetrics;
   readonly conversationId: string | null;
   readonly direction: 'inbound' | 'outbound' | 'unknown';
+  readonly promoted: boolean | null;
+  readonly unread: boolean | null;
+  readonly brand: string | null;
+  readonly size: string | null;
+  readonly shipmentStatus: string | null;
 }
 export interface MarketplaceProfile extends AccountScope {
   readonly username: string | null;
   readonly displayName: string | null;
   readonly location: string | null;
   readonly bio: string | null;
+  readonly imageUrl: string | null;
+  readonly feedbackCount: number | null;
+  readonly feedbackReputation: number | null;
+  readonly positiveFeedbackCount: number | null;
+  readonly neutralFeedbackCount: number | null;
+  readonly negativeFeedbackCount: number | null;
+  readonly itemCount: number | null;
 }
 export interface MarketplaceSnapshot extends AccountScope {
   readonly profile: MarketplaceProfile | null;

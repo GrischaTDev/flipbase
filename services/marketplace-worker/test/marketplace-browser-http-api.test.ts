@@ -6,6 +6,7 @@ import {
   SupabaseBrowserUserVerifier,
 } from '../src/marketplace-browser-http-api.ts';
 import type { BrowserInfo } from '../src/gologin-cloud-browser.ts';
+import type { VintedAccountImport } from '../src/vinted-account-import.ts';
 import { GoLoginApiLimitError, GoLoginProfileLimitError } from '../src/gologin-api-limit.ts';
 import {
   VintedLoginPendingError,
@@ -33,10 +34,17 @@ async function setup(
   confirm?: (scope: BrowserSessionScope, id: string) => Promise<void>,
   loginGate?: Promise<void>,
   remove?: (scope: BrowserSessionScope, stop: () => Promise<void>) => Promise<void>,
+  importAccount?: () => Promise<VintedAccountImport>,
+  writeImport?: (
+    scope: BrowserSessionScope,
+    id: string,
+    snapshot: VintedAccountImport,
+  ) => Promise<Record<'profile' | 'publication' | 'conversation' | 'message' | 'sale', number>>,
 ) {
   const inputs: string[] = [];
   let owner: BrowserSessionScope | undefined;
   let runs = 0;
+  let closes = 0;
   const browser: BrowserInfo = {
     version: () => 'synthetic browser',
     capture: async () => {
@@ -67,6 +75,12 @@ async function setup(
       inputs.push('verification-submitted');
       return 'submitted';
     },
+    importAccount: importAccount
+      ? async (authorize) => {
+          await authorize();
+          return importAccount();
+        }
+      : undefined,
   };
   const broker = {
     open: async (scope: BrowserSessionScope) => {
@@ -98,6 +112,7 @@ async function setup(
       )
         throw new Error('Sitzungszugriff verweigert');
       owner = undefined;
+      closes += 1;
     },
     reconcile: async () => undefined,
   };
@@ -106,6 +121,7 @@ async function setup(
     profiles:
       prepare || remove ? { prepare: prepare ?? (async () => undefined), remove } : undefined,
     accounts: confirm ? { confirm: async (scope, id) => confirm(scope, id) } : undefined,
+    imports: writeImport ? { write: writeImport } : undefined,
     readOnly,
     users: {
       userId: async (token) => {
@@ -130,8 +146,45 @@ async function setup(
     new Promise<void>((resolve, reject) =>
       server.close((error) => (error ? reject(error) : resolve())),
     );
-  return { request, close, url, inputs, runs: () => runs };
+  return { request, close, url, inputs, runs: () => runs, closes: () => closes };
 }
+
+test('gleicht nur die gebundene Sitzung ab und stoppt den Browser nach dem Speichern', async () => {
+  const imports: VintedAccountImport = {
+    identity: { id: '123', username: 'test' },
+    observedAt: '2026-09-28T10:00:00Z',
+    entries: [],
+  };
+  const written: string[] = [];
+  const api = await setup(
+    undefined,
+    undefined,
+    false,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    async () => imports,
+    async (scope, id, snapshot) => {
+      written.push(`${scope.workspaceId}:${scope.connectionId}:${id}:${snapshot.identity.id}`);
+      return { profile: 1, publication: 0, conversation: 0, message: 0, sale: 0 };
+    },
+  );
+  try {
+    const response = await api.request('/marketplace-browser/connections/sync', {
+      workspaceId: workspaceA,
+      connectionId: accountA,
+    });
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).observedAt, imports.observedAt);
+    assert.deepEqual(written, [`${workspaceA}:${accountA}:${sessionId}:123`]);
+    assert.equal(api.closes(), 1);
+  } finally {
+    await api.close();
+  }
+});
 
 test('reports availability at the same path used by the Angular test page', async () => {
   const api = await setup();
