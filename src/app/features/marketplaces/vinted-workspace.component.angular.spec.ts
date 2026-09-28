@@ -23,6 +23,7 @@ import { MarketplaceBrowserTestComponent } from './components/marketplace-browse
 import { MarketplaceSyncProgressComponent } from './components/marketplace-sync-progress/marketplace-sync-progress.component';
 import {
   MarketplaceBrowserTestApiService,
+  MarketplaceImportError,
   MarketplaceWorkerOutdatedError,
 } from './services/marketplace-browser-test-api.service';
 import { ButtonComponent } from '../../shared/components/button/button.component';
@@ -94,7 +95,10 @@ let api: {
   renameConnection: ReturnType<typeof vi.fn>;
   setPaused: ReturnType<typeof vi.fn>;
 };
-let browserApi: { syncConnection: ReturnType<typeof vi.fn> };
+let browserApi: {
+  available: ReturnType<typeof vi.fn>;
+  syncConnection: ReturnType<typeof vi.fn>;
+};
 
 beforeAll(async () => {
   const shared: [unknown, string][] = [
@@ -159,7 +163,10 @@ beforeAll(async () => {
 afterAll(() => resetBindings?.());
 afterEach(() => TestBed.resetTestingModule());
 beforeEach(() => {
-  browserApi = { syncConnection: vi.fn().mockResolvedValue(undefined) };
+  browserApi = {
+    available: vi.fn().mockResolvedValue({ available: false, readOnly: true }),
+    syncConnection: vi.fn().mockResolvedValue(undefined),
+  };
   api = {
     listConnections: vi
       .fn()
@@ -208,7 +215,7 @@ beforeEach(() => {
       {
         provide: MarketplaceBrowserTestApiService,
         useValue: {
-          available: vi.fn().mockResolvedValue({ available: false, readOnly: true }),
+          available: browserApi.available,
           open: vi.fn(),
           frame: vi.fn(),
           input: vi.fn(),
@@ -276,6 +283,49 @@ describe('Vinted-Bereich in Flipbase', () => {
     expect(dialog?.textContent).not.toContain('Der Auftrag wurde angenommen');
     expect(dialog?.textContent).not.toContain('läuft im Hintergrund weiter');
     expect(dialog?.querySelector('ol')).toBeNull();
+  });
+  it('führt nach abgelaufener Vinted-Anmeldung direkt zum erneuten Login des Kontos', async () => {
+    browserApi.syncConnection.mockImplementation(
+      async (_scope: unknown, _token: unknown, onProgress: (progress: unknown) => void) => {
+        onProgress({ id: 'operation-a', state: 'failed', stage: 'profile', errorCode: 'identity' });
+        throw new MarketplaceImportError('identity');
+      },
+    );
+    const { element, harness } = await render('/marketplaces/vinted/overview');
+    const refresh = [...element.querySelectorAll<HTMLButtonElement>('button')].find((node) =>
+      node.textContent?.includes('Kontodaten aktualisieren'),
+    );
+    refresh?.click();
+    await harness.fixture.whenStable();
+    harness.detectChanges();
+    const dialog = element.querySelector('app-marketplace-sync-progress');
+    expect(dialog?.textContent).toContain('Vinted bestätigt Deine Anmeldung nicht mehr.');
+    expect(dialog?.querySelector<HTMLAnchorElement>('a')?.getAttribute('href')).toBe(
+      `/marketplaces/vinted/connect/${fixtureConnections[0].connectionId}?reauth=1`,
+    );
+  });
+  it('öffnet die erneute Anmeldung nur für das ausgewählte verbundene Konto', async () => {
+    browserApi.available.mockResolvedValue({ available: true, readOnly: false });
+    const { element } = await render(
+      `/marketplaces/vinted/connect/${fixtureConnections[0].connectionId}?reauth=1`,
+    );
+    expect(element.textContent).toContain('Melde Dich mit demselben Vinted-Konto erneut an.');
+    expect(element.textContent).toContain('Anmelden und Konto verbinden');
+    expect(element.querySelector<HTMLInputElement>('input[type="password"]')?.value).toBe('');
+    const accessibility = await axe.run(element, {
+      rules: { 'color-contrast': { enabled: false } },
+    });
+    expect(
+      accessibility.violations.filter(
+        (item) => item.impact === 'critical' || item.impact === 'serious',
+      ),
+    ).toEqual([]);
+  });
+  it('öffnet keine erneute Anmeldung für eine fremde Kontoverbindung', async () => {
+    browserApi.available.mockResolvedValue({ available: true, readOnly: false });
+    const { element } = await render('/marketplaces/vinted/connect/foreign-account?reauth=1');
+    expect(element.textContent).toContain('in diesem Workspace nicht verfügbar');
+    expect(element.querySelector('input[type="password"]')).toBeNull();
   });
   it('zeigt echte Konten, Kontowechsler und die vorgesehenen Bereiche', async () => {
     const { element } = await render('/marketplaces/vinted/overview');

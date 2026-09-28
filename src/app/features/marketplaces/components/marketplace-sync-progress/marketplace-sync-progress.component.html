@@ -66,6 +66,13 @@
   @if (error(); as message) {
     <p role="alert" class="mt-5 text-sm text-fb-critical">{{ message }}</p>
   }
+  @if (progress()?.errorCode === 'identity') {
+    @if (reconnectLink(); as link) {
+      <app-button class="mt-3" [link]="link" [queryParams]="{ reauth: 1 }"
+        >Vinted-Anmeldung erneuern</app-button
+      >
+    }
+  }
   @if (progress()?.id && (progress()?.state === 'queued' || progress()?.state === 'running')) {
     <p class="mt-5 text-xs text-fb-text-muted">
       Du kannst dieses Fenster schließen. Der angenommene Auftrag läuft im Hintergrund weiter.

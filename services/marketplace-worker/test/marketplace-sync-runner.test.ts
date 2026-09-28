@@ -4,6 +4,8 @@ import { MarketplaceSyncRunner } from '../src/marketplace-sync-runner.ts';
 import type { BrowserInfo } from '../src/gologin-cloud-browser.ts';
 import { MarketplaceBrowserSessionEndedError } from '../src/marketplace-browser-session-broker.ts';
 import type { SupabaseMarketplaceOperationStore } from '../src/supabase-marketplace-operation-store.ts';
+import { VintedImportReadError, VintedImportRequestError } from '../src/vinted-account-import.ts';
+import type { MarketplaceOperationEvent } from '../src/marketplace-operation-events.ts';
 
 const scope = {
   workspaceId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
@@ -118,4 +120,62 @@ test('abgelaufener Zugriff beendet den Auftrag ohne Datenübernahme', async () =
   await completed;
   assert.equal(failedCode, 'access');
   assert.equal(writes, 0);
+});
+
+test('HTTP 401 beim Profilabruf verlangt erneute Anmeldung und schreibt keine Daten', async () => {
+  let failedCode: string | null = null;
+  let writes = 0;
+  let closes = 0;
+  let done!: () => void;
+  const completed = new Promise<void>((resolve) => {
+    done = resolve;
+  });
+  const events: MarketplaceOperationEvent[] = [];
+  const operations = {
+    enqueue: async () => ({ id: operationId, requestedBy: scope.userId }),
+    claim: async () => true,
+    stage: async () => undefined,
+    succeed: async () => assert.fail('Eine ungültige Anmeldung darf nicht bestätigt werden'),
+    fail: async (_scope: typeof scope, _id: string, _runnerId: string, code: string) => {
+      failedCode = code;
+      done();
+    },
+  } as unknown as SupabaseMarketplaceOperationStore;
+  const runner = new MarketplaceSyncRunner(
+    {
+      open: async () => sessionId,
+      run: async <T>(
+        _scope: typeof scope,
+        _id: string,
+        operation: (browser: BrowserInfo) => Promise<T>,
+      ) =>
+        operation({
+          version: () => 'test',
+          importAccount: async (_authorize, onStage) => {
+            await onStage?.('profile');
+            throw new VintedImportReadError(
+              'profile',
+              new VintedImportRequestError('unauthorized'),
+            );
+          },
+        }),
+      close: async () => {
+        closes += 1;
+      },
+    },
+    {
+      write: async () => {
+        writes += 1;
+        return { profile: 0, publication: 0, conversation: 0, message: 0, sale: 0 };
+      },
+    },
+    operations,
+    { record: (event) => events.push(event) },
+  );
+  await runner.start(scope);
+  await completed;
+  assert.equal(failedCode, 'identity');
+  assert.equal(writes, 0);
+  assert.equal(closes, 1);
+  assert.equal(events.at(-1)?.requestFailure, 'unauthorized');
 });

@@ -60,6 +60,10 @@ export class VintedWorkspaceComponent {
   readonly loginIcon = LucideLogIn;
   readonly refreshIcon = LucideRefreshCw;
   readonly syncModalOpen = signal(false);
+  readonly reconnectLink = computed(() => {
+    const account = this.store.selectedConnection();
+    return account ? `/marketplaces/vinted/connect/${account.connectionId}` : null;
+  });
 
   async sync(): Promise<void> {
     this.syncModalOpen.set(true);

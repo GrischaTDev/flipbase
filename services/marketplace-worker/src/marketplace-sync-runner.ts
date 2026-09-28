@@ -6,6 +6,7 @@ import {
 } from './marketplace-browser-session-broker.ts';
 import {
   VintedImportReadError,
+  VintedImportRequestError,
   type VintedAccountImport,
   type VintedConversationVersion,
   type VintedImportStage,
@@ -75,6 +76,7 @@ export class MarketplaceSyncRunner {
     if (!(await this.operations.claim(scope, id, runnerId))) return;
     let sessionId: string | undefined;
     let failedStage: MarketplaceSyncError = 'browser';
+    let requestFailure: VintedImportRequestError['reason'] | undefined;
     let currentStage: MarketplaceSyncStage = 'browser';
     let stageStartedAt = Date.now();
     const moveTo = async (nextStage: MarketplaceSyncStage): Promise<void> => {
@@ -107,11 +109,16 @@ export class MarketplaceSyncRunner {
           );
         } catch (error) {
           if (error instanceof MarketplaceBrowserSessionEndedError) throw error;
-          if (error instanceof VintedImportReadError)
+          if (error instanceof VintedImportReadError) {
             failedStage =
               error.cause instanceof MarketplaceBrowserSessionEndedError
                 ? 'access'
                 : this.importErrorCode(error.stage);
+            if (error.cause instanceof VintedImportRequestError) {
+              requestFailure = error.cause.reason;
+              if (requestFailure === 'unauthorized') failedStage = 'identity';
+            }
+          }
           return null;
         }
       });
@@ -160,6 +167,7 @@ export class MarketplaceSyncRunner {
         outcome: 'failed',
         elapsedMs: Date.now() - stageStartedAt,
         errorCode: failedStage,
+        requestFailure,
       });
       try {
         await this.operations.fail(scope, id, runnerId, failedStage);

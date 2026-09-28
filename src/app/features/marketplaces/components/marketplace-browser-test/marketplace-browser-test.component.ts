@@ -36,9 +36,11 @@ export class MarketplaceBrowserTestComponent {
   readonly store = inject(MarketplaceBrowserTestStore);
   readonly accounts = inject(MarketplaceAccountStore);
   readonly compact = input(false);
+  readonly reconnectOnOpen = input(false);
   readonly pendingAccountName = input<string | null>(null);
   readonly connectionCreated = output<string>();
   readonly submitting = signal(false);
+  readonly reconnectRequested = signal(false);
   readonly canSubmitLogin = computed(() =>
     this.pendingAccountName()
       ? this.store.available() &&
@@ -69,7 +71,12 @@ export class MarketplaceBrowserTestComponent {
   constructor() {
     void this.store.checkAvailability();
     const interval = setInterval(() => {
-      if (document.visibilityState === 'visible') void this.store.checkLogin();
+      if (document.visibilityState === 'visible') {
+        const wasAwaitingLogin = this.store.awaitingLogin();
+        void this.store.checkLogin().then(() => {
+          if (wasAwaitingLogin) this.finishReauthentication();
+        });
+      }
     }, 3000);
     inject(DestroyRef).onDestroy(() => {
       clearInterval(interval);
@@ -82,6 +89,9 @@ export class MarketplaceBrowserTestComponent {
       this.credentialsConnectionId = connectionId;
       this.loginForm.reset();
       this.code.reset();
+      this.reconnectRequested.set(
+        this.reconnectOnOpen() && this.store.connection()?.status === 'connected',
+      );
     });
   }
 
@@ -99,6 +109,7 @@ export class MarketplaceBrowserTestComponent {
       }
       this.loginForm.reset();
       await this.store.login(credentials);
+      this.finishReauthentication();
     } finally {
       this.submitting.set(false);
       credentials.username = '';
@@ -111,5 +122,16 @@ export class MarketplaceBrowserTestComponent {
     const code = this.code.value;
     this.code.reset();
     await this.store.verifyCode(code);
+  }
+
+  private finishReauthentication(): void {
+    if (
+      this.reconnectRequested() &&
+      !this.store.session() &&
+      !this.store.error() &&
+      !this.store.busy() &&
+      this.store.connection()?.status === 'connected'
+    )
+      this.reconnectRequested.set(false);
   }
 }

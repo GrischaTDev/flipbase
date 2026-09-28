@@ -411,6 +411,16 @@ Auftragsrunner und Importwriter aus den vorherigen Paketen.
 - [ ] Wiederholung nur für beobachtete vorübergehende Lesefehler begrenzen.
       401/403/zusätzliche Prüfung benötigen eigene Behandlung; 429 wartet nach
       Anbieterhinweis. Schreibaufträge nicht blind wiederholen.
+
+  Live-Befund vom 28.09.2026: Der erste Auftrag nach dem Worker-Wechsel erhielt
+  beim Profilabruf HTTP 401. Die erneute Anmeldung für dieselbe Verbindung
+  und eine feste Diagnosekategorie werden im folgenden Paket ergänzt. 403,
+  429 und zusätzliche Prüfungen bleiben getrennt zu untersuchen; sie werden
+  nicht automatisch wiederholt.
+  Beim erneuten Anmelden bleiben importierte Profilfelder und der Zeitpunkt
+  des letzten vollständigen Abrufs erhalten; ein gezielter Datenbanktest
+  deckt diesen Fall ab.
+
 - [ ] Tests: zwei schnelle Aktionen nutzen höchstens einen Browser, zwei Konten
       niemals dasselbe Profil; Ablauf während Inaktivität stoppt; abgelaufener
       Sperrbesitzer darf keine Daten mehr übernehmen.

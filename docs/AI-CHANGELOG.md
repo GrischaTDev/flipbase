@@ -1,5 +1,28 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-28 – Juna – Abgelaufene Vinted-Anmeldung beim Datenabruf erkannt
+
+**Auftrag:** Den nach dem Worker-Wechsel fehlgeschlagenen Profilschritt
+untersuchen und die erneute Anmeldung für ein bereits verbundenes Konto
+ermöglichen.
+
+**Befund und Änderung:** Der gespeicherte Auftrag scheiterte im Profilschritt.
+Ein einzelner vom Nutzer freigegebener, lesender Aufruf im zugeordneten
+Browserprofil erhielt von Vinted HTTP 401; der Browserstopp wurde bestätigt.
+Der Worker ordnet diese Antwort nun der fehlenden Anmeldung zu und protokolliert
+nur eine feste Fehlerkategorie. Der Dialog führt direkt zur erneuten Anmeldung
+im selben Konto. Die bestehende Kontoprüfung verhindert die Bestätigung eines
+anderen Vinted-Kontos.
+Die erneute Bestätigung bewahrt nun importierte Profildaten und ändert den
+Zeitpunkt des letzten vollständigen Datenabrufs nicht.
+
+**Prüfung und Grenze:** 129 Worker-Tests, 22 gezielte Angular-Tests, Worker-
+Typprüfung, beide Builds und 19 gezielte Datenbanktests bestanden. Die neue
+Migration wurde auf einer frisch aufgebauten lokalen Datenbank angewendet.
+Der Live-Aufruf las keine Antwortinhalte
+und änderte keine Vinted-Daten. Eine erneute Anmeldung und ein erfolgreicher
+Datenimport müssen vom Kontoinhaber noch bestätigt werden.
+
 ## 2026-09-28 – Juna – Vinted-Worker-Versionsfehler beim Datenabruf eingegrenzt
 
 **Auftrag:** Den beim produktiven Aktualisierungsversuch angezeigten

@@ -131,6 +131,7 @@
   <app-marketplace-sync-progress
     [progress]="store.syncProgress()"
     [error]="store.mutationError()"
+    [reconnectLink]="reconnectLink()"
     (closed)="syncModalOpen.set(false)"
   />
 }
