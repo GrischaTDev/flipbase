@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-28 – Juna – Bereits angemeldetes Vinted-Profil sicher verbinden
+
+**Auftrag:** Die erneut angezeigte Fehlermeldung beim Verbinden untersuchen und die Verbindung des eigenen Vinted-Kontos zuverlässig fortsetzen.
+
+**Befund und Änderung:** Ein vom Nutzer gestarteter Versuch öffnete den Browser, scheiterte aber am angeblich fehlenden Loginformular. Nach bestätigtem Sitzungsende zeigte eine lesende Prüfung: Vinted leitete den Loginpfad auf die Startseite um; die private Identitätsroute antwortete mit HTTP 200 und einer vollständigen Nutzerstruktur. Der Worker prüft nun vor einem erneuten Login die bereits angemeldete Identität und bestätigt sie ausschließlich für die gebundene Sitzung, den Workspace und das ausgewählte Konto. Bei vorhandener Identität sendet er keine Zugangsdaten an Vinted. Eine noch offene Codeanforderung führt nicht zu einem neuen Passwortversuch. Die Oberfläche beendet den Browser nach Bestätigung und lädt die Kontoliste neu. Ein unklarer Browserstopp wird wahrheitsgemäß angezeigt.
+
+**Prüfung und Grenze:** 91 Worker-Tests, neun Tests mit abgefangenen eigenen Chromium-Seiten und 107 Angular-Marktplatztests bestanden. Worker- und Angular-Typprüfung sowie beide Builds bestanden. Die Liveprüfung gab nur Pfad, HTTP-Status und Vorhandensein der Identitätsfelder aus; der vorhandene Worker-Identitätsleser meldete `recognized: true`. Keine Zugangsdaten, Codes oder Identitätswerte wurden ausgegeben, protokolliert oder gespeichert. Der Anbieterbrowser wurde mit HTTP 204 gestoppt. Die Änderung liegt auf `juna/vinted-existing-session`; Push, Merge, produktiver Rollout und der anschließende Nachweis des Flipbase-Status `connected` stehen noch aus.
+
 ## 2026-09-28 – Juna – Vinted-Codekorrektur veröffentlicht und Browserdienst aktiviert
 
 **Auftrag:** Den geprüften Fix für die Vinted-Codebestätigung nach Freigabe über PR #233 mergen und den passenden Browserdienst nach gesonderter Freigabe aktivieren.

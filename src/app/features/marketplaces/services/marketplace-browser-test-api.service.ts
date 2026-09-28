@@ -23,7 +23,12 @@ export interface VintedLoginCredentials {
 }
 
 export type VintedLoginResult =
-  'submitted' | 'form_unavailable' | 'submission_unconfirmed' | 'interaction_required'; // Vorheriger Worker während eines gestaffelten Updates.
+  | 'submitted'
+  | 'form_unavailable'
+  | 'submission_unconfirmed'
+  | 'interaction_required' // Vorheriger Worker während eines gestaffelten Updates.
+  | 'already_authenticated'
+  | 'verification_required';
 
 export class BrowserTestSessionEndedError extends Error {
   constructor() {
@@ -224,7 +229,9 @@ export class MarketplaceBrowserTestApiService {
       (body.status !== 'submitted' &&
         body.status !== 'interaction_required' &&
         body.status !== 'form_unavailable' &&
-        body.status !== 'submission_unconfirmed')
+        body.status !== 'submission_unconfirmed' &&
+        body.status !== 'already_authenticated' &&
+        body.status !== 'verification_required')
     )
       throw new Error('Ungültige Anmeldeantwort');
     return body.status;

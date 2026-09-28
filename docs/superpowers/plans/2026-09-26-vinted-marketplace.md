@@ -1,13 +1,24 @@
 # Vinted-Marktplatzverwaltung: Implementierungsplan
 
-> **Livebefund nach PR #231 (28.09.2026):** Web-App und Browserdienst laufen
+> **Neuer Livebefund (28.09.2026):** Ein vom Nutzer gestarteter Versuch öffnete
+> die kontogebundene Browsersitzung. Vinted leitete den festen Loginpfad auf `/`
+> um; die Identitätsroute antwortete im gespeicherten Profil mit HTTP 200 und
+> einer vollständigen Nutzerstruktur. Der vorhandene Worker-Identitätsleser
+> erkannte die Anmeldung (`recognized: true`). Flipbase versuchte trotzdem erneut das
+> Loginformular zu bedienen und zeigte `form_unavailable`. Der lokale Branch
+> `juna/vinted-existing-session` prüft deshalb vor erneuter Eingabe eine schon
+> bestätigte Vinted-Sitzung und ordnet sie nur über die vorhandene geschützte
+> Konto-RPC dem ausgewählten Workspace und Konto zu. Ein produktiv bestätigter
+> Flipbase-Kontostatus ist bis zum Rollout und erneuten Nutzertest offen.
+
+> **Historischer Livebefund nach PR #231 (28.09.2026):** Web-App und Browserdienst laufen
 > mit Merge-Commit `e912b17b`; der öffentliche Gesundheitscheck bestätigt
 > `apiVersion: 2`. GoLogin meldet weiterhin zehn Profile. Ein freier
 > Profilplatz und ein vom Nutzer gestarteter Versuch sind für einen neuen
 > Kontologin erforderlich; eine echte Kontolöschung und ein bestätigter
 > Vinted-Login fehlen weiterhin.
 
-> **Aktueller Stand (28.09.2026):** Nach Aktivierung eines Standard-Abos ist die GoLogin-API wieder erreichbar. Ein leeres Anbieterprofil ließ sich erstellen und löschen; für die echte Flipbase-Verbindung wurden ein dauerhaftes Profil und eine aktive Browsersitzung angelegt. Der Anmeldeversuch erreichte nach einer Minute das Zeitlimit; erst danach wurde die Seite verlassen und die Sitzung geschlossen. Die Verbindung bleibt `needs_login`. Das gespeicherte Profil zeigte beim späteren lesenden Öffnen erneut das Vinted-Anmeldeformular; der private Identitätsabruf antwortete dort HTTP 403 `access_denied`. Die neue lokale Prüfung unterscheidet dieses Formular vom unbekannten Wartezustand. Ein bestätigter Login und die private Leseroute bleiben offen; Datenimport ist ein getrenntes Folgepaket.
+> **Historischer Stand vor dem neuen Versuch (28.09.2026):** Nach Aktivierung eines Standard-Abos ist die GoLogin-API wieder erreichbar. Ein leeres Anbieterprofil ließ sich erstellen und löschen; für die echte Flipbase-Verbindung wurden ein dauerhaftes Profil und eine aktive Browsersitzung angelegt. Der Anmeldeversuch erreichte nach einer Minute das Zeitlimit; erst danach wurde die Seite verlassen und die Sitzung geschlossen. Die Verbindung blieb `needs_login`. Das gespeicherte Profil zeigte beim späteren lesenden Öffnen erneut das Vinted-Anmeldeformular; der private Identitätsabruf antwortete dort HTTP 403 `access_denied`. Die lokale Prüfung unterschied dieses Formular vom unbekannten Wartezustand. Datenimport ist ein getrenntes Folgepaket.
 
 > For agentic workers: Use superpowers:executing-plans for task-by-task execution.
 > Haken bezeichnen tatsächlich erledigte Schritte, keine angekündigten Arbeiten.
@@ -555,3 +566,23 @@ angenommenen Namen. Der reale Code und alle Eingabewerte blieben unberührt.
       API-Version und HTTP 401 ohne Anmeldung sind öffentlich geprüft.
 - [ ] Einen neuen eigenen Versuch durchführen: Codeeingabe, bestätigte
       Vinted-ID, Kontostatus und Bereinigung bei Sitzungsabbruch prüfen.
+
+## AP04k: Vorhandene Vinted-Sitzung sicher übernehmen (28.09.2026)
+
+Der erneute Versuch zeigte `form_unavailable`, weil Vinted den Loginpfad bei
+einer bereits angemeldeten Sitzung auf `/` umleitete. Der private
+Identitätsabruf lieferte dort HTTP 200 mit Nutzerkennung und Namen. Es wurden
+nur das Vorhandensein und die Struktur dieser Felder geprüft, keine Werte
+ausgegeben oder gespeichert. Das GoLogin-Profil wurde danach ausdrücklich
+gestoppt (HTTP 204).
+
+- [x] Vor einem weiteren Login im kontogebundenen Browser die bestehende
+      Identität prüfen und bei Erfolg über die vorhandene Server-RPC bestätigen.
+- [x] Bei bereits angemeldetem Profil keine Zugangsdaten an Vinted senden;
+      bei offener Codeanforderung keinen neuen Login starten.
+- [x] Fremde Workspace-/Kontoschlüssel, abgelaufene Sitzungen, fehlerhafte
+      Kontobestätigung und unklaren Browserstopp mit gezielten Tests prüfen.
+- [ ] Änderung über PR und gesonderten Worker-Rollout veröffentlichen.
+- [ ] Danach mit dem eigenen Konto prüfen, ob Flipbase den Status `connected`
+      anzeigt und das gespeicherte Profil nach bestätigtem Browserstopp nutzt.
+      Die ursprüngliche SMS-Übermittlung bleibt als eigener Nachweis offen.

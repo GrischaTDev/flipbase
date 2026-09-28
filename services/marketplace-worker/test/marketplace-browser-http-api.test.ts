@@ -29,7 +29,7 @@ async function setup(
   readOnly = false,
   runError?: Error,
   prepare?: (scope: BrowserSessionScope) => Promise<void>,
-  identity?: { id: string; username: string } | null,
+  identity?: { id: string; username: string } | Error | null,
   confirm?: (scope: BrowserSessionScope, id: string) => Promise<void>,
   loginGate?: Promise<void>,
   remove?: (scope: BrowserSessionScope, stop: () => Promise<void>) => Promise<void>,
@@ -52,7 +52,10 @@ async function setup(
     press: async (key) => {
       inputs.push(`press:${key}`);
     },
-    identify: async () => identity ?? null,
+    identify: async () => {
+      if (identity instanceof Error) throw identity;
+      return identity ?? null;
+    },
     login: async (credentials, authorize) => {
       await loginGate;
       await authorize();
@@ -509,6 +512,122 @@ test('binds one login submission to its user, workspace and account without retu
     );
   } finally {
     await api.close();
+  }
+});
+
+test('confirms an already authenticated profile without sending credentials again', async () => {
+  const confirmations: string[] = [];
+  const api = await setup(
+    undefined,
+    undefined,
+    false,
+    undefined,
+    undefined,
+    { id: '12345', username: 'own-test' },
+    async (scope, id) => {
+      confirmations.push(`${scope.workspaceId}:${scope.connectionId}:${id}`);
+    },
+  );
+  try {
+    const scope = { workspaceId: workspaceA, connectionId: accountA };
+    await api.request('/marketplace-browser/sessions', scope);
+    const path = `/marketplace-browser/sessions/${sessionId}/login`;
+    const credentials = { username: 'unused-user', password: 'unused-password' };
+    const response = await api.request(path, { ...scope, credentials });
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { status: 'already_authenticated' });
+    assert.deepEqual(api.inputs, []);
+    assert.deepEqual(confirmations, [`${workspaceA}:${accountA}:${sessionId}`]);
+    assert.equal(
+      (await api.request(path, { ...scope, connectionId: accountB, credentials })).status,
+      409,
+    );
+    assert.equal((await api.request(path, { ...scope, credentials }, 'token-b')).status, 409);
+    assert.deepEqual(confirmations, [`${workspaceA}:${accountA}:${sessionId}`]);
+  } finally {
+    await api.close();
+  }
+});
+
+test('preserves a pending Vinted code challenge without submitting credentials again', async () => {
+  const api = await setup(
+    undefined,
+    undefined,
+    false,
+    undefined,
+    undefined,
+    new VintedVerificationRequiredError(),
+    async () => assert.fail('an unverified profile must not be connected'),
+  );
+  try {
+    const scope = { workspaceId: workspaceA, connectionId: accountA };
+    await api.request('/marketplace-browser/sessions', scope);
+    const response = await api.request(`/marketplace-browser/sessions/${sessionId}/login`, {
+      ...scope,
+      credentials: { username: 'unused-user', password: 'unused-password' },
+    });
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { status: 'verification_required' });
+    assert.deepEqual(api.inputs, []);
+  } finally {
+    await api.close();
+  }
+});
+
+test('does not report an existing session as connected when account confirmation fails', async () => {
+  const api = await setup(
+    undefined,
+    undefined,
+    false,
+    undefined,
+    undefined,
+    { id: '12345', username: 'own-test' },
+    async () => {
+      throw new Error('private database detail');
+    },
+  );
+  try {
+    const scope = { workspaceId: workspaceA, connectionId: accountA };
+    await api.request('/marketplace-browser/sessions', scope);
+    const response = await api.request(`/marketplace-browser/sessions/${sessionId}/login`, {
+      ...scope,
+      credentials: { username: 'unused-user', password: 'unused-password' },
+    });
+    assert.equal(response.status, 409);
+    assert.deepEqual(api.inputs, []);
+    assert.equal(JSON.stringify(await response.json()).includes('private database detail'), false);
+  } finally {
+    await api.close();
+  }
+});
+
+test('does not confirm an authenticated profile after expiry or browser interruption', async () => {
+  for (const reason of ['expired', 'interrupted'] as const) {
+    let confirmations = 0;
+    const api = await setup(
+      undefined,
+      undefined,
+      false,
+      new MarketplaceBrowserSessionEndedError(reason),
+      undefined,
+      { id: '12345', username: 'own-test' },
+      async () => {
+        confirmations++;
+      },
+    );
+    try {
+      const scope = { workspaceId: workspaceA, connectionId: accountA };
+      await api.request('/marketplace-browser/sessions', scope);
+      const response = await api.request(`/marketplace-browser/sessions/${sessionId}/login`, {
+        ...scope,
+        credentials: { username: 'unused-user', password: 'unused-password' },
+      });
+      assert.equal(response.status, 410);
+      assert.equal(confirmations, 0);
+      assert.deepEqual(api.inputs, []);
+    } finally {
+      await api.close();
+    }
   }
 });
 

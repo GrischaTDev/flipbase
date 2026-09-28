@@ -256,14 +256,34 @@ export class MarketplaceBrowserHttpApi {
           delete body['credentials'];
           credentials['username'] = '';
           credentials['password'] = '';
+          const accounts = this.accounts;
           try {
-            const status = await this.broker.run(scope, sessionId, async (browser) => {
+            const result = await this.broker.run(scope, sessionId, async (browser) => {
+              if (accounts && browser.identify) {
+                try {
+                  const identity = await browser.identify();
+                  if (identity) return { status: 'already_authenticated' as const, identity };
+                } catch (error) {
+                  if (error instanceof VintedVerificationRequiredError)
+                    return { status: 'verification_required' as const };
+                  if (!(
+                    error instanceof VintedLoginPendingError ||
+                    error instanceof VintedLoginRejectedError
+                  ))
+                    throw error;
+                }
+              }
               if (!browser.login) throw new Error('Anmeldung nicht verfügbar');
-              return browser.login(login, () =>
+              const status = await browser.login(login, () =>
                 this.broker.run(scope, sessionId, async () => undefined),
               );
+              return { status };
             });
-            json(response, 200, { status });
+            login.username = '';
+            login.password = '';
+            if (result.status === 'already_authenticated' && accounts)
+              await accounts.confirm(scope, sessionId, result.identity);
+            json(response, 200, { status: result.status });
           } finally {
             login.username = '';
             login.password = '';
