@@ -259,6 +259,46 @@ it('startet die Anmeldung einmalig im ausgewählten Konto und wartet auf Bestät
   expect(store.session()).toBeNull();
 });
 
+it('übernimmt eine bereits bestätigte Sitzung ohne erneute Passwortübermittlung', async () => {
+  api.login.mockResolvedValueOnce('already_authenticated');
+  await store.login({ username: 'unused-user', password: 'unused-password' });
+  expect(api.login).toHaveBeenCalledOnce();
+  expect(api.close).toHaveBeenCalledWith(
+    { workspaceId: accountA.workspaceId, connectionId: accountA.connectionId },
+    id,
+    'token-a',
+  );
+  expect(reloadConnections).toHaveBeenCalledWith(accountA.connectionId);
+  expect(store.session()).toBeNull();
+  expect(store.awaitingLogin()).toBe(false);
+});
+
+it('meldet einen unsicheren Browserstopp nach bestehender Anmeldung wahrheitsgemäß', async () => {
+  api.login.mockResolvedValueOnce('already_authenticated');
+  api.close.mockRejectedValueOnce(new Error('uncertain stop'));
+  await store.login({ username: 'unused-user', password: 'unused-password' });
+  expect(store.error()).toContain('Vinted-Konto wurde bestätigt');
+  expect(store.canLogin()).toBe(false);
+  expect(reloadConnections).not.toHaveBeenCalled();
+});
+
+it('behält eine bestätigte Verbindung bei fehlgeschlagener Listenaktualisierung', async () => {
+  api.login.mockResolvedValueOnce('already_authenticated');
+  reloadConnections.mockRejectedValueOnce(new Error('network error'));
+  await store.login({ username: 'unused-user', password: 'unused-password' });
+  expect(store.session()).toBeNull();
+  expect(store.canLogin()).toBe(true);
+  expect(store.error()).toContain('Kontoliste');
+});
+
+it('zeigt eine bestehende Codeanforderung ohne erneute Passwortprüfung', async () => {
+  api.login.mockResolvedValueOnce('verification_required');
+  await store.login({ username: 'unused-user', password: 'unused-password' });
+  expect(store.awaitingVerification()).toBe(true);
+  expect(api.identify).not.toHaveBeenCalled();
+  expect(reloadConnections).not.toHaveBeenCalled();
+});
+
 it('meldet im Hintergrund an, auch wenn keine Browserbilder verfügbar sind', async () => {
   api.frame.mockRejectedValue(new Error('frame unavailable'));
   api.identify.mockResolvedValueOnce(null);

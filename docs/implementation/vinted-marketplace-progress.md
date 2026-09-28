@@ -1,5 +1,50 @@
 # Arbeitsstand: Vinted-Marktplatzverwaltung
 
+## 28. September 2026 – Lade-Kreis im Kontodialog vereinfacht
+
+Im vorhandenen Branch `juna/vinted-existing-session` wurde der zusätzliche
+Button-Loader beim Anmelden entfernt. Der große Lade-Kreis bleibt ohne
+Innensymbol; der Mauszeiger wird nur über dieser Kreisfläche verborgen. Der
+Angular-Bau und die beiden lokalen Anmeldeabläufe mit künstlichen Konten bei
+390 und 1440 Pixeln bestanden. Die produktive Ansicht ist noch unverändert.
+
+## 28. September 2026 – Bereits angemeldetes Profil erkannt
+
+Nach der Meldung „Die Browsersitzung konnte nicht bestätigt werden“ waren die
+betroffenen Sitzungen geschlossen und das GoLogin-Profil mit Proxy erreichbar.
+Ein einzelner Starttest ohne Anmeldung öffnete Vinted erfolgreich und stoppte
+den Anbieterbrowser mit HTTP 204. Eine zuvor parallel angeschlossene lesende
+Beobachtung könnte einen Start gestört haben; eine eindeutige Ursache für die
+kurzen Startabbrüche ist aus den vorhandenen Fehlermeldungen nicht ableitbar.
+Beim nächsten ausschließlich vom Nutzer gestarteten Versuch blieb die
+Browsersitzung aktiv. Flipbase meldete anschließend ein nicht bedienbares
+Vinted-Anmeldeformular.
+
+Nach bestätigtem Beenden dieses Versuchs zeigte dasselbe gespeicherte Profil:
+`/member/login/email` leitet auf `/` um, ohne Anmeldefelder. Die private
+Vinted-Identitätsroute antwortete dort mit HTTP 200 und einer Nutzerstruktur
+mit Kennung und Namen. Es wurden keine Identitätswerte, Eingabefelder,
+Passwörter oder SMS-Codes ausgegeben oder gespeichert. Der Browser wurde nach
+jeder lesenden Prüfung bestätigt gestoppt. Die Flipbase-Verbindung blieb
+weiterhin unbestätigt.
+
+Ein abschließender lesender Aufruf mit dem tatsächlich ausgelieferten
+`readVintedAccountIdentity` erkannte die bestehende Anmeldung (`recognized:
+true`), ohne Kennung oder Namen auszugeben. Auch dieser Browser wurde mit
+HTTP 204 gestoppt.
+
+Auf `juna/vinted-existing-session` prüft der Worker nun vor einem erneuten
+Login die vorhandene Identität. Nur die bereits bestehende, an Sitzung,
+Workspace, Konto und Betreiber gebundene Datenbankfunktion darf den Status
+`connected` setzen. Bei gültiger Identität sendet der Worker keine
+Zugangsdaten an Vinted; bei offener Codeanforderung wird kein neuer Login
+gestartet. Die Oberfläche beendet nach bestätigter Zuordnung den Browser und
+lädt die Kontoliste neu. Ein unklarer Stopp wird ausdrücklich angezeigt.
+
+Die Änderung ist lokal geprüft, aber noch nicht veröffentlicht. Der
+produktive Flipbase-Kontostatus, ein erfolgreicher SMS-Codeversand und der
+spätere Liveimport sind weiterhin offen.
+
 ## 28. September 2026 – Codekorrektur auf Web-App und Browserdienst aktiviert
 
 PR #233 bestand alle Pflichtprüfungen und wurde als Merge-Commit `ece0676d1cf2e06ae01ff9dbe188857e7dfbb608` in `master` übernommen. Der automatische Produktionslauf und ein eigener öffentlicher Check bestätigten genau diesen Web-Commit. Der getrennte Workflow `Publish Marketplace Worker Image` baute und veröffentlichte das Worker-Image mit derselben vollständigen SHA. Nach ausdrücklicher Freigabe läuft genau eine Browserdienst-Instanz mit diesem Image. Das vorherige Image `sha-e912b17b3b7a6658f2eafb9af87acf62a783b7d0` und die vorherige Compose-Zuordnung bleiben für einen Rückweg vorhanden.

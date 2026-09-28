@@ -131,6 +131,14 @@ it('sendet Zugangsdaten nur im begrenzten Loginauftrag und behandelt Ablauf getr
     ...scope,
     credentials: { username: 'synthetic', password: 'synthetic' },
   });
+  request.mockResolvedValueOnce(Response.json({ status: 'already_authenticated' }));
+  await expect(
+    api.login(scope, id, { username: 'synthetic', password: 'synthetic' }, 'token'),
+  ).resolves.toBe('already_authenticated');
+  request.mockResolvedValueOnce(Response.json({ status: 'verification_required' }));
+  await expect(
+    api.login(scope, id, { username: 'synthetic', password: 'synthetic' }, 'token'),
+  ).resolves.toBe('verification_required');
   request.mockResolvedValueOnce(new Response(null, { status: 410 }));
   await expect(
     api.login(scope, id, { username: 'synthetic', password: 'synthetic' }, 'token'),

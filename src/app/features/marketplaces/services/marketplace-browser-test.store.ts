@@ -250,6 +250,7 @@ export class MarketplaceBrowserTestStore {
     this.loginPagePendingKey.set(null);
     this.verificationKey.set(null);
     this.progressState.set({ key, message: 'Die Anmeldung bei Vinted läuft im Hintergrund …' });
+    let confirmedByWorker = false;
     try {
       const result = await this.api.login(
         active.scope,
@@ -258,6 +259,17 @@ export class MarketplaceBrowserTestStore {
         this.currentToken(),
       );
       if (!this.isCurrent(key, revision)) return;
+      if (result === 'already_authenticated') {
+        confirmedByWorker = true;
+        await this.completeConfirmedAccount(active, revision, this.currentToken());
+        return;
+      }
+      if (result === 'verification_required') {
+        this.loginDeadline = Date.now() + 120_000;
+        this.verificationKey.set(key);
+        this.progressState.set(null);
+        return;
+      }
       if (result === 'form_unavailable' || result === 'interaction_required') {
         this.loginKey.set(null);
         this.errorState.set({
@@ -279,8 +291,9 @@ export class MarketplaceBrowserTestStore {
         this.loginNeedsClose.set(key);
         this.errorState.set({
           key,
-          message:
-            'Die Anmeldung ist nicht bestätigt. Deine Eingaben werden nicht automatisch erneut gesendet. Beende den Versuch, bevor Du Dich erneut anmeldest.',
+          message: confirmedByWorker
+            ? 'Dein Vinted-Konto wurde bestätigt, aber die Browsersitzung konnte nicht sicher beendet werden. Beende den Versuch.'
+            : 'Die Anmeldung ist nicht bestätigt. Deine Eingaben werden nicht automatisch erneut gesendet. Beende den Versuch, bevor Du Dich erneut anmeldest.',
         });
       }
     } finally {
@@ -379,15 +392,7 @@ export class MarketplaceBrowserTestStore {
         this.loginPagePendingKey.set(null);
         return;
       }
-      await this.api.close(active.scope, active.id, token);
-      if (!this.isCurrent(active.key, revision)) return;
-      this.releaseFrame(active.frameUrl);
-      this.state.set(null);
-      this.loginKey.set(null);
-      this.loginPagePendingKey.set(null);
-      this.verificationKey.set(null);
-      this.progressState.set(null);
-      await this.accounts.reloadConnections(active.scope.connectionId);
+      await this.completeConfirmedAccount(active, revision, token);
     } catch (error) {
       if (this.isCurrent(active.key, revision) && error instanceof VintedLoginPendingError) {
         if (allowPending) {
@@ -476,6 +481,30 @@ export class MarketplaceBrowserTestStore {
     const frameUrl = URL.createObjectURL(frame);
     this.state.set({ ...old, frameUrl });
     this.releaseFrame(old.frameUrl);
+  }
+
+  private async completeConfirmedAccount(
+    active: BrowserTestSession,
+    revision: number,
+    token: string,
+  ): Promise<void> {
+    await this.api.close(active.scope, active.id, token);
+    if (!this.isCurrent(active.key, revision)) return;
+    this.releaseFrame(active.frameUrl);
+    this.state.set(null);
+    this.loginKey.set(null);
+    this.loginPagePendingKey.set(null);
+    this.verificationKey.set(null);
+    this.progressState.set(null);
+    try {
+      await this.accounts.reloadConnections(active.scope.connectionId);
+    } catch {
+      this.errorState.set({
+        key: active.key,
+        message:
+          'Dein Vinted-Konto wurde bestätigt. Lade die Kontoliste erneut, um den Status zu sehen.',
+      });
+    }
   }
 
   private currentToken(): string {

@@ -1,5 +1,49 @@
 # Vinted-Oberfläche: geprüfter Stand vom 26. September 2026
 
+## Nachtrag 28.09.2026: Einfache Ladeanzeige beim Anmelden
+
+Der Login-Dialog zeigte nach Nutzerbeobachtung zeitweise ein zeigerartiges
+Element im großen Lade-Kreis. Der Kreis im Template enthält selbst kein Icon.
+Für den Übergang wurde der zusätzliche Loader des Anmeldebuttons entfernt;
+über der Kreisfläche bleibt der Mauszeiger während des Ladens ausgeblendet.
+Die Anmeldung bleibt währenddessen gegen einen zweiten Klick gesperrt.
+
+Der Angular-Produktionsbau und die beiden bestehenden Anmeldeabläufe mit
+künstlichen Konten bei 390 und 1440 Pixeln bestanden. Ein neuer Screenshot
+bei 390 Pixeln zeigt den leeren Ring ohne Innensymbol. Die Prüfung verwendet
+keine echten Vinted-Daten. Das kurzzeitige Verhalten auf dem Gerät des Nutzers
+ist erst nach Veröffentlichung erneut zu prüfen.
+
+## Nachtrag 28.09.2026: Bereits angemeldetes Kontoprofil
+
+Beim vom Nutzer gestarteten erneuten Versuch funktionierte der Browserstart;
+die Flipbase-Ansicht meldete danach ein nicht bedienbares Anmeldeformular. Nach
+dem bestätigten Schließen wurde dasselbe Profil allein geöffnet: Vinted leitete
+`/member/login/email` auf `/` um. Die erwarteten Benutzername- und
+Passwortfelder waren auch nach Wartezeit nicht vorhanden. Die private
+Identitätsroute antwortete mit HTTP 200 und einer Nutzerstruktur mit Kennung
+und Namen. Nur Status und Feldvorhandensein wurden ausgegeben, keine Werte.
+Der Anbieterbrowser wurde mit HTTP 204 gestoppt.
+Der im produktiven Worker vorhandene Identitätsleser erkannte die Anmeldung
+anschließend ebenfalls (`recognized: true`); sein Ergebnis wurde nicht
+ausgegeben. Der Browser wurde erneut mit HTTP 204 gestoppt.
+
+Die Änderung im Branch `juna/vinted-existing-session` prüft diese Identität
+vor einer erneuten Passwortübermittlung. Bei Erfolg bestätigt die vorhandene
+geschützte Datenbankfunktion ausschließlich das gewählte Konto im aktuellen
+Workspace; die Oberfläche beendet den Browser und lädt die Kontoliste neu.
+Eine noch offene SMS-Stufe bleibt für die Codeeingabe erhalten. Der
+Live-Nachweis eines `connected`-Status in Flipbase steht nach Veröffentlichung
+aus; die frühere Codeeingabe wurde durch diesen Test nicht nachträglich
+bestätigt.
+
+Lokal bestanden 91 Worker-Tests, neun Chromium-Tests auf vollständig
+abgefangenen eigenen Seiten und 107 Angular-Marktplatztests. Beide
+Typprüfungen und Builds bestanden. Die zusätzlichen Tests decken die
+kontogebundene Übernahme, fremde Konten/Workspaces, abgelaufene Zugriffe,
+offene Codeanforderung, fehlerhafte Bestätigung und Browserabbruch ab. Es gab
+in diesem Schritt keinen produktiven Rollout und keine neue Migration.
+
 ## Nachtrag 28.09.2026: Codekorrektur veröffentlicht
 
 PR #233 wurde nach grünen Pflichtprüfungen gemergt. Die öffentliche Web-App liefert Commit `ece0676d`; der separat freigegebene Browserdienst verwendet das veröffentlichte Worker-Image desselben Commits. Nach dem Wechsel sind Container und öffentlicher Gesundheitscheck grün, die Worker-API meldet `apiVersion: 2` und `readOnly: false`, und ein Sitzungsstart ohne Anmeldung wird mit HTTP 401 abgewiesen. Vor und nach der Umstellung gab es keine aktive oder ungeklärte Browsersitzung. Die reale SMS-Eingabe und Kontobestätigung wurden durch diese Betriebsprüfung nicht ausgelöst und bleiben ein eigener Nutzer-Test.
