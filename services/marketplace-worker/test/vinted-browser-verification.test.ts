@@ -3,24 +3,31 @@ import { test } from 'node:test';
 import type { Page } from 'playwright';
 import { submitVintedVerificationCode } from '../src/vinted-browser-verification.ts';
 
-function fixture(url = 'https://www.vinted.de/member/login/2fa', fields = 1) {
+function fixture(url = 'https://www.vinted.de/member/login/2fa', fields = 1, submitButtons = 1) {
   const actions: string[] = [];
+  const submit = {
+    count: async () => submitButtons,
+    isVisible: async () => true,
+    isEnabled: async () => true,
+    click: async () => actions.push('submit'),
+  };
+  const form = {
+    count: async () => 1,
+    locator: (selector: string) =>
+      selector.startsWith('button[type="submit"]') ? submit : { count: async () => fields },
+  };
   const page = {
     url: () => url,
     locator: () => ({
       count: async () => fields,
+      first: () => ({ locator: () => form }),
       nth: (index: number) => ({
         isVisible: async () => true,
         fill: async (value: string) => actions.push(`fill:${index}:${value}`),
       }),
     }),
-    getByRole: () => ({
-      count: async () => 1,
-      isVisible: async () => true,
-      click: async () => actions.push('submit'),
-    }),
   } as unknown as Page;
-  return { page, actions };
+  return { page, actions, submit };
 }
 
 test('sendet einen SMS-Code nur einmal auf der festen Vinted-Zweitfaktor-Seite', async () => {
@@ -71,18 +78,23 @@ test('verweigert fremde Seiten und abgelaufene Berechtigungen vor der Eingabe', 
 });
 
 test('meldet unklaren Versand, ohne den Code erneut zu senden', async () => {
-  const { page, actions } = fixture();
-  page.getByRole = (() => ({
-    count: async () => 1,
-    isVisible: async () => true,
-    click: async () => {
-      actions.push('submit');
-      throw new Error('synthetic-secret');
-    },
-  })) as unknown as Page['getByRole'];
+  const { page, actions, submit } = fixture();
+  submit.click = async () => {
+    actions.push('submit');
+    throw new Error('synthetic-secret');
+  };
   assert.equal(
     await submitVintedVerificationCode(page, '123456', async () => undefined),
     'submission_unconfirmed',
   );
   assert.equal(actions.filter((action) => action === 'submit').length, 1);
+});
+
+test('verweigert den Versand, wenn das Codeformular keinen eindeutigen Submit-Button hat', async () => {
+  const { page, actions } = fixture(undefined, 1, 0);
+  assert.equal(
+    await submitVintedVerificationCode(page, '1234', async () => undefined),
+    'form_unavailable',
+  );
+  assert.deepEqual(actions, []);
 });

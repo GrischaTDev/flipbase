@@ -531,3 +531,24 @@ zu verifizieren. Keine neue Datenbankmigration oder Abhängigkeit.
       eines möglichen laufenden Anbieterbrowsers nicht pauschal entfernt werden.
 - [ ] Erst dann einen neuen, vom Nutzer gestarteten Vinted-Versuch prüfen;
       SMS-Code und Identitätsantwort bleiben getrennte Live-Nachweise.
+
+## AP04j: Codeformular und Anmeldedialog nach Liveversuch (28.09.2026)
+
+Der vom Nutzer gestartete Versuch erreichte die Vinted-Codebestätigung. Eine
+lesende Strukturprüfung zeigte drei Formulare und ein sichtbares Codefeld;
+der Submit-Button lag in dessen Formular, hatte aber keinen der bisher fest
+angenommenen Namen. Der reale Code und alle Eingabewerte blieben unberührt.
+
+- [x] Den eindeutigen Submit-Button aus dem Formular des Codefelds wählen,
+      ohne Textannahme und ohne automatischen Wiederholungsversuch.
+- [x] Fehlt ein eindeutiger Button im Codeformular, den Versand auch dann
+      verweigern, wenn andere Formulare Buttons besitzen.
+- [x] Passwort-Auge über die vorhandene gemeinsame Feldkomponente anbieten;
+      den Vinted-Dialog leer starten und Browser-Autofill für das Flipbase-Login
+      mit den vorgesehenen Autocomplete-Attributen vermeiden.
+- [x] Einen weiterhin sichtbaren Vinted-Anmeldebildschirm schon während der
+      Prüfung erklären und den unbestätigten Kontoeintrag fortsetzbar/löschbar
+      lassen.
+- [ ] Nach Review, PR und getrennter Freigabe für die Worker-Aktivierung einen
+      neuen eigenen Versuch durchführen: Codeeingabe, bestätigte Vinted-ID,
+      Kontostatus und Bereinigung bei Sitzungsabbruch prüfen.

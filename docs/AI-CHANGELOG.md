@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-28 – Juna – Vinted-Codeformular und Anmeldedialog nach Liveversuch korrigiert
+
+**Auftrag:** Den gemeldeten Wartezustand, die fehlgeschlagene SMS-Codeeingabe und die falsche Passwortvorbelegung im Vinted-Dialog untersuchen.
+
+**Befund und Änderung:** Eine auf Strukturmerkmale begrenzte, lesende Prüfung der vom Nutzer geöffneten Vinted-Seite zeigte genau ein Codefeld in einem von drei Formularen. Der Bestätigungsbutton lag im richtigen Formular, trug aber einen anderen Namen als vom Worker vorausgesetzt. Der Worker wählt jetzt den eindeutigen Submit-Button im Formular des Codefelds und verweigert mehrdeutige Formulare. Der Dialog zeigt das Passwort-Auge, startet mit leeren Vinted-Feldern und vermindert die automatische Zuordnung eines vorhandenen Flipbase-Passworts über die standardisierten Autocomplete-Attribute. Der Wartezustand erklärt nun, dass Vinted noch das Anmeldeformular zeigt. Unbestätigte Konten bleiben als ausdrücklich löschbare oder fortsetzbare Einträge erhalten.
+
+**Prüfung und Grenze:** Nur Formularstruktur wurde live gelesen; weder Zugangsdaten noch SMS-Code oder Feldwerte wurden ausgelesen, erneut eingegeben oder geloggt. 87 Worker-Tests, neun Tests im abgefangenen Chromium, 41 gezielte Angular-Tests und elf Desktop-/Mobilabläufe bestanden; beide Typprüfungen und Builds, gezieltes ESLint sowie die Shared-UI-Prüfung ebenfalls. Ein erfolgreicher echter Codeversand und eine bestätigte Kontoverbindung stehen noch aus. Kein Push, Merge oder Deployment in dieser Sitzung.
+
 ## 2026-09-28 – Juna – Vinted-Browserdienst nach PR #231 aktiviert
 
 **Auftrag:** Den nach grünen Pflichtprüfungen gemergten Vinted-Kontofix auf dem produktiven Browserdienst aktivieren und den Betrieb prüfen.

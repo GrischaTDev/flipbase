@@ -1,5 +1,11 @@
 # Arbeitsstand: Vinted-Marktplatzverwaltung
 
+## 28. September 2026 – Vinted-Codeformular nach eigenem Liveversuch untersucht
+
+Bei einem vom Nutzer gestarteten Versuch blieb die Anmeldung zunächst auf dem Formular; beim erneuten Versuch erschien eine SMS-Bestätigung. Der bisherige Worker meldete für den eingegebenen Code `form_unavailable`. Eine ausdrücklich lesende Prüfung der noch offenen Sitzung ergab: Vinted stand auf `/member/login/2fa`, hatte drei Formulare und genau ein sichtbares Codefeld mit einem eindeutigen Submit-Button im selben Formular. Dessen Beschriftung passte nicht zur festen Namensliste des Workers. Es wurden keine Eingabewerte, Zugangsdaten oder Codes gelesen oder versendet.
+
+Im Branch `juna/vinted-login-verification-fix` bindet der Worker den Versand an den eindeutigen Button im Formular des Codefelds; bei Mehrdeutigkeit wird nichts gesendet. Der Anmeldedialog zeigt ein Passwort-Auge und fordert leere Vinted-Felder mit eigenen Autocomplete-Hinweisen an. Während Vinted noch das Anmeldeformular zeigt, nennt die Oberfläche diesen Zustand ausdrücklich. Ein beim Anmeldeklick erzeugter, noch nicht bestätigter Kontodatensatz bleibt zum Fortsetzen oder Löschen sichtbar. 87 Worker-Tests, neun abgefangene Chromium-Tests, 41 gezielte Angular-Tests, elf Desktop-/Mobilabläufe, beide Typprüfungen und Builds, gezieltes ESLint und die Shared-UI-Prüfung bestanden. Die tatsächliche Vinted-Bestätigung und Identitätsprüfung sind weiterhin offen; die lokale Änderung wurde nicht veröffentlicht.
+
 ## 28. September 2026 – Browserdienst nach PR #231 aktiviert
 
 PR #231 wurde nach grünen Pflichtprüfungen als Merge-Commit `e912b17b` in

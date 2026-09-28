@@ -1,5 +1,11 @@
 # Vinted-Oberfläche: geprüfter Stand vom 26. September 2026
 
+## Nachtrag 28.09.2026: Codeformular und Passwortfeld nach Liveversuch
+
+Der produktive Vinted-Codebildschirm wurde nur anhand seiner Struktur geprüft: drei Formulare, ein sichtbares Codefeld und ein Submit-Button im selben Formular. Der Buttonname wich von der bisherigen festen Erkennung ab. Weder der SMS-Code noch Zugangsdaten oder Feldwerte wurden gelesen oder erneut gesendet. Der lokale Worker-Code wählt den zugehörigen eindeutigen Submit-Button; eine eigene abgefangene Chromium-Testseite bildet diese Formularstruktur nach. Ein zweiter Test verweigert den Versand, wenn nur ein fremdes Formular einen Submit-Button besitzt.
+
+Der Vinted-Dialog enthält nun die gemeinsame Passwort-Anzeige und startet in den automatisierten Desktop- und Mobiltests mit leeren Feldern. `autocomplete="off"` am Formular und `autocomplete="new-password"` am Passwortfeld vermindern eine automatische Übernahme des Flipbase-Logins; die Entscheidung des Browsers oder Passwortmanagers ist dadurch nicht vollständig kontrollierbar. Beim weiter sichtbaren Vinted-Anmeldeformular erklärt der Wartezustand den Grund. Die Tests verwenden ausschließlich synthetische Daten und abgefangene Seiten. Alle elf Desktop-/Mobilabläufe, 41 gezielte Angular-Tests, 87 Worker-Tests und neun Chromium-Tests bestanden. Ein erfolgreicher realer Codeversand, die Identitätsantwort und die endgültige Verbindung müssen nach Veröffentlichung mit einem eigenen Konto geprüft werden.
+
 ## Nachtrag 28.09.2026: Web-App und Browserdienst auf PR #231
 
 Der öffentliche Deployment-Check bestätigt Commit `e912b17b`. Nach
