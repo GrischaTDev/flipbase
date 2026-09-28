@@ -11,6 +11,7 @@ export type ButtonVariant =
   | 'favorite'
   | 'destructive'
   | 'ghost'
+  | 'list-row'
   | 'plain'
   | 'table-action'
   | 'thumbnail-remove';
@@ -92,6 +93,9 @@ export class ButtonComponent {
         'bg-fb-critical-surface hover:bg-fb-critical-border text-fb-critical border border-fb-critical-border shadow-sm font-semibold focus-visible:outline-fb-critical',
       ghost:
         'bg-transparent text-fb-text-secondary hover:text-fb-text-primary hover:bg-fb-surface-hover border border-transparent',
+      'list-row': this.ariaPressed()
+        ? 'bg-fb-well text-fb-text-primary border border-transparent'
+        : 'bg-transparent text-fb-text-primary hover:bg-fb-surface-hover border border-transparent',
       plain:
         'bg-transparent text-fb-text-secondary hover:text-fb-text-primary p-0 border-0 underline-offset-4 hover:underline',
       'table-action': 'border border-transparent bg-transparent text-fb-text-muted shadow-none',
@@ -139,7 +143,7 @@ export class ButtonComponent {
       width,
       variantStyles[this.variant()],
       this.variant() === 'table-action' ? tableActionToneStyles[this.tone()] : '',
-      sizeStyles[this.size()],
+      this.variant() === 'list-row' ? 'min-h-18 rounded-lg py-3 text-sm' : sizeStyles[this.size()],
       horizontalPadding,
     ]
       .filter(Boolean)

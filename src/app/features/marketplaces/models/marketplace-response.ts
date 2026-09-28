@@ -188,6 +188,8 @@ export function parseMarketplacePage(
       brand: text(item['brand']),
       size: text(item['size']),
       shipmentStatus: text(item['shipmentStatus']),
+      messageType: text(item['messageType']),
+      priceLabel: text(item['priceLabel']),
     };
   });
   return { items, total, nextCursor };

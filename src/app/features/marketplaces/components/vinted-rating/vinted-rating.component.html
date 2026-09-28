@@ -1,0 +1,18 @@
+<div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+  <span class="font-medium text-fb-text-primary">
+    {{ count() ?? 0 }} {{ count() === 1 ? 'Bewertung' : 'Bewertungen' }}
+  </span>
+  @if (score() !== null) {
+    <span role="img" [attr.aria-label]="scoreLabel()" class="inline-flex gap-0.5 text-[#d49b00]">
+      @for (star of stars; track star) {
+        <svg
+          [lucideIcon]="starIcon"
+          class="size-4"
+          [class.fill-current]="star <= filledStars()"
+          aria-hidden="true"
+        ></svg>
+      }
+    </span>
+    <span class="tabular-nums text-fb-text-secondary">{{ score() | number: '1.1-1' }}</span>
+  }
+</div>

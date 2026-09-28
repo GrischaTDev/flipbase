@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-28 – Juna – Vinted-Datenansichten nach erstem Liveabruf korrigiert
+
+**Auftrag:** Die vom Nutzer beobachteten Lücken bei Profilbild, Bewertung, Inseraten und Nachrichten nach dem ersten erfolgreichen manuellen Abruf beheben.
+
+**Änderung:** Der Import schließt als `is_closed` markierte Artikel aus der aktiven Inseratliste aus und übernimmt Textnachrichten mit interner ID sowie Systemereignisse ohne ID. Die Gesprächsvorschau nutzt die zuletzt gelesene Nachricht. Profil- und Chatbilder werden passend zugeschnitten, die normierte Bewertung als Fünf-Sterne-Wert gezeigt und die Inserate dichter mit bis zu fünf Spalten und Push-Banner dargestellt. Für den Aktualisierungsklick gibt es eine sichtbare Fortschrittsmeldung.
+
+**Prüfung und Grenze:** Ein lesender Strukturabgleich in einem bereits gelesenen Verlauf bestätigte fünf statt zuvor einer erkannten Nachricht; alle dazu gestarteten Anbieterbrowser wurden bestätigt gestoppt. Gezielte Import- und Angular-Tests, beide Builds, Lint, die Shared-UI-Prüfung und zwei lokale Desktop-/Mobilabläufe bestanden. Die Korrektur liegt auf `juna/vinted-data-presentation-fix`; gespeicherte Daten ändern sich erst nach erneutem manuellem Abruf. Kein Push, Merge oder Deployment in dieser Sitzung.
+
 ## 2026-09-28 – Juna – Vinted-Import-Worker nach Freigabe aktiviert
 
 **Auftrag:** Den gemergten manuellen Vinted-Datenimport nach gesonderter Freigabe auf dem Browserdienst aktivieren.
