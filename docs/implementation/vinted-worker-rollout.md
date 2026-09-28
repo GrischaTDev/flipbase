@@ -1,5 +1,23 @@
 # Vinted-Browserdienst: Veröffentlichung des Admin-Piloten
 
+## Aktueller Betriebsstand vom 28.09.2026 – Auftragsabruf
+
+Nach gesonderter Nutzerfreigabe wurde das aus dem bereits veröffentlichten
+Merge-Commit `cdbe3f5f195cdbd4267869de73cad35b13439896` erfolgreich gebaute
+Worker-Image `ghcr.io/grischatdev/flipbase-marketplace-worker:sha-cdbe3f5f195cdbd4267869de73cad35b13439896`
+auf die bestehende einzelne Instanz umgestellt. Die Compose-Datei stimmte
+per SHA-256 mit dem Repository überein und wurde vor dem Wechsel mit Modus
+0600 gesichert. Das vorige Image `sha-1c7b65752c95653d17fe30ddb51a6bcc05d7ca1f`
+bleibt für einen Rückweg erhalten.
+
+Vor und nach dem Wechsel waren 19 Browsersitzungen geschlossen, keine aktiv
+oder ungeklärt; die Auftragstabelle war leer. Der Container ist gesund. Der
+öffentliche Healthcheck meldete HTTP 200 mit `ok: true`, `readOnly: false`
+und `apiVersion: 2`. Ein nicht angemeldeter POST auf den neuen
+Auftragsendpunkt wurde mit HTTP 401 abgewiesen. Ein echter Abruf des eigenen
+Kontos ist weiterhin vom Nutzer in Flipbase zu prüfen. Der Healthcheck allein
+bestätigt keine erfolgreichen Vinted-Daten.
+
 ## Aktueller Betriebsstand vom 28.09.2026 – manueller Datenimport
 
 Nach dem grünen PR #237 wurde der Merge-Commit

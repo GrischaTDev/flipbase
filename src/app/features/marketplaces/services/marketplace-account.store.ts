@@ -332,7 +332,7 @@ export class MarketplaceAccountStore {
     if (!connection || connection.status !== 'connected' || !token || this.busy()) return false;
     const scope = this.scope(connection);
     this.syncConnectionId = connection.connectionId;
-    this.syncStatus.set({ id: '', state: 'queued', stage: null, errorCode: null });
+    this.syncStatus.set(null);
     return this.mutate(async () => {
       await this.browserApi.syncConnection(scope, token, (progress) => {
         if (this.syncConnectionId === connection.connectionId && this.contextKey())
