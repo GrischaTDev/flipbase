@@ -1,5 +1,11 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-28 – Juna – Vinted-Codeeingabe und Kontodialog für PR freigegeben
+
+**Auftrag:** Nach ausdrücklicher Freigabe den geprüften Branch für die Vinted-SMS-Bestätigung, den gestuften Kontodialog und das sichere Löschen über einen PR veröffentlichen und nach erfolgreichen Pflichtprüfungen mergen.
+
+**Stand vor Veröffentlichung:** Der Branch basiert auf dem aktuellen `origin/master`; die fachlichen Änderungen wurden bereits gezielt geprüft. Der echte Vinted-Codeablauf bleibt bis zu einem vom Nutzer gestarteten Versuch unbestätigt. Diese Sitzung sendet weder Zugangsdaten noch einen SMS-Code erneut.
+
 ## 2026-09-28 – Juna – Vinted-SMS-Code und Kontodialog ergänzt
 
 **Auftrag:** Den beim eigenen Login angeforderten SMS-Code innerhalb von Flipbase eingeben können, die Kontoanlage als gestuften Drawer darstellen und Konten samt Browserprofil sicher löschen.
