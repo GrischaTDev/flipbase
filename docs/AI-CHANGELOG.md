@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-28 – Juna – Vinted-Browserdienst nach PR #231 aktiviert
+
+**Auftrag:** Den nach grünen Pflichtprüfungen gemergten Vinted-Kontofix auf dem produktiven Browserdienst aktivieren und den Betrieb prüfen.
+
+**Änderung:** PR #231 wurde als Merge-Commit `e912b17b` übernommen und die Web-App automatisch durch CI veröffentlicht. Das separat veröffentlichte Worker-Image desselben Commits wurde nach ausdrücklicher Nutzerfreigabe als einzige Browserdienst-Instanz gestartet. Die vorherige Image-Zuordnung liegt für einen Rückweg serverseitig bereit; bestehende Konten und Anbieterprofile blieben unverändert.
+
+**Prüfung und Grenze:** Der Container ist gesund; der öffentliche Endpunkt liefert HTTP 200 mit `apiVersion: 2` und `readOnly: false`. Ein Sitzungsstart ohne Anmeldung liefert HTTP 401. Die Datenbank zeigte sechs geschlossene und keine offenen Browsersitzungen. GoLogin war erreichbar und meldete weiterhin zehn Profile. Kontolöschung, SMS-Bestätigung und ein erfolgreicher Vinted-Login wurden produktiv noch nicht mit einem ausgewählten eigenen Konto geprüft.
+
 ## 2026-09-28 – Juna – Vinted-Livefehler bei Kontostart und Löschung untersucht
 
 **Auftrag:** Die gemeldete fehlgeschlagene Kontolöschung, den zu frühen Tabelleneintrag und den unmittelbaren Sitzungsfehler prüfen und beheben.

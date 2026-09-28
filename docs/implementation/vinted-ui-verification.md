@@ -1,5 +1,16 @@
 # Vinted-Oberfläche: geprüfter Stand vom 26. September 2026
 
+## Nachtrag 28.09.2026: Web-App und Browserdienst auf PR #231
+
+Der öffentliche Deployment-Check bestätigt Commit `e912b17b`. Nach
+ausdrücklicher Freigabe läuft auch der Browserdienst mit dem Image dieses
+Commits. Der Container ist gesund, `/marketplace-browser/healthz` liefert
+HTTP 200 mit `apiVersion: 2` und `readOnly: false`; ohne Benutzertoken
+antwortet der Sitzungsstart mit HTTP 401. Es gab beim Wechsel keine offene
+Browsersitzung. Der Anbieter ist erreichbar, meldet aber weiterhin zehn
+Profile. Die neue Löschfunktion und der SMS-Codeablauf sind damit technisch
+ausgeliefert, jedoch noch nicht mit einem ausgewählten echten Konto bestätigt.
+
 ## Nachtrag 28.09.2026: Livefehler nach getrenntem Web- und Worker-Release
 
 Die öffentliche Web-App trägt Merge-Commit `8b020be5` aus PR #230. Der
