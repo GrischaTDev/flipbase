@@ -6,7 +6,7 @@ import {
   SupabaseBrowserUserVerifier,
 } from '../src/marketplace-browser-http-api.ts';
 import type { BrowserInfo } from '../src/gologin-cloud-browser.ts';
-import type { VintedAccountImport } from '../src/vinted-account-import.ts';
+import { VintedImportReadError, type VintedAccountImport } from '../src/vinted-account-import.ts';
 import { GoLoginApiLimitError, GoLoginProfileLimitError } from '../src/gologin-api-limit.ts';
 import {
   VintedLoginPendingError,
@@ -180,6 +180,43 @@ test('gleicht nur die gebundene Sitzung ab und stoppt den Browser nach dem Speic
     assert.equal(response.status, 200);
     assert.equal((await response.json()).observedAt, imports.observedAt);
     assert.deepEqual(written, [`${workspaceA}:${accountA}:${sessionId}:123`]);
+    assert.equal(api.closes(), 1);
+  } finally {
+    await api.close();
+  }
+});
+
+test('meldet bei einem fehlgeschlagenen Import nur den Leseschritt und schließt die Sitzung', async () => {
+  const api = await setup(
+    undefined,
+    undefined,
+    false,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    async () => {
+      throw new VintedImportReadError('profile', new Error('private-provider-response'));
+    },
+    async () => {
+      throw new Error('Der fehlgeschlagene Import darf nicht gespeichert werden');
+    },
+  );
+  try {
+    const response = await api.request('/marketplace-browser/connections/sync', {
+      workspaceId: workspaceA,
+      connectionId: accountA,
+    });
+    assert.equal(response.status, 502);
+    const body = await response.text();
+    assert.deepEqual(JSON.parse(body), {
+      code: 'vinted_import_failed',
+      stage: 'profile',
+      error: 'Vinted-Daten konnten nicht gelesen werden',
+    });
+    assert.equal(body.includes('private-provider-response'), false);
     assert.equal(api.closes(), 1);
   } finally {
     await api.close();

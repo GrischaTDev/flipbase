@@ -226,7 +226,20 @@ async function mockMarketplace(
           total: 1,
           nextCursor: null,
         },
-        sales: emptyPage(),
+        sales: {
+          items: [
+            {
+              ...scope,
+              id: 'sale-1',
+              title: 'Verkauftes Hemd · Testartikel',
+              price: 30,
+              currency: 'EUR',
+              status: 'Versendet',
+            },
+          ],
+          total: 1,
+          nextCursor: null,
+        },
         activity: emptyPage(),
       };
     }
@@ -388,6 +401,37 @@ for (const width of [1440, 390]) {
       .getByRole('link', { name: 'Profil', exact: true })
       .click();
     await expect(page.locator('app-vinted-account-content')).toContainText('Profil Testkonto B');
+    await page.addScriptTag({ content: axe.source });
+    expect(
+      await page.evaluate(
+        async () =>
+          (
+            await (window as unknown as { axe: typeof axe }).axe.run(
+              document.querySelector('app-vinted-account-content') as HTMLElement,
+            )
+          ).violations,
+      ),
+    ).toEqual([]);
+    await evidence(page, `vinted-profile-${width}`);
+    await page
+      .getByRole('navigation', { name: 'Vinted-Bereiche' })
+      .getByRole('link', { name: 'Verkäufe', exact: true })
+      .click();
+    await expect(page.locator('app-vinted-account-content')).toContainText('Verkauftes Hemd');
+    await expect(page.locator('app-vinted-account-content')).not.toContainText(
+      'Hier erscheinen Bestellungen',
+    );
+    expect(
+      await page.evaluate(
+        async () =>
+          (
+            await (window as unknown as { axe: typeof axe }).axe.run(
+              document.querySelector('app-vinted-account-content') as HTMLElement,
+            )
+          ).violations,
+      ),
+    ).toEqual([]);
+    await evidence(page, `vinted-sales-${width}`);
     await page
       .getByRole('navigation', { name: 'Vinted-Bereiche' })
       .getByRole('link', { name: 'Inserate', exact: true })
@@ -454,7 +498,6 @@ for (const width of [1440, 390]) {
         )
         .every((call) => call.body['p_workspace_id'] === workspaceId),
     ).toBe(true);
-    await page.addScriptTag({ content: axe.source });
     const violations = await page.evaluate(
       async () =>
         (

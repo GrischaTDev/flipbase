@@ -1,6 +1,33 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { parseVintedAccountImport } from '../src/vinted-account-import.ts';
+import type { Page } from 'playwright';
+import {
+  parseVintedAccountImport,
+  readVintedAccountImport,
+  VintedImportReadError,
+} from '../src/vinted-account-import.ts';
+
+test('ordnet einen geheimen Anbieterfehler nur dem fehlgeschlagenen Profilschritt zu', async () => {
+  let requests = 0;
+  const page = {
+    goto: async () => undefined,
+    url: () => 'https://www.vinted.de/',
+    evaluate: async () => {
+      requests += 1;
+      if (requests === 1) return { user: { id: 123, login: 'testkonto' } };
+      throw new Error('private-provider-response');
+    },
+  } as unknown as Page;
+  await assert.rejects(
+    readVintedAccountImport(page, async () => undefined),
+    (error: unknown) => {
+      assert.ok(error instanceof VintedImportReadError);
+      assert.equal(error.stage, 'profile');
+      assert.equal(error.message.includes('private-provider-response'), false);
+      return true;
+    },
+  );
+});
 
 test('ordnet Profil, eigene Inserate, Gespräche, Nachrichten und belegte Verkäufe zu', () => {
   const result = parseVintedAccountImport(

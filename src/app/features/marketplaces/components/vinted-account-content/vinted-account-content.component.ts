@@ -7,7 +7,6 @@ import { ButtonComponent } from '../../../../shared/components/button/button.com
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { DataTableComponent } from '../../../../shared/components/data-table/data-table.component';
-import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
 import { VintedRatingComponent } from '../vinted-rating/vinted-rating.component';
 import type { MarketplaceEntryKind } from '../../models/marketplace-read.models';
@@ -22,7 +21,6 @@ import { MarketplaceAccountStore } from '../../services/marketplace-account.stor
     BadgeComponent,
     CardComponent,
     DataTableComponent,
-    NoticeBannerComponent,
     ProductThumbnailComponent,
     VintedRatingComponent,
   ],

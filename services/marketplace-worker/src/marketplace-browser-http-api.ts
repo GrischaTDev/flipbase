@@ -1,6 +1,10 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type { BrowserInfo } from './gologin-cloud-browser.ts';
-import type { VintedAccountImport } from './vinted-account-import.ts';
+import {
+  VintedImportReadError,
+  type VintedAccountImport,
+  type VintedImportStage,
+} from './vinted-account-import.ts';
 import {
   MarketplaceBrowserSessionEndedError,
   type BrowserSessionScope,
@@ -68,6 +72,15 @@ class RequestError extends Error {
   constructor(status: number) {
     super('Ungültige Browseranfrage');
     this.status = status;
+  }
+}
+
+class ImportError extends RequestError {
+  readonly stage: VintedImportStage | 'unknown';
+
+  constructor(stage: VintedImportStage | 'unknown') {
+    super(502);
+    this.stage = stage;
   }
 }
 
@@ -217,17 +230,19 @@ export class MarketplaceBrowserHttpApi {
         try {
           sessionId = await this.broker.open(scope);
           const currentSessionId = sessionId;
+          let failedStage: VintedImportStage | 'unknown' = 'unknown';
           const result = await this.broker.run(scope, currentSessionId, async (browser) => {
             if (!browser.importAccount) return null;
             try {
               return await browser.importAccount(() =>
                 this.broker.run(scope, currentSessionId, async () => undefined),
               );
-            } catch {
+            } catch (error) {
+              if (error instanceof VintedImportReadError) failedStage = error.stage;
               return null;
             }
           });
-          if (!result) throw new RequestError(502);
+          if (!result) throw new ImportError(failedStage);
           await this.broker.run(scope, currentSessionId, async () => undefined);
           const counts = await this.imports.write(scope, currentSessionId, result);
           await this.broker.close(scope, currentSessionId);
@@ -420,6 +435,14 @@ export class MarketplaceBrowserHttpApi {
     } catch (error) {
       if (response.headersSent) {
         response.destroy();
+        return;
+      }
+      if (error instanceof ImportError) {
+        json(response, 502, {
+          code: 'vinted_import_failed',
+          stage: error.stage,
+          error: 'Vinted-Daten konnten nicht gelesen werden',
+        });
         return;
       }
       if (error instanceof VintedLoginRejectedError) {

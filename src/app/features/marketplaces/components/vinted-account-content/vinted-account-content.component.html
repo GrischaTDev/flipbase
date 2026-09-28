@@ -53,63 +53,87 @@
       }
     }
     @case ('profile') {
-      <app-card title="Profil">
-        @if (snapshot.profile; as profile) {
-          <div class="mb-6 flex flex-wrap items-center gap-4 border-b border-fb-line pb-5">
-            <app-product-thumbnail
-              [src]="profile.imageUrl"
-              [alt]="profile.username ?? 'Profilbild'"
-              size="profile"
-            />
-            <div class="min-w-0 flex-1">
-              <p class="truncate text-lg font-semibold text-fb-text-primary">
-                {{ profile.displayName ?? profile.username ?? 'Vinted-Konto' }}
-              </p>
-              <p class="text-sm text-fb-text-muted">&#64;{{ profile.username ?? '—' }}</p>
+      <div class="mx-auto max-w-3xl">
+        <app-card title="Profil">
+          @if (snapshot.profile; as profile) {
+            <div class="mb-6 flex flex-wrap items-center gap-4 border-b border-fb-line pb-5">
+              <app-product-thumbnail
+                [src]="profile.imageUrl"
+                [alt]="profile.username ?? 'Profilbild'"
+                size="profile"
+              />
+              <div class="min-w-0 flex-1">
+                <p class="truncate text-lg font-semibold text-fb-text-primary">
+                  {{ profile.displayName ?? profile.username ?? 'Vinted-Konto' }}
+                </p>
+                <p class="text-sm text-fb-text-muted">&#64;{{ profile.username ?? '—' }}</p>
+              </div>
+              <app-vinted-rating
+                [count]="profile.feedbackCount"
+                [reputation]="profile.feedbackReputation"
+              />
             </div>
-            <app-vinted-rating
-              [count]="profile.feedbackCount"
-              [reputation]="profile.feedbackReputation"
-            />
-          </div>
-          <dl class="grid gap-4 text-sm sm:grid-cols-2">
-            <div>
-              <dt class="text-fb-text-muted">Anzeigename</dt>
-              <dd class="mt-1 break-words text-fb-text-primary">
-                {{ profile.displayName ?? '—' }}
-              </dd>
-            </div>
-            <div>
-              <dt class="text-fb-text-muted">Benutzername</dt>
-              <dd class="mt-1 break-words text-fb-text-primary">{{ profile.username ?? '—' }}</dd>
-            </div>
-            <div>
-              <dt class="text-fb-text-muted">Ort</dt>
-              <dd class="mt-1 break-words text-fb-text-primary">{{ profile.location ?? '—' }}</dd>
-            </div>
-            <div class="sm:col-span-2">
-              <dt class="text-fb-text-muted">Über dieses Konto</dt>
-              <dd class="mt-1 whitespace-pre-wrap break-words text-fb-text-primary">
-                {{ profile.bio ?? '—' }}
-              </dd>
-            </div>
-            <div>
-              <dt class="text-fb-text-muted">Bewertungen</dt>
-              <dd class="mt-1 text-fb-text-primary">{{ profile.feedbackCount ?? '—' }}</dd>
-            </div>
-            <div>
-              <dt class="text-fb-text-muted">Davon positiv</dt>
-              <dd class="mt-1 text-fb-text-primary">{{ profile.positiveFeedbackCount ?? '—' }}</dd>
-            </div>
-            <div>
-              <dt class="text-fb-text-muted">Aktive Inserate laut Profil</dt>
-              <dd class="mt-1 text-fb-text-primary">{{ profile.itemCount ?? '—' }}</dd>
-            </div>
-          </dl>
-        } @else {
-          <p class="text-sm text-fb-text-secondary">Noch keine Profildaten übernommen.</p>
-        }
-      </app-card>
+            <h3 class="text-xs font-semibold uppercase tracking-wide text-fb-text-muted">
+              Kontodaten
+            </h3>
+            <dl class="mt-2 grid gap-x-8 text-sm sm:grid-cols-2">
+              <div class="border-b border-fb-line py-3">
+                <dt class="text-fb-text-muted">Anzeigename</dt>
+                <dd class="mt-1 break-words font-medium text-fb-text-primary">
+                  {{ profile.displayName ?? '—' }}
+                </dd>
+              </div>
+              <div class="border-b border-fb-line py-3">
+                <dt class="text-fb-text-muted">Benutzername</dt>
+                <dd class="mt-1 break-words font-medium text-fb-text-primary">
+                  {{ profile.username ?? '—' }}
+                </dd>
+              </div>
+              <div class="border-b border-fb-line py-3 sm:col-span-2">
+                <dt class="text-fb-text-muted">Ort</dt>
+                <dd class="mt-1 break-words font-medium text-fb-text-primary">
+                  {{ profile.location ?? '—' }}
+                </dd>
+              </div>
+            </dl>
+            @if (profile.bio) {
+              <div class="mt-6">
+                <h3 class="text-xs font-semibold uppercase tracking-wide text-fb-text-muted">
+                  Über dieses Konto
+                </h3>
+                <p class="mt-2 whitespace-pre-wrap break-words text-sm text-fb-text-primary">
+                  {{ profile.bio }}
+                </p>
+              </div>
+            }
+            <h3 class="mb-3 mt-6 text-xs font-semibold uppercase tracking-wide text-fb-text-muted">
+              Aktivität
+            </h3>
+            <dl class="grid grid-cols-3 gap-3 rounded-lg bg-fb-well p-4 text-center">
+              <div>
+                <dt class="text-xs text-fb-text-muted">Bewertungen</dt>
+                <dd class="mt-1 text-lg font-semibold text-fb-text-primary">
+                  {{ profile.feedbackCount ?? '—' }}
+                </dd>
+              </div>
+              <div>
+                <dt class="text-xs text-fb-text-muted">Positiv</dt>
+                <dd class="mt-1 text-lg font-semibold text-fb-text-primary">
+                  {{ profile.positiveFeedbackCount ?? '—' }}
+                </dd>
+              </div>
+              <div>
+                <dt class="text-xs text-fb-text-muted">Inserate</dt>
+                <dd class="mt-1 text-lg font-semibold text-fb-text-primary">
+                  {{ profile.itemCount ?? '—' }}
+                </dd>
+              </div>
+            </dl>
+          } @else {
+            <p class="text-sm text-fb-text-secondary">Noch keine Profildaten übernommen.</p>
+          }
+        </app-card>
+      </div>
     }
     @case ('messages') {
       <div class="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
@@ -274,21 +298,9 @@
       </div>
     }
     @default {
-      @if (section() === 'sales') {
-        <app-notice-banner class="mb-4"
-          >Hier erscheinen Bestellungen aus importierten Gesprächen. Weitere Vinted-Verkäufe können
-          fehlen; Bestand und Buchhaltung bleiben unverändert.</app-notice-banner
-        >
-      }
       @if (section() !== 'activity') {
         @if (page(); as entries) {
-          <div
-            [class]="
-              section() === 'listings'
-                ? 'grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5'
-                : 'grid gap-4 sm:grid-cols-2 xl:grid-cols-3'
-            "
-          >
+          <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
             @for (entry of entries.items; track entry.id) {
               <app-card class="min-w-0 overflow-hidden">
                 <div class="relative mb-3 overflow-hidden rounded-lg">

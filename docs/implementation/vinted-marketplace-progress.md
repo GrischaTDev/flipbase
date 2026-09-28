@@ -1,5 +1,25 @@
 # Arbeitsstand: Vinted-Marktplatzverwaltung
 
+## 28. September 2026 – Manuellen Abruffehler eingegrenzt und Ansichten verdichtet
+
+Der Nutzer meldete HTTP 502 beim ersten Aktualisierungsklick und einen
+erfolgreichen zweiten Abruf. Beide Browserläufe endeten sauber; der Worker
+blieb gesund. Der bestehende Sync-Pfad wandelte jedoch jeden Lesefehler in
+dieselbe 502-Antwort um. Eine konkrete Ursache des ersten Fehlers ist damit
+noch nicht belegt. Der Worker liefert künftig nur eine feste Kennung des
+betroffenen Abrufschritts. Die Oberfläche zeigt diesen Schritt lesbar an;
+private Anbieterantworten und Kontoinhalte bleiben verborgen.
+
+Verkäufe verwenden dasselbe Raster mit höchstens fünf Spalten wie Inserate.
+Der Hinweis über der Verkaufsliste wurde entfernt. Die Profilansicht zeigt
+Kontodaten und Kennzahlen in einer begrenzten Kartenbreite. Gespräche bleiben
+nach dem letzten Ereignis sortiert. Der nächste echte 502 muss nach
+Veröffentlichung mit der dann angezeigten Stufe untersucht werden.
+
+Automatische Abrufe und Schreibaktionen sind noch nicht aktiv. Der Plan hält
+den Pilot für ein Konto, die Prüfung der Anbieterberechtigung, die begrenzte
+Warteschlange und die anschließenden Einzelaktionen fest.
+
 ## 28. September 2026 – Datenumfang des verbundenen Kontos lesend geprüft
 
 Eine eng begrenzte Strukturprobe nutzte ausschließlich das bereits verbundene

@@ -87,9 +87,22 @@ export class MarketplaceWorkerOutdatedError extends Error {
 }
 
 export class MarketplaceImportError extends Error {
-  constructor() {
+  constructor(stage?: string) {
+    const stageNames = new Map([
+      ['navigation', 'beim Öffnen von Vinted'],
+      ['identity', 'bei der Prüfung der Anmeldung'],
+      ['profile', 'beim Lesen des Profils'],
+      ['publications', 'beim Lesen der Inserate'],
+      ['conversations', 'beim Lesen der Gesprächsliste'],
+      ['messages', 'beim Lesen eines Gesprächsverlaufs'],
+      ['transaction', 'beim Lesen einer Bestellung'],
+      ['parse', 'beim Verarbeiten der Vinted-Daten'],
+    ]);
+    const detail = stage ? stageNames.get(stage) : undefined;
     super(
-      'Die Vinted-Daten konnten nicht vollständig aktualisiert werden. Prüfe die Verbindung und versuche es später erneut.',
+      detail
+        ? `Die Aktualisierung ist ${detail} fehlgeschlagen. Bitte versuche es später erneut.`
+        : 'Die Vinted-Daten konnten nicht vollständig aktualisiert werden. Prüfe die Verbindung und versuche es später erneut.',
     );
   }
 }
@@ -328,6 +341,18 @@ export class MarketplaceBrowserTestApiService {
       throw new MarketplaceImportError();
     }
     if (response.status === 404) throw new MarketplaceWorkerOutdatedError();
+    if (response.status === 502) {
+      const errorBody: unknown = await response.json().catch(() => null);
+      if (
+        typeof errorBody === 'object' &&
+        errorBody !== null &&
+        'code' in errorBody &&
+        errorBody.code === 'vinted_import_failed' &&
+        'stage' in errorBody &&
+        typeof errorBody.stage === 'string'
+      )
+        throw new MarketplaceImportError(errorBody.stage);
+    }
     if (!response.ok) throw new MarketplaceImportError();
     const body: unknown = await response.json();
     if (
