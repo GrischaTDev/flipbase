@@ -18,6 +18,9 @@ import {
 import { GoLoginApiLimitError, GoLoginProfileLimitError } from './gologin-api-limit.ts';
 import type { VintedEditAccess } from './vinted-edit-access.ts';
 import type { VintedListingEditFields } from './vinted-browser-listing-edit.ts';
+import type { MarketplaceSyncRunner } from './marketplace-sync-runner.ts';
+import type { SupabaseVintedListingCache } from './supabase-vinted-listing-cache.ts';
+import type { SupabaseVintedProfileCache } from './supabase-vinted-profile-cache.ts';
 
 interface BrowserBroker {
   open(scope: BrowserSessionScope): Promise<string>;
@@ -56,6 +59,9 @@ interface BrowserApiOptions {
     ): Promise<Record<'profile' | 'publication' | 'conversation' | 'message' | 'sale', number>>;
   };
   edits?: VintedEditAccess;
+  operations?: Pick<MarketplaceSyncRunner, 'start' | 'read'>;
+  listingCache?: Pick<SupabaseVintedListingCache, 'save'>;
+  profileCache?: Pick<SupabaseVintedProfileCache, 'save'>;
   readOnly?: boolean;
 }
 
@@ -184,6 +190,9 @@ export class MarketplaceBrowserHttpApi {
   private readonly accounts?: BrowserApiOptions['accounts'];
   private readonly imports?: BrowserApiOptions['imports'];
   private readonly edits?: VintedEditAccess;
+  private readonly operations?: BrowserApiOptions['operations'];
+  private readonly listingCache?: BrowserApiOptions['listingCache'];
+  private readonly profileCache?: BrowserApiOptions['profileCache'];
   private readonly readOnly: boolean;
   private readonly inFlight = new Set<string>();
 
@@ -194,6 +203,9 @@ export class MarketplaceBrowserHttpApi {
     this.accounts = options.accounts;
     this.imports = options.imports;
     this.edits = options.edits;
+    this.operations = options.operations;
+    this.listingCache = options.listingCache;
+    this.profileCache = options.profileCache;
     this.readOnly = options.readOnly ?? false;
   }
 
@@ -225,6 +237,22 @@ export class MarketplaceBrowserHttpApi {
       if (!uuidPattern.test(userId)) throw new RequestError(401);
       const body = await readBody(request);
       const scope = scopeOf(body, userId, token);
+      if (path === '/marketplace-browser/connections/sync/start') {
+        if (this.readOnly) throw new RequestError(403);
+        if (!this.operations) throw new RequestError(503);
+        const id = await this.operations.start(scope);
+        json(response, 202, { id });
+        return;
+      }
+      if (path === '/marketplace-browser/connections/sync/status') {
+        if (!this.operations) throw new RequestError(503);
+        const id = body['operationId'];
+        if (typeof id !== 'string' || !uuidPattern.test(id)) throw new RequestError(400);
+        const operation = await this.operations.read(scope, id);
+        if (!operation) throw new RequestError(404);
+        json(response, 200, { ...operation });
+        return;
+      }
       if (
         path === '/marketplace-browser/profile/edit/read' ||
         path === '/marketplace-browser/profile/edit/save'
@@ -232,7 +260,15 @@ export class MarketplaceBrowserHttpApi {
         if (this.readOnly) throw new RequestError(403);
         if (!this.edits) throw new RequestError(503);
         const about = body['about'];
-        if (path.endsWith('/save') && (typeof about !== 'string' || about.length > 2000))
+        const expectedAbout = body['expectedAbout'];
+        const saving = path === '/marketplace-browser/profile/edit/save';
+        if (!saving && about !== undefined) throw new RequestError(400);
+        if (saving && (typeof about !== 'string' || about.length > 2000))
+          throw new RequestError(400);
+        if (
+          expectedAbout !== undefined &&
+          (!saving || typeof expectedAbout !== 'string' || expectedAbout.length > 2000)
+        )
           throw new RequestError(400);
         const key = `${scope.workspaceId}:${scope.connectionId}:edit`;
         if (this.inFlight.has(key)) throw new RequestError(429);
@@ -243,23 +279,60 @@ export class MarketplaceBrowserHttpApi {
           sessionId = await this.broker.open(scope);
           const currentSessionId = sessionId;
           const result = await this.broker.run(scope, currentSessionId, async (browser) => {
-            if (typeof about === 'string') {
+            if (saving && typeof about === 'string') {
               if (!browser.updateProfileAbout) throw new RequestError(503);
               return {
-                status: await browser.updateProfileAbout(entry.accountId, about, async () => {
-                  const current = await this.edits!.entry(scope, 'profile');
-                  if (current.accountId !== entry.accountId)
-                    throw new Error('Kontozuordnung geändert');
-                  await this.broker.run(scope, currentSessionId, async () => undefined);
-                }),
+                status: await browser.updateProfileAbout(
+                  entry.accountId,
+                  about,
+                  async () => {
+                    const current = await this.edits!.entry(scope, 'profile');
+                    if (current.accountId !== entry.accountId)
+                      throw new Error('Kontozuordnung geändert');
+                    await this.broker.run(scope, currentSessionId, async () => undefined);
+                  },
+                  typeof expectedAbout === 'string' ? expectedAbout : undefined,
+                ),
               };
             }
             if (!browser.readProfileAbout) throw new RequestError(503);
             return { about: await browser.readProfileAbout(entry.accountId) };
           });
-          await this.broker.close(scope, currentSessionId);
-          sessionId = undefined;
-          json(response, 200, result);
+          if (saving) {
+            let cachePending = false;
+            if (
+              'status' in result &&
+              result.status === 'confirmed' &&
+              typeof about === 'string' &&
+              this.profileCache
+            ) {
+              try {
+                const current = await this.edits.entry(scope, 'profile');
+                if (current.accountId !== entry.accountId)
+                  throw new Error('Kontozuordnung geändert');
+                await this.broker.run(scope, currentSessionId, async () => undefined);
+                cachePending = !(await this.profileCache.save(scope, entry.accountId, about));
+              } catch {
+                cachePending = true;
+              }
+            }
+            let cleanup: 'complete' | 'pending' = 'complete';
+            try {
+              await this.broker.close(scope, currentSessionId);
+            } catch {
+              cleanup = 'pending';
+            }
+            sessionId = undefined;
+            json(response, 200, {
+              ...result,
+              ...(cleanup === 'pending' ? { cleanup } : {}),
+              ...(cachePending ? { cache: 'pending' } : {}),
+            });
+          } else {
+            await this.broker.close(scope, currentSessionId);
+            sessionId = undefined;
+            json(response, 200, result);
+          }
         } finally {
           try {
             if (sessionId) await this.broker.close(scope, sessionId);
@@ -330,9 +403,44 @@ export class MarketplaceBrowserHttpApi {
             if (!browser.readListingEdit) throw new RequestError(503);
             return { fields: await browser.readListingEdit(entry.externalId, entry.accountId) };
           });
-          await this.broker.close(scope, currentSessionId);
-          sessionId = undefined;
-          json(response, 200, result);
+          let cachePending = false;
+          const confirmedEdit = fields && 'status' in result && result.status === 'confirmed';
+          const cachedFields = confirmedEdit ? fields : 'fields' in result ? result.fields : null;
+          if (cachedFields && this.listingCache) {
+            try {
+              const current = await this.edits.entry(scope, 'publication', entryId);
+              if (current.externalId !== entry.externalId || current.accountId !== entry.accountId)
+                throw new Error('Kontozuordnung geändert');
+              await this.broker.run(scope, currentSessionId, async () => undefined);
+              cachePending = !(await this.listingCache.save(
+                scope,
+                entryId,
+                entry.externalId,
+                cachedFields,
+                Boolean(confirmedEdit),
+              ));
+            } catch {
+              cachePending = true;
+            }
+          }
+          if (fields) {
+            let cleanup: 'complete' | 'pending' = 'complete';
+            try {
+              await this.broker.close(scope, currentSessionId);
+            } catch {
+              cleanup = 'pending';
+            }
+            sessionId = undefined;
+            json(response, 200, {
+              ...result,
+              ...(cleanup === 'pending' ? { cleanup } : {}),
+              ...(cachePending ? { cache: 'pending' } : {}),
+            });
+          } else {
+            await this.broker.close(scope, currentSessionId);
+            sessionId = undefined;
+            json(response, 200, cachePending ? { ...result, cache: 'pending' } : result);
+          }
         } finally {
           try {
             if (sessionId) await this.broker.close(scope, sessionId);

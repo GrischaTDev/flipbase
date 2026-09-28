@@ -9,6 +9,43 @@ const scope = {
   userAccessToken: 'user-token',
 };
 
+test('liest Gesprächsversionen nur für die aktive Sitzung und das gebundene Konto', async () => {
+  const calls: URL[] = [];
+  const writer = new SupabaseVintedImportWriter({
+    url: 'https://db.example.test',
+    publishableKey: 'public-token',
+    serviceRoleKey: 'server-token',
+    fetch: async (input) => {
+      const url = new URL(String(input));
+      calls.push(url);
+      if (url.pathname.endsWith('marketplace_browser_session_check'))
+        return Response.json({
+          active: true,
+          id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+          workspaceId: scope.workspaceId,
+          connectionId: scope.connectionId,
+        });
+      return Response.json([
+        {
+          external_id: '51',
+          body: {
+            sourceUpdatedAt: '2026-09-28T09:00:00Z',
+            detailCheckedAt: '2026-09-28T09:30:00Z',
+            text: 'Letzte Nachricht',
+            occurredAt: '2026-09-28T09:20:00Z',
+          },
+        },
+      ]);
+    },
+  });
+  const versions = await writer.conversationVersions(scope, 'dddddddd-dddd-4ddd-8ddd-dddddddddddd');
+  assert.equal(versions.length, 1);
+  assert.equal(versions[0]?.text, 'Letzte Nachricht');
+  assert.equal(calls[1]?.searchParams.get('workspace_id'), `eq.${scope.workspaceId}`);
+  assert.equal(calls[1]?.searchParams.get('connection_id'), `eq.${scope.connectionId}`);
+  assert.equal(calls[1]?.searchParams.get('kind'), 'eq.conversation');
+});
+
 test('verweigert fremde Vinted-Identität vor dem ersten Datenbankeintrag', async () => {
   const calls: string[] = [];
   const writer = new SupabaseVintedImportWriter({
@@ -148,4 +185,43 @@ test('speichert Nachrichten nur unter dem Gespräch desselben Kontos', async () 
         url.searchParams.get('observed_at') === 'lt.2026-09-28T10:00:00Z',
     ),
   );
+});
+
+test('entfernt nur erneut geprüfte, unbelegte Verkäufe aus demselben Konto', async () => {
+  const removed: URL[] = [];
+  const writer = new SupabaseVintedImportWriter({
+    url: 'https://db.example.test',
+    publishableKey: 'public-token',
+    serviceRoleKey: 'server-token',
+    fetch: async (input, init) => {
+      const url = new URL(String(input));
+      if (url.pathname.endsWith('marketplace_browser_session_check'))
+        return Response.json({
+          active: true,
+          id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+          workspaceId: scope.workspaceId,
+          connectionId: scope.connectionId,
+        });
+      if (url.pathname.endsWith('marketplace_connections') && init?.method === 'PATCH')
+        return Response.json([{ id: scope.connectionId }]);
+      if (url.pathname.endsWith('marketplace_connections'))
+        return Response.json([{ status: 'connected', external_account_id: '123' }]);
+      if (url.pathname.endsWith('marketplace_account_entries') && init?.method === 'DELETE') {
+        removed.push(url);
+        return new Response(null, { status: 204 });
+      }
+      throw new Error('Unerwartete Anfrage');
+    },
+  });
+  await writer.write(scope, 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', {
+    identity: { id: '123', username: 'testkonto' },
+    observedAt: '2026-09-28T10:00:00Z',
+    entries: [],
+    rejectedSaleIds: ['71'],
+  });
+  const saleDelete = removed.find((url) => url.searchParams.get('kind') === 'eq.sale');
+  assert.ok(saleDelete);
+  assert.equal(saleDelete.searchParams.get('workspace_id'), `eq.${scope.workspaceId}`);
+  assert.equal(saleDelete.searchParams.get('connection_id'), `eq.${scope.connectionId}`);
+  assert.equal(saleDelete.searchParams.get('external_id'), 'in.(71)');
 });

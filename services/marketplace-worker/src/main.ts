@@ -15,6 +15,10 @@ import { SupabaseBrowserSessionStore } from './supabase-browser-session-store.ts
 import { SupabaseVintedAccountWriter } from './supabase-vinted-account-writer.ts';
 import { SupabaseVintedImportWriter } from './supabase-vinted-import-writer.ts';
 import { VintedEditAccess } from './vinted-edit-access.ts';
+import { MarketplaceSyncRunner } from './marketplace-sync-runner.ts';
+import { SupabaseMarketplaceOperationStore } from './supabase-marketplace-operation-store.ts';
+import { SupabaseVintedListingCache } from './supabase-vinted-listing-cache.ts';
+import { SupabaseVintedProfileCache } from './supabase-vinted-profile-cache.ts';
 
 async function main(): Promise<void> {
   const config = marketplaceBrowserServerConfig(process.env);
@@ -44,6 +48,23 @@ async function main(): Promise<void> {
     recovery,
   });
   await broker.ready();
+  const importWriter =
+    config.provider === 'gologin'
+      ? new SupabaseVintedImportWriter({
+          url: config.supabaseUrl,
+          publishableKey: config.publishableKey,
+          serviceRoleKey: config.serviceRoleKey,
+        })
+      : undefined;
+  const operationStore =
+    config.provider === 'gologin'
+      ? new SupabaseMarketplaceOperationStore({
+          url: config.supabaseUrl,
+          publishableKey: config.publishableKey,
+          serviceRoleKey: config.serviceRoleKey,
+        })
+      : undefined;
+  if (operationStore) await operationStore.recoverUnfinished();
   const server = new MarketplaceBrowserHttpApi({
     broker,
     users: new SupabaseBrowserUserVerifier(config.supabaseUrl, config.publishableKey),
@@ -63,11 +84,22 @@ async function main(): Promise<void> {
             serviceRoleKey: config.serviceRoleKey,
           })
         : undefined,
-    imports:
+    imports: importWriter,
+    operations:
+      importWriter && operationStore
+        ? new MarketplaceSyncRunner(broker, importWriter, operationStore)
+        : undefined,
+    listingCache:
       config.provider === 'gologin'
-        ? new SupabaseVintedImportWriter({
+        ? new SupabaseVintedListingCache({
             url: config.supabaseUrl,
-            publishableKey: config.publishableKey,
+            serviceRoleKey: config.serviceRoleKey,
+          })
+        : undefined,
+    profileCache:
+      config.provider === 'gologin'
+        ? new SupabaseVintedProfileCache({
+            url: config.supabaseUrl,
             serviceRoleKey: config.serviceRoleKey,
           })
         : undefined,

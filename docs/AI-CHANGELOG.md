@@ -1,5 +1,66 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-28 – Juna – Vinted-Abruf und Bearbeitung zuverlässiger gemacht
+
+**Auftrag:** Den besprochenen Umbau für schnellere Kontodaten, korrekte
+Verkaufszuordnung, verständlichen Fortschritt und bestätigte Änderungen
+im bestehenden Vinted-Bereich umsetzen.
+
+**Änderung:** Manuelle Aktualisierung läuft als gespeicherter kontogebundener
+Auftrag mit Schritten im Modal. Gelesene Inserat- und Profiltexte bleiben
+gespeichert; unveränderte Chats werden begrenzt aus dem Cache übernommen.
+Verkäufe erfordern eine belegte Bestellung und einen bekannten Verkaufszustand.
+Profil- und Inseratänderungen warten auf zurückgelesene Werte; die Profilroute
+trennt Lesen und Schreiben und erkennt veralteten Ausgangstext vor dem Klick.
+Die Oberfläche verwendet weiterhin die vorhandene Kontoverwaltung.
+
+**Prüfung und Grenze:** 127 Worker-Tests, 9 Browser-Tests mit Testseiten,
+113 Angular-Marktplatztests, 81 einschlägige lokale Datenbanktests und
+die vollständige Projektprüfung `npm run verify` bestanden.
+Kein echter Vinted-Abruf oder Schreibversuch, kein Push, Merge oder Deployment.
+Vollständige Verkäufe, Teilerfolge je Datenbereich, automatische Aktualisierung,
+Browserwiederverwendung und neue Schreibfunktionen bleiben offen.
+
+## 2026-09-28 – Juna – Vinted-Plan durch drei unabhängige Reviews geschärft
+
+**Auftrag:** Ideen und Architektur mit Agenten überprüfen, Alternativen im Web
+recherchieren und den vorhandenen Plan verbessern.
+
+**Ergebnis:** Drei Reviews zu Architektur, Daten/Schreiben und Anbietern.
+Am Code bestätigt: Profil-Leseroute kann über ein Inhaltsfeld den Schreibweg
+wählen; einfache Serialisierung des verschachtelten Brokers würde blockieren;
+Recovery ist nur für einen Worker geeignet. Verkaufsumfang, feldweiser Cache,
+atomare Rechte-/Versionsprüfung sowie getrennte Schreib-/Cache-/Stoppergebnisse
+im Plan präzisiert. Schreibbestätigung vor Browserwiederverwendung priorisiert.
+Dotb-OpenAPI und VinDrop-Cloud als zusätzliche Quellen geprüft; Grenzen der
+Herstellerangaben und der Revendor-Synchronisationsaussagen korrigiert.
+
+**Prüfung und Grenze:** Code- und Primärquellenreview, keine neuen Tests,
+Browserstarts oder Live-Schreibaktionen. Nur vorhandene Planungsdokumente
+aktualisiert; kein PR, kein Merge und kein Deployment.
+
+## 2026-09-28 – Juna – Zuverlässigkeit der Vinted-Verwaltung untersucht
+
+**Auftrag:** Vor weiteren Funktionen langsame Abrufe, falsche Verkäufe und
+unbestätigte Profiländerungen untersuchen, Anbieter und Vergleichsprodukte
+recherchieren und das weitere Vorgehen planen.
+
+**Ergebnis:** Browserstart je Einzelaktion, doppelte Profil-/Seitenabrufe,
+vollständiger serieller Chatimport, zu schwache Verkaufsprüfung, fehlender
+Beschreibungsspeicher und zeitbasierte Speicherbestätigung im Code belegt.
+Der lokale Parser erzeugt mit künstlichem `order: {}` einen Verkauf trotz
+aktivem Inserat und übernimmt eine vorhandene Beschreibung nicht. GoLogin,
+Dotb, Revendor, Vinted Scraper, Playwright und Vinted Pro anhand öffentlicher
+Primärquellen verglichen. Der neue Plan priorisiert Diagnose, korrekte Daten,
+persistente Aufträge, echten Fortschritt und bestätigtes Speichern.
+
+**Prüfung und Grenze:** Produktiven Container ausschließlich lesend geprüft:
+Image `1c7b6575`, gesund, keine Neustarts, keine Logzeilen in sechs Stunden.
+Erster Abruffehler und konkreter Profil-Schreibausgang bleiben mangels
+Ablaufdaten ungeklärt. Kein Browserstart, keine Vinted-Änderung, keine Änderung
+am Anwendungscode, kein PR und kein Deployment. Plan unter
+`docs/superpowers/plans/2026-09-28-vinted-reliability.md`.
+
 ## 2026-09-28 – Juna – Sitemap-Abruffehler in der Search Console geprüft
 
 **Auftrag:** Den gemeldeten Abruffehler für `https://flipbase.de/sitemap.xml` beheben.

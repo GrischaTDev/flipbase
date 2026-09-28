@@ -95,7 +95,11 @@ export class VintedListingDetailComponent {
       if (!this.destroyed) {
         this.entry.set(entry);
         this.selectedPhoto.set(entry?.imageUrl ?? null);
-        if (entry && !entry.text && this.store.selectedConnection()?.status === 'connected')
+        if (
+          entry &&
+          entry.textState !== 'loaded' &&
+          this.store.selectedConnection()?.status === 'connected'
+        )
           void this.loadDescription();
       }
     } catch {
@@ -110,7 +114,9 @@ export class VintedListingDetailComponent {
     try {
       const fields = await this.store.readListingEdit(this.connectionId, this.entryId);
       if (!this.destroyed && this.store.selectedConnection()?.connectionId === this.connectionId)
-        this.entry.update((entry) => (entry ? { ...entry, text: fields.description } : entry));
+        this.entry.update((entry) =>
+          entry ? { ...entry, text: fields.description, textState: 'loaded' } : entry,
+        );
     } catch {
       // Gespeicherte Artikeldaten bleiben auch bei einem vorübergehenden Browserfehler nutzbar.
     } finally {
@@ -159,6 +165,7 @@ export class VintedListingDetailComponent {
               ...entry,
               title: fields.title,
               text: fields.description,
+              textState: 'loaded',
               price: Number(fields.price.replace(',', '.')),
             }
           : entry,

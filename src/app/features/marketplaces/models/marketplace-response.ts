@@ -164,6 +164,9 @@ export function parseMarketplacePage(
       id,
       title: text(item['title']) ?? 'Ohne Bezeichnung',
       text: text(item['text']) ?? text(item['message']) ?? text(item['lastMessage']),
+      ...(item['textState'] === 'loaded' || item['textState'] === 'not_loaded'
+        ? { textState: item['textState'] }
+        : {}),
       occurredAt:
         timestamp(item['occurredAt']) ?? timestamp(item['sentAt']) ?? timestamp(item['updatedAt']),
       price: nonnegative(item['price']),
@@ -214,6 +217,9 @@ export function parseMarketplaceSnapshot(value: unknown, scope: AccountScope): M
       displayName: text(item['displayName']),
       location: text(item['location']),
       bio: text(item['bio']),
+      ...(item['bioState'] === 'loaded' || item['bioState'] === 'not_loaded'
+        ? { bioState: item['bioState'] }
+        : {}),
       imageUrl: imageUrl(item['imageUrl']),
       feedbackCount: counter(item['feedbackCount']),
       feedbackReputation: nonnegative(item['feedbackReputation']),

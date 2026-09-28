@@ -1,5 +1,9 @@
 import { chromium, type Browser, type Page } from 'playwright';
-import { readVintedAccountImport, type VintedAccountImport } from './vinted-account-import.ts';
+import {
+  readVintedAccountImport,
+  type VintedAccountImport,
+  type VintedConversationVersion,
+} from './vinted-account-import.ts';
 import { readVintedAccountIdentity, type VintedAccountIdentity } from './vinted-browser-reader.ts';
 import {
   submitVintedLogin,
@@ -25,7 +29,11 @@ export interface BrowserInfo extends Pick<Browser, 'version'> {
   type?(value: string): Promise<void>;
   press?(key: 'Enter' | 'Tab' | 'Escape' | 'Backspace'): Promise<void>;
   identify?(): Promise<VintedAccountIdentity | null>;
-  importAccount?(authorize: () => Promise<void>): Promise<VintedAccountImport>;
+  importAccount?(
+    authorize: () => Promise<void>,
+    onStage?: (stage: 'profile' | 'publications' | 'conversations' | 'sales') => Promise<void>,
+    previousConversations?: VintedConversationVersion[],
+  ): Promise<VintedAccountImport>;
   login?(
     credentials: VintedLoginCredentials,
     authorize: () => Promise<void>,
@@ -43,6 +51,7 @@ export interface BrowserInfo extends Pick<Browser, 'version'> {
     accountId: string,
     about: string,
     authorize: () => Promise<void>,
+    expectedAbout?: string,
   ): Promise<VintedEditResult>;
 }
 
@@ -129,7 +138,8 @@ export class GoLoginCloudBrowser {
       type: async (value) => currentPage().keyboard.insertText(value),
       press: async (key) => currentPage().keyboard.press(key),
       identify: () => readVintedAccountIdentity(currentPage()),
-      importAccount: (authorize) => readVintedAccountImport(currentPage(), authorize),
+      importAccount: (authorize, onStage, previousConversations) =>
+        readVintedAccountImport(currentPage(), authorize, onStage, previousConversations),
       login: (credentials, authorize) => submitVintedLogin(currentPage(), credentials, authorize),
       verify: (code, authorize) => submitVintedVerificationCode(currentPage(), code, authorize),
       readListingEdit: (itemId, accountId) =>
@@ -137,8 +147,8 @@ export class GoLoginCloudBrowser {
       updateListing: (itemId, accountId, fields, authorize) =>
         updateVintedListing(currentPage(), itemId, accountId, fields, authorize),
       readProfileAbout: (accountId) => readVintedProfileAbout(currentPage(), accountId),
-      updateProfileAbout: (accountId, about, authorize) =>
-        updateVintedProfileAbout(currentPage(), accountId, about, authorize),
+      updateProfileAbout: (accountId, about, authorize, expectedAbout) =>
+        updateVintedProfileAbout(currentPage(), accountId, about, authorize, expectedAbout),
     };
     const handle: CloudBrowserHandle = {
       run: (operation) => operation(browserInfo),

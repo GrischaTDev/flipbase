@@ -1,5 +1,12 @@
 # Vinted-Marktplatzverwaltung: Implementierungsplan
 
+> **Priorität nach Nutzerfeedback vom 28.09.2026:** Weitere Funktionen zunächst
+> zurückstellen. Der [Zuverlässigkeitsplan](2026-09-28-vinted-reliability.md)
+> untersucht wiederkehrende Abruffehler, falsche Verkäufe und langsame,
+> unbestätigte Bearbeitung. Er enthält Befunde, Quellen und die vorgeschlagene
+> Reihenfolge. Der Folgeplan wird im separaten Arbeitszweig umgesetzt;
+> veröffentlicht ist er noch nicht.
+
 > **Lesender Livebefund (28.09.2026):** Das bereits verbundene eigene
 > Privatkonto lieferte über das zugeordnete Browserprofil Profilfelder
 > einschließlich Bewertungskennzahlen, paginierte eigene Inserate, eine

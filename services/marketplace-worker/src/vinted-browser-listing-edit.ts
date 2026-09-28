@@ -1,5 +1,6 @@
 import type { Page } from 'playwright';
 import { readVintedAccountIdentity } from './vinted-browser-reader.ts';
+import { confirmVintedEdit } from './vinted-edit-confirmation.ts';
 
 export interface VintedListingEditFields {
   title: string;
@@ -7,7 +8,7 @@ export interface VintedListingEditFields {
   price: string;
 }
 
-export type VintedEditResult = 'confirmed' | 'unconfirmed';
+export type VintedEditResult = 'confirmed' | 'unconfirmed' | 'conflict';
 
 const vintedOrigin = 'https://www.vinted.de';
 
@@ -63,18 +64,17 @@ export async function updateVintedListing(
   if (!(await save.isVisible()) || !(await save.isEnabled()))
     throw new Error('Speichern nicht verfügbar');
   await authorize();
-  await save.click({ timeout: 10_000 });
   try {
-    await page.waitForTimeout(1200);
-    await openEdit(page, itemId, accountId);
-    const saved = await fields(page);
-    return saved.title === desired.title &&
-      saved.description === desired.description &&
-      Number(saved.price.replace(',', '.')) === Number(desired.price.replace(',', '.'))
-      ? 'confirmed'
-      : 'unconfirmed';
+    await save.click({ timeout: 10_000 });
   } catch {
     // Der Klick kann bereits gespeichert haben; ein automatischer Wiederholungsversuch wäre unsicher.
     return 'unconfirmed';
   }
+  return confirmVintedEdit(
+    () => readVintedListingEdit(page, itemId, accountId),
+    (saved) =>
+      saved.title === desired.title &&
+      saved.description === desired.description &&
+      Number(saved.price.replace(',', '.')) === Number(desired.price.replace(',', '.')),
+  );
 }

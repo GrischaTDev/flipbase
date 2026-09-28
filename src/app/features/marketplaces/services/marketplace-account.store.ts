@@ -15,6 +15,7 @@ import {
   MarketplaceConnectionRemovalError,
   MarketplaceWorkerOutdatedError,
   MarketplaceImportError,
+  type MarketplaceSyncProgress,
   type VintedListingEditFields,
 } from './marketplace-browser-test-api.service';
 
@@ -66,6 +67,8 @@ export class MarketplaceAccountStore {
   private readonly writing = signal(false);
   private readonly loadError = signal<string | null>(null);
   private readonly writeError = signal<string | null>(null);
+  private readonly syncStatus = signal<MarketplaceSyncProgress | null>(null);
+  private syncConnectionId: string | null = null;
   private connectionsRevision = 0;
   private selectionRevision = 0;
   private conversationRevision = 0;
@@ -94,6 +97,7 @@ export class MarketplaceAccountStore {
   readonly busy = computed(() => this.current() && this.writing());
   readonly error = computed(() => (this.current() ? this.loadError() : null));
   readonly mutationError = computed(() => (this.current() ? this.writeError() : null));
+  readonly syncProgress = computed(() => (this.current() ? this.syncStatus() : null));
 
   constructor() {
     effect(() => {
@@ -159,6 +163,10 @@ export class MarketplaceAccountStore {
     const connection = this.connections().find((item) => item.connectionId === connectionId);
     const key = this.contextKey();
     if (!connection || !key || !this.canManage()) return;
+    if (this.syncConnectionId !== connectionId) {
+      this.syncConnectionId = null;
+      this.syncStatus.set(null);
+    }
     const revision = ++this.selectionRevision;
     this.selectionEpoch.update((value) => value + 1);
     this.conversationRevision++;
@@ -321,10 +329,15 @@ export class MarketplaceAccountStore {
   async syncSelectedConnection(): Promise<boolean> {
     const connection = this.selectedConnection();
     const token = this.auth.session()?.access_token;
-    if (!connection || connection.status !== 'connected' || !token) return false;
+    if (!connection || connection.status !== 'connected' || !token || this.busy()) return false;
     const scope = this.scope(connection);
+    this.syncConnectionId = connection.connectionId;
+    this.syncStatus.set({ id: '', state: 'queued', stage: null, errorCode: null });
     return this.mutate(async () => {
-      await this.browserApi.syncConnection(scope, token);
+      await this.browserApi.syncConnection(scope, token, (progress) => {
+        if (this.syncConnectionId === connection.connectionId && this.contextKey())
+          this.syncStatus.set(progress);
+      });
       return this.selectedConnection()?.connectionId ?? connection.connectionId;
     });
   }
@@ -373,7 +386,11 @@ export class MarketplaceAccountStore {
       throw new Error('Wähle zuerst das verbundene Vinted-Konto aus.');
     return this.browserApi.readProfileAbout(this.scope(connection), token);
   }
-  async saveProfileAbout(connectionId: string, about: string): Promise<void> {
+  async saveProfileAbout(
+    connectionId: string,
+    about: string,
+    expectedAbout?: string,
+  ): Promise<void> {
     const connection = this.selectedConnection();
     const token = this.auth.session()?.access_token;
     if (
@@ -383,10 +400,10 @@ export class MarketplaceAccountStore {
       !token
     )
       throw new Error('Wähle zuerst das verbundene Vinted-Konto aus.');
-    await this.browserApi.saveProfileAbout(this.scope(connection), about, token);
+    await this.browserApi.saveProfileAbout(this.scope(connection), about, token, expectedAbout);
     this.accountSnapshot.update((value) =>
       value && value.connectionId === connectionId && value.profile
-        ? { ...value, profile: { ...value.profile, bio: about } }
+        ? { ...value, profile: { ...value.profile, bio: about, bioState: 'loaded' } }
         : value,
     );
   }
@@ -455,5 +472,7 @@ export class MarketplaceAccountStore {
     this.writing.set(false);
     this.loadError.set(null);
     this.writeError.set(null);
+    this.syncStatus.set(null);
+    this.syncConnectionId = null;
   }
 }

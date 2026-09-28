@@ -73,9 +73,12 @@
               [icon]="refreshIcon"
               [loading]="store.busy()"
               [disabled]="store.loadingSnapshot()"
-              (clicked)="store.syncSelectedConnection()"
+              (clicked)="sync()"
               >Kontodaten aktualisieren</app-button
             >
+            @if (store.busy() && !syncModalOpen()) {
+              <app-button (clicked)="syncModalOpen.set(true)">Fortschritt anzeigen</app-button>
+            }
           } @else {
             <app-button
               [icon]="refreshIcon"
@@ -124,3 +127,10 @@
     <router-outlet />
   }
 </div>
+@if (syncModalOpen()) {
+  <app-marketplace-sync-progress
+    [progress]="store.syncProgress()"
+    [error]="store.mutationError()"
+    (closed)="syncModalOpen.set(false)"
+  />
+}

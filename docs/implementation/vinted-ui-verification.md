@@ -610,3 +610,45 @@ mit 1440 und 390 Pixeln auf `127.0.0.1:4200` erfolgreich. Der erste Versuch
 ohne gestarteten lokalen Server scheiterte nur an `ERR_CONNECTION_REFUSED`;
 nach dem Serverstart bestanden beide Abläufe. Keine produktive Ansicht und
 kein echter Import wurden hier abgenommen.
+
+## 28.09.2026 – Ergänzende Zuverlässigkeitsanalyse nach Nutzerfeedback
+
+Dieser Abschnitt ergänzt die historischen Prüfungen: Grüne lokale Prüfungen
+und Gesundheitschecks sind kein Nachweis für zuverlässige Live-Schreibabläufe.
+Der Nutzer meldet sporadische Importfehler, falsche Verkaufszuordnung, lange
+Wartezeiten und eine unbestätigte Profiländerung mit falschem Artikelhinweis.
+
+Mit künstlichen Daten am unveränderten Importparser reproduziert: ein aktives
+Inserat plus Transaktion mit `order: {}` ergibt einen Verkauf; eine übergebene
+Beschreibung bleibt `null`. Keine Aussage zum echten Status des gemeldeten
+Artikels. Codeprüfung bestätigt wiederholte Browserstarts, feste Wartezeiten
+vor dem erneuten Formularlesen und fehlende dauerhafte Detailübernahme.
+Read-only-Containerprüfung: laufendes Image `1c7b6575`, gesund, null Neustarts,
+null Logzeilen in sechs Stunden. Die konkrete Ursache der Nutzerabbrüche bleibt
+offen. Keine Vinted-Sitzung, keine Live-Schreibprüfung und keine Codeänderung.
+
+Nächste Prüfungen und Abnahmekriterien stehen im
+[Zuverlässigkeitsplan](../superpowers/plans/2026-09-28-vinted-reliability.md).
+
+## 28.09.2026 – Lokale Prüfung des Zuverlässigkeitsumbaus
+
+Im separaten Arbeitszweig wurde der manuelle Abruf auf einen dauerhaft
+gespeicherten Auftrag mit echter Schrittanzeige umgestellt. Profil-/Inserattext
+wird nach einem bestätigten Lese- oder Schreibwert kontogebunden gespeichert;
+unveränderte gelesene Chatdetails werden maximal 24 Stunden wiederverwendet.
+Die Verkaufsprüfung verwirft Angebote ohne belegte Bestellung. Ein Profiltext
+mit veraltetem Ausgangswert wird vor dem Speicherklick abgewiesen.
+
+Geprüft: 127 Worker-Tests, 113 Angular-Marktplatztests, 81 einschlägige lokale
+Datenbanktests, 85 Workflow-Tests, Worker-Typprüfung und beide Builds bestanden.
+Die Datenbanktests decken Auftragsschutz, Workspace-/Kontotrennung und die
+Erhaltung gelesener Texte ab. Der Browserdienst protokolliert nur Auftrags-ID,
+Schritt, Dauer und einen festen Fehlercode. Keine echten Vinted-Konten genutzt,
+keine Live-Mutation, kein Deployment.
+
+Offen für die echte Abnahme: erster und zweiter Abruf samt Phasendauer,
+der konkrete Polo-Verkauf, weitere Vinted-Verkaufszustände und ein vom Nutzer
+bestimmter einzelner Profil-Schreibtest. Ein fehlgeschlagener Lesebereich führt
+derzeit noch zum Gesamtfehler des Auftrags; erfolgreiche Teilbereiche werden
+nicht separat übernommen. Der Auftrag wird nach Worker-Neustart als
+unterbrochen angezeigt und nicht automatisch erneut ausgeführt.
