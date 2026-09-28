@@ -19,10 +19,48 @@
     document.querySelectorAll('body > header, body > main, body > footer'),
   );
   var analyticsEnabled = false;
+  var journeyTrackingStarted = false;
   var returnFocusTo = null;
 
   // Ohne gültigen Web-Datenstream gibt es weder Tracking noch eine Scheinwahl.
   if (!/^G-[A-Z0-9]+$/.test(measurementId)) return;
+  // Lokale Vorschauen und die angemeldete App dürfen keine Live-Daten erzeugen.
+  if (location.hostname !== 'flipbase.de' && location.hostname !== 'www.flipbase.de') return;
+
+  function analyticsPageLocation() {
+    var url = new URL(location.origin + location.pathname);
+    var query = new URLSearchParams(location.search);
+    var source = query.getAll('utm_source');
+    var medium = query.getAll('utm_medium');
+    var safeValue = /^[a-z0-9][a-z0-9_-]{0,79}$/i;
+
+    // Nur vollständige Kampagnenangaben mit unkritischen Werten übernehmen.
+    if (source.length !== 1 || medium.length !== 1) return url.href;
+    if (!safeValue.test(source[0]) || !safeValue.test(medium[0])) return url.href;
+    url.searchParams.set('utm_source', source[0]);
+    url.searchParams.set('utm_medium', medium[0]);
+    ['utm_campaign', 'utm_id'].forEach(function (name) {
+      var values = query.getAll(name);
+      if (values.length === 1 && safeValue.test(values[0])) url.searchParams.set(name, values[0]);
+    });
+    return url.href;
+  }
+
+  function analyticsPageReferrer() {
+    if (!document.referrer) return '';
+    try {
+      var referrer = new URL(document.referrer);
+      var hostname = referrer.hostname.toLowerCase();
+      if (referrer.protocol !== 'https:' && referrer.protocol !== 'http:') return '';
+      if (hostname === 'flipbase.de' || hostname.endsWith('.flipbase.de')) return '';
+      if (hostname === 'localhost' || hostname.endsWith('.local')) return '';
+      if (/^[\d.]+$/.test(hostname) || hostname.includes(':')) return '';
+      // Pfad, Suchparameter und Fragment der vorherigen Website bleiben privat.
+      return referrer.origin + '/';
+    } catch {
+      return '';
+    }
+  }
 
   function readChoice() {
     try {
@@ -76,9 +114,11 @@
       cookie_domain: 'none',
       cookie_expires: 13 * 30 * 24 * 60 * 60,
       cookie_update: false,
-      page_location: location.origin + location.pathname,
-      page_referrer: '',
+      page_location: analyticsPageLocation(),
+      page_referrer: analyticsPageReferrer(),
     });
+
+    startJourneyTracking();
 
     var script = document.createElement('script');
     script.id = 'google-analytics-script';
@@ -95,8 +135,45 @@
     if (!analyticsEnabled || window['ga-disable-' + measurementId]) return;
     gtag('event', name, {
       send_to: measurementId,
-      page_location: location.origin + location.pathname,
-      page_referrer: '',
+      page_location: analyticsPageLocation(),
+      page_referrer: analyticsPageReferrer(),
+      page_title: document.title,
+    });
+  }
+
+  function startJourneyTracking() {
+    if (journeyTrackingStarted) return;
+    journeyTrackingStarted = true;
+    if (!('IntersectionObserver' in window)) return;
+
+    var sectionEvents = {
+      features: 'features_view',
+      roadmap: 'roadmap_view',
+      faq: 'faq_view',
+      'beta-anmeldung': 'beta_form_view',
+    };
+    var observer = new IntersectionObserver(
+      function (entries) {
+        entries.forEach(function (entry) {
+          if (!entry.isIntersecting) return;
+          var eventName = sectionEvents[entry.target.id];
+          if (!eventName) return;
+          trackEvent(eventName);
+          observer.unobserve(entry.target);
+        });
+      },
+      { rootMargin: '0px 0px -35% 0px' },
+    );
+    Object.keys(sectionEvents).forEach(function (id) {
+      var section = document.getElementById(id);
+      if (section) observer.observe(section);
+    });
+  }
+
+  var betaCta = document.querySelector('.hero-beta-cta');
+  if (betaCta) {
+    betaCta.addEventListener('click', function () {
+      trackEvent('beta_cta_click');
     });
   }
 

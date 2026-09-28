@@ -23,7 +23,21 @@ automatische Abrufe sind noch offen. Kein Push, Merge oder Deployment.
 **Änderung:** Der Browserdienst kennzeichnet fehlgeschlagene Leseschritte mit einer festen, datensparsamen Stufe; Flipbase zeigt sie verständlich an. Das Verkaufsraster nutzt bis zu fünf Spalten, die Profilkarte eine begrenzte Breite mit gegliederten Angaben. Die Sortierung der Gespräche bleibt nach dem letzten Ereignis. Der Plan nennt einen begrenzten Pilotabruf und die Voraussetzungen für automatische Abrufe und spätere Schreibaktionen.
 
 **Prüfung und Grenze:** Der Worker blieb beim gemeldeten Fehler gesund; die beobachteten Sitzungen endeten sauber. 32 gezielte Worker- und 17 Angular-Tests, zwei lokale Browserabläufe mit künstlichen Daten und AXE-Prüfung bei 1440 und 390 Pixeln, beide Builds, Typprüfung, Lint der betroffenen Dateien und die Shared-UI-Prüfung bestanden. Die Ursache des ersten 502 ist noch offen und kann erst anhand der neuen Stufe bei einem weiteren Nutzerabruf eingegrenzt werden. Kein neuer Liveabruf, Nachrichtenversand, Push, Merge oder Deployment in dieser Sitzung.
+## 2026-09-28 – Juna – Analytics-Herkunft und Wege auf der Startseite verbessert
 
+**Auftrag:** Die ersten Analytics-Daten besser erklärbar machen, bestehende Google-Konten prüfen, passende Dienste verbinden und die Bewegung auf der öffentlichen Website nachvollziehen.
+
+**Änderung:** Die bereits bestätigte Search-Console-Domain `flipbase.de` wurde mit dem bestehenden GA4-Webstream „Flipbase“ verbunden; ein eigenes Google-Cloud-Projekt ist für diese Verknüpfung nicht erforderlich und wurde nicht angelegt. In GA4 ist `generate_lead` jetzt als Schlüsselereignis markiert. Die vorhandene Sitemap wurde in der Search Console eingereicht. Das Landing-Skript übergibt nach Einwilligung nur ausgewählte Kampagnenangaben und die Domain der verweisenden Website. Es erfasst außerdem das Erreichen der Abschnitte Funktionen, Roadmap, FAQ und Beta-Bewerbung sowie den Klick auf den Beta-Link. Lokale Vorschauen senden keine Analytics-Daten mehr. Die Datenschutzerklärung beschreibt den geänderten Umfang; `docs/analytics-tracking.md` dokumentiert Ereignisse und Kampagnenlinks.
+
+**Prüfung und Grenze:** Der bestehende Webstream, die Search-Console-Inhaberschaft und die Verknüpfung wurden in den Google-Oberflächen geprüft. Impressum und Datenschutz liefern live `noindex, follow`; die Search Console meldet beide URLs ausdrücklich als wegen `noindex` nicht indexiert. Die öffentliche Sitemap und `robots.txt` antworten mit HTTP 200; die Search Console meldete unmittelbar nach der Einreichung dennoch „Konnte nicht abgerufen werden“. Alle 37 Landing-Tests, gezieltes Lint, Formatprüfung und Produktionsbau bestanden. Die neue Erfassung wirkt erst nach Veröffentlichung und Einwilligung; historische Zugriffe werden nicht nachträglich zugeordnet.
+
+## 2026-09-28 – Juna – Google-Analytics-Erfassung geprüft
+
+**Auftrag:** Die ersten Analytics-Zahlen, die zwei Seitentitel und die als direkt ausgewiesenen Zugriffe prüfen.
+
+**Befund:** Für die letzten sieben Tage zeigt GA4 neun aktive und neun neue Nutzer sowie 38 Seitenaufrufe. Die 35 Aufrufe mit dem Titel „Flipbase“ und drei mit dem längeren Titel betreffen denselben Pfad `/`; einer der drei langen Titel kam vom lokalen Host `127.0.0.1`. Die Live-Seite und `origin/master` tragen inzwischen den längeren Titel. Im Sitzungsbericht stehen 18 Sitzungen unter `(direct) / (none)` und zwei unter `(not set)` beziehungsweise „Unassigned“. Das Landing-Skript sendet nach Einwilligung die Seitenadresse ohne Abfrageparameter und setzt den Referrer ausdrücklich leer. Der Web-Datenstream ist aktiv, optimierte Analysen einschließlich Seitenaufrufen sind eingeschaltet, und eine Search-Console-Verknüpfung ist noch nicht eingerichtet.
+
+**Prüfung und Grenze:** Analytics-Berichte und Property-Einstellungen nur gelesen; Live-Titel und aktuellen `origin/master` abgeglichen. Die genaue Herkunft einzelner Besuche lässt sich aus den vorhandenen Daten nicht nachträglich ermitteln. Keine Tracking- oder Kontoeinstellungen geändert.
 ## 2026-09-28 – Juna – Vinted-Datenansichten nach erstem Liveabruf korrigiert
 
 **Auftrag:** Die vom Nutzer beobachteten Lücken bei Profilbild, Bewertung, Inseraten und Nachrichten nach dem ersten erfolgreichen manuellen Abruf beheben.
