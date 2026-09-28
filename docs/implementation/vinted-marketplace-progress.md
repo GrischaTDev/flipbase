@@ -1,5 +1,21 @@
 # Arbeitsstand: Vinted-Marktplatzverwaltung
 
+## 28. September 2026 – GoLogin-Zugang nach Abo freigeschaltet
+
+Nach Aktivierung eines Standard-Abos antwortete die produktive GoLogin-API bei der Proxy-Kontingentabfrage mit HTTP 200 statt HTTP 403; etwa 2 GB waren verfügbar. Ein leeres, nicht mit Vinted geöffnetes Anbieter-Testprofil wurde erfolgreich angelegt (HTTP 201) und wieder gelöscht (HTTP 204). Danach startete auf der vom Nutzer geöffneten Flipbase-Seite ein echter Anmeldeversuch. Die Datenbank bestätigte für diese Verbindung ein dauerhaftes GoLogin-Profil und eine aktive Browsersitzung. Ein Browserklick des Assistenten scheiterte an einem inzwischen veralteten Seitenknoten und löste keine zweite Eingabe aus.
+
+Der Nutzer erhielt nach einer Minute den Hinweis, dass die Anmeldung nicht bestätigt wurde; erst danach verließ er die Seite. Die Browsersitzung wurde geschlossen und die Verbindung blieb auf `needs_login`. Das gespeicherte GoLogin-Profil wurde anschließend zweimal lesend geöffnet und jedes Mal beim Anbieter bestätigt gestoppt (HTTP 204). Es zeigte `/member/login/email` mit leeren Feldern und ohne sichtbaren Fehler- oder Bestätigungshinweis. Die bisher unbestätigte private Identitätsroute antwortete dort mit HTTP 403 und `access_denied`. Damit sind Profilanlage und Browserstart live belegt, aber weder ein bestätigter Vinted-Login noch ein funktionierender Kontodatenabruf. Falsche Zugangsdaten oder eine zusätzliche Vinted-Prüfung lassen sich aus diesem späteren Zustand nicht ableiten. Zugangsdaten wurden nicht ausgelesen oder erneut gesendet.
+
+Für den nächsten Versuch wird ein weiterhin sichtbares Vinted-Anmeldeformular beim Identitätscheck als eigener Zustand an die Oberfläche gemeldet. Nach dem Zeitlimit nennt Flipbase diesen konkreten Befund, statt nur mehrere mögliche Ursachen aufzulisten. Die Zuordnung bleibt an Sitzung, Konto und Workspace gebunden; ohne bestätigte Identität bleibt der Verbindungsstatus ausstehend. Dieser lokale Code muss vor einem neuen Produktivtest über PR und Prüfungen veröffentlicht werden.
+
+## 28. September 2026 – GoLogin-API-Limit beim echten Sitzungsstart
+
+Bei der vom Nutzer angestoßenen Anmeldung erschien „Die Browsersitzung konnte nicht bestätigt werden“. Die Fehlermeldung entsteht beim Öffnen der Browsersitzung, bevor der Worker die Vinted-Zugangsdaten erhält. Für die betroffene Verbindung gab es in der produktiven Datenbank weder ein gespeichertes Anbieterprofil noch eine gestartete Sitzung. Lesende Proben des produktiven GoLogin-Zugangs auf zwei API-Routen antworteten mit HTTP 403 und dem Text „You have reached your free API requests limit. Please subscribe to continue.“ Der Vinted-Benutzername und das Passwort wurden bei diesem Versuch nicht geprüft.
+
+Der Worker erkennt diese konkrete Anbieterantwort und gibt nur den festen Code `gologin_api_limit_reached` weiter. Die Flipbase-Oberfläche nennt die API-Grenze und verweist auf „API & MCP“; unbekannte Anbieterfehler bleiben allgemein. Auf der angemeldeten GoLogin-Webseite stehen „Versuch“ und „Noch 7 Tage“. Im Bereich „API & MCP“ steht zugleich, dass die volle API-Version nur in der bezahlten Version verfügbar ist. Ein Vergleich anonymisierter Fingerabdrücke bestätigte, dass das dort angezeigte Token mit dem produktiven Worker-Token übereinstimmt; kein Klartext wurde ausgegeben. Die [GoLogin-Hilfe](https://support.gologin.com/en/articles/14617029-pricing) bezeichnet den siebentägigen Test als Zugang mit vollem Funktionsumfang. Wie viele kostenlose API-Anfragen für diesen Test gelten und ob das Kontingent zurückgesetzt wird, ist in den geprüften Quellen nicht angegeben. Ein Kauf wird daher nicht allein aus der Fehlermeldung empfohlen. Erst nach geklärtem API-Zugang soll der Nutzer die Anmeldung erneut selbst auslösen. Eine erfolgreiche Vinted-Anmeldung, die Identitätsroute und der Liveimport sind weiter unbestätigt.
+
+**Prüfung:** 70 Worker- und 33 gezielte Angular-Tests bestanden, ebenso Worker-Typprüfung/-Bau, Angular-Produktionsbau und gezieltes ESLint. Siehe `vinted-ui-verification.md`. Keine Zugangsdaten wurden ausgelesen oder erneut gesendet. Keine Datenbankmigration und keine neue Abhängigkeit.
+
 ## 27. September 2026 – Direkte Account-Anmeldung und GoLogin-Proxy
 
 Aktuell ist PR #220 bereits in master enthalten (`c46d225`). Die Fortsetzung

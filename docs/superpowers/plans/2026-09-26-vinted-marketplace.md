@@ -1,5 +1,7 @@
 # Vinted-Marktplatzverwaltung: Implementierungsplan
 
+> **Aktueller Stand (28.09.2026):** Nach Aktivierung eines Standard-Abos ist die GoLogin-API wieder erreichbar. Ein leeres Anbieterprofil ließ sich erstellen und löschen; für die echte Flipbase-Verbindung wurden ein dauerhaftes Profil und eine aktive Browsersitzung angelegt. Der Anmeldeversuch erreichte nach einer Minute das Zeitlimit; erst danach wurde die Seite verlassen und die Sitzung geschlossen. Die Verbindung bleibt `needs_login`. Das gespeicherte Profil zeigte beim späteren lesenden Öffnen erneut das Vinted-Anmeldeformular; der private Identitätsabruf antwortete dort HTTP 403 `access_denied`. Die neue lokale Prüfung unterscheidet dieses Formular vom unbekannten Wartezustand. Ein bestätigter Login und die private Leseroute bleiben offen; Datenimport ist ein getrenntes Folgepaket.
+
 > For agentic workers: Use superpowers:executing-plans for task-by-task execution.
 > Haken bezeichnen tatsächlich erledigte Schritte, keine angekündigten Arbeiten.
 

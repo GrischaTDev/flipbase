@@ -7,7 +7,9 @@ import { createMarketplaceFixtures } from '../testing/marketplace-fixtures';
 import { MarketplaceAccountStore } from './marketplace-account.store';
 import {
   BrowserTestSessionEndedError,
+  GoLoginApiLimitError,
   MarketplaceBrowserTestApiService,
+  VintedLoginPendingError,
 } from './marketplace-browser-test-api.service';
 import { MarketplaceBrowserTestStore } from './marketplace-browser-test.store';
 
@@ -80,6 +82,13 @@ beforeEach(async () => {
 });
 
 describe('Kontogebundener Browser-Testbereich', () => {
+  it('zeigt das GoLogin-Limit vor dem Senden der Zugangsdaten an', async () => {
+    api.open.mockRejectedValueOnce(new GoLoginApiLimitError());
+    await store.login({ username: 'synthetic', password: 'synthetic' });
+    expect(store.error()).toContain('GoLogin meldet');
+    expect(store.error()).toContain('API & MCP');
+    expect(api.login).not.toHaveBeenCalled();
+  });
   it('behält die Sitzung nach Token-Erneuerung und prüft mit dem neuen Token', async () => {
     await store.start();
     session.set({ access_token: 'token-a-renewed' });
@@ -250,6 +259,24 @@ it('begrenzt eine unbestätigte Anmeldung ohne automatischen Passwort-Neuversuch
     await store.checkLogin();
     expect(store.awaitingLogin()).toBe(false);
     expect(store.error()).toContain('nicht bestätigt');
+    expect(api.login).toHaveBeenCalledOnce();
+    expect(reloadConnections).not.toHaveBeenCalled();
+  } finally {
+    clock.mockRestore();
+  }
+});
+
+it('erklärt beim Zeitlimit ein weiterhin sichtbares Vinted-Anmeldeformular', async () => {
+  api.identify.mockRejectedValue(new VintedLoginPendingError());
+  await store.login({ username: 'synthetic', password: 'synthetic' });
+  await store.checkLogin();
+  expect(store.awaitingLogin()).toBe(true);
+  expect(store.error()).toBeNull();
+  const clock = vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 61_000);
+  try {
+    await store.checkLogin();
+    expect(store.awaitingLogin()).toBe(false);
+    expect(store.error()).toContain('Anmeldeformular');
     expect(api.login).toHaveBeenCalledOnce();
     expect(reloadConnections).not.toHaveBeenCalled();
   } finally {

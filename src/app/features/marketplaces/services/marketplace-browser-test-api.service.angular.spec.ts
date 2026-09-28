@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   BrowserTestSessionEndedError,
+  GoLoginApiLimitError,
   MarketplaceBrowserTestApiService,
 } from './marketplace-browser-test-api.service';
 
@@ -41,6 +42,16 @@ describe('Browser-Test-API', () => {
     expect(options.method).toBe('POST');
     expect(new Headers(options.headers).get('Authorization')).toBe('Bearer user-test-token');
     expect(JSON.parse(String(options.body))).toEqual(scope);
+  });
+
+  it('erkennt den festen Code für das erreichte GoLogin-API-Limit', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(Response.json({ code: 'gologin_api_limit_reached' }, { status: 503 })),
+    );
+    await expect(api.open(scope, 'user-test-token')).rejects.toBeInstanceOf(GoLoginApiLimitError);
   });
 
   it('verwirft eine übergroße Bildantwort', async () => {
@@ -115,6 +126,14 @@ it('unterscheidet eine noch offene Anmeldung von einer bestätigten Identität',
   vi.stubGlobal('fetch', request);
   await expect(api.identify(scope, id, 'token', true)).resolves.toBeNull();
   await expect(api.identify(scope, id, 'token')).rejects.toThrow();
+});
+
+it('meldet ein weiterhin sichtbares Vinted-Anmeldeformular gesondert', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn().mockResolvedValue(Response.json({ code: 'vinted_login_pending' }, { status: 422 })),
+  );
+  await expect(api.identify(scope, id, 'synthetic', true)).rejects.toThrow('Anmeldeformular');
 });
 
 it('zeigt abgelehnte Zugangsdaten statt eines endlosen Prüfstatus', async () => {

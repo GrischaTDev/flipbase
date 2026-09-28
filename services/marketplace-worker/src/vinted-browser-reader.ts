@@ -11,6 +11,13 @@ export class VintedLoginRejectedError extends Error {
   }
 }
 
+export class VintedLoginPendingError extends Error {
+  constructor() {
+    super('Vinted zeigt weiterhin das Anmeldeformular');
+    this.name = 'VintedLoginPendingError';
+  }
+}
+
 const accountIdPattern = /^[1-9][0-9]{0,31}$/;
 const usernamePattern = /^[^\p{Cc}]{1,120}$/u;
 
@@ -49,11 +56,12 @@ export async function readVintedAccountIdentity(
   let response: unknown;
   try {
     response = await page.evaluate(async () => {
-      if (
-        location.pathname === '/member/login/email' &&
-        document.body.innerText.includes('Ungültiger Mitgliedsname oder Passwort')
-      )
-        return { loginRejected: true };
+      if (location.pathname === '/member/login/email') {
+        if (document.body.innerText.includes('Ungültiger Mitgliedsname oder Passwort'))
+          return { loginRejected: true };
+        if (document.querySelector('input[name="password"][type="password"]'))
+          return { loginPending: true };
+      }
       const result = await fetch('/api/v2/users/current', {
         method: 'GET',
         credentials: 'include',
@@ -84,5 +92,6 @@ export async function readVintedAccountIdentity(
   }
   if (isRecord(response) && response['loginRejected'] === true)
     throw new VintedLoginRejectedError();
+  if (isRecord(response) && response['loginPending'] === true) throw new VintedLoginPendingError();
   return parseVintedAccountIdentity(response);
 }

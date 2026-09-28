@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { GoLoginProfileNetwork } from '../src/gologin-profile-network.ts';
+import { GoLoginApiLimitError } from '../src/gologin-api-limit.ts';
 
 test('assigns a German residential proxy from existing traffic without purchasing or rotating', async () => {
   const calls: { path: string; body: unknown }[] = [];
@@ -40,6 +41,17 @@ test('refuses exhausted traffic before assigning a proxy', async () => {
   });
   await assert.rejects(network.configureNew('profile-a'));
   assert.equal(calls, 1);
+});
+
+test('recognizes the provider free API limit without exposing its response', async () => {
+  const network = new GoLoginProfileNetwork(
+    'synthetic',
+    async () =>
+      new Response('You have reached your free API requests limit. Please subscribe to continue.', {
+        status: 403,
+      }),
+  );
+  await assert.rejects(network.configureNew('profile-a'), GoLoginApiLimitError);
 });
 
 test('never starts a saved profile without a confirmed proxy and never rotates an existing proxy', async () => {

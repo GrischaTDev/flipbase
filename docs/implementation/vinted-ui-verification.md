@@ -1,5 +1,17 @@
 # Vinted-Oberfläche: geprüfter Stand vom 26. September 2026
 
+## Nachtrag 28.09.2026: Livezugang nach GoLogin-Abo
+
+Der produktive API-Zugang ist wieder nutzbar: Proxy-Kontingent HTTP 200, leeres Anbieterprofil HTTP 201 angelegt und HTTP 204 gelöscht. Beim parallel vom Nutzer gestarteten Anmeldeversuch erschienen eine aktive kontogebundene Browsersitzung und „Anmeldung wird geprüft“. Nach einer Minute wurde die Anmeldung nicht bestätigt; die spätere Navigation schloss die Sitzung. Das Flipbase-Konto blieb bei „Anmeldung ausstehend“. Beim anschließenden lesenden Öffnen des gespeicherten Profils zeigte Vinted das Anmeldeformular ohne sichtbaren Hinweis; der private Kontodatenabruf antwortete HTTP 403 `access_denied`. Das Profil wurde jeweils bestätigt gestoppt. Kein zweiter Loginauftrag wurde gesendet; Zugangsdaten wurden nicht ausgelesen. Die neue zustandsspezifische Fehlermeldung ist lokal getestet, aber noch nicht produktiv geprüft.
+
+Lokale Prüfung der Zustandsmeldung: 72 Worker-Tests, 6 Browser-Tests mit abgefangenen Testseiten und 35 betroffene Angular-Tests erfolgreich; Worker-Typprüfung, ESLint der geänderten Codedateien, `git diff --check` und Angular-Build erfolgreich. Eine zusätzliche Prüfung mit dem echten Sitzungsdienst deckte einen anfänglichen Sitzungsabbruch beim neuen Wartezustand auf (HTTP 410 statt 422). Nach Korrektur bleibt die Sitzung offen und liefert HTTP 422 mit festem Code. Ein erneut erfolgreicher Vinted-Login ist damit noch nicht belegt.
+
+## Nachtrag 28.09.2026: GoLogin-API-Ablehnung bei aktivem Testzugang
+
+Die bisher allgemeine Fehlermeldung beim Start einer Browsersitzung verdeckte die konkrete Anbieterantwort. Bei der betroffenen neuen Verbindung war noch kein GoLogin-Profil und keine Browsersitzung gespeichert. Zwei lesende Anbieter-API-Aufrufe mit dem produktiven, nur serverseitig gespeicherten Token erhielten HTTP 403 mit dem Hinweis auf das ausgeschöpfte kostenlose API-Anfragelimit. Dadurch blieb die eigentliche Vinted-Anmeldung vor der Übertragung der Zugangsdaten stehen.
+
+Die angemeldete GoLogin-Webseite zeigt zugleich einen aktiven Versuch mit sieben verbleibenden Tagen. Unter „API & MCP“ nennt sie die volle API-Version als Funktion der bezahlten Version. Die UI-Meldung beschreibt deshalb die beobachtete API-Grenze und verweist auf diesen Bereich, ohne einen Kauf zu empfehlen. Der HTTP-Endpunkt veröffentlicht weiter nur einen festen Fehlercode; unbekannte Anbietertexte und Geheimnisse werden nicht an die Oberfläche durchgereicht. Künstliche Tests prüfen die Anbieterklassifikation, die sichere HTTP-Antwort und die Anzeige vor dem Loginauftrag. 70 Worker-Tests und 33 gezielte Angular-Tests bestanden, ebenso Worker-Typprüfung/-Bau, Angular-Produktionsbau und gezieltes ESLint. Ein erfolgreicher Login kann mit dem derzeitigen Anbieterstatus nicht geprüft werden.
+
 ## Aktueller Nachtrag 27.09.2026: zusammenhängende Anmeldung
 
 Branch `juna/vinted-account-connection`, Basis `c46d225` (PR #220 bereits gemergt).

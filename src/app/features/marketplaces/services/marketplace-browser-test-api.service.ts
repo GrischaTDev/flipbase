@@ -30,11 +30,25 @@ export class BrowserTestSessionEndedError extends Error {
   }
 }
 
+export class GoLoginApiLimitError extends Error {
+  constructor() {
+    super(
+      'GoLogin meldet: Das kostenlose API-Anfragelimit dieses Schlüssels ist erreicht. Prüfe im GoLogin-Bereich „API & MCP“, welche API-Nutzung Dein Testzugang erlaubt. Die Vinted-Anmeldung wurde nicht gestartet.',
+    );
+  }
+}
+
 export class VintedLoginRejectedError extends Error {
   constructor() {
     super(
       'Vinted hat die Zugangsdaten abgelehnt. Prüfe Mitgliedsname oder E-Mail und Passwort und melde Dich erneut an.',
     );
+  }
+}
+
+export class VintedLoginPendingError extends Error {
+  constructor() {
+    super('Vinted zeigt weiterhin das Anmeldeformular.');
   }
 }
 
@@ -70,7 +84,19 @@ export class MarketplaceBrowserTestApiService {
 
   async open(scope: AccountScope, accessToken: string): Promise<string> {
     const response = await this.post(basePath, scope, accessToken);
-    if (response.status !== 201) throw new Error('Browsersitzung nicht verfügbar');
+    if (response.status !== 201) {
+      if (response.status === 503) {
+        const body: unknown = await response.json().catch(() => null);
+        if (
+          typeof body === 'object' &&
+          body !== null &&
+          'code' in body &&
+          body.code === 'gologin_api_limit_reached'
+        )
+          throw new GoLoginApiLimitError();
+      }
+      throw new Error('Browsersitzung nicht verfügbar');
+    }
     const body: unknown = await response.json();
     if (
       typeof body !== 'object' ||
@@ -93,6 +119,13 @@ export class MarketplaceBrowserTestApiService {
     if (response.status === 410) throw new BrowserTestSessionEndedError();
     if (response.status === 422) {
       const body: unknown = await response.json().catch(() => null);
+      if (
+        typeof body === 'object' &&
+        body !== null &&
+        'code' in body &&
+        body.code === 'vinted_login_pending'
+      )
+        throw new VintedLoginPendingError();
       if (
         typeof body === 'object' &&
         body !== null &&

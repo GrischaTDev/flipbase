@@ -6,6 +6,8 @@ import {
   SupabaseBrowserUserVerifier,
 } from '../src/marketplace-browser-http-api.ts';
 import type { BrowserInfo } from '../src/gologin-cloud-browser.ts';
+import { GoLoginApiLimitError } from '../src/gologin-api-limit.ts';
+import { VintedLoginPendingError, VintedLoginRejectedError } from '../src/vinted-browser-reader.ts';
 import {
   MarketplaceBrowserSessionEndedError,
   type BrowserSessionScope,
@@ -154,6 +156,25 @@ test('prepares the bound browser profile before opening and hides provider error
   }
 });
 
+test('returns only a fixed code when the provider API limit is reached', async () => {
+  const api = await setup(undefined, undefined, false, undefined, async () => {
+    throw new GoLoginApiLimitError();
+  });
+  try {
+    const response = await api.request('/marketplace-browser/sessions', {
+      workspaceId: workspaceA,
+      connectionId: accountA,
+    });
+    assert.equal(response.status, 503);
+    assert.deepEqual(await response.json(), {
+      code: 'gologin_api_limit_reached',
+      error: 'GoLogin-API-Limit erreicht',
+    });
+  } finally {
+    await api.close();
+  }
+});
+
 test('read-only mode refuses all browser input before accessing the session', async () => {
   const api = await setup(undefined, undefined, true);
   try {
@@ -231,6 +252,34 @@ test('does not confirm absent identity, read-only mode or interrupted session', 
     } finally {
       await api.close();
     }
+  }
+});
+
+test('reports a visible Vinted login form without exposing browser content or confirming the account', async () => {
+  let confirmations = 0;
+  const api = await setup(
+    undefined,
+    undefined,
+    false,
+    new VintedLoginPendingError(),
+    undefined,
+    null,
+    async () => {
+      confirmations++;
+    },
+  );
+  try {
+    const scope = { workspaceId: workspaceA, connectionId: accountA };
+    await api.request('/marketplace-browser/sessions', scope);
+    const response = await api.request(
+      `/marketplace-browser/sessions/${sessionId}/identify`,
+      scope,
+    );
+    assert.equal(response.status, 422);
+    assert.deepEqual(await response.json(), { code: 'vinted_login_pending' });
+    assert.equal(confirmations, 0);
+  } finally {
+    await api.close();
   }
 });
 
@@ -533,68 +582,74 @@ test('returns a safe rejection code only after the scoped broker check', async (
   }
 });
 
-test('keeps the real broker lease alive after a rejected login', async () => {
+test('keeps the real broker lease alive while login is rejected or still on the form', async () => {
   const { MarketplaceBrowserSessionBroker } =
     await import('../src/marketplace-browser-session-broker.ts');
-  const { VintedLoginRejectedError } = await import('../src/vinted-browser-reader.ts');
-  let active = true;
-  let stopped = false;
-  const broker = new MarketplaceBrowserSessionBroker({
-    recovery: { recover: async () => undefined },
-    leases: {
-      acquire: async (scope) => ({
-        id: sessionId,
-        scope,
-        expiresAt: Date.now() + 60_000,
-        active: true,
-      }),
-      assertActive: async () => active,
-      release: async () => {
-        active = false;
+  for (const [loginError, expectedCode] of [
+    [new VintedLoginRejectedError(), 'vinted_login_rejected'],
+    [new VintedLoginPendingError(), 'vinted_login_pending'],
+  ] as const) {
+    let active = true;
+    let stopped = false;
+    const broker = new MarketplaceBrowserSessionBroker({
+      recovery: { recover: async () => undefined },
+      leases: {
+        acquire: async (scope) => ({
+          id: sessionId,
+          scope,
+          expiresAt: Date.now() + 60_000,
+          active: true,
+        }),
+        assertActive: async () => active,
+        release: async () => {
+          active = false;
+        },
       },
-    },
-    profiles: { resolve: async () => 'synthetic-profile' },
-    browsers: {
-      open: async () => ({
-        close: async () => {
+      profiles: { resolve: async () => 'synthetic-profile' },
+      browsers: {
+        open: async () => ({
+          close: async () => {
+            stopped = true;
+          },
+          run: async (operation) =>
+            operation({
+              version: () => 'synthetic',
+              identify: async () => {
+                throw loginError;
+              },
+              capture: async () => Uint8Array.from([0xff, 0xd8, 0xff, 0xd9]),
+            }),
+        }),
+        stop: async () => {
           stopped = true;
         },
-        run: async (operation) =>
-          operation({
-            version: () => 'synthetic',
-            identify: async () => {
-              throw new VintedLoginRejectedError();
-            },
-            capture: async () => Uint8Array.from([0xff, 0xd8, 0xff, 0xd9]),
-          }),
-      }),
-      stop: async () => {
-        stopped = true;
       },
-    },
-  });
-  const api = new MarketplaceBrowserHttpApi({
-    broker,
-    users: { userId: async () => '25600000-0000-4000-8000-000000000001' },
-    accounts: { confirm: async () => assert.fail('must not confirm a rejected login') },
-  });
-  const server = api.createServer();
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
-  const address = server.address() as AddressInfo;
-  const post = (path: string) =>
-    fetch(`http://127.0.0.1:${address.port}/marketplace-browser/sessions${path}`, {
-      method: 'POST',
-      headers: { Authorization: 'Bearer synthetic', 'Content-Type': 'application/json' },
-      body: JSON.stringify({ workspaceId: workspaceA, connectionId: accountA }),
     });
-  try {
-    assert.equal((await post('')).status, 201);
-    assert.equal((await post(`/${sessionId}/identify`)).status, 422);
-    assert.equal(active, true);
-    assert.equal(stopped, false);
-    assert.equal((await post(`/${sessionId}/frame`)).status, 200);
-  } finally {
-    await broker.shutdown();
-    await new Promise<void>((resolve) => server.close(() => resolve()));
+    const api = new MarketplaceBrowserHttpApi({
+      broker,
+      users: { userId: async () => '25600000-0000-4000-8000-000000000001' },
+      accounts: { confirm: async () => assert.fail('must not confirm a rejected login') },
+    });
+    const server = api.createServer();
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const address = server.address() as AddressInfo;
+    const post = (path: string) =>
+      fetch(`http://127.0.0.1:${address.port}/marketplace-browser/sessions${path}`, {
+        method: 'POST',
+        headers: { Authorization: 'Bearer synthetic', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workspaceId: workspaceA, connectionId: accountA }),
+      });
+    try {
+      assert.equal((await post('')).status, 201);
+      const identified = await post(`/${sessionId}/identify`);
+      assert.equal(identified.status, 422);
+      assert.equal((await identified.json()).code, expectedCode);
+      assert.equal(active, true);
+      assert.equal(stopped, false);
+      assert.equal((await post(`/${sessionId}/frame`)).status, 200);
+    } finally {
+      await broker.shutdown();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
   }
 });
