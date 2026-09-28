@@ -56,7 +56,7 @@ test('nur der gebundene Runner kann einen aktiven Auftrag fortschreiben', async 
     url: 'https://db.example.test',
     publishableKey: 'public-key',
     serviceRoleKey: 'server-key',
-    fetch: async (input, init) => {
+    fetch: async (input) => {
       const url = new URL(String(input));
       patches.push(url);
       return Response.json(patches.length === 1 ? [{ id: operationId }] : []);

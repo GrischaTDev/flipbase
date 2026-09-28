@@ -26,6 +26,7 @@ test('ordnet einen geheimen Anbieterfehler nur dem fehlgeschlagenen Profilschrit
       return true;
     },
   );
+  assert.equal(requests, 1);
 });
 
 test('nutzt eine bereits geöffnete Vinted-Seite und liest das Profil nur einmal', async () => {

@@ -14,9 +14,9 @@ Profil- und Inseratänderungen warten auf zurückgelesene Werte; die Profilroute
 trennt Lesen und Schreiben und erkennt veralteten Ausgangstext vor dem Klick.
 Die Oberfläche verwendet weiterhin die vorhandene Kontoverwaltung.
 
-**Prüfung und Grenze:** 127 Worker-Tests, 113 Angular-Marktplatztests,
-81 einschlägige lokale Datenbanktests, 85 Workflow-Tests, Typprüfungen
-und beide Builds bestanden.
+**Prüfung und Grenze:** 127 Worker-Tests, 9 Browser-Tests mit Testseiten,
+113 Angular-Marktplatztests, 81 einschlägige lokale Datenbanktests und
+die vollständige Projektprüfung `npm run verify` bestanden.
 Kein echter Vinted-Abruf oder Schreibversuch, kein Push, Merge oder Deployment.
 Vollständige Verkäufe, Teilerfolge je Datenbereich, automatische Aktualisierung,
 Browserwiederverwendung und neue Schreibfunktionen bleiben offen.
