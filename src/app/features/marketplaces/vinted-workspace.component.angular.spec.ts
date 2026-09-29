@@ -300,9 +300,14 @@ describe('Vinted-Bereich in Flipbase', () => {
     harness.detectChanges();
     const dialog = element.querySelector('app-marketplace-sync-progress');
     expect(dialog?.textContent).toContain('Vinted bestätigt Deine Anmeldung nicht mehr.');
-    expect(dialog?.querySelector<HTMLAnchorElement>('a')?.getAttribute('href')).toBe(
+    const link = dialog?.querySelector<HTMLAnchorElement>('a');
+    expect(link?.getAttribute('href')).toBe(
       `/marketplaces/vinted/connect/${fixtureConnections[0].connectionId}?reauth=1`,
     );
+    link?.click();
+    await harness.fixture.whenStable();
+    harness.detectChanges();
+    expect(element.querySelector('app-marketplace-sync-progress')).toBeNull();
   });
   it('öffnet die erneute Anmeldung nur für das ausgewählte verbundene Konto', async () => {
     browserApi.available.mockResolvedValue({ available: true, readOnly: false });

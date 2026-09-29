@@ -105,13 +105,26 @@
               Die Anmeldung läuft im Hintergrund in Deinem eigenen Kontoprofil. Cookiehinweise
               werden auf notwendige Cookies beschränkt. Flipbase speichert Dein Passwort nicht.
             </p>
-            <app-button
-              type="submit"
-              variant="primary"
-              [disabled]="submitting() || !canSubmitLogin() || loginForm.invalid"
-            >
-              Anmelden und Konto verbinden
-            </app-button>
+            <div class="flex flex-wrap gap-2">
+              <app-button
+                type="submit"
+                variant="primary"
+                [disabled]="submitting() || !canSubmitLogin() || loginForm.invalid"
+              >
+                Anmelden und Konto verbinden
+              </app-button>
+              @if (!store.session()) {
+                <app-button
+                  type="button"
+                  variant="secondary"
+                  [disabled]="!store.canStart()"
+                  [loading]="store.busy()"
+                  (clicked)="openManualBrowser()"
+                >
+                  Browser-Ansicht öffnen
+                </app-button>
+              }
+            </div>
           </form>
         }
         @if (showProgress()) {
@@ -162,10 +175,89 @@
             <p role="status" class="mt-4 text-sm text-fb-text-secondary">{{ progress }}</p>
           }
         }
-        @if (store.session()) {
-          <app-button class="mt-4" variant="destructive" (clicked)="store.close()"
-            >Anmeldung beenden</app-button
-          >
+        @if (store.session(); as session) {
+          @if (session.frameUrl) {
+            <div class="mt-5 space-y-3 rounded-xl border border-fb-border bg-fb-surface p-4">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h4 class="text-sm font-semibold text-fb-text-primary">Browser-Vorschau</h4>
+                  <p class="text-xs text-fb-text-secondary">
+                    Klicke ins Bild, um Captchas oder Cookies direkt bei Vinted zu bedienen.
+                  </p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                  <app-button size="slim" [disabled]="!store.canAct()" (clicked)="store.refresh()">
+                    Bild aktualisieren
+                  </app-button>
+                  <app-button
+                    size="slim"
+                    variant="primary"
+                    [disabled]="!store.canAct()"
+                    (clicked)="store.confirmAccount()"
+                  >
+                    Anmeldung prüfen & verbinden
+                  </app-button>
+                </div>
+              </div>
+              <div
+                class="max-w-full overflow-auto rounded-lg border border-fb-border/60 bg-black/5"
+              >
+                <button
+                  type="button"
+                  class="block max-w-full cursor-pointer focus-visible:outline-2 focus-visible:outline-fb-primary disabled:opacity-50"
+                  aria-label="Browserbild anklicken"
+                  [disabled]="!store.canAct()"
+                  (click)="clickFrame($event)"
+                >
+                  <img
+                    [src]="session.frameUrl"
+                    alt="Aktuelles Browserbild der Vinted-Anmeldung"
+                    class="block max-w-full"
+                  />
+                </button>
+              </div>
+              <div class="flex flex-wrap items-center gap-2 pt-1">
+                <app-text-field
+                  class="min-w-44 flex-1"
+                  label="Text in aktives Feld senden"
+                  [formControl]="manualTextInput"
+                  [maxLength]="256"
+                />
+                <app-button
+                  class="self-end"
+                  [disabled]="!store.canAct() || !manualTextInput.value"
+                  (clicked)="sendManualText()"
+                >
+                  Senden
+                </app-button>
+                <div class="flex gap-1 self-end">
+                  <app-button size="slim" [disabled]="!store.canAct()" (clicked)="sendKey('Enter')"
+                    >Enter</app-button
+                  >
+                  <app-button size="slim" [disabled]="!store.canAct()" (clicked)="sendKey('Tab')"
+                    >Tab</app-button
+                  >
+                  <app-button size="slim" [disabled]="!store.canAct()" (clicked)="sendKey('Escape')"
+                    >Esc</app-button
+                  >
+                </div>
+              </div>
+              <div class="flex justify-end pt-1">
+                <app-button variant="destructive" size="slim" (clicked)="store.close()">
+                  Anmeldung beenden
+                </app-button>
+              </div>
+            </div>
+          } @else {
+            <div class="mt-4 flex flex-wrap gap-2">
+              <app-button [disabled]="!store.canAct()" (clicked)="store.refresh()">
+                Bild laden
+              </app-button>
+              <app-button variant="destructive" (clicked)="store.close()">
+                Anmeldung beenden
+              </app-button>
+            </div>
+          }
         }
       }
     }

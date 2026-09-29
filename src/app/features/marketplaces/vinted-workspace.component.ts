@@ -1,6 +1,7 @@
 import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import {
   LucideBell,
   LucideRefreshCw,
@@ -64,6 +65,15 @@ export class VintedWorkspaceComponent {
     const account = this.store.selectedConnection();
     return account ? `/marketplaces/vinted/connect/${account.connectionId}` : null;
   });
+
+  constructor() {
+    const router = inject(Router);
+    router.events.pipe(takeUntilDestroyed()).subscribe((event) => {
+      if (event instanceof NavigationEnd && event.urlAfterRedirects.includes('/connect/')) {
+        this.syncModalOpen.set(false);
+      }
+    });
+  }
 
   async sync(): Promise<void> {
     this.syncModalOpen.set(true);

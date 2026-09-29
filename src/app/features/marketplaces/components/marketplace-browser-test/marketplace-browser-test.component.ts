@@ -57,6 +57,7 @@ export class MarketplaceBrowserTestComponent {
     validators: [Validators.required, Validators.pattern(/^[0-9]{4,8}$/)],
   });
   readonly codeForm = new FormGroup({ code: this.code });
+  readonly manualTextInput = new FormControl('', { nonNullable: true });
   readonly loginForm = new FormGroup({
     username: new FormControl('', {
       nonNullable: true,
@@ -82,6 +83,7 @@ export class MarketplaceBrowserTestComponent {
       clearInterval(interval);
       this.loginForm.reset();
       this.code.reset();
+      this.manualTextInput.reset();
     });
     effect(() => {
       const connectionId = this.store.connection()?.connectionId;
@@ -89,6 +91,7 @@ export class MarketplaceBrowserTestComponent {
       this.credentialsConnectionId = connectionId;
       this.loginForm.reset();
       this.code.reset();
+      this.manualTextInput.reset();
       this.reconnectRequested.set(
         this.reconnectOnOpen() && this.store.connection()?.status === 'connected',
       );
@@ -133,5 +136,34 @@ export class MarketplaceBrowserTestComponent {
       this.store.connection()?.status === 'connected'
     )
       this.reconnectRequested.set(false);
+  }
+
+  clickFrame(event: MouseEvent): void {
+    const target = event.currentTarget;
+    if (!(target instanceof HTMLElement) || !this.store.canAct()) return;
+    const rectangle = target.getBoundingClientRect();
+    if (rectangle.width <= 0 || rectangle.height <= 0) return;
+    const x = event.detail === 0 ? 0.5 : (event.clientX - rectangle.left) / rectangle.width;
+    const y = event.detail === 0 ? 0.5 : (event.clientY - rectangle.top) / rectangle.height;
+    void this.store.input({
+      kind: 'click',
+      x: Math.max(0, Math.min(0.999999, x)),
+      y: Math.max(0, Math.min(0.999999, y)),
+    });
+  }
+
+  sendManualText(): void {
+    const value = this.manualTextInput.value;
+    if (!value || value.length > 256) return;
+    this.manualTextInput.reset('');
+    void this.store.input({ kind: 'type', value });
+  }
+
+  sendKey(key: 'Enter' | 'Tab' | 'Escape' | 'Backspace'): void {
+    void this.store.input({ kind: 'press', key });
+  }
+
+  async openManualBrowser(): Promise<void> {
+    await this.store.start(true);
   }
 }

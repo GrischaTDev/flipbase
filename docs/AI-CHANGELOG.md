@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-30 – Juna – Vinted-Live-Vorschau und Schließen des Sync-Modals bei Reconnect umgesetzt
+
+**Auftrag:** Beim Klick auf „Vinted-Anmeldung erneuern“ im Abgleichsdialog soll sich das bisherige Status-Modal schließen, damit das neue Anmeldefenster bedienbar ist. Falls Vinted bei der Anmeldung eine zusätzliche Prüfung verlangt (z. B. Captcha oder Cookie-Banner) und die automatische Passworteingabe stoppt, soll der Nutzer die genaue Browser-Vorschau sehen und die Prüfung direkt im Bild bedienen können.
+
+**Änderung:** Im Sync-Progress-Dialog schließt der Klick auf „Vinted-Anmeldung erneuern“ sofort das Fortschritts-Modal, und der Workspace schließt das Modal zusätzlich bei jeder Routenänderung auf `/connect/`. Bei nicht bedienbaren Anmeldeseiten oder Bot-Challenges (`form_unavailable` / `interaction_required`) lädt der Store sofort das aktuelle Bildschirmfoto der Browsersitzung und meldet verständlich, dass eine manuelle Prüfung vorliegt. In der Vinted-Anmeldemaske wird die interaktive Browser-Vorschau angezeigt: Der Nutzer kann direkt per Klick im Bild (z. B. für Schiebe-Puzzles oder Cookie-Buttons) agieren, Text und Tasten (Enter/Tab/Esc) senden, das Bild aktualisieren und die Anmeldung nach erfolgreichem Login direkt prüfen und verbinden. Zusätzlich steht ein Button zum manuellen Öffnen der Browser-Ansicht bereit. Im Worker wurde die Cookie-Behandlung vor den Anmeldefeldern robuster gestaltet und bei erkannter Bot-Challenge wird `interaction_required` gemeldet.
+
+**Prüfung:** 117 Marktplatz-Komponententests in 9 Testdateien und 129 Worker-Tests erfolgreich ausgeführt. Typprüfung, ESLint, Prettier und der Angular-Produktionsbau (`ng build`) ohne Fehler bestanden.
+
 ## 2026-09-29 – Juna – Verkaufsfilter ohne Zähler vereinheitlicht
 
 **Auftrag:** Den zusammengefassten Filter auf der Verkaufsseite an die übrigen Tabellenansichten angleichen. „Alle Verkäufe“ und die dynamischen Zahlen bei „Alle“ und „Retouren“ sollen entfallen.
