@@ -1,11 +1,20 @@
 <div class="space-y-5 animate-fade-in">
   <app-page-header title="Stammdaten" [icon]="databaseIcon">
     @if (section !== 'sellers') {
-      <app-badge header-badge tone="neutral" [mono]="true">{{ rows().length }} Einträge</app-badge>
+      <app-badge header-badge tone="neutral" [mono]="true">
+        {{ rows().length }} Einträge
+      </app-badge>
     }
+
     @if (section !== 'platforms' && canEdit()) {
       <div header-actions>
-        <app-button variant="primary" size="md" [icon]="plusIcon" [disabled]="loading() || isSaving()" (clicked)="create()">
+        <app-button
+          variant="primary"
+          size="md"
+          [icon]="plusIcon"
+          [disabled]="loading() || isSaving()"
+          (clicked)="create()"
+        >
           {{ currentSection.createLabel }}
         </app-button>
       </div>
@@ -19,9 +28,11 @@
   } @else {
     @if (section === 'platforms') {
       <p class="text-sm text-fb-text-secondary">
-        Diese Systemvorgaben stehen in der Verkaufserfassung zur Auswahl. Verbundene Konten werden weiterhin in den Einstellungen verwaltet.
+        Diese Systemvorgaben stehen in der Verkaufserfassung zur Auswahl. Verbundene Konten werden
+        weiterhin in den Einstellungen verwaltet.
       </p>
     }
+
     <app-data-table
       [ariaLabel]="currentSection.label"
       [searchValue]="search()"
@@ -43,26 +54,44 @@
       emptyText="Passe die Suche oder den Statusfilter an oder lege einen neuen Eintrag an."
     >
       @if (section === 'sources') {
-        <app-custom-select table-view triggerId="master-data-status" ariaLabel="Quellenstatus"
-          variant="toolbar" widthClass="w-auto" [options]="statusOptions" [value]="status()"
-          (valueChange)="status.set($event ?? 'active')" />
+        <app-custom-select
+          table-view
+          triggerId="master-data-status"
+          ariaLabel="Quellenstatus"
+          variant="toolbar"
+          widthClass="w-auto"
+          [options]="statusOptions"
+          [value]="status()"
+          (valueChange)="status.set($event ?? 'active')"
+        />
       }
+
       <div table-content class="overflow-x-auto">
         <table class="linear-table min-w-[520px]">
-          <caption class="sr-only">{{ currentSection.label }}</caption>
-          <thead><tr>
-            @for (column of columns(); track column.id) {
-              <th scope="col" [class.text-right]="column.id === 'actions'">{{ column.label }}</th>
-            }
-          </tr></thead>
+          <caption class="sr-only">
+            {{ currentSection.label }}
+          </caption>
+          <thead>
+            <tr>
+              @for (column of columns(); track column.id) {
+                <th scope="col" [class.text-right]="column.id === 'actions'">
+                  {{ column.label }}
+                </th>
+              }
+            </tr>
+          </thead>
           <tbody>
             @for (row of rows(); track row.id) {
               <tr [class.opacity-60]="row.isActive === false">
                 @for (column of columns(); track column.id) {
                   <td [class.text-right]="column.id === 'actions'">
                     @switch (column.id) {
-                      @case ('name') { <span class="font-semibold text-fb-text-primary">{{ row.name }}</span> }
-                      @case ('kind') { {{ row.kind }} }
+                      @case ('name') {
+                        <span class="font-semibold text-fb-text-primary">{{ row.name }}</span>
+                      }
+                      @case ('kind') {
+                        {{ row.kind }}
+                      }
                       @case ('status') {
                         <app-badge [tone]="row.isActive === false ? 'neutral' : 'success'">
                           {{ row.isActive === false ? 'Archiviert' : 'Aktiv' }}
@@ -71,17 +100,31 @@
                       @case ('actions') {
                         <div class="inline-flex items-center gap-1">
                           @if (canEdit()) {
-                            <app-table-action-button [icon]="editIcon" [label]="row.name + ' bearbeiten'" (clicked)="edit(row)" />
+                            <app-table-action-button
+                              [icon]="editIcon"
+                              [label]="row.name + ' bearbeiten'"
+                              (clicked)="edit(row)"
+                            />
                           }
+
                           @if (canManage() && section === 'sources') {
                             <app-table-action-button
                               [icon]="row.isActive === false ? restoreIcon : archiveIcon"
                               [tone]="row.isActive === false ? 'positive' : 'warning'"
-                              [label]="row.name + (row.isActive === false ? ' wiederherstellen' : ' archivieren')"
-                              (clicked)="archive(row)" />
+                              [label]="
+                                row.name +
+                                (row.isActive === false ? ' wiederherstellen' : ' archivieren')
+                              "
+                              (clicked)="archive(row)"
+                            />
                           }
+
                           @if (canManage() && section === 'brands' && allRows().length > 1) {
-                            <app-table-action-button [icon]="mergeIcon" [label]="row.name + ' mit anderer Marke zusammenführen'" (clicked)="merge(row)" />
+                            <app-table-action-button
+                              [icon]="mergeIcon"
+                              [label]="row.name + ' mit anderer Marke zusammenführen'"
+                              (clicked)="merge(row)"
+                            />
                           }
                         </div>
                       }
@@ -94,11 +137,16 @@
         </table>
       </div>
     </app-data-table>
+
     @if (loadError()) {
       <app-button variant="secondary" (clicked)="reload()">Erneut laden</app-button>
     }
+
     @if (section === 'sources') {
-      <p class="text-sm text-fb-text-muted">Archivierte Quellen bleiben in bestehenden Einkäufen erhalten und sind für neue Einkäufe nicht mehr auswählbar.</p>
+      <p class="text-sm text-fb-text-muted">
+        Archivierte Quellen bleiben in bestehenden Einkäufen erhalten und sind für neue Einkäufe
+        nicht mehr auswählbar.
+      </p>
     }
   }
 </div>
@@ -106,38 +154,71 @@
 @if (dialogMode()) {
   <app-modal-shell [title]="dialogTitle()" size="sm" (closed)="requestClose()">
     @if (askingDiscard()) {
-      <p class="text-sm text-fb-text-secondary">Deine noch nicht gespeicherten Änderungen gehen verloren.</p>
+      <p class="text-sm text-fb-text-secondary">
+        Deine noch nicht gespeicherten Änderungen gehen verloren.
+      </p>
     } @else if (dialogMode() === 'merge') {
       <p class="text-sm text-fb-text-secondary">
-        „{{ selectedRow()?.name }}“ wird durch die Zielmarke ersetzt. Zugeordnete Artikel übernehmen die Zielmarke. Der doppelte Markeneintrag wird anschließend entfernt.
+        „{{ selectedRow()?.name }}“ wird durch die Zielmarke ersetzt. Zugeordnete Artikel übernehmen
+        die Zielmarke. Der doppelte Markeneintrag wird anschließend entfernt.
       </p>
-      <app-custom-select ariaLabel="Zielmarke" triggerId="master-data-replacement" [options]="replacementOptions()"
-        [value]="replacementId()" (valueChange)="replacementId.set($event ?? '')" />
+      <app-custom-select
+        ariaLabel="Zielmarke"
+        triggerId="master-data-replacement"
+        [options]="replacementOptions()"
+        [value]="replacementId()"
+        (valueChange)="replacementId.set($event ?? '')"
+      />
     } @else if (dialogMode() === 'archive') {
       <p class="text-sm text-fb-text-secondary">
         @if (selectedRow()?.isActive === false) {
           „{{ selectedRow()?.name }}“ steht danach wieder für neue Einkäufe zur Auswahl.
         } @else {
-          „{{ selectedRow()?.name }}“ wird für neue Einkäufe ausgeblendet. Bestehende Einkäufe behalten ihre Quelle.
+          „{{ selectedRow()?.name }}“ wird für neue Einkäufe ausgeblendet. Bestehende Einkäufe
+          behalten ihre Quelle.
         }
       </p>
     } @else {
       <form (ngSubmit)="save()">
-        <app-text-field label="Name" [formControl]="name" [maxLength]="120" [required]="true" [disabled]="saving()" [error]="dialogError()" />
+        <app-text-field
+          label="Name"
+          [formControl]="name"
+          [maxLength]="120"
+          [required]="true"
+          [disabled]="saving()"
+          [error]="dialogError()"
+        />
       </form>
     }
+
     @if (dialogError() && (dialogMode() === 'merge' || dialogMode() === 'archive')) {
       <p role="alert" class="text-sm text-fb-critical">{{ dialogError() }}</p>
     }
+
     <div modal-footer class="flex items-center gap-2">
       @if (askingDiscard()) {
-        <app-button variant="secondary" (clicked)="askingDiscard.set(false)">Weiter bearbeiten</app-button>
-        <app-button variant="destructive" (clicked)="dismissDialog()">Änderungen verwerfen</app-button>
+        <app-button variant="secondary" (clicked)="askingDiscard.set(false)">
+          Weiter bearbeiten
+        </app-button>
+        <app-button variant="destructive" (clicked)="dismissDialog()">
+          Änderungen verwerfen
+        </app-button>
       } @else {
-        <app-button variant="secondary" [disabled]="saving()" (clicked)="requestClose()">Abbrechen</app-button>
+        <app-button variant="secondary" [disabled]="saving()" (clicked)="requestClose()">
+          Abbrechen
+        </app-button>
         <app-button variant="primary" [disabled]="saving()" (clicked)="save()">
-          {{ saving() ? 'Speichere…' : dialogMode() === 'merge' ? 'Zusammenführen' : dialogMode() === 'archive' ?
-              (selectedRow()?.isActive === false ? 'Wiederherstellen' : 'Archivieren') : 'Speichern' }}
+          {{
+            saving()
+              ? 'Speichere…'
+              : dialogMode() === 'merge'
+                ? 'Zusammenführen'
+                : dialogMode() === 'archive'
+                  ? selectedRow()?.isActive === false
+                    ? 'Wiederherstellen'
+                    : 'Archivieren'
+                  : 'Speichern'
+          }}
         </app-button>
       }
     </div>
