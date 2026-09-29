@@ -12,17 +12,17 @@ import {
   DashboardReportService,
 } from '../../core/services/dashboard-report.service';
 import { SalesService } from '../../core/services/sales.service';
+import { ButtonComponent } from '../../shared/components/button/button.component';
+import { CardComponent } from '../../shared/components/card/card.component';
 import {
   CustomSelectComponent,
   SelectOption,
 } from '../../shared/components/custom-select/custom-select.component';
 import { RevenueChartComponent } from '../../shared/components/revenue-chart/revenue-chart.component';
-import { ButtonComponent } from '../../shared/components/button/button.component';
-import { CardComponent } from '../../shared/components/card/card.component';
+import { BetaDiscordBannerComponent } from '../beta-discord/components/beta-discord-banner/beta-discord-banner.component';
 import { DashboardKpiCardComponent } from './components/dashboard-kpi-card/dashboard-kpi-card.component';
 import { DashboardOpenCostsComponent } from './components/dashboard-open-costs/dashboard-open-costs.component';
 import { DashboardPreferencesService } from './services/dashboard-preferences.service';
-import { BetaDiscordBannerComponent } from '../beta-discord/components/beta-discord-banner/beta-discord-banner.component';
 
 const euro = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' });
 const percent = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 2 });
@@ -30,6 +30,13 @@ const percent = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 2 });
 interface RangeOption {
   readonly value: DashboardRange;
   readonly label: string;
+}
+
+interface PlatformBreakdownItem {
+  readonly key: string;
+  readonly label: string;
+  readonly sales: number;
+  readonly share: number;
 }
 
 @Component({
@@ -73,19 +80,21 @@ export class DashboardComponent {
       { value: 'all', label: 'Alle Plattformen' },
       ...[...platforms]
         .sort((a, b) => a.localeCompare(b, 'de'))
-        .map((value) => ({ value, label: value })),
+        .map((value) => ({ value, label: this.platformLabel(value) })),
     ];
   });
+
   readonly report = computed(() => this.reportService.createReport(this.range(), this.platform()));
 
   readonly kpis = computed(() => {
     const report = this.report();
-    const saleCount = report.rows.length;
 
     return {
+      revenue: {
+        value: euro.format(report.revenue),
+      },
       grossProfit: {
         value: euro.format(report.grossProfit),
-        hint: `${saleCount} ${saleCount === 1 ? 'Verkauf' : 'Verkäufe'} im gewählten Zeitraum`,
         tone:
           report.grossProfit > 0
             ? ('positive' as const)
@@ -93,32 +102,42 @@ export class DashboardComponent {
               ? ('negative' as const)
               : ('default' as const),
       },
-      revenue: {
-        value: euro.format(report.revenue),
-      },
       margin: {
         value:
           report.averageMarginPercent === null
             ? '–'
             : `${percent.format(report.averageMarginPercent)} %`,
       },
-      purchases: {
-        value: report.purchasesIncluded ? euro.format(report.purchaseSpend) : '–',
-        hint: report.purchasesIncluded
-          ? `${report.purchaseCount} ${report.purchaseCount === 1 ? 'Einkauf' : 'Einkäufe'} im gewählten Zeitraum`
-          : null,
-      },
-      operatingExpenses: {
-        value: report.purchasesIncluded ? euro.format(report.operatingExpenseSpend) : '–',
-      },
-      totalExpenses: {
-        value: report.purchasesIncluded ? euro.format(report.totalExpenses) : '–',
-        tone:
-          report.purchasesIncluded && report.totalExpenses > 0
-            ? ('expense' as const)
-            : ('default' as const),
+      inventoryCapital: {
+        value: euro.format(report.inventoryCostValue),
       },
     };
+  });
+
+  readonly recentSales = computed(() => this.report().rows.slice(0, 5));
+
+  readonly platformBreakdown = computed<readonly PlatformBreakdownItem[]>(() => {
+    const rows = this.report().rows;
+    if (!rows.length) return [];
+
+    const counts = new Map<string, number>();
+    for (const row of rows) counts.set(row.platform, (counts.get(row.platform) ?? 0) + 1);
+
+    return [...counts.entries()]
+      .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0], 'de'))
+      .slice(0, 5)
+      .map(([key, sales]) => ({
+        key,
+        label: this.platformLabel(key),
+        sales,
+        share: Math.round((sales / rows.length) * 100),
+      }));
+  });
+
+  readonly inventoryCostStatus = computed(() => {
+    const open = this.report().inventoryItemsWithoutCost;
+    if (open === 0) return 'Kostenbasis vollständig';
+    return open === 1 ? '1 Artikel ohne Kostenangabe' : `${open} Artikel ohne Kostenangabe`;
   });
 
   readonly trendingIcon = TrendingUp;
@@ -132,5 +151,16 @@ export class DashboardComponent {
 
   setPlatform(platform: DashboardPlatform | null): void {
     this.preferencesService.setPlatform(platform ?? 'all');
+  }
+
+  private platformLabel(platform: string): string {
+    const labels: Readonly<Record<string, string>> = {
+      ebay: 'eBay',
+      kleinanzeigen: 'Kleinanzeigen',
+      vinted: 'Vinted',
+      direct: 'Direktverkauf',
+      custom_store: 'Shop',
+    };
+    return labels[platform] ?? platform;
   }
 }
