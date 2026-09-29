@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-29 – Juna – Sticky-Navigation auf der Landingpage ergänzt
+
+**Auftrag:** Die Landingpage nach dem Vorbild einer kompakten SaaS-Navigation um eine beim Scrollen sichtbare Menüleiste ergänzen und „Zur App“ in „Anmelden“ umbenennen.
+
+**Änderung:** Der Kopfbereich ist jetzt als kompakter Sticky-Header aufgebaut. Neben dem Flipbase-Logo führt die Navigation zu Funktionen, Beta, Paketen & Preisen und FAQ. Theme- und Sprachumschalter bleiben am Desktop rechts erhalten; auf kleineren Ansichten stehen sie im aufklappbaren Mobilmenü. Der App-Link heißt „Anmelden“. Das Mobilmenü schließt nach einer Navigation sowie per Escape und hält seinen `aria-expanded`-Zustand synchron.
+
+**Prüfung:** Der Landingpage-Vertrag beschreibt Sticky-Position, Navigationsziele, Anmelde-CTA und das zugängliche Mobilmenü. Ein statischer Red/Green-Abgleich bestätigt den neuen Markup- und Skriptzustand; die vollständigen Pflichtprüfungen folgen im PR.
+
 ## 2026-09-29 – Juna – Tabellenvergleich auf der Landingpage entfernt
 
 **Auftrag:** Den vollständigen Landingpage-Abschnitt „Ein klarer Ablauf statt vieler Tabellen.“ entfernen.
