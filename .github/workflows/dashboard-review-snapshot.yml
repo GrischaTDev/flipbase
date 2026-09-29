@@ -22,12 +22,19 @@ jobs:
       - name: Prepare verified Git blobs without updating branches
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PAYLOAD: |
-            H4sIAAAAAAAC/81925YbN5Lgr8CaniHpIVm8X0pSybq5W2PZrWPJ9u6Wa9VJJkimK5nJzkxWqSTXOfOwfzAv+7Dn7IvPfsLsi59WfzJfshGBSwJIJKtKdveu2i0xM4EAEIg7AsCHe6so5vm949MP93ZBsbl3fI8P+FEY5JtFGmRhJ+R5tE66+Y4vu0V+r31vl/GLKN3nb/NNAKUHvdFi3ufTMZ9PVpNg2Ns6v21B7vq/TRUNCATED_INVALID_PAYLOAD
         run: |
           python3 - <<'PY'
           import base64, gzip, hashlib, json, os, pathlib, urllib.request
-          encoded = ''.join(os.environ['PAYLOAD'].split())
+          endpoint = 'https://api.github.com/repos/GrischaTDev/flipbase/git/blobs'
+          headers = {'Authorization': 'Bearer ' + os.environ['GH_TOKEN'], 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json', 'X-GitHub-Api-Version': '2022-11-28'}
+          chunks = ['fb562b483446d7b47cd5d24883ae68ae934e486f', '3c4ae8766eeec1337474f1effebe0ed89cafe7a4', 'bc0bca3b07c5e633348164ea85029b505c7d4ed2', '6e5aa6b5546d98a006844e08a0ffee09f5b7f2ac', '424588854a891ca9be35c9fcc746a6c1f87ea322', 'f72b11dc68fa19b4d5a5d6a349d72c77a9f3f495']
+          encoded = ''
+          for sha in chunks:
+              request = urllib.request.Request(endpoint + '/' + sha, headers=headers)
+              with urllib.request.urlopen(request, timeout=60) as response:
+                  chunk = json.load(response)
+              assert chunk['sha'] == sha
+              encoded += base64.b64decode(chunk['content']).decode('ascii')
           assert len(encoded) == 19452, 'Payload length mismatch; no writes performed'
           raw = gzip.decompress(base64.b64decode(encoded, validate=True))
           assert hashlib.sha256(raw).hexdigest() == '22919fe167886bde0901f5f430fc6dc97c5344d471122ea526359c2a1b513b85'
@@ -55,12 +62,12 @@ jobs:
               prepared.append((entry['path'], entry['sha'], content))
           manifest = []
           for path, expected_sha, content in prepared:
-              request = urllib.request.Request('https://api.github.com/repos/GrischaTDev/flipbase/git/blobs', method='POST', data=json.dumps({'encoding':'base64','content':base64.b64encode(content).decode()}).encode(), headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'], 'Accept':'application/vnd.github+json', 'Content-Type':'application/json', 'X-GitHub-Api-Version':'2022-11-28'})
+              request = urllib.request.Request(endpoint, method='POST', data=json.dumps({'encoding': 'base64', 'content': base64.b64encode(content).decode()}).encode(), headers=headers)
               with urllib.request.urlopen(request, timeout=60) as response:
                   result = json.load(response)
               assert result['sha'] == expected_sha, path
-              manifest.append({'path':path,'sha':result['sha']})
-          pathlib.Path('/tmp/dashboard-blob-manifest.json').write_text(json.dumps(manifest, indent=2)+'\n')
+              manifest.append({'path': path, 'sha': result['sha']})
+          pathlib.Path('/tmp/dashboard-blob-manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
           print('Verified and prepared', len(manifest), 'Git blobs. No commits or branch updates performed.')
           PY
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
