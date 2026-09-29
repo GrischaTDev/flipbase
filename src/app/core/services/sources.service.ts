@@ -54,12 +54,15 @@ export class SourcesService {
   async loadSources(workspaceId: string): Promise<void> {
     const version = ++this.sourceVersion;
     this.isLoading.set(true);
-    const stillCurrent = () => version === this.sourceVersion &&
+    const stillCurrent = () =>
+      version === this.sourceVersion &&
       this.workspaceService.currentWorkspace()?.id === workspaceId;
     try {
       let query = this.supabase.client.from('sources').select('*').eq('workspace_id', workspaceId);
       if (!this.zeigeArchivierte()) query = query.eq('is_active', true);
-      const { data, error } = await query.order('is_default', { ascending: false }).order('name', { ascending: true });
+      const { data, error } = await query
+        .order('is_default', { ascending: false })
+        .order('name', { ascending: true });
       if (!stillCurrent()) return;
       if (error) throw error;
       this.sources.set((data ?? []) as Source[]);
@@ -112,7 +115,10 @@ export class SourcesService {
       if (this.workspaceService.currentWorkspace()?.id === ws.id) {
         this.sourceVersion++;
         this.isLoading.set(false);
-        this.sources.update((list) => [finalSrc, ...list.filter((s) => s.id !== finalSrc.id && s.workspace_id === ws.id)]);
+        this.sources.update((list) => [
+          finalSrc,
+          ...list.filter((s) => s.id !== finalSrc.id && s.workspace_id === ws.id),
+        ]);
       }
       return { data: finalSrc, error: null };
     } catch (e) {
@@ -141,8 +147,15 @@ export class SourcesService {
     return this.persistSourceUpdate(sourceId, changes, 'Ändern der Quelle');
   }
 
-  async setSourceArchiviert(sourceId: string, archiviert: boolean): Promise<{ error: Error | null }> {
-    return this.persistSourceUpdate(sourceId, { is_active: !archiviert }, 'Archivieren der Quelle');
+  async setSourceArchiviert(
+    sourceId: string,
+    archiviert: boolean,
+  ): Promise<{ error: Error | null }> {
+    return this.persistSourceUpdate(
+      sourceId,
+      { is_active: !archiviert },
+      'Archivieren der Quelle',
+    );
   }
 
   /**
@@ -156,8 +169,12 @@ export class SourcesService {
     const rows: Source[] = [];
     try {
       for (let offset = 0; ; ) {
-        const { data, error } = await this.supabase.client.from('sources').select('*')
-          .eq('workspace_id', workspaceId).order('name').order('id')
+        const { data, error } = await this.supabase.client
+          .from('sources')
+          .select('*')
+          .eq('workspace_id', workspaceId)
+          .order('name')
+          .order('id')
           .range(offset, offset + pageSize - 1);
         if (error) throw error;
         if (this.workspaceService.currentWorkspace()?.id !== workspaceId) {
@@ -185,9 +202,13 @@ export class SourcesService {
     const workspaceId = this.workspaceService.currentWorkspace()?.id;
     if (!workspaceId) return { error: new Error('Kein aktiver Workspace ausgewählt') };
     try {
-      const { data, error } = await this.supabase.client.from('sources')
-        .update(changes).eq('workspace_id', workspaceId).eq('id', sourceId)
-        .select('*').single();
+      const { data, error } = await this.supabase.client
+        .from('sources')
+        .update(changes)
+        .eq('workspace_id', workspaceId)
+        .eq('id', sourceId)
+        .select('*')
+        .single();
       if (error) throw error;
       if (!data || data.id !== sourceId || data.workspace_id !== workspaceId) {
         throw new Error('Die Quellenänderung wurde nicht bestätigt.');
@@ -197,8 +218,12 @@ export class SourcesService {
         this.sourceVersion++;
         this.isLoading.set(false);
         this.sources.update((list) => {
-          const remaining = list.filter((source) => source.id !== sourceId && source.workspace_id === workspaceId);
-          return this.zeigeArchivierte() || saved.is_active !== false ? [...remaining, saved] : remaining;
+          const remaining = list.filter(
+            (source) => source.id !== sourceId && source.workspace_id === workspaceId,
+          );
+          return this.zeigeArchivierte() || saved.is_active !== false
+            ? [...remaining, saved]
+            : remaining;
         });
       }
       return { error: null };
