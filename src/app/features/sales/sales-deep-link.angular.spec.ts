@@ -430,4 +430,34 @@ describe('SalesComponent – verlinkter Verkauf', () => {
     );
     expect(headers).not.toContain('Menge');
   });
+
+  it('bündelt Plattform- und Retourenfilter in einem Dropdown statt einzelner Plattformbuttons', async () => {
+    sales.set([linkedSale]);
+    loadedWorkspaceId.set(workspace.id);
+
+    const harness = await RouterTestingHarness.create('/sales');
+    const host = harness.routeNativeElement as HTMLElement;
+    const filter = host.querySelector('[data-sales-platform-filter]');
+
+    expect(filter).not.toBeNull();
+    expect(filter?.textContent).toContain('Alle Verkäufe');
+    expect(filter?.querySelector('app-marketplace-platform-identity')).toBeNull();
+    expect(host.querySelector('[aria-label="Verkaufsansicht"]')).toBeNull();
+  });
+
+  it('zeigt die Dashboard-Plattformidentität in Desktop- und Mobilansicht', async () => {
+    sales.set([linkedSale]);
+    loadedWorkspaceId.set(workspace.id);
+
+    const harness = await RouterTestingHarness.create('/sales');
+    const host = harness.routeNativeElement as HTMLElement;
+    const identities = [...host.querySelectorAll('[data-sales-platform-identity]')];
+
+    expect(identities).toHaveLength(2);
+    for (const identity of identities) {
+      expect(identity.textContent).toContain('eBay');
+      expect(identity.querySelector('img')?.getAttribute('src')).toBe('/images/platforms/ebay.svg');
+    }
+  });
+
 });
