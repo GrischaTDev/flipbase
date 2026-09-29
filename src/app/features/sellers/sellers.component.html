@@ -38,8 +38,16 @@
     (viewResetRequested)="resetView()"
     [loading]="suppliersService.isLoading()"
     [hasRows]="filteredSellers().length > 0"
-    emptyTitle="Keine Verkäufer gefunden"
-    emptyText="Passe die Suche oder den Verkäufertyp an oder lege einen neuen Verkäufer an."
+    [emptyTitle]="
+      suppliersService.suppliers().length === 0
+        ? 'Noch keine Verkäufer'
+        : 'Keine passenden Verkäufer'
+    "
+    [emptyText]="
+      suppliersService.suppliers().length === 0
+        ? 'Erstelle den ersten Verkäufer, um ihn bei Einkäufen auszuwählen.'
+        : 'Passe die Suche oder den Verkäufertyp an.'
+    "
   >
     <app-custom-select
       table-view
