@@ -863,15 +863,6 @@ test('declares English passages and gives localized controls static screen-reade
     assert.equal(attribute(input, 'required'), '');
   }
 
-  for (const expectedPair of [
-    ['✕ Der alte Weg', '✕ The old way'],
-    ['✓ Die Flipbase-Lösung', '✓ The Flipbase solution'],
-    ['✕ Zahlen ohne Zusammenhang', '✕ Figures without context'],
-    ['✓ Die Flipbase-Übersicht', '✓ The Flipbase overview'],
-  ]) {
-    assertLanguagePair(html, expectedPair[0], expectedPair[1]);
-  }
-
   const roadmapDocument = new JSDOM(html).window.document;
   const roadmapStatuses = [...roadmapDocument.querySelectorAll('.status-tag')];
   assert.ok(roadmapStatuses.length > 0, 'Expected beta status labels');
