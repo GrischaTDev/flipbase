@@ -39,10 +39,16 @@
         }
         <div formArrayName="lines" class="space-y-4">
           @for (line of lines.controls; track line; let index = $index) {
-            <div [formGroupName]="index" class="space-y-3 border-b border-fb-line pb-4 last:border-0 last:pb-0">
+            <div
+              [formGroupName]="index"
+              class="space-y-3 border-b border-fb-line pb-4 last:border-0 last:pb-0"
+            >
               <div class="flex items-start gap-3">
                 <div class="min-w-0 flex-1">
-                  <label [for]="'sale-target-' + index" class="mb-1.5 block text-[13px] font-semibold">
+                  <label
+                    [for]="'sale-target-' + index"
+                    class="mb-1.5 block text-[13px] font-semibold"
+                  >
                     Artikel <span aria-hidden="true" class="text-fb-primary">*</span>
                   </label>
                   <app-custom-select
@@ -57,7 +63,9 @@
                     placeholder="Artikel aus dem Bestand auswählen"
                   />
                   @if (line.controls.target.invalid && line.controls.target.touched) {
-                    <p role="alert" class="mt-1 text-xs text-fb-critical">Bitte wähle einen Artikel aus.</p>
+                    <p role="alert" class="mt-1 text-xs text-fb-critical">
+                      Bitte wähle einen Artikel aus.
+                    </p>
                   }
                 </div>
                 <app-button
@@ -72,7 +80,9 @@
               </div>
               <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <label [for]="'quantity-' + index" class="mb-1.5 block text-[13px] font-semibold">Menge</label>
+                  <label [for]="'quantity-' + index" class="mb-1.5 block text-[13px] font-semibold"
+                    >Menge</label
+                  >
                   <app-number-input
                     [id]="'quantity-' + index"
                     [min]="1"
@@ -84,14 +94,18 @@
                   />
                   <p [id]="'quantity-help-' + index" class="mt-1 text-xs text-fb-text-muted">
                     @if (line.controls.quantity.invalid && line.controls.quantity.touched) {
-                      <span class="text-fb-critical">Die Menge muss zwischen 1 und dem verfügbaren Bestand liegen.</span>
+                      <span class="text-fb-critical"
+                        >Die Menge muss zwischen 1 und dem verfügbaren Bestand liegen.</span
+                      >
                     } @else if (availableQuantity(line); as available) {
                       Verfügbar: {{ available }}
                     }
                   </p>
                 </div>
                 <div>
-                  <label [for]="'price-' + index" class="mb-1.5 block text-[13px] font-semibold">Preis je Stück (€)</label>
+                  <label [for]="'price-' + index" class="mb-1.5 block text-[13px] font-semibold"
+                    >Preis je Stück (€)</label
+                  >
                   <app-number-input
                     [id]="'price-' + index"
                     [min]="0.01"
@@ -99,11 +113,21 @@
                     unit="€"
                     formControlName="unitSalePrice"
                     ariaLabel="Preis je Stück (€)"
-                    [ariaInvalid]="line.controls.unitSalePrice.touched && line.controls.unitSalePrice.invalid"
-                    [ariaDescribedby]="line.controls.unitSalePrice.touched && line.controls.unitSalePrice.invalid ? 'price-error-' + index : ''"
+                    [ariaInvalid]="
+                      line.controls.unitSalePrice.touched && line.controls.unitSalePrice.invalid
+                    "
+                    [ariaDescribedby]="
+                      line.controls.unitSalePrice.touched && line.controls.unitSalePrice.invalid
+                        ? 'price-error-' + index
+                        : ''
+                    "
                   />
                   @if (line.controls.unitSalePrice.invalid && line.controls.unitSalePrice.touched) {
-                    <p [id]="'price-error-' + index" role="alert" class="mt-1 text-xs text-fb-critical">
+                    <p
+                      [id]="'price-error-' + index"
+                      role="alert"
+                      class="mt-1 text-xs text-fb-critical"
+                    >
                       Gib einen Verkaufspreis von mindestens 0,01 € ein.
                     </p>
                   }
@@ -117,7 +141,9 @@
       <app-card title="Versand und Gebühren" padding="md" rounded="xl" [overflowVisible]="true">
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <label for="sale-shipping-mode" class="mb-1.5 block text-[13px] font-semibold">Versandabwicklung</label>
+            <label for="sale-shipping-mode" class="mb-1.5 block text-[13px] font-semibold"
+              >Versandabwicklung</label
+            >
             <app-custom-select
               triggerId="sale-shipping-mode"
               ariaLabel="Versandabwicklung"
@@ -126,7 +152,9 @@
             />
           </div>
           <div>
-            <label for="platform-fee" class="mb-1.5 block text-[13px] font-semibold">Plattformgebühr (€)</label>
+            <label for="platform-fee" class="mb-1.5 block text-[13px] font-semibold"
+              >Plattformgebühr (€)</label
+            >
             <app-number-input
               id="platform-fee"
               [min]="0"
@@ -135,14 +163,22 @@
               formControlName="platformFee"
               ariaLabel="Plattformgebühr"
               [ariaInvalid]="form.controls.platformFee.touched && form.controls.platformFee.invalid"
-              [ariaDescribedby]="form.controls.platformFee.touched && form.controls.platformFee.hasError('min') ? 'platform-fee-error' : ''"
+              [ariaDescribedby]="
+                form.controls.platformFee.touched && form.controls.platformFee.hasError('min')
+                  ? 'platform-fee-error'
+                  : ''
+              "
             />
             @if (form.controls.platformFee.touched && form.controls.platformFee.hasError('min')) {
-              <p id="platform-fee-error" role="alert" class="mt-1 text-xs text-fb-critical">Die Plattformgebühr darf nicht negativ sein.</p>
+              <p id="platform-fee-error" role="alert" class="mt-1 text-xs text-fb-critical">
+                Die Plattformgebühr darf nicht negativ sein.
+              </p>
             }
           </div>
           <div>
-            <label for="shipping-revenue" class="mb-1.5 block text-[13px] font-semibold">Versand vom Käufer erhalten (€)</label>
+            <label for="shipping-revenue" class="mb-1.5 block text-[13px] font-semibold"
+              >Versand vom Käufer erhalten (€)</label
+            >
             <app-number-input
               id="shipping-revenue"
               [min]="0"
@@ -150,16 +186,32 @@
               unit="€"
               formControlName="shippingRevenue"
               ariaLabel="Versand vom Käufer erhalten"
-              [ariaInvalid]="form.controls.shippingRevenue.touched && form.controls.shippingRevenue.invalid"
-              [ariaDescribedby]="'shipping-revenue-help' + (form.controls.shippingRevenue.touched && form.controls.shippingRevenue.hasError('min') ? ' shipping-revenue-error' : '')"
+              [ariaInvalid]="
+                form.controls.shippingRevenue.touched && form.controls.shippingRevenue.invalid
+              "
+              [ariaDescribedby]="
+                'shipping-revenue-help' +
+                (form.controls.shippingRevenue.touched &&
+                form.controls.shippingRevenue.hasError('min')
+                  ? ' shipping-revenue-error'
+                  : '')
+              "
             />
-            <p id="shipping-revenue-help" class="mt-1 text-xs text-fb-text-muted">Erhöht den Verkaufserlös.</p>
-            @if (form.controls.shippingRevenue.touched && form.controls.shippingRevenue.hasError('min')) {
-              <p id="shipping-revenue-error" role="alert" class="mt-1 text-xs text-fb-critical">Der Versand-Erlös darf nicht negativ sein.</p>
+            <p id="shipping-revenue-help" class="mt-1 text-xs text-fb-text-muted">
+              Erhöht den Verkaufserlös.
+            </p>
+            @if (
+              form.controls.shippingRevenue.touched && form.controls.shippingRevenue.hasError('min')
+            ) {
+              <p id="shipping-revenue-error" role="alert" class="mt-1 text-xs text-fb-critical">
+                Der Versand-Erlös darf nicht negativ sein.
+              </p>
             }
           </div>
           <div>
-            <label for="shipping-cost" class="mb-1.5 block text-[13px] font-semibold">Tatsächliche Versandkosten (€)</label>
+            <label for="shipping-cost" class="mb-1.5 block text-[13px] font-semibold"
+              >Tatsächliche Versandkosten (€)</label
+            >
             <app-number-input
               id="shipping-cost"
               [min]="0"
@@ -167,27 +219,50 @@
               unit="€"
               formControlName="shippingCost"
               ariaLabel="Tatsächliche Versandkosten"
-              [ariaInvalid]="form.controls.shippingCost.touched && form.controls.shippingCost.invalid"
-              [ariaDescribedby]="'shipping-cost-help' + (form.controls.shippingCost.touched && form.controls.shippingCost.hasError('min') ? ' shipping-cost-error' : '')"
+              [ariaInvalid]="
+                form.controls.shippingCost.touched && form.controls.shippingCost.invalid
+              "
+              [ariaDescribedby]="
+                'shipping-cost-help' +
+                (form.controls.shippingCost.touched && form.controls.shippingCost.hasError('min')
+                  ? ' shipping-cost-error'
+                  : '')
+              "
             />
-            <p id="shipping-cost-help" class="mt-1 text-xs text-fb-text-muted">Aufwand für Porto oder Versandetikett.</p>
+            <p id="shipping-cost-help" class="mt-1 text-xs text-fb-text-muted">
+              Aufwand für Porto oder Versandetikett.
+            </p>
             @if (form.controls.shippingCost.touched && form.controls.shippingCost.hasError('min')) {
-              <p id="shipping-cost-error" role="alert" class="mt-1 text-xs text-fb-critical">Die tatsächlichen Versandkosten dürfen nicht negativ sein.</p>
+              <p id="shipping-cost-error" role="alert" class="mt-1 text-xs text-fb-critical">
+                Die tatsächlichen Versandkosten dürfen nicht negativ sein.
+              </p>
             }
           </div>
         </div>
       </app-card>
 
       <app-card title="Zusätzliche Kosten" padding="md" rounded="xl" [overflowVisible]="true">
-        <app-button card-header-actions size="slim" [icon]="plusIcon" (clicked)="addAdditionalCost()">
+        <app-button
+          card-header-actions
+          size="slim"
+          [icon]="plusIcon"
+          (clicked)="addAdditionalCost()"
+        >
           Kosten hinzufügen
         </app-button>
         <div formArrayName="additionalCosts" class="space-y-4">
           @for (cost of additionalCosts.controls; track cost; let index = $index) {
-            <div [formGroupName]="index" class="space-y-3 border-b border-fb-line pb-4 last:border-0 last:pb-0">
+            <div
+              [formGroupName]="index"
+              class="space-y-3 border-b border-fb-line pb-4 last:border-0 last:pb-0"
+            >
               <div class="flex items-start gap-3">
                 <div class="min-w-0 flex-1">
-                  <label [for]="'cost-category-' + index" class="mb-1.5 block text-[13px] font-semibold">Kategorie</label>
+                  <label
+                    [for]="'cost-category-' + index"
+                    class="mb-1.5 block text-[13px] font-semibold"
+                    >Kategorie</label
+                  >
                   <app-custom-select
                     [triggerId]="'cost-category-' + index"
                     [ariaLabel]="'Kategorie für zusätzliche Kosten ' + (index + 1)"
@@ -212,18 +287,49 @@
                     label="Beschreibung"
                     ariaLabel="Beschreibung der Kosten"
                     [ariaRequired]="cost.controls.category.value === 'other'"
-                    [ariaInvalid]="cost.controls.category.value === 'other' && cost.controls.description.touched && cost.hasError('otherCostDescriptionRequired')"
-                    [ariaDescribedby]="cost.controls.category.value === 'other' ? 'cost-description-help-' + index + (cost.controls.description.touched && cost.hasError('otherCostDescriptionRequired') ? ' cost-description-error-' + index : '') : ''"
+                    [ariaInvalid]="
+                      cost.controls.category.value === 'other' &&
+                      cost.controls.description.touched &&
+                      cost.hasError('otherCostDescriptionRequired')
+                    "
+                    [ariaDescribedby]="
+                      cost.controls.category.value === 'other'
+                        ? 'cost-description-help-' +
+                          index +
+                          (cost.controls.description.touched &&
+                          cost.hasError('otherCostDescriptionRequired')
+                            ? ' cost-description-error-' + index
+                            : '')
+                        : ''
+                    "
                   />
                   @if (cost.controls.category.value === 'other') {
-                    <p [id]="'cost-description-help-' + index" class="mt-1 text-xs text-fb-text-muted">Für sonstige Kosten ist eine Beschreibung erforderlich.</p>
-                    @if (cost.controls.description.touched && cost.hasError('otherCostDescriptionRequired')) {
-                      <p [id]="'cost-description-error-' + index" role="alert" class="mt-1 text-xs text-fb-critical">Bitte beschreibe diese sonstigen Kosten.</p>
+                    <p
+                      [id]="'cost-description-help-' + index"
+                      class="mt-1 text-xs text-fb-text-muted"
+                    >
+                      Für sonstige Kosten ist eine Beschreibung erforderlich.
+                    </p>
+                    @if (
+                      cost.controls.description.touched &&
+                      cost.hasError('otherCostDescriptionRequired')
+                    ) {
+                      <p
+                        [id]="'cost-description-error-' + index"
+                        role="alert"
+                        class="mt-1 text-xs text-fb-critical"
+                      >
+                        Bitte beschreibe diese sonstigen Kosten.
+                      </p>
                     }
                   }
                 </div>
                 <div>
-                  <label [for]="'cost-amount-' + index" class="mb-1.5 block text-[13px] font-semibold">Betrag (€)</label>
+                  <label
+                    [for]="'cost-amount-' + index"
+                    class="mb-1.5 block text-[13px] font-semibold"
+                    >Betrag (€)</label
+                  >
                   <app-number-input
                     [id]="'cost-amount-' + index"
                     [min]="0"
@@ -232,10 +338,20 @@
                     formControlName="amount"
                     ariaLabel="Betrag in Euro"
                     [ariaInvalid]="cost.controls.amount.touched && cost.controls.amount.invalid"
-                    [ariaDescribedby]="cost.controls.amount.touched && cost.controls.amount.hasError('min') ? 'cost-amount-error-' + index : ''"
+                    [ariaDescribedby]="
+                      cost.controls.amount.touched && cost.controls.amount.hasError('min')
+                        ? 'cost-amount-error-' + index
+                        : ''
+                    "
                   />
                   @if (cost.controls.amount.touched && cost.controls.amount.hasError('min')) {
-                    <p [id]="'cost-amount-error-' + index" role="alert" class="mt-1 text-xs text-fb-critical">Der Betrag darf nicht negativ sein.</p>
+                    <p
+                      [id]="'cost-amount-error-' + index"
+                      role="alert"
+                      class="mt-1 text-xs text-fb-critical"
+                    >
+                      Der Betrag darf nicht negativ sein.
+                    </p>
                   }
                 </div>
               </div>
@@ -248,12 +364,21 @@
     </div>
 
     <div sidebar class="space-y-4" data-testid="sale-entry-sidebar">
-      <app-card title="Verkaufsübersicht" padding="md" rounded="xl" data-sale-summary role="region" aria-label="Kennzahlen zum Verkauf">
+      <app-card
+        title="Verkaufsübersicht"
+        padding="md"
+        rounded="xl"
+        data-sale-summary
+        role="region"
+        aria-label="Kennzahlen zum Verkauf"
+      >
         @let metrics = liveMetrics();
         <dl class="space-y-3 text-[13px]">
           <div class="flex items-baseline justify-between gap-4">
             <dt class="text-fb-text-secondary">Verkaufserlös</dt>
-            <dd class="shrink-0 font-semibold tabular-nums">{{ grossRevenue() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}</dd>
+            <dd class="shrink-0 font-semibold tabular-nums">
+              {{ grossRevenue() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+            </dd>
           </div>
           <div class="flex items-baseline justify-between gap-4">
             <dt class="text-fb-text-secondary">Wareneinsatz</dt>
@@ -267,13 +392,17 @@
           </div>
           <div class="flex items-baseline justify-between gap-4">
             <dt class="text-fb-text-secondary">Verkaufskosten</dt>
-            <dd class="shrink-0 tabular-nums">{{ metrics.sellingCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}</dd>
+            <dd class="shrink-0 tabular-nums">
+              {{ metrics.sellingCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+            </dd>
           </div>
           <div class="flex items-baseline justify-between gap-4 border-t border-fb-line pt-3">
             <dt class="font-semibold">Ergebnis nach direkten Kosten</dt>
-            <dd class="shrink-0 font-semibold tabular-nums"
+            <dd
+              class="shrink-0 font-semibold tabular-nums"
               [class.text-fb-finance-positive]="metrics.profit !== null && metrics.profit > 0"
-              [class.text-fb-finance-negative]="metrics.profit !== null && metrics.profit < 0">
+              [class.text-fb-finance-negative]="metrics.profit !== null && metrics.profit < 0"
+            >
               @if (metrics.profit === null) {
                 Kosten prüfen
               } @else {
@@ -297,15 +426,36 @@
       <app-card title="Verkaufsdetails" padding="md" rounded="xl" [overflowVisible]="true">
         <div class="space-y-4">
           <div>
-            <label for="sale-platform" class="mb-1.5 block text-[13px] font-semibold">Plattform</label>
-            <app-custom-select triggerId="sale-platform" ariaLabel="Verkaufsplattform" [options]="plattformOptionen" formControlName="platform" [required]="true" />
+            <label for="sale-platform" class="mb-1.5 block text-[13px] font-semibold"
+              >Plattform</label
+            >
+            <app-custom-select
+              triggerId="sale-platform"
+              ariaLabel="Verkaufsplattform"
+              [options]="plattformOptionen"
+              formControlName="platform"
+              [required]="true"
+            />
           </div>
           <div>
-            <label for="sale-date" class="mb-1.5 block text-[13px] font-semibold">Verkaufsdatum <span aria-hidden="true" class="text-fb-primary">*</span></label>
-            <app-date-picker id="sale-date" ariaLabel="Verkaufsdatum" formControlName="saleDate" [required]="true" />
+            <label for="sale-date" class="mb-1.5 block text-[13px] font-semibold"
+              >Verkaufsdatum <span aria-hidden="true" class="text-fb-primary">*</span></label
+            >
+            <app-date-picker
+              id="sale-date"
+              ariaLabel="Verkaufsdatum"
+              formControlName="saleDate"
+              [required]="true"
+            />
           </div>
           <app-text-field formControlName="externalOrderId" label="Referenznummer" />
-          <app-text-field id="buyer-notes" formControlName="buyerNotes" label="Notiz zum Verkauf" ariaLabel="Notiz zum Verkauf" [multiline]="3" />
+          <app-text-field
+            id="buyer-notes"
+            formControlName="buyerNotes"
+            label="Notiz zum Verkauf"
+            ariaLabel="Notiz zum Verkauf"
+            [multiline]="3"
+          />
         </div>
       </app-card>
     </div>
@@ -313,8 +463,16 @@
 
   @if (showActions()) {
     <div class="flex justify-end gap-2">
-      <app-button variant="secondary" [disabled]="isSubmitting()" (clicked)="closed.emit()">Abbrechen</app-button>
-      <app-button type="submit" variant="primary" [icon]="trendingIcon" [loading]="isSubmitting()" [disabled]="!canSave()">
+      <app-button variant="secondary" [disabled]="isSubmitting()" (clicked)="closed.emit()"
+        >Abbrechen</app-button
+      >
+      <app-button
+        type="submit"
+        variant="primary"
+        [icon]="trendingIcon"
+        [loading]="isSubmitting()"
+        [disabled]="!canSave()"
+      >
         {{ absendeBeschriftung() }}
       </app-button>
     </div>
