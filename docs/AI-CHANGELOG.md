@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-29 – Juna – Plattformfilter der Verkaufsübersicht vereinheitlicht
+
+**Auftrag:** Die Plattformfilter auf der Verkaufsseite wie bei Artikel und Einkäufe in einem einzigen Dropdown bündeln. Plattformlogos sollen nur an den Verkaufszeilen erscheinen und dieselben Namen und Logos wie im Dashboard verwenden.
+
+**Änderung:** Die einzelnen Filterbuttons für Alle, Retouren, Kleinanzeigen, eBay, Vinted und Shop wurden durch das vorhandene Shared-Auswahlfeld ersetzt. Desktop- und Mobilzeilen zeigen die Plattform mit dem gemeinsamen Plattformbaustein; Vinted, Kleinanzeigen und eBay verwenden die bereits vorhandenen lokalen Logos, unbekannte Plattformen ein neutrales Shop-Symbol. Plattformnamen und -darstellung liegen zentral im Shared-Bereich; das Dashboard greift weiterhin über seine bestehenden Schnittstellen darauf zu.
+
+**Prüfung:** Zwei neue Komponenten-Regressionstests wurden zuerst gegen den alten Stand rot ausgeführt und anschließend mit der neuen Filter- und Plattformdarstellung grün. Die vollständige Vor-PR-Prüfung und der Produktionsbau folgen vor dem Pull Request.
+
 ## 2026-09-29 – Juna – Dashboard-Mergekonflikt im Änderungsprotokoll aufgelöst
 
 **Auftrag:** Den erneut gemeldeten Konflikt in PR #248 beheben, ohne das freigegebene Dashboard-Design zu verändern.

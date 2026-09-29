@@ -1,14 +1,7 @@
+import { marketplacePlatformLabel } from '../../../shared/models/marketplace-platform';
+
 /** Reine Anzeigeprojektionen. Buchungs- und Kostenregeln bleiben im DashboardReportService. */
-export function platformLabel(value: string): string {
-  const labels: Readonly<Record<string, string>> = {
-    ebay: 'eBay',
-    vinted: 'Vinted',
-    kleinanzeigen: 'Kleinanzeigen',
-    direct: 'Direktverkauf',
-    custom_store: 'Shop',
-  };
-  return labels[value] ?? value;
-}
+export const platformLabel = marketplacePlatformLabel;
 
 export function platformDistribution(rows: readonly { platform: string; revenue: number }[]) {
   const cents = new Map<string, number>();
