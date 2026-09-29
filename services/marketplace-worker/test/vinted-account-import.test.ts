@@ -434,9 +434,13 @@ test('ordnet Feedbacks mit Kennzeichnung für automatische Bewertungen dem Profi
   assert.ok(profile);
   const feedbacks = profile.body['feedbacks'] as Record<string, unknown>[];
   assert.equal(feedbacks.length, 2);
-  assert.equal(feedbacks[0]['authorName'], 'kaeufer_1');
-  assert.equal(feedbacks[0]['isAutomatic'], false);
-  assert.equal(feedbacks[0]['itemTitle'], 'Sommerkleid');
-  assert.equal(feedbacks[1]['isAutomatic'], true);
-  assert.equal(feedbacks[1]['authorName'], 'Vinted System');
+  const first = feedbacks[0];
+  const second = feedbacks[1];
+  assert.ok(first);
+  assert.ok(second);
+  assert.equal(first['authorName'], 'kaeufer_1');
+  assert.equal(first['isAutomatic'], false);
+  assert.equal(first['itemTitle'], 'Sommerkleid');
+  assert.equal(second['isAutomatic'], true);
+  assert.equal(second['authorName'], 'Vinted System');
 });
