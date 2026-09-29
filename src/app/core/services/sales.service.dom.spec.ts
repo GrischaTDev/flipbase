@@ -242,14 +242,7 @@ describe('SalesService', () => {
       ],
     };
 
-    const metrics = (
-      service as unknown as {
-        metricsForSale(value: Sale): {
-          costOfGoodsSold: number | null;
-          resultAfterDirectCosts: number | null;
-        };
-      }
-    ).metricsForSale(freshSale);
+    const metrics = service.metricsForSale(freshSale);
 
     expect(metrics.costOfGoodsSold).toBe(20);
     expect(metrics.resultAfterDirectCosts).toBe(5);
