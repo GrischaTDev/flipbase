@@ -1579,7 +1579,6 @@ test('limits privacy, infrastructure and accounting copy to technically bounded 
   }
 });
 
-
 test('pricing section shows the free beta and future plan limits', () => {
   const dom = new JSDOM(html);
   const pricing = dom.window.document.getElementById('pricing');
