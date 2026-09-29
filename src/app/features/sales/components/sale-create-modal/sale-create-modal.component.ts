@@ -11,6 +11,7 @@ import {
   input,
   output,
   signal,
+  untracked,
 } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
 import {
@@ -23,10 +24,9 @@ import {
 } from '@angular/forms';
 import { toSignal } from '@angular/core/rxjs-interop';
 import {
-  LucideDynamicIcon,
   LucidePlus as Plus,
   LucideTrendingUp as TrendingUp,
-  LucideX as X,
+  LucideTrash2 as Trash2,
 } from '@lucide/angular';
 import { Sale, SaleCostCategory, ShippingMode } from '../../../../core/models/flipbase.models';
 import { LegacySaleReconciliation, SaleTarget } from '../../../../core/models/sale-target.models';
@@ -48,6 +48,8 @@ import {
 } from '../../../../shared/components/custom-select/custom-select.component';
 import { DatePickerComponent } from '../../../../shared/components/date-picker/date-picker.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { CardComponent } from '../../../../shared/components/card/card.component';
+import { TwoColumnLayoutComponent } from '../../../../shared/components/two-column-layout/two-column-layout.component';
 import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
@@ -73,10 +75,11 @@ type ShippingFormMode = ShippingMode | 'unknown';
   imports: [
     ReactiveFormsModule,
     CurrencyPipe,
-    LucideDynamicIcon,
     CustomSelectComponent,
     DatePickerComponent,
     ButtonComponent,
+    CardComponent,
+    TwoColumnLayoutComponent,
     NumberInputComponent,
     TextFieldComponent,
   ],
@@ -89,6 +92,7 @@ export class SaleCreateModalComponent {
   readonly legacyReconciliation = input<LegacySaleReconciliation | null>(null);
   readonly preselectedItemId = input<string | null>(null);
   readonly sale = input<Sale | null>(null);
+  readonly showActions = input(true);
   readonly closed = output<void>();
   readonly created = output<void>();
 
@@ -114,12 +118,15 @@ export class SaleCreateModalComponent {
   private readonly workspaceContext = inject(WorkspaceContextLockService);
   private readonly releaseWorkspaceLock = this.workspaceContext.acquire();
 
-  readonly closeIcon = X;
+  readonly removeIcon = Trash2;
   readonly plusIcon = Plus;
   readonly trendingIcon = TrendingUp;
   readonly isSubmitting = signal(false);
   readonly isPersisted = signal(false);
   readonly errorMessage = signal<string | null>(null);
+  readonly isLoadingStock = signal(false);
+  readonly stockLoadError = signal<string | null>(null);
+  private stockLoadRequestId = 0;
   readonly istBearbeitung = computed(() => this.sale() !== null);
   readonly absendeBeschriftung = computed(() =>
     this.isSubmitting()
@@ -280,15 +287,21 @@ export class SaleCreateModalComponent {
 
   constructor() {
     this.destroyRef.onDestroy(this.releaseWorkspaceLock);
+    this.destroyRef.onDestroy(() => this.stockLoadRequestId++);
     effect(() => {
       const workspaceId = this.workspaceService?.currentWorkspace()?.id;
       if (!workspaceId) return;
-      if (this.purchaseService?.loadedWorkspaceId() !== workspaceId) {
-        void this.purchaseService?.loadPurchases(workspaceId);
-      }
-      if (this.catalogService?.loadedWorkspaceId() !== workspaceId) {
-        void this.catalogService?.loadProducts(workspaceId);
-      }
+      // Die Erfassung muss auch direkt nach dem Anmelden funktionieren.
+      // Ladezustände dürfen diesen Effekt nicht erneut auslösen.
+      untracked(() => {
+        void this.loadStockPositions();
+        if (this.purchaseService?.loadedWorkspaceId() !== workspaceId) {
+          void this.purchaseService?.loadPurchases(workspaceId);
+        }
+        if (this.catalogService?.loadedWorkspaceId() !== workspaceId) {
+          void this.catalogService?.loadProducts(workspaceId);
+        }
+      });
     });
     this.form.controls.platform.valueChanges.subscribe((platform) =>
       this.applyShippingDefault(platform),
@@ -301,12 +314,55 @@ export class SaleCreateModalComponent {
     effect(() => {
       const existing = this.sale();
       if (existing) {
-        this.fillExistingSale(existing);
+        untracked(() => this.fillExistingSale(existing));
         return;
       }
       const target = this.saleTarget() ?? this.preselectedTarget();
       if (target && !this.lines.at(0).controls.target.value) this.setLineTarget(0, target);
     });
+  }
+
+  canSave(): boolean {
+    return (
+      !this.isSubmitting() &&
+      !this.isPersisted() &&
+      !this.isLoadingStock() &&
+      !this.stockLoadError()
+    );
+  }
+
+  async loadStockPositions(): Promise<void> {
+    const workspaceId = this.workspaceService?.currentWorkspace()?.id;
+    if (!workspaceId) return;
+    const requestId = ++this.stockLoadRequestId;
+    this.isLoadingStock.set(true);
+    this.stockLoadError.set(null);
+    try {
+      await this.stockService.loadPositions(workspaceId);
+      if (
+        requestId !== this.stockLoadRequestId ||
+        this.workspaceService?.currentWorkspace()?.id !== workspaceId
+      )
+        return;
+      const error = this.stockService.loadError();
+      if (error) {
+        this.stockLoadError.set(error.message || 'Der Bestand konnte nicht geladen werden.');
+        return;
+      }
+      // Vorbelegte Positionen erhalten erst nach dem Laden ihre Mengenobergrenze.
+      this.lines.controls.forEach((line) => this.updateQuantityValidator(line));
+    } catch (cause: unknown) {
+      if (
+        requestId !== this.stockLoadRequestId ||
+        this.workspaceService?.currentWorkspace()?.id !== workspaceId
+      )
+        return;
+      this.stockLoadError.set(
+        cause instanceof Error ? cause.message : 'Der Bestand konnte nicht geladen werden.',
+      );
+    } finally {
+      if (requestId === this.stockLoadRequestId) this.isLoadingStock.set(false);
+    }
   }
 
   addLine(): void {
@@ -335,7 +391,8 @@ export class SaleCreateModalComponent {
   }
 
   async onSubmit(): Promise<void> {
-    if (this.isPersisted()) return;
+    if (this.isPersisted() || this.isSubmitting()) return;
+    if (this.workspaceService?.currentWorkspace() && !this.canSave()) return;
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       this.focusFirstInvalidField();
@@ -440,7 +497,7 @@ export class SaleCreateModalComponent {
       buyerNotes: raw.buyerNotes.trim() || null,
       lines: this.lines.controls.map((line) => {
         const target = this.targetForLine(line);
-        if (!target) throw new Error('Bitte wählen Sie für jede Position einen Artikel.');
+        if (!target) throw new Error('Bitte wähle für jede Position einen Artikel.');
         const value = line.getRawValue();
         return target.kind === 'catalog_product'
           ? {
