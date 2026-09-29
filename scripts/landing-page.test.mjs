@@ -1663,3 +1663,34 @@ test('does not show the spreadsheet comparison block', () => {
   assert.doesNotMatch(normalizedHtml, /Ein klarer Ablauf statt vieler Tabellen\./u);
   assert.doesNotMatch(normalizedHtml, /One clear workflow instead of scattered sheets\./u);
 });
+
+
+test('uses a compact two-column beta application layout', () => {
+  const dom = new JSDOM(html);
+  const section = dom.window.document.getElementById('beta-anmeldung');
+  assert.ok(section);
+
+  const layout = section.querySelector('.beta-application-layout');
+  assert.ok(layout, 'beta application must use the two-column layout');
+  assert.ok(layout.querySelector('.beta-application-copy'));
+  assert.ok(layout.querySelector('.beta-application-form-panel'));
+
+  const form = layout.querySelector('#zweit-bewerbung-form');
+  assert.ok(form);
+  assert.equal(form.getAttribute('style'), null);
+
+  const nameGrid = form.querySelector('.beta-name-grid');
+  assert.ok(nameGrid, 'first and last name must share one desktop row');
+  assert.equal(nameGrid.querySelectorAll('.hero-beta-feld').length, 2);
+
+  const emailField = form.querySelector('.hero-beta-feld--email');
+  assert.ok(emailField, 'email must stay on its own full-width row');
+
+  const submit = form.querySelector('button[type="submit"]');
+  assert.ok(submit?.classList.contains('hero-beta-btn'));
+
+  assertDeclaration(css, '.beta-application-layout', 'display', 'grid');
+  assertDeclaration(css, '.beta-name-grid', 'display', 'grid');
+  assertDeclaration(css, '.hero-beta-btn', 'width', '100%');
+  assertDeclaration(css, '.banner-cta', 'text-align', 'left');
+});
