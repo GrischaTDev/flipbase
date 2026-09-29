@@ -10,12 +10,7 @@
       </app-badge>
       @if (!readOnly()) {
         <div header-actions>
-          <app-button
-            variant="primary"
-            size="md"
-            [icon]="plusIcon"
-            (clicked)="openCreateDialog()"
-          >
+          <app-button variant="primary" size="md" [icon]="plusIcon" (clicked)="openCreateDialog()">
             Verkäufer erstellen
           </app-button>
         </div>
@@ -64,11 +59,7 @@
       [ariaPressed]="suppliersService.zeigeArchivierte()"
       (clicked)="toggleArchivedVisibility()"
     >
-      {{
-        suppliersService.zeigeArchivierte()
-          ? 'Archivierte ausblenden'
-          : 'Archivierte anzeigen'
-      }}
+      {{ suppliersService.zeigeArchivierte() ? 'Archivierte ausblenden' : 'Archivierte anzeigen' }}
     </app-button>
 
     <div table-content class="overflow-x-auto">
@@ -140,9 +131,7 @@
                               [tone]="seller.is_active === false ? 'positive' : 'warning'"
                               [label]="
                                 seller.name +
-                                (seller.is_active === false
-                                  ? ' wiederherstellen'
-                                  : ' archivieren')
+                                (seller.is_active === false ? ' wiederherstellen' : ' archivieren')
                               "
                               (clicked)="archiveSellerFromAction($event, seller)"
                             />
