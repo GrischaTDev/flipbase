@@ -13,6 +13,7 @@ import { InvoiceService } from '../../core/services/invoice.service';
 import { ReturnService } from '../../core/services/return.service';
 import { SalesService } from '../../core/services/sales.service';
 import { SyncStatusService } from '../../core/services/sync-status.service';
+import { calculateStoredSaleMetrics } from '../../core/utils/sale-metrics';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { ToastService } from '../../shared/components/toast/toast.service';
 import { CostStateComponent } from '../../shared/components/cost-state/cost-state.component';
@@ -163,6 +164,7 @@ const linkedSale: Sale = {
 let sales = signal<Sale[]>([]);
 let loadedWorkspaceId = signal<string | null>(null);
 let loadError = signal<Error | null>(null);
+let metricsForSale = vi.fn((value: Sale) => calculateStoredSaleMetrics(value));
 const originalScrollIntoView = HTMLElement.prototype.scrollIntoView;
 const originalFocus = HTMLElement.prototype.focus;
 const originalMatchMedia = globalThis.matchMedia;
@@ -177,6 +179,7 @@ beforeEach(() => {
   sales = signal<Sale[]>([]);
   loadedWorkspaceId = signal<string | null>(null);
   loadError = signal<Error | null>(null);
+  metricsForSale = vi.fn((value: Sale) => calculateStoredSaleMetrics(value));
   TestBed.resetTestingModule();
   TestBed.configureTestingModule({
     imports: [
@@ -197,6 +200,7 @@ beforeEach(() => {
           loadedWorkspaceId,
           loadError,
           isLoading: signal(false),
+          metricsForSale,
         },
       },
       { provide: WorkspaceService, useValue: { currentWorkspace: signal(workspace) } },
@@ -328,6 +332,31 @@ describe('SalesComponent – verlinkter Verkauf', () => {
       }
     },
   );
+
+  it('zeigt die aufgelöste Kostenbasis eines frisch gebuchten Verkaufs sofort ohne Reload', async () => {
+    sales.set([linkedSale]);
+    loadedWorkspaceId.set(workspace.id);
+    metricsForSale.mockReturnValue({
+      revenue: 33,
+      costOfGoodsSold: 20,
+      sellingCosts: 8,
+      resultAfterDirectCosts: 5,
+      marginPercent: 15.15,
+      roiPercent: 25,
+    });
+
+    const harness = await RouterTestingHarness.create('/sales');
+    const host = harness.routeNativeElement as HTMLElement;
+    const desktopRow = host.querySelector('#sale-desktop-sale-1');
+
+    expect(metricsForSale).toHaveBeenCalledWith(linkedSale);
+    expect(desktopRow?.querySelector('td:nth-child(6)')?.textContent).toContain('20,00');
+    expect(desktopRow?.querySelector('td:nth-child(8)')?.textContent).toContain('5,00');
+    expect(desktopRow?.textContent).not.toContain('Kosten noch offen');
+    expect(
+      host.querySelector('[data-testid="sales-result-kpi"]')?.textContent,
+    ).not.toContain('Kosten noch offen');
+  });
 
   it('kennzeichnet einen Altverkauf ohne belegbaren Wareneinsatz als offen', async () => {
     sales.set([
