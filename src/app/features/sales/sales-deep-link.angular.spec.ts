@@ -469,5 +469,4 @@ describe('SalesComponent – verlinkter Verkauf', () => {
       expect(identity.querySelector('img')?.getAttribute('src')).toBe('/images/platforms/ebay.svg');
     }
   });
-
 });
