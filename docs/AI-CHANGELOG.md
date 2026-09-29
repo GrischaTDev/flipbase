@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-29 – Juna – Tabellenvergleich auf der Landingpage entfernt
+
+**Auftrag:** Den vollständigen Landingpage-Abschnitt „Ein klarer Ablauf statt vieler Tabellen.“ entfernen.
+
+**Änderung:** Der Vergleichsblock zwischen Aufmacher und Funktionsübersicht wurde vollständig entfernt. Das ausschließlich dafür verwendete Vergleichs-CSS entfällt ebenfalls; die übrigen Landingpage-Bereiche bleiben unverändert.
+
+**Prüfung:** Ein Landingpage-Test stellt sicher, dass der Vergleichsblock und seine deutsche sowie englische Überschrift nicht wieder erscheinen. Die vollständigen Pflichtprüfungen laufen vor einem Merge im PR.
+
 ## 2026-09-29 – Juna – Beta-Pakete auf der Landingpage ergänzt
 
 **Auftrag:** Die geplanten Flipbase-Pakete auf der Landingpage sichtbar machen und während der Beta klar als kostenlos darstellen.

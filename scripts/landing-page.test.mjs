@@ -863,15 +863,6 @@ test('declares English passages and gives localized controls static screen-reade
     assert.equal(attribute(input, 'required'), '');
   }
 
-  for (const expectedPair of [
-    ['✕ Der alte Weg', '✕ The old way'],
-    ['✓ Die Flipbase-Lösung', '✓ The Flipbase solution'],
-    ['✕ Zahlen ohne Zusammenhang', '✕ Figures without context'],
-    ['✓ Die Flipbase-Übersicht', '✓ The Flipbase overview'],
-  ]) {
-    assertLanguagePair(html, expectedPair[0], expectedPair[1]);
-  }
-
   const roadmapDocument = new JSDOM(html).window.document;
   const roadmapStatuses = [...roadmapDocument.querySelectorAll('.status-tag')];
   assert.ok(roadmapStatuses.length > 0, 'Expected beta status labels');
@@ -1617,4 +1608,13 @@ test('pricing section shows the free beta and future plan limits', () => {
   );
   assert.doesNotMatch(pricingText, /Geplant nach der Beta/u);
   assert.doesNotMatch(pricingText, /Paketumfang nach der Beta/u);
+});
+
+test('does not show the spreadsheet comparison block', () => {
+  const dom = new JSDOM(html);
+  const comparisonGrid = dom.window.document.querySelector('.vergleich-grid');
+
+  assert.equal(comparisonGrid, null);
+  assert.doesNotMatch(normalizedHtml, /Ein klarer Ablauf statt vieler Tabellen\./u);
+  assert.doesNotMatch(normalizedHtml, /One clear workflow instead of scattered sheets\./u);
 });
