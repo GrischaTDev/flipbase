@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-29 – Juna – Verkaufsfilter ohne Zähler vereinheitlicht
+
+**Auftrag:** Den zusammengefassten Filter auf der Verkaufsseite an die übrigen Tabellenansichten angleichen. „Alle Verkäufe“ und die dynamischen Zahlen bei „Alle“ und „Retouren“ sollen entfallen.
+
+**Änderung:** Das vorhandene gemeinsame Dropdown bleibt bestehen, zeigt aber nur noch die kurzen Optionen „Alle“, „Retouren“, „Kleinanzeigen“, „eBay“, „Vinted“ und „Shop“. Die Filterlogik, Suche, Plattformdarstellung in den Verkaufszeilen und Verkaufsdaten bleiben unverändert.
+
+**Prüfung:** Ein Angular-Regressionstest legt die vollständige Optionsliste ohne Zähler fest. Die regulären PR-Prüfungen übernehmen anschließend Typprüfung, Build und die vollständigen Anwendungstests.
+
 ## 2026-09-29 – Juna – Vinted-Anmeldung als zentriertes Modal und Diagnostik erweitert
 
 **Auftrag:** Die Vinted-Anmeldung in der Kontenverwaltung und auf der Vinted-Seite als zentriertes Modal statt als Drawer oder am Seitenende anzeigen. Die Ursache für fehlschlagende Anmeldungen („Vinted-Anmeldeformular konnte nicht automatisch bedient werden“) sowie die Proxy- und Sitzungsverwaltung bei GoLogin analysieren und absichern.

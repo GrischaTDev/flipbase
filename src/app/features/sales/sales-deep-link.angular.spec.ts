@@ -235,6 +235,25 @@ beforeEach(() => {
 });
 
 describe('SalesComponent – verlinkter Verkauf', () => {
+  it('zeigt den Verkaufsfilter kompakt ohne Zähler', () => {
+    const fixture = TestBed.createComponent(SalesComponent);
+    fixture.detectChanges();
+
+    expect(
+      fixture.componentInstance.platformFilterOptions().map(({ value, label }) => ({
+        value,
+        label,
+      })),
+    ).toEqual([
+      { value: 'all', label: 'Alle' },
+      { value: 'returned', label: 'Retouren' },
+      { value: 'kleinanzeigen', label: 'Kleinanzeigen' },
+      { value: 'ebay', label: 'eBay' },
+      { value: 'vinted', label: 'Vinted' },
+      { value: 'custom_store', label: 'Shop' },
+    ]);
+  });
+
   it('verwendet im Verkaufsjournal klare Kennzahlen und keine ROI-Dominanz', async () => {
     sales.set([linkedSale]);
     loadedWorkspaceId.set(workspace.id);
@@ -450,7 +469,9 @@ describe('SalesComponent – verlinkter Verkauf', () => {
     const filter = host.querySelector('[data-sales-platform-filter]');
 
     expect(filter).not.toBeNull();
-    expect(filter?.textContent).toContain('Alle Verkäufe');
+    expect(filter?.textContent).toContain('Alle');
+    expect(filter?.textContent).not.toContain('Alle Verkäufe');
+    expect(filter?.textContent).not.toMatch(/\(\d+\)/);
     expect(filter?.querySelector('app-marketplace-platform-identity')).toBeNull();
     expect(host.querySelector('[aria-label="Verkaufsansicht"]')).toBeNull();
   });
