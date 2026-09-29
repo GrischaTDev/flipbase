@@ -50,6 +50,18 @@ describe('calculateEbayFees', () => {
     expect(result.ebayFeesTotal).toBe(12.45);
   });
 
+  it('Versand hebt die Sneaker-Preisschwelle nicht über 100 Euro', () => {
+    const result = calculateEbayFees({
+      ...baseBusiness,
+      category: 'sneakers',
+      salePrice: 99,
+      buyerShipping: 10,
+    });
+
+    expect(result.variableFee).toBe(13.08);
+    expect(result.orderFee).toBe(0.45);
+  });
+
   it('berechnet private Inlandsverkäufe ohne Verkaufsprovision', () => {
     const result = calculateEbayFees({
       ...baseBusiness,
