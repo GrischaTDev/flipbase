@@ -445,31 +445,77 @@ test('leads from the revised hero to one application form at the end of the page
   assert.equal(attribute(meldung.startTag, 'aria-live'), 'polite');
 });
 
-test('keeps the header focused on the Flipbase brand, preferences and one app link', () => {
+test('keeps a compact sticky header with section navigation and sign in', () => {
   const document = new JSDOM(html).window.document;
-  const header = document.querySelector('body > header');
+  const header = document.querySelector('body > header.site-header');
 
-  assert.ok(header, 'The landing page must keep its header landmark');
-  assert.equal(
-    header.querySelector('nav'),
-    null,
-    'The landing header must not repeat page navigation',
-  );
+  assert.ok(header, 'The landing page must keep its sticky header landmark');
   assert.equal(
     header.querySelector('.marke-badge'),
     null,
     'The Reselling OS badge must stay out of the header',
   );
-  assert.equal(header.querySelector('.marke')?.textContent.trim(), 'Flipbase');
-  assert.ok(header.querySelector('img[src="images/logo-mark.png"]'));
+
+  const brand = header.querySelector('a.marke');
+  assert.equal(brand?.getAttribute('href'), '#top');
+  assert.equal(brand?.textContent.trim(), 'Flipbase');
+  assert.ok(brand?.querySelector('img[src="images/logo-mark.png"]'));
+
+  const navigation = header.querySelector('nav#landing-navigation');
+  assert.ok(navigation, 'The sticky header must contain section navigation');
+  assert.deepEqual(
+    [...navigation.querySelectorAll(':scope > a')].map((link) => link.getAttribute('href')),
+    ['#features', '#roadmap', '#pricing', '#faq'],
+  );
+  assert.match(navigation.textContent, /Funktionen/u);
+  assert.match(navigation.textContent, /Beta/u);
+  assert.match(navigation.textContent, /Pakete & Preise/u);
+  assert.match(navigation.textContent, /FAQ/u);
+
   assert.ok(header.querySelector('label[for="theme-toggle"]'));
   assert.ok(header.querySelector('label[for="lang-toggle"]'));
+
+  const menuButton = header.querySelector('#nav-menu-button');
+  assert.ok(menuButton, 'The mobile header must expose a menu button');
+  assert.equal(menuButton.getAttribute('aria-controls'), 'landing-navigation');
+  assert.equal(menuButton.getAttribute('aria-expanded'), 'false');
 
   const appLinks = [...header.querySelectorAll('a.kopf-cta')];
   assert.equal(appLinks.length, 1, 'The header must contain exactly one app link');
   assert.equal(appLinks[0].getAttribute('href'), 'https://app.flipbase.de');
-  assert.match(appLinks[0].textContent, /Zur App/u);
-  assert.match(appLinks[0].textContent, /Open App/u);
+  assert.match(appLinks[0].textContent, /Anmelden/u);
+  assert.match(appLinks[0].textContent, /Sign in/u);
+
+  assertDeclaration(css, '.site-header', 'position', 'sticky');
+  assertDeclaration(css, '.site-header', 'top', '0');
+  assertDeclaration(css, '.site-header', 'z-index', '100');
+});
+
+test('toggles and closes the mobile landing navigation accessibly', () => {
+  const dom = new JSDOM(html, { runScripts: 'outside-only', url: 'https://flipbase.de/' });
+  dom.window.eval(landingScript);
+
+  const header = dom.window.document.querySelector('.site-header');
+  const button = dom.window.document.getElementById('nav-menu-button');
+  const firstLink = dom.window.document.querySelector('#landing-navigation a');
+
+  button.click();
+  assert.equal(button.getAttribute('aria-expanded'), 'true');
+  assert.ok(header.classList.contains('nav-open'));
+
+  firstLink.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+  assert.equal(button.getAttribute('aria-expanded'), 'false');
+  assert.equal(header.classList.contains('nav-open'), false);
+
+  button.click();
+  dom.window.document.dispatchEvent(
+    new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+  );
+  assert.equal(button.getAttribute('aria-expanded'), 'false');
+  assert.equal(header.classList.contains('nav-open'), false);
+  assert.equal(dom.window.document.activeElement, button);
+
+  dom.window.close();
 });
 
 test('verbirgt den Sendezustand bis zum tatsächlichen Absenden', () => {
@@ -1303,24 +1349,23 @@ test('restores a valid analytics choice and expires it after 180 days', () => {
   expired.window.close();
 });
 
-test('uses a valid heading hierarchy and the mobile header wrap contract', () => {
+test('uses a valid heading hierarchy and the compact mobile header contract', () => {
   assert.doesNotMatch(html, /<h4\b/iu);
   assertDeclaration(css, '.tech-box h3', 'display', 'flex');
 
-  assertDeclaration(css, 'header', 'flex-wrap', 'wrap');
+  assertDeclaration(css, '.site-header-inner', 'display', 'grid');
   assertDeclaration(css, '.kopf-aktionen', 'min-width', '0');
 
-  const mobileCss = extractBalancedBlock(css, '@media (max-width: 560px)');
-  assertDeclaration(mobileCss, 'header', 'align-items', 'center');
-  assertDeclaration(mobileCss, '.kopf-aktionen', 'width', '100%');
-  assertDeclaration(mobileCss, '.kopf-aktionen', 'justify-content', 'space-between');
-  assertDeclaration(mobileCss, '.kopf-cta', 'min-width', '0');
-  assertDeclaration(mobileCss, '.kopf-cta', 'text-align', 'center');
+  const mobileCss = extractBalancedBlock(css, '@media (max-width: 920px)');
+  assertDeclaration(mobileCss, '.kopf-nav', 'position', 'absolute');
+  assertDeclaration(mobileCss, '.nav-menu-button', 'display', 'inline-flex');
+  assertDeclaration(mobileCss, '.schalter-gruppe--desktop', 'display', 'none');
+  assertDeclaration(mobileCss, '.schalter-gruppe--mobile', 'display', 'flex');
 });
 
 test('shows keyboard focus on both visible toggle labels', () => {
   const focusRule = css.match(
-    /#theme-toggle:focus-visible\s*~\s*\.kopf-aktionen\s+label\[for=['"]theme-toggle['"]\]\s*,\s*#lang-toggle:focus-visible\s*~\s*\.kopf-aktionen\s+label\[for=['"]lang-toggle['"]\]\s*\{([^{}]*)\}/iu,
+    /#theme-toggle:focus-visible\s*~\s*\.site-header-inner\s+label\[for=['"]theme-toggle['"]\]\s*,\s*#lang-toggle:focus-visible\s*~\s*\.site-header-inner\s+label\[for=['"]lang-toggle['"]\]\s*\{([^{}]*)\}/iu,
   );
   assert.ok(focusRule, 'Expected one visible focus rule for both toggle labels');
   assert.match(focusRule[1], /outline\s*:\s*2px\s+solid\s+var\(--brand\)\s*;/iu);

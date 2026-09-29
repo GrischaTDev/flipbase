@@ -263,33 +263,46 @@
 
       /* ---------- Kopfbereich (Header) ---------- */
 
-      header {
-        display: flex;
-        flex-wrap: wrap;
+      .site-header {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        width: 100%;
+        border-bottom: 1px solid var(--line);
+        background: var(--canvas);
+        background: color-mix(in srgb, var(--canvas) 92%, transparent);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+      }
+
+      .site-header-inner {
+        position: relative;
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
         align-items: center;
-        justify-content: space-between;
-        gap: 1.25rem;
-        padding: 1.25rem var(--rand);
+        gap: clamp(0.75rem, 2.5vw, 2.5rem);
+        min-height: 68px;
         max-width: 1360px;
         margin: 0 auto;
-        border-bottom: 1px solid var(--line);
+        padding: 0 var(--rand);
       }
 
       .marke {
-        display: flex;
+        display: inline-flex;
         align-items: center;
-        gap: 0.75rem;
-        font-weight: 800;
+        gap: 0.7rem;
         color: var(--ink);
+        font-size: 1.15rem;
+        font-weight: 800;
         letter-spacing: -0.03em;
-        font-size: 1.2rem;
+        white-space: nowrap;
       }
 
       .marke-logo {
+        display: block;
         width: 32px;
         height: 32px;
         border-radius: 8px;
-        display: block;
         transition: background 0.2s ease;
       }
 
@@ -300,10 +313,12 @@
           padding: 2px;
         }
       }
+
       body:has(#theme-toggle:checked) .marke-logo {
         background-color: #1a1a1a;
         padding: 2px;
       }
+
       @media (prefers-color-scheme: light) {
         body:has(#theme-toggle:checked) .marke-logo {
           background-color: transparent;
@@ -311,10 +326,41 @@
         }
       }
 
+      .kopf-nav {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.15rem;
+        min-width: 0;
+      }
+
+      .kopf-nav > a {
+        display: inline-flex;
+        align-items: center;
+        min-height: 40px;
+        padding: 0.45rem 0.7rem;
+        border-radius: 8px;
+        color: var(--ink-muted);
+        font-size: 0.86rem;
+        font-weight: 600;
+        line-height: 1.2;
+        white-space: nowrap;
+        transition:
+          background-color 0.15s ease,
+          color 0.15s ease;
+      }
+
+      .kopf-nav > a:hover,
+      .kopf-nav > a:focus-visible {
+        background: var(--surface-hover);
+        color: var(--ink);
+      }
+
       .kopf-aktionen {
         display: flex;
         align-items: center;
-        gap: 0.75rem;
+        justify-content: flex-end;
+        gap: 0.65rem;
         min-width: 0;
       }
 
@@ -322,23 +368,28 @@
       .schalter-gruppe {
         display: flex;
         align-items: center;
-        gap: 0.35rem;
-        background: var(--surface);
+        gap: 0.25rem;
+        padding: 0.2rem;
         border: 1px solid var(--line);
-        padding: 0.25rem;
-        border-radius: 12px;
+        border-radius: 10px;
+        background: var(--surface);
+      }
+
+      .schalter-gruppe--mobile {
+        display: none;
       }
 
       .schalter-btn {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        padding: 0.35rem 0.6rem;
-        border-radius: 8px;
-        font-size: 0.75rem;
-        font-weight: 600;
-        font-family: var(--mono);
+        min-height: 32px;
+        padding: 0.3rem 0.5rem;
+        border-radius: 7px;
         color: var(--ink-muted);
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        font-weight: 600;
         cursor: pointer;
         user-select: none;
         transition:
@@ -347,22 +398,23 @@
       }
 
       .schalter-btn:hover {
-        color: var(--ink);
         background: var(--surface-hover);
+        color: var(--ink);
       }
 
       /* Sonne/Mond Icon Anzeige */
       .icon-sun,
       .icon-moon {
+        display: block;
         width: 15px;
         height: 15px;
-        display: block;
         fill: currentColor;
       }
 
       .icon-sun {
         display: none;
       }
+
       .icon-moon {
         display: block;
       }
@@ -371,6 +423,7 @@
         .icon-sun {
           display: block;
         }
+
         .icon-moon {
           display: none;
         }
@@ -379,6 +432,7 @@
       body:has(#theme-toggle:checked) .icon-sun {
         display: block;
       }
+
       body:has(#theme-toggle:checked) .icon-moon {
         display: none;
       }
@@ -387,6 +441,7 @@
         body:has(#theme-toggle:checked) .icon-sun {
           display: none;
         }
+
         body:has(#theme-toggle:checked) .icon-moon {
           display: block;
         }
@@ -396,6 +451,7 @@
       .lang-state-de {
         color: var(--brand-text);
       }
+
       .lang-state-en {
         color: var(--ink-dim);
       }
@@ -403,27 +459,72 @@
       body:has(#lang-toggle:checked) .lang-state-de {
         color: var(--ink-dim);
       }
+
       body:has(#lang-toggle:checked) .lang-state-en {
         color: var(--brand-text);
       }
 
-      #theme-toggle:focus-visible ~ .kopf-aktionen label[for='theme-toggle'],
-      #lang-toggle:focus-visible ~ .kopf-aktionen label[for='lang-toggle'] {
+      #theme-toggle:focus-visible ~ .site-header-inner label[for='theme-toggle'],
+      #lang-toggle:focus-visible ~ .site-header-inner label[for='lang-toggle'] {
         outline: 2px solid var(--brand);
         outline-offset: 3px;
+      }
+
+      .nav-menu-button {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        width: 38px;
+        height: 38px;
+        padding: 0;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        background: var(--surface);
+        color: var(--ink);
+        cursor: pointer;
+        transition:
+          background-color 0.15s ease,
+          border-color 0.15s ease;
+      }
+
+      .nav-menu-button:hover,
+      .nav-menu-button:focus-visible {
+        border-color: var(--line-strong);
+        background: var(--surface-hover);
+      }
+
+      .nav-menu-button svg {
+        width: 19px;
+        height: 19px;
+      }
+
+      .nav-menu-close {
+        display: none;
+      }
+
+      .site-header.nav-open .nav-menu-open {
+        display: none;
+      }
+
+      .site-header.nav-open .nav-menu-close {
+        display: block;
       }
 
       .kopf-cta {
         display: inline-flex;
         align-items: center;
-        gap: 0.5rem;
+        justify-content: center;
+        min-height: 38px;
+        padding: 0.5rem 1rem;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 9px;
         background: linear-gradient(180deg, var(--brand) 0%, var(--brand-hover) 100%);
+        box-shadow: 0 6px 18px var(--brand-glow);
         color: var(--on-brand);
-        font-size: 0.85rem;
+        font-size: 0.84rem;
         font-weight: 700;
-        padding: 0.55rem 1.15rem;
-        border-radius: 10px;
-        box-shadow: 0 4px 14px var(--brand-glow);
+        line-height: 1.2;
+        white-space: nowrap;
         transition:
           transform 0.15s ease,
           box-shadow 0.15s ease;
@@ -432,7 +533,118 @@
       .kopf-cta:hover,
       .kopf-cta:focus-visible {
         transform: translateY(-1px);
-        box-shadow: 0 6px 20px var(--brand-glow);
+        box-shadow: 0 8px 22px var(--brand-glow);
+      }
+
+      #features,
+      #roadmap,
+      #pricing,
+      #faq {
+        scroll-margin-top: 5.5rem;
+      }
+
+      @media (max-width: 920px) {
+        .site-header-inner {
+          grid-template-columns: auto minmax(0, 1fr) auto;
+          min-height: 62px;
+        }
+
+        .kopf-nav {
+          position: absolute;
+          top: calc(100% + 1px);
+          right: var(--rand);
+          left: var(--rand);
+          display: flex;
+          flex-direction: column;
+          align-items: stretch;
+          gap: 0.15rem;
+          padding: 0.55rem;
+          border: 1px solid var(--line-strong);
+          border-radius: 12px;
+          background: var(--surface);
+          box-shadow: 0 18px 40px rgba(0, 0, 0, 0.2);
+          opacity: 0;
+          visibility: hidden;
+          transform: translateY(-6px);
+          pointer-events: none;
+          transition:
+            opacity 0.15s ease,
+            transform 0.15s ease,
+            visibility 0.15s ease;
+        }
+
+        .site-header.nav-open .kopf-nav {
+          opacity: 1;
+          visibility: visible;
+          transform: translateY(0);
+          pointer-events: auto;
+        }
+
+        .kopf-nav > a {
+          width: 100%;
+          min-height: 42px;
+          justify-content: flex-start;
+          padding-inline: 0.75rem;
+        }
+
+        .nav-menu-button {
+          display: inline-flex;
+        }
+
+        .schalter-gruppe--desktop {
+          display: none;
+        }
+
+        .schalter-gruppe--mobile {
+          display: flex;
+          justify-content: flex-start;
+          width: 100%;
+          margin-top: 0.25rem;
+          padding: 0.55rem 0.5rem 0.1rem;
+          border: 0;
+          border-top: 1px solid var(--line);
+          border-radius: 0;
+          background: transparent;
+        }
+      }
+
+      @media (max-width: 480px) {
+        .site-header-inner {
+          gap: 0.45rem;
+          padding-inline: 0.85rem;
+        }
+
+        .marke {
+          gap: 0.5rem;
+          font-size: 1rem;
+        }
+
+        .marke-logo {
+          width: 29px;
+          height: 29px;
+        }
+
+        .kopf-aktionen {
+          gap: 0.4rem;
+        }
+
+        .kopf-cta {
+          min-height: 36px;
+          padding-inline: 0.75rem;
+          font-size: 0.78rem;
+        }
+
+        .kopf-nav {
+          right: 0.85rem;
+          left: 0.85rem;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .kopf-nav,
+        .kopf-cta {
+          transition: none;
+        }
       }
 
       /* ---------- Hero / Aufmacher ---------- */
@@ -1968,14 +2180,9 @@
     </style>
   </head>
 
-  <body>
+  <body id="top">
     <!-- Header -->
-    <header>
-      <div class="marke">
-        <img src="images/logo-mark.png" alt="" class="marke-logo" width="32" height="32" />
-        <span>Flipbase</span>
-      </div>
-
+    <header class="site-header">
       <!-- Versteckte Kontroll-Checkboxen für Theme & Sprache; das Skript speichert ihre Auswahl. -->
       <input
         type="checkbox"
@@ -1998,57 +2205,163 @@
         <span class="lang-en" lang="en">Switch language</span>
       </div>
 
-      <div class="kopf-aktionen">
-        <!-- Theme & Language Toggles -->
-        <div class="schalter-gruppe">
-          <!-- Theme Toggle Button -->
-          <label for="theme-toggle" class="schalter-btn">
-            <!-- Mond-Icon (Dark) -->
-            <svg
-              class="icon-moon"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
-            </svg>
-            <!-- Sonne-Icon (Light) -->
-            <svg
-              class="icon-sun"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <circle cx="12" cy="12" r="4"></circle>
-              <path d="M12 2v2"></path>
-              <path d="M12 20v2"></path>
-              <path d="m4.93 4.93 1.41 1.41"></path>
-              <path d="m17.66 17.66 1.41 1.41"></path>
-              <path d="M2 12h2"></path>
-              <path d="M20 12h2"></path>
-              <path d="m6.34 17.66-1.41 1.41"></path>
-              <path d="m19.07 4.93-1.41 1.41"></path>
-            </svg>
-          </label>
-
-          <!-- Language Toggle Button -->
-          <label for="lang-toggle" class="schalter-btn">
-            <span class="lang-state-de">DE</span>
-            <span style="color: var(--line-strong); margin: 0 2px">/</span>
-            <span class="lang-state-en" lang="en">EN</span>
-          </label>
-        </div>
-
-        <a class="kopf-cta" href="https://app.flipbase.de">
-          <span class="lang-de">Zur App →</span>
-          <span class="lang-en" lang="en">Open App →</span>
+      <div class="site-header-inner">
+        <a class="marke" href="#top">
+          <img src="images/logo-mark.png" alt="" class="marke-logo" width="32" height="32" />
+          <span>Flipbase</span>
         </a>
+
+        <div id="landing-navigation-label" class="sr-only">
+          <span class="lang-de">Seitennavigation</span>
+          <span class="lang-en" lang="en">Page navigation</span>
+        </div>
+        <nav id="landing-navigation" class="kopf-nav" aria-labelledby="landing-navigation-label">
+          <a href="#features">
+            <span class="lang-de">Funktionen</span>
+            <span class="lang-en" lang="en">Features</span>
+          </a>
+          <a href="#roadmap">
+            <span class="lang-de">Beta</span>
+            <span class="lang-en" lang="en">Beta</span>
+          </a>
+          <a href="#pricing">
+            <span class="lang-de">Pakete &amp; Preise</span>
+            <span class="lang-en" lang="en">Plans &amp; pricing</span>
+          </a>
+          <a href="#faq">
+            <span class="lang-de">FAQ</span>
+            <span class="lang-en" lang="en">FAQ</span>
+          </a>
+
+          <div class="schalter-gruppe schalter-gruppe--mobile">
+            <label for="theme-toggle" class="schalter-btn">
+              <svg
+                class="icon-moon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
+              </svg>
+              <svg
+                class="icon-sun"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <circle cx="12" cy="12" r="4"></circle>
+                <path d="M12 2v2"></path>
+                <path d="M12 20v2"></path>
+                <path d="m4.93 4.93 1.41 1.41"></path>
+                <path d="m17.66 17.66 1.41 1.41"></path>
+                <path d="M2 12h2"></path>
+                <path d="M20 12h2"></path>
+                <path d="m6.34 17.66-1.41 1.41"></path>
+                <path d="m19.07 4.93-1.41 1.41"></path>
+              </svg>
+            </label>
+            <label for="lang-toggle" class="schalter-btn">
+              <span class="lang-state-de">DE</span>
+              <span style="color: var(--line-strong); margin: 0 2px">/</span>
+              <span class="lang-state-en" lang="en">EN</span>
+            </label>
+          </div>
+        </nav>
+
+        <div class="kopf-aktionen">
+          <div class="schalter-gruppe schalter-gruppe--desktop">
+            <label for="theme-toggle" class="schalter-btn">
+              <svg
+                class="icon-moon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
+              </svg>
+              <svg
+                class="icon-sun"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <circle cx="12" cy="12" r="4"></circle>
+                <path d="M12 2v2"></path>
+                <path d="M12 20v2"></path>
+                <path d="m4.93 4.93 1.41 1.41"></path>
+                <path d="m17.66 17.66 1.41 1.41"></path>
+                <path d="M2 12h2"></path>
+                <path d="M20 12h2"></path>
+                <path d="m6.34 17.66-1.41 1.41"></path>
+                <path d="m19.07 4.93-1.41 1.41"></path>
+              </svg>
+            </label>
+            <label for="lang-toggle" class="schalter-btn">
+              <span class="lang-state-de">DE</span>
+              <span style="color: var(--line-strong); margin: 0 2px">/</span>
+              <span class="lang-state-en" lang="en">EN</span>
+            </label>
+          </div>
+
+          <button
+            id="nav-menu-button"
+            class="nav-menu-button"
+            type="button"
+            aria-controls="landing-navigation"
+            aria-expanded="false"
+          >
+            <svg
+              class="nav-menu-open"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              aria-hidden="true"
+            >
+              <path d="M4 7h16"></path>
+              <path d="M4 12h16"></path>
+              <path d="M4 17h16"></path>
+            </svg>
+            <svg
+              class="nav-menu-close"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              aria-hidden="true"
+            >
+              <path d="m6 6 12 12"></path>
+              <path d="m18 6-12 12"></path>
+            </svg>
+            <span class="sr-only">
+              <span class="lang-de">Menü</span>
+              <span class="lang-en" lang="en">Menu</span>
+            </span>
+          </button>
+
+          <a class="kopf-cta" href="https://app.flipbase.de">
+            <span class="lang-de">Anmelden</span>
+            <span class="lang-en" lang="en">Sign in</span>
+          </a>
+        </div>
       </div>
     </header>
 

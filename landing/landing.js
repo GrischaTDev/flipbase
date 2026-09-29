@@ -81,6 +81,41 @@
     savePreference(LANGUAGE_KEY, language);
   });
 
+  var siteHeader = document.querySelector('.site-header');
+  var navMenuButton = document.getElementById('nav-menu-button');
+  var landingNavigation = document.getElementById('landing-navigation');
+
+  function setNavigationOpen(open, returnFocus) {
+    siteHeader.classList.toggle('nav-open', open);
+    navMenuButton.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (!open && returnFocus) navMenuButton.focus();
+  }
+
+  navMenuButton.addEventListener('click', function () {
+    setNavigationOpen(navMenuButton.getAttribute('aria-expanded') !== 'true', false);
+  });
+
+  landingNavigation.querySelectorAll('a').forEach(function (link) {
+    link.addEventListener('click', function () {
+      setNavigationOpen(false, false);
+    });
+  });
+
+  document.addEventListener('click', function (event) {
+    if (
+      navMenuButton.getAttribute('aria-expanded') === 'true' &&
+      !siteHeader.contains(event.target)
+    ) {
+      setNavigationOpen(false, false);
+    }
+  });
+
+  document.addEventListener('keydown', function (event) {
+    if (event.key !== 'Escape' || navMenuButton.getAttribute('aria-expanded') !== 'true') return;
+    event.preventDefault();
+    setNavigationOpen(false, true);
+  });
+
   var ENDPOINT = 'https://api.flipbase.de/functions/v1/beta-application';
   var TEXTS = {
     error: {
