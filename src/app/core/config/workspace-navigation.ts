@@ -5,6 +5,7 @@ import { VINTED_BOT_NAVIGATION } from './vinted-bot-navigation';
 
 export type WorkspaceNavigationIcon =
   | 'dashboard'
+  | 'database'
   | 'shoppingBag'
   | 'users'
   | 'bot'
@@ -52,7 +53,6 @@ export const WORKSPACE_NAVIGATION_GROUPS: readonly WorkspaceNavigationGroup[] = 
     label: 'Einkauf',
     items: [
       { path: '/purchases', labelKey: 'NAV.PURCHASES', label: 'Einkäufe', icon: 'shoppingBag' },
-      { path: '/sellers', labelKey: 'NAV.SELLERS', label: 'Verkäufer', icon: 'users' },
       {
         path: '/vinted-bot',
         labelKey: 'NAV.DEAL_MONITOR',
@@ -151,6 +151,13 @@ export const IDEAS_NAVIGATION: WorkspaceNavigationGroup = {
       icon: 'truck',
     },
   ],
+};
+
+export const MASTER_DATA_NAVIGATION: WorkspaceNavigationItem = {
+  path: '/master-data',
+  labelKey: 'NAV.MASTER_DATA',
+  label: 'Stammdaten',
+  icon: 'database',
 };
 
 export const SETTINGS_NAVIGATION: WorkspaceNavigationItem = {

@@ -86,7 +86,7 @@ describe('Arbeitsnavigation und Ideen in der Sidebar', () => {
 
     expect(names).toEqual(['Einkauf', 'Artikel', 'Verkauf', 'Finanzen']);
     expect(links).toEqual([
-      ['/purchases', '/sellers', '/vinted-bot'],
+      ['/purchases', '/vinted-bot'],
       ['/catalog', '/image-optimizer'],
       ['/sales', '/listings'],
       ['/expenses', '/accounting', '/analytics'],

@@ -8,6 +8,14 @@
 
 **Prüfung:** Angular-Komponententests der Marktplätze (117 Tests in 9 Testdateien) und Worker-Tests (129 Tests) erfolgreich ausgeführt. Typprüfung (`npm run typecheck`), ESLint und Prettier auf allen geänderten Dateien fehlerfrei bestanden.
 
+## 2026-09-29 – Juna – Zentrale Stammdatenverwaltung ergänzt
+
+**Auftrag:** Einen zentralen Stammdatenbereich für Marken, Einkaufsquellen, Verkaufsplattformen und Verkäufer schaffen, damit angelegte Werte wieder auffindbar und verwaltbar sind.
+
+**Änderung:** Die Sidebar erhält oberhalb der Einstellungen den Bereich „Stammdaten“. Marken, Einkaufsquellen, Verkaufsplattformen und Verkäufer sind dort über eine gemeinsame Bereichsnavigation erreichbar. Marken lassen sich anlegen, umbenennen und kontrolliert zusammenführen. Einkaufsquellen lassen sich anlegen, umbenennen, archivieren und wiederherstellen; bestehende Einkaufszuordnungen bleiben erhalten. Die Verkäuferverwaltung ist in den Stammdaten eingebettet und verwendet Suche, Sortierung und Spaltenauswahl. Verkaufsplattformen zeigen zunächst die bestehenden Systemvorgaben; Kontoverbindungen bleiben davon getrennt in den Einstellungen. Die bisherigen Routen für Marken und Verkäufer leiten auf die neue Verwaltung weiter.
+
+**Prüfung:** Der erste PR-Lauf #932 fand Formatabweichungen sowie veraltete Navigationserwartungen und eine unvollständige Supabase-Testattrappe. Diese Punkte wurden korrigiert; der folgende Pflichtlauf muss Format, Lint, Typprüfung, Unit-Suites, Browser-Smoke und Build vollständig grün bestätigen, bevor gemerged wird.
+
 ## 2026-09-29 – Juna – Plattformfilter der Verkaufsübersicht vereinheitlicht
 
 **Auftrag:** Die Plattformfilter auf der Verkaufsseite wie bei Artikel und Einkäufe in einem einzigen Dropdown bündeln. Plattformlogos sollen nur an den Verkaufszeilen erscheinen und dieselben Namen und Logos wie im Dashboard verwenden.

@@ -1,29 +1,41 @@
 <div class="space-y-5 animate-fade-in">
-  <app-page-header
-    title="Verkäufer"
-    subtitle="Unternehmen und Privatpersonen für deine Einkäufe verwalten."
-    [icon]="usersIcon"
-  >
-    <app-badge header-badge tone="neutral" [mono]="true">
-      {{ filteredSellers().length }} Verkäufer
-    </app-badge>
-
-    <div header-actions>
-      <app-button variant="primary" size="md" [icon]="plusIcon" (clicked)="openCreateDialog()">
-        Verkäufer erstellen
-      </app-button>
-    </div>
-  </app-page-header>
+  @if (!embedded()) {
+    <app-page-header
+      title="Verkäufer"
+      subtitle="Unternehmen und Privatpersonen für deine Einkäufe verwalten."
+      [icon]="usersIcon"
+    >
+      <app-badge header-badge tone="neutral" [mono]="true">
+        {{ filteredSellers().length }} Verkäufer
+      </app-badge>
+      @if (!readOnly()) {
+        <div header-actions>
+          <app-button variant="primary" size="md" [icon]="plusIcon" (clicked)="openCreateDialog()">
+            Verkäufer erstellen
+          </app-button>
+        </div>
+      }
+    </app-page-header>
+  }
 
   @if (actionError(); as error) {
-    <p role="alert" class="rounded-lg bg-rose-500/10 px-3 py-2 text-sm text-rose-300">
-      {{ error }}
-    </p>
+    <p role="alert" class="text-sm text-fb-critical">{{ error }}</p>
   }
 
   <app-data-table
     ariaLabel="Verkäuferliste"
-    [searchEnabled]="false"
+    [searchValue]="search()"
+    (searchValueChange)="search.set($event)"
+    searchPlaceholder="Verkäufer durchsuchen …"
+    searchAriaLabel="Verkäufer durchsuchen"
+    [columns]="tableState().columns"
+    [sortOptions]="sellerTableConfig.sortOptions"
+    [currentSort]="tableState().sort"
+    [viewModified]="viewModified()"
+    (columnVisibilityToggled)="toggleColumn($event)"
+    (columnsReordered)="reorderColumns($event)"
+    (sortChanged)="changeSort($event)"
+    (viewResetRequested)="resetView()"
     [loading]="suppliersService.isLoading()"
     [hasRows]="filteredSellers().length > 0"
     [emptyTitle]="
@@ -34,7 +46,7 @@
     [emptyText]="
       suppliersService.suppliers().length === 0
         ? 'Erstelle den ersten Verkäufer, um ihn bei Einkäufen auszuwählen.'
-        : 'Wähle einen anderen Verkäufertyp.'
+        : 'Passe die Suche oder den Verkäufertyp an.'
     "
   >
     <app-custom-select
@@ -48,7 +60,6 @@
       [value]="typeFilter()"
       (valueChange)="typeFilter.set($event ?? 'all')"
     />
-
     <app-button
       table-filters
       variant="ghost"
@@ -66,77 +77,96 @@
         </caption>
         <thead>
           <tr>
-            <th scope="col">Name / Firma</th>
-            <th scope="col">Typ</th>
-            <th scope="col">Kontaktperson</th>
-            <th scope="col">E-Mail / Telefon</th>
-            <th scope="col">Ort / Land</th>
-            <th scope="col">Status</th>
-            <th scope="col" class="text-right">Aktionen</th>
+            @for (column of visibleColumns(); track column.id) {
+              <th scope="col" [class.text-right]="column.id === 'actions'">
+                {{ column.label }}
+              </th>
+            }
           </tr>
         </thead>
         <tbody>
           @for (seller of filteredSellers(); track seller.id) {
             <tr
               data-seller-row
-              tabindex="0"
-              class="cursor-pointer transition-colors hover:bg-fb-surface-hover focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-fb-primary"
+              [attr.tabindex]="readOnly() ? null : 0"
+              [class.cursor-pointer]="!readOnly()"
+              class="transition-colors hover:bg-fb-surface-hover focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-fb-primary"
               [class.opacity-60]="seller.is_active === false"
               (click)="openSellerFromRow($event, seller)"
               (keydown)="openSellerFromKeyboard($event, seller)"
             >
-              <td>
-                <span class="font-semibold text-fb-text-primary">{{ seller.name }}</span>
-              </td>
-              <td>{{ typeLabel(seller) }}</td>
-              <td>{{ seller.contact_person || '—' }}</td>
-              <td>
-                <span class="block">{{ seller.email || '—' }}</span>
-                @if (seller.phone) {
-                  <span class="mt-0.5 block text-xs text-fb-text-muted">{{ seller.phone }}</span>
-                }
-              </td>
-              <td>{{ formatLocation(seller) }}</td>
-              <td>
-                <app-badge [tone]="seller.is_active === false ? 'neutral' : 'success'">
-                  {{ seller.is_active === false ? 'Archiviert' : 'Aktiv' }}
-                </app-badge>
-              </td>
-              <td class="text-right">
-                <div class="inline-flex items-center gap-1">
-                  <app-table-action-button
-                    data-seller-edit-action
-                    [icon]="pencilIcon"
-                    [label]="seller.name + ' bearbeiten'"
-                    (clicked)="editSellerFromAction($event, seller)"
-                  />
-                  <app-table-action-button
-                    data-seller-archive-action
-                    [icon]="seller.is_active === false ? restoreIcon : archiveIcon"
-                    [tone]="seller.is_active === false ? 'positive' : 'warning'"
-                    [label]="
-                      seller.name +
-                      (seller.is_active === false ? ' wiederherstellen' : ' archivieren')
-                    "
-                    (clicked)="archiveSellerFromAction($event, seller)"
-                  />
-                </div>
-              </td>
+              @for (column of visibleColumns(); track column.id) {
+                <td [class.text-right]="column.id === 'actions'">
+                  @switch (column.id) {
+                    @case ('name') {
+                      <span class="font-semibold text-fb-text-primary">{{ seller.name }}</span>
+                    }
+                    @case ('type') {
+                      {{ typeLabel(seller) }}
+                    }
+                    @case ('contact') {
+                      {{ seller.contact_person || '—' }}
+                    }
+                    @case ('communication') {
+                      <span class="block">{{ seller.email || '—' }}</span>
+                      @if (seller.phone) {
+                        <span class="mt-0.5 block text-xs text-fb-text-muted">
+                          {{ seller.phone }}
+                        </span>
+                      }
+                    }
+                    @case ('location') {
+                      {{ formatLocation(seller) }}
+                    }
+                    @case ('status') {
+                      <app-badge [tone]="seller.is_active === false ? 'neutral' : 'success'">
+                        {{ seller.is_active === false ? 'Archiviert' : 'Aktiv' }}
+                      </app-badge>
+                    }
+                    @case ('actions') {
+                      <div class="inline-flex items-center gap-1">
+                        @if (!readOnly()) {
+                          <app-table-action-button
+                            data-seller-edit-action
+                            [icon]="pencilIcon"
+                            [label]="seller.name + ' bearbeiten'"
+                            (clicked)="editSellerFromAction($event, seller)"
+                          />
+                          @if (canArchive()) {
+                            <app-table-action-button
+                              data-seller-archive-action
+                              [icon]="seller.is_active === false ? restoreIcon : archiveIcon"
+                              [tone]="seller.is_active === false ? 'positive' : 'warning'"
+                              [label]="
+                                seller.name +
+                                (seller.is_active === false ? ' wiederherstellen' : ' archivieren')
+                              "
+                              (clicked)="archiveSellerFromAction($event, seller)"
+                            />
+                          }
+                        }
+                      </div>
+                    }
+                  }
+                </td>
+              }
             </tr>
           }
         </tbody>
       </table>
     </div>
 
-    <app-button
-      table-empty-action
-      class="mt-4"
-      variant="primary"
-      [icon]="plusIcon"
-      (clicked)="openCreateDialog()"
-    >
-      Verkäufer erstellen
-    </app-button>
+    @if (!readOnly() && !embedded()) {
+      <app-button
+        table-empty-action
+        class="mt-4"
+        variant="primary"
+        [icon]="plusIcon"
+        (clicked)="openCreateDialog()"
+      >
+        Verkäufer erstellen
+      </app-button>
+    }
   </app-data-table>
 </div>
 
