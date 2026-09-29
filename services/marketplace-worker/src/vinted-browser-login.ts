@@ -53,7 +53,16 @@ export async function submitVintedLogin(
     currentStep = 'authorize_page';
     await authorizeLoginPage();
     currentStep = 'dismiss_cookies';
-    if (await cookieButton.isVisible()) await dismissCookies();
+    try {
+      if (await cookieButton.isVisible()) {
+        await dismissCookies();
+      } else {
+        await cookieButton.waitFor({ state: 'visible', timeout: 2_000 });
+        await dismissCookies();
+      }
+    } catch {
+      // Kein Cookie-Banner erschienen
+    }
     await page.addLocatorHandler(cookieButton, dismissCookies);
     handlerAdded = true;
     currentStep = 'wait_controls';
@@ -102,6 +111,7 @@ export async function submitVintedLogin(
     } catch {
       // Eine defekte Logausgabe verändert keinen Anmeldestatus.
     }
+    if (challengeDetected) return 'interaction_required';
     return submissionStarted ? 'submission_unconfirmed' : 'form_unavailable';
   } finally {
     if (handlerAdded) await page.removeLocatorHandler(cookieButton).catch(() => undefined);

@@ -272,10 +272,15 @@ export class MarketplaceBrowserTestStore {
       }
       if (result === 'form_unavailable' || result === 'interaction_required') {
         this.loginKey.set(null);
+        await this.loadFrame(key, revision, active.scope, active.id, this.currentToken()).catch(
+          () => undefined,
+        );
         this.errorState.set({
           key,
           message:
-            'Das Vinted-Anmeldeformular konnte nicht automatisch bedient werden. Möglicherweise verlangt Vinted eine zusätzliche Prüfung. Dein Konto ist noch nicht verbunden.',
+            result === 'interaction_required'
+              ? 'Vinted verlangt eine zusätzliche Prüfung (z. B. Captcha oder Puzzle). In der Browser-Ansicht unten kannst Du die Prüfung direkt im Browserbild lösen.'
+              : 'Das Vinted-Anmeldeformular konnte nicht automatisch bedient werden. Möglicherweise verlangt Vinted eine zusätzliche Prüfung. In der Browser-Ansicht unten kannst Du die Prüfung direkt bedienen.',
         });
         return;
       }
