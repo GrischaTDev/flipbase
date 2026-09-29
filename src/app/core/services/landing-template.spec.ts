@@ -14,8 +14,8 @@ describe('Auslieferung der Landingpage', () => {
     expect(header).not.toContain('.Cookie');
     expect(header!.match(/class="kopf-cta"/gu)).toHaveLength(1);
     expect(header).toContain('href="https://app.flipbase.de"');
-    expect(header).toContain('Zur App');
-    expect(header).toContain('Open App');
+    expect(header).toContain('Anmelden');
+    expect(header).toContain('Sign in');
   });
 
   it('die Seite bindet nur die beiden lokalen Skripte statt eingebettetem Code ein', () => {
