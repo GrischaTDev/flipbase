@@ -239,10 +239,12 @@ describe('SalesComponent – verlinkter Verkauf', () => {
     const fixture = TestBed.createComponent(SalesComponent);
     fixture.detectChanges();
 
-    expect(fixture.componentInstance.platformFilterOptions().map(({ value, label }) => ({
-      value,
-      label,
-    }))).toEqual([
+    expect(
+      fixture.componentInstance.platformFilterOptions().map(({ value, label }) => ({
+        value,
+        label,
+      })),
+    ).toEqual([
       { value: 'all', label: 'Alle' },
       { value: 'returned', label: 'Retouren' },
       { value: 'kleinanzeigen', label: 'Kleinanzeigen' },
