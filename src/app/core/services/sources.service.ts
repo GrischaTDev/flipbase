@@ -151,11 +151,7 @@ export class SourcesService {
     sourceId: string,
     archiviert: boolean,
   ): Promise<{ error: Error | null }> {
-    return this.persistSourceUpdate(
-      sourceId,
-      { is_active: !archiviert },
-      'Archivieren der Quelle',
-    );
+    return this.persistSourceUpdate(sourceId, { is_active: !archiviert }, 'Archivieren der Quelle');
   }
 
   /**
@@ -168,7 +164,7 @@ export class SourcesService {
     const pageSize = 1000;
     const rows: Source[] = [];
     try {
-      for (let offset = 0; ; ) {
+      for (let offset = 0; ;) {
         const { data, error } = await this.supabase.client
           .from('sources')
           .select('*')
