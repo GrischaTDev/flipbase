@@ -235,6 +235,23 @@ beforeEach(() => {
 });
 
 describe('SalesComponent – verlinkter Verkauf', () => {
+  it('zeigt den Verkaufsfilter kompakt ohne Zähler', () => {
+    const fixture = TestBed.createComponent(SalesComponent);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.platformFilterOptions().map(({ value, label }) => ({
+      value,
+      label,
+    }))).toEqual([
+      { value: 'all', label: 'Alle' },
+      { value: 'returned', label: 'Retouren' },
+      { value: 'kleinanzeigen', label: 'Kleinanzeigen' },
+      { value: 'ebay', label: 'eBay' },
+      { value: 'vinted', label: 'Vinted' },
+      { value: 'custom_store', label: 'Shop' },
+    ]);
+  });
+
   it('verwendet im Verkaufsjournal klare Kennzahlen und keine ROI-Dominanz', async () => {
     sales.set([linkedSale]);
     loadedWorkspaceId.set(workspace.id);

@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-29 – Juna – Verkaufsfilter ohne Zähler vereinheitlicht
+
+**Auftrag:** Den zusammengefassten Filter auf der Verkaufsseite an die übrigen Tabellenansichten angleichen. „Alle Verkäufe“ und die dynamischen Zahlen bei „Alle“ und „Retouren“ sollen entfallen.
+
+**Änderung:** Das vorhandene gemeinsame Dropdown bleibt bestehen, zeigt aber nur noch die kurzen Optionen „Alle“, „Retouren“, „Kleinanzeigen“, „eBay“, „Vinted“ und „Shop“. Die Filterlogik, Suche, Plattformdarstellung in den Verkaufszeilen und Verkaufsdaten bleiben unverändert.
+
+**Prüfung:** Ein Angular-Regressionstest legt die vollständige Optionsliste ohne Zähler fest. Die regulären PR-Prüfungen übernehmen anschließend Typprüfung, Build und die vollständigen Anwendungstests.
+
 ## 2026-09-29 – Juna – Zentrale Stammdatenverwaltung ergänzt
 
 **Auftrag:** Einen zentralen Stammdatenbereich für Marken, Einkaufsquellen, Verkaufsplattformen und Verkäufer schaffen, damit angelegte Werte wieder auffindbar und verwaltbar sind.
