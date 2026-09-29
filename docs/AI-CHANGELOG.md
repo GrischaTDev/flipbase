@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-29 – Juna – Dashboard-Mergekonflikt im Änderungsprotokoll aufgelöst
+
+**Auftrag:** Den erneut gemeldeten Konflikt in PR #248 beheben, ohne das freigegebene Dashboard-Design zu verändern.
+
+**Änderung:** Den aktuellen master-Stand übernommen und die parallel ergänzten Dashboard- und Landingpage-Einträge vollständig erhalten. Der Konflikt betrifft ausschließlich das gemeinsame Änderungsprotokoll; die Landingpage und ihr Vertragstest entsprechen unverändert master. Dashboard, Theme, Plattformassets und Navigation bleiben unverändert gegenüber der freigegebenen Vorschau.
+
+**Prüfung:** Der Zusammenführungsversuch reproduziert ausschließlich den Konflikt im Änderungsprotokoll. Ein vollständiger Dateiabgleich und der Vergleich aller bisherigen Protokollabschnitte sichern den Erhalt beider Seiten. Gezielte Tests sowie die reguläre PR-CI prüfen den integrierten Stand vor einem Merge.
+
 ## 2026-09-29 – Juna – Innere Beta-Formular-Card entfernt
 
 **Auftrag:** Die verschachtelte Card-im-Card-Darstellung im Beta-Bewerbungsbereich entfernen.
@@ -8,6 +16,14 @@
 
 **Prüfung:** Der Landingpage-Test verlangt jetzt ausdrücklich, dass keine `.beta-application-form-panel` mehr vorhanden ist und das Formular direkt im Zweispaltenlayout liegt.
 
+## 2026-09-29 – Juna – Dashboard-Spalten, Kartenköpfe und Schnellaktionen vereinheitlicht
+
+**Auftrag:** Die rechte Spalte exakt am Bestandsüberblick ausrichten, Schnellaktionen mit sauber getrennten Icons gestalten, die drei unteren Kartenköpfe vereinheitlichen und den blauen Dashboard-Akzent durch das vorhandene Button-Gelb ersetzen.
+
+**Änderung:** Diagramm-/Aufgabenzeile und untere Kartenreihe verwenden dieselben Spalten und Abstände. Alle drei unteren Kartenköpfe entstehen aus einer gemeinsamen Template-Vorlage mit Icon-Fläche, Titel, Untertitel und optionaler Shared-Aktion. Schnellaktionen behalten ihre Shared Buttons und erhalten klar getrennte gelbe Icon-Flächen; die Anordnung reagiert auf die tatsächlich verfügbare Kartenbreite. „Langsam drehend“ heißt jetzt „61–90 Tage im Bestand“. Markenakzente verwenden das vorhandene Flipbase-Gelb mit dunklen Icons/Texten auf gelben Flächen; Plattformfarben und Warn-/Fehlerfarben bleiben unverändert. Auf schmalen Ansichten bleibt „Alle anzeigen“ als zugänglich benannte Pfeil-Aktion erreichbar. Der aktuelle master-Stand wurde ohne Änderungen an seinen Fachfunktionen übernommen; beide Änderungsprotokolle bleiben erhalten.
+
+**Prüfung:** Drei neue Regressionstests zuerst fehlgeschlagen, danach 22 Dashboard-Komponententests und 53 fachliche Tests erfolgreich. Formatierung, gezieltes ESLint, App-/Test-Typprüfung und Shared-UI-Prüfung erfolgreich. Der integrierte Produktionsbau besteht; nur der bestehende CommonJS-Hinweis zu pako bleibt. Die echte Angular-Vorschau wurde mit Playwright/Chromium in Hell und Dunkel bei elf Breiten von 320 bis 1664 px geprüft: identische rechte Kartenbreiten und -kanten, gleiche Kopfzeilenhöhen, keine Überlappungen, kein Seitenüberlauf und keine AXE- oder Konsolenfehler. Zeitraum, Plattform, Diagrammlegende, Theme, vier Schnellaktionen per Tastatur und „Alle anzeigen“ wurden geprüft; keine externen Vorschauanfragen. Zwei zusätzliche datenbankgestützte Browser-Regressionstests sind hinterlegt, hier jedoch nicht ausgeführt. Die reguläre PR-CI bleibt vor dem Merge erforderlich. Die separate HTML-Vorschau arbeitet ausschließlich mit Beispieldaten; kein Sidebar-/Workspace-Header-Umbau und keine Buchungen.
+
 ## 2026-09-29 – Juna – Beta-Bewerbung kompakter gestaltet
 
 **Auftrag:** Das Beta-Anmeldeformular auf der Landingpage visuell überarbeiten, ohne den bestehenden Bewerbungsablauf oder die erfassten Daten zu verändern.
@@ -15,6 +31,24 @@
 **Änderung:** Der Beta-Bereich ist jetzt zweispaltig aufgebaut: links stehen Beta-Hinweis, Überschrift und Erklärung, rechts sitzt das kompakte Formular in einer eigenen Fläche. Vor- und Nachname stehen am Desktop nebeneinander, die E-Mail darunter über die volle Breite. Labels, Datenschutzhinweis und Statusmeldung sind linksbündig; der Submit-Button nutzt die volle Formularbreite. Auf kleineren Ansichten stapeln sich beide Bereiche und die Namensfelder untereinander.
 
 **Prüfung:** Ein Landingpage-Vertrag prüft die neue Zweispaltenstruktur, das Namensraster, das separate E-Mail-Feld, den vollbreiten Button und die linksbündige Ausrichtung. Die vorhandenen Feldnamen, Pflichtfelder und zweisprachigen Labels bleiben erhalten.
+
+## 2026-09-29 – Juna – Plattformfarben und Bestandsicons im Dashboard korrigiert
+
+**Auftrag:** Die drei unteren Dashboard-Kacheln an die freigegebene Detailvorschau angleichen: passende Plattformfarben, Plattformlogos in den Verkäufen und vollständige Bestandsicons ohne braune Warnwerte.
+
+**Änderung:** Donut und Legende verwenden feste zentrale Farben je Plattform statt Farben nach Umsatzrang. Vinted bleibt türkis, Kleinanzeigen grün, eBay blau und sonstige Plattformen grau. Die Verkaufszeilen zeigen lokal eingebundene SVG-Zeichen neben ausgeschriebenen Namen; unbekannte Plattformen erhalten ein neutrales Shop-Symbol. Alle fünf Bestandszeilen und die Kartentitel besitzen passende Icons. Langsam drehende Ware wird orange, mehr als 90 Tage alte Ware rot dargestellt. Der Verweis auf alle Verkäufe bleibt ein Shared-Link und ist blau mit Rechtspfeil. Buchungslogik, übrige Dashboard-Kacheln und Navigation bleiben unverändert.
+
+**Prüfung:** Drei neue Regressionstests zunächst rot, anschließend alle 19 Dashboard-Komponententests und 53 fachliche Tests erfolgreich. Typprüfung, gezieltes ESLint, Formatierung, Shared-UI-Prüfung und Angular-Produktionsbau erfolgreich. Wegen der lokalen Speichergrenze liefen Builds mit einem Worker, ohne parallele TypeScript-Kompilierung und mit `NG_BUILD_OPTIMIZE_CHUNKS=false`; die normale CI-Konfiguration bleibt unverändert. Keine Komponenten-CSS-Budgetwarnung; vorhandener CommonJS-Hinweis zu `pako` bleibt. Die tatsächlich gerenderten drei Kacheln wurden per Playwright/Chromium in Hell/Dunkel bei 320, 390, 768, 1200 und 1664 px geprüft: kein Seitenüberlauf, keine AXE-Befunde, alle Logos geladen, keine Konsolenfehler. Zeitraum, Plattformfilter und konstante eBay-Farbe wurden betätigt. Die separate HTML-Vorschau enthält nur Beispieldaten und bucht nichts. Die reguläre CI bleibt vor dem Merge erforderlich.
+
+## 2026-09-29 – Juna – Dashboard nach freigegebener Vorschau aufgebaut
+
+**Auftrag:** Die zuletzt freigegebene Dashboard-Variante tatsächlich implementieren: fünf Kennzahlenkacheln, Diagramm, Aufgaben, Schnellaktionen, letzte Verkäufe, Umsatzverteilung und Bestandsüberblick. Ohne Insights; Sidebar und Workspace-Header bleiben unverändert.
+
+**Änderung:** Die Dashboard-Kacheln sind neu aufgebaut und verwenden die vorhandenen Shared Cards, Buttons, Badges und Selects sowie die zentralen Flipbase-Farben. Kleine Verlaufsgrafiken stammen aus den Berichtsperioden. Der Donut verteilt Umsatz statt Verkaufsanzahl und fasst zusätzliche Plattformen ohne Datenverlust zusammen. Der Bestandsüberblick zeigt Stückzahl, bekannte Anschaffungskosten, durchschnittliche bekannte Stückkosten sowie getrennte Lagergruppen von 61–90 und mehr als 90 Tagen. Ladefehler und Workspace-Wechsel zeigen keine scheinbar vollständigen Nullwerte. Die bestehende Buchungs- und Gewinnberechnung bleibt unverändert.
+
+**Abgrenzung:** Aktuelles Bestandskapital erhält weder eine erfundene historische Kurve noch einen erfundenen Vergleich. Fehlende Kosten bleiben unbekannt. Nicht konfigurierte Mindestbestände erzeugen keine Warnung. Die separate HTML-Vorschau rendert die tatsächliche Angular-Komponente mit ausdrücklich gekennzeichneten Beispieldaten; Vorschauaktionen buchen nichts.
+
+**Prüfung:** 16 Dashboard-Komponententests und 53 fokussierte Tests für Bericht, Kennzahlenänderungen, Diagrammkonfiguration und Anzeigeprojektionen erfolgreich. Lint, App-/Test-Typprüfung, Shared-UI-Prüfung und Produktionsbau erfolgreich. Die gerenderte Vorschau wurde in beiden Themes bei 320, 375, 390, 768, 1200 und 1664 px auf Überlauf und mit AXE geprüft: keine Befunde. Zeitraum, Plattform, Diagrammlegende, Tastatur-Tooltip und Vorschauaktionen wurden betätigt. Die regulären PR-Prüfungen bleiben vor einem Merge erforderlich.
 
 ## 2026-09-29 – Juna – Sticky-Navigation auf der Landingpage ergänzt
 

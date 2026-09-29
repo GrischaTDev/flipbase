@@ -11,8 +11,13 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { of } from 'rxjs';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DashboardReport, Sale } from '../../core/models/flipbase.models';
+import { DashboardReport, InventoryItem, Sale, StockLot } from '../../core/models/flipbase.models';
 import { DashboardReportService } from '../../core/services/dashboard-report.service';
+import { WorkspaceService } from '../../core/services/workspace.service';
+import { InventoryService } from '../../core/services/inventory.service';
+import { StockService } from '../../core/services/stock.service';
+import { PurchaseService } from '../../core/services/purchase.service';
+import { ExpenseService } from '../../core/services/expense.service';
 import { SalesService } from '../../core/services/sales.service';
 import { CustomSelectComponent } from '../../shared/components/custom-select/custom-select.component';
 import { RevenueChartComponent } from '../../shared/components/revenue-chart/revenue-chart.component';
@@ -32,6 +37,8 @@ interface AngularInputMetadata {
 }
 
 const componentResources: Readonly<Record<string, string>> = {
+  './badge.component.html': 'src/app/shared/components/badge/badge.component.html',
+  './badge.component.scss': 'src/app/shared/components/badge/badge.component.scss',
   './button.component.html': 'src/app/shared/components/button/button.component.html',
   './button.component.scss': 'src/app/shared/components/button/button.component.scss',
   './card.component.html': 'src/app/shared/components/card/card.component.html',
@@ -40,6 +47,7 @@ const componentResources: Readonly<Record<string, string>> = {
     'src/app/shared/components/custom-select/custom-select.component.html',
   './custom-select.component.scss':
     'src/app/shared/components/custom-select/custom-select.component.scss',
+  './dashboard.component.css': 'src/app/features/dashboard/dashboard.component.css',
   './dashboard.component.html': 'src/app/features/dashboard/dashboard.component.html',
   './beta-discord-banner.component.html':
     'src/app/features/beta-discord/components/beta-discord-banner/beta-discord-banner.component.html',
@@ -81,6 +89,14 @@ const emptyReport: DashboardReport = {
 };
 
 const sales = signal<Sale[]>([]);
+const inventoryItems = signal<InventoryItem[]>([]);
+const stockLots = signal<StockLot[]>([]);
+const currentWorkspace = signal({ id: 'workspace-1' });
+const loadedWorkspaceId = signal('workspace-1');
+const sourceLoading = signal(false);
+const sourceError = signal<Error | null>(null);
+const loadPositions = vi.fn(async () => undefined);
+const sourceState = { isLoading: sourceLoading, loadError: sourceError, loadedWorkspaceId };
 const createReport = vi.fn(() => emptyReport);
 const preferences = signal<DashboardPreferences>({ range: 'year', platform: 'all' });
 const saveError = signal<string | null>(null);
@@ -99,7 +115,23 @@ beforeAll(async () => {
     return readFile(resolve(resource), 'utf8');
   });
   for (const [component, names] of [
-    [ButtonComponent, ['variant', 'size', 'link', 'icon', 'iconPosition', 'ariaPressed']],
+    [
+      ButtonComponent,
+      [
+        'variant',
+        'size',
+        'link',
+        'icon',
+        'iconPosition',
+        'ariaPressed',
+        'fullWidth',
+        'contentAlign',
+        'queryParams',
+        'title',
+        'iconOnly',
+        'ariaLabel',
+      ],
+    ],
     [CardComponent, ['padding', 'rounded']],
     [
       DashboardKpiCardComponent,
@@ -192,7 +224,14 @@ beforeEach(() => {
   });
 
   sales.set([]);
-  createReport.mockClear();
+  inventoryItems.set([]);
+  stockLots.set([]);
+  currentWorkspace.set({ id: 'workspace-1' });
+  loadedWorkspaceId.set('workspace-1');
+  sourceLoading.set(false);
+  sourceError.set(null);
+  loadPositions.mockClear();
+  createReport.mockReset().mockReturnValue(emptyReport);
   preferences.set({ range: 'year', platform: 'all' });
   saveError.set(null);
   setRange
@@ -208,7 +247,18 @@ beforeEach(() => {
       provideRouter([]),
       {
         provide: SalesService,
-        useValue: { sales, isLoading: signal(false), loadError: signal(null) },
+        useValue: { sales, ...sourceState, loadSales: vi.fn() },
+      },
+      { provide: WorkspaceService, useValue: { currentWorkspace } },
+      {
+        provide: InventoryService,
+        useValue: { items: inventoryItems, ...sourceState, loadInventory: vi.fn() },
+      },
+      { provide: StockService, useValue: { lots: stockLots, ...sourceState, loadPositions } },
+      { provide: PurchaseService, useValue: { ...sourceState, loadPurchases: vi.fn() } },
+      {
+        provide: ExpenseService,
+        useValue: { ...sourceState, ensureCurrentWorkspaceLoaded: vi.fn(), load: vi.fn() },
       },
       { provide: DashboardReportService, useValue: { createReport } },
       {
@@ -302,6 +352,7 @@ describe('DashboardComponent', () => {
       expect(heading.className).not.toMatch(/uppercase|tracking-/);
     }
   });
+
   it('macht Augustverkäufe mit offenen Kosten aus der leeren Septemberansicht erreichbar', () => {
     preferences.set({ range: 'month', platform: 'all' });
     const historicalSale: Sale = {
@@ -331,10 +382,12 @@ describe('DashboardComponent', () => {
       const fixture = createDashboard();
       const host = fixture.nativeElement as HTMLElement;
       expect(fixture.componentInstance.report().rows).toHaveLength(0);
+
       const button = host.querySelector<HTMLButtonElement>('[data-expand-sales-period] button');
       expect(button).not.toBeNull();
       button!.click();
       fixture.detectChanges();
+
       expect(fixture.componentInstance.report()).toMatchObject({
         revenue: 42.98,
         soldItems: 1,
@@ -345,40 +398,21 @@ describe('DashboardComponent', () => {
       });
       expect(fixture.componentInstance.report().rows).toHaveLength(1);
       expect(host.textContent).toContain('Kosten noch offen');
-      expect(host.textContent).not.toContain('davon ohne Kosten');
       expect(host.textContent).toContain('Zu erledigen');
       expect(host.textContent).toContain('1 Verkauf ohne nachvollziehbare Kosten');
-      expect(host.textContent).not.toContain('Offene Kosten');
     } finally {
       createReport.mockImplementation(() => emptyReport);
     }
   });
 
-  it('zeigt Einkäufe und alle Ausgaben getrennt in fachlicher Reihenfolge', () => {
+  it('fokussiert das Dashboard auf fünf Kernkennzahlen und eine kompakte Verkaufsliste', () => {
     createReport.mockReturnValueOnce({
       ...emptyReport,
       grossProfit: 20.09,
       revenue: 42.98,
-      purchaseSpend: 24.95,
-      purchaseCount: 1,
-      sellingCosts: 12.89,
-      operatingExpenseSpend: 7,
-      totalExpenses: 44.84,
-      soldItems: 2,
       averageMarginPercent: 46.74,
-      inventoryCostValue: 16.67,
+      inventoryCostValue: 116.67,
       inventoryItemsWithoutCost: 5,
-      comparison: { ...emptyReport.comparison, grossProfit: 10, revenue: 42.98, totalExpenses: 0 },
-      openCosts: [
-        {
-          purchaseId: 'purchase-1',
-          title: 'Testkauf',
-          recordNumber: null,
-          reason: 'price_missing',
-          affectedSales: 0,
-          affectedInventory: 5,
-        },
-      ],
       rows: [
         {
           saleId: 'sale-1',
@@ -398,173 +432,61 @@ describe('DashboardComponent', () => {
 
     const fixture = createDashboard();
     const host = fixture.nativeElement as HTMLElement;
-    const text = host.textContent ?? '';
     const kpiSection = host.querySelector('[aria-label="Kennzahlen"]') as HTMLElement;
     const journal = host.querySelector('#sales-table-heading')?.closest('section');
     const headers = [...(journal?.querySelectorAll('thead th') ?? [])].map((header) =>
       header.textContent?.replace(/\s+/g, ' ').trim(),
     );
 
+    expect(host.querySelector('h1')?.textContent?.trim()).toBe('Dashboard');
     expect(
-      [...kpiSection.querySelectorAll('app-dashboard-kpi-card')].map((card) =>
-        card.querySelector('span')?.textContent?.trim(),
+      [...kpiSection.querySelectorAll('[data-kpi]')].map((card) =>
+        card.querySelector('h2')?.textContent?.trim(),
       ),
-    ).toEqual(['Umsatz', 'Gewinn', 'Einkäufe', 'Betriebsausgaben', 'Ausgaben gesamt', 'Marge']);
-    expect(kpiSection.textContent).not.toContain('Verkaufte Artikel');
-    expect(kpiSection.textContent).not.toContain('Bestandswert');
+    ).toEqual(['Umsatz', 'Gewinn', 'Marge', 'Kapital im Bestand', 'Verkäufe']);
 
     const kpi = (name: string) =>
       host.querySelector(`[data-kpi="${name}"]`)?.textContent?.replace(/\s+/g, ' ').trim();
     expect(kpi('revenue')).toContain('42,98 €');
     expect(kpi('gross-profit')).toContain('20,09 €');
-    expect(kpi('gross-profit')).toContain('1 Verkauf im gewählten Zeitraum');
     expect(kpi('margin')).toContain('46,74 %');
-    expect(kpi('cashflow')).toBeUndefined();
-    expect(kpi('purchases')).toContain('24,95 €');
-    expect(kpi('purchases')).toContain('1 Einkauf im gewählten Zeitraum');
-    expect(kpi('operating-expenses')).toContain('7,00 €');
-    expect(kpi('total-expenses')).toContain('44,84 €');
-    expect(host.querySelector('[data-kpi="total-expenses"] .linear-kpi > p')?.classList).toContain(
-      'text-fb-finance-negative',
+    expect(kpi('inventory-capital')).toContain('116,67 €');
+    expect(host.querySelector('[data-kpi="purchases"]')).toBeNull();
+    expect(host.querySelector('[data-kpi="operating-expenses"]')).toBeNull();
+    expect(host.querySelector('[data-kpi="total-expenses"]')).toBeNull();
+    expect(kpiSection.querySelector('[data-kpi-hint]')).toBeNull();
+
+    expect(host.querySelector('#inventory-overview-heading')?.textContent?.trim()).toBe(
+      'Bestand im Blick',
     );
-    expect(
-      host.querySelector('[data-kpi="operating-expenses"] .linear-kpi > p')?.classList,
-    ).not.toContain('text-fb-finance-negative');
-    expect(host.querySelector('[data-dashboard-expenses]')).toBeNull();
+    expect(host.textContent).toContain('5 Stück ohne Kostenangabe');
 
-    expect(kpiSection.querySelector('[data-kpi-change]')).toBeNull();
-    expect(kpiSection.querySelectorAll('[data-kpi-hint]')).toHaveLength(2);
-    expect(kpiSection.textContent).not.toContain('ggü.');
-    expect(kpiSection.textContent).not.toContain('neu');
-    expect(kpiSection.textContent).not.toContain('Artikel ohne Kosten');
-    expect(text).toContain('Zu erledigen');
-    expect(text).toContain('5 Artikel ohne Kostenangabe');
-
-    expect(journal?.querySelector('h2')?.textContent?.trim()).toBe('Verkäufe');
+    expect(journal?.querySelector('h2')?.textContent?.trim()).toBe('Letzte Verkäufe');
     expect(journal?.querySelector('[role="region"]')?.getAttribute('aria-label')).toBe(
-      'Verkäufe-Tabelle',
+      'Letzte Verkäufe – Tabelle',
     );
-    expect(headers).toEqual([
-      'Datum',
-      'Artikel',
-      'Menge',
-      'Plattform',
-      'Einnahmen',
-      'Einkaufspreis',
-      'Gebühren & Versand',
-      'Gewinn',
-      'Marge',
-    ]);
+    expect(headers).toEqual(['Datum', 'Artikel', 'Plattform', 'Gewinn']);
+    expect(journal?.querySelector('tbody tr td:nth-child(4)')?.className).toContain('positive');
 
-    const desktopProfit = journal?.querySelector('tbody tr td:nth-child(8)');
-    expect(desktopProfit?.className).toContain('text-fb-finance-positive');
-
-    const mobileLabels = [...(journal?.querySelectorAll('article dt') ?? [])].map((label) =>
-      label.textContent?.replace(/\s+/g, ' ').trim(),
+    expect(host.querySelector('#platform-overview-heading')?.textContent?.trim()).toBe(
+      'Plattform-Verteilung',
     );
-    expect(mobileLabels).toEqual([
-      'Einnahmen',
-      'Einkaufspreis',
-      'Gebühren & Versand',
-      'Gewinn',
-      'Marge',
-    ]);
-    const mobileProfitLabel = [...(journal?.querySelectorAll('article dt') ?? [])].find(
-      (label) => label.textContent?.trim() === 'Gewinn',
-    );
-    expect(mobileProfitLabel?.nextElementSibling?.className).toContain('text-fb-finance-positive');
-    expect(text).not.toContain('COGS');
-    expect(text).not.toContain('Realisierter Gewinn');
+    expect(host.textContent).toContain('eBay');
+    expect(host.textContent).toContain('100 %');
   });
 
-  it('zählt im Gewinnhinweis auch Verkäufe ohne bekannte Kosten', () => {
-    createReport.mockReturnValueOnce({
-      ...emptyReport,
-      grossProfit: 9,
-      rows: [
-        {
-          saleId: 'sale-with-cost',
-          date: '2026-09-27',
-          articles: 'Artikel A',
-          quantity: 1,
-          platform: 'ebay',
-          revenue: 19.98,
-          costOfGoodsSold: 10,
-          sellingCosts: 0.98,
-          resultAfterDirectCosts: 9,
-          marginPercent: 45.05,
-          profit: 9,
-        },
-        {
-          saleId: 'sale-without-cost',
-          date: '2026-09-27',
-          articles: 'Artikel B',
-          quantity: 1,
-          platform: 'ebay',
-          revenue: 19.98,
-          costOfGoodsSold: null,
-          sellingCosts: 0,
-          resultAfterDirectCosts: null,
-          marginPercent: null,
-          profit: null,
-        },
-      ],
-    });
-
+  it('zeigt die wichtigsten Schnellaktionen im Dashboard', () => {
     const fixture = createDashboard();
-    const hint = fixture.nativeElement.querySelector('[data-kpi="gross-profit"]')?.textContent;
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
 
-    expect(hint).toContain('2 Verkäufe im gewählten Zeitraum');
-    expect(hint).not.toContain('mit bekannten Kosten');
+    expect(text).toContain('Schnellaktionen');
+    expect(text).toContain('Einkauf erfassen');
+    expect(text).toContain('Verkauf erfassen');
+    expect(text).toContain('Inserat erstellen');
+    expect(text).toContain('Bilder optimieren');
   });
 
-  it('zeigt keinen Cashflow mehr zwischen den Kennzahlen', () => {
-    createReport.mockReturnValueOnce({
-      ...emptyReport,
-      revenue: 100,
-      grossProfit: 30,
-      averageMarginPercent: 30,
-      purchaseSpend: 140,
-      sellingCosts: 10,
-      totalExpenses: 150,
-    });
-
-    const fixture = createDashboard();
-    const host = fixture.nativeElement as HTMLElement;
-    expect(host.querySelector('[data-kpi="cashflow"]')).toBeNull();
-    expect(host.querySelector('[data-kpi="gross-profit"]')?.textContent).toMatch(/30,00\s€/);
-  });
-
-  it('zeigt bei einem Plattformfilter unvollständige Ausgaben weiterhin als unbekannt', () => {
-    preferences.set({ range: 'year', platform: 'ebay' });
-    createReport.mockReturnValueOnce({
-      ...emptyReport,
-      revenue: 100,
-      sellingCosts: 10,
-      totalExpenses: 10,
-      purchaseSpend: 0,
-      purchasesIncluded: false,
-    });
-
-    const fixture = createDashboard();
-    const host = fixture.nativeElement as HTMLElement;
-    const purchases = host.querySelector('[data-kpi="purchases"]');
-    const operatingExpenses = host.querySelector('[data-kpi="operating-expenses"]');
-    const totalExpenses = host.querySelector('[data-kpi="total-expenses"]');
-
-    const purchasesText = purchases?.textContent?.replace(/\s+/g, ' ') ?? '';
-    expect(host.querySelector('[data-kpi="cashflow"]')).toBeNull();
-    expect(purchasesText).toContain('Einkäufe');
-    expect(purchasesText).toContain('–');
-    expect(operatingExpenses?.textContent).toContain('–');
-    expect(totalExpenses?.textContent).toContain('–');
-    expect(totalExpenses?.querySelector('.linear-kpi > p')?.classList).not.toContain(
-      'text-fb-finance-negative',
-    );
-    expect(host.querySelector('[data-dashboard-expenses]')).toBeNull();
-  });
-
-  it('markiert einen negativen Verkaufsgewinn rot, ohne normale Kosten als Fehler zu färben', () => {
+  it('markiert einen negativen Verkaufsgewinn eindeutig, ohne den Artikel als Fehler zu färben', () => {
     createReport.mockReturnValueOnce({
       ...emptyReport,
       rows: [
@@ -590,14 +512,8 @@ describe('DashboardComponent', () => {
       ?.closest('section');
     const cells = journal?.querySelectorAll('tbody tr td');
 
-    expect(cells?.[5]?.className).not.toContain('text-fb-finance-negative');
-    expect(cells?.[6]?.className).not.toContain('text-fb-finance-negative');
-    expect(cells?.[7]?.className).toContain('text-fb-finance-negative');
-
-    const mobileProfitLabel = [...(journal?.querySelectorAll('article dt') ?? [])].find(
-      (label) => label.textContent?.trim() === 'Gewinn',
-    );
-    expect(mobileProfitLabel?.nextElementSibling?.className).toContain('text-fb-finance-negative');
+    expect(cells?.[1]?.className).not.toContain('negative');
+    expect(cells?.[3]?.className).toContain('negative');
   });
 
   it('isoliert den Chart-Lifecycle im Dashboard-Header-Test ohne Angular-Laufzeitfehler', async () => {
@@ -622,8 +538,8 @@ describe('DashboardComponent', () => {
 
     expect(component.platformSelectOptions()).toEqual([
       { value: 'all', label: 'Alle Plattformen' },
-      { value: 'ebay', label: 'ebay' },
-      { value: 'vinted', label: 'vinted' },
+      { value: 'ebay', label: 'eBay' },
+      { value: 'vinted', label: 'Vinted' },
     ]);
     expect(host.querySelector('select#dashboard-platform')).toBeNull();
     expect(host.querySelectorAll('app-custom-select')).toHaveLength(1);
@@ -656,7 +572,7 @@ describe('DashboardComponent', () => {
     fixture.detectChanges();
 
     expect(component.platform()).toBe('vinted');
-    expect(component.platformSelectOptions()).toContainEqual({ value: 'vinted', label: 'vinted' });
+    expect(component.platformSelectOptions()).toContainEqual({ value: 'vinted', label: 'Vinted' });
     expect(createReport).toHaveBeenLastCalledWith('year', 'vinted');
   });
 
@@ -687,7 +603,7 @@ describe('DashboardComponent', () => {
     const periodGroup = host.querySelector('[aria-label="Zeitraum wählen"]') as HTMLElement;
 
     expect(periodGroup.getAttribute('role')).toBe('group');
-    expect(host.querySelector('header')?.textContent).not.toContain('Übersicht');
+    expect(host.querySelector('header')?.textContent).toContain('Dashboard');
     expect(
       Array.from(periodGroup.querySelectorAll('button')).every((button) =>
         button.hasAttribute('aria-pressed'),
@@ -699,5 +615,184 @@ describe('DashboardComponent', () => {
     });
 
     expect(result.violations).toEqual([]);
+  });
+
+  it('zeigt bei Ladefehlern keine scheinbar vollständigen Bestands- oder Nullwerte', () => {
+    sourceError.set(new Error('offline'));
+    const fixture = createDashboard();
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelector('[role="alert"]')?.textContent).toContain(
+      'nicht vollständig geladen',
+    );
+    expect(
+      [...host.querySelectorAll('.metric-value')].map((node) => node.textContent?.trim()),
+    ).toEqual(['–', '–', '–', '–', '–']);
+    expect(host.textContent).not.toContain('Keine offenen Kostenangaben.');
+  });
+
+  it('versteckt alte Workspace-Werte sofort und lädt die Bestandslose für den neuen Workspace', async () => {
+    const fixture = createDashboard();
+    currentWorkspace.set({ id: 'workspace-2' });
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(loadPositions).toHaveBeenCalledWith('workspace-2');
+    expect(fixture.componentInstance.ready()).toBe(false);
+    expect(
+      fixture.nativeElement
+        .querySelector('[data-kpi="inventory-capital"] .metric-value')
+        ?.textContent?.trim(),
+    ).toBe('–');
+  });
+
+  it('zeigt weder Insights noch erfundene Bestandsvergleiche', () => {
+    const fixture = createDashboard();
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.textContent).not.toContain('Insights');
+    expect(host.querySelector('[data-kpi="inventory-capital"] svg.sparkline')).toBeNull();
+    expect(host.querySelector('[data-kpi="inventory-capital"] [data-kpi-change]')).toBeNull();
+  });
+
+  it('zeigt einen geladenen leeren Workspace als leer, nicht als Fehler', () => {
+    const fixture = createDashboard();
+    expect(fixture.componentInstance.ready()).toBe(true);
+    expect(
+      fixture.nativeElement.querySelector('[data-kpi="revenue"] .metric-value')?.textContent,
+    ).toMatch(/0,00/);
+    expect(fixture.nativeElement.textContent).toContain('Keine offenen Kostenangaben.');
+    expect(fixture.nativeElement.querySelector('[role="alert"]')).toBeNull();
+  });
+
+  it('zeigt die Plattformlogos neben lesbaren Namen statt neutraler Plattform-Badges', () => {
+    createReport.mockReturnValue({
+      ...emptyReport,
+      rows: ['vinted', 'kleinanzeigen', 'ebay', 'Flohmarkt'].map((platform, index) => ({
+        saleId: `platform-sale-${index}`,
+        date: '2026-09-23',
+        articles: `Artikel ${index}`,
+        quantity: 1,
+        platform,
+        revenue: 20,
+        costOfGoodsSold: 10,
+        sellingCosts: 0,
+        resultAfterDirectCosts: 10,
+        marginPercent: 50,
+        profit: 10,
+      })),
+    });
+    const host = createDashboard().nativeElement as HTMLElement;
+    const cells = [...host.querySelectorAll('.sales-table tbody td:nth-child(3)')];
+    for (const [index, platform] of ['vinted', 'kleinanzeigen', 'ebay'].entries()) {
+      expect(cells[index].querySelector('img')?.getAttribute('src')).toBe(
+        `/images/platforms/${platform}.svg`,
+      );
+      expect(cells[index].querySelector('img')?.getAttribute('alt')).toBe('');
+      expect(cells[index].querySelector('app-badge')).toBeNull();
+    }
+    expect(cells[0].textContent).toContain('Vinted');
+    expect(cells[1].textContent).toContain('Kleinanzeigen');
+    expect(cells[2].textContent).toContain('eBay');
+    expect(cells[3].textContent).toContain('Flohmarkt');
+    expect(cells[3].querySelector('svg')).not.toBeNull();
+  });
+
+  it('bindet Donut und Legende an die Plattform statt an deren Umsatzrang', () => {
+    const rows = signal([
+      { platform: 'vinted', revenue: 80 },
+      { platform: 'ebay', revenue: 20 },
+      { platform: 'kleinanzeigen', revenue: 10 },
+    ]);
+    createReport.mockImplementation(() => ({
+      ...emptyReport,
+      rows: rows().map((row, index) => ({
+        ...row,
+        saleId: `rank-sale-${index}`,
+        date: '2026-09-23',
+        articles: 'Artikel',
+        quantity: 1,
+        costOfGoodsSold: 0,
+        sellingCosts: 0,
+        resultAfterDirectCosts: row.revenue,
+        marginPercent: 100,
+        profit: row.revenue,
+      })),
+    }));
+    const fixture = createDashboard();
+    const host = fixture.nativeElement as HTMLElement;
+    const expectPalette = () => {
+      for (const platform of ['vinted', 'kleinanzeigen', 'ebay']) {
+        const segment = host.querySelector<SVGElement>(`.donut [data-platform="${platform}"]`);
+        const marker = host.querySelector<HTMLElement>(
+          `.platform-legend [data-platform="${platform}"]`,
+        );
+        expect(segment?.style.stroke).toBe(`var(--fb-platform-${platform})`);
+        expect(marker?.style.backgroundColor).toBe(`var(--fb-platform-${platform})`);
+      }
+    };
+    expectPalette();
+    rows.set([
+      { platform: 'vinted', revenue: 5 },
+      { platform: 'ebay', revenue: 20 },
+      { platform: 'kleinanzeigen', revenue: 100 },
+    ]);
+    fixture.detectChanges();
+    expectPalette();
+  });
+
+  it('zeigt alle Bestands- und Überschriftsicons mit getrennten Warn- und Kritisch-Zuständen', () => {
+    const oldDate = new Date(Date.now() - 120 * 86400000).toISOString();
+    const slowDate = new Date(Date.now() - 70 * 86400000).toISOString();
+    inventoryItems.set([
+      { id: 'old', workspace_id: 'workspace-1', status: 'ready', created_at: oldDate },
+      { id: 'slow', workspace_id: 'workspace-1', status: 'ready', created_at: slowDate },
+    ] as InventoryItem[]);
+    const host = createDashboard().nativeElement as HTMLElement;
+    const terms = [...host.querySelectorAll('.stock-list dt')];
+    expect(terms).toHaveLength(5);
+    expect(terms.every((term) => term.querySelector('svg[aria-hidden="true"]'))).toBe(true);
+    expect(host.querySelectorAll('.bottom-grid .header-icon svg')).toHaveLength(3);
+    expect(terms[3].nextElementSibling?.classList.contains('stock-warning')).toBe(true);
+    expect(terms[4].nextElementSibling?.classList.contains('negative')).toBe(true);
+  });
+  it('verwendet für alle drei Übersichtskarten denselben Kopf mit Icon, Titel und Untertitel', () => {
+    const host = createDashboard().nativeElement as HTMLElement;
+    const headers = [...host.querySelectorAll('.bottom-grid .overview-header')];
+    expect(headers).toHaveLength(3);
+    expect(headers.map((header) => header.querySelector('h2')?.id)).toEqual([
+      'sales-table-heading',
+      'platform-overview-heading',
+      'inventory-overview-heading',
+    ]);
+    for (const header of headers) {
+      expect(header.querySelectorAll('.header-icon svg')).toHaveLength(1);
+      expect(header.querySelector('.subtitle')?.textContent?.trim()).not.toBe('');
+    }
+    const salesAction = host.querySelector('.recent .overview-header app-button');
+    expect(salesAction?.querySelector('a')?.className).toContain('linear-btn-primary');
+  });
+
+  it('trennt bei Schnellaktionen die Icon-Fläche vom lesbaren Titel und Hinweis', () => {
+    const fixture = createDashboard();
+    const tiles = [...(fixture.nativeElement as HTMLElement).querySelectorAll('.quick-tile')];
+    expect(tiles).toHaveLength(4);
+    for (const [index, tile] of tiles.entries()) {
+      expect(tile.querySelectorAll('.quick-icon svg')).toHaveLength(1);
+      expect(tile.querySelector('.quick-copy strong')?.textContent).toBe(
+        fixture.componentInstance.quickActions[index].label,
+      );
+      expect(tile.querySelector('.quick-copy small')?.textContent?.trim()).not.toBe('');
+      expect(tile.querySelector('a')?.getAttribute('href')).toBe(
+        fixture.componentInstance.quickActions[index].link,
+      );
+    }
+  });
+
+  it('beschriftet die Lagergruppe ohne Fachjargon und ohne doppelte Zeitangabe', () => {
+    const host = createDashboard().nativeElement as HTMLElement;
+    const labels = [...host.querySelectorAll('.stock-list dt')].map((node) =>
+      node.textContent?.replace(/\s+/g, ' ').trim(),
+    );
+    expect(labels).toContain('61–90 Tage im Bestand');
+    expect(host.textContent).not.toContain('Langsam drehend');
+    expect(host.querySelector('.stock-age-icon')?.closest('dt')?.querySelector('small')).toBeNull();
   });
 });

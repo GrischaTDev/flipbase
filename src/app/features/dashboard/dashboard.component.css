@@ -1,0 +1,259 @@
+:host {
+  display: block;
+  container-type: inline-size;
+}
+h1 {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+}
+.periods {
+  display: flex;
+  flex-wrap: wrap;
+  padding: 2px;
+  border-radius: 9px;
+  box-shadow: inset 0 0 0 1px var(--fb-line);
+  background: var(--fb-bg-well);
+}
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+.metric {
+  min-height: 142px;
+  padding: 17px 16px;
+}
+svg[lucideIcon],
+.icon-well svg,
+.task-icon svg,
+.stock-list svg,
+.all-done svg {
+  width: 19px;
+  height: 19px;
+  flex: none;
+}
+.metric-value {
+  font-size: clamp(20px, 2cqw, 28px);
+  line-height: 1.25;
+  font-weight: 650;
+  letter-spacing: -0.035em;
+  font-variant-numeric: tabular-nums;
+  margin: 0;
+}
+.sparkline {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 62px;
+  height: 28px;
+  opacity: 0.85;
+  color: var(--fb-color-brand);
+}
+.metric:has(.sparkline) .metric-note {
+  padding-right: 62px;
+}
+[data-tone='positive'] .sparkline,
+.positive {
+  color: var(--fb-color-finance-positive-text);
+}
+[data-tone='negative'] .sparkline,
+.negative {
+  color: var(--fb-color-finance-negative-text);
+}
+[data-tone='positive'] .icon-well {
+  color: var(--fb-color-success-text);
+  background: var(--fb-color-success-surface);
+}
+/* Beide Zeilen teilen Spalten und Abstand: Die rechte Kante bleibt deckungsgleich. */
+.middle-grid,
+.bottom-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.12fr) minmax(0, 1fr);
+  gap: 16px;
+}
+.development {
+  grid-column: span 2;
+}
+.side-stack {
+  container: dashboard-actions / inline-size;
+  min-width: 0;
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+.task-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--fb-line);
+}
+.task-row:last-child {
+  border: 0;
+}
+.task-icon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  border-radius: 6px;
+  color: var(--fb-color-warning-text);
+  background: var(--fb-color-warning-surface);
+}
+.quick-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 12px;
+}
+.bottom-grid > section,
+.development {
+  min-width: 0;
+}
+.sales-table {
+  width: 100%;
+  table-layout: fixed;
+  font-size: 13px;
+}
+.sales-table th,
+.sales-table td {
+  padding: 3px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--fb-line);
+}
+.sales-table th {
+  padding-block: 7px;
+  font-size: 13px;
+  font-weight: 550;
+  background: var(--fb-bg-surface-alt);
+  color: var(--fb-text-muted);
+}
+.sales-table td {
+  vertical-align: middle;
+}
+.date-cell {
+  width: 94px;
+  color: var(--fb-text-muted);
+  font-size: 11px;
+}
+.platform-cell {
+  width: 148px;
+}
+.sales-table .amount-cell {
+  width: 88px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 550;
+}
+.warning,
+.state-note {
+  color: var(--fb-color-warning-text);
+}
+.data-state {
+  min-height: 180px;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 12px;
+  padding: 24px;
+  color: var(--fb-text-muted);
+  font-size: 13px;
+  text-align: center;
+}
+.development .data-state {
+  min-height: 275px;
+}
+@container (max-width: 1150px) {
+  .kpi-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .middle-grid,
+  .bottom-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .development {
+    grid-column: auto;
+  }
+  .recent {
+    grid-column: 1 / -1;
+  }
+  .metric-value {
+    font-size: 25px;
+  }
+}
+@container (max-width: 800px) {
+  .middle-grid,
+  .bottom-grid,
+  .side-stack {
+    grid-template-columns: 1fr;
+  }
+}
+@container (max-width: 560px) {
+  .kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .metric {
+    padding: 14px;
+  }
+  .sparkline {
+    width: 45px;
+  }
+  .metric:has(.sparkline) .metric-note {
+    padding-right: 38px;
+  }
+  .bottom-grid,
+  .side-stack {
+    grid-template-columns: 1fr;
+  }
+  .date-cell {
+    display: none;
+  }
+  .sales-table th,
+  .sales-table td {
+    padding: 3px 8px;
+  }
+  .platform-cell {
+    width: 124px;
+  }
+  .sales-table .amount-cell {
+    width: 74px;
+  }
+}
+@container (max-width: 300px) {
+  .kpi-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.dashboard > app-beta-discord-banner:empty {
+  display: none;
+}
+
+/* Markenakzent und Plattformidentität bleiben getrennt. */
+.stock-list svg {
+  color: var(--fb-color-brand);
+}
+@container dashboard-actions (max-width: 420px) {
+  .quick-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.stock-list .stock-age-icon {
+  color: var(--fb-color-warning);
+}
+.stock-list .stock-alert-icon {
+  color: var(--fb-color-admin-surface);
+}
+.stock-warning {
+  color: var(--fb-dashboard-warning-text);
+}
+
+@container (max-width: 360px) {
+  /* Die benannte Aktion bleibt als Pfeil erreichbar, ohne den Kartentitel umzubrechen. */
+  .overview-action-label {
+    display: none;
+  }
+}

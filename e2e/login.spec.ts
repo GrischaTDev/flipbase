@@ -21,5 +21,5 @@ test('meldet sich mit einem echten Konto an', async ({ page }) => {
   await page.locator('button[type="submit"]').click();
 
   await expect(page).toHaveURL(/\/dashboard$/);
-  await expect(page.getByRole('heading', { name: 'Ertrag im Blick' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible();
 });

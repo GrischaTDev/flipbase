@@ -1,25 +1,21 @@
-<div class="space-y-4 animate-fade-in">
+<div class="dashboard grid gap-4 text-fb-text-primary">
   <app-beta-discord-banner />
-  <header class="linear-surface rounded-xl border border-fb-line px-5 py-4">
-    <div class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+  <header class="dashboard-header grid gap-4">
+    <div class="heading-row flex flex-wrap items-end justify-between gap-3.5">
       <div>
-        <h1 class="text-lg font-semibold tracking-tight text-fb-text-primary">Ertrag im Blick</h1>
-        <p class="mt-1 max-w-2xl text-xs text-fb-text-muted">
-          Die wichtigsten Kennzahlen im gewählten Zeitraum.
+        <h1>Dashboard</h1>
+        <p class="subtitle mt-1 mb-0 text-xs text-fb-text-muted">
+          Dein Überblick über Umsätze, Gewinne und deinen Bestand.
         </p>
       </div>
-      <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-        <div
-          class="inline-flex flex-wrap rounded-lg bg-fb-well p-0.5 ring-1 ring-inset ring-fb-line"
-          role="group"
-          aria-label="Zeitraum wählen"
-        >
+      <div class="filters flex flex-wrap items-center justify-between gap-2">
+        <div class="periods" role="group" aria-label="Zeitraum wählen">
           @for (option of rangeOptions; track option.value) {
             <app-button
               size="slim"
               [variant]="range() === option.value ? 'secondary' : 'ghost'"
-              (clicked)="setRange(option.value)"
               [ariaPressed]="range() === option.value"
+              (clicked)="setRange(option.value)"
             >
               {{ option.label }}
             </app-button>
@@ -37,281 +33,478 @@
       </div>
     </div>
     @if (saveError()) {
-      <p
-        data-dashboard-save-error
-        role="status"
-        class="mt-3 text-xs font-medium text-amber-700 dark:text-amber-300"
-      >
-        {{ saveError() }}
-      </p>
+      <p data-dashboard-save-error role="status" class="state-note">{{ saveError() }}</p>
     }
   </header>
 
-  <section aria-label="Kennzahlen">
-    <div class="grid grid-cols-[repeat(auto-fit,minmax(min(100%,10.5rem),1fr))] gap-3">
-      <app-dashboard-kpi-card
-        data-kpi="revenue"
-        size="large"
-        label="Umsatz"
-        [icon]="coinsIcon"
-        [value]="kpis().revenue.value"
-      />
-      <app-dashboard-kpi-card
-        data-kpi="gross-profit"
-        size="large"
-        label="Gewinn"
-        [icon]="trendingIcon"
-        [value]="kpis().grossProfit.value"
-        [valueTone]="kpis().grossProfit.tone"
-        [hint]="kpis().grossProfit.hint"
-      />
-      <app-dashboard-kpi-card
-        data-kpi="purchases"
-        size="large"
-        label="Einkäufe"
-        [icon]="purchasesIcon"
-        [value]="kpis().purchases.value"
-        [hint]="kpis().purchases.hint"
-      />
-      <app-dashboard-kpi-card
-        data-kpi="operating-expenses"
-        size="large"
-        label="Betriebsausgaben"
-        [icon]="coinsIcon"
-        [value]="kpis().operatingExpenses.value"
-      />
-      <app-dashboard-kpi-card
-        data-kpi="total-expenses"
-        size="large"
-        label="Ausgaben gesamt"
-        [icon]="coinsIcon"
-        [value]="kpis().totalExpenses.value"
-        [valueTone]="kpis().totalExpenses.tone"
-      />
-      <app-dashboard-kpi-card
-        data-kpi="margin"
-        size="large"
-        label="Marge"
-        [icon]="trendingIcon"
-        [value]="kpis().margin.value"
-      />
+  @if (loadError()) {
+    <div
+      class="load-error flex flex-wrap items-center gap-3 rounded-[9px] bg-fb-critical-surface px-4 py-3 text-[13px]"
+      role="alert"
+    >
+      <span>Die Dashboard-Daten konnten nicht vollständig geladen werden.</span>
+      <app-button (clicked)="reload()">Erneut laden</app-button>
     </div>
+  }
+
+  <section class="kpi-grid" aria-label="Kennzahlen" [attr.aria-busy]="!ready() && !loadError()">
+    @for (metric of metrics(); track metric.key) {
+      <app-card padding="none" rounded="xl" [attr.data-kpi]="metric.key">
+        <div class="metric" [attr.data-tone]="metric.tone" [title]="metric.help">
+          <div
+            class="metric-heading [&_h2]:m-0 [&_h2]:text-[13px] [&_h2]:font-[550] [&_h2]:text-fb-text-secondary flex items-center gap-2.5"
+          >
+            <span
+              class="icon-well grid size-8 shrink-0 place-items-center rounded-lg bg-fb-subtle text-fb-text-muted"
+              ><svg [lucideIcon]="metric.icon" aria-hidden="true"></svg
+            ></span>
+            <h2 [id]="'metric-' + metric.key">{{ metric.label }}</h2>
+          </div>
+          <div class="metric-body relative mt-3 min-h-[62px]">
+            <div class="metric-content relative z-[1]">
+              <p class="metric-value" [attr.aria-labelledby]="'metric-' + metric.key">
+                {{ metric.value }}
+              </p>
+              @if (metric.change; as change) {
+                <p
+                  class="metric-note mt-[9px] mb-0 flex flex-wrap gap-1.5 text-[11px] text-fb-text-muted"
+                  data-kpi-change
+                  [title]="change.description"
+                >
+                  <span
+                    [class.positive]="change.tone === 'success'"
+                    [class.negative]="change.tone === 'critical'"
+                    >{{ change.text }}</span
+                  >
+                  <span>{{ comparisonLabel() }}</span>
+                </p>
+              } @else if (metric.hint) {
+                <p
+                  class="metric-note mt-[9px] mb-0 flex flex-wrap gap-1.5 text-[11px] text-fb-text-muted"
+                >
+                  {{ metric.hint }}
+                </p>
+              }
+            </div>
+            @if (metric.path) {
+              <svg class="sparkline" viewBox="0 0 100 50" aria-hidden="true" focusable="false">
+                <path
+                  [attr.d]="metric.path"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                ></path>
+              </svg>
+            }
+          </div>
+          <span class="sr-only">{{ metric.help }}</span>
+        </div>
+      </app-card>
+    }
   </section>
 
-  <app-dashboard-open-costs
-    [openCosts]="report().openCosts"
-    [salesWithoutPurchase]="report().salesWithoutPurchase"
-    [inventoryItemsWithoutCost]="report().inventoryItemsWithoutCost"
-  />
-
-  <app-card rounded="xl">
-    <app-revenue-chart [points]="report().points"></app-revenue-chart>
-  </app-card>
-
-  <section class="min-w-0" aria-labelledby="sales-table-heading">
-    <app-card padding="none" rounded="xl">
-      <div card-header class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 id="sales-table-heading" class="text-sm font-semibold text-fb-text-primary">
-            Verkäufe
-          </h2>
-          <p class="mt-1 text-xs text-fb-text-muted">
-            {{ report().rows.length }} bestätigte Verkäufe im gewählten Zeitraum
-          </p>
-        </div>
-        <app-button link="/sales" [icon]="arrowIcon" iconPosition="end">Verkäufe öffnen</app-button>
-      </div>
-      @if (salesService.isLoading()) {
-        <p role="status" class="px-4 py-8 text-center text-[13px] text-fb-text-muted">
-          Verkäufe werden geladen …
-        </p>
-      } @else if (salesService.loadError()) {
-        <p role="alert" class="px-4 py-8 text-center text-[13px] text-fb-text-secondary">
-          Die Verkäufe konnten nicht geladen werden. Bitte lade die Seite erneut.
-        </p>
-      } @else if (report().rows.length > 0) {
-        <div
-          class="hidden overflow-x-auto md:block"
-          tabindex="0"
-          role="region"
-          aria-label="Verkäufe-Tabelle"
-        >
-          <table
-            data-shared-ui-exception="static-table"
-            class="linear-table w-full min-w-[760px] text-[13px] tabular-nums"
-          >
-            <thead class="bg-fb-well/60 text-[13px] font-semibold text-fb-text-secondary">
-              <tr class="text-[13px]">
-                <th scope="col" class="px-4 py-3">Datum</th>
-                <th scope="col" class="px-4 py-3">Artikel</th>
-                <th scope="col" class="px-4 py-3 text-right">Menge</th>
-                <th scope="col" class="px-4 py-3">Plattform</th>
-                <th scope="col" class="px-4 py-3 text-right">Einnahmen</th>
-                <th scope="col" class="px-4 py-3 text-right">Einkaufspreis</th>
-                <th
-                  scope="col"
-                  class="px-4 py-3 text-right"
-                  title="Plattformgebühren, Versand, Verpackung und weitere Kosten dieses Verkaufs"
-                >
-                  Gebühren & Versand
-                </th>
-                <th scope="col" class="px-4 py-3 text-right">Gewinn</th>
-                <th scope="col" class="px-4 py-3 text-right">Marge</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-fb-line">
-              @for (row of report().rows; track row.saleId) {
-                <tr class="hover:bg-fb-surface-alt/60">
-                  <td class="px-4 py-3 font-mono text-fb-text-secondary">
-                    {{ row.date | date: 'dd.MM.yyyy' }}
-                  </td>
-                  <td class="max-w-72 break-words px-4 py-3 font-semibold text-fb-text-primary">
-                    {{ row.articles }}
-                  </td>
-                  <td class="px-4 py-3 text-right font-mono text-fb-text-secondary">
-                    {{ row.quantity }}
-                  </td>
-                  <td class="max-w-48 break-words px-4 py-3 text-fb-text-secondary">
-                    {{ row.platform }}
-                  </td>
-                  <td class="px-4 py-3 text-right font-mono text-fb-text-primary">
-                    {{ row.revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-                  </td>
-                  <td class="px-4 py-3 text-right font-mono text-fb-text-secondary">
-                    @if (row.costOfGoodsSold === null) {
-                      <span class="font-sans text-xs text-fb-text-secondary"
-                        >Kosten noch offen</span
-                      >
-                    } @else {
-                      {{ row.costOfGoodsSold | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-                    }
-                  </td>
-                  <td class="px-4 py-3 text-right font-mono text-fb-text-secondary">
-                    {{ row.sellingCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-                  </td>
-                  <td
-                    class="px-4 py-3 text-right font-mono font-semibold"
-                    [class.text-fb-finance-positive]="
-                      row.resultAfterDirectCosts !== null && row.resultAfterDirectCosts > 0
-                    "
-                    [class.text-fb-finance-negative]="
-                      row.resultAfterDirectCosts !== null && row.resultAfterDirectCosts < 0
-                    "
-                    [class.text-fb-text-primary]="
-                      row.resultAfterDirectCosts === null || row.resultAfterDirectCosts === 0
-                    "
-                  >
-                    @if (row.resultAfterDirectCosts === null) {
-                      <span class="font-sans text-xs text-fb-text-secondary"
-                        >Kosten noch offen</span
-                      >
-                    } @else {
-                      {{ row.resultAfterDirectCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-                    }
-                  </td>
-                  <td class="px-4 py-3 text-right font-mono text-fb-text-secondary">
-                    @if (row.marginPercent === null) {
-                      –
-                    } @else {
-                      {{ row.marginPercent }} %
-                    }
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        </div>
-        <div class="divide-y divide-fb-line md:hidden">
-          @for (row of report().rows; track row.saleId) {
-            <article class="min-w-0 space-y-3 break-words px-4 py-3 text-[13px]">
-              <div class="min-w-0">
-                <div class="min-w-0">
-                  <p class="font-semibold text-fb-text-primary">{{ row.articles }}</p>
-                  <p class="mt-0.5 text-xs text-fb-text-muted">
-                    {{ row.date | date: 'dd.MM.yyyy' }} · {{ row.platform }} ·
-                    {{ row.quantity }} Stück
-                  </p>
-                </div>
-              </div>
-              <dl
-                class="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-fb-text-secondary"
-              >
-                <dt>Einnahmen</dt>
-                <dd class="text-right tabular-nums">
-                  {{ row.revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-                </dd>
-                <dt>Einkaufspreis</dt>
-                <dd class="text-right tabular-nums">
-                  @if (row.costOfGoodsSold === null) {
-                    Kosten noch offen
-                  } @else {
-                    {{ row.costOfGoodsSold | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-                  }
-                </dd>
-                <dt
-                  title="Plattformgebühren, Versand, Verpackung und weitere Kosten dieses Verkaufs"
-                >
-                  Gebühren & Versand
-                </dt>
-                <dd class="text-right tabular-nums">
-                  {{ row.sellingCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-                </dd>
-                <dt class="font-semibold text-fb-text-primary">Gewinn</dt>
-                <dd
-                  class="text-right font-semibold tabular-nums"
-                  [class.text-fb-finance-positive]="
-                    row.resultAfterDirectCosts !== null && row.resultAfterDirectCosts > 0
-                  "
-                  [class.text-fb-finance-negative]="
-                    row.resultAfterDirectCosts !== null && row.resultAfterDirectCosts < 0
-                  "
-                  [class.text-fb-text-primary]="
-                    row.resultAfterDirectCosts === null || row.resultAfterDirectCosts === 0
-                  "
-                >
-                  @if (row.resultAfterDirectCosts === null) {
-                    Kosten noch offen
-                  } @else {
-                    {{ row.resultAfterDirectCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-                  }
-                </dd>
-                <dt>Marge</dt>
-                <dd class="text-right tabular-nums">
-                  @if (row.marginPercent === null) {
-                    –
-                  } @else {
-                    {{ row.marginPercent }} %
-                  }
-                </dd>
-              </dl>
-            </article>
-          }
-        </div>
+  <div class="middle-grid">
+    <app-card rounded="xl" class="development">
+      @if (ready()) {
+        <app-revenue-chart [points]="report().points" />
       } @else {
-        <div class="px-4 py-10 text-center">
-          <p class="text-sm font-semibold text-fb-text-primary">
-            {{
-              salesService.sales().length
-                ? 'Keine Treffer für diese Auswahl'
-                : 'Keine bestätigten Verkäufe'
-            }}
-          </p>
-          <p class="mt-1 text-xs text-fb-text-muted">
-            Hier zählen nur Verkäufe im gewählten Zeitraum und auf der gewählten Plattform. Offene
-            Einkaufskosten blenden Verkäufe nicht aus.
-          </p>
-          @if (salesService.sales().length > 0 && (range() !== 'year' || platform() !== 'all')) {
-            <app-button
-              data-expand-sales-period
-              (clicked)="setRange('year'); setPlatform('all')"
-              class="mt-3 mr-3"
-            >
-              Dieses Jahr · alle Plattformen
-            </app-button>
-          }
-          <app-button link="/sales" class="mt-3">Zu Verkäufen</app-button>
-        </div>
+        <h2 class="section-title m-0 text-sm font-[650]">Umsatz, Ausgaben und Gewinn</h2>
+        <p class="data-state" role="status">
+          {{ loadError() ? 'Diagrammdaten nicht verfügbar.' : 'Dashboard wird geladen …' }}
+        </p>
       }
     </app-card>
-  </section>
+
+    <aside class="side-stack" aria-label="Aufgaben und Schnellaktionen">
+      <app-card padding="none" rounded="xl">
+        <div card-header class="section-head flex items-center justify-between gap-3.5">
+          <h2 class="section-title m-0 text-sm font-[650]">Zu erledigen</h2>
+          @if (ready()) {
+            <app-badge [attr.aria-label]="tasks().length + ' Hinweise'">{{
+              tasks().length
+            }}</app-badge>
+          }
+        </div>
+        <div class="task-list px-3.5 py-1">
+          @if (!ready()) {
+            <p class="small-state m-0 px-4 py-3 text-xs text-fb-text-muted">
+              {{ loadError() ? 'Aufgaben nicht verfügbar.' : 'Aufgaben werden geladen …' }}
+            </p>
+          } @else {
+            @for (task of tasks(); track task.key) {
+              <div class="task-row" [attr.data-open-cost]="task.key">
+                <span class="task-icon"
+                  ><svg [lucideIcon]="task.icon" aria-hidden="true"></svg
+                ></span>
+                <span class="task-label flex-1 text-[13px]">{{ task.label }}</span>
+                <app-button
+                  variant="plain"
+                  [link]="task.link"
+                  [icon]="arrowIcon"
+                  [iconOnly]="true"
+                  [ariaLabel]="task.label + ' prüfen'"
+                />
+              </div>
+            } @empty {
+              <p class="all-done flex items-center gap-2 py-3.5 text-xs text-fb-text-muted">
+                <svg [lucideIcon]="checkIcon" aria-hidden="true"></svg>Keine offenen Kostenangaben.
+              </p>
+            }
+          }
+        </div>
+      </app-card>
+
+      <app-card padding="none" rounded="xl">
+        <div card-header><h2 class="section-title m-0 text-sm font-[650]">Schnellaktionen</h2></div>
+        <div class="quick-grid">
+          @for (action of quickActions; track action.link) {
+            <div class="quick-tile overflow-hidden rounded-lg border border-fb-line bg-fb-surface">
+              <app-button
+                variant="list-row"
+                [link]="action.link"
+                [fullWidth]="true"
+                contentAlign="start"
+              >
+                <span class="flex items-center gap-3 whitespace-normal">
+                  <span
+                    class="quick-icon grid size-9 shrink-0 place-items-center rounded-lg bg-fb-brand-strong text-fb-on-accent"
+                  >
+                    <svg [lucideIcon]="action.icon" aria-hidden="true"></svg>
+                  </span>
+                  <span class="quick-copy grid min-w-0 gap-1">
+                    <strong class="text-[13px] leading-[18px] font-semibold">{{
+                      action.label
+                    }}</strong>
+                    <small class="text-xs leading-4 text-fb-text-muted">{{ action.hint }}</small>
+                  </span>
+                </span>
+              </app-button>
+            </div>
+          }
+        </div>
+      </app-card>
+    </aside>
+  </div>
+
+  <div class="bottom-grid">
+    <section class="recent" aria-labelledby="sales-table-heading">
+      <app-card padding="none" rounded="xl" class="full-height h-full">
+        <div card-header>
+          <ng-container
+            [ngTemplateOutlet]="overviewHeader"
+            [ngTemplateOutletContext]="{
+              $implicit: 'Letzte Verkäufe',
+              titleId: 'sales-table-heading',
+              subtitle: 'Im gewählten Zeitraum.',
+              icon: salesIcon,
+              link: '/sales',
+              actionLabel: 'Alle anzeigen',
+              queryParams: null,
+            }"
+          />
+        </div>
+        @if (!ready()) {
+          <p class="data-state">
+            {{ loadError() ? 'Verkäufe nicht verfügbar.' : 'Verkäufe werden geladen …' }}
+          </p>
+        } @else if (recentSales().length > 0) {
+          <div
+            class="table-wrap overflow-x-auto"
+            role="region"
+            aria-label="Letzte Verkäufe – Tabelle"
+            tabindex="0"
+          >
+            <table data-shared-ui-exception="static-table" class="linear-table sales-table">
+              <caption class="sr-only">
+                Die fünf letzten Verkäufe im gewählten Zeitraum und auf der gewählten Plattform.
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col" class="date-cell">Datum</th>
+                  <th scope="col">Artikel</th>
+                  <th scope="col" class="platform-cell">Plattform</th>
+                  <th scope="col" class="amount-cell">Gewinn</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of recentSales(); track row.saleId) {
+                  <tr>
+                    <td class="date-cell">{{ row.date | date: 'dd.MM.yyyy' }}</td>
+                    <td>
+                      <app-button
+                        variant="plain"
+                        link="/sales"
+                        [queryParams]="{ saleId: row.saleId }"
+                        [fullWidth]="true"
+                        contentAlign="start"
+                        [title]="row.articles"
+                      >
+                        <span class="article-title block min-w-0 truncate">{{ row.articles }}</span>
+                      </app-button>
+                    </td>
+                    <td>
+                      <span
+                        class="platform-identity flex min-w-0 items-center gap-[7px] text-xs text-fb-text-secondary"
+                        [title]="platformName(row.platform)"
+                      >
+                        @if (platformAppearance(row.platform).logo; as logo) {
+                          <img [ngSrc]="logo" width="22" height="22" alt="" class="shrink-0" />
+                        } @else {
+                          <svg [lucideIcon]="storeIcon" aria-hidden="true"></svg>
+                        }
+                        <span class="min-w-0 truncate">{{ platformName(row.platform) }}</span>
+                      </span>
+                    </td>
+                    <td
+                      class="amount-cell"
+                      [class.positive]="
+                        row.resultAfterDirectCosts !== null && row.resultAfterDirectCosts > 0
+                      "
+                      [class.negative]="
+                        row.resultAfterDirectCosts !== null && row.resultAfterDirectCosts < 0
+                      "
+                    >
+                      @if (row.resultAfterDirectCosts === null) {
+                        <span class="unknown-cost text-[10px] text-fb-text-muted"
+                          >Kosten noch offen</span
+                        >
+                      } @else {
+                        {{
+                          row.resultAfterDirectCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+                        }}
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <div class="data-state">
+            <p>
+              {{
+                salesService.sales().length
+                  ? 'Keine Treffer für diese Auswahl'
+                  : 'Keine bestätigten Verkäufe'
+              }}
+            </p>
+            @if (salesService.sales().length > 0 && (range() !== 'year' || platform() !== 'all')) {
+              <app-button data-expand-sales-period (clicked)="setRange('year'); setPlatform('all')"
+                >Dieses Jahr · alle Plattformen</app-button
+              >
+            }
+          </div>
+        }
+      </app-card>
+    </section>
+
+    <section aria-labelledby="platform-overview-heading">
+      <app-card padding="none" rounded="xl" class="full-height h-full">
+        <div card-header>
+          <ng-container
+            [ngTemplateOutlet]="overviewHeader"
+            [ngTemplateOutletContext]="{
+              $implicit: 'Plattform-Verteilung',
+              titleId: 'platform-overview-heading',
+              subtitle: 'Umsatz im gewählten Zeitraum.',
+              icon: stockAgeIcon,
+              link: null,
+              actionLabel: null,
+              queryParams: null,
+            }"
+          />
+        </div>
+        @if (!ready()) {
+          <p class="data-state">
+            {{ loadError() ? 'Verteilung nicht verfügbar.' : 'Verteilung wird geladen …' }}
+          </p>
+        } @else if (distribution().entries.length === 0) {
+          <p class="data-state">Noch keine Verkäufe in dieser Auswahl.</p>
+        } @else {
+          <div class="platform-body flex flex-wrap items-center justify-center gap-3.5 p-4">
+            <div class="donut relative size-[164px] shrink-0">
+              <svg viewBox="0 0 120 120" aria-hidden="true" focusable="false">
+                <circle
+                  cx="60"
+                  cy="60"
+                  r="46"
+                  fill="none"
+                  stroke="var(--fb-line)"
+                  stroke-width="14"
+                ></circle>
+                @if (distribution().drawable) {
+                  @for (entry of distribution().entries; track entry.key) {
+                    <circle
+                      cx="60"
+                      cy="60"
+                      r="46"
+                      fill="none"
+                      stroke-width="14"
+                      pathLength="100"
+                      transform="rotate(-90 60 60)"
+                      [attr.stroke-dasharray]="entry.share + ' ' + (100 - entry.share)"
+                      [attr.stroke-dashoffset]="-entry.offset"
+                      [attr.data-platform]="entry.key"
+                      [style.stroke]="platformAppearance(entry.key).color"
+                    ></circle>
+                  }
+                }
+              </svg>
+              <div
+                class="donut-label pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-[3px] [&_strong]:text-[15px] [&_strong]:tabular-nums [&_span]:text-[11px] [&_span]:text-fb-text-muted"
+              >
+                <strong>{{
+                  distribution().total | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+                }}</strong
+                ><span>Gesamtumsatz</span>
+              </div>
+            </div>
+            <ul
+              class="platform-legend [&_li]:grid [&_li]:grid-cols-[12px_minmax(0,1fr)_auto_auto] [&_li]:items-center [&_li]:gap-2 [&_li]:text-xs [&_li]:text-fb-text-muted [&_li]:tabular-nums [&_strong]:text-xs [&_strong]:font-medium m-0 grid min-w-[158px] flex-1 list-none gap-[17px] p-0"
+            >
+              @for (entry of distribution().entries; track entry.key) {
+                <li>
+                  <span
+                    class="legend-dot size-3 rounded-[3px]"
+                    [attr.data-platform]="entry.key"
+                    [style.background-color]="platformAppearance(entry.key).color"
+                    aria-hidden="true"
+                  ></span>
+                  <span class="legend-name break-words text-fb-text-secondary">{{
+                    entry.label
+                  }}</span>
+                  <span>{{
+                    distribution().drawable ? (entry.share | number: '1.0-1') + ' %' : '–'
+                  }}</span>
+                  <strong>{{ entry.revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}</strong>
+                </li>
+              }
+            </ul>
+          </div>
+          @if (!distribution().drawable) {
+            <p class="small-state m-0 px-4 py-3 text-xs text-fb-text-muted">
+              Für diesen Umsatz ist keine Anteilsdarstellung möglich.
+            </p>
+          }
+        }
+      </app-card>
+    </section>
+
+    <section aria-labelledby="inventory-overview-heading">
+      <app-card padding="none" rounded="xl" class="full-height h-full">
+        <div card-header>
+          <ng-container
+            [ngTemplateOutlet]="overviewHeader"
+            [ngTemplateOutletContext]="{
+              $implicit: 'Bestand im Blick',
+              titleId: 'inventory-overview-heading',
+              subtitle: 'Aktueller Bestand.',
+              icon: packageIcon,
+              link: '/catalog',
+              actionLabel: null,
+              queryParams: { view: 'stock' },
+            }"
+          />
+        </div>
+        @if (!ready()) {
+          <p class="data-state">
+            {{ loadError() ? 'Bestand nicht verfügbar.' : 'Bestand wird geladen …' }}
+          </p>
+        } @else {
+          <dl
+            class="stock-list m-0 px-4 pt-[5px] pb-2.5 text-xs [&>div]:flex [&>div]:min-h-9 [&>div]:items-center [&>div]:justify-between [&>div]:gap-2.5 [&>div]:border-b [&>div]:border-fb-line [&>div:last-child]:border-0 [&_dt]:flex [&_dt]:flex-wrap [&_dt]:items-center [&_dt]:gap-1.5 [&_dt]:text-fb-text-muted [&_dd]:m-0 [&_dd]:font-[550] [&_dd]:whitespace-nowrap [&_dd]:tabular-nums [&_small]:text-[10px]"
+          >
+            <div>
+              <dt><svg [lucideIcon]="packageIcon" aria-hidden="true"></svg>Gesamtbestand</dt>
+              <dd>{{ stock().units }} Stück</dd>
+            </div>
+            <div>
+              <dt><svg [lucideIcon]="stockValueIcon" aria-hidden="true"></svg>Warenwert (EK)</dt>
+              <dd>
+                {{ report().inventoryCostValue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+              </dd>
+            </div>
+            <div
+              title="Bekannter Anschaffungswert geteilt durch die Stückzahl mit bekannten Kosten."
+            >
+              <dt><svg [lucideIcon]="stockTrendIcon" aria-hidden="true"></svg>Durchschnittl. EK</dt>
+              <dd>
+                {{
+                  averageCost() === null
+                    ? '–'
+                    : (averageCost() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
+                }}
+              </dd>
+            </div>
+            <div title="61 bis einschließlich 90 Kalendertage im Bestand.">
+              <dt>
+                <svg [lucideIcon]="stockAgeIcon" class="stock-age-icon" aria-hidden="true"></svg
+                >61–90 Tage im Bestand
+              </dt>
+              <dd [class.stock-warning]="stock().slow > 0">{{ stock().slow }} Stück</dd>
+            </div>
+            <div>
+              <dt>
+                <svg [lucideIcon]="stockAlertIcon" class="stock-alert-icon" aria-hidden="true"></svg
+                >Über 90 Tage
+              </dt>
+              <dd [class.negative]="stock().old > 0">{{ stock().old }} Stück</dd>
+            </div>
+          </dl>
+          @if (report().inventoryItemsWithoutCost > 0) {
+            <p class="small-state m-0 px-4 py-3 text-xs text-fb-text-muted">
+              {{ report().inventoryItemsWithoutCost }} Stück ohne Kostenangabe. Warenwert und Ø nur
+              für bekannte Kosten.
+            </p>
+          }
+          @if (stock().unknownAge > 0) {
+            <p class="small-state m-0 px-4 py-3 text-xs text-fb-text-muted">
+              Lagerdauer für {{ stock().unknownAge }} Stück nicht bekannt.
+            </p>
+          }
+        }
+      </app-card>
+    </section>
+  </div>
 </div>
+
+<ng-template
+  #overviewHeader
+  let-title
+  let-titleId="titleId"
+  let-subtitle="subtitle"
+  let-icon="icon"
+  let-link="link"
+  let-actionLabel="actionLabel"
+  let-queryParams="queryParams"
+>
+  <div class="overview-header flex min-h-10 items-center justify-between gap-3">
+    <div class="flex min-w-0 items-center gap-3">
+      <span
+        class="header-icon grid size-8 shrink-0 place-items-center rounded-lg bg-fb-brand-strong text-fb-on-accent"
+      >
+        <svg [lucideIcon]="icon" aria-hidden="true"></svg>
+      </span>
+      <div class="min-w-0">
+        <h2 [id]="titleId" class="section-title m-0 text-sm leading-5 font-[650]">{{ title }}</h2>
+        <p class="subtitle mt-1 mb-0 text-xs leading-4 text-fb-text-muted">{{ subtitle }}</p>
+      </div>
+    </div>
+    @if (link) {
+      <app-button
+        class="overview-action shrink-0"
+        [variant]="actionLabel ? 'primary' : 'table-action'"
+        size="slim"
+        [link]="link"
+        [queryParams]="queryParams"
+        [icon]="viewAllIcon"
+        iconPosition="end"
+        [iconOnly]="!actionLabel"
+        [ariaLabel]="actionLabel || 'Bestand öffnen'"
+        ><span class="overview-action-label">{{ actionLabel }}</span></app-button
+      >
+    }
+  </div>
+</ng-template>
