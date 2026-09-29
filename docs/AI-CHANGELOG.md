@@ -6,7 +6,7 @@
 
 **Änderung:** Die Sidebar erhält oberhalb der Einstellungen den Bereich „Stammdaten“. Marken, Einkaufsquellen, Verkaufsplattformen und Verkäufer sind dort über eine gemeinsame Bereichsnavigation erreichbar. Marken lassen sich anlegen, umbenennen und kontrolliert zusammenführen. Einkaufsquellen lassen sich anlegen, umbenennen, archivieren und wiederherstellen; bestehende Einkaufszuordnungen bleiben erhalten. Die Verkäuferverwaltung ist in den Stammdaten eingebettet und verwendet Suche, Sortierung und Spaltenauswahl. Verkaufsplattformen zeigen zunächst die bestehenden Systemvorgaben; Kontoverbindungen bleiben davon getrennt in den Einstellungen. Die bisherigen Routen für Marken und Verkäufer leiten auf die neue Verwaltung weiter.
 
-**Prüfung:** Der Branch basiert auf dem aktuellen master-Commit `3cdc0f2fb0f59cd40682b5c75641a1cb7deb3e12`. Die Änderungen wurden gegen die erwarteten Blob-Stände eingespielt und der GitHub-Vergleich zeigt 20 geänderte Dateien ohne Rückstand zu master. Eine vollständige lokale Angular-/Test-Prüfung war in dieser Sitzung mangels lokal verfügbarem Repository nicht möglich; die verbindlichen PR-Prüfungen müssen vor dem Merge erfolgreich sein.
+**Prüfung:** Der erste PR-Lauf #932 fand Formatabweichungen sowie veraltete Navigationserwartungen und eine unvollständige Supabase-Testattrappe. Diese Punkte wurden korrigiert; der folgende Pflichtlauf muss Format, Lint, Typprüfung, Unit-Suites, Browser-Smoke und Build vollständig grün bestätigen, bevor gemerged wird.
 
 ## 2026-09-29 – Juna – Dashboard-Mergekonflikt im Änderungsprotokoll aufgelöst
 
