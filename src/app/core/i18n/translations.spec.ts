@@ -65,6 +65,7 @@ describe('i18n Translations', () => {
       'STORE',
       'RESEARCH',
       'DEAL_CALCULATOR',
+      'EBAY_FEE_CALCULATOR',
       'LISTINGS',
       'SALES',
       'FULFILLMENT',

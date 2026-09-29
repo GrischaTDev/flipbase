@@ -15,16 +15,17 @@ import {
 } from './workspace-navigation';
 
 describe('Arbeitsnavigation', () => {
-  it('ordnet die Arbeitsbereiche nach Einkauf, Artikel, Verkauf und Finanzen', () => {
+  it('ordnet die Arbeitsbereiche inklusive Tools in fester Reihenfolge', () => {
     assert.deepEqual(
       WORKSPACE_NAVIGATION_GROUPS.map((group) => group.label),
-      ['Einkauf', 'Artikel', 'Verkauf', 'Account-Verwaltung', 'Finanzen'],
+      ['Einkauf', 'Artikel', 'Tools', 'Verkauf', 'Account-Verwaltung', 'Finanzen'],
     );
     assert.deepEqual(
       WORKSPACE_NAVIGATION_GROUPS.map((group) => group.items.map((item) => item.path)),
       [
         ['/purchases', '/vinted-bot'],
         ['/catalog', '/image-optimizer'],
+        ['/deal-calculator', '/deal-calculator/ebay'],
         ['/sales', '/listings'],
         ['/marketplaces/vinted'],
         ['/expenses', '/accounting', '/analytics'],
@@ -32,14 +33,13 @@ describe('Arbeitsnavigation', () => {
     );
   });
 
-  it('haelt ausschliesslich die vier zurueckgestellten Bereiche unter Ideen erreichbar', () => {
+  it('haelt ausschliesslich die drei zurueckgestellten Bereiche unter Ideen erreichbar', () => {
     assert.equal(IDEAS_NAVIGATION.label, 'Ideen');
     assert.deepEqual(
       IDEAS_NAVIGATION.items.map((item) => [item.path, item.label]),
       [
         ['/shop', 'Online-Shop'],
         ['/research', 'Preisrecherche'],
-        ['/deal-calculator', 'Kalkulation'],
         ['/fulfillment', 'Packtisch & Versand'],
       ],
     );
@@ -52,10 +52,16 @@ describe('Arbeitsnavigation', () => {
     assert.equal(items.find((item) => item.path === '/listings')?.label, 'Inserate');
     assert.equal(items.find((item) => item.path === '/expenses')?.label, 'Ausgaben');
     assert.equal(items.find((item) => item.path === '/analytics')?.label, 'Auswertungen');
+    assert.equal(
+      items.find((item) => item.path === '/deal-calculator/ebay')?.label,
+      'eBay-Gebührenrechner',
+    );
   });
 
   it('oeffnet das Erstellen eines Inserats nur als Aktion der Uebersicht', () => {
-    const listings = WORKSPACE_NAVIGATION_GROUPS[2].items.find((item) => item.path === '/listings');
+    const listings = WORKSPACE_NAVIGATION_GROUPS.find(
+      (group) => group.id === 'selling',
+    )?.items.find((item) => item.path === '/listings');
 
     assert.equal(listings?.children, undefined);
   });
@@ -77,6 +83,7 @@ describe('Arbeitsnavigation', () => {
       '/catalog',
       '/dashboard',
       '/deal-calculator',
+      '/deal-calculator/ebay',
       '/expenses',
       '/fulfillment',
       '/image-optimizer',
@@ -141,6 +148,18 @@ describe('Aktive Navigationspfade', () => {
     ]) {
       assert.equal(isIdeasRoute(path), false, path);
     }
+  });
+
+  it('unterscheidet Deal-Rechner und eBay-Gebührenrechner als eigene Tools', () => {
+    const tools = WORKSPACE_NAVIGATION_GROUPS.find((group) => group.id === 'tools')?.items ?? [];
+    const deal = tools.find((item) => item.path === '/deal-calculator');
+    const ebay = tools.find((item) => item.path === '/deal-calculator/ebay');
+
+    assert.ok(deal);
+    assert.ok(ebay);
+    assert.equal(isNavigationItemActive(deal, '/deal-calculator'), true);
+    assert.equal(isNavigationItemActive(deal, '/deal-calculator/ebay'), false);
+    assert.equal(isNavigationItemActive(ebay, '/deal-calculator/ebay'), true);
   });
 
   it('markiert Katalog und Bestandsdetails als Artikelbereich', () => {

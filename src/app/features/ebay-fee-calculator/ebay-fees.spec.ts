@@ -28,6 +28,23 @@ describe('calculateEbayFees', () => {
     expect(result.ebayFeesTotal).toBe(12.45);
   });
 
+  it('bildet den echten eBay-Gebührenbeleg für einen Sneaker zu 105 Euro ab', () => {
+    const result = calculateEbayFees({
+      ...baseBusiness,
+      category: 'sneakers',
+      salePrice: 105,
+      buyerShipping: 4.99,
+      includeBusinessFeeVat: true,
+    });
+
+    expect(result.transactionAmount).toBe(109.99);
+    expect(result.variableFee).toBe(7.7);
+    expect(result.orderFee).toBe(0.45);
+    expect(result.feeVat).toBe(1.55);
+    expect(result.ebayFeesTotal).toBe(9.7);
+    expect(result.payoutAfterEbay).toBe(100.29);
+  });
+
   it('wendet bei Sneakern ab 100 Euro 7 % an', () => {
     const result = calculateEbayFees({
       ...baseBusiness,

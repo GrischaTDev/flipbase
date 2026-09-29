@@ -73,7 +73,12 @@ export class EbayFeeCalculatorComponent {
   readonly categoryOptions: readonly SelectOption<EbayCategoryKey>[] =
     EBAY_CATEGORY_DEFINITIONS.map((category) => ({
       value: category.key,
-      label: category.label,
+      label:
+        category.key === 'clothing-accessories'
+          ? 'Kleidung & Accessoires – ohne Sneaker-Sondertarif'
+          : category.key === 'sneakers'
+            ? 'Sneaker – ab 100 € nur 7 %'
+            : category.label,
       description: category.description,
       searchText: `${category.label} ${category.description} ${category.categoryIds.join(' ')}`,
     }));
@@ -123,10 +128,18 @@ export class EbayFeeCalculatorComponent {
   readonly sellerType = signal<EbaySellerType>(this.form.controls.sellerType.value);
   readonly shopType = signal<EbayShopType>(this.form.controls.shopType.value);
   readonly destination = signal<EbayDestination>(this.form.controls.destination.value);
+  readonly category = signal<EbayCategoryKey>(this.form.controls.category.value);
+  readonly salePrice = signal(this.form.controls.salePrice.value);
   readonly listingOutsideFreeQuota = signal(this.form.controls.listingOutsideFreeQuota.value);
   readonly result = signal<EbayFeeResult>(calculateEbayFees(this.form.getRawValue()));
 
   readonly selectedShopMonthlyFee = computed(() => EBAY_SHOP_MONTHLY_NET[this.shopType()]);
+  readonly showSneakerCategoryHint = computed(
+    () =>
+      this.sellerType() === 'business' &&
+      this.category() === 'clothing-accessories' &&
+      this.salePrice() >= 100,
+  );
   readonly rulesValidFrom = EBAY_FEE_RULES_VALID_FROM;
 
   constructor() {
@@ -134,6 +147,8 @@ export class EbayFeeCalculatorComponent {
       this.sellerType.set(this.form.controls.sellerType.value);
       this.shopType.set(this.form.controls.shopType.value);
       this.destination.set(this.form.controls.destination.value);
+      this.category.set(this.form.controls.category.value);
+      this.salePrice.set(this.form.controls.salePrice.value);
       this.listingOutsideFreeQuota.set(this.form.controls.listingOutsideFreeQuota.value);
       this.result.set(calculateEbayFees(this.form.getRawValue()));
     });

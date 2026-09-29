@@ -82,6 +82,25 @@ export const WORKSPACE_NAVIGATION_GROUPS: readonly WorkspaceNavigationGroup[] = 
     ],
   },
   {
+    id: 'tools',
+    labelKey: 'NAV.GROUP_TOOLS',
+    label: 'Tools',
+    items: [
+      {
+        path: '/deal-calculator',
+        labelKey: 'NAV.DEAL_CALCULATOR',
+        label: 'Deal-Rechner',
+        icon: 'calculator',
+      },
+      {
+        path: '/deal-calculator/ebay',
+        labelKey: 'NAV.EBAY_FEE_CALCULATOR',
+        label: 'eBay-Gebührenrechner',
+        icon: 'calculator',
+      },
+    ],
+  },
+  {
     id: 'selling',
     labelKey: 'NAV.GROUP_SELLING',
     label: 'Verkauf',
@@ -139,12 +158,6 @@ export const IDEAS_NAVIGATION: WorkspaceNavigationGroup = {
     { path: '/shop', labelKey: 'NAV.STORE', label: 'Online-Shop', icon: 'store', demo: true },
     { path: '/research', labelKey: 'NAV.PRICE_RESEARCH', label: 'Preisrecherche', icon: 'search' },
     {
-      path: '/deal-calculator',
-      labelKey: 'NAV.CALCULATION',
-      label: 'Kalkulation',
-      icon: 'calculator',
-    },
-    {
       path: '/fulfillment',
       labelKey: 'NAV.FULFILLMENT',
       label: 'Packtisch & Versand',
@@ -178,6 +191,9 @@ export const OPERATOR_NAVIGATION: WorkspaceNavigationItem = {
 
 export function isNavigationItemActive(item: WorkspaceNavigationItem, url: string): boolean {
   if (item.path === '/catalog') return isArticleRoute(url);
+  if (item.path === '/deal-calculator') {
+    return url.split(/[?#]/, 1)[0] === item.path;
+  }
   return isWithinPath(item.path, url);
 }
 
