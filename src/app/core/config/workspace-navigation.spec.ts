@@ -59,9 +59,9 @@ describe('Arbeitsnavigation', () => {
   });
 
   it('oeffnet das Erstellen eines Inserats nur als Aktion der Uebersicht', () => {
-    const listings = WORKSPACE_NAVIGATION_GROUPS.find((group) => group.id === 'selling')?.items.find(
-      (item) => item.path === '/listings',
-    );
+    const listings = WORKSPACE_NAVIGATION_GROUPS.find(
+      (group) => group.id === 'selling',
+    )?.items.find((item) => item.path === '/listings');
 
     assert.equal(listings?.children, undefined);
   });
