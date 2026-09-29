@@ -1,5 +1,15 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-29 – Juna – Dashboard nach freigegebener Vorschau aufgebaut
+
+**Auftrag:** Die zuletzt freigegebene Dashboard-Variante tatsächlich implementieren: fünf Kennzahlenkacheln, Diagramm, Aufgaben, Schnellaktionen, letzte Verkäufe, Umsatzverteilung und Bestandsüberblick. Ohne Insights; Sidebar und Workspace-Header bleiben unverändert.
+
+**Änderung:** Die Dashboard-Kacheln sind neu aufgebaut und verwenden die vorhandenen Shared Cards, Buttons, Badges und Selects sowie die zentralen Flipbase-Farben. Kleine Verlaufsgrafiken stammen aus den Berichtsperioden. Der Donut verteilt Umsatz statt Verkaufsanzahl und fasst zusätzliche Plattformen ohne Datenverlust zusammen. Der Bestandsüberblick zeigt Stückzahl, bekannte Anschaffungskosten, durchschnittliche bekannte Stückkosten sowie getrennte Lagergruppen von 61–90 und mehr als 90 Tagen. Ladefehler und Workspace-Wechsel zeigen keine scheinbar vollständigen Nullwerte. Die bestehende Buchungs- und Gewinnberechnung bleibt unverändert.
+
+**Abgrenzung:** Aktuelles Bestandskapital erhält weder eine erfundene historische Kurve noch einen erfundenen Vergleich. Fehlende Kosten bleiben unbekannt. Nicht konfigurierte Mindestbestände erzeugen keine Warnung. Die separate HTML-Vorschau rendert die tatsächliche Angular-Komponente mit ausdrücklich gekennzeichneten Beispieldaten; Vorschauaktionen buchen nichts.
+
+**Prüfung:** 16 Dashboard-Komponententests und 53 fokussierte Tests für Bericht, Kennzahlenänderungen, Diagrammkonfiguration und Anzeigeprojektionen erfolgreich. Lint, App-/Test-Typprüfung, Shared-UI-Prüfung und Produktionsbau erfolgreich. Die gerenderte Vorschau wurde in beiden Themes bei 320, 375, 390, 768, 1200 und 1664 px auf Überlauf und mit AXE geprüft: keine Befunde. Zeitraum, Plattform, Diagrammlegende, Tastatur-Tooltip und Vorschauaktionen wurden betätigt. Die regulären PR-Prüfungen bleiben vor einem Merge erforderlich.
+
 ## 2026-09-29 – Juna – Sticky-Navigation auf der Landingpage ergänzt
 
 **Auftrag:** Die Landingpage nach dem Vorbild einer kompakten SaaS-Navigation um eine beim Scrollen sichtbare Menüleiste ergänzen und „Zur App“ in „Anmelden“ umbenennen.

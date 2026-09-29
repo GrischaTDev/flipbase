@@ -53,7 +53,7 @@ export { expect };
 export async function openDashboard(page: Page): Promise<void> {
   await page.goto('/dashboard');
   await expect(page).toHaveURL(/\/dashboard$/);
-  await expect(page.getByRole('heading', { name: 'Ertrag im Blick' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible();
 }
 
 export async function selectDefaultPurchaseSeller(page: Page): Promise<void> {

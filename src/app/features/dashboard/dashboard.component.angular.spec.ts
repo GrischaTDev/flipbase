@@ -11,8 +11,13 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { of } from 'rxjs';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DashboardReport, Sale } from '../../core/models/flipbase.models';
+import { DashboardReport, InventoryItem, Sale, StockLot } from '../../core/models/flipbase.models';
 import { DashboardReportService } from '../../core/services/dashboard-report.service';
+import { WorkspaceService } from '../../core/services/workspace.service';
+import { InventoryService } from '../../core/services/inventory.service';
+import { StockService } from '../../core/services/stock.service';
+import { PurchaseService } from '../../core/services/purchase.service';
+import { ExpenseService } from '../../core/services/expense.service';
 import { SalesService } from '../../core/services/sales.service';
 import { CustomSelectComponent } from '../../shared/components/custom-select/custom-select.component';
 import { RevenueChartComponent } from '../../shared/components/revenue-chart/revenue-chart.component';
@@ -32,6 +37,8 @@ interface AngularInputMetadata {
 }
 
 const componentResources: Readonly<Record<string, string>> = {
+  './badge.component.html': 'src/app/shared/components/badge/badge.component.html',
+  './badge.component.scss': 'src/app/shared/components/badge/badge.component.scss',
   './button.component.html': 'src/app/shared/components/button/button.component.html',
   './button.component.scss': 'src/app/shared/components/button/button.component.scss',
   './card.component.html': 'src/app/shared/components/card/card.component.html',
@@ -40,6 +47,7 @@ const componentResources: Readonly<Record<string, string>> = {
     'src/app/shared/components/custom-select/custom-select.component.html',
   './custom-select.component.scss':
     'src/app/shared/components/custom-select/custom-select.component.scss',
+  './dashboard.component.css': 'src/app/features/dashboard/dashboard.component.css',
   './dashboard.component.html': 'src/app/features/dashboard/dashboard.component.html',
   './beta-discord-banner.component.html':
     'src/app/features/beta-discord/components/beta-discord-banner/beta-discord-banner.component.html',
@@ -81,6 +89,14 @@ const emptyReport: DashboardReport = {
 };
 
 const sales = signal<Sale[]>([]);
+const inventoryItems = signal<InventoryItem[]>([]);
+const stockLots = signal<StockLot[]>([]);
+const currentWorkspace = signal({ id: 'workspace-1' });
+const loadedWorkspaceId = signal('workspace-1');
+const sourceLoading = signal(false);
+const sourceError = signal<Error | null>(null);
+const loadPositions = vi.fn(async () => undefined);
+const sourceState = { isLoading: sourceLoading, loadError: sourceError, loadedWorkspaceId };
 const createReport = vi.fn(() => emptyReport);
 const preferences = signal<DashboardPreferences>({ range: 'year', platform: 'all' });
 const saveError = signal<string | null>(null);
@@ -99,7 +115,23 @@ beforeAll(async () => {
     return readFile(resolve(resource), 'utf8');
   });
   for (const [component, names] of [
-    [ButtonComponent, ['variant', 'size', 'link', 'icon', 'iconPosition', 'ariaPressed']],
+    [
+      ButtonComponent,
+      [
+        'variant',
+        'size',
+        'link',
+        'icon',
+        'iconPosition',
+        'ariaPressed',
+        'fullWidth',
+        'contentAlign',
+        'queryParams',
+        'title',
+        'iconOnly',
+        'ariaLabel',
+      ],
+    ],
     [CardComponent, ['padding', 'rounded']],
     [
       DashboardKpiCardComponent,
@@ -192,7 +224,14 @@ beforeEach(() => {
   });
 
   sales.set([]);
-  createReport.mockClear();
+  inventoryItems.set([]);
+  stockLots.set([]);
+  currentWorkspace.set({ id: 'workspace-1' });
+  loadedWorkspaceId.set('workspace-1');
+  sourceLoading.set(false);
+  sourceError.set(null);
+  loadPositions.mockClear();
+  createReport.mockReset().mockReturnValue(emptyReport);
   preferences.set({ range: 'year', platform: 'all' });
   saveError.set(null);
   setRange
@@ -208,7 +247,18 @@ beforeEach(() => {
       provideRouter([]),
       {
         provide: SalesService,
-        useValue: { sales, isLoading: signal(false), loadError: signal(null) },
+        useValue: { sales, ...sourceState, loadSales: vi.fn() },
+      },
+      { provide: WorkspaceService, useValue: { currentWorkspace } },
+      {
+        provide: InventoryService,
+        useValue: { items: inventoryItems, ...sourceState, loadInventory: vi.fn() },
+      },
+      { provide: StockService, useValue: { lots: stockLots, ...sourceState, loadPositions } },
+      { provide: PurchaseService, useValue: { ...sourceState, loadPurchases: vi.fn() } },
+      {
+        provide: ExpenseService,
+        useValue: { ...sourceState, ensureCurrentWorkspaceLoaded: vi.fn(), load: vi.fn() },
       },
       { provide: DashboardReportService, useValue: { createReport } },
       {
@@ -355,7 +405,7 @@ describe('DashboardComponent', () => {
     }
   });
 
-  it('fokussiert das Dashboard auf vier Kernkennzahlen und eine kompakte Verkaufsliste', () => {
+  it('fokussiert das Dashboard auf fünf Kernkennzahlen und eine kompakte Verkaufsliste', () => {
     createReport.mockReturnValueOnce({
       ...emptyReport,
       grossProfit: 20.09,
@@ -390,10 +440,10 @@ describe('DashboardComponent', () => {
 
     expect(host.querySelector('h1')?.textContent?.trim()).toBe('Dashboard');
     expect(
-      [...kpiSection.querySelectorAll('app-dashboard-kpi-card')].map((card) =>
-        card.querySelector('span')?.textContent?.trim(),
+      [...kpiSection.querySelectorAll('[data-kpi]')].map((card) =>
+        card.querySelector('h2')?.textContent?.trim(),
       ),
-    ).toEqual(['Umsatz', 'Gewinn', 'Marge', 'Kapital im Bestand']);
+    ).toEqual(['Umsatz', 'Gewinn', 'Marge', 'Kapital im Bestand', 'Verkäufe']);
 
     const kpi = (name: string) =>
       host.querySelector(`[data-kpi="${name}"]`)?.textContent?.replace(/\s+/g, ' ').trim();
@@ -406,20 +456,20 @@ describe('DashboardComponent', () => {
     expect(host.querySelector('[data-kpi="total-expenses"]')).toBeNull();
     expect(kpiSection.querySelector('[data-kpi-hint]')).toBeNull();
 
-    expect(host.querySelector('#inventory-overview-heading')?.textContent?.trim()).toBe('Bestand');
-    expect(host.textContent).toContain('5 Artikel ohne Kostenangabe');
+    expect(host.querySelector('#inventory-overview-heading')?.textContent?.trim()).toBe(
+      'Bestand im Blick',
+    );
+    expect(host.textContent).toContain('5 Stück ohne Kostenangabe');
 
     expect(journal?.querySelector('h2')?.textContent?.trim()).toBe('Letzte Verkäufe');
     expect(journal?.querySelector('[role="region"]')?.getAttribute('aria-label')).toBe(
-      'Letzte Verkäufe',
+      'Letzte Verkäufe – Tabelle',
     );
-    expect(headers).toEqual(['Datum', 'Artikel', 'Plattform', 'Preis', 'Gewinn']);
-    expect(journal?.querySelector('tbody tr td:nth-child(5)')?.className).toContain(
-      'text-fb-finance-positive',
-    );
+    expect(headers).toEqual(['Datum', 'Artikel', 'Plattform', 'Gewinn']);
+    expect(journal?.querySelector('tbody tr td:nth-child(4)')?.className).toContain('positive');
 
     expect(host.querySelector('#platform-overview-heading')?.textContent?.trim()).toBe(
-      'Plattformen',
+      'Plattform-Verteilung',
     );
     expect(host.textContent).toContain('eBay');
     expect(host.textContent).toContain('100 %');
@@ -432,11 +482,11 @@ describe('DashboardComponent', () => {
     expect(text).toContain('Schnellaktionen');
     expect(text).toContain('Einkauf erfassen');
     expect(text).toContain('Verkauf erfassen');
-    expect(text).toContain('Neues Inserat');
+    expect(text).toContain('Inserat erstellen');
     expect(text).toContain('Bilder optimieren');
   });
 
-  it('markiert einen negativen Verkaufsgewinn rot, ohne den Verkaufspreis als Fehler zu färben', () => {
+  it('markiert einen negativen Verkaufsgewinn eindeutig, ohne den Artikel als Fehler zu färben', () => {
     createReport.mockReturnValueOnce({
       ...emptyReport,
       rows: [
@@ -462,8 +512,8 @@ describe('DashboardComponent', () => {
       ?.closest('section');
     const cells = journal?.querySelectorAll('tbody tr td');
 
-    expect(cells?.[3]?.className).not.toContain('text-fb-finance-negative');
-    expect(cells?.[4]?.className).toContain('text-fb-finance-negative');
+    expect(cells?.[1]?.className).not.toContain('negative');
+    expect(cells?.[3]?.className).toContain('negative');
   });
 
   it('isoliert den Chart-Lifecycle im Dashboard-Header-Test ohne Angular-Laufzeitfehler', async () => {
@@ -565,5 +615,50 @@ describe('DashboardComponent', () => {
     });
 
     expect(result.violations).toEqual([]);
+  });
+
+  it('zeigt bei Ladefehlern keine scheinbar vollständigen Bestands- oder Nullwerte', () => {
+    sourceError.set(new Error('offline'));
+    const fixture = createDashboard();
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelector('[role="alert"]')?.textContent).toContain(
+      'nicht vollständig geladen',
+    );
+    expect(
+      [...host.querySelectorAll('.metric-value')].map((node) => node.textContent?.trim()),
+    ).toEqual(['–', '–', '–', '–', '–']);
+    expect(host.textContent).not.toContain('Keine offenen Kostenangaben.');
+  });
+
+  it('versteckt alte Workspace-Werte sofort und lädt die Bestandslose für den neuen Workspace', async () => {
+    const fixture = createDashboard();
+    currentWorkspace.set({ id: 'workspace-2' });
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(loadPositions).toHaveBeenCalledWith('workspace-2');
+    expect(fixture.componentInstance.ready()).toBe(false);
+    expect(
+      fixture.nativeElement
+        .querySelector('[data-kpi="inventory-capital"] .metric-value')
+        ?.textContent?.trim(),
+    ).toBe('–');
+  });
+
+  it('zeigt weder Insights noch erfundene Bestandsvergleiche', () => {
+    const fixture = createDashboard();
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.textContent).not.toContain('Insights');
+    expect(host.querySelector('[data-kpi="inventory-capital"] svg.sparkline')).toBeNull();
+    expect(host.querySelector('[data-kpi="inventory-capital"] [data-kpi-change]')).toBeNull();
+  });
+
+  it('zeigt einen geladenen leeren Workspace als leer, nicht als Fehler', () => {
+    const fixture = createDashboard();
+    expect(fixture.componentInstance.ready()).toBe(true);
+    expect(
+      fixture.nativeElement.querySelector('[data-kpi="revenue"] .metric-value')?.textContent,
+    ).toMatch(/0,00/);
+    expect(fixture.nativeElement.textContent).toContain('Keine offenen Kostenangaben.');
+    expect(fixture.nativeElement.querySelector('[role="alert"]')).toBeNull();
   });
 });

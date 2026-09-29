@@ -40,8 +40,8 @@ for (const theme of ['light', 'dark'] as const) {
     await startDashboard(page);
     if (theme === 'dark')
       await page.getByRole('button', { name: 'Zu dunklem Design wechseln' }).click();
-    const cards = page.locator('[aria-label="Kennzahlen"] app-dashboard-kpi-card');
-    await expect(cards).toHaveCount(6);
+    const cards = page.locator('[aria-label="Kennzahlen"] [data-kpi]');
+    await expect(cards).toHaveCount(5);
     const cardTops = await cards.evaluateAll((elements) =>
       elements.map((element) => Math.round(element.getBoundingClientRect().top)),
     );
