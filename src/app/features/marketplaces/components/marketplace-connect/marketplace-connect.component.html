@@ -1,29 +1,39 @@
-@if (accounts.loading()) {
-  <p role="status" class="text-sm text-fb-text-secondary">Kontoverbindung wird geladen …</p>
-} @else if (!requestedConnection()) {
-  <app-notice-banner announcement="alert">
+<app-modal-shell
+  [title]="
+    requestedConnection()?.displayName
+      ? 'Vinted-Anmeldung – ' + requestedConnection()?.displayName
+      : 'Vinted-Anmeldung'
+  "
+  presentation="center"
+  size="md"
+  [hasFooter]="false"
+  (closed)="close()"
+>
+  @if (accounts.loading()) {
+    <p role="status" class="text-sm text-fb-text-secondary">Kontoverbindung wird geladen …</p>
+  } @else if (!requestedConnection()) {
+    <app-notice-banner announcement="alert">
+      @if (accounts.error(); as error) {
+        {{ error }}
+      } @else {
+        Diese Kontoverbindung ist in diesem Workspace nicht verfügbar.
+      }
+      <app-button class="mt-3" link="/settings/marketplaces">Konten verwalten</app-button>
+    </app-notice-banner>
+  } @else if (
+    requestedConnection()?.status === 'paused' || requestedConnection()?.status === 'blocked'
+  ) {
+    <app-notice-banner announcement="alert">
+      Diese Kontoverbindung ist pausiert oder gesperrt. Für sie kann keine Anmeldung gestartet
+      werden.
+      <app-button class="mt-3" link="/settings/marketplaces">Konten verwalten</app-button>
+    </app-notice-banner>
+  } @else if (!selected()) {
+    <p role="status" class="text-sm text-fb-text-secondary">Konto wird ausgewählt …</p>
+  } @else {
     @if (accounts.error(); as error) {
-      {{ error }}
-    } @else {
-      Diese Kontoverbindung ist in diesem Workspace nicht verfügbar.
+      <app-notice-banner class="mb-4" announcement="alert">{{ error }}</app-notice-banner>
     }
-    <app-button class="mt-3" link="/settings/marketplaces">Konten verwalten</app-button>
-  </app-notice-banner>
-} @else if (
-  requestedConnection()?.status === 'paused' || requestedConnection()?.status === 'blocked'
-) {
-  <app-notice-banner announcement="alert">
-    Diese Kontoverbindung ist pausiert oder gesperrt. Für sie kann keine Anmeldung gestartet werden.
-    <app-button class="mt-3" link="/settings/marketplaces">Konten verwalten</app-button>
-  </app-notice-banner>
-} @else if (!selected()) {
-  <p role="status" class="text-sm text-fb-text-secondary">Konto wird ausgewählt …</p>
-} @else {
-  <p class="mb-4 text-sm text-fb-text-secondary">
-    Vinted-Anmeldung für <strong>{{ requestedConnection()?.displayName }}</strong>
-  </p>
-  @if (accounts.error(); as error) {
-    <app-notice-banner class="mb-4" announcement="alert">{{ error }}</app-notice-banner>
+    <app-marketplace-browser-test [compact]="true" [reconnectOnOpen]="reconnectRequested()" />
   }
-  <app-marketplace-browser-test [reconnectOnOpen]="reconnectRequested()" />
-}
+</app-modal-shell>
