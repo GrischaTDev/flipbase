@@ -10,9 +10,24 @@ export interface MasterDataRow {
 
 export const MASTER_DATA_SECTIONS = [
   { id: 'brands', label: 'Marken', path: '/master-data/brands', createLabel: 'Marke anlegen' },
-  { id: 'sources', label: 'Einkaufsquellen', path: '/master-data/sources', createLabel: 'Quelle anlegen' },
-  { id: 'platforms', label: 'Verkaufsplattformen', path: '/master-data/platforms', createLabel: '' },
-  { id: 'sellers', label: 'Verkäufer', path: '/master-data/sellers', createLabel: 'Verkäufer anlegen' },
+  {
+    id: 'sources',
+    label: 'Einkaufsquellen',
+    path: '/master-data/sources',
+    createLabel: 'Quelle anlegen',
+  },
+  {
+    id: 'platforms',
+    label: 'Verkaufsplattformen',
+    path: '/master-data/platforms',
+    createLabel: '',
+  },
+  {
+    id: 'sellers',
+    label: 'Verkäufer',
+    path: '/master-data/sellers',
+    createLabel: 'Verkäufer anlegen',
+  },
 ] as const;
 
 export function resolveMasterDataSection(value: unknown): MasterDataSection {
@@ -39,13 +54,22 @@ export function selectMasterDataRows(
 ): readonly MasterDataRow[] {
   const query = nameKey(search);
   const multiplier = direction === 'desc' ? -1 : 1;
+
   return rows
-    .filter((row) => status === 'all' || (status === 'archived' ? row.isActive === false : row.isActive !== false))
+    .filter(
+      (row) =>
+        status === 'all' ||
+        (status === 'archived' ? row.isActive === false : row.isActive !== false),
+    )
     .filter((row) => !query || nameKey(row.name).includes(query))
-    .sort((left, right) => multiplier * (
-      left.name.localeCompare(right.name, 'de-DE', { numeric: true, sensitivity: 'base' }) ||
-      left.id.localeCompare(right.id)
-    ));
+    .sort(
+      (left, right) =>
+        multiplier *
+        (left.name.localeCompare(right.name, 'de-DE', {
+          numeric: true,
+          sensitivity: 'base',
+        }) || left.id.localeCompare(right.id)),
+    );
 }
 
 export function validateMasterDataName(
@@ -67,6 +91,9 @@ export function validMergeTarget(
   targetId: string,
   rows: readonly Pick<MasterDataRow, 'id'>[],
 ): boolean {
-  return sourceId !== targetId && rows.some((row) => row.id === sourceId) &&
-    rows.some((row) => row.id === targetId);
+  return (
+    sourceId !== targetId &&
+    rows.some((row) => row.id === sourceId) &&
+    rows.some((row) => row.id === targetId)
+  );
 }
