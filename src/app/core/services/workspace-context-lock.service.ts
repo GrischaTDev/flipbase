@@ -10,7 +10,8 @@ export function routeLocksWorkspaceContext(route: ActivatedRouteSnapshot | null)
   while (current) {
     if (
       current.data?.['workspaceContextLocked'] === true ||
-      (current.routeConfig?.canDeactivate?.length ?? 0) > 0
+      (current.data?.['workspaceContextLocked'] !== false &&
+        (current.routeConfig?.canDeactivate?.length ?? 0) > 0)
     ) {
       return true;
     }

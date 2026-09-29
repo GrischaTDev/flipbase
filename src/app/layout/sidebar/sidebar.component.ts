@@ -15,6 +15,7 @@ import { filter, map } from 'rxjs';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
   LucideDynamicIcon,
+  LucideDatabase as Database,
   LucideLayoutDashboard as LayoutDashboard,
   LucideShoppingBag as ShoppingBag,
   LucideBookOpen as BookOpen,
@@ -43,6 +44,7 @@ import {
   IDEAS_NAVIGATION,
   OPERATOR_NAVIGATION,
   SETTINGS_NAVIGATION,
+  MASTER_DATA_NAVIGATION,
   WORKSPACE_NAVIGATION_GROUPS,
   isIdeasRoute,
   isNavigationChildActive,
@@ -58,6 +60,7 @@ import { BadgeComponent } from '../../shared/components/badge/badge.component';
 
 const NAVIGATION_ICONS: Record<WorkspaceNavigationIcon, LucideIconInput> = {
   dashboard: LayoutDashboard,
+  database: Database,
   shoppingBag: ShoppingBag,
   users: Users,
   bot: Bot,
@@ -113,6 +116,7 @@ export class SidebarComponent {
   readonly dashboardItem = DASHBOARD_NAVIGATION;
   readonly navigationGroups = WORKSPACE_NAVIGATION_GROUPS;
   readonly ideasGroup = IDEAS_NAVIGATION;
+  readonly masterDataItem = MASTER_DATA_NAVIGATION;
   readonly settingsItem = SETTINGS_NAVIGATION;
   readonly operatorItem = OPERATOR_NAVIGATION;
   readonly ideasExpanded = signal(isIdeasRoute(this.router.url));

@@ -189,10 +189,8 @@ export const routes: Routes = [
       },
       {
         path: 'catalog/brands',
-        loadComponent: () =>
-          import('./features/catalog/pages/brand-management/brand-management.component').then(
-            (m) => m.BrandManagementComponent,
-          ),
+        pathMatch: 'full',
+        redirectTo: '/master-data/brands',
       },
       {
         path: 'catalog/:id',
@@ -270,8 +268,8 @@ export const routes: Routes = [
       },
       {
         path: 'sellers',
-        loadComponent: () =>
-          import('./features/sellers/sellers.component').then((m) => m.SellersComponent),
+        pathMatch: 'full',
+        redirectTo: '/master-data/sellers',
       },
       {
         path: 'expenses',
@@ -294,6 +292,11 @@ export const routes: Routes = [
           import('./features/fulfillment/fulfillment.component').then(
             (m) => m.FulfillmentComponent,
           ),
+      },
+      {
+        path: 'master-data',
+        loadChildren: () =>
+          import('./features/master-data/master-data.routes').then((m) => m.MASTER_DATA_ROUTES),
       },
       {
         path: 'settings',

@@ -15,6 +15,7 @@ export class SourcesService {
 
   readonly sources = signal<Source[]>([]);
   readonly isLoading = signal<boolean>(false);
+  private sourceVersion = 0;
 
   constructor() {
     // Hinweis: effect() benoetigt einen ChangeDetectionScheduler. Die
@@ -28,7 +29,9 @@ export class SourcesService {
         if (currentWs) {
           this.loadSources(currentWs.id);
         } else {
+          this.sourceVersion++;
           this.sources.set([]);
+          this.isLoading.set(false);
         }
       });
     } catch {
@@ -49,32 +52,27 @@ export class SourcesService {
   readonly aktiveSources = computed<Source[]>(() => nurAktive(this.sources()));
 
   async loadSources(workspaceId: string): Promise<void> {
+    const version = ++this.sourceVersion;
     this.isLoading.set(true);
+    const stillCurrent = () =>
+      version === this.sourceVersion &&
+      this.workspaceService.currentWorkspace()?.id === workspaceId;
     try {
-      let abfrage = this.supabase.client
-        .from('sources')
-        .select('*')
-        .eq('workspace_id', workspaceId);
-
-      if (!this.zeigeArchivierte()) {
-        abfrage = abfrage.eq('is_active', true);
-      }
-
-      const { data, error } = await abfrage
+      let query = this.supabase.client.from('sources').select('*').eq('workspace_id', workspaceId);
+      if (!this.zeigeArchivierte()) query = query.eq('is_active', true);
+      const { data, error } = await query
         .order('is_default', { ascending: false })
         .order('name', { ascending: true });
-
-      if (error) {
+      if (!stillCurrent()) return;
+      if (error) throw error;
+      this.sources.set((data ?? []) as Source[]);
+    } catch (error: unknown) {
+      if (stillCurrent()) {
         this.syncStatus.melde('Laden der Quellen', error);
         this.sources.set([]);
-      } else if (data) {
-        this.sources.set(data as Source[]);
       }
-    } catch (err) {
-      this.syncStatus.melde('Laden der Quellen', err);
-      this.sources.set([]);
     } finally {
-      this.isLoading.set(false);
+      if (version === this.sourceVersion) this.isLoading.set(false);
     }
   }
 
@@ -114,7 +112,14 @@ export class SourcesService {
       if (!dbSrc) return { data: null, error: new Error('Quelle wurde nicht zurückgegeben') };
 
       const finalSrc: Source = { ...newSrc, id: dbSrc.id };
-      this.sources.update((list) => [finalSrc, ...list.filter((s) => s.id !== finalSrc.id)]);
+      if (this.workspaceService.currentWorkspace()?.id === ws.id) {
+        this.sourceVersion++;
+        this.isLoading.set(false);
+        this.sources.update((list) => [
+          finalSrc,
+          ...list.filter((s) => s.id !== finalSrc.id && s.workspace_id === ws.id),
+        ]);
+      }
       return { data: finalSrc, error: null };
     } catch (e) {
       return { data: null, error: this.syncStatus.melde('Anlegen der Quelle', e) };
@@ -132,70 +137,95 @@ export class SourcesService {
     sourceId: string,
     aenderungen: Partial<Pick<Source, 'name' | 'type' | 'is_default'>>,
   ): Promise<{ error: Error | null }> {
-    const bereinigt = {
+    const changes = {
       ...aenderungen,
       ...(aenderungen.name !== undefined ? { name: aenderungen.name.trim() } : {}),
     };
-
-    if (bereinigt.name !== undefined && bereinigt.name.length === 0) {
+    if (changes.name !== undefined && !changes.name) {
       return { error: new Error('Der Name darf nicht leer sein') };
     }
-
-    const lokalAnwenden = () => {
-      this.sources.update((list) =>
-        list.map((s) => (s.id === sourceId ? { ...s, ...bereinigt } : s)),
-      );
-    };
-
-    try {
-      const { error } = await this.supabase.client
-        .from('sources')
-        .update(bereinigt)
-        .eq('id', sourceId);
-      if (error) {
-        return { error: this.syncStatus.melde('Ändern der Quelle', error) };
-      }
-    } catch (e: unknown) {
-      return { error: this.syncStatus.melde('Ändern der Quelle', e) };
-    }
-    lokalAnwenden();
-    return { error: null };
+    return this.persistSourceUpdate(sourceId, changes, 'Ändern der Quelle');
   }
 
-  /**
-   * Archiviert eine Quelle oder holt sie zurück.
-   *
-   * Archivieren statt Löschen, weil Einkäufe darauf verweisen und diese
-   * Verweise nachvollziehbar bleiben müssen. Der Eintrag verschwindet nur aus
-   * den Auswahllisten und bleibt in vorhandenen Einkäufen sichtbar.
-   */
   async setSourceArchiviert(
     sourceId: string,
     archiviert: boolean,
   ): Promise<{ error: Error | null }> {
-    const neuerWert = !archiviert;
+    return this.persistSourceUpdate(sourceId, { is_active: !archiviert }, 'Archivieren der Quelle');
+  }
 
-    const lokalAnwenden = () => {
-      this.sources.update((list) =>
-        this.zeigeArchivierte()
-          ? list.map((s) => (s.id === sourceId ? { ...s, is_active: neuerWert } : s))
-          : list.filter((s) => s.id !== sourceId),
-      );
-    };
-
+  /**
+   * Separate Lesesicht der Verwaltung. Archivierte Einträge werden NICHT in
+   * den globalen Auswahlcache geladen; Einkaufsformulare behalten aktive Quellen.
+   */
+  async getManagementSources(): Promise<{ data: readonly Source[]; error: Error | null }> {
+    const workspaceId = this.workspaceService.currentWorkspace()?.id;
+    if (!workspaceId) return { data: [], error: new Error('Kein aktiver Workspace ausgewählt') };
+    const pageSize = 1000;
+    const rows: Source[] = [];
     try {
-      const { error } = await this.supabase.client
-        .from('sources')
-        .update({ is_active: neuerWert })
-        .eq('id', sourceId);
-      if (error) {
-        return { error: this.syncStatus.melde('Archivieren der Quelle', error) };
+      for (let offset = 0; ;) {
+        const { data, error } = await this.supabase.client
+          .from('sources')
+          .select('*')
+          .eq('workspace_id', workspaceId)
+          .order('name')
+          .order('id')
+          .range(offset, offset + pageSize - 1);
+        if (error) throw error;
+        if (this.workspaceService.currentWorkspace()?.id !== workspaceId) {
+          throw new Error('Der Workspace wurde während des Ladens gewechselt.');
+        }
+        const page = (data ?? []) as Source[];
+        if (page.length === 0) return { data: rows, error: null };
+        if (page.some((source) => source.workspace_id !== workspaceId)) {
+          throw new Error('Die Quellen gehören nicht zum ausgewählten Workspace.');
+        }
+        rows.push(...page);
+        // Nicht bei einer kurzen Seite abbrechen: Serverlimits können niedriger sein.
+        offset += page.length;
       }
-    } catch (e: unknown) {
-      return { error: this.syncStatus.melde('Archivieren der Quelle', e) };
+    } catch (error: unknown) {
+      return { data: [], error: this.syncStatus.melde('Laden der Stammdatenquellen', error) };
     }
-    lokalAnwenden();
-    return { error: null };
+  }
+
+  private async persistSourceUpdate(
+    sourceId: string,
+    changes: Partial<Pick<Source, 'name' | 'type' | 'is_default' | 'is_active'>>,
+    action: string,
+  ): Promise<{ error: Error | null }> {
+    const workspaceId = this.workspaceService.currentWorkspace()?.id;
+    if (!workspaceId) return { error: new Error('Kein aktiver Workspace ausgewählt') };
+    try {
+      const { data, error } = await this.supabase.client
+        .from('sources')
+        .update(changes)
+        .eq('workspace_id', workspaceId)
+        .eq('id', sourceId)
+        .select('*')
+        .single();
+      if (error) throw error;
+      if (!data || data.id !== sourceId || data.workspace_id !== workspaceId) {
+        throw new Error('Die Quellenänderung wurde nicht bestätigt.');
+      }
+      const saved = data as Source;
+      if (this.workspaceService.currentWorkspace()?.id === workspaceId) {
+        this.sourceVersion++;
+        this.isLoading.set(false);
+        this.sources.update((list) => {
+          const remaining = list.filter(
+            (source) => source.id !== sourceId && source.workspace_id === workspaceId,
+          );
+          return this.zeigeArchivierte() || saved.is_active !== false
+            ? [...remaining, saved]
+            : remaining;
+        });
+      }
+      return { error: null };
+    } catch (error: unknown) {
+      return { error: this.syncStatus.melde(action, error) };
+    }
   }
 
   /** Zählt die Einkäufe, die auf diese Quelle verweisen. */

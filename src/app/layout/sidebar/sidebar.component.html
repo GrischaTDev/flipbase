@@ -137,6 +137,10 @@
       <div data-sidebar-divider class="mt-3 border-t border-fb-border-subtle pt-2">
         <ng-container
           [ngTemplateOutlet]="navigationItem"
+          [ngTemplateOutletContext]="{ $implicit: masterDataItem, indented: false }"
+        />
+        <ng-container
+          [ngTemplateOutlet]="navigationItem"
           [ngTemplateOutletContext]="{ $implicit: settingsItem, indented: false }"
         />
         @if (isOperator()) {

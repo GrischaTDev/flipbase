@@ -7,6 +7,7 @@ import axe from 'axe-core';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Supplier } from '../../core/models/flipbase.models';
 import { SuppliersService } from '../../core/services/suppliers.service';
+import { WorkspaceService } from '../../core/services/workspace.service';
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
 import { TableActionButtonComponent } from '../../shared/components/table-action-button/table-action-button.component';
@@ -188,6 +189,10 @@ function render(initialSellers: Supplier[] = sellers) {
     imports: [SellersComponent],
     providers: [
       { provide: SuppliersService, useValue: suppliersService },
+      {
+        provide: WorkspaceService,
+        useValue: { currentWorkspace: signal({ id: 'workspace-1' }) },
+      },
       { provide: ToastService, useValue: { success: vi.fn(), error: vi.fn() } },
     ],
   }).createComponent(SellersComponent);
