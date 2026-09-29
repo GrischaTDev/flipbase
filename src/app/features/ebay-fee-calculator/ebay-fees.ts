@@ -387,14 +387,12 @@ function calculateBusinessFees(input: EbayFeeInput, transactionAmount: number): 
   const variableFee = calculateVariableFee(definition.rule, transactionAmount, input);
   const orderFee = transactionAmount > 10 ? 0.45 : 0.35;
   const discountBase = money(variableFee + orderFee);
-  const platinumDiscount =
-    input.shopType === 'platinum' ? money(discountBase * 0.1) : 0;
+  const platinumDiscount = input.shopType === 'platinum' ? money(discountBase * 0.1) : 0;
   const finalValueFee = money(discountBase - platinumDiscount);
   const listingFee = calculateBusinessListingFee(input);
-  const internationalFee =
-    input.useEbayInternationalShipping
-      ? 0
-      : money(transactionAmount * BUSINESS_INTERNATIONAL_RATE[input.destination]);
+  const internationalFee = input.useEbayInternationalShipping
+    ? 0
+    : money(transactionAmount * BUSINESS_INTERNATIONAL_RATE[input.destination]);
   const promotedFee = percentFee(transactionAmount, input.promotedRatePercent);
 
   const feesBeforeVat = money(finalValueFee + listingFee + internationalFee + promotedFee);
@@ -429,8 +427,7 @@ function calculateVariableFee(
 ): number {
   if (rule.mode === 'flat') {
     const rate =
-      rule.recommerceRate !== undefined &&
-      RECOMMERCE_CONDITIONS.has(input.condition)
+      rule.recommerceRate !== undefined && RECOMMERCE_CONDITIONS.has(input.condition)
         ? rule.recommerceRate
         : rule.rate;
     return money(transactionAmount * rate);
@@ -443,10 +440,7 @@ function calculateVariableFee(
     return tieredFee(transactionAmount, rule.threshold, rule.rate, rule.rateAbove);
   }
 
-  if (
-    rule.recommerceRate !== undefined &&
-    RECOMMERCE_CONDITIONS.has(input.condition)
-  ) {
+  if (rule.recommerceRate !== undefined && RECOMMERCE_CONDITIONS.has(input.condition)) {
     return money(transactionAmount * rule.recommerceRate);
   }
 
@@ -481,10 +475,7 @@ function describeRule(
   input: EbayFeeInput,
 ): string {
   if (rule.mode === 'flat') {
-    if (
-      rule.recommerceRate !== undefined &&
-      RECOMMERCE_CONDITIONS.has(input.condition)
-    ) {
+    if (rule.recommerceRate !== undefined && RECOMMERCE_CONDITIONS.has(input.condition)) {
       return `${percent(rule.recommerceRate)} Re-Commerce-Verkaufsprovision`;
     }
     return `${percent(rule.rate)} Verkaufsprovision`;
