@@ -1610,10 +1610,11 @@ test('pricing section shows the free beta and future plan limits', () => {
     assert.equal(card.querySelector('.pricing-cta')?.getAttribute('href'), '#beta-anmeldung');
   }
 
+  const pricingText = pricing.textContent.replace(/\s+/gu, ' ').trim();
   assert.match(
-    pricing.textContent,
+    pricingText,
     /Bewirb Dich für den kostenlosen Beta-Zugang\. Teste schon jetzt alle fertigen Features kostenlos und beteilige Dich mit Deinem Feedback an der Weiterentwicklung von Flipbase\./u,
   );
-  assert.doesNotMatch(pricing.textContent, /Geplant nach der Beta/u);
-  assert.doesNotMatch(pricing.textContent, /Paketumfang nach der Beta/u);
+  assert.doesNotMatch(pricingText, /Geplant nach der Beta/u);
+  assert.doesNotMatch(pricingText, /Paketumfang nach der Beta/u);
 });
