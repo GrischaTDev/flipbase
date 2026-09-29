@@ -1,46 +1,48 @@
 <div class="space-y-4 animate-fade-in">
   <app-beta-discord-banner />
-  <header class="linear-surface rounded-xl border border-fb-line px-5 py-4">
-    <div class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-      <div>
-        <h1 class="text-lg font-semibold tracking-tight text-fb-text-primary">Ertrag im Blick</h1>
-        <p class="mt-1 max-w-2xl text-xs text-fb-text-muted">
-          Die wichtigsten Kennzahlen im gewählten Zeitraum.
-        </p>
-      </div>
-      <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-        <div
-          class="inline-flex flex-wrap rounded-lg bg-fb-well p-0.5 ring-1 ring-inset ring-fb-line"
-          role="group"
-          aria-label="Zeitraum wählen"
-        >
-          @for (option of rangeOptions; track option.value) {
-            <app-button
-              size="slim"
-              [variant]="range() === option.value ? 'secondary' : 'ghost'"
-              (clicked)="setRange(option.value)"
-              [ariaPressed]="range() === option.value"
-            >
-              {{ option.label }}
-            </app-button>
-          }
-        </div>
-        <app-custom-select
-          triggerId="dashboard-platform"
-          ariaLabel="Plattform filtern"
-          variant="filter"
-          widthClass="w-52"
-          [options]="platformSelectOptions()"
-          [value]="platform()"
-          (valueChange)="setPlatform($event)"
-        />
-      </div>
+
+  <header class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+    <div>
+      <h1 class="text-2xl font-semibold tracking-tight text-fb-text-primary">Dashboard</h1>
+      <p class="mt-1 max-w-2xl text-xs text-fb-text-muted">
+        Dein Überblick über Ertrag, Bestand und die nächsten Aufgaben.
+      </p>
     </div>
+
+    <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+      <div
+        class="inline-flex flex-wrap rounded-lg bg-fb-well p-0.5 ring-1 ring-inset ring-fb-line"
+        role="group"
+        aria-label="Zeitraum wählen"
+      >
+        @for (option of rangeOptions; track option.value) {
+          <app-button
+            size="slim"
+            [variant]="range() === option.value ? 'secondary' : 'ghost'"
+            (clicked)="setRange(option.value)"
+            [ariaPressed]="range() === option.value"
+          >
+            {{ option.label }}
+          </app-button>
+        }
+      </div>
+
+      <app-custom-select
+        triggerId="dashboard-platform"
+        ariaLabel="Plattform filtern"
+        variant="filter"
+        widthClass="w-52"
+        [options]="platformSelectOptions()"
+        [value]="platform()"
+        (valueChange)="setPlatform($event)"
+      />
+    </div>
+
     @if (saveError()) {
       <p
         data-dashboard-save-error
         role="status"
-        class="mt-3 text-xs font-medium text-amber-700 dark:text-amber-300"
+        class="text-xs font-medium text-amber-700 lg:basis-full dark:text-amber-300"
       >
         {{ saveError() }}
       </p>
@@ -48,7 +50,7 @@
   </header>
 
   <section aria-label="Kennzahlen">
-    <div class="grid grid-cols-[repeat(auto-fit,minmax(min(100%,10.5rem),1fr))] gap-3">
+    <div class="grid grid-cols-[repeat(auto-fit,minmax(min(100%,13rem),1fr))] gap-3">
       <app-dashboard-kpi-card
         data-kpi="revenue"
         size="large"
@@ -63,30 +65,6 @@
         [icon]="trendingIcon"
         [value]="kpis().grossProfit.value"
         [valueTone]="kpis().grossProfit.tone"
-        [hint]="kpis().grossProfit.hint"
-      />
-      <app-dashboard-kpi-card
-        data-kpi="purchases"
-        size="large"
-        label="Einkäufe"
-        [icon]="purchasesIcon"
-        [value]="kpis().purchases.value"
-        [hint]="kpis().purchases.hint"
-      />
-      <app-dashboard-kpi-card
-        data-kpi="operating-expenses"
-        size="large"
-        label="Betriebsausgaben"
-        [icon]="coinsIcon"
-        [value]="kpis().operatingExpenses.value"
-      />
-      <app-dashboard-kpi-card
-        data-kpi="total-expenses"
-        size="large"
-        label="Ausgaben gesamt"
-        [icon]="coinsIcon"
-        [value]="kpis().totalExpenses.value"
-        [valueTone]="kpis().totalExpenses.tone"
       />
       <app-dashboard-kpi-card
         data-kpi="margin"
@@ -95,223 +73,313 @@
         [icon]="trendingIcon"
         [value]="kpis().margin.value"
       />
+      <app-dashboard-kpi-card
+        data-kpi="inventory-capital"
+        size="large"
+        label="Kapital im Bestand"
+        [icon]="purchasesIcon"
+        [value]="kpis().inventoryCapital.value"
+      />
     </div>
   </section>
 
-  <app-dashboard-open-costs
-    [openCosts]="report().openCosts"
-    [salesWithoutPurchase]="report().salesWithoutPurchase"
-    [inventoryItemsWithoutCost]="report().inventoryItemsWithoutCost"
-  />
+  <div class="grid min-w-0 gap-4 xl:grid-cols-12">
+    <div class="min-w-0 xl:col-span-8">
+      <app-card rounded="xl">
+        <app-revenue-chart [points]="report().points"></app-revenue-chart>
+      </app-card>
+    </div>
 
-  <app-card rounded="xl">
-    <app-revenue-chart [points]="report().points"></app-revenue-chart>
-  </app-card>
+    <aside class="min-w-0 space-y-4 xl:col-span-4" aria-label="Aufgaben und Schnellaktionen">
+      <app-dashboard-open-costs
+        [openCosts]="report().openCosts"
+        [salesWithoutPurchase]="report().salesWithoutPurchase"
+        [inventoryItemsWithoutCost]="report().inventoryItemsWithoutCost"
+      />
 
-  <section class="min-w-0" aria-labelledby="sales-table-heading">
-    <app-card padding="none" rounded="xl">
-      <div card-header class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 id="sales-table-heading" class="text-sm font-semibold text-fb-text-primary">
-            Verkäufe
-          </h2>
-          <p class="mt-1 text-xs text-fb-text-muted">
-            {{ report().rows.length }} bestätigte Verkäufe im gewählten Zeitraum
+      <app-card padding="md" rounded="xl">
+        <div card-header class="flex items-center justify-between gap-3">
+          <div>
+            <h2 class="text-sm font-semibold text-fb-text-primary">Schnellaktionen</h2>
+            <p class="mt-1 text-xs text-fb-text-muted">Häufige Schritte direkt starten.</p>
+          </div>
+        </div>
+
+        <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+          <app-button
+            link="/purchases/new"
+            [icon]="purchasesIcon"
+            [fullWidth]="true"
+            contentAlign="start"
+          >
+            Einkauf erfassen
+          </app-button>
+          <app-button
+            link="/sales/new"
+            [icon]="coinsIcon"
+            [fullWidth]="true"
+            contentAlign="start"
+          >
+            Verkauf erfassen
+          </app-button>
+          <app-button
+            link="/listings/new"
+            [icon]="trendingIcon"
+            [fullWidth]="true"
+            contentAlign="start"
+          >
+            Neues Inserat
+          </app-button>
+          <app-button
+            link="/image-optimizer"
+            [icon]="arrowIcon"
+            [fullWidth]="true"
+            contentAlign="start"
+          >
+            Bilder optimieren
+          </app-button>
+        </div>
+      </app-card>
+    </aside>
+  </div>
+
+  <div class="grid min-w-0 gap-4 xl:grid-cols-12">
+    <section class="min-w-0 xl:col-span-4" aria-labelledby="inventory-overview-heading">
+      <app-card padding="none" rounded="xl">
+        <div card-header class="flex items-center justify-between gap-3">
+          <div>
+            <h2 id="inventory-overview-heading" class="text-sm font-semibold text-fb-text-primary">
+              Bestand
+            </h2>
+            <p class="mt-1 text-xs text-fb-text-muted">Aktueller Kapitalstand deiner Ware.</p>
+          </div>
+          <app-button
+            variant="plain"
+            link="/catalog"
+            [queryParams]="{ view: 'stock' }"
+            [icon]="arrowIcon"
+            iconPosition="end"
+          >
+            Öffnen
+          </app-button>
+        </div>
+
+        <div class="space-y-4 p-4">
+          <div class="grid grid-cols-2 gap-3">
+            <div class="rounded-lg bg-fb-subtle px-3 py-3">
+              <p class="text-xs text-fb-text-muted">Kapital im Bestand</p>
+              <p class="mt-1 font-mono text-lg font-semibold text-fb-text-primary">
+                {{ report().inventoryCostValue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+              </p>
+            </div>
+            <div class="rounded-lg bg-fb-subtle px-3 py-3">
+              <p class="text-xs text-fb-text-muted">Kostenstatus</p>
+              <p
+                class="mt-1 text-sm font-semibold"
+                [class.text-fb-finance-positive]="report().inventoryItemsWithoutCost === 0"
+                [class.text-fb-text-primary]="report().inventoryItemsWithoutCost > 0"
+              >
+                {{ inventoryCostStatus() }}
+              </p>
+            </div>
+          </div>
+
+          <p class="text-xs leading-5 text-fb-text-muted">
+            Der Bestandswert basiert auf den bekannten Anschaffungskosten der aktuell vorhandenen
+            Ware und bleibt unabhängig vom gewählten Verkaufszeitraum.
           </p>
         </div>
-        <app-button link="/sales" [icon]="arrowIcon" iconPosition="end">Verkäufe öffnen</app-button>
-      </div>
-      @if (salesService.isLoading()) {
-        <p role="status" class="px-4 py-8 text-center text-[13px] text-fb-text-muted">
-          Verkäufe werden geladen …
-        </p>
-      } @else if (salesService.loadError()) {
-        <p role="alert" class="px-4 py-8 text-center text-[13px] text-fb-text-secondary">
-          Die Verkäufe konnten nicht geladen werden. Bitte lade die Seite erneut.
-        </p>
-      } @else if (report().rows.length > 0) {
-        <div
-          class="hidden overflow-x-auto md:block"
-          tabindex="0"
-          role="region"
-          aria-label="Verkäufe-Tabelle"
-        >
-          <table
-            data-shared-ui-exception="static-table"
-            class="linear-table w-full min-w-[760px] text-[13px] tabular-nums"
-          >
-            <thead class="bg-fb-well/60 text-[13px] font-semibold text-fb-text-secondary">
-              <tr class="text-[13px]">
-                <th scope="col" class="px-4 py-3">Datum</th>
-                <th scope="col" class="px-4 py-3">Artikel</th>
-                <th scope="col" class="px-4 py-3 text-right">Menge</th>
-                <th scope="col" class="px-4 py-3">Plattform</th>
-                <th scope="col" class="px-4 py-3 text-right">Einnahmen</th>
-                <th scope="col" class="px-4 py-3 text-right">Einkaufspreis</th>
-                <th
-                  scope="col"
-                  class="px-4 py-3 text-right"
-                  title="Plattformgebühren, Versand, Verpackung und weitere Kosten dieses Verkaufs"
-                >
-                  Gebühren & Versand
-                </th>
-                <th scope="col" class="px-4 py-3 text-right">Gewinn</th>
-                <th scope="col" class="px-4 py-3 text-right">Marge</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-fb-line">
-              @for (row of report().rows; track row.saleId) {
-                <tr class="hover:bg-fb-surface-alt/60">
-                  <td class="px-4 py-3 font-mono text-fb-text-secondary">
-                    {{ row.date | date: 'dd.MM.yyyy' }}
-                  </td>
-                  <td class="max-w-72 break-words px-4 py-3 font-semibold text-fb-text-primary">
-                    {{ row.articles }}
-                  </td>
-                  <td class="px-4 py-3 text-right font-mono text-fb-text-secondary">
-                    {{ row.quantity }}
-                  </td>
-                  <td class="max-w-48 break-words px-4 py-3 text-fb-text-secondary">
-                    {{ row.platform }}
-                  </td>
-                  <td class="px-4 py-3 text-right font-mono text-fb-text-primary">
-                    {{ row.revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-                  </td>
-                  <td class="px-4 py-3 text-right font-mono text-fb-text-secondary">
-                    @if (row.costOfGoodsSold === null) {
-                      <span class="font-sans text-xs text-fb-text-secondary"
-                        >Kosten noch offen</span
-                      >
-                    } @else {
-                      {{ row.costOfGoodsSold | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-                    }
-                  </td>
-                  <td class="px-4 py-3 text-right font-mono text-fb-text-secondary">
-                    {{ row.sellingCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-                  </td>
-                  <td
-                    class="px-4 py-3 text-right font-mono font-semibold"
-                    [class.text-fb-finance-positive]="
-                      row.resultAfterDirectCosts !== null && row.resultAfterDirectCosts > 0
-                    "
-                    [class.text-fb-finance-negative]="
-                      row.resultAfterDirectCosts !== null && row.resultAfterDirectCosts < 0
-                    "
-                    [class.text-fb-text-primary]="
-                      row.resultAfterDirectCosts === null || row.resultAfterDirectCosts === 0
-                    "
-                  >
-                    @if (row.resultAfterDirectCosts === null) {
-                      <span class="font-sans text-xs text-fb-text-secondary"
-                        >Kosten noch offen</span
-                      >
-                    } @else {
-                      {{ row.resultAfterDirectCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-                    }
-                  </td>
-                  <td class="px-4 py-3 text-right font-mono text-fb-text-secondary">
-                    @if (row.marginPercent === null) {
-                      –
-                    } @else {
-                      {{ row.marginPercent }} %
-                    }
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
+      </app-card>
+    </section>
+
+    <section class="min-w-0 xl:col-span-5" aria-labelledby="sales-table-heading">
+      <app-card padding="none" rounded="xl">
+        <div card-header class="flex items-center justify-between gap-3">
+          <div>
+            <h2 id="sales-table-heading" class="text-sm font-semibold text-fb-text-primary">
+              Letzte Verkäufe
+            </h2>
+            <p class="mt-1 text-xs text-fb-text-muted">
+              {{ report().rows.length }} bestätigte Verkäufe im gewählten Zeitraum
+            </p>
+          </div>
+          <app-button variant="plain" link="/sales" [icon]="arrowIcon" iconPosition="end">
+            Alle öffnen
+          </app-button>
         </div>
-        <div class="divide-y divide-fb-line md:hidden">
-          @for (row of report().rows; track row.saleId) {
-            <article class="min-w-0 space-y-3 break-words px-4 py-3 text-[13px]">
-              <div class="min-w-0">
-                <div class="min-w-0">
-                  <p class="font-semibold text-fb-text-primary">{{ row.articles }}</p>
-                  <p class="mt-0.5 text-xs text-fb-text-muted">
-                    {{ row.date | date: 'dd.MM.yyyy' }} · {{ row.platform }} ·
-                    {{ row.quantity }} Stück
+
+        @if (salesService.isLoading()) {
+          <p role="status" class="px-4 py-8 text-center text-[13px] text-fb-text-muted">
+            Verkäufe werden geladen …
+          </p>
+        } @else if (salesService.loadError()) {
+          <p role="alert" class="px-4 py-8 text-center text-[13px] text-fb-text-secondary">
+            Die Verkäufe konnten nicht geladen werden. Bitte lade die Seite erneut.
+          </p>
+        } @else if (recentSales().length > 0) {
+          <div
+            class="hidden overflow-x-auto md:block"
+            tabindex="0"
+            role="region"
+            aria-label="Letzte Verkäufe"
+          >
+            <table
+              data-shared-ui-exception="static-table"
+              class="linear-table w-full min-w-[640px] text-[13px] tabular-nums"
+            >
+              <thead class="bg-fb-well/60 text-[13px] font-semibold text-fb-text-secondary">
+                <tr>
+                  <th scope="col" class="px-4 py-3">Datum</th>
+                  <th scope="col" class="px-4 py-3">Artikel</th>
+                  <th scope="col" class="px-4 py-3">Plattform</th>
+                  <th scope="col" class="px-4 py-3 text-right">Preis</th>
+                  <th scope="col" class="px-4 py-3 text-right">Gewinn</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-fb-line">
+                @for (row of recentSales(); track row.saleId) {
+                  <tr class="hover:bg-fb-surface-alt/60">
+                    <td class="px-4 py-3 font-mono text-fb-text-secondary">
+                      {{ row.date | date: 'dd.MM.yyyy' }}
+                    </td>
+                    <td class="max-w-72 break-words px-4 py-3 font-semibold text-fb-text-primary">
+                      {{ row.articles }}
+                    </td>
+                    <td class="px-4 py-3">
+                      <span class="rounded-md bg-fb-well px-2 py-1 text-xs text-fb-text-secondary">
+                        {{ row.platform }}
+                      </span>
+                    </td>
+                    <td class="px-4 py-3 text-right font-mono text-fb-text-primary">
+                      {{ row.revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                    </td>
+                    <td
+                      class="px-4 py-3 text-right font-mono font-semibold"
+                      [class.text-fb-finance-positive]="
+                        row.resultAfterDirectCosts !== null && row.resultAfterDirectCosts > 0
+                      "
+                      [class.text-fb-finance-negative]="
+                        row.resultAfterDirectCosts !== null && row.resultAfterDirectCosts < 0
+                      "
+                      [class.text-fb-text-primary]="
+                        row.resultAfterDirectCosts === null || row.resultAfterDirectCosts === 0
+                      "
+                    >
+                      @if (row.resultAfterDirectCosts === null) {
+                        <span class="font-sans text-xs text-fb-text-secondary"
+                          >Kosten noch offen</span
+                        >
+                      } @else {
+                        {{
+                          row.resultAfterDirectCosts
+                            | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+                        }}
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+
+          <div class="divide-y divide-fb-line md:hidden">
+            @for (row of recentSales(); track row.saleId) {
+              <article class="space-y-2 px-4 py-3 text-[13px]">
+                <div class="flex items-start justify-between gap-3">
+                  <div class="min-w-0">
+                    <p class="font-semibold text-fb-text-primary">{{ row.articles }}</p>
+                    <p class="mt-0.5 text-xs text-fb-text-muted">
+                      {{ row.date | date: 'dd.MM.yyyy' }} · {{ row.platform }}
+                    </p>
+                  </div>
+                  <p class="shrink-0 font-mono font-semibold text-fb-text-primary">
+                    {{ row.revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                   </p>
                 </div>
-              </div>
-              <dl
-                class="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-fb-text-secondary"
-              >
-                <dt>Einnahmen</dt>
-                <dd class="text-right tabular-nums">
-                  {{ row.revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-                </dd>
-                <dt>Einkaufspreis</dt>
-                <dd class="text-right tabular-nums">
-                  @if (row.costOfGoodsSold === null) {
-                    Kosten noch offen
-                  } @else {
-                    {{ row.costOfGoodsSold | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-                  }
-                </dd>
-                <dt
-                  title="Plattformgebühren, Versand, Verpackung und weitere Kosten dieses Verkaufs"
-                >
-                  Gebühren & Versand
-                </dt>
-                <dd class="text-right tabular-nums">
-                  {{ row.sellingCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-                </dd>
-                <dt class="font-semibold text-fb-text-primary">Gewinn</dt>
-                <dd
-                  class="text-right font-semibold tabular-nums"
+                <p
+                  class="text-right text-xs font-semibold"
                   [class.text-fb-finance-positive]="
                     row.resultAfterDirectCosts !== null && row.resultAfterDirectCosts > 0
                   "
                   [class.text-fb-finance-negative]="
                     row.resultAfterDirectCosts !== null && row.resultAfterDirectCosts < 0
                   "
-                  [class.text-fb-text-primary]="
-                    row.resultAfterDirectCosts === null || row.resultAfterDirectCosts === 0
-                  "
+                  [class.text-fb-text-muted]="row.resultAfterDirectCosts === null"
                 >
                   @if (row.resultAfterDirectCosts === null) {
                     Kosten noch offen
                   } @else {
-                    {{ row.resultAfterDirectCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                    Gewinn
+                    {{
+                      row.resultAfterDirectCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+                    }}
                   }
-                </dd>
-                <dt>Marge</dt>
-                <dd class="text-right tabular-nums">
-                  @if (row.marginPercent === null) {
-                    –
-                  } @else {
-                    {{ row.marginPercent }} %
-                  }
-                </dd>
-              </dl>
-            </article>
-          }
+                </p>
+              </article>
+            }
+          </div>
+        } @else {
+          <div class="px-4 py-10 text-center">
+            <p class="text-sm font-semibold text-fb-text-primary">
+              {{
+                salesService.sales().length
+                  ? 'Keine Treffer für diese Auswahl'
+                  : 'Keine bestätigten Verkäufe'
+              }}
+            </p>
+            <p class="mt-1 text-xs text-fb-text-muted">
+              Hier erscheinen deine letzten bestätigten Verkäufe für den gewählten Zeitraum.
+            </p>
+            @if (salesService.sales().length > 0 && (range() !== 'year' || platform() !== 'all')) {
+              <app-button
+                data-expand-sales-period
+                (clicked)="setRange('year'); setPlatform('all')"
+                class="mt-3 mr-3"
+              >
+                Dieses Jahr · alle Plattformen
+              </app-button>
+            }
+            <app-button link="/sales" class="mt-3">Zu Verkäufen</app-button>
+          </div>
+        }
+      </app-card>
+    </section>
+
+    <section class="min-w-0 xl:col-span-3" aria-labelledby="platform-overview-heading">
+      <app-card padding="none" rounded="xl">
+        <div card-header>
+          <h2 id="platform-overview-heading" class="text-sm font-semibold text-fb-text-primary">
+            Plattformen
+          </h2>
+          <p class="mt-1 text-xs text-fb-text-muted">Anteil der Verkäufe in dieser Auswahl.</p>
         </div>
-      } @else {
-        <div class="px-4 py-10 text-center">
-          <p class="text-sm font-semibold text-fb-text-primary">
-            {{
-              salesService.sales().length
-                ? 'Keine Treffer für diese Auswahl'
-                : 'Keine bestätigten Verkäufe'
-            }}
+
+        @if (platformBreakdown().length > 0) {
+          <div class="space-y-4 p-4">
+            @for (entry of platformBreakdown(); track entry.key) {
+              <div class="space-y-1.5">
+                <div class="flex items-center justify-between gap-3 text-[13px]">
+                  <span class="truncate font-medium text-fb-text-secondary">{{ entry.label }}</span>
+                  <span class="shrink-0 font-mono text-fb-text-muted">
+                    {{ entry.sales }} · {{ entry.share }} %
+                  </span>
+                </div>
+                <div class="h-1.5 overflow-hidden rounded-full bg-fb-well">
+                  <div
+                    class="h-full rounded-full bg-fb-primary"
+                    [style.width.%]="entry.share"
+                    aria-hidden="true"
+                  ></div>
+                </div>
+              </div>
+            }
+          </div>
+        } @else {
+          <p class="px-4 py-8 text-center text-[13px] text-fb-text-muted">
+            Noch keine Verkäufe in dieser Auswahl.
           </p>
-          <p class="mt-1 text-xs text-fb-text-muted">
-            Hier zählen nur Verkäufe im gewählten Zeitraum und auf der gewählten Plattform. Offene
-            Einkaufskosten blenden Verkäufe nicht aus.
-          </p>
-          @if (salesService.sales().length > 0 && (range() !== 'year' || platform() !== 'all')) {
-            <app-button
-              data-expand-sales-period
-              (clicked)="setRange('year'); setPlatform('all')"
-              class="mt-3 mr-3"
-            >
-              Dieses Jahr · alle Plattformen
-            </app-button>
-          }
-          <app-button link="/sales" class="mt-3">Zu Verkäufen</app-button>
-        </div>
-      }
-    </app-card>
-  </section>
+        }
+      </app-card>
+    </section>
+  </div>
 </div>
