@@ -44,13 +44,7 @@ export const MASTER_DATA_TABLE_CONFIGS: Record<
 };
 
 export type SellerMasterDataColumnId =
-  | 'name'
-  | 'type'
-  | 'contact'
-  | 'communication'
-  | 'location'
-  | 'status'
-  | 'actions';
+  'name' | 'type' | 'contact' | 'communication' | 'location' | 'status' | 'actions';
 
 export const SELLER_MASTER_DATA_TABLE_CONFIG: TableConfig<SellerMasterDataColumnId, 'name'> = {
   ...sorting,
