@@ -20,7 +20,10 @@ import {
   TablePreferences,
   parseTablePreferences,
 } from '../models/table-preferences';
-import { MASTER_DATA_TABLE_CONFIGS, SELLER_MASTER_DATA_TABLE_CONFIG } from '../config/master-data-table.config';
+import {
+  MASTER_DATA_TABLE_CONFIGS,
+  SELLER_MASTER_DATA_TABLE_CONFIG,
+} from '../config/master-data-table.config';
 import { AuthService } from './auth.service';
 import { SupabaseService } from './supabase.service';
 
