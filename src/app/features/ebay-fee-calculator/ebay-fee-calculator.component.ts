@@ -1,9 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  signal,
-} from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, signal } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -17,7 +12,9 @@ import {
   CustomSelectComponent,
   type SelectOption,
 } from '../../shared/components/custom-select/custom-select.component';
-import { CustomCheckboxComponent } from '../../shared/components/custom-checkbox/custom-checkbox.component';
+import {
+  CustomCheckboxComponent,
+} from '../../shared/components/custom-checkbox/custom-checkbox.component';
 import { NumberInputComponent } from '../../shared/components/number-input/number-input.component';
 import {
   RouteTabsComponent,
