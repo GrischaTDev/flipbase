@@ -28,6 +28,7 @@ import {
   LucideTrendingUp as TrendingUp,
   LucideTrash2 as Trash2,
 } from '@lucide/angular';
+import { SALE_PLATFORM_OPTIONS } from '../../../../core/config/sale-platform-options';
 import { Sale, SaleCostCategory, ShippingMode } from '../../../../core/models/flipbase.models';
 import { LegacySaleReconciliation, SaleTarget } from '../../../../core/models/sale-target.models';
 import { isSellableInventoryItem } from '../../../../core/models/inventory-sellability';
@@ -136,13 +137,9 @@ export class SaleCreateModalComponent {
         : 'Verkauf abschließen',
   );
 
-  readonly plattformOptionen: SelectOption<string>[] = [
-    { value: 'kleinanzeigen', label: 'Kleinanzeigen (0 % Gebühr)' },
-    { value: 'ebay', label: 'eBay' },
-    { value: 'vinted', label: 'Vinted' },
-    { value: 'direct', label: 'Direktverkauf' },
-    { value: 'other', label: 'Andere' },
-  ];
+  readonly plattformOptionen: SelectOption<string>[] = SALE_PLATFORM_OPTIONS.map(
+    ({ value, label }) => ({ value, label }),
+  );
   readonly versandOptionen: SelectOption<ShippingMode>[] = [
     { value: 'seller_arranged', label: 'Eigener Versand' },
     { value: 'platform_prepaid', label: 'Versandschein der Plattform' },
