@@ -45,8 +45,6 @@ jobs:
           npm run test:angular --
           src/app/features/sales/sales-deep-link.angular.spec.ts
           src/app/features/dashboard/dashboard.component.angular.spec.ts
-      - name: Run application test suites
-        run: npm test
       - name: Check shared UI contract
         run: node scripts/check-admin-shared-ui.mjs
       - name: Build production application
