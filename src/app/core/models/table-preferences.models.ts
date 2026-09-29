@@ -1,6 +1,15 @@
 export type TableId =
-  'sales' | 'inventory' | 'purchases' | 'accounting' | 'catalog' | 'expenses' | 'beta_applications' |
-  'master_brands' | 'master_sources' | 'master_platforms' | 'master_sellers';
+  | 'sales'
+  | 'inventory'
+  | 'purchases'
+  | 'accounting'
+  | 'catalog'
+  | 'expenses'
+  | 'beta_applications'
+  | 'master_brands'
+  | 'master_sources'
+  | 'master_platforms'
+  | 'master_sellers';
 
 export type SortDirection = 'asc' | 'desc';
 export type SortValueKind = 'text' | 'number' | 'date';
