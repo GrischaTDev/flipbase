@@ -26,6 +26,10 @@ import {
 } from '../../shared/components/custom-select/custom-select.component';
 import { NumberInputComponent } from '../../shared/components/number-input/number-input.component';
 import { TextFieldComponent } from '../../shared/components/text-field/text-field.component';
+import {
+  RouteTabsComponent,
+  type RouteTab,
+} from '../../shared/components/route-tabs/route-tabs.component';
 
 @Component({
   selector: 'app-deal-calculator',
@@ -38,6 +42,7 @@ import { TextFieldComponent } from '../../shared/components/text-field/text-fiel
     CustomSelectComponent,
     NumberInputComponent,
     TextFieldComponent,
+    RouteTabsComponent,
   ],
   templateUrl: './deal-calculator.component.html',
   host: { class: 'block' },
@@ -72,6 +77,11 @@ export class DealCalculatorComponent {
   readonly arrowIcon = ArrowRight;
   readonly infoIcon = Info;
   readonly cameraIcon = Camera;
+
+  readonly calculationTabs: readonly RouteTab[] = [
+    { id: 'deal', label: 'Deal-Rechner', path: '/deal-calculator' },
+    { id: 'ebay', label: 'eBay-Gebühren', path: '/deal-calculator/ebay' },
+  ];
 
   readonly isScanningBarcode = signal<boolean>(false);
 
