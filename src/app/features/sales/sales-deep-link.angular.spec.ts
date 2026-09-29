@@ -469,7 +469,9 @@ describe('SalesComponent – verlinkter Verkauf', () => {
     const filter = host.querySelector('[data-sales-platform-filter]');
 
     expect(filter).not.toBeNull();
-    expect(filter?.textContent).toContain('Alle Verkäufe');
+    expect(filter?.textContent).toContain('Alle');
+    expect(filter?.textContent).not.toContain('Alle Verkäufe');
+    expect(filter?.textContent).not.toMatch(/\(\d+\)/);
     expect(filter?.querySelector('app-marketplace-platform-identity')).toBeNull();
     expect(host.querySelector('[aria-label="Verkaufsansicht"]')).toBeNull();
   });
