@@ -208,13 +208,20 @@ export class SalesService {
     );
   }
 
+  public metricsForSale(raw: Sale) {
+    return calculateStoredSaleMetrics(raw, {
+      inventoryItems: this.inventoryService?.items?.(),
+      stockLots: this.stockService?.lots?.(),
+    });
+  }
+
   public enrichSaleMetrics(raw: Sale): Sale {
     const item = raw.inventory_item;
     const records = {
       inventoryItems: this.inventoryService?.items?.(),
       stockLots: this.stockService?.lots?.(),
     };
-    const metrics = calculateStoredSaleMetrics(raw, records);
+    const metrics = this.metricsForSale(raw);
     const grossRevenue = Number((metrics.revenue + Number(raw.refund_amount ?? 0)).toFixed(2));
 
     let holdingDays = 0;
