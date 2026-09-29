@@ -118,11 +118,12 @@ svg[lucideIcon],
 }
 .sales-table th,
 .sales-table td {
-  padding: 11px 12px;
+  padding: 3px 12px;
   text-align: left;
   border-bottom: 1px solid var(--fb-line);
 }
 .sales-table th {
+  padding-block: 7px;
   font-size: 13px;
   font-weight: 550;
   background: var(--fb-bg-surface-alt);
@@ -137,29 +138,13 @@ svg[lucideIcon],
   font-size: 11px;
 }
 .platform-cell {
-  width: 122px;
+  width: 148px;
 }
 .sales-table .amount-cell {
   width: 88px;
   text-align: right;
   font-variant-numeric: tabular-nums;
   font-weight: 550;
-}
-.segment-0 {
-  color: var(--fb-color-brand);
-  stroke: var(--fb-color-brand);
-}
-.segment-1 {
-  color: var(--fb-color-warning);
-  stroke: var(--fb-color-warning);
-}
-.segment-2 {
-  color: var(--fb-color-neutral);
-  stroke: var(--fb-color-neutral);
-}
-.segment-3 {
-  color: var(--fb-border-hover);
-  stroke: var(--fb-border-hover);
 }
 .warning,
 .state-note {
@@ -232,10 +217,10 @@ svg[lucideIcon],
   }
   .sales-table th,
   .sales-table td {
-    padding: 10px 8px;
+    padding: 3px 8px;
   }
   .platform-cell {
-    width: 110px;
+    width: 124px;
   }
   .sales-table .amount-cell {
     width: 74px;
@@ -252,4 +237,28 @@ svg[lucideIcon],
 
 .dashboard > app-beta-discord-banner:empty {
   display: none;
+}
+
+/* Plattformidentität ist keine Statuskennzeichnung. Markenfarben bleiben im Theme. */
+.dashboard-view-all {
+  --fb-text-secondary: var(--fb-dashboard-info);
+  --fb-text-primary: var(--fb-dashboard-info);
+}
+.bottom-grid h2 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.bottom-grid h2 svg,
+.stock-list svg {
+  color: var(--fb-dashboard-info);
+}
+.stock-list .stock-age-icon {
+  color: var(--fb-color-warning);
+}
+.stock-list .stock-alert-icon {
+  color: var(--fb-color-admin-surface);
+}
+.stock-warning {
+  color: var(--fb-dashboard-warning-text);
 }

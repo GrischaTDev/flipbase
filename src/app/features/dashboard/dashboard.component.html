@@ -188,9 +188,14 @@
       <app-card padding="none" rounded="xl" class="full-height h-full">
         <div card-header class="section-head flex items-center justify-between gap-3.5">
           <h2 id="sales-table-heading" class="section-title m-0 text-sm font-[650]">
-            Letzte Verkäufe
+            <svg [lucideIcon]="salesIcon" aria-hidden="true"></svg>Letzte Verkäufe
           </h2>
-          <app-button variant="plain" link="/sales" [icon]="arrowIcon" iconPosition="end"
+          <app-button
+            class="dashboard-view-all"
+            variant="plain"
+            link="/sales"
+            [icon]="viewAllIcon"
+            iconPosition="end"
             >Alle anzeigen</app-button
           >
         </div>
@@ -234,7 +239,17 @@
                       </app-button>
                     </td>
                     <td>
-                      <app-badge>{{ platformName(row.platform) }}</app-badge>
+                      <span
+                        class="platform-identity flex min-w-0 items-center gap-[7px] text-xs text-fb-text-secondary"
+                        [title]="platformName(row.platform)"
+                      >
+                        @if (platformAppearance(row.platform).logo; as logo) {
+                          <img [ngSrc]="logo" width="22" height="22" alt="" class="shrink-0" />
+                        } @else {
+                          <svg [lucideIcon]="storeIcon" aria-hidden="true"></svg>
+                        }
+                        <span class="min-w-0 truncate">{{ platformName(row.platform) }}</span>
+                      </span>
                     </td>
                     <td
                       class="amount-cell"
@@ -283,7 +298,7 @@
       <app-card padding="none" rounded="xl" class="full-height h-full">
         <div card-header>
           <h2 id="platform-overview-heading" class="section-title m-0 text-sm font-[650]">
-            Plattform-Verteilung
+            <svg [lucideIcon]="stockAgeIcon" aria-hidden="true"></svg>Plattform-Verteilung
           </h2>
           <p class="subtitle mt-1 mb-0 text-xs text-fb-text-muted">
             Nach Umsatz im gewählten Zeitraum.
@@ -297,7 +312,7 @@
           <p class="data-state">Noch keine Verkäufe in dieser Auswahl.</p>
         } @else {
           <div class="platform-body flex flex-wrap items-center justify-center gap-3.5 p-4">
-            <div class="donut relative size-[146px] shrink-0">
+            <div class="donut relative size-[164px] shrink-0">
               <svg viewBox="0 0 120 120" aria-hidden="true" focusable="false">
                 <circle
                   cx="60"
@@ -319,7 +334,8 @@
                       transform="rotate(-90 60 60)"
                       [attr.stroke-dasharray]="entry.share + ' ' + (100 - entry.share)"
                       [attr.stroke-dashoffset]="-entry.offset"
-                      [attr.class]="'segment-' + entry.index"
+                      [attr.data-platform]="entry.key"
+                      [style.stroke]="platformAppearance(entry.key).color"
                     ></circle>
                   }
                 }
@@ -334,14 +350,14 @@
               </div>
             </div>
             <ul
-              class="platform-legend [&_li]:grid [&_li]:grid-cols-[8px_minmax(0,1fr)_auto_auto] [&_li]:items-center [&_li]:gap-2 [&_li]:text-[11px] [&_li]:text-fb-text-muted [&_li]:tabular-nums [&_strong]:text-[11px] [&_strong]:font-medium m-0 grid min-w-[158px] flex-1 list-none gap-[17px] p-0"
+              class="platform-legend [&_li]:grid [&_li]:grid-cols-[12px_minmax(0,1fr)_auto_auto] [&_li]:items-center [&_li]:gap-2 [&_li]:text-xs [&_li]:text-fb-text-muted [&_li]:tabular-nums [&_strong]:text-xs [&_strong]:font-medium m-0 grid min-w-[158px] flex-1 list-none gap-[17px] p-0"
             >
               @for (entry of distribution().entries; track entry.key) {
                 <li>
                   <span
-                    [attr.class]="
-                      'legend-dot size-2 rounded-[2px] bg-current segment-' + entry.index
-                    "
+                    class="legend-dot size-3 rounded-[3px]"
+                    [attr.data-platform]="entry.key"
+                    [style.background-color]="platformAppearance(entry.key).color"
                     aria-hidden="true"
                   ></span>
                   <span class="legend-name break-words text-fb-text-secondary">{{
@@ -369,7 +385,7 @@
         <div card-header class="section-head flex items-center justify-between gap-3.5">
           <div>
             <h2 id="inventory-overview-heading" class="section-title m-0 text-sm font-[650]">
-              Bestand im Blick
+              <svg [lucideIcon]="packageIcon" aria-hidden="true"></svg>Bestand im Blick
             </h2>
             <p class="subtitle mt-1 mb-0 text-xs text-fb-text-muted">
               Aktuell · unabhängig vom Verkaufsfilter.
@@ -397,7 +413,7 @@
               <dd>{{ stock().units }} Stück</dd>
             </div>
             <div>
-              <dt>Warenwert (EK)</dt>
+              <dt><svg [lucideIcon]="stockValueIcon" aria-hidden="true"></svg>Warenwert (EK)</dt>
               <dd>
                 {{ report().inventoryCostValue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
               </dd>
@@ -405,7 +421,7 @@
             <div
               title="Bekannter Anschaffungswert geteilt durch die Stückzahl mit bekannten Kosten."
             >
-              <dt>Durchschnittl. EK</dt>
+              <dt><svg [lucideIcon]="stockTrendIcon" aria-hidden="true"></svg>Durchschnittl. EK</dt>
               <dd>
                 {{
                   averageCost() === null
@@ -416,18 +432,22 @@
             </div>
             <div title="61 bis einschließlich 90 Kalendertage im Bestand.">
               <dt>
-                <svg [lucideIcon]="clockIcon" aria-hidden="true"></svg>Langsam drehend
+                <svg [lucideIcon]="stockAgeIcon" class="stock-age-icon" aria-hidden="true"></svg
+                >Langsam drehend
                 <small>61–90 Tage</small>
               </dt>
-              <dd [class.warning]="stock().slow > 0">{{ stock().slow }} Stück</dd>
+              <dd [class.stock-warning]="stock().slow > 0">{{ stock().slow }} Stück</dd>
             </div>
             <div>
-              <dt>Über 90 Tage</dt>
-              <dd [class.warning]="stock().old > 0">{{ stock().old }} Stück</dd>
+              <dt>
+                <svg [lucideIcon]="stockAlertIcon" class="stock-alert-icon" aria-hidden="true"></svg
+                >Über 90 Tage
+              </dt>
+              <dd [class.negative]="stock().old > 0">{{ stock().old }} Stück</dd>
             </div>
           </dl>
           @if (report().inventoryItemsWithoutCost > 0) {
-            <p class="small-state m-0 px-4 py-3 text-xs text-fb-text-muted warning">
+            <p class="small-state m-0 px-4 py-3 text-xs text-fb-text-muted">
               {{ report().inventoryItemsWithoutCost }} Stück ohne Kostenangabe. Warenwert und Ø nur
               für bekannte Kosten.
             </p>

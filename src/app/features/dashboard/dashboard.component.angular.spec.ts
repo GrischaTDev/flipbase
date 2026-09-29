@@ -661,4 +661,96 @@ describe('DashboardComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('Keine offenen Kostenangaben.');
     expect(fixture.nativeElement.querySelector('[role="alert"]')).toBeNull();
   });
+
+  it('zeigt die Plattformlogos neben lesbaren Namen statt neutraler Plattform-Badges', () => {
+    createReport.mockReturnValue({
+      ...emptyReport,
+      rows: ['vinted', 'kleinanzeigen', 'ebay', 'Flohmarkt'].map((platform, index) => ({
+        saleId: `platform-sale-${index}`,
+        date: '2026-09-23',
+        articles: `Artikel ${index}`,
+        quantity: 1,
+        platform,
+        revenue: 20,
+        costOfGoodsSold: 10,
+        sellingCosts: 0,
+        resultAfterDirectCosts: 10,
+        marginPercent: 50,
+        profit: 10,
+      })),
+    });
+    const host = createDashboard().nativeElement as HTMLElement;
+    const cells = [...host.querySelectorAll('.sales-table tbody td:nth-child(3)')];
+    for (const [index, platform] of ['vinted', 'kleinanzeigen', 'ebay'].entries()) {
+      expect(cells[index].querySelector('img')?.getAttribute('src')).toBe(
+        `/images/platforms/${platform}.svg`,
+      );
+      expect(cells[index].querySelector('img')?.getAttribute('alt')).toBe('');
+      expect(cells[index].querySelector('app-badge')).toBeNull();
+    }
+    expect(cells[0].textContent).toContain('Vinted');
+    expect(cells[1].textContent).toContain('Kleinanzeigen');
+    expect(cells[2].textContent).toContain('eBay');
+    expect(cells[3].textContent).toContain('Flohmarkt');
+    expect(cells[3].querySelector('svg')).not.toBeNull();
+  });
+
+  it('bindet Donut und Legende an die Plattform statt an deren Umsatzrang', () => {
+    const rows = signal([
+      { platform: 'vinted', revenue: 80 },
+      { platform: 'ebay', revenue: 20 },
+      { platform: 'kleinanzeigen', revenue: 10 },
+    ]);
+    createReport.mockImplementation(() => ({
+      ...emptyReport,
+      rows: rows().map((row, index) => ({
+        ...row,
+        saleId: `rank-sale-${index}`,
+        date: '2026-09-23',
+        articles: 'Artikel',
+        quantity: 1,
+        costOfGoodsSold: 0,
+        sellingCosts: 0,
+        resultAfterDirectCosts: row.revenue,
+        marginPercent: 100,
+        profit: row.revenue,
+      })),
+    }));
+    const fixture = createDashboard();
+    const host = fixture.nativeElement as HTMLElement;
+    const expectPalette = () => {
+      for (const platform of ['vinted', 'kleinanzeigen', 'ebay']) {
+        const segment = host.querySelector<SVGElement>(`.donut [data-platform="${platform}"]`);
+        const marker = host.querySelector<HTMLElement>(
+          `.platform-legend [data-platform="${platform}"]`,
+        );
+        expect(segment?.style.stroke).toBe(`var(--fb-platform-${platform})`);
+        expect(marker?.style.backgroundColor).toBe(`var(--fb-platform-${platform})`);
+      }
+    };
+    expectPalette();
+    rows.set([
+      { platform: 'vinted', revenue: 5 },
+      { platform: 'ebay', revenue: 20 },
+      { platform: 'kleinanzeigen', revenue: 100 },
+    ]);
+    fixture.detectChanges();
+    expectPalette();
+  });
+
+  it('zeigt alle Bestands- und Überschriftsicons mit getrennten Warn- und Kritisch-Zuständen', () => {
+    const oldDate = new Date(Date.now() - 120 * 86400000).toISOString();
+    const slowDate = new Date(Date.now() - 70 * 86400000).toISOString();
+    inventoryItems.set([
+      { id: 'old', workspace_id: 'workspace-1', status: 'ready', created_at: oldDate },
+      { id: 'slow', workspace_id: 'workspace-1', status: 'ready', created_at: slowDate },
+    ] as InventoryItem[]);
+    const host = createDashboard().nativeElement as HTMLElement;
+    const terms = [...host.querySelectorAll('.stock-list dt')];
+    expect(terms).toHaveLength(5);
+    expect(terms.every((term) => term.querySelector('svg[aria-hidden="true"]'))).toBe(true);
+    expect(host.querySelectorAll('.bottom-grid h2 svg')).toHaveLength(3);
+    expect(terms[3].nextElementSibling?.classList.contains('stock-warning')).toBe(true);
+    expect(terms[4].nextElementSibling?.classList.contains('negative')).toBe(true);
+  });
 });

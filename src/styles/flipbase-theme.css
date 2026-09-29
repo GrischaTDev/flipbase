@@ -12,6 +12,14 @@
 */
 
 :root {
+  /* Dashboard-Plattformen: feste Identität statt rangabhängiger Diagrammfarben. */
+  --fb-platform-vinted: #0db9bc;
+  --fb-platform-kleinanzeigen: #65c52d;
+  --fb-platform-ebay: #2f78ff;
+  --fb-platform-other: #bdc5d0;
+  --fb-dashboard-info: #0066ff;
+  --fb-dashboard-warning-text: #bd5000;
+
   /* Brand */
   --fb-color-brand: #fcc601;
   --fb-color-brand-text: #303030;
@@ -91,6 +99,9 @@
 }
 
 html.dark {
+  --fb-dashboard-info: #79aaff;
+  --fb-dashboard-warning-text: #ffad42;
+
   --fb-color-brand: #fcc601;
   --fb-color-brand-text: #fcc601;
   --fb-color-brand-surface: rgb(252 198 1 / 13%);

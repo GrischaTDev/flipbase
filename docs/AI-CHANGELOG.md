@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-29 – Juna – Plattformfarben und Bestandsicons im Dashboard korrigiert
+
+**Auftrag:** Die drei unteren Dashboard-Kacheln an die freigegebene Detailvorschau angleichen: passende Plattformfarben, Plattformlogos in den Verkäufen und vollständige Bestandsicons ohne braune Warnwerte.
+
+**Änderung:** Donut und Legende verwenden feste zentrale Farben je Plattform statt Farben nach Umsatzrang. Vinted bleibt türkis, Kleinanzeigen grün, eBay blau und sonstige Plattformen grau. Die Verkaufszeilen zeigen lokal eingebundene SVG-Zeichen neben ausgeschriebenen Namen; unbekannte Plattformen erhalten ein neutrales Shop-Symbol. Alle fünf Bestandszeilen und die Kartentitel besitzen passende Icons. Langsam drehende Ware wird orange, mehr als 90 Tage alte Ware rot dargestellt. Der Verweis auf alle Verkäufe bleibt ein Shared-Link und ist blau mit Rechtspfeil. Buchungslogik, übrige Dashboard-Kacheln und Navigation bleiben unverändert.
+
+**Prüfung:** Drei neue Regressionstests zunächst rot, anschließend alle 19 Dashboard-Komponententests und 53 fachliche Tests erfolgreich. Typprüfung, gezieltes ESLint, Formatierung, Shared-UI-Prüfung und Angular-Produktionsbau erfolgreich. Wegen der lokalen Speichergrenze liefen Builds mit einem Worker, ohne parallele TypeScript-Kompilierung und mit `NG_BUILD_OPTIMIZE_CHUNKS=false`; die normale CI-Konfiguration bleibt unverändert. Keine Komponenten-CSS-Budgetwarnung; vorhandener CommonJS-Hinweis zu `pako` bleibt. Die tatsächlich gerenderten drei Kacheln wurden per Playwright/Chromium in Hell/Dunkel bei 320, 390, 768, 1200 und 1664 px geprüft: kein Seitenüberlauf, keine AXE-Befunde, alle Logos geladen, keine Konsolenfehler. Zeitraum, Plattformfilter und konstante eBay-Farbe wurden betätigt. Die separate HTML-Vorschau enthält nur Beispieldaten und bucht nichts. Die reguläre CI bleibt vor dem Merge erforderlich.
+
 ## 2026-09-29 – Juna – Dashboard nach freigegebener Vorschau aufgebaut
 
 **Auftrag:** Die zuletzt freigegebene Dashboard-Variante tatsächlich implementieren: fünf Kennzahlenkacheln, Diagramm, Aufgaben, Schnellaktionen, letzte Verkäufe, Umsatzverteilung und Bestandsüberblick. Ohne Insights; Sidebar und Workspace-Header bleiben unverändert.

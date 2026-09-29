@@ -1,4 +1,4 @@
-import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
+import { CurrencyPipe, DatePipe, DecimalPipe, NgOptimizedImage } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -8,10 +8,13 @@ import {
   untracked,
 } from '@angular/core';
 import {
+  LucideArrowRight,
   LucideArrowUpRight,
   LucideChartNoAxesCombined,
   LucideCheck,
-  LucideClock,
+  LucideChartNoAxesColumnIncreasing,
+  LucideStore,
+  LucideTrendingUp,
   LucideCoins,
   LucideDynamicIcon,
   LucideImage,
@@ -44,6 +47,7 @@ import {
   sparklinePath,
   stockOverview,
 } from './models/dashboard-overview';
+import { dashboardPlatformAppearance } from './models/dashboard-platform';
 import { kpiChange } from './models/kpi-change';
 import { DashboardPreferencesService } from './services/dashboard-preferences.service';
 
@@ -68,6 +72,7 @@ interface OverviewMetric {
     CurrencyPipe,
     DatePipe,
     DecimalPipe,
+    NgOptimizedImage,
     LucideDynamicIcon,
     ButtonComponent,
     BadgeComponent,
@@ -100,6 +105,7 @@ export class DashboardComponent {
     { value: 'year', label: 'Dieses Jahr' },
   ];
   readonly platformName = platformLabel;
+  readonly platformAppearance = dashboardPlatformAppearance;
   readonly platformSelectOptions = computed(() => {
     const platforms = new Set(this.salesService.sales().map((sale) => sale.platform));
     if (this.platform() !== 'all') platforms.add(this.platform());
@@ -312,8 +318,14 @@ export class DashboardComponent {
     },
   ];
   readonly arrowIcon = LucideArrowUpRight;
+  readonly viewAllIcon = LucideArrowRight;
   readonly packageIcon = LucidePackage;
-  readonly clockIcon = LucideClock;
+  readonly stockTrendIcon = LucideTrendingUp;
+  readonly stockValueIcon = LucideTag;
+  readonly stockAgeIcon = LucideChartNoAxesColumnIncreasing;
+  readonly stockAlertIcon = LucideTriangleAlert;
+  readonly salesIcon = LucideShoppingCart;
+  readonly storeIcon = LucideStore;
   readonly checkIcon = LucideCheck;
 
   constructor() {
