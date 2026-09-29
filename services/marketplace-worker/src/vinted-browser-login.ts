@@ -6,7 +6,11 @@ export interface VintedLoginCredentials {
 }
 
 export type VintedLoginResult =
-  'submitted' | 'form_unavailable' | 'submission_unconfirmed' | 'verification_required';
+  | 'submitted'
+  | 'interaction_required'
+  | 'form_unavailable'
+  | 'submission_unconfirmed'
+  | 'verification_required';
 
 /** Eine ausdrückliche Anmeldung, ohne Speicherung oder automatische Wiederholung. */
 export async function submitVintedLogin(
