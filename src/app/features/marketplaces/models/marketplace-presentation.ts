@@ -21,4 +21,5 @@ export const VINTED_SECTIONS = [
   { label: 'Nachrichten', path: '/marketplaces/vinted/messages' },
   { label: 'Verkäufe', path: '/marketplaces/vinted/sales' },
   { label: 'Profil', path: '/marketplaces/vinted/profile' },
+  { label: 'Bewertung', path: '/marketplaces/vinted/feedback' },
 ];

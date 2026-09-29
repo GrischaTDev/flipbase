@@ -11,6 +11,7 @@ import type {
   MarketplacePage,
   MarketplaceEntry,
   MarketplaceProfile,
+  MarketplaceFeedback,
 } from './marketplace-read.models';
 
 const capabilities: readonly Capability[] = [
@@ -211,6 +212,29 @@ export function parseMarketplaceSnapshot(value: unknown, scope: AccountScope): M
   let profile: MarketplaceProfile | null = null;
   if (data['profile'] !== null) {
     const item = record(data['profile']);
+    const feedbacks = Array.isArray(item['feedbacks'])
+      ? item['feedbacks'].flatMap((entry): MarketplaceFeedback[] => {
+          if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return [];
+          const fb = entry as Record<string, unknown>;
+          const id = text(fb['id']);
+          if (!id) return [];
+          return [
+            {
+              id,
+              authorName: text(fb['authorName']),
+              authorImageUrl: imageUrl(fb['authorImageUrl']),
+              rating:
+                typeof fb['rating'] === 'number' && Number.isFinite(fb['rating'])
+                  ? fb['rating']
+                  : 5,
+              text: text(fb['text']) ?? '',
+              occurredAt: timestamp(fb['occurredAt']),
+              isAutomatic: fb['isAutomatic'] === true,
+              itemTitle: text(fb['itemTitle']),
+            },
+          ];
+        })
+      : [];
     profile = {
       ...scopeOf(item, scope),
       username: text(item['username']),
@@ -227,6 +251,7 @@ export function parseMarketplaceSnapshot(value: unknown, scope: AccountScope): M
       neutralFeedbackCount: counter(item['neutralFeedbackCount']),
       negativeFeedbackCount: counter(item['negativeFeedbackCount']),
       itemCount: counter(item['itemCount']),
+      feedbacks,
     };
   }
   return {

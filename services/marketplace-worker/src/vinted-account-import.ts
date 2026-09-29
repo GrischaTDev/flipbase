@@ -141,6 +141,49 @@ function messageText(entity: Record<string, unknown> | null): string | null {
   );
 }
 
+function parseFeedbacks(rawFeedbacks: unknown[], fallbackDate: string): Record<string, unknown>[] {
+  const list: Record<string, unknown>[] = [];
+  const ids = new Set<string>();
+  for (const raw of rawFeedbacks) {
+    const item = record(raw);
+    const id = identifier(item?.['id']) ?? (item?.['id'] !== undefined ? String(item['id']) : null);
+    if (!id || ids.has(id)) continue;
+    ids.add(id);
+    const author =
+      record(item?.['author']) ?? record(item?.['user']) ?? record(item?.['opposite_user']);
+    const authorName =
+      string(author?.['login']) ?? string(author?.['username']) ?? string(author?.['name']);
+    const isAutoFlag =
+      item?.['is_automatic'] === true || string(item?.['feedback_type']) === 'automatic';
+    const textStr =
+      string(item?.['feedback']) ?? string(item?.['body']) ?? string(item?.['comment']) ?? '';
+    const isAutoText =
+      textStr.toLowerCase().includes('automatisch') || textStr.toLowerCase().includes('automatic');
+    const isAutomatic = isAutoFlag || isAutoText || !authorName;
+    const ratingNum = count(item?.['rating']) ?? 5;
+    const itemObj = record(item?.['item']) ?? record(item?.['transaction']);
+    const itemTitle = string(itemObj?.['title']) ?? string(itemObj?.['item_title']);
+    list.push({
+      id,
+      authorName: authorName ?? (isAutomatic ? 'Vinted System' : 'Mitglied'),
+      authorImageUrl: image(record(author?.['photo'])?.['url']),
+      rating: ratingNum,
+      text:
+        textStr ||
+        (isAutomatic
+          ? 'Automatische Bewertung: Die Transaktion wurde erfolgreich abgeschlossen.'
+          : ''),
+      occurredAt: date(
+        item?.['created_at'] ?? item?.['created_at_ts'] ?? item?.['updated_at'],
+        fallbackDate,
+      ),
+      isAutomatic,
+      itemTitle,
+    });
+  }
+  return list;
+}
+
 /** Nur Felder aus den beobachteten Vinted-Antworten verlassen den Browser. */
 export function parseVintedAccountImport(
   identity: VintedAccountIdentity,
@@ -150,6 +193,7 @@ export function parseVintedAccountImport(
   detailValues: unknown[],
   observedAt: string,
   previousConversations: VintedConversationVersion[] = [],
+  feedbackValues: unknown[] = [],
 ): VintedAccountImport {
   const user = record(record(profileValue)?.['user']);
   if (identifier(user?.['id']) !== identity.id)
@@ -175,6 +219,7 @@ export function parseVintedAccountImport(
         neutralFeedbackCount: count(user?.['neutral_feedback_count']),
         negativeFeedbackCount: count(user?.['negative_feedback_count']),
         itemCount: count(user?.['item_count']),
+        feedbacks: parseFeedbacks(feedbackValues, observedAt),
         observedAt,
       },
     },
@@ -516,6 +561,18 @@ export async function readVintedAccountImport(
     }
     details.push({ ...record(conversation), transaction });
   }
+  let feedbacks: unknown[] = [];
+  try {
+    await authorize();
+    feedbacks = await pages(
+      page,
+      (number) => `/api/v2/feedbacks?user_id=${identity.id}&page=${number}&per_page=20`,
+      'user_feedbacks',
+      authorize,
+    );
+  } catch {
+    feedbacks = [];
+  }
   return atImportStage('parse', async () => {
     await onStage?.('sales');
     return parseVintedAccountImport(
@@ -526,6 +583,7 @@ export async function readVintedAccountImport(
       details,
       new Date().toISOString(),
       previousConversations,
+      feedbacks,
     );
   });
 }

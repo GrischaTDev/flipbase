@@ -160,4 +160,39 @@ describe('Marktplatz-Antworten', () => {
       ),
     ).toThrow();
   });
+  it('übernimmt Profil-Feedbacks mit Kennzeichnung für automatische Bewertungen', () => {
+    const data = {
+      ...snapshot(),
+      profile: {
+        ...scope,
+        displayName: 'Test Shop',
+        feedbackCount: 2,
+        feedbackReputation: 5,
+        feedbacks: [
+          {
+            id: 'fb-1',
+            authorName: 'marie',
+            authorImageUrl: 'https://example.com/pic.jpg',
+            rating: 5,
+            text: 'Super Ware!',
+            occurredAt: '2026-09-20T10:00:00Z',
+            isAutomatic: false,
+            itemTitle: 'Jeans',
+          },
+          {
+            id: 'fb-2',
+            authorName: 'Vinted',
+            rating: 5,
+            text: 'Automatische Bewertung: Die Transaktion wurde erfolgreich abgeschlossen.',
+            isAutomatic: true,
+          },
+        ],
+      },
+    };
+    const result = parseMarketplaceSnapshot(data, scope);
+    expect(result.profile?.feedbacks).toHaveLength(2);
+    expect(result.profile?.feedbacks?.[0].isAutomatic).toBe(false);
+    expect(result.profile?.feedbacks?.[1].isAutomatic).toBe(true);
+    expect(result.profile?.feedbacks?.[0].authorName).toBe('marie');
+  });
 });
