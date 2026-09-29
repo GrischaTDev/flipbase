@@ -1,10 +1,23 @@
 <div class="space-y-5 animate-fade-in">
   @if (!embedded()) {
-    <app-page-header title="Verkäufer" subtitle="Unternehmen und Privatpersonen für deine Einkäufe verwalten." [icon]="usersIcon">
-      <app-badge header-badge tone="neutral" [mono]="true">{{ filteredSellers().length }} Verkäufer</app-badge>
+    <app-page-header
+      title="Verkäufer"
+      subtitle="Unternehmen und Privatpersonen für deine Einkäufe verwalten."
+      [icon]="usersIcon"
+    >
+      <app-badge header-badge tone="neutral" [mono]="true">
+        {{ filteredSellers().length }} Verkäufer
+      </app-badge>
       @if (!readOnly()) {
         <div header-actions>
-          <app-button variant="primary" size="md" [icon]="plusIcon" (clicked)="openCreateDialog()">Verkäufer erstellen</app-button>
+          <app-button
+            variant="primary"
+            size="md"
+            [icon]="plusIcon"
+            (clicked)="openCreateDialog()"
+          >
+            Verkäufer erstellen
+          </app-button>
         </div>
       }
     </app-page-header>
@@ -33,54 +46,106 @@
     emptyTitle="Keine Verkäufer gefunden"
     emptyText="Passe die Suche oder den Verkäufertyp an oder lege einen neuen Verkäufer an."
   >
-    <app-custom-select table-view data-seller-type-filter triggerId="seller-type-filter" ariaLabel="Verkäufertyp"
-      variant="toolbar" widthClass="w-auto" [options]="typeFilterOptions" [value]="typeFilter()"
-      (valueChange)="typeFilter.set($event ?? 'all')" />
-    <app-button table-filters variant="ghost" size="slim" [ariaPressed]="suppliersService.zeigeArchivierte()"
-      (clicked)="toggleArchivedVisibility()">
-      {{ suppliersService.zeigeArchivierte() ? 'Archivierte ausblenden' : 'Archivierte anzeigen' }}
+    <app-custom-select
+      table-view
+      data-seller-type-filter
+      triggerId="seller-type-filter"
+      ariaLabel="Verkäufertyp"
+      variant="toolbar"
+      widthClass="w-auto"
+      [options]="typeFilterOptions"
+      [value]="typeFilter()"
+      (valueChange)="typeFilter.set($event ?? 'all')"
+    />
+    <app-button
+      table-filters
+      variant="ghost"
+      size="slim"
+      [ariaPressed]="suppliersService.zeigeArchivierte()"
+      (clicked)="toggleArchivedVisibility()"
+    >
+      {{
+        suppliersService.zeigeArchivierte()
+          ? 'Archivierte ausblenden'
+          : 'Archivierte anzeigen'
+      }}
     </app-button>
 
     <div table-content class="overflow-x-auto">
       <table class="linear-table min-w-[900px]">
-        <caption class="sr-only">Gespeicherte Verkäufer</caption>
-        <thead><tr>
-          @for (column of visibleColumns(); track column.id) {
-            <th scope="col" [class.text-right]="column.id === 'actions'">{{ column.label }}</th>
-          }
-        </tr></thead>
+        <caption class="sr-only">
+          Gespeicherte Verkäufer
+        </caption>
+        <thead>
+          <tr>
+            @for (column of visibleColumns(); track column.id) {
+              <th scope="col" [class.text-right]="column.id === 'actions'">
+                {{ column.label }}
+              </th>
+            }
+          </tr>
+        </thead>
         <tbody>
           @for (seller of filteredSellers(); track seller.id) {
-            <tr data-seller-row [attr.tabindex]="readOnly() ? null : 0"
+            <tr
+              data-seller-row
+              [attr.tabindex]="readOnly() ? null : 0"
               [class.cursor-pointer]="!readOnly()"
               class="transition-colors hover:bg-fb-surface-hover focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-fb-primary"
               [class.opacity-60]="seller.is_active === false"
-              (click)="openSellerFromRow($event, seller)" (keydown)="openSellerFromKeyboard($event, seller)">
+              (click)="openSellerFromRow($event, seller)"
+              (keydown)="openSellerFromKeyboard($event, seller)"
+            >
               @for (column of visibleColumns(); track column.id) {
                 <td [class.text-right]="column.id === 'actions'">
                   @switch (column.id) {
-                    @case ('name') { <span class="font-semibold text-fb-text-primary">{{ seller.name }}</span> }
-                    @case ('type') { {{ typeLabel(seller) }} }
-                    @case ('contact') { {{ seller.contact_person || '—' }} }
+                    @case ('name') {
+                      <span class="font-semibold text-fb-text-primary">{{ seller.name }}</span>
+                    }
+                    @case ('type') {
+                      {{ typeLabel(seller) }}
+                    }
+                    @case ('contact') {
+                      {{ seller.contact_person || '—' }}
+                    }
                     @case ('communication') {
                       <span class="block">{{ seller.email || '—' }}</span>
-                      @if (seller.phone) { <span class="mt-0.5 block text-xs text-fb-text-muted">{{ seller.phone }}</span> }
+                      @if (seller.phone) {
+                        <span class="mt-0.5 block text-xs text-fb-text-muted">
+                          {{ seller.phone }}
+                        </span>
+                      }
                     }
-                    @case ('location') { {{ formatLocation(seller) }} }
+                    @case ('location') {
+                      {{ formatLocation(seller) }}
+                    }
                     @case ('status') {
-                      <app-badge [tone]="seller.is_active === false ? 'neutral' : 'success'">{{ seller.is_active === false ? 'Archiviert' : 'Aktiv' }}</app-badge>
+                      <app-badge [tone]="seller.is_active === false ? 'neutral' : 'success'">
+                        {{ seller.is_active === false ? 'Archiviert' : 'Aktiv' }}
+                      </app-badge>
                     }
                     @case ('actions') {
                       <div class="inline-flex items-center gap-1">
                         @if (!readOnly()) {
-                          <app-table-action-button data-seller-edit-action [icon]="pencilIcon" [label]="seller.name + ' bearbeiten'"
-                            (clicked)="editSellerFromAction($event, seller)" />
+                          <app-table-action-button
+                            data-seller-edit-action
+                            [icon]="pencilIcon"
+                            [label]="seller.name + ' bearbeiten'"
+                            (clicked)="editSellerFromAction($event, seller)"
+                          />
                           @if (canArchive()) {
-                            <app-table-action-button data-seller-archive-action
+                            <app-table-action-button
+                              data-seller-archive-action
                               [icon]="seller.is_active === false ? restoreIcon : archiveIcon"
                               [tone]="seller.is_active === false ? 'positive' : 'warning'"
-                              [label]="seller.name + (seller.is_active === false ? ' wiederherstellen' : ' archivieren')"
-                              (clicked)="archiveSellerFromAction($event, seller)" />
+                              [label]="
+                                seller.name +
+                                (seller.is_active === false
+                                  ? ' wiederherstellen'
+                                  : ' archivieren')
+                              "
+                              (clicked)="archiveSellerFromAction($event, seller)"
+                            />
                           }
                         }
                       </div>
@@ -93,12 +158,25 @@
         </tbody>
       </table>
     </div>
+
     @if (!readOnly() && !embedded()) {
-      <app-button table-empty-action class="mt-4" variant="primary" [icon]="plusIcon" (clicked)="openCreateDialog()">Verkäufer erstellen</app-button>
+      <app-button
+        table-empty-action
+        class="mt-4"
+        variant="primary"
+        [icon]="plusIcon"
+        (clicked)="openCreateDialog()"
+      >
+        Verkäufer erstellen
+      </app-button>
     }
   </app-data-table>
 </div>
 
 @if (dialogOpen()) {
-  <app-purchase-seller-dialog [seller]="selectedSeller()" (closed)="closeDialog()" (saved)="handleSaved()" />
+  <app-purchase-seller-dialog
+    [seller]="selectedSeller()"
+    (closed)="closeDialog()"
+    (saved)="handleSaved()"
+  />
 }
