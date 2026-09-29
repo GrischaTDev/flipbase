@@ -3,8 +3,14 @@
     <a
       [routerLink]="tab.path"
       [attr.aria-current]="activeId() === tab.id ? 'page' : null"
-      [class]="activeId() === tab.id ? 'bg-fb-primary text-fb-on-accent' : 'text-fb-text-secondary hover:bg-fb-surface-hover'"
+      [class]="
+        activeId() === tab.id
+          ? 'bg-fb-primary text-fb-on-accent'
+          : 'text-fb-text-secondary hover:bg-fb-surface-hover'
+      "
       class="inline-flex min-h-9 shrink-0 items-center rounded-lg px-3 py-2 text-[13px] font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
-    >{{ tab.label }}</a>
+    >
+      {{ tab.label }}
+    </a>
   }
 </nav>
