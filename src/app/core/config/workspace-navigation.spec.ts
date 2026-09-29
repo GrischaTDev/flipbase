@@ -7,6 +7,7 @@ import {
   IDEAS_NAVIGATION,
   OPERATOR_NAVIGATION,
   SETTINGS_NAVIGATION,
+  MASTER_DATA_NAVIGATION,
   WORKSPACE_NAVIGATION_GROUPS,
   isIdeasRoute,
   isNavigationChildActive,
@@ -22,7 +23,7 @@ describe('Arbeitsnavigation', () => {
     assert.deepEqual(
       WORKSPACE_NAVIGATION_GROUPS.map((group) => group.items.map((item) => item.path)),
       [
-        ['/purchases', '/sellers', '/vinted-bot'],
+        ['/purchases', '/vinted-bot'],
         ['/catalog', '/image-optimizer'],
         ['/sales', '/listings'],
         ['/marketplaces/vinted'],
@@ -64,6 +65,7 @@ describe('Arbeitsnavigation', () => {
       DASHBOARD_NAVIGATION,
       ...WORKSPACE_NAVIGATION_GROUPS.flatMap((group) => group.items),
       ...IDEAS_NAVIGATION.items,
+      MASTER_DATA_NAVIGATION,
       SETTINGS_NAVIGATION,
       OPERATOR_NAVIGATION,
     ].map((item) => item.path);
@@ -83,7 +85,7 @@ describe('Arbeitsnavigation', () => {
       '/purchases',
       '/research',
       '/sales',
-      '/sellers',
+      '/master-data',
       '/settings',
       '/shop',
       '/vinted-bot',
@@ -103,11 +105,14 @@ describe('Arbeitsnavigation', () => {
 
   it('behaelt Dashboard und Einstellungen ausserhalb der Arbeitsgruppen', () => {
     assert.equal(DASHBOARD_NAVIGATION.path, '/dashboard');
+    assert.equal(MASTER_DATA_NAVIGATION.path, '/master-data');
     assert.equal(SETTINGS_NAVIGATION.path, '/settings');
     assert.equal(OPERATOR_NAVIGATION.path, '/admin');
     assert.equal(
       WORKSPACE_NAVIGATION_GROUPS.some((group) =>
-        group.items.some((item) => ['/dashboard', '/settings', '/admin'].includes(item.path)),
+        group.items.some((item) =>
+          ['/dashboard', '/master-data', '/settings', '/admin'].includes(item.path),
+        ),
       ),
       false,
     );
