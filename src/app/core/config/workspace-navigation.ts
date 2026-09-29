@@ -86,13 +86,13 @@ export const WORKSPACE_NAVIGATION_GROUPS: readonly WorkspaceNavigationGroup[] = 
     labelKey: 'NAV.GROUP_SELLING',
     label: 'Verkauf',
     items: [
+      { path: '/sales', labelKey: 'NAV.SALES', label: 'Verkäufe', icon: 'trendingUp' },
       {
         path: '/listings',
         labelKey: 'NAV.CREATE_LISTING',
         label: 'Inserate',
         icon: 'tag',
       },
-      { path: '/sales', labelKey: 'NAV.SALES', label: 'Verkäufe', icon: 'trendingUp' },
     ],
   },
   {

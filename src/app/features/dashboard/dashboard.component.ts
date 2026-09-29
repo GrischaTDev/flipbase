@@ -1,4 +1,10 @@
-import { CurrencyPipe, DatePipe, DecimalPipe, NgOptimizedImage } from '@angular/common';
+import {
+  CurrencyPipe,
+  DatePipe,
+  DecimalPipe,
+  NgTemplateOutlet,
+  NgOptimizedImage,
+} from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -72,6 +78,7 @@ interface OverviewMetric {
     CurrencyPipe,
     DatePipe,
     DecimalPipe,
+    NgTemplateOutlet,
     NgOptimizedImage,
     LucideDynamicIcon,
     ButtonComponent,

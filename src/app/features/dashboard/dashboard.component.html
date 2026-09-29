@@ -1,6 +1,6 @@
 <div class="dashboard grid gap-4 text-fb-text-primary">
   <app-beta-discord-banner />
-  <header class="dashboard grid gap-4 text-fb-text-primary-header">
+  <header class="dashboard-header grid gap-4">
     <div class="heading-row flex flex-wrap items-end justify-between gap-3.5">
       <div>
         <h1>Dashboard</h1>
@@ -160,21 +160,26 @@
         <div card-header><h2 class="section-title m-0 text-sm font-[650]">Schnellaktionen</h2></div>
         <div class="quick-grid">
           @for (action of quickActions; track action.link) {
-            <div
-              class="quick-tile overflow-hidden rounded-[9px] border border-fb-line bg-fb-surface-alt"
-            >
+            <div class="quick-tile overflow-hidden rounded-lg border border-fb-line bg-fb-surface">
               <app-button
                 variant="list-row"
-                [icon]="action.icon"
                 [link]="action.link"
                 [fullWidth]="true"
                 contentAlign="start"
               >
-                <span
-                  class="quick-copy [&_strong]:text-xs [&_strong]:font-semibold [&_small]:text-[10px] [&_small]:leading-[1.4] [&_small]:text-fb-text-muted grid gap-1 whitespace-normal"
-                  ><strong>{{ action.label }}</strong
-                  ><small>{{ action.hint }}</small></span
-                >
+                <span class="flex items-center gap-3 whitespace-normal">
+                  <span
+                    class="quick-icon grid size-9 shrink-0 place-items-center rounded-lg bg-fb-brand-strong text-fb-on-accent"
+                  >
+                    <svg [lucideIcon]="action.icon" aria-hidden="true"></svg>
+                  </span>
+                  <span class="quick-copy grid min-w-0 gap-1">
+                    <strong class="text-[13px] leading-[18px] font-semibold">{{
+                      action.label
+                    }}</strong>
+                    <small class="text-xs leading-4 text-fb-text-muted">{{ action.hint }}</small>
+                  </span>
+                </span>
               </app-button>
             </div>
           }
@@ -186,18 +191,19 @@
   <div class="bottom-grid">
     <section class="recent" aria-labelledby="sales-table-heading">
       <app-card padding="none" rounded="xl" class="full-height h-full">
-        <div card-header class="section-head flex items-center justify-between gap-3.5">
-          <h2 id="sales-table-heading" class="section-title m-0 text-sm font-[650]">
-            <svg [lucideIcon]="salesIcon" aria-hidden="true"></svg>Letzte Verkäufe
-          </h2>
-          <app-button
-            class="dashboard-view-all"
-            variant="plain"
-            link="/sales"
-            [icon]="viewAllIcon"
-            iconPosition="end"
-            >Alle anzeigen</app-button
-          >
+        <div card-header>
+          <ng-container
+            [ngTemplateOutlet]="overviewHeader"
+            [ngTemplateOutletContext]="{
+              $implicit: 'Letzte Verkäufe',
+              titleId: 'sales-table-heading',
+              subtitle: 'Im gewählten Zeitraum.',
+              icon: salesIcon,
+              link: '/sales',
+              actionLabel: 'Alle anzeigen',
+              queryParams: null,
+            }"
+          />
         </div>
         @if (!ready()) {
           <p class="data-state">
@@ -297,12 +303,18 @@
     <section aria-labelledby="platform-overview-heading">
       <app-card padding="none" rounded="xl" class="full-height h-full">
         <div card-header>
-          <h2 id="platform-overview-heading" class="section-title m-0 text-sm font-[650]">
-            <svg [lucideIcon]="stockAgeIcon" aria-hidden="true"></svg>Plattform-Verteilung
-          </h2>
-          <p class="subtitle mt-1 mb-0 text-xs text-fb-text-muted">
-            Nach Umsatz im gewählten Zeitraum.
-          </p>
+          <ng-container
+            [ngTemplateOutlet]="overviewHeader"
+            [ngTemplateOutletContext]="{
+              $implicit: 'Plattform-Verteilung',
+              titleId: 'platform-overview-heading',
+              subtitle: 'Umsatz im gewählten Zeitraum.',
+              icon: stockAgeIcon,
+              link: null,
+              actionLabel: null,
+              queryParams: null,
+            }"
+          />
         </div>
         @if (!ready()) {
           <p class="data-state">
@@ -382,22 +394,18 @@
 
     <section aria-labelledby="inventory-overview-heading">
       <app-card padding="none" rounded="xl" class="full-height h-full">
-        <div card-header class="section-head flex items-center justify-between gap-3.5">
-          <div>
-            <h2 id="inventory-overview-heading" class="section-title m-0 text-sm font-[650]">
-              <svg [lucideIcon]="packageIcon" aria-hidden="true"></svg>Bestand im Blick
-            </h2>
-            <p class="subtitle mt-1 mb-0 text-xs text-fb-text-muted">
-              Aktuell · unabhängig vom Verkaufsfilter.
-            </p>
-          </div>
-          <app-button
-            variant="plain"
-            link="/catalog"
-            [queryParams]="{ view: 'stock' }"
-            [icon]="arrowIcon"
-            [iconOnly]="true"
-            ariaLabel="Bestand öffnen"
+        <div card-header>
+          <ng-container
+            [ngTemplateOutlet]="overviewHeader"
+            [ngTemplateOutletContext]="{
+              $implicit: 'Bestand im Blick',
+              titleId: 'inventory-overview-heading',
+              subtitle: 'Aktueller Bestand.',
+              icon: packageIcon,
+              link: '/catalog',
+              actionLabel: null,
+              queryParams: { view: 'stock' },
+            }"
           />
         </div>
         @if (!ready()) {
@@ -433,8 +441,7 @@
             <div title="61 bis einschließlich 90 Kalendertage im Bestand.">
               <dt>
                 <svg [lucideIcon]="stockAgeIcon" class="stock-age-icon" aria-hidden="true"></svg
-                >Langsam drehend
-                <small>61–90 Tage</small>
+                >61–90 Tage im Bestand
               </dt>
               <dd [class.stock-warning]="stock().slow > 0">{{ stock().slow }} Stück</dd>
             </div>
@@ -462,3 +469,42 @@
     </section>
   </div>
 </div>
+
+<ng-template
+  #overviewHeader
+  let-title
+  let-titleId="titleId"
+  let-subtitle="subtitle"
+  let-icon="icon"
+  let-link="link"
+  let-actionLabel="actionLabel"
+  let-queryParams="queryParams"
+>
+  <div class="overview-header flex min-h-10 items-center justify-between gap-3">
+    <div class="flex min-w-0 items-center gap-3">
+      <span
+        class="header-icon grid size-8 shrink-0 place-items-center rounded-lg bg-fb-brand-strong text-fb-on-accent"
+      >
+        <svg [lucideIcon]="icon" aria-hidden="true"></svg>
+      </span>
+      <div class="min-w-0">
+        <h2 [id]="titleId" class="section-title m-0 text-sm leading-5 font-[650]">{{ title }}</h2>
+        <p class="subtitle mt-1 mb-0 text-xs leading-4 text-fb-text-muted">{{ subtitle }}</p>
+      </div>
+    </div>
+    @if (link) {
+      <app-button
+        class="overview-action shrink-0"
+        [variant]="actionLabel ? 'primary' : 'table-action'"
+        size="slim"
+        [link]="link"
+        [queryParams]="queryParams"
+        [icon]="viewAllIcon"
+        iconPosition="end"
+        [iconOnly]="!actionLabel"
+        [ariaLabel]="actionLabel || 'Bestand öffnen'"
+        ><span class="overview-action-label">{{ actionLabel }}</span></app-button
+      >
+    }
+  </div>
+</ng-template>

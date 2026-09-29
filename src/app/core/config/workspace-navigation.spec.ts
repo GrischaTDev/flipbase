@@ -24,7 +24,7 @@ describe('Arbeitsnavigation', () => {
       [
         ['/purchases', '/sellers', '/vinted-bot'],
         ['/catalog', '/image-optimizer'],
-        ['/listings', '/sales'],
+        ['/sales', '/listings'],
         ['/marketplaces/vinted'],
         ['/expenses', '/accounting', '/analytics'],
       ],

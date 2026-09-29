@@ -66,12 +66,19 @@ svg[lucideIcon],
   color: var(--fb-color-success-text);
   background: var(--fb-color-success-surface);
 }
-.middle-grid {
+/* Beide Zeilen teilen Spalten und Abstand: Die rechte Kante bleibt deckungsgleich. */
+.middle-grid,
+.bottom-grid {
   display: grid;
-  grid-template-columns: minmax(0, 2.1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.12fr) minmax(0, 1fr);
   gap: 16px;
 }
+.development {
+  grid-column: span 2;
+}
 .side-stack {
+  container: dashboard-actions / inline-size;
+  min-width: 0;
   display: grid;
   gap: 14px;
   align-content: start;
@@ -101,11 +108,6 @@ svg[lucideIcon],
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   padding: 12px;
-}
-.bottom-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.12fr) minmax(0, 1fr);
-  gap: 14px;
 }
 .bottom-grid > section,
 .development {
@@ -168,11 +170,12 @@ svg[lucideIcon],
   .kpi-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
-  .middle-grid {
-    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
-  }
+  .middle-grid,
   .bottom-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .development {
+    grid-column: auto;
   }
   .recent {
     grid-column: 1 / -1;
@@ -182,13 +185,9 @@ svg[lucideIcon],
   }
 }
 @container (max-width: 800px) {
-  .middle-grid {
-    grid-template-columns: 1fr;
-  }
+  .middle-grid,
+  .bottom-grid,
   .side-stack {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .quick-grid {
     grid-template-columns: 1fr;
   }
 }
@@ -209,9 +208,6 @@ svg[lucideIcon],
   .side-stack {
     grid-template-columns: 1fr;
   }
-  .quick-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
   .date-cell {
     display: none;
   }
@@ -230,28 +226,20 @@ svg[lucideIcon],
   .kpi-grid {
     grid-template-columns: 1fr;
   }
-  .quick-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 .dashboard > app-beta-discord-banner:empty {
   display: none;
 }
 
-/* Plattformidentität ist keine Statuskennzeichnung. Markenfarben bleiben im Theme. */
-.dashboard-view-all {
-  --fb-text-secondary: var(--fb-dashboard-info);
-  --fb-text-primary: var(--fb-dashboard-info);
-}
-.bottom-grid h2 {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-}
-.bottom-grid h2 svg,
+/* Markenakzent und Plattformidentität bleiben getrennt. */
 .stock-list svg {
-  color: var(--fb-dashboard-info);
+  color: var(--fb-color-brand);
+}
+@container dashboard-actions (max-width: 420px) {
+  .quick-grid {
+    grid-template-columns: 1fr;
+  }
 }
 .stock-list .stock-age-icon {
   color: var(--fb-color-warning);
@@ -261,4 +249,11 @@ svg[lucideIcon],
 }
 .stock-warning {
   color: var(--fb-dashboard-warning-text);
+}
+
+@container (max-width: 360px) {
+  /* Die benannte Aktion bleibt als Pfeil erreichbar, ohne den Kartentitel umzubrechen. */
+  .overview-action-label {
+    display: none;
+  }
 }

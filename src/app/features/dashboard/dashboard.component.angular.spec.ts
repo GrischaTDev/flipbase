@@ -749,8 +749,50 @@ describe('DashboardComponent', () => {
     const terms = [...host.querySelectorAll('.stock-list dt')];
     expect(terms).toHaveLength(5);
     expect(terms.every((term) => term.querySelector('svg[aria-hidden="true"]'))).toBe(true);
-    expect(host.querySelectorAll('.bottom-grid h2 svg')).toHaveLength(3);
+    expect(host.querySelectorAll('.bottom-grid .header-icon svg')).toHaveLength(3);
     expect(terms[3].nextElementSibling?.classList.contains('stock-warning')).toBe(true);
     expect(terms[4].nextElementSibling?.classList.contains('negative')).toBe(true);
+  });
+  it('verwendet für alle drei Übersichtskarten denselben Kopf mit Icon, Titel und Untertitel', () => {
+    const host = createDashboard().nativeElement as HTMLElement;
+    const headers = [...host.querySelectorAll('.bottom-grid .overview-header')];
+    expect(headers).toHaveLength(3);
+    expect(headers.map((header) => header.querySelector('h2')?.id)).toEqual([
+      'sales-table-heading',
+      'platform-overview-heading',
+      'inventory-overview-heading',
+    ]);
+    for (const header of headers) {
+      expect(header.querySelectorAll('.header-icon svg')).toHaveLength(1);
+      expect(header.querySelector('.subtitle')?.textContent?.trim()).not.toBe('');
+    }
+    const salesAction = host.querySelector('.recent .overview-header app-button');
+    expect(salesAction?.querySelector('a')?.className).toContain('linear-btn-primary');
+  });
+
+  it('trennt bei Schnellaktionen die Icon-Fläche vom lesbaren Titel und Hinweis', () => {
+    const fixture = createDashboard();
+    const tiles = [...(fixture.nativeElement as HTMLElement).querySelectorAll('.quick-tile')];
+    expect(tiles).toHaveLength(4);
+    for (const [index, tile] of tiles.entries()) {
+      expect(tile.querySelectorAll('.quick-icon svg')).toHaveLength(1);
+      expect(tile.querySelector('.quick-copy strong')?.textContent).toBe(
+        fixture.componentInstance.quickActions[index].label,
+      );
+      expect(tile.querySelector('.quick-copy small')?.textContent?.trim()).not.toBe('');
+      expect(tile.querySelector('a')?.getAttribute('href')).toBe(
+        fixture.componentInstance.quickActions[index].link,
+      );
+    }
+  });
+
+  it('beschriftet die Lagergruppe ohne Fachjargon und ohne doppelte Zeitangabe', () => {
+    const host = createDashboard().nativeElement as HTMLElement;
+    const labels = [...host.querySelectorAll('.stock-list dt')].map((node) =>
+      node.textContent?.replace(/\s+/g, ' ').trim(),
+    );
+    expect(labels).toContain('61–90 Tage im Bestand');
+    expect(host.textContent).not.toContain('Langsam drehend');
+    expect(host.querySelector('.stock-age-icon')?.closest('dt')?.querySelector('small')).toBeNull();
   });
 });
