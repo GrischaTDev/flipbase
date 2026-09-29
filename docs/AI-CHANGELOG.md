@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-29 – Juna – Beta-Bewerbung kompakter gestaltet
+
+**Auftrag:** Das Beta-Anmeldeformular auf der Landingpage visuell überarbeiten, ohne den bestehenden Bewerbungsablauf oder die erfassten Daten zu verändern.
+
+**Änderung:** Der Beta-Bereich ist jetzt zweispaltig aufgebaut: links stehen Beta-Hinweis, Überschrift und Erklärung, rechts sitzt das kompakte Formular in einer eigenen Fläche. Vor- und Nachname stehen am Desktop nebeneinander, die E-Mail darunter über die volle Breite. Labels, Datenschutzhinweis und Statusmeldung sind linksbündig; der Submit-Button nutzt die volle Formularbreite. Auf kleineren Ansichten stapeln sich beide Bereiche und die Namensfelder untereinander.
+
+**Prüfung:** Ein Landingpage-Vertrag prüft die neue Zweispaltenstruktur, das Namensraster, das separate E-Mail-Feld, den vollbreiten Button und die linksbündige Ausrichtung. Die vorhandenen Feldnamen, Pflichtfelder und zweisprachigen Labels bleiben erhalten.
+
 ## 2026-09-29 – Juna – Sticky-Navigation auf der Landingpage ergänzt
 
 **Auftrag:** Die Landingpage nach dem Vorbild einer kompakten SaaS-Navigation um eine beim Scrollen sichtbare Menüleiste ergänzen und „Zur App“ in „Anmelden“ umbenennen.
