@@ -15,6 +15,7 @@ import {
   StockMovement,
 } from '../models/flipbase.models';
 import { MutationResult } from '../models/mutation-result.model';
+import { SaleMetrics } from '../models/sale-metrics.models';
 import { StockService } from './stock.service';
 import { ReturnRecord } from '../models/return.models';
 import { INVENTORY_RECONCILIATION_AUDIT_REASONS } from '../models/inventory-reconciliation';
@@ -208,7 +209,7 @@ export class SalesService {
     );
   }
 
-  public metricsForSale(raw: Sale) {
+  public metricsForSale(raw: Sale): SaleMetrics {
     return calculateStoredSaleMetrics(raw, {
       inventoryItems: this.inventoryService?.items?.(),
       stockLots: this.stockService?.lots?.(),
