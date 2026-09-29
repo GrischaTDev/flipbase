@@ -35,11 +35,13 @@
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <label
+              for="sellerTypeSelect"
               class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
             >
               Verkäufertyp
             </label>
             <app-custom-select
+              triggerId="sellerTypeSelect"
               ariaLabel="Verkäufertyp"
               [options]="sellerTypeOptions"
               formControlName="sellerType"
@@ -49,11 +51,13 @@
           @if (sellerType() === 'business') {
             <div>
               <label
+                for="shopTypeSelect"
                 class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
               >
                 eBay Shop
               </label>
               <app-custom-select
+                triggerId="shopTypeSelect"
                 ariaLabel="eBay Shop"
                 [options]="shopOptions"
                 formControlName="shopType"
@@ -72,11 +76,13 @@
           <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label
+                for="categorySelect"
                 class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
               >
                 Kategorie
               </label>
               <app-custom-select
+                triggerId="categorySelect"
                 ariaLabel="eBay Kategorie"
                 [options]="categoryOptions"
                 [searchable]="true"
@@ -86,11 +92,13 @@
 
             <div>
               <label
+                for="conditionSelect"
                 class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
               >
                 Artikelzustand
               </label>
               <app-custom-select
+                triggerId="conditionSelect"
                 ariaLabel="Artikelzustand"
                 [options]="conditionOptions"
                 formControlName="condition"
@@ -131,11 +139,13 @@
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <label
+              for="salePriceInput"
               class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
             >
               Verkaufspreis
             </label>
             <app-number-input
+              id="salePriceInput"
               formControlName="salePrice"
               unit="€"
               [min]="0"
@@ -147,11 +157,13 @@
 
           <div>
             <label
+              for="buyerShippingInput"
               class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
             >
               Versand, den der Käufer zahlt
             </label>
             <app-number-input
+              id="buyerShippingInput"
               formControlName="buyerShipping"
               unit="€"
               [min]="0"
@@ -165,11 +177,13 @@
         <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <label
+              for="destinationSelect"
               class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
             >
               Lieferland
             </label>
             <app-custom-select
+              triggerId="destinationSelect"
               ariaLabel="Lieferland"
               [options]="destinationOptions"
               formControlName="destination"
@@ -178,11 +192,13 @@
 
           <div>
             <label
+              for="promotedRateInput"
               class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
             >
               Anzeigenrate
             </label>
             <app-number-input
+              id="promotedRateInput"
               formControlName="promotedRatePercent"
               unit="%"
               [min]="0"
@@ -222,11 +238,13 @@
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div>
             <label
+              for="purchaseCostInput"
               class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
             >
               Einkaufspreis
             </label>
             <app-number-input
+              id="purchaseCostInput"
               formControlName="purchaseCost"
               unit="€"
               [min]="0"
@@ -237,11 +255,13 @@
 
           <div>
             <label
+              for="actualShippingInput"
               class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
             >
               Versandkosten
             </label>
             <app-number-input
+              id="actualShippingInput"
               formControlName="actualShippingCost"
               unit="€"
               [min]="0"
@@ -252,11 +272,13 @@
 
           <div>
             <label
+              for="packagingCostInput"
               class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
             >
               Verpackung
             </label>
             <app-number-input
+              id="packagingCostInput"
               formControlName="packagingCost"
               unit="€"
               [min]="0"
@@ -284,11 +306,13 @@
         @if (listingOutsideFreeQuota()) {
           <div class="mt-3 max-w-sm">
             <label
+              for="listingFormatSelect"
               class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
             >
               Angebotsformat
             </label>
             <app-custom-select
+              triggerId="listingFormatSelect"
               ariaLabel="Angebotsformat"
               [options]="listingFormatOptions"
               formControlName="listingFormat"
