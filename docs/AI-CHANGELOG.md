@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-29 – Juna – Innere Beta-Formular-Card entfernt
+
+**Auftrag:** Die verschachtelte Card-im-Card-Darstellung im Beta-Bewerbungsbereich entfernen.
+
+**Änderung:** Das Formular ist jetzt direkt die rechte Spalte des äußeren Beta-Blocks. Die zusätzliche Formular-Card samt eigenem Hintergrund, Rahmen, Radius, Schatten und Innenabstand wurde entfernt. Die kompakte Input-Darstellung bleibt erhalten; Formularlogik und Felder ändern sich nicht.
+
+**Prüfung:** Der Landingpage-Test verlangt jetzt ausdrücklich, dass keine `.beta-application-form-panel` mehr vorhanden ist und das Formular direkt im Zweispaltenlayout liegt.
+
 ## 2026-09-29 – Juna – Beta-Bewerbung kompakter gestaltet
 
 **Auftrag:** Das Beta-Anmeldeformular auf der Landingpage visuell überarbeiten, ohne den bestehenden Bewerbungsablauf oder die erfassten Daten zu verändern.
