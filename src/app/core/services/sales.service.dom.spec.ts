@@ -193,6 +193,61 @@ describe('SalesService', () => {
     );
   });
 
+  it('löst Tabellenkennzahlen eines frischen Einzelverkaufs aus dem geladenen Inventar auf', () => {
+    const { service } = createService({ data: null, error: null });
+    Object.assign(service, {
+      inventoryService: {
+        items: signal([
+          {
+            id: 'item-1',
+            workspace_id: 'workspace-1',
+            purchase_id: 'purchase-1',
+            title: 'Tasse',
+            condition: 'used',
+            status: 'sold',
+            allocated_purchase_cost: 20,
+            purchase: {
+              id: 'purchase-1',
+              workspace_id: 'workspace-1',
+              type: 'single',
+              title: 'Tasse',
+              purchase_date: '2026-09-29',
+              purchase_price: 20,
+              cost_allocation_mode: 'even',
+              entry_status: 'finalized',
+            },
+          },
+        ]),
+      },
+    });
+    const freshSale: Sale = {
+      ...sale,
+      sale_price: 33,
+      sale_price_total: 33,
+      platform_fee: 3,
+      shipping_cost: 5,
+      has_persisted_lines: true,
+      lines: [
+        {
+          id: 'sale-line-1',
+          sale_id: sale.id,
+          inventory_item_id: 'item-1',
+          title_snapshot: 'Tasse',
+          quantity: 1,
+          unit_sale_price: 33,
+          line_total: 33,
+          cost_of_goods_sold: 20,
+          tax_mode: 'diff_25a',
+        },
+      ],
+    };
+
+    const metrics = service.metricsForSale(freshSale);
+
+    expect(metrics.costOfGoodsSold).toBe(20);
+    expect(metrics.resultAfterDirectCosts).toBe(5);
+  });
+
   it('berechnet die Verkaufskosten nach dem Bestands-Refresh sofort neu', async () => {
     const finalizedPurchase = {
       id: 'purchase-1',

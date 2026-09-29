@@ -46,7 +46,6 @@ import {
 } from '../../shared/components/custom-select/custom-select.component';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { SaleMetrics } from '../../core/models/sale-metrics.models';
-import { calculateStoredSaleMetrics } from '../../core/utils/sale-metrics';
 import { ModalShellComponent } from '../../shared/components/modal-shell/modal-shell.component';
 import { NumberInputComponent } from '../../shared/components/number-input/number-input.component';
 import { TextFieldComponent } from '../../shared/components/text-field/text-field.component';
@@ -432,7 +431,7 @@ export class SalesComponent {
   }
 
   saleMetrics(sale: Sale): SaleMetrics {
-    return calculateStoredSaleMetrics(sale);
+    return this.salesService.metricsForSale(sale);
   }
 
   saleTitle(sale: Sale): string {

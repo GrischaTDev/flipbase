@@ -15,6 +15,7 @@ import {
   StockMovement,
 } from '../models/flipbase.models';
 import { MutationResult } from '../models/mutation-result.model';
+import { SaleMetrics } from '../models/sale-metrics.models';
 import { StockService } from './stock.service';
 import { ReturnRecord } from '../models/return.models';
 import { INVENTORY_RECONCILIATION_AUDIT_REASONS } from '../models/inventory-reconciliation';
@@ -208,13 +209,20 @@ export class SalesService {
     );
   }
 
+  public metricsForSale(raw: Sale): SaleMetrics {
+    return calculateStoredSaleMetrics(raw, {
+      inventoryItems: this.inventoryService?.items?.(),
+      stockLots: this.stockService?.lots?.(),
+    });
+  }
+
   public enrichSaleMetrics(raw: Sale): Sale {
     const item = raw.inventory_item;
     const records = {
       inventoryItems: this.inventoryService?.items?.(),
       stockLots: this.stockService?.lots?.(),
     };
-    const metrics = calculateStoredSaleMetrics(raw, records);
+    const metrics = this.metricsForSale(raw);
     const grossRevenue = Number((metrics.revenue + Number(raw.refund_amount ?? 0)).toFixed(2));
 
     let holdingDays = 0;

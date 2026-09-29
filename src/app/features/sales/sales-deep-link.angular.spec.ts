@@ -13,6 +13,7 @@ import { InvoiceService } from '../../core/services/invoice.service';
 import { ReturnService } from '../../core/services/return.service';
 import { SalesService } from '../../core/services/sales.service';
 import { SyncStatusService } from '../../core/services/sync-status.service';
+import { calculateStoredSaleMetrics } from '../../core/utils/sale-metrics';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { ToastService } from '../../shared/components/toast/toast.service';
 import { CostStateComponent } from '../../shared/components/cost-state/cost-state.component';
@@ -163,6 +164,7 @@ const linkedSale: Sale = {
 let sales = signal<Sale[]>([]);
 let loadedWorkspaceId = signal<string | null>(null);
 let loadError = signal<Error | null>(null);
+let metricsForSale = vi.fn((value: Sale) => calculateStoredSaleMetrics(value));
 const originalScrollIntoView = HTMLElement.prototype.scrollIntoView;
 const originalFocus = HTMLElement.prototype.focus;
 const originalMatchMedia = globalThis.matchMedia;
@@ -177,6 +179,7 @@ beforeEach(() => {
   sales = signal<Sale[]>([]);
   loadedWorkspaceId = signal<string | null>(null);
   loadError = signal<Error | null>(null);
+  metricsForSale = vi.fn((value: Sale) => calculateStoredSaleMetrics(value));
   TestBed.resetTestingModule();
   TestBed.configureTestingModule({
     imports: [
@@ -197,6 +200,7 @@ beforeEach(() => {
           loadedWorkspaceId,
           loadError,
           isLoading: signal(false),
+          metricsForSale,
         },
       },
       { provide: WorkspaceService, useValue: { currentWorkspace: signal(workspace) } },
@@ -250,6 +254,7 @@ describe('SalesComponent – verlinkter Verkauf', () => {
     expect(host.textContent).toContain('Durchschnittliche Marge');
     expect(host.textContent).not.toContain('ROI');
     expect(host.textContent).not.toContain('Nettogewinn');
+    expect(metricsForSale).toHaveBeenCalledWith(linkedSale);
   });
 
   it('verlinkt jede Verkaufszeile in Desktop- und Mobilansicht direkt zum Einzelbeleg', async () => {
