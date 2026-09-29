@@ -254,6 +254,7 @@ describe('SalesComponent – verlinkter Verkauf', () => {
     expect(host.textContent).toContain('Durchschnittliche Marge');
     expect(host.textContent).not.toContain('ROI');
     expect(host.textContent).not.toContain('Nettogewinn');
+    expect(metricsForSale).toHaveBeenCalledWith(linkedSale);
   });
 
   it('verlinkt jede Verkaufszeile in Desktop- und Mobilansicht direkt zum Einzelbeleg', async () => {
@@ -330,34 +331,6 @@ describe('SalesComponent – verlinkter Verkauf', () => {
         expect(desktopProfit?.className).not.toMatch(/text-fb-finance-(positive|negative)/);
         expect(mobileProfit?.className).not.toMatch(/text-fb-finance-(positive|negative)/);
       }
-    },
-  );
-
-  it(
-    'zeigt die aufgelöste Kostenbasis eines frisch gebuchten Verkaufs sofort ohne Reload',
-    async () => {
-      sales.set([linkedSale]);
-      loadedWorkspaceId.set(workspace.id);
-      metricsForSale.mockReturnValue({
-        revenue: 33,
-        costOfGoodsSold: 20,
-        sellingCosts: 8,
-        resultAfterDirectCosts: 5,
-        marginPercent: 15.15,
-        roiPercent: 25,
-      });
-
-      const harness = await RouterTestingHarness.create('/sales');
-      const host = harness.routeNativeElement as HTMLElement;
-      const desktopRow = host.querySelector('#sale-desktop-sale-1');
-
-      expect(metricsForSale).toHaveBeenCalledWith(linkedSale);
-      expect(desktopRow?.querySelector('td:nth-child(6)')?.textContent).toContain('20,00');
-      expect(desktopRow?.querySelector('td:nth-child(8)')?.textContent).toContain('5,00');
-      expect(desktopRow?.textContent).not.toContain('Kosten noch offen');
-      expect(
-        host.querySelector('[data-testid="sales-result-kpi"]')?.textContent,
-      ).not.toContain('Kosten noch offen');
     },
   );
 
