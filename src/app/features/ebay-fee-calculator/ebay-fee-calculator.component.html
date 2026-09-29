@@ -4,7 +4,7 @@
       <div>
         <div class="flex flex-wrap items-center gap-2">
           <h1 class="text-xl font-bold tracking-tight text-fb-text-primary">
-            eBay Gebührenrechner
+            eBay-Gebührenrechner
           </h1>
           <span
             class="rounded-md border border-fb-border bg-fb-subtle px-2 py-0.5 text-[10px] font-bold text-fb-text-secondary"
@@ -79,7 +79,7 @@
                 for="categorySelect"
                 class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
               >
-                Kategorie
+                eBay-Gebührenkategorie
               </label>
               <app-custom-select
                 triggerId="categorySelect"
@@ -105,6 +105,19 @@
               />
             </div>
           </div>
+
+          @if (showSneakerCategoryHint()) {
+            <div
+              class="mt-3 flex gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200"
+            >
+              <svg [lucideIcon]="infoIcon" class="mt-0.5 h-4 w-4 shrink-0"></svg>
+              <p>
+                Verkaufst du Sneaker in der eBay-Sneaker-Unterkategorie? Ab 100 € Artikelpreis
+                berechnet eBay dort 7 % statt 12 %. Wähle dafür oben
+                <strong>„Sneaker – ab 100 € nur 7 %“</strong>.
+              </p>
+            </div>
+          }
 
           <div class="mt-4 rounded-lg border border-fb-border bg-fb-subtle/60 p-3">
             <app-custom-checkbox

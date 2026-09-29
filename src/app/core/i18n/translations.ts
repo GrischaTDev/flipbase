@@ -16,6 +16,7 @@ export const TRANSLATIONS_DE = {
   NAV: {
     GROUP_PURCHASING: 'Einkauf',
     GROUP_ARTICLES: 'Artikel',
+    GROUP_TOOLS: 'Tools',
     GROUP_SELLING: 'Verkauf',
     GROUP_MARKETPLACES: 'Account-Verwaltung',
     GROUP_FINANCES: 'Finanzen',
@@ -31,7 +32,8 @@ export const TRANSLATIONS_DE = {
     CATALOG: 'Artikel',
     STORE: 'Online-Shop',
     RESEARCH: 'Research',
-    DEAL_CALCULATOR: 'Deal Calculator',
+    DEAL_CALCULATOR: 'Deal-Rechner',
+    EBAY_FEE_CALCULATOR: 'eBay-Gebührenrechner',
     LISTINGS: 'Listing Studio',
     IMAGE_OPTIMIZER: 'Bildoptimierer',
     DEAL_MONITOR: 'Vinted Bot',
@@ -413,6 +415,7 @@ export const TRANSLATIONS_EN = {
   NAV: {
     GROUP_PURCHASING: 'Purchasing',
     GROUP_ARTICLES: 'Products',
+    GROUP_TOOLS: 'Tools',
     GROUP_SELLING: 'Selling',
     GROUP_MARKETPLACES: 'Account management',
     GROUP_FINANCES: 'Finances',
@@ -429,6 +432,7 @@ export const TRANSLATIONS_EN = {
     STORE: 'Online Shop',
     RESEARCH: 'Research',
     DEAL_CALCULATOR: 'Deal Calculator',
+    EBAY_FEE_CALCULATOR: 'eBay Fee Calculator',
     LISTINGS: 'Listing Studio',
     IMAGE_OPTIMIZER: 'Image Optimiser',
     DEAL_MONITOR: 'Vinted Bot',
