@@ -99,9 +99,7 @@ export class MasterDataComponent {
 
   readonly section = resolveMasterDataSection(this.route.snapshot.data['masterDataSection']);
   readonly tabs = MASTER_DATA_SECTIONS;
-  readonly currentSection = MASTER_DATA_SECTIONS.find(
-    (section) => section.id === this.section,
-  )!;
+  readonly currentSection = MASTER_DATA_SECTIONS.find((section) => section.id === this.section)!;
   readonly sellers = viewChild(SellersComponent);
   readonly workspaceId = computed(() => this.workspace.currentWorkspace()?.id ?? '');
   readonly canEdit = computed(() =>
@@ -294,7 +292,8 @@ export class MasterDataComponent {
   }
 
   create(): void {
-    if (!this.canEdit() || this.loading() || this.isSaving() || this.section === 'platforms') return;
+    if (!this.canEdit() || this.loading() || this.isSaving() || this.section === 'platforms')
+      return;
 
     if (this.section === 'sellers') this.sellers()?.openCreateDialog();
     else this.openDialog('create');
