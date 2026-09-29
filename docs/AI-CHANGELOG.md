@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-29 – Juna – Beta-Pakete auf der Landingpage ergänzt
+
+**Auftrag:** Die geplanten Flipbase-Pakete auf der Landingpage sichtbar machen und während der Beta klar als kostenlos darstellen.
+
+**Änderung:** Die Landingpage zeigt Standard, Plus und Pro mit den vorläufigen späteren Preisen 15 €, 29 € und 49 € sowie 0 € während der Beta. Standard enthält einen Workspace und keine Vinted-Kontoverwaltung. Plus und Pro führen drei beziehungsweise fünf Workspaces sowie die geplante Multi-Account-Verwaltung für bis zu drei beziehungsweise fünf Vinted-Konten auf. Plus ist als empfohlene Stufe hervorgehoben. Der Beta-Hinweis führt zur bestehenden Bewerbung und lädt dazu ein, verfügbare Funktionen kostenlos zu testen und Feedback zur Weiterentwicklung zu geben.
+
+**Prüfung:** Ein Landingpage-Test deckt Paketanzahl, Preise, Workspace-Grenzen, Vinted-Multi-Account-Grenzen, Beta-CTA und die freigegebenen Texte ab. Die vollständigen PR-Prüfungen laufen vor dem Merge.
+
 ## 2026-09-28 – Juna – Abgelaufene Vinted-Anmeldung beim Datenabruf erkannt
 
 **Auftrag:** Den nach dem Worker-Wechsel fehlgeschlagenen Profilschritt
