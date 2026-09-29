@@ -1826,15 +1826,7 @@
         line-height: 1.65;
       }
 
-      .beta-application-form-panel {
-        padding: clamp(1.2rem, 2.5vw, 1.6rem);
-        border: 1px solid var(--line);
-        border-radius: 16px;
-        background: var(--canvas);
-        box-shadow: 0 14px 34px -24px rgba(0, 0, 0, 0.55);
-      }
-
-      .beta-application-form-panel .hero-beta-input {
+      .hero-beta-form .hero-beta-input {
         min-height: 46px;
         padding: 0.72rem 0.9rem;
         border-radius: 10px;
@@ -1861,11 +1853,6 @@
 
         .beta-name-grid {
           grid-template-columns: minmax(0, 1fr);
-        }
-
-        .beta-application-form-panel {
-          padding: 1rem;
-          border-radius: 13px;
         }
       }
 
@@ -3959,103 +3946,101 @@
               </p>
             </div>
 
-            <div class="beta-application-form-panel">
-              <form class="hero-beta-form" id="zweit-bewerbung-form" novalidate>
-                <div class="beta-name-grid">
-                  <div class="hero-beta-feld">
-                    <label for="zweit-bewerbung-vorname">
-                      <span class="lang-de">Vorname</span>
-                      <span class="lang-en" lang="en">First name</span>
-                    </label>
-                    <input
-                      id="zweit-bewerbung-vorname"
-                      type="text"
-                      name="firstName"
-                      class="hero-beta-input"
-                      maxlength="100"
-                      required=""
-                      autocomplete="given-name"
-                    />
-                  </div>
-                  <div class="hero-beta-feld">
-                    <label for="zweit-bewerbung-nachname">
-                      <span class="lang-de">Nachname</span>
-                      <span class="lang-en" lang="en">Last name</span>
-                    </label>
-                    <input
-                      id="zweit-bewerbung-nachname"
-                      type="text"
-                      name="lastName"
-                      class="hero-beta-input"
-                      maxlength="100"
-                      required=""
-                      autocomplete="family-name"
-                    />
-                  </div>
-                </div>
-
-                <div class="hero-beta-feld hero-beta-feld--email">
-                  <label for="zweit-bewerbung-email">
-                    <span class="lang-de">E-Mail-Adresse für die Beta-Bewerbung</span>
-                    <span class="lang-en" lang="en">Email address for the beta application</span>
+            <form class="hero-beta-form" id="zweit-bewerbung-form" novalidate>
+              <div class="beta-name-grid">
+                <div class="hero-beta-feld">
+                  <label for="zweit-bewerbung-vorname">
+                    <span class="lang-de">Vorname</span>
+                    <span class="lang-en" lang="en">First name</span>
                   </label>
                   <input
-                    id="zweit-bewerbung-email"
-                    type="email"
-                    name="email"
+                    id="zweit-bewerbung-vorname"
+                    type="text"
+                    name="firstName"
                     class="hero-beta-input"
-                    placeholder="name@example.com"
+                    maxlength="100"
                     required=""
-                    autocomplete="email"
+                    autocomplete="given-name"
                   />
                 </div>
-
-                <div class="hero-beta-einwilligung">
-                  <input
-                    id="zweit-bewerbung-einwilligung"
-                    type="checkbox"
-                    name="consent"
-                    required=""
-                  />
-                  <label for="zweit-bewerbung-einwilligung">
-                    <span class="lang-de"
-                      >Ich bin einverstanden, dass meine Angaben gemäß der
-                      <a href="/datenschutz">Datenschutzerklärung</a> zur Bearbeitung der Bewerbung
-                      gespeichert werden.</span
-                    >
-                    <span class="lang-en" lang="en"
-                      >I agree that my details may be stored to process this application, as
-                      described in the <a href="/datenschutz">privacy policy</a>.</span
-                    >
+                <div class="hero-beta-feld">
+                  <label for="zweit-bewerbung-nachname">
+                    <span class="lang-de">Nachname</span>
+                    <span class="lang-en" lang="en">Last name</span>
                   </label>
+                  <input
+                    id="zweit-bewerbung-nachname"
+                    type="text"
+                    name="lastName"
+                    class="hero-beta-input"
+                    maxlength="100"
+                    required=""
+                    autocomplete="family-name"
+                  />
                 </div>
+              </div>
 
-                <button type="submit" class="btn-primary hero-beta-btn">
-                  <span data-beta-submit-idle>
-                    <span class="lang-de">Für die Beta bewerben →</span>
-                    <span class="lang-en" lang="en">Apply for the beta →</span>
-                  </span>
-                  <span
-                    data-beta-submit-loading
-                    class="hero-beta-submit-loading"
-                    role="status"
-                    hidden
+              <div class="hero-beta-feld hero-beta-feld--email">
+                <label for="zweit-bewerbung-email">
+                  <span class="lang-de">E-Mail-Adresse für die Beta-Bewerbung</span>
+                  <span class="lang-en" lang="en">Email address for the beta application</span>
+                </label>
+                <input
+                  id="zweit-bewerbung-email"
+                  type="email"
+                  name="email"
+                  class="hero-beta-input"
+                  placeholder="name@example.com"
+                  required=""
+                  autocomplete="email"
+                />
+              </div>
+
+              <div class="hero-beta-einwilligung">
+                <input
+                  id="zweit-bewerbung-einwilligung"
+                  type="checkbox"
+                  name="consent"
+                  required=""
+                />
+                <label for="zweit-bewerbung-einwilligung">
+                  <span class="lang-de"
+                    >Ich bin einverstanden, dass meine Angaben gemäß der
+                    <a href="/datenschutz">Datenschutzerklärung</a> zur Bearbeitung der Bewerbung
+                    gespeichert werden.</span
                   >
-                    <span>
-                      <span class="lang-de">Bewerbung wird gesendet …</span>
-                      <span class="lang-en" lang="en">Sending application …</span>
-                    </span>
-                    <span class="hero-beta-progress" aria-hidden="true"></span>
-                  </span>
-                </button>
-                <p
-                  class="hero-beta-meldung"
-                  id="zweit-bewerbung-meldung"
+                  <span class="lang-en" lang="en"
+                    >I agree that my details may be stored to process this application, as described
+                    in the <a href="/datenschutz">privacy policy</a>.</span
+                  >
+                </label>
+              </div>
+
+              <button type="submit" class="btn-primary hero-beta-btn">
+                <span data-beta-submit-idle>
+                  <span class="lang-de">Für die Beta bewerben →</span>
+                  <span class="lang-en" lang="en">Apply for the beta →</span>
+                </span>
+                <span
+                  data-beta-submit-loading
+                  class="hero-beta-submit-loading"
                   role="status"
-                  aria-live="polite"
-                ></p>
-              </form>
-            </div>
+                  hidden
+                >
+                  <span>
+                    <span class="lang-de">Bewerbung wird gesendet …</span>
+                    <span class="lang-en" lang="en">Sending application …</span>
+                  </span>
+                  <span class="hero-beta-progress" aria-hidden="true"></span>
+                </span>
+              </button>
+              <p
+                class="hero-beta-meldung"
+                id="zweit-bewerbung-meldung"
+                role="status"
+                aria-live="polite"
+              ></p>
+            </form>
           </div>
         </div>
       </section>

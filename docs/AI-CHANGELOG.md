@@ -1,5 +1,21 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-29 – Juna – Dashboard-Mergekonflikt im Änderungsprotokoll aufgelöst
+
+**Auftrag:** Den erneut gemeldeten Konflikt in PR #248 beheben, ohne das freigegebene Dashboard-Design zu verändern.
+
+**Änderung:** Den aktuellen master-Stand übernommen und die parallel ergänzten Dashboard- und Landingpage-Einträge vollständig erhalten. Der Konflikt betrifft ausschließlich das gemeinsame Änderungsprotokoll; die Landingpage und ihr Vertragstest entsprechen unverändert master. Dashboard, Theme, Plattformassets und Navigation bleiben unverändert gegenüber der freigegebenen Vorschau.
+
+**Prüfung:** Der Zusammenführungsversuch reproduziert ausschließlich den Konflikt im Änderungsprotokoll. Ein vollständiger Dateiabgleich und der Vergleich aller bisherigen Protokollabschnitte sichern den Erhalt beider Seiten. Gezielte Tests sowie die reguläre PR-CI prüfen den integrierten Stand vor einem Merge.
+
+## 2026-09-29 – Juna – Innere Beta-Formular-Card entfernt
+
+**Auftrag:** Die verschachtelte Card-im-Card-Darstellung im Beta-Bewerbungsbereich entfernen.
+
+**Änderung:** Das Formular ist jetzt direkt die rechte Spalte des äußeren Beta-Blocks. Die zusätzliche Formular-Card samt eigenem Hintergrund, Rahmen, Radius, Schatten und Innenabstand wurde entfernt. Die kompakte Input-Darstellung bleibt erhalten; Formularlogik und Felder ändern sich nicht.
+
+**Prüfung:** Der Landingpage-Test verlangt jetzt ausdrücklich, dass keine `.beta-application-form-panel` mehr vorhanden ist und das Formular direkt im Zweispaltenlayout liegt.
+
 ## 2026-09-29 – Juna – Dashboard-Spalten, Kartenköpfe und Schnellaktionen vereinheitlicht
 
 **Auftrag:** Die rechte Spalte exakt am Bestandsüberblick ausrichten, Schnellaktionen mit sauber getrennten Icons gestalten, die drei unteren Kartenköpfe vereinheitlichen und den blauen Dashboard-Akzent durch das vorhandene Button-Gelb ersetzen.

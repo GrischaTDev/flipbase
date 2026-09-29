@@ -1664,7 +1664,7 @@ test('does not show the spreadsheet comparison block', () => {
   assert.doesNotMatch(normalizedHtml, /One clear workflow instead of scattered sheets\./u);
 });
 
-test('uses a compact two-column beta application layout', () => {
+test('uses one beta card without a nested form card', () => {
   const dom = new JSDOM(html);
   const section = dom.window.document.getElementById('beta-anmeldung');
   assert.ok(section);
@@ -1672,10 +1672,11 @@ test('uses a compact two-column beta application layout', () => {
   const layout = section.querySelector('.beta-application-layout');
   assert.ok(layout, 'beta application must use the two-column layout');
   assert.ok(layout.querySelector('.beta-application-copy'));
-  assert.ok(layout.querySelector('.beta-application-form-panel'));
+  assert.equal(layout.querySelector('.beta-application-form-panel'), null);
 
   const form = layout.querySelector('#zweit-bewerbung-form');
   assert.ok(form);
+  assert.equal(form.parentElement, layout);
   assert.equal(form.getAttribute('style'), null);
 
   const nameGrid = form.querySelector('.beta-name-grid');
@@ -1692,4 +1693,5 @@ test('uses a compact two-column beta application layout', () => {
   assertDeclaration(css, '.beta-name-grid', 'display', 'grid');
   assertDeclaration(css, '.hero-beta-btn', 'width', '100%');
   assertDeclaration(css, '.banner-cta', 'text-align', 'left');
+  assert.doesNotMatch(css, /\.beta-application-form-panel\s*\{/u);
 });
