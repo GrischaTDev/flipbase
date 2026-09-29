@@ -56,6 +56,8 @@ import { TableActionButtonComponent } from '../../shared/components/table-action
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
 import { TableSortHeaderComponent } from '../../shared/components/table-sort-header/table-sort-header.component';
 import { DataTableComponent } from '../../shared/components/data-table/data-table.component';
+import { MarketplacePlatformIdentityComponent } from '../../shared/components/marketplace-platform-identity/marketplace-platform-identity.component';
+import { marketplacePlatformLabel } from '../../shared/models/marketplace-platform';
 import { TablePreferencesService } from '../../core/services/table-preferences.service';
 import { SalesColumnId, SalesSortField } from '../../core/config/table-defaults.config';
 import {
@@ -91,6 +93,7 @@ function validatedSaleTargetId(value: string | null): string | null {
     BadgeComponent,
     TableSortHeaderComponent,
     DataTableComponent,
+    MarketplacePlatformIdentityComponent,
   ],
   templateUrl: './sales.component.html',
   host: { class: 'block' },
@@ -354,6 +357,15 @@ export class SalesComponent {
         .sales()
         .filter((sale) => sale.returned_at !== null && sale.returned_at !== undefined).length,
   );
+
+  readonly platformFilterOptions = computed<SelectOption<string>[]>(() => [
+    { value: 'all', label: `Alle Verkäufe (${this.salesService.sales().length})` },
+    { value: 'returned', label: `Retouren (${this.returnedSalesCount()})` },
+    { value: 'kleinanzeigen', label: marketplacePlatformLabel('kleinanzeigen') },
+    { value: 'ebay', label: marketplacePlatformLabel('ebay') },
+    { value: 'vinted', label: marketplacePlatformLabel('vinted') },
+    { value: 'custom_store', label: marketplacePlatformLabel('custom_store') },
+  ]);
 
   constructor() {
     const state = (this.router.getCurrentNavigation()?.extras.state ??
