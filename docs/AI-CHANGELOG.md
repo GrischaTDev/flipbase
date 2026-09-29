@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-30 – Juna – Technische Diagnose-Details für Marktplatz-Synchronisation ergänzt
+
+**Auftrag:** Im Synchronisations- und Fortschritts-Modal der Vinted-Kontenverwaltung eine detaillierte, aufklappbare Diagnoseanzeige einbauen, um Fehlerursachen (wie HTTP 401 Session-Drops, Proxy-Wechsel, Cloud-Browser-Timeouts) und den genauen Abbruchschritt transparent einsehen und den Server-Logbefehl direkt kopieren zu können.
+
+**Änderung:** `MarketplaceSyncProgressComponent` um ein aufklappbares Diagnose-Panel erweitert. Bei Fehlern (z. B. `identity`, `browser`, `profile`, `publications`, `sales`, `access`) werden der exakte Fehlercode, der abgebrochene Teilschritt, eine verständliche deutsche Ursachenerklärung, die Auftrags-ID und der Server-Logbefehl (`docker logs --tail 100 flipbase-marketplace-worker`) mit Ein-Klick-Kopierfunktion dargestellt. Bei Fehlern außerhalb von `identity` steht zusätzlich ein direkter Aktionsbutton bereit, um die Browser-Ansicht zur manuellen Prüfung und Lösung von Sicherheitsabfragen zu öffnen. Komponente um dedizierte SCSS-Datei und vollständige Angular- und Barrierefreiheits-Tests (`axe-core`) ergänzt.
+
+**Prüfung:** 147 Marktplatz-Tests in 13 Testdateien erfolgreich ausgeführt. Typprüfung (`npm run typecheck`), ESLint, Prettier-Formatierung und Angular-Produktionsbau (`ng build`) ohne Fehler bestanden.
+
 ## 2026-09-30 – Juna – Vinted-Bewertungstab mit Zählern und automatischer Trennung ergänzt
 
 **Auftrag:** Unter Vinted die Bereichs-Tabs um „Bewertung“ erweitern und die aktuellen Vinted-Bewertungen detailliert auflisten (originalgetreu wie bei Vinted), mit getrennten Zählern oben für Bewertungen von Mitgliedern und automatisch generierte Bewertungen sowie einer gemeinsamen Liste mit Filterfunktion.

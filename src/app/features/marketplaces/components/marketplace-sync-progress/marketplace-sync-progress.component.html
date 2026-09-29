@@ -72,6 +72,83 @@
         >Vinted-Anmeldung erneuern</app-button
       >
     }
+  } @else if (diagnosticInfo().hasError && reconnectLink(); as link) {
+    <app-button class="mt-3" variant="secondary" [link]="link" (clicked)="closed.emit()"
+      >Browser-Ansicht zur Prüfung öffnen</app-button
+    >
+  }
+  @if (diagnosticInfo().hasError) {
+    <div class="mt-5 border-t border-fb-line pt-3">
+      <button
+        type="button"
+        class="flex w-full items-center justify-between text-xs font-medium text-fb-text-secondary hover:text-fb-text-primary focus-visible:outline-2 focus-visible:outline-fb-primary"
+        [attr.aria-expanded]="showDiagnostics()"
+        aria-controls="sync-diagnostics-panel"
+        (click)="toggleDiagnostics()"
+      >
+        <span class="flex items-center gap-1.5">
+          <span aria-hidden="true">⚙</span>
+          <span>Diagnose-Details {{ showDiagnostics() ? 'ausblenden' : 'anzeigen' }}</span>
+        </span>
+        <span class="text-xs text-fb-text-muted" aria-hidden="true">{{
+          showDiagnostics() ? '▲' : '▼'
+        }}</span>
+      </button>
+      @if (showDiagnostics()) {
+        <div
+          id="sync-diagnostics-panel"
+          class="mt-3 space-y-2 rounded-xl border border-fb-line bg-fb-surface p-3.5 text-xs text-fb-text-secondary"
+          role="region"
+          aria-label="Diagnose-Details"
+        >
+          @if (diagnosticInfo().stageLabel; as stage) {
+            <div>
+              <span class="font-medium text-fb-text-primary">Abgebrochen bei:</span>
+              <span class="ml-1 text-fb-text-secondary">{{ stage }}</span>
+            </div>
+          }
+          @if (diagnosticInfo().errorCode; as code) {
+            <div>
+              <span class="font-medium text-fb-text-primary">Fehlercode:</span>
+              <code
+                class="ml-1 rounded bg-fb-surface-secondary px-1.5 py-0.5 font-mono text-fb-text-primary"
+                >{{ code }}</code
+              >
+            </div>
+          }
+          <div>
+            <span class="font-medium text-fb-text-primary">Ursache:</span>
+            <span class="ml-1 text-fb-text-primary">{{ diagnosticInfo().summary }}</span>
+          </div>
+          @if (diagnosticInfo().detail; as detail) {
+            <p class="leading-relaxed text-fb-text-secondary">{{ detail }}</p>
+          }
+          @if (diagnosticInfo().operationId; as opId) {
+            <div class="border-t border-fb-line/50 pt-1.5">
+              <span class="font-medium text-fb-text-primary">Auftrags-ID:</span>
+              <code class="ml-1 font-mono text-fb-text-muted select-all">{{ opId }}</code>
+            </div>
+          }
+          <div class="border-t border-fb-line/50 pt-2">
+            <p class="mb-1 font-medium text-fb-text-primary">Server-Logbefehl (Live-Diagnose):</p>
+            <div
+              class="flex items-center justify-between gap-2 rounded-lg bg-black/5 dark:bg-white/5 p-2 font-mono text-[11px]"
+            >
+              <code class="truncate text-fb-text-primary">{{
+                diagnosticInfo().serverCommand
+              }}</code>
+              <button
+                type="button"
+                class="shrink-0 rounded px-2 py-0.5 font-sans text-[11px] font-medium text-fb-primary hover:bg-fb-primary/10 transition-colors focus-visible:outline-2 focus-visible:outline-fb-primary"
+                (click)="copyCommand()"
+              >
+                {{ copiedCommand() ? 'Kopiert!' : 'Kopieren' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
   }
   @if (progress()?.id && (progress()?.state === 'queued' || progress()?.state === 'running')) {
     <p class="mt-5 text-xs text-fb-text-muted">
