@@ -1,4 +1,6 @@
+import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
+import { format } from 'prettier';
 import { calculateEbayFees, type EbayFeeInput } from './ebay-fees';
 
 const baseBusiness: EbayFeeInput = {
@@ -162,5 +164,30 @@ describe('calculateEbayFees', () => {
     expect(noShop.listingFee).toBe(0.35);
     expect(basis.listingFee).toBe(0.1);
     expect(premium.listingFee).toBe(0);
+  });
+});
+
+
+describe('prettier diagnostic', () => {
+  it('prints the canonical formatting for the new calculator files', async () => {
+    const paths = [
+      'src/app/features/ebay-fee-calculator/ebay-fee-calculator.component.html',
+      'src/app/features/ebay-fee-calculator/ebay-fee-calculator.component.ts',
+      'src/app/features/ebay-fee-calculator/ebay-fees.ts',
+    ];
+
+    for (const path of paths) {
+      const source = await readFile(path, 'utf8');
+      const formatted = await format(source, {
+        filepath: path,
+        printWidth: 100,
+        singleQuote: true,
+      });
+      process.stdout.write(`PRETTIER_DIAGNOSTIC_START:${path}\n`);
+      process.stdout.write(formatted);
+      process.stdout.write(`PRETTIER_DIAGNOSTIC_END:${path}\n`);
+    }
+
+    expect(paths).toHaveLength(3);
   });
 });
