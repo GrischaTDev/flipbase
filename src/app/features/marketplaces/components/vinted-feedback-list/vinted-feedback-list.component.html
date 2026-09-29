@@ -1,0 +1,222 @@
+<div class="space-y-4">
+  <!-- Übersicht & Statistiken -->
+  <div class="grid gap-3 sm:grid-cols-3">
+    <!-- Gesamtbewertung -->
+    <app-card variant="kpi" title="Gesamtbewertung">
+      <div class="flex items-baseline gap-2">
+        <span class="text-2xl font-semibold text-fb-text-primary">
+          @if (reputationScore() !== null) {
+            {{ reputationScore() | number: '1.1-1' }}
+          } @else {
+            —
+          }
+        </span>
+        @if (reputationScore() !== null) {
+          <span
+            role="img"
+            aria-label="Durchschnittliche Sternebewertung"
+            class="inline-flex gap-0.5 text-[#d49b00]"
+          >
+            @for (star of stars; track star) {
+              <svg
+                [lucideIcon]="starIcon"
+                class="size-4"
+                [class.fill-current]="star <= filledStars()"
+                aria-hidden="true"
+              ></svg>
+            }
+          </span>
+        }
+      </div>
+      <p class="mt-1 text-xs text-fb-text-muted">
+        {{ totalFeedbacksCount() }}
+        {{ totalFeedbacksCount() === 1 ? 'Bewertung' : 'Bewertungen' }} insgesamt
+      </p>
+    </app-card>
+
+    <!-- Von Mitgliedern geschrieben -->
+    <app-card variant="kpi" title="Von Mitgliedern">
+      <div class="flex items-center justify-between">
+        <span class="text-2xl font-semibold text-fb-text-primary">
+          {{ memberCount() }}
+        </span>
+        <div
+          class="flex size-8 items-center justify-center rounded-full bg-fb-well text-fb-text-secondary"
+        >
+          <svg [lucideIcon]="userIcon" class="size-4" aria-hidden="true"></svg>
+        </div>
+      </div>
+      <p class="mt-1 text-xs text-fb-text-muted">Persönlich verfasste Bewertungen</p>
+    </app-card>
+
+    <!-- Automatische Bewertungen -->
+    <app-card variant="kpi" title="Automatische Bewertungen">
+      <div class="flex items-center justify-between">
+        <span class="text-2xl font-semibold text-fb-text-primary">
+          {{ automaticCount() }}
+        </span>
+        <div
+          class="flex size-8 items-center justify-center rounded-full bg-[#e9f6f6] text-[#007782]"
+        >
+          <svg [lucideIcon]="botIcon" class="size-4" aria-hidden="true"></svg>
+        </div>
+      </div>
+      <p class="mt-1 text-xs text-fb-text-muted">Durch Vinted nach Transaktion generiert</p>
+    </app-card>
+  </div>
+
+  <!-- Filter-Auswahl & Feedback-Liste -->
+  <app-card title="Bewertungsverlauf">
+    <!-- Filter Leiste -->
+    <div
+      class="mb-4 flex flex-wrap items-center gap-2 border-b border-fb-line pb-4"
+      role="tablist"
+      aria-label="Bewertungen filtern"
+    >
+      <button
+        type="button"
+        role="tab"
+        [attr.aria-selected]="activeFilter() === 'all'"
+        class="rounded-lg px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
+        [class.bg-fb-primary]="activeFilter() === 'all'"
+        [class.text-fb-primary-contrast]="activeFilter() === 'all'"
+        [class.bg-fb-well]="activeFilter() !== 'all'"
+        [class.text-fb-text-secondary]="activeFilter() !== 'all'"
+        (click)="setFilter('all')"
+      >
+        Alle ({{ feedbacks().length }})
+      </button>
+      <button
+        type="button"
+        role="tab"
+        [attr.aria-selected]="activeFilter() === 'member'"
+        class="rounded-lg px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
+        [class.bg-fb-primary]="activeFilter() === 'member'"
+        [class.text-fb-primary-contrast]="activeFilter() === 'member'"
+        [class.bg-fb-well]="activeFilter() !== 'member'"
+        [class.text-fb-text-secondary]="activeFilter() !== 'member'"
+        (click)="setFilter('member')"
+      >
+        Von Mitgliedern ({{ memberCount() }})
+      </button>
+      <button
+        type="button"
+        role="tab"
+        [attr.aria-selected]="activeFilter() === 'automatic'"
+        class="rounded-lg px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
+        [class.bg-fb-primary]="activeFilter() === 'automatic'"
+        [class.text-fb-primary-contrast]="activeFilter() === 'automatic'"
+        [class.bg-fb-well]="activeFilter() !== 'automatic'"
+        [class.text-fb-text-secondary]="activeFilter() !== 'automatic'"
+        (click)="setFilter('automatic')"
+      >
+        Automatisch ({{ automaticCount() }})
+      </button>
+    </div>
+
+    <!-- Feedbacks Liste -->
+    @if (filteredFeedbacks().length > 0) {
+      <div class="divide-y divide-fb-line" role="feed" aria-label="Liste der Vinted-Bewertungen">
+        @for (entry of filteredFeedbacks(); track entry.id) {
+          <article class="py-4 first:pt-0 last:pb-0">
+            <!-- Kopfzeile: Autor, Typ, Sterne, Datum -->
+            <div class="flex flex-wrap items-start justify-between gap-2">
+              <div class="flex items-center gap-3">
+                @if (entry.isAutomatic) {
+                  <div
+                    class="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#e9f6f6] text-[#007782]"
+                    aria-hidden="true"
+                  >
+                    <svg [lucideIcon]="botIcon" class="size-4"></svg>
+                  </div>
+                } @else {
+                  <app-product-thumbnail
+                    [src]="entry.authorImageUrl"
+                    [alt]="entry.authorName ?? 'Mitglied'"
+                    size="avatar"
+                  />
+                }
+                <div>
+                  <div class="flex flex-wrap items-center gap-2">
+                    <span class="font-semibold text-fb-text-primary">
+                      {{ entry.authorName ?? (entry.isAutomatic ? 'Vinted System' : 'Mitglied') }}
+                    </span>
+                    @if (entry.isAutomatic) {
+                      <app-badge tone="info">Automatisch</app-badge>
+                    } @else {
+                      <app-badge tone="neutral">Mitglied</app-badge>
+                    }
+                  </div>
+                  @if (entry.itemTitle) {
+                    <p class="text-xs text-fb-text-muted">Artikel: {{ entry.itemTitle }}</p>
+                  }
+                </div>
+              </div>
+
+              <!-- Sterne & Datum -->
+              <div class="flex flex-col items-end gap-1">
+                <div
+                  class="flex gap-0.5 text-[#d49b00]"
+                  [attr.aria-label]="entry.rating + ' von 5 Sternen'"
+                >
+                  @for (star of stars; track star) {
+                    <svg
+                      [lucideIcon]="starIcon"
+                      class="size-3.5"
+                      [class.fill-current]="star <= entry.rating"
+                      aria-hidden="true"
+                    ></svg>
+                  }
+                </div>
+                @if (entry.occurredAt) {
+                  <time [attr.datetime]="entry.occurredAt" class="text-xs text-fb-text-muted">
+                    {{ entry.occurredAt | date: 'dd.MM.yyyy' }}
+                  </time>
+                }
+              </div>
+            </div>
+
+            <!-- Text -->
+            <div class="mt-2.5">
+              <p
+                class="whitespace-pre-wrap break-words text-sm"
+                [class.text-fb-text-secondary]="entry.isAutomatic"
+                [class.text-fb-text-primary]="!entry.isAutomatic"
+                [class.italic]="entry.isAutomatic"
+              >
+                {{ entry.text }}
+              </p>
+            </div>
+          </article>
+        }
+      </div>
+    } @else {
+      <!-- Empty State -->
+      <div class="py-8 text-center">
+        <div
+          class="mx-auto mb-3 flex size-12 items-center justify-center rounded-full bg-fb-well text-fb-text-muted"
+        >
+          <svg [lucideIcon]="messageIcon" class="size-6" aria-hidden="true"></svg>
+        </div>
+        <p class="font-medium text-fb-text-primary">
+          @if (activeFilter() !== 'all') {
+            Keine Bewertungen für diesen Filter gefunden
+          } @else {
+            Noch keine detaillierten Bewertungen geladen
+          }
+        </p>
+        <p class="mt-1 text-sm text-fb-text-secondary">
+          @if (activeFilter() !== 'all') {
+            Wähle einen anderen Filter aus, um Deine Bewertungen anzuzeigen.
+          } @else if (totalFeedbacksCount() > 0) {
+            Dein Konto hat laut Profil {{ totalFeedbacksCount() }} Bewertungen. Klicke oben auf
+            „Kontodaten aktualisieren“, um alle Bewertungen detailliert abzurufen.
+          } @else {
+            Sobald Käufer oder Vinted Bewertungen für Deine Verkäufe hinterlassen, erscheinen sie
+            hier.
+          }
+        </p>
+      </div>
+    }
+  </app-card>
+</div>

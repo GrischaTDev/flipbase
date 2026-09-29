@@ -44,13 +44,25 @@
                 &#64;{{ profile.username ?? '—' }} · {{ profile.location ?? 'Ort nicht angegeben' }}
               </p>
             </div>
-            <app-vinted-rating
-              [count]="profile.feedbackCount"
-              [reputation]="profile.feedbackReputation"
-            />
+            <a
+              routerLink="/marketplaces/vinted/feedback"
+              class="rounded-lg transition-colors hover:bg-fb-well-hover p-1.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
+              aria-label="Bewertungen ansehen"
+            >
+              <app-vinted-rating
+                [count]="profile.feedbackCount"
+                [reputation]="profile.feedbackReputation"
+              />
+            </a>
           </div>
         </app-card>
       }
+    }
+    @case ('feedback') {
+      <app-vinted-feedback-list
+        [profile]="snapshot.profile"
+        [isConnected]="store.selectedConnection()?.status === 'connected'"
+      />
     }
     @case ('profile') {
       <div class="mx-auto max-w-3xl">

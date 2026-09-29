@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-30 – Juna – Vinted-Bewertungstab mit Zählern und automatischer Trennung ergänzt
+
+**Auftrag:** Unter Vinted die Bereichs-Tabs um „Bewertung“ erweitern und die aktuellen Vinted-Bewertungen detailliert auflisten (originalgetreu wie bei Vinted), mit getrennten Zählern oben für Bewertungen von Mitgliedern und automatisch generierte Bewertungen sowie einer gemeinsamen Liste mit Filterfunktion.
+
+**Änderung:** In `marketplace-presentation.ts` und `marketplaces.routes.ts` wurde die neue Sektion `Bewertung` (`/marketplaces/vinted/feedback`) hinzugefügt. Die neue Standalone-Komponente `VintedFeedbackListComponent` stellt oben drei KPI-Karten bereit: Gesamtbewertung mit Sternen, Anzahl der von Mitgliedern verfassten Bewertungen und Anzahl der automatischen Bewertungen. Darunter befindet sich eine Filterleiste (Alle, Von Mitgliedern, Automatisch) sowie eine barrierefreie Liste der einzelnen Bewertungen im Flipbase-Design mit Avataren, Mitglieds- bzw. System-Badges, Sternen (1–5), Datumsangaben, verfassten Texten und verlinkten Artikeln. Im Frontend-Modell (`marketplace-read.models.ts` und `marketplace-response.ts`) werden Feedbacks strukturiert und typisiert im Profil erfasst. Im Worker (`vinted-account-import.ts`) ruft der Abgleich `/api/v2/feedbacks?user_id=...` fehlertolerant ab und parst Feedbacks mit Unterscheidung von manuellen und automatischen Bewertungen.
+
+**Prüfung:** 122 Tests in 10 Angular-Testdateien der Marktplätze (einschließlich 5 neuer Unit-Tests für `VintedFeedbackListComponent`) und 130 Worker-Tests fehlerfrei ausgeführt. TypeScript-Typprüfung (`npm run typecheck`), ESLint, Prettier-Formatierung und der Angular-Produktionsbau (`ng build`) ohne Fehler bestanden.
+
 ## 2026-09-30 – Juna – Vinted-Live-Vorschau und Schließen des Sync-Modals bei Reconnect umgesetzt
 
 **Auftrag:** Beim Klick auf „Vinted-Anmeldung erneuern“ im Abgleichsdialog soll sich das bisherige Status-Modal schließen, damit das neue Anmeldefenster bedienbar ist. Falls Vinted bei der Anmeldung eine zusätzliche Prüfung verlangt (z. B. Captcha oder Cookie-Banner) und die automatische Passworteingabe stoppt, soll der Nutzer die genaue Browser-Vorschau sehen und die Prüfung direkt im Bild bedienen können.

@@ -28,6 +28,16 @@ export interface MarketplaceEntry extends AccountScope {
   readonly messageType: string | null;
   readonly priceLabel: string | null;
 }
+export interface MarketplaceFeedback {
+  readonly id: string;
+  readonly authorName: string | null;
+  readonly authorImageUrl: string | null;
+  readonly rating: number;
+  readonly text: string;
+  readonly occurredAt: string | null;
+  readonly isAutomatic: boolean;
+  readonly itemTitle?: string | null;
+}
 export interface MarketplaceProfile extends AccountScope {
   readonly username: string | null;
   readonly displayName: string | null;
@@ -41,6 +51,7 @@ export interface MarketplaceProfile extends AccountScope {
   readonly neutralFeedbackCount: number | null;
   readonly negativeFeedbackCount: number | null;
   readonly itemCount: number | null;
+  readonly feedbacks?: readonly MarketplaceFeedback[];
 }
 export interface MarketplaceSnapshot extends AccountScope {
   readonly profile: MarketplaceProfile | null;

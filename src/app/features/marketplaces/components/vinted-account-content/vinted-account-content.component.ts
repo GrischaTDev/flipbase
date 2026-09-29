@@ -10,6 +10,7 @@ import { DataTableComponent } from '../../../../shared/components/data-table/dat
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
 import { VintedRatingComponent } from '../vinted-rating/vinted-rating.component';
 import { VintedProfileEditorComponent } from '../vinted-profile-editor/vinted-profile-editor.component';
+import { VintedFeedbackListComponent } from '../vinted-feedback-list/vinted-feedback-list.component';
 import type { MarketplaceEntryKind } from '../../models/marketplace-read.models';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 
@@ -26,6 +27,7 @@ import { MarketplaceAccountStore } from '../../services/marketplace-account.stor
     RouterLink,
     VintedRatingComponent,
     VintedProfileEditorComponent,
+    VintedFeedbackListComponent,
   ],
   templateUrl: './vinted-account-content.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

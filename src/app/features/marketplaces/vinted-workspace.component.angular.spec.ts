@@ -17,6 +17,7 @@ import { VintedAccountContentComponent } from './components/vinted-account-conte
 import { VintedProfileEditorComponent } from './components/vinted-profile-editor/vinted-profile-editor.component';
 import { VintedListingDetailComponent } from './components/vinted-listing-detail/vinted-listing-detail.component';
 import { VintedRatingComponent } from './components/vinted-rating/vinted-rating.component';
+import { VintedFeedbackListComponent } from './components/vinted-feedback-list/vinted-feedback-list.component';
 import { MarketplaceAccountsComponent } from './components/marketplace-accounts/marketplace-accounts.component';
 import { MarketplaceConnectComponent } from './components/marketplace-connect/marketplace-connect.component';
 import { MarketplaceBrowserTestComponent } from './components/marketplace-browser-test/marketplace-browser-test.component';
@@ -141,6 +142,10 @@ beforeAll(async () => {
     {
       type: VintedRatingComponent,
       path: 'src/app/features/marketplaces/components/vinted-rating/vinted-rating.component.ts',
+    },
+    {
+      type: VintedFeedbackListComponent,
+      path: 'src/app/features/marketplaces/components/vinted-feedback-list/vinted-feedback-list.component.ts',
     },
     {
       type: MarketplaceAccountsComponent,
@@ -338,7 +343,7 @@ describe('Vinted-Bereich in Flipbase', () => {
     expect(element.querySelector('[role="combobox"]')?.textContent).toContain('Testkonto A');
     expect(
       [...element.querySelectorAll('app-section-navigation a')].map((a) => a.textContent?.trim()),
-    ).toEqual(['Übersicht', 'Inserate', 'Nachrichten', 'Verkäufe', 'Profil']);
+    ).toEqual(['Übersicht', 'Inserate', 'Nachrichten', 'Verkäufe', 'Profil', 'Bewertung']);
     expect(element.querySelector('a[href="/settings/marketplaces"]')).not.toBeNull();
     expect(element.querySelector('a[href="/marketplaces/vinted/activity"]')).not.toBeNull();
     expect(

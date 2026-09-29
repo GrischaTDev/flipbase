@@ -72,15 +72,15 @@ test('nutzt eine bereits geöffnete Vinted-Seite und liest das Profil nur einmal
     evaluate: async () => {
       requests += 1;
       if (requests === 1) return { user: { id: 123, login: 'testkonto' } };
-      return requests === 2
-        ? { items: [], pagination: { total_pages: 1 } }
-        : { conversations: [], pagination: { total_pages: 1 } };
+      if (requests === 2) return { items: [], pagination: { total_pages: 1 } };
+      if (requests === 3) return { conversations: [], pagination: { total_pages: 1 } };
+      return { user_feedbacks: [], pagination: { total_pages: 1 } };
     },
   } as unknown as Page;
   const result = await readVintedAccountImport(page, async () => undefined);
   assert.equal(result.identity.id, '123');
   assert.equal(navigations, 0);
-  assert.equal(requests, 3);
+  assert.equal(requests, 4);
 });
 
 test('unveränderte gelesene Gespräche bleiben aus dem Cache erhalten', async (t) => {
@@ -100,6 +100,8 @@ test('unveränderte gelesene Gespräche bleiben aus dem Cache erhalten', async (
           ],
           pagination: { total_pages: 1 },
         };
+      if (path.includes('/feedbacks'))
+        return { user_feedbacks: [], pagination: { total_pages: 1 } };
       throw new Error('Gespräch darf nicht erneut gelesen werden');
     },
   } as unknown as Page;
@@ -112,7 +114,7 @@ test('unveränderte gelesene Gespräche bleiben aus dem Cache erhalten', async (
       occurredAt: '2026-09-28T09:20:00Z',
     },
   ]);
-  assert.equal(requested.length, 3);
+  assert.equal(requested.length, 4);
   assert.equal(
     result.entries.find((entry) => entry.kind === 'conversation')?.body['text'],
     'Vollständige letzte Nachricht',
@@ -398,4 +400,47 @@ test('übernimmt echte Chatnachrichten mit Entity-ID und Systemereignisse ohne I
   assert.ok(conversation);
   assert.equal(conversation.body['text'], 'Angebot angenommen');
   assert.equal(conversation.body['occurredAt'], systemMessage.sortAt);
+});
+
+test('ordnet Feedbacks mit Kennzeichnung für automatische Bewertungen dem Profil zu', () => {
+  const result = parseVintedAccountImport(
+    { id: '123', username: 'testkonto' },
+    { user: { id: 123, login: 'testkonto', feedback_count: 2, feedback_reputation: 5 } },
+    [],
+    [],
+    [],
+    '2026-09-28T10:00:00Z',
+    [],
+    [
+      {
+        id: 901,
+        feedback: 'Super lieber Kontakt!',
+        rating: 5,
+        created_at: '2026-09-25T12:00:00Z',
+        is_automatic: false,
+        author: { login: 'kaeufer_1', photo: { url: 'https://example.com/p1.jpg' } },
+        item: { title: 'Sommerkleid' },
+      },
+      {
+        id: 902,
+        feedback: 'Automatische Bewertung: Die Transaktion wurde erfolgreich abgeschlossen.',
+        rating: 5,
+        created_at: '2026-09-24T10:00:00Z',
+        is_automatic: true,
+      },
+    ],
+  );
+  const profile = result.entries.find((entry) => entry.kind === 'profile');
+  assert.ok(profile);
+  const feedbacks = profile.body['feedbacks'] as Record<string, unknown>[];
+  assert.equal(feedbacks.length, 2);
+  const first = feedbacks[0];
+  const second = feedbacks[1];
+  assert.ok(first);
+  assert.ok(second);
+  assert.equal(first['authorName'], 'kaeufer_1');
+  assert.equal(first['isAutomatic'], false);
+  assert.equal(first['itemTitle'], 'Sommerkleid');
+  assert.equal(second['isAutomatic'], true);
+  assert.equal(second['authorName'], 'Vinted System');
 });

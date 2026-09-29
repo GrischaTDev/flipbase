@@ -31,14 +31,16 @@ export const MARKETPLACES_ROUTES: Routes = [
             (m) => m.VintedListingDetailComponent,
           ),
       },
-      ...['overview', 'listings', 'messages', 'sales', 'profile', 'activity'].map((section) => ({
-        path: section,
-        data: { section },
-        loadComponent: () =>
-          import('./components/vinted-account-content/vinted-account-content.component').then(
-            (m) => m.VintedAccountContentComponent,
-          ),
-      })),
+      ...['overview', 'listings', 'messages', 'sales', 'profile', 'feedback', 'activity'].map(
+        (section) => ({
+          path: section,
+          data: { section },
+          loadComponent: () =>
+            import('./components/vinted-account-content/vinted-account-content.component').then(
+              (m) => m.VintedAccountContentComponent,
+            ),
+        }),
+      ),
       { path: '**', redirectTo: 'overview' },
     ],
   },
