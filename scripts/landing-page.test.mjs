@@ -1578,3 +1578,43 @@ test('limits privacy, infrastructure and accounting copy to technically bounded 
     assert.doesNotMatch(normalizedHtml, new RegExp(escapeRegExp(phrase), 'iu'));
   }
 });
+
+test('pricing section shows the free beta and future plan limits', () => {
+  const dom = new JSDOM(html);
+  const pricing = dom.window.document.getElementById('pricing');
+  assert.ok(pricing, 'pricing section must exist');
+
+  const heading = pricing.querySelector('#pricing-title');
+  assert.ok(heading);
+  assert.match(heading.textContent, /Für jeden Reseller das passende Paket\./u);
+
+  const cards = [...pricing.querySelectorAll('[data-pricing-plan]')];
+  assert.equal(cards.length, 3);
+
+  const byPlan = Object.fromEntries(
+    cards.map((card) => [card.getAttribute('data-pricing-plan'), card]),
+  );
+  assert.deepEqual(Object.keys(byPlan).sort(), ['plus', 'pro', 'standard']);
+
+  assert.match(byPlan.standard.textContent, /1 Workspace/u);
+  assert.doesNotMatch(byPlan.standard.textContent, /Multi-Account-Verwaltung/u);
+  assert.match(byPlan.plus.textContent, /3 Workspaces/u);
+  assert.match(byPlan.plus.textContent, /bis zu 3 Vinted-Konten/u);
+  assert.match(byPlan.pro.textContent, /5 Workspaces/u);
+  assert.match(byPlan.pro.textContent, /bis zu 5 Vinted-Konten/u);
+
+  const futurePrices = cards.map((card) => card.querySelector('s')?.textContent.trim());
+  assert.deepEqual(futurePrices, ['15 €', '29 €', '49 €']);
+  for (const card of cards) {
+    assert.match(card.textContent, /0 €/u);
+    assert.equal(card.querySelector('.pricing-cta')?.getAttribute('href'), '#beta-anmeldung');
+  }
+
+  const pricingText = pricing.textContent.replace(/\s+/gu, ' ').trim();
+  assert.match(
+    pricingText,
+    /Bewirb Dich für den kostenlosen Beta-Zugang\. Teste schon jetzt alle fertigen Features kostenlos und beteilige Dich mit Deinem Feedback an der Weiterentwicklung von Flipbase\./u,
+  );
+  assert.doesNotMatch(pricingText, /Geplant nach der Beta/u);
+  assert.doesNotMatch(pricingText, /Paketumfang nach der Beta/u);
+});
