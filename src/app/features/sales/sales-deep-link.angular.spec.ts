@@ -24,6 +24,7 @@ import { DataTableComponent } from '../../shared/components/data-table/data-tabl
 import { ButtonComponent } from '../../shared/components/button/button.component';
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
 import { TableActionButtonComponent } from '../../shared/components/table-action-button/table-action-button.component';
+import { MarketplacePlatformIdentityComponent } from '../../shared/components/marketplace-platform-identity/marketplace-platform-identity.component';
 
 interface AngularInputMetadata {
   inputs: Record<string, unknown>;
@@ -129,6 +130,7 @@ beforeAll(async () => {
     'currentSort',
     'description',
   ]);
+  registerSignalInputs(MarketplacePlatformIdentityComponent, ['platform']);
 });
 
 const workspace = { id: 'workspace-1' };
