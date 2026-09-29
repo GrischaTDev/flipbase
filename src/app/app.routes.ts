@@ -230,6 +230,13 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'deal-calculator/ebay',
+        loadComponent: () =>
+          import('./features/ebay-fee-calculator/ebay-fee-calculator.component').then(
+            (m) => m.EbayFeeCalculatorComponent,
+          ),
+      },
+      {
         path: 'deal-calculator',
         loadComponent: () =>
           import('./features/deal-calculator/deal-calculator.component').then(

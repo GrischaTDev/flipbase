@@ -1,0 +1,509 @@
+<div class="mx-auto max-w-6xl space-y-4 animate-fade-in">
+  <header class="space-y-3">
+    <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+      <div>
+        <div class="flex flex-wrap items-center gap-2">
+          <h1 class="text-xl font-bold tracking-tight text-fb-text-primary">
+            eBay Gebührenrechner
+          </h1>
+          <span
+            class="rounded-md border border-fb-border bg-fb-subtle px-2 py-0.5 text-[10px] font-bold text-fb-text-secondary"
+          >
+            eBay.de · Stand 01.07.2026
+          </span>
+        </div>
+        <p class="mt-1 max-w-3xl text-[13px] text-fb-text-muted">
+          Berechnet aktuelle eBay-Gebühren für private und gewerbliche Verkäufer in Deutschland –
+          inklusive Kategorie, Shop, Ausland, Anzeigen und optionaler Umsatzsteuer auf
+          eBay-Gebühren.
+        </p>
+      </div>
+    </div>
+
+    <app-route-tabs [tabs]="tabs" activeId="ebay" label="Kalkulationsbereiche" />
+  </header>
+
+  <form [formGroup]="form" class="grid grid-cols-1 gap-4 lg:grid-cols-12">
+    <div class="space-y-4 lg:col-span-7">
+      <section class="linear-surface rounded-xl p-4 md:p-5">
+        <div class="mb-4 flex items-center justify-between border-b border-fb-border pb-2">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-secondary">
+            Verkäufer & Gebührenmodell
+          </h2>
+        </div>
+
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <label
+              for="sellerTypeSelect"
+              class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
+            >
+              Verkäufertyp
+            </label>
+            <app-custom-select
+              triggerId="sellerTypeSelect"
+              ariaLabel="Verkäufertyp"
+              [options]="sellerTypeOptions"
+              formControlName="sellerType"
+            />
+          </div>
+
+          @if (sellerType() === 'business') {
+            <div>
+              <label
+                for="shopTypeSelect"
+                class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
+              >
+                eBay Shop
+              </label>
+              <app-custom-select
+                triggerId="shopTypeSelect"
+                ariaLabel="eBay Shop"
+                [options]="shopOptions"
+                formControlName="shopType"
+              />
+              @if (selectedShopMonthlyFee() > 0) {
+                <p class="mt-1 text-[10px] text-fb-text-muted">
+                  {{ selectedShopMonthlyFee() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                  netto/Monat – nicht anteilig in diesen Verkauf eingerechnet.
+                </p>
+              }
+            </div>
+          }
+        </div>
+
+        @if (sellerType() === 'business') {
+          <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label
+                for="categorySelect"
+                class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
+              >
+                Kategorie
+              </label>
+              <app-custom-select
+                triggerId="categorySelect"
+                ariaLabel="eBay Kategorie"
+                [options]="categoryOptions"
+                [searchable]="true"
+                formControlName="category"
+              />
+            </div>
+
+            <div>
+              <label
+                for="conditionSelect"
+                class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
+              >
+                Artikelzustand
+              </label>
+              <app-custom-select
+                triggerId="conditionSelect"
+                ariaLabel="Artikelzustand"
+                [options]="conditionOptions"
+                formControlName="condition"
+              />
+            </div>
+          </div>
+
+          <div class="mt-4 rounded-lg border border-fb-border bg-fb-subtle/60 p-3">
+            <app-custom-checkbox
+              formControlName="includeBusinessFeeVat"
+              label="19 % USt auf eBay-Gebühren berücksichtigen"
+              ariaLabel="19 Prozent Umsatzsteuer auf eBay-Gebühren berücksichtigen"
+              size="sm"
+            />
+            <p class="mt-1 pl-6 text-[10px] leading-relaxed text-fb-text-muted">
+              eBay weist die gewerblichen Gebührensätze netto aus. Deaktiviere diese Option, wenn
+              dein eBay-Konto die Gebühren netto ohne deutsche Umsatzsteuer abrechnet.
+            </p>
+          </div>
+        } @else {
+          <div
+            class="mt-4 flex gap-2 rounded-lg border border-emerald-500/25 bg-emerald-500/10 p-3 text-xs text-emerald-300"
+          >
+            <svg [lucideIcon]="infoIcon" class="mt-0.5 h-4 w-4 shrink-0"></svg>
+            <p>
+              Private Verkäufe über eBay.de sind innerhalb Deutschlands kostenlos. Bei Versand ins
+              Ausland berechnet eBay 5 % internationale Gebühr auf den Gesamtbetrag.
+            </p>
+          </div>
+        }
+      </section>
+
+      <section class="linear-surface rounded-xl p-4 md:p-5">
+        <div class="mb-4 border-b border-fb-border pb-2">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-secondary">Verkauf</h2>
+        </div>
+
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <label
+              for="salePriceInput"
+              class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
+            >
+              Verkaufspreis
+            </label>
+            <app-number-input
+              id="salePriceInput"
+              formControlName="salePrice"
+              unit="€"
+              [min]="0"
+              [step]="1"
+              [showStepper]="false"
+              ariaLabel="Verkaufspreis"
+            />
+          </div>
+
+          <div>
+            <label
+              for="buyerShippingInput"
+              class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
+            >
+              Versand, den der Käufer zahlt
+            </label>
+            <app-number-input
+              id="buyerShippingInput"
+              formControlName="buyerShipping"
+              unit="€"
+              [min]="0"
+              [step]="0.5"
+              [showStepper]="false"
+              ariaLabel="Vom Käufer gezahlte Versandkosten"
+            />
+          </div>
+        </div>
+
+        <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <label
+              for="destinationSelect"
+              class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
+            >
+              Lieferland
+            </label>
+            <app-custom-select
+              triggerId="destinationSelect"
+              ariaLabel="Lieferland"
+              [options]="destinationOptions"
+              formControlName="destination"
+            />
+          </div>
+
+          <div>
+            <label
+              for="promotedRateInput"
+              class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
+            >
+              Anzeigenrate
+            </label>
+            <app-number-input
+              id="promotedRateInput"
+              formControlName="promotedRatePercent"
+              unit="%"
+              [min]="0"
+              [max]="100"
+              [step]="0.5"
+              [showStepper]="false"
+              ariaLabel="Verkaufsabhängige Anzeigenrate"
+            />
+            <p class="mt-1 text-[10px] text-fb-text-muted">
+              Für verkaufsabhängige Anzeigen. CPC-Kosten sind hier nicht enthalten.
+            </p>
+          </div>
+        </div>
+
+        @if (sellerType() === 'business' && destination() !== 'germany') {
+          <div class="mt-4">
+            <app-custom-checkbox
+              formControlName="useEbayInternationalShipping"
+              label="eBay Internationalen Versand nutzen"
+              ariaLabel="eBay Internationalen Versand nutzen"
+              size="sm"
+            />
+            <p class="mt-1 pl-6 text-[10px] text-fb-text-muted">
+              Bei berechtigten Angeboten entfällt damit die internationale eBay-Gebühr.
+            </p>
+          </div>
+        }
+      </section>
+
+      <section class="linear-surface rounded-xl p-4 md:p-5">
+        <div class="mb-4 border-b border-fb-border pb-2">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-secondary">
+            Eigene Kosten
+          </h2>
+        </div>
+
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div>
+            <label
+              for="purchaseCostInput"
+              class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
+            >
+              Einkaufspreis
+            </label>
+            <app-number-input
+              id="purchaseCostInput"
+              formControlName="purchaseCost"
+              unit="€"
+              [min]="0"
+              [showStepper]="false"
+              ariaLabel="Einkaufspreis"
+            />
+          </div>
+
+          <div>
+            <label
+              for="actualShippingInput"
+              class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
+            >
+              Versandkosten
+            </label>
+            <app-number-input
+              id="actualShippingInput"
+              formControlName="actualShippingCost"
+              unit="€"
+              [min]="0"
+              [showStepper]="false"
+              ariaLabel="Tatsächliche Versandkosten"
+            />
+          </div>
+
+          <div>
+            <label
+              for="packagingCostInput"
+              class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
+            >
+              Verpackung
+            </label>
+            <app-number-input
+              id="packagingCostInput"
+              formControlName="packagingCost"
+              unit="€"
+              [min]="0"
+              [showStepper]="false"
+              ariaLabel="Verpackungskosten"
+            />
+          </div>
+        </div>
+      </section>
+
+      <section class="linear-surface rounded-xl p-4 md:p-5">
+        <div class="mb-3 border-b border-fb-border pb-2">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-secondary">
+            Angebotsgebühr
+          </h2>
+        </div>
+
+        <app-custom-checkbox
+          formControlName="listingOutsideFreeQuota"
+          label="Angebot liegt außerhalb des kostenlosen Kontingents"
+          ariaLabel="Angebot liegt außerhalb des kostenlosen Kontingents"
+          size="sm"
+        />
+
+        @if (listingOutsideFreeQuota()) {
+          <div class="mt-3 max-w-sm">
+            <label
+              for="listingFormatSelect"
+              class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
+            >
+              Angebotsformat
+            </label>
+            <app-custom-select
+              triggerId="listingFormatSelect"
+              ariaLabel="Angebotsformat"
+              [options]="listingFormatOptions"
+              formControlName="listingFormat"
+            />
+          </div>
+        }
+      </section>
+    </div>
+
+    <aside class="space-y-4 lg:col-span-5">
+      <section class="rounded-xl border border-indigo-500/30 bg-indigo-500/10 p-5">
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-300">
+              Auszahlung nach eBay
+            </span>
+            <div class="mt-1 font-mono text-3xl font-black text-fb-text-primary">
+              {{ result().payoutAfterEbay | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+            </div>
+          </div>
+          <div
+            class="flex h-10 w-10 items-center justify-center rounded-xl border border-indigo-500/30 bg-indigo-500/15 text-indigo-300"
+          >
+            <svg [lucideIcon]="calculatorIcon" class="h-5 w-5"></svg>
+          </div>
+        </div>
+
+        <div class="mt-4 border-t border-indigo-500/20 pt-3 text-xs">
+          <div class="flex justify-between gap-4 text-fb-text-secondary">
+            <span>Gesamtbetrag Käufer</span>
+            <strong class="font-mono text-fb-text-primary">
+              {{ result().transactionAmount | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+            </strong>
+          </div>
+          <div class="mt-2 flex justify-between gap-4 text-fb-text-secondary">
+            <span>eBay-Gebühren gesamt</span>
+            <strong class="font-mono text-rose-400">
+              −{{ result().ebayFeesTotal | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+            </strong>
+          </div>
+          <div class="mt-2 flex justify-between gap-4 text-fb-text-secondary">
+            <span>Effektive eBay-Kosten</span>
+            <strong class="font-mono text-fb-text-primary">
+              {{ result().effectiveEbayFeePercent }} %
+            </strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="linear-surface rounded-xl p-4">
+        <div class="mb-3 flex items-center gap-2 border-b border-fb-border pb-2">
+          <svg [lucideIcon]="infoIcon" class="h-4 w-4 text-fb-text-muted"></svg>
+          <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
+            Gebührenaufschlüsselung
+          </h2>
+        </div>
+
+        <div class="space-y-2 text-xs">
+          @if (sellerType() === 'business') {
+            <div class="flex justify-between gap-3 text-fb-text-secondary">
+              <span>Variable Verkaufsprovision</span>
+              <span class="font-mono">
+                {{ result().variableFee | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+              </span>
+            </div>
+            <div class="flex justify-between gap-3 text-fb-text-secondary">
+              <span>Fixe Bestellgebühr</span>
+              <span class="font-mono">
+                {{ result().orderFee | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+              </span>
+            </div>
+            @if (result().platinumDiscount > 0) {
+              <div class="flex justify-between gap-3 text-emerald-400">
+                <span>Platin-Shop Rabatt</span>
+                <span class="font-mono">
+                  −{{ result().platinumDiscount | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                </span>
+              </div>
+            }
+          }
+
+          @if (result().internationalFee > 0) {
+            <div class="flex justify-between gap-3 text-fb-text-secondary">
+              <span>Internationale Gebühr</span>
+              <span class="font-mono">
+                {{ result().internationalFee | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+              </span>
+            </div>
+          }
+
+          @if (result().promotedFee > 0) {
+            <div class="flex justify-between gap-3 text-fb-text-secondary">
+              <span>Anzeigengebühr</span>
+              <span class="font-mono">
+                {{ result().promotedFee | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+              </span>
+            </div>
+          }
+
+          @if (result().listingFee > 0) {
+            <div class="flex justify-between gap-3 text-fb-text-secondary">
+              <span>Angebotsgebühr</span>
+              <span class="font-mono">
+                {{ result().listingFee | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+              </span>
+            </div>
+          }
+
+          @if (result().feeVat > 0) {
+            <div class="flex justify-between gap-3 text-fb-text-secondary">
+              <span>USt auf eBay-Gebühren</span>
+              <span class="font-mono">
+                {{ result().feeVat | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+              </span>
+            </div>
+          }
+
+          <div class="border-t border-fb-border pt-2">
+            <div class="flex justify-between gap-3 font-semibold text-fb-text-primary">
+              <span>eBay gesamt</span>
+              <span class="font-mono text-rose-400">
+                {{ result().ebayFeesTotal | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section
+        class="rounded-xl border p-4"
+        [class.border-emerald-500/30]="result().profit >= 0"
+        [class.bg-emerald-500/10]="result().profit >= 0"
+        [class.border-rose-500/30]="result().profit < 0"
+        [class.bg-rose-500/10]="result().profit < 0"
+      >
+        <div class="flex items-center gap-2">
+          <svg
+            [lucideIcon]="trendingIcon"
+            class="h-4 w-4"
+            [class.text-emerald-400]="result().profit >= 0"
+            [class.text-rose-400]="result().profit < 0"
+          ></svg>
+          <span class="text-[10px] font-bold uppercase tracking-wider text-fb-text-muted">
+            Gewinn nach eigenen Kosten
+          </span>
+        </div>
+        <div
+          class="mt-1 font-mono text-2xl font-black"
+          [class.text-emerald-400]="result().profit >= 0"
+          [class.text-rose-400]="result().profit < 0"
+        >
+          {{ result().profit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+        </div>
+        <div class="mt-3 grid grid-cols-2 gap-2 text-xs text-fb-text-secondary">
+          <div>
+            <span class="block text-[10px] text-fb-text-muted">Marge</span>
+            <strong class="font-mono">{{ result().marginPercent }} %</strong>
+          </div>
+          <div>
+            <span class="block text-[10px] text-fb-text-muted">ROI auf eigene Kosten</span>
+            <strong class="font-mono">{{ result().roiPercent }} %</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="linear-surface rounded-xl p-4 text-xs">
+        <div class="mb-2 font-semibold text-fb-text-primary">Aktive Gebührenregel</div>
+        <p class="leading-relaxed text-fb-text-secondary">{{ result().ruleLabel }}</p>
+        <p class="mt-2 text-[10px] leading-relaxed text-fb-text-muted">
+          Regelstand {{ rulesValidFrom }}. Berechnungsbasis ist der Gesamtbetrag der Transaktion,
+          also Verkaufspreis plus vom Käufer gezahlter Versand.
+        </p>
+        <div class="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[10px]">
+          <a
+            href="https://www.ebay.de/help/selling/selling-fees/store-fees?id=4809"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-indigo-400 hover:underline"
+          >
+            eBay Gebühren gewerblich
+          </a>
+          <a
+            href="https://www.ebay.de/help/selling/fees-credits-invoices/selling-fees?id=4822"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-indigo-400 hover:underline"
+          >
+            eBay Gebühren privat
+          </a>
+        </div>
+      </section>
+    </aside>
+  </form>
+</div>
