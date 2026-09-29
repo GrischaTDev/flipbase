@@ -1349,24 +1349,23 @@ test('restores a valid analytics choice and expires it after 180 days', () => {
   expired.window.close();
 });
 
-test('uses a valid heading hierarchy and the mobile header wrap contract', () => {
+test('uses a valid heading hierarchy and the compact mobile header contract', () => {
   assert.doesNotMatch(html, /<h4\b/iu);
   assertDeclaration(css, '.tech-box h3', 'display', 'flex');
 
-  assertDeclaration(css, 'header', 'flex-wrap', 'wrap');
+  assertDeclaration(css, '.site-header-inner', 'display', 'grid');
   assertDeclaration(css, '.kopf-aktionen', 'min-width', '0');
 
-  const mobileCss = extractBalancedBlock(css, '@media (max-width: 560px)');
-  assertDeclaration(mobileCss, 'header', 'align-items', 'center');
-  assertDeclaration(mobileCss, '.kopf-aktionen', 'width', '100%');
-  assertDeclaration(mobileCss, '.kopf-aktionen', 'justify-content', 'space-between');
-  assertDeclaration(mobileCss, '.kopf-cta', 'min-width', '0');
-  assertDeclaration(mobileCss, '.kopf-cta', 'text-align', 'center');
+  const mobileCss = extractBalancedBlock(css, '@media (max-width: 920px)');
+  assertDeclaration(mobileCss, '.kopf-nav', 'position', 'absolute');
+  assertDeclaration(mobileCss, '.nav-menu-button', 'display', 'inline-flex');
+  assertDeclaration(mobileCss, '.schalter-gruppe--desktop', 'display', 'none');
+  assertDeclaration(mobileCss, '.schalter-gruppe--mobile', 'display', 'flex');
 });
 
 test('shows keyboard focus on both visible toggle labels', () => {
   const focusRule = css.match(
-    /#theme-toggle:focus-visible\s*~\s*\.kopf-aktionen\s+label\[for=['"]theme-toggle['"]\]\s*,\s*#lang-toggle:focus-visible\s*~\s*\.kopf-aktionen\s+label\[for=['"]lang-toggle['"]\]\s*\{([^{}]*)\}/iu,
+    /#theme-toggle:focus-visible\s*~\s*\.site-header-inner\s+label\[for=['"]theme-toggle['"]\]\s*,\s*#lang-toggle:focus-visible\s*~\s*\.site-header-inner\s+label\[for=['"]lang-toggle['"]\]\s*\{([^{}]*)\}/iu,
   );
   assert.ok(focusRule, 'Expected one visible focus rule for both toggle labels');
   assert.match(focusRule[1], /outline\s*:\s*2px\s+solid\s+var\(--brand\)\s*;/iu);
