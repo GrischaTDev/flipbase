@@ -358,7 +358,6 @@ export class SalesComponent {
         .filter((sale) => sale.returned_at !== null && sale.returned_at !== undefined).length,
   );
 
-
   readonly platformFilterOptions = computed<SelectOption<string>[]>(() => [
     { value: 'all', label: `Alle Verkäufe (${this.salesService.sales().length})` },
     { value: 'returned', label: `Retouren (${this.returnedSalesCount()})` },
