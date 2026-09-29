@@ -1280,6 +1280,252 @@
         border-color: var(--line);
       }
 
+
+      /* ---------- Beta pricing ---------- */
+
+      #pricing {
+        scroll-margin-top: 6rem;
+      }
+
+      .pricing-header {
+        margin-inline: auto;
+        margin-bottom: 0.75rem;
+        max-width: 780px;
+        text-align: center;
+      }
+
+      .pricing-beta-note {
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        gap: 0.65rem;
+        max-width: 780px;
+        margin: 0 auto 1.5rem;
+        padding: 0.85rem 1rem;
+        border: 1px solid var(--brand-border);
+        border-radius: 12px;
+        background: var(--brand-bg);
+        color: var(--ink-soft);
+        font-size: 0.88rem;
+        line-height: 1.5;
+        text-align: center;
+      }
+
+      .pricing-beta-note svg {
+        width: 20px;
+        height: 20px;
+        flex: 0 0 20px;
+        margin-top: 0.05rem;
+        color: var(--brand-text);
+      }
+
+      .pricing-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 1.25rem;
+        align-items: stretch;
+      }
+
+      .pricing-card {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        padding: clamp(1.25rem, 2.2vw, 1.8rem);
+        border: 1px solid var(--line-strong);
+        border-radius: 18px;
+        background: var(--surface);
+        overflow-wrap: anywhere;
+      }
+
+      .pricing-card--featured {
+        border-color: var(--brand);
+        box-shadow: 0 0 0 1px var(--brand);
+      }
+
+      .pricing-card-heading {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        margin-bottom: 0.65rem;
+      }
+
+      .pricing-card h3 {
+        margin: 0;
+        color: var(--ink);
+        font-size: 1.45rem;
+        font-weight: 750;
+        letter-spacing: -0.025em;
+        line-height: 1.4;
+      }
+
+      .pricing-recommendation {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.22rem 0.6rem;
+        border-radius: 6px;
+        background: var(--brand);
+        color: var(--on-brand);
+        font-size: 0.73rem;
+        font-weight: 700;
+        line-height: 1.5;
+      }
+
+      .pricing-description {
+        min-height: 3rem;
+        margin: 0 0 1.4rem;
+        color: var(--ink-muted);
+        font-size: 0.88rem;
+        line-height: 1.5;
+      }
+
+      .pricing-future-price {
+        margin: 0 0 0.4rem;
+        color: var(--ink-muted);
+        line-height: 1.5;
+      }
+
+      .pricing-future-value {
+        display: inline-flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 0.4rem;
+        font-size: 0.8rem;
+      }
+
+      .pricing-future-amount {
+        color: var(--ink-soft);
+        font-size: 1.15rem;
+        font-weight: 600;
+        text-decoration-thickness: 1.5px;
+      }
+
+      .pricing-current-price {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 0.5rem;
+        margin: 0;
+        color: var(--ink-muted);
+        font-size: 0.85rem;
+      }
+
+      .pricing-beta-amount {
+        color: var(--ink);
+        font-size: clamp(2.65rem, 3.6vw, 3.4rem);
+        font-weight: 800;
+        line-height: 1.1;
+        letter-spacing: -0.06em;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .pricing-beta-label {
+        margin: 0.55rem 0 1.4rem;
+        color: var(--profit);
+        font-size: 0.8rem;
+        font-weight: 600;
+      }
+
+      .pricing-details {
+        flex: 1;
+      }
+
+      .pricing-includes {
+        margin: 0 0 0.75rem;
+        color: var(--ink);
+        font-size: 0.85rem;
+        font-weight: 650;
+      }
+
+      .pricing-planned-label {
+        display: inline-block;
+        margin: 0 0 0.85rem;
+        padding: 0.18rem 0.5rem;
+        border: 1px solid var(--line-strong);
+        border-radius: 6px;
+        background: var(--surface-alt);
+        color: var(--ink-muted);
+        font-size: 0.7rem;
+        font-weight: 600;
+      }
+
+      .pricing-features {
+        display: grid;
+        gap: 0.7rem;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        color: var(--ink-soft);
+        font-size: 0.84rem;
+        line-height: 1.5;
+      }
+
+      .pricing-features li {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.65rem;
+        min-width: 0;
+      }
+
+      .pricing-feature-icon {
+        width: 17px;
+        height: 17px;
+        flex: 0 0 17px;
+        margin-top: 0.1rem;
+        color: var(--profit);
+      }
+
+      .pricing-features--planned .pricing-feature-icon {
+        color: var(--ink-muted);
+      }
+
+      .pricing-card .pricing-cta {
+        justify-content: center;
+        min-height: 46px;
+        width: 100%;
+        margin-top: 1.5rem;
+        padding: 0.85rem 0.7rem;
+        font-size: 0.84rem;
+        line-height: 1.5;
+        text-align: center;
+      }
+
+      .pricing-card .pricing-cta:focus-visible {
+        outline: 2px solid var(--ink);
+        outline-offset: 4px;
+      }
+
+      .pricing-footnote {
+        max-width: 850px;
+        margin: 1.5rem auto 0;
+        color: var(--ink-muted);
+        font-size: 0.78rem;
+        line-height: 1.65;
+        text-align: center;
+      }
+
+      @media (max-width: 960px) {
+        .pricing-grid {
+          grid-template-columns: minmax(0, 1fr);
+          max-width: 600px;
+          margin-inline: auto;
+        }
+
+        .pricing-description {
+          min-height: 0;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .pricing-card .pricing-cta,
+        .pricing-card .pricing-cta:hover,
+        .pricing-card .pricing-cta:focus-visible {
+          transition: none;
+          transform: none;
+        }
+      }
+
       /* ---------- FAQ Accordion ---------- */
 
       .faq-header-center {
@@ -1902,9 +2148,9 @@
               <span class="lang-de">Kostenlos für die Beta anmelden →</span>
               <span class="lang-en" lang="en">Apply for the beta for free →</span>
             </a>
-            <a class="hero-secondary-link" href="#features">
-              <span class="lang-de">Funktionen entdecken</span>
-              <span class="lang-en" lang="en">Explore features</span>
+            <a class="hero-secondary-link" href="#pricing">
+              <span class="lang-de">Pakete ansehen</span>
+              <span class="lang-en" lang="en">View plans</span>
             </a>
           </div>
         </div>
@@ -2504,6 +2750,574 @@
           </ul>
         </div>
       </section>
+
+
+      <!-- Pakete: Die gesamte verfügbare Beta bleibt kostenlos. -->
+      <section id="pricing" aria-labelledby="pricing-title" aria-describedby="pricing-availability">
+        <div class="sektion-header pricing-header">
+          <span class="sektion-kicker">
+            <span class="lang-de">Pakete & Preise</span>
+            <span class="lang-en" lang="en">Plans & pricing</span>
+          </span>
+          <h2 class="sektion-titel" id="pricing-title">
+            <span class="lang-de">Für jeden Reseller das passende Paket.</span>
+            <span class="lang-en" lang="en">The right plan for every reseller.</span>
+          </h2>
+          <p class="sektion-text">
+            <span class="lang-de"
+              >Alle aktuell verfügbaren Funktionen sind während der Beta kostenlos. Hier siehst Du
+              die geplanten Pakete für die Zeit danach.</span
+            >
+            <span class="lang-en" lang="en"
+              >All currently available features are free during beta. Here is a preview of the plans
+              for afterwards.</span
+            >
+          </p>
+        </div>
+
+        <div class="pricing-beta-note">
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="12" cy="12" r="9"></circle>
+            <path d="m8 12 3 3 5-6"></path>
+          </svg>
+          <span>
+            <span class="lang-de"
+              >Bewirb Dich für den kostenlosen Beta-Zugang. Teste schon jetzt alle fertigen Features
+              kostenlos und beteilige Dich mit Deinem Feedback an der Weiterentwicklung von
+              Flipbase.</span
+            >
+            <span class="lang-en" lang="en"
+              >Apply for free beta access. Test all finished features for free today and help shape
+              Flipbase with your feedback.</span
+            >
+          </span>
+        </div>
+
+        <div class="pricing-grid">
+          <article
+            class="pricing-card"
+            data-pricing-plan="standard"
+            aria-labelledby="pricing-standard-title"
+          >
+            <div class="pricing-card-heading">
+              <h3 id="pricing-standard-title">Standard</h3>
+            </div>
+            <p class="pricing-description">
+              <span class="lang-de">Alles für den Überblick über Dein Reselling.</span>
+              <span class="lang-en" lang="en">Everything to keep your reselling organized.</span>
+            </p>
+            <p class="pricing-future-price">
+              <span class="pricing-future-value">
+                <s class="pricing-future-amount">15 €</s>
+                <span>
+                  <span class="lang-de">/ Monat</span>
+                  <span class="lang-en" lang="en">/ month</span>
+                </span>
+              </span>
+            </p>
+            <p class="pricing-current-price">
+              <strong class="pricing-beta-amount">0 €</strong>
+              <span>
+                <span class="lang-de">/ Monat</span>
+                <span class="lang-en" lang="en">/ month</span>
+              </span>
+            </p>
+            <p class="pricing-beta-label">
+              <span class="lang-de">Während der Beta kostenlos</span>
+              <span class="lang-en" lang="en">Free during beta</span>
+            </p>
+
+            <div class="pricing-details">
+              <p class="pricing-includes">
+                <span class="lang-de">Enthalten</span>
+                <span class="lang-en" lang="en">Included</span>
+              </p>
+              <ul class="pricing-features">
+                <li>
+                  <svg
+                    class="pricing-feature-icon"
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="m5 12 4 4L19 6"></path>
+                  </svg>
+                  <span>
+                    <span class="lang-de"
+                      >1 Workspace für Artikel, Einkäufe, Verkäufe und Auswertungen</span
+                    >
+                    <span class="lang-en" lang="en"
+                      >1 workspace for products, purchases, sales, and reports</span
+                    >
+                  </span>
+                </li>
+                <li>
+                  <svg
+                    class="pricing-feature-icon"
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="m5 12 4 4L19 6"></path>
+                  </svg>
+                  <span>
+                    <span class="lang-de">Einkäufe, Bestand und Verkäufe</span>
+                    <span class="lang-en" lang="en">Purchases, inventory, and sales</span>
+                  </span>
+                </li>
+                <li>
+                  <svg
+                    class="pricing-feature-icon"
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="m5 12 4 4L19 6"></path>
+                  </svg>
+                  <span>
+                    <span class="lang-de">Ausgaben, Belege und Statistiken</span>
+                    <span class="lang-en" lang="en">Expenses, receipts, and statistics</span>
+                  </span>
+                </li>
+                <li>
+                  <svg
+                    class="pricing-feature-icon"
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="m5 12 4 4L19 6"></path>
+                  </svg>
+                  <span>
+                    <span class="lang-de">Bilder zuschneiden und exportieren</span>
+                    <span class="lang-en" lang="en">Photo cropping and export</span>
+                  </span>
+                </li>
+                <li>
+                  <svg
+                    class="pricing-feature-icon"
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="m5 12 4 4L19 6"></path>
+                  </svg>
+                  <span>
+                    <span class="lang-de">Kalkulator und Inseratsvorbereitung</span>
+                    <span class="lang-en" lang="en">Calculator and listing preparation</span>
+                  </span>
+                </li>
+                <li>
+                  <svg
+                    class="pricing-feature-icon"
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="m5 12 4 4L19 6"></path>
+                  </svg>
+                  <span>
+                    <span class="lang-de">Vinted Bot mit Suchfiltern und Favoriten</span>
+                    <span class="lang-en" lang="en">Vinted Bot with saved searches and favorites</span>
+                  </span>
+                </li>
+              </ul>
+            </div>
+
+            <a class="btn-secondary pricing-cta" href="#beta-anmeldung">
+              <span class="lang-de">Für die Beta bewerben</span>
+              <span class="lang-en" lang="en">Apply for the beta</span>
+              <span aria-hidden="true">→</span>
+            </a>
+          </article>
+
+          <article
+            class="pricing-card pricing-card--featured"
+            data-pricing-plan="plus"
+            aria-labelledby="pricing-plus-title"
+          >
+            <div class="pricing-card-heading">
+              <h3 id="pricing-plus-title">Plus</h3>
+              <span class="pricing-recommendation">
+                <span class="lang-de">Unser Tipp</span>
+                <span class="lang-en" lang="en">Our pick</span>
+              </span>
+            </div>
+            <p class="pricing-description">
+              <span class="lang-de">Für regelmäßiges Reselling und weniger Handarbeit.</span>
+              <span class="lang-en" lang="en">For regular reselling with less manual work.</span>
+            </p>
+            <p class="pricing-future-price">
+              <span class="pricing-future-value">
+                <s class="pricing-future-amount">29 €</s>
+                <span>
+                  <span class="lang-de">/ Monat</span>
+                  <span class="lang-en" lang="en">/ month</span>
+                </span>
+              </span>
+            </p>
+            <p class="pricing-current-price">
+              <strong class="pricing-beta-amount">0 €</strong>
+              <span>
+                <span class="lang-de">/ Monat</span>
+                <span class="lang-en" lang="en">/ month</span>
+              </span>
+            </p>
+            <p class="pricing-beta-label">
+              <span class="lang-de">Während der Beta kostenlos</span>
+              <span class="lang-en" lang="en">Free during beta</span>
+            </p>
+
+            <div class="pricing-details">
+              <p class="pricing-includes">
+                <span class="lang-de">Alles aus Standard, später zusätzlich:</span>
+                <span class="lang-en" lang="en">Everything in Standard, with future additions:</span>
+              </p>
+              <p class="pricing-planned-label">
+                <span class="lang-de">Geplante Erweiterungen</span>
+                <span class="lang-en" lang="en">Planned additions</span>
+              </p>
+              <ul class="pricing-features pricing-features--planned">
+                <li>
+                  <svg
+                    class="pricing-feature-icon"
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <circle cx="12" cy="12" r="9"></circle>
+                    <path d="M12 7v5l3 2"></path>
+                  </svg>
+                  <span>
+                    <span class="lang-de">3 Workspaces für getrennte Geschäftsbereiche</span>
+                    <span class="lang-en" lang="en">3 workspaces for separate business areas</span>
+                  </span>
+                </li>
+                <li>
+                  <svg
+                    class="pricing-feature-icon"
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <circle cx="12" cy="12" r="9"></circle>
+                    <path d="M12 7v5l3 2"></path>
+                  </svg>
+                  <span>
+                    <span class="lang-de">Multi-Account-Verwaltung für bis zu 3 Vinted-Konten</span>
+                    <span class="lang-en" lang="en"
+                      >Multi-account management for up to 3 Vinted accounts</span
+                    >
+                  </span>
+                </li>
+                <li>
+                  <svg
+                    class="pricing-feature-icon"
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <circle cx="12" cy="12" r="9"></circle>
+                    <path d="M12 7v5l3 2"></path>
+                  </svg>
+                  <span>
+                    <span class="lang-de">Erweiterte Vinted-Suchfunktionen</span>
+                    <span class="lang-en" lang="en">Advanced Vinted search features</span>
+                  </span>
+                </li>
+                <li>
+                  <svg
+                    class="pricing-feature-icon"
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <circle cx="12" cy="12" r="9"></circle>
+                    <path d="M12 7v5l3 2"></path>
+                  </svg>
+                  <span>
+                    <span class="lang-de">KI für Artikel und Recherche</span>
+                    <span class="lang-en" lang="en">AI for products and research</span>
+                  </span>
+                </li>
+                <li>
+                  <svg
+                    class="pricing-feature-icon"
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <circle cx="12" cy="12" r="9"></circle>
+                    <path d="M12 7v5l3 2"></path>
+                  </svg>
+                  <span>
+                    <span class="lang-de">Vollständiges Reseller-Nachschlagewerk</span>
+                    <span class="lang-en" lang="en">Full reseller knowledge library</span>
+                  </span>
+                </li>
+                <li>
+                  <svg
+                    class="pricing-feature-icon"
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <circle cx="12" cy="12" r="9"></circle>
+                    <path d="M12 7v5l3 2"></path>
+                  </svg>
+                  <span>
+                    <span class="lang-de">Neue Sammelbearbeitung für Artikel</span>
+                    <span class="lang-en" lang="en">New bulk editing for products</span>
+                  </span>
+                </li>
+              </ul>
+            </div>
+
+            <a class="btn-primary pricing-cta" href="#beta-anmeldung">
+              <span class="lang-de">Für die Beta bewerben</span>
+              <span class="lang-en" lang="en">Apply for the beta</span>
+              <span aria-hidden="true">→</span>
+            </a>
+          </article>
+
+          <article
+            class="pricing-card"
+            data-pricing-plan="pro"
+            aria-labelledby="pricing-pro-title"
+          >
+            <div class="pricing-card-heading">
+              <h3 id="pricing-pro-title">Pro</h3>
+            </div>
+            <p class="pricing-description">
+              <span class="lang-de">Für größere Bestände und gemeinsames Arbeiten.</span>
+              <span class="lang-en" lang="en">For larger inventories and working together.</span>
+            </p>
+            <p class="pricing-future-price">
+              <span class="pricing-future-value">
+                <s class="pricing-future-amount">49 €</s>
+                <span>
+                  <span class="lang-de">/ Monat</span>
+                  <span class="lang-en" lang="en">/ month</span>
+                </span>
+              </span>
+            </p>
+            <p class="pricing-current-price">
+              <strong class="pricing-beta-amount">0 €</strong>
+              <span>
+                <span class="lang-de">/ Monat</span>
+                <span class="lang-en" lang="en">/ month</span>
+              </span>
+            </p>
+            <p class="pricing-beta-label">
+              <span class="lang-de">Während der Beta kostenlos</span>
+              <span class="lang-en" lang="en">Free during beta</span>
+            </p>
+
+            <div class="pricing-details">
+              <p class="pricing-includes">
+                <span class="lang-de">Alles aus Plus, später zusätzlich:</span>
+                <span class="lang-en" lang="en">Everything in Plus, with future additions:</span>
+              </p>
+              <p class="pricing-planned-label">
+                <span class="lang-de">Geplante Erweiterungen</span>
+                <span class="lang-en" lang="en">Planned additions</span>
+              </p>
+              <ul class="pricing-features pricing-features--planned">
+                <li>
+                  <svg
+                    class="pricing-feature-icon"
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <circle cx="12" cy="12" r="9"></circle>
+                    <path d="M12 7v5l3 2"></path>
+                  </svg>
+                  <span>
+                    <span class="lang-de">5 Workspaces für getrennte Geschäftsbereiche</span>
+                    <span class="lang-en" lang="en">5 workspaces for separate business areas</span>
+                  </span>
+                </li>
+                <li>
+                  <svg
+                    class="pricing-feature-icon"
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <circle cx="12" cy="12" r="9"></circle>
+                    <path d="M12 7v5l3 2"></path>
+                  </svg>
+                  <span>
+                    <span class="lang-de">Multi-Account-Verwaltung für bis zu 5 Vinted-Konten</span>
+                    <span class="lang-en" lang="en"
+                      >Multi-account management for up to 5 Vinted accounts</span
+                    >
+                  </span>
+                </li>
+                <li>
+                  <svg
+                    class="pricing-feature-icon"
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <circle cx="12" cy="12" r="9"></circle>
+                    <path d="M12 7v5l3 2"></path>
+                  </svg>
+                  <span>
+                    <span class="lang-de">Größere KI- und Suchkontingente</span>
+                    <span class="lang-en" lang="en">Larger AI and search allowances</span>
+                  </span>
+                </li>
+                <li>
+                  <svg
+                    class="pricing-feature-icon"
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <circle cx="12" cy="12" r="9"></circle>
+                    <path d="M12 7v5l3 2"></path>
+                  </svg>
+                  <span>
+                    <span class="lang-de">Erweiterte Sammelbearbeitung</span>
+                    <span class="lang-en" lang="en">Advanced bulk editing</span>
+                  </span>
+                </li>
+                <li>
+                  <svg
+                    class="pricing-feature-icon"
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <circle cx="12" cy="12" r="9"></circle>
+                    <path d="M12 7v5l3 2"></path>
+                  </svg>
+                  <span>
+                    <span class="lang-de">Kontovergleiche und eigene Berichte</span>
+                    <span class="lang-en" lang="en">Account comparisons and custom reports</span>
+                  </span>
+                </li>
+                <li>
+                  <svg
+                    class="pricing-feature-icon"
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <circle cx="12" cy="12" r="9"></circle>
+                    <path d="M12 7v5l3 2"></path>
+                  </svg>
+                  <span>
+                    <span class="lang-de">Zusammenarbeit mit bis zu 3 Personen</span>
+                    <span class="lang-en" lang="en">Collaboration for up to 3 people</span>
+                  </span>
+                </li>
+              </ul>
+            </div>
+
+            <a class="btn-secondary pricing-cta" href="#beta-anmeldung">
+              <span class="lang-de">Für die Beta bewerben</span>
+              <span class="lang-en" lang="en">Apply for the beta</span>
+              <span aria-hidden="true">→</span>
+            </a>
+          </article>
+        </div>
+
+        <p class="pricing-footnote" id="pricing-availability">
+          <span class="lang-de"
+            >Die späteren Preise und Paketgrenzen sind vorläufig. Geplante Erweiterungen sind
+            entsprechend markiert und noch nicht vollständig verfügbar.</span
+          >
+          <span class="lang-en" lang="en"
+            >Future prices and plan limits are provisional. Planned additions are marked accordingly
+            and are not fully available yet.</span
+          >
+        </p>
+      </section>
+
 
       <!-- FAQ -->
       <section id="faq">
