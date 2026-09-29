@@ -27,12 +27,29 @@ interface Attrappen {
   gespeicherteLieferanten: Supplier[];
 }
 
-/** Genuegt fuer update(...).eq(...) und delete().eq(...): beides schliesst mit `{ error: null }`. */
+/** Genuegt fuer die verketteten Update-/Delete-Abfragen der Stammdatendienste. */
 function baueSupabaseAttrappe() {
+  let changes: Partial<Source> = {};
   const query = {
-    update: () => query,
+    update: (value: Partial<Source>) => {
+      changes = value;
+      return query;
+    },
     delete: () => query,
-    eq: async () => ({ error: null }),
+    eq: () => query,
+    select: () => query,
+    single: async () => ({
+      data: {
+        id: 'q-1',
+        workspace_id: 'ws-1',
+        name: 'Flohmarkt',
+        is_default: false,
+        is_active: true,
+        ...changes,
+      },
+      error: null,
+    }),
+    then: (resolve: (value: { error: null }) => void) => resolve({ error: null }),
   };
   return { client: { from: () => query } };
 }
