@@ -21,6 +21,7 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
 import { TableColumnMenuComponent } from '../../shared/components/table-column-menu/table-column-menu.component';
 import { TableSortHeaderComponent } from '../../shared/components/table-sort-header/table-sort-header.component';
 import { DataTableComponent } from '../../shared/components/data-table/data-table.component';
+import { CustomSelectComponent } from '../../shared/components/custom-select/custom-select.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
 import { TableActionButtonComponent } from '../../shared/components/table-action-button/table-action-button.component';
@@ -86,6 +87,13 @@ beforeAll(async () => {
     'loadingText',
     'emptyTitle',
     'emptyText',
+  ]);
+  registerSignalInputs(CustomSelectComponent, [
+    'options',
+    'value',
+    'variant',
+    'widthClass',
+    'ariaLabel',
   ]);
   registerSignalInputs(ButtonComponent, [
     'variant',
