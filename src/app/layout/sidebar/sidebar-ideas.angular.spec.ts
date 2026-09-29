@@ -84,10 +84,11 @@ describe('Arbeitsnavigation und Ideen in der Sidebar', () => {
       return Array.from(group.querySelectorAll('a')).map((link) => link.getAttribute('href'));
     });
 
-    expect(names).toEqual(['Einkauf', 'Artikel', 'Verkauf', 'Finanzen']);
+    expect(names).toEqual(['Einkauf', 'Artikel', 'Tools', 'Verkauf', 'Finanzen']);
     expect(links).toEqual([
       ['/purchases', '/vinted-bot'],
       ['/catalog', '/image-optimizer'],
+      ['/deal-calculator', '/deal-calculator/ebay'],
       ['/sales', '/listings'],
       ['/expenses', '/accounting', '/analytics'],
     ]);
@@ -96,7 +97,7 @@ describe('Arbeitsnavigation und Ideen in der Sidebar', () => {
     expect(element.textContent).not.toContain('System & Daten');
   });
 
-  it('haelt Ideen anfangs geschlossen und erhaelt alle vier Links samt Demo-Hinweis', async () => {
+  it('haelt Ideen anfangs geschlossen und erhaelt alle drei Links samt Demo-Hinweis', async () => {
     const { element, toggle, list } = await renderAt('/dashboard');
     const paths = Array.from(list.querySelectorAll('a')).map((link) => link.getAttribute('href'));
 
@@ -104,7 +105,7 @@ describe('Arbeitsnavigation und Ideen in der Sidebar', () => {
     expect(toggle.textContent?.trim()).toBe('Ideen');
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
     expect(list.hidden).toBe(true);
-    expect(paths).toEqual(['/shop', '/research', '/deal-calculator', '/fulfillment']);
+    expect(paths).toEqual(['/shop', '/research', '/fulfillment']);
     expect(element.querySelector('a[href="/ideas"]')).toBeNull();
     expect(list.querySelector('a[href="/shop"]')?.textContent).toContain('Demo');
   });
@@ -143,14 +144,15 @@ describe('Arbeitsnavigation und Ideen in der Sidebar', () => {
     expect(element.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
   });
 
-  it('oeffnet Ideen beim Wechsel auf eine zurueckgestellte Seite', async () => {
-    const { element, fixture, router, toggle } = await renderAt('/dashboard');
+  it('behandelt den Deal-Rechner als Tool statt als Idee', async () => {
+    const { element, fixture, router, toggle, list } = await renderAt('/dashboard');
     await router.navigateByUrl('/deal-calculator');
     await fixture.whenStable();
     fixture.detectChanges();
     const calculator = element.querySelector('a[href="/deal-calculator"]');
 
-    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(list.hidden).toBe(true);
     expect(calculator?.getAttribute('aria-current')).toBe('page');
     expect(element.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
   });
@@ -208,12 +210,14 @@ describe('Arbeitsnavigation und Ideen in der Sidebar', () => {
     const article = element.querySelector('a[href="/catalog"]');
     const listings = element.querySelector('a[href="/listings"]');
     const research = element.querySelector('a[href="/research"]');
+    const ebayFees = element.querySelector('a[href="/deal-calculator/ebay"]');
 
-    expect(names).toEqual(['Purchasing', 'Products', 'Selling', 'Finances']);
+    expect(names).toEqual(['Purchasing', 'Products', 'Tools', 'Selling', 'Finances']);
     expect(toggle.textContent?.trim()).toBe('Ideas');
     expect(article?.textContent?.trim()).toBe('Articles');
     expect(listings?.textContent?.trim()).toBe('Listings');
     expect(research?.textContent?.trim()).toBe('Price research');
+    expect(ebayFees?.textContent?.trim()).toBe('eBay Fee Calculator');
     expect(element.textContent).not.toContain('NAV.');
   });
 
