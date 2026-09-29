@@ -87,62 +87,16 @@
     (sortChanged)="onSortChanged($event)"
     (viewResetRequested)="resetView()"
   >
-    <div
+    <app-custom-select
       table-view
-      class="flex items-center gap-1 overflow-x-auto"
-      role="group"
-      aria-label="Verkaufsansicht"
-    >
-      <app-button
-        size="slim"
-        [variant]="selectedPlatform() === 'all' ? 'secondary' : 'ghost'"
-        [ariaPressed]="selectedPlatform() === 'all'"
-        (clicked)="selectedPlatform.set('all')"
-      >
-        Alle ({{ salesService.sales().length }})
-      </app-button>
-      <app-button
-        size="slim"
-        [variant]="selectedPlatform() === 'returned' ? 'secondary' : 'ghost'"
-        [ariaPressed]="selectedPlatform() === 'returned'"
-        [icon]="returnIcon"
-        (clicked)="selectedPlatform.set('returned')"
-      >
-        Retouren ({{ returnedSalesCount() }})
-      </app-button>
-      <app-button
-        size="slim"
-        [variant]="selectedPlatform() === 'kleinanzeigen' ? 'secondary' : 'ghost'"
-        [ariaPressed]="selectedPlatform() === 'kleinanzeigen'"
-        (clicked)="selectedPlatform.set('kleinanzeigen')"
-      >
-        Kleinanzeigen
-      </app-button>
-      <app-button
-        size="slim"
-        [variant]="selectedPlatform() === 'ebay' ? 'secondary' : 'ghost'"
-        [ariaPressed]="selectedPlatform() === 'ebay'"
-        (clicked)="selectedPlatform.set('ebay')"
-      >
-        eBay
-      </app-button>
-      <app-button
-        size="slim"
-        [variant]="selectedPlatform() === 'vinted' ? 'secondary' : 'ghost'"
-        [ariaPressed]="selectedPlatform() === 'vinted'"
-        (clicked)="selectedPlatform.set('vinted')"
-      >
-        Vinted
-      </app-button>
-      <app-button
-        size="slim"
-        [variant]="selectedPlatform() === 'custom_store' ? 'secondary' : 'ghost'"
-        [ariaPressed]="selectedPlatform() === 'custom_store'"
-        (clicked)="selectedPlatform.set('custom_store')"
-      >
-        Webshop
-      </app-button>
-    </div>
+      data-sales-platform-filter
+      variant="toolbar"
+      widthClass="min-w-52"
+      ariaLabel="Verkäufe nach Plattform oder Retouren filtern"
+      [options]="platformFilterOptions()"
+      [value]="selectedPlatform()"
+      (valueChange)="selectedPlatform.set($event ?? 'all')"
+    />
     <div table-content class="relative overflow-x-auto hidden md:block">
       <table class="linear-table min-w-[1000px] w-full text-left">
         <thead class="bg-fb-surface text-fb-text-secondary font-semibold text-[13px]">
@@ -298,9 +252,11 @@
                   }
                   @case ('platform') {
                     <td class="px-3 py-3">
-                      <app-badge tone="neutral" [mono]="true">
-                        {{ sale.platform }}
-                      </app-badge>
+                      <app-marketplace-platform-identity
+                        data-sales-platform-identity
+                        class="max-w-40 text-xs text-fb-text-secondary"
+                        [platform]="sale.platform"
+                      />
                     </td>
                   }
                   @case ('sale_date') {
@@ -445,9 +401,15 @@
                   <app-badge tone="critical" [mono]="true">Retourniert</app-badge>
                 }
               </div>
-              <p class="text-[11px] text-fb-text-muted">
-                {{ sale.sale_date | date: 'dd.MM.yyyy' }} • {{ sale.platform }}
-              </p>
+              <div class="mt-0.5 flex min-w-0 items-center gap-2 text-[11px] text-fb-text-muted">
+                <span>{{ sale.sale_date | date: 'dd.MM.yyyy' }}</span>
+                <span aria-hidden="true">•</span>
+                <app-marketplace-platform-identity
+                  data-sales-platform-identity
+                  class="min-w-0 max-w-36 font-sans"
+                  [platform]="sale.platform"
+                />
+              </div>
             </div>
             <strong class="text-xs font-bold text-fb-text-primary">
               {{ metrics.revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
