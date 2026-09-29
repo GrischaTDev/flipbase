@@ -17,6 +17,32 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Format changed files for transfer
+        run: >
+          npx prettier --write
+          src/app/features/sales/sales.component.ts
+          src/app/features/sales/sales.component.html
+          src/app/features/sales/sales-deep-link.angular.spec.ts
+          src/app/features/dashboard/models/dashboard-overview.ts
+          src/app/features/dashboard/models/dashboard-platform.ts
+          src/app/shared/models/marketplace-platform.ts
+          src/app/shared/components/marketplace-platform-identity/marketplace-platform-identity.component.ts
+          src/app/shared/components/marketplace-platform-identity/marketplace-platform-identity.component.html
+          docs/AI-CHANGELOG.md
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: formatted-sales-platform-files
+          path: |
+            src/app/features/sales/sales.component.ts
+            src/app/features/sales/sales.component.html
+            src/app/features/sales/sales-deep-link.angular.spec.ts
+            src/app/features/dashboard/models/dashboard-overview.ts
+            src/app/features/dashboard/models/dashboard-platform.ts
+            src/app/shared/models/marketplace-platform.ts
+            src/app/shared/components/marketplace-platform-identity/marketplace-platform-identity.component.ts
+            src/app/shared/components/marketplace-platform-identity/marketplace-platform-identity.component.html
+            docs/AI-CHANGELOG.md
+          retention-days: 1
       - name: Check changed file formatting
         run: >
           npx prettier --check
