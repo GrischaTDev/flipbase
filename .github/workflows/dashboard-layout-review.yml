@@ -14,12 +14,12 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: e35fb097dbc04257836e220f42f05a8abfb5c237
+          ref: 3888cae643ce2fe01177ab595a8e4c1bcb8b2da2
           persist-credentials: false
-      - name: Package the reviewed source without credentials or dependencies
-        run: git archive --format=tar.gz --output=/tmp/dashboard-layout-source.tgz HEAD
+      - name: Package the integration base without credentials or dependencies
+        run: git archive --format=tar.gz --output=/tmp/dashboard-layout-master.tgz HEAD
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: dashboard-layout-source
-          path: /tmp/dashboard-layout-source.tgz
+          name: dashboard-layout-master
+          path: /tmp/dashboard-layout-master.tgz
           retention-days: 1
