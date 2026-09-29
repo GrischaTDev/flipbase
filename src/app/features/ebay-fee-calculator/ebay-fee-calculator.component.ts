@@ -12,9 +12,7 @@ import {
   CustomSelectComponent,
   type SelectOption,
 } from '../../shared/components/custom-select/custom-select.component';
-import {
-  CustomCheckboxComponent,
-} from '../../shared/components/custom-checkbox/custom-checkbox.component';
+import { CustomCheckboxComponent } from '../../shared/components/custom-checkbox/custom-checkbox.component';
 import { NumberInputComponent } from '../../shared/components/number-input/number-input.component';
 import {
   RouteTabsComponent,

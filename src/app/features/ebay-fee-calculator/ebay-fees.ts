@@ -2,11 +2,7 @@ export type EbaySellerType = 'private' | 'business';
 export type EbayShopType = 'none' | 'basic' | 'top' | 'premium' | 'platinum';
 export type EbayListingFormat = 'fixed-price' | 'auction';
 export type EbayDestination =
-  | 'germany'
-  | 'eurozone-sweden'
-  | 'europe-us-canada'
-  | 'uk'
-  | 'rest-world';
+  'germany' | 'eurozone-sweden' | 'europe-us-canada' | 'uk' | 'rest-world';
 
 export type EbayCondition =
   | 'new'
@@ -290,7 +286,8 @@ export const EBAY_CATEGORY_DEFINITIONS: readonly EbayCategoryDefinition[] = [
   {
     key: 'standard-recommerce',
     label: 'Sport, Reisen, Baby, Wohnen & weitere Standardkategorien',
-    description: 'Sport, Reisen, Verschiedenes, Baby, Basteln, Feinschmecker, Haustierbedarf sowie Möbel & Wohnen',
+    description:
+      'Sport, Reisen, Verschiedenes, Baby, Basteln, Feinschmecker, Haustierbedarf sowie Möbel & Wohnen',
     categoryIds: ['888', '3252', '99', '2984', '14339', '14308', '1281', '11700'],
     validFrom: EBAY_FEE_RULES_VALID_FROM,
     rule: { mode: 'flat', rate: 0.14, recommerceRate: 0.05 },
@@ -469,11 +466,7 @@ function calculateBusinessListingFee(input: EbayFeeInput): number {
   return 0.35;
 }
 
-function describeRule(
-  rule: EbayFeeRule,
-  transactionAmount: number,
-  input: EbayFeeInput,
-): string {
+function describeRule(rule: EbayFeeRule, transactionAmount: number, input: EbayFeeInput): string {
   if (rule.mode === 'flat') {
     if (rule.recommerceRate !== undefined && RECOMMERCE_CONDITIONS.has(input.condition)) {
       return `${percent(rule.recommerceRate)} Re-Commerce-Verkaufsprovision`;
@@ -488,10 +481,7 @@ function describeRule(
     return `${percent(rule.rate)} bis 990 €, darüber ${percent(rule.rateAbove)}`;
   }
 
-  if (
-    rule.recommerceRate !== undefined &&
-    RECOMMERCE_CONDITIONS.has(input.condition)
-  ) {
+  if (rule.recommerceRate !== undefined && RECOMMERCE_CONDITIONS.has(input.condition)) {
     return `${percent(rule.recommerceRate)} Re-Commerce-Verkaufsprovision`;
   }
 
