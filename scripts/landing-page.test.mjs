@@ -1619,7 +1619,6 @@ test('pricing section shows the free beta and future plan limits', () => {
   assert.doesNotMatch(pricingText, /Paketumfang nach der Beta/u);
 });
 
-
 test('does not show the spreadsheet comparison block', () => {
   const dom = new JSDOM(html);
   const comparisonGrid = dom.window.document.querySelector('.vergleich-grid');
