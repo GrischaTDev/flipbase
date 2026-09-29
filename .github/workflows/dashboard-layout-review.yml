@@ -9,17 +9,67 @@ permissions:
   contents: read
 
 jobs:
-  snapshot:
+  prepare-objects:
+    if: github.repository == 'GrischaTDev/flipbase' && github.ref == 'refs/heads/feat/dashboard-modern-rework'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: 3888cae643ce2fe01177ab595a8e4c1bcb8b2da2
+          ref: e35fb097dbc04257836e220f42f05a8abfb5c237
           persist-credentials: false
-      - name: Package the integration base without credentials or dependencies
-        run: git archive --format=tar.gz --output=/tmp/dashboard-layout-master.tgz HEAD
+      - name: Verify exact reviewed files and prepare blobs only
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 - <<'PY'
+          import base64, gzip, hashlib, json, os, pathlib, urllib.request
+          endpoint = 'https://api.github.com/repos/GrischaTDev/flipbase/git/blobs'
+          headers = {'Authorization': 'Bearer ' + os.environ['GH_TOKEN'], 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json', 'X-GitHub-Api-Version': '2022-11-28'}
+          payload_sha = 'b138c14c707054d1e6be11f832f99389735b13bd'
+          request = urllib.request.Request(endpoint + '/' + payload_sha, headers=headers)
+          with urllib.request.urlopen(request, timeout=60) as response:
+              blob = json.load(response)
+          assert blob['sha'] == payload_sha
+          encoded = base64.b64decode(blob['content']).decode('ascii')
+          assert len(encoded) == 7644
+          raw = gzip.decompress(base64.b64decode(encoded, validate=True))
+          assert hashlib.sha256(raw).hexdigest() == '59ddb1ece0e9b47b41b5806d148ed3b86db3ed65c8bafec9e4f379d3ba762c21'
+          entries = json.loads(raw)['files']
+          allowed = {'docs/AI-CHANGELOG.md', 'e2e/dashboard-layout.spec.ts', 'src/app/features/dashboard/dashboard.component.angular.spec.ts', 'src/app/features/dashboard/dashboard.component.css', 'src/app/features/dashboard/dashboard.component.html', 'src/app/features/dashboard/dashboard.component.ts', 'src/styles/flipbase-theme.css'}
+          assert {entry['path'] for entry in entries} == allowed
+          assert len(entries) == len(allowed)
+          def blob_sha(data):
+              return hashlib.sha1(b'blob ' + str(len(data)).encode() + b'\0' + data).hexdigest()
+          prepared = []
+          for entry in entries:
+              path = pathlib.Path(entry['path'])
+              if entry['previous_sha'] is None:
+                  assert not path.exists(), str(path)
+                  original = b''
+              else:
+                  original = path.read_bytes()
+                  assert blob_sha(original) == entry['previous_sha'], str(path)
+              lines = original.decode('utf-8').splitlines(keepends=True)
+              for edit in reversed(entry['edits']):
+                  assert 0 <= edit['start'] <= edit['end'] <= len(lines)
+                  lines[edit['start']:edit['end']] = [edit['text']]
+              content = ''.join(lines).encode('utf-8')
+              assert blob_sha(content) == entry['sha'], str(path)
+              prepared.append((entry['path'], entry['sha'], content))
+          manifest = []
+          for path, expected, content in prepared:
+              request = urllib.request.Request(endpoint, method='POST', headers=headers, data=json.dumps({'encoding': 'base64', 'content': base64.b64encode(content).decode('ascii')}).encode('utf-8'))
+              with urllib.request.urlopen(request, timeout=60) as response:
+                  result = json.load(response)
+              assert result['sha'] == expected, path
+              manifest.append({'path': path, 'sha': result['sha']})
+          pathlib.Path('/tmp/dashboard-layout-manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
+          print('Seven reviewed files verified and stored as Git blobs. No commits or branch updates.')
+          PY
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: dashboard-layout-master
-          path: /tmp/dashboard-layout-master.tgz
+          name: dashboard-layout-manifest
+          path: /tmp/dashboard-layout-manifest.json
           retention-days: 1
