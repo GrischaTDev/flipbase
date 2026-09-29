@@ -83,7 +83,8 @@ test('nutzt eine bereits geöffnete Vinted-Seite und liest das Profil nur einmal
   assert.equal(requests, 3);
 });
 
-test('unveränderte gelesene Gespräche bleiben aus dem Cache erhalten', async () => {
+test('unveränderte gelesene Gespräche bleiben aus dem Cache erhalten', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-09-28T10:00:00Z') });
   const requested: string[] = [];
   const page = {
     url: () => 'https://www.vinted.de/',
@@ -118,7 +119,8 @@ test('unveränderte gelesene Gespräche bleiben aus dem Cache erhalten', async (
   );
 });
 
-test('ältere Gesprächsdetails werden trotz unverändertem Zeitstempel erneut gelesen', async () => {
+test('ältere Gesprächsdetails werden trotz unverändertem Zeitstempel erneut gelesen', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-09-28T10:00:00Z') });
   const requested: string[] = [];
   const page = {
     url: () => 'https://www.vinted.de/',

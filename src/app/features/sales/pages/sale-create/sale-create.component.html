@@ -4,7 +4,16 @@
   backLabel="Zurück zu Verkäufen"
   (cancelled)="returnToSales()"
 >
+  <div entry-header-actions class="flex flex-wrap justify-end gap-2">
+    <app-button variant="secondary" [disabled]="isSaving()" (clicked)="returnToSales()">
+      Abbrechen
+    </app-button>
+    <app-button variant="primary" [loading]="isSaving()" [disabled]="!canSave()" (clicked)="save()">
+      {{ entryForm()?.absendeBeschriftung() ?? 'Verkauf abschließen' }}
+    </app-button>
+  </div>
   <app-sale-create-modal
+    [showActions]="false"
     [saleTarget]="routeState.saleTarget ?? null"
     [legacyReconciliation]="routeState.legacyReconciliation ?? null"
     (closed)="returnToSales()"

@@ -22,6 +22,7 @@ import { CatalogService } from '../../../../core/services/catalog.service';
 import { PurchaseService } from '../../../../core/services/purchase.service';
 import { SyncStatusService } from '../../../../core/services/sync-status.service';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { CardComponent } from '../../../../shared/components/card/card.component';
 import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
 import { DatePickerComponent } from '../../../../shared/components/date-picker/date-picker.component';
 import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
@@ -698,9 +699,17 @@ describe('SaleCreateModalComponent', () => {
         (SaleCreateModalComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp,
         ['saleTarget', 'legacyReconciliation'],
       );
+      bridgeInputMetadata((CardComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp, [
+        'title',
+        'subtitle',
+        'variant',
+        'padding',
+        'rounded',
+        'overflowVisible',
+      ]);
       bridgeInputMetadata(
         (CustomSelectComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp,
-        ['options', 'placeholder', 'size', 'ariaLabel'],
+        ['options', 'placeholder', 'size', 'ariaLabel', 'triggerId', 'searchable'],
       );
       bridgeInputMetadata((DatePickerComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp, [
         'feldId',
@@ -1052,7 +1061,7 @@ describe('SaleCreateModalComponent', () => {
         expect(component.liveMetrics()).toMatchObject({ costOfGoods: 28, profit: 42, margin: 60 });
       });
 
-      it('zeigt dauerhaft beschriftete Einnahmen, Kosten, Notiz und verständliche Kennzahlen', async () => {
+      it('zeigt dauerhaft beschriftete Positionen, Kosten, Notiz und verständliche Kennzahlen', async () => {
         TestBed.configureTestingModule({
           imports: [SaleCreateModalComponent],
           providers: [
@@ -1079,7 +1088,10 @@ describe('SaleCreateModalComponent', () => {
         fixture.detectChanges();
 
         const host = fixture.nativeElement as HTMLElement;
-        expect(host.textContent).toContain('Einnahmen');
+        expect(host.textContent).toContain('Verkaufspositionen');
+        expect(host.textContent).toContain('Versand und Gebühren');
+        expect(host.textContent).toContain('Verkaufsübersicht');
+        expect(host.textContent).toContain('Verkaufsdetails');
         expect(host.textContent).toContain('Verkaufskosten');
         expect(host.textContent).toContain('Zusätzliche Kosten');
         expect(host.textContent).toContain('Notiz');
@@ -1138,7 +1150,7 @@ describe('SaleCreateModalComponent', () => {
         expect(description.getAttribute('aria-invalid')).toBe('true');
         expect(description.getAttribute('aria-describedby')).toContain('cost-description-error-0');
         expect(fixture.nativeElement.textContent).toContain(
-          'Bitte beschreiben Sie diese sonstigen Kosten.',
+          'Bitte beschreibe diese sonstigen Kosten.',
         );
       });
 
