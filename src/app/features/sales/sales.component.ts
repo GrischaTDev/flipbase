@@ -351,16 +351,9 @@ export class SalesComponent {
     return Math.round(totalDays / list.length);
   });
 
-  readonly returnedSalesCount = computed(
-    () =>
-      this.salesService
-        .sales()
-        .filter((sale) => sale.returned_at !== null && sale.returned_at !== undefined).length,
-  );
-
   readonly platformFilterOptions = computed<SelectOption<string>[]>(() => [
-    { value: 'all', label: `Alle Verkäufe (${this.salesService.sales().length})` },
-    { value: 'returned', label: `Retouren (${this.returnedSalesCount()})` },
+    { value: 'all', label: 'Alle' },
+    { value: 'returned', label: 'Retouren' },
     { value: 'kleinanzeigen', label: marketplacePlatformLabel('kleinanzeigen') },
     { value: 'ebay', label: marketplacePlatformLabel('ebay') },
     { value: 'vinted', label: marketplacePlatformLabel('vinted') },
