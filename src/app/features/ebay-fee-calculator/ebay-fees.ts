@@ -437,7 +437,7 @@ function calculateVariableFee(
   }
 
   if (rule.mode === 'sneakers') {
-    if (transactionAmount < 100) {
+    if (nonNegative(input.salePrice) < 100) {
       return money(transactionAmount * rule.under100Rate);
     }
     return tieredFee(transactionAmount, rule.threshold, rule.rate, rule.rateAbove);
@@ -491,7 +491,7 @@ function describeRule(
   }
 
   if (rule.mode === 'sneakers') {
-    if (transactionAmount < 100) {
+    if (nonNegative(input.salePrice) < 100) {
       return `${percent(rule.under100Rate)} für Sneaker unter 100 €`;
     }
     return `${percent(rule.rate)} bis 990 €, darüber ${percent(rule.rateAbove)}`;
