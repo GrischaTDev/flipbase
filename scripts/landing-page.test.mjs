@@ -1664,7 +1664,6 @@ test('does not show the spreadsheet comparison block', () => {
   assert.doesNotMatch(normalizedHtml, /One clear workflow instead of scattered sheets\./u);
 });
 
-
 test('uses a compact two-column beta application layout', () => {
   const dom = new JSDOM(html);
   const section = dom.window.document.getElementById('beta-anmeldung');
