@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-29 – Juna – Vinted-Anmeldung als zentriertes Modal und Diagnostik erweitert
+
+**Auftrag:** Die Vinted-Anmeldung in der Kontenverwaltung und auf der Vinted-Seite als zentriertes Modal statt als Drawer oder am Seitenende anzeigen. Die Ursache für fehlschlagende Anmeldungen („Vinted-Anmeldeformular konnte nicht automatisch bedient werden“) sowie die Proxy- und Sitzungsverwaltung bei GoLogin analysieren und absichern.
+
+**Änderung:** Die Vinted-Anmeldung unter `/marketplaces/vinted/connect/:connectionId` rendert nicht mehr am Seitenende im Router-Outlet, sondern öffnet ein zentriertes Modal (`app-modal-shell` mit `presentation="center"`). In den Marktplatz-Einstellungen (`/settings/marketplaces`) öffnen Anmelde- und Bestätigungsdialoge ebenfalls als zentriertes Modal statt als Seiten-Drawer. Im Marketplace-Worker fängt `submitVintedLogin` Weiterleitungen auf 2FA-Seiten (`/member/login/2fa`) ab und meldet diese als `verification_required` anstelle eines Formularfehlers. Bei Fehlern wird ein strukturiertes, anmeldedatensicheres Diagnose-Event auf stderr ausgegeben, um genaue Schritte und Bot-Challenges (z. B. DataDome) nachvollziehen zu können.
+
+**Prüfung:** Angular-Komponententests der Marktplätze (117 Tests in 9 Testdateien) und Worker-Tests (129 Tests) erfolgreich ausgeführt. Typprüfung (`npm run typecheck`), ESLint und Prettier auf allen geänderten Dateien fehlerfrei bestanden.
+
 ## 2026-09-29 – Juna – Plattformfilter der Verkaufsübersicht vereinheitlicht
 
 **Auftrag:** Die Plattformfilter auf der Verkaufsseite wie bei Artikel und Einkäufe in einem einzigen Dropdown bündeln. Plattformlogos sollen nur an den Verkaufszeilen erscheinen und dieselben Namen und Logos wie im Dashboard verwenden.

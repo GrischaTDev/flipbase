@@ -170,9 +170,7 @@
             ? 'Vinted-Anmeldung'
             : 'Vinted-Konto hinzufügen'
     "
-    [presentation]="
-      currentDialog.mode === 'rename' || currentDialog.mode === 'delete' ? 'center' : 'drawer'
-    "
+    presentation="center"
     [size]="currentDialog.mode === 'rename' || currentDialog.mode === 'delete' ? 'sm' : 'md'"
     [hasFooter]="currentDialog.mode !== 'login'"
     (closed)="closeDialog()"
