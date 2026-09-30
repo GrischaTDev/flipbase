@@ -65,12 +65,7 @@
             [maxLength]="320"
           />
           <app-text-field formControlName="phone" type="tel" label="Telefon" [maxLength]="50" />
-          <app-text-field
-            formControlName="website"
-            type="url"
-            label="Website"
-            [maxLength]="500"
-          />
+          <app-text-field formControlName="website" type="url" label="Website" [maxLength]="500" />
         </div>
 
         <div class="border-t border-fb-line pt-4 lg:border-l lg:border-t-0 lg:pl-5 lg:pt-0">
@@ -207,11 +202,7 @@
         </div>
         <app-text-field formControlName="taxNumber" label="Steuernummer" [maxLength]="50" />
         <app-text-field formControlName="vatId" label="USt-IdNr." [maxLength]="32" />
-        <app-text-field
-          formControlName="federalState"
-          label="Bundesland"
-          [maxLength]="100"
-        />
+        <app-text-field formControlName="federalState" label="Bundesland" [maxLength]="100" />
         <app-text-field formControlName="taxOffice" label="Finanzamt" [maxLength]="160" />
       </div>
     </app-card>
