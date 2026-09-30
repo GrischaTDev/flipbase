@@ -37,10 +37,12 @@
 ### Task 1: Add a verified password-change API to AuthService
 
 **Files:**
+
 - Modify: `src/app/core/services/auth.service.ts`
 - Modify: `src/app/core/services/auth.service.spec.ts`
 
 **Interfaces:**
+
 - Consumes: `AuthService.currentUser()`, Supabase `auth.signInWithPassword`, Supabase `auth.updateUser`, existing auth error conventions.
 - Produces:
   - `export interface PasswordChangeResult { readonly error: Error | null; readonly reportedBySyncStatus: boolean }`
@@ -49,6 +51,7 @@
 - [ ] **Step 1: Extend the AuthService test fake before production code**
 
 In `baueUmgebung`, record:
+
 - `signInWithPassword` credentials,
 - `updateUser` payloads,
 - configurable errors for re-authentication and password update.
@@ -137,6 +140,7 @@ git commit -m "feat(account): add verified password change"
 ### Task 2: Rebuild the account page with profile, security, and sessions
 
 **Files:**
+
 - Modify: `src/app/features/settings/pages/account-settings/account-settings.component.ts`
 - Modify: `src/app/features/settings/pages/account-settings/account-settings.component.html`
 - Create: `src/app/features/settings/pages/account-settings/account-settings.component.angular.spec.ts`
@@ -144,6 +148,7 @@ git commit -m "feat(account): add verified password change"
 - Modify: `src/app/features/settings/settings-shell/settings-shell.component.angular.spec.ts`
 
 **Interfaces:**
+
 - Consumes:
   - `AuthService.aktualisiereProfil(fullName: string)`
   - `AuthService.changePassword(currentPassword: string, newPassword: string)`
@@ -187,6 +192,7 @@ expect(host.textContent).toContain('test@test.de');
 ```
 
 Also assert:
+
 - no section heading class contains `uppercase` or `tracking-wider`,
 - the profile save action is an `app-button` primary action,
 - global sign-out uses `app-button variant="destructive"`,
@@ -232,6 +238,7 @@ Then add the confirmed case and assert it is called once.
 Run axe against the account component with the password modal closed and open.
 
 Expected:
+
 - no serious/critical violations,
 - all password inputs have accessible names,
 - the modal has a title,
@@ -276,6 +283,7 @@ In `account-settings.component.ts`:
 Use three sibling `app-card` elements:
 
 **Profil**
+
 - Initials avatar,
 - current display name,
 - current read-only login email,
@@ -283,15 +291,18 @@ Use three sibling `app-card` elements:
 - primary Shared button “Änderungen speichern”.
 
 **Sicherheit**
+
 - row “Passwort” with secondary Shared button “Passwort ändern”,
 - row “Zwei-Faktor-Authentifizierung” with neutral text “Noch nicht eingerichtet” and no action.
 
 **Sitzungen**
+
 - row “Dieser Browser” + neutral/success text or badge “Aktiv”,
 - explanatory copy for global sign-out,
 - destructive Shared button “Von allen Geräten abmelden”.
 
 Password modal:
+
 - `presentation="center"`,
 - title “Passwort ändern”,
 - three password TextFields,
@@ -342,10 +353,12 @@ git commit -m "feat(account): modernize profile and security settings"
 ### Task 3: Add browser regression coverage and finish PR 1 verification
 
 **Files:**
+
 - Create: `e2e/account-settings.spec.ts`
 - Modify: `docs/AI-CHANGELOG.md`
 
 **Interfaces:**
+
 - Consumes the finished `/settings/account` page.
 - Produces an automated browser contract for responsive layout, modal interaction, theme compatibility, and accessibility.
 
@@ -395,6 +408,7 @@ At minimum inspect:
 - password modal at desktop and mobile widths.
 
 Check:
+
 - no horizontal page overflow,
 - no clipped modal footer,
 - no Card-in-Card appearance,
@@ -433,6 +447,7 @@ npm run build
 ```
 
 Expected:
+
 - every command exits 0,
 - no failing Vitest/Playwright test,
 - no Shared-UI violation,
