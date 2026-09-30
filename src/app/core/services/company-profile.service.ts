@@ -126,7 +126,9 @@ export class CompanyProfileService {
       return this.localFailure('Kein aktiver Workspace mit geladenen Unternehmensdaten.');
     }
     if (!this.canEdit()) {
-      return this.localFailure('Nur Inhaber und Administratoren dürfen das Unternehmenslogo ändern.');
+      return this.localFailure(
+        'Nur Inhaber und Administratoren dürfen das Unternehmenslogo ändern.',
+      );
     }
 
     let extension: 'png' | 'jpg' | 'webp';
@@ -177,7 +179,9 @@ export class CompanyProfileService {
       return this.localFailure('Kein aktiver Workspace mit geladenen Unternehmensdaten.');
     }
     if (!this.canEdit()) {
-      return this.localFailure('Nur Inhaber und Administratoren dürfen das Unternehmenslogo ändern.');
+      return this.localFailure(
+        'Nur Inhaber und Administratoren dürfen das Unternehmenslogo ändern.',
+      );
     }
 
     try {
