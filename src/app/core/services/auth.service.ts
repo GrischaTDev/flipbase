@@ -12,6 +12,11 @@ export interface ProfileUpdateResult {
   readonly reportedBySyncStatus: boolean;
 }
 
+export interface PasswordChangeResult {
+  readonly error: Error | null;
+  readonly reportedBySyncStatus: boolean;
+}
+
 /**
  * Ob eine Antwort des Auth-Dienstes bedeutet: "Diese Sitzung gibt es nicht
  * mehr."
@@ -398,6 +403,49 @@ export class AuthService {
     }
 
     return { error: null, reportedBySyncStatus: false };
+  }
+
+  async changePassword(
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<PasswordChangeResult> {
+    const email = this.currentUser()?.email;
+    if (!email) {
+      return { error: new Error('Nicht angemeldet'), reportedBySyncStatus: false };
+    }
+    if (newPassword.length < 10) {
+      return {
+        error: new Error('Das neue Passwort muss mindestens 10 Zeichen lang sein.'),
+        reportedBySyncStatus: false,
+      };
+    }
+
+    try {
+      const { error: signInError } = await this.supabase.client.auth.signInWithPassword({
+        email,
+        password: currentPassword,
+      });
+      if (signInError) {
+        if (String(signInError.message ?? '').includes('Invalid login credentials')) {
+          return {
+            error: new Error('Das aktuelle Passwort ist nicht korrekt.'),
+            reportedBySyncStatus: false,
+          };
+        }
+        return { error: this.mapAuthErrorToGerman(signInError), reportedBySyncStatus: false };
+      }
+
+      const { error: updateError } = await this.supabase.client.auth.updateUser({
+        password: newPassword,
+      });
+      if (updateError) {
+        return { error: this.mapAuthErrorToGerman(updateError), reportedBySyncStatus: false };
+      }
+
+      return { error: null, reportedBySyncStatus: false };
+    } catch (error: unknown) {
+      return { error: this.mapAuthErrorToGerman(error), reportedBySyncStatus: false };
+    }
   }
 
   /**
