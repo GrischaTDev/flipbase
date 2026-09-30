@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-30 – Juna – Shop und Versand an Unternehmensdaten angebunden
+
+**Auftrag:** PR 4 des freigegebenen Unternehmensumbaus umsetzen: Shop-Bankkonto und Impressum zentral lesen, Versand-Vererbung mit erhaltenen individuellen Absendern einführen und doppelte Steuerpflege entfernen.
+
+**Stand:** Umsetzung auf eigenem Zweig `juna/company-shop-shipping`, Basis ist der gemergte PR 3 (`8dec8967`). Bestehende Legacy-Shopdaten bleiben bis zum geprüften Übergang erhalten; automatische Übernahme von Demo-Werten ist ausgeschlossen. Plan unter `docs/superpowers/plans/2026-09-30-company-shop-shipping.md`.
+
+**Prüfung:** Neue Verhaltensprüfungen werden vor der Implementierung ausgeführt. Abschließende Prüfungen und Review werden nach Umsetzung ergänzt.
+
 ## 2026-09-30 – Juna – Unternehmensdaten in neue Geschäftsdokumente übernommen
 
 **Auftrag:** PR 3 des freigegebenen Unternehmensumbaus umsetzen: Unternehmensdaten für neue Rechnungen, Gutschriften und Eigenbelege verwenden und historische Dokumente unverändert erhalten.

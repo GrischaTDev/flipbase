@@ -23,6 +23,14 @@ import { StockService } from './stock.service';
 import { PurchaseService } from './purchase.service';
 import { summarizeStockQuantities } from '../utils/stock-quantity';
 import { RecordSaleInput, RecordSaleLineInput, SalesService } from './sales.service';
+import { CompanyProfileService } from './company-profile.service';
+import {
+  getCompanyBankAccount,
+  getCompanyStoreImprint,
+  getLegacyStoreBankAccount,
+  readStorePaymentConfig,
+  readStorePaymentFields,
+} from '../models/company-store.models';
 
 const STORAGE_KEY_SETTINGS = 'flipbase_store_settings';
 const STORAGE_KEY_CART = 'flipbase_store_cart';
@@ -56,22 +64,11 @@ function createDefaultStoreSettings(): StoreSettings {
       stripePublishableKey: '',
       paypalEnabled: true,
       paypalClientId: '',
-      paypalEmail: 'pay@flipbase-outlet.de',
+      paypalEmail: '',
       bankTransferEnabled: true,
-      bankIban: 'DE45 5001 0517 5555 6666 77',
-      bankBic: 'HELA DE FF 500',
-      bankAccountHolder: 'Flipbase Reselling GmbH & Co. KG',
       cashOnPickupEnabled: true,
     },
-    imprint: {
-      owner: 'Flipbase Reselling',
-      street: 'Musterstraße 12',
-      city: '10115 Berlin',
-      email: 'service@flipbase-store.de',
-      phone: '+49 (0) 30 12345678',
-      vatId: 'DE 123456789 (Differenzbesteuert gem. § 25a UStG)',
-    },
-    noticeText: 'Endpreise inkl. MwSt. (Differenzbesteuerung gem. § 25a UStG bei Gebrauchtwaren)',
+    noticeText: '',
   };
 }
 
@@ -97,9 +94,25 @@ export class StoreService {
   private readonly salesService = inject(SalesService, { optional: true });
   private readonly workspaceService = inject(WorkspaceService, { optional: true });
   private readonly webPushService = inject(WebPushService, { optional: true });
+  private readonly companyProfile = inject(CompanyProfileService, { optional: true });
+  private storedPaymentFields: Record<string, Json | undefined> = {};
 
   readonly storeSettings = signal<StoreSettings>(createDefaultStoreSettings());
   readonly loadedWorkspaceId = signal<string | null>(null);
+  private readonly activeCompanyProfile = computed(() => {
+    const profile = this.companyProfile?.profile() ?? null;
+    return profile?.workspaceId === this.workspaceService?.currentWorkspace()?.id ? profile : null;
+  });
+  readonly companyBankAccount = computed(() => getCompanyBankAccount(this.activeCompanyProfile()));
+  readonly companyImprint = computed(() => getCompanyStoreImprint(this.activeCompanyProfile()));
+  readonly legacyBankAccount = signal<ReturnType<typeof getLegacyStoreBankAccount>>(null);
+  readonly canUseBankTransfer = computed(
+    () =>
+      (!this.supabase ||
+        this.loadedWorkspaceId() === this.workspaceService?.currentWorkspace()?.id) &&
+      this.storeSettings().payments.bankTransferEnabled &&
+      this.companyBankAccount() !== null,
+  );
   private loadVersion = 0;
 
   readonly cart = signal<CartItem[]>([]);
@@ -253,7 +266,7 @@ export class StoreService {
         this.storeSettings.set({
           ...this.storeSettings(),
           ...parsed,
-          payments: { ...this.storeSettings().payments, ...(parsed.payments || {}) },
+          payments: readStorePaymentConfig(parsed.payments, this.storeSettings().payments),
         });
       }
 
@@ -313,14 +326,15 @@ export class StoreService {
       if (settingsRes.data) {
         const d = settingsRes.data;
         const defaults = createDefaultStoreSettings();
+        this.storedPaymentFields = readStorePaymentFields(d.payments);
+        this.legacyBankAccount.set(getLegacyStoreBankAccount(d.payments));
         const loadedSettings: StoreSettings = {
           storeName: d.store_name,
           tagline: d.tagline || '',
           shippingFlatRate: Number(d.shipping_flat_rate || 4.99),
           freeShippingThreshold: Number(d.free_shipping_threshold || 50.0),
           currency: d.currency || 'EUR',
-          payments: (d.payments as unknown as PaymentGatewayConfig) || defaults.payments,
-          imprint: (d.imprint as unknown as StoreSettings['imprint']) || defaults.imprint,
+          payments: readStorePaymentConfig(d.payments, defaults.payments),
           noticeText: d.notice_text || defaults.noticeText,
         };
         this.storeSettings.set(loadedSettings);
@@ -367,6 +381,8 @@ export class StoreService {
   }
 
   private resetWorkspaceData(): void {
+    this.storedPaymentFields = {};
+    this.legacyBankAccount.set(null);
     this.storeSettings.set(createDefaultStoreSettings());
     this.orders.set([]);
     this.loadedWorkspaceId.set(null);
@@ -405,8 +421,7 @@ export class StoreService {
             shipping_flat_rate: updated.shippingFlatRate,
             free_shipping_threshold: updated.freeShippingThreshold,
             currency: updated.currency,
-            payments: updated.payments as unknown as Json,
-            imprint: updated.imprint as unknown as Json,
+            payments: { ...this.storedPaymentFields, ...updated.payments } as unknown as Json,
             notice_text: updated.noticeText,
             updated_at: new Date().toISOString(),
           },
@@ -439,8 +454,7 @@ export class StoreService {
               shipping_flat_rate: updatedSettings.shippingFlatRate,
               free_shipping_threshold: updatedSettings.freeShippingThreshold,
               currency: updatedSettings.currency,
-              payments: updatedPayments as unknown as Json,
-              imprint: updatedSettings.imprint as unknown as Json,
+              payments: { ...this.storedPaymentFields, ...updatedPayments } as unknown as Json,
               notice_text: updatedSettings.noticeText,
               updated_at: new Date().toISOString(),
             },
@@ -617,6 +631,15 @@ export class StoreService {
         status: 'failed',
         order: null,
         error: new Error('Der Warenkorb ist leer.'),
+        problems: [],
+      };
+    }
+
+    if (customer.paymentMethod === 'bank_transfer' && !this.canUseBankTransfer()) {
+      return {
+        status: 'failed',
+        order: null,
+        error: new Error('Für Banküberweisung fehlt ein verwendbares Unternehmenskonto.'),
         problems: [],
       };
     }

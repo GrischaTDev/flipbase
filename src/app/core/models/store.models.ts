@@ -7,9 +7,6 @@ export interface PaymentGatewayConfig {
   paypalClientId: string;
   paypalEmail: string;
   bankTransferEnabled: boolean;
-  bankIban: string;
-  bankBic: string;
-  bankAccountHolder: string;
   cashOnPickupEnabled: boolean;
 }
 
@@ -21,14 +18,6 @@ export interface StoreSettings {
   freeShippingThreshold: number;
   currency: string;
   payments: PaymentGatewayConfig;
-  imprint: {
-    owner: string;
-    street: string;
-    city: string;
-    email: string;
-    phone?: string;
-    vatId?: string;
-  };
   noticeText?: string;
 }
 
