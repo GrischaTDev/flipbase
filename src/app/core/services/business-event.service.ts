@@ -58,6 +58,7 @@ const EVENT_LABELS: Readonly<Record<string, string>> = {
   return_created: 'Retoure erfasst',
   workspace_archived: 'Workspace archiviert',
   workspace_restored: 'Workspace wiederhergestellt',
+  company_profile_updated: 'Unternehmensdaten geändert',
   audit_export_created: 'Datenarchiv erstellt',
 };
 

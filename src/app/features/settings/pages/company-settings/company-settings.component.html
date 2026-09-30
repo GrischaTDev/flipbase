@@ -1,0 +1,261 @@
+@if (company.isLoading()) {
+  <p role="status" class="text-sm text-fb-text-muted">Unternehmensdaten werden geladen …</p>
+} @else if (company.loadError()) {
+  <div class="space-y-3" role="alert">
+    <p class="text-sm font-semibold text-fb-critical">
+      Unternehmensdaten konnten nicht geladen werden.
+    </p>
+    <p class="text-xs text-fb-text-muted">{{ company.loadError()?.message }}</p>
+    <app-button variant="secondary" size="md" (clicked)="retryLoad()">Erneut versuchen</app-button>
+  </div>
+} @else if (hasCurrentProfile() && company.taxMode()) {
+  <form [formGroup]="form" (ngSubmit)="save()" class="space-y-4">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-2">
+        @if (isDocumentReady()) {
+          <app-badge tone="success">Rechnungsdaten vollständig</app-badge>
+        } @else {
+          <app-badge tone="caution">Rechnungsdaten unvollständig</app-badge>
+          <span class="text-xs text-fb-text-muted">
+            {{ missingRequiredFields().length }}
+            {{ missingRequiredFields().length === 1 ? 'Angabe fehlt' : 'Angaben fehlen' }}
+          </span>
+        }
+      </div>
+      @if (!company.canEdit()) {
+        <p class="text-xs text-fb-text-muted">
+          Nur Inhaber und Administratoren können Unternehmensdaten ändern.
+        </p>
+      }
+    </div>
+
+    <app-card
+      title="Unternehmensprofil"
+      subtitle="Geschäftliche Identität und Kontaktdaten."
+      padding="lg"
+      rounded="xl"
+    >
+      <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_14rem]">
+        <div class="grid gap-3 sm:grid-cols-2">
+          <app-text-field
+            formControlName="companyName"
+            label="Unternehmensname"
+            [maxLength]="200"
+          />
+          <app-text-field
+            formControlName="legalName"
+            label="Rechtlicher Name / Inhaber"
+            [maxLength]="200"
+          />
+          <div>
+            <span class="mb-1.5 block text-[13px] font-semibold text-fb-text-secondary">
+              Rechtsform
+            </span>
+            <app-custom-select
+              formControlName="legalForm"
+              ariaLabel="Rechtsform"
+              [options]="legalFormOptions"
+            />
+          </div>
+          <app-text-field
+            formControlName="email"
+            type="email"
+            label="Geschäftliche E-Mail"
+            autocomplete="email"
+            [maxLength]="320"
+          />
+          <app-text-field formControlName="phone" type="tel" label="Telefon" [maxLength]="50" />
+          <app-text-field formControlName="website" type="url" label="Website" [maxLength]="500" />
+        </div>
+
+        <div class="border-t border-fb-line pt-4 lg:border-l lg:border-t-0 lg:pl-5 lg:pt-0">
+          <p class="text-[13px] font-semibold text-fb-text-primary">Unternehmenslogo</p>
+          <p class="mt-1 text-xs leading-5 text-fb-text-muted">
+            PNG, JPEG oder WebP · maximal 5 MiB.
+          </p>
+          <div
+            class="mt-3 flex min-h-28 items-center justify-center overflow-hidden rounded-lg border border-fb-line bg-fb-well p-3"
+          >
+            @if (company.logoUrl()) {
+              <img
+                [src]="company.logoUrl()!"
+                alt="Unternehmenslogo"
+                class="max-h-24 max-w-full object-contain"
+              />
+            } @else {
+              <span class="text-xs text-fb-text-muted">Noch kein Logo hinterlegt</span>
+            }
+          </div>
+
+          @if (company.canEdit()) {
+            <!-- Technischer Dateitransport; die sichtbare Aktion verwendet den Shared Button. -->
+            <input
+              #logoInput
+              type="file"
+              class="sr-only"
+              data-shared-ui-exception="native-file-picker"
+              aria-label="Unternehmenslogo auswählen"
+              accept="image/png,image/jpeg,image/webp"
+              (change)="onLogoSelected($event)"
+            />
+            <div class="mt-3 flex flex-wrap gap-2">
+              <app-button
+                type="button"
+                variant="secondary"
+                size="md"
+                [disabled]="isLogoBusy()"
+                [loading]="isLogoBusy()"
+                (clicked)="logoInput.click()"
+              >
+                Logo ändern
+              </app-button>
+              @if (company.profile()?.logoPath) {
+                <app-button
+                  type="button"
+                  variant="destructive"
+                  size="md"
+                  [disabled]="isLogoBusy()"
+                  (clicked)="removeLogo()"
+                >
+                  Entfernen
+                </app-button>
+              }
+            </div>
+          }
+        </div>
+      </div>
+    </app-card>
+
+    <app-card
+      title="Geschäftsanschrift"
+      subtitle="Adresse für Geschäftsdokumente und Korrespondenz."
+      padding="lg"
+      rounded="xl"
+    >
+      <div class="grid gap-3 sm:grid-cols-2">
+        <app-text-field formControlName="street" label="Straße" [maxLength]="200" />
+        <app-text-field formControlName="houseNumber" label="Hausnummer" [maxLength]="30" />
+        <app-text-field formControlName="postalCode" label="Postleitzahl" [maxLength]="20" />
+        <app-text-field formControlName="city" label="Ort" [maxLength]="120" />
+        <app-text-field
+          formControlName="countryCode"
+          label="Land (ISO-Code)"
+          placeholder="DE"
+          [maxLength]="2"
+          helpText="Zweistelliger Ländercode, z. B. DE."
+        />
+      </div>
+
+      <div class="mt-4 border-t border-fb-line pt-4">
+        <app-custom-checkbox
+          formControlName="mailingAddressEnabled"
+          label="Abweichende Postanschrift verwenden"
+          ariaLabel="Abweichende Postanschrift verwenden"
+        />
+      </div>
+
+      @if (mailingAddressEnabled()) {
+        <div class="mt-4 grid gap-3 sm:grid-cols-2">
+          <app-text-field
+            formControlName="mailingStreet"
+            label="Postanschrift Straße"
+            [maxLength]="200"
+          />
+          <app-text-field
+            formControlName="mailingHouseNumber"
+            label="Postanschrift Hausnummer"
+            [maxLength]="30"
+          />
+          <app-text-field
+            formControlName="mailingPostalCode"
+            label="Postanschrift Postleitzahl"
+            [maxLength]="20"
+          />
+          <app-text-field
+            formControlName="mailingCity"
+            label="Postanschrift Ort"
+            [maxLength]="120"
+          />
+          <app-text-field
+            formControlName="mailingCountryCode"
+            label="Postanschrift Land (ISO-Code)"
+            placeholder="DE"
+            [maxLength]="2"
+          />
+        </div>
+      }
+    </app-card>
+
+    <app-card
+      title="Steuerdaten"
+      subtitle="Besteuerung und steuerliche Kennungen."
+      padding="lg"
+      rounded="xl"
+    >
+      <div class="grid gap-3 sm:grid-cols-2">
+        <div class="sm:col-span-2">
+          <span class="mb-1.5 block text-[13px] font-semibold text-fb-text-secondary">
+            Besteuerung
+          </span>
+          <app-custom-select
+            formControlName="taxMode"
+            ariaLabel="Besteuerung"
+            [options]="taxModeOptions"
+          />
+        </div>
+        <app-text-field formControlName="taxNumber" label="Steuernummer" [maxLength]="50" />
+        <app-text-field formControlName="vatId" label="USt-IdNr." [maxLength]="32" />
+        <app-text-field formControlName="federalState" label="Bundesland" [maxLength]="100" />
+        <app-text-field formControlName="taxOffice" label="Finanzamt" [maxLength]="160" />
+      </div>
+    </app-card>
+
+    <app-card
+      title="Bankverbindung"
+      subtitle="Zentrales Geschäftskonto für künftige Dokument- und Zahlungsfunktionen."
+      padding="lg"
+      rounded="xl"
+    >
+      <div class="grid gap-3 sm:grid-cols-2">
+        <app-text-field
+          formControlName="bankAccountHolder"
+          label="Kontoinhaber"
+          [maxLength]="200"
+        />
+        <app-text-field formControlName="bankName" label="Bankname" [maxLength]="160" />
+        <app-text-field
+          formControlName="iban"
+          label="IBAN"
+          [monospaced]="true"
+          helpText="Leerzeichen sind erlaubt und werden beim Speichern entfernt."
+        />
+        <app-text-field formControlName="bic" label="BIC" [monospaced]="true" />
+      </div>
+    </app-card>
+
+    @if (company.canEdit()) {
+      <div class="flex flex-wrap justify-end gap-2 pt-1">
+        <app-button
+          type="button"
+          variant="secondary"
+          size="md"
+          [disabled]="isSaving() || !hasUnsavedChanges()"
+          (clicked)="discard()"
+        >
+          Verwerfen
+        </app-button>
+        <app-button
+          type="submit"
+          variant="primary"
+          size="md"
+          [disabled]="isSaving() || !hasUnsavedChanges() || form.invalid"
+          [loading]="isSavingState()"
+        >
+          Änderungen speichern
+        </app-button>
+      </div>
+    }
+  </form>
+} @else {
+  <p role="status" class="text-sm text-fb-text-muted">Unternehmensdaten werden geladen …</p>
+}

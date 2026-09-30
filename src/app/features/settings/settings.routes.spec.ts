@@ -12,6 +12,7 @@ describe('SETTINGS_ROUTES', () => {
     expect(shell.children?.map((route) => route.path)).toEqual([
       '',
       'account',
+      'company',
       'workspace',
       'numbering',
       'team',
@@ -32,8 +33,11 @@ describe('SETTINGS_ROUTES', () => {
     const children = SETTINGS_ROUTES[0].children ?? [];
     const contentRoutes = children.filter((route) => route.loadComponent);
 
-    expect(contentRoutes).toHaveLength(11);
+    expect(contentRoutes).toHaveLength(12);
     expect(contentRoutes.every((route) => typeof route.loadComponent === 'function')).toBe(true);
+    const companyRoute = contentRoutes.find((route) => route.path === 'company');
+    expect(companyRoute?.canDeactivate).toHaveLength(1);
+    expect(companyRoute?.data?.['workspaceContextLocked']).toBe(false);
     expect(contentRoutes.find((route) => route.path === 'marketplaces')?.canActivate).toHaveLength(
       1,
     );

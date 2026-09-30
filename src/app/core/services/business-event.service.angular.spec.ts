@@ -124,6 +124,7 @@ describe('BusinessEventService', () => {
     expect(mapBusinessEventLabel('sale_recorded')).toBe('Verkauf erfasst');
     expect(mapBusinessEventLabel('sale_refund_updated')).toBe('Erstattung aktualisiert');
     expect(mapBusinessEventLabel('sale_return_recorded')).toBe('Retoure erfasst');
+    expect(mapBusinessEventLabel('company_profile_updated')).toBe('Unternehmensdaten geändert');
     expect(mapBusinessEventLabel('custom_event')).toBe('Custom event');
   });
 });

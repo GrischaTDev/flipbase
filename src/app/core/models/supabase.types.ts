@@ -4711,6 +4711,110 @@ export type Database = {
           },
         ]
       }
+      workspace_company_profiles: {
+        Row: {
+          bank_account_holder: string | null
+          bank_name: string | null
+          bic: string | null
+          city: string | null
+          company_name: string | null
+          country_code: string | null
+          created_at: string
+          email: string | null
+          federal_state: string | null
+          house_number: string | null
+          iban: string | null
+          legal_form: string | null
+          legal_name: string | null
+          logo_path: string | null
+          mailing_address_enabled: boolean
+          mailing_city: string | null
+          mailing_country_code: string | null
+          mailing_house_number: string | null
+          mailing_postal_code: string | null
+          mailing_street: string | null
+          phone: string | null
+          postal_code: string | null
+          street: string | null
+          tax_number: string | null
+          tax_office: string | null
+          updated_at: string
+          vat_id: string | null
+          website: string | null
+          workspace_id: string
+        }
+        Insert: {
+          bank_account_holder?: string | null
+          bank_name?: string | null
+          bic?: string | null
+          city?: string | null
+          company_name?: string | null
+          country_code?: string | null
+          created_at?: string
+          email?: string | null
+          federal_state?: string | null
+          house_number?: string | null
+          iban?: string | null
+          legal_form?: string | null
+          legal_name?: string | null
+          logo_path?: string | null
+          mailing_address_enabled?: boolean
+          mailing_city?: string | null
+          mailing_country_code?: string | null
+          mailing_house_number?: string | null
+          mailing_postal_code?: string | null
+          mailing_street?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          street?: string | null
+          tax_number?: string | null
+          tax_office?: string | null
+          updated_at?: string
+          vat_id?: string | null
+          website?: string | null
+          workspace_id: string
+        }
+        Update: {
+          bank_account_holder?: string | null
+          bank_name?: string | null
+          bic?: string | null
+          city?: string | null
+          company_name?: string | null
+          country_code?: string | null
+          created_at?: string
+          email?: string | null
+          federal_state?: string | null
+          house_number?: string | null
+          iban?: string | null
+          legal_form?: string | null
+          legal_name?: string | null
+          logo_path?: string | null
+          mailing_address_enabled?: boolean
+          mailing_city?: string | null
+          mailing_country_code?: string | null
+          mailing_house_number?: string | null
+          mailing_postal_code?: string | null
+          mailing_street?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          street?: string | null
+          tax_number?: string | null
+          tax_office?: string | null
+          updated_at?: string
+          vat_id?: string | null
+          website?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_company_profiles_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: true
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workspace_members: {
         Row: {
           created_at: string
@@ -5173,6 +5277,10 @@ export type Database = {
         Returns: string
       }
       get_number_settings: { Args: { p_workspace_id: string }; Returns: Json }
+      get_workspace_company_settings: {
+        Args: { p_workspace_id: string }
+        Returns: Json
+      }
       get_purchase_sale_history: {
         Args: { p_purchase_id: string; p_workspace_id: string }
         Returns: Json
@@ -5187,6 +5295,10 @@ export type Database = {
       }
       is_catalog_product_media_path: {
         Args: { p_path: string; p_product_id: string; p_workspace_id: string }
+        Returns: boolean
+      }
+      is_company_logo_path: {
+        Args: { p_path: string; p_workspace_id: string }
         Returns: boolean
       }
       is_expense_document_path: {
@@ -5825,6 +5937,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      set_workspace_company_logo: {
+        Args: { p_logo_path: string; p_workspace_id: string }
+        Returns: Json
+      }
       set_inventory_item_archived: {
         Args: { p_archived: boolean; p_item_id: string; p_workspace_id: string }
         Returns: {
@@ -6085,6 +6201,10 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      update_workspace_company_settings: {
+        Args: { p_profile: Json; p_tax_mode: string; p_workspace_id: string }
+        Returns: Json
       }
       update_purchase_draft: {
         Args: {

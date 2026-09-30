@@ -44,6 +44,12 @@ export const SETTINGS_NAVIGATION: readonly SettingsNavigationItem[] = [
     icon: LucideUser,
   },
   {
+    path: 'company',
+    label: 'Unternehmen',
+    description: 'Geschäfts- und Rechnungsdaten',
+    icon: LucideBuilding2,
+  },
+  {
     path: 'workspace',
     label: 'Workspace',
     description: 'Mandanten und Vorgaben',

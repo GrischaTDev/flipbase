@@ -14,6 +14,7 @@ function snapshotFixture(): Record<string, unknown> {
     captured_at: '2026-09-04T16:00:00Z',
     snapshot: '1:3:',
     business_events: [],
+    workspace_company_profiles: [],
     suppliers: [],
     catalog_products: [],
     purchases: [],
@@ -84,12 +85,13 @@ describe('Audit-Snapshot-Vertrag', () => {
     });
     expect(result.manifest.createdAt).toBe('2026-09-04T16:00:00Z');
     expect(result.manifest.filters['snapshot']).toBe('1:3:');
-    expect(result.manifest.files).toHaveLength(25);
+    expect(result.manifest.files).toHaveLength(26);
     expect(result.manifest.files.map((file) => file.name).sort()).toEqual(
       [
         'business-events.csv',
         'business-events.json',
         'catalog-products.csv',
+        'company-profile.csv',
         'document-downloads.json',
         'expense-categories.csv',
         'expense-documents.csv',
@@ -214,6 +216,9 @@ describe('AuditExportService archive builder', () => {
     };
     const data: AuditArchiveData = {
       businessEvents: [event],
+      companyProfiles: [
+        { workspace_id: 'workspace-1', company_name: 'Wiehen Store', legal_name: 'Grischa Tänzer' },
+      ],
       suppliers: [{ id: 'supplier-1', workspace_id: 'workspace-1', name: 'Händler GmbH' }],
       catalogProducts: [
         {
@@ -373,6 +378,7 @@ describe('AuditExportService archive builder', () => {
         'business-events.csv',
         'business-events.json',
         'catalog-products.csv',
+        'company-profile.csv',
         'document-downloads.json',
         'documents/purchase-documents/workspace-1/purchase-1/purchase-document-1.pdf',
         'expense-categories.csv',
@@ -403,10 +409,11 @@ describe('AuditExportService archive builder', () => {
     const eventsJson = JSON.parse(await zip.file('business-events.json')!.async('string'));
     const eventsCsv = await zip.file('business-events.csv')!.async('string');
     const purchasesCsv = await zip.file('purchases.csv')!.async('string');
+    const companyCsv = await zip.file('company-profile.csv')!.async('string');
 
     expect(manifest).toMatchObject({
-      schemaVersion: '1.3.0',
-      exportVersion: '1.3.0',
+      schemaVersion: '1.4.0',
+      exportVersion: '1.4.0',
       workspaceId: 'workspace-1',
       filters: { entity_type: 'purchase' },
     });
@@ -417,6 +424,8 @@ describe('AuditExportService archive builder', () => {
     expect(eventsCsv.split('\n')[0]).toContain('created_at');
     expect(eventsCsv).toContain('2026-08-31T12:00:00.000Z');
     expect(purchasesCsv).toContain("'=IMPORTXML()");
+    expect(companyCsv).toContain('Wiehen Store');
+    expect(companyCsv).toContain('Grischa Tänzer');
     expect(await zip.file('item-costs.csv')!.async('string')).toContain(
       'item-cost-1;item-1;repair;12',
     );
