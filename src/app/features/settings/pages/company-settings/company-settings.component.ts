@@ -37,7 +37,7 @@ import {
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 
-type CompanyFormValue = ReturnType<CompanySettingsComponent['readFormValue']>;
+type CompanyFormValue = CompanyProfileInput & { readonly taxMode: TaxMode };
 
 function compactMaxLength(maxLength: number) {
   return (control: AbstractControl<string>): ValidationErrors | null => {
@@ -402,9 +402,6 @@ export class CompanySettingsComponent {
     };
   }
 
-  private readFormValue() {
-    return this.form.getRawValue();
-  }
 
   private snapshot(value: CompanyFormValue): string {
     return JSON.stringify(value);
