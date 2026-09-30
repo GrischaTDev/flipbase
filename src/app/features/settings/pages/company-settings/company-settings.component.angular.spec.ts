@@ -1,7 +1,8 @@
 import '@angular/compiler';
-import { signal } from '@angular/core';
+import { signal, ɵresolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { describe, expect, it, vi } from 'vitest';
+import { glob, readFile } from 'node:fs/promises';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { CompanyProfileService } from '../../../../core/services/company-profile.service';
 import { WorkspaceContextLockService } from '../../../../core/services/workspace-context-lock.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
@@ -108,6 +109,16 @@ function makeEnvironment(canEdit = true) {
     toastError,
   };
 }
+
+beforeAll(async () => {
+  await ɵresolveComponentResources(async (url) => {
+    const fileName = url.replace(/^\.\//u, '');
+    const matches: string[] = [];
+    for await (const match of glob(`src/app/**/${fileName}`)) matches.push(match);
+    if (matches.length !== 1) throw new Error(`Test-Ressource nicht eindeutig: ${url}`);
+    return readFile(matches[0], 'utf8');
+  });
+});
 
 describe('CompanySettingsComponent', () => {
   it('gliedert Unternehmensdaten in vier gleichrangige Karten', () => {
