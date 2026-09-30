@@ -244,6 +244,11 @@
           formControlName="iban"
           label="IBAN"
           [monospaced]="true"
+          [error]="
+            form.controls.iban.touched && form.controls.iban.hasError('invalidIban')
+              ? 'Bitte gib eine gültige IBAN ein.'
+              : null
+          "
           helpText="Leerzeichen sind erlaubt und werden beim Speichern entfernt."
         />
         <app-text-field formControlName="bic" label="BIC" [monospaced]="true" />

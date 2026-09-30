@@ -64,7 +64,16 @@
       </div>
       @if (paymentForm.controls.bankTransferEnabled.value) {
         <div class="space-y-2 rounded-xl border border-fb-border bg-fb-subtle p-3 text-sm">
-          @if (storeService.companyBankAccount(); as account) {
+          @if (company.isLoading()) {
+            <p class="text-fb-text-secondary">Unternehmensbankdaten werden geladen…</p>
+          } @else if (company.loadError()) {
+            <p class="text-fb-text-secondary" role="alert">
+              Unternehmensbankdaten konnten nicht geladen werden.
+            </p>
+            <app-button variant="secondary" (clicked)="retryCompanyLoad()"
+              >Unternehmensdaten erneut laden</app-button
+            >
+          } @else if (storeService.companyBankAccount(); as account) {
             <p class="font-semibold text-fb-text-primary">{{ account.accountHolder }}</p>
             <p class="font-mono text-fb-text-secondary">{{ maskIban(account.iban) }}</p>
             @if (account.bankName) {
@@ -72,7 +81,7 @@
             }
           } @else {
             <p class="text-fb-text-secondary">
-              Für Banküberweisung fehlen Kontoinhaber oder IBAN im Unternehmensprofil.
+              Für Banküberweisung fehlen Kontoinhaber oder eine gültige IBAN im Unternehmensprofil.
             </p>
           }
           <app-button variant="secondary" link="/settings/company"

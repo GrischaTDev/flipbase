@@ -29,6 +29,26 @@ describe('Unternehmensbankkonto und sichere Legacy-Vorschläge', () => {
       getCompanyBankAccount({ ...companyProfileFixture(), iban: 'DE89370400440532013000' }),
     ).toBeNull();
   });
+  it.each(['123', 'DE89370400440532013001', 'DE89-370400440532013000'])(
+    'verwendet die ungültige IBAN %s weder als Shopkonto noch als Vorschlag',
+    (iban) => {
+      expect(
+        getCompanyBankAccount({ ...companyProfileFixture(), bankAccountHolder: 'Inhaber', iban }),
+      ).toBeNull();
+      expect(
+        getLegacyStoreBankAccount({ bankAccountHolder: 'Inhaber', bankIban: iban }),
+      ).toBeNull();
+    },
+  );
+  it('akzeptiert eine gültige internationale IBAN mit Buchstaben im Kontoteil', () => {
+    expect(
+      getCompanyBankAccount({
+        ...companyProfileFixture(),
+        bankAccountHolder: 'Inhaber',
+        iban: 'gb82 west 1234 5698 7654 32',
+      })?.iban,
+    ).toBe('GB82WEST12345698765432');
+  });
   it('bietet echte alte Kontodaten als Vorschlag an', () => {
     expect(
       getLegacyStoreBankAccount({

@@ -46,10 +46,17 @@ function setup(config: typeof legacy | null = null) {
     }),
     () => new FulfillmentService(),
   );
-  return { service, profile, currentWorkspace, written: () => written };
+  return { service, profile, currentWorkspace, query, written: () => written };
 }
 
 describe('Versand nutzt Unternehmen oder erhaltenen Override', () => {
+  it('liefert nach einem Carrier-Ladefehler keinen angenommenen zentralen Absender', async () => {
+    const { service, query } = setup(legacy);
+    query.maybeSingle.mockRejectedValueOnce(new Error('Carrier-Konfiguration nicht geladen'));
+    await service.loadFromSupabase('ws-1');
+    expect(service.loadError()).not.toBeNull();
+    expect(service.getSenderAddress()).toBeNull();
+  });
   it('verwendet bei neuer Konfiguration die zentrale Unternehmensanschrift', async () => {
     const { service } = setup();
     await service.loadFromSupabase('ws-1');

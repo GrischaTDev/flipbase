@@ -30,6 +30,7 @@ import { WebhookService } from '../../../core/services/webhook.service';
 import { WorkspaceMemberService } from '../../../core/services/workspace-member.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
 import { CompanyProfileService } from '../../../core/services/company-profile.service';
+import { CompanyBankAccount } from '../../../core/models/company-store.models';
 import { companyProfileFixture } from '../../../../test-support/company-document.fixture';
 import { ConfirmDialogService } from '../../../shared/components/confirm-dialog/confirm-dialog.service';
 import { CustomCheckboxComponent } from '../../../shared/components/custom-checkbox/custom-checkbox.component';
@@ -1690,7 +1691,7 @@ async function renderStore(
     storeSettings,
     loadedWorkspaceId,
     updatePaymentsConfig,
-    companyBankAccount: signal({
+    companyBankAccount: signal<CompanyBankAccount | null>({
       accountHolder: 'Zentraler Inhaber',
       iban: 'DE89370400440532013000',
       bic: '',
@@ -1700,6 +1701,11 @@ async function renderStore(
   const syncStatus = {
     istZentralGemeldet: vi.fn(() => options.centralThrow ?? false),
   };
+  const company = {
+    isLoading: signal(false),
+    loadError: signal<Error | null>(null),
+    load: vi.fn(),
+  };
   await TestBed.configureTestingModule({
     imports: [StoreSettingsComponent],
     providers: [
@@ -1707,6 +1713,7 @@ async function renderStore(
       ToastService,
       { provide: WorkspaceService, useValue: { currentWorkspace } },
       { provide: StoreService, useValue: storeService },
+      { provide: CompanyProfileService, useValue: company },
       { provide: SyncStatusService, useValue: syncStatus },
     ],
   }).compileComponents();
@@ -1718,12 +1725,28 @@ async function renderStore(
     storeSettings,
     loadedWorkspaceId,
     storeService,
+    company,
     syncStatus,
     toast: TestBed.inject(ToastService),
   };
 }
 
 describe('Shop-Einstellungen – echte Angular-Fixture', () => {
+  it('unterscheidet Unternehmens-Laden und Ladefehler von fehlenden Bankdaten und bietet erneutes Laden an', async () => {
+    const { fixture, company, storeService } = await renderStore();
+    storeService.companyBankAccount.set(null);
+    company.isLoading.set(true);
+    flushEffects(fixture);
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.textContent).toContain('Unternehmensbankdaten werden geladen…');
+    expect(root.textContent).not.toContain('Für Banküberweisung fehlen');
+    company.isLoading.set(false);
+    company.loadError.set(new Error('Verbindungsfehler'));
+    flushEffects(fixture);
+    expect(root.textContent).toContain('Unternehmensbankdaten konnten nicht geladen werden.');
+    renderedButton(fixture, 'Unternehmensdaten erneut laden').click();
+    expect(company.load).toHaveBeenCalledWith('workspace-a');
+  });
   it('zeigt das zentrale Konto maskiert und führt zur einzigen Bankdatenpflege', async () => {
     const { fixture } = await renderStore();
     const root = fixture.nativeElement as HTMLElement;

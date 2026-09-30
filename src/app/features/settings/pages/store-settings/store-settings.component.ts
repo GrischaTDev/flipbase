@@ -6,6 +6,7 @@ import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@ang
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { LucideCreditCard, LucideDynamicIcon, LucideLandmark, LucideSave } from '@lucide/angular';
 import { StoreService } from '../../../../core/services/store.service';
+import { CompanyProfileService } from '../../../../core/services/company-profile.service';
 import { SyncStatusService } from '../../../../core/services/sync-status.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
@@ -29,6 +30,7 @@ import { TextFieldComponent } from '../../../../shared/components/text-field/tex
 })
 export class StoreSettingsComponent {
   readonly storeService = inject(StoreService);
+  readonly company = inject(CompanyProfileService);
   private readonly workspaceService = inject(WorkspaceService);
   private readonly toast = inject(ToastService);
   private readonly syncStatus = inject(SyncStatusService);
@@ -106,6 +108,10 @@ export class StoreSettingsComponent {
     } finally {
       if (this.isCurrentSave(requestId, workspaceId)) this.isSavingPaymentConfig.set(false);
     }
+  }
+  retryCompanyLoad(): void {
+    const workspaceId = this.workspaceService.currentWorkspace()?.id;
+    if (workspaceId) void this.company.load(workspaceId);
   }
   private isCurrentSave(requestId: number, workspaceId: string): boolean {
     return (

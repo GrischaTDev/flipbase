@@ -1,5 +1,5 @@
 import { StoreService } from '../../../../core/services/store.service';
-import { maskCompanyIban } from '../../../../core/models/company-store.models';
+import { isValidCompanyIban, maskCompanyIban } from '../../../../core/models/company-store.models';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -46,6 +46,10 @@ function compactMaxLength(maxLength: number) {
     const compact = control.value.replace(/\s+/gu, '');
     return compact.length <= maxLength ? null : { compactMaxLength: { maxLength } };
   };
+}
+
+function validIban(control: AbstractControl<string>): ValidationErrors | null {
+  return !control.value.trim() || isValidCompanyIban(control.value) ? null : { invalidIban: true };
 }
 
 @Component({
@@ -181,7 +185,7 @@ export class CompanySettingsComponent {
     }),
     iban: new FormControl('', {
       nonNullable: true,
-      validators: [compactMaxLength(34)],
+      validators: [compactMaxLength(34), validIban],
     }),
     bic: new FormControl('', {
       nonNullable: true,

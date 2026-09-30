@@ -78,7 +78,7 @@ function profile(overrides: Record<string, unknown> = {}) {
     federalState: 'Nordrhein-Westfalen',
     bankAccountHolder: 'Grischa Tänzer',
     bankName: 'Testbank',
-    iban: 'DE12345678901234567890',
+    iban: 'DE89370400440532013000',
     bic: 'ABCDEFGH',
     logoPath: null,
     createdAt: '2026-09-30T10:00:00.000Z',
@@ -196,6 +196,8 @@ beforeAll(async () => {
   );
   registerSignalInputs(TextFieldComponent, [
     'label',
+    'error',
+    'helpText',
     'type',
     'autocomplete',
     'maxLength',
@@ -216,6 +218,17 @@ afterAll(() => {
 });
 
 describe('CompanySettingsComponent', () => {
+  it('meldet eine ungültige IBAN und speichert sie nicht', async () => {
+    const { fixture, save } = makeEnvironment();
+    fixture.componentInstance.form.controls.iban.setValue('123');
+    fixture.componentInstance.form.controls.iban.markAsTouched();
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain(
+      'Bitte gib eine gültige IBAN ein.',
+    );
+    await fixture.componentInstance.save();
+    expect(save).not.toHaveBeenCalled();
+  });
   it('übernimmt echte alte Bankdaten nur ins leere Formular und speichert nicht automatisch', () => {
     const { fixture, companyProfile, legacyBankAccount, save } = makeEnvironment();
     companyProfile.set(profile({ bankAccountHolder: '', bankName: '', iban: '', bic: '' }));

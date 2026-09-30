@@ -433,6 +433,7 @@ export class FulfillmentService {
 
   getSenderAddress(): AddressInfo | null {
     const workspaceId = this.workspaceService?.currentWorkspace()?.id;
+    if (this.loadError()) return null;
     if (this.supabase && this.loadedWorkspaceId() !== workspaceId) return null;
     const config = this.carrierConfig();
     if (!config.useCompanyAddress) return getCarrierSenderAddress(config);

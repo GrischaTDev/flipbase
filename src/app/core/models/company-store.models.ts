@@ -23,12 +23,25 @@ export interface CompanyStoreImprint {
 
 const compactIban = (value: string): string => value.replace(/\s/g, '').toUpperCase();
 
+/** Allgemeines IBAN-Format und MOD-97-Prüfziffer; keine Bestätigung der Kontoexistenz. */
+export function isValidCompanyIban(value: string): boolean {
+  const iban = compactIban(value);
+  if (!/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/u.test(iban)) return false;
+  if (iban.startsWith('DE') && !/^DE\d{20}$/u.test(iban)) return false;
+  let remainder = 0;
+  for (const character of iban.slice(4) + iban.slice(0, 4)) {
+    const digits = /[A-Z]/u.test(character) ? String(character.charCodeAt(0) - 55) : character;
+    for (const digit of digits) remainder = (remainder * 10 + Number(digit)) % 97;
+  }
+  return remainder === 1;
+}
+
 export function getCompanyBankAccount(
   profile: WorkspaceCompanyProfile | null,
 ): CompanyBankAccount | null {
   const accountHolder = profile?.bankAccountHolder?.trim() ?? '';
   const iban = compactIban(profile?.iban ?? '');
-  return accountHolder && iban
+  return accountHolder && isValidCompanyIban(iban)
     ? {
         accountHolder,
         iban,
@@ -62,7 +75,7 @@ export function getLegacyStoreBankAccount(value: unknown): CompanyBankAccount | 
   const iban = compactIban(text('bankIban'));
   const accountHolder = text('bankAccountHolder');
   // Diese IBAN stammt aus dem alten Demo-Standard und darf kein Übernahmevorschlag sein.
-  if (!iban || !accountHolder || iban === 'DE45500105175555666677') return null;
+  if (!isValidCompanyIban(iban) || !accountHolder || iban === 'DE45500105175555666677') return null;
   return { iban, accountHolder, bic: text('bankBic'), bankName: text('bankName') };
 }
 

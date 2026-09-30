@@ -74,8 +74,8 @@
 - [x] Browsertest: Unternehmensbankkonto statt Legacy, maskierte Anzeige, Impressumsname aktuell, neue Versandkonfiguration zentral und bestehender Override unverändert. Automatisches WCAG AA, schmale Ansicht ohne horizontalen Überlauf.
 - [x] Run Browserauswahl in eigener Testumgebung; Expected: PASS.
 - [x] Run betroffene Tests, vollständige lokale DB-Prüfungen, Suite-Audit, Format/Lint, Typprüfung und Produktionsbuild; Expected: PASS. Vollständige Anwendungssuite bleibt gemäß AGENTS.md einmalige PR-CI.
-- [ ] Abschließendes unabhängiges Review nach Skill; wichtige Befunde mit fehlschlagendem Regressionstest beheben, Nebenvorschläge protokollieren.
-- [ ] Commit geprüften Abschlussstand; erst dann fragen: „Soll ich jetzt den PR erstellen und nach erfolgreichen Tests mergen?“
+- [x] Abschließendes unabhängiges Review nach Skill; wichtige Befunde mit fehlschlagendem Regressionstest beheben, Nebenvorschläge protokollieren.
+- [x] Commit geprüften Abschlussstand; erst dann fragen: „Soll ich jetzt den PR erstellen und nach erfolgreichen Tests mergen?“
 
 ## Geprüfter Stand
 
@@ -90,3 +90,15 @@
 1. Die neue Versand-Auswahl bleibt für Altzeilen nullable; vollständige alte Absender gelten weiterhin als individuell. Bei einer falsch eingeordneten unvollständigen Adresse wird sie nicht verwendet; ihre Werte bleiben erhalten.
 2. Legacy-Shopfelder bleiben gespeichert, sind aber keine aktive Bank-/Impressumsquelle. Nur ausdrücklich gespeicherte Vorschläge werden Unternehmenskonto. Wird eine echte alte IBAN irrtümlich als Demo erkannt, fehlt lediglich der Vorschlag; der gespeicherte Altwert bleibt erhalten.
 3. Gemäß AGENTS.md läuft die vollständige Anwendungssuite einmal in der PR-CI; lokal wurden die relevanten Anwendungstests und sämtliche Datenbanktests ausgeführt. Sachfremde Regressionen können dadurch erst im PR-Lauf auffallen.
+
+## Abschlussreview und Korrekturen
+
+Unabhängiges Review abgeschlossen. Ungültige IBANs schalten Banküberweisung nicht mehr frei und werden nicht zur Übernahme angeboten; das Unternehmensformular meldet die ungültige IBAN. Nach fehlgeschlagener Carrier-Abfrage liefert der Versand keinen angenommenen Absender. Shop unterscheidet Unternehmens-Laden, Ladefehler und fehlende Bankdaten und bietet erneutes Laden an. Alle drei Fälle wurden zuerst mit fehlschlagenden Regressionstests nachgestellt und im selben Korrekturdurchlauf behoben. Danach 152 relevante Tests in 13 Dateien und erneute echte Chromium-Abnahme erfolgreich. Keine vertagten kleineren Befunde.
+
+Die Prüfung berücksichtigt allgemeines IBAN-Format und Prüfziffer sowie das deutsche Format. Quellen für internationale Formate: [Swift IBAN-Register](https://www.swift.com/standards/standards-resources?category%5B0%5D=169031); deutsches Format: [Bundesbank IBAN-Regeln](https://www.bundesbank.de/de/aufgaben/unbarer-zahlungsverkehr/serviceangebot/iban-regeln/iban-regeln-603042). Die Prüfung bestätigt keine tatsächliche Kontoexistenz.
+
+## Bewusst beibehaltener Umfang
+
+4. Stripe-/PayPal-Anbindung bleibt ein eigener Schritt; bestehende Simulationen wurden nicht erweitert. Echte Anbieterabwicklung ist damit weiterhin nicht nachgewiesen.
+5. Das Impressum wird technisch aus dem Unternehmensprofil gelesen; zusätzliche rechtliche Pflichtangaben wurden nicht beurteilt. Die Zentralisierung bestätigt keine rechtliche Vollständigkeit.
+6. Neue Schutzdialoge für Shop-/Versandformulare bleiben ein eigener Schritt; der Unternehmens-Guard bleibt aktiv. Ungespeicherte Eingaben in Shop/Versand können bei Navigation wie bisher verloren gehen.
