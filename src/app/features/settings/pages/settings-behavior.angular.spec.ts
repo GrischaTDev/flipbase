@@ -861,11 +861,11 @@ async function renderTeam(
 describe('Kontoeinstellungen – echte Angular-Fixture', () => {
   it('bindet den gerenderten Primärbutton an das Profil-Payload und bestätigt den Erfolg', async () => {
     const { fixture, auth, toast } = await renderAccount();
-    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Mein Konto');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Profil');
     fixture.componentInstance.profileForm.controls.fullName.setValue('Grace Hopper');
     fixture.detectChanges();
 
-    renderedButton(fixture, 'Namen speichern').click();
+    renderedButton(fixture, 'Änderungen speichern').click();
     await flushAsyncAction(fixture);
 
     expect(auth.aktualisiereProfil).toHaveBeenCalledOnce();
@@ -877,7 +877,7 @@ describe('Kontoeinstellungen – echte Angular-Fixture', () => {
     const { fixture, auth, toast } = await renderAccount();
     fixture.componentInstance.profileForm.controls.fullName.setValue('');
     fixture.detectChanges();
-    const saveButton = renderedButton(fixture, 'Namen speichern');
+    const saveButton = renderedButton(fixture, 'Änderungen speichern');
 
     expect(saveButton.disabled).toBe(true);
     saveButton.click();
@@ -892,7 +892,7 @@ describe('Kontoeinstellungen – echte Angular-Fixture', () => {
       updateResult: { error: new Error('Nicht angemeldet'), reportedBySyncStatus: false },
     });
 
-    renderedButton(fixture, 'Namen speichern').click();
+    renderedButton(fixture, 'Änderungen speichern').click();
     await flushAsyncAction(fixture);
 
     expect(fixture.componentInstance.isSavingProfile()).toBe(false);
@@ -904,7 +904,7 @@ describe('Kontoeinstellungen – echte Angular-Fixture', () => {
       updateResult: { error: new Error('Sync-Fehler'), reportedBySyncStatus: true },
     });
 
-    renderedButton(fixture, 'Namen speichern').click();
+    renderedButton(fixture, 'Änderungen speichern').click();
     await flushAsyncAction(fixture);
 
     expect(fixture.componentInstance.isSavingProfile()).toBe(false);
