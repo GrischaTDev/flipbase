@@ -183,7 +183,7 @@ export class CompanyProfileService {
     try {
       const { data, error } = await this.supabase.client.rpc('set_workspace_company_logo', {
         p_workspace_id: workspaceId,
-        p_logo_path: null,
+        p_logo_path: null as unknown as string,
       });
       if (error || !data) {
         return this.reportedFailure(
