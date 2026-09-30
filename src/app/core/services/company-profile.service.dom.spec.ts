@@ -183,7 +183,10 @@ describe('CompanyProfileService', () => {
     const loadA = service.load(workspaceA);
 
     currentWorkspace.set({ id: workspaceB });
-    rpc.mockResolvedValueOnce({ data: state(workspaceB, { company_name: 'Firma B' }), error: null });
+    rpc.mockResolvedValueOnce({
+      data: state(workspaceB, { company_name: 'Firma B' }),
+      error: null,
+    });
     const loadB = service.load(workspaceB);
 
     expect(service.profile()).toBeNull();
@@ -199,12 +202,10 @@ describe('CompanyProfileService', () => {
 
   it('speichert nur über den atomaren RPC und übernimmt ausschließlich dessen bestätigte Antwort', async () => {
     const { service, rpc } = createService();
-    rpc
-      .mockResolvedValueOnce({ data: state(workspaceA), error: null })
-      .mockResolvedValueOnce({
-        data: state(workspaceA, { company_name: 'Bestätigter Name', iban: 'DE9999' }, 'regular_19'),
-        error: null,
-      });
+    rpc.mockResolvedValueOnce({ data: state(workspaceA), error: null }).mockResolvedValueOnce({
+      data: state(workspaceA, { company_name: 'Bestätigter Name', iban: 'DE9999' }, 'regular_19'),
+      error: null,
+    });
     await service.load(workspaceA);
 
     const result = await service.save(
@@ -304,7 +305,10 @@ describe('CompanyProfileService', () => {
       .mockResolvedValueOnce({ data: state(workspaceA, { logo_path: oldLogo }), error: null })
       .mockResolvedValueOnce({ data: null, error: { message: 'Aktivierung fehlgeschlagen' } });
     await service.load(workspaceA);
-    vi.stubGlobal('createImageBitmap', vi.fn(async () => ({ width: 100, height: 100, close: vi.fn() })));
+    vi.stubGlobal(
+      'createImageBitmap',
+      vi.fn(async () => ({ width: 100, height: 100, close: vi.fn() })),
+    );
 
     const result = await service.replaceLogo(
       new File([new Uint8Array([1])], 'logo.webp', { type: 'image/webp' }),
@@ -329,7 +333,10 @@ describe('CompanyProfileService', () => {
         }),
       );
     await service.load(workspaceA);
-    vi.stubGlobal('createImageBitmap', vi.fn(async () => ({ width: 100, height: 100, close: vi.fn() })));
+    vi.stubGlobal(
+      'createImageBitmap',
+      vi.fn(async () => ({ width: 100, height: 100, close: vi.fn() })),
+    );
 
     const result = await service.replaceLogo(
       new File([new Uint8Array([1])], 'logo.png', { type: 'image/png' }),
