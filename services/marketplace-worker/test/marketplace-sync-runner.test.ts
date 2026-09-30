@@ -4,7 +4,11 @@ import { MarketplaceSyncRunner } from '../src/marketplace-sync-runner.ts';
 import type { BrowserInfo } from '../src/gologin-cloud-browser.ts';
 import { MarketplaceBrowserSessionEndedError } from '../src/marketplace-browser-session-broker.ts';
 import type { SupabaseMarketplaceOperationStore } from '../src/supabase-marketplace-operation-store.ts';
-import { VintedImportReadError, VintedImportRequestError } from '../src/vinted-account-import.ts';
+import {
+  VintedImportReadError,
+  VintedImportRequestError,
+  type VintedImportAreas,
+} from '../src/vinted-account-import.ts';
 import type { MarketplaceOperationEvent } from '../src/marketplace-operation-events.ts';
 
 const scope = {
@@ -15,12 +19,21 @@ const scope = {
 };
 const operationId = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
 const sessionId = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+const areas: VintedImportAreas = {
+  profile: { status: 'complete' },
+  publications: { status: 'complete' },
+  conversations: { status: 'complete' },
+  messages: { status: 'partial' },
+  sales: { status: 'partial' },
+  feedback: { status: 'failed', failure: 'network' },
+};
 
 test('doppelter Start nutzt einen Auftrag und öffnet nur einen Browser', async () => {
   let claimed = false;
   let opens = 0;
   let writes = 0;
   let closes = 0;
+  let savedSources: unknown;
   let done!: () => void;
   const completed = new Promise<void>((resolve) => {
     done = resolve;
@@ -33,7 +46,8 @@ test('doppelter Start nutzt einen Auftrag und öffnet nur einen Browser', async 
       return true;
     },
     stage: async () => undefined,
-    succeed: async () => {
+    succeed: async (...args: unknown[]) => {
+      savedSources = args[6];
       done();
     },
     fail: async () => {
@@ -59,6 +73,7 @@ test('doppelter Start nutzt einen Auftrag und öffnet nur einen Browser', async 
             identity: { id: '123', username: 'test' },
             observedAt: '2026-09-28T10:00:00Z',
             entries: [],
+            areas,
           };
         },
       }),
@@ -76,6 +91,7 @@ test('doppelter Start nutzt einen Auftrag und öffnet nur einen Browser', async 
   assert.equal(await runner.start(scope), operationId);
   assert.equal(await runner.start(scope), operationId);
   await completed;
+  assert.deepEqual(savedSources, areas);
   assert.equal(opens, 1);
   assert.equal(writes, 1);
   assert.equal(closes, 1);

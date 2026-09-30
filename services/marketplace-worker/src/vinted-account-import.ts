@@ -4,6 +4,14 @@ import { parseVintedAccountIdentity, type VintedAccountIdentity } from './vinted
 
 export type VintedImportKind = 'profile' | 'publication' | 'conversation' | 'message' | 'sale';
 
+export type VintedImportArea =
+  'profile' | 'publications' | 'conversations' | 'messages' | 'sales' | 'feedback';
+export interface VintedImportAreaResult {
+  status: 'complete' | 'partial' | 'failed';
+  failure?: VintedRequestFailure;
+}
+export type VintedImportAreas = Record<VintedImportArea, VintedImportAreaResult>;
+
 export interface VintedImportEntry {
   kind: VintedImportKind;
   externalId: string;
@@ -16,6 +24,7 @@ export interface VintedAccountImport {
   identity: VintedAccountIdentity;
   observedAt: string;
   entries: VintedImportEntry[];
+  areas: VintedImportAreas;
   rejectedSaleIds?: string[];
 }
 
@@ -157,22 +166,17 @@ function parseFeedbacks(rawFeedbacks: unknown[], fallbackDate: string): Record<s
       item?.['is_automatic'] === true || string(item?.['feedback_type']) === 'automatic';
     const textStr =
       string(item?.['feedback']) ?? string(item?.['body']) ?? string(item?.['comment']) ?? '';
-    const isAutoText =
-      textStr.toLowerCase().includes('automatisch') || textStr.toLowerCase().includes('automatic');
-    const isAutomatic = isAutoFlag || isAutoText || !authorName;
-    const ratingNum = count(item?.['rating']) ?? 5;
+    const isAutomatic = isAutoFlag ? true : item?.['is_automatic'] === false ? false : null;
+    const rawRating = count(item?.['rating']);
+    const ratingNum = rawRating !== null && rawRating <= 5 ? rawRating : null;
     const itemObj = record(item?.['item']) ?? record(item?.['transaction']);
     const itemTitle = string(itemObj?.['title']) ?? string(itemObj?.['item_title']);
     list.push({
       id,
-      authorName: authorName ?? (isAutomatic ? 'Vinted System' : 'Mitglied'),
+      authorName: authorName ?? (isAutomatic ? 'Vinted System' : null),
       authorImageUrl: image(record(author?.['photo'])?.['url']),
       rating: ratingNum,
-      text:
-        textStr ||
-        (isAutomatic
-          ? 'Automatische Bewertung: Die Transaktion wurde erfolgreich abgeschlossen.'
-          : ''),
+      text: textStr,
       occurredAt: date(
         item?.['created_at'] ?? item?.['created_at_ts'] ?? item?.['updated_at'],
         fallbackDate,
@@ -194,6 +198,14 @@ export function parseVintedAccountImport(
   observedAt: string,
   previousConversations: VintedConversationVersion[] = [],
   feedbackValues: unknown[] = [],
+  areas: VintedImportAreas = {
+    profile: { status: 'complete' },
+    publications: { status: 'complete' },
+    conversations: { status: 'complete' },
+    messages: { status: 'partial' },
+    sales: { status: 'partial' },
+    feedback: { status: 'complete' },
+  },
 ): VintedAccountImport {
   const user = record(record(profileValue)?.['user']);
   if (identifier(user?.['id']) !== identity.id)
@@ -393,7 +405,8 @@ export function parseVintedAccountImport(
       },
     });
   }
-  return { identity, observedAt, entries, rejectedSaleIds: [...rejectedSaleIds] };
+  if (areas.feedback.status === 'failed') delete entries[0]?.body['feedbacks'];
+  return { identity, observedAt, entries, areas, rejectedSaleIds: [...rejectedSaleIds] };
 }
 
 async function vintedJson(page: Page, path: string): Promise<unknown> {
@@ -460,21 +473,37 @@ async function pages(
   path: (number: number) => string,
   key: string,
   authorize: () => Promise<void>,
-): Promise<unknown[]> {
+  stage: VintedImportStage,
+): Promise<{ values: unknown[]; result: VintedImportAreaResult }> {
   const values: unknown[] = [];
   for (let number = 1; number <= 20; number++) {
-    await authorize();
-    const response = record(await vintedJson(page, path(number)));
-    const items = response?.[key];
-    if (!Array.isArray(items) || items.length > 100) throw new Error('Vinted-Datenformat geändert');
-    values.push(...items);
-    const pagination = record(response?.['pagination']);
-    const totalPages = count(pagination?.['total_pages']);
-    if (totalPages === null || totalPages < number)
-      throw new Error('Vinted-Seitennavigation geändert');
-    if (number >= totalPages) return values;
+    await atImportStage(stage, authorize);
+    try {
+      const response = record(await vintedJson(page, path(number)));
+      const items = response?.[key];
+      const totalPages = count(record(response?.['pagination'])?.['total_pages']);
+      if (!Array.isArray(items) || items.length > 100 || totalPages === null || totalPages < number)
+        throw new VintedImportRequestError('invalid_response');
+      values.push(...items);
+      // Unbekannte Zeilen bleiben ein Teilstand, selbst wenn die Pagination vollständig ist.
+      if (items.some((item) => !identifier(record(item)?.['id'])))
+        return { values, result: { status: 'partial', failure: 'invalid_response' } };
+      if (number >= totalPages) return { values, result: { status: 'complete' } };
+    } catch (error) {
+      return { values, result: sourceFailure(stage, error, number > 1) };
+    }
   }
-  throw new Error('Vinted-Import überschreitet die Seitengrenze');
+  return { values, result: { status: 'partial', failure: 'invalid_response' } };
+}
+
+function sourceFailure(
+  stage: VintedImportStage,
+  error: unknown,
+  partial: boolean,
+): VintedImportAreaResult {
+  if (!(error instanceof VintedImportRequestError) || error.reason === 'unauthorized')
+    throw new VintedImportReadError(stage, error);
+  return { status: partial ? 'partial' : 'failed', failure: error.reason };
 }
 
 export async function readVintedAccountImport(
@@ -501,29 +530,43 @@ export async function readVintedAccountImport(
     if (!account) throw new Error('Vinted-Anmeldung nicht bestätigt');
     return account;
   });
-  const items = await atImportStage('publications', async () => {
-    await onStage?.('publications');
-    await authorize();
-    return pages(
-      page,
-      (number) => `/api/v2/wardrobe/${identity.id}/items?page=${number}&per_page=20`,
-      'items',
-      authorize,
-    );
-  });
-  const conversations = await atImportStage('conversations', async () => {
-    await onStage?.('conversations');
-    await authorize();
-    return pages(
-      page,
-      (number) => `/api/v2/inbox?page=${number}&per_page=20`,
-      'conversations',
-      authorize,
-    );
-  });
+  const observedAt = new Date().toISOString();
+  await onStage?.('publications');
+  const items = await pages(
+    page,
+    (number) => `/api/v2/wardrobe/${identity.id}/items?page=${number}&per_page=20`,
+    'items',
+    authorize,
+    'publications',
+  );
+  if (items.values.some((item) => identifier(record(item)?.['user_id']) !== identity.id))
+    items.result = { status: 'partial', failure: 'invalid_response' };
+  await onStage?.('conversations');
+  const conversations = await pages(
+    page,
+    (number) => `/api/v2/inbox?page=${number}&per_page=20`,
+    'conversations',
+    authorize,
+    'conversations',
+  );
+  const areas: VintedImportAreas = {
+    profile: { status: 'complete' },
+    publications: items.result,
+    conversations: conversations.result,
+    // Details stammen aus sicher lesbaren Gesprächen, nicht aus einem vollständigen Ereignisfeed.
+    messages: {
+      status: conversations.result.status === 'failed' ? 'failed' : 'partial',
+      ...(conversations.result.failure ? { failure: conversations.result.failure } : {}),
+    },
+    sales: {
+      status: conversations.result.status === 'failed' ? 'failed' : 'partial',
+      ...(conversations.result.failure ? { failure: conversations.result.failure } : {}),
+    },
+    feedback: { status: 'failed' },
+  };
   const previousById = new Map(previousConversations.map((entry) => [entry.externalId, entry]));
   const details: unknown[] = [];
-  for (const raw of conversations) {
+  for (const raw of conversations.values) {
     // Das Öffnen ungelesener Gespräche könnte bei Vinted den Lesestatus verändern.
     if (record(raw)?.['unread'] !== false) continue;
     const id = identifier(record(raw)?.['id']);
@@ -540,13 +583,18 @@ export async function readVintedAccountImport(
       Date.now() - checkedAt < 24 * 60 * 60 * 1000
     )
       continue;
-    const conversation = await atImportStage('messages', async () => {
-      await authorize();
-      const detail = await vintedJson(page, `/api/v2/conversations/${id}`);
-      const relation = record(record(detail)?.['conversation']);
-      if (identifier(relation?.['id']) !== id) throw new Error('Vinted-Gespräch geändert');
-      return detail;
-    });
+    await atImportStage('messages', authorize);
+    let conversation: unknown;
+    try {
+      conversation = await vintedJson(page, `/api/v2/conversations/${id}`);
+      const relation = record(record(conversation)?.['conversation']);
+      if (identifier(relation?.['id']) !== id || !Array.isArray(relation?.['messages']))
+        throw new VintedImportRequestError('invalid_response');
+    } catch (error) {
+      areas.messages = sourceFailure('messages', error, true);
+      areas.sales = sourceFailure('transaction', error, true);
+      continue;
+    }
     const relation = record(record(conversation)?.['conversation']);
     const transactionId = identifier(record(relation?.['transaction'])?.['id']);
     let transaction: unknown = null;
@@ -554,36 +602,37 @@ export async function readVintedAccountImport(
       transactionId &&
       identifier(record(relation?.['transaction'])?.['seller_id']) === identity.id
     ) {
-      transaction = await atImportStage('transaction', async () => {
-        await authorize();
-        return vintedJson(page, `/api/v2/transactions/${transactionId}`);
-      });
+      await atImportStage('transaction', authorize);
+      try {
+        transaction = await vintedJson(page, `/api/v2/transactions/${transactionId}`);
+        if (identifier(record(record(transaction)?.['transaction'])?.['id']) !== transactionId)
+          throw new VintedImportRequestError('invalid_response');
+      } catch (error) {
+        areas.sales = sourceFailure('transaction', error, true);
+      }
     }
     details.push({ ...record(conversation), transaction });
   }
-  let feedbacks: unknown[] = [];
-  try {
-    await authorize();
-    feedbacks = await pages(
-      page,
-      (number) => `/api/v2/feedbacks?user_id=${identity.id}&page=${number}&per_page=20`,
-      'user_feedbacks',
-      authorize,
-    );
-  } catch {
-    feedbacks = [];
-  }
+  const feedbacks = await pages(
+    page,
+    (number) => `/api/v2/feedbacks?user_id=${identity.id}&page=${number}&per_page=20`,
+    'user_feedbacks',
+    authorize,
+    'profile',
+  );
+  areas.feedback = feedbacks.result;
   return atImportStage('parse', async () => {
     await onStage?.('sales');
     return parseVintedAccountImport(
       identity,
       profile,
-      items,
-      conversations,
+      items.values,
+      conversations.values,
       details,
-      new Date().toISOString(),
+      observedAt,
       previousConversations,
-      feedbacks,
+      feedbacks.values,
+      areas,
     );
   });
 }

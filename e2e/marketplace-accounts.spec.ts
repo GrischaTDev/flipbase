@@ -15,6 +15,7 @@ async function mockMarketplace(
   rejectFirstLogin = false,
   verificationRequired = false,
   profileLimit = false,
+  importedFeedbacks?: readonly Record<string, unknown>[],
 ) {
   await page.route('**/marketplace-browser/healthz', (route) =>
     browserLogin
@@ -54,8 +55,8 @@ async function mockMarketplace(
     connectionId,
     marketplace: 'vinted',
     displayName: `Testkonto ${index === 0 ? 'A' : 'B'}`,
-    externalAccountId: null,
-    status: 'needs_login',
+    externalAccountId: importedFeedbacks ? String(100 + index) : null,
+    status: importedFeedbacks ? 'connected' : 'needs_login',
     capabilities: {},
     allowedActions: [],
     lastSyncedAt: null,
@@ -198,6 +199,7 @@ async function mockMarketplace(
           username: 'testprofil',
           location: 'Deutschland',
           bio: 'Künstliche Daten für den Oberflächentest.',
+          ...(importedFeedbacks ? { feedbacks: importedFeedbacks } : {}),
         },
         publications: {
           items: [
@@ -293,6 +295,80 @@ async function mockMarketplace(
   });
   return calls;
 }
+
+test('zeigt unbekannte Bewertungen und gespeicherte Teilfehler zugänglich @marketplace-preview @core-smoke', async ({
+  page,
+}) => {
+  await mockMarketplace(page, true, false, false, false, [
+    {
+      id: 'feedback-unknown',
+      authorName: null,
+      rating: null,
+      isAutomatic: null,
+      text: 'Danke',
+    },
+  ]);
+  const operationId = '25000000-0000-4000-8000-000000000041';
+  await page.route('**/marketplace-browser/connections/sync/start', (route) =>
+    route.fulfill({
+      status: 202,
+      json: { id: operationId },
+    }),
+  );
+  await page.route('**/marketplace-browser/connections/sync/status', (route) =>
+    route.fulfill({
+      json: {
+        id: operationId,
+        state: 'succeeded',
+        stage: 'cleanup',
+        errorCode: null,
+        sourceResults: {
+          profile: { status: 'complete' },
+          publications: { status: 'complete' },
+          conversations: { status: 'complete' },
+          messages: { status: 'partial' },
+          sales: { status: 'partial' },
+          feedback: { status: 'failed', failure: 'network' },
+        },
+      },
+    }),
+  );
+  await page.goto('/marketplaces/vinted/feedback');
+  const feedback = page.locator('app-vinted-feedback-list');
+  await expect(feedback.getByText('Autor unbekannt', { exact: true })).toBeVisible();
+  await expect(feedback.getByText('Herkunft unbekannt', { exact: true })).toBeVisible();
+  await expect(feedback.getByText('Sternebewertung unbekannt', { exact: true })).toBeVisible();
+  await page.addScriptTag({ content: axe.source });
+  expect(
+    await page.evaluate(
+      async () =>
+        (
+          await (window as unknown as { axe: typeof axe }).axe.run(
+            document.querySelector('app-vinted-feedback-list') as HTMLElement,
+          )
+        ).violations,
+    ),
+  ).toEqual([]);
+  await page.getByRole('button', { name: 'Kontodaten aktualisieren', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Kontodaten aktualisieren' });
+  await expect(dialog.getByText('Bewertungen', { exact: true })).toBeVisible();
+  await expect(
+    dialog.getByText('Die erfolgreichen Bereiche wurden gespeichert.', { exact: false }),
+  ).toBeVisible();
+  // Die bisherige Schließfrist ist verstrichen: Teilfehler müssen weiterhin sichtbar sein.
+  await page.waitForTimeout(1_600);
+  await expect(dialog).toBeVisible();
+  expect(
+    await page.evaluate(
+      async () =>
+        (
+          await (window as unknown as { axe: typeof axe }).axe.run(
+            document.querySelector('app-marketplace-sync-progress') as HTMLElement,
+          )
+        ).violations,
+    ),
+  ).toEqual([]);
+});
 
 test('erklärt eine volle GoLogin-Profilliste ohne Vinted-Anmeldeversuch @marketplace-preview', async ({
   page,

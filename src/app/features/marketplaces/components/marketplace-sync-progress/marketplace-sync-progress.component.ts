@@ -1,6 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
+import {
+  MARKETPLACE_SYNC_SOURCE_LABELS,
+  marketplaceSyncWarningSources,
+  type MarketplaceSyncSource,
+} from '../../models/marketplace-sync-results';
 import type { MarketplaceSyncProgress } from '../../services/marketplace-browser-test-api.service';
 
 const steps = [
@@ -12,6 +18,14 @@ const steps = [
   { id: 'persist', label: 'Daten übernehmen' },
   { id: 'cleanup', label: 'Verbindung beenden' },
 ] as const;
+
+const stepSources: Partial<Record<(typeof steps)[number]['id'], readonly MarketplaceSyncSource[]>> =
+  {
+    profile: ['profile'],
+    publications: ['publications'],
+    conversations: ['conversations', 'messages'],
+    sales: ['sales', 'feedback'],
+  };
 
 const STAGE_LABELS: Record<string, string> = {
   browser: 'Verbindung vorbereiten',
@@ -75,7 +89,7 @@ export interface SyncDiagnosticInfo {
 
 @Component({
   selector: 'app-marketplace-sync-progress',
-  imports: [ModalShellComponent, ButtonComponent],
+  imports: [ModalShellComponent, ButtonComponent, NoticeBannerComponent],
   templateUrl: './marketplace-sync-progress.component.html',
   styleUrl: './marketplace-sync-progress.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -86,6 +100,12 @@ export class MarketplaceSyncProgressComponent {
   readonly reconnectLink = input<string | null>(null);
   readonly closed = output<void>();
   readonly steps = steps;
+  readonly warningSources = computed(() =>
+    marketplaceSyncWarningSources(this.progress()?.sourceResults).map((source) => ({
+      source,
+      label: MARKETPLACE_SYNC_SOURCE_LABELS[source],
+    })),
+  );
 
   readonly showDiagnostics = signal(false);
   readonly copiedCommand = signal(false);
@@ -122,6 +142,16 @@ export class MarketplaceSyncProgressComponent {
 
   completed(index: number): boolean {
     const progress = this.progress();
+    const step = steps[index];
+    if (!step) return false;
+    const results = progress?.sourceResults;
+    if (
+      results &&
+      stepSources[step.id]?.some(
+        (source) => results[source].status !== 'complete' || !!results[source].failure,
+      )
+    )
+      return false;
     return (
       progress?.state === 'succeeded' ||
       (progress?.state === 'running' && index < this.currentIndex())

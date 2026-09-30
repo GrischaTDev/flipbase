@@ -1,4 +1,5 @@
 import type { BrowserSessionScope } from './marketplace-browser-session-broker.ts';
+import type { VintedImportAreas } from './vinted-account-import.ts';
 
 export type MarketplaceSyncStage =
   'browser' | 'profile' | 'publications' | 'conversations' | 'sales' | 'persist' | 'cleanup';
@@ -25,6 +26,7 @@ export interface MarketplaceSyncOperation {
   errorCode: MarketplaceSyncError | null;
   observedAt: string | null;
   counts: Record<string, number> | null;
+  sourceResults?: VintedImportAreas;
 }
 
 interface OperationStoreOptions {
@@ -83,7 +85,7 @@ export class SupabaseMarketplaceOperationStore {
   async read(scope: BrowserSessionScope, id: string): Promise<MarketplaceSyncOperation | null> {
     if (!uuidPattern.test(id)) return null;
     const url = this.operationUrl(scope, id);
-    url.searchParams.set('select', 'id,state,stage,error_code,observed_at,counts');
+    url.searchParams.set('select', 'id,state,stage,error_code,observed_at,counts,source_results');
     const result = await this.json(
       await this.request(url, {
         headers: { apikey: this.publishableKey, Authorization: `Bearer ${scope.userAccessToken}` },
@@ -108,6 +110,9 @@ export class SupabaseMarketplaceOperationStore {
           : null,
       observedAt: typeof value['observed_at'] === 'string' ? value['observed_at'] : null,
       counts: record(value['counts']) as Record<string, number> | null,
+      ...(record(value['source_results'])
+        ? { sourceResults: value['source_results'] as VintedImportAreas }
+        : {}),
     };
   }
 
@@ -140,6 +145,7 @@ export class SupabaseMarketplaceOperationStore {
     observedAt: string,
     counts: Record<string, number>,
     cleanupPending = false,
+    sourceResults?: VintedImportAreas,
   ): Promise<void> {
     if (
       !(await this.patch(this.runningUrl(scope, id, runnerId), {
@@ -147,6 +153,7 @@ export class SupabaseMarketplaceOperationStore {
         stage: 'cleanup',
         observed_at: observedAt,
         counts,
+        source_results: sourceResults ?? null,
         error_code: cleanupPending ? 'cleanup' : null,
         finished_at: new Date().toISOString(),
       }))

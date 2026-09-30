@@ -224,12 +224,15 @@ export function parseMarketplaceSnapshot(value: unknown, scope: AccountScope): M
               authorName: text(fb['authorName']),
               authorImageUrl: imageUrl(fb['authorImageUrl']),
               rating:
-                typeof fb['rating'] === 'number' && Number.isFinite(fb['rating'])
+                typeof fb['rating'] === 'number' &&
+                Number.isInteger(fb['rating']) &&
+                fb['rating'] >= 0 &&
+                fb['rating'] <= 5
                   ? fb['rating']
-                  : 5,
+                  : null,
               text: text(fb['text']) ?? '',
               occurredAt: timestamp(fb['occurredAt']),
-              isAutomatic: fb['isAutomatic'] === true,
+              isAutomatic: typeof fb['isAutomatic'] === 'boolean' ? fb['isAutomatic'] : null,
               itemTitle: text(fb['itemTitle']),
             },
           ];

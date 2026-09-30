@@ -195,4 +195,46 @@ describe('Marktplatz-Antworten', () => {
     expect(result.profile?.feedbacks?.[1].isAutomatic).toBe(true);
     expect(result.profile?.feedbacks?.[0].authorName).toBe('marie');
   });
+
+  it('erfindet für fehlende oder beschädigte Bewertungen weder Sterne noch Herkunft oder Autor', () => {
+    for (const rating of [undefined, null, -1, 6, 4.5, Number.NaN, Infinity, '5']) {
+      const result = parseMarketplaceSnapshot(
+        {
+          ...snapshot(),
+          profile: { ...scope, feedbacks: [{ id: 'unknown-feedback', rating }] },
+        },
+        scope,
+      );
+      expect(result.profile?.feedbacks?.[0]).toMatchObject({
+        rating: null,
+        isAutomatic: null,
+        authorName: null,
+      });
+    }
+  });
+
+  it('übernimmt nur ganzzahlige Sterne von null bis fünf und ausdrückliche Herkunftsangaben', () => {
+    for (const rating of [0, 1, 5]) {
+      for (const isAutomatic of [false, true]) {
+        const result = parseMarketplaceSnapshot(
+          {
+            ...snapshot(),
+            profile: { ...scope, feedbacks: [{ id: 'known-feedback', rating, isAutomatic }] },
+          },
+          scope,
+        );
+        expect(result.profile?.feedbacks?.[0]).toMatchObject({ rating, isAutomatic });
+      }
+    }
+    for (const isAutomatic of [null, undefined, 'true', 1]) {
+      const result = parseMarketplaceSnapshot(
+        {
+          ...snapshot(),
+          profile: { ...scope, feedbacks: [{ id: 'unknown-origin', isAutomatic }] },
+        },
+        scope,
+      );
+      expect(result.profile?.feedbacks?.[0].isAutomatic).toBeNull();
+    }
+  });
 });

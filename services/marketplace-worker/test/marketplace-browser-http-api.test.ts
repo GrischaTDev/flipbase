@@ -170,6 +170,14 @@ test('gleicht nur die gebundene Sitzung ab und stoppt den Browser nach dem Speic
     identity: { id: '123', username: 'test' },
     observedAt: '2026-09-28T10:00:00Z',
     entries: [],
+    areas: {
+      profile: { status: 'complete' },
+      publications: { status: 'complete' },
+      conversations: { status: 'complete' },
+      messages: { status: 'partial' },
+      sales: { status: 'partial' },
+      feedback: { status: 'complete' },
+    },
   };
   const written: string[] = [];
   const api = await setup(

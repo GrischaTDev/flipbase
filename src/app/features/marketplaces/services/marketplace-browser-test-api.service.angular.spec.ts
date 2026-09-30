@@ -12,7 +12,92 @@ const scope = {
 const id = '25600000-0000-4000-8000-000000000031';
 const api = new MarketplaceBrowserTestApiService();
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.useRealTimers();
+});
+
+const sourceResults = () => ({
+  profile: { status: 'complete' },
+  publications: { status: 'complete' },
+  conversations: { status: 'complete' },
+  messages: { status: 'partial' },
+  sales: { status: 'complete' },
+  feedback: { status: 'failed', failure: 'rate_limited' },
+});
+
+it('übernimmt getrennte Bereichsergebnisse eines erfolgreichen Auftrags', async () => {
+  vi.useFakeTimers();
+  vi.stubGlobal(
+    'fetch',
+    vi
+      .fn()
+      .mockImplementation(async (path: string) =>
+        path.endsWith('/start')
+          ? Response.json({ id }, { status: 202 })
+          : Response.json({ id, state: 'succeeded', sourceResults: sourceResults() }),
+      ),
+  );
+  const onProgress = vi.fn();
+  const result = api.syncConnection(scope, 'token', onProgress);
+  await vi.runAllTimersAsync();
+  await result;
+  expect(onProgress).toHaveBeenLastCalledWith({
+    id,
+    state: 'succeeded',
+    stage: null,
+    errorCode: null,
+    sourceResults: sourceResults(),
+  });
+});
+
+it('akzeptiert einen älteren Worker ohne Bereichsergebnisse', async () => {
+  vi.useFakeTimers();
+  vi.stubGlobal(
+    'fetch',
+    vi
+      .fn()
+      .mockImplementation(async (path: string) =>
+        path.endsWith('/start')
+          ? Response.json({ id }, { status: 202 })
+          : Response.json({ id, state: 'succeeded' }),
+      ),
+  );
+  const result = api.syncConnection(scope, 'token');
+  await vi.runAllTimersAsync();
+  await expect(result).resolves.toBeUndefined();
+});
+
+it.each(
+  [
+    { ...sourceResults(), unexpected: { status: 'complete' } },
+    { ...sourceResults(), profile: { status: 'pretend_complete' } },
+    { ...sourceResults(), feedback: { status: 'failed', failure: 'secret-server-detail' } },
+    { profile: { status: 'complete' } },
+    null,
+    [],
+  ].map((results) => ({ results })),
+)('weist beschädigte oder unbekannte Bereichsergebnisse zurück: %j', async ({ results }) => {
+  vi.useFakeTimers();
+  vi.stubGlobal(
+    'fetch',
+    vi
+      .fn()
+      .mockImplementation(async (path: string) =>
+        path.endsWith('/start')
+          ? Response.json({ id }, { status: 202 })
+          : Response.json({ id, state: 'succeeded', sourceResults: results }),
+      ),
+  );
+  const result = api.syncConnection(scope, 'token').then(
+    () => null,
+    (error: unknown) => error,
+  );
+  await vi.runAllTimersAsync();
+  const error = await result;
+  expect(error).toBeInstanceOf(Error);
+  expect((error as Error).message).toContain('nicht vollständig aktualisiert');
+});
 
 describe('Browser-Test-API', () => {
   it('erkennt die SPA-Antwort nicht als aktiven Browserdienst', async () => {

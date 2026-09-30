@@ -1,5 +1,9 @@
 import { Injectable } from '@angular/core';
 import type { AccountScope } from '../models/marketplace.models';
+import {
+  parseMarketplaceSyncSourceResults,
+  type MarketplaceSyncSourceResults,
+} from '../models/marketplace-sync-results';
 
 export type BrowserTestInput =
   | { kind: 'click'; x: number; y: number }
@@ -41,6 +45,7 @@ export interface MarketplaceSyncProgress {
     | 'cleanup'
     | null;
   errorCode: string | null;
+  sourceResults?: MarketplaceSyncSourceResults;
 }
 
 export class VintedEditUnconfirmedError extends Error {
@@ -434,6 +439,9 @@ export class MarketplaceBrowserTestApiService {
               : null,
           errorCode:
             'errorCode' in value && typeof value.errorCode === 'string' ? value.errorCode : null,
+          ...('sourceResults' in value
+            ? { sourceResults: parseMarketplaceSyncSourceResults(value.sourceResults) }
+            : {}),
         };
         onProgress?.(progress);
         if (progress.state === 'succeeded') return;

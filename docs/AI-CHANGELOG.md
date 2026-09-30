@@ -1,5 +1,47 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-30 – Juna – Vinted-Paket für PR und Merge vorbereitet
+
+**Auftrag:** Den geprüften Vinted-Zweig veröffentlichen, erfolgreiche Pflichtprüfungen abwarten, mit Merge-Commit integrieren und den Feature-Zweig samt Worktree aufräumen.
+
+**Abgleich:** Den eigenen, noch unveröffentlichten Zweig auf den aktuellen `origin/master` mit dem bereits integrierten Unternehmens-/Versandumbau gesetzt. Die beiden Konflikte im AI-Changelog und in der Schemaregistrierung unter Erhalt beider Änderungen aufgelöst; die automatisch zusammengeführten Datenbanktypen werden erneut geprüft. Die vollständige verbindliche Abnahme erfolgt im PR vor dem Merge.
+
+**Prüfung:** Nach dem Abgleich erneut 140 Worker-Tests, Anwendungstypprüfung, Produktionsbau und Schemaregistrierung erfolgreich. Den bereits lokal abgenommenen Vinted-Browserfall gezielt in die PR-Pflichtauswahl aufgenommen; deren Vertrag wurde zuerst fehlschlagend nachgestellt und besteht anschließend mit 18 Kernfällen.
+
+## 2026-09-30 – Juna – Vinted-Abrufe gegen Teilfehler abgesichert
+
+**Auftrag:** Die erste freigegebene Etappe des agentengeprüften Vinted-Ausbaus umsetzen: verlässliche Quellenstände und sichere Datenübernahme vor Zeitsteuerung, Benachrichtigungen und Inseratentwürfen.
+
+**Änderung:** Profil, Inserate, Gespräche, Nachrichten, Verkäufe und Bewertungen tragen getrennte Ergebnisse. Erfolgreiche Seiten und Gespräche bleiben bei unabhängigen Abruffehlern erhalten; unvollständige Listen berechtigen nicht zum Löschen. Anmeldeverlust und entzogener Zugriff brechen weiter ab. Fehlende Sterne, Autoren und Herkunft einer Bewertung bleiben unbekannt. Der Fortschrittsdialog nennt Teilfehler und bleibt dafür offen; erfolgreiche Kontodaten werden neu geladen.
+
+**Datenbank:** Neue deklarative Quelle `300_marketplace_import_reliability.sql` mit getrennten Abrufständen und atomarer Importfunktion. Die Funktion ist ausschließlich für den Serverdienst erreichbar und prüft den Sitzungsbesitzer, seine aktuellen Rechte, Kontozuordnung und Ablauf erneut innerhalb der Schreibtransaktion. Neuere bestätigte Cacheänderungen bleiben gegenüber verspäteten Abrufen erhalten. Die CLI-Migration wurde in einer eigenen Prüfdatenbank erzeugt, automatisch auf die geplanten Objekte begrenzt und transaktional auf dem historischen Migrationsstand angewendet. Rechte, Sequenzrechte und Kommentare wurden aus den deklarativen Schemas übernommen; die Typen sind neu erzeugt. Bestehende Migrationen bleiben unverändert.
+
+**Review:** Zwei Agenten haben Anzeige und Datenbank umgesetzt; ein weiterer hat das gesamte Paket unabhängig geprüft. Der dabei gefundene Datenverlustrandfall bei Inseraten ohne bestätigte Kontozuordnung wurde zuerst mit einer fehlschlagenden Regression nachgestellt und behoben. Keine weiteren funktionalen Befunde verblieben.
+
+**Prüfung:** 140 Worker-Tests, 66 gezielte Angular-Tests, 15 Parser-Tests und 174 Datenbankprüfungen in sechs Marketplace-Suiten erfolgreich. Worker- und Anwendungstypprüfung, beide Bauten, gezieltes ESLint und Formatprüfung sowie Schema-/Migrationsverträge und Suite-Audit bestanden. Ein lokaler Browserfall prüft unbekannte Bewertungen, erhaltene Teilwarnungen und automatische AXE-Prüfungen beider betroffener Ansichten. Die Tests verwenden eigene Datenbanken und künstliche Browserantworten; es wurde kein Vinted-Konto verändert.
+
+**Stand:** Eigener verwalteter Worktree auf `juna/vinted-data-reliability`. Die weitere Zeitsteuerung, neue Benachrichtigungen und lokale Inseratentwürfe folgen in den nächsten geplanten Paketen. Die Anwendung ist noch nicht veröffentlicht.
+
+## 2026-09-30 – Juna – Vinted-Ausbau durch Agenten und Quellenprüfung überarbeitet
+
+**Auftrag:** Den gesamten Vorschlag für automatische Vinted-Abrufe, Benachrichtigungen, Mehrkonten und gemeinsame Inserate durch unabhängige Agenten prüfen und zusätzliche Recherche einarbeiten.
+
+**Review:** Zwei Agentenreviews für Hintergrundbetrieb und Benachrichtigungen vollständig erhalten. Ein drittes Inserate-/Mehrkonten-Review wurde nach konkreten Befunden durch ein Nutzungslimit beendet; Artikelbindung, Eindeutigkeit und Bildlöschung wurden anschließend selbst am Code nachgeprüft. Zusätzliche Herstellerquellen zu Supabase, GoLogin, Dotb und eBay sowie CI-/Rolloutverträge geprüft. SellerAiders Fünf-Minuten-Angabe betrifft Favoriten-/Like-Benachrichtigungen mit anschließendem Senden und ist kein Standard für eingehende Nachrichten.
+
+**Änderung am Plan:** Sechs überprüfbare Etappen statt eines großen Abruf-/Meldungspakets. Quellen, Ereignisse, Meldungen und Fortschritt werden gemeinsam je erfolgreichem Bereich übernommen. Offline-Freigaben erhalten die heutige Betreiber-/Workspaceadmin-Grenze; Dispatcher, Sperrversionen, Lebenszeichen, Cloudkapazität und Recovery werden vor automatischem Betrieb vereinheitlicht. Die Team-Glocke bleibt gemeinsam mit eingeschränkter Sichtbarkeit, richtigem Zähler und inhaltsfreiem Broadcast. Entwürfe, Anbieterstand und Übertragungsauftrag bleiben getrennt; externe Bestandsinserate brauchen keinen künstlichen Lagerartikel. Einzelstücke erhalten je Plattform ein aktives Zielkonto. Veröffentlichungsaufträge schützen eigene Fotokopien und blockieren Wiederholung bei unklarem Ausgang. eBay bleibt als eigenes Folgepaket im Gesamtplan. Messungen und gezielte Live-Nachweise sind ausdrücklich von lokalen Abnahmen getrennt.
+
+**Prüfung:** Ausschließlich öffentliche Primärdokumentation und Projektcode gelesen; Plan und AI-Changelog angepasst. Zwei abschließende Agentengegenprüfungen bestätigen die integrierte Richtung; deren sechs Ergänzungen zu laufendem Rechteentzug, Teilerfolg, Doppelclaim/Bereinigung, Nachrichtenrichtung, gelöschten Meldungen und Anzeigeeinstellungen wurden in Vertrag und Abnahme aufgenommen. Dokumentformatierung und Git-Diff geprüft. Keine Produktänderungen, Anwendungstests, Vinted-Sitzungen, Kontoanlage, Veröffentlichung oder Auslieferung. Offene Quellen-/Kapazitätsnachweise und die gezielte Aufnahme neuer Browsertests in die PR-Pflichtauswahl sind im überarbeiteten Bericht festgehalten.
+
+## 2026-09-30 – Juna – Vinted-Aktualisierung, Meldungen und Inseratablauf untersucht
+
+**Auftrag:** Automatische Vinted-Abrufe alle 5, 10 oder 15 Minuten, Meldungen für Nachrichten/Angebote/Käufe/Bewertungen, weitere Konten und plattformspezifische Inserate mit getrenntem Speichern und Übertragen vorbereiten.
+
+**Befund:** Bearbeiten lädt derzeit das Anbieterformular; Speichern schreibt unmittelbar zu Vinted. Der gemeinsame Inseratbereich erlaubt ausschließlich Kleinanzeigen und verlangt einen internen Artikelbezug. Der manuelle Sync benötigt ein aktuelles Nutzer-Zugangstoken. Ungelesene Gesprächsdetails werden übersprungen; Verkäufe werden nur mit Bestellkennung und Status „Versendet“ erfasst. Bewertungsfehler erscheinen als leere Liste. Der bestehende Benachrichtigungsfeed braucht persistente Ereigniserkennung, Duplikatvermeidung und eine Sichtbarkeit passend zu den eingeschränkten Marktplatzrechten.
+
+**Vorschlag:** 15 Minuten als Vorgabe, je Konto 5/10/15 Minuten wählbar; serverseitige Abrufe und neue Meldungen, danach gemeinsame Inseratentwürfe mit sofortigem Bearbeiten, zuletzt neue Vinted-Veröffentlichungen und echte Zwei-Konten-Abnahme. Herstellerangaben, Grenzen und konkrete Abnahmekriterien stehen in `docs/audit/2026-09-30-vinted-sync-listing-flow.md`. Die öffentlich angezeigte deutsche AGB-Fassung gilt erst ab 5. Oktober 2026; sie wurde nicht als bereits geltende Fassung ausgegeben.
+
+**Prüfung:** Aktuellen Hauptstand nach `git fetch` mit `origin/master` abgeglichen und einen eigenen Zweig `juna/vinted-sync-listing-flow` angelegt. Relevanten Frontend-/Worker-/Schema-Code und öffentliche Primärquellen gelesen. Nur Dokumentation geändert; keine Anwendungstests, Anbietersitzung, Kontoanlage, Schreibaktion, Veröffentlichung oder Auslieferung. Der Ablaufvorschlag muss vor Produktänderungen abgestimmt werden.
+
 ## 2026-09-30 – Juna – Shop und Versand an Unternehmensdaten angebunden
 
 **Auftrag:** PR 4 des freigegebenen Unternehmensumbaus umsetzen: Shop-Bankkonto und Impressum zentral lesen, Versand-Vererbung mit erhaltenen individuellen Absendern einführen und doppelte Steuerpflege entfernen.

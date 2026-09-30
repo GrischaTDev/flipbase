@@ -6,6 +6,7 @@ import { prepareMarketplaceRendering } from '../../../../../../e2e/support/marke
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
+import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 import { MarketplaceSyncProgressComponent } from './marketplace-sync-progress.component';
 
 describe('MarketplaceSyncProgressComponent', () => {
@@ -21,6 +22,10 @@ describe('MarketplaceSyncProgressComponent', () => {
         path: 'src/app/shared/components/modal-shell/modal-shell.component.ts',
       },
       { type: ButtonComponent, path: 'src/app/shared/components/button/button.component.ts' },
+      {
+        type: NoticeBannerComponent,
+        path: 'src/app/shared/components/notice-banner/notice-banner.component.ts',
+      },
       {
         type: MarketplaceSyncProgressComponent,
         path: 'src/app/features/marketplaces/components/marketplace-sync-progress/marketplace-sync-progress.component.ts',
@@ -43,6 +48,85 @@ describe('MarketplaceSyncProgressComponent', () => {
 
   it('erstellt die Komponente erfolgreich', () => {
     expect(component).toBeTruthy();
+  });
+
+  it.each([{ status: 'failed', failure: 'rate_limited' }, { status: 'failed' }])(
+    'zeigt gescheiterte Bewertungen als Teilwarnung statt vollständig grünen Erfolg: %j',
+    (feedback) => {
+      fixture.componentRef.setInput('progress', {
+        id: 'op-partial',
+        state: 'succeeded',
+        stage: 'cleanup',
+        errorCode: null,
+        sourceResults: {
+          profile: { status: 'complete' },
+          publications: { status: 'complete' },
+          conversations: { status: 'complete' },
+          messages: { status: 'complete' },
+          sales: { status: 'complete' },
+          feedback,
+        },
+      });
+      fixture.detectChanges();
+
+      const element = fixture.nativeElement as HTMLElement;
+      expect(element.textContent).toContain('Die erfolgreichen Bereiche wurden gespeichert.');
+      expect(element.textContent).toContain('Bewertungen');
+      expect(element.textContent).toContain('nicht vollständig aktualisiert');
+      expect(element.textContent).toContain('bisherige Daten bleiben erhalten');
+      expect(component.completed(1)).toBe(true);
+      expect(component.completed(4)).toBe(false);
+    },
+  );
+
+  it('warnt bei teilweise gelesenen Daten nur mit tatsächlichem Abruffehler', () => {
+    fixture.componentRef.setInput('progress', {
+      id: 'op-partial-messages',
+      state: 'succeeded',
+      stage: 'cleanup',
+      errorCode: null,
+      sourceResults: {
+        profile: { status: 'complete' },
+        publications: { status: 'partial', failure: 'timeout' },
+        conversations: { status: 'complete' },
+        messages: { status: 'partial' },
+        sales: { status: 'complete' },
+        feedback: { status: 'complete' },
+      },
+    });
+    fixture.detectChanges();
+
+    const element = fixture.nativeElement as HTMLElement;
+    const warning = element.querySelector('app-notice-banner');
+    expect(warning?.textContent).toContain('Inserate');
+    expect(warning?.textContent).not.toContain('Nachrichten');
+    expect(component.completed(2)).toBe(false);
+    expect(component.completed(3)).toBe(false);
+    expect(component.completed(4)).toBe(true);
+  });
+
+  it('behandelt ungelesene Nachrichten als unvollständig ohne Abruffehler zu behaupten', () => {
+    fixture.componentRef.setInput('progress', {
+      id: 'op-unread',
+      state: 'succeeded',
+      stage: 'cleanup',
+      errorCode: null,
+      sourceResults: {
+        profile: { status: 'complete' },
+        publications: { status: 'complete' },
+        conversations: { status: 'complete' },
+        messages: { status: 'partial' },
+        sales: { status: 'complete' },
+        feedback: { status: 'complete' },
+      },
+    });
+    fixture.detectChanges();
+
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.querySelector('app-notice-banner')).toBeNull();
+    expect(element.textContent).not.toContain('nicht vollständig aktualisiert');
+    expect(component.completed(3)).toBe(false);
+    expect(component.completed(4)).toBe(true);
   });
 
   it('zeigt keine Diagnose-Details im regulären fehlerfreien Zustand', () => {

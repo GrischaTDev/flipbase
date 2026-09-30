@@ -132,19 +132,21 @@
                 } @else {
                   <app-product-thumbnail
                     [src]="entry.authorImageUrl"
-                    [alt]="entry.authorName ?? 'Mitglied'"
+                    [alt]="entry.authorName ?? 'Autor unbekannt'"
                     size="avatar"
                   />
                 }
                 <div>
                   <div class="flex flex-wrap items-center gap-2">
                     <span class="font-semibold text-fb-text-primary">
-                      {{ entry.authorName ?? (entry.isAutomatic ? 'Vinted System' : 'Mitglied') }}
+                      {{ entry.authorName ?? 'Autor unbekannt' }}
                     </span>
                     @if (entry.isAutomatic) {
                       <app-badge tone="info">Automatisch</app-badge>
-                    } @else {
+                    } @else if (entry.isAutomatic === false) {
                       <app-badge tone="neutral">Mitglied</app-badge>
+                    } @else {
+                      <app-badge tone="neutral">Herkunft unbekannt</app-badge>
                     }
                   </div>
                   @if (entry.itemTitle) {
@@ -155,19 +157,24 @@
 
               <!-- Sterne & Datum -->
               <div class="flex flex-col items-end gap-1">
-                <div
-                  class="flex gap-0.5 text-[#d49b00]"
-                  [attr.aria-label]="entry.rating + ' von 5 Sternen'"
-                >
-                  @for (star of stars; track star) {
-                    <svg
-                      [lucideIcon]="starIcon"
-                      class="size-3.5"
-                      [class.fill-current]="star <= entry.rating"
-                      aria-hidden="true"
-                    ></svg>
-                  }
-                </div>
+                @if (entry.rating !== null) {
+                  <div
+                    role="img"
+                    class="flex gap-0.5 text-[#d49b00]"
+                    [attr.aria-label]="entry.rating + ' von 5 Sternen'"
+                  >
+                    @for (star of stars; track star) {
+                      <svg
+                        [lucideIcon]="starIcon"
+                        class="size-3.5"
+                        [class.fill-current]="star <= entry.rating"
+                        aria-hidden="true"
+                      ></svg>
+                    }
+                  </div>
+                } @else {
+                  <span class="text-xs text-fb-text-secondary">Sternebewertung unbekannt</span>
+                }
                 @if (entry.occurredAt) {
                   <time [attr.datetime]="entry.occurredAt" class="text-xs text-fb-text-muted">
                     {{ entry.occurredAt | date: 'dd.MM.yyyy' }}

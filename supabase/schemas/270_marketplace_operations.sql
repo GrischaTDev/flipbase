@@ -15,6 +15,7 @@ create table public.marketplace_operations (
   created_at timestamptz not null default now(),
   started_at timestamptz,
   finished_at timestamptz,
+  source_results jsonb check (source_results is null or jsonb_typeof(source_results) = 'object'),
   foreign key (workspace_id, connection_id) references public.marketplace_connections(workspace_id, id) on delete cascade
 );
 comment on table public.marketplace_operations is 'Kontogebundene, dauerhafte Statusmeldungen für Datenabrufe; keine Token oder Vinted-Inhalte.';

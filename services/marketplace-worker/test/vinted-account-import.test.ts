@@ -8,6 +8,185 @@ import {
   VintedImportRequestError,
 } from '../src/vinted-account-import.ts';
 
+function importPage(overrides: (path: string) => unknown): Page {
+  return {
+    url: () => 'https://www.vinted.de/',
+    evaluate: async (_script: unknown, path: string) =>
+      overrides(path) ??
+      (path.includes('/users/current')
+        ? { user: { id: 123, login: 'testkonto' } }
+        : { items: [], conversations: [], user_feedbacks: [], pagination: { total_pages: 1 } }),
+  } as unknown as Page;
+}
+
+test('fehlende Sterne und Herkunft werden nicht erfunden', () => {
+  const snapshot = parseVintedAccountImport(
+    { id: '123', username: 'testkonto' },
+    { user: { id: 123 } },
+    [],
+    [],
+    [],
+    '2026-09-30T09:00:00Z',
+    [],
+    [
+      { id: 901 },
+      { id: 902, rating: 8, feedback: 'automatisch klingt gut', author: { login: 'Anna' } },
+    ],
+  );
+  const feedbacks = snapshot.entries[0]?.body['feedbacks'] as Record<string, unknown>[];
+  assert.equal(feedbacks[0]?.['rating'], null);
+  assert.equal(feedbacks[0]?.['isAutomatic'], null);
+  assert.equal(feedbacks[0]?.['authorName'], null);
+  assert.equal(feedbacks[0]?.['text'], '');
+  assert.equal(feedbacks[1]?.['rating'], null);
+  assert.equal(feedbacks[1]?.['isAutomatic'], null);
+});
+
+test('fehlgeschlagene Bewertungen bleiben von einer erfolgreichen leeren Liste unterscheidbar', async () => {
+  const failed = await readVintedAccountImport(
+    importPage((path) =>
+      path.includes('/feedbacks') ? { flipbaseRequestFailure: 'provider_unavailable' } : undefined,
+    ),
+    async () => undefined,
+  );
+  assert.deepEqual(failed.areas.feedback, { status: 'failed', failure: 'provider_unavailable' });
+  assert.equal(Object.hasOwn(failed.entries[0]?.body ?? {}, 'feedbacks'), false);
+  const empty = await readVintedAccountImport(
+    importPage(() => undefined),
+    async () => undefined,
+  );
+  assert.deepEqual(empty.areas.feedback, { status: 'complete' });
+  assert.deepEqual(empty.entries[0]?.body['feedbacks'], []);
+});
+
+test('ein Inseratfehler verwirft keine erfolgreichen Gespräche', async () => {
+  const snapshot = await readVintedAccountImport(
+    importPage((path) => {
+      if (path.includes('/wardrobe/')) return { flipbaseRequestFailure: 'network' };
+      if (path.includes('/inbox'))
+        return { conversations: [{ id: 51, unread: true }], pagination: { total_pages: 1 } };
+      return undefined;
+    }),
+    async () => undefined,
+  );
+  assert.deepEqual(snapshot.areas.publications, { status: 'failed', failure: 'network' });
+  assert.equal(snapshot.areas.conversations.status, 'complete');
+  assert.equal(snapshot.areas.messages.status, 'partial');
+  assert.equal(snapshot.entries.filter((entry) => entry.kind === 'conversation').length, 1);
+});
+
+test('fehlerhafte Folgeseite behält gelesene Inserate ohne Vollständigkeitsbehauptung', async () => {
+  const snapshot = await readVintedAccountImport(
+    importPage((path) => {
+      if (path.includes('/wardrobe/') && path.includes('page=1&'))
+        return { items: [{ id: 41, user_id: 123 }], pagination: { total_pages: 2 } };
+      if (path.includes('/wardrobe/')) return { flipbaseRequestFailure: 'rate_limited' };
+      return undefined;
+    }),
+    async () => undefined,
+  );
+  assert.deepEqual(snapshot.areas.publications, { status: 'partial', failure: 'rate_limited' });
+  assert.equal(
+    snapshot.entries.some((entry) => entry.externalId === '41'),
+    true,
+  );
+});
+
+test('ein Gesprächsfehler verhindert nicht andere Gesprächsdetails', async () => {
+  const snapshot = await readVintedAccountImport(
+    importPage((path) => {
+      if (path.includes('/inbox'))
+        return {
+          conversations: [
+            { id: 51, unread: false },
+            { id: 52, unread: false },
+          ],
+          pagination: { total_pages: 1 },
+        };
+      if (path.endsWith('/conversations/51')) return { flipbaseRequestFailure: 'invalid_response' };
+      if (path.endsWith('/conversations/52'))
+        return { conversation: { id: 52, messages: [{ id: 62, entity: { body: 'Hallo' } }] } };
+      return undefined;
+    }),
+    async () => undefined,
+  );
+  assert.deepEqual(snapshot.areas.messages, { status: 'partial', failure: 'invalid_response' });
+  assert.equal(
+    snapshot.entries.some((entry) => entry.kind === 'message' && entry.externalId === '62'),
+    true,
+  );
+});
+
+test('unbekannte Listenzeilen berechtigen nicht zum Löschen des bisherigen Bestands', async () => {
+  const snapshot = await readVintedAccountImport(
+    importPage((path) =>
+      path.includes('/wardrobe/')
+        ? { items: [{ title: 'ID fehlt' }], pagination: { total_pages: 1 } }
+        : undefined,
+    ),
+    async () => undefined,
+  );
+  assert.deepEqual(snapshot.areas.publications, { status: 'partial', failure: 'invalid_response' });
+});
+
+test('fehlende oder fremde Inseratzuordnung gilt nicht als vollständige leere Liste', async () => {
+  for (const item of [{ id: 41 }, { id: 41, user_id: 999 }]) {
+    const snapshot = await readVintedAccountImport(
+      importPage((path) =>
+        path.includes('/wardrobe/') ? { items: [item], pagination: { total_pages: 1 } } : undefined,
+      ),
+      async () => undefined,
+    );
+    assert.deepEqual(snapshot.areas.publications, {
+      status: 'partial',
+      failure: 'invalid_response',
+    });
+    assert.equal(snapshot.entries.filter((entry) => entry.kind === 'publication').length, 0);
+  }
+});
+
+test('Seitengrenze liefert Teilstand und beendet den Abruf nach genau zwanzig Seiten', async () => {
+  let pagesRead = 0;
+  const snapshot = await readVintedAccountImport(
+    importPage((path) => {
+      if (!path.includes('/wardrobe/')) return undefined;
+      pagesRead++;
+      return { items: [{ id: pagesRead, user_id: 123 }], pagination: { total_pages: 21 } };
+    }),
+    async () => undefined,
+  );
+  assert.equal(pagesRead, 20);
+  assert.equal(snapshot.entries.filter((entry) => entry.kind === 'publication').length, 20);
+  assert.deepEqual(snapshot.areas.publications, { status: 'partial', failure: 'invalid_response' });
+});
+
+test('entzogener Zugriff und Anmeldeverlust werden auch bei Bewertungen nicht verschluckt', async () => {
+  let requestedFeedback = false;
+  const page = importPage((path) => {
+    if (path.includes('/feedbacks')) {
+      requestedFeedback = true;
+      return { flipbaseRequestFailure: 'unauthorized' };
+    }
+    return undefined;
+  });
+  await assert.rejects(
+    readVintedAccountImport(page, async () => undefined),
+    VintedImportReadError,
+  );
+  assert.equal(requestedFeedback, true);
+  let revoked = false;
+  const revokedPage = importPage((path) => {
+    if (path.includes('/wardrobe/')) revoked = true;
+    return undefined;
+  });
+  await assert.rejects(
+    readVintedAccountImport(revokedPage, async () => {
+      if (revoked) throw new Error('Kontozugriff abgelaufen');
+    }),
+    /Kontozugriff abgelaufen|Vinted-Datenabruf fehlgeschlagen/,
+  );
+});
+
 test('ordnet HTTP-Ablehnungen nur festen Diagnosekategorien zu', async () => {
   const page = {
     url: () => 'https://www.vinted.de/',
