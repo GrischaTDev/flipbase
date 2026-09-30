@@ -48,7 +48,9 @@ test('company settings block workspace switching only while dirty', async ({ pag
   await expect(workspaceSelector).toBeEnabled();
 
   await page.getByLabel('Unternehmensname', { exact: true }).fill('E2E Unternehmen');
-  await expect(page.getByRole('button', { name: 'Änderungen speichern', exact: true })).toBeEnabled();
+  await expect(
+    page.getByRole('button', { name: 'Änderungen speichern', exact: true }),
+  ).toBeEnabled();
   await expect(workspaceSelector).toBeDisabled();
 
   await page.getByRole('button', { name: 'Verwerfen', exact: true }).click();
@@ -62,9 +64,9 @@ test('company settings remain visible in light and dark themes', async ({ page }
     await openCompanySettings(page);
 
     await expect(page.getByText('Unternehmenslogo', { exact: true })).toBeVisible();
-    await expect(page.locator('input[type="file"][accept="image/png,image/jpeg,image/webp"]')).toHaveCount(
-      1,
-    );
+    await expect(
+      page.locator('input[type="file"][accept="image/png,image/jpeg,image/webp"]'),
+    ).toHaveCount(1);
   }
 });
 
