@@ -24,6 +24,7 @@ import {
 import { MarketplaceAccountStore } from './services/marketplace-account.store';
 import { MarketplaceSyncProgressComponent } from './components/marketplace-sync-progress/marketplace-sync-progress.component';
 import { marketplaceSyncWarningSources } from './models/marketplace-sync-results';
+import { VintedSyncScheduleComponent } from './components/vinted-sync-schedule/vinted-sync-schedule.component';
 
 @Component({
   selector: 'app-vinted-workspace',
@@ -38,6 +39,7 @@ import { marketplaceSyncWarningSources } from './models/marketplace-sync-results
     PageHeaderComponent,
     SectionNavigationComponent,
     MarketplaceSyncProgressComponent,
+    VintedSyncScheduleComponent,
   ],
   templateUrl: './vinted-workspace.component.html',
   providers: [MarketplaceAccountStore],

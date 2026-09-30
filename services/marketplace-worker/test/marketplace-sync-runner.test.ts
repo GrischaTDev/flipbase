@@ -28,12 +28,93 @@ const areas: VintedImportAreas = {
   feedback: { status: 'failed', failure: 'network' },
 };
 
+for (const failure of ['denied', 'lost', 'open_failed'] as const) {
+  test(`preclaimed browser requires recovery if authorization or startup is uncertain: ${failure}`, async () => {
+    const dispatched = {
+      ...scope,
+      userAccessToken: '',
+      syncRead: {
+        operationId,
+        runnerId: operationId,
+        workerEpoch: 2,
+        sessionId,
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
+        absoluteExpiresAt: new Date(Date.now() + 600_000).toISOString(),
+      },
+    };
+    let opens = 0;
+    const operations = {
+      claim: async () => {
+        if (failure === 'lost') throw new Error('network');
+        return failure !== 'denied';
+      },
+      fail: async () => undefined,
+    } as unknown as SupabaseMarketplaceOperationStore;
+    const runner = new MarketplaceSyncRunner(
+      {
+        open: async () => {
+          opens++;
+          throw new Error('startup');
+        },
+        run: async () => {
+          throw new Error('not started');
+        },
+        close: async () => {
+          assert.fail('No known local handle');
+        },
+      },
+      {
+        write: async () => {
+          throw new Error('not started');
+        },
+      },
+      operations,
+      { record: () => undefined },
+    );
+    await assert.rejects(runner.runDispatched(dispatched));
+    assert.equal(opens, failure === 'open_failed' ? 1 : 0);
+  });
+}
+
+test('new durable dispatcher queues a manual read without opening an inline browser', async () => {
+  let nudges = 0;
+  let opens = 0;
+  const operations = {
+    enqueue: async () => ({ id: operationId, requestedBy: scope.userId }),
+    claim: async () => true,
+    fail: async () => undefined,
+  } as unknown as SupabaseMarketplaceOperationStore;
+  const runner = new MarketplaceSyncRunner(
+    {
+      open: async () => {
+        opens++;
+        return sessionId;
+      },
+      run: async () => {
+        throw new Error('Must not execute inline');
+      },
+      close: async () => undefined,
+    },
+    { write: async () => ({ profile: 0, publication: 0, conversation: 0, message: 0, sale: 0 }) },
+    operations,
+    undefined,
+    () => {
+      nudges++;
+    },
+  );
+  assert.equal(await runner.start(scope), operationId);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(opens, 0);
+  assert.equal(nudges, 1);
+});
+
 test('doppelter Start nutzt einen Auftrag und öffnet nur einen Browser', async () => {
   let claimed = false;
   let opens = 0;
   let writes = 0;
   let closes = 0;
   let savedSources: unknown;
+  const events: MarketplaceOperationEvent[] = [];
   let done!: () => void;
   const completed = new Promise<void>((resolve) => {
     done = resolve;
@@ -74,6 +155,7 @@ test('doppelter Start nutzt einen Auftrag und öffnet nur einen Browser', async 
             observedAt: '2026-09-28T10:00:00Z',
             entries: [],
             areas,
+            sourceRequestCount: 7,
           };
         },
       }),
@@ -87,14 +169,22 @@ test('doppelter Start nutzt einen Auftrag und öffnet nur einen Browser', async 
       return { profile: 1, publication: 0, conversation: 0, message: 0, sale: 0 };
     },
   };
-  const runner = new MarketplaceSyncRunner(broker, imports, operations);
+  const runner = new MarketplaceSyncRunner(broker, imports, operations, {
+    record: (event) => events.push(event),
+  });
   assert.equal(await runner.start(scope), operationId);
   assert.equal(await runner.start(scope), operationId);
   await completed;
+  await new Promise<void>((resolve) => setImmediate(resolve));
   assert.deepEqual(savedSources, areas);
   assert.equal(opens, 1);
   assert.equal(writes, 1);
   assert.equal(closes, 1);
+  assert.equal(
+    events.find((event) => event.stage === 'cleanup' && event.outcome === 'completed')
+      ?.sourceRequestCount,
+    7,
+  );
 });
 
 test('abgelaufener Zugriff beendet den Auftrag ohne Datenübernahme', async () => {

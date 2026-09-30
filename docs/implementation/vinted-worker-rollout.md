@@ -1,5 +1,46 @@
 # Vinted-Browserdienst: Veröffentlichung des Admin-Piloten
 
+## Vorbereiteter Ausbau vom 01.10.2026 – automatische Aktualisierung
+
+Paket 2 ergänzt dauerhaft freigegebene Leseabrufe pro Konto. Es wird lokal
+geprüft; der oben dokumentierte produktive Worker bleibt zunächst unverändert.
+Die neue Migration und Web-App dürfen vor dem getrennten Workerwechsel
+veröffentlicht werden: alte manuelle RPCs bleiben verfügbar, fehlende neue
+Healthfähigkeiten sperren die Aktivierung in der Oberfläche. Jede bestehende
+Verbindung beginnt ohne automatische Freigabe.
+
+Für den Workerwechsel gilt weiter: genau eine Instanz, keine aktiven oder
+ungeklärten Browsersitzungen und keine wartenden oder laufenden Aufträge;
+Image und Konfiguration vorher sichern. Erst die Migration veröffentlichen,
+dann den geprüften Worker aus demselben Merge-Commit umstellen. Ohne
+`MARKETPLACE_SCHEDULED_SYNC_ENABLED=1` übernimmt der neue Dispatcher nur
+bewusst gestartete manuelle Abrufe. Die Vorlage setzt das Flag auf `0`.
+
+Nach dem Wechsel müssen Runtime und Healthcheck übereinstimmen. Nur ein
+bereiter Dispatcher mit aktiviertem Flag meldet
+`scheduledSync: { enabled: true, authorizationVersion: 1, allowedIntervals: [15] }`.
+`apiVersion: 2` allein bestätigt keine Automatik. Erst nach dieser Prüfung
+wird ein bewusst gewähltes verbundenes Konto in Flipbase aktiviert. Ein
+weiteres Konto und kürzere Intervalle benötigen die vorgesehenen echten
+Kapazitätsnachweise; lokale Tests ersetzen diese nicht.
+
+Der Pilot reserviert weltweit höchstens einen Browser einschließlich
+interaktiver Anmeldung und ungeklärtem Stopp. Laufzeitmessungen erfassen
+Phasen und die Zahl der tatsächlichen JSON-Anfragen ohne private Inhalte.
+Die erneuerbare Lease gilt 90 Sekunden innerhalb einer absoluten Grenze
+von zehn Minuten. Anbieterablehnung oder notwendige Anmeldung pausieren
+das Konto; Rate-Limits beachten die bestätigte Wartezeit. Netzwerk- und
+Serverfehler werden begrenzt wiederholt. Neustarts bewahren diese Regeln
+auch bei bereits übernommener Teilantwort.
+
+Beim Rückweg zuerst neue automatische Freigaben verhindern und laufende
+Browser sicher beenden. Das neue Workerflag allein widerruft keine
+gespeicherten Kontofreigaben. Vor einem Rückweg auf einen alten Worker alle
+Freigaben bewusst pausieren, offene Aufträge prüfen und erst danach das
+gesicherte Image starten. Die additive Migration bleibt erhalten; Zeitpläne,
+Aufträge und ungeklärte Sitzungen werden nicht gelöscht oder durch bloßen
+Zeitablauf freigegeben.
+
 ## Aktueller Betriebsstand vom 30.09.2026 – verlässliche Teilabrufe
 
 Nach dem erfolgreichen PR #267 und der bereits veröffentlichten Web-App samt

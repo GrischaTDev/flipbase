@@ -43,11 +43,7 @@ select is((select value->>'state' from browser_a), 'active', 'Eigene Browsersitz
 select ok((select value ? 'id' and value ? 'expiresAt' from browser_a), 'Öffentliche Sitzungsdaten vorhanden');
 select ok((select not value ? 'providerProfileId' and not value ? 'providerUrl' and not value ? 'token' from browser_a), 'Keine Anbieterzugänge in der Antwort');
 select throws_ok($$select public.marketplace_browser_session_reserve('25600000-0000-4000-8000-000000000011','25600000-0000-4000-8000-000000000021')$$, '55P03', null, 'Zweite Bedienung desselben Kontos gesperrt');
-create temporary table browser_a2 as select public.marketplace_browser_session_reserve(
- '25600000-0000-4000-8000-000000000011','25600000-0000-4000-8000-000000000022') as value;
-select isnt((select value->>'id' from browser_a), (select value->>'id' from browser_a2), 'Zweites Konto bleibt unabhängig');
-select is((public.marketplace_browser_session_revoke('25600000-0000-4000-8000-000000000011','25600000-0000-4000-8000-000000000022',(select value->>'id' from browser_a2)::uuid)->>'state'), 'stopping', 'Widerruf merkt Anbieter-Stopp vor');
-select throws_ok($$select public.marketplace_browser_session_reserve('25600000-0000-4000-8000-000000000011','25600000-0000-4000-8000-000000000022')$$, '55P03', null, 'Widerruf gibt Konto vor Anbieter-Stopp nicht frei');
+select throws_ok($$select public.marketplace_browser_session_reserve('25600000-0000-4000-8000-000000000011','25600000-0000-4000-8000-000000000022')$$, '55P03', null, 'Zweites Konto wartet auf globale Pilotkapazität');
 select throws_ok($$select public.marketplace_browser_session_reserve('25600000-0000-4000-8000-000000000012','25600000-0000-4000-8000-000000000023')$$, '42501', null, 'Fremder Workspace gesperrt');
 select is((public.marketplace_browser_session_check('25600000-0000-4000-8000-000000000011','25600000-0000-4000-8000-000000000021',(select value->>'id' from browser_a)::uuid)->>'active')::boolean, true, 'Eigene aktive Sitzung akzeptiert');
 select throws_ok($$select public.marketplace_browser_session_check('25600000-0000-4000-8000-000000000011','25600000-0000-4000-8000-000000000022',(select value->>'id' from browser_a)::uuid)$$, '42501', null, 'Sitzung kann nicht zu anderem Konto wechseln');
@@ -58,9 +54,14 @@ select throws_ok($$select public.marketplace_browser_session_check('25600000-000
 
 select set_config('request.jwt.claims','{"sub":"25600000-0000-4000-8000-000000000002","role":"authenticated"}',true);
 select throws_ok($$select public.marketplace_browser_session_check('25600000-0000-4000-8000-000000000011','25600000-0000-4000-8000-000000000021',(select value->>'id' from browser_a)::uuid)$$, '42501', null, 'Anderer Workspace sieht Sitzung nicht');
+select throws_ok($$select public.marketplace_browser_session_reserve('25600000-0000-4000-8000-000000000012','25600000-0000-4000-8000-000000000023')$$, '55P03', null, 'Globale Kapazität gilt auch über Workspacegrenzen');
+reset role;
+update public.marketplace_browser_sessions set state='closed',provider_stopped_at=clock_timestamp()
+ where public_id=(select (value->>'id')::uuid from browser_a);
+set local role authenticated;
 create temporary table browser_b as select public.marketplace_browser_session_reserve(
  '25600000-0000-4000-8000-000000000012','25600000-0000-4000-8000-000000000023') as value;
-select is((select value->>'state' from browser_b), 'active', 'Anderer Workspace bleibt unabhängig');
+select is((select value->>'state' from browser_b), 'active', 'Nächster Workspace beginnt nach bestätigtem Stopp');
 
 reset role;
 update public.marketplace_browser_sessions set expires_at = clock_timestamp() - interval '1 second'
@@ -81,14 +82,14 @@ select is((select value->>'state' from browser_b2), 'active', 'Neustart erst nac
 select lives_ok($$select public.marketplace_set_paused('25600000-0000-4000-8000-000000000012','25600000-0000-4000-8000-000000000023',true)$$, 'Verbindung pausieren');
 select is((public.marketplace_browser_session_check('25600000-0000-4000-8000-000000000012','25600000-0000-4000-8000-000000000023',(select value->>'id' from browser_b2)::uuid)->>'active')::boolean, false, 'Pause sperrt Aktionen');
 reset role;
-select throws_ok($$delete from public.marketplace_connections where id = '25600000-0000-4000-8000-000000000021'$$, '23503', null, 'Konto mit ungeklärter Browsersitzung kann nicht gelöscht werden');
+select throws_ok($$delete from public.marketplace_connections where id = '25600000-0000-4000-8000-000000000023'$$, '23503', null, 'Konto mit ungeklärter Browsersitzung kann nicht gelöscht werden');
 delete from public.platform_operators where user_id = '25600000-0000-4000-8000-000000000001';
 set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"25600000-0000-4000-8000-000000000001","role":"authenticated"}',true);
 select throws_ok($$select public.marketplace_browser_session_check('25600000-0000-4000-8000-000000000011','25600000-0000-4000-8000-000000000021',(select value->>'id' from browser_a)::uuid)$$, '42501', null, 'Entzogene Betreiberrolle sperrt auch laufende Sitzungen');
 reset role;
 select lives_ok($$delete from auth.users where id = '25600000-0000-4000-8000-000000000001'$$, 'Bediener kann gelöscht werden');
-select is((select count(*)::integer from public.marketplace_browser_sessions where public_id = (select (value->>'id')::uuid from browser_a)), 1, 'Benutzerlöschung entfernt ungeklärte Browsersperre nicht');
+select is((select count(*)::integer from public.marketplace_browser_sessions where public_id = (select (value->>'id')::uuid from browser_a)), 1, 'Benutzerlöschung entfernt persistierte Browsersitzung nicht');
 select is((select state from public.marketplace_browser_sessions where public_id = (select (value->>'id')::uuid from browser_b2)), 'stopping', 'Pause verlangt Anbieter-Stopp');
 
 select * from finish();

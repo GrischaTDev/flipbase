@@ -63,6 +63,11 @@ interface BrowserApiOptions {
   listingCache?: Pick<SupabaseVintedListingCache, 'save'>;
   profileCache?: Pick<SupabaseVintedProfileCache, 'save'>;
   readOnly?: boolean;
+  scheduledSync?: () => {
+    enabled: boolean;
+    authorizationVersion: number;
+    allowedIntervals: number[];
+  };
 }
 
 const pathPrefix = '/marketplace-browser/sessions';
@@ -194,6 +199,7 @@ export class MarketplaceBrowserHttpApi {
   private readonly listingCache?: BrowserApiOptions['listingCache'];
   private readonly profileCache?: BrowserApiOptions['profileCache'];
   private readonly readOnly: boolean;
+  private readonly scheduledSync?: BrowserApiOptions['scheduledSync'];
   private readonly inFlight = new Set<string>();
 
   constructor(options: BrowserApiOptions) {
@@ -206,6 +212,7 @@ export class MarketplaceBrowserHttpApi {
     this.operations = options.operations;
     this.listingCache = options.listingCache;
     this.profileCache = options.profileCache;
+    this.scheduledSync = options.scheduledSync;
     this.readOnly = options.readOnly ?? false;
   }
 
@@ -222,7 +229,12 @@ export class MarketplaceBrowserHttpApi {
     try {
       const path = new URL(request.url ?? '/', 'http://localhost').pathname;
       if (request.method === 'GET' && path === '/marketplace-browser/healthz') {
-        json(response, 200, { ok: true, readOnly: this.readOnly, apiVersion: 2 });
+        json(response, 200, {
+          ok: true,
+          readOnly: this.readOnly,
+          apiVersion: 2,
+          ...(this.scheduledSync ? { scheduledSync: this.scheduledSync() } : {}),
+        });
         return;
       }
       if (request.method !== 'POST') throw new RequestError(404);

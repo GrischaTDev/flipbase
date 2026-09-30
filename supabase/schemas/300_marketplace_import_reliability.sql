@@ -45,6 +45,7 @@ declare
   v_old_feedback jsonb;
   v_counts jsonb := '{"profile":0,"publication":0,"conversation":0,"message":0,"sale":0}';
 begin
+  perform pg_advisory_xact_lock(91731, 1);
   -- Gleiche Sperrreihenfolge wie die bestehenden Browser-RPCs: Konto, dann Sitzung.
   select * into v_connection from public.marketplace_connections
     where workspace_id = p_workspace_id and id = p_connection_id and marketplace = 'vinted' for update;
@@ -55,6 +56,20 @@ begin
   if not found or v_session.state <> 'active' or v_session.expires_at <= clock_timestamp() then
     raise exception 'Sitzungszugriff verweigert' using errcode = '42501';
   end if;
+  -- Alte manuelle Sitzungen bleiben während des getrennten Worker-Rollouts nutzbar.
+  if v_session.worker_epoch is not null and not exists (
+    select 1 from public.marketplace_worker_runtime where worker_id = v_session.worker_id
+      and worker_epoch = v_session.worker_epoch and expires_at > clock_timestamp()
+  ) then raise exception 'Worker nicht mehr aktiv' using errcode = '42501'; end if;
+  if v_session.operation_id is not null and not exists (
+    select 1 from public.marketplace_operations o
+      left join public.marketplace_sync_schedules s on s.id=o.schedule_id and s.workspace_id=o.workspace_id and s.connection_id=o.connection_id
+    where o.id=v_session.operation_id and o.browser_session_id=v_session.public_id and o.state='running'
+      and o.workspace_id=p_workspace_id and o.connection_id=p_connection_id and o.requested_by=p_user_id
+      and o.worker_epoch=v_session.worker_epoch and o.authorization_version=1 and o.lease_expires_at>clock_timestamp()
+      and (o.authorization_kind='manual_read' or (o.authorization_kind='scheduled_read' and s.enabled
+        and s.authorization_version=o.schedule_authorization_version and s.activated_by=o.requested_by))
+  ) then raise exception 'Auftragsfreigabe widerrufen' using errcode='42501'; end if;
   -- Lesesperren verhindern Rechteentzug zwischen Prüfung und abschließendem Schreiben.
   perform 1 from public.platform_operators where user_id = p_user_id for share;
   if not found then raise exception 'Kontozugriff verweigert' using errcode = '42501'; end if;

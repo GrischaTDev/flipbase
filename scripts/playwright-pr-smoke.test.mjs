@@ -11,6 +11,10 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 const coreTests = [
   [
     'marketplace-accounts.spec.ts',
+    'aktiviert und pausiert automatische Vinted-Abrufe je Konto zugänglich @marketplace-preview @core-smoke',
+  ],
+  [
+    'marketplace-accounts.spec.ts',
     'zeigt unbekannte Bewertungen und gespeicherte Teilfehler zugänglich @marketplace-preview @core-smoke',
   ],
   [
@@ -147,7 +151,7 @@ async function listTests(config) {
 
 const keys = (entries) => entries.map((entry) => JSON.stringify(entry)).sort();
 
-test('PR-Auswahl: achtzehn Kernfälle, keine Wiederholungen, kein test.only', async () => {
+test('PR-Auswahl: neunzehn Kernfälle, keine Wiederholungen, kein test.only', async () => {
   const { report, selected } = await listTests('playwright.pr.config.ts');
   assert.deepEqual(keys(selected), keys(coreTests));
   assert.equal(report.config.forbidOnly, true);

@@ -33,6 +33,11 @@ create table public.marketplace_browser_sessions (
   expires_at timestamptz not null,
   provider_stopped_at timestamptz,
   created_at timestamptz not null default now(),
+  worker_id uuid,
+  worker_epoch bigint,
+  operation_id uuid,
+  heartbeat_at timestamptz,
+  absolute_expires_at timestamptz,
   foreign key (workspace_id, connection_id) references public.marketplace_connections(workspace_id, id) on delete cascade,
   check ((state = 'closed') = (provider_stopped_at is not null))
 );
@@ -69,6 +74,8 @@ create or replace function public.marketplace_browser_session_reserve(p_workspac
 returns jsonb language plpgsql volatile security definer set search_path = '' as $$
 declare v_status text; v_profile_id text; v_session public.marketplace_browser_sessions;
 begin
+  -- Alle Browseraktionen teilen den einen konservativen Cloudplatz.
+  perform pg_advisory_xact_lock(91731, 1);
   if not public.marketplace_can_manage(p_workspace_id) then raise exception 'Kontozugriff verweigert' using errcode = '42501'; end if;
   select status into v_status from public.marketplace_connections
     where workspace_id = p_workspace_id and id = p_connection_id and marketplace = 'vinted' for update;
@@ -78,7 +85,7 @@ begin
     where workspace_id = p_workspace_id and connection_id = p_connection_id;
   if not found then raise exception 'Browserprofil fehlt' using errcode = '22023'; end if;
   if exists (select 1 from public.marketplace_browser_sessions
-    where workspace_id = p_workspace_id and connection_id = p_connection_id and state in ('active', 'stopping'))
+    where state in ('active', 'stopping'))
   then raise exception 'Konto wird bereits bedient oder bereinigt' using errcode = '55P03'; end if;
   insert into public.marketplace_browser_sessions (workspace_id, connection_id, started_by, provider_profile_id, expires_at)
     values (p_workspace_id, p_connection_id, (select auth.uid()), v_profile_id, clock_timestamp() + interval '10 minutes')

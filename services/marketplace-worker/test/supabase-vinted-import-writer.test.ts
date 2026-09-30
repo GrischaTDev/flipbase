@@ -61,6 +61,54 @@ const snapshot = {
   },
 } satisfies import('../src/vinted-account-import.ts').VintedAccountImport;
 const counts = { profile: 1, publication: 0, conversation: 0, message: 0, sale: 0 };
+
+test('imports a durable read only through the bound operation and fenced server RPC', async () => {
+  const readScope = {
+    ...scope,
+    userAccessToken: '',
+    syncRead: {
+      operationId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+      runnerId: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
+      workerEpoch: 2,
+      sessionId,
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      absoluteExpiresAt: new Date(Date.now() + 600_000).toISOString(),
+    },
+  };
+  const paths: string[] = [];
+  let importBody: unknown;
+  const writer = new SupabaseVintedImportWriter({
+    url: 'https://db.example.test',
+    publishableKey: 'public-token',
+    serviceRoleKey: 'server-token',
+    fetch: async (input, init) => {
+      const path = new URL(String(input)).pathname;
+      paths.push(path);
+      assert.equal(new Headers(init?.headers).get('Authorization'), 'Bearer server-token');
+      if (path.endsWith('marketplace_sync_check'))
+        return Response.json({
+          active: true,
+          sessionId,
+          expiresAt: readScope.syncRead.expiresAt,
+          absoluteExpiresAt: readScope.syncRead.absoluteExpiresAt,
+        });
+      importBody = JSON.parse(String(init?.body));
+      return Response.json(counts);
+    },
+  });
+  assert.deepEqual(await writer.write(readScope, sessionId, snapshot), counts);
+  assert.deepEqual(paths, [
+    '/rest/v1/rpc/marketplace_sync_check',
+    '/rest/v1/rpc/marketplace_apply_vinted_sync_import',
+  ]);
+  assert.deepEqual(importBody, {
+    p_operation_id: readScope.syncRead.operationId,
+    p_runner_id: readScope.syncRead.runnerId,
+    p_worker_epoch: 2,
+    p_session_id: sessionId,
+    p_snapshot: snapshot,
+  });
+});
 function writerWithRpc(
   rpc: (init?: RequestInit) => Response | Promise<Response>,
   calls: string[] = [],

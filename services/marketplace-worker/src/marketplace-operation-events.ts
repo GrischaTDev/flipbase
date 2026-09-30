@@ -11,6 +11,7 @@ export interface MarketplaceOperationEvent {
   elapsedMs: number;
   errorCode?: MarketplaceSyncError;
   requestFailure?: VintedRequestFailure;
+  sourceRequestCount?: number;
 }
 
 /** Ausschließlich feste Metadaten, niemals Anbieterantworten oder Anmeldedaten. */
@@ -24,6 +25,9 @@ export class MarketplaceOperationEvents {
       elapsedMs: Math.max(0, Math.round(event.elapsedMs)),
       ...(event.errorCode ? { errorCode: event.errorCode } : {}),
       ...(event.requestFailure ? { requestFailure: event.requestFailure } : {}),
+      ...(Number.isSafeInteger(event.sourceRequestCount) && event.sourceRequestCount! >= 0
+        ? { sourceRequestCount: event.sourceRequestCount }
+        : {}),
     })}\n`;
     try {
       process.stdout.write(line);

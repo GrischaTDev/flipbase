@@ -50,6 +50,11 @@ async function setup(
   operations?: Pick<MarketplaceSyncRunner, 'start' | 'read'>,
   listingCache?: Pick<SupabaseVintedListingCache, 'save'>,
   profileCache?: Pick<SupabaseVintedProfileCache, 'save'>,
+  scheduledSync?: () => {
+    enabled: boolean;
+    authorizationVersion: number;
+    allowedIntervals: number[];
+  },
 ) {
   const inputs: string[] = [];
   let owner: BrowserSessionScope | undefined;
@@ -138,6 +143,7 @@ async function setup(
     operations,
     listingCache,
     profileCache,
+    scheduledSync,
     readOnly,
     users: {
       userId: async (token) => {
@@ -678,6 +684,43 @@ test('reports availability at the same path used by the Angular test page', asyn
     const response = await fetch(`${api.url}/marketplace-browser/healthz`);
     assert.equal(response.status, 200);
     assert.deepEqual(await response.json(), { ok: true, readOnly: false, apiVersion: 2 });
+  } finally {
+    await api.close();
+  }
+});
+
+test('reports scheduling only while the actual dispatcher is ready and authorized', async () => {
+  let active = true;
+  const api = await setup(
+    undefined,
+    undefined,
+    false,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    () => ({ enabled: active, authorizationVersion: 1, allowedIntervals: [15] }),
+  );
+  try {
+    const enabled = (await (await fetch(`${api.url}/marketplace-browser/healthz`)).json()) as {
+      scheduledSync?: { enabled: boolean };
+    };
+    assert.equal(enabled.scheduledSync?.enabled, true);
+    active = false;
+    const disabled = (await (await fetch(`${api.url}/marketplace-browser/healthz`)).json()) as {
+      scheduledSync?: { enabled: boolean };
+    };
+    assert.equal(disabled.scheduledSync?.enabled, false);
   } finally {
     await api.close();
   }

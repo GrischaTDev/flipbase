@@ -46,21 +46,28 @@ export class MarketplaceSyncRunner {
   private readonly imports: ImportWriter;
   private readonly operations: SupabaseMarketplaceOperationStore;
   private readonly events: MarketplaceOperationEvents;
+  private readonly dispatch?: () => void;
 
   constructor(
     broker: SyncBroker,
     imports: ImportWriter,
     operations: SupabaseMarketplaceOperationStore,
     events: MarketplaceOperationEvents = new MarketplaceOperationEvents(),
+    dispatch?: () => void,
   ) {
     this.broker = broker;
     this.imports = imports;
     this.operations = operations;
     this.events = events;
+    this.dispatch = dispatch;
   }
 
   async start(scope: BrowserSessionScope): Promise<string> {
     const operation = await this.operations.enqueue(scope);
+    if (this.dispatch) {
+      this.dispatch();
+      return operation.id;
+    }
     if (operation.requestedBy === scope.userId) {
       void this.execute({ ...scope }, operation.id).catch(() => undefined);
     }
@@ -71,12 +78,21 @@ export class MarketplaceSyncRunner {
     return this.operations.read(scope, id);
   }
 
+  runDispatched(scope: BrowserSessionScope): Promise<void> {
+    if (!scope.syncRead) return Promise.reject(new Error('Leseauftrag fehlt'));
+    return this.execute(scope, scope.syncRead.operationId);
+  }
+
   private async execute(scope: BrowserSessionScope, id: string): Promise<void> {
-    const runnerId = randomUUID();
-    if (!(await this.operations.claim(scope, id, runnerId))) return;
+    const runnerId = scope.syncRead?.runnerId ?? randomUUID();
+    if (!(await this.operations.claim(scope, id, runnerId))) {
+      if (scope.syncRead) throw new Error('Reservierter Leseauftrag kann nicht bestätigt werden');
+      return;
+    }
     let sessionId: string | undefined;
     let failedStage: MarketplaceSyncError = 'browser';
     let requestFailure: VintedImportRequestError['reason'] | undefined;
+    let retryAfter: string | undefined;
     let currentStage: MarketplaceSyncStage = 'browser';
     let stageStartedAt = Date.now();
     const moveTo = async (nextStage: MarketplaceSyncStage): Promise<void> => {
@@ -116,6 +132,7 @@ export class MarketplaceSyncRunner {
                 : this.importErrorCode(error.stage);
             if (error.cause instanceof VintedImportRequestError) {
               requestFailure = error.cause.reason;
+              retryAfter = error.cause.retryAfter;
               if (requestFailure === 'unauthorized') failedStage = 'identity';
             }
           }
@@ -151,6 +168,7 @@ export class MarketplaceSyncRunner {
         stage: currentStage,
         outcome: 'completed',
         elapsedMs: Date.now() - stageStartedAt,
+        sourceRequestCount: snapshot.sourceRequestCount,
       });
     } catch (error) {
       if (error instanceof MarketplaceBrowserSessionEndedError)
@@ -171,9 +189,17 @@ export class MarketplaceSyncRunner {
         requestFailure,
       });
       try {
-        await this.operations.fail(scope, id, runnerId, failedStage);
+        await this.operations.fail(scope, id, runnerId, failedStage, requestFailure, retryAfter);
       } catch {
         // Beim nächsten Start wird der ungeklärte Auftrag als unterbrochen markiert.
+        if (scope.syncRead) {
+          // Anbieterantworten dürfen nicht in die öffentliche Fehlerkette gelangen.
+          throw new Error('Reservierter Leseauftrag verlangt Wiederherstellung');
+        }
+      }
+      if (scope.syncRead && !sessionId) {
+        // eslint-disable-next-line preserve-caught-error
+        throw new Error('Reservierte Browsersitzung verlangt Wiederherstellung');
       }
     }
   }

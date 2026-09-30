@@ -7,6 +7,7 @@ const container = process.env.MARKETPLACE_DB_CONTAINER ?? 'supabase_db_flipbase-
 const userId = randomUUID();
 const workspaceId = randomUUID();
 const connectionId = randomUUID();
+const secondConnectionId = randomUUID();
 const profileId = `test-${randomUUID()}`;
 
 function query(sql) {
@@ -81,8 +82,12 @@ try {
     insert into public.platform_operators (user_id) values ('${userId}');
     insert into public.workspaces (id, name) values ('${workspaceId}', 'Browser-Konkurrenztest');
     insert into public.workspace_members (workspace_id, user_id, role) values ('${workspaceId}', '${userId}', 'owner');
-    insert into public.marketplace_connections (id, workspace_id, display_name) values ('${connectionId}', '${workspaceId}', 'Browser-Testkonto');
-    insert into public.marketplace_browser_profiles (workspace_id, connection_id, provider_profile_id) values ('${workspaceId}', '${connectionId}', '${profileId}');`);
+    insert into public.marketplace_connections (id, workspace_id, display_name) values
+      ('${connectionId}', '${workspaceId}', 'Browser-Testkonto A'),
+      ('${secondConnectionId}', '${workspaceId}', 'Browser-Testkonto B');
+    insert into public.marketplace_browser_profiles (workspace_id, connection_id, provider_profile_id) values
+      ('${workspaceId}', '${connectionId}', '${profileId}'),
+      ('${workspaceId}', '${secondConnectionId}', '${profileId}-b');`);
 
   first = startClient();
   first.child.stdin.write(`begin;
@@ -96,7 +101,7 @@ try {
   second = startClient();
   second.child.stdin.end(`set role authenticated;
     select set_config('request.jwt.claims', '{"sub":"${userId}","role":"authenticated"}', false);
-    select public.marketplace_browser_session_reserve('${workspaceId}', '${connectionId}');
+    select public.marketplace_browser_session_reserve('${workspaceId}', '${secondConnectionId}');
   `);
   await delay(500);
   assert.equal(
@@ -109,14 +114,18 @@ try {
   const [firstResult, secondResult] = await Promise.all([first.done, second.done]);
   assert.equal(firstResult.code, 0, firstResult.errors);
   assert.notEqual(secondResult.code, 0, 'Zweite Reservierung muss abgewiesen werden');
-  assert.match(secondResult.errors, /55P03/, 'Zweite Reservierung muss die Kontosperre melden');
+  assert.match(
+    secondResult.errors,
+    /55P03/,
+    'Zweites Konto muss die globale Kapazitätsgrenze melden',
+  );
   assert.equal(
     query(
-      `select count(*) from public.marketplace_browser_sessions where connection_id = '${connectionId}' and state = 'active'`,
+      `select count(*) from public.marketplace_browser_sessions where workspace_id = '${workspaceId}' and state = 'active'`,
     ),
     '1',
   );
-  console.log('Parallele Reservierung: genau eine Sitzung, zweite Anfrage gesperrt.');
+  console.log('Parallele Reservierung zweier Konten: genau eine Sitzung, zweites Konto gesperrt.');
 } finally {
   for (const client of [first, second]) {
     if (client?.child.exitCode === null) {
@@ -126,8 +135,8 @@ try {
   }
   try {
     query(`update public.marketplace_browser_sessions set state = 'closed', provider_stopped_at = clock_timestamp()
-      where connection_id = '${connectionId}' and state in ('active', 'stopping');
-      delete from public.marketplace_connections where id = '${connectionId}';
+      where connection_id in ('${connectionId}', '${secondConnectionId}') and state in ('active', 'stopping');
+      delete from public.marketplace_connections where id in ('${connectionId}', '${secondConnectionId}');
       delete from public.workspaces where id = '${workspaceId}';
       delete from auth.users where id = '${userId}';`);
   } catch (error) {
