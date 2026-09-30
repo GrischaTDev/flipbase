@@ -31,6 +31,10 @@ interface Umgebung {
   cookie: string[];
   /** Protokoll der Aufrufe am Sitzungskanal. */
   kanal: string[];
+  /** Re-Authentifizierungen vor sensiblen Kontoaenderungen. */
+  signInCalls: { email: string; password: string }[];
+  /** Passwortaenderungen an Supabase Auth. */
+  updateUserCalls: { password: string }[];
   /** Loest das Signal aus, das ein anderes Fenster gesendet haette. */
   signalAbmeldung: () => void;
   /** Welcher Bereich beim Abmelden an Supabase uebergeben wurde. */
@@ -55,11 +59,15 @@ function sitzung(betaRegistrationCompleted = false): AuthSession {
 function baueUmgebung(
   getUserFehler: unknown = null,
   betaAktivierungsfehler: readonly unknown[] = [],
+  reauthFehler: unknown = null,
+  passwordUpdateFehler: unknown = null,
 ): Umgebung {
   const ziele: unknown[][] = [];
   const cookie: string[] = [];
   const bereiche: string[] = [];
   const betaAktivierungen: string[] = [];
+  const signInCalls: { email: string; password: string }[] = [];
+  const updateUserCalls: { password: string }[] = [];
   const verbleibendeBetaAktivierungsfehler = [...betaAktivierungsfehler];
   let rueckruf: ((ereignis: AuthChangeEvent, sitzung: AuthSession | null) => void) | null = null;
 
@@ -71,6 +79,18 @@ function baueUmgebung(
         signOut: async (optionen?: { scope?: string }) => {
           bereiche.push(optionen?.scope ?? '(ohne Angabe)');
           return { error: null };
+        },
+        signInWithPassword: async (credentials: { email: string; password: string }) => {
+          signInCalls.push(credentials);
+          return reauthFehler
+            ? { data: { session: null, user: null }, error: reauthFehler }
+            : { data: { session: sitzung(), user: sitzung().user }, error: null };
+        },
+        updateUser: async (payload: { password: string }) => {
+          updateUserCalls.push(payload);
+          return passwordUpdateFehler
+            ? { data: { user: null }, error: passwordUpdateFehler }
+            : { data: { user: sitzung().user }, error: null };
         },
         onAuthStateChange: (cb: (e: AuthChangeEvent, s: AuthSession | null) => void) => {
           rueckruf = cb;
@@ -122,6 +142,8 @@ function baueUmgebung(
     ziele,
     cookie,
     kanal,
+    signInCalls,
+    updateUserCalls,
     bereiche,
     betaAktivierungen,
     syncStatus,
@@ -171,6 +193,62 @@ describe('AuthService: Beta-Aktivierung', () => {
     await Promise.resolve();
 
     expect(umgebung.betaAktivierungen).toEqual([]);
+  });
+});
+
+describe('AuthService: Passwort ändern', () => {
+  it('bestätigt zuerst das aktuelle Passwort und ändert danach das Passwort', async () => {
+    const umgebung = baueUmgebung();
+    umgebung.melde('SIGNED_IN', sitzung());
+
+    const result = await umgebung.dienst.changePassword('alt-passwort', 'neues-passwort-123');
+
+    expect(umgebung.signInCalls).toEqual([
+      { email: 'test@test.de', password: 'alt-passwort' },
+    ]);
+    expect(umgebung.updateUserCalls).toEqual([{ password: 'neues-passwort-123' }]);
+    expect(result.error).toBeNull();
+  });
+
+  it('ändert bei falschem aktuellen Passwort nichts', async () => {
+    const umgebung = baueUmgebung(null, [], { message: 'Invalid login credentials' });
+    umgebung.melde('SIGNED_IN', sitzung());
+
+    const result = await umgebung.dienst.changePassword('falsch', 'neues-passwort-123');
+
+    expect(umgebung.updateUserCalls).toEqual([]);
+    expect(result.error?.message).toBe('Das aktuelle Passwort ist nicht korrekt.');
+  });
+
+  it('weist zu kurze neue Passwörter vor einem Supabase-Aufruf zurück', async () => {
+    const umgebung = baueUmgebung();
+    umgebung.melde('SIGNED_IN', sitzung());
+
+    const result = await umgebung.dienst.changePassword('alt-passwort', 'zu-kurz');
+
+    expect(umgebung.signInCalls).toEqual([]);
+    expect(umgebung.updateUserCalls).toEqual([]);
+    expect(result.error?.message).toContain('mindestens 10 Zeichen');
+  });
+
+  it('weist Passwortänderungen ohne angemeldeten Nutzer zurück', async () => {
+    const umgebung = baueUmgebung();
+
+    const result = await umgebung.dienst.changePassword('alt-passwort', 'neues-passwort-123');
+
+    expect(umgebung.signInCalls).toEqual([]);
+    expect(result.error?.message).toBe('Nicht angemeldet');
+  });
+
+  it('meldet einen Fehler beim Setzen des neuen Passworts ohne Erfolg zurück', async () => {
+    const umgebung = baueUmgebung(null, [], null, { message: 'Password update failed' });
+    umgebung.melde('SIGNED_IN', sitzung());
+
+    const result = await umgebung.dienst.changePassword('alt-passwort', 'neues-passwort-123');
+
+    expect(umgebung.signInCalls).toHaveLength(1);
+    expect(umgebung.updateUserCalls).toEqual([{ password: 'neues-passwort-123' }]);
+    expect(result.error?.message).toBe('Password update failed');
   });
 });
 
