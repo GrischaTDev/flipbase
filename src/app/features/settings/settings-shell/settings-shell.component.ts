@@ -37,7 +37,12 @@ export interface SettingsNavigationItem {
 }
 
 export const SETTINGS_NAVIGATION: readonly SettingsNavigationItem[] = [
-  { path: 'account', label: 'Konto', description: 'Profil und Sitzungen', icon: LucideUser },
+  {
+    path: 'account',
+    label: 'Konto',
+    description: 'Persönliche Daten & Sicherheit',
+    icon: LucideUser,
+  },
   {
     path: 'workspace',
     label: 'Workspace',
