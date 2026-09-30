@@ -713,6 +713,7 @@ async function renderAccount(
   const auth = {
     profile,
     currentUser: signal({ email: 'ada@flipbase.de' }),
+    userName: () => profile()?.full_name || 'Ada Lovelace',
     aktualisiereProfil: vi.fn(async () =>
       Promise.resolve(
         options.updateResult ?? {
