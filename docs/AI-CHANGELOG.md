@@ -10,6 +10,8 @@
 
 **Review:** Zwei Befunde nachgestellt und behoben: Gutschriften ohne Originalrechnung verwenden das beim Verkauf gespeicherte Steuerverfahren; fehlen eindeutige historische Steuerdaten, bleibt nur die Erstattung möglich. Neue Shoprechnungen verwenden das aktuelle Unternehmens-Steuerverfahren auch unmittelbar nach dem Speichern ohne Seitenneuladen; die Datenbank setzt es verbindlich. Regressionstests sichern beide Fälle ab.
 
+**PR-Prüfung:** Die vollständige CI erkannte zwei neue native Node-Blob-Fixtures im PDF-Test als Browserzugriff. Für genau diesen PNG-Test wurde die vorhandene begründete Fixture-Ausnahmeliste ergänzt; er nutzt ausschließlich Nodes Blob und keine Browser-APIs. Der gesamte Suite-Audit und alle drei betroffenen PDF-Tests bestehen nach der Korrektur, ebenso Formatierung und ESLint.
+
 **Prüfung:** Produktionsbau und Typprüfung erfolgreich. 46 gezielte Node-, 38 DOM- und 21 Angular-Tests bestanden. Nach Anwendung der erzeugten Migration bestehen alle 2.293 Datenbankprüfungen in 68 Dateien. Der neue verbindliche Browserfall bestätigt die Sperre bei fehlenden Unternehmensdaten und das unveränderte erneute Öffnen einer Rechnung nach Profiländerungen; die automatische WCAG-AA-Prüfung besteht ebenfalls. Der Belegbereich ist per Tastatur scrollbar, schwache Textkontraste wurden korrigiert. Gezieltes ESLint, Schema-/Migrations-/Browserauswahl-Verträge und die Test-Suite-Prüfung erfolgreich. Das unabhängige Review ist abgeschlossen; die vollständige PR-CI folgt vor dem Merge.
 
 **Weiterarbeit:** PR 4 zentralisiert Shop-, Bank-, Impressums- und Versanddaten unter Erhalt bestehender Versand-Overrides.
