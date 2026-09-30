@@ -43,6 +43,7 @@
 ### Task 1: Introduce the company-profile database contract
 
 **Files:**
+
 - Create: `supabase/schemas/280_company_profiles.sql`
 - Create: `supabase/migrations/20260930141000_company_profiles.sql`
 - Create: `supabase/tests/company_profiles.test.sql`
@@ -58,6 +59,7 @@
 **Ruling:** Das Repo hält Feature-Schemata außerhalb von `database.sql` (z. B. Nummernkreise, Belege, Marktplatzdaten). PR 2 registriert deshalb `280_company_profiles.sql` in `supabase/config.toml` und ersetzt nur die dort bereits definierten Basisfunktionen per `create or replace`; `database.sql` wird nicht dupliziert.
 
 **Interfaces:**
+
 - Produces table `public.workspace_company_profiles` keyed by `workspace_id`.
 - Produces RPC:
   - `get_workspace_company_settings(p_workspace_id uuid) returns jsonb`
@@ -72,6 +74,7 @@
 Create `supabase/tests/company_profiles.test.sql` with tests that initially fail for missing table/RPC/bucket.
 
 Assert:
+
 - `workspace_company_profiles` exists, RLS is enabled, direct authenticated mutation privileges are absent.
 - `company-assets` exists and is private.
 - `get_workspace_company_settings`, `update_workspace_company_settings`, and `set_workspace_company_logo` are executable by authenticated but not anon.
@@ -91,6 +94,7 @@ Assert:
 - owner/admin can activate `<workspace-id>/logos/<uuid>.webp`.
 
 Storage-policy checks must prove:
+
 - authenticated workspace member can read objects below its own workspace prefix,
 - only owner/admin can insert/delete in its own prefix,
 - member insert and foreign-workspace access are denied.
@@ -149,6 +153,7 @@ updated_at timestamptz not null default now()
 ```
 
 Normalize empty strings to SQL null inside write RPCs. Store:
+
 - `country_code`, `mailing_country_code`, `iban`, `bic` uppercase,
 - IBAN/BIC without spaces.
 
@@ -222,6 +227,7 @@ Do not delete Storage objects from SQL.
 Create bucket `company-assets` with `public=false`.
 
 Policies:
+
 - SELECT: authenticated workspace members for paths whose first folder is their workspace UUID and second folder is `logos`.
 - INSERT/DELETE: `is_workspace_admin(workspace_uuid_from_path)`.
 - no client UPDATE policy because successful logos are versioned, never overwritten.
@@ -229,6 +235,7 @@ Policies:
 - [ ] **Step 9: Update workspace creation flows**
 
 Modify both canonical functions:
+
 - `create_workspace`
 - `handle_new_user`
 
@@ -241,6 +248,7 @@ Do not populate legal/company names.
 Update the database `business_events.entity_type` check to include `company_profile`.
 
 Update TypeScript:
+
 - `BusinessEntityType` includes `'company_profile'`,
 - `mapBusinessEventLabel('company_profile_updated')` returns `Unternehmensdaten geändert`.
 
@@ -251,6 +259,7 @@ Update `src/app/core/services/business-event.service.angular.spec.ts` to assert 
 Update `export_audit_snapshot` to include `workspace_company_profiles`.
 
 In `AuditExportService`:
+
 - add `workspace_company_profiles` to `ArchiveTableName`/`ARCHIVE_TABLES`,
 - add deterministic headers for all company fields,
 - add `companyProfiles` to `AuditArchiveData`,
@@ -295,6 +304,7 @@ git commit -m "feat(company): add workspace company profile contract"
 ### Task 2: Add company models, readiness, loading, saving, and logo storage
 
 **Files:**
+
 - Create: `src/app/core/models/company-profile.models.ts`
 - Create: `src/app/core/services/company-profile.service.ts`
 - Create: `src/app/core/services/company-profile.service.dom.spec.ts`
@@ -302,6 +312,7 @@ git commit -m "feat(company): add workspace company profile contract"
 - Create: `src/app/core/utils/company-logo-validation.dom.spec.ts`
 
 **Interfaces:**
+
 - Produces:
   - `CompanyLegalForm = 'sole_proprietorship' | 'gbr' | 'ug' | 'gmbh' | 'other'`
   - `WorkspaceCompanyProfile`
@@ -360,6 +371,7 @@ Default dimension reader uses browser image APIs. Error messages are German and 
 - [ ] **Step 4: Write failing CompanyProfileService tests**
 
 Cover:
+
 - active workspace load calls `get_workspace_company_settings`,
 - A→B switch clears visible A state before B resolves,
 - late A response cannot overwrite B,
@@ -381,6 +393,7 @@ Cover:
 - workspace switch clears prior signed URL.
 
 Cover Review Focus #4:
+
 - successful upload then failed `set_workspace_company_logo` calls Storage remove on exactly the new object,
 - old active path remains in service state,
 - successful activation adopts new path,
@@ -400,6 +413,7 @@ Expected: FAIL for missing service/models.
 Keep persistence names out of feature templates. Map generated DB rows to camelCase models in the service or focused pure mapping helpers.
 
 Normalize input client-side consistently with the RPC:
+
 - trim ordinary strings,
 - blank → `null`,
 - country/IBAN/BIC uppercase,
@@ -433,7 +447,7 @@ Use an incrementing request version like other workspace-scoped services:
 For non-null `logoPath`, call:
 
 ```ts
-supabase.client.storage.from('company-assets').createSignedUrl(path, 3600)
+supabase.client.storage.from('company-assets').createSignedUrl(path, 3600);
 ```
 
 Store only the returned temporary URL in `logoUrl`; never persist it.
@@ -443,6 +457,7 @@ A signed-URL failure leaves the profile usable and reports the logo preview fail
 - [ ] **Step 10: Implement replace/remove logo**
 
 `replaceLogo(file)`:
+
 1. validate,
 2. require loaded current workspace and edit permission,
 3. create `<workspace>/logos/<crypto.randomUUID()>.<ext>`,
@@ -473,6 +488,7 @@ git commit -m "feat(company): add company profile service"
 ### Task 3: Add the Unternehmen settings page and navigation
 
 **Files:**
+
 - Create: `src/app/features/settings/pages/company-settings/company-settings.component.ts`
 - Create: `src/app/features/settings/pages/company-settings/company-settings.component.html`
 - Create: `src/app/features/settings/pages/company-settings/company-settings.component.angular.spec.ts`
@@ -482,6 +498,7 @@ git commit -m "feat(company): add company profile service"
 - Modify: `src/app/features/settings/pages/settings-behavior.angular.spec.ts` only where shared metadata/test expectations require the new page
 
 **Interfaces:**
+
 - Consumes `CompanyProfileService`, `WorkspaceContextLockService`, `WorkspaceService`, `unsavedEntryGuard`, Shared UI.
 - Produces route `/settings/company`.
 - Implements `UnsavedEntryPage`:
@@ -492,6 +509,7 @@ git commit -m "feat(company): add company profile service"
 - [ ] **Step 1: Write failing route/navigation tests**
 
 Assert:
+
 - `SETTINGS_NAVIGATION` order starts `Konto`, `Unternehmen`, `Workspace`,
 - company description is `Geschäfts- und Rechnungsdaten`,
 - desktop and mobile navigation both include it,
@@ -513,6 +531,7 @@ Using CompanyProfileService signals/fakes, assert four sibling cards:
 Assert no nested `app-card`, no uppercase/tracking heading classes, and only Shared visible buttons/fields/selects/checkboxes.
 
 Assert company profile card includes:
+
 - company name,
 - legal name,
 - legal form select,
@@ -520,11 +539,13 @@ Assert company profile card includes:
 - logo area and hidden native file input only.
 
 Address card:
+
 - street, house number, postal code, city, country code,
 - `Abweichende Postanschrift verwenden` checkbox,
 - mailing fields absent until checked.
 
 Tax card:
+
 - tax mode options exactly:
   - `§ 25a Differenzbesteuerung (Gebrauchtwaren)`
   - `§ 19 Kleinunternehmer (0% USt)`
@@ -532,11 +553,13 @@ Tax card:
 - tax number, VAT ID, federal state, tax office.
 
 Bank card:
+
 - account holder, bank name, IBAN, BIC.
 
 - [ ] **Step 3: Write failing role/read-only tests**
 
 For `canEdit=false`:
+
 - all form controls are disabled/read-only through Angular form state,
 - no save/discard/logo change/remove actions render,
 - page shows `Nur Inhaber und Administratoren können Unternehmensdaten ändern.`,
@@ -570,11 +593,13 @@ This is the concrete implementation of Review Focus #5: users choose Save or Ver
 - [ ] **Step 6: Write failing readiness-status tests**
 
 For incomplete data:
+
 - show neutral/caution status `Rechnungsdaten unvollständig`,
 - show the number of missing required fields,
 - do not disable save.
 
 For ready data:
+
 - show `Rechnungsdaten vollständig`.
 
 Avoid wording that promises legal compliance.
@@ -614,6 +639,7 @@ Add after account:
 ```
 
 Add navigation:
+
 - label `Unternehmen`,
 - description `Geschäfts- und Rechnungsdaten`,
 - a neutral Lucide business/building icon already available in the project dependency.
@@ -625,6 +651,7 @@ Keep all remaining navigation order unchanged.
 One form containing the V1 profile fields plus `taxMode`.
 
 Validators:
+
 - max lengths match DB,
 - optional email uses `Validators.email`,
 - country codes use `^[A-Za-z]{2}$`,
@@ -656,13 +683,7 @@ Logo sits in the Unternehmensprofil layout as a sibling region, not a nested car
 Use the one allowed raw input only as:
 
 ```html
-<input
-  #logoInput
-  type="file"
-  class="sr-only"
-  accept="image/png,image/jpeg,image/webp"
-  ...
-/>
+<input #logoInput type="file" class="sr-only" accept="image/png,image/jpeg,image/webp" ... />
 ```
 
 All visible upload/remove interactions use Shared Buttons.
@@ -688,16 +709,19 @@ git commit -m "feat(company): add company settings page"
 ### Task 4: Add browser coverage and finish PR 2
 
 **Files:**
+
 - Create: `e2e/company-settings.spec.ts`
 - Modify: `docs/AI-CHANGELOG.md`
 
 **Interfaces:**
+
 - Consumes final `/settings/company` route/service/database behavior.
 - Produces PR-smoke coverage for layout, read/write states, dirty handling, logo UI, responsive design, and accessibility.
 
 - [ ] **Step 1: Write Playwright coverage before final polish**
 
 Create tests for:
+
 - desktop 1280×900 and mobile 390×844 without horizontal overflow,
 - light and dark theme,
 - four card headings visible,
@@ -721,6 +745,7 @@ Expected final result: PASS.
 - [ ] **Step 3: Update changelog with implemented facts**
 
 Document:
+
 - new Unternehmen navigation/page,
 - workspace-scoped company profile,
 - owner/admin-only mutation,
