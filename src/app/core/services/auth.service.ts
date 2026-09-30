@@ -437,10 +437,9 @@ export class AuthService {
         password: currentPassword,
       });
       if (reauthError) {
-        const message =
-          reauthError.message?.includes('Invalid login credentials')
-            ? 'Das aktuelle Passwort ist nicht korrekt.'
-            : this.mapAuthErrorToGerman(reauthError).message;
+        const message = reauthError.message?.includes('Invalid login credentials')
+          ? 'Das aktuelle Passwort ist nicht korrekt.'
+          : this.mapAuthErrorToGerman(reauthError).message;
         return { error: new Error(message), reportedBySyncStatus: false };
       }
 
