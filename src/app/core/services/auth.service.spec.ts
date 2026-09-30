@@ -393,14 +393,9 @@ describe('AuthService: Passwort ändern', () => {
     const umgebung = baueUmgebung();
     umgebung.melde('SIGNED_IN', sitzung());
 
-    const result = await umgebung.dienst.changePassword(
-      'alt-passwort',
-      'neues-passwort-123',
-    );
+    const result = await umgebung.dienst.changePassword('alt-passwort', 'neues-passwort-123');
 
-    expect(umgebung.signInCalls).toEqual([
-      { email: 'test@test.de', password: 'alt-passwort' },
-    ]);
+    expect(umgebung.signInCalls).toEqual([{ email: 'test@test.de', password: 'alt-passwort' }]);
     expect(umgebung.updateUserCalls).toEqual([{ password: 'neues-passwort-123' }]);
     expect(result.error).toBeNull();
   });
@@ -411,10 +406,7 @@ describe('AuthService: Passwort ändern', () => {
     });
     umgebung.melde('SIGNED_IN', sitzung());
 
-    const result = await umgebung.dienst.changePassword(
-      'falsch',
-      'neues-passwort-123',
-    );
+    const result = await umgebung.dienst.changePassword('falsch', 'neues-passwort-123');
 
     expect(umgebung.updateUserCalls).toEqual([]);
     expect(result.error?.message).toBe('Das aktuelle Passwort ist nicht korrekt.');
