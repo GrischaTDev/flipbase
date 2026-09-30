@@ -41,8 +41,9 @@ async function readCompanyLogoDimensions(file: File): Promise<{ width: number; h
 
 export async function validateCompanyLogo(
   file: File,
-  readDimensions: (file: File) => Promise<{ width: number; height: number }> =
-    readCompanyLogoDimensions,
+  readDimensions: (
+    file: File,
+  ) => Promise<{ width: number; height: number }> = readCompanyLogoDimensions,
 ): Promise<{ extension: CompanyLogoExtension }> {
   const extension = EXTENSION_BY_MIME[file.type];
   if (!extension) {
@@ -56,12 +57,7 @@ export async function validateCompanyLogo(
   }
 
   const { width, height } = await readDimensions(file);
-  if (
-    !Number.isFinite(width) ||
-    !Number.isFinite(height) ||
-    width <= 0 ||
-    height <= 0
-  ) {
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
     throw new Error('Die Bildabmessungen des Unternehmenslogos sind ungültig.');
   }
   if (width > COMPANY_LOGO_MAX_DIMENSION || height > COMPANY_LOGO_MAX_DIMENSION) {
