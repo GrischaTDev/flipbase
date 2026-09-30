@@ -82,7 +82,11 @@ begin
       raise exception using errcode = '54000', message = 'Das Prüfarchiv überschreitet 100000 Datensätze. Es wurde kein Teilarchiv erstellt.';
     end if;
 
-    if v_table = 'item_costs' then
+    if v_table = 'workspace_company_profiles' then
+      select coalesce(jsonb_agg(to_jsonb(profile) order by profile.workspace_id), '[]'::jsonb)
+        into v_rows from public.workspace_company_profiles as profile
+        where profile.workspace_id = p_workspace_id;
+    elsif v_table = 'item_costs' then
       select coalesce(jsonb_agg(to_jsonb(cost) order by cost.id), '[]'::jsonb)
         into v_rows from public.item_costs as cost
         join public.inventory_items as item on item.id = cost.inventory_item_id
