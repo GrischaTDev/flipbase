@@ -604,9 +604,12 @@ returns trigger
 language plpgsql
 security definer
 set search_path = ''
-as $$
+as $function$
 declare
   new_ws_id uuid;
+  v_beta_application_id uuid;
+  v_granted_days integer;
+  v_application_id_text text := new.raw_user_meta_data->>'beta_application_id';
 begin
   insert into public.profiles (id, email, full_name)
   values (new.id, new.email, coalesce(new.raw_user_meta_data->>'full_name', 'Reseller'));
@@ -631,9 +634,40 @@ begin
     (new_ws_id, 'B-Stock / Retouren', false),
     (new_ws_id, 'Grosshaendler / Palette', false);
 
+  if v_application_id_text is not null
+     and v_application_id_text ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' then
+    v_beta_application_id := v_application_id_text::uuid;
+
+    update public.beta_applications
+    set auth_user_id = new.id
+    where id = v_beta_application_id
+      and status = 'accepted'
+      and lower(email) = lower(new.email)
+      and (auth_user_id is null or auth_user_id = new.id)
+    returning id, granted_days
+    into v_beta_application_id, v_granted_days;
+
+    if found then
+      insert into public.workspace_licenses (
+        workspace_id,
+        beta_application_id,
+        access_source,
+        status,
+        granted_days
+      ) values (
+        new_ws_id,
+        v_beta_application_id,
+        'beta',
+        'pending',
+        v_granted_days
+      )
+      on conflict (workspace_id) do nothing;
+    end if;
+  end if;
+
   return new;
 end;
-$$;
+$function$;
 
 
 -- Prüfarchiv kennt ab dieser Migration auch die Unternehmensstammdaten.
