@@ -395,20 +395,22 @@ select lives_ok(
 );
 select set_config('storage.allow_delete_query','true',true);
 select lives_ok(
-  $delete from storage.objects
+  $sql$delete from storage.objects
     where bucket_id='company-assets'
-      and name='c2800000-0000-4000-8000-000000000011/logos/cccccccc-cccc-4ccc-8ccc-cccccccccccc.webp'$,
+      and name='c2800000-0000-4000-8000-000000000011/logos/cccccccc-cccc-4ccc-8ccc-cccccccccccc.webp'$sql$,
   'Inhaber darf eigene Logoobjekte löschen'
 );
 
 select set_config('request.jwt.claim.sub','c2800000-0000-4000-8000-000000000002',true);
-select throws_ok(
-  $delete from storage.objects
-    where bucket_id='company-assets'
-      and name='c2800000-0000-4000-8000-000000000011/logos/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa.webp'$,
-  '42501',
-  null,
-  'Mitglied darf Unternehmenslogos nicht löschen'
+delete from storage.objects
+where bucket_id='company-assets'
+  and name='c2800000-0000-4000-8000-000000000011/logos/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa.webp';
+select is(
+  (select count(*)::integer from storage.objects
+   where bucket_id='company-assets'
+     and name='c2800000-0000-4000-8000-000000000011/logos/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa.webp'),
+  1,
+  'Mitglied kann Unternehmenslogos nicht löschen'
 );
 
 reset role;
