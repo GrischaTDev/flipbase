@@ -1,10 +1,5 @@
 <div class="space-y-4">
-  <app-card
-    title="Profil"
-    subtitle="Deine persönlichen Kontodaten."
-    padding="lg"
-    rounded="xl"
-  >
+  <app-card title="Profil" subtitle="Deine persönlichen Kontodaten." padding="lg" rounded="xl">
     <div class="flex flex-col gap-5 sm:flex-row sm:items-start">
       <div
         data-account-avatar
@@ -49,31 +44,25 @@
     </div>
   </app-card>
 
-  <app-card
-    title="Sicherheit"
-    subtitle="Passwort und Kontoschutz."
-    padding="none"
-    rounded="xl"
-  >
+  <app-card title="Sicherheit" subtitle="Passwort und Kontoschutz." padding="none" rounded="xl">
     <div class="divide-y divide-fb-line">
-      <div class="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between md:px-5">
+      <div
+        class="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between md:px-5"
+      >
         <div class="min-w-0">
           <p class="text-[13px] font-semibold text-fb-text-primary">Passwort</p>
           <p class="mt-0.5 text-xs text-fb-text-muted">
             Ändere dein Passwort nach erneuter Bestätigung deiner Anmeldung.
           </p>
         </div>
-        <app-button
-          variant="secondary"
-          size="md"
-          [icon]="keyIcon"
-          (clicked)="openPasswordModal()"
-        >
+        <app-button variant="secondary" size="md" [icon]="keyIcon" (clicked)="openPasswordModal()">
           Passwort ändern
         </app-button>
       </div>
 
-      <div class="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between md:px-5">
+      <div
+        class="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between md:px-5"
+      >
         <div class="min-w-0">
           <p class="text-[13px] font-semibold text-fb-text-primary">
             Zwei-Faktor-Authentifizierung
