@@ -4,9 +4,11 @@
 
 **Auftrag:** PR 4 des freigegebenen Unternehmensumbaus umsetzen: Shop-Bankkonto und Impressum zentral lesen, Versand-Vererbung mit erhaltenen individuellen Absendern einführen und doppelte Steuerpflege entfernen.
 
-**Stand:** Umsetzung auf eigenem Zweig `juna/company-shop-shipping`, Basis ist der gemergte PR 3 (`8dec8967`). Bestehende Legacy-Shopdaten bleiben bis zum geprüften Übergang erhalten; automatische Übernahme von Demo-Werten ist ausgeschlossen. Plan unter `docs/superpowers/plans/2026-09-30-company-shop-shipping.md`.
+**Änderung:** Bankkonto und Impressum werden aus dem aktiven Unternehmensprofil gelesen. Shop-Zahlungseinstellungen enthalten nur Methoden und Anbieterangaben; die IBAN wird maskiert angezeigt und zur zentralen Pflege verlinkt. Echte alte Bankdaten sind bei leerem Unternehmenskonto nur ein Formularvorschlag, der ausdrücklich gespeichert werden muss. Neue Versandkonfigurationen verwenden die Unternehmensanschrift; vollständige alte Absender bleiben individuell und beim Umschalten erhalten. Die doppelte Steuer-Auswahl auf der Workspace-Seite ist entfernt. Ein bestehender Checkout-Fehler beim Wechsel der Zahlungsart wurde mit Regressionstest behoben. Umsetzung auf `juna/company-shop-shipping`, Basis `8dec8967`; Plan unter `docs/superpowers/plans/2026-09-30-company-shop-shipping.md`.
 
-**Prüfung:** Neue Verhaltensprüfungen werden vor der Implementierung ausgeführt. Abschließende Prüfungen und Review werden nach Umsetzung ergänzt.
+**Datenbank:** Deklarative Versand-Auswahl, gezielt erzeugte Migration und neu generierte Typen. Alte Adress- und Legacy-Shopfelder bleiben gespeichert. Migration in eigener lokaler Datenbank angewendet; alle 2.303 Prüfungen in 69 Dateien bestehen. Zwei bestehende Advisor-Hinweise betreffen andere Policies.
+
+**Prüfung:** Neue Verhaltensprüfungen zuerst fehlschlagend ausgeführt, anschließend 27 und 31 gezielte Service-Prüfungen sowie 94 betroffene Oberflächen-/Bestelltests bestanden. Echter Chromium-Browserfall bestätigt Unternehmensbank und Impressum, Erhalt der Legacy-Daten, beide Versandmodi und Vorschlagsübernahme ohne Speichern. WCAG AA und 390px ohne Überlauf erfolgreich, keine Laufzeitfehler im Ablauf. Typprüfung, Produktionsbuild, Shared-UI-Prüfung, Suite-Audit und Schema-/Migrations-/Browserauswahl-Verträge erfolgreich. Vollständige Anwendungssuite folgt einmal in der PR-CI. Unabhängiges Abschlussreview wird ergänzt.
 
 ## 2026-09-30 – Juna – Unternehmensdaten in neue Geschäftsdokumente übernommen
 

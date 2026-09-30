@@ -10,6 +10,10 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 // Nur die tatsächliche Testauswahl prüfen, nicht Playwrights Parser nachtesten.
 const coreTests = [
   [
+    'company-shop-shipping.spec.ts',
+    'Shop und Versand verwenden Unternehmensdaten und bewahren individuelle Absender @core-smoke',
+  ],
+  [
     'company-documents.spec.ts',
     'Unternehmensdaten blockieren neue Rechnungen und bewahren alte Absender @core-smoke',
   ],
@@ -139,7 +143,7 @@ async function listTests(config) {
 
 const keys = (entries) => entries.map((entry) => JSON.stringify(entry)).sort();
 
-test('PR-Auswahl: sechzehn Kernfälle, keine Wiederholungen, kein test.only', async () => {
+test('PR-Auswahl: siebzehn Kernfälle, keine Wiederholungen, kein test.only', async () => {
   const { report, selected } = await listTests('playwright.pr.config.ts');
   assert.deepEqual(keys(selected), keys(coreTests));
   assert.equal(report.config.forbidOnly, true);
