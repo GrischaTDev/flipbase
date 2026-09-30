@@ -221,7 +221,8 @@ export class CompanySettingsComponent {
       if (!profile || !taxMode || !loadedWorkspaceId) return;
 
       const profileChangedWorkspace =
-        this.confirmedSnapshot === null || profile.workspaceId !== this.workspace.currentWorkspace()?.id;
+        this.confirmedSnapshot === null ||
+        profile.workspaceId !== this.workspace.currentWorkspace()?.id;
       if (profileChangedWorkspace || !this.hasUnsavedChanges()) {
         this.applyConfirmedState(profile, taxMode, this.company.canEdit());
       } else if (!this.company.canEdit()) {
@@ -401,7 +402,6 @@ export class CompanySettingsComponent {
       bic: value.bic,
     };
   }
-
 
   private snapshot(value: CompanyFormValue): string {
     return JSON.stringify(value);
