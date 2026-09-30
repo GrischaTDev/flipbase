@@ -426,10 +426,7 @@ describe('AuthService: Passwort ändern', () => {
   it('weist Passwortänderungen ohne angemeldeten Nutzer zurück', async () => {
     const umgebung = baueUmgebung();
 
-    const result = await umgebung.dienst.changePassword(
-      'alt-passwort',
-      'neues-passwort-123',
-    );
+    const result = await umgebung.dienst.changePassword('alt-passwort', 'neues-passwort-123');
 
     expect(umgebung.signInCalls).toEqual([]);
     expect(umgebung.updateUserCalls).toEqual([]);
@@ -442,10 +439,7 @@ describe('AuthService: Passwort ändern', () => {
     });
     umgebung.melde('SIGNED_IN', sitzung());
 
-    const result = await umgebung.dienst.changePassword(
-      'alt-passwort',
-      'neues-passwort-123',
-    );
+    const result = await umgebung.dienst.changePassword('alt-passwort', 'neues-passwort-123');
 
     expect(umgebung.signInCalls).toHaveLength(1);
     expect(umgebung.updateUserCalls).toEqual([{ password: 'neues-passwort-123' }]);
