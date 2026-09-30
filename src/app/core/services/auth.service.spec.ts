@@ -80,7 +80,10 @@ function baueUmgebung(
         getUser: async () => ({ data: { user: null }, error: getUserFehler }),
         signInWithPassword: async (credentials: { email: string; password: string }) => {
           signInCalls.push(credentials);
-          return { data: { user: null, session: null }, error: passwordOptions.signInError ?? null };
+          return {
+            data: { user: null, session: null },
+            error: passwordOptions.signInError ?? null,
+          };
         },
         updateUser: async (payload: { password: string }) => {
           updateUserCalls.push(payload);
@@ -385,7 +388,6 @@ describe('AuthService: Reichweite des Abmeldens', () => {
   });
 });
 
-
 describe('AuthService: Passwort ändern', () => {
   it('bestätigt zuerst das aktuelle Passwort und ändert danach das Passwort', async () => {
     const umgebung = baueUmgebung();
@@ -409,7 +411,10 @@ describe('AuthService: Passwort ändern', () => {
     });
     umgebung.melde('SIGNED_IN', sitzung());
 
-    const result = await umgebung.dienst.changePassword('falsch', 'neues-passwort-123');
+    const result = await umgebung.dienst.changePassword(
+      'falsch',
+      'neues-passwort-123',
+    );
 
     expect(umgebung.updateUserCalls).toEqual([]);
     expect(result.error?.message).toBe('Das aktuelle Passwort ist nicht korrekt.');
