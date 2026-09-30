@@ -1,5 +1,11 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-01 – Juna – automatischen Vinted-Abruf für PR und Merge freigegeben
+
+**Auftrag:** Den lokal abgenommenen Zweig nach ausdrücklicher Nutzerfreigabe veröffentlichen, die erfolgreichen Pflichtprüfungen abwarten, per Merge-Commit integrieren und den eigenen Zweig samt Worktree aufräumen.
+
+**Vorbereitung:** Der geprüfte Implementierungsstand ist `c4cd6016`; `origin/master` bleibt unverändert auf `69cd0c83`. Arbeitsstand sauber, unabhängige Datenbank-/Worker-/Oberflächenreviews abgeschlossen. Die verbindliche Gesamtprüfung läuft im PR. Die gesonderte Workerumstellung und echte Kontofreigaben sind damit noch nicht ausgeführt.
+
 ## 2026-10-01 – Juna – automatische Vinted-Abrufe lokal abgenommen
 
 **Auftrag:** Das zweite Paket des geprüften Vinted-Plans umsetzen: bewusst freigegebene automatische Aktualisierungen je Konto auch bei geschlossener App.
