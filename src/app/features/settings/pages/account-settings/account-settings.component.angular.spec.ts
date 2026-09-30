@@ -17,7 +17,12 @@ import { AccountSettingsComponent } from './account-settings.component';
 const profile = signal<{ full_name: string } | null>({ full_name: 'Grischa Tänzer' });
 const currentUser = signal<{ email: string } | null>({ email: 'test@test.de' });
 const updateProfile = vi.fn(async () => ({ error: null, reportedBySyncStatus: false }));
-const changePassword = vi.fn(async () => ({ error: null, reportedBySyncStatus: false }));
+const changePassword = vi.fn(
+  async (): Promise<{ error: Error | null; reportedBySyncStatus: boolean }> => ({
+    error: null,
+    reportedBySyncStatus: false,
+  }),
+);
 const signOutEverywhere = vi.fn(async () => undefined);
 const askForConfirmation = vi.fn(async () => false);
 const toastSuccess = vi.fn();
